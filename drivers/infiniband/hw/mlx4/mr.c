@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -181,6 +182,78 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
 	kfree(mr);
 
 	return 0;
+}
+
+struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
+					int max_page_list_len)
+{
+	struct mlx4_ib_dev *dev = to_mdev(pd->device);
+	struct mlx4_ib_mr *mr;
+	int err;
+
+	mr = kmalloc(sizeof *mr, GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlx4_mr_alloc(dev->dev, to_mpd(pd)->pdn, 0, 0, 0,
+			    max_page_list_len, 0, &mr->mmr);
+	if (err)
+		goto err_free;
+
+	err = mlx4_mr_enable(dev->dev, &mr->mmr);
+	if (err)
+		goto err_mr;
+
+	mr->ibmr.rkey = mr->ibmr.lkey = mr->mmr.key;
+
+	return &mr->ibmr;
+
+err_mr:
+	mlx4_mr_free(dev->dev, &mr->mmr);
+
+err_free:
+	kfree(mr);
+	return ERR_PTR(err);
+}
+
+struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
+							       int page_list_len)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
+	struct mlx4_ib_fast_reg_page_list *mfrpl;
+	int size = page_list_len * sizeof (u64);
+
+	if (size > PAGE_SIZE)
+		return ERR_PTR(-EINVAL);
+
+	mfrpl = kmalloc(sizeof *mfrpl, GFP_KERNEL);
+	if (!mfrpl)
+		return ERR_PTR(-ENOMEM);
+
+	mfrpl->ibfrpl.page_list = dma_alloc_coherent(&dev->dev->pdev->dev,
+						     size, &mfrpl->map,
+						     GFP_KERNEL);
+	if (!mfrpl->ibfrpl.page_list)
+		goto err_free;
+
+	WARN_ON(mfrpl->map & 0x3f);
+
+	return &mfrpl->ibfrpl;
+
+err_free:
+	kfree(mfrpl);
+	return ERR_PTR(-ENOMEM);
+}
+
+void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
+{
+	struct mlx4_ib_dev *dev = to_mdev(page_list->device);
+	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(page_list);
+	int size = page_list->max_page_list_len * sizeof (u64);
+
+	dma_free_coherent(&dev->dev->pdev->dev, size, page_list->page_list,
+			  mfrpl->map);
+	kfree(mfrpl);
 }
 
 struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int acc,

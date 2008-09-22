@@ -14,13 +14,13 @@
 #include <linux/sched.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/fpga.h>
-#include <asm/arch/gpio.h>
+#include <mach/fpga.h>
+#include <mach/gpio.h>
 
 #include "leds.h"
 

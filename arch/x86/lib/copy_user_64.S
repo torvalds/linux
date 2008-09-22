@@ -52,7 +52,7 @@
 	jnz 100b
 102:
 	.section .fixup,"ax"
-103:	addl %r8d,%edx			/* ecx is zerorest also */
+103:	addl %ecx,%edx			/* ecx is zerorest also */
 	jmp copy_user_handle_tail
 	.previous
 

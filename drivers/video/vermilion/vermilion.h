@@ -30,7 +30,6 @@
 #define _VERMILION_H_
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/pci.h>
 #include <asm/atomic.h>
 #include <linux/mutex.h>

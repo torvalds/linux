@@ -130,6 +130,29 @@ config MOUSE_APPLETOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called appletouch.
 
+config MOUSE_BCM5974
+	tristate "Apple USB BCM5974 Multitouch trackpad support"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you have an Apple USB BCM5974 Multitouch
+	  trackpad.
+
+	  The BCM5974 is the multitouch trackpad found in the Macbook
+	  Air (JAN2008) and Macbook Pro Penryn (FEB2008) laptops.
+
+	  It is also found in the IPhone (2007) and Ipod Touch (2008).
+
+	  This driver provides multitouch functionality together with
+	  the synaptics X11 driver.
+
+	  The interface is currently identical to the appletouch interface,
+	  for further information, see
+	  <file:Documentation/input/appletouch.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm5974.
+
 config MOUSE_INPORT
 	tristate "InPort/MS/ATIXL busmouse"
 	depends on ISA

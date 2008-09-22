@@ -52,7 +52,7 @@ asmlinkage int sysm_pipe(nabi_no_regargs volatile struct pt_regs regs)
 	int fd[2];
 	int error, res;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, 0);
 	if (error) {
 		res = error;
 		goto out;

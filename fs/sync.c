@@ -139,7 +139,8 @@ asmlinkage long sys_fdatasync(unsigned int fd)
  * before performing the write.
  *
  * SYNC_FILE_RANGE_WRITE: initiate writeout of all those dirty pages in the
- * range which are not presently under writeback.
+ * range which are not presently under writeback. Note that this may block for
+ * significant periods due to exhaustion of disk request structures.
  *
  * SYNC_FILE_RANGE_WAIT_AFTER: wait upon writeout of all pages in the range
  * after performing the write.

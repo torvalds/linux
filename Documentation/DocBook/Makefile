@@ -12,7 +12,7 @@ DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    mac80211.xml debugobjects.xml
+	    mac80211.xml debugobjects.xml sh.xml
 
 ###
 # The build process is as follows (targets):
@@ -101,6 +101,13 @@ $(BOOKS): $(KERNELDOC)
 C-procfs-example = procfs_example.xml
 C-procfs-example2 = $(addprefix $(obj)/,$(C-procfs-example))
 $(obj)/procfs-guide.xml: $(C-procfs-example2)
+
+# List of programs to build
+##oops, this is a kernel module::hostprogs-y := procfs_example
+obj-m += procfs_example.o
+
+# Tell kbuild to always build the programs
+always := $(hostprogs-y)
 
 notfoundtemplate = echo "*** You have to install docbook-utils or xmlto ***"; \
 		   exit 1

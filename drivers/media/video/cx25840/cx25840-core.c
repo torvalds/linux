@@ -13,7 +13,7 @@
  * NTSC sliced VBI support by Christopher Neufeld <television@cneufeld.ca>
  * with additional fixes by Hans Verkuil <hverkuil@xs4all.nl>.
  *
- * CX23885 support by Steven Toth <stoth@hauppauge.com>.
+ * CX23885 support by Steven Toth <stoth@linuxtv.org>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
-int cx25840_debug;
+static int cx25840_debug;
 
 module_param_named(debug,cx25840_debug, int, 0644);
 

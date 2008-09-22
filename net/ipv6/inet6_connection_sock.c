@@ -98,7 +98,7 @@ struct request_sock *inet6_csk_search_req(const struct sock *sk,
 		    ipv6_addr_equal(&treq->rmt_addr, raddr) &&
 		    ipv6_addr_equal(&treq->loc_addr, laddr) &&
 		    (!treq->iif || treq->iif == iif)) {
-			BUG_TRAP(req->sk == NULL);
+			WARN_ON(req->sk != NULL);
 			*prevp = prev;
 			return req;
 		}

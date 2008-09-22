@@ -17,6 +17,7 @@ config ARM
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FTRACE if (!XIP_KERNEL)
 	select HAVE_DYNAMIC_FTRACE if (HAVE_FTRACE)
+	select HAVE_GENERIC_DMA_COHERENT
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -198,12 +199,14 @@ choice
 config ARCH_AAEC2000
 	bool "Agilent AAEC-2000 based"
 	select ARM_AMBA
+	select HAVE_CLK
 	help
 	  This enables support for systems based on the Agilent AAEC-2000
 
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
+	select HAVE_CLK
 	select ICST525
 	help
 	  Support for ARM's Integrator platform.
@@ -211,6 +214,7 @@ config ARCH_INTEGRATOR
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
+	select HAVE_CLK
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -221,6 +225,7 @@ config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	select ARM_AMBA
 	select ARM_VIC
+	select HAVE_CLK
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -230,6 +235,7 @@ config ARCH_VERSATILE
 config ARCH_AT91
 	bool "Atmel AT91"
 	select GENERIC_GPIO
+	select HAVE_CLK
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
@@ -262,7 +268,8 @@ config ARCH_EP93XX
 	select ARM_AMBA
 	select ARM_VIC
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select HAVE_CLK
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -308,7 +315,7 @@ config ARCH_IOP32X
 	select PLAT_IOP
 	select PCI
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
 	  processors.
@@ -319,7 +326,7 @@ config ARCH_IOP33X
 	select PLAT_IOP
 	select PCI
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
@@ -381,6 +388,7 @@ config ARCH_NS9XXX
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
 	help
 	  Say Y here if you intend to run this kernel on a NetSilicon NS9xxx
 	  System.
@@ -411,7 +419,7 @@ config ARCH_MXC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -430,6 +438,7 @@ config ARCH_ORION5X
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
+	select HAVE_CLK
 	help
 	  This enables support for Philips PNX4008 mobile platform.
 
@@ -438,7 +447,8 @@ config ARCH_PXA
 	depends on MMU
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select HAVE_CLK
+	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
@@ -468,14 +478,16 @@ config ARCH_SA1100
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
 	select TICK_ONESHOT
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
 	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
 	select GENERIC_GPIO
+	select HAVE_CLK
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -503,13 +515,15 @@ config ARCH_DAVINCI
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
+	select HAVE_CLK
 	help
 	  Support for TI's DaVinci platform.
 
 config ARCH_OMAP
 	bool "TI OMAP"
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select HAVE_CLK
+	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
@@ -795,6 +809,11 @@ config OABI_COMPAT
 	  to execute a legacy ABI binary then the result will be
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say Y.
+
+config ARCH_FLATMEM_HAS_HOLES
+	bool
+	default y
+	depends on FLATMEM
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
@@ -1210,6 +1229,8 @@ source "drivers/rtc/Kconfig"
 source "drivers/dma/Kconfig"
 
 source "drivers/dca/Kconfig"
+
+source "drivers/regulator/Kconfig"
 
 source "drivers/uio/Kconfig"
 

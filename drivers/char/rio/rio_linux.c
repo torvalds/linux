@@ -179,7 +179,7 @@ static int rio_set_real_termios(void *ptr);
 static void rio_hungup(void *ptr);
 static void rio_close(void *ptr);
 static int rio_chars_in_buffer(void *ptr);
-static int rio_fw_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
+static long rio_fw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 static int rio_init_drivers(void);
 
 static void my_hd(void *addr, int len);
@@ -240,7 +240,7 @@ static struct real_driver rio_real_driver = {
 
 static const struct file_operations rio_fw_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = rio_fw_ioctl,
+	.unlocked_ioctl = rio_fw_ioctl,
 };
 
 static struct miscdevice rio_fw_device = {
@@ -560,13 +560,15 @@ static void rio_close(void *ptr)
 
 
 
-static int rio_fw_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long rio_fw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int rc = 0;
 	func_enter();
 
 	/* The "dev" argument isn't used. */
+	lock_kernel();
 	rc = riocontrol(p, 0, cmd, arg, capable(CAP_SYS_ADMIN));
+	unlock_kernel();
 
 	func_exit();
 	return rc;

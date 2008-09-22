@@ -787,13 +787,16 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 		if (bh_uptodate_or_lock(bh[i]))
 			continue;
 
+		spin_lock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
 		if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 			ext4_init_block_bitmap(sb, bh[i],
 						first_group + i, desc);
 			set_buffer_uptodate(bh[i]);
 			unlock_buffer(bh[i]);
+			spin_unlock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
 			continue;
 		}
+		spin_unlock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
 		get_bh(bh[i]);
 		bh[i]->b_end_io = end_buffer_read_sync;
 		submit_bh(READ, bh[i]);
@@ -2477,7 +2480,7 @@ err_freesgi:
 int ext4_mb_init(struct super_block *sb, int needs_recovery)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	unsigned i;
+	unsigned i, j;
 	unsigned offset;
 	unsigned max;
 	int ret;
@@ -2537,7 +2540,7 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	sbi->s_mb_history_filter = EXT4_MB_HISTORY_DEFAULT;
 	sbi->s_mb_group_prealloc = MB_DEFAULT_GROUP_PREALLOC;
 
-	i = sizeof(struct ext4_locality_group) * NR_CPUS;
+	i = sizeof(struct ext4_locality_group) * nr_cpu_ids;
 	sbi->s_locality_groups = kmalloc(i, GFP_KERNEL);
 	if (sbi->s_locality_groups == NULL) {
 		clear_opt(sbi->s_mount_opt, MBALLOC);
@@ -2545,11 +2548,12 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 		kfree(sbi->s_mb_maxs);
 		return -ENOMEM;
 	}
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 		struct ext4_locality_group *lg;
 		lg = &sbi->s_locality_groups[i];
 		mutex_init(&lg->lg_mutex);
-		INIT_LIST_HEAD(&lg->lg_prealloc_list);
+		for (j = 0; j < PREALLOC_TB_SIZE; j++)
+			INIT_LIST_HEAD(&lg->lg_prealloc_list[j]);
 		spin_lock_init(&lg->lg_prealloc_lock);
 	}
 
@@ -3260,6 +3264,7 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 				struct ext4_prealloc_space *pa)
 {
 	unsigned int len = ac->ac_o_ex.fe_len;
+
 	ext4_get_group_no_and_offset(ac->ac_sb, pa->pa_pstart,
 					&ac->ac_b_ex.fe_group,
 					&ac->ac_b_ex.fe_start);
@@ -3277,14 +3282,45 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 }
 
 /*
+ * Return the prealloc space that have minimal distance
+ * from the goal block. @cpa is the prealloc
+ * space that is having currently known minimal distance
+ * from the goal block.
+ */
+static struct ext4_prealloc_space *
+ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
+			struct ext4_prealloc_space *pa,
+			struct ext4_prealloc_space *cpa)
+{
+	ext4_fsblk_t cur_distance, new_distance;
+
+	if (cpa == NULL) {
+		atomic_inc(&pa->pa_count);
+		return pa;
+	}
+	cur_distance = abs(goal_block - cpa->pa_pstart);
+	new_distance = abs(goal_block - pa->pa_pstart);
+
+	if (cur_distance < new_distance)
+		return cpa;
+
+	/* drop the previous reference */
+	atomic_dec(&cpa->pa_count);
+	atomic_inc(&pa->pa_count);
+	return pa;
+}
+
+/*
  * search goal blocks in preallocated space
  */
 static noinline_for_stack int
 ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 {
+	int order, i;
 	struct ext4_inode_info *ei = EXT4_I(ac->ac_inode);
 	struct ext4_locality_group *lg;
-	struct ext4_prealloc_space *pa;
+	struct ext4_prealloc_space *pa, *cpa = NULL;
+	ext4_fsblk_t goal_block;
 
 	/* only data can be preallocated */
 	if (!(ac->ac_flags & EXT4_MB_HINT_DATA))
@@ -3322,22 +3358,38 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 	lg = ac->ac_lg;
 	if (lg == NULL)
 		return 0;
+	order  = fls(ac->ac_o_ex.fe_len) - 1;
+	if (order > PREALLOC_TB_SIZE - 1)
+		/* The max size of hash table is PREALLOC_TB_SIZE */
+		order = PREALLOC_TB_SIZE - 1;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(pa, &lg->lg_prealloc_list, pa_inode_list) {
-		spin_lock(&pa->pa_lock);
-		if (pa->pa_deleted == 0 && pa->pa_free >= ac->ac_o_ex.fe_len) {
-			atomic_inc(&pa->pa_count);
-			ext4_mb_use_group_pa(ac, pa);
+	goal_block = ac->ac_g_ex.fe_group * EXT4_BLOCKS_PER_GROUP(ac->ac_sb) +
+		     ac->ac_g_ex.fe_start +
+		     le32_to_cpu(EXT4_SB(ac->ac_sb)->s_es->s_first_data_block);
+	/*
+	 * search for the prealloc space that is having
+	 * minimal distance from the goal block.
+	 */
+	for (i = order; i < PREALLOC_TB_SIZE; i++) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(pa, &lg->lg_prealloc_list[i],
+					pa_inode_list) {
+			spin_lock(&pa->pa_lock);
+			if (pa->pa_deleted == 0 &&
+					pa->pa_free >= ac->ac_o_ex.fe_len) {
+
+				cpa = ext4_mb_check_group_pa(goal_block,
+								pa, cpa);
+			}
 			spin_unlock(&pa->pa_lock);
-			ac->ac_criteria = 20;
-			rcu_read_unlock();
-			return 1;
 		}
-		spin_unlock(&pa->pa_lock);
+		rcu_read_unlock();
 	}
-	rcu_read_unlock();
-
+	if (cpa) {
+		ext4_mb_use_group_pa(ac, cpa);
+		ac->ac_criteria = 20;
+		return 1;
+	}
 	return 0;
 }
 
@@ -3560,6 +3612,7 @@ ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
 	pa->pa_free = pa->pa_len;
 	atomic_set(&pa->pa_count, 1);
 	spin_lock_init(&pa->pa_lock);
+	INIT_LIST_HEAD(&pa->pa_inode_list);
 	pa->pa_deleted = 0;
 	pa->pa_linear = 1;
 
@@ -3580,10 +3633,10 @@ ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
 	list_add(&pa->pa_group_list, &grp->bb_prealloc_list);
 	ext4_unlock_group(sb, ac->ac_b_ex.fe_group);
 
-	spin_lock(pa->pa_obj_lock);
-	list_add_tail_rcu(&pa->pa_inode_list, &lg->lg_prealloc_list);
-	spin_unlock(pa->pa_obj_lock);
-
+	/*
+	 * We will later add the new pa to the right bucket
+	 * after updating the pa_free in ext4_mb_release_context
+	 */
 	return 0;
 }
 
@@ -3733,20 +3786,23 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 
 	bitmap_bh = ext4_read_block_bitmap(sb, group);
 	if (bitmap_bh == NULL) {
-		/* error handling here */
-		ext4_mb_release_desc(&e4b);
-		BUG_ON(bitmap_bh == NULL);
+		ext4_error(sb, __func__, "Error in reading block "
+				"bitmap for %lu\n", group);
+		return 0;
 	}
 
 	err = ext4_mb_load_buddy(sb, group, &e4b);
-	BUG_ON(err != 0); /* error handling here */
+	if (err) {
+		ext4_error(sb, __func__, "Error in loading buddy "
+				"information for %lu\n", group);
+		put_bh(bitmap_bh);
+		return 0;
+	}
 
 	if (needed == 0)
 		needed = EXT4_BLOCKS_PER_GROUP(sb) + 1;
 
-	grp = ext4_get_group_info(sb, group);
 	INIT_LIST_HEAD(&list);
-
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
 repeat:
 	ext4_lock_group(sb, group);
@@ -3903,13 +3959,18 @@ repeat:
 		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, NULL);
 
 		err = ext4_mb_load_buddy(sb, group, &e4b);
-		BUG_ON(err != 0); /* error handling here */
+		if (err) {
+			ext4_error(sb, __func__, "Error in loading buddy "
+					"information for %lu\n", group);
+			continue;
+		}
 
 		bitmap_bh = ext4_read_block_bitmap(sb, group);
 		if (bitmap_bh == NULL) {
-			/* error handling here */
+			ext4_error(sb, __func__, "Error in reading block "
+					"bitmap for %lu\n", group);
 			ext4_mb_release_desc(&e4b);
-			BUG_ON(bitmap_bh == NULL);
+			continue;
 		}
 
 		ext4_lock_group(sb, group);
@@ -4112,22 +4173,168 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 
 }
 
+static noinline_for_stack void
+ext4_mb_discard_lg_preallocations(struct super_block *sb,
+					struct ext4_locality_group *lg,
+					int order, int total_entries)
+{
+	ext4_group_t group = 0;
+	struct ext4_buddy e4b;
+	struct list_head discard_list;
+	struct ext4_prealloc_space *pa, *tmp;
+	struct ext4_allocation_context *ac;
+
+	mb_debug("discard locality group preallocation\n");
+
+	INIT_LIST_HEAD(&discard_list);
+	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
+
+	spin_lock(&lg->lg_prealloc_lock);
+	list_for_each_entry_rcu(pa, &lg->lg_prealloc_list[order],
+						pa_inode_list) {
+		spin_lock(&pa->pa_lock);
+		if (atomic_read(&pa->pa_count)) {
+			/*
+			 * This is the pa that we just used
+			 * for block allocation. So don't
+			 * free that
+			 */
+			spin_unlock(&pa->pa_lock);
+			continue;
+		}
+		if (pa->pa_deleted) {
+			spin_unlock(&pa->pa_lock);
+			continue;
+		}
+		/* only lg prealloc space */
+		BUG_ON(!pa->pa_linear);
+
+		/* seems this one can be freed ... */
+		pa->pa_deleted = 1;
+		spin_unlock(&pa->pa_lock);
+
+		list_del_rcu(&pa->pa_inode_list);
+		list_add(&pa->u.pa_tmp_list, &discard_list);
+
+		total_entries--;
+		if (total_entries <= 5) {
+			/*
+			 * we want to keep only 5 entries
+			 * allowing it to grow to 8. This
+			 * mak sure we don't call discard
+			 * soon for this list.
+			 */
+			break;
+		}
+	}
+	spin_unlock(&lg->lg_prealloc_lock);
+
+	list_for_each_entry_safe(pa, tmp, &discard_list, u.pa_tmp_list) {
+
+		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, NULL);
+		if (ext4_mb_load_buddy(sb, group, &e4b)) {
+			ext4_error(sb, __func__, "Error in loading buddy "
+					"information for %lu\n", group);
+			continue;
+		}
+		ext4_lock_group(sb, group);
+		list_del(&pa->pa_group_list);
+		ext4_mb_release_group_pa(&e4b, pa, ac);
+		ext4_unlock_group(sb, group);
+
+		ext4_mb_release_desc(&e4b);
+		list_del(&pa->u.pa_tmp_list);
+		call_rcu(&(pa)->u.pa_rcu, ext4_mb_pa_callback);
+	}
+	if (ac)
+		kmem_cache_free(ext4_ac_cachep, ac);
+}
+
+/*
+ * We have incremented pa_count. So it cannot be freed at this
+ * point. Also we hold lg_mutex. So no parallel allocation is
+ * possible from this lg. That means pa_free cannot be updated.
+ *
+ * A parallel ext4_mb_discard_group_preallocations is possible.
+ * which can cause the lg_prealloc_list to be updated.
+ */
+
+static void ext4_mb_add_n_trim(struct ext4_allocation_context *ac)
+{
+	int order, added = 0, lg_prealloc_count = 1;
+	struct super_block *sb = ac->ac_sb;
+	struct ext4_locality_group *lg = ac->ac_lg;
+	struct ext4_prealloc_space *tmp_pa, *pa = ac->ac_pa;
+
+	order = fls(pa->pa_free) - 1;
+	if (order > PREALLOC_TB_SIZE - 1)
+		/* The max size of hash table is PREALLOC_TB_SIZE */
+		order = PREALLOC_TB_SIZE - 1;
+	/* Add the prealloc space to lg */
+	rcu_read_lock();
+	list_for_each_entry_rcu(tmp_pa, &lg->lg_prealloc_list[order],
+						pa_inode_list) {
+		spin_lock(&tmp_pa->pa_lock);
+		if (tmp_pa->pa_deleted) {
+			spin_unlock(&pa->pa_lock);
+			continue;
+		}
+		if (!added && pa->pa_free < tmp_pa->pa_free) {
+			/* Add to the tail of the previous entry */
+			list_add_tail_rcu(&pa->pa_inode_list,
+						&tmp_pa->pa_inode_list);
+			added = 1;
+			/*
+			 * we want to count the total
+			 * number of entries in the list
+			 */
+		}
+		spin_unlock(&tmp_pa->pa_lock);
+		lg_prealloc_count++;
+	}
+	if (!added)
+		list_add_tail_rcu(&pa->pa_inode_list,
+					&lg->lg_prealloc_list[order]);
+	rcu_read_unlock();
+
+	/* Now trim the list to be not more than 8 elements */
+	if (lg_prealloc_count > 8) {
+		ext4_mb_discard_lg_preallocations(sb, lg,
+						order, lg_prealloc_count);
+		return;
+	}
+	return ;
+}
+
 /*
  * release all resource we used in allocation
  */
 static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 {
-	if (ac->ac_pa) {
-		if (ac->ac_pa->pa_linear) {
+	struct ext4_prealloc_space *pa = ac->ac_pa;
+	if (pa) {
+		if (pa->pa_linear) {
 			/* see comment in ext4_mb_use_group_pa() */
-			spin_lock(&ac->ac_pa->pa_lock);
-			ac->ac_pa->pa_pstart += ac->ac_b_ex.fe_len;
-			ac->ac_pa->pa_lstart += ac->ac_b_ex.fe_len;
-			ac->ac_pa->pa_free -= ac->ac_b_ex.fe_len;
-			ac->ac_pa->pa_len -= ac->ac_b_ex.fe_len;
-			spin_unlock(&ac->ac_pa->pa_lock);
+			spin_lock(&pa->pa_lock);
+			pa->pa_pstart += ac->ac_b_ex.fe_len;
+			pa->pa_lstart += ac->ac_b_ex.fe_len;
+			pa->pa_free -= ac->ac_b_ex.fe_len;
+			pa->pa_len -= ac->ac_b_ex.fe_len;
+			spin_unlock(&pa->pa_lock);
+			/*
+			 * We want to add the pa to the right bucket.
+			 * Remove it from the list and while adding
+			 * make sure the list to which we are adding
+			 * doesn't grow big.
+			 */
+			if (likely(pa->pa_free)) {
+				spin_lock(pa->pa_obj_lock);
+				list_del_rcu(&pa->pa_inode_list);
+				spin_unlock(pa->pa_obj_lock);
+				ext4_mb_add_n_trim(ac);
+			}
 		}
-		ext4_mb_put_pa(ac, ac->ac_sb, ac->ac_pa);
+		ext4_mb_put_pa(ac, ac->ac_sb, pa);
 	}
 	if (ac->ac_bitmap_page)
 		page_cache_release(ac->ac_bitmap_page);
@@ -4420,11 +4627,15 @@ do_more:
 		count -= overflow;
 	}
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
-	if (!bitmap_bh)
+	if (!bitmap_bh) {
+		err = -EIO;
 		goto error_return;
+	}
 	gdp = ext4_get_group_desc(sb, block_group, &gd_bh);
-	if (!gdp)
+	if (!gdp) {
+		err = -EIO;
 		goto error_return;
+	}
 
 	if (in_range(ext4_block_bitmap(sb, gdp), block, count) ||
 	    in_range(ext4_inode_bitmap(sb, gdp), block, count) ||

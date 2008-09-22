@@ -214,6 +214,8 @@ static inline int notifier_to_errno(int ret)
 #define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
 #define CPU_DYING		0x0008 /* CPU (unsigned)v not running any task,
 				        * not handling interrupts, soon dead */
+#define CPU_POST_DEAD		0x0009 /* CPU (unsigned)v dead, cpu_hotplug
+					* lock is dropped */
 
 /* Used for CPU hotplug events occuring while tasks are frozen due to a suspend
  * operation in progress

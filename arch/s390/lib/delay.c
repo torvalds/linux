@@ -43,7 +43,7 @@ void __udelay(unsigned long usecs)
 		local_bh_disable();
 	local_irq_save(flags);
 	if (raw_irqs_disabled_flags(flags)) {
-		old_cc = S390_lowcore.clock_comparator;
+		old_cc = local_tick_disable();
 		S390_lowcore.clock_comparator = -1ULL;
 		__ctl_store(cr0, 0, 0);
 		dummy = (cr0 & 0xffff00e0) | 0x00000800;
@@ -65,7 +65,7 @@ void __udelay(unsigned long usecs)
 
 	if (raw_irqs_disabled_flags(flags)) {
 		__ctl_load(cr0, 0, 0);
-		S390_lowcore.clock_comparator = old_cc;
+		local_tick_enable(old_cc);
 	}
 	if (!irq_context)
 		_local_bh_enable();

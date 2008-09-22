@@ -44,6 +44,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/rtc.h>
+#include <linux/semaphore.h>
 
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
 MODULE_DESCRIPTION("HP i8042 SDC + MSM-58321 RTC Driver");

@@ -864,7 +864,8 @@ struct link_statistics {
 	uint32_t prim_seq_err_cnt;
 	uint32_t inval_xmit_word_cnt;
 	uint32_t inval_crc_cnt;
-	uint32_t unused1[0x1b];
+	uint32_t lip_cnt;
+	uint32_t unused1[0x1a];
 	uint32_t tx_frames;
 	uint32_t rx_frames;
 	uint32_t dumped_frames;
@@ -1544,7 +1545,6 @@ typedef struct fc_port {
 	int login_retry;
 	atomic_t port_down_timer;
 
-	spinlock_t rport_lock;
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
@@ -2155,6 +2155,10 @@ struct qla_chip_state_84xx {
 	uint32_t gold_fw_version;
 };
 
+struct qla_statistics {
+	uint32_t total_isp_aborts;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2166,7 +2170,6 @@ typedef struct scsi_qla_host {
 	struct pci_dev	*pdev;
 
 	unsigned long	host_no;
-	unsigned long	instance;
 
 	volatile struct {
 		uint32_t	init_done		:1;
@@ -2234,6 +2237,7 @@ typedef struct scsi_qla_host {
 #define REGISTER_FDMI_NEEDED	26
 #define FCPORT_UPDATE_NEEDED	27
 #define VP_DPC_NEEDED		28	/* wake up for VP dpc handling */
+#define UNLOADING		29
 
 	uint32_t	device_flags;
 #define DFLG_LOCAL_DEVICES		BIT_0
@@ -2515,7 +2519,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		model_number[16+1];
 #define BINZERO		"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	char		*model_desc;
+	char		model_desc[80];
 	uint8_t		adapter_id[16+1];
 
 	uint8_t		*node_name;
@@ -2596,6 +2600,7 @@ typedef struct scsi_qla_host {
 	int		cur_vport_count;
 
 	struct qla_chip_state_84xx *cs84xx;
+	struct qla_statistics qla_stats;
 } scsi_qla_host_t;
 
 

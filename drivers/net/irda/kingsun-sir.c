@@ -243,7 +243,7 @@ static void kingsun_rcv_irq(struct urb *urb)
 		}
 	} else if (urb->actual_length > 0) {
 		err("%s(): Unexpected response length, expected %d got %d",
-		    __FUNCTION__, kingsun->max_rx, urb->actual_length);
+		    __func__, kingsun->max_rx, urb->actual_length);
 	}
 	/* This urb has already been filled in kingsun_net_open */
 	ret = usb_submit_urb(urb, GFP_ATOMIC);

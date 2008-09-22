@@ -343,7 +343,12 @@ syscall_dotrace:
 	stw	r0,_TRAP(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_enter
-	lwz	r0,GPR0(r1)	/* Restore original registers */
+	/*
+	 * Restore argument registers possibly just changed.
+	 * We use the return value of do_syscall_trace_enter
+	 * for call number to look up in the table (r0).
+	 */
+	mr	r0,r3
 	lwz	r3,GPR3(r1)
 	lwz	r4,GPR4(r1)
 	lwz	r5,GPR5(r1)
@@ -1055,8 +1060,8 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
 	SAVE_NVGPRS(r1)
 	rlwinm	r3,r3,0,0,30
 	stw	r3,_TRAP(r1)
-2:	li	r3,0
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+2:	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r9
 	bl	do_signal
 	REST_NVGPRS(r1)
 	b	recheck

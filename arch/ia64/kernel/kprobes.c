@@ -429,8 +429,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 		((struct fnptr *)kretprobe_trampoline)->ip;
 
 	INIT_HLIST_HEAD(&empty_rp);
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	head = kretprobe_inst_table_head(current);
+	kretprobe_hash_lock(current, &head, &flags);
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -485,7 +484,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 
 	reset_current_kprobe();
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	kretprobe_hash_unlock(current, &flags);
 	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
@@ -500,7 +499,6 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
-/* Called with kretprobe_lock held */
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {

@@ -1,8 +1,6 @@
 config DVB_TTUSB_DEC
 	tristate "Technotrend/Hauppauge USB DEC devices"
 	depends on DVB_CORE && USB && INPUT
-	depends on HOTPLUG	# due to FW_LOADER
-	select FW_LOADER
 	select CRC32
 	help
 	  Support for external USB adapters designed by Technotrend and

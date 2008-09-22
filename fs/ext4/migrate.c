@@ -53,7 +53,8 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	 * credit. But below we try to not accumalate too much
 	 * of them by restarting the journal.
 	 */
-	needed = ext4_ext_calc_credits_for_insert(inode, path);
+	needed = ext4_ext_calc_credits_for_single_extent(inode,
+		    lb->last_block - lb->first_block + 1, path);
 
 	/*
 	 * Make sure the credit we accumalated is not really high

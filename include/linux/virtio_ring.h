@@ -120,6 +120,8 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      void (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq));
 void vring_del_virtqueue(struct virtqueue *vq);
+/* Filter out transport-specific feature bits. */
+void vring_transport_features(struct virtio_device *vdev);
 
 irqreturn_t vring_interrupt(int irq, void *_vq);
 #endif /* __KERNEL__ */

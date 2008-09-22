@@ -41,7 +41,7 @@
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/iommu.h>
 
-static void tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
+static int tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
 		unsigned long uaddr, enum dma_data_direction direction,
 		struct dma_attrs *attrs)
 {
@@ -71,6 +71,7 @@ static void tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
 		index++;
 		uaddr += TCE_PAGE_SIZE;
 	}
+	return 0;
 }
 
 static void tce_free_iSeries(struct iommu_table *tbl, long index, long npages)

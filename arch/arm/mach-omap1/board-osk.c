@@ -39,7 +39,7 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>
@@ -47,12 +47,12 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/usb.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/common.h>
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/omap-alsa.h>
+#include <mach/usb.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
+#include <mach/common.h>
+#include <mach/mcbsp.h>
+#include <mach/omap-alsa.h>
 
 static struct mtd_partition osk_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -288,7 +288,7 @@ static void __init osk_init_cf(void)
 		return;
 	}
 	/* the CF I/O IRQ is really active-low */
-	set_irq_type(OMAP_GPIO_IRQ(62), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(62), IRQ_TYPE_EDGE_FALLING);
 }
 
 static void __init osk_init_irq(void)
@@ -340,7 +340,7 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <asm/arch/keypad.h>
+#include <mach/keypad.h>
 
 static const int osk_keymap[] = {
 	/* KEY(col, row, code) */
@@ -483,7 +483,7 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(P20_1610_GPIO4);	/* PENIRQ */
 	gpio_request(4, "ts_int");
 	gpio_direction_input(4);
-	set_irq_type(OMAP_GPIO_IRQ(4), IRQT_FALLING);
+	set_irq_type(OMAP_GPIO_IRQ(4), IRQ_TYPE_EDGE_FALLING);
 
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
@@ -494,7 +494,7 @@ static void __init osk_mistral_init(void)
 		int ret = 0;
 
 		gpio_direction_input(OMAP_MPUIO(2));
-		set_irq_type(OMAP_GPIO_IRQ(OMAP_MPUIO(2)), IRQT_RISING);
+		set_irq_type(OMAP_GPIO_IRQ(OMAP_MPUIO(2)), IRQ_TYPE_EDGE_RISING);
 #ifdef	CONFIG_PM
 		/* share the IRQ in case someone wants to use the
 		 * button for more than wakeup from system sleep.

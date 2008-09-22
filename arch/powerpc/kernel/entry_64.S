@@ -214,7 +214,12 @@ syscall_dotrace:
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_syscall_trace_enter
-	ld	r0,GPR0(r1)	/* Restore original registers */
+	/*
+	 * Restore argument registers possibly just changed.
+	 * We use the return value of do_syscall_trace_enter
+	 * for the call number to look up in the table (r0).
+	 */
+	mr	r0,r3
 	ld	r3,GPR3(r1)
 	ld	r4,GPR4(r1)
 	ld	r5,GPR5(r1)
@@ -638,8 +643,7 @@ user_work:
 	b	.ret_from_except_lite
 
 1:	bl	.save_nvgprs
-	li	r3,0
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_signal
 	b	.ret_from_except
 

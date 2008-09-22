@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
 #include <linux/device.h>
 #include <linux/wait.h>
@@ -1768,17 +1769,7 @@ static const struct file_operations cafe_v4l_fops = {
 	.llseek = no_llseek,
 };
 
-static struct video_device cafe_v4l_template = {
-	.name = "cafe",
-	.type = VFL_TYPE_GRABBER,
-	.type2 = VID_TYPE_CAPTURE,
-	.minor = -1, /* Get one dynamically */
-	.tvnorms = V4L2_STD_NTSC_M,
-	.current_norm = V4L2_STD_NTSC_M,  /* make mplayer happy */
-
-	.fops = &cafe_v4l_fops,
-	.release = cafe_v4l_dev_release,
-
+static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {
 	.vidioc_querycap 	= cafe_vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = cafe_vidioc_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap	= cafe_vidioc_try_fmt_vid_cap,
@@ -1799,6 +1790,17 @@ static struct video_device cafe_v4l_template = {
 	.vidioc_s_ctrl		= cafe_vidioc_s_ctrl,
 	.vidioc_g_parm		= cafe_vidioc_g_parm,
 	.vidioc_s_parm		= cafe_vidioc_s_parm,
+};
+
+static struct video_device cafe_v4l_template = {
+	.name = "cafe",
+	.minor = -1, /* Get one dynamically */
+	.tvnorms = V4L2_STD_NTSC_M,
+	.current_norm = V4L2_STD_NTSC_M,  /* make mplayer happy */
+
+	.fops = &cafe_v4l_fops,
+	.ioctl_ops = &cafe_v4l_ioctl_ops,
+	.release = cafe_v4l_dev_release,
 };
 
 
@@ -2157,7 +2159,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam->v4ldev = cafe_v4l_template;
 	cam->v4ldev.debug = 0;
 //	cam->v4ldev.debug = V4L2_DEBUG_IOCTL_ARG;
-	cam->v4ldev.dev = &pdev->dev;
+	cam->v4ldev.parent = &pdev->dev;
 	ret = video_register_device(&cam->v4ldev, VFL_TYPE_GRABBER, -1);
 	if (ret)
 		goto out_smbus;

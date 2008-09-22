@@ -29,7 +29,7 @@ asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	int fd[2];
 	int error;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, 0);
 	if (!error) {
 		regs->regs[1] = fd[1];
 		return fd[0];

@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
@@ -256,28 +255,28 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 				      bank + ASIC3_GPIO_TRIGGER_TYPE);
 	asic->irq_bothedge[(irq - asic->irq_base) >> 4] &= ~bit;
 
-	if (type == IRQT_RISING) {
+	if (type == IRQ_TYPE_EDGE_RISING) {
 		trigger |= bit;
 		edge |= bit;
-	} else if (type == IRQT_FALLING) {
+	} else if (type == IRQ_TYPE_EDGE_FALLING) {
 		trigger |= bit;
 		edge &= ~bit;
-	} else if (type == IRQT_BOTHEDGE) {
+	} else if (type == IRQ_TYPE_EDGE_BOTH) {
 		trigger |= bit;
 		if (asic3_gpio_get(&asic->gpio, irq - asic->irq_base))
 			edge &= ~bit;
 		else
 			edge |= bit;
 		asic->irq_bothedge[(irq - asic->irq_base) >> 4] |= bit;
-	} else if (type == IRQT_LOW) {
+	} else if (type == IRQ_TYPE_LEVEL_LOW) {
 		trigger &= ~bit;
 		level &= ~bit;
-	} else if (type == IRQT_HIGH) {
+	} else if (type == IRQ_TYPE_LEVEL_HIGH) {
 		trigger &= ~bit;
 		level |= bit;
 	} else {
 		/*
-		 * if type == IRQT_NOEDGE, we should mask interrupts, but
+		 * if type == IRQ_TYPE_NONE, we should mask interrupts, but
 		 * be careful to not unmask them if mask was also called.
 		 * Probably need internal state for mask.
 		 */
@@ -314,10 +313,12 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 	unsigned long clksel = 0;
 	unsigned int irq, irq_base;
 	int map_size;
+	int ret;
 
-	asic->irq_nr = platform_get_irq(pdev, 0);
-	if (asic->irq_nr < 0)
-		return asic->irq_nr;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	asic->irq_nr = ret;
 
 	/* turn on clock to IRQ controller */
 	clksel |= CLOCK_SEL_CX;
@@ -341,7 +342,7 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 			     ASIC3_INTMASK_GINTMASK);
 
 	set_irq_chained_handler(asic->irq_nr, asic3_irq_demux);
-	set_irq_type(asic->irq_nr, IRQT_RISING);
+	set_irq_type(asic->irq_nr, IRQ_TYPE_EDGE_RISING);
 	set_irq_data(asic->irq_nr, asic);
 
 	return 0;

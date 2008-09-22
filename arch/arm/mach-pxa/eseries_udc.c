@@ -14,10 +14,10 @@
 #include <linux/init.h>
 #include <linux/device.h>
 
-#include <asm/arch/udc.h>
-#include <asm/arch/eseries-gpio.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/udc.h>
+#include <mach/eseries-gpio.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>

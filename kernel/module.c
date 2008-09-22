@@ -325,18 +325,6 @@ static unsigned long find_symbol(const char *name,
 	return -ENOENT;
 }
 
-/* lookup symbol in given range of kernel_symbols */
-static const struct kernel_symbol *lookup_symbol(const char *name,
-	const struct kernel_symbol *start,
-	const struct kernel_symbol *stop)
-{
-	const struct kernel_symbol *ks = start;
-	for (; ks < stop; ks++)
-		if (strcmp(ks->name, name) == 0)
-			return ks;
-	return NULL;
-}
-
 /* Search for module by name: must hold module_mutex. */
 static struct module *find_module(const char *name)
 {
@@ -690,7 +678,7 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 	if (flags & O_NONBLOCK) {
 		struct stopref sref = { mod, flags, forced };
 
-		return stop_machine_run(__try_stop_module, &sref, NR_CPUS);
+		return stop_machine(__try_stop_module, &sref, NULL);
 	} else {
 		/* We don't need to stop the machine for this. */
 		mod->state = MODULE_STATE_GOING;
@@ -1428,7 +1416,7 @@ static int __unlink_module(void *_mod)
 static void free_module(struct module *mod)
 {
 	/* Delete from various lists */
-	stop_machine_run(__unlink_module, mod, NR_CPUS);
+	stop_machine(__unlink_module, mod, NULL);
 	remove_notes_attrs(mod);
 	remove_sect_attrs(mod);
 	mod_kobject_remove(mod);
@@ -1703,6 +1691,19 @@ static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_KALLSYMS
+
+/* lookup symbol in given range of kernel_symbols */
+static const struct kernel_symbol *lookup_symbol(const char *name,
+	const struct kernel_symbol *start,
+	const struct kernel_symbol *stop)
+{
+	const struct kernel_symbol *ks = start;
+	for (; ks < stop; ks++)
+		if (strcmp(ks->name, name) == 0)
+			return ks;
+	return NULL;
+}
+
 static int is_exported(const char *name, const struct module *mod)
 {
 	if (!mod && lookup_symbol(name, __start___ksymtab, __stop___ksymtab))
@@ -1798,7 +1799,7 @@ static void *module_alloc_update_bounds(unsigned long size)
 
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
-static struct module *load_module(void __user *umod,
+static noinline struct module *load_module(void __user *umod,
 				  unsigned long len,
 				  const char __user *uargs)
 {
@@ -2196,7 +2197,7 @@ static struct module *load_module(void __user *umod,
 	/* Now sew it into the lists so we can get lockdep and oops
          * info during argument parsing.  Noone should access us, since
          * strong_try_module_get() will fail. */
-	stop_machine_run(__link_module, mod, NR_CPUS);
+	stop_machine(__link_module, mod, NULL);
 
 	/* Size of section 0 is 0, so this works well if no params */
 	err = parse_args(mod->name, mod->args,
@@ -2230,7 +2231,7 @@ static struct module *load_module(void __user *umod,
 	return mod;
 
  unlink:
-	stop_machine_run(__unlink_module, mod, NR_CPUS);
+	stop_machine(__unlink_module, mod, NULL);
 	module_arch_cleanup(mod);
  cleanup:
 	kobject_del(&mod->mkobj.kobj);
@@ -2287,7 +2288,7 @@ sys_init_module(void __user *umod,
 
 	/* Start the module */
 	if (mod->init != NULL)
-		ret = mod->init();
+		ret = do_one_initcall(mod->init);
 	if (ret < 0) {
 		/* Init routine failed: abort.  Try to protect us from
                    buggy refcounters. */

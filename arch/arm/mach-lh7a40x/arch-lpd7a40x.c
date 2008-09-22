@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

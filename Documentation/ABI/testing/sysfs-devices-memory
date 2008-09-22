@@ -1,0 +1,24 @@
+What:		/sys/devices/system/memory
+Date:		June 2008
+Contact:	Badari Pulavarty <pbadari@us.ibm.com>
+Description:
+		The /sys/devices/system/memory contains a snapshot of the
+		internal state of the kernel memory blocks. Files could be
+		added or removed dynamically to represent hot-add/remove
+		operations.
+
+Users:		hotplug memory add/remove tools
+		https://w3.opensource.ibm.com/projects/powerpc-utils/
+
+What:		/sys/devices/system/memory/memoryX/removable
+Date:		June 2008
+Contact:	Badari Pulavarty <pbadari@us.ibm.com>
+Description:
+		The file /sys/devices/system/memory/memoryX/removable
+		indicates whether this memory block is removable or not.
+		This is useful for a user-level agent to determine
+		identify removable sections of the memory before attempting
+		potentially expensive hot-remove memory operation
+
+Users:		hotplug memory remove tools
+		https://w3.opensource.ibm.com/projects/powerpc-utils/

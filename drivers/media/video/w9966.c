@@ -57,8 +57,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/parport.h>
 
 /*#define DEBUG*/				/* Undef me for production */
@@ -195,9 +196,7 @@ static const struct file_operations w9966_fops = {
 	.llseek         = no_llseek,
 };
 static struct video_device w9966_template = {
-	.owner		= THIS_MODULE,
 	.name           = W9966_DRIVERNAME,
-	.type           = VID_TYPE_CAPTURE | VID_TYPE_SCALES,
 	.fops           = &w9966_fops,
 };
 
@@ -335,7 +334,7 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 	memcpy(&cam->vdev, &w9966_template, sizeof(struct video_device));
 	cam->vdev.priv = cam;
 
-	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) == -1)
+	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
 		return -1;
 
 	w9966_setState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);

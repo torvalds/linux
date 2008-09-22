@@ -116,7 +116,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (xop->callback == NULL)
 		wait_event(recv_wq, (op->done != 0));
 	else {
-		rv = -EINPROGRESS;
+		rv = FILE_LOCK_DEFERRED;
 		goto out;
 	}
 

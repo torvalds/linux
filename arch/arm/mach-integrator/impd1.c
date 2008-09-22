@@ -23,8 +23,8 @@
 
 #include <asm/io.h>
 #include <asm/hardware/icst525.h>
-#include <asm/arch/lm.h>
-#include <asm/arch/impd1.h>
+#include <mach/lm.h>
+#include <mach/impd1.h>
 #include <asm/sizes.h>
 
 #include "clock.h"
@@ -405,7 +405,7 @@ static int impd1_probe(struct lm_device *dev)
 
 		ret = amba_device_register(d, &dev->resource);
 		if (ret) {
-			dev_err(&d->dev, "unable to register device: %d\n");
+			dev_err(&d->dev, "unable to register device: %d\n", ret);
 			kfree(d);
 		}
 	}

@@ -170,7 +170,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 		 * but if the controller isn't recognized at all then
 		 * that assumption is a bit more likely to be wrong.
 		 */
-		WARN(cdev, "controller '%s' not recognized; trying %s\n",
+		WARNING(cdev, "controller '%s' not recognized; trying %s\n",
 				gadget->name,
 				cdc_config_driver.label);
 		device_desc.bcdDevice =

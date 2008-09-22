@@ -902,65 +902,7 @@ endif # BLOCK
 
 menu "Pseudo filesystems"
 
-config PROC_FS
-	bool "/proc file system support" if EMBEDDED
-	default y
-	help
-	  This is a virtual file system providing information about the status
-	  of the system. "Virtual" means that it doesn't take up any space on
-	  your hard disk: the files are created on the fly by the kernel when
-	  you try to access them. Also, you cannot read the files with older
-	  version of the program less: you need to use more or cat.
-
-	  It's totally cool; for example, "cat /proc/interrupts" gives
-	  information about what the different IRQs are used for at the moment
-	  (there is a small number of Interrupt ReQuest lines in your computer
-	  that are used by the attached devices to gain the CPU's attention --
-	  often a source of trouble if two devices are mistakenly configured
-	  to use the same IRQ). The program procinfo to display some
-	  information about your system gathered from the /proc file system.
-
-	  Before you can use the /proc file system, it has to be mounted,
-	  meaning it has to be given a location in the directory hierarchy.
-	  That location should be /proc. A command such as "mount -t proc proc
-	  /proc" or the equivalent line in /etc/fstab does the job.
-
-	  The /proc file system is explained in the file
-	  <file:Documentation/filesystems/proc.txt> and on the proc(5) manpage
-	  ("man 5 proc").
-
-	  This option will enlarge your kernel by about 67 KB. Several
-	  programs depend on this, so everyone should say Y here.
-
-config PROC_KCORE
-	bool "/proc/kcore support" if !ARM
-	depends on PROC_FS && MMU
-
-config PROC_VMCORE
-        bool "/proc/vmcore support (EXPERIMENTAL)"
-        depends on PROC_FS && CRASH_DUMP
-	default y
-        help
-        Exports the dump image of crashed kernel in ELF format.
-
-config PROC_SYSCTL
-	bool "Sysctl support (/proc/sys)" if EMBEDDED
-	depends on PROC_FS
-	select SYSCTL
-	default y
-	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface is through /proc/sys.  If you say Y here a tree of
-	  modifiable sysctl entries will be generated beneath the
-          /proc/sys directory. They are explained in the files
-	  in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
-
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+source "fs/proc/Kconfig"
 
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
@@ -1441,6 +1383,19 @@ config MINIX_FS
 	  partition (the one containing the directory /) cannot be compiled as
 	  a module.
 
+config OMFS_FS
+	tristate "SonicBlue Optimized MPEG File System support"
+	depends on BLOCK
+	select CRC_ITU_T
+	help
+	  This is the proprietary file system used by the Rio Karma music
+	  player and ReplayTV DVR.  Despite the name, this filesystem is not
+	  more efficient than a standard FS for MPEG files, in fact likely
+	  the opposite is true.  Say Y if you have either of these devices
+	  and wish to mount its disk.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called omfs.  If unsure, say N.
 
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
@@ -1975,6 +1930,16 @@ config CIFS_WEAK_PW_HASH
 
 	  If unsure, say N.
 
+config CIFS_UPCALL
+	  bool "Kerberos/SPNEGO advanced session setup"
+	  depends on CIFS && KEYS
+	  help
+	    Enables an upcall mechanism for CIFS which accesses
+	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
+	    Kerberos tickets which are needed to mount to certain secure servers
+	    (for which more secure Kerberos authentication is required). If
+	    unsure, say N.
+
 config CIFS_XATTR
         bool "CIFS extended attributes"
         depends on CIFS
@@ -2026,17 +1991,6 @@ config CIFS_EXPERIMENTAL
 	    setting a value of 1 to the pseudo-file /proc/fs/cifs/Experimental
 	    (which is disabled by default). See the file fs/cifs/README 
 	    for more details.  If unsure, say N.
-
-config CIFS_UPCALL
-	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
-	  depends on CIFS_EXPERIMENTAL
-	  depends on KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which accesses
-	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
-	    Kerberos tickets which are needed to mount to certain secure servers
-	    (for which more secure Kerberos authentication is required). If
-	    unsure, say N.
 
 config CIFS_DFS_UPCALL
 	  bool "DFS feature support (EXPERIMENTAL)"
@@ -2092,20 +2046,6 @@ config CODA_FS
 
 	  To compile the coda client support as a module, choose M here: the
 	  module will be called coda.
-
-config CODA_FS_OLD_API
-	bool "Use 96-bit Coda file identifiers"
-	depends on CODA_FS
-	help
-	  A new kernel-userspace API had to be introduced for Coda v6.0
-	  to support larger 128-bit file identifiers as needed by the
-	  new realms implementation.
-
-	  However this new API is not backward compatible with older
-	  clients. If you really need to run the old Coda userspace
-	  cache manager then say Y.
-
-	  For most cases you probably want to say N.
 
 config AFS_FS
 	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"

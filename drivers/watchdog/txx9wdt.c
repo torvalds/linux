@@ -45,27 +45,34 @@ static unsigned long txx9wdt_alive;
 static int expect_close;
 static struct txx9_tmr_reg __iomem *txx9wdt_reg;
 static struct clk *txx9_imclk;
+static DEFINE_SPINLOCK(txx9_lock);
 
 static void txx9wdt_ping(void)
 {
+	spin_lock(&txx9_lock);
 	__raw_writel(TXx9_TMWTMR_TWIE | TXx9_TMWTMR_TWC, &txx9wdt_reg->wtmr);
+	spin_unlock(&txx9_lock);
 }
 
 static void txx9wdt_start(void)
 {
+	spin_lock(&txx9_lock);
 	__raw_writel(WD_TIMER_CLK * timeout, &txx9wdt_reg->cpra);
 	__raw_writel(WD_TIMER_CCD, &txx9wdt_reg->ccdr);
 	__raw_writel(0, &txx9wdt_reg->tisr);	/* clear pending interrupt */
 	__raw_writel(TXx9_TMTCR_TCE | TXx9_TMTCR_CCDE | TXx9_TMTCR_TMODE_WDOG,
 		     &txx9wdt_reg->tcr);
 	__raw_writel(TXx9_TMWTMR_TWIE | TXx9_TMWTMR_TWC, &txx9wdt_reg->wtmr);
+	spin_unlock(&txx9_lock);
 }
 
 static void txx9wdt_stop(void)
 {
+	spin_lock(&txx9_lock);
 	__raw_writel(TXx9_TMWTMR_WDIS, &txx9wdt_reg->wtmr);
 	__raw_writel(__raw_readl(&txx9wdt_reg->tcr) & ~TXx9_TMTCR_TCE,
 		     &txx9wdt_reg->tcr);
+	spin_unlock(&txx9_lock);
 }
 
 static int txx9wdt_open(struct inode *inode, struct file *file)
@@ -120,13 +127,13 @@ static ssize_t txx9wdt_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static int txx9wdt_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long txx9wdt_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	int new_timeout;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options =		WDIOF_SETTIMEOUT |
 					WDIOF_KEEPALIVEPING |
 					WDIOF_MAGICCLOSE,
@@ -135,8 +142,6 @@ static int txx9wdt_ioctl(struct inode *inode, struct file *file,
 	};
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
@@ -156,6 +161,8 @@ static int txx9wdt_ioctl(struct inode *inode, struct file *file,
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
+	default:
+		return -ENOTTY;
 	}
 }
 
@@ -168,22 +175,22 @@ static int txx9wdt_notify_sys(struct notifier_block *this, unsigned long code,
 }
 
 static const struct file_operations txx9wdt_fops = {
-	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
-	.write =	txx9wdt_write,
-	.ioctl =	txx9wdt_ioctl,
-	.open =		txx9wdt_open,
-	.release =	txx9wdt_release,
+	.owner		=	THIS_MODULE,
+	.llseek		=	no_llseek,
+	.write		=	txx9wdt_write,
+	.unlocked_ioctl =	txx9wdt_ioctl,
+	.open		=	txx9wdt_open,
+	.release	=	txx9wdt_release,
 };
 
 static struct miscdevice txx9wdt_miscdev = {
-	.minor =	WATCHDOG_MINOR,
-	.name =		"watchdog",
-	.fops =		&txx9wdt_fops,
+	.minor	=	WATCHDOG_MINOR,
+	.name	=	"watchdog",
+	.fops	=	&txx9wdt_fops,
 };
 
 static struct notifier_block txx9wdt_notifier = {
-	.notifier_call = txx9wdt_notify_sys
+	.notifier_call = txx9wdt_notify_sys,
 };
 
 static int __init txx9wdt_probe(struct platform_device *dev)

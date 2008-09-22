@@ -22,15 +22,15 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/otom-map.h>
+#include <mach/otom-map.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>
 #include <asm/plat-s3c24xx/clock.h>

@@ -322,24 +322,31 @@ static struct class *idetape_sysfs_class;
 #define ide_tape_g(disk) \
 	container_of((disk)->private_data, struct ide_tape_obj, driver)
 
+static void ide_tape_release(struct kref *);
+
 static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
 {
 	struct ide_tape_obj *tape = NULL;
 
 	mutex_lock(&idetape_ref_mutex);
 	tape = ide_tape_g(disk);
-	if (tape)
-		kref_get(&tape->kref);
+	if (tape) {
+		if (ide_device_get(tape->drive))
+			tape = NULL;
+		else
+			kref_get(&tape->kref);
+	}
 	mutex_unlock(&idetape_ref_mutex);
 	return tape;
 }
 
-static void ide_tape_release(struct kref *);
-
 static void ide_tape_put(struct ide_tape_obj *tape)
 {
+	ide_drive_t *drive = tape->drive;
+
 	mutex_lock(&idetape_ref_mutex);
 	kref_put(&tape->kref, ide_tape_release);
+	ide_device_put(drive);
 	mutex_unlock(&idetape_ref_mutex);
 }
 
@@ -649,10 +656,10 @@ static void ide_tape_callback(ide_drive_t *drive)
 			uptodate = 0;
 		} else {
 			debug_log(DBG_SENSE, "Block Location - %u\n",
-					be32_to_cpu(*(u32 *)&readpos[4]));
+					be32_to_cpup((__be32 *)&readpos[4]));
 
 			tape->partition = readpos[1];
-			tape->first_frame = be32_to_cpu(*(u32 *)&readpos[4]);
+			tape->first_frame = be32_to_cpup((__be32 *)&readpos[4]);
 			set_bit(IDE_AFLAG_ADDRESS_VALID, &drive->atapi_flags);
 		}
 	}
@@ -2375,23 +2382,23 @@ static void idetape_get_mode_sense_results(ide_drive_t *drive)
 	caps = pc.buf + 4 + pc.buf[3];
 
 	/* convert to host order and save for later use */
-	speed = be16_to_cpu(*(u16 *)&caps[14]);
-	max_speed = be16_to_cpu(*(u16 *)&caps[8]);
+	speed = be16_to_cpup((__be16 *)&caps[14]);
+	max_speed = be16_to_cpup((__be16 *)&caps[8]);
 
-	put_unaligned(max_speed, (u16 *)&caps[8]);
-	put_unaligned(be16_to_cpu(*(u16 *)&caps[12]), (u16 *)&caps[12]);
-	put_unaligned(speed, (u16 *)&caps[14]);
-	put_unaligned(be16_to_cpu(*(u16 *)&caps[16]), (u16 *)&caps[16]);
+	*(u16 *)&caps[8] = max_speed;
+	*(u16 *)&caps[12] = be16_to_cpup((__be16 *)&caps[12]);
+	*(u16 *)&caps[14] = speed;
+	*(u16 *)&caps[16] = be16_to_cpup((__be16 *)&caps[16]);
 
 	if (!speed) {
 		printk(KERN_INFO "ide-tape: %s: invalid tape speed "
 				"(assuming 650KB/sec)\n", drive->name);
-		put_unaligned(650, (u16 *)&caps[14]);
+		*(u16 *)&caps[14] = 650;
 	}
 	if (!max_speed) {
 		printk(KERN_INFO "ide-tape: %s: invalid max_speed "
 				"(assuming 650KB/sec)\n", drive->name);
-		put_unaligned(650, (u16 *)&caps[8]);
+		*(u16 *)&caps[8] = 650;
 	}
 
 	memcpy(&tape->caps, caps, 20);

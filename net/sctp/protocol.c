@@ -862,16 +862,21 @@ static int sctp_inet_supported_addrs(const struct sctp_sock *opt,
 
 /* Wrapper routine that calls the ip transmit routine. */
 static inline int sctp_v4_xmit(struct sk_buff *skb,
-			       struct sctp_transport *transport, int ipfragok)
+			       struct sctp_transport *transport)
 {
+	struct inet_sock *inet = inet_sk(skb->sk);
+
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, "
 			  "src:%u.%u.%u.%u, dst:%u.%u.%u.%u\n",
 			  __func__, skb, skb->len,
 			  NIPQUAD(skb->rtable->rt_src),
 			  NIPQUAD(skb->rtable->rt_dst));
 
+	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
+			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
+
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
-	return ip_queue_xmit(skb, ipfragok);
+	return ip_queue_xmit(skb, 0);
 }
 
 static struct sctp_af sctp_af_inet;

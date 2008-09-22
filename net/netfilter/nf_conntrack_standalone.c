@@ -324,6 +324,7 @@ static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
 
 static struct ctl_table_header *nf_ct_sysctl_header;
+static struct ctl_table_header *nf_ct_netfilter_header;
 
 static ctl_table nf_ct_sysctl_table[] = {
 	{
@@ -384,12 +385,6 @@ static ctl_table nf_ct_sysctl_table[] = {
 
 static ctl_table nf_ct_netfilter_table[] = {
 	{
-		.ctl_name	= NET_NETFILTER,
-		.procname	= "netfilter",
-		.mode		= 0555,
-		.child		= nf_ct_sysctl_table,
-	},
-	{
 		.ctl_name	= NET_NF_CONNTRACK_MAX,
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
@@ -409,18 +404,29 @@ EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
 
 static int nf_conntrack_standalone_init_sysctl(void)
 {
-	nf_ct_sysctl_header =
+	nf_ct_netfilter_header =
 		register_sysctl_paths(nf_ct_path, nf_ct_netfilter_table);
-	if (nf_ct_sysctl_header == NULL) {
-		printk("nf_conntrack: can't register to sysctl.\n");
-		return -ENOMEM;
-	}
+	if (!nf_ct_netfilter_header)
+		goto out;
+
+	nf_ct_sysctl_header =
+		 register_sysctl_paths(nf_net_netfilter_sysctl_path,
+					nf_ct_sysctl_table);
+	if (!nf_ct_sysctl_header)
+		goto out_unregister_netfilter;
+
 	return 0;
 
+out_unregister_netfilter:
+	unregister_sysctl_table(nf_ct_netfilter_header);
+out:
+	printk("nf_conntrack: can't register to sysctl.\n");
+	return -ENOMEM;
 }
 
 static void nf_conntrack_standalone_fini_sysctl(void)
 {
+	unregister_sysctl_table(nf_ct_netfilter_header);
 	unregister_sysctl_table(nf_ct_sysctl_header);
 }
 #else

@@ -361,6 +361,7 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	if (test_bit(queue, local->queues_pending)) {
+		set_bit(queue, local->queues_pending_run);
 		tasklet_schedule(&local->tx_pending_tasklet);
 	} else {
 		netif_wake_subqueue(local->mdev, queue);

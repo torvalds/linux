@@ -11,6 +11,8 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "tc86c001"
+
 static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -129,7 +131,7 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	ide_dma_start(drive);
 }
 
-static u8 __devinit tc86c001_cable_detect(ide_hwif_t *hwif)
+static u8 tc86c001_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long sc_base = pci_resource_start(dev, 5);
@@ -173,16 +175,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	hwif->rqsize	 = 0xffff;
 }
 
-static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,
-							const char *name)
-{
-	int err = pci_request_region(dev, 5, name);
-
-	if (err)
-		printk(KERN_ERR "%s: system control regs already in use", name);
-	return err;
-}
-
 static const struct ide_port_ops tc86c001_port_ops = {
 	.set_pio_mode		= tc86c001_set_pio_mode,
 	.set_dma_mode		= tc86c001_set_mode,
@@ -201,8 +193,7 @@ static const struct ide_dma_ops tc86c001_dma_ops = {
 };
 
 static const struct ide_port_info tc86c001_chipset __devinitdata = {
-	.name		= "TC86C001",
-	.init_chipset	= init_chipset_tc86c001,
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_tc86c001,
 	.port_ops	= &tc86c001_port_ops,
 	.dma_ops	= &tc86c001_dma_ops,
@@ -215,7 +206,37 @@ static const struct ide_port_info tc86c001_chipset __devinitdata = {
 static int __devinit tc86c001_init_one(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &tc86c001_chipset);
+	int rc;
+
+	rc = pci_enable_device(dev);
+	if (rc)
+		goto out;
+
+	rc = pci_request_region(dev, 5, DRV_NAME);
+	if (rc) {
+		printk(KERN_ERR DRV_NAME ": system control regs already in use");
+		goto out_disable;
+	}
+
+	rc = ide_pci_init_one(dev, &tc86c001_chipset, NULL);
+	if (rc)
+		goto out_release;
+
+	goto out;
+
+out_release:
+	pci_release_region(dev, 5);
+out_disable:
+	pci_disable_device(dev);
+out:
+	return rc;
+}
+
+static void __devexit tc86c001_remove(struct pci_dev *dev)
+{
+	ide_pci_remove(dev);
+	pci_release_region(dev, 5);
+	pci_disable_device(dev);
 }
 
 static const struct pci_device_id tc86c001_pci_tbl[] = {
@@ -227,14 +248,22 @@ MODULE_DEVICE_TABLE(pci, tc86c001_pci_tbl);
 static struct pci_driver driver = {
 	.name		= "TC86C001",
 	.id_table	= tc86c001_pci_tbl,
-	.probe		= tc86c001_init_one
+	.probe		= tc86c001_init_one,
+	.remove		= __devexit_p(tc86c001_remove),
 };
 
 static int __init tc86c001_ide_init(void)
 {
 	return ide_pci_register_driver(&driver);
 }
+
+static void __exit tc86c001_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(tc86c001_ide_init);
+module_exit(tc86c001_ide_exit);
 
 MODULE_AUTHOR("MontaVista Software, Inc. <source@mvista.com>");
 MODULE_DESCRIPTION("PCI driver module for TC86C001 IDE");

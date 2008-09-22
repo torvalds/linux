@@ -67,7 +67,7 @@
 #include <linux/major.h>
 #include <linux/ppdev.h>
 #include <linux/smp_lock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PP_VERSION "ppdev: user-space parallel port driver"
 #define CHRDEV "ppdev"
@@ -328,10 +328,9 @@ static enum ieee1284_phase init_phase (int mode)
 	return IEEE1284_PH_FWD_IDLE;
 }
 
-static int pp_ioctl(struct inode *inode, struct file *file,
-		    unsigned int cmd, unsigned long arg)
+static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	struct pp_struct *pp = file->private_data;
 	struct parport * port;
 	void __user *argp = (void __user *)arg;
@@ -634,6 +633,15 @@ static int pp_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+static long pp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
+	lock_kernel();
+	ret = pp_do_ioctl(file, cmd, arg);
+	unlock_kernel();
+	return ret;
+}
+
 static int pp_open (struct inode * inode, struct file * file)
 {
 	unsigned int minor = iminor(inode);
@@ -745,7 +753,7 @@ static const struct file_operations pp_fops = {
 	.read		= pp_read,
 	.write		= pp_write,
 	.poll		= pp_poll,
-	.ioctl		= pp_ioctl,
+	.unlocked_ioctl	= pp_ioctl,
 	.open		= pp_open,
 	.release	= pp_release,
 };

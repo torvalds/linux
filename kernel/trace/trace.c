@@ -1183,7 +1183,6 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 static void *s_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct trace_iterator *iter = m->private;
-	void *last_ent = iter->ent;
 	int i = (int)*pos;
 	void *ent;
 
@@ -1202,9 +1201,6 @@ static void *s_next(struct seq_file *m, void *v, loff_t *pos)
 		ent = find_next_entry_inc(iter);
 
 	iter->pos = *pos;
-
-	if (last_ent && !ent)
-		seq_puts(m, "\n\nvim:ft=help\n");
 
 	return ent;
 }

@@ -3,6 +3,7 @@ config MIPS
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB
 	# Horrible source of confusion.  Die, die, die ...
 	select EMBEDDED
 	select RTC_LIB
@@ -34,7 +35,6 @@ config BASLER_EXCITE
 	select SYS_HAS_CPU_RM9000
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
 	help
 	  The eXcite is a smart camera platform manufactured by
 	  Basler Vision Technologies AG.
@@ -280,7 +280,6 @@ config PMC_MSP
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
 	select IRQ_CPU
 	select SERIAL_8250
 	select SERIAL_8250_CONSOLE
@@ -306,7 +305,6 @@ config PMC_YOSEMITE
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_SMP
 	help
 	  Yosemite is an evaluation board for the RM9000x2 processor
@@ -359,7 +357,6 @@ config SGI_IP27
 	select SYS_HAS_CPU_R10000
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
 	select GENERIC_HARDIRQS_NO__DO_IRQ
@@ -475,7 +472,6 @@ config SIBYTE_SWARM
 	select SYS_HAS_CPU_SB1
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select ZONE_DMA32 if 64BIT
 
@@ -713,7 +709,7 @@ config CSRC_SB1250
 
 config GPIO_TXX9
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	bool
 
 config CFE
@@ -868,7 +864,6 @@ config SOC_PNX8550
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select SYS_SUPPORTS_KGDB
 	select GENERIC_GPIO
 
 config SWAP_IO_SPACE
@@ -1890,6 +1885,15 @@ config STACKTRACE_SUPPORT
 	default y
 
 source "init/Kconfig"
+
+config PROBE_INITRD_HEADER
+	bool "Probe initrd header created by addinitrd"
+	depends on BLK_DEV_INITRD
+	help
+	  Probe initrd header at the last page of kernel image.
+	  Say Y here if you are using arch/mips/boot/addinitrd.c to
+	  add initrd or initramfs image to the kernel image.
+	  Otherwise, say N.
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 

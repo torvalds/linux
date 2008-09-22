@@ -59,9 +59,6 @@
 #define PORT_SUNZILOG	38
 #define PORT_SUNSAB	39
 
-/* NEC v850.  */
-#define PORT_V850E_UART	40
-
 /* DEC */
 #define PORT_DZ		46
 #define PORT_ZS		47

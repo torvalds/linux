@@ -7,15 +7,6 @@ config PPC_ISERIES
 menu "iSeries device drivers"
 	depends on PPC_ISERIES
 
-config VIOCONS
-	bool "iSeries Virtual Console Support (Obsolete)"
-	depends on !HVC_ISERIES
-	default n
-	help
-	  This is the old virtual console driver for legacy iSeries.
-	  You should use the iSeries Hypervisor Virtual Console
-	  support instead.
-
 config VIODASD
 	tristate "iSeries Virtual I/O disk support"
 	help
@@ -38,5 +29,5 @@ endmenu
 
 config VIOPATH
 	bool
-	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || ISERIES_VETH
+	depends on VIODASD || VIOCD || VIOTAPE || ISERIES_VETH
 	default y

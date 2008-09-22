@@ -28,85 +28,85 @@ extern unsigned long saved_max_pfn;
  * memory pages (including holes) on the node.
  */
 typedef struct bootmem_data {
-	unsigned long node_boot_start;
+	unsigned long node_min_pfn;
 	unsigned long node_low_pfn;
 	void *node_bootmem_map;
-	unsigned long last_offset;
-	unsigned long last_pos;
-	unsigned long last_success;	/* Previous allocation point.  To speed
-					 * up searching */
+	unsigned long last_end_off;
+	unsigned long hint_idx;
 	struct list_head list;
 } bootmem_data_t;
 
+extern bootmem_data_t bootmem_node_data[];
+
 extern unsigned long bootmem_bootmap_pages(unsigned long);
+
+extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+				       unsigned long freepfn,
+				       unsigned long startpfn,
+				       unsigned long endpfn);
 extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
+
+extern unsigned long free_all_bootmem_node(pg_data_t *pgdat);
+extern unsigned long free_all_bootmem(void);
+
+extern void free_bootmem_node(pg_data_t *pgdat,
+			      unsigned long addr,
+			      unsigned long size);
 extern void free_bootmem(unsigned long addr, unsigned long size);
-extern void *__alloc_bootmem(unsigned long size,
+
+/*
+ * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
+ * the architecture-specific code should honor this).
+ *
+ * If flags is 0, then the return value is always 0 (success). If
+ * flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the
+ * memory already was reserved.
+ */
+#define BOOTMEM_DEFAULT		0
+#define BOOTMEM_EXCLUSIVE	(1<<0)
+
+extern int reserve_bootmem_node(pg_data_t *pgdat,
+				 unsigned long physaddr,
+				 unsigned long size,
+				 int flags);
+#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+extern int reserve_bootmem(unsigned long addr, unsigned long size, int flags);
+#endif
+
+extern void *__alloc_bootmem_nopanic(unsigned long size,
 			     unsigned long align,
 			     unsigned long goal);
-extern void *__alloc_bootmem_nopanic(unsigned long size,
+extern void *__alloc_bootmem(unsigned long size,
 				     unsigned long align,
 				     unsigned long goal);
 extern void *__alloc_bootmem_low(unsigned long size,
 				 unsigned long align,
 				 unsigned long goal);
-extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
-				      unsigned long size,
-				      unsigned long align,
-				      unsigned long goal);
-extern void *__alloc_bootmem_core(struct bootmem_data *bdata,
-				  unsigned long size,
-				  unsigned long align,
-				  unsigned long goal,
-				  unsigned long limit);
-
-/*
- * flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
- * the architecture-specific code should honor this)
- */
-#define BOOTMEM_DEFAULT		0
-#define BOOTMEM_EXCLUSIVE	(1<<0)
-
-#ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-/*
- * If flags is 0, then the return value is always 0 (success). If
- * flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the
- * memory already was reserved.
- */
-extern int reserve_bootmem(unsigned long addr, unsigned long size, int flags);
-#define alloc_bootmem(x) \
-	__alloc_bootmem(x, SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
-#define alloc_bootmem_low(x) \
-	__alloc_bootmem_low(x, SMP_CACHE_BYTES, 0)
-#define alloc_bootmem_pages(x) \
-	__alloc_bootmem(x, PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-#define alloc_bootmem_low_pages(x) \
-	__alloc_bootmem_low(x, PAGE_SIZE, 0)
-#endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-
-extern int reserve_bootmem_generic(unsigned long addr, unsigned long size,
-				   int flags);
-extern unsigned long free_all_bootmem(void);
-extern unsigned long free_all_bootmem_node(pg_data_t *pgdat);
 extern void *__alloc_bootmem_node(pg_data_t *pgdat,
 				  unsigned long size,
 				  unsigned long align,
 				  unsigned long goal);
-extern unsigned long init_bootmem_node(pg_data_t *pgdat,
-				       unsigned long freepfn,
-				       unsigned long startpfn,
-				       unsigned long endpfn);
-extern int reserve_bootmem_node(pg_data_t *pgdat,
-				 unsigned long physaddr,
-				 unsigned long size,
-				 int flags);
-extern void free_bootmem_node(pg_data_t *pgdat,
-			      unsigned long addr,
-			      unsigned long size);
-extern void *alloc_bootmem_section(unsigned long size,
-				   unsigned long section_nr);
-
+extern void *__alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+				  unsigned long size,
+				  unsigned long align,
+				  unsigned long goal);
+extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+				      unsigned long size,
+				      unsigned long align,
+				      unsigned long goal);
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+#define alloc_bootmem(x) \
+	__alloc_bootmem(x, SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_nopanic(x) \
+	__alloc_bootmem_nopanic(x, SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_low(x) \
+	__alloc_bootmem_low(x, SMP_CACHE_BYTES, 0)
+#define alloc_bootmem_pages(x) \
+	__alloc_bootmem(x, PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_pages_nopanic(x) \
+	__alloc_bootmem_nopanic(x, PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_low_pages(x) \
+	__alloc_bootmem_low(x, PAGE_SIZE, 0)
 #define alloc_bootmem_node(pgdat, x) \
 	__alloc_bootmem_node(pgdat, x, SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
 #define alloc_bootmem_pages_node(pgdat, x) \
@@ -114,6 +114,12 @@ extern void *alloc_bootmem_section(unsigned long size,
 #define alloc_bootmem_low_pages_node(pgdat, x) \
 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
+
+extern int reserve_bootmem_generic(unsigned long addr, unsigned long size,
+				   int flags);
+
+extern void *alloc_bootmem_section(unsigned long size,
+				   unsigned long section_nr);
 
 #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
 extern void *alloc_remap(int nid, unsigned long size);

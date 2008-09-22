@@ -1,3 +1,2 @@
-header-y += ptrace.h
 header-y += user.h
 header-y += cryptocop.h

@@ -1359,7 +1359,7 @@ int asd_enable_phys(struct asd_ha_struct *asd_ha, const u8 phy_mask)
 	struct asd_ascb *ascb_list;
 
 	if (!phy_mask) {
-		asd_printk("%s called with phy_mask of 0!?\n", __FUNCTION__);
+		asd_printk("%s called with phy_mask of 0!?\n", __func__);
 		return 0;
 	}
 

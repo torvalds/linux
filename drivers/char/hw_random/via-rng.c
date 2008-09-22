@@ -31,6 +31,7 @@
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
+#include <asm/i387.h>
 
 
 #define PFX	KBUILD_MODNAME ": "
@@ -67,16 +68,23 @@ enum {
  * Another possible performance boost may come from simply buffering
  * until we have 4 bytes, thus returning a u32 at a time,
  * instead of the current u8-at-a-time.
+ *
+ * Padlock instructions can generate a spurious DNA fault, so
+ * we have to call them in the context of irq_ts_save/restore()
  */
 
 static inline u32 xstore(u32 *addr, u32 edx_in)
 {
 	u32 eax_out;
+	int ts_state;
+
+	ts_state = irq_ts_save();
 
 	asm(".byte 0x0F,0xA7,0xC0 /* xstore %%edi (addr=%0) */"
 		:"=m"(*addr), "=a"(eax_out)
 		:"D"(addr), "d"(edx_in));
 
+	irq_ts_restore(ts_state);
 	return eax_out;
 }
 

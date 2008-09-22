@@ -19,8 +19,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 
-#include <linux/version.h>
-
 #include <hwregs/reg_map.h>
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/timer_defs.h>

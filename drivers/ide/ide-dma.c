@@ -173,7 +173,7 @@ EXPORT_SYMBOL_GPL(ide_build_sglist);
 int ide_build_dmatable (ide_drive_t *drive, struct request *rq)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	unsigned int *table	= hwif->dmatable_cpu;
+	__le32 *table = (__le32 *)hwif->dmatable_cpu;
 	unsigned int is_trm290	= (hwif->chipset == ide_trm290) ? 1 : 0;
 	unsigned int count = 0;
 	int i;
@@ -649,11 +649,7 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		if (id->field_valid & 2) {
 			mask = id->dma_1word & hwif->swdma_mask;
 		} else if (id->tDMA) {
-			/*
-			 * ide_fix_driveid() doesn't convert ->tDMA to the
-			 * CPU endianness so we need to do it here
-			 */
-			u8 mode = le16_to_cpu(id->tDMA);
+			u8 mode = id->tDMA;
 
 			/*
 			 * if the mode is valid convert it to the mask

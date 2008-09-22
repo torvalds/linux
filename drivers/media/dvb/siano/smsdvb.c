@@ -6,7 +6,7 @@
  *  Copyright (c), 2005-2008 Siano Mobile Silicon, Inc.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 3 as
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation;
  *
  *  Software distributed under the License is distributed on an "AS IS"
@@ -27,8 +27,8 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-struct list_head g_smsdvb_clients;
-struct mutex g_smsdvb_clientslock;
+static struct list_head g_smsdvb_clients;
+static struct mutex g_smsdvb_clientslock;
 
 static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 {

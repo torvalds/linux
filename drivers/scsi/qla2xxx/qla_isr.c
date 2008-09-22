@@ -542,10 +542,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_PORT_UPDATE:		/* Port database update */
-		/* Only handle SCNs for our Vport index. */
-		if (ha->parent && ha->vp_idx != (mb[3] & 0xff))
-			break;
-
 		/*
 		 * If PORT UPDATE is global (recieved LIP_OCCURED/LIP_RESET
 		 * event etc. earlier indicating loop is down) then process
@@ -883,11 +879,12 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
 	sp->request_sense_ptr += sense_len;
 	sp->request_sense_length -= sense_len;
 	if (sp->request_sense_length != 0)
-		sp->ha->status_srb = sp;
+		sp->fcport->ha->status_srb = sp;
 
 	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
-	    "cmd=%p pid=%ld\n", __func__, sp->ha->host_no, cp->device->channel,
-	    cp->device->id, cp->device->lun, cp, cp->serial_number));
+	    "cmd=%p pid=%ld\n", __func__, sp->fcport->ha->host_no,
+	    cp->device->channel, cp->device->id, cp->device->lun, cp,
+	    cp->serial_number));
 	if (sense_len)
 		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
 		    CMD_ACTUAL_SNSLEN(cp)));
@@ -1188,9 +1185,8 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		    atomic_read(&fcport->state)));
 
 		cp->result = DID_BUS_BUSY << 16;
-		if (atomic_read(&fcport->state) == FCS_ONLINE) {
-			qla2x00_mark_device_lost(ha, fcport, 1, 1);
-		}
+		if (atomic_read(&fcport->state) == FCS_ONLINE)
+			qla2x00_mark_device_lost(fcport->ha, fcport, 1, 1);
 		break;
 
 	case CS_RESET:
@@ -1233,7 +1229,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 		/* Check to see if logout occurred. */
 		if ((le16_to_cpu(sts->status_flags) & SF_LOGOUT_SENT))
-			qla2x00_mark_device_lost(ha, fcport, 1, 1);
+			qla2x00_mark_device_lost(fcport->ha, fcport, 1, 1);
 		break;
 
 	default:

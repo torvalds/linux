@@ -1348,7 +1348,7 @@ early_param("stp", early_parse_stp);
 /*
  * Reset STP attachment.
  */
-static void stp_reset(void)
+static void __init stp_reset(void)
 {
 	int rc;
 

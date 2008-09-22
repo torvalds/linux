@@ -33,12 +33,11 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
 #include <asm/delay.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/imx-dma.h>
-#include <asm/arch/spi_imx.h>
+#include <mach/hardware.h>
+#include <mach/imx-dma.h>
+#include <mach/spi_imx.h>
 
 /*-------------------------------------------------------------------------*/
 /* SPI Registers offsets from peripheral base address */
@@ -491,7 +490,7 @@ static int map_dma_buffers(struct driver_data *drv_data)
 							buf,
 							drv_data->tx_map_len,
 							DMA_TO_DEVICE);
-			if (dma_mapping_error(drv_data->tx_dma))
+			if (dma_mapping_error(dev, drv_data->tx_dma))
 				return -1;
 
 			drv_data->tx_dma_needs_unmap = 1;
@@ -516,7 +515,7 @@ static int map_dma_buffers(struct driver_data *drv_data)
 					buf,
 					drv_data->len,
 					DMA_FROM_DEVICE);
-		if (dma_mapping_error(drv_data->rx_dma))
+		if (dma_mapping_error(dev, drv_data->rx_dma))
 			return -1;
 		drv_data->rx_dma_needs_unmap = 1;
 	}
@@ -534,7 +533,7 @@ static int map_dma_buffers(struct driver_data *drv_data)
 					buf,
 					drv_data->tx_map_len,
 					DMA_TO_DEVICE);
-	if (dma_mapping_error(drv_data->tx_dma)) {
+	if (dma_mapping_error(dev, drv_data->tx_dma)) {
 		if (drv_data->rx_dma) {
 			dma_unmap_single(dev,
 					drv_data->rx_dma,

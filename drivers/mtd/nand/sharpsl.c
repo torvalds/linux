@@ -3,8 +3,6 @@
  *
  *  Copyright (C) 2004 Richard Purdie
  *
- *  $Id: sharpsl.c,v 1.7 2005/11/07 11:14:31 gleixner Exp $
- *
  *  Based on Sharp's NAND driver sharp_sl.c
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,7 +21,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 static void __iomem *sharpsl_io_base;

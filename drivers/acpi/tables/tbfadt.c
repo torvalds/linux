@@ -124,7 +124,7 @@ static struct acpi_fadt_info fadt_info_table[] = {
 
 static void inline
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
-			     u8 byte_width, u64 address)
+			     u8 bit_width, u64 address)
 {
 
 	/*
@@ -136,7 +136,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 	/* All other fields are byte-wide */
 
 	generic_address->space_id = ACPI_ADR_SPACE_SYSTEM_IO;
-	generic_address->bit_width = byte_width << 3;
+	generic_address->bit_width = bit_width;
 	generic_address->bit_offset = 0;
 	generic_address->access_width = 0;
 }
@@ -343,11 +343,9 @@ static void acpi_tb_convert_fadt(void)
 	 *
 	 * The PM event blocks are split into two register blocks, first is the
 	 * PM Status Register block, followed immediately by the PM Enable Register
-	 * block. Each is of length (xpm1x_event_block.bit_width/2)
+	 * block. Each is of length (pm1_event_length/2)
 	 */
-	WARN_ON(ACPI_MOD_16(acpi_gbl_FADT.xpm1a_event_block.bit_width));
-	pm1_register_length = (u8) ACPI_DIV_16(acpi_gbl_FADT
-					       .xpm1a_event_block.bit_width);
+	pm1_register_length = (u8) ACPI_DIV_2(acpi_gbl_FADT.pm1_event_length);
 
 	/* The PM1A register block is required */
 
@@ -362,17 +360,14 @@ static void acpi_tb_convert_fadt(void)
 	/* The PM1B register block is optional, ignore if not present */
 
 	if (acpi_gbl_FADT.xpm1b_event_block.address) {
-		WARN_ON(ACPI_MOD_16(acpi_gbl_FADT.xpm1b_event_block.bit_width));
-		pm1_register_length = (u8) ACPI_DIV_16(acpi_gbl_FADT
-						       .xpm1b_event_block
-						       .bit_width);
 		acpi_tb_init_generic_address(&acpi_gbl_xpm1b_enable,
 					     pm1_register_length,
 					     (acpi_gbl_FADT.xpm1b_event_block.
 					      address + pm1_register_length));
 		/* Don't forget to copy space_id of the GAS */
 		acpi_gbl_xpm1b_enable.space_id =
-		    acpi_gbl_FADT.xpm1b_event_block.space_id;
+		    acpi_gbl_FADT.xpm1a_event_block.space_id;
+
 	}
 }
 

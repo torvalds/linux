@@ -9,9 +9,8 @@
  * Authors:
  *  Anthony Liguori  <aliguori@us.ibm.com>
  *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
- *
+ * This header is BSD licensed so anyone can use the definitions to implement
+ * compatible drivers/servers.
  */
 
 #ifndef _LINUX_VIRTIO_PCI_H

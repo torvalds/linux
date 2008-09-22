@@ -212,8 +212,8 @@ static struct watchdog_info at32_wdt_info = {
 /*
  * Handle commands from user-space.
  */
-static int at32_wdt_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
+static long at32_wdt_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int time;
@@ -221,26 +221,9 @@ static int at32_wdt_ioctl(struct inode *inode, struct file *file,
 	int __user *p = argp;
 
 	switch (cmd) {
-	case WDIOC_KEEPALIVE:
-		at32_wdt_pat();
-		ret = 0;
-		break;
 	case WDIOC_GETSUPPORT:
 		ret = copy_to_user(argp, &at32_wdt_info,
 				sizeof(at32_wdt_info)) ? -EFAULT : 0;
-		break;
-	case WDIOC_SETTIMEOUT:
-		ret = get_user(time, p);
-		if (ret)
-			break;
-		ret = at32_wdt_settimeout(time);
-		if (ret)
-			break;
-		/* Enable new time value */
-		at32_wdt_start();
-		/* fall through */
-	case WDIOC_GETTIMEOUT:
-		ret = put_user(wdt->timeout, p);
 		break;
 	case WDIOC_GETSTATUS:
 		ret = put_user(0, p);
@@ -257,6 +240,23 @@ static int at32_wdt_ioctl(struct inode *inode, struct file *file,
 		if (time & WDIOS_ENABLECARD)
 			at32_wdt_start();
 		ret = 0;
+		break;
+	case WDIOC_KEEPALIVE:
+		at32_wdt_pat();
+		ret = 0;
+		break;
+	case WDIOC_SETTIMEOUT:
+		ret = get_user(time, p);
+		if (ret)
+			break;
+		ret = at32_wdt_settimeout(time);
+		if (ret)
+			break;
+		/* Enable new time value */
+		at32_wdt_start();
+		/* fall through */
+	case WDIOC_GETTIMEOUT:
+		ret = put_user(wdt->timeout, p);
 		break;
 	}
 
@@ -283,7 +283,7 @@ static ssize_t at32_wdt_write(struct file *file, const char __user *data,
 			 */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;
@@ -298,7 +298,7 @@ static ssize_t at32_wdt_write(struct file *file, const char __user *data,
 static const struct file_operations at32_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.ioctl		= at32_wdt_ioctl,
+	.unlocked_ioctl	= at32_wdt_ioctl,
 	.open		= at32_wdt_open,
 	.release	= at32_wdt_close,
 	.write		= at32_wdt_write,
@@ -391,7 +391,6 @@ static int __exit at32_wdt_remove(struct platform_device *pdev)
 		wdt = NULL;
 		platform_set_drvdata(pdev, NULL);
 	}
-
 	return 0;
 }
 

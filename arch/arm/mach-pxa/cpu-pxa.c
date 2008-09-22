@@ -37,9 +37,9 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
 
 #ifdef DEBUG
 static unsigned int freq_debug;

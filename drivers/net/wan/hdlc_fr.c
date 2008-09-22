@@ -33,20 +33,19 @@
 
 */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
 #include <linux/errno.h>
-#include <linux/if_arp.h>
-#include <linux/init.h>
-#include <linux/skbuff.h>
-#include <linux/pkt_sched.h>
-#include <linux/inetdevice.h>
-#include <linux/lapb.h>
-#include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/hdlc.h>
+#include <linux/if_arp.h>
+#include <linux/inetdevice.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pkt_sched.h>
+#include <linux/poll.h>
+#include <linux/rtnetlink.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #undef DEBUG_PKT
 #undef DEBUG_ECN
@@ -96,7 +95,7 @@ typedef struct {
 	unsigned ea1:	1;
 	unsigned cr:	1;
 	unsigned dlcih:	6;
-  
+
 	unsigned ea2:	1;
 	unsigned de:	1;
 	unsigned becn:	1;

@@ -3,34 +3,12 @@
  */
 
 /*
- *
- *  Version 0.01        Initial version hacked out of ide.c
- *
- *  Version 0.02        Added support for PIO modes, auto-tune
- *
- *  Version 0.03        Some cleanups
- *
- *  Version 0.05        PIO mode cycle timings auto-tune using bus-speed
- *
- *  Version 0.06        Prefetch mode now defaults no OFF. To set
- *                      prefetch mode OFF/ON use "hdparm -p8/-p9".
- *                      Unmask irq is disabled when prefetch mode
- *                      is enabled.
- *
- *  Version 0.07        Trying to fix CD-ROM detection problem.
- *                      "Prefetch" mode bit OFF for ide disks and
- *                      ON for anything else.
- *
- *  Version 0.08        Need to force prefetch for CDs and other non-disk
- *                      devices. (not sure which devices exactly need
- *                      prefetch)
- *
  *  HT-6560B EIDE-controller support
  *  To activate controller support use kernel parameter "ide0=ht6560b".
  *  Use hdparm utility to enable PIO mode support.
  *
  *  Author:    Mikko Ala-Fossi            <maf@iki.fi>
- *             Jan Evert van Grootheest   <janevert@caiway.nl>
+ *             Jan Evert van Grootheest   <j.e.van.grootheest@caiway.nl>
  *
  *  Try:  http://www.maf.iki.fi/~maf/ht6560b/
  */

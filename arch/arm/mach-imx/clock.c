@@ -23,7 +23,7 @@
 #include <linux/err.h>
 
 #include <asm/io.h>
-#include <asm/arch/imx-regs.h>
+#include <mach/imx-regs.h>
 
 /*
  * Very simple approach: We can't disable clocks, so we do
@@ -172,24 +172,29 @@ found:
 
 	return clk;
 }
+EXPORT_SYMBOL(clk_get);
 
 void clk_put(struct clk *clk)
 {
 }
+EXPORT_SYMBOL(clk_put);
 
 int clk_enable(struct clk *clk)
 {
 	return 0;
 }
+EXPORT_SYMBOL(clk_enable);
 
 void clk_disable(struct clk *clk)
 {
 }
+EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
 	return clk->get_rate();
 }
+EXPORT_SYMBOL(clk_get_rate);
 
 int imx_clocks_init(void)
 {

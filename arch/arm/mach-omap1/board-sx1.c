@@ -26,22 +26,22 @@
 #include <linux/i2c.h>
 #include <linux/errno.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/omap-alsa.h>
-#include <asm/arch/keypad.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
+#include <mach/irda.h>
+#include <mach/usb.h>
+#include <mach/tc.h>
+#include <mach/board.h>
+#include <mach/common.h>
+#include <mach/mcbsp.h>
+#include <mach/omap-alsa.h>
+#include <mach/keypad.h>
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)

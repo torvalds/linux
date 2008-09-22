@@ -618,6 +618,53 @@ set_val:
 
 EXPORT_SYMBOL(generic_ide_ioctl);
 
+/**
+ * ide_device_get	-	get an additional reference to a ide_drive_t
+ * @drive:	device to get a reference to
+ *
+ * Gets a reference to the ide_drive_t and increments the use count of the
+ * underlying LLDD module.
+ */
+int ide_device_get(ide_drive_t *drive)
+{
+	struct device *host_dev;
+	struct module *module;
+
+	if (!get_device(&drive->gendev))
+		return -ENXIO;
+
+	host_dev = drive->hwif->host->dev[0];
+	module = host_dev ? host_dev->driver->owner : NULL;
+
+	if (module && !try_module_get(module)) {
+		put_device(&drive->gendev);
+		return -ENXIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_device_get);
+
+/**
+ * ide_device_put	-	release a reference to a ide_drive_t
+ * @drive:	device to release a reference on
+ *
+ * Release a reference to the ide_drive_t and decrements the use count of
+ * the underlying LLDD module.
+ */
+void ide_device_put(ide_drive_t *drive)
+{
+#ifdef CONFIG_MODULE_UNLOAD
+	struct device *host_dev = drive->hwif->host->dev[0];
+	struct module *module = host_dev ? host_dev->driver->owner : NULL;
+
+	if (module)
+		module_put(module);
+#endif
+	put_device(&drive->gendev);
+}
+EXPORT_SYMBOL_GPL(ide_device_put);
+
 static int ide_bus_match(struct device *dev, struct device_driver *drv)
 {
 	return 1;

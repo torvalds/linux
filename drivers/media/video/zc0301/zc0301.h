@@ -25,6 +25,7 @@
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>

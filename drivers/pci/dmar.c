@@ -317,10 +317,8 @@ int __init dmar_table_init(void)
 		return -ENODEV;
 	}
 
-	if (list_empty(&dmar_rmrr_units)) {
+	if (list_empty(&dmar_rmrr_units))
 		printk(KERN_INFO PREFIX "No RMRR found\n");
-		return -ENODEV;
-	}
 
 	return 0;
 }

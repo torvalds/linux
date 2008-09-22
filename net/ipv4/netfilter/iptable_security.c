@@ -32,7 +32,7 @@ static struct
 	struct ipt_replace repl;
 	struct ipt_standard entries[3];
 	struct ipt_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "security",
 		.valid_hooks = SECURITY_VALID_HOOKS,

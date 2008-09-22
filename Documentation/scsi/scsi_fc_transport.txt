@@ -65,7 +65,7 @@ Overview:
     discussion will concentrate on NPIV.
 
   Note: World Wide Name assignment (and uniqueness guarantees) are left
-    up to an administrative entity controling the vport. For example,
+    up to an administrative entity controlling the vport. For example,
     if vports are to be associated with virtual machines, a XEN mgmt
     utility would be responsible for creating wwpn/wwnn's for the vport,
     using it's own naming authority and OUI. (Note: it already does this
@@ -91,7 +91,7 @@ Device Trees and Vport Objects:
   Here's what to expect in the device tree :
    The typical Physical Port's Scsi_Host:
      /sys/devices/.../host17/
-   and it has the typical decendent tree:
+   and it has the typical descendant tree:
      /sys/devices/.../host17/rport-17:0-0/target17:0:0/17:0:0:0:
    and then the vport is created on the Physical Port:
      /sys/devices/.../host17/vport-17:0-0
@@ -192,7 +192,7 @@ Vport States:
       independent of the adapter's link state.
     - Instantiation of the vport on the FC link via ELS traffic, etc.
       This is equivalent to a "link up" and successfull link initialization.
-  Futher information can be found in the interfaces section below for
+  Further information can be found in the interfaces section below for
   Vport Creation.
 
   Once a vport has been instantiated with the kernel/LLDD, a vport state

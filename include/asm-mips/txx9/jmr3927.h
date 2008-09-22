@@ -149,8 +149,6 @@
 
 /* Clocks */
 #define JMR3927_CORECLK	132710400	/* 132.7MHz */
-#define JMR3927_GBUSCLK	(JMR3927_CORECLK / 2)	/* 66.35MHz */
-#define JMR3927_IMCLK	(JMR3927_CORECLK / 4)	/* 33.17MHz */
 
 /*
  * TX3927 Pin Configuration:

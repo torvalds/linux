@@ -134,18 +134,6 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 #endif
 	ide_fix_driveid(id);
 
-#if defined (CONFIG_SCSI_EATA_PIO) || defined (CONFIG_SCSI_EATA)
-	/*
-	 * EATA SCSI controllers do a hardware ATA emulation:
-	 * Ignore them if there is a driver for them available.
-	 */
-	if ((id->model[0] == 'P' && id->model[1] == 'M') ||
-	    (id->model[0] == 'S' && id->model[1] == 'K')) {
-		printk("%s: EATA SCSI HBA %.10s\n", drive->name, id->model);
-		goto err_misc;
-	}
-#endif /* CONFIG_SCSI_EATA || CONFIG_SCSI_EATA_PIO */
-
 	/*
 	 *  WIN_IDENTIFY returns little-endian info,
 	 *  WIN_PIDENTIFY *usually* returns little-endian info.
@@ -167,7 +155,8 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	if (strstr(id->model, "E X A B Y T E N E S T"))
 		goto err_misc;
 
-	printk("%s: %s, ", drive->name, id->model);
+	printk(KERN_INFO "%s: %s, ", drive->name, id->model);
+
 	drive->present = 1;
 	drive->dead = 0;
 
@@ -176,16 +165,17 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 */
 	if (cmd == WIN_PIDENTIFY) {
 		u8 type = (id->config >> 8) & 0x1f;
-		printk("ATAPI ");
+
+		printk(KERN_CONT "ATAPI ");
 		switch (type) {
 			case ide_floppy:
 				if (!strstr(id->model, "CD-ROM")) {
 					if (!strstr(id->model, "oppy") &&
 					    !strstr(id->model, "poyp") &&
 					    !strstr(id->model, "ZIP"))
-						printk("cdrom or floppy?, assuming ");
+						printk(KERN_CONT "cdrom or floppy?, assuming ");
 					if (drive->media != ide_cdrom) {
-						printk ("FLOPPY");
+						printk(KERN_CONT "FLOPPY");
 						drive->removable = 1;
 						break;
 					}
@@ -198,25 +188,25 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 				/* kludge for Apple PowerBook internal zip */
 				if (!strstr(id->model, "CD-ROM") &&
 				    strstr(id->model, "ZIP")) {
-					printk ("FLOPPY");
+					printk(KERN_CONT "FLOPPY");
 					type = ide_floppy;
 					break;
 				}
 #endif
-				printk ("CD/DVD-ROM");
+				printk(KERN_CONT "CD/DVD-ROM");
 				break;
 			case ide_tape:
-				printk ("TAPE");
+				printk(KERN_CONT "TAPE");
 				break;
 			case ide_optical:
-				printk ("OPTICAL");
+				printk(KERN_CONT "OPTICAL");
 				drive->removable = 1;
 				break;
 			default:
-				printk("UNKNOWN (type %d)", type);
+				printk(KERN_CONT "UNKNOWN (type %d)", type);
 				break;
 		}
-		printk (" drive\n");
+		printk(KERN_CONT " drive\n");
 		drive->media = type;
 		/* an ATAPI device ignores DRDY */
 		drive->ready_stat = 0;
@@ -236,7 +226,9 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 		drive->removable = 1;
 
 	drive->media = ide_disk;
-	printk("%s DISK drive\n", (id->config == 0x848a) ? "CFA" : "ATA" );
+
+	printk(KERN_CONT "%s DISK drive\n",
+		(id->config == 0x848a) ? "CFA" : "ATA");
 
 	return;
 
@@ -387,7 +379,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 				/* Mmmm.. multiple IRQs..
 				 * don't know which was ours
 				 */
-				printk("%s: IRQ probe failed (0x%lx)\n",
+				printk(KERN_ERR "%s: IRQ probe failed (0x%lx)\n",
 					drive->name, cookie);
 			}
 		}
@@ -456,7 +448,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			return 4;
 	}
 #ifdef DEBUG
-	printk("probing for %s: present=%d, media=%d, probetype=%s\n",
+	printk(KERN_INFO "probing for %s: present=%d, media=%d, probetype=%s\n",
 		drive->name, drive->present, drive->media,
 		(cmd == WIN_IDENTIFY) ? "ATA" : "ATAPI");
 #endif
@@ -534,7 +526,8 @@ static void enable_nest (ide_drive_t *drive)
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u8 stat;
 
-	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
+	printk(KERN_INFO "%s: enabling %s -- ", hwif->name, drive->id->model);
+
 	SELECT_DRIVE(drive);
 	msleep(50);
 	tp_ops->exec_command(hwif, EXABYTE_ENABLE_NEST);
@@ -883,7 +876,7 @@ static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
 	if (m && m->hwgroup && m->hwgroup != new->hwgroup) {
 		if (!new->hwgroup)
 			return;
-		printk("%s: potential irq problem with %s and %s\n",
+		printk(KERN_WARNING "%s: potential IRQ problem with %s and %s\n",
 			hwif->name, new->name, m->name);
 	}
 	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
@@ -1142,17 +1135,17 @@ static int init_irq (ide_hwif_t *hwif)
 	}
 
 #if !defined(__mc68000__)
-	printk("%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
+	printk(KERN_INFO "%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
 		io_ports->data_addr, io_ports->status_addr,
 		io_ports->ctl_addr, hwif->irq);
 #else
-	printk("%s at 0x%08lx on irq %d", hwif->name,
+	printk(KERN_INFO "%s at 0x%08lx on irq %d", hwif->name,
 		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
-		printk(" (%sed with %s)",
+		printk(KERN_CONT " (%sed with %s)",
 			hwif->sharing_irq ? "shar" : "serializ", match->name);
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	mutex_unlock(&ide_cfg_mtx);
 	return 0;
@@ -1287,7 +1280,7 @@ static int hwif_init(ide_hwif_t *hwif)
 	if (!hwif->irq) {
 		hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
 		if (!hwif->irq) {
-			printk("%s: DISABLED, NO IRQ\n", hwif->name);
+			printk(KERN_ERR "%s: disabled, no IRQ\n", hwif->name);
 			return 0;
 		}
 	}
@@ -1317,16 +1310,16 @@ static int hwif_init(ide_hwif_t *hwif)
 	 */
 	hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
 	if (!hwif->irq) {
-		printk("%s: Disabled unable to get IRQ %d.\n",
+		printk(KERN_ERR "%s: disabled, unable to get IRQ %d\n",
 			hwif->name, old_irq);
 		goto out;
 	}
 	if (init_irq(hwif)) {
-		printk("%s: probed IRQ %d and default IRQ %d failed.\n",
+		printk(KERN_ERR "%s: probed IRQ %d and default IRQ %d failed\n",
 			hwif->name, old_irq, hwif->irq);
 		goto out;
 	}
-	printk("%s: probed IRQ %d failed, using default.\n",
+	printk(KERN_WARNING "%s: probed IRQ %d failed, using default\n",
 		hwif->name, hwif->irq);
 
 done:
@@ -1595,6 +1588,8 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 
 		ide_init_port_data(hwif, idx);
 
+		hwif->host = host;
+
 		host->ports[i] = hwif;
 		host->n_ports++;
 	}
@@ -1603,6 +1598,12 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 		kfree(host);
 		return NULL;
 	}
+
+	if (hws[0])
+		host->dev[0] = hws[0]->dev;
+
+	if (d)
+		host->host_flags = d->host_flags;
 
 	return host;
 }

@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/f75375s.h>
+#include <linux/leds-pca9532.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -29,7 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -39,7 +40,7 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/arch/time.h>
+#include <mach/time.h>
 
 /*
  * N2100 timer tick configuration.
@@ -206,6 +207,53 @@ static struct f75375s_platform_data n2100_f75375s = {
 	.pwm_enable = { 0, 0 },
 };
 
+static struct pca9532_platform_data n2100_leds = {
+	.leds = {
+	{	.name = "n2100:red:satafail0",
+		.state = PCA9532_OFF,
+		.type = PCA9532_TYPE_LED,
+	},
+	{	.name = "n2100:red:satafail1",
+		.state = PCA9532_OFF,
+		.type = PCA9532_TYPE_LED,
+	},
+	{	.name = "n2100:blue:usb",
+		.state = PCA9532_OFF,
+		.type = PCA9532_TYPE_LED,
+	},
+	{ 	.type = PCA9532_TYPE_NONE },
+
+	{ 	.type = PCA9532_TYPE_NONE },
+	{ 	.type = PCA9532_TYPE_NONE },
+	{ 	.type = PCA9532_TYPE_NONE },
+	{	.name = "n2100:red:usb",
+		.state = PCA9532_OFF,
+		.type = PCA9532_TYPE_LED,
+	},
+
+	{	.type = PCA9532_TYPE_NONE }, /* power OFF gpio */
+	{	.type = PCA9532_TYPE_NONE }, /* reset gpio */
+	{	.type = PCA9532_TYPE_NONE },
+	{	.type = PCA9532_TYPE_NONE },
+
+	{	.type = PCA9532_TYPE_NONE },
+	{	.name = "n2100:orange:system",
+		.state = PCA9532_OFF,
+		.type = PCA9532_TYPE_LED,
+	},
+	{	.name = "n2100:red:system",
+		.state = PCA9532_OFF,
+		.type = PCA9532_TYPE_LED,
+	},
+	{	.name = "N2100 beeper"  ,
+		.state =  PCA9532_OFF,
+		.type = PCA9532_TYPE_N2100_BEEP,
+	},
+	},
+	.psc = { 0, 0 },
+	.pwm = { 0, 0 },
+};
+
 static struct i2c_board_info __initdata n2100_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("rs5c372b", 0x32),
@@ -213,6 +261,10 @@ static struct i2c_board_info __initdata n2100_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("f75375", 0x2e),
 		.platform_data = &n2100_f75375s,
+	},
+	{
+		I2C_BOARD_INFO("pca9532", 0x60),
+		.platform_data = &n2100_leds,
 	},
 };
 

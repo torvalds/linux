@@ -95,6 +95,8 @@ xfs_fs_geometry(
 				XFS_FSOP_GEOM_FLAGS_DIRV2 : 0) |
 			(xfs_sb_version_hassector(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_SECTOR : 0) |
+			(xfs_sb_version_hasasciici(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_DIRV2CI : 0) |
 			(xfs_sb_version_haslazysbcount(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_LAZYSB : 0) |
 			(xfs_sb_version_hasattr2(&mp->m_sb) ?
@@ -625,7 +627,7 @@ xfs_fs_goingdown(
 			xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);
 			thaw_bdev(sb->s_bdev, sb);
 		}
-	
+
 		break;
 	}
 	case XFS_FSOP_GOING_FLAGS_LOGFLUSH:

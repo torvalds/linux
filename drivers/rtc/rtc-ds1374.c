@@ -173,7 +173,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	int cr, sr;
 	int ret = 0;
 
-	if (client->irq < 0)
+	if (client->irq <= 0)
 		return -EINVAL;
 
 	mutex_lock(&ds1374->mutex);
@@ -212,7 +212,7 @@ static int ds1374_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	int cr;
 	int ret = 0;
 
-	if (client->irq < 0)
+	if (client->irq <= 0)
 		return -EINVAL;
 
 	ret = ds1374_read_time(dev, &now);
@@ -381,7 +381,7 @@ static int ds1374_probe(struct i2c_client *client,
 	if (ret)
 		goto out_free;
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = request_irq(client->irq, ds1374_irq, 0,
 		                  "ds1374", client);
 		if (ret) {
@@ -401,7 +401,7 @@ static int ds1374_probe(struct i2c_client *client,
 	return 0;
 
 out_irq:
-	if (client->irq >= 0)
+	if (client->irq > 0)
 		free_irq(client->irq, client);
 
 out_free:
@@ -414,7 +414,7 @@ static int __devexit ds1374_remove(struct i2c_client *client)
 {
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		mutex_lock(&ds1374->mutex);
 		ds1374->exiting = 1;
 		mutex_unlock(&ds1374->mutex);

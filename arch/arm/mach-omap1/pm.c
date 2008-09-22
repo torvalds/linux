@@ -47,17 +47,16 @@
 #include <asm/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
-#include <asm/mach-types.h>
 
-#include <asm/arch/cpu.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/sram.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/dmtimer.h>
+#include <mach/cpu.h>
+#include <mach/irqs.h>
+#include <mach/clock.h>
+#include <mach/sram.h>
+#include <mach/tc.h>
+#include <mach/pm.h>
+#include <mach/mux.h>
+#include <mach/dma.h>
+#include <mach/dmtimer.h>
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];
 static unsigned short dsp_sleep_save[DSP_SLEEP_SAVE_SIZE];

@@ -150,7 +150,6 @@ static struct css_driver io_subchannel_driver = {
 };
 
 struct workqueue_struct *ccw_device_work;
-struct workqueue_struct *ccw_device_notify_work;
 wait_queue_head_t ccw_device_init_wq;
 atomic_t ccw_device_init_count;
 
@@ -168,11 +167,6 @@ init_ccw_bus_type (void)
 	ccw_device_work = create_singlethread_workqueue("cio");
 	if (!ccw_device_work)
 		return -ENOMEM; /* FIXME: better errno ? */
-	ccw_device_notify_work = create_singlethread_workqueue("cio_notify");
-	if (!ccw_device_notify_work) {
-		ret = -ENOMEM; /* FIXME: better errno ? */
-		goto out_err;
-	}
 	slow_path_wq = create_singlethread_workqueue("kslowcrw");
 	if (!slow_path_wq) {
 		ret = -ENOMEM; /* FIXME: better errno ? */
@@ -192,8 +186,6 @@ init_ccw_bus_type (void)
 out_err:
 	if (ccw_device_work)
 		destroy_workqueue(ccw_device_work);
-	if (ccw_device_notify_work)
-		destroy_workqueue(ccw_device_notify_work);
 	if (slow_path_wq)
 		destroy_workqueue(slow_path_wq);
 	return ret;
@@ -204,7 +196,6 @@ cleanup_ccw_bus_type (void)
 {
 	css_driver_unregister(&io_subchannel_driver);
 	bus_unregister(&ccw_bus_type);
-	destroy_workqueue(ccw_device_notify_work);
 	destroy_workqueue(ccw_device_work);
 }
 
@@ -1496,11 +1487,22 @@ static void device_set_disconnected(struct ccw_device *cdev)
 		ccw_device_schedule_recovery();
 }
 
+void ccw_device_set_notoper(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	CIO_TRACE_EVENT(2, "notoper");
+	CIO_TRACE_EVENT(2, sch->dev.bus_id);
+	ccw_device_set_timeout(cdev, 0);
+	cio_disable_subchannel(sch);
+	cdev->private->state = DEV_STATE_NOT_OPER;
+}
+
 static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 {
 	int event, ret, disc;
 	unsigned long flags;
-	enum { NONE, UNREGISTER, UNREGISTER_PROBE, REPROBE } action;
+	enum { NONE, UNREGISTER, UNREGISTER_PROBE, REPROBE, DISC } action;
 	struct ccw_device *cdev;
 
 	spin_lock_irqsave(sch->lock, flags);
@@ -1535,16 +1537,11 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 		}
 		/* fall through */
 	case CIO_GONE:
-		/* Prevent unwanted effects when opening lock. */
-		cio_disable_subchannel(sch);
-		device_set_disconnected(cdev);
 		/* Ask driver what to do with device. */
-		action = UNREGISTER;
-		spin_unlock_irqrestore(sch->lock, flags);
-		ret = io_subchannel_notify(sch, event);
-		spin_lock_irqsave(sch->lock, flags);
-		if (ret)
-			action = NONE;
+		if (io_subchannel_notify(sch, event))
+			action = DISC;
+		else
+			action = UNREGISTER;
 		break;
 	case CIO_REVALIDATE:
 		/* Device will be removed, so no notify necessary. */
@@ -1565,6 +1562,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 	switch (action) {
 	case UNREGISTER:
 	case UNREGISTER_PROBE:
+		ccw_device_set_notoper(cdev);
 		/* Unregister device (will use subchannel lock). */
 		spin_unlock_irqrestore(sch->lock, flags);
 		css_sch_device_unregister(sch);
@@ -1576,6 +1574,9 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 		break;
 	case REPROBE:
 		ccw_device_trigger_reprobe(cdev);
+		break;
+	case DISC:
+		device_set_disconnected(cdev);
 		break;
 	default:
 		break;
@@ -1828,5 +1829,4 @@ EXPORT_SYMBOL(ccw_driver_unregister);
 EXPORT_SYMBOL(get_ccwdev_by_busid);
 EXPORT_SYMBOL(ccw_bus_type);
 EXPORT_SYMBOL(ccw_device_work);
-EXPORT_SYMBOL(ccw_device_notify_work);
 EXPORT_SYMBOL_GPL(ccw_device_get_subchannel_id);

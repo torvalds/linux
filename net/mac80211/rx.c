@@ -1109,20 +1109,9 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		int meshhdrlen = ieee80211_get_mesh_hdrlen(
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		hdrlen += ieee80211_get_mesh_hdrlen(
 				(struct ieee80211s_hdr *) (skb->data + hdrlen));
-		/* Copy on cb:
-		 *  - mesh header: to be used for mesh forwarding
-		 * decision. It will also be used as mesh header template at
-		 * tx.c:ieee80211_subif_start_xmit() if interface
-		 * type is mesh and skb->pkt_type == PACKET_OTHERHOST
-		 *  - ta: to be used if a RERR needs to be sent.
-		 */
-		memcpy(skb->cb, skb->data + hdrlen, meshhdrlen);
-		memcpy(MESH_PREQ(skb), hdr->addr2, ETH_ALEN);
-		hdrlen += meshhdrlen;
-	}
 
 	/* convert IEEE 802.11 header + possible LLC headers into Ethernet
 	 * header
@@ -1269,38 +1258,6 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		}
 	}
 
-	/* Mesh forwarding */
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		u8 *mesh_ttl = &((struct ieee80211s_hdr *)skb->cb)->ttl;
-		(*mesh_ttl)--;
-
-		if (is_multicast_ether_addr(skb->data)) {
-			if (*mesh_ttl > 0) {
-				xmit_skb = skb_copy(skb, GFP_ATOMIC);
-				if (xmit_skb)
-					xmit_skb->pkt_type = PACKET_OTHERHOST;
-				else if (net_ratelimit())
-					printk(KERN_DEBUG "%s: failed to clone "
-					       "multicast frame\n", dev->name);
-			} else
-				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.sta,
-							     dropped_frames_ttl);
-		} else if (skb->pkt_type != PACKET_OTHERHOST &&
-			compare_ether_addr(dev->dev_addr, skb->data) != 0) {
-			if (*mesh_ttl == 0) {
-				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.sta,
-							     dropped_frames_ttl);
-				dev_kfree_skb(skb);
-				skb = NULL;
-			} else {
-				xmit_skb = skb;
-				xmit_skb->pkt_type = PACKET_OTHERHOST;
-				if (!(dev->flags & IFF_PROMISC))
-					skb  = NULL;
-			}
-		}
-	}
-
 	if (skb) {
 		/* deliver to local stack */
 		skb->protocol = eth_type_trans(skb, dev);
@@ -1429,6 +1386,63 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 
 	return RX_QUEUED;
 }
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_hdr *hdr;
+	struct ieee80211s_hdr *mesh_hdr;
+	unsigned int hdrlen;
+	struct sk_buff *skb = rx->skb, *fwd_skb;
+
+	hdr = (struct ieee80211_hdr *) skb->data;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	mesh_hdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		return RX_CONTINUE;
+
+	if (!mesh_hdr->ttl)
+		/* illegal frame */
+		return RX_DROP_MONITOR;
+
+	if (compare_ether_addr(rx->dev->dev_addr, hdr->addr3) == 0)
+		return RX_CONTINUE;
+
+	mesh_hdr->ttl--;
+
+	if (rx->flags & IEEE80211_RX_RA_MATCH) {
+		if (!mesh_hdr->ttl)
+			IEEE80211_IFSTA_MESH_CTR_INC(&rx->sdata->u.sta,
+						     dropped_frames_ttl);
+		else {
+			struct ieee80211_hdr *fwd_hdr;
+			fwd_skb = skb_copy(skb, GFP_ATOMIC);
+
+			if (!fwd_skb && net_ratelimit())
+				printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
+						   rx->dev->name);
+
+			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
+			/*
+			 * Save TA to addr1 to send TA a path error if a
+			 * suitable next hop is not found
+			 */
+			memcpy(fwd_hdr->addr1, fwd_hdr->addr2, ETH_ALEN);
+			memcpy(fwd_hdr->addr2, rx->dev->dev_addr, ETH_ALEN);
+			fwd_skb->dev = rx->local->mdev;
+			fwd_skb->iif = rx->dev->ifindex;
+			dev_queue_xmit(fwd_skb);
+		}
+	}
+
+	if (is_multicast_ether_addr(hdr->addr3) ||
+	    rx->dev->flags & IFF_PROMISC)
+		return RX_CONTINUE;
+	else
+		return RX_DROP_MONITOR;
+}
+
 
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
@@ -1663,10 +1677,12 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 	rx->sdata = sdata;
 	rx->dev = sdata->dev;
 
-#define CALL_RXH(rxh)		\
-	res = rxh(rx);		\
-	if (res != RX_CONTINUE)	\
-		goto rxh_done;
+#define CALL_RXH(rxh)			\
+	do {				\
+		res = rxh(rx);		\
+		if (res != RX_CONTINUE)	\
+			goto rxh_done;  \
+	} while (0);
 
 	CALL_RXH(ieee80211_rx_h_passive_scan)
 	CALL_RXH(ieee80211_rx_h_check)
@@ -1678,6 +1694,8 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 	/* must be after MMIC verify so header is counted in MPDU mic */
 	CALL_RXH(ieee80211_rx_h_remove_qos_control)
 	CALL_RXH(ieee80211_rx_h_amsdu)
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		CALL_RXH(ieee80211_rx_h_mesh_fwding);
 	CALL_RXH(ieee80211_rx_h_data)
 	CALL_RXH(ieee80211_rx_h_ctrl)
 	CALL_RXH(ieee80211_rx_h_mgmt)

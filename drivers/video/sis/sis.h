@@ -24,8 +24,6 @@
 #ifndef _SIS_H_
 #define _SIS_H_
 
-#include <linux/version.h>
-
 #include "osdef.h"
 #include <video/sisfb.h>
 
@@ -41,16 +39,6 @@
 #ifdef CONFIG_COMPAT
 #define SIS_NEW_CONFIG_COMPAT
 #endif	/* CONFIG_COMPAT */
-
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
-#define SIS_IOTYPE1 void __iomem
-#define SIS_IOTYPE2 __iomem
-#define SISINITSTATIC static
-#else
-#define SIS_IOTYPE1 unsigned char
-#define SIS_IOTYPE2
-#define SISINITSTATIC
-#endif
 
 #undef SISFBDEBUG
 
@@ -505,8 +493,8 @@ struct sis_video_info {
 
 	unsigned long	UMAsize, LFBsize;
 
-	SIS_IOTYPE1	*video_vbase;
-	SIS_IOTYPE1	*mmio_vbase;
+	void __iomem	*video_vbase;
+	void __iomem	*mmio_vbase;
 
 	unsigned char	*bios_abase;
 
@@ -533,8 +521,8 @@ struct sis_video_info {
 	int		sisfb_nocrt2rate;
 
 	u32		heapstart;		/* offset  */
-	SIS_IOTYPE1	*sisfb_heap_start;	/* address */
-	SIS_IOTYPE1	*sisfb_heap_end;	/* address */
+	void __iomem	*sisfb_heap_start;	/* address */
+	void __iomem	*sisfb_heap_end;	/* address */
 	u32		sisfb_heap_size;
 	int		havenoheap;
 
@@ -612,7 +600,7 @@ struct sis_video_info {
 	u8		detectedpdca;
 	u8		detectedlcda;
 
-	SIS_IOTYPE1	*hwcursor_vbase;
+	void __iomem	*hwcursor_vbase;
 
 	int		chronteltype;
 	int		tvxpos, tvypos;

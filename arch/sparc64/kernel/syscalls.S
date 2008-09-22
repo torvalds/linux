@@ -162,6 +162,8 @@ linux_syscall_trace32:
 	add	%sp, PTREGS_OFF, %o0
 	call	syscall_trace
 	 clr	%o1
+	brnz,pn	%o0, 3f
+	 mov	-ENOSYS, %o0
 	srl	%i0, 0, %o0
 	srl	%i4, 0, %o4
 	srl	%i1, 0, %o1
@@ -173,6 +175,8 @@ linux_syscall_trace:
 	add	%sp, PTREGS_OFF, %o0
 	call	syscall_trace
 	 clr	%o1
+	brnz,pn	%o0, 3f
+	 mov	-ENOSYS, %o0
 	mov	%i0, %o0
 	mov	%i1, %o1
 	mov	%i2, %o2

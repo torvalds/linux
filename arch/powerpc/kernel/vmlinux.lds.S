@@ -66,10 +66,11 @@ SECTIONS
 		__got2_end = .;
 #endif /* CONFIG_PPC32 */
 
-		. = ALIGN(PAGE_SIZE);
-		_etext = .;
-		PROVIDE32 (etext = .);
 	} :kernel
+
+	. = ALIGN(PAGE_SIZE);
+	_etext = .;
+	PROVIDE32 (etext = .);
 
 	/* Read-only data */
 	RODATA
@@ -85,7 +86,7 @@ SECTIONS
 
 	/* The dummy segment contents for the bug workaround mentioned above
 	   near PHDRS.  */
-	.dummy : {
+	.dummy : AT(ADDR(.dummy) - LOAD_OFFSET) {
 		LONG(0xf177)
 	} :kernel :dummy
 

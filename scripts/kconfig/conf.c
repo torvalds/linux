@@ -76,7 +76,6 @@ static void check_stdin(void)
 static int conf_askvalue(struct symbol *sym, const char *def)
 {
 	enum symbol_type type = sym_get_type(sym);
-	tristate val;
 
 	if (!sym_has_value(sym))
 		printf(_("(NEW) "));
@@ -92,15 +91,6 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 	}
 
 	switch (input_mode) {
-	case set_no:
-	case set_mod:
-	case set_yes:
-	case set_random:
-		if (sym_has_value(sym)) {
-			printf("%s\n", def);
-			return 0;
-		}
-		break;
 	case ask_new:
 	case ask_silent:
 		if (sym_has_value(sym)) {
@@ -111,9 +101,6 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 	case ask_all:
 		fflush(stdout);
 		fgets(line, 128, stdin);
-		return 1;
-	case set_default:
-		printf("%s\n", def);
 		return 1;
 	default:
 		break;
@@ -127,52 +114,6 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 		return 1;
 	default:
 		;
-	}
-	switch (input_mode) {
-	case set_yes:
-		if (sym_tristate_within_range(sym, yes)) {
-			line[0] = 'y';
-			line[1] = '\n';
-			line[2] = 0;
-			break;
-		}
-	case set_mod:
-		if (type == S_TRISTATE) {
-			if (sym_tristate_within_range(sym, mod)) {
-				line[0] = 'm';
-				line[1] = '\n';
-				line[2] = 0;
-				break;
-			}
-		} else {
-			if (sym_tristate_within_range(sym, yes)) {
-				line[0] = 'y';
-				line[1] = '\n';
-				line[2] = 0;
-				break;
-			}
-		}
-	case set_no:
-		if (sym_tristate_within_range(sym, no)) {
-			line[0] = 'n';
-			line[1] = '\n';
-			line[2] = 0;
-			break;
-		}
-	case set_random:
-		do {
-			val = (tristate)(rand() % 3);
-		} while (!sym_tristate_within_range(sym, val));
-		switch (val) {
-		case no: line[0] = 'n'; break;
-		case mod: line[0] = 'm'; break;
-		case yes: line[0] = 'y'; break;
-		}
-		line[1] = '\n';
-		line[2] = 0;
-		break;
-	default:
-		break;
 	}
 	printf("%s", line);
 	return 1;
@@ -374,15 +315,7 @@ static int conf_choice(struct menu *menu)
 			else
 				continue;
 			break;
-		case set_random:
-			if (is_new)
-				def = (rand() % cnt) + 1;
-		case set_default:
-		case set_yes:
-		case set_mod:
-		case set_no:
-			cnt = def;
-			printf("%d\n", cnt);
+		default:
 			break;
 		}
 
@@ -494,6 +427,43 @@ static void check_conf(struct menu *menu)
 		check_conf(child);
 }
 
+static void conf_do_update(void)
+{
+	/* Update until a loop caused no more changes */
+	do {
+		conf_cnt = 0;
+		check_conf(&rootmenu);
+	} while (conf_cnt);
+}
+
+static int conf_silent_update(void)
+{
+	const char *name;
+
+	if (conf_get_changed()) {
+		name = getenv("KCONFIG_NOSILENTUPDATE");
+		if (name && *name) {
+			fprintf(stderr,
+			_("\n*** Kernel configuration requires explicit update.\n\n"));
+			return 1;
+		}
+		conf_do_update();
+	}
+	return 0;
+}
+
+static int conf_update(void)
+{
+	rootEntry = &rootmenu;
+	conf(&rootmenu);
+	if (input_mode == ask_all) {
+		input_mode = ask_silent;
+		valid_stdin = 1;
+	}
+	conf_do_update();
+	return 0;
+}
+
 int main(int ac, char **av)
 {
 	int opt;
@@ -599,36 +569,43 @@ int main(int ac, char **av)
 	default:
 		break;
 	}
+	switch (input_mode) {
+	case set_no:
+		conf_set_all_new_symbols(def_no);
+		break;
+	case set_yes:
+		conf_set_all_new_symbols(def_yes);
+		break;
+	case set_mod:
+		conf_set_all_new_symbols(def_mod);
+		break;
+	case set_random:
+		conf_set_all_new_symbols(def_random);
+		break;
+	case set_default:
+		conf_set_all_new_symbols(def_default);
+		break;
+	case ask_silent:
+	case ask_new:
+		if (conf_silent_update())
+			exit(1);
+		break;
+	case ask_all:
+		if (conf_update())
+			exit(1);
+		break;
+	}
 
-	if (input_mode != ask_silent) {
-		rootEntry = &rootmenu;
-		conf(&rootmenu);
-		if (input_mode == ask_all) {
-			input_mode = ask_silent;
-			valid_stdin = 1;
-		}
-	} else if (conf_get_changed()) {
-		name = getenv("KCONFIG_NOSILENTUPDATE");
-		if (name && *name) {
-			fprintf(stderr, _("\n*** Kernel configuration requires explicit update.\n\n"));
-			return 1;
-		}
-	} else
-		goto skip_check;
-
-	do {
-		conf_cnt = 0;
-		check_conf(&rootmenu);
-	} while (conf_cnt);
 	if (conf_write(NULL)) {
 		fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
-		return 1;
+		exit(1);
 	}
-skip_check:
+	/* ask_silent is used during the build so we shall update autoconf.
+	 * All other commands are only used to generate a config.
+	 */
 	if (input_mode == ask_silent && conf_write_autoconf()) {
 		fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
 		return 1;
 	}
-
 	return 0;
 }

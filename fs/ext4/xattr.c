@@ -1512,7 +1512,7 @@ static inline void ext4_xattr_hash_entry(struct ext4_xattr_header *header,
 	char *name = entry->e_name;
 	int n;
 
-	for (n=0; n < entry->e_name_len; n++) {
+	for (n = 0; n < entry->e_name_len; n++) {
 		hash = (hash << NAME_HASH_SHIFT) ^
 		       (hash >> (8*sizeof(hash) - NAME_HASH_SHIFT)) ^
 		       *name++;

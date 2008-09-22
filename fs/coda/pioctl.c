@@ -24,8 +24,7 @@
 #include <linux/coda_psdev.h>
 
 /* pioctl ops */
-static int coda_ioctl_permission(struct inode *inode, int mask,
-				 struct nameidata *nd);
+static int coda_ioctl_permission(struct inode *inode, int mask);
 static int coda_pioctl(struct inode * inode, struct file * filp, 
                        unsigned int cmd, unsigned long user_data);
 
@@ -42,8 +41,7 @@ const struct file_operations coda_ioctl_operations = {
 };
 
 /* the coda pioctl inode ops */
-static int coda_ioctl_permission(struct inode *inode, int mask,
-				 struct nameidata *nd)
+static int coda_ioctl_permission(struct inode *inode, int mask)
 {
         return 0;
 }
@@ -51,7 +49,7 @@ static int coda_ioctl_permission(struct inode *inode, int mask,
 static int coda_pioctl(struct inode * inode, struct file * filp, 
                        unsigned int cmd, unsigned long user_data)
 {
-	struct nameidata nd;
+	struct path path;
         int error;
 	struct PioctlData data;
         struct inode *target_inode = NULL;
@@ -66,21 +64,21 @@ static int coda_pioctl(struct inode * inode, struct file * filp,
          * Look up the pathname. Note that the pathname is in 
          * user memory, and namei takes care of this
          */
-        if ( data.follow ) {
-                error = user_path_walk(data.path, &nd);
+        if (data.follow) {
+                error = user_path(data.path, &path);
 	} else {
-	        error = user_path_walk_link(data.path, &nd);
+	        error = user_lpath(data.path, &path);
 	}
 		
 	if ( error ) {
 		return error;
         } else {
-		target_inode = nd.path.dentry->d_inode;
+		target_inode = path.dentry->d_inode;
 	}
 	
 	/* return if it is not a Coda inode */
 	if ( target_inode->i_sb != inode->i_sb ) {
-		path_put(&nd.path);
+		path_put(&path);
 	        return  -EINVAL;
 	}
 
@@ -89,7 +87,7 @@ static int coda_pioctl(struct inode * inode, struct file * filp,
 
 	error = venus_pioctl(inode->i_sb, &(cnp->c_fid), cmd, &data);
 
-	path_put(&nd.path);
+	path_put(&path);
         return error;
 }
 

@@ -580,13 +580,15 @@ int atari_keyb_init(void)
 	do {
 		/* reset IKBD ACIA */
 		acia.key_ctrl = ACIA_RESET |
-				(atari_switches & ATARI_SWITCH_IKBD) ? ACIA_RHTID : 0;
+				((atari_switches & ATARI_SWITCH_IKBD) ?
+				 ACIA_RHTID : 0);
 		(void)acia.key_ctrl;
 		(void)acia.key_data;
 
 		/* reset MIDI ACIA */
 		acia.mid_ctrl = ACIA_RESET |
-				(atari_switches & ATARI_SWITCH_MIDI) ? ACIA_RHTID : 0;
+				((atari_switches & ATARI_SWITCH_MIDI) ?
+				 ACIA_RHTID : 0);
 		(void)acia.mid_ctrl;
 		(void)acia.mid_data;
 
@@ -599,7 +601,8 @@ int atari_keyb_init(void)
 				 ACIA_RHTID : ACIA_RLTID);
 
 		acia.mid_ctrl = ACIA_DIV16 | ACIA_D8N1S |
-				(atari_switches & ATARI_SWITCH_MIDI) ? ACIA_RHTID : 0;
+				((atari_switches & ATARI_SWITCH_MIDI) ?
+				 ACIA_RHTID : 0);
 
 	/* make sure the interrupt line is up */
 	} while ((mfp.par_dt_reg & 0x10) == 0);

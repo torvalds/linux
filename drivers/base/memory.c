@@ -101,6 +101,22 @@ static ssize_t show_mem_phys_index(struct sys_device *dev,
 }
 
 /*
+ * Show whether the section of memory is likely to be hot-removable
+ */
+static ssize_t show_mem_removable(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
+{
+	unsigned long start_pfn;
+	int ret;
+	struct memory_block *mem =
+		container_of(dev, struct memory_block, sysdev);
+
+	start_pfn = section_nr_to_pfn(mem->phys_index);
+	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
+	return sprintf(buf, "%d\n", ret);
+}
+
+/*
  * online, offline, going offline, etc.
  */
 static ssize_t show_mem_state(struct sys_device *dev,
@@ -189,9 +205,8 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 			}
 			break;
 		default:
-			printk(KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
+			WARN(1, KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
 					__func__, mem, action, action);
-			WARN_ON(1);
 			ret = -EINVAL;
 	}
 
@@ -262,6 +277,7 @@ static ssize_t show_phys_device(struct sys_device *dev,
 static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
 static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
 static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
+static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
 
 #define mem_create_simple_file(mem, attr_name)	\
 	sysdev_create_file(&mem->sysdev, &attr_##attr_name)
@@ -350,6 +366,8 @@ static int add_memory_block(unsigned long node_id, struct mem_section *section,
 		ret = mem_create_simple_file(mem, state);
 	if (!ret)
 		ret = mem_create_simple_file(mem, phys_device);
+	if (!ret)
+		ret = mem_create_simple_file(mem, removable);
 
 	return ret;
 }
@@ -394,6 +412,7 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
 	mem_remove_simple_file(mem, phys_index);
 	mem_remove_simple_file(mem, state);
 	mem_remove_simple_file(mem, phys_device);
+	mem_remove_simple_file(mem, removable);
 	unregister_memory(mem, section);
 
 	return 0;

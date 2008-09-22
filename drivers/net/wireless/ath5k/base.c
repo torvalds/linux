@@ -40,10 +40,11 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/hardirq.h>
 #include <linux/if.h>
+#include <linux/io.h>
 #include <linux/netdevice.h>
 #include <linux/cache.h>
 #include <linux/pci.h>
@@ -93,8 +94,6 @@ static struct pci_device_id ath5k_pci_id_table[] __devinitdata = {
 	{ PCI_VDEVICE(ATHEROS, 0x001a), .driver_data = AR5K_AR5212 }, /* 2413 Griffin-lite */
 	{ PCI_VDEVICE(ATHEROS, 0x001b), .driver_data = AR5K_AR5212 }, /* 5413 Eagle */
 	{ PCI_VDEVICE(ATHEROS, 0x001c), .driver_data = AR5K_AR5212 }, /* 5424 Condor (PCI-E)*/
-	{ PCI_VDEVICE(ATHEROS, 0x0023), .driver_data = AR5K_AR5212 }, /* 5416 */
-	{ PCI_VDEVICE(ATHEROS, 0x0024), .driver_data = AR5K_AR5212 }, /* 5418 */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
@@ -252,7 +251,7 @@ static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 		return;
 	pci_unmap_single(sc->pdev, bf->skbaddr, bf->skb->len,
 			PCI_DMA_TODEVICE);
-	dev_kfree_skb(bf->skb);
+	dev_kfree_skb_any(bf->skb);
 	bf->skb = NULL;
 }
 
@@ -467,12 +466,10 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	mutex_init(&sc->lock);
 	spin_lock_init(&sc->rxbuflock);
 	spin_lock_init(&sc->txbuflock);
+	spin_lock_init(&sc->block);
 
 	/* Set private data */
 	pci_set_drvdata(pdev, hw);
-
-	/* Enable msi for devices that support it */
-	pci_enable_msi(pdev);
 
 	/* Setup interrupt handler */
 	ret = request_irq(pdev->irq, ath5k_intr, IRQF_SHARED, "ath", sc);
@@ -551,7 +548,6 @@ err_ah:
 err_irq:
 	free_irq(pdev->irq, sc);
 err_free:
-	pci_disable_msi(pdev);
 	ieee80211_free_hw(hw);
 err_map:
 	pci_iounmap(pdev, mem);
@@ -573,7 +569,6 @@ ath5k_pci_remove(struct pci_dev *pdev)
 	ath5k_detach(pdev, hw);
 	ath5k_hw_detach(sc->ah);
 	free_irq(pdev->irq, sc);
-	pci_disable_msi(pdev);
 	pci_iounmap(pdev, sc->iobase);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
@@ -590,6 +585,8 @@ ath5k_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	ath5k_led_off(sc);
 
 	ath5k_stop_hw(sc);
+
+	free_irq(pdev->irq, sc);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
@@ -605,15 +602,12 @@ ath5k_pci_resume(struct pci_dev *pdev)
 	struct ath5k_hw *ah = sc->ah;
 	int i, err;
 
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err)
-		return err;
+	pci_restore_state(pdev);
 
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
 
-	pci_restore_state(pdev);
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
 	 * re-disable the RETRY_TIMEOUT register (0x41) to keep
@@ -621,7 +615,15 @@ ath5k_pci_resume(struct pci_dev *pdev)
 	 */
 	pci_write_config_byte(pdev, 0x41, 0);
 
-	ath5k_init(sc);
+	err = request_irq(pdev->irq, ath5k_intr, IRQF_SHARED, "ath", sc);
+	if (err) {
+		ATH5K_ERR(sc, "request_irq failed\n");
+		goto err_no_irq;
+	}
+
+	err = ath5k_init(sc);
+	if (err)
+		goto err_irq;
 	ath5k_led_enable(sc);
 
 	/*
@@ -635,6 +637,11 @@ ath5k_pci_resume(struct pci_dev *pdev)
 		ath5k_hw_reset_key(ah, i);
 
 	return 0;
+err_irq:
+	free_irq(pdev->irq, sc);
+err_no_irq:
+	pci_disable_device(pdev);
+	return err;
 }
 #endif /* CONFIG_PM */
 
@@ -1166,7 +1173,7 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 		bf->skb = skb;
 		bf->skbaddr = pci_map_single(sc->pdev,
 			skb->data, sc->rxbufsize, PCI_DMA_FROMDEVICE);
-		if (unlikely(pci_dma_mapping_error(bf->skbaddr))) {
+		if (unlikely(pci_dma_mapping_error(sc->pdev, bf->skbaddr))) {
 			ATH5K_ERR(sc, "%s: DMA mapping failed\n", __func__);
 			dev_kfree_skb(skb);
 			bf->skb = NULL;
@@ -1224,7 +1231,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 
 	pktlen = skb->len;
 
-	if (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT)) {
+	if (info->control.hw_key) {
 		keyidx = info->control.hw_key->hw_key_idx;
 		pktlen += info->control.icv_len;
 	}
@@ -1249,6 +1256,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 
 	txq->link = &ds->ds_link;
 	ath5k_hw_tx_start(ah, txq->qnum);
+	mmiowb();
 	spin_unlock_bh(&txq->lock);
 
 	return 0;
@@ -1583,7 +1591,6 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 	ath5k_hw_stop_pcu_recv(ah);	/* disable PCU */
 	ath5k_hw_set_rx_filter(ah, 0);	/* clear recv filter */
 	ath5k_hw_stop_rx_dma(ah);	/* disable DMA engine */
-	mdelay(3);			/* 3ms is long enough for 1 frame */
 
 	ath5k_debug_printrxbuffs(sc, ah);
 
@@ -1682,31 +1689,44 @@ ath5k_tasklet_rx(unsigned long data)
 	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb;
 	struct ath5k_softc *sc = (void *)data;
-	struct ath5k_buf *bf;
+	struct ath5k_buf *bf, *bf_last;
 	struct ath5k_desc *ds;
 	int ret;
 	int hdrlen;
 	int pad;
 
 	spin_lock(&sc->rxbuflock);
+	if (list_empty(&sc->rxbuf)) {
+		ATH5K_WARN(sc, "empty rx buf pool\n");
+		goto unlock;
+	}
+	bf_last = list_entry(sc->rxbuf.prev, struct ath5k_buf, list);
 	do {
 		rxs.flag = 0;
 
-		if (unlikely(list_empty(&sc->rxbuf))) {
-			ATH5K_WARN(sc, "empty rx buf pool\n");
-			break;
-		}
 		bf = list_first_entry(&sc->rxbuf, struct ath5k_buf, list);
 		BUG_ON(bf->skb == NULL);
 		skb = bf->skb;
 		ds = bf->desc;
 
-		/* TODO only one segment */
-		pci_dma_sync_single_for_cpu(sc->pdev, sc->desc_daddr,
-				sc->desc_len, PCI_DMA_FROMDEVICE);
-
-		if (unlikely(ds->ds_link == bf->daddr)) /* this is the end */
-			break;
+		/*
+		 * last buffer must not be freed to ensure proper hardware
+		 * function. When the hardware finishes also a packet next to
+		 * it, we are sure, it doesn't use it anymore and we can go on.
+		 */
+		if (bf_last == bf)
+			bf->flags |= 1;
+		if (bf->flags) {
+			struct ath5k_buf *bf_next = list_entry(bf->list.next,
+					struct ath5k_buf, list);
+			ret = sc->ah->ah_proc_rx_desc(sc->ah, bf_next->desc,
+					&rs);
+			if (ret)
+				break;
+			bf->flags &= ~1;
+			/* skip the overwritten one (even status is martian) */
+			goto next;
+		}
 
 		ret = sc->ah->ah_proc_rx_desc(sc->ah, ds, &rs);
 		if (unlikely(ret == -EINPROGRESS))
@@ -1752,8 +1772,6 @@ ath5k_tasklet_rx(unsigned long data)
 				goto next;
 		}
 accept:
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->skbaddr,
-				rs.rs_datalen, PCI_DMA_FROMDEVICE);
 		pci_unmap_single(sc->pdev, bf->skbaddr, sc->rxbufsize,
 				PCI_DMA_FROMDEVICE);
 		bf->skb = NULL;
@@ -1816,6 +1834,7 @@ accept:
 next:
 		list_move_tail(&bf->list, &sc->rxbuf);
 	} while (ath5k_rxbuf_setup(sc, bf) == 0);
+unlock:
 	spin_unlock(&sc->rxbuflock);
 }
 
@@ -1840,9 +1859,6 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
 		ds = bf->desc;
 
-		/* TODO only one segment */
-		pci_dma_sync_single_for_cpu(sc->pdev, sc->desc_daddr,
-				sc->desc_len, PCI_DMA_FROMDEVICE);
 		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
@@ -1918,7 +1934,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON, "skb %p [data %p len %u] "
 			"skbaddr %llx\n", skb, skb->data, skb->len,
 			(unsigned long long)bf->skbaddr);
-	if (pci_dma_mapping_error(bf->skbaddr)) {
+	if (pci_dma_mapping_error(sc->pdev, bf->skbaddr)) {
 		ATH5K_ERR(sc, "beacon DMA mapping failed\n");
 		return -EIO;
 	}
@@ -2015,8 +2031,6 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		ATH5K_WARN(sc, "beacon queue %u didn't stop?\n", sc->bhalq);
 		/* NB: hw still stops DMA, so proceed */
 	}
-	pci_dma_sync_single_for_cpu(sc->pdev, bf->skbaddr, bf->skb->len,
-			PCI_DMA_TODEVICE);
 
 	ath5k_hw_put_tx_buf(ah, sc->bhalq, bf->daddr);
 	ath5k_hw_tx_start(ah, sc->bhalq);
@@ -2150,6 +2164,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 
 	ath5k_hw_set_intr(ah, 0);
 	sc->bmisscount = 0;
+	sc->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
 
 	if (sc->opmode == IEEE80211_IF_TYPE_STA) {
 		sc->imask |= AR5K_INT_BMISS;
@@ -2165,8 +2180,11 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 
 		sc->imask |= AR5K_INT_SWBA;
 
-		if (ath5k_hw_hasveol(ah))
+		if (ath5k_hw_hasveol(ah)) {
+			spin_lock(&sc->block);
 			ath5k_beacon_send(sc);
+			spin_unlock(&sc->block);
+		}
 	}
 	/* TODO else AP */
 
@@ -2240,6 +2258,7 @@ ath5k_init(struct ath5k_softc *sc)
 
 	ret = 0;
 done:
+	mmiowb();
 	mutex_unlock(&sc->lock);
 	return ret;
 }
@@ -2272,6 +2291,7 @@ ath5k_stop_locked(struct ath5k_softc *sc)
 	if (!test_bit(ATH_STAT_INVALID, sc->status)) {
 		ath5k_led_off(sc);
 		ath5k_hw_set_intr(ah, 0);
+		synchronize_irq(sc->pdev->irq);
 	}
 	ath5k_txq_cleanup(sc);
 	if (!test_bit(ATH_STAT_INVALID, sc->status)) {
@@ -2321,9 +2341,13 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 		}
 	}
 	ath5k_txbuf_free(sc, sc->bbuf);
+	mmiowb();
 	mutex_unlock(&sc->lock);
 
 	del_timer_sync(&sc->calib_tim);
+	tasklet_kill(&sc->rxtq);
+	tasklet_kill(&sc->txtq);
+	tasklet_kill(&sc->restq);
 
 	return ret;
 }
@@ -2383,7 +2407,9 @@ ath5k_intr(int irq, void *dev_id)
 						  TSF_TO_TU(tsf),
 						  (unsigned long long) tsf);
 				} else {
+					spin_lock(&sc->block);
 					ath5k_beacon_send(sc);
+					spin_unlock(&sc->block);
 				}
 			}
 			if (status & AR5K_INT_RXEOL) {
@@ -2550,8 +2576,6 @@ ath5k_init_leds(struct ath5k_softc *sc)
 	struct pci_dev *pdev = sc->pdev;
 	char name[ATH5K_LED_MAX_NAME_LEN + 1];
 
-	sc->led_on = 0;  /* active low */
-
 	/*
 	 * Auto-enable soft led processing for IBM cards and for
 	 * 5211 minipci cards.
@@ -2560,11 +2584,13 @@ ath5k_init_leds(struct ath5k_softc *sc)
 	    pdev->device == PCI_DEVICE_ID_ATHEROS_AR5211) {
 		__set_bit(ATH_STAT_LEDSOFT, sc->status);
 		sc->led_pin = 0;
+		sc->led_on = 0;  /* active low */
 	}
 	/* Enable softled on PIN1 on HP Compaq nc6xx, nc4000 & nx5000 laptops */
 	if (pdev->subsystem_vendor == PCI_VENDOR_ID_COMPAQ) {
 		__set_bit(ATH_STAT_LEDSOFT, sc->status);
 		sc->led_pin = 1;
+		sc->led_on = 1;  /* active high */
 	}
 	if (!test_bit(ATH_STAT_LEDSOFT, sc->status))
 		goto out;
@@ -2725,6 +2751,11 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		ret = -EOPNOTSUPP;
 		goto end;
 	}
+
+	/* Set to a reasonable value. Note that this will
+	 * be set to mac80211's value at ath5k_config(). */
+	sc->bintval = 1000;
+
 	ret = 0;
 end:
 	mutex_unlock(&sc->lock);
@@ -2769,9 +2800,6 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ath5k_hw *ah = sc->ah;
 	int ret;
 
-	/* Set to a reasonable value. Note that this will
-	 * be set to mac80211's value at ath5k_config(). */
-	sc->bintval = 1000;
 	mutex_lock(&sc->lock);
 	if (sc->vif != vif) {
 		ret = -EIO;
@@ -2783,6 +2811,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		/* XXX: assoc id is set to 0 for now, mac80211 doesn't have
 		 * a clean way of letting us retrieve this yet. */
 		ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
+		mmiowb();
 	}
 
 	if (conf->changed & IEEE80211_IFCC_BEACON &&
@@ -2971,6 +3000,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 unlock:
+	mmiowb();
 	mutex_unlock(&sc->lock);
 	return ret;
 }
@@ -3028,27 +3058,29 @@ static int
 ath5k_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath5k_softc *sc = hw->priv;
+	unsigned long flags;
 	int ret;
 
 	ath5k_debug_dump_skb(sc, skb, "BC  ", 1);
-
-	mutex_lock(&sc->lock);
 
 	if (sc->opmode != IEEE80211_IF_TYPE_IBSS) {
 		ret = -EIO;
 		goto end;
 	}
 
+	spin_lock_irqsave(&sc->block, flags);
 	ath5k_txbuf_free(sc, sc->bbuf);
 	sc->bbuf->skb = skb;
 	ret = ath5k_beacon_setup(sc, sc->bbuf);
 	if (ret)
 		sc->bbuf->skb = NULL;
-	else
+	spin_unlock_irqrestore(&sc->block, flags);
+	if (!ret) {
 		ath5k_beacon_config(sc);
+		mmiowb();
+	}
 
 end:
-	mutex_unlock(&sc->lock);
 	return ret;
 }
 

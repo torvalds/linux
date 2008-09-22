@@ -1256,7 +1256,6 @@ static int stl_tiocmset(struct tty_struct *tty, struct file *file,
 static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct stlport	*portp;
-	unsigned int	ival;
 	int		rc;
 	void __user *argp = (void __user *)arg;
 

@@ -13,14 +13,6 @@
 #include "kern_util.h"
 #include "os.h"
 
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies_64 * (NSEC_PER_SEC / HZ);
-}
-
 void timer_handler(int sig, struct uml_pt_regs *regs)
 {
 	unsigned long flags;

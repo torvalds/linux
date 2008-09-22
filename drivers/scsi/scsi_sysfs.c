@@ -249,6 +249,8 @@ shost_rd_attr(cmd_per_lun, "%hd\n");
 shost_rd_attr(can_queue, "%hd\n");
 shost_rd_attr(sg_tablesize, "%hu\n");
 shost_rd_attr(unchecked_isa_dma, "%d\n");
+shost_rd_attr(prot_capabilities, "%u\n");
+shost_rd_attr(prot_guard_type, "%hd\n");
 shost_rd_attr2(proc_name, hostt->proc_name, "%s\n");
 
 static struct attribute *scsi_sysfs_shost_attrs[] = {
@@ -263,6 +265,8 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_hstate.attr,
 	&dev_attr_supported_mode.attr,
 	&dev_attr_active_mode.attr,
+	&dev_attr_prot_capabilities.attr,
+	&dev_attr_prot_guard_type.attr,
 	NULL
 };
 

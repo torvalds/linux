@@ -207,7 +207,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	case WLAN_HT_CAP_MIMO_PS_DISABLED:
 		break;
 	default:
-		IWL_WARNING("Invalid MIMO PS mode %d", mimo_ps_mode);
+		IWL_WARNING("Invalid MIMO PS mode %d\n", mimo_ps_mode);
 		break;
 	}
 
@@ -823,7 +823,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 	if (lq->sta_id == 0xFF)
 		lq->sta_id = IWL_AP_ID;
 
-	iwl_dump_lq_cmd(priv,lq);
+	iwl_dump_lq_cmd(priv, lq);
 
 	if (iwl_is_associated(priv) && priv->assoc_station_added)
 		return  iwl_send_cmd(priv, &cmd);
@@ -839,7 +839,7 @@ EXPORT_SYMBOL(iwl_send_lq_cmd);
  * for automatic fallback during transmission.
  *
  * NOTE: This sets up a default set of values.  These will be replaced later
- *       if the driver's iwl-4965-rs rate scaling algorithm is used, instead of
+ *       if the driver's iwl-agn-rs rate scaling algorithm is used, instead of
  *       rc80211_simple.
  *
  * NOTE: Run REPLY_ADD_STA command to set up station table entry, before
@@ -969,7 +969,7 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		return priv->hw_params.bcast_sta_id;
 
 	default:
-		IWL_WARNING("Unknown mode of operation: %d", priv->iw_mode);
+		IWL_WARNING("Unknown mode of operation: %d\n", priv->iw_mode);
 		return priv->hw_params.bcast_sta_id;
 	}
 }

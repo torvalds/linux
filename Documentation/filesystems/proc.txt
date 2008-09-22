@@ -296,6 +296,7 @@ Table 1-4: Kernel info in /proc
  uptime      System uptime                                     
  version     Kernel version                                    
  video	     bttv info of video resources			(2.4)
+ vmallocinfo Show vmalloced areas
 ..............................................................................
 
 You can,  for  example,  check  which interrupts are currently in use and what
@@ -557,6 +558,49 @@ VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
 VmallocChunk: largest contigious block of vmalloc area which is free
 
+..............................................................................
+
+vmallocinfo:
+
+Provides information about vmalloced/vmaped areas. One line per area,
+containing the virtual address range of the area, size in bytes,
+caller information of the creator, and optional information depending
+on the kind of area :
+
+ pages=nr    number of pages
+ phys=addr   if a physical address was specified
+ ioremap     I/O mapping (ioremap() and friends)
+ vmalloc     vmalloc() area
+ vmap        vmap()ed pages
+ user        VM_USERMAP area
+ vpages      buffer for pages pointers was vmalloced (huge area)
+ N<node>=nr  (Only on NUMA kernels)
+             Number of pages allocated on memory node <node>
+
+> cat /proc/vmallocinfo
+0xffffc20000000000-0xffffc20000201000 2101248 alloc_large_system_hash+0x204 ...
+  /0x2c0 pages=512 vmalloc N0=128 N1=128 N2=128 N3=128
+0xffffc20000201000-0xffffc20000302000 1052672 alloc_large_system_hash+0x204 ...
+  /0x2c0 pages=256 vmalloc N0=64 N1=64 N2=64 N3=64
+0xffffc20000302000-0xffffc20000304000    8192 acpi_tb_verify_table+0x21/0x4f...
+  phys=7fee8000 ioremap
+0xffffc20000304000-0xffffc20000307000   12288 acpi_tb_verify_table+0x21/0x4f...
+  phys=7fee7000 ioremap
+0xffffc2000031d000-0xffffc2000031f000    8192 init_vdso_vars+0x112/0x210
+0xffffc2000031f000-0xffffc2000032b000   49152 cramfs_uncompress_init+0x2e ...
+  /0x80 pages=11 vmalloc N0=3 N1=3 N2=2 N3=3
+0xffffc2000033a000-0xffffc2000033d000   12288 sys_swapon+0x640/0xac0      ...
+  pages=2 vmalloc N1=2
+0xffffc20000347000-0xffffc2000034c000   20480 xt_alloc_table_info+0xfe ...
+  /0x130 [x_tables] pages=4 vmalloc N0=4
+0xffffffffa0000000-0xffffffffa000f000   61440 sys_init_module+0xc27/0x1d00 ...
+   pages=14 vmalloc N2=14
+0xffffffffa000f000-0xffffffffa0014000   20480 sys_init_module+0xc27/0x1d00 ...
+   pages=4 vmalloc N1=4
+0xffffffffa0014000-0xffffffffa0017000   12288 sys_init_module+0xc27/0x1d00 ...
+   pages=2 vmalloc N1=2
+0xffffffffa0017000-0xffffffffa0022000   45056 sys_init_module+0xc27/0x1d00 ...
+   pages=10 vmalloc N0=10
 
 1.3 IDE devices in /proc/ide
 ----------------------------
@@ -887,7 +931,7 @@ group_prealloc  max_to_scan  mb_groups  mb_history  min_to_scan  order2_req
 stats  stream_req
 
 mb_groups:
-This file gives the details of mutiblock allocator buddy cache of free blocks
+This file gives the details of multiblock allocator buddy cache of free blocks
 
 mb_history:
 Multiblock allocation history.
@@ -1295,6 +1339,25 @@ Enables/Disables the protection of the per-process proc entries "maps" and
 "smaps".  When enabled, the contents of these files are visible only to
 readers that are allowed to ptrace() the given process.
 
+msgmni
+------
+
+Maximum number of message queue ids on the system.
+This value scales to the amount of lowmem. It is automatically recomputed
+upon memory add/remove or ipc namespace creation/removal.
+When a value is written into this file, msgmni's value becomes fixed, i.e. it
+is not recomputed anymore when one of the above events occurs.
+Use auto_msgmni to change this behavior.
+
+auto_msgmni
+-----------
+
+Enables/Disables automatic recomputing of msgmni upon memory add/remove or
+upon ipc namespace creation/removal (see the msgmni description above).
+Echoing "1" into this file enables msgmni automatic recomputing.
+Echoing "0" turns it off.
+auto_msgmni default value is 1.
+
 
 2.4 /proc/sys/vm - The virtual memory subsystem
 -----------------------------------------------
@@ -1430,7 +1493,7 @@ used because pages_free(1355) is smaller than watermark + protection[2]
 normal page requirement. If requirement is DMA zone(index=0), protection[0]
 (=0) is used.
 
-zone[i]'s protection[j] is calculated by following exprssion.
+zone[i]'s protection[j] is calculated by following expression.
 
 (i < j):
   zone[i]->protection[j]
@@ -2350,6 +2413,8 @@ The following 4 memory types are supported:
   - (bit 1) anonymous shared memory
   - (bit 2) file-backed private memory
   - (bit 3) file-backed shared memory
+  - (bit 4) ELF header pages in file-backed private memory areas (it is
+            effective only if the bit 2 is cleared)
 
   Note that MMIO pages such as frame buffer are never dumped and vDSO pages
   are always dumped regardless of the bitmask status.

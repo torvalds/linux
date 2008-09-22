@@ -135,15 +135,6 @@ static const char *reloc_name[256] = {
 
 #undef N
 
-struct got_entry {
-	uint64_t val;
-};
-
-struct fdesc {
-	uint64_t ip;
-	uint64_t gp;
-};
-
 /* Opaque struct for insns, to protect against derefs. */
 struct insn;
 

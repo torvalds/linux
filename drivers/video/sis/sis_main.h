@@ -665,11 +665,11 @@ static struct _customttable {
 
 /* Interface used by the world */
 #ifndef MODULE
-SISINITSTATIC int sisfb_setup(char *options);
+static int sisfb_setup(char *options);
 #endif
 
 /* Interface to the low level console driver */
-SISINITSTATIC int sisfb_init(void);
+static int sisfb_init(void);
 
 /* fbdev routines */
 static int	sisfb_get_fix(struct fb_fix_screeninfo *fix, int con,

@@ -371,7 +371,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			 * for an in-flight io page
 			 */
 			if (flags & SPLICE_F_NONBLOCK) {
-				if (TestSetPageLocked(page)) {
+				if (!trylock_page(page)) {
 					error = -EAGAIN;
 					break;
 				}
@@ -772,7 +772,7 @@ generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 	int err;
 
-	err = remove_suid(out->f_path.dentry);
+	err = file_remove_suid(out);
 	if (unlikely(err))
 		return err;
 
@@ -830,7 +830,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 
 	inode_double_lock(inode, pipe->inode);
-	ret = remove_suid(out->f_path.dentry);
+	ret = file_remove_suid(out);
 	if (likely(!ret))
 		ret = __splice_from_pipe(pipe, &sd, pipe_to_file);
 	inode_double_unlock(inode, pipe->inode);
@@ -1161,36 +1161,6 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 }
 
 /*
- * Do a copy-from-user while holding the mmap_semaphore for reading, in a
- * manner safe from deadlocking with simultaneous mmap() (grabbing mmap_sem
- * for writing) and page faulting on the user memory pointed to by src.
- * This assumes that we will very rarely hit the partial != 0 path, or this
- * will not be a win.
- */
-static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
-{
-	int partial;
-
-	if (!access_ok(VERIFY_READ, src, n))
-		return -EFAULT;
-
-	pagefault_disable();
-	partial = __copy_from_user_inatomic(dst, src, n);
-	pagefault_enable();
-
-	/*
-	 * Didn't copy everything, drop the mmap_sem and do a faulting copy
-	 */
-	if (unlikely(partial)) {
-		up_read(&current->mm->mmap_sem);
-		partial = copy_from_user(dst, src, n);
-		down_read(&current->mm->mmap_sem);
-	}
-
-	return partial;
-}
-
-/*
  * Map an iov into an array of pages and offset/length tupples. With the
  * partial_page structure, we can map several non-contiguous ranges into
  * our ones pages[] map instead of splitting that operation into pieces.
@@ -1203,8 +1173,6 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 {
 	int buffers = 0, error = 0;
 
-	down_read(&current->mm->mmap_sem);
-
 	while (nr_vecs) {
 		unsigned long off, npages;
 		struct iovec entry;
@@ -1213,7 +1181,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		int i;
 
 		error = -EFAULT;
-		if (copy_from_user_mmap_sem(&entry, iov, sizeof(entry)))
+		if (copy_from_user(&entry, iov, sizeof(entry)))
 			break;
 
 		base = entry.iov_base;
@@ -1247,9 +1215,8 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		if (npages > PIPE_BUFFERS - buffers)
 			npages = PIPE_BUFFERS - buffers;
 
-		error = get_user_pages(current, current->mm,
-				       (unsigned long) base, npages, 0, 0,
-				       &pages[buffers], NULL);
+		error = get_user_pages_fast((unsigned long)base, npages,
+					0, &pages[buffers]);
 
 		if (unlikely(error <= 0))
 			break;
@@ -1287,8 +1254,6 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		nr_vecs--;
 		iov++;
 	}
-
-	up_read(&current->mm->mmap_sem);
 
 	if (buffers)
 		return buffers;

@@ -57,7 +57,9 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_DISCONNECTED,
 	RDMA_CM_EVENT_DEVICE_REMOVAL,
 	RDMA_CM_EVENT_MULTICAST_JOIN,
-	RDMA_CM_EVENT_MULTICAST_ERROR
+	RDMA_CM_EVENT_MULTICAST_ERROR,
+	RDMA_CM_EVENT_ADDR_CHANGE,
+	RDMA_CM_EVENT_TIMEWAIT_EXIT
 };
 
 enum rdma_port_space {
@@ -69,12 +71,8 @@ enum rdma_port_space {
 };
 
 struct rdma_addr {
-	struct sockaddr src_addr;
-	u8		src_pad[sizeof(struct sockaddr_in6) -
-				sizeof(struct sockaddr)];
-	struct sockaddr dst_addr;
-	u8		dst_pad[sizeof(struct sockaddr_in6) -
-				sizeof(struct sockaddr)];
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
 	struct rdma_dev_addr dev_addr;
 };
 

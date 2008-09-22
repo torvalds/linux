@@ -16,8 +16,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <asm/hardware.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/uengine.h>
 #include <asm/io.h>
 

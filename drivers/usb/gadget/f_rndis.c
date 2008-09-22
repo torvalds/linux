@@ -85,9 +85,7 @@ struct f_rndis {
 	u8				ethaddr[ETH_ALEN];
 	int				config;
 
-	struct usb_descriptor_header	**fs_function;
 	struct rndis_ep_descs		fs;
-	struct usb_descriptor_header	**hs_function;
 	struct rndis_ep_descs		hs;
 
 	struct usb_ep			*notify;

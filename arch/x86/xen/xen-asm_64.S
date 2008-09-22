@@ -173,7 +173,7 @@ ENTRY(xen_sysexit)
 	pushq $__USER32_CS
 	pushq %rdx
 
-	pushq $VGCF_in_syscall
+	pushq $0
 1:	jmp hypercall_iret
 ENDPATCH(xen_sysexit)
 RELOC(xen_sysexit, 1b+1)

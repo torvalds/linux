@@ -56,7 +56,6 @@
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/crc32.h>
@@ -76,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.3.99-1.347"
+#define MYRI10GE_VERSION_STR "1.4.3-1.358"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -3548,7 +3547,11 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 
 	/* try to load the slice aware rss firmware */
 	old_fw = mgp->fw_name;
-	if (old_fw == myri10ge_fw_aligned)
+	if (myri10ge_fw_name != NULL) {
+		dev_info(&mgp->pdev->dev, "overriding rss firmware to %s\n",
+			 myri10ge_fw_name);
+		mgp->fw_name = myri10ge_fw_name;
+	} else if (old_fw == myri10ge_fw_aligned)
 		mgp->fw_name = myri10ge_fw_rss_aligned;
 	else
 		mgp->fw_name = myri10ge_fw_rss_unaligned;
@@ -3699,6 +3702,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
 		goto abort_with_netdev;
 	}
+	(void)pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
 	if (mgp->cmd == NULL)

@@ -134,8 +134,8 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 	struct sk_buff *fp;
 	struct netns_frags *nf;
 
-	BUG_TRAP(q->last_in & INET_FRAG_COMPLETE);
-	BUG_TRAP(del_timer(&q->timer) == 0);
+	WARN_ON(!(q->last_in & INET_FRAG_COMPLETE));
+	WARN_ON(del_timer(&q->timer) != 0);
 
 	/* Release all fragment data. */
 	fp = q->fragments;

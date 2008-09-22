@@ -69,12 +69,13 @@ ret_trap_lockless_ipi:
 
 	ld	[%curptr + TI_FLAGS], %g2
 signal_p:
-	andcc	%g2, (_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %g0
+	andcc	%g2, _TIF_DO_NOTIFY_RESUME_MASK, %g0
 	bz,a	ret_trap_continue
 	 ld	[%sp + STACKFRAME_SZ + PT_PSR], %t_psr
 
+	mov	%g2, %o2
 	mov	%l5, %o1
-	call	do_signal
+	call	do_notify_resume
 	 add	%sp, STACKFRAME_SZ, %o0	! pt_regs ptr
 
 	/* Fall through. */

@@ -25,7 +25,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -239,6 +239,7 @@ static void __init mss2_init(void)
 	orion5x_i2c_init();
 	orion5x_sata_init(&mss2_sata_data);
 	orion5x_uart0_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(MSS2_NOR_BOOT_BASE, MSS2_NOR_BOOT_SIZE);
 	platform_device_register(&mss2_nor_flash);

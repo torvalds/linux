@@ -158,24 +158,31 @@ static DEFINE_MUTEX(idefloppy_ref_mutex);
 #define ide_floppy_g(disk) \
 	container_of((disk)->private_data, struct ide_floppy_obj, driver)
 
+static void idefloppy_cleanup_obj(struct kref *);
+
 static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
 {
 	struct ide_floppy_obj *floppy = NULL;
 
 	mutex_lock(&idefloppy_ref_mutex);
 	floppy = ide_floppy_g(disk);
-	if (floppy)
-		kref_get(&floppy->kref);
+	if (floppy) {
+		if (ide_device_get(floppy->drive))
+			floppy = NULL;
+		else
+			kref_get(&floppy->kref);
+	}
 	mutex_unlock(&idefloppy_ref_mutex);
 	return floppy;
 }
 
-static void idefloppy_cleanup_obj(struct kref *);
-
 static void ide_floppy_put(struct ide_floppy_obj *floppy)
 {
+	ide_drive_t *drive = floppy->drive;
+
 	mutex_lock(&idefloppy_ref_mutex);
 	kref_put(&floppy->kref, idefloppy_cleanup_obj);
+	ide_device_put(drive);
 	mutex_unlock(&idefloppy_ref_mutex);
 }
 

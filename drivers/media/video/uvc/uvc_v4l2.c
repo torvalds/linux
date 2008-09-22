@@ -23,6 +23,7 @@
 #include <asm/atomic.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include "uvcvideo.h"
 

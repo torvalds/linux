@@ -106,7 +106,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 	struct ubi_device *ubi;
 	struct ubi_volume *vol;
 
-	dbg_msg("open device %d volume %d, mode %d", ubi_num, vol_id, mode);
+	dbg_gen("open device %d volume %d, mode %d", ubi_num, vol_id, mode);
 
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
 		return ERR_PTR(-EINVAL);
@@ -215,7 +215,7 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	struct ubi_device *ubi;
 	struct ubi_volume_desc *ret;
 
-	dbg_msg("open volume %s, mode %d", name, mode);
+	dbg_gen("open volume %s, mode %d", name, mode);
 
 	if (!name)
 		return ERR_PTR(-EINVAL);
@@ -266,7 +266,7 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	dbg_msg("close volume %d, mode %d", vol->vol_id, desc->mode);
+	dbg_gen("close volume %d, mode %d", vol->vol_id, desc->mode);
 
 	spin_lock(&ubi->volumes_lock);
 	switch (desc->mode) {
@@ -323,7 +323,7 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 	struct ubi_device *ubi = vol->ubi;
 	int err, vol_id = vol->vol_id;
 
-	dbg_msg("read %d bytes from LEB %d:%d:%d", len, vol_id, lnum, offset);
+	dbg_gen("read %d bytes from LEB %d:%d:%d", len, vol_id, lnum, offset);
 
 	if (vol_id < 0 || vol_id >= ubi->vtbl_slots || lnum < 0 ||
 	    lnum >= vol->used_ebs || offset < 0 || len < 0 ||
@@ -388,7 +388,7 @@ int ubi_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	struct ubi_device *ubi = vol->ubi;
 	int vol_id = vol->vol_id;
 
-	dbg_msg("write %d bytes to LEB %d:%d:%d", len, vol_id, lnum, offset);
+	dbg_gen("write %d bytes to LEB %d:%d:%d", len, vol_id, lnum, offset);
 
 	if (vol_id < 0 || vol_id >= ubi->vtbl_slots)
 		return -EINVAL;
@@ -397,8 +397,8 @@ int ubi_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		return -EROFS;
 
 	if (lnum < 0 || lnum >= vol->reserved_pebs || offset < 0 || len < 0 ||
-	    offset + len > vol->usable_leb_size || offset % ubi->min_io_size ||
-	    len % ubi->min_io_size)
+	    offset + len > vol->usable_leb_size ||
+	    offset & (ubi->min_io_size - 1) || len & (ubi->min_io_size - 1))
 		return -EINVAL;
 
 	if (dtype != UBI_LONGTERM && dtype != UBI_SHORTTERM &&
@@ -438,7 +438,7 @@ int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	struct ubi_device *ubi = vol->ubi;
 	int vol_id = vol->vol_id;
 
-	dbg_msg("atomically write %d bytes to LEB %d:%d", len, vol_id, lnum);
+	dbg_gen("atomically write %d bytes to LEB %d:%d", len, vol_id, lnum);
 
 	if (vol_id < 0 || vol_id >= ubi->vtbl_slots)
 		return -EINVAL;
@@ -447,7 +447,7 @@ int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		return -EROFS;
 
 	if (lnum < 0 || lnum >= vol->reserved_pebs || len < 0 ||
-	    len > vol->usable_leb_size || len % ubi->min_io_size)
+	    len > vol->usable_leb_size || len & (ubi->min_io_size - 1))
 		return -EINVAL;
 
 	if (dtype != UBI_LONGTERM && dtype != UBI_SHORTTERM &&
@@ -482,7 +482,7 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum)
 	struct ubi_device *ubi = vol->ubi;
 	int err;
 
-	dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
+	dbg_gen("erase LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -542,7 +542,7 @@ int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	dbg_msg("unmap LEB %d:%d", vol->vol_id, lnum);
+	dbg_gen("unmap LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -579,7 +579,7 @@ int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	dbg_msg("unmap LEB %d:%d", vol->vol_id, lnum);
+	dbg_gen("unmap LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -621,7 +621,7 @@ int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum)
 {
 	struct ubi_volume *vol = desc->vol;
 
-	dbg_msg("test LEB %d:%d", vol->vol_id, lnum);
+	dbg_gen("test LEB %d:%d", vol->vol_id, lnum);
 
 	if (lnum < 0 || lnum >= vol->reserved_pebs)
 		return -EINVAL;
@@ -632,3 +632,27 @@ int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum)
 	return vol->eba_tbl[lnum] >= 0;
 }
 EXPORT_SYMBOL_GPL(ubi_is_mapped);
+
+/**
+ * ubi_sync - synchronize UBI device buffers.
+ * @ubi_num: UBI device to synchronize
+ *
+ * The underlying MTD device may cache data in hardware or in software. This
+ * function ensures the caches are flushed. Returns zero in case of success and
+ * a negative error code in case of failure.
+ */
+int ubi_sync(int ubi_num)
+{
+	struct ubi_device *ubi;
+
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
+		return -ENODEV;
+
+	if (ubi->mtd->sync)
+		ubi->mtd->sync(ubi->mtd);
+
+	ubi_put_device(ubi);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ubi_sync);

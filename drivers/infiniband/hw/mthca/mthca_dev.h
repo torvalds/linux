@@ -202,6 +202,7 @@ struct mthca_pd_table {
 
 struct mthca_buddy {
 	unsigned long **bits;
+	int	       *num_free;
 	int             max_order;
 	spinlock_t      lock;
 };

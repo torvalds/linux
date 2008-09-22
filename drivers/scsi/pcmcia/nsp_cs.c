@@ -25,7 +25,6 @@
 
 ***********************************************************************/
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -107,9 +106,9 @@ static nsp_hw_data nsp_data_base; /* attach <-> detect glue */
 #else
 # define NSP_DEBUG_MASK		0xffffff
 # define nsp_msg(type, args...) \
-	nsp_cs_message (__FUNCTION__, __LINE__, (type), args)
+	nsp_cs_message (__func__, __LINE__, (type), args)
 # define nsp_dbg(mask, args...) \
-	nsp_cs_dmessage(__FUNCTION__, __LINE__, (mask), args)
+	nsp_cs_dmessage(__func__, __LINE__, (mask), args)
 #endif
 
 #define NSP_DEBUG_QUEUECOMMAND		BIT(0)

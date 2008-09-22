@@ -232,6 +232,7 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &ipv4_doint_and_flush,
 		.strategy	= &ipv4_doint_and_flush_strategy,
+		.extra2		= &init_net,
 	},
 	{
 		.ctl_name	= NET_IPV4_NO_PMTU_DISC,
@@ -400,13 +401,6 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &ipv4_local_port_range,
 		.strategy	= &ipv4_sysctl_local_port_range,
-	},
-	{
-		.ctl_name	= NET_IPV4_ROUTE,
-		.procname	= "route",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= ipv4_route_table
 	},
 #ifdef CONFIG_IP_MULTICAST
 	{

@@ -15,13 +15,13 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/board-eb.h>
-#include <asm/arch/board-pb11mp.h>
-#include <asm/arch/scu.h>
+#include <mach/board-eb.h>
+#include <mach/board-pb11mp.h>
+#include <mach/scu.h>
 
 extern void realview_secondary_startup(void);
 

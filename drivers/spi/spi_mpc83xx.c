@@ -266,21 +266,21 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	cs->hw_mode |= SPMODE_LEN(bits_per_word);
 
-	if ((mpc83xx_spi->spibrg / hz) >= 64) {
-		pm = mpc83xx_spi->spibrg / (hz * 64) - 1;
-		if (pm > 0x0f) {
+	if ((mpc83xx_spi->spibrg / hz) > 64) {
+		cs->hw_mode |= SPMODE_DIV16;
+		pm = mpc83xx_spi->spibrg / (hz * 64);
+		if (pm > 16) {
 			dev_err(&spi->dev, "Requested speed is too "
 				"low: %d Hz. Will use %d Hz instead.\n",
 				hz, mpc83xx_spi->spibrg / 1024);
-			pm = 0x0f;
+			pm = 16;
 		}
-		cs->hw_mode |= SPMODE_PM(pm) | SPMODE_DIV16;
-	} else {
+	} else
 		pm = mpc83xx_spi->spibrg / (hz * 4);
-		if (pm)
-			pm--;
-		cs->hw_mode |= SPMODE_PM(pm);
-	}
+	if (pm)
+		pm--;
+
+	cs->hw_mode |= SPMODE_PM(pm);
 	regval =  mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 	if (cs->hw_mode != regval) {
 		unsigned long flags;
@@ -312,11 +312,20 @@ static int mpc83xx_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	if (t->bits_per_word)
 		bits_per_word = t->bits_per_word;
 	len = t->len;
-	if (bits_per_word > 8)
+	if (bits_per_word > 8) {
+		/* invalid length? */
+		if (len & 1)
+			return -EINVAL;
 		len /= 2;
-	if (bits_per_word > 16)
+	}
+	if (bits_per_word > 16) {
+		/* invalid length? */
+		if (len & 1)
+			return -EINVAL;
 		len /= 2;
+	}
 	mpc83xx_spi->count = len;
+
 	INIT_COMPLETION(mpc83xx_spi->done);
 
 	/* enable rx ints */

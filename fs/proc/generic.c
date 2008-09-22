@@ -300,10 +300,10 @@ out:
 	return rtn;
 }
 
-static DEFINE_IDR(proc_inum_idr);
+static DEFINE_IDA(proc_inum_ida);
 static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 
-#define PROC_DYNAMIC_FIRST 0xF0000000UL
+#define PROC_DYNAMIC_FIRST 0xF0000000U
 
 /*
  * Return an inode number between PROC_DYNAMIC_FIRST and
@@ -311,36 +311,34 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
  */
 static unsigned int get_inode_number(void)
 {
-	int i, inum = 0;
+	unsigned int i;
 	int error;
 
 retry:
-	if (idr_pre_get(&proc_inum_idr, GFP_KERNEL) == 0)
+	if (ida_pre_get(&proc_inum_ida, GFP_KERNEL) == 0)
 		return 0;
 
 	spin_lock(&proc_inum_lock);
-	error = idr_get_new(&proc_inum_idr, NULL, &i);
+	error = ida_get_new(&proc_inum_ida, &i);
 	spin_unlock(&proc_inum_lock);
 	if (error == -EAGAIN)
 		goto retry;
 	else if (error)
 		return 0;
 
-	inum = (i & MAX_ID_MASK) + PROC_DYNAMIC_FIRST;
-
-	/* inum will never be more than 0xf0ffffff, so no check
-	 * for overflow.
-	 */
-
-	return inum;
+	if (i > UINT_MAX - PROC_DYNAMIC_FIRST) {
+		spin_lock(&proc_inum_lock);
+		ida_remove(&proc_inum_ida, i);
+		spin_unlock(&proc_inum_lock);
+		return 0;
+	}
+	return PROC_DYNAMIC_FIRST + i;
 }
 
 static void release_inode_number(unsigned int inum)
 {
-	int id = (inum - PROC_DYNAMIC_FIRST) | ~MAX_ID_MASK;
-
 	spin_lock(&proc_inum_lock);
-	idr_remove(&proc_inum_idr, id);
+	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 	spin_unlock(&proc_inum_lock);
 }
 
@@ -549,8 +547,8 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 
 	for (tmp = dir->subdir; tmp; tmp = tmp->next)
 		if (strcmp(tmp->name, dp->name) == 0) {
-			printk(KERN_WARNING "proc_dir_entry '%s' already "
-					"registered\n", dp->name);
+			printk(KERN_WARNING "proc_dir_entry '%s/%s' already registered\n",
+				dir->name, dp->name);
 			dump_stack();
 			break;
 		}
@@ -597,6 +595,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	ent->pde_users = 0;
 	spin_lock_init(&ent->pde_unload_lock);
 	ent->pde_unload_completion = NULL;
+	INIT_LIST_HEAD(&ent->pde_openers);
  out:
 	return ent;
 }
@@ -789,15 +788,25 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	spin_unlock(&de->pde_unload_lock);
 
 continue_removing:
+	spin_lock(&de->pde_unload_lock);
+	while (!list_empty(&de->pde_openers)) {
+		struct pde_opener *pdeo;
+
+		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
+		list_del(&pdeo->lh);
+		spin_unlock(&de->pde_unload_lock);
+		pdeo->release(pdeo->inode, pdeo->file);
+		kfree(pdeo);
+		spin_lock(&de->pde_unload_lock);
+	}
+	spin_unlock(&de->pde_unload_lock);
+
 	if (S_ISDIR(de->mode))
 		parent->nlink--;
 	de->nlink = 0;
-	if (de->subdir) {
-		printk(KERN_WARNING "%s: removing non-empty directory "
+	WARN(de->subdir, KERN_WARNING "%s: removing non-empty directory "
 			"'%s/%s', leaking at least '%s'\n", __func__,
 			de->parent->name, de->name, de->subdir->name);
-		WARN_ON(1);
-	}
 	if (atomic_dec_and_test(&de->count))
 		free_proc_entry(de);
 }

@@ -37,15 +37,6 @@
 
 #include <asm/mips-boards/malta.h>
 
-#ifdef CONFIG_KGDB
-extern int rs_kgdb_hook(int, int);
-extern int rs_putDebugChar(char);
-extern char rs_getDebugChar(void);
-extern int saa9730_kgdb_hook(int);
-extern int saa9730_putDebugChar(char);
-extern char saa9730_getDebugChar(void);
-#endif
-
 int prom_argc;
 int *_prom_argv, *_prom_envp;
 
@@ -169,51 +160,6 @@ static void __init console_config(void)
 		sprintf(console_string, " console=ttyS0,%d%c%c%c", baud, parity, bits, flow);
 		strcat(prom_getcmdline(), console_string);
 		pr_info("Config serial console:%s\n", console_string);
-	}
-}
-#endif
-
-#ifdef CONFIG_KGDB
-void __init kgdb_config(void)
-{
-	extern int (*generic_putDebugChar)(char);
-	extern char (*generic_getDebugChar)(void);
-	char *argptr;
-	int line, speed;
-
-	argptr = prom_getcmdline();
-	if ((argptr = strstr(argptr, "kgdb=ttyS")) != NULL) {
-		argptr += strlen("kgdb=ttyS");
-		if (*argptr != '0' && *argptr != '1')
-			printk("KGDB: Unknown serial line /dev/ttyS%c, "
-			       "falling back to /dev/ttyS1\n", *argptr);
-		line = *argptr == '0' ? 0 : 1;
-		printk("KGDB: Using serial line /dev/ttyS%d for session\n", line);
-
-		speed = 0;
-		if (*++argptr == ',')
-		{
-			int c;
-			while ((c = *++argptr) && ('0' <= c && c <= '9'))
-				speed = speed * 10 + c - '0';
-		}
-		{
-			speed = rs_kgdb_hook(line, speed);
-			generic_putDebugChar = rs_putDebugChar;
-			generic_getDebugChar = rs_getDebugChar;
-		}
-
-		pr_info("KGDB: Using serial line /dev/ttyS%d at %d for "
-		        "session, please connect your debugger\n",
-		        line ? 1 : 0, speed);
-
-		{
-			char *s;
-			for (s = "Please connect GDB to this port\r\n"; *s; )
-				generic_putDebugChar(*s++);
-		}
-
-		/* Breakpoint is invoked after interrupts are initialised */
 	}
 }
 #endif

@@ -344,18 +344,18 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
-void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, int flags)
+int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
 	int err;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return;
+		return -ENOMEM;
 
 	if (!init_part_stats(p)) {
-		kfree(p);
-		return;
+		err = -ENOMEM;
+		goto out0;
 	}
 	p->start_sect = start;
 	p->nr_sects = len;
@@ -378,15 +378,31 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 
 	/* delay uevent until 'holders' subdir is created */
 	p->dev.uevent_suppress = 1;
-	device_add(&p->dev);
+	err = device_add(&p->dev);
+	if (err)
+		goto out1;
 	partition_sysfs_add_subdir(p);
 	p->dev.uevent_suppress = 0;
-	if (flags & ADDPART_FLAG_WHOLEDISK)
+	if (flags & ADDPART_FLAG_WHOLEDISK) {
 		err = device_create_file(&p->dev, &dev_attr_whole_disk);
+		if (err)
+			goto out2;
+	}
 
 	/* suppress uevent if the disk supresses it */
 	if (!disk->dev.uevent_suppress)
 		kobject_uevent(&p->dev.kobj, KOBJ_ADD);
+
+	return 0;
+
+out2:
+	device_del(&p->dev);
+out1:
+	put_device(&p->dev);
+	free_part_stats(p);
+out0:
+	kfree(p);
+	return err;
 }
 
 /* Not exported, helper to add_disk(). */
@@ -483,10 +499,16 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		if (!size)
 			continue;
 		if (from + size > get_capacity(disk)) {
-			printk(" %s: p%d exceeds device capacity\n",
+			printk(KERN_WARNING
+				"%s: p%d exceeds device capacity\n",
 				disk->disk_name, p);
 		}
-		add_partition(disk, p, from, size, state->parts[p].flags);
+		res = add_partition(disk, p, from, size, state->parts[p].flags);
+		if (res) {
+			printk(KERN_ERR " %s: p%d could not be added: %d\n",
+				disk->disk_name, p, -res);
+			continue;
+		}
 #ifdef CONFIG_BLK_DEV_MD
 		if (state->parts[p].flags & ADDPART_FLAG_RAID)
 			md_autodetect_dev(bdev->bd_dev+p);

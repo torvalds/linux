@@ -621,7 +621,7 @@ shortname:
 	memcpy(de->name, msdos_name, MSDOS_NAME);
 	de->attr = is_dir ? ATTR_DIR : ATTR_ARCH;
 	de->lcase = lcase;
-	fat_date_unix2dos(ts->tv_sec, &time, &date);
+	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
 	de->time = de->ctime = time;
 	de->date = de->cdate = de->adate = date;
 	de->ctime_cs = 0;

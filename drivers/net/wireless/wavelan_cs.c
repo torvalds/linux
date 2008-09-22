@@ -1412,9 +1412,6 @@ wavelan_set_multicast_list(struct net_device *	dev)
 	  lp->mc_count = 0;
 
 	  wv_82593_reconfig(dev);
-
-	  /* Tell the kernel that we are doing a really bad job... */
-	  dev->flags |= IFF_PROMISC;
 	}
     }
   else
@@ -1433,9 +1430,6 @@ wavelan_set_multicast_list(struct net_device *	dev)
 	    lp->mc_count = 0;
 
 	    wv_82593_reconfig(dev);
-
-	    /* Tell the kernel that we are doing a really bad job... */
-	    dev->flags |= IFF_ALLMULTI;
 	  }
       }
     else

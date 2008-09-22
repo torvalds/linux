@@ -791,7 +791,7 @@ static inline void iwl_dbg_report_frame(struct iwl_priv *priv,
 
 static void iwl_add_radiotap(struct iwl_priv *priv,
 				 struct sk_buff *skb,
-				 struct iwl4965_rx_phy_res *rx_start,
+				 struct iwl_rx_phy_res *rx_start,
 				 struct ieee80211_rx_status *stats,
 				 u32 ampdu_status)
 {
@@ -1010,8 +1010,8 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 				       struct ieee80211_rx_status *stats)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_rx_phy_res *rx_start = (include_phy) ?
-	    (struct iwl4965_rx_phy_res *)&(pkt->u.raw[0]) : NULL;
+	struct iwl_rx_phy_res *rx_start = (include_phy) ?
+	    (struct iwl_rx_phy_res *)&(pkt->u.raw[0]) : NULL;
 	struct ieee80211_hdr *hdr;
 	u16 len;
 	__le32 *rx_end;
@@ -1020,7 +1020,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	u32 ampdu_status_legacy;
 
 	if (!include_phy && priv->last_phy_res[0])
-		rx_start = (struct iwl4965_rx_phy_res *)&priv->last_phy_res[1];
+		rx_start = (struct iwl_rx_phy_res *)&priv->last_phy_res[1];
 
 	if (!rx_start) {
 		IWL_ERROR("MPDU frame without a PHY data\n");
@@ -1032,8 +1032,8 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 		len = le16_to_cpu(rx_start->byte_count);
 
-		rx_end = (__le32 *) ((u8 *) &pkt->u.raw[0] +
-				  sizeof(struct iwl4965_rx_phy_res) +
+		rx_end = (__le32 *)((u8 *) &pkt->u.raw[0] +
+				  sizeof(struct iwl_rx_phy_res) +
 				  rx_start->cfg_phy_cnt + len);
 
 	} else {
@@ -1084,39 +1084,12 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
-static int iwl_calc_rssi(struct iwl_priv *priv,
-			     struct iwl4965_rx_phy_res *rx_resp)
+static inline int iwl_calc_rssi(struct iwl_priv *priv,
+				struct iwl_rx_phy_res *rx_resp)
 {
-	/* data from PHY/DSP regarding signal strength, etc.,
-	 *   contents are always there, not configurable by host.  */
-	struct iwl4965_rx_non_cfg_phy *ncphy =
-	    (struct iwl4965_rx_non_cfg_phy *)rx_resp->non_cfg_phy;
-	u32 agc = (le16_to_cpu(ncphy->agc_info) & IWL_AGC_DB_MASK)
-			>> IWL_AGC_DB_POS;
-
-	u32 valid_antennae =
-	    (le16_to_cpu(rx_resp->phy_flags) & RX_PHY_FLAGS_ANTENNAE_MASK)
-			>> RX_PHY_FLAGS_ANTENNAE_OFFSET;
-	u8 max_rssi = 0;
-	u32 i;
-
-	/* Find max rssi among 3 possible receivers.
-	 * These values are measured by the digital signal processor (DSP).
-	 * They should stay fairly constant even as the signal strength varies,
-	 *   if the radio's automatic gain control (AGC) is working right.
-	 * AGC value (see below) will provide the "interesting" info. */
-	for (i = 0; i < 3; i++)
-		if (valid_antennae & (1 << i))
-			max_rssi = max(ncphy->rssi_info[i << 1], max_rssi);
-
-	IWL_DEBUG_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
-		ncphy->rssi_info[0], ncphy->rssi_info[2], ncphy->rssi_info[4],
-		max_rssi, agc);
-
-	/* dBm = max_rssi dB - agc dB - constant.
-	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL_RSSI_OFFSET;
+	return priv->cfg->ops->utils->calc_rssi(priv, rx_resp);
 }
+
 
 static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 {
@@ -1180,9 +1153,9 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	 *   this rx packet for legacy frames,
 	 *   or phy data cached from REPLY_RX_PHY_CMD for HT frames. */
 	int include_phy = (pkt->hdr.cmd == REPLY_RX);
-	struct iwl4965_rx_phy_res *rx_start = (include_phy) ?
-		(struct iwl4965_rx_phy_res *)&(pkt->u.raw[0]) :
-		(struct iwl4965_rx_phy_res *)&priv->last_phy_res[1];
+	struct iwl_rx_phy_res *rx_start = (include_phy) ?
+		(struct iwl_rx_phy_res *)&(pkt->u.raw[0]) :
+		(struct iwl_rx_phy_res *)&priv->last_phy_res[1];
 	__le32 *rx_end;
 	unsigned int len = 0;
 	u16 fc;
@@ -1200,7 +1173,10 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 
 	rx_status.antenna = 0;
 	rx_status.flag = 0;
-	rx_status.flag |= RX_FLAG_TSFT;
+
+	/* TSF isn't reliable. In order to allow smooth user experience,
+	 * this W/A doesn't propagate it to the mac80211 */
+	/*rx_status.flag |= RX_FLAG_TSFT;*/
 
 	if ((unlikely(rx_start->cfg_phy_cnt > 20))) {
 		IWL_DEBUG_DROP("dsp size out of range [0,20]: %d/n",
@@ -1210,7 +1186,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 
 	if (!include_phy) {
 		if (priv->last_phy_res[0])
-			rx_start = (struct iwl4965_rx_phy_res *)
+			rx_start = (struct iwl_rx_phy_res *)
 				&priv->last_phy_res[1];
 		else
 			rx_start = NULL;
@@ -1227,7 +1203,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 
 		len = le16_to_cpu(rx_start->byte_count);
 		rx_end = (__le32 *)(pkt->u.raw + rx_start->cfg_phy_cnt +
-				  sizeof(struct iwl4965_rx_phy_res) + len);
+				  sizeof(struct iwl_rx_phy_res) + len);
 	} else {
 		struct iwl4965_rx_mpdu_res_start *amsdu =
 			(struct iwl4965_rx_mpdu_res_start *)pkt->u.raw;
@@ -1316,6 +1292,6 @@ void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	priv->last_phy_res[0] = 1;
 	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
-	       sizeof(struct iwl4965_rx_phy_res));
+	       sizeof(struct iwl_rx_phy_res));
 }
 EXPORT_SYMBOL(iwl_rx_reply_rx_phy);

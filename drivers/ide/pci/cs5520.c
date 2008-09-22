@@ -41,6 +41,8 @@
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 
+#define DRV_NAME "cs5520"
+
 struct pio_clocks
 {
 	int address;
@@ -92,18 +94,12 @@ static const struct ide_port_ops cs5520_port_ops = {
 	.set_dma_mode		= cs5520_set_dma_mode,
 };
 
-#define DECLARE_CS_DEV(name_str)				\
-	{							\
-		.name		= name_str,			\
-		.port_ops	= &cs5520_port_ops,		\
-		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
-				  IDE_HFLAG_CS5520,		\
-		.pio_mask	= ATA_PIO4,			\
-	}
-
-static const struct ide_port_info cyrix_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_CS_DEV("Cyrix 5510"),
-	/* 1 */ DECLARE_CS_DEV("Cyrix 5520")
+static const struct ide_port_info cyrix_chipset __devinitdata = {
+	.name		= DRV_NAME,
+	.enablebits	= { { 0x60, 0x01, 0x01 }, { 0x60, 0x02, 0x02 } },
+	.port_ops	= &cs5520_port_ops,
+	.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_CS5520,
+	.pio_mask	= ATA_PIO4,
 };
 
 /*
@@ -114,7 +110,7 @@ static const struct ide_port_info cyrix_chipsets[] __devinitdata = {
  
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	const struct ide_port_info *d = &cyrix_chipsets[id->driver_data];
+	const struct ide_port_info *d = &cyrix_chipset;
 	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
 	ide_setup_pci_noise(dev, d);
@@ -128,7 +124,8 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	}
 	pci_set_master(dev);
 	if (pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
-		printk(KERN_WARNING "cs5520: No suitable DMA available.\n");
+		printk(KERN_WARNING "%s: No suitable DMA available.\n",
+			d->name);
 		return -ENODEV;
 	}
 

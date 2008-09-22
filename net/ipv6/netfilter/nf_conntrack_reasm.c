@@ -416,8 +416,8 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	fq_kill(fq);
 
-	BUG_TRAP(head != NULL);
-	BUG_TRAP(NFCT_FRAG6_CB(head)->offset == 0);
+	WARN_ON(head == NULL);
+	WARN_ON(NFCT_FRAG6_CB(head)->offset != 0);
 
 	/* Unfragmented part is taken from the first segment. */
 	payload_len = ((head->data - skb_network_header(head)) -

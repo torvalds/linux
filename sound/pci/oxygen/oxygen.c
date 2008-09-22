@@ -28,6 +28,7 @@
  * GPIO 1 -> DFS1 of AK5385
  */
 
+#include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <sound/ac97_codec.h>
@@ -213,6 +214,9 @@ static void set_ak4396_params(struct oxygen *chip,
 	else
 		value |= AK4396_DFS_QUAD;
 	data->ak4396_ctl2 = value;
+
+	msleep(1); /* wait for the new MCLK to become stable */
+
 	for (i = 0; i < 4; ++i) {
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB);

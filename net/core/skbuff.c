@@ -485,6 +485,9 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(head);
 	C(data);
 	C(truesize);
+#if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
+	C(do_not_encrypt);
+#endif
 	atomic_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
@@ -1200,7 +1203,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -1229,7 +1232,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1475,7 +1478,7 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + frag->size;
 		if ((copy = end - offset) > 0) {
@@ -1503,7 +1506,7 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1552,7 +1555,7 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -1581,7 +1584,7 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1629,7 +1632,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -1662,7 +1665,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 			__wsum csum2;
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -2253,14 +2256,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 			segs = nskb;
 		tail = nskb;
 
-		nskb->dev = skb->dev;
-		skb_copy_queue_mapping(nskb, skb);
-		nskb->priority = skb->priority;
-		nskb->protocol = skb->protocol;
-		nskb->vlan_tci = skb->vlan_tci;
-		nskb->dst = dst_clone(skb->dst);
-		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
-		nskb->pkt_type = skb->pkt_type;
+		__copy_skb_header(nskb, skb);
 		nskb->mac_len = skb->mac_len;
 
 		skb_reserve(nskb, headroom);
@@ -2271,6 +2267,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		skb_copy_from_linear_data(skb, skb_put(nskb, doffset),
 					  doffset);
 		if (!sg) {
+			nskb->ip_summed = CHECKSUM_NONE;
 			nskb->csum = skb_copy_and_csum_bits(skb, offset,
 							    skb_put(nskb, len),
 							    len, 0);
@@ -2280,8 +2277,6 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		frag = skb_shinfo(nskb)->frags;
 		k = 0;
 
-		nskb->ip_summed = CHECKSUM_PARTIAL;
-		nskb->csum = skb->csum;
 		skb_copy_from_linear_data_offset(skb, offset,
 						 skb_put(nskb, hsize), hsize);
 
@@ -2373,7 +2368,7 @@ __skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -2397,7 +2392,7 @@ __skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {

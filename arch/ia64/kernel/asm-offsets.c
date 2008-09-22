@@ -10,11 +10,11 @@
 #include <linux/pid.h>
 #include <linux/clocksource.h>
 #include <linux/kbuild.h>
-#include <asm-ia64/processor.h>
-#include <asm-ia64/ptrace.h>
-#include <asm-ia64/siginfo.h>
-#include <asm-ia64/sigcontext.h>
-#include <asm-ia64/mca.h>
+#include <asm/processor.h>
+#include <asm/ptrace.h>
+#include <asm/siginfo.h>
+#include <asm/sigcontext.h>
+#include <asm/mca.h>
 
 #include "../kernel/sigframe.h"
 #include "../kernel/fsyscall_gtod_data.h"

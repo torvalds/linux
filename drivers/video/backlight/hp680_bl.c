@@ -18,7 +18,7 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 
-#include <asm/cpu/dac.h>
+#include <cpu/dac.h>
 #include <asm/hp6xx.h>
 #include <asm/hd64461.h>
 

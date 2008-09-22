@@ -137,9 +137,11 @@ exit:
 }
 
 
-int coda_permission(struct inode *inode, int mask, struct nameidata *nd)
+int coda_permission(struct inode *inode, int mask)
 {
         int error = 0;
+
+	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
  
 	if (!mask)
 		return 0; 

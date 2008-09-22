@@ -20,7 +20,7 @@ int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	if (!rtc->ops)
 		err = -ENODEV;
@@ -46,7 +46,7 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	if (!rtc->ops)
 		err = -ENODEV;
@@ -66,7 +66,7 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	if (!rtc->ops)
 		err = -ENODEV;
@@ -106,7 +106,7 @@ static int rtc_read_alarm_internal(struct rtc_device *rtc, struct rtc_wkalrm *al
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	if (rtc->ops == NULL)
 		err = -ENODEV;
@@ -293,7 +293,7 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	if (!rtc->ops)
 		err = -ENODEV;

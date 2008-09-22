@@ -68,11 +68,11 @@ lasi_scsi_clock(void * hpa, int defaultclock)
 	if (status == PDC_RET_OK) {
 		clock = (int) pdc_result[16];
 	} else {
-		printk(KERN_WARNING "%s: pdc_iodc_read returned %d\n", __FUNCTION__, status);
+		printk(KERN_WARNING "%s: pdc_iodc_read returned %d\n", __func__, status);
 		clock = defaultclock; 
 	}
 
-	printk(KERN_DEBUG "%s: SCSI clock %d\n", __FUNCTION__, clock);
+	printk(KERN_DEBUG "%s: SCSI clock %d\n", __func__, clock);
  	return clock;
 }
 #endif
@@ -108,13 +108,13 @@ zalon_probe(struct parisc_device *dev)
 	*/
 	dev->irq = gsc_alloc_irq(&gsc_irq);
 
-	printk(KERN_INFO "%s: Zalon version %d, IRQ %d\n", __FUNCTION__,
+	printk(KERN_INFO "%s: Zalon version %d, IRQ %d\n", __func__,
 		zalon_vers, dev->irq);
 
 	__raw_writel(gsc_irq.txn_addr | gsc_irq.txn_data, zalon + IO_MODULE_EIM);
 
 	if (zalon_vers == 0)
-		printk(KERN_WARNING "%s: Zalon 1.1 or earlier\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: Zalon 1.1 or earlier\n", __func__);
 
 	memset(&device, 0, sizeof(struct ncr_device));
 

@@ -44,6 +44,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		NR_VM_EVENT_ITEMS
 };
 
+extern const struct seq_operations fragmentation_op;
+extern const struct seq_operations pagetypeinfo_op;
+extern const struct seq_operations zoneinfo_op;
+extern const struct seq_operations vmstat_op;
+extern int sysctl_stat_interval;
+
 #ifdef CONFIG_VM_EVENT_COUNTERS
 /*
  * Light weight per cpu counter implementation.

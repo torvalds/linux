@@ -26,6 +26,8 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "cs5535"
+
 #define MSR_ATAC_BASE		0x51300000
 #define ATAC_GLD_MSR_CAP	(MSR_ATAC_BASE+0)
 #define ATAC_GLD_MSR_CONFIG	(MSR_ATAC_BASE+0x01)
@@ -151,7 +153,7 @@ static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
-static u8 __devinit cs5535_cable_detect(ide_hwif_t *hwif)
+static u8 cs5535_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 bit;
@@ -169,7 +171,7 @@ static const struct ide_port_ops cs5535_port_ops = {
 };
 
 static const struct ide_port_info cs5535_chipset __devinitdata = {
-	.name		= "CS5535",
+	.name		= DRV_NAME,
 	.port_ops	= &cs5535_port_ops,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE,
 	.pio_mask	= ATA_PIO4,
@@ -180,7 +182,7 @@ static const struct ide_port_info cs5535_chipset __devinitdata = {
 static int __devinit cs5535_init_one(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &cs5535_chipset);
+	return ide_pci_init_one(dev, &cs5535_chipset, NULL);
 }
 
 static const struct pci_device_id cs5535_pci_tbl[] = {
@@ -194,6 +196,7 @@ static struct pci_driver driver = {
 	.name       = "CS5535_IDE",
 	.id_table   = cs5535_pci_tbl,
 	.probe      = cs5535_init_one,
+	.remove     = ide_pci_remove,
 };
 
 static int __init cs5535_ide_init(void)
@@ -201,7 +204,13 @@ static int __init cs5535_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cs5535_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cs5535_ide_init);
+module_exit(cs5535_ide_exit);
 
 MODULE_AUTHOR("AMD");
 MODULE_DESCRIPTION("PCI driver module for AMD/NS CS5535 IDE");

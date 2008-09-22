@@ -930,6 +930,7 @@ static int ch_probe(struct device *dev)
 	if (init)
 		ch_init_elem(ch);
 
+	dev_set_drvdata(dev, ch);
 	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
 
 	return 0;

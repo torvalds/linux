@@ -16,7 +16,6 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
-#include <linux/hdreg.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
 #include <linux/ide.h>

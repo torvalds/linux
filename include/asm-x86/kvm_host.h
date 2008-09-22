@@ -13,6 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/mmu_notifier.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -251,6 +252,7 @@ struct kvm_vcpu_arch {
 		gfn_t gfn;	/* presumed gfn during guest pte update */
 		pfn_t pfn;	/* pfn corresponding to that gfn */
 		int largepage;
+		unsigned long mmu_seq;
 	} update_pte;
 
 	struct i387_fxsave_struct host_fx_image;
@@ -556,6 +558,7 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code);
 
 void kvm_enable_tdp(void);
+void kvm_disable_tdp(void);
 
 int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
 int complete_pio(struct kvm_vcpu *vcpu);
@@ -719,7 +722,7 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 
 #define __kvm_handle_fault_on_reboot(insn) \
 	"666: " insn "\n\t" \
-	".pushsection .text.fixup, \"ax\" \n" \
+	".pushsection .fixup, \"ax\" \n" \
 	"667: \n\t" \
 	KVM_EX_PUSH " $666b \n\t" \
 	"jmp kvm_handle_fault_on_reboot \n\t" \
@@ -727,5 +730,9 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 	".pushsection __ex_table, \"a\" \n\t" \
 	KVM_EX_ENTRY " 666b, 667b \n\t" \
 	".popsection"
+
+#define KVM_ARCH_WANT_MMU_NOTIFIER
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+int kvm_age_hva(struct kvm *kvm, unsigned long hva);
 
 #endif

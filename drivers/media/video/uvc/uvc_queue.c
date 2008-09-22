@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/version.h>
+#include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/usb.h>

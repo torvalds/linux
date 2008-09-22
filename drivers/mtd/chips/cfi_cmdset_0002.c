@@ -16,9 +16,6 @@
  * Occasionally maintained by Thayne Harbaugh tharbaugh at lnxi dot com
  *
  * This code is GPL
- *
- * $Id: cfi_cmdset_0002.c,v 1.122 2005/11/07 11:14:22 gleixner Exp $
- *
  */
 
 #include <linux/module.h>

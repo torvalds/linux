@@ -827,7 +827,7 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
-static u8 __devinit scc_cable_detect(ide_hwif_t *hwif)
+static u8 scc_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }
@@ -954,7 +954,7 @@ static struct pci_driver driver = {
 	.name = "SCC IDE",
 	.id_table = scc_pci_tbl,
 	.probe = scc_init_one,
-	.remove = scc_remove,
+	.remove = __devexit_p(scc_remove),
 };
 
 static int scc_ide_init(void)

@@ -57,24 +57,32 @@ static DEFINE_MUTEX(idecd_ref_mutex);
 #define ide_cd_g(disk) \
 	container_of((disk)->private_data, struct cdrom_info, driver)
 
+static void ide_cd_release(struct kref *);
+
 static struct cdrom_info *ide_cd_get(struct gendisk *disk)
 {
 	struct cdrom_info *cd = NULL;
 
 	mutex_lock(&idecd_ref_mutex);
 	cd = ide_cd_g(disk);
-	if (cd)
-		kref_get(&cd->kref);
+	if (cd) {
+		if (ide_device_get(cd->drive))
+			cd = NULL;
+		else
+			kref_get(&cd->kref);
+
+	}
 	mutex_unlock(&idecd_ref_mutex);
 	return cd;
 }
 
-static void ide_cd_release(struct kref *);
-
 static void ide_cd_put(struct cdrom_info *cd)
 {
+	ide_drive_t *drive = cd->drive;
+
 	mutex_lock(&idecd_ref_mutex);
 	kref_put(&cd->kref, ide_cd_release);
+	ide_device_put(drive);
 	mutex_unlock(&idecd_ref_mutex);
 }
 
@@ -1264,9 +1272,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
  */
 static void msf_from_bcd(struct atapi_msf *msf)
 {
-	msf->minute = BCD2BIN(msf->minute);
-	msf->second = BCD2BIN(msf->second);
-	msf->frame  = BCD2BIN(msf->frame);
+	msf->minute = bcd2bin(msf->minute);
+	msf->second = bcd2bin(msf->second);
+	msf->frame  = bcd2bin(msf->frame);
 }
 
 int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
@@ -1299,19 +1307,38 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	int stat;
 	unsigned char cmd[BLK_MAX_CDB];
 	unsigned len = sizeof(capbuf);
+	u32 blocklen;
 
 	memset(cmd, 0, BLK_MAX_CDB);
 	cmd[0] = GPCMD_READ_CDVD_CAPACITY;
 
 	stat = ide_cd_queue_pc(drive, cmd, 0, &capbuf, &len, sense, 0,
 			       REQ_QUIET);
-	if (stat == 0) {
-		*capacity = 1 + be32_to_cpu(capbuf.lba);
-		*sectors_per_frame =
-			be32_to_cpu(capbuf.blocklen) >> SECTOR_BITS;
+	if (stat)
+		return stat;
+
+	/*
+	 * Sanity check the given block size
+	 */
+	blocklen = be32_to_cpu(capbuf.blocklen);
+	switch (blocklen) {
+	case 512:
+	case 1024:
+	case 2048:
+	case 4096:
+		break;
+	default:
+		printk(KERN_ERR "%s: weird block size %u\n",
+			drive->name, blocklen);
+		printk(KERN_ERR "%s: default to 2kb block size\n",
+			drive->name);
+		blocklen = 2048;
+		break;
 	}
 
-	return stat;
+	*capacity = 1 + be32_to_cpu(capbuf.lba);
+	*sectors_per_frame = blocklen >> SECTOR_BITS;
+	return 0;
 }
 
 static int cdrom_read_tocentry(ide_drive_t *drive, int trackno, int msf_flag,
@@ -1388,8 +1415,8 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		return stat;
 
 	if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD) {
-		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);
-		toc->hdr.last_track  = BCD2BIN(toc->hdr.last_track);
+		toc->hdr.first_track = bcd2bin(toc->hdr.first_track);
+		toc->hdr.last_track  = bcd2bin(toc->hdr.last_track);
 	}
 
 	ntracks = toc->hdr.last_track - toc->hdr.first_track + 1;
@@ -1429,8 +1456,8 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 			return stat;
 
 		if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD) {
-			toc->hdr.first_track = (u8)BIN2BCD(CDROM_LEADOUT);
-			toc->hdr.last_track = (u8)BIN2BCD(CDROM_LEADOUT);
+			toc->hdr.first_track = (u8)bin2bcd(CDROM_LEADOUT);
+			toc->hdr.last_track = (u8)bin2bcd(CDROM_LEADOUT);
 		} else {
 			toc->hdr.first_track = CDROM_LEADOUT;
 			toc->hdr.last_track = CDROM_LEADOUT;
@@ -1443,14 +1470,14 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	toc->hdr.toc_length = be16_to_cpu(toc->hdr.toc_length);
 
 	if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD) {
-		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);
-		toc->hdr.last_track  = BCD2BIN(toc->hdr.last_track);
+		toc->hdr.first_track = bcd2bin(toc->hdr.first_track);
+		toc->hdr.last_track  = bcd2bin(toc->hdr.last_track);
 	}
 
 	for (i = 0; i <= ntracks; i++) {
 		if (drive->atapi_flags & IDE_AFLAG_TOCADDR_AS_BCD) {
 			if (drive->atapi_flags & IDE_AFLAG_TOCTRACKS_AS_BCD)
-				toc->ent[i].track = BCD2BIN(toc->ent[i].track);
+				toc->ent[i].track = bcd2bin(toc->ent[i].track);
 			msf_from_bcd(&toc->ent[i].addr.msf);
 		}
 		toc->ent[i].addr.lba = msf_to_lba(toc->ent[i].addr.msf.minute,

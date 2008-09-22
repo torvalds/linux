@@ -1259,7 +1259,7 @@ reloop:
 			 */
 			ipath_cdbg(ERRPKT, "Error Pkt, but no eflags! egrbuf"
 				  " %x, len %x hdrq+%x rhf: %Lx\n",
-				  etail, tlen, l,
+				  etail, tlen, l, (unsigned long long)
 				  le64_to_cpu(*(__le64 *) rhf_addr));
 			if (ipath_debug & __IPATH_ERRPKTDBG) {
 				u32 j, *d, dw = rsize-2;
@@ -1457,7 +1457,8 @@ static void ipath_reset_availshadow(struct ipath_devdata *dd)
 			0xaaaaaaaaaaaaaaaaULL); /* All BUSY bits in qword */
 		if (oldval != dd->ipath_pioavailshadow[i])
 			ipath_dbg("shadow[%d] was %Lx, now %lx\n",
-				i, oldval, dd->ipath_pioavailshadow[i]);
+				i, (unsigned long long) oldval,
+				dd->ipath_pioavailshadow[i]);
 	}
 	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
 }

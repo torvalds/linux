@@ -133,6 +133,7 @@
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/rds.h>
 #include <asm/unaligned.h>
 
@@ -1585,15 +1586,7 @@ done:
 	return retval;
 }
 
-
-/*
- * si470x_viddev_tamples - video device interface
- */
-static struct video_device si470x_viddev_template = {
-	.fops			= &si470x_fops,
-	.name			= DRIVER_NAME,
-	.type			= VID_TYPE_TUNER,
-	.release		= video_device_release,
+static const struct v4l2_ioctl_ops si470x_ioctl_ops = {
 	.vidioc_querycap	= si470x_vidioc_querycap,
 	.vidioc_g_input		= si470x_vidioc_g_input,
 	.vidioc_s_input		= si470x_vidioc_s_input,
@@ -1607,7 +1600,16 @@ static struct video_device si470x_viddev_template = {
 	.vidioc_g_frequency	= si470x_vidioc_g_frequency,
 	.vidioc_s_frequency	= si470x_vidioc_s_frequency,
 	.vidioc_s_hw_freq_seek	= si470x_vidioc_s_hw_freq_seek,
-	.owner			= THIS_MODULE,
+};
+
+/*
+ * si470x_viddev_tamples - video device interface
+ */
+static struct video_device si470x_viddev_template = {
+	.fops			= &si470x_fops,
+	.ioctl_ops 		= &si470x_ioctl_ops,
+	.name			= DRIVER_NAME,
+	.release		= video_device_release,
 };
 
 
@@ -1692,8 +1694,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	INIT_DELAYED_WORK(&radio->work, si470x_work);
 
 	/* register video device */
-	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr)) {
-		retval = -EIO;
+	retval = video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr);
+	if (retval) {
 		printk(KERN_WARNING DRIVER_NAME
 				": Could not register video device\n");
 		goto err_all;

@@ -47,11 +47,13 @@ struct rtl8187_rx_hdr {
 struct rtl8187b_rx_hdr {
 	__le32 flags;
 	__le64 mac_time;
-	u8 noise;
-	u8 signal;
+	u8 sq;
+	u8 rssi;
 	u8 agc;
-	u8 reserved;
-	__le32 unused;
+	u8 flags2;
+	__le16 snr_long2end;
+	s8 pwdb_g12;
+	u8 fot;
 } __attribute__((packed));
 
 /* {rtl8187,rtl8187b}_tx_info is in skb */
@@ -92,6 +94,10 @@ struct rtl8187_priv {
 	const struct rtl818x_rf_ops *rf;
 	struct ieee80211_vif *vif;
 	int mode;
+	/* The mutex protects the TX loopback state.
+	 * Any attempt to set channels concurrently locks the device.
+	 */
+	struct mutex conf_mutex;
 
 	/* rtl8187 specific */
 	struct ieee80211_channel channels[14];
@@ -100,6 +106,7 @@ struct rtl8187_priv {
 	struct usb_device *udev;
 	u32 rx_conf;
 	u16 txpwr_base;
+	u16 seqno;
 	u8 asic_rev;
 	u8 is_rtl8187b;
 	enum {

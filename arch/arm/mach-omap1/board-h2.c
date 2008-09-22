@@ -29,7 +29,7 @@
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>
@@ -37,16 +37,16 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/gpio-switch.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/nand.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/keypad.h>
-#include <asm/arch/common.h>
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/omap-alsa.h>
+#include <mach/gpio-switch.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
+#include <mach/nand.h>
+#include <mach/irda.h>
+#include <mach/usb.h>
+#include <mach/keypad.h>
+#include <mach/common.h>
+#include <mach/mcbsp.h>
+#include <mach/omap-alsa.h>
 
 static int h2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),

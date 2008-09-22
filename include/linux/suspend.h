@@ -217,11 +217,11 @@ struct platform_hibernation_ops {
 #ifdef CONFIG_HIBERNATION
 /* kernel/power/snapshot.c */
 extern void __register_nosave_region(unsigned long b, unsigned long e, int km);
-static inline void register_nosave_region(unsigned long b, unsigned long e)
+static inline void __init register_nosave_region(unsigned long b, unsigned long e)
 {
 	__register_nosave_region(b, e, 0);
 }
-static inline void register_nosave_region_late(unsigned long b, unsigned long e)
+static inline void __init register_nosave_region_late(unsigned long b, unsigned long e)
 {
 	__register_nosave_region(b, e, 1);
 }
@@ -277,5 +277,7 @@ static inline void register_nosave_region_late(unsigned long b, unsigned long e)
 {
 }
 #endif
+
+extern struct mutex pm_mutex;
 
 #endif /* _LINUX_SUSPEND_H */

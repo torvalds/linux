@@ -21,8 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
 
 #include "macb.h"
 

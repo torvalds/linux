@@ -57,6 +57,16 @@ config SENSORS_ABITUGURU3
 	  This driver can also be built as a module.  If so, the module
 	  will be called abituguru3.
 
+config SENSORS_AD7414
+	tristate "Analog Devices AD7414"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Analog Devices
+	  AD7414 temperature monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ad7414.
+
 config SENSORS_AD7418
 	tristate "Analog Devices AD7416, AD7417 and AD7418"
 	depends on I2C && EXPERIMENTAL
@@ -66,6 +76,22 @@ config SENSORS_AD7418
 
 	  This driver can also be built as a module. If so, the module
 	  will be called ad7418.
+
+config SENSORS_ADCXX
+	tristate "National Semiconductor ADCxxxSxxx"
+	depends on SPI_MASTER && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  ADC<bb><c>S<sss> chip family, where
+	  * bb  is the resolution in number of bits (8, 10, 12)
+	  * c   is the number of channels (1, 2, 4, 8)
+	  * sss is the maximum conversion speed (021 for 200 kSPS, 051 for 500
+	    kSPS and 101 for 1 MSPS)
+
+	  Examples : ADC081S101, ADC124S501, ...
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adcxx.
 
 config SENSORS_ADM1021
 	tristate "Analog Devices ADM1021 and compatibles"
@@ -124,7 +150,7 @@ config SENSORS_ADM1031
 
 config SENSORS_ADM9240
 	tristate "Analog Devices ADM9240 and compatibles"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for Analog Devices ADM9240,
@@ -394,13 +420,24 @@ config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for National Semiconductor LM75
-	  sensor chips and clones: Dallas Semiconductor DS75 and DS1775 (in
-	  9-bit precision mode), and TelCom (now Microchip) TCN75.
+	  If you say yes here you get support for one common type of
+	  temperature sensor chip, with models including:
 
-	  The DS75 and DS1775 in 10- to 12-bit precision modes will require
-	  a force module parameter. The driver will not handle the extra
-	  precision anyhow.
+		- Dallas Semiconductor DS75 and DS1775
+		- Maxim MAX6625 and MAX6626
+		- Microchip MCP980x
+		- National Semiconductor LM75
+		- NXP's LM75A
+		- ST Microelectronics STDS75
+		- TelCom (now Microchip) TCN75
+		- Texas Instruments TMP100, TMP101, TMP75, TMP175, TMP275
+
+	  This driver supports driver model based binding through board
+	  specific I2C device tables.
+
+	  It also supports the "legacy" style of driver binding.  To use
+	  that with some chips which don't replicate LM75 quirks exactly,
+	  you may need the "force" module parameter.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm75.
@@ -564,8 +601,8 @@ config SENSORS_DME1737
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware monitoring
-	  and fan control features of the SMSC DME1737 (and compatibles
-	  like the Asus A8000) and SCH311x Super-I/O chips.
+	  and fan control features of the SMSC DME1737, SCH311x, SCH5027, and
+	  Asus A8000 Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called dme1737.

@@ -161,7 +161,7 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 		__trace_special(tr, data, 2, regs->ip, 0);
 
 		while (i < sample_max_depth) {
-			frame.next_fp = 0;
+			frame.next_fp = NULL;
 			frame.return_address = 0;
 			if (!copy_stack_frame(fp, &frame))
 				break;
@@ -213,9 +213,7 @@ static void start_stack_timers(void)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		cpumask_of_cpu_ptr(new_mask, cpu);
-
-		set_cpus_allowed_ptr(current, new_mask);
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 		start_stack_timer(cpu);
 	}
 	set_cpus_allowed_ptr(current, &saved_mask);

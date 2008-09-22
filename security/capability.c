@@ -211,8 +211,7 @@ static int cap_inode_follow_link(struct dentry *dentry,
 	return 0;
 }
 
-static int cap_inode_permission(struct inode *inode, int mask,
-				struct nameidata *nd)
+static int cap_inode_permission(struct inode *inode, int mask)
 {
 	return 0;
 }
@@ -812,7 +811,8 @@ struct security_operations default_security_ops = {
 
 void security_fixup_ops(struct security_operations *ops)
 {
-	set_to_cap_if_null(ops, ptrace);
+	set_to_cap_if_null(ops, ptrace_may_access);
+	set_to_cap_if_null(ops, ptrace_traceme);
 	set_to_cap_if_null(ops, capget);
 	set_to_cap_if_null(ops, capset_check);
 	set_to_cap_if_null(ops, capset_set);

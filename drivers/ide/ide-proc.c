@@ -105,7 +105,7 @@ static int proc_ide_read_identify
 	len = sprintf(page, "\n");
 
 	if (drive) {
-		unsigned short *val = (unsigned short *) page;
+		__le16 *val = (__le16 *)page;
 
 		err = taskfile_lib_get_identify(drive, page);
 		if (!err) {
@@ -113,7 +113,7 @@ static int proc_ide_read_identify
 			page = out;
 			do {
 				out += sprintf(out, "%04x%c",
-					le16_to_cpu(*val), (++i & 7) ? ' ' : '\n');
+					le16_to_cpup(val), (++i & 7) ? ' ' : '\n');
 				val += 1;
 			} while (i < (SECTOR_WORDS * 2));
 			len = out - page;

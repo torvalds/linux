@@ -20,8 +20,6 @@
  *          Adrian Hunter
  */
 
-/* Implementation version 0.7 */
-
 #ifndef __UBIFS_H__
 #define __UBIFS_H__
 
@@ -322,6 +320,8 @@ struct ubifs_gced_idx_leb {
  * struct ubifs_inode - UBIFS in-memory inode description.
  * @vfs_inode: VFS inode description object
  * @creat_sqnum: sequence number at time of creation
+ * @del_cmtno: commit number corresponding to the time the inode was deleted,
+ *             protected by @c->commit_sem;
  * @xattr_size: summarized size of all extended attributes in bytes
  * @xattr_cnt: count of extended attributes this inode has
  * @xattr_names: sum of lengths of all extended attribute names belonging to
@@ -373,6 +373,7 @@ struct ubifs_gced_idx_leb {
 struct ubifs_inode {
 	struct inode vfs_inode;
 	unsigned long long creat_sqnum;
+	unsigned long long del_cmtno;
 	unsigned int xattr_size;
 	unsigned int xattr_cnt;
 	unsigned int xattr_names;
@@ -779,7 +780,7 @@ struct ubifs_compressor {
 /**
  * struct ubifs_budget_req - budget requirements of an operation.
  *
- * @fast: non-zero if the budgeting should try to aquire budget quickly and
+ * @fast: non-zero if the budgeting should try to acquire budget quickly and
  *        should not try to call write-back
  * @recalculate: non-zero if @idx_growth, @data_growth, and @dd_growth fields
  *               have to be re-calculated
@@ -805,21 +806,31 @@ struct ubifs_compressor {
  * An inode may contain 4KiB of data at max., thus the widths of @new_ino_d
  * is 13 bits, and @dirtied_ino_d - 15, because up to 4 inodes may be made
  * dirty by the re-name operation.
+ *
+ * Note, UBIFS aligns node lengths to 8-bytes boundary, so the requester has to
+ * make sure the amount of inode data which contribute to @new_ino_d and
+ * @dirtied_ino_d fields are aligned.
  */
 struct ubifs_budget_req {
 	unsigned int fast:1;
 	unsigned int recalculate:1;
+#ifndef UBIFS_DEBUG
 	unsigned int new_page:1;
 	unsigned int dirtied_page:1;
 	unsigned int new_dent:1;
 	unsigned int mod_dent:1;
 	unsigned int new_ino:1;
 	unsigned int new_ino_d:13;
-#ifndef UBIFS_DEBUG
 	unsigned int dirtied_ino:4;
 	unsigned int dirtied_ino_d:15;
 #else
 	/* Not bit-fields to check for overflows */
+	unsigned int new_page;
+	unsigned int dirtied_page;
+	unsigned int new_dent;
+	unsigned int mod_dent;
+	unsigned int new_ino;
+	unsigned int new_ino_d;
 	unsigned int dirtied_ino;
 	unsigned int dirtied_ino_d;
 #endif
@@ -860,13 +871,13 @@ struct ubifs_mount_opts {
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
  * @vfs_sb: VFS @struct super_block object
- * @bdi: backing device info object to make VFS happy and disable readahead
+ * @bdi: backing device info object to make VFS happy and disable read-ahead
  *
  * @highest_inum: highest used inode number
- * @vfs_gen: VFS inode generation counter
  * @max_sqnum: current global sequence number
- * @cmt_no: commit number (last successfully completed commit)
- * @cnt_lock: protects @highest_inum, @vfs_gen, and @max_sqnum counters
+ * @cmt_no: commit number of the last successfully completed commit, protected
+ *          by @commit_sem
+ * @cnt_lock: protects @highest_inum and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
  * @uuid: UUID from super block
  *
@@ -984,6 +995,9 @@ struct ubifs_mount_opts {
  * @max_idx_node_sz: maximum indexing node aligned on 8-bytes boundary
  * @max_inode_sz: maximum possible inode size in bytes
  * @max_znode_sz: size of znode in bytes
+ *
+ * @leb_overhead: how many bytes are wasted in an LEB when it is filled with
+ *                data nodes of maximum size - used in free space reporting
  * @dead_wm: LEB dead space watermark
  * @dark_wm: LEB dark space watermark
  * @block_cnt: count of 4KiB blocks on the FS
@@ -1017,6 +1031,8 @@ struct ubifs_mount_opts {
  * @sbuf: a buffer of LEB size used by GC and replay for scanning
  * @idx_gc: list of index LEBs that have been garbage collected
  * @idx_gc_cnt: number of elements on the idx_gc list
+ * @gc_seq: incremented for every non-index LEB garbage collected
+ * @gced_lnum: last non-index LEB that was garbage collected
  *
  * @infos_list: links all 'ubifs_info' objects
  * @umount_mutex: serializes shrinker and un-mount
@@ -1103,7 +1119,6 @@ struct ubifs_info {
 	struct backing_dev_info bdi;
 
 	ino_t highest_inum;
-	unsigned int vfs_gen;
 	unsigned long long max_sqnum;
 	unsigned long long cmt_no;
 	spinlock_t cnt_lock;
@@ -1214,6 +1229,8 @@ struct ubifs_info {
 	int max_idx_node_sz;
 	long long max_inode_sz;
 	int max_znode_sz;
+
+	int leb_overhead;
 	int dead_wm;
 	int dark_wm;
 	int block_cnt;
@@ -1247,6 +1264,8 @@ struct ubifs_info {
 	void *sbuf;
 	struct list_head idx_gc;
 	int idx_gc_cnt;
+	volatile int gc_seq;
+	volatile int gced_lnum;
 
 	struct list_head infos_list;
 	struct mutex umount_mutex;
@@ -1346,6 +1365,7 @@ extern struct backing_dev_info ubifs_backing_dev_info;
 extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
 /* io.c */
+void ubifs_ro_mode(struct ubifs_info *c, int err);
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len);
 int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 			   int dtype);
@@ -1399,8 +1419,8 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		     int deletion, int xent);
 int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 			 const union ubifs_key *key, const void *buf, int len);
-int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
-			  int last_reference);
+int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
+int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct dentry *old_dentry,
 		     const struct inode *new_dir,
@@ -1423,9 +1443,10 @@ void ubifs_release_ino_dirty(struct ubifs_info *c, struct inode *inode,
 				struct ubifs_budget_req *req);
 void ubifs_cancel_ino_op(struct ubifs_info *c, struct inode *inode,
 			 struct ubifs_budget_req *req);
-long long ubifs_budg_get_free_space(struct ubifs_info *c);
+long long ubifs_get_free_space(struct ubifs_info *c);
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c);
 void ubifs_convert_page_budget(struct ubifs_info *c);
+long long ubifs_reported_space(const struct ubifs_info *c, uint64_t free);
 long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs);
 
 /* find.c */
@@ -1440,8 +1461,6 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c);
 /* tnc.c */
 int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 			struct ubifs_znode **zn, int *n);
-int ubifs_tnc_lookup(struct ubifs_info *c, const union ubifs_key *key,
-		     void *node);
 int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 			void *node, const struct qstr *nm);
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,

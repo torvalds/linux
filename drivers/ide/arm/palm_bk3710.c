@@ -82,6 +82,7 @@ static const struct palm_bk3710_udmatiming palm_bk3710_udmatimings[6] = {
 	{100, 120},		/* UDMA Mode 2 */
 	{100, 90},		/* UDMA Mode 3 */
 	{100, 60},		/* UDMA Mode 4 */
+	{85,  40},		/* UDMA Mode 5 */
 };
 
 static void palm_bk3710_setudmamode(void __iomem *base, unsigned int dev,
@@ -308,7 +309,7 @@ static void __devinit palm_bk3710_chipinit(void __iomem *base)
 	palm_bk3710_setpiomode(base, NULL, 1, 600, 0);
 }
 
-static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
+static u8 palm_bk3710_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }
@@ -334,25 +335,23 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 	.cable_detect		= palm_bk3710_cable_detect,
 };
 
-static const struct ide_port_info __devinitdata palm_bk3710_port_info = {
+static struct ide_port_info __devinitdata palm_bk3710_port_info = {
 	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
 	.pio_mask		= ATA_PIO4,
-	.udma_mask		= ATA_UDMA4,	/* (input clk 99MHz) */
 	.mwdma_mask		= ATA_MWDMA2,
 };
 
-static int __devinit palm_bk3710_probe(struct platform_device *pdev)
+static int __init palm_bk3710_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *mem, *irq;
-	struct ide_host *host;
 	unsigned long base, rate;
 	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
-	clk = clk_get(NULL, "IDECLK");
+	clk = clk_get(&pdev->dev, "IDECLK");
 	if (IS_ERR(clk))
 		return -ENODEV;
 
@@ -390,7 +389,11 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 		hw.io_ports_array[i] = base + IDE_PALM_ATA_PRI_REG_OFFSET + i;
 	hw.io_ports.ctl_addr = base + IDE_PALM_ATA_PRI_CTL_OFFSET;
 	hw.irq = irq->start;
+	hw.dev = &pdev->dev;
 	hw.chipset = ide_palm3710;
+
+	palm_bk3710_port_info.udma_mask = rate < 100000000 ? ATA_UDMA4 :
+							     ATA_UDMA5;
 
 	rc = ide_host_add(&palm_bk3710_port_info, hws, NULL);
 	if (rc)
@@ -410,13 +413,11 @@ static struct platform_driver platform_bk_driver = {
 		.name = "palm_bk3710",
 		.owner = THIS_MODULE,
 	},
-	.probe = palm_bk3710_probe,
-	.remove = NULL,
 };
 
 static int __init palm_bk3710_init(void)
 {
-	return platform_driver_register(&platform_bk_driver);
+	return platform_driver_probe(&platform_bk_driver, palm_bk3710_probe);
 }
 
 module_init(palm_bk3710_init);

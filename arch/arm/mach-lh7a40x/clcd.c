@@ -17,14 +17,13 @@
 
 //#include <linux/module.h>
 //#include <linux/time.h>
-//#include <asm/hardware.h>
 
 //#include <asm/mach/time.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 

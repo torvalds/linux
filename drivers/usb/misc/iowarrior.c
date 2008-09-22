@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
-#include <linux/version.h>
 #include <linux/usb/iowarrior.h>
 
 /* Version Information */

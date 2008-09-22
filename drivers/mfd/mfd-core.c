@@ -15,28 +15,28 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 
-static int mfd_add_device(struct platform_device *parent,
-		const struct mfd_cell *cell,
-		struct resource *mem_base,
-		int irq_base)
+static int mfd_add_device(struct device *parent, int id,
+			  const struct mfd_cell *cell,
+			  struct resource *mem_base,
+			  int irq_base)
 {
 	struct resource res[cell->num_resources];
 	struct platform_device *pdev;
 	int ret = -ENOMEM;
 	int r;
 
-	pdev = platform_device_alloc(cell->name, parent->id);
+	pdev = platform_device_alloc(cell->name, id);
 	if (!pdev)
 		goto fail_alloc;
 
-	pdev->dev.parent = &parent->dev;
+	pdev->dev.parent = parent;
 
 	ret = platform_device_add_data(pdev,
-			cell, sizeof(struct mfd_cell));
+			cell->platform_data, cell->data_size);
 	if (ret)
 		goto fail_device;
 
-	memzero(res, sizeof(res));
+	memset(res, 0, sizeof(res));
 	for (r = 0; r < cell->num_resources; r++) {
 		res[r].name = cell->resources[r].name;
 		res[r].flags = cell->resources[r].flags;
@@ -75,17 +75,16 @@ fail_alloc:
 	return ret;
 }
 
-int mfd_add_devices(
-		struct platform_device *parent,
-		const struct mfd_cell *cells, int n_devs,
-		struct resource *mem_base,
-		int irq_base)
+int mfd_add_devices(struct device *parent, int id,
+		    const struct mfd_cell *cells, int n_devs,
+		    struct resource *mem_base,
+		    int irq_base)
 {
 	int i;
 	int ret = 0;
 
 	for (i = 0; i < n_devs; i++) {
-		ret = mfd_add_device(parent, cells + i, mem_base, irq_base);
+		ret = mfd_add_device(parent, id, cells + i, mem_base, irq_base);
 		if (ret)
 			break;
 	}
@@ -99,14 +98,13 @@ EXPORT_SYMBOL(mfd_add_devices);
 
 static int mfd_remove_devices_fn(struct device *dev, void *unused)
 {
-	platform_device_unregister(
-			container_of(dev, struct platform_device, dev));
+	platform_device_unregister(to_platform_device(dev));
 	return 0;
 }
 
-void mfd_remove_devices(struct platform_device *parent)
+void mfd_remove_devices(struct device *parent)
 {
-	device_for_each_child(&parent->dev, NULL, mfd_remove_devices_fn);
+	device_for_each_child(parent, NULL, mfd_remove_devices_fn);
 }
 EXPORT_SYMBOL(mfd_remove_devices);
 

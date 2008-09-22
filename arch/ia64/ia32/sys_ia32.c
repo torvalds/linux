@@ -1139,7 +1139,7 @@ sys32_pipe (int __user *fd)
 	int retval;
 	int fds[2];
 
-	retval = do_pipe(fds);
+	retval = do_pipe_flags(fds, 0);
 	if (retval)
 		goto out;
 	if (copy_to_user(fd, fds, sizeof(fds)))
@@ -1208,138 +1208,6 @@ sys32_settimeofday (struct compat_timeval __user *tv, struct timezone __user *tz
 	}
 
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
-}
-
-struct getdents32_callback {
-	struct compat_dirent __user *current_dir;
-	struct compat_dirent __user *previous;
-	int count;
-	int error;
-};
-
-struct readdir32_callback {
-	struct old_linux32_dirent __user * dirent;
-	int count;
-};
-
-static int
-filldir32 (void *__buf, const char *name, int namlen, loff_t offset, u64 ino,
-	   unsigned int d_type)
-{
-	struct compat_dirent __user * dirent;
-	struct getdents32_callback * buf = (struct getdents32_callback *) __buf;
-	int reclen = ROUND_UP(offsetof(struct compat_dirent, d_name) + namlen + 1, 4);
-	u32 d_ino;
-
-	buf->error = -EINVAL;	/* only used if we fail.. */
-	if (reclen > buf->count)
-		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
-		return -EOVERFLOW;
-	buf->error = -EFAULT;	/* only used if we fail.. */
-	dirent = buf->previous;
-	if (dirent)
-		if (put_user(offset, &dirent->d_off))
-			return -EFAULT;
-	dirent = buf->current_dir;
-	buf->previous = dirent;
-	if (put_user(d_ino, &dirent->d_ino)
-	    || put_user(reclen, &dirent->d_reclen)
-	    || copy_to_user(dirent->d_name, name, namlen)
-	    || put_user(0, dirent->d_name + namlen))
-		return -EFAULT;
-	dirent = (struct compat_dirent __user *) ((char __user *) dirent + reclen);
-	buf->current_dir = dirent;
-	buf->count -= reclen;
-	return 0;
-}
-
-asmlinkage long
-sys32_getdents (unsigned int fd, struct compat_dirent __user *dirent, unsigned int count)
-{
-	struct file * file;
-	struct compat_dirent __user * lastdirent;
-	struct getdents32_callback buf;
-	int error;
-
-	error = -EFAULT;
-	if (!access_ok(VERIFY_WRITE, dirent, count))
-		goto out;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.current_dir = dirent;
-	buf.previous = NULL;
-	buf.count = count;
-	buf.error = 0;
-
-	error = vfs_readdir(file, filldir32, &buf);
-	if (error < 0)
-		goto out_putf;
-	error = buf.error;
-	lastdirent = buf.previous;
-	if (lastdirent) {
-		if (put_user(file->f_pos, &lastdirent->d_off))
-			error = -EFAULT;
-		else
-			error = count - buf.count;
-	}
-
-out_putf:
-	fput(file);
-out:
-	return error;
-}
-
-static int
-fillonedir32 (void * __buf, const char * name, int namlen, loff_t offset, u64 ino,
-	      unsigned int d_type)
-{
-	struct readdir32_callback * buf = (struct readdir32_callback *) __buf;
-	struct old_linux32_dirent __user * dirent;
-	u32 d_ino;
-
-	if (buf->count)
-		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
-		return -EOVERFLOW;
-	buf->count++;
-	dirent = buf->dirent;
-	if (put_user(d_ino, &dirent->d_ino)
-	    || put_user(offset, &dirent->d_offset)
-	    || put_user(namlen, &dirent->d_namlen)
-	    || copy_to_user(dirent->d_name, name, namlen)
-	    || put_user(0, dirent->d_name + namlen))
-		return -EFAULT;
-	return 0;
-}
-
-asmlinkage long
-sys32_readdir (unsigned int fd, void __user *dirent, unsigned int count)
-{
-	int error;
-	struct file * file;
-	struct readdir32_callback buf;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.count = 0;
-	buf.dirent = dirent;
-
-	error = vfs_readdir(file, fillonedir32, &buf);
-	if (error >= 0)
-		error = buf.count;
-	fput(file);
-out:
-	return error;
 }
 
 struct sel_arg_struct {

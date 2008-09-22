@@ -51,6 +51,7 @@
 #include <linux/init.h>
 #include <linux/writeback.h>
 #include <linux/memcontrol.h>
+#include <linux/mmu_notifier.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -60,6 +61,8 @@
 
 #include <linux/swapops.h>
 #include <linux/elf.h>
+
+#include "internal.h"
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 /* use the per-pgdat data instead for discontigmem - mbligh */
@@ -211,7 +214,7 @@ static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
  *
  * Must be called with pagetable lock held.
  */
-void free_pgd_range(struct mmu_gather **tlb,
+void free_pgd_range(struct mmu_gather *tlb,
 			unsigned long addr, unsigned long end,
 			unsigned long floor, unsigned long ceiling)
 {
@@ -262,16 +265,16 @@ void free_pgd_range(struct mmu_gather **tlb,
 		return;
 
 	start = addr;
-	pgd = pgd_offset((*tlb)->mm, addr);
+	pgd = pgd_offset(tlb->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
+		free_pud_range(tlb, pgd, addr, next, floor, ceiling);
 	} while (pgd++, addr = next, addr != end);
 }
 
-void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
+void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		unsigned long floor, unsigned long ceiling)
 {
 	while (vma) {
@@ -372,7 +375,8 @@ static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
  *
  * The calling function must still handle the error.
  */
-void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
+static void print_bad_pte(struct vm_area_struct *vma, pte_t pte,
+			  unsigned long vaddr)
 {
 	printk(KERN_ERR "Bad pte = %08llx, process = %s, "
 			"vm_flags = %lx, vaddr = %lx\n",
@@ -649,6 +653,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	unsigned long next;
 	unsigned long addr = vma->vm_start;
 	unsigned long end = vma->vm_end;
+	int ret;
 
 	/*
 	 * Don't copy ptes where a page fault will fill them correctly.
@@ -664,17 +669,33 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (is_vm_hugetlb_page(vma))
 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
 
+	/*
+	 * We need to invalidate the secondary MMU mappings only when
+	 * there could be a permission downgrade on the ptes of the
+	 * parent mm. And a permission downgrade will only happen if
+	 * is_cow_mapping() returns true.
+	 */
+	if (is_cow_mapping(vma->vm_flags))
+		mmu_notifier_invalidate_range_start(src_mm, addr, end);
+
+	ret = 0;
 	dst_pgd = pgd_offset(dst_mm, addr);
 	src_pgd = pgd_offset(src_mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(src_pgd))
 			continue;
-		if (copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
-						vma, addr, next))
-			return -ENOMEM;
+		if (unlikely(copy_pud_range(dst_mm, src_mm, dst_pgd, src_pgd,
+					    vma, addr, next))) {
+			ret = -ENOMEM;
+			break;
+		}
 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
-	return 0;
+
+	if (is_cow_mapping(vma->vm_flags))
+		mmu_notifier_invalidate_range_end(src_mm,
+						  vma->vm_start, end);
+	return ret;
 }
 
 static unsigned long zap_pte_range(struct mmu_gather *tlb,
@@ -878,7 +899,9 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 	unsigned long start = start_addr;
 	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
 	int fullmm = (*tlbp)->fullmm;
+	struct mm_struct *mm = vma->vm_mm;
 
+	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
 		unsigned long end;
 
@@ -899,9 +922,23 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 			}
 
 			if (unlikely(is_vm_hugetlb_page(vma))) {
-				unmap_hugepage_range(vma, start, end);
-				zap_work -= (end - start) /
-						(HPAGE_SIZE / PAGE_SIZE);
+				/*
+				 * It is undesirable to test vma->vm_file as it
+				 * should be non-null for valid hugetlb area.
+				 * However, vm_file will be NULL in the error
+				 * cleanup path of do_mmap_pgoff. When
+				 * hugetlbfs ->mmap method fails,
+				 * do_mmap_pgoff() nullifies vma->vm_file
+				 * before calling this function to clean up.
+				 * Since no pte has actually been setup, it is
+				 * safe to do nothing in this case.
+				 */
+				if (vma->vm_file) {
+					unmap_hugepage_range(vma, start, end, NULL);
+					zap_work -= (end - start) /
+					pages_per_huge_page(hstate_vma(vma));
+				}
+
 				start = end;
 			} else
 				start = unmap_page_range(*tlbp, vma,
@@ -929,6 +966,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 		}
 	}
 out:
+	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
 	return start;	/* which is now the end (or restart) address */
 }
 
@@ -956,6 +994,29 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 	return end;
 }
 
+/**
+ * zap_vma_ptes - remove ptes mapping the vma
+ * @vma: vm_area_struct holding ptes to be zapped
+ * @address: starting address of pages to zap
+ * @size: number of bytes to zap
+ *
+ * This function only unmaps ptes assigned to VM_PFNMAP vmas.
+ *
+ * The entire address range must be fully contained within the vma.
+ *
+ * Returns 0 if successful.
+ */
+int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+		unsigned long size)
+{
+	if (address < vma->vm_start || address + size > vma->vm_end ||
+	    		!(vma->vm_flags & VM_PFNMAP))
+		return -1;
+	zap_page_range(vma, address, size, NULL);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(zap_vma_ptes);
+
 /*
  * Do a quick page-table lookup for a single page.
  */
@@ -982,19 +1043,24 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 		goto no_page_table;
 
 	pud = pud_offset(pgd, address);
-	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+	if (pud_none(*pud))
 		goto no_page_table;
-	
+	if (pud_huge(*pud)) {
+		BUG_ON(flags & FOLL_GET);
+		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
+		goto out;
+	}
+	if (unlikely(pud_bad(*pud)))
+		goto no_page_table;
+
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd))
 		goto no_page_table;
-
 	if (pmd_huge(*pmd)) {
 		BUG_ON(flags & FOLL_GET);
 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
 		goto out;
 	}
-
 	if (unlikely(pmd_bad(*pmd)))
 		goto no_page_table;
 
@@ -1058,11 +1124,9 @@ static inline int use_zero_page(struct vm_area_struct *vma)
 	if (vma->vm_flags & (VM_LOCKED | VM_SHARED))
 		return 0;
 	/*
-	 * And if we have a fault or a nopfn routine, it's not an
-	 * anonymous region.
+	 * And if we have a fault routine, it's not an anonymous region.
 	 */
-	return !vma->vm_ops ||
-		(!vma->vm_ops->fault && !vma->vm_ops->nopfn);
+	return !vma->vm_ops || !vma->vm_ops->fault;
 }
 
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
@@ -1338,6 +1402,11 @@ out:
  *
  * This function should only be called from a vm_ops->fault handler, and
  * in that case the handler should return NULL.
+ *
+ * vma cannot be a COW mapping.
+ *
+ * As this is called only for pages that do not currently exist, we
+ * do not need to flush old virtual caches or the TLB.
  */
 int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn)
@@ -1548,6 +1617,8 @@ static int apply_to_pmd_range(struct mm_struct *mm, pud_t *pud,
 	unsigned long next;
 	int err;
 
+	BUG_ON(pud_huge(*pud));
+
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
 		return -ENOMEM;
@@ -1589,10 +1660,11 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
 {
 	pgd_t *pgd;
 	unsigned long next;
-	unsigned long end = addr + size;
+	unsigned long start = addr, end = addr + size;
 	int err;
 
 	BUG_ON(addr >= end);
+	mmu_notifier_invalidate_range_start(mm, start, end);
 	pgd = pgd_offset(mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
@@ -1600,6 +1672,7 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
+	mmu_notifier_invalidate_range_end(mm, start, end);
 	return err;
 }
 EXPORT_SYMBOL_GPL(apply_to_page_range);
@@ -1716,7 +1789,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * not dirty accountable.
 	 */
 	if (PageAnon(old_page)) {
-		if (!TestSetPageLocked(old_page)) {
+		if (trylock_page(old_page)) {
 			reuse = can_share_swap_page(old_page);
 			unlock_page(old_page);
 		}
@@ -1812,7 +1885,7 @@ gotten:
 		 * seen in the presence of one thread doing SMC and another
 		 * thread doing COW.
 		 */
-		ptep_clear_flush(vma, address, page_table);
+		ptep_clear_flush_notify(vma, address, page_table);
 		set_pte_at(mm, address, page_table, entry);
 		update_mmu_cache(vma, address, entry);
 		lru_cache_add_active(new_page);
@@ -2501,59 +2574,6 @@ static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
 }
 
-
-/*
- * do_no_pfn() tries to create a new page mapping for a page without
- * a struct_page backing it
- *
- * As this is called only for pages that do not currently exist, we
- * do not need to flush old virtual caches or the TLB.
- *
- * We enter with non-exclusive mmap_sem (to exclude vma changes,
- * but allow concurrent faults), and pte mapped but not yet locked.
- * We return with mmap_sem still held, but pte unmapped and unlocked.
- *
- * It is expected that the ->nopfn handler always returns the same pfn
- * for a given virtual mapping.
- *
- * Mark this `noinline' to prevent it from bloating the main pagefault code.
- */
-static noinline int do_no_pfn(struct mm_struct *mm, struct vm_area_struct *vma,
-		     unsigned long address, pte_t *page_table, pmd_t *pmd,
-		     int write_access)
-{
-	spinlock_t *ptl;
-	pte_t entry;
-	unsigned long pfn;
-
-	pte_unmap(page_table);
-	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
-	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
-
-	pfn = vma->vm_ops->nopfn(vma, address & PAGE_MASK);
-
-	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
-
-	if (unlikely(pfn == NOPFN_OOM))
-		return VM_FAULT_OOM;
-	else if (unlikely(pfn == NOPFN_SIGBUS))
-		return VM_FAULT_SIGBUS;
-	else if (unlikely(pfn == NOPFN_REFAULT))
-		return 0;
-
-	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-
-	/* Only go through if we didn't race with anybody else... */
-	if (pte_none(*page_table)) {
-		entry = pfn_pte(pfn, vma->vm_page_prot);
-		if (write_access)
-			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-		set_pte_at(mm, address, page_table, entry);
-	}
-	pte_unmap_unlock(page_table, ptl);
-	return 0;
-}
-
 /*
  * Fault of a previously existing named mapping. Repopulate the pte
  * from the encoded file_pte if possible. This enables swappable
@@ -2614,9 +2634,6 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 				if (likely(vma->vm_ops->fault))
 					return do_linear_fault(mm, vma, address,
 						pte, pmd, write_access, entry);
-				if (unlikely(vma->vm_ops->nopfn))
-					return do_no_pfn(mm, vma, address, pte,
-							 pmd, write_access);
 			}
 			return do_anonymous_page(mm, vma, address,
 						 pte, pmd, write_access);
@@ -2748,16 +2765,26 @@ int make_pages_present(unsigned long addr, unsigned long end)
 
 	vma = find_vma(current->mm, addr);
 	if (!vma)
-		return -1;
+		return -ENOMEM;
 	write = (vma->vm_flags & VM_WRITE) != 0;
 	BUG_ON(addr >= end);
 	BUG_ON(end > vma->vm_end);
 	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
 	ret = get_user_pages(current, current->mm, addr,
 			len, write, 0, NULL, NULL);
-	if (ret < 0)
+	if (ret < 0) {
+		/*
+		   SUS require strange return value to mlock
+		    - invalid addr generate to ENOMEM.
+		    - out of memory should generate EAGAIN.
+		*/
+		if (ret == -EFAULT)
+			ret = -ENOMEM;
+		else if (ret == -ENOMEM)
+			ret = -EAGAIN;
 		return ret;
-	return ret == len ? 0 : -1;
+	}
+	return ret == len ? 0 : -ENOMEM;
 }
 
 #if !defined(__HAVE_ARCH_GATE_AREA)
@@ -2804,6 +2831,86 @@ int in_gate_area_no_task(unsigned long addr)
 
 #endif	/* __HAVE_ARCH_GATE_AREA */
 
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+static resource_size_t follow_phys(struct vm_area_struct *vma,
+			unsigned long address, unsigned int flags,
+			unsigned long *prot)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
+	spinlock_t *ptl;
+	resource_size_t phys_addr = 0;
+	struct mm_struct *mm = vma->vm_mm;
+
+	VM_BUG_ON(!(vma->vm_flags & (VM_IO | VM_PFNMAP)));
+
+	pgd = pgd_offset(mm, address);
+	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+		goto no_page_table;
+
+	pud = pud_offset(pgd, address);
+	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+		goto no_page_table;
+
+	pmd = pmd_offset(pud, address);
+	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+		goto no_page_table;
+
+	/* We cannot handle huge page PFN maps. Luckily they don't exist. */
+	if (pmd_huge(*pmd))
+		goto no_page_table;
+
+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+	if (!ptep)
+		goto out;
+
+	pte = *ptep;
+	if (!pte_present(pte))
+		goto unlock;
+	if ((flags & FOLL_WRITE) && !pte_write(pte))
+		goto unlock;
+	phys_addr = pte_pfn(pte);
+	phys_addr <<= PAGE_SHIFT; /* Shift here to avoid overflow on PAE */
+
+	*prot = pgprot_val(pte_pgprot(pte));
+
+unlock:
+	pte_unmap_unlock(ptep, ptl);
+out:
+	return phys_addr;
+no_page_table:
+	return 0;
+}
+
+int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
+			void *buf, int len, int write)
+{
+	resource_size_t phys_addr;
+	unsigned long prot = 0;
+	void *maddr;
+	int offset = addr & (PAGE_SIZE-1);
+
+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
+		return -EINVAL;
+
+	phys_addr = follow_phys(vma, addr, write, &prot);
+
+	if (!phys_addr)
+		return -EINVAL;
+
+	maddr = ioremap_prot(phys_addr, PAGE_SIZE, prot);
+	if (write)
+		memcpy_toio(maddr + offset, buf, len);
+	else
+		memcpy_fromio(buf, maddr + offset, len);
+	iounmap(maddr);
+
+	return len;
+}
+#endif
+
 /*
  * Access another process' address space.
  * Source/target buffer must be kernel space,
@@ -2813,7 +2920,6 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 {
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
-	struct page *page;
 	void *old_buf = buf;
 
 	mm = get_task_mm(tsk);
@@ -2825,28 +2931,44 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 	while (len) {
 		int bytes, ret, offset;
 		void *maddr;
+		struct page *page = NULL;
 
 		ret = get_user_pages(tsk, mm, addr, 1,
 				write, 1, &page, &vma);
-		if (ret <= 0)
-			break;
-
-		bytes = len;
-		offset = addr & (PAGE_SIZE-1);
-		if (bytes > PAGE_SIZE-offset)
-			bytes = PAGE_SIZE-offset;
-
-		maddr = kmap(page);
-		if (write) {
-			copy_to_user_page(vma, page, addr,
-					  maddr + offset, buf, bytes);
-			set_page_dirty_lock(page);
+		if (ret <= 0) {
+			/*
+			 * Check if this is a VM_IO | VM_PFNMAP VMA, which
+			 * we can access using slightly different code.
+			 */
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+			vma = find_vma(mm, addr);
+			if (!vma)
+				break;
+			if (vma->vm_ops && vma->vm_ops->access)
+				ret = vma->vm_ops->access(vma, addr, buf,
+							  len, write);
+			if (ret <= 0)
+#endif
+				break;
+			bytes = ret;
 		} else {
-			copy_from_user_page(vma, page, addr,
-					    buf, maddr + offset, bytes);
+			bytes = len;
+			offset = addr & (PAGE_SIZE-1);
+			if (bytes > PAGE_SIZE-offset)
+				bytes = PAGE_SIZE-offset;
+
+			maddr = kmap(page);
+			if (write) {
+				copy_to_user_page(vma, page, addr,
+						  maddr + offset, buf, bytes);
+				set_page_dirty_lock(page);
+			} else {
+				copy_from_user_page(vma, page, addr,
+						    buf, maddr + offset, bytes);
+			}
+			kunmap(page);
+			page_cache_release(page);
 		}
-		kunmap(page);
-		page_cache_release(page);
 		len -= bytes;
 		buf += bytes;
 		addr += bytes;

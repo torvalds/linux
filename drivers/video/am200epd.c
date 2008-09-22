@@ -33,7 +33,7 @@
 
 #include <video/metronomefb.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 /* register offsets for gpio control */
 #define LED_GPIO_PIN 51
@@ -221,7 +221,7 @@ static int am200_setup_irq(struct fb_info *info)
 		return retval;
 	}
 
-	return set_irq_type(IRQ_GPIO(RDY_GPIO_PIN), IRQT_FALLING);
+	return set_irq_type(IRQ_GPIO(RDY_GPIO_PIN), IRQ_TYPE_EDGE_FALLING);
 }
 
 static void am200_set_rst(struct metronomefb_par *par, int state)

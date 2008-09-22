@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -34,8 +34,8 @@
 #include <asm/mach/irda.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
-#include <asm/arch/assabet.h>
-#include <asm/arch/mcp.h>
+#include <mach/assabet.h>
+#include <mach/mcp.h>
 
 #include "generic.h"
 

@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
-#include <linux/module.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 

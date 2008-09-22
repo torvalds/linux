@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/regset.h>
+#include <linux/hardirq.h>
 #include <asm/asm.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
@@ -62,8 +63,6 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 #else
 		     : [fx] "cdaSDb" (fx), "m" (*fx), "0" (0));
 #endif
-	if (unlikely(err))
-		init_fpu(current);
 	return err;
 }
 
@@ -135,60 +134,6 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 #endif
 	clear_fpu_state(&tsk->thread.xstate->fxsave);
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
-}
-
-/*
- * Signal frame handlers.
- */
-
-static inline int save_i387(struct _fpstate __user *buf)
-{
-	struct task_struct *tsk = current;
-	int err = 0;
-
-	BUILD_BUG_ON(sizeof(struct user_i387_struct) !=
-			sizeof(tsk->thread.xstate->fxsave));
-
-	if ((unsigned long)buf % 16)
-		printk("save_i387: bad fpstate %p\n", buf);
-
-	if (!used_math())
-		return 0;
-	clear_used_math(); /* trigger finit */
-	if (task_thread_info(tsk)->status & TS_USEDFPU) {
-		err = save_i387_checking((struct i387_fxsave_struct __user *)
-					 buf);
-		if (err)
-			return err;
-		task_thread_info(tsk)->status &= ~TS_USEDFPU;
-		stts();
-	} else {
-		if (__copy_to_user(buf, &tsk->thread.xstate->fxsave,
-				   sizeof(struct i387_fxsave_struct)))
-			return -1;
-	}
-	return 1;
-}
-
-/*
- * This restores directly out of user space. Exceptions are handled.
- */
-static inline int restore_i387(struct _fpstate __user *buf)
-{
-	struct task_struct *tsk = current;
-	int err;
-
-	if (!used_math()) {
-		err = init_fpu(tsk);
-		if (err)
-			return err;
-	}
-
-	if (!(task_thread_info(current)->status & TS_USEDFPU)) {
-		clts();
-		task_thread_info(current)->status |= TS_USEDFPU;
-	}
-	return restore_fpu_checking((__force struct i387_fxsave_struct *)buf);
 }
 
 #else  /* CONFIG_X86_32 */
@@ -288,6 +233,37 @@ static inline void kernel_fpu_end(void)
 {
 	stts();
 	preempt_enable();
+}
+
+/*
+ * Some instructions like VIA's padlock instructions generate a spurious
+ * DNA fault but don't modify SSE registers. And these instructions
+ * get used from interrupt context aswell. To prevent these kernel instructions
+ * in interrupt context interact wrongly with other user/kernel fpu usage, we
+ * should use them only in the context of irq_ts_save/restore()
+ */
+static inline int irq_ts_save(void)
+{
+	/*
+	 * If we are in process context, we are ok to take a spurious DNA fault.
+	 * Otherwise, doing clts() in process context require pre-emption to
+	 * be disabled or some heavy lifting like kernel_fpu_begin()
+	 */
+	if (!in_interrupt())
+		return 0;
+
+	if (read_cr0() & X86_CR0_TS) {
+		clts();
+		return 1;
+	}
+
+	return 0;
+}
+
+static inline void irq_ts_restore(int TS_state)
+{
+	if (TS_state)
+		stts();
 }
 
 #ifdef CONFIG_X86_64

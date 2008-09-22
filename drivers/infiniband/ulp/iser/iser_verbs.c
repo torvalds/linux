@@ -33,7 +33,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 
 #include "iscsi_iser.h"
 
@@ -483,6 +482,7 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
+	case RDMA_CM_EVENT_ADDR_CHANGE:
 		iser_disconnected_handler(cma_id);
 		break;
 	default:

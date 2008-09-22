@@ -327,7 +327,10 @@ static void mmap_mem_close(struct vm_area_struct *vma)
 
 static struct vm_operations_struct mmap_mem_ops = {
 	.open  = mmap_mem_open,
-	.close = mmap_mem_close
+	.close = mmap_mem_close,
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys
+#endif
 };
 
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)

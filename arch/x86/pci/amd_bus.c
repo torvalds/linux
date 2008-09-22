@@ -1,6 +1,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/topology.h>
+#include <linux/cpu.h>
 #include "pci.h"
 
 #ifdef CONFIG_X86_64
@@ -555,15 +556,17 @@ static int __init early_fill_mp_bus_info(void)
 	return 0;
 }
 
-postcore_initcall(early_fill_mp_bus_info);
+#else  /* !CONFIG_X86_64 */
 
-#endif
+static int __init early_fill_mp_bus_info(void) { return 0; }
+
+#endif /* !CONFIG_X86_64 */
 
 /* common 32/64 bit code */
 
 #define ENABLE_CF8_EXT_CFG      (1ULL << 46)
 
-static void enable_pci_io_ecs_per_cpu(void *unused)
+static void enable_pci_io_ecs(void *unused)
 {
 	u64 reg;
 	rdmsrl(MSR_AMD64_NB_CFG, reg);
@@ -573,14 +576,51 @@ static void enable_pci_io_ecs_per_cpu(void *unused)
 	}
 }
 
-static int __init enable_pci_io_ecs(void)
+static int __cpuinit amd_cpu_notify(struct notifier_block *self,
+				    unsigned long action, void *hcpu)
 {
+	int cpu = (long)hcpu;
+	switch(action) {
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		smp_call_function_single(cpu, enable_pci_io_ecs, NULL, 0);
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata amd_cpu_notifier = {
+	.notifier_call	= amd_cpu_notify,
+};
+
+static int __init pci_io_ecs_init(void)
+{
+	int cpu;
+
 	/* assume all cpus from fam10h have IO ECS */
         if (boot_cpu_data.x86 < 0x10)
 		return 0;
-	on_each_cpu(enable_pci_io_ecs_per_cpu, NULL, 1);
+
+	register_cpu_notifier(&amd_cpu_notifier);
+	for_each_online_cpu(cpu)
+		amd_cpu_notify(&amd_cpu_notifier, (unsigned long)CPU_ONLINE,
+			       (void *)(long)cpu);
 	pci_probe |= PCI_HAS_IO_ECS;
+
 	return 0;
 }
 
-postcore_initcall(enable_pci_io_ecs);
+static int __init amd_postcore_init(void)
+{
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return 0;
+
+	early_fill_mp_bus_info();
+	pci_io_ecs_init();
+
+	return 0;
+}
+
+postcore_initcall(amd_postcore_init);

@@ -848,9 +848,8 @@ int
 fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 {
 	struct fb_fix_screeninfo *fix = &info->fix;
-        int xoffset = var->xoffset;
-        int yoffset = var->yoffset;
-        int err = 0, yres = info->var.yres;
+	unsigned int yres = info->var.yres;
+	int err = 0;
 
 	if (var->yoffset > 0) {
 		if (var->vmode & FB_VMODE_YWRAP) {
@@ -866,8 +865,8 @@ fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 				 (var->xoffset % fix->xpanstep)))
 		err = -EINVAL;
 
-        if (err || !info->fbops->fb_pan_display || xoffset < 0 ||
-	    yoffset < 0 || var->yoffset + yres > info->var.yres_virtual ||
+	if (err || !info->fbops->fb_pan_display ||
+	    var->yoffset + yres > info->var.yres_virtual ||
 	    var->xoffset + info->var.xres > info->var.xres_virtual)
 		return -EINVAL;
 
@@ -1345,6 +1344,10 @@ fb_open(struct inode *inode, struct file *file)
 		if (res)
 			module_put(info->fbops->owner);
 	}
+#ifdef CONFIG_FB_DEFERRED_IO
+	if (info->fbdefio)
+		fb_deferred_io_open(info, inode, file);
+#endif
 out:
 	unlock_kernel();
 	return res;

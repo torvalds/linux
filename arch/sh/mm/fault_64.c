@@ -39,7 +39,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
-#include <asm/cpu/registers.h>
+#include <cpu/registers.h>
 
 /* Callable from fault.c, so not static */
 inline void __do_tlb_refill(unsigned long address,

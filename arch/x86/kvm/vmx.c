@@ -2298,6 +2298,8 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
 		KVMTRACE_3D(PAGE_FAULT, vcpu, error_code, (u32)cr2,
 			    (u32)((u64)cr2 >> 32), handler);
+		if (vect_info & VECTORING_INFO_VALID_MASK)
+			kvm_mmu_unprotect_page_virt(vcpu, cr2);
 		return kvm_mmu_page_fault(vcpu, cr2, error_code);
 	}
 
@@ -3116,15 +3118,6 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		return ERR_PTR(-ENOMEM);
 
 	allocate_vpid(vmx);
-	if (id == 0 && vm_need_ept()) {
-		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
-			VMX_EPT_WRITABLE_MASK |
-			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
-		kvm_mmu_set_mask_ptes(0ull, VMX_EPT_FAKE_ACCESSED_MASK,
-				VMX_EPT_FAKE_DIRTY_MASK, 0ull,
-				VMX_EPT_EXECUTABLE_MASK);
-		kvm_enable_tdp();
-	}
 
 	err = kvm_vcpu_init(&vmx->vcpu, kvm, id);
 	if (err)
@@ -3303,8 +3296,16 @@ static int __init vmx_init(void)
 	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_ESP);
 	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_EIP);
 
-	if (cpu_has_vmx_ept())
+	if (vm_need_ept()) {
 		bypass_guest_pf = 0;
+		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
+			VMX_EPT_WRITABLE_MASK |
+			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
+		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
+				VMX_EPT_EXECUTABLE_MASK);
+		kvm_enable_tdp();
+	} else
+		kvm_disable_tdp();
 
 	if (bypass_guest_pf)
 		kvm_mmu_set_nonpresent_ptes(~0xffeull, 0ull);

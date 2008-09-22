@@ -22,6 +22,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cs5530"
+
 /*
  * Here are the standard PIO mode 0-4 timings for each "format".
  * Format-0 uses fast data reg timings, with slower command reg timings.
@@ -127,12 +129,11 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 /**
  *	init_chipset_5530	-	set up 5530 bridge
  *	@dev: PCI device
- *	@name: device name
  *
  *	Initialize the cs5530 bridge for reliable IDE DMA operation.
  */
 
-static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cs5530(struct pci_dev *dev)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 
@@ -151,11 +152,11 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 		}
 	}
 	if (!master_0) {
-		printk(KERN_ERR "%s: unable to locate PCI MASTER function\n", name);
+		printk(KERN_ERR DRV_NAME ": unable to locate PCI MASTER function\n");
 		goto out;
 	}
 	if (!cs5530_0) {
-		printk(KERN_ERR "%s: unable to locate CS5530 LEGACY function\n", name);
+		printk(KERN_ERR DRV_NAME ": unable to locate CS5530 LEGACY function\n");
 		goto out;
 	}
 
@@ -243,7 +244,7 @@ static const struct ide_port_ops cs5530_port_ops = {
 };
 
 static const struct ide_port_info cs5530_chipset __devinitdata = {
-	.name		= "CS5530",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
 	.port_ops	= &cs5530_port_ops,
@@ -256,7 +257,7 @@ static const struct ide_port_info cs5530_chipset __devinitdata = {
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &cs5530_chipset);
+	return ide_pci_init_one(dev, &cs5530_chipset, NULL);
 }
 
 static const struct pci_device_id cs5530_pci_tbl[] = {
@@ -269,6 +270,7 @@ static struct pci_driver driver = {
 	.name		= "CS5530 IDE",
 	.id_table	= cs5530_pci_tbl,
 	.probe		= cs5530_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init cs5530_ide_init(void)
@@ -276,7 +278,13 @@ static int __init cs5530_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cs5530_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cs5530_ide_init);
+module_exit(cs5530_ide_exit);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Cyrix/NS 5530 IDE");

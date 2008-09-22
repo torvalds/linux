@@ -582,7 +582,15 @@ again:
 	}
 	if (status < 0)
 		goto out_unlock;
-	status = nlm_stat_to_errno(resp->status);
+	/*
+	 * EAGAIN doesn't make sense for sleeping locks, and in some
+	 * cases NLM_LCK_DENIED is returned for a permanent error.  So
+	 * turn it into an ENOLCK.
+	 */
+	if (resp->status == nlm_lck_denied && (fl_flags & FL_SLEEP))
+		status = -ENOLCK;
+	else
+		status = nlm_stat_to_errno(resp->status);
 out_unblock:
 	nlmclnt_finish_block(block);
 out:

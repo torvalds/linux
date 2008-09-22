@@ -231,7 +231,7 @@ static int au1xpsc_i2s_stop(struct au1xpsc_audio_data *pscdata, int stype)
 
 	/* if both TX and RX are idle, disable PSC */
 	stat = au_readl(I2S_STAT(pscdata));
-	if (!(stat & (PSC_I2SSTAT_RB | PSC_I2SSTAT_RB))) {
+	if (!(stat & (PSC_I2SSTAT_TB | PSC_I2SSTAT_RB))) {
 		au_writel(0, I2S_CFG(pscdata));
 		au_sync();
 		au_writel(PSC_CTRL_SUSPEND, PSC_CTRL(pscdata));

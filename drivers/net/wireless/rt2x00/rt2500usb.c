@@ -633,6 +633,16 @@ static void rt2500usb_reset_tuner(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->link.vgc_level = value;
 }
 
+/*
+ * NOTE: This function is directly ported from legacy driver, but
+ * despite it being declared it was never called. Although link tuning
+ * sounds like a good idea, and usually works well for the other drivers,
+ * it does _not_ work with rt2500usb. Enabling this function will result
+ * in TX capabilities only until association kicks in. Immediately
+ * after the successful association all TX frames will be kept in the
+ * hardware queue and never transmitted.
+ */
+#if 0
 static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
 	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
@@ -752,6 +762,9 @@ dynamic_cca_tune:
 		rt2x00dev->link.vgc_level = r17;
 	}
 }
+#else
+#define rt2500usb_link_tuner	NULL
+#endif
 
 /*
  * Initialization functions.
@@ -1121,6 +1134,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	int pipe = usb_sndbulkpipe(usb_dev, 1);
 	int length;
 	u16 reg;
+	u32 word, len;
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1128,6 +1142,17 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	skb_push(entry->skb, entry->queue->desc_size);
 	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
 	skbdesc->desc = entry->skb->data;
+
+	/*
+	 * Adjust the beacon databyte count. The current number is
+	 * calculated before this function gets called, but falsely
+	 * assumes that the descriptor was already present in the SKB.
+	 */
+	rt2x00_desc_read(skbdesc->desc, 0, &word);
+	len  = rt2x00_get_field32(word, TXD_W0_DATABYTE_COUNT);
+	len += skbdesc->desc_len;
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, len);
+	rt2x00_desc_write(skbdesc->desc, 0, word);
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -1364,6 +1389,9 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 		EEPROM(rt2x00dev, "BBPtune vgc: 0x%04x\n", word);
+	} else {
+		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R17, &word);
@@ -1372,9 +1400,6 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R17_HIGH, 0x41);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R17, word);
 		EEPROM(rt2x00dev, "BBPtune r17: 0x%04x\n", word);
-	} else {
-		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R24, &word);
@@ -1650,7 +1675,6 @@ static void rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
 	    IEEE80211_HW_RX_INCLUDES_FCS |
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM;
@@ -1726,6 +1750,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
+	__set_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

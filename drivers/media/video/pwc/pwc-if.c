@@ -165,9 +165,7 @@ static const struct file_operations pwc_fops = {
 	.llseek =       no_llseek,
 };
 static struct video_device pwc_template = {
-	.owner =	THIS_MODULE,
 	.name =		"Philips Webcam",	/* Filled in later */
-	.type =		VID_TYPE_CAPTURE,
 	.release =	video_device_release,
 	.fops =         &pwc_fops,
 	.minor =        -1,
@@ -1048,19 +1046,20 @@ static int pwc_create_sysfs_files(struct video_device *vdev)
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 	int rc;
 
-	rc = video_device_create_file(vdev, &dev_attr_button);
+	rc = device_create_file(&vdev->dev, &dev_attr_button);
 	if (rc)
 		goto err;
 	if (pdev->features & FEATURE_MOTOR_PANTILT) {
-		rc = video_device_create_file(vdev, &dev_attr_pan_tilt);
+		rc = device_create_file(&vdev->dev, &dev_attr_pan_tilt);
 		if (rc) goto err_button;
 	}
 
 	return 0;
 
 err_button:
-	video_device_remove_file(vdev, &dev_attr_button);
+	device_remove_file(&vdev->dev, &dev_attr_button);
 err:
+	PWC_ERROR("Could not create sysfs files.\n");
 	return rc;
 }
 
@@ -1068,8 +1067,8 @@ static void pwc_remove_sysfs_files(struct video_device *vdev)
 {
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 	if (pdev->features & FEATURE_MOTOR_PANTILT)
-		video_device_remove_file(vdev, &dev_attr_pan_tilt);
-	video_device_remove_file(vdev, &dev_attr_button);
+		device_remove_file(&vdev->dev, &dev_attr_pan_tilt);
+	device_remove_file(&vdev->dev, &dev_attr_button);
 }
 
 #ifdef CONFIG_USB_PWC_DEBUG
@@ -1767,9 +1766,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -ENOMEM;
 	}
 	memcpy(pdev->vdev, &pwc_template, sizeof(pwc_template));
-	pdev->vdev->dev = &(udev->dev);
+	pdev->vdev->parent = &(udev->dev);
 	strcpy(pdev->vdev->name, name);
-	pdev->vdev->owner = THIS_MODULE;
 	video_set_drvdata(pdev->vdev, pdev);
 
 	pdev->release = le16_to_cpu(udev->descriptor.bcdDevice);

@@ -66,8 +66,8 @@
 #include <linux/ctype.h>
 
 #ifdef CONFIG_PPC_OF
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #endif
 
 #define PFX "ipmi_si: "
@@ -2695,15 +2695,13 @@ static __devinit void default_find_bmc(void)
 	for (i = 0; ; i++) {
 		if (!ipmi_defaults[i].port)
 			break;
-
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
-		if (!info)
-			return;
-
 #ifdef CONFIG_PPC_MERGE
 		if (check_legacy_ioport(ipmi_defaults[i].port))
 			continue;
 #endif
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info)
+			return;
 
 		info->addr_source = NULL;
 

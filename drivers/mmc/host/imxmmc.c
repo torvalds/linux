@@ -26,12 +26,6 @@
  *
  */
 
-#ifdef CONFIG_MMC_DEBUG
-#define DEBUG
-#else
-#undef  DEBUG
-#endif
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -48,8 +42,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/imx-dma.h>
+#include <mach/mmc.h>
+#include <mach/imx-dma.h>
 
 #include "imxmmc.h"
 
@@ -907,31 +901,12 @@ static const struct mmc_host_ops imxmci_ops = {
 	.get_ro		= imxmci_get_ro,
 };
 
-static struct resource *platform_device_resource(struct platform_device *dev, unsigned int mask, int nr)
-{
-	int i;
-
-	for (i = 0; i < dev->num_resources; i++)
-		if (dev->resource[i].flags == mask && nr-- == 0)
-			return &dev->resource[i];
-	return NULL;
-}
-
-static int platform_device_irq(struct platform_device *dev, int nr)
-{
-	int i;
-
-	for (i = 0; i < dev->num_resources; i++)
-		if (dev->resource[i].flags == IORESOURCE_IRQ && nr-- == 0)
-			return dev->resource[i].start;
-	return NO_IRQ;
-}
-
 static void imxmci_check_status(unsigned long data)
 {
 	struct imxmci_host *host = (struct imxmci_host *)data;
 
-	if( host->pdata->card_present(mmc_dev(host->mmc)) != host->present ) {
+	if (host->pdata && host->pdata->card_present &&
+	    host->pdata->card_present(mmc_dev(host->mmc)) != host->present) {
 		host->present ^= 1;
 		dev_info(mmc_dev(host->mmc), "card %s\n",
 		      host->present ? "inserted" : "removed");
@@ -962,13 +937,12 @@ static int imxmci_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "i.MX mmc driver\n");
 
-	r = platform_device_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_device_irq(pdev, 0);
-	if (!r || irq == NO_IRQ)
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(pdev, 0);
+	if (!r || irq < 0)
 		return -ENXIO;
 
-	r = request_mem_region(r->start, 0x100, "IMXMCI");
-	if (!r)
+	if (!request_mem_region(r->start, 0x100, pdev->name))
 		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct imxmci_host), &pdev->dev);
@@ -995,6 +969,8 @@ static int imxmci_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 	host->dma_allocated = 0;
 	host->pdata = pdev->dev.platform_data;
+	if (!host->pdata)
+		dev_warn(&pdev->dev, "No platform data provided!\n");
 
 	spin_lock_init(&host->lock);
 	host->res = r;
@@ -1047,7 +1023,11 @@ static int imxmci_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	host->present = host->pdata->card_present(mmc_dev(mmc));
+	if (host->pdata && host->pdata->card_present)
+		host->present = host->pdata->card_present(mmc_dev(mmc));
+	else	/* if there is no way to detect assume that card is present */
+		host->present = 1;
+
 	init_timer(&host->timer);
 	host->timer.data = (unsigned long)host;
 	host->timer.function = imxmci_check_status;
@@ -1073,7 +1053,7 @@ out:
 	}
 	if (mmc)
 		mmc_free_host(mmc);
-	release_resource(r);
+	release_mem_region(r->start, 0x100);
 	return ret;
 }
 
@@ -1102,7 +1082,7 @@ static int imxmci_remove(struct platform_device *pdev)
 		clk_disable(host->clk);
 		clk_put(host->clk);
 
-		release_resource(host->res);
+		release_mem_region(host->res->start, 0x100);
 
 		mmc_free_host(mmc);
 	}

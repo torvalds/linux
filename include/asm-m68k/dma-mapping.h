@@ -84,7 +84,7 @@ static inline void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *s
 {
 }
 
-static inline int dma_mapping_error(dma_addr_t handle)
+static inline int dma_mapping_error(struct device *dev, dma_addr_t handle)
 {
 	return 0;
 }

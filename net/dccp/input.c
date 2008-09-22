@@ -411,12 +411,6 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		struct dccp_sock *dp = dccp_sk(sk);
 		long tstamp = dccp_timestamp();
 
-		/* Stop the REQUEST timer */
-		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
-		BUG_TRAP(sk->sk_send_head != NULL);
-		__kfree_skb(sk->sk_send_head);
-		sk->sk_send_head = NULL;
-
 		if (!between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 			       dp->dccps_awl, dp->dccps_awh)) {
 			dccp_pr_debug("invalid ackno: S.AWL=%llu, "
@@ -440,6 +434,12 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 				    DCCP_SKB_CB(skb)->dccpd_seq,
 				    DCCP_ACKVEC_STATE_RECEIVED))
 			goto out_invalid_packet; /* FIXME: change error code */
+
+		/* Stop the REQUEST timer */
+		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
+		WARN_ON(sk->sk_send_head == NULL);
+		kfree_skb(sk->sk_send_head);
+		sk->sk_send_head = NULL;
 
 		dp->dccps_isr = DCCP_SKB_CB(skb)->dccpd_seq;
 		dccp_update_gsr(sk, dp->dccps_isr);

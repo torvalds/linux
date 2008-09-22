@@ -204,6 +204,4 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 	return rt->peer;
 }
 
-extern ctl_table ipv4_route_table[];
-
 #endif	/* _ROUTE_H */

@@ -5853,9 +5853,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	unsigned char buf;
 	int board;
 
-	dev->tuner_type = saa7134_boards[dev->board].tuner_type;
-	dev->tuner_addr = saa7134_boards[dev->board].tuner_addr;
-
 	switch (dev->board) {
 	case SAA7134_BOARD_BMK_MPEX_NOTUNER:
 	case SAA7134_BOARD_BMK_MPEX_TUNER:

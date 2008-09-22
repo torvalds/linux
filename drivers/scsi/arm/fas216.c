@@ -240,7 +240,7 @@ static void __fas216_checkmagic(FAS216_Info *info, const char *func)
 		panic("scsi memory space corrupted in %s", func);
 	}
 }
-#define fas216_checkmagic(info) __fas216_checkmagic((info), __FUNCTION__)
+#define fas216_checkmagic(info) __fas216_checkmagic((info), __func__)
 #else
 #define fas216_checkmagic(info)
 #endif
@@ -2658,7 +2658,7 @@ int fas216_eh_host_reset(struct scsi_cmnd *SCpnt)
 	fas216_checkmagic(info);
 
 	printk("scsi%d.%c: %s: resetting host\n",
-		info->host->host_no, '0' + SCpnt->device->id, __FUNCTION__);
+		info->host->host_no, '0' + SCpnt->device->id, __func__);
 
 	/*
 	 * Reset the SCSI chip.

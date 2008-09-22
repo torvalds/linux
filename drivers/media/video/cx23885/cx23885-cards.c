@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
- *  Copyright (c) 2006 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2006 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -145,6 +145,7 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP] = {
 		.name		= "DViCO FusionHDTV7 Dual Express",
+		.portb		= CX23885_MPEG_DVB,
 		.portc		= CX23885_MPEG_DVB,
 	},
 };
@@ -325,25 +326,41 @@ int cx23885_tuner_callback(void *priv, int command, int arg)
 {
 	struct cx23885_i2c *bus = priv;
 	struct cx23885_dev *dev = bus->dev;
+	u32 bitmask = 0;
+
+	if (command != 0) {
+		printk(KERN_ERR "%s(): Unknown command 0x%x.\n",
+			__func__, command);
+		return -EINVAL;
+	}
 
 	switch(dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
-		if(command == 0) {	/* Tuner Reset Command from xc5000 */
-			/* Drive the tuner into reset and out */
-			cx_clear(GP0_IO, 0x00000004);
-			mdelay(200);
-			cx_set(GP0_IO, 0x00000004);
-			return 0;
-		}
-		else {
-			printk(KERN_ERR
-				"%s(): Unknow command.\n", __func__);
-			return -EINVAL;
+		/* Tuner Reset Command from xc5000 */
+		if (command == 0)
+			bitmask = 0x04;
+		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		if (command == 0) {
+
+			/* Two identical tuners on two different i2c buses,
+			 * we need to reset the correct gpio. */
+			if (bus->nr == 0)
+				bitmask = 0x01;
+			else if (bus->nr == 1)
+				bitmask = 0x04;
 		}
 		break;
 	}
 
-	return 0; /* Should never be here */
+	if (bitmask) {
+		/* Drive the tuner into reset and back out */
+		cx_clear(GP0_IO, bitmask);
+		mdelay(200);
+		cx_set(GP0_IO, bitmask);
+	}
+
+	return 0;
 }
 
 void cx23885_gpio_setup(struct cx23885_dev *dev)
@@ -434,6 +451,19 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_clear(GP0_IO, 0x00000005);
 		mdelay(20);
 		cx_set(GP0_IO, 0x00050005);
+		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		/* GPIO-0 xc5000 tuner reset i2c bus 0 */
+		/* GPIO-1 s5h1409 demod reset i2c bus 0 */
+		/* GPIO-2 xc5000 tuner reset i2c bus 1 */
+		/* GPIO-3 s5h1409 demod reset i2c bus 0 */
+
+		/* Put the parts into reset and back */
+		cx_set(GP0_IO, 0x000f0000);
+		mdelay(20);
+		cx_clear(GP0_IO, 0x0000000f);
+		mdelay(20);
+		cx_set(GP0_IO, 0x000f000f);
 		break;
 	}
 }

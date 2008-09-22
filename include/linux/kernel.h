@@ -14,6 +14,8 @@
 #include <linux/compiler.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/typecheck.h>
+#include <linux/ratelimit.h>
 #include <asm/byteorder.h>
 #include <asm/bug.h>
 
@@ -73,6 +75,12 @@ extern const char linux_proc_banner[];
  */
 #define upper_32_bits(n) ((u32)(((n) >> 16) >> 16))
 
+/**
+ * lower_32_bits - return bits 0-31 of a number
+ * @n: the number we're accessing
+ */
+#define lower_32_bits(n) ((u32)(n))
+
 #define	KERN_EMERG	"<0>"	/* system is unusable			*/
 #define	KERN_ALERT	"<1>"	/* action must be taken immediately	*/
 #define	KERN_CRIT	"<2>"	/* critical conditions			*/
@@ -100,6 +108,13 @@ struct completion;
 struct pt_regs;
 struct user;
 
+#ifdef CONFIG_PREEMPT_VOLUNTARY
+extern int _cond_resched(void);
+# define might_resched() _cond_resched()
+#else
+# define might_resched() do { } while (0)
+#endif
+
 /**
  * might_sleep - annotation for functions that can sleep
  *
@@ -110,13 +125,6 @@ struct user;
  * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
-#ifdef CONFIG_PREEMPT_VOLUNTARY
-extern int _cond_resched(void);
-# define might_resched() _cond_resched()
-#else
-# define might_resched() do { } while (0)
-#endif
-
 #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
   void __might_sleep(char *file, int line);
 # define might_sleep() \
@@ -188,11 +196,8 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 asmlinkage int printk(const char * fmt, ...)
 	__attribute__ ((format (printf, 1, 2))) __cold;
 
-extern int printk_ratelimit_jiffies;
-extern int printk_ratelimit_burst;
+extern struct ratelimit_state printk_ratelimit_state;
 extern int printk_ratelimit(void);
-extern int __ratelimit(int ratelimit_jiffies, int ratelimit_burst);
-extern int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst);
 extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 				   unsigned int interval_msec);
 #else
@@ -203,8 +208,6 @@ static inline int printk(const char *s, ...)
 	__attribute__ ((format (printf, 1, 2)));
 static inline int __cold printk(const char *s, ...) { return 0; }
 static inline int printk_ratelimit(void) { return 0; }
-static inline int __printk_ratelimit(int ratelimit_jiffies, \
-				     int ratelimit_burst) { return 0; }
 static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies, \
 					  unsigned int interval_msec)	\
 		{ return false; }
@@ -440,26 +443,6 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
-
-/*
- * Check at compile time that something is of a particular type.
- * Always evaluates to 1 so you may use it easily in comparisons.
- */
-#define typecheck(type,x) \
-({	type __dummy; \
-	typeof(x) __dummy2; \
-	(void)(&__dummy == &__dummy2); \
-	1; \
-})
-
-/*
- * Check at compile time that 'function' is a certain type, or is a pointer
- * to that type (needs to use typedef for the function type.)
- */
-#define typecheck_fn(type,function) \
-({	typeof(type) __tmp = function; \
-	(void)__tmp; \
-})
 
 struct sysinfo;
 extern int do_sysinfo(struct sysinfo *info);

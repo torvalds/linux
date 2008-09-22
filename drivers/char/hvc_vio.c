@@ -80,6 +80,8 @@ static int filtered_get_chars(uint32_t vtermno, char *buf, int count)
 static struct hv_ops hvc_get_put_ops = {
 	.get_chars = filtered_get_chars,
 	.put_chars = hvc_put_chars,
+	.notifier_add = notifier_add_irq,
+	.notifier_del = notifier_del_irq,
 };
 
 static int __devinit hvc_vio_probe(struct vio_dev *vdev,

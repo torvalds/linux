@@ -265,7 +265,7 @@ typedef struct {
 #define ASSERT(expression)						\
 	if (!(expression)) {						\
 	ASSERT_ACTION("assertion failed:(%s), file: %s, line: %d:%s\n",	\
-			#expression, __FILE__, __LINE__, __FUNCTION__);	\
+			#expression, __FILE__, __LINE__, __func__);	\
 	}
 #else
 #define ASSERT(expression)

@@ -788,9 +788,7 @@ static int __init vdso_init(void)
 
 	return 0;
 }
-#ifdef CONFIG_PPC_MERGE
 arch_initcall(vdso_init);
-#endif
 
 int in_gate_area_no_task(unsigned long addr)
 {

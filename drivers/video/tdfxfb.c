@@ -95,7 +95,6 @@ static inline int mtrr_del(int reg, unsigned long base,
 #define VOODOO5_MAX_PIXCLOCK 350000
 
 static struct fb_fix_screeninfo tdfx_fix __devinitdata = {
-	.id =		"3Dfx",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
 	.ypanstep =	1,
@@ -426,7 +425,7 @@ static unsigned long do_lfb_size(struct tdfx_par *par, unsigned short dev_id)
 	if (dev_id < PCI_DEVICE_ID_3DFX_VOODOO5) {
 		/* Banshee/Voodoo3 */
 		chip_size = 2;
-		if (has_sgram && (draminit0 & DRAMINIT0_SGRAM_TYPE))
+		if (has_sgram && !(draminit0 & DRAMINIT0_SGRAM_TYPE))
 			chip_size = 1;
 	} else {
 		/* Voodoo4/5 */
@@ -836,16 +835,12 @@ static int tdfxfb_pan_display(struct fb_var_screeninfo *var,
 	struct tdfx_par *par = info->par;
 	u32 addr = var->yoffset * info->fix.line_length;
 
-	if (nopan || var->xoffset || (var->yoffset > var->yres_virtual))
-		return -EINVAL;
-	if ((var->yoffset + var->yres > var->yres_virtual && nowrap))
+	if (nopan || var->xoffset)
 		return -EINVAL;
 
 	banshee_make_room(par, 1);
 	tdfx_outl(par, VIDDESKSTART, addr);
 
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
 	return 0;
 }
 
@@ -1204,15 +1199,15 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	/* Configure the default fb_fix_screeninfo first */
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_3DFX_BANSHEE:
-		strcat(tdfx_fix.id, " Banshee");
+		strcpy(tdfx_fix.id, "3Dfx Banshee");
 		default_par->max_pixclock = BANSHEE_MAX_PIXCLOCK;
 		break;
 	case PCI_DEVICE_ID_3DFX_VOODOO3:
-		strcat(tdfx_fix.id, " Voodoo3");
+		strcpy(tdfx_fix.id, "3Dfx Voodoo3");
 		default_par->max_pixclock = VOODOO3_MAX_PIXCLOCK;
 		break;
 	case PCI_DEVICE_ID_3DFX_VOODOO5:
-		strcat(tdfx_fix.id, " Voodoo5");
+		strcpy(tdfx_fix.id, "3Dfx Voodoo5");
 		default_par->max_pixclock = VOODOO5_MAX_PIXCLOCK;
 		break;
 	}
@@ -1426,6 +1421,8 @@ MODULE_LICENSE("GPL");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disable MTRR support (default: enabled)");

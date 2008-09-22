@@ -26,7 +26,7 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -35,18 +35,20 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/pxa27x-udc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/akita.h>
-#include <asm/arch/spitz.h>
-#include <asm/arch/sharpsl.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/pxa27x-udc.h>
+#include <mach/reset.h>
+#include <mach/i2c.h>
+#include <mach/irda.h>
+#include <mach/mmc.h>
+#include <mach/ohci.h>
+#include <mach/udc.h>
+#include <mach/pxafb.h>
+#include <mach/akita.h>
+#include <mach/spitz.h>
+#include <mach/sharpsl.h>
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
@@ -573,6 +575,7 @@ static void __init common_init(void)
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
 	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
+	pxa_set_i2c_info(NULL);
 }
 
 #if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)

@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -151,7 +152,7 @@ transmit_complete_callback(struct fw_packet *packet,
 
 static void
 fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
-		int node_id, int source_id, int generation, int speed,
+		int destination_id, int source_id, int generation, int speed,
 		unsigned long long offset, void *payload, size_t length)
 {
 	int ext_tcode;
@@ -166,7 +167,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		HEADER_RETRY(RETRY_X) |
 		HEADER_TLABEL(tlabel) |
 		HEADER_TCODE(tcode) |
-		HEADER_DESTINATION(node_id);
+		HEADER_DESTINATION(destination_id);
 	packet->header[1] =
 		HEADER_OFFSET_HIGH(offset >> 32) | HEADER_SOURCE(source_id);
 	packet->header[2] =
@@ -252,7 +253,7 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 		fw_transaction_callback_t callback, void *callback_data)
 {
 	unsigned long flags;
-	int tlabel, source;
+	int tlabel;
 
 	/*
 	 * Bump the flush timer up 100ms first of all so we
@@ -268,7 +269,6 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	source = card->node_id;
 	tlabel = card->current_tlabel;
 	if (card->tlabel_mask & (1 << tlabel)) {
 		spin_unlock_irqrestore(&card->lock, flags);
@@ -279,77 +279,58 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 	card->current_tlabel = (card->current_tlabel + 1) & 0x1f;
 	card->tlabel_mask |= (1 << tlabel);
 
-	list_add_tail(&t->link, &card->transaction_list);
-
-	spin_unlock_irqrestore(&card->lock, flags);
-
-	/* Initialize rest of transaction, fill out packet and send it. */
 	t->node_id = node_id;
 	t->tlabel = tlabel;
 	t->callback = callback;
 	t->callback_data = callback_data;
 
-	fw_fill_request(&t->packet, tcode, t->tlabel,
-			node_id, source, generation,
-			speed, offset, payload, length);
+	fw_fill_request(&t->packet, tcode, t->tlabel, node_id, card->node_id,
+			generation, speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
+
+	list_add_tail(&t->link, &card->transaction_list);
+
+	spin_unlock_irqrestore(&card->lock, flags);
 
 	card->driver->send_request(card, &t->packet);
 }
 EXPORT_SYMBOL(fw_send_request);
 
-struct fw_phy_packet {
-	struct fw_packet packet;
-	struct completion done;
-	struct kref kref;
-};
-
-static void phy_packet_release(struct kref *kref)
-{
-	struct fw_phy_packet *p =
-			container_of(kref, struct fw_phy_packet, kref);
-	kfree(p);
-}
+static DEFINE_MUTEX(phy_config_mutex);
+static DECLARE_COMPLETION(phy_config_done);
 
 static void transmit_phy_packet_callback(struct fw_packet *packet,
 					 struct fw_card *card, int status)
 {
-	struct fw_phy_packet *p =
-			container_of(packet, struct fw_phy_packet, packet);
-
-	complete(&p->done);
-	kref_put(&p->kref, phy_packet_release);
+	complete(&phy_config_done);
 }
+
+static struct fw_packet phy_config_packet = {
+	.header_length	= 8,
+	.payload_length	= 0,
+	.speed		= SCODE_100,
+	.callback	= transmit_phy_packet_callback,
+};
 
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count)
 {
-	struct fw_phy_packet *p;
 	long timeout = DIV_ROUND_UP(HZ, 10);
 	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
 		   PHY_CONFIG_ROOT_ID(node_id) |
 		   PHY_CONFIG_GAP_COUNT(gap_count);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
-	if (p == NULL)
-		return;
+	mutex_lock(&phy_config_mutex);
 
-	p->packet.header[0] = data;
-	p->packet.header[1] = ~data;
-	p->packet.header_length = 8;
-	p->packet.payload_length = 0;
-	p->packet.speed = SCODE_100;
-	p->packet.generation = generation;
-	p->packet.callback = transmit_phy_packet_callback;
-	init_completion(&p->done);
-	kref_set(&p->kref, 2);
+	phy_config_packet.header[0] = data;
+	phy_config_packet.header[1] = ~data;
+	phy_config_packet.generation = generation;
+	INIT_COMPLETION(phy_config_done);
 
-	card->driver->send_request(card, &p->packet);
-	timeout = wait_for_completion_timeout(&p->done, timeout);
-	kref_put(&p->kref, phy_packet_release);
+	card->driver->send_request(card, &phy_config_packet);
+	wait_for_completion_timeout(&phy_config_done, timeout);
 
-	/* will leak p if the callback is never executed */
-	WARN_ON(timeout == 0);
+	mutex_unlock(&phy_config_mutex);
 }
 
 void fw_flush_transactions(struct fw_card *card)

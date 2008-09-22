@@ -55,7 +55,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 		if ((nlh->nlmsg_len < (sizeof(*nlh) + sizeof(*hdr))) ||
 		    (skb->len < nlh->nlmsg_len)) {
 			printk(KERN_WARNING "%s: discarding partial skb\n",
-				 __FUNCTION__);
+				 __func__);
 			return;
 		}
 
@@ -82,7 +82,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 
 		if (nlh->nlmsg_len < (sizeof(*nlh) + hdr->msglen)) {
 			printk(KERN_WARNING "%s: discarding partial message\n",
-				 __FUNCTION__);
+				 __func__);
 			return;
 		}
 
@@ -139,7 +139,7 @@ scsi_netlink_init(void)
 	error = netlink_register_notifier(&scsi_netlink_notifier);
 	if (error) {
 		printk(KERN_ERR "%s: register of event handler failed - %d\n",
-				__FUNCTION__, error);
+				__func__, error);
 		return;
 	}
 
@@ -148,7 +148,7 @@ scsi_netlink_init(void)
 				THIS_MODULE);
 	if (!scsi_nl_sock) {
 		printk(KERN_ERR "%s: register of recieve handler failed\n",
-				__FUNCTION__);
+				__func__);
 		netlink_unregister_notifier(&scsi_netlink_notifier);
 	}
 

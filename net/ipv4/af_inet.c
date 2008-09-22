@@ -148,10 +148,10 @@ void inet_sock_destruct(struct sock *sk)
 		return;
 	}
 
-	BUG_TRAP(!atomic_read(&sk->sk_rmem_alloc));
-	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
-	BUG_TRAP(!sk->sk_wmem_queued);
-	BUG_TRAP(!sk->sk_forward_alloc);
+	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(sk->sk_wmem_queued);
+	WARN_ON(sk->sk_forward_alloc);
 
 	kfree(inet->opt);
 	dst_release(sk->sk_dst_cache);
@@ -264,7 +264,6 @@ static inline int inet_netns_ok(struct net *net, int protocol)
 static int inet_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
-	struct list_head *p;
 	struct inet_protosw *answer;
 	struct inet_sock *inet;
 	struct proto *answer_prot;
@@ -281,13 +280,12 @@ static int inet_create(struct net *net, struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
-	answer = NULL;
 lookup_protocol:
 	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
-	list_for_each_rcu(p, &inetsw[sock->type]) {
-		answer = list_entry(p, struct inet_protosw, list);
+	list_for_each_entry_rcu(answer, &inetsw[sock->type], list) {
 
+		err = 0;
 		/* Check the non-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
@@ -302,10 +300,9 @@ lookup_protocol:
 				break;
 		}
 		err = -EPROTONOSUPPORT;
-		answer = NULL;
 	}
 
-	if (unlikely(answer == NULL)) {
+	if (unlikely(err)) {
 		if (try_loading_module < 2) {
 			rcu_read_unlock();
 			/*
@@ -341,7 +338,7 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
-	BUG_TRAP(answer_prot->slab != NULL);
+	WARN_ON(answer_prot->slab == NULL);
 
 	err = -ENOBUFS;
 	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot);
@@ -661,8 +658,8 @@ int inet_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	lock_sock(sk2);
 
-	BUG_TRAP((1 << sk2->sk_state) &
-		 (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT | TCPF_CLOSE));
+	WARN_ON(!((1 << sk2->sk_state) &
+		  (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT | TCPF_CLOSE)));
 
 	sock_graft(sk2, newsock);
 
@@ -1441,6 +1438,10 @@ static int __init inet_init(void)
 	 */
 
 	(void)sock_register(&inet_family_ops);
+
+#ifdef CONFIG_SYSCTL
+	ip_static_sysctl_init();
+#endif
 
 	/*
 	 *	Add all the base protocols.

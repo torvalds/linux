@@ -581,12 +581,12 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (file == ppp->owner)
 				ppp_shutdown_interface(ppp);
 		}
-		if (atomic_read(&file->f_count) <= 2) {
+		if (atomic_long_read(&file->f_count) <= 2) {
 			ppp_release(NULL, file);
 			err = 0;
 		} else
-			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%d\n",
-			       atomic_read(&file->f_count));
+			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%ld\n",
+			       atomic_long_read(&file->f_count));
 		unlock_kernel();
 		return err;
 	}

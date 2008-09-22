@@ -576,6 +576,18 @@ static void cas_spare_recover(struct cas *cp, const gfp_t flags)
 	list_for_each_safe(elem, tmp, &list) {
 		cas_page_t *page = list_entry(elem, cas_page_t, list);
 
+		/*
+		 * With the lockless pagecache, cassini buffering scheme gets
+		 * slightly less accurate: we might find that a page has an
+		 * elevated reference count here, due to a speculative ref,
+		 * and skip it as in-use. Ideally we would be able to reclaim
+		 * it. However this would be such a rare case, it doesn't
+		 * matter too much as we should pick it up the next time round.
+		 *
+		 * Importantly, if we find that the page has a refcount of 1
+		 * here (our refcount), then we know it is definitely not inuse
+		 * so we can reuse it.
+		 */
 		if (page_count(page->buffer) > 1)
 			continue;
 

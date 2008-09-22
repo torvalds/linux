@@ -10,6 +10,7 @@
 #define __ASM_TXX9_TX4927PCIC_H
 
 #include <linux/pci.h>
+#include <linux/irqreturn.h>
 
 struct tx4927_pcic_reg {
 	u32 pciid;
@@ -192,8 +193,11 @@ struct tx4927_pcic_reg {
 
 struct tx4927_pcic_reg __iomem *get_tx4927_pcicptr(
 	struct pci_controller *channel);
-void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
-			      struct pci_controller *channel, int extarb);
+void tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
+		       struct pci_controller *channel, int extarb);
 void tx4927_report_pcic_status(void);
+char *tx4927_pcibios_setup(char *str);
+void tx4927_dump_pcic_settings(void);
+irqreturn_t tx4927_pcierr_interrupt(int irq, void *dev_id);
 
 #endif /* __ASM_TXX9_TX4927PCIC_H */

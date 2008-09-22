@@ -418,7 +418,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 		/* ICMPs are not backlogged, hence we cannot get
 		   an established socket here.
 		 */
-		BUG_TRAP(!req->sk);
+		WARN_ON(req->sk);
 
 		if (seq != tcp_rsk(req)->snt_isn) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
@@ -655,8 +655,8 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 		rep.th.doff = arg.iov[0].iov_len/4;
 
 		tcp_v4_md5_hash_hdr((__u8 *) &rep.opt[offset],
-				    key, ip_hdr(skb)->daddr,
-				    ip_hdr(skb)->saddr, &rep.th);
+				    key, ip_hdr(skb)->saddr,
+				    ip_hdr(skb)->daddr, &rep.th);
 	}
 #endif
 	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,
@@ -687,14 +687,14 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	inet_twsk_put(tw);
 }
 
-static void tcp_v4_reqsk_send_ack(struct sk_buff *skb,
+static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req)
 {
 	tcp_v4_send_ack(skb, tcp_rsk(req)->snt_isn + 1,
 			tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
 			req->ts_recent,
 			0,
-			tcp_v4_md5_do_lookup(skb->sk, ip_hdr(skb)->daddr));
+			tcp_v4_md5_do_lookup(sk, ip_hdr(skb)->daddr));
 }
 
 /*
@@ -1116,18 +1116,12 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 		return 0;
 
 	if (hash_expected && !hash_location) {
-		LIMIT_NETDEBUG(KERN_INFO "MD5 Hash expected but NOT found "
-			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)\n",
-			       NIPQUAD(iph->saddr), ntohs(th->source),
-			       NIPQUAD(iph->daddr), ntohs(th->dest));
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
 		return 1;
 	}
 
 	if (!hash_expected && hash_location) {
-		LIMIT_NETDEBUG(KERN_INFO "MD5 Hash NOT expected but found "
-			       "(" NIPQUAD_FMT ", %d)->(" NIPQUAD_FMT ", %d)\n",
-			       NIPQUAD(iph->saddr), ntohs(th->source),
-			       NIPQUAD(iph->daddr), ntohs(th->dest));
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
 		return 1;
 	}
 
@@ -2382,6 +2376,7 @@ static int __net_init tcp_sk_init(struct net *net)
 static void __net_exit tcp_sk_exit(struct net *net)
 {
 	inet_ctl_sock_destroy(net->ipv4.tcp_sock);
+	inet_twsk_purge(net, &tcp_hashinfo, &tcp_death_row, AF_INET);
 }
 
 static struct pernet_operations __net_initdata tcp_sk_ops = {

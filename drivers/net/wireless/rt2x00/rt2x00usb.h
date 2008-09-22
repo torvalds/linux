@@ -70,8 +70,7 @@
 /*
  * Cache size
  */
-#define CSR_CACHE_SIZE			8
-#define CSR_CACHE_SIZE_FIRMWARE		64
+#define CSR_CACHE_SIZE			64
 
 /*
  * USB request types.
@@ -170,6 +169,25 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 				   const u8 request, const u8 requesttype,
 				   const u16 offset, void *buffer,
 				   const u16 buffer_length, const int timeout);
+
+/**
+ * rt2x00usb_vendor_request_large_buff - Send register command to device (buffered)
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
+ * @requesttype: Request type &USB_VENDOR_REQUEST_*
+ * @offset: Register start offset to perform action on
+ * @buffer: Buffer where information will be read/written to by device
+ * @buffer_length: Size of &buffer
+ * @timeout: Operation timeout
+ *
+ * This function is used to transfer register data in blocks larger
+ * then CSR_CACHE_SIZE. Use for firmware upload, keys and beacons.
+ */
+int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
+					const u8 request, const u8 requesttype,
+					const u16 offset, const void *buffer,
+					const u16 buffer_length,
+					const int timeout);
 
 /**
  * rt2x00usb_vendor_request_sw - Send single register command to device

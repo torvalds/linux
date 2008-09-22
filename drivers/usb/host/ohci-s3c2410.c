@@ -22,8 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/usb-control.h>
+#include <mach/hardware.h>
+#include <mach/usb-control.h>
 
 #define valid_port(idx) ((idx) == 1 || (idx) == 2)
 
@@ -466,7 +466,6 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 	 */
 	.hub_status_data =	ohci_s3c2410_hub_status_data,
 	.hub_control =		ohci_s3c2410_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

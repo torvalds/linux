@@ -73,7 +73,7 @@ static int verify_group_input(struct super_block *sb,
 			     "Inode bitmap not in group (block %llu)",
 			     (unsigned long long)input->inode_bitmap);
 	else if (outside(input->inode_table, start, end) ||
-	         outside(itend - 1, start, end))
+		 outside(itend - 1, start, end))
 		ext4_warning(sb, __func__,
 			     "Inode table not in group (blocks %llu-%llu)",
 			     (unsigned long long)input->inode_table, itend - 1);
@@ -104,7 +104,7 @@ static int verify_group_input(struct super_block *sb,
 			     (unsigned long long)input->inode_bitmap,
 			     start, metaend - 1);
 	else if (inside(input->inode_table, start, metaend) ||
-	         inside(itend - 1, start, metaend))
+		 inside(itend - 1, start, metaend))
 		ext4_warning(sb, __func__,
 			     "Inode table (%llu-%llu) overlaps"
 			     "GDT table (%llu-%llu)",
@@ -158,9 +158,9 @@ static int extend_or_restart_transaction(handle_t *handle, int thresh,
 	if (err) {
 		if ((err = ext4_journal_restart(handle, EXT4_MAX_TRANS_DATA)))
 			return err;
-	        if ((err = ext4_journal_get_write_access(handle, bh)))
+		if ((err = ext4_journal_get_write_access(handle, bh)))
 			return err;
-        }
+	}
 
 	return 0;
 }
@@ -416,11 +416,11 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 		       "EXT4-fs: ext4_add_new_gdb: adding group block %lu\n",
 		       gdb_num);
 
-	/*
-	 * If we are not using the primary superblock/GDT copy don't resize,
-	 * because the user tools have no way of handling this.  Probably a
-	 * bad time to do it anyways.
-	 */
+        /*
+         * If we are not using the primary superblock/GDT copy don't resize,
+         * because the user tools have no way of handling this.  Probably a
+         * bad time to do it anyways.
+         */
 	if (EXT4_SB(sb)->s_sbh->b_blocknr !=
 	    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block)) {
 		ext4_warning(sb, __func__,
@@ -507,14 +507,14 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	return 0;
 
 exit_inode:
-	//ext4_journal_release_buffer(handle, iloc.bh);
+	/* ext4_journal_release_buffer(handle, iloc.bh); */
 	brelse(iloc.bh);
 exit_dindj:
-	//ext4_journal_release_buffer(handle, dind);
+	/* ext4_journal_release_buffer(handle, dind); */
 exit_primary:
-	//ext4_journal_release_buffer(handle, *primary);
+	/* ext4_journal_release_buffer(handle, *primary); */
 exit_sbh:
-	//ext4_journal_release_buffer(handle, *primary);
+	/* ext4_journal_release_buffer(handle, *primary); */
 exit_dind:
 	brelse(dind);
 exit_bh:
@@ -773,7 +773,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 
 	if (reserved_gdb || gdb_off == 0) {
 		if (!EXT4_HAS_COMPAT_FEATURE(sb,
-					     EXT4_FEATURE_COMPAT_RESIZE_INODE)){
+					     EXT4_FEATURE_COMPAT_RESIZE_INODE)
+		    || !le16_to_cpu(es->s_reserved_gdt_blocks)) {
 			ext4_warning(sb, __func__,
 				     "No reserved GDT blocks, can't resize");
 			return -EPERM;
@@ -818,12 +819,12 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	if ((err = ext4_journal_get_write_access(handle, sbi->s_sbh)))
 		goto exit_journal;
 
-	/*
-	 * We will only either add reserved group blocks to a backup group
-	 * or remove reserved blocks for the first group in a new group block.
-	 * Doing both would be mean more complex code, and sane people don't
-	 * use non-sparse filesystems anymore.  This is already checked above.
-	 */
+        /*
+         * We will only either add reserved group blocks to a backup group
+         * or remove reserved blocks for the first group in a new group block.
+         * Doing both would be mean more complex code, and sane people don't
+         * use non-sparse filesystems anymore.  This is already checked above.
+         */
 	if (gdb_off) {
 		primary = sbi->s_group_desc[gdb_num];
 		if ((err = ext4_journal_get_write_access(handle, primary)))
@@ -835,24 +836,24 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	} else if ((err = add_new_gdb(handle, inode, input, &primary)))
 		goto exit_journal;
 
-	/*
-	 * OK, now we've set up the new group.  Time to make it active.
-	 *
-	 * Current kernels don't lock all allocations via lock_super(),
-	 * so we have to be safe wrt. concurrent accesses the group
-	 * data.  So we need to be careful to set all of the relevant
-	 * group descriptor data etc. *before* we enable the group.
-	 *
-	 * The key field here is sbi->s_groups_count: as long as
-	 * that retains its old value, nobody is going to access the new
-	 * group.
-	 *
-	 * So first we update all the descriptor metadata for the new
-	 * group; then we update the total disk blocks count; then we
-	 * update the groups count to enable the group; then finally we
-	 * update the free space counts so that the system can start
-	 * using the new disk blocks.
-	 */
+        /*
+         * OK, now we've set up the new group.  Time to make it active.
+         *
+         * Current kernels don't lock all allocations via lock_super(),
+         * so we have to be safe wrt. concurrent accesses the group
+         * data.  So we need to be careful to set all of the relevant
+         * group descriptor data etc. *before* we enable the group.
+         *
+         * The key field here is sbi->s_groups_count: as long as
+         * that retains its old value, nobody is going to access the new
+         * group.
+         *
+         * So first we update all the descriptor metadata for the new
+         * group; then we update the total disk blocks count; then we
+         * update the groups count to enable the group; then finally we
+         * update the free space counts so that the system can start
+         * using the new disk blocks.
+         */
 
 	/* Update group descriptor block for new group */
 	gdp = (struct ext4_group_desc *)((char *)primary->b_data +
@@ -946,7 +947,8 @@ exit_put:
 	return err;
 } /* ext4_group_add */
 
-/* Extend the filesystem to the new number of blocks specified.  This entry
+/*
+ * Extend the filesystem to the new number of blocks specified.  This entry
  * point is only used to extend the current filesystem to the end of the last
  * existing group.  It can be accessed via ioctl, or by "remount,resize=<size>"
  * for emergencies (because it has no dependencies on reserved blocks).
@@ -1024,7 +1026,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 			     o_blocks_count + add, add);
 
 	/* See if the device is actually as big as what was requested */
-	bh = sb_bread(sb, o_blocks_count + add -1);
+	bh = sb_bread(sb, o_blocks_count + add - 1);
 	if (!bh) {
 		ext4_warning(sb, __func__,
 			     "can't read last block, resize aborted");

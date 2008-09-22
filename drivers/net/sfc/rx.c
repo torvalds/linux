@@ -233,7 +233,7 @@ static inline int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
 					  rx_buf->data, rx_buf->len,
 					  PCI_DMA_FROMDEVICE);
 
-	if (unlikely(pci_dma_mapping_error(rx_buf->dma_addr))) {
+	if (unlikely(pci_dma_mapping_error(efx->pci_dev, rx_buf->dma_addr))) {
 		dev_kfree_skb_any(rx_buf->skb);
 		rx_buf->skb = NULL;
 		return -EIO;
@@ -275,7 +275,7 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
 					0, efx_rx_buf_size(efx),
 					PCI_DMA_FROMDEVICE);
 
-		if (unlikely(pci_dma_mapping_error(dma_addr))) {
+		if (unlikely(pci_dma_mapping_error(efx->pci_dev, dma_addr))) {
 			__free_pages(rx_buf->page, efx->rx_buffer_order);
 			rx_buf->page = NULL;
 			return -EIO;

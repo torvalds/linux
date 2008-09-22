@@ -62,7 +62,7 @@ extern int ql2xfdmienable;
 extern int ql2xallocfwdump;
 extern int ql2xextended_error_logging;
 extern int ql2xqfullrampup;
-extern int num_hosts;
+extern int ql2xiidmaenable;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -70,6 +70,8 @@ extern int qla2x00_post_aen_work(struct scsi_qla_host *, enum
     fc_host_event_code, u32);
 extern int qla2x00_post_hwe_work(struct scsi_qla_host *, uint16_t , uint16_t,
     uint16_t, uint16_t);
+
+extern void qla2x00_abort_fcport_cmds(fc_port_t *);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -312,6 +314,7 @@ extern int qla2xxx_hw_event_log(scsi_qla_host_t *, uint16_t , uint16_t,
     uint16_t, uint16_t);
 
 extern void qla2xxx_get_flash_info(scsi_qla_host_t *);
+extern int qla2xxx_get_vpd_field(scsi_qla_host_t *, char *, char *, size_t);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.

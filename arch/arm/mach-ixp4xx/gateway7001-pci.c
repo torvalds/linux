@@ -23,14 +23,14 @@
 #include <linux/irq.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <asm/mach/pci.h>
 
 void __init gateway7001_pci_preinit(void)
 {
-	set_irq_type(IRQ_IXP4XX_GPIO10, IRQT_LOW);
-	set_irq_type(IRQ_IXP4XX_GPIO11, IRQT_LOW);
+	set_irq_type(IRQ_IXP4XX_GPIO10, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_IXP4XX_GPIO11, IRQ_TYPE_LEVEL_LOW);
 
 	ixp4xx_pci_preinit();
 }

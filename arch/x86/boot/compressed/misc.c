@@ -182,8 +182,6 @@ static unsigned		outcnt;
 static int  fill_inbuf(void);
 static void flush_window(void);
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 /*
  * This is set up by the setup-routine at boot-time
@@ -195,9 +193,6 @@ extern unsigned char input_data[];
 extern int input_len;
 
 static long bytes_out;
-
-static void *malloc(int size);
-static void free(void *where);
 
 static void *memset(void *s, int c, unsigned n);
 static void *memcpy(void *dest, const void *src, unsigned n);
@@ -219,40 +214,6 @@ static int vidport;
 static int lines, cols;
 
 #include "../../../../lib/inflate.c"
-
-static void *malloc(int size)
-{
-	void *p;
-
-	if (size < 0)
-		error("Malloc error");
-	if (free_mem_ptr <= 0)
-		error("Memory error");
-
-	free_mem_ptr = (free_mem_ptr + 3) & ~3;	/* Align */
-
-	p = (void *)free_mem_ptr;
-	free_mem_ptr += size;
-
-	if (free_mem_ptr >= free_mem_end_ptr)
-		error("Out of memory");
-
-	return p;
-}
-
-static void free(void *where)
-{	/* Don't care */
-}
-
-static void gzip_mark(void **ptr)
-{
-	*ptr = (void *) free_mem_ptr;
-}
-
-static void gzip_release(void **ptr)
-{
-	free_mem_ptr = (memptr) *ptr;
-}
 
 static void scroll(void)
 {

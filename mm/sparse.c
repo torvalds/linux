@@ -147,22 +147,41 @@ static inline int sparse_early_nid(struct mem_section *section)
 	return (section->section_mem_map >> SECTION_NID_SHIFT);
 }
 
-/* Record a memory area against a node. */
-void __init memory_present(int nid, unsigned long start, unsigned long end)
+/* Validate the physical addressing limitations of the model */
+void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
+						unsigned long *end_pfn)
 {
-	unsigned long max_arch_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
-	unsigned long pfn;
+	unsigned long max_sparsemem_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
 
 	/*
 	 * Sanity checks - do not allow an architecture to pass
 	 * in larger pfns than the maximum scope of sparsemem:
 	 */
-	if (start >= max_arch_pfn)
-		return;
-	if (end >= max_arch_pfn)
-		end = max_arch_pfn;
+	if (*start_pfn > max_sparsemem_pfn) {
+		mminit_dprintk(MMINIT_WARNING, "pfnvalidation",
+			"Start of range %lu -> %lu exceeds SPARSEMEM max %lu\n",
+			*start_pfn, *end_pfn, max_sparsemem_pfn);
+		WARN_ON_ONCE(1);
+		*start_pfn = max_sparsemem_pfn;
+		*end_pfn = max_sparsemem_pfn;
+	}
+
+	if (*end_pfn > max_sparsemem_pfn) {
+		mminit_dprintk(MMINIT_WARNING, "pfnvalidation",
+			"End of range %lu -> %lu exceeds SPARSEMEM max %lu\n",
+			*start_pfn, *end_pfn, max_sparsemem_pfn);
+		WARN_ON_ONCE(1);
+		*end_pfn = max_sparsemem_pfn;
+	}
+}
+
+/* Record a memory area against a node. */
+void __init memory_present(int nid, unsigned long start, unsigned long end)
+{
+	unsigned long pfn;
 
 	start &= PAGE_SECTION_MASK;
+	mminit_validate_memmodel_limits(&start, &end);
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
 		unsigned long section = pfn_to_section_nr(pfn);
 		struct mem_section *ms;
@@ -187,6 +206,7 @@ unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
 	unsigned long pfn;
 	unsigned long nr_pages = 0;
 
+	mminit_validate_memmodel_limits(&start_pfn, &end_pfn);
 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		if (nid != early_pfn_to_nid(pfn))
 			continue;
@@ -248,15 +268,91 @@ static unsigned long *__kmalloc_section_usemap(void)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static unsigned long * __init
+sparse_early_usemap_alloc_pgdat_section(struct pglist_data *pgdat)
+{
+	unsigned long section_nr;
+
+	/*
+	 * A page may contain usemaps for other sections preventing the
+	 * page being freed and making a section unremovable while
+	 * other sections referencing the usemap retmain active. Similarly,
+	 * a pgdat can prevent a section being removed. If section A
+	 * contains a pgdat and section B contains the usemap, both
+	 * sections become inter-dependent. This allocates usemaps
+	 * from the same section as the pgdat where possible to avoid
+	 * this problem.
+	 */
+	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+	return alloc_bootmem_section(usemap_size(), section_nr);
+}
+
+static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+{
+	unsigned long usemap_snr, pgdat_snr;
+	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
+	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
+	struct pglist_data *pgdat = NODE_DATA(nid);
+	int usemap_nid;
+
+	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
+	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+	if (usemap_snr == pgdat_snr)
+		return;
+
+	if (old_usemap_snr == usemap_snr && old_pgdat_snr == pgdat_snr)
+		/* skip redundant message */
+		return;
+
+	old_usemap_snr = usemap_snr;
+	old_pgdat_snr = pgdat_snr;
+
+	usemap_nid = sparse_early_nid(__nr_to_section(usemap_snr));
+	if (usemap_nid != nid) {
+		printk(KERN_INFO
+		       "node %d must be removed before remove section %ld\n",
+		       nid, usemap_snr);
+		return;
+	}
+	/*
+	 * There is a circular dependency.
+	 * Some platforms allow un-removable section because they will just
+	 * gather other removable sections for dynamic partitioning.
+	 * Just notify un-removable section's number here.
+	 */
+	printk(KERN_INFO "Section %ld and %ld (node %d)", usemap_snr,
+	       pgdat_snr, nid);
+	printk(KERN_CONT
+	       " have a circular dependency on usemap and pgdat allocations\n");
+}
+#else
+static unsigned long * __init
+sparse_early_usemap_alloc_pgdat_section(struct pglist_data *pgdat)
+{
+	return NULL;
+}
+
+static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+{
+}
+#endif /* CONFIG_MEMORY_HOTREMOVE */
+
 static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
 {
 	unsigned long *usemap;
 	struct mem_section *ms = __nr_to_section(pnum);
 	int nid = sparse_early_nid(ms);
 
-	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
+	usemap = sparse_early_usemap_alloc_pgdat_section(NODE_DATA(nid));
 	if (usemap)
 		return usemap;
+
+	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
+	if (usemap) {
+		check_usemap_section_nr(nid, usemap);
+		return usemap;
+	}
 
 	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
 	nid = 0;
@@ -280,7 +376,7 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
-struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 {
 	struct page *map;
 	struct mem_section *ms = __nr_to_section(pnum);

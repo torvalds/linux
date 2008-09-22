@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <media/v4l2-ioctl.h>
 
 #include "cpia2.h"
 #include "cpia2dev.h"
@@ -1023,7 +1024,6 @@ static int ioctl_queryctrl(void *arg,struct camera_data *cam)
 		if(cam->params.pnp_id.device_type == DEVICE_STV_672 &&
 		   cam->params.version.sensor_flags==CPIA2_VP_SENSOR_FLAGS_500){
 			// Maximum 15fps
-			int i;
 			for(i=0; i<c->maximum; ++i) {
 				if(framerate_controls[i].value ==
 				   CPIA2_VP_FRAMERATE_15) {
@@ -1935,11 +1935,7 @@ static const struct file_operations fops_template = {
 
 static struct video_device cpia2_template = {
 	/* I could not find any place for the old .initialize initializer?? */
-	.owner=		THIS_MODULE,
 	.name=		"CPiA2 Camera",
-	.type=		VID_TYPE_CAPTURE,
-	.type2 = 	V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_STREAMING,
 	.minor=		-1,
 	.fops=		&fops_template,
 	.release=	video_device_release,
@@ -1962,8 +1958,7 @@ int cpia2_register_camera(struct camera_data *cam)
 	reset_camera_struct_v4l(cam);
 
 	/* register v4l device */
-	if (video_register_device
-	    (cam->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	if (video_register_device(cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		ERR("video_register_device failed\n");
 		video_device_release(cam->vdev);
 		return -ENODEV;

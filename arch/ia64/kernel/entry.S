@@ -1691,6 +1691,12 @@ sys_call_table:
 	data8 sys_timerfd_create		// 1310
 	data8 sys_timerfd_settime
 	data8 sys_timerfd_gettime
+	data8 sys_signalfd4
+	data8 sys_eventfd2
+	data8 sys_epoll_create1			// 1315
+	data8 sys_dup3
+	data8 sys_pipe2
+	data8 sys_inotify_init1
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
 #endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */

@@ -13,6 +13,7 @@
 #include <asm/lowcore.h>
 #include <asm/uaccess.h>
 #include <linux/kvm_host.h>
+#include <linux/signal.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -246,15 +247,10 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	default:
 		BUG();
 	}
-
 	if (exception) {
-		VCPU_EVENT(vcpu, 1, "%s", "program exception while delivering"
-			   " interrupt");
-		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		if (inti->type == KVM_S390_PROGRAM_INT) {
-			printk(KERN_WARNING "kvm: recursive program check\n");
-			BUG();
-		}
+		printk("kvm: The guest lowcore is not mapped during interrupt "
+			"delivery, killing userspace\n");
+		do_exit(SIGKILL);
 	}
 }
 
@@ -277,14 +273,11 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 		__LC_EXT_NEW_PSW, sizeof(psw_t));
 	if (rc == -EFAULT)
 		exception = 1;
-
 	if (exception) {
-		VCPU_EVENT(vcpu, 1, "%s", "program exception while delivering" \
-			   " ckc interrupt");
-		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		return 0;
+		printk("kvm: The guest lowcore is not mapped during interrupt "
+			"delivery, killing userspace\n");
+		do_exit(SIGKILL);
 	}
-
 	return 1;
 }
 

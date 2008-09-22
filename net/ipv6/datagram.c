@@ -732,7 +732,7 @@ int datagram_send_ctl(struct net *net,
 			LIMIT_NETDEBUG(KERN_DEBUG "invalid cmsg type: %d\n",
 				       cmsg->cmsg_type);
 			err = -EINVAL;
-			break;
+			goto exit_f;
 		}
 	}
 

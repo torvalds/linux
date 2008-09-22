@@ -524,7 +524,7 @@
    - Michael Lang
  
    June 25 1997: (v1.8b)
-   1) Some cosmetical changes for the handling of SCSI-device-types.
+   1) Some cosmetic changes for the handling of SCSI-device-types.
       Now, also CD-Burners / WORMs and SCSI-scanners should work. For
       MO-drives I have no experience, therefore not yet supported.
       In logical_devices I changed from different type-variables to one
@@ -914,7 +914,7 @@
       in version 4.0. This was never really necessary, as all troubles were
       based on non-command related reasons up to now, so bypassing commands
       did not help to avoid any bugs. It is kept in 3.2X for debugging reasons.
-   5) Dynamical reassignment of ldns was again verified and analyzed to be
+   5) Dynamic reassignment of ldns was again verified and analyzed to be
       completely inoperational. This is corrected and should work now.
    6) All commands that get sent to the SCSI adapter were verified and
       completed in such a way, that they are now completely conform to the
@@ -1386,7 +1386,7 @@
    concerning the Linux-kernel in special, this SCSI-driver comes without any
    warranty. Its functionality is tested as good as possible on certain 
    machines and combinations of computer hardware, which does not exclude,
-   that dataloss or severe damage of hardware is possible while using this
+   that data loss or severe damage of hardware is possible while using this
    part of software on some arbitrary computer hardware or in combination 
    with other software packages. It is highly recommended to make backup
    copies of your data before using this software. Furthermore, personal

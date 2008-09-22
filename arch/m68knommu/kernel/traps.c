@@ -103,12 +103,28 @@ asmlinkage void buserr_c(struct frame *fp)
 	force_sig(SIGSEGV, current);
 }
 
+static void print_this_address(unsigned long addr, int i)
+{
+#ifdef CONFIG_KALLSYMS
+	printk(KERN_EMERG " [%08lx] ", addr);
+	print_symbol(KERN_CONT "%s\n", addr);
+#else
+	if (i % 5)
+		printk(KERN_CONT " [%08lx] ", addr);
+	else
+		printk(KERN_CONT "\n" KERN_EMERG " [%08lx] ", addr);
+	i++;
+#endif
+}
+
 int kstack_depth_to_print = 48;
 
 static void __show_stack(struct task_struct *task, unsigned long *stack)
 {
 	unsigned long *endstack, addr;
+#ifdef CONFIG_FRAME_POINTER
 	unsigned long *last_stack;
+#endif
 	int i;
 
 	if (!stack)
@@ -126,6 +142,7 @@ static void __show_stack(struct task_struct *task, unsigned long *stack)
 		printk(" %08lx", *(stack + i));
 	}
 	printk("\n");
+	i = 0;
 
 #ifdef CONFIG_FRAME_POINTER
 	printk(KERN_EMERG "Call Trace:\n");
@@ -134,15 +151,30 @@ static void __show_stack(struct task_struct *task, unsigned long *stack)
 	while (stack <= endstack && stack > last_stack) {
 
 		addr = *(stack + 1);
-		printk(KERN_EMERG " [%08lx] ", addr);
-		print_symbol(KERN_CONT "%s\n", addr);
+		print_this_address(addr, i);
+		i++;
 
 		last_stack = stack;
 		stack = (unsigned long *)*stack;
 	}
 	printk("\n");
 #else
-	printk(KERN_EMERG "CONFIG_FRAME_POINTER disabled, no symbolic call trace\n");
+	printk(KERN_EMERG "Call Trace with CONFIG_FRAME_POINTER disabled:\n");
+	while (stack <= endstack) {
+		addr = *stack++;
+		/*
+		 * If the address is either in the text segment of the kernel,
+		 * or in a region which is occupied by a module then it *may*
+		 * be the address of a calling routine; if so, print it so that
+		 * someone tracing down the cause of the crash will be able to
+		 * figure out the call path that was taken.
+		 */
+		if (__kernel_text_address(addr)) {
+			print_this_address(addr, i);
+			i++;
+		}
+	}
+	printk(KERN_CONT "\n");
 #endif
 }
 

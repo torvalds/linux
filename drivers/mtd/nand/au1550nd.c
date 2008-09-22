@@ -3,8 +3,6 @@
  *
  *  Copyright (C) 2004 Embedded Edge, LLC
  *
- * $Id: au1550nd.c,v 1.13 2005/11/07 11:14:30 gleixner Exp $
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -18,7 +16,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-#include <linux/version.h>
 #include <asm/io.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
@@ -604,8 +601,6 @@ module_init(au1xxx_nand_init);
  */
 static void __exit au1550_cleanup(void)
 {
-	struct nand_chip *this = (struct nand_chip *)&au1550_mtd[1];
-
 	/* Release resources, unregister device */
 	nand_release(au1550_mtd);
 

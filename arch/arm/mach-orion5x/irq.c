@@ -15,8 +15,8 @@
 #include <linux/irq.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/arch/orion5x.h>
-#include <asm/plat-orion/irq.h>
+#include <mach/orion5x.h>
+#include <plat/irq.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -91,27 +91,27 @@ static int orion5x_gpio_set_irq_type(u32 irq, u32 type)
 	desc = irq_desc + irq;
 
 	switch (type) {
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		desc->handle_irq = handle_level_irq;
 		desc->status |= IRQ_LEVEL;
 		orion5x_clrbits(GPIO_IN_POL, (1 << pin));
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		desc->handle_irq = handle_level_irq;
 		desc->status |= IRQ_LEVEL;
 		orion5x_setbits(GPIO_IN_POL, (1 << pin));
 		break;
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
 		orion5x_clrbits(GPIO_IN_POL, (1 << pin));
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
 		orion5x_setbits(GPIO_IN_POL, (1 << pin));
 		break;
-	case IRQT_BOTHEDGE:
+	case IRQ_TYPE_EDGE_BOTH:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
 		/*
@@ -156,7 +156,7 @@ static void orion5x_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (cause & (1 << pin)) {
 			irq = gpio_to_irq(pin);
 			desc = irq_desc + irq;
-			if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE) {
+			if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 				/* Swap polarity (race with GPIO line) */
 				u32 polarity = readl(GPIO_IN_POL);
 				polarity ^= 1 << pin;

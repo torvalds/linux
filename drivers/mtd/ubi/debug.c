@@ -24,7 +24,7 @@
  * changes.
  */
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG
+#ifdef CONFIG_MTD_UBI_DEBUG
 
 #include "ubi.h"
 
@@ -34,14 +34,19 @@
  */
 void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 {
-	dbg_msg("erase counter header dump:");
-	dbg_msg("magic          %#08x", be32_to_cpu(ec_hdr->magic));
-	dbg_msg("version        %d",    (int)ec_hdr->version);
-	dbg_msg("ec             %llu",  (long long)be64_to_cpu(ec_hdr->ec));
-	dbg_msg("vid_hdr_offset %d",    be32_to_cpu(ec_hdr->vid_hdr_offset));
-	dbg_msg("data_offset    %d",    be32_to_cpu(ec_hdr->data_offset));
-	dbg_msg("hdr_crc        %#08x", be32_to_cpu(ec_hdr->hdr_crc));
-	dbg_msg("erase counter header hexdump:");
+	printk(KERN_DEBUG "Erase counter header dump:\n");
+	printk(KERN_DEBUG "\tmagic          %#08x\n",
+	       be32_to_cpu(ec_hdr->magic));
+	printk(KERN_DEBUG "\tversion        %d\n", (int)ec_hdr->version);
+	printk(KERN_DEBUG "\tec             %llu\n",
+	       (long long)be64_to_cpu(ec_hdr->ec));
+	printk(KERN_DEBUG "\tvid_hdr_offset %d\n",
+	       be32_to_cpu(ec_hdr->vid_hdr_offset));
+	printk(KERN_DEBUG "\tdata_offset    %d\n",
+	       be32_to_cpu(ec_hdr->data_offset));
+	printk(KERN_DEBUG "\thdr_crc        %#08x\n",
+	       be32_to_cpu(ec_hdr->hdr_crc));
+	printk(KERN_DEBUG "erase counter header hexdump:\n");
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       ec_hdr, UBI_EC_HDR_SIZE, 1);
 }
@@ -52,22 +57,23 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
  */
 void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 {
-	dbg_msg("volume identifier header dump:");
-	dbg_msg("magic     %08x", be32_to_cpu(vid_hdr->magic));
-	dbg_msg("version   %d",   (int)vid_hdr->version);
-	dbg_msg("vol_type  %d",   (int)vid_hdr->vol_type);
-	dbg_msg("copy_flag %d",   (int)vid_hdr->copy_flag);
-	dbg_msg("compat    %d",   (int)vid_hdr->compat);
-	dbg_msg("vol_id    %d",   be32_to_cpu(vid_hdr->vol_id));
-	dbg_msg("lnum      %d",   be32_to_cpu(vid_hdr->lnum));
-	dbg_msg("leb_ver   %u",   be32_to_cpu(vid_hdr->leb_ver));
-	dbg_msg("data_size %d",   be32_to_cpu(vid_hdr->data_size));
-	dbg_msg("used_ebs  %d",   be32_to_cpu(vid_hdr->used_ebs));
-	dbg_msg("data_pad  %d",   be32_to_cpu(vid_hdr->data_pad));
-	dbg_msg("sqnum     %llu",
+	printk(KERN_DEBUG "Volume identifier header dump:\n");
+	printk(KERN_DEBUG "\tmagic     %08x\n", be32_to_cpu(vid_hdr->magic));
+	printk(KERN_DEBUG "\tversion   %d\n",   (int)vid_hdr->version);
+	printk(KERN_DEBUG "\tvol_type  %d\n",   (int)vid_hdr->vol_type);
+	printk(KERN_DEBUG "\tcopy_flag %d\n",   (int)vid_hdr->copy_flag);
+	printk(KERN_DEBUG "\tcompat    %d\n",   (int)vid_hdr->compat);
+	printk(KERN_DEBUG "\tvol_id    %d\n",   be32_to_cpu(vid_hdr->vol_id));
+	printk(KERN_DEBUG "\tlnum      %d\n",   be32_to_cpu(vid_hdr->lnum));
+	printk(KERN_DEBUG "\tdata_size %d\n",   be32_to_cpu(vid_hdr->data_size));
+	printk(KERN_DEBUG "\tused_ebs  %d\n",   be32_to_cpu(vid_hdr->used_ebs));
+	printk(KERN_DEBUG "\tdata_pad  %d\n",   be32_to_cpu(vid_hdr->data_pad));
+	printk(KERN_DEBUG "\tsqnum     %llu\n",
 		(unsigned long long)be64_to_cpu(vid_hdr->sqnum));
-	dbg_msg("hdr_crc   %08x", be32_to_cpu(vid_hdr->hdr_crc));
-	dbg_msg("volume identifier header hexdump:");
+	printk(KERN_DEBUG "\thdr_crc   %08x\n", be32_to_cpu(vid_hdr->hdr_crc));
+	printk(KERN_DEBUG "Volume identifier header hexdump:\n");
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		       vid_hdr, UBI_VID_HDR_SIZE, 1);
 }
 
 /**
@@ -76,27 +82,27 @@ void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
  */
 void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
 {
-	dbg_msg("volume information dump:");
-	dbg_msg("vol_id          %d", vol->vol_id);
-	dbg_msg("reserved_pebs   %d", vol->reserved_pebs);
-	dbg_msg("alignment       %d", vol->alignment);
-	dbg_msg("data_pad        %d", vol->data_pad);
-	dbg_msg("vol_type        %d", vol->vol_type);
-	dbg_msg("name_len        %d", vol->name_len);
-	dbg_msg("usable_leb_size %d", vol->usable_leb_size);
-	dbg_msg("used_ebs        %d", vol->used_ebs);
-	dbg_msg("used_bytes      %lld", vol->used_bytes);
-	dbg_msg("last_eb_bytes   %d", vol->last_eb_bytes);
-	dbg_msg("corrupted       %d", vol->corrupted);
-	dbg_msg("upd_marker      %d", vol->upd_marker);
+	printk(KERN_DEBUG "Volume information dump:\n");
+	printk(KERN_DEBUG "\tvol_id          %d\n", vol->vol_id);
+	printk(KERN_DEBUG "\treserved_pebs   %d\n", vol->reserved_pebs);
+	printk(KERN_DEBUG "\talignment       %d\n", vol->alignment);
+	printk(KERN_DEBUG "\tdata_pad        %d\n", vol->data_pad);
+	printk(KERN_DEBUG "\tvol_type        %d\n", vol->vol_type);
+	printk(KERN_DEBUG "\tname_len        %d\n", vol->name_len);
+	printk(KERN_DEBUG "\tusable_leb_size %d\n", vol->usable_leb_size);
+	printk(KERN_DEBUG "\tused_ebs        %d\n", vol->used_ebs);
+	printk(KERN_DEBUG "\tused_bytes      %lld\n", vol->used_bytes);
+	printk(KERN_DEBUG "\tlast_eb_bytes   %d\n", vol->last_eb_bytes);
+	printk(KERN_DEBUG "\tcorrupted       %d\n", vol->corrupted);
+	printk(KERN_DEBUG "\tupd_marker      %d\n", vol->upd_marker);
 
 	if (vol->name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(vol->name, vol->name_len + 1) == vol->name_len) {
-		dbg_msg("name            %s", vol->name);
+		printk(KERN_DEBUG "\tname            %s\n", vol->name);
 	} else {
-		dbg_msg("the 1st 5 characters of the name: %c%c%c%c%c",
-			vol->name[0], vol->name[1], vol->name[2],
-			vol->name[3], vol->name[4]);
+		printk(KERN_DEBUG "\t1st 5 characters of name: %c%c%c%c%c\n",
+		       vol->name[0], vol->name[1], vol->name[2],
+		       vol->name[3], vol->name[4]);
 	}
 }
 
@@ -109,28 +115,29 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 {
 	int name_len = be16_to_cpu(r->name_len);
 
-	dbg_msg("volume table record %d dump:", idx);
-	dbg_msg("reserved_pebs   %d", be32_to_cpu(r->reserved_pebs));
-	dbg_msg("alignment       %d", be32_to_cpu(r->alignment));
-	dbg_msg("data_pad        %d", be32_to_cpu(r->data_pad));
-	dbg_msg("vol_type        %d", (int)r->vol_type);
-	dbg_msg("upd_marker      %d", (int)r->upd_marker);
-	dbg_msg("name_len        %d", name_len);
+	printk(KERN_DEBUG "Volume table record %d dump:\n", idx);
+	printk(KERN_DEBUG "\treserved_pebs   %d\n",
+	       be32_to_cpu(r->reserved_pebs));
+	printk(KERN_DEBUG "\talignment       %d\n", be32_to_cpu(r->alignment));
+	printk(KERN_DEBUG "\tdata_pad        %d\n", be32_to_cpu(r->data_pad));
+	printk(KERN_DEBUG "\tvol_type        %d\n", (int)r->vol_type);
+	printk(KERN_DEBUG "\tupd_marker      %d\n", (int)r->upd_marker);
+	printk(KERN_DEBUG "\tname_len        %d\n", name_len);
 
 	if (r->name[0] == '\0') {
-		dbg_msg("name            NULL");
+		printk(KERN_DEBUG "\tname            NULL\n");
 		return;
 	}
 
 	if (name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(&r->name[0], name_len + 1) == name_len) {
-		dbg_msg("name            %s", &r->name[0]);
+		printk(KERN_DEBUG "\tname            %s\n", &r->name[0]);
 	} else {
-		dbg_msg("1st 5 characters of the name: %c%c%c%c%c",
+		printk(KERN_DEBUG "\t1st 5 characters of name: %c%c%c%c%c\n",
 			r->name[0], r->name[1], r->name[2], r->name[3],
 			r->name[4]);
 	}
-	dbg_msg("crc             %#08x", be32_to_cpu(r->crc));
+	printk(KERN_DEBUG "\tcrc             %#08x\n", be32_to_cpu(r->crc));
 }
 
 /**
@@ -139,15 +146,15 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
  */
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv)
 {
-	dbg_msg("volume scanning information dump:");
-	dbg_msg("vol_id         %d", sv->vol_id);
-	dbg_msg("highest_lnum   %d", sv->highest_lnum);
-	dbg_msg("leb_count      %d", sv->leb_count);
-	dbg_msg("compat         %d", sv->compat);
-	dbg_msg("vol_type       %d", sv->vol_type);
-	dbg_msg("used_ebs       %d", sv->used_ebs);
-	dbg_msg("last_data_size %d", sv->last_data_size);
-	dbg_msg("data_pad       %d", sv->data_pad);
+	printk(KERN_DEBUG "Volume scanning information dump:\n");
+	printk(KERN_DEBUG "\tvol_id         %d\n", sv->vol_id);
+	printk(KERN_DEBUG "\thighest_lnum   %d\n", sv->highest_lnum);
+	printk(KERN_DEBUG "\tleb_count      %d\n", sv->leb_count);
+	printk(KERN_DEBUG "\tcompat         %d\n", sv->compat);
+	printk(KERN_DEBUG "\tvol_type       %d\n", sv->vol_type);
+	printk(KERN_DEBUG "\tused_ebs       %d\n", sv->used_ebs);
+	printk(KERN_DEBUG "\tlast_data_size %d\n", sv->last_data_size);
+	printk(KERN_DEBUG "\tdata_pad       %d\n", sv->data_pad);
 }
 
 /**
@@ -157,14 +164,13 @@ void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv)
  */
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type)
 {
-	dbg_msg("eraseblock scanning information dump:");
-	dbg_msg("ec       %d", seb->ec);
-	dbg_msg("pnum     %d", seb->pnum);
+	printk(KERN_DEBUG "eraseblock scanning information dump:\n");
+	printk(KERN_DEBUG "\tec       %d\n", seb->ec);
+	printk(KERN_DEBUG "\tpnum     %d\n", seb->pnum);
 	if (type == 0) {
-		dbg_msg("lnum     %d", seb->lnum);
-		dbg_msg("scrub    %d", seb->scrub);
-		dbg_msg("sqnum    %llu", seb->sqnum);
-		dbg_msg("leb_ver  %u", seb->leb_ver);
+		printk(KERN_DEBUG "\tlnum     %d\n", seb->lnum);
+		printk(KERN_DEBUG "\tscrub    %d\n", seb->scrub);
+		printk(KERN_DEBUG "\tsqnum    %llu\n", seb->sqnum);
 	}
 }
 
@@ -176,16 +182,16 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)
 {
 	char nm[17];
 
-	dbg_msg("volume creation request dump:");
-	dbg_msg("vol_id    %d",   req->vol_id);
-	dbg_msg("alignment %d",   req->alignment);
-	dbg_msg("bytes     %lld", (long long)req->bytes);
-	dbg_msg("vol_type  %d",   req->vol_type);
-	dbg_msg("name_len  %d",   req->name_len);
+	printk(KERN_DEBUG "Volume creation request dump:\n");
+	printk(KERN_DEBUG "\tvol_id    %d\n",   req->vol_id);
+	printk(KERN_DEBUG "\talignment %d\n",   req->alignment);
+	printk(KERN_DEBUG "\tbytes     %lld\n", (long long)req->bytes);
+	printk(KERN_DEBUG "\tvol_type  %d\n",   req->vol_type);
+	printk(KERN_DEBUG "\tname_len  %d\n",   req->name_len);
 
 	memcpy(nm, req->name, 16);
 	nm[16] = 0;
-	dbg_msg("the 1st 16 characters of the name: %s", nm);
+	printk(KERN_DEBUG "\t1st 16 characters of name: %s\n", nm);
 }
 
-#endif /* CONFIG_MTD_UBI_DEBUG_MSG */
+#endif /* CONFIG_MTD_UBI_DEBUG */

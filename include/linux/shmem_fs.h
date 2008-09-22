@@ -43,7 +43,7 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
 }
 
 #ifdef CONFIG_TMPFS_POSIX_ACL
-int shmem_permission(struct inode *, int, struct nameidata *);
+int shmem_permission(struct inode *, int);
 int shmem_acl_init(struct inode *, struct inode *);
 void shmem_acl_destroy_inode(struct inode *);
 

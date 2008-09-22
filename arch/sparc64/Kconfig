@@ -17,6 +17,7 @@ config SPARC64
 	select HAVE_LMB
 	select HAVE_ARCH_KGDB
 	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_ARCH_TRACEHOOK
 
 config GENERIC_TIME
 	bool
@@ -230,6 +231,7 @@ endmenu
 
 config NUMA
 	bool "NUMA support"
+	depends on SMP
 
 config NODES_SHIFT
 	int

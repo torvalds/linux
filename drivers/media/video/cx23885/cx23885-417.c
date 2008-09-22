@@ -4,7 +4,7 @@
  *
  *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
- *    (c) 2008 Steven Toth <stoth@hauppauge.com>
+ *    (c) 2008 Steven Toth <stoth@linuxtv.org>
  *      - CX23885/7/8 support
  *
  *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),
@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/cx2341x.h>
 
 #include "cx23885.h"
@@ -1699,14 +1700,7 @@ static struct file_operations mpeg_fops = {
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx23885_mpeg_template = {
-	.name          = "cx23885",
-	.type          = VID_TYPE_CAPTURE |
-				VID_TYPE_TUNER |
-				VID_TYPE_SCALES |
-				VID_TYPE_MPEG_ENCODER,
-	.fops          = &mpeg_fops,
-	.minor         = -1,
+static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
@@ -1733,6 +1727,13 @@ static struct video_device cx23885_mpeg_template = {
 	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_querymenu	 = vidioc_querymenu,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
+};
+
+static struct video_device cx23885_mpeg_template = {
+	.name          = "cx23885",
+	.fops          = &mpeg_fops,
+	.ioctl_ops     = &mpeg_ioctl_ops,
+	.minor         = -1,
 };
 
 void cx23885_417_unregister(struct cx23885_dev *dev)
@@ -1766,7 +1767,7 @@ static struct video_device *cx23885_video_dev_alloc(
 	vfd->minor   = -1;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, cx23885_boards[tsport->dev->board].name);
-	vfd->dev     = &pci->dev;
+	vfd->parent  = &pci->dev;
 	vfd->release = video_device_release;
 	return vfd;
 }

@@ -33,8 +33,6 @@
 #define SLOT_PFNSHIFT           (SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT           (NASID_SHFT - PAGE_SHIFT)
 
-static struct bootmem_data __initdata plat_node_bdata[MAX_COMPACT_NODES];
-
 struct node_data *__node_data[MAX_COMPACT_NODES];
 
 EXPORT_SYMBOL(__node_data);
@@ -403,7 +401,7 @@ static void __init node_mem_init(cnodeid_t node)
 	 */
 	__node_data[node] = __va(slot_freepfn << PAGE_SHIFT);
 
-	NODE_DATA(node)->bdata = &plat_node_bdata[node];
+	NODE_DATA(node)->bdata = &bootmem_node_data[node];
 	NODE_DATA(node)->node_start_pfn = start_pfn;
 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
 

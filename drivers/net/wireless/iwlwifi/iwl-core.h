@@ -95,6 +95,8 @@ struct iwl_hcmd_utils_ops {
 	void (*chain_noise_reset)(struct iwl_priv *priv);
 	void (*rts_tx_cmd_flag)(struct ieee80211_tx_info *info,
 			__le32 *tx_flags);
+	int  (*calc_rssi)(struct iwl_priv *priv,
+			  struct iwl_rx_phy_res *rx_resp);
 };
 
 struct iwl_lib_ops {
@@ -139,7 +141,6 @@ struct iwl_lib_ops {
 		int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
 	} apm_ops;
 	/* power */
-	int (*set_power)(struct iwl_priv *priv, void *cmd);
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
 	void (*temperature) (struct iwl_priv *priv);

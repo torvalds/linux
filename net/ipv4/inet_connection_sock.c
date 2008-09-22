@@ -167,7 +167,7 @@ tb_not_found:
 success:
 	if (!inet_csk(sk)->icsk_bind_hash)
 		inet_bind_hash(sk, tb, snum);
-	BUG_TRAP(inet_csk(sk)->icsk_bind_hash == tb);
+	WARN_ON(inet_csk(sk)->icsk_bind_hash != tb);
 	ret = 0;
 
 fail_unlock:
@@ -260,7 +260,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 	}
 
 	newsk = reqsk_queue_get_child(&icsk->icsk_accept_queue, sk);
-	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
+	WARN_ON(newsk->sk_state == TCP_SYN_RECV);
 out:
 	release_sock(sk);
 	return newsk;
@@ -386,7 +386,7 @@ struct request_sock *inet_csk_search_req(const struct sock *sk,
 		    ireq->rmt_addr == raddr &&
 		    ireq->loc_addr == laddr &&
 		    AF_INET_FAMILY(req->rsk_ops->family)) {
-			BUG_TRAP(!req->sk);
+			WARN_ON(req->sk);
 			*prevp = prev;
 			break;
 		}
@@ -539,14 +539,14 @@ EXPORT_SYMBOL_GPL(inet_csk_clone);
  */
 void inet_csk_destroy_sock(struct sock *sk)
 {
-	BUG_TRAP(sk->sk_state == TCP_CLOSE);
-	BUG_TRAP(sock_flag(sk, SOCK_DEAD));
+	WARN_ON(sk->sk_state != TCP_CLOSE);
+	WARN_ON(!sock_flag(sk, SOCK_DEAD));
 
 	/* It cannot be in hash table! */
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 
 	/* If it has not 0 inet_sk(sk)->num, it must be bound */
-	BUG_TRAP(!inet_sk(sk)->num || inet_csk(sk)->icsk_bind_hash);
+	WARN_ON(inet_sk(sk)->num && !inet_csk(sk)->icsk_bind_hash);
 
 	sk->sk_prot->destroy(sk);
 
@@ -629,7 +629,7 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		local_bh_disable();
 		bh_lock_sock(child);
-		BUG_TRAP(!sock_owned_by_user(child));
+		WARN_ON(sock_owned_by_user(child));
 		sock_hold(child);
 
 		sk->sk_prot->disconnect(child, O_NONBLOCK);
@@ -647,7 +647,7 @@ void inet_csk_listen_stop(struct sock *sk)
 		sk_acceptq_removed(sk);
 		__reqsk_free(req);
 	}
-	BUG_TRAP(!sk->sk_ack_backlog);
+	WARN_ON(sk->sk_ack_backlog);
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_listen_stop);

@@ -1,7 +1,7 @@
 /*
  *  SuperH Ethernet device driver
  *
- *  Copyright (C) 2006,2007 Nobuhiro Iwamatsu
+ *  Copyright (C) 2006-2008 Nobuhiro Iwamatsu
  *  Copyright (C) 2008 Renesas Solutions Corp.
  *
  *  This program is free software; you can redistribute it and/or modify it
@@ -20,7 +20,6 @@
  *  the file called "COPYING".
  */
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
@@ -33,6 +32,29 @@
 #include <linux/io.h>
 
 #include "sh_eth.h"
+
+/* CPU <-> EDMAC endian convert */
+static inline __u32 cpu_to_edmac(struct sh_eth_private *mdp, u32 x)
+{
+	switch (mdp->edmac_endian) {
+	case EDMAC_LITTLE_ENDIAN:
+		return cpu_to_le32(x);
+	case EDMAC_BIG_ENDIAN:
+		return cpu_to_be32(x);
+	}
+	return x;
+}
+
+static inline __u32 edmac_to_cpu(struct sh_eth_private *mdp, u32 x)
+{
+	switch (mdp->edmac_endian) {
+	case EDMAC_LITTLE_ENDIAN:
+		return le32_to_cpu(x);
+	case EDMAC_BIG_ENDIAN:
+		return be32_to_cpu(x);
+	}
+	return x;
+}
 
 /*
  * Program the hardware MAC address from dev->dev_addr.
@@ -143,13 +165,39 @@ static struct mdiobb_ops bb_ops = {
 	.get_mdio_data = sh_get_mdio,
 };
 
+/* Chip Reset */
 static void sh_eth_reset(struct net_device *ndev)
 {
 	u32 ioaddr = ndev->base_addr;
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	int cnt = 100;
+
+	ctrl_outl(EDSR_ENALL, ioaddr + EDSR);
+	ctrl_outl(ctrl_inl(ioaddr + EDMR) | EDMR_SRST, ioaddr + EDMR);
+	while (cnt > 0) {
+		if (!(ctrl_inl(ioaddr + EDMR) & 0x3))
+			break;
+		mdelay(1);
+		cnt--;
+	}
+	if (cnt < 0)
+		printk(KERN_ERR "Device reset fail\n");
+
+	/* Table Init */
+	ctrl_outl(0x0, ioaddr + TDLAR);
+	ctrl_outl(0x0, ioaddr + TDFAR);
+	ctrl_outl(0x0, ioaddr + TDFXR);
+	ctrl_outl(0x0, ioaddr + TDFFR);
+	ctrl_outl(0x0, ioaddr + RDLAR);
+	ctrl_outl(0x0, ioaddr + RDFAR);
+	ctrl_outl(0x0, ioaddr + RDFXR);
+	ctrl_outl(0x0, ioaddr + RDFFR);
+#else
 	ctrl_outl(ctrl_inl(ioaddr + EDMR) | EDMR_SRST, ioaddr + EDMR);
 	mdelay(3);
 	ctrl_outl(ctrl_inl(ioaddr + EDMR) & ~EDMR_SRST, ioaddr + EDMR);
+#endif
 }
 
 /* free skb and descriptor buffer */
@@ -180,6 +228,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 /* format skb and descriptor buffer */
 static void sh_eth_ring_format(struct net_device *ndev)
 {
+	u32 ioaddr = ndev->base_addr, reserve = 0;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int i;
 	struct sk_buff *skb;
@@ -201,22 +250,41 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		mdp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		skb->dev = ndev;	/* Mark as being used by this device. */
+		skb->dev = ndev; /* Mark as being used by this device. */
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+		reserve = SH7763_SKB_ALIGN
+			- ((uint32_t)skb->data & (SH7763_SKB_ALIGN-1));
+		if (reserve)
+			skb_reserve(skb, reserve);
+#else
 		skb_reserve(skb, RX_OFFSET);
-
+#endif
 		/* RX descriptor */
 		rxdesc = &mdp->rx_ring[i];
 		rxdesc->addr = (u32)skb->data & ~0x3UL;
-		rxdesc->status = cpu_to_le32(RD_RACT | RD_RFP);
+		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
 		/* The size of the buffer is 16 byte boundary. */
 		rxdesc->buffer_length = (mdp->rx_buf_sz + 16) & ~0x0F;
+		/* Rx descriptor address set */
+		if (i == 0) {
+			ctrl_outl((u32)rxdesc, ioaddr + RDLAR);
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+			ctrl_outl((u32)rxdesc, ioaddr + RDFAR);
+#endif
+		}
 	}
+
+	/* Rx descriptor address set */
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	ctrl_outl((u32)rxdesc, ioaddr + RDFXR);
+	ctrl_outl(0x1, ioaddr + RDFFR);
+#endif
 
 	mdp->dirty_rx = (u32) (i - RX_RING_SIZE);
 
 	/* Mark the last entry as wrapping the ring. */
-	rxdesc->status |= cpu_to_le32(RC_RDEL);
+	rxdesc->status |= cpu_to_edmac(mdp, RD_RDEL);
 
 	memset(mdp->tx_ring, 0, tx_ringsize);
 
@@ -224,11 +292,24 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		mdp->tx_skbuff[i] = NULL;
 		txdesc = &mdp->tx_ring[i];
-		txdesc->status = cpu_to_le32(TD_TFP);
+		txdesc->status = cpu_to_edmac(mdp, TD_TFP);
 		txdesc->buffer_length = 0;
+		if (i == 0) {
+			/* Tx descriptor address set */
+			ctrl_outl((u32)txdesc, ioaddr + TDLAR);
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+			ctrl_outl((u32)txdesc, ioaddr + TDFAR);
+#endif
+		}
 	}
 
-	txdesc->status |= cpu_to_le32(TD_TDLE);
+	/* Tx descriptor address set */
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	ctrl_outl((u32)txdesc, ioaddr + TDFXR);
+	ctrl_outl(0x1, ioaddr + TDFFR);
+#endif
+
+	txdesc->status |= cpu_to_edmac(mdp, TD_TDLE);
 }
 
 /* Get skb and descriptor buffer */
@@ -311,31 +392,43 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	/* Soft Reset */
 	sh_eth_reset(ndev);
 
-	ctrl_outl(RPADIR_PADS1, ioaddr + RPADIR);	/* SH7712-DMA-RX-PAD2 */
+	/* Descriptor format */
+	sh_eth_ring_format(ndev);
+	ctrl_outl(RPADIR_INIT, ioaddr + RPADIR);
 
 	/* all sh_eth int mask */
 	ctrl_outl(0, ioaddr + EESIPR);
 
-	/* FIFO size set */
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	ctrl_outl(EDMR_EL, ioaddr + EDMR);
+#else
 	ctrl_outl(0, ioaddr + EDMR);	/* Endian change */
+#endif
 
+	/* FIFO size set */
 	ctrl_outl((FIFO_SIZE_T | FIFO_SIZE_R), ioaddr + FDR);
 	ctrl_outl(0, ioaddr + TFTR);
 
+	/* Frame recv control */
 	ctrl_outl(0, ioaddr + RMCR);
 
 	rx_int_var = mdp->rx_int_var = DESC_I_RINT8 | DESC_I_RINT5;
 	tx_int_var = mdp->tx_int_var = DESC_I_TINT2;
 	ctrl_outl(rx_int_var | tx_int_var, ioaddr + TRSCER);
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	/* Burst sycle set */
+	ctrl_outl(0x800, ioaddr + BCULR);
+#endif
+
 	ctrl_outl((FIFO_F_D_RFF | FIFO_F_D_RFD), ioaddr + FCFTR);
+
+#if !defined(CONFIG_CPU_SUBTYPE_SH7763)
 	ctrl_outl(0, ioaddr + TRIMD);
+#endif
 
-	/* Descriptor format */
-	sh_eth_ring_format(ndev);
-
-	ctrl_outl((u32)mdp->rx_ring, ioaddr + RDLAR);
-	ctrl_outl((u32)mdp->tx_ring, ioaddr + TDLAR);
+	/* Recv frame limit set register */
+	ctrl_outl(RFLR_VALUE, ioaddr + RFLR);
 
 	ctrl_outl(ctrl_inl(ioaddr + EESR), ioaddr + EESR);
 	ctrl_outl((DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff), ioaddr + EESIPR);
@@ -345,21 +438,26 @@ static int sh_eth_dev_init(struct net_device *ndev)
 		ECMR_ZPF | (mdp->duplex ? ECMR_DM : 0) | ECMR_TE | ECMR_RE;
 
 	ctrl_outl(val, ioaddr + ECMR);
-	ctrl_outl(ECSR_BRCRX | ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD |
-		  ECSIPR_MPDIP, ioaddr + ECSR);
-	ctrl_outl(ECSIPR_BRCRXIP | ECSIPR_PSRTOIP | ECSIPR_LCHNGIP |
-		  ECSIPR_ICDIP | ECSIPR_MPDIP, ioaddr + ECSIPR);
+
+	/* E-MAC Status Register clear */
+	ctrl_outl(ECSR_INIT, ioaddr + ECSR);
+
+	/* E-MAC Interrupt Enable register */
+	ctrl_outl(ECSIPR_INIT, ioaddr + ECSIPR);
 
 	/* Set MAC address */
 	update_mac_address(ndev);
 
 	/* mask reset */
-#if defined(CONFIG_CPU_SUBTYPE_SH7710)
+#if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7763)
 	ctrl_outl(APR_AP, ioaddr + APR);
 	ctrl_outl(MPR_MP, ioaddr + MPR);
 	ctrl_outl(TPAUSER_UNLIMITED, ioaddr + TPAUSER);
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7710)
 	ctrl_outl(BCFR_UNLIMITED, ioaddr + BCFR);
 #endif
+
 	/* Setting the Rx mode will start the Rx process. */
 	ctrl_outl(EDRRR_R, ioaddr + EDRRR);
 
@@ -379,7 +477,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 	for (; mdp->cur_tx - mdp->dirty_tx > 0; mdp->dirty_tx++) {
 		entry = mdp->dirty_tx % TX_RING_SIZE;
 		txdesc = &mdp->tx_ring[entry];
-		if (txdesc->status & cpu_to_le32(TD_TACT))
+		if (txdesc->status & cpu_to_edmac(mdp, TD_TACT))
 			break;
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
@@ -387,9 +485,9 @@ static int sh_eth_txfree(struct net_device *ndev)
 			mdp->tx_skbuff[entry] = NULL;
 			freeNum++;
 		}
-		txdesc->status = cpu_to_le32(TD_TFP);
+		txdesc->status = cpu_to_edmac(mdp, TD_TFP);
 		if (entry >= TX_RING_SIZE - 1)
-			txdesc->status |= cpu_to_le32(TD_TDLE);
+			txdesc->status |= cpu_to_edmac(mdp, TD_TDLE);
 
 		mdp->stats.tx_packets++;
 		mdp->stats.tx_bytes += txdesc->buffer_length;
@@ -407,11 +505,11 @@ static int sh_eth_rx(struct net_device *ndev)
 	int boguscnt = (mdp->dirty_rx + RX_RING_SIZE) - mdp->cur_rx;
 	struct sk_buff *skb;
 	u16 pkt_len = 0;
-	u32 desc_status;
+	u32 desc_status, reserve = 0;
 
 	rxdesc = &mdp->rx_ring[entry];
-	while (!(rxdesc->status & cpu_to_le32(RD_RACT))) {
-		desc_status = le32_to_cpu(rxdesc->status);
+	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
+		desc_status = edmac_to_cpu(mdp, rxdesc->status);
 		pkt_len = rxdesc->frame_length;
 
 		if (--boguscnt < 0)
@@ -446,7 +544,7 @@ static int sh_eth_rx(struct net_device *ndev)
 			mdp->stats.rx_packets++;
 			mdp->stats.rx_bytes += pkt_len;
 		}
-		rxdesc->status |= cpu_to_le32(RD_RACT);
+		rxdesc->status |= cpu_to_edmac(mdp, RD_RACT);
 		entry = (++mdp->cur_rx) % RX_RING_SIZE;
 	}
 
@@ -454,28 +552,38 @@ static int sh_eth_rx(struct net_device *ndev)
 	for (; mdp->cur_rx - mdp->dirty_rx > 0; mdp->dirty_rx++) {
 		entry = mdp->dirty_rx % RX_RING_SIZE;
 		rxdesc = &mdp->rx_ring[entry];
+		/* The size of the buffer is 16 byte boundary. */
+		rxdesc->buffer_length = (mdp->rx_buf_sz + 16) & ~0x0F;
+
 		if (mdp->rx_skbuff[entry] == NULL) {
 			skb = dev_alloc_skb(mdp->rx_buf_sz);
 			mdp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			skb->dev = ndev;
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+			reserve = SH7763_SKB_ALIGN
+				- ((uint32_t)skb->data & (SH7763_SKB_ALIGN-1));
+			if (reserve)
+				skb_reserve(skb, reserve);
+#else
 			skb_reserve(skb, RX_OFFSET);
+#endif
+			skb->ip_summed = CHECKSUM_NONE;
 			rxdesc->addr = (u32)skb->data & ~0x3UL;
 		}
-		/* The size of the buffer is 16 byte boundary. */
-		rxdesc->buffer_length = (mdp->rx_buf_sz + 16) & ~0x0F;
 		if (entry >= RX_RING_SIZE - 1)
 			rxdesc->status |=
-			cpu_to_le32(RD_RACT | RD_RFP | RC_RDEL);
+				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDEL);
 		else
 			rxdesc->status |=
-			cpu_to_le32(RD_RACT | RD_RFP);
+				cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 	}
 
 	/* Restart Rx engine if stopped. */
 	/* If we don't need to check status, don't. -KDU */
-	ctrl_outl(EDRRR_R, ndev->base_addr + EDRRR);
+	if (!(ctrl_inl(ndev->base_addr + EDRRR) & EDRRR_R))
+		ctrl_outl(EDRRR_R, ndev->base_addr + EDRRR);
 
 	return 0;
 }
@@ -529,13 +637,14 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 			printk(KERN_ERR "Receive Frame Overflow\n");
 		}
 	}
-
+#if !defined(CONFIG_CPU_SUBTYPE_SH7763)
 	if (intr_status & EESR_ADE) {
 		if (intr_status & EESR_TDE) {
 			if (intr_status & EESR_TFE)
 				mdp->stats.tx_fifo_errors++;
 		}
 	}
+#endif
 
 	if (intr_status & EESR_RDE) {
 		/* Receive Descriptor Empty int */
@@ -550,8 +659,11 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 		mdp->stats.rx_fifo_errors++;
 		printk(KERN_ERR "Receive FIFO Overflow\n");
 	}
-	if (intr_status &
-	    (EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | EESR_TFE)) {
+	if (intr_status & (EESR_TWB | EESR_TABT |
+#if !defined(CONFIG_CPU_SUBTYPE_SH7763)
+			EESR_ADE |
+#endif
+			EESR_TDE | EESR_TFE)) {
 		/* Tx error */
 		u32 edtrr = ctrl_inl(ndev->base_addr + EDTRR);
 		/* dmesg */
@@ -582,17 +694,23 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	ioaddr = ndev->base_addr;
 	spin_lock(&mdp->lock);
 
+	/* Get interrpt stat */
 	intr_status = ctrl_inl(ioaddr + EESR);
 	/* Clear interrupt */
 	ctrl_outl(intr_status, ioaddr + EESR);
 
-	if (intr_status & (EESR_FRC | EESR_RINT8 |
-			   EESR_RINT5 | EESR_RINT4 | EESR_RINT3 | EESR_RINT2 |
-			   EESR_RINT1))
+	if (intr_status & (EESR_FRC | /* Frame recv*/
+			EESR_RMAF | /* Multi cast address recv*/
+			EESR_RRF  | /* Bit frame recv */
+			EESR_RTLF | /* Long frame recv*/
+			EESR_RTSF | /* short frame recv */
+			EESR_PRE  | /* PHY-LSI recv error */
+			EESR_CERF)){ /* recv frame CRC error */
 		sh_eth_rx(ndev);
-	if (intr_status & (EESR_FTC |
-			   EESR_TINT4 | EESR_TINT3 | EESR_TINT2 | EESR_TINT1)) {
+	}
 
+	/* Tx Check */
+	if (intr_status & TX_CHECK) {
 		sh_eth_txfree(ndev);
 		netif_wake_queue(ndev);
 	}
@@ -631,11 +749,32 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 		if (phydev->duplex != mdp->duplex) {
 			new_state = 1;
 			mdp->duplex = phydev->duplex;
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+			if (mdp->duplex) { /*  FULL */
+				ctrl_outl(ctrl_inl(ioaddr + ECMR) | ECMR_DM,
+						ioaddr + ECMR);
+			} else {	/* Half */
+				ctrl_outl(ctrl_inl(ioaddr + ECMR) & ~ECMR_DM,
+						ioaddr + ECMR);
+			}
+#endif
 		}
 
 		if (phydev->speed != mdp->speed) {
 			new_state = 1;
 			mdp->speed = phydev->speed;
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+			switch (mdp->speed) {
+			case 10: /* 10BASE */
+				ctrl_outl(GECMR_10, ioaddr + GECMR); break;
+			case 100:/* 100BASE */
+				ctrl_outl(GECMR_100, ioaddr + GECMR); break;
+			case 1000: /* 1000BASE */
+				ctrl_outl(GECMR_1000, ioaddr + GECMR); break;
+			default:
+				break;
+			}
+#endif
 		}
 		if (mdp->link == PHY_DOWN) {
 			ctrl_outl((ctrl_inl(ioaddr + ECMR) & ~ECMR_TXF)
@@ -730,7 +869,7 @@ static int sh_eth_open(struct net_device *ndev)
 	/* Set the timer to check for link beat. */
 	init_timer(&mdp->timer);
 	mdp->timer.expires = (jiffies + (24 * HZ)) / 10;/* 2.4 sec. */
-	setup_timer(&mdp->timer, sh_eth_timer, ndev);
+	setup_timer(&mdp->timer, sh_eth_timer, (unsigned long)ndev);
 
 	return ret;
 
@@ -814,13 +953,15 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		txdesc->buffer_length = skb->len;
 
 	if (entry >= TX_RING_SIZE - 1)
-		txdesc->status |= cpu_to_le32(TD_TACT | TD_TDLE);
+		txdesc->status |= cpu_to_edmac(mdp, TD_TACT | TD_TDLE);
 	else
-		txdesc->status |= cpu_to_le32(TD_TACT);
+		txdesc->status |= cpu_to_edmac(mdp, TD_TACT);
 
 	mdp->cur_tx++;
 
-	ctrl_outl(EDTRR_TRNS, ndev->base_addr + EDTRR);
+	if (!(ctrl_inl(ndev->base_addr + EDTRR) & EDTRR_TRNS))
+		ctrl_outl(EDTRR_TRNS, ndev->base_addr + EDTRR);
+
 	ndev->trans_start = jiffies;
 
 	return 0;
@@ -877,9 +1018,15 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 	ctrl_outl(0, ioaddr + CDCR);	/* (write clear) */
 	mdp->stats.tx_carrier_errors += ctrl_inl(ioaddr + LCCR);
 	ctrl_outl(0, ioaddr + LCCR);	/* (write clear) */
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	mdp->stats.tx_carrier_errors += ctrl_inl(ioaddr + CERCR);/* CERCR */
+	ctrl_outl(0, ioaddr + CERCR);	/* (write clear) */
+	mdp->stats.tx_carrier_errors += ctrl_inl(ioaddr + CEECR);/* CEECR */
+	ctrl_outl(0, ioaddr + CEECR);	/* (write clear) */
+#else
 	mdp->stats.tx_carrier_errors += ctrl_inl(ioaddr + CNDCR);
 	ctrl_outl(0, ioaddr + CNDCR);	/* (write clear) */
-
+#endif
 	return &mdp->stats;
 }
 
@@ -929,8 +1076,13 @@ static void sh_eth_tsu_init(u32 ioaddr)
 	ctrl_outl(0, ioaddr + TSU_FWSL0);
 	ctrl_outl(0, ioaddr + TSU_FWSL1);
 	ctrl_outl(TSU_FWSLC_POSTENU | TSU_FWSLC_POSTENL, ioaddr + TSU_FWSLC);
+#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+	ctrl_outl(0, ioaddr + TSU_QTAG0);	/* Disable QTAG(0->1) */
+	ctrl_outl(0, ioaddr + TSU_QTAG1);	/* Disable QTAG(1->0) */
+#else
 	ctrl_outl(0, ioaddr + TSU_QTAGM0);	/* Disable QTAG(0->1) */
 	ctrl_outl(0, ioaddr + TSU_QTAGM1);	/* Disable QTAG(1->0) */
+#endif
 	ctrl_outl(0, ioaddr + TSU_FWSR);	/* all interrupt status clear */
 	ctrl_outl(0, ioaddr + TSU_FWINMK);	/* Disable all interrupt */
 	ctrl_outl(0, ioaddr + TSU_TEN);	/* Disable all CAM entry */
@@ -1029,6 +1181,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp;
+	struct sh_eth_plat_data *pd;
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1066,8 +1219,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp = netdev_priv(ndev);
 	spin_lock_init(&mdp->lock);
 
+	pd = (struct sh_eth_plat_data *)(pdev->dev.platform_data);
 	/* get PHY ID */
-	mdp->phy_id = (int)pdev->dev.platform_data;
+	mdp->phy_id = pd->phy;
+	/* EDMAC endian */
+	mdp->edmac_endian = pd->edmac_endian;
 
 	/* set function */
 	ndev->open = sh_eth_open;
@@ -1087,12 +1243,16 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* First device only init */
 	if (!devno) {
+#if defined(ARSTR)
 		/* reset device */
-		ctrl_outl(ARSTR_ARSTR, ndev->base_addr + ARSTR);
+		ctrl_outl(ARSTR_ARSTR, ARSTR);
 		mdelay(1);
+#endif
 
+#if defined(SH_TSU_ADDR)
 		/* TSU init (Init only)*/
 		sh_eth_tsu_init(SH_TSU_ADDR);
+#endif
 	}
 
 	/* network device register */
@@ -1110,8 +1270,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	       ndev->name, CARDNAME, (u32) ndev->base_addr);
 
 	for (i = 0; i < 5; i++)
-		printk(KERN_INFO "%2.2x:", ndev->dev_addr[i]);
-	printk(KERN_INFO "%2.2x, IRQ %d.\n", ndev->dev_addr[i], ndev->irq);
+		printk("%02X:", ndev->dev_addr[i]);
+	printk("%02X, IRQ %d.\n", ndev->dev_addr[i], ndev->irq);
 
 	platform_set_drvdata(pdev, ndev);
 

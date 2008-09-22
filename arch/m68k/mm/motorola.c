@@ -296,7 +296,7 @@ void __init paging_init(void)
 #endif
 	for (i = 0; i < m68k_num_memory; i++) {
 		zones_size[ZONE_DMA] = m68k_memory[i].size >> PAGE_SHIFT;
-		free_area_init_node(i, pg_data_map + i, zones_size,
+		free_area_init_node(i, zones_size,
 				    m68k_memory[i].addr >> PAGE_SHIFT, NULL);
 	}
 }

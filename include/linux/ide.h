@@ -211,12 +211,15 @@ static inline int __ide_default_irq(unsigned long base)
 	return 0;
 }
 
+#if defined(CONFIG_ARM) || defined(CONFIG_FRV) || defined(CONFIG_M68K) || \
+    defined(CONFIG_MIPS) || defined(CONFIG_MN10300) || defined(CONFIG_PARISC) \
+    || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || defined(CONFIG_SPARC64)
 #include <asm/ide.h>
-
-#if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)
-#undef MAX_HWIFS
-#define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
+#else
+#include <asm-generic/ide_iops.h>
 #endif
+
+#define MAX_HWIFS	10
 
 /* Currently only m68k, apus and m8xx need it */
 #ifndef IDE_ARCH_ACK_INTR
@@ -495,24 +498,33 @@ struct ide_tp_ops {
 
 extern const struct ide_tp_ops default_tp_ops;
 
+/**
+ * struct ide_port_ops - IDE port operations
+ *
+ * @init_dev:		host specific initialization of a device
+ * @set_pio_mode:	routine to program host for PIO mode
+ * @set_dma_mode:	routine to program host for DMA mode
+ * @selectproc:		tweaks hardware to select drive
+ * @reset_poll:		chipset polling based on hba specifics
+ * @pre_reset:		chipset specific changes to default for device-hba resets
+ * @resetproc:		routine to reset controller after a disk reset
+ * @maskproc:		special host masking for drive selection
+ * @quirkproc:		check host's drive quirk list
+ *
+ * @mdma_filter:	filter MDMA modes
+ * @udma_filter:	filter UDMA modes
+ *
+ * @cable_detect:	detect cable type
+ */
 struct ide_port_ops {
-	/* host specific initialization of a device */
 	void	(*init_dev)(ide_drive_t *);
-	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
-	/* routine to program host for DMA mode */
 	void	(*set_dma_mode)(ide_drive_t *, const u8);
-	/* tweaks hardware to select drive */
 	void	(*selectproc)(ide_drive_t *);
-	/* chipset polling based on hba specifics */
 	int	(*reset_poll)(ide_drive_t *);
-	/* chipset specific changes to default for device-hba resets */
 	void	(*pre_reset)(ide_drive_t *);
-	/* routine to reset controller after a disk reset */
 	void	(*resetproc)(ide_drive_t *);
-	/* special host masking for drive selection */
 	void	(*maskproc)(ide_drive_t *, int);
-	/* check host's drive quirk list */
 	void	(*quirkproc)(ide_drive_t *);
 
 	u8	(*mdma_filter)(ide_drive_t *);
@@ -532,11 +544,15 @@ struct ide_dma_ops {
 	void	(*dma_timeout)(struct ide_drive_s *);
 };
 
+struct ide_host;
+
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
 	struct hwgroup_s *hwgroup;	/* actually (ide_hwgroup_t *) */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
+
+	struct ide_host *host;
 
 	char name[6];			/* name of interface, eg. "ide0" */
 
@@ -626,6 +642,9 @@ typedef struct hwif_s {
 struct ide_host {
 	ide_hwif_t	*ports[MAX_HWIFS];
 	unsigned int	n_ports;
+	struct device	*dev[2];
+	unsigned long	host_flags;
+	void		*host_priv;
 };
 
 /*
@@ -874,6 +893,9 @@ struct ide_driver_s {
 
 #define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
 
+int ide_device_get(ide_drive_t *);
+void ide_device_put(ide_drive_t *);
+
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
 
 extern int ide_vlb_clk;
@@ -1089,7 +1111,6 @@ void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 int ide_pci_set_master(struct pci_dev *, const char *);
 unsigned long ide_pci_dma_base(ide_hwif_t *, const struct ide_port_info *);
-extern const struct ide_dma_ops sff_dma_ops;
 int ide_pci_check_simplex(ide_hwif_t *, const struct ide_port_info *);
 int ide_hwif_setup_dma(ide_hwif_t *, const struct ide_port_info *);
 #else
@@ -1182,7 +1203,7 @@ enum {
 
 struct ide_port_info {
 	char			*name;
-	unsigned int		(*init_chipset)(struct pci_dev *, const char *);
+	unsigned int		(*init_chipset)(struct pci_dev *);
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	int			(*init_dma)(ide_hwif_t *,
@@ -1201,8 +1222,10 @@ struct ide_port_info {
 	u8			udma_mask;
 };
 
-int ide_setup_pci_device(struct pci_dev *, const struct ide_port_info *);
-int ide_setup_pci_devices(struct pci_dev *, struct pci_dev *, const struct ide_port_info *);
+int ide_pci_init_one(struct pci_dev *, const struct ide_port_info *, void *);
+int ide_pci_init_two(struct pci_dev *, struct pci_dev *,
+		     const struct ide_port_info *, void *);
+void ide_pci_remove(struct pci_dev *);
 
 void ide_map_sg(ide_drive_t *, struct request *);
 void ide_init_sg_cmd(ide_drive_t *, struct request *);
@@ -1251,6 +1274,7 @@ extern int __ide_dma_end(ide_drive_t *);
 int ide_dma_test_irq(ide_drive_t *);
 extern void ide_dma_lost_irq(ide_drive_t *);
 extern void ide_dma_timeout(ide_drive_t *);
+extern const struct ide_dma_ops sff_dma_ops;
 #endif /* CONFIG_BLK_DEV_IDEDMA_SFF */
 
 #else
@@ -1424,8 +1448,7 @@ static inline void ide_dump_identify(u8 *id)
 
 static inline int hwif_to_node(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	return hwif->dev ? pcibus_to_node(dev->bus) : -1;
+	return hwif->dev ? dev_to_node(hwif->dev) : -1;
 }
 
 static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)

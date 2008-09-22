@@ -33,6 +33,8 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "hpt34x"
+
 #define HPT343_DEBUG_DRIVE_INFO		0
 
 static void hpt34x_set_mode(ide_drive_t *drive, const u8 speed)
@@ -77,7 +79,7 @@ static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 #define	HPT34X_PCI_INIT_REG		0x80
 
-static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev)
 {
 	int i = 0;
 	unsigned long hpt34xIoBase = pci_resource_start(dev, 4);
@@ -126,15 +128,15 @@ static const struct ide_port_ops hpt34x_port_ops = {
 	 IDE_HFLAG_NO_AUTODMA)
 
 static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
-	{ /* 0 */
-		.name		= "HPT343",
+	{ /* 0: HPT343 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt34x,
 		.port_ops	= &hpt34x_port_ops,
 		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_NON_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 	},
-	{ /* 1 */
-		.name		= "HPT345",
+	{ /* 1: HPT345 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt34x,
 		.port_ops	= &hpt34x_port_ops,
 		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_OFF_BOARD,
@@ -156,7 +158,7 @@ static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_devic
 
 	d = &hpt34x_chipsets[(pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0];
 
-	return ide_setup_pci_device(dev, d);
+	return ide_pci_init_one(dev, d, NULL);
 }
 
 static const struct pci_device_id hpt34x_pci_tbl[] = {
@@ -169,6 +171,7 @@ static struct pci_driver driver = {
 	.name		= "HPT34x_IDE",
 	.id_table	= hpt34x_pci_tbl,
 	.probe		= hpt34x_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init hpt34x_ide_init(void)
@@ -176,7 +179,13 @@ static int __init hpt34x_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit hpt34x_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(hpt34x_ide_init);
+module_exit(hpt34x_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for Highpoint 34x IDE");

@@ -2562,7 +2562,8 @@ fore200e_load_and_start_fw(struct fore200e* fore200e)
     const struct firmware *firmware;
     struct device *device;
     struct fw_header *fw_header;
-    u32 *fw_data, fw_size;
+    const __le32 *fw_data;
+    u32 fw_size;
     u32 __iomem *load_addr;
     char buf[48];
     int err = -ENODEV;
@@ -2582,7 +2583,7 @@ fore200e_load_and_start_fw(struct fore200e* fore200e)
 	return err;
     }
 
-    fw_data = (u32 *) firmware->data;
+    fw_data = (__le32 *) firmware->data;
     fw_size = firmware->size / sizeof(u32);
     fw_header = (struct fw_header *) firmware->data;
     load_addr = fore200e->virt_base + le32_to_cpu(fw_header->load_offset);
@@ -3199,6 +3200,14 @@ static const struct fore200e_bus fore200e_bus[] = {
     {}
 };
 
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
+#ifdef CONFIG_PCI
+#ifdef __LITTLE_ENDIAN__
+MODULE_FIRMWARE("pca200e.bin");
+#else
+MODULE_FIRMWARE("pca200e_ecd.bin2");
+#endif
+#endif /* CONFIG_PCI */
+#ifdef CONFIG_SBUS
+MODULE_FIRMWARE("sba200e_ecd.bin2");
 #endif

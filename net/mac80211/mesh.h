@@ -214,8 +214,7 @@ void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 
 /* Mesh paths */
-int mesh_nexthop_lookup(u8 *next_hop, struct sk_buff *skb,
-		struct net_device *dev);
+int mesh_nexthop_lookup(struct sk_buff *skb, struct net_device *dev);
 void mesh_path_start_discovery(struct net_device *dev);
 struct mesh_path *mesh_path_lookup(u8 *dst, struct net_device *dev);
 struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev);
@@ -285,7 +284,5 @@ static inline void mesh_path_activate(struct mesh_path *mpath)
 #else
 #define mesh_allocated	0
 #endif
-
-#define MESH_PREQ(skb)	(skb->cb + 30)
 
 #endif /* IEEE80211S_H */

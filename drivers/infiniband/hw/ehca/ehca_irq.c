@@ -178,6 +178,10 @@ static void dispatch_qp_event(struct ehca_shca *shca, struct ehca_qp *qp,
 {
 	struct ib_event event;
 
+	/* PATH_MIG without the QP ever having been armed is false alarm */
+	if (event_type == IB_EVENT_PATH_MIG && !qp->mig_armed)
+		return;
+
 	event.device = &shca->ib_device;
 	event.event = event_type;
 

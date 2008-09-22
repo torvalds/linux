@@ -1067,6 +1067,22 @@ void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 		}
 
 		_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
+	} else if (debug_status & (DBSR_DAC1R | DBSR_DAC1W)) {
+		regs->msr &= ~MSR_DE;
+
+		if (user_mode(regs)) {
+			current->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W |
+								DBCR0_IDM);
+		} else {
+			/* Disable DAC interupts */
+			mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~(DBSR_DAC1R |
+						DBSR_DAC1W | DBCR0_IDM));
+
+			/* Clear the DAC event */
+			mtspr(SPRN_DBSR, (DBSR_DAC1R | DBSR_DAC1W));
+		}
+		/* Setup and send the trap to the handler */
+		do_dabr(regs, mfspr(SPRN_DAC1), debug_status);
 	}
 }
 #endif /* CONFIG_4xx || CONFIG_BOOKE */

@@ -67,7 +67,7 @@ static void smb_destroy_inode(struct inode *inode)
 	kmem_cache_free(smb_inode_cachep, SMB_I(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct smb_inode_info *ei = (struct smb_inode_info *) foo;
 

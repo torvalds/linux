@@ -725,9 +725,9 @@ static int __cxio_tpt_op(struct cxio_rdev *rdev_p, u32 reset_tpt_entry,
 				V_TPT_STAG_TYPE(type) | V_TPT_PDID(pdid));
 		BUG_ON(page_size >= 28);
 		tpt.flags_pagesize_qpid = cpu_to_be32(V_TPT_PERM(perm) |
-				F_TPT_MW_BIND_ENABLE |
-				V_TPT_ADDR_TYPE((zbva ? TPT_ZBTO : TPT_VATO)) |
-				V_TPT_PAGE_SIZE(page_size));
+			((perm & TPT_MW_BIND) ? F_TPT_MW_BIND_ENABLE : 0) |
+			V_TPT_ADDR_TYPE((zbva ? TPT_ZBTO : TPT_VATO)) |
+			V_TPT_PAGE_SIZE(page_size));
 		tpt.rsvd_pbl_addr = reset_tpt_entry ? 0 :
 				    cpu_to_be32(V_TPT_PBL_ADDR(PBL_OFF(rdev_p, pbl_addr)>>3));
 		tpt.len = cpu_to_be32(len);

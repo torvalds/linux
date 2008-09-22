@@ -369,7 +369,7 @@ config IP_NF_SECURITY
 	tristate "Security table"
 	depends on IP_NF_IPTABLES
 	depends on SECURITY
-	default m if NETFILTER_ADVANCED=n
+	depends on NETFILTER_ADVANCED
 	help
 	  This option adds a `security' table to iptables, for use
 	  with Mandatory Access Control (MAC) policy.

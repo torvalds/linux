@@ -54,7 +54,7 @@ void __init prom_init(void)
 	if (!memsize_str)
 		memsize = 0x04000000;
 	else
-		memsize = strict_strtol(memsize_str, 0, NULL);
+		strict_strtol(memsize_str, 0, &memsize);
 
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }

@@ -80,7 +80,7 @@
 
 
 #define DRV_NAME "pata_it821x"
-#define DRV_VERSION "0.3.8"
+#define DRV_VERSION "0.4.0"
 
 struct it821x_dev
 {
@@ -425,6 +425,8 @@ static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 		case ATA_CMD_WRITE_MULTI:
 		case ATA_CMD_WRITE_MULTI_EXT:
 		case ATA_CMD_ID_ATA:
+		case ATA_CMD_INIT_DEV_PARAMS:
+		case 0xFC:	/* Internal 'report rebuild state' */
 		/* Arguably should just no-op this one */
 		case ATA_CMD_SET_FEATURES:
 			return ata_sff_qc_issue(qc);
@@ -509,7 +511,7 @@ static void it821x_dev_config(struct ata_device *adev)
 
 	if (strstr(model_num, "Integrated Technology Express")) {
 		/* RAID mode */
-		printk(KERN_INFO "IT821x %sRAID%d volume",
+		ata_dev_printk(adev, KERN_INFO, "%sRAID%d volume",
 			adev->id[147]?"Bootable ":"",
 			adev->id[129]);
 		if (adev->id[129] != 1)
@@ -519,36 +521,50 @@ static void it821x_dev_config(struct ata_device *adev)
 	/* This is a controller firmware triggered funny, don't
 	   report the drive faulty! */
 	adev->horkage &= ~ATA_HORKAGE_DIAGNOSTIC;
+	/* No HPA in 'smart' mode */
+	adev->horkage |= ATA_HORKAGE_BROKEN_HPA;
 }
 
 /**
- *	it821x_ident_hack	-	Hack identify data up
- *	@ap: Port
+ *	it821x_read_id	-	Hack identify data up
+ *	@adev: device to read
+ *	@tf: proposed taskfile
+ *	@id: buffer for returned ident data
  *
- *	Walk the devices on this firmware driven port and slightly
+ *	Query the devices on this firmware driven port and slightly
  *	mash the identify data to stop us and common tools trying to
  *	use features not firmware supported. The firmware itself does
  *	some masking (eg SMART) but not enough.
- *
- *	This is a bit of an abuse of the cable method, but it is the
- *	only method called at the right time. We could modify the libata
- *	core specifically for ident hacking but while we have one offender
- *	it seems better to keep the fallout localised.
  */
 
-static int it821x_ident_hack(struct ata_port *ap)
+static unsigned int it821x_read_id(struct ata_device *adev,
+					struct ata_taskfile *tf, u16 *id)
 {
-	struct ata_device *adev;
-	ata_link_for_each_dev(adev, &ap->link) {
-		if (ata_dev_enabled(adev)) {
-			adev->id[84] &= ~(1 << 6);	/* No FUA */
-			adev->id[85] &= ~(1 << 10);	/* No HPA */
-			adev->id[76] = 0;		/* No NCQ/AN etc */
-		}
-	}
-	return ata_cable_unknown(ap);
-}
+	unsigned int err_mask;
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
+	err_mask = ata_do_dev_read_id(adev, tf, id);
+	if (err_mask)
+		return err_mask;
+	ata_id_c_string(id, model_num, ATA_ID_PROD, sizeof(model_num));
+
+	id[83] &= ~(1 << 12);	/* Cache flush is firmware handled */
+	id[83] &= ~(1 << 13);	/* Ditto for LBA48 flushes */
+	id[84] &= ~(1 << 6);	/* No FUA */
+	id[85] &= ~(1 << 10);	/* No HPA */
+	id[76] = 0;		/* No NCQ/AN etc */
+
+	if (strstr(model_num, "Integrated Technology Express")) {
+		/* Set feature bits the firmware neglects */
+		id[49] |= 0x0300;	/* LBA, DMA */
+		id[82] |= 0x0400;	/* LBA48 */
+		id[83] &= 0x7FFF;
+		id[83] |= 0x4000;	/* Word 83 is valid */
+		id[86] |= 0x0400;	/* LBA48 on */
+		id[ATA_ID_MAJOR_VER] |= 0x1F;
+	}
+	return err_mask;
+}
 
 /**
  *	it821x_check_atapi_dma	-	ATAPI DMA handler
@@ -576,6 +592,136 @@ static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
 	/* Cool */
 	return 0;
 }
+
+/**
+ *	it821x_display_disk	-	display disk setup
+ *	@n: Device number
+ *	@buf: Buffer block from firmware
+ *
+ *	Produce a nice informative display of the device setup as provided
+ *	by the firmware.
+ */
+
+static void it821x_display_disk(int n, u8 *buf)
+{
+	unsigned char id[41];
+	int mode = 0;
+	char *mtype = "";
+	char mbuf[8];
+	char *cbl = "(40 wire cable)";
+
+	static const char *types[5] = {
+		"RAID0", "RAID1" "RAID 0+1", "JBOD", "DISK"
+	};
+
+	if (buf[52] > 4)	/* No Disk */
+		return;
+
+	ata_id_c_string((u16 *)buf, id, 0, 41); 
+
+	if (buf[51]) {
+		mode = ffs(buf[51]);
+		mtype = "UDMA";
+	} else if (buf[49]) {
+		mode = ffs(buf[49]);
+		mtype = "MWDMA";
+	}
+
+	if (buf[76])
+		cbl = "";
+
+	if (mode)
+		snprintf(mbuf, 8, "%5s%d", mtype, mode - 1);
+	else
+		strcpy(mbuf, "PIO");
+	if (buf[52] == 4)
+		printk(KERN_INFO "%d: %-6s %-8s          %s %s\n",
+				n, mbuf, types[buf[52]], id, cbl);
+	else
+		printk(KERN_INFO "%d: %-6s %-8s Volume: %1d %s %s\n",
+				n, mbuf, types[buf[52]], buf[53], id, cbl);
+	if (buf[125] < 100)
+		printk(KERN_INFO "%d: Rebuilding: %d%%\n", n, buf[125]);
+}
+
+/**
+ *	it821x_firmware_command		-	issue firmware command
+ *	@ap: IT821x port to interrogate
+ *	@cmd: command
+ *	@len: length
+ *
+ *	Issue firmware commands expecting data back from the controller. We
+ *	use this to issue commands that do not go via the normal paths. Other
+ *	commands such as 0xFC can be issued normally.
+ */
+
+static u8 *it821x_firmware_command(struct ata_port *ap, u8 cmd, int len)
+{
+	u8 status;
+	int n = 0;
+	u16 *buf = kmalloc(len, GFP_KERNEL);
+	if (buf == NULL) {
+		printk(KERN_ERR "it821x_firmware_command: Out of memory\n");
+		return NULL;
+	}
+	/* This isn't quite a normal ATA command as we are talking to the
+	   firmware not the drives */
+	ap->ctl |= ATA_NIEN;
+	iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
+	ata_wait_idle(ap);
+	iowrite8(ATA_DEVICE_OBS, ap->ioaddr.device_addr);
+	iowrite8(cmd, ap->ioaddr.command_addr);
+	udelay(1);
+	/* This should be almost immediate but a little paranoia goes a long
+	   way. */
+	while(n++ < 10) {
+		status = ioread8(ap->ioaddr.status_addr);
+		if (status & ATA_ERR) {
+			kfree(buf);
+			printk(KERN_ERR "it821x_firmware_command: rejected\n");
+			return NULL;
+		}
+		if (status & ATA_DRQ) {
+			ioread16_rep(ap->ioaddr.data_addr, buf, len/2);
+			return (u8 *)buf;
+		}
+		mdelay(1);
+	}
+	kfree(buf);
+	printk(KERN_ERR "it821x_firmware_command: timeout\n");
+	return NULL;
+}
+
+/**
+ *	it821x_probe_firmware	-	firmware reporting/setup
+ *	@ap: IT821x port being probed
+ *
+ *	Probe the firmware of the controller by issuing firmware command
+ *	0xFA and analysing the returned data.
+ */
+
+static void it821x_probe_firmware(struct ata_port *ap)
+{
+	u8 *buf;
+	int i;
+
+	/* This is a bit ugly as we can't just issue a task file to a device
+	   as this is controller magic */
+
+	buf = it821x_firmware_command(ap, 0xFA, 512);
+
+	if (buf != NULL) {
+		printk(KERN_INFO "pata_it821x: Firmware %02X/%02X/%02X%02X\n",
+				buf[505],
+				buf[506],
+				buf[507],
+				buf[508]);
+		for (i = 0; i < 4; i++)
+ 			it821x_display_disk(i, buf + 128 * i);
+		kfree(buf);
+	}
+}
+
 
 
 /**
@@ -610,6 +756,8 @@ static int it821x_port_start(struct ata_port *ap)
 		/* Long I/O's although allowed in LBA48 space cause the
 		   onboard firmware to enter the twighlight zone */
 		/* No ATAPI DMA in this mode either */
+		if (ap->port_no == 0)
+			it821x_probe_firmware(ap);
 	}
 	/* Pull the current clocks from 0x50 */
 	if (conf & (1 << (1 + ap->port_no)))
@@ -631,6 +779,25 @@ static int it821x_port_start(struct ata_port *ap)
 	return 0;
 }
 
+/**
+ *	it821x_rdc_cable	-	Cable detect for RDC1010
+ *	@ap: port we are checking
+ *
+ *	Return the RDC1010 cable type. Unlike the IT821x we know how to do
+ *	this and can do host side cable detect
+ */
+
+static int it821x_rdc_cable(struct ata_port *ap)
+{
+	u16 r40;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+
+	pci_read_config_word(pdev, 0x40, &r40);
+	if (r40 & (1 << (2 + ap->port_no)))
+		return ATA_CBL_PATA40;
+	return ATA_CBL_PATA80;
+}
+
 static struct scsi_host_template it821x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
@@ -641,9 +808,10 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.check_atapi_dma= it821x_check_atapi_dma,
 	.qc_issue	= it821x_smart_qc_issue,
 
-	.cable_detect	= it821x_ident_hack,
+	.cable_detect	= ata_cable_80wire,
 	.set_mode	= it821x_smart_set_mode,
 	.dev_config	= it821x_dev_config,
+	.read_id	= it821x_read_id,
 
 	.port_start	= it821x_port_start,
 };
@@ -664,8 +832,29 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.port_start	= it821x_port_start,
 };
 
+static struct ata_port_operations it821x_rdc_port_ops = {
+	.inherits	= &ata_bmdma_port_ops,
+
+	.check_atapi_dma= it821x_check_atapi_dma,
+	.sff_dev_select	= it821x_passthru_dev_select,
+	.bmdma_start 	= it821x_passthru_bmdma_start,
+	.bmdma_stop	= it821x_passthru_bmdma_stop,
+	.qc_issue	= it821x_passthru_qc_issue,
+
+	.cable_detect	= it821x_rdc_cable,
+	.set_piomode	= it821x_passthru_set_piomode,
+	.set_dmamode	= it821x_passthru_set_dmamode,
+
+	.port_start	= it821x_port_start,
+};
+
 static void it821x_disable_raid(struct pci_dev *pdev)
 {
+	/* Neither the RDC nor the IT8211 */
+	if (pdev->vendor != PCI_VENDOR_ID_ITE ||
+			pdev->device != PCI_DEVICE_ID_ITE_8212)
+			return;
+
 	/* Reset local CPU, and set BIOS not ready */
 	pci_write_config_byte(pdev, 0x5E, 0x01);
 
@@ -690,6 +879,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
+		.udma_mask = ATA_UDMA6,
 		.port_ops = &it821x_smart_port_ops
 	};
 	static const struct ata_port_info info_passthru = {
@@ -699,6 +889,13 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &it821x_passthru_port_ops
 	};
+	static const struct ata_port_info info_rdc = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = 0x1f,
+		.mwdma_mask = 0x07,
+		/* No UDMA */
+		.port_ops = &it821x_rdc_port_ops
+	};
 
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	static char *mode[2] = { "pass through", "smart" };
@@ -707,21 +904,25 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
+		
+	if (pdev->vendor == PCI_VENDOR_ID_RDC) {
+		ppi[0] = &info_rdc;
+	} else {
+		/* Force the card into bypass mode if so requested */
+		if (it8212_noraid) {
+			printk(KERN_INFO DRV_NAME ": forcing bypass mode.\n");
+			it821x_disable_raid(pdev);
+		}
+		pci_read_config_byte(pdev, 0x50, &conf);
+		conf &= 1;
 
-	/* Force the card into bypass mode if so requested */
-	if (it8212_noraid) {
-		printk(KERN_INFO DRV_NAME ": forcing bypass mode.\n");
-		it821x_disable_raid(pdev);
+		printk(KERN_INFO DRV_NAME": controller in %s mode.\n",
+								mode[conf]);
+		if (conf == 0)
+			ppi[0] = &info_passthru;
+		else
+			ppi[0] = &info_smart;
 	}
-	pci_read_config_byte(pdev, 0x50, &conf);
-	conf &= 1;
-
-	printk(KERN_INFO DRV_NAME ": controller in %s mode.\n", mode[conf]);
-	if (conf == 0)
-		ppi[0] = &info_passthru;
-	else
-		ppi[0] = &info_smart;
-
 	return ata_pci_sff_init_one(pdev, ppi, &it821x_sht, NULL);
 }
 
@@ -745,6 +946,7 @@ static int it821x_reinit_one(struct pci_dev *pdev)
 static const struct pci_device_id it821x[] = {
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8211), },
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8212), },
+	{ PCI_VDEVICE(RDC, 0x1010), },
 
 	{ },
 };

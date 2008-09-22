@@ -202,6 +202,9 @@ static struct net_device *new_bridge_dev(const char *name)
 	br->topology_change = 0;
 	br->topology_change_detected = 0;
 	br->ageing_time = 300 * HZ;
+
+	br_netfilter_rtable_init(br);
+
 	INIT_LIST_HEAD(&br->age_list);
 
 	br_stp_timer_init(br);

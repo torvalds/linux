@@ -837,8 +837,7 @@ static void as_completed_request(struct request_queue *q, struct request *rq)
 	WARN_ON(!list_empty(&rq->queuelist));
 
 	if (RQ_STATE(rq) != AS_RQ_REMOVED) {
-		printk("rq->state %d\n", RQ_STATE(rq));
-		WARN_ON(1);
+		WARN(1, "rq->state %d\n", RQ_STATE(rq));
 		goto out;
 	}
 

@@ -1,11 +1,11 @@
   0 -> Unknown EM2800 video grabber             (em2800)        [eb1a:2800]
-  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2750,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2870,eb1a:2881,eb1a:2883]
+  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2870,eb1a:2881,eb1a:2883]
   2 -> Terratec Cinergy 250 USB                 (em2820/em2840) [0ccd:0036]
   3 -> Pinnacle PCTV USB 2                      (em2820/em2840) [2304:0208]
   4 -> Hauppauge WinTV USB 2                    (em2820/em2840) [2040:4200,2040:4201]
   5 -> MSI VOX USB 2.0                          (em2820/em2840)
   6 -> Terratec Cinergy 200 USB                 (em2800)
-  7 -> Leadtek Winfast USB II                   (em2800)
+  7 -> Leadtek Winfast USB II                   (em2800)        [0413:6023]
   8 -> Kworld USB2800                           (em2800)
   9 -> Pinnacle Dazzle DVC 90/DVC 100           (em2820/em2840) [2304:0207,2304:021a]
  10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500]
@@ -14,7 +14,46 @@
  13 -> Terratec Prodigy XS                      (em2880)        [0ccd:0047]
  14 -> Pixelview Prolink PlayTV USB 2.0         (em2820/em2840)
  15 -> V-Gear PocketTV                          (em2800)
- 16 -> Hauppauge WinTV HVR 950                  (em2880)        [2040:6513,2040:6517,2040:651b,2040:651f]
+ 16 -> Hauppauge WinTV HVR 950                  (em2883)        [2040:6513,2040:6517,2040:651b,2040:651f]
  17 -> Pinnacle PCTV HD Pro Stick               (em2880)        [2304:0227]
  18 -> Hauppauge WinTV HVR 900 (R2)             (em2880)        [2040:6502]
  19 -> PointNix Intra-Oral Camera               (em2860)
+ 20 -> AMD ATI TV Wonder HD 600                 (em2880)        [0438:b002]
+ 21 -> eMPIA Technology, Inc. GrabBeeX+ Video Encoder (em2800)        [eb1a:2801]
+ 22 -> Unknown EM2750/EM2751 webcam grabber     (em2750)        [eb1a:2750,eb1a:2751]
+ 23 -> Huaqi DLCW-130                           (em2750)
+ 24 -> D-Link DUB-T210 TV Tuner                 (em2820/em2840) [2001:f112]
+ 25 -> Gadmei UTV310                            (em2820/em2840)
+ 26 -> Hercules Smart TV USB 2.0                (em2820/em2840)
+ 27 -> Pinnacle PCTV USB 2 (Philips FM1216ME)   (em2820/em2840)
+ 28 -> Leadtek Winfast USB II Deluxe            (em2820/em2840)
+ 29 -> Pinnacle Dazzle DVC 100                  (em2820/em2840)
+ 30 -> Videology 20K14XUSB USB2.0               (em2820/em2840)
+ 31 -> Usbgear VD204v9                          (em2821)
+ 32 -> Supercomp USB 2.0 TV                     (em2821)
+ 33 -> SIIG AVTuner-PVR/Prolink PlayTV USB 2.0  (em2821)
+ 34 -> Terratec Cinergy A Hybrid XS             (em2860)        [0ccd:004f]
+ 35 -> Typhoon DVD Maker                        (em2860)
+ 36 -> NetGMBH Cam                              (em2860)
+ 37 -> Gadmei UTV330                            (em2860)
+ 38 -> Yakumo MovieMixer                        (em2861)
+ 39 -> KWorld PVRTV 300U                        (em2861)        [eb1a:e300]
+ 40 -> Plextor ConvertX PX-TV100U               (em2861)        [093b:a005]
+ 41 -> Kworld 350 U DVB-T                       (em2870)        [eb1a:e350]
+ 42 -> Kworld 355 U DVB-T                       (em2870)        [eb1a:e355,eb1a:e357]
+ 43 -> Terratec Cinergy T XS                    (em2870)        [0ccd:0043]
+ 44 -> Terratec Cinergy T XS (MT2060)           (em2870)
+ 45 -> Pinnacle PCTV DVB-T                      (em2870)
+ 46 -> Compro, VideoMate U3                     (em2870)        [185b:2870]
+ 47 -> KWorld DVB-T 305U                        (em2880)        [eb1a:e305]
+ 48 -> KWorld DVB-T 310U                        (em2880)
+ 49 -> MSI DigiVox A/D                          (em2880)        [eb1a:e310]
+ 50 -> MSI DigiVox A/D II                       (em2880)        [eb1a:e320]
+ 51 -> Terratec Hybrid XS Secam                 (em2880)        [0ccd:004c]
+ 52 -> DNT DA2 Hybrid                           (em2881)
+ 53 -> Pinnacle Hybrid Pro                      (em2881)
+ 54 -> Kworld VS-DVB-T 323UR                    (em2882)        [eb1a:e323]
+ 55 -> Terratec Hybrid XS (em2882)              (em2882)        [0ccd:005e]
+ 56 -> Pinnacle Hybrid Pro (2)                  (em2882)        [2304:0226]
+ 57 -> Kworld PlusTV HD Hybrid 330              (em2883)        [eb1a:a316]
+ 58 -> Compro VideoMate ForYou/Stereo           (em2820/em2840) [185b:2041]

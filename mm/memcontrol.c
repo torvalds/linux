@@ -35,9 +35,9 @@
 
 #include <asm/uaccess.h>
 
-struct cgroup_subsys mem_cgroup_subsys;
-static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
-static struct kmem_cache *page_cgroup_cache;
+struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+static struct kmem_cache *page_cgroup_cache __read_mostly;
+#define MEM_CGROUP_RECLAIM_RETRIES	5
 
 /*
  * Statistics for memory cgroup.
@@ -166,7 +166,6 @@ struct page_cgroup {
 	struct list_head lru;		/* per cgroup LRU list */
 	struct page *page;
 	struct mem_cgroup *mem_cgroup;
-	int ref_cnt;			/* cached, mapped, migrating */
 	int flags;
 };
 #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
@@ -185,6 +184,7 @@ static enum zone_type page_cgroup_zid(struct page_cgroup *pc)
 enum charge_type {
 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
 };
 
 /*
@@ -296,7 +296,7 @@ static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) -= 1;
 
 	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, false);
-	list_del_init(&pc->lru);
+	list_del(&pc->lru);
 }
 
 static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
@@ -353,6 +353,9 @@ void mem_cgroup_move_lists(struct page *page, bool active)
 	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
 	unsigned long flags;
+
+	if (mem_cgroup_subsys.disabled)
+		return;
 
 	/*
 	 * We cannot lock_page_cgroup while holding zone's lru_lock,
@@ -524,7 +527,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
  * < 0 if the cgroup is over its limit
  */
 static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
-				gfp_t gfp_mask, enum charge_type ctype)
+				gfp_t gfp_mask, enum charge_type ctype,
+				struct mem_cgroup *memcg)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc;
@@ -532,35 +536,8 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	struct mem_cgroup_per_zone *mz;
 
-	if (mem_cgroup_subsys.disabled)
-		return 0;
-
-	/*
-	 * Should page_cgroup's go to their own slab?
-	 * One could optimize the performance of the charging routine
-	 * by saving a bit in the page_flags and using it as a lock
-	 * to see if the cgroup page already has a page_cgroup associated
-	 * with it
-	 */
-retry:
-	lock_page_cgroup(page);
-	pc = page_get_page_cgroup(page);
-	/*
-	 * The page_cgroup exists and
-	 * the page has already been accounted.
-	 */
-	if (pc) {
-		VM_BUG_ON(pc->page != page);
-		VM_BUG_ON(pc->ref_cnt <= 0);
-
-		pc->ref_cnt++;
-		unlock_page_cgroup(page);
-		goto done;
-	}
-	unlock_page_cgroup(page);
-
-	pc = kmem_cache_zalloc(page_cgroup_cache, gfp_mask);
-	if (pc == NULL)
+	pc = kmem_cache_alloc(page_cgroup_cache, gfp_mask);
+	if (unlikely(pc == NULL))
 		goto err;
 
 	/*
@@ -569,16 +546,18 @@ retry:
 	 * thread group leader migrates. It's possible that mm is not
 	 * set, if so charge the init_mm (happens for pagecache usage).
 	 */
-	if (!mm)
-		mm = &init_mm;
-
-	rcu_read_lock();
-	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
-	/*
-	 * For every charge from the cgroup, increment reference count
-	 */
-	css_get(&mem->css);
-	rcu_read_unlock();
+	if (likely(!memcg)) {
+		rcu_read_lock();
+		mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+		/*
+		 * For every charge from the cgroup, increment reference count
+		 */
+		css_get(&mem->css);
+		rcu_read_unlock();
+	} else {
+		mem = memcg;
+		css_get(&memcg->css);
+	}
 
 	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
 		if (!(gfp_mask & __GFP_WAIT))
@@ -603,25 +582,24 @@ retry:
 		}
 	}
 
-	pc->ref_cnt = 1;
 	pc->mem_cgroup = mem;
 	pc->page = page;
-	pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
+	/*
+	 * If a page is accounted as a page cache, insert to inactive list.
+	 * If anon, insert to active list.
+	 */
 	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
 		pc->flags = PAGE_CGROUP_FLAG_CACHE;
+	else
+		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
 
 	lock_page_cgroup(page);
-	if (page_get_page_cgroup(page)) {
+	if (unlikely(page_get_page_cgroup(page))) {
 		unlock_page_cgroup(page);
-		/*
-		 * Another charge has been added to this page already.
-		 * We take lock_page_cgroup(page) again and read
-		 * page->cgroup, increment refcnt.... just retry is OK.
-		 */
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		css_put(&mem->css);
 		kmem_cache_free(page_cgroup_cache, pc);
-		goto retry;
+		goto done;
 	}
 	page_assign_page_cgroup(page, pc);
 
@@ -642,24 +620,65 @@ err:
 
 int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
 {
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
+	/*
+	 * If already mapped, we don't have to account.
+	 * If page cache, page->mapping has address_space.
+	 * But page->mapping may have out-of-use anon_vma pointer,
+	 * detecit it by PageAnon() check. newly-mapped-anon's page->mapping
+	 * is NULL.
+  	 */
+	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
+		return 0;
+	if (unlikely(!mm))
+		mm = &init_mm;
 	return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_MAPPED);
+				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
 }
 
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
-	if (!mm)
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
+	/*
+	 * Corner case handling. This is called from add_to_page_cache()
+	 * in usual. But some FS (shmem) precharges this page before calling it
+	 * and call add_to_page_cache() with GFP_NOWAIT.
+	 *
+	 * For GFP_NOWAIT case, the page may be pre-charged before calling
+	 * add_to_page_cache(). (See shmem.c) check it here and avoid to call
+	 * charge twice. (It works but has to pay a bit larger cost.)
+	 */
+	if (!(gfp_mask & __GFP_WAIT)) {
+		struct page_cgroup *pc;
+
+		lock_page_cgroup(page);
+		pc = page_get_page_cgroup(page);
+		if (pc) {
+			VM_BUG_ON(pc->page != page);
+			VM_BUG_ON(!pc->mem_cgroup);
+			unlock_page_cgroup(page);
+			return 0;
+		}
+		unlock_page_cgroup(page);
+	}
+
+	if (unlikely(!mm))
 		mm = &init_mm;
+
 	return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_CACHE);
+				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
 }
 
 /*
- * Uncharging is always a welcome operation, we never complain, simply
- * uncharge.
+ * uncharge if !page_mapped(page)
  */
-void mem_cgroup_uncharge_page(struct page *page)
+static void
+__mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem;
@@ -674,74 +693,15 @@ void mem_cgroup_uncharge_page(struct page *page)
 	 */
 	lock_page_cgroup(page);
 	pc = page_get_page_cgroup(page);
-	if (!pc)
+	if (unlikely(!pc))
 		goto unlock;
 
 	VM_BUG_ON(pc->page != page);
-	VM_BUG_ON(pc->ref_cnt <= 0);
 
-	if (--(pc->ref_cnt) == 0) {
-		mz = page_cgroup_zoneinfo(pc);
-		spin_lock_irqsave(&mz->lru_lock, flags);
-		__mem_cgroup_remove_list(mz, pc);
-		spin_unlock_irqrestore(&mz->lru_lock, flags);
-
-		page_assign_page_cgroup(page, NULL);
-		unlock_page_cgroup(page);
-
-		mem = pc->mem_cgroup;
-		res_counter_uncharge(&mem->res, PAGE_SIZE);
-		css_put(&mem->css);
-
-		kmem_cache_free(page_cgroup_cache, pc);
-		return;
-	}
-
-unlock:
-	unlock_page_cgroup(page);
-}
-
-/*
- * Returns non-zero if a page (under migration) has valid page_cgroup member.
- * Refcnt of page_cgroup is incremented.
- */
-int mem_cgroup_prepare_migration(struct page *page)
-{
-	struct page_cgroup *pc;
-
-	if (mem_cgroup_subsys.disabled)
-		return 0;
-
-	lock_page_cgroup(page);
-	pc = page_get_page_cgroup(page);
-	if (pc)
-		pc->ref_cnt++;
-	unlock_page_cgroup(page);
-	return pc != NULL;
-}
-
-void mem_cgroup_end_migration(struct page *page)
-{
-	mem_cgroup_uncharge_page(page);
-}
-
-/*
- * We know both *page* and *newpage* are now not-on-LRU and PG_locked.
- * And no race with uncharge() routines because page_cgroup for *page*
- * has extra one reference by mem_cgroup_prepare_migration.
- */
-void mem_cgroup_page_migration(struct page *page, struct page *newpage)
-{
-	struct page_cgroup *pc;
-	struct mem_cgroup_per_zone *mz;
-	unsigned long flags;
-
-	lock_page_cgroup(page);
-	pc = page_get_page_cgroup(page);
-	if (!pc) {
-		unlock_page_cgroup(page);
-		return;
-	}
+	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+	    && ((pc->flags & PAGE_CGROUP_FLAG_CACHE)
+		|| page_mapped(page)))
+		goto unlock;
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
@@ -751,21 +711,135 @@ void mem_cgroup_page_migration(struct page *page, struct page *newpage)
 	page_assign_page_cgroup(page, NULL);
 	unlock_page_cgroup(page);
 
-	pc->page = newpage;
-	lock_page_cgroup(newpage);
-	page_assign_page_cgroup(newpage, pc);
+	mem = pc->mem_cgroup;
+	res_counter_uncharge(&mem->res, PAGE_SIZE);
+	css_put(&mem->css);
 
-	mz = page_cgroup_zoneinfo(pc);
-	spin_lock_irqsave(&mz->lru_lock, flags);
-	__mem_cgroup_add_list(mz, pc);
-	spin_unlock_irqrestore(&mz->lru_lock, flags);
+	kmem_cache_free(page_cgroup_cache, pc);
+	return;
+unlock:
+	unlock_page_cgroup(page);
+}
 
-	unlock_page_cgroup(newpage);
+void mem_cgroup_uncharge_page(struct page *page)
+{
+	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+}
+
+void mem_cgroup_uncharge_cache_page(struct page *page)
+{
+	VM_BUG_ON(page_mapped(page));
+	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
 }
 
 /*
+ * Before starting migration, account against new page.
+ */
+int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
+{
+	struct page_cgroup *pc;
+	struct mem_cgroup *mem = NULL;
+	enum charge_type ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+	int ret = 0;
+
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
+	lock_page_cgroup(page);
+	pc = page_get_page_cgroup(page);
+	if (pc) {
+		mem = pc->mem_cgroup;
+		css_get(&mem->css);
+		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
+			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+	}
+	unlock_page_cgroup(page);
+	if (mem) {
+		ret = mem_cgroup_charge_common(newpage, NULL, GFP_KERNEL,
+			ctype, mem);
+		css_put(&mem->css);
+	}
+	return ret;
+}
+
+/* remove redundant charge if migration failed*/
+void mem_cgroup_end_migration(struct page *newpage)
+{
+	/*
+	 * At success, page->mapping is not NULL.
+	 * special rollback care is necessary when
+	 * 1. at migration failure. (newpage->mapping is cleared in this case)
+	 * 2. the newpage was moved but not remapped again because the task
+	 *    exits and the newpage is obsolete. In this case, the new page
+	 *    may be a swapcache. So, we just call mem_cgroup_uncharge_page()
+	 *    always for avoiding mess. The  page_cgroup will be removed if
+	 *    unnecessary. File cache pages is still on radix-tree. Don't
+	 *    care it.
+	 */
+	if (!newpage->mapping)
+		__mem_cgroup_uncharge_common(newpage,
+					 MEM_CGROUP_CHARGE_TYPE_FORCE);
+	else if (PageAnon(newpage))
+		mem_cgroup_uncharge_page(newpage);
+}
+
+/*
+ * A call to try to shrink memory usage under specified resource controller.
+ * This is typically used for page reclaiming for shmem for reducing side
+ * effect of page allocation from shmem, which is used by some mem_cgroup.
+ */
+int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
+{
+	struct mem_cgroup *mem;
+	int progress = 0;
+	int retry = MEM_CGROUP_RECLAIM_RETRIES;
+
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+	if (!mm)
+		return 0;
+
+	rcu_read_lock();
+	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+	css_get(&mem->css);
+	rcu_read_unlock();
+
+	do {
+		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask);
+	} while (!progress && --retry);
+
+	css_put(&mem->css);
+	if (!retry)
+		return -ENOMEM;
+	return 0;
+}
+
+int mem_cgroup_resize_limit(struct mem_cgroup *memcg, unsigned long long val)
+{
+
+	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
+	int progress;
+	int ret = 0;
+
+	while (res_counter_set_limit(&memcg->res, val)) {
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+		if (!retry_count) {
+			ret = -EBUSY;
+			break;
+		}
+		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL);
+		if (!progress)
+			retry_count--;
+	}
+	return ret;
+}
+
+
+/*
  * This routine traverse page_cgroup in given list and drop them all.
- * This routine ignores page_cgroup->ref_cnt.
  * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
  */
 #define FORCE_UNCHARGE_BATCH	(128)
@@ -790,12 +864,20 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *mem,
 		page = pc->page;
 		get_page(page);
 		spin_unlock_irqrestore(&mz->lru_lock, flags);
-		mem_cgroup_uncharge_page(page);
-		put_page(page);
-		if (--count <= 0) {
-			count = FORCE_UNCHARGE_BATCH;
+		/*
+		 * Check if this page is on LRU. !LRU page can be found
+		 * if it's under page migration.
+		 */
+		if (PageLRU(page)) {
+			__mem_cgroup_uncharge_common(page,
+					MEM_CGROUP_CHARGE_TYPE_FORCE);
+			put_page(page);
+			if (--count <= 0) {
+				count = FORCE_UNCHARGE_BATCH;
+				cond_resched();
+			}
+		} else
 			cond_resched();
-		}
 		spin_lock_irqsave(&mz->lru_lock, flags);
 	}
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
@@ -809,9 +891,6 @@ static int mem_cgroup_force_empty(struct mem_cgroup *mem)
 {
 	int ret = -EBUSY;
 	int node, zid;
-
-	if (mem_cgroup_subsys.disabled)
-		return 0;
 
 	css_get(&mem->css);
 	/*
@@ -838,32 +917,34 @@ out:
 	return ret;
 }
 
-static int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
-{
-	*tmp = memparse(buf, &buf);
-	if (*buf != '\0')
-		return -EINVAL;
-
-	/*
-	 * Round up the value to the closest page size
-	 */
-	*tmp = ((*tmp + PAGE_SIZE - 1) >> PAGE_SHIFT) << PAGE_SHIFT;
-	return 0;
-}
-
 static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 {
 	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
 				    cft->private);
 }
-
-static ssize_t mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
-				struct file *file, const char __user *userbuf,
-				size_t nbytes, loff_t *ppos)
+/*
+ * The user of this function is...
+ * RES_LIMIT.
+ */
+static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+			    const char *buffer)
 {
-	return res_counter_write(&mem_cgroup_from_cont(cont)->res,
-				cft->private, userbuf, nbytes, ppos,
-				mem_cgroup_write_strategy);
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	unsigned long long val;
+	int ret;
+
+	switch (cft->private) {
+	case RES_LIMIT:
+		/* This function does all necessary parse...reuse it */
+		ret = res_counter_memparse_write_strategy(buffer, &val);
+		if (!ret)
+			ret = mem_cgroup_resize_limit(memcg, val);
+		break;
+	default:
+		ret = -EINVAL; /* should be BUG() ? */
+		break;
+	}
+	return ret;
 }
 
 static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
@@ -940,7 +1021,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "limit_in_bytes",
 		.private = RES_LIMIT,
-		.write = mem_cgroup_write,
+		.write_string = mem_cgroup_write,
 		.read_u64 = mem_cgroup_read,
 	},
 	{
@@ -1070,8 +1151,6 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
 static int mem_cgroup_populate(struct cgroup_subsys *ss,
 				struct cgroup *cont)
 {
-	if (mem_cgroup_subsys.disabled)
-		return 0;
 	return cgroup_add_files(cont, ss, mem_cgroup_files,
 					ARRAY_SIZE(mem_cgroup_files));
 }
@@ -1084,18 +1163,12 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 	struct mm_struct *mm;
 	struct mem_cgroup *mem, *old_mem;
 
-	if (mem_cgroup_subsys.disabled)
-		return;
-
 	mm = get_task_mm(p);
 	if (mm == NULL)
 		return;
 
 	mem = mem_cgroup_from_cont(cont);
 	old_mem = mem_cgroup_from_cont(old_cont);
-
-	if (mem == old_mem)
-		goto out;
 
 	/*
 	 * Only thread group leaders are allowed to migrate, the mm_struct is

@@ -1521,14 +1521,11 @@ static void do_mc32_set_multicast_list(struct net_device *dev, int retry)
 	struct mc32_local *lp = netdev_priv(dev);
 	u16 filt = (1<<2); /* Save Bad Packets, for stats purposes */
 
-	if (dev->flags&IFF_PROMISC)
+	if ((dev->flags&IFF_PROMISC) ||
+	    (dev->flags&IFF_ALLMULTI) ||
+	    dev->mc_count > 10)
 		/* Enable promiscuous mode */
 		filt |= 1;
-	else if((dev->flags&IFF_ALLMULTI) || dev->mc_count > 10)
-	{
-		dev->flags|=IFF_PROMISC;
-		filt |= 1;
-	}
 	else if(dev->mc_count)
 	{
 		unsigned char block[62];

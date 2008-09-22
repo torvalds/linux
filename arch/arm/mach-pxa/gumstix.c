@@ -26,7 +26,7 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 
@@ -34,13 +34,13 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/gumstix.h>
+#include <mach/mmc.h>
+#include <mach/udc.h>
+#include <mach/gumstix.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx-gpio.h>
 
 #include "generic.h"
 

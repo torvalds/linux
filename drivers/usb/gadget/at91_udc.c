@@ -40,16 +40,15 @@
 #include <linux/usb/gadget.h>
 
 #include <asm/byteorder.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/mach-types.h>
 #include <asm/gpio.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
-#include <asm/arch/at91sam9261_matrix.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
+#include <mach/at91sam9261_matrix.h>
 
 #include "at91_udc.h"
 

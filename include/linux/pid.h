@@ -48,7 +48,7 @@ enum pid_type
  */
 
 struct upid {
-	/* Try to keep pid_chain in the same cacheline as nr for find_pid */
+	/* Try to keep pid_chain in the same cacheline as nr for find_vpid */
 	int nr;
 	struct pid_namespace *ns;
 	struct hlist_node pid_chain;
@@ -57,10 +57,10 @@ struct upid {
 struct pid
 {
 	atomic_t count;
+	unsigned int level;
 	/* lists of tasks that use this pid */
 	struct hlist_head tasks[PIDTYPE_MAX];
 	struct rcu_head rcu;
-	unsigned int level;
 	struct upid numbers[1];
 };
 
@@ -105,14 +105,12 @@ extern struct pid_namespace init_pid_ns;
  * or rcu_read_lock() held.
  *
  * find_pid_ns() finds the pid in the namespace specified
- * find_pid() find the pid by its global id, i.e. in the init namespace
  * find_vpid() finr the pid by its virtual id, i.e. in the current namespace
  *
- * see also find_task_by_pid() set in include/linux/sched.h
+ * see also find_task_by_vpid() set in include/linux/sched.h
  */
 extern struct pid *find_pid_ns(int nr, struct pid_namespace *ns);
 extern struct pid *find_vpid(int nr);
-extern struct pid *find_pid(int nr);
 
 /*
  * Lookup a PID in the hash table, and return with it's count elevated.
@@ -163,4 +161,13 @@ pid_t pid_vnr(struct pid *pid);
 			}						\
 	} while (0)
 
+#define do_each_pid_thread(pid, type, task)				\
+	do_each_pid_task(pid, type, task) {				\
+		struct task_struct *tg___ = task;			\
+		do {
+
+#define while_each_pid_thread(pid, type, task)				\
+		} while_each_thread(tg___, task);			\
+		task = tg___;						\
+	} while_each_pid_task(pid, type, task)
 #endif /* _LINUX_PID_H */

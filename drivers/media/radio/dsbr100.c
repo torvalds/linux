@@ -85,6 +85,7 @@
 #include <linux/input.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/usb.h>
 
 /*
@@ -444,14 +445,7 @@ static const struct file_operations usb_dsbr100_fops = {
 	.llseek		= no_llseek,
 };
 
-/* V4L2 interface */
-static struct video_device dsbr100_videodev_template =
-{
-	.owner		= THIS_MODULE,
-	.name		= "D-Link DSB-R 100",
-	.type		= VID_TYPE_TUNER,
-	.fops		= &usb_dsbr100_fops,
-	.release	= video_device_release,
+static const struct v4l2_ioctl_ops usb_dsbr100_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -464,6 +458,14 @@ static struct video_device dsbr100_videodev_template =
 	.vidioc_s_audio     = vidioc_s_audio,
 	.vidioc_g_input     = vidioc_g_input,
 	.vidioc_s_input     = vidioc_s_input,
+};
+
+/* V4L2 interface */
+static struct video_device dsbr100_videodev_template = {
+	.name		= "D-Link DSB-R 100",
+	.fops		= &usb_dsbr100_fops,
+	.ioctl_ops 	= &usb_dsbr100_ioctl_ops,
+	.release	= video_device_release,
 };
 
 /* check if the device is present and register with v4l and
@@ -491,7 +493,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN*FREQ_MUL;
 	video_set_drvdata(radio->videodev, radio);
-	if (video_register_device(radio->videodev, VFL_TYPE_RADIO,radio_nr)) {
+	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		warn("Could not register video device");
 		video_device_release(radio->videodev);
 		kfree(radio->transfer_buffer);

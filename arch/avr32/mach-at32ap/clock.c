@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/string.h>
 
+#include <mach/chip.h>
+
 #include "clock.h"
 
 static DEFINE_SPINLOCK(clk_lock);

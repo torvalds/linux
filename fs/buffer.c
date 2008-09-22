@@ -580,7 +580,7 @@ EXPORT_SYMBOL(mark_buffer_async_write);
 /*
  * The buffer's backing address_space's private_lock must be held
  */
-static inline void __remove_assoc_queue(struct buffer_head *bh)
+static void __remove_assoc_queue(struct buffer_head *bh)
 {
 	list_del_init(&bh->b_assoc_buffers);
 	WARN_ON(!bh->b_assoc_map);
@@ -706,7 +706,7 @@ static int __set_page_dirty(struct page *page,
 	if (TestSetPageDirty(page))
 		return 0;
 
-	write_lock_irq(&mapping->tree_lock);
+	spin_lock_irq(&mapping->tree_lock);
 	if (page->mapping) {	/* Race with truncate? */
 		WARN_ON_ONCE(warn && !PageUptodate(page));
 
@@ -719,7 +719,7 @@ static int __set_page_dirty(struct page *page,
 		radix_tree_tag_set(&mapping->page_tree,
 				page_index(page), PAGECACHE_TAG_DIRTY);
 	}
-	write_unlock_irq(&mapping->tree_lock);
+	spin_unlock_irq(&mapping->tree_lock);
 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 
 	return 1;
@@ -1214,8 +1214,7 @@ void __brelse(struct buffer_head * buf)
 		put_bh(buf);
 		return;
 	}
-	printk(KERN_ERR "VFS: brelse: Trying to free free buffer\n");
-	WARN_ON(1);
+	WARN(1, KERN_ERR "VFS: brelse: Trying to free free buffer\n");
 }
 
 /*
@@ -1721,7 +1720,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		 */
 		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
 			lock_buffer(bh);
-		} else if (test_set_buffer_locked(bh)) {
+		} else if (!trylock_buffer(bh)) {
 			redirty_page_for_writepage(wbc, page);
 			continue;
 		}
@@ -2095,6 +2094,52 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 EXPORT_SYMBOL(generic_write_end);
+
+/*
+ * block_is_partially_uptodate checks whether buffers within a page are
+ * uptodate or not.
+ *
+ * Returns true if all buffers which correspond to a file portion
+ * we want to read are uptodate.
+ */
+int block_is_partially_uptodate(struct page *page, read_descriptor_t *desc,
+					unsigned long from)
+{
+	struct inode *inode = page->mapping->host;
+	unsigned block_start, block_end, blocksize;
+	unsigned to;
+	struct buffer_head *bh, *head;
+	int ret = 1;
+
+	if (!page_has_buffers(page))
+		return 0;
+
+	blocksize = 1 << inode->i_blkbits;
+	to = min_t(unsigned, PAGE_CACHE_SIZE - from, desc->count);
+	to = from + to;
+	if (from < blocksize && to > PAGE_CACHE_SIZE - blocksize)
+		return 0;
+
+	head = page_buffers(page);
+	bh = head;
+	block_start = 0;
+	do {
+		block_end = block_start + blocksize;
+		if (block_end > from && block_start < to) {
+			if (!buffer_uptodate(bh)) {
+				ret = 0;
+				break;
+			}
+			if (block_end >= to)
+				break;
+		}
+		block_start = block_end;
+		bh = bh->b_this_page;
+	} while (bh != head);
+
+	return ret;
+}
+EXPORT_SYMBOL(block_is_partially_uptodate);
 
 /*
  * Generic "read page" function for block devices that have the normal
@@ -2881,14 +2926,17 @@ int submit_bh(int rw, struct buffer_head * bh)
 	BUG_ON(!buffer_mapped(bh));
 	BUG_ON(!bh->b_end_io);
 
-	if (buffer_ordered(bh) && (rw == WRITE))
-		rw = WRITE_BARRIER;
+	/*
+	 * Mask in barrier bit for a write (could be either a WRITE or a
+	 * WRITE_SYNC
+	 */
+	if (buffer_ordered(bh) && (rw & WRITE))
+		rw |= WRITE_BARRIER;
 
 	/*
-	 * Only clear out a write error when rewriting, should this
-	 * include WRITE_SYNC as well?
+	 * Only clear out a write error when rewriting
 	 */
-	if (test_set_buffer_req(bh) && (rw == WRITE || rw == WRITE_BARRIER))
+	if (test_set_buffer_req(bh) && (rw & WRITE))
 		clear_buffer_write_io_error(bh);
 
 	/*
@@ -2955,7 +3003,7 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 		if (rw == SWRITE || rw == SWRITE_SYNC)
 			lock_buffer(bh);
-		else if (test_set_buffer_locked(bh))
+		else if (!trylock_buffer(bh))
 			continue;
 
 		if (rw == WRITE || rw == SWRITE || rw == SWRITE_SYNC) {
@@ -3272,7 +3320,7 @@ int bh_submit_read(struct buffer_head *bh)
 EXPORT_SYMBOL(bh_submit_read);
 
 static void
-init_buffer_head(struct kmem_cache *cachep, void *data)
+init_buffer_head(void *data)
 {
 	struct buffer_head *bh = data;
 

@@ -126,7 +126,10 @@ EXPORT_SYMBOL_GPL(do_rw_taskfile);
 static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 stat = hwif->tp_ops->read_status(hwif);
+	u8 stat;
+
+	local_irq_enable_in_hardirq();
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, READY_STAT, BAD_STAT))
 		drive->mult_count = drive->mult_req;
@@ -146,6 +149,8 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	int retries = 5;
 	u8 stat;
+
+	local_irq_enable_in_hardirq();
 
 	while (1) {
 		stat = hwif->tp_ops->read_status(hwif);
@@ -170,7 +175,10 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 static ide_startstop_t recal_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 stat = hwif->tp_ops->read_status(hwif);
+	u8 stat;
+
+	local_irq_enable_in_hardirq();
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "recal_intr", stat);

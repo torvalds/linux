@@ -23,7 +23,7 @@
 /* Not Yet Implemented */
 #define MODULE_SUPPORTED_DEVICE(name)
 
-/* v850 toolchain uses a `_' prefix for all user symbols */
+/* some toolchains uses a `_' prefix for all user symbols */
 #ifndef MODULE_SYMBOL_PREFIX
 #define MODULE_SYMBOL_PREFIX ""
 #endif

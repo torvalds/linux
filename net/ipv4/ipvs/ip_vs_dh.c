@@ -233,6 +233,7 @@ static struct ip_vs_scheduler ip_vs_dh_scheduler =
 	.name =			"dh",
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list =		LIST_HEAD_INIT(ip_vs_dh_scheduler.n_list),
 	.init_service =		ip_vs_dh_init_svc,
 	.done_service =		ip_vs_dh_done_svc,
 	.update_service =	ip_vs_dh_update_svc,
@@ -242,7 +243,6 @@ static struct ip_vs_scheduler ip_vs_dh_scheduler =
 
 static int __init ip_vs_dh_init(void)
 {
-	INIT_LIST_HEAD(&ip_vs_dh_scheduler.n_list);
 	return register_ip_vs_scheduler(&ip_vs_dh_scheduler);
 }
 

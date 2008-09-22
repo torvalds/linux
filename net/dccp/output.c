@@ -53,8 +53,11 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 					  dccp_packet_hdr_len(dcb->dccpd_type);
 		int err, set_ack = 1;
 		u64 ackno = dp->dccps_gsr;
-
-		dccp_inc_seqno(&dp->dccps_gss);
+		/*
+		 * Increment GSS here already in case the option code needs it.
+		 * Update GSS for real only if option processing below succeeds.
+		 */
+		dcb->dccpd_seq = ADD48(dp->dccps_gss, 1);
 
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_DATA:
@@ -66,6 +69,9 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		case DCCP_PKT_REQUEST:
 			set_ack = 0;
+			/* Use ISS on the first (non-retransmitted) Request. */
+			if (icsk->icsk_retransmits == 0)
+				dcb->dccpd_seq = dp->dccps_iss;
 			/* fall through */
 
 		case DCCP_PKT_SYNC:
@@ -84,8 +90,6 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		dcb->dccpd_seq = dp->dccps_gss;
-
 		if (dccp_insert_options(sk, skb)) {
 			kfree_skb(skb);
 			return -EPROTO;
@@ -103,7 +107,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		/* XXX For now we're using only 48 bits sequence numbers */
 		dh->dccph_x	= 1;
 
-		dp->dccps_awh = dp->dccps_gss;
+		dccp_update_gss(sk, dcb->dccpd_seq);
 		dccp_hdr_set_seq(dh, dp->dccps_gss);
 		if (set_ack)
 			dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), ackno);
@@ -112,6 +116,11 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		case DCCP_PKT_REQUEST:
 			dccp_hdr_request(skb)->dccph_req_service =
 							dp->dccps_service;
+			/*
+			 * Limit Ack window to ISS <= P.ackno <= GSS, so that
+			 * only Responses to Requests we sent are considered.
+			 */
+			dp->dccps_awl = dp->dccps_iss;
 			break;
 		case DCCP_PKT_RESET:
 			dccp_hdr_reset(skb)->dccph_reset_code =
@@ -284,14 +293,26 @@ void dccp_write_xmit(struct sock *sk, int block)
 	}
 }
 
-int dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
+/**
+ * dccp_retransmit_skb  -  Retransmit Request, Close, or CloseReq packets
+ * There are only four retransmittable packet types in DCCP:
+ * - Request  in client-REQUEST  state (sec. 8.1.1),
+ * - CloseReq in server-CLOSEREQ state (sec. 8.3),
+ * - Close    in   node-CLOSING  state (sec. 8.3),
+ * - Acks in client-PARTOPEN state (sec. 8.1.5, handled by dccp_delack_timer()).
+ * This function expects sk->sk_send_head to contain the original skb.
+ */
+int dccp_retransmit_skb(struct sock *sk)
 {
+	WARN_ON(sk->sk_send_head == NULL);
+
 	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk) != 0)
 		return -EHOSTUNREACH; /* Routing failure or similar. */
 
-	return dccp_transmit_skb(sk, (skb_cloned(skb) ?
-				      pskb_copy(skb, GFP_ATOMIC):
-				      skb_clone(skb, GFP_ATOMIC)));
+	/* this count is used to distinguish original and retransmitted skb */
+	inet_csk(sk)->icsk_retransmits++;
+
+	return dccp_transmit_skb(sk, skb_clone(sk->sk_send_head, GFP_ATOMIC));
 }
 
 struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
@@ -437,19 +458,7 @@ static inline void dccp_connect_init(struct sock *sk)
 
 	dccp_sync_mss(sk, dst_mtu(dst));
 
-	/*
-	 * SWL and AWL are initially adjusted so that they are not less than
-	 * the initial Sequence Numbers received and sent, respectively:
-	 *	SWL := max(GSR + 1 - floor(W/4), ISR),
-	 *	AWL := max(GSS - W' + 1, ISS).
-	 * These adjustments MUST be applied only at the beginning of the
-	 * connection.
-	 */
-	dccp_update_gss(sk, dp->dccps_iss);
-	dccp_set_seqno(&dp->dccps_awl, max48(dp->dccps_awl, dp->dccps_iss));
-
-	/* S.GAR - greatest valid acknowledgement number received on a non-Sync;
-	 *         initialized to S.ISS (sec. 8.5)                            */
+	/* Initialise GAR as per 8.5; AWL/AWH are set in dccp_transmit_skb() */
 	dp->dccps_gar = dp->dccps_iss;
 
 	icsk->icsk_retransmits = 0;

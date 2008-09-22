@@ -19,6 +19,7 @@
 #include <linux/binfmts.h>
 #include <linux/compat.h>
 #include <linux/bitops.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
@@ -794,6 +795,8 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 		 * clear the TS_RESTORE_SIGMASK flag.
 		 */
 		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&

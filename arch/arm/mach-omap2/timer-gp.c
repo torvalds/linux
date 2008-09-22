@@ -34,7 +34,7 @@
 #include <linux/clockchips.h>
 
 #include <asm/mach/time.h>
-#include <asm/arch/dmtimer.h>
+#include <mach/dmtimer.h>
 
 static struct omap_dm_timer *gptimer;
 static struct clock_event_device clockevent_gpt;

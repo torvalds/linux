@@ -430,7 +430,7 @@ static struct file_system_type openprom_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static void op_inode_init_once(struct kmem_cache * cachep, void *data)
+static void op_inode_init_once(void *data)
 {
 	struct op_inode_info *oi = (struct op_inode_info *) data;
 

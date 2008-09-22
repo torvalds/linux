@@ -551,6 +551,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 			/* set timing information */
 			sdata->bss_conf.beacon_int = bss->beacon_int;
 			sdata->bss_conf.timestamp = bss->timestamp;
+			sdata->bss_conf.dtim_period = bss->dtim_period;
 
 			changed |= ieee80211_handle_bss_capability(sdata, bss);
 
@@ -606,7 +607,6 @@ void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 		      int encrypt)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_tx_info *info;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	skb->dev = sdata->local->mdev;
@@ -614,11 +614,8 @@ void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, 0);
 
-	info = IEEE80211_SKB_CB(skb);
-	memset(info, 0, sizeof(struct ieee80211_tx_info));
-	info->control.ifindex = sdata->dev->ifindex;
-	if (!encrypt)
-		info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
+	skb->iif = sdata->dev->ifindex;
+	skb->do_not_encrypt = !encrypt;
 
 	dev_queue_xmit(skb);
 }
@@ -777,7 +774,8 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
 						   IEEE80211_STYPE_REASSOC_REQ);
 		mgmt->u.reassoc_req.capab_info = cpu_to_le16(capab);
-		mgmt->u.reassoc_req.listen_interval = cpu_to_le16(1);
+		mgmt->u.reassoc_req.listen_interval =
+				cpu_to_le16(local->hw.conf.listen_interval);
 		memcpy(mgmt->u.reassoc_req.current_ap, ifsta->prev_bssid,
 		       ETH_ALEN);
 	} else {
@@ -785,7 +783,8 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
 						   IEEE80211_STYPE_ASSOC_REQ);
 		mgmt->u.assoc_req.capab_info = cpu_to_le16(capab);
-		mgmt->u.assoc_req.listen_interval = cpu_to_le16(1);
+		mgmt->u.reassoc_req.listen_interval =
+				cpu_to_le16(local->hw.conf.listen_interval);
 	}
 
 	/* SSID */
@@ -814,7 +813,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		}
 	}
 
-	if (count == 8) {
+	if (rates_len > count) {
 		pos = skb_put(skb, rates_len - count + 2);
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = rates_len - count;
@@ -2104,6 +2103,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			rcu_read_unlock();
 			return;
 		}
+		/* update new sta with its last rx activity */
+		sta->last_rx = jiffies;
 	}
 
 	/*
@@ -2692,6 +2693,16 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
 	bss->capability = le16_to_cpu(mgmt->u.beacon.capab_info);
 
+	if (elems->tim) {
+		struct ieee80211_tim_ie *tim_ie =
+			(struct ieee80211_tim_ie *)elems->tim;
+		bss->dtim_period = tim_ie->dtim_period;
+	}
+
+	/* set default value for buggy APs */
+	if (!elems->tim || bss->dtim_period == 0)
+		bss->dtim_period = 1;
+
 	bss->supp_rates_len = 0;
 	if (elems->supp_rates) {
 		clen = IEEE80211_MAX_SUPP_RATES - bss->supp_rates_len;
@@ -2857,7 +2868,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		       jiffies);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 		if (beacon_timestamp > rx_timestamp) {
-#ifndef CONFIG_MAC80211_IBSS_DEBUG
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: beacon TSF higher than "
 			       "local TSF - IBSS merge with BSSID %s\n",
 			       dev->name, print_mac(mac, mgmt->bssid));
@@ -3303,6 +3314,7 @@ void ieee80211_start_mesh(struct net_device *dev)
 	ifsta = &sdata->u.sta;
 	ifsta->state = IEEE80211_MESH_UP;
 	ieee80211_sta_timer((unsigned long)sdata);
+	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 }
 #endif
 
@@ -3653,11 +3665,21 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 		       "%s\n", print_mac(mac, bssid),
 		       print_mac(mac2, ifsta->bssid));
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
-	if (found && memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0 &&
-	    (bss = ieee80211_rx_bss_get(dev, bssid,
-					local->hw.conf.channel->center_freq,
-					ifsta->ssid, ifsta->ssid_len))) {
+
+	if (found && memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0) {
 		int ret;
+		int search_freq;
+
+		if (ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL)
+			search_freq = bss->freq;
+		else
+			search_freq = local->hw.conf.channel->center_freq;
+
+		bss = ieee80211_rx_bss_get(dev, bssid, search_freq,
+					   ifsta->ssid, ifsta->ssid_len);
+		if (!bss)
+			goto dont_join;
+
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %s"
 		       " based on configured SSID\n",
 		       dev->name, print_mac(mac, bssid));
@@ -3665,6 +3687,8 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 		ieee80211_rx_bss_put(local, bss);
 		return ret;
 	}
+
+dont_join:
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
@@ -3898,7 +3922,7 @@ done:
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
-		    (!ifsta->state == IEEE80211_IBSS_JOINED &&
+		    (!(ifsta->state == IEEE80211_IBSS_JOINED) &&
 		    !ieee80211_sta_active_ibss(dev)))
 			ieee80211_sta_find_ibss(dev, ifsta);
 	}

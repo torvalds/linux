@@ -34,7 +34,6 @@
  * @u: unions RB-tree or @list links
  * @u.rb: link in the per-volume RB-tree of &struct ubi_scan_leb objects
  * @u.list: link in one of the eraseblock lists
- * @leb_ver: logical eraseblock version (obsolete)
  *
  * One object of this type is allocated for each physical eraseblock during
  * scanning.
@@ -49,7 +48,6 @@ struct ubi_scan_leb {
 		struct rb_node rb;
 		struct list_head list;
 	} u;
-	uint32_t leb_ver;
 };
 
 /**
@@ -59,16 +57,16 @@ struct ubi_scan_leb {
  * @leb_count: number of logical eraseblocks in this volume
  * @vol_type: volume type
  * @used_ebs: number of used logical eraseblocks in this volume (only for
- * static volumes)
+ *            static volumes)
  * @last_data_size: amount of data in the last logical eraseblock of this
- * volume (always equivalent to the usable logical eraseblock size in case of
- * dynamic volumes)
+ *                  volume (always equivalent to the usable logical eraseblock
+ *                  size in case of dynamic volumes)
  * @data_pad: how many bytes at the end of logical eraseblocks of this volume
- * are not used (due to volume alignment)
+ *            are not used (due to volume alignment)
  * @compat: compatibility flags of this volume
  * @rb: link in the volume RB-tree
  * @root: root of the RB-tree containing all the eraseblock belonging to this
- * volume (&struct ubi_scan_leb objects)
+ *        volume (&struct ubi_scan_leb objects)
  *
  * One object of this type is allocated for each volume during scanning.
  */
@@ -92,8 +90,8 @@ struct ubi_scan_volume {
  * @free: list of free physical eraseblocks
  * @erase: list of physical eraseblocks which have to be erased
  * @alien: list of physical eraseblocks which should not be used by UBI (e.g.,
+ *         those belonging to "preserve"-compatible internal volumes)
  * @bad_peb_count: count of bad physical eraseblocks
- * those belonging to "preserve"-compatible internal volumes)
  * @vols_found: number of volumes found during scanning
  * @highest_vol_id: highest volume ID
  * @alien_peb_count: count of physical eraseblocks in the @alien list
@@ -106,8 +104,8 @@ struct ubi_scan_volume {
  * @ec_count: a temporary variable used when calculating @mean_ec
  *
  * This data structure contains the result of scanning and may be used by other
- * UBI units to build final UBI data structures, further error-recovery and so
- * on.
+ * UBI sub-systems to build final UBI data structures, further error-recovery
+ * and so on.
  */
 struct ubi_scan_info {
 	struct rb_root volumes;
@@ -132,8 +130,7 @@ struct ubi_device;
 struct ubi_vid_hdr;
 
 /*
- * ubi_scan_move_to_list - move a physical eraseblock from the volume tree to a
- * list.
+ * ubi_scan_move_to_list - move a PEB from the volume tree to a list.
  *
  * @sv: volume scanning information
  * @seb: scanning eraseblock infprmation

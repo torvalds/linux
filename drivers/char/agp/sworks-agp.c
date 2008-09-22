@@ -241,7 +241,8 @@ static void serverworks_tlbflush(struct agp_memory *temp)
 	while (readb(serverworks_private.registers+SVWRKS_POSTFLUSH) == 1) {
 		cpu_relax();
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR PFX "TLB post flush took more than 3 seconds\n");
+			dev_err(&serverworks_private.svrwrks_dev->dev,
+				"TLB post flush took more than 3 seconds\n");
 			break;
 		}
 	}
@@ -251,7 +252,8 @@ static void serverworks_tlbflush(struct agp_memory *temp)
 	while (readl(serverworks_private.registers+SVWRKS_DIRFLUSH) == 1) {
 		cpu_relax();
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR PFX "TLB Dir flush took more than 3 seconds\n");
+			dev_err(&serverworks_private.svrwrks_dev->dev,
+				"TLB Dir flush took more than 3 seconds\n");
 			break;
 		}
 	}
@@ -271,7 +273,7 @@ static int serverworks_configure(void)
 	temp = (temp & PCI_BASE_ADDRESS_MEM_MASK);
 	serverworks_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
 	if (!serverworks_private.registers) {
-		printk (KERN_ERR PFX "Unable to ioremap() memory.\n");
+		dev_err(&agp_bridge->dev->dev, "can't ioremap(%#x)\n", temp);
 		return -ENOMEM;
 	}
 
@@ -451,7 +453,7 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 
 	switch (pdev->device) {
 	case 0x0006:
-		printk (KERN_ERR PFX "ServerWorks CNB20HE is unsupported due to lack of documentation.\n");
+		dev_err(&pdev->dev, "ServerWorks CNB20HE is unsupported due to lack of documentation\n");
 		return -ENODEV;
 
 	case PCI_DEVICE_ID_SERVERWORKS_HE:
@@ -461,8 +463,8 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 
 	default:
 		if (cap_ptr)
-			printk(KERN_ERR PFX "Unsupported Serverworks chipset "
-					"(device id: %04x)\n", pdev->device);
+			dev_err(&pdev->dev, "unsupported Serverworks chipset "
+				"[%04x/%04x]\n", pdev->vendor, pdev->device);
 		return -ENODEV;
 	}
 
@@ -470,8 +472,7 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 	bridge_dev = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
 			PCI_DEVFN(0, 1));
 	if (!bridge_dev) {
-		printk(KERN_INFO PFX "Detected a Serverworks chipset "
-		       "but could not find the secondary device.\n");
+		dev_info(&pdev->dev, "can't find secondary device\n");
 		return -ENODEV;
 	}
 
@@ -482,8 +483,8 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 	if (temp & PCI_BASE_ADDRESS_MEM_TYPE_64) {
 		pci_read_config_dword(pdev, SVWRKS_APSIZE + 4, &temp2);
 		if (temp2 != 0) {
-			printk(KERN_INFO PFX "Detected 64 bit aperture address, "
-			       "but top bits are not zero.  Disabling agp\n");
+			dev_info(&pdev->dev, "64 bit aperture address, "
+				 "but top bits are not zero; disabling AGP\n");
 			return -ENODEV;
 		}
 		serverworks_private.mm_addr_ofs = 0x18;
@@ -495,8 +496,8 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 		pci_read_config_dword(pdev,
 				serverworks_private.mm_addr_ofs + 4, &temp2);
 		if (temp2 != 0) {
-			printk(KERN_INFO PFX "Detected 64 bit MMIO address, "
-			       "but top bits are not zero.  Disabling agp\n");
+			dev_info(&pdev->dev, "64 bit MMIO address, but top "
+				 "bits are not zero; disabling AGP\n");
 			return -ENODEV;
 		}
 	}

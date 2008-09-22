@@ -33,6 +33,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "triflex"
+
 static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -93,7 +95,7 @@ static const struct ide_port_ops triflex_port_ops = {
 };
 
 static const struct ide_port_info triflex_device __devinitdata = {
-	.name		= "TRIFLEX",
+	.name		= DRV_NAME,
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
 	.port_ops	= &triflex_port_ops,
 	.pio_mask	= ATA_PIO4,
@@ -104,7 +106,7 @@ static const struct ide_port_info triflex_device __devinitdata = {
 static int __devinit triflex_init_one(struct pci_dev *dev, 
 		const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &triflex_device);
+	return ide_pci_init_one(dev, &triflex_device, NULL);
 }
 
 static const struct pci_device_id triflex_pci_tbl[] = {
@@ -117,6 +119,7 @@ static struct pci_driver driver = {
 	.name		= "TRIFLEX_IDE",
 	.id_table	= triflex_pci_tbl,
 	.probe		= triflex_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init triflex_ide_init(void)
@@ -124,7 +127,13 @@ static int __init triflex_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit triflex_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(triflex_ide_init);
+module_exit(triflex_ide_exit);
 
 MODULE_AUTHOR("Torben Mathiasen");
 MODULE_DESCRIPTION("PCI driver module for Compaq Triflex IDE");

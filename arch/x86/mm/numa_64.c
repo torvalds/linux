@@ -23,8 +23,6 @@
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
-static bootmem_data_t plat_node_bdata[MAX_NUMNODES];
-
 struct memnode memnode;
 
 s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
@@ -198,7 +196,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 		nodedata_phys + pgdat_size - 1);
 
 	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
-	NODE_DATA(nodeid)->bdata = &plat_node_bdata[nodeid];
+	NODE_DATA(nodeid)->bdata = &bootmem_node_data[nodeid];
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
 	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
 

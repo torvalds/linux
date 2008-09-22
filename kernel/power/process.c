@@ -149,7 +149,7 @@ static int try_to_freeze_tasks(bool sig_only)
 	unsigned long end_time;
 	unsigned int todo;
 	struct timeval start, end;
-	s64 elapsed_csecs64;
+	u64 elapsed_csecs64;
 	unsigned int elapsed_csecs;
 
 	do_gettimeofday(&start);

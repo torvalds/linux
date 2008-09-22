@@ -192,6 +192,123 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_uninit);
 
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
+static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
+{
+	return container_of(mn, struct kvm, mmu_notifier);
+}
+
+static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
+					     struct mm_struct *mm,
+					     unsigned long address)
+{
+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+	int need_tlb_flush;
+
+	/*
+	 * When ->invalidate_page runs, the linux pte has been zapped
+	 * already but the page is still allocated until
+	 * ->invalidate_page returns. So if we increase the sequence
+	 * here the kvm page fault will notice if the spte can't be
+	 * established because the page is going to be freed. If
+	 * instead the kvm page fault establishes the spte before
+	 * ->invalidate_page runs, kvm_unmap_hva will release it
+	 * before returning.
+	 *
+	 * The sequence increase only need to be seen at spin_unlock
+	 * time, and not at spin_lock time.
+	 *
+	 * Increasing the sequence after the spin_unlock would be
+	 * unsafe because the kvm page fault could then establish the
+	 * pte after kvm_unmap_hva returned, without noticing the page
+	 * is going to be freed.
+	 */
+	spin_lock(&kvm->mmu_lock);
+	kvm->mmu_notifier_seq++;
+	need_tlb_flush = kvm_unmap_hva(kvm, address);
+	spin_unlock(&kvm->mmu_lock);
+
+	/* we've to flush the tlb before the pages can be freed */
+	if (need_tlb_flush)
+		kvm_flush_remote_tlbs(kvm);
+
+}
+
+static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+						    struct mm_struct *mm,
+						    unsigned long start,
+						    unsigned long end)
+{
+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+	int need_tlb_flush = 0;
+
+	spin_lock(&kvm->mmu_lock);
+	/*
+	 * The count increase must become visible at unlock time as no
+	 * spte can be established without taking the mmu_lock and
+	 * count is also read inside the mmu_lock critical section.
+	 */
+	kvm->mmu_notifier_count++;
+	for (; start < end; start += PAGE_SIZE)
+		need_tlb_flush |= kvm_unmap_hva(kvm, start);
+	spin_unlock(&kvm->mmu_lock);
+
+	/* we've to flush the tlb before the pages can be freed */
+	if (need_tlb_flush)
+		kvm_flush_remote_tlbs(kvm);
+}
+
+static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
+						  struct mm_struct *mm,
+						  unsigned long start,
+						  unsigned long end)
+{
+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+
+	spin_lock(&kvm->mmu_lock);
+	/*
+	 * This sequence increase will notify the kvm page fault that
+	 * the page that is going to be mapped in the spte could have
+	 * been freed.
+	 */
+	kvm->mmu_notifier_seq++;
+	/*
+	 * The above sequence increase must be visible before the
+	 * below count decrease but both values are read by the kvm
+	 * page fault under mmu_lock spinlock so we don't need to add
+	 * a smb_wmb() here in between the two.
+	 */
+	kvm->mmu_notifier_count--;
+	spin_unlock(&kvm->mmu_lock);
+
+	BUG_ON(kvm->mmu_notifier_count < 0);
+}
+
+static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
+					      struct mm_struct *mm,
+					      unsigned long address)
+{
+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+	int young;
+
+	spin_lock(&kvm->mmu_lock);
+	young = kvm_age_hva(kvm, address);
+	spin_unlock(&kvm->mmu_lock);
+
+	if (young)
+		kvm_flush_remote_tlbs(kvm);
+
+	return young;
+}
+
+static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
+	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
+	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
+	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
+	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
+};
+#endif /* CONFIG_MMU_NOTIFIER && KVM_ARCH_WANT_MMU_NOTIFIER */
+
 static struct kvm *kvm_create_vm(void)
 {
 	struct kvm *kvm = kvm_arch_create_vm();
@@ -210,6 +327,21 @@ static struct kvm *kvm_create_vm(void)
 	}
 	kvm->coalesced_mmio_ring =
 			(struct kvm_coalesced_mmio_ring *)page_address(page);
+#endif
+
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
+	{
+		int err;
+		kvm->mmu_notifier.ops = &kvm_mmu_notifier_ops;
+		err = mmu_notifier_register(&kvm->mmu_notifier, current->mm);
+		if (err) {
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+			put_page(page);
+#endif
+			kfree(kvm);
+			return ERR_PTR(err);
+		}
+	}
 #endif
 
 	kvm->mm = current->mm;
@@ -271,6 +403,9 @@ static void kvm_destroy_vm(struct kvm *kvm)
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	if (kvm->coalesced_mmio_ring != NULL)
 		free_page((unsigned long)kvm->coalesced_mmio_ring);
+#endif
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
+	mmu_notifier_unregister(&kvm->mmu_notifier, kvm->mm);
 #endif
 	kvm_arch_destroy_vm(kvm);
 	mmdrop(mm);
@@ -375,7 +510,15 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		memset(new.rmap, 0, npages * sizeof(*new.rmap));
 
 		new.user_alloc = user_alloc;
-		new.userspace_addr = mem->userspace_addr;
+		/*
+		 * hva_to_rmmap() serialzies with the mmu_lock and to be
+		 * safe it has to ignore memslots with !user_alloc &&
+		 * !userspace_addr.
+		 */
+		if (user_alloc)
+			new.userspace_addr = mem->userspace_addr;
+		else
+			new.userspace_addr = 0;
 	}
 	if (npages && !new.lpage_info) {
 		int largepages = npages / KVM_PAGES_PER_HPAGE;
@@ -408,17 +551,21 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	}
 #endif /* not defined CONFIG_S390 */
 
-	if (mem->slot >= kvm->nmemslots)
-		kvm->nmemslots = mem->slot + 1;
-
 	if (!npages)
 		kvm_arch_flush_shadow(kvm);
 
+	spin_lock(&kvm->mmu_lock);
+	if (mem->slot >= kvm->nmemslots)
+		kvm->nmemslots = mem->slot + 1;
+
 	*memslot = new;
+	spin_unlock(&kvm->mmu_lock);
 
 	r = kvm_arch_set_memory_region(kvm, mem, old, user_alloc);
 	if (r) {
+		spin_lock(&kvm->mmu_lock);
 		*memslot = old;
+		spin_unlock(&kvm->mmu_lock);
 		goto out_free;
 	}
 
@@ -902,7 +1049,7 @@ static const struct file_operations kvm_vcpu_fops = {
  */
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
-	int fd = anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu);
+	int fd = anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu, 0);
 	if (fd < 0)
 		kvm_put_kvm(vcpu->kvm);
 	return fd;
@@ -1261,7 +1408,7 @@ static int kvm_dev_ioctl_create_vm(void)
 	kvm = kvm_create_vm();
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
-	fd = anon_inode_getfd("kvm-vm", &kvm_vm_fops, kvm);
+	fd = anon_inode_getfd("kvm-vm", &kvm_vm_fops, kvm, 0);
 	if (fd < 0)
 		kvm_put_kvm(kvm);
 

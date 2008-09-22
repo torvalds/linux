@@ -543,12 +543,8 @@ struct flush_icache_range_args {
 	unsigned long end;
 };
 
-static inline void local_r4k_flush_icache_range(void *args)
+static inline void local_r4k_flush_icache_range(unsigned long start, unsigned long end)
 {
-	struct flush_icache_range_args *fir_args = args;
-	unsigned long start = fir_args->start;
-	unsigned long end = fir_args->end;
-
 	if (!cpu_has_ic_fills_f_dc) {
 		if (end - start >= dcache_size) {
 			r4k_blast_dcache();
@@ -564,6 +560,15 @@ static inline void local_r4k_flush_icache_range(void *args)
 		protected_blast_icache_range(start, end);
 }
 
+static inline void local_r4k_flush_icache_range_ipi(void *args)
+{
+	struct flush_icache_range_args *fir_args = args;
+	unsigned long start = fir_args->start;
+	unsigned long end = fir_args->end;
+
+	local_r4k_flush_icache_range(start, end);
+}
+
 static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 {
 	struct flush_icache_range_args args;
@@ -571,7 +576,7 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	args.start = start;
 	args.end = end;
 
-	r4k_on_each_cpu(local_r4k_flush_icache_range, &args, 1);
+	r4k_on_each_cpu(local_r4k_flush_icache_range_ipi, &args, 1);
 	instruction_hazard();
 }
 
@@ -1375,6 +1380,7 @@ void __cpuinit r4k_cache_init(void)
 	local_flush_data_cache_page	= local_r4k_flush_data_cache_page;
 	flush_data_cache_page	= r4k_flush_data_cache_page;
 	flush_icache_range	= r4k_flush_icache_range;
+	local_flush_icache_range	= local_r4k_flush_icache_range;
 
 #if defined(CONFIG_DMA_NONCOHERENT)
 	if (coherentio) {

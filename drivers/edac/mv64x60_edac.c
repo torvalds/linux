@@ -71,6 +71,35 @@ static irqreturn_t mv64x60_pci_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/*
+ * Bit 0 of MV64x60_PCIx_ERR_MASK does not exist on the 64360 and because of
+ * errata FEr-#11 and FEr-##16 for the 64460, it should be 0 on that chip as
+ * well.  IOW, don't set bit 0.
+ */
+
+/* Erratum FEr PCI-#16: clear bit 0 of PCI SERRn Mask reg. */
+static int __init mv64x60_pci_fixup(struct platform_device *pdev)
+{
+	struct resource *r;
+	void __iomem *pci_serr;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!r) {
+		printk(KERN_ERR "%s: Unable to get resource for "
+		       "PCI err regs\n", __func__);
+		return -ENOENT;
+	}
+
+	pci_serr = ioremap(r->start, r->end - r->start + 1);
+	if (!pci_serr)
+		return -ENOMEM;
+
+	out_le32(pci_serr, in_le32(pci_serr) & ~0x1);
+	iounmap(pci_serr);
+
+	return 0;
+}
+
 static int __devinit mv64x60_pci_err_probe(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci;
@@ -125,6 +154,12 @@ static int __devinit mv64x60_pci_err_probe(struct platform_device *pdev)
 	if (!pdata->pci_vbase) {
 		printk(KERN_ERR "%s: Unable to setup PCI err regs\n", __func__);
 		res = -ENOMEM;
+		goto err;
+	}
+
+	res = mv64x60_pci_fixup(pdev);
+	if (res < 0) {
+		printk(KERN_ERR "%s: PCI fixup failed\n", __func__);
 		goto err;
 	}
 
@@ -612,7 +647,7 @@ static void get_total_mem(struct mv64x60_mc_pdata *pdata)
 	if (!np)
 		return;
 
-	reg = get_property(np, "reg", NULL);
+	reg = of_get_property(np, "reg", NULL);
 
 	pdata->total_mem = reg[1];
 }

@@ -758,7 +758,7 @@ static inline dma_addr_t i2o_dma_map_single(struct i2o_controller *c, void *ptr,
 	}
 
 	dma_addr = dma_map_single(&c->pdev->dev, ptr, size, direction);
-	if (!dma_mapping_error(dma_addr)) {
+	if (!dma_mapping_error(&c->pdev->dev, dma_addr)) {
 #ifdef CONFIG_I2O_EXT_ADAPTEC_DMA64
 		if ((sizeof(dma_addr_t) > 4) && c->pae_support) {
 			*mptr++ = cpu_to_le32(0x7C020002);

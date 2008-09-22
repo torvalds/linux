@@ -23,6 +23,9 @@
 struct cpu_spec* cur_cpu_spec = NULL;
 EXPORT_SYMBOL(cur_cpu_spec);
 
+/* The platform string corresponding to the real PVR */
+const char *powerpc_base_platform;
+
 /* NOTE:
  * Unlike ppc32, ppc64 will only call this once for the boot CPU, it's
  * the responsibility of the appropriate CPU save/restore functions to
@@ -1652,6 +1655,14 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 			} else
 				*t = *s;
 			*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
+
+			/*
+			 * Set the base platform string once; assumes
+			 * we're called with real pvr first.
+			 */
+			if (*PTRRELOC(&powerpc_base_platform) == NULL)
+				*PTRRELOC(&powerpc_base_platform) = t->platform;
+
 #if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
 			/* ppc64 and booke expect identify_cpu to also call
 			 * setup_cpu for that processor. I will consolidate

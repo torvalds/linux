@@ -34,7 +34,6 @@ extern int copy_to_user(void __user *to, const void *from, int n);
 
 extern int __do_copy_to_user(void *to, const void *from, int n,
 			     void **fault_addr, jmp_buf **fault_catcher);
-extern void __do_copy(void *to, const void *from, int n);
 
 /*
  * strncpy_from_user: - Copy a NUL terminated string from userspace.

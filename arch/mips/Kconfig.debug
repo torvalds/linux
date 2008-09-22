@@ -34,28 +34,6 @@ config SMTC_IDLE_HOOK_DEBUG
 	  arch/mips/kernel/smtc.c.  This debugging option result in significant
 	  overhead so should be disabled in production kernels.
 
-config KGDB
-	bool "Remote GDB kernel debugging"
-	depends on DEBUG_KERNEL && SYS_SUPPORTS_KGDB
-	select DEBUG_INFO
-	help
-	  If you say Y here, it will be possible to remotely debug the MIPS
-	  kernel using gdb. This enlarges your kernel image disk size by
-	  several megabytes and requires a machine with more than 16 MB,
-	  better 32 MB RAM to avoid excessive linking time. This is only
-	  useful for kernel hackers. If unsure, say N.
-
-config SYS_SUPPORTS_KGDB
-	bool
-
-config GDB_CONSOLE
-	bool "Console output to GDB"
-	depends on KGDB
-	help
-	  If you are using GDB for remote debugging over a serial port and
-	  would like kernel messages to be formatted into GDB $O packets so
-	  that GDB prints them as program output, say 'Y'.
-
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"
 	depends on SIBYTE_SB1xxx_SOC

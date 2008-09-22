@@ -286,7 +286,7 @@ static ssize_t rtas_flash_read(struct file *file, char __user *buf,
 }
 
 /* constructor for flash_block_cache */
-void rtas_block_ctor(struct kmem_cache *cache, void *ptr)
+void rtas_block_ctor(void *ptr)
 {
 	memset(ptr, 0, RTAS_BLK_SIZE);
 }

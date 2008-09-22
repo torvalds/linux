@@ -20,6 +20,11 @@
 #include <linux/module.h>
 #include <linux/ide.h>
 
+/* FIXME: convert m32r to use ide_platform host driver */
+#ifdef CONFIG_M32R
+#include <asm/m32r.h>
+#endif
+
 #define DRV_NAME	"ide_generic"
 
 static int probe_mask = 0x03;
@@ -80,6 +85,21 @@ static int __init ide_generic_sysfs_init(void)
 	return 0;
 }
 
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_MAPPI2) \
+	|| defined(CONFIG_PLAT_OPSPUT)
+static const u16 legacy_bases[] = { 0x1f0 };
+static const int legacy_irqs[]  = { PLD_IRQ_CFIREQ };
+#elif defined(CONFIG_PLAT_MAPPI3)
+static const u16 legacy_bases[] = { 0x1f0, 0x170 };
+static const int legacy_irqs[]  = { PLD_IRQ_CFIREQ, PLD_IRQ_IDEIREQ };
+#elif defined(CONFIG_ALPHA)
+static const u16 legacy_bases[] = { 0x1f0, 0x170, 0x1e8, 0x168 };
+static const int legacy_irqs[]  = { 14, 15, 11, 10 };
+#else
+static const u16 legacy_bases[] = { 0x1f0, 0x170, 0x1e8, 0x168, 0x1e0, 0x160 };
+static const int legacy_irqs[]  = { 14, 15, 11, 10, 8, 12 };
+#endif
+
 static int __init ide_generic_init(void)
 {
 	hw_regs_t hw[MAX_HWIFS], *hws[MAX_HWIFS];
@@ -87,11 +107,17 @@ static int __init ide_generic_init(void)
 	unsigned long io_addr;
 	int i, rc;
 
+#ifdef CONFIG_MIPS
+	if (!ide_probe_legacy())
+		return -ENODEV;
+#endif
 	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
 			 "parameter for probing all legacy ISA IDE ports\n");
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		io_addr = ide_default_io_base(i);
+	memset(hws, 0, sizeof(hw_regs_t *) * MAX_HWIFS);
+
+	for (i = 0; i < ARRAY_SIZE(legacy_bases); i++) {
+		io_addr = legacy_bases[i];
 
 		hws[i] = NULL;
 
@@ -113,7 +139,11 @@ static int __init ide_generic_init(void)
 
 			memset(&hw[i], 0, sizeof(hw[i]));
 			ide_std_init_ports(&hw[i], io_addr, io_addr + 0x206);
-			hw[i].irq = ide_default_irq(io_addr);
+#ifdef CONFIG_IA64
+			hw[i].irq = isa_irq_to_vector(legacy_irqs[i]);
+#else
+			hw[i].irq = legacy_irqs[i];
+#endif
 			hw[i].chipset = ide_generic;
 
 			hws[i] = &hw[i];

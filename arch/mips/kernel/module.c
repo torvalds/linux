@@ -22,6 +22,7 @@
 
 #include <linux/moduleloader.h>
 #include <linux/elf.h>
+#include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/fs.h>

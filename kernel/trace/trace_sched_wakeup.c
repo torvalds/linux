@@ -26,7 +26,8 @@ static struct task_struct	*wakeup_task;
 static int			wakeup_cpu;
 static unsigned			wakeup_prio = -1;
 
-static DEFINE_SPINLOCK(wakeup_lock);
+static raw_spinlock_t wakeup_lock =
+	(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 
 static void __wakeup_reset(struct trace_array *tr);
 
@@ -56,7 +57,8 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	if (unlikely(disabled != 1))
 		goto out;
 
-	spin_lock_irqsave(&wakeup_lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&wakeup_lock);
 
 	if (unlikely(!wakeup_task))
 		goto unlock;
@@ -71,7 +73,8 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	trace_function(tr, data, ip, parent_ip, flags);
 
  unlock:
-	spin_unlock_irqrestore(&wakeup_lock, flags);
+	__raw_spin_unlock(&wakeup_lock);
+	local_irq_restore(flags);
 
  out:
 	atomic_dec(&data->disabled);
@@ -145,7 +148,8 @@ wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
 	if (likely(disabled != 1))
 		goto out;
 
-	spin_lock_irqsave(&wakeup_lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&wakeup_lock);
 
 	/* We could race with grabbing wakeup_lock */
 	if (unlikely(!tracer_enabled || next != wakeup_task))
@@ -174,7 +178,8 @@ wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
 
 out_unlock:
 	__wakeup_reset(tr);
-	spin_unlock_irqrestore(&wakeup_lock, flags);
+	__raw_spin_unlock(&wakeup_lock);
+	local_irq_restore(flags);
 out:
 	atomic_dec(&tr->data[cpu]->disabled);
 }
@@ -209,8 +214,6 @@ static void __wakeup_reset(struct trace_array *tr)
 	struct trace_array_cpu *data;
 	int cpu;
 
-	assert_spin_locked(&wakeup_lock);
-
 	for_each_possible_cpu(cpu) {
 		data = tr->data[cpu];
 		tracing_reset(data);
@@ -229,9 +232,11 @@ static void wakeup_reset(struct trace_array *tr)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wakeup_lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&wakeup_lock);
 	__wakeup_reset(tr);
-	spin_unlock_irqrestore(&wakeup_lock, flags);
+	__raw_spin_unlock(&wakeup_lock);
+	local_irq_restore(flags);
 }
 
 static void
@@ -252,7 +257,7 @@ wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 		goto out;
 
 	/* interrupts should be off from try_to_wake_up */
-	spin_lock(&wakeup_lock);
+	__raw_spin_lock(&wakeup_lock);
 
 	/* check for races. */
 	if (!tracer_enabled || p->prio >= wakeup_prio)
@@ -274,7 +279,7 @@ wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 		       CALLER_ADDR1, CALLER_ADDR2, flags);
 
 out_locked:
-	spin_unlock(&wakeup_lock);
+	__raw_spin_unlock(&wakeup_lock);
 out:
 	atomic_dec(&tr->data[cpu]->disabled);
 }

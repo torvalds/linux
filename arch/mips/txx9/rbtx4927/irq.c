@@ -27,85 +27,86 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 /*
-IRQ  Device
-00   RBTX4927-ISA/00
-01   RBTX4927-ISA/01 PS2/Keyboard
-02   RBTX4927-ISA/02 Cascade RBTX4927-ISA (irqs 8-15)
-03   RBTX4927-ISA/03
-04   RBTX4927-ISA/04
-05   RBTX4927-ISA/05
-06   RBTX4927-ISA/06
-07   RBTX4927-ISA/07
-08   RBTX4927-ISA/08
-09   RBTX4927-ISA/09
-10   RBTX4927-ISA/10
-11   RBTX4927-ISA/11
-12   RBTX4927-ISA/12 PS2/Mouse (not supported at this time)
-13   RBTX4927-ISA/13
-14   RBTX4927-ISA/14 IDE
-15   RBTX4927-ISA/15
-
-16   TX4927-CP0/00 Software 0
-17   TX4927-CP0/01 Software 1
-18   TX4927-CP0/02 Cascade TX4927-CP0
-19   TX4927-CP0/03 Multiplexed -- do not use
-20   TX4927-CP0/04 Multiplexed -- do not use
-21   TX4927-CP0/05 Multiplexed -- do not use
-22   TX4927-CP0/06 Multiplexed -- do not use
-23   TX4927-CP0/07 CPU TIMER
-
-24   TX4927-PIC/00
-25   TX4927-PIC/01
-26   TX4927-PIC/02
-27   TX4927-PIC/03 Cascade RBTX4927-IOC
-28   TX4927-PIC/04
-29   TX4927-PIC/05 RBTX4927 RTL-8019AS ethernet
-30   TX4927-PIC/06
-31   TX4927-PIC/07
-32   TX4927-PIC/08 TX4927 SerialIO Channel 0
-33   TX4927-PIC/09 TX4927 SerialIO Channel 1
-34   TX4927-PIC/10
-35   TX4927-PIC/11
-36   TX4927-PIC/12
-37   TX4927-PIC/13
-38   TX4927-PIC/14
-39   TX4927-PIC/15
-40   TX4927-PIC/16 TX4927 PCI PCI-C
-41   TX4927-PIC/17
-42   TX4927-PIC/18
-43   TX4927-PIC/19
-44   TX4927-PIC/20
-45   TX4927-PIC/21
-46   TX4927-PIC/22 TX4927 PCI PCI-ERR
-47   TX4927-PIC/23 TX4927 PCI PCI-PMA (not used)
-48   TX4927-PIC/24
-49   TX4927-PIC/25
-50   TX4927-PIC/26
-51   TX4927-PIC/27
-52   TX4927-PIC/28
-53   TX4927-PIC/29
-54   TX4927-PIC/30
-55   TX4927-PIC/31
-
-56 RBTX4927-IOC/00 FPCIB0 PCI-D PJ4/A PJ5/B SB/C PJ6/D PJ7/A (SouthBridge/NotUsed)        [RTL-8139=PJ4]
-57 RBTX4927-IOC/01 FPCIB0 PCI-C PJ4/D PJ5/A SB/B PJ6/C PJ7/D (SouthBridge/NotUsed)        [RTL-8139=PJ5]
-58 RBTX4927-IOC/02 FPCIB0 PCI-B PJ4/C PJ5/D SB/A PJ6/B PJ7/C (SouthBridge/IDE/pin=1,INTR) [RTL-8139=NotSupported]
-59 RBTX4927-IOC/03 FPCIB0 PCI-A PJ4/B PJ5/C SB/D PJ6/A PJ7/B (SouthBridge/USB/pin=4)      [RTL-8139=PJ6]
-60 RBTX4927-IOC/04
-61 RBTX4927-IOC/05
-62 RBTX4927-IOC/06
-63 RBTX4927-IOC/07
-
-NOTES:
-SouthBridge/INTR is mapped to SouthBridge/A=PCI-B/#58
-SouthBridge/ISA/pin=0 no pci irq used by this device
-SouthBridge/IDE/pin=1 no pci irq used by this device, using INTR via ISA IRQ14
-SouthBridge/USB/pin=4 using pci irq SouthBridge/D=PCI-A=#59
-SouthBridge/PMC/pin=0 no pci irq used by this device
-SuperIO/PS2/Keyboard, using INTR via ISA IRQ1
-SuperIO/PS2/Mouse, using INTR via ISA IRQ12 (mouse not currently supported)
-JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthBridge, JP4, JP5, JP6
-*/
+ * I8259A_IRQ_BASE+00
+ * I8259A_IRQ_BASE+01 PS2/Keyboard
+ * I8259A_IRQ_BASE+02 Cascade RBTX4927-ISA (irqs 8-15)
+ * I8259A_IRQ_BASE+03
+ * I8259A_IRQ_BASE+04
+ * I8259A_IRQ_BASE+05
+ * I8259A_IRQ_BASE+06
+ * I8259A_IRQ_BASE+07
+ * I8259A_IRQ_BASE+08
+ * I8259A_IRQ_BASE+09
+ * I8259A_IRQ_BASE+10
+ * I8259A_IRQ_BASE+11
+ * I8259A_IRQ_BASE+12 PS2/Mouse (not supported at this time)
+ * I8259A_IRQ_BASE+13
+ * I8259A_IRQ_BASE+14 IDE
+ * I8259A_IRQ_BASE+15
+ *
+ * MIPS_CPU_IRQ_BASE+00 Software 0
+ * MIPS_CPU_IRQ_BASE+01 Software 1
+ * MIPS_CPU_IRQ_BASE+02 Cascade TX4927-CP0
+ * MIPS_CPU_IRQ_BASE+03 Multiplexed -- do not use
+ * MIPS_CPU_IRQ_BASE+04 Multiplexed -- do not use
+ * MIPS_CPU_IRQ_BASE+05 Multiplexed -- do not use
+ * MIPS_CPU_IRQ_BASE+06 Multiplexed -- do not use
+ * MIPS_CPU_IRQ_BASE+07 CPU TIMER
+ *
+ * TXX9_IRQ_BASE+00
+ * TXX9_IRQ_BASE+01
+ * TXX9_IRQ_BASE+02
+ * TXX9_IRQ_BASE+03 Cascade RBTX4927-IOC
+ * TXX9_IRQ_BASE+04
+ * TXX9_IRQ_BASE+05 RBTX4927 RTL-8019AS ethernet
+ * TXX9_IRQ_BASE+06
+ * TXX9_IRQ_BASE+07
+ * TXX9_IRQ_BASE+08 TX4927 SerialIO Channel 0
+ * TXX9_IRQ_BASE+09 TX4927 SerialIO Channel 1
+ * TXX9_IRQ_BASE+10
+ * TXX9_IRQ_BASE+11
+ * TXX9_IRQ_BASE+12
+ * TXX9_IRQ_BASE+13
+ * TXX9_IRQ_BASE+14
+ * TXX9_IRQ_BASE+15
+ * TXX9_IRQ_BASE+16 TX4927 PCI PCI-C
+ * TXX9_IRQ_BASE+17
+ * TXX9_IRQ_BASE+18
+ * TXX9_IRQ_BASE+19
+ * TXX9_IRQ_BASE+20
+ * TXX9_IRQ_BASE+21
+ * TXX9_IRQ_BASE+22 TX4927 PCI PCI-ERR
+ * TXX9_IRQ_BASE+23 TX4927 PCI PCI-PMA (not used)
+ * TXX9_IRQ_BASE+24
+ * TXX9_IRQ_BASE+25
+ * TXX9_IRQ_BASE+26
+ * TXX9_IRQ_BASE+27
+ * TXX9_IRQ_BASE+28
+ * TXX9_IRQ_BASE+29
+ * TXX9_IRQ_BASE+30
+ * TXX9_IRQ_BASE+31
+ *
+ * RBTX4927_IRQ_IOC+00 FPCIB0 PCI-D (SouthBridge)
+ * RBTX4927_IRQ_IOC+01 FPCIB0 PCI-C (SouthBridge)
+ * RBTX4927_IRQ_IOC+02 FPCIB0 PCI-B (SouthBridge/IDE/pin=1,INTR)
+ * RBTX4927_IRQ_IOC+03 FPCIB0 PCI-A (SouthBridge/USB/pin=4)
+ * RBTX4927_IRQ_IOC+04
+ * RBTX4927_IRQ_IOC+05
+ * RBTX4927_IRQ_IOC+06
+ * RBTX4927_IRQ_IOC+07
+ *
+ * NOTES:
+ * SouthBridge/INTR is mapped to SouthBridge/A=PCI-B/#58
+ * SouthBridge/ISA/pin=0 no pci irq used by this device
+ * SouthBridge/IDE/pin=1 no pci irq used by this device, using INTR
+ * via ISA IRQ14
+ * SouthBridge/USB/pin=4 using pci irq SouthBridge/D=PCI-A=#59
+ * SouthBridge/PMC/pin=0 no pci irq used by this device
+ * SuperIO/PS2/Keyboard, using INTR via ISA IRQ1
+ * SuperIO/PS2/Mouse, using INTR via ISA IRQ12 (mouse not currently supported)
+ * JP7 is not bus master -- do NOT use -- only 4 pci bus master's
+ * allowed -- SouthBridge, JP4, JP5, JP6
+ */
 
 #include <linux/init.h>
 #include <linux/types.h>
@@ -134,7 +135,7 @@ static int toshiba_rbtx4927_irq_nested(int sw_irq)
 	level3 = readb(rbtx4927_imstat_addr) & 0x1f;
 	if (level3)
 		sw_irq = RBTX4927_IRQ_IOC + fls(level3) - 1;
-	return (sw_irq);
+	return sw_irq;
 }
 
 static void __init toshiba_rbtx4927_irq_ioc_init(void)

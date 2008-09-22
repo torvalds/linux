@@ -77,7 +77,7 @@ memory that is preset in system at this time.  System administrators may want
 to put this command in one of the local rc init files.  This will enable the
 kernel to request huge pages early in the boot process (when the possibility
 of getting physical contiguous pages is still very high). In either
-case, adminstrators will want to verify the number of hugepages actually
+case, administrators will want to verify the number of hugepages actually
 allocated by checking the sysctl or meminfo.
 
 /proc/sys/vm/nr_overcommit_hugepages indicates how large the pool of
@@ -94,6 +94,29 @@ huge pages even if it would exceed the overcommit value.  As long as
 this condition holds, however, no more surplus huge pages will be
 allowed on the system until one of the two sysctls are increased
 sufficiently, or the surplus huge pages go out of use and are freed.
+
+With support for multiple hugepage pools at run-time available, much of
+the hugepage userspace interface has been duplicated in sysfs. The above
+information applies to the default hugepage size (which will be
+controlled by the proc interfaces for backwards compatibility). The root
+hugepage control directory is
+
+	/sys/kernel/mm/hugepages
+
+For each hugepage size supported by the running kernel, a subdirectory
+will exist, of the form
+
+	hugepages-${size}kB
+
+Inside each of these directories, the same set of files will exist:
+
+	nr_hugepages
+	nr_overcommit_hugepages
+	free_hugepages
+	resv_hugepages
+	surplus_hugepages
+
+which function as described above for the default hugepage-sized case.
 
 If the user applications are going to request hugepages using mmap system
 call, then it is required that system administrator mount a file system of

@@ -23,14 +23,14 @@
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <asm/arch/common.h>
-#include <asm/arch/board-mx31ads.h>
+#include <mach/common.h>
+#include <mach/board-mx31ads.h>
 
 /*!
  * @file mx31ads.c

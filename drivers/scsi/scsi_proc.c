@@ -114,7 +114,7 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
 		sht->proc_dir = proc_mkdir(sht->proc_name, proc_scsi);
         	if (!sht->proc_dir)
 			printk(KERN_ERR "%s: proc_mkdir failed for %s\n",
-			       __FUNCTION__, sht->proc_name);
+			       __func__, sht->proc_name);
 		else
 			sht->proc_dir->owner = sht->module;
 	}
@@ -157,7 +157,7 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 			sht->proc_dir, proc_scsi_read, shost);
 	if (!p) {
 		printk(KERN_ERR "%s: Failed to register host %d in"
-		       "%s\n", __FUNCTION__, shost->host_no,
+		       "%s\n", __func__, shost->host_no,
 		       sht->proc_name);
 		return;
 	} 

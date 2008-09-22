@@ -47,10 +47,7 @@ MODULE_LICENSE("GPL");
 /*      Default parameters for the link
  */
 #define FST_TX_QUEUE_LEN        100	/* At 8Mbps a longer queue length is
-					 * useful, the syncppp module forces
-					 * this down assuming a slower line I
-					 * guess.
-					 */
+					 * useful */
 #define FST_TXQ_DEPTH           16	/* This one is for the buffering
 					 * of frames on the way down to the card
 					 * so that we can keep the card busy

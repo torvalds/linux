@@ -176,7 +176,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	high = kallsyms_num_syms;
 
 	while (high - low > 1) {
-		mid = (low + high) / 2;
+		mid = low + (high - low) / 2;
 		if (kallsyms_addresses[mid] <= addr)
 			low = mid;
 		else

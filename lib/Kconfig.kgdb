@@ -4,14 +4,17 @@ config HAVE_ARCH_KGDB
 
 menuconfig KGDB
 	bool "KGDB: kernel debugging with remote gdb"
-	select FRAME_POINTER
 	depends on HAVE_ARCH_KGDB
 	depends on DEBUG_KERNEL && EXPERIMENTAL
 	help
 	  If you say Y here, it will be possible to remotely debug the
-	  kernel using gdb.  Documentation of kernel debugger is available
-	  at http://kgdb.sourceforge.net as well as in DocBook form
-	  in Documentation/DocBook/.  If unsure, say N.
+	  kernel using gdb.  It is recommended but not required, that
+	  you also turn on the kernel config option
+	  CONFIG_FRAME_POINTER to aid in producing more reliable stack
+	  backtraces in the external debugger.  Documentation of
+	  kernel debugger is available at http://kgdb.sourceforge.net
+	  as well as in DocBook form in Documentation/DocBook/.  If
+	  unsure, say N.
 
 if KGDB
 

@@ -80,11 +80,11 @@ static int __init cf_init_default(void)
 }
 
 #if defined(CONFIG_SH_SOLUTION_ENGINE)
-#include <asm/se.h>
+#include <mach-se/mach/se.h>
 #elif defined(CONFIG_SH_7722_SOLUTION_ENGINE)
-#include <asm/se7722.h>
+#include <mach-se/mach/se7722.h>
 #elif defined(CONFIG_SH_7721_SOLUTION_ENGINE)
-#include <asm/se7721.h>
+#include <mach-se/mach/se7721.h>
 #endif
 
 /*
@@ -157,7 +157,7 @@ static int __init cf_init_se(void)
 }
 #endif
 
-int __init cf_init(void)
+static int __init cf_init(void)
 {
 	if (mach_is_se() || mach_is_7722se() || mach_is_7721se())
 		return cf_init_se();

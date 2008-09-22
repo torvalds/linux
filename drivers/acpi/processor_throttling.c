@@ -827,7 +827,6 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 static int acpi_processor_get_throttling(struct acpi_processor *pr)
 {
 	cpumask_t saved_mask;
-	cpumask_of_cpu_ptr_declare(new_mask);
 	int ret;
 
 	if (!pr)
@@ -839,8 +838,7 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	 * Migrate task to the cpu pointed by pr.
 	 */
 	saved_mask = current->cpus_allowed;
-	cpumask_of_cpu_ptr_next(new_mask, pr->id);
-	set_cpus_allowed_ptr(current, new_mask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(pr->id));
 	ret = pr->throttling.acpi_processor_get_throttling(pr);
 	/* restore the previous state */
 	set_cpus_allowed_ptr(current, &saved_mask);
@@ -989,7 +987,6 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 {
 	cpumask_t saved_mask;
-	cpumask_of_cpu_ptr_declare(new_mask);
 	int ret = 0;
 	unsigned int i;
 	struct acpi_processor *match_pr;
@@ -1028,8 +1025,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	 * it can be called only for the cpu pointed by pr.
 	 */
 	if (p_throttling->shared_type == DOMAIN_COORD_TYPE_SW_ANY) {
-		cpumask_of_cpu_ptr_next(new_mask, pr->id);
-		set_cpus_allowed_ptr(current, new_mask);
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(pr->id));
 		ret = p_throttling->acpi_processor_set_throttling(pr,
 						t_state.target_state);
 	} else {
@@ -1060,8 +1056,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 				continue;
 			}
 			t_state.cpu = i;
-			cpumask_of_cpu_ptr_next(new_mask, i);
-			set_cpus_allowed_ptr(current, new_mask);
+			set_cpus_allowed_ptr(current, &cpumask_of_cpu(i));
 			ret = match_pr->throttling.
 				acpi_processor_set_throttling(
 				match_pr, t_state.target_state);

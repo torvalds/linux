@@ -1,0 +1,45 @@
+# User exported sparc header files
+include include/asm-generic/Kbuild.asm
+
+header-y += ipcbuf_32.h
+header-y += ipcbuf_64.h
+header-y += posix_types_32.h
+header-y += posix_types_64.h
+header-y += ptrace_32.h
+header-y += ptrace_64.h
+header-y += sigcontext_32.h
+header-y += sigcontext_64.h
+header-y += siginfo_32.h
+header-y += siginfo_64.h
+header-y += signal_32.h
+header-y += signal_64.h
+header-y += stat_32.h
+header-y += stat_64.h
+header-y += statfs_32.h
+header-y += statfs_64.h
+header-y += unistd_32.h
+header-y += unistd_64.h
+
+header-y += apc.h
+header-y += asi.h
+header-y += bpp.h
+header-y += display7seg.h
+header-y += envctrl.h
+header-y += fbio.h
+header-y += jsflash.h
+header-y += openprom.h
+header-y += openprom_32.h
+header-y += openprom_64.h
+header-y += openpromio.h
+header-y += perfctr.h
+header-y += psrcompat.h
+header-y += psr.h
+header-y += pstate.h
+header-y += reg.h
+header-y += reg_32.h
+header-y += reg_64.h
+header-y += traps.h
+header-y += uctx.h
+header-y += utrap.h
+header-y += vfc_ioctls.h
+header-y += watchdog.h
