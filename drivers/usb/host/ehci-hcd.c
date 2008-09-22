@@ -1021,11 +1021,6 @@ MODULE_LICENSE ("GPL");
 #define	PS3_SYSTEM_BUS_DRIVER	ps3_ehci_driver
 #endif
 
-#if defined(CONFIG_440EPX) && !defined(CONFIG_PPC_MERGE)
-#include "ehci-ppc-soc.c"
-#define	PLATFORM_DRIVER		ehci_ppc_soc_driver
-#endif
-
 #ifdef CONFIG_USB_EHCI_HCD_PPC_OF
 #include "ehci-ppc-of.c"
 #define OF_PLATFORM_DRIVER	ehci_hcd_ppc_of_driver
