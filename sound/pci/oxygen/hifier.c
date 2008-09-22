@@ -94,6 +94,11 @@ static void hifier_cleanup(struct oxygen *chip)
 {
 }
 
+static void hifier_resume(struct oxygen *chip)
+{
+	hifier_registers_init(chip);
+}
+
 static void set_ak4396_params(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params)
 {
@@ -150,7 +155,7 @@ static const struct oxygen_model model_hifier = {
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
 	.cleanup = hifier_cleanup,
-	.resume = hifier_registers_init,
+	.resume = hifier_resume,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_cs5340_params,
 	.update_dac_volume = update_ak4396_volume,

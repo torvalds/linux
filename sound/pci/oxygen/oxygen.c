@@ -204,6 +204,11 @@ static void generic_resume(struct oxygen *chip)
 	wm8785_registers_init(chip);
 }
 
+static void meridian_resume(struct oxygen *chip)
+{
+	ak4396_registers_init(chip);
+}
+
 static void set_ak4396_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
@@ -290,7 +295,7 @@ static int generic_probe(struct oxygen *chip, unsigned long driver_data)
 {
 	if (driver_data == MODEL_MERIDIAN) {
 		chip->model.init = meridian_init;
-		chip->model.resume = ak4396_registers_init;
+		chip->model.resume = meridian_resume;
 		chip->model.set_adc_params = set_ak5385_params;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF |

@@ -349,18 +349,33 @@ static void xonar_d1_init(struct oxygen *chip)
 	snd_component_add(chip->card, "CS5361");
 }
 
-static void xonar_cleanup(struct oxygen *chip)
+static void xonar_disable_output(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
 
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
 }
 
+static void xonar_d2_cleanup(struct oxygen *chip)
+{
+	xonar_disable_output(chip);
+}
+
 static void xonar_d1_cleanup(struct oxygen *chip)
 {
-	xonar_cleanup(chip);
+	xonar_disable_output(chip);
 	cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
 	oxygen_clear_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
+}
+
+static void xonar_d2_suspend(struct oxygen *chip)
+{
+	xonar_d2_cleanup(chip);
+}
+
+static void xonar_d1_suspend(struct oxygen *chip)
+{
+	xonar_d1_cleanup(chip);
 }
 
 static void xonar_d2_resume(struct oxygen *chip)
@@ -557,8 +572,8 @@ static const struct oxygen_model model_xonar_d2 = {
 	.init = xonar_d2_init,
 	.control_filter = xonar_d2_control_filter,
 	.mixer_init = xonar_d2_mixer_init,
-	.cleanup = xonar_cleanup,
-	.suspend = xonar_cleanup,
+	.cleanup = xonar_d2_cleanup,
+	.suspend = xonar_d2_suspend,
 	.resume = xonar_d2_resume,
 	.set_dac_params = set_pcm1796_params,
 	.set_adc_params = set_cs53x1_params,
@@ -591,7 +606,7 @@ static const struct oxygen_model model_xonar_d1 = {
 	.control_filter = xonar_d1_control_filter,
 	.mixer_init = xonar_d1_mixer_init,
 	.cleanup = xonar_d1_cleanup,
-	.suspend = xonar_d1_cleanup,
+	.suspend = xonar_d1_suspend,
 	.resume = xonar_d1_resume,
 	.set_dac_params = set_cs43xx_params,
 	.set_adc_params = set_cs53x1_params,
