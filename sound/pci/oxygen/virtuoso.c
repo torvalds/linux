@@ -696,7 +696,7 @@ static int __devinit xonar_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 	err = oxygen_pci_probe(pci, index[dev], id[dev],
-			       &xonar_models[pci_id->driver_data]);
+			       &xonar_models[pci_id->driver_data], 0);
 	if (err >= 0)
 		++dev;
 	return err;

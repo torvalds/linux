@@ -424,7 +424,8 @@ static void oxygen_card_free(struct snd_card *card)
 }
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
-		     const struct oxygen_model *model)
+		     const struct oxygen_model *model,
+		     unsigned long driver_data)
 {
 	struct snd_card *card;
 	struct oxygen *chip;
@@ -470,6 +471,11 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
+	if (chip->model.probe) {
+		err = chip->model.probe(chip, driver_data);
+		if (err < 0)
+			goto err_card;
+	}
 	oxygen_init(chip);
 	chip->model.init(chip);
 

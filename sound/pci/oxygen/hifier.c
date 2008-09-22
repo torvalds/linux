@@ -180,7 +180,7 @@ static int __devinit hifier_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_hifier);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_hifier, 0);
 	if (err >= 0)
 		++dev;
 	return err;

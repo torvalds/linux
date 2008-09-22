@@ -354,7 +354,8 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 	}
 	is_meridian = pci_id->driver_data;
 	err = oxygen_pci_probe(pci, index[dev], id[dev],
-			       is_meridian ? &model_meridian : &model_generic);
+			       is_meridian ? &model_meridian : &model_generic,
+			       0);
 	if (err >= 0)
 		++dev;
 	return err;
