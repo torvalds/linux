@@ -1498,18 +1498,50 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
-		/* RA TA DA SA */
-		memset(hdr.addr1, 0, ETH_ALEN);
-		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
-		memcpy(hdr.addr3, skb->data, ETH_ALEN);
-		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 		if (!sdata->u.mesh.mshcfg.dot11MeshTTL) {
 			/* Do not send frames with mesh_ttl == 0 */
 			sdata->u.mesh.mshstats.dropped_frames_ttl++;
 			ret = 0;
 			goto fail;
 		}
-		meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
+		memset(&mesh_hdr, 0, sizeof(mesh_hdr));
+
+		if (compare_ether_addr(dev->dev_addr,
+					  skb->data + ETH_ALEN) == 0) {
+			/* RA TA DA SA */
+			memset(hdr.addr1, 0, ETH_ALEN);
+			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
+		} else {
+			/* packet from other interface */
+			struct mesh_path *mppath;
+
+			memset(hdr.addr1, 0, ETH_ALEN);
+			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr4, dev->dev_addr, ETH_ALEN);
+
+			if (is_multicast_ether_addr(skb->data))
+				memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			else {
+				rcu_read_lock();
+				mppath = mpp_path_lookup(skb->data, sdata);
+				if (mppath)
+					memcpy(hdr.addr3, mppath->mpp, ETH_ALEN);
+				else
+					memset(hdr.addr3, 0xff, ETH_ALEN);
+				rcu_read_unlock();
+			}
+
+			mesh_hdr.flags |= MESH_FLAGS_AE_A5_A6;
+			mesh_hdr.ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
+			put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &mesh_hdr.seqnum);
+			memcpy(mesh_hdr.eaddr1, skb->data, ETH_ALEN);
+			memcpy(mesh_hdr.eaddr2, skb->data + ETH_ALEN, ETH_ALEN);
+			sdata->u.mesh.mesh_seqnum++;
+			meshhdrlen = 18;
+		}
 		hdrlen = 30;
 		break;
 #endif

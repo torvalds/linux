@@ -471,6 +471,11 @@ struct ieee80211s_hdr {
 	u8 eaddr3[6];
 } __attribute__ ((packed));
 
+/* Mesh flags */
+#define MESH_FLAGS_AE_A4 	0x1
+#define MESH_FLAGS_AE_A5_A6	0x2
+#define MESH_FLAGS_PS_DEEP	0x4
+
 /**
  * struct ieee80211_quiet_ie
  *

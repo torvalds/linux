@@ -71,6 +71,7 @@ enum mesh_path_flags {
  */
 struct mesh_path {
 	u8 dst[ETH_ALEN];
+	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *next_hop;
 	struct timer_list timer;
@@ -226,6 +227,9 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata);
 struct mesh_path *mesh_path_lookup(u8 *dst,
 		struct ieee80211_sub_if_data *sdata);
+struct mesh_path *mpp_path_lookup(u8 *dst,
+				  struct ieee80211_sub_if_data *sdata);
+int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata);
 struct mesh_path *mesh_path_lookup_by_idx(int idx,
 		struct ieee80211_sub_if_data *sdata);
 void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop);
