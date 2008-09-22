@@ -2028,7 +2028,7 @@ static struct clk gclk4 = {
 	.index		= 4,
 };
 
-struct clk *at32_clock_list[] = {
+static __initdata struct clk *init_clocks[] = {
 	&osc32k,
 	&osc0,
 	&osc1,
@@ -2092,7 +2092,6 @@ struct clk *at32_clock_list[] = {
 	&gclk3,
 	&gclk4,
 };
-unsigned int at32_nr_clocks = ARRAY_SIZE(at32_clock_list);
 
 void __init setup_platform(void)
 {
@@ -2123,14 +2122,19 @@ void __init setup_platform(void)
 	genclk_init_parent(&abdac0_sample_clk);
 
 	/*
-	 * Turn on all clocks that have at least one user already, and
-	 * turn off everything else. We only do this for module
-	 * clocks, and even though it isn't particularly pretty to
-	 * check the address of the mode function, it should do the
-	 * trick...
+	 * Build initial dynamic clock list by registering all clocks
+	 * from the array.
+	 * At the same time, turn on all clocks that have at least one
+	 * user already, and turn off everything else. We only do this
+	 * for module clocks, and even though it isn't particularly
+	 * pretty to  check the address of the mode function, it should
+	 * do the trick...
 	 */
-	for (i = 0; i < ARRAY_SIZE(at32_clock_list); i++) {
-		struct clk *clk = at32_clock_list[i];
+	for (i = 0; i < ARRAY_SIZE(init_clocks); i++) {
+		struct clk *clk = init_clocks[i];
+
+		/* first, register clock */
+		at32_clk_register(clk);
 
 		if (clk->users == 0)
 			continue;
