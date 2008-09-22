@@ -660,6 +660,22 @@ static inline __u32 skb_queue_len(const struct sk_buff_head *list_)
 	return list_->qlen;
 }
 
+/**
+ *	__skb_queue_head_init - initialize non-spinlock portions of sk_buff_head
+ *	@list: queue to initialize
+ *
+ *	This initializes only the list and queue length aspects of
+ *	an sk_buff_head object.  This allows to initialize the list
+ *	aspects of an sk_buff_head without reinitializing things like
+ *	the spinlock.  It can also be used for on-stack sk_buff_head
+ *	objects where the spinlock is known to not be used.
+ */
+static inline void __skb_queue_head_init(struct sk_buff_head *list)
+{
+	list->prev = list->next = (struct sk_buff *)list;
+	list->qlen = 0;
+}
+
 /*
  * This function creates a split out lock class for each invocation;
  * this is needed for now since a whole lot of users of the skb-queue
@@ -671,8 +687,7 @@ static inline __u32 skb_queue_len(const struct sk_buff_head *list_)
 static inline void skb_queue_head_init(struct sk_buff_head *list)
 {
 	spin_lock_init(&list->lock);
-	list->prev = list->next = (struct sk_buff *)list;
-	list->qlen = 0;
+	__skb_queue_head_init(list);
 }
 
 static inline void skb_queue_head_init_class(struct sk_buff_head *list,
@@ -697,6 +712,83 @@ static inline void __skb_insert(struct sk_buff *newsk,
 	newsk->prev = prev;
 	next->prev  = prev->next = newsk;
 	list->qlen++;
+}
+
+static inline void __skb_queue_splice(const struct sk_buff_head *list,
+				      struct sk_buff *prev,
+				      struct sk_buff *next)
+{
+	struct sk_buff *first = list->next;
+	struct sk_buff *last = list->prev;
+
+	first->prev = prev;
+	prev->next = first;
+
+	last->next = next;
+	next->prev = last;
+}
+
+/**
+ *	skb_queue_splice - join two skb lists, this is designed for stacks
+ *	@list: the new list to add
+ *	@head: the place to add it in the first list
+ */
+static inline void skb_queue_splice(const struct sk_buff_head *list,
+				    struct sk_buff_head *head)
+{
+	if (!skb_queue_empty(list)) {
+		__skb_queue_splice(list, (struct sk_buff *) head, head->next);
+		head->qlen = list->qlen;
+	}
+}
+
+/**
+ *	skb_queue_splice - join two skb lists and reinitialise the emptied list
+ *	@list: the new list to add
+ *	@head: the place to add it in the first list
+ *
+ *	The list at @list is reinitialised
+ */
+static inline void skb_queue_splice_init(struct sk_buff_head *list,
+					 struct sk_buff_head *head)
+{
+	if (!skb_queue_empty(list)) {
+		__skb_queue_splice(list, (struct sk_buff *) head, head->next);
+		head->qlen = list->qlen;
+		__skb_queue_head_init(list);
+	}
+}
+
+/**
+ *	skb_queue_splice_tail - join two skb lists, each list being a queue
+ *	@list: the new list to add
+ *	@head: the place to add it in the first list
+ */
+static inline void skb_queue_splice_tail(const struct sk_buff_head *list,
+					 struct sk_buff_head *head)
+{
+	if (!skb_queue_empty(list)) {
+		__skb_queue_splice(list, head->prev, (struct sk_buff *) head);
+		head->qlen = list->qlen;
+	}
+}
+
+/**
+ *	skb_queue_splice_tail - join two skb lists and reinitialise the emptied list
+ *	@list: the new list to add
+ *	@head: the place to add it in the first list
+ *
+ *	Each of the lists is a queue.
+ *	The list at @list is reinitialised
+ */
+static inline void skb_queue_splice_tail_init(struct sk_buff_head *list,
+					      struct sk_buff_head *head)
+{
+	if (!skb_queue_empty(list)) {
+		__skb_queue_splice(list, head->prev, (struct sk_buff *) head);
+		head->qlen = list->qlen;
+		__skb_queue_head_init(list);
+	}
 }
 
 /**
