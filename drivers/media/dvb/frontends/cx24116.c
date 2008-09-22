@@ -67,6 +67,13 @@ static int debug = 0;
 #define CX24116_REG_UCB8    (0xca)
 #define CX24116_REG_CLKDIV  (0xf3)
 #define CX24116_REG_RATEDIV (0xf9)
+#define CX24116_REG_FECSTATUS (0x9c)    /* configured fec (not tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
+
+/* FECSTATUS bits */
+#define CX24116_FEC_FECMASK   (0x1f)    /* mask to determine configured fec (not tuned) or actual fec (tuned) */
+#define CX24116_FEC_DVBS      (0x20)    /* Select DVB-S demodulator, else DVB-S2 */
+#define CX24116_FEC_UNKNOWN   (0x40)    /* Unknown/unused */
+#define CX24116_FEC_PILOT     (0x80)    /* Pilot mode requested when tuning else always reset when tuned */
 
 /* arg buffer size */
 #define CX24116_ARGLEN (0x1e)
