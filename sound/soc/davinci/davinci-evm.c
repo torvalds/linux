@@ -136,6 +136,7 @@ static struct snd_soc_machine snd_soc_machine_evm = {
 
 /* evm audio private data */
 static struct aic3x_setup_data evm_aic3x_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 
