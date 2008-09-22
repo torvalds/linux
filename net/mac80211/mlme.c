@@ -1452,6 +1452,8 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	ifsta->state = IEEE80211_STA_MLME_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
 
+	ieee80211_led_assoc(local, true);
+
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, bss->bssid, ETH_ALEN);
 	wireless_send_event(sdata->dev, SIOCGIWAP, &wrqu, NULL);
