@@ -735,7 +735,8 @@ static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 		"%s detected: BIOS may corrupt low RAM, working it around.\n",
 		d->ident);
 
-	reserve_early_overlap_ok(0x0, 0x10000, "BIOS quirk");
+	e820_update_range(0, 0x10000, E820_RAM, E820_RESERVED);
+	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
 	return 0;
 }
@@ -783,8 +784,6 @@ void __init setup_arch(char **cmdline_p)
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
-
-	dmi_check_system(bad_bios_dmi_table);
 
 	early_cpu_init();
 	early_ioremap_init();
@@ -880,6 +879,10 @@ void __init setup_arch(char **cmdline_p)
 
 	finish_e820_parsing();
 
+	dmi_scan_machine();
+
+	dmi_check_system(bad_bios_dmi_table);
+
 #ifdef CONFIG_X86_32
 	probe_roms();
 #endif
@@ -966,8 +969,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_64
 	vsmp_init();
 #endif
-
-	dmi_scan_machine();
 
 	io_delay_init();
 
