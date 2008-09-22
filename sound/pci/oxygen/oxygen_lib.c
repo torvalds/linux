@@ -273,7 +273,7 @@ static void oxygen_init(struct oxygen *chip)
 		       OXYGEN_RATE_48000 | chip->model.dac_i2s_format |
 		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
-	if (chip->model.pcm_dev_cfg & CAPTURE_0_FROM_I2S_1)
+	if (chip->model.device_config & CAPTURE_0_FROM_I2S_1)
 		oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 			       OXYGEN_RATE_48000 | chip->model.adc_i2s_format |
 			       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
@@ -281,8 +281,8 @@ static void oxygen_init(struct oxygen *chip)
 	else
 		oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 			       OXYGEN_I2S_MASTER | OXYGEN_I2S_MUTE_MCLK);
-	if (chip->model.pcm_dev_cfg & (CAPTURE_0_FROM_I2S_2 |
-				       CAPTURE_2_FROM_I2S_2))
+	if (chip->model.device_config & (CAPTURE_0_FROM_I2S_2 |
+					 CAPTURE_2_FROM_I2S_2))
 		oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
 			       OXYGEN_RATE_48000 | chip->model.adc_i2s_format |
 			       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
@@ -295,7 +295,7 @@ static void oxygen_init(struct oxygen *chip)
 	oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
 			    OXYGEN_SPDIF_OUT_ENABLE |
 			    OXYGEN_SPDIF_LOOPBACK);
-	if (chip->model.pcm_dev_cfg & CAPTURE_1_FROM_SPDIF)
+	if (chip->model.device_config & CAPTURE_1_FROM_SPDIF)
 		oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
 				      OXYGEN_SPDIF_SENSE_MASK |
 				      OXYGEN_SPDIF_LOCK_MASK |
@@ -514,7 +514,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	oxygen_proc_init(chip);
 
 	spin_lock_irq(&chip->reg_lock);
-	if (chip->model.pcm_dev_cfg & CAPTURE_1_FROM_SPDIF)
+	if (chip->model.device_config & CAPTURE_1_FROM_SPDIF)
 		chip->interrupt_mask |= OXYGEN_INT_SPDIF_IN_DETECT;
 	if (chip->has_ac97_0 | chip->has_ac97_1)
 		chip->interrupt_mask |= OXYGEN_INT_AC97;

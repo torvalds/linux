@@ -292,10 +292,10 @@ static int generic_probe(struct oxygen *chip, unsigned long driver_data)
 		chip->model.init = meridian_init;
 		chip->model.resume = ak4396_registers_init;
 		chip->model.set_adc_params = set_ak5385_params;
-		chip->model.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-					  PLAYBACK_1_TO_SPDIF |
-					  CAPTURE_0_FROM_I2S_2 |
-					  CAPTURE_1_FROM_SPDIF;
+		chip->model.device_config = PLAYBACK_0_TO_I2S |
+					    PLAYBACK_1_TO_SPDIF |
+					    CAPTURE_0_FROM_I2S_2 |
+					    CAPTURE_1_FROM_SPDIF;
 		chip->model.misc_flags = OXYGEN_MISC_MIDI;
 	}
 	return 0;
@@ -316,12 +316,12 @@ static const struct oxygen_model model_generic = {
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct generic_data),
-	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-		       PLAYBACK_1_TO_SPDIF |
-		       PLAYBACK_2_TO_AC97_1 |
-		       CAPTURE_0_FROM_I2S_1 |
-		       CAPTURE_1_FROM_SPDIF |
-		       CAPTURE_2_FROM_AC97_1,
+	.device_config = PLAYBACK_0_TO_I2S |
+			 PLAYBACK_1_TO_SPDIF |
+			 PLAYBACK_2_TO_AC97_1 |
+			 CAPTURE_0_FROM_I2S_1 |
+			 CAPTURE_1_FROM_SPDIF |
+			 CAPTURE_2_FROM_AC97_1,
 	.dac_channels = 8,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,

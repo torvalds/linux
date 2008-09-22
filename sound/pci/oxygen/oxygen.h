@@ -78,7 +78,7 @@ struct oxygen_model {
 			    unsigned int reg, unsigned int mute);
 	const unsigned int *dac_tlv;
 	size_t model_data_size;
-	unsigned int pcm_dev_cfg;
+	unsigned int device_config;
 	u8 dac_channels;
 	u8 dac_volume_min;
 	u8 dac_volume_max;

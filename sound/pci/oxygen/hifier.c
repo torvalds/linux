@@ -157,9 +157,9 @@ static const struct oxygen_model model_hifier = {
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct hifier_data),
-	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-		       PLAYBACK_1_TO_SPDIF |
-		       CAPTURE_0_FROM_I2S_1,
+	.device_config = PLAYBACK_0_TO_I2S |
+			 PLAYBACK_1_TO_SPDIF |
+			 CAPTURE_0_FROM_I2S_1,
 	.dac_channels = 2,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,
