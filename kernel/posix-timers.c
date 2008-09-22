@@ -510,10 +510,6 @@ sys_timer_create(const clockid_t which_clock,
 			error = -EFAULT;
 			goto out;
 		}
-		new_timer->it_sigev_notify = event.sigev_notify;
-		new_timer->it_sigev_signo = event.sigev_signo;
-		new_timer->it_sigev_value = event.sigev_value;
-
 		rcu_read_lock();
 		process = good_sigevent(&event);
 		if (process)
@@ -524,17 +520,18 @@ sys_timer_create(const clockid_t which_clock,
 			goto out;
 		}
 	} else {
-		new_timer->it_sigev_notify = SIGEV_SIGNAL;
-		new_timer->it_sigev_signo = SIGALRM;
-		new_timer->it_sigev_value.sival_int = new_timer->it_id;
+		event.sigev_notify = SIGEV_SIGNAL;
+		event.sigev_signo = SIGALRM;
+		event.sigev_value.sival_int = new_timer->it_id;
 		process = current->group_leader;
 		get_task_struct(process);
 	}
 
-	new_timer->sigq->info.si_code  = SI_TIMER;
+	new_timer->it_sigev_notify     = event.sigev_notify;
+	new_timer->sigq->info.si_signo = event.sigev_signo;
+	new_timer->sigq->info.si_value = event.sigev_value;
 	new_timer->sigq->info.si_tid   = new_timer->it_id;
-	new_timer->sigq->info.si_signo = new_timer->it_sigev_signo;
-	new_timer->sigq->info.si_value = new_timer->it_sigev_value;
+	new_timer->sigq->info.si_code  = SI_TIMER;
 
 	spin_lock_irq(&current->sighand->siglock);
 	new_timer->it_process = process;
