@@ -1411,10 +1411,17 @@ static void ath_pci_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_softc *sc = hw->priv;
+	enum ath9k_int status;
 
-	if (pdev->irq)
+	if (pdev->irq) {
+		ath9k_hw_set_interrupts(sc->sc_ah, 0);
+		/* clear the ISR */
+		ath9k_hw_getisr(sc->sc_ah, &status);
+		sc->sc_invalid = 1;
 		free_irq(pdev->irq, sc);
+	}
 	ath_detach(sc);
+
 	pci_iounmap(pdev, sc->mem);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);

@@ -294,8 +294,6 @@ static int ath_stop(struct ath_softc *sc)
 	 * hardware is gone (invalid).
 	 */
 
-	if (!sc->sc_invalid)
-		ath9k_hw_set_interrupts(ah, 0);
 	ath_draintxq(sc, false);
 	if (!sc->sc_invalid) {
 		ath_stoprecv(sc);
@@ -1336,6 +1334,8 @@ void ath_deinit(struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s\n", __func__);
 
+	tasklet_kill(&sc->intr_tq);
+	tasklet_kill(&sc->bcon_tasklet);
 	ath_stop(sc);
 	if (!sc->sc_invalid)
 		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
