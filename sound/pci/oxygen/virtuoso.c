@@ -124,6 +124,7 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 #define GPIO_DX_FRONT_PANEL	0x0002
 #define GPIO_DX_INPUT_ROUTE	0x0100
 
+#define I2C_DEVICE_PCM1796(i)	(0x98 + ((i) << 1))	/* 10011, ADx=i, /W=0 */
 #define I2C_DEVICE_CS4398	0x9e	/* 10011, AD1=1, AD0=1, /W=0 */
 #define I2C_DEVICE_CS4362A	0x30	/* 001100, AD0=0, /W=0 */
 
@@ -142,8 +143,8 @@ struct xonar_data {
 
 static void xonar_gpio_changed(struct oxygen *chip);
 
-static void pcm1796_write(struct oxygen *chip, unsigned int codec,
-			  u8 reg, u8 value)
+static inline void pcm1796_write_spi(struct oxygen *chip, unsigned int codec,
+				     u8 reg, u8 value)
 {
 	/* maps ALSA channel pair number to SPI output */
 	static const u8 codec_map[4] = {
@@ -155,6 +156,22 @@ static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 			 (codec_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
 			 (reg << 8) | value);
+}
+
+static inline void pcm1796_write_i2c(struct oxygen *chip, unsigned int codec,
+				     u8 reg, u8 value)
+{
+	oxygen_write_i2c(chip, I2C_DEVICE_PCM1796(codec), reg, value);
+}
+
+static void pcm1796_write(struct oxygen *chip, unsigned int codec,
+			  u8 reg, u8 value)
+{
+	if ((chip->model.function_flags & OXYGEN_FUNCTION_2WIRE_SPI_MASK) ==
+	    OXYGEN_FUNCTION_SPI)
+		pcm1796_write_spi(chip, codec, reg, value);
+	else
+		pcm1796_write_i2c(chip, codec, reg, value);
 }
 
 static void cs4398_write(struct oxygen *chip, u8 reg, u8 value)
