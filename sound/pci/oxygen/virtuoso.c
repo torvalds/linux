@@ -128,6 +128,7 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 #define I2C_DEVICE_CS4362A	0x30	/* 001100, AD0=0, /W=0 */
 
 struct xonar_data {
+	unsigned int model;
 	unsigned int anti_pop_delay;
 	u16 output_enable_bit;
 	u8 ext_power_reg;
@@ -138,6 +139,8 @@ struct xonar_data {
 	u8 cs4398_fm;
 	u8 cs4362a_fm;
 };
+
+static void xonar_gpio_changed(struct oxygen *chip);
 
 static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 			  u8 reg, u8 value)
@@ -180,6 +183,7 @@ static void xonar_common_init(struct oxygen *chip)
 		oxygen_set_bits8(chip, data->ext_power_int_reg,
 				 data->ext_power_bit);
 		chip->interrupt_mask |= OXYGEN_INT_GPIO;
+		chip->model.gpio_changed = xonar_gpio_changed;
 		data->has_power = !!(oxygen_read8(chip, data->ext_power_reg)
 				     & data->ext_power_bit);
 	}
@@ -234,6 +238,13 @@ static void xonar_d2_init(struct oxygen *chip)
 	data->anti_pop_delay = 300;
 	data->output_enable_bit = GPIO_D2_OUTPUT_ENABLE;
 	data->pcm1796_oversampling = PCM1796_OS_64;
+	if (data->model == MODEL_D2X) {
+		data->ext_power_reg = OXYGEN_GPIO_DATA;
+		data->ext_power_int_reg = OXYGEN_GPIO_INTERRUPT_MASK;
+		data->ext_power_bit = GPIO_D2X_EXT_POWER;
+		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
+				    GPIO_D2X_EXT_POWER);
+	}
 
 	pcm1796_init(chip);
 
@@ -244,17 +255,6 @@ static void xonar_d2_init(struct oxygen *chip)
 
 	snd_component_add(chip->card, "PCM1796");
 	snd_component_add(chip->card, "CS5381");
-}
-
-static void xonar_d2x_init(struct oxygen *chip)
-{
-	struct xonar_data *data = chip->model_data;
-
-	data->ext_power_reg = OXYGEN_GPIO_DATA;
-	data->ext_power_int_reg = OXYGEN_GPIO_INTERRUPT_MASK;
-	data->ext_power_bit = GPIO_D2X_EXT_POWER;
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_D2X_EXT_POWER);
-	xonar_d2_init(chip);
 }
 
 static void update_cs4362a_volumes(struct oxygen *chip)
@@ -324,6 +324,11 @@ static void xonar_d1_init(struct oxygen *chip)
 	data->cs4398_fm = CS4398_FM_SINGLE | CS4398_DEM_NONE | CS4398_DIF_LJUST;
 	data->cs4362a_fm = CS4362A_FM_SINGLE |
 		CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
+	if (data->model == MODEL_DX) {
+		data->ext_power_reg = OXYGEN_GPI_DATA;
+		data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
+		data->ext_power_bit = GPI_DX_EXT_POWER;
+	}
 
 	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
 		       OXYGEN_2WIRE_LENGTH_8 |
@@ -342,16 +347,6 @@ static void xonar_d1_init(struct oxygen *chip)
 	snd_component_add(chip->card, "CS4398");
 	snd_component_add(chip->card, "CS4362A");
 	snd_component_add(chip->card, "CS5361");
-}
-
-static void xonar_dx_init(struct oxygen *chip)
-{
-	struct xonar_data *data = chip->model_data;
-
-	data->ext_power_reg = OXYGEN_GPI_DATA;
-	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
-	data->ext_power_bit = GPI_DX_EXT_POWER;
-	xonar_d1_init(chip);
 }
 
 static void xonar_cleanup(struct oxygen *chip)
@@ -552,7 +547,7 @@ static int xonar_d1_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
-static int xonar_mixer_init(struct oxygen *chip)
+static int xonar_d2_mixer_init(struct oxygen *chip)
 {
 	return snd_ctl_add(chip->card, snd_ctl_new1(&alt_switch, chip));
 }
@@ -562,130 +557,90 @@ static int xonar_d1_mixer_init(struct oxygen *chip)
 	return snd_ctl_add(chip->card, snd_ctl_new1(&front_panel_switch, chip));
 }
 
-static const struct oxygen_model xonar_models[] = {
-	[MODEL_D2] = {
-		.shortname = "Xonar D2",
-		.longname = "Asus Virtuoso 200",
-		.chip = "AV200",
-		.owner = THIS_MODULE,
-		.init = xonar_d2_init,
-		.control_filter = xonar_d2_control_filter,
-		.mixer_init = xonar_mixer_init,
-		.cleanup = xonar_cleanup,
-		.suspend = xonar_cleanup,
-		.resume = xonar_d2_resume,
-		.set_dac_params = set_pcm1796_params,
-		.set_adc_params = set_cs53x1_params,
-		.update_dac_volume = update_pcm1796_volume,
-		.update_dac_mute = update_pcm1796_mute,
-		.dac_tlv = pcm1796_db_scale,
-		.model_data_size = sizeof(struct xonar_data),
-		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-			       PLAYBACK_1_TO_SPDIF |
-			       CAPTURE_0_FROM_I2S_2 |
-			       CAPTURE_1_FROM_SPDIF,
-		.dac_channels = 8,
-		.dac_volume_min = 0x0f,
-		.dac_volume_max = 0xff,
-		.misc_flags = OXYGEN_MISC_MIDI,
-		.function_flags = OXYGEN_FUNCTION_SPI |
-				  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
-		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-	},
-	[MODEL_D2X] = {
-		.shortname = "Xonar D2X",
-		.longname = "Asus Virtuoso 200",
-		.chip = "AV200",
-		.owner = THIS_MODULE,
-		.init = xonar_d2x_init,
-		.control_filter = xonar_d2_control_filter,
-		.mixer_init = xonar_mixer_init,
-		.cleanup = xonar_cleanup,
-		.suspend = xonar_cleanup,
-		.resume = xonar_d2_resume,
-		.set_dac_params = set_pcm1796_params,
-		.set_adc_params = set_cs53x1_params,
-		.update_dac_volume = update_pcm1796_volume,
-		.update_dac_mute = update_pcm1796_mute,
-		.gpio_changed = xonar_gpio_changed,
-		.dac_tlv = pcm1796_db_scale,
-		.model_data_size = sizeof(struct xonar_data),
-		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-			       PLAYBACK_1_TO_SPDIF |
-			       CAPTURE_0_FROM_I2S_2 |
-			       CAPTURE_1_FROM_SPDIF,
-		.dac_channels = 8,
-		.dac_volume_min = 0x0f,
-		.dac_volume_max = 0xff,
-		.misc_flags = OXYGEN_MISC_MIDI,
-		.function_flags = OXYGEN_FUNCTION_SPI |
-				  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
-		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-	},
-	[MODEL_D1] = {
-		.shortname = "Xonar D1",
-		.longname = "Asus Virtuoso 100",
-		.chip = "AV200",
-		.owner = THIS_MODULE,
-		.init = xonar_d1_init,
-		.control_filter = xonar_d1_control_filter,
-		.mixer_init = xonar_d1_mixer_init,
-		.cleanup = xonar_d1_cleanup,
-		.suspend = xonar_d1_cleanup,
-		.resume = xonar_d1_resume,
-		.set_dac_params = set_cs43xx_params,
-		.set_adc_params = set_cs53x1_params,
-		.update_dac_volume = update_cs43xx_volume,
-		.update_dac_mute = update_cs43xx_mute,
-		.ac97_switch = xonar_d1_ac97_switch,
-		.dac_tlv = cs4362a_db_scale,
-		.model_data_size = sizeof(struct xonar_data),
-		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-			       PLAYBACK_1_TO_SPDIF |
-			       CAPTURE_0_FROM_I2S_2,
-		.dac_channels = 8,
-		.dac_volume_min = 0,
-		.dac_volume_max = 127,
-		.function_flags = OXYGEN_FUNCTION_2WIRE,
-		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-	},
-	[MODEL_DX] = {
-		.shortname = "Xonar DX",
-		.longname = "Asus Virtuoso 100",
-		.chip = "AV200",
-		.owner = THIS_MODULE,
-		.init = xonar_dx_init,
-		.control_filter = xonar_d1_control_filter,
-		.mixer_init = xonar_d1_mixer_init,
-		.cleanup = xonar_d1_cleanup,
-		.suspend = xonar_d1_cleanup,
-		.resume = xonar_d1_resume,
-		.set_dac_params = set_cs43xx_params,
-		.set_adc_params = set_cs53x1_params,
-		.update_dac_volume = update_cs43xx_volume,
-		.update_dac_mute = update_cs43xx_mute,
-		.gpio_changed = xonar_gpio_changed,
-		.ac97_switch = xonar_d1_ac97_switch,
-		.dac_tlv = cs4362a_db_scale,
-		.model_data_size = sizeof(struct xonar_data),
-		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-			       PLAYBACK_1_TO_SPDIF |
-			       CAPTURE_0_FROM_I2S_2,
-		.dac_channels = 8,
-		.dac_volume_min = 0,
-		.dac_volume_max = 127,
-		.function_flags = OXYGEN_FUNCTION_2WIRE,
-		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
-	},
+static int xonar_model_probe(struct oxygen *chip, unsigned long driver_data)
+{
+	static const char *const names[] = {
+		[MODEL_D1]	= "Xonar D1",
+		[MODEL_DX]	= "Xonar DX",
+		[MODEL_D2]	= "Xonar D2",
+		[MODEL_D2X]	= "Xonar D2X",
+	};
+	struct xonar_data *data = chip->model_data;
+
+	data->model = driver_data;
+	chip->model.shortname = names[data->model];
+	return 0;
+}
+
+static const struct oxygen_model model_xonar_d2 = {
+	.longname = "Asus Virtuoso 200",
+	.chip = "AV200",
+	.owner = THIS_MODULE,
+	.probe = xonar_model_probe,
+	.init = xonar_d2_init,
+	.control_filter = xonar_d2_control_filter,
+	.mixer_init = xonar_d2_mixer_init,
+	.cleanup = xonar_cleanup,
+	.suspend = xonar_cleanup,
+	.resume = xonar_d2_resume,
+	.set_dac_params = set_pcm1796_params,
+	.set_adc_params = set_cs53x1_params,
+	.update_dac_volume = update_pcm1796_volume,
+	.update_dac_mute = update_pcm1796_mute,
+	.dac_tlv = pcm1796_db_scale,
+	.model_data_size = sizeof(struct xonar_data),
+	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
+		       PLAYBACK_1_TO_SPDIF |
+		       CAPTURE_0_FROM_I2S_2 |
+		       CAPTURE_1_FROM_SPDIF,
+	.dac_channels = 8,
+	.dac_volume_min = 0x0f,
+	.dac_volume_max = 0xff,
+	.misc_flags = OXYGEN_MISC_MIDI,
+	.function_flags = OXYGEN_FUNCTION_SPI |
+			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+};
+
+static const struct oxygen_model model_xonar_d1 = {
+	.longname = "Asus Virtuoso 100",
+	.chip = "AV200",
+	.owner = THIS_MODULE,
+	.probe = xonar_model_probe,
+	.init = xonar_d1_init,
+	.control_filter = xonar_d1_control_filter,
+	.mixer_init = xonar_d1_mixer_init,
+	.cleanup = xonar_d1_cleanup,
+	.suspend = xonar_d1_cleanup,
+	.resume = xonar_d1_resume,
+	.set_dac_params = set_cs43xx_params,
+	.set_adc_params = set_cs53x1_params,
+	.update_dac_volume = update_cs43xx_volume,
+	.update_dac_mute = update_cs43xx_mute,
+	.ac97_switch = xonar_d1_ac97_switch,
+	.dac_tlv = cs4362a_db_scale,
+	.model_data_size = sizeof(struct xonar_data),
+	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
+		       PLAYBACK_1_TO_SPDIF |
+		       CAPTURE_0_FROM_I2S_2,
+	.dac_channels = 8,
+	.dac_volume_min = 0,
+	.dac_volume_max = 127,
+	.function_flags = OXYGEN_FUNCTION_2WIRE,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
 static int __devinit xonar_probe(struct pci_dev *pci,
 				 const struct pci_device_id *pci_id)
 {
+	static const struct oxygen_model *const models[] = {
+		[MODEL_D1]	= &model_xonar_d1,
+		[MODEL_DX]	= &model_xonar_d1,
+		[MODEL_D2]	= &model_xonar_d2,
+		[MODEL_D2X]	= &model_xonar_d2,
+	};
 	static int dev;
 	int err;
 
@@ -695,8 +650,10 @@ static int __devinit xonar_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
+	BUG_ON(pci_id->driver_data >= ARRAY_SIZE(models));
 	err = oxygen_pci_probe(pci, index[dev], id[dev],
-			       &xonar_models[pci_id->driver_data], 0);
+			       models[pci_id->driver_data],
+			       pci_id->driver_data);
 	if (err >= 0)
 		++dev;
 	return err;
