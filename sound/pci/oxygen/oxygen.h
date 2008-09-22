@@ -79,6 +79,7 @@ struct oxygen_model {
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
 	void (*gpio_changed)(struct oxygen *chip);
+	void (*uart_input)(struct oxygen *chip);
 	void (*ac97_switch)(struct oxygen *chip,
 			    unsigned int reg, unsigned int mute);
 	const unsigned int *dac_tlv;
@@ -125,6 +126,8 @@ struct oxygen {
 		__le32 _32[OXYGEN_IO_SIZE / 4];
 	} saved_registers;
 	u16 saved_ac97_registers[2][0x40];
+	unsigned int uart_input_count;
+	u8 uart_input[32];
 	struct oxygen_model model;
 };
 
@@ -173,6 +176,9 @@ void oxygen_write_ac97_masked(struct oxygen *chip, unsigned int codec,
 
 void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data);
+
+void oxygen_reset_uart(struct oxygen *chip);
+void oxygen_write_uart(struct oxygen *chip, u8 data);
 
 static inline void oxygen_set_bits8(struct oxygen *chip,
 				    unsigned int reg, u8 value)

@@ -35,6 +35,30 @@ MODULE_DESCRIPTION("C-Media CMI8788 helper library");
 MODULE_LICENSE("GPL v2");
 
 
+static inline int oxygen_uart_input_ready(struct oxygen *chip)
+{
+	return !(oxygen_read8(chip, OXYGEN_MPU401 + 1) & MPU401_RX_EMPTY);
+}
+
+static void oxygen_read_uart(struct oxygen *chip)
+{
+	if (unlikely(!oxygen_uart_input_ready(chip))) {
+		/* no data, but read it anyway to clear the interrupt */
+		oxygen_read8(chip, OXYGEN_MPU401);
+		return;
+	}
+	do {
+		u8 data = oxygen_read8(chip, OXYGEN_MPU401);
+		if (data == MPU401_ACK)
+			continue;
+		if (chip->uart_input_count >= ARRAY_SIZE(chip->uart_input))
+			chip->uart_input_count = 0;
+		chip->uart_input[chip->uart_input_count++] = data;
+	} while (oxygen_uart_input_ready(chip));
+	if (chip->model.uart_input)
+		chip->model.uart_input(chip);
+}
+
 static irqreturn_t oxygen_interrupt(int dummy, void *dev_id)
 {
 	struct oxygen *chip = dev_id;
@@ -87,8 +111,12 @@ static irqreturn_t oxygen_interrupt(int dummy, void *dev_id)
 	if (status & OXYGEN_INT_GPIO)
 		schedule_work(&chip->gpio_work);
 
-	if ((status & OXYGEN_INT_MIDI) && chip->midi)
-		snd_mpu401_uart_interrupt(0, chip->midi->private_data);
+	if (status & OXYGEN_INT_MIDI) {
+		if (chip->midi)
+			snd_mpu401_uart_interrupt(0, chip->midi->private_data);
+		else
+			oxygen_read_uart(chip);
+	}
 
 	if (status & OXYGEN_INT_AC97)
 		wake_up(&chip->ac97_waitqueue);

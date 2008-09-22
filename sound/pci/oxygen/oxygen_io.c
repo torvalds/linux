@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <sound/core.h>
+#include <sound/mpu401.h>
 #include <asm/io.h>
 #include "oxygen.h"
 
@@ -232,3 +233,23 @@ void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data)
 		      device | OXYGEN_2WIRE_DIR_WRITE);
 }
 EXPORT_SYMBOL(oxygen_write_i2c);
+
+static void _write_uart(struct oxygen *chip, unsigned int port, u8 data)
+{
+	if (oxygen_read8(chip, OXYGEN_MPU401 + 1) & MPU401_TX_FULL)
+		msleep(1);
+	oxygen_write8(chip, OXYGEN_MPU401 + port, data);
+}
+
+void oxygen_reset_uart(struct oxygen *chip)
+{
+	_write_uart(chip, 1, MPU401_RESET);
+	_write_uart(chip, 1, MPU401_ENTER_UART);
+}
+EXPORT_SYMBOL(oxygen_reset_uart);
+
+void oxygen_write_uart(struct oxygen *chip, u8 data)
+{
+	_write_uart(chip, 0, data);
+}
+EXPORT_SYMBOL(oxygen_write_uart);
