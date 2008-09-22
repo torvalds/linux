@@ -463,7 +463,6 @@ sys_timer_create(const clockid_t which_clock,
 	struct k_itimer *new_timer;
 	int new_timer_id;
 	struct task_struct *process;
-	unsigned long flags;
 	sigevent_t event;
 	int it_id_set = IT_ID_NOT_SET;
 
@@ -521,16 +520,11 @@ sys_timer_create(const clockid_t which_clock,
 		new_timer->it_sigev_signo = event.sigev_signo;
 		new_timer->it_sigev_value = event.sigev_value;
 
-		read_lock(&tasklist_lock);
-		if ((process = good_sigevent(&event))) {
+		rcu_read_lock();
+		process = good_sigevent(&event);
+		if (process)
 			get_task_struct(process);
-			spin_lock_irqsave(&process->sighand->siglock, flags);
-			new_timer->it_process = process;
-			list_add(&new_timer->list,
-				&process->signal->posix_timers);
-			spin_unlock_irqrestore(&process->sighand->siglock, flags);
-		}
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 		if (!process) {
 			error = -EINVAL;
 			goto out;
@@ -541,19 +535,18 @@ sys_timer_create(const clockid_t which_clock,
 		new_timer->it_sigev_value.sival_int = new_timer->it_id;
 		process = current->group_leader;
 		get_task_struct(process);
-		spin_lock_irqsave(&process->sighand->siglock, flags);
-		new_timer->it_process = process;
-		list_add(&new_timer->list, &process->signal->posix_timers);
-		spin_unlock_irqrestore(&process->sighand->siglock, flags);
 	}
 
+	spin_lock_irq(&current->sighand->siglock);
+	new_timer->it_process = process;
+	list_add(&new_timer->list, &current->signal->posix_timers);
+	spin_unlock_irq(&current->sighand->siglock);
  	/*
 	 * In the case of the timer belonging to another task, after
 	 * the task is unlocked, the timer is owned by the other task
 	 * and may cease to exist at any time.  Don't use or modify
 	 * new_timer after the unlock call.
 	 */
-
 out:
 	if (error)
 		release_posix_timer(new_timer, it_id_set);
