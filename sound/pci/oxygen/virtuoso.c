@@ -131,6 +131,7 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 struct xonar_data {
 	unsigned int model;
 	unsigned int anti_pop_delay;
+	unsigned int dacs;
 	u16 output_enable_bit;
 	u8 ext_power_reg;
 	u8 ext_power_int_reg;
@@ -214,9 +215,10 @@ static void xonar_common_init(struct oxygen *chip)
 
 static void update_pcm1796_volume(struct oxygen *chip)
 {
+	struct xonar_data *data = chip->model_data;
 	unsigned int i;
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < data->dacs; ++i) {
 		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]);
 		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]);
 	}
@@ -224,13 +226,14 @@ static void update_pcm1796_volume(struct oxygen *chip)
 
 static void update_pcm1796_mute(struct oxygen *chip)
 {
+	struct xonar_data *data = chip->model_data;
 	unsigned int i;
 	u8 value;
 
 	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
 	if (chip->dac_mute)
 		value |= PCM1796_MUTE;
-	for (i = 0; i < 4; ++i)
+	for (i = 0; i < data->dacs; ++i)
 		pcm1796_write(chip, i, 18, value);
 }
 
@@ -239,7 +242,7 @@ static void pcm1796_init(struct oxygen *chip)
 	struct xonar_data *data = chip->model_data;
 	unsigned int i;
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < data->dacs; ++i) {
 		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
 		pcm1796_write(chip, i, 20, data->pcm1796_oversampling);
 		pcm1796_write(chip, i, 21, 0);
@@ -415,7 +418,7 @@ static void set_pcm1796_params(struct oxygen *chip,
 
 	data->pcm1796_oversampling =
 		params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
-	for (i = 0; i < 4; ++i)
+	for (i = 0; i < data->dacs; ++i)
 		pcm1796_write(chip, i, 20, data->pcm1796_oversampling);
 }
 
@@ -574,9 +577,17 @@ static int xonar_model_probe(struct oxygen *chip, unsigned long driver_data)
 		[MODEL_D2]	= "Xonar D2",
 		[MODEL_D2X]	= "Xonar D2X",
 	};
+	static const u8 dacs[] = {
+		[MODEL_D1]	= 2,
+		[MODEL_DX]	= 2,
+		[MODEL_D2]	= 4,
+		[MODEL_D2X]	= 4,
+	};
 	struct xonar_data *data = chip->model_data;
 
 	data->model = driver_data;
+
+	data->dacs = dacs[data->model];
 	chip->model.shortname = names[data->model];
 	return 0;
 }
