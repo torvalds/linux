@@ -144,7 +144,7 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define VFLIP_DEF 0
+#define VFLIP_DEF 1
 		.default_value = VFLIP_DEF,
 	    },
 	    .set = sd_setvflip,
