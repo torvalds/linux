@@ -54,7 +54,6 @@ static struct af9013_config af9015_af9013_config[] = {
 		.output_mode = AF9013_OUTPUT_MODE_USB,
 		.api_version = { 0, 1, 9, 0 },
 		.gpio[0] = AF9013_GPIO_HI,
-		.gpio[1] = AF9013_GPIO_LO,
 		.gpio[3] = AF9013_GPIO_TUNER_ON,
 
 	}, {
