@@ -575,4 +575,12 @@ void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 
+/*
+ * Check, whether the broadcast device is in one shot mode
+ */
+int tick_broadcast_oneshot_active(void)
+{
+	return tick_broadcast_device.mode == TICKDEV_MODE_ONESHOT;
+}
+
 #endif

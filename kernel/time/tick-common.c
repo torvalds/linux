@@ -109,7 +109,8 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 	if (!tick_device_is_functional(dev))
 		return;
 
-	if (dev->features & CLOCK_EVT_FEAT_PERIODIC) {
+	if ((dev->features & CLOCK_EVT_FEAT_PERIODIC) &&
+	    !tick_broadcast_oneshot_active()) {
 		clockevents_set_mode(dev, CLOCK_EVT_MODE_PERIODIC);
 	} else {
 		unsigned long seq;
