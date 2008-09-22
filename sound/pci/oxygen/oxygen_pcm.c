@@ -661,7 +661,8 @@ int oxygen_pcm_init(struct oxygen *chip)
 	ins = !!(chip->model.device_config & (CAPTURE_0_FROM_I2S_1 |
 					      CAPTURE_0_FROM_I2S_2));
 	if (outs | ins) {
-		err = snd_pcm_new(chip->card, "Analog", 0, outs, ins, &pcm);
+		err = snd_pcm_new(chip->card, "Multichannel",
+				  0, outs, ins, &pcm);
 		if (err < 0)
 			return err;
 		if (outs)
@@ -675,7 +676,7 @@ int oxygen_pcm_init(struct oxygen *chip)
 					&oxygen_rec_b_ops);
 		pcm->private_data = chip;
 		pcm->private_free = oxygen_pcm_free;
-		strcpy(pcm->name, "Analog");
+		strcpy(pcm->name, "Multichannel");
 		if (outs)
 			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
 						      SNDRV_DMA_TYPE_DEV,
