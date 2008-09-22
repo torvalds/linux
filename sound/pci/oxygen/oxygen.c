@@ -58,17 +58,22 @@ MODULE_PARM_DESC(id, "ID string");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable card");
 
+enum {
+	MODEL_CMEDIA_REF,	/* C-Media's reference design */
+	MODEL_MERIDIAN,		/* AuzenTech X-Meridian */
+};
+
 static struct pci_device_id oxygen_ids[] __devinitdata = {
-	{ OXYGEN_PCI_SUBID(0x10b0, 0x0216) },
-	{ OXYGEN_PCI_SUBID(0x10b0, 0x0218) },
-	{ OXYGEN_PCI_SUBID(0x10b0, 0x0219) },
-	{ OXYGEN_PCI_SUBID(0x13f6, 0x0001) },
-	{ OXYGEN_PCI_SUBID(0x13f6, 0x0010) },
-	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788) },
-	{ OXYGEN_PCI_SUBID(0x147a, 0xa017) },
-	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910) },
-	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = 1 },
-	{ OXYGEN_PCI_SUBID(0x7284, 0x9761) },
+	{ OXYGEN_PCI_SUBID(0x10b0, 0x0216), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x10b0, 0x0218), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x10b0, 0x0219), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0x0001), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0x0010), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
+	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CMEDIA_REF },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, oxygen_ids);
@@ -352,7 +357,7 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	is_meridian = pci_id->driver_data;
+	is_meridian = pci_id->driver_data == MODEL_MERIDIAN;
 	err = oxygen_pci_probe(pci, index[dev], id[dev],
 			       is_meridian ? &model_meridian : &model_generic,
 			       0);
