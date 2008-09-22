@@ -444,29 +444,31 @@ static void xonar_gpio_changed(struct oxygen *chip)
 	}
 }
 
-static int alt_switch_get(struct snd_kcontrol *ctl,
-			  struct snd_ctl_elem_value *value)
+static int gpio_bit_switch_get(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	u16 bit = ctl->private_value;
 
 	value->value.integer.value[0] =
-		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_D2_ALT);
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & bit);
 	return 0;
 }
 
-static int alt_switch_put(struct snd_kcontrol *ctl,
-			  struct snd_ctl_elem_value *value)
+static int gpio_bit_switch_put(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	u16 bit = ctl->private_value;
 	u16 old_bits, new_bits;
 	int changed;
 
 	spin_lock_irq(&chip->reg_lock);
 	old_bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	if (value->value.integer.value[0])
-		new_bits = old_bits | GPIO_D2_ALT;
+		new_bits = old_bits | bit;
 	else
-		new_bits = old_bits & ~GPIO_D2_ALT;
+		new_bits = old_bits & ~bit;
 	changed = new_bits != old_bits;
 	if (changed)
 		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_bits);
@@ -478,43 +480,18 @@ static const struct snd_kcontrol_new alt_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Analog Loopback Switch",
 	.info = snd_ctl_boolean_mono_info,
-	.get = alt_switch_get,
-	.put = alt_switch_put,
+	.get = gpio_bit_switch_get,
+	.put = gpio_bit_switch_put,
+	.private_value = GPIO_D2_ALT,
 };
-
-static int front_panel_get(struct snd_kcontrol *ctl,
-			   struct snd_ctl_elem_value *value)
-{
-	struct oxygen *chip = ctl->private_data;
-
-	value->value.integer.value[0] =
-		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DX_FRONT_PANEL);
-	return 0;
-}
-
-static int front_panel_put(struct snd_kcontrol *ctl,
-			   struct snd_ctl_elem_value *value)
-{
-	struct oxygen *chip = ctl->private_data;
-	u16 old_reg, new_reg;
-
-	spin_lock_irq(&chip->reg_lock);
-	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
-	if (value->value.integer.value[0])
-		new_reg = old_reg | GPIO_DX_FRONT_PANEL;
-	else
-		new_reg = old_reg & ~GPIO_DX_FRONT_PANEL;
-	oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
-	spin_unlock_irq(&chip->reg_lock);
-	return old_reg != new_reg;
-}
 
 static const struct snd_kcontrol_new front_panel_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Front Panel Switch",
 	.info = snd_ctl_boolean_mono_info,
-	.get = front_panel_get,
-	.put = front_panel_put,
+	.get = gpio_bit_switch_get,
+	.put = gpio_bit_switch_put,
+	.private_value = GPIO_DX_FRONT_PANEL,
 };
 
 static void xonar_d1_ac97_switch(struct oxygen *chip,
