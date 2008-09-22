@@ -80,4 +80,15 @@ extern int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 extern void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 		      int nhwentries, enum dma_data_direction direction);
 
+static inline void dma_sync_single_for_cpu(struct device *dev,
+					dma_addr_t handle, size_t size,
+					enum dma_data_direction dir)
+{
+}
+
+static inline void dma_sync_single_for_device(struct device *dev,
+					dma_addr_t handle, size_t size,
+					enum dma_data_direction dir)
+{
+}
 #endif				/* _BLACKFIN_DMA_MAPPING_H */
