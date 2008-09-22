@@ -147,6 +147,8 @@ void yyerror(const char *string);
 
 %token T_ACCESS_MODE
 
+%token T_DONT_GENERATE_DEBUG_CODE
+
 %token T_MODES
 
 %token T_DEFINE
@@ -357,6 +359,7 @@ reg_attribute:
 |	size
 |	count
 |	access_mode
+|	dont_generate_debug_code
 |	modes
 |	field_defn
 |	enum_defn
@@ -407,6 +410,13 @@ access_mode:
 	T_ACCESS_MODE T_MODE
 	{
 		cur_symbol->info.rinfo->mode = $2;
+	}
+;
+
+dont_generate_debug_code:
+	T_DONT_GENERATE_DEBUG_CODE
+	{
+		cur_symbol->dont_generate_debug_code = 1;
 	}
 ;
 
