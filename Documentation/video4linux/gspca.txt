@@ -82,7 +82,7 @@ spca561		046d:092b	Labtec Webcam Plus
 spca561		046d:092c	Logitech QC chat Elch2
 spca561		046d:092d	Logitech QC Elch2
 spca561		046d:092e	Logitech QC Elch2
-spca561		046d:092f	Logitech QC Elch2
+spca561		046d:092f	Logitech  QuickCam Express Plus
 sunplus		046d:0960	Logitech ClickSmart 420
 sunplus		0471:0322	Philips DMVC1300K
 zc3xx		0471:0325	Philips SPC 200 NC
