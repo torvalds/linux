@@ -1864,7 +1864,7 @@ ppp_mp_insert(struct ppp *ppp, struct sk_buff *skb)
 	for (p = list->next; p != (struct sk_buff *)list; p = p->next)
 		if (seq_before(seq, p->sequence))
 			break;
-	__skb_insert(skb, p->prev, p, list);
+	__skb_queue_before(list, p, skb);
 }
 
 /*

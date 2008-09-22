@@ -2182,7 +2182,7 @@ static inline void cas_rx_flow_pkt(struct cas *cp, const u64 *words,
 	 * do any additional locking here. stick the buffer
 	 * at the end.
 	 */
-	__skb_insert(skb, flow->prev, (struct sk_buff *) flow, flow);
+	__skb_queue_tail(flow, skb);
 	if (words[0] & RX_COMP1_RELEASE_FLOW) {
 		while ((skb = __skb_dequeue(flow))) {
 			cas_skb_release(skb);

@@ -1268,12 +1268,12 @@ static inline void tcp_insert_write_queue_after(struct sk_buff *skb,
 	__skb_queue_after(&sk->sk_write_queue, skb, buff);
 }
 
-/* Insert skb between prev and next on the write queue of sk.  */
+/* Insert new before skb on the write queue of sk.  */
 static inline void tcp_insert_write_queue_before(struct sk_buff *new,
 						  struct sk_buff *skb,
 						  struct sock *sk)
 {
-	__skb_insert(new, skb->prev, skb, &sk->sk_write_queue);
+	__skb_queue_before(&sk->sk_write_queue, skb, new);
 
 	if (sk->sk_send_head == skb)
 		sk->sk_send_head = new;
