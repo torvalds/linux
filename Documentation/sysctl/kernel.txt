@@ -351,9 +351,10 @@ kernel.  This value defaults to SHMMAX.
 
 softlockup_thresh:
 
-This value can be used to lower the softlockup tolerance
-threshold. The default threshold is 10s.  If a cpu is locked up
-for 10s, the kernel complains.  Valid values are 1-60s.
+This value can be used to lower the softlockup tolerance threshold.  The
+default threshold is 60 seconds.  If a cpu is locked up for 60 seconds,
+the kernel complains.  Valid values are 1-60 seconds.  Setting this
+tunable to zero will disable the softlockup detection altogether.
 
 ==============================================================
 
