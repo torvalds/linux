@@ -1349,27 +1349,30 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.audio_chip     = V4L2_IDENT_WM8775,
+		/*
+		 * gpio0 as reported by Mike Crash <mike AT mikecrash.com>
+		 */
 		.input		= {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.gpio0	= 0xe780,
+			.gpio0	= 0xef88,
 			.audioroute = 1,
 		},{
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
-			.gpio0	= 0xe780,
+			.gpio0	= 0xef88,
 			.audioroute = 2,
 		},{
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
-			.gpio0	= 0xe780,
+			.gpio0	= 0xef88,
 			.audioroute = 2,
 		}},
 		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
 		.radio = {
 			.type   = CX88_RADIO,
-			.gpio0	= 0xe780,
+			.gpio0	= 0xef88,
 		},
 	},
 	[CX88_BOARD_ADSTECH_PTV_390] = {
@@ -1680,6 +1683,26 @@ static const struct cx88_board cx88_boards[] = {
 		 * S-Video      0xc4bf  0xc4bb
 		 * Composite1   0xc4ff  0xc4fb
 		 * S-Video1     0xc4ff  0xc4fb
+		 *
+		 * BIT  VALUE   FUNCTION GP{x}_IO
+		 * 0    1       I:?
+		 * 1    1       I:?
+		 * 2    1       O:DVB-T DEMOD ENABLE LOW/ANALOG DEMOD ENABLE HIGH
+		 * 3    1       I:?
+		 * 4    1       I:?
+		 * 5    1       I:?
+		 * 6    0       O:INPUT SELECTOR 0=INTERNAL 1=EXPANSION
+		 * 7    1       O:DVB-T DEMOD RESET LOW
+		 *
+		 * BIT  VALUE   FUNCTION GP{x}_OE
+		 * 8    0       I
+		 * 9    0       I
+		 * a    1       O
+		 * b    0       I
+		 * c    0       I
+		 * d    0       I
+		 * e    1       O
+		 * f    1       O
 		 */
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
@@ -2512,13 +2535,18 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 {
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
-		/* Bring the 702 demod up before i2c scanning/attach or devices are hidden */
-		/* We leave here with the 702 on the bus */
-		cx_write(MO_GP0_IO, 0x0000e780);
+		/*
+		 * Bring the 702 demod up before i2c scanning/attach or devices are hidden
+		 * We leave here with the 702 on the bus
+		 *
+		 * "reset the IR receiver on GPIO[3]"
+		 * Reported by Mike Crash <mike AT mikecrash.com>
+		 */
+		cx_write(MO_GP0_IO, 0x0000ef88);
 		udelay(1000);
-		cx_clear(MO_GP0_IO, 0x00000080);
+		cx_clear(MO_GP0_IO, 0x00000088);
 		udelay(50);
-		cx_set(MO_GP0_IO, 0x00000080); /* 702 out of reset */
+		cx_set(MO_GP0_IO, 0x00000088); /* 702 out of reset */
 		udelay(1000);
 		break;
 
@@ -2531,15 +2559,18 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		msleep(10);
 		break;
 
-	 case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
+	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
 		/* Enable the xc5000 tuner */
 		cx_set(MO_GP0_IO, 0x00001010);
 		break;
+
+	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
-		/* Init GPIO to allow tuner to attach */
-		cx_write(MO_GP0_IO, 0x0000c4bf);
+		/* Init GPIO */
+		cx_write(MO_GP0_IO, core->board.input[0].gpio0);
 		udelay(1000);
+		break;
 	}
 }
 
