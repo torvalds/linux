@@ -519,7 +519,7 @@ static int btusb_open(struct hci_dev *hdev)
 
 	err = btusb_submit_intr_urb(hdev);
 	if (err < 0) {
-		clear_bit(BTUSB_INTR_RUNNING, &hdev->flags);
+		clear_bit(BTUSB_INTR_RUNNING, &data->flags);
 		clear_bit(HCI_RUNNING, &hdev->flags);
 	}
 
@@ -535,8 +535,10 @@ static int btusb_close(struct hci_dev *hdev)
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
 
+	cancel_work_sync(&data->work);
+
 	clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
-	usb_kill_anchored_urbs(&data->intr_anchor);
+	usb_kill_anchored_urbs(&data->isoc_anchor);
 
 	clear_bit(BTUSB_BULK_RUNNING, &data->flags);
 	usb_kill_anchored_urbs(&data->bulk_anchor);
