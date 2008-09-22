@@ -34,7 +34,6 @@ MODULE_DESCRIPTION("wireless configuration support");
  * often because we need to do it for each command */
 LIST_HEAD(cfg80211_drv_list);
 DEFINE_MUTEX(cfg80211_drv_mutex);
-static int wiphy_counter;
 
 /* for debugfs */
 static struct dentry *ieee80211_debugfs_dir;
@@ -206,6 +205,8 @@ out_unlock:
 
 struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 {
+	static int wiphy_counter;
+
 	struct cfg80211_registered_device *drv;
 	int alloc_size;
 
@@ -222,20 +223,17 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 
 	mutex_lock(&cfg80211_drv_mutex);
 
-	drv->idx = wiphy_counter;
-
-	/* now increase counter for the next device unless
-	 * it has wrapped previously */
-	if (wiphy_counter >= 0)
-		wiphy_counter++;
-
-	mutex_unlock(&cfg80211_drv_mutex);
+	drv->idx = wiphy_counter++;
 
 	if (unlikely(drv->idx < 0)) {
+		wiphy_counter--;
+		mutex_unlock(&cfg80211_drv_mutex);
 		/* ugh, wrapped! */
 		kfree(drv);
 		return NULL;
 	}
+
+	mutex_unlock(&cfg80211_drv_mutex);
 
 	/* give it a proper name */
 	snprintf(drv->wiphy.dev.bus_id, BUS_ID_SIZE,
