@@ -51,42 +51,7 @@ struct snd_pcm_hardware;
 struct snd_pcm_hw_params;
 struct snd_kcontrol_new;
 struct snd_rawmidi;
-struct oxygen_model;
-
-struct oxygen {
-	unsigned long addr;
-	spinlock_t reg_lock;
-	struct mutex mutex;
-	struct snd_card *card;
-	struct pci_dev *pci;
-	struct snd_rawmidi *midi;
-	int irq;
-	const struct oxygen_model *model;
-	void *model_data;
-	unsigned int interrupt_mask;
-	u8 dac_volume[8];
-	u8 dac_mute;
-	u8 pcm_active;
-	u8 pcm_running;
-	u8 dac_routing;
-	u8 spdif_playback_enable;
-	u8 revision;
-	u8 has_ac97_0;
-	u8 has_ac97_1;
-	u32 spdif_bits;
-	u32 spdif_pcm_bits;
-	struct snd_pcm_substream *streams[PCM_COUNT];
-	struct snd_kcontrol *controls[CONTROL_COUNT];
-	struct work_struct spdif_input_bits_work;
-	struct work_struct gpio_work;
-	wait_queue_head_t ac97_waitqueue;
-	union {
-		u8 _8[OXYGEN_IO_SIZE];
-		__le16 _16[OXYGEN_IO_SIZE / 2];
-		__le32 _32[OXYGEN_IO_SIZE / 4];
-	} saved_registers;
-	u16 saved_ac97_registers[2][0x40];
-};
+struct oxygen;
 
 struct oxygen_model {
 	const char *shortname;
@@ -120,6 +85,41 @@ struct oxygen_model {
 	u8 function_flags;
 	u16 dac_i2s_format;
 	u16 adc_i2s_format;
+};
+
+struct oxygen {
+	unsigned long addr;
+	spinlock_t reg_lock;
+	struct mutex mutex;
+	struct snd_card *card;
+	struct pci_dev *pci;
+	struct snd_rawmidi *midi;
+	int irq;
+	void *model_data;
+	unsigned int interrupt_mask;
+	u8 dac_volume[8];
+	u8 dac_mute;
+	u8 pcm_active;
+	u8 pcm_running;
+	u8 dac_routing;
+	u8 spdif_playback_enable;
+	u8 revision;
+	u8 has_ac97_0;
+	u8 has_ac97_1;
+	u32 spdif_bits;
+	u32 spdif_pcm_bits;
+	struct snd_pcm_substream *streams[PCM_COUNT];
+	struct snd_kcontrol *controls[CONTROL_COUNT];
+	struct work_struct spdif_input_bits_work;
+	struct work_struct gpio_work;
+	wait_queue_head_t ac97_waitqueue;
+	union {
+		u8 _8[OXYGEN_IO_SIZE];
+		__le16 _16[OXYGEN_IO_SIZE / 2];
+		__le32 _32[OXYGEN_IO_SIZE / 4];
+	} saved_registers;
+	u16 saved_ac97_registers[2][0x40];
+	struct oxygen_model model;
 };
 
 /* oxygen_lib.c */

@@ -129,7 +129,7 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 
 	runtime->private_data = (void *)(uintptr_t)channel;
 	if (channel == PCM_B && chip->has_ac97_1 &&
-	    (chip->model->pcm_dev_cfg & CAPTURE_2_FROM_AC97_1))
+	    (chip->model.pcm_dev_cfg & CAPTURE_2_FROM_AC97_1))
 		runtime->hw = oxygen_ac97_hardware;
 	else
 		runtime->hw = *oxygen_hardware[channel];
@@ -140,11 +140,11 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 		runtime->hw.rate_min = 44100;
 		break;
 	case PCM_MULTICH:
-		runtime->hw.channels_max = chip->model->dac_channels;
+		runtime->hw.channels_max = chip->model.dac_channels;
 		break;
 	}
-	if (chip->model->pcm_hardware_filter)
-		chip->model->pcm_hardware_filter(channel, &runtime->hw);
+	if (chip->model.pcm_hardware_filter)
+		chip->model.pcm_hardware_filter(channel, &runtime->hw);
 	err = snd_pcm_hw_constraint_step(runtime, 0,
 					 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
 	if (err < 0)
@@ -355,7 +355,7 @@ static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT,
 			      oxygen_rate(hw_params) |
 			      oxygen_i2s_mclk(hw_params) |
-			      chip->model->adc_i2s_format |
+			      chip->model.adc_i2s_format |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |
@@ -364,7 +364,7 @@ static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 	spin_unlock_irq(&chip->reg_lock);
 
 	mutex_lock(&chip->mutex);
-	chip->model->set_adc_params(chip, hw_params);
+	chip->model.set_adc_params(chip, hw_params);
 	mutex_unlock(&chip->mutex);
 	return 0;
 }
@@ -381,7 +381,7 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	is_ac97 = chip->has_ac97_1 &&
-		(chip->model->pcm_dev_cfg & CAPTURE_2_FROM_AC97_1);
+		(chip->model.pcm_dev_cfg & CAPTURE_2_FROM_AC97_1);
 
 	spin_lock_irq(&chip->reg_lock);
 	oxygen_write8_masked(chip, OXYGEN_REC_FORMAT,
@@ -391,7 +391,7 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 		oxygen_write16_masked(chip, OXYGEN_I2S_B_FORMAT,
 				      oxygen_rate(hw_params) |
 				      oxygen_i2s_mclk(hw_params) |
-				      chip->model->adc_i2s_format |
+				      chip->model.adc_i2s_format |
 				      oxygen_i2s_bits(hw_params),
 				      OXYGEN_I2S_RATE_MASK |
 				      OXYGEN_I2S_FORMAT_MASK |
@@ -401,7 +401,7 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 
 	if (!is_ac97) {
 		mutex_lock(&chip->mutex);
-		chip->model->set_adc_params(chip, hw_params);
+		chip->model.set_adc_params(chip, hw_params);
 		mutex_unlock(&chip->mutex);
 	}
 	return 0;
@@ -468,7 +468,7 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 			     OXYGEN_MULTICH_FORMAT_MASK);
 	oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
 			      oxygen_rate(hw_params) |
-			      chip->model->dac_i2s_format |
+			      chip->model.dac_i2s_format |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |
@@ -478,7 +478,7 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 	spin_unlock_irq(&chip->reg_lock);
 
 	mutex_lock(&chip->mutex);
-	chip->model->set_dac_params(chip, hw_params);
+	chip->model.set_dac_params(chip, hw_params);
 	mutex_unlock(&chip->mutex);
 	return 0;
 }
@@ -657,9 +657,9 @@ int oxygen_pcm_init(struct oxygen *chip)
 	int outs, ins;
 	int err;
 
-	outs = !!(chip->model->pcm_dev_cfg & PLAYBACK_0_TO_I2S);
-	ins = !!(chip->model->pcm_dev_cfg & (CAPTURE_0_FROM_I2S_1 |
-					     CAPTURE_0_FROM_I2S_2));
+	outs = !!(chip->model.pcm_dev_cfg & PLAYBACK_0_TO_I2S);
+	ins = !!(chip->model.pcm_dev_cfg & (CAPTURE_0_FROM_I2S_1 |
+					    CAPTURE_0_FROM_I2S_2));
 	if (outs | ins) {
 		err = snd_pcm_new(chip->card, "Analog", 0, outs, ins, &pcm);
 		if (err < 0)
@@ -667,10 +667,10 @@ int oxygen_pcm_init(struct oxygen *chip)
 		if (outs)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 					&oxygen_multich_ops);
-		if (chip->model->pcm_dev_cfg & CAPTURE_0_FROM_I2S_1)
+		if (chip->model.pcm_dev_cfg & CAPTURE_0_FROM_I2S_1)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&oxygen_rec_a_ops);
-		else if (chip->model->pcm_dev_cfg & CAPTURE_0_FROM_I2S_2)
+		else if (chip->model.pcm_dev_cfg & CAPTURE_0_FROM_I2S_2)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&oxygen_rec_b_ops);
 		pcm->private_data = chip;
@@ -690,8 +690,8 @@ int oxygen_pcm_init(struct oxygen *chip)
 						      BUFFER_BYTES_MAX);
 	}
 
-	outs = !!(chip->model->pcm_dev_cfg & PLAYBACK_1_TO_SPDIF);
-	ins = !!(chip->model->pcm_dev_cfg & CAPTURE_1_FROM_SPDIF);
+	outs = !!(chip->model.pcm_dev_cfg & PLAYBACK_1_TO_SPDIF);
+	ins = !!(chip->model.pcm_dev_cfg & CAPTURE_1_FROM_SPDIF);
 	if (outs | ins) {
 		err = snd_pcm_new(chip->card, "Digital", 1, outs, ins, &pcm);
 		if (err < 0)
@@ -712,11 +712,11 @@ int oxygen_pcm_init(struct oxygen *chip)
 	}
 
 	if (chip->has_ac97_1) {
-		outs = !!(chip->model->pcm_dev_cfg & PLAYBACK_2_TO_AC97_1);
-		ins = !!(chip->model->pcm_dev_cfg & CAPTURE_2_FROM_AC97_1);
+		outs = !!(chip->model.pcm_dev_cfg & PLAYBACK_2_TO_AC97_1);
+		ins = !!(chip->model.pcm_dev_cfg & CAPTURE_2_FROM_AC97_1);
 	} else {
 		outs = 0;
-		ins = !!(chip->model->pcm_dev_cfg & CAPTURE_2_FROM_I2S_2);
+		ins = !!(chip->model.pcm_dev_cfg & CAPTURE_2_FROM_I2S_2);
 	}
 	if (outs | ins) {
 		err = snd_pcm_new(chip->card, outs ? "AC97" : "Analog2",

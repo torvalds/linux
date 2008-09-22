@@ -31,9 +31,9 @@ static int dac_volume_info(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = chip->model->dac_channels;
-	info->value.integer.min = chip->model->dac_volume_min;
-	info->value.integer.max = chip->model->dac_volume_max;
+	info->count = chip->model.dac_channels;
+	info->value.integer.min = chip->model.dac_volume_min;
+	info->value.integer.max = chip->model.dac_volume_max;
 	return 0;
 }
 
@@ -44,7 +44,7 @@ static int dac_volume_get(struct snd_kcontrol *ctl,
 	unsigned int i;
 
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < chip->model->dac_channels; ++i)
+	for (i = 0; i < chip->model.dac_channels; ++i)
 		value->value.integer.value[i] = chip->dac_volume[i];
 	mutex_unlock(&chip->mutex);
 	return 0;
@@ -59,13 +59,13 @@ static int dac_volume_put(struct snd_kcontrol *ctl,
 
 	changed = 0;
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < chip->model->dac_channels; ++i)
+	for (i = 0; i < chip->model.dac_channels; ++i)
 		if (value->value.integer.value[i] != chip->dac_volume[i]) {
 			chip->dac_volume[i] = value->value.integer.value[i];
 			changed = 1;
 		}
 	if (changed)
-		chip->model->update_dac_volume(chip);
+		chip->model.update_dac_volume(chip);
 	mutex_unlock(&chip->mutex);
 	return changed;
 }
@@ -91,7 +91,7 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 	changed = !value->value.integer.value[0] != chip->dac_mute;
 	if (changed) {
 		chip->dac_mute = !value->value.integer.value[0];
-		chip->model->update_dac_mute(chip);
+		chip->model.update_dac_mute(chip);
 	}
 	mutex_unlock(&chip->mutex);
 	return changed;
@@ -103,7 +103,7 @@ static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"Front", "Front+Surround", "Front+Surround+Back"
 	};
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = 2 + (chip->model->dac_channels == 8);
+	unsigned int count = 2 + (chip->model.dac_channels == 8);
 
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
@@ -172,7 +172,7 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = 2 + (chip->model->dac_channels == 8);
+	unsigned int count = 2 + (chip->model.dac_channels == 8);
 	int changed;
 
 	mutex_lock(&chip->mutex);
@@ -521,8 +521,8 @@ static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
 	value = oxygen_read_ac97(chip, 0, priv_idx);
 	if (!(value & 0x8000)) {
 		oxygen_write_ac97(chip, 0, priv_idx, value | 0x8000);
-		if (chip->model->ac97_switch)
-			chip->model->ac97_switch(chip, priv_idx, 0x8000);
+		if (chip->model.ac97_switch)
+			chip->model.ac97_switch(chip, priv_idx, 0x8000);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[control]->id);
 	}
@@ -549,8 +549,8 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change) {
 		oxygen_write_ac97(chip, codec, index, newreg);
-		if (codec == 0 && chip->model->ac97_switch)
-			chip->model->ac97_switch(chip, index, newreg & 0x8000);
+		if (codec == 0 && chip->model.ac97_switch)
+			chip->model.ac97_switch(chip, index, newreg & 0x8000);
 		if (index == AC97_LINE) {
 			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
 						 newreg & 0x8000 ?
@@ -939,16 +939,16 @@ static int add_controls(struct oxygen *chip,
 
 	for (i = 0; i < count; ++i) {
 		template = controls[i];
-		if (chip->model->control_filter) {
-			err = chip->model->control_filter(&template);
+		if (chip->model.control_filter) {
+			err = chip->model.control_filter(&template);
 			if (err < 0)
 				return err;
 			if (err == 1)
 				continue;
 		}
 		if (!strcmp(template.name, "Master Playback Volume") &&
-		    chip->model->dac_tlv) {
-			template.tlv.p = chip->model->dac_tlv;
+		    chip->model.dac_tlv) {
+			template.tlv.p = chip->model.dac_tlv;
 			template.access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
 		}
 		ctl = snd_ctl_new1(&template, chip);
@@ -974,14 +974,14 @@ int oxygen_mixer_init(struct oxygen *chip)
 	err = add_controls(chip, controls, ARRAY_SIZE(controls));
 	if (err < 0)
 		return err;
-	if (chip->model->pcm_dev_cfg & CAPTURE_1_FROM_SPDIF) {
+	if (chip->model.pcm_dev_cfg & CAPTURE_1_FROM_SPDIF) {
 		err = add_controls(chip, spdif_input_controls,
 				   ARRAY_SIZE(spdif_input_controls));
 		if (err < 0)
 			return err;
 	}
 	for (i = 0; i < ARRAY_SIZE(monitor_controls); ++i) {
-		if (!(chip->model->pcm_dev_cfg & monitor_controls[i].pcm_dev))
+		if (!(chip->model.pcm_dev_cfg & monitor_controls[i].pcm_dev))
 			continue;
 		err = add_controls(chip, monitor_controls[i].controls,
 				   ARRAY_SIZE(monitor_controls[i].controls));
@@ -1000,5 +1000,5 @@ int oxygen_mixer_init(struct oxygen *chip)
 		if (err < 0)
 			return err;
 	}
-	return chip->model->mixer_init ? chip->model->mixer_init(chip) : 0;
+	return chip->model.mixer_init ? chip->model.mixer_init(chip) : 0;
 }

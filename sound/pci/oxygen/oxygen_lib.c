@@ -161,8 +161,8 @@ static void oxygen_gpio_changed(struct work_struct *work)
 {
 	struct oxygen *chip = container_of(work, struct oxygen, gpio_work);
 
-	if (chip->model->gpio_changed)
-		chip->model->gpio_changed(chip);
+	if (chip->model.gpio_changed)
+		chip->model.gpio_changed(chip);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -221,7 +221,7 @@ static void oxygen_init(struct oxygen *chip)
 
 	chip->dac_routing = 1;
 	for (i = 0; i < 8; ++i)
-		chip->dac_volume[i] = chip->model->dac_volume_min;
+		chip->dac_volume[i] = chip->model.dac_volume_min;
 	chip->dac_mute = 1;
 	chip->spdif_playback_enable = 1;
 	chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |
@@ -243,7 +243,7 @@ static void oxygen_init(struct oxygen *chip)
 
 	oxygen_write8_masked(chip, OXYGEN_FUNCTION,
 			     OXYGEN_FUNCTION_RESET_CODEC |
-			     chip->model->function_flags,
+			     chip->model.function_flags,
 			     OXYGEN_FUNCTION_RESET_CODEC |
 			     OXYGEN_FUNCTION_2WIRE_SPI_MASK |
 			     OXYGEN_FUNCTION_ENABLE_SPI_4_5);
@@ -255,7 +255,7 @@ static void oxygen_init(struct oxygen *chip)
 		      OXYGEN_DMA_MULTICH_BURST_8);
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	oxygen_write8_masked(chip, OXYGEN_MISC,
-			     chip->model->misc_flags,
+			     chip->model.misc_flags,
 			     OXYGEN_MISC_WRITE_PCI_SUBID |
 			     OXYGEN_MISC_REC_C_FROM_SPDIF |
 			     OXYGEN_MISC_REC_B_FROM_AC97 |
@@ -270,21 +270,21 @@ static void oxygen_init(struct oxygen *chip)
 		      (OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT));
 	oxygen_write8(chip, OXYGEN_REC_CHANNELS, OXYGEN_REC_CHANNELS_2_2_2);
 	oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-		       OXYGEN_RATE_48000 | chip->model->dac_i2s_format |
+		       OXYGEN_RATE_48000 | chip->model.dac_i2s_format |
 		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
-	if (chip->model->pcm_dev_cfg & CAPTURE_0_FROM_I2S_1)
+	if (chip->model.pcm_dev_cfg & CAPTURE_0_FROM_I2S_1)
 		oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
-			       OXYGEN_RATE_48000 | chip->model->adc_i2s_format |
+			       OXYGEN_RATE_48000 | chip->model.adc_i2s_format |
 			       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 			       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	else
 		oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 			       OXYGEN_I2S_MASTER | OXYGEN_I2S_MUTE_MCLK);
-	if (chip->model->pcm_dev_cfg & (CAPTURE_0_FROM_I2S_2 |
-					CAPTURE_2_FROM_I2S_2))
+	if (chip->model.pcm_dev_cfg & (CAPTURE_0_FROM_I2S_2 |
+				       CAPTURE_2_FROM_I2S_2))
 		oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
-			       OXYGEN_RATE_48000 | chip->model->adc_i2s_format |
+			       OXYGEN_RATE_48000 | chip->model.adc_i2s_format |
 			       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 			       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	else
@@ -295,7 +295,7 @@ static void oxygen_init(struct oxygen *chip)
 	oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
 			    OXYGEN_SPDIF_OUT_ENABLE |
 			    OXYGEN_SPDIF_LOOPBACK);
-	if (chip->model->pcm_dev_cfg & CAPTURE_1_FROM_SPDIF)
+	if (chip->model.pcm_dev_cfg & CAPTURE_1_FROM_SPDIF)
 		oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
 				      OXYGEN_SPDIF_SENSE_MASK |
 				      OXYGEN_SPDIF_LOCK_MASK |
@@ -417,7 +417,7 @@ static void oxygen_card_free(struct snd_card *card)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 	flush_scheduled_work();
-	chip->model->cleanup(chip);
+	chip->model.cleanup(chip);
 	mutex_destroy(&chip->mutex);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
@@ -439,7 +439,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	chip->model = model;
+	chip->model = *model;
 	chip->model_data = chip + 1;
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->mutex);
@@ -471,22 +471,22 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	card->private_free = oxygen_card_free;
 
 	oxygen_init(chip);
-	model->init(chip);
+	chip->model.init(chip);
 
 	err = request_irq(pci->irq, oxygen_interrupt, IRQF_SHARED,
-			  model->chip, chip);
+			  chip->model.chip, chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot grab interrupt %d\n", pci->irq);
 		goto err_card;
 	}
 	chip->irq = pci->irq;
 
-	strcpy(card->driver, model->chip);
-	strcpy(card->shortname, model->shortname);
+	strcpy(card->driver, chip->model.chip);
+	strcpy(card->shortname, chip->model.shortname);
 	sprintf(card->longname, "%s (rev %u) at %#lx, irq %i",
-		model->longname, chip->revision, chip->addr, chip->irq);
-	strcpy(card->mixername, model->chip);
-	snd_component_add(card, model->chip);
+		chip->model.longname, chip->revision, chip->addr, chip->irq);
+	strcpy(card->mixername, chip->model.chip);
+	snd_component_add(card, chip->model.chip);
 
 	err = oxygen_pcm_init(chip);
 	if (err < 0)
@@ -496,7 +496,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	if (err < 0)
 		goto err_card;
 
-	if (model->misc_flags & OXYGEN_MISC_MIDI) {
+	if (chip->model.misc_flags & OXYGEN_MISC_MIDI) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
 					  chip->addr + OXYGEN_MPU401,
 					  MPU401_INFO_INTEGRATED, 0, 0,
@@ -508,7 +508,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	oxygen_proc_init(chip);
 
 	spin_lock_irq(&chip->reg_lock);
-	if (chip->model->pcm_dev_cfg & CAPTURE_1_FROM_SPDIF)
+	if (chip->model.pcm_dev_cfg & CAPTURE_1_FROM_SPDIF)
 		chip->interrupt_mask |= OXYGEN_INT_SPDIF_IN_DETECT;
 	if (chip->has_ac97_0 | chip->has_ac97_1)
 		chip->interrupt_mask |= OXYGEN_INT_AC97;
@@ -552,8 +552,8 @@ int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state)
 		if (chip->streams[i])
 			snd_pcm_suspend(chip->streams[i]);
 
-	if (chip->model->suspend)
-		chip->model->suspend(chip);
+	if (chip->model.suspend)
+		chip->model.suspend(chip);
 
 	spin_lock_irq(&chip->reg_lock);
 	saved_interrupt_mask = chip->interrupt_mask;
@@ -624,8 +624,8 @@ int oxygen_pci_resume(struct pci_dev *pci)
 	if (chip->has_ac97_1)
 		oxygen_restore_ac97(chip, 1);
 
-	if (chip->model->resume)
-		chip->model->resume(chip);
+	if (chip->model.resume)
+		chip->model.resume(chip);
 
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, chip->interrupt_mask);
 
