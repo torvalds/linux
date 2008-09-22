@@ -246,6 +246,14 @@ static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
 	return 1;
 }
 
+static cpumask_t c1e_mask = CPU_MASK_NONE;
+static int c1e_detected;
+
+void c1e_remove_cpu(int cpu)
+{
+	cpu_clear(cpu, c1e_mask);
+}
+
 /*
  * C1E aware idle routine. We check for C1E active in the interrupt
  * pending message MSR. If we detect C1E, then we handle it the same
@@ -253,9 +261,6 @@ static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
  */
 static void c1e_idle(void)
 {
-	static cpumask_t c1e_mask = CPU_MASK_NONE;
-	static int c1e_detected;
-
 	if (need_resched())
 		return;
 
