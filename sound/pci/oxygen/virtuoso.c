@@ -529,8 +529,8 @@ static const struct snd_kcontrol_new front_panel_switch = {
 	.private_value = GPIO_DX_FRONT_PANEL,
 };
 
-static void xonar_d1_ac97_switch(struct oxygen *chip,
-				 unsigned int reg, unsigned int mute)
+static void xonar_line_mic_ac97_switch(struct oxygen *chip,
+				       unsigned int reg, unsigned int mute)
 {
 	if (reg == AC97_LINE) {
 		spin_lock_irq(&chip->reg_lock);
@@ -640,7 +640,7 @@ static const struct oxygen_model model_xonar_d1 = {
 	.set_adc_params = set_cs53x1_params,
 	.update_dac_volume = update_cs43xx_volume,
 	.update_dac_mute = update_cs43xx_mute,
-	.ac97_switch = xonar_d1_ac97_switch,
+	.ac97_switch = xonar_line_mic_ac97_switch,
 	.dac_tlv = cs4362a_db_scale,
 	.model_data_size = sizeof(struct xonar_data),
 	.device_config = PLAYBACK_0_TO_I2S |
