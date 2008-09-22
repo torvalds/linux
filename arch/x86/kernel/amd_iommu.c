@@ -572,7 +572,7 @@ static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 	if (start_page + pages > last_page)
 		pages = last_page - start_page;
 
-	set_bit_string(dom->bitmap, start_page, pages);
+	iommu_area_reserve(dom->bitmap, start_page, pages);
 }
 
 static void dma_ops_free_pagetable(struct dma_ops_domain *dma_dom)

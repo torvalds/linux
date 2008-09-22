@@ -261,7 +261,7 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 			       badbit, tbl, start_addr, npages);
 	}
 
-	set_bit_string(tbl->it_map, index, npages);
+	iommu_area_reserve(tbl->it_map, index, npages);
 
 	spin_unlock_irqrestore(&tbl->it_lock, flags);
 }

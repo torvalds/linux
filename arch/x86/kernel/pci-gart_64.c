@@ -827,7 +827,7 @@ void __init gart_iommu_init(void)
 	 * Out of IOMMU space handling.
 	 * Reserve some invalid pages at the beginning of the GART.
 	 */
-	set_bit_string(iommu_gart_bitmap, 0, EMERGENCY_PAGES);
+	iommu_area_reserve(iommu_gart_bitmap, 0, EMERGENCY_PAGES);
 
 	agp_memory_reserved = iommu_size;
 	printk(KERN_INFO
