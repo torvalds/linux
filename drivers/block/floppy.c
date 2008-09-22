@@ -4165,7 +4165,7 @@ static int __init floppy_init(void)
 	int i, unit, drive;
 	int err, dr;
 
-#if defined(CONFIG_PPC_MERGE)
+#if defined(CONFIG_PPC)
 	if (check_legacy_ioport(FDC1))
 		return -ENODEV;
 #endif

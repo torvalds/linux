@@ -2695,7 +2695,7 @@ static __devinit void default_find_bmc(void)
 	for (i = 0; ; i++) {
 		if (!ipmi_defaults[i].port)
 			break;
-#ifdef CONFIG_PPC_MERGE
+#ifdef CONFIG_PPC
 		if (check_legacy_ioport(ipmi_defaults[i].port))
 			continue;
 #endif
