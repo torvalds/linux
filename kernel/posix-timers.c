@@ -312,11 +312,6 @@ int posix_timer_event(struct k_itimer *timr, int si_private)
 	 */
 	timr->sigq->info.si_sys_private = si_private;
 
-	timr->sigq->info.si_signo = timr->it_sigev_signo;
-	timr->sigq->info.si_code = SI_TIMER;
-	timr->sigq->info.si_tid = timr->it_id;
-	timr->sigq->info.si_value = timr->it_sigev_value;
-
 	shared = !(timr->it_sigev_notify & SIGEV_THREAD_ID);
 	ret = send_sigqueue(timr->sigq, timr->it_process, shared);
 	/* If we failed to send the signal the timer stops. */
@@ -536,6 +531,11 @@ sys_timer_create(const clockid_t which_clock,
 		process = current->group_leader;
 		get_task_struct(process);
 	}
+
+	new_timer->sigq->info.si_code  = SI_TIMER;
+	new_timer->sigq->info.si_tid   = new_timer->it_id;
+	new_timer->sigq->info.si_signo = new_timer->it_sigev_signo;
+	new_timer->sigq->info.si_value = new_timer->it_sigev_value;
 
 	spin_lock_irq(&current->sighand->siglock);
 	new_timer->it_process = process;
