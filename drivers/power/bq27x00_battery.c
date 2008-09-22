@@ -23,8 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/idr.h>
-
 #include <linux/i2c.h>
+#include <asm/unaligned.h>
 
 #define DRIVER_VERSION			"1.0.0"
 
@@ -33,7 +33,6 @@
 #define BQ27x00_REG_RSOC		0x0B /* Relative State-of-Charge */
 #define BQ27x00_REG_AI			0x14
 #define BQ27x00_REG_FLAGS		0x0A
-#define HIGH_BYTE(A)			((A) << 8)
 
 /* If the system has several batteries we need a different name for each
  * of them...
@@ -239,7 +238,7 @@ static int bq27200_read(u8 reg, int *rt_value, int b_single,
 		err = i2c_transfer(client->adapter, msg, 1);
 		if (err >= 0) {
 			if (!b_single)
-				*rt_value = data[1] | HIGH_BYTE(data[0]);
+				*rt_value = get_unaligned_be16(data);
 			else
 				*rt_value = data[0];
 
