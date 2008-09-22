@@ -295,13 +295,19 @@ static int setup_k7_watchdog(unsigned nmi_hz)
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
 	write_watchdog_counter(perfctr_msr, "K7_PERFCTR0",nmi_hz);
+
+	/* initialize the wd struct before enabling */
+	wd->perfctr_msr = perfctr_msr;
+	wd->evntsel_msr = evntsel_msr;
+	wd->cccr_msr = 0;  /* unused */
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= K7_EVNTSEL_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
 
-	wd->perfctr_msr = perfctr_msr;
-	wd->evntsel_msr = evntsel_msr;
-	wd->cccr_msr = 0;  /* unused */
 	return 1;
 }
 
@@ -379,13 +385,19 @@ static int setup_p6_watchdog(unsigned nmi_hz)
 	wrmsr(evntsel_msr, evntsel, 0);
 	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 	write_watchdog_counter32(perfctr_msr, "P6_PERFCTR0",nmi_hz);
+
+	/* initialize the wd struct before enabling */
+	wd->perfctr_msr = perfctr_msr;
+	wd->evntsel_msr = evntsel_msr;
+	wd->cccr_msr = 0;  /* unused */
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= P6_EVNTSEL0_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
 
-	wd->perfctr_msr = perfctr_msr;
-	wd->evntsel_msr = evntsel_msr;
-	wd->cccr_msr = 0;  /* unused */
 	return 1;
 }
 
@@ -540,12 +552,17 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 	wrmsr(evntsel_msr, evntsel, 0);
 	wrmsr(cccr_msr, cccr_val, 0);
 	write_watchdog_counter(perfctr_msr, "P4_IQ_COUNTER0", nmi_hz);
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	cccr_val |= P4_CCCR_ENABLE;
-	wrmsr(cccr_msr, cccr_val, 0);
+
 	wd->perfctr_msr = perfctr_msr;
 	wd->evntsel_msr = evntsel_msr;
 	wd->cccr_msr = cccr_msr;
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+	cccr_val |= P4_CCCR_ENABLE;
+	wrmsr(cccr_msr, cccr_val, 0);
 	return 1;
 }
 
@@ -661,13 +678,17 @@ static int setup_intel_arch_watchdog(unsigned nmi_hz)
 	wrmsr(evntsel_msr, evntsel, 0);
 	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 	write_watchdog_counter32(perfctr_msr, "INTEL_ARCH_PERFCTR0", nmi_hz);
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-	wrmsr(evntsel_msr, evntsel, 0);
 
 	wd->perfctr_msr = perfctr_msr;
 	wd->evntsel_msr = evntsel_msr;
 	wd->cccr_msr = 0;  /* unused */
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+	wrmsr(evntsel_msr, evntsel, 0);
 	intel_arch_wd_ops.checkbit = 1ULL << (eax.split.bit_width - 1);
 	return 1;
 }
