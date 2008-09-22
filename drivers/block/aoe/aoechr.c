@@ -9,6 +9,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
+#include <linux/skbuff.h>
 #include "aoe.h"
 
 enum {
@@ -103,7 +104,12 @@ loop:
 		spin_lock_irqsave(&d->lock, flags);
 		goto loop;
 	}
-	aoenet_xmit(skb);
+	if (skb) {
+		struct sk_buff_head queue;
+		__skb_queue_head_init(&queue);
+		__skb_queue_tail(&queue, skb);
+		aoenet_xmit(&queue);
+	}
 	aoecmd_cfg(major, minor);
 	return 0;
 }

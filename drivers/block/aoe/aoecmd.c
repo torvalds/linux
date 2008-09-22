@@ -114,29 +114,22 @@ ifrotate(struct aoetgt *t)
 static void
 skb_pool_put(struct aoedev *d, struct sk_buff *skb)
 {
-	if (!d->skbpool_hd)
-		d->skbpool_hd = skb;
-	else
-		d->skbpool_tl->next = skb;
-	d->skbpool_tl = skb;
+	__skb_queue_tail(&d->skbpool, skb);
 }
 
 static struct sk_buff *
 skb_pool_get(struct aoedev *d)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = skb_peek(&d->skbpool);
 
-	skb = d->skbpool_hd;
 	if (skb && atomic_read(&skb_shinfo(skb)->dataref) == 1) {
-		d->skbpool_hd = skb->next;
-		skb->next = NULL;
+		__skb_unlink(skb, &d->skbpool);
 		return skb;
 	}
-	if (d->nskbpool < NSKBPOOLMAX
-	&& (skb = new_skb(ETH_ZLEN))) {
-		d->nskbpool++;
+	if (skb_queue_len(&d->skbpool) < NSKBPOOLMAX &&
+	    (skb = new_skb(ETH_ZLEN)))
 		return skb;
-	}
+
 	return NULL;
 }
 
@@ -293,28 +286,21 @@ aoecmd_ata_rw(struct aoedev *d)
 
 	skb->dev = t->ifp->nd;
 	skb = skb_clone(skb, GFP_ATOMIC);
-	if (skb) {
-		if (d->sendq_hd)
-			d->sendq_tl->next = skb;
-		else
-			d->sendq_hd = skb;
-		d->sendq_tl = skb;
-	}
+	if (skb)
+		__skb_queue_tail(&d->sendq, skb);
 	return 1;
 }
 
 /* some callers cannot sleep, and they can call this function,
  * transmitting the packets later, when interrupts are on
  */
-static struct sk_buff *
-aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
+static void
+aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff_head *queue)
 {
 	struct aoe_hdr *h;
 	struct aoe_cfghdr *ch;
-	struct sk_buff *skb, *sl, *sl_tail;
+	struct sk_buff *skb;
 	struct net_device *ifp;
-
-	sl = sl_tail = NULL;
 
 	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, ifp) {
@@ -329,8 +315,7 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 		}
 		skb_put(skb, sizeof *h + sizeof *ch);
 		skb->dev = ifp;
-		if (sl_tail == NULL)
-			sl_tail = skb;
+		__skb_queue_tail(queue, skb);
 		h = (struct aoe_hdr *) skb_mac_header(skb);
 		memset(h, 0, sizeof *h + sizeof *ch);
 
@@ -342,16 +327,10 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 		h->minor = aoeminor;
 		h->cmd = AOECMD_CFG;
 
-		skb->next = sl;
-		sl = skb;
 cont:
 		dev_put(ifp);
 	}
 	read_unlock(&dev_base_lock);
-
-	if (tail != NULL)
-		*tail = sl_tail;
-	return sl;
 }
 
 static void
@@ -406,11 +385,7 @@ resend(struct aoedev *d, struct aoetgt *t, struct frame *f)
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return;
-	if (d->sendq_hd)
-		d->sendq_tl->next = skb;
-	else
-		d->sendq_hd = skb;
-	d->sendq_tl = skb;
+	__skb_queue_tail(&d->sendq, skb);
 }
 
 static int
@@ -508,16 +483,15 @@ ata_scnt(unsigned char *packet) {
 static void
 rexmit_timer(ulong vp)
 {
+	struct sk_buff_head queue;
 	struct aoedev *d;
 	struct aoetgt *t, **tt, **te;
 	struct aoeif *ifp;
 	struct frame *f, *e;
-	struct sk_buff *sl;
 	register long timeout;
 	ulong flags, n;
 
 	d = (struct aoedev *) vp;
-	sl = NULL;
 
 	/* timeout is always ~150% of the moving average */
 	timeout = d->rttavg;
@@ -589,7 +563,7 @@ rexmit_timer(ulong vp)
 		}
 	}
 
-	if (d->sendq_hd) {
+	if (!skb_queue_empty(&d->sendq)) {
 		n = d->rttavg <<= 1;
 		if (n > MAXTIMER)
 			d->rttavg = MAXTIMER;
@@ -600,15 +574,15 @@ rexmit_timer(ulong vp)
 		aoecmd_work(d);
 	}
 
-	sl = d->sendq_hd;
-	d->sendq_hd = d->sendq_tl = NULL;
+	__skb_queue_head_init(&queue);
+	skb_queue_splice_init(&d->sendq, &queue);
 
 	d->timer.expires = jiffies + TIMERTICK;
 	add_timer(&d->timer);
 
 	spin_unlock_irqrestore(&d->lock, flags);
 
-	aoenet_xmit(sl);
+	aoenet_xmit(&queue);
 }
 
 /* enters with d->lock held */
@@ -767,12 +741,12 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 void
 aoecmd_ata_rsp(struct sk_buff *skb)
 {
+	struct sk_buff_head queue;
 	struct aoedev *d;
 	struct aoe_hdr *hin, *hout;
 	struct aoe_atahdr *ahin, *ahout;
 	struct frame *f;
 	struct buf *buf;
-	struct sk_buff *sl;
 	struct aoetgt *t;
 	struct aoeif *ifp;
 	register long n;
@@ -893,21 +867,21 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	aoecmd_work(d);
 xmit:
-	sl = d->sendq_hd;
-	d->sendq_hd = d->sendq_tl = NULL;
+	__skb_queue_head_init(&queue);
+	skb_queue_splice_init(&d->sendq, &queue);
 
 	spin_unlock_irqrestore(&d->lock, flags);
-	aoenet_xmit(sl);
+	aoenet_xmit(&queue);
 }
 
 void
 aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
 {
-	struct sk_buff *sl;
+	struct sk_buff_head queue;
 
-	sl = aoecmd_cfg_pkts(aoemajor, aoeminor, NULL);
-
-	aoenet_xmit(sl);
+	__skb_queue_head_init(&queue);
+	aoecmd_cfg_pkts(aoemajor, aoeminor, &queue);
+	aoenet_xmit(&queue);
 }
  
 struct sk_buff *
@@ -1076,7 +1050,12 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 
 	spin_unlock_irqrestore(&d->lock, flags);
 
-	aoenet_xmit(sl);
+	if (sl) {
+		struct sk_buff_head queue;
+		__skb_queue_head_init(&queue);
+		__skb_queue_tail(&queue, sl);
+		aoenet_xmit(&queue);
+	}
 }
 
 void

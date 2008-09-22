@@ -7,6 +7,7 @@
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
+#include <linux/skbuff.h>
 #include "aoe.h"
 
 MODULE_LICENSE("GPL");
