@@ -556,7 +556,7 @@ out:
  * the find to the timer lock.  To avoid a dead lock, the timer id MUST
  * be release with out holding the timer lock.
  */
-static struct k_itimer * lock_timer(timer_t timer_id, unsigned long *flags)
+static struct k_itimer *lock_timer(timer_t timer_id, unsigned long *flags)
 {
 	struct k_itimer *timr;
 	/*
@@ -564,23 +564,20 @@ static struct k_itimer * lock_timer(timer_t timer_id, unsigned long *flags)
 	 * flags part over to the timer lock.  Must not let interrupts in
 	 * while we are moving the lock.
 	 */
-
 	spin_lock_irqsave(&idr_lock, *flags);
-	timr = idr_find(&posix_timers_id, (int) timer_id);
+	timr = idr_find(&posix_timers_id, (int)timer_id);
 	if (timr) {
 		spin_lock(&timr->it_lock);
-
-		if (!timr->it_process ||
-		    !same_thread_group(timr->it_process, current)) {
-			spin_unlock(&timr->it_lock);
-			spin_unlock_irqrestore(&idr_lock, *flags);
-			timr = NULL;
-		} else
+		if (timr->it_process &&
+		    same_thread_group(timr->it_process, current)) {
 			spin_unlock(&idr_lock);
-	} else
-		spin_unlock_irqrestore(&idr_lock, *flags);
+			return timr;
+		}
+		spin_unlock(&timr->it_lock);
+	}
+	spin_unlock_irqrestore(&idr_lock, *flags);
 
-	return timr;
+	return NULL;
 }
 
 /*
