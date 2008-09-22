@@ -460,9 +460,9 @@ sys_timer_create(const clockid_t which_clock,
 		 timer_t __user * created_timer_id)
 {
 	int error = 0;
-	struct k_itimer *new_timer = NULL;
+	struct k_itimer *new_timer;
 	int new_timer_id;
-	struct task_struct *process = NULL;
+	struct task_struct *process;
 	unsigned long flags;
 	sigevent_t event;
 	int it_id_set = IT_ID_NOT_SET;
@@ -523,32 +523,12 @@ sys_timer_create(const clockid_t which_clock,
 
 		read_lock(&tasklist_lock);
 		if ((process = good_sigevent(&event))) {
-			/*
-			 * We may be setting up this process for another
-			 * thread.  It may be exiting.  To catch this
-			 * case the we check the PF_EXITING flag.  If
-			 * the flag is not set, the siglock will catch
-			 * him before it is too late (in exit_itimers).
-			 *
-			 * The exec case is a bit more invloved but easy
-			 * to code.  If the process is in our thread
-			 * group (and it must be or we would not allow
-			 * it here) and is doing an exec, it will cause
-			 * us to be killed.  In this case it will wait
-			 * for us to die which means we can finish this
-			 * linkage with our last gasp. I.e. no code :)
-			 */
+			get_task_struct(process);
 			spin_lock_irqsave(&process->sighand->siglock, flags);
-			if (!(process->flags & PF_EXITING)) {
-				get_task_struct(process);
-				new_timer->it_process = process;
-				list_add(&new_timer->list,
-					 &process->signal->posix_timers);
-				spin_unlock_irqrestore(&process->sighand->siglock, flags);
-			} else {
-				spin_unlock_irqrestore(&process->sighand->siglock, flags);
-				process = NULL;
-			}
+			new_timer->it_process = process;
+			list_add(&new_timer->list,
+				&process->signal->posix_timers);
+			spin_unlock_irqrestore(&process->sighand->siglock, flags);
 		}
 		read_unlock(&tasklist_lock);
 		if (!process) {
