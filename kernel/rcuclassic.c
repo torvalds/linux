@@ -561,15 +561,15 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 		local_irq_restore(flags);
 
 		if (rcu_batch_after(rdp->batch, rcp->pending)) {
-			unsigned long flags;
+			unsigned long flags2;
 
 			/* and start it/schedule start if it's a new batch */
-			spin_lock_irqsave(&rcp->lock, flags);
+			spin_lock_irqsave(&rcp->lock, flags2);
 			if (rcu_batch_after(rdp->batch, rcp->pending)) {
 				rcp->pending = rdp->batch;
 				rcu_start_batch(rcp);
 			}
-			spin_unlock_irqrestore(&rcp->lock, flags);
+			spin_unlock_irqrestore(&rcp->lock, flags2);
 		}
 	}
 
