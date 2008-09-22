@@ -19,14 +19,19 @@
 #define OXYGEN_IO_SIZE	0x100
 
 /* model-specific configuration of outputs/inputs */
-#define PLAYBACK_0_TO_I2S	0x001
-#define PLAYBACK_1_TO_SPDIF	0x004
-#define PLAYBACK_2_TO_AC97_1	0x008
-#define CAPTURE_0_FROM_I2S_1	0x010
-#define CAPTURE_0_FROM_I2S_2	0x020
-#define CAPTURE_1_FROM_SPDIF	0x080
-#define CAPTURE_2_FROM_I2S_2	0x100
-#define CAPTURE_2_FROM_AC97_1	0x200
+#define PLAYBACK_0_TO_I2S	0x0001
+     /* PLAYBACK_0_TO_AC97_0		not implemented */
+#define PLAYBACK_1_TO_SPDIF	0x0004
+#define PLAYBACK_2_TO_AC97_1	0x0008
+#define CAPTURE_0_FROM_I2S_1	0x0010
+#define CAPTURE_0_FROM_I2S_2	0x0020
+     /* CAPTURE_0_FROM_AC97_0		not implemented */
+#define CAPTURE_1_FROM_SPDIF	0x0080
+#define CAPTURE_2_FROM_I2S_2	0x0100
+#define CAPTURE_2_FROM_AC97_1	0x0200
+     /* CAPTURE_3_FROM_I2S_3		not implemented */
+#define MIDI_OUTPUT		0x0800
+#define MIDI_INPUT		0x1000
 
 enum {
 	CONTROL_SPDIF_PCM,

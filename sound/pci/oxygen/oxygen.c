@@ -297,6 +297,7 @@ static int generic_probe(struct oxygen *chip, unsigned long driver_data)
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
 		chip->model.misc_flags = OXYGEN_MISC_MIDI;
+		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
 	}
 	return 0;
 }
