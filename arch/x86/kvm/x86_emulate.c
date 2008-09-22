@@ -1415,13 +1415,7 @@ special_insn:
 		emulate_1op("dec", c->dst, ctxt->eflags);
 		break;
 	case 0x50 ... 0x57:  /* push reg */
-		c->dst.type  = OP_MEM;
-		c->dst.bytes = c->op_bytes;
-		c->dst.val = c->src.val;
-		register_address_increment(c, &c->regs[VCPU_REGS_RSP],
-					   -c->op_bytes);
-		c->dst.ptr = (void *) register_address(
-			c, ss_base(ctxt), c->regs[VCPU_REGS_RSP]);
+		emulate_push(ctxt);
 		break;
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
