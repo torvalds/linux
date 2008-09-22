@@ -69,3 +69,5 @@
  68 -> Hauppauge WinTV-HVR4000 DVB-S/S2/T/Hybrid           [0070:6900,0070:6904,0070:6902]
  69 -> Hauppauge WinTV-HVR4000(Lite) DVB-S/S2              [0070:6905,0070:6906]
  70 -> TeVii S460 DVB-S/S2                                 [D460:9022]
+ 71 -> Omicom SS4 DVB-S/S2 PCI                             [A044:2011]
+ 72 -> TBS 8920 DVB-S/S2                                   [8920:8888]
