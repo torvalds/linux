@@ -490,7 +490,7 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 	fujitsu->acpi_handle = device->handle;
 	sprintf(acpi_device_name(device), "%s", ACPI_FUJITSU_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
-	acpi_driver_data(device) = fujitsu;
+	device->driver_data = fujitsu;
 
 	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,
@@ -703,7 +703,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	sprintf(acpi_device_name(device), "%s",
 		ACPI_FUJITSU_HOTKEY_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
-	acpi_driver_data(device) = fujitsu_hotkey;
+	device->driver_data = fujitsu_hotkey;
 
 	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,

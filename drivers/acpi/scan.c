@@ -384,7 +384,7 @@ static int acpi_device_remove(struct device * dev)
 			acpi_drv->ops.remove(acpi_dev, acpi_dev->removal_type);
 	}
 	acpi_dev->driver = NULL;
-	acpi_driver_data(acpi_dev) = NULL;
+	acpi_dev->driver_data = NULL;
 
 	put_device(dev);
 	return 0;
@@ -537,7 +537,7 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 	result = driver->ops.add(device);
 	if (result) {
 		device->driver = NULL;
-		acpi_driver_data(device) = NULL;
+		device->driver_data = NULL;
 		return result;
 	}
 

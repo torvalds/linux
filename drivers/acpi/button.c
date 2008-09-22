@@ -384,7 +384,7 @@ static int acpi_button_add(struct acpi_device *device)
 		return -ENOMEM;
 
 	button->device = device;
-	acpi_driver_data(device) = button;
+	device->driver_data = button;
 
 	button->input = input = input_allocate_device();
 	if (!input) {

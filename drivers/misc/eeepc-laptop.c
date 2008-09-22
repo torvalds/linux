@@ -411,7 +411,7 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	ehotk->handle = device->handle;
 	strcpy(acpi_device_name(device), EEEPC_HOTK_DEVICE_NAME);
 	strcpy(acpi_device_class(device), EEEPC_HOTK_CLASS);
-	acpi_driver_data(device) = ehotk;
+	device->driver_data = ehotk;
 	ehotk->device = device;
 	result = eeepc_hotk_check();
 	if (result)
