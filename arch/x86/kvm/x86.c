@@ -3233,7 +3233,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	r = 1;
 	while (r > 0) {
-		if (kvm_arch_vcpu_runnable(vcpu))
+		if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
 			r = vcpu_enter_guest(vcpu, kvm_run);
 		else {
 			up_read(&vcpu->kvm->slots_lock);
