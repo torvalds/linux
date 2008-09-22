@@ -454,7 +454,7 @@ void update_wall_time(void)
 #else
 	offset = clock->cycle_interval;
 #endif
-	clock->xtime_nsec += (s64)xtime.tv_nsec << clock->shift;
+	clock->xtime_nsec = (s64)xtime.tv_nsec << clock->shift;
 
 	/* normally this loop will run just once, however in the
 	 * case of lost or late ticks, it will accumulate correctly.
@@ -479,9 +479,12 @@ void update_wall_time(void)
 	/* correct the clock when NTP error is too big */
 	clocksource_adjust(offset);
 
-	/* store full nanoseconds into xtime */
-	xtime.tv_nsec = (s64)clock->xtime_nsec >> clock->shift;
+	/* store full nanoseconds into xtime after rounding it up and
+	 * add the remainder to the error difference.
+	 */
+	xtime.tv_nsec = ((s64)clock->xtime_nsec >> clock->shift) + 1;
 	clock->xtime_nsec -= (s64)xtime.tv_nsec << clock->shift;
+	clock->error += clock->xtime_nsec << (NTP_SCALE_SHIFT - clock->shift);
 
 	update_xtime_cache(cyc2ns(clock, offset));
 
