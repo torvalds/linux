@@ -806,6 +806,7 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 
 	do {
 		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask);
+		progress += res_counter_check_under_limit(&mem->res);
 	} while (!progress && --retry);
 
 	css_put(&mem->css);
