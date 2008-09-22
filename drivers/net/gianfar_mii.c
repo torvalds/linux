@@ -136,12 +136,12 @@ static int gfar_mdio_reset(struct mii_bus *bus)
 
 	/* Wait until the bus is free */
 	while ((gfar_read(&regs->miimind) & MIIMIND_BUSY) &&
-			timeout--)
+			--timeout)
 		cpu_relax();
 
 	mutex_unlock(&bus->mdio_lock);
 
-	if(timeout <= 0) {
+	if(timeout == 0) {
 		printk(KERN_ERR "%s: The MII Bus is stuck!\n",
 				bus->name);
 		return -EBUSY;
