@@ -220,6 +220,8 @@ struct kvm_mmu {
 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva);
 	void (*prefetch_page)(struct kvm_vcpu *vcpu,
 			      struct kvm_mmu_page *page);
+	int (*sync_page)(struct kvm_vcpu *vcpu,
+			 struct kvm_mmu_page *sp);
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
