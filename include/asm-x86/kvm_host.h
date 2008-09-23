@@ -201,6 +201,7 @@ struct kvm_mmu_page {
 		u64 *parent_pte;               /* !multimapped */
 		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
 	};
+	DECLARE_BITMAP(unsync_child_bitmap, 512);
 };
 
 struct kvm_pv_mmu_op_buffer {
