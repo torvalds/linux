@@ -21,30 +21,30 @@
 struct ms_status_register {
 	unsigned char reserved;
 	unsigned char interrupt;
-#define MEMSTICK_INT_CMDNAK             0x0001
-#define MEMSTICK_INT_IOREQ              0x0008
-#define MEMSTICK_INT_IOBREQ             0x0010
-#define MEMSTICK_INT_BREQ               0x0020
-#define MEMSTICK_INT_ERR                0x0040
-#define MEMSTICK_INT_CED                0x0080
+#define MEMSTICK_INT_CMDNAK 0x01
+#define MEMSTICK_INT_IOREQ  0x08
+#define MEMSTICK_INT_IOBREQ 0x10
+#define MEMSTICK_INT_BREQ   0x20
+#define MEMSTICK_INT_ERR    0x40
+#define MEMSTICK_INT_CED    0x80
 
 	unsigned char status0;
-#define MEMSTICK_STATUS0_WP             0x0001
-#define MEMSTICK_STATUS0_SL             0x0002
-#define MEMSTICK_STATUS0_BF             0x0010
-#define MEMSTICK_STATUS0_BE             0x0020
-#define MEMSTICK_STATUS0_FB0            0x0040
-#define MEMSTICK_STATUS0_MB             0x0080
+#define MEMSTICK_STATUS0_WP  0x01
+#define MEMSTICK_STATUS0_SL  0x02
+#define MEMSTICK_STATUS0_BF  0x10
+#define MEMSTICK_STATUS0_BE  0x20
+#define MEMSTICK_STATUS0_FB0 0x40
+#define MEMSTICK_STATUS0_MB  0x80
 
 	unsigned char status1;
-#define MEMSTICK_STATUS1_UCFG           0x0001
-#define MEMSTICK_STATUS1_FGER           0x0002
-#define MEMSTICK_STATUS1_UCEX           0x0004
-#define MEMSTICK_STATUS1_EXER           0x0008
-#define MEMSTICK_STATUS1_UCDT           0x0010
-#define MEMSTICK_STATUS1_DTER           0x0020
-#define MEMSTICK_STATUS1_FBI            0x0040
-#define MEMSTICK_STATUS1_MB             0x0080
+#define MEMSTICK_STATUS1_UCFG 0x01
+#define MEMSTICK_STATUS1_FGER 0x02
+#define MEMSTICK_STATUS1_UCEX 0x04
+#define MEMSTICK_STATUS1_EXER 0x08
+#define MEMSTICK_STATUS1_UCDT 0x10
+#define MEMSTICK_STATUS1_DTER 0x20
+#define MEMSTICK_STATUS1_FB1  0x40
+#define MEMSTICK_STATUS1_MB   0x80
 } __attribute__((packed));
 
 struct ms_id_register {
@@ -56,32 +56,32 @@ struct ms_id_register {
 
 struct ms_param_register {
 	unsigned char system;
-#define MEMSTICK_SYS_ATEN 0xc0
-#define MEMSTICK_SYS_BAMD 0x80
 #define MEMSTICK_SYS_PAM  0x08
+#define MEMSTICK_SYS_BAMD 0x80
 
 	unsigned char block_address_msb;
 	unsigned short block_address;
 	unsigned char cp;
-#define MEMSTICK_CP_BLOCK               0x0000
-#define MEMSTICK_CP_PAGE                0x0020
-#define MEMSTICK_CP_EXTRA               0x0040
-#define MEMSTICK_CP_OVERWRITE           0x0080
+#define MEMSTICK_CP_BLOCK     0x00
+#define MEMSTICK_CP_PAGE      0x20
+#define MEMSTICK_CP_EXTRA     0x40
+#define MEMSTICK_CP_OVERWRITE 0x80
 
 	unsigned char page_address;
 } __attribute__((packed));
 
 struct ms_extra_data_register {
 	unsigned char  overwrite_flag;
-#define MEMSTICK_OVERWRITE_UPDATA       0x0010
-#define MEMSTICK_OVERWRITE_PAGE         0x0060
-#define MEMSTICK_OVERWRITE_BLOCK        0x0080
+#define MEMSTICK_OVERWRITE_UDST  0x10
+#define MEMSTICK_OVERWRITE_PGST1 0x20
+#define MEMSTICK_OVERWRITE_PGST0 0x40
+#define MEMSTICK_OVERWRITE_BKST  0x80
 
 	unsigned char  management_flag;
-#define MEMSTICK_MANAGEMENT_SYSTEM      0x0004
-#define MEMSTICK_MANAGEMENT_TRANS_TABLE 0x0008
-#define MEMSTICK_MANAGEMENT_COPY        0x0010
-#define MEMSTICK_MANAGEMENT_ACCESS      0x0020
+#define MEMSTICK_MANAGEMENT_SYSFLG 0x04
+#define MEMSTICK_MANAGEMENT_ATFLG  0x08
+#define MEMSTICK_MANAGEMENT_SCMS1  0x10
+#define MEMSTICK_MANAGEMENT_SCMS0  0x20
 
 	unsigned short logical_address;
 } __attribute__((packed));
@@ -96,9 +96,9 @@ struct ms_register {
 
 struct mspro_param_register {
 	unsigned char  system;
-#define MEMSTICK_SYS_SERIAL 0x80
 #define MEMSTICK_SYS_PAR4   0x00
 #define MEMSTICK_SYS_PAR8   0x40
+#define MEMSTICK_SYS_SERIAL 0x80
 
 	unsigned short data_count;
 	unsigned int   data_address;
@@ -147,7 +147,7 @@ struct ms_register_addr {
 	unsigned char w_length;
 } __attribute__((packed));
 
-enum {
+enum memstick_tpc {
 	MS_TPC_READ_MG_STATUS   = 0x01,
 	MS_TPC_READ_LONG_DATA   = 0x02,
 	MS_TPC_READ_SHORT_DATA  = 0x03,
@@ -167,7 +167,7 @@ enum {
 	MS_TPC_SET_CMD          = 0x0e
 };
 
-enum {
+enum memstick_command {
 	MS_CMD_BLOCK_END       = 0x33,
 	MS_CMD_RESET           = 0x3c,
 	MS_CMD_BLOCK_WRITE     = 0x55,
@@ -201,8 +201,6 @@ enum {
 
 /*** Driver structures and functions ***/
 
-#define MEMSTICK_PART_SHIFT 3
-
 enum memstick_param { MEMSTICK_POWER = 1, MEMSTICK_INTERFACE };
 
 #define MEMSTICK_POWER_OFF 0
@@ -215,24 +213,27 @@ enum memstick_param { MEMSTICK_POWER = 1, MEMSTICK_INTERFACE };
 struct memstick_host;
 struct memstick_driver;
 
+struct memstick_device_id {
+	unsigned char match_flags;
 #define MEMSTICK_MATCH_ALL            0x01
 
+	unsigned char type;
 #define MEMSTICK_TYPE_LEGACY          0xff
 #define MEMSTICK_TYPE_DUO             0x00
 #define MEMSTICK_TYPE_PRO             0x01
 
+	unsigned char category;
 #define MEMSTICK_CATEGORY_STORAGE     0xff
 #define MEMSTICK_CATEGORY_STORAGE_DUO 0x00
+#define MEMSTICK_CATEGORY_IO          0x01
+#define MEMSTICK_CATEGORY_IO_PRO      0x10
 
-#define MEMSTICK_CLASS_GENERIC        0xff
-#define MEMSTICK_CLASS_GENERIC_DUO    0x00
-
-
-struct memstick_device_id {
-	unsigned char match_flags;
-	unsigned char type;
-	unsigned char category;
 	unsigned char class;
+#define MEMSTICK_CLASS_FLASH          0xff
+#define MEMSTICK_CLASS_DUO            0x00
+#define MEMSTICK_CLASS_ROM            0x01
+#define MEMSTICK_CLASS_RO             0x02
+#define MEMSTICK_CLASS_WP             0x03
 };
 
 struct memstick_request {
@@ -319,9 +320,9 @@ void memstick_suspend_host(struct memstick_host *host);
 void memstick_resume_host(struct memstick_host *host);
 
 void memstick_init_req_sg(struct memstick_request *mrq, unsigned char tpc,
-			  struct scatterlist *sg);
+			  const struct scatterlist *sg);
 void memstick_init_req(struct memstick_request *mrq, unsigned char tpc,
-		       void *buf, size_t length);
+		       const void *buf, size_t length);
 int memstick_next_req(struct memstick_host *host,
 		      struct memstick_request **mrq);
 void memstick_new_req(struct memstick_host *host);

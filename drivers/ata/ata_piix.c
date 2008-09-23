@@ -1499,7 +1499,7 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 	 * off.
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x2652) {
-		int rc = piix_disable_ahci(pdev);
+		rc = piix_disable_ahci(pdev);
 		if (rc)
 			return rc;
 	}
