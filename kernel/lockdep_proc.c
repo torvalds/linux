@@ -470,11 +470,12 @@ static void seq_line(struct seq_file *m, char c, int offset, int length)
 
 static void snprint_time(char *buf, size_t bufsiz, s64 nr)
 {
-	unsigned long rem;
+	s64 div;
+	s32 rem;
 
 	nr += 5; /* for display rounding */
-	rem = do_div(nr, 1000); /* XXX: do_div_signed */
-	snprintf(buf, bufsiz, "%lld.%02d", (long long)nr, (int)rem/10);
+	div = div_s64_rem(nr, 1000, &rem);
+	snprintf(buf, bufsiz, "%lld.%02d", (long long)div, (int)rem/10);
 }
 
 static void seq_time(struct seq_file *m, s64 time)
