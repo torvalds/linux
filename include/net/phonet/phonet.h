@@ -51,6 +51,9 @@ void pn_sock_hash(struct sock *sk);
 void pn_sock_unhash(struct sock *sk);
 int pn_sock_get_port(struct sock *sk, unsigned short sport);
 
+int pn_skb_send(struct sock *sk, struct sk_buff *skb,
+		const struct sockaddr_pn *target);
+
 static inline struct phonethdr *pn_hdr(struct sk_buff *skb)
 {
 	return (struct phonethdr *)skb_network_header(skb);
@@ -95,4 +98,7 @@ int phonet_proto_register(int protocol, struct phonet_protocol *pp);
 void phonet_proto_unregister(int protocol, struct phonet_protocol *pp);
 
 void phonet_netlink_register(void);
+int isi_register(void);
+void isi_unregister(void);
+
 #endif

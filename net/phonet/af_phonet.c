@@ -99,6 +99,101 @@ static struct net_proto_family phonet_proto_family = {
 	.owner = THIS_MODULE,
 };
 
+/*
+ * Prepends an ISI header and sends a datagram.
+ */
+static int pn_send(struct sk_buff *skb, struct net_device *dev,
+			u16 dst, u16 src, u8 res)
+{
+	struct phonethdr *ph;
+	int err;
+
+	if (skb->len + 2 > 0xffff) {
+		/* Phonet length field would overflow */
+		err = -EMSGSIZE;
+		goto drop;
+	}
+
+	skb_reset_transport_header(skb);
+	WARN_ON(skb_headroom(skb) & 1); /* HW assumes word alignment */
+	skb_push(skb, sizeof(struct phonethdr));
+	skb_reset_network_header(skb);
+	ph = pn_hdr(skb);
+	ph->pn_rdev = pn_dev(dst);
+	ph->pn_sdev = pn_dev(src);
+	ph->pn_res = res;
+	ph->pn_length = __cpu_to_be16(skb->len + 2 - sizeof(*ph));
+	ph->pn_robj = pn_obj(dst);
+	ph->pn_sobj = pn_obj(src);
+
+	skb->protocol = htons(ETH_P_PHONET);
+	skb->priority = 0;
+	skb->dev = dev;
+
+	if (pn_addr(src) == pn_addr(dst)) {
+		skb_reset_mac_header(skb);
+		skb->pkt_type = PACKET_LOOPBACK;
+		skb_orphan(skb);
+		netif_rx_ni(skb);
+		err = 0;
+	} else {
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+					NULL, NULL, skb->len);
+		if (err < 0) {
+			err = -EHOSTUNREACH;
+			goto drop;
+		}
+		err = dev_queue_xmit(skb);
+	}
+
+	return err;
+drop:
+	kfree_skb(skb);
+	return err;
+}
+
+/*
+ * Create a Phonet header for the skb and send it out. Returns
+ * non-zero error code if failed. The skb is freed then.
+ */
+int pn_skb_send(struct sock *sk, struct sk_buff *skb,
+		const struct sockaddr_pn *target)
+{
+	struct net_device *dev;
+	struct pn_sock *pn = pn_sk(sk);
+	int err;
+	u16 src;
+	u8 daddr = pn_sockaddr_get_addr(target), saddr = PN_NO_ADDR;
+
+	err = -EHOSTUNREACH;
+	if (sk->sk_bound_dev_if)
+		dev = dev_get_by_index(sock_net(sk), sk->sk_bound_dev_if);
+	else
+		dev = phonet_device_get(sock_net(sk));
+	if (!dev || !(dev->flags & IFF_UP))
+		goto drop;
+
+	saddr = phonet_address_get(dev, daddr);
+	if (saddr == PN_NO_ADDR)
+		goto drop;
+
+	src = pn->sobject;
+	if (!pn_addr(src))
+		src = pn_object(saddr, pn_obj(src));
+
+	err = pn_send(skb, dev, pn_sockaddr_get_object(target),
+			src, pn_sockaddr_get_resource(target));
+	dev_put(dev);
+	return err;
+
+drop:
+	kfree_skb(skb);
+	if (dev)
+		dev_put(dev);
+	return err;
+}
+EXPORT_SYMBOL(pn_skb_send);
+
 /* packet type functions */
 
 /*
@@ -226,11 +321,22 @@ static int __init phonet_init(void)
 	phonet_device_init();
 	dev_add_pack(&phonet_packet_type);
 	phonet_netlink_register();
+
+	err = isi_register();
+	if (err)
+		goto err;
 	return 0;
+
+err:
+	sock_unregister(AF_PHONET);
+	dev_remove_pack(&phonet_packet_type);
+	phonet_device_exit();
+	return err;
 }
 
 static void __exit phonet_exit(void)
 {
+	isi_unregister();
 	sock_unregister(AF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
 	phonet_device_exit();
