@@ -61,6 +61,7 @@ struct ext4_sb_info {
 	struct percpu_counter s_dirs_counter;
 	struct percpu_counter s_dirtyblocks_counter;
 	struct blockgroup_lock s_blockgroup_lock;
+	struct proc_dir_entry *s_proc;
 
 	/* root of the per fs reservation window tree */
 	spinlock_t s_rsv_window_lock;
@@ -122,7 +123,6 @@ struct ext4_sb_info {
 	int s_mb_history_cur;
 	int s_mb_history_max;
 	int s_mb_history_num;
-	struct proc_dir_entry *s_mb_proc;
 	spinlock_t s_mb_history_lock;
 	int s_mb_history_filter;
 

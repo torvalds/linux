@@ -257,7 +257,6 @@ static void ext4_mb_store_history(struct ext4_allocation_context *ac);
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
 
-static struct proc_dir_entry *proc_root_ext4;
 struct buffer_head *read_block_bitmap(struct super_block *, ext4_group_t);
 
 static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,

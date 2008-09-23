@@ -34,6 +34,7 @@
 #include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
 #include <asm/uaccess.h>
@@ -44,6 +45,8 @@
 #include "acl.h"
 #include "namei.h"
 #include "group.h"
+
+struct proc_dir_entry *ext4_proc_root;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -512,6 +515,8 @@ static void ext4_put_super(struct super_block *sb)
 		mark_buffer_dirty(sbi->s_sbh);
 		ext4_commit_super(sb, es, 1);
 	}
+	if (sbi->s_proc)
+		remove_proc_entry(sb->s_id, ext4_proc_root);
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -1916,6 +1921,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned long journal_devnum = 0;
 	unsigned long def_mount_opts;
 	struct inode *root;
+	char *cp;
 	int ret = -EINVAL;
 	int blocksize;
 	int db_count;
@@ -1935,6 +1941,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_sb_block = sb_block;
 
 	unlock_kernel();
+
+	/* Cleanup superblock name */
+	for (cp = sb->s_id; (cp = strchr(cp, '/'));)
+		*cp = '!';
 
 	blocksize = sb_min_blocksize(sb, EXT4_MIN_BLOCK_SIZE);
 	if (!blocksize) {
@@ -2221,6 +2231,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+	if (ext4_proc_root)
+		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
+
 	bgl_lock_init(&sbi->s_blockgroup_lock);
 
 	for (i = 0; i < db_count; i++) {
@@ -2500,6 +2513,8 @@ failed_mount2:
 		brelse(sbi->s_group_desc[i]);
 	kfree(sbi->s_group_desc);
 failed_mount:
+	if (sbi->s_proc)
+		remove_proc_entry(sb->s_id, ext4_proc_root);
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
@@ -3538,6 +3553,7 @@ static int __init init_ext4_fs(void)
 {
 	int err;
 
+	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
 	err = init_ext4_mballoc();
 	if (err)
 		return err;
@@ -3567,6 +3583,7 @@ static void __exit exit_ext4_fs(void)
 	destroy_inodecache();
 	exit_ext4_xattr();
 	exit_ext4_mballoc();
+	remove_proc_entry("fs/ext4", NULL);
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");

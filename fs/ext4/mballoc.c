@@ -2170,9 +2170,10 @@ static void ext4_mb_history_release(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	remove_proc_entry("mb_groups", sbi->s_mb_proc);
-	remove_proc_entry("mb_history", sbi->s_mb_proc);
-
+	if (sbi->s_proc != NULL) {
+		remove_proc_entry("mb_groups", sbi->s_proc);
+		remove_proc_entry("mb_history", sbi->s_proc);
+	}
 	kfree(sbi->s_mb_history);
 }
 
@@ -2181,10 +2182,10 @@ static void ext4_mb_history_init(struct super_block *sb)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int i;
 
-	if (sbi->s_mb_proc != NULL) {
-		proc_create_data("mb_history", S_IRUGO, sbi->s_mb_proc,
+	if (sbi->s_proc != NULL) {
+		proc_create_data("mb_history", S_IRUGO, sbi->s_proc,
 				 &ext4_mb_seq_history_fops, sb);
-		proc_create_data("mb_groups", S_IRUGO, sbi->s_mb_proc,
+		proc_create_data("mb_groups", S_IRUGO, sbi->s_proc,
 				 &ext4_mb_seq_groups_fops, sb);
 	}
 
@@ -2720,8 +2721,6 @@ ext4_mb_free_committed_blocks(struct super_block *sb)
 #define EXT4_MB_STREAM_REQ		"stream_req"
 #define EXT4_MB_GROUP_PREALLOC		"group_prealloc"
 
-
-
 #define MB_PROC_FOPS(name)					\
 static int ext4_mb_##name##_proc_show(struct seq_file *m, void *v)	\
 {								\
@@ -2771,7 +2770,7 @@ MB_PROC_FOPS(group_prealloc);
 
 #define	MB_PROC_HANDLER(name, var)					\
 do {									\
-	proc = proc_create_data(name, mode, sbi->s_mb_proc,		\
+	proc = proc_create_data(name, mode, sbi->s_proc,		\
 				&ext4_mb_##var##_proc_fops, sbi);	\
 	if (proc == NULL) {						\
 		printk(KERN_ERR "EXT4-fs: can't to create %s\n", name);	\
@@ -2784,20 +2783,9 @@ static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 	mode_t mode = S_IFREG | S_IRUGO | S_IWUSR;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct proc_dir_entry *proc;
-	char devname[BDEVNAME_SIZE], *p;
 
-	if (proc_root_ext4 == NULL) {
-		sbi->s_mb_proc = NULL;
+	if (sbi->s_proc == NULL)
 		return -EINVAL;
-	}
-	bdevname(sb->s_bdev, devname);
-	p = devname;
-	while ((p = strchr(p, '/')))
-		*p = '!';
-
-	sbi->s_mb_proc = proc_mkdir(devname, proc_root_ext4);
-	if (!sbi->s_mb_proc)
-		goto err_create_dir;
 
 	MB_PROC_HANDLER(EXT4_MB_STATS_NAME, stats);
 	MB_PROC_HANDLER(EXT4_MB_MAX_TO_SCAN_NAME, max_to_scan);
@@ -2805,43 +2793,31 @@ static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 	MB_PROC_HANDLER(EXT4_MB_ORDER2_REQ, order2_reqs);
 	MB_PROC_HANDLER(EXT4_MB_STREAM_REQ, stream_request);
 	MB_PROC_HANDLER(EXT4_MB_GROUP_PREALLOC, group_prealloc);
-
 	return 0;
 
 err_out:
-	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_mb_proc);
-	remove_proc_entry(devname, proc_root_ext4);
-	sbi->s_mb_proc = NULL;
-err_create_dir:
-	printk(KERN_ERR "EXT4-fs: Unable to create %s\n", devname);
-
+	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_proc);
 	return -ENOMEM;
 }
 
 static int ext4_mb_destroy_per_dev_proc(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	char devname[BDEVNAME_SIZE], *p;
 
-	if (sbi->s_mb_proc == NULL)
+	if (sbi->s_proc == NULL)
 		return -EINVAL;
 
-	bdevname(sb->s_bdev, devname);
-	p = devname;
-	while ((p = strchr(p, '/')))
-		*p = '!';
-	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_mb_proc);
-	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_mb_proc);
-	remove_proc_entry(devname, proc_root_ext4);
+	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_proc);
+	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_proc);
 
 	return 0;
 }
@@ -2863,11 +2839,6 @@ int __init init_ext4_mballoc(void)
 		kmem_cache_destroy(ext4_pspace_cachep);
 		return -ENOMEM;
 	}
-#ifdef CONFIG_PROC_FS
-	proc_root_ext4 = proc_mkdir("fs/ext4", NULL);
-	if (proc_root_ext4 == NULL)
-		printk(KERN_ERR "EXT4-fs: Unable to create fs/ext4\n");
-#endif
 	return 0;
 }
 
@@ -2876,9 +2847,6 @@ void exit_ext4_mballoc(void)
 	/* XXX: synchronize_rcu(); */
 	kmem_cache_destroy(ext4_pspace_cachep);
 	kmem_cache_destroy(ext4_ac_cachep);
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry("fs/ext4", NULL);
-#endif
 }
 
 
