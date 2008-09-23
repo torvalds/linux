@@ -52,6 +52,7 @@
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
+#include <asm/idle.h>
 #include <asm/smp.h>
 #include <asm/trampoline.h>
 #include <asm/cpu.h>
@@ -1414,6 +1415,7 @@ void play_dead_common(void)
 	idle_task_exit();
 	reset_lazy_tlbstate();
 	irq_ctx_exit(raw_smp_processor_id());
+	c1e_remove_cpu(raw_smp_processor_id());
 
 	mb();
 	/* Ack it */

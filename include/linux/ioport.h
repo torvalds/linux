@@ -159,9 +159,9 @@ extern struct resource * __devm_request_region(struct device *dev,
 				struct resource *parent, resource_size_t start,
 				resource_size_t n, const char *name);
 
-#define devm_release_region(start,n) \
+#define devm_release_region(dev, start, n) \
 	__devm_release_region(dev, &ioport_resource, (start), (n))
-#define devm_release_mem_region(start,n) \
+#define devm_release_mem_region(dev, start, n) \
 	__devm_release_region(dev, &iomem_resource, (start), (n))
 
 extern void __devm_release_region(struct device *dev, struct resource *parent,

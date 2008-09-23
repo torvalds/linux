@@ -732,6 +732,7 @@ xfs_buf_item_init(
 	bip->bli_item.li_ops = &xfs_buf_item_ops;
 	bip->bli_item.li_mountp = mp;
 	bip->bli_buf = bp;
+	xfs_buf_hold(bp);
 	bip->bli_format.blf_type = XFS_LI_BUF;
 	bip->bli_format.blf_blkno = (__int64_t)XFS_BUF_ADDR(bp);
 	bip->bli_format.blf_len = (ushort)BTOBB(XFS_BUF_COUNT(bp));
@@ -867,6 +868,21 @@ xfs_buf_item_dirty(
 	return (bip->bli_flags & XFS_BLI_DIRTY);
 }
 
+STATIC void
+xfs_buf_item_free(
+	xfs_buf_log_item_t	*bip)
+{
+#ifdef XFS_TRANS_DEBUG
+	kmem_free(bip->bli_orig);
+	kmem_free(bip->bli_logged);
+#endif /* XFS_TRANS_DEBUG */
+
+#ifdef XFS_BLI_TRACE
+	ktrace_free(bip->bli_trace);
+#endif
+	kmem_zone_free(xfs_buf_item_zone, bip);
+}
+
 /*
  * This is called when the buf log item is no longer needed.  It should
  * free the buf log item associated with the given buffer and clear
@@ -887,18 +903,8 @@ xfs_buf_item_relse(
 	    (XFS_BUF_IODONE_FUNC(bp) != NULL)) {
 		XFS_BUF_CLR_IODONE_FUNC(bp);
 	}
-
-#ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig);
-	bip->bli_orig = NULL;
-	kmem_free(bip->bli_logged);
-	bip->bli_logged = NULL;
-#endif /* XFS_TRANS_DEBUG */
-
-#ifdef XFS_BLI_TRACE
-	ktrace_free(bip->bli_trace);
-#endif
-	kmem_zone_free(xfs_buf_item_zone, bip);
+	xfs_buf_rele(bp);
+	xfs_buf_item_free(bip);
 }
 
 
@@ -1120,6 +1126,7 @@ xfs_buf_iodone(
 
 	ASSERT(bip->bli_buf == bp);
 
+	xfs_buf_rele(bp);
 	mp = bip->bli_item.li_mountp;
 
 	/*
@@ -1136,18 +1143,7 @@ xfs_buf_iodone(
 	 * xfs_trans_delete_ail() drops the AIL lock.
 	 */
 	xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
-
-#ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig);
-	bip->bli_orig = NULL;
-	kmem_free(bip->bli_logged);
-	bip->bli_logged = NULL;
-#endif /* XFS_TRANS_DEBUG */
-
-#ifdef XFS_BLI_TRACE
-	ktrace_free(bip->bli_trace);
-#endif
-	kmem_zone_free(xfs_buf_item_zone, bip);
+	xfs_buf_item_free(bip);
 }
 
 #if defined(XFS_BLI_TRACE)

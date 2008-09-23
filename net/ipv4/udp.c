@@ -951,6 +951,27 @@ int udp_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
+static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int is_udplite = IS_UDPLITE(sk);
+	int rc;
+
+	if ((rc = sock_queue_rcv_skb(sk, skb)) < 0) {
+		/* Note that an ENOMEM error is charged twice */
+		if (rc == -ENOMEM)
+			UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_RCVBUFERRORS,
+					 is_udplite);
+		goto drop;
+	}
+
+	return 0;
+
+drop:
+	UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+	kfree_skb(skb);
+	return -1;
+}
+
 /* returns:
  *  -1: error
  *   0: success
@@ -989,9 +1010,7 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		    up->encap_rcv != NULL) {
 			int ret;
 
-			bh_unlock_sock(sk);
 			ret = (*up->encap_rcv)(sk, skb);
-			bh_lock_sock(sk);
 			if (ret <= 0) {
 				UDP_INC_STATS_BH(sock_net(sk),
 						 UDP_MIB_INDATAGRAMS,
@@ -1044,17 +1063,16 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 			goto drop;
 	}
 
-	if ((rc = sock_queue_rcv_skb(sk,skb)) < 0) {
-		/* Note that an ENOMEM error is charged twice */
-		if (rc == -ENOMEM) {
-			UDP_INC_STATS_BH(sock_net(sk),
-					UDP_MIB_RCVBUFERRORS, is_udplite);
-			atomic_inc(&sk->sk_drops);
-		}
-		goto drop;
-	}
+	rc = 0;
 
-	return 0;
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk))
+		rc = __udp_queue_rcv_skb(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
+
+	return rc;
 
 drop:
 	UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
@@ -1092,15 +1110,7 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 				skb1 = skb_clone(skb, GFP_ATOMIC);
 
 			if (skb1) {
-				int ret = 0;
-
-				bh_lock_sock(sk);
-				if (!sock_owned_by_user(sk))
-					ret = udp_queue_rcv_skb(sk, skb1);
-				else
-					sk_add_backlog(sk, skb1);
-				bh_unlock_sock(sk);
-
+				int ret = udp_queue_rcv_skb(sk, skb1);
 				if (ret > 0)
 					/* we should probably re-process instead
 					 * of dropping packets here. */
@@ -1195,13 +1205,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 			uh->dest, inet_iif(skb), udptable);
 
 	if (sk != NULL) {
-		int ret = 0;
-		bh_lock_sock(sk);
-		if (!sock_owned_by_user(sk))
-			ret = udp_queue_rcv_skb(sk, skb);
-		else
-			sk_add_backlog(sk, skb);
-		bh_unlock_sock(sk);
+		int ret = udp_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 
 		/* a return value > 0 means to resubmit the input, but
@@ -1494,7 +1498,7 @@ struct proto udp_prot = {
 	.sendmsg	   = udp_sendmsg,
 	.recvmsg	   = udp_recvmsg,
 	.sendpage	   = udp_sendpage,
-	.backlog_rcv	   = udp_queue_rcv_skb,
+	.backlog_rcv	   = __udp_queue_rcv_skb,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
 	.get_port	   = udp_v4_get_port,

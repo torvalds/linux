@@ -1956,13 +1956,6 @@ static int mini_cm_reject(struct nes_cm_core *cm_core,
 		return ret;
 	cleanup_retrans_entry(cm_node);
 	cm_node->state = NES_CM_STATE_CLOSED;
-	ret = send_fin(cm_node, NULL);
-
-	if (cm_node->accept_pend) {
-		BUG_ON(!cm_node->listener);
-		atomic_dec(&cm_node->listener->pend_accepts_cnt);
-		BUG_ON(atomic_read(&cm_node->listener->pend_accepts_cnt) < 0);
-	}
 
 	ret = send_reset(cm_node, NULL);
 	return ret;
@@ -2383,6 +2376,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			atomic_inc(&cm_disconnects);
 			cm_event.event = IW_CM_EVENT_DISCONNECT;
 			if (last_ae == NES_AEQE_AEID_LLP_CONNECTION_RESET) {
+				issued_disconnect_reset = 1;
 				cm_event.status = IW_CM_EVENT_STATUS_RESET;
 				nes_debug(NES_DBG_CM, "Generating a CM "
 					"Disconnect Event (status reset) for "
@@ -2508,7 +2502,6 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 		nes_debug(NES_DBG_CM, "Call close API\n");
 
 		g_cm_core->api->close(g_cm_core, nesqp->cm_node);
-		nesqp->cm_node = NULL;
 	}
 
 	return ret;
@@ -2837,6 +2830,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_node->apbvt_set = 1;
 	nesqp->cm_node = cm_node;
 	cm_node->nesqp = nesqp;
+	nes_add_ref(&nesqp->ibqp);
 
 	return 0;
 }
@@ -3167,7 +3161,6 @@ static void cm_event_connect_error(struct nes_cm_event *event)
 	if (ret)
 		printk(KERN_ERR "%s[%u] OFA CM event_handler returned, "
 			"ret=%d\n", __func__, __LINE__, ret);
-	nes_rem_ref(&nesqp->ibqp);
 	cm_id->rem_ref(cm_id);
 
 	rem_ref_cm_node(event->cm_node->cm_core, event->cm_node);
