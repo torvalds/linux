@@ -51,9 +51,6 @@ obj-$(CONFIG_X86_BIOS_REBOOT)	+= reboot.o
 obj-$(CONFIG_MCA)		+= mca_32.o
 obj-$(CONFIG_X86_MSR)		+= msr.o
 obj-$(CONFIG_X86_CPUID)		+= cpuid.o
-obj-$(CONFIG_MICROCODE)		+= microcode.o
-obj-$(CONFIG_MICROCODE_INTEL)	+= microcode_intel.o
-obj-$(CONFIG_MICROCODE_AMD)	+= microcode_amd.o
 obj-$(CONFIG_PCI)		+= early-quirks.o
 apm-y				:= apm_32.o
 obj-$(CONFIG_APM)		+= apm.o
@@ -100,6 +97,11 @@ obj-$(CONFIG_SCx200)		+= scx200.o
 scx200-y			+= scx200_32.o
 
 obj-$(CONFIG_OLPC)		+= olpc.o
+
+microcode-y				:= microcode_core.o
+microcode-$(CONFIG_MICROCODE_INTEL)	+= microcode_intel.o
+microcode-$(CONFIG_MICROCODE_AMD)	+= microcode_amd.o
+obj-$(CONFIG_MICROCODE)			+= microcode.o
 
 ###
 # 64 bit specific files

@@ -298,7 +298,7 @@ static int microcode_resume_cpu(int cpu)
 
 	pr_debug("microcode: CPU%d resumed\n", cpu);
 
-	if (!uci->mc.valid_mc)
+	if (!uci->mc)
 		return 1;
 
 	/*
@@ -443,17 +443,20 @@ static struct notifier_block __refdata mc_cpu_notifier = {
 	.notifier_call = mc_cpu_callback,
 };
 
-int microcode_init(void *opaque, struct module *module)
+static int __init microcode_init(void)
 {
-	struct microcode_ops *ops = (struct microcode_ops *)opaque;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	int error;
 
-	if (microcode_ops) {
-		printk(KERN_ERR "microcode: already loaded the other module\n");
-		return -EEXIST;
-	}
+	if (c->x86_vendor == X86_VENDOR_INTEL)
+		microcode_ops = init_intel_microcode();
+	else if (c->x86_vendor != X86_VENDOR_AMD)
+		microcode_ops = init_amd_microcode();
 
-	microcode_ops = ops;
+	if (!microcode_ops) {
+		printk(KERN_ERR "microcode: no support for this CPU vendor\n");
+		return -ENODEV;
+	}
 
 	error = microcode_dev_init();
 	if (error)
@@ -483,9 +486,8 @@ int microcode_init(void *opaque, struct module *module)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(microcode_init);
 
-void __exit microcode_exit(void)
+static void __exit microcode_exit(void)
 {
 	microcode_dev_exit();
 
@@ -502,4 +504,6 @@ void __exit microcode_exit(void)
 	printk(KERN_INFO
 	       "Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
 }
-EXPORT_SYMBOL_GPL(microcode_exit);
+
+module_init(microcode_init);
+module_exit(microcode_exit);

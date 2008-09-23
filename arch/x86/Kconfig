@@ -801,7 +801,7 @@ config MICROCODE
 	  module will be called microcode.
 
 config MICROCODE_INTEL
-       tristate "Intel microcode patch loading support"
+       bool "Intel microcode patch loading support"
        depends on MICROCODE
        default MICROCODE
        select FW_LOADER
@@ -813,19 +813,13 @@ config MICROCODE_INTEL
          Intel ingredients for this driver, check:
          <http://www.urbanmyth.org/microcode/>.
 
-         This driver is only available as a module: the module
-         will be called microcode_intel.  
-
 config MICROCODE_AMD
-       tristate "AMD microcode patch loading support"
+       bool "AMD microcode patch loading support"
        depends on MICROCODE
        select FW_LOADER
        --help---
          If you select this option, microcode patch loading support for AMD
 	 processors will be enabled.
-
-	 This driver is only available as a module: the module
-	 will be called microcode_amd.
 
    config MICROCODE_OLD_INTERFACE
 	def_bool y

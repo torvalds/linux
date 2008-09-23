@@ -46,6 +46,35 @@ MODULE_LICENSE("GPL v2");
 #define UCODE_EQUIV_CPU_TABLE_TYPE 0x00000000
 #define UCODE_UCODE_TYPE           0x00000001
 
+struct equiv_cpu_entry {
+	unsigned int installed_cpu;
+	unsigned int fixed_errata_mask;
+	unsigned int fixed_errata_compare;
+	unsigned int equiv_cpu;
+};
+
+struct microcode_header_amd {
+	unsigned int  data_code;
+	unsigned int  patch_id;
+	unsigned char mc_patch_data_id[2];
+	unsigned char mc_patch_data_len;
+	unsigned char init_flag;
+	unsigned int  mc_patch_data_checksum;
+	unsigned int  nb_dev_id;
+	unsigned int  sb_dev_id;
+	unsigned char processor_rev_id[2];
+	unsigned char nb_rev_id;
+	unsigned char sb_rev_id;
+	unsigned char bios_api_rev;
+	unsigned char reserved1[3];
+	unsigned int  match_reg[8];
+};
+
+struct microcode_amd {
+	struct microcode_header_amd hdr;
+	unsigned int mpb[0];
+};
+
 #define UCODE_MAX_SIZE          (2048)
 #define DEFAULT_UCODE_DATASIZE	(896)
 #define MC_HEADER_SIZE		(sizeof(struct microcode_header_amd))
@@ -189,17 +218,18 @@ static void apply_microcode_amd(int cpu)
 	unsigned int rev;
 	int cpu_num = raw_smp_processor_id();
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
+	struct microcode_amd *mc_amd = uci->mc;
 	unsigned long addr;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
 
-	if (uci->mc.mc_amd == NULL)
+	if (mc_amd == NULL)
 		return;
 
 	spin_lock_irqsave(&microcode_update_lock, flags);
 
-	addr = (unsigned long)&uci->mc.mc_amd->hdr.data_code;
+	addr = (unsigned long)&mc_amd->hdr.data_code;
 	edx = (unsigned int)(((unsigned long)upper_32_bits(addr)));
 	eax = (unsigned int)(((unsigned long)lower_32_bits(addr)));
 
@@ -214,16 +244,16 @@ static void apply_microcode_amd(int cpu)
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
 
 	/* check current patch id and patch's id for match */
-	if (rev != uci->mc.mc_amd->hdr.patch_id) {
+	if (rev != mc_amd->hdr.patch_id) {
 		printk(KERN_ERR "microcode: CPU%d update from revision "
 		       "0x%x to 0x%x failed\n", cpu_num,
-		       uci->mc.mc_amd->hdr.patch_id, rev);
+		       mc_amd->hdr.patch_id, rev);
 		return;
 	}
 
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
 	       "0x%x to 0x%x \n",
-	       cpu_num, uci->cpu_sig.rev, uci->mc.mc_amd->hdr.patch_id);
+	       cpu_num, uci->cpu_sig.rev, mc_amd->hdr.patch_id);
 
 	uci->cpu_sig.rev = rev;
 }
@@ -355,12 +385,12 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 
 	if (new_mc) {
 		if (!leftover) {
-			if (uci->mc.mc_amd)
-				vfree(uci->mc.mc_amd);
-			uci->mc.mc_amd = (struct microcode_amd *)new_mc;
+			if (uci->mc)
+				vfree(uci->mc);
+			uci->mc = new_mc;
 			pr_debug("microcode: CPU%d found a matching microcode update with"
 				" version 0x%x (current=0x%x)\n",
-				cpu, uci->mc.mc_amd->hdr.patch_id, uci->cpu_sig.rev);
+				cpu, new_rev, uci->cpu_sig.rev);
 		} else
 			vfree(new_mc);
 	}
@@ -416,8 +446,8 @@ static void microcode_fini_cpu_amd(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	vfree(uci->mc.mc_amd);
-	uci->mc.mc_amd = NULL;
+	vfree(uci->mc);
+	uci->mc = NULL;
 }
 
 static struct microcode_ops microcode_amd_ops = {
@@ -428,23 +458,7 @@ static struct microcode_ops microcode_amd_ops = {
 	.microcode_fini_cpu               = microcode_fini_cpu_amd,
 };
 
-static int __init microcode_amd_module_init(void)
+struct microcode_ops * __init init_amd_microcode(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	equiv_cpu_table = NULL;
-	if (c->x86_vendor != X86_VENDOR_AMD) {
-		printk(KERN_ERR "microcode: CPU platform is not AMD-capable\n");
-		return -ENODEV;
-	}
-
-	return microcode_init(&microcode_amd_ops, THIS_MODULE);
+	return &microcode_amd_ops;
 }
-
-static void __exit microcode_amd_module_exit(void)
-{
-	microcode_exit();
-}
-
-module_init(microcode_amd_module_init)
-module_exit(microcode_amd_module_exit)

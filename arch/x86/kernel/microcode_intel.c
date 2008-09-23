@@ -97,6 +97,38 @@ MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
 MODULE_LICENSE("GPL");
 
+struct microcode_header_intel {
+	unsigned int            hdrver;
+	unsigned int            rev;
+	unsigned int            date;
+	unsigned int            sig;
+	unsigned int            cksum;
+	unsigned int            ldrver;
+	unsigned int            pf;
+	unsigned int            datasize;
+	unsigned int            totalsize;
+	unsigned int            reserved[3];
+};
+
+struct microcode_intel {
+	struct microcode_header_intel hdr;
+	unsigned int            bits[0];
+};
+
+/* microcode format is extended from prescott processors */
+struct extended_signature {
+	unsigned int            sig;
+	unsigned int            pf;
+	unsigned int            cksum;
+};
+
+struct extended_sigtable {
+	unsigned int            count;
+	unsigned int            cksum;
+	unsigned int            reserved[3];
+	struct extended_signature sigs[0];
+};
+
 #define DEFAULT_UCODE_DATASIZE 	(2000)
 #define MC_HEADER_SIZE		(sizeof(struct microcode_header_intel))
 #define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE)
@@ -284,11 +316,12 @@ static void apply_microcode(int cpu)
 	unsigned int val[2];
 	int cpu_num = raw_smp_processor_id();
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	struct microcode_intel *mc_intel = uci->mc;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
 
-	if (uci->mc.mc_intel == NULL)
+	if (mc_intel == NULL)
 		return;
 
 	/* serialize access to the physical write to MSR 0x79 */
@@ -296,8 +329,8 @@ static void apply_microcode(int cpu)
 
 	/* write microcode via MSR 0x79 */
 	wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long) uci->mc.mc_intel->bits,
-	      (unsigned long) uci->mc.mc_intel->bits >> 16 >> 16);
+	      (unsigned long) mc_intel->bits,
+	      (unsigned long) mc_intel->bits >> 16 >> 16);
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 
 	/* see notes above for revision 1.07.  Apparent chip bug */
@@ -307,7 +340,7 @@ static void apply_microcode(int cpu)
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
 
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
-	if (val[1] != uci->mc.mc_intel->hdr.rev) {
+	if (val[1] != mc_intel->hdr.rev) {
 		printk(KERN_ERR "microcode: CPU%d update from revision "
 			"0x%x to 0x%x failed\n", cpu_num, uci->cpu_sig.rev, val[1]);
 		return;
@@ -315,9 +348,9 @@ static void apply_microcode(int cpu)
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
 	       "0x%x to 0x%x, date = %04x-%02x-%02x \n",
 		cpu_num, uci->cpu_sig.rev, val[1],
-		uci->mc.mc_intel->hdr.date & 0xffff,
-		uci->mc.mc_intel->hdr.date >> 24,
-		(uci->mc.mc_intel->hdr.date >> 16) & 0xff);
+		mc_intel->hdr.date & 0xffff,
+		mc_intel->hdr.date >> 24,
+		(mc_intel->hdr.date >> 16) & 0xff);
 	uci->cpu_sig.rev = val[1];
 }
 
@@ -367,12 +400,12 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 
 	if (new_mc) {
 		if (!leftover) {
-			if (uci->mc.mc_intel)
-				vfree(uci->mc.mc_intel);
-			uci->mc.mc_intel = (struct microcode_intel *)new_mc;
+			if (uci->mc)
+				vfree(uci->mc);
+			uci->mc = (struct microcode_intel *)new_mc;
 			pr_debug("microcode: CPU%d found a matching microcode update with"
 				 " version 0x%x (current=0x%x)\n",
-				cpu, uci->mc.mc_intel->hdr.rev, uci->cpu_sig.rev);
+				cpu, new_rev, uci->cpu_sig.rev);
 		} else
 			vfree(new_mc);
 	}
@@ -428,11 +461,11 @@ static void microcode_fini_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	vfree(uci->mc.mc_intel);
-	uci->mc.mc_intel = NULL;
+	vfree(uci->mc);
+	uci->mc = NULL;
 }
 
-static struct microcode_ops microcode_intel_ops = {
+struct microcode_ops microcode_intel_ops = {
 	.request_microcode_user		  = request_microcode_user,
 	.request_microcode_fw             = request_microcode_fw,
 	.collect_cpu_info                 = collect_cpu_info,
@@ -440,22 +473,8 @@ static struct microcode_ops microcode_intel_ops = {
 	.microcode_fini_cpu               = microcode_fini_cpu,
 };
 
-static int __init microcode_intel_module_init(void)
+struct microcode_ops * __init init_intel_microcode(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	if (c->x86_vendor != X86_VENDOR_INTEL) {
-                printk(KERN_ERR "microcode: CPU platform is not Intel-capable\n");
-		return -ENODEV;
-	}
-
-	return microcode_init(&microcode_intel_ops, THIS_MODULE);
+	return &microcode_intel_ops;
 }
 
-static void __exit microcode_intel_module_exit(void)
-{
-	microcode_exit();
-}
-
-module_init(microcode_intel_module_init)
-module_exit(microcode_intel_module_exit)
