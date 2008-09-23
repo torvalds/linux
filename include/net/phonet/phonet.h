@@ -71,4 +71,5 @@ struct phonet_protocol {
 int phonet_proto_register(int protocol, struct phonet_protocol *pp);
 void phonet_proto_unregister(int protocol, struct phonet_protocol *pp);
 
+void phonet_netlink_register(void);
 #endif

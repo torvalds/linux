@@ -203,6 +203,7 @@ static int __init phonet_init(void)
 
 	phonet_device_init();
 	dev_add_pack(&phonet_packet_type);
+	phonet_netlink_register();
 	return 0;
 }
 
