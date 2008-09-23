@@ -738,7 +738,7 @@ static inline void skb_queue_splice(const struct sk_buff_head *list,
 {
 	if (!skb_queue_empty(list)) {
 		__skb_queue_splice(list, (struct sk_buff *) head, head->next);
-		head->qlen = list->qlen;
+		head->qlen += list->qlen;
 	}
 }
 
@@ -754,7 +754,7 @@ static inline void skb_queue_splice_init(struct sk_buff_head *list,
 {
 	if (!skb_queue_empty(list)) {
 		__skb_queue_splice(list, (struct sk_buff *) head, head->next);
-		head->qlen = list->qlen;
+		head->qlen += list->qlen;
 		__skb_queue_head_init(list);
 	}
 }
@@ -769,7 +769,7 @@ static inline void skb_queue_splice_tail(const struct sk_buff_head *list,
 {
 	if (!skb_queue_empty(list)) {
 		__skb_queue_splice(list, head->prev, (struct sk_buff *) head);
-		head->qlen = list->qlen;
+		head->qlen += list->qlen;
 	}
 }
 
@@ -786,7 +786,7 @@ static inline void skb_queue_splice_tail_init(struct sk_buff_head *list,
 {
 	if (!skb_queue_empty(list)) {
 		__skb_queue_splice(list, head->prev, (struct sk_buff *) head);
-		head->qlen = list->qlen;
+		head->qlen += list->qlen;
 		__skb_queue_head_init(list);
 	}
 }
