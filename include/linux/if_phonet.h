@@ -12,3 +12,7 @@
 /* 6 bytes header + 65535 bytes payload */
 #define PHONET_MAX_MTU		65541
 #define PHONET_DEV_MTU		PHONET_MAX_MTU
+
+#ifdef __KERNEL__
+extern struct header_ops phonet_header_ops;
+#endif

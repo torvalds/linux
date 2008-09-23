@@ -99,6 +99,35 @@ static struct net_proto_family phonet_proto_family = {
 	.owner = THIS_MODULE,
 };
 
+/* Phonet device header operations */
+static int pn_header_create(struct sk_buff *skb, struct net_device *dev,
+				unsigned short type, const void *daddr,
+				const void *saddr, unsigned len)
+{
+	u8 *media = skb_push(skb, 1);
+
+	if (type != ETH_P_PHONET)
+		return -1;
+
+	if (!saddr)
+		saddr = dev->dev_addr;
+	*media = *(const u8 *)saddr;
+	return 1;
+}
+
+static int pn_header_parse(const struct sk_buff *skb, unsigned char *haddr)
+{
+	const u8 *media = skb_mac_header(skb);
+	*haddr = *media;
+	return 1;
+}
+
+struct header_ops phonet_header_ops = {
+	.create = pn_header_create,
+	.parse = pn_header_parse,
+};
+EXPORT_SYMBOL(phonet_header_ops);
+
 /*
  * Prepends an ISI header and sends a datagram.
  */
