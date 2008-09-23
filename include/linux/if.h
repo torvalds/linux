@@ -24,6 +24,7 @@
 #include <linux/compiler.h>		/* for "__user" et al           */
 
 #define	IFNAMSIZ	16
+#define	IFALIASZ	256
 #include <linux/hdlc/ioctl.h>
 
 /* Standard interface flags (netdevice->flags). */

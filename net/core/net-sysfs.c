@@ -209,9 +209,44 @@ static ssize_t store_tx_queue_len(struct device *dev,
 	return netdev_store(dev, attr, buf, len, change_tx_queue_len);
 }
 
+static ssize_t store_ifalias(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t len)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	size_t count = len;
+	ssize_t ret;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	/* ignore trailing newline */
+	if (len >  0 && buf[len - 1] == '\n')
+		--count;
+
+	rtnl_lock();
+	ret = dev_set_alias(netdev, buf, count);
+	rtnl_unlock();
+
+	return ret < 0 ? ret : len;
+}
+
+static ssize_t show_ifalias(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	const struct net_device *netdev = to_net_dev(dev);
+	ssize_t ret = 0;
+
+	rtnl_lock();
+	if (netdev->ifalias)
+		ret = sprintf(buf, "%s\n", netdev->ifalias);
+	rtnl_unlock();
+	return ret;
+}
+
 static struct device_attribute net_class_attributes[] = {
 	__ATTR(addr_len, S_IRUGO, show_addr_len, NULL),
 	__ATTR(dev_id, S_IRUGO, show_dev_id, NULL),
+	__ATTR(ifalias, S_IRUGO | S_IWUSR, show_ifalias, store_ifalias),
 	__ATTR(iflink, S_IRUGO, show_iflink, NULL),
 	__ATTR(ifindex, S_IRUGO, show_ifindex, NULL),
 	__ATTR(features, S_IRUGO, show_features, NULL),
@@ -418,6 +453,7 @@ static void netdev_release(struct device *d)
 
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
+	kfree(dev->ifalias);
 	kfree((char *)dev - dev->padded);
 }
 
