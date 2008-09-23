@@ -830,9 +830,8 @@ int save_mask_IO_APIC_setup(void)
 	return 0;
 
 nomem:
-	for (; apic > 0; apic--)
-		kfree(early_ioapic_entries[apic]);
-	kfree(early_ioapic_entries[apic]);
+	while (apic >= 0)
+		kfree(early_ioapic_entries[apic--]);
 	memset(early_ioapic_entries, 0,
 		ARRAY_SIZE(early_ioapic_entries));
 
