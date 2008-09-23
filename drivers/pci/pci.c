@@ -1270,8 +1270,8 @@ void pci_pm_init(struct pci_dev *dev)
 
 		if (dev->d1_support || dev->d2_support)
 			dev_printk(KERN_DEBUG, &dev->dev, "supports%s%s\n",
-				   dev->d1_support ? " D1": "",
-				   dev->d2_support ? " D2": "");
+				   dev->d1_support ? " D1" : "",
+				   dev->d2_support ? " D2" : "");
 	}
 
 	pmc &= PCI_PM_CAP_PME_MASK;
