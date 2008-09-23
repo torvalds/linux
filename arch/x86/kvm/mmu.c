@@ -1173,6 +1173,20 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 	__set_bit(slot, &sp->slot_bitmap);
 }
 
+static void mmu_convert_notrap(struct kvm_mmu_page *sp)
+{
+	int i;
+	u64 *pt = sp->spt;
+
+	if (shadow_trap_nonpresent_pte == shadow_notrap_nonpresent_pte)
+		return;
+
+	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
+		if (pt[i] == shadow_notrap_nonpresent_pte)
+			set_shadow_pte(&pt[i], shadow_trap_nonpresent_pte);
+	}
+}
+
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct page *page;
