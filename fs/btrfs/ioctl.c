@@ -76,9 +76,8 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	if (ret)
 		goto fail;
 
-	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
-				      objectid, trans->transid, 0, 0,
-				      0, 0);
+	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
+				      objectid, trans->transid, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
 		goto fail;
@@ -525,13 +524,10 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 	struct file *src_file;
 	struct inode *src;
 	struct btrfs_trans_handle *trans;
-	struct btrfs_ordered_extent *ordered;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	char *buf;
 	struct btrfs_key key;
-	struct btrfs_key new_key;
-	u32 size;
 	u32 nritems;
 	int slot;
 	int ret;
@@ -576,6 +572,7 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 	/* do any pending delalloc/csum calc on src, one way or
 	   another, and lock file content */
 	while (1) {
+		struct btrfs_ordered_extent *ordered;
 		lock_extent(&BTRFS_I(src)->io_tree, 0, (u64)-1, GFP_NOFS);
 		ordered = btrfs_lookup_first_ordered_extent(inode, (u64)-1);
 		if (BTRFS_I(src)->delalloc_bytes == 0 && !ordered)
@@ -619,6 +616,32 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 		    key.objectid != src->i_ino)
 			break;
 
+		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY ||
+		    btrfs_key_type(&key) == BTRFS_CSUM_ITEM_KEY) {
+			u32 size;
+			struct btrfs_key new_key;
+
+			size = btrfs_item_size_nr(leaf, slot);
+			read_extent_buffer(leaf, buf,
+					   btrfs_item_ptr_offset(leaf, slot),
+					   size);
+			btrfs_release_path(root, path);
+
+			memcpy(&new_key, &key, sizeof(new_key));
+			new_key.objectid = inode->i_ino;
+			ret = btrfs_insert_empty_item(trans, root, path,
+						      &new_key, size);
+			if (ret)
+				goto out;
+
+			leaf = path->nodes[0];
+			slot = path->slots[0];
+			write_extent_buffer(leaf, buf,
+					    btrfs_item_ptr_offset(leaf, slot),
+					    size);
+			btrfs_mark_buffer_dirty(leaf);
+		}
+
 		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY) {
 			struct btrfs_file_extent_item *extent;
 			int found_type;
@@ -634,31 +657,15 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 				/* ds == 0 means there's a hole */
 				if (ds != 0) {
 					ret = btrfs_inc_extent_ref(trans, root,
-						     ds, dl,
+						     ds, dl, leaf->start,
 						     root->root_key.objectid,
 						     trans->transid,
 						     inode->i_ino, key.offset);
-					if (ret)
-						goto out;
+					BUG_ON(ret);
 				}
 			}
 		}
-
-		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY ||
-		    btrfs_key_type(&key) == BTRFS_CSUM_ITEM_KEY) {
-			size = btrfs_item_size_nr(leaf, slot);
-			read_extent_buffer(leaf, buf,
-					   btrfs_item_ptr_offset(leaf, slot),
-					   size);
-			btrfs_release_path(root, path);
-			memcpy(&new_key, &key, sizeof(new_key));
-			new_key.objectid = inode->i_ino;
-			ret = btrfs_insert_item(trans, root, &new_key,
-						buf, size);
-			BUG_ON(ret);
-		} else {
-			btrfs_release_path(root, path);
-		}
+		btrfs_release_path(root, path);
 		key.offset++;
 	}
 	ret = 0;

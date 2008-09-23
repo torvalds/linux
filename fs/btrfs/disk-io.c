@@ -882,8 +882,8 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 	root->ref_cows = 0;
 
 	root->node = btrfs_alloc_free_block(trans, root, root->leafsize,
-					    BTRFS_TREE_LOG_OBJECTID,
-					    0, 0, 0, 0, 0);
+					    0, BTRFS_TREE_LOG_OBJECTID,
+					    trans->transid, 0, 0, 0);
 
 	btrfs_set_header_nritems(root->node, 0);
 	btrfs_set_header_level(root->node, 0);

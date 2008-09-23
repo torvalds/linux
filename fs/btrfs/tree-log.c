@@ -89,9 +89,9 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	int ret;
 	u64 objectid = root->root_key.objectid;
 
-	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
+	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
 				      BTRFS_TREE_LOG_OBJECTID,
-				      0, 0, 0, 0, 0);
+				      trans->transid, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
 		return ret;
@@ -433,6 +433,49 @@ insert:
 						   trans->transid);
 		}
 	}
+
+	if (overwrite_root &&
+	    key->type == BTRFS_EXTENT_DATA_KEY) {
+		int extent_type;
+		struct btrfs_file_extent_item *fi;
+
+		fi = (struct btrfs_file_extent_item *)dst_ptr;
+		extent_type = btrfs_file_extent_type(path->nodes[0], fi);
+		if (extent_type == BTRFS_FILE_EXTENT_REG) {
+			struct btrfs_key ins;
+			ins.objectid = btrfs_file_extent_disk_bytenr(
+							path->nodes[0], fi);
+			ins.offset = btrfs_file_extent_disk_num_bytes(
+							path->nodes[0], fi);
+			ins.type = BTRFS_EXTENT_ITEM_KEY;
+
+			/*
+			 * is this extent already allocated in the extent
+			 * allocation tree?  If so, just add a reference
+			 */
+			ret = btrfs_lookup_extent(root, ins.objectid,
+						  ins.offset);
+			if (ret == 0) {
+				ret = btrfs_inc_extent_ref(trans, root,
+						ins.objectid, ins.offset,
+						path->nodes[0]->start,
+						root->root_key.objectid,
+						trans->transid,
+						key->objectid, key->offset);
+			} else {
+				/*
+				 * insert the extent pointer in the extent
+				 * allocation tree
+				 */
+				ret = btrfs_alloc_logged_extent(trans, root,
+						path->nodes[0]->start,
+						root->root_key.objectid,
+						trans->transid, key->objectid,
+						key->offset, &ins);
+				BUG_ON(ret);
+			}
+		}
+	}
 no_copy:
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(root, path);
@@ -551,45 +594,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			 start, extent_end, start, &alloc_hint);
 	BUG_ON(ret);
 
+	/* insert the extent */
+	ret = overwrite_item(trans, root, path, eb, slot, key);
 	BUG_ON(ret);
-	if (found_type == BTRFS_FILE_EXTENT_REG) {
-		struct btrfs_key ins;
 
-		ins.objectid = btrfs_file_extent_disk_bytenr(eb, item);
-		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
-		ins.type = BTRFS_EXTENT_ITEM_KEY;
-
-		/* insert the extent pointer in the file */
-		ret = overwrite_item(trans, root, path, eb, slot, key);
-		BUG_ON(ret);
-
-		/*
-		 * is this extent already allocated in the extent
-		 * allocation tree?  If so, just add a reference
-		 */
-		ret = btrfs_lookup_extent(root, path, ins.objectid, ins.offset);
-		btrfs_release_path(root, path);
-		if (ret == 0) {
-			ret = btrfs_inc_extent_ref(trans, root,
-				   ins.objectid, ins.offset,
-				   root->root_key.objectid,
-				   trans->transid, key->objectid, start);
-		} else {
-			/*
-			 * insert the extent pointer in the extent
-			 * allocation tree
-			 */
-			ret = btrfs_alloc_logged_extent(trans, root,
-						root->root_key.objectid,
-						trans->transid, key->objectid,
-						start, &ins);
-			BUG_ON(ret);
-		}
-	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-		/* inline extents are easy, we just overwrite them */
-		ret = overwrite_item(trans, root, path, eb, slot, key);
-		BUG_ON(ret);
-	}
 	/* btrfs_drop_extents changes i_blocks, update it here */
 	inode->i_blocks += (extent_end - start) >> 9;
 	btrfs_update_inode(trans, root, inode);
@@ -1806,16 +1814,14 @@ static int noinline walk_up_log_tree(struct btrfs_trans_handle *trans,
 			WARN_ON(*level == 0);
 			return 0;
 		} else {
-			if (path->nodes[*level] == root->node) {
-				root_owner = root->root_key.objectid;
-				root_gen =
-				   btrfs_header_generation(path->nodes[*level]);
-			} else {
-				struct extent_buffer *node;
-				node = path->nodes[*level + 1];
-				root_owner = btrfs_header_owner(node);
-				root_gen = btrfs_header_generation(node);
-			}
+			struct extent_buffer *parent;
+			if (path->nodes[*level] == root->node)
+				parent = path->nodes[*level];
+			else
+				parent = path->nodes[*level + 1];
+
+			root_owner = btrfs_header_owner(parent);
+			root_gen = btrfs_header_generation(parent);
 			wc->process_func(root, path->nodes[*level], wc,
 				 btrfs_header_generation(path->nodes[*level]));
 			if (wc->free) {
@@ -2525,8 +2531,10 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 				if (ds != 0) {
 					ret = btrfs_inc_extent_ref(trans, log,
 						   ds, dl,
+						   dst_path->nodes[0]->start,
 						   BTRFS_TREE_LOG_OBJECTID,
-						   0, ins_keys[i].objectid,
+						   trans->transid,
+						   ins_keys[i].objectid,
 						   ins_keys[i].offset);
 					BUG_ON(ret);
 				}

@@ -2201,9 +2201,10 @@ retry:
 	}
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
-
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 	if (wbc->range_cont)
 		wbc->range_start = index << PAGE_CACHE_SHIFT;
+#endif
 	return ret;
 }
 EXPORT_SYMBOL(extent_write_cache_pages);

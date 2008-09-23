@@ -528,6 +528,9 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_ordered_extent *ordered_extent;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_file_extent_item *extent_item;
+	struct btrfs_path *path = NULL;
+	struct extent_buffer *leaf;
 	u64 alloc_hint = 0;
 	struct list_head list;
 	struct btrfs_key ins;
@@ -544,20 +547,15 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags))
 		goto nocow;
 
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+
 	lock_extent(io_tree, ordered_extent->file_offset,
 		    ordered_extent->file_offset + ordered_extent->len - 1,
 		    GFP_NOFS);
 
 	INIT_LIST_HEAD(&list);
 
-	ins.objectid = ordered_extent->start;
-	ins.offset = ordered_extent->len;
-	ins.type = BTRFS_EXTENT_ITEM_KEY;
-
-	ret = btrfs_alloc_reserved_extent(trans, root, root->root_key.objectid,
-					  trans->transid, inode->i_ino,
-					  ordered_extent->file_offset, &ins);
-	BUG_ON(ret);
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 
 	ret = btrfs_drop_extents(trans, root, inode,
@@ -566,17 +564,41 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 				 ordered_extent->len,
 				 ordered_extent->file_offset, &alloc_hint);
 	BUG_ON(ret);
-	ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
-				       ordered_extent->file_offset,
-				       ordered_extent->start,
-				       ordered_extent->len,
-				       ordered_extent->len, 0);
+
+	ins.objectid = inode->i_ino;
+	ins.offset = ordered_extent->file_offset;
+	ins.type = BTRFS_EXTENT_DATA_KEY;
+	ret = btrfs_insert_empty_item(trans, root, path, &ins,
+				      sizeof(*extent_item));
 	BUG_ON(ret);
+	leaf = path->nodes[0];
+	extent_item = btrfs_item_ptr(leaf, path->slots[0],
+				     struct btrfs_file_extent_item);
+	btrfs_set_file_extent_generation(leaf, extent_item, trans->transid);
+	btrfs_set_file_extent_type(leaf, extent_item, BTRFS_FILE_EXTENT_REG);
+	btrfs_set_file_extent_disk_bytenr(leaf, extent_item,
+					  ordered_extent->start);
+	btrfs_set_file_extent_disk_num_bytes(leaf, extent_item,
+					     ordered_extent->len);
+	btrfs_set_file_extent_offset(leaf, extent_item, 0);
+	btrfs_set_file_extent_num_bytes(leaf, extent_item,
+					ordered_extent->len);
+	btrfs_mark_buffer_dirty(leaf);
 
 	btrfs_drop_extent_cache(inode, ordered_extent->file_offset,
 				ordered_extent->file_offset +
 				ordered_extent->len - 1);
 	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
+
+	ins.objectid = ordered_extent->start;
+	ins.offset = ordered_extent->len;
+	ins.type = BTRFS_EXTENT_ITEM_KEY;
+	ret = btrfs_alloc_reserved_extent(trans, root, leaf->start,
+					  root->root_key.objectid,
+					  trans->transid, inode->i_ino,
+					  ordered_extent->file_offset, &ins);
+	BUG_ON(ret);
+	btrfs_release_path(root, path);
 
 	inode->i_blocks += ordered_extent->len >> 9;
 	unlock_extent(io_tree, ordered_extent->file_offset,
@@ -596,6 +618,8 @@ nocow:
 	btrfs_put_ordered_extent(ordered_extent);
 
 	btrfs_end_transaction(trans, root);
+	if (path)
+		btrfs_free_path(path);
 	return 0;
 }
 
@@ -1433,10 +1457,7 @@ search_again:
 					if (root->ref_cows)
 						dec_i_blocks(inode, num_dec);
 				}
-				if (root->ref_cows) {
-					root_gen =
-						btrfs_header_generation(leaf);
-				}
+				root_gen = btrfs_header_generation(leaf);
 				root_owner = btrfs_header_owner(leaf);
 			}
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
@@ -1477,7 +1498,7 @@ delete:
 		if (found_extent) {
 			ret = btrfs_free_extent(trans, root, extent_start,
 						extent_num_bytes,
-						root_owner,
+						leaf->start, root_owner,
 						root_gen, inode->i_ino,
 						found_key.offset, 0);
 			BUG_ON(ret);
