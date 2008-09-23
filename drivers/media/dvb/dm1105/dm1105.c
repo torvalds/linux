@@ -39,8 +39,8 @@
 #include "dvb-pll.h"
 
 #include "stv0299.h"
-/*#include "stv0288.h"
- *#include "stb6000.h"*/
+#include "stv0288.h"
+#include "stb6000.h"
 #include "si21xx.h"
 #include "cx24116.h"
 #include "z0194a.h"
@@ -594,13 +594,12 @@ static void dm1105dvb_hw_exit(struct dm1105dvb *dm1105dvb)
 
 	dm1105dvb_dma_unmap(dm1105dvb);
 }
-#if 0
+
 static struct stv0288_config earda_config = {
 	.demod_address = 0x68,
 	.min_delay_ms = 100,
 };
 
-#endif /* keep */
 static struct si21xx_config serit_config = {
 	.demod_address = 0x68,
 	.min_delay_ms = 100,
@@ -627,7 +626,7 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 			dvb_attach(dvb_pll_attach, dm1105dvb->fe, 0x60,
 					&dm1105dvb->i2c_adap, DVB_PLL_OPERA1);
 		}
-#if 0
+
 		if (!dm1105dvb->fe) {
 			dm1105dvb->fe = dvb_attach(
 				stv0288_attach, &earda_config,
@@ -639,7 +638,7 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 						&dm1105dvb->i2c_adap);
 			}
 		}
-#endif /* keep */
+
 		if (!dm1105dvb->fe) {
 			dm1105dvb->fe = dvb_attach(
 				si21xx_attach, &serit_config,

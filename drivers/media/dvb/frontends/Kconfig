@@ -43,6 +43,20 @@ config DVB_S5H1420
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_STV0288
+	tristate "ST STV0288 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_STB6000
+	tristate "ST STB6000 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	  help
+	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
+
 config DVB_STV0299
 	tristate "ST STV0299 based"
 	depends on DVB_CORE && I2C

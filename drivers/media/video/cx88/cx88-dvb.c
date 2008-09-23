@@ -48,6 +48,10 @@
 #include "tuner-simple.h"
 #include "tda9887.h"
 #include "s5h1411.h"
+#include "stv0299.h"
+#include "z0194a.h"
+#include "stv0288.h"
+#include "stb6000.h"
 #include "cx24116.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
@@ -579,6 +583,25 @@ static struct cx24116_config tevii_s460_config = {
 	.reset_device  = cx24116_reset_device,
 };
 
+static struct stv0299_config tevii_tuner_sharp_config = {
+	.demod_address = 0x68,
+	.inittab = sharp_z0194a__inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.skip_reinit = 0,
+	.lock_output = 1,
+	.volt13_op0_op1 = STV0299_VOLT13_OP1,
+	.min_delay_ms = 100,
+	.set_symbol_rate = sharp_z0194a__set_symbol_rate,
+	.set_ts_params = cx24116_set_ts_param,
+};
+
+static struct stv0288_config tevii_tuner_earda_config = {
+	.demod_address = 0x68,
+	.min_delay_ms = 100,
+	.set_ts_params = cx24116_set_ts_param,
+};
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
@@ -947,6 +970,31 @@ static int dvb_register(struct cx8802_dev *dev)
 			dvb_attach(isl6421_attach, dev->dvb.frontend,
 				&dev->core->i2c_adap,
 				0x08, ISL6421_DCL, 0x00);
+		}
+		break;
+	case CX88_BOARD_TEVII_S420:
+		dev->dvb.frontend = dvb_attach(stv0299_attach,
+						&tevii_tuner_sharp_config,
+						&core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			if (!dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
+					&core->i2c_adap, DVB_PLL_OPERA1))
+				goto frontend_detach;
+			core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			dev->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
+
+		} else {
+			dev->dvb.frontend = dvb_attach(stv0288_attach,
+							    &tevii_tuner_earda_config,
+							    &core->i2c_adap);
+				if (dev->dvb.frontend != NULL) {
+					if (!dvb_attach(stb6000_attach, dev->dvb.frontend, 0x61,
+						&core->i2c_adap))
+					goto frontend_detach;
+				core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+				dev->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
+
+			}
 		}
 		break;
 	case CX88_BOARD_TEVII_S460:
