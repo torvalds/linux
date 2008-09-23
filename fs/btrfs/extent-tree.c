@@ -66,7 +66,7 @@ static int cache_block_group(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group)
 {
 	struct btrfs_path *path;
-	int ret;
+	int ret = 0;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	struct extent_io_tree *free_space_cache;
@@ -102,10 +102,10 @@ static int cache_block_group(struct btrfs_root *root,
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
-		return ret;
+		goto err;
 	ret = btrfs_previous_item(root, path, 0, BTRFS_EXTENT_ITEM_KEY);
 	if (ret < 0)
-		return ret;
+		goto err;
 	if (ret == 0) {
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
@@ -161,9 +161,10 @@ next:
 				 last + hole_size - 1, GFP_NOFS);
 	}
 	block_group->cached = 1;
+	ret = 0;
 err:
 	btrfs_free_path(path);
-	return 0;
+	return ret;
 }
 
 struct btrfs_block_group_cache *btrfs_lookup_first_block_group(struct
