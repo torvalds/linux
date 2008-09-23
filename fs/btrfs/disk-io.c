@@ -315,14 +315,6 @@ out:
 	return 0;
 }
 
-static int btree_writepage_io_hook(struct page *page, u64 start, u64 end)
-{
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-
-	csum_dirty_buffer(root, page);
-	return 0;
-}
-
 int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -501,6 +493,22 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	return 0;
 }
 
+static int btree_csum_one_bio(struct bio *bio)
+{
+	struct bio_vec *bvec = bio->bi_io_vec;
+	int bio_index = 0;
+	struct btrfs_root *root;
+
+	WARN_ON(bio->bi_vcnt <= 0);
+	while(bio_index < bio->bi_vcnt) {
+		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
+		csum_dirty_buffer(root, bvec->bv_page);
+		bio_index++;
+		bvec++;
+	}
+	return 0;
+}
+
 static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				 int mirror_num)
 {
@@ -515,6 +523,7 @@ static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	 * submission context.  Just jump into btrfs_map_bio
 	 */
 	if (rw & (1 << BIO_RW)) {
+		btree_csum_one_bio(bio);
 		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
 				     mirror_num, 1);
 	}
@@ -2040,7 +2049,6 @@ out:
 
 static struct extent_io_ops btree_extent_io_ops = {
 	.write_cache_pages_lock_hook = btree_lock_page_hook,
-	.writepage_io_hook = btree_writepage_io_hook,
 	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	.submit_bio_hook = btree_submit_bio_hook,
 	/* note we're sharing with inode.c for the merge bio hook */
