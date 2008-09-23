@@ -778,8 +778,7 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 	FILE_BASIC_INFO *info_buf;
 
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
-			 DELETE|FILE_WRITE_ATTRIBUTES,
-			 CREATE_NOT_DIR|CREATE_DELETE_ON_CLOSE,
+			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
 			 &netfid, &oplock, NULL, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc != 0)
@@ -807,6 +806,12 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 	rc = CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc != 0)
+		goto out_close;
+
+	/* set DELETE_ON_CLOSE */
+	rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid, current->tgid);
+
 out_close:
 	CIFSSMBClose(xid, tcon, netfid);
 out:

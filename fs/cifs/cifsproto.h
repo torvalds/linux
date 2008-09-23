@@ -179,6 +179,8 @@ extern int CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBSetFileInfo(const int xid, struct cifsTconInfo *tcon,
 			const FILE_BASIC_INFO *data, __u16 fid,
 			__u32 pid_of_opener);
+extern int CIFSSMBSetFileDisposition(const int xid, struct cifsTconInfo *tcon,
+			bool delete_file, __u16 fid, __u32 pid_of_opener);
 #if 0
 extern int CIFSSMBSetAttrLegacy(int xid, struct cifsTconInfo *tcon,
 			char *fileName, __u16 dos_attributes,
