@@ -74,10 +74,56 @@ struct pt_regs {
 #define PTRACE_POKEDATA_3264	0xc3
 #define PTRACE_GET_THREAD_AREA_3264	0xc4
 
+/* Read and write watchpoint registers.  */
+enum pt_watch_style {
+	pt_watch_style_mips32,
+	pt_watch_style_mips64
+};
+struct mips32_watch_regs {
+	uint32_t watchlo[8];
+	/* Lower 16 bits of watchhi. */
+	uint16_t watchhi[8];
+	/* Valid mask and I R W bits.
+	 * bit 0 -- 1 if W bit is usable.
+	 * bit 1 -- 1 if R bit is usable.
+	 * bit 2 -- 1 if I bit is usable.
+	 * bits 3 - 11 -- Valid watchhi mask bits.
+	 */
+	uint16_t watch_masks[8];
+	/* The number of valid watch register pairs.  */
+	uint32_t num_valid;
+} __attribute__((aligned(8)));
+
+struct mips64_watch_regs {
+	uint64_t watchlo[8];
+	uint16_t watchhi[8];
+	uint16_t watch_masks[8];
+	uint32_t num_valid;
+} __attribute__((aligned(8)));
+
+struct pt_watch_regs {
+	enum pt_watch_style style;
+	union {
+		struct mips32_watch_regs mips32;
+		struct mips32_watch_regs mips64;
+	};
+};
+
+#define PTRACE_GET_WATCH_REGS	0xd0
+#define PTRACE_SET_WATCH_REGS	0xd1
+
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <asm/isadep.h>
+
+struct task_struct;
+
+extern int ptrace_get_watch_regs(struct task_struct *child,
+	struct pt_watch_regs __user *addr);
+extern int ptrace_set_watch_regs(struct task_struct *child,
+	struct pt_watch_regs __user *addr);
 
 /*
  * Does the process account for user or for system time?

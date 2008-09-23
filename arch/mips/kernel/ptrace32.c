@@ -387,6 +387,16 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 				(unsigned long __user *) (unsigned long) data);
 		break;
 
+	case PTRACE_GET_WATCH_REGS:
+		ret = ptrace_get_watch_regs(child,
+			(struct pt_watch_regs __user *) (unsigned long) addr);
+		break;
+
+	case PTRACE_SET_WATCH_REGS:
+		ret = ptrace_set_watch_regs(child,
+			(struct pt_watch_regs __user *) (unsigned long) addr);
+		break;
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
