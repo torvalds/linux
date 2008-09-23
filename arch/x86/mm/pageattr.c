@@ -1121,7 +1121,13 @@ static int __set_pages_p(struct page *page, int numpages)
 				.mask_clr = __pgprot(0),
 				.flags = 0};
 
-	return __change_page_attr_set_clr(&cpa, 1);
+	/*
+	 * No alias checking needed for setting present flag. otherwise,
+	 * we may need to break large pages for 64-bit kernel text
+	 * mappings (this adds to complexity if we want to do this from
+	 * atomic context especially). Let's keep it simple!
+	 */
+	return __change_page_attr_set_clr(&cpa, 0);
 }
 
 static int __set_pages_np(struct page *page, int numpages)
@@ -1133,7 +1139,13 @@ static int __set_pages_np(struct page *page, int numpages)
 				.mask_clr = __pgprot(_PAGE_PRESENT | _PAGE_RW),
 				.flags = 0};
 
-	return __change_page_attr_set_clr(&cpa, 1);
+	/*
+	 * No alias checking needed for setting not present flag. otherwise,
+	 * we may need to break large pages for 64-bit kernel text
+	 * mappings (this adds to complexity if we want to do this from
+	 * atomic context especially). Let's keep it simple!
+	 */
+	return __change_page_attr_set_clr(&cpa, 0);
 }
 
 void kernel_map_pages(struct page *page, int numpages, int enable)
@@ -1153,11 +1165,8 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 
 	/*
 	 * The return value is ignored as the calls cannot fail.
-	 * Large pages are kept enabled at boot time, and are
-	 * split up quickly with DEBUG_PAGEALLOC. If a splitup
-	 * fails here (due to temporary memory shortage) no damage
-	 * is done because we just keep the largepage intact up
-	 * to the next attempt when it will likely be split up:
+	 * Large pages for identity mappings are not used at boot time
+	 * and hence no memory allocations during large page split.
 	 */
 	if (enable)
 		__set_pages_p(page, numpages);
