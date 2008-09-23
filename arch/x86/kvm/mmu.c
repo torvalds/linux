@@ -70,6 +70,9 @@ static int dbg = 0;
 module_param(dbg, bool, 0644);
 #endif
 
+static int oos_shadow = 1;
+module_param(oos_shadow, bool, 0644);
+
 #ifndef MMU_DEBUG
 #define ASSERT(x) do { } while (0)
 #else
@@ -1424,7 +1427,7 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 			return 1;
 		if (shadow->unsync)
 			return 0;
-		if (can_unsync)
+		if (can_unsync && oos_shadow)
 			return kvm_unsync_page(vcpu, shadow);
 		return 1;
 	}
