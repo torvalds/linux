@@ -1027,7 +1027,6 @@ static long effective_load(struct task_group *tg, int cpu,
 		long wl, long wg)
 {
 	struct sched_entity *se = tg->se[cpu];
-	long more_w;
 
 	if (!tg->parent)
 		return wl;
@@ -1039,18 +1038,17 @@ static long effective_load(struct task_group *tg, int cpu,
 	if (!wl && sched_feat(ASYM_EFF_LOAD))
 		return wl;
 
-	/*
-	 * Instead of using this increment, also add the difference
-	 * between when the shares were last updated and now.
-	 */
-	more_w = se->my_q->load.weight - se->my_q->rq_weight;
-	wl += more_w;
-	wg += more_w;
-
 	for_each_sched_entity(se) {
-#define D(n) (likely(n) ? (n) : 1)
-
 		long S, rw, s, a, b;
+		long more_w;
+
+		/*
+		 * Instead of using this increment, also add the difference
+		 * between when the shares were last updated and now.
+		 */
+		more_w = se->my_q->load.weight - se->my_q->rq_weight;
+		wl += more_w;
+		wg += more_w;
 
 		S = se->my_q->tg->shares;
 		s = se->my_q->shares;
@@ -1059,7 +1057,11 @@ static long effective_load(struct task_group *tg, int cpu,
 		a = S*(rw + wl);
 		b = S*rw + s*wg;
 
-		wl = s*(a-b)/D(b);
+		wl = s*(a-b);
+
+		if (likely(b))
+			wl /= b;
+
 		/*
 		 * Assume the group is already running and will
 		 * thus already be accounted for in the weight.
@@ -1068,7 +1070,6 @@ static long effective_load(struct task_group *tg, int cpu,
 		 * alter the group weight.
 		 */
 		wg = 0;
-#undef D
 	}
 
 	return wl;
