@@ -41,6 +41,8 @@ static inline void phonet_proto_put(struct phonet_protocol *pp);
 
 static int pn_socket_create(struct net *net, struct socket *sock, int protocol)
 {
+	struct sock *sk;
+	struct pn_sock *pn;
 	struct phonet_protocol *pnp;
 	int err;
 
@@ -69,8 +71,22 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol)
 		goto out;
 	}
 
-	/* TODO: create and init the struct sock */
-	err = -EPROTONOSUPPORT;
+	sk = sk_alloc(net, PF_PHONET, GFP_KERNEL, pnp->prot);
+	if (sk == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	sock_init_data(sock, sk);
+	sock->state = SS_UNCONNECTED;
+	sock->ops = pnp->ops;
+	sk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
+	sk->sk_protocol = protocol;
+	pn = pn_sk(sk);
+	pn->sobject = 0;
+	pn->resource = 0;
+	sk->sk_prot->init(sk);
+	err = 0;
 
 out:
 	phonet_proto_put(pnp);
@@ -94,6 +110,7 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 			struct net_device *orig_dev)
 {
 	struct phonethdr *ph;
+	struct sock *sk;
 	struct sockaddr_pn sa;
 	u16 len;
 
@@ -118,7 +135,12 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (pn_sockaddr_get_addr(&sa) == 0)
 		goto out; /* currently, we cannot be device 0 */
 
-	/* TODO: put packets to sockets backlog */
+	sk = pn_find_sock_by_sa(&sa);
+	if (sk == NULL)
+		goto out;
+
+	/* Push data to the socket (or other sockets connected to it). */
+	return sk_receive_skb(sk, skb, 0);
 
 out:
 	kfree_skb(skb);

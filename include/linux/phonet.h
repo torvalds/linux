@@ -32,6 +32,9 @@
 #define PNADDR_ANY		0
 #define PNPORT_RESOURCE_ROUTING	0
 
+/* ioctls */
+#define SIOCPNGETOBJECT		(SIOCPROTOPRIVATE + 0)
+
 /* Phonet protocol header */
 struct phonethdr {
 	__u8	pn_rdev;
