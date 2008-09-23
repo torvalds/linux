@@ -44,10 +44,7 @@ static inline int qdisc_qlen(struct Qdisc *q)
 
 static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	if (unlikely(skb->next))
-		__skb_queue_head(&q->requeue, skb);
-	else
-		q->ops->requeue(skb, q);
+	__skb_queue_head(&q->requeue, skb);
 
 	__netif_schedule(q);
 	return 0;
