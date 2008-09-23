@@ -1065,6 +1065,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode)
 struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *open_file;
+	bool any_available = false;
 	int rc;
 
 	/* Having a null inode here (because mapping->host was set to zero by
@@ -1080,8 +1081,10 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 	read_lock(&GlobalSMBSeslock);
 refind_writable:
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
-		if (open_file->closePend)
+		if (open_file->closePend ||
+		    (!any_available && open_file->pid != current->tgid))
 			continue;
+
 		if (open_file->pfile &&
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
@@ -1130,6 +1133,11 @@ refind_writable:
 			   make progress if we restarted before the beginning
 			   of the loop here. */
 		}
+	}
+	/* couldn't find useable FH with same pid, try any available */
+	if (!any_available) {
+		any_available = true;
+		goto refind_writable;
 	}
 	read_unlock(&GlobalSMBSeslock);
 	return NULL;
