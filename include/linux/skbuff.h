@@ -473,6 +473,19 @@ static inline int skb_queue_empty(const struct sk_buff_head *list)
 }
 
 /**
+ *	skb_queue_is_last - check if skb is the last entry in the queue
+ *	@list: queue head
+ *	@skb: buffer
+ *
+ *	Returns true if @skb is the last buffer on the list.
+ */
+static inline bool skb_queue_is_last(const struct sk_buff_head *list,
+				     const struct sk_buff *skb)
+{
+	return (skb->next == (struct sk_buff *) list);
+}
+
+/**
  *	skb_get - reference buffer
  *	@skb: buffer to reference
  *
