@@ -64,8 +64,8 @@ static void lock_chunks(struct btrfs_root *root)
 
 static void unlock_chunks(struct btrfs_root *root)
 {
-	mutex_unlock(&root->fs_info->alloc_mutex);
 	mutex_unlock(&root->fs_info->chunk_mutex);
+	mutex_unlock(&root->fs_info->alloc_mutex);
 }
 
 int btrfs_cleanup_fs_uuids(void)
@@ -1668,8 +1668,13 @@ again:
 	else
 		min_free = calc_size;
 
-	/* we add 1MB because we never use the first 1MB of the device */
-	min_free += 1024 * 1024;
+	/*
+	 * we add 1MB because we never use the first 1MB of the device, unless
+	 * we've looped, then we are likely allocating the maximum amount of
+	 * space left already
+	 */
+	if (!looped)
+		min_free += 1024 * 1024;
 
 	/* build a private list of devices we will allocate from */
 	while(index < num_stripes) {

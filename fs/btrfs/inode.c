@@ -141,7 +141,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	while(num_bytes > 0) {
 		cur_alloc_size = min(num_bytes, root->fs_info->max_extent);
 		ret = btrfs_reserve_extent(trans, root, cur_alloc_size,
-					   root->sectorsize, 0, 0,
+					   root->sectorsize, 0, alloc_hint,
 					   (u64)-1, &ins, 1);
 		if (ret) {
 			WARN_ON(1);
@@ -558,7 +558,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 					  trans->transid, inode->i_ino,
 					  ordered_extent->file_offset, &ins);
 	BUG_ON(ret);
-
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 
 	ret = btrfs_drop_extents(trans, root, inode,

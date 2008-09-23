@@ -2725,9 +2725,8 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 
 	total_size = total_data + (nr * sizeof(struct btrfs_item));
 	ret = btrfs_search_slot(trans, root, cpu_key, path, total_size, 1);
-	if (ret == 0) {
+	if (ret == 0)
 		return -EEXIST;
-	}
 	if (ret < 0)
 		goto out;
 

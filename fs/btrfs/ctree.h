@@ -483,7 +483,6 @@ struct btrfs_csum_item {
 #define BTRFS_BLOCK_GROUP_DUP	   (1 << 5)
 #define BTRFS_BLOCK_GROUP_RAID10   (1 << 6)
 
-
 struct btrfs_block_group_item {
 	__le64 used;
 	__le64 chunk_objectid;
@@ -498,17 +497,40 @@ struct btrfs_space_info {
 	int full;
 	int force_alloc;
 	struct list_head list;
+
+	/* for block groups in our same type */
+	struct list_head block_groups;
+	spinlock_t lock;
+};
+
+struct btrfs_free_space {
+	struct rb_node bytes_index;
+	struct rb_node offset_index;
+	u64 offset;
+	u64 bytes;
 };
 
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
-	struct btrfs_space_info *space_info;
 	spinlock_t lock;
 	u64 pinned;
 	u64 flags;
 	int cached;
 	int ro;
+	int dirty;
+
+	struct btrfs_space_info *space_info;
+
+	/* free space cache stuff */
+	struct rb_root free_space_bytes;
+	struct rb_root free_space_offset;
+
+	/* block group cache stuff */
+	struct rb_node cache_node;
+
+	/* for block groups in the same raid type */
+	struct list_head list;
 };
 
 struct btrfs_device;
@@ -525,8 +547,10 @@ struct btrfs_fs_info {
 	struct btrfs_root *log_root_tree;
 	struct radix_tree_root fs_roots_radix;
 
-	struct extent_io_tree free_space_cache;
-	struct extent_io_tree block_group_cache;
+	/* block group cache stuff */
+	spinlock_t block_group_cache_lock;
+	struct rb_root block_group_cache_tree;
+
 	struct extent_io_tree pinned_extents;
 	struct extent_io_tree pending_del;
 	struct extent_io_tree extent_ins;
@@ -1814,4 +1838,18 @@ int btrfs_sync_fs(struct super_block *sb, int wait);
 int btrfs_check_acl(struct inode *inode, int mask);
 int btrfs_init_acl(struct inode *inode, struct inode *dir);
 int btrfs_acl_chmod(struct inode *inode);
+
+/* free-space-cache.c */
+int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+			 u64 bytenr, u64 size);
+int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
+			    u64 bytenr, u64 size);
+void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
+				   *block_group);
+struct btrfs_free_space *btrfs_find_free_space(struct btrfs_block_group_cache
+					       *block_group, u64 offset,
+					       u64 bytes);
+void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
+			   u64 bytes);
+u64 btrfs_block_group_free_space(struct btrfs_block_group_cache *block_group);
 #endif

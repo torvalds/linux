@@ -2634,6 +2634,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	if (eb) {
 		atomic_inc(&eb->refs);
 		spin_unlock(&tree->buffer_lock);
+		mark_page_accessed(eb->first_page);
 		return eb;
 	}
 	spin_unlock(&tree->buffer_lock);
@@ -2712,6 +2713,9 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 	if (eb)
 		atomic_inc(&eb->refs);
 	spin_unlock(&tree->buffer_lock);
+
+	if (eb)
+		mark_page_accessed(eb->first_page);
 
 	return eb;
 }

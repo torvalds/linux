@@ -1410,10 +1410,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	BTRFS_I(fs_info->btree_inode)->io_tree.ops = &btree_extent_io_ops;
 
-	extent_io_tree_init(&fs_info->free_space_cache,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_io_tree_init(&fs_info->block_group_cache,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	spin_lock_init(&fs_info->block_group_cache_lock);
+	fs_info->block_group_cache_tree.rb_node = NULL;
+
 	extent_io_tree_init(&fs_info->pinned_extents,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&fs_info->pending_del,
