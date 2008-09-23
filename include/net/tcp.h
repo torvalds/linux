@@ -1284,10 +1284,10 @@ static inline void tcp_unlink_write_queue(struct sk_buff *skb, struct sock *sk)
 	__skb_unlink(skb, &sk->sk_write_queue);
 }
 
-static inline int tcp_skb_is_last(const struct sock *sk,
-				  const struct sk_buff *skb)
+static inline bool tcp_skb_is_last(const struct sock *sk,
+				   const struct sk_buff *skb)
 {
-	return skb->next == (struct sk_buff *)&sk->sk_write_queue;
+	return skb_queue_is_last(&sk->sk_write_queue, skb);
 }
 
 static inline int tcp_write_queue_empty(struct sock *sk)
