@@ -74,6 +74,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/vmalloc.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/mm.h>
@@ -91,6 +92,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/mutex.h>
+#include <linux/firmware.h>
 
 #include <net/checksum.h>
 
@@ -197,6 +199,7 @@ static int link_mode;
 MODULE_AUTHOR("Adrian Sun (asun@darksunrising.com)");
 MODULE_DESCRIPTION("Sun Cassini(+) ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("sun/cassini.bin");
 module_param(cassini_debug, int, 0);
 MODULE_PARM_DESC(cassini_debug, "Cassini bitmapped debugging message enable value");
 module_param(link_mode, int, 0);
@@ -812,9 +815,44 @@ static int cas_reset_mii_phy(struct cas *cp)
 	return (limit <= 0);
 }
 
+static int cas_saturn_firmware_init(struct cas *cp)
+{
+	const struct firmware *fw;
+	const char fw_name[] = "sun/cassini.bin";
+	int err;
+
+	if (PHY_NS_DP83065 != cp->phy_id)
+		return 0;
+
+	err = request_firmware(&fw, fw_name, &cp->pdev->dev);
+	if (err) {
+		printk(KERN_ERR "cassini: Failed to load firmware \"%s\"\n",
+		       fw_name);
+		return err;
+	}
+	if (fw->size < 2) {
+		printk(KERN_ERR "cassini: bogus length %zu in \"%s\"\n",
+		       fw->size, fw_name);
+		err = -EINVAL;
+		goto out;
+	}
+	cp->fw_load_addr= fw->data[1] << 8 | fw->data[0];
+	cp->fw_size = fw->size - 2;
+	cp->fw_data = vmalloc(cp->fw_size);
+	if (!cp->fw_data) {
+		err = -ENOMEM;
+		printk(KERN_ERR "cassini: \"%s\" Failed %d\n", fw_name, err);
+		goto out;
+	}
+	memcpy(cp->fw_data, &fw->data[2], cp->fw_size);
+out:
+	release_firmware(fw);
+	return err;
+}
+
 static void cas_saturn_firmware_load(struct cas *cp)
 {
-	cas_saturn_patch_t *patch = cas_saturn_patch;
+	int i;
 
 	cas_phy_powerdown(cp);
 
@@ -833,11 +871,9 @@ static void cas_saturn_firmware_load(struct cas *cp)
 
 	/* download new firmware */
 	cas_phy_write(cp, DP83065_MII_MEM, 0x1);
-	cas_phy_write(cp, DP83065_MII_REGE, patch->addr);
-	while (patch->addr) {
-		cas_phy_write(cp, DP83065_MII_REGD, patch->val);
-		patch++;
-	}
+	cas_phy_write(cp, DP83065_MII_REGE, cp->fw_load_addr);
+	for (i = 0; i < cp->fw_size; i++)
+		cas_phy_write(cp, DP83065_MII_REGD, cp->fw_data[i]);
 
 	/* enable firmware */
 	cas_phy_write(cp, DP83065_MII_REGE, 0x8ff8);
@@ -5108,6 +5144,9 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	cas_reset(cp, 0);
 	if (cas_check_invariants(cp))
 		goto err_out_iounmap;
+	if (cp->cas_flags & CAS_FLAG_SATURN)
+		if (cas_saturn_firmware_init(cp))
+			goto err_out_iounmap;
 
 	cp->init_block = (struct cas_init_block *)
 		pci_alloc_consistent(pdev, sizeof(struct cas_init_block),
@@ -5216,6 +5255,9 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 
 	cp = netdev_priv(dev);
 	unregister_netdev(dev);
+
+	if (cp->fw_data)
+		vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
 	flush_scheduled_work();
