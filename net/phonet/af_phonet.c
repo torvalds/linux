@@ -31,6 +31,7 @@
 #include <linux/if_phonet.h>
 #include <linux/phonet.h>
 #include <net/phonet/phonet.h>
+#include <net/phonet/pn_dev.h>
 
 static struct net_proto_family phonet_proto_family;
 static struct phonet_protocol *phonet_proto_get(int protocol);
@@ -200,6 +201,7 @@ static int __init phonet_init(void)
 		return err;
 	}
 
+	phonet_device_init();
 	dev_add_pack(&phonet_packet_type);
 	return 0;
 }
@@ -208,6 +210,7 @@ static void __exit phonet_exit(void)
 {
 	sock_unregister(AF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
+	phonet_device_exit();
 }
 
 module_init(phonet_init);
