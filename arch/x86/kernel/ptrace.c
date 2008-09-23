@@ -734,7 +734,7 @@ static int ptrace_bts_config(struct task_struct *child,
 		goto errout;
 
 	if (cfg.flags & PTRACE_BTS_O_ALLOC) {
-		ds_ovfl_callback_t ovfl = 0;
+		ds_ovfl_callback_t ovfl = NULL;
 		unsigned int sig = 0;
 
 		/* we ignore the error in case we were not tracing child */
@@ -748,7 +748,7 @@ static int ptrace_bts_config(struct task_struct *child,
 			ovfl = ptrace_bts_ovfl;
 		}
 
-		error = ds_request_bts(child, /* base = */ 0, cfg.size, ovfl);
+		error = ds_request_bts(child, /* base = */ NULL, cfg.size, ovfl);
 		if (error < 0)
 			goto errout;
 
@@ -1086,7 +1086,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_BTS_SIZE:
-		ret = ds_get_bts_index(child, /* pos = */ 0);
+		ret = ds_get_bts_index(child, /* pos = */ NULL);
 		break;
 
 	case PTRACE_BTS_GET:

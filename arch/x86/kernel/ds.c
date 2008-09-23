@@ -479,12 +479,12 @@ static int ds_release(struct task_struct *task, enum ds_qualifier qual)
 		goto out;
 
 	kfree(context->buffer[qual]);
-	context->buffer[qual] = 0;
+	context->buffer[qual] = NULL;
 
 	current->mm->total_vm  -= context->pages[qual];
 	current->mm->locked_vm -= context->pages[qual];
 	context->pages[qual] = 0;
-	context->owner[qual] = 0;
+	context->owner[qual] = NULL;
 
 	/*
 	 * we put the context twice:
