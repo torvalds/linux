@@ -52,11 +52,21 @@ static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 
 static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = skb_peek(&q->requeue);
 
-	skb = __skb_dequeue(&q->requeue);
-	if (!skb)
+	if (unlikely(skb)) {
+		struct net_device *dev = qdisc_dev(q);
+		struct netdev_queue *txq;
+
+		/* check the reason of requeuing without tx lock first */
+		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+		if (!netif_tx_queue_stopped(txq) && !netif_tx_queue_frozen(txq))
+			__skb_unlink(skb, &q->requeue);
+		else
+			skb = NULL;
+	} else {
 		skb = q->dequeue(q);
+	}
 
 	return skb;
 }
