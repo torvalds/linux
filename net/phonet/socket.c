@@ -273,8 +273,9 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 
 	if (!sport) {
 		/* search free port */
-		int port, pmin = 0x40, pmax = 0x7f;
+		int port, pmin, pmax;
 
+		phonet_get_local_port_range(&pmin, &pmax);
 		for (port = pmin; port <= pmax; port++) {
 			port_cur++;
 			if (port_cur < pmin || port_cur > pmax)

@@ -350,6 +350,7 @@ static int __init phonet_init(void)
 	phonet_device_init();
 	dev_add_pack(&phonet_packet_type);
 	phonet_netlink_register();
+	phonet_sysctl_init();
 
 	err = isi_register();
 	if (err)
@@ -357,6 +358,7 @@ static int __init phonet_init(void)
 	return 0;
 
 err:
+	phonet_sysctl_exit();
 	sock_unregister(AF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
 	phonet_device_exit();
@@ -366,6 +368,7 @@ err:
 static void __exit phonet_exit(void)
 {
 	isi_unregister();
+	phonet_sysctl_exit();
 	sock_unregister(AF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
 	phonet_device_exit();

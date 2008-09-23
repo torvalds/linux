@@ -5,4 +5,5 @@ phonet-objs := \
 	pn_netlink.o \
 	socket.o \
 	datagram.o \
+	sysctl.o \
 	af_phonet.o
