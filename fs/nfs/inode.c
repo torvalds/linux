@@ -724,16 +724,13 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		goto out;
 	}
 
-	spin_lock(&inode->i_lock);
-	status = nfs_update_inode(inode, &fattr);
+	status = nfs_refresh_inode(inode, &fattr);
 	if (status) {
-		spin_unlock(&inode->i_lock);
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Ld) refresh failed, error=%d\n",
 			 inode->i_sb->s_id,
 			 (long long)NFS_FILEID(inode), status);
 		goto out;
 	}
-	spin_unlock(&inode->i_lock);
 
 	if (nfsi->cache_validity & NFS_INO_INVALID_ACL)
 		nfs_zap_acl_cache(inode);
