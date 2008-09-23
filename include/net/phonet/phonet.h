@@ -60,6 +60,11 @@ static inline struct phonethdr *pn_hdr(struct sk_buff *skb)
 	return (struct phonethdr *)skb_network_header(skb);
 }
 
+static inline struct phonetmsg *pn_msg(struct sk_buff *skb)
+{
+	return (struct phonetmsg *)skb_transport_header(skb);
+}
+
 /*
  * Get the other party's sockaddr from received skb. The skb begins
  * with a Phonet header.

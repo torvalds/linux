@@ -132,7 +132,7 @@ EXPORT_SYMBOL(phonet_header_ops);
  * Prepends an ISI header and sends a datagram.
  */
 static int pn_send(struct sk_buff *skb, struct net_device *dev,
-			u16 dst, u16 src, u8 res)
+			u16 dst, u16 src, u8 res, u8 irq)
 {
 	struct phonethdr *ph;
 	int err;
@@ -163,7 +163,10 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 		skb_reset_mac_header(skb);
 		skb->pkt_type = PACKET_LOOPBACK;
 		skb_orphan(skb);
-		netif_rx_ni(skb);
+		if (irq)
+			netif_rx(skb);
+		else
+			netif_rx_ni(skb);
 		err = 0;
 	} else {
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
@@ -179,6 +182,19 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 drop:
 	kfree_skb(skb);
 	return err;
+}
+
+static int pn_raw_send(const void *data, int len, struct net_device *dev,
+			u16 dst, u16 src, u8 res)
+{
+	struct sk_buff *skb = alloc_skb(MAX_PHONET_HEADER + len, GFP_ATOMIC);
+	if (skb == NULL)
+		return -ENOMEM;
+
+	skb_reserve(skb, MAX_PHONET_HEADER);
+	__skb_put(skb, len);
+	skb_copy_to_linear_data(skb, data, len);
+	return pn_send(skb, dev, dst, src, res, 1);
 }
 
 /*
@@ -211,7 +227,7 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 		src = pn_object(saddr, pn_obj(src));
 
 	err = pn_send(skb, dev, pn_sockaddr_get_object(target),
-			src, pn_sockaddr_get_resource(target));
+			src, pn_sockaddr_get_resource(target), 0);
 	dev_put(dev);
 	return err;
 
@@ -222,6 +238,73 @@ drop:
 	return err;
 }
 EXPORT_SYMBOL(pn_skb_send);
+
+/* Do not send an error message in response to an error message */
+static inline int can_respond(struct sk_buff *skb)
+{
+	const struct phonethdr *ph;
+	const struct phonetmsg *pm;
+	u8 submsg_id;
+
+	if (!pskb_may_pull(skb, 3))
+		return 0;
+
+	ph = pn_hdr(skb);
+	if (phonet_address_get(skb->dev, ph->pn_rdev) != ph->pn_rdev)
+		return 0; /* we are not the destination */
+	if (ph->pn_res == PN_PREFIX && !pskb_may_pull(skb, 5))
+		return 0;
+
+	ph = pn_hdr(skb); /* re-acquires the pointer */
+	pm = pn_msg(skb);
+	if (pm->pn_msg_id != PN_COMMON_MESSAGE)
+		return 1;
+	submsg_id = (ph->pn_res == PN_PREFIX)
+		? pm->pn_e_submsg_id : pm->pn_submsg_id;
+	if (submsg_id != PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP &&
+		pm->pn_e_submsg_id != PN_COMM_SERVICE_NOT_IDENTIFIED_RESP)
+		return 1;
+	return 0;
+}
+
+static int send_obj_unreachable(struct sk_buff *rskb)
+{
+	const struct phonethdr *oph = pn_hdr(rskb);
+	const struct phonetmsg *opm = pn_msg(rskb);
+	struct phonetmsg resp;
+
+	memset(&resp, 0, sizeof(resp));
+	resp.pn_trans_id = opm->pn_trans_id;
+	resp.pn_msg_id = PN_COMMON_MESSAGE;
+	if (oph->pn_res == PN_PREFIX) {
+		resp.pn_e_res_id = opm->pn_e_res_id;
+		resp.pn_e_submsg_id = PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP;
+		resp.pn_e_orig_msg_id = opm->pn_msg_id;
+		resp.pn_e_status = 0;
+	} else {
+		resp.pn_submsg_id = PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP;
+		resp.pn_orig_msg_id = opm->pn_msg_id;
+		resp.pn_status = 0;
+	}
+	return pn_raw_send(&resp, sizeof(resp), rskb->dev,
+				pn_object(oph->pn_sdev, oph->pn_sobj),
+				pn_object(oph->pn_rdev, oph->pn_robj),
+				oph->pn_res);
+}
+
+static int send_reset_indications(struct sk_buff *rskb)
+{
+	struct phonethdr *oph = pn_hdr(rskb);
+	static const u8 data[4] = {
+		0x00 /* trans ID */, 0x10 /* subscribe msg */,
+		0x00 /* subscription count */, 0x00 /* dummy */
+	};
+
+	return pn_raw_send(data, sizeof(data), rskb->dev,
+				pn_object(oph->pn_sdev, 0x00),
+				pn_object(oph->pn_rdev, oph->pn_robj), 0x10);
+}
+
 
 /* packet type functions */
 
@@ -260,8 +343,13 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto out; /* currently, we cannot be device 0 */
 
 	sk = pn_find_sock_by_sa(&sa);
-	if (sk == NULL)
+	if (sk == NULL) {
+		if (can_respond(skb)) {
+			send_obj_unreachable(skb);
+			send_reset_indications(skb);
+		}
 		goto out;
+	}
 
 	/* Push data to the socket (or other sockets connected to it). */
 	return sk_receive_skb(sk, skb, 0);

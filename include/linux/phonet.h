@@ -45,6 +45,38 @@ struct phonethdr {
 	__u8	pn_sobj;
 } __attribute__((packed));
 
+/* Common Phonet payload header */
+struct phonetmsg {
+	__u8	pn_trans_id;	/* transaction ID */
+	__u8	pn_msg_id;	/* message type */
+	union {
+		struct {
+			__u8	pn_submsg_id;	/* message subtype */
+			__u8	pn_data[5];
+		} base;
+		struct {
+			__u16	pn_e_res_id;	/* extended resource ID */
+			__u8	pn_e_submsg_id;	/* message subtype */
+			__u8	pn_e_data[3];
+		} ext;
+	} pn_msg_u;
+};
+#define PN_COMMON_MESSAGE	0xF0
+#define PN_PREFIX		0xE0 /* resource for extended messages */
+#define pn_submsg_id		pn_msg_u.base.pn_submsg_id
+#define pn_e_submsg_id		pn_msg_u.ext.pn_e_submsg_id
+#define pn_e_res_id		pn_msg_u.ext.pn_e_res_id
+#define pn_data			pn_msg_u.base.pn_data
+#define pn_e_data		pn_msg_u.ext.pn_e_data
+
+/* data for unreachable errors */
+#define PN_COMM_SERVICE_NOT_IDENTIFIED_RESP	0x01
+#define PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP	0x14
+#define pn_orig_msg_id		pn_data[0]
+#define pn_status		pn_data[1]
+#define pn_e_orig_msg_id	pn_e_data[0]
+#define pn_e_status		pn_e_data[1]
+
 /* Phonet socket address structure */
 struct sockaddr_pn {
 	sa_family_t spn_family;
