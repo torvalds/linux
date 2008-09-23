@@ -1,6 +1,8 @@
 #ifndef ASM_X86__TRAPS_H
 #define ASM_X86__TRAPS_H
 
+#include <asm/debugreg.h>
+
 /* Common in X86_32 and X86_64 */
 asmlinkage void divide_error(void);
 asmlinkage void debug(void);
