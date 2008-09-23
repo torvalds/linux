@@ -188,13 +188,16 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 	/* origin == SEEK_END => we must revalidate the cached file length */
 	if (origin == SEEK_END) {
 		struct inode *inode = filp->f_mapping->host;
+
 		int retval = nfs_revalidate_file_size(inode, filp);
 		if (retval < 0)
 			return (loff_t)retval;
-	}
-	lock_kernel();	/* BKL needed? */
-	loff = generic_file_llseek_unlocked(filp, offset, origin);
-	unlock_kernel();
+
+		spin_lock(&inode->i_lock);
+		loff = generic_file_llseek_unlocked(filp, offset, origin);
+		spin_unlock(&inode->i_lock);
+	} else
+		loff = generic_file_llseek_unlocked(filp, offset, origin);
 	return loff;
 }
 
