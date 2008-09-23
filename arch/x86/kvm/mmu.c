@@ -1180,11 +1180,16 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	    || (write_fault && !is_write_protection(vcpu) && !user_fault)) {
 		struct kvm_mmu_page *shadow;
 
+		if (largepage && has_wrprotected_page(vcpu->kvm, gfn)) {
+			ret = 1;
+			spte = shadow_trap_nonpresent_pte;
+			goto set_pte;
+		}
+
 		spte |= PT_WRITABLE_MASK;
 
 		shadow = kvm_mmu_lookup_page(vcpu->kvm, gfn);
-		if (shadow ||
-		   (largepage && has_wrprotected_page(vcpu->kvm, gfn))) {
+		if (shadow) {
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
 				 __func__, gfn);
 			ret = 1;
@@ -1197,6 +1202,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	if (pte_access & ACC_WRITE_MASK)
 		mark_page_dirty(vcpu->kvm, gfn);
 
+set_pte:
 	set_shadow_pte(shadow_pte, spte);
 	return ret;
 }
