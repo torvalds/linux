@@ -742,6 +742,8 @@ void __init setup_arch(char **cmdline_p)
 #else
 	num_physpages = max_pfn;
 
+ 	if (cpu_has_x2apic)
+ 		check_x2apic();
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */

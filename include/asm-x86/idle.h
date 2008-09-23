@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_64_IDLE_H
-#define _ASM_X86_64_IDLE_H 1
+#ifndef ASM_X86__IDLE_H
+#define ASM_X86__IDLE_H
 
 #define IDLE_START 1
 #define IDLE_END 2
@@ -10,4 +10,4 @@ void idle_notifier_register(struct notifier_block *n);
 void enter_idle(void);
 void exit_idle(void);
 
-#endif
+#endif /* ASM_X86__IDLE_H */

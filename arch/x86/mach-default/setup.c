@@ -10,13 +10,15 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
+#include <mach_ipi.h>
+
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
 #else
 #define DEFAULT_SEND_IPI	(0)
 #endif
 
-int no_broadcast=DEFAULT_SEND_IPI;
+int no_broadcast = DEFAULT_SEND_IPI;
 
 /**
  * pre_intr_init_hook - initialisation prior to setting up interrupt vectors

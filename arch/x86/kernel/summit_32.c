@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/bios_ebda.h>
-#include <asm/mach-summit/mach_mpparse.h>
+#include <asm/summit/mpparse.h>
 
 static struct rio_table_hdr *rio_table_hdr __initdata;
 static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;

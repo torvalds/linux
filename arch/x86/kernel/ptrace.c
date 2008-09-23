@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
+#include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
@@ -69,7 +70,7 @@ static inline bool invalid_selector(u16 value)
 
 #define FLAG_MASK		FLAG_MASK_32
 
-static long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
+static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
 	regno >>= 2;
@@ -1375,30 +1376,6 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 	force_sig_info(SIGTRAP, &info, tsk);
 }
 
-static void syscall_trace(struct pt_regs *regs)
-{
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-
-#if 0
-	printk("trace %s ip %lx sp %lx ax %d origrax %d caller %lx tiflags %x ptrace %x\n",
-	       current->comm,
-	       regs->ip, regs->sp, regs->ax, regs->orig_ax, __builtin_return_address(0),
-	       current_thread_info()->flags, current->ptrace);
-#endif
-
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				? 0x80 : 0));
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
-}
 
 #ifdef CONFIG_X86_32
 # define IS_IA32	1
@@ -1432,8 +1409,9 @@ asmregparm long syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
 		ret = -1L;
 
-	if (ret || test_thread_flag(TIF_SYSCALL_TRACE))
-		syscall_trace(regs);
+	if ((ret || test_thread_flag(TIF_SYSCALL_TRACE)) &&
+	    tracehook_report_syscall_entry(regs))
+		ret = -1L;
 
 	if (unlikely(current->audit_context)) {
 		if (IS_IA32)
@@ -1459,7 +1437,7 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		syscall_trace(regs);
+		tracehook_report_syscall_exit(regs, 0);
 
 	/*
 	 * If TIF_SYSCALL_EMU is set, we only get here because of
@@ -1475,6 +1453,6 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 	 * system call instruction.
 	 */
 	if (test_thread_flag(TIF_SINGLESTEP) &&
-	    (current->ptrace & PT_PTRACED))
+	    tracehook_consider_fatal_signal(current, SIGTRAP, SIG_DFL))
 		send_sigtrap(current, regs, 0);
 }

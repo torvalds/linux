@@ -1,5 +1,5 @@
-#ifndef __ASM_LINKAGE_H
-#define __ASM_LINKAGE_H
+#ifndef ASM_X86__LINKAGE_H
+#define ASM_X86__LINKAGE_H
 
 #undef notrace
 #define notrace __attribute__((no_instrument_function))
@@ -57,5 +57,5 @@
 #define __ALIGN_STR ".align 16,0x90"
 #endif
 
-#endif
+#endif /* ASM_X86__LINKAGE_H */
 

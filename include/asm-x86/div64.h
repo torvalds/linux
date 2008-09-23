@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_DIV64_H
-#define _ASM_X86_DIV64_H
+#ifndef ASM_X86__DIV64_H
+#define ASM_X86__DIV64_H
 
 #ifdef CONFIG_X86_32
 
@@ -57,4 +57,4 @@ static inline u64 div_u64_rem(u64 dividend, u32 divisor, u32 *remainder)
 # include <asm-generic/div64.h>
 #endif /* CONFIG_X86_32 */
 
-#endif /* _ASM_X86_DIV64_H */
+#endif /* ASM_X86__DIV64_H */

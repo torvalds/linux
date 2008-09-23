@@ -72,7 +72,7 @@ es7000_rename_gsi(int ioapic, int gsi)
 			base += nr_ioapic_registers[i];
 	}
 
-	if (!ioapic && (gsi < 16)) 
+	if (!ioapic && (gsi < 16))
 		gsi += base;
 	return gsi;
 }

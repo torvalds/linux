@@ -1,5 +1,5 @@
-#ifndef _ASM_UACCES_H_
-#define _ASM_UACCES_H_
+#ifndef ASM_X86__UACCESS_H
+#define ASM_X86__UACCESS_H
 /*
  * User space memory access functions
  */
@@ -450,5 +450,5 @@ extern struct movsl_mask {
 # include "uaccess_64.h"
 #endif
 
-#endif
+#endif /* ASM_X86__UACCESS_H */
 

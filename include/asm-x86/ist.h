@@ -1,5 +1,5 @@
-#ifndef _ASM_IST_H
-#define _ASM_IST_H
+#ifndef ASM_X86__IST_H
+#define ASM_X86__IST_H
 
 /*
  * Include file for the interface to IST BIOS
@@ -31,4 +31,4 @@ struct ist_info {
 extern struct ist_info ist_info;
 
 #endif	/* __KERNEL__ */
-#endif	/* _ASM_IST_H */
+#endif /* ASM_X86__IST_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SMP_H_
-#define _ASM_X86_SMP_H_
+#ifndef ASM_X86__SMP_H
+#define ASM_X86__SMP_H
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -34,6 +34,9 @@ extern cpumask_t cpu_initialized;
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
+#ifdef CONFIG_X86_32
+DECLARE_PER_CPU(int, cpu_number);
+#endif
 
 DECLARE_EARLY_PER_CPU(u16, x86_cpu_to_apicid);
 DECLARE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid);
@@ -142,7 +145,6 @@ extern unsigned disabled_cpus __cpuinitdata;
  * from the initial startup. We map APIC_BASE very early in page_setup(),
  * so this is correct in the x86 case.
  */
-DECLARE_PER_CPU(int, cpu_number);
 #define raw_smp_processor_id() (x86_read_percpu(cpu_number))
 extern int safe_smp_processor_id(void);
 
@@ -165,30 +167,33 @@ extern int safe_smp_processor_id(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
+#ifndef CONFIG_X86_64
 static inline int logical_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
-#ifndef CONFIG_X86_64
+#include <mach_apicdef.h>
 static inline unsigned int read_apic_id(void)
 {
-	return *(u32 *)(APIC_BASE + APIC_ID);
+	unsigned int reg;
+
+	reg = *(u32 *)(APIC_BASE + APIC_ID);
+
+	return GET_APIC_ID(reg);
 }
-#else
-extern unsigned int read_apic_id(void);
 #endif
 
 
-# ifdef APIC_DEFINITION
+# if defined(APIC_DEFINITION) || defined(CONFIG_X86_64)
 extern int hard_smp_processor_id(void);
 # else
-#  include <mach_apicdef.h>
+#include <mach_apicdef.h>
 static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_ID(read_apic_id());
+	return read_apic_id();
 }
 # endif /* APIC_DEFINITION */
 
@@ -205,4 +210,4 @@ extern void cpu_uninit(void);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif
+#endif /* ASM_X86__SMP_H */

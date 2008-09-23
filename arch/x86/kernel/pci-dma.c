@@ -82,7 +82,7 @@ void __init dma32_reserve_bootmem(void)
 	 * using 512M as goal
 	 */
 	align = 64ULL<<20;
-	size = round_up(dma32_bootmem_size, align);
+	size = roundup(dma32_bootmem_size, align);
 	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
 				 512ULL<<20);
 	if (dma32_bootmem_ptr)

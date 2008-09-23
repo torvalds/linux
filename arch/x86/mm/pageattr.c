@@ -84,7 +84,7 @@ static inline unsigned long highmap_start_pfn(void)
 
 static inline unsigned long highmap_end_pfn(void)
 {
-	return __pa(round_up((unsigned long)_end, PMD_SIZE)) >> PAGE_SHIFT;
+	return __pa(roundup((unsigned long)_end, PMD_SIZE)) >> PAGE_SHIFT;
 }
 
 #endif

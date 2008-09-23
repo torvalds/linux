@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_BITOPS_H
-#define _ASM_X86_BITOPS_H
+#ifndef ASM_X86__BITOPS_H
+#define ASM_X86__BITOPS_H
 
 /*
  * Copyright 1992, Linus Torvalds.
@@ -458,4 +458,4 @@ static inline void set_bit_string(unsigned long *bitmap,
 #include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */
-#endif	/* _ASM_X86_BITOPS_H */
+#endif /* ASM_X86__BITOPS_H */
