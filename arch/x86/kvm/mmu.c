@@ -1471,6 +1471,41 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.root_hpa = __pa(vcpu->arch.mmu.pae_root);
 }
 
+static void mmu_sync_children(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
+{
+}
+
+static void mmu_sync_roots(struct kvm_vcpu *vcpu)
+{
+	int i;
+	struct kvm_mmu_page *sp;
+
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
+		return;
+	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
+		hpa_t root = vcpu->arch.mmu.root_hpa;
+		sp = page_header(root);
+		mmu_sync_children(vcpu, sp);
+		return;
+	}
+	for (i = 0; i < 4; ++i) {
+		hpa_t root = vcpu->arch.mmu.pae_root[i];
+
+		if (root) {
+			root &= PT64_BASE_ADDR_MASK;
+			sp = page_header(root);
+			mmu_sync_children(vcpu, sp);
+		}
+	}
+}
+
+void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
+{
+	spin_lock(&vcpu->kvm->mmu_lock);
+	mmu_sync_roots(vcpu);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+}
+
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr)
 {
 	return vaddr;
@@ -1715,6 +1750,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	mmu_alloc_roots(vcpu);
+	mmu_sync_roots(vcpu);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 	kvm_x86_ops->set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
 	kvm_mmu_flush_tlb(vcpu);
