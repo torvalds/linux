@@ -245,6 +245,17 @@ config MSI_LAPTOP
 
 	  If you have an MSI S270 laptop, say Y or M here.
 
+config PANASONIC_LAPTOP
+	tristate "Panasonic Laptop Extras"
+	depends on X86 && INPUT
+        depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver adds support for access to backlight control and hotkeys
+	  on Panasonic Let's Note laptops.
+
+	  If you have a Panasonic Let's note laptop (such as the R1(N variant),
+	  R2, R3, R5, T2, W2 and Y2 series), say Y.
+
 config COMPAL_LAPTOP
 	tristate "Compal Laptop Extras"
 	depends on X86

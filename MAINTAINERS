@@ -3148,6 +3148,11 @@ M:	olof@lixom.net
 L:	i2c@lm-sensors.org
 S:	Maintained
 
+PANASONIC LAPTOP ACPI EXTRAS DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
+S:	Maintained
+
 PARALLEL PORT SUPPORT
 L:	linux-parport@lists.infradead.org (subscribers-only)
 S:	Orphan
