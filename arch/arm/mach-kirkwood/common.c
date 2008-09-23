@@ -588,9 +588,15 @@ static char * __init kirkwood_id(void)
 	}
 }
 
-static int __init is_l2_writethrough(void)
+static void __init kirkwood_l2_init(void)
 {
-	return !!(readl(L2_CONFIG_REG) & L2_WRITETHROUGH);
+#ifdef CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH
+	writel(readl(L2_CONFIG_REG) | L2_WRITETHROUGH, L2_CONFIG_REG);
+	feroceon_l2_init(1);
+#else
+	writel(readl(L2_CONFIG_REG) & ~L2_WRITETHROUGH, L2_CONFIG_REG);
+	feroceon_l2_init(0);
+#endif
 }
 
 void __init kirkwood_init(void)
@@ -605,6 +611,6 @@ void __init kirkwood_init(void)
 	kirkwood_setup_cpu_mbus();
 
 #ifdef CONFIG_CACHE_FEROCEON_L2
-	feroceon_l2_init(is_l2_writethrough());
+	kirkwood_l2_init();
 #endif
 }

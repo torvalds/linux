@@ -80,7 +80,8 @@ ENTRY(cpu_feroceon_proc_fin)
 	msr	cpsr_c, ip
 	bl	feroceon_flush_kern_cache_all
 
-#if defined(CONFIG_CACHE_FEROCEON_L2) && !defined(CONFIG_L2_CACHE_WRITETHROUGH)
+#if defined(CONFIG_CACHE_FEROCEON_L2) && \
+	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 	mov	r0, #0
 	mcr	p15, 1, r0, c15, c9, 0		@ clean L2
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
@@ -389,7 +390,8 @@ ENTRY(feroceon_range_cache_fns)
 
 	.align	5
 ENTRY(cpu_feroceon_dcache_clean_area)
-#if defined(CONFIG_CACHE_FEROCEON_L2) && !defined(CONFIG_L2_CACHE_WRITETHROUGH)
+#if defined(CONFIG_CACHE_FEROCEON_L2) && \
+	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 	mov	r2, r0
 	mov	r3, r1
 #endif
@@ -397,7 +399,8 @@ ENTRY(cpu_feroceon_dcache_clean_area)
 	add	r0, r0, #CACHE_DLINESIZE
 	subs	r1, r1, #CACHE_DLINESIZE
 	bhi	1b
-#if defined(CONFIG_CACHE_FEROCEON_L2) && !defined(CONFIG_L2_CACHE_WRITETHROUGH)
+#if defined(CONFIG_CACHE_FEROCEON_L2) && \
+	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 1:	mcr	p15, 1, r2, c15, c9, 1		@ clean L2 entry
 	add	r2, r2, #CACHE_DLINESIZE
 	subs	r3, r3, #CACHE_DLINESIZE
@@ -466,7 +469,8 @@ ENTRY(cpu_feroceon_set_pte_ext)
 	str	r2, [r0]			@ hardware version
 	mov	r0, r0
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
-#if defined(CONFIG_CACHE_FEROCEON_L2) && !defined(CONFIG_L2_CACHE_WRITETHROUGH)
+#if defined(CONFIG_CACHE_FEROCEON_L2) && \
+	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 	mcr	p15, 1, r0, c15, c9, 1		@ clean L2 entry
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
