@@ -1246,6 +1246,8 @@ struct xfrm6_tunnel {
 };
 
 struct xfrm_state_walk {
+	struct list_head list;
+	unsigned long genid;
 	struct xfrm_state *state;
 	int count;
 	u8 proto;
@@ -1281,13 +1283,7 @@ static inline void xfrm6_fini(void)
 extern int xfrm_proc_init(void);
 #endif
 
-static inline void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
-{
-	walk->proto = proto;
-	walk->state = NULL;
-	walk->count = 0;
-}
-
+extern void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto);
 extern int xfrm_state_walk(struct xfrm_state_walk *walk,
 			   int (*func)(struct xfrm_state *, int, void*), void *);
 extern void xfrm_state_walk_done(struct xfrm_state_walk *walk);

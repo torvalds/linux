@@ -64,6 +64,9 @@ static unsigned long xfrm_state_walk_ongoing;
 /* Counter indicating walk completion, protected by xfrm_cfg_mutex. */
 static unsigned long xfrm_state_walk_completed;
 
+/* List of outstanding state walks used to set the completed counter.  */
+static LIST_HEAD(xfrm_state_walks);
+
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
@@ -1584,7 +1587,6 @@ int xfrm_state_walk(struct xfrm_state_walk *walk,
 			if (err) {
 				xfrm_state_hold(last);
 				walk->state = last;
-				xfrm_state_walk_ongoing++;
 				goto out;
 			}
 		}
@@ -1599,25 +1601,44 @@ int xfrm_state_walk(struct xfrm_state_walk *walk,
 		err = func(last, 0, data);
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	if (old != NULL) {
+	if (old != NULL)
 		xfrm_state_put(old);
-		xfrm_state_walk_completed++;
-		if (!list_empty(&xfrm_state_gc_leftovers))
-			schedule_work(&xfrm_state_gc_work);
-	}
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_walk);
 
+void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
+{
+	walk->proto = proto;
+	walk->state = NULL;
+	walk->count = 0;
+	list_add_tail(&walk->list, &xfrm_state_walks);
+	walk->genid = ++xfrm_state_walk_ongoing;
+}
+EXPORT_SYMBOL(xfrm_state_walk_init);
+
 void xfrm_state_walk_done(struct xfrm_state_walk *walk)
 {
+	struct list_head *prev;
+
 	if (walk->state != NULL) {
 		xfrm_state_put(walk->state);
 		walk->state = NULL;
-		xfrm_state_walk_completed++;
-		if (!list_empty(&xfrm_state_gc_leftovers))
-			schedule_work(&xfrm_state_gc_work);
 	}
+
+	prev = walk->list.prev;
+	list_del(&walk->list);
+
+	if (prev != &xfrm_state_walks) {
+		list_entry(prev, struct xfrm_state_walk, list)->genid =
+			walk->genid;
+		return;
+	}
+
+	xfrm_state_walk_completed = walk->genid;
+
+	if (!list_empty(&xfrm_state_gc_leftovers))
+		schedule_work(&xfrm_state_gc_work);
 }
 EXPORT_SYMBOL(xfrm_state_walk_done);
 
