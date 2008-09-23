@@ -2990,7 +2990,7 @@ struct dentry *tracing_init_dentry(void)
 #include "trace_selftest.c"
 #endif
 
-static __init void tracer_init_debugfs(void)
+static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
 	struct dentry *entry;
@@ -3078,6 +3078,7 @@ static __init void tracer_init_debugfs(void)
 #ifdef CONFIG_SYSPROF_TRACER
 	init_tracer_sysprof_debugfs(d_tracer);
 #endif
+	return 0;
 }
 
 int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
@@ -3504,17 +3505,20 @@ __init static int tracer_alloc_buffers(void)
 		pages, trace_nr_entries, (long)TRACE_ENTRY_SIZE);
 	pr_info("   actual entries %ld\n", global_trace.entries);
 
-	tracer_init_debugfs();
-
 	trace_init_cmdlines();
 
 	register_tracer(&nop_trace);
+#ifdef CONFIG_BOOT_TRACER
+	register_tracer(&boot_tracer);
+	current_trace = &boot_tracer;
+	current_trace->init(&global_trace);
+#else
 	current_trace = &nop_trace;
+#endif
 
 	/* All seems OK, enable tracing */
 	global_trace.ctrl = tracer_enabled;
 	tracing_disabled = 0;
-
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &trace_panic_notifier);
 
@@ -3548,4 +3552,5 @@ __init static int tracer_alloc_buffers(void)
 	}
 	return ret;
 }
-fs_initcall(tracer_alloc_buffers);
+early_initcall(tracer_alloc_buffers);
+fs_initcall(tracer_init_debugfs);
