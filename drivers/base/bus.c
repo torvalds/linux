@@ -333,9 +333,7 @@ static int match_name(struct device *dev, void *data)
 {
 	const char *name = data;
 
-	if (strcmp(name, dev->bus_id) == 0)
-		return 1;
-	return 0;
+	return sysfs_streq(name, dev->bus_id);
 }
 
 /**
