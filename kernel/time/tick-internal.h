@@ -10,6 +10,8 @@ extern int tick_do_timer_cpu __read_mostly;
 extern void tick_setup_periodic(struct clock_event_device *dev, int broadcast);
 extern void tick_handle_periodic(struct clock_event_device *dev);
 
+extern void clockevents_shutdown(struct clock_event_device *dev);
+
 /*
  * NO_HZ / high resolution timer shared code
  */

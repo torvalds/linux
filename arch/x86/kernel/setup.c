@@ -670,6 +670,10 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+#ifdef CONFIG_X86_64
+	check_efer();
+#endif
+
 #if defined(CONFIG_VMI) && defined(CONFIG_X86_32)
 	/*
 	 * Must be before kernel pagetables are setup
@@ -738,7 +742,6 @@ void __init setup_arch(char **cmdline_p)
 #else
 	num_physpages = max_pfn;
 
-	check_efer();
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */

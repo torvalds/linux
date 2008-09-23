@@ -249,7 +249,7 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 	 * not give it back to the clockevents layer !
 	 */
 	if (tick_is_broadcast_device(curdev)) {
-		clockevents_set_mode(curdev, CLOCK_EVT_MODE_SHUTDOWN);
+		clockevents_shutdown(curdev);
 		curdev = NULL;
 	}
 	clockevents_exchange_device(curdev, newdev);
@@ -311,7 +311,7 @@ static void tick_suspend(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tick_device_lock, flags);
-	clockevents_set_mode(td->evtdev, CLOCK_EVT_MODE_SHUTDOWN);
+	clockevents_shutdown(td->evtdev);
 	spin_unlock_irqrestore(&tick_device_lock, flags);
 }
 

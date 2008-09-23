@@ -164,6 +164,9 @@ static inline int hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *
 {
 	int ret;
 
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return -ENETDOWN;
+
 	/* Serialize all requests */
 	hci_req_lock(hdev);
 	ret = __hci_request(hdev, req, opt, timeout);

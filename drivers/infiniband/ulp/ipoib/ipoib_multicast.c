@@ -366,6 +366,21 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 	return ret;
 }
 
+void ipoib_mcast_carrier_on_task(struct work_struct *work)
+{
+	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
+						   carrier_on_task);
+
+	/*
+	 * Take rtnl_lock to avoid racing with ipoib_stop() and
+	 * turning the carrier back on while a device is being
+	 * removed.
+	 */
+	rtnl_lock();
+	netif_carrier_on(priv->dev);
+	rtnl_unlock();
+}
+
 static int ipoib_mcast_join_complete(int status,
 				     struct ib_sa_multicast *multicast)
 {
@@ -392,16 +407,12 @@ static int ipoib_mcast_join_complete(int status,
 					   &priv->mcast_task, 0);
 		mutex_unlock(&mcast_mutex);
 
-		if (mcast == priv->broadcast) {
-			/*
-			 * Take RTNL lock here to avoid racing with
-			 * ipoib_stop() and turning the carrier back
-			 * on while a device is being removed.
-			 */
-			rtnl_lock();
-			netif_carrier_on(dev);
-			rtnl_unlock();
-		}
+		/*
+		 * Defer carrier on work to ipoib_workqueue to avoid a
+		 * deadlock on rtnl_lock here.
+		 */
+		if (mcast == priv->broadcast)
+			queue_work(ipoib_workqueue, &priv->carrier_on_task);
 
 		return 0;
 	}
