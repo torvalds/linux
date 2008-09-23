@@ -806,8 +806,6 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 	rc = CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc != 0)
-		goto out_close;
 
 	/* set DELETE_ON_CLOSE */
 	rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid, current->tgid);
@@ -1180,117 +1178,141 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	return rc;
 }
 
+static int
+cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
+		struct dentry *to_dentry, const char *toPath)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(from_dentry->d_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	__u16 srcfid;
+	int oplock, rc;
+
+	/* try path-based rename first */
+	rc = CIFSSMBRename(xid, pTcon, fromPath, toPath, cifs_sb->local_nls,
+			   cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	/*
+	 * don't bother with rename by filehandle unless file is busy and
+	 * source Note that cross directory moves do not work with
+	 * rename by filehandle to various Windows servers.
+	 */
+	if (rc == 0 || rc != -ETXTBSY)
+		return rc;
+
+	/* open the file to be renamed -- we need DELETE perms */
+	rc = CIFSSMBOpen(xid, pTcon, fromPath, FILE_OPEN, DELETE,
+			 CREATE_NOT_DIR, &srcfid, &oplock, NULL,
+			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc == 0) {
+		rc = CIFSSMBRenameOpenFile(xid, pTcon, srcfid,
+				(const char *) to_dentry->d_name.name,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+		CIFSSMBClose(xid, pTcon, srcfid);
+	}
+
+	return rc;
+}
+
 int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 	struct inode *target_inode, struct dentry *target_direntry)
 {
-	char *fromName;
-	char *toName;
+	char *fromName = NULL;
+	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb_source;
 	struct cifs_sb_info *cifs_sb_target;
 	struct cifsTconInfo *pTcon;
+	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
+	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid;
-	int rc = 0;
-
-	xid = GetXid();
+	int rc;
 
 	cifs_sb_target = CIFS_SB(target_inode->i_sb);
 	cifs_sb_source = CIFS_SB(source_inode->i_sb);
 	pTcon = cifs_sb_source->tcon;
 
+	xid = GetXid();
+
+	/*
+	 * BB: this might be allowed if same server, but different share.
+	 * Consider adding support for this
+	 */
 	if (pTcon != cifs_sb_target->tcon) {
-		FreeXid(xid);
-		return -EXDEV;	/* BB actually could be allowed if same server,
-				   but different share.
-				   Might eventually add support for this */
+		rc = -EXDEV;
+		goto cifs_rename_exit;
 	}
 
-	/* we already  have the rename sem so we do not need to grab it again
-	   here to protect the path integrity */
+	/*
+	 * we already have the rename sem so we do not need to
+	 * grab it again here to protect the path integrity
+	 */
 	fromName = build_path_from_dentry(source_direntry);
-	toName = build_path_from_dentry(target_direntry);
-	if ((fromName == NULL) || (toName == NULL)) {
+	if (fromName == NULL) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
 	}
 
-	rc = CIFSSMBRename(xid, pTcon, fromName, toName,
-			   cifs_sb_source->local_nls,
-			   cifs_sb_source->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc == -EEXIST) {
-		/* check if they are the same file because rename of hardlinked
-		   files is a noop */
-		FILE_UNIX_BASIC_INFO *info_buf_source;
-		FILE_UNIX_BASIC_INFO *info_buf_target;
+	toName = build_path_from_dentry(target_direntry);
+	if (toName == NULL) {
+		rc = -ENOMEM;
+		goto cifs_rename_exit;
+	}
 
-		info_buf_source =
-			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
-		if (info_buf_source != NULL) {
+	rc = cifs_do_rename(xid, source_direntry, fromName,
+			    target_direntry, toName);
+
+	if (rc == -EEXIST) {
+		if (pTcon->unix_ext) {
+			/*
+			 * Are src and dst hardlinks of same inode? We can
+			 * only tell with unix extensions enabled
+			 */
+			info_buf_source =
+				kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
+						GFP_KERNEL);
+			if (info_buf_source != NULL)
+				goto unlink_target;
+
 			info_buf_target = info_buf_source + 1;
-			if (pTcon->unix_ext)
-				rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-					info_buf_source,
-					cifs_sb_source->local_nls,
-					cifs_sb_source->mnt_cifs_flags &
+			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
+						info_buf_source,
+						cifs_sb_source->local_nls,
+						cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			/* else rc is still EEXIST so will fall through to
-			   unlink the target and retry rename */
-			if (rc == 0) {
-				rc = CIFSSMBUnixQPathInfo(xid, pTcon, toName,
-						info_buf_target,
+			if (rc != 0)
+				goto unlink_target;
+
+			rc = CIFSSMBUnixQPathInfo(xid, pTcon,
+						toName, info_buf_target,
 						cifs_sb_target->local_nls,
 						/* remap based on source sb */
 						cifs_sb_source->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-			}
-			if ((rc == 0) &&
-			    (info_buf_source->UniqueId ==
-			     info_buf_target->UniqueId)) {
-			/* do not rename since the files are hardlinked which
-			   is a noop */
-			} else {
-			/* we either can not tell the files are hardlinked
-			   (as with Windows servers) or files are not
-			   hardlinked so delete the target manually before
-			   renaming to follow POSIX rather than Windows
-			   semantics */
-				cifs_unlink(target_inode, target_direntry);
-				rc = CIFSSMBRename(xid, pTcon, fromName,
-						   toName,
-						   cifs_sb_source->local_nls,
-						   cifs_sb_source->mnt_cifs_flags
-						   & CIFS_MOUNT_MAP_SPECIAL_CHR);
-			}
-			kfree(info_buf_source);
-		} /* if we can not get memory just leave rc as EEXIST */
-	}
-
-	if (rc)
-		cFYI(1, ("rename rc %d", rc));
-
-	if ((rc == -EIO) || (rc == -EEXIST)) {
-		int oplock = 0;
-		__u16 netfid;
-
-		/* BB FIXME Is Generic Read correct for rename? */
-		/* if renaming directory - we should not say CREATE_NOT_DIR,
-		   need to test renaming open directory, also GENERIC_READ
-		   might not right be right access to request */
-		rc = CIFSSMBOpen(xid, pTcon, fromName, FILE_OPEN, GENERIC_READ,
-				 CREATE_NOT_DIR, &netfid, &oplock, NULL,
-				 cifs_sb_source->local_nls,
-				 cifs_sb_source->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			rc = CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
-					      cifs_sb_source->local_nls,
-					      cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			CIFSSMBClose(xid, pTcon, netfid);
-		}
+
+			if (rc == 0 && (info_buf_source->UniqueId ==
+					info_buf_target->UniqueId))
+				/* same file, POSIX says that this is a noop */
+				goto cifs_rename_exit;
+		} /* else ... BB we could add the same check for Windows by
+		     checking the UniqueId via FILE_INTERNAL_INFO */
+unlink_target:
+		/*
+		 * we either can not tell the files are hardlinked (as with
+		 * Windows servers) or files are not hardlinked. Delete the
+		 * target manually before renaming to follow POSIX rather than
+		 * Windows semantics
+		 */
+		cifs_unlink(target_inode, target_direntry);
+		rc = cifs_do_rename(xid, source_direntry, fromName,
+				    target_direntry, toName);
 	}
 
 cifs_rename_exit:
+	kfree(info_buf_source);
 	kfree(fromName);
 	kfree(toName);
 	FreeXid(xid);
