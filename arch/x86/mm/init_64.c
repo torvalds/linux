@@ -889,8 +889,6 @@ void __init mem_init(void)
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
-
-	cpa_init();
 }
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
