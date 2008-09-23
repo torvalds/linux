@@ -132,6 +132,17 @@
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
 
+/*
+ * early identity mapping  pte attrib macros.
+ */
+#ifdef CONFIG_X86_64
+#define __PAGE_KERNEL_IDENT_LARGE_EXEC	__PAGE_KERNEL_LARGE_EXEC
+#else
+#define PTE_IDENT_ATTR	 0x007		/* PRESENT+RW+USER */
+#define PDE_IDENT_ATTR	 0x067		/* PRESENT+RW+USER+DIRTY+ACCESSED */
+#define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+#endif
+
 #ifndef __ASSEMBLY__
 
 /*
