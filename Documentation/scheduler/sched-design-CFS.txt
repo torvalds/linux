@@ -114,7 +114,31 @@ result.
 
 
 
-5.  SCHEDULING CLASSES
+5. Scheduling policies
+
+CFS implements three scheduling policies:
+
+  - SCHED_NORMAL (traditionally called SCHED_OTHER): The scheduling
+    policy that is used for regular tasks.
+
+  - SCHED_BATCH: Does not preempt nearly as often as regular tasks
+    would, thereby allowing tasks to run longer and make better use of
+    caches but at the cost of interactivity. This is well suited for
+    batch jobs.
+
+  - SCHED_IDLE: This is even weaker than nice 19, but its not a true
+    idle timer scheduler in order to avoid to get into priority
+    inversion problems which would deadlock the machine.
+
+SCHED_FIFO/_RR are implemented in sched_rt.c and are as specified by
+POSIX.
+
+The command chrt from util-linux-ng 2.13.1.1 can set all of these except
+SCHED_IDLE.
+
+
+
+6.  SCHEDULING CLASSES
 
 The new CFS scheduler has been designed in such a way to introduce "Scheduling
 Classes," an extensible hierarchy of scheduler modules.  These modules
@@ -179,7 +203,7 @@ This is the (partial) list of the hooks:
 
 
 
-6.  GROUP SCHEDULER EXTENSIONS TO CFS
+7.  GROUP SCHEDULER EXTENSIONS TO CFS
 
 Normally, the scheduler operates on individual tasks and strives to provide
 fair CPU time to each task.  Sometimes, it may be desirable to group tasks and
