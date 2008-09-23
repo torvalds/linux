@@ -356,7 +356,22 @@ static __init void uv_rtc_init(void)
 		sn_rtc_cycles_per_second = ticks_per_sec;
 }
 
-static bool uv_system_inited;
+/*
+ * Called on each cpu to initialize the per_cpu UV data area.
+ * 	ZZZ hotplug not supported yet
+ */
+void __cpuinit uv_cpu_init(void)
+{
+	/* CPU 0 initilization will be done via uv_system_init. */
+	if (!uv_blade_info)
+		return;
+
+	uv_blade_info[uv_numa_blade_id()].nr_online_cpus++;
+
+	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
+		set_x2apic_extra_bits(uv_hub_info->pnode);
+}
+
 
 void __init uv_system_init(void)
 {
@@ -448,21 +463,6 @@ void __init uv_system_init(void)
 	map_mmr_high(max_pnode);
 	map_config_high(max_pnode);
 	map_mmioh_high(max_pnode);
-	uv_system_inited = true;
+
+	uv_cpu_init();
 }
-
-/*
- * Called on each cpu to initialize the per_cpu UV data area.
- * 	ZZZ hotplug not supported yet
- */
-void __cpuinit uv_cpu_init(void)
-{
-	BUG_ON(!uv_system_inited);
-
-	uv_blade_info[uv_numa_blade_id()].nr_online_cpus++;
-
-	if (get_uv_system_type() == UV_NON_UNIQUE_APIC)
-		set_x2apic_extra_bits(uv_hub_info->pnode);
-}
-
-
