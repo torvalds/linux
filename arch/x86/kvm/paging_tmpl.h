@@ -310,8 +310,11 @@ static int FNAME(shadow_walk_entry)(struct kvm_shadow_walk *_sw,
 	if (is_shadow_present_pte(*sptep) && !is_large_pte(*sptep))
 		return 0;
 
-	if (is_large_pte(*sptep))
+	if (is_large_pte(*sptep)) {
+		set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
+		kvm_flush_remote_tlbs(vcpu->kvm);
 		rmap_remove(vcpu->kvm, sptep);
+	}
 
 	if (level == PT_DIRECTORY_LEVEL && gw->level == PT_DIRECTORY_LEVEL) {
 		metaphysical = 1;
