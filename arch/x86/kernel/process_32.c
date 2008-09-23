@@ -88,6 +88,7 @@ static void cpu_exit_clear(void)
 	cpu_clear(cpu, cpu_callin_map);
 
 	numa_remove_cpu(cpu);
+	c1e_remove_cpu(cpu);
 }
 
 /* We don't actually take CPU down, just spin without interrupts. */
