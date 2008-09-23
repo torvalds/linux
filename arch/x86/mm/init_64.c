@@ -456,13 +456,14 @@ phys_pud_update(pgd_t *pgd, unsigned long addr, unsigned long end,
 	return phys_pud_init(pud, addr, end, page_size_mask);
 }
 
-static void __init find_early_table_space(unsigned long end)
+static void __init find_early_table_space(unsigned long end, int use_pse,
+					  int use_gbpages)
 {
 	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	tables = round_up(puds * sizeof(pud_t), PAGE_SIZE);
-	if (direct_gbpages) {
+	if (use_gbpages) {
 		unsigned long extra;
 		extra = end - ((end>>PUD_SHIFT) << PUD_SHIFT);
 		pmds = (extra + PMD_SIZE - 1) >> PMD_SHIFT;
@@ -470,7 +471,7 @@ static void __init find_early_table_space(unsigned long end)
 		pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables += round_up(pmds * sizeof(pmd_t), PAGE_SIZE);
 
-	if (cpu_has_pse) {
+	if (use_pse) {
 		unsigned long extra;
 		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
 		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -640,6 +641,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	struct map_range mr[NR_RANGE_MR];
 	int nr_range, i;
+	int use_pse, use_gbpages;
 
 	printk(KERN_INFO "init_memory_mapping\n");
 
@@ -653,9 +655,21 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	if (!after_bootmem)
 		init_gbpages();
 
-	if (direct_gbpages)
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
+	 * This will simplify cpa(), which otherwise needs to support splitting
+	 * large pages into small in interrupt context, etc.
+	 */
+	use_pse = use_gbpages = 0;
+#else
+	use_pse = cpu_has_pse;
+	use_gbpages = direct_gbpages;
+#endif
+
+	if (use_gbpages)
 		page_size_mask |= 1 << PG_LEVEL_1G;
-	if (cpu_has_pse)
+	if (use_pse)
 		page_size_mask |= 1 << PG_LEVEL_2M;
 
 	memset(mr, 0, sizeof(mr));
@@ -716,7 +730,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 			 (mr[i].page_size_mask & (1<<PG_LEVEL_2M))?"2M":"4k"));
 
 	if (!after_bootmem)
-		find_early_table_space(end);
+		find_early_table_space(end, use_pse, use_gbpages);
 
 	for (i = 0; i < nr_range; i++)
 		last_map_addr = kernel_physical_mapping_init(

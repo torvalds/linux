@@ -777,7 +777,7 @@ void __init setup_bootmem_allocator(void)
 	after_init_bootmem = 1;
 }
 
-static void __init find_early_table_space(unsigned long end)
+static void __init find_early_table_space(unsigned long end, int use_pse)
 {
 	unsigned long puds, pmds, ptes, tables, start;
 
@@ -787,7 +787,7 @@ static void __init find_early_table_space(unsigned long end)
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
 
-	if (cpu_has_pse) {
+	if (use_pse) {
 		unsigned long extra;
 
 		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
@@ -827,12 +827,22 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	pgd_t *pgd_base = swapper_pg_dir;
 	unsigned long start_pfn, end_pfn;
 	unsigned long big_page_start;
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
+	 * This will simplify cpa(), which otherwise needs to support splitting
+	 * large pages into small in interrupt context, etc.
+	 */
+	int use_pse = 0;
+#else
+	int use_pse = cpu_has_pse;
+#endif
 
 	/*
 	 * Find space for the kernel direct mapping tables.
 	 */
 	if (!after_init_bootmem)
-		find_early_table_space(end);
+		find_early_table_space(end, use_pse);
 
 #ifdef CONFIG_X86_PAE
 	set_nx();
@@ -878,7 +888,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	end_pfn = (end>>PMD_SHIFT) << (PMD_SHIFT - PAGE_SHIFT);
 	if (start_pfn < end_pfn)
 		kernel_physical_mapping_init(pgd_base, start_pfn, end_pfn,
-						cpu_has_pse);
+					     use_pse);
 
 	/* tail is not big page alignment ? */
 	start_pfn = end_pfn;
