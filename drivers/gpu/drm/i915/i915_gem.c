@@ -233,7 +233,7 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		if (unwritten)
 #endif /* CONFIG_HIGHMEM */
 		{
-			vaddr = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
+			vaddr = ioremap_wc(pfn << PAGE_SHIFT, PAGE_SIZE);
 #if WATCH_PWRITE
 			DRM_INFO("pwrite slow i %d o %d l %d "
 				 "pfn %ld vaddr %p\n",
@@ -1612,9 +1612,10 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			if (reloc_page != NULL)
 				iounmap(reloc_page);
 
-			reloc_page = ioremap(dev->agp->base +
-					     (reloc_offset & ~(PAGE_SIZE - 1)),
-					     PAGE_SIZE);
+			reloc_page = ioremap_wc(dev->agp->base +
+						(reloc_offset &
+						 ~(PAGE_SIZE - 1)),
+						PAGE_SIZE);
 			last_reloc_offset = reloc_offset;
 			if (reloc_page == NULL) {
 				drm_gem_object_unreference(target_obj);
@@ -2318,7 +2319,9 @@ i915_gem_init_hws(struct drm_device *dev)
 	dev_priv->hws_map.flags = 0;
 	dev_priv->hws_map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->hws_map, dev);
+	/* Ioremapping here is the wrong thing to do.  We want cached access.
+	 */
+	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
 	if (dev_priv->hws_map.handle == NULL) {
 		DRM_ERROR("Failed to map status page.\n");
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
@@ -2369,7 +2372,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	dev_priv->ring.map.flags = 0;
 	dev_priv->ring.map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->ring.map, dev);
+	drm_core_ioremap_wc(&dev_priv->ring.map, dev);
 	if (dev_priv->ring.map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
