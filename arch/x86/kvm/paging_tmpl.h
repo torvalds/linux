@@ -580,7 +580,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
 			 is_dirty_pte(gpte), 0, gfn,
-			 spte_to_pfn(sp->spt[i]), true);
+			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 
 	return !nr_present;

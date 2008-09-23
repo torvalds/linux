@@ -195,6 +195,8 @@ struct kvm_mmu_page {
 				    */
 	int multimapped;         /* More than one parent_pte? */
 	int root_count;          /* Currently serving as active root */
+	bool unsync;
+	bool unsync_children;
 	union {
 		u64 *parent_pte;               /* !multimapped */
 		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
@@ -371,6 +373,7 @@ struct kvm_vm_stat {
 	u32 mmu_flooded;
 	u32 mmu_recycled;
 	u32 mmu_cache_miss;
+	u32 mmu_unsync;
 	u32 remote_tlb_flush;
 	u32 lpages;
 };

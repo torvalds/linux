@@ -35,6 +35,7 @@
 #define KVM_REQ_TRIPLE_FAULT       4
 #define KVM_REQ_PENDING_TIMER      5
 #define KVM_REQ_UNHALT             6
+#define KVM_REQ_MMU_SYNC           7
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
