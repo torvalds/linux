@@ -2365,6 +2365,9 @@ int btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_key *ins)
 {
 	int ret;
+
+	if (root_objectid == BTRFS_TREE_LOG_OBJECTID)
+		return 0;
 	maybe_lock_mutex(root);
 	ret = __btrfs_alloc_reserved_extent(trans, root, root_objectid,
 					    ref_generation, owner,
