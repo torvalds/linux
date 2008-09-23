@@ -1249,14 +1249,14 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	if (unlikely(se == pse))
 		return;
 
+	cfs_rq_of(pse)->next = pse;
+
 	/*
 	 * We can come here with TIF_NEED_RESCHED already set from new task
 	 * wake up path.
 	 */
 	if (test_tsk_need_resched(curr))
 		return;
-
-	cfs_rq_of(pse)->next = pse;
 
 	/*
 	 * Batch tasks do not preempt (their preemption is driven by
