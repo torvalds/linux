@@ -1189,10 +1189,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 				 __func__, gfn);
 			ret = 1;
 			pte_access &= ~ACC_WRITE_MASK;
-			if (is_writeble_pte(spte)) {
+			if (is_writeble_pte(spte))
 				spte &= ~PT_WRITABLE_MASK;
-				kvm_x86_ops->tlb_flush(vcpu);
-			}
 		}
 	}
 
@@ -1241,9 +1239,11 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		}
 	}
 	if (set_spte(vcpu, shadow_pte, pte_access, user_fault, write_fault,
-		      dirty, largepage, gfn, pfn, speculative))
+		      dirty, largepage, gfn, pfn, speculative)) {
 		if (write_fault)
 			*ptwrite = 1;
+		kvm_x86_ops->tlb_flush(vcpu);
+	}
 
 	pgprintk("%s: setting spte %llx\n", __func__, *shadow_pte);
 	pgprintk("instantiating %s PTE (%s) at %ld (%llx) addr %p\n",
