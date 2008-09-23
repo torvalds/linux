@@ -410,7 +410,7 @@ struct of_modalias_table {
 	char *modalias;
 };
 static struct of_modalias_table of_modalias_table[] = {
-	/* Empty for now; add entries as needed */
+	{ "fsl,mcu-mpc8349emitx", "mcu-mpc8349emitx" },
 };
 
 /**
