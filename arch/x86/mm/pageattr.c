@@ -35,6 +35,14 @@ struct cpa_data {
 	int		curpage;
 };
 
+/*
+ * Serialize cpa() (for !DEBUG_PAGEALLOC which uses large identity mappings)
+ * using cpa_lock. So that we don't allow any other cpu, with stale large tlb
+ * entries change the page attribute in parallel to some other cpu
+ * splitting a large page entry along with changing the attribute.
+ */
+static DEFINE_SPINLOCK(cpa_lock);
+
 #define CPA_FLUSHTLB 1
 #define CPA_ARRAY 2
 
@@ -453,7 +461,13 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	unsigned int i, level;
 	pte_t *pbase, *tmp;
 	pgprot_t ref_prot;
-	struct page *base = alloc_pages(GFP_KERNEL, 0);
+	struct page *base;
+
+	if (!debug_pagealloc)
+		spin_unlock(&cpa_lock);
+	base = alloc_pages(GFP_KERNEL, 0);
+	if (!debug_pagealloc)
+		spin_lock(&cpa_lock);
 	if (!base)
 		return -ENOMEM;
 
@@ -594,7 +608,25 @@ repeat:
 	 */
 	err = split_large_page(kpte, address);
 	if (!err) {
-		cpa->flags |= CPA_FLUSHTLB;
+		/*
+	 	 * Do a global flush tlb after splitting the large page
+	 	 * and before we do the actual change page attribute in the PTE.
+	 	 *
+	 	 * With out this, we violate the TLB application note, that says
+	 	 * "The TLBs may contain both ordinary and large-page
+		 *  translations for a 4-KByte range of linear addresses. This
+		 *  may occur if software modifies the paging structures so that
+		 *  the page size used for the address range changes. If the two
+		 *  translations differ with respect to page frame or attributes
+		 *  (e.g., permissions), processor behavior is undefined and may
+		 *  be implementation-specific."
+	 	 *
+	 	 * We do this global tlb flush inside the cpa_lock, so that we
+		 * don't allow any other cpu, with stale tlb entries change the
+		 * page attribute in parallel, that also falls into the
+		 * just split large page entry.
+	 	 */
+		flush_tlb_all();
 		goto repeat;
 	}
 
@@ -686,7 +718,11 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		if (cpa->flags & CPA_ARRAY)
 			cpa->numpages = 1;
 
+		if (!debug_pagealloc)
+			spin_lock(&cpa_lock);
 		ret = __change_page_attr(cpa, checkalias);
+		if (!debug_pagealloc)
+			spin_unlock(&cpa_lock);
 		if (ret)
 			return ret;
 
