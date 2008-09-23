@@ -22,7 +22,7 @@
 
 
 /* Long is fine, even if it is only 4 bytes ;-) */
-static long *ftrace_nop;
+static unsigned long *ftrace_nop;
 
 union ftrace_code_union {
 	char code[MCOUNT_INSN_SIZE];
