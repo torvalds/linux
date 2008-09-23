@@ -120,29 +120,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 	unsigned int equiv_cpu_id = 0x00;
 	unsigned int i = 0;
 
-	/*
-	 * FIXME! dimm: do we need this? Why an update via /dev/... is different
-	 * from the one via firmware?
-	 *
-	 * This is a tricky part. We might be called from a write operation
-	 * to the device file instead of the usual process of firmware
-	 * loading. This routine needs to be able to distinguish both
-	 * cases. This is done by checking if there alread is a equivalent
-	 * CPU table installed. If not, we're written through
-	 * /dev/cpu/microcode.
-	 * Since we ignore all checks. The error case in which going through
-	 * firmware loading and that table is not loaded has already been
-	 * checked earlier.
-	 */
 	BUG_ON(equiv_cpu_table == NULL);
-#if 0
-	if (equiv_cpu_table == NULL) {
-		printk(KERN_INFO "microcode: CPU%d microcode update with "
-		       "version 0x%x (current=0x%x)\n",
-		       cpu, mc_header->patch_id, uci->cpu_sig.rev);
-		goto out;
-	}
-#endif
 	current_cpu_id = cpuid_eax(0x00000001);
 
 	while (equiv_cpu_table[i].installed_cpu != 0) {
@@ -362,7 +340,7 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 	leftover = size - offset;
 
 	while (leftover) {
-		unsigned int mc_size;
+		unsigned int uninitialized_var(mc_size);
 		struct microcode_header_amd *mc_header;
 
 		mc = get_next_ucode(ucode_ptr, leftover, get_ucode_data, &mc_size);
@@ -428,17 +406,11 @@ static int request_microcode_fw(int cpu, struct device *device)
 	return ret;
 }
 
-static int get_ucode_user(void *to, const void *from, size_t n)
-{
-	return copy_from_user(to, from, n);
-}
-
 static int request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
-	/* We should bind the task to the CPU */
-	BUG_ON(cpu != raw_smp_processor_id());
-
-	return generic_load_microcode(cpu, (void*)buf, size, &get_ucode_user);
+	printk(KERN_WARNING "microcode: AMD microcode update via /dev/cpu/microcode"
+			"is not supported\n");
+	return -1;
 }
 
 static void microcode_fini_cpu_amd(int cpu)
