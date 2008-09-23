@@ -1710,6 +1710,74 @@ static void rtl_disable_msi(struct pci_dev *pdev, struct rtl8169_private *tp)
 	}
 }
 
+static int rtl_eeprom_read(struct pci_dev *pdev, int cap, int addr, __le32 *val)
+{
+	int ret, count = 100;
+	u16 status = 0;
+	u32 value;
+
+	ret = pci_write_config_word(pdev, cap + PCI_VPD_ADDR, addr);
+	if (ret < 0)
+		return ret;
+
+	do {
+		udelay(10);
+		ret = pci_read_config_word(pdev, cap + PCI_VPD_ADDR, &status);
+		if (ret < 0)
+			return ret;
+	} while (!(status & PCI_VPD_ADDR_F) && --count);
+
+	if (!(status & PCI_VPD_ADDR_F))
+		return -ETIMEDOUT;
+
+	ret = pci_read_config_dword(pdev, cap + PCI_VPD_DATA, &value);
+	if (ret < 0)
+		return ret;
+
+	*val = cpu_to_le32(value);
+
+	return 0;
+}
+
+static void rtl_init_mac_address(struct rtl8169_private *tp,
+				 void __iomem *ioaddr)
+{
+	struct pci_dev *pdev = tp->pci_dev;
+	u8 cfg1;
+	int vpd_cap;
+	u8 mac[8];
+	DECLARE_MAC_BUF(buf);
+
+	cfg1 = RTL_R8(Config1);
+	if (!(cfg1  & VPD)) {
+		dprintk("VPD access not enabled, enabling\n");
+		RTL_W8(Cfg9346, Cfg9346_Unlock);
+		RTL_W8(Config1, cfg1 | VPD);
+		RTL_W8(Cfg9346, Cfg9346_Lock);
+	}
+
+	vpd_cap = pci_find_capability(pdev, PCI_CAP_ID_VPD);
+	if (!vpd_cap)
+		return;
+
+	/* MAC address is stored in EEPROM at offset 0x0e
+	 * Realtek says: "The VPD address does not have to be a DWORD-aligned
+	 * address as defined in the PCI 2.2 Specifications, but the VPD data
+	 * is always consecutive 4-byte data starting from the VPD address
+	 * specified."
+	 */
+	if (rtl_eeprom_read(pdev, vpd_cap, 0x000e, (__le32*)&mac[0]) < 0 ||
+	    rtl_eeprom_read(pdev, vpd_cap, 0x0012, (__le32*)&mac[4]) < 0) {
+		dprintk("Reading MAC address from EEPROM failed\n");
+		return;
+	}
+
+	dprintk("MAC address found in EEPROM: %s\n", print_mac(buf, mac));
+
+	/* Write MAC address */
+	rtl_rar_set(tp, mac);
+}
+
 static int __devinit
 rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1879,7 +1947,10 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->do_ioctl = rtl8169_ioctl;
 	}
 
-	/* Get MAC address.  FIXME: read EEPROM */
+	/* Read MAC address from EEPROM */
+	rtl_init_mac_address(tp, ioaddr);
+
+	/* Get MAC address */
 	for (i = 0; i < MAC_ADDR_LEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
