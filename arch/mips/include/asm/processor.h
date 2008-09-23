@@ -105,6 +105,19 @@ struct mips_dsp_state {
 	{0,} \
 }
 
+struct mips3264_watch_reg_state {
+	/* The width of watchlo is 32 in a 32 bit kernel and 64 in a
+	   64 bit kernel.  We use unsigned long as it has the same
+	   property. */
+	unsigned long watchlo[NUM_WATCH_REGS];
+	/* Only the mask and IRW bits from watchhi. */
+	u16 watchhi[NUM_WATCH_REGS];
+};
+
+union mips_watch_reg_state {
+	struct mips3264_watch_reg_state mips3264;
+};
+
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
@@ -136,6 +149,9 @@ struct thread_struct {
 
 	/* Saved state of the DSP ASE, if available. */
 	struct mips_dsp_state dsp;
+
+	/* Saved watch register state, if available. */
+	union mips_watch_reg_state watch;
 
 	/* Other stuff associated with the thread. */
 	unsigned long cp0_badvaddr;	/* Last user fault */
@@ -192,6 +208,10 @@ struct thread_struct {
 		.dspr		= {0, },			\
 		.dspcontrol	= 0,				\
 	},							\
+	/*							\
+	 * saved watch register stuff				\
+	 */							\
+	.watch = {{{0,},},},					\
 	/*							\
 	 * Other stuff associated with the process		\
 	 */							\

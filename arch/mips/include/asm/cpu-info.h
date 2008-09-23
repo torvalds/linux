@@ -12,6 +12,8 @@
 #ifndef __ASM_CPU_INFO_H
 #define __ASM_CPU_INFO_H
 
+#include <linux/types.h>
+
 #include <asm/cache.h>
 
 /*
@@ -69,6 +71,10 @@ struct cpuinfo_mips {
 	int			tc_id;   /* Thread Context number */
 #endif
 	void 			*data;	/* Additional data */
+	unsigned int		watch_reg_count;   /* Number that exist */
+	unsigned int		watch_reg_use_cnt; /* Usable by ptrace */
+#define NUM_WATCH_REGS 4
+	u16			watch_reg_masks[NUM_WATCH_REGS];
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];
