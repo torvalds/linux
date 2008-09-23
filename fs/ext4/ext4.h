@@ -957,6 +957,22 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 
 extern struct proc_dir_entry *ext4_proc_root;
 
+#ifdef CONFIG_PROC_FS
+extern const struct file_operations ext4_ui_proc_fops;
+
+#define	EXT4_PROC_HANDLER(name, var)					\
+do {									\
+	proc = proc_create_data(name, mode, sbi->s_proc,		\
+				&ext4_ui_proc_fops, &sbi->s_##var);	\
+	if (proc == NULL) {						\
+		printk(KERN_ERR "EXT4-fs: can't create %s\n", name);	\
+		goto err_out;						\
+	}								\
+} while (0)
+#else
+#define EXT4_PROC_HANDLER(name, var)
+#endif
+
 /*
  * Function prototypes
  */

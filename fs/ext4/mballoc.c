@@ -2721,63 +2721,6 @@ ext4_mb_free_committed_blocks(struct super_block *sb)
 #define EXT4_MB_STREAM_REQ		"stream_req"
 #define EXT4_MB_GROUP_PREALLOC		"group_prealloc"
 
-#define MB_PROC_FOPS(name)					\
-static int ext4_mb_##name##_proc_show(struct seq_file *m, void *v)	\
-{								\
-	struct ext4_sb_info *sbi = m->private;			\
-								\
-	seq_printf(m, "%ld\n", sbi->s_mb_##name);		\
-	return 0;						\
-}								\
-								\
-static int ext4_mb_##name##_proc_open(struct inode *inode, struct file *file)\
-{								\
-	return single_open(file, ext4_mb_##name##_proc_show, PDE(inode)->data);\
-}								\
-								\
-static ssize_t ext4_mb_##name##_proc_write(struct file *file,	\
-		const char __user *buf, size_t cnt, loff_t *ppos)	\
-{								\
-	struct ext4_sb_info *sbi = PDE(file->f_path.dentry->d_inode)->data;\
-	char str[32];						\
-	long value;						\
-	if (cnt >= sizeof(str))					\
-		return -EINVAL;					\
-	if (copy_from_user(str, buf, cnt))			\
-		return -EFAULT;					\
-	value = simple_strtol(str, NULL, 0);			\
-	if (value <= 0)						\
-		return -ERANGE;					\
-	sbi->s_mb_##name = value;				\
-	return cnt;						\
-}								\
-								\
-static const struct file_operations ext4_mb_##name##_proc_fops = {	\
-	.owner		= THIS_MODULE,				\
-	.open		= ext4_mb_##name##_proc_open,		\
-	.read		= seq_read,				\
-	.llseek		= seq_lseek,				\
-	.release	= single_release,			\
-	.write		= ext4_mb_##name##_proc_write,		\
-};
-
-MB_PROC_FOPS(stats);
-MB_PROC_FOPS(max_to_scan);
-MB_PROC_FOPS(min_to_scan);
-MB_PROC_FOPS(order2_reqs);
-MB_PROC_FOPS(stream_request);
-MB_PROC_FOPS(group_prealloc);
-
-#define	MB_PROC_HANDLER(name, var)					\
-do {									\
-	proc = proc_create_data(name, mode, sbi->s_proc,		\
-				&ext4_mb_##var##_proc_fops, sbi);	\
-	if (proc == NULL) {						\
-		printk(KERN_ERR "EXT4-fs: can't to create %s\n", name);	\
-		goto err_out;						\
-	}								\
-} while (0)
-
 static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 {
 	mode_t mode = S_IFREG | S_IRUGO | S_IWUSR;
@@ -2787,12 +2730,12 @@ static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 	if (sbi->s_proc == NULL)
 		return -EINVAL;
 
-	MB_PROC_HANDLER(EXT4_MB_STATS_NAME, stats);
-	MB_PROC_HANDLER(EXT4_MB_MAX_TO_SCAN_NAME, max_to_scan);
-	MB_PROC_HANDLER(EXT4_MB_MIN_TO_SCAN_NAME, min_to_scan);
-	MB_PROC_HANDLER(EXT4_MB_ORDER2_REQ, order2_reqs);
-	MB_PROC_HANDLER(EXT4_MB_STREAM_REQ, stream_request);
-	MB_PROC_HANDLER(EXT4_MB_GROUP_PREALLOC, group_prealloc);
+	EXT4_PROC_HANDLER(EXT4_MB_STATS_NAME, mb_stats);
+	EXT4_PROC_HANDLER(EXT4_MB_MAX_TO_SCAN_NAME, mb_max_to_scan);
+	EXT4_PROC_HANDLER(EXT4_MB_MIN_TO_SCAN_NAME, mb_min_to_scan);
+	EXT4_PROC_HANDLER(EXT4_MB_ORDER2_REQ, mb_order2_reqs);
+	EXT4_PROC_HANDLER(EXT4_MB_STREAM_REQ, mb_stream_request);
+	EXT4_PROC_HANDLER(EXT4_MB_GROUP_PREALLOC, mb_group_prealloc);
 	return 0;
 
 err_out:

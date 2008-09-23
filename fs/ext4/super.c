@@ -3541,6 +3541,48 @@ static int ext4_get_sb(struct file_system_type *fs_type,
 	return get_sb_bdev(fs_type, flags, dev_name, data, ext4_fill_super, mnt);
 }
 
+#ifdef CONFIG_PROC_FS
+static int ext4_ui_proc_show(struct seq_file *m, void *v)
+{
+	unsigned int *p = m->private;
+
+	seq_printf(m, "%u\n", *p);
+	return 0;
+}
+
+static int ext4_ui_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ext4_ui_proc_show, PDE(inode)->data);
+}
+
+static ssize_t ext4_ui_proc_write(struct file *file, const char __user *buf,
+			       size_t cnt, loff_t *ppos)
+{
+	unsigned int *p = PDE(file->f_path.dentry->d_inode)->data;
+	char str[32];
+	unsigned long value;
+
+	if (cnt >= sizeof(str))
+		return -EINVAL;
+	if (copy_from_user(str, buf, cnt))
+		return -EFAULT;
+	value = simple_strtol(str, NULL, 0);
+	if (value < 0)
+		return -ERANGE;
+	*p = value;
+	return cnt;
+}
+
+const struct file_operations ext4_ui_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ext4_ui_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= ext4_ui_proc_write,
+};
+#endif
+
 static struct file_system_type ext4dev_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ext4dev",
