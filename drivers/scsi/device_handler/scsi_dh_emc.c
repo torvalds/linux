@@ -84,7 +84,7 @@ struct clariion_dh_data {
 	/*
 	 * I/O buffer for both MODE_SELECT and INQUIRY commands.
 	 */
-	char buffer[CLARIION_BUFFER_SIZE];
+	unsigned char buffer[CLARIION_BUFFER_SIZE];
 	/*
 	 * SCSI sense buffer for commands -- assumes serial issuance
 	 * and completion sequence of all commands for same multipath.
@@ -176,7 +176,7 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 		err = SCSI_DH_DEV_TEMP_BUSY;
 		goto out;
 	}
-	if (csdev->buffer[4] < 0 || csdev->buffer[4] > 2) {
+	if (csdev->buffer[4] > 2) {
 		/* Invalid buffer format */
 		sdev_printk(KERN_NOTICE, sdev,
 			    "%s: invalid VPD page 0xC0 format\n",
