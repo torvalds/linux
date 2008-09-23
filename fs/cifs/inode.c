@@ -760,6 +760,59 @@ out:
 	return rc;
 }
 
+/*
+ * open the given file (if it isn't already), set the DELETE_ON_CLOSE bit
+ * and rename it to a random name that hopefully won't conflict with
+ * anything else.
+ */
+static int
+cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
+{
+	int oplock = 0;
+	int rc;
+	__u16 netfid;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	__u32 dosattr;
+	FILE_BASIC_INFO *info_buf;
+
+	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+			 DELETE|FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR|CREATE_DELETE_ON_CLOSE,
+			 &netfid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc != 0)
+		goto out;
+
+	/* set ATTR_HIDDEN and clear ATTR_READONLY */
+	cifsInode = CIFS_I(inode);
+	dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+	if (dosattr == 0)
+		dosattr |= ATTR_NORMAL;
+	dosattr |= ATTR_HIDDEN;
+
+	info_buf = kzalloc(sizeof(*info_buf), GFP_KERNEL);
+	if (info_buf == NULL) {
+		rc = -ENOMEM;
+		goto out_close;
+	}
+	info_buf->Attributes = cpu_to_le32(dosattr);
+	rc = CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid, current->tgid);
+	kfree(info_buf);
+	if (rc != 0)
+		goto out_close;
+
+	/* silly-rename the file */
+	rc = CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+out_close:
+	CIFSSMBClose(xid, tcon, netfid);
+out:
+	return rc;
+}
+
 int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
@@ -805,23 +858,9 @@ psx_del_no_retry:
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
 	} else if (rc == -ETXTBSY) {
-		int oplock = 0;
-		__u16 netfid;
-
-		rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN, DELETE,
-				 CREATE_NOT_DIR | CREATE_DELETE_ON_CLOSE,
-				 &netfid, &oplock, NULL, cifs_sb->local_nls,
-				 cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL,
-					      cifs_sb->local_nls,
-					      cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			CIFSSMBClose(xid, tcon, netfid);
-			if (inode)
-				drop_nlink(inode);
-		}
+		rc = cifs_rename_pending_delete(full_path, inode, xid);
+		if (rc == 0)
+			drop_nlink(inode);
 	} else if (rc == -EACCES) {
 		/* try only if r/o attribute set in local lookup data? */
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
@@ -848,28 +887,9 @@ psx_del_no_retry:
 			if (inode)
 				drop_nlink(inode);
 		} else if (rc == -ETXTBSY) {
-			int oplock = 0;
-			__u16 netfid;
-
-			rc = CIFSSMBOpen(xid, tcon, full_path,
-					 FILE_OPEN, DELETE,
-					 CREATE_NOT_DIR |
-					 CREATE_DELETE_ON_CLOSE,
-					 &netfid, &oplock, NULL,
-					 cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-					    CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc == 0) {
-				CIFSSMBRenameOpenFile(xid, tcon,
-					netfid, NULL,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-					    CIFS_MOUNT_MAP_SPECIAL_CHR);
-				CIFSSMBClose(xid, tcon, netfid);
-				if (inode)
-					drop_nlink(inode);
-			}
-		/* BB if rc = -ETXTBUSY goto the rename logic BB */
+			rc = cifs_rename_pending_delete(full_path, inode, xid);
+			if (rc == 0)
+				drop_nlink(inode);
 		}
 	}
 out_reval:
