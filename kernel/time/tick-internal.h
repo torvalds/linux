@@ -74,6 +74,7 @@ static inline int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 {
 	return 0;
 }
+static inline int tick_broadcast_oneshot_active(void) { return 0; }
 #endif /* !TICK_ONESHOT */
 
 /*
