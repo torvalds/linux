@@ -222,6 +222,7 @@ struct kvm_mmu {
 			      struct kvm_mmu_page *page);
 	int (*sync_page)(struct kvm_vcpu *vcpu,
 			 struct kvm_mmu_page *sp);
+	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva);
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
@@ -591,6 +592,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code);
+void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva);
 
 void kvm_enable_tdp(void);
 void kvm_disable_tdp(void);

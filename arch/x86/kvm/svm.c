@@ -525,6 +525,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 				(1ULL << INTERCEPT_CPUID) |
 				(1ULL << INTERCEPT_INVD) |
 				(1ULL << INTERCEPT_HLT) |
+				(1ULL << INTERCEPT_INVLPG) |
 				(1ULL << INTERCEPT_INVLPGA) |
 				(1ULL << INTERCEPT_IOIO_PROT) |
 				(1ULL << INTERCEPT_MSR_PROT) |
@@ -589,7 +590,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 	if (npt_enabled) {
 		/* Setup VMCB for Nested Paging */
 		control->nested_ctl = 1;
-		control->intercept &= ~(1ULL << INTERCEPT_TASK_SWITCH);
+		control->intercept &= ~((1ULL << INTERCEPT_TASK_SWITCH) |
+					(1ULL << INTERCEPT_INVLPG));
 		control->intercept_exceptions &= ~(1 << PF_VECTOR);
 		control->intercept_cr_read &= ~(INTERCEPT_CR0_MASK|
 						INTERCEPT_CR3_MASK);
@@ -1164,6 +1166,13 @@ static int cpuid_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int invlpg_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	if (emulate_instruction(&svm->vcpu, kvm_run, 0, 0, 0) != EMULATE_DONE)
+		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
+	return 1;
+}
+
 static int emulate_on_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
@@ -1417,7 +1426,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_CPUID]			= cpuid_interception,
 	[SVM_EXIT_INVD]                         = emulate_on_interception,
 	[SVM_EXIT_HLT]				= halt_interception,
-	[SVM_EXIT_INVLPG]			= emulate_on_interception,
+	[SVM_EXIT_INVLPG]			= invlpg_interception,
 	[SVM_EXIT_INVLPGA]			= invalid_op_interception,
 	[SVM_EXIT_IOIO] 		  	= io_interception,
 	[SVM_EXIT_MSR]				= msr_interception,

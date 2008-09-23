@@ -461,6 +461,31 @@ out_unlock:
 	return 0;
 }
 
+static int FNAME(shadow_invlpg_entry)(struct kvm_shadow_walk *_sw,
+				      struct kvm_vcpu *vcpu, u64 addr,
+				      u64 *sptep, int level)
+{
+
+	if (level == PT_PAGE_TABLE_LEVEL) {
+		if (is_shadow_present_pte(*sptep))
+			rmap_remove(vcpu->kvm, sptep);
+		set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
+		return 1;
+	}
+	if (!is_shadow_present_pte(*sptep))
+		return 1;
+	return 0;
+}
+
+static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
+{
+	struct shadow_walker walker = {
+		.walker = { .entry = FNAME(shadow_invlpg_entry), },
+	};
+
+	walk_shadow(&walker.walker, vcpu, gva);
+}
+
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 {
 	struct guest_walker walker;

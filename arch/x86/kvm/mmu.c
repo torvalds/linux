@@ -877,6 +877,10 @@ static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
+static void nonpaging_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
+{
+}
+
 static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 {
 	unsigned index;
@@ -1589,6 +1593,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 	context->free = nonpaging_free;
 	context->prefetch_page = nonpaging_prefetch_page;
 	context->sync_page = nonpaging_sync_page;
+	context->invlpg = nonpaging_invlpg;
 	context->root_level = 0;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
@@ -1637,6 +1642,7 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu, int level)
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->prefetch_page = paging64_prefetch_page;
 	context->sync_page = paging64_sync_page;
+	context->invlpg = paging64_invlpg;
 	context->free = paging_free;
 	context->root_level = level;
 	context->shadow_root_level = level;
@@ -1659,6 +1665,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu)
 	context->free = paging_free;
 	context->prefetch_page = paging32_prefetch_page;
 	context->sync_page = paging32_sync_page;
+	context->invlpg = paging32_invlpg;
 	context->root_level = PT32_ROOT_LEVEL;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
@@ -1679,6 +1686,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->free = nonpaging_free;
 	context->prefetch_page = nonpaging_prefetch_page;
 	context->sync_page = nonpaging_sync_page;
+	context->invlpg = nonpaging_invlpg;
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 	context->root_hpa = INVALID_PAGE;
 
@@ -2070,6 +2078,16 @@ out:
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
+
+void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
+{
+	spin_lock(&vcpu->kvm->mmu_lock);
+	vcpu->arch.mmu.invlpg(vcpu, gva);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	kvm_mmu_flush_tlb(vcpu);
+	++vcpu->stat.invlpg;
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
 
 void kvm_enable_tdp(void)
 {
