@@ -5,6 +5,8 @@
 
 #include <linux/linkage.h>
 #include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/types.h>
 
 extern int ftrace_enabled;
 extern int
@@ -207,6 +209,23 @@ static inline void ftrace_init(void) { }
 static inline void
 ftrace_init_module(unsigned long *start, unsigned long *end) { }
 #endif
+
+
+struct boot_trace {
+	pid_t			caller;
+	initcall_t		func;
+	int			result;
+	unsigned long long	duration;
+};
+
+#ifdef CONFIG_BOOT_TRACER
+extern void trace_boot(struct boot_trace *it);
+extern void start_boot_trace(void);
+#else
+static inline void trace_boot(struct boot_trace *it) { }
+static inline void start_boot_trace(void) { }
+#endif
+
 
 
 #endif /* _LINUX_FTRACE_H */

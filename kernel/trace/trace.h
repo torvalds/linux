@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/mmiotrace.h>
+#include <linux/ftrace.h>
 
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
@@ -19,6 +20,7 @@ enum trace_type {
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
+	TRACE_BOOT,
 
 	__TRACE_LAST_TYPE
 };
@@ -30,6 +32,7 @@ struct ftrace_entry {
 	unsigned long		ip;
 	unsigned long		parent_ip;
 };
+extern struct tracer boot_tracer;
 
 /*
  * Context switch trace entry - which task (and prio) we switched from/to:
@@ -108,6 +111,7 @@ struct trace_field {
 		struct print_entry		print;
 		struct mmiotrace_rw		mmiorw;
 		struct mmiotrace_map		mmiomap;
+		struct boot_trace		initcall;
 	};
 };
 
