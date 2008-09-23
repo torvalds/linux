@@ -948,11 +948,49 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	return 0;
 }
 
+static int nfs_ctime_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
+{
+	return timespec_compare(&fattr->ctime, &inode->i_ctime) > 0;
+}
+
+static int nfs_size_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
+{
+	return nfs_size_to_loff_t(fattr->size) > i_size_read(inode);
+}
+
+/**
+ * nfs_inode_attrs_need_update - check if the inode attributes need updating
+ * @inode - pointer to inode
+ * @fattr - attributes
+ *
+ * Attempt to divine whether or not an RPC call reply carrying stale
+ * attributes got scheduled after another call carrying updated ones.
+ *
+ * To do so, the function first assumes that a more recent ctime means
+ * that the attributes in fattr are newer, however it also attempt to
+ * catch the case where ctime either didn't change, or went backwards
+ * (if someone reset the clock on the server) by looking at whether
+ * or not this RPC call was started after the inode was last updated.
+ * Note also the check for jiffy wraparound if the last_updated timestamp
+ * is later than 'jiffies'.
+ *
+ * The function returns 'true' if it thinks the attributes in 'fattr' are
+ * more recent than the ones cached in the inode.
+ *
+ */
+static int nfs_inode_attrs_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
+{
+	const struct nfs_inode *nfsi = NFS_I(inode);
+
+	return nfs_ctime_need_update(inode, fattr) ||
+			nfs_size_need_update(inode, fattr) ||
+			time_after(fattr->time_start, nfsi->last_updated) ||
+			time_after(nfsi->last_updated, jiffies);
+}
+
 static int nfs_refresh_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	if (time_after(fattr->time_start, nfsi->last_updated))
+	if (nfs_inode_attrs_need_update(inode, fattr))
 		return nfs_update_inode(inode, fattr);
 	return nfs_check_inode_attributes(inode, fattr);
 }
