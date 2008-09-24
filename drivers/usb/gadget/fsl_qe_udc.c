@@ -1815,6 +1815,10 @@ static int qe_ep_set_halt(struct usb_ep *_ep, int value)
 		udc->ep0_state = WAIT_FOR_SETUP;
 		udc->ep0_dir = 0;
 	}
+
+	/* set data toggle to DATA0 on clear halt */
+	if (value == 0)
+		ep->data01 = 0;
 out:
 	dev_vdbg(udc->dev, "%s %s halt stat %d\n", ep->ep.name,
 			value ?  "set" : "clear", status);
