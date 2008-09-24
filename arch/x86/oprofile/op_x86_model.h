@@ -19,7 +19,6 @@ struct op_saved_msr {
 struct op_msr {
 	unsigned long addr;
 	struct op_saved_msr saved;
-	struct op_saved_msr multiplex;
 };
 
 struct op_msrs {
@@ -35,8 +34,6 @@ struct pt_regs;
 struct op_x86_model_spec {
 	int (*init)(struct oprofile_operations *ops);
 	void (*exit)(void);
-	unsigned int const num_hardware_counters;
-	unsigned int const num_hardware_controls;
 	unsigned int const num_counters;
 	unsigned int const num_controls;
 	void (*fill_in_addresses)(struct op_msrs * const msrs);

@@ -67,9 +67,6 @@ struct oprofile_operations {
 
 	/* Initiate a stack backtrace. Optional. */
 	void (*backtrace)(struct pt_regs * const regs, unsigned int depth);
-
-	/* Multiplex between different events. Optional. */
-	int (*switch_events)(void);
 	/* CPU identification string. */
 	char * cpu_type;
 };

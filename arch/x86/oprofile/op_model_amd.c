@@ -15,7 +15,6 @@
 #include <linux/oprofile.h>
 #include <linux/device.h>
 #include <linux/pci.h>
-#include <linux/percpu.h>
 
 #include <asm/ptrace.h>
 #include <asm/msr.h>
@@ -24,10 +23,8 @@
 #include "op_x86_model.h"
 #include "op_counter.h"
 
-#define NUM_COUNTERS 32
-#define NUM_HARDWARE_COUNTERS 4
-#define NUM_CONTROLS 32
-#define NUM_HARDWARE_CONTROLS 4
+#define NUM_COUNTERS 4
+#define NUM_CONTROLS 4
 
 #define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
 #define CTR_READ(l, h, msrs, c) do {rdmsr(msrs->counters[(c)].addr, (l), (h)); } while (0)
@@ -51,7 +48,6 @@
 #define CTRL_SET_GUEST_ONLY(val, h) (val |= ((h & 1) << 8))
 
 static unsigned long reset_value[NUM_COUNTERS];
-DECLARE_PER_CPU(int, switch_index);
 
 #ifdef CONFIG_OPROFILE_IBS
 
@@ -134,17 +130,15 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; i++) {
-		int hw_counter = i % NUM_HARDWARE_COUNTERS;
-		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + hw_counter))
-			msrs->counters[i].addr = MSR_K7_PERFCTR0 + hw_counter;
+		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
+			msrs->counters[i].addr = MSR_K7_PERFCTR0 + i;
 		else
 			msrs->counters[i].addr = 0;
 	}
 
 	for (i = 0; i < NUM_CONTROLS; i++) {
-		int hw_control = i % NUM_HARDWARE_CONTROLS;
-		if (reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + hw_control))
-			msrs->controls[i].addr = MSR_K7_EVNTSEL0 + hw_control;
+		if (reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i))
+			msrs->controls[i].addr = MSR_K7_EVNTSEL0 + i;
 		else
 			msrs->controls[i].addr = 0;
 	}
@@ -156,16 +150,8 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
-	for (i = 0; i < NUM_HARDWARE_CONTROLS; ++i) {
-		int offset = i + __get_cpu_var(switch_index);
-		if (counter_config[offset].enabled)
-			reset_value[offset] = counter_config[offset].count;
-		else
-			reset_value[offset] = 0;
-	}
-
 	/* clear all counters */
-	for (i = 0 ; i < NUM_HARDWARE_CONTROLS; ++i) {
+	for (i = 0 ; i < NUM_CONTROLS; ++i) {
 		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
 		CTRL_READ(low, high, msrs, i);
@@ -175,31 +161,34 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 	}
 
 	/* avoid a false detection of ctr overflows in NMI handler */
-	for (i = 0; i < NUM_HARDWARE_COUNTERS; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (unlikely(!CTR_IS_RESERVED(msrs, i)))
 			continue;
 		CTR_WRITE(1, msrs, i);
 	}
 
 	/* enable active counters */
-	for (i = 0; i < NUM_HARDWARE_COUNTERS; ++i) {
-		int offset = i + __get_cpu_var(switch_index);
-		if ((counter_config[offset].enabled) && (CTR_IS_RESERVED(msrs, i))) {
-			CTR_WRITE(counter_config[offset].count, msrs, i);
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
+			reset_value[i] = counter_config[i].count;
+
+			CTR_WRITE(counter_config[i].count, msrs, i);
 
 			CTRL_READ(low, high, msrs, i);
 			CTRL_CLEAR_LO(low);
 			CTRL_CLEAR_HI(high);
 			CTRL_SET_ENABLE(low);
-			CTRL_SET_USR(low, counter_config[offset].user);
-			CTRL_SET_KERN(low, counter_config[offset].kernel);
-			CTRL_SET_UM(low, counter_config[offset].unit_mask);
-			CTRL_SET_EVENT_LOW(low, counter_config[offset].event);
-			CTRL_SET_EVENT_HIGH(high, counter_config[offset].event);
+			CTRL_SET_USR(low, counter_config[i].user);
+			CTRL_SET_KERN(low, counter_config[i].kernel);
+			CTRL_SET_UM(low, counter_config[i].unit_mask);
+			CTRL_SET_EVENT_LOW(low, counter_config[i].event);
+			CTRL_SET_EVENT_HIGH(high, counter_config[i].event);
 			CTRL_SET_HOST_ONLY(high, 0);
 			CTRL_SET_GUEST_ONLY(high, 0);
 
 			CTRL_WRITE(low, high, msrs, i);
+		} else {
+			reset_value[i] = 0;
 		}
 	}
 }
@@ -287,14 +276,13 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 	unsigned int low, high;
 	int i;
 
-	for (i = 0 ; i < NUM_HARDWARE_COUNTERS ; ++i) {
-		int offset = i + __get_cpu_var(switch_index);
-		if (!reset_value[offset])
+	for (i = 0 ; i < NUM_COUNTERS; ++i) {
+		if (!reset_value[i])
 			continue;
 		CTR_READ(low, high, msrs, i);
 		if (CTR_OVERFLOWED(low)) {
-			oprofile_add_sample(regs, offset);
-			CTR_WRITE(reset_value[offset], msrs, i);
+			oprofile_add_sample(regs, i);
+			CTR_WRITE(reset_value[i], msrs, i);
 		}
 	}
 
@@ -310,10 +298,8 @@ static void op_amd_start(struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;
-
-	for (i = 0 ; i < NUM_HARDWARE_COUNTERS ; ++i) {
-		int offset = i + __get_cpu_var(switch_index);
-		if (reset_value[offset]) {
+	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+		if (reset_value[i]) {
 			CTRL_READ(low, high, msrs, i);
 			CTRL_SET_ACTIVE(low);
 			CTRL_WRITE(low, high, msrs, i);
@@ -343,8 +329,8 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 
 	/* Subtle: stop on all counters to avoid race with
 	 * setting our pm callback */
-	for (i = 0 ; i < NUM_HARDWARE_COUNTERS ; ++i) {
-		if (!reset_value[i + per_cpu(switch_index, smp_processor_id())])
+	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+		if (!reset_value[i])
 			continue;
 		CTRL_READ(low, high, msrs, i);
 		CTRL_SET_INACTIVE(low);
@@ -370,11 +356,11 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 {
 	int i;
 
-	for (i = 0 ; i < NUM_HARDWARE_COUNTERS ; ++i) {
+	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (CTR_IS_RESERVED(msrs, i))
 			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
 	}
-	for (i = 0 ; i < NUM_HARDWARE_COUNTERS ; ++i) {
+	for (i = 0 ; i < NUM_CONTROLS ; ++i) {
 		if (CTRL_IS_RESERVED(msrs, i))
 			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}
@@ -548,8 +534,6 @@ struct op_x86_model_spec const op_amd_spec = {
 	.exit = op_amd_exit,
 	.num_counters = NUM_COUNTERS,
 	.num_controls = NUM_CONTROLS,
-	.num_hardware_counters = NUM_HARDWARE_COUNTERS,
-	.num_hardware_controls = NUM_HARDWARE_CONTROLS,
 	.fill_in_addresses = &op_amd_fill_in_addresses,
 	.setup_ctrs = &op_amd_setup_ctrs,
 	.check_ctrs = &op_amd_check_ctrs,

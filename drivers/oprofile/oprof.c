@@ -12,8 +12,6 @@
 #include <linux/init.h>
 #include <linux/oprofile.h>
 #include <linux/moduleparam.h>
-#include <linux/workqueue.h>
-#include <linux/time.h>
 #include <asm/mutex.h>
 
 #include "oprof.h"
@@ -21,18 +19,13 @@
 #include "cpu_buffer.h"
 #include "buffer_sync.h"
 #include "oprofile_stats.h"
-
-static unsigned long is_setup;
-static void switch_worker(struct work_struct *work);
-static DECLARE_DELAYED_WORK(switch_work, switch_worker);
-static DEFINE_MUTEX(start_mutex);
  
 struct oprofile_operations oprofile_ops;
 
-unsigned long timeout_jiffies;
 unsigned long oprofile_started;
 unsigned long backtrace_depth;
-/* Multiplexing defaults at 1 msec*/
+static unsigned long is_setup;
+static DEFINE_MUTEX(start_mutex);
 
 /* timer
    0 - use performance monitoring hardware if available
@@ -94,16 +87,6 @@ out:
 	return err;
 }
 
-static void start_switch_worker(void)
-{
-	schedule_delayed_work(&switch_work, timeout_jiffies);
-}
-
-static void switch_worker(struct work_struct *work)
-{
-	if (!oprofile_ops.switch_events())
-		start_switch_worker();
-}
 
 /* Actually start profiling (echo 1>/dev/oprofile/enable) */
 int oprofile_start(void)
@@ -111,6 +94,7 @@ int oprofile_start(void)
 	int err = -EINVAL;
  
 	mutex_lock(&start_mutex);
+ 
 	if (!is_setup)
 		goto out;
 
@@ -123,9 +107,6 @@ int oprofile_start(void)
 
 	if ((err = oprofile_ops.start()))
 		goto out;
-
-	if (oprofile_ops.switch_events)
-		start_switch_worker();
 
 	oprofile_started = 1;
 out:
@@ -142,7 +123,6 @@ void oprofile_stop(void)
 		goto out;
 	oprofile_ops.stop();
 	oprofile_started = 0;
-	cancel_delayed_work_sync(&switch_work);
 	/* wake up the daemon to read what remains */
 	wake_up_buffer_waiter();
 out:
@@ -175,32 +155,6 @@ post_sync:
 	mutex_unlock(&start_mutex);
 }
 
-/* User inputs in ms, converts to jiffies */
-int oprofile_set_timeout(unsigned long val_msec)
-{
-	int err = 0;
-
-	mutex_lock(&start_mutex);
-
-	if (oprofile_started) {
-		err = -EBUSY;
-		goto out;
-	}
-
-	if (!oprofile_ops.switch_events) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	timeout_jiffies = msecs_to_jiffies(val_msec);
-	if (timeout_jiffies == MAX_JIFFY_OFFSET)
-		timeout_jiffies = msecs_to_jiffies(1);
-
-out:
-	mutex_unlock(&start_mutex);
-	return err;
-
-}
 
 int oprofile_set_backtrace(unsigned long val)
 {
@@ -225,16 +179,10 @@ out:
 	return err;
 }
 
-static void __init oprofile_switch_timer_init(void)
-{
-	timeout_jiffies = msecs_to_jiffies(1);
-}
-
 static int __init oprofile_init(void)
 {
 	int err;
 
-	oprofile_switch_timer_init();
 	err = oprofile_arch_init(&oprofile_ops);
 
 	if (err < 0 || timer) {

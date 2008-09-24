@@ -9,7 +9,6 @@
 
 #include <linux/fs.h>
 #include <linux/oprofile.h>
-#include <linux/jiffies.h>
 
 #include "event_buffer.h"
 #include "oprofile_stats.h"
@@ -18,40 +17,6 @@
 unsigned long fs_buffer_size = 131072;
 unsigned long fs_cpu_buffer_size = 8192;
 unsigned long fs_buffer_watershed = 32768; /* FIXME: tune */
-
-static ssize_t timeout_read(struct file *file, char __user *buf,
-		size_t count, loff_t *offset)
-{
-	return oprofilefs_ulong_to_user(jiffies_to_msecs(timeout_jiffies),
-				buf, count, offset);
-}
-
-
-static ssize_t timeout_write(struct file *file, char const __user *buf,
-		size_t count, loff_t *offset)
-{
-	unsigned long val;
-	int retval;
-
-	if (*offset)
-		return -EINVAL;
-
-	retval = oprofilefs_ulong_from_user(&val, buf, count);
-	if (retval)
-		return retval;
-
-	retval = oprofile_set_timeout(val);
-
-	if (retval)
-		return retval;
-	return count;
-}
-
-static const struct file_operations timeout_fops = {
-	.read		= timeout_read,
-	.write		= timeout_write,
-};
-
 
 static ssize_t depth_read(struct file * file, char __user * buf, size_t count, loff_t * offset)
 {
@@ -120,10 +85,11 @@ static ssize_t enable_write(struct file * file, char const __user * buf, size_t 
 
 	if (*offset)
 		return -EINVAL;
+
 	retval = oprofilefs_ulong_from_user(&val, buf, count);
 	if (retval)
 		return retval;
-
+ 
 	if (val)
 		retval = oprofile_start();
 	else
@@ -163,7 +129,6 @@ void oprofile_create_files(struct super_block * sb, struct dentry * root)
 	oprofilefs_create_file(sb, root, "cpu_type", &cpu_type_fops); 
 	oprofilefs_create_file(sb, root, "backtrace_depth", &depth_fops);
 	oprofilefs_create_file(sb, root, "pointer_size", &pointer_size_fops);
-	oprofilefs_create_file(sb, root, "timeout_ms", &timeout_fops);
 	oprofile_create_stats_files(sb, root);
 	if (oprofile_ops.create_files)
 		oprofile_ops.create_files(sb, root);
