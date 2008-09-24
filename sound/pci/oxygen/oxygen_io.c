@@ -244,6 +244,7 @@ static void _write_uart(struct oxygen *chip, unsigned int port, u8 data)
 void oxygen_reset_uart(struct oxygen *chip)
 {
 	_write_uart(chip, 1, MPU401_RESET);
+	msleep(1); /* wait for ACK */
 	_write_uart(chip, 1, MPU401_ENTER_UART);
 }
 EXPORT_SYMBOL(oxygen_reset_uart);
