@@ -216,10 +216,6 @@ config MEMORY_SIZE
 	default "01000000" if PLAT_M32104UT
 	default "00800000" if PLAT_OAKS32R
 
-config NOHIGHMEM
-	bool
-	default y
-
 config ARCH_DISCONTIGMEM_ENABLE
 	bool "Internal RAM Support"
 	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP || CHIP_M32104
