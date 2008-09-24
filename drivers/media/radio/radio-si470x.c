@@ -667,23 +667,29 @@ static int si470x_get_freq(struct si470x_device *radio, unsigned int *freq)
 	int retval;
 
 	/* Spacing (kHz) */
-	switch (space) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_SPACE) >> 4) {
 	/* 0: 200 kHz (USA, Australia) */
-	case 0 : spacing = 0.200 * FREQ_MUL; break;
+	case 0:
+		spacing = 0.200 * FREQ_MUL; break;
 	/* 1: 100 kHz (Europe, Japan) */
-	case 1 : spacing = 0.100 * FREQ_MUL; break;
+	case 1:
+		spacing = 0.100 * FREQ_MUL; break;
 	/* 2:  50 kHz */
-	default: spacing = 0.050 * FREQ_MUL; break;
+	default:
+		spacing = 0.050 * FREQ_MUL; break;
 	};
 
 	/* Bottom of Band (MHz) */
-	switch (band) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe) */
-	case 0 : band_bottom = 87.5 * FREQ_MUL; break;
+	case 0:
+		band_bottom = 87.5 * FREQ_MUL; break;
 	/* 1: 76   - 108 MHz (Japan wide band) */
-	default: band_bottom = 76   * FREQ_MUL; break;
+	default:
+		band_bottom = 76   * FREQ_MUL; break;
 	/* 2: 76   -  90 MHz (Japan) */
-	case 2 : band_bottom = 76   * FREQ_MUL; break;
+	case 2:
+		band_bottom = 76   * FREQ_MUL; break;
 	};
 
 	/* read channel */
@@ -706,23 +712,29 @@ static int si470x_set_freq(struct si470x_device *radio, unsigned int freq)
 	unsigned short chan;
 
 	/* Spacing (kHz) */
-	switch (space) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_SPACE) >> 4) {
 	/* 0: 200 kHz (USA, Australia) */
-	case 0 : spacing = 0.200 * FREQ_MUL; break;
+	case 0:
+		spacing = 0.200 * FREQ_MUL; break;
 	/* 1: 100 kHz (Europe, Japan) */
-	case 1 : spacing = 0.100 * FREQ_MUL; break;
+	case 1:
+		spacing = 0.100 * FREQ_MUL; break;
 	/* 2:  50 kHz */
-	default: spacing = 0.050 * FREQ_MUL; break;
+	default:
+		spacing = 0.050 * FREQ_MUL; break;
 	};
 
 	/* Bottom of Band (MHz) */
-	switch (band) {
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe) */
-	case 0 : band_bottom = 87.5 * FREQ_MUL; break;
+	case 0:
+		band_bottom = 87.5 * FREQ_MUL; break;
 	/* 1: 76   - 108 MHz (Japan wide band) */
-	default: band_bottom = 76   * FREQ_MUL; break;
+	default:
+		band_bottom = 76   * FREQ_MUL; break;
 	/* 2: 76   -  90 MHz (Japan) */
-	case 2 : band_bottom = 76   * FREQ_MUL; break;
+	case 2:
+		band_bottom = 76   * FREQ_MUL; break;
 	};
 
 	/* Chan = [ Freq (Mhz) - Bottom of Band (MHz) ] / Spacing (kHz) */
@@ -1425,7 +1437,8 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		goto done;
 
 	strcpy(tuner->name, "FM");
-	switch (band) {
+	/* range limits */
+	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe, default) */
 	default:
 		tuner->rangelow  =  87.5 * FREQ_MUL;
