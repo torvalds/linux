@@ -778,7 +778,8 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 	FILE_BASIC_INFO *info_buf;
 
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
-			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
+			 DELETE|FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR|CREATE_DELETE_ON_CLOSE,
 			 &netfid, &oplock, NULL, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc != 0)
@@ -803,12 +804,19 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 		goto out_close;
 
 	/* silly-rename the file */
-	rc = CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
+	CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	/* set DELETE_ON_CLOSE */
 	rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid, current->tgid);
+
+	/*
+	 * some samba versions return -ENOENT when we try to set the file
+	 * disposition here. Likely a samba bug, but work around it for now
+	 */
+	if (rc == -ENOENT)
+		rc = 0;
 
 out_close:
 	CIFSSMBClose(xid, tcon, netfid);
