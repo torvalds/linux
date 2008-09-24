@@ -349,6 +349,7 @@ struct qe_udc {
 	u32 c_end;
 
 	u8 *nullbuf;
+	u8 *statusbuf;
 	dma_addr_t nullp;
 	u8 nullmap;
 	u8 device_address;	/* Device USB address */

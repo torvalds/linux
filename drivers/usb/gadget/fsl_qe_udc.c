@@ -1138,7 +1138,7 @@ static int qe_ep_tx(struct qe_ep *ep, struct qe_frame *frame)
 	}
 }
 
-/* when an bd was transmitted, the function can *
+/* when a bd was transmitted, the function can
  * handle the tx_req, not include ep0           */
 static int txcomplete(struct qe_ep *ep, unsigned char restart)
 {
@@ -1174,7 +1174,7 @@ static int txcomplete(struct qe_ep *ep, unsigned char restart)
 	return 0;
 }
 
-/* give a frame and a tx_req,send some data */
+/* give a frame and a tx_req, send some data */
 static int qe_usb_senddata(struct qe_ep *ep, struct qe_frame *frame)
 {
 	unsigned int size;
@@ -1797,11 +1797,6 @@ static int qe_ep_set_halt(struct usb_ep *_ep, int value)
 		goto out;
 	}
 
-	if (ep->epnum != 0) {
-		status = 0;
-		goto out;
-	}
-
 	udc = ep->udc;
 	/* Attempt to halt IN ep will fail if any transfer requests
 	 * are still queue */
@@ -1821,7 +1816,7 @@ static int qe_ep_set_halt(struct usb_ep *_ep, int value)
 		udc->ep0_dir = 0;
 	}
 out:
-	dev_vdbg(udc->dev, " %s %s halt stat %d\n", ep->ep.name,
+	dev_vdbg(udc->dev, "%s %s halt stat %d\n", ep->ep.name,
 			value ?  "set" : "clear", status);
 
 	return status;
@@ -1953,22 +1948,51 @@ static void ownercomplete(struct usb_ep *_ep, struct usb_request *_req)
 	kfree(req);
 }
 
-static void ch9getstatus(struct qe_udc *udc, u16 value, u16 index,
-			 u16 length)
+static void ch9getstatus(struct qe_udc *udc, u8 request_type, u16 value,
+			u16 index, u16 length)
 {
-	u16 usb_status = 0;	/* fix me to give correct status */
-
+	u16 usb_status = 0;
 	struct qe_req *req;
 	struct qe_ep *ep;
 	int status = 0;
 
 	ep = &udc->eps[0];
+	if ((request_type & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
+		/* Get device status */
+		usb_status = 1 << USB_DEVICE_SELF_POWERED;
+	} else if ((request_type & USB_RECIP_MASK) == USB_RECIP_INTERFACE) {
+		/* Get interface status */
+		/* We don't have interface information in udc driver */
+		usb_status = 0;
+	} else if ((request_type & USB_RECIP_MASK) == USB_RECIP_ENDPOINT) {
+		/* Get endpoint status */
+		int pipe = index & USB_ENDPOINT_NUMBER_MASK;
+		struct qe_ep *target_ep = &udc->eps[pipe];
+		u16 usep;
+
+		/* stall if endpoint doesn't exist */
+		if (!target_ep->desc)
+			goto stall;
+
+		usep = in_be16(&udc->usb_regs->usb_usep[pipe]);
+		if (index & USB_DIR_IN) {
+			if (target_ep->dir != USB_DIR_IN)
+				goto stall;
+			if ((usep & USB_THS_MASK) == USB_THS_STALL)
+				usb_status = 1 << USB_ENDPOINT_HALT;
+		} else {
+			if (target_ep->dir != USB_DIR_OUT)
+				goto stall;
+			if ((usep & USB_RHS_MASK) == USB_RHS_STALL)
+				usb_status = 1 << USB_ENDPOINT_HALT;
+		}
+	}
 
 	req = container_of(qe_alloc_request(&ep->ep, GFP_KERNEL),
 					struct qe_req, req);
 	req->req.length = 2;
-	req->req.buf = udc->nullbuf;
-	memcpy(req->req.buf, (u8 *)&usb_status, 2);
+	req->req.buf = udc->statusbuf;
+	*(u16 *)req->req.buf = cpu_to_le16(usb_status);
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
 	req->req.complete = ownercomplete;
@@ -1978,10 +2002,11 @@ static void ch9getstatus(struct qe_udc *udc, u16 value, u16 index,
 	/* data phase */
 	status = qe_ep_queue(&ep->ep, &req->req, GFP_ATOMIC);
 
-	if (status) {
-		dev_err(udc->dev, "Can't respond to getstatus request \n");
-		qe_ep0_stall(udc);
-	}
+	if (status == 0)
+		return;
+stall:
+	dev_err(udc->dev, "Can't respond to getstatus request \n");
+	qe_ep0_stall(udc);
 }
 
 /* only handle the setup request, suppose the device in normal status */
@@ -2007,7 +2032,8 @@ static void setup_received_handle(struct qe_udc *udc,
 		if ((setup->bRequestType & (USB_DIR_IN | USB_TYPE_MASK))
 					!= (USB_DIR_IN | USB_TYPE_STANDARD))
 			break;
-		ch9getstatus(udc, wValue, wIndex, wLength);
+		ch9getstatus(udc, setup->bRequestType, wValue, wIndex,
+					wLength);
 		return;
 
 	case USB_REQ_SET_ADDRESS:
@@ -2021,7 +2047,7 @@ static void setup_received_handle(struct qe_udc *udc,
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
 		/* Requests with no data phase, status phase from udc */
-		if ((setup->bRequestType &  USB_TYPE_MASK)
+		if ((setup->bRequestType & USB_TYPE_MASK)
 					!= USB_TYPE_STANDARD)
 			break;
 
@@ -2055,7 +2081,7 @@ static void setup_received_handle(struct qe_udc *udc,
 		if (setup->bRequestType & USB_DIR_IN) {
 			udc->ep0_state = DATA_STATE_XMIT;
 			udc->ep0_dir = USB_DIR_IN;
-		} else{
+		} else {
 			udc->ep0_state = DATA_STATE_RECV;
 			udc->ep0_dir = USB_DIR_OUT;
 		}
@@ -2160,13 +2186,11 @@ static int tx_irq(struct qe_udc *udc)
 			bd = ep->c_txbd;
 			if (!(in_be32((u32 __iomem *)bd) & T_R)
 						&& (in_be32(&bd->buf))) {
-				/* Disable the TX Interrupt */
-				/*confirm the transmitted bd*/
+				/* confirm the transmitted bd */
 				if (ep->epnum == 0)
 					res = qe_ep0_txconf(ep);
 				else
 					res = qe_ep_txconf(ep);
-				/* Enable the TX Interrupt */
 			}
 		}
 	}
@@ -2204,7 +2228,6 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 	u16 irq_src;
 	irqreturn_t status = IRQ_NONE;
 	unsigned long flags;
-
 
 	spin_lock_irqsave(&udc->lock, flags);
 
@@ -2520,10 +2543,9 @@ static int __devinit qe_udc_probe(struct of_device *ofdev,
 	udc_controller->gadget.dev.release = qe_udc_release;
 	udc_controller->gadget.dev.parent = &ofdev->dev;
 
-
-	/* EP:intialization qe_ep struct */
+	/* initialize qe_ep struct */
 	for (i = 0; i < USB_MAX_ENDPOINTS ; i++) {
-		/*because the ep type isn't decide here so
+		/* because the ep type isn't decide here so
 		 * qe_ep_init() should be called in ep_enable() */
 
 		/* setup the qe_ep struct and link ep.ep.list
@@ -2536,12 +2558,19 @@ static int __devinit qe_udc_probe(struct of_device *ofdev,
 	if (ret)
 		goto err2;
 
-	/* create a buf for ZLP send */
+	/* create a buf for ZLP send, need to remain zeroed */
 	udc_controller->nullbuf = kzalloc(256, GFP_KERNEL);
 	if (udc_controller->nullbuf == NULL) {
 		dev_dbg(udc_controller->dev, "cannot alloc nullbuf\n");
 		ret = -ENOMEM;
 		goto err3;
+	}
+
+	/* buffer for data of get_status request */
+	udc_controller->statusbuf = kzalloc(2, GFP_KERNEL);
+	if (udc_controller->statusbuf == NULL) {
+		ret = -ENOMEM;
+		goto err4;
 	}
 
 	udc_controller->nullp = virt_to_phys((void *)udc_controller->nullbuf);
@@ -2568,20 +2597,21 @@ static int __devinit qe_udc_probe(struct of_device *ofdev,
 	if (ret) {
 		dev_err(udc_controller->dev, "cannot request irq %d err %d \n",
 			udc_controller->usb_irq, ret);
-		goto err4;
+		goto err5;
 	}
 
 	ret = device_add(&udc_controller->gadget.dev);
 	if (ret)
-		goto err5;
+		goto err6;
 
 	dev_info(udc_controller->dev,
-			"QE/CPM USB controller initialized as device\n");
+			"%s USB controller initialized as device\n",
+			(udc_controller->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
-err5:
+err6:
 	free_irq(udc_controller->usb_irq, udc_controller);
-err4:
+err5:
 	if (udc_controller->nullmap) {
 		dma_unmap_single(udc_controller->gadget.dev.parent,
 			udc_controller->nullp, 256,
@@ -2592,6 +2622,8 @@ err4:
 			udc_controller->nullp, 256,
 				DMA_TO_DEVICE);
 	}
+	kfree(udc_controller->statusbuf);
+err4:
 	kfree(udc_controller->nullbuf);
 err3:
 	ep = &udc_controller->eps[0];
@@ -2642,6 +2674,7 @@ static int __devexit qe_udc_remove(struct of_device *ofdev)
 			udc_controller->nullp, 256,
 				DMA_TO_DEVICE);
 	}
+	kfree(udc_controller->statusbuf);
 	kfree(udc_controller->nullbuf);
 
 	ep = &udc_controller->eps[0];
