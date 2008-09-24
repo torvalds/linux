@@ -232,9 +232,10 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 	hcd = isp1760_register(pci_mem_phy0, length, dev->irq,
 		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
 		devflags);
-	pci_set_drvdata(dev, hcd);
-	if (!hcd)
+	if (!IS_ERR(hcd)) {
+		pci_set_drvdata(dev, hcd);
 		return 0;
+	}
 clean:
 	status = -ENODEV;
 	iounmap(iobase);
