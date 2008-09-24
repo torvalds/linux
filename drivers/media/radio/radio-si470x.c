@@ -1431,7 +1431,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	/* driver constants */
 	strcpy(tuner->name, "FM");
 	tuner->type = V4L2_TUNER_RADIO;
-	tuner->capability = V4L2_TUNER_CAP_LOW;
+	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 
 	/* range limits */
 	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
@@ -1451,13 +1451,18 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		tuner->rangehigh =  90   * FREQ_MUL;
 		break;
 	};
-	tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 
-	/* Stereo indicator == Stereo (instead of Mono) */
+	/* stereo indicator == stereo (instead of mono) */
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 1)
-		tuner->audmode = V4L2_TUNER_MODE_STEREO;
+		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 	else
+		tuner->rxsubchans = V4L2_TUNER_SUB_MONO;
+
+	/* mono/stereo selector */
+	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 1)
 		tuner->audmode = V4L2_TUNER_MODE_MONO;
+	else
+		tuner->audmode = V4L2_TUNER_MODE_STEREO;
 
 	/* min is worst, max is best; signal:0..0xffff; rssi: 0..0xff */
 	tuner->signal = (radio->registers[STATUSRSSI] & STATUSRSSI_RSSI)
@@ -1492,10 +1497,17 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 	if (tuner->index != 0)
 		goto done;
 
-	if (tuner->audmode == V4L2_TUNER_MODE_MONO)
+	/* mono/stereo selector */
+	switch (tuner->audmode) {
+	case V4L2_TUNER_MODE_MONO:
 		radio->registers[POWERCFG] |= POWERCFG_MONO;  /* force mono */
-	else
+		break;
+	case V4L2_TUNER_MODE_STEREO:
 		radio->registers[POWERCFG] &= ~POWERCFG_MONO; /* try stereo */
+		break;
+	default:
+		goto done;
+	}
 
 	retval = si470x_set_register(radio, POWERCFG);
 
