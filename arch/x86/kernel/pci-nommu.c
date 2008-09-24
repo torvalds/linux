@@ -72,43 +72,6 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	return nents;
 }
 
-static void *
-nommu_alloc_coherent(struct device *hwdev, size_t size,
-		     dma_addr_t *dma_addr, gfp_t gfp)
-{
-	unsigned long dma_mask;
-	int node;
-	struct page *page;
-	dma_addr_t addr;
-
-	dma_mask = dma_alloc_coherent_mask(hwdev, gfp);
-
-	gfp |= __GFP_ZERO;
-
-	node = dev_to_node(hwdev);
-again:
-	page = alloc_pages_node(node, gfp, get_order(size));
-	if (!page)
-		return NULL;
-
-	addr = page_to_phys(page);
-	if (!is_buffer_dma_capable(dma_mask, addr, size) && !(gfp & GFP_DMA)) {
-		free_pages((unsigned long)page_address(page), get_order(size));
-		gfp |= GFP_DMA;
-		goto again;
-	}
-
-	if (check_addr("alloc_coherent", hwdev, addr, size)) {
-		*dma_addr = addr;
-		flush_write_buffers();
-		return page_address(page);
-	}
-
-	free_pages((unsigned long)page_address(page), get_order(size));
-
-	return NULL;
-}
-
 static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
 				dma_addr_t dma_addr)
 {
@@ -116,7 +79,7 @@ static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
 }
 
 struct dma_mapping_ops nommu_dma_ops = {
-	.alloc_coherent = nommu_alloc_coherent,
+	.alloc_coherent = dma_generic_alloc_coherent,
 	.free_coherent = nommu_free_coherent,
 	.map_single = nommu_map_single,
 	.map_sg = nommu_map_sg,

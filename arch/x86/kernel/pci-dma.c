@@ -134,6 +134,37 @@ unsigned long iommu_num_pages(unsigned long addr, unsigned long len)
 EXPORT_SYMBOL(iommu_num_pages);
 #endif
 
+void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+				 dma_addr_t *dma_addr, gfp_t flag)
+{
+	unsigned long dma_mask;
+	struct page *page;
+	dma_addr_t addr;
+
+	dma_mask = dma_alloc_coherent_mask(dev, flag);
+
+	flag |= __GFP_ZERO;
+again:
+	page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
+	if (!page)
+		return NULL;
+
+	addr = page_to_phys(page);
+	if (!is_buffer_dma_capable(dma_mask, addr, size)) {
+		__free_pages(page, get_order(size));
+
+		if (dma_mask < DMA_32BIT_MASK && !(flag & GFP_DMA)) {
+			flag = (flag & ~GFP_DMA32) | GFP_DMA;
+			goto again;
+		}
+
+		return NULL;
+	}
+
+	*dma_addr = addr;
+	return page_address(page);
+}
+
 /*
  * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
  * documentation.

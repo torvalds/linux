@@ -89,6 +89,9 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 extern int dma_supported(struct device *hwdev, u64 mask);
 extern int dma_set_mask(struct device *dev, u64 mask);
 
+extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+					dma_addr_t *dma_addr, gfp_t flag);
+
 static inline dma_addr_t
 dma_map_single(struct device *hwdev, void *ptr, size_t size,
 	       int direction)
