@@ -608,9 +608,11 @@ nocow:
 	add_pending_csums(trans, inode, ordered_extent->file_offset,
 			  &ordered_extent->list);
 
+	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 	btrfs_ordered_update_i_size(inode, ordered_extent);
 	btrfs_update_inode(trans, root, inode);
 	btrfs_remove_ordered_extent(inode, ordered_extent);
+	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	/* once for us */
 	btrfs_put_ordered_extent(ordered_extent);
