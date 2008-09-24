@@ -155,24 +155,28 @@
 			dma-channel@0 {
 				compatible = "fsl,mpc8377-dma-channel", "fsl,elo-dma-channel";
 				reg = <0 0x80>;
+				cell-index = <0>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8377-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x80 0x80>;
+				cell-index = <1>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8377-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x100 0x80>;
+				cell-index = <2>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8377-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x180 0x28>;
+				cell-index = <3>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
