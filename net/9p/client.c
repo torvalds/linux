@@ -75,7 +75,6 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	int option;
 	int ret = 0;
 
-	clnt->trans_mod = v9fs_default_trans();
 	clnt->dotu = 1;
 	clnt->msize = 8192;
 
@@ -108,7 +107,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			clnt->msize = option;
 			break;
 		case Opt_trans:
-			clnt->trans_mod = v9fs_match_trans(&args[0]);
+			clnt->trans_mod = v9fs_get_trans_by_name(&args[0]);
 			break;
 		case Opt_legacy:
 			clnt->dotu = 0;
@@ -117,6 +116,10 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			continue;
 		}
 	}
+
+	if (!clnt->trans_mod)
+		clnt->trans_mod = v9fs_get_default_trans();
+
 	kfree(options);
 	return ret;
 }
@@ -150,6 +153,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	if (!clnt)
 		return ERR_PTR(-ENOMEM);
 
+	clnt->trans_mod = NULL;
 	clnt->trans = NULL;
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
@@ -234,6 +238,8 @@ void p9_client_destroy(struct p9_client *clnt)
 		kfree(clnt->trans);
 		clnt->trans = NULL;
 	}
+
+	v9fs_put_trans(clnt->trans_mod);
 
 	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist)
 		p9_fid_destroy(fid);
