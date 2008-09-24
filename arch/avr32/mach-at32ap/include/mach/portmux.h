@@ -21,8 +21,8 @@
 #define AT32_GPIOF_DEGLITCH	0x00000008	/* (IN) Filter glitches */
 #define AT32_GPIOF_MULTIDRV	0x00000010	/* Enable multidriver option */
 
-void at32_select_periph(unsigned int pin, unsigned int periph,
-			unsigned long flags);
+void at32_select_periph(unsigned int port, unsigned int pin,
+			unsigned int periph, unsigned long flags);
 void at32_select_gpio(unsigned int pin, unsigned long flags);
 void at32_deselect_pin(unsigned int pin);
 void at32_reserve_pin(unsigned int pin);

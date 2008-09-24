@@ -99,7 +99,7 @@ static void __init atstk1004_setup_extdac(void)
 		goto err_set_clk;
 	}
 
-	at32_select_periph(GPIO_PIN_PA(30), GPIO_PERIPH_A, 0);
+	at32_select_periph(GPIO_PIOA_BASE, (1 << 30), GPIO_PERIPH_A, 0);
 	at73c213_data.dac_clk = gclk;
 
 err_set_clk:

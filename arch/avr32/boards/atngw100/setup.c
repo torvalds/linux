@@ -194,7 +194,7 @@ static int __init atngw100_init(void)
 	 * PB28/EXTINT3 doesn't; it should be SMBALERT# (for PMBus),
 	 * but it's not available off-board.
 	 */
-	at32_select_periph(GPIO_PIN_PB(28), 0, AT32_GPIOF_PULLUP);
+	at32_select_periph(GPIO_PIOB_BASE, 1 << 28, 0, AT32_GPIOF_PULLUP);
 	at32_select_gpio(i2c_gpio_data.sda_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	at32_select_gpio(i2c_gpio_data.scl_pin,
