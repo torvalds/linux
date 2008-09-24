@@ -450,7 +450,7 @@ static int __init microcode_init(void)
 
 	if (c->x86_vendor == X86_VENDOR_INTEL)
 		microcode_ops = init_intel_microcode();
-	else if (c->x86_vendor != X86_VENDOR_AMD)
+	else if (c->x86_vendor == X86_VENDOR_AMD)
 		microcode_ops = init_amd_microcode();
 
 	if (!microcode_ops) {
