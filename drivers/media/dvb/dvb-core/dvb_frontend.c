@@ -829,68 +829,12 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_DELIVERY_SYSTEM,
 		.set	= 1,
 	},
-	[DTV_ISDB_SEGMENT_IDX] = {
-		.name	= "DTV_ISDB_SEGMENT_IDX",
-		.cmd	= DTV_ISDB_SEGMENT_IDX,
-		.set	= 1,
-	},
-	[DTV_ISDB_SEGMENT_WIDTH] = {
-		.name	= "DTV_ISDB_SEGMENT_WIDTH",
-		.cmd	= DTV_ISDB_SEGMENT_WIDTH,
-		.set	= 1,
-	},
-
 	/* Get */
 	[DTV_DISEQC_SLAVE_REPLY] = {
 		.name	= "DTV_DISEQC_SLAVE_REPLY",
 		.cmd	= DTV_DISEQC_SLAVE_REPLY,
 		.set	= 0,
 		.buffer	= 1,
-	},
-	[DTV_ISDB_LAYERA_FEC] = {
-		.name	= "DTV_ISDB_LAYERA_FEC",
-		.cmd	= DTV_ISDB_LAYERA_FEC,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERA_MODULATION] = {
-		.name	= "DTV_ISDB_LAYERA_MODULATION",
-		.cmd	= DTV_ISDB_LAYERA_MODULATION,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERA_SEGMENT_WIDTH] = {
-		.name	= "DTV_ISDB_LAYERA_SEGMENT_WIDTH",
-		.cmd	= DTV_ISDB_LAYERA_SEGMENT_WIDTH,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERB_FEC] = {
-		.name	= "DTV_ISDB_LAYERB_FEC",
-		.cmd	= DTV_ISDB_LAYERB_FEC,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERB_MODULATION] = {
-		.name	= "DTV_ISDB_LAYERB_MODULATION",
-		.cmd	= DTV_ISDB_LAYERB_MODULATION,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERB_SEGMENT_WIDTH] = {
-		.name	= "DTV_ISDB_LAYERB_SEGMENT_WIDTH",
-		.cmd	= DTV_ISDB_LAYERB_SEGMENT_WIDTH,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERC_FEC] = {
-		.name	= "DTV_ISDB_LAYERC_FEC",
-		.cmd	= DTV_ISDB_LAYERC_FEC,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERC_MODULATION] = {
-		.name	= "DTV_ISDB_LAYERC_MODULATION",
-		.cmd	= DTV_ISDB_LAYERC_MODULATION,
-		.set	= 0,
-	},
-	[DTV_ISDB_LAYERC_SEGMENT_WIDTH] = {
-		.name	= "DTV_ISDB_LAYERC_SEGMENT_WIDTH",
-		.cmd	= DTV_ISDB_LAYERC_SEGMENT_WIDTH,
-		.set	= 0,
 	},
 };
 
@@ -1154,41 +1098,6 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_DELIVERY_SYSTEM:
 		tvp->u.data = fe->dtv_property_cache.delivery_system;
 		break;
-
-	/* ISDB-T Support here */
-	case DTV_ISDB_SEGMENT_IDX:
-		tvp->u.data = fe->dtv_property_cache.isdb_segment_idx;
-		break;
-	case DTV_ISDB_SEGMENT_WIDTH:
-		tvp->u.data = fe->dtv_property_cache.isdb_segment_width;
-		break;
-	case DTV_ISDB_LAYERA_FEC:
-		tvp->u.data = fe->dtv_property_cache.isdb_layera_fec;
-		break;
-	case DTV_ISDB_LAYERA_MODULATION:
-		tvp->u.data = fe->dtv_property_cache.isdb_layera_modulation;
-		break;
-	case DTV_ISDB_LAYERA_SEGMENT_WIDTH:
-		tvp->u.data = fe->dtv_property_cache.isdb_layera_segment_width;
-		break;
-	case DTV_ISDB_LAYERB_FEC:
-		tvp->u.data = fe->dtv_property_cache.isdb_layerb_fec;
-		break;
-	case DTV_ISDB_LAYERB_MODULATION:
-		tvp->u.data = fe->dtv_property_cache.isdb_layerb_modulation;
-		break;
-	case DTV_ISDB_LAYERB_SEGMENT_WIDTH:
-		tvp->u.data = fe->dtv_property_cache.isdb_layerb_segment_width;
-		break;
-	case DTV_ISDB_LAYERC_FEC:
-		tvp->u.data = fe->dtv_property_cache.isdb_layerc_fec;
-		break;
-	case DTV_ISDB_LAYERC_MODULATION:
-		tvp->u.data = fe->dtv_property_cache.isdb_layerc_modulation;
-		break;
-	case DTV_ISDB_LAYERC_SEGMENT_WIDTH:
-		tvp->u.data = fe->dtv_property_cache.isdb_layerc_segment_width;
-		break;
 	case DTV_VOLTAGE:
 		tvp->u.data = fe->dtv_property_cache.voltage;
 		break;
@@ -1265,14 +1174,6 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 		break;
 	case DTV_DELIVERY_SYSTEM:
 		fe->dtv_property_cache.delivery_system = tvp->u.data;
-		break;
-
-	/* ISDB-T Support here */
-	case DTV_ISDB_SEGMENT_IDX:
-		fe->dtv_property_cache.isdb_segment_idx = tvp->u.data;
-		break;
-	case DTV_ISDB_SEGMENT_WIDTH:
-		fe->dtv_property_cache.isdb_segment_width = tvp->u.data;
 		break;
 	case DTV_VOLTAGE:
 		fe->dtv_property_cache.voltage = tvp->u.data;
