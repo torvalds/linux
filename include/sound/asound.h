@@ -297,29 +297,39 @@ struct snd_pcm_info {
 	unsigned char reserved[64];	/* reserved for future... */
 };
 
-typedef int __bitwise snd_pcm_hw_param_t;
-#define	SNDRV_PCM_HW_PARAM_ACCESS	((__force snd_pcm_hw_param_t) 0) /* Access type */
-#define	SNDRV_PCM_HW_PARAM_FORMAT	((__force snd_pcm_hw_param_t) 1) /* Format */
-#define	SNDRV_PCM_HW_PARAM_SUBFORMAT	((__force snd_pcm_hw_param_t) 2) /* Subformat */
+typedef int snd_pcm_hw_param_t;
+#define	SNDRV_PCM_HW_PARAM_ACCESS	0	/* Access type */
+#define	SNDRV_PCM_HW_PARAM_FORMAT	1	/* Format */
+#define	SNDRV_PCM_HW_PARAM_SUBFORMAT	2	/* Subformat */
 #define	SNDRV_PCM_HW_PARAM_FIRST_MASK	SNDRV_PCM_HW_PARAM_ACCESS
 #define	SNDRV_PCM_HW_PARAM_LAST_MASK	SNDRV_PCM_HW_PARAM_SUBFORMAT
 
-#define	SNDRV_PCM_HW_PARAM_SAMPLE_BITS	((__force snd_pcm_hw_param_t) 8) /* Bits per sample */
-#define	SNDRV_PCM_HW_PARAM_FRAME_BITS	((__force snd_pcm_hw_param_t) 9) /* Bits per frame */
-#define	SNDRV_PCM_HW_PARAM_CHANNELS	((__force snd_pcm_hw_param_t) 10) /* Channels */
-#define	SNDRV_PCM_HW_PARAM_RATE		((__force snd_pcm_hw_param_t) 11) /* Approx rate */
-#define	SNDRV_PCM_HW_PARAM_PERIOD_TIME	((__force snd_pcm_hw_param_t) 12) /* Approx distance between interrupts in us */
-#define	SNDRV_PCM_HW_PARAM_PERIOD_SIZE	((__force snd_pcm_hw_param_t) 13) /* Approx frames between interrupts */
-#define	SNDRV_PCM_HW_PARAM_PERIOD_BYTES	((__force snd_pcm_hw_param_t) 14) /* Approx bytes between interrupts */
-#define	SNDRV_PCM_HW_PARAM_PERIODS	((__force snd_pcm_hw_param_t) 15) /* Approx interrupts per buffer */
-#define	SNDRV_PCM_HW_PARAM_BUFFER_TIME	((__force snd_pcm_hw_param_t) 16) /* Approx duration of buffer in us */
-#define	SNDRV_PCM_HW_PARAM_BUFFER_SIZE	((__force snd_pcm_hw_param_t) 17) /* Size of buffer in frames */
-#define	SNDRV_PCM_HW_PARAM_BUFFER_BYTES	((__force snd_pcm_hw_param_t) 18) /* Size of buffer in bytes */
-#define	SNDRV_PCM_HW_PARAM_TICK_TIME	((__force snd_pcm_hw_param_t) 19) /* Approx tick duration in us */
+#define	SNDRV_PCM_HW_PARAM_SAMPLE_BITS	8	/* Bits per sample */
+#define	SNDRV_PCM_HW_PARAM_FRAME_BITS	9	/* Bits per frame */
+#define	SNDRV_PCM_HW_PARAM_CHANNELS	10	/* Channels */
+#define	SNDRV_PCM_HW_PARAM_RATE		11	/* Approx rate */
+#define	SNDRV_PCM_HW_PARAM_PERIOD_TIME	12	/* Approx distance between
+						 * interrupts in us
+						 */
+#define	SNDRV_PCM_HW_PARAM_PERIOD_SIZE	13	/* Approx frames between
+						 * interrupts
+						 */
+#define	SNDRV_PCM_HW_PARAM_PERIOD_BYTES	14	/* Approx bytes between
+						 * interrupts
+						 */
+#define	SNDRV_PCM_HW_PARAM_PERIODS	15	/* Approx interrupts per
+						 * buffer
+						 */
+#define	SNDRV_PCM_HW_PARAM_BUFFER_TIME	16	/* Approx duration of buffer
+						 * in us
+						 */
+#define	SNDRV_PCM_HW_PARAM_BUFFER_SIZE	17	/* Size of buffer in frames */
+#define	SNDRV_PCM_HW_PARAM_BUFFER_BYTES	18	/* Size of buffer in bytes */
+#define	SNDRV_PCM_HW_PARAM_TICK_TIME	19	/* Approx tick duration in us */
 #define	SNDRV_PCM_HW_PARAM_FIRST_INTERVAL	SNDRV_PCM_HW_PARAM_SAMPLE_BITS
 #define	SNDRV_PCM_HW_PARAM_LAST_INTERVAL	SNDRV_PCM_HW_PARAM_TICK_TIME
 
-#define SNDRV_PCM_HW_PARAMS_NORESAMPLE		(1<<0)	/* avoid rate resampling */
+#define SNDRV_PCM_HW_PARAMS_NORESAMPLE	(1<<0)	/* avoid rate resampling */
 
 struct snd_interval {
 	unsigned int min, max;
