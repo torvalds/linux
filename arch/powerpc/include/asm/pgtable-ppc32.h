@@ -369,7 +369,12 @@ extern int icache_44x_need_flush;
 #define _PAGE_RW	0x400	/* software: user write access allowed */
 #define _PAGE_SPECIAL	0x800	/* software: Special page */
 
+#ifdef CONFIG_PTE_64BIT
+/* We never clear the high word of the pte */
+#define _PTE_NONE_MASK	(0xffffffff00000000ULL | _PAGE_HASHPTE)
+#else
 #define _PTE_NONE_MASK	_PAGE_HASHPTE
+#endif
 
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
@@ -587,6 +592,10 @@ extern int flush_hash_pages(unsigned context, unsigned long va,
 extern void add_hash_page(unsigned context, unsigned long va,
 			  unsigned long pmdval);
 
+/* Flush an entry from the TLB/hash table */
+extern void flush_hash_entry(struct mm_struct *mm, pte_t *ptep,
+			     unsigned long address);
+
 /*
  * Atomic PTE updates.
  *
@@ -665,9 +674,13 @@ static inline unsigned long long pte_update(pte_t *p,
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-#if _PAGE_HASHPTE != 0
+#if (_PAGE_HASHPTE != 0) && defined(CONFIG_SMP) && !defined(CONFIG_PTE_64BIT)
 	pte_update(ptep, ~_PAGE_HASHPTE, pte_val(pte) & ~_PAGE_HASHPTE);
 #elif defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP)
+#if _PAGE_HASHPTE != 0
+	if (pte_val(*ptep) & _PAGE_HASHPTE)
+		flush_hash_entry(mm, ptep, addr);
+#endif
 	__asm__ __volatile__("\
 		stw%U0%X0 %2,%0\n\
 		eieio\n\
@@ -675,7 +688,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
 	: "r" (pte) : "memory");
 #else
-	*ptep = pte;
+	*ptep = (*ptep & _PAGE_HASHPTE) | (pte & ~_PAGE_HASHPTE);
 #endif
 }
 

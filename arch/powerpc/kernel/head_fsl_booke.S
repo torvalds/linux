@@ -422,7 +422,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
  *   r12 is pointer to the pte
  */
 #ifdef CONFIG_PTE_64BIT
-#define PTE_FLAGS_OFFSET	4
 #define FIND_PTE	\
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
@@ -431,7 +430,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
 	lwz	r11, 4(r12);		/* Get pte entry */
 #else
-#define PTE_FLAGS_OFFSET	0
 #define FIND_PTE	\
 	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
 	lwz	r11, 0(r11);		/* Get L1 entry */			\
