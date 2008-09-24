@@ -21,8 +21,6 @@
 struct tc6393xb_platform_data {
 	u16	scr_pll2cr;	/* PLL2 Control */
 	u16	scr_gper;	/* GP Enable */
-	u32	scr_gpo_doecr;	/* GPO Data OE Control */
-	u32	scr_gpo_dsr;	/* GPO Data Set */
 
 	int	(*enable)(struct platform_device *dev);
 	int	(*disable)(struct platform_device *dev);
@@ -31,6 +29,8 @@ struct tc6393xb_platform_data {
 
 	int	irq_base;	/* base for subdevice irqs */
 	int	gpio_base;
+	int	(*setup)(struct platform_device *dev);
+	void	(*teardown)(struct platform_device *dev);
 
 	struct tmio_nand_data	*nand_data;
 };

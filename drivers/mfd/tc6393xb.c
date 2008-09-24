@@ -460,13 +460,6 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 
 	tc6393xb->suspend_state.fer = 0;
 
-	for (i = 0; i < 3; i++) {
-		tc6393xb->suspend_state.gpo_dsr[i] =
-			(tcpd->scr_gpo_dsr >> (8 * i)) & 0xff;
-		tc6393xb->suspend_state.gpo_doecr[i] =
-			(tcpd->scr_gpo_doecr >> (8 * i)) & 0xff;
-	}
-
 	tc6393xb->suspend_state.ccr = SCR_CCR_UNK1 |
 					SCR_CCR_HCLK_48;
 
@@ -488,6 +481,12 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 
 	tc6393xb_attach_irq(dev);
 
+	if (tcpd->setup) {
+		ret = tcpd->setup(dev);
+		if (ret)
+			goto err_setup;
+	}
+
 	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
 	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data =
 		&tc6393xb_cells[TC6393XB_CELL_NAND];
@@ -506,6 +505,10 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	if (!ret)
 		return 0;
 
+	if (tcpd->teardown)
+		tcpd->teardown(dev);
+
+err_setup:
 	tc6393xb_detach_irq(dev);
 
 err_gpio_add:
@@ -535,6 +538,10 @@ static int __devexit tc6393xb_remove(struct platform_device *dev)
 	int ret;
 
 	mfd_remove_devices(&dev->dev);
+
+	if (tcpd->teardown)
+		tcpd->teardown(dev);
+
 	tc6393xb_detach_irq(dev);
 
 	if (tc6393xb->gpio.base != -1) {
