@@ -263,11 +263,12 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 		if (unlikely(!tx)) {
 			async_tx_quiesce(&depend_tx);
 
-			while (!tx)
+			while (!tx) {
 				dma_async_issue_pending(chan);
 				tx = device->device_prep_dma_zero_sum(chan,
 					dma_src, src_cnt, len, result,
 					dma_prep_flags);
+			}
 		}
 
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);

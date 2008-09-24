@@ -756,6 +756,7 @@ struct gfar_private {
 
 	uint32_t msg_enable;
 
+	struct work_struct reset_task;
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
 };

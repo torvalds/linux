@@ -38,7 +38,8 @@ static int __blk_free_tags(struct blk_queue_tag *bqt)
 
 	retval = atomic_dec_and_test(&bqt->refcnt);
 	if (retval) {
-		BUG_ON(bqt->busy);
+		BUG_ON(find_first_bit(bqt->tag_map, bqt->max_depth) <
+							bqt->max_depth);
 
 		kfree(bqt->tag_index);
 		bqt->tag_index = NULL;
@@ -147,7 +148,6 @@ static struct blk_queue_tag *__blk_queue_init_tags(struct request_queue *q,
 	if (init_tag_map(q, tags, depth))
 		goto fail;
 
-	tags->busy = 0;
 	atomic_set(&tags->refcnt, 1);
 	return tags;
 fail:
@@ -313,7 +313,6 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 	 * unlock memory barrier semantics.
 	 */
 	clear_bit_unlock(tag, bqt->tag_map);
-	bqt->busy--;
 }
 EXPORT_SYMBOL(blk_queue_end_tag);
 
@@ -368,7 +367,6 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	bqt->tag_index[tag] = rq;
 	blkdev_dequeue_request(rq);
 	list_add(&rq->queuelist, &q->tag_busy_list);
-	bqt->busy++;
 	return 0;
 }
 EXPORT_SYMBOL(blk_queue_start_tag);

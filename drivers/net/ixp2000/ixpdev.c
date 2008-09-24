@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <asm/hardware/uengine.h>
-#include <asm/mach-types.h>
 #include <asm/io.h>
 #include "ixp2400_rx.ucode"
 #include "ixp2400_tx.ucode"

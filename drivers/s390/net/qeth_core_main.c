@@ -19,8 +19,8 @@
 #include <linux/mii.h>
 #include <linux/kthread.h>
 
-#include <asm-s390/ebcdic.h>
-#include <asm-s390/io.h>
+#include <asm/ebcdic.h>
+#include <asm/io.h>
 #include <asm/s390_rdev.h>
 
 #include "qeth_core.h"
@@ -48,6 +48,8 @@ EXPORT_SYMBOL_GPL(qeth_dbf);
 
 struct qeth_card_list_struct qeth_core_card_list;
 EXPORT_SYMBOL_GPL(qeth_core_card_list);
+struct kmem_cache *qeth_core_header_cache;
+EXPORT_SYMBOL_GPL(qeth_core_header_cache);
 
 static struct device *qeth_core_root_dev;
 static unsigned int known_devices[][10] = QETH_MODELLIST_ARRAY;
@@ -933,6 +935,10 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	}
 	qeth_eddp_buf_release_contexts(buf);
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(queue->card); ++i) {
+		if (buf->buffer->element[i].addr && buf->is_header[i])
+			kmem_cache_free(qeth_core_header_cache,
+				buf->buffer->element[i].addr);
+		buf->is_header[i] = 0;
 		buf->buffer->element[i].length = 0;
 		buf->buffer->element[i].addr = NULL;
 		buf->buffer->element[i].flags = 0;
@@ -3002,8 +3008,8 @@ int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 	if (skb_shinfo(skb)->nr_frags > 0)
 		elements_needed = (skb_shinfo(skb)->nr_frags + 1);
 	if (elements_needed == 0)
-		elements_needed = 1 + (((((unsigned long) hdr) % PAGE_SIZE)
-			+ skb->len) >> PAGE_SHIFT);
+		elements_needed = 1 + (((((unsigned long) skb->data) %
+				PAGE_SIZE) + skb->len) >> PAGE_SHIFT);
 	if ((elements_needed + elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
 		QETH_DBF_MESSAGE(2, "Invalid size of IP packet "
 			"(Number=%d / Length=%d). Discarded.\n",
@@ -3015,9 +3021,10 @@ int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 EXPORT_SYMBOL_GPL(qeth_get_elements_no);
 
 static inline void __qeth_fill_buffer(struct sk_buff *skb,
-	struct qdio_buffer *buffer, int is_tso, int *next_element_to_fill)
+	struct qdio_buffer *buffer, int is_tso, int *next_element_to_fill,
+	int offset)
 {
-	int length = skb->len;
+	int length = skb->len - offset;
 	int length_here;
 	int element;
 	char *data;
@@ -3026,6 +3033,11 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 	element = *next_element_to_fill;
 	data = skb->data;
 	first_lap = (is_tso == 0 ? 1 : 0);
+
+	if (offset >= 0) {
+		data = skb->data + offset;
+		first_lap = 0;
+	}
 
 	while (length > 0) {
 		/* length_here is the remaining amount of data in this page */
@@ -3058,22 +3070,22 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 }
 
 static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
-		struct qeth_qdio_out_buffer *buf, struct sk_buff *skb)
+		struct qeth_qdio_out_buffer *buf, struct sk_buff *skb,
+		struct qeth_hdr *hdr, int offset, int hd_len)
 {
 	struct qdio_buffer *buffer;
-	struct qeth_hdr_tso *hdr;
 	int flush_cnt = 0, hdr_len, large_send = 0;
 
 	buffer = buf->buffer;
 	atomic_inc(&skb->users);
 	skb_queue_tail(&buf->skb_list, skb);
 
-	hdr  = (struct qeth_hdr_tso *) skb->data;
 	/*check first on TSO ....*/
-	if (hdr->hdr.hdr.l3.id == QETH_HEADER_TYPE_TSO) {
+	if (hdr->hdr.l3.id == QETH_HEADER_TYPE_TSO) {
 		int element = buf->next_element_to_fill;
 
-		hdr_len = sizeof(struct qeth_hdr_tso) + hdr->ext.dg_hdr_len;
+		hdr_len = sizeof(struct qeth_hdr_tso) +
+			((struct qeth_hdr_tso *)hdr)->ext.dg_hdr_len;
 		/*fill first buffer entry only with header information */
 		buffer->element[element].addr = skb->data;
 		buffer->element[element].length = hdr_len;
@@ -3083,9 +3095,20 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		skb->len  -= hdr_len;
 		large_send = 1;
 	}
+
+	if (offset >= 0) {
+		int element = buf->next_element_to_fill;
+		buffer->element[element].addr = hdr;
+		buffer->element[element].length = sizeof(struct qeth_hdr) +
+							hd_len;
+		buffer->element[element].flags = SBAL_FLAGS_FIRST_FRAG;
+		buf->is_header[element] = 1;
+		buf->next_element_to_fill++;
+	}
+
 	if (skb_shinfo(skb)->nr_frags == 0)
 		__qeth_fill_buffer(skb, buffer, large_send,
-				   (int *)&buf->next_element_to_fill);
+				(int *)&buf->next_element_to_fill, offset);
 	else
 		__qeth_fill_buffer_frag(skb, buffer, large_send,
 					(int *)&buf->next_element_to_fill);
@@ -3115,7 +3138,7 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 int qeth_do_send_packet_fast(struct qeth_card *card,
 		struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 		struct qeth_hdr *hdr, int elements_needed,
-		struct qeth_eddp_context *ctx)
+		struct qeth_eddp_context *ctx, int offset, int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int buffers_needed = 0;
@@ -3148,7 +3171,7 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 	}
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
 	if (ctx == NULL) {
-		qeth_fill_buffer(queue, buffer, skb);
+		qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 		qeth_flush_buffers(queue, index, 1);
 	} else {
 		flush_cnt = qeth_eddp_fill_buffer(queue, ctx, index);
@@ -3224,7 +3247,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		}
 	}
 	if (ctx == NULL)
-		tmp = qeth_fill_buffer(queue, buffer, skb);
+		tmp = qeth_fill_buffer(queue, buffer, skb, hdr, -1, 0);
 	else {
 		tmp = qeth_eddp_fill_buffer(queue, ctx,
 						queue->next_buf_to_fill);
@@ -3321,7 +3344,7 @@ int qeth_change_mtu(struct net_device *dev, int new_mtu)
 	struct qeth_card *card;
 	char dbf_text[15];
 
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 4, "chgmtu");
 	sprintf(dbf_text, "%8x", new_mtu);
@@ -3343,7 +3366,7 @@ struct net_device_stats *qeth_get_stats(struct net_device *dev)
 {
 	struct qeth_card *card;
 
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 5, "getstat");
 
@@ -3395,7 +3418,7 @@ void qeth_tx_timeout(struct net_device *dev)
 {
 	struct qeth_card *card;
 
-	card = netdev_priv(dev);
+	card = dev->ml_priv;
 	card->stats.tx_errors++;
 	qeth_schedule_recovery(card);
 }
@@ -3403,7 +3426,7 @@ EXPORT_SYMBOL_GPL(qeth_tx_timeout);
 
 int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	int rc = 0;
 
 	switch (regnum) {
@@ -4253,7 +4276,7 @@ EXPORT_SYMBOL_GPL(qeth_core_get_stats_count);
 void qeth_core_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *data)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	data[0] = card->stats.rx_packets -
 				card->perf_stats.initial_rx_packets;
 	data[1] = card->perf_stats.bufs_rec;
@@ -4313,7 +4336,7 @@ EXPORT_SYMBOL_GPL(qeth_core_get_strings);
 void qeth_core_get_drvinfo(struct net_device *dev,
 		struct ethtool_drvinfo *info)
 {
-	struct qeth_card *card = netdev_priv(dev);
+	struct qeth_card *card = dev->ml_priv;
 	if (card->options.layer2)
 		strcpy(info->driver, "qeth_l2");
 	else
@@ -4331,7 +4354,7 @@ EXPORT_SYMBOL_GPL(qeth_core_get_drvinfo);
 int qeth_core_ethtool_get_settings(struct net_device *netdev,
 					struct ethtool_cmd *ecmd)
 {
-	struct qeth_card *card = netdev_priv(netdev);
+	struct qeth_card *card = netdev->ml_priv;
 	enum qeth_link_types link_type;
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) || (card->info.guestlan))
@@ -4443,8 +4466,17 @@ static int __init qeth_core_init(void)
 	rc = IS_ERR(qeth_core_root_dev) ? PTR_ERR(qeth_core_root_dev) : 0;
 	if (rc)
 		goto register_err;
-	return 0;
 
+	qeth_core_header_cache = kmem_cache_create("qeth_hdr",
+			sizeof(struct qeth_hdr) + ETH_HLEN, 64, 0, NULL);
+	if (!qeth_core_header_cache) {
+		rc = -ENOMEM;
+		goto slab_err;
+	}
+
+	return 0;
+slab_err:
+	s390_root_dev_unregister(qeth_core_root_dev);
 register_err:
 	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
 			   &driver_attr_group);
@@ -4466,6 +4498,7 @@ static void __exit qeth_core_exit(void)
 			   &driver_attr_group);
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 	ccw_driver_unregister(&qeth_ccw_driver);
+	kmem_cache_destroy(qeth_core_header_cache);
 	qeth_unregister_dbf_views();
 	PRINT_INFO("core functions removed\n");
 }

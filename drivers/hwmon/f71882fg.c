@@ -87,8 +87,6 @@ static inline void superio_enter(int base);
 static inline void superio_select(int base, int ld);
 static inline void superio_exit(int base);
 
-static inline u16 fan_from_reg ( u16 reg );
-
 struct f71882fg_data {
 	unsigned short addr;
 	struct device *hwmon_dev;
@@ -115,10 +113,6 @@ struct f71882fg_data {
 	u8	temp_beep;
 	u8	temp_diode_open;
 };
-
-static u8 f71882fg_read8(struct f71882fg_data *data, u8 reg);
-static u16 f71882fg_read16(struct f71882fg_data *data, u8 reg);
-static void f71882fg_write8(struct f71882fg_data *data, u8 reg, u8 val);
 
 /* Sysfs in*/
 static ssize_t show_in(struct device *dev, struct device_attribute *devattr,

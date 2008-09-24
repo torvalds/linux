@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/raid/md.h>
 #include <linux/kd.h>
-#include <linux/dirent.h>
 #include <linux/route.h>
 #include <linux/in6.h>
 #include <linux/ipv6_route.h>

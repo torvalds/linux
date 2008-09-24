@@ -46,6 +46,8 @@ MODULE_PARM_DESC(ql4xextended_error_logging,
 
 int ql4_mod_unload = 0;
 
+#define QL4_DEF_QDEPTH 32
+
 /*
  * SCSI host template entry points
  */
@@ -1387,7 +1389,7 @@ static int qla4xxx_slave_alloc(struct scsi_device *sdev)
 
 	sdev->hostdata = ddb;
 	sdev->tagged_supported = 1;
-	scsi_activate_tcq(sdev, sdev->host->can_queue);
+	scsi_activate_tcq(sdev, QL4_DEF_QDEPTH);
 	return 0;
 }
 

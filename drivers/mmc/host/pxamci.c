@@ -31,8 +31,8 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mmc.h>
+#include <mach/pxa-regs.h>
+#include <mach/mmc.h>
 
 #include "pxamci.h"
 

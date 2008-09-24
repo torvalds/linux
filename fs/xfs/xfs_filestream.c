@@ -397,10 +397,12 @@ int
 xfs_filestream_init(void)
 {
 	item_zone = kmem_zone_init(sizeof(fstrm_item_t), "fstrm_item");
+	if (!item_zone)
+		return -ENOMEM;
 #ifdef XFS_FILESTREAMS_TRACE
-	xfs_filestreams_trace_buf = ktrace_alloc(XFS_FSTRM_KTRACE_SIZE, KM_SLEEP);
+	xfs_filestreams_trace_buf = ktrace_alloc(XFS_FSTRM_KTRACE_SIZE, KM_NOFS);
 #endif
-	return item_zone ? 0 : -ENOMEM;
+	return 0;
 }
 
 /*

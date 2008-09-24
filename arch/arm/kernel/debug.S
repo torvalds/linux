@@ -80,7 +80,7 @@
 #endif	/* CONFIG_CPU_V6 */
 
 #else
-#include <asm/arch/debug-macro.S>
+#include <mach/debug-macro.S>
 #endif	/* CONFIG_DEBUG_ICEDCC */
 
 /*

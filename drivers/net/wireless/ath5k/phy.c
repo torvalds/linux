@@ -1020,6 +1020,74 @@ static const struct ath5k_ini_rfgain rfgain_2413[] = {
 	{ AR5K_RF_GAIN(63), { 0x000000f9 } },
 };
 
+/* Initial RF Gain settings for RF2425 */
+static const struct ath5k_ini_rfgain rfgain_2425[] = {
+	{ AR5K_RF_GAIN(0), { 0x00000000 } },
+	{ AR5K_RF_GAIN(1), { 0x00000040 } },
+	{ AR5K_RF_GAIN(2), { 0x00000080 } },
+	{ AR5K_RF_GAIN(3), { 0x00000181 } },
+	{ AR5K_RF_GAIN(4), { 0x000001c1 } },
+	{ AR5K_RF_GAIN(5), { 0x00000001 } },
+	{ AR5K_RF_GAIN(6), { 0x00000041 } },
+	{ AR5K_RF_GAIN(7), { 0x00000081 } },
+	{ AR5K_RF_GAIN(8), { 0x00000188 } },
+	{ AR5K_RF_GAIN(9), { 0x000001c8 } },
+	{ AR5K_RF_GAIN(10), { 0x00000008 } },
+	{ AR5K_RF_GAIN(11), { 0x00000048 } },
+	{ AR5K_RF_GAIN(12), { 0x00000088 } },
+	{ AR5K_RF_GAIN(13), { 0x00000189 } },
+	{ AR5K_RF_GAIN(14), { 0x000001c9 } },
+	{ AR5K_RF_GAIN(15), { 0x00000009 } },
+	{ AR5K_RF_GAIN(16), { 0x00000049 } },
+	{ AR5K_RF_GAIN(17), { 0x00000089 } },
+	{ AR5K_RF_GAIN(18), { 0x000001b0 } },
+	{ AR5K_RF_GAIN(19), { 0x000001f0 } },
+	{ AR5K_RF_GAIN(20), { 0x00000030 } },
+	{ AR5K_RF_GAIN(21), { 0x00000070 } },
+	{ AR5K_RF_GAIN(22), { 0x00000171 } },
+	{ AR5K_RF_GAIN(23), { 0x000001b1 } },
+	{ AR5K_RF_GAIN(24), { 0x000001f1 } },
+	{ AR5K_RF_GAIN(25), { 0x00000031 } },
+	{ AR5K_RF_GAIN(26), { 0x00000071 } },
+	{ AR5K_RF_GAIN(27), { 0x000001b8 } },
+	{ AR5K_RF_GAIN(28), { 0x000001f8 } },
+	{ AR5K_RF_GAIN(29), { 0x00000038 } },
+	{ AR5K_RF_GAIN(30), { 0x00000078 } },
+	{ AR5K_RF_GAIN(31), { 0x000000b8 } },
+	{ AR5K_RF_GAIN(32), { 0x000001b9 } },
+	{ AR5K_RF_GAIN(33), { 0x000001f9 } },
+	{ AR5K_RF_GAIN(34), { 0x00000039 } },
+	{ AR5K_RF_GAIN(35), { 0x00000079 } },
+	{ AR5K_RF_GAIN(36), { 0x000000b9 } },
+	{ AR5K_RF_GAIN(37), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(38), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(39), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(40), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(41), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(42), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(43), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(44), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(45), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(46), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(47), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(48), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(49), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(50), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(51), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(52), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(53), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(54), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(55), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(56), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(57), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(58), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(59), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(60), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(61), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(62), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(63), { 0x000000f9 } },
+};
+
 static const struct ath5k_gain_opt rfgain_opt_5112 = {
 	1,
 	8,
@@ -1588,8 +1656,8 @@ int ath5k_hw_rfgain(struct ath5k_hw *ah, unsigned int freq)
 		freq = 0; /* only 2Ghz */
 		break;
 	case AR5K_RF2425:
-		ath5k_rfg = rfgain_2413;
-		size = ARRAY_SIZE(rfgain_2413);
+		ath5k_rfg = rfgain_2425;
+		size = ARRAY_SIZE(rfgain_2425);
 		freq = 0; /* only 2Ghz */
 		break;
 	default:
@@ -1830,9 +1898,6 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 	data = data0 = data1 = data2 = 0;
 	c = channel->center_freq;
 
-	/*
-	 * Set the channel on the RF5112 or newer
-	 */
 	if (c < 4800) {
 		if (!((c - 2224) % 5)) {
 			data0 = ((2 * (c - 704)) - 3040) / 10;
@@ -1844,7 +1909,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 			return -EINVAL;
 
 		data0 = ath5k_hw_bitswap((data0 << 2) & 0xff, 8);
-	} else {
+	} else if ((c - (c % 5)) != 2 || c > 5435) {
 		if (!(c % 20) && c >= 5120) {
 			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
 			data2 = ath5k_hw_bitswap(3, 2);
@@ -1856,9 +1921,51 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 			data2 = ath5k_hw_bitswap(1, 2);
 		} else
 			return -EINVAL;
+	} else {
+		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data2 = ath5k_hw_bitswap(0, 2);
 	}
 
 	data = (data0 << 4) | (data1 << 1) | (data2 << 2) | 0x1001;
+
+	ath5k_hw_reg_write(ah, data & 0xff, AR5K_RF_BUFFER);
+	ath5k_hw_reg_write(ah, (data >> 8) & 0x7f, AR5K_RF_BUFFER_CONTROL_5);
+
+	return 0;
+}
+
+/*
+ * Set the channel on the RF2425
+ */
+static int ath5k_hw_rf2425_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel)
+{
+	u32 data, data0, data2;
+	u16 c;
+
+	data = data0 = data2 = 0;
+	c = channel->center_freq;
+
+	if (c < 4800) {
+		data0 = ath5k_hw_bitswap((c - 2272), 8);
+		data2 = 0;
+	/* ? 5GHz ? */
+	} else if ((c - (c % 5)) != 2 || c > 5435) {
+		if (!(c % 20) && c < 5120)
+			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
+		else if (!(c % 10))
+			data0 = ath5k_hw_bitswap(((c - 4800) / 10 << 1), 8);
+		else if (!(c % 5))
+			data0 = ath5k_hw_bitswap((c - 4800) / 5, 8);
+		else
+			return -EINVAL;
+		data2 = ath5k_hw_bitswap(1, 2);
+	} else {
+		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data2 = ath5k_hw_bitswap(0, 2);
+	}
+
+	data = (data0 << 4) | data2 << 2 | 0x1001;
 
 	ath5k_hw_reg_write(ah, data & 0xff, AR5K_RF_BUFFER);
 	ath5k_hw_reg_write(ah, (data >> 8) & 0x7f, AR5K_RF_BUFFER_CONTROL_5);
@@ -1895,6 +2002,9 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 	case AR5K_RF5111:
 		ret = ath5k_hw_rf5111_channel(ah, channel);
 		break;
+	case AR5K_RF2425:
+		ret = ath5k_hw_rf2425_channel(ah, channel);
+		break;
 	default:
 		ret = ath5k_hw_rf5112_channel(ah, channel);
 		break;
@@ -1902,6 +2012,15 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 
 	if (ret)
 		return ret;
+
+	/* Set JAPAN setting for channel 14 */
+	if (channel->center_freq == 2484) {
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_CCKTXCTL,
+				AR5K_PHY_CCKTXCTL_JAPAN);
+	} else {
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_CCKTXCTL,
+				AR5K_PHY_CCKTXCTL_WORLD);
+	}
 
 	ah->ah_current_channel.center_freq = channel->center_freq;
 	ah->ah_current_channel.hw_value = channel->hw_value;
@@ -1933,6 +2052,8 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
  * http://patft.uspto.gov/netacgi/nph-Parser?Sect1=PTO1&Sect2=HITOFF&d=PALL \
  * &p=1&u=%2Fnetahtml%2FPTO%2Fsrchnum.htm&r=1&f=G&l=50&s1=7245893.PN.&OS=PN/7
  *
+ * XXX: Since during noise floor calibration antennas are detached according to
+ * the patent, we should stop tx queues here.
  */
 int
 ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq)
@@ -1942,7 +2063,7 @@ ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq)
 	s32 noise_floor;
 
 	/*
-	 * Enable noise floor calibration and wait until completion
+	 * Enable noise floor calibration
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
 				AR5K_PHY_AGCCTL_NF);
@@ -1952,7 +2073,7 @@ ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq)
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc,
 			"noise floor calibration timeout (%uMHz)\n", freq);
-		return ret;
+		return -EAGAIN;
 	}
 
 	/* Wait until the noise floor is calibrated and read the value */
@@ -1974,7 +2095,7 @@ ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq)
 	if (noise_floor > AR5K_TUNE_NOISE_FLOOR) {
 		ATH5K_ERR(ah->ah_sc,
 			"noise floor calibration failed (%uMHz)\n", freq);
-		return -EIO;
+		return -EAGAIN;
 	}
 
 	ah->ah_noise_floor = noise_floor;
@@ -2087,38 +2208,66 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 }
 
 /*
- * Perform a PHY calibration on RF5111/5112
+ * Perform a PHY calibration on RF5111/5112 and newer chips
  */
 static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel)
 {
 	u32 i_pwr, q_pwr;
 	s32 iq_corr, i_coff, i_coffd, q_coff, q_coffd;
+	int i;
 	ATH5K_TRACE(ah->ah_sc);
 
 	if (!ah->ah_calibration ||
-			ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
+		ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
 		goto done;
 
-	ah->ah_calibration = false;
+	/* Calibration has finished, get the results and re-run */
+	for (i = 0; i <= 10; i++) {
+		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
+		i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
+		q_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_Q);
+	}
 
-	iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
-	i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
-	q_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_Q);
 	i_coffd = ((i_pwr >> 1) + (q_pwr >> 1)) >> 7;
-	q_coffd = q_pwr >> 6;
+	q_coffd = q_pwr >> 7;
 
+	/* No correction */
 	if (i_coffd == 0 || q_coffd == 0)
 		goto done;
 
 	i_coff = ((-iq_corr) / i_coffd) & 0x3f;
-	q_coff = (((s32)i_pwr / q_coffd) - 64) & 0x1f;
 
-	/* Commit new IQ value */
+	/* Boundary check */
+	if (i_coff > 31)
+		i_coff = 31;
+	if (i_coff < -32)
+		i_coff = -32;
+
+	q_coff = (((s32)i_pwr / q_coffd) - 128) & 0x1f;
+
+	/* Boundary check */
+	if (q_coff > 15)
+		q_coff = 15;
+	if (q_coff < -16)
+		q_coff = -16;
+
+	/* Commit new I/Q value */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE |
 		((u32)q_coff) | ((u32)i_coff << AR5K_PHY_IQ_CORR_Q_I_COFF_S));
 
+	/* Re-enable calibration -if we don't we'll commit
+	 * the same values again and again */
+	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ,
+			AR5K_PHY_IQ_CAL_NUM_LOG_MAX, 15);
+	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_RUN);
+
 done:
+
+	/* TODO: Separate noise floor calibration from I/Q calibration
+	 * since noise floor calibration interrupts rx path while I/Q
+	 * calibration doesn't. We don't need to run noise floor calibration
+	 * as often as I/Q calibration.*/
 	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
 	/* Request RF gain */

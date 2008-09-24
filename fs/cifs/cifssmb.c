@@ -128,8 +128,7 @@ static void mark_open_files_invalid(struct cifsTconInfo *pTcon)
 	write_lock(&GlobalSMBSeslock);
 	list_for_each_safe(tmp, tmp1, &pTcon->openFileList) {
 		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
-		if (open_file)
-			open_file->invalidHandle = true;
+		open_file->invalidHandle = true;
 	}
 	write_unlock(&GlobalSMBSeslock);
 	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted
@@ -686,11 +685,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 						 SecurityBlob,
 						 count - 16,
 						 &server->secType);
-			if (rc == 1) {
+			if (rc == 1)
 				rc = 0;
-			} else {
+			else
 				rc = -EINVAL;
-			}
 		}
 	} else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
@@ -3914,7 +3912,10 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	bool is_unicode;
 	struct dfs_referral_level_3 *ref;
 
-	is_unicode = pSMBr->hdr.Flags2 & SMBFLG2_UNICODE;
+	if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
+		is_unicode = true;
+	else
+		is_unicode = false;
 	*num_of_nodes = le16_to_cpu(pSMBr->NumberOfReferrals);
 
 	if (*num_of_nodes < 1) {
@@ -4814,8 +4815,8 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
    time and resort to the original setpathinfo level which takes the ancient
    DOS time format with 2 second granularity */
 int
-CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
-		    const FILE_BASIC_INFO *data, __u16 fid)
+CIFSSMBSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+		    const FILE_BASIC_INFO *data, __u16 fid, __u32 pid_of_opener)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	char *data_offset;
@@ -4828,11 +4829,8 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
 	if (rc)
 		return rc;
 
-	/* At this point there is no need to override the current pid
-	with the pid of the opener, but that could change if we someday
-	use an existing handle (rather than opening one on the fly) */
-	/* pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
-	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));*/
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
 
 	params = 6;
 	pSMB->MaxSetupCount = 0;
@@ -4880,9 +4878,9 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
 
 
 int
-CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon, const char *fileName,
-		const FILE_BASIC_INFO *data,
-		const struct nls_table *nls_codepage, int remap)
+CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,
+		   const char *fileName, const FILE_BASIC_INFO *data,
+		   const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -5011,10 +5009,9 @@ SetAttrLgcyRetry:
 #endif /* temporarily unneeded SetAttr legacy function */
 
 int
-CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *tcon,
-		    char *fileName, __u64 mode, __u64 uid, __u64 gid,
-		    dev_t device, const struct nls_table *nls_codepage,
-		    int remap)
+CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
+		   const struct cifs_unix_set_info_args *args,
+		   const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -5023,6 +5020,7 @@ CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *tcon,
 	int bytes_returned = 0;
 	FILE_UNIX_BASIC_INFO *data_offset;
 	__u16 params, param_offset, offset, count, byte_count;
+	__u64 mode = args->mode;
 
 	cFYI(1, ("In SetUID/GID/Mode"));
 setPermsRetry:
@@ -5078,16 +5076,16 @@ setPermsRetry:
 	set file size and do not want to truncate file size to zero
 	accidently as happened on one Samba server beta by putting
 	zero instead of -1 here */
-	data_offset->EndOfFile = NO_CHANGE_64;
-	data_offset->NumOfBytes = NO_CHANGE_64;
-	data_offset->LastStatusChange = NO_CHANGE_64;
-	data_offset->LastAccessTime = NO_CHANGE_64;
-	data_offset->LastModificationTime = NO_CHANGE_64;
-	data_offset->Uid = cpu_to_le64(uid);
-	data_offset->Gid = cpu_to_le64(gid);
+	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);
+	data_offset->NumOfBytes = cpu_to_le64(NO_CHANGE_64);
+	data_offset->LastStatusChange = cpu_to_le64(args->ctime);
+	data_offset->LastAccessTime = cpu_to_le64(args->atime);
+	data_offset->LastModificationTime = cpu_to_le64(args->mtime);
+	data_offset->Uid = cpu_to_le64(args->uid);
+	data_offset->Gid = cpu_to_le64(args->gid);
 	/* better to leave device as zero when it is  */
-	data_offset->DevMajor = cpu_to_le64(MAJOR(device));
-	data_offset->DevMinor = cpu_to_le64(MINOR(device));
+	data_offset->DevMajor = cpu_to_le64(MAJOR(args->device));
+	data_offset->DevMinor = cpu_to_le64(MINOR(args->device));
 	data_offset->Permissions = cpu_to_le64(mode);
 
 	if (S_ISREG(mode))

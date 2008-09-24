@@ -68,7 +68,8 @@ enum rfkill_state {
  * @user_claim_unsupported: Whether the hardware supports exclusive
  *	RF-kill control by userspace. Set this before registering.
  * @user_claim: Set when the switch is controlled exlusively by userspace.
- * @mutex: Guards switch state transitions
+ * @mutex: Guards switch state transitions.  It serializes callbacks
+ *	and also protects the state.
  * @data: Pointer to the RF button drivers private data which will be
  *	passed along when toggling radio state.
  * @toggle_radio(): Mandatory handler to control state of the radio.
@@ -89,12 +90,13 @@ struct rfkill {
 	const char *name;
 	enum rfkill_type type;
 
-	enum rfkill_state state;
 	bool user_claim_unsupported;
 	bool user_claim;
 
+	/* the mutex serializes callbacks and also protects
+	 * the state */
 	struct mutex mutex;
-
+	enum rfkill_state state;
 	void *data;
 	int (*toggle_radio)(void *data, enum rfkill_state state);
 	int (*get_state)(void *data, enum rfkill_state *state);

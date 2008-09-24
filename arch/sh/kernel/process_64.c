@@ -36,16 +36,6 @@ static int hlt_counter = 1;
 
 #define HARD_IDLE_TIMEOUT (HZ / 3)
 
-void disable_hlt(void)
-{
-	hlt_counter++;
-}
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-}
-
 static int __init nohlt_setup(char *__unused)
 {
 	hlt_counter = 1;

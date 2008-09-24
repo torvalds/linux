@@ -23,12 +23,12 @@
 #include <linux/clk.h>
 
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/dma.h>
 #include <asm/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/mach/dma.h>
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 
 static struct dma_channel {
 	char *name;

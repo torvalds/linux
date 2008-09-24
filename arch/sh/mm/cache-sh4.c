@@ -4,6 +4,7 @@
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  * Copyright (C) 2001 - 2007  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
+ * Copyright (c) 2007 STMicroelectronics (R&D) Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -22,6 +23,7 @@
  * entirety.
  */
 #define MAX_DCACHE_PAGES	64	/* XXX: Tune for ways */
+#define MAX_ICACHE_PAGES	32
 
 static void __flush_dcache_segment_1way(unsigned long start,
 					unsigned long extent);
@@ -178,42 +180,45 @@ void __flush_invalidate_region(void *start, int size)
 /*
  * Write back the range of D-cache, and purge the I-cache.
  *
- * Called from kernel/module.c:sys_init_module and routine for a.out format.
+ * Called from kernel/module.c:sys_init_module and routine for a.out format,
+ * signal handler code and kprobes code
  */
 void flush_icache_range(unsigned long start, unsigned long end)
 {
-	flush_cache_all();
-}
-
-/*
- * Write back the D-cache and purge the I-cache for signal trampoline.
- * .. which happens to be the same behavior as flush_icache_range().
- * So, we simply flush out a line.
- */
-void __uses_jump_to_uncached flush_cache_sigtramp(unsigned long addr)
-{
-	unsigned long v, index;
-	unsigned long flags;
+	int icacheaddr;
+	unsigned long flags, v;
 	int i;
 
-	v = addr & ~(L1_CACHE_BYTES-1);
-	asm volatile("ocbwb	%0"
-		     : /* no output */
-		     : "m" (__m(v)));
+       /* If there are too many pages then just blow the caches */
+        if (((end - start) >> PAGE_SHIFT) >= MAX_ICACHE_PAGES) {
+                flush_cache_all();
+       } else {
+               /* selectively flush d-cache then invalidate the i-cache */
+               /* this is inefficient, so only use for small ranges */
+               start &= ~(L1_CACHE_BYTES-1);
+               end += L1_CACHE_BYTES-1;
+               end &= ~(L1_CACHE_BYTES-1);
 
-	index = CACHE_IC_ADDRESS_ARRAY |
-			(v & boot_cpu_data.icache.entry_mask);
+               local_irq_save(flags);
+               jump_to_uncached();
 
-	local_irq_save(flags);
-	jump_to_uncached();
+               for (v = start; v < end; v+=L1_CACHE_BYTES) {
+                       asm volatile("ocbwb     %0"
+                                    : /* no output */
+                                    : "m" (__m(v)));
 
-	for (i = 0; i < boot_cpu_data.icache.ways;
-	     i++, index += boot_cpu_data.icache.way_incr)
-		ctrl_outl(0, index);	/* Clear out Valid-bit */
+                       icacheaddr = CACHE_IC_ADDRESS_ARRAY | (
+                                       v & cpu_data->icache.entry_mask);
 
-	back_to_cached();
-	wmb();
-	local_irq_restore(flags);
+                       for (i = 0; i < cpu_data->icache.ways;
+                               i++, icacheaddr += cpu_data->icache.way_incr)
+                                       /* Clear i-cache line valid-bit */
+                                       ctrl_outl(0, icacheaddr);
+               }
+
+		back_to_cached();
+		local_irq_restore(flags);
+	}
 }
 
 static inline void flush_cache_4096(unsigned long start,

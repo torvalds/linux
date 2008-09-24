@@ -9,7 +9,10 @@
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+/* compilation option */
+#define GSPCA_DEBUG 1
+
+#ifdef GSPCA_DEBUG
 /* GSPCA our debug messages */
 extern int gspca_debug;
 #define PDEBUG(level, fmt, args...) \
@@ -53,7 +56,6 @@ extern int gspca_debug;
 
 /* device information - set at probe time */
 struct cam {
-	char *dev_name;
 	struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
 	__u8 epaddr;
@@ -88,15 +90,14 @@ struct sd_desc {
 /* controls */
 	const struct ctrl *ctrls;
 	int nctrls;
-/* operations */
+/* mandatory operations */
 	cam_cf_op config;	/* called on probe */
-	cam_op open;		/* called on open */
+	cam_op init;		/* called on probe and resume */
 	cam_v_op start;		/* called on stream on */
-	cam_v_op stopN;		/* called on stream off - main alt */
-	cam_v_op stop0;		/* called on stream off - alt 0 */
-	cam_v_op close;		/* called on close */
 	cam_pkt_op pkt_scan;
 /* optional operations */
+	cam_v_op stopN;		/* called on stream off - main alt */
+	cam_v_op stop0;		/* called on stream off - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
@@ -124,8 +125,10 @@ struct gspca_dev {
 
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
+	unsigned ctrl_dis;		/* disabled controls (bit map) */
 
-	__u8 usb_buf[8];			/* buffer for USB exchanges */
+#define USB_BUF_SZ 64
+	__u8 *usb_buf;				/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
 
 	__u8 *frbuf;				/* buffer for nframes */
@@ -152,6 +155,9 @@ struct gspca_dev {
 	struct mutex queue_lock;	/* ISOC queue protection */
 	__u32 sequence;			/* frame sequence number */
 	char streaming;
+#ifdef CONFIG_PM
+	char frozen;			/* suspend - resume */
+#endif
 	char users;			/* number of opens */
 	char present;			/* device connected */
 	char nbufread;			/* number of buffers for read() */
@@ -171,6 +177,10 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len);
+#ifdef CONFIG_PM
+int gspca_suspend(struct usb_interface *intf, pm_message_t message);
+int gspca_resume(struct usb_interface *intf);
+#endif
 int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
 	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
 #endif /* GSPCAV2_H */

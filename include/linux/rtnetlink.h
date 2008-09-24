@@ -755,13 +755,6 @@ extern void __rtnl_unlock(void);
 	} \
 } while(0)
 
-#define BUG_TRAP(x) do { \
-	if (unlikely(!(x))) { \
-		printk(KERN_ERR "KERNEL: assertion (%s) failed at %s (%d)\n", \
-			#x,  __FILE__ , __LINE__); \
-	} \
-} while(0)
-
 static inline u32 rtm_get_table(struct rtattr **rta, u8 table)
 {
 	return RTA_GET_U32(rta[RTA_TABLE-1]);

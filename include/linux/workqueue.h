@@ -201,6 +201,8 @@ extern int keventd_up(void);
 extern void init_workqueues(void);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
+extern int flush_work(struct work_struct *work);
+
 extern int cancel_work_sync(struct work_struct *work);
 
 /*

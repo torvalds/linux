@@ -4,8 +4,6 @@
  * (C) 2000 Nicolas Pitre <nico@cam.org>
  *
  * This code is GPL
- *
- * $Id: partitions.h,v 1.17 2005/11/07 11:14:55 gleixner Exp $
  */
 
 #ifndef MTD_PARTITIONS_H

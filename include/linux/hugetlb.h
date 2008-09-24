@@ -273,7 +273,10 @@ struct hstate {};
 #define huge_page_mask(h) PAGE_MASK
 #define huge_page_order(h) 0
 #define huge_page_shift(h) PAGE_SHIFT
-#define pages_per_huge_page(h) 1
+static inline unsigned int pages_per_huge_page(struct hstate *h)
+{
+	return 1;
+}
 #endif
 
 #endif /* _LINUX_HUGETLB_H */

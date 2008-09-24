@@ -46,8 +46,8 @@ static int uninorth_fetch_size(void)
 				break;
 
 		if (i == agp_bridge->driver->num_aperture_sizes) {
-			printk(KERN_ERR PFX "Invalid aperture size, using"
-			       " default\n");
+			dev_err(&agp_bridge->dev->dev, "invalid aperture size, "
+				"using default\n");
 			size = 0;
 			aperture = NULL;
 		}
@@ -108,8 +108,8 @@ static int uninorth_configure(void)
 
 	current_size = A_SIZE_32(agp_bridge->current_size);
 
-	printk(KERN_INFO PFX "configuring for size idx: %d\n",
-	       current_size->size_value);
+	dev_info(&agp_bridge->dev->dev, "configuring for size idx: %d\n",
+		 current_size->size_value);
 
 	/* aperture size and gatt addr */
 	pci_write_config_dword(agp_bridge->dev,
@@ -197,8 +197,9 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
 	for (i = 0; i < mem->page_count; ++i) {
 		if (gp[i]) {
-			printk("u3_insert_memory: entry 0x%x occupied (%x)\n",
-			       i, gp[i]);
+			dev_info(&agp_bridge->dev->dev,
+				 "u3_insert_memory: entry 0x%x occupied (%x)\n",
+				 i, gp[i]);
 			return -EBUSY;
 		}
 	}
@@ -276,8 +277,8 @@ static void uninorth_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 				       &scratch);
 	} while ((scratch & PCI_AGP_COMMAND_AGP) == 0 && ++timeout < 1000);
 	if ((scratch & PCI_AGP_COMMAND_AGP) == 0)
-		printk(KERN_ERR PFX "failed to write UniNorth AGP"
-		       " command register\n");
+		dev_err(&bridge->dev->dev, "can't write UniNorth AGP "
+			"command register\n");
 
 	if (uninorth_rev >= 0x30) {
 		/* This is an AGP V3 */
@@ -330,8 +331,8 @@ static int agp_uninorth_suspend(struct pci_dev *pdev)
 		pci_read_config_dword(device, agp + PCI_AGP_COMMAND, &cmd);
 		if (!(cmd & PCI_AGP_COMMAND_AGP))
 			continue;
-		printk("uninorth-agp: disabling AGP on device %s\n",
-				pci_name(device));
+		dev_info(&pdev->dev, "disabling AGP on device %s\n",
+			 pci_name(device));
 		cmd &= ~PCI_AGP_COMMAND_AGP;
 		pci_write_config_dword(device, agp + PCI_AGP_COMMAND, cmd);
 	}
@@ -341,8 +342,7 @@ static int agp_uninorth_suspend(struct pci_dev *pdev)
 	pci_read_config_dword(pdev, agp + PCI_AGP_COMMAND, &cmd);
 	bridge->dev_private_data = (void *)(long)cmd;
 	if (cmd & PCI_AGP_COMMAND_AGP) {
-		printk("uninorth-agp: disabling AGP on bridge %s\n",
-				pci_name(pdev));
+		dev_info(&pdev->dev, "disabling AGP on bridge\n");
 		cmd &= ~PCI_AGP_COMMAND_AGP;
 		pci_write_config_dword(pdev, agp + PCI_AGP_COMMAND, cmd);
 	}
@@ -591,14 +591,14 @@ static int __devinit agp_uninorth_probe(struct pci_dev *pdev,
 	/* probe for known chipsets */
 	for (j = 0; devs[j].chipset_name != NULL; ++j) {
 		if (pdev->device == devs[j].device_id) {
-			printk(KERN_INFO PFX "Detected Apple %s chipset\n",
-			       devs[j].chipset_name);
+			dev_info(&pdev->dev, "Apple %s chipset\n",
+				 devs[j].chipset_name);
 			goto found;
 		}
 	}
 
-	printk(KERN_ERR PFX "Unsupported Apple chipset (device id: %04x).\n",
-		pdev->device);
+	dev_err(&pdev->dev, "unsupported Apple chipset [%04x/%04x]\n",
+		pdev->vendor, pdev->device);
 	return -ENODEV;
 
  found:

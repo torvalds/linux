@@ -4,7 +4,7 @@
 
 obj-y	:= common.o probe.o opcode_helper.o
 
-common-y	+= $(addprefix ../sh2/, ex.o entry.o)
+common-y	+= ex.o entry.o
 
 obj-$(CONFIG_SH_FPU)	+= fpu.o
 

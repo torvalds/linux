@@ -12,7 +12,6 @@
 
 #include <linux/types.h>
 #include <linux/unistd.h>
-#include <linux/dirent.h>
 #include <linux/fs.h>
 #include <linux/posix_acl.h>
 #include <linux/mount.h>

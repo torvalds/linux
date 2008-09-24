@@ -17,8 +17,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/geode.h>
 
 #define GEODEWDT_HZ 500
@@ -77,27 +77,24 @@ static int geodewdt_set_heartbeat(int val)
 	return 0;
 }
 
-static int
-geodewdt_open(struct inode *inode, struct file *file)
+static int geodewdt_open(struct inode *inode, struct file *file)
 {
-        if (test_and_set_bit(WDT_FLAGS_OPEN, &wdt_flags))
-                return -EBUSY;
+	if (test_and_set_bit(WDT_FLAGS_OPEN, &wdt_flags))
+		return -EBUSY;
 
-        if (!test_and_clear_bit(WDT_FLAGS_ORPHAN, &wdt_flags))
-                __module_get(THIS_MODULE);
+	if (!test_and_clear_bit(WDT_FLAGS_ORPHAN, &wdt_flags))
+		__module_get(THIS_MODULE);
 
 	geodewdt_ping();
-        return nonseekable_open(inode, file);
+	return nonseekable_open(inode, file);
 }
 
-static int
-geodewdt_release(struct inode *inode, struct file *file)
+static int geodewdt_release(struct inode *inode, struct file *file)
 {
 	if (safe_close) {
 		geodewdt_disable();
 		module_put(THIS_MODULE);
-	}
-	else {
+	} else {
 		printk(KERN_CRIT "Unexpected close - watchdog is not stopping.\n");
 		geodewdt_ping();
 
@@ -109,11 +106,10 @@ geodewdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t
-geodewdt_write(struct file *file, const char __user *data, size_t len,
-	       loff_t *ppos)
+static ssize_t geodewdt_write(struct file *file, const char __user *data,
+				size_t len, loff_t *ppos)
 {
-        if(len) {
+	if (len) {
 		if (!nowayout) {
 			size_t i;
 			safe_close = 0;
@@ -134,9 +130,8 @@ geodewdt_write(struct file *file, const char __user *data, size_t len,
 	return len;
 }
 
-static int
-geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	       unsigned long arg)
+static int geodewdt_ioctl(struct inode *inode, struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -147,9 +142,9 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		| WDIOF_MAGICCLOSE,
 		.firmware_version =     1,
 		.identity =             WATCHDOG_NAME,
-        };
+	};
 
-	switch(cmd) {
+	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident,
 				    sizeof(ident)) ? -EFAULT : 0;
@@ -158,22 +153,6 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-
-	case WDIOC_KEEPALIVE:
-		geodewdt_ping();
-		return 0;
-
-	case WDIOC_SETTIMEOUT:
-		if (get_user(interval, p))
-			return -EFAULT;
-
-		if (geodewdt_set_heartbeat(interval))
-			return -EINVAL;
-
-/* Fall through */
-
-	case WDIOC_GETTIMEOUT:
-		return put_user(timeout, p);
 
 	case WDIOC_SETOPTIONS:
 	{
@@ -194,6 +173,20 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		return ret;
 	}
+	case WDIOC_KEEPALIVE:
+		geodewdt_ping();
+		return 0;
+
+	case WDIOC_SETTIMEOUT:
+		if (get_user(interval, p))
+			return -EFAULT;
+
+		if (geodewdt_set_heartbeat(interval))
+			return -EINVAL;
+	/* Fall through */
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout, p);
+
 	default:
 		return -ENOTTY;
 	}
@@ -202,22 +195,21 @@ geodewdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 }
 
 static const struct file_operations geodewdt_fops = {
-        .owner          = THIS_MODULE,
-        .llseek         = no_llseek,
-        .write          = geodewdt_write,
-        .ioctl          = geodewdt_ioctl,
-        .open           = geodewdt_open,
-        .release        = geodewdt_release,
+	.owner          = THIS_MODULE,
+	.llseek         = no_llseek,
+	.write          = geodewdt_write,
+	.ioctl          = geodewdt_ioctl,
+	.open           = geodewdt_open,
+	.release        = geodewdt_release,
 };
 
 static struct miscdevice geodewdt_miscdev = {
 	.minor = WATCHDOG_MINOR,
 	.name = "watchdog",
-	.fops = &geodewdt_fops
+	.fops = &geodewdt_fops,
 };
 
-static int __devinit
-geodewdt_probe(struct platform_device *dev)
+static int __devinit geodewdt_probe(struct platform_device *dev)
 {
 	int ret, timer;
 
@@ -248,15 +240,13 @@ geodewdt_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit
-geodewdt_remove(struct platform_device *dev)
+static int __devexit geodewdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&geodewdt_miscdev);
 	return 0;
 }
 
-static void
-geodewdt_shutdown(struct platform_device *dev)
+static void geodewdt_shutdown(struct platform_device *dev)
 {
 	geodewdt_disable();
 }
@@ -271,8 +261,7 @@ static struct platform_driver geodewdt_driver = {
 	},
 };
 
-static int __init
-geodewdt_init(void)
+static int __init geodewdt_init(void)
 {
 	int ret;
 
@@ -292,8 +281,7 @@ err:
 	return ret;
 }
 
-static void __exit
-geodewdt_exit(void)
+static void __exit geodewdt_exit(void)
 {
 	platform_device_unregister(geodewdt_platform_device);
 	platform_driver_unregister(&geodewdt_driver);

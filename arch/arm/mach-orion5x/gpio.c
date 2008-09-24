@@ -17,7 +17,7 @@
 #include <linux/bitops.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 
 static DEFINE_SPINLOCK(gpio_lock);

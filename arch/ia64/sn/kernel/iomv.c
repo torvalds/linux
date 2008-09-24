@@ -63,7 +63,7 @@ EXPORT_SYMBOL(sn_io_addr);
 /**
  * __sn_mmiowb - I/O space memory barrier
  *
- * See include/asm-ia64/io.h and Documentation/DocBook/deviceiobook.tmpl
+ * See arch/ia64/include/asm/io.h and Documentation/DocBook/deviceiobook.tmpl
  * for details.
  *
  * On SN2, we wait for the PIO_WRITE_STATUS SHub register to clear.

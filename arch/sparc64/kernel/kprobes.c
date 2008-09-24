@@ -478,9 +478,9 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
-/* Called with kretprobe_lock held.  The value stored in the return
- * address register is actually 2 instructions before where the
- * callee will return to.  Sequences usually look something like this
+/* The value stored in the return address register is actually 2
+ * instructions before where the callee will return to.
+ * Sequences usually look something like this
  *
  *		call	some_function	<--- return register points here
  *		 nop			<--- call delay slot
@@ -512,8 +512,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	unsigned long trampoline_address =(unsigned long)&kretprobe_trampoline;
 
 	INIT_HLIST_HEAD(&empty_rp);
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	head = kretprobe_inst_table_head(current);
+	kretprobe_hash_lock(current, &head, &flags);
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -553,7 +552,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->tnpc = orig_ret_address + 4;
 
 	reset_current_kprobe();
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	kretprobe_hash_unlock(current, &flags);
 	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {

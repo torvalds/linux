@@ -326,7 +326,7 @@ just one call to mmap is needed:
     mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 If tp_frame_size is a divisor of tp_block_size frames will be 
-contiguosly spaced by tp_frame_size bytes. If not, each 
+contiguously spaced by tp_frame_size bytes. If not, each
 tp_block_size/tp_frame_size frames there will be a gap between 
 the frames. This is because a frame cannot be spawn across two
 blocks. 

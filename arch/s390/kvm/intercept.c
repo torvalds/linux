@@ -20,7 +20,7 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 
-static int handle_lctg(struct kvm_vcpu *vcpu)
+static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
@@ -30,7 +30,7 @@ static int handle_lctg(struct kvm_vcpu *vcpu)
 	u64 useraddr;
 	int reg, rc;
 
-	vcpu->stat.instruction_lctg++;
+	vcpu->stat.instruction_lctlg++;
 	if ((vcpu->arch.sie_block->ipb & 0xff) != 0x2f)
 		return -ENOTSUPP;
 
@@ -38,9 +38,12 @@ static int handle_lctg(struct kvm_vcpu *vcpu)
 	if (base2)
 		useraddr += vcpu->arch.guest_gprs[base2];
 
+	if (useraddr & 7)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
 	reg = reg1;
 
-	VCPU_EVENT(vcpu, 5, "lctg r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
+	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
 		   disp2);
 
 	do {
@@ -74,6 +77,9 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 	if (base2)
 		useraddr += vcpu->arch.guest_gprs[base2];
 
+	if (useraddr & 3)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
 	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
 		   disp2);
 
@@ -99,7 +105,7 @@ static intercept_handler_t instruction_handlers[256] = {
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_priv,
 	[0xb7] = handle_lctl,
-	[0xeb] = handle_lctg,
+	[0xeb] = handle_lctlg,
 };
 
 static int handle_noop(struct kvm_vcpu *vcpu)

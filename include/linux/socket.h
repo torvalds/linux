@@ -189,7 +189,8 @@ struct ucred {
 #define AF_BLUETOOTH	31	/* Bluetooth sockets 		*/
 #define AF_IUCV		32	/* IUCV sockets			*/
 #define AF_RXRPC	33	/* RxRPC sockets 		*/
-#define AF_MAX		34	/* For now.. */
+#define AF_ISDN		34	/* mISDN sockets 		*/
+#define AF_MAX		35	/* For now.. */
 
 /* Protocol families, same as address families. */
 #define PF_UNSPEC	AF_UNSPEC
@@ -225,6 +226,7 @@ struct ucred {
 #define PF_BLUETOOTH	AF_BLUETOOTH
 #define PF_IUCV		AF_IUCV
 #define PF_RXRPC	AF_RXRPC
+#define PF_ISDN		AF_ISDN
 #define PF_MAX		AF_MAX
 
 /* Maximum queue length specifiable by listen.  */

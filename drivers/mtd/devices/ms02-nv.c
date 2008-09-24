@@ -5,8 +5,6 @@
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
- *
- *	$Id: ms02-nv.c,v 1.11 2005/11/14 13:41:47 macro Exp $
  */
 
 #include <linux/init.h>

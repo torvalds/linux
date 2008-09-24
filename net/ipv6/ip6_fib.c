@@ -287,7 +287,7 @@ static int fib6_dump_node(struct fib6_walker_t *w)
 			w->leaf = rt;
 			return 1;
 		}
-		BUG_TRAP(res!=0);
+		WARN_ON(res == 0);
 	}
 	w->leaf = NULL;
 	return 0;
@@ -378,6 +378,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 
 	arg.skb = skb;
 	arg.cb = cb;
+	arg.net = net;
 	w->args = &arg;
 
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
@@ -778,7 +779,7 @@ out:
 			pn->leaf = fib6_find_prefix(info->nl_net, pn);
 #if RT6_DEBUG >= 2
 			if (!pn->leaf) {
-				BUG_TRAP(pn->leaf != NULL);
+				WARN_ON(pn->leaf == NULL);
 				pn->leaf = info->nl_net->ipv6.ip6_null_entry;
 			}
 #endif
@@ -942,7 +943,7 @@ struct fib6_node * fib6_locate(struct fib6_node *root,
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src_len) {
-		BUG_TRAP(saddr!=NULL);
+		WARN_ON(saddr == NULL);
 		if (fn && fn->subtree)
 			fn = fib6_locate_1(fn->subtree, saddr, src_len,
 					   offsetof(struct rt6_info, rt6i_src));
@@ -996,9 +997,9 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		RT6_TRACE("fixing tree: plen=%d iter=%d\n", fn->fn_bit, iter);
 		iter++;
 
-		BUG_TRAP(!(fn->fn_flags&RTN_RTINFO));
-		BUG_TRAP(!(fn->fn_flags&RTN_TL_ROOT));
-		BUG_TRAP(fn->leaf==NULL);
+		WARN_ON(fn->fn_flags & RTN_RTINFO);
+		WARN_ON(fn->fn_flags & RTN_TL_ROOT);
+		WARN_ON(fn->leaf != NULL);
 
 		children = 0;
 		child = NULL;
@@ -1014,7 +1015,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 			fn->leaf = fib6_find_prefix(net, fn);
 #if RT6_DEBUG >= 2
 			if (fn->leaf==NULL) {
-				BUG_TRAP(fn->leaf);
+				WARN_ON(!fn->leaf);
 				fn->leaf = net->ipv6.ip6_null_entry;
 			}
 #endif
@@ -1025,16 +1026,17 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		pn = fn->parent;
 #ifdef CONFIG_IPV6_SUBTREES
 		if (FIB6_SUBTREE(pn) == fn) {
-			BUG_TRAP(fn->fn_flags&RTN_ROOT);
+			WARN_ON(!(fn->fn_flags & RTN_ROOT));
 			FIB6_SUBTREE(pn) = NULL;
 			nstate = FWS_L;
 		} else {
-			BUG_TRAP(!(fn->fn_flags&RTN_ROOT));
+			WARN_ON(fn->fn_flags & RTN_ROOT);
 #endif
 			if (pn->right == fn) pn->right = child;
 			else if (pn->left == fn) pn->left = child;
 #if RT6_DEBUG >= 2
-			else BUG_TRAP(0);
+			else
+				WARN_ON(1);
 #endif
 			if (child)
 				child->parent = pn;
@@ -1154,14 +1156,14 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 
 #if RT6_DEBUG >= 2
 	if (rt->u.dst.obsolete>0) {
-		BUG_TRAP(fn==NULL);
+		WARN_ON(fn != NULL);
 		return -ENOENT;
 	}
 #endif
 	if (fn == NULL || rt == net->ipv6.ip6_null_entry)
 		return -ENOENT;
 
-	BUG_TRAP(fn->fn_flags&RTN_RTINFO);
+	WARN_ON(!(fn->fn_flags & RTN_RTINFO));
 
 	if (!(rt->rt6i_flags&RTF_CACHE)) {
 		struct fib6_node *pn = fn;
@@ -1266,7 +1268,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 			w->node = pn;
 #ifdef CONFIG_IPV6_SUBTREES
 			if (FIB6_SUBTREE(pn) == fn) {
-				BUG_TRAP(fn->fn_flags&RTN_ROOT);
+				WARN_ON(!(fn->fn_flags & RTN_ROOT));
 				w->state = FWS_L;
 				continue;
 			}
@@ -1281,7 +1283,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 				continue;
 			}
 #if RT6_DEBUG >= 2
-			BUG_TRAP(0);
+			WARN_ON(1);
 #endif
 		}
 	}
@@ -1323,7 +1325,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 			}
 			return 0;
 		}
-		BUG_TRAP(res==0);
+		WARN_ON(res != 0);
 	}
 	w->leaf = rt;
 	return 0;

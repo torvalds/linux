@@ -42,7 +42,7 @@
 #include <sound/info.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/dreamcast/sysasic.h>
+#include <mach/sysasic.h>
 #include "aica.h"
 
 MODULE_AUTHOR("Adrian McMenamin <adrian@mcmen.demon.co.uk>");

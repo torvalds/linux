@@ -110,6 +110,10 @@ enum usb_interface_condition {
  * @sysfs_files_created: sysfs attributes exist
  * @needs_remote_wakeup: flag set when the driver requires remote-wakeup
  *	capability during autosuspend.
+ * @needs_altsetting0: flag set when a set-interface request for altsetting 0
+ *	has been deferred.
+ * @needs_binding: flag set when the driver should be re-probed or unbound
+ *	following a reset or suspend operation it doesn't support.
  * @dev: driver model's view of this device
  * @usb_dev: if an interface is bound to the USB major, this will point
  *	to the sysfs representation for that device.
@@ -160,6 +164,7 @@ struct usb_interface {
 	unsigned is_active:1;		/* the interface is not suspended */
 	unsigned sysfs_files_created:1;	/* the sysfs attributes exist */
 	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
+	unsigned needs_altsetting0:1;	/* switch to altsetting 0 is pending */
 	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
 
 	struct device dev;		/* interface specific device info */

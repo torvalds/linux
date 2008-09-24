@@ -135,7 +135,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
  *  If we set up a device for bus mastering, we need to check and set
  *  the latency timer as it may not be properly set.
  */
-unsigned int pcibios_max_latency = 255;
+static unsigned int pcibios_max_latency = 255;
 
 void pcibios_set_master(struct pci_dev *dev)
 {

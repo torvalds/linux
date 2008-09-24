@@ -23,6 +23,7 @@
 #include <asm/io.h>		/* outb, outb_p			*/
 #include <asm/uaccess.h>	/* copy to/from user		*/
 #include <linux/videodev2.h>	/* kernel radio structs		*/
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
 #include <linux/spinlock.h>
 
@@ -552,11 +553,7 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	return 0;
 }
 
-static struct video_device gemtek_radio = {
-	.owner			= THIS_MODULE,
-	.name			= "GemTek Radio card",
-	.type			= VID_TYPE_TUNER,
-	.fops			= &gemtek_fops,
+static const struct v4l2_ioctl_ops gemtek_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_g_tuner		= vidioc_g_tuner,
 	.vidioc_s_tuner		= vidioc_s_tuner,
@@ -569,6 +566,12 @@ static struct video_device gemtek_radio = {
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
 	.vidioc_s_ctrl		= vidioc_s_ctrl
+};
+
+static struct video_device gemtek_radio = {
+	.name			= "GemTek Radio card",
+	.fops			= &gemtek_fops,
+	.ioctl_ops 		= &gemtek_ioctl_ops,
 };
 
 /*
@@ -609,8 +612,7 @@ static int __init gemtek_init(void)
 
 	gemtek_radio.priv = &gemtek_unit;
 
-	if (video_register_device(&gemtek_radio, VFL_TYPE_RADIO,
-		radio_nr) == -1) {
+	if (video_register_device(&gemtek_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 1);
 		return -EBUSY;
 	}

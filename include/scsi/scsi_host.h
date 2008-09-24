@@ -547,7 +547,7 @@ struct Scsi_Host {
 	unsigned int host_failed;	   /* commands that failed. */
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
-	unsigned short host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
+	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
 	int resetting; /* if set, it means that last_reset is a valid value */
 	unsigned long last_reset;
 
@@ -635,6 +635,10 @@ struct Scsi_Host {
 	 * Value host_blocked counts down from
 	 */
 	unsigned int max_host_blocked;
+
+	/* Protection Information */
+	unsigned int prot_capabilities;
+	unsigned char prot_guard_type;
 
 	/*
 	 * q used for scsi_tgt msgs, async events or any other requests that
@@ -755,6 +759,86 @@ extern struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
  */
 extern void scsi_free_host_dev(struct scsi_device *);
 extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
+
+/*
+ * DIF defines the exchange of protection information between
+ * initiator and SBC block device.
+ *
+ * DIX defines the exchange of protection information between OS and
+ * initiator.
+ */
+enum scsi_host_prot_capabilities {
+	SHOST_DIF_TYPE1_PROTECTION = 1 << 0, /* T10 DIF Type 1 */
+	SHOST_DIF_TYPE2_PROTECTION = 1 << 1, /* T10 DIF Type 2 */
+	SHOST_DIF_TYPE3_PROTECTION = 1 << 2, /* T10 DIF Type 3 */
+
+	SHOST_DIX_TYPE0_PROTECTION = 1 << 3, /* DIX between OS and HBA only */
+	SHOST_DIX_TYPE1_PROTECTION = 1 << 4, /* DIX with DIF Type 1 */
+	SHOST_DIX_TYPE2_PROTECTION = 1 << 5, /* DIX with DIF Type 2 */
+	SHOST_DIX_TYPE3_PROTECTION = 1 << 6, /* DIX with DIF Type 3 */
+};
+
+/*
+ * SCSI hosts which support the Data Integrity Extensions must
+ * indicate their capabilities by setting the prot_capabilities using
+ * this call.
+ */
+static inline void scsi_host_set_prot(struct Scsi_Host *shost, unsigned int mask)
+{
+	shost->prot_capabilities = mask;
+}
+
+static inline unsigned int scsi_host_get_prot(struct Scsi_Host *shost)
+{
+	return shost->prot_capabilities;
+}
+
+static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsigned int target_type)
+{
+	switch (target_type) {
+	case 1: return shost->prot_capabilities & SHOST_DIF_TYPE1_PROTECTION;
+	case 2: return shost->prot_capabilities & SHOST_DIF_TYPE2_PROTECTION;
+	case 3: return shost->prot_capabilities & SHOST_DIF_TYPE3_PROTECTION;
+	}
+
+	return 0;
+}
+
+static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsigned int target_type)
+{
+	switch (target_type) {
+	case 0: return shost->prot_capabilities & SHOST_DIX_TYPE0_PROTECTION;
+	case 1: return shost->prot_capabilities & SHOST_DIX_TYPE1_PROTECTION;
+	case 2: return shost->prot_capabilities & SHOST_DIX_TYPE2_PROTECTION;
+	case 3: return shost->prot_capabilities & SHOST_DIX_TYPE3_PROTECTION;
+	}
+
+	return 0;
+}
+
+/*
+ * All DIX-capable initiators must support the T10-mandated CRC
+ * checksum.  Controllers can optionally implement the IP checksum
+ * scheme which has much lower impact on system performance.  Note
+ * that the main rationale for the checksum is to match integrity
+ * metadata with data.  Detecting bit errors are a job for ECC memory
+ * and buses.
+ */
+
+enum scsi_host_guard_type {
+	SHOST_DIX_GUARD_CRC = 1 << 0,
+	SHOST_DIX_GUARD_IP  = 1 << 1,
+};
+
+static inline void scsi_host_set_guard(struct Scsi_Host *shost, unsigned char type)
+{
+	shost->prot_guard_type = type;
+}
+
+static inline unsigned char scsi_host_get_guard(struct Scsi_Host *shost)
+{
+	return shost->prot_guard_type;
+}
 
 /* legacy interfaces */
 extern struct Scsi_Host *scsi_register(struct scsi_host_template *, int);

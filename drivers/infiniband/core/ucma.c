@@ -38,7 +38,6 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -82,9 +81,7 @@ struct ucma_multicast {
 
 	u64			uid;
 	struct list_head	list;
-	struct sockaddr		addr;
-	u8			pad[sizeof(struct sockaddr_in6) -
-				    sizeof(struct sockaddr)];
+	struct sockaddr_storage	addr;
 };
 
 struct ucma_event {
@@ -604,11 +601,11 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 		return PTR_ERR(ctx);
 
 	memset(&resp, 0, sizeof resp);
-	addr = &ctx->cm_id->route.addr.src_addr;
+	addr = (struct sockaddr *) &ctx->cm_id->route.addr.src_addr;
 	memcpy(&resp.src_addr, addr, addr->sa_family == AF_INET ?
 				     sizeof(struct sockaddr_in) :
 				     sizeof(struct sockaddr_in6));
-	addr = &ctx->cm_id->route.addr.dst_addr;
+	addr = (struct sockaddr *) &ctx->cm_id->route.addr.dst_addr;
 	memcpy(&resp.dst_addr, addr, addr->sa_family == AF_INET ?
 				     sizeof(struct sockaddr_in) :
 				     sizeof(struct sockaddr_in6));
@@ -914,7 +911,7 @@ static ssize_t ucma_join_multicast(struct ucma_file *file,
 
 	mc->uid = cmd.uid;
 	memcpy(&mc->addr, &cmd.addr, sizeof cmd.addr);
-	ret = rdma_join_multicast(ctx->cm_id, &mc->addr, mc);
+	ret = rdma_join_multicast(ctx->cm_id, (struct sockaddr *) &mc->addr, mc);
 	if (ret)
 		goto err2;
 
@@ -930,7 +927,7 @@ static ssize_t ucma_join_multicast(struct ucma_file *file,
 	return 0;
 
 err3:
-	rdma_leave_multicast(ctx->cm_id, &mc->addr);
+	rdma_leave_multicast(ctx->cm_id, (struct sockaddr *) &mc->addr);
 	ucma_cleanup_mc_events(mc);
 err2:
 	mutex_lock(&mut);
@@ -976,7 +973,7 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 		goto out;
 	}
 
-	rdma_leave_multicast(mc->ctx->cm_id, &mc->addr);
+	rdma_leave_multicast(mc->ctx->cm_id, (struct sockaddr *) &mc->addr);
 	mutex_lock(&mc->ctx->file->mut);
 	ucma_cleanup_mc_events(mc);
 	list_del(&mc->list);
@@ -1149,6 +1146,14 @@ static unsigned int ucma_poll(struct file *filp, struct poll_table_struct *wait)
 	return mask;
 }
 
+/*
+ * ucma_open() does not need the BKL:
+ *
+ *  - no global state is referred to;
+ *  - there is no ioctl method to race against;
+ *  - no further module initialization is required for open to work
+ *    after the device is registered.
+ */
 static int ucma_open(struct inode *inode, struct file *filp)
 {
 	struct ucma_file *file;
@@ -1157,7 +1162,6 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	if (!file)
 		return -ENOMEM;
 
-	lock_kernel();
 	INIT_LIST_HEAD(&file->event_list);
 	INIT_LIST_HEAD(&file->ctx_list);
 	init_waitqueue_head(&file->poll_wait);
@@ -1165,7 +1169,6 @@ static int ucma_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-	unlock_kernel();
 	return 0;
 }
 

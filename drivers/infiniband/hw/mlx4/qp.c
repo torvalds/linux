@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -901,7 +902,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			context->mtu_msgmax = (IB_MTU_4096 << 5) |
 					      ilog2(dev->dev->caps.max_gso_sz);
 		else
-			context->mtu_msgmax = (IB_MTU_4096 << 5) | 11;
+			context->mtu_msgmax = (IB_MTU_4096 << 5) | 12;
 	} else if (attr_mask & IB_QP_PATH_MTU) {
 		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_4096) {
 			printk(KERN_ERR "path MTU (%u) is invalid\n",
@@ -1341,6 +1342,12 @@ static __be32 convert_access(int acc)
 static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 {
 	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(wr->wr.fast_reg.page_list);
+	int i;
+
+	for (i = 0; i < wr->wr.fast_reg.page_list_len; ++i)
+		wr->wr.fast_reg.page_list->page_list[i] =
+			cpu_to_be64(wr->wr.fast_reg.page_list->page_list[i] |
+				    MLX4_MTT_FLAG_PRESENT);
 
 	fseg->flags		= convert_access(wr->wr.fast_reg.access_flags);
 	fseg->mem_key		= cpu_to_be32(wr->wr.fast_reg.rkey);

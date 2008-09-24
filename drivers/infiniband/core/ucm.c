@@ -43,7 +43,6 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -1154,11 +1153,18 @@ static unsigned int ib_ucm_poll(struct file *filp,
 	return mask;
 }
 
+/*
+ * ib_ucm_open() does not need the BKL:
+ *
+ *  - no global state is referred to;
+ *  - there is no ioctl method to race against;
+ *  - no further module initialization is required for open to work
+ *    after the device is registered.
+ */
 static int ib_ucm_open(struct inode *inode, struct file *filp)
 {
 	struct ib_ucm_file *file;
 
-	cycle_kernel_lock();
 	file = kmalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;

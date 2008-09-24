@@ -386,7 +386,7 @@ static inline int add_one_rx_buf(void *va, unsigned int len,
 	dma_addr_t mapping;
 
 	mapping = pci_map_single(pdev, va, len, PCI_DMA_FROMDEVICE);
-	if (unlikely(pci_dma_mapping_error(mapping)))
+	if (unlikely(pci_dma_mapping_error(pdev, mapping)))
 		return -ENOMEM;
 
 	pci_unmap_addr_set(sd, dma_addr, mapping);

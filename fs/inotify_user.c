@@ -354,20 +354,20 @@ static void inotify_dev_event_dequeue(struct inotify_device *dev)
 }
 
 /*
- * find_inode - resolve a user-given path to a specific inode and return a nd
+ * find_inode - resolve a user-given path to a specific inode
  */
-static int find_inode(const char __user *dirname, struct nameidata *nd,
+static int find_inode(const char __user *dirname, struct path *path,
 		      unsigned flags)
 {
 	int error;
 
-	error = __user_walk(dirname, flags, nd);
+	error = user_path_at(AT_FDCWD, dirname, flags, path);
 	if (error)
 		return error;
 	/* you can only watch an inode if you have read permissions on it */
-	error = vfs_permission(nd, MAY_READ);
+	error = inode_permission(path->dentry->d_inode, MAY_READ);
 	if (error)
-		path_put(&nd->path);
+		path_put(path);
 	return error;
 }
 
@@ -650,11 +650,11 @@ asmlinkage long sys_inotify_init(void)
 	return sys_inotify_init1(0);
 }
 
-asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
+asmlinkage long sys_inotify_add_watch(int fd, const char __user *pathname, u32 mask)
 {
 	struct inode *inode;
 	struct inotify_device *dev;
-	struct nameidata nd;
+	struct path path;
 	struct file *filp;
 	int ret, fput_needed;
 	unsigned flags = 0;
@@ -674,12 +674,12 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	if (mask & IN_ONLYDIR)
 		flags |= LOOKUP_DIRECTORY;
 
-	ret = find_inode(path, &nd, flags);
+	ret = find_inode(pathname, &path, flags);
 	if (unlikely(ret))
 		goto fput_and_out;
 
-	/* inode held in place by reference to nd; dev by fget on fd */
-	inode = nd.path.dentry->d_inode;
+	/* inode held in place by reference to path; dev by fget on fd */
+	inode = path.dentry->d_inode;
 	dev = filp->private_data;
 
 	mutex_lock(&dev->up_mutex);
@@ -688,7 +688,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		ret = create_watch(dev, inode, mask);
 	mutex_unlock(&dev->up_mutex);
 
-	path_put(&nd.path);
+	path_put(&path);
 fput_and_out:
 	fput_light(filp, fput_needed);
 	return ret;

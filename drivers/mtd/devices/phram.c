@@ -1,6 +1,4 @@
 /**
- * $Id: phram.c,v 1.16 2005/11/07 11:14:25 gleixner Exp $
- *
  * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
  * Copyright (c) 2003-2004	Joern Engel <joern@wh.fh-wedel.de>
  *

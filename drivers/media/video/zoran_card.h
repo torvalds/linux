@@ -41,7 +41,7 @@ extern int zr36067_debug;
 /* Anybody who uses more than four? */
 #define BUZ_MAX 4
 extern int zoran_num;
-extern struct zoran zoran[BUZ_MAX];
+extern struct zoran *zoran[BUZ_MAX];
 
 extern struct video_device zoran_template;
 

@@ -46,8 +46,8 @@ struct audit_krule;
  */
 extern int cap_capable(struct task_struct *tsk, int cap);
 extern int cap_settime(struct timespec *ts, struct timezone *tz);
-extern int cap_ptrace(struct task_struct *parent, struct task_struct *child,
-		      unsigned int mode);
+extern int cap_ptrace_may_access(struct task_struct *child, unsigned int mode);
+extern int cap_ptrace_traceme(struct task_struct *parent);
 extern int cap_capget(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern int cap_capset_check(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern void cap_capset_set(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
@@ -1157,16 +1157,23 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@alter contains the flag indicating whether changes are to be made.
  *	Return 0 if permission is granted.
  *
- * @ptrace:
- *	Check permission before allowing the @parent process to trace the
+ * @ptrace_may_access:
+ *	Check permission before allowing the current process to trace the
  *	@child process.
  *	Security modules may also want to perform a process tracing check
  *	during an execve in the set_security or apply_creds hooks of
  *	binprm_security_ops if the process is being traced and its security
  *	attributes would be changed by the execve.
- *	@parent contains the task_struct structure for parent process.
- *	@child contains the task_struct structure for child process.
+ *	@child contains the task_struct structure for the target process.
  *	@mode contains the PTRACE_MODE flags indicating the form of access.
+ *	Return 0 if permission is granted.
+ * @ptrace_traceme:
+ *	Check that the @parent process has sufficient permission to trace the
+ *	current process before allowing the current process to present itself
+ *	to the @parent process for tracing.
+ *	The parent process will still have to undergo the ptrace_may_access
+ *	checks before it is allowed to trace this one.
+ *	@parent contains the task_struct structure for debugger process.
  *	Return 0 if permission is granted.
  * @capget:
  *	Get the @effective, @inheritable, and @permitted capability sets for
@@ -1287,8 +1294,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 struct security_operations {
 	char name[SECURITY_NAME_MAX + 1];
 
-	int (*ptrace) (struct task_struct *parent, struct task_struct *child,
-		       unsigned int mode);
+	int (*ptrace_may_access) (struct task_struct *child, unsigned int mode);
+	int (*ptrace_traceme) (struct task_struct *parent);
 	int (*capget) (struct task_struct *target,
 		       kernel_cap_t *effective,
 		       kernel_cap_t *inheritable, kernel_cap_t *permitted);
@@ -1362,7 +1369,7 @@ struct security_operations {
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
-	int (*inode_permission) (struct inode *inode, int mask, struct nameidata *nd);
+	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
 	void (*inode_delete) (struct inode *inode);
@@ -1560,8 +1567,8 @@ extern struct dentry *securityfs_create_dir(const char *name, struct dentry *par
 extern void securityfs_remove(struct dentry *dentry);
 
 /* Security operations */
-int security_ptrace(struct task_struct *parent, struct task_struct *child,
-		    unsigned int mode);
+int security_ptrace_may_access(struct task_struct *child, unsigned int mode);
+int security_ptrace_traceme(struct task_struct *parent);
 int security_capget(struct task_struct *target,
 		    kernel_cap_t *effective,
 		    kernel_cap_t *inheritable,
@@ -1628,7 +1635,7 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry);
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
-int security_inode_permission(struct inode *inode, int mask, struct nameidata *nd);
+int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
 void security_inode_delete(struct inode *inode);
@@ -1742,11 +1749,15 @@ static inline int security_init(void)
 	return 0;
 }
 
-static inline int security_ptrace(struct task_struct *parent,
-				  struct task_struct *child,
-				  unsigned int mode)
+static inline int security_ptrace_may_access(struct task_struct *child,
+					     unsigned int mode)
 {
-	return cap_ptrace(parent, child, mode);
+	return cap_ptrace_may_access(child, mode);
+}
+
+static inline int security_ptrace_traceme(struct task_struct *parent)
+{
+	return cap_ptrace_traceme(parent);
 }
 
 static inline int security_capget(struct task_struct *target,
@@ -2021,8 +2032,7 @@ static inline int security_inode_follow_link(struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_inode_permission(struct inode *inode, int mask,
-					     struct nameidata *nd)
+static inline int security_inode_permission(struct inode *inode, int mask)
 {
 	return 0;
 }

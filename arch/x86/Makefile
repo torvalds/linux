@@ -118,11 +118,6 @@ mflags-$(CONFIG_X86_GENERICARCH):= -Iinclude/asm-x86/mach-generic
 fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/
 mcore-$(CONFIG_X86_GENERICARCH)	:= arch/x86/mach-default/
 
-# RDC R-321x subarch support
-mflags-$(CONFIG_X86_RDC321X)	:= -Iinclude/asm-x86/mach-rdc321x
-mcore-$(CONFIG_X86_RDC321X)	:= arch/x86/mach-default/
-core-$(CONFIG_X86_RDC321X)	+= arch/x86/mach-rdc321x/
-
 # default subarch .h files
 mflags-y += -Iinclude/asm-x86/mach-default
 

@@ -459,11 +459,8 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	int ret;
 
 	ret = __sysfs_add_one(acxt, sd);
-	if (ret == -EEXIST) {
-		printk(KERN_WARNING "sysfs: duplicate filename '%s' "
+	WARN(ret == -EEXIST, KERN_WARNING "sysfs: duplicate filename '%s' "
 		       "can not be created\n", sd->s_name);
-		WARN_ON(1);
-	}
 	return ret;
 }
 

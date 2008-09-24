@@ -42,6 +42,7 @@
 #include <asm/page.h>
 #include <asm/uaccess.h>
 #include <linux/page-flags.h>
+#include <media/v4l2-ioctl.h>
 
 #include "w9968cf.h"
 #include "w9968cf_decoder.h"
@@ -3549,13 +3550,11 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	}
 
 	strcpy(cam->v4ldev->name, symbolic(camlist, mod_id));
-	cam->v4ldev->owner = THIS_MODULE;
-	cam->v4ldev->type = VID_TYPE_CAPTURE | VID_TYPE_SCALES;
 	cam->v4ldev->fops = &w9968cf_fops;
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
 	video_set_drvdata(cam->v4ldev, cam);
-	cam->v4ldev->dev = &cam->dev;
+	cam->v4ldev->parent = &cam->dev;
 
 	err = video_register_device(cam->v4ldev, VFL_TYPE_GRABBER,
 				    video_nr[dev_nr]);

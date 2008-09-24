@@ -111,7 +111,7 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct ubi_device *ubi;
 	uint64_t tmp = from;
 
-	dbg_msg("read %zd bytes from offset %lld", len, from);
+	dbg_gen("read %zd bytes from offset %lld", len, from);
 
 	if (len < 0 || from < 0 || from + len > mtd->size)
 		return -EINVAL;
@@ -162,7 +162,7 @@ static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct ubi_device *ubi;
 	uint64_t tmp = to;
 
-	dbg_msg("write %zd bytes to offset %lld", len, to);
+	dbg_gen("write %zd bytes to offset %lld", len, to);
 
 	if (len < 0 || to < 0 || len + to > mtd->size)
 		return -EINVAL;
@@ -215,7 +215,7 @@ static int gluebi_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct ubi_volume *vol;
 	struct ubi_device *ubi;
 
-	dbg_msg("erase %u bytes at offset %u", instr->len, instr->addr);
+	dbg_gen("erase %u bytes at offset %u", instr->len, instr->addr);
 
 	if (instr->addr < 0 || instr->addr > mtd->size - mtd->erasesize)
 		return -EINVAL;
@@ -249,8 +249,8 @@ static int gluebi_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (err)
 		goto out_err;
 
-        instr->state = MTD_ERASE_DONE;
-        mtd_erase_callback(instr);
+	instr->state = MTD_ERASE_DONE;
+	mtd_erase_callback(instr);
 	return 0;
 
 out_err:
@@ -299,12 +299,12 @@ int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol)
 		mtd->size = vol->used_bytes;
 
 	if (add_mtd_device(mtd)) {
-		ubi_err("cannot not add MTD device\n");
+		ubi_err("cannot not add MTD device");
 		kfree(mtd->name);
 		return -ENFILE;
 	}
 
-	dbg_msg("added mtd%d (\"%s\"), size %u, EB size %u",
+	dbg_gen("added mtd%d (\"%s\"), size %u, EB size %u",
 		mtd->index, mtd->name, mtd->size, mtd->erasesize);
 	return 0;
 }
@@ -322,7 +322,7 @@ int ubi_destroy_gluebi(struct ubi_volume *vol)
 	int err;
 	struct mtd_info *mtd = &vol->gluebi_mtd;
 
-	dbg_msg("remove mtd%d", mtd->index);
+	dbg_gen("remove mtd%d", mtd->index);
 	err = del_mtd_device(mtd);
 	if (err)
 		return err;

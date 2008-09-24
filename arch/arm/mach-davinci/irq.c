@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/irq.h>
 

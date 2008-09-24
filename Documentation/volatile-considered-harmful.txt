@@ -114,6 +114,6 @@ CREDITS
 
 Original impetus and research by Randy Dunlap
 Written by Jonathan Corbet
-Improvements via coments from Satyam Sharma, Johannes Stezenbach, Jesper
+Improvements via comments from Satyam Sharma, Johannes Stezenbach, Jesper
 	Juhl, Heikki Orsila, H. Peter Anvin, Philipp Hahn, and Stefan
 	Richter.

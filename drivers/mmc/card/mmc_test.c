@@ -388,16 +388,14 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 	int ret, i;
 	unsigned long flags;
 
-	BUG_ON(blocks * blksz > BUFFER_SIZE);
-
 	if (write) {
 		for (i = 0;i < blocks * blksz;i++)
 			test->scratch[i] = i;
 	} else {
-		memset(test->scratch, 0, blocks * blksz);
+		memset(test->scratch, 0, BUFFER_SIZE);
 	}
 	local_irq_save(flags);
-	sg_copy_from_buffer(sg, sg_len, test->scratch, blocks * blksz);
+	sg_copy_from_buffer(sg, sg_len, test->scratch, BUFFER_SIZE);
 	local_irq_restore(flags);
 
 	ret = mmc_test_set_blksize(test, blksz);
@@ -444,7 +442,7 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 		}
 	} else {
 		local_irq_save(flags);
-		sg_copy_to_buffer(sg, sg_len, test->scratch, blocks * blksz);
+		sg_copy_to_buffer(sg, sg_len, test->scratch, BUFFER_SIZE);
 		local_irq_restore(flags);
 		for (i = 0;i < blocks * blksz;i++) {
 			if (test->scratch[i] != (u8)i)
@@ -805,69 +803,6 @@ static int mmc_test_multi_xfersize_read(struct mmc_test_card *test)
 	return 0;
 }
 
-static int mmc_test_bigsg_write(struct mmc_test_card *test)
-{
-	int ret;
-	unsigned int size;
-	struct scatterlist sg;
-
-	if (test->card->host->max_blk_count == 1)
-		return RESULT_UNSUP_HOST;
-
-	size = PAGE_SIZE * 2;
-	size = min(size, test->card->host->max_req_size);
-	size = min(size, test->card->host->max_seg_size);
-	size = min(size, test->card->host->max_blk_count * 512);
-
-	memset(test->buffer, 0, BUFFER_SIZE);
-
-	if (size < 1024)
-		return RESULT_UNSUP_HOST;
-
-	sg_init_table(&sg, 1);
-	sg_init_one(&sg, test->buffer, BUFFER_SIZE);
-
-	ret = mmc_test_transfer(test, &sg, 1, 0, size/512, 512, 1);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int mmc_test_bigsg_read(struct mmc_test_card *test)
-{
-	int ret, i;
-	unsigned int size;
-	struct scatterlist sg;
-
-	if (test->card->host->max_blk_count == 1)
-		return RESULT_UNSUP_HOST;
-
-	size = PAGE_SIZE * 2;
-	size = min(size, test->card->host->max_req_size);
-	size = min(size, test->card->host->max_seg_size);
-	size = min(size, test->card->host->max_blk_count * 512);
-
-	if (size < 1024)
-		return RESULT_UNSUP_HOST;
-
-	memset(test->buffer, 0xCD, BUFFER_SIZE);
-
-	sg_init_table(&sg, 1);
-	sg_init_one(&sg, test->buffer, BUFFER_SIZE);
-	ret = mmc_test_transfer(test, &sg, 1, 0, size/512, 512, 0);
-	if (ret)
-		return ret;
-
-	/* mmc_test_transfer() doesn't check for read overflows */
-	for (i = size;i < BUFFER_SIZE;i++) {
-		if (test->buffer[i] != 0xCD)
-			return RESULT_FAIL;
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_HIGHMEM
 
 static int mmc_test_write_high(struct mmc_test_card *test)
@@ -1071,20 +1006,6 @@ static const struct mmc_test_case mmc_test_cases[] = {
 		.run = mmc_test_multi_xfersize_read,
 	},
 
-	{
-		.name = "Over-sized SG list write",
-		.prepare = mmc_test_prepare_write,
-		.run = mmc_test_bigsg_write,
-		.cleanup = mmc_test_cleanup,
-	},
-
-	{
-		.name = "Over-sized SG list read",
-		.prepare = mmc_test_prepare_read,
-		.run = mmc_test_bigsg_read,
-		.cleanup = mmc_test_cleanup,
-	},
-
 #ifdef CONFIG_HIGHMEM
 
 	{
@@ -1119,7 +1040,7 @@ static const struct mmc_test_case mmc_test_cases[] = {
 
 };
 
-static struct mutex mmc_test_lock;
+static DEFINE_MUTEX(mmc_test_lock);
 
 static void mmc_test_run(struct mmc_test_card *test, int testcase)
 {
@@ -1249,8 +1170,6 @@ static int mmc_test_probe(struct mmc_card *card)
 
 	if ((card->type != MMC_TYPE_MMC) && (card->type != MMC_TYPE_SD))
 		return -ENODEV;
-
-	mutex_init(&mmc_test_lock);
 
 	ret = device_create_file(&card->dev, &dev_attr_test);
 	if (ret)

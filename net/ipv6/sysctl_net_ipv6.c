@@ -150,3 +150,19 @@ void ipv6_sysctl_unregister(void)
 	unregister_net_sysctl_table(ip6_header);
 	unregister_pernet_subsys(&ipv6_sysctl_net_ops);
 }
+
+static struct ctl_table_header *ip6_base;
+
+int ipv6_static_sysctl_register(void)
+{
+	static struct ctl_table empty[1];
+	ip6_base = register_sysctl_paths(net_ipv6_ctl_path, empty);
+	if (ip6_base == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+void ipv6_static_sysctl_unregister(void)
+{
+	unregister_net_sysctl_table(ip6_base);
+}

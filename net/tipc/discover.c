@@ -193,7 +193,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 		/* Always accept link here */
 		struct sk_buff *rbuf;
 		struct tipc_media_addr *addr;
-		struct node *n_ptr = tipc_node_find(orig);
+		struct tipc_node *n_ptr = tipc_node_find(orig);
 		int link_fully_up;
 
 		dbg(" in own cluster\n");

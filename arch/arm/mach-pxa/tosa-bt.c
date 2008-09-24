@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/rfkill.h>
 
-#include <asm/arch/tosa_bt.h>
+#include <mach/tosa_bt.h>
 
 static void tosa_bt_on(struct tosa_bt_data *data)
 {

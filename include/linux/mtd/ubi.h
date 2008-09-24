@@ -45,13 +45,13 @@ enum {
  * @size: how many physical eraseblocks are reserved for this volume
  * @used_bytes: how many bytes of data this volume contains
  * @used_ebs: how many physical eraseblocks of this volume actually contain any
- * data
+ *            data
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
  * @corrupted: non-zero if the volume is corrupted (static volumes only)
  * @upd_marker: non-zero if the volume has update marker set
  * @alignment: volume alignment
  * @usable_leb_size: how many bytes are available in logical eraseblocks of
- * this volume
+ *                   this volume
  * @name_len: volume name length
  * @name: volume name
  * @cdev: UBI volume character device major and minor numbers
@@ -152,6 +152,7 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum);
 int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum);
 int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype);
 int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum);
+int ubi_sync(int ubi_num);
 
 /*
  * This function is the same as the 'ubi_leb_read()' function, but it does not

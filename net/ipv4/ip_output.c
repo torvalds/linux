@@ -118,7 +118,7 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	__skb_pull(newskb, skb_network_offset(newskb));
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
-	BUG_TRAP(newskb->dst);
+	WARN_ON(!newskb->dst);
 	netif_rx(newskb);
 	return 0;
 }

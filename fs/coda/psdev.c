@@ -378,11 +378,7 @@ MODULE_AUTHOR("Jan Harkes, Peter J. Braam");
 MODULE_DESCRIPTION("Coda Distributed File System VFS interface");
 MODULE_ALIAS_CHARDEV_MAJOR(CODA_PSDEV_MAJOR);
 MODULE_LICENSE("GPL");
-#ifdef CONFIG_CODA_FS_OLD_API
-MODULE_VERSION("5.3.21");
-#else
 MODULE_VERSION("6.6");
-#endif
 
 static int __init init_coda(void)
 {

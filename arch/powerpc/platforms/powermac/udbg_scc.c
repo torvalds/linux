@@ -125,13 +125,23 @@ void udbg_scc_init(int force_scc)
 	out_8(sccc, 0xc0);
 
 	/* If SCC was the OF output port, read the BRG value, else
-	 * Setup for 57600 8N1
+	 * Setup for 38400 or 57600 8N1 depending on the machine
 	 */
 	if (ch_def != NULL) {
 		out_8(sccc, 13);
 		scc_inittab[1] = in_8(sccc);
 		out_8(sccc, 12);
 		scc_inittab[3] = in_8(sccc);
+	} else if (machine_is_compatible("RackMac1,1")
+		   || machine_is_compatible("RackMac1,2")
+		   || machine_is_compatible("MacRISC4")) {
+		/* Xserves and G5s default to 57600 */
+		scc_inittab[1] = 0;
+		scc_inittab[3] = 0;
+	} else {
+		/* Others default to 38400 */
+		scc_inittab[1] = 0;
+		scc_inittab[3] = 1;
 	}
 
 	for (i = 0; i < sizeof(scc_inittab); ++i)

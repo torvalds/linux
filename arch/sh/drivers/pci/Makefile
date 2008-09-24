@@ -23,3 +23,4 @@ obj-$(CONFIG_SH_LANDISK)		+= ops-landisk.o
 obj-$(CONFIG_SH_LBOX_RE2)		+= ops-lboxre2.o fixups-lboxre2.o
 obj-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= ops-se7780.o fixups-se7780.o
 obj-$(CONFIG_SH_CAYMAN)			+= ops-cayman.o
+obj-$(CONFIG_SH_SH7785LCR)		+= ops-sh7785lcr.o fixups-sh7785lcr.o

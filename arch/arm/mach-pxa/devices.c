@@ -4,19 +4,19 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/pxa27x_keypad.h>
-#include <asm/arch/pxa2xx_spi.h>
-#include <asm/arch/camera.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/pxa3xx_nand.h>
+#include <mach/gpio.h>
+#include <mach/udc.h>
+#include <mach/pxafb.h>
+#include <mach/mmc.h>
+#include <mach/irda.h>
+#include <mach/i2c.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/ohci.h>
+#include <mach/pxa27x_keypad.h>
+#include <mach/pxa2xx_spi.h>
+#include <mach/camera.h>
+#include <mach/audio.h>
+#include <mach/pxa3xx_nand.h>
 
 #include "devices.h"
 #include "generic.h"

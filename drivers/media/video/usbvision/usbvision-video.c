@@ -53,7 +53,6 @@
 #include <linux/mm.h>
 #include <linux/utsname.h>
 #include <linux/highmem.h>
-#include <linux/videodev.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -65,8 +64,8 @@
 
 #include <media/saa7115.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
-#include <media/audiochip.h>
 
 #include <linux/workqueue.h>
 
@@ -184,7 +183,7 @@ MODULE_ALIAS(DRIVER_ALIAS);
 static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	return video_get_drvdata(vdev);
 }
 
@@ -199,7 +198,7 @@ static ssize_t show_model(struct device *cd,
 			  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       usbvision_device_data[usbvision->DevModel].ModelString);
@@ -210,7 +209,7 @@ static ssize_t show_hue(struct device *cd,
 			struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_HUE;
@@ -225,7 +224,7 @@ static ssize_t show_contrast(struct device *cd,
 			     struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_CONTRAST;
@@ -240,7 +239,7 @@ static ssize_t show_brightness(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_BRIGHTNESS;
@@ -255,7 +254,7 @@ static ssize_t show_saturation(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_SATURATION;
@@ -270,7 +269,7 @@ static ssize_t show_streaming(struct device *cd,
 			      struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->streaming==Stream_On?1:0));
@@ -281,7 +280,7 @@ static ssize_t show_compression(struct device *cd,
 				struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->isocMode==ISOC_MODE_COMPRESS));
@@ -292,7 +291,7 @@ static ssize_t show_device_bridge(struct device *cd,
 				  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
-		container_of(cd, struct video_device, class_dev);
+		container_of(cd, struct video_device, dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridgeType);
 }
@@ -304,40 +303,31 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 	if (!vdev)
 		return;
 	do {
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_version);
+		res = device_create_file(&vdev->dev, &dev_attr_version);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_model);
+		res = device_create_file(&vdev->dev, &dev_attr_model);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_hue);
+		res = device_create_file(&vdev->dev, &dev_attr_hue);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_contrast);
+		res = device_create_file(&vdev->dev, &dev_attr_contrast);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_brightness);
+		res = device_create_file(&vdev->dev, &dev_attr_brightness);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_saturation);
+		res = device_create_file(&vdev->dev, &dev_attr_saturation);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_streaming);
+		res = device_create_file(&vdev->dev, &dev_attr_streaming);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_compression);
+		res = device_create_file(&vdev->dev, &dev_attr_compression);
 		if (res<0)
 			break;
-		res = device_create_file(&vdev->class_dev,
-					 &dev_attr_bridge);
+		res = device_create_file(&vdev->dev, &dev_attr_bridge);
 		if (res>=0)
 			return;
 	} while (0);
@@ -348,24 +338,15 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 static void usbvision_remove_sysfs(struct video_device *vdev)
 {
 	if (vdev) {
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_version);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_model);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_hue);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_contrast);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_brightness);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_saturation);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_streaming);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_compression);
-		device_remove_file(&vdev->class_dev,
-					 &dev_attr_bridge);
+		device_remove_file(&vdev->dev, &dev_attr_version);
+		device_remove_file(&vdev->dev, &dev_attr_model);
+		device_remove_file(&vdev->dev, &dev_attr_hue);
+		device_remove_file(&vdev->dev, &dev_attr_contrast);
+		device_remove_file(&vdev->dev, &dev_attr_brightness);
+		device_remove_file(&vdev->dev, &dev_attr_saturation);
+		device_remove_file(&vdev->dev, &dev_attr_streaming);
+		device_remove_file(&vdev->dev, &dev_attr_compression);
+		device_remove_file(&vdev->dev, &dev_attr_bridge);
 	}
 }
 
@@ -1388,13 +1369,8 @@ static const struct file_operations usbvision_fops = {
 /* 	.poll          = video_poll, */
 	.compat_ioctl  = v4l_compat_ioctl32,
 };
-static struct video_device usbvision_video_template = {
-	.owner             = THIS_MODULE,
-	.type		= VID_TYPE_TUNER | VID_TYPE_CAPTURE,
-	.fops		= &usbvision_fops,
-	.name           = "usbvision-video",
-	.release	= video_device_release,
-	.minor		= -1,
+
+static const struct v4l2_ioctl_ops usbvision_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
@@ -1426,6 +1402,14 @@ static struct video_device usbvision_video_template = {
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
+};
+
+static struct video_device usbvision_video_template = {
+	.fops		= &usbvision_fops,
+	.ioctl_ops 	= &usbvision_ioctl_ops,
+	.name           = "usbvision-video",
+	.release	= video_device_release,
+	.minor		= -1,
 	.tvnorms              = USBVISION_NORMS,
 	.current_norm         = V4L2_STD_PAL
 };
@@ -1441,14 +1425,7 @@ static const struct file_operations usbvision_radio_fops = {
 	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
-static struct video_device usbvision_radio_template=
-{
-	.owner             = THIS_MODULE,
-	.type		= VID_TYPE_TUNER,
-	.fops		= &usbvision_radio_fops,
-	.name           = "usbvision-radio",
-	.release	= video_device_release,
-	.minor		= -1,
+static const struct v4l2_ioctl_ops usbvision_radio_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
@@ -1462,6 +1439,14 @@ static struct video_device usbvision_radio_template=
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+};
+
+static struct video_device usbvision_radio_template = {
+	.fops		= &usbvision_radio_fops,
+	.name           = "usbvision-radio",
+	.release	= video_device_release,
+	.minor		= -1,
+	.ioctl_ops 	= &usbvision_radio_ioctl_ops,
 
 	.tvnorms              = USBVISION_NORMS,
 	.current_norm         = V4L2_STD_PAL
@@ -1479,8 +1464,6 @@ static const struct file_operations usbvision_vbi_fops = {
 
 static struct video_device usbvision_vbi_template=
 {
-	.owner             = THIS_MODULE,
-	.type		= VID_TYPE_TUNER,
 	.fops		= &usbvision_vbi_fops,
 	.release	= video_device_release,
 	.name           = "usbvision-vbi",
@@ -1506,7 +1489,7 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	}
 	*vdev = *vdev_template;
 //	vdev->minor   = -1;
-	vdev->dev     = &usb_dev->dev;
+	vdev->parent  = &usb_dev->dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);
 	video_set_drvdata(vdev, usbvision);
 	return vdev;

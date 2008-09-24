@@ -33,7 +33,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/irq.h>
-#include <asm/arch/usb.h>
+#include <mach/usb.h>
 
 
 #ifndef	DEBUG
@@ -94,7 +94,7 @@ struct isp1301 {
 /* board-specific PM hooks */
 
 #include <asm/gpio.h>
-#include <asm/arch/mux.h>
+#include <mach/mux.h>
 #include <asm/mach-types.h>
 
 
@@ -1593,7 +1593,7 @@ fail1:
 	if (machine_is_omap_h2()) {
 		/* full speed signaling by default */
 		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1,
-			MC1_SPEED_REG);
+			MC1_SPEED);
 		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_2,
 			MC2_SPD_SUSP_CTRL);
 

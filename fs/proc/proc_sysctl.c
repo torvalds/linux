@@ -10,149 +10,110 @@
 static struct dentry_operations proc_sys_dentry_operations;
 static const struct file_operations proc_sys_file_operations;
 static const struct inode_operations proc_sys_inode_operations;
+static const struct file_operations proc_sys_dir_file_operations;
+static const struct inode_operations proc_sys_dir_operations;
 
-static void proc_sys_refresh_inode(struct inode *inode, struct ctl_table *table)
-{
-	/* Refresh the cached information bits in the inode */
-	if (table) {
-		inode->i_uid = 0;
-		inode->i_gid = 0;
-		inode->i_mode = table->mode;
-		if (table->proc_handler) {
-			inode->i_mode |= S_IFREG;
-			inode->i_nlink = 1;
-		} else {
-			inode->i_mode |= S_IFDIR;
-			inode->i_nlink = 0;	/* It is too hard to figure out */
-		}
-	}
-}
-
-static struct inode *proc_sys_make_inode(struct inode *dir, struct ctl_table *table)
+static struct inode *proc_sys_make_inode(struct super_block *sb,
+		struct ctl_table_header *head, struct ctl_table *table)
 {
 	struct inode *inode;
-	struct proc_inode *dir_ei, *ei;
-	int depth;
+	struct proc_inode *ei;
 
-	inode = new_inode(dir->i_sb);
+	inode = new_inode(sb);
 	if (!inode)
 		goto out;
 
-	/* A directory is always one deeper than it's parent */
-	dir_ei = PROC_I(dir);
-	depth = dir_ei->fd + 1;
-
+	sysctl_head_get(head);
 	ei = PROC_I(inode);
-	ei->fd = depth;
+	ei->sysctl = head;
+	ei->sysctl_entry = table;
+
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
-	inode->i_op = &proc_sys_inode_operations;
-	inode->i_fop = &proc_sys_file_operations;
 	inode->i_flags |= S_PRIVATE; /* tell selinux to ignore this inode */
-	proc_sys_refresh_inode(inode, table);
+	inode->i_mode = table->mode;
+	if (!table->child) {
+		inode->i_mode |= S_IFREG;
+		inode->i_op = &proc_sys_inode_operations;
+		inode->i_fop = &proc_sys_file_operations;
+	} else {
+		inode->i_mode |= S_IFDIR;
+		inode->i_nlink = 0;
+		inode->i_op = &proc_sys_dir_operations;
+		inode->i_fop = &proc_sys_dir_file_operations;
+	}
 out:
 	return inode;
 }
 
-static struct dentry *proc_sys_ancestor(struct dentry *dentry, int depth)
-{
-	for (;;) {
-		struct proc_inode *ei;
-
-		ei = PROC_I(dentry->d_inode);
-		if (ei->fd == depth)
-			break; /* found */
-
-		dentry = dentry->d_parent;
-	}
-	return dentry;
-}
-
-static struct ctl_table *proc_sys_lookup_table_one(struct ctl_table *table,
-							struct qstr *name)
+static struct ctl_table *find_in_table(struct ctl_table *p, struct qstr *name)
 {
 	int len;
-	for ( ; table->ctl_name || table->procname; table++) {
+	for ( ; p->ctl_name || p->procname; p++) {
 
-		if (!table->procname)
+		if (!p->procname)
 			continue;
 
-		len = strlen(table->procname);
+		len = strlen(p->procname);
 		if (len != name->len)
 			continue;
 
-		if (memcmp(table->procname, name->name, len) != 0)
+		if (memcmp(p->procname, name->name, len) != 0)
 			continue;
 
 		/* I have a match */
-		return table;
+		return p;
 	}
 	return NULL;
 }
 
-static struct ctl_table *proc_sys_lookup_table(struct dentry *dentry,
-						struct ctl_table *table)
+struct ctl_table_header *grab_header(struct inode *inode)
 {
-	struct dentry *ancestor;
-	struct proc_inode *ei;
-	int depth, i;
-
-	ei = PROC_I(dentry->d_inode);
-	depth = ei->fd;
-
-	if (depth == 0)
-		return table;
-
-	for (i = 1; table && (i <= depth); i++) {
-		ancestor = proc_sys_ancestor(dentry, i);
-		table = proc_sys_lookup_table_one(table, &ancestor->d_name);
-		if (table)
-			table = table->child;
-	}
-	return table;
-
-}
-static struct ctl_table *proc_sys_lookup_entry(struct dentry *dparent,
-						struct qstr *name,
-						struct ctl_table *table)
-{
-	table = proc_sys_lookup_table(dparent, table);
-	if (table)
-		table = proc_sys_lookup_table_one(table, name);
-	return table;
-}
-
-static struct ctl_table *do_proc_sys_lookup(struct dentry *parent,
-						struct qstr *name,
-						struct ctl_table_header **ptr)
-{
-	struct ctl_table_header *head;
-	struct ctl_table *table = NULL;
-
-	for (head = sysctl_head_next(NULL); head;
-			head = sysctl_head_next(head)) {
-		table = proc_sys_lookup_entry(parent, name, head->ctl_table);
-		if (table)
-			break;
-	}
-	*ptr = head;
-	return table;
+	if (PROC_I(inode)->sysctl)
+		return sysctl_head_grab(PROC_I(inode)->sysctl);
+	else
+		return sysctl_head_next(NULL);
 }
 
 static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 					struct nameidata *nd)
 {
-	struct ctl_table_header *head;
+	struct ctl_table_header *head = grab_header(dir);
+	struct ctl_table *table = PROC_I(dir)->sysctl_entry;
+	struct ctl_table_header *h = NULL;
+	struct qstr *name = &dentry->d_name;
+	struct ctl_table *p;
 	struct inode *inode;
-	struct dentry *err;
-	struct ctl_table *table;
+	struct dentry *err = ERR_PTR(-ENOENT);
 
-	err = ERR_PTR(-ENOENT);
-	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
-	if (!table)
+	if (IS_ERR(head))
+		return ERR_CAST(head);
+
+	if (table && !table->child) {
+		WARN_ON(1);
+		goto out;
+	}
+
+	table = table ? table->child : head->ctl_table;
+
+	p = find_in_table(table, name);
+	if (!p) {
+		for (h = sysctl_head_next(NULL); h; h = sysctl_head_next(h)) {
+			if (h->attached_to != table)
+				continue;
+			p = find_in_table(h->attached_by, name);
+			if (p)
+				break;
+		}
+	}
+
+	if (!p)
 		goto out;
 
 	err = ERR_PTR(-ENOMEM);
-	inode = proc_sys_make_inode(dir, table);
+	inode = proc_sys_make_inode(dir->i_sb, h ? h : head, p);
+	if (h)
+		sysctl_head_finish(h);
+
 	if (!inode)
 		goto out;
 
@@ -168,22 +129,14 @@ out:
 static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 		size_t count, loff_t *ppos, int write)
 {
-	struct dentry *dentry = filp->f_dentry;
-	struct ctl_table_header *head;
-	struct ctl_table *table;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct ctl_table_header *head = grab_header(inode);
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	ssize_t error;
 	size_t res;
 
-	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
-	/* Has the sysctl entry disappeared on us? */
-	error = -ENOENT;
-	if (!table)
-		goto out;
-
-	/* Has the sysctl entry been replaced by a directory? */
-	error = -EISDIR;
-	if (!table->proc_handler)
-		goto out;
+	if (IS_ERR(head))
+		return PTR_ERR(head);
 
 	/*
 	 * At this point we know that the sysctl was not unregistered
@@ -191,6 +144,11 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	 */
 	error = -EPERM;
 	if (sysctl_perm(head->root, table, write ? MAY_WRITE : MAY_READ))
+		goto out;
+
+	/* if that can happen at all, it should be -EINVAL, not -EISDIR */
+	error = -EINVAL;
+	if (!table->proc_handler)
 		goto out;
 
 	/* careful: calling conventions are nasty here */
@@ -218,82 +176,86 @@ static ssize_t proc_sys_write(struct file *filp, const char __user *buf,
 
 
 static int proc_sys_fill_cache(struct file *filp, void *dirent,
-				filldir_t filldir, struct ctl_table *table)
+				filldir_t filldir,
+				struct ctl_table_header *head,
+				struct ctl_table *table)
 {
-	struct ctl_table_header *head;
-	struct ctl_table *child_table = NULL;
 	struct dentry *child, *dir = filp->f_path.dentry;
 	struct inode *inode;
 	struct qstr qname;
 	ino_t ino = 0;
 	unsigned type = DT_UNKNOWN;
-	int ret;
 
 	qname.name = table->procname;
 	qname.len  = strlen(table->procname);
 	qname.hash = full_name_hash(qname.name, qname.len);
 
-	/* Suppress duplicates.
-	 * Only fill a directory entry if it is the value that
-	 * an ordinary lookup of that name returns.  Hide all
-	 * others.
-	 *
-	 * If we ever cache this translation in the dcache
-	 * I should do a dcache lookup first.  But for now
-	 * it is just simpler not to.
-	 */
-	ret = 0;
-	child_table = do_proc_sys_lookup(dir, &qname, &head);
-	sysctl_head_finish(head);
-	if (child_table != table)
-		return 0;
-
 	child = d_lookup(dir, &qname);
 	if (!child) {
-		struct dentry *new;
-		new = d_alloc(dir, &qname);
-		if (new) {
-			inode = proc_sys_make_inode(dir->d_inode, table);
-			if (!inode)
-				child = ERR_PTR(-ENOMEM);
-			else {
-				new->d_op = &proc_sys_dentry_operations;
-				d_add(new, inode);
+		child = d_alloc(dir, &qname);
+		if (child) {
+			inode = proc_sys_make_inode(dir->d_sb, head, table);
+			if (!inode) {
+				dput(child);
+				return -ENOMEM;
+			} else {
+				child->d_op = &proc_sys_dentry_operations;
+				d_add(child, inode);
 			}
-			if (child)
-				dput(new);
-			else
-				child = new;
+		} else {
+			return -ENOMEM;
 		}
 	}
-	if (!child || IS_ERR(child) || !child->d_inode)
-		goto end_instantiate;
 	inode = child->d_inode;
-	if (inode) {
-		ino  = inode->i_ino;
-		type = inode->i_mode >> 12;
-	}
+	ino  = inode->i_ino;
+	type = inode->i_mode >> 12;
 	dput(child);
-end_instantiate:
-	if (!ino)
-		ino= find_inode_number(dir, &qname);
-	if (!ino)
-		ino = 1;
-	return filldir(dirent, qname.name, qname.len, filp->f_pos, ino, type);
+	return !!filldir(dirent, qname.name, qname.len, filp->f_pos, ino, type);
+}
+
+static int scan(struct ctl_table_header *head, ctl_table *table,
+		unsigned long *pos, struct file *file,
+		void *dirent, filldir_t filldir)
+{
+
+	for (; table->ctl_name || table->procname; table++, (*pos)++) {
+		int res;
+
+		/* Can't do anything without a proc name */
+		if (!table->procname)
+			continue;
+
+		if (*pos < file->f_pos)
+			continue;
+
+		res = proc_sys_fill_cache(file, dirent, filldir, head, table);
+		if (res)
+			return res;
+
+		file->f_pos = *pos + 1;
+	}
+	return 0;
 }
 
 static int proc_sys_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct dentry *dentry = filp->f_dentry;
+	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
-	struct ctl_table_header *head = NULL;
-	struct ctl_table *table;
+	struct ctl_table_header *head = grab_header(inode);
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_table_header *h = NULL;
 	unsigned long pos;
-	int ret;
+	int ret = -EINVAL;
 
-	ret = -ENOTDIR;
-	if (!S_ISDIR(inode->i_mode))
+	if (IS_ERR(head))
+		return PTR_ERR(head);
+
+	if (table && !table->child) {
+		WARN_ON(1);
 		goto out;
+	}
+
+	table = table ? table->child : head->ctl_table;
 
 	ret = 0;
 	/* Avoid a switch here: arm builds fail with missing __cmpdi2 */
@@ -311,30 +273,17 @@ static int proc_sys_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 	pos = 2;
 
-	/* - Find each instance of the directory
-	 * - Read all entries in each instance
-	 * - Before returning an entry to user space lookup the entry
-	 *   by name and if I find a different entry don't return
-	 *   this one because it means it is a buried dup.
-	 * For sysctl this should only happen for directory entries.
-	 */
-	for (head = sysctl_head_next(NULL); head; head = sysctl_head_next(head)) {
-		table = proc_sys_lookup_table(dentry, head->ctl_table);
+	ret = scan(head, table, &pos, filp, dirent, filldir);
+	if (ret)
+		goto out;
 
-		if (!table)
+	for (h = sysctl_head_next(NULL); h; h = sysctl_head_next(h)) {
+		if (h->attached_to != table)
 			continue;
-
-		for (; table->ctl_name || table->procname; table++, pos++) {
-			/* Can't do anything without a proc name */
-			if (!table->procname)
-				continue;
-
-			if (pos < filp->f_pos)
-				continue;
-
-			if (proc_sys_fill_cache(filp, dirent, filldir, table) < 0)
-				goto out;
-			filp->f_pos = pos + 1;
+		ret = scan(h, h->attached_by, &pos, filp, dirent, filldir);
+		if (ret) {
+			sysctl_head_finish(h);
+			break;
 		}
 	}
 	ret = 1;
@@ -343,53 +292,24 @@ out:
 	return ret;
 }
 
-static int proc_sys_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int proc_sys_permission(struct inode *inode, int mask)
 {
 	/*
 	 * sysctl entries that are not writeable,
 	 * are _NOT_ writeable, capabilities or not.
 	 */
-	struct ctl_table_header *head;
-	struct ctl_table *table;
-	struct dentry *dentry;
-	int mode;
-	int depth;
+	struct ctl_table_header *head = grab_header(inode);
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	int error;
 
-	head = NULL;
-	depth = PROC_I(inode)->fd;
+	if (IS_ERR(head))
+		return PTR_ERR(head);
 
-	/* First check the cached permissions, in case we don't have
-	 * enough information to lookup the sysctl table entry.
-	 */
-	error = -EACCES;
-	mode = inode->i_mode;
+	if (!table) /* global root - r-xr-xr-x */
+		error = mask & MAY_WRITE ? -EACCES : 0;
+	else /* Use the permissions on the sysctl table entry */
+		error = sysctl_perm(head->root, table, mask);
 
-	if (current->euid == 0)
-		mode >>= 6;
-	else if (in_group_p(0))
-		mode >>= 3;
-
-	if ((mode & mask & (MAY_READ|MAY_WRITE|MAY_EXEC)) == mask)
-		error = 0;
-
-	/* If we can't get a sysctl table entry the permission
-	 * checks on the cached mode will have to be enough.
-	 */
-	if (!nd || !depth)
-		goto out;
-
-	dentry = nd->path.dentry;
-	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
-
-	/* If the entry does not exist deny permission */
-	error = -EACCES;
-	if (!table)
-		goto out;
-
-	/* Use the permissions on the sysctl table entry */
-	error = sysctl_perm(head->root, table, mask);
-out:
 	sysctl_head_finish(head);
 	return error;
 }
@@ -409,33 +329,70 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	return error;
 }
 
-/* I'm lazy and don't distinguish between files and directories,
- * until access time.
- */
+static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct ctl_table_header *head = grab_header(inode);
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+
+	if (IS_ERR(head))
+		return PTR_ERR(head);
+
+	generic_fillattr(inode, stat);
+	if (table)
+		stat->mode = (stat->mode & S_IFMT) | table->mode;
+
+	sysctl_head_finish(head);
+	return 0;
+}
+
 static const struct file_operations proc_sys_file_operations = {
 	.read		= proc_sys_read,
 	.write		= proc_sys_write,
+};
+
+static const struct file_operations proc_sys_dir_file_operations = {
 	.readdir	= proc_sys_readdir,
 };
 
 static const struct inode_operations proc_sys_inode_operations = {
+	.permission	= proc_sys_permission,
+	.setattr	= proc_sys_setattr,
+	.getattr	= proc_sys_getattr,
+};
+
+static const struct inode_operations proc_sys_dir_operations = {
 	.lookup		= proc_sys_lookup,
 	.permission	= proc_sys_permission,
 	.setattr	= proc_sys_setattr,
+	.getattr	= proc_sys_getattr,
 };
 
 static int proc_sys_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct ctl_table_header *head;
-	struct ctl_table *table;
-	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
-	proc_sys_refresh_inode(dentry->d_inode, table);
-	sysctl_head_finish(head);
-	return !!table;
+	return !PROC_I(dentry->d_inode)->sysctl->unregistering;
+}
+
+static int proc_sys_delete(struct dentry *dentry)
+{
+	return !!PROC_I(dentry->d_inode)->sysctl->unregistering;
+}
+
+static int proc_sys_compare(struct dentry *dir, struct qstr *qstr,
+			    struct qstr *name)
+{
+	struct dentry *dentry = container_of(qstr, struct dentry, d_name);
+	if (qstr->len != name->len)
+		return 1;
+	if (memcmp(qstr->name, name->name, name->len))
+		return 1;
+	return !sysctl_is_seen(PROC_I(dentry->d_inode)->sysctl);
 }
 
 static struct dentry_operations proc_sys_dentry_operations = {
 	.d_revalidate	= proc_sys_revalidate,
+	.d_delete	= proc_sys_delete,
+	.d_compare	= proc_sys_compare,
 };
 
 static struct proc_dir_entry *proc_sys_root;
@@ -443,8 +400,8 @@ static struct proc_dir_entry *proc_sys_root;
 int proc_sys_init(void)
 {
 	proc_sys_root = proc_mkdir("sys", NULL);
-	proc_sys_root->proc_iops = &proc_sys_inode_operations;
-	proc_sys_root->proc_fops = &proc_sys_file_operations;
+	proc_sys_root->proc_iops = &proc_sys_dir_operations;
+	proc_sys_root->proc_fops = &proc_sys_dir_file_operations;
 	proc_sys_root->nlink = 0;
 	return 0;
 }

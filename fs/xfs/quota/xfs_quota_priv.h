@@ -158,9 +158,6 @@ for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
 #define XFS_IS_SUSER_DQUOT(dqp)		\
 	(!((dqp)->q_core.d_id))
 
-#define XFS_PURGE_INODE(ip)		\
-	IRELE(ip);
-
 #define DQFLAGTO_TYPESTR(d)	(((d)->dq_flags & XFS_DQ_USER) ? "USR" : \
 				 (((d)->dq_flags & XFS_DQ_GROUP) ? "GRP" : \
 				 (((d)->dq_flags & XFS_DQ_PROJ) ? "PRJ":"???")))

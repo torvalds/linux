@@ -127,10 +127,14 @@ int register_security(struct security_operations *ops)
 
 /* Security operations */
 
-int security_ptrace(struct task_struct *parent, struct task_struct *child,
-		    unsigned int mode)
+int security_ptrace_may_access(struct task_struct *child, unsigned int mode)
 {
-	return security_ops->ptrace(parent, child, mode);
+	return security_ops->ptrace_may_access(child, mode);
+}
+
+int security_ptrace_traceme(struct task_struct *parent)
+{
+	return security_ops->ptrace_traceme(parent);
 }
 
 int security_capget(struct task_struct *target,
@@ -429,11 +433,11 @@ int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return security_ops->inode_follow_link(dentry, nd);
 }
 
-int security_inode_permission(struct inode *inode, int mask, struct nameidata *nd)
+int security_inode_permission(struct inode *inode, int mask)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return security_ops->inode_permission(inode, mask, nd);
+	return security_ops->inode_permission(inode, mask);
 }
 
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
@@ -442,6 +446,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 	return security_ops->inode_setattr(dentry, attr);
 }
+EXPORT_SYMBOL_GPL(security_inode_setattr);
 
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {

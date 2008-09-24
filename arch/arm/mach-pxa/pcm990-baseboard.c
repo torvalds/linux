@@ -22,23 +22,22 @@
 
 #include <linux/irq.h>
 #include <linux/platform_device.h>
-#include <linux/ide.h>
 #include <linux/i2c.h>
 #include <linux/pwm_backlight.h>
 
 #include <media/soc_camera.h>
 
 #include <asm/gpio.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/camera.h>
+#include <mach/i2c.h>
+#include <mach/camera.h>
 #include <asm/mach/map.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/pcm990_baseboard.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/audio.h>
+#include <mach/mmc.h>
+#include <mach/ohci.h>
+#include <mach/pcm990_baseboard.h>
+#include <mach/pxafb.h>
+#include <mach/mfp-pxa27x.h>
 
 #include "devices.h"
 #include "generic.h"

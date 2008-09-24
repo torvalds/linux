@@ -11,7 +11,7 @@
 
 #include <linux/mtd/partitions.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -20,7 +20,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/serial_sa1100.h>
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -143,7 +143,7 @@ static void __init pleb_map_io(void)
 
 	GPDR &= ~GPIO_ETH0_IRQ;
 
-	set_irq_type(GPIO_ETH0_IRQ, IRQT_FALLING);
+	set_irq_type(GPIO_ETH0_IRQ, IRQ_TYPE_EDGE_FALLING);
 }
 
 MACHINE_START(PLEB, "PLEB")

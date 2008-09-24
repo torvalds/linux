@@ -407,7 +407,7 @@ struct entropy_store {
 	/* read-write data: */
 	spinlock_t lock;
 	unsigned add_ptr;
-	int entropy_count;
+	int entropy_count;	/* Must at no time exceed ->POOLBITS! */
 	int input_rotate;
 };
 
@@ -520,6 +520,7 @@ static void mix_pool_bytes(struct entropy_store *r, const void *in, int bytes)
 static void credit_entropy_bits(struct entropy_store *r, int nbits)
 {
 	unsigned long flags;
+	int entropy_count;
 
 	if (!nbits)
 		return;
@@ -527,20 +528,20 @@ static void credit_entropy_bits(struct entropy_store *r, int nbits)
 	spin_lock_irqsave(&r->lock, flags);
 
 	DEBUG_ENT("added %d entropy credits to %s\n", nbits, r->name);
-	r->entropy_count += nbits;
-	if (r->entropy_count < 0) {
+	entropy_count = r->entropy_count;
+	entropy_count += nbits;
+	if (entropy_count < 0) {
 		DEBUG_ENT("negative entropy/overflow\n");
-		r->entropy_count = 0;
-	} else if (r->entropy_count > r->poolinfo->POOLBITS)
-		r->entropy_count = r->poolinfo->POOLBITS;
+		entropy_count = 0;
+	} else if (entropy_count > r->poolinfo->POOLBITS)
+		entropy_count = r->poolinfo->POOLBITS;
+	r->entropy_count = entropy_count;
 
 	/* should we wake readers? */
-	if (r == &input_pool &&
-	    r->entropy_count >= random_read_wakeup_thresh) {
+	if (r == &input_pool && entropy_count >= random_read_wakeup_thresh) {
 		wake_up_interruptible(&random_read_wait);
 		kill_fasync(&fasync, SIGIO, POLL_IN);
 	}
-
 	spin_unlock_irqrestore(&r->lock, flags);
 }
 
@@ -1571,6 +1572,7 @@ u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
 
 	return half_md4_transform(hash, keyptr->secret);
 }
+EXPORT_SYMBOL_GPL(secure_ipv4_port_ephemeral);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,

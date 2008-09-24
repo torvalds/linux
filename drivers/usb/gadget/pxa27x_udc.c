@@ -33,13 +33,13 @@
 #include <linux/irq.h>
 
 #include <asm/byteorder.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <asm/arch/pxa2xx-regs.h> /* FIXME: for PSSR */
-#include <asm/arch/udc.h>
+#include <mach/pxa2xx-regs.h> /* FIXME: for PSSR */
+#include <mach/udc.h>
 
 #include "pxa27x_udc.h"
 
@@ -1622,7 +1622,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	struct pxa_udc *udc = the_controller;
 	int retval;
 
-	if (!driver || driver->speed != USB_SPEED_FULL || !driver->bind
+	if (!driver || driver->speed < USB_SPEED_FULL || !driver->bind
 			|| !driver->disconnect || !driver->setup)
 		return -EINVAL;
 	if (!udc)

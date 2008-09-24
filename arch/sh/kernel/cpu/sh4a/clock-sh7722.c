@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/sh4a/clock-sh7722.c
  *
- * SH7722 & SH7366 support for the clock framework
+ * SH7343, SH7722, SH7723 & SH7366 support for the clock framework
  *
  * Copyright (c) 2006-2007 Nomad Global Solutions Inc
  * Based on code for sh7343 by Paul Mundt
@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/errno.h>
+#include <linux/stringify.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
 
@@ -411,40 +412,40 @@ static struct clk_ops sh7722_frqcr_clk_ops = {
  * clock ops methods for SIU A/B and IrDA clock
  *
  */
-static int sh7722_siu_which(struct clk *clk)
+
+#ifndef CONFIG_CPU_SUBTYPE_SH7343
+
+static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 {
-	if (!strcmp(clk->name, "siu_a_clk"))
-		return 0;
-	if (!strcmp(clk->name, "siu_b_clk"))
-		return 1;
-#if defined(CONFIG_CPU_SUBTYPE_SH7722)
-	if (!strcmp(clk->name, "irda_clk"))
-		return 2;
-#endif
-	return -EINVAL;
+	unsigned long r;
+	int div;
+
+	r = ctrl_inl(clk->arch_flags);
+	div = sh7722_find_divisors(clk->parent->rate, rate);
+	if (div < 0)
+		return div;
+	r = (r & ~0xF) | div;
+	ctrl_outl(r, clk->arch_flags);
+	return 0;
 }
 
-static unsigned long sh7722_siu_regs[] = {
-	[0] = SCLKACR,
-	[1] = SCLKBCR,
-#if defined(CONFIG_CPU_SUBTYPE_SH7722)
-	[2] = IrDACLKCR,
-#endif
-};
+static void sh7722_siu_recalc(struct clk *clk)
+{
+	unsigned long r;
+
+	r = ctrl_inl(clk->arch_flags);
+	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
+}
 
 static int sh7722_siu_start_stop(struct clk *clk, int enable)
 {
-	int siu = sh7722_siu_which(clk);
 	unsigned long r;
 
-	if (siu < 0)
-		return siu;
-	BUG_ON(siu > 2);
-	r = ctrl_inl(sh7722_siu_regs[siu]);
+	r = ctrl_inl(clk->arch_flags);
 	if (enable)
-		ctrl_outl(r & ~(1 << 8), sh7722_siu_regs[siu]);
+		ctrl_outl(r & ~(1 << 8), clk->arch_flags);
 	else
-		ctrl_outl(r | (1 << 8), sh7722_siu_regs[siu]);
+		ctrl_outl(r | (1 << 8), clk->arch_flags);
 	return 0;
 }
 
@@ -457,6 +458,15 @@ static void sh7722_siu_disable(struct clk *clk)
 {
 	sh7722_siu_start_stop(clk, 0);
 }
+
+static struct clk_ops sh7722_siu_clk_ops = {
+	.recalc = sh7722_siu_recalc,
+	.set_rate = sh7722_siu_set_rate,
+	.enable = sh7722_siu_enable,
+	.disable = sh7722_siu_disable,
+};
+
+#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 static void sh7722_video_enable(struct clk *clk)
 {
@@ -494,43 +504,6 @@ static void sh7722_video_recalc(struct clk *clk)
 	clk->rate = clk->parent->rate / ((r & 0x3F) + 1);
 }
 
-static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
-{
-	int siu = sh7722_siu_which(clk);
-	unsigned long r;
-	int div;
-
-	if (siu < 0)
-		return siu;
-	BUG_ON(siu > 2);
-	r = ctrl_inl(sh7722_siu_regs[siu]);
-	div = sh7722_find_divisors(clk->parent->rate, rate);
-	if (div < 0)
-		return div;
-	r = (r & ~0xF) | div;
-	ctrl_outl(r, sh7722_siu_regs[siu]);
-	return 0;
-}
-
-static void sh7722_siu_recalc(struct clk *clk)
-{
-	int siu = sh7722_siu_which(clk);
-	unsigned long r;
-
-	if (siu < 0)
-		return /* siu */ ;
-	BUG_ON(siu > 2);
-	r = ctrl_inl(sh7722_siu_regs[siu]);
-	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
-}
-
-static struct clk_ops sh7722_siu_clk_ops = {
-	.recalc = sh7722_siu_recalc,
-	.set_rate = sh7722_siu_set_rate,
-	.enable = sh7722_siu_enable,
-	.disable = sh7722_siu_disable,
-};
-
 static struct clk_ops sh7722_video_clk_ops = {
 	.recalc = sh7722_video_recalc,
 	.set_rate = sh7722_video_set_rate,
@@ -560,6 +533,9 @@ static struct clk sh7722_sdram_clock = {
 	.ops = &sh7722_frqcr_clk_ops,
 };
 
+
+#ifndef CONFIG_CPU_SUBTYPE_SH7343
+
 /*
  * these three clocks - SIU A, SIU B, IrDA - share the same clk_ops
  * methods of clk_ops determine which register they should access by
@@ -567,24 +543,137 @@ static struct clk sh7722_sdram_clock = {
  */
 static struct clk sh7722_siu_a_clock = {
 	.name = "siu_a_clk",
+	.arch_flags = SCLKACR,
 	.ops = &sh7722_siu_clk_ops,
 };
 
 static struct clk sh7722_siu_b_clock = {
 	.name = "siu_b_clk",
+	.arch_flags = SCLKBCR,
 	.ops = &sh7722_siu_clk_ops,
 };
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)
 static struct clk sh7722_irda_clock = {
 	.name = "irda_clk",
+	.arch_flags = IrDACLKCR,
 	.ops = &sh7722_siu_clk_ops,
 };
 #endif
+#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 static struct clk sh7722_video_clock = {
 	.name = "video_clk",
 	.ops = &sh7722_video_clk_ops,
+};
+
+static int sh7722_mstpcr_start_stop(struct clk *clk, unsigned long reg,
+				    int enable)
+{
+	unsigned long bit = clk->arch_flags;
+	unsigned long r;
+
+	r = ctrl_inl(reg);
+
+	if (enable)
+		r &= ~(1 << bit);
+	else
+		r |= (1 << bit);
+
+	ctrl_outl(r, reg);
+	return 0;
+}
+
+static void sh7722_mstpcr0_enable(struct clk *clk)
+{
+	sh7722_mstpcr_start_stop(clk, MSTPCR0, 1);
+}
+
+static void sh7722_mstpcr0_disable(struct clk *clk)
+{
+	sh7722_mstpcr_start_stop(clk, MSTPCR0, 0);
+}
+
+static void sh7722_mstpcr1_enable(struct clk *clk)
+{
+	sh7722_mstpcr_start_stop(clk, MSTPCR1, 1);
+}
+
+static void sh7722_mstpcr1_disable(struct clk *clk)
+{
+	sh7722_mstpcr_start_stop(clk, MSTPCR1, 0);
+}
+
+static void sh7722_mstpcr2_enable(struct clk *clk)
+{
+	sh7722_mstpcr_start_stop(clk, MSTPCR2, 1);
+}
+
+static void sh7722_mstpcr2_disable(struct clk *clk)
+{
+	sh7722_mstpcr_start_stop(clk, MSTPCR2, 0);
+}
+
+static struct clk_ops sh7722_mstpcr0_clk_ops = {
+	.enable = sh7722_mstpcr0_enable,
+	.disable = sh7722_mstpcr0_disable,
+};
+
+static struct clk_ops sh7722_mstpcr1_clk_ops = {
+	.enable = sh7722_mstpcr1_enable,
+	.disable = sh7722_mstpcr1_disable,
+};
+
+static struct clk_ops sh7722_mstpcr2_clk_ops = {
+	.enable = sh7722_mstpcr2_enable,
+	.disable = sh7722_mstpcr2_disable,
+};
+
+#define DECLARE_MSTPCRN(regnr, bitnr, bitstr)		\
+{							\
+	.name = "mstp" __stringify(regnr) bitstr,	\
+	.arch_flags = bitnr,				\
+	.ops = &sh7722_mstpcr ## regnr ## _clk_ops,	\
+}
+
+#define DECLARE_MSTPCR(regnr) \
+	DECLARE_MSTPCRN(regnr, 31, "31"), \
+	DECLARE_MSTPCRN(regnr, 30, "30"), \
+	DECLARE_MSTPCRN(regnr, 29, "29"), \
+	DECLARE_MSTPCRN(regnr, 28, "28"), \
+	DECLARE_MSTPCRN(regnr, 27, "27"), \
+	DECLARE_MSTPCRN(regnr, 26, "26"), \
+	DECLARE_MSTPCRN(regnr, 25, "25"), \
+	DECLARE_MSTPCRN(regnr, 24, "24"), \
+	DECLARE_MSTPCRN(regnr, 23, "23"), \
+	DECLARE_MSTPCRN(regnr, 22, "22"), \
+	DECLARE_MSTPCRN(regnr, 21, "21"), \
+	DECLARE_MSTPCRN(regnr, 20, "20"), \
+	DECLARE_MSTPCRN(regnr, 19, "19"), \
+	DECLARE_MSTPCRN(regnr, 18, "18"), \
+	DECLARE_MSTPCRN(regnr, 17, "17"), \
+	DECLARE_MSTPCRN(regnr, 16, "16"), \
+	DECLARE_MSTPCRN(regnr, 15, "15"), \
+	DECLARE_MSTPCRN(regnr, 14, "14"), \
+	DECLARE_MSTPCRN(regnr, 13, "13"), \
+	DECLARE_MSTPCRN(regnr, 12, "12"), \
+	DECLARE_MSTPCRN(regnr, 11, "11"), \
+	DECLARE_MSTPCRN(regnr, 10, "10"), \
+	DECLARE_MSTPCRN(regnr, 9, "09"), \
+	DECLARE_MSTPCRN(regnr, 8, "08"), \
+	DECLARE_MSTPCRN(regnr, 7, "07"), \
+	DECLARE_MSTPCRN(regnr, 6, "06"), \
+	DECLARE_MSTPCRN(regnr, 5, "05"), \
+	DECLARE_MSTPCRN(regnr, 4, "04"), \
+	DECLARE_MSTPCRN(regnr, 3, "03"), \
+	DECLARE_MSTPCRN(regnr, 2, "02"), \
+	DECLARE_MSTPCRN(regnr, 1, "01"), \
+	DECLARE_MSTPCRN(regnr, 0, "00")
+
+static struct clk sh7722_mstpcr[] = {
+	DECLARE_MSTPCR(0),
+	DECLARE_MSTPCR(1),
+	DECLARE_MSTPCR(2),
 };
 
 static struct clk *sh7722_clocks[] = {
@@ -592,10 +681,12 @@ static struct clk *sh7722_clocks[] = {
 	&sh7722_sh_clock,
 	&sh7722_peripheral_clock,
 	&sh7722_sdram_clock,
+#ifndef CONFIG_CPU_SUBTYPE_SH7343
 	&sh7722_siu_a_clock,
 	&sh7722_siu_b_clock,
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	&sh7722_irda_clock,
+#endif
 #endif
 	&sh7722_video_clock,
 };
@@ -629,5 +720,11 @@ int __init arch_clk_init(void)
 		clk_register(sh7722_clocks[i]);
 	}
 	clk_put(master);
+
+	for (i = 0; i < ARRAY_SIZE(sh7722_mstpcr); i++) {
+		pr_debug( "Registering mstpcr '%s'\n", sh7722_mstpcr[i].name);
+		clk_register(&sh7722_mstpcr[i]);
+	}
+
 	return 0;
 }

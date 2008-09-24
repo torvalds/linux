@@ -14,11 +14,12 @@
 #include <linux/delay.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/ethtool.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -92,6 +93,8 @@ static struct platform_device wnr854t_nor_flash = {
 
 static struct mv643xx_eth_platform_data wnr854t_eth_data = {
 	.phy_addr	= -1,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
 };
 
 static void __init wnr854t_init(void)

@@ -74,18 +74,6 @@ STATIC int xfs_rtmodify_summary(xfs_mount_t *, xfs_trans_t *, int,
  */
 
 /*
- * xfs_lowbit32: get low bit set out of 32-bit argument, -1 if none set.
- */
-STATIC int
-xfs_lowbit32(
-	__uint32_t	v)
-{
-	if (v)
-		return ffs(v) - 1;
-	return -1;
-}
-
-/*
  * Allocate space to the bitmap or summary file, and zero it, for growfs.
  */
 STATIC int				/* error */
@@ -450,6 +438,7 @@ xfs_rtallocate_extent_near(
 	}
 	bbno = XFS_BITTOBLOCK(mp, bno);
 	i = 0;
+	ASSERT(minlen != 0);
 	log2len = xfs_highbit32(minlen);
 	/*
 	 * Loop over all bitmap blocks (bbno + i is current block).
@@ -618,6 +607,8 @@ xfs_rtallocate_extent_size(
 	xfs_suminfo_t	sum;		/* summary information for extents */
 
 	ASSERT(minlen % prod == 0 && maxlen % prod == 0);
+	ASSERT(maxlen != 0);
+
 	/*
 	 * Loop over all the levels starting with maxlen.
 	 * At each level, look at all the bitmap blocks, to see if there
@@ -675,6 +666,9 @@ xfs_rtallocate_extent_size(
 		*rtblock = NULLRTBLOCK;
 		return 0;
 	}
+	ASSERT(minlen != 0);
+	ASSERT(maxlen != 0);
+
 	/*
 	 * Loop over sizes, from maxlen down to minlen.
 	 * This time, when we do the allocations, allow smaller ones
@@ -1961,6 +1955,7 @@ xfs_growfs_rt(
 				  nsbp->sb_blocksize * nsbp->sb_rextsize);
 		nsbp->sb_rextents = nsbp->sb_rblocks;
 		do_div(nsbp->sb_rextents, nsbp->sb_rextsize);
+		ASSERT(nsbp->sb_rextents != 0);
 		nsbp->sb_rextslog = xfs_highbit32(nsbp->sb_rextents);
 		nrsumlevels = nmp->m_rsumlevels = nsbp->sb_rextslog + 1;
 		nrsumsize =
@@ -2062,7 +2057,7 @@ xfs_growfs_rt(
 	/*
 	 * Free the fake mp structure.
 	 */
-	kmem_free(nmp, sizeof(*nmp));
+	kmem_free(nmp);
 
 	return error;
 }

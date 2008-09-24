@@ -38,6 +38,7 @@
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/tlb.h>
+#include <asm/elf.h>
 
 #include "misc.h"
 #include "vti.h"
@@ -59,12 +60,6 @@ static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
-};
-
-
-struct fdesc{
-    unsigned long ip;
-    unsigned long gp;
 };
 
 static void kvm_flush_icache(unsigned long start, unsigned long len)
@@ -125,9 +120,9 @@ void kvm_arch_hardware_enable(void *garbage)
 				PAGE_KERNEL));
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
+	local_irq_restore(saved_psr);
 	if (slot < 0)
 		return;
-	local_irq_restore(saved_psr);
 
 	spin_lock(&vp_lock);
 	status = ia64_pal_vp_init_env(kvm_vsa_base ?
@@ -160,9 +155,9 @@ void kvm_arch_hardware_disable(void *garbage)
 
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
+	local_irq_restore(saved_psr);
 	if (slot < 0)
 		return;
-	local_irq_restore(saved_psr);
 
 	status = ia64_pal_vp_exit_env(host_iva);
 	if (status)
@@ -1253,6 +1248,7 @@ static int vti_vcpu_setup(struct kvm_vcpu *vcpu, int id)
 uninit:
 	kvm_vcpu_uninit(vcpu);
 fail:
+	local_irq_restore(psr);
 	return r;
 }
 

@@ -24,9 +24,6 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA500 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -630,109 +627,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
 
-	vendor = id->idVendor;
-	product = id->idProduct;
-	switch (vendor) {
-	case 0x040a:		/* Kodak cameras */
-/*		switch (product) { */
-/*		case 0x0300: */
-			sd->subtype = KodakEZ200;
-/*			break; */
-/*		} */
-		break;
-	case 0x041e:		/* Creative cameras */
-/*		switch (product) { */
-/*		case 0x400a: */
-			sd->subtype = CreativePCCam300;
-/*			break; */
-/*		} */
-		break;
-	case 0x046d:		/* Logitech Labtec */
-		switch (product) {
-		case 0x0890:
-			sd->subtype = LogitechTraveler;
-			break;
-		case 0x0900:
-			sd->subtype = LogitechClickSmart310;
-			break;
-		case 0x0901:
-			sd->subtype = LogitechClickSmart510;
-			break;
-		}
-		break;
-	case 0x04a5:		/* Benq */
-/*		switch (product) { */
-/*		case 0x300c: */
-			sd->subtype = BenqDC1016;
-/*			break; */
-/*		} */
-		break;
-	case 0x04fc:		/* SunPlus */
-/*		switch (product) { */
-/*		case 0x7333: */
-			sd->subtype = PalmPixDC85;
-/*			break; */
-/*		} */
-		break;
-	case 0x055f:		/* Mustek cameras */
-		switch (product) {
-		case 0xc200:
-			sd->subtype = MustekGsmart300;
-			break;
-		case 0xc220:
-			sd->subtype = Gsmartmini;
-			break;
-		}
-		break;
-	case 0x06bd:		/* Agfa Cl20 */
-/*		switch (product) { */
-/*		case 0x0404: */
-			sd->subtype = AgfaCl20;
-/*			break; */
-/*		} */
-		break;
-	case 0x06be:		/* Optimedia */
-/*		switch (product) { */
-/*		case 0x0800: */
-			sd->subtype = Optimedia;
-/*			break; */
-/*		} */
-		break;
-	case 0x084d:		/* D-Link / Minton */
-/*		switch (product) { */
-/*		case 0x0003:	 * DSC-350 / S-Cam F5 */
-			sd->subtype = DLinkDSC350;
-/*			break; */
-/*		} */
-		break;
-	case 0x08ca:		/* Aiptek */
-/*		switch (product) { */
-/*		case 0x0103: */
-			sd->subtype = AiptekPocketDV;
-/*			break; */
-/*		} */
-		break;
-	case 0x2899:		/* ToptroIndustrial */
-/*		switch (product) { */
-/*		case 0x012c: */
-			sd->subtype = ToptroIndus;
-/*			break; */
-/*		} */
-		break;
-	case 0x8086:		/* Intel */
-/*		switch (product) { */
-/*		case 0x0630:	 * Pocket PC Camera */
-			sd->subtype = IntelPocketPCCamera;
-/*			break; */
-/*		} */
-		break;
-	}
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
+	sd->subtype = id->driver_info;
 	if (sd->subtype != LogitechClickSmart310) {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
@@ -747,8 +645,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -982,14 +880,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		gspca_dev->usb_buf[0]);
 }
 
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1153,32 +1043,29 @@ static struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x040a, 0x0300), DVNM("Kodak EZ200")},
-	{USB_DEVICE(0x041e, 0x400a), DVNM("Creative PC-CAM 300")},
-	{USB_DEVICE(0x046d, 0x0890), DVNM("Logitech QuickCam traveler")},
-	{USB_DEVICE(0x046d, 0x0900), DVNM("Logitech Inc. ClickSmart 310")},
-	{USB_DEVICE(0x046d, 0x0901), DVNM("Logitech Inc. ClickSmart 510")},
-	{USB_DEVICE(0x04a5, 0x300c), DVNM("Benq DC1016")},
-	{USB_DEVICE(0x04fc, 0x7333), DVNM("PalmPixDC85")},
-	{USB_DEVICE(0x055f, 0xc200), DVNM("Mustek Gsmart 300")},
-	{USB_DEVICE(0x055f, 0xc220), DVNM("Gsmart Mini")},
-	{USB_DEVICE(0x06bd, 0x0404), DVNM("Agfa CL20")},
-	{USB_DEVICE(0x06be, 0x0800), DVNM("Optimedia")},
-	{USB_DEVICE(0x084d, 0x0003), DVNM("D-Link DSC-350")},
-	{USB_DEVICE(0x08ca, 0x0103), DVNM("Aiptek PocketDV")},
-	{USB_DEVICE(0x2899, 0x012c), DVNM("Toptro Industrial")},
-	{USB_DEVICE(0x8086, 0x0630), DVNM("Intel Pocket PC Camera")},
+	{USB_DEVICE(0x040a, 0x0300), .driver_info = KodakEZ200},
+	{USB_DEVICE(0x041e, 0x400a), .driver_info = CreativePCCam300},
+	{USB_DEVICE(0x046d, 0x0890), .driver_info = LogitechTraveler},
+	{USB_DEVICE(0x046d, 0x0900), .driver_info = LogitechClickSmart310},
+	{USB_DEVICE(0x046d, 0x0901), .driver_info = LogitechClickSmart510},
+	{USB_DEVICE(0x04a5, 0x300c), .driver_info = BenqDC1016},
+	{USB_DEVICE(0x04fc, 0x7333), .driver_info = PalmPixDC85},
+	{USB_DEVICE(0x055f, 0xc200), .driver_info = MustekGsmart300},
+	{USB_DEVICE(0x055f, 0xc220), .driver_info = Gsmartmini},
+	{USB_DEVICE(0x06bd, 0x0404), .driver_info = AgfaCl20},
+	{USB_DEVICE(0x06be, 0x0800), .driver_info = Optimedia},
+	{USB_DEVICE(0x084d, 0x0003), .driver_info = DLinkDSC350},
+	{USB_DEVICE(0x08ca, 0x0103), .driver_info = AiptekPocketDV},
+	{USB_DEVICE(0x2899, 0x012c), .driver_info = ToptroIndus},
+	{USB_DEVICE(0x8086, 0x0630), .driver_info = IntelPocketPCCamera},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1196,6 +1083,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
@@ -1203,7 +1094,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

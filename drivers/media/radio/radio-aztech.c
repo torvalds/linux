@@ -33,6 +33,7 @@
 #include <asm/uaccess.h>	/* copy to/from user		*/
 #include <linux/videodev2.h>	/* kernel radio structs		*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #define RADIO_VERSION KERNEL_VERSION(0,0,2)
@@ -352,12 +353,7 @@ static const struct file_operations aztech_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device aztech_radio=
-{
-	.owner		    = THIS_MODULE,
-	.name		    = "Aztech radio",
-	.type		    = VID_TYPE_TUNER,
-	.fops               = &aztech_fops,
+static const struct v4l2_ioctl_ops aztech_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -370,6 +366,12 @@ static struct video_device aztech_radio=
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device aztech_radio = {
+	.name		    = "Aztech radio",
+	.fops               = &aztech_fops,
+	.ioctl_ops 	    = &aztech_ioctl_ops,
 };
 
 module_param_named(debug,aztech_radio.debug, int, 0644);
@@ -392,8 +394,7 @@ static int __init aztech_init(void)
 	mutex_init(&lock);
 	aztech_radio.priv=&aztech_unit;
 
-	if(video_register_device(&aztech_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&aztech_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io,2);
 		return -EINVAL;
 	}

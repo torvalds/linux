@@ -20,10 +20,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <asm/arch/spitz.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/spitz.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
 
 #define KB_ROWS			7
 #define KB_COLS			11

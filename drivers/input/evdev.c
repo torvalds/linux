@@ -647,6 +647,47 @@ static int str_to_user(const char *str, unsigned int maxlen, void __user *p)
 	return copy_to_user(p, str, len) ? -EFAULT : len;
 }
 
+#define OLD_KEY_MAX	0x1ff
+static int handle_eviocgbit(struct input_dev *dev, unsigned int cmd, void __user *p, int compat_mode)
+{
+	static unsigned long keymax_warn_time;
+	unsigned long *bits;
+	int len;
+
+	switch (_IOC_NR(cmd) & EV_MAX) {
+
+	case      0: bits = dev->evbit;  len = EV_MAX;  break;
+	case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
+	case EV_REL: bits = dev->relbit; len = REL_MAX; break;
+	case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
+	case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
+	case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
+	case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
+	case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
+	case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
+	default: return -EINVAL;
+	}
+
+	/*
+	 * Work around bugs in userspace programs that like to do
+	 * EVIOCGBIT(EV_KEY, KEY_MAX) and not realize that 'len'
+	 * should be in bytes, not in bits.
+	 */
+	if ((_IOC_NR(cmd) & EV_MAX) == EV_KEY && _IOC_SIZE(cmd) == OLD_KEY_MAX) {
+		len = OLD_KEY_MAX;
+		if (printk_timed_ratelimit(&keymax_warn_time, 10 * 1000))
+			printk(KERN_WARNING
+				"evdev.c(EVIOCGBIT): Suspicious buffer size %u, "
+				"limiting output to %zu bytes. See "
+				"http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
+				OLD_KEY_MAX,
+				BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
+	}
+
+	return bits_to_user(bits, len, _IOC_SIZE(cmd), p, compat_mode);
+}
+#undef OLD_KEY_MAX
+
 static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			   void __user *p, int compat_mode)
 {
@@ -733,26 +774,8 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 		if (_IOC_DIR(cmd) == _IOC_READ) {
 
-			if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0, 0))) {
-
-				unsigned long *bits;
-				int len;
-
-				switch (_IOC_NR(cmd) & EV_MAX) {
-
-				case      0: bits = dev->evbit;  len = EV_MAX;  break;
-				case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
-				case EV_REL: bits = dev->relbit; len = REL_MAX; break;
-				case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
-				case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
-				case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
-				case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
-				case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
-				case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
-				default: return -EINVAL;
-				}
-				return bits_to_user(bits, len, _IOC_SIZE(cmd), p, compat_mode);
-			}
+			if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0, 0)))
+				return handle_eviocgbit(dev, cmd, p, compat_mode);
 
 			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGKEY(0)))
 				return bits_to_user(dev->key, KEY_MAX, _IOC_SIZE(cmd),

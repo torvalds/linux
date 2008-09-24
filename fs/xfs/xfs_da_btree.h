@@ -99,6 +99,15 @@ typedef struct xfs_da_node_entry xfs_da_node_entry_t;
  *========================================================================*/
 
 /*
+ * Search comparison results
+ */
+enum xfs_dacmp {
+	XFS_CMP_DIFFERENT,	/* names are completely different */
+	XFS_CMP_EXACT,		/* names are exactly the same */
+	XFS_CMP_CASE		/* names are same but differ in case */
+};
+
+/*
  * Structure to ease passing around component names.
  */
 typedef struct xfs_da_args {
@@ -123,11 +132,18 @@ typedef struct xfs_da_args {
 	int		index2;		/* index of 2nd attr in blk */
 	xfs_dablk_t	rmtblkno2;	/* remote attr value starting blkno */
 	int		rmtblkcnt2;	/* remote attr value block count */
-	unsigned char	justcheck;	/* T/F: check for ok with no space */
-	unsigned char	rename;		/* T/F: this is an atomic rename op */
-	unsigned char	addname;	/* T/F: this is an add operation */
-	unsigned char	oknoent;	/* T/F: ok to return ENOENT, else die */
+	int		op_flags;	/* operation flags */
+	enum xfs_dacmp	cmpresult;	/* name compare result for lookups */
 } xfs_da_args_t;
+
+/*
+ * Operation flags:
+ */
+#define XFS_DA_OP_JUSTCHECK	0x0001	/* check for ok with no space */
+#define XFS_DA_OP_RENAME	0x0002	/* this is an atomic rename op */
+#define XFS_DA_OP_ADDNAME	0x0004	/* this is an add operation */
+#define XFS_DA_OP_OKNOENT	0x0008	/* lookup/add op, ENOENT ok, else die */
+#define XFS_DA_OP_CILOOKUP	0x0010	/* lookup to return CI name if found */
 
 /*
  * Structure to describe buffer(s) for a block.
@@ -201,6 +217,14 @@ typedef struct xfs_da_state {
 		(uint)(XFS_DA_LOGOFF(BASE, ADDR)), \
 		(uint)(XFS_DA_LOGOFF(BASE, ADDR)+(SIZE)-1)
 
+/*
+ * Name ops for directory and/or attr name operations
+ */
+struct xfs_nameops {
+	xfs_dahash_t	(*hashname)(struct xfs_name *);
+	enum xfs_dacmp	(*compname)(struct xfs_da_args *, const char *, int);
+};
+
 
 #ifdef __KERNEL__
 /*========================================================================
@@ -249,6 +273,10 @@ int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  xfs_dabuf_t *dead_buf);
 
 uint xfs_da_hashname(const uchar_t *name_string, int name_length);
+enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
+				const char *name, int len);
+
+
 xfs_da_state_t *xfs_da_state_alloc(void);
 void xfs_da_state_free(xfs_da_state_t *state);
 

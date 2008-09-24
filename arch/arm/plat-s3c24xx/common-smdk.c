@@ -31,12 +31,12 @@
 #include <asm/mach/irq.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/leds-gpio.h>
+#include <mach/regs-gpio.h>
+#include <mach/leds-gpio.h>
 
 #include <asm/plat-s3c/nand.h>
 

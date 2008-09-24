@@ -145,8 +145,8 @@ netxen_issue_cmd(struct netxen_adapter *adapter,
 	return rcode;
 }
 
-u32
-nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, u32 mtu)
+int
+nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu)
 {
 	u32 rcode = NX_RCODE_SUCCESS;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx[0];
@@ -160,7 +160,10 @@ nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, u32 mtu)
 				0,
 				NX_CDRP_CMD_SET_MTU);
 
-	return rcode;
+	if (rcode != NX_RCODE_SUCCESS)
+		return -EIO;
+
+	return 0;
 }
 
 static int

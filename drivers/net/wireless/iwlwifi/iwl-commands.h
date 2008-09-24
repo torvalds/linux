@@ -666,8 +666,7 @@ struct iwl4965_rxon_assoc_cmd {
 	__le16 reserved;
 } __attribute__ ((packed));
 
-
-
+#define IWL_CONN_MAX_LISTEN_INTERVAL	10
 
 /*
  * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
@@ -1076,10 +1075,12 @@ struct iwl4965_rx_frame {
 } __attribute__ ((packed));
 
 /* Fixed (non-configurable) rx data from phy */
-#define RX_PHY_FLAGS_ANTENNAE_OFFSET		(4)
-#define RX_PHY_FLAGS_ANTENNAE_MASK		(0x70)
-#define IWL_AGC_DB_MASK 	(0x3f80)	/* MASK(7,13) */
-#define IWL_AGC_DB_POS		(7)
+
+#define IWL49_RX_RES_PHY_CNT 14
+#define IWL49_RX_PHY_FLAGS_ANTENNAE_OFFSET	(4)
+#define IWL49_RX_PHY_FLAGS_ANTENNAE_MASK	(0x70)
+#define IWL49_AGC_DB_MASK			(0x3f80)	/* MASK(7,13) */
+#define IWL49_AGC_DB_POS			(7)
 struct iwl4965_rx_non_cfg_phy {
 	__le16 ant_selection;	/* ant A bit 4, ant B bit 5, ant C bit 6 */
 	__le16 agc_info;	/* agc code 0:6, agc dB 7:13, reserved 14:15 */
@@ -1087,12 +1088,30 @@ struct iwl4965_rx_non_cfg_phy {
 	u8 pad[0];
 } __attribute__ ((packed));
 
+
+#define IWL50_RX_RES_PHY_CNT 8
+#define IWL50_RX_RES_AGC_IDX     1
+#define IWL50_RX_RES_RSSI_AB_IDX 2
+#define IWL50_RX_RES_RSSI_C_IDX  3
+#define IWL50_OFDM_AGC_MSK 0xfe00
+#define IWL50_OFDM_AGC_BIT_POS 9
+#define IWL50_OFDM_RSSI_A_MSK 0x00ff
+#define IWL50_OFDM_RSSI_A_BIT_POS 0
+#define IWL50_OFDM_RSSI_B_MSK 0xff0000
+#define IWL50_OFDM_RSSI_B_BIT_POS 16
+#define IWL50_OFDM_RSSI_C_MSK 0x00ff
+#define IWL50_OFDM_RSSI_C_BIT_POS 0
+
+struct iwl5000_non_cfg_phy {
+	__le32 non_cfg_phy[IWL50_RX_RES_PHY_CNT];  /* upto 8 phy entries */
+} __attribute__ ((packed));
+
+
 /*
  * REPLY_RX = 0xc3 (response only, not a command)
  * Used only for legacy (non 11n) frames.
  */
-#define RX_RES_PHY_CNT 14
-struct iwl4965_rx_phy_res {
+struct iwl_rx_phy_res {
 	u8 non_cfg_phy_cnt;     /* non configurable DSP phy data byte count */
 	u8 cfg_phy_cnt;		/* configurable DSP phy data byte count */
 	u8 stat_id;		/* configurable DSP phy data set ID */
@@ -1101,8 +1120,7 @@ struct iwl4965_rx_phy_res {
 	__le32 beacon_time_stamp; /* beacon at on-air rise */
 	__le16 phy_flags;	/* general phy flags: band, modulation, ... */
 	__le16 channel;		/* channel number */
-	__le16 non_cfg_phy[RX_RES_PHY_CNT];	/* upto 14 phy entries */
-	__le32 reserved2;
+	u8 non_cfg_phy_buf[32]; /* for various implementations of non_cfg_phy */
 	__le32 rate_n_flags;	/* RATE_MCS_* */
 	__le16 byte_count;	/* frame's byte-count */
 	__le16 reserved3;
@@ -1993,7 +2011,7 @@ struct iwl4965_spectrum_notification {
  *****************************************************************************/
 
 /**
- * struct iwl4965_powertable_cmd - Power Table Command
+ * struct iwl_powertable_cmd - Power Table Command
  * @flags: See below:
  *
  * POWER_TABLE_CMD = 0x77 (command, has simple generic response)
@@ -2027,7 +2045,7 @@ struct iwl4965_spectrum_notification {
 #define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le16(1 << 3)
 #define IWL_POWER_FAST_PD			__constant_cpu_to_le16(1 << 4)
 
-struct iwl4965_powertable_cmd {
+struct iwl_powertable_cmd {
 	__le16 flags;
 	u8 keep_alive_seconds;
 	u8 debug_flags;
@@ -2324,7 +2342,7 @@ struct iwl4965_beacon_notif {
 /*
  * REPLY_TX_BEACON = 0x91 (command, has simple generic response)
  */
-struct iwl4965_tx_beacon_cmd {
+struct iwl_tx_beacon_cmd {
 	struct iwl_tx_cmd tx;
 	__le16 tim_idx;
 	u8 tim_size;

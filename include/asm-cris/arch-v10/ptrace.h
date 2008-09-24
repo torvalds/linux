@@ -106,10 +106,14 @@ struct switch_stack {
 	unsigned long return_ip; /* ip that _resume will return to */
 };
 
+#ifdef __KERNEL__
+
 /* bit 8 is user-mode flag */
 #define user_mode(regs) (((regs)->dccr & 0x100) != 0)
 #define instruction_pointer(regs) ((regs)->irp)
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
+
+#endif  /*  __KERNEL__  */
 
 #endif

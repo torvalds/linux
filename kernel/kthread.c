@@ -176,7 +176,7 @@ void kthread_bind(struct task_struct *k, unsigned int cpu)
 		return;
 	}
 	/* Must have done schedule() in kthread() before we set_task_cpu */
-	wait_task_inactive(k);
+	wait_task_inactive(k, 0);
 	set_task_cpu(k, cpu);
 	k->cpus_allowed = cpumask_of_cpu(cpu);
 	k->rt.nr_cpus_allowed = 1;

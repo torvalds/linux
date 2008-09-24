@@ -34,8 +34,9 @@
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
+#include <asm/vio.h>
 
-#define MODULE_VERS "1.7"
+#define MODULE_VERS "1.8"
 #define MODULE_NAME "lparcfg"
 
 /* #define LPARCFG_DEBUG */
@@ -129,32 +130,46 @@ static int iseries_lparcfg_data(struct seq_file *m, void *v)
 /*
  * Methods used to fetch LPAR data when running on a pSeries platform.
  */
-static void log_plpar_hcall_return(unsigned long rc, char *tag)
+/**
+ * h_get_mpp
+ * H_GET_MPP hcall returns info in 7 parms
+ */
+int h_get_mpp(struct hvcall_mpp_data *mpp_data)
 {
-	switch(rc) {
-	case 0:
-		return;
-	case H_HARDWARE:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Hardware fault\n", tag);
-		return;
-	case H_FUNCTION:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Function not allowed\n", tag);
-		return;
-	case H_AUTHORITY:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Not authorized to this function\n", tag);
-		return;
-	case H_PARAMETER:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Bad parameter(s)\n",tag);
-		return;
-	default:
-		printk(KERN_INFO "plpar-hcall (%s) "
-				"Unexpected rc(0x%lx)\n", tag, rc);
-	}
+	int rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+
+	rc = plpar_hcall9(H_GET_MPP, retbuf);
+
+	mpp_data->entitled_mem = retbuf[0];
+	mpp_data->mapped_mem = retbuf[1];
+
+	mpp_data->group_num = (retbuf[2] >> 2 * 8) & 0xffff;
+	mpp_data->pool_num = retbuf[2] & 0xffff;
+
+	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
+	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
+	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
+
+	mpp_data->pool_size = retbuf[4];
+	mpp_data->loan_request = retbuf[5];
+	mpp_data->backing_mem = retbuf[6];
+
+	return rc;
 }
+EXPORT_SYMBOL(h_get_mpp);
+
+struct hvcall_ppp_data {
+	u64	entitlement;
+	u64	unallocated_entitlement;
+	u16	group_num;
+	u16	pool_num;
+	u8	capped;
+	u8	weight;
+	u8	unallocated_weight;
+	u16	active_procs_in_pool;
+	u16	active_system_procs;
+};
 
 /*
  * H_GET_PPP hcall returns info in 4 parms.
@@ -176,27 +191,30 @@ static void log_plpar_hcall_return(unsigned long rc, char *tag)
  *              XXXX - Active processors in Physical Processor Pool.
  *                  XXXX  - Processors active on platform.
  */
-static unsigned int h_get_ppp(unsigned long *entitled,
-			      unsigned long *unallocated,
-			      unsigned long *aggregation,
-			      unsigned long *resource)
+static unsigned int h_get_ppp(struct hvcall_ppp_data *ppp_data)
 {
 	unsigned long rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 
 	rc = plpar_hcall(H_GET_PPP, retbuf);
 
-	*entitled = retbuf[0];
-	*unallocated = retbuf[1];
-	*aggregation = retbuf[2];
-	*resource = retbuf[3];
+	ppp_data->entitlement = retbuf[0];
+	ppp_data->unallocated_entitlement = retbuf[1];
 
-	log_plpar_hcall_return(rc, "H_GET_PPP");
+	ppp_data->group_num = (retbuf[2] >> 2 * 8) & 0xffff;
+	ppp_data->pool_num = retbuf[2] & 0xffff;
+
+	ppp_data->capped = (retbuf[3] >> 6 * 8) & 0x01;
+	ppp_data->weight = (retbuf[3] >> 5 * 8) & 0xff;
+	ppp_data->unallocated_weight = (retbuf[3] >> 4 * 8) & 0xff;
+	ppp_data->active_procs_in_pool = (retbuf[3] >> 2 * 8) & 0xffff;
+	ppp_data->active_system_procs = retbuf[3] & 0xffff;
 
 	return rc;
 }
 
-static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
+static unsigned h_pic(unsigned long *pool_idle_time,
+		      unsigned long *num_procs)
 {
 	unsigned long rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
@@ -206,8 +224,87 @@ static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 	*pool_idle_time = retbuf[0];
 	*num_procs = retbuf[1];
 
-	if (rc != H_AUTHORITY)
-		log_plpar_hcall_return(rc, "H_PIC");
+	return rc;
+}
+
+/*
+ * parse_ppp_data
+ * Parse out the data returned from h_get_ppp and h_pic
+ */
+static void parse_ppp_data(struct seq_file *m)
+{
+	struct hvcall_ppp_data ppp_data;
+	int rc;
+
+	rc = h_get_ppp(&ppp_data);
+	if (rc)
+		return;
+
+	seq_printf(m, "partition_entitled_capacity=%ld\n",
+	           ppp_data.entitlement);
+	seq_printf(m, "group=%d\n", ppp_data.group_num);
+	seq_printf(m, "system_active_processors=%d\n",
+	           ppp_data.active_system_procs);
+
+	/* pool related entries are apropriate for shared configs */
+	if (lppaca[0].shared_proc) {
+		unsigned long pool_idle_time, pool_procs;
+
+		seq_printf(m, "pool=%d\n", ppp_data.pool_num);
+
+		/* report pool_capacity in percentage */
+		seq_printf(m, "pool_capacity=%d\n",
+			   ppp_data.active_procs_in_pool * 100);
+
+		h_pic(&pool_idle_time, &pool_procs);
+		seq_printf(m, "pool_idle_time=%ld\n", pool_idle_time);
+		seq_printf(m, "pool_num_procs=%ld\n", pool_procs);
+	}
+
+	seq_printf(m, "unallocated_capacity_weight=%d\n",
+		   ppp_data.unallocated_weight);
+	seq_printf(m, "capacity_weight=%d\n", ppp_data.weight);
+	seq_printf(m, "capped=%d\n", ppp_data.capped);
+	seq_printf(m, "unallocated_capacity=%ld\n",
+		   ppp_data.unallocated_entitlement);
+}
+
+/**
+ * parse_mpp_data
+ * Parse out data returned from h_get_mpp
+ */
+static void parse_mpp_data(struct seq_file *m)
+{
+	struct hvcall_mpp_data mpp_data;
+	int rc;
+
+	rc = h_get_mpp(&mpp_data);
+	if (rc)
+		return;
+
+	seq_printf(m, "entitled_memory=%ld\n", mpp_data.entitled_mem);
+
+	if (mpp_data.mapped_mem != -1)
+		seq_printf(m, "mapped_entitled_memory=%ld\n",
+		           mpp_data.mapped_mem);
+
+	seq_printf(m, "entitled_memory_group_number=%d\n", mpp_data.group_num);
+	seq_printf(m, "entitled_memory_pool_number=%d\n", mpp_data.pool_num);
+
+	seq_printf(m, "entitled_memory_weight=%d\n", mpp_data.mem_weight);
+	seq_printf(m, "unallocated_entitled_memory_weight=%d\n",
+	           mpp_data.unallocated_mem_weight);
+	seq_printf(m, "unallocated_io_mapping_entitlement=%ld\n",
+	           mpp_data.unallocated_entitlement);
+
+	if (mpp_data.pool_size != -1)
+		seq_printf(m, "entitled_memory_pool_size=%ld bytes\n",
+		           mpp_data.pool_size);
+
+	seq_printf(m, "entitled_memory_loan_request=%ld\n",
+	           mpp_data.loan_request);
+
+	seq_printf(m, "backing_memory=%ld bytes\n", mpp_data.backing_mem);
 }
 
 #define SPLPAR_CHARACTERISTICS_TOKEN 20
@@ -313,6 +410,30 @@ static int lparcfg_count_active_processors(void)
 	return count;
 }
 
+static void pseries_cmo_data(struct seq_file *m)
+{
+	int cpu;
+	unsigned long cmo_faults = 0;
+	unsigned long cmo_fault_time = 0;
+
+	seq_printf(m, "cmo_enabled=%d\n", firmware_has_feature(FW_FEATURE_CMO));
+
+	if (!firmware_has_feature(FW_FEATURE_CMO))
+		return;
+
+	for_each_possible_cpu(cpu) {
+		cmo_faults += lppaca[cpu].cmo_faults;
+		cmo_fault_time += lppaca[cpu].cmo_fault_time;
+	}
+
+	seq_printf(m, "cmo_faults=%lu\n", cmo_faults);
+	seq_printf(m, "cmo_fault_time_usec=%lu\n",
+		   cmo_fault_time / tb_ticks_per_usec);
+	seq_printf(m, "cmo_primary_psp=%d\n", cmo_get_primary_psp());
+	seq_printf(m, "cmo_secondary_psp=%d\n", cmo_get_secondary_psp());
+	seq_printf(m, "cmo_page_size=%lu\n", cmo_get_page_size());
+}
+
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
@@ -334,60 +455,13 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	partition_active_processors = lparcfg_count_active_processors();
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		unsigned long h_entitled, h_unallocated;
-		unsigned long h_aggregation, h_resource;
-		unsigned long pool_idle_time, pool_procs;
-		unsigned long purr;
-
-		h_get_ppp(&h_entitled, &h_unallocated, &h_aggregation,
-			  &h_resource);
-
-		seq_printf(m, "R4=0x%lx\n", h_entitled);
-		seq_printf(m, "R5=0x%lx\n", h_unallocated);
-		seq_printf(m, "R6=0x%lx\n", h_aggregation);
-		seq_printf(m, "R7=0x%lx\n", h_resource);
-
-		purr = get_purr();
-
 		/* this call handles the ibm,get-system-parameter contents */
 		parse_system_parameter_string(m);
+		parse_ppp_data(m);
+		parse_mpp_data(m);
+		pseries_cmo_data(m);
 
-		seq_printf(m, "partition_entitled_capacity=%ld\n", h_entitled);
-
-		seq_printf(m, "group=%ld\n", (h_aggregation >> 2 * 8) & 0xffff);
-
-		seq_printf(m, "system_active_processors=%ld\n",
-			   (h_resource >> 0 * 8) & 0xffff);
-
-		/* pool related entries are apropriate for shared configs */
-		if (lppaca[0].shared_proc) {
-
-			h_pic(&pool_idle_time, &pool_procs);
-
-			seq_printf(m, "pool=%ld\n",
-				   (h_aggregation >> 0 * 8) & 0xffff);
-
-			/* report pool_capacity in percentage */
-			seq_printf(m, "pool_capacity=%ld\n",
-				   ((h_resource >> 2 * 8) & 0xffff) * 100);
-
-			seq_printf(m, "pool_idle_time=%ld\n", pool_idle_time);
-
-			seq_printf(m, "pool_num_procs=%ld\n", pool_procs);
-		}
-
-		seq_printf(m, "unallocated_capacity_weight=%ld\n",
-			   (h_resource >> 4 * 8) & 0xFF);
-
-		seq_printf(m, "capacity_weight=%ld\n",
-			   (h_resource >> 5 * 8) & 0xFF);
-
-		seq_printf(m, "capped=%ld\n", (h_resource >> 6 * 8) & 0x01);
-
-		seq_printf(m, "unallocated_capacity=%ld\n", h_unallocated);
-
-		seq_printf(m, "purr=%ld\n", purr);
-
+		seq_printf(m, "purr=%ld\n", get_purr());
 	} else {		/* non SPLPAR case */
 
 		seq_printf(m, "system_active_processors=%d\n",
@@ -414,6 +488,83 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	return 0;
 }
 
+static ssize_t update_ppp(u64 *entitlement, u8 *weight)
+{
+	struct hvcall_ppp_data ppp_data;
+	u8 new_weight;
+	u64 new_entitled;
+	ssize_t retval;
+
+	/* Get our current parameters */
+	retval = h_get_ppp(&ppp_data);
+	if (retval)
+		return retval;
+
+	if (entitlement) {
+		new_weight = ppp_data.weight;
+		new_entitled = *entitlement;
+	} else if (weight) {
+		new_weight = *weight;
+		new_entitled = ppp_data.entitlement;
+	} else
+		return -EINVAL;
+
+	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
+	         __FUNCTION__, ppp_data.entitlement, ppp_data.weight);
+
+	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
+		 __FUNCTION__, new_entitled, new_weight);
+
+	retval = plpar_hcall_norets(H_SET_PPP, new_entitled, new_weight);
+	return retval;
+}
+
+/**
+ * update_mpp
+ *
+ * Update the memory entitlement and weight for the partition.  Caller must
+ * specify either a new entitlement or weight, not both, to be updated
+ * since the h_set_mpp call takes both entitlement and weight as parameters.
+ */
+static ssize_t update_mpp(u64 *entitlement, u8 *weight)
+{
+	struct hvcall_mpp_data mpp_data;
+	u64 new_entitled;
+	u8 new_weight;
+	ssize_t rc;
+
+	if (entitlement) {
+		/* Check with vio to ensure the new memory entitlement
+		 * can be handled.
+		 */
+		rc = vio_cmo_entitlement_update(*entitlement);
+		if (rc)
+			return rc;
+	}
+
+	rc = h_get_mpp(&mpp_data);
+	if (rc)
+		return rc;
+
+	if (entitlement) {
+		new_weight = mpp_data.mem_weight;
+		new_entitled = *entitlement;
+	} else if (weight) {
+		new_weight = *weight;
+		new_entitled = mpp_data.entitled_mem;
+	} else
+		return -EINVAL;
+
+	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
+	         __FUNCTION__, mpp_data.entitled_mem, mpp_data.mem_weight);
+
+	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
+	         __FUNCTION__, new_entitled, new_weight);
+
+	rc = plpar_hcall_norets(H_SET_MPP, new_entitled, new_weight);
+	return rc;
+}
+
 /*
  * Interface for changing system parameters (variable capacity weight
  * and entitled capacity).  Format of input is "param_name=value";
@@ -427,35 +578,27 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 			     size_t count, loff_t * off)
 {
-	char *kbuf;
+	int kbuf_sz = 64;
+	char kbuf[kbuf_sz];
 	char *tmp;
 	u64 new_entitled, *new_entitled_ptr = &new_entitled;
 	u8 new_weight, *new_weight_ptr = &new_weight;
-
-	unsigned long current_entitled;	/* parameters for h_get_ppp */
-	unsigned long dummy;
-	unsigned long resource;
-	u8 current_weight;
-
-	ssize_t retval = -ENOMEM;
+	ssize_t retval;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR) ||
 			firmware_has_feature(FW_FEATURE_ISERIES))
 		return -EINVAL;
 
-	kbuf = kmalloc(count, GFP_KERNEL);
-	if (!kbuf)
-		goto out;
+	if (count > kbuf_sz)
+		return -EINVAL;
 
-	retval = -EFAULT;
 	if (copy_from_user(kbuf, buf, count))
-		goto out;
+		return -EFAULT;
 
-	retval = -EINVAL;
 	kbuf[count - 1] = '\0';
 	tmp = strchr(kbuf, '=');
 	if (!tmp)
-		goto out;
+		return -EINVAL;
 
 	*tmp++ = '\0';
 
@@ -463,34 +606,32 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		char *endp;
 		*new_entitled_ptr = (u64) simple_strtoul(tmp, &endp, 10);
 		if (endp == tmp)
-			goto out;
-		new_weight_ptr = &current_weight;
+			return -EINVAL;
+
+		retval = update_ppp(new_entitled_ptr, NULL);
 	} else if (!strcmp(kbuf, "capacity_weight")) {
 		char *endp;
 		*new_weight_ptr = (u8) simple_strtoul(tmp, &endp, 10);
 		if (endp == tmp)
-			goto out;
-		new_entitled_ptr = &current_entitled;
+			return -EINVAL;
+
+		retval = update_ppp(NULL, new_weight_ptr);
+	} else if (!strcmp(kbuf, "entitled_memory")) {
+		char *endp;
+		*new_entitled_ptr = (u64) simple_strtoul(tmp, &endp, 10);
+		if (endp == tmp)
+			return -EINVAL;
+
+		retval = update_mpp(new_entitled_ptr, NULL);
+	} else if (!strcmp(kbuf, "entitled_memory_weight")) {
+		char *endp;
+		*new_weight_ptr = (u8) simple_strtoul(tmp, &endp, 10);
+		if (endp == tmp)
+			return -EINVAL;
+
+		retval = update_mpp(NULL, new_weight_ptr);
 	} else
-		goto out;
-
-	/* Get our current parameters */
-	retval = h_get_ppp(&current_entitled, &dummy, &dummy, &resource);
-	if (retval) {
-		retval = -EIO;
-		goto out;
-	}
-
-	current_weight = (resource >> 5 * 8) & 0xFF;
-
-	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
-		 __func__, current_entitled, current_weight);
-
-	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
-		 __func__, *new_entitled_ptr, *new_weight_ptr);
-
-	retval = plpar_hcall_norets(H_SET_PPP, *new_entitled_ptr,
-				    *new_weight_ptr);
+		return -EINVAL;
 
 	if (retval == H_SUCCESS || retval == H_CONSTRAINED) {
 		retval = count;
@@ -500,14 +641,8 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		retval = -EIO;
 	} else if (retval == H_PARAMETER) {
 		retval = -EINVAL;
-	} else {
-		printk(KERN_WARNING "%s: received unknown hv return code %ld",
-		       __func__, retval);
-		retval = -EIO;
 	}
 
-out:
-	kfree(kbuf);
 	return retval;
 }
 

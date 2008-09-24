@@ -100,16 +100,16 @@ static struct platform_device net2272_bfin_device = {
 
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name       = "uboot",
+		.name       = "bootloader(spi)",
 		.size       = PSIZE_UBOOT,
 		.offset     = 0x000000,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name       = "initramfs",
+		.name       = "initramfs(spi)",
 		.size       = PSIZE_INITRAMFS,
 		.offset     = PSIZE_UBOOT
 	}, {
-		.name       = "opt",
+		.name       = "opt(spi)",
 		.size       = FLASH_SIZE - (PSIZE_UBOOT + PSIZE_INITRAMFS),
 		.offset     = PSIZE_UBOOT + PSIZE_INITRAMFS,
 	}

@@ -203,7 +203,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 			return 0;
 
 		/* FIXME: to properly support USERPTR, remap should occur.
-		   The code bellow won't work, since mem->vma = NULL
+		   The code below won't work, since mem->vma = NULL
 		 */
 		/* Try to remap memory */
 		rc = remap_vmalloc_range(mem->vma, (void *)vb->baddr, 0);

@@ -1,6 +1,4 @@
 /*
- * $Id: pcmciamtd.c,v 1.55 2005/11/07 11:14:28 gleixner Exp $
- *
  * pcmciamtd.c - MTD driver for PCMCIA flash memory cards
  *
  * Author: Simon Evans <spse@secret.org.uk>
@@ -48,7 +46,6 @@ static const int debug = 0;
 
 
 #define DRIVER_DESC	"PCMCIA Flash memory card driver"
-#define DRIVER_VERSION	"$Revision: 1.55 $"
 
 /* Size of the PCMCIA address space: 26 bits = 64 MB */
 #define MAX_PCMCIA_ADDR	0x4000000
@@ -785,7 +782,7 @@ static struct pcmcia_driver pcmciamtd_driver = {
 
 static int __init init_pcmciamtd(void)
 {
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 
 	if(bankwidth && bankwidth != 1 && bankwidth != 2) {
 		info("bad bankwidth (%d), using default", bankwidth);

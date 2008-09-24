@@ -38,6 +38,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/memcontrol.h>
+#include <linux/delayacct.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -390,17 +391,15 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 }
 
 /*
- * Attempt to detach a locked page from its ->mapping.  If it is dirty or if
- * someone else has a ref on the page, abort and return 0.  If it was
- * successfully detached, return 1.  Assumes the caller has a single ref on
- * this page.
+ * Same as remove_mapping, but if the page is removed from the mapping, it
+ * gets returned with a refcount of 0.
  */
-int remove_mapping(struct address_space *mapping, struct page *page)
+static int __remove_mapping(struct address_space *mapping, struct page *page)
 {
 	BUG_ON(!PageLocked(page));
 	BUG_ON(mapping != page_mapping(page));
 
-	write_lock_irq(&mapping->tree_lock);
+	spin_lock_irq(&mapping->tree_lock);
 	/*
 	 * The non racy check for a busy page.
 	 *
@@ -426,28 +425,48 @@ int remove_mapping(struct address_space *mapping, struct page *page)
 	 * Note that if SetPageDirty is always performed via set_page_dirty,
 	 * and thus under tree_lock, then this ordering is not required.
 	 */
-	if (unlikely(page_count(page) != 2))
+	if (!page_freeze_refs(page, 2))
 		goto cannot_free;
-	smp_rmb();
-	if (unlikely(PageDirty(page)))
+	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
+	if (unlikely(PageDirty(page))) {
+		page_unfreeze_refs(page, 2);
 		goto cannot_free;
+	}
 
 	if (PageSwapCache(page)) {
 		swp_entry_t swap = { .val = page_private(page) };
 		__delete_from_swap_cache(page);
-		write_unlock_irq(&mapping->tree_lock);
+		spin_unlock_irq(&mapping->tree_lock);
 		swap_free(swap);
-		__put_page(page);	/* The pagecache ref */
-		return 1;
+	} else {
+		__remove_from_page_cache(page);
+		spin_unlock_irq(&mapping->tree_lock);
 	}
 
-	__remove_from_page_cache(page);
-	write_unlock_irq(&mapping->tree_lock);
-	__put_page(page);
 	return 1;
 
 cannot_free:
-	write_unlock_irq(&mapping->tree_lock);
+	spin_unlock_irq(&mapping->tree_lock);
+	return 0;
+}
+
+/*
+ * Attempt to detach a locked page from its ->mapping.  If it is dirty or if
+ * someone else has a ref on the page, abort and return 0.  If it was
+ * successfully detached, return 1.  Assumes the caller has a single ref on
+ * this page.
+ */
+int remove_mapping(struct address_space *mapping, struct page *page)
+{
+	if (__remove_mapping(mapping, page)) {
+		/*
+		 * Unfreezing the refcount with 1 rather than 2 effectively
+		 * drops the pagecache ref for us without requiring another
+		 * atomic operation.
+		 */
+		page_unfreeze_refs(page, 1);
+		return 1;
+	}
 	return 0;
 }
 
@@ -477,7 +496,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		page = lru_to_page(page_list);
 		list_del(&page->lru);
 
-		if (TestSetPageLocked(page))
+		if (!trylock_page(page))
 			goto keep;
 
 		VM_BUG_ON(PageActive(page));
@@ -563,7 +582,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 				 * A synchronous write - probably a ramdisk.  Go
 				 * ahead and try to reclaim the page.
 				 */
-				if (TestSetPageLocked(page))
+				if (!trylock_page(page))
 					goto keep;
 				if (PageDirty(page) || PageWriteback(page))
 					goto keep_locked;
@@ -597,18 +616,34 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (PagePrivate(page)) {
 			if (!try_to_release_page(page, sc->gfp_mask))
 				goto activate_locked;
-			if (!mapping && page_count(page) == 1)
-				goto free_it;
+			if (!mapping && page_count(page) == 1) {
+				unlock_page(page);
+				if (put_page_testzero(page))
+					goto free_it;
+				else {
+					/*
+					 * rare race with speculative reference.
+					 * the speculative reference will free
+					 * this page shortly, so we may
+					 * increment nr_reclaimed here (and
+					 * leave it off the LRU).
+					 */
+					nr_reclaimed++;
+					continue;
+				}
+			}
 		}
 
-		if (!mapping || !remove_mapping(mapping, page))
+		if (!mapping || !__remove_mapping(mapping, page))
 			goto keep_locked;
 
-free_it:
 		unlock_page(page);
+free_it:
 		nr_reclaimed++;
-		if (!pagevec_add(&freed_pvec, page))
-			__pagevec_release_nonlru(&freed_pvec);
+		if (!pagevec_add(&freed_pvec, page)) {
+			__pagevec_free(&freed_pvec);
+			pagevec_reinit(&freed_pvec);
+		}
 		continue;
 
 activate_locked:
@@ -622,7 +657,7 @@ keep:
 	}
 	list_splice(&ret_pages, page_list);
 	if (pagevec_count(&freed_pvec))
-		__pagevec_release_nonlru(&freed_pvec);
+		__pagevec_free(&freed_pvec);
 	count_vm_events(PGACTIVATE, pgactivate);
 	return nr_reclaimed;
 }
@@ -1316,6 +1351,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 	struct zone *zone;
 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
 
+	delayacct_freepages_start();
+
 	if (scan_global_lru(sc))
 		count_vm_event(ALLOCSTALL);
 	/*
@@ -1371,7 +1408,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		if (sc->nr_scanned && priority < DEF_PRIORITY - 2)
 			congestion_wait(WRITE, HZ/10);
 	}
-	/* top priority shrink_caches still had more to do? don't OOM, then */
+	/* top priority shrink_zones still had more to do? don't OOM, then */
 	if (!sc->all_unreclaimable && scan_global_lru(sc))
 		ret = nr_reclaimed;
 out:
@@ -1395,6 +1432,8 @@ out:
 		}
 	} else
 		mem_cgroup_record_reclaim_priority(sc->mem_cgroup, priority);
+
+	delayacct_freepages_end();
 
 	return ret;
 }
@@ -1940,7 +1979,7 @@ module_init(kswapd_init)
 int zone_reclaim_mode __read_mostly;
 
 #define RECLAIM_OFF 0
-#define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
+#define RECLAIM_ZONE (1<<0)	/* Run shrink_inactive_list on the zone */
 #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
 #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
 

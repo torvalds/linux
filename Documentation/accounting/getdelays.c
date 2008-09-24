@@ -196,14 +196,24 @@ void print_delayacct(struct taskstats *t)
 	       "      %15llu%15llu%15llu%15llu\n"
 	       "IO    %15s%15s\n"
 	       "      %15llu%15llu\n"
-	       "MEM   %15s%15s\n"
+	       "SWAP  %15s%15s\n"
+	       "      %15llu%15llu\n"
+	       "RECLAIM  %12s%15s\n"
 	       "      %15llu%15llu\n",
 	       "count", "real total", "virtual total", "delay total",
-	       t->cpu_count, t->cpu_run_real_total, t->cpu_run_virtual_total,
-	       t->cpu_delay_total,
+	       (unsigned long long)t->cpu_count,
+	       (unsigned long long)t->cpu_run_real_total,
+	       (unsigned long long)t->cpu_run_virtual_total,
+	       (unsigned long long)t->cpu_delay_total,
 	       "count", "delay total",
-	       t->blkio_count, t->blkio_delay_total,
-	       "count", "delay total", t->swapin_count, t->swapin_delay_total);
+	       (unsigned long long)t->blkio_count,
+	       (unsigned long long)t->blkio_delay_total,
+	       "count", "delay total",
+	       (unsigned long long)t->swapin_count,
+	       (unsigned long long)t->swapin_delay_total,
+	       "count", "delay total",
+	       (unsigned long long)t->freepages_count,
+	       (unsigned long long)t->freepages_delay_total);
 }
 
 void task_context_switch_counts(struct taskstats *t)
@@ -211,14 +221,17 @@ void task_context_switch_counts(struct taskstats *t)
 	printf("\n\nTask   %15s%15s\n"
 	       "       %15llu%15llu\n",
 	       "voluntary", "nonvoluntary",
-	       t->nvcsw, t->nivcsw);
+	       (unsigned long long)t->nvcsw, (unsigned long long)t->nivcsw);
 }
 
 void print_cgroupstats(struct cgroupstats *c)
 {
 	printf("sleeping %llu, blocked %llu, running %llu, stopped %llu, "
-		"uninterruptible %llu\n", c->nr_sleeping, c->nr_io_wait,
-		c->nr_running, c->nr_stopped, c->nr_uninterruptible);
+		"uninterruptible %llu\n", (unsigned long long)c->nr_sleeping,
+		(unsigned long long)c->nr_io_wait,
+		(unsigned long long)c->nr_running,
+		(unsigned long long)c->nr_stopped,
+		(unsigned long long)c->nr_uninterruptible);
 }
 
 

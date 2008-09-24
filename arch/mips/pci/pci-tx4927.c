@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4927.h>
 
@@ -80,4 +81,13 @@ int __init tx4927_pciclk66_setup(void)
 	} else
 		pciclk = -1;
 	return pciclk;
+}
+
+void __init tx4927_setup_pcierr_irq(void)
+{
+	if (request_irq(TXX9_IRQ_BASE + TX4927_IR_PCIERR,
+			tx4927_pcierr_interrupt,
+			IRQF_DISABLED, "PCI error",
+			(void *)TX4927_PCIC_REG))
+		printk(KERN_WARNING "Failed to request irq for PCIERR\n");
 }

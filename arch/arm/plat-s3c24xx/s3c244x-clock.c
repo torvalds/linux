@@ -34,12 +34,12 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/arch/regs-clock.h>
+#include <mach/regs-clock.h>
 
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/cpu.h>

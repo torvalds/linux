@@ -24,9 +24,9 @@
 
 void __init nslu2_pci_preinit(void)
 {
-	set_irq_type(IRQ_NSLU2_PCI_INTA, IRQT_LOW);
-	set_irq_type(IRQ_NSLU2_PCI_INTB, IRQT_LOW);
-	set_irq_type(IRQ_NSLU2_PCI_INTC, IRQT_LOW);
+	set_irq_type(IRQ_NSLU2_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_NSLU2_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_NSLU2_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
 
 	ixp4xx_pci_preinit();
 }

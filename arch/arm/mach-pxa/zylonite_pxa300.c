@@ -20,9 +20,9 @@
 #include <linux/i2c/pca953x.h>
 
 #include <asm/gpio.h>
-#include <asm/arch/mfp-pxa300.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/zylonite.h>
+#include <mach/mfp-pxa300.h>
+#include <mach/i2c.h>
+#include <mach/zylonite.h>
 
 #include "generic.h"
 

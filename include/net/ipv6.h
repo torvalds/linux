@@ -608,6 +608,8 @@ extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
 extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
 extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
+extern int ipv6_static_sysctl_register(void);
+extern void ipv6_static_sysctl_unregister(void);
 #endif
 
 #endif /* __KERNEL__ */

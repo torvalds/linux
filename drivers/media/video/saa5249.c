@@ -57,6 +57,7 @@
 #include <linux/videotext.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
 
@@ -710,9 +711,7 @@ static const struct file_operations saa_fops = {
 
 static struct video_device saa_template =
 {
-	.owner		= THIS_MODULE,
 	.name		= IF_NAME,
-	.type		= VID_TYPE_TELETEXT,	/*| VID_TYPE_TUNER ?? */
 	.fops           = &saa_fops,
 };
 

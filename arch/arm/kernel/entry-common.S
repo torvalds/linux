@@ -10,7 +10,7 @@
 
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
-#include <asm/arch/entry-macro.S>
+#include <mach/entry-macro.S>
 
 #include "entry-header.S"
 

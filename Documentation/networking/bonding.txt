@@ -631,7 +631,7 @@ xmit_hash_policy
 		in environments where a layer3 gateway device is
 		required to reach most destinations.
 
-		This algorithm is 802.3ad complient.
+		This algorithm is 802.3ad compliant.
 
 	layer3+4
 

@@ -234,7 +234,7 @@ config MEM_MT48LC16M16A2TG_75
 	bool
 	depends on (BFIN533_EZKIT || BFIN561_EZKIT \
 		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM \
-		|| H8606_HVSISTEMAS)
+		|| H8606_HVSISTEMAS || BFIN527_BLUETECHNIX_CM)
 	default y
 
 config MEM_MT48LC32M8A2_75
@@ -249,7 +249,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN532_IP0X)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -292,7 +292,7 @@ config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -309,25 +309,6 @@ config BFIN_KERNEL_CLOCK
 	  bootloader settings. If the clocks are not set, the SDRAM settings
 	  are also not changed, and the Bootloader does 100% of the hardware
 	  configuration.
-
-config MEM_SIZE
-	int "SDRAM Memory Size in MBytes"
-	depends on BFIN_KERNEL_CLOCK
-	default 64
-
-config MEM_ADD_WIDTH
-	int "Memory Address Width"
-	depends on BFIN_KERNEL_CLOCK
-	depends on (!BF54x)
-	range 8 11
-	default  9 if BFIN533_EZKIT
-	default  9 if BFIN561_EZKIT
-	default  9 if H8606_HVSISTEMAS
-	default 10 if BFIN527_EZKIT
-	default 10 if BFIN537_STAMP
-	default 11 if BFIN533_STAMP
-	default 10 if PNAV10
-	default 10 if BFIN532_IP0X
 
 config PLL_BYPASS
 	bool "Bypass PLL"
@@ -349,10 +330,9 @@ config VCO_MULT
 	default "45" if BFIN533_STAMP
 	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM)
 	default "22" if BFIN533_BLUETECHNIX_CM
-	default "20" if BFIN537_BLUETECHNIX_CM
-	default "20" if BFIN561_BLUETECHNIX_CM
+	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
-	default "16" if H8606_HVSISTEMAS
+	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP)
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -390,7 +370,7 @@ config SCLK_DIV
 
 config MAX_MEM_SIZE
 	int "Max SDRAM Memory Size in MBytes"
-	depends on !BFIN_KERNEL_CLOCK && !MPU
+	depends on !MPU
 	default 512
 	help
 	  This is the max memory size that the kernel will create CPLB
@@ -642,6 +622,33 @@ config CPLB_SWITCH_TAB_L1
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
+comment "Speed Optimizations"
+config BFIN_INS_LOWOVERHEAD
+	bool "ins[bwl] low overhead, higher interrupt latency"
+	default y
+	help
+	  Reads on the Blackfin are speculative. In Blackfin terms, this means
+	  they can be interrupted at any time (even after they have been issued
+	  on to the external bus), and re-issued after the interrupt occurs.
+	  For memory - this is not a big deal, since memory does not change if
+	  it sees a read.
+
+	  If a FIFO is sitting on the end of the read, it will see two reads,
+	  when the core only sees one since the FIFO receives both the read
+	  which is cancelled (and not delivered to the core) and the one which
+	  is re-issued (which is delivered to the core).
+
+	  To solve this, interrupts are turned off before reads occur to
+	  I/O space. This option controls which the overhead/latency of
+	  controlling interrupts during this time
+	   "n" turns interrupts off every read
+		(higher overhead, but lower interrupt latency)
+	   "y" turns interrupts off every loop
+		(low overhead, but longer interrupt latency)
+
+	  default behavior is to leave this set to on (type "Y"). If you are experiencing
+	  interrupt latency issues, it is safe and OK to turn this off.
+
 endmenu
 
 
@@ -748,14 +755,6 @@ config BFIN_WT
 
 endchoice
 
-config L1_MAX_PIECE
-	int "Set the max L1 SRAM pieces"
-	default 16
-	help
-	  Set the max memory pieces for the L1 SRAM allocation algorithm.
-	  Min value is 16. Max value is 1024.
-
-
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"
 	default n
@@ -856,6 +855,7 @@ menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
 
 config PCI
 	bool "PCI support"
+	depends on BROKEN
 	help
 	  Support for PCI bus.
 
@@ -899,7 +899,7 @@ config ARCH_SUSPEND_POSSIBLE
 	depends on !SMP
 
 choice
-	prompt "Default Power Saving Mode"
+	prompt "Standby Power Saving Mode"
 	depends on PM
 	default PM_BFIN_SLEEP_DEEPER
 config  PM_BFIN_SLEEP_DEEPER
@@ -918,6 +918,8 @@ config  PM_BFIN_SLEEP_DEEPER
 	  normal during Sleep Deeper, due to the reduced SCLK frequency.
 	  When in the sleep mode, system DMA access to L1 memory is not supported.
 
+	  If unsure, select "Sleep Deeper".
+
 config  PM_BFIN_SLEEP
 	bool "Sleep"
 	help
@@ -925,15 +927,17 @@ config  PM_BFIN_SLEEP
 	  dissipation by disabling the clock to the processor core (CCLK).
 	  The PLL and system clock (SCLK), however, continue to operate in
 	  this mode. Typically an external event or RTC activity will wake
-	  up the processor. When in the sleep mode,
-	  system DMA access to L1 memory is not supported.
+	  up the processor. When in the sleep mode, system DMA access to L1
+	  memory is not supported.
+
+	  If unsure, select "Sleep Deeper".
 endchoice
 
 config PM_WAKEUP_BY_GPIO
-	bool "Cause Wakeup Event by GPIO"
+	bool "Allow Wakeup from Standby by GPIO"
 
 config PM_WAKEUP_GPIO_NUMBER
-	int "Wakeup GPIO number"
+	int "GPIO number"
 	range 0 47
 	depends on PM_WAKEUP_BY_GPIO
 	default 2 if BFIN537_STAMP
@@ -954,6 +958,22 @@ config  PM_WAKEUP_GPIO_POLAR_EDGE_B
 	bool "Both EDGE"
 endchoice
 
+comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
+	depends on PM
+
+config PM_BFIN_WAKE_PH6
+	bool "Allow Wake-Up from on-chip PHY or PH6 GP"
+	depends on PM && (BF52x || BF534 || BF536 || BF537)
+	default n
+	help
+	  Enable PHY and PH6 GP Wake-Up (Voltage Regulator Power-Up)
+
+config PM_BFIN_WAKE_GP
+	bool "Allow Wake-Up from GPIOs"
+	depends on PM && BF54x
+	default n
+	help
+	  Enable General-Purpose Wake-Up (Voltage Regulator Power-Up)
 endmenu
 
 menu "CPU Frequency scaling"

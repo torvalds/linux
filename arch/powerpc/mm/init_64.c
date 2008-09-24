@@ -136,9 +136,14 @@ static int __init setup_kcore(void)
 module_init(setup_kcore);
 #endif
 
-static void zero_ctor(struct kmem_cache *cache, void *addr)
+static void pgd_ctor(void *addr)
 {
-	memset(addr, 0, kmem_cache_size(cache));
+	memset(addr, 0, PGD_TABLE_SIZE);
+}
+
+static void pmd_ctor(void *addr)
+{
+	memset(addr, 0, PMD_TABLE_SIZE);
 }
 
 static const unsigned int pgtable_cache_size[2] = {
@@ -163,19 +168,8 @@ struct kmem_cache *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 
 void pgtable_cache_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pgtable_cache_size); i++) {
-		int size = pgtable_cache_size[i];
-		const char *name = pgtable_cache_name[i];
-
-		pr_debug("Allocating page table cache %s (#%d) "
-			"for size: %08x...\n", name, i, size);
-		pgtable_cache[i] = kmem_cache_create(name,
-						     size, size,
-						     SLAB_PANIC,
-						     zero_ctor);
-	}
+	pgtable_cache[0] = kmem_cache_create(pgtable_cache_name[0], PGD_TABLE_SIZE, PGD_TABLE_SIZE, SLAB_PANIC, pgd_ctor);
+	pgtable_cache[1] = kmem_cache_create(pgtable_cache_name[1], PMD_TABLE_SIZE, PMD_TABLE_SIZE, SLAB_PANIC, pmd_ctor);
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
@@ -212,12 +206,9 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
 int __meminit vmemmap_populate(struct page *start_page,
 			       unsigned long nr_pages, int node)
 {
-	unsigned long mode_rw;
 	unsigned long start = (unsigned long)start_page;
 	unsigned long end = (unsigned long)(start_page + nr_pages);
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-
-	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
 
 	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
@@ -236,9 +227,9 @@ int __meminit vmemmap_populate(struct page *start_page,
 		pr_debug("vmemmap %08lx allocated at %p, physical %08lx.\n",
 			start, p, __pa(p));
 
-		mapped = htab_bolt_mapping(start, start + page_size,
-					__pa(p), mode_rw, mmu_vmemmap_psize,
-					mmu_kernel_ssize);
+		mapped = htab_bolt_mapping(start, start + page_size, __pa(p),
+					   PAGE_KERNEL, mmu_vmemmap_psize,
+					   mmu_kernel_ssize);
 		BUG_ON(mapped < 0);
 	}
 

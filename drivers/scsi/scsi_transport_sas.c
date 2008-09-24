@@ -779,7 +779,7 @@ static void sas_port_create_link(struct sas_port *port,
 	return;
 err:
 	printk(KERN_ERR "%s: Cannot create port links, err=%d\n",
-	       __FUNCTION__, res);
+	       __func__, res);
 }
 
 static void sas_port_delete_link(struct sas_port *port,
@@ -1029,7 +1029,7 @@ void sas_port_mark_backlink(struct sas_port *port)
 	return;
 err:
 	printk(KERN_ERR "%s: Cannot create port backlink, err=%d\n",
-	       __FUNCTION__, res);
+	       __func__, res);
 
 }
 EXPORT_SYMBOL(sas_port_mark_backlink);

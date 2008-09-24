@@ -90,7 +90,10 @@ enum {
 	/* module m52790: just ident 52790 */
 	V4L2_IDENT_M52790 = 52790,
 
-	/* module msp34xx: reserved range 34000-34999 */
+	/* module msp3400: reserved range 34000-34999 and 44000-44999 */
+	V4L2_IDENT_MSPX4XX  = 34000, /* generic MSPX4XX identifier, only
+					use internally (tveeprom.c). */
+
 	V4L2_IDENT_MSP3400B = 34002,
 	V4L2_IDENT_MSP3410B = 34102,
 
@@ -142,7 +145,7 @@ enum {
 	V4L2_IDENT_MSP3457G = 34577,
 	V4L2_IDENT_MSP3467G = 34677,
 
-	/* module msp44xx: reserved range 44000-44999 */
+	/* module msp3400: reserved range 34000-34999 and 44000-44999 */
 	V4L2_IDENT_MSP4400G = 44007,
 	V4L2_IDENT_MSP4410G = 44107,
 	V4L2_IDENT_MSP4420G = 44207,

@@ -33,12 +33,25 @@
 
 struct iwl_priv;
 
-#define IWL_POWER_MODE_CAM	0x00    /* Continuously Aware Mode, always on */
-#define IWL_POWER_INDEX_3	0x03
-#define IWL_POWER_INDEX_5	0x05
-#define IWL_POWER_AC		0x06
-#define IWL_POWER_BATTERY	0x07
-#define IWL_POWER_AUTO		0x08
+enum {
+	IWL_POWER_MODE_CAM, /* Continuously Aware Mode, always on */
+	IWL_POWER_INDEX_1,
+	IWL_POWER_INDEX_2,
+	IWL_POWER_INDEX_3,
+	IWL_POWER_INDEX_4,
+	IWL_POWER_INDEX_5,
+	IWL_POWER_AUTO,
+	IWL_POWER_MAX = IWL_POWER_AUTO,
+	IWL_POWER_AC,
+	IWL_POWER_BATTERY,
+};
+
+enum {
+	IWL_POWER_SYS_AUTO,
+	IWL_POWER_SYS_AC,
+	IWL_POWER_SYS_BATTERY,
+};
+
 #define IWL_POWER_LIMIT		0x08
 #define IWL_POWER_MASK		0x0F
 #define IWL_POWER_ENABLED	0x10
@@ -46,15 +59,15 @@ struct iwl_priv;
 /* Power management (not Tx power) structures */
 
 struct iwl_power_vec_entry {
-	struct iwl4965_powertable_cmd cmd;
+	struct iwl_powertable_cmd cmd;
 	u8 no_dtim;
 };
 
 struct iwl_power_mgr {
 	spinlock_t lock;
-	struct iwl_power_vec_entry pwr_range_0[IWL_POWER_AC];
-	struct iwl_power_vec_entry pwr_range_1[IWL_POWER_AC];
-	struct iwl_power_vec_entry pwr_range_2[IWL_POWER_AC];
+	struct iwl_power_vec_entry pwr_range_0[IWL_POWER_MAX];
+	struct iwl_power_vec_entry pwr_range_1[IWL_POWER_MAX];
+	struct iwl_power_vec_entry pwr_range_2[IWL_POWER_MAX];
 	u32 dtim_period;
 	/* final power level that used to calculate final power command */
 	u8 power_mode;

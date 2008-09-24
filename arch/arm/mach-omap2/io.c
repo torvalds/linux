@@ -21,8 +21,8 @@
 
 #include <asm/mach/map.h>
 
-#include <asm/arch/mux.h>
-#include <asm/arch/omapfb.h>
+#include <mach/mux.h>
+#include <mach/omapfb.h>
 
 extern void omap_sram_init(void);
 extern int omap2_clk_init(void);

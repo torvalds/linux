@@ -68,7 +68,9 @@ MODULE_SUPPORTED_DEVICE("{{OPTi,82C924 (AD1848)},"
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;		/* ID for this card */
 //static int enable = SNDRV_DEFAULT_ENABLE1;	/* Enable this card */
+#ifdef CONFIG_PNP
 static int isapnp = 1;			/* Enable ISA PnP detection */
+#endif
 static long port = SNDRV_DEFAULT_PORT1; 	/* 0x530,0xe80,0xf40,0x604 */
 static long mpu_port = SNDRV_DEFAULT_PORT1;	/* 0x300,0x310,0x320,0x330 */
 static long fm_port = SNDRV_DEFAULT_PORT1;	/* 0x388 */
@@ -85,8 +87,10 @@ module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for opti9xx based soundcard.");
 //module_param(enable, bool, 0444);
 //MODULE_PARM_DESC(enable, "Enable opti9xx soundcard.");
+#ifdef CONFIG_PNP
 module_param(isapnp, bool, 0444);
 MODULE_PARM_DESC(isapnp, "Enable ISA PnP detection for specified soundcard.");
+#endif
 module_param(port, long, 0444);
 MODULE_PARM_DESC(port, "WSS port # for opti9xx driver.");
 module_param(mpu_port, long, 0444);
@@ -688,7 +692,7 @@ static void snd_card_opti9xx_free(struct snd_card *card)
 	if (chip) {
 #ifdef OPTi93X
 		struct snd_cs4231 *codec = chip->codec;
-		if (codec->irq > 0) {
+		if (codec && codec->irq > 0) {
 			disable_irq(codec->irq);
 			free_irq(codec->irq, codec);
 		}

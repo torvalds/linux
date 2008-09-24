@@ -100,7 +100,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 * a 1:1 mapping for the physical address of the kernel.
 	 */
 	pgd = pgd_alloc(&init_mm);
-	pmd = pmd_offset(pgd, PHYS_OFFSET);
+	pmd = pmd_offset(pgd + pgd_index(PHYS_OFFSET), PHYS_OFFSET);
 	*pmd = __pmd((PHYS_OFFSET & PGDIR_MASK) |
 		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
 
@@ -139,7 +139,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	secondary_data.stack = NULL;
 	secondary_data.pgdir = 0;
 
-	*pmd_offset(pgd, PHYS_OFFSET) = __pmd(0);
+	*pmd = __pmd(0);
 	pgd_free(&init_mm, pgd);
 
 	if (ret) {

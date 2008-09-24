@@ -22,17 +22,17 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/common.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/usb.h>
+#include <mach/common.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
+#include <mach/usb.h>
 
 static struct plat_serial8250_port voiceblue_ports[] = {
 	{
@@ -186,10 +186,10 @@ static void __init voiceblue_init(void)
 	omap_request_gpio(13);
 	omap_request_gpio(14);
 	omap_request_gpio(15);
-	set_irq_type(OMAP_GPIO_IRQ(12), IRQT_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(14), IRQT_RISING);
-	set_irq_type(OMAP_GPIO_IRQ(15), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(12), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(14), IRQ_TYPE_EDGE_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(15), IRQ_TYPE_EDGE_RISING);
 
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
 	omap_board_config = voiceblue_config;

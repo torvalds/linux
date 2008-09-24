@@ -28,7 +28,7 @@ struct jffs2_acl_header {
 
 #define JFFS2_ACL_NOT_CACHED ((void *)-1)
 
-extern int jffs2_permission(struct inode *, int, struct nameidata *);
+extern int jffs2_permission(struct inode *, int);
 extern int jffs2_acl_chmod(struct inode *);
 extern int jffs2_init_acl_pre(struct inode *, struct inode *, int *);
 extern int jffs2_init_acl_post(struct inode *);

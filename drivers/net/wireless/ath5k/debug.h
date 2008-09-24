@@ -63,7 +63,6 @@
 
 struct ath5k_softc;
 struct ath5k_hw;
-struct ieee80211_hw_mode;
 struct sk_buff;
 struct ath5k_buf;
 

@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/freezer.h>
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/msp3400.h>

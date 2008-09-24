@@ -94,6 +94,9 @@ enum {
 	STAC_INTEL_MAC_V3,
 	STAC_INTEL_MAC_V4,
 	STAC_INTEL_MAC_V5,
+	STAC_INTEL_MAC_AUTO, /* This model is selected if no module parameter
+			      * is given, one of the above models will be
+			      * chosen according to the subsystem id. */
 	/* for backward compatibility */
 	STAC_MACMINI,
 	STAC_MACBOOK,
@@ -557,8 +560,9 @@ static struct hda_verb dell_eq_core_init[] = {
 };
 
 static struct hda_verb dell_m6_core_init[] = {
-	/* set master volume and direct control */
-	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
+	/* set master volume to max value without distortion
+	 * and direct control */
+	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xec},
 	/* setup audio connections */
 	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
@@ -1483,6 +1487,7 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_INTEL_MAC_V3] = intel_mac_v3_pin_configs,
 	[STAC_INTEL_MAC_V4] = intel_mac_v4_pin_configs,
 	[STAC_INTEL_MAC_V5] = intel_mac_v5_pin_configs,
+	[STAC_INTEL_MAC_AUTO] = intel_mac_v3_pin_configs,
 	/* for backward compatibility */
 	[STAC_MACMINI] = intel_mac_v3_pin_configs,
 	[STAC_MACBOOK] = intel_mac_v5_pin_configs,
@@ -1505,6 +1510,7 @@ static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_INTEL_MAC_V3] = "intel-mac-v3",
 	[STAC_INTEL_MAC_V4] = "intel-mac-v4",
 	[STAC_INTEL_MAC_V5] = "intel-mac-v5",
+	[STAC_INTEL_MAC_AUTO] = "intel-mac-auto",
 	/* for backward compatibility */
 	[STAC_MACMINI]	= "macmini",
 	[STAC_MACBOOK]	= "macbook",
@@ -1576,9 +1582,9 @@ static struct snd_pci_quirk stac922x_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0707,
 		      "Intel D945P", STAC_D945GTP5),
 	/* other systems  */
-	/* Apple Mac Mini (early 2006) */
+	/* Apple Intel Mac (Mac Mini, MacBook, MacBook Pro...) */
 	SND_PCI_QUIRK(0x8384, 0x7680,
-		      "Mac Mini", STAC_INTEL_MAC_V3),
+		      "Mac", STAC_INTEL_MAC_AUTO),
 	/* Dell systems  */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01a7,
 		      "unknown Dell", STAC_922X_DELL_D81),
@@ -3725,7 +3731,7 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_922X_MODELS,
 							stac922x_models,
 							stac922x_cfg_tbl);
-	if (spec->board_config == STAC_INTEL_MAC_V3) {
+	if (spec->board_config == STAC_INTEL_MAC_AUTO) {
 		spec->gpio_mask = spec->gpio_dir = 0x03;
 		spec->gpio_data = 0x03;
 		/* Intel Macs have all same PCI SSID, so we need to check
@@ -3756,6 +3762,9 @@ static int patch_stac922x(struct hda_codec *codec)
 		case 0x106b0a00:
 		case 0x106b2200:
 			spec->board_config = STAC_INTEL_MAC_V5;
+			break;
+		default:
+			spec->board_config = STAC_INTEL_MAC_V3;
 			break;
 		}
 	}

@@ -2507,7 +2507,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
  *
  */
 
-static void handle_stripe5(struct stripe_head *sh)
+static bool handle_stripe5(struct stripe_head *sh)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
@@ -2568,10 +2568,10 @@ static void handle_stripe5(struct stripe_head *sh)
 		if (dev->written)
 			s.written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
-		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+		if (blocked_rdev == NULL &&
+		    rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
-			break;
 		}
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
@@ -2588,8 +2588,14 @@ static void handle_stripe5(struct stripe_head *sh)
 	rcu_read_unlock();
 
 	if (unlikely(blocked_rdev)) {
-		set_bit(STRIPE_HANDLE, &sh->state);
-		goto unlock;
+		if (s.syncing || s.expanding || s.expanded ||
+		    s.to_write || s.written) {
+			set_bit(STRIPE_HANDLE, &sh->state);
+			goto unlock;
+		}
+		/* There is nothing for the blocked_rdev to block */
+		rdev_dec_pending(blocked_rdev, conf->mddev);
+		blocked_rdev = NULL;
 	}
 
 	if (s.to_fill && !test_bit(STRIPE_BIOFILL_RUN, &sh->state)) {
@@ -2717,10 +2723,11 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (sh->reconstruct_state == reconstruct_state_result) {
 		sh->reconstruct_state = reconstruct_state_idle;
 		clear_bit(STRIPE_EXPANDING, &sh->state);
-		for (i = conf->raid_disks; i--; )
+		for (i = conf->raid_disks; i--; ) {
 			set_bit(R5_Wantwrite, &sh->dev[i].flags);
-			set_bit(R5_LOCKED, &dev->flags);
+			set_bit(R5_LOCKED, &sh->dev[i].flags);
 			s.locked++;
+		}
 	}
 
 	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
@@ -2754,9 +2761,11 @@ static void handle_stripe5(struct stripe_head *sh)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
+
+	return blocked_rdev == NULL;
 }
 
-static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
+static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 {
 	raid6_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks;
@@ -2829,10 +2838,10 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 		if (dev->written)
 			s.written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
-		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+		if (blocked_rdev == NULL &&
+		    rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
-			break;
 		}
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
@@ -2850,9 +2859,16 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 	rcu_read_unlock();
 
 	if (unlikely(blocked_rdev)) {
-		set_bit(STRIPE_HANDLE, &sh->state);
-		goto unlock;
+		if (s.syncing || s.expanding || s.expanded ||
+		    s.to_write || s.written) {
+			set_bit(STRIPE_HANDLE, &sh->state);
+			goto unlock;
+		}
+		/* There is nothing for the blocked_rdev to block */
+		rdev_dec_pending(blocked_rdev, conf->mddev);
+		blocked_rdev = NULL;
 	}
+
 	pr_debug("locked=%d uptodate=%d to_read=%d"
 	       " to_write=%d failed=%d failed_num=%d,%d\n",
 	       s.locked, s.uptodate, s.to_read, s.to_write, s.failed,
@@ -2967,14 +2983,17 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
+
+	return blocked_rdev == NULL;
 }
 
-static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
+/* returns true if the stripe was handled */
+static bool handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 {
 	if (sh->raid_conf->level == 6)
-		handle_stripe6(sh, tmp_page);
+		return handle_stripe6(sh, tmp_page);
 	else
-		handle_stripe5(sh);
+		return handle_stripe5(sh);
 }
 
 
@@ -3692,7 +3711,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	clear_bit(STRIPE_INSYNC, &sh->state);
 	spin_unlock(&sh->lock);
 
-	handle_stripe(sh, NULL);
+	/* wait for any blocked device to be handled */
+	while(unlikely(!handle_stripe(sh, NULL)))
+		;
 	release_stripe(sh);
 
 	return STRIPE_SECTORS;
@@ -3811,10 +3832,8 @@ static void raid5d(mddev_t *mddev)
 
 		sh = __get_priority_stripe(conf);
 
-		if (!sh) {
-			async_tx_issue_pending_all();
+		if (!sh)
 			break;
-		}
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;
@@ -3827,6 +3846,7 @@ static void raid5d(mddev_t *mddev)
 
 	spin_unlock_irq(&conf->device_lock);
 
+	async_tx_issue_pending_all();
 	unplug_slaves(mddev);
 
 	pr_debug("--- raid5d inactive\n");
@@ -4439,6 +4459,9 @@ static int raid5_check_reshape(mddev_t *mddev)
 		return -EINVAL; /* Cannot shrink array or change level yet */
 	if (mddev->delta_disks == 0)
 		return 0; /* nothing to do */
+	if (mddev->bitmap)
+		/* Cannot grow a bitmap yet */
+		return -EBUSY;
 
 	/* Can only proceed if there are plenty of stripe_heads.
 	 * We need a minimum of one full stripe,, and for sensible progress

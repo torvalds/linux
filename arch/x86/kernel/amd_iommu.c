@@ -29,9 +29,6 @@
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
-#define to_pages(addr, size) \
-	 (round_up(((addr) & ~PAGE_MASK) + (size), PAGE_SIZE) >> PAGE_SHIFT)
-
 #define EXIT_LOOP_COUNT 10000000
 
 static DEFINE_RWLOCK(amd_iommu_devtable_lock);
@@ -68,7 +65,7 @@ static int __iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 	u8 *target;
 
 	tail = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
-	target = (iommu->cmd_buf + tail);
+	target = iommu->cmd_buf + tail;
 	memcpy_toio(target, cmd, sizeof(*cmd));
 	tail = (tail + sizeof(*cmd)) % iommu->cmd_buf_size;
 	head = readl(iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
@@ -104,16 +101,13 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
  */
 static int iommu_completion_wait(struct amd_iommu *iommu)
 {
-	int ret;
+	int ret, ready = 0;
+	unsigned status = 0;
 	struct iommu_cmd cmd;
-	volatile u64 ready = 0;
-	unsigned long ready_phys = virt_to_phys(&ready);
 	unsigned long i = 0;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.data[0] = LOW_U32(ready_phys) | CMD_COMPL_WAIT_STORE_MASK;
-	cmd.data[1] = upper_32_bits(ready_phys);
-	cmd.data[2] = 1; /* value written to 'ready' */
+	cmd.data[0] = CMD_COMPL_WAIT_INT_MASK;
 	CMD_SET_TYPE(&cmd, CMD_COMPL_WAIT);
 
 	iommu->need_sync = 0;
@@ -125,8 +119,14 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	while (!ready && (i < EXIT_LOOP_COUNT)) {
 		++i;
-		cpu_relax();
+		/* wait for the bit to become one */
+		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
+		ready = status & MMIO_STATUS_COM_WAIT_INT_MASK;
 	}
+
+	/* set bit back to zero */
+	status &= ~MMIO_STATUS_COM_WAIT_INT_MASK;
+	writel(status, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
 	if (unlikely((i == EXIT_LOOP_COUNT) && printk_ratelimit()))
 		printk(KERN_WARNING "AMD IOMMU: Completion wait loop failed\n");
@@ -164,7 +164,7 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 	address &= PAGE_MASK;
 	CMD_SET_TYPE(&cmd, CMD_INV_IOMMU_PAGES);
 	cmd.data[1] |= domid;
-	cmd.data[2] = LOW_U32(address);
+	cmd.data[2] = lower_32_bits(address);
 	cmd.data[3] = upper_32_bits(address);
 	if (s) /* size bit - we flush more than one 4kb page */
 		cmd.data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
@@ -185,7 +185,7 @@ static int iommu_flush_pages(struct amd_iommu *iommu, u16 domid,
 		u64 address, size_t size)
 {
 	int s = 0;
-	unsigned pages = to_pages(address, size);
+	unsigned pages = iommu_num_pages(address, size);
 
 	address &= PAGE_MASK;
 
@@ -557,8 +557,8 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	if (iommu->exclusion_start &&
 	    iommu->exclusion_start < dma_dom->aperture_size) {
 		unsigned long startpage = iommu->exclusion_start >> PAGE_SHIFT;
-		int pages = to_pages(iommu->exclusion_start,
-				iommu->exclusion_length);
+		int pages = iommu_num_pages(iommu->exclusion_start,
+					    iommu->exclusion_length);
 		dma_ops_reserve_addresses(dma_dom, startpage, pages);
 	}
 
@@ -667,7 +667,7 @@ static int get_device_resources(struct device *dev,
 	_bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
 
 	/* device not translated by any IOMMU in the system? */
-	if (_bdf >= amd_iommu_last_bdf) {
+	if (_bdf > amd_iommu_last_bdf) {
 		*iommu = NULL;
 		*domain = NULL;
 		*bdf = 0xffff;
@@ -767,7 +767,7 @@ static dma_addr_t __map_single(struct device *dev,
 	unsigned int pages;
 	int i;
 
-	pages = to_pages(paddr, size);
+	pages = iommu_num_pages(paddr, size);
 	paddr &= PAGE_MASK;
 
 	address = dma_ops_alloc_addresses(dev, dma_dom, pages);
@@ -802,7 +802,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 	if ((dma_addr == 0) || (dma_addr + size > dma_dom->aperture_size))
 		return;
 
-	pages = to_pages(dma_addr, size);
+	pages = iommu_num_pages(dma_addr, size);
 	dma_addr &= PAGE_MASK;
 	start = dma_addr;
 
@@ -1085,7 +1085,7 @@ void prealloc_protection_domains(void)
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		devid = (dev->bus->number << 8) | dev->devfn;
-		if (devid >= amd_iommu_last_bdf)
+		if (devid > amd_iommu_last_bdf)
 			continue;
 		devid = amd_iommu_alias_table[devid];
 		if (domain_for_device(devid))

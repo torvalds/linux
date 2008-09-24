@@ -49,6 +49,7 @@
 #include <asm/sstate.h>
 #include <asm/mdesc.h>
 #include <asm/cpudata.h>
+#include <asm/irq.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
@@ -390,51 +391,6 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 			__flush_icache_page(paddr);
 		}
 	}
-}
-
-void show_mem(void)
-{
-	unsigned long total = 0, reserved = 0;
-	unsigned long shared = 0, cached = 0;
-	pg_data_t *pgdat;
-
-	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas();
-	printk(KERN_INFO "Free swap:       %6ldkB\n",
-	       nr_swap_pages << (PAGE_SHIFT-10));
-	for_each_online_pgdat(pgdat) {
-		unsigned long i, flags;
-
-		pgdat_resize_lock(pgdat, &flags);
-		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-			struct page *page = pgdat_page_nr(pgdat, i);
-			total++;
-			if (PageReserved(page))
-				reserved++;
-			else if (PageSwapCache(page))
-				cached++;
-			else if (page_count(page))
-				shared += page_count(page) - 1;
-		}
-		pgdat_resize_unlock(pgdat, &flags);
-	}
-
-	printk(KERN_INFO "%lu pages of RAM\n", total);
-	printk(KERN_INFO "%lu reserved pages\n", reserved);
-	printk(KERN_INFO "%lu pages shared\n", shared);
-	printk(KERN_INFO "%lu pages swap cached\n", cached);
-
-	printk(KERN_INFO "%lu pages dirty\n",
-	       global_page_state(NR_FILE_DIRTY));
-	printk(KERN_INFO "%lu pages writeback\n",
-	       global_page_state(NR_WRITEBACK));
-	printk(KERN_INFO "%lu pages mapped\n",
-	       global_page_state(NR_FILE_MAPPED));
-	printk(KERN_INFO "%lu pages slab\n",
-		global_page_state(NR_SLAB_RECLAIMABLE) +
-		global_page_state(NR_SLAB_UNRECLAIMABLE));
-	printk(KERN_INFO "%lu pages pagetables\n",
-	       global_page_state(NR_PAGETABLE));
 }
 
 void mmu_info(struct seq_file *m)
@@ -839,6 +795,9 @@ static unsigned long nid_range(unsigned long start, unsigned long end,
 			break;
 		start += PAGE_SIZE;
 	}
+
+	if (start > end)
+		start = end;
 
 	return start;
 }
@@ -1767,8 +1726,7 @@ void __init paging_init(void)
 
 	find_ramdisk(phys_base);
 
-	if (cmdline_memory_size)
-		lmb_enforce_memory_limit(phys_base + cmdline_memory_size);
+	lmb_enforce_memory_limit(cmdline_memory_size);
 
 	lmb_analyze();
 	lmb_dump_all();
@@ -1815,6 +1773,16 @@ void __init paging_init(void)
 
 	if (tlb_type == hypervisor)
 		sun4v_mdesc_init();
+
+	/* Once the OF device tree and MDESC have been setup, we know
+	 * the list of possible cpus.  Therefore we can allocate the
+	 * IRQ stacks.
+	 */
+	for_each_possible_cpu(i) {
+		/* XXX Use node local allocations... XXX */
+		softirq_stack[i] = __va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		hardirq_stack[i] = __va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+	}
 
 	/* Setup bootmem... */
 	last_valid_pfn = end_pfn = bootmem_init(phys_base);
@@ -1875,7 +1843,7 @@ static int pavail_rescan_ents __initdata;
  * memory list again, and make sure it provides at least as much
  * memory as 'pavail' does.
  */
-static void setup_valid_addr_bitmap_from_pavail(void)
+static void __init setup_valid_addr_bitmap_from_pavail(void)
 {
 	int i;
 
@@ -1995,6 +1963,15 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	unsigned long addr, initend;
+	int do_free = 1;
+
+	/* If the physical memory maps were trimmed by kernel command
+	 * line options, don't even try freeing this initmem stuff up.
+	 * The kernel image could have been in the trimmed out region
+	 * and if so the freeing below will free invalid page structs.
+	 */
+	if (cmdline_memory_size)
+		do_free = 0;
 
 	/*
 	 * The init section is aligned to 8k in vmlinux.lds. Page align for >8k pagesizes.
@@ -2009,13 +1986,16 @@ void free_initmem(void)
 			((unsigned long) __va(kern_base)) -
 			((unsigned long) KERNBASE));
 		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		p = virt_to_page(page);
 
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		num_physpages++;
-		totalram_pages++;
+		if (do_free) {
+			p = virt_to_page(page);
+
+			ClearPageReserved(p);
+			init_page_count(p);
+			__free_page(p);
+			num_physpages++;
+			totalram_pages++;
+		}
 	}
 }
 

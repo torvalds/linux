@@ -211,7 +211,7 @@ unsigned long sh_hpt_frequency = 0;
 
 #define NSEC_PER_CYC_SHIFT	10
 
-struct clocksource clocksource_sh = {
+static struct clocksource clocksource_sh = {
 	.name		= "SuperH",
 	.rating		= 200,
 	.mask		= CLOCKSOURCE_MASK(32),

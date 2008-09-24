@@ -83,7 +83,7 @@ nlm4svc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 {
 	struct nlm_host	*host;
 	struct nlm_file	*file;
-	int rc = rpc_success;
+	__be32 rc = rpc_success;
 
 	dprintk("lockd: TEST4        called\n");
 	resp->cookie = argp->cookie;
@@ -116,7 +116,7 @@ nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 {
 	struct nlm_host	*host;
 	struct nlm_file	*file;
-	int rc = rpc_success;
+	__be32 rc = rpc_success;
 
 	dprintk("lockd: LOCK          called\n");
 

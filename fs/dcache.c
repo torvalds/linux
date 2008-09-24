@@ -487,6 +487,7 @@ restart:
 				if (!cnt)
 					break;
 			}
+			cond_resched_lock(&dcache_lock);
 		}
 	}
 	while (!list_empty(&tmp)) {
@@ -1219,6 +1220,107 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 	return new;
 }
 
+/**
+ * d_add_ci - lookup or allocate new dentry with case-exact name
+ * @inode:  the inode case-insensitive lookup has found
+ * @dentry: the negative dentry that was passed to the parent's lookup func
+ * @name:   the case-exact name to be associated with the returned dentry
+ *
+ * This is to avoid filling the dcache with case-insensitive names to the
+ * same inode, only the actual correct case is stored in the dcache for
+ * case-insensitive filesystems.
+ *
+ * For a case-insensitive lookup match and if the the case-exact dentry
+ * already exists in in the dcache, use it and return it.
+ *
+ * If no entry exists with the exact case name, allocate new dentry with
+ * the exact case, and return the spliced entry.
+ */
+struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
+			struct qstr *name)
+{
+	int error;
+	struct dentry *found;
+	struct dentry *new;
+
+	/* Does a dentry matching the name exist already? */
+	found = d_hash_and_lookup(dentry->d_parent, name);
+	/* If not, create it now and return */
+	if (!found) {
+		new = d_alloc(dentry->d_parent, name);
+		if (!new) {
+			error = -ENOMEM;
+			goto err_out;
+		}
+		found = d_splice_alias(inode, new);
+		if (found) {
+			dput(new);
+			return found;
+		}
+		return new;
+	}
+	/* Matching dentry exists, check if it is negative. */
+	if (found->d_inode) {
+		if (unlikely(found->d_inode != inode)) {
+			/* This can't happen because bad inodes are unhashed. */
+			BUG_ON(!is_bad_inode(inode));
+			BUG_ON(!is_bad_inode(found->d_inode));
+		}
+		/*
+		 * Already have the inode and the dentry attached, decrement
+		 * the reference count to balance the iget() done
+		 * earlier on.  We found the dentry using d_lookup() so it
+		 * cannot be disconnected and thus we do not need to worry
+		 * about any NFS/disconnectedness issues here.
+		 */
+		iput(inode);
+		return found;
+	}
+	/*
+	 * Negative dentry: instantiate it unless the inode is a directory and
+	 * has a 'disconnected' dentry (i.e. IS_ROOT and DCACHE_DISCONNECTED),
+	 * in which case d_move() that in place of the found dentry.
+	 */
+	if (!S_ISDIR(inode->i_mode)) {
+		/* Not a directory; everything is easy. */
+		d_instantiate(found, inode);
+		return found;
+	}
+	spin_lock(&dcache_lock);
+	if (list_empty(&inode->i_dentry)) {
+		/*
+		 * Directory without a 'disconnected' dentry; we need to do
+		 * d_instantiate() by hand because it takes dcache_lock which
+		 * we already hold.
+		 */
+		list_add(&found->d_alias, &inode->i_dentry);
+		found->d_inode = inode;
+		spin_unlock(&dcache_lock);
+		security_d_instantiate(found, inode);
+		return found;
+	}
+	/*
+	 * Directory with a 'disconnected' dentry; get a reference to the
+	 * 'disconnected' dentry.
+	 */
+	new = list_entry(inode->i_dentry.next, struct dentry, d_alias);
+	dget_locked(new);
+	spin_unlock(&dcache_lock);
+	/* Do security vodoo. */
+	security_d_instantiate(found, inode);
+	/* Move new in place of found. */
+	d_move(new, found);
+	/* Balance the iget() we did above. */
+	iput(inode);
+	/* Throw away found. */
+	dput(found);
+	/* Use new as the actual dentry. */
+	return new;
+
+err_out:
+	iput(inode);
+	return ERR_PTR(error);
+}
 
 /**
  * d_lookup - search for a dentry
@@ -2253,6 +2355,7 @@ EXPORT_SYMBOL(d_path);
 EXPORT_SYMBOL(d_prune_aliases);
 EXPORT_SYMBOL(d_rehash);
 EXPORT_SYMBOL(d_splice_alias);
+EXPORT_SYMBOL(d_add_ci);
 EXPORT_SYMBOL(d_validate);
 EXPORT_SYMBOL(dget_locked);
 EXPORT_SYMBOL(dput);

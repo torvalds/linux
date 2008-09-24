@@ -16,7 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm/arch/ep93xx-regs.h>
+#include <mach/ep93xx-regs.h>
 
 /*
  * We can't use hex constants here due to a bug in gas.

@@ -17,8 +17,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-   $Id: sbc_gxx.c,v 1.35 2005/11/07 11:14:28 gleixner Exp $
-
 The SBC-MediaGX / SBC-GXx has up to 16 MiB of
 Intel StrataFlash (28F320/28F640) in x8 mode.
 

@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/arch/qmgr.h>
+#include <mach/qmgr.h>
 
 #define DEBUG		0
 

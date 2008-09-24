@@ -28,8 +28,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/at91_ssc.h>
+#include <mach/hardware.h>
+#include <mach/at91_ssc.h>
 
 #include "at91-pcm.h"
 

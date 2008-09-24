@@ -164,11 +164,13 @@ enum {
 	MLX4_WQE_CTRL_SOLICITED		= 1 << 1,
 	MLX4_WQE_CTRL_IP_CSUM		= 1 << 4,
 	MLX4_WQE_CTRL_TCP_UDP_CSUM	= 1 << 5,
+	MLX4_WQE_CTRL_INS_VLAN		= 1 << 6,
 };
 
 struct mlx4_wqe_ctrl_seg {
 	__be32			owner_opcode;
-	u8			reserved2[3];
+	__be16			vlan_tag;
+	u8			ins_vlan;
 	u8			fence_size;
 	/*
 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:

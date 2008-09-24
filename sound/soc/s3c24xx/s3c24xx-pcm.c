@@ -27,9 +27,9 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
-#include <asm/hardware.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/audio.h>
+#include <mach/hardware.h>
+#include <mach/dma.h>
+#include <mach/audio.h>
 
 #include "s3c24xx-pcm.h"
 

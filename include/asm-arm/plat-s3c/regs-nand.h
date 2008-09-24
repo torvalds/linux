@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/regs-nand.h
+/* arch/arm/mach-s3c2410/include/mach/regs-nand.h
  *
  * Copyright (c) 2004,2005 Simtec Electronics <linux@simtec.co.uk>
  *		      http://www.simtec.co.uk/products/SWLINUX/
@@ -11,7 +11,7 @@
 */
 
 #ifndef __ASM_ARM_REGS_NAND
-#define __ASM_ARM_REGS_NAND "$Id: nand.h,v 1.3 2003/12/09 11:36:29 ben Exp $"
+#define __ASM_ARM_REGS_NAND
 
 
 #define S3C2410_NFREG(x) (x)

@@ -19,9 +19,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/mach-types.h>
 #include <asm/dma.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 #include "../codecs/tlv320aic3x.h"
 #include "davinci-pcm.h"

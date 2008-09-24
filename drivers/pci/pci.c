@@ -572,6 +572,10 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		if (!ret)
 			pci_update_current_state(dev);
 	}
+	/* This device is quirked not to be put into D3, so
+	   don't put it in D3 */
+	if (state == PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
+		return 0;
 
 	error = pci_raw_set_power_state(dev, state);
 
@@ -1056,7 +1060,7 @@ bool pci_pme_capable(struct pci_dev *dev, pci_power_t state)
  * The caller must verify that the device is capable of generating PME# before
  * calling this function with @enable equal to 'true'.
  */
-static void pci_pme_active(struct pci_dev *dev, bool enable)
+void pci_pme_active(struct pci_dev *dev, bool enable)
 {
 	u16 pmcsr;
 
@@ -1123,6 +1127,12 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
+ * pci_target_state - find an appropriate low power state for a given PCI dev
+ * @dev: PCI device
+ *
+ * Use underlying platform code to find a supported low power state for @dev.
+ * If the platform can't manage @dev, return the deepest state from which it
+ * can generate wake events, based on any available PME info.
  */
 pci_power_t pci_target_state(struct pci_dev *dev)
 {
@@ -1931,6 +1941,7 @@ EXPORT_SYMBOL(pci_set_power_state);
 EXPORT_SYMBOL(pci_save_state);
 EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_pme_capable);
+EXPORT_SYMBOL(pci_pme_active);
 EXPORT_SYMBOL(pci_enable_wake);
 EXPORT_SYMBOL(pci_target_state);
 EXPORT_SYMBOL(pci_prepare_to_sleep);

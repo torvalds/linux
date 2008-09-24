@@ -787,50 +787,54 @@ int cx18_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	return res;
 }
 
+static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
+	.vidioc_querycap                = cx18_querycap,
+	.vidioc_g_priority              = cx18_g_priority,
+	.vidioc_s_priority              = cx18_s_priority,
+	.vidioc_s_audio                 = cx18_s_audio,
+	.vidioc_g_audio                 = cx18_g_audio,
+	.vidioc_enumaudio               = cx18_enumaudio,
+	.vidioc_enum_input              = cx18_enum_input,
+	.vidioc_cropcap                 = cx18_cropcap,
+	.vidioc_s_crop                  = cx18_s_crop,
+	.vidioc_g_crop                  = cx18_g_crop,
+	.vidioc_g_input                 = cx18_g_input,
+	.vidioc_s_input                 = cx18_s_input,
+	.vidioc_g_frequency             = cx18_g_frequency,
+	.vidioc_s_frequency             = cx18_s_frequency,
+	.vidioc_s_tuner                 = cx18_s_tuner,
+	.vidioc_g_tuner                 = cx18_g_tuner,
+	.vidioc_g_enc_index             = cx18_g_enc_index,
+	.vidioc_g_std                   = cx18_g_std,
+	.vidioc_s_std                   = cx18_s_std,
+	.vidioc_log_status              = cx18_log_status,
+	.vidioc_enum_fmt_vid_cap        = cx18_enum_fmt_vid_cap,
+	.vidioc_encoder_cmd             = cx18_encoder_cmd,
+	.vidioc_try_encoder_cmd         = cx18_try_encoder_cmd,
+	.vidioc_g_fmt_vid_cap           = cx18_g_fmt_vid_cap,
+	.vidioc_g_fmt_vbi_cap           = cx18_g_fmt_vbi_cap,
+	.vidioc_g_fmt_sliced_vbi_cap    = cx18_g_fmt_sliced_vbi_cap,
+	.vidioc_s_fmt_vid_cap           = cx18_s_fmt_vid_cap,
+	.vidioc_s_fmt_vbi_cap           = cx18_s_fmt_vbi_cap,
+	.vidioc_s_fmt_sliced_vbi_cap    = cx18_s_fmt_sliced_vbi_cap,
+	.vidioc_try_fmt_vid_cap         = cx18_try_fmt_vid_cap,
+	.vidioc_try_fmt_vbi_cap         = cx18_try_fmt_vbi_cap,
+	.vidioc_try_fmt_sliced_vbi_cap  = cx18_try_fmt_sliced_vbi_cap,
+	.vidioc_g_sliced_vbi_cap        = cx18_g_sliced_vbi_cap,
+	.vidioc_g_chip_ident            = cx18_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register              = cx18_g_register,
+	.vidioc_s_register              = cx18_s_register,
+#endif
+	.vidioc_default                 = cx18_default,
+	.vidioc_queryctrl               = cx18_queryctrl,
+	.vidioc_querymenu               = cx18_querymenu,
+	.vidioc_g_ext_ctrls             = cx18_g_ext_ctrls,
+	.vidioc_s_ext_ctrls             = cx18_s_ext_ctrls,
+	.vidioc_try_ext_ctrls           = cx18_try_ext_ctrls,
+};
+
 void cx18_set_funcs(struct video_device *vdev)
 {
-	vdev->vidioc_querycap                = cx18_querycap;
-	vdev->vidioc_g_priority              = cx18_g_priority;
-	vdev->vidioc_s_priority              = cx18_s_priority;
-	vdev->vidioc_s_audio                 = cx18_s_audio;
-	vdev->vidioc_g_audio                 = cx18_g_audio;
-	vdev->vidioc_enumaudio               = cx18_enumaudio;
-	vdev->vidioc_enum_input              = cx18_enum_input;
-	vdev->vidioc_cropcap                 = cx18_cropcap;
-	vdev->vidioc_s_crop                  = cx18_s_crop;
-	vdev->vidioc_g_crop                  = cx18_g_crop;
-	vdev->vidioc_g_input                 = cx18_g_input;
-	vdev->vidioc_s_input                 = cx18_s_input;
-	vdev->vidioc_g_frequency             = cx18_g_frequency;
-	vdev->vidioc_s_frequency             = cx18_s_frequency;
-	vdev->vidioc_s_tuner                 = cx18_s_tuner;
-	vdev->vidioc_g_tuner                 = cx18_g_tuner;
-	vdev->vidioc_g_enc_index             = cx18_g_enc_index;
-	vdev->vidioc_g_std                   = cx18_g_std;
-	vdev->vidioc_s_std                   = cx18_s_std;
-	vdev->vidioc_log_status              = cx18_log_status;
-	vdev->vidioc_enum_fmt_vid_cap        = cx18_enum_fmt_vid_cap;
-	vdev->vidioc_encoder_cmd             = cx18_encoder_cmd;
-	vdev->vidioc_try_encoder_cmd         = cx18_try_encoder_cmd;
-	vdev->vidioc_g_fmt_vid_cap           = cx18_g_fmt_vid_cap;
-	vdev->vidioc_g_fmt_vbi_cap           = cx18_g_fmt_vbi_cap;
-	vdev->vidioc_g_fmt_sliced_vbi_cap    = cx18_g_fmt_sliced_vbi_cap;
-	vdev->vidioc_s_fmt_vid_cap           = cx18_s_fmt_vid_cap;
-	vdev->vidioc_s_fmt_vbi_cap           = cx18_s_fmt_vbi_cap;
-	vdev->vidioc_s_fmt_sliced_vbi_cap    = cx18_s_fmt_sliced_vbi_cap;
-	vdev->vidioc_try_fmt_vid_cap         = cx18_try_fmt_vid_cap;
-	vdev->vidioc_try_fmt_vbi_cap         = cx18_try_fmt_vbi_cap;
-	vdev->vidioc_try_fmt_sliced_vbi_cap  = cx18_try_fmt_sliced_vbi_cap;
-	vdev->vidioc_g_sliced_vbi_cap        = cx18_g_sliced_vbi_cap;
-	vdev->vidioc_g_chip_ident            = cx18_g_chip_ident;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	vdev->vidioc_g_register              = cx18_g_register;
-	vdev->vidioc_s_register              = cx18_s_register;
-#endif
-	vdev->vidioc_default                 = cx18_default;
-	vdev->vidioc_queryctrl               = cx18_queryctrl;
-	vdev->vidioc_querymenu               = cx18_querymenu;
-	vdev->vidioc_g_ext_ctrls             = cx18_g_ext_ctrls;
-	vdev->vidioc_s_ext_ctrls             = cx18_s_ext_ctrls;
-	vdev->vidioc_try_ext_ctrls           = cx18_try_ext_ctrls;
+	vdev->ioctl_ops = &cx18_ioctl_ops;
 }

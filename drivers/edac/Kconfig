@@ -123,6 +123,13 @@ config EDAC_I5000
 	  Support for error detection and correction the Intel
 	  Greekcreek/Blackford chipsets.
 
+config EDAC_I5100
+	tristate "Intel San Clemente MCH"
+	depends on EDAC_MM_EDAC && X86 && PCI
+	help
+	  Support for error detection and correction the Intel
+	  San Clemente MCH.
+
 config EDAC_MPC85XX
 	tristate "Freescale MPC85xx"
 	depends on EDAC_MM_EDAC && FSL_SOC && MPC85xx

@@ -46,9 +46,9 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/ssp.h>
+#include <mach/ssp.h>
 
 //#define TALK
 

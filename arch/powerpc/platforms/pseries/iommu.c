@@ -48,7 +48,7 @@
 #include "plpar_wrappers.h"
 
 
-static void tce_build_pSeries(struct iommu_table *tbl, long index,
+static int tce_build_pSeries(struct iommu_table *tbl, long index,
 			      long npages, unsigned long uaddr,
 			      enum dma_data_direction direction,
 			      struct dma_attrs *attrs)
@@ -72,6 +72,7 @@ static void tce_build_pSeries(struct iommu_table *tbl, long index,
 		uaddr += TCE_PAGE_SIZE;
 		tcep++;
 	}
+	return 0;
 }
 
 
@@ -94,14 +95,19 @@ static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
 	return *tcep;
 }
 
-static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
+static void tce_free_pSeriesLP(struct iommu_table*, long, long);
+static void tce_freemulti_pSeriesLP(struct iommu_table*, long, long);
+
+static int tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				long npages, unsigned long uaddr,
 				enum dma_data_direction direction,
 				struct dma_attrs *attrs)
 {
-	u64 rc;
+	u64 rc = 0;
 	u64 proto_tce, tce;
 	u64 rpn;
+	int ret = 0;
+	long tcenum_start = tcenum, npages_start = npages;
 
 	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
@@ -111,6 +117,13 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	while (npages--) {
 		tce = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 		rc = plpar_tce_put((u64)tbl->it_index, (u64)tcenum << 12, tce);
+
+		if (unlikely(rc == H_NOT_ENOUGH_RESOURCES)) {
+			ret = (int)rc;
+			tce_free_pSeriesLP(tbl, tcenum_start,
+			                   (npages_start - (npages + 1)));
+			break;
+		}
 
 		if (rc && printk_ratelimit()) {
 			printk("tce_build_pSeriesLP: plpar_tce_put failed. rc=%ld\n", rc);
@@ -123,25 +136,27 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		tcenum++;
 		rpn++;
 	}
+	return ret;
 }
 
 static DEFINE_PER_CPU(u64 *, tce_page) = NULL;
 
-static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				     long npages, unsigned long uaddr,
 				     enum dma_data_direction direction,
 				     struct dma_attrs *attrs)
 {
-	u64 rc;
+	u64 rc = 0;
 	u64 proto_tce;
 	u64 *tcep;
 	u64 rpn;
 	long l, limit;
+	long tcenum_start = tcenum, npages_start = npages;
+	int ret = 0;
 
 	if (npages == 1) {
-		tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
-				    direction, attrs);
-		return;
+		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
+		                           direction, attrs);
 	}
 
 	tcep = __get_cpu_var(tce_page);
@@ -153,9 +168,8 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		tcep = (u64 *)__get_free_page(GFP_ATOMIC);
 		/* If allocation fails, fall back to the loop implementation */
 		if (!tcep) {
-			tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
+			return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					    direction, attrs);
-			return;
 		}
 		__get_cpu_var(tce_page) = tcep;
 	}
@@ -187,6 +201,13 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		tcenum += limit;
 	} while (npages > 0 && !rc);
 
+	if (unlikely(rc == H_NOT_ENOUGH_RESOURCES)) {
+		ret = (int)rc;
+		tce_freemulti_pSeriesLP(tbl, tcenum_start,
+		                        (npages_start - (npages + limit)));
+		return ret;
+	}
+
 	if (rc && printk_ratelimit()) {
 		printk("tce_buildmulti_pSeriesLP: plpar_tce_put failed. rc=%ld\n", rc);
 		printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
@@ -194,6 +215,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		printk("\ttce[0] val = 0x%lx\n", tcep[0]);
 		show_stack(current, (unsigned long *)__get_SP());
 	}
+	return ret;
 }
 
 static void tce_free_pSeriesLP(struct iommu_table *tbl, long tcenum, long npages)

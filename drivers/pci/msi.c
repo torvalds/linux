@@ -126,7 +126,16 @@ static void msix_flush_writes(unsigned int irq)
 	}
 }
 
-static void msi_set_mask_bits(unsigned int irq, u32 mask, u32 flag)
+/*
+ * PCI 2.3 does not specify mask bits for each MSI interrupt.  Attempting to
+ * mask all MSI interrupts by clearing the MSI enable bit does not work
+ * reliably as devices without an INTx disable bit will then generate a
+ * level IRQ which will never be cleared.
+ *
+ * Returns 1 if it succeeded in masking the interrupt and 0 if the device
+ * doesn't support MSI masking.
+ */
+static int msi_set_mask_bits(unsigned int irq, u32 mask, u32 flag)
 {
 	struct msi_desc *entry;
 
@@ -144,8 +153,7 @@ static void msi_set_mask_bits(unsigned int irq, u32 mask, u32 flag)
 			mask_bits |= flag & mask;
 			pci_write_config_dword(entry->dev, pos, mask_bits);
 		} else {
-			__msi_set_enable(entry->dev, entry->msi_attrib.pos,
-					 !flag);
+			return 0;
 		}
 		break;
 	case PCI_CAP_ID_MSIX:
@@ -161,6 +169,7 @@ static void msi_set_mask_bits(unsigned int irq, u32 mask, u32 flag)
 		break;
 	}
 	entry->msi_attrib.masked = !!flag;
+	return 1;
 }
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
@@ -299,9 +308,8 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 				  entry->msi_attrib.masked);
 
 	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
-	control &= ~(PCI_MSI_FLAGS_QSIZE | PCI_MSI_FLAGS_ENABLE);
-	if (entry->msi_attrib.maskbit || !entry->msi_attrib.masked)
-		control |= PCI_MSI_FLAGS_ENABLE;
+	control &= ~PCI_MSI_FLAGS_QSIZE;
+	control |= PCI_MSI_FLAGS_ENABLE;
 	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
 }
 

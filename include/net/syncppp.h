@@ -43,8 +43,6 @@ struct sppp
 	u32		pp_rseq;	/* remote sequence number */
 	struct slcp	lcp;		/* LCP params */
 	struct sipcp	ipcp;		/* IPCP params */
-	u32		ibytes,obytes;	/* Bytes in/out */
-	u32		ipkts,opkts;	/* Packets in/out */
 	struct timer_list	pp_timer;
 	struct net_device	*pp_if;
 	char		pp_link_state;	/* Link status */

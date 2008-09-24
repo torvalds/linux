@@ -32,12 +32,12 @@
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <asm/arch/gtwx5715.h>
+#include <mach/gtwx5715.h>
 
 /*
  * Xscale UART registers are 32 bits wide with only the least

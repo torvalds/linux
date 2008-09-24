@@ -2512,8 +2512,8 @@ static void stop_nic(struct s2io_nic *nic)
  *   Return Value:
  *  SUCCESS on success or an appropriate -ve value on failure.
  */
-
-static int fill_rx_buffers(struct ring_info *ring, int from_card_up)
+static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
+				int from_card_up)
 {
 	struct sk_buff *skb;
 	struct RxD_t *rxdp;
@@ -2602,7 +2602,8 @@ static int fill_rx_buffers(struct ring_info *ring, int from_card_up)
 			rxdp1->Buffer0_ptr = pci_map_single
 			    (ring->pdev, skb->data, size - NET_IP_ALIGN,
 				PCI_DMA_FROMDEVICE);
-			if(pci_dma_mapping_error(rxdp1->Buffer0_ptr))
+			if (pci_dma_mapping_error(nic->pdev,
+						rxdp1->Buffer0_ptr))
 				goto pci_map_failed;
 
 			rxdp->Control_2 =
@@ -2636,7 +2637,8 @@ static int fill_rx_buffers(struct ring_info *ring, int from_card_up)
 				rxdp3->Buffer0_ptr =
 				   pci_map_single(ring->pdev, ba->ba_0,
 					BUF0_LEN, PCI_DMA_FROMDEVICE);
-				if (pci_dma_mapping_error(rxdp3->Buffer0_ptr))
+			if (pci_dma_mapping_error(nic->pdev,
+						rxdp3->Buffer0_ptr))
 					goto pci_map_failed;
 			} else
 				pci_dma_sync_single_for_device(ring->pdev,
@@ -2655,7 +2657,8 @@ static int fill_rx_buffers(struct ring_info *ring, int from_card_up)
 				(ring->pdev, skb->data, ring->mtu + 4,
 						PCI_DMA_FROMDEVICE);
 
-				if (pci_dma_mapping_error(rxdp3->Buffer2_ptr))
+				if (pci_dma_mapping_error(nic->pdev,
+							rxdp3->Buffer2_ptr))
 					goto pci_map_failed;
 
 				if (from_card_up) {
@@ -2664,8 +2667,8 @@ static int fill_rx_buffers(struct ring_info *ring, int from_card_up)
 						ba->ba_1, BUF1_LEN,
 						PCI_DMA_FROMDEVICE);
 
-					if (pci_dma_mapping_error
-						(rxdp3->Buffer1_ptr)) {
+					if (pci_dma_mapping_error(nic->pdev,
+						rxdp3->Buffer1_ptr)) {
 						pci_unmap_single
 							(ring->pdev,
 						    (dma_addr_t)(unsigned long)
@@ -2806,9 +2809,9 @@ static void free_rx_buffers(struct s2io_nic *sp)
 	}
 }
 
-static int s2io_chk_rx_buffers(struct ring_info *ring)
+static int s2io_chk_rx_buffers(struct s2io_nic *nic, struct ring_info *ring)
 {
-	if (fill_rx_buffers(ring, 0) == -ENOMEM) {
+	if (fill_rx_buffers(nic, ring, 0) == -ENOMEM) {
 		DBG_PRINT(INFO_DBG, "%s:Out of memory", ring->dev->name);
 		DBG_PRINT(INFO_DBG, " in Rx Intr!!\n");
 	}
@@ -2848,7 +2851,7 @@ static int s2io_poll_msix(struct napi_struct *napi, int budget)
 		return 0;
 
 	pkts_processed = rx_intr_handler(ring, budget);
-	s2io_chk_rx_buffers(ring);
+	s2io_chk_rx_buffers(nic, ring);
 
 	if (pkts_processed < budget_org) {
 		netif_rx_complete(dev, napi);
@@ -2882,7 +2885,7 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
 	for (i = 0; i < config->rx_ring_num; i++) {
 		ring = &mac_control->rings[i];
 		ring_pkts_processed = rx_intr_handler(ring, budget);
-		s2io_chk_rx_buffers(ring);
+		s2io_chk_rx_buffers(nic, ring);
 		pkts_processed += ring_pkts_processed;
 		budget -= ring_pkts_processed;
 		if (budget <= 0)
@@ -2939,7 +2942,8 @@ static void s2io_netpoll(struct net_device *dev)
 		rx_intr_handler(&mac_control->rings[i], 0);
 
 	for (i = 0; i < config->rx_ring_num; i++) {
-		if (fill_rx_buffers(&mac_control->rings[i], 0) == -ENOMEM) {
+		if (fill_rx_buffers(nic, &mac_control->rings[i], 0) ==
+				-ENOMEM) {
 			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
 			DBG_PRINT(INFO_DBG, " in Rx Netpoll!!\n");
 			break;
@@ -3139,7 +3143,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		pkt_cnt++;
 
 		/* Updating the statistics block */
-		nic->stats.tx_bytes += skb->len;
+		nic->dev->stats.tx_bytes += skb->len;
 		nic->mac_control.stats_info->sw_stat.mem_freed += skb->truesize;
 		dev_kfree_skb_irq(skb);
 
@@ -4235,14 +4239,14 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Buffer_Pointer = pci_map_single(sp->pdev,
 					fifo->ufo_in_band_v,
 					sizeof(u64), PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(txdp->Buffer_Pointer))
+		if (pci_dma_mapping_error(sp->pdev, txdp->Buffer_Pointer))
 			goto pci_map_failed;
 		txdp++;
 	}
 
 	txdp->Buffer_Pointer = pci_map_single
 	    (sp->pdev, skb->data, frg_len, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(txdp->Buffer_Pointer))
+	if (pci_dma_mapping_error(sp->pdev, txdp->Buffer_Pointer))
 		goto pci_map_failed;
 
 	txdp->Host_Control = (unsigned long) skb;
@@ -4345,7 +4349,7 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 		netif_rx_schedule(dev, &ring->napi);
 	} else {
 		rx_intr_handler(ring, 0);
-		s2io_chk_rx_buffers(ring);
+		s2io_chk_rx_buffers(sp, ring);
 	}
 
 	return IRQ_HANDLED;
@@ -4826,7 +4830,7 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 		 */
 		if (!config->napi) {
 			for (i = 0; i < config->rx_ring_num; i++)
-				s2io_chk_rx_buffers(&mac_control->rings[i]);
+				s2io_chk_rx_buffers(sp, &mac_control->rings[i]);
 		}
 		writeq(sp->general_int_mask, &bar0->general_int_mask);
 		readl(&bar0->general_int_status);
@@ -4892,25 +4896,42 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 	/* Configure Stats for immediate updt */
 	s2io_updt_stats(sp);
 
+	/* Using sp->stats as a staging area, because reset (due to mtu
+	   change, for example) will clear some hardware counters */
+	dev->stats.tx_packets +=
+		le32_to_cpu(mac_control->stats_info->tmac_frms) - 
+		sp->stats.tx_packets;
 	sp->stats.tx_packets =
 		le32_to_cpu(mac_control->stats_info->tmac_frms);
+	dev->stats.tx_errors +=
+		le32_to_cpu(mac_control->stats_info->tmac_any_err_frms) -
+		sp->stats.tx_errors;
 	sp->stats.tx_errors =
 		le32_to_cpu(mac_control->stats_info->tmac_any_err_frms);
+	dev->stats.rx_errors +=
+		le64_to_cpu(mac_control->stats_info->rmac_drop_frms) -
+		sp->stats.rx_errors;
 	sp->stats.rx_errors =
 		le64_to_cpu(mac_control->stats_info->rmac_drop_frms);
+	dev->stats.multicast =
+		le32_to_cpu(mac_control->stats_info->rmac_vld_mcst_frms) - 
+		sp->stats.multicast;
 	sp->stats.multicast =
 		le32_to_cpu(mac_control->stats_info->rmac_vld_mcst_frms);
+	dev->stats.rx_length_errors =
+		le64_to_cpu(mac_control->stats_info->rmac_long_frms) - 
+		sp->stats.rx_length_errors;
 	sp->stats.rx_length_errors =
 		le64_to_cpu(mac_control->stats_info->rmac_long_frms);
 
 	/* collect per-ring rx_packets and rx_bytes */
-	sp->stats.rx_packets = sp->stats.rx_bytes = 0;
+	dev->stats.rx_packets = dev->stats.rx_bytes = 0;
 	for (i = 0; i < config->rx_ring_num; i++) {
-		sp->stats.rx_packets += mac_control->rings[i].rx_packets;
-		sp->stats.rx_bytes += mac_control->rings[i].rx_bytes;
+		dev->stats.rx_packets += mac_control->rings[i].rx_packets;
+		dev->stats.rx_bytes += mac_control->rings[i].rx_bytes;
 	}
 
-	return (&sp->stats);
+	return (&dev->stats);
 }
 
 /**
@@ -6859,7 +6880,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 				pci_map_single( sp->pdev, (*skb)->data,
 					size - NET_IP_ALIGN,
 					PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(rxdp1->Buffer0_ptr))
+			if (pci_dma_mapping_error(sp->pdev, rxdp1->Buffer0_ptr))
 				goto memalloc_failed;
 			rxdp->Host_Control = (unsigned long) (*skb);
 		}
@@ -6886,12 +6907,13 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 				pci_map_single(sp->pdev, (*skb)->data,
 					       dev->mtu + 4,
 					       PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(rxdp3->Buffer2_ptr))
+			if (pci_dma_mapping_error(sp->pdev, rxdp3->Buffer2_ptr))
 				goto memalloc_failed;
 			rxdp3->Buffer0_ptr = *temp0 =
 				pci_map_single( sp->pdev, ba->ba_0, BUF0_LEN,
 						PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(rxdp3->Buffer0_ptr)) {
+			if (pci_dma_mapping_error(sp->pdev,
+						rxdp3->Buffer0_ptr)) {
 				pci_unmap_single (sp->pdev,
 					(dma_addr_t)rxdp3->Buffer2_ptr,
 					dev->mtu + 4, PCI_DMA_FROMDEVICE);
@@ -6903,7 +6925,8 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			rxdp3->Buffer1_ptr = *temp1 =
 				pci_map_single(sp->pdev, ba->ba_1, BUF1_LEN,
 						PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(rxdp3->Buffer1_ptr)) {
+			if (pci_dma_mapping_error(sp->pdev,
+						rxdp3->Buffer1_ptr)) {
 				pci_unmap_single (sp->pdev,
 					(dma_addr_t)rxdp3->Buffer0_ptr,
 					BUF0_LEN, PCI_DMA_FROMDEVICE);
@@ -7187,7 +7210,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		mac_control->rings[i].mtu = dev->mtu;
-		ret = fill_rx_buffers(&mac_control->rings[i], 1);
+		ret = fill_rx_buffers(sp, &mac_control->rings[i], 1);
 		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Out of memory in Open\n",
 				  dev->name);
@@ -7413,7 +7436,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		if (err_mask != 0x5) {
 			DBG_PRINT(ERR_DBG, "%s: Rx error Value: 0x%x\n",
 				dev->name, err_mask);
-			sp->stats.rx_crc_errors++;
+			dev->stats.rx_crc_errors++;
 			sp->mac_control.stats_info->sw_stat.mem_freed
 				+= skb->truesize;
 			dev_kfree_skb(skb);

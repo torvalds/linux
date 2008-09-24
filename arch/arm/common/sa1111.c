@@ -26,7 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -241,14 +241,14 @@ static int sa1111_type_lowirq(unsigned int irq, unsigned int flags)
 	void __iomem *mapbase = get_irq_chip_data(irq);
 	unsigned long ip0;
 
-	if (flags == IRQT_PROBE)
+	if (flags == IRQ_TYPE_PROBE)
 		return 0;
 
-	if ((!(flags & __IRQT_RISEDGE) ^ !(flags & __IRQT_FALEDGE)) == 0)
+	if ((!(flags & IRQ_TYPE_EDGE_RISING) ^ !(flags & IRQ_TYPE_EDGE_FALLING)) == 0)
 		return -EINVAL;
 
 	ip0 = sa1111_readl(mapbase + SA1111_INTPOL0);
-	if (flags & __IRQT_RISEDGE)
+	if (flags & IRQ_TYPE_EDGE_RISING)
 		ip0 &= ~mask;
 	else
 		ip0 |= mask;
@@ -338,14 +338,14 @@ static int sa1111_type_highirq(unsigned int irq, unsigned int flags)
 	void __iomem *mapbase = get_irq_chip_data(irq);
 	unsigned long ip1;
 
-	if (flags == IRQT_PROBE)
+	if (flags == IRQ_TYPE_PROBE)
 		return 0;
 
-	if ((!(flags & __IRQT_RISEDGE) ^ !(flags & __IRQT_FALEDGE)) == 0)
+	if ((!(flags & IRQ_TYPE_EDGE_RISING) ^ !(flags & IRQ_TYPE_EDGE_FALLING)) == 0)
 		return -EINVAL;
 
 	ip1 = sa1111_readl(mapbase + SA1111_INTPOL1);
-	if (flags & __IRQT_RISEDGE)
+	if (flags & IRQ_TYPE_EDGE_RISING)
 		ip1 &= ~mask;
 	else
 		ip1 |= mask;
@@ -427,7 +427,7 @@ static void sa1111_setup_irq(struct sa1111 *sachip)
 	/*
 	 * Register SA1111 interrupt
 	 */
-	set_irq_type(sachip->irq, IRQT_RISING);
+	set_irq_type(sachip->irq, IRQ_TYPE_EDGE_RISING);
 	set_irq_data(sachip->irq, irqbase);
 	set_irq_chained_handler(sachip->irq, sa1111_irq_handler);
 }

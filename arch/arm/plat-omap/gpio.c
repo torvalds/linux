@@ -18,10 +18,10 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/gpio.h>
+#include <mach/irqs.h>
+#include <mach/gpio.h>
 #include <asm/mach/irq.h>
 
 #include <asm/io.h>
@@ -517,13 +517,13 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 	u32 gpio_bit = 1 << gpio;
 
 	MOD_REG_BIT(OMAP24XX_GPIO_LEVELDETECT0, gpio_bit,
-		trigger & __IRQT_LOWLVL);
+		trigger & IRQ_TYPE_LEVEL_LOW);
 	MOD_REG_BIT(OMAP24XX_GPIO_LEVELDETECT1, gpio_bit,
-		trigger & __IRQT_HIGHLVL);
+		trigger & IRQ_TYPE_LEVEL_HIGH);
 	MOD_REG_BIT(OMAP24XX_GPIO_RISINGDETECT, gpio_bit,
-		trigger & __IRQT_RISEDGE);
+		trigger & IRQ_TYPE_EDGE_RISING);
 	MOD_REG_BIT(OMAP24XX_GPIO_FALLINGDETECT, gpio_bit,
-		trigger & __IRQT_FALEDGE);
+		trigger & IRQ_TYPE_EDGE_FALLING);
 
 	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
 		if (trigger != 0)
@@ -555,9 +555,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_MPUIO:
 		reg += OMAP_MPUIO_GPIO_INT_EDGE;
 		l = __raw_readl(reg);
-		if (trigger & __IRQT_RISEDGE)
+		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
-		else if (trigger & __IRQT_FALEDGE)
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			l &= ~(1 << gpio);
 		else
 			goto bad;
@@ -567,9 +567,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
-		if (trigger & __IRQT_RISEDGE)
+		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
-		else if (trigger & __IRQT_FALEDGE)
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			l &= ~(1 << gpio);
 		else
 			goto bad;
@@ -584,9 +584,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 		gpio &= 0x07;
 		l = __raw_readl(reg);
 		l &= ~(3 << (gpio << 1));
-		if (trigger & __IRQT_RISEDGE)
+		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 2 << (gpio << 1);
-		if (trigger & __IRQT_FALEDGE)
+		if (trigger & IRQ_TYPE_EDGE_FALLING)
 			l |= 1 << (gpio << 1);
 		if (trigger)
 			/* Enable wake-up during idle for dynamic tick */
@@ -599,9 +599,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_730:
 		reg += OMAP730_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
-		if (trigger & __IRQT_RISEDGE)
+		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
-		else if (trigger & __IRQT_FALEDGE)
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			l &= ~(1 << gpio);
 		else
 			goto bad;
@@ -887,7 +887,7 @@ static void _reset_gpio(struct gpio_bank *bank, int gpio)
 	_set_gpio_direction(bank, get_gpio_index(gpio), 1);
 	_set_gpio_irqenable(bank, gpio, 0);
 	_clear_gpio_irqstatus(bank, gpio);
-	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQT_NOEDGE);
+	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQ_TYPE_NONE);
 }
 
 /* Use disable_irq_wake() and enable_irq_wake() functions from drivers */
@@ -924,7 +924,7 @@ int omap_request_gpio(int gpio)
 	/* Set trigger to none. You need to enable the desired trigger with
 	 * request_irq() or set_irq_type().
 	 */
-	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQT_NOEDGE);
+	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQ_TYPE_NONE);
 
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (bank->method == METHOD_GPIO_1510) {
@@ -1488,6 +1488,9 @@ static int __init _omap_gpio_init(void)
 		bank->chip.set = gpio_set;
 		if (bank_is_mpuio(bank)) {
 			bank->chip.label = "mpuio";
+#ifdef CONFIG_ARCH_OMAP16XX
+			bank->chip.dev = &omap_mpuio_device.dev;
+#endif
 			bank->chip.base = OMAP_MPUIO(0);
 		} else {
 			bank->chip.label = "gpio";

@@ -152,10 +152,8 @@ static int zfcp_ccw_set_offline(struct ccw_device *ccw_device)
  */
 static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 {
-	struct zfcp_adapter *adapter;
+	struct zfcp_adapter *adapter = dev_get_drvdata(&ccw_device->dev);
 
-	down(&zfcp_data.config_sema);
-	adapter = dev_get_drvdata(&ccw_device->dev);
 	switch (event) {
 	case CIO_GONE:
 		dev_warn(&adapter->ccw_device->dev, "device gone\n");
@@ -174,8 +172,6 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 					89, NULL);
 		break;
 	}
-	zfcp_erp_wait(adapter);
-	up(&zfcp_data.config_sema);
 	return 1;
 }
 

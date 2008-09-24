@@ -115,6 +115,7 @@ struct sioc_mif_req6
 
 #ifdef __KERNEL__
 
+#include <linux/pim.h>
 #include <linux/skbuff.h>	/* for struct sk_buff_head */
 
 #ifdef CONFIG_IPV6_MROUTE

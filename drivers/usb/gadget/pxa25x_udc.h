@@ -139,7 +139,7 @@ struct pxa25x_udc {
 /*-------------------------------------------------------------------------*/
 
 #ifdef CONFIG_ARCH_LUBBOCK
-#include <asm/arch/lubbock.h>
+#include <mach/lubbock.h>
 /* lubbock can also report usb connect/disconnect irqs */
 #endif
 
@@ -259,7 +259,7 @@ dump_state(struct pxa25x_udc *dev)
 #define DBG(lvl, stuff...) do{if ((lvl) <= UDC_DEBUG) DMSG(stuff);}while(0)
 
 #define ERR(stuff...)		pr_err("udc: " stuff)
-#define WARN(stuff...)		pr_warning("udc: " stuff)
+#define WARNING(stuff...)	pr_warning("udc: " stuff)
 #define INFO(stuff...)		pr_info("udc: " stuff)
 
 

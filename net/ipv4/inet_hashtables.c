@@ -305,7 +305,7 @@ unique:
 	inet->num = lport;
 	inet->sport = htons(lport);
 	sk->sk_hash = hash;
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock(lock);
@@ -342,7 +342,7 @@ void __inet_hash_nolisten(struct sock *sk)
 	rwlock_t *lock;
 	struct inet_ehash_bucket *head;
 
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 
 	sk->sk_hash = inet_sk_ehashfn(sk);
 	head = inet_ehash_bucket(hashinfo, sk->sk_hash);
@@ -367,7 +367,7 @@ static void __inet_hash(struct sock *sk)
 		return;
 	}
 
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 	list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 	lock = &hashinfo->lhash_lock;
 
@@ -450,7 +450,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
 				if (tb->ib_net == net && tb->port == port) {
-					BUG_TRAP(!hlist_empty(&tb->owners));
+					WARN_ON(hlist_empty(&tb->owners));
 					if (tb->fastreuse >= 0)
 						goto next_port;
 					if (!check_established(death_row, sk,

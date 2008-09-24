@@ -1,7 +1,7 @@
 /*
- * ATSTK1002 daughterboard-specific init code
+ * ATSTK1002/ATSTK1006 daughterboard-specific init code
  *
- * Copyright (C) 2005-2006 Atmel Corporation
+ * Copyright (C) 2005-2007 Atmel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,10 +21,12 @@
 
 #include <asm/io.h>
 #include <asm/setup.h>
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
+#include <asm/atmel-mci.h>
+
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/init.h>
+#include <mach/portmux.h>
 
 #include "atstk1000.h"
 
@@ -34,6 +36,74 @@ unsigned long at32_board_osc_rates[3] = {
 	[1] = 20000000,	/* 20 MHz on osc0 */
 	[2] = 12000000,	/* 12 MHz on osc1 */
 };
+
+/*
+ * The ATSTK1006 daughterboard is very similar to the ATSTK1002. Both
+ * have the AT32AP7000 chip on board; the difference is that the
+ * STK1006 has 128 MB SDRAM (the STK1002 uses the 8 MB SDRAM chip on
+ * the STK1000 motherboard) and 256 MB NAND flash (the STK1002 has
+ * none.)
+ *
+ * The RAM difference is handled by the boot loader, so the only
+ * difference we end up handling here is the NAND flash.
+ */
+#ifdef CONFIG_BOARD_ATSTK1006
+#include <linux/mtd/partitions.h>
+#include <mach/smc.h>
+
+static struct smc_timing nand_timing __initdata = {
+	.ncs_read_setup		= 0,
+	.nrd_setup		= 10,
+	.ncs_write_setup	= 0,
+	.nwe_setup		= 10,
+
+	.ncs_read_pulse		= 30,
+	.nrd_pulse		= 15,
+	.ncs_write_pulse	= 30,
+	.nwe_pulse		= 15,
+
+	.read_cycle		= 30,
+	.write_cycle		= 30,
+
+	.ncs_read_recover	= 0,
+	.nrd_recover		= 15,
+	.ncs_write_recover	= 0,
+	/* WE# high -> RE# low min 60 ns */
+	.nwe_recover		= 50,
+};
+
+static struct smc_config nand_config __initdata = {
+	.bus_width		= 1,
+	.nrd_controlled		= 1,
+	.nwe_controlled		= 1,
+	.nwait_mode		= 0,
+	.byte_write		= 0,
+	.tdf_cycles		= 2,
+	.tdf_mode		= 0,
+};
+
+static struct mtd_partition nand_partitions[] = {
+	{
+		.name		= "main",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct mtd_partition *nand_part_info(int size, int *num_partitions)
+{
+	*num_partitions = ARRAY_SIZE(nand_partitions);
+	return nand_partitions;
+}
+
+static struct atmel_nand_data atstk1006_nand_data __initdata = {
+	.cle		= 21,
+	.ale		= 22,
+	.rdy_pin	= GPIO_PIN_PB(30),
+	.enable_pin	= GPIO_PIN_PB(29),
+	.partition_info	= nand_part_info,
+};
+#endif
 
 struct eth_addr {
 	u8 addr[6];
@@ -192,6 +262,21 @@ void __init setup_board(void)
 	at32_setup_serial_console(0);
 }
 
+#ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
+
+/* MMC card detect requires MACB0 *NOT* be used */
+#ifdef CONFIG_BOARD_ATSTK1002_SW6_CUSTOM
+static struct mci_platform_data __initdata mci0_data = {
+	.detect_pin	= GPIO_PIN_PC(14),	/* gpio30/sdcd */
+	.wp_pin		= GPIO_PIN_PC(15),	/* gpio31/sdwp */
+};
+#define MCI_PDATA	&mci0_data
+#else
+#define MCI_PDATA	NULL
+#endif	/* SW6 for sd{cd,wp} routing */
+
+#endif	/* SW2 for MMC signal routing */
+
 static int __init atstk1002_init(void)
 {
 	/*
@@ -218,6 +303,12 @@ static int __init atstk1002_init(void)
 
 	at32_add_system_devices();
 
+#ifdef CONFIG_BOARD_ATSTK1006
+	smc_set_timing(&nand_config, &nand_timing);
+	smc_set_configuration(3, &nand_config);
+	at32_add_device_nand(0, &atstk1006_nand_data);
+#endif
+
 #ifdef	CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
 	at32_add_device_usart(1);
 #else
@@ -234,8 +325,8 @@ static int __init atstk1002_init(void)
 #ifdef CONFIG_BOARD_ATSTK100X_SPI1
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
-#ifndef CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
-	at32_add_device_mci(0, NULL);
+#ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
+	at32_add_device_mci(0, MCI_PDATA);
 #endif
 #ifdef CONFIG_BOARD_ATSTK1002_SW5_CUSTOM
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));

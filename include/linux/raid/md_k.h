@@ -128,6 +128,7 @@ struct mddev_s
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* superblock update in progress */
+#define MD_NOTIFY_ARRAY_STATE 3	/* atomic context wants to notify userspace */
 
 	int				ro;
 

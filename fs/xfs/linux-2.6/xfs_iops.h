@@ -18,23 +18,14 @@
 #ifndef __XFS_IOPS_H__
 #define __XFS_IOPS_H__
 
-extern const struct inode_operations xfs_inode_operations;
-extern const struct inode_operations xfs_dir_inode_operations;
-extern const struct inode_operations xfs_symlink_inode_operations;
+struct xfs_inode;
 
 extern const struct file_operations xfs_file_operations;
 extern const struct file_operations xfs_dir_file_operations;
 extern const struct file_operations xfs_invis_file_operations;
 
+extern ssize_t xfs_vn_listxattr(struct dentry *, char *data, size_t size);
 
-struct xfs_inode;
-extern void xfs_ichgtime(struct xfs_inode *, int);
-extern void xfs_ichgtime_fast(struct xfs_inode *, struct inode *, int);
-
-#define xfs_vtoi(vp) \
-	((struct xfs_inode *)vn_to_inode(vp)->i_private)
-
-#define XFS_I(inode) \
-	((struct xfs_inode *)(inode)->i_private)
+extern void xfs_setup_inode(struct xfs_inode *);
 
 #endif /* __XFS_IOPS_H__ */

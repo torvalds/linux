@@ -191,7 +191,7 @@ shmem_check_acl(struct inode *inode, int mask)
  * shmem_permission  -  permission() inode operation
  */
 int
-shmem_permission(struct inode *inode, int mask, struct nameidata *nd)
+shmem_permission(struct inode *inode, int mask)
 {
 	return generic_permission(inode, mask, shmem_check_acl);
 }

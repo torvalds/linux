@@ -96,6 +96,14 @@ shortname=lower|win95|winnt|mixed
 			emulate the Windows 95 rule for create.
 		 Default setting is `lower'.
 
+tz=UTC        -- Interpret timestamps as UTC rather than local time.
+                 This option disables the conversion of timestamps
+                 between local time (as used by Windows on FAT) and UTC
+                 (which Linux uses internally).  This is particuluarly
+                 useful when mounting devices (like digital cameras)
+                 that are set to UTC in order to avoid the pitfalls of
+                 local time.
+
 <bool>: 0,1,yes,no,true,false
 
 TODO

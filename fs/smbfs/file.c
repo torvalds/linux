@@ -408,7 +408,7 @@ smb_file_release(struct inode *inode, struct file * file)
  * privileges, so we need our own check for this.
  */
 static int
-smb_file_permission(struct inode *inode, int mask, struct nameidata *nd)
+smb_file_permission(struct inode *inode, int mask)
 {
 	int mode = inode->i_mode;
 	int error = 0;
@@ -417,7 +417,7 @@ smb_file_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	/* Look at user permissions */
 	mode >>= 6;
-	if ((mode & 7 & mask) != mask)
+	if (mask & ~mode & (MAY_READ | MAY_WRITE | MAY_EXEC))
 		error = -EACCES;
 	return error;
 }

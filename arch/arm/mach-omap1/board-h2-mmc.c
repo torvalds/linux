@@ -12,8 +12,8 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/arch/mmc.h>
-#include <asm/arch/gpio.h>
+#include <mach/mmc.h>
+#include <mach/gpio.h>
 
 #ifdef CONFIG_MMC_OMAP
 static int slot_cover_open;

@@ -1732,3 +1732,40 @@ compat_sys_timerfd_gettime_wrapper:
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# struct compat_itimerspec *
 	jg	compat_sys_timerfd_gettime
+
+	.globl compat_sys_signalfd4_wrapper
+compat_sys_signalfd4_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# compat_sigset_t *
+	llgfr	%r4,%r4			# compat_size_t
+	lgfr	%r5,%r5			# int
+	jg	compat_sys_signalfd4
+
+	.globl sys_eventfd2_wrapper
+sys_eventfd2_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	lgfr	%r3,%r3			# int
+	jg	sys_eventfd2
+
+	.globl	sys_inotify_init1_wrapper
+sys_inotify_init1_wrapper:
+	lgfr	%r2,%r2			# int
+	jg	sys_inotify_init1
+
+	.globl	sys_pipe2_wrapper
+sys_pipe2_wrapper:
+	llgtr	%r2,%r2			# u32 *
+	lgfr	%r3,%r3			# int
+	jg	sys_pipe2		# branch to system call
+
+	.globl	sys_dup3_wrapper
+sys_dup3_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgfr	%r3,%r3			# unsigned int
+	lgfr	%r4,%r4			# int
+	jg	sys_dup3		# branch to system call
+
+	.globl	sys_epoll_create1_wrapper
+sys_epoll_create1_wrapper:
+	lgfr	%r2,%r2			# int
+	jg	sys_epoll_create1	# branch to system call

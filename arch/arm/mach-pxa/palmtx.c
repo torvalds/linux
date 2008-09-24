@@ -30,15 +30,15 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/audio.h>
-#include <asm/arch/palmtx.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/pxa27x_keypad.h>
-#include <asm/arch/udc.h>
+#include <mach/audio.h>
+#include <mach/palmtx.h>
+#include <mach/mmc.h>
+#include <mach/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/irda.h>
+#include <mach/pxa27x_keypad.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "devices.h"

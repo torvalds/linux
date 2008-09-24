@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
@@ -331,17 +331,17 @@ static int locomo_gpio_type(unsigned int irq, unsigned int type)
 
 	mask = 1 << (irq - LOCOMO_IRQ_GPIO_START);
 
-	if (type == IRQT_PROBE) {
+	if (type == IRQ_TYPE_PROBE) {
 		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
 			return 0;
-		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
-	if (type & __IRQT_RISEDGE)
+	if (type & IRQ_TYPE_EDGE_RISING)
 		GPIO_IRQ_rising_edge |= mask;
 	else
 		GPIO_IRQ_rising_edge &= ~mask;
-	if (type & __IRQT_FALEDGE)
+	if (type & IRQ_TYPE_EDGE_FALLING)
 		GPIO_IRQ_falling_edge |= mask;
 	else
 		GPIO_IRQ_falling_edge &= ~mask;
@@ -473,7 +473,7 @@ static void locomo_setup_irq(struct locomo *lchip)
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
 	 */
-	set_irq_type(lchip->irq, IRQT_FALLING);
+	set_irq_type(lchip->irq, IRQ_TYPE_EDGE_FALLING);
 	set_irq_chip_data(lchip->irq, irqbase);
 	set_irq_chained_handler(lchip->irq, locomo_handler);
 

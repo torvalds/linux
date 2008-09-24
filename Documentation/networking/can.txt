@@ -186,7 +186,7 @@ solution for a couple of reasons:
 
   The Linux network devices (by default) just can handle the
   transmission and reception of media dependent frames. Due to the
-  arbritration on the CAN bus the transmission of a low prio CAN-ID
+  arbitration on the CAN bus the transmission of a low prio CAN-ID
   may be delayed by the reception of a high prio CAN frame. To
   reflect the correct* traffic on the node the loopback of the sent
   data has to be performed right after a successful transmission. If
@@ -481,7 +481,7 @@ solution for a couple of reasons:
   - stats_timer: To calculate the Socket CAN core statistics
     (e.g. current/maximum frames per second) this 1 second timer is
     invoked at can.ko module start time by default. This timer can be
-    disabled by using stattimer=0 on the module comandline.
+    disabled by using stattimer=0 on the module commandline.
 
   - debug: (removed since SocketCAN SVN r546)
 

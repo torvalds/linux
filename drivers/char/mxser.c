@@ -16,7 +16,6 @@
  *	Fed through a cleanup, indent and remove of non 2.6 code by Alan Cox
  *	<alan@redhat.com>. The original 1.8 code is available on www.moxa.com.
  *	- Fixed x86_64 cleanness
- *	- Fixed sleep with spinlock held in mxser_send_break
  */
 
 #include <linux/module.h>
@@ -49,17 +48,11 @@
 
 #define	MXSER_VERSION	"2.0.4"		/* 1.12 */
 #define	MXSERMAJOR	 174
-#define	MXSERCUMAJOR	 175
 
 #define MXSER_BOARDS		4	/* Max. boards */
 #define MXSER_PORTS_PER_BOARD	8	/* Max. ports per board */
 #define MXSER_PORTS		(MXSER_BOARDS * MXSER_PORTS_PER_BOARD)
 #define MXSER_ISR_PASS_LIMIT	100
-
-#define	MXSER_ERR_IOADDR	-1
-#define	MXSER_ERR_IRQ		-2
-#define	MXSER_ERR_IRQ_CONFLIT	-3
-#define	MXSER_ERR_VECTOR	-4
 
 /*CheckIsMoxaMust return value*/
 #define MOXA_OTHER_UART		0x00
@@ -179,14 +172,15 @@ static struct pci_device_id mxser_pcibrds[] = {
 };
 MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
 
-static int ioaddr[MXSER_BOARDS] = { 0, 0, 0, 0 };
+static unsigned long ioaddr[MXSER_BOARDS];
 static int ttymajor = MXSERMAJOR;
 
 /* Variables for insmod */
 
 MODULE_AUTHOR("Casper Yang");
 MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver");
-module_param_array(ioaddr, int, NULL, 0);
+module_param_array(ioaddr, ulong, NULL, 0);
+MODULE_PARM_DESC(ioaddr, "ISA io addresses to look for a moxa board");
 module_param(ttymajor, int, 0);
 MODULE_LICENSE("GPL");
 
@@ -195,7 +189,6 @@ struct mxser_log {
 	unsigned long rxcnt[MXSER_PORTS];
 	unsigned long txcnt[MXSER_PORTS];
 };
-
 
 struct mxser_mon {
 	unsigned long rxcnt;
@@ -287,19 +280,9 @@ struct mxser_mstatus {
 	int dcd;
 };
 
-static struct mxser_mstatus GMStatus[MXSER_PORTS];
-
-static int mxserBoardCAP[MXSER_BOARDS] = {
-	0, 0, 0, 0
-	/*  0x180, 0x280, 0x200, 0x320 */
-};
-
 static struct mxser_board mxser_boards[MXSER_BOARDS];
 static struct tty_driver *mxvar_sdriver;
 static struct mxser_log mxvar_log;
-static int mxvar_diagflag;
-static unsigned char mxser_msr[MXSER_PORTS + 1];
-static struct mxser_mon_ext mon_data_ext;
 static int mxser_set_baud_method[MXSER_PORTS + 1];
 
 static void mxser_enable_must_enchance_mode(unsigned long baseio)
@@ -543,6 +526,7 @@ static void process_txrx_fifo(struct mxser_port *info)
 
 static unsigned char mxser_get_msr(int baseaddr, int mode, int port)
 {
+	static unsigned char mxser_msr[MXSER_PORTS + 1];
 	unsigned char status = 0;
 
 	status = inb(baseaddr + UART_MSR);
@@ -1319,13 +1303,9 @@ static void mxser_flush_chars(struct tty_struct *tty)
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (info->xmit_cnt <= 0 ||
-			tty->stopped ||
-			!info->port.xmit_buf ||
-			(tty->hw_stopped &&
-			 (info->type != PORT_16550A) &&
-			 (!info->board->chip_flag)
-			))
+	if (info->xmit_cnt <= 0 || tty->stopped || !info->port.xmit_buf ||
+			(tty->hw_stopped && info->type != PORT_16550A &&
+			 !info->board->chip_flag))
 		return;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1343,9 +1323,7 @@ static int mxser_write_room(struct tty_struct *tty)
 	int ret;
 
 	ret = SERIAL_XMIT_SIZE - info->xmit_cnt - 1;
-	if (ret < 0)
-		ret = 0;
-	return ret;
+	return ret < 0 ? 0 : ret;
 }
 
 static int mxser_chars_in_buffer(struct tty_struct *tty)
@@ -1634,6 +1612,10 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 	switch (cmd) {
 	case MOXA_GET_MAJOR:
+		if (printk_ratelimit())
+			printk(KERN_WARNING "mxser: '%s' uses deprecated ioctl "
+					"%x (GET_MAJOR), fix your userspace\n",
+					current->comm, cmd);
 		return put_user(ttymajor, (int __user *)argp);
 
 	case MOXA_CHKPORTENABLE:
@@ -1651,62 +1633,60 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 			ret = -EFAULT;
 		unlock_kernel();
 		return ret;
-	case MOXA_GETMSTATUS:
+	case MOXA_GETMSTATUS: {
+		struct mxser_mstatus ms, __user *msu = argp;
 		lock_kernel();
 		for (i = 0; i < MXSER_BOARDS; i++)
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++) {
 				port = &mxser_boards[i].ports[j];
+				memset(&ms, 0, sizeof(ms));
 
-				GMStatus[i].ri = 0;
-				if (!port->ioaddr) {
-					GMStatus[i].dcd = 0;
-					GMStatus[i].dsr = 0;
-					GMStatus[i].cts = 0;
-					continue;
-				}
+				if (!port->ioaddr)
+					goto copy;
 
 				if (!port->port.tty || !port->port.tty->termios)
-					GMStatus[i].cflag =
-						port->normal_termios.c_cflag;
+					ms.cflag = port->normal_termios.c_cflag;
 				else
-					GMStatus[i].cflag =
-						port->port.tty->termios->c_cflag;
+					ms.cflag = port->port.tty->termios->c_cflag;
 
 				status = inb(port->ioaddr + UART_MSR);
-				if (status & 0x80 /*UART_MSR_DCD */ )
-					GMStatus[i].dcd = 1;
-				else
-					GMStatus[i].dcd = 0;
-
-				if (status & 0x20 /*UART_MSR_DSR */ )
-					GMStatus[i].dsr = 1;
-				else
-					GMStatus[i].dsr = 0;
-
-
-				if (status & 0x10 /*UART_MSR_CTS */ )
-					GMStatus[i].cts = 1;
-				else
-					GMStatus[i].cts = 0;
+				if (status & UART_MSR_DCD)
+					ms.dcd = 1;
+				if (status & UART_MSR_DSR)
+					ms.dsr = 1;
+				if (status & UART_MSR_CTS)
+					ms.cts = 1;
+			copy:
+				if (copy_to_user(msu, &ms, sizeof(ms))) {
+					unlock_kernel();
+					return -EFAULT;
+				}
+				msu++;
 			}
 		unlock_kernel();
-		if (copy_to_user(argp, GMStatus,
-				sizeof(struct mxser_mstatus) * MXSER_PORTS))
-			return -EFAULT;
 		return 0;
+	}
 	case MOXA_ASPP_MON_EXT: {
-		int p, shiftbit;
-		unsigned long opmode;
-		unsigned cflag, iflag;
+		struct mxser_mon_ext *me; /* it's 2k, stack unfriendly */
+		unsigned int cflag, iflag, p;
+		u8 opmode;
+
+		me = kzalloc(sizeof(*me), GFP_KERNEL);
+		if (!me)
+			return -ENOMEM;
 
 		lock_kernel();
-		for (i = 0; i < MXSER_BOARDS; i++) {
-			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++) {
+		for (i = 0, p = 0; i < MXSER_BOARDS; i++) {
+			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++, p++) {
+				if (p >= ARRAY_SIZE(me->rx_cnt)) {
+					i = MXSER_BOARDS;
+					break;
+				}
 				port = &mxser_boards[i].ports[j];
 				if (!port->ioaddr)
 					continue;
 
-				status = mxser_get_msr(port->ioaddr, 0, i);
+				status = mxser_get_msr(port->ioaddr, 0, p);
 
 				if (status & UART_MSR_TERI)
 					port->icount.rng++;
@@ -1718,16 +1698,13 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 					port->icount.cts++;
 
 				port->mon_data.modem_status = status;
-				mon_data_ext.rx_cnt[i] = port->mon_data.rxcnt;
-				mon_data_ext.tx_cnt[i] = port->mon_data.txcnt;
-				mon_data_ext.up_rxcnt[i] =
-					port->mon_data.up_rxcnt;
-				mon_data_ext.up_txcnt[i] =
-					port->mon_data.up_txcnt;
-				mon_data_ext.modem_status[i] =
+				me->rx_cnt[p] = port->mon_data.rxcnt;
+				me->tx_cnt[p] = port->mon_data.txcnt;
+				me->up_rxcnt[p] = port->mon_data.up_rxcnt;
+				me->up_txcnt[p] = port->mon_data.up_txcnt;
+				me->modem_status[p] =
 					port->mon_data.modem_status;
-				mon_data_ext.baudrate[i] =
-					tty_get_baud_rate(port->port.tty);
+				me->baudrate[p] = tty_get_baud_rate(port->port.tty);
 
 				if (!port->port.tty || !port->port.tty->termios) {
 					cflag = port->normal_termios.c_cflag;
@@ -1737,40 +1714,31 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 					iflag = port->port.tty->termios->c_iflag;
 				}
 
-				mon_data_ext.databits[i] = cflag & CSIZE;
-
-				mon_data_ext.stopbits[i] = cflag & CSTOPB;
-
-				mon_data_ext.parity[i] =
-					cflag & (PARENB | PARODD | CMSPAR);
-
-				mon_data_ext.flowctrl[i] = 0x00;
+				me->databits[p] = cflag & CSIZE;
+				me->stopbits[p] = cflag & CSTOPB;
+				me->parity[p] = cflag & (PARENB | PARODD |
+						CMSPAR);
 
 				if (cflag & CRTSCTS)
-					mon_data_ext.flowctrl[i] |= 0x03;
+					me->flowctrl[p] |= 0x03;
 
 				if (iflag & (IXON | IXOFF))
-					mon_data_ext.flowctrl[i] |= 0x0C;
+					me->flowctrl[p] |= 0x0C;
 
 				if (port->type == PORT_16550A)
-					mon_data_ext.fifo[i] = 1;
-				else
-					mon_data_ext.fifo[i] = 0;
+					me->fifo[p] = 1;
 
-				p = i % 4;
-				shiftbit = p * 2;
-				opmode = inb(port->opmode_ioaddr) >> shiftbit;
+				opmode = inb(port->opmode_ioaddr) >>
+						((p % 4) * 2);
 				opmode &= OP_MODE_MASK;
-
-				mon_data_ext.iftype[i] = opmode;
-
+				me->iftype[p] = opmode;
 			}
 		}
 		unlock_kernel();
-		if (copy_to_user(argp, &mon_data_ext,
-					sizeof(mon_data_ext)))
-			return -EFAULT;
-		return 0;
+		if (copy_to_user(argp, me, sizeof(*me)))
+			ret = -EFAULT;
+		kfree(me);
+		return ret;
 	}
 	default:
 		return -ENOIOCTLCMD;
@@ -1804,7 +1772,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 {
 	struct mxser_port *info = tty->driver_data;
 	struct async_icount cnow;
-	struct serial_icounter_struct __user *p_cuser;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 	int retval;
@@ -1884,30 +1851,26 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	 * NB: both 1->0 and 0->1 transitions are counted except for
 	 *     RI where only 0->1 is counted.
 	 */
-	case TIOCGICOUNT:
+	case TIOCGICOUNT: {
+		struct serial_icounter_struct icnt = { 0 };
 		spin_lock_irqsave(&info->slock, flags);
 		cnow = info->icount;
 		spin_unlock_irqrestore(&info->slock, flags);
-		p_cuser = argp;
-		if (put_user(cnow.frame, &p_cuser->frame))
-			return -EFAULT;
-		if (put_user(cnow.brk, &p_cuser->brk))
-			return -EFAULT;
-		if (put_user(cnow.overrun, &p_cuser->overrun))
-			return -EFAULT;
-		if (put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			return -EFAULT;
-		if (put_user(cnow.parity, &p_cuser->parity))
-			return -EFAULT;
-		if (put_user(cnow.rx, &p_cuser->rx))
-			return -EFAULT;
-		if (put_user(cnow.tx, &p_cuser->tx))
-			return -EFAULT;
-		put_user(cnow.cts, &p_cuser->cts);
-		put_user(cnow.dsr, &p_cuser->dsr);
-		put_user(cnow.rng, &p_cuser->rng);
-		put_user(cnow.dcd, &p_cuser->dcd);
-		return 0;
+
+		icnt.frame = cnow.frame;
+		icnt.brk = cnow.brk;
+		icnt.overrun = cnow.overrun;
+		icnt.buf_overrun = cnow.buf_overrun;
+		icnt.parity = cnow.parity;
+		icnt.rx = cnow.rx;
+		icnt.tx = cnow.tx;
+		icnt.cts = cnow.cts;
+		icnt.dsr = cnow.dsr;
+		icnt.rng = cnow.rng;
+		icnt.dcd = cnow.dcd;
+
+		return copy_to_user(argp, &icnt, sizeof(icnt)) ? -EFAULT : 0;
+	}
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	case MOXA_SDS_RSTICOUNTER:
@@ -2503,7 +2466,8 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 	unsigned int i;
 	int retval;
 
-	printk(KERN_INFO "max. baud rate = %d bps.\n", brd->ports[0].max_baud);
+	printk(KERN_INFO "mxser: max. baud rate = %d bps\n",
+			brd->ports[0].max_baud);
 
 	for (i = 0; i < brd->info->nports; i++) {
 		info = &brd->ports[i];
@@ -2586,28 +2550,32 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 		irq = regs[9] & 0xF000;
 		irq = irq | (irq >> 4);
 		if (irq != (regs[9] & 0xFF00))
-			return MXSER_ERR_IRQ_CONFLIT;
+			goto err_irqconflict;
 	} else if (brd->info->nports == 4) {
 		irq = regs[9] & 0xF000;
 		irq = irq | (irq >> 4);
 		irq = irq | (irq >> 8);
 		if (irq != regs[9])
-			return MXSER_ERR_IRQ_CONFLIT;
+			goto err_irqconflict;
 	} else if (brd->info->nports == 8) {
 		irq = regs[9] & 0xF000;
 		irq = irq | (irq >> 4);
 		irq = irq | (irq >> 8);
 		if ((irq != regs[9]) || (irq != regs[10]))
-			return MXSER_ERR_IRQ_CONFLIT;
+			goto err_irqconflict;
 	}
 
-	if (!irq)
-		return MXSER_ERR_IRQ;
+	if (!irq) {
+		printk(KERN_ERR "mxser: interrupt number unset\n");
+		return -EIO;
+	}
 	brd->irq = ((int)(irq & 0xF000) >> 12);
 	for (i = 0; i < 8; i++)
 		brd->ports[i].ioaddr = (int) regs[i + 1] & 0xFFF8;
-	if ((regs[12] & 0x80) == 0)
-		return MXSER_ERR_VECTOR;
+	if ((regs[12] & 0x80) == 0) {
+		printk(KERN_ERR "mxser: invalid interrupt vector\n");
+		return -EIO;
+	}
 	brd->vector = (int)regs[11];	/* interrupt vector */
 	if (id == 1)
 		brd->vector_mask = 0x00FF;
@@ -2634,13 +2602,26 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 	else
 		brd->uart_type = PORT_16450;
 	if (!request_region(brd->ports[0].ioaddr, 8 * brd->info->nports,
-			"mxser(IO)"))
-		return MXSER_ERR_IOADDR;
+			"mxser(IO)")) {
+		printk(KERN_ERR "mxser: can't request ports I/O region: "
+				"0x%.8lx-0x%.8lx\n",
+				brd->ports[0].ioaddr, brd->ports[0].ioaddr +
+				8 * brd->info->nports - 1);
+		return -EIO;
+	}
 	if (!request_region(brd->vector, 1, "mxser(vector)")) {
 		release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
-		return MXSER_ERR_VECTOR;
+		printk(KERN_ERR "mxser: can't request interrupt vector region: "
+				"0x%.8lx-0x%.8lx\n",
+				brd->ports[0].ioaddr, brd->ports[0].ioaddr +
+				8 * brd->info->nports - 1);
+		return -EIO;
 	}
 	return brd->info->nports;
+
+err_irqconflict:
+	printk(KERN_ERR "mxser: invalid interrupt number\n");
+	return -EIO;
 }
 
 static int __devinit mxser_probe(struct pci_dev *pdev,
@@ -2657,20 +2638,20 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 			break;
 
 	if (i >= MXSER_BOARDS) {
-		printk(KERN_ERR "Too many Smartio/Industio family boards found "
-			"(maximum %d), board not configured\n", MXSER_BOARDS);
+		dev_err(&pdev->dev, "too many boards found (maximum %d), board "
+				"not configured\n", MXSER_BOARDS);
 		goto err;
 	}
 
 	brd = &mxser_boards[i];
 	brd->idx = i * MXSER_PORTS_PER_BOARD;
-	printk(KERN_INFO "Found MOXA %s board (BusNo=%d, DevNo=%d)\n",
+	dev_info(&pdev->dev, "found MOXA %s board (BusNo=%d, DevNo=%d)\n",
 		mxser_cards[ent->driver_data].name,
 		pdev->bus->number, PCI_SLOT(pdev->devfn));
 
 	retval = pci_enable_device(pdev);
 	if (retval) {
-		printk(KERN_ERR "Moxa SmartI/O PCI enable fail !\n");
+		dev_err(&pdev->dev, "PCI enable failed\n");
 		goto err;
 	}
 
@@ -2772,11 +2753,8 @@ static struct pci_driver mxser_driver = {
 static int __init mxser_module_init(void)
 {
 	struct mxser_board *brd;
-	unsigned long cap;
-	unsigned int i, m, isaloop;
-	int retval, b;
-
-	pr_debug("Loading module mxser ...\n");
+	unsigned int b, i, m;
+	int retval;
 
 	mxvar_sdriver = alloc_tty_driver(MXSER_PORTS + 1);
 	if (!mxvar_sdriver)
@@ -2806,73 +2784,42 @@ static int __init mxser_module_init(void)
 		goto err_put;
 	}
 
-	mxvar_diagflag = 0;
-
-	m = 0;
 	/* Start finding ISA boards here */
-	for (isaloop = 0; isaloop < 2; isaloop++)
-		for (b = 0; b < MXSER_BOARDS && m < MXSER_BOARDS; b++) {
-			if (!isaloop)
-				cap = mxserBoardCAP[b]; /* predefined */
-			else
-				cap = ioaddr[b]; /* module param */
+	for (m = 0, b = 0; b < MXSER_BOARDS; b++) {
+		if (!ioaddr[b])
+			continue;
 
-			if (!cap)
-				continue;
-
-			brd = &mxser_boards[m];
-			retval = mxser_get_ISA_conf(cap, brd);
-
-			if (retval != 0)
-				printk(KERN_INFO "Found MOXA %s board "
-					"(CAP=0x%x)\n",
-					brd->info->name, ioaddr[b]);
-
-			if (retval <= 0) {
-				if (retval == MXSER_ERR_IRQ)
-					printk(KERN_ERR "Invalid interrupt "
-						"number, board not "
-						"configured\n");
-				else if (retval == MXSER_ERR_IRQ_CONFLIT)
-					printk(KERN_ERR "Invalid interrupt "
-						"number, board not "
-						"configured\n");
-				else if (retval == MXSER_ERR_VECTOR)
-					printk(KERN_ERR "Invalid interrupt "
-						"vector, board not "
-						"configured\n");
-				else if (retval == MXSER_ERR_IOADDR)
-					printk(KERN_ERR "Invalid I/O address, "
-						"board not configured\n");
-
-				brd->info = NULL;
-				continue;
-			}
-
-			/* mxser_initbrd will hook ISR. */
-			if (mxser_initbrd(brd, NULL) < 0) {
-				brd->info = NULL;
-				continue;
-			}
-
-			brd->idx = m * MXSER_PORTS_PER_BOARD;
-			for (i = 0; i < brd->info->nports; i++)
-				tty_register_device(mxvar_sdriver, brd->idx + i,
-						NULL);
-
-			m++;
+		brd = &mxser_boards[m];
+		retval = mxser_get_ISA_conf(!ioaddr[b], brd);
+		if (retval <= 0) {
+			brd->info = NULL;
+			continue;
 		}
+
+		printk(KERN_INFO "mxser: found MOXA %s board (CAP=0x%lx)\n",
+				brd->info->name, ioaddr[b]);
+
+		/* mxser_initbrd will hook ISR. */
+		if (mxser_initbrd(brd, NULL) < 0) {
+			brd->info = NULL;
+			continue;
+		}
+
+		brd->idx = m * MXSER_PORTS_PER_BOARD;
+		for (i = 0; i < brd->info->nports; i++)
+			tty_register_device(mxvar_sdriver, brd->idx + i, NULL);
+
+		m++;
+	}
 
 	retval = pci_register_driver(&mxser_driver);
 	if (retval) {
-		printk(KERN_ERR "Can't register pci driver\n");
+		printk(KERN_ERR "mxser: can't register pci driver\n");
 		if (!m) {
 			retval = -ENODEV;
 			goto err_unr;
 		} /* else: we have some ISA cards under control */
 	}
-
-	pr_debug("Done.\n");
 
 	return 0;
 err_unr:
@@ -2885,8 +2832,6 @@ err_put:
 static void __exit mxser_module_exit(void)
 {
 	unsigned int i, j;
-
-	pr_debug("Unloading module mxser ...\n");
 
 	pci_unregister_driver(&mxser_driver);
 
@@ -2901,8 +2846,6 @@ static void __exit mxser_module_exit(void)
 	for (i = 0; i < MXSER_BOARDS; i++)
 		if (mxser_boards[i].info != NULL)
 			mxser_release_res(&mxser_boards[i], NULL, 1);
-
-	pr_debug("Done.\n");
 }
 
 module_init(mxser_module_init);

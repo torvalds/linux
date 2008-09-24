@@ -254,6 +254,8 @@ config CPM2
 	select CPM
 	select PPC_LIB_RHEAP
 	select PPC_PCI_CHOICE
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
@@ -281,6 +283,7 @@ config FSL_ULI1575
 
 config CPM
 	bool
+	select PPC_CLOCK
 
 config OF_RTC
 	bool

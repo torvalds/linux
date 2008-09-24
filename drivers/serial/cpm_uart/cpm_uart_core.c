@@ -43,6 +43,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs_uart_pd.h>
 #include <linux/of_platform.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -96,13 +99,41 @@ static unsigned int cpm_uart_tx_empty(struct uart_port *port)
 
 static void cpm_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* Whee. Do nothing. */
+	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
+
+	if (pinfo->gpios[GPIO_RTS] >= 0)
+		gpio_set_value(pinfo->gpios[GPIO_RTS], !(mctrl & TIOCM_RTS));
+
+	if (pinfo->gpios[GPIO_DTR] >= 0)
+		gpio_set_value(pinfo->gpios[GPIO_DTR], !(mctrl & TIOCM_DTR));
 }
 
 static unsigned int cpm_uart_get_mctrl(struct uart_port *port)
 {
-	/* Whee. Do nothing. */
-	return TIOCM_CAR | TIOCM_DSR | TIOCM_CTS;
+	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
+	unsigned int mctrl = TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+
+	if (pinfo->gpios[GPIO_CTS] >= 0) {
+		if (gpio_get_value(pinfo->gpios[GPIO_CTS]))
+			mctrl &= ~TIOCM_CTS;
+	}
+
+	if (pinfo->gpios[GPIO_DSR] >= 0) {
+		if (gpio_get_value(pinfo->gpios[GPIO_DSR]))
+			mctrl &= ~TIOCM_DSR;
+	}
+
+	if (pinfo->gpios[GPIO_DCD] >= 0) {
+		if (gpio_get_value(pinfo->gpios[GPIO_DCD]))
+			mctrl &= ~TIOCM_CAR;
+	}
+
+	if (pinfo->gpios[GPIO_RI] >= 0) {
+		if (!gpio_get_value(pinfo->gpios[GPIO_RI]))
+			mctrl |= TIOCM_RNG;
+	}
+
+	return mctrl;
 }
 
 /*
@@ -566,7 +597,10 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		out_be16(&sccp->scc_psmr, (sbits << 12) | scval);
 	}
 
-	cpm_set_brg(pinfo->brg - 1, baud);
+	if (pinfo->clk)
+		clk_set_rate(pinfo->clk, baud);
+	else
+		cpm_set_brg(pinfo->brg - 1, baud);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -991,14 +1025,23 @@ static int cpm_uart_init_port(struct device_node *np,
 	void __iomem *mem, *pram;
 	int len;
 	int ret;
+	int i;
 
-	data = of_get_property(np, "fsl,cpm-brg", &len);
-	if (!data || len != 4) {
-		printk(KERN_ERR "CPM UART %s has no/invalid "
-		                "fsl,cpm-brg property.\n", np->name);
-		return -EINVAL;
+	data = of_get_property(np, "clock", NULL);
+	if (data) {
+		struct clk *clk = clk_get(NULL, (const char*)data);
+		if (!IS_ERR(clk))
+			pinfo->clk = clk;
 	}
-	pinfo->brg = *data;
+	if (!pinfo->clk) {
+		data = of_get_property(np, "fsl,cpm-brg", &len);
+		if (!data || len != 4) {
+			printk(KERN_ERR "CPM UART %s has no/invalid "
+			                "fsl,cpm-brg property.\n", np->name);
+			return -EINVAL;
+		}
+		pinfo->brg = *data;
+	}
 
 	data = of_get_property(np, "fsl,cpm-command", &len);
 	if (!data || len != 4) {
@@ -1049,6 +1092,9 @@ static int cpm_uart_init_port(struct device_node *np,
 		ret = -EINVAL;
 		goto out_pram;
 	}
+
+	for (i = 0; i < NUM_GPIOS; i++)
+		pinfo->gpios[i] = of_get_gpio(np, i);
 
 	return cpm_uart_request_port(&pinfo->port);
 

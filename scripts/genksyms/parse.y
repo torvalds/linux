@@ -446,7 +446,7 @@ member_bitfield_declarator:
 
 attribute_opt:
 	/* empty */					{ $$ = NULL; }
-	| ATTRIBUTE_PHRASE
+	| attribute_opt ATTRIBUTE_PHRASE
 	;
 
 asm_definition:

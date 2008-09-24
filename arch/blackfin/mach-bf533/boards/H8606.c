@@ -38,7 +38,6 @@
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb/isp1362.h>
 #endif
-#include <linux/ata_platform.h>
 #include <linux/irq.h>
 
 #include <asm/dma.h>
@@ -141,16 +140,16 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00060000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "kernel",
+		.name = "linux kernel(spi)",
 		.size = 0x100000,
 		.offset = 0x60000
 	}, {
-		.name = "file system",
+		.name = "file system(spi)",
 		.size = 0x6a0000,
 		.offset = 0x00160000,
 	}

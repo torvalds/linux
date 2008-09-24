@@ -47,12 +47,20 @@ extern unsigned pxa27x_get_memclk_frequency_10khz(void);
 #define pxa27x_get_memclk_frequency_10khz()	(0)
 #endif
 
+#if defined(CONFIG_PXA25x) || defined(CONFIG_PXA27x)
+extern void pxa2xx_clear_reset_status(unsigned int);
+#else
+static inline void pxa2xx_clear_reset_status(unsigned int mask) {}
+#endif
+
 #ifdef CONFIG_PXA3xx
 extern unsigned pxa3xx_get_clk_frequency_khz(int);
 extern unsigned pxa3xx_get_memclk_frequency_10khz(void);
+extern void pxa3xx_clear_reset_status(unsigned int);
 #else
 #define pxa3xx_get_clk_frequency_khz(x)		(0)
 #define pxa3xx_get_memclk_frequency_10khz()	(0)
+static inline void pxa3xx_clear_reset_status(unsigned int mask) {}
 #endif
 
 extern struct sysdev_class pxa_irq_sysclass;

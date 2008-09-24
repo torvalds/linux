@@ -12,6 +12,7 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/fcntl.h>
 #include <linux/net.h>
 #include <linux/in.h>
