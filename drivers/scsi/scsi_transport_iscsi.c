@@ -138,7 +138,7 @@ static ssize_t
 show_ep_handle(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
-	return sprintf(buf, "%u\n", ep->id);
+	return sprintf(buf, "%llu\n", (unsigned long long) ep->id);
 }
 static ISCSI_ATTR(ep, handle, S_IRUGO, show_ep_handle, NULL);
 
@@ -156,7 +156,7 @@ static struct attribute_group iscsi_endpoint_group = {
 static int iscsi_match_epid(struct device *dev, void *data)
 {
 	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
-	unsigned int *epid = (unsigned int *) data;
+	uint64_t *epid = (uint64_t *) data;
 
 	return *epid == ep->id;
 }
@@ -166,7 +166,7 @@ iscsi_create_endpoint(int dd_size)
 {
 	struct device *dev;
 	struct iscsi_endpoint *ep;
-	unsigned int id;
+	uint64_t id;
 	int err;
 
 	for (id = 1; id < ISCSI_MAX_EPID; id++) {
@@ -187,7 +187,8 @@ iscsi_create_endpoint(int dd_size)
 
 	ep->id = id;
 	ep->dev.class = &iscsi_endpoint_class;
-	snprintf(ep->dev.bus_id, BUS_ID_SIZE, "ep-%u", id);
+	snprintf(ep->dev.bus_id, BUS_ID_SIZE, "ep-%llu",
+		 (unsigned long long) id);
 	err = device_register(&ep->dev);
         if (err)
                 goto free_ep;
