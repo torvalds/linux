@@ -742,7 +742,7 @@ extern char netxen_nic_driver_name[];
 	} while (0)
 #else
 #define DPRINTK(klevel, fmt, args...)	do { \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, __FUNCTION__,\
+	printk(KERN_##klevel PFX "%s: %s: " fmt, __func__,\
 		(adapter != NULL && adapter->netdev != NULL) ? \
 		adapter->netdev->name : NULL, \
 		## args); } while(0)

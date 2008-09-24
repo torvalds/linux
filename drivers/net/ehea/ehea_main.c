@@ -219,9 +219,11 @@ static void ehea_update_firmware_handles(void)
 	}
 
 out_update:
+	mutex_lock(&ehea_fw_handles.lock);
 	kfree(ehea_fw_handles.arr);
 	ehea_fw_handles.arr = arr;
 	ehea_fw_handles.num_entries = i;
+	mutex_unlock(&ehea_fw_handles.lock);
 }
 
 static void ehea_update_bcmc_registrations(void)
@@ -293,9 +295,11 @@ static void ehea_update_bcmc_registrations(void)
 	}
 
 out_update:
+	spin_lock(&ehea_bcmc_regs.lock);
 	kfree(ehea_bcmc_regs.arr);
 	ehea_bcmc_regs.arr = arr;
 	ehea_bcmc_regs.num_entries = i;
+	spin_unlock(&ehea_bcmc_regs.lock);
 }
 
 static struct net_device_stats *ehea_get_stats(struct net_device *dev)
@@ -1770,8 +1774,6 @@ static int ehea_set_mac_addr(struct net_device *dev, void *sa)
 
 	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
 
-	spin_lock(&ehea_bcmc_regs.lock);
-
 	/* Deregister old MAC in pHYP */
 	if (port->state == EHEA_PORT_UP) {
 		ret = ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
@@ -1792,7 +1794,6 @@ static int ehea_set_mac_addr(struct net_device *dev, void *sa)
 
 out_upregs:
 	ehea_update_bcmc_registrations();
-	spin_unlock(&ehea_bcmc_regs.lock);
 out_free:
 	kfree(cb0);
 out:
@@ -1954,8 +1955,6 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	}
 	ehea_promiscuous(dev, 0);
 
-	spin_lock(&ehea_bcmc_regs.lock);
-
 	if (dev->flags & IFF_ALLMULTI) {
 		ehea_allmulti(dev, 1);
 		goto out;
@@ -1985,7 +1984,6 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	}
 out:
 	ehea_update_bcmc_registrations();
-	spin_unlock(&ehea_bcmc_regs.lock);
 	return;
 }
 
@@ -2466,8 +2464,6 @@ static int ehea_up(struct net_device *dev)
 	if (port->state == EHEA_PORT_UP)
 		return 0;
 
-	mutex_lock(&ehea_fw_handles.lock);
-
 	ret = ehea_port_res_setup(port, port->num_def_qps,
 				  port->num_add_tx_qps);
 	if (ret) {
@@ -2504,8 +2500,6 @@ static int ehea_up(struct net_device *dev)
 		}
 	}
 
-	spin_lock(&ehea_bcmc_regs.lock);
-
 	ret = ehea_broadcast_reg_helper(port, H_REG_BCMC);
 	if (ret) {
 		ret = -EIO;
@@ -2527,10 +2521,8 @@ out:
 		ehea_info("Failed starting %s. ret=%i", dev->name, ret);
 
 	ehea_update_bcmc_registrations();
-	spin_unlock(&ehea_bcmc_regs.lock);
 
 	ehea_update_firmware_handles();
-	mutex_unlock(&ehea_fw_handles.lock);
 
 	return ret;
 }
@@ -2580,9 +2572,6 @@ static int ehea_down(struct net_device *dev)
 	if (port->state == EHEA_PORT_DOWN)
 		return 0;
 
-	mutex_lock(&ehea_fw_handles.lock);
-
-	spin_lock(&ehea_bcmc_regs.lock);
 	ehea_drop_multicast_list(dev);
 	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 
@@ -2591,7 +2580,6 @@ static int ehea_down(struct net_device *dev)
 	port->state = EHEA_PORT_DOWN;
 
 	ehea_update_bcmc_registrations();
-	spin_unlock(&ehea_bcmc_regs.lock);
 
 	ret = ehea_clean_all_portres(port);
 	if (ret)
@@ -2599,7 +2587,6 @@ static int ehea_down(struct net_device *dev)
 			  dev->name, ret);
 
 	ehea_update_firmware_handles();
-	mutex_unlock(&ehea_fw_handles.lock);
 
 	return ret;
 }
@@ -3378,7 +3365,6 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 		ehea_error("Invalid ibmebus device probed");
 		return -EINVAL;
 	}
-	mutex_lock(&ehea_fw_handles.lock);
 
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
@@ -3462,7 +3448,6 @@ out_free_ad:
 
 out:
 	ehea_update_firmware_handles();
-	mutex_unlock(&ehea_fw_handles.lock);
 	return ret;
 }
 
@@ -3481,8 +3466,6 @@ static int __devexit ehea_remove(struct of_device *dev)
 
 	flush_scheduled_work();
 
-	mutex_lock(&ehea_fw_handles.lock);
-
 	ibmebus_free_irq(adapter->neq->attr.ist1, adapter);
 	tasklet_kill(&adapter->neq_tasklet);
 
@@ -3492,7 +3475,6 @@ static int __devexit ehea_remove(struct of_device *dev)
 	kfree(adapter);
 
 	ehea_update_firmware_handles();
-	mutex_unlock(&ehea_fw_handles.lock);
 
 	return 0;
 }

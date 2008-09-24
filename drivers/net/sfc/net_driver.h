@@ -160,6 +160,7 @@ struct efx_tx_buffer {
  * @channel: The associated channel
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
+ * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @stopped: Stopped count.
@@ -192,6 +193,7 @@ struct efx_tx_queue {
 	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
+	bool flushed;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -260,6 +262,7 @@ struct efx_rx_buffer {
  *	the remaining space in the allocation.
  * @buf_dma_addr: Page's DMA address.
  * @buf_data: Page's host address.
+ * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
@@ -285,6 +288,7 @@ struct efx_rx_queue {
 	struct page *buf_page;
 	dma_addr_t buf_dma_addr;
 	char *buf_data;
+	bool flushed;
 };
 
 /**
@@ -470,7 +474,7 @@ enum nic_state {
  * This is the equivalent of NET_IP_ALIGN [which controls the alignment
  * of the skb->head for hardware DMA].
  */
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #define EFX_PAGE_IP_ALIGN 0
 #else
 #define EFX_PAGE_IP_ALIGN NET_IP_ALIGN
@@ -503,7 +507,6 @@ enum efx_fc_type {
  * @clear_interrupt: Clear down interrupt
  * @blink: Blink LEDs
  * @check_hw: Check hardware
- * @reset_xaui: Reset XAUI side of PHY for (software sequenced reset)
  * @mmds: MMD presence mask
  * @loopbacks: Supported loopback modes mask
  */
@@ -513,7 +516,6 @@ struct efx_phy_operations {
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*clear_interrupt) (struct efx_nic *efx);
 	int (*check_hw) (struct efx_nic *efx);
-	void (*reset_xaui) (struct efx_nic *efx);
 	int (*test) (struct efx_nic *efx);
 	int mmds;
 	unsigned loopbacks;
