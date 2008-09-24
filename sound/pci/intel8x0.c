@@ -1963,6 +1963,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x10cf,
+		.subdevice = 0x127d,
+		.name = "Fujitsu Lifebook P7010",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10cf,
 		.subdevice = 0x127e,
 		.name = "Fujitsu Lifebook C1211D",
 		.type = AC97_TUNE_HP_ONLY
