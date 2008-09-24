@@ -1417,8 +1417,8 @@ M:	rdunlap@xenotime.net
 S:	Maintained
 
 DOCKING STATION DRIVER
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
+P:	Shaohua Li
+M:	shaohua.li@intel.com
 L:	linux-acpi@vger.kernel.org
 S:	Supported
 
