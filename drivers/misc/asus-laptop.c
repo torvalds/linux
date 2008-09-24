@@ -351,7 +351,7 @@ static void write_status(acpi_handle handle, int out, int mask)
 	static void object##_led_set(struct led_classdev *led_cdev,	\
 				     enum led_brightness value)		\
 	{								\
-		object##_led_wk = value;				\
+		object##_led_wk = (value > 0) ? 1 : 0;			\
 		queue_work(led_workqueue, &object##_led_work);		\
 	}								\
 	static void object##_led_update(struct work_struct *ignored)	\
