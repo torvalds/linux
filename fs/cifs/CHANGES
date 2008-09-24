@@ -4,7 +4,12 @@ Fix premature write failure on congested networks (we would give up
 on EAGAIN from the socket too quickly on large writes).
 Cifs_mkdir and cifs_create now respect the setgid bit on parent dir.
 Fix endian problems in acl (mode from/to cifs acl) on bigendian
-architectures.
+architectures.  Fix problems with preserving timestamps on copying open
+files (e.g. "cp -a") to Windows servers.  For mkdir and create honor setgid bit
+on parent directory when server supports Unix Extensions but not POSIX
+create. Update cifs.upcall version to handle new Kerberos sec flags
+(this requires update of cifs.upcall program from Samba).  Fix memory leak
+on dns_upcall (resolving DFS referralls).
 
 Version 1.53
 ------------

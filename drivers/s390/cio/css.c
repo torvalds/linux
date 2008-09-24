@@ -477,7 +477,6 @@ void css_schedule_eval_all(void)
 
 void css_wait_for_slow_path(void)
 {
-	flush_workqueue(ccw_device_notify_work);
 	flush_workqueue(slow_path_wq);
 }
 

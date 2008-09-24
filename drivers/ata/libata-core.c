@@ -104,6 +104,7 @@ struct ata_force_param {
 	unsigned long	xfer_mask;
 	unsigned int	horkage_on;
 	unsigned int	horkage_off;
+	unsigned int	lflags;
 };
 
 struct ata_force_ent {
@@ -196,22 +197,23 @@ void ata_force_cbl(struct ata_port *ap)
 }
 
 /**
- *	ata_force_spd_limit - force SATA spd limit according to libata.force
+ *	ata_force_link_limits - force link limits according to libata.force
  *	@link: ATA link of interest
  *
- *	Force SATA spd limit according to libata.force and whine about
- *	it.  When only the port part is specified (e.g. 1:), the limit
- *	applies to all links connected to both the host link and all
- *	fan-out ports connected via PMP.  If the device part is
- *	specified as 0 (e.g. 1.00:), it specifies the first fan-out
- *	link not the host link.  Device number 15 always points to the
- *	host link whether PMP is attached or not.
+ *	Force link flags and SATA spd limit according to libata.force
+ *	and whine about it.  When only the port part is specified
+ *	(e.g. 1:), the limit applies to all links connected to both
+ *	the host link and all fan-out ports connected via PMP.  If the
+ *	device part is specified as 0 (e.g. 1.00:), it specifies the
+ *	first fan-out link not the host link.  Device number 15 always
+ *	points to the host link whether PMP is attached or not.
  *
  *	LOCKING:
  *	EH context.
  */
-static void ata_force_spd_limit(struct ata_link *link)
+static void ata_force_link_limits(struct ata_link *link)
 {
+	bool did_spd = false;
 	int linkno, i;
 
 	if (ata_is_host_link(link))
@@ -228,13 +230,22 @@ static void ata_force_spd_limit(struct ata_link *link)
 		if (fe->device != -1 && fe->device != linkno)
 			continue;
 
-		if (!fe->param.spd_limit)
-			continue;
+		/* only honor the first spd limit */
+		if (!did_spd && fe->param.spd_limit) {
+			link->hw_sata_spd_limit = (1 << fe->param.spd_limit) - 1;
+			ata_link_printk(link, KERN_NOTICE,
+					"FORCE: PHY spd limit set to %s\n",
+					fe->param.name);
+			did_spd = true;
+		}
 
-		link->hw_sata_spd_limit = (1 << fe->param.spd_limit) - 1;
-		ata_link_printk(link, KERN_NOTICE,
-			"FORCE: PHY spd limit set to %s\n", fe->param.name);
-		return;
+		/* let lflags stack */
+		if (fe->param.lflags) {
+			link->flags |= fe->param.lflags;
+			ata_link_printk(link, KERN_NOTICE,
+					"FORCE: link flag 0x%x forced -> 0x%x\n",
+					fe->param.lflags, link->flags);
+		}
 	}
 }
 
@@ -3277,7 +3288,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
 
 		found = 1;
-		if (dev->dma_mode != 0xff)
+		if (ata_dma_enabled(dev))
 			used_dma = 1;
 	}
 	if (!found)
@@ -3302,7 +3313,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 
 	/* step 3: set host DMA timings */
 	ata_link_for_each_dev(dev, link) {
-		if (!ata_dev_enabled(dev) || dev->dma_mode == 0xff)
+		if (!ata_dev_enabled(dev) || !ata_dma_enabled(dev))
 			continue;
 
 		dev->xfer_mode = dev->dma_mode;
@@ -5188,19 +5199,18 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
  */
 int sata_link_init_spd(struct ata_link *link)
 {
-	u32 scontrol;
 	u8 spd;
 	int rc;
 
-	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+	rc = sata_scr_read(link, SCR_CONTROL, &link->saved_scontrol);
 	if (rc)
 		return rc;
 
-	spd = (scontrol >> 4) & 0xf;
+	spd = (link->saved_scontrol >> 4) & 0xf;
 	if (spd)
 		link->hw_sata_spd_limit &= (1 << spd) - 1;
 
-	ata_force_spd_limit(link);
+	ata_force_link_limits(link);
 
 	link->sata_spd_limit = link->hw_sata_spd_limit;
 
@@ -5783,9 +5793,10 @@ static void ata_port_detach(struct ata_port *ap)
 	ata_port_wait_eh(ap);
 
 	/* EH is now guaranteed to see UNLOADING - EH context belongs
-	 * to us.  Disable all existing devices.
+	 * to us.  Restore SControl and disable all existing devices.
 	 */
-	ata_port_for_each_link(link, ap) {
+	__ata_port_for_each_link(link, ap) {
+		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol);
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}
@@ -5991,6 +6002,9 @@ static int __init ata_parse_force_one(char **cur,
 		{ "udma133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
 		{ "udma/133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
 		{ "udma7",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 7) },
+		{ "nohrst",	.lflags		= ATA_LFLAG_NO_HRST },
+		{ "nosrst",	.lflags		= ATA_LFLAG_NO_SRST },
+		{ "norst",	.lflags		= ATA_LFLAG_NO_HRST | ATA_LFLAG_NO_SRST },
 	};
 	char *start = *cur, *p = *cur;
 	char *id, *val, *endp;

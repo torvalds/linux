@@ -16,9 +16,6 @@
 #include <linux/string.h>
 #include "base.h"
 
-#define to_dev(node) container_of(node, struct device, driver_list)
-
-
 static struct device *next_device(struct klist_iter *i)
 {
 	struct klist_node *n = klist_next(i);

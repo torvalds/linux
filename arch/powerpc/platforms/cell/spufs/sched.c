@@ -641,8 +641,10 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			if (tmp && tmp->prio > ctx->prio &&
 			    !(tmp->flags & SPU_CREATE_NOSCHED) &&
-			    (!victim || tmp->prio > victim->prio))
+			    (!victim || tmp->prio > victim->prio)) {
 				victim = spu->ctx;
+				get_spu_context(victim);
+			}
 		}
 		mutex_unlock(&cbe_spu_info[node].list_mutex);
 
@@ -658,6 +660,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 			 * look at another context or give up after X retries.
 			 */
 			if (!mutex_trylock(&victim->state_mutex)) {
+				put_spu_context(victim);
 				victim = NULL;
 				goto restart;
 			}
@@ -670,6 +673,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 				 * restart the search.
 				 */
 				mutex_unlock(&victim->state_mutex);
+				put_spu_context(victim);
 				victim = NULL;
 				goto restart;
 			}
@@ -687,6 +691,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 				spu_add_to_rq(victim);
 
 			mutex_unlock(&victim->state_mutex);
+			put_spu_context(victim);
 
 			return spu;
 		}
@@ -985,9 +990,11 @@ static int spusched_thread(void *unused)
 				struct spu_context *ctx = spu->ctx;
 
 				if (ctx) {
+					get_spu_context(ctx);
 					mutex_unlock(mtx);
 					spusched_tick(ctx);
 					mutex_lock(mtx);
+					put_spu_context(ctx);
 				}
 			}
 			mutex_unlock(mtx);
@@ -1030,7 +1037,7 @@ void spuctx_switch_state(struct spu_context *ctx,
 		node = spu->node;
 		if (old_state == SPU_UTIL_USER)
 			atomic_dec(&cbe_spu_info[node].busy_spus);
-		if (new_state == SPU_UTIL_USER);
+		if (new_state == SPU_UTIL_USER)
 			atomic_inc(&cbe_spu_info[node].busy_spus);
 	}
 }

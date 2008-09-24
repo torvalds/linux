@@ -993,6 +993,17 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 {
 	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
 
+	/*
+	 * At this point all fcport's software-states are cleared.  Perform any
+	 * final cleanup of firmware resources (PCBs and XCBs).
+	 */
+	if (fcport->loop_id != FC_NO_LOOP_ID) {
+		fcport->ha->isp_ops->fabric_logout(fcport->ha, fcport->loop_id,
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa);
+		fcport->loop_id = FC_NO_LOOP_ID;
+	}
+
 	qla2x00_abort_fcport_cmds(fcport);
 	scsi_target_unblock(&rport->dev);
 }

@@ -173,10 +173,10 @@ struct rxdone_entry_desc {
  *	frame transmission failed due to excessive retries.
  */
 enum txdone_entry_desc_flags {
-	TXDONE_UNKNOWN = 1 << 0,
-	TXDONE_SUCCESS = 1 << 1,
-	TXDONE_FAILURE = 1 << 2,
-	TXDONE_EXCESSIVE_RETRY = 1 << 3,
+	TXDONE_UNKNOWN,
+	TXDONE_SUCCESS,
+	TXDONE_FAILURE,
+	TXDONE_EXCESSIVE_RETRY,
 };
 
 /**

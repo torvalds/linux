@@ -988,7 +988,7 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		/*
 		 * write bank1 address twice to ensure the 90ns delay (time
 		 * between BANK0 write and the priv_read_copy() call is at
-		 * least 3*t_WHWL + 2*t_w11 = 3*25ns + 2*17ns = 92ns)
+		 * least 3*t_WHWL + 2*t_w11 = 3*25ns + 2*17ns = 109ns)
 		 */
 		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
 				HC_MEMORY_REG);

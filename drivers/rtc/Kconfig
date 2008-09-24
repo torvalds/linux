@@ -561,7 +561,7 @@ config RTC_DRV_AT91SAM9_GPBR
 
 config RTC_DRV_BFIN
 	tristate "Blackfin On-Chip RTC"
-	depends on BLACKFIN
+	depends on BLACKFIN && !BF561
 	help
 	  If you say yes here you will get support for the
 	  Blackfin On-Chip Real Time Clock.

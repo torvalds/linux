@@ -17,7 +17,6 @@ static const char serial_revdate[] = "2007-11-06";
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/serial.h>
 #include <linux/circ_buf.h>
