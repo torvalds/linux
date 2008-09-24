@@ -75,7 +75,6 @@ struct enic {
 	struct vnic_enet_config config;
 	struct vnic_dev_bar bar0;
 	struct vnic_dev *vdev;
-	struct net_device_stats net_stats;
 	struct timer_list notify_timer;
 	struct work_struct reset;
 	struct msix_entry msix_entry[ENIC_MSIX_MAX];
