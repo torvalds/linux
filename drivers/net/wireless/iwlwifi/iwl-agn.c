@@ -3190,9 +3190,9 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 
 static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 {
-	int ret;
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
+	int ret;
 
 	IWL_DEBUG_MAC80211("enter\n");
 
@@ -3211,20 +3211,27 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 		goto out_unlock;
 	}
 
-	/* we don't schedule scan within next_scan_jiffies period */
+	/* We don't schedule scan within next_scan_jiffies period.
+	 * Avoid scanning during possible EAPOL exchange, return
+	 * success immediately.
+	 */
 	if (priv->next_scan_jiffies &&
 	    time_after(priv->next_scan_jiffies, jiffies)) {
 		IWL_DEBUG_SCAN("scan rejected: within next scan period\n");
-		ret = -EAGAIN;
+		queue_work(priv->workqueue, &priv->scan_completed);
+		ret = 0;
 		goto out_unlock;
 	}
+
 	/* if we just finished scan ask for delay */
 	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
 	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
 		IWL_DEBUG_SCAN("scan rejected: within previous scan period\n");
-		ret = -EAGAIN;
+		queue_work(priv->workqueue, &priv->scan_completed);
+		ret = 0;
 		goto out_unlock;
 	}
+
 	if (ssid_len) {
 		priv->one_direct_scan = 1;
 		priv->direct_ssid_len =  min_t(u8, ssid_len, IW_ESSID_MAX_SIZE);
