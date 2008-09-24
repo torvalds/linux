@@ -3157,9 +3157,13 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		block_group = rb_entry(n, struct btrfs_block_group_cache,
 				       cache_node);
 
+		spin_unlock(&info->block_group_cache_lock);
 		btrfs_remove_free_space_cache(block_group);
+		spin_lock(&info->block_group_cache_lock);
+
 		rb_erase(&block_group->cache_node,
 			 &info->block_group_cache_tree);
+
 		spin_lock(&block_group->space_info->lock);
 		list_del(&block_group->list);
 		spin_unlock(&block_group->space_info->lock);
