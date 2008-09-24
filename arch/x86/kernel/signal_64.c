@@ -460,14 +460,18 @@ static void do_signal(struct pt_regs *regs)
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, void *unused,
-		      __u32 thread_info_flags)
+/*
+ * notification of userspace execution resumption
+ * - triggered by the TIF_WORK_MASK flags
+ */
+void
+do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 {
-#ifdef CONFIG_X86_MCE
+#if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
 	/* notify userspace of pending MCEs */
 	if (thread_info_flags & _TIF_MCE_NOTIFY)
 		mce_notify_user();
-#endif /* CONFIG_X86_MCE */
+#endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
 
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
@@ -477,6 +481,10 @@ void do_notify_resume(struct pt_regs *regs, void *unused,
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
+
+#ifdef CONFIG_X86_32
+	clear_thread_flag(TIF_IRET);
+#endif /* CONFIG_X86_32 */
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
