@@ -752,6 +752,9 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 
 set_via_filehandle:
 	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
+	if (!rc)
+		cifsInode->cifsAttrs = dosattr;
+
 	if (open_file == NULL)
 		CIFSSMBClose(xid, pTcon, netfid);
 	else
@@ -902,6 +905,7 @@ psx_del_no_retry:
 			if (rc == 0)
 				drop_nlink(inode);
 		}
+		cifsInode->cifsAttrs = dosattr;
 	}
 out_reval:
 	if (inode) {
