@@ -633,6 +633,40 @@ out:
 	__iscsi_put_task(task);
 }
 
+/**
+ * iscsi_data_in_rsp - SCSI Data-In Response processing
+ * @conn: iscsi connection
+ * @hdr:  iscsi pdu
+ * @task: scsi command task
+ **/
+static void
+iscsi_data_in_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
+		  struct iscsi_task *task)
+{
+	struct iscsi_data_rsp *rhdr = (struct iscsi_data_rsp *)hdr;
+	struct scsi_cmnd *sc = task->sc;
+
+	if (!(rhdr->flags & ISCSI_FLAG_DATA_STATUS))
+		return;
+
+	sc->result = (DID_OK << 16) | rhdr->cmd_status;
+	conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
+	if (rhdr->flags & (ISCSI_FLAG_DATA_UNDERFLOW |
+	                   ISCSI_FLAG_DATA_OVERFLOW)) {
+		int res_count = be32_to_cpu(rhdr->residual_count);
+
+		if (res_count > 0 &&
+		    (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW ||
+		     res_count <= scsi_in(sc)->length))
+			scsi_in(sc)->resid = res_count;
+		else
+			sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
+	}
+
+	conn->scsirsp_pdus_cnt++;
+	__iscsi_put_task(task);
+}
+
 static void iscsi_tmf_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 {
 	struct iscsi_tm_rsp *tmf = (struct iscsi_tm_rsp *)hdr;
@@ -818,12 +852,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		iscsi_scsi_cmd_rsp(conn, hdr, task, data, datalen);
 		break;
 	case ISCSI_OP_SCSI_DATA_IN:
-		if (hdr->flags & ISCSI_FLAG_DATA_STATUS) {
-			conn->scsirsp_pdus_cnt++;
-			iscsi_update_cmdsn(session,
-					   (struct iscsi_nopin*) hdr);
-			__iscsi_put_task(task);
-		}
+		iscsi_data_in_rsp(conn, hdr, task);
 		break;
 	case ISCSI_OP_LOGOUT_RSP:
 		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);

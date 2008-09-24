@@ -523,22 +523,20 @@ iscsi_tcp_cleanup_task(struct iscsi_conn *conn, struct iscsi_task *task)
 }
 
 /**
- * iscsi_data_rsp - SCSI Data-In Response processing
+ * iscsi_data_in - SCSI Data-In Response processing
  * @conn: iscsi connection
  * @task: scsi command task
  **/
 static int
-iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
+iscsi_data_in(struct iscsi_conn *conn, struct iscsi_task *task)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct iscsi_data_rsp *rhdr = (struct iscsi_data_rsp *)tcp_conn->in.hdr;
-	struct iscsi_session *session = conn->session;
-	struct scsi_cmnd *sc = task->sc;
 	int datasn = be32_to_cpu(rhdr->datasn);
-	unsigned total_in_length = scsi_in(sc)->length;
+	unsigned total_in_length = scsi_in(task->sc)->length;
 
-	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
+	iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
 	if (tcp_conn->in.datalen == 0)
 		return 0;
 
@@ -556,23 +554,6 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 		          __func__, tcp_task->data_offset,
 		          tcp_conn->in.datalen, total_in_length);
 		return ISCSI_ERR_DATA_OFFSET;
-	}
-
-	if (rhdr->flags & ISCSI_FLAG_DATA_STATUS) {
-		sc->result = (DID_OK << 16) | rhdr->cmd_status;
-		conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
-		if (rhdr->flags & (ISCSI_FLAG_DATA_UNDERFLOW |
-		                   ISCSI_FLAG_DATA_OVERFLOW)) {
-			int res_count = be32_to_cpu(rhdr->residual_count);
-
-			if (res_count > 0 &&
-			    (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW ||
-			     res_count <= total_in_length))
-				scsi_in(sc)->resid = res_count;
-			else
-				sc->result = (DID_BAD_TARGET << 16) |
-					rhdr->cmd_status;
-		}
 	}
 
 	conn->datain_pdus_cnt++;
@@ -774,7 +755,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 		if (!task)
 			rc = ISCSI_ERR_BAD_ITT;
 		else
-			rc = iscsi_data_rsp(conn, task);
+			rc = iscsi_data_in(conn, task);
 		if (rc) {
 			spin_unlock(&conn->session->lock);
 			break;
