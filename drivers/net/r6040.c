@@ -265,7 +265,7 @@ static void r6040_free_txbufs(struct net_device *dev)
 				le32_to_cpu(lp->tx_insert_ptr->buf),
 				MAX_BUF_SIZE, PCI_DMA_TODEVICE);
 			dev_kfree_skb(lp->tx_insert_ptr->skb_ptr);
-			lp->rx_insert_ptr->skb_ptr = NULL;
+			lp->tx_insert_ptr->skb_ptr = NULL;
 		}
 		lp->tx_insert_ptr = lp->tx_insert_ptr->vndescp;
 	}
