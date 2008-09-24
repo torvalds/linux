@@ -33,6 +33,14 @@
 static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 {
 	s->isr &= ~(1 << irq);
+	s->isr_ack |= (1 << irq);
+}
+
+void kvm_pic_clear_isr_ack(struct kvm *kvm)
+{
+	struct kvm_pic *s = pic_irqchip(kvm);
+	s->pics[0].isr_ack = 0xff;
+	s->pics[1].isr_ack = 0xff;
 }
 
 /*
@@ -213,6 +221,7 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 	s->irr = 0;
 	s->imr = 0;
 	s->isr = 0;
+	s->isr_ack = 0xff;
 	s->priority_add = 0;
 	s->irq_base = 0;
 	s->read_reg_select = 0;
@@ -444,10 +453,14 @@ static void pic_irq_request(void *opaque, int level)
 {
 	struct kvm *kvm = opaque;
 	struct kvm_vcpu *vcpu = kvm->vcpus[0];
+	struct kvm_pic *s = pic_irqchip(kvm);
+	int irq = pic_get_irq(&s->pics[0]);
 
-	pic_irqchip(kvm)->output = level;
-	if (vcpu)
+	s->output = level;
+	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
+		s->pics[0].isr_ack &= ~(1 << irq);
 		kvm_vcpu_kick(vcpu);
+	}
 }
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm)
