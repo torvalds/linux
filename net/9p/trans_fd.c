@@ -407,11 +407,11 @@ static void p9_mux_poll_stop(struct p9_conn *m)
 static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 {
 	int i, n;
-	struct p9_conn *m, *mtmp;
+	struct p9_conn *m;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "transport %p msize %d\n", trans,
 								trans->msize);
-	m = kmalloc(sizeof(struct p9_conn), GFP_KERNEL);
+	m = kzalloc(sizeof(struct p9_conn), GFP_KERNEL);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
@@ -422,24 +422,14 @@ static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 	m->trans = trans;
 	m->tagpool = p9_idpool_create();
 	if (IS_ERR(m->tagpool)) {
-		mtmp = ERR_PTR(-ENOMEM);
 		kfree(m);
-		return mtmp;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	m->err = 0;
 	INIT_LIST_HEAD(&m->req_list);
 	INIT_LIST_HEAD(&m->unsent_req_list);
-	m->rcall = NULL;
-	m->rpos = 0;
-	m->rbuf = NULL;
-	m->wpos = m->wsize = 0;
-	m->wbuf = NULL;
 	INIT_WORK(&m->rq, p9_read_work);
 	INIT_WORK(&m->wq, p9_write_work);
-	m->wsched = 0;
-	memset(&m->poll_waddr, 0, sizeof(m->poll_waddr));
-	m->poll_task = NULL;
 	n = p9_mux_poll_start(m);
 	if (n) {
 		kfree(m);
@@ -460,10 +450,8 @@ static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 	for (i = 0; i < ARRAY_SIZE(m->poll_waddr); i++) {
 		if (IS_ERR(m->poll_waddr[i])) {
 			p9_mux_poll_stop(m);
-			mtmp = (void *)m->poll_waddr;	/* the error code */
 			kfree(m);
-			m = mtmp;
-			break;
+			return (void *)m->poll_waddr;	/* the error code */
 		}
 	}
 
