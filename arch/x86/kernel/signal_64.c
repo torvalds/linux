@@ -346,12 +346,14 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_X86_64
 	/*
 	 * This has nothing to do with segment registers,
 	 * despite the name.  This magic affects uaccess.h
 	 * macros' behavior.  Reset it to the normal setting.
 	 */
 	set_fs(USER_DS);
+#endif
 
 	/*
 	 * Clear the direction flag as per the ABI for function entry.
