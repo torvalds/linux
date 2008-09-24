@@ -41,7 +41,6 @@
 #include <linux/pagemap.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
-#include <linux/intel-iommu.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
