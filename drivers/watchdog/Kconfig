@@ -796,6 +796,14 @@ config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
 	depends on MV64X60
 
+config PIKA_WDT
+	tristate "PIKA FPGA Watchdog"
+	depends on WARP
+	default y
+	help
+	  This enables the watchdog in the PIKA FPGA. Currently used on
+	  the Warp platform.
+
 config BOOKE_WDT
 	bool "PowerPC Book-E Watchdog Timer"
 	depends on BOOKE || 4xx
