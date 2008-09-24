@@ -1216,36 +1216,6 @@ static int si470x_vidioc_querycap(struct file *file, void *priv,
 
 
 /*
- * si470x_vidioc_g_input - get input
- */
-static int si470x_vidioc_g_input(struct file *file, void *priv,
-		unsigned int *i)
-{
-	*i = 0;
-
-	return 0;
-}
-
-
-/*
- * si470x_vidioc_s_input - set input
- */
-static int si470x_vidioc_s_input(struct file *file, void *priv, unsigned int i)
-{
-	int retval = 0;
-
-	/* safety checks */
-	if (i != 0)
-		retval = -EINVAL;
-
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set input failed with %d\n", retval);
-	return retval;
-}
-
-
-/*
  * si470x_vidioc_queryctrl - enumerate control items
  */
 static int si470x_vidioc_queryctrl(struct file *file, void *priv,
@@ -1364,44 +1334,13 @@ done:
 static int si470x_vidioc_g_audio(struct file *file, void *priv,
 		struct v4l2_audio *audio)
 {
-	int retval = 0;
-
-	/* safety checks */
-	if (audio->index != 0) {
-		retval = -EINVAL;
-		goto done;
-	}
-
+	/* driver constants */
+	audio->index = 0;
 	strcpy(audio->name, "Radio");
 	audio->capability = V4L2_AUDCAP_STEREO;
+	audio->mode = 0;
 
-done:
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": get audio failed with %d\n", retval);
-	return retval;
-}
-
-
-/*
- * si470x_vidioc_s_audio - set audio attributes
- */
-static int si470x_vidioc_s_audio(struct file *file, void *priv,
-		struct v4l2_audio *audio)
-{
-	int retval = 0;
-
-	/* safety checks */
-	if (audio->index != 0) {
-		retval = -EINVAL;
-		goto done;
-	}
-
-done:
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set audio failed with %d\n", retval);
-	return retval;
+	return 0;
 }
 
 
@@ -1613,13 +1552,10 @@ done:
  */
 static const struct v4l2_ioctl_ops si470x_ioctl_ops = {
 	.vidioc_querycap	= si470x_vidioc_querycap,
-	.vidioc_g_input		= si470x_vidioc_g_input,
-	.vidioc_s_input		= si470x_vidioc_s_input,
 	.vidioc_queryctrl	= si470x_vidioc_queryctrl,
 	.vidioc_g_ctrl		= si470x_vidioc_g_ctrl,
 	.vidioc_s_ctrl		= si470x_vidioc_s_ctrl,
 	.vidioc_g_audio		= si470x_vidioc_g_audio,
-	.vidioc_s_audio		= si470x_vidioc_s_audio,
 	.vidioc_g_tuner		= si470x_vidioc_g_tuner,
 	.vidioc_s_tuner		= si470x_vidioc_s_tuner,
 	.vidioc_g_frequency	= si470x_vidioc_g_frequency,
