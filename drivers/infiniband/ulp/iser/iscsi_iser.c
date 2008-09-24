@@ -378,6 +378,7 @@ static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
+	iscsi_session_teardown(cls_session);
 	iscsi_host_remove(shost);
 	iscsi_host_free(shost);
 }

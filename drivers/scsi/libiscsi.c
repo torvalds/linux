@@ -983,6 +983,38 @@ struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *conn, itt_t itt)
 }
 EXPORT_SYMBOL_GPL(iscsi_itt_to_ctask);
 
+void iscsi_session_failure(struct iscsi_cls_session *cls_session,
+			   enum iscsi_err err)
+{
+	struct iscsi_session *session = cls_session->dd_data;
+	struct iscsi_conn *conn;
+	struct device *dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&session->lock, flags);
+	conn = session->leadconn;
+	if (session->state == ISCSI_STATE_TERMINATE || !conn) {
+		spin_unlock_irqrestore(&session->lock, flags);
+		return;
+	}
+
+	dev = get_device(&conn->cls_conn->dev);
+	spin_unlock_irqrestore(&session->lock, flags);
+	if (!dev)
+	        return;
+	/*
+	 * if the host is being removed bypass the connection
+	 * recovery initialization because we are going to kill
+	 * the session.
+	 */
+	if (err == ISCSI_ERR_INVALID_HOST)
+		iscsi_conn_error_event(conn->cls_conn, err);
+	else
+		iscsi_conn_failure(conn, err);
+	put_device(dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_session_failure);
+
 void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 {
 	struct iscsi_session *session = conn->session;
@@ -997,9 +1029,10 @@ void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 	if (conn->stop_stage == 0)
 		session->state = ISCSI_STATE_FAILED;
 	spin_unlock_irqrestore(&session->lock, flags);
+
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
-	iscsi_conn_error(conn->cls_conn, err);
+	iscsi_conn_error_event(conn->cls_conn, err);
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_failure);
 
@@ -1905,6 +1938,7 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 				   int dd_data_size, uint16_t qdepth)
 {
 	struct Scsi_Host *shost;
+	struct iscsi_host *ihost;
 
 	shost = scsi_host_alloc(sht, sizeof(struct iscsi_host) + dd_data_size);
 	if (!shost)
@@ -1919,22 +1953,43 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 		qdepth = ISCSI_DEF_CMD_PER_LUN;
 	}
 	shost->cmd_per_lun = qdepth;
+
+	ihost = shost_priv(shost);
+	spin_lock_init(&ihost->lock);
+	ihost->state = ISCSI_HOST_SETUP;
+	ihost->num_sessions = 0;
+	init_waitqueue_head(&ihost->session_removal_wq);
 	return shost;
 }
 EXPORT_SYMBOL_GPL(iscsi_host_alloc);
+
+static void iscsi_notify_host_removed(struct iscsi_cls_session *cls_session)
+{
+	iscsi_session_failure(cls_session, ISCSI_ERR_INVALID_HOST);
+}
 
 /**
  * iscsi_host_remove - remove host and sessions
  * @shost: scsi host
  *
- * This will also remove any sessions attached to the host, but if userspace
- * is managing the session at the same time this will break. TODO: add
- * refcounting to the netlink iscsi interface so a rmmod or host hot unplug
- * does not remove the memory from under us.
+ * If there are any sessions left, this will initiate the removal and wait
+ * for the completion.
  */
 void iscsi_host_remove(struct Scsi_Host *shost)
 {
-	iscsi_host_for_each_session(shost, iscsi_session_teardown);
+	struct iscsi_host *ihost = shost_priv(shost);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ihost->lock, flags);
+	ihost->state = ISCSI_HOST_REMOVED;
+	spin_unlock_irqrestore(&ihost->lock, flags);
+
+	iscsi_host_for_each_session(shost, iscsi_notify_host_removed);
+	wait_event_interruptible(ihost->session_removal_wq,
+				 ihost->num_sessions == 0);
+	if (signal_pending(current))
+		flush_signals(current);
+
 	scsi_remove_host(shost);
 }
 EXPORT_SYMBOL_GPL(iscsi_host_remove);
@@ -1949,6 +2004,27 @@ void iscsi_host_free(struct Scsi_Host *shost)
 	scsi_host_put(shost);
 }
 EXPORT_SYMBOL_GPL(iscsi_host_free);
+
+static void iscsi_host_dec_session_cnt(struct Scsi_Host *shost)
+{
+	struct iscsi_host *ihost = shost_priv(shost);
+	unsigned long flags;
+
+	shost = scsi_host_get(shost);
+	if (!shost) {
+		printk(KERN_ERR "Invalid state. Cannot notify host removal "
+		      "of session teardown event because host already "
+		      "removed.\n");
+		return;
+	}
+
+	spin_lock_irqsave(&ihost->lock, flags);
+	ihost->num_sessions--;
+	if (ihost->num_sessions == 0)
+		wake_up(&ihost->session_removal_wq);
+	spin_unlock_irqrestore(&ihost->lock, flags);
+	scsi_host_put(shost);
+}
 
 /**
  * iscsi_session_setup - create iscsi cls session and host and session
@@ -1970,9 +2046,19 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 		    uint16_t cmds_max, int cmd_task_size,
 		    uint32_t initial_cmdsn, unsigned int id)
 {
+	struct iscsi_host *ihost = shost_priv(shost);
 	struct iscsi_session *session;
 	struct iscsi_cls_session *cls_session;
 	int cmd_i, scsi_cmds, total_cmds = cmds_max;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ihost->lock, flags);
+	if (ihost->state == ISCSI_HOST_REMOVED) {
+		spin_unlock_irqrestore(&ihost->lock, flags);
+		return NULL;
+	}
+	ihost->num_sessions++;
+	spin_unlock_irqrestore(&ihost->lock, flags);
 
 	if (!total_cmds)
 		total_cmds = ISCSI_DEF_XMIT_CMDS_MAX;
@@ -1985,7 +2071,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 		printk(KERN_ERR "iscsi: invalid can_queue of %d. can_queue "
 		       "must be a power of two that is at least %d.\n",
 		       total_cmds, ISCSI_TOTAL_CMDS_MIN);
-		return NULL;
+		goto dec_session_count;
 	}
 
 	if (total_cmds > ISCSI_TOTAL_CMDS_MAX) {
@@ -2009,7 +2095,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	cls_session = iscsi_alloc_session(shost, iscsit,
 					  sizeof(struct iscsi_session));
 	if (!cls_session)
-		return NULL;
+		goto dec_session_count;
 	session = cls_session->dd_data;
 	session->cls_session = cls_session;
 	session->host = shost;
@@ -2048,6 +2134,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 
 	if (iscsi_add_session(cls_session, id))
 		goto cls_session_fail;
+
 	return cls_session;
 
 cls_session_fail:
@@ -2056,6 +2143,8 @@ module_get_fail:
 	iscsi_pool_free(&session->cmdpool);
 cmdpool_alloc_fail:
 	iscsi_free_session(cls_session);
+dec_session_count:
+	iscsi_host_dec_session_cnt(shost);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(iscsi_session_setup);
@@ -2071,6 +2160,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 {
 	struct iscsi_session *session = cls_session->dd_data;
 	struct module *owner = cls_session->transport->owner;
+	struct Scsi_Host *shost = session->host;
 
 	iscsi_pool_free(&session->cmdpool);
 
@@ -2083,6 +2173,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	kfree(session->ifacename);
 
 	iscsi_destroy_session(cls_session);
+	iscsi_host_dec_session_cnt(shost);
 	module_put(owner);
 }
 EXPORT_SYMBOL_GPL(iscsi_session_teardown);
