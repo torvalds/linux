@@ -104,6 +104,7 @@
  *		- hardware frequency seek support
  *		- afc indication
  *		- more safety checks, let si470x_get_freq return errno
+ *		- vidioc behavior corrected according to v4l2 spec
  *
  * ToDo:
  * - add firmware download/update support
@@ -1418,7 +1419,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((tuner->index != 0) && (tuner->type != V4L2_TUNER_RADIO)) {
+	if (tuner->index != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1427,7 +1428,11 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	if (retval < 0)
 		goto done;
 
+	/* driver constants */
 	strcpy(tuner->name, "FM");
+	tuner->type = V4L2_TUNER_RADIO;
+	tuner->capability = V4L2_TUNER_CAP_LOW;
+
 	/* range limits */
 	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
 	/* 0: 87.5 - 108 MHz (USA, Europe, default) */
@@ -1447,7 +1452,6 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		break;
 	};
 	tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	tuner->capability = V4L2_TUNER_CAP_LOW;
 
 	/* Stereo indicator == Stereo (instead of Mono) */
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 1)
@@ -1478,17 +1482,15 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	int retval = 0;
+	int retval = -EINVAL;
 
 	/* safety checks */
 	if (radio->disconnected) {
 		retval = -EIO;
 		goto done;
 	}
-	if ((tuner->index != 0) && (tuner->type != V4L2_TUNER_RADIO)) {
-		retval = -EINVAL;
+	if (tuner->index != 0)
 		goto done;
-	}
 
 	if (tuner->audmode == V4L2_TUNER_MODE_MONO)
 		radio->registers[POWERCFG] |= POWERCFG_MONO;  /* force mono */
@@ -1519,11 +1521,12 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((freq->tuner != 0) && (freq->type != V4L2_TUNER_RADIO)) {
+	if (freq->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
 
+	freq->type = V4L2_TUNER_RADIO;
 	retval = si470x_get_freq(radio, &freq->frequency);
 
 done:
@@ -1548,7 +1551,7 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((freq->tuner != 0) && (freq->type != V4L2_TUNER_RADIO)) {
+	if (freq->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1577,7 +1580,7 @@ static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 		retval = -EIO;
 		goto done;
 	}
-	if ((seek->tuner != 0) && (seek->type != V4L2_TUNER_RADIO)) {
+	if (seek->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
 	}
