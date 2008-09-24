@@ -1133,8 +1133,10 @@ static void enic_free_intr(struct enic *enic)
 
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-	case VNIC_DEV_INTR_MODE_MSI:
 		free_irq(enic->pdev->irq, netdev);
+		break;
+	case VNIC_DEV_INTR_MODE_MSI:
+		free_irq(enic->pdev->irq, enic);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		for (i = 0; i < ARRAY_SIZE(enic->msix); i++)
@@ -1170,12 +1172,12 @@ static int enic_request_intr(struct enic *enic)
 	case VNIC_DEV_INTR_MODE_MSIX:
 
 		sprintf(enic->msix[ENIC_MSIX_RQ].devname,
-			"%.11s-rx", netdev->name);
+			"%.11s-rx-0", netdev->name);
 		enic->msix[ENIC_MSIX_RQ].isr = enic_isr_msix_rq;
 		enic->msix[ENIC_MSIX_RQ].devid = enic;
 
 		sprintf(enic->msix[ENIC_MSIX_WQ].devname,
-			"%.11s-tx", netdev->name);
+			"%.11s-tx-0", netdev->name);
 		enic->msix[ENIC_MSIX_WQ].isr = enic_isr_msix_wq;
 		enic->msix[ENIC_MSIX_WQ].devid = enic;
 
