@@ -511,13 +511,12 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 	DBG("Entered %s\n", __func__);
 
 	/* set up NC codec pins */
-	snd_soc_dapm_disable_pin(codec, "LOUT2");
-	snd_soc_dapm_disable_pin(codec, "ROUT2");
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "OUT4");
-	snd_soc_dapm_disable_pin(codec, "LINE1");
-	snd_soc_dapm_disable_pin(codec, "LINE2");
-
+	snd_soc_dapm_nc_pin(codec, "LOUT2");
+	snd_soc_dapm_nc_pin(codec, "ROUT2");
+	snd_soc_dapm_nc_pin(codec, "OUT3");
+	snd_soc_dapm_nc_pin(codec, "OUT4");
+	snd_soc_dapm_nc_pin(codec, "LINE1");
+	snd_soc_dapm_nc_pin(codec, "LINE2");
 
 	/* set endpoints to default mode */
 	set_scenario_endpoints(codec, NEO_AUDIO_OFF);
