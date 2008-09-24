@@ -369,41 +369,12 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 
 /*--------------------------------------------------------------------------*/
 
-static int tc6393xb_hw_init(struct platform_device *dev)
-{
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
-	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
-	int i;
-
-	iowrite8(tc6393xb->suspend_state.fer,	tc6393xb->scr + SCR_FER);
-	iowrite16(tcpd->scr_pll2cr,		tc6393xb->scr + SCR_PLL2CR);
-	iowrite16(tc6393xb->suspend_state.ccr,	tc6393xb->scr + SCR_CCR);
-	iowrite16(SCR_MCR_RDY_OPENDRAIN | SCR_MCR_RDY_UNK | SCR_MCR_RDY_EN |
-		  SCR_MCR_INT_OPENDRAIN | SCR_MCR_INT_UNK | SCR_MCR_INT_EN |
-		  BIT(15),			tc6393xb->scr + SCR_MCR);
-	iowrite16(tcpd->scr_gper,		tc6393xb->scr + SCR_GPER);
-	iowrite8(0,				tc6393xb->scr + SCR_IRR);
-	iowrite8(0xbf,				tc6393xb->scr + SCR_IMR);
-
-	for (i = 0; i < 3; i++) {
-		iowrite8(tc6393xb->suspend_state.gpo_dsr[i],
-					tc6393xb->scr + SCR_GPO_DSR(i));
-		iowrite8(tc6393xb->suspend_state.gpo_doecr[i],
-					tc6393xb->scr + SCR_GPO_DOECR(i));
-		iowrite8(tc6393xb->suspend_state.gpi_bcr[i],
-					tc6393xb->scr + SCR_GPI_BCR(i));
-	}
-
-	return 0;
-}
-
 static int __devinit tc6393xb_probe(struct platform_device *dev)
 {
 	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
 	struct tc6393xb *tc6393xb;
 	struct resource *iomem, *rscr;
 	int ret, temp;
-	int i;
 
 	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!iomem)
@@ -458,14 +429,16 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	if (ret)
 		goto err_enable;
 
-	tc6393xb->suspend_state.fer = 0;
-
-	tc6393xb->suspend_state.ccr = SCR_CCR_UNK1 |
-					SCR_CCR_HCLK_48;
-
-	ret = tc6393xb_hw_init(dev);
-	if (ret)
-		goto err_hw_init;
+	iowrite8(0,				tc6393xb->scr + SCR_FER);
+	iowrite16(tcpd->scr_pll2cr,		tc6393xb->scr + SCR_PLL2CR);
+	iowrite16(SCR_CCR_UNK1 | SCR_CCR_HCLK_48,
+						tc6393xb->scr + SCR_CCR);
+	iowrite16(SCR_MCR_RDY_OPENDRAIN | SCR_MCR_RDY_UNK | SCR_MCR_RDY_EN |
+		  SCR_MCR_INT_OPENDRAIN | SCR_MCR_INT_UNK | SCR_MCR_INT_EN |
+		  BIT(15),			tc6393xb->scr + SCR_MCR);
+	iowrite16(tcpd->scr_gper,		tc6393xb->scr + SCR_GPER);
+	iowrite8(0,				tc6393xb->scr + SCR_IRR);
+	iowrite8(0xbf,				tc6393xb->scr + SCR_IMR);
 
 	printk(KERN_INFO "Toshiba tc6393xb revision %d at 0x%08lx, irq %d\n",
 			tmio_ioread8(tc6393xb->scr + SCR_REVID),
@@ -514,7 +487,6 @@ err_setup:
 err_gpio_add:
 	if (tc6393xb->gpio.base != -1)
 		temp = gpiochip_remove(&tc6393xb->gpio);
-err_hw_init:
 	tcpd->disable(dev);
 err_clk_enable:
 	clk_disable(tc6393xb->clk);
@@ -592,15 +564,37 @@ static int tc6393xb_resume(struct platform_device *dev)
 	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
+	int i;
 
 	clk_enable(tc6393xb->clk);
 
 	ret = tcpd->resume(dev);
-
 	if (ret)
 		return ret;
 
-	return tc6393xb_hw_init(dev);
+	if (!tcpd->resume_restore)
+		return 0;
+
+	iowrite8(tc6393xb->suspend_state.fer,	tc6393xb->scr + SCR_FER);
+	iowrite16(tcpd->scr_pll2cr,		tc6393xb->scr + SCR_PLL2CR);
+	iowrite16(tc6393xb->suspend_state.ccr,	tc6393xb->scr + SCR_CCR);
+	iowrite16(SCR_MCR_RDY_OPENDRAIN | SCR_MCR_RDY_UNK | SCR_MCR_RDY_EN |
+		  SCR_MCR_INT_OPENDRAIN | SCR_MCR_INT_UNK | SCR_MCR_INT_EN |
+		  BIT(15),			tc6393xb->scr + SCR_MCR);
+	iowrite16(tcpd->scr_gper,		tc6393xb->scr + SCR_GPER);
+	iowrite8(0,				tc6393xb->scr + SCR_IRR);
+	iowrite8(0xbf,				tc6393xb->scr + SCR_IMR);
+
+	for (i = 0; i < 3; i++) {
+		iowrite8(tc6393xb->suspend_state.gpo_dsr[i],
+					tc6393xb->scr + SCR_GPO_DSR(i));
+		iowrite8(tc6393xb->suspend_state.gpo_doecr[i],
+					tc6393xb->scr + SCR_GPO_DOECR(i));
+		iowrite8(tc6393xb->suspend_state.gpi_bcr[i],
+					tc6393xb->scr + SCR_GPI_BCR(i));
+	}
+
+	return 0;
 }
 #else
 #define tc6393xb_suspend NULL

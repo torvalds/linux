@@ -746,6 +746,8 @@ static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.resume		= tosa_tc6393xb_resume,
 
 	.nand_data	= &tosa_tc6393xb_nand_config,
+
+	.resume_restore = 1,
 };
 
 

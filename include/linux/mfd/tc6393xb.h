@@ -33,6 +33,10 @@ struct tc6393xb_platform_data {
 	void	(*teardown)(struct platform_device *dev);
 
 	struct tmio_nand_data	*nand_data;
+
+	unsigned resume_restore : 1; /* make special actions
+					to preserve the state
+					on suspend/resume */
 };
 
 /*
