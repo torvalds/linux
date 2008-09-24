@@ -1,0 +1,2 @@
+# Makefile for staging directory
+

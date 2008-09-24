@@ -1,0 +1,27 @@
+menuconfig STAGING
+	bool "Staging drivers"
+	default n
+	---help---
+	  This option allows you to select a number of drivers that are
+	  not of the "normal" Linux kernel quality level.  These drivers
+	  are placed here in order to get a wider audience for use of
+	  them.  Please note that these drivers are under heavy
+	  development, may or may not work, and may contain userspace
+	  interfaces that most likely will be changed in the near
+	  future.
+
+	  Using any of these drivers will taint your kernel which might
+	  affect support options from both the community, and various
+	  commercial support orginizations.
+
+	  If you wish to work on these drivers, to help improve them, or
+	  to report problems you have with them, please see the
+	  driver_name.README file in the drivers/staging/ directory to
+	  see what needs to be worked on, and who to contact.
+
+	  If in doubt, say N here.
+
+if STAGING
+
+
+endif # STAGING
