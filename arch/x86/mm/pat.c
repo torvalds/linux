@@ -211,6 +211,75 @@ static struct memtype *cached_entry;
 static u64 cached_start;
 
 /*
+ * RED-PEN:  TODO: Add PageReserved() check as well here,
+ * once we add SetPageReserved() to all the drivers using
+ * set_memory_* or set_pages_*.
+ *
+ * This will help prevent accidentally freeing pages
+ * before setting the attribute back to WB.
+ */
+
+/*
+ * For RAM pages, mark the pages as non WB memory type using
+ * PageNonWB (PG_arch_1). We allow only one set_memory_uc() or
+ * set_memory_wc() on a RAM page at a time before marking it as WB again.
+ * This is ok, because only one driver will be owning the page and
+ * doing set_memory_*() calls.
+ *
+ * For now, we use PageNonWB to track that the RAM page is being mapped
+ * as non WB. In future, we will have to use one more flag
+ * (or some other mechanism in page_struct) to distinguish between
+ * UC and WC mapping.
+ */
+static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
+		       unsigned long *new_type)
+{
+	struct page *page;
+	u64 pfn, end_pfn;
+
+	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
+		page = pfn_to_page(pfn);
+		if (page_mapped(page) || PageNonWB(page))
+			goto out;
+
+		SetPageNonWB(page);
+	}
+	return 0;
+
+out:
+	end_pfn = pfn;
+	for (pfn = (start >> PAGE_SHIFT); pfn < end_pfn; ++pfn) {
+		page = pfn_to_page(pfn);
+		ClearPageNonWB(page);
+	}
+
+	return -EINVAL;
+}
+
+static int free_ram_pages_type(u64 start, u64 end)
+{
+	struct page *page;
+	u64 pfn, end_pfn;
+
+	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
+		page = pfn_to_page(pfn);
+		if (page_mapped(page) || !PageNonWB(page))
+			goto out;
+
+		ClearPageNonWB(page);
+	}
+	return 0;
+
+out:
+	end_pfn = pfn;
+	for (pfn = (start >> PAGE_SHIFT); pfn < end_pfn; ++pfn) {
+		page = pfn_to_page(pfn);
+		SetPageNonWB(page);
+	}
+	return -EINVAL;
+}
+
+/*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB
  * - _PAGE_CACHE_WC
@@ -232,6 +301,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	unsigned long actual_type;
 	struct list_head *where;
 	int err = 0;
+	int is_range_ram;
 
  	BUG_ON(start >= end); /* end is exclusive */
 
@@ -269,6 +339,12 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	} else
 		actual_type = pat_x_mtrr_type(start, end,
 					      req_type & _PAGE_CACHE_MASK);
+
+	is_range_ram = pagerange_is_ram(start, end);
+	if (is_range_ram == 1)
+		return reserve_ram_pages_type(start, end, req_type, new_type);
+	else if (is_range_ram < 0)
+		return -EINVAL;
 
 	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
@@ -358,6 +434,7 @@ int free_memtype(u64 start, u64 end)
 {
 	struct memtype *entry;
 	int err = -EINVAL;
+	int is_range_ram;
 
 	if (!pat_enabled)
 		return 0;
@@ -365,6 +442,12 @@ int free_memtype(u64 start, u64 end)
 	/* Low ISA region is always mapped WB. No need to track */
 	if (is_ISA_range(start, end - 1))
 		return 0;
+
+	is_range_ram = pagerange_is_ram(start, end);
+	if (is_range_ram == 1)
+		return free_ram_pages_type(start, end);
+	else if (is_range_ram < 0)
+		return -EINVAL;
 
 	spin_lock(&memtype_lock);
 	list_for_each_entry(entry, &memtype_list, nd) {

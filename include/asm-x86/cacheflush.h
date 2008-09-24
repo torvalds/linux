@@ -24,6 +24,8 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
 	memcpy((dst), (src), (len))
 
+#define PG_non_WB				PG_arch_1
+PAGEFLAG(NonWB, non_WB)
 
 /*
  * The set_memory_* API can be used to change various attributes of a virtual
