@@ -293,4 +293,13 @@ config OF_RTC
 
 source "arch/powerpc/sysdev/bestcomm/Kconfig"
 
+config MPC8xxx_GPIO
+	bool "MPC8xxx GPIO support"
+	depends on PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || PPC_85xx || PPC_86xx
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here if you're going to use hardware that connects to the
+	  MPC831x/834x/837x/8572/8610 GPIOs.
+
 endmenu
