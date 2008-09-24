@@ -556,7 +556,7 @@ static int btree_writepages(struct address_space *mapping,
 	if (wbc->sync_mode == WB_SYNC_NONE) {
 		u64 num_dirty;
 		u64 start = 0;
-		unsigned long thresh = 8 * 1024 * 1024;
+		unsigned long thresh = 32 * 1024 * 1024;
 
 		if (wbc->for_kupdate)
 			return 0;
@@ -690,7 +690,7 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 int btrfs_write_tree_block(struct extent_buffer *buf)
 {
 	return btrfs_fdatawrite_range(buf->first_page->mapping, buf->start,
-				      buf->start + buf->len - 1, WB_SYNC_NONE);
+				      buf->start + buf->len - 1, WB_SYNC_ALL);
 }
 
 int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
