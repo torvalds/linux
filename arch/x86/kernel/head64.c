@@ -112,8 +112,6 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	x86_64_init_pda();
 
-	early_printk("Kernel really alive\n");
-
 	x86_64_start_reservations(real_mode_data);
 }
 
