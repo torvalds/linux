@@ -2817,6 +2817,10 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 		}
 	}
 
+	if ((spec->multiout.num_dacs - cfg->line_outs) > 0 &&
+			cfg->hp_outs && !spec->multiout.hp_nid)
+		spec->multiout.hp_nid = nid;
+
 	if (cfg->hp_outs > 1) {
 		err = stac92xx_add_control(spec,
 			STAC_CTL_WIDGET_HP_SWITCH,
@@ -4083,8 +4087,6 @@ again:
 	case STAC_DELL_M6:
 		spec->init = dell_eq_core_init;
 		spec->num_smuxes = 0;
-		spec->multiout.hp_nid =
-			spec->multiout.dac_nids[spec->multiout.num_dacs - 1];
 		spec->mixer = &stac92hd73xx_6ch_mixer[DELL_M6_MIXER];
 		spec->amp_nids = &stac92hd73xx_amp_nids[DELL_M6_AMP];
 		spec->num_amps = 1;
