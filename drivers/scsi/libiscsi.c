@@ -2453,7 +2453,7 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	 * flush queues.
 	 */
 	spin_lock_bh(&session->lock);
-	if (STOP_CONN_RECOVER)
+	if (flag == STOP_CONN_RECOVER)
 		fail_all_commands(conn, -1, DID_TRANSPORT_DISRUPTED);
 	else
 		fail_all_commands(conn, -1, DID_ERROR);
