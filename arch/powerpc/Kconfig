@@ -415,8 +415,11 @@ config PPC_64K_PAGES
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
+	range 9 64 if PPC_64K_PAGES
 	default "9" if PPC_64K_PAGES
+	range 13 64 if PPC64 && !PPC_64K_PAGES
 	default "13" if PPC64 && !PPC_64K_PAGES
+	range 11 64
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
