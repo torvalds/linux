@@ -1367,7 +1367,7 @@ void iscsi_session_recovery_timedout(struct iscsi_cls_session *cls_session)
 }
 EXPORT_SYMBOL_GPL(iscsi_session_recovery_timedout);
 
-int iscsi_eh_host_reset(struct scsi_cmnd *sc)
+int iscsi_eh_target_reset(struct scsi_cmnd *sc)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -1381,7 +1381,7 @@ int iscsi_eh_host_reset(struct scsi_cmnd *sc)
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_TERMINATE) {
 failed:
-		debug_scsi("failing host reset: session terminated "
+		debug_scsi("failing target reset: session terminated "
 			   "[CID %d age %d]\n", conn->id, session->age);
 		spin_unlock_bh(&session->lock);
 		mutex_unlock(&session->eh_mutex);
@@ -1396,7 +1396,7 @@ failed:
 	 */
 	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 
-	debug_scsi("iscsi_eh_host_reset wait for relogin\n");
+	debug_scsi("iscsi_eh_target_reset wait for relogin\n");
 	wait_event_interruptible(conn->ehwait,
 				 session->state == ISCSI_STATE_TERMINATE ||
 				 session->state == ISCSI_STATE_LOGGED_IN ||
@@ -1408,14 +1408,14 @@ failed:
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_LOGGED_IN)
 		iscsi_session_printk(KERN_INFO, session,
-				     "host reset succeeded\n");
+				     "target reset succeeded\n");
 	else
 		goto failed;
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);
 	return SUCCESS;
 }
-EXPORT_SYMBOL_GPL(iscsi_eh_host_reset);
+EXPORT_SYMBOL_GPL(iscsi_eh_target_reset);
 
 static void iscsi_tmf_timedout(unsigned long data)
 {
