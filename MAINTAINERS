@@ -3863,6 +3863,13 @@ M:	chrisw@sous-sol.org
 L:	stable@kernel.org
 S:	Maintained
 
+STAGING SUBSYSTEM:
+P:	Greg Kroah-Hartman
+M:	gregkh@suse.de
+L:	linux-kernel@vger.kernel.org
+T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+S:	Maintained
+
 SHARP LH SUPPORT (LH7952X & LH7A40X)
 P:	Marc Singer
 M:	elf@buici.com
