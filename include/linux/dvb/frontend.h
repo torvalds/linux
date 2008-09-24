@@ -358,8 +358,6 @@ struct dtv_property {
 	__u32 cmd;
 	__u32 reserved[3];
 	union {
-		__s32 valuemin;
-		__s32 valuemax;
 		__u32 data;
 		struct {
 			__u8 data[32];
