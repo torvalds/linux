@@ -649,7 +649,7 @@ static void lm4857_shutdown(struct i2c_client *dev)
 }
 
 static const struct i2c_device_id lm4857_i2c_id[] = {
-	{ "neo1973_lm4857", 0 }
+	{ "neo1973_lm4857", 0 },
 	{ }
 };
 
@@ -736,7 +736,7 @@ static int __init neo1973_init(void)
 	}
 
 	ret = neo1973_add_lm4857_device(neo1973_snd_device,
-					neo1973_wm8753_setup, 0x7C);
+					0, 0x7C);
 	if (ret != 0)
 		platform_device_unregister(neo1973_snd_device);
 
