@@ -26,6 +26,8 @@
 #ifndef NET_9P_TRANSPORT_H
 #define NET_9P_TRANSPORT_H
 
+#include <linux/module.h>
+
 /**
  * enum p9_trans_status - different states of underlying transports
  * @Connected: transport is connected and healthy
@@ -91,9 +93,12 @@ struct p9_trans_module {
 	int maxsize;		/* max message size of transport */
 	int def;		/* this transport should be default */
 	struct p9_trans * (*create)(const char *, char *, int, unsigned char);
+	struct module *owner;
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);
-struct p9_trans_module *v9fs_match_trans(const substring_t *name);
-struct p9_trans_module *v9fs_default_trans(void);
+void v9fs_unregister_trans(struct p9_trans_module *m);
+struct p9_trans_module *v9fs_get_trans_by_name(const substring_t *name);
+struct p9_trans_module *v9fs_get_default_trans(void);
+void v9fs_put_trans(struct p9_trans_module *m);
 #endif /* NET_9P_TRANSPORT_H */

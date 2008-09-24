@@ -1629,6 +1629,7 @@ static struct p9_trans_module p9_tcp_trans = {
 	.maxsize = MAX_SOCK_BUF,
 	.def = 1,
 	.create = p9_trans_create_tcp,
+	.owner = THIS_MODULE,
 };
 
 static struct p9_trans_module p9_unix_trans = {
@@ -1636,6 +1637,7 @@ static struct p9_trans_module p9_unix_trans = {
 	.maxsize = MAX_SOCK_BUF,
 	.def = 0,
 	.create = p9_trans_create_unix,
+	.owner = THIS_MODULE,
 };
 
 static struct p9_trans_module p9_fd_trans = {
@@ -1643,6 +1645,7 @@ static struct p9_trans_module p9_fd_trans = {
 	.maxsize = MAX_SOCK_BUF,
 	.def = 0,
 	.create = p9_trans_create_fd,
+	.owner = THIS_MODULE,
 };
 
 int p9_trans_fd_init(void)
@@ -1659,4 +1662,10 @@ int p9_trans_fd_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(p9_trans_fd_init);
+
+void p9_trans_fd_exit(void)
+{
+	v9fs_unregister_trans(&p9_tcp_trans);
+	v9fs_unregister_trans(&p9_unix_trans);
+	v9fs_unregister_trans(&p9_fd_trans);
+}
