@@ -979,7 +979,7 @@ iscsi_tcp_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 
 error:
 	debug_tcp("Error receiving PDU, errno=%d\n", rc);
-	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+	iscsi_conn_failure(conn, rc);
 	return 0;
 }
 
@@ -1098,8 +1098,10 @@ iscsi_xmit(struct iscsi_conn *conn)
 
 	while (1) {
 		rc = iscsi_tcp_xmit_segment(tcp_conn, segment);
-		if (rc < 0)
+		if (rc < 0) {
+			rc = ISCSI_ERR_XMIT_FAILED;
 			goto error;
+		}
 		if (rc == 0)
 			break;
 
@@ -1108,7 +1110,7 @@ iscsi_xmit(struct iscsi_conn *conn)
 		if (segment->total_copied >= segment->total_size) {
 			if (segment->done != NULL) {
 				rc = segment->done(tcp_conn, segment);
-				if (rc < 0)
+				if (rc != 0)
 					goto error;
 			}
 		}
@@ -1123,8 +1125,8 @@ error:
 	/* Transmit error. We could initiate error recovery
 	 * here. */
 	debug_tcp("Error sending PDU, errno=%d\n", rc);
-	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-	return rc;
+	iscsi_conn_failure(conn, rc);
+	return -EIO;
 }
 
 /**
