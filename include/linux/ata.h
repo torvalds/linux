@@ -88,6 +88,7 @@ enum {
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
 	ATA_ID_CFA_POWER	= 160,
+	ATA_ID_ROT_SPEED	= 217,
 	ATA_ID_PIO4		= (1 << 1),
 
 	ATA_ID_SERNO_LEN	= 20,
@@ -689,6 +690,11 @@ static inline int ata_id_is_cfa(const u16 *id)
 	   (id[ATA_ID_COMMAND_SET_1] & (1 << 2)))
 		return 1;
 	return 0;
+}
+
+static inline int ata_id_is_ssd(const u16 *id)
+{
+	return id[ATA_ID_ROT_SPEED] == 0x01;
 }
 
 static inline int ata_drive_40wire(const u16 *dev_id)
