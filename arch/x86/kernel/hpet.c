@@ -45,10 +45,6 @@ struct hpet_dev {
 	char				name[10];
 };
 
-static struct hpet_dev			*hpet_devs;
-
-static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
-
 unsigned long hpet_readl(unsigned long a)
 {
 	return readl(hpet_virt_address + a);
@@ -126,23 +122,8 @@ EXPORT_SYMBOL_GPL(is_hpet_enabled);
  * timer 0 and timer 1 in case of RTC emulation.
  */
 #ifdef CONFIG_HPET
-static void hpet_reserve_msi_timers(struct hpet_data *hd)
-{
-	int i;
 
-	if (!hpet_devs)
-		return;
-
-	for (i = 0; i < hpet_num_timers; i++) {
-		struct hpet_dev *hdev = &hpet_devs[i];
-
-		if (!(hdev->flags & HPET_DEV_VALID))
-			continue;
-
-		hd->hd_irq[hdev->num] = hdev->irq;
-		hpet_reserve_timer(hd, hdev->num);
-	}
-}
+static void hpet_reserve_msi_timers(struct hpet_data *hd);
 
 static void hpet_reserve_platform_timers(unsigned long id)
 {
@@ -362,6 +343,10 @@ static int hpet_legacy_next_event(unsigned long delta,
  * HPET MSI Support
  */
 #ifdef CONFIG_PCI_MSI
+
+static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
+static struct hpet_dev	*hpet_devs;
+
 void hpet_msi_unmask(unsigned int irq)
 {
 	struct hpet_dev *hdev = get_irq_data(irq);
@@ -525,7 +510,8 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 #else
 #define RESERVE_TIMERS 0
 #endif
-void hpet_msi_capability_lookup(unsigned int start_timer)
+
+static void hpet_msi_capability_lookup(unsigned int start_timer)
 {
 	unsigned int id;
 	unsigned int num_timers;
@@ -570,6 +556,26 @@ void hpet_msi_capability_lookup(unsigned int start_timer)
 	printk(KERN_INFO "HPET: %d timers in total, %d timers will be used for per-cpu timer\n",
 		num_timers, num_timers_used);
 }
+
+#ifdef CONFIG_HPET
+static void hpet_reserve_msi_timers(struct hpet_data *hd)
+{
+	int i;
+
+	if (!hpet_devs)
+		return;
+
+	for (i = 0; i < hpet_num_timers; i++) {
+		struct hpet_dev *hdev = &hpet_devs[i];
+
+		if (!(hdev->flags & HPET_DEV_VALID))
+			continue;
+
+		hd->hd_irq[hdev->num] = hdev->irq;
+		hpet_reserve_timer(hd, hdev->num);
+	}
+}
+#endif
 
 static struct hpet_dev *hpet_get_unused_timer(void)
 {
@@ -642,10 +648,17 @@ static int hpet_setup_msi_irq(unsigned int irq)
 {
 	return 0;
 }
-void hpet_msi_capability_lookup(unsigned int start_timer)
+static void hpet_msi_capability_lookup(unsigned int start_timer)
 {
 	return;
 }
+
+#ifdef CONFIG_HPET
+static void hpet_reserve_msi_timers(struct hpet_data *hd)
+{
+	return;
+}
+#endif
 
 static int hpet_cpuhp_notify(struct notifier_block *n,
 		unsigned long action, void *hcpu)
