@@ -1472,12 +1472,9 @@ static inline u32 btrfs_level_size(struct btrfs_root *root, int level) {
 	((unsigned long)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset_nr(leaf, slot)))
 
-static inline struct dentry *fdentry(struct file *file) {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-	return file->f_dentry;
-#else
+static inline struct dentry *fdentry(struct file *file)
+{
 	return file->f_path.dentry;
-#endif
 }
 
 /* extent-tree.c */

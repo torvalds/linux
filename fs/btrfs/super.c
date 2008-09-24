@@ -349,10 +349,7 @@ static int btrfs_fill_super(struct super_block * sb,
 
 	sb->s_root = root_dentry;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
 	save_mount_options(sb, data);
-#endif
-
 	return 0;
 
 fail_close:
@@ -566,11 +563,7 @@ static struct super_operations btrfs_super_ops = {
 	.put_super	= btrfs_put_super,
 	.write_super	= btrfs_write_super,
 	.sync_fs	= btrfs_sync_fs,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
-	.read_inode     = btrfs_read_locked_inode,
-#else
 	.show_options	= generic_show_options,
-#endif
 	.write_inode	= btrfs_write_inode,
 	.dirty_inode	= btrfs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,

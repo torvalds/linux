@@ -26,11 +26,7 @@
 #include <linux/buffer_head.h> // for block_sync_page
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 # include <linux/freezer.h>
-#else
-# include <linux/sched.h>
-#endif
 #include "crc32c.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -373,20 +369,10 @@ out:
 	return ret;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void end_workqueue_bio(struct bio *bio, int err)
-#else
-static int end_workqueue_bio(struct bio *bio,
-				   unsigned int bytes_done, int err)
-#endif
 {
 	struct end_io_wq *end_io_wq = bio->bi_private;
 	struct btrfs_fs_info *fs_info;
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	if (bio->bi_size)
-		return 1;
-#endif
 
 	fs_info = end_io_wq->info;
 	end_io_wq->error = err;
@@ -397,10 +383,6 @@ static int end_workqueue_bio(struct bio *bio,
 				   &end_io_wq->work);
 	else
 		btrfs_queue_worker(&fs_info->endio_workers, &end_io_wq->work);
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	return 0;
-#endif
 }
 
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
@@ -1161,9 +1143,7 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 
 static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	bdi_init(bdi);
-#endif
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
 	bdi->state		= 0;
 	bdi->capabilities	= default_backing_dev_info.capabilities;
@@ -1242,11 +1222,7 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
 	kfree(end_io_wq);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	bio_endio(bio, bio->bi_size, error);
-#else
 	bio_endio(bio, error);
-#endif
 }
 
 static int cleaner_kthread(void *arg)
@@ -1673,9 +1649,7 @@ fail:
 
 	kfree(extent_root);
 	kfree(tree_root);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	bdi_destroy(&fs_info->bdi);
-#endif
 	kfree(fs_info);
 	return ERR_PTR(err);
 }
@@ -1936,9 +1910,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	bdi_destroy(&fs_info->bdi);
-#endif
 
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);

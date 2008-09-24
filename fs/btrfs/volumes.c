@@ -2080,20 +2080,11 @@ int btrfs_unplug_page(struct btrfs_mapping_tree *map_tree,
 }
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void end_bio_multi_stripe(struct bio *bio, int err)
-#else
-static int end_bio_multi_stripe(struct bio *bio,
-				   unsigned int bytes_done, int err)
-#endif
 {
 	struct btrfs_multi_bio *multi = bio->bi_private;
 	int is_orig_bio = 0;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	if (bio->bi_size)
-		return 1;
-#endif
 	if (err)
 		atomic_inc(&multi->error);
 
@@ -2122,17 +2113,10 @@ static int end_bio_multi_stripe(struct bio *bio,
 		}
 		kfree(multi);
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-		bio_endio(bio, bio->bi_size, err);
-#else
 		bio_endio(bio, err);
-#endif
 	} else if (!is_orig_bio) {
 		bio_put(bio);
 	}
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	return 0;
-#endif
 }
 
 struct async_sched {
@@ -2248,11 +2232,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		} else {
 			bio->bi_bdev = root->fs_info->fs_devices->latest_bdev;
 			bio->bi_sector = logical >> 9;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-			bio_endio(bio, bio->bi_size, -EIO);
-#else
 			bio_endio(bio, -EIO);
-#endif
 		}
 		dev_nr++;
 	}

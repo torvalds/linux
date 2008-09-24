@@ -7,12 +7,6 @@
 #include "export.h"
 #include "compat.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-#define FILEID_BTRFS_WITHOUT_PARENT		0x4d
-#define FILEID_BTRFS_WITH_PARENT 		0x4e
-#define FILEID_BTRFS_WITH_PARENT_ROOT 		0x4f
-#endif
-
 #define BTRFS_FID_SIZE_NON_CONNECTABLE		(offsetof(struct btrfs_fid, parent_objectid)/4)
 #define BTRFS_FID_SIZE_CONNECTABLE		(offsetof(struct btrfs_fid, parent_root_objectid)/4)
 #define BTRFS_FID_SIZE_CONNECTABLE_ROOT		(sizeof(struct btrfs_fid)/4)

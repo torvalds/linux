@@ -96,13 +96,7 @@ static inline u32 __btrfs_crc32c(u32 crc, unsigned char const *address,
  * We must workaround older implementations of crc32c_le()
  * found on older kernel versions.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
-#define btrfs_crc32c(seed, data, length) \
-	__cpu_to_le32( __btrfs_crc32c( __le32_to_cpu(seed), \
-		                      (unsigned char const *)data, length) )
-#else
 #define btrfs_crc32c(seed, data, length) \
 	__btrfs_crc32c(seed, (unsigned char const *)data, length)
-#endif
 #endif
 

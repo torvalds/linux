@@ -20,13 +20,7 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 # include <linux/freezer.h>
-#else
-# include <linux/sched.h>
-#endif
-
 #include "async-thread.h"
 
 /*

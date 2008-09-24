@@ -1397,12 +1397,7 @@ static int check_page_writeback(struct extent_io_tree *tree,
  * Scheduling is not allowed, so the extent state tree is expected
  * to have one and only one object corresponding to this IO.
  */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void end_bio_extent_writepage(struct bio *bio, int err)
-#else
-static int end_bio_extent_writepage(struct bio *bio,
-				   unsigned int bytes_done, int err)
-#endif
 {
 	int uptodate = err == 0;
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
@@ -1412,10 +1407,6 @@ static int end_bio_extent_writepage(struct bio *bio,
 	int whole_page;
 	int ret;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	if (bio->bi_size)
-		return 1;
-#endif
 	do {
 		struct page *page = bvec->bv_page;
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
@@ -1461,10 +1452,8 @@ static int end_bio_extent_writepage(struct bio *bio,
 		else
 			check_page_writeback(tree, page);
 	} while (bvec >= bio->bi_io_vec);
+
 	bio_put(bio);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	return 0;
-#endif
 }
 
 /*
@@ -1478,12 +1467,7 @@ static int end_bio_extent_writepage(struct bio *bio,
  * Scheduling is not allowed, so the extent state tree is expected
  * to have one and only one object corresponding to this IO.
  */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void end_bio_extent_readpage(struct bio *bio, int err)
-#else
-static int end_bio_extent_readpage(struct bio *bio,
-				   unsigned int bytes_done, int err)
-#endif
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
@@ -1492,11 +1476,6 @@ static int end_bio_extent_readpage(struct bio *bio,
 	u64 end;
 	int whole_page;
 	int ret;
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	if (bio->bi_size)
-		return 1;
-#endif
 
 	do {
 		struct page *page = bvec->bv_page;
@@ -1556,9 +1535,6 @@ static int end_bio_extent_readpage(struct bio *bio,
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	return 0;
-#endif
 }
 
 /*
@@ -1566,23 +1542,13 @@ static int end_bio_extent_readpage(struct bio *bio,
  * the structs in the extent tree when done, and set the uptodate bits
  * as appropriate.
  */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void end_bio_extent_preparewrite(struct bio *bio, int err)
-#else
-static int end_bio_extent_preparewrite(struct bio *bio,
-				       unsigned int bytes_done, int err)
-#endif
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 	struct extent_io_tree *tree;
 	u64 start;
 	u64 end;
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	if (bio->bi_size)
-		return 1;
-#endif
 
 	do {
 		struct page *page = bvec->bv_page;
@@ -1607,9 +1573,6 @@ static int end_bio_extent_preparewrite(struct bio *bio,
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-	return 0;
-#endif
 }
 
 static struct bio *
@@ -2079,12 +2042,6 @@ done:
 	return 0;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-/* Taken directly from 2.6.23 with a mod for a lockpage hook */
-typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
-                                void *data);
-#endif
-
 /**
  * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
  * @mapping: address space structure to write
@@ -2201,10 +2158,9 @@ retry:
 	}
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+
 	if (wbc->range_cont)
 		wbc->range_start = index << PAGE_CACHE_SHIFT;
-#endif
 	return ret;
 }
 EXPORT_SYMBOL(extent_write_cache_pages);
@@ -2560,18 +2516,10 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 	 * by increasing the reference count.  So we know the page must
 	 * be in the radix tree.
 	 */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 	rcu_read_lock();
-#else
-	read_lock_irq(&mapping->tree_lock);
-#endif
 	p = radix_tree_lookup(&mapping->page_tree, i);
-
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 	rcu_read_unlock();
-#else
-	read_unlock_irq(&mapping->tree_lock);
-#endif
+
 	return p;
 }
 
@@ -2773,21 +2721,13 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			}
 		}
 		clear_page_dirty_for_io(page);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 		spin_lock_irq(&page->mapping->tree_lock);
-#else
-		read_lock_irq(&page->mapping->tree_lock);
-#endif
 		if (!PageDirty(page)) {
 			radix_tree_tag_clear(&page->mapping->page_tree,
 						page_index(page),
 						PAGECACHE_TAG_DIRTY);
 		}
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 		spin_unlock_irq(&page->mapping->tree_lock);
-#else
-		read_unlock_irq(&page->mapping->tree_lock);
-#endif
 		unlock_page(page);
 	}
 	return 0;

@@ -871,15 +871,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		goto out_nolock;
 	if (count == 0)
 		goto out_nolock;
-#ifdef REMOVE_SUID_PATH
-	err = remove_suid(&file->f_path);
-#else
-# if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+
 	err = file_remove_suid(file);
-# else
-	err = remove_suid(fdentry(file));
-# endif
-#endif
 	if (err)
 		goto out_nolock;
 	file_update_time(file);
@@ -1003,17 +996,10 @@ out_nolock:
 			btrfs_commit_transaction(trans, root);
 		}
 	} else if (num_written > 0 && (file->f_flags & O_DIRECT)) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-		do_sync_file_range(file, start_pos,
-				      start_pos + num_written - 1,
-				      SYNC_FILE_RANGE_WRITE |
-				      SYNC_FILE_RANGE_WAIT_AFTER);
-#else
 		do_sync_mapping_range(inode->i_mapping, start_pos,
 				      start_pos + num_written - 1,
 				      SYNC_FILE_RANGE_WRITE |
 				      SYNC_FILE_RANGE_WAIT_AFTER);
-#endif
 		invalidate_mapping_pages(inode->i_mapping,
 		      start_pos >> PAGE_CACHE_SHIFT,
 		     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
@@ -1097,12 +1083,7 @@ out:
 }
 
 static struct vm_operations_struct btrfs_file_vm_ops = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
-	.nopage         = filemap_nopage,
-	.populate       = filemap_populate,
-#else
 	.fault		= filemap_fault,
-#endif
 	.page_mkwrite	= btrfs_page_mkwrite,
 };
 
@@ -1118,9 +1099,6 @@ struct file_operations btrfs_file_operations = {
 	.read		= do_sync_read,
 	.aio_read       = generic_file_aio_read,
 	.splice_read	= generic_file_splice_read,
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-	.sendfile	= generic_file_sendfile,
-#endif
 	.write		= btrfs_file_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,

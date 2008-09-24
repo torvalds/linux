@@ -2073,104 +2073,6 @@ err:
 	return ret;
 }
 
-/* Kernels earlier than 2.6.28 still have the NFS deadlock where nfsd
-   will call the file system's ->lookup() method from within its
-   filldir callback, which in turn was called from the file system's
-   ->readdir() method. And will deadlock for many file systems. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-
-struct nfshack_dirent {
-	u64		ino;
-	loff_t		offset;
-	int		namlen;
-	unsigned int	d_type;
-	char		name[];
-};
-
-struct nfshack_readdir {
-	char		*dirent;
-	size_t		used;
-	int		full;
-};
-
-
-
-static int btrfs_nfshack_filldir(void *__buf, const char *name, int namlen,
-			      loff_t offset, u64 ino, unsigned int d_type)
-{
-	struct nfshack_readdir *buf = __buf;
-	struct nfshack_dirent *de = (void *)(buf->dirent + buf->used);
-	unsigned int reclen;
-
-	reclen = ALIGN(sizeof(struct nfshack_dirent) + namlen, sizeof(u64));
-	if (buf->used + reclen > PAGE_SIZE) {
-		buf->full = 1;
-		return -EINVAL;
-	}
-
-	de->namlen = namlen;
-	de->offset = offset;
-	de->ino = ino;
-	de->d_type = d_type;
-	memcpy(de->name, name, namlen);
-	buf->used += reclen;
-
-	return 0;
-}
-
-static int btrfs_nfshack_readdir(struct file *file, void *dirent,
-				 filldir_t filldir)
-{
-	struct nfshack_readdir buf;
-	struct nfshack_dirent *de;
-	int err;
-	int size;
-	loff_t offset;
-
-	buf.dirent = (void *)__get_free_page(GFP_KERNEL);
-	if (!buf.dirent)
-		return -ENOMEM;
-
-	offset = file->f_pos;
-
-	do {
-		unsigned int reclen;
-
-		buf.used = 0;
-		buf.full = 0;
-		err = btrfs_real_readdir(file, &buf, btrfs_nfshack_filldir);
-		if (err)
-			break;
-
-		size = buf.used;
-
-		if (!size)
-			break;
-
-		de = (struct nfshack_dirent *)buf.dirent;
-		while (size > 0) {
-			offset = de->offset;
-
-			if (filldir(dirent, de->name, de->namlen, de->offset,
-				    de->ino, de->d_type))
-				goto done;
-			offset = file->f_pos;
-
-			reclen = ALIGN(sizeof(*de) + de->namlen,
-				       sizeof(u64));
-			size -= reclen;
-			de = (struct nfshack_dirent *)((char *)de + reclen);
-		}
-	} while (buf.full);
-
- done:
-	free_page((unsigned long)buf.dirent);
-	file->f_pos = offset;
-
-	return err;
-}
-#endif
-
 int btrfs_write_inode(struct inode *inode, int wait)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3311,13 +3213,8 @@ unsigned long btrfs_force_ra(struct address_space *mapping,
 {
 	pgoff_t req_size = last_index - offset + 1;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
-	offset = page_cache_readahead(mapping, ra, file, offset, req_size);
-	return offset;
-#else
 	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
 	return offset + req_size;
-#endif
 }
 
 struct inode *btrfs_alloc_inode(struct super_block *sb)
@@ -3373,14 +3270,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 static void init_once(void *foo)
-#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
-static void init_once(struct kmem_cache * cachep, void *foo)
-#else
-static void init_once(void * foo, struct kmem_cache * cachep,
-		      unsigned long flags)
-#endif
 {
 	struct btrfs_inode *ei = (struct btrfs_inode *) foo;
 
@@ -3403,22 +3293,10 @@ void btrfs_destroy_cachep(void)
 
 struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
 				       unsigned long extra_flags,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
-				       void (*ctor)(void *)
-#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
-				       void (*ctor)(struct kmem_cache *, void *)
-#else
-				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long)
-#endif
-				     )
+				       void (*ctor)(void *))
 {
 	return kmem_cache_create(name, size, 0, (SLAB_RECLAIM_ACCOUNT |
-				 SLAB_MEM_SPREAD | extra_flags), ctor
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
-				 ,NULL
-#endif
-				);
+				 SLAB_MEM_SPREAD | extra_flags), ctor);
 }
 
 int btrfs_init_cachep(void)
@@ -3666,12 +3544,7 @@ static int btrfs_set_page_dirty(struct page *page)
 	return __set_page_dirty_nobuffers(page);
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
 static int btrfs_permission(struct inode *inode, int mask)
-#else
-static int btrfs_permission(struct inode *inode, int mask,
-			    struct nameidata *nd)
-#endif
 {
 	if (btrfs_test_flag(inode, READONLY) && (mask & MAY_WRITE))
 		return -EACCES;
@@ -3702,11 +3575,7 @@ static struct inode_operations btrfs_dir_ro_inode_operations = {
 static struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	.readdir	= btrfs_nfshack_readdir,
-#else /* NFSd readdir/lookup deadlock is fixed */
 	.readdir	= btrfs_real_readdir,
-#endif
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_ioctl,
