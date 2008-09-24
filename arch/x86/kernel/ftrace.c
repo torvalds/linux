@@ -71,13 +71,13 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 * No real locking needed, this code is run through
 	 * kstop_machine, or before SMP starts.
 	 */
-	if (__copy_from_user(replaced, (char __user *)ip, MCOUNT_INSN_SIZE))
+	if (__copy_from_user_inatomic(replaced, (char __user *)ip, MCOUNT_INSN_SIZE))
 		return 1;
 
 	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
 		return 2;
 
-	WARN_ON_ONCE(__copy_to_user((char __user *)ip, new_code,
+	WARN_ON_ONCE(__copy_to_user_inatomic((char __user *)ip, new_code,
 				    MCOUNT_INSN_SIZE));
 
 	sync_core();
