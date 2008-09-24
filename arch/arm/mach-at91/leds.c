@@ -28,7 +28,7 @@
 
 static struct gpio_led_platform_data led_data;
 
-static struct platform_device at91_leds = {
+static struct platform_device at91_gpio_leds_device = {
 	.name			= "leds-gpio",
 	.id			= -1,
 	.dev.platform_data	= &led_data,
@@ -46,7 +46,7 @@ void __init at91_gpio_leds(struct gpio_led *leds, int nr)
 
 	led_data.leds = leds;
 	led_data.num_leds = nr;
-	platform_device_register(&at91_leds);
+	platform_device_register(&at91_gpio_leds_device);
 }
 
 #else
@@ -64,7 +64,7 @@ void __init at91_gpio_leds(struct gpio_led *leds, int nr) {}
 
 static struct gpio_led_platform_data pwm_led_data;
 
-static struct platform_device at91_pwm_leds = {
+static struct platform_device at91_pwm_leds_device = {
 	.name			= "leds-atmel-pwm",
 	.id			= -1,
 	.dev.platform_data	= &pwm_led_data,
@@ -85,7 +85,7 @@ void __init at91_pwm_leds(struct gpio_led *leds, int nr)
 	pwm_led_data.num_leds = nr;
 
 	at91_add_device_pwm(pwm_mask);
-	platform_device_register(&at91_pwm_leds);
+	platform_device_register(&at91_pwm_leds_device);
 }
 #else
 void __init at91_pwm_leds(struct gpio_led *leds, int nr){}
