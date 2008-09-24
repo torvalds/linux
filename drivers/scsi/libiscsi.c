@@ -404,11 +404,6 @@ static void fail_command(struct iscsi_conn *conn, struct iscsi_task *task,
 		conn->session->queued_cmdsn--;
 	else
 		conn->session->tt->cleanup_task(conn, task);
-	/*
-	 * Check if cleanup_task dropped the lock and the command completed,
-	 */
-	if (!task->sc)
-		return;
 
 	sc->result = err;
 	if (!scsi_bidi_cmnd(sc))
@@ -1829,10 +1824,10 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 
 	iscsi_suspend_tx(conn);
 
-	spin_lock(&session->lock);
+	spin_lock_bh(&session->lock);
 	fail_all_commands(conn, sc->device->lun, DID_ERROR);
 	conn->tmf_state = TMF_INITIAL;
-	spin_unlock(&session->lock);
+	spin_unlock_bh(&session->lock);
 
 	iscsi_start_tx(conn);
 	goto done;
