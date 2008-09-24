@@ -364,15 +364,16 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 				       enum dmx_success success)
 {
 	struct dmxdev_filter *dmxdevfilter = filter->priv;
+	unsigned long flags;
 	int ret;
 
 	if (dmxdevfilter->buffer.error) {
 		wake_up(&dmxdevfilter->buffer.queue);
 		return 0;
 	}
-	spin_lock(&dmxdevfilter->dev->lock);
+	spin_lock_irqsave(&dmxdevfilter->dev->lock, flags);
 	if (dmxdevfilter->state != DMXDEV_STATE_GO) {
-		spin_unlock(&dmxdevfilter->dev->lock);
+		spin_unlock_irqrestore(&dmxdevfilter->dev->lock, flags);
 		return 0;
 	}
 	del_timer(&dmxdevfilter->timer);
@@ -391,7 +392,7 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 	}
 	if (dmxdevfilter->params.sec.flags & DMX_ONESHOT)
 		dmxdevfilter->state = DMXDEV_STATE_DONE;
-	spin_unlock(&dmxdevfilter->dev->lock);
+	spin_unlock_irqrestore(&dmxdevfilter->dev->lock, flags);
 	wake_up(&dmxdevfilter->buffer.queue);
 	return 0;
 }
@@ -403,11 +404,12 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 {
 	struct dmxdev_filter *dmxdevfilter = feed->priv;
 	struct dvb_ringbuffer *buffer;
+	unsigned long flags;
 	int ret;
 
-	spin_lock(&dmxdevfilter->dev->lock);
+	spin_lock_irqsave(&dmxdevfilter->dev->lock, flags);
 	if (dmxdevfilter->params.pes.output == DMX_OUT_DECODER) {
-		spin_unlock(&dmxdevfilter->dev->lock);
+		spin_unlock_irqrestore(&dmxdevfilter->dev->lock, flags);
 		return 0;
 	}
 
@@ -417,7 +419,7 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	else
 		buffer = &dmxdevfilter->dev->dvr_buffer;
 	if (buffer->error) {
-		spin_unlock(&dmxdevfilter->dev->lock);
+		spin_unlock_irqrestore(&dmxdevfilter->dev->lock, flags);
 		wake_up(&buffer->queue);
 		return 0;
 	}
@@ -428,7 +430,7 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 		dvb_ringbuffer_flush(buffer);
 		buffer->error = ret;
 	}
-	spin_unlock(&dmxdevfilter->dev->lock);
+	spin_unlock_irqrestore(&dmxdevfilter->dev->lock, flags);
 	wake_up(&buffer->queue);
 	return 0;
 }
