@@ -1344,7 +1344,6 @@ p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
 {
 	int ret, n;
 	struct p9_trans_fd *ts = NULL;
-	mm_segment_t oldfs;
 
 	if (trans && trans->status == Connected)
 		ts = trans->priv;
@@ -1358,24 +1357,17 @@ p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
 	if (!ts->wr->f_op || !ts->wr->f_op->poll)
 		return -EIO;
 
-	oldfs = get_fs();
-	set_fs(get_ds());
-
 	ret = ts->rd->f_op->poll(ts->rd, pt);
 	if (ret < 0)
-		goto end;
+		return ret;
 
 	if (ts->rd != ts->wr) {
 		n = ts->wr->f_op->poll(ts->wr, pt);
-		if (n < 0) {
-			ret = n;
-			goto end;
-		}
+		if (n < 0)
+			return n;
 		ret = (ret & ~POLLOUT) | (n & ~POLLIN);
 	}
 
-end:
-	set_fs(oldfs);
 	return ret;
 }
 
