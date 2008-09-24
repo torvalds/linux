@@ -375,6 +375,9 @@ asmlinkage int sys_sigreturn(unsigned long r2, unsigned long r3,
 	sigset_t set;
 	long long ret;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
@@ -411,6 +414,9 @@ asmlinkage int sys_rt_sigreturn(unsigned long r2, unsigned long r3,
 	sigset_t set;
 	stack_t __user st;
 	long long ret;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -539,7 +545,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 		 * On SH5 all edited pointers are subject to NEFF
 		 */
 		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-        		 	(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
 	} else {
 		/*
 		 * Different approach on SH5.
@@ -554,7 +560,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 		 */
 		DEREF_REG_PR = (unsigned long) frame->retcode | 0x01;
 		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-        		 	(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
 
 		if (__copy_to_user(frame->retcode,
 			(unsigned long long)sa_default_restorer & (~1), 16) != 0)
@@ -570,7 +576,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 	 */
 	regs->regs[REG_SP] = (unsigned long) frame;
 	regs->regs[REG_SP] = (regs->regs[REG_SP] & NEFF_SIGN) ?
-        		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
+		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
 	regs->regs[REG_ARG1] = signal; /* Arg for signal handler */
 
         /* FIXME:
@@ -656,7 +662,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		 * On SH5 all edited pointers are subject to NEFF
 		 */
 		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-        		 	(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
 	} else {
 		/*
 		 * Different approach on SH5.
@@ -672,7 +678,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 		DEREF_REG_PR = (unsigned long) frame->retcode | 0x01;
 		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-        		 	(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
 
 		if (__copy_to_user(frame->retcode,
 			(unsigned long long)sa_default_rt_restorer & (~1), 16) != 0)
@@ -687,7 +693,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 */
 	regs->regs[REG_SP] = (unsigned long) frame;
 	regs->regs[REG_SP] = (regs->regs[REG_SP] & NEFF_SIGN) ?
-        		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
+		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
 	regs->regs[REG_ARG1] = signal; /* Arg for signal handler */
 	regs->regs[REG_ARG2] = (unsigned long long)(unsigned long)(signed long)&frame->info;
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->uc.uc_mcontext;
