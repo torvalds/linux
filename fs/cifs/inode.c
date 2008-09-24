@@ -1274,7 +1274,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 			info_buf_source =
 				kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
 						GFP_KERNEL);
-			if (info_buf_source != NULL)
+			if (info_buf_source == NULL)
 				goto unlink_target;
 
 			info_buf_target = info_buf_source + 1;
