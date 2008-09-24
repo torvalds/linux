@@ -487,31 +487,28 @@ static void *
 gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 		    gfp_t flag)
 {
-	void *vaddr;
 	dma_addr_t paddr;
 	unsigned long align_mask;
-	u64 dma_mask = dma_alloc_coherent_mask(dev, flag);
+	struct page *page;
 
-	vaddr = (void *)__get_free_pages(flag | __GFP_ZERO, get_order(size));
-	if (!vaddr)
-		return NULL;
+	if (force_iommu && !(flag & GFP_DMA)) {
+		flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+		page = alloc_pages(flag | __GFP_ZERO, get_order(size));
+		if (!page)
+			return NULL;
 
-	paddr = virt_to_phys(vaddr);
-	if (is_buffer_dma_capable(dma_mask, paddr, size)) {
-		*dma_addr = paddr;
-		return vaddr;
-	}
+		align_mask = (1UL << get_order(size)) - 1;
+		paddr = dma_map_area(dev, page_to_phys(page), size,
+				     DMA_BIDIRECTIONAL, align_mask);
 
-	align_mask = (1UL << get_order(size)) - 1;
-
-	*dma_addr = dma_map_area(dev, paddr, size, DMA_BIDIRECTIONAL,
-				 align_mask);
-	flush_gart();
-
-	if (*dma_addr != bad_dma_address)
-		return vaddr;
-
-	free_pages((unsigned long)vaddr, get_order(size));
+		flush_gart();
+		if (paddr != bad_dma_address) {
+			*dma_addr = paddr;
+			return page_address(page);
+		}
+		__free_pages(page, get_order(size));
+	} else
+		return dma_generic_alloc_coherent(dev, size, dma_addr, flag);
 
 	return NULL;
 }
