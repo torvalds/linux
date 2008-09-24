@@ -1176,7 +1176,6 @@ static const struct file_operations si470x_fops = {
  * si470x_v4l2_queryctrl - query control
  */
 static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
-/* HINT: the disabled controls are only here to satify kradio and such apps */
 	{
 		.id		= V4L2_CID_AUDIO_VOLUME,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
@@ -1187,18 +1186,6 @@ static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
 		.default_value	= 15,
 	},
 	{
-		.id		= V4L2_CID_AUDIO_BALANCE,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_BASS,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_TREBLE,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
 		.id		= V4L2_CID_AUDIO_MUTE,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
 		.name		= "Mute",
@@ -1206,10 +1193,6 @@ static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
 		.maximum	= 1,
 		.step		= 1,
 		.default_value	= 1,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_LOUDNESS,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
 	},
 };
 
@@ -1267,19 +1250,27 @@ static int si470x_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 		struct v4l2_queryctrl *qc)
 {
-	unsigned char i;
+	unsigned char i = 0;
 	int retval = -EINVAL;
 
-	/* safety checks */
-	if (!qc->id)
+	/* abort if qc->id is below V4L2_CID_BASE */
+	if (qc->id < V4L2_CID_BASE)
 		goto done;
 
+	/* search video control */
 	for (i = 0; i < ARRAY_SIZE(si470x_v4l2_queryctrl); i++) {
 		if (qc->id == si470x_v4l2_queryctrl[i].id) {
 			memcpy(qc, &(si470x_v4l2_queryctrl[i]), sizeof(*qc));
-			retval = 0;
+			retval = 0; /* found */
 			break;
 		}
+	}
+
+	/* disable unsupported base controls */
+	/* to satisfy kradio and such apps */
+	if ((retval == -EINVAL) && (qc->id < V4L2_CID_LASTP1)) {
+		qc->flags = V4L2_CTRL_FLAG_DISABLED;
+		retval = 0;
 	}
 
 done:
