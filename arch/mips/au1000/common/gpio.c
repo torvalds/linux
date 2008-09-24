@@ -61,7 +61,8 @@ static int au1xxx_gpio2_direction_input(unsigned gpio)
 static int au1xxx_gpio2_direction_output(unsigned gpio, int value)
 {
 	gpio -= AU1XXX_GPIO_BASE;
-	gpio2->dir = (0x01 << gpio) | (value << gpio);
+	gpio2->dir |= 0x01 << gpio;
+	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | (value << gpio);
 	return 0;
 }
 
@@ -90,6 +91,7 @@ static int au1xxx_gpio1_direction_input(unsigned gpio)
 static int au1xxx_gpio1_direction_output(unsigned gpio, int value)
 {
 	gpio1->trioutclr = (0x01 & gpio);
+	au1xxx_gpio1_write(gpio, value);
 	return 0;
 }
 
