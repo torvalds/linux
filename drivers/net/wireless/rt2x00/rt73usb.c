@@ -890,9 +890,6 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 	unsigned int i;
 	int status;
 	u32 reg;
-	const char *ptr = data;
-	char *cache;
-	int buflen;
 
 	/*
 	 * Wait for stable hardware.
@@ -911,31 +908,12 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 
 	/*
 	 * Write firmware to device.
-	 * We setup a seperate cache for this action,
-	 * since we are going to write larger chunks of data
-	 * then normally used cache size.
 	 */
-	cache = kmalloc(CSR_CACHE_SIZE_FIRMWARE, GFP_KERNEL);
-	if (!cache) {
-		ERROR(rt2x00dev, "Failed to allocate firmware cache.\n");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < len; i += CSR_CACHE_SIZE_FIRMWARE) {
-		buflen = min_t(int, len - i, CSR_CACHE_SIZE_FIRMWARE);
-
-		memcpy(cache, ptr, buflen);
-
-		rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
-					 USB_VENDOR_REQUEST_OUT,
-					 FIRMWARE_IMAGE_BASE + i, 0,
-					 cache, buflen,
-					 REGISTER_TIMEOUT32(buflen));
-
-		ptr += buflen;
-	}
-
-	kfree(cache);
+	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
+					    USB_VENDOR_REQUEST_OUT,
+					    FIRMWARE_IMAGE_BASE,
+					    data, len,
+					    REGISTER_TIMEOUT32(len));
 
 	/*
 	 * Send firmware request to device to load firmware,
@@ -1303,7 +1281,8 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, IEEE80211_HEADER);
-	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE, 1);
+	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE,
+			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
@@ -1352,6 +1331,7 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
+	u32 word, len;
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1359,6 +1339,17 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	skb_push(entry->skb, entry->queue->desc_size);
 	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
 	skbdesc->desc = entry->skb->data;
+
+	/*
+	 * Adjust the beacon databyte count. The current number is
+	 * calculated before this function gets called, but falsely
+	 * assumes that the descriptor was already present in the SKB.
+	 */
+	rt2x00_desc_read(skbdesc->desc, 0, &word);
+	len  = rt2x00_get_field32(word, TXD_W0_DATABYTE_COUNT);
+	len += skbdesc->desc_len;
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, len);
+	rt2x00_desc_write(skbdesc->desc, 0, word);
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -1374,10 +1365,10 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	 * Write entire beacon with descriptor to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
-	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
-				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,
-				 entry->skb->data, entry->skb->len,
-				 REGISTER_TIMEOUT32(entry->skb->len));
+	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
+					    USB_VENDOR_REQUEST_OUT, beacon_base,
+					    entry->skb->data, entry->skb->len,
+					    REGISTER_TIMEOUT32(entry->skb->len));
 
 	/*
 	 * Clean up the beacon skb.
@@ -1871,7 +1862,6 @@ static void rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM;
 	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;

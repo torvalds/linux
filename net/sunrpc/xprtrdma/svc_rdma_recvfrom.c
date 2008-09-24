@@ -443,18 +443,18 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 
 	dprintk("svcrdma: rqstp=%p\n", rqstp);
 
-	spin_lock_bh(&rdma_xprt->sc_read_complete_lock);
+	spin_lock_bh(&rdma_xprt->sc_rq_dto_lock);
 	if (!list_empty(&rdma_xprt->sc_read_complete_q)) {
 		ctxt = list_entry(rdma_xprt->sc_read_complete_q.next,
 				  struct svc_rdma_op_ctxt,
 				  dto_q);
 		list_del_init(&ctxt->dto_q);
 	}
-	spin_unlock_bh(&rdma_xprt->sc_read_complete_lock);
-	if (ctxt)
+	if (ctxt) {
+		spin_unlock_bh(&rdma_xprt->sc_rq_dto_lock);
 		return rdma_read_complete(rqstp, ctxt);
+	}
 
-	spin_lock_bh(&rdma_xprt->sc_rq_dto_lock);
 	if (!list_empty(&rdma_xprt->sc_rq_dto_q)) {
 		ctxt = list_entry(rdma_xprt->sc_rq_dto_q.next,
 				  struct svc_rdma_op_ctxt,

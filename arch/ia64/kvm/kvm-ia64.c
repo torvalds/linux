@@ -38,6 +38,7 @@
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/tlb.h>
+#include <asm/elf.h>
 
 #include "misc.h"
 #include "vti.h"
@@ -59,12 +60,6 @@ static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
-};
-
-
-struct fdesc{
-    unsigned long ip;
-    unsigned long gp;
 };
 
 static void kvm_flush_icache(unsigned long start, unsigned long len)

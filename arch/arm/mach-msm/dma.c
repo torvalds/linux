@@ -15,7 +15,7 @@
 
 #include <asm/io.h>
 #include <linux/interrupt.h>
-#include <asm/arch/dma.h>
+#include <mach/dma.h>
 
 #define MSM_DMOV_CHANNEL_COUNT 16
 

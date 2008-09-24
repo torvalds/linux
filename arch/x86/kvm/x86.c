@@ -883,6 +883,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PIT:
 	case KVM_CAP_NOP_IO_DELAY:
 	case KVM_CAP_MP_STATE:
+	case KVM_CAP_SYNC_MMU:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -1495,6 +1496,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 		goto out;
 
 	down_write(&kvm->slots_lock);
+	spin_lock(&kvm->mmu_lock);
 
 	p = &kvm->arch.aliases[alias->slot];
 	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
@@ -1506,6 +1508,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 			break;
 	kvm->arch.naliases = n;
 
+	spin_unlock(&kvm->mmu_lock);
 	kvm_mmu_zap_all(kvm);
 
 	up_write(&kvm->slots_lock);
@@ -3972,16 +3975,23 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	 */
 	if (!user_alloc) {
 		if (npages && !old.rmap) {
+			unsigned long userspace_addr;
+
 			down_write(&current->mm->mmap_sem);
-			memslot->userspace_addr = do_mmap(NULL, 0,
-						     npages * PAGE_SIZE,
-						     PROT_READ | PROT_WRITE,
-						     MAP_SHARED | MAP_ANONYMOUS,
-						     0);
+			userspace_addr = do_mmap(NULL, 0,
+						 npages * PAGE_SIZE,
+						 PROT_READ | PROT_WRITE,
+						 MAP_SHARED | MAP_ANONYMOUS,
+						 0);
 			up_write(&current->mm->mmap_sem);
 
-			if (IS_ERR((void *)memslot->userspace_addr))
-				return PTR_ERR((void *)memslot->userspace_addr);
+			if (IS_ERR((void *)userspace_addr))
+				return PTR_ERR((void *)userspace_addr);
+
+			/* set userspace_addr atomically for kvm_hva_to_rmapp */
+			spin_lock(&kvm->mmu_lock);
+			memslot->userspace_addr = userspace_addr;
+			spin_unlock(&kvm->mmu_lock);
 		} else {
 			if (!old.user_alloc && old.rmap) {
 				int ret;

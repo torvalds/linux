@@ -716,6 +716,12 @@ ENTRY(sys_call_table)
 	.long sys_fallocate		/* 325 */
 	.long sys_timerfd_settime
 	.long sys_timerfd_gettime
+	.long sys_signalfd4
+	.long sys_eventfd2
+	.long sys_epoll_create1		/* 330 */
+	.long sys_dup3
+	.long sys_pipe2
+	.long sys_inotify_init1
 
 
 nr_syscalls=(.-sys_call_table)/4

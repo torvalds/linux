@@ -10,8 +10,11 @@
 #include <asm/io.h>
 #include <asm/proc-fns.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/pxa-regs.h>
+#include <mach/reset.h>
+
+unsigned int reset_status;
+EXPORT_SYMBOL(reset_status);
 
 static void do_hw_reset(void);
 
@@ -77,8 +80,7 @@ static void do_hw_reset(void)
 
 void arch_reset(char mode)
 {
-	if (cpu_is_pxa2xx())
-		RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+	clear_reset_status(RESET_STATUS_ALL);
 
 	switch (mode) {
 	case 's':

@@ -376,7 +376,7 @@ static int get_lun(struct scsi_device *sdev, struct rdac_dh_data *h)
 		if (inqp->page_id[0] != 'e' || inqp->page_id[1] != 'd' ||
 		    inqp->page_id[2] != 'i' || inqp->page_id[3] != 'd')
 			return SCSI_DH_NOSYS;
-		h->lun = scsilun_to_int((struct scsi_lun *)inqp->lun);
+		h->lun = inqp->lun[7]; /* Uses only the last byte */
 	}
 	return err;
 }
@@ -386,6 +386,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 	int err;
 	struct c9_inquiry *inqp;
 
+	h->lun_state = RDAC_LUN_UNOWNED;
 	err = submit_inquiry(sdev, 0xC9, sizeof(struct c9_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c9;
@@ -550,7 +551,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			 *
 			 * Just retry and wait.
 			 */
-			return NEEDS_RETRY;
+			return ADD_TO_MLQUEUE;
 		break;
 	case ILLEGAL_REQUEST:
 		if (sense_hdr->asc == 0x94 && sense_hdr->ascq == 0x01) {
@@ -567,14 +568,14 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			/*
 			 * Power On, Reset, or Bus Device Reset, just retry.
 			 */
-			return NEEDS_RETRY;
+			return ADD_TO_MLQUEUE;
 		break;
 	}
 	/* success just means we do not care what scsi-ml does */
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-const struct scsi_dh_devlist rdac_dev_list[] = {
+static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "1722"},
 	{"IBM", "1724"},
 	{"IBM", "1726"},

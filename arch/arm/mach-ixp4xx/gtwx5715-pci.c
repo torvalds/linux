@@ -28,8 +28,8 @@
 #include <linux/irq.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
-#include <asm/arch/gtwx5715.h>
+#include <mach/hardware.h>
+#include <mach/gtwx5715.h>
 #include <asm/mach/pci.h>
 
 /*

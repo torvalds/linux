@@ -13,9 +13,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include <asm/mach-types.h>
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
 
 
 /* ------------------------------------------------------------------------- */

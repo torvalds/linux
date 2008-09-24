@@ -499,9 +499,9 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		if (!size)
 			continue;
 		if (from + size > get_capacity(disk)) {
-			printk(KERN_ERR " %s: p%d exceeds device capacity\n",
+			printk(KERN_WARNING
+				"%s: p%d exceeds device capacity\n",
 				disk->disk_name, p);
-			continue;
 		}
 		res = add_partition(disk, p, from, size, state->parts[p].flags);
 		if (res) {

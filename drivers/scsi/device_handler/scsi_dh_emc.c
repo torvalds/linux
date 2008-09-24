@@ -439,7 +439,7 @@ static int clariion_check_sense(struct scsi_device *sdev,
 			 * Unit Attention Code. This is the first IO
 			 * to the new path, so just retry.
 			 */
-			return NEEDS_RETRY;
+			return ADD_TO_MLQUEUE;
 		break;
 	}
 
@@ -514,7 +514,7 @@ retry:
 			return SCSI_DH_IO;
 
 		err = clariion_check_sense(sdev, &sshdr);
-		if (retry > 0 && err == NEEDS_RETRY) {
+		if (retry > 0 && err == ADD_TO_MLQUEUE) {
 			retry--;
 			goto retry;
 		}
@@ -562,7 +562,7 @@ done:
 	return result;
 }
 
-const struct scsi_dh_devlist clariion_dev_list[] = {
+static const struct scsi_dh_devlist clariion_dev_list[] = {
 	{"DGC", "RAID"},
 	{"DGC", "DISK"},
 	{"DGC", "VRAID"},

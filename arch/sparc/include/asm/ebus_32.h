@@ -12,9 +12,9 @@
 #ifndef _LINUX_IOPORT_H
 #include <linux/ioport.h>
 #endif
+#include <linux/of_device.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 
 struct linux_ebus_child {
 	struct linux_ebus_child		*next;

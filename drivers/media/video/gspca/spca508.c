@@ -63,23 +63,23 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format sif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 160 * 3,
+	{160, 120, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 176 * 3,
+	{176, 144, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 3,
+	{320, 240, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{352, 288, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 352 * 3,
+	{352, 288, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
@@ -1521,8 +1521,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;			/* success */
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 /*	write_vector(gspca_dev, spca508_open_data); */
 	return 0;
@@ -1554,15 +1554,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, 0x8112, 0x20);
 }
 
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1583,7 +1574,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	default:
 		data += 1;
 		len -= 1;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 				data, len);
 		break;
 	}
@@ -1633,11 +1624,9 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
@@ -1667,6 +1656,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

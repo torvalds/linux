@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/rtc.h>
-#include <linux/smp_lock.h>
 #include "rtc-core.h"
 
 static dev_t rtc_devt;
@@ -27,11 +26,8 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 					struct rtc_device, char_dev);
 	const struct rtc_class_ops *ops = rtc->ops;
 
-	lock_kernel();
-	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags)) {
-		err = -EBUSY;
-		goto out;
-	}
+	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags))
+		return -EBUSY;
 
 	file->private_data = rtc;
 
@@ -41,13 +37,11 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 		rtc->irq_data = 0;
 		spin_unlock_irq(&rtc->irq_lock);
 
-		goto out;
+		return 0;
 	}
 
 	/* something has gone wrong */
 	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
-out:
-	unlock_kernel();
 	return err;
 }
 
@@ -221,7 +215,7 @@ static long rtc_dev_ioctl(struct file *file,
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
-		return -EBUSY;
+		return err;
 
 	/* check that the calling task has appropriate permissions
 	 * for certain ioctls. doing this check here is useful
@@ -409,11 +403,14 @@ static long rtc_dev_ioctl(struct file *file,
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	case RTC_UIE_OFF:
+		mutex_unlock(&rtc->ops_lock);
 		clear_uie(rtc);
-		break;
+		return 0;
 
 	case RTC_UIE_ON:
+		mutex_unlock(&rtc->ops_lock);
 		err = set_uie(rtc);
+		return err;
 #endif
 	default:
 		err = -ENOTTY;
@@ -432,6 +429,8 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	clear_uie(rtc);
 #endif
+	rtc_irq_set_state(rtc, NULL, 0);
+
 	if (rtc->ops->release)
 		rtc->ops->release(rtc->dev.parent);
 

@@ -81,6 +81,8 @@ EXPORT_SYMBOL(system_serial_high);
 unsigned int elf_hwcap;
 EXPORT_SYMBOL(elf_hwcap);
 
+unsigned long __initdata vmalloc_reserve = 128 << 20;
+
 
 #ifdef MULTI_CPU
 struct processor processor;
@@ -499,6 +501,17 @@ static void __init early_mem(char **p)
 	arm_add_memory(start, size);
 }
 __early_param("mem=", early_mem);
+
+/*
+ * vmalloc=size forces the vmalloc area to be exactly 'size'
+ * bytes. This can be used to increase (or decrease) the vmalloc
+ * area - the default is 128m.
+ */
+static void __init early_vmalloc(char **arg)
+{
+	vmalloc_reserve = memparse(*arg, arg);
+}
+__early_param("vmalloc=", early_vmalloc);
 
 /*
  * Initial parsing of the command line.

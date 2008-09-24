@@ -27,7 +27,7 @@ typedef enum {
  *	Returns the cable type.
  */
 
-static u8 __devinit jmicron_cable_detect(ide_hwif_t *hwif)
+static u8 jmicron_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 

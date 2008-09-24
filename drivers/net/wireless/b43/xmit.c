@@ -192,7 +192,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	const struct b43_phy *phy = &dev->phy;
 	const struct ieee80211_hdr *wlhdr =
 	    (const struct ieee80211_hdr *)fragment_data;
-	int use_encryption = (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT));
+	int use_encryption = !!info->control.hw_key;
 	__le16 fctl = wlhdr->frame_control;
 	struct ieee80211_rate *fbrate;
 	u8 rate, rate_fb;

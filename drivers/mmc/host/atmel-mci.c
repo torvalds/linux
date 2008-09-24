@@ -28,7 +28,7 @@
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 #include "atmel-mci-regs.h"
 
@@ -195,7 +195,9 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 
 	/* Grab a more or less consistent snapshot */
 	spin_lock_irq(&host->mmc->lock);
+	clk_enable(host->mck);
 	memcpy_fromio(buf, host->regs, MCI_REGS_SIZE);
+	clk_disable(host->mck);
 	spin_unlock_irq(&host->mmc->lock);
 
 	seq_printf(s, "MR:\t0x%08x%s%s CLKDIV=%u\n",
@@ -215,6 +217,8 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 
 	atmci_show_status_reg(s, "SR", buf[MCI_SR / 4]);
 	atmci_show_status_reg(s, "IMR", buf[MCI_IMR / 4]);
+
+	kfree(buf);
 
 	return 0;
 }
@@ -237,7 +241,6 @@ static void atmci_init_debugfs(struct atmel_mci *host)
 	struct mmc_host	*mmc;
 	struct dentry	*root;
 	struct dentry	*node;
-	struct resource	*res;
 
 	mmc = host->mmc;
 	root = mmc->debugfs_root;
@@ -250,9 +253,6 @@ static void atmci_init_debugfs(struct atmel_mci *host)
 		return;
 	if (!node)
 		goto err;
-
-	res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
-	node->d_inode->i_size = res->end - res->start + 1;
 
 	node = debugfs_create_file("req", S_IRUSR, root, host, &atmci_req_fops);
 	if (!node)
@@ -1059,6 +1059,10 @@ static int __init atmci_probe(struct platform_device *pdev)
 			host->present = !gpio_get_value(host->detect_pin);
 		}
 	}
+
+	if (!gpio_is_valid(host->detect_pin))
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
+
 	if (gpio_is_valid(host->wp_pin)) {
 		if (gpio_request(host->wp_pin, "mmc_wp")) {
 			dev_dbg(&mmc->class_dev, "no WP pin available\n");

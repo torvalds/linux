@@ -21,13 +21,12 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 
-#include <asm/arch/platform.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/gpio.h>
+#include <mach/platform.h>
+#include <mach/irqs.h>
+#include <mach/gpio.h>
 
 #define USB_CTRL	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
 
@@ -278,7 +277,6 @@ static const struct hc_driver ohci_pnx4008_hc_driver = {
 	 */
 	.hub_status_data = ohci_hub_status_data,
 	.hub_control = ohci_hub_control,
-	.hub_irq_enable = ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend = ohci_bus_suspend,
 	.bus_resume = ohci_bus_resume,

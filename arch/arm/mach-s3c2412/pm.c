@@ -19,14 +19,14 @@
 #include <linux/sysdev.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-power.h>
-#include <asm/arch/regs-gpioj.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-dsc.h>
+#include <mach/regs-power.h>
+#include <mach/regs-gpioj.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-dsc.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/pm.h>

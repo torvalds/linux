@@ -963,62 +963,6 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 }
 EXPORT_SYMBOL(dentry_open);
 
-/*
- * Find an empty file descriptor entry, and mark it busy.
- */
-int get_unused_fd_flags(int flags)
-{
-	struct files_struct * files = current->files;
-	int fd, error;
-	struct fdtable *fdt;
-
-	spin_lock(&files->file_lock);
-
-repeat:
-	fdt = files_fdtable(files);
-	fd = find_next_zero_bit(fdt->open_fds->fds_bits, fdt->max_fds,
-				files->next_fd);
-
-	/* Do we need to expand the fd array or fd set?  */
-	error = expand_files(files, fd);
-	if (error < 0)
-		goto out;
-
-	if (error) {
-		/*
-	 	 * If we needed to expand the fs array we
-		 * might have blocked - try again.
-		 */
-		goto repeat;
-	}
-
-	FD_SET(fd, fdt->open_fds);
-	if (flags & O_CLOEXEC)
-		FD_SET(fd, fdt->close_on_exec);
-	else
-		FD_CLR(fd, fdt->close_on_exec);
-	files->next_fd = fd + 1;
-#if 1
-	/* Sanity check */
-	if (fdt->fd[fd] != NULL) {
-		printk(KERN_WARNING "get_unused_fd: slot %d not NULL!\n", fd);
-		fdt->fd[fd] = NULL;
-	}
-#endif
-	error = fd;
-
-out:
-	spin_unlock(&files->file_lock);
-	return error;
-}
-
-int get_unused_fd(void)
-{
-	return get_unused_fd_flags(0);
-}
-
-EXPORT_SYMBOL(get_unused_fd);
-
 static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = files_fdtable(files);

@@ -55,7 +55,7 @@
 #include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
-static char mv643xx_eth_driver_version[] = "1.1";
+static char mv643xx_eth_driver_version[] = "1.3";
 
 #define MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MV643XX_ETH_NAPI
@@ -90,12 +90,21 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define PORT_SERIAL_CONTROL(p)		(0x043c + ((p) << 10))
 #define PORT_STATUS(p)			(0x0444 + ((p) << 10))
 #define  TX_FIFO_EMPTY			0x00000400
+#define  TX_IN_PROGRESS			0x00000080
+#define  PORT_SPEED_MASK		0x00000030
+#define  PORT_SPEED_1000		0x00000010
+#define  PORT_SPEED_100			0x00000020
+#define  PORT_SPEED_10			0x00000000
+#define  FLOW_CONTROL_ENABLED		0x00000008
+#define  FULL_DUPLEX			0x00000004
+#define  LINK_UP			0x00000002
 #define TXQ_COMMAND(p)			(0x0448 + ((p) << 10))
 #define TXQ_FIX_PRIO_CONF(p)		(0x044c + ((p) << 10))
 #define TX_BW_RATE(p)			(0x0450 + ((p) << 10))
 #define TX_BW_MTU(p)			(0x0458 + ((p) << 10))
 #define TX_BW_BURST(p)			(0x045c + ((p) << 10))
 #define INT_CAUSE(p)			(0x0460 + ((p) << 10))
+#define  INT_TX_END_0			0x00080000
 #define  INT_TX_END			0x07f80000
 #define  INT_RX				0x0007fbfc
 #define  INT_EXT			0x00000002
@@ -127,21 +136,21 @@ static char mv643xx_eth_driver_version[] = "1.1";
 /*
  * SDMA configuration register.
  */
-#define RX_BURST_SIZE_4_64BIT		(2 << 1)
+#define RX_BURST_SIZE_16_64BIT		(4 << 1)
 #define BLM_RX_NO_SWAP			(1 << 4)
 #define BLM_TX_NO_SWAP			(1 << 5)
-#define TX_BURST_SIZE_4_64BIT		(2 << 22)
+#define TX_BURST_SIZE_16_64BIT		(4 << 22)
 
 #if defined(__BIG_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
-		RX_BURST_SIZE_4_64BIT	|	\
-		TX_BURST_SIZE_4_64BIT
+		RX_BURST_SIZE_16_64BIT	|	\
+		TX_BURST_SIZE_16_64BIT
 #elif defined(__LITTLE_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
-		RX_BURST_SIZE_4_64BIT	|	\
+		RX_BURST_SIZE_16_64BIT	|	\
 		BLM_RX_NO_SWAP		|	\
 		BLM_TX_NO_SWAP		|	\
-		TX_BURST_SIZE_4_64BIT
+		TX_BURST_SIZE_16_64BIT
 #else
 #error One of __BIG_ENDIAN or __LITTLE_ENDIAN must be defined
 #endif
@@ -153,9 +162,7 @@ static char mv643xx_eth_driver_version[] = "1.1";
 #define SET_MII_SPEED_TO_100			(1 << 24)
 #define SET_GMII_SPEED_TO_1000			(1 << 23)
 #define SET_FULL_DUPLEX_MODE			(1 << 21)
-#define MAX_RX_PACKET_1522BYTE			(1 << 17)
 #define MAX_RX_PACKET_9700BYTE			(5 << 17)
-#define MAX_RX_PACKET_MASK			(7 << 17)
 #define DISABLE_AUTO_NEG_SPEED_GMII		(1 << 13)
 #define DO_NOT_FORCE_LINK_FAIL			(1 << 10)
 #define SERIAL_PORT_CONTROL_RESERVED		(1 << 9)
@@ -228,6 +235,8 @@ struct tx_desc {
 #define GEN_IP_V4_CHECKSUM		0x00040000
 #define GEN_TCP_UDP_CHECKSUM		0x00020000
 #define UDP_FRAME			0x00010000
+#define MAC_HDR_EXTRA_4_BYTES		0x00008000
+#define MAC_HDR_EXTRA_8_BYTES		0x00000200
 
 #define TX_IHL_SHIFT			11
 
@@ -404,6 +413,17 @@ static void rxq_disable(struct rx_queue *rxq)
 		udelay(10);
 }
 
+static void txq_reset_hw_ptr(struct tx_queue *txq)
+{
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
+	int off = TXQ_CURRENT_DESC_PTR(mp->port_num, txq->index);
+	u32 addr;
+
+	addr = (u32)txq->tx_desc_dma;
+	addr += txq->tx_curr_desc * sizeof(struct tx_desc);
+	wrl(mp, off, addr);
+}
+
 static void txq_enable(struct tx_queue *txq)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
@@ -454,11 +474,19 @@ static void rxq_refill(struct rx_queue *rxq)
 		/*
 		 * Reserve 2+14 bytes for an ethernet header (the
 		 * hardware automatically prepends 2 bytes of dummy
-		 * data to each received packet), 4 bytes for a VLAN
-		 * header, and 4 bytes for the trailing FCS -- 24
-		 * bytes total.
+		 * data to each received packet), 16 bytes for up to
+		 * four VLAN tags, and 4 bytes for the trailing FCS
+		 * -- 36 bytes total.
 		 */
-		skb_size = mp->dev->mtu + 24;
+		skb_size = mp->dev->mtu + 36;
+
+		/*
+		 * Make sure that the skb size is a multiple of 8
+		 * bytes, as the lower three bits of the receive
+		 * descriptor's buffer size field are ignored by
+		 * the hardware.
+		 */
+		skb_size = (skb_size + 7) & ~7;
 
 		skb = dev_alloc_skb(skb_size + dma_get_cache_alignment() - 1);
 		if (skb == NULL)
@@ -489,10 +517,8 @@ static void rxq_refill(struct rx_queue *rxq)
 		skb_reserve(skb, 2);
 	}
 
-	if (rxq->rx_desc_count != rxq->rx_ring_size) {
-		rxq->rx_oom.expires = jiffies + (HZ / 10);
-		add_timer(&rxq->rx_oom);
-	}
+	if (rxq->rx_desc_count != rxq->rx_ring_size)
+		mod_timer(&rxq->rx_oom, jiffies + (HZ / 10));
 
 	spin_unlock_irqrestore(&mp->lock, flags);
 }
@@ -509,7 +535,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 	int rx;
 
 	rx = 0;
-	while (rx < budget) {
+	while (rx < budget && rxq->rx_desc_count) {
 		struct rx_desc *rx_desc;
 		unsigned int cmd_sts;
 		struct sk_buff *skb;
@@ -534,7 +560,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		spin_unlock_irqrestore(&mp->lock, flags);
 
 		dma_unmap_single(NULL, rx_desc->buf_ptr + 2,
-				 mp->dev->mtu + 24, DMA_FROM_DEVICE);
+				 rx_desc->buf_size, DMA_FROM_DEVICE);
 		rxq->rx_desc_count--;
 		rx++;
 
@@ -614,6 +640,12 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		for (i = 0; i < 8; i++)
 			if (mp->txq_mask & (1 << i))
 				txq_reclaim(mp->txq + i, 0);
+
+		if (netif_carrier_ok(mp->dev)) {
+			spin_lock_irq(&mp->lock);
+			__txq_maybe_wake(mp->txq + mp->txq_primary);
+			spin_unlock_irq(&mp->lock);
+		}
 	}
 #endif
 
@@ -624,8 +656,6 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 
 	if (rx < budget) {
 		netif_rx_complete(mp->dev, napi);
-		wrl(mp, INT_CAUSE(mp->port_num), 0);
-		wrl(mp, INT_CAUSE_EXT(mp->port_num), 0);
 		wrl(mp, INT_MASK(mp->port_num), INT_TX_END | INT_RX | INT_EXT);
 	}
 
@@ -706,6 +736,7 @@ static inline __be16 sum16_as_be(__sum16 sum)
 
 static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int tx_index;
 	struct tx_desc *desc;
@@ -732,11 +763,35 @@ static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		BUG_ON(skb->protocol != htons(ETH_P_IP));
+		int mac_hdr_len;
+
+		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
+		       skb->protocol != htons(ETH_P_8021Q));
 
 		cmd_sts |= GEN_TCP_UDP_CHECKSUM |
 			   GEN_IP_V4_CHECKSUM   |
 			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
+
+		mac_hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
+		switch (mac_hdr_len - ETH_HLEN) {
+		case 0:
+			break;
+		case 4:
+			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
+			break;
+		case 8:
+			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
+			break;
+		case 12:
+			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
+			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
+			break;
+		default:
+			if (net_ratelimit())
+				dev_printk(KERN_ERR, &txq_to_mp(txq)->dev->dev,
+				   "mac header length is %d?!\n", mac_hdr_len);
+			break;
+		}
 
 		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
@@ -758,6 +813,10 @@ static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	/* ensure all other descriptors are written before first cmd_sts */
 	wmb();
 	desc->cmd_sts = cmd_sts;
+
+	/* clear TX_END interrupt status */
+	wrl(mp, INT_CAUSE(mp->port_num), ~(INT_TX_END_0 << txq->index));
+	rdl(mp, INT_CAUSE(mp->port_num));
 
 	/* ensure all descriptors are written before poking hardware */
 	wmb();
@@ -1112,10 +1171,28 @@ static int mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *
 
 static int mv643xx_eth_get_settings_phyless(struct net_device *dev, struct ethtool_cmd *cmd)
 {
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	u32 port_status;
+
+	port_status = rdl(mp, PORT_STATUS(mp->port_num));
+
 	cmd->supported = SUPPORTED_MII;
 	cmd->advertising = ADVERTISED_MII;
-	cmd->speed = SPEED_1000;
-	cmd->duplex = DUPLEX_FULL;
+	switch (port_status & PORT_SPEED_MASK) {
+	case PORT_SPEED_10:
+		cmd->speed = SPEED_10;
+		break;
+	case PORT_SPEED_100:
+		cmd->speed = SPEED_100;
+		break;
+	case PORT_SPEED_1000:
+		cmd->speed = SPEED_1000;
+		break;
+	default:
+		cmd->speed = -1;
+		break;
+	}
+	cmd->duplex = (port_status & FULL_DUPLEX) ? DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = PORT_MII;
 	cmd->phy_address = 0;
 	cmd->transceiver = XCVR_INTERNAL;
@@ -1539,8 +1616,11 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 
 	tx_desc = (struct tx_desc *)txq->tx_desc_area;
 	for (i = 0; i < txq->tx_ring_size; i++) {
+		struct tx_desc *txd = tx_desc + i;
 		int nexti = (i + 1) % txq->tx_ring_size;
-		tx_desc[i].next_desc_ptr = txq->tx_desc_dma +
+
+		txd->cmd_sts = 0;
+		txd->next_desc_ptr = txq->tx_desc_dma +
 					nexti * sizeof(struct tx_desc);
 	}
 
@@ -1577,8 +1657,11 @@ static void txq_reclaim(struct tx_queue *txq, int force)
 		desc = &txq->tx_desc_area[tx_index];
 		cmd_sts = desc->cmd_sts;
 
-		if (!force && (cmd_sts & BUFFER_OWNED_BY_DMA))
-			break;
+		if (cmd_sts & BUFFER_OWNED_BY_DMA) {
+			if (!force)
+				break;
+			desc->cmd_sts = cmd_sts & ~BUFFER_OWNED_BY_DMA;
+		}
 
 		txq->tx_used_desc = (tx_index + 1) % txq->tx_ring_size;
 		txq->tx_desc_count--;
@@ -1632,49 +1715,61 @@ static void txq_deinit(struct tx_queue *txq)
 
 
 /* netdev ops and related ***************************************************/
-static void update_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
+static void handle_link_event(struct mv643xx_eth_private *mp)
 {
-	u32 pscr_o;
-	u32 pscr_n;
+	struct net_device *dev = mp->dev;
+	u32 port_status;
+	int speed;
+	int duplex;
+	int fc;
 
-	pscr_o = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
-
-	/* clear speed, duplex and rx buffer size fields */
-	pscr_n = pscr_o & ~(SET_MII_SPEED_TO_100   |
-			    SET_GMII_SPEED_TO_1000 |
-			    SET_FULL_DUPLEX_MODE   |
-			    MAX_RX_PACKET_MASK);
-
-	if (speed == SPEED_1000) {
-		pscr_n |= SET_GMII_SPEED_TO_1000 | MAX_RX_PACKET_9700BYTE;
-	} else {
-		if (speed == SPEED_100)
-			pscr_n |= SET_MII_SPEED_TO_100;
-		pscr_n |= MAX_RX_PACKET_1522BYTE;
-	}
-
-	if (duplex == DUPLEX_FULL)
-		pscr_n |= SET_FULL_DUPLEX_MODE;
-
-	if (pscr_n != pscr_o) {
-		if ((pscr_o & SERIAL_PORT_ENABLE) == 0)
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
-		else {
+	port_status = rdl(mp, PORT_STATUS(mp->port_num));
+	if (!(port_status & LINK_UP)) {
+		if (netif_carrier_ok(dev)) {
 			int i;
 
-			for (i = 0; i < 8; i++)
-				if (mp->txq_mask & (1 << i))
-					txq_disable(mp->txq + i);
+			printk(KERN_INFO "%s: link down\n", dev->name);
 
-			pscr_o &= ~SERIAL_PORT_ENABLE;
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_o);
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
-			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
+			netif_carrier_off(dev);
+			netif_stop_queue(dev);
 
-			for (i = 0; i < 8; i++)
-				if (mp->txq_mask & (1 << i))
-					txq_enable(mp->txq + i);
+			for (i = 0; i < 8; i++) {
+				struct tx_queue *txq = mp->txq + i;
+
+				if (mp->txq_mask & (1 << i)) {
+					txq_reclaim(txq, 1);
+					txq_reset_hw_ptr(txq);
+				}
+			}
 		}
+		return;
+	}
+
+	switch (port_status & PORT_SPEED_MASK) {
+	case PORT_SPEED_10:
+		speed = 10;
+		break;
+	case PORT_SPEED_100:
+		speed = 100;
+		break;
+	case PORT_SPEED_1000:
+		speed = 1000;
+		break;
+	default:
+		speed = -1;
+		break;
+	}
+	duplex = (port_status & FULL_DUPLEX) ? 1 : 0;
+	fc = (port_status & FLOW_CONTROL_ENABLED) ? 1 : 0;
+
+	printk(KERN_INFO "%s: link up, %d Mb/s, %s duplex, "
+			 "flow control %sabled\n", dev->name,
+			 speed, duplex ? "full" : "half",
+			 fc ? "en" : "dis");
+
+	if (!netif_carrier_ok(dev)) {
+		netif_carrier_on(dev);
+		netif_wake_queue(dev);
 	}
 }
 
@@ -1684,7 +1779,6 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 int_cause;
 	u32 int_cause_ext;
-	u32 txq_active;
 
 	int_cause = rdl(mp, INT_CAUSE(mp->port_num)) &
 			(INT_TX_END | INT_RX | INT_EXT);
@@ -1698,36 +1792,15 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		wrl(mp, INT_CAUSE_EXT(mp->port_num), ~int_cause_ext);
 	}
 
-	if (int_cause_ext & (INT_EXT_PHY | INT_EXT_LINK)) {
-		if (mp->phy_addr == -1 || mii_link_ok(&mp->mii)) {
-			int i;
-
-			if (mp->phy_addr != -1) {
-				struct ethtool_cmd cmd;
-
-				mii_ethtool_gset(&mp->mii, &cmd);
-				update_pscr(mp, cmd.speed, cmd.duplex);
-			}
-
-			for (i = 0; i < 8; i++)
-				if (mp->txq_mask & (1 << i))
-					txq_enable(mp->txq + i);
-
-			if (!netif_carrier_ok(dev)) {
-				netif_carrier_on(dev);
-				__txq_maybe_wake(mp->txq + mp->txq_primary);
-			}
-		} else if (netif_carrier_ok(dev)) {
-			netif_stop_queue(dev);
-			netif_carrier_off(dev);
-		}
-	}
+	if (int_cause_ext & (INT_EXT_PHY | INT_EXT_LINK))
+		handle_link_event(mp);
 
 	/*
 	 * RxBuffer or RxError set for any of the 8 queues?
 	 */
 #ifdef MV643XX_ETH_NAPI
 	if (int_cause & INT_RX) {
+		wrl(mp, INT_CAUSE(mp->port_num), ~(int_cause & INT_RX));
 		wrl(mp, INT_MASK(mp->port_num), 0x00000000);
 		rdl(mp, INT_MASK(mp->port_num));
 
@@ -1743,8 +1816,6 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	}
 #endif
 
-	txq_active = rdl(mp, TXQ_COMMAND(mp->port_num));
-
 	/*
 	 * TxBuffer or TxError set for any of the 8 queues?
 	 */
@@ -1754,6 +1825,16 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		for (i = 0; i < 8; i++)
 			if (mp->txq_mask & (1 << i))
 				txq_reclaim(mp->txq + i, 0);
+
+		/*
+		 * Enough space again in the primary TX queue for a
+		 * full packet?
+		 */
+		if (netif_carrier_ok(dev)) {
+			spin_lock(&mp->lock);
+			__txq_maybe_wake(mp->txq + mp->txq_primary);
+			spin_unlock(&mp->lock);
+		}
 	}
 
 	/*
@@ -1763,19 +1844,25 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		int i;
 
 		wrl(mp, INT_CAUSE(mp->port_num), ~(int_cause & INT_TX_END));
+
+		spin_lock(&mp->lock);
 		for (i = 0; i < 8; i++) {
 			struct tx_queue *txq = mp->txq + i;
-			if (txq->tx_desc_count && !((txq_active >> i) & 1))
+			u32 hw_desc_ptr;
+			u32 expected_ptr;
+
+			if ((int_cause & (INT_TX_END_0 << i)) == 0)
+				continue;
+
+			hw_desc_ptr =
+				rdl(mp, TXQ_CURRENT_DESC_PTR(mp->port_num, i));
+			expected_ptr = (u32)txq->tx_desc_dma +
+				txq->tx_curr_desc * sizeof(struct tx_desc);
+
+			if (hw_desc_ptr != expected_ptr)
 				txq_enable(txq);
 		}
-	}
-
-	/*
-	 * Enough space again in the primary TX queue for a full packet?
-	 */
-	if (int_cause_ext & INT_EXT_TX) {
-		struct tx_queue *txq = mp->txq + mp->txq_primary;
-		__txq_maybe_wake(txq);
+		spin_unlock(&mp->lock);
 	}
 
 	return IRQ_HANDLED;
@@ -1785,37 +1872,20 @@ static void phy_reset(struct mv643xx_eth_private *mp)
 {
 	unsigned int data;
 
-	smi_reg_read(mp, mp->phy_addr, 0, &data);
-	data |= 0x8000;
-	smi_reg_write(mp, mp->phy_addr, 0, data);
+	smi_reg_read(mp, mp->phy_addr, MII_BMCR, &data);
+	data |= BMCR_RESET;
+	smi_reg_write(mp, mp->phy_addr, MII_BMCR, data);
 
 	do {
 		udelay(1);
-		smi_reg_read(mp, mp->phy_addr, 0, &data);
-	} while (data & 0x8000);
+		smi_reg_read(mp, mp->phy_addr, MII_BMCR, &data);
+	} while (data & BMCR_RESET);
 }
 
 static void port_start(struct mv643xx_eth_private *mp)
 {
 	u32 pscr;
 	int i;
-
-	/*
-	 * Configure basic link parameters.
-	 */
-	pscr = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
-	pscr &= ~(SERIAL_PORT_ENABLE | FORCE_LINK_PASS);
-	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
-	pscr |= DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
-		DISABLE_AUTO_NEG_SPEED_GMII    |
-		DISABLE_AUTO_NEG_FOR_DUPLEX    |
-		DO_NOT_FORCE_LINK_FAIL	       |
-		SERIAL_PORT_CONTROL_RESERVED;
-	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
-	pscr |= SERIAL_PORT_ENABLE;
-	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
-
-	wrl(mp, SDMA_CONFIG(mp->port_num), PORT_SDMA_CONFIG_DEFAULT_VALUE);
 
 	/*
 	 * Perform PHY reset, if there is a PHY.
@@ -1829,21 +1899,31 @@ static void port_start(struct mv643xx_eth_private *mp)
 	}
 
 	/*
+	 * Configure basic link parameters.
+	 */
+	pscr = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
+
+	pscr |= SERIAL_PORT_ENABLE;
+	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
+
+	pscr |= DO_NOT_FORCE_LINK_FAIL;
+	if (mp->phy_addr == -1)
+		pscr |= FORCE_LINK_PASS;
+	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
+
+	wrl(mp, SDMA_CONFIG(mp->port_num), PORT_SDMA_CONFIG_DEFAULT_VALUE);
+
+	/*
 	 * Configure TX path and queues.
 	 */
 	tx_set_rate(mp, 1000000000, 16777216);
 	for (i = 0; i < 8; i++) {
 		struct tx_queue *txq = mp->txq + i;
-		int off = TXQ_CURRENT_DESC_PTR(mp->port_num, i);
-		u32 addr;
 
 		if ((mp->txq_mask & (1 << i)) == 0)
 			continue;
 
-		addr = (u32)txq->tx_desc_dma;
-		addr += txq->tx_curr_desc * sizeof(struct tx_desc);
-		wrl(mp, off, addr);
-
+		txq_reset_hw_ptr(txq);
 		txq_set_rate(txq, 1000000000, 16777216);
 		txq_set_fixed_prio_mode(txq);
 	}
@@ -1965,6 +2045,9 @@ static int mv643xx_eth_open(struct net_device *dev)
 	napi_enable(&mp->napi);
 #endif
 
+	netif_carrier_off(dev);
+	netif_stop_queue(dev);
+
 	port_start(mp);
 
 	set_rx_coal(mp, 0);
@@ -1999,8 +2082,14 @@ static void port_reset(struct mv643xx_eth_private *mp)
 		if (mp->txq_mask & (1 << i))
 			txq_disable(mp->txq + i);
 	}
-	while (!(rdl(mp, PORT_STATUS(mp->port_num)) & TX_FIFO_EMPTY))
+
+	while (1) {
+		u32 ps = rdl(mp, PORT_STATUS(mp->port_num));
+
+		if ((ps & (TX_IN_PROGRESS | TX_FIFO_EMPTY)) == TX_FIFO_EMPTY)
+			break;
 		udelay(10);
+	}
 
 	/* Reset the Enable bit in the Configuration Register */
 	data = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
@@ -2202,7 +2291,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!mv643xx_eth_version_printed++)
-		printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
+		printk(KERN_NOTICE "MV-643xx 10/100/1000 ethernet "
+			"driver version %s\n", mv643xx_eth_driver_version);
 
 	ret = -EINVAL;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2338,14 +2428,14 @@ static int phy_detect(struct mv643xx_eth_private *mp)
 	unsigned int data;
 	unsigned int data2;
 
-	smi_reg_read(mp, mp->phy_addr, 0, &data);
-	smi_reg_write(mp, mp->phy_addr, 0, data ^ 0x1000);
+	smi_reg_read(mp, mp->phy_addr, MII_BMCR, &data);
+	smi_reg_write(mp, mp->phy_addr, MII_BMCR, data ^ BMCR_ANENABLE);
 
-	smi_reg_read(mp, mp->phy_addr, 0, &data2);
-	if (((data ^ data2) & 0x1000) == 0)
+	smi_reg_read(mp, mp->phy_addr, MII_BMCR, &data2);
+	if (((data ^ data2) & BMCR_ANENABLE) == 0)
 		return -ENODEV;
 
-	smi_reg_write(mp, mp->phy_addr, 0, data);
+	smi_reg_write(mp, mp->phy_addr, MII_BMCR, data);
 
 	return 0;
 }
@@ -2393,10 +2483,37 @@ static int phy_init(struct mv643xx_eth_private *mp,
 		cmd.duplex = pd->duplex;
 	}
 
-	update_pscr(mp, cmd.speed, cmd.duplex);
 	mv643xx_eth_set_settings(mp->dev, &cmd);
 
 	return 0;
+}
+
+static void init_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
+{
+	u32 pscr;
+
+	pscr = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
+	if (pscr & SERIAL_PORT_ENABLE) {
+		pscr &= ~SERIAL_PORT_ENABLE;
+		wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
+	}
+
+	pscr = MAX_RX_PACKET_9700BYTE | SERIAL_PORT_CONTROL_RESERVED;
+	if (mp->phy_addr == -1) {
+		pscr |= DISABLE_AUTO_NEG_SPEED_GMII;
+		if (speed == SPEED_1000)
+			pscr |= SET_GMII_SPEED_TO_1000;
+		else if (speed == SPEED_100)
+			pscr |= SET_MII_SPEED_TO_100;
+
+		pscr |= DISABLE_AUTO_NEG_FOR_FLOW_CTRL;
+
+		pscr |= DISABLE_AUTO_NEG_FOR_DUPLEX;
+		if (duplex == DUPLEX_FULL)
+			pscr |= SET_FULL_DUPLEX_MODE;
+	}
+
+	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
 }
 
 static int mv643xx_eth_probe(struct platform_device *pdev)
@@ -2452,6 +2569,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	} else {
 		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops_phyless);
 	}
+	init_pscr(mp, pd->speed, pd->duplex);
 
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -2478,6 +2596,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	 * have to map the buffers to ISA memory which is only 16 MB
 	 */
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
 #endif
 
 	SET_NETDEV_DEV(dev, &pdev->dev);

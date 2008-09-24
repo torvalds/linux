@@ -17,7 +17,7 @@
 #include <asm/memory.h>
 
 #include <asm/mach/map.h>
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 
 extern void davinci_check_revision(void);
 

@@ -42,8 +42,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/imx-dma.h>
+#include <mach/mmc.h>
+#include <mach/imx-dma.h>
 
 #include "imxmmc.h"
 

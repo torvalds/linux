@@ -1790,6 +1790,17 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 {
 	struct pci_dev *pdev = adapter->pdev;
 
+	/*
+	 * The L1 hardware contains a bug that erroneously sets the
+	 * PACKET_FLAG_ERR and ERR_FLAG_L4_CHKSUM bits whenever a
+	 * fragmented IP packet is received, even though the packet
+	 * is perfectly valid and its checksum is correct. There's
+	 * no way to distinguish between one of these good packets
+	 * and a packet that actually contains a TCP/UDP checksum
+	 * error, so all we can do is allow it to be handed up to
+	 * the higher layers and let it be sorted out there.
+	 */
+
 	skb->ip_summed = CHECKSUM_NONE;
 
 	if (unlikely(rrd->pkt_flg & PACKET_FLAG_ERR)) {
@@ -1816,14 +1827,6 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		return;
 	}
 
-	/* IPv4, but hardware thinks its checksum is wrong */
-	if (netif_msg_rx_err(adapter))
-		dev_printk(KERN_DEBUG, &pdev->dev,
-			"hw csum wrong, pkt_flag:%x, err_flag:%x\n",
-			rrd->pkt_flg, rrd->err_flg);
-	skb->ip_summed = CHECKSUM_COMPLETE;
-	skb->csum = htons(rrd->xsz.xsum_sz.rx_chksum);
-	adapter->hw_csum_err++;
 	return;
 }
 
@@ -3019,7 +3022,6 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netdev->features = NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SG;
 	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_LLTX;
 
 	/*

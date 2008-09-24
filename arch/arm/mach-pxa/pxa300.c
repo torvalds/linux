@@ -17,9 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/pxa3xx-regs.h>
-#include <asm/arch/mfp-pxa300.h>
+#include <mach/hardware.h>
+#include <mach/pxa3xx-regs.h>
+#include <mach/mfp-pxa300.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -90,7 +90,9 @@ static struct clk common_clks[] = {
 };
 
 static struct clk pxa310_clks[] = {
+#ifdef CONFIG_CPU_PXA310
 	PXA3xx_CKEN("MMCCLK", MMC3, 19500000, 0, &pxa3xx_device_mci3.dev),
+#endif
 };
 
 static int __init pxa300_init(void)

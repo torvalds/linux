@@ -489,7 +489,7 @@ static const struct ath5k_ini ar5212_ini[] = {
 	{ AR5K_QUEUE_TXDP(9),	0x00000000 },
 	{ AR5K_DCU_FP,		0x00000000 },
 	{ AR5K_DCU_TXP,		0x00000000 },
-	{ AR5K_DCU_TX_FILTER,	0x00000000 },
+	{ AR5K_DCU_TX_FILTER_0_BASE,	0x00000000 },
 	/* Unknown table */
 	{ 0x1078, 0x00000000 },
 	{ 0x10b8, 0x00000000 },
@@ -679,7 +679,7 @@ static const struct ath5k_ini ar5212_ini[] = {
 	{ AR5K_PHY(645), 0x00106c10 },
 	{ AR5K_PHY(646), 0x009c4060 },
 	{ AR5K_PHY(647), 0x1483800a },
-	/* { AR5K_PHY(648), 0x018830c6 },*/ /* 2413 */
+	/* { AR5K_PHY(648), 0x018830c6 },*/ /* 2413/2425 */
 	{ AR5K_PHY(648), 0x01831061 },
 	{ AR5K_PHY(649), 0x00000400 },
 	/*{ AR5K_PHY(650), 0x000001b5 },*/

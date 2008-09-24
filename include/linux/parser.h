@@ -14,7 +14,7 @@ struct match_token {
 	const char *pattern;
 };
 
-typedef const struct match_token match_table_t[];
+typedef struct match_token match_table_t[];
 
 /* Maximum number of arguments that match_token will find in a pattern */
 enum {MAX_OPT_ARGS = 3};

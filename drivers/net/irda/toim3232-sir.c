@@ -181,7 +181,7 @@ static int toim3232_open(struct sir_dev *dev)
 {
 	struct qos_info *qos = &dev->qos;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Pull the lines high to start with.
 	 *
@@ -209,7 +209,7 @@ static int toim3232_open(struct sir_dev *dev)
 
 static int toim3232_close(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Power off dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);
@@ -241,7 +241,7 @@ static int toim3232_change_speed(struct sir_dev *dev, unsigned speed)
 	u8 byte;
 	static int ret = 0;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	switch(state) {
 	case SIRDEV_STATE_DONGLE_SPEED:
@@ -299,7 +299,7 @@ static int toim3232_change_speed(struct sir_dev *dev, unsigned speed)
 		break;
 
 	default:
-		printk(KERN_ERR "%s - undefined state %d\n", __FUNCTION__, state);
+		printk(KERN_ERR "%s - undefined state %d\n", __func__, state);
 		ret = -EINVAL;
 		break;
 	}
@@ -344,7 +344,7 @@ static int toim3232_change_speed(struct sir_dev *dev, unsigned speed)
 
 static int toim3232_reset(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Switch off both DTR and RTS to switch off dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);

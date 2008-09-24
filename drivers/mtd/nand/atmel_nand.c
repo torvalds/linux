@@ -32,8 +32,8 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
 
 #ifdef CONFIG_MTD_NAND_ATMEL_ECC_HW
 #define hard_ecc	1

@@ -26,21 +26,21 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mfp-pxa300.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/ssp.h>
-#include <asm/arch/pxa27x_keypad.h>
-#include <asm/arch/pxa3xx_nand.h>
-#include <asm/arch/littleton.h>
+#include <mach/pxa-regs.h>
+#include <mach/mfp-pxa300.h>
+#include <mach/gpio.h>
+#include <mach/pxafb.h>
+#include <mach/ssp.h>
+#include <mach/pxa27x_keypad.h>
+#include <mach/pxa3xx_nand.h>
+#include <mach/littleton.h>
 
 #include "generic.h"
 

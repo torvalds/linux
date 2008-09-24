@@ -18,9 +18,9 @@
  */
 
 /* Module and version information */
-#define DRV_NAME        "iTCO_vendor_support"
-#define DRV_VERSION     "1.01"
-#define DRV_RELDATE     "11-Nov-2006"
+#define DRV_NAME	"iTCO_vendor_support"
+#define DRV_VERSION	"1.01"
+#define DRV_RELDATE	"11-Nov-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -31,19 +31,22 @@
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/ioport.h>		/* For io-port access */
+#include <linux/io.h>			/* For inb/outb/... */
 
-#include <asm/io.h>			/* For inb/outb/... */
+#include "iTCO_vendor.h"
 
 /* iTCO defines */
 #define	SMI_EN		acpibase + 0x30	/* SMI Control and Enable Register */
-#define	TCOBASE		acpibase + 0x60	/* TCO base address		*/
-#define	TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register		*/
+#define	TCOBASE		acpibase + 0x60	/* TCO base address */
+#define	TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register */
 
 /* List of vendor support modes */
-#define SUPERMICRO_OLD_BOARD	1	/* SuperMicro Pentium 3 Era 370SSE+-OEM1/P3TSSE */
-#define SUPERMICRO_NEW_BOARD	2	/* SuperMicro Pentium 4 / Xeon 4 / EMT64T Era Systems */
+/* SuperMicro Pentium 3 Era 370SSE+-OEM1/P3TSSE */
+#define SUPERMICRO_OLD_BOARD	1
+/* SuperMicro Pentium 4 / Xeon 4 / EMT64T Era Systems */
+#define SUPERMICRO_NEW_BOARD	2
 
-static int vendorsupport = 0;
+static int vendorsupport;
 module_param(vendorsupport, int, 0);
 MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default=0 (none), 1=SuperMicro Pent3, 2=SuperMicro Pent4+");
 
@@ -143,34 +146,35 @@ static void supermicro_old_pre_keepalive(unsigned long acpibase)
  */
 
 /* I/O Port's */
-#define SM_REGINDEX	0x2e		/* SuperMicro ICH4+ Register Index */
-#define SM_DATAIO	0x2f		/* SuperMicro ICH4+ Register Data I/O */
+#define SM_REGINDEX	0x2e	/* SuperMicro ICH4+ Register Index */
+#define SM_DATAIO	0x2f	/* SuperMicro ICH4+ Register Data I/O */
 
 /* Control Register's */
-#define SM_CTLPAGESW	0x07		/* SuperMicro ICH4+ Control Page Switch */
-#define SM_CTLPAGE		0x08	/* SuperMicro ICH4+ Control Page Num */
+#define SM_CTLPAGESW	0x07	/* SuperMicro ICH4+ Control Page Switch */
+#define SM_CTLPAGE	0x08	/* SuperMicro ICH4+ Control Page Num */
 
-#define SM_WATCHENABLE	0x30		/* Watchdog enable: Bit 0: 0=off, 1=on */
+#define SM_WATCHENABLE	0x30	/* Watchdog enable: Bit 0: 0=off, 1=on */
 
-#define SM_WATCHPAGE	0x87		/* Watchdog unlock control page */
+#define SM_WATCHPAGE	0x87	/* Watchdog unlock control page */
 
-#define SM_ENDWATCH	0xAA		/* Watchdog lock control page */
+#define SM_ENDWATCH	0xAA	/* Watchdog lock control page */
 
-#define SM_COUNTMODE	0xf5		/* Watchdog count mode select */
-					/* (Bit 3: 0 = seconds, 1 = minutes */
+#define SM_COUNTMODE	0xf5	/* Watchdog count mode select */
+				/* (Bit 3: 0 = seconds, 1 = minutes */
 
-#define SM_WATCHTIMER	0xf6		/* 8-bits, Watchdog timer counter (RW) */
+#define SM_WATCHTIMER	0xf6	/* 8-bits, Watchdog timer counter (RW) */
 
-#define SM_RESETCONTROL	0xf7		/* Watchdog reset control */
-					/* Bit 6: timer is reset by kbd interrupt */
-					/* Bit 7: timer is reset by mouse interrupt */
+#define SM_RESETCONTROL	0xf7	/* Watchdog reset control */
+				/* Bit 6: timer is reset by kbd interrupt */
+				/* Bit 7: timer is reset by mouse interrupt */
 
 static void supermicro_new_unlock_watchdog(void)
 {
-	outb(SM_WATCHPAGE, SM_REGINDEX);	/* Write 0x87 to port 0x2e twice */
+	/* Write 0x87 to port 0x2e twice */
 	outb(SM_WATCHPAGE, SM_REGINDEX);
-
-	outb(SM_CTLPAGESW, SM_REGINDEX);	/* Switch to watchdog control page */
+	outb(SM_WATCHPAGE, SM_REGINDEX);
+	/* Switch to watchdog control page */
+	outb(SM_CTLPAGESW, SM_REGINDEX);
 	outb(SM_CTLPAGE, SM_DATAIO);
 }
 
@@ -192,7 +196,7 @@ static void supermicro_new_pre_start(unsigned int heartbeat)
 	outb(val, SM_DATAIO);
 
 	/* Write heartbeat interval to WDOG */
-	outb (SM_WATCHTIMER, SM_REGINDEX);
+	outb(SM_WATCHTIMER, SM_REGINDEX);
 	outb((heartbeat & 255), SM_DATAIO);
 
 	/* Make sure keyboard/mouse interrupts don't interfere */
@@ -277,7 +281,7 @@ EXPORT_SYMBOL(iTCO_vendor_pre_set_heartbeat);
 
 int iTCO_vendor_check_noreboot_on(void)
 {
-	switch(vendorsupport) {
+	switch (vendorsupport) {
 	case SUPERMICRO_OLD_BOARD:
 		return 0;
 	default:
@@ -288,13 +292,13 @@ EXPORT_SYMBOL(iTCO_vendor_check_noreboot_on);
 
 static int __init iTCO_vendor_init_module(void)
 {
-	printk (KERN_INFO PFX "vendor-support=%d\n", vendorsupport);
+	printk(KERN_INFO PFX "vendor-support=%d\n", vendorsupport);
 	return 0;
 }
 
 static void __exit iTCO_vendor_exit_module(void)
 {
-	printk (KERN_INFO PFX "Module Unloaded\n");
+	printk(KERN_INFO PFX "Module Unloaded\n");
 }
 
 module_init(iTCO_vendor_init_module);

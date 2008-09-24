@@ -81,6 +81,7 @@ static struct ctrl sd_ctrls[] = {
 	 .set = sd_setcontrast,
 	 .get = sd_getcontrast,
 	 },
+#define COLOR_IDX 2
 	{
 	 {
 	  .id = V4L2_CID_SATURATION,
@@ -233,8 +234,8 @@ static void reg_r(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+#ifdef GSPCA_DEBUG
+	if (len > USB_BUF_SZ) {
 		err("reg_r: buffer overflow");
 		return;
 	}
@@ -271,8 +272,8 @@ static void reg_w(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+#ifdef GSPCA_DEBUG
+	if (len > USB_BUF_SZ) {
 		err("reg_w: buffer overflow");
 		return;
 	}
@@ -461,6 +462,52 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev, 0x80, 0x20);	/* 0x20; */
 }
 
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	__u8 brightness = sd->brightness;
+
+	for (i = 0; i < 4; i++)
+		reg_w_val(gspca_dev, ET_O_RED + i, brightness);
+}
+
+static void getbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	int brightness = 0;
+
+	for (i = 0; i < 4; i++) {
+		reg_r(gspca_dev, ET_O_RED + i, 1);
+		brightness += gspca_dev->usb_buf[0];
+	}
+	sd->brightness = brightness >> 3;
+}
+
+static void setcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u8 RGBG[] = { 0x80, 0x80, 0x80, 0x80, 0x00, 0x00 };
+	__u8 contrast = sd->contrast;
+
+	memset(RGBG, contrast, sizeof(RGBG) - 2);
+	reg_w(gspca_dev, ET_G_RED, RGBG, 6);
+}
+
+static void getcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	int contrast = 0;
+
+	for (i = 0; i < 4; i++) {
+		reg_r(gspca_dev, ET_G_RED + i, 1);
+		contrast += gspca_dev->usb_buf[0];
+	}
+	sd->contrast = contrast >> 2;
+}
+
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -490,6 +537,16 @@ static void getcolors(struct gspca_dev *gspca_dev)
 		i2c_r(gspca_dev, PAS106_REG9 + 3);	/* red */
 		sd->colors = gspca_dev->usb_buf[0] & 0x0f;
 	}
+}
+
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->autogain)
+		sd->ag_cnt = AG_CNT_START;
+	else
+		sd->ag_cnt = -1;
 }
 
 static void Et_init1(struct gspca_dev *gspca_dev)
@@ -609,16 +666,18 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		gspca_dev->ctrl_dis = (1 << COLOR_IDX);
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
 	sd->autogain = AUTOGAIN_DEF;
+	sd->ag_cnt = -1;
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -641,6 +700,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	else
 		Et_init2(gspca_dev);
 
+	setautogain(gspca_dev);
+
 	reg_w_val(gspca_dev, ET_RESET_ALL, 0x08);
 	et_video(gspca_dev, 1);		/* video on */
 }
@@ -648,60 +709,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	et_video(gspca_dev, 0);		/* video off */
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-}
-
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	__u8 brightness = sd->brightness;
-
-	for (i = 0; i < 4; i++)
-		reg_w_val(gspca_dev, ET_O_RED + i, brightness);
-}
-
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	int brightness = 0;
-
-	for (i = 0; i < 4; i++) {
-		reg_r(gspca_dev, ET_O_RED + i, 1);
-		brightness += gspca_dev->usb_buf[0];
-	}
-	sd->brightness = brightness >> 3;
-}
-
-static void setcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 RGBG[] = { 0x80, 0x80, 0x80, 0x80, 0x00, 0x00 };
-	__u8 contrast = sd->contrast;
-
-	memset(RGBG, contrast, sizeof(RGBG) - 2);
-	reg_w(gspca_dev, ET_G_RED, RGBG, 6);
-}
-
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	int contrast = 0;
-
-	for (i = 0; i < 4; i++) {
-		reg_r(gspca_dev, ET_G_RED + i, 1);
-		contrast += gspca_dev->usb_buf[0];
-	}
-	sd->contrast = contrast >> 2;
 }
 
 static __u8 Et_getgainG(struct gspca_dev *gspca_dev)
@@ -733,14 +740,21 @@ static void Et_setgainG(struct gspca_dev *gspca_dev, __u8 gain)
 #define LIMIT(color) \
 	(unsigned char)((color > 0xff)?0xff:((color < 0)?0:color))
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void do_autogain(struct gspca_dev *gspca_dev)
 {
-	__u8 luma = 0;
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u8 luma;
 	__u8 luma_mean = 128;
 	__u8 luma_delta = 20;
 	__u8 spring = 4;
-	int Gbright = 0;
+	int Gbright;
 	__u8 r, g, b;
+
+	if (sd->ag_cnt < 0)
+		return;
+	if (--sd->ag_cnt >= 0)
+		return;
+	sd->ag_cnt = AG_CNT_START;
 
 	Gbright = Et_getgainG(gspca_dev);
 	reg_r(gspca_dev, ET_LUMA_CENTER, 4);
@@ -768,7 +782,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	struct sd *sd;
 	int seqframe;
 
 	seqframe = data[0] & 0x3f;
@@ -783,13 +796,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
-		sd = (struct sd *) gspca_dev;
-		if (sd->ag_cnt >= 0) {
-			if (--sd->ag_cnt < 0) {
-				sd->ag_cnt = AG_CNT_START;
-				setautogain(gspca_dev);
-			}
-		}
 		return;
 	}
 	if (len) {
@@ -862,10 +868,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
-	if (val)
-		sd->ag_cnt = AG_CNT_START;
-	else
-		sd->ag_cnt = -1;
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
 	return 0;
 }
 
@@ -883,20 +887,19 @@ static struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */
 static __devinitdata struct usb_device_id device_table[] = {
-#ifndef CONFIG_USB_ET61X251
 	{USB_DEVICE(0x102c, 0x6151), .driver_info = SENSOR_PAS106},
-#endif
+#if !defined CONFIG_USB_ET61X251 && !defined CONFIG_USB_ET61X251_MODULE
 	{USB_DEVICE(0x102c, 0x6251), .driver_info = SENSOR_TAS5130CXX},
+#endif
 	{}
 };
 
@@ -915,6 +918,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

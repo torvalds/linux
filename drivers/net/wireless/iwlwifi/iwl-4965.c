@@ -26,7 +26,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -341,39 +340,6 @@ err:
 	return -EINVAL;
 
 }
-int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
-{
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
-
-	if (src == IWL_PWR_SRC_VAUX) {
-		u32 val;
-		ret = pci_read_config_dword(priv->pci_dev, PCI_POWER_SOURCE,
-					    &val);
-
-		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT) {
-			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-					       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
-					       ~APMG_PS_CTRL_MSK_PWR_SRC);
-		}
-	} else {
-		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-				       APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-				       ~APMG_PS_CTRL_MSK_PWR_SRC);
-	}
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return ret;
-}
 
 /*
  * Activate/Deactivat Tx DMA/FIFO channels according tx fifos mask
@@ -508,8 +474,8 @@ static void iwl4965_apm_stop(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
 	udelay(10);
-
-	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	/* clear "init complete"  move adapter D0A* --> D0U state */
+	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
@@ -875,18 +841,6 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	return 0;
 }
 
-/* set card power command */
-static int iwl4965_set_power(struct iwl_priv *priv,
-		      void *cmd)
-{
-	int ret = 0;
-
-	ret = iwl_send_cmd_pdu_async(priv, POWER_TABLE_CMD,
-				    sizeof(struct iwl4965_powertable_cmd),
-				    cmd, NULL);
-	return ret;
-}
-
 static s32 iwl4965_math_div_round(s32 num, s32 denom, s32 *res)
 {
 	s32 sign = 1;
@@ -1012,7 +966,7 @@ static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
 
 	s = iwl4965_get_sub_band(priv, channel);
 	if (s >= EEPROM_TX_POWER_BANDS) {
-		IWL_ERROR("Tx Power can not find channel %d ", channel);
+		IWL_ERROR("Tx Power can not find channel %d\n", channel);
 		return -1;
 	}
 
@@ -1560,11 +1514,11 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 					  c, atten_value, power_index,
 					tx_power.s.radio_tx_gain[c],
 					tx_power.s.dsp_predis_atten[c]);
-		}/* for each chain */
+		} /* for each chain */
 
 		tx_power_tbl->power_tbl[i].dw = cpu_to_le32(tx_power.dw);
 
-	}/* for each rate */
+	} /* for each rate */
 
 	return 0;
 }
@@ -1699,38 +1653,6 @@ static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
 {
 	struct iwl4965_shared *s = priv->shared_virt;
 	return le32_to_cpu(s->rb_closed) & 0xFFF;
-}
-
-unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
-			  struct iwl_frame *frame, u8 rate)
-{
-	struct iwl4965_tx_beacon_cmd *tx_beacon_cmd;
-	unsigned int frame_size;
-
-	tx_beacon_cmd = &frame->u.beacon;
-	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
-
-	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
-	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
-
-	frame_size = iwl4965_fill_beacon_frame(priv,
-				tx_beacon_cmd->frame,
-				iwl_bcast_addr,
-				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
-
-	BUG_ON(frame_size > MAX_MPDU_SIZE);
-	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
-
-	if ((rate == IWL_RATE_1M_PLCP) || (rate >= IWL_RATE_2M_PLCP))
-		tx_beacon_cmd->tx.rate_n_flags =
-			iwl_hw_set_rate_n_flags(rate, RATE_MCS_CCK_MSK);
-	else
-		tx_beacon_cmd->tx.rate_n_flags =
-			iwl_hw_set_rate_n_flags(rate, 0);
-
-	tx_beacon_cmd->tx.tx_flags = (TX_CMD_FLG_SEQ_CTL_MSK |
-				TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK);
-	return (sizeof(*tx_beacon_cmd) + frame_size);
 }
 
 static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
@@ -2079,39 +2001,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	return 0;
 }
 
-int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
-			     enum ieee80211_ampdu_mlme_action action,
-			     const u8 *addr, u16 tid, u16 *ssn)
-{
-	struct iwl_priv *priv = hw->priv;
-	DECLARE_MAC_BUF(mac);
-
-	IWL_DEBUG_HT("A-MPDU action on addr %s tid %d\n",
-		     print_mac(mac, addr), tid);
-
-	if (!(priv->cfg->sku & IWL_SKU_N))
-		return -EACCES;
-
-	switch (action) {
-	case IEEE80211_AMPDU_RX_START:
-		IWL_DEBUG_HT("start Rx\n");
-		return iwl_rx_agg_start(priv, addr, tid, *ssn);
-	case IEEE80211_AMPDU_RX_STOP:
-		IWL_DEBUG_HT("stop Rx\n");
-		return iwl_rx_agg_stop(priv, addr, tid);
-	case IEEE80211_AMPDU_TX_START:
-		IWL_DEBUG_HT("start Tx\n");
-		return iwl_tx_agg_start(priv, addr, tid, ssn);
-	case IEEE80211_AMPDU_TX_STOP:
-		IWL_DEBUG_HT("stop Tx\n");
-		return iwl_tx_agg_stop(priv, addr, tid);
-	default:
-		IWL_DEBUG_HT("unknown\n");
-		return -EINVAL;
-		break;
-	}
-	return 0;
-}
 
 static u16 iwl4965_get_hcmd_size(u8 cmd_id, u16 len)
 {
@@ -2240,9 +2129,9 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 				bitmap = bitmap << sh;
 				sh = 0;
 			}
-			bitmap |= (1 << sh);
-			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%x\n",
-					   start, (u32)(bitmap & 0xFFFFFFFF));
+			bitmap |= 1ULL << sh;
+			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%llx\n",
+					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;
@@ -2368,6 +2257,40 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
+static int iwl4965_calc_rssi(struct iwl_priv *priv,
+			     struct iwl_rx_phy_res *rx_resp)
+{
+	/* data from PHY/DSP regarding signal strength, etc.,
+	 *   contents are always there, not configurable by host.  */
+	struct iwl4965_rx_non_cfg_phy *ncphy =
+	    (struct iwl4965_rx_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
+	u32 agc = (le16_to_cpu(ncphy->agc_info) & IWL49_AGC_DB_MASK)
+			>> IWL49_AGC_DB_POS;
+
+	u32 valid_antennae =
+	    (le16_to_cpu(rx_resp->phy_flags) & IWL49_RX_PHY_FLAGS_ANTENNAE_MASK)
+			>> IWL49_RX_PHY_FLAGS_ANTENNAE_OFFSET;
+	u8 max_rssi = 0;
+	u32 i;
+
+	/* Find max rssi among 3 possible receivers.
+	 * These values are measured by the digital signal processor (DSP).
+	 * They should stay fairly constant even as the signal strength varies,
+	 *   if the radio's automatic gain control (AGC) is working right.
+	 * AGC value (see below) will provide the "interesting" info. */
+	for (i = 0; i < 3; i++)
+		if (valid_antennae & (1 << i))
+			max_rssi = max(ncphy->rssi_info[i << 1], max_rssi);
+
+	IWL_DEBUG_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+		ncphy->rssi_info[0], ncphy->rssi_info[2], ncphy->rssi_info[4],
+		max_rssi, agc);
+
+	/* dBm = max_rssi dB - agc dB - constant.
+	 * Higher AGC (higher radio gain) means lower signal. */
+	return max_rssi - agc - IWL_RSSI_OFFSET;
+}
+
 
 /* Set up 4965-specific Rx frame reply handlers */
 static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
@@ -2399,6 +2322,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.chain_noise_reset = iwl4965_chain_noise_reset,
 	.gain_computation = iwl4965_gain_computation,
 	.rts_tx_cmd_flag = iwl4965_rts_tx_cmd_flag,
+	.calc_rssi = iwl4965_calc_rssi,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {
@@ -2440,7 +2364,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.check_version = iwl4965_eeprom_check_version,
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
-	.set_power = iwl4965_set_power,
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl4965_update_chain_flags,
 	.temperature = iwl4965_temperature_calib,
@@ -2469,7 +2392,7 @@ MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
 module_param_named(disable, iwl4965_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
-MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])\n");
+MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(debug, iwl4965_mod_params.debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 module_param_named(

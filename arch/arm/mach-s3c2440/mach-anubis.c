@@ -27,19 +27,19 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/anubis-map.h>
-#include <asm/arch/anubis-irq.h>
-#include <asm/arch/anubis-cpld.h>
+#include <mach/anubis-map.h>
+#include <mach/anubis-irq.h>
+#include <mach/anubis-cpld.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-lcd.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-mem.h>
+#include <mach/regs-lcd.h>
 #include <asm/plat-s3c/nand.h>
 
 #include <linux/mtd/mtd.h>
@@ -414,7 +414,7 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&anubis_device_sm501,
 };
 
-static struct clk *anubis_clocks[] = {
+static struct clk *anubis_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
 	&s3c24xx_clkout0,

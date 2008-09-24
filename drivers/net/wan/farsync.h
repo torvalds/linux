@@ -54,9 +54,6 @@
 
 
 /*      Ioctl call command values
- *
- *      The first three private ioctls are used by the sync-PPP module,
- *      allowing a little room for expansion we start our numbering at 10.
  */
 #define FSTWRITE        (SIOCDEVPRIVATE+10)
 #define FSTCPURESET     (SIOCDEVPRIVATE+11)
@@ -202,9 +199,6 @@ struct fstioc_info {
 #define J1              7
 
 /* "proto" */
-#define FST_HDLC        1               /* Cisco compatible HDLC */
-#define FST_PPP         2               /* Sync PPP */
-#define FST_MONITOR     3               /* Monitor only (raw packet reception) */
 #define FST_RAW         4               /* Two way raw packets */
 #define FST_GEN_HDLC    5               /* Using "Generic HDLC" module */
 

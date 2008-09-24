@@ -36,7 +36,7 @@
  * and Kamel Khelifi <kamel.khelifi@st.com>
  */
 #include <linux/kernel.h>
-#include <asm/cpu/fpu.h>
+#include <cpu/fpu.h>
 
 #define LIT64( a ) a##LL
 

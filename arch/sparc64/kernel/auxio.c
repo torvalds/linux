@@ -9,9 +9,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/of_device.h>
 
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/io.h>
 #include <asm/auxio.h>
 

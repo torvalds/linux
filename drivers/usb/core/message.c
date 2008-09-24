@@ -389,7 +389,6 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (io->entries <= 0)
 		return io->entries;
 
-	io->count = io->entries;
 	io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
 	if (!io->urbs)
 		goto nomem;
@@ -458,6 +457,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 
 	/* transaction state */
+	io->count = io->entries;
 	io->status = 0;
 	io->bytes = 0;
 	init_completion(&io->complete);
@@ -1091,8 +1091,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 				continue;
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
 				dev_name(&interface->dev));
-			device_del(&interface->dev);
 			usb_remove_sysfs_intf_files(interface);
+			device_del(&interface->dev);
 		}
 
 		/* Now that the interfaces are unbound, nobody should

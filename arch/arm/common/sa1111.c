@@ -26,7 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/irq.h>

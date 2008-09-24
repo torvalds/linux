@@ -199,10 +199,8 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq6 = inet6_rsk(req);
 	treq = tcp_rsk(req);
 
-	if (security_inet_conn_request(sk, skb, req)) {
-		reqsk_free(req);
-		goto out;
-	}
+	if (security_inet_conn_request(sk, skb, req))
+		goto out_free;
 
 	req->mss = mss;
 	ireq->rmt_port = th->source;
@@ -255,14 +253,13 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_sk(sk)->sport;
 		security_req_classify_flow(req, &fl);
-		if (ip6_dst_lookup(sk, &dst, &fl)) {
-			reqsk_free(req);
-			goto out;
-		}
+		if (ip6_dst_lookup(sk, &dst, &fl))
+			goto out_free;
+
 		if (final_p)
 			ipv6_addr_copy(&fl.fl6_dst, final_p);
 		if ((xfrm_lookup(&dst, &fl, sk, 0)) < 0)
-			goto out;
+			goto out_free;
 	}
 
 	req->window_clamp = tp->window_clamp ? :dst_metric(dst, RTAX_WINDOW);
@@ -273,7 +270,10 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq->rcv_wscale = rcv_wscale;
 
 	ret = get_cookie_sock(sk, skb, req, dst);
-
-out:	return ret;
+out:
+	return ret;
+out_free:
+	reqsk_free(req);
+	return NULL;
 }
 

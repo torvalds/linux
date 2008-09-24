@@ -3143,7 +3143,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		pkt_cnt++;
 
 		/* Updating the statistics block */
-		nic->stats.tx_bytes += skb->len;
+		nic->dev->stats.tx_bytes += skb->len;
 		nic->mac_control.stats_info->sw_stat.mem_freed += skb->truesize;
 		dev_kfree_skb_irq(skb);
 
@@ -4896,25 +4896,42 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 	/* Configure Stats for immediate updt */
 	s2io_updt_stats(sp);
 
+	/* Using sp->stats as a staging area, because reset (due to mtu
+	   change, for example) will clear some hardware counters */
+	dev->stats.tx_packets +=
+		le32_to_cpu(mac_control->stats_info->tmac_frms) - 
+		sp->stats.tx_packets;
 	sp->stats.tx_packets =
 		le32_to_cpu(mac_control->stats_info->tmac_frms);
+	dev->stats.tx_errors +=
+		le32_to_cpu(mac_control->stats_info->tmac_any_err_frms) -
+		sp->stats.tx_errors;
 	sp->stats.tx_errors =
 		le32_to_cpu(mac_control->stats_info->tmac_any_err_frms);
+	dev->stats.rx_errors +=
+		le64_to_cpu(mac_control->stats_info->rmac_drop_frms) -
+		sp->stats.rx_errors;
 	sp->stats.rx_errors =
 		le64_to_cpu(mac_control->stats_info->rmac_drop_frms);
+	dev->stats.multicast =
+		le32_to_cpu(mac_control->stats_info->rmac_vld_mcst_frms) - 
+		sp->stats.multicast;
 	sp->stats.multicast =
 		le32_to_cpu(mac_control->stats_info->rmac_vld_mcst_frms);
+	dev->stats.rx_length_errors =
+		le64_to_cpu(mac_control->stats_info->rmac_long_frms) - 
+		sp->stats.rx_length_errors;
 	sp->stats.rx_length_errors =
 		le64_to_cpu(mac_control->stats_info->rmac_long_frms);
 
 	/* collect per-ring rx_packets and rx_bytes */
-	sp->stats.rx_packets = sp->stats.rx_bytes = 0;
+	dev->stats.rx_packets = dev->stats.rx_bytes = 0;
 	for (i = 0; i < config->rx_ring_num; i++) {
-		sp->stats.rx_packets += mac_control->rings[i].rx_packets;
-		sp->stats.rx_bytes += mac_control->rings[i].rx_bytes;
+		dev->stats.rx_packets += mac_control->rings[i].rx_packets;
+		dev->stats.rx_bytes += mac_control->rings[i].rx_bytes;
 	}
 
-	return (&sp->stats);
+	return (&dev->stats);
 }
 
 /**
@@ -7419,7 +7436,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		if (err_mask != 0x5) {
 			DBG_PRINT(ERR_DBG, "%s: Rx error Value: 0x%x\n",
 				dev->name, err_mask);
-			sp->stats.rx_crc_errors++;
+			dev->stats.rx_crc_errors++;
 			sp->mac_control.stats_info->sw_stat.mem_freed
 				+= skb->truesize;
 			dev_kfree_skb(skb);

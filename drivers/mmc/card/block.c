@@ -103,8 +103,10 @@ static int mmc_blk_open(struct inode *inode, struct file *filp)
 			check_disk_change(inode->i_bdev);
 		ret = 0;
 
-		if ((filp->f_mode & FMODE_WRITE) && md->read_only)
+		if ((filp->f_mode & FMODE_WRITE) && md->read_only) {
+			mmc_blk_put(md);
 			ret = -EROFS;
+		}
 	}
 
 	return ret;
@@ -213,7 +215,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
-	int ret = 1, sg_pos, data_size;
+	int ret = 1, data_size, i;
+	struct scatterlist *sg;
 
 	mmc_claim_host(card->host);
 
@@ -267,18 +270,22 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_queue_bounce_pre(mq);
 
+		/*
+		 * Adjust the sg list so it is the same size as the
+		 * request.
+		 */
 		if (brq.data.blocks !=
 		    (req->nr_sectors >> (md->block_bits - 9))) {
 			data_size = brq.data.blocks * brq.data.blksz;
-			for (sg_pos = 0; sg_pos < brq.data.sg_len; sg_pos++) {
-				data_size -= mq->sg[sg_pos].length;
+			for_each_sg(brq.data.sg, sg, brq.data.sg_len, i) {
+				data_size -= sg->length;
 				if (data_size <= 0) {
-					mq->sg[sg_pos].length += data_size;
-					sg_pos++;
+					sg->length += data_size;
+					i++;
 					break;
 				}
 			}
-			brq.data.sg_len = sg_pos;
+			brq.data.sg_len = i;
 		}
 
 		mmc_wait_for_req(card->host, &brq.mrq);
@@ -608,14 +615,19 @@ static struct mmc_driver mmc_driver = {
 
 static int __init mmc_blk_init(void)
 {
-	int res = -ENOMEM;
+	int res;
 
 	res = register_blkdev(MMC_BLOCK_MAJOR, "mmc");
 	if (res)
 		goto out;
 
-	return mmc_register_driver(&mmc_driver);
+	res = mmc_register_driver(&mmc_driver);
+	if (res)
+		goto out2;
 
+	return 0;
+ out2:
+	unregister_blkdev(MMC_BLOCK_MAJOR, "mmc");
  out:
 	return res;
 }

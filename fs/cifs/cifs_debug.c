@@ -79,27 +79,25 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		if (mid_entry) {
-			cERROR(1, ("State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
-				mid_entry->midState,
-				(int)mid_entry->command,
-				mid_entry->pid,
-				mid_entry->tsk,
-				mid_entry->mid));
+		cERROR(1, ("State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
+			mid_entry->midState,
+			(int)mid_entry->command,
+			mid_entry->pid,
+			mid_entry->tsk,
+			mid_entry->mid));
 #ifdef CONFIG_CIFS_STATS2
-			cERROR(1, ("IsLarge: %d buf: %p time rcv: %ld now: %ld",
-				mid_entry->largeBuf,
-				mid_entry->resp_buf,
-				mid_entry->when_received,
-				jiffies));
+		cERROR(1, ("IsLarge: %d buf: %p time rcv: %ld now: %ld",
+			mid_entry->largeBuf,
+			mid_entry->resp_buf,
+			mid_entry->when_received,
+			jiffies));
 #endif /* STATS2 */
-			cERROR(1, ("IsMult: %d IsEnd: %d", mid_entry->multiRsp,
-				  mid_entry->multiEnd));
-			if (mid_entry->resp_buf) {
-				cifs_dump_detail(mid_entry->resp_buf);
-				cifs_dump_mem("existing buf: ",
-					mid_entry->resp_buf, 62);
-			}
+		cERROR(1, ("IsMult: %d IsEnd: %d", mid_entry->multiRsp,
+			  mid_entry->multiEnd));
+		if (mid_entry->resp_buf) {
+			cifs_dump_detail(mid_entry->resp_buf);
+			cifs_dump_mem("existing buf: ",
+				mid_entry->resp_buf, 62);
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
@@ -163,16 +161,13 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 				mid_entry = list_entry(tmp1, struct
 					mid_q_entry,
 					qhead);
-				if (mid_entry) {
-					seq_printf(m,
-							"State: %d com: %d pid:"
-							" %d tsk: %p mid %d\n",
-							mid_entry->midState,
-							(int)mid_entry->command,
-							mid_entry->pid,
-							mid_entry->tsk,
-							mid_entry->mid);
-				}
+				seq_printf(m, "State: %d com: %d pid:"
+						" %d tsk: %p mid %d\n",
+						mid_entry->midState,
+						(int)mid_entry->command,
+						mid_entry->pid,
+						mid_entry->tsk,
+						mid_entry->mid);
 			}
 			spin_unlock(&GlobalMid_Lock);
 		}

@@ -1425,7 +1425,7 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
 
 #ifdef CONFIG_ARCH_SHARK
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 static int __devinit cyberpro_vl_probe(void)
 {

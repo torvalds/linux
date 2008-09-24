@@ -149,6 +149,12 @@ config SPI_OMAP24XX
 	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
 	  (McSPI) modules.
 
+config SPI_ORION
+	tristate "Orion SPI master (EXPERIMENTAL)"
+	depends on PLAT_ORION && EXPERIMENTAL
+	help
+	  This enables using the SPI master controller on the Orion chips.
+
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
 	depends on ARCH_PXA && EXPERIMENTAL

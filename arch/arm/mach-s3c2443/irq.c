@@ -25,14 +25,14 @@
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-irq.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/pm.h>

@@ -546,7 +546,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		if ((inode->i_mode & S_IWUGO) == 0 &&
 		    (attr & ATTR_READONLY) == 0)
 			inode->i_mode |= (S_IWUGO & default_mode);
-			inode->i_mode &= ~S_IFMT;
+
+		inode->i_mode &= ~S_IFMT;
 	}
 	/* clear write bits if ATTR_READONLY is set */
 	if (attr & ATTR_READONLY)
@@ -649,6 +650,7 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_fop = &simple_dir_operations;
 		inode->i_uid = cifs_sb->mnt_uid;
 		inode->i_gid = cifs_sb->mnt_gid;
+	} else if (rc) {
 		_FreeXid(xid);
 		iget_failed(inode);
 		return ERR_PTR(rc);
@@ -737,7 +739,7 @@ psx_del_no_retry:
 			/* ATTRS set to normal clears r/o bit */
 			pinfo_buf->Attributes = cpu_to_le32(ATTR_NORMAL);
 			if (!(pTcon->ses->flags & CIFS_SES_NT4))
-				rc = CIFSSMBSetTimes(xid, pTcon, full_path,
+				rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
 						     pinfo_buf,
 						     cifs_sb->local_nls,
 						     cifs_sb->mnt_cifs_flags &
@@ -767,9 +769,10 @@ psx_del_no_retry:
 						 cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc == 0) {
-					rc = CIFSSMBSetFileTimes(xid, pTcon,
-								 pinfo_buf,
-								 netfid);
+					rc = CIFSSMBSetFileInfo(xid, pTcon,
+								pinfo_buf,
+								netfid,
+								current->tgid);
 					CIFSSMBClose(xid, pTcon, netfid);
 				}
 			}
@@ -984,32 +987,41 @@ mkdir_get_info:
 		  * failed to get it from the server or was set bogus */
 		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
 				direntry->d_inode->i_nlink = 2;
+
 		mode &= ~current->fs->umask;
+		/* must turn on setgid bit if parent dir has it */
+		if (inode->i_mode & S_ISGID)
+			mode |= S_ISGID;
+
 		if (pTcon->unix_ext) {
+			struct cifs_unix_set_info_args args = {
+				.mode	= mode,
+				.ctime	= NO_CHANGE_64,
+				.atime	= NO_CHANGE_64,
+				.mtime	= NO_CHANGE_64,
+				.device	= 0,
+			};
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
-						    mode,
-						    (__u64)current->fsuid,
-						    (__u64)current->fsgid,
-						    0 /* dev_t */,
-						    cifs_sb->local_nls,
-						    cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
+				args.uid = (__u64)current->fsuid;
+				if (inode->i_mode & S_ISGID)
+					args.gid = (__u64)inode->i_gid;
+				else
+					args.gid = (__u64)current->fsgid;
 			} else {
-				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
-						    mode, (__u64)-1,
-						    (__u64)-1, 0 /* dev_t */,
-						    cifs_sb->local_nls,
-						    cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
+				args.uid = NO_CHANGE_64;
+				args.gid = NO_CHANGE_64;
 			}
+			CIFSSMBUnixSetInfo(xid, pTcon, full_path, &args,
+					    cifs_sb->local_nls,
+					    cifs_sb->mnt_cifs_flags &
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 		} else {
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
 			    (mode & S_IWUGO) == 0) {
 				FILE_BASIC_INFO pInfo;
 				memset(&pInfo, 0, sizeof(pInfo));
 				pInfo.Attributes = cpu_to_le32(ATTR_READONLY);
-				CIFSSMBSetTimes(xid, pTcon, full_path,
+				CIFSSMBSetPathInfo(xid, pTcon, full_path,
 						&pInfo, cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1024,8 +1036,12 @@ mkdir_get_info:
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
 						current->fsuid;
-					direntry->d_inode->i_gid =
-						current->fsgid;
+					if (inode->i_mode & S_ISGID)
+						direntry->d_inode->i_gid =
+							inode->i_gid;
+					else
+						direntry->d_inode->i_gid =
+							current->fsgid;
 				}
 			}
 		}
@@ -1310,10 +1326,11 @@ int cifs_revalidate(struct dentry *direntry)
 /*		if (S_ISDIR(direntry->d_inode->i_mode))
 			shrink_dcache_parent(direntry); */
 		if (S_ISREG(direntry->d_inode->i_mode)) {
-			if (direntry->d_inode->i_mapping)
+			if (direntry->d_inode->i_mapping) {
 				wbrc = filemap_fdatawait(direntry->d_inode->i_mapping);
 				if (wbrc)
 					CIFS_I(direntry->d_inode)->write_behind_rc = wbrc;
+			}
 			/* may eventually have to do this for open files too */
 			if (list_empty(&(cifsInode->openFileList))) {
 				/* changed on server - flush read ahead pages */
@@ -1489,29 +1506,227 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	return rc;
 }
 
-int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
+static int
+cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
+		    char *full_path, __u32 dosattr)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid;
+	__u32 netpid;
+	bool set_time = false;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	FILE_BASIC_INFO	info_buf;
+
+	if (attrs->ia_valid & ATTR_ATIME) {
+		set_time = true;
+		info_buf.LastAccessTime =
+			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
+	} else
+		info_buf.LastAccessTime = 0;
+
+	if (attrs->ia_valid & ATTR_MTIME) {
+		set_time = true;
+		info_buf.LastWriteTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
+	} else
+		info_buf.LastWriteTime = 0;
+
+	/*
+	 * Samba throws this field away, but windows may actually use it.
+	 * Do not set ctime unless other time stamps are changed explicitly
+	 * (i.e. by utimes()) since we would then have a mix of client and
+	 * server times.
+	 */
+	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
+		cFYI(1, ("CIFS - CTIME changed"));
+		info_buf.ChangeTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
+	} else
+		info_buf.ChangeTime = 0;
+
+	info_buf.CreationTime = 0;	/* don't change */
+	info_buf.Attributes = cpu_to_le32(dosattr);
+
+	/*
+	 * If the file is already open for write, just use that fileid
+	 */
+	open_file = find_writable_file(cifsInode);
+	if (open_file) {
+		netfid = open_file->netfid;
+		netpid = open_file->pid;
+		goto set_via_filehandle;
+	}
+
+	/*
+	 * NT4 apparently returns success on this call, but it doesn't
+	 * really work.
+	 */
+	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
+		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
+				     &info_buf, cifs_sb->local_nls,
+				     cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc != -EOPNOTSUPP && rc != -EINVAL)
+			goto out;
+	}
+
+	cFYI(1, ("calling SetFileInfo since SetPathInfo for "
+		 "times not supported by this server"));
+	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
+			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR, &netfid, &oplock,
+			 NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc != 0) {
+		if (rc == -EIO)
+			rc = -EINVAL;
+		goto out;
+	}
+
+	netpid = current->tgid;
+
+set_via_filehandle:
+	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
+	if (open_file == NULL)
+		CIFSSMBClose(xid, pTcon, netfid);
+	else
+		atomic_dec(&open_file->wrtPending);
+out:
+	return rc;
+}
+
+static int
+cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
+{
+	int rc;
+	int xid;
+	char *full_path = NULL;
+	struct inode *inode = direntry->d_inode;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	struct cifs_unix_set_info_args *args = NULL;
+
+	cFYI(1, ("setattr_unix on file %s attrs->ia_valid=0x%x",
+		 direntry->d_name.name, attrs->ia_valid));
+
+	xid = GetXid();
+
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
+		/* check if we have permission to change attrs */
+		rc = inode_change_ok(inode, attrs);
+		if (rc < 0)
+			goto out;
+		else
+			rc = 0;
+	}
+
+	full_path = build_path_from_dentry(direntry);
+	if (full_path == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
+		/*
+		   Flush data before changing file size or changing the last
+		   write time of the file on the server. If the
+		   flush returns error, store it to report later and continue.
+		   BB: This should be smarter. Why bother flushing pages that
+		   will be truncated anyway? Also, should we error out here if
+		   the flush returns error?
+		 */
+		rc = filemap_write_and_wait(inode->i_mapping);
+		if (rc != 0) {
+			cifsInode->write_behind_rc = rc;
+			rc = 0;
+		}
+	}
+
+	if (attrs->ia_valid & ATTR_SIZE) {
+		rc = cifs_set_file_size(inode, attrs, xid, full_path);
+		if (rc != 0)
+			goto out;
+	}
+
+	/* skip mode change if it's just for clearing setuid/setgid */
+	if (attrs->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
+		attrs->ia_valid &= ~ATTR_MODE;
+
+	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	if (args == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/* set up the struct */
+	if (attrs->ia_valid & ATTR_MODE)
+		args->mode = attrs->ia_mode;
+	else
+		args->mode = NO_CHANGE_64;
+
+	if (attrs->ia_valid & ATTR_UID)
+		args->uid = attrs->ia_uid;
+	else
+		args->uid = NO_CHANGE_64;
+
+	if (attrs->ia_valid & ATTR_GID)
+		args->gid = attrs->ia_gid;
+	else
+		args->gid = NO_CHANGE_64;
+
+	if (attrs->ia_valid & ATTR_ATIME)
+		args->atime = cifs_UnixTimeToNT(attrs->ia_atime);
+	else
+		args->atime = NO_CHANGE_64;
+
+	if (attrs->ia_valid & ATTR_MTIME)
+		args->mtime = cifs_UnixTimeToNT(attrs->ia_mtime);
+	else
+		args->mtime = NO_CHANGE_64;
+
+	if (attrs->ia_valid & ATTR_CTIME)
+		args->ctime = cifs_UnixTimeToNT(attrs->ia_ctime);
+	else
+		args->ctime = NO_CHANGE_64;
+
+	args->device = 0;
+	rc = CIFSSMBUnixSetInfo(xid, pTcon, full_path, args,
+				cifs_sb->local_nls,
+				cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (!rc)
+		rc = inode_setattr(inode, attrs);
+out:
+	kfree(args);
+	kfree(full_path);
+	FreeXid(xid);
+	return rc;
+}
+
+static int
+cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 {
 	int xid;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	struct inode *inode = direntry->d_inode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	char *full_path = NULL;
 	int rc = -EACCES;
-	FILE_BASIC_INFO time_buf;
-	bool set_time = false;
-	bool set_dosattr = false;
-	__u64 mode = 0xFFFFFFFFFFFFFFFFULL;
-	__u64 uid = 0xFFFFFFFFFFFFFFFFULL;
-	__u64 gid = 0xFFFFFFFFFFFFFFFFULL;
-	struct cifsInodeInfo *cifsInode;
-	struct inode *inode = direntry->d_inode;
+	__u32 dosattr = 0;
+	__u64 mode = NO_CHANGE_64;
 
 	xid = GetXid();
 
 	cFYI(1, ("setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid));
-
-	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
 		/* check if we have permission to change attrs */
@@ -1528,7 +1743,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		FreeXid(xid);
 		return -ENOMEM;
 	}
-	cifsInode = CIFS_I(inode);
 
 	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
 		/*
@@ -1559,21 +1773,8 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	 * CIFSACL support + proper Windows to Unix idmapping, we may be
 	 * able to support this in the future.
 	 */
-	if (!pTcon->unix_ext &&
-	    !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID))
 		attrs->ia_valid &= ~(ATTR_UID | ATTR_GID);
-	} else {
-		if (attrs->ia_valid & ATTR_UID) {
-			cFYI(1, ("UID changed to %d", attrs->ia_uid));
-			uid = attrs->ia_uid;
-		}
-		if (attrs->ia_valid & ATTR_GID) {
-			cFYI(1, ("GID changed to %d", attrs->ia_gid));
-			gid = attrs->ia_gid;
-		}
-	}
-
-	time_buf.Attributes = 0;
 
 	/* skip mode change if it's just for clearing setuid/setgid */
 	if (attrs->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
@@ -1584,13 +1785,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		mode = attrs->ia_mode;
 	}
 
-	if ((pTcon->unix_ext)
-	    && (attrs->ia_valid & (ATTR_MODE | ATTR_GID | ATTR_UID)))
-		rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode, uid, gid,
-					 0 /* dev_t */, cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-	else if (attrs->ia_valid & ATTR_MODE) {
+	if (attrs->ia_valid & ATTR_MODE) {
 		rc = 0;
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
@@ -1599,24 +1794,19 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 #endif
 		if (((mode & S_IWUGO) == 0) &&
 		    (cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
-			set_dosattr = true;
-			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs |
-							  ATTR_READONLY);
+
+			dosattr = cifsInode->cifsAttrs | ATTR_READONLY;
+
 			/* fix up mode if we're not using dynperm */
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
 				attrs->ia_mode = inode->i_mode & ~S_IWUGO;
 		} else if ((mode & S_IWUGO) &&
 			   (cifsInode->cifsAttrs & ATTR_READONLY)) {
-			/* If file is readonly on server, we would
-			not be able to write to it - so if any write
-			bit is enabled for user or group or other we
-			need to at least try to remove r/o dos attr */
-			set_dosattr = true;
-			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs &
-					    (~ATTR_READONLY));
-			/* Windows ignores set to zero */
-			if (time_buf.Attributes == 0)
-				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
+
+			dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+			/* Attributes of 0 are ignored */
+			if (dosattr == 0)
+				dosattr |= ATTR_NORMAL;
 
 			/* reset local inode permissions to normal */
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
@@ -1634,82 +1824,18 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		}
 	}
 
-	if (attrs->ia_valid & ATTR_ATIME) {
-		set_time = true;
-		time_buf.LastAccessTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
-	} else
-		time_buf.LastAccessTime = 0;
+	if (attrs->ia_valid & (ATTR_MTIME|ATTR_ATIME|ATTR_CTIME) ||
+	    ((attrs->ia_valid & ATTR_MODE) && dosattr)) {
+		rc = cifs_set_file_info(inode, attrs, xid, full_path, dosattr);
+		/* BB: check for rc = -EOPNOTSUPP and switch to legacy mode */
 
-	if (attrs->ia_valid & ATTR_MTIME) {
-		set_time = true;
-		time_buf.LastWriteTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
-	} else
-		time_buf.LastWriteTime = 0;
-	/* Do not set ctime explicitly unless other time
-	   stamps are changed explicitly (i.e. by utime()
-	   since we would then have a mix of client and
-	   server times */
-
-	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
-		set_time = true;
-		/* Although Samba throws this field away
-		it may be useful to Windows - but we do
-		not want to set ctime unless some other
-		timestamp is changing */
-		cFYI(1, ("CIFS - CTIME changed"));
-		time_buf.ChangeTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
-	} else
-		time_buf.ChangeTime = 0;
-
-	if (set_time || set_dosattr) {
-		time_buf.CreationTime = 0;	/* do not change */
-		/* In the future we should experiment - try setting timestamps
-		   via Handle (SetFileInfo) instead of by path */
-		if (!(pTcon->ses->flags & CIFS_SES_NT4))
-			rc = CIFSSMBSetTimes(xid, pTcon, full_path, &time_buf,
-					     cifs_sb->local_nls,
-					     cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		else
-			rc = -EOPNOTSUPP;
-
-		if (rc == -EOPNOTSUPP) {
-			int oplock = 0;
-			__u16 netfid;
-
-			cFYI(1, ("calling SetFileInfo since SetPathInfo for "
-				 "times not supported by this server"));
-			/* BB we could scan to see if we already have it open
-			   and pass in pid of opener to function */
-			rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
-					 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
-					 CREATE_NOT_DIR, &netfid, &oplock,
-					 NULL, cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc == 0) {
-				rc = CIFSSMBSetFileTimes(xid, pTcon, &time_buf,
-							 netfid);
-				CIFSSMBClose(xid, pTcon, netfid);
-			} else {
-			/* BB For even older servers we could convert time_buf
-			   into old DOS style which uses two second
-			   granularity */
-
-			/* rc = CIFSSMBSetTimesLegacy(xid, pTcon, full_path,
-					&time_buf, cifs_sb->local_nls); */
-			}
-		}
 		/* Even if error on time set, no sense failing the call if
 		the server would set the time to a reasonable value anyway,
 		and this check ensures that we are not being called from
 		sys_utimes in which case we ought to fail the call back to
 		the user when the server rejects the call */
 		if ((rc) && (attrs->ia_valid &
-			 (ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
+				(ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
 			rc = 0;
 	}
 
@@ -1721,6 +1847,21 @@ cifs_setattr_exit:
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
+}
+
+int
+cifs_setattr(struct dentry *direntry, struct iattr *attrs)
+{
+	struct inode *inode = direntry->d_inode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+
+	if (pTcon->unix_ext)
+		return cifs_setattr_unix(direntry, attrs);
+
+	return cifs_setattr_nounix(direntry, attrs);
+
+	/* BB: add cifs_setattr_legacy for really old servers */
 }
 
 #if 0

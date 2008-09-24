@@ -13,11 +13,34 @@
 #ifndef _DRIVERS_MISC_SGIXP_XP_H
 #define _DRIVERS_MISC_SGIXP_XP_H
 
-#include <linux/cache.h>
-#include <linux/hardirq.h>
 #include <linux/mutex.h>
-#include <asm/sn/types.h>
-#include <asm/sn/bte.h>
+
+#ifdef CONFIG_IA64
+#include <asm/system.h>
+#include <asm/sn/arch.h>	/* defines is_shub1() and is_shub2() */
+#define is_shub()	ia64_platform_is("sn2")
+#define is_uv()		ia64_platform_is("uv")
+#endif
+#ifdef CONFIG_X86_64
+#include <asm/genapic.h>
+#define is_uv()		is_uv_system()
+#endif
+
+#ifndef is_shub1
+#define is_shub1()	0
+#endif
+
+#ifndef is_shub2
+#define is_shub2()	0
+#endif
+
+#ifndef is_shub
+#define is_shub()	0
+#endif
+
+#ifndef is_uv
+#define is_uv()		0
+#endif
 
 #ifdef USE_DBUG_ON
 #define DBUG_ON(condition)	BUG_ON(condition)
@@ -26,133 +49,56 @@
 #endif
 
 /*
- * Define the maximum number of logically defined partitions the system
- * can support. It is constrained by the maximum number of hardware
- * partitionable regions. The term 'region' in this context refers to the
- * minimum number of nodes that can comprise an access protection grouping.
- * The access protection is in regards to memory, IPI and IOI.
+ * Define the maximum number of partitions the system can possibly support.
+ * It is based on the maximum number of hardware partitionable regions. The
+ * term 'region' in this context refers to the minimum number of nodes that
+ * can comprise an access protection grouping. The access protection is in
+ * regards to memory, IPI and IOI.
  *
  * The maximum number of hardware partitionable regions is equal to the
  * maximum number of nodes in the entire system divided by the minimum number
  * of nodes that comprise an access protection grouping.
  */
-#define XP_MAX_PARTITIONS	64
-
-/*
- * Define the number of u64s required to represent all the C-brick nasids
- * as a bitmap.  The cross-partition kernel modules deal only with
- * C-brick nasids, thus the need for bitmaps which don't account for
- * odd-numbered (non C-brick) nasids.
- */
-#define XP_MAX_PHYSNODE_ID	(MAX_NUMALINK_NODES / 2)
-#define XP_NASID_MASK_BYTES	((XP_MAX_PHYSNODE_ID + 7) / 8)
-#define XP_NASID_MASK_WORDS	((XP_MAX_PHYSNODE_ID + 63) / 64)
-
-/*
- * Wrapper for bte_copy() that should it return a failure status will retry
- * the bte_copy() once in the hope that the failure was due to a temporary
- * aberration (i.e., the link going down temporarily).
- *
- * 	src - physical address of the source of the transfer.
- *	vdst - virtual address of the destination of the transfer.
- *	len - number of bytes to transfer from source to destination.
- *	mode - see bte_copy() for definition.
- *	notification - see bte_copy() for definition.
- *
- * Note: xp_bte_copy() should never be called while holding a spinlock.
- */
-static inline bte_result_t
-xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
-{
-	bte_result_t ret;
-	u64 pdst = ia64_tpa(vdst);
-
-	/*
-	 * Ensure that the physically mapped memory is contiguous.
-	 *
-	 * We do this by ensuring that the memory is from region 7 only.
-	 * If the need should arise to use memory from one of the other
-	 * regions, then modify the BUG_ON() statement to ensure that the
-	 * memory from that region is always physically contiguous.
-	 */
-	BUG_ON(REGION_NUMBER(vdst) != RGN_KERNEL);
-
-	ret = bte_copy(src, pdst, len, mode, notification);
-	if ((ret != BTE_SUCCESS) && BTE_ERROR_RETRY(ret)) {
-		if (!in_interrupt())
-			cond_resched();
-
-		ret = bte_copy(src, pdst, len, mode, notification);
-	}
-
-	return ret;
-}
+#define XP_MAX_NPARTITIONS_SN2	64
+#define XP_MAX_NPARTITIONS_UV	256
 
 /*
  * XPC establishes channel connections between the local partition and any
  * other partition that is currently up. Over these channels, kernel-level
  * `users' can communicate with their counterparts on the other partitions.
  *
- * The maxinum number of channels is limited to eight. For performance reasons,
- * the internal cross partition structures require sixteen bytes per channel,
- * and eight allows all of this interface-shared info to fit in one cache line.
- *
- * XPC_NCHANNELS reflects the total number of channels currently defined.
  * If the need for additional channels arises, one can simply increase
- * XPC_NCHANNELS accordingly. If the day should come where that number
- * exceeds the MAXIMUM number of channels allowed (eight), then one will need
- * to make changes to the XPC code to allow for this.
+ * XPC_MAX_NCHANNELS accordingly. If the day should come where that number
+ * exceeds the absolute MAXIMUM number of channels possible (eight), then one
+ * will need to make changes to the XPC code to accommodate for this.
+ *
+ * The absolute maximum number of channels possible is limited to eight for
+ * performance reasons on sn2 hardware. The internal cross partition structures
+ * require sixteen bytes per channel, and eight allows all of this
+ * interface-shared info to fit in one 128-byte cacheline.
  */
 #define XPC_MEM_CHANNEL		0	/* memory channel number */
 #define	XPC_NET_CHANNEL		1	/* network channel number */
 
-#define	XPC_NCHANNELS		2	/* #of defined channels */
-#define XPC_MAX_NCHANNELS	8	/* max #of channels allowed */
+#define XPC_MAX_NCHANNELS	2	/* max #of channels allowed */
 
-#if XPC_NCHANNELS > XPC_MAX_NCHANNELS
-#error	XPC_NCHANNELS exceeds MAXIMUM allowed.
+#if XPC_MAX_NCHANNELS > 8
+#error	XPC_MAX_NCHANNELS exceeds absolute MAXIMUM possible.
 #endif
 
 /*
- * The format of an XPC message is as follows:
- *
- *      +-------+--------------------------------+
- *      | flags |////////////////////////////////|
- *      +-------+--------------------------------+
- *      |             message #                  |
- *      +----------------------------------------+
- *      |     payload (user-defined message)     |
- *      |                                        |
- *         		:
- *      |                                        |
- *      +----------------------------------------+
- *
- * The size of the payload is defined by the user via xpc_connect(). A user-
- * defined message resides in the payload area.
- *
- * The user should have no dealings with the message header, but only the
- * message's payload. When a message entry is allocated (via xpc_allocate())
- * a pointer to the payload area is returned and not the actual beginning of
- * the XPC message. The user then constructs a message in the payload area
- * and passes that pointer as an argument on xpc_send() or xpc_send_notify().
- *
- * The size of a message entry (within a message queue) must be a cacheline
- * sized multiple in order to facilitate the BTE transfer of messages from one
- * message queue to another. A macro, XPC_MSG_SIZE(), is provided for the user
+ * Define macro, XPC_MSG_SIZE(), is provided for the user
  * that wants to fit as many msg entries as possible in a given memory size
  * (e.g. a memory page).
  */
-struct xpc_msg {
-	u8 flags;		/* FOR XPC INTERNAL USE ONLY */
-	u8 reserved[7];		/* FOR XPC INTERNAL USE ONLY */
-	s64 number;		/* FOR XPC INTERNAL USE ONLY */
+#define XPC_MSG_MAX_SIZE	128
+#define XPC_MSG_HDR_MAX_SIZE	16
+#define XPC_MSG_PAYLOAD_MAX_SIZE (XPC_MSG_MAX_SIZE - XPC_MSG_HDR_MAX_SIZE)
 
-	u64 payload;		/* user defined portion of message */
-};
-
-#define XPC_MSG_PAYLOAD_OFFSET	(u64) (&((struct xpc_msg *)0)->payload)
 #define XPC_MSG_SIZE(_payload_size) \
-		L1_CACHE_ALIGN(XPC_MSG_PAYLOAD_OFFSET + (_payload_size))
+				ALIGN(XPC_MSG_HDR_MAX_SIZE + (_payload_size), \
+				      is_uv() ? 64 : 128)
+
 
 /*
  * Define the return values and values passed to user's callout functions.
@@ -233,8 +179,20 @@ enum xp_retval {
 	xpDisconnected,		/* 51: channel disconnected (closed) */
 
 	xpBteCopyError,		/* 52: bte_copy() returned error */
+	xpSalError,		/* 53: sn SAL error */
+	xpRsvdPageNotSet,	/* 54: the reserved page is not set up */
+	xpPayloadTooBig,	/* 55: payload too large for message slot */
 
-	xpUnknownReason		/* 53: unknown reason - must be last in enum */
+	xpUnsupported,		/* 56: unsupported functionality or resource */
+	xpNeedMoreInfo,		/* 57: more info is needed by SAL */
+
+	xpGruCopyError,		/* 58: gru_copy_gru() returned error */
+	xpGruSendMqError,	/* 59: gru send message queue related error */
+
+	xpBadChannelNumber,	/* 60: invalid channel number */
+	xpBadMsgType,		/* 60: invalid message type */
+
+	xpUnknownReason		/* 61: unknown reason - must be last in enum */
 };
 
 /*
@@ -285,6 +243,9 @@ typedef void (*xpc_channel_func) (enum xp_retval reason, short partid,
  * calling xpc_received().
  *
  * All other reason codes indicate failure.
+ *
+ * NOTE: The user defined function must be callable by an interrupt handler
+ *       and thus cannot block.
  */
 typedef void (*xpc_notify_func) (enum xp_retval reason, short partid,
 				 int ch_number, void *key);
@@ -308,23 +269,22 @@ struct xpc_registration {
 	xpc_channel_func func;	/* function to call */
 	void *key;		/* pointer to user's key */
 	u16 nentries;		/* #of msg entries in local msg queue */
-	u16 msg_size;		/* message queue's message size */
+	u16 entry_size;		/* message queue's message entry size */
 	u32 assigned_limit;	/* limit on #of assigned kthreads */
 	u32 idle_limit;		/* limit on #of idle kthreads */
 } ____cacheline_aligned;
 
 #define XPC_CHANNEL_REGISTERED(_c)	(xpc_registrations[_c].func != NULL)
 
-/* the following are valid xpc_allocate() flags */
+/* the following are valid xpc_send() or xpc_send_notify() flags */
 #define XPC_WAIT	0	/* wait flag */
 #define XPC_NOWAIT	1	/* no wait flag */
 
 struct xpc_interface {
 	void (*connect) (int);
 	void (*disconnect) (int);
-	enum xp_retval (*allocate) (short, int, u32, void **);
-	enum xp_retval (*send) (short, int, void *);
-	enum xp_retval (*send_notify) (short, int, void *,
+	enum xp_retval (*send) (short, int, u32, void *, u16);
+	enum xp_retval (*send_notify) (short, int, u32, void *, u16,
 					xpc_notify_func, void *);
 	void (*received) (short, int, void *);
 	enum xp_retval (*partid_to_nasids) (short, void *);
@@ -334,10 +294,9 @@ extern struct xpc_interface xpc_interface;
 
 extern void xpc_set_interface(void (*)(int),
 			      void (*)(int),
-			      enum xp_retval (*)(short, int, u32, void **),
-			      enum xp_retval (*)(short, int, void *),
-			      enum xp_retval (*)(short, int, void *,
-						  xpc_notify_func, void *),
+			      enum xp_retval (*)(short, int, u32, void *, u16),
+			      enum xp_retval (*)(short, int, u32, void *, u16,
+						 xpc_notify_func, void *),
 			      void (*)(short, int, void *),
 			      enum xp_retval (*)(short, void *));
 extern void xpc_clear_interface(void);
@@ -347,22 +306,19 @@ extern enum xp_retval xpc_connect(int, xpc_channel_func, void *, u16,
 extern void xpc_disconnect(int);
 
 static inline enum xp_retval
-xpc_allocate(short partid, int ch_number, u32 flags, void **payload)
+xpc_send(short partid, int ch_number, u32 flags, void *payload,
+	 u16 payload_size)
 {
-	return xpc_interface.allocate(partid, ch_number, flags, payload);
+	return xpc_interface.send(partid, ch_number, flags, payload,
+				  payload_size);
 }
 
 static inline enum xp_retval
-xpc_send(short partid, int ch_number, void *payload)
+xpc_send_notify(short partid, int ch_number, u32 flags, void *payload,
+		u16 payload_size, xpc_notify_func func, void *key)
 {
-	return xpc_interface.send(partid, ch_number, payload);
-}
-
-static inline enum xp_retval
-xpc_send_notify(short partid, int ch_number, void *payload,
-		xpc_notify_func func, void *key)
-{
-	return xpc_interface.send_notify(partid, ch_number, payload, func, key);
+	return xpc_interface.send_notify(partid, ch_number, flags, payload,
+					 payload_size, func, key);
 }
 
 static inline void
@@ -377,8 +333,23 @@ xpc_partid_to_nasids(short partid, void *nasids)
 	return xpc_interface.partid_to_nasids(partid, nasids);
 }
 
+extern short xp_max_npartitions;
+extern short xp_partition_id;
+extern u8 xp_region_size;
+
+extern unsigned long (*xp_pa) (void *);
+extern enum xp_retval (*xp_remote_memcpy) (unsigned long, const unsigned long,
+		       size_t);
+extern int (*xp_cpu_to_nasid) (int);
+
 extern u64 xp_nofault_PIOR_target;
 extern int xp_nofault_PIOR(void *);
 extern int xp_error_PIOR(void);
+
+extern struct device *xp;
+extern enum xp_retval xp_init_sn2(void);
+extern enum xp_retval xp_init_uv(void);
+extern void xp_exit_sn2(void);
+extern void xp_exit_uv(void);
 
 #endif /* _DRIVERS_MISC_SGIXP_XP_H */

@@ -415,7 +415,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
 			kfree_skb(skb);
-			return NET_XMIT_SUCCESS;
+			return NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			kfree_skb(skb);
 			goto drop;
@@ -432,9 +432,11 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	ret = qdisc_enqueue(skb, flow->q);
 	if (ret != 0) {
 drop: __maybe_unused
-		sch->qstats.drops++;
-		if (flow)
-			flow->qstats.drops++;
+		if (net_xmit_drop_count(ret)) {
+			sch->qstats.drops++;
+			if (flow)
+				flow->qstats.drops++;
+		}
 		return ret;
 	}
 	sch->bstats.bytes += qdisc_pkt_len(skb);
@@ -455,7 +457,7 @@ drop: __maybe_unused
 		return 0;
 	}
 	tasklet_schedule(&p->task);
-	return NET_XMIT_BYPASS;
+	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 }
 
 /*
@@ -530,7 +532,7 @@ static int atm_tc_requeue(struct sk_buff *skb, struct Qdisc *sch)
 	if (!ret) {
 		sch->q.qlen++;
 		sch->qstats.requeues++;
-	} else {
+	} else if (net_xmit_drop_count(ret)) {
 		sch->qstats.drops++;
 		p->link.qstats.drops++;
 	}

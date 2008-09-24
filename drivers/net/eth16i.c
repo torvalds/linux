@@ -1356,7 +1356,6 @@ static void eth16i_multicast(struct net_device *dev)
 
 	if(dev->mc_count || dev->flags&(IFF_ALLMULTI|IFF_PROMISC))
 	{
-		dev->flags|=IFF_PROMISC;	/* Must do this */
 		outb(3, ioaddr + RECEIVE_MODE_REG);
 	} else {
 		outb(2, ioaddr + RECEIVE_MODE_REG);

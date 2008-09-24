@@ -23,13 +23,14 @@
 #include <linux/suspend.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/dma.h>
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/pm.h>
+#include <mach/dma.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -165,8 +166,7 @@ static struct clk pxa25x_hwuart_clk =
 ;
 
 /*
- * PXA 2xx clock declarations. Order is important (see aliases below)
- * Please be careful not to disrupt the ordering.
+ * PXA 2xx clock declarations.
  */
 static struct clk pxa25x_clks[] = {
 	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
@@ -191,11 +191,6 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
 	*/
 	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
-};
-
-static struct clk pxa2xx_clk_aliases[] = {
-	INIT_CKOTHER("GPIO7_CLK", &pxa25x_clks[4], NULL),
-	INIT_CKOTHER("SA1111_CLK", &pxa25x_clks[5], NULL),
 };
 
 #ifdef CONFIG_PM
@@ -348,6 +343,9 @@ static int __init pxa25x_init(void)
 		clks_register(&pxa25x_hwuart_clk, 1);
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+
+		reset_status = RCSR;
+
 		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
 
 		if ((ret = pxa_init_dma(16)))
@@ -370,8 +368,6 @@ static int __init pxa25x_init(void)
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
 	if (cpu_is_pxa255())
 		ret = platform_device_register(&pxa_device_hwuart);
-
-	clks_register(pxa2xx_clk_aliases, ARRAY_SIZE(pxa2xx_clk_aliases));
 
 	return ret;
 }

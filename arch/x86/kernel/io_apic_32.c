@@ -57,7 +57,7 @@ atomic_t irq_mis_count;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-static DEFINE_SPINLOCK(vector_lock);
+DEFINE_SPINLOCK(vector_lock);
 
 int timer_through_8259 __initdata;
 
@@ -1207,10 +1207,6 @@ static int assign_irq_vector(int irq)
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return vector;
-}
-
-void setup_vector_irq(int cpu)
-{
 }
 
 static struct irq_chip ioapic_chip;

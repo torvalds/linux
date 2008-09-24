@@ -23,7 +23,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 #include <asm/div64.h>
 
 #include "crm_regs.h"

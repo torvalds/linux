@@ -42,7 +42,7 @@ char * __init xen_memory_setup(void)
 
 	e820.nr_map = 0;
 
-	e820_add_region(0, PFN_PHYS(max_pfn), E820_RAM);
+	e820_add_region(0, PFN_PHYS((u64)max_pfn), E820_RAM);
 
 	/*
 	 * Even though this is normal, usable memory under Xen, reserve

@@ -243,12 +243,13 @@ static inline void tx4927_ccfg_change(__u64 change, __u64 new)
 }
 
 unsigned int tx4927_get_mem_size(void);
-void tx4927_wdr_init(void);
+void tx4927_wdt_init(void);
 void tx4927_setup(void);
 void tx4927_time_init(unsigned int tmrnr);
-void tx4927_setup_serial(void);
+void tx4927_sio_init(unsigned int sclk, unsigned int cts_mask);
 int tx4927_report_pciclk(void);
 int tx4927_pciclk66_setup(void);
+void tx4927_setup_pcierr_irq(void);
 void tx4927_irq_init(void);
 
 #endif /* __ASM_TXX9_TX4927_H */

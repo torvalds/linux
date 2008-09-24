@@ -56,9 +56,6 @@ struct of_device *of_find_device_by_node(struct device_node *dp)
 EXPORT_SYMBOL(of_find_device_by_node);
 
 #ifdef CONFIG_PCI
-struct bus_type isa_bus_type;
-EXPORT_SYMBOL(isa_bus_type);
-
 struct bus_type ebus_bus_type;
 EXPORT_SYMBOL(ebus_bus_type);
 #endif
@@ -99,7 +96,7 @@ struct of_bus {
 				       int *addrc, int *sizec);
 	int		(*map)(u32 *addr, const u32 *range,
 			       int na, int ns, int pna);
-	unsigned int	(*get_flags)(const u32 *addr);
+	unsigned long	(*get_flags)(const u32 *addr, unsigned long);
 };
 
 /*
@@ -159,8 +156,10 @@ static int of_bus_default_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static unsigned int of_bus_default_get_flags(const u32 *addr)
+static unsigned long of_bus_default_get_flags(const u32 *addr, unsigned long flags)
 {
+	if (flags)
+		return flags;
 	return IORESOURCE_MEM;
 }
 
@@ -252,17 +251,21 @@ static int of_bus_pci_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static unsigned int of_bus_pci_get_flags(const u32 *addr)
+static unsigned long of_bus_pci_get_flags(const u32 *addr, unsigned long flags)
 {
-	unsigned int flags = 0;
 	u32 w = addr[0];
 
+	/* For PCI, we override whatever child busses may have used.  */
+	flags = 0;
 	switch((w >> 24) & 0x03) {
 	case 0x01:
 		flags |= IORESOURCE_IO;
+		break;
+
 	case 0x02: /* 32 bits */
 	case 0x03: /* 64 bits */
 		flags |= IORESOURCE_MEM;
+		break;
 	}
 	if (w & 0x40000000)
 		flags |= IORESOURCE_PREFETCH;
@@ -481,9 +484,9 @@ static void __init build_device_resources(struct of_device *op,
 		int pna, pns;
 
 		size = of_read_addr(reg + na, ns);
-		flags = bus->get_flags(reg);
-
 		memcpy(addr, reg, na * 4);
+
+		flags = bus->get_flags(addr, 0);
 
 		if (use_1to1_mapping(pp)) {
 			result = of_read_addr(addr, na);
@@ -508,6 +511,8 @@ static void __init build_device_resources(struct of_device *op,
 			if (build_one_resource(dp, dbus, pbus, addr,
 					       dna, dns, pna))
 				break;
+
+			flags = pbus->get_flags(addr, flags);
 
 			dna = pna;
 			dns = pns;
@@ -841,8 +846,6 @@ static int __init of_bus_driver_init(void)
 
 	err = of_bus_type_init(&of_platform_bus_type, "of");
 #ifdef CONFIG_PCI
-	if (!err)
-		err = of_bus_type_init(&isa_bus_type, "isa");
 	if (!err)
 		err = of_bus_type_init(&ebus_bus_type, "ebus");
 #endif

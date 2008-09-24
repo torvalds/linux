@@ -31,7 +31,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/arch/mailbox.h>
+#include <mach/mailbox.h>
 #include "mailbox.h"
 
 static struct omap_mbox *mboxes;

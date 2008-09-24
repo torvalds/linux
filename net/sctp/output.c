@@ -533,7 +533,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	if (!(dst->dev->features & NETIF_F_NO_CSUM)) {
 		crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
 		crc32 = sctp_end_cksum(crc32);
-	}
+	} else
+		nskb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	/* 3) Put the resultant value into the checksum field in the
 	 *    common header, and leave the rest of the bits unchanged.
@@ -586,10 +587,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet*** skb len %d\n",
 			  nskb->len);
 
-	if (tp->param_flags & SPP_PMTUD_ENABLE)
-		(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
-	else
-		(*tp->af_specific->sctp_xmit)(nskb, tp, 1);
+	nskb->local_df = packet->ipfragok;
+	(*tp->af_specific->sctp_xmit)(nskb, tp);
 
 out:
 	packet->size = packet->overhead;

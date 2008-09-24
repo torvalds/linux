@@ -15,8 +15,8 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 #include <asm/io.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
 
 extern int omap1_clk_init(void);
 extern void omap_check_revision(void);

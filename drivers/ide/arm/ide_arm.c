@@ -11,13 +11,12 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
-#include <asm/mach-types.h>
 #include <asm/irq.h>
 
 #define DRV_NAME "ide_arm"
 
 #ifdef CONFIG_ARCH_CLPS7500
-# include <asm/arch/hardware.h>
+# include <mach/hardware.h>
 #
 # define IDE_ARM_IO	(ISASLOT_IO + 0x1f0)
 # define IDE_ARM_IRQ	IRQ_ISA_14

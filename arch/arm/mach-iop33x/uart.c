@@ -24,9 +24,8 @@
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/memory.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iop3xx.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #define IOP33X_UART_XTAL 33334000

@@ -18,13 +18,13 @@
 #include <linux/pwm_backlight.h>
 
 #include <asm/setup.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/i2c.h>
+#include <mach/pxafb.h>
+#include <mach/ohci.h>
+#include <mach/i2c.h>
 
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 

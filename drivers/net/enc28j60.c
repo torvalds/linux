@@ -1547,8 +1547,10 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 	random_ether_addr(dev->dev_addr);
 	enc28j60_set_hw_macaddr(dev);
 
-	ret = request_irq(spi->irq, enc28j60_irq, IRQF_TRIGGER_FALLING,
-			  DRV_NAME, priv);
+	/* Board setup must set the relevant edge trigger type;
+	 * level triggers won't currently work.
+	 */
+	ret = request_irq(spi->irq, enc28j60_irq, 0, DRV_NAME, priv);
 	if (ret < 0) {
 		if (netif_msg_probe(priv))
 			dev_err(&spi->dev, DRV_NAME ": request irq %d failed "

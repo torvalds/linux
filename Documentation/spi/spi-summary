@@ -210,7 +210,7 @@ board should normally be set up and registered.
 
 So for example arch/.../mach-*/board-*.c files might have code like:
 
-	#include <asm/arch/spi.h>	/* for mysoc_spi_data */
+	#include <mach/spi.h>	/* for mysoc_spi_data */
 
 	/* if your mach-* infrastructure doesn't support kernels that can
 	 * run on multiple boards, pdata wouldn't benefit from "__init".
@@ -227,7 +227,7 @@ So for example arch/.../mach-*/board-*.c files might have code like:
 
 And SOC-specific utility code might look something like:
 
-	#include <asm/arch/spi.h>
+	#include <mach/spi.h>
 
 	static struct platform_device spi2 = { ... };
 

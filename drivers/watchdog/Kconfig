@@ -285,10 +285,11 @@ config ALIM1535_WDT
 
 config ALIM7101_WDT
 	tristate "ALi M7101 PMU Computer Watchdog"
-	depends on X86 && PCI
+	depends on PCI
 	help
 	  This is the driver for the hardware watchdog on the ALi M7101 PMU
-	  as used in the x86 Cobalt servers.
+	  as used in the x86 Cobalt servers and also found in some
+	  SPARC Netra servers too.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called alim7101_wdt.
@@ -463,7 +464,17 @@ config PC87413_WDT
 	  module will be called pc87413_wdt.
 
 	  Most people will say N.
- 
+
+config RDC321X_WDT
+	tristate "RDC R-321x SoC watchdog"
+	depends on X86_RDC321X
+	help
+	  This is the driver for the built in hardware watchdog
+	  in the RDC R-321x SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rdc321x_wdt.
+
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
 	depends on X86
@@ -632,6 +643,16 @@ config SBC_EPX_C3_WATCHDOG
 
 # MIPS Architecture
 
+config RC32434_WDT
+	tristate "IDT RC32434 SoC Watchdog Timer"
+	depends on MIKROTIK_RB532
+	help
+	  Hardware driver for the IDT RC32434 SoC built-in
+	  watchdog timer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rc32434_wdt.
+
 config INDYDOG
 	tristate "Indy/I2 Hardware Watchdog"
 	depends on SGI_HAS_INDYDOG
@@ -691,13 +712,17 @@ config MPC5200_WDT
 	tristate "MPC5200 Watchdog Timer"
 	depends on PPC_MPC52xx
 
-config 8xx_WDT
-	tristate "MPC8xx Watchdog Timer"
-	depends on 8xx
+config 8xxx_WDT
+	tristate "MPC8xxx Platform Watchdog Timer"
+	depends on PPC_8xx || PPC_83xx || PPC_86xx
+	help
+	  This driver is for a SoC level watchdog that exists on some
+	  Freescale PowerPC processors. So far this driver supports:
+	  - MPC8xx watchdogs
+	  - MPC83xx watchdogs
+	  - MPC86xx watchdogs
 
-config 83xx_WDT
-	tristate "MPC83xx Watchdog Timer"
-	depends on PPC_83xx
+	  For BookE processors (MPC85xx) use the BOOKE_WDT driver instead.
 
 config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"

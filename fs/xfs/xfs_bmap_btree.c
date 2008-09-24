@@ -1493,12 +1493,27 @@ xfs_bmbt_split(
 	left = XFS_BUF_TO_BMBT_BLOCK(lbp);
 	args.fsbno = cur->bc_private.b.firstblock;
 	args.firstblock = args.fsbno;
+	args.minleft = 0;
 	if (args.fsbno == NULLFSBLOCK) {
 		args.fsbno = lbno;
 		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else
+		/*
+		 * Make sure there is sufficient room left in the AG to
+		 * complete a full tree split for an extent insert.  If
+		 * we are converting the middle part of an extent then
+		 * we may need space for two tree splits.
+		 *
+		 * We are relying on the caller to make the correct block
+		 * reservation for this operation to succeed.  If the
+		 * reservation amount is insufficient then we may fail a
+		 * block allocation here and corrupt the filesystem.
+		 */
+		args.minleft = xfs_trans_get_block_res(args.tp);
+	} else if (cur->bc_private.b.flist->xbf_low)
+		args.type = XFS_ALLOCTYPE_START_BNO;
+	else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	args.mod = args.minleft = args.alignment = args.total = args.isfl =
+	args.mod = args.alignment = args.total = args.isfl =
 		args.userdata = args.minalignslop = 0;
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
@@ -1509,6 +1524,21 @@ xfs_bmbt_split(
 	if ((error = xfs_alloc_vextent(&args))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		return error;
+	}
+	if (args.fsbno == NULLFSBLOCK && args.minleft) {
+		/*
+		 * Could not find an AG with enough free space to satisfy
+		 * a full btree split.  Try again without minleft and if
+		 * successful activate the lowspace algorithm.
+		 */
+		args.fsbno = 0;
+		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.minleft = 0;
+		if ((error = xfs_alloc_vextent(&args))) {
+			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
+			return error;
+		}
+		cur->bc_private.b.flist->xbf_low = 1;
 	}
 	if (args.fsbno == NULLFSBLOCK) {
 		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
@@ -2029,22 +2059,8 @@ xfs_bmbt_increment(
  * Insert the current record at the point referenced by cur.
  *
  * A multi-level split of the tree on insert will invalidate the original
- * cursor. It appears, however, that some callers assume that the cursor is
- * always valid. Hence if we do a multi-level split we need to revalidate the
- * cursor.
- *
- * When a split occurs, we will see a new cursor returned. Use that as a
- * trigger to determine if we need to revalidate the original cursor. If we get
- * a split, then use the original irec to lookup up the path of the record we
- * just inserted.
- *
- * Note that the fact that the btree root is in the inode means that we can
- * have the level of the tree change without a "split" occurring at the root
- * level. What happens is that the root is migrated to an allocated block and
- * the inode root is pointed to it. This means a single split can change the
- * level of the tree (level 2 -> level 3) and invalidate the old cursor. Hence
- * the level change should be accounted as a split so as to correctly trigger a
- * revalidation of the old cursor.
+ * cursor.  All callers of this function should assume that the cursor is
+ * no longer valid and revalidate it.
  */
 int					/* error */
 xfs_bmbt_insert(
@@ -2057,14 +2073,11 @@ xfs_bmbt_insert(
 	xfs_fsblock_t	nbno;
 	xfs_btree_cur_t	*ncur;
 	xfs_bmbt_rec_t	nrec;
-	xfs_bmbt_irec_t	oirec;		/* original irec */
 	xfs_btree_cur_t	*pcur;
-	int		splits = 0;
 
 	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
 	level = 0;
 	nbno = NULLFSBLOCK;
-	oirec = cur->bc_rec.b;
 	xfs_bmbt_disk_set_all(&nrec, &cur->bc_rec.b);
 	ncur = NULL;
 	pcur = cur;
@@ -2073,13 +2086,11 @@ xfs_bmbt_insert(
 				&i))) {
 			if (pcur != cur)
 				xfs_btree_del_cursor(pcur, XFS_BTREE_ERROR);
-			goto error0;
+			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
+			return error;
 		}
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 		if (pcur != cur && (ncur || nbno == NULLFSBLOCK)) {
-			/* allocating a new root is effectively a split */
-			if (cur->bc_nlevels != pcur->bc_nlevels)
-				splits++;
 			cur->bc_nlevels = pcur->bc_nlevels;
 			cur->bc_private.b.allocated +=
 				pcur->bc_private.b.allocated;
@@ -2093,21 +2104,10 @@ xfs_bmbt_insert(
 			xfs_btree_del_cursor(pcur, XFS_BTREE_NOERROR);
 		}
 		if (ncur) {
-			splits++;
 			pcur = ncur;
 			ncur = NULL;
 		}
 	} while (nbno != NULLFSBLOCK);
-
-	if (splits > 1) {
-		/* revalidate the old cursor as we had a multi-level split */
-		error = xfs_bmbt_lookup_eq(cur, oirec.br_startoff,
-				oirec.br_startblock, oirec.br_blockcount, &i);
-		if (error)
-			goto error0;
-		ASSERT(i == 1);
-	}
-
 	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 	*stat = i;
 	return 0;
@@ -2254,7 +2254,9 @@ xfs_bmbt_newroot(
 #endif
 		args.fsbno = be64_to_cpu(*pp);
 		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else
+	} else if (cur->bc_private.b.flist->xbf_low)
+		args.type = XFS_ALLOCTYPE_START_BNO;
+	else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	if ((error = xfs_alloc_vextent(&args))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);

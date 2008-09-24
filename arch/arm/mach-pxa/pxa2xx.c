@@ -14,9 +14,18 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 
-#include <asm/arch/mfp-pxa2xx.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/irda.h>
+#include <mach/hardware.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa2xx.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/irda.h>
+
+void pxa2xx_clear_reset_status(unsigned int mask)
+{
+	/* RESET_STATUS_* has a 1:1 mapping with RCSR */
+	RCSR = mask;
+}
 
 static unsigned long pxa2xx_mfp_fir[] = {
 	GPIO46_FICP_RXD,

@@ -46,12 +46,9 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/interrupt.h>
-#include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
@@ -103,6 +100,7 @@ static void __init tx4927_pci_setup(void)
 		tx4927_report_pciclk();
 		tx4927_pcic_setup(tx4927_pcicptr, c, extarb);
 	}
+	tx4927_setup_pcierr_irq();
 }
 
 static void __init tx4937_pci_setup(void)
@@ -149,6 +147,7 @@ static void __init tx4937_pci_setup(void)
 		tx4938_report_pciclk();
 		tx4927_pcic_setup(tx4938_pcicptr, c, extarb);
 	}
+	tx4938_setup_pcierr_irq();
 }
 
 static void __init rbtx4927_arch_init(void)
@@ -165,17 +164,8 @@ static void __init rbtx4937_arch_init(void)
 #define rbtx4937_arch_init NULL
 #endif /* CONFIG_PCI */
 
-static void __noreturn wait_forever(void)
-{
-	while (1)
-		if (cpu_wait)
-			(*cpu_wait)();
-}
-
 static void toshiba_rbtx4927_restart(char *command)
 {
-	printk(KERN_NOTICE "System Rebooting...\n");
-
 	/* enable the s/w reset register */
 	writeb(1, rbtx4927_softresetlock_addr);
 
@@ -186,24 +176,8 @@ static void toshiba_rbtx4927_restart(char *command)
 	/* do a s/w reset */
 	writeb(1, rbtx4927_softreset_addr);
 
-	/* do something passive while waiting for reset */
-	local_irq_disable();
-	wait_forever();
-	/* no return */
-}
-
-static void toshiba_rbtx4927_halt(void)
-{
-	printk(KERN_NOTICE "System Halted\n");
-	local_irq_disable();
-	wait_forever();
-	/* no return */
-}
-
-static void toshiba_rbtx4927_power_off(void)
-{
-	toshiba_rbtx4927_halt();
-	/* no return */
+	/* fallback */
+	(*_machine_halt)();
 }
 
 static void __init rbtx4927_clock_init(void);
@@ -213,9 +187,6 @@ static void __init rbtx4927_mem_setup(void)
 {
 	u32 cp0_config;
 	char *argptr;
-
-	/* f/w leaves this on at startup */
-	clear_c0_status(ST0_ERL);
 
 	/* enable caches -- HCP5 does this, pmon does not */
 	cp0_config = read_c0_config();
@@ -231,37 +202,21 @@ static void __init rbtx4927_mem_setup(void)
 	}
 
 	_machine_restart = toshiba_rbtx4927_restart;
-	_machine_halt = toshiba_rbtx4927_halt;
-	pm_power_off = toshiba_rbtx4927_power_off;
 
 #ifdef CONFIG_PCI
 	txx9_alloc_pci_controller(&txx9_primary_pcic,
 				  RBTX4927_PCIMEM, RBTX4927_PCIMEM_SIZE,
 				  RBTX4927_PCIIO, RBTX4927_PCIIO_SIZE);
+	txx9_board_pcibios_setup = tx4927_pcibios_setup;
 #else
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
 
-	tx4927_setup_serial();
+	tx4927_sio_init(0, 0);
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "console=") == NULL) {
-                strcat(argptr, " console=ttyS0,38400");
-        }
-#endif
-
-#ifdef CONFIG_ROOT_NFS
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "root=") == NULL) {
-                strcat(argptr, " root=/dev/nfs rw");
-        }
-#endif
-
-#ifdef CONFIG_IP_PNP
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "ip=") == NULL) {
-                strcat(argptr, " ip=any");
-        }
+	argptr = prom_getcmdline();
+	if (!strstr(argptr, "console="))
+		strcat(argptr, " console=ttyS0,38400");
 #endif
 }
 
@@ -324,19 +279,17 @@ static void __init rbtx4927_time_init(void)
 	tx4927_time_init(0);
 }
 
-static int __init toshiba_rbtx4927_rtc_init(void)
+static void __init toshiba_rbtx4927_rtc_init(void)
 {
 	struct resource res = {
 		.start	= RBTX4927_BRAMRTC_BASE - IO_BASE,
 		.end	= RBTX4927_BRAMRTC_BASE - IO_BASE + 0x800 - 1,
 		.flags	= IORESOURCE_MEM,
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("rtc-ds1742", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 }
 
-static int __init rbtx4927_ne_init(void)
+static void __init rbtx4927_ne_init(void)
 {
 	struct resource res[] = {
 		{
@@ -348,36 +301,14 @@ static int __init rbtx4927_ne_init(void)
 			.flags	= IORESOURCE_IRQ,
 		}
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("ne", -1,
-						res, ARRAY_SIZE(res));
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-/* Watchdog support */
-
-static int __init txx9_wdt_init(unsigned long base)
-{
-	struct resource res = {
-		.start	= base,
-		.end	= base + 0x100 - 1,
-		.flags	= IORESOURCE_MEM,
-	};
-	struct platform_device *dev =
-		platform_device_register_simple("txx9wdt", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-static int __init rbtx4927_wdt_init(void)
-{
-	return txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
+	platform_device_register_simple("ne", -1, res, ARRAY_SIZE(res));
 }
 
 static void __init rbtx4927_device_init(void)
 {
 	toshiba_rbtx4927_rtc_init();
 	rbtx4927_ne_init();
-	rbtx4927_wdt_init();
+	tx4927_wdt_init();
 }
 
 struct txx9_board_vec rbtx4927_vec __initdata = {

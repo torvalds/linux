@@ -29,138 +29,75 @@
 
 #include "platform.h"
 
-#if defined(DEBUG)
-#define DBG udbg_printf
-#else
-#define DBG pr_debug
-#endif
+/**
+ * enum lpar_vas_id - id of LPAR virtual address space.
+ * @lpar_vas_id_current: Current selected virtual address space
+ *
+ * Identify the target LPAR address space.
+ */
 
-static struct hash_pte *htab;
-static unsigned long htab_addr;
-static unsigned char *bolttab;
-static unsigned char *inusetab;
+enum ps3_lpar_vas_id {
+	PS3_LPAR_VAS_ID_CURRENT = 0,
+};
 
-static DEFINE_SPINLOCK(ps3_bolttab_lock);
 
-#define debug_dump_hpte(_a, _b, _c, _d, _e, _f, _g) \
-	_debug_dump_hpte(_a, _b, _c, _d, _e, _f, _g, __func__, __LINE__)
-static void _debug_dump_hpte(unsigned long pa, unsigned long va,
-	unsigned long group, unsigned long bitmap, struct hash_pte lhpte,
-	int psize, unsigned long slot, const char* func, int line)
-{
-	DBG("%s:%d: pa     = %lxh\n", func, line, pa);
-	DBG("%s:%d: lpar   = %lxh\n", func, line,
-		ps3_mm_phys_to_lpar(pa));
-	DBG("%s:%d: va     = %lxh\n", func, line, va);
-	DBG("%s:%d: group  = %lxh\n", func, line, group);
-	DBG("%s:%d: bitmap = %lxh\n", func, line, bitmap);
-	DBG("%s:%d: hpte.v = %lxh\n", func, line, lhpte.v);
-	DBG("%s:%d: hpte.r = %lxh\n", func, line, lhpte.r);
-	DBG("%s:%d: psize  = %xh\n", func, line, psize);
-	DBG("%s:%d: slot   = %lxh\n", func, line, slot);
-}
+static DEFINE_SPINLOCK(ps3_htab_lock);
 
 static long ps3_hpte_insert(unsigned long hpte_group, unsigned long va,
 	unsigned long pa, unsigned long rflags, unsigned long vflags,
 	int psize, int ssize)
 {
-	unsigned long slot;
-	struct hash_pte lhpte;
-	int secondary = 0;
-	unsigned long result;
-	unsigned long bitmap;
+	int result;
+	u64 hpte_v, hpte_r;
+	u64 inserted_index;
+	u64 evicted_v, evicted_r;
+	u64 hpte_v_array[4], hpte_rs;
 	unsigned long flags;
-	unsigned long p_pteg, s_pteg, b_index, b_mask, cb, ci;
+	long ret = -1;
 
-	vflags &= ~HPTE_V_SECONDARY; /* this bit is ignored */
+	/*
+	 * lv1_insert_htab_entry() will search for victim
+	 * entry in both primary and secondary pte group
+	 */
+	vflags &= ~HPTE_V_SECONDARY;
 
-	lhpte.v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M) |
-		vflags | HPTE_V_VALID;
-	lhpte.r = hpte_encode_r(ps3_mm_phys_to_lpar(pa), psize) | rflags;
+	hpte_v = hpte_encode_v(va, psize, ssize) | vflags | HPTE_V_VALID;
+	hpte_r = hpte_encode_r(ps3_mm_phys_to_lpar(pa), psize) | rflags;
 
-	p_pteg = hpte_group / HPTES_PER_GROUP;
-	s_pteg = ~p_pteg & htab_hash_mask;
+	spin_lock_irqsave(&ps3_htab_lock, flags);
 
-	spin_lock_irqsave(&ps3_bolttab_lock, flags);
-
-	BUG_ON(bolttab[p_pteg] == 0xff && bolttab[s_pteg] == 0xff);
-
-	bitmap = (inusetab[p_pteg] << 8) | inusetab[s_pteg];
-
-	if (bitmap == 0xffff) {
-		/*
-		 * PTEG is full. Search for victim.
-		 */
-		bitmap &= ~((bolttab[p_pteg] << 8) | bolttab[s_pteg]);
-		do {
-			ci = mftb() & 15;
-			cb = 0x8000UL >> ci;
-		} while ((cb & bitmap) == 0);
-	} else {
-		/*
-		 * search free slot in hardware order
-		 *	[primary]	0, 2, 4, 6, 1, 3, 5, 7
-		 *	[secondary]	0, 2, 4, 6, 1, 3, 5, 7
-		 */
-		for (ci = 0; ci < HPTES_PER_GROUP; ci += 2) {
-			cb = 0x8000UL >> ci;
-			if ((cb & bitmap) == 0)
-				goto found;
-		}
-		for (ci = 1; ci < HPTES_PER_GROUP; ci += 2) {
-			cb = 0x8000UL >> ci;
-			if ((cb & bitmap) == 0)
-				goto found;
-		}
-		for (ci = HPTES_PER_GROUP; ci < HPTES_PER_GROUP*2; ci += 2) {
-			cb = 0x8000UL >> ci;
-			if ((cb & bitmap) == 0)
-				goto found;
-		}
-		for (ci = HPTES_PER_GROUP+1; ci < HPTES_PER_GROUP*2; ci += 2) {
-			cb = 0x8000UL >> ci;
-			if ((cb & bitmap) == 0)
-				goto found;
-		}
-	}
-
-found:
-	if (ci < HPTES_PER_GROUP) {
-		slot = p_pteg * HPTES_PER_GROUP + ci;
-	} else {
-		slot = s_pteg * HPTES_PER_GROUP + (ci & 7);
-		/* lhpte.dw0.dw0.h = 1; */
-		vflags |= HPTE_V_SECONDARY;
-		lhpte.v |= HPTE_V_SECONDARY;
-	}
-
-	result = lv1_write_htab_entry(0, slot, lhpte.v, lhpte.r);
+	/* talk hvc to replace entries BOLTED == 0 */
+	result = lv1_insert_htab_entry(PS3_LPAR_VAS_ID_CURRENT, hpte_group,
+				       hpte_v, hpte_r,
+				       HPTE_V_BOLTED, 0,
+				       &inserted_index,
+				       &evicted_v, &evicted_r);
 
 	if (result) {
-		debug_dump_hpte(pa, va, hpte_group, bitmap, lhpte, psize, slot);
+		/* all entries bolted !*/
+		pr_info("%s:result=%d va=%lx pa=%lx ix=%lx v=%lx r=%lx\n",
+			__func__, result, va, pa, hpte_group, hpte_v, hpte_r);
 		BUG();
 	}
 
 	/*
-	 * If used slot is not in primary HPTE group,
-	 * the slot should be in secondary HPTE group.
+	 * see if the entry is inserted into secondary pteg
 	 */
+	result = lv1_read_htab_entries(PS3_LPAR_VAS_ID_CURRENT,
+				       inserted_index & ~0x3UL,
+				       &hpte_v_array[0], &hpte_v_array[1],
+				       &hpte_v_array[2], &hpte_v_array[3],
+				       &hpte_rs);
+	BUG_ON(result);
 
-	if ((hpte_group ^ slot) & ~(HPTES_PER_GROUP - 1)) {
-		secondary = 1;
-		b_index = s_pteg;
-	} else {
-		secondary = 0;
-		b_index = p_pteg;
-	}
+	if (hpte_v_array[inserted_index % 4] & HPTE_V_SECONDARY)
+		ret = (inserted_index & 7) | (1 << 3);
+	else
+		ret = inserted_index & 7;
 
-	b_mask = (lhpte.v & HPTE_V_BOLTED) ? 1 << 7 : 0 << 7;
-	bolttab[b_index] |= b_mask >> (slot & 7);
-	b_mask = 1 << 7;
-	inusetab[b_index] |= b_mask >> (slot & 7);
-	spin_unlock_irqrestore(&ps3_bolttab_lock, flags);
+	spin_unlock_irqrestore(&ps3_htab_lock, flags);
 
-	return (slot & 7) | (secondary << 3);
+	return ret;
 }
 
 static long ps3_hpte_remove(unsigned long hpte_group)
@@ -172,39 +109,48 @@ static long ps3_hpte_remove(unsigned long hpte_group)
 static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	unsigned long va, int psize, int ssize, int local)
 {
+	int result;
+	u64 hpte_v, want_v, hpte_rs;
+	u64 hpte_v_array[4];
 	unsigned long flags;
-	unsigned long result;
-	unsigned long pteg, bit;
-	unsigned long hpte_v, want_v;
+	long ret;
 
-	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
+	want_v = hpte_encode_v(va, psize, ssize);
 
-	spin_lock_irqsave(&ps3_bolttab_lock, flags);
+	spin_lock_irqsave(&ps3_htab_lock, flags);
 
-	hpte_v = htab[slot].v;
-	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {
-		spin_unlock_irqrestore(&ps3_bolttab_lock, flags);
-
-		/* ps3_hpte_insert() will be used to update PTE */
-		return -1;
-	}
-
-	result = lv1_write_htab_entry(0, slot, 0, 0);
+	result = lv1_read_htab_entries(PS3_LPAR_VAS_ID_CURRENT, slot & ~0x3UL,
+				       &hpte_v_array[0], &hpte_v_array[1],
+				       &hpte_v_array[2], &hpte_v_array[3],
+				       &hpte_rs);
 
 	if (result) {
-		DBG("%s: va=%lx slot=%lx psize=%d result = %ld (0x%lx)\n",
-		       __func__, va, slot, psize, result, result);
+		pr_info("%s: res=%d read va=%lx slot=%lx psize=%d\n",
+			__func__, result, va, slot, psize);
 		BUG();
 	}
 
-	pteg = slot / HPTES_PER_GROUP;
-	bit = slot % HPTES_PER_GROUP;
-	inusetab[pteg] &= ~(0x80 >> bit);
+	hpte_v = hpte_v_array[slot % 4];
 
-	spin_unlock_irqrestore(&ps3_bolttab_lock, flags);
+	/*
+	 * As lv1_read_htab_entries() does not give us the RPN, we can
+	 * not synthesize the new hpte_r value here, and therefore can
+	 * not update the hpte with lv1_insert_htab_entry(), so we
+	 * insted invalidate it and ask the caller to update it via
+	 * ps3_hpte_insert() by returning a -1 value.
+	 */
+	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {
+		/* not found */
+		ret = -1;
+	} else {
+		/* entry found, just invalidate it */
+		result = lv1_write_htab_entry(PS3_LPAR_VAS_ID_CURRENT,
+					      slot, 0, 0);
+		ret = -1;
+	}
 
-	/* ps3_hpte_insert() will be used to update PTE */
-	return -1;
+	spin_unlock_irqrestore(&ps3_htab_lock, flags);
+	return ret;
 }
 
 static void ps3_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
@@ -217,45 +163,35 @@ static void ps3_hpte_invalidate(unsigned long slot, unsigned long va,
 	int psize, int ssize, int local)
 {
 	unsigned long flags;
-	unsigned long result;
-	unsigned long pteg, bit;
+	int result;
 
-	spin_lock_irqsave(&ps3_bolttab_lock, flags);
-	result = lv1_write_htab_entry(0, slot, 0, 0);
+	spin_lock_irqsave(&ps3_htab_lock, flags);
+
+	result = lv1_write_htab_entry(PS3_LPAR_VAS_ID_CURRENT, slot, 0, 0);
 
 	if (result) {
-		DBG("%s: va=%lx slot=%lx psize=%d result = %ld (0x%lx)\n",
-		       __func__, va, slot, psize, result, result);
+		pr_info("%s: res=%d va=%lx slot=%lx psize=%d\n",
+			__func__, result, va, slot, psize);
 		BUG();
 	}
 
-	pteg = slot / HPTES_PER_GROUP;
-	bit = slot % HPTES_PER_GROUP;
-	inusetab[pteg] &= ~(0x80 >> bit);
-	spin_unlock_irqrestore(&ps3_bolttab_lock, flags);
+	spin_unlock_irqrestore(&ps3_htab_lock, flags);
 }
 
 static void ps3_hpte_clear(void)
 {
-	int result;
+	unsigned long hpte_count = (1UL << ppc64_pft_size) >> 4;
+	u64 i;
 
-	DBG(" -> %s:%d\n", __func__, __LINE__);
-
-	result = lv1_unmap_htab(htab_addr);
-	BUG_ON(result);
+	for (i = 0; i < hpte_count; i++)
+		lv1_write_htab_entry(PS3_LPAR_VAS_ID_CURRENT, i, 0, 0);
 
 	ps3_mm_shutdown();
 	ps3_mm_vas_destroy();
-
-	DBG(" <- %s:%d\n", __func__, __LINE__);
 }
 
 void __init ps3_hpte_init(unsigned long htab_size)
 {
-	long bitmap_size;
-
-	DBG(" -> %s:%d\n", __func__, __LINE__);
-
 	ppc_md.hpte_invalidate = ps3_hpte_invalidate;
 	ppc_md.hpte_updatepp = ps3_hpte_updatepp;
 	ppc_md.hpte_updateboltedpp = ps3_hpte_updateboltedpp;
@@ -264,28 +200,5 @@ void __init ps3_hpte_init(unsigned long htab_size)
 	ppc_md.hpte_clear_all = ps3_hpte_clear;
 
 	ppc64_pft_size = __ilog2(htab_size);
-
-	bitmap_size = htab_size / sizeof(struct hash_pte) / 8;
-
-	bolttab = __va(lmb_alloc(bitmap_size, 1));
-	inusetab = __va(lmb_alloc(bitmap_size, 1));
-
-	memset(bolttab, 0, bitmap_size);
-	memset(inusetab, 0, bitmap_size);
-
-	DBG(" <- %s:%d\n", __func__, __LINE__);
 }
 
-void __init ps3_map_htab(void)
-{
-	long result;
-	unsigned long htab_size = (1UL << ppc64_pft_size);
-
-	result = lv1_map_htab(0, &htab_addr);
-
-	htab = (__force struct hash_pte *)ioremap_flags(htab_addr, htab_size,
-					    pgprot_val(PAGE_READONLY_X));
-
-	DBG("%s:%d: lpar %016lxh, virt %016lxh\n", __func__, __LINE__,
-		htab_addr, (unsigned long)htab);
-}

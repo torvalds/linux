@@ -5984,6 +5984,56 @@ static void niu_netif_start(struct niu *np)
 	niu_enable_interrupts(np, 1);
 }
 
+static void niu_reset_buffers(struct niu *np)
+{
+	int i, j, k, err;
+
+	if (np->rx_rings) {
+		for (i = 0; i < np->num_rx_rings; i++) {
+			struct rx_ring_info *rp = &np->rx_rings[i];
+
+			for (j = 0, k = 0; j < MAX_RBR_RING_SIZE; j++) {
+				struct page *page;
+
+				page = rp->rxhash[j];
+				while (page) {
+					struct page *next =
+						(struct page *) page->mapping;
+					u64 base = page->index;
+					base = base >> RBR_DESCR_ADDR_SHIFT;
+					rp->rbr[k++] = cpu_to_le32(base);
+					page = next;
+				}
+			}
+			for (; k < MAX_RBR_RING_SIZE; k++) {
+				err = niu_rbr_add_page(np, rp, GFP_ATOMIC, k);
+				if (unlikely(err))
+					break;
+			}
+
+			rp->rbr_index = rp->rbr_table_size - 1;
+			rp->rcr_index = 0;
+			rp->rbr_pending = 0;
+			rp->rbr_refill_pending = 0;
+		}
+	}
+	if (np->tx_rings) {
+		for (i = 0; i < np->num_tx_rings; i++) {
+			struct tx_ring_info *rp = &np->tx_rings[i];
+
+			for (j = 0; j < MAX_TX_RING_SIZE; j++) {
+				if (rp->tx_buffs[j].skb)
+					(void) release_tx_packet(np, rp, j);
+			}
+
+			rp->pending = MAX_TX_RING_SIZE;
+			rp->prod = 0;
+			rp->cons = 0;
+			rp->wrap_bit = 0;
+		}
+	}
+}
+
 static void niu_reset_task(struct work_struct *work)
 {
 	struct niu *np = container_of(work, struct niu, reset_task);
@@ -6005,6 +6055,12 @@ static void niu_reset_task(struct work_struct *work)
 	spin_lock_irqsave(&np->lock, flags);
 
 	niu_stop_hw(np);
+
+	spin_unlock_irqrestore(&np->lock, flags);
+
+	niu_reset_buffers(np);
+
+	spin_lock_irqsave(&np->lock, flags);
 
 	err = niu_init_hw(np);
 	if (!err) {
@@ -6417,7 +6473,7 @@ static int niu_ethflow_to_class(int flow_type, u64 *class)
 		*class = CLASS_CODE_SCTP_IPV6;
 		break;
 	default:
-		return -1;
+		return 0;
 	}
 
 	return 1;

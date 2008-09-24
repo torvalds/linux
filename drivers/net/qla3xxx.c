@@ -38,7 +38,7 @@
 
 #define DRV_NAME  	"qla3xxx"
 #define DRV_STRING 	"QLogic ISP3XXX Network Driver"
-#define DRV_VERSION	"v2.03.00-k4"
+#define DRV_VERSION	"v2.03.00-k5"
 #define PFX		DRV_NAME " "
 
 static const char ql3xxx_driver_name[] = DRV_NAME;
@@ -3495,8 +3495,6 @@ static void ql_set_mac_info(struct ql3_adapter *qdev)
 	case ISP_CONTROL_FN0_NET:
 		qdev->mac_index = 0;
 		qdev->mac_ob_opcode = OUTBOUND_MAC_IOCB | func_number;
-		qdev->tcp_ob_opcode = OUTBOUND_TCP_IOCB | func_number;
-		qdev->update_ob_opcode = UPDATE_NCB_IOCB | func_number;
 		qdev->mb_bit_mask = FN0_MA_BITS_MASK;
 		qdev->PHYAddr = PORT0_PHY_ADDRESS;
 		if (port_status & PORT_STATUS_SM0)
@@ -3508,8 +3506,6 @@ static void ql_set_mac_info(struct ql3_adapter *qdev)
 	case ISP_CONTROL_FN1_NET:
 		qdev->mac_index = 1;
 		qdev->mac_ob_opcode = OUTBOUND_MAC_IOCB | func_number;
-		qdev->tcp_ob_opcode = OUTBOUND_TCP_IOCB | func_number;
-		qdev->update_ob_opcode = UPDATE_NCB_IOCB | func_number;
 		qdev->mb_bit_mask = FN1_MA_BITS_MASK;
 		qdev->PHYAddr = PORT1_PHY_ADDRESS;
 		if (port_status & PORT_STATUS_SM1)
@@ -3728,14 +3724,6 @@ static int ql3xxx_open(struct net_device *ndev)
 {
 	struct ql3_adapter *qdev = netdev_priv(ndev);
 	return (ql_adapter_up(qdev));
-}
-
-static void ql3xxx_set_multicast_list(struct net_device *ndev)
-{
-	/*
-	 * We are manually parsing the list in the net_device structure.
-	 */
-	return;
 }
 
 static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
@@ -4007,7 +3995,11 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	ndev->open = ql3xxx_open;
 	ndev->hard_start_xmit = ql3xxx_send;
 	ndev->stop = ql3xxx_close;
-	ndev->set_multicast_list = ql3xxx_set_multicast_list;
+	/* ndev->set_multicast_list
+	 * This device is one side of a two-function adapter
+	 * (NIC and iSCSI).  Promiscuous mode setting/clearing is
+	 * not allowed from the NIC side.
+	 */
 	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
 	ndev->set_mac_address = ql3xxx_set_mac_address;
 	ndev->tx_timeout = ql3xxx_tx_timeout;
@@ -4039,9 +4031,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
 	ndev->tx_queue_len = NUM_REQ_Q_ENTRIES;
-
-	/* Turn off support for multicasting */
-	ndev->flags &= ~IFF_MULTICAST;
 
 	/* Record PCI bus information. */
 	ql_get_board_info(qdev);

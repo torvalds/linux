@@ -409,8 +409,7 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 	video_set_drvdata(maestro_radio_inst, radio_unit);
 	pci_set_drvdata(pdev, maestro_radio_inst);
 
-	retval = video_register_device(maestro_radio_inst, VFL_TYPE_RADIO,
-		radio_nr);
+	retval = video_register_device(maestro_radio_inst, VFL_TYPE_RADIO, radio_nr);
 	if (retval) {
 		printk(KERN_ERR "can't register video device!\n");
 		goto errfr1;

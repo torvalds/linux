@@ -104,6 +104,7 @@ struct ata_force_param {
 	unsigned long	xfer_mask;
 	unsigned int	horkage_on;
 	unsigned int	horkage_off;
+	unsigned int	lflags;
 };
 
 struct ata_force_ent {
@@ -120,7 +121,7 @@ static char ata_force_param_buf[PAGE_SIZE] __initdata;
 module_param_string(force, ata_force_param_buf, sizeof(ata_force_param_buf), 0);
 MODULE_PARM_DESC(force, "Force ATA configurations including cable type, link speed and transfer mode (see Documentation/kernel-parameters.txt for details)");
 
-int atapi_enabled = 1;
+static int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
@@ -196,22 +197,23 @@ void ata_force_cbl(struct ata_port *ap)
 }
 
 /**
- *	ata_force_spd_limit - force SATA spd limit according to libata.force
+ *	ata_force_link_limits - force link limits according to libata.force
  *	@link: ATA link of interest
  *
- *	Force SATA spd limit according to libata.force and whine about
- *	it.  When only the port part is specified (e.g. 1:), the limit
- *	applies to all links connected to both the host link and all
- *	fan-out ports connected via PMP.  If the device part is
- *	specified as 0 (e.g. 1.00:), it specifies the first fan-out
- *	link not the host link.  Device number 15 always points to the
- *	host link whether PMP is attached or not.
+ *	Force link flags and SATA spd limit according to libata.force
+ *	and whine about it.  When only the port part is specified
+ *	(e.g. 1:), the limit applies to all links connected to both
+ *	the host link and all fan-out ports connected via PMP.  If the
+ *	device part is specified as 0 (e.g. 1.00:), it specifies the
+ *	first fan-out link not the host link.  Device number 15 always
+ *	points to the host link whether PMP is attached or not.
  *
  *	LOCKING:
  *	EH context.
  */
-static void ata_force_spd_limit(struct ata_link *link)
+static void ata_force_link_limits(struct ata_link *link)
 {
+	bool did_spd = false;
 	int linkno, i;
 
 	if (ata_is_host_link(link))
@@ -228,13 +230,22 @@ static void ata_force_spd_limit(struct ata_link *link)
 		if (fe->device != -1 && fe->device != linkno)
 			continue;
 
-		if (!fe->param.spd_limit)
-			continue;
+		/* only honor the first spd limit */
+		if (!did_spd && fe->param.spd_limit) {
+			link->hw_sata_spd_limit = (1 << fe->param.spd_limit) - 1;
+			ata_link_printk(link, KERN_NOTICE,
+					"FORCE: PHY spd limit set to %s\n",
+					fe->param.name);
+			did_spd = true;
+		}
 
-		link->hw_sata_spd_limit = (1 << fe->param.spd_limit) - 1;
-		ata_link_printk(link, KERN_NOTICE,
-			"FORCE: PHY spd limit set to %s\n", fe->param.name);
-		return;
+		/* let lflags stack */
+		if (fe->param.lflags) {
+			link->flags |= fe->param.lflags;
+			ata_link_printk(link, KERN_NOTICE,
+					"FORCE: link flag 0x%x forced -> 0x%x\n",
+					fe->param.lflags, link->flags);
+		}
 	}
 }
 
@@ -1132,6 +1143,8 @@ void ata_id_string(const u16 *id, unsigned char *s,
 {
 	unsigned int c;
 
+	BUG_ON(len & 1);
+
 	while (len > 0) {
 		c = id[ofs] >> 8;
 		*s = c;
@@ -1164,8 +1177,6 @@ void ata_id_c_string(const u16 *id, unsigned char *s,
 		     unsigned int ofs, unsigned int len)
 {
 	unsigned char *p;
-
-	WARN_ON(!(len & 1));
 
 	ata_id_string(id, s, ofs, len - 1);
 
@@ -1886,6 +1897,23 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 }
 
 /**
+ *	ata_do_dev_read_id		-	default ID read method
+ *	@dev: device
+ *	@tf: proposed taskfile
+ *	@id: data buffer
+ *
+ *	Issue the identify taskfile and hand back the buffer containing
+ *	identify data. For some RAID controllers and for pre ATA devices
+ *	this function is wrapped or replaced by the driver
+ */
+unsigned int ata_do_dev_read_id(struct ata_device *dev,
+					struct ata_taskfile *tf, u16 *id)
+{
+	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
+				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
+}
+
+/**
  *	ata_dev_read_id - Read ID data from the specified device
  *	@dev: target device
  *	@p_class: pointer to class of the target device (may be changed)
@@ -1920,7 +1948,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	if (ata_msg_ctl(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __func__);
 
- retry:
+retry:
 	ata_tf_init(dev, &tf);
 
 	switch (class) {
@@ -1948,8 +1976,11 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	 */
 	tf.flags |= ATA_TFLAG_POLLING;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
-				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
+	if (ap->ops->read_id)
+		err_mask = ap->ops->read_id(dev, &tf, id);
+	else
+		err_mask = ata_do_dev_read_id(dev, &tf, id);
+
 	if (err_mask) {
 		if (err_mask & AC_ERR_NODEV_HINT) {
 			ata_dev_printk(dev, KERN_DEBUG,
@@ -2138,6 +2169,16 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->horkage & ATA_HORKAGE_DISABLE) {
 		ata_dev_printk(dev, KERN_INFO,
 			       "unsupported device, disabling\n");
+		ata_dev_disable(dev);
+		return 0;
+	}
+
+	if ((!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) &&
+	    dev->class == ATA_DEV_ATAPI) {
+		ata_dev_printk(dev, KERN_WARNING,
+			"WARNING: ATAPI is %s, device ignored.\n",
+			atapi_enabled ? "not supported with this driver"
+				      : "disabled");
 		ata_dev_disable(dev);
 		return 0;
 	}
@@ -3247,7 +3288,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
 
 		found = 1;
-		if (dev->dma_mode != 0xff)
+		if (ata_dma_enabled(dev))
 			used_dma = 1;
 	}
 	if (!found)
@@ -3272,7 +3313,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 
 	/* step 3: set host DMA timings */
 	ata_link_for_each_dev(dev, link) {
-		if (!ata_dev_enabled(dev) || dev->dma_mode == 0xff)
+		if (!ata_dev_enabled(dev) || !ata_dma_enabled(dev))
 			continue;
 
 		dev->xfer_mode = dev->dma_mode;
@@ -5158,19 +5199,18 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
  */
 int sata_link_init_spd(struct ata_link *link)
 {
-	u32 scontrol;
 	u8 spd;
 	int rc;
 
-	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+	rc = sata_scr_read(link, SCR_CONTROL, &link->saved_scontrol);
 	if (rc)
 		return rc;
 
-	spd = (scontrol >> 4) & 0xf;
+	spd = (link->saved_scontrol >> 4) & 0xf;
 	if (spd)
 		link->hw_sata_spd_limit &= (1 << spd) - 1;
 
-	ata_force_spd_limit(link);
+	ata_force_link_limits(link);
 
 	link->sata_spd_limit = link->hw_sata_spd_limit;
 
@@ -5753,9 +5793,10 @@ static void ata_port_detach(struct ata_port *ap)
 	ata_port_wait_eh(ap);
 
 	/* EH is now guaranteed to see UNLOADING - EH context belongs
-	 * to us.  Disable all existing devices.
+	 * to us.  Restore SControl and disable all existing devices.
 	 */
-	ata_port_for_each_link(link, ap) {
+	__ata_port_for_each_link(link, ap) {
+		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol);
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}
@@ -5961,6 +6002,9 @@ static int __init ata_parse_force_one(char **cur,
 		{ "udma133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
 		{ "udma/133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
 		{ "udma7",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 7) },
+		{ "nohrst",	.lflags		= ATA_LFLAG_NO_HRST },
+		{ "nosrst",	.lflags		= ATA_LFLAG_NO_SRST },
+		{ "norst",	.lflags		= ATA_LFLAG_NO_HRST | ATA_LFLAG_NO_SRST },
 	};
 	char *start = *cur, *p = *cur;
 	char *id, *val, *endp;
@@ -6088,16 +6132,20 @@ static int __init ata_init(void)
 
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
-		return -ENOMEM;
+		goto free_force_tbl;
 
 	ata_aux_wq = create_singlethread_workqueue("ata_aux");
-	if (!ata_aux_wq) {
-		destroy_workqueue(ata_wq);
-		return -ENOMEM;
-	}
+	if (!ata_aux_wq)
+		goto free_wq;
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
 	return 0;
+
+free_wq:
+	destroy_workqueue(ata_wq);
+free_force_tbl:
+	kfree(ata_force_tbl);
+	return -ENOMEM;
 }
 
 static void __exit ata_exit(void)
@@ -6269,6 +6317,7 @@ EXPORT_SYMBOL_GPL(ata_host_resume);
 #endif /* CONFIG_PM */
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
+EXPORT_SYMBOL_GPL(ata_do_dev_read_id);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);

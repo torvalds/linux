@@ -317,6 +317,9 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 	depends on SPARSEMEM
 
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	def_bool y
+
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"

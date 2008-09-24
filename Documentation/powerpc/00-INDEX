@@ -20,8 +20,6 @@ mpc52xx-device-tree-bindings.txt
 	- MPC5200 Device Tree Bindings
 ppc_htab.txt
 	- info about the Linux/PPC /proc/ppc_htab entry
-SBC8260_memory_mapping.txt
-	- EST SBC8260 board info
 smp.txt
 	- use and state info about Linux/PPC on MP machines
 sound.txt

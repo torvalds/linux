@@ -425,14 +425,11 @@ static int init586(struct net_device *dev)
 		int len = ((char *) p->iscp - (char *) ptr - 8) / 6;
 		if(num_addrs > len)	{
 			printk("%s: switching to promisc. mode\n",dev->name);
-			dev->flags|=IFF_PROMISC;
+			cfg_cmd->promisc = 1;
 		}
 	}
 	if(dev->flags&IFF_PROMISC)
-	{
-			 cfg_cmd->promisc=1;
-			 dev->flags|=IFF_PROMISC;
-	}
+		cfg_cmd->promisc = 1;
 	cfg_cmd->carr_coll	= 0x00;
 
 	p->scb->cbl_offset	= make16(cfg_cmd);

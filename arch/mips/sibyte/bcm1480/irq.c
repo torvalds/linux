@@ -57,30 +57,6 @@ static void bcm1480_set_affinity(unsigned int irq, cpumask_t mask);
 extern unsigned long ht_eoi_space;
 #endif
 
-#ifdef CONFIG_KGDB
-#include <asm/gdb-stub.h>
-extern void breakpoint(void);
-static int kgdb_irq;
-#ifdef CONFIG_GDB_CONSOLE
-extern void register_gdb_console(void);
-#endif
-
-/* kgdb is on when configured.  Pass "nokgdb" kernel arg to turn it off */
-static int kgdb_flag = 1;
-static int __init nokgdb(char *str)
-{
-	kgdb_flag = 0;
-	return 1;
-}
-__setup("nokgdb", nokgdb);
-
-/* Default to UART1 */
-int kgdb_port = 1;
-#ifdef CONFIG_SERIAL_SB1250_DUART
-extern char sb1250_duart_present[];
-#endif
-#endif
-
 static struct irq_chip bcm1480_irq_type = {
 	.name = "BCM1480-IMR",
 	.ack = ack_bcm1480_irq,
@@ -355,60 +331,9 @@ void __init arch_init_irq(void)
 	 * does its own management of IP7.
 	 */
 
-#ifdef CONFIG_KGDB
-	imask |= STATUSF_IP6;
-#endif
 	/* Enable necessary IPs, disable the rest */
 	change_c0_status(ST0_IM, imask);
-
-#ifdef CONFIG_KGDB
-	if (kgdb_flag) {
-		kgdb_irq = K_BCM1480_INT_UART_0 + kgdb_port;
-
-#ifdef CONFIG_SERIAL_SB1250_DUART
-		sb1250_duart_present[kgdb_port] = 0;
-#endif
-		/* Setup uart 1 settings, mapper */
-		/* QQQ FIXME */
-		__raw_writeq(M_DUART_IMR_BRK, IOADDR(A_DUART_IMRREG(kgdb_port)));
-
-		__raw_writeq(IMR_IP6_VAL,
-			     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
-			     (kgdb_irq << 3)));
-		bcm1480_unmask_irq(0, kgdb_irq);
-
-#ifdef CONFIG_GDB_CONSOLE
-		register_gdb_console();
-#endif
-		printk("Waiting for GDB on UART port %d\n", kgdb_port);
-		set_debug_traps();
-		breakpoint();
-	}
-#endif
 }
-
-#ifdef CONFIG_KGDB
-
-#include <linux/delay.h>
-
-#define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port, reg)))
-#define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port, reg)))
-
-static void bcm1480_kgdb_interrupt(void)
-{
-	/*
-	 * Clear break-change status (allow some time for the remote
-	 * host to stop the break, since we would see another
-	 * interrupt on the end-of-break too)
-	 */
-	kstat.irqs[smp_processor_id()][kgdb_irq]++;
-	mdelay(500);
-	duart_out(R_DUART_CMD, V_DUART_MISC_CMD_RESET_BREAK_INT |
-				M_DUART_RX_EN | M_DUART_TX_EN);
-	set_async_breakpoint(&get_irq_regs()->cp0_epc);
-}
-
-#endif 	/* CONFIG_KGDB */
 
 extern void bcm1480_mailbox_interrupt(void);
 
@@ -460,11 +385,6 @@ asmlinkage void plat_irq_dispatch(void)
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)
 		bcm1480_mailbox_interrupt();
-#endif
-
-#ifdef CONFIG_KGDB
-	else if (pending & CAUSEF_IP6)
-		bcm1480_kgdb_interrupt();		/* KGDB (uart 1) */
 #endif
 
 	else if (pending & CAUSEF_IP2)

@@ -375,7 +375,7 @@ static int vsr_get(struct task_struct *target, const struct user_regset *regset,
 	flush_vsx_to_thread(target);
 
 	for (i = 0; i < 32 ; i++)
-		buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
+		buf[i] = target->thread.fpr[i][TS_VSRLOWOFFSET];
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				  buf, 0, 32 * sizeof(double));
 
@@ -394,7 +394,7 @@ static int vsr_set(struct task_struct *target, const struct user_regset *regset,
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 buf, 0, 32 * sizeof(double));
 	for (i = 0; i < 32 ; i++)
-		current->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+		target->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
 
 
 	return ret;
@@ -975,15 +975,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_GETVSRREGS:
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_VSX,
-					   0, (32 * sizeof(vector128) +
-					       sizeof(u32)),
+					   0, 32 * sizeof(double),
 					   (void __user *) data);
 
 	case PTRACE_SETVSRREGS:
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_VSX,
-					     0, (32 * sizeof(vector128) +
-						 sizeof(u32)),
+					     0, 32 * sizeof(double),
 					     (const void __user *) data);
 #endif
 #ifdef CONFIG_SPE

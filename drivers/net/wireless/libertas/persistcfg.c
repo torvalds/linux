@@ -48,7 +48,7 @@ static ssize_t bootflag_get(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "0x%x\n", le32_to_cpu(defs.bootflag));
+	return snprintf(buf, 12, "%d\n", le32_to_cpu(defs.bootflag));
 }
 
 /**
@@ -63,8 +63,8 @@ static ssize_t bootflag_set(struct device *dev, struct device_attribute *attr,
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
-	ret = sscanf(buf, "%x", &datum);
-	if (ret != 1)
+	ret = sscanf(buf, "%d", &datum);
+	if ((ret != 1) || (datum > 1))
 		return -EINVAL;
 
 	*((__le32 *)&cmd.data[0]) = cpu_to_le32(!!datum);
@@ -91,7 +91,7 @@ static ssize_t boottime_get(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "0x%x\n", defs.boottime);
+	return snprintf(buf, 12, "%d\n", defs.boottime);
 }
 
 /**
@@ -106,8 +106,8 @@ static ssize_t boottime_set(struct device *dev,
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
-	ret = sscanf(buf, "%x", &datum);
-	if (ret != 1)
+	ret = sscanf(buf, "%d", &datum);
+	if ((ret != 1) || (datum > 255))
 		return -EINVAL;
 
 	/* A too small boot time will result in the device booting into
@@ -143,7 +143,7 @@ static ssize_t channel_get(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "0x%x\n", le16_to_cpu(defs.channel));
+	return snprintf(buf, 12, "%d\n", le16_to_cpu(defs.channel));
 }
 
 /**
@@ -154,11 +154,11 @@ static ssize_t channel_set(struct device *dev, struct device_attribute *attr,
 {
 	struct lbs_private *priv = to_net_dev(dev)->priv;
 	struct cmd_ds_mesh_config cmd;
-	uint16_t datum;
+	uint32_t datum;
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
-	ret = sscanf(buf, "%hx", &datum);
+	ret = sscanf(buf, "%d", &datum);
 	if (ret != 1 || datum < 1 || datum > 11)
 		return -EINVAL;
 
@@ -274,8 +274,8 @@ static ssize_t protocol_id_set(struct device *dev,
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
-	ret = sscanf(buf, "%x", &datum);
-	if (ret != 1)
+	ret = sscanf(buf, "%d", &datum);
+	if ((ret != 1) || (datum > 255))
 		return -EINVAL;
 
 	/* fetch all other Information Element parameters */
@@ -328,8 +328,8 @@ static ssize_t metric_id_set(struct device *dev, struct device_attribute *attr,
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
-	ret = sscanf(buf, "%x", &datum);
-	if (ret != 1)
+	ret = sscanf(buf, "%d", &datum);
+	if ((ret != 1) || (datum > 255))
 		return -EINVAL;
 
 	/* fetch all other Information Element parameters */
@@ -382,8 +382,8 @@ static ssize_t capability_set(struct device *dev, struct device_attribute *attr,
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
-	ret = sscanf(buf, "%x", &datum);
-	if (ret != 1)
+	ret = sscanf(buf, "%d", &datum);
+	if ((ret != 1) || (datum > 255))
 		return -EINVAL;
 
 	/* fetch all other Information Element parameters */

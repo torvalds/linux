@@ -355,32 +355,6 @@ static struct css_set *find_existing_css_set(
 	return NULL;
 }
 
-/*
- * allocate_cg_links() allocates "count" cg_cgroup_link structures
- * and chains them on tmp through their cgrp_link_list fields. Returns 0 on
- * success or a negative error
- */
-static int allocate_cg_links(int count, struct list_head *tmp)
-{
-	struct cg_cgroup_link *link;
-	struct cg_cgroup_link *saved_link;
-	int i;
-	INIT_LIST_HEAD(tmp);
-	for (i = 0; i < count; i++) {
-		link = kmalloc(sizeof(*link), GFP_KERNEL);
-		if (!link) {
-			list_for_each_entry_safe(link, saved_link, tmp,
-						 cgrp_link_list) {
-				list_del(&link->cgrp_link_list);
-				kfree(link);
-			}
-			return -ENOMEM;
-		}
-		list_add(&link->cgrp_link_list, tmp);
-	}
-	return 0;
-}
-
 static void free_cg_links(struct list_head *tmp)
 {
 	struct cg_cgroup_link *link;
@@ -390,6 +364,27 @@ static void free_cg_links(struct list_head *tmp)
 		list_del(&link->cgrp_link_list);
 		kfree(link);
 	}
+}
+
+/*
+ * allocate_cg_links() allocates "count" cg_cgroup_link structures
+ * and chains them on tmp through their cgrp_link_list fields. Returns 0 on
+ * success or a negative error
+ */
+static int allocate_cg_links(int count, struct list_head *tmp)
+{
+	struct cg_cgroup_link *link;
+	int i;
+	INIT_LIST_HEAD(tmp);
+	for (i = 0; i < count; i++) {
+		link = kmalloc(sizeof(*link), GFP_KERNEL);
+		if (!link) {
+			free_cg_links(tmp);
+			return -ENOMEM;
+		}
+		list_add(&link->cgrp_link_list, tmp);
+	}
+	return 0;
 }
 
 /*
@@ -956,7 +951,6 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	struct super_block *sb;
 	struct cgroupfs_root *root;
 	struct list_head tmp_cg_links;
-	INIT_LIST_HEAD(&tmp_cg_links);
 
 	/* First find the desired set of subsystems */
 	ret = parse_cgroupfs_options(data, &opts);
@@ -1424,14 +1418,17 @@ static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
 		if (buffer == NULL)
 			return -ENOMEM;
 	}
-	if (nbytes && copy_from_user(buffer, userbuf, nbytes))
-		return -EFAULT;
+	if (nbytes && copy_from_user(buffer, userbuf, nbytes)) {
+		retval = -EFAULT;
+		goto out;
+	}
 
 	buffer[nbytes] = 0;     /* nul-terminate */
 	strstrip(buffer);
 	retval = cft->write_string(cgrp, cft, buffer);
 	if (!retval)
 		retval = nbytes;
+out:
 	if (buffer != local_buffer)
 		kfree(buffer);
 	return retval;
@@ -2371,7 +2368,7 @@ static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return cgroup_create(c_parent, dentry, mode | S_IFDIR);
 }
 
-static inline int cgroup_has_css_refs(struct cgroup *cgrp)
+static int cgroup_has_css_refs(struct cgroup *cgrp)
 {
 	/* Check the reference count on each subsystem. Since we
 	 * already established that there are no tasks in the

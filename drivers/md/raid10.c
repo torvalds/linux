@@ -76,11 +76,13 @@ static void r10bio_pool_free(void *r10_bio, void *data)
 	kfree(r10_bio);
 }
 
+/* Maximum size of each resync request */
 #define RESYNC_BLOCK_SIZE (64*1024)
-//#define RESYNC_BLOCK_SIZE PAGE_SIZE
-#define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
 #define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
-#define RESYNC_WINDOW (2048*1024)
+/* amount of memory to reserve for resync requests */
+#define RESYNC_WINDOW (1024*1024)
+/* maximum number of concurrent requests, memory permitting */
+#define RESYNC_DEPTH (32*1024*1024/RESYNC_BLOCK_SIZE)
 
 /*
  * When performing a resync, we need to read and compare, so
@@ -214,6 +216,9 @@ static void reschedule_retry(r10bio_t *r10_bio)
 	list_add(&r10_bio->retry_list, &conf->retry_list);
 	conf->nr_queued ++;
 	spin_unlock_irqrestore(&conf->device_lock, flags);
+
+	/* wake up frozen array... */
+	wake_up(&conf->wait_barrier);
 
 	md_wakeup_thread(mddev->thread);
 }
@@ -687,7 +692,6 @@ static int flush_pending_writes(conf_t *conf)
  *    there is no normal IO happeing.  It must arrange to call
  *    lower_barrier when the particular background IO completes.
  */
-#define RESYNC_DEPTH 32
 
 static void raise_barrier(conf_t *conf, int force)
 {

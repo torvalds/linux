@@ -33,7 +33,7 @@
 
 
 /*
- * Dedicated vnode inactive/reclaim sync semaphores.
+ * Dedicated vnode inactive/reclaim sync wait queues.
  * Prime number of hash buckets since address is used as the key.
  */
 #define NVSYNC                  37
@@ -82,74 +82,6 @@ vn_ioerror(
 		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
-/*
- * Revalidate the Linux inode from the XFS inode.
- * Note: i_size _not_ updated; we must hold the inode
- * semaphore when doing that - callers responsibility.
- */
-int
-vn_revalidate(
-	bhv_vnode_t		*vp)
-{
-	struct inode		*inode = vn_to_inode(vp);
-	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	unsigned long		xflags;
-
-	xfs_itrace_entry(ip);
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	inode->i_mode	    = ip->i_d.di_mode;
-	inode->i_uid	    = ip->i_d.di_uid;
-	inode->i_gid	    = ip->i_d.di_gid;
-	inode->i_mtime.tv_sec = ip->i_d.di_mtime.t_sec;
-	inode->i_mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
-	inode->i_ctime.tv_sec = ip->i_d.di_ctime.t_sec;
-	inode->i_ctime.tv_nsec = ip->i_d.di_ctime.t_nsec;
-
-	xflags = xfs_ip2xflags(ip);
-	if (xflags & XFS_XFLAG_IMMUTABLE)
-		inode->i_flags |= S_IMMUTABLE;
-	else
-		inode->i_flags &= ~S_IMMUTABLE;
-	if (xflags & XFS_XFLAG_APPEND)
-		inode->i_flags |= S_APPEND;
-	else
-		inode->i_flags &= ~S_APPEND;
-	if (xflags & XFS_XFLAG_SYNC)
-		inode->i_flags |= S_SYNC;
-	else
-		inode->i_flags &= ~S_SYNC;
-	if (xflags & XFS_XFLAG_NOATIME)
-		inode->i_flags |= S_NOATIME;
-	else
-		inode->i_flags &= ~S_NOATIME;
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
-	xfs_iflags_clear(ip, XFS_IMODIFIED);
-	return 0;
-}
-
-/*
- * Add a reference to a referenced vnode.
- */
-bhv_vnode_t *
-vn_hold(
-	bhv_vnode_t	*vp)
-{
-	struct inode	*inode;
-
-	XFS_STATS_INC(vn_hold);
-
-	inode = igrab(vn_to_inode(vp));
-	ASSERT(inode);
-
-	return vp;
-}
-
 #ifdef	XFS_INODE_TRACE
 
 /*
@@ -158,7 +90,7 @@ vn_hold(
  */
 static inline int xfs_icount(struct xfs_inode *ip)
 {
-	bhv_vnode_t *vp = XFS_ITOV_NULL(ip);
+	struct inode *vp = VFS_I(ip);
 
 	if (vp)
 		return vn_count(vp);

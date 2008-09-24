@@ -61,7 +61,13 @@
 
 /* Hardware definitions */
 #define AU1XMMC_DESCRIPTOR_COUNT 1
-#define AU1XMMC_DESCRIPTOR_SIZE  2048
+
+/* max DMA seg size: 64KB on Au1100, 4MB on Au1200 */
+#ifdef CONFIG_SOC_AU1100
+#define AU1XMMC_DESCRIPTOR_SIZE 0x0000ffff
+#else	/* Au1200 */
+#define AU1XMMC_DESCRIPTOR_SIZE 0x003fffff
+#endif
 
 #define AU1XMMC_OCR (MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30 | \
 		     MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 | \

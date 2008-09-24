@@ -5,11 +5,11 @@
  */
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
 
-#include <asm/arch/gpio.h>
+#include <mach/gpio.h>
 
 #include "leds.h"
 

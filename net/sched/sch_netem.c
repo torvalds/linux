@@ -176,7 +176,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (count == 0) {
 		sch->qstats.drops++;
 		kfree_skb(skb);
-		return NET_XMIT_BYPASS;
+		return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	}
 
 	skb_orphan(skb);
@@ -240,8 +240,9 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		sch->q.qlen++;
 		sch->bstats.bytes += qdisc_pkt_len(skb);
 		sch->bstats.packets++;
-	} else
+	} else if (net_xmit_drop_count(ret)) {
 		sch->qstats.drops++;
+	}
 
 	pr_debug("netem: enqueue ret %d\n", ret);
 	return ret;
@@ -340,7 +341,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	for (i = 0; i < n; i++)
 		d->table[i] = data[i];
 
-	root_lock = qdisc_root_lock(sch);
+	root_lock = qdisc_root_sleeping_lock(sch);
 
 	spin_lock_bh(root_lock);
 	d = xchg(&q->delay_dist, d);

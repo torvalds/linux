@@ -49,7 +49,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/file.h>
@@ -2798,14 +2797,9 @@ out_mem:
 	return ret;
 }
 
-static long pkt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct pktcdvd_device *pd;
-	long ret;
-
-	lock_kernel();
-	pd = inode->i_bdev->bd_disk->private_data;
+	struct pktcdvd_device *pd = inode->i_bdev->bd_disk->private_data;
 
 	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd, imajor(inode), iminor(inode));
 
@@ -2818,8 +2812,7 @@ static long pkt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		ret = blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
-		break;
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	case CDROMEJECT:
 		/*
@@ -2828,15 +2821,14 @@ static long pkt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 */
 		if (pd->refcnt == 1)
 			pkt_lock_door(pd, 0);
-		ret = blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
-		break;
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
-		ret = -ENOTTY;
+		return -ENOTTY;
 	}
-	unlock_kernel();
-	return ret;
+
+	return 0;
 }
 
 static int pkt_media_changed(struct gendisk *disk)
@@ -2858,7 +2850,7 @@ static struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.open =			pkt_open,
 	.release =		pkt_close,
-	.unlocked_ioctl =	pkt_ioctl,
+	.ioctl =		pkt_ioctl,
 	.media_changed =	pkt_media_changed,
 };
 
@@ -3023,8 +3015,7 @@ static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 	mutex_unlock(&ctl_mutex);
 }
 
-static long pkt_ctl_ioctl(struct file *file, unsigned int cmd,
-						unsigned long arg)
+static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct pkt_ctrl_command ctrl_cmd;
@@ -3041,22 +3032,16 @@ static long pkt_ctl_ioctl(struct file *file, unsigned int cmd,
 	case PKT_CTRL_CMD_SETUP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		lock_kernel();
 		ret = pkt_setup_dev(new_decode_dev(ctrl_cmd.dev), &pkt_dev);
 		ctrl_cmd.pkt_dev = new_encode_dev(pkt_dev);
-		unlock_kernel();
 		break;
 	case PKT_CTRL_CMD_TEARDOWN:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		lock_kernel();
 		ret = pkt_remove_dev(new_decode_dev(ctrl_cmd.pkt_dev));
-		unlock_kernel();
 		break;
 	case PKT_CTRL_CMD_STATUS:
-		lock_kernel();
 		pkt_get_status(&ctrl_cmd);
-		unlock_kernel();
 		break;
 	default:
 		return -ENOTTY;
@@ -3069,7 +3054,7 @@ static long pkt_ctl_ioctl(struct file *file, unsigned int cmd,
 
 
 static const struct file_operations pkt_ctl_fops = {
-	.unlocked_ioctl	 = pkt_ctl_ioctl,
+	.ioctl	 = pkt_ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };
 

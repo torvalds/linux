@@ -311,9 +311,20 @@ the subsystem must be ready for it.
 [An Example]
 
 The best example of these basic concepts is the simple_children
-subsystem/group and the simple_child item in configfs_example.c  It
-shows a trivial object displaying and storing an attribute, and a simple
-group creating and destroying these children.
+subsystem/group and the simple_child item in configfs_example_explicit.c
+and configfs_example_macros.c.  It shows a trivial object displaying and
+storing an attribute, and a simple group creating and destroying these
+children.
+
+The only difference between configfs_example_explicit.c and
+configfs_example_macros.c is how the attributes of the childless item
+are defined.  The childless item has extended attributes, each with
+their own show()/store() operation.  This follows a convention commonly
+used in sysfs.  configfs_example_explicit.c creates these attributes
+by explicitly defining the structures involved.  Conversely
+configfs_example_macros.c uses some convenience macros from configfs.h
+to define the attributes.  These macros are similar to their sysfs
+counterparts.
 
 [Hierarchy Navigation and the Subsystem Mutex]
 

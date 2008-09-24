@@ -129,7 +129,7 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 
 	mntget(mnt);
-	err = do_add_mount(mnt, nd, nd->path.mnt->mnt_flags|MNT_SHRINKABLE,
+	err = do_add_mount(mnt, &nd->path, nd->path.mnt->mnt_flags|MNT_SHRINKABLE,
 			   &nfs_automount_list);
 	if (err < 0) {
 		mntput(mnt);

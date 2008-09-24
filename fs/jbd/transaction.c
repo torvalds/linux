@@ -291,7 +291,7 @@ handle_t *journal_start(journal_t *journal, int nblocks)
 		goto out;
 	}
 
-	lock_acquire(&handle->h_lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+	lock_map_acquire(&handle->h_lockdep_map);
 
 out:
 	return handle;
@@ -1448,7 +1448,7 @@ int journal_stop(handle_t *handle)
 		spin_unlock(&journal->j_state_lock);
 	}
 
-	lock_release(&handle->h_lockdep_map, 1, _THIS_IP_);
+	lock_map_release(&handle->h_lockdep_map);
 
 	jbd_free_handle(handle);
 	return err;

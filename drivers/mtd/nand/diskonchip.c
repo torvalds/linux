@@ -1125,9 +1125,9 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 		goto out;
 	mh = (struct NFTLMediaHeader *)buf;
 
-	mh->NumEraseUnits = le16_to_cpu(mh->NumEraseUnits);
-	mh->FirstPhysicalEUN = le16_to_cpu(mh->FirstPhysicalEUN);
-	mh->FormattedSize = le32_to_cpu(mh->FormattedSize);
+	le16_to_cpus(&mh->NumEraseUnits);
+	le16_to_cpus(&mh->FirstPhysicalEUN);
+	le32_to_cpus(&mh->FormattedSize);
 
 	printk(KERN_INFO "    DataOrgID        = %s\n"
 			 "    NumEraseUnits    = %d\n"
@@ -1235,12 +1235,12 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 	doc->mh1_page = doc->mh0_page + (4096 >> this->page_shift);
 	mh = (struct INFTLMediaHeader *)buf;
 
-	mh->NoOfBootImageBlocks = le32_to_cpu(mh->NoOfBootImageBlocks);
-	mh->NoOfBinaryPartitions = le32_to_cpu(mh->NoOfBinaryPartitions);
-	mh->NoOfBDTLPartitions = le32_to_cpu(mh->NoOfBDTLPartitions);
-	mh->BlockMultiplierBits = le32_to_cpu(mh->BlockMultiplierBits);
-	mh->FormatFlags = le32_to_cpu(mh->FormatFlags);
-	mh->PercentUsed = le32_to_cpu(mh->PercentUsed);
+	le32_to_cpus(&mh->NoOfBootImageBlocks);
+	le32_to_cpus(&mh->NoOfBinaryPartitions);
+	le32_to_cpus(&mh->NoOfBDTLPartitions);
+	le32_to_cpus(&mh->BlockMultiplierBits);
+	le32_to_cpus(&mh->FormatFlags);
+	le32_to_cpus(&mh->PercentUsed);
 
 	printk(KERN_INFO "    bootRecordID          = %s\n"
 			 "    NoOfBootImageBlocks   = %d\n"
@@ -1277,12 +1277,12 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 	/* Scan the partitions */
 	for (i = 0; (i < 4); i++) {
 		ip = &(mh->Partitions[i]);
-		ip->virtualUnits = le32_to_cpu(ip->virtualUnits);
-		ip->firstUnit = le32_to_cpu(ip->firstUnit);
-		ip->lastUnit = le32_to_cpu(ip->lastUnit);
-		ip->flags = le32_to_cpu(ip->flags);
-		ip->spareUnits = le32_to_cpu(ip->spareUnits);
-		ip->Reserved0 = le32_to_cpu(ip->Reserved0);
+		le32_to_cpus(&ip->virtualUnits);
+		le32_to_cpus(&ip->firstUnit);
+		le32_to_cpus(&ip->lastUnit);
+		le32_to_cpus(&ip->flags);
+		le32_to_cpus(&ip->spareUnits);
+		le32_to_cpus(&ip->Reserved0);
 
 		printk(KERN_INFO	"    PARTITION[%d] ->\n"
 			"        virtualUnits    = %d\n"

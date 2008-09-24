@@ -429,6 +429,10 @@ int agp_bind_memory(struct agp_memory *curr, off_t pg_start)
 
 	curr->is_bound = true;
 	curr->pg_start = pg_start;
+	spin_lock(&agp_bridge->mapped_lock);
+	list_add(&curr->mapped_list, &agp_bridge->mapped_list);
+	spin_unlock(&agp_bridge->mapped_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(agp_bind_memory);
@@ -461,9 +465,33 @@ int agp_unbind_memory(struct agp_memory *curr)
 
 	curr->is_bound = false;
 	curr->pg_start = 0;
+	spin_lock(&curr->bridge->mapped_lock);
+	list_del(&curr->mapped_list);
+	spin_unlock(&curr->bridge->mapped_lock);
 	return 0;
 }
 EXPORT_SYMBOL(agp_unbind_memory);
+
+/**
+ *	agp_rebind_emmory  -  Rewrite the entire GATT, useful on resume
+ */
+int agp_rebind_memory(void)
+{
+	struct agp_memory *curr;
+	int ret_val = 0;
+
+	spin_lock(&agp_bridge->mapped_lock);
+	list_for_each_entry(curr, &agp_bridge->mapped_list, mapped_list) {
+		ret_val = curr->bridge->driver->insert_memory(curr,
+							      curr->pg_start,
+							      curr->type);
+		if (ret_val != 0)
+			break;
+	}
+	spin_unlock(&agp_bridge->mapped_lock);
+	return ret_val;
+}
+EXPORT_SYMBOL(agp_rebind_memory);
 
 /* End - Routines for handling swapping of agp_memory into the GATT */
 
@@ -771,8 +799,8 @@ void agp_device_command(u32 bridge_agpstat, bool agp_v3)
 		if (!agp)
 			continue;
 
-		printk(KERN_INFO PFX "Putting AGP V%d device at %s into %dx mode\n",
-				agp_v3 ? 3 : 2, pci_name(device), mode);
+		dev_info(&device->dev, "putting AGP V%d device into %dx mode\n",
+			 agp_v3 ? 3 : 2, mode);
 		pci_write_config_dword(device, agp + PCI_AGP_COMMAND, bridge_agpstat);
 	}
 }
@@ -800,10 +828,8 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 
 	get_agp_version(agp_bridge);
 
-	printk(KERN_INFO PFX "Found an AGP %d.%d compliant device at %s.\n",
-				agp_bridge->major_version,
-				agp_bridge->minor_version,
-				pci_name(agp_bridge->dev));
+	dev_info(&agp_bridge->dev->dev, "AGP %d.%d bridge\n",
+		 agp_bridge->major_version, agp_bridge->minor_version);
 
 	pci_read_config_dword(agp_bridge->dev,
 		      agp_bridge->capndx + PCI_AGP_STATUS, &bridge_agpstat);
@@ -832,8 +858,7 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 		    pci_write_config_dword(bridge->dev,
 					bridge->capndx+AGPCTRL, temp);
 
-		    printk(KERN_INFO PFX "Device is in legacy mode,"
-				" falling back to 2.x\n");
+		    dev_info(&bridge->dev->dev, "bridge is in legacy mode, falling back to 2.x\n");
 		}
 	}
 

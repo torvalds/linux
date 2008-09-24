@@ -49,7 +49,7 @@ Board Support
 Platform Data
 -------------
 
-  See linux/include/asm-arm/arch-s3c2410/usb-control.h for the
+  See arch/arm/mach-s3c2410/include/mach/usb-control.h for the
   descriptions of the platform device data. An implementation
   can be found in linux/arch/arm/mach-s3c2410/usb-simtec.c .
 

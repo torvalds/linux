@@ -647,7 +647,7 @@ static int __init sh_mobile_ceu_init(void)
 
 static void __exit sh_mobile_ceu_exit(void)
 {
-	return platform_driver_unregister(&sh_mobile_ceu_driver);
+	platform_driver_unregister(&sh_mobile_ceu_driver);
 }
 
 module_init(sh_mobile_ceu_init);

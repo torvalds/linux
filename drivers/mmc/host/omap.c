@@ -29,14 +29,13 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach-types.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/fpga.h>
+#include <mach/board.h>
+#include <mach/mmc.h>
+#include <mach/gpio.h>
+#include <mach/dma.h>
+#include <mach/mux.h>
+#include <mach/fpga.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x04

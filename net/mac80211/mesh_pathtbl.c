@@ -388,18 +388,15 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
 void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct mesh_path *mpath;
 	u32 dsn = 0;
 
-	if (skb->pkt_type == PACKET_OTHERHOST) {
-		struct ieee80211s_hdr *prev_meshhdr;
-		int mshhdrlen;
+	if (memcmp(hdr->addr4, dev->dev_addr, ETH_ALEN) != 0) {
 		u8 *ra, *da;
 
-		prev_meshhdr = ((struct ieee80211s_hdr *)skb->cb);
-		mshhdrlen = ieee80211_get_mesh_hdrlen(prev_meshhdr);
-		da = skb->data;
-		ra = MESH_PREQ(skb);
+		da = hdr->addr3;
+		ra = hdr->addr2;
 		mpath = mesh_path_lookup(da, dev);
 		if (mpath)
 			dsn = ++mpath->dsn;

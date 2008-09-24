@@ -16,7 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 
 #include "generic.h"

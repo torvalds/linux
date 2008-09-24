@@ -419,12 +419,9 @@ typedef enum {
 #define netxen_get_niu_enable_ge(config_word)	\
 		_netxen_crb_get_bit(config_word, 1)
 
-/* Promiscous mode options (GbE mode only) */
-typedef enum {
-	NETXEN_NIU_PROMISC_MODE = 0,
-	NETXEN_NIU_NON_PROMISC_MODE,
-	NETXEN_NIU_ALLMULTI_MODE
-} netxen_niu_prom_mode_t;
+#define NETXEN_NIU_NON_PROMISC_MODE	0
+#define NETXEN_NIU_PROMISC_MODE		1
+#define NETXEN_NIU_ALLMULTI_MODE	2
 
 /*
  * NIU GB Drop CRC Register
@@ -471,9 +468,9 @@ typedef enum {
 
 /* Set promiscuous mode for a GbE interface */
 int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
-				    netxen_niu_prom_mode_t mode);
+				    u32 mode);
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-				       netxen_niu_prom_mode_t mode);
+				       u32 mode);
 
 /* set the MAC address for a given MAC */
 int netxen_niu_macaddr_set(struct netxen_adapter *adapter,

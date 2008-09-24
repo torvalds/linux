@@ -278,6 +278,15 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	else
 		mask = SDHCI_SPACE_AVAILABLE;
 
+	/*
+	 * Some controllers (JMicron JMB38x) mess up the buffer bits
+	 * for transfers < 4 bytes. As long as it is just one block,
+	 * we can ignore the bits.
+	 */
+	if ((host->quirks & SDHCI_QUIRK_BROKEN_SMALL_PIO) &&
+		(host->data->blocks == 1))
+		mask = ~0;
+
 	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
 		if (host->data->flags & MMC_DATA_READ)
 			sdhci_read_block_pio(host);
@@ -439,7 +448,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->adma_addr = dma_map_single(mmc_dev(host->mmc),
 		host->adma_desc, (128 * 2 + 1) * 4, DMA_TO_DEVICE);
-	if (dma_mapping_error(mmc_dev(host->mmc), host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->adma_addr))
 		goto unmap_entries;
 	BUG_ON(host->adma_addr & 0x3);
 
@@ -645,7 +654,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				writel(host->adma_addr,
 					host->ioaddr + SDHCI_ADMA_ADDRESS);
@@ -664,7 +673,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				WARN_ON(sg_cnt != 1);
 				writel(sg_dma_address(data->sg),

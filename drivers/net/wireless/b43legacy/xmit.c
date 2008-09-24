@@ -192,7 +192,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			       u16 cookie)
 {
 	const struct ieee80211_hdr *wlhdr;
-	int use_encryption = (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT));
+	int use_encryption = !!info->control.hw_key;
 	u16 fctl;
 	u8 rate;
 	struct ieee80211_rate *rate_fb;

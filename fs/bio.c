@@ -77,11 +77,8 @@ struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct
 	 */
 
 	bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
-	if (bvl) {
-		struct biovec_slab *bp = bvec_slabs + *idx;
-
-		memset(bvl, 0, bp->nr_vecs * sizeof(struct bio_vec));
-	}
+	if (bvl)
+		memset(bvl, 0, bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
 
 	return bvl;
 }
@@ -149,7 +146,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 				goto out;
 			}
 			bio->bi_flags |= idx << BIO_POOL_OFFSET;
-			bio->bi_max_vecs = bvec_slabs[idx].nr_vecs;
+			bio->bi_max_vecs = bvec_nr_vecs(idx);
 		}
 		bio->bi_io_vec = bvl;
 	}
@@ -472,20 +469,21 @@ static void bio_free_map_data(struct bio_map_data *bmd)
 	kfree(bmd);
 }
 
-static struct bio_map_data *bio_alloc_map_data(int nr_segs, int iov_count)
+static struct bio_map_data *bio_alloc_map_data(int nr_segs, int iov_count,
+					       gfp_t gfp_mask)
 {
-	struct bio_map_data *bmd = kmalloc(sizeof(*bmd), GFP_KERNEL);
+	struct bio_map_data *bmd = kmalloc(sizeof(*bmd), gfp_mask);
 
 	if (!bmd)
 		return NULL;
 
-	bmd->iovecs = kmalloc(sizeof(struct bio_vec) * nr_segs, GFP_KERNEL);
+	bmd->iovecs = kmalloc(sizeof(struct bio_vec) * nr_segs, gfp_mask);
 	if (!bmd->iovecs) {
 		kfree(bmd);
 		return NULL;
 	}
 
-	bmd->sgvecs = kmalloc(sizeof(struct sg_iovec) * iov_count, GFP_KERNEL);
+	bmd->sgvecs = kmalloc(sizeof(struct sg_iovec) * iov_count, gfp_mask);
 	if (bmd->sgvecs)
 		return bmd;
 
@@ -494,8 +492,8 @@ static struct bio_map_data *bio_alloc_map_data(int nr_segs, int iov_count)
 	return NULL;
 }
 
-static int __bio_copy_iov(struct bio *bio, struct sg_iovec *iov, int iov_count,
-			  int uncopy)
+static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
+			  struct sg_iovec *iov, int iov_count, int uncopy)
 {
 	int ret = 0, i;
 	struct bio_vec *bvec;
@@ -505,7 +503,7 @@ static int __bio_copy_iov(struct bio *bio, struct sg_iovec *iov, int iov_count,
 
 	__bio_for_each_segment(bvec, bio, i, 0) {
 		char *bv_addr = page_address(bvec->bv_page);
-		unsigned int bv_len = bvec->bv_len;
+		unsigned int bv_len = iovecs[i].bv_len;
 
 		while (bv_len && iov_idx < iov_count) {
 			unsigned int bytes;
@@ -557,7 +555,7 @@ int bio_uncopy_user(struct bio *bio)
 	struct bio_map_data *bmd = bio->bi_private;
 	int ret;
 
-	ret = __bio_copy_iov(bio, bmd->sgvecs, bmd->nr_sgvecs, 1);
+	ret = __bio_copy_iov(bio, bmd->iovecs, bmd->sgvecs, bmd->nr_sgvecs, 1);
 
 	bio_free_map_data(bmd);
 	bio_put(bio);
@@ -599,7 +597,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 		len += iov[i].iov_len;
 	}
 
-	bmd = bio_alloc_map_data(nr_pages, iov_count);
+	bmd = bio_alloc_map_data(nr_pages, iov_count, GFP_KERNEL);
 	if (!bmd)
 		return ERR_PTR(-ENOMEM);
 
@@ -636,7 +634,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 	 * success
 	 */
 	if (!write_to_vm) {
-		ret = __bio_copy_iov(bio, iov, iov_count, 0);
+		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0);
 		if (ret)
 			goto cleanup;
 	}
@@ -945,19 +943,22 @@ static void bio_copy_kern_endio(struct bio *bio, int err)
 {
 	struct bio_vec *bvec;
 	const int read = bio_data_dir(bio) == READ;
-	char *p = bio->bi_private;
+	struct bio_map_data *bmd = bio->bi_private;
 	int i;
+	char *p = bmd->sgvecs[0].iov_base;
 
 	__bio_for_each_segment(bvec, bio, i, 0) {
 		char *addr = page_address(bvec->bv_page);
+		int len = bmd->iovecs[i].bv_len;
 
 		if (read && !err)
-			memcpy(p, addr, bvec->bv_len);
+			memcpy(p, addr, len);
 
 		__free_page(bvec->bv_page);
-		p += bvec->bv_len;
+		p += len;
 	}
 
+	bio_free_map_data(bmd);
 	bio_put(bio);
 }
 
@@ -981,11 +982,21 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 	const int nr_pages = end - start;
 	struct bio *bio;
 	struct bio_vec *bvec;
+	struct bio_map_data *bmd;
 	int i, ret;
+	struct sg_iovec iov;
 
+	iov.iov_base = data;
+	iov.iov_len = len;
+
+	bmd = bio_alloc_map_data(nr_pages, 1, gfp_mask);
+	if (!bmd)
+		return ERR_PTR(-ENOMEM);
+
+	ret = -ENOMEM;
 	bio = bio_alloc(gfp_mask, nr_pages);
 	if (!bio)
-		return ERR_PTR(-ENOMEM);
+		goto out_bmd;
 
 	while (len) {
 		struct page *page;
@@ -1019,14 +1030,18 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 		}
 	}
 
-	bio->bi_private = data;
+	bio->bi_private = bmd;
 	bio->bi_end_io = bio_copy_kern_endio;
+
+	bio_set_map_data(bmd, bio, &iov, 1);
 	return bio;
 cleanup:
 	bio_for_each_segment(bvec, bio, i)
 		__free_page(bvec->bv_page);
 
 	bio_put(bio);
+out_bmd:
+	bio_free_map_data(bmd);
 
 	return ERR_PTR(ret);
 }

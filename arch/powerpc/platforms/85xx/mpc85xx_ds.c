@@ -186,6 +186,7 @@ static int __init mpc8544_ds_probe(void)
 static struct of_device_id __initdata mpc85xxds_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
+	{ .compatible = "simple-bus", },
 	{},
 };
 

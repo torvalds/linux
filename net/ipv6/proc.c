@@ -286,7 +286,6 @@ proc_net_fail:
 
 void ipv6_misc_proc_exit(void)
 {
-	proc_net_remove(&init_net, "sockstat6");
 	proc_net_remove(&init_net, "dev_snmp6");
 	proc_net_remove(&init_net, "snmp6");
 	unregister_pernet_subsys(&ipv6_proc_ops);

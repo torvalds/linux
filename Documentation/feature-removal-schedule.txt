@@ -19,15 +19,6 @@ Who:	Pavel Machek <pavel@suse.cz>
 
 ---------------------------
 
-What:	old NCR53C9x driver
-When:	October 2007
-Why:	Replaced by the much better esp_scsi driver.  Actual low-level
-	driver can be ported over almost trivially.
-Who:	David Miller <davem@davemloft.net>
-	Christoph Hellwig <hch@lst.de>
-
----------------------------
-
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
 When:	December 2008
 Files:	include/linux/video_decoder.h include/linux/videodev.h
@@ -205,19 +196,6 @@ Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
 
-What: The arch/ppc and include/asm-ppc directories
-When: Jun 2008
-Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64
-      platforms.  Currently there are efforts underway to port the remaining
-      arch/ppc platforms to the merged tree.  New submissions to the arch/ppc
-      tree have been frozen with the 2.6.22 kernel release and that tree will
-      remain in bug-fix only mode until its scheduled removal.  Platforms
-      that are not ported by June 2008 will be removed due to the lack of an
-      interested maintainer.
-Who:  linuxppc-dev@ozlabs.org
-
----------------------------
-
 What:	i386/x86_64 bzImage symlinks
 When:	April 2010
 
@@ -344,3 +322,11 @@ Why:  Accounting can now be enabled/disabled without kernel recompilation.
       controlled by a kernel/module/sysfs/sysctl parameter.
 Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
+---------------------------
+
+What: ide-scsi (BLK_DEV_IDESCSI)
+When: 2.6.29
+Why:  The 2.6 kernel supports direct writing to ide CD drives, which
+      eliminates the need for ide-scsi. The new method is more
+      efficient in every way.
+Who:  FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>

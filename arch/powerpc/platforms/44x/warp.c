@@ -30,18 +30,6 @@ static __initdata struct of_device_id warp_of_bus[] = {
 	{},
 };
 
-static __initdata struct i2c_board_info warp_i2c_info[] = {
-	{ I2C_BOARD_INFO("ad7414", 0x4a) }
-};
-
-static int __init warp_arch_init(void)
-{
-	/* This should go away once support is moved to the dts. */
-	i2c_register_board_info(0, warp_i2c_info, ARRAY_SIZE(warp_i2c_info));
-	return 0;
-}
-machine_arch_initcall(warp, warp_arch_init);
-
 static int __init warp_device_probe(void)
 {
 	of_platform_bus_probe(NULL, warp_of_bus, NULL);
@@ -223,7 +211,7 @@ static void pika_setup_critical_temp(struct i2c_client *client)
 
 	/* These registers are in 1 degree increments. */
 	i2c_smbus_write_byte_data(client, 2, 65); /* Thigh */
-	i2c_smbus_write_byte_data(client, 3, 55); /* Tlow */
+	i2c_smbus_write_byte_data(client, 3,  0); /* Tlow */
 
 	np = of_find_compatible_node(NULL, NULL, "adi,ad7414");
 	if (np == NULL) {
@@ -289,8 +277,15 @@ found_it:
 	printk(KERN_INFO "PIKA DTM thread running.\n");
 
 	while (!kthread_should_stop()) {
-		u16 temp = swab16(i2c_smbus_read_word_data(client, 0));
-		out_be32(fpga + 0x20, temp);
+		int val;
+
+		val = i2c_smbus_read_word_data(client, 0);
+		if (val < 0)
+			dev_dbg(&client->dev, "DTM read temp failed.\n");
+		else {
+			s16 temp = swab16(val);
+			out_be32(fpga + 0x20, temp);
+		}
 
 		pika_dtm_check_fan(fpga);
 

@@ -85,6 +85,7 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
+#define BRIGHTNESS_IDX 0
 #define SD_BRIGHTNESS 0
 	{
 	    {
@@ -141,6 +142,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
+#define LIGHTFREQ_IDX 4
 #define SD_FREQ 4
 	{
 	    {
@@ -6469,7 +6471,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		NULL, Tgradient_1, Tgradient_2,
 		Tgradient_3, Tgradient_4, Tgradient_5, Tgradient_6
 	};
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	__u8 v[16];
 #endif
 
@@ -6487,7 +6489,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		else if (g <= 0)
 			g = 1;
 		reg_w(dev, g, 0x0120 + i);	/* gamma */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 		if (gspca_debug & D_CONF)
 			v[i] = g;
 #endif
@@ -6507,7 +6509,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 				g = 1;
 		}
 		reg_w(dev, g, 0x0130 + i);	/* gradient */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 		if (gspca_debug & D_CONF)
 			v[i] = g;
 #endif
@@ -6964,8 +6966,13 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 	case SENSOR_MC501CB:
 		return -1;		/* don't probe */
 	case SENSOR_TAS5130C_VF0250:
-				/* may probe but with write in reg 0x0010 */
+			/* may probe but with no write in reg 0x0010 */
 		return -1;		/* don't probe */
+	case SENSOR_PAS106:
+		sensor =  sif_probe(gspca_dev);
+		if (sensor >= 0)
+			return sensor;
+		break;
 	}
 	sensor = vga_2wr_probe(gspca_dev);
 	if (sensor >= 0) {
@@ -6974,12 +6981,10 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 		/* next probe is needed for OmniVision ? */
 	}
 	sensor2 = vga_3wr_probe(gspca_dev);
-	if (sensor2 >= 0) {
-		if (sensor >= 0)
-			return sensor;
-		return sensor2;
-	}
-	return sif_probe(gspca_dev);
+	if (sensor2 >= 0
+	    && sensor >= 0)
+		return sensor;
+	return sensor2;
 }
 
 /* this function is called at probe time */
@@ -7147,13 +7152,27 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
 	sd->sharpness = sd_ctrls[SD_SHARPNESS].qctrl.default_value;
 
+	switch (sd->sensor) {
+	case SENSOR_GC0305:
+	case SENSOR_OV7620:
+	case SENSOR_PO2030:
+		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
+		break;
+	case SENSOR_HDCS2020:
+	case SENSOR_HV7131B:
+	case SENSOR_HV7131C:
+	case SENSOR_OV7630C:
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
+		break;
+	}
+
 	/* switch the led off */
 	reg_w(gspca_dev->dev, 0x01, 0x0000);
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	reg_w(gspca_dev->dev, 0x01, 0x0000);
 	return 0;
@@ -7314,20 +7333,11 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void sd_stopN(struct gspca_dev *gspca_dev)
-{
-}
-
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	send_unknown(gspca_dev->dev, sd->sensor);
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -7489,37 +7499,30 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = sizeof sd_ctrls / sizeof sd_ctrls[0],
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
-	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };
 
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4017)},
-	{USB_DEVICE(0x041e, 0x401c)},
+	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x401e)},
 	{USB_DEVICE(0x041e, 0x401f)},
-#endif
+	{USB_DEVICE(0x041e, 0x4022)},
 	{USB_DEVICE(0x041e, 0x4029)},
-#ifndef CONFIG_USB_ZC0301
-	{USB_DEVICE(0x041e, 0x4034)},
-	{USB_DEVICE(0x041e, 0x4035)},
+	{USB_DEVICE(0x041e, 0x4034), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x041e, 0x4035), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
-#endif
 	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_TAS5130C_VF0250},
 	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_TAS5130C_VF0250},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0458, 0x7007)},
 	{USB_DEVICE(0x0458, 0x700c)},
 	{USB_DEVICE(0x0458, 0x700f)},
-#endif
 	{USB_DEVICE(0x0461, 0x0a00)},
 	{USB_DEVICE(0x046d, 0x08a0)},
 	{USB_DEVICE(0x046d, 0x08a1)},
@@ -7531,7 +7534,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08aa)},
 	{USB_DEVICE(0x046d, 0x08ac)},
 	{USB_DEVICE(0x046d, 0x08ad)},
-#ifndef CONFIG_USB_ZC0301
+#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x046d, 0x08ae)},
 #endif
 	{USB_DEVICE(0x046d, 0x08af)},
@@ -7541,27 +7544,25 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08d8)},
 	{USB_DEVICE(0x046d, 0x08da)},
 	{USB_DEVICE(0x046d, 0x08dd), .driver_info = SENSOR_MC501CB},
-	{USB_DEVICE(0x0471, 0x0325)},
-	{USB_DEVICE(0x0471, 0x0326)},
-	{USB_DEVICE(0x0471, 0x032d)},
-	{USB_DEVICE(0x0471, 0x032e)},
+	{USB_DEVICE(0x0471, 0x0325), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x0471, 0x0326), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x0471, 0x032d), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x0471, 0x032e), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x055f, 0xc005)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x055f, 0xd003)},
 	{USB_DEVICE(0x055f, 0xd004)},
-#endif
 	{USB_DEVICE(0x0698, 0x2003)},
+	{USB_DEVICE(0x0ac8, 0x0301), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x0ac8, 0x0302)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x301b)},
+#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x0ac8, 0x303b)},
 #endif
 	{USB_DEVICE(0x0ac8, 0x305b), .driver_info = SENSOR_TAS5130C_VF0250},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x307b)},
 	{USB_DEVICE(0x10fd, 0x0128)},
+	{USB_DEVICE(0x10fd, 0x804d)},
 	{USB_DEVICE(0x10fd, 0x8050)},
-#endif
 	{}			/* end of entry */
 };
 #undef DVNAME
@@ -7581,6 +7582,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 static int __init sd_mod_init(void)

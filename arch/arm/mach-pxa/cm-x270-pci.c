@@ -22,7 +22,7 @@
 #include <linux/gpio.h>
 
 #include <asm/mach/pci.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #include <asm/mach-types.h>
 
 #include <asm/hardware/it8152.h>

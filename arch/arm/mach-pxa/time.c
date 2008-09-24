@@ -22,7 +22,7 @@
 #include <asm/cnt32_to_63.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #include <asm/mach-types.h>
 
 /*

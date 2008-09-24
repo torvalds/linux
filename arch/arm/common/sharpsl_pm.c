@@ -26,13 +26,12 @@
 #include <linux/apm-emulation.h>
 #include <linux/suspend.h>
 
-#include <asm/hardware.h>
-#include <asm/mach-types.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/sharpsl.h>
+#include <mach/pm.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/sharpsl.h>
 #include <asm/hardware/sharpsl_pm.h>
 
 /*

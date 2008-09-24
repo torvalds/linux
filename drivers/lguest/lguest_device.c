@@ -98,6 +98,10 @@ static u32 lg_get_features(struct virtio_device *vdev)
 	return features;
 }
 
+/* The virtio core takes the features the Host offers, and copies the
+ * ones supported by the driver into the vdev->features array.  Once
+ * that's all sorted out, this routine is called so we can tell the
+ * Host which features we understand and accept. */
 static void lg_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
@@ -108,6 +112,10 @@ static void lg_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* The vdev->feature array is a Linux bitmask: this isn't the
+	 * same as a the simple array of bits used by lguest devices
+	 * for features.  So we do this slow, manual conversion which is
+	 * completely general. */
 	memset(out_features, 0, desc->feature_len);
 	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {

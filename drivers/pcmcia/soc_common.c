@@ -43,7 +43,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -51,7 +51,7 @@
 
 /* FIXME: platform dependent resource declaration has to move out of this file */
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #endif
 
 #ifdef DEBUG
@@ -748,7 +748,9 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 
 		add_timer(&skt->poll_timer);
 
-		device_create_file(&skt->socket.dev, &dev_attr_status);
+		ret = device_create_file(&skt->socket.dev, &dev_attr_status);
+		if (ret)
+			goto out_err_8;
 	}
 
 	dev_set_drvdata(dev, sinfo);
@@ -758,6 +760,8 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 	do {
 		skt = &sinfo->skt[i];
 
+		device_remove_file(&skt->socket.dev, &dev_attr_status);
+ out_err_8:
 		del_timer_sync(&skt->poll_timer);
 		pcmcia_unregister_socket(&skt->socket);
 

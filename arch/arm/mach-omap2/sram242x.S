@@ -24,8 +24,8 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/arch/io.h>
-#include <asm/hardware.h>
+#include <mach/io.h>
+#include <mach/hardware.h>
 
 #include "prm.h"
 #include "cm.h"

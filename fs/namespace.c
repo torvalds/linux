@@ -1667,31 +1667,31 @@ static noinline int do_new_mount(struct nameidata *nd, char *type, int flags,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	return do_add_mount(mnt, nd, mnt_flags, NULL);
+	return do_add_mount(mnt, &nd->path, mnt_flags, NULL);
 }
 
 /*
  * add a mount into a namespace's mount tree
  * - provide the option of adding the new mount to an expiration list
  */
-int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
+int do_add_mount(struct vfsmount *newmnt, struct path *path,
 		 int mnt_flags, struct list_head *fslist)
 {
 	int err;
 
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
-	while (d_mountpoint(nd->path.dentry) &&
-	       follow_down(&nd->path.mnt, &nd->path.dentry))
+	while (d_mountpoint(path->dentry) &&
+	       follow_down(&path->mnt, &path->dentry))
 		;
 	err = -EINVAL;
-	if (!check_mnt(nd->path.mnt))
+	if (!check_mnt(path->mnt))
 		goto unlock;
 
 	/* Refuse the same filesystem on the same mount point */
 	err = -EBUSY;
-	if (nd->path.mnt->mnt_sb == newmnt->mnt_sb &&
-	    nd->path.mnt->mnt_root == nd->path.dentry)
+	if (path->mnt->mnt_sb == newmnt->mnt_sb &&
+	    path->mnt->mnt_root == path->dentry)
 		goto unlock;
 
 	err = -EINVAL;
@@ -1699,7 +1699,7 @@ int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
-	if ((err = graft_tree(newmnt, &nd->path)))
+	if ((err = graft_tree(newmnt, path)))
 		goto unlock;
 
 	if (fslist) /* add to the specified expiration list */

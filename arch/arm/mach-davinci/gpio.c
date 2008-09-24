@@ -20,9 +20,9 @@
 #include <linux/irq.h>
 #include <linux/bitops.h>
 
-#include <asm/arch/irqs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/gpio.h>
+#include <mach/irqs.h>
+#include <mach/hardware.h>
+#include <mach/gpio.h>
 
 #include <asm/mach/irq.h>
 

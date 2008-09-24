@@ -560,8 +560,9 @@ static struct hda_verb dell_eq_core_init[] = {
 };
 
 static struct hda_verb dell_m6_core_init[] = {
-	/* set master volume and direct control */
-	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
+	/* set master volume to max value without distortion
+	 * and direct control */
+	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xec},
 	/* setup audio connections */
 	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},

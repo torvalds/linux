@@ -20,9 +20,9 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
+#include <mach/jornada720.h>
 #include <asm/hardware/ssp.h>
-#include <asm/arch/jornada720.h>
 
 static DEFINE_SPINLOCK(jornada_ssp_lock);
 static unsigned long jornada_ssp_flags;
@@ -109,12 +109,12 @@ EXPORT_SYMBOL(jornada_ssp_inout);
  * jornada_ssp_start - enable mcu
  *
  */
-int jornada_ssp_start()
+void jornada_ssp_start(void)
 {
 	spin_lock_irqsave(&jornada_ssp_lock, jornada_ssp_flags);
 	GPCR = GPIO_GPIO25;
 	udelay(50);
-	return 0;
+	return;
 };
 EXPORT_SYMBOL(jornada_ssp_start);
 
@@ -122,11 +122,11 @@ EXPORT_SYMBOL(jornada_ssp_start);
  * jornada_ssp_end - disable mcu and turn off lock
  *
  */
-int jornada_ssp_end()
+void jornada_ssp_end(void)
 {
 	GPSR = GPIO_GPIO25;
 	spin_unlock_irqrestore(&jornada_ssp_lock, jornada_ssp_flags);
-	return 0;
+	return;
 };
 EXPORT_SYMBOL(jornada_ssp_end);
 

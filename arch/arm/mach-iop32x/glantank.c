@@ -25,7 +25,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -34,7 +34,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
-#include <asm/arch/time.h>
+#include <mach/time.h>
 
 /*
  * GLAN Tank timer tick configuration.

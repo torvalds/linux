@@ -236,7 +236,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
 			kfree_skb(skb);
-			return NET_XMIT_SUCCESS;
+			return NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 
 		case TC_ACT_SHOT:
 			goto drop;
@@ -254,7 +254,8 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	err = qdisc_enqueue(skb, p->q);
 	if (err != NET_XMIT_SUCCESS) {
-		sch->qstats.drops++;
+		if (net_xmit_drop_count(err))
+			sch->qstats.drops++;
 		return err;
 	}
 
@@ -267,7 +268,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 drop:
 	kfree_skb(skb);
 	sch->qstats.drops++;
-	return NET_XMIT_BYPASS;
+	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 }
 
 static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
@@ -321,7 +322,8 @@ static int dsmark_requeue(struct sk_buff *skb, struct Qdisc *sch)
 
 	err = p->q->ops->requeue(skb, p->q);
 	if (err != NET_XMIT_SUCCESS) {
-		sch->qstats.drops++;
+		if (net_xmit_drop_count(err))
+			sch->qstats.drops++;
 		return err;
 	}
 

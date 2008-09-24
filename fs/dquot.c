@@ -1793,6 +1793,21 @@ static int vfs_quota_on_remount(struct super_block *sb, int type)
 	return ret;
 }
 
+int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
+		      struct path *path)
+{
+	int error = security_quota_on(path->dentry);
+	if (error)
+		return error;
+	/* Quota file not on the same filesystem? */
+	if (path->mnt->mnt_sb != sb)
+		error = -EXDEV;
+	else
+		error = vfs_quota_on_inode(path->dentry->d_inode, type,
+					   format_id);
+	return error;
+}
+
 /* Actual function called from quotactl() */
 int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path,
 		 int remount)
@@ -1804,19 +1819,10 @@ int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path,
 		return vfs_quota_on_remount(sb, type);
 
 	error = path_lookup(path, LOOKUP_FOLLOW, &nd);
-	if (error < 0)
-		return error;
-	error = security_quota_on(nd.path.dentry);
-	if (error)
-		goto out_path;
-	/* Quota file not on the same filesystem? */
-	if (nd.path.mnt->mnt_sb != sb)
-		error = -EXDEV;
-	else
-		error = vfs_quota_on_inode(nd.path.dentry->d_inode, type,
-					   format_id);
-out_path:
-	path_put(&nd.path);
+	if (!error) {
+		error = vfs_quota_on_path(sb, type, format_id, &nd.path);
+		path_put(&nd.path);
+	}
 	return error;
 }
 
@@ -2185,6 +2191,7 @@ EXPORT_SYMBOL(unregister_quota_format);
 EXPORT_SYMBOL(dqstats);
 EXPORT_SYMBOL(dq_data_lock);
 EXPORT_SYMBOL(vfs_quota_on);
+EXPORT_SYMBOL(vfs_quota_on_path);
 EXPORT_SYMBOL(vfs_quota_on_mount);
 EXPORT_SYMBOL(vfs_quota_off);
 EXPORT_SYMBOL(vfs_quota_sync);

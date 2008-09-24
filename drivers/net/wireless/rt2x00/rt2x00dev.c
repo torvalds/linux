@@ -1013,6 +1013,7 @@ int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->intf_associated = 0;
 
 	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
+	__set_bit(DEVICE_DIRTY_CONFIG, &rt2x00dev->flags);
 
 	return 0;
 }
@@ -1237,9 +1238,9 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reconfigure device.
 	 */
-	rt2x00lib_config(rt2x00dev, &rt2x00dev->hw->conf, 1);
-	if (!rt2x00dev->hw->conf.radio_enabled)
-		rt2x00lib_disable_radio(rt2x00dev);
+	retval = rt2x00mac_config(rt2x00dev->hw, &rt2x00dev->hw->conf);
+	if (retval)
+		goto exit;
 
 	/*
 	 * Iterator over each active interface to

@@ -14,8 +14,8 @@
 
 #include <asm/page.h>
 #include <asm/mach/map.h>
-#include <asm/arch-ns9xxx/processor-ns9360.h>
-#include <asm/arch-ns9xxx/regs-sys-ns9360.h>
+#include <mach/processor-ns9360.h>
+#include <mach/regs-sys-ns9360.h>
 
 void ns9360_reset(char mode)
 {

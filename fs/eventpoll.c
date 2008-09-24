@@ -1041,10 +1041,7 @@ retry:
 }
 
 /*
- * It opens an eventpoll file descriptor. The "size" parameter is there
- * for historical reasons, when epoll was using an hash instead of an
- * RB tree. With the current implementation, the "size" parameter is ignored
- * (besides sanity checks).
+ * Open an eventpoll file descriptor.
  */
 asmlinkage long sys_epoll_create1(int flags)
 {

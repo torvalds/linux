@@ -522,7 +522,7 @@ config CC_OPTIMIZE_FOR_SIZE
 	  Enabling this option will pass "-Os" instead of "-O2" to gcc
 	  resulting in a smaller kernel.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config SYSCTL
 	bool
@@ -555,17 +555,6 @@ config SYSCTL_SYSCALL
 	  Almost nothing using the binary sysctl interface so if you are
 	  trying to save some space it is probably safe to disable this,
 	  making your kernel marginally smaller.
-
-	  If unsure say Y here.
-
-config SYSCTL_SYSCALL_CHECK
-	bool "Sysctl checks" if EMBEDDED
-	depends on SYSCTL_SYSCALL
-	default y
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use. This enables checks that help
-	  you to keep things correct.
 
 	  If unsure say Y here.
 
@@ -845,9 +834,10 @@ menuconfig MODULES
 
 	  If unsure, say Y.
 
+if MODULES
+
 config MODULE_FORCE_LOAD
 	bool "Forced module loading"
-	depends on MODULES
 	default n
 	help
 	  Allow loading of modules without version information (ie. modprobe
@@ -856,7 +846,6 @@ config MODULE_FORCE_LOAD
 
 config MODULE_UNLOAD
 	bool "Module unloading"
-	depends on MODULES
 	help
 	  Without this option you will not be able to unload any
 	  modules (note that some modules may not be unloadable
@@ -875,7 +864,6 @@ config MODULE_FORCE_UNLOAD
 
 config MODVERSIONS
 	bool "Module versioning support"
-	depends on MODULES
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules
@@ -886,7 +874,6 @@ config MODVERSIONS
 
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"
-	depends on MODULES
 	help
 	  Modules which contain a MODULE_VERSION get an extra "srcversion"
 	  field inserted into their modinfo section, which contains a
@@ -898,10 +885,11 @@ config MODULE_SRCVERSION_ALL
 
 config KMOD
 	def_bool y
-	depends on MODULES
 	help
 	  This is being removed soon.  These days, CONFIG_MODULES
 	  implies CONFIG_KMOD, so use that instead.
+
+endif # MODULES
 
 config STOP_MACHINE
 	bool

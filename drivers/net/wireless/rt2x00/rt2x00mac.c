@@ -63,7 +63,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	 */
 	memcpy(skb->cb, frag_skb->cb, sizeof(skb->cb));
 	rts_info = IEEE80211_SKB_CB(skb);
-	rts_info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
+	rts_info->control.hw_key = NULL;
 	rts_info->flags &= ~IEEE80211_TX_CTL_USE_RTS_CTS;
 	rts_info->flags &= ~IEEE80211_TX_CTL_USE_CTS_PROTECT;
 	rts_info->flags &= ~IEEE80211_TX_CTL_REQ_TX_STATUS;
@@ -83,6 +83,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  (struct ieee80211_rts *)(skb->data));
 
 	if (rt2x00queue_write_tx_frame(queue, skb)) {
+		dev_kfree_skb_any(skb);
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -96,7 +97,6 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
-	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	struct data_queue *queue;
 	u16 frame_control;
 
@@ -152,18 +152,6 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	/*
-	 * XXX: This is as wrong as the old mac80211 code was,
-	 *	due to beacons not getting sequence numbers assigned
-	 *	properly.
-	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			intf->seqno += 0x10;
-		ieee80211hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		ieee80211hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
-	}
-
 	if (rt2x00queue_write_tx_frame(queue, skb)) {
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
 		return NETDEV_TX_BUSY;
@@ -215,23 +203,43 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	    !test_bit(DEVICE_STARTED, &rt2x00dev->flags))
 		return -ENODEV;
 
-	/*
-	 * We don't support mixed combinations of sta and ap virtual
-	 * interfaces. We can only add this interface when the rival
-	 * interface count is 0.
-	 */
-	if ((conf->type == IEEE80211_IF_TYPE_AP && rt2x00dev->intf_sta_count) ||
-	    (conf->type != IEEE80211_IF_TYPE_AP && rt2x00dev->intf_ap_count))
-		return -ENOBUFS;
+	switch (conf->type) {
+	case IEEE80211_IF_TYPE_AP:
+		/*
+		 * We don't support mixed combinations of
+		 * sta and ap interfaces.
+		 */
+		if (rt2x00dev->intf_sta_count)
+			return -ENOBUFS;
 
-	/*
-	 * Check if we exceeded the maximum amount of supported interfaces.
-	 */
-	if ((conf->type == IEEE80211_IF_TYPE_AP &&
-	     rt2x00dev->intf_ap_count >= rt2x00dev->ops->max_ap_intf) ||
-	    (conf->type != IEEE80211_IF_TYPE_AP &&
-	     rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf))
-		return -ENOBUFS;
+		/*
+		 * Check if we exceeded the maximum amount
+		 * of supported interfaces.
+		 */
+		if (rt2x00dev->intf_ap_count >= rt2x00dev->ops->max_ap_intf)
+			return -ENOBUFS;
+
+		break;
+	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_IBSS:
+		/*
+		 * We don't support mixed combinations of
+		 * sta and ap interfaces.
+		 */
+		if (rt2x00dev->intf_ap_count)
+			return -ENOBUFS;
+
+		/*
+		 * Check if we exceeded the maximum amount
+		 * of supported interfaces.
+		 */
+		if (rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf)
+			return -ENOBUFS;
+
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/*
 	 * Loop through all beacon queues to find a free
@@ -259,6 +267,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 		rt2x00dev->intf_sta_count++;
 
 	spin_lock_init(&intf->lock);
+	spin_lock_init(&intf->seqlock);
 	intf->beacon = entry;
 
 	if (conf->type == IEEE80211_IF_TYPE_AP)
@@ -322,6 +331,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	int force_reconfig;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -341,7 +351,17 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 			rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 	}
 
-	rt2x00lib_config(rt2x00dev, conf, 0);
+	/*
+	 * When the DEVICE_DIRTY_CONFIG flag is set, the device has recently
+	 * been started and the configuration must be forced upon the hardware.
+	 * Otherwise registers will not be intialized correctly and could
+	 * result in non-working hardware because essential registers aren't
+	 * initialized.
+	 */
+	force_reconfig =
+	    __test_and_clear_bit(DEVICE_DIRTY_CONFIG, &rt2x00dev->flags);
+
+	rt2x00lib_config(rt2x00dev, conf, force_reconfig);
 
 	/*
 	 * Reenable RX only if the radio should be on.

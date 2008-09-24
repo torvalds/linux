@@ -382,7 +382,7 @@ EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 {
 	acpi_status status;
-	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
+	acpi_handle chandle, handle;
 	struct pci_dev *pdev = dev;
 	struct pci_bus *parent;
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -399,10 +399,25 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 	 * Per PCI firmware specification, we should run the ACPI _OSC
 	 * method to get control of hotplug hardware before using it. If
 	 * an _OSC is missing, we look for an OSHP to do the same thing.
-	 * To handle different BIOS behavior, we look for _OSC and OSHP
-	 * within the scope of the hotplug controller and its parents,
+	 * To handle different BIOS behavior, we look for _OSC on a root
+	 * bridge preferentially (according to PCI fw spec). Later for
+	 * OSHP within the scope of the hotplug controller and its parents,
 	 * upto the host bridge under which this controller exists.
 	 */
+	handle = acpi_find_root_bridge_handle(pdev);
+	if (handle) {
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
+		dbg("Trying to get hotplug control for %s\n",
+				(char *)string.pointer);
+		status = pci_osc_control_set(handle, flags);
+		if (ACPI_SUCCESS(status))
+			goto got_one;
+		kfree(string.pointer);
+		string = (struct acpi_buffer){ ACPI_ALLOCATE_BUFFER, NULL };
+	}
+
+	pdev = dev;
+	handle = DEVICE_ACPI_HANDLE(&dev->dev);
 	while (!handle) {
 		/*
 		 * This hotplug controller was not listed in the ACPI name
@@ -427,15 +442,9 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
 		dbg("Trying to get hotplug control for %s \n",
 		    (char *)string.pointer);
-		status = pci_osc_control_set(handle, flags);
-		if (status == AE_NOT_FOUND)
-			status = acpi_run_oshp(handle);
-		if (ACPI_SUCCESS(status)) {
-			dbg("Gained control for hotplug HW for pci %s (%s)\n",
-			    pci_name(dev), (char *)string.pointer);
-			kfree(string.pointer);
-			return 0;
-		}
+		status = acpi_run_oshp(handle);
+		if (ACPI_SUCCESS(status))
+			goto got_one;
 		if (acpi_root_bridge(handle))
 			break;
 		chandle = handle;
@@ -449,6 +458,11 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 
 	kfree(string.pointer);
 	return -ENODEV;
+got_one:
+	dbg("Gained control for hotplug HW for pci %s (%s)\n", pci_name(dev),
+			(char *)string.pointer);
+	kfree(string.pointer);
+	return 0;
 }
 EXPORT_SYMBOL(acpi_get_hp_hw_control_from_firmware);
 

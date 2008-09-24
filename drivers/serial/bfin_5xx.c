@@ -28,7 +28,7 @@
 #endif
 
 #include <asm/gpio.h>
-#include <asm/mach/bfin_serial_5xx.h>
+#include <mach/bfin_serial_5xx.h>
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
 #include <linux/dma-mapping.h>
@@ -817,7 +817,7 @@ static void bfin_serial_set_ldisc(struct uart_port *port)
 	if (line >= port->info->port.tty->driver->num)
 		return;
 
-	switch (port->info->port.tty->ldisc.num) {
+	switch (port->info->port.tty->termios->c_line) {
 	case N_IRDA:
 		val = UART_GET_GCTL(&bfin_serial_ports[line]);
 		val |= (IREN | RPOLC);

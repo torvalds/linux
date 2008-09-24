@@ -28,14 +28,13 @@
 #include <linux/platform_device.h>
 #include <linux/bootmem.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/sram.h>
-#include <asm/arch/omapfb.h>
+#include <mach/board.h>
+#include <mach/sram.h>
+#include <mach/omapfb.h>
 
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 
