@@ -745,6 +745,12 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
  */
 static int as_can_anticipate(struct as_data *ad, struct request *rq)
 {
+	/*
+	 * SSD device without seek penalty, disable idling
+	 */
+	if (blk_queue_nonrot(ad->q))
+		return 0;
+
 	if (!ad->io_context)
 		/*
 		 * Last request submitted was a write

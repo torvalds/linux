@@ -442,6 +442,7 @@ struct request_queue
 #define QUEUE_FLAG_SAME_COMP   11	/* force complete on same CPU */
 #define QUEUE_FLAG_FAIL_IO     12	/* fake timeout */
 #define QUEUE_FLAG_STACKABLE   13	/* supports request stacking */
+#define QUEUE_FLAG_NONROT      14	/* non-rotational device (SSD) */
 
 static inline int queue_is_locked(struct request_queue *q)
 {
@@ -547,6 +548,7 @@ enum {
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
+#define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
 #define blk_queue_flushing(q)	((q)->ordseq)
 #define blk_queue_stackable(q)	\
 	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)

@@ -878,6 +878,12 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	struct cfq_io_context *cic;
 	unsigned long sl;
 
+	/*
+	 * SSD device without seek penalty, disable idling
+	 */
+	if (blk_queue_nonrot(cfqd->queue))
+		return;
+
 	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));
 	WARN_ON(cfq_cfqq_slice_new(cfqq));
 
