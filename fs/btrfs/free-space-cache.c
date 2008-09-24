@@ -306,11 +306,45 @@ int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 
 		ret = link_free_space(block_group, info);
 		BUG_ON(ret);
+	} else if (info && info->offset < offset &&
+		   info->offset + info->bytes >= offset + bytes) {
+		u64 old_start = info->offset;
+		/*
+		 * we're freeing space in the middle of the info,
+		 * this can happen during tree log replay
+		 *
+		 * first unlink the old info and then
+		 * insert it again after the hole we're creating
+		 */
+		unlink_free_space(block_group, info);
+		if (offset + bytes < info->offset + info->bytes) {
+			u64 old_end = info->offset + info->bytes;
+
+			info->offset = offset + bytes;
+			info->bytes = old_end - info->offset;
+			ret = link_free_space(block_group, info);
+			BUG_ON(ret);
+		} else {
+			/* the hole we're creating ends at the end
+			 * of the info struct, just free the info
+			 */
+			kfree(info);
+		}
+
+		/* step two, insert a new info struct to cover anything
+		 * before the hole
+		 */
+		spin_unlock(&block_group->lock);
+		ret = btrfs_add_free_space(block_group, old_start,
+					   offset - old_start);
+		BUG_ON(ret);
+		goto out_nolock;
 	} else {
 		WARN_ON(1);
 	}
 out:
 	spin_unlock(&block_group->lock);
+out_nolock:
 	return ret;
 }
 
