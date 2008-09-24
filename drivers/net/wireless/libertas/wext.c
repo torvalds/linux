@@ -8,6 +8,7 @@
 #include <linux/wireless.h>
 #include <linux/bitops.h>
 
+#include <net/lib80211.h>
 #include <net/ieee80211.h>
 #include <net/iw_handler.h>
 
@@ -2005,7 +2006,7 @@ static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 		lbs_deb_wext("requested any SSID\n");
 	} else {
 		lbs_deb_wext("requested SSID '%s'\n",
-		             escape_essid(ssid, ssid_len));
+		             escape_ssid(ssid, ssid_len));
 	}
 
 out:

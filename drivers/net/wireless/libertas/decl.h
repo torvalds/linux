@@ -74,8 +74,4 @@ void lbs_host_to_card_done(struct lbs_private *priv);
 
 int lbs_update_channel(struct lbs_private *priv);
 
-#ifndef CONFIG_IEEE80211
-const char *escape_essid(const char *essid, u8 essid_len);
-#endif
-
 #endif

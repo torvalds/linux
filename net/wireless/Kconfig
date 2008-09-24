@@ -72,3 +72,13 @@ config WIRELESS_EXT_SYSFS
 
 	  Say Y if you have programs using it, like old versions of
 	  hal.
+
+config LIB80211
+	tristate "Common routines for IEEE802.11 drivers"
+	default n
+	help
+	  This options enables a library of common routines used
+	  by IEEE802.11 wireless LAN drivers.
+
+	  Drivers should select this themselves if needed.  Say Y if
+	  you want this built into your kernel.

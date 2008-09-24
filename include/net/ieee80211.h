@@ -127,10 +127,6 @@ static inline bool ieee80211_ratelimit_debug(u32 level)
 }
 #endif				/* CONFIG_IEEE80211_DEBUG */
 
-/* escape_essid() is intended to be used in debug (and possibly error)
- * messages. It should never be used for passing essid to user space. */
-const char *escape_essid(const char *essid, u8 essid_len);
-
 /*
  * To use the debug system:
  *
@@ -1133,22 +1129,6 @@ struct ieee80211_device {
 static inline void *ieee80211_priv(struct net_device *dev)
 {
 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
-}
-
-static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
-{
-	/* Single white space is for Linksys APs */
-	if (essid_len == 1 && essid[0] == ' ')
-		return 1;
-
-	/* Otherwise, if the entire essid is 0, we assume it is hidden */
-	while (essid_len) {
-		essid_len--;
-		if (essid[essid_len] != '\0')
-			return 0;
-	}
-
-	return 1;
 }
 
 static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee,

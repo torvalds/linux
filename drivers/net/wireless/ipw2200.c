@@ -4409,8 +4409,8 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE |
 						  IPW_DL_ASSOC,
 						  "associated: '%s' %pM \n",
-						  escape_essid(priv->essid,
-							       priv->essid_len),
+						  escape_ssid(priv->essid,
+							      priv->essid_len),
 						  priv->bssid);
 
 					switch (priv->ieee->iw_mode) {
@@ -4490,10 +4490,10 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 							  "deauthenticated: '%s' "
 							  "%pM"
 							  ": (0x%04X) - %s \n",
-							  escape_essid(priv->
-								       essid,
-								       priv->
-								       essid_len),
+							  escape_ssid(priv->
+								      essid,
+								      priv->
+								      essid_len),
 							  priv->bssid,
 							  le16_to_cpu(auth->status),
 							  ipw_get_status_code
@@ -4512,7 +4512,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE |
 						  IPW_DL_ASSOC,
 						  "authenticated: '%s' %pM\n",
-						  escape_essid(priv->essid,
+						  escape_ssid(priv->essid,
 							       priv->essid_len),
 						  priv->bssid);
 					break;
@@ -4540,7 +4540,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE |
 						  IPW_DL_ASSOC,
 						  "disassociated: '%s' %pM \n",
-						  escape_essid(priv->essid,
+						  escape_ssid(priv->essid,
 							       priv->essid_len),
 						  priv->bssid);
 
@@ -4578,7 +4578,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 			case CMAS_AUTHENTICATED:
 				IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE,
 					  "authenticated: '%s' %pM \n",
-					  escape_essid(priv->essid,
+					  escape_ssid(priv->essid,
 						       priv->essid_len),
 					  priv->bssid);
 				priv->status |= STATUS_AUTH;
@@ -4597,8 +4597,8 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 				IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE |
 					  IPW_DL_ASSOC,
 					  "deauthenticated: '%s' %pM\n",
-					  escape_essid(priv->essid,
-						       priv->essid_len),
+					  escape_ssid(priv->essid,
+						      priv->essid_len),
 					  priv->bssid);
 
 				priv->status &= ~(STATUS_ASSOCIATING |
@@ -5430,7 +5430,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	     !(network->capability & WLAN_CAPABILITY_IBSS))) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded due to "
 				"capability mismatch.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5440,7 +5440,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	if (network->flags & NETWORK_EMPTY_ESSID) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of hidden ESSID.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5453,8 +5453,8 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 			   network->ssid_len)) {
 			IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 					"because of non-network ESSID.\n",
-					escape_essid(network->ssid,
-						     network->ssid_len),
+					escape_ssid(network->ssid,
+						    network->ssid_len),
 					network->bssid);
 			return 0;
 		}
@@ -5468,13 +5468,13 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 			char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
 
 			strncpy(escaped,
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				sizeof(escaped));
 			IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 					"because of ESSID mismatch: '%s'.\n",
 					escaped, network->bssid,
-					escape_essid(priv->essid,
-						     priv->essid_len));
+					escape_ssid(priv->essid,
+						    priv->essid_len));
 			return 0;
 		}
 	}
@@ -5485,14 +5485,14 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	if (network->time_stamp[0] < match->network->time_stamp[0]) {
 		IPW_DEBUG_MERGE("Network '%s excluded because newer than "
 				"current network.\n",
-				escape_essid(match->network->ssid,
-					     match->network->ssid_len));
+				escape_ssid(match->network->ssid,
+					    match->network->ssid_len));
 		return 0;
 	} else if (network->time_stamp[1] < match->network->time_stamp[1]) {
 		IPW_DEBUG_MERGE("Network '%s excluded because newer than "
 				"current network.\n",
-				escape_essid(match->network->ssid,
-					     match->network->ssid_len));
+				escape_ssid(match->network->ssid,
+					    match->network->ssid_len));
 		return 0;
 	}
 
@@ -5501,7 +5501,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	    time_after(jiffies, network->last_scanned + priv->ieee->scan_age)) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of age: %ums.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				jiffies_to_msecs(jiffies -
 						 network->last_scanned));
@@ -5512,7 +5512,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	    (network->channel != priv->channel)) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of channel mismatch: %d != %d.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				network->channel, priv->channel);
 		return 0;
@@ -5523,7 +5523,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	    ((network->capability & WLAN_CAPABILITY_PRIVACY) ? 1 : 0)) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of privacy mismatch: %s != %s.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				priv->
 				capability & CAP_PRIVACY_ON ? "on" : "off",
@@ -5536,8 +5536,8 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	if (!memcmp(network->bssid, priv->bssid, ETH_ALEN)) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of the same BSSID match: %pM"
-				".\n", escape_essid(network->ssid,
-						    network->ssid_len),
+				".\n", escape_ssid(network->ssid,
+						   network->ssid_len),
 				network->bssid,
 				priv->bssid);
 		return 0;
@@ -5548,7 +5548,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of invalid frequency/mode "
 				"combination.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5559,7 +5559,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because configured rate mask excludes "
 				"AP mandatory rate.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5567,7 +5567,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	if (rates.num_rates == 0) {
 		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
 				"because of no compatible rates.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5580,7 +5580,7 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	ipw_copy_rates(&match->rates, &rates);
 	match->network = network;
 	IPW_DEBUG_MERGE("Network '%s (%pM)' is a viable match.\n",
-			escape_essid(network->ssid, network->ssid_len),
+			escape_ssid(network->ssid, network->ssid_len),
 			network->bssid);
 
 	return 1;
@@ -5618,8 +5618,8 @@ static void ipw_merge_adhoc_network(struct work_struct *work)
 		mutex_lock(&priv->mutex);
 		if ((priv->ieee->iw_mode == IW_MODE_ADHOC)) {
 			IPW_DEBUG_MERGE("remove network %s\n",
-					escape_essid(priv->essid,
-						     priv->essid_len));
+					escape_ssid(priv->essid,
+						    priv->essid_len));
 			ipw_remove_current_network(priv);
 		}
 
@@ -5644,7 +5644,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	     !(network->capability & WLAN_CAPABILITY_IBSS))) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded due to "
 				"capability mismatch.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5654,7 +5654,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	if (network->flags & NETWORK_EMPTY_ESSID) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of hidden ESSID.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5667,7 +5667,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 			   network->ssid_len)) {
 			IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 					"because of non-network ESSID.\n",
-					escape_essid(network->ssid,
+					escape_ssid(network->ssid,
 						     network->ssid_len),
 					network->bssid);
 			return 0;
@@ -5681,13 +5681,13 @@ static int ipw_best_network(struct ipw_priv *priv,
 			    min(network->ssid_len, priv->essid_len)))) {
 			char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
 			strncpy(escaped,
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				sizeof(escaped));
 			IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 					"because of ESSID mismatch: '%s'.\n",
 					escaped, network->bssid,
-					escape_essid(priv->essid,
-						     priv->essid_len));
+					escape_ssid(priv->essid,
+						    priv->essid_len));
 			return 0;
 		}
 	}
@@ -5697,13 +5697,13 @@ static int ipw_best_network(struct ipw_priv *priv,
 	if (match->network && match->network->stats.rssi > network->stats.rssi) {
 		char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
 		strncpy(escaped,
-			escape_essid(network->ssid, network->ssid_len),
+			escape_ssid(network->ssid, network->ssid_len),
 			sizeof(escaped));
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded because "
 				"'%s (%pM)' has a stronger signal.\n",
 				escaped, network->bssid,
-				escape_essid(match->network->ssid,
-					     match->network->ssid_len),
+				escape_ssid(match->network->ssid,
+					    match->network->ssid_len),
 				match->network->bssid);
 		return 0;
 	}
@@ -5715,7 +5715,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of storming (%ums since last "
 				"assoc attempt).\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				jiffies_to_msecs(jiffies -
 						 network->last_associate));
@@ -5727,7 +5727,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	    time_after(jiffies, network->last_scanned + priv->ieee->scan_age)) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of age: %ums.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				jiffies_to_msecs(jiffies -
 						 network->last_scanned));
@@ -5738,7 +5738,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	    (network->channel != priv->channel)) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of channel mismatch: %d != %d.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				network->channel, priv->channel);
 		return 0;
@@ -5749,7 +5749,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	    ((network->capability & WLAN_CAPABILITY_PRIVACY) ? 1 : 0)) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of privacy mismatch: %s != %s.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid,
 				priv->capability & CAP_PRIVACY_ON ? "on" :
 				"off",
@@ -5762,7 +5762,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	    memcmp(network->bssid, priv->bssid, ETH_ALEN)) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of BSSID mismatch: %pM.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid, priv->bssid);
 		return 0;
 	}
@@ -5772,7 +5772,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of invalid frequency/mode "
 				"combination.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5781,7 +5781,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	if (!ieee80211_is_valid_channel(priv->ieee, network->channel)) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of invalid channel in current GEO\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5792,7 +5792,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because configured rate mask excludes "
 				"AP mandatory rate.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5800,7 +5800,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	if (rates.num_rates == 0) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
 				"because of no compatible rates.\n",
-				escape_essid(network->ssid, network->ssid_len),
+				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
 	}
@@ -5814,7 +5814,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	match->network = network;
 
 	IPW_DEBUG_ASSOC("Network '%s (%pM)' is a viable match.\n",
-			escape_essid(network->ssid, network->ssid_len),
+			escape_ssid(network->ssid, network->ssid_len),
 			network->bssid);
 
 	return 1;
@@ -6065,7 +6065,7 @@ static void ipw_debug_config(struct ipw_priv *priv)
 		IPW_DEBUG_INFO("Channel unlocked.\n");
 	if (priv->config & CFG_STATIC_ESSID)
 		IPW_DEBUG_INFO("ESSID locked to '%s'\n",
-			       escape_essid(priv->essid, priv->essid_len));
+			       escape_ssid(priv->essid, priv->essid_len));
 	else
 		IPW_DEBUG_INFO("ESSID unlocked.\n");
 	if (priv->config & CFG_STATIC_BSSID)
@@ -7352,7 +7352,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 	IPW_DEBUG_ASSOC("%sssocation attempt: '%s', channel %d, "
 			"802.11%c [%d], %s[:%s], enc=%s%s%s%c%c\n",
 			roaming ? "Rea" : "A",
-			escape_essid(priv->essid, priv->essid_len),
+			escape_ssid(priv->essid, priv->essid_len),
 			network->channel,
 			ipw_modes[priv->assoc_request.ieee_mode],
 			rates->num_rates,
@@ -7452,7 +7452,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 	}
 
 	IPW_DEBUG(IPW_DL_STATE, "associating: '%s' %pM \n",
-		  escape_essid(priv->essid, priv->essid_len),
+		  escape_ssid(priv->essid, priv->essid_len),
 		  priv->bssid);
 
 	return 0;
@@ -7604,8 +7604,8 @@ static int ipw_associate(void *data)
 			target = oldest;
 			IPW_DEBUG_ASSOC("Expired '%s' (%pM) from "
 					"network list.\n",
-					escape_essid(target->ssid,
-						     target->ssid_len),
+					escape_ssid(target->ssid,
+						    target->ssid_len),
 					target->bssid);
 			list_add_tail(&target->list,
 				      &priv->ieee->network_free_list);
@@ -9057,7 +9057,7 @@ static int ipw_wx_set_essid(struct net_device *dev,
 		return 0;
 	}
 
-	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_essid(extra, length),
+	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_ssid(extra, length),
 		     length);
 
 	priv->essid_len = length;
@@ -9084,7 +9084,7 @@ static int ipw_wx_get_essid(struct net_device *dev,
 	if (priv->config & CFG_STATIC_ESSID ||
 	    priv->status & (STATUS_ASSOCIATED | STATUS_ASSOCIATING)) {
 		IPW_DEBUG_WX("Getting essid: '%s'\n",
-			     escape_essid(priv->essid, priv->essid_len));
+			     escape_ssid(priv->essid, priv->essid_len));
 		memcpy(extra, priv->essid, priv->essid_len);
 		wrqu->essid.length = priv->essid_len;
 		wrqu->essid.flags = 1;	/* active */

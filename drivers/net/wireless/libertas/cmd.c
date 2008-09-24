@@ -4,6 +4,7 @@
   */
 
 #include <net/iw_handler.h>
+#include <net/lib80211.h>
 #include <net/ieee80211.h>
 #include <linux/kfifo.h>
 #include "host.h"
@@ -1092,7 +1093,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 	}
 	lbs_deb_cmd("mesh config action %d type %x channel %d SSID %s\n",
 		    action, priv->mesh_tlv, chan,
-		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
+		    escape_ssid(priv->mesh_ssid, priv->mesh_ssid_len));
 
 	return __lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
 }

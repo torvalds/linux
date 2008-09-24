@@ -271,6 +271,7 @@ config LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
 	depends on WLAN_80211
 	select WIRELESS_EXT
+	select LIB80211
 	select FW_LOADER
 	---help---
 	  A library for Marvell Libertas 8xxx devices.

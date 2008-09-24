@@ -1,6 +1,8 @@
 /* Copyright (C) 2006, Red Hat, Inc. */
 
+#include <linux/types.h>
 #include <linux/etherdevice.h>
+#include <net/lib80211.h>
 
 #include "assoc.h"
 #include "decl.h"
@@ -157,11 +159,11 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	lbs_deb_join("current SSID '%s', ssid length %u\n",
-		escape_essid(priv->curbssparams.ssid,
+		escape_ssid(priv->curbssparams.ssid,
 		priv->curbssparams.ssid_len),
 		priv->curbssparams.ssid_len);
 	lbs_deb_join("requested ssid '%s', ssid length %u\n",
-		escape_essid(bss->ssid, bss->ssid_len),
+		escape_ssid(bss->ssid, bss->ssid_len),
 		bss->ssid_len);
 
 	/* check if the requested SSID is already joined */
@@ -325,7 +327,7 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 	memcpy(cmd.ssid, assoc_req->ssid, assoc_req->ssid_len);
 
 	lbs_deb_join("ADHOC_START: SSID '%s', ssid length %u\n",
-		escape_essid(assoc_req->ssid, assoc_req->ssid_len),
+		escape_ssid(assoc_req->ssid, assoc_req->ssid_len),
 		assoc_req->ssid_len);
 
 	cmd.bsstype = CMD_BSS_TYPE_IBSS;
@@ -704,7 +706,7 @@ static int assoc_helper_essid(struct lbs_private *priv,
 		channel = assoc_req->channel;
 
 	lbs_deb_assoc("SSID '%s' requested\n",
-	              escape_essid(assoc_req->ssid, assoc_req->ssid_len));
+	              escape_ssid(assoc_req->ssid, assoc_req->ssid_len));
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		lbs_send_specific_ssid_scan(priv, assoc_req->ssid,
 			assoc_req->ssid_len);
@@ -1228,7 +1230,7 @@ void lbs_association_worker(struct work_struct *work)
 		"    secinfo:  %s%s%s\n"
 		"    auth_mode: %d\n",
 		assoc_req->flags,
-		escape_essid(assoc_req->ssid, assoc_req->ssid_len),
+		escape_ssid(assoc_req->ssid, assoc_req->ssid_len),
 		assoc_req->channel, assoc_req->band, assoc_req->mode,
 		assoc_req->bssid,
 		assoc_req->secinfo.WPAenabled ? " WPA" : "",
@@ -1814,7 +1816,7 @@ static int lbs_adhoc_post(struct lbs_private *priv, struct cmd_header *resp)
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	lbs_deb_join("ADHOC_RESP: Joined/started '%s', BSSID %pM, channel %d\n",
-		     escape_essid(bss->ssid, bss->ssid_len),
+		     escape_ssid(bss->ssid, bss->ssid_len),
 		     priv->curbssparams.bssid,
 		     priv->curbssparams.channel);
 

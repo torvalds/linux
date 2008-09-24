@@ -1975,7 +1975,7 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 	}
 
 	IPW_DEBUG_INFO("%s: Associated with '%s' at %s, channel %d (BSSID=%pM)\n",
-		       priv->net_dev->name, escape_essid(essid, essid_len),
+		       priv->net_dev->name, escape_ssid(essid, essid_len),
 		       txratename, chan, bssid);
 
 	/* now we copy read ssid into dev */
@@ -2003,7 +2003,7 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 	};
 	int err;
 
-	IPW_DEBUG_HC("SSID: '%s'\n", escape_essid(essid, ssid_len));
+	IPW_DEBUG_HC("SSID: '%s'\n", escape_ssid(essid, ssid_len));
 
 	if (ssid_len)
 		memcpy(cmd.host_command_parameters, essid, ssid_len);
@@ -2046,7 +2046,7 @@ static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 {
 	IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE | IPW_DL_ASSOC,
 		  "disassociated: '%s' %pM \n",
-		  escape_essid(priv->essid, priv->essid_len),
+		  escape_ssid(priv->essid, priv->essid_len),
 		  priv->bssid);
 
 	priv->status &= ~(STATUS_ASSOCIATED | STATUS_ASSOCIATING);
@@ -6987,7 +6987,7 @@ static int ipw2100_wx_set_essid(struct net_device *dev,
 		goto done;
 	}
 
-	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_essid(essid, length),
+	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_ssid(essid, length),
 		     length);
 
 	priv->essid_len = length;
@@ -7014,7 +7014,7 @@ static int ipw2100_wx_get_essid(struct net_device *dev,
 	 * configured ESSID then return that; otherwise return ANY */
 	if (priv->config & CFG_STATIC_ESSID || priv->status & STATUS_ASSOCIATED) {
 		IPW_DEBUG_WX("Getting essid: '%s'\n",
-			     escape_essid(priv->essid, priv->essid_len));
+			     escape_ssid(priv->essid, priv->essid_len));
 		memcpy(extra, priv->essid, priv->essid_len);
 		wrqu->essid.length = priv->essid_len;
 		wrqu->essid.flags = 1;	/* active */

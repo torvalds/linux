@@ -32,6 +32,7 @@
 #include <asm/uaccess.h>
 #include <linux/ctype.h>
 
+#include <net/lib80211.h>
 #include <net/ieee80211.h>
 
 static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
@@ -1145,8 +1146,8 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 
 		switch (info_element->id) {
 		case MFIE_TYPE_SSID:
-			if (ieee80211_is_empty_essid(info_element->data,
-						     info_element->len)) {
+			if (is_empty_ssid(info_element->data,
+					  info_element->len)) {
 				network->flags |= NETWORK_EMPTY_ESSID;
 				break;
 			}
@@ -1390,7 +1391,7 @@ static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct iee
 			network->mode |= IEEE_B;
 	}
 
-	if (ieee80211_is_empty_essid(network->ssid, network->ssid_len))
+	if (is_empty_ssid(network->ssid, network->ssid_len))
 		network->flags |= NETWORK_EMPTY_ESSID;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));
@@ -1456,13 +1457,13 @@ static int ieee80211_network_init(struct ieee80211_device *ieee, struct ieee8021
 	if (network->mode == 0) {
 		IEEE80211_DEBUG_SCAN("Filtered out '%s (%pM)' "
 				     "network.\n",
-				     escape_essid(network->ssid,
-						  network->ssid_len),
+				     escape_ssid(network->ssid,
+						 network->ssid_len),
 				     network->bssid);
 		return 1;
 	}
 
-	if (ieee80211_is_empty_essid(network->ssid, network->ssid_len))
+	if (is_empty_ssid(network->ssid, network->ssid_len))
 		network->flags |= NETWORK_EMPTY_ESSID;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));
@@ -1576,7 +1577,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 
 	IEEE80211_DEBUG_SCAN("'%s' (%pM"
 		     "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
-		     escape_essid(info_element->data, info_element->len),
+		     escape_ssid(info_element->data, info_element->len),
 		     beacon->header.addr3,
 		     (beacon->capability & cpu_to_le16(1 << 0xf)) ? '1' : '0',
 		     (beacon->capability & cpu_to_le16(1 << 0xe)) ? '1' : '0',
@@ -1597,8 +1598,8 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
 		IEEE80211_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
-				     escape_essid(info_element->data,
-						  info_element->len),
+				     escape_ssid(info_element->data,
+						 info_element->len),
 				     beacon->header.addr3,
 				     is_beacon(beacon->header.frame_ctl) ?
 				     "BEACON" : "PROBE RESPONSE");
@@ -1635,8 +1636,8 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 			target = oldest;
 			IEEE80211_DEBUG_SCAN("Expired '%s' (%pM) from "
 					     "network list.\n",
-					     escape_essid(target->ssid,
-							  target->ssid_len),
+					     escape_ssid(target->ssid,
+							 target->ssid_len),
 					     target->bssid);
 			ieee80211_network_reset(target);
 		} else {
@@ -1648,8 +1649,8 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 
 #ifdef CONFIG_IEEE80211_DEBUG
 		IEEE80211_DEBUG_SCAN("Adding '%s' (%pM) via %s.\n",
-				     escape_essid(network.ssid,
-						  network.ssid_len),
+				     escape_ssid(network.ssid,
+						 network.ssid_len),
 				     network.bssid,
 				     is_beacon(beacon->header.frame_ctl) ?
 				     "BEACON" : "PROBE RESPONSE");
@@ -1659,8 +1660,8 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 		list_add_tail(&target->list, &ieee->network_list);
 	} else {
 		IEEE80211_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
-				     escape_essid(target->ssid,
-						  target->ssid_len),
+				     escape_ssid(target->ssid,
+						 target->ssid_len),
 				     target->bssid,
 				     is_beacon(beacon->header.frame_ctl) ?
 				     "BEACON" : "PROBE RESPONSE");

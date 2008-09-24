@@ -4,8 +4,11 @@
   * IOCTL handlers as well as command preperation and response routines
   *  for sending scan commands to the firmware.
   */
+#include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
+
+#include <net/lib80211.h>
 
 #include "host.h"
 #include "decl.h"
@@ -452,7 +455,7 @@ int lbs_scan_networks(struct lbs_private *priv, int full_scan)
 	list_for_each_entry(iter, &priv->network_list, list)
 		lbs_deb_scan("%02d: BSSID %pM, RSSI %d, SSID '%s'\n",
 			     i++, iter->bssid, iter->rssi,
-			     escape_essid(iter->ssid, iter->ssid_len));
+			     escape_ssid(iter->ssid, iter->ssid_len));
 	mutex_unlock(&priv->lock);
 #endif
 
@@ -599,7 +602,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 			bss->ssid_len = min_t(int, 32, elem->len);
 			memcpy(bss->ssid, elem->data, bss->ssid_len);
 			lbs_deb_scan("got SSID IE: '%s', len %u\n",
-			             escape_essid(bss->ssid, bss->ssid_len),
+			             escape_ssid(bss->ssid, bss->ssid_len),
 			             bss->ssid_len);
 			break;
 
@@ -742,7 +745,7 @@ int lbs_send_specific_ssid_scan(struct lbs_private *priv, uint8_t *ssid,
 	int ret = 0;
 
 	lbs_deb_enter_args(LBS_DEB_SCAN, "SSID '%s'\n",
-			   escape_essid(ssid, ssid_len));
+			   escape_ssid(ssid, ssid_len));
 
 	if (!ssid_len)
 		goto out;
@@ -966,7 +969,7 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		priv->scan_ssid_len = req->essid_len;
 		memcpy(priv->scan_ssid, req->essid, priv->scan_ssid_len);
 		lbs_deb_wext("set_scan, essid '%s'\n",
-			escape_essid(priv->scan_ssid, priv->scan_ssid_len));
+			escape_ssid(priv->scan_ssid, priv->scan_ssid_len));
 	} else {
 		priv->scan_ssid_len = 0;
 	}
