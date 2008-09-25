@@ -286,6 +286,12 @@ static int signr_convert(int sig)
 	return sig;
 }
 
+#ifdef CONFIG_IA32_EMULATION
+#define is_ia32	test_thread_flag(TIF_IA32)
+#else
+#define is_ia32	0
+#endif
+
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
@@ -293,15 +299,14 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	int usig = signr_convert(sig);
 	int ret;
 
-#ifdef CONFIG_IA32_EMULATION
-	if (test_thread_flag(TIF_IA32)) {
+	/* Set up the stack frame */
+	if (is_ia32) {
 		if (ka->sa.sa_flags & SA_SIGINFO)
 			ret = ia32_setup_rt_frame(usig, ka, info, set, regs);
 		else
 			ret = ia32_setup_frame(usig, ka, set, regs);
 	} else
-#endif
-	ret = __setup_rt_frame(sig, ka, info, set, regs);
+		ret = __setup_rt_frame(sig, ka, info, set, regs);
 
 	if (ret) {
 		force_sigsegv(sig, current);
