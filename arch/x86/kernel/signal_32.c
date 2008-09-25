@@ -492,6 +492,8 @@ static int signr_convert(int sig)
 }
 
 #define is_ia32	1
+#define ia32_setup_frame	__setup_frame
+#define ia32_setup_rt_frame	__setup_rt_frame
 
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -503,9 +505,9 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up the stack frame */
 	if (is_ia32) {
 		if (ka->sa.sa_flags & SA_SIGINFO)
-			ret = __setup_rt_frame(usig, ka, info, set, regs);
+			ret = ia32_setup_rt_frame(usig, ka, info, set, regs);
 		else
-			ret = __setup_frame(usig, ka, set, regs);
+			ret = ia32_setup_frame(usig, ka, set, regs);
 	} else
 		ret = __setup_rt_frame(sig, ka, info, set, regs);
 
