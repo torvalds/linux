@@ -242,6 +242,15 @@ extern void dmabounce_unregister_dev(struct device *);
 extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
 
 /*
+ * The DMA API, implemented by dmabounce.c.  See below for descriptions.
+ */
+extern dma_addr_t dma_map_single(struct device *,void *, size_t, enum dma_data_direction);
+extern dma_addr_t dma_map_page(struct device *dev, struct page *page,
+			unsigned long offset, size_t size,
+			enum dma_data_direction dir);
+extern void dma_unmap_single(struct device *, dma_addr_t, size_t, enum dma_data_direction);
+
+/*
  * Private functions
  */
 int dmabounce_sync_for_cpu(struct device *, dma_addr_t, unsigned long,
@@ -251,7 +260,6 @@ int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
 #else
 #define dmabounce_sync_for_cpu(dev,dma,off,sz,dir)	(1)
 #define dmabounce_sync_for_device(dev,dma,off,sz,dir)	(1)
-#endif /* CONFIG_DMABOUNCE */
 
 
 /**
@@ -268,7 +276,6 @@ int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
  * can regain ownership by calling dma_unmap_single() or
  * dma_sync_single_for_cpu().
  */
-#ifndef CONFIG_DMABOUNCE
 static inline dma_addr_t
 dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	       enum dma_data_direction dir)
@@ -278,9 +285,7 @@ dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 
 	return virt_to_dma(dev, cpu_addr);
 }
-#else
-extern dma_addr_t dma_map_single(struct device *,void *, size_t, enum dma_data_direction);
-#endif
+
 
 /**
  * dma_map_page - map a portion of a page for streaming DMA
@@ -297,7 +302,6 @@ extern dma_addr_t dma_map_single(struct device *,void *, size_t, enum dma_data_d
  * can regain ownership by calling dma_unmap_page() or
  * dma_sync_single_for_cpu().
  */
-#ifndef CONFIG_DMABOUNCE
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
 	     unsigned long offset, size_t size,
@@ -308,11 +312,6 @@ dma_map_page(struct device *dev, struct page *page,
 
 	return page_to_dma(dev, page) + offset;
 }
-#else
-extern dma_addr_t dma_map_page(struct device *dev, struct page *page,
-			unsigned long offset, size_t size,
-			enum dma_data_direction dir);
-#endif
 
 /**
  * dma_unmap_single - unmap a single buffer previously mapped
@@ -328,16 +327,13 @@ extern dma_addr_t dma_map_page(struct device *dev, struct page *page,
  * After this call, reads by the CPU to the buffer are guaranteed to see
  * whatever the device wrote there.
  */
-#ifndef CONFIG_DMABOUNCE
 static inline void
 dma_unmap_single(struct device *dev, dma_addr_t handle, size_t size,
 		 enum dma_data_direction dir)
 {
 	/* nothing to do */
 }
-#else
-extern void dma_unmap_single(struct device *, dma_addr_t, size_t, enum dma_data_direction);
-#endif
+#endif /* CONFIG_DMABOUNCE */
 
 /**
  * dma_unmap_page - unmap a buffer previously mapped through dma_map_page()

@@ -205,6 +205,21 @@ free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *
 
 /* ************************************************** */
 
+static struct safe_buffer *find_safe_buffer_dev(struct device *dev,
+		dma_addr_t dma_addr, const char *where)
+{
+	if (!dev || !dev->archdata.dmabounce)
+		return NULL;
+	if (dma_mapping_error(dev, dma_addr)) {
+		if (dev)
+			dev_err(dev, "Trying to %s invalid mapping\n", where);
+		else
+			pr_err("unknown device: Trying to %s invalid mapping\n", where);
+		return NULL;
+	}
+	return find_safe_buffer(dev->archdata.dmabounce, dma_addr);
+}
+
 static inline dma_addr_t
 map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
@@ -274,19 +289,7 @@ static inline void
 unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		enum dma_data_direction dir)
 {
-	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
-	struct safe_buffer *buf = NULL;
-
-	/*
-	 * Trying to unmap an invalid mapping
-	 */
-	if (dma_mapping_error(dev, dma_addr)) {
-		dev_err(dev, "Trying to unmap invalid mapping\n");
-		return;
-	}
-
-	if (device_info)
-		buf = find_safe_buffer(device_info, dma_addr);
+	struct safe_buffer *buf = find_safe_buffer_dev(dev, dma_addr, "unmap");
 
 	if (buf) {
 		BUG_ON(buf->size != size);
@@ -296,7 +299,7 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
 			buf->safe, buf->safe_dma_addr);
 
-		DO_STATS ( device_info->bounce_count++ );
+		DO_STATS(dev->archdata.dmabounce->bounce_count++);
 
 		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
 			void *ptr = buf->ptr;
@@ -317,74 +320,7 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			dmac_clean_range(ptr, ptr + size);
 			outer_clean_range(__pa(ptr), __pa(ptr) + size);
 		}
-		free_safe_buffer(device_info, buf);
-	}
-}
-
-static int sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-			enum dma_data_direction dir)
-{
-	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
-	struct safe_buffer *buf = NULL;
-
-	if (device_info)
-		buf = find_safe_buffer(device_info, dma_addr);
-
-	if (buf) {
-		/*
-		 * Both of these checks from original code need to be
-		 * commented out b/c some drivers rely on the following:
-		 *
-		 * 1) Drivers may map a large chunk of memory into DMA space
-		 *    but only sync a small portion of it. Good example is
-		 *    allocating a large buffer, mapping it, and then
-		 *    breaking it up into small descriptors. No point
-		 *    in syncing the whole buffer if you only have to
-		 *    touch one descriptor.
-		 *
-		 * 2) Buffers that are mapped as DMA_BIDIRECTIONAL are
-		 *    usually only synced in one dir at a time.
-		 *
-		 * See drivers/net/eepro100.c for examples of both cases.
-		 *
-		 * -ds
-		 *
-		 * BUG_ON(buf->size != size);
-		 * BUG_ON(buf->direction != dir);
-		 */
-
-		dev_dbg(dev,
-			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
-			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
-			buf->safe, buf->safe_dma_addr);
-
-		DO_STATS ( device_info->bounce_count++ );
-
-		switch (dir) {
-		case DMA_FROM_DEVICE:
-			dev_dbg(dev,
-				"%s: copy back safe %p to unsafe %p size %d\n",
-				__func__, buf->safe, buf->ptr, size);
-			memcpy(buf->ptr, buf->safe, size);
-			break;
-		case DMA_TO_DEVICE:
-			dev_dbg(dev,
-				"%s: copy out unsafe %p to safe %p, size %d\n",
-				__func__,buf->ptr, buf->safe, size);
-			memcpy(buf->safe, buf->ptr, size);
-			break;
-		case DMA_BIDIRECTIONAL:
-			BUG();	/* is this allowed?  what does it mean? */
-		default:
-			BUG();
-		}
-		/*
-		 * No need to sync the safe buffer - it was allocated
-		 * via the coherent allocators.
-		 */
-		return 0;
-	} else {
-		return 1;
+		free_safe_buffer(dev->archdata.dmabounce, buf);
 	}
 }
 
@@ -447,18 +383,54 @@ dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 int dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 		unsigned long off, size_t sz, enum dma_data_direction dir)
 {
-	dev_dbg(dev, "%s(dma=%#lx,off=%#lx,sz=%zx,dir=%x)\n",
+	struct safe_buffer *buf;
+
+	dev_dbg(dev, "%s(dma=%#x,off=%#lx,sz=%zx,dir=%x)\n",
 		__func__, addr, off, sz, dir);
-	return sync_single(dev, addr, off + sz, dir);
+
+	buf = find_safe_buffer_dev(dev, addr, __func__);
+	if (!buf)
+		return 1;
+
+	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+		buf->safe, buf->safe_dma_addr);
+
+	DO_STATS(dev->archdata.dmabounce->bounce_count++);
+
+	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
+		dev_dbg(dev, "%s: copy back safe %p to unsafe %p size %d\n",
+			__func__, buf->safe + off, buf->ptr + off, sz);
+		memcpy(buf->ptr + off, buf->safe + off, sz);
+	}
+	return 0;
 }
 EXPORT_SYMBOL(dmabounce_sync_for_cpu);
 
 int dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
 		unsigned long off, size_t sz, enum dma_data_direction dir)
 {
-	dev_dbg(dev, "%s(dma=%#lx,off=%#lx,sz=%zx,dir=%x)\n",
+	struct safe_buffer *buf;
+
+	dev_dbg(dev, "%s(dma=%#x,off=%#lx,sz=%zx,dir=%x)\n",
 		__func__, addr, off, sz, dir);
-	return sync_single(dev, addr, off + sz, dir);
+
+	buf = find_safe_buffer_dev(dev, addr, __func__);
+	if (!buf)
+		return 1;
+
+	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+		buf->safe, buf->safe_dma_addr);
+
+	DO_STATS(dev->archdata.dmabounce->bounce_count++);
+
+	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL) {
+		dev_dbg(dev, "%s: copy out unsafe %p to safe %p, size %d\n",
+			__func__,buf->ptr + off, buf->safe + off, sz);
+		memcpy(buf->safe + off, buf->ptr + off, sz);
+	}
+	return 0;
 }
 EXPORT_SYMBOL(dmabounce_sync_for_device);
 
