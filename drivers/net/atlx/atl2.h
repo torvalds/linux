@@ -462,7 +462,6 @@ struct atl2_adapter {
 	u16 link_duplex;
 
 	spinlock_t stats_lock;
-	spinlock_t tx_lock;
 
 	struct work_struct reset_task;
 	struct work_struct link_chg_task;

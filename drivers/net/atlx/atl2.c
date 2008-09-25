@@ -116,7 +116,6 @@ static int __devinit atl2_sw_init(struct atl2_adapter *adapter)
 	hw->max_frame_size = adapter->netdev->mtu;
 
 	spin_lock_init(&adapter->stats_lock);
-	spin_lock_init(&adapter->tx_lock);
 
 	set_bit(__ATL2_DOWN, &adapter->flags);
 
@@ -751,11 +750,7 @@ static void atl2_down(struct atl2_adapter *adapter)
 	 * reschedule our watchdog timer */
 	set_bit(__ATL2_DOWN, &adapter->flags);
 
-#ifdef NETIF_F_LLTX
-	netif_stop_queue(netdev);
-#else
 	netif_tx_disable(netdev);
-#endif
 
 	/* reset MAC to disable all RX/TX */
 	atl2_reset_hw(&adapter->hw);
@@ -831,7 +826,6 @@ static inline int TxdFreeBytes(struct atl2_adapter *adapter)
 static int atl2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
-	unsigned long flags;
 	struct tx_pkt_header *txph;
 	u32 offset, copy_len;
 	int txs_unused;
@@ -847,16 +841,6 @@ static int atl2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-#ifdef NETIF_F_LLTX
-	local_irq_save(flags);
-	if (!spin_trylock(&adapter->tx_lock)) {
-		/* Collision - tell upper layer to requeue */
-		local_irq_restore(flags);
-		return NETDEV_TX_LOCKED;
-	}
-#else
-	spin_lock_irqsave(&adapter->tx_lock, flags);
-#endif
 	txs_unused = TxsFreeUnit(adapter);
 	txbuf_unused = TxdFreeBytes(adapter);
 
@@ -864,7 +848,6 @@ static int atl2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		txs_unused < 1) {
 		/* not enough resources */
 		netif_stop_queue(netdev);
-		spin_unlock_irqrestore(&adapter->tx_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -910,8 +893,7 @@ static int atl2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	ATL2_WRITE_REGW(&adapter->hw, REG_MB_TXD_WR_IDX,
 		(adapter->txd_write_ptr >> 2));
 
-	spin_unlock_irqrestore(&adapter->tx_lock, flags);
-
+	mmiowb();
 	netdev->trans_start = jiffies;
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
@@ -1447,10 +1429,6 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 
 #ifdef NETIF_F_HW_VLAN_TX
 	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-#endif
-
-#ifdef NETIF_F_LLTX
-	netdev->features |= NETIF_F_LLTX;
 #endif
 
 	/* Init PHY as early as possible due to power saving issue  */
