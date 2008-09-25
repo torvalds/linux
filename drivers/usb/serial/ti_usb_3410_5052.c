@@ -85,7 +85,6 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-#include <linux/firmware.h>
 
 #include "ti_usb_3410_5052.h"
 
