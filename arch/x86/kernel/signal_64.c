@@ -281,18 +281,24 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 /*
  * OK, we're invoking a handler
  */
+static int signr_convert(int sig)
+{
+	return sig;
+}
+
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
 {
+	int usig = signr_convert(sig);
 	int ret;
 
 #ifdef CONFIG_IA32_EMULATION
 	if (test_thread_flag(TIF_IA32)) {
 		if (ka->sa.sa_flags & SA_SIGINFO)
-			ret = ia32_setup_rt_frame(sig, ka, info, set, regs);
+			ret = ia32_setup_rt_frame(usig, ka, info, set, regs);
 		else
-			ret = ia32_setup_frame(sig, ka, set, regs);
+			ret = ia32_setup_frame(usig, ka, set, regs);
 	} else
 #endif
 	ret = __setup_rt_frame(sig, ka, info, set, regs);
