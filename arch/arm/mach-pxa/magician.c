@@ -409,7 +409,7 @@ static struct platform_device backlight = {
  * LEDs
  */
 
-struct gpio_led gpio_leds[] = {
+static struct gpio_led gpio_leds[] = {
 	{
 		.name = "magician::vibra",
 		.default_trigger = "none",
