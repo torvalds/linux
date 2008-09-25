@@ -67,6 +67,8 @@ unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
 unsigned int __machine_arch_type;
 EXPORT_SYMBOL(__machine_arch_type);
+unsigned int cacheid;
+EXPORT_SYMBOL(cacheid);
 
 unsigned int __atags_pointer __initdata;
 
@@ -229,6 +231,25 @@ int cpu_architecture(void)
 	return cpu_arch;
 }
 
+static void __init cacheid_init(void)
+{
+	unsigned int cachetype = read_cpuid_cachetype();
+	unsigned int arch = cpu_architecture();
+
+	if (arch >= CPU_ARCH_ARMv7) {
+		cacheid = CACHEID_VIPT_NONALIASING;
+		if ((cachetype & (3 << 14)) == 1 << 14)
+			cacheid |= CACHEID_ASID_TAGGED;
+	} else if (arch >= CPU_ARCH_ARMv6) {
+		if (cachetype & (1 << 23))
+			cacheid = CACHEID_VIPT_ALIASING;
+		else
+			cacheid = CACHEID_VIPT_NONALIASING;
+	} else {
+		cacheid = CACHEID_VIVT;
+	}
+}
+
 /*
  * These functions re-use the assembly code in head.S, which
  * already provide the required functionality.
@@ -278,6 +299,7 @@ static void __init setup_processor(void)
 	elf_hwcap &= ~HWCAP_THUMB;
 #endif
 
+	cacheid_init();
 	cpu_proc_init();
 }
 
