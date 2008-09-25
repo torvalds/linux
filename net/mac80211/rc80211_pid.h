@@ -124,7 +124,6 @@ struct rc_pid_events_file_info {
  * struct rc_pid_debugfs_entries - tunable parameters
  *
  * Algorithm parameters, tunable via debugfs.
- * @dir: the debugfs directory for a specific phy
  * @target: target percentage for failed frames
  * @sampling_period: error sampling interval in milliseconds
  * @coeff_p: absolute value of the proportional coefficient
@@ -143,7 +142,6 @@ struct rc_pid_events_file_info {
  *	ordering of rates)
  */
 struct rc_pid_debugfs_entries {
-	struct dentry *dir;
 	struct dentry *target;
 	struct dentry *sampling_period;
 	struct dentry *coeff_p;

@@ -165,11 +165,10 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 	return cpu_to_le16(dur);
 }
 
-static int inline is_ieee80211_device(struct net_device *dev,
-				      struct net_device *master)
+static int inline is_ieee80211_device(struct ieee80211_local *local,
+				      struct net_device *dev)
 {
-	return (wdev_priv(dev->ieee80211_ptr) ==
-		wdev_priv(master->ieee80211_ptr));
+	return local == wdev_priv(dev->ieee80211_ptr);
 }
 
 /* tx handlers */
@@ -447,7 +446,8 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
 	if (likely(tx->rate_idx < 0)) {
-		rate_control_get_rate(tx->dev, sband, tx->skb, &rsel);
+		rate_control_get_rate(tx->sdata, sband, tx->sta,
+				      tx->skb, &rsel);
 		if (tx->sta)
 			tx->sta->last_txrate_idx = rsel.rate_idx;
 		tx->rate_idx = rsel.rate_idx;
@@ -1001,14 +1001,14 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 /*
  * NB: @tx is uninitialised when passed in here
  */
-static int ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
-				struct sk_buff *skb,
-				struct net_device *mdev)
+static int ieee80211_tx_prepare(struct ieee80211_local *local,
+				struct ieee80211_tx_data *tx,
+				struct sk_buff *skb)
 {
 	struct net_device *dev;
 
 	dev = dev_get_by_index(&init_net, skb->iif);
-	if (unlikely(dev && !is_ieee80211_device(dev, mdev))) {
+	if (unlikely(dev && !is_ieee80211_device(local, dev))) {
 		dev_put(dev);
 		dev = NULL;
 	}
@@ -1258,6 +1258,8 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 int ieee80211_master_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
+	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
+	struct ieee80211_local *local = mpriv->local;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct net_device *odev = NULL;
@@ -1273,7 +1275,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 
 	if (skb->iif)
 		odev = dev_get_by_index(&init_net, skb->iif);
-	if (unlikely(odev && !is_ieee80211_device(odev, dev))) {
+	if (unlikely(odev && !is_ieee80211_device(local, odev))) {
 		dev_put(odev);
 		odev = NULL;
 	}
@@ -1449,8 +1451,8 @@ fail:
 int ieee80211_subif_start_xmit(struct sk_buff *skb,
 			       struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	int ret = 1, head_need;
 	u16 ethertype, hdrlen,  meshhdrlen = 0;
 	__le16 fc;
@@ -1462,7 +1464,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct sta_info *sta;
 	u32 sta_flags = 0;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = 0;
 		goto fail;
@@ -1498,18 +1499,50 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
-		/* RA TA DA SA */
-		memset(hdr.addr1, 0, ETH_ALEN);
-		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
-		memcpy(hdr.addr3, skb->data, ETH_ALEN);
-		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 		if (!sdata->u.mesh.mshcfg.dot11MeshTTL) {
 			/* Do not send frames with mesh_ttl == 0 */
 			sdata->u.mesh.mshstats.dropped_frames_ttl++;
 			ret = 0;
 			goto fail;
 		}
-		meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
+		memset(&mesh_hdr, 0, sizeof(mesh_hdr));
+
+		if (compare_ether_addr(dev->dev_addr,
+					  skb->data + ETH_ALEN) == 0) {
+			/* RA TA DA SA */
+			memset(hdr.addr1, 0, ETH_ALEN);
+			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
+		} else {
+			/* packet from other interface */
+			struct mesh_path *mppath;
+
+			memset(hdr.addr1, 0, ETH_ALEN);
+			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr4, dev->dev_addr, ETH_ALEN);
+
+			if (is_multicast_ether_addr(skb->data))
+				memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			else {
+				rcu_read_lock();
+				mppath = mpp_path_lookup(skb->data, sdata);
+				if (mppath)
+					memcpy(hdr.addr3, mppath->mpp, ETH_ALEN);
+				else
+					memset(hdr.addr3, 0xff, ETH_ALEN);
+				rcu_read_unlock();
+			}
+
+			mesh_hdr.flags |= MESH_FLAGS_AE_A5_A6;
+			mesh_hdr.ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
+			put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &mesh_hdr.seqnum);
+			memcpy(mesh_hdr.eaddr1, skb->data, ETH_ALEN);
+			memcpy(mesh_hdr.eaddr2, skb->data + ETH_ALEN, ETH_ALEN);
+			sdata->u.mesh.mesh_seqnum++;
+			meshhdrlen = 18;
+		}
 		hdrlen = 30;
 		break;
 #endif
@@ -1923,7 +1956,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	skb->do_not_encrypt = 1;
 
 	info->band = band;
-	rate_control_get_rate(local->mdev, sband, skb, &rsel);
+	rate_control_get_rate(sdata, sband, NULL, skb, &rsel);
 
 	if (unlikely(rsel.rate_idx < 0)) {
 		if (net_ratelimit()) {
@@ -2032,7 +2065,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 				cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		}
 
-		if (!ieee80211_tx_prepare(&tx, skb, local->mdev))
+		if (!ieee80211_tx_prepare(local, &tx, skb))
 			break;
 		dev_kfree_skb_any(skb);
 	}

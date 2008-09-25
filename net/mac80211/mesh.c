@@ -351,7 +351,7 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = wdev_priv(&sdata->wdev);
+	struct ieee80211_local *local = sdata->local;
 
 	queue_work(local->hw.workqueue, &ifmsh->work);
 }

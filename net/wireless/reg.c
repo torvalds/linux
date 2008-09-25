@@ -42,6 +42,18 @@
 #include "core.h"
 #include "reg.h"
 
+/* wiphy is set if this request's initiator is REGDOM_SET_BY_DRIVER */
+struct regulatory_request {
+	struct list_head list;
+	struct wiphy *wiphy;
+	int granted;
+	enum reg_set_by initiator;
+	char alpha2[2];
+};
+
+static LIST_HEAD(regulatory_requests);
+DEFINE_MUTEX(cfg80211_reg_mutex);
+
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
 
@@ -51,7 +63,156 @@ static u32 supported_bandwidths[] = {
 	MHZ_TO_KHZ(20),
 };
 
-bool is_world_regdom(char *alpha2)
+static struct list_head regulatory_requests;
+
+/* Central wireless core regulatory domains, we only need two,
+ * the current one and a world regulatory domain in case we have no
+ * information to give us an alpha2 */
+static const struct ieee80211_regdomain *cfg80211_regdomain;
+
+/* We keep a static world regulatory domain in case of the absence of CRDA */
+static const struct ieee80211_regdomain world_regdom = {
+	.n_reg_rules = 1,
+	.alpha2 =  "00",
+	.reg_rules = {
+		REG_RULE(2412-10, 2462+10, 40, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS),
+	}
+};
+
+static const struct ieee80211_regdomain *cfg80211_world_regdom =
+	&world_regdom;
+
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+static char *ieee80211_regdom = "US";
+module_param(ieee80211_regdom, charp, 0444);
+MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
+
+/* We assume 40 MHz bandwidth for the old regulatory work.
+ * We make emphasis we are using the exact same frequencies
+ * as before */
+
+static const struct ieee80211_regdomain us_regdom = {
+	.n_reg_rules = 6,
+	.alpha2 =  "US",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..11 */
+		REG_RULE(2412-10, 2462+10, 40, 6, 27, 0),
+		/* IEEE 802.11a, channel 36 */
+		REG_RULE(5180-10, 5180+10, 40, 6, 23, 0),
+		/* IEEE 802.11a, channel 40 */
+		REG_RULE(5200-10, 5200+10, 40, 6, 23, 0),
+		/* IEEE 802.11a, channel 44 */
+		REG_RULE(5220-10, 5220+10, 40, 6, 23, 0),
+		/* IEEE 802.11a, channels 48..64 */
+		REG_RULE(5240-10, 5320+10, 40, 6, 23, 0),
+		/* IEEE 802.11a, channels 149..165, outdoor */
+		REG_RULE(5745-10, 5825+10, 40, 6, 30, 0),
+	}
+};
+
+static const struct ieee80211_regdomain jp_regdom = {
+	.n_reg_rules = 3,
+	.alpha2 =  "JP",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..14 */
+		REG_RULE(2412-10, 2484+10, 40, 6, 20, 0),
+		/* IEEE 802.11a, channels 34..48 */
+		REG_RULE(5170-10, 5240+10, 40, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channels 52..64 */
+		REG_RULE(5260-10, 5320+10, 40, 6, 20,
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_DFS),
+	}
+};
+
+static const struct ieee80211_regdomain eu_regdom = {
+	.n_reg_rules = 6,
+	/* This alpha2 is bogus, we leave it here just for stupid
+	 * backward compatibility */
+	.alpha2 =  "EU",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..13 */
+		REG_RULE(2412-10, 2472+10, 40, 6, 20, 0),
+		/* IEEE 802.11a, channel 36 */
+		REG_RULE(5180-10, 5180+10, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channel 40 */
+		REG_RULE(5200-10, 5200+10, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channel 44 */
+		REG_RULE(5220-10, 5220+10, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channels 48..64 */
+		REG_RULE(5240-10, 5320+10, 40, 6, 20,
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_DFS),
+		/* IEEE 802.11a, channels 100..140 */
+		REG_RULE(5500-10, 5700+10, 40, 6, 30,
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_DFS),
+	}
+};
+
+static const struct ieee80211_regdomain *static_regdom(char *alpha2)
+{
+	if (alpha2[0] == 'U' && alpha2[1] == 'S')
+		return &us_regdom;
+	if (alpha2[0] == 'J' && alpha2[1] == 'P')
+		return &jp_regdom;
+	if (alpha2[0] == 'E' && alpha2[1] == 'U')
+		return &eu_regdom;
+	/* Default, as per the old rules */
+	return &us_regdom;
+}
+
+static bool is_old_static_regdom(const struct ieee80211_regdomain *rd)
+{
+	if (rd == &us_regdom || rd == &jp_regdom || rd == &eu_regdom)
+		return true;
+	return false;
+}
+#else
+static inline bool is_old_static_regdom(const struct ieee80211_regdomain *rd)
+{
+	return false;
+}
+#endif
+
+static void reset_regdomains(void)
+{
+	/* avoid freeing static information or freeing something twice */
+	if (cfg80211_regdomain == cfg80211_world_regdom)
+		cfg80211_regdomain = NULL;
+	if (cfg80211_world_regdom == &world_regdom)
+		cfg80211_world_regdom = NULL;
+	if (cfg80211_regdomain == &world_regdom)
+		cfg80211_regdomain = NULL;
+	if (is_old_static_regdom(cfg80211_regdomain))
+		cfg80211_regdomain = NULL;
+
+	kfree(cfg80211_regdomain);
+	kfree(cfg80211_world_regdom);
+
+	cfg80211_world_regdom = &world_regdom;
+	cfg80211_regdomain = NULL;
+}
+
+/* Dynamic world regulatory domain requested by the wireless
+ * core upon initialization */
+static void update_world_regdomain(const struct ieee80211_regdomain *rd)
+{
+	BUG_ON(list_empty(&regulatory_requests));
+
+	reset_regdomains();
+
+	cfg80211_world_regdom = rd;
+	cfg80211_regdomain = rd;
+}
+
+bool is_world_regdom(const char *alpha2)
 {
 	if (!alpha2)
 		return false;
@@ -60,7 +221,7 @@ bool is_world_regdom(char *alpha2)
 	return false;
 }
 
-static bool is_alpha2_set(char *alpha2)
+static bool is_alpha2_set(const char *alpha2)
 {
 	if (!alpha2)
 		return false;
@@ -77,7 +238,7 @@ static bool is_alpha_upper(char letter)
 	return false;
 }
 
-static bool is_unknown_alpha2(char *alpha2)
+static bool is_unknown_alpha2(const char *alpha2)
 {
 	if (!alpha2)
 		return false;
@@ -88,7 +249,7 @@ static bool is_unknown_alpha2(char *alpha2)
 	return false;
 }
 
-static bool is_an_alpha2(char *alpha2)
+static bool is_an_alpha2(const char *alpha2)
 {
 	if (!alpha2)
 		return false;
@@ -97,7 +258,7 @@ static bool is_an_alpha2(char *alpha2)
 	return false;
 }
 
-static bool alpha2_equal(char *alpha2_x, char *alpha2_y)
+static bool alpha2_equal(const char *alpha2_x, const char *alpha2_y)
 {
 	if (!alpha2_x || !alpha2_y)
 		return false;
@@ -107,7 +268,7 @@ static bool alpha2_equal(char *alpha2_x, char *alpha2_y)
 	return false;
 }
 
-static bool regdom_changed(char *alpha2)
+static bool regdom_changed(const char *alpha2)
 {
 	if (!cfg80211_regdomain)
 		return true;
@@ -130,12 +291,8 @@ static int call_crda(const char *alpha2)
 		printk(KERN_INFO "cfg80211: Calling CRDA for country: %c%c\n",
 			alpha2[0], alpha2[1]);
 	else
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-		return -EINVAL;
-#else
 		printk(KERN_INFO "cfg80211: Calling CRDA to update world "
 			"regulatory domain\n");
-#endif
 
 	country_env[8] = alpha2[0];
 	country_env[9] = alpha2[1];
@@ -238,7 +395,7 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 	}
 }
 
-static bool __reg_is_valid_request(char *alpha2,
+static bool __reg_is_valid_request(const char *alpha2,
 	struct regulatory_request **request)
 {
 	struct regulatory_request *req;
@@ -254,16 +411,16 @@ static bool __reg_is_valid_request(char *alpha2,
 }
 
 /* Used by nl80211 before kmalloc'ing our regulatory domain */
-bool reg_is_valid_request(char *alpha2)
+bool reg_is_valid_request(const char *alpha2)
 {
 	struct regulatory_request *request = NULL;
 	return  __reg_is_valid_request(alpha2, &request);
 }
 
 /* Sanity check on a regulatory rule */
-static bool is_valid_reg_rule(struct ieee80211_reg_rule *rule)
+static bool is_valid_reg_rule(const struct ieee80211_reg_rule *rule)
 {
-	struct ieee80211_freq_range *freq_range = &rule->freq_range;
+	const struct ieee80211_freq_range *freq_range = &rule->freq_range;
 	u32 freq_diff;
 
 	if (freq_range->start_freq_khz == 0 || freq_range->end_freq_khz == 0)
@@ -280,9 +437,9 @@ static bool is_valid_reg_rule(struct ieee80211_reg_rule *rule)
 	return true;
 }
 
-static bool is_valid_rd(struct ieee80211_regdomain *rd)
+static bool is_valid_rd(const struct ieee80211_regdomain *rd)
 {
-	struct ieee80211_reg_rule *reg_rule = NULL;
+	const struct ieee80211_reg_rule *reg_rule = NULL;
 	unsigned int i;
 
 	if (!rd->n_reg_rules)
@@ -494,12 +651,12 @@ unlock_and_exit:
 EXPORT_SYMBOL(regulatory_hint);
 
 
-static void print_rd_rules(struct ieee80211_regdomain *rd)
+static void print_rd_rules(const struct ieee80211_regdomain *rd)
 {
 	unsigned int i;
-	struct ieee80211_reg_rule *reg_rule = NULL;
-	struct ieee80211_freq_range *freq_range = NULL;
-	struct ieee80211_power_rule *power_rule = NULL;
+	const struct ieee80211_reg_rule *reg_rule = NULL;
+	const struct ieee80211_freq_range *freq_range = NULL;
+	const struct ieee80211_power_rule *power_rule = NULL;
 
 	printk(KERN_INFO "\t(start_freq - end_freq @ bandwidth), "
 		"(max_antenna_gain, max_eirp)\n");
@@ -529,7 +686,7 @@ static void print_rd_rules(struct ieee80211_regdomain *rd)
 	}
 }
 
-static void print_regdomain(struct ieee80211_regdomain *rd)
+static void print_regdomain(const struct ieee80211_regdomain *rd)
 {
 
 	if (is_world_regdom(rd->alpha2))
@@ -548,85 +705,25 @@ static void print_regdomain(struct ieee80211_regdomain *rd)
 	print_rd_rules(rd);
 }
 
-void print_regdomain_info(struct ieee80211_regdomain *rd)
+void print_regdomain_info(const struct ieee80211_regdomain *rd)
 {
 	printk(KERN_INFO "cfg80211: Regulatory domain: %c%c\n",
 		rd->alpha2[0], rd->alpha2[1]);
 	print_rd_rules(rd);
 }
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-
-static bool is_old_static_regdom(struct ieee80211_regdomain *rd)
-{
-	if (rd == &us_regdom || rd == &jp_regdom || rd == &eu_regdom)
-		return true;
-	return false;
-}
-
-/* The old crap never deals with a world regulatory domain, it only
- * deals with the static regulatory domain passed and if possible
- * an updated "US" or "JP" regulatory domain. We do however store the
- * old static regulatory domain in cfg80211_world_regdom for convenience
- * of use here */
-static void reset_regdomains_static(void)
-{
-	if (!is_old_static_regdom(cfg80211_regdomain))
-		kfree(cfg80211_regdomain);
-	/* This is setting the regdom to the old static regdom */
-	cfg80211_regdomain =
-		(struct ieee80211_regdomain *) cfg80211_world_regdom;
-}
-#else
-static void reset_regdomains(void)
-{
-	if (cfg80211_world_regdom && cfg80211_world_regdom != &world_regdom) {
-		if (cfg80211_world_regdom == cfg80211_regdomain) {
-			kfree(cfg80211_regdomain);
-		} else {
-			kfree(cfg80211_world_regdom);
-			kfree(cfg80211_regdomain);
-		}
-	} else if (cfg80211_regdomain && cfg80211_regdomain != &world_regdom)
-		kfree(cfg80211_regdomain);
-
-	cfg80211_world_regdom = (struct ieee80211_regdomain *) &world_regdom;
-	cfg80211_regdomain = NULL;
-}
-
-/* Dynamic world regulatory domain requested by the wireless
- * core upon initialization */
-static void update_world_regdomain(struct ieee80211_regdomain *rd)
-{
-	BUG_ON(list_empty(&regulatory_requests));
-
-	reset_regdomains();
-
-	cfg80211_world_regdom = rd;
-	cfg80211_regdomain = rd;
-}
-#endif
-
-static int __set_regdom(struct ieee80211_regdomain *rd)
+static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
 	struct regulatory_request *request = NULL;
 
 	/* Some basic sanity checks first */
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	/* We ignore the world regdom with the old static regdomains setup
-	 * as there is no point to it with satic regulatory definitions :(
-	 * Don't worry this shit will be removed soon... */
-	if (is_world_regdom(rd->alpha2))
-		return -EINVAL;
-#else
 	if (is_world_regdom(rd->alpha2)) {
 		if (WARN_ON(!__reg_is_valid_request(rd->alpha2, &request)))
 			return -EINVAL;
 		update_world_regdomain(rd);
 		return 0;
 	}
-#endif
 
 	if (!is_alpha2_set(rd->alpha2) && !is_an_alpha2(rd->alpha2) &&
 			!is_unknown_alpha2(rd->alpha2))
@@ -635,15 +732,10 @@ static int __set_regdom(struct ieee80211_regdomain *rd)
 	if (list_empty(&regulatory_requests))
 		return -EINVAL;
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	/* Static "US" and "JP" will be overridden, but just once */
+	/* allow overriding the static definitions if CRDA is present */
 	if (!is_old_static_regdom(cfg80211_regdomain) &&
-			!regdom_changed(rd->alpha2))
+	    !regdom_changed(rd->alpha2))
 		return -EINVAL;
-#else
-	if (!regdom_changed(rd->alpha2))
-		return -EINVAL;
-#endif
 
 	/* Now lets set the regulatory domain, update all driver channels
 	 * and finally inform them of what we have done, in case they want
@@ -653,11 +745,7 @@ static int __set_regdom(struct ieee80211_regdomain *rd)
 	if (WARN_ON(!__reg_is_valid_request(rd->alpha2, &request)))
 		return -EINVAL;
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	reset_regdomains_static();
-#else
 	reset_regdomains();
-#endif
 
 	/* Country IE parsing coming soon */
 	switch (request->initiator) {
@@ -689,7 +777,7 @@ static int __set_regdom(struct ieee80211_regdomain *rd)
  * multiple drivers can be ironed out later. Caller must've already
  * kmalloc'd the rd structure. If this calls fails you should kfree()
  * the passed rd. Caller must hold cfg80211_drv_mutex */
-int set_regdom(struct ieee80211_regdomain *rd)
+int set_regdom(const struct ieee80211_regdomain *rd)
 {
 	struct regulatory_request *this_request = NULL, *prev_request = NULL;
 	int r;
@@ -735,25 +823,50 @@ int set_regdom(struct ieee80211_regdomain *rd)
 
 int regulatory_init(void)
 {
+	int err;
+
 	reg_pdev = platform_device_register_simple("regulatory", 0, NULL, 0);
 	if (IS_ERR(reg_pdev))
 		return PTR_ERR(reg_pdev);
+
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+	cfg80211_regdomain = static_regdom(ieee80211_regdom);
+
+	printk(KERN_INFO "cfg80211: Using static regulatory domain info\n");
+	print_regdomain_info(cfg80211_regdomain);
+	/* The old code still requests for a new regdomain and if
+	 * you have CRDA you get it updated, otherwise you get
+	 * stuck with the static values. We ignore "EU" code as
+	 * that is not a valid ISO / IEC 3166 alpha2 */
+	if (ieee80211_regdom[0] != 'E' && ieee80211_regdom[1] != 'U')
+		err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE,
+					ieee80211_regdom, NULL);
+#else
+	cfg80211_regdomain = cfg80211_world_regdom;
+
+	err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE, "00", NULL);
+	if (err)
+		printk(KERN_ERR "cfg80211: calling CRDA failed - "
+		       "unable to update world regulatory domain, "
+		       "using static definition\n");
+#endif
+
 	return 0;
 }
 
 void regulatory_exit(void)
 {
 	struct regulatory_request *req, *req_tmp;
+
 	mutex_lock(&cfg80211_drv_mutex);
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	reset_regdomains_static();
-#else
+
 	reset_regdomains();
-#endif
+
 	list_for_each_entry_safe(req, req_tmp, &regulatory_requests, list) {
 		list_del(&req->list);
 		kfree(req);
 	}
 	platform_device_unregister(reg_pdev);
+
 	mutex_unlock(&cfg80211_drv_mutex);
 }

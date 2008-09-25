@@ -2258,7 +2258,7 @@ static int atmel_get_freq(struct net_device *dev,
 
 static int atmel_set_scan(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_param *vwrq,
+			  struct iw_point *dwrq,
 			  char *extra)
 {
 	struct atmel_private *priv = netdev_priv(dev);

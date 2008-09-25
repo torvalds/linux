@@ -543,7 +543,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * provided but key 0 is not, then the key is not found
 	 * by the hardware during RX).
 	 */
-	key->hw_key_idx = 0;
+	if (cmd == SET_KEY)
+		key->hw_key_idx = 0;
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
 		set_key = rt2x00dev->ops->lib->config_pairwise_key;

@@ -58,6 +58,7 @@ struct lbs_802_11_security {
 	u8 WPA2enabled;
 	u8 wep_enabled;
 	u8 auth_mode;
+	u32 key_mgmt;
 };
 
 /** Current Basic Service Set State Structure */

@@ -223,9 +223,11 @@ struct wiphy {
  * the netdev.)
  *
  * @wiphy: pointer to hardware description
+ * @iftype: interface type
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
+	enum nl80211_iftype iftype;
 
 	/* private to the generic wireless code */
 	struct list_head list;
@@ -329,6 +331,15 @@ extern int ieee80211_frequency_to_channel(int freq);
 extern struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
 							 int freq);
 /**
+ * ieee80211_get_channel - get channel struct from wiphy for specified frequency
+ */
+static inline struct ieee80211_channel *
+ieee80211_get_channel(struct wiphy *wiphy, int freq)
+{
+	return __ieee80211_get_channel(wiphy, freq);
+}
+
+/**
  * __regulatory_hint - hint to the wireless core a regulatory domain
  * @wiphy: if a driver is providing the hint this is the driver's very
  * 	own &struct wiphy
@@ -380,13 +391,4 @@ extern int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
  */
 extern int regulatory_hint(struct wiphy *wiphy,
 		const char *alpha2, struct ieee80211_regdomain *rd);
-
-/**
- * ieee80211_get_channel - get channel struct from wiphy for specified frequency
- */
-static inline struct ieee80211_channel *
-ieee80211_get_channel(struct wiphy *wiphy, int freq)
-{
-	return __ieee80211_get_channel(wiphy, freq);
-}
 #endif /* __NET_WIRELESS_H */

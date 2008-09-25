@@ -534,7 +534,8 @@ int ath_vap_attach(struct ath_softc *sc,
 	avp->av_opmode = opmode;
 	avp->av_bslot = -1;
 
-	ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
+	if (opmode == ATH9K_M_HOSTAP)
+		ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
 
 	sc->sc_vaps[if_id] = avp;
 	sc->sc_nvaps++;

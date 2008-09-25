@@ -1800,4 +1800,72 @@ void ieee80211_notify_mac(struct ieee80211_hw *hw,
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
 					 const u8 *addr);
 
+
+/* Rate control API */
+/**
+ * struct rate_selection - rate information for/from rate control algorithms
+ *
+ * @rate_idx: selected transmission rate index
+ * @nonerp_idx: Non-ERP rate to use instead if ERP cannot be used
+ * @probe_idx: rate for probing (or -1)
+ * @max_rate_idx: maximum rate index that can be used, this is
+ *	input to the algorithm and will be enforced
+ */
+struct rate_selection {
+	s8 rate_idx, nonerp_idx, probe_idx, max_rate_idx;
+};
+
+struct rate_control_ops {
+	struct module *module;
+	const char *name;
+	void *(*alloc)(struct ieee80211_hw *hw, struct dentry *debugfsdir);
+	void (*clear)(void *priv);
+	void (*free)(void *priv);
+
+	void *(*alloc_sta)(void *priv, struct ieee80211_sta *sta, gfp_t gfp);
+	void (*rate_init)(void *priv, struct ieee80211_supported_band *sband,
+			  struct ieee80211_sta *sta, void *priv_sta);
+	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
+			 void *priv_sta);
+
+	void (*tx_status)(void *priv, struct ieee80211_supported_band *sband,
+			  struct ieee80211_sta *sta, void *priv_sta,
+			  struct sk_buff *skb);
+	void (*get_rate)(void *priv, struct ieee80211_supported_band *sband,
+			 struct ieee80211_sta *sta, void *priv_sta,
+			 struct sk_buff *skb,
+			 struct rate_selection *sel);
+
+	void (*add_sta_debugfs)(void *priv, void *priv_sta,
+				struct dentry *dir);
+	void (*remove_sta_debugfs)(void *priv, void *priv_sta);
+};
+
+static inline int rate_supported(struct ieee80211_sta *sta,
+				 enum ieee80211_band band,
+				 int index)
+{
+	return (sta == NULL || sta->supp_rates[band] & BIT(index));
+}
+
+static inline s8
+rate_lowest_index(struct ieee80211_supported_band *sband,
+		  struct ieee80211_sta *sta)
+{
+	int i;
+
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (rate_supported(sta, sband->band, i))
+			return i;
+
+	/* warn when we cannot find a rate. */
+	WARN_ON(1);
+
+	return 0;
+}
+
+
+int ieee80211_rate_control_register(struct rate_control_ops *ops);
+void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
+
 #endif /* MAC80211_H */

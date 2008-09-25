@@ -188,6 +188,11 @@ void b43_rfkill_init(struct b43_wldev *dev)
 			"The built-in radio LED will not work.\n");
 #endif /* CONFIG_RFKILL_INPUT */
 
+#if !defined(CONFIG_RFKILL_INPUT) && !defined(CONFIG_RFKILL_INPUT_MODULE)
+	b43warn(wl, "The rfkill-input subsystem is not available. "
+		"The built-in radio LED will not work.\n");
+#endif
+
 	err = input_register_polled_device(rfk->poll_dev);
 	if (err)
 		goto err_unreg_rfk;

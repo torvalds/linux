@@ -73,6 +73,10 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 extern int iwl3945_param_hwcrypto;
 extern int iwl3945_param_queues_num;
 
+struct iwl3945_sta_priv {
+	struct iwl3945_rs_sta *rs_sta;
+};
+
 enum iwl3945_antenna {
 	IWL_ANTENNA_DIVERSITY,
 	IWL_ANTENNA_MAIN,
