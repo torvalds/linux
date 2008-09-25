@@ -1176,7 +1176,8 @@ static int s5h1411_frontend_attach(struct dvb_usb_adapter *adap)
 	return adap->fe == NULL ? -ENODEV : 0;
 }
 
-int dib0700_xc5000_tuner_callback(void *priv, int command, int arg)
+static int dib0700_xc5000_tuner_callback(void *priv, int component,
+					 int command, int arg)
 {
 	struct dvb_usb_adapter *adap = priv;
 
@@ -1192,14 +1193,16 @@ int dib0700_xc5000_tuner_callback(void *priv, int command, int arg)
 static struct xc5000_config s5h1411_xc5000_tunerconfig = {
 	.i2c_address      = 0x64,
 	.if_khz           = 5380,
-	.tuner_callback   = dib0700_xc5000_tuner_callback
 };
 
 static int xc5000_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	return dvb_attach(xc5000_attach, adap->fe, &adap->dev->i2c_adap,
-			  &s5h1411_xc5000_tunerconfig, adap)
+			  &s5h1411_xc5000_tunerconfig)
 		== NULL ? -ENODEV : 0;
+
+	/* FIXME: generalize & move to common area */
+	adap->fe->callback = dib0700_xc5000_tuner_callback;
 }
 
 /* DVB-USB and USB stuff follows */
