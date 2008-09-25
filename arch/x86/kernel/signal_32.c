@@ -482,18 +482,21 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 /*
  * OK, we're invoking a handler:
  */
+static int signr_convert(int sig)
+{
+	struct thread_info *info = current_thread_info();
+
+	if (info->exec_domain && info->exec_domain->signal_invmap && sig < 32)
+		return info->exec_domain->signal_invmap[sig];
+	return sig;
+}
+
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
 {
+	int usig = signr_convert(sig);
 	int ret;
-	int usig;
-
-	usig = current_thread_info()->exec_domain
-		&& current_thread_info()->exec_domain->signal_invmap
-		&& sig < 32
-		? current_thread_info()->exec_domain->signal_invmap[sig]
-		: sig;
 
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
