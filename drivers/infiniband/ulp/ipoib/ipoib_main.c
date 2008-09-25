@@ -404,7 +404,7 @@ static void path_rec_completion(int status,
 	struct net_device *dev = path->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_ah *ah = NULL;
-	struct ipoib_ah *old_ah;
+	struct ipoib_ah *old_ah = NULL;
 	struct ipoib_neigh *neigh, *tn;
 	struct sk_buff_head skqueue;
 	struct sk_buff *skb;
@@ -428,11 +428,11 @@ static void path_rec_completion(int status,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	old_ah   = path->ah;
-	path->ah = ah;
-
 	if (ah) {
 		path->pathrec = *pathrec;
+
+		old_ah   = path->ah;
+		path->ah = ah;
 
 		ipoib_dbg(priv, "created address handle %p for LID 0x%04x, SL %d\n",
 			  ah, be16_to_cpu(pathrec->dlid), pathrec->sl);
