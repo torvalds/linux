@@ -154,9 +154,7 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 #endif
 
 	write_lock_irqsave(&device_info->lock, flags);
-
 	list_add(&buf->node, &device_info->safe_buffers);
-
 	write_unlock_irqrestore(&device_info->lock, flags);
 
 	return buf;
@@ -220,8 +218,7 @@ static struct safe_buffer *find_safe_buffer_dev(struct device *dev,
 	return find_safe_buffer(dev->archdata.dmabounce, dma_addr);
 }
 
-static inline dma_addr_t
-map_single(struct device *dev, void *ptr, size_t size,
+static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
 {
 	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
@@ -285,9 +282,8 @@ map_single(struct device *dev, void *ptr, size_t size,
 	return dma_addr;
 }
 
-static inline void
-unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-		enum dma_data_direction dir)
+static inline void unmap_single(struct device *dev, dma_addr_t dma_addr,
+		size_t size, enum dma_data_direction dir)
 {
 	struct safe_buffer *buf = find_safe_buffer_dev(dev, dma_addr, "unmap");
 
@@ -332,25 +328,20 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
  * substitute the safe buffer for the unsafe one.
  * (basically move the buffer from an unsafe area to a safe one)
  */
-dma_addr_t
-dma_map_single(struct device *dev, void *ptr, size_t size,
+dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
 {
-	dma_addr_t dma_addr;
-
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, ptr, size, dir);
 
 	BUG_ON(dir == DMA_NONE);
 
-	dma_addr = map_single(dev, ptr, size, dir);
-
-	return dma_addr;
+	return map_single(dev, ptr, size, dir);
 }
+EXPORT_SYMBOL(dma_map_single);
 
 dma_addr_t dma_map_page(struct device *dev, struct page *page,
-			unsigned long offset, size_t size,
-			enum dma_data_direction dir)
+		unsigned long offset, size_t size, enum dma_data_direction dir)
 {
 	dev_dbg(dev, "%s(page=%p,off=%#lx,size=%zx,dir=%x)\n",
 		__func__, page, offset, size, dir);
@@ -368,9 +359,8 @@ EXPORT_SYMBOL(dma_map_page);
  * should be)
  */
 
-void
-dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-			enum dma_data_direction dir)
+void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
+		enum dma_data_direction dir)
 {
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, (void *) dma_addr, size, dir);
@@ -379,6 +369,7 @@ dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 
 	unmap_single(dev, dma_addr, size, dir);
 }
+EXPORT_SYMBOL(dma_unmap_single);
 
 int dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 		unsigned long off, size_t sz, enum dma_data_direction dir)
@@ -434,9 +425,8 @@ int dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
 }
 EXPORT_SYMBOL(dmabounce_sync_for_device);
 
-static int
-dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev, const char *name,
-		    unsigned long size)
+static int dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev,
+		const char *name, unsigned long size)
 {
 	pool->size = size;
 	DO_STATS(pool->allocs = 0);
@@ -447,9 +437,8 @@ dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev, const char 
 	return pool->pool ? 0 : -ENOMEM;
 }
 
-int
-dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
-			unsigned long large_buffer_size)
+int dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
+		unsigned long large_buffer_size)
 {
 	struct dmabounce_device_info *device_info;
 	int ret;
@@ -505,9 +494,9 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 	kfree(device_info);
 	return ret;
 }
+EXPORT_SYMBOL(dmabounce_register_dev);
 
-void
-dmabounce_unregister_dev(struct device *dev)
+void dmabounce_unregister_dev(struct device *dev)
 {
 	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 
@@ -540,11 +529,6 @@ dmabounce_unregister_dev(struct device *dev)
 
 	dev_info(dev, "dmabounce: device unregistered\n");
 }
-
-
-EXPORT_SYMBOL(dma_map_single);
-EXPORT_SYMBOL(dma_unmap_single);
-EXPORT_SYMBOL(dmabounce_register_dev);
 EXPORT_SYMBOL(dmabounce_unregister_dev);
 
 MODULE_AUTHOR("Christopher Hoover <ch@hpl.hp.com>, Deepak Saxena <dsaxena@plexity.net>");
