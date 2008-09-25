@@ -725,6 +725,10 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 	struct cfi_pri_intelext *cfip = cfi->cmdset_priv;
 	unsigned long timeo = jiffies + HZ;
 
+	/* Prevent setting state FL_SYNCING for chip in suspended state. */
+	if (mode == FL_SYNCING && chip->oldstate != FL_READY)
+		goto sleep;
+
 	switch (chip->state) {
 
 	case FL_STATUS:
@@ -830,8 +834,9 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 	DECLARE_WAITQUEUE(wait, current);
 
  retry:
-	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING
-			   || mode == FL_OTP_WRITE || mode == FL_SHUTDOWN)) {
+	if (chip->priv &&
+	    (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE
+	    || mode == FL_SHUTDOWN) && chip->state != FL_SYNCING) {
 		/*
 		 * OK. We have possibility for contention on the write/erase
 		 * operations which are global to the real chip and not per
@@ -881,6 +886,14 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 				return ret;
 			}
 			spin_lock(&shared->lock);
+
+			/* We should not own chip if it is already
+			 * in FL_SYNCING state. Put contender and retry. */
+			if (chip->state == FL_SYNCING) {
+				put_chip(map, contender, contender->start);
+				spin_unlock(contender->mutex);
+				goto retry;
+			}
 			spin_unlock(contender->mutex);
 		}
 
