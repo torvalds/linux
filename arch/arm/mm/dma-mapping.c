@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mm/consistent.c
+ *  linux/arch/arm/mm/dma-mapping.c
  *
  *  Copyright (C) 2000-2004 Russell King
  *
