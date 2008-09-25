@@ -48,7 +48,7 @@ static void au1xxx_gpio2_write(unsigned gpio, int value)
 {
 	gpio -= AU1XXX_GPIO_BASE;
 
-	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | (value << gpio);
+	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | ((!!value) << gpio);
 }
 
 static int au1xxx_gpio2_direction_input(unsigned gpio)
@@ -62,7 +62,7 @@ static int au1xxx_gpio2_direction_output(unsigned gpio, int value)
 {
 	gpio -= AU1XXX_GPIO_BASE;
 	gpio2->dir |= 0x01 << gpio;
-	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | (value << gpio);
+	gpio2->output = (GPIO2_OUTPUT_ENABLE_MASK << gpio) | ((!!value) << gpio);
 	return 0;
 }
 
