@@ -197,12 +197,8 @@ static int rpcb_register_call(struct sockaddr *addr, size_t addrlen,
 		return error;
 	}
 
-	if (!result) {
-		dprintk("RPC:       registration failed\n");
+	if (!result)
 		return -EACCES;
-	}
-
-	dprintk("RPC:       registration succeeded\n");
 	return 0;
 }
 
@@ -628,7 +624,7 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 static int rpcb_encode_mapping(struct rpc_rqst *req, __be32 *p,
 			       struct rpcbind_args *rpcb)
 {
-	dprintk("RPC:       rpcb_encode_mapping(%u, %u, %d, %u)\n",
+	dprintk("RPC:       encoding rpcb request (%u, %u, %d, %u)\n",
 			rpcb->r_prog, rpcb->r_vers, rpcb->r_prot, rpcb->r_port);
 	*p++ = htonl(rpcb->r_prog);
 	*p++ = htonl(rpcb->r_vers);
@@ -643,7 +639,7 @@ static int rpcb_decode_getport(struct rpc_rqst *req, __be32 *p,
 			       unsigned short *portp)
 {
 	*portp = (unsigned short) ntohl(*p++);
-	dprintk("RPC:       rpcb_decode_getport result %u\n",
+	dprintk("RPC:       rpcb getport result: %u\n",
 			*portp);
 	return 0;
 }
@@ -652,7 +648,7 @@ static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
 			   unsigned int *boolp)
 {
 	*boolp = (unsigned int) ntohl(*p++);
-	dprintk("RPC:       rpcb_decode_set: call %s\n",
+	dprintk("RPC:       rpcb set/unset call %s\n",
 			(*boolp ? "succeeded" : "failed"));
 	return 0;
 }
@@ -660,7 +656,7 @@ static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
 static int rpcb_encode_getaddr(struct rpc_rqst *req, __be32 *p,
 			       struct rpcbind_args *rpcb)
 {
-	dprintk("RPC:       rpcb_encode_getaddr(%u, %u, %s)\n",
+	dprintk("RPC:       encoding rpcb request (%u, %u, %s)\n",
 			rpcb->r_prog, rpcb->r_vers, rpcb->r_addr);
 	*p++ = htonl(rpcb->r_prog);
 	*p++ = htonl(rpcb->r_vers);
