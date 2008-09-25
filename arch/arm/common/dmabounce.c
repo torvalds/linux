@@ -444,30 +444,6 @@ dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	unmap_single(dev, dma_addr, size, dir);
 }
 
-void dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_addr,
-				   unsigned long offset, size_t size,
-				   enum dma_data_direction dir)
-{
-	dev_dbg(dev, "%s(dma=%#x,off=%#lx,size=%zx,dir=%x)\n",
-		__func__, dma_addr, offset, size, dir);
-
-	if (sync_single(dev, dma_addr, offset + size, dir))
-		dma_cache_maint(dma_to_virt(dev, dma_addr) + offset, size, dir);
-}
-EXPORT_SYMBOL(dma_sync_single_range_for_cpu);
-
-void dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_addr,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction dir)
-{
-	dev_dbg(dev, "%s(dma=%#x,off=%#lx,size=%zx,dir=%x)\n",
-		__func__, dma_addr, offset, size, dir);
-
-	if (sync_single(dev, dma_addr, offset + size, dir))
-		dma_cache_maint(dma_to_virt(dev, dma_addr) + offset, size, dir);
-}
-EXPORT_SYMBOL(dma_sync_single_range_for_device);
-
 int dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 		unsigned long off, size_t sz, enum dma_data_direction dir)
 {

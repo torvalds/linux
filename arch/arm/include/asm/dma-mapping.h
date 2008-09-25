@@ -184,6 +184,76 @@ int dma_mmap_writecombine(struct device *dev, struct vm_area_struct *vma,
 			  void *cpu_addr, dma_addr_t handle, size_t size);
 
 
+#ifdef CONFIG_DMABOUNCE
+/*
+ * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"
+ * and utilize bounce buffers as needed to work around limited DMA windows.
+ *
+ * On the SA-1111, a bug limits DMA to only certain regions of RAM.
+ * On the IXP425, the PCI inbound window is 64MB (256MB total RAM)
+ * On some ADI engineering systems, PCI inbound window is 32MB (12MB total RAM)
+ *
+ * The following are helper functions used by the dmabounce subystem
+ *
+ */
+
+/**
+ * dmabounce_register_dev
+ *
+ * @dev: valid struct device pointer
+ * @small_buf_size: size of buffers to use with small buffer pool
+ * @large_buf_size: size of buffers to use with large buffer pool (can be 0)
+ *
+ * This function should be called by low-level platform code to register
+ * a device as requireing DMA buffer bouncing. The function will allocate
+ * appropriate DMA pools for the device.
+ *
+ */
+extern int dmabounce_register_dev(struct device *, unsigned long, unsigned long);
+
+/**
+ * dmabounce_unregister_dev
+ *
+ * @dev: valid struct device pointer
+ *
+ * This function should be called by low-level platform code when device
+ * that was previously registered with dmabounce_register_dev is removed
+ * from the system.
+ *
+ */
+extern void dmabounce_unregister_dev(struct device *);
+
+/**
+ * dma_needs_bounce
+ *
+ * @dev: valid struct device pointer
+ * @dma_handle: dma_handle of unbounced buffer
+ * @size: size of region being mapped
+ *
+ * Platforms that utilize the dmabounce mechanism must implement
+ * this function.
+ *
+ * The dmabounce routines call this function whenever a dma-mapping
+ * is requested to determine whether a given buffer needs to be bounced
+ * or not. The function must return 0 if the buffer is OK for
+ * DMA access and 1 if the buffer needs to be bounced.
+ *
+ */
+extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
+
+/*
+ * Private functions
+ */
+int dmabounce_sync_for_cpu(struct device *, dma_addr_t, unsigned long,
+			size_t, enum dma_data_direction);
+int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
+			size_t, enum dma_data_direction);
+#else
+#define dmabounce_sync_for_cpu(dev,dma,off,sz,dir)	(1)
+#define dmabounce_sync_for_device(dev,dma,off,sz,dir)	(1)
+#endif /* CONFIG_DMABOUNCE */
+
+
 /**
  * dma_map_single - map a single buffer for streaming DMA
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
@@ -308,12 +378,14 @@ dma_unmap_page(struct device *dev, dma_addr_t handle, size_t size,
  * must first the perform a dma_sync_for_device, and then the
  * device again owns the buffer.
  */
-#ifndef CONFIG_DMABOUNCE
 static inline void
 dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t handle,
 			      unsigned long offset, size_t size,
 			      enum dma_data_direction dir)
 {
+	if (!dmabounce_sync_for_cpu(dev, handle, offset, size, dir))
+		return;
+
 	if (!arch_is_coherent())
 		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
 }
@@ -323,13 +395,12 @@ dma_sync_single_range_for_device(struct device *dev, dma_addr_t handle,
 				 unsigned long offset, size_t size,
 				 enum dma_data_direction dir)
 {
+	if (!dmabounce_sync_for_device(dev, handle, offset, size, dir))
+		return;
+
 	if (!arch_is_coherent())
 		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
 }
-#else
-extern void dma_sync_single_range_for_cpu(struct device *, dma_addr_t, unsigned long, size_t, enum dma_data_direction);
-extern void dma_sync_single_range_for_device(struct device *, dma_addr_t, unsigned long, size_t, enum dma_data_direction);
-#endif
 
 static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle, size_t size,
@@ -353,75 +424,6 @@ extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_da
 extern void dma_sync_sg_for_cpu(struct device*, struct scatterlist*, int, enum dma_data_direction);
 extern void dma_sync_sg_for_device(struct device*, struct scatterlist*, int, enum dma_data_direction);
 
-
-#ifdef CONFIG_DMABOUNCE
-/*
- * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"
- * and utilize bounce buffers as needed to work around limited DMA windows.
- *
- * On the SA-1111, a bug limits DMA to only certain regions of RAM.
- * On the IXP425, the PCI inbound window is 64MB (256MB total RAM)
- * On some ADI engineering systems, PCI inbound window is 32MB (12MB total RAM)
- *
- * The following are helper functions used by the dmabounce subystem
- *
- */
-
-/**
- * dmabounce_register_dev
- *
- * @dev: valid struct device pointer
- * @small_buf_size: size of buffers to use with small buffer pool
- * @large_buf_size: size of buffers to use with large buffer pool (can be 0)
- *
- * This function should be called by low-level platform code to register
- * a device as requireing DMA buffer bouncing. The function will allocate
- * appropriate DMA pools for the device.
- *
- */
-extern int dmabounce_register_dev(struct device *, unsigned long, unsigned long);
-
-/**
- * dmabounce_unregister_dev
- *
- * @dev: valid struct device pointer
- *
- * This function should be called by low-level platform code when device
- * that was previously registered with dmabounce_register_dev is removed
- * from the system.
- *
- */
-extern void dmabounce_unregister_dev(struct device *);
-
-/**
- * dma_needs_bounce
- *
- * @dev: valid struct device pointer
- * @dma_handle: dma_handle of unbounced buffer
- * @size: size of region being mapped
- *
- * Platforms that utilize the dmabounce mechanism must implement
- * this function.
- *
- * The dmabounce routines call this function whenever a dma-mapping
- * is requested to determine whether a given buffer needs to be bounced
- * or not. The function must return 0 if the buffer is OK for
- * DMA access and 1 if the buffer needs to be bounced.
- *
- */
-extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
-
-/*
- * Private functions
- */
-int dmabounce_sync_for_cpu(struct device *, dma_addr_t, unsigned long,
-			size_t, enum dma_data_direction);
-int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
-			size_t, enum dma_data_direction);
-#else
-#define dmabounce_sync_for_cpu(dev,dma,off,sz,dir)	(1)
-#define dmabounce_sync_for_device(dev,dma,off,sz,dir)	(1)
-#endif /* CONFIG_DMABOUNCE */
 
 #endif /* __KERNEL__ */
 #endif
