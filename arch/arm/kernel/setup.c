@@ -248,6 +248,15 @@ static void __init cacheid_init(void)
 	} else {
 		cacheid = CACHEID_VIVT;
 	}
+
+	printk("CPU: %s data cache, %s instruction cache\n",
+		cache_is_vivt() ? "VIVT" :
+		cache_is_vipt_aliasing() ? "VIPT aliasing" :
+		cache_is_vipt_nonaliasing() ? "VIPT nonaliasing" : "unknown",
+		cache_is_vivt() ? "VIVT" :
+		icache_is_vivt_asid_tagged() ? "VIVT ASID tagged" :
+		cache_is_vipt_aliasing() ? "VIPT aliasing" :
+		cache_is_vipt_nonaliasing() ? "VIPT nonaliasing" : "unknown");
 }
 
 /*
