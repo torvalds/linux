@@ -47,7 +47,7 @@ static void boot_trace_ctrl_update(struct trace_array *tr)
 
 static int initcall_print_line(struct trace_iterator *iter)
 {
-	int ret = 1;
+	int ret = 0;
 	struct trace_entry *entry = iter->ent;
 	struct boot_trace *it = &entry->field.initcall;
 	struct trace_seq *s = &iter->seq;
