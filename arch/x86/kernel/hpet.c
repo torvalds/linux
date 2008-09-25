@@ -467,6 +467,9 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 	irq_set_affinity(dev->irq, cpumask_of_cpu(dev->cpu));
 	enable_irq(dev->irq);
 
+	printk(KERN_DEBUG "hpet: %s irq %d for MSI\n",
+			 dev->name, dev->irq);
+
 	return 0;
 }
 

@@ -3354,6 +3354,8 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc, int irq)
 #endif
 		set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
+	dev_printk(KERN_DEBUG, &dev->dev, "irq %d for MSI/MSI-X\n", irq);
+
 	return 0;
 }
 
@@ -3586,6 +3588,7 @@ int arch_setup_hpet_msi(unsigned int irq)
 	hpet_msi_write(irq, &msg);
 	set_irq_chip_and_handler_name(irq, &hpet_msi_type, handle_edge_irq,
 		"edge");
+
 	return 0;
 }
 #endif
@@ -3682,6 +3685,8 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 
 		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
 					      handle_edge_irq, "edge");
+
+		dev_printk(KERN_DEBUG, &dev->dev, "irq %d for HT\n", irq);
 	}
 	return err;
 }
