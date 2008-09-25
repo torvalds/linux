@@ -879,9 +879,11 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	unsigned long sl;
 
 	/*
-	 * SSD device without seek penalty, disable idling
+	 * SSD device without seek penalty, disable idling. But only do so
+	 * for devices that support queuing, otherwise we still have a problem
+	 * with sync vs async workloads.
 	 */
-	if (blk_queue_nonrot(cfqd->queue))
+	if (blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag)
 		return;
 
 	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));

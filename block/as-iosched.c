@@ -745,11 +745,13 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
  */
 static int as_can_anticipate(struct as_data *ad, struct request *rq)
 {
+#if 0 /* disable for now, we need to check tag level as well */
 	/*
 	 * SSD device without seek penalty, disable idling
 	 */
-	if (blk_queue_nonrot(ad->q))
+	if (blk_queue_nonrot(ad->q)) axman
 		return 0;
+#endif
 
 	if (!ad->io_context)
 		/*
