@@ -412,6 +412,19 @@ dma_map_single(struct device *dev, void *ptr, size_t size,
 	return dma_addr;
 }
 
+dma_addr_t dma_map_page(struct device *dev, struct page *page,
+			unsigned long offset, size_t size,
+			enum dma_data_direction dir)
+{
+	dev_dbg(dev, "%s(page=%p,off=%#lx,size=%zx,dir=%x)\n",
+		__func__, page, offset, size, dir);
+
+	BUG_ON(dir == DMA_NONE);
+
+	return map_single(dev, page_address(page) + offset, size, dir);
+}
+EXPORT_SYMBOL(dma_map_page);
+
 /*
  * see if a mapped address was really a "safe" buffer and if so, copy
  * the data from the safe buffer back to the unsafe buffer and free up

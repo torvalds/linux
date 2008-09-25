@@ -227,13 +227,22 @@ extern dma_addr_t dma_map_single(struct device *,void *, size_t, enum dma_data_d
  * can regain ownership by calling dma_unmap_page() or
  * dma_sync_single_for_cpu().
  */
+#ifndef CONFIG_DMABOUNCE
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
 	     unsigned long offset, size_t size,
 	     enum dma_data_direction dir)
 {
-	return dma_map_single(dev, page_address(page) + offset, size, dir);
+	if (!arch_is_coherent())
+		dma_cache_maint(page_address(page) + offset, size, dir);
+
+	return page_to_dma(dev, page) + offset;
 }
+#else
+extern dma_addr_t dma_map_page(struct device *dev, struct page *page,
+			unsigned long offset, size_t size,
+			enum dma_data_direction dir);
+#endif
 
 /**
  * dma_unmap_single - unmap a single buffer previously mapped
