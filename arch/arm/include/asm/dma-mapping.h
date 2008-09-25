@@ -410,6 +410,17 @@ extern void dmabounce_unregister_dev(struct device *);
  *
  */
 extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
+
+/*
+ * Private functions
+ */
+int dmabounce_sync_for_cpu(struct device *, dma_addr_t, unsigned long,
+			size_t, enum dma_data_direction);
+int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
+			size_t, enum dma_data_direction);
+#else
+#define dmabounce_sync_for_cpu(dev,dma,off,sz,dir)	(1)
+#define dmabounce_sync_for_device(dev,dma,off,sz,dir)	(1)
 #endif /* CONFIG_DMABOUNCE */
 
 #endif /* __KERNEL__ */

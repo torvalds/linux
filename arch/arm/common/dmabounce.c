@@ -468,45 +468,23 @@ void dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_addr,
 }
 EXPORT_SYMBOL(dma_sync_single_range_for_device);
 
-void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
-			enum dma_data_direction dir)
+int dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
+		unsigned long off, size_t sz, enum dma_data_direction dir)
 {
-	struct scatterlist *s;
-	int i;
-
-	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
-		__func__, sg, nents, dir);
-
-	BUG_ON(dir == DMA_NONE);
-
-	for_each_sg(sg, s, nents, i) {
-		dma_addr_t dma_addr = s->dma_address;
-		unsigned int length = s->length;
-
-		sync_single(dev, dma_addr, length, dir);
-	}
+	dev_dbg(dev, "%s(dma=%#lx,off=%#lx,sz=%zx,dir=%x)\n",
+		__func__, addr, off, sz, dir);
+	return sync_single(dev, addr, off + sz, dir);
 }
+EXPORT_SYMBOL(dmabounce_sync_for_cpu);
 
-void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
-			enum dma_data_direction dir)
+int dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
+		unsigned long off, size_t sz, enum dma_data_direction dir)
 {
-	struct scatterlist *s;
-	int i;
-
-	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
-		__func__, sg, nents, dir);
-
-	BUG_ON(dir == DMA_NONE);
-
-	for_each_sg(sg, s, nents, i) {
-		dma_addr_t dma_addr = s->dma_address;
-		unsigned int length = s->length;
-
-		sync_single(dev, dma_addr, length, dir);
-	}
+	dev_dbg(dev, "%s(dma=%#lx,off=%#lx,sz=%zx,dir=%x)\n",
+		__func__, addr, off, sz, dir);
+	return sync_single(dev, addr, off + sz, dir);
 }
+EXPORT_SYMBOL(dmabounce_sync_for_device);
 
 static int
 dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev, const char *name,
@@ -618,8 +596,6 @@ dmabounce_unregister_dev(struct device *dev)
 
 EXPORT_SYMBOL(dma_map_single);
 EXPORT_SYMBOL(dma_unmap_single);
-EXPORT_SYMBOL(dma_sync_sg_for_cpu);
-EXPORT_SYMBOL(dma_sync_sg_for_device);
 EXPORT_SYMBOL(dmabounce_register_dev);
 EXPORT_SYMBOL(dmabounce_unregister_dev);
 

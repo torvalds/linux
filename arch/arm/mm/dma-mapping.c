@@ -571,7 +571,6 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 }
 EXPORT_SYMBOL(dma_unmap_sg);
 
-#ifndef CONFIG_DMABOUNCE
 /**
  * dma_sync_sg_for_cpu
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
@@ -586,6 +585,10 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
+		if (!dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
+					sg_dma_len(s), dir))
+			continue;
+
 		if (!arch_is_coherent())
 			dma_cache_maint(sg_virt(s), s->length, dir);
 	}
@@ -606,9 +609,12 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
+		if (!dmabounce_sync_for_device(dev, sg_dma_address(s), 0,
+					sg_dma_len(s), dir))
+			continue;
+
 		if (!arch_is_coherent())
 			dma_cache_maint(sg_virt(s), s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
-#endif
