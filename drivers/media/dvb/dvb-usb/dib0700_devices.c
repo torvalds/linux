@@ -679,6 +679,43 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x01, 0x7d, KEY_VOLUMEDOWN },
 	{ 0x02, 0x42, KEY_CHANNELUP },
 	{ 0x00, 0x7d, KEY_CHANNELDOWN },
+
+	/* Key codes for Nova-TD "credit card" remote control. */
+	{ 0x1d, 0x00, KEY_0 },
+	{ 0x1d, 0x01, KEY_1 },
+	{ 0x1d, 0x02, KEY_2 },
+	{ 0x1d, 0x03, KEY_3 },
+	{ 0x1d, 0x04, KEY_4 },
+	{ 0x1d, 0x05, KEY_5 },
+	{ 0x1d, 0x06, KEY_6 },
+	{ 0x1d, 0x07, KEY_7 },
+	{ 0x1d, 0x08, KEY_8 },
+	{ 0x1d, 0x09, KEY_9 },
+	{ 0x1d, 0x0a, KEY_TEXT },
+	{ 0x1d, 0x0d, KEY_MENU },
+	{ 0x1d, 0x0f, KEY_MUTE },
+	{ 0x1d, 0x10, KEY_VOLUMEUP },
+	{ 0x1d, 0x11, KEY_VOLUMEDOWN },
+	{ 0x1d, 0x12, KEY_CHANNEL },
+	{ 0x1d, 0x14, KEY_UP },
+	{ 0x1d, 0x15, KEY_DOWN },
+	{ 0x1d, 0x16, KEY_LEFT },
+	{ 0x1d, 0x17, KEY_RIGHT },
+	{ 0x1d, 0x1c, KEY_TV },
+	{ 0x1d, 0x1e, KEY_NEXT },
+	{ 0x1d, 0x1f, KEY_BACK },
+	{ 0x1d, 0x20, KEY_CHANNELUP },
+	{ 0x1d, 0x21, KEY_CHANNELDOWN },
+	{ 0x1d, 0x24, KEY_LAST },
+	{ 0x1d, 0x25, KEY_OK },
+	{ 0x1d, 0x30, KEY_PAUSE },
+	{ 0x1d, 0x32, KEY_REWIND },
+	{ 0x1d, 0x34, KEY_FASTFORWARD },
+	{ 0x1d, 0x35, KEY_PLAY },
+	{ 0x1d, 0x36, KEY_STOP },
+	{ 0x1d, 0x37, KEY_RECORD },
+	{ 0x1d, 0x3b, KEY_GOTO },
+	{ 0x1d, 0x3d, KEY_POWER },
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -1383,7 +1420,12 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[31], NULL },
 				{ NULL },
 			}
-		}
+		},
+
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
