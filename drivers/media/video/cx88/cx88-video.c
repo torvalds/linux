@@ -839,6 +839,8 @@ static int video_open(struct inode *inode, struct file *file)
 	}
 	unlock_kernel();
 
+	atomic_inc(&core->users);
+
 	return 0;
 }
 
@@ -926,7 +928,8 @@ static int video_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
-	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
+	if(atomic_dec_and_test(&dev->core->users))
+		cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	return 0;
 }
