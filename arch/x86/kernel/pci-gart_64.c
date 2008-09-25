@@ -27,8 +27,8 @@
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 #include <asm/atomic.h>
-#include <asm/io.h>
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>
@@ -175,7 +175,8 @@ static void dump_leak(void)
 	       iommu_leak_pages);
 	for (i = 0; i < iommu_leak_pages; i += 2) {
 		printk(KERN_DEBUG "%lu: ", iommu_pages-i);
-		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i], 0);
+		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i],
+				0);
 		printk(KERN_CONT "%c", (i+1)%2 == 0 ? '\n' : ' ');
 	}
 	printk(KERN_DEBUG "\n");
@@ -688,7 +689,8 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	if (!error)
 		error = sysdev_register(&device_gart);
 	if (error)
-		panic("Could not register gart_sysdev -- would corrupt data on next suspend");
+		panic("Could not register gart_sysdev -- "
+		      "would corrupt data on next suspend");
 
 	flush_gart();
 
@@ -709,8 +711,6 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	       KERN_WARNING "falling back to iommu=soft.\n");
 	return -1;
 }
-
-extern int agp_amd64_init(void);
 
 static struct dma_mapping_ops gart_dma_ops = {
 	.map_single			= gart_map_single,
@@ -777,8 +777,8 @@ void __init gart_iommu_init(void)
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		if (max_pfn > MAX_DMA32_PFN) {
 			printk(KERN_WARNING "More than 4GB of memory "
-			       	          "but GART IOMMU not available.\n"
-			       KERN_WARNING "falling back to iommu=soft.\n");
+			       "but GART IOMMU not available.\n");
+			printk(KERN_WARNING "falling back to iommu=soft.\n");
 		}
 		return;
 	}
@@ -868,7 +868,8 @@ void __init gart_parse_options(char *p)
 	if (!strncmp(p, "leak", 4)) {
 		leak_trace = 1;
 		p += 4;
-		if (*p == '=') ++p;
+		if (*p == '=')
+			++p;
 		if (isdigit(*p) && get_option(&p, &arg))
 			iommu_leak_pages = arg;
 	}
