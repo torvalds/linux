@@ -293,10 +293,8 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id,
 		return -ENODEV;
 
 	prop = of_get_property(phy, "reg", NULL);
-	if (prop) {
-		pdata.force_phy_addr = 1;
-		pdata.phy_addr = *prop;
-	}
+	if (prop)
+		pdata.phy_addr = MV643XX_ETH_PHY_ADDR(*prop);
 
 	of_node_put(phy);
 

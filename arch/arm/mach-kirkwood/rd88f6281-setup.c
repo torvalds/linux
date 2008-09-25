@@ -69,7 +69,7 @@ static struct platform_device rd88f6281_nand_flash = {
 };
 
 static struct mv643xx_eth_platform_data rd88f6281_ge00_data = {
-	.phy_addr	= -1,
+	.phy_addr	= MV643XX_ETH_PHY_NONE,
 	.speed		= SPEED_1000,
 	.duplex		= DUPLEX_FULL,
 };

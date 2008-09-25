@@ -60,49 +60,14 @@ int mdiobus_register(struct mii_bus *bus)
 		bus->reset(bus);
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *phydev;
+		bus->phy_map[i] = NULL;
+		if ((bus->phy_mask & (1 << i)) == 0) {
+			struct phy_device *phydev;
 
-		if (bus->phy_mask & (1 << i)) {
-			bus->phy_map[i] = NULL;
-			continue;
+			phydev = mdiobus_scan(bus, i);
+			if (IS_ERR(phydev))
+				err = PTR_ERR(phydev);
 		}
-
-		phydev = get_phy_device(bus, i);
-
-		if (IS_ERR(phydev))
-			return PTR_ERR(phydev);
-
-		/* There's a PHY at this address
-		 * We need to set:
-		 * 1) IRQ
-		 * 2) bus_id
-		 * 3) parent
-		 * 4) bus
-		 * 5) mii_bus
-		 * And, we need to register it */
-		if (phydev) {
-			phydev->irq = bus->irq[i];
-
-			phydev->dev.parent = bus->dev;
-			phydev->dev.bus = &mdio_bus_type;
-			snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, i);
-
-			phydev->bus = bus;
-
-			/* Run all of the fixups for this PHY */
-			phy_scan_fixups(phydev);
-
-			err = device_register(&phydev->dev);
-
-			if (err) {
-				printk(KERN_ERR "phy %d failed to register\n",
-						i);
-				phy_device_free(phydev);
-				phydev = NULL;
-			}
-		}
-
-		bus->phy_map[i] = phydev;
 	}
 
 	pr_info("%s: probed\n", bus->name);
@@ -121,6 +86,48 @@ void mdiobus_unregister(struct mii_bus *bus)
 	}
 }
 EXPORT_SYMBOL(mdiobus_unregister);
+
+struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
+{
+	struct phy_device *phydev;
+	int err;
+
+	phydev = get_phy_device(bus, addr);
+	if (IS_ERR(phydev) || phydev == NULL)
+		return phydev;
+
+	/* There's a PHY at this address
+	 * We need to set:
+	 * 1) IRQ
+	 * 2) bus_id
+	 * 3) parent
+	 * 4) bus
+	 * 5) mii_bus
+	 * And, we need to register it */
+
+	phydev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
+
+	phydev->dev.parent = bus->dev;
+	phydev->dev.bus = &mdio_bus_type;
+	snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, addr);
+
+	phydev->bus = bus;
+
+	/* Run all of the fixups for this PHY */
+	phy_scan_fixups(phydev);
+
+	err = device_register(&phydev->dev);
+	if (err) {
+		printk(KERN_ERR "phy %d failed to register\n", addr);
+		phy_device_free(phydev);
+		phydev = NULL;
+	}
+
+	bus->phy_map[addr] = phydev;
+
+	return phydev;
+}
+EXPORT_SYMBOL(mdiobus_scan);
 
 /**
  * mdio_bus_match - determine if given PHY driver supports the given PHY device
