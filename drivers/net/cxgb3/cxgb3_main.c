@@ -479,6 +479,7 @@ static int setup_sge_qsets(struct adapter *adap)
 							     irq_idx,
 				&adap->params.sge.qset[qset_idx], ntxq, dev);
 			if (err) {
+				t3_stop_sge_timers(adap);
 				t3_free_sge_resources(adap);
 				return err;
 			}
@@ -2449,6 +2450,9 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
 		offload_close(&adapter->tdev);
 
+	/* Stop SGE timers */
+	t3_stop_sge_timers(adapter);
+
 	adapter->flags &= ~FULL_INIT_DONE;
 
 	pci_disable_device(pdev);
@@ -2801,6 +2805,7 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		    if (test_bit(i, &adapter->registered_device_map))
 			unregister_netdev(adapter->port[i]);
 
+		t3_stop_sge_timers(adapter);
 		t3_free_sge_resources(adapter);
 		cxgb_disable_msi(adapter);
 

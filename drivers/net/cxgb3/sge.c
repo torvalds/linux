@@ -603,9 +603,6 @@ static void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
 	int i;
 	struct pci_dev *pdev = adapter->pdev;
 
-	if (q->tx_reclaim_timer.function)
-		del_timer_sync(&q->tx_reclaim_timer);
-
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i)
 		if (q->fl[i].desc) {
 			spin_lock_irq(&adapter->sge.reg_lock);
@@ -3006,6 +3003,24 @@ err_unlock:
 err:
 	t3_free_qset(adapter, q);
 	return ret;
+}
+
+/**
+ *	t3_stop_sge_timers - stop SGE timer call backs
+ *	@adap: the adapter
+ *
+ *	Stops each SGE queue set's timer call back
+ */
+void t3_stop_sge_timers(struct adapter *adap)
+{
+	int i;
+
+	for (i = 0; i < SGE_QSETS; ++i) {
+		struct sge_qset *q = &adap->sge.qs[i];
+
+		if (q->tx_reclaim_timer.function)
+			del_timer_sync(&q->tx_reclaim_timer);
+	}
 }
 
 /**

@@ -284,6 +284,7 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_status,
 
 void t3_sge_start(struct adapter *adap);
 void t3_sge_stop(struct adapter *adap);
+void t3_stop_sge_timers(struct adapter *adap);
 void t3_free_sge_resources(struct adapter *adap);
 void t3_sge_err_intr_handler(struct adapter *adapter);
 irq_handler_t t3_intr_handler(struct adapter *adap, int polling);
