@@ -119,7 +119,7 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 void sysfs_remove_file_from_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
 
-void sysfs_notify(struct kobject *kobj, char *dir, char *attr);
+void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 void sysfs_notify_dirent(struct sysfs_dirent *sd);
 struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 				      const unsigned char *name);
@@ -229,7 +229,8 @@ static inline void sysfs_remove_file_from_group(struct kobject *kobj,
 {
 }
 
-static inline void sysfs_notify(struct kobject *kobj, char *dir, char *attr)
+static inline void sysfs_notify(struct kobject *kobj, const char *dir,
+				const char *attr)
 {
 }
 static inline void sysfs_notify_dirent(struct sysfs_dirent *sd)

@@ -469,7 +469,7 @@ void sysfs_notify_dirent(struct sysfs_dirent *sd)
 }
 EXPORT_SYMBOL_GPL(sysfs_notify_dirent);
 
-void sysfs_notify(struct kobject *k, char *dir, char *attr)
+void sysfs_notify(struct kobject *k, const char *dir, const char *attr)
 {
 	struct sysfs_dirent *sd = k->sd;
 
