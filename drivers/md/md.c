@@ -2394,12 +2394,11 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 	int i;
 	unsigned long msec;
 	char buf[30];
-	char *e;
+
 	/* remove a period, and count digits after it */
 	if (len >= sizeof(buf))
 		return -EINVAL;
-	strlcpy(buf, cbuf, len);
-	buf[len] = 0;
+	strlcpy(buf, cbuf, sizeof(buf));
 	for (i=0; i<len; i++) {
 		if (dot) {
 			if (isdigit(buf[i])) {
@@ -2412,8 +2411,7 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 			buf[i] = 0;
 		}
 	}
-	msec = simple_strtoul(buf, &e, 10);
-	if (e == buf || (*e && *e != '\n'))
+	if (strict_strtoul(buf, 10, &msec) < 0)
 		return -EINVAL;
 	msec = (msec * 1000) / scale;
 	if (msec == 0)
