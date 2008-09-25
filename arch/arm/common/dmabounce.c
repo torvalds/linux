@@ -444,50 +444,6 @@ dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	unmap_single(dev, dma_addr, size, dir);
 }
 
-int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
-		enum dma_data_direction dir)
-{
-	struct scatterlist *s;
-	int i;
-
-	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
-		__func__, sg, nents, dir);
-
-	BUG_ON(dir == DMA_NONE);
-
-	for_each_sg(sg, s, nents, i) {
-		struct page *page = sg_page(s);
-		unsigned int offset = s->offset;
-		unsigned int length = s->length;
-		void *ptr = page_address(page) + offset;
-
-		s->dma_address = map_single(dev, ptr, length, dir);
-	}
-
-	return nents;
-}
-
-void
-dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
-		enum dma_data_direction dir)
-{
-	struct scatterlist *s;
-	int i;
-
-	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
-		__func__, sg, nents, dir);
-
-	BUG_ON(dir == DMA_NONE);
-
-	for_each_sg(sg, s, nents, i) {
-		dma_addr_t dma_addr = s->dma_address;
-		unsigned int length = s->length;
-
-		unmap_single(dev, dma_addr, length, dir);
-	}
-}
-
 void dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_addr,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction dir)
@@ -662,8 +618,6 @@ dmabounce_unregister_dev(struct device *dev)
 
 EXPORT_SYMBOL(dma_map_single);
 EXPORT_SYMBOL(dma_unmap_single);
-EXPORT_SYMBOL(dma_map_sg);
-EXPORT_SYMBOL(dma_unmap_sg);
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
 EXPORT_SYMBOL(dma_sync_sg_for_device);
 EXPORT_SYMBOL(dmabounce_register_dev);

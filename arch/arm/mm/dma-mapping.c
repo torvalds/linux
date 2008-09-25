@@ -513,7 +513,6 @@ void dma_cache_maint(const void *start, size_t size, int direction)
 }
 EXPORT_SYMBOL(dma_cache_maint);
 
-#ifndef CONFIG_DMABOUNCE
 /**
  * dma_map_sg - map a set of SG buffers for streaming mode DMA
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
@@ -534,16 +533,20 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir)
 {
 	struct scatterlist *s;
-	int i;
+	int i, j;
 
 	for_each_sg(sg, s, nents, i) {
-		s->dma_address = page_to_dma(dev, sg_page(s)) + s->offset;
-
-		if (!arch_is_coherent())
-			dma_cache_maint(sg_virt(s), s->length, dir);
+		s->dma_address = dma_map_page(dev, sg_page(s), s->offset,
+						s->length, dir);
+		if (dma_mapping_error(dev, s->dma_address))
+			goto bad_mapping;
 	}
-
 	return nents;
+
+ bad_mapping:
+	for_each_sg(sg, s, i, j)
+		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
+	return 0;
 }
 EXPORT_SYMBOL(dma_map_sg);
 
@@ -560,10 +563,15 @@ EXPORT_SYMBOL(dma_map_sg);
 void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir)
 {
-	/* nothing to do */
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i)
+		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
 }
 EXPORT_SYMBOL(dma_unmap_sg);
 
+#ifndef CONFIG_DMABOUNCE
 /**
  * dma_sync_sg_for_cpu
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
