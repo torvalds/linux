@@ -528,11 +528,12 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_add(&cfs_rq->load, se->load.weight);
 	if (!parent_entity(se))
 		inc_cpu_load(rq_of(cfs_rq), se->load.weight);
-	if (entity_is_task(se))
+	if (entity_is_task(se)) {
 		add_cfs_task_weight(cfs_rq, se->load.weight);
+		list_add(&se->group_node, &cfs_rq->tasks);
+	}
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
-	list_add(&se->group_node, &cfs_rq->tasks);
 }
 
 static void
@@ -541,11 +542,12 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_sub(&cfs_rq->load, se->load.weight);
 	if (!parent_entity(se))
 		dec_cpu_load(rq_of(cfs_rq), se->load.weight);
-	if (entity_is_task(se))
+	if (entity_is_task(se)) {
 		add_cfs_task_weight(cfs_rq, -se->load.weight);
+		list_del_init(&se->group_node);
+	}
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
-	list_del_init(&se->group_node);
 }
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -1335,19 +1337,9 @@ __load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 	if (next == &cfs_rq->tasks)
 		return NULL;
 
-	/* Skip over entities that are not tasks */
-	do {
-		se = list_entry(next, struct sched_entity, group_node);
-		next = next->next;
-	} while (next != &cfs_rq->tasks && !entity_is_task(se));
-
-	if (next == &cfs_rq->tasks && !entity_is_task(se))
-		return NULL;
-
-	cfs_rq->balance_iterator = next;
-
-	if (entity_is_task(se))
-		p = task_of(se);
+	se = list_entry(next, struct sched_entity, group_node);
+	p = task_of(se);
+	cfs_rq->balance_iterator = next->next;
 
 	return p;
 }
