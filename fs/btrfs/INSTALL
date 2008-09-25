@@ -1,0 +1,48 @@
+Install Instructions
+
+Btrfs puts snapshots and subvolumes into the root directory of the FS.  This
+directory can only be changed by btrfsctl right now, and normal filesystem
+operations do not work on it.  The default subvolume is called 'default',
+and you can create files and directories in mount_point/default
+
+Btrfs uses libcrc32c in the kernel for file and metadata checksums.  You need
+to compile the kernel with:
+
+CONFIG_LIBCRC32C=m
+
+libcrc32c can be static as well.  Once your kernel is setup, typing make in the
+btrfs module sources will build against the running kernel.  When the build is
+complete:
+
+modprobe libcrc32c
+insmod btrfs.ko
+
+The Btrfs utility programs require libuuid to build.  This can be found
+in the e2fsprogs sources, and is usually available as libuuid or
+e2fsprogs-devel from various distros.
+
+Building the utilities is just make ; make install.  The programs go
+into /usr/local/bin.  The commands available are:
+
+mkfs.btrfs: create a filesystem
+
+btrfsctl: control program to create snapshots and subvolumes:
+
+	mount /dev/sda2 /mnt
+	btrfsctl -s new_subvol_name /mnt
+	btrfsctl -s snapshot_of_default /mnt/default
+	btrfsctl -s snapshot_of_new_subvol /mnt/new_subvol_name
+	btrfsctl -s snapshot_of_a_snapshot /mnt/snapshot_of_new_subvol
+	ls /mnt
+	default snapshot_of_a_snapshot snapshot_of_new_subvol
+	new_subvol_name snapshot_of_default
+
+	Snapshots and subvolumes cannot be deleted right now, but you can
+	rm -rf all the files and directories inside them.
+
+btrfsck: do a limited check of the FS extent trees.</li>
+
+debug-tree: print all of the FS metadata in text form.  Example:
+
+	debug-tree /dev/sda2 >& big_output_file
+
