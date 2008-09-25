@@ -896,31 +896,51 @@ int svc_register(const struct svc_serv *serv, const unsigned short proto,
 	return error;
 }
 
+#ifdef CONFIG_SUNRPC_REGISTER_V4
+
+static void __svc_unregister(const u32 program, const u32 version,
+			     const char *progname)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+		.sin6_port		= 0,
+	};
+	int error;
+
+	error = rpcb_v4_register(program, version,
+				(struct sockaddr *)&sin6, "");
+	dprintk("svc: %s(%sv%u), error %d\n",
+			__func__, progname, version, error);
+}
+
+#else	/* CONFIG_SUNRPC_REGISTER_V4 */
+
+static void __svc_unregister(const u32 program, const u32 version,
+			     const char *progname)
+{
+	int error;
+
+	error = rpcb_register(program, version, 0, 0);
+	dprintk("svc: %s(%sv%u), error %d\n",
+			__func__, progname, version, error);
+}
+
+#endif	/* CONFIG_SUNRPC_REGISTER_V4 */
+
 /*
- * All transport protocols and ports for this service are removed
- * from the local rpcbind database if the service is not hidden.
+ * All netids, bind addresses and ports registered for [program, version]
+ * are removed from the local rpcbind database (if the service is not
+ * hidden) to make way for a new instance of the service.
  *
- * The result of unregistration is reported via dprintk for those
- * who want verification of the result, but is otherwise not
- * important.
- *
- * The local rpcbind daemon listens on either only IPv6 or only
- * IPv4.  The kernel can't tell how it's configured.  However,
- * AF_INET addresses are mapped to AF_INET6 in IPv6-only config-
- * urations, so even an unregistration request on AF_INET will
- * get to a local rpcbind daemon listening only on AF_INET6.  So
- * we always unregister via AF_INET.
- *
- * At this point we don't need rpcbind version 4 for unregis-
- * tration:  A v2 UNSET request will clear all transports (netids),
- * addresses, and address families for [program, version].
+ * The result of unregistration is reported via dprintk for those who want
+ * verification of the result, but is otherwise not important.
  */
 static void svc_unregister(const struct svc_serv *serv)
 {
 	struct svc_program *progp;
 	unsigned long flags;
 	unsigned int i;
-	int error;
 
 	clear_thread_flag(TIF_SIGPENDING);
 
@@ -931,9 +951,7 @@ static void svc_unregister(const struct svc_serv *serv)
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
-			error = rpcb_register(progp->pg_prog, i, 0, 0);
-			dprintk("svc: svc_unregister(%sv%u), error %d\n",
-					progp->pg_name, i, error);
+			__svc_unregister(progp->pg_prog, i, progp->pg_name);
 		}
 	}
 
