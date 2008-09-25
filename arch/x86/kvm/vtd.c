@@ -36,37 +36,30 @@ int kvm_iommu_map_pages(struct kvm *kvm,
 {
 	gfn_t gfn = base_gfn;
 	pfn_t pfn;
-	int i, r;
+	int i, r = 0;
 	struct dmar_domain *domain = kvm->arch.intel_iommu_domain;
 
 	/* check if iommu exists and in use */
 	if (!domain)
 		return 0;
 
-	r = -EINVAL;
 	for (i = 0; i < npages; i++) {
 		/* check if already mapped */
 		pfn = (pfn_t)intel_iommu_iova_to_pfn(domain,
 						     gfn_to_gpa(gfn));
-		if (pfn && !is_mmio_pfn(pfn))
+		if (pfn)
 			continue;
 
 		pfn = gfn_to_pfn(kvm, gfn);
-		if (!is_mmio_pfn(pfn)) {
-			r = intel_iommu_page_mapping(domain,
-						     gfn_to_gpa(gfn),
-						     pfn_to_hpa(pfn),
-						     PAGE_SIZE,
-						     DMA_PTE_READ |
-						     DMA_PTE_WRITE);
-			if (r) {
-				printk(KERN_DEBUG "kvm_iommu_map_pages:"
-				       "iommu failed to map pfn=%lx\n", pfn);
-				goto unmap_pages;
-			}
-		} else {
-			printk(KERN_DEBUG "kvm_iommu_map_page:"
-			       "invalid pfn=%lx\n", pfn);
+		r = intel_iommu_page_mapping(domain,
+					     gfn_to_gpa(gfn),
+					     pfn_to_hpa(pfn),
+					     PAGE_SIZE,
+					     DMA_PTE_READ |
+					     DMA_PTE_WRITE);
+		if (r) {
+			printk(KERN_ERR "kvm_iommu_map_pages:"
+			       "iommu failed to map pfn=%lx\n", pfn);
 			goto unmap_pages;
 		}
 		gfn++;
