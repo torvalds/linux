@@ -47,13 +47,14 @@ static void print_name_offset(struct seq_file *m, void *sym)
 }
 
 static void
-print_timer(struct seq_file *m, struct hrtimer *timer, int idx, u64 now)
+print_timer(struct seq_file *m, struct hrtimer *taddr, struct hrtimer *timer,
+	    int idx, u64 now)
 {
 #ifdef CONFIG_TIMER_STATS
 	char tmp[TASK_COMM_LEN + 1];
 #endif
 	SEQ_printf(m, " #%d: ", idx);
-	print_name_offset(m, timer);
+	print_name_offset(m, taddr);
 	SEQ_printf(m, ", ");
 	print_name_offset(m, timer->function);
 	SEQ_printf(m, ", S:%02lx", timer->state);
@@ -99,7 +100,7 @@ next_one:
 		tmp = *timer;
 		spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 
-		print_timer(m, &tmp, i, now);
+		print_timer(m, timer, &tmp, i, now);
 		next++;
 		goto next_one;
 	}
