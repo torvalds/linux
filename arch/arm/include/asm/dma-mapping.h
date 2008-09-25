@@ -282,75 +282,6 @@ dma_unmap_page(struct device *dev, dma_addr_t handle, size_t size,
 }
 
 /**
- * dma_map_sg - map a set of SG buffers for streaming mode DMA
- * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
- * @sg: list of buffers
- * @nents: number of buffers to map
- * @dir: DMA transfer direction
- *
- * Map a set of buffers described by scatterlist in streaming
- * mode for DMA.  This is the scatter-gather version of the
- * above dma_map_single interface.  Here the scatter gather list
- * elements are each tagged with the appropriate dma address
- * and length.  They are obtained via sg_dma_{address,length}(SG).
- *
- * NOTE: An implementation may be able to use a smaller number of
- *       DMA address/length pairs than there are SG table elements.
- *       (for example via virtual mapping capabilities)
- *       The routine returns the number of addr/length pairs actually
- *       used, at most nents.
- *
- * Device ownership issues as mentioned above for dma_map_single are
- * the same here.
- */
-#ifndef CONFIG_DMABOUNCE
-static inline int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
-	   enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nents; i++, sg++) {
-		char *virt;
-
-		sg->dma_address = page_to_dma(dev, sg_page(sg)) + sg->offset;
-		virt = sg_virt(sg);
-
-		if (!arch_is_coherent())
-			dma_cache_maint(virt, sg->length, dir);
-	}
-
-	return nents;
-}
-#else
-extern int dma_map_sg(struct device *, struct scatterlist *, int, enum dma_data_direction);
-#endif
-
-/**
- * dma_unmap_sg - unmap a set of SG buffers mapped by dma_map_sg
- * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
- * @sg: list of buffers
- * @nents: number of buffers to map
- * @dir: DMA transfer direction
- *
- * Unmap a set of streaming mode DMA translations.
- * Again, CPU read rules concerning calls here are the same as for
- * dma_unmap_single() above.
- */
-#ifndef CONFIG_DMABOUNCE
-static inline void
-dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
-	     enum dma_data_direction dir)
-{
-
-	/* nothing to do */
-}
-#else
-extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_data_direction);
-#endif
-
-
-/**
  * dma_sync_single_range_for_cpu
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @handle: DMA address of buffer
@@ -405,50 +336,14 @@ dma_sync_single_for_device(struct device *dev, dma_addr_t handle, size_t size,
 	dma_sync_single_range_for_device(dev, handle, 0, size, dir);
 }
 
-
-/**
- * dma_sync_sg_for_cpu
- * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
- * @sg: list of buffers
- * @nents: number of buffers to map
- * @dir: DMA transfer direction
- *
- * Make physical memory consistent for a set of streaming
- * mode DMA translations after a transfer.
- *
- * The same as dma_sync_single_for_* but for a scatter-gather list,
- * same rules and usage.
+/*
+ * The scatter list versions of the above methods.
  */
-#ifndef CONFIG_DMABOUNCE
-static inline void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
-		    enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nents; i++, sg++) {
-		char *virt = sg_virt(sg);
-		if (!arch_is_coherent())
-			dma_cache_maint(virt, sg->length, dir);
-	}
-}
-
-static inline void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
-		       enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nents; i++, sg++) {
-		char *virt = sg_virt(sg);
-		if (!arch_is_coherent())
-			dma_cache_maint(virt, sg->length, dir);
-	}
-}
-#else
+extern int dma_map_sg(struct device *, struct scatterlist *, int, enum dma_data_direction);
+extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_data_direction);
 extern void dma_sync_sg_for_cpu(struct device*, struct scatterlist*, int, enum dma_data_direction);
 extern void dma_sync_sg_for_device(struct device*, struct scatterlist*, int, enum dma_data_direction);
-#endif
+
 
 #ifdef CONFIG_DMABOUNCE
 /*

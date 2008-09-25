@@ -512,3 +512,95 @@ void dma_cache_maint(const void *start, size_t size, int direction)
 	}
 }
 EXPORT_SYMBOL(dma_cache_maint);
+
+#ifndef CONFIG_DMABOUNCE
+/**
+ * dma_map_sg - map a set of SG buffers for streaming mode DMA
+ * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
+ * @sg: list of buffers
+ * @nents: number of buffers to map
+ * @dir: DMA transfer direction
+ *
+ * Map a set of buffers described by scatterlist in streaming mode for DMA.
+ * This is the scatter-gather version of the dma_map_single interface.
+ * Here the scatter gather list elements are each tagged with the
+ * appropriate dma address and length.  They are obtained via
+ * sg_dma_{address,length}.
+ *
+ * Device ownership issues as mentioned for dma_map_single are the same
+ * here.
+ */
+int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+		enum dma_data_direction dir)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		s->dma_address = page_to_dma(dev, sg_page(s)) + s->offset;
+
+		if (!arch_is_coherent())
+			dma_cache_maint(sg_virt(s), s->length, dir);
+	}
+
+	return nents;
+}
+EXPORT_SYMBOL(dma_map_sg);
+
+/**
+ * dma_unmap_sg - unmap a set of SG buffers mapped by dma_map_sg
+ * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
+ * @sg: list of buffers
+ * @nents: number of buffers to unmap (returned from dma_map_sg)
+ * @dir: DMA transfer direction (same as was passed to dma_map_sg)
+ *
+ * Unmap a set of streaming mode DMA translations.  Again, CPU access
+ * rules concerning calls here are the same as for dma_unmap_single().
+ */
+void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
+		enum dma_data_direction dir)
+{
+	/* nothing to do */
+}
+EXPORT_SYMBOL(dma_unmap_sg);
+
+/**
+ * dma_sync_sg_for_cpu
+ * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
+ * @sg: list of buffers
+ * @nents: number of buffers to map (returned from dma_map_sg)
+ * @dir: DMA transfer direction (same as was passed to dma_map_sg)
+ */
+void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
+			int nents, enum dma_data_direction dir)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		if (!arch_is_coherent())
+			dma_cache_maint(sg_virt(s), s->length, dir);
+	}
+}
+EXPORT_SYMBOL(dma_sync_sg_for_cpu);
+
+/**
+ * dma_sync_sg_for_device
+ * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
+ * @sg: list of buffers
+ * @nents: number of buffers to map (returned from dma_map_sg)
+ * @dir: DMA transfer direction (same as was passed to dma_map_sg)
+ */
+void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+			int nents, enum dma_data_direction dir)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		if (!arch_is_coherent())
+			dma_cache_maint(sg_virt(s), s->length, dir);
+	}
+}
+EXPORT_SYMBOL(dma_sync_sg_for_device);
+#endif
