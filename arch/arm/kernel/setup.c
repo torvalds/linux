@@ -176,63 +176,6 @@ static struct resource io_res[] = {
 #define lp1 io_res[1]
 #define lp2 io_res[2]
 
-static const char *cache_types[16] = {
-	"write-through",
-	"write-back",
-	"write-back",
-	"undefined 3",
-	"undefined 4",
-	"undefined 5",
-	"write-back",
-	"write-back",
-	"undefined 8",
-	"undefined 9",
-	"undefined 10",
-	"undefined 11",
-	"undefined 12",
-	"undefined 13",
-	"write-back",
-	"undefined 15",
-};
-
-static const char *cache_clean[16] = {
-	"not required",
-	"read-block",
-	"cp15 c7 ops",
-	"undefined 3",
-	"undefined 4",
-	"undefined 5",
-	"cp15 c7 ops",
-	"cp15 c7 ops",
-	"undefined 8",
-	"undefined 9",
-	"undefined 10",
-	"undefined 11",
-	"undefined 12",
-	"undefined 13",
-	"cp15 c7 ops",
-	"undefined 15",
-};
-
-static const char *cache_lockdown[16] = {
-	"not supported",
-	"not supported",
-	"not supported",
-	"undefined 3",
-	"undefined 4",
-	"undefined 5",
-	"format A",
-	"format B",
-	"undefined 8",
-	"undefined 9",
-	"undefined 10",
-	"undefined 11",
-	"undefined 12",
-	"undefined 13",
-	"format C",
-	"undefined 15",
-};
-
 static const char *proc_arch[] = {
 	"undefined/unknown",
 	"3",
@@ -252,48 +195,6 @@ static const char *proc_arch[] = {
 	"?(16)",
 	"?(17)",
 };
-
-#define CACHE_TYPE(x)	(((x) >> 25) & 15)
-#define CACHE_S(x)	((x) & (1 << 24))
-#define CACHE_DSIZE(x)	(((x) >> 12) & 4095)	/* only if S=1 */
-#define CACHE_ISIZE(x)	((x) & 4095)
-
-#define CACHE_SIZE(y)	(((y) >> 6) & 7)
-#define CACHE_ASSOC(y)	(((y) >> 3) & 7)
-#define CACHE_M(y)	((y) & (1 << 2))
-#define CACHE_LINE(y)	((y) & 3)
-
-static inline void dump_cache(const char *prefix, int cpu, unsigned int cache)
-{
-	unsigned int mult = 2 + (CACHE_M(cache) ? 1 : 0);
-
-	printk("CPU%u: %s: %d bytes, associativity %d, %d byte lines, %d sets\n",
-		cpu, prefix,
-		mult << (8 + CACHE_SIZE(cache)),
-		(mult << CACHE_ASSOC(cache)) >> 1,
-		8 << CACHE_LINE(cache),
-		1 << (6 + CACHE_SIZE(cache) - CACHE_ASSOC(cache) -
-			CACHE_LINE(cache)));
-}
-
-static void __init dump_cpu_info(int cpu)
-{
-	unsigned int info = read_cpuid_cachetype();
-
-	if (info != read_cpuid_id()) {
-		printk("CPU%u: D %s %s cache\n", cpu, cache_is_vivt() ? "VIVT" : "VIPT",
-		       cache_types[CACHE_TYPE(info)]);
-		if (CACHE_S(info)) {
-			dump_cache("I cache", cpu, CACHE_ISIZE(info));
-			dump_cache("D cache", cpu, CACHE_DSIZE(info));
-		} else {
-			dump_cache("cache", cpu, CACHE_ISIZE(info));
-		}
-	}
-
-	if (arch_is_coherent())
-		printk("Cache coherency enabled\n");
-}
 
 int cpu_architecture(void)
 {
@@ -383,8 +284,7 @@ static void __init setup_processor(void)
 /*
  * cpu_init - initialise one CPU.
  *
- * cpu_init dumps the cache information, initialises SMP specific
- * information, and sets up the per-CPU stacks.
+ * cpu_init sets up the per-CPU stacks.
  */
 void cpu_init(void)
 {
@@ -395,9 +295,6 @@ void cpu_init(void)
 		printk(KERN_CRIT "CPU%u: bad primary CPU number\n", cpu);
 		BUG();
 	}
-
-	if (system_state == SYSTEM_BOOTING)
-		dump_cpu_info(cpu);
 
 	/*
 	 * setup stacks for re-entrant exception handlers
@@ -865,22 +762,6 @@ static const char *hwcap_str[] = {
 	NULL
 };
 
-static void
-c_show_cache(struct seq_file *m, const char *type, unsigned int cache)
-{
-	unsigned int mult = 2 + (CACHE_M(cache) ? 1 : 0);
-
-	seq_printf(m, "%s size\t\t: %d\n"
-		      "%s assoc\t\t: %d\n"
-		      "%s line length\t: %d\n"
-		      "%s sets\t\t: %d\n",
-		type, mult << (8 + CACHE_SIZE(cache)),
-		type, (mult << CACHE_ASSOC(cache)) >> 1,
-		type, 8 << CACHE_LINE(cache),
-		type, 1 << (6 + CACHE_SIZE(cache) - CACHE_ASSOC(cache) -
-			    CACHE_LINE(cache)));
-}
-
 static int c_show(struct seq_file *m, void *v)
 {
 	int i;
@@ -933,27 +814,6 @@ static int c_show(struct seq_file *m, void *v)
 			   (read_cpuid_id() >> 4) & 0xfff);
 	}
 	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);
-
-	{
-		unsigned int cache_info = read_cpuid_cachetype();
-		if (cache_info != read_cpuid_id()) {
-			seq_printf(m, "Cache type\t: %s\n"
-				      "Cache clean\t: %s\n"
-				      "Cache lockdown\t: %s\n"
-				      "Cache format\t: %s\n",
-				   cache_types[CACHE_TYPE(cache_info)],
-				   cache_clean[CACHE_TYPE(cache_info)],
-				   cache_lockdown[CACHE_TYPE(cache_info)],
-				   CACHE_S(cache_info) ? "Harvard" : "Unified");
-
-			if (CACHE_S(cache_info)) {
-				c_show_cache(m, "I", CACHE_ISIZE(cache_info));
-				c_show_cache(m, "D", CACHE_DSIZE(cache_info));
-			} else {
-				c_show_cache(m, "Cache", CACHE_ISIZE(cache_info));
-			}
-		}
-	}
 
 	seq_puts(m, "\n");
 
