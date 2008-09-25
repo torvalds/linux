@@ -80,7 +80,7 @@ AGPEXTERN int agp_memory_reserved;
 AGPEXTERN __u32 *agp_gatt_table;
 
 static unsigned long next_bit;  /* protected by iommu_bitmap_lock */
-static int need_flush;		/* global flush state. set for each gart wrap */
+static bool need_flush;		/* global flush state. set for each gart wrap */
 
 static unsigned long alloc_iommu(struct device *dev, int size,
 				 unsigned long align_mask)
@@ -98,7 +98,7 @@ static unsigned long alloc_iommu(struct device *dev, int size,
 	offset = iommu_area_alloc(iommu_gart_bitmap, iommu_pages, next_bit,
 				  size, base_index, boundary_size, align_mask);
 	if (offset == -1) {
-		need_flush = 1;
+		need_flush = true;
 		offset = iommu_area_alloc(iommu_gart_bitmap, iommu_pages, 0,
 					  size, base_index, boundary_size,
 					  align_mask);
@@ -107,11 +107,11 @@ static unsigned long alloc_iommu(struct device *dev, int size,
 		next_bit = offset+size;
 		if (next_bit >= iommu_pages) {
 			next_bit = 0;
-			need_flush = 1;
+			need_flush = true;
 		}
 	}
 	if (iommu_fullflush)
-		need_flush = 1;
+		need_flush = true;
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
 
 	return offset;
@@ -136,7 +136,7 @@ static void flush_gart(void)
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
 	if (need_flush) {
 		k8_flush_garts();
-		need_flush = 0;
+		need_flush = false;
 	}
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
 }
