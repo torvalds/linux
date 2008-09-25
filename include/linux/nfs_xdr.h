@@ -672,16 +672,16 @@ struct nfs4_rename_res {
 	struct nfs_fattr *		new_fattr;
 };
 
-#define NFS4_SETCLIENTID_NAMELEN	(56)
+#define NFS4_SETCLIENTID_NAMELEN	(128)
 struct nfs4_setclientid {
 	const nfs4_verifier *		sc_verifier;
 	unsigned int			sc_name_len;
-	char				sc_name[NFS4_SETCLIENTID_NAMELEN];
+	char				sc_name[NFS4_SETCLIENTID_NAMELEN + 1];
 	u32				sc_prog;
 	unsigned int			sc_netid_len;
-	char				sc_netid[RPCBIND_MAXNETIDLEN];
+	char				sc_netid[RPCBIND_MAXNETIDLEN + 1];
 	unsigned int			sc_uaddr_len;
-	char				sc_uaddr[RPCBIND_MAXUADDRLEN];
+	char				sc_uaddr[RPCBIND_MAXUADDRLEN + 1];
 	u32				sc_cb_ident;
 };
 
