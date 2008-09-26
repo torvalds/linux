@@ -488,7 +488,7 @@ static int write_mem_msg(int binary)
 		if (err)
 			return err;
 		if (CACHE_FLUSH_IS_SAFE)
-			flush_icache_range(addr, addr + length + 1);
+			flush_icache_range(addr, addr + length);
 		return 0;
 	}
 
