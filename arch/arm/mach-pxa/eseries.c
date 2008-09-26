@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 
 #include <asm/setup.h>
@@ -26,6 +27,7 @@
 #include <mach/irda.h>
 
 #include "generic.h"
+#include "clock.h"
 
 /* Only e800 has 128MB RAM */
 void __init eseries_fixup(struct machine_desc *desc,
@@ -85,4 +87,83 @@ struct pxaficp_platform_data e7xx_ficp_platform_data = {
 	.transceiver_mode = e7xx_irda_transceiver_mode,
 	.shutdown = e7xx_irda_shutdown,
 };
+
+int eseries_tmio_enable(struct platform_device *dev)
+{
+	/* Reset - bring SUSPEND high before PCLR */
+	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 0);
+	gpio_set_value(GPIO_ESERIES_TMIO_PCLR, 0);
+	msleep(1);
+	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 1);
+	msleep(1);
+	gpio_set_value(GPIO_ESERIES_TMIO_PCLR, 1);
+	msleep(1);
+	return 0;
+}
+
+int eseries_tmio_disable(struct platform_device *dev)
+{
+	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 0);
+	gpio_set_value(GPIO_ESERIES_TMIO_PCLR, 0);
+	return 0;
+}
+
+int eseries_tmio_suspend(struct platform_device *dev)
+{
+	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 0);
+	return 0;
+}
+
+int eseries_tmio_resume(struct platform_device *dev)
+{
+	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 1);
+	msleep(1);
+	return 0;
+}
+
+void eseries_get_tmio_gpios(void)
+{
+	gpio_request(GPIO_ESERIES_TMIO_SUSPEND, NULL);
+	gpio_request(GPIO_ESERIES_TMIO_PCLR, NULL);
+	gpio_direction_output(GPIO_ESERIES_TMIO_SUSPEND, 0);
+	gpio_direction_output(GPIO_ESERIES_TMIO_PCLR, 0);
+}
+
+/* TMIO controller uses the same resources on all e-series machines. */
+struct resource eseries_tmio_resources[] = {
+	[0] = {
+		.start  = PXA_CS4_PHYS,
+		.end    = PXA_CS4_PHYS + 0x1fffff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_GPIO(GPIO_ESERIES_TMIO_IRQ),
+		.end    = IRQ_GPIO(GPIO_ESERIES_TMIO_IRQ),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+/* Some e-series hardware cannot control the 32K clock */
+static void clk_32k_dummy(struct clk *clk)
+{
+}
+
+static const struct clkops clk_32k_dummy_ops = {
+	.enable         = clk_32k_dummy,
+	.disable        = clk_32k_dummy,
+};
+
+static struct clk tmio_dummy_clk = {
+	.ops	= &clk_32k_dummy_ops,
+	.rate	= 32768,
+};
+
+static struct clk_lookup eseries_clkregs[] = {
+	INIT_CLKREG(&tmio_dummy_clk, NULL, "CLK_CK32K"),
+};
+
+void eseries_register_clks(void)
+{
+	clks_register(eseries_clkregs, ARRAY_SIZE(eseries_clkregs));
+}
 
