@@ -2389,30 +2389,42 @@ static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 	kvm_queue_interrupt(vcpu, irq);
 }
 
-static void do_interrupt_requests(struct kvm_vcpu *vcpu,
-				       struct kvm_run *kvm_run)
+static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
 
-	vmx_update_window_states(vcpu);
+	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_INTR_PENDING;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+}
 
-	if (vcpu->arch.interrupt_window_open &&
-	    vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
-		kvm_do_inject_irq(vcpu);
+static void enable_nmi_window(struct kvm_vcpu *vcpu)
+{
+	u32 cpu_based_vm_exec_control;
 
-	if (vcpu->arch.interrupt_window_open && vcpu->arch.interrupt.pending)
-		vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
+	if (!cpu_has_virtual_nmis())
+		return;
 
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_NMI_PENDING;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+}
+
+static void do_interrupt_requests(struct kvm_vcpu *vcpu,
+				       struct kvm_run *kvm_run)
+{
+	vmx_update_window_states(vcpu);
+
+	if (vcpu->arch.interrupt_window_open) {
+		if (vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
+			kvm_do_inject_irq(vcpu);
+
+		if (vcpu->arch.interrupt.pending)
+			vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
+	}
 	if (!vcpu->arch.interrupt_window_open &&
 	    (vcpu->arch.irq_summary || kvm_run->request_interrupt_window))
-		/*
-		 * Interrupts blocked.  Wait for unblock.
-		 */
-		cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_INTR_PENDING;
-	else
-		cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_INTR_PENDING;
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+		enable_irq_window(vcpu);
 }
 
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
@@ -3066,35 +3078,6 @@ static void update_tpr_threshold(struct kvm_vcpu *vcpu)
 	vmcs_write32(TPR_THRESHOLD, (max_irr > tpr) ? tpr >> 4 : max_irr >> 4);
 }
 
-static void enable_irq_window(struct kvm_vcpu *vcpu)
-{
-	u32 cpu_based_vm_exec_control;
-
-	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
-	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_INTR_PENDING;
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
-}
-
-static void enable_nmi_window(struct kvm_vcpu *vcpu)
-{
-	u32 cpu_based_vm_exec_control;
-
-	if (!cpu_has_virtual_nmis())
-		return;
-
-	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
-	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_NMI_PENDING;
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
-}
-
-static void enable_intr_window(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->arch.nmi_pending)
-		enable_nmi_window(vcpu);
-	else if (kvm_cpu_has_interrupt(vcpu))
-		enable_irq_window(vcpu);
-}
-
 static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
 	u32 exit_intr_info;
@@ -3165,13 +3148,16 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 				vcpu->arch.nmi_pending = false;
 				vcpu->arch.nmi_injected = true;
 			} else {
-				enable_intr_window(vcpu);
+				enable_nmi_window(vcpu);
 				return;
 			}
 		}
 		if (vcpu->arch.nmi_injected) {
 			vmx_inject_nmi(vcpu);
-			enable_intr_window(vcpu);
+			if (vcpu->arch.nmi_pending)
+				enable_nmi_window(vcpu);
+			else if (kvm_cpu_has_interrupt(vcpu))
+				enable_irq_window(vcpu);
 			return;
 		}
 	}
