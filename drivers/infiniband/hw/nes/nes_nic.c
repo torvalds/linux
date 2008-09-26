@@ -1228,10 +1228,12 @@ static void nes_netdev_get_drvinfo(struct net_device *netdev,
 		struct ethtool_drvinfo *drvinfo)
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
+	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 
 	strcpy(drvinfo->driver, DRV_NAME);
 	strcpy(drvinfo->bus_info, pci_name(nesvnic->nesdev->pcidev));
-	strcpy(drvinfo->fw_version, "TBD");
+	sprintf(drvinfo->fw_version, "%u.%u", nesadapter->firmware_version>>16,
+				nesadapter->firmware_version & 0x000000ff);
 	strcpy(drvinfo->version, DRV_VERSION);
 	drvinfo->n_stats = nes_netdev_get_stats_count(netdev);
 	drvinfo->testinfo_len = 0;
