@@ -26,6 +26,7 @@
 
 static void __iomem *omap2_ctrl_base;
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 struct omap3_scratchpad {
 	u32 boot_config_ptr;
 	u32 public_restore_ptr;
@@ -92,6 +93,47 @@ struct omap3_scratchpad_sdrc_block {
  */
 u32 omap3_arm_context[128];
 
+struct omap3_control_regs {
+	u32 sysconfig;
+	u32 devconf0;
+	u32 mem_dftrw0;
+	u32 mem_dftrw1;
+	u32 msuspendmux_0;
+	u32 msuspendmux_1;
+	u32 msuspendmux_2;
+	u32 msuspendmux_3;
+	u32 msuspendmux_4;
+	u32 msuspendmux_5;
+	u32 sec_ctrl;
+	u32 devconf1;
+	u32 csirxfe;
+	u32 iva2_bootaddr;
+	u32 iva2_bootmod;
+	u32 debobs_0;
+	u32 debobs_1;
+	u32 debobs_2;
+	u32 debobs_3;
+	u32 debobs_4;
+	u32 debobs_5;
+	u32 debobs_6;
+	u32 debobs_7;
+	u32 debobs_8;
+	u32 prog_io0;
+	u32 prog_io1;
+	u32 dss_dpll_spreading;
+	u32 core_dpll_spreading;
+	u32 per_dpll_spreading;
+	u32 usbhost_dpll_spreading;
+	u32 pbias_lite;
+	u32 temp_sensor;
+	u32 sramldo4;
+	u32 sramldo5;
+	u32 csi;
+};
+
+static struct omap3_control_regs control_context;
+#endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
+
 #define OMAP_CTRL_REGADDR(reg)		(omap2_ctrl_base + (reg))
 
 void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
@@ -134,7 +176,7 @@ void omap_ctrl_writel(u32 val, u16 offset)
 	__raw_writel(val, OMAP_CTRL_REGADDR(offset));
 }
 
-#ifdef CONFIG_ARCH_OMAP3
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 /*
  * Clears the scratchpad contents in case of cold boot-
  * called during bootup
@@ -264,4 +306,115 @@ void omap3_save_scratchpad_contents(void)
 		sizeof(sdrc_block_contents), &arm_context_addr, 4);
 }
 
-#endif /* CONFIG_ARCH_OMAP3 */
+void omap3_control_save_context(void)
+{
+	control_context.sysconfig = omap_ctrl_readl(OMAP2_CONTROL_SYSCONFIG);
+	control_context.devconf0 = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	control_context.mem_dftrw0 =
+			omap_ctrl_readl(OMAP343X_CONTROL_MEM_DFTRW0);
+	control_context.mem_dftrw1 =
+			omap_ctrl_readl(OMAP343X_CONTROL_MEM_DFTRW1);
+	control_context.msuspendmux_0 =
+			omap_ctrl_readl(OMAP2_CONTROL_MSUSPENDMUX_0);
+	control_context.msuspendmux_1 =
+			omap_ctrl_readl(OMAP2_CONTROL_MSUSPENDMUX_1);
+	control_context.msuspendmux_2 =
+			omap_ctrl_readl(OMAP2_CONTROL_MSUSPENDMUX_2);
+	control_context.msuspendmux_3 =
+			omap_ctrl_readl(OMAP2_CONTROL_MSUSPENDMUX_3);
+	control_context.msuspendmux_4 =
+			omap_ctrl_readl(OMAP2_CONTROL_MSUSPENDMUX_4);
+	control_context.msuspendmux_5 =
+			omap_ctrl_readl(OMAP2_CONTROL_MSUSPENDMUX_5);
+	control_context.sec_ctrl = omap_ctrl_readl(OMAP2_CONTROL_SEC_CTRL);
+	control_context.devconf1 = omap_ctrl_readl(OMAP343X_CONTROL_DEVCONF1);
+	control_context.csirxfe = omap_ctrl_readl(OMAP343X_CONTROL_CSIRXFE);
+	control_context.iva2_bootaddr =
+			omap_ctrl_readl(OMAP343X_CONTROL_IVA2_BOOTADDR);
+	control_context.iva2_bootmod =
+			omap_ctrl_readl(OMAP343X_CONTROL_IVA2_BOOTMOD);
+	control_context.debobs_0 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(0));
+	control_context.debobs_1 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(1));
+	control_context.debobs_2 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(2));
+	control_context.debobs_3 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(3));
+	control_context.debobs_4 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(4));
+	control_context.debobs_5 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(5));
+	control_context.debobs_6 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(6));
+	control_context.debobs_7 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(7));
+	control_context.debobs_8 = omap_ctrl_readl(OMAP343X_CONTROL_DEBOBS(8));
+	control_context.prog_io0 = omap_ctrl_readl(OMAP343X_CONTROL_PROG_IO0);
+	control_context.prog_io1 = omap_ctrl_readl(OMAP343X_CONTROL_PROG_IO1);
+	control_context.dss_dpll_spreading =
+			omap_ctrl_readl(OMAP343X_CONTROL_DSS_DPLL_SPREADING);
+	control_context.core_dpll_spreading =
+			omap_ctrl_readl(OMAP343X_CONTROL_CORE_DPLL_SPREADING);
+	control_context.per_dpll_spreading =
+			omap_ctrl_readl(OMAP343X_CONTROL_PER_DPLL_SPREADING);
+	control_context.usbhost_dpll_spreading =
+		omap_ctrl_readl(OMAP343X_CONTROL_USBHOST_DPLL_SPREADING);
+	control_context.pbias_lite =
+			omap_ctrl_readl(OMAP343X_CONTROL_PBIAS_LITE);
+	control_context.temp_sensor =
+			omap_ctrl_readl(OMAP343X_CONTROL_TEMP_SENSOR);
+	control_context.sramldo4 = omap_ctrl_readl(OMAP343X_CONTROL_SRAMLDO4);
+	control_context.sramldo5 = omap_ctrl_readl(OMAP343X_CONTROL_SRAMLDO5);
+	control_context.csi = omap_ctrl_readl(OMAP343X_CONTROL_CSI);
+	return;
+}
+
+void omap3_control_restore_context(void)
+{
+	omap_ctrl_writel(control_context.sysconfig, OMAP2_CONTROL_SYSCONFIG);
+	omap_ctrl_writel(control_context.devconf0, OMAP2_CONTROL_DEVCONF0);
+	omap_ctrl_writel(control_context.mem_dftrw0,
+					OMAP343X_CONTROL_MEM_DFTRW0);
+	omap_ctrl_writel(control_context.mem_dftrw1,
+					OMAP343X_CONTROL_MEM_DFTRW1);
+	omap_ctrl_writel(control_context.msuspendmux_0,
+					OMAP2_CONTROL_MSUSPENDMUX_0);
+	omap_ctrl_writel(control_context.msuspendmux_1,
+					OMAP2_CONTROL_MSUSPENDMUX_1);
+	omap_ctrl_writel(control_context.msuspendmux_2,
+					OMAP2_CONTROL_MSUSPENDMUX_2);
+	omap_ctrl_writel(control_context.msuspendmux_3,
+					OMAP2_CONTROL_MSUSPENDMUX_3);
+	omap_ctrl_writel(control_context.msuspendmux_4,
+					OMAP2_CONTROL_MSUSPENDMUX_4);
+	omap_ctrl_writel(control_context.msuspendmux_5,
+					OMAP2_CONTROL_MSUSPENDMUX_5);
+	omap_ctrl_writel(control_context.sec_ctrl, OMAP2_CONTROL_SEC_CTRL);
+	omap_ctrl_writel(control_context.devconf1, OMAP343X_CONTROL_DEVCONF1);
+	omap_ctrl_writel(control_context.csirxfe, OMAP343X_CONTROL_CSIRXFE);
+	omap_ctrl_writel(control_context.iva2_bootaddr,
+					OMAP343X_CONTROL_IVA2_BOOTADDR);
+	omap_ctrl_writel(control_context.iva2_bootmod,
+					OMAP343X_CONTROL_IVA2_BOOTMOD);
+	omap_ctrl_writel(control_context.debobs_0, OMAP343X_CONTROL_DEBOBS(0));
+	omap_ctrl_writel(control_context.debobs_1, OMAP343X_CONTROL_DEBOBS(1));
+	omap_ctrl_writel(control_context.debobs_2, OMAP343X_CONTROL_DEBOBS(2));
+	omap_ctrl_writel(control_context.debobs_3, OMAP343X_CONTROL_DEBOBS(3));
+	omap_ctrl_writel(control_context.debobs_4, OMAP343X_CONTROL_DEBOBS(4));
+	omap_ctrl_writel(control_context.debobs_5, OMAP343X_CONTROL_DEBOBS(5));
+	omap_ctrl_writel(control_context.debobs_6, OMAP343X_CONTROL_DEBOBS(6));
+	omap_ctrl_writel(control_context.debobs_7, OMAP343X_CONTROL_DEBOBS(7));
+	omap_ctrl_writel(control_context.debobs_8, OMAP343X_CONTROL_DEBOBS(8));
+	omap_ctrl_writel(control_context.prog_io0, OMAP343X_CONTROL_PROG_IO0);
+	omap_ctrl_writel(control_context.prog_io1, OMAP343X_CONTROL_PROG_IO1);
+	omap_ctrl_writel(control_context.dss_dpll_spreading,
+					OMAP343X_CONTROL_DSS_DPLL_SPREADING);
+	omap_ctrl_writel(control_context.core_dpll_spreading,
+					OMAP343X_CONTROL_CORE_DPLL_SPREADING);
+	omap_ctrl_writel(control_context.per_dpll_spreading,
+					OMAP343X_CONTROL_PER_DPLL_SPREADING);
+	omap_ctrl_writel(control_context.usbhost_dpll_spreading,
+				OMAP343X_CONTROL_USBHOST_DPLL_SPREADING);
+	omap_ctrl_writel(control_context.pbias_lite,
+					OMAP343X_CONTROL_PBIAS_LITE);
+	omap_ctrl_writel(control_context.temp_sensor,
+					OMAP343X_CONTROL_TEMP_SENSOR);
+	omap_ctrl_writel(control_context.sramldo4, OMAP343X_CONTROL_SRAMLDO4);
+	omap_ctrl_writel(control_context.sramldo5, OMAP343X_CONTROL_SRAMLDO5);
+	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
+	return;
+}
+#endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
