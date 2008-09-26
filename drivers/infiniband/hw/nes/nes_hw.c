@@ -3191,6 +3191,22 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			nes_cm_disconn(nesqp);
 			break;
 			/* TODO: additional AEs need to be here */
+		case NES_AEQE_AEID_AMP_BOUNDS_VIOLATION:
+			nesqp = *((struct nes_qp **)&context);
+			spin_lock_irqsave(&nesqp->lock, flags);
+			nesqp->hw_iwarp_state = iwarp_state;
+			nesqp->hw_tcp_state = tcp_state;
+			nesqp->last_aeq = async_event_id;
+			spin_unlock_irqrestore(&nesqp->lock, flags);
+			if (nesqp->ibqp.event_handler) {
+				ibevent.device = nesqp->ibqp.device;
+				ibevent.element.qp = &nesqp->ibqp;
+				ibevent.event = IB_EVENT_QP_ACCESS_ERR;
+				nesqp->ibqp.event_handler(&ibevent,
+						nesqp->ibqp.qp_context);
+			}
+			nes_cm_disconn(nesqp);
+			break;
 		default:
 			nes_debug(NES_DBG_AEQ, "Processing an iWARP related AE for QP, misc = 0x%04X\n",
 					async_event_id);
