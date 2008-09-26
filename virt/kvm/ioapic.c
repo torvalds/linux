@@ -150,6 +150,7 @@ static int ioapic_inj_irq(struct kvm_ioapic *ioapic,
 static void ioapic_inj_nmi(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_nmi(vcpu);
+	kvm_vcpu_kick(vcpu);
 }
 
 static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,

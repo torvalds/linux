@@ -354,6 +354,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 	case APIC_DM_NMI:
 		kvm_inject_nmi(vcpu);
+		kvm_vcpu_kick(vcpu);
 		break;
 
 	case APIC_DM_INIT:
