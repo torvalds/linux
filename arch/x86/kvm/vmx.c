@@ -2360,6 +2360,7 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	++vcpu->stat.nmi_injections;
 	if (vcpu->arch.rmode.active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = NMI_VECTOR;
@@ -2427,6 +2428,30 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 				       struct kvm_run *kvm_run)
 {
 	vmx_update_window_states(vcpu);
+
+	if (cpu_has_virtual_nmis()) {
+		if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
+			if (vcpu->arch.nmi_window_open) {
+				vcpu->arch.nmi_pending = false;
+				vcpu->arch.nmi_injected = true;
+			} else {
+				enable_nmi_window(vcpu);
+				return;
+			}
+		}
+		if (vcpu->arch.nmi_injected) {
+			vmx_inject_nmi(vcpu);
+			if (vcpu->arch.nmi_pending
+			    || kvm_run->request_nmi_window)
+				enable_nmi_window(vcpu);
+			else if (vcpu->arch.irq_summary
+				 || kvm_run->request_interrupt_window)
+				enable_irq_window(vcpu);
+			return;
+		}
+		if (!vcpu->arch.nmi_window_open || kvm_run->request_nmi_window)
+			enable_nmi_window(vcpu);
+	}
 
 	if (vcpu->arch.interrupt_window_open) {
 		if (vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
@@ -2958,6 +2983,14 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_NMI_PENDING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 	++vcpu->stat.nmi_window_exits;
+
+	/*
+	 * If the user space waits to inject a NMI, exit as soon as possible
+	 */
+	if (kvm_run->request_nmi_window && !vcpu->arch.nmi_pending) {
+		kvm_run->exit_reason = KVM_EXIT_NMI_WINDOW_OPEN;
+		return 0;
+	}
 
 	return 1;
 }
