@@ -1797,9 +1797,14 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
  */
 void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 {
+	u64 u64temp;
+	dma_addr_t bus_address;
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_hw_cqp_wqe *cqp_wqe;
+	struct nes_hw_nic_sq_wqe *nic_sqe;
 	struct nes_hw_nic_rq_wqe *nic_rqe;
+	__le16 *wqe_fragment_length;
+	u16  wqe_fragment_index;
 	u64 wqe_frag;
 	u32 cqp_head;
 	unsigned long flags;
@@ -1808,12 +1813,67 @@ void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 	/* Free remaining NIC receive buffers */
 	while (nesvnic->nic.rq_head != nesvnic->nic.rq_tail) {
 		nic_rqe   = &nesvnic->nic.rq_vbase[nesvnic->nic.rq_tail];
-		wqe_frag  = (u64)le32_to_cpu(nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_LOW_IDX]);
-		wqe_frag |= ((u64)le32_to_cpu(nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_HIGH_IDX])) << 32;
+		wqe_frag  = (u64)le32_to_cpu(
+			nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_LOW_IDX]);
+		wqe_frag |= ((u64)le32_to_cpu(
+			nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_HIGH_IDX]))<<32;
 		pci_unmap_single(nesdev->pcidev, (dma_addr_t)wqe_frag,
 				nesvnic->max_frame_size, PCI_DMA_FROMDEVICE);
 		dev_kfree_skb(nesvnic->nic.rx_skb[nesvnic->nic.rq_tail++]);
 		nesvnic->nic.rq_tail &= (nesvnic->nic.rq_size - 1);
+	}
+
+	/* Free remaining NIC transmit buffers */
+	while (nesvnic->nic.sq_head != nesvnic->nic.sq_tail) {
+		nic_sqe = &nesvnic->nic.sq_vbase[nesvnic->nic.sq_tail];
+		wqe_fragment_index = 1;
+		wqe_fragment_length = (__le16 *)
+			&nic_sqe->wqe_words[NES_NIC_SQ_WQE_LENGTH_0_TAG_IDX];
+		/* bump past the vlan tag */
+		wqe_fragment_length++;
+		if (le16_to_cpu(wqe_fragment_length[wqe_fragment_index]) != 0) {
+			u64temp = (u64)le32_to_cpu(
+				nic_sqe->wqe_words[NES_NIC_SQ_WQE_FRAG0_LOW_IDX+
+				wqe_fragment_index*2]);
+			u64temp += ((u64)le32_to_cpu(
+				nic_sqe->wqe_words[NES_NIC_SQ_WQE_FRAG0_HIGH_IDX
+				+ wqe_fragment_index*2]))<<32;
+			bus_address = (dma_addr_t)u64temp;
+			if (test_and_clear_bit(nesvnic->nic.sq_tail,
+					nesvnic->nic.first_frag_overflow)) {
+				pci_unmap_single(nesdev->pcidev,
+						bus_address,
+						le16_to_cpu(wqe_fragment_length[
+							wqe_fragment_index++]),
+						PCI_DMA_TODEVICE);
+			}
+			for (; wqe_fragment_index < 5; wqe_fragment_index++) {
+				if (wqe_fragment_length[wqe_fragment_index]) {
+					u64temp = le32_to_cpu(
+						nic_sqe->wqe_words[
+						NES_NIC_SQ_WQE_FRAG0_LOW_IDX+
+						wqe_fragment_index*2]);
+					u64temp += ((u64)le32_to_cpu(
+						nic_sqe->wqe_words[
+						NES_NIC_SQ_WQE_FRAG0_HIGH_IDX+
+						wqe_fragment_index*2]))<<32;
+					bus_address = (dma_addr_t)u64temp;
+					pci_unmap_page(nesdev->pcidev,
+							bus_address,
+							le16_to_cpu(
+							wqe_fragment_length[
+							wqe_fragment_index]),
+							PCI_DMA_TODEVICE);
+				} else
+					break;
+			}
+		}
+		if (nesvnic->nic.tx_skb[nesvnic->nic.sq_tail])
+			dev_kfree_skb(
+				nesvnic->nic.tx_skb[nesvnic->nic.sq_tail]);
+
+		nesvnic->nic.sq_tail = (++nesvnic->nic.sq_tail)
+					& (nesvnic->nic.sq_size - 1);
 	}
 
 	spin_lock_irqsave(&nesdev->cqp.lock, flags);
