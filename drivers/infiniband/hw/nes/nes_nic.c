@@ -918,6 +918,10 @@ static int nes_netdev_change_mtu(struct net_device *netdev, int new_mtu)
 	struct nes_device *nesdev = nesvnic->nesdev;
 	int ret = 0;
 	u8 jumbomode = 0;
+	u32 nic_active;
+	u32 nic_active_bit;
+	u32 uc_all_active;
+	u32 mc_all_active;
 
 	if ((new_mtu < ETH_ZLEN) || (new_mtu > max_mtu))
 		return -EINVAL;
@@ -931,8 +935,24 @@ static int nes_netdev_change_mtu(struct net_device *netdev, int new_mtu)
 	nes_nic_init_timer_defaults(nesdev, jumbomode);
 
 	if (netif_running(netdev)) {
+		nic_active_bit = 1 << nesvnic->nic_index;
+		mc_all_active = nes_read_indexed(nesdev,
+				NES_IDX_NIC_MULTICAST_ALL) & nic_active_bit;
+		uc_all_active = nes_read_indexed(nesdev,
+				NES_IDX_NIC_UNICAST_ALL)  & nic_active_bit;
+
 		nes_netdev_stop(netdev);
 		nes_netdev_open(netdev);
+
+		nic_active = nes_read_indexed(nesdev,
+					NES_IDX_NIC_MULTICAST_ALL);
+		nic_active |= mc_all_active;
+		nes_write_indexed(nesdev, NES_IDX_NIC_MULTICAST_ALL,
+							nic_active);
+
+		nic_active = nes_read_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL);
+		nic_active |= uc_all_active;
+		nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL, nic_active);
 	}
 
 	return ret;
