@@ -29,6 +29,8 @@
 #include <plat/control.h>
 #include <plat/serial.h>
 
+#include <asm/tlbflush.h>
+
 #include "cm.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
@@ -164,6 +166,35 @@ static irqreturn_t prcm_interrupt_handler (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void restore_control_register(u32 val)
+{
+	__asm__ __volatile__ ("mcr p15, 0, %0, c1, c0, 0" : : "r" (val));
+}
+
+/* Function to restore the table entry that was modified for enabling MMU */
+static void restore_table_entry(void)
+{
+	u32 *scratchpad_address;
+	u32 previous_value, control_reg_value;
+	u32 *address;
+
+	scratchpad_address = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD);
+
+	/* Get address of entry that was modified */
+	address = (u32 *)__raw_readl(scratchpad_address +
+				     OMAP343X_TABLE_ADDRESS_OFFSET);
+	/* Get the previous value which needs to be restored */
+	previous_value = __raw_readl(scratchpad_address +
+				     OMAP343X_TABLE_VALUE_OFFSET);
+	address = __va(address);
+	*address = previous_value;
+	flush_tlb_all();
+	control_reg_value = __raw_readl(scratchpad_address
+					+ OMAP343X_CONTROL_REG_VALUE_OFFSET);
+	/* This will enable caches and prediction */
+	restore_control_register(control_reg_value);
+}
+
 static void omap_sram_idle(void)
 {
 	/* Variable to tell what needs to be saved and restored
@@ -219,6 +250,10 @@ static void omap_sram_idle(void)
 
 	_omap_sram_idle(NULL, save_state);
 	cpu_init();
+
+	/* Restore table entry modified during MMU restoration */
+	if (pwrdm_read_prev_pwrst(mpu_pwrdm) == PWRDM_POWER_OFF)
+		restore_table_entry();
 
 	if (core_next_state < PWRDM_POWER_ON) {
 		if (per_next_state < PWRDM_POWER_ON)
