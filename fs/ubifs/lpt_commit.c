@@ -1089,6 +1089,8 @@ static int is_a_node(struct ubifs_info *c, uint8_t *buf, int len)
 	int pos = 0, node_type, node_len;
 	uint16_t crc, calc_crc;
 
+	if (len < UBIFS_LPT_CRC_BYTES + (UBIFS_LPT_TYPE_BITS + 7) / 8)
+		return 0;
 	node_type = ubifs_unpack_bits(&addr, &pos, UBIFS_LPT_TYPE_BITS);
 	if (node_type == UBIFS_LPT_NOT_A_NODE)
 		return 0;
