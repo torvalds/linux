@@ -1262,6 +1262,7 @@ int nes_init_phy(struct nes_device *nesdev)
 		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_1G) {
 			printk(PFX "%s: Programming mdc config for 1G\n", __func__);
 			tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
+			tx_config &= 0xFFFFFFE3;
 			tx_config |= 0x04;
 			nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
 		}
@@ -1327,7 +1328,8 @@ int nes_init_phy(struct nes_device *nesdev)
 		    (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_ARGUS)) {
 			/* setup 10G MDIO operation */
 			tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
-			tx_config |= 0x14;
+			tx_config &= 0xFFFFFFE3;
+			tx_config |= 0x15;
 			nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
 		}
 		if ((nesadapter->phy_type[mac_index] == NES_PHY_TYPE_ARGUS)) {
