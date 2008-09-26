@@ -222,11 +222,10 @@ static void nes_nic_tune_timer(struct nes_device *nesdev)
 	}
 
 	/* boundary checking */
-	if (shared_timer->timer_in_use > NES_NIC_FAST_TIMER_HIGH)
-		shared_timer->timer_in_use = NES_NIC_FAST_TIMER_HIGH;
-	else if (shared_timer->timer_in_use < NES_NIC_FAST_TIMER_LOW) {
-		shared_timer->timer_in_use = NES_NIC_FAST_TIMER_LOW;
-	}
+	if (shared_timer->timer_in_use > shared_timer->threshold_high)
+		shared_timer->timer_in_use = shared_timer->threshold_high;
+	else if (shared_timer->timer_in_use < shared_timer->threshold_low)
+		shared_timer->timer_in_use = shared_timer->threshold_low;
 
 	nesdev->currcq_count = 0;
 
