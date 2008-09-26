@@ -174,6 +174,23 @@ static struct mv_sata_platform_data lsmini_sata_data = {
 
 
 /*****************************************************************************
+ * Linkstation Mini specific power off method: reboot
+ ****************************************************************************/
+/*
+ * On the Linkstation Mini, the shutdown process is following:
+ * - Userland monitors key events until the power switch goes to off position
+ * - The board reboots
+ * - U-boot starts and goes into an idle mode waiting for the user
+ *   to move the switch to ON position
+ */
+
+static void lsmini_power_off(void)
+{
+	arch_reset(0);
+}
+
+
+/*****************************************************************************
  * General Setup
  ****************************************************************************/
 
@@ -240,6 +257,9 @@ static void __init lsmini_init(void)
 
 	/* enable USB power */
 	gpio_set_value(LSMINI_GPIO_USB_POWER, 1);
+
+	/* register power-off method */
+	pm_power_off = lsmini_power_off;
 
 	pr_info("%s: finished\n", __func__);
 }
