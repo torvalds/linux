@@ -604,6 +604,7 @@ struct btrfs_fs_info {
 	struct mutex chunk_mutex;
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
+	struct mutex tree_reloc_mutex;
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
@@ -647,6 +648,10 @@ struct btrfs_fs_info {
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
 
+	/* tree relocation relocated fields */
+	struct extent_io_tree reloc_mapping_tree;
+	struct list_head dead_reloc_roots;
+	struct btrfs_leaf_ref_tree reloc_ref_tree;
 	struct btrfs_leaf_ref_tree shared_ref_tree;
 
 	struct kobject super_kobj;
@@ -698,6 +703,7 @@ struct btrfs_root {
 	struct btrfs_leaf_ref_tree ref_tree_struct;
 	struct btrfs_dirty_root *dirty_root;
 	struct btrfs_root *log_root;
+	struct btrfs_root *reloc_root;
 
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
@@ -1517,7 +1523,6 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 					    struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize);
-int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size);
 int btrfs_insert_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
@@ -1582,10 +1587,29 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, u64 bytes_used,
 			   u64 type, u64 chunk_objectid, u64 chunk_offset,
 			   u64 size);
+int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root, u64 group_start);
+int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start);
+int btrfs_free_reloc_root(struct btrfs_root *root);
+int btrfs_drop_dead_reloc_roots(struct btrfs_root *root);
+int btrfs_add_reloc_mapping(struct btrfs_root *root, u64 orig_bytenr,
+			    u64 num_bytes, u64 new_bytenr);
+int btrfs_get_reloc_mapping(struct btrfs_root *root, u64 orig_bytenr,
+			    u64 num_bytes, u64 *new_bytenr);
+void btrfs_free_reloc_mappings(struct btrfs_root *root);
+int btrfs_reloc_tree_cache_ref(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *buf, u64 orig_start);
+int btrfs_add_dead_reloc_root(struct btrfs_root *root);
+int btrfs_cleanup_reloc_trees(struct btrfs_root *root);
 /* ctree.c */
 int btrfs_previous_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid,
 			int type);
+int btrfs_merge_path(struct btrfs_trans_handle *trans,
+		     struct btrfs_root *root,
+		     struct btrfs_key *node_keys,
+		     u64 *nodes, int lowest_level);
 int btrfs_set_item_key_safe(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root, struct btrfs_path *path,
 			    struct btrfs_key *new_key);

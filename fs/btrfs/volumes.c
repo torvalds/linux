@@ -1268,7 +1268,7 @@ int btrfs_relocate_chunk(struct btrfs_root *root,
 	em_tree = &root->fs_info->mapping_tree.map_tree;
 
 	/* step one, relocate all the extents inside this chunk */
-	ret = btrfs_shrink_extent_tree(extent_root, chunk_offset);
+	ret = btrfs_relocate_block_group(extent_root, chunk_offset);
 	BUG_ON(ret);
 
 	trans = btrfs_start_transaction(root, 1);
@@ -1308,15 +1308,18 @@ int btrfs_relocate_chunk(struct btrfs_root *root,
 		BUG_ON(ret);
 	}
 
+	ret = btrfs_remove_block_group(trans, extent_root, chunk_offset);
+	BUG_ON(ret);
+
 	spin_lock(&em_tree->lock);
 	remove_extent_mapping(em_tree, em);
+	spin_unlock(&em_tree->lock);
+
 	kfree(map);
 	em->bdev = NULL;
 
 	/* once for the tree */
 	free_extent_map(em);
-	spin_unlock(&em_tree->lock);
-
 	/* once for us */
 	free_extent_map(em);
 

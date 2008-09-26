@@ -210,7 +210,10 @@ again:
 			goto err;
 		}
 
-		ret = btrfs_add_dead_root(dead_root, latest);
+		if (objectid == BTRFS_TREE_RELOC_OBJECTID)
+			ret = btrfs_add_dead_reloc_root(dead_root);
+		else
+			ret = btrfs_add_dead_root(dead_root, latest);
 		if (ret)
 			goto err;
 		goto again;

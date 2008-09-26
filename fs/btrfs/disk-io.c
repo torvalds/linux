@@ -1406,6 +1406,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
+	extent_io_tree_init(&fs_info->reloc_mapping_tree,
+			    fs_info->btree_inode->i_mapping, GFP_NOFS);
+	INIT_LIST_HEAD(&fs_info->dead_reloc_roots);
+	btrfs_leaf_ref_tree_init(&fs_info->reloc_ref_tree);
 	btrfs_leaf_ref_tree_init(&fs_info->shared_ref_tree);
 
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
@@ -1421,6 +1425,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
+	mutex_init(&fs_info->tree_reloc_mutex);
 	init_waitqueue_head(&fs_info->transaction_throttle);
 	init_waitqueue_head(&fs_info->transaction_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
@@ -1627,6 +1632,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		ret = btrfs_recover_log_trees(log_tree_root);
 		BUG_ON(ret);
 	}
+
+	ret = btrfs_cleanup_reloc_trees(tree_root);
+	BUG_ON(ret);
+
 	fs_info->last_trans_committed = btrfs_super_generation(disk_super);
 	return tree_root;
 

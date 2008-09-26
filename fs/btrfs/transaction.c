@@ -477,6 +477,7 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 			dirty = root->dirty_root;
 
 			btrfs_free_log(trans, root);
+			btrfs_free_reloc_root(root);
 
 			if (root->commit_root == root->node) {
 				WARN_ON(root->node->start !=
@@ -855,6 +856,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 * with the tree-log code.
 	 */
 	mutex_lock(&root->fs_info->tree_log_mutex);
+	/*
+	 * keep tree reloc code from adding new reloc trees
+	 */
+	mutex_lock(&root->fs_info->tree_reloc_mutex);
+
 
 	ret = add_dirty_roots(trans, &root->fs_info->fs_roots_radix,
 			      &dirty_fs_roots);
@@ -864,6 +870,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 * safe to free the root of tree log roots
 	 */
 	btrfs_free_log_root_tree(trans, root->fs_info);
+
+	btrfs_free_reloc_mappings(root);
 
 	ret = btrfs_commit_tree_roots(trans, root);
 	BUG_ON(ret);
@@ -910,9 +918,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	mutex_unlock(&root->fs_info->tree_log_mutex);
 
 	btrfs_finish_extent_commit(trans, root, pinned_copy);
-	mutex_lock(&root->fs_info->trans_mutex);
-
 	kfree(pinned_copy);
+
+	btrfs_drop_dead_reloc_roots(root);
+	mutex_unlock(&root->fs_info->tree_reloc_mutex);
+
+	mutex_lock(&root->fs_info->trans_mutex);
 
 	cur_trans->commit_done = 1;
 	root->fs_info->last_trans_committed = cur_trans->transid;
