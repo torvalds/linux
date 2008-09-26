@@ -1245,7 +1245,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 			return err;
 		spec->multiout.share_spdif = 1;
 	}
-	if (spec->dig_in_nid) {
+	if (spec->dig_in_nid && (!spec->gpio_dir & 0x01)) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
 		if (err < 0)
 			return err;
@@ -4079,10 +4079,6 @@ again:
 	memcpy(&spec->private_dimux, &stac92hd73xx_dmux,
 			sizeof(stac92hd73xx_dmux));
 
-	/* GPIO0 High = Enable EAPD */
-	spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
-	spec->gpio_data = 0x01;
-
 	switch (spec->board_config) {
 	case STAC_DELL_M6:
 		spec->init = dell_eq_core_init;
@@ -4119,6 +4115,11 @@ again:
 	default:
 		spec->num_dmics = STAC92HD73XX_NUM_DMICS;
 		spec->num_smuxes = ARRAY_SIZE(stac92hd73xx_smux_nids);
+	}
+	if (spec->board_config > STAC_92HD73XX_REF) {
+		/* GPIO0 High = Enable EAPD */
+		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
+		spec->gpio_data = 0x01;
 	}
 	spec->dinput_mux = &spec->private_dimux;
 
@@ -4356,10 +4357,12 @@ again:
 	spec->aloopback_mask = 0x20;
 	spec->aloopback_shift = 0;
 
-	/* GPIO0 High = EAPD */
-	spec->gpio_mask = 0x01;
-	spec->gpio_dir = 0x01;
-	spec->gpio_data = 0x01;
+	if (spec->board_config > STAC_92HD71BXX_REF) {
+		/* GPIO0 = EAPD */
+		spec->gpio_mask = 0x01;
+		spec->gpio_dir = 0x01;
+		spec->gpio_data = 0x01;
+	}
 
 	spec->powerdown_adcs = 1;
 	spec->digbeep_nid = 0x26;
@@ -4601,9 +4604,11 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->num_dmuxes = ARRAY_SIZE(stac927x_dmux_nids);
 		break;
 	default:
-		/* GPIO0 High = Enable EAPD */
-		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
-		spec->gpio_data = 0x01;
+		if (spec->board_config > STAC_D965_REF) {
+			/* GPIO0 High = Enable EAPD */
+			spec->eapd_mask = spec->gpio_mask = 0x01;
+			spec->gpio_dir = spec->gpio_data = 0x01;
+		}
 		spec->num_dmics = 0;
 
 		spec->init = stac927x_core_init;
@@ -4716,6 +4721,9 @@ static int patch_stac9205(struct hda_codec *codec)
 		 * GPIO3 Low = DRM
 		 */
 		spec->gpio_data = 0x01;
+		break;
+	case STAC_9205_REF:
+		/* SPDIF-In enabled */
 		break;
 	default:
 		/* GPIO0 High = EAPD */
