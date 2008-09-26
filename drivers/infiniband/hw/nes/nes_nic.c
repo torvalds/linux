@@ -605,6 +605,8 @@ tso_sq_no_longer_full:
 					wqe_fragment_length[wqe_fragment_index] = 0;
 					set_wqe_64bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_FRAG1_LOW_IDX,
 									bus_address);
+					tso_wqe_length += skb_headlen(skb) -
+							original_first_length;
 				}
 				while (wqe_fragment_index < 5) {
 					wqe_fragment_length[wqe_fragment_index] =
