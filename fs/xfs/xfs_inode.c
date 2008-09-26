@@ -4584,6 +4584,7 @@ xfs_iext_irec_compact_full(
 					(XFS_LINEAR_EXTS -
 						erp_next->er_extcount) *
 					sizeof(xfs_bmbt_rec_t));
+				erp_next->er_extoff += ext_diff;
 			}
 		}
 
