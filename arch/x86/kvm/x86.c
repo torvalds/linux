@@ -86,6 +86,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "hypercalls", VCPU_STAT(hypercalls) },
 	{ "request_irq", VCPU_STAT(request_irq_exits) },
+	{ "request_nmi", VCPU_STAT(request_nmi_exits) },
 	{ "irq_exits", VCPU_STAT(irq_exits) },
 	{ "host_state_reload", VCPU_STAT(host_state_reload) },
 	{ "efer_reload", VCPU_STAT(efer_reload) },
@@ -93,6 +94,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "insn_emulation", VCPU_STAT(insn_emulation) },
 	{ "insn_emulation_fail", VCPU_STAT(insn_emulation_fail) },
 	{ "irq_injections", VCPU_STAT(irq_injections) },
+	{ "nmi_injections", VCPU_STAT(nmi_injections) },
 	{ "mmu_shadow_zapped", VM_STAT(mmu_shadow_zapped) },
 	{ "mmu_pte_write", VM_STAT(mmu_pte_write) },
 	{ "mmu_pte_updated", VM_STAT(mmu_pte_updated) },
@@ -1318,6 +1320,15 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int kvm_vcpu_ioctl_nmi(struct kvm_vcpu *vcpu)
+{
+	vcpu_load(vcpu);
+	kvm_inject_nmi(vcpu);
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 static int vcpu_ioctl_tpr_access_reporting(struct kvm_vcpu *vcpu,
 					   struct kvm_tpr_access_ctl *tac)
 {
@@ -1372,6 +1383,13 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&irq, argp, sizeof irq))
 			goto out;
 		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_NMI: {
+		r = kvm_vcpu_ioctl_nmi(vcpu);
 		if (r)
 			goto out;
 		r = 0;
@@ -2812,18 +2830,37 @@ static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
 		(kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF));
 }
 
+/*
+ * Check if userspace requested a NMI window, and that the NMI window
+ * is open.
+ *
+ * No need to exit to userspace if we already have a NMI queued.
+ */
+static int dm_request_for_nmi_injection(struct kvm_vcpu *vcpu,
+					struct kvm_run *kvm_run)
+{
+	return (!vcpu->arch.nmi_pending &&
+		kvm_run->request_nmi_window &&
+		vcpu->arch.nmi_window_open);
+}
+
 static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 			      struct kvm_run *kvm_run)
 {
 	kvm_run->if_flag = (kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
-	if (irqchip_in_kernel(vcpu->kvm))
+	if (irqchip_in_kernel(vcpu->kvm)) {
 		kvm_run->ready_for_interrupt_injection = 1;
-	else
+		kvm_run->ready_for_nmi_injection = 1;
+	} else {
 		kvm_run->ready_for_interrupt_injection =
 					(vcpu->arch.interrupt_window_open &&
 					 vcpu->arch.irq_summary == 0);
+		kvm_run->ready_for_nmi_injection =
+					(vcpu->arch.nmi_window_open &&
+					 vcpu->arch.nmi_pending == 0);
+	}
 }
 
 static void vapic_enter(struct kvm_vcpu *vcpu)
@@ -2999,6 +3036,11 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 
 		if (r > 0) {
+			if (dm_request_for_nmi_injection(vcpu, kvm_run)) {
+				r = -EINTR;
+				kvm_run->exit_reason = KVM_EXIT_NMI;
+				++vcpu->stat.request_nmi_exits;
+			}
 			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
 				r = -EINTR;
 				kvm_run->exit_reason = KVM_EXIT_INTR;

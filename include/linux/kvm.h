@@ -83,18 +83,22 @@ struct kvm_irqchip {
 #define KVM_EXIT_S390_SIEIC       13
 #define KVM_EXIT_S390_RESET       14
 #define KVM_EXIT_DCR              15
+#define KVM_EXIT_NMI              16
+#define KVM_EXIT_NMI_WINDOW_OPEN  17
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
 	/* in */
 	__u8 request_interrupt_window;
-	__u8 padding1[7];
+	__u8 request_nmi_window;
+	__u8 padding1[6];
 
 	/* out */
 	__u32 exit_reason;
 	__u8 ready_for_interrupt_injection;
 	__u8 if_flag;
-	__u8 padding2[2];
+	__u8 ready_for_nmi_injection;
+	__u8 padding2;
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
@@ -387,6 +391,7 @@ struct kvm_trace_rec {
 #define KVM_CAP_DEVICE_ASSIGNMENT 17
 #endif
 #define KVM_CAP_IOMMU 18
+#define KVM_CAP_NMI 19
 
 /*
  * ioctls for VM fds
@@ -458,6 +463,8 @@ struct kvm_trace_rec {
 #define KVM_S390_INITIAL_RESET    _IO(KVMIO,  0x97)
 #define KVM_GET_MP_STATE          _IOR(KVMIO,  0x98, struct kvm_mp_state)
 #define KVM_SET_MP_STATE          _IOW(KVMIO,  0x99, struct kvm_mp_state)
+/* Available with KVM_CAP_NMI */
+#define KVM_NMI                   _IO(KVMIO,  0x9a)
 
 #define KVM_TRC_INJ_VIRQ         (KVM_TRC_HANDLER + 0x02)
 #define KVM_TRC_REDELIVER_EVT    (KVM_TRC_HANDLER + 0x03)
