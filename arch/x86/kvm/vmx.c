@@ -2358,6 +2358,19 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 
 static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (vcpu->arch.rmode.active) {
+		vmx->rmode.irq.pending = true;
+		vmx->rmode.irq.vector = NMI_VECTOR;
+		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
+		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+			     NMI_VECTOR | INTR_TYPE_SOFT_INTR |
+			     INTR_INFO_VALID_MASK);
+		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
+		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		return;
+	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR);
 }
