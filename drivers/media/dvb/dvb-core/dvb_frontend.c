@@ -40,6 +40,7 @@
 
 #include "dvb_frontend.h"
 #include "dvbdev.h"
+#include <linux/dvb/version.h>
 
 static int dvb_frontend_debug;
 static int dvb_shutdown_timeout;
@@ -836,6 +837,11 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.set	= 0,
 		.buffer	= 1,
 	},
+	[DTV_API_VERSION] = {
+		.name	= "DTV_API_VERSION",
+		.cmd	= DTV_API_VERSION,
+		.set	= 0,
+	},
 };
 
 void dtv_property_dump(struct dtv_property *tvp)
@@ -1103,6 +1109,9 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 		break;
 	case DTV_TONE:
 		tvp->u.data = fe->dtv_property_cache.sectone;
+		break;
+	case DTV_API_VERSION:
+		tvp->u.data = (DVB_API_VERSION << 8) | DVB_API_VERSION_MINOR;
 		break;
 	default:
 		r = -1;

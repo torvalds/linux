@@ -268,6 +268,7 @@ struct dvb_frontend_event {
 #define DTV_FE_CAPABILITY	16
 #define DTV_DELIVERY_SYSTEM	17
 
+#define DTV_API_VERSION				35
 
 typedef enum fe_pilot {
 	PILOT_ON,
