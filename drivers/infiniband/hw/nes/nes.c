@@ -70,21 +70,21 @@ int interrupt_mod_interval = 0;
 
 /* Interoperability */
 int mpa_version = 1;
-module_param(mpa_version, int, 0);
+module_param(mpa_version, int, 0644);
 MODULE_PARM_DESC(mpa_version, "MPA version to be used int MPA Req/Resp (0 or 1)");
 
 /* Interoperability */
 int disable_mpa_crc = 0;
-module_param(disable_mpa_crc, int, 0);
+module_param(disable_mpa_crc, int, 0644);
 MODULE_PARM_DESC(disable_mpa_crc, "Disable checking of MPA CRC");
 
 unsigned int send_first = 0;
-module_param(send_first, int, 0);
+module_param(send_first, int, 0644);
 MODULE_PARM_DESC(send_first, "Send RDMA Message First on Active Connection");
 
 
 unsigned int nes_drv_opt = 0;
-module_param(nes_drv_opt, int, 0);
+module_param(nes_drv_opt, int, 0644);
 MODULE_PARM_DESC(nes_drv_opt, "Driver option parameters");
 
 unsigned int nes_debug_level = 0;
