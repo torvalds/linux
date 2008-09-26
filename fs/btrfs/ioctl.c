@@ -444,12 +444,10 @@ static noinline int btrfs_ioctl_snap_create(struct btrfs_root *root,
 		goto out;
 	}
 
-	mutex_lock(&root->fs_info->drop_mutex);
 	if (root == root->fs_info->tree_root)
 		ret = create_subvol(root, vol_args->name, namelen);
 	else
 		ret = create_snapshot(root, vol_args->name, namelen);
-	mutex_unlock(&root->fs_info->drop_mutex);
 out:
 	kfree(vol_args);
 	return ret;

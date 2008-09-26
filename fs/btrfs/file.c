@@ -294,7 +294,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 						       last_pos_in_file,
 						       0, 0, hole_size, 0);
 			btrfs_drop_extent_cache(inode, last_pos_in_file,
-					last_pos_in_file + hole_size -1);
+					last_pos_in_file + hole_size - 1, 0);
 			mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 			btrfs_check_file(root, inode);
 		}
@@ -337,7 +337,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		inline_size -= start_pos;
 		err = insert_inline_extent(trans, root, inode, start_pos,
 					   inline_size, pages, 0, num_pages);
-		btrfs_drop_extent_cache(inode, start_pos, aligned_end - 1);
+		btrfs_drop_extent_cache(inode, start_pos, aligned_end - 1, 0);
 		BUG_ON(err);
 		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
@@ -362,7 +362,8 @@ out_unlock:
 	return err;
 }
 
-int noinline btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
+int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
+			    int skip_pinned)
 {
 	struct extent_map *em;
 	struct extent_map *split = NULL;
@@ -371,6 +372,7 @@ int noinline btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 	u64 len = end - start + 1;
 	int ret;
 	int testend = 1;
+	unsigned long flags;
 
 	WARN_ON(end < start);
 	if (end == (u64)-1) {
@@ -389,6 +391,23 @@ int noinline btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			spin_unlock(&em_tree->lock);
 			break;
 		}
+		flags = em->flags;
+		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
+			spin_unlock(&em_tree->lock);
+			if (em->start <= start &&
+			    (!testend || em->start + em->len >= start + len)) {
+				free_extent_map(em);
+				break;
+			}
+			if (start < em->start) {
+				len = em->start - start;
+			} else {
+				len = start + len - (em->start + em->len);
+				start = em->start + em->len;
+			}
+			free_extent_map(em);
+			continue;
+		}
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		remove_extent_mapping(em_tree, em);
 
@@ -398,7 +417,7 @@ int noinline btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			split->len = start - em->start;
 			split->block_start = em->block_start;
 			split->bdev = em->bdev;
-			split->flags = em->flags;
+			split->flags = flags;
 			ret = add_extent_mapping(em_tree, split);
 			BUG_ON(ret);
 			free_extent_map(split);
@@ -412,7 +431,7 @@ int noinline btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			split->start = start + len;
 			split->len = em->start + em->len - (start + len);
 			split->bdev = em->bdev;
-			split->flags = em->flags;
+			split->flags = flags;
 
 			split->block_start = em->block_start + diff;
 
@@ -541,7 +560,7 @@ int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int recow;
 	int ret;
 
-	btrfs_drop_extent_cache(inode, start, end - 1);
+	btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
 	path = btrfs_alloc_path();
 	if (!path)

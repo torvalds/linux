@@ -109,6 +109,7 @@ noinline int btrfs_record_root_in_trans(struct btrfs_root *root)
 			spin_lock_init(&dirty->root->node_lock);
 			spin_lock_init(&dirty->root->list_lock);
 			mutex_init(&dirty->root->objectid_mutex);
+			mutex_init(&dirty->root->log_mutex);
 			INIT_LIST_HEAD(&dirty->root->dead_list);
 			dirty->root->node = root->commit_root;
 			dirty->root->commit_root = NULL;
@@ -590,13 +591,14 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		root = dirty->latest_root;
 		atomic_inc(&root->fs_info->throttles);
 
-		mutex_lock(&root->fs_info->drop_mutex);
 		while(1) {
 			trans = btrfs_start_transaction(tree_root, 1);
+			mutex_lock(&root->fs_info->drop_mutex);
 			ret = btrfs_drop_snapshot(trans, dirty->root);
 			if (ret != -EAGAIN) {
 				break;
 			}
+			mutex_unlock(&root->fs_info->drop_mutex);
 
 			err = btrfs_update_root(trans,
 					tree_root,
@@ -608,10 +610,8 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 			ret = btrfs_end_transaction(trans, tree_root);
 			BUG_ON(ret);
 
-			mutex_unlock(&root->fs_info->drop_mutex);
 			btrfs_btree_balance_dirty(tree_root, nr);
 			cond_resched();
-			mutex_lock(&root->fs_info->drop_mutex);
 		}
 		BUG_ON(ret);
 		atomic_dec(&root->fs_info->throttles);
@@ -689,7 +689,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
 
 	key.objectid = objectid;
-	key.offset = 1;
+	key.offset = trans->transid;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 
 	old = btrfs_lock_root_node(root);

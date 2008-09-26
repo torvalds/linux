@@ -309,7 +309,6 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only)
 {
 	struct list_head splice;
 	struct list_head *cur;
-	struct list_head *tmp;
 	struct btrfs_ordered_extent *ordered;
 	struct inode *inode;
 
@@ -317,37 +316,38 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only)
 
 	spin_lock(&root->fs_info->ordered_extent_lock);
 	list_splice_init(&root->fs_info->ordered_extents, &splice);
-	list_for_each_safe(cur, tmp, &splice) {
+	while (!list_empty(&splice)) {
 		cur = splice.next;
 		ordered = list_entry(cur, struct btrfs_ordered_extent,
 				     root_extent_list);
 		if (nocow_only &&
 		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
+			list_move(&ordered->root_extent_list,
+				  &root->fs_info->ordered_extents);
 			cond_resched_lock(&root->fs_info->ordered_extent_lock);
 			continue;
 		}
 
 		list_del_init(&ordered->root_extent_list);
 		atomic_inc(&ordered->refs);
-		inode = ordered->inode;
 
 		/*
-		 * the inode can't go away until all the pages are gone
-		 * and the pages won't go away while there is still
-		 * an ordered extent and the ordered extent won't go
-		 * away until it is off this list.  So, we can safely
-		 * increment i_count here and call iput later
+		 * the inode may be getting freed (in sys_unlink path).
 		 */
-		atomic_inc(&inode->i_count);
+		inode = igrab(ordered->inode);
+
 		spin_unlock(&root->fs_info->ordered_extent_lock);
 
-		btrfs_start_ordered_extent(inode, ordered, 1);
-		btrfs_put_ordered_extent(ordered);
-		iput(inode);
+		if (inode) {
+			btrfs_start_ordered_extent(inode, ordered, 1);
+			btrfs_put_ordered_extent(ordered);
+			iput(inode);
+		} else {
+			btrfs_put_ordered_extent(ordered);
+		}
 
 		spin_lock(&root->fs_info->ordered_extent_lock);
 	}
-	list_splice_init(&splice, &root->fs_info->ordered_extents);
 	spin_unlock(&root->fs_info->ordered_extent_lock);
 	return 0;
 }

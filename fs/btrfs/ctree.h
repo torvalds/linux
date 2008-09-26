@@ -1486,6 +1486,9 @@ static inline struct dentry *fdentry(struct file *file)
 
 /* extent-tree.c */
 int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len);
+int btrfs_lookup_extent_ref(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 bytenr,
+			    u64 num_bytes, u32 *refs);
 int btrfs_update_pinned_extents(struct btrfs_root *root,
 				u64 bytenr, u64 num, int pin);
 int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
@@ -1812,6 +1815,8 @@ void btrfs_destroy_inode(struct inode *inode);
 int btrfs_init_cachep(void);
 void btrfs_destroy_cachep(void);
 long btrfs_ioctl_trans_end(struct file *file);
+struct inode *btrfs_ilookup(struct super_block *s, u64 objectid,
+			    struct btrfs_root *root, int wait);
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root);
 struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
@@ -1824,13 +1829,17 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode);
+int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode);
+int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode);
+void btrfs_orphan_cleanup(struct btrfs_root *root);
 
 /* ioctl.c */
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 /* file.c */
 int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync);
-int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end);
+int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
+			    int skip_pinned);
 int btrfs_check_file(struct btrfs_root *root, struct inode *inode);
 extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,

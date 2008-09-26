@@ -135,7 +135,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 
 	BUG_ON(num_bytes > btrfs_super_total_bytes(&root->fs_info->super_copy));
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
-	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1);
+	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
 	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	while(num_bytes > 0) {
@@ -163,7 +163,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 				break;
 			}
 			btrfs_drop_extent_cache(inode, start,
-						start + ins.offset - 1);
+						start + ins.offset - 1, 0);
 		}
 		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
@@ -587,7 +587,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	btrfs_drop_extent_cache(inode, ordered_extent->file_offset,
 				ordered_extent->file_offset +
-				ordered_extent->len - 1);
+				ordered_extent->len - 1, 0);
 	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	ins.objectid = ordered_extent->start;
@@ -880,7 +880,7 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 	int ret = 0, nr_unlink = 0, nr_truncate = 0;
 
 	/* don't do orphan cleanup if the fs is readonly. */
-	if (root->inode->i_sb->s_flags & MS_RDONLY)
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return;
 
 	path = btrfs_alloc_path();
@@ -892,8 +892,6 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
 	key.offset = (u64)-1;
 
-	trans = btrfs_start_transaction(root, 1);
-	btrfs_set_trans_block_group(trans, root->inode);
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -933,7 +931,7 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		 * crossing root thing.  we store the inode number in the
 		 * offset of the orphan item.
 		 */
-		inode = btrfs_iget_locked(root->inode->i_sb,
+		inode = btrfs_iget_locked(root->fs_info->sb,
 					  found_key.offset, root);
 		if (!inode)
 			break;
@@ -965,7 +963,9 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		 * do a destroy_inode
 		 */
 		if (is_bad_inode(inode)) {
+			trans = btrfs_start_transaction(root, 1);
 			btrfs_orphan_del(trans, inode);
+			btrfs_end_transaction(trans, root);
 			iput(inode);
 			continue;
 		}
@@ -988,7 +988,6 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		printk(KERN_INFO "btrfs: truncated %d orphans\n", nr_truncate);
 
 	btrfs_free_path(path);
-	btrfs_end_transaction(trans, root);
 }
 
 void btrfs_read_locked_inode(struct inode *inode)
@@ -1343,8 +1342,7 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	u64 mask = root->sectorsize - 1;
 
 	if (root->ref_cows)
-		btrfs_drop_extent_cache(inode,
-					new_size & (~mask), (u64)-1);
+		btrfs_drop_extent_cache(inode, new_size & (~mask), (u64)-1, 0);
 	path = btrfs_alloc_path();
 	path->reada = -1;
 	BUG_ON(!path);
@@ -1677,7 +1675,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 						       hole_start, 0, 0,
 						       hole_size, 0);
 			btrfs_drop_extent_cache(inode, hole_start,
-						(u64)-1);
+						(u64)-1, 0);
 			btrfs_check_file(root, inode);
 		}
 		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
@@ -1841,6 +1839,24 @@ static int btrfs_find_actor(struct inode *inode, void *opaque)
 	struct btrfs_iget_args *args = opaque;
 	return (args->ino == inode->i_ino &&
 		args->root == BTRFS_I(inode)->root);
+}
+
+struct inode *btrfs_ilookup(struct super_block *s, u64 objectid,
+			    struct btrfs_root *root, int wait)
+{
+	struct inode *inode;
+	struct btrfs_iget_args args;
+	args.ino = objectid;
+	args.root = root;
+
+	if (wait) {
+		inode = ilookup5(s, objectid, btrfs_find_actor,
+				 (void *)&args);
+	} else {
+		inode = ilookup5_nowait(s, objectid, btrfs_find_actor,
+					(void *)&args);
+	}
+	return inode;
 }
 
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
@@ -3266,7 +3282,7 @@ void btrfs_destroy_inode(struct inode *inode)
 			btrfs_put_ordered_extent(ordered);
 		}
 	}
-	btrfs_drop_extent_cache(inode, 0, (u64)-1);
+	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
@@ -3412,16 +3428,22 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root)
 {
 	struct list_head *head = &root->fs_info->delalloc_inodes;
 	struct btrfs_inode *binode;
+	struct inode *inode;
 	unsigned long flags;
 
 	spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 	while(!list_empty(head)) {
 		binode = list_entry(head->next, struct btrfs_inode,
 				    delalloc_inodes);
-		atomic_inc(&binode->vfs_inode.i_count);
+		inode = igrab(&binode->vfs_inode);
+		if (!inode)
+			list_del_init(&binode->delalloc_inodes);
 		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
-		filemap_write_and_wait(binode->vfs_inode.i_mapping);
-		iput(&binode->vfs_inode);
+		if (inode) {
+			filemap_write_and_wait(inode->i_mapping);
+			iput(inode);
+		}
+		cond_resched();
 		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 	}
 	spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);

@@ -117,10 +117,14 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 					*objectid = last_ino;
 					goto found;
 				}
+			} else if (key.objectid > search_start) {
+				*objectid = search_start;
+				goto found;
 			}
 		}
 		if (key.objectid >= BTRFS_LAST_FREE_OBJECTID)
 			break;
+
 		start_found = 1;
 		last_ino = key.objectid + 1;
 		path->slots[0]++;

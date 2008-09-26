@@ -290,7 +290,6 @@ int noinline btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct extent_buffer **cow_ret, u64 prealloc_dest)
 {
 	u64 search_start;
-	u64 header_trans;
 	int ret;
 
 	if (trans->transaction != root->fs_info->running_transaction) {
@@ -304,9 +303,9 @@ int noinline btrfs_cow_block(struct btrfs_trans_handle *trans,
 		WARN_ON(1);
 	}
 
-	header_trans = btrfs_header_generation(buf);
 	spin_lock(&root->fs_info->hash_lock);
-	if (header_trans == trans->transid &&
+	if (btrfs_header_generation(buf) == trans->transid &&
+	    btrfs_header_owner(buf) == root->root_key.objectid &&
 	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
 		*cow_ret = buf;
 		spin_unlock(&root->fs_info->hash_lock);
@@ -1300,6 +1299,7 @@ again:
 			/* is a cow on this block not required */
 			spin_lock(&root->fs_info->hash_lock);
 			if (btrfs_header_generation(b) == trans->transid &&
+			    btrfs_header_owner(b) == root->root_key.objectid &&
 			    !btrfs_header_flag(b, BTRFS_HEADER_FLAG_WRITTEN)) {
 				spin_unlock(&root->fs_info->hash_lock);
 				goto cow_done;
@@ -1396,7 +1396,8 @@ cow_done:
 
 			/* this is only true while dropping a snapshot */
 			if (level == lowest_level) {
-				break;
+				ret = 0;
+				goto done;
 			}
 
 			blocknr = btrfs_node_blockptr(b, slot);

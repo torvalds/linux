@@ -292,7 +292,7 @@ static int merge_state(struct extent_io_tree *tree,
 	struct extent_state *other;
 	struct rb_node *other_node;
 
-	if (state->state & EXTENT_IOBITS)
+	if (state->state & (EXTENT_IOBITS | EXTENT_BOUNDARY))
 		return 0;
 
 	other_node = rb_prev(&state->rb_node);
@@ -1070,7 +1070,8 @@ search_again:
 
 	while(1) {
 		state = rb_entry(node, struct extent_state, rb_node);
-		if (found && state->start != cur_start) {
+		if (found && (state->start != cur_start ||
+			      (state->state & EXTENT_BOUNDARY))) {
 			goto out;
 		}
 		if (!(state->state & EXTENT_DELALLOC)) {
@@ -1078,7 +1079,7 @@ search_again:
 				*end = state->end;
 			goto out;
 		}
-		if (!found) {
+		if (!found && !(state->state & EXTENT_BOUNDARY)) {
 			struct extent_state *prev_state;
 			struct rb_node *prev_node = node;
 			while(1) {
@@ -1088,7 +1089,11 @@ search_again:
 				prev_state = rb_entry(prev_node,
 						      struct extent_state,
 						      rb_node);
-				if (!(prev_state->state & EXTENT_DELALLOC))
+				if ((prev_state->end + 1 != state->start) ||
+				    !(prev_state->state & EXTENT_DELALLOC))
+					break;
+				if ((cur_start - prev_state->start) * 2 >
+				     max_bytes)
 					break;
 				state = prev_state;
 				node = prev_node;
