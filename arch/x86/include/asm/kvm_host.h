@@ -327,6 +327,7 @@ struct kvm_vcpu_arch {
 
 	bool nmi_pending;
 	bool nmi_injected;
+	bool nmi_window_open;
 
 	u64 mtrr[0x100];
 };
