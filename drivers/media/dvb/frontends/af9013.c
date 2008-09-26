@@ -1500,8 +1500,6 @@ static int af9013_download_firmware(struct af9013_state *state)
 		}
 	}
 
-	#undef FW_PACKET_MAX_DATA
-
 	/* request boot firmware */
 	ret = af9013_write_reg(state, 0xe205, 1);
 	if (ret)

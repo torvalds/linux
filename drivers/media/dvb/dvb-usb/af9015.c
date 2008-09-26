@@ -672,7 +672,6 @@ static int af9015_download_firmware(struct usb_device *udev,
 			goto error;
 		}
 	}
-	#undef FW_PACKET_MAX_DATA
 
 	/* firmware loaded, request boot */
 	req.cmd = BOOT;
@@ -1377,7 +1376,6 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		}
 	}
 };
-#undef AF9015_DEFAULT_PROPERTIES
 
 static int af9015_usb_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
