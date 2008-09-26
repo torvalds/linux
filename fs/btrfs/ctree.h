@@ -498,6 +498,7 @@ struct btrfs_space_info {
 	u64 total_bytes;
 	u64 bytes_used;
 	u64 bytes_pinned;
+	u64 bytes_reserved;
 	int full;
 	int force_alloc;
 	struct list_head list;
@@ -519,6 +520,7 @@ struct btrfs_block_group_cache {
 	struct btrfs_block_group_item item;
 	spinlock_t lock;
 	u64 pinned;
+	u64 reserved;
 	u64 flags;
 	int cached;
 	int ro;
