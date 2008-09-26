@@ -164,7 +164,7 @@ void __init init_ISA_irqs(void)
 
 void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
 
-void __init smp_intr_init(void)
+static void __init smp_intr_init(void)
 {
 #ifdef CONFIG_SMP
 	/*
@@ -195,11 +195,9 @@ void __init smp_intr_init(void)
 #endif
 }
 
-void __init apic_intr_init(void)
+static void __init apic_intr_init(void)
 {
-#ifdef CONFIG_SMP
 	smp_intr_init();
-#endif
 
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
