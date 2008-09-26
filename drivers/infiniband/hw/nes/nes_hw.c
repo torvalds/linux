@@ -55,7 +55,7 @@ u32 int_mod_cq_depth_24;
 u32 int_mod_cq_depth_16;
 u32 int_mod_cq_depth_4;
 u32 int_mod_cq_depth_1;
-
+static const u8 nes_max_critical_error_count = 100;
 #include "nes_cm.h"
 
 static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq);
@@ -67,6 +67,7 @@ static void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq);
 static void nes_process_ceq(struct nes_device *nesdev, struct nes_hw_ceq *ceq);
 static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				   struct nes_hw_aeqe *aeqe);
+static void process_critical_error(struct nes_device *nesdev);
 static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
 static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
 
@@ -1352,7 +1353,7 @@ int nes_init_phy(struct nes_device *nesdev)
 				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc319, 0x0008);
 				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc31a, 0x0098);
 				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0026, 0x0E00);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0027, 0x0000);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0027, 0x0001);
 				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0028, 0xA528);
 
 				/*
@@ -1991,7 +1992,30 @@ int nes_napi_isr(struct nes_device *nesdev)
 	}
 }
 
+static void process_critical_error(struct nes_device *nesdev)
+{
+	u32 debug_error;
+	u32 nes_idx_debug_error_masks0 = 0;
+	u16 error_module = 0;
 
+	debug_error = nes_read_indexed(nesdev, NES_IDX_DEBUG_ERROR_CONTROL_STATUS);
+	printk(KERN_ERR PFX "Critical Error reported by device!!! 0x%02X\n",
+			(u16)debug_error);
+	nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_CONTROL_STATUS,
+			0x01010000 | (debug_error & 0x0000ffff));
+	if (crit_err_count++ > 10)
+		nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS1, 1 << 0x17);
+	error_module = (u16) (debug_error & 0x0F00) >> 8;
+	if (++nesdev->nesadapter->crit_error_count[error_module-1] >=
+			nes_max_critical_error_count) {
+		printk(KERN_ERR PFX "Masking off critical error for module "
+			"0x%02X\n", (u16)error_module);
+		nes_idx_debug_error_masks0 = nes_read_indexed(nesdev,
+			NES_IDX_DEBUG_ERROR_MASKS0);
+		nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS0,
+			nes_idx_debug_error_masks0 | (1 << error_module));
+	}
+}
 /**
  * nes_dpc
  */
@@ -2006,7 +2030,6 @@ void nes_dpc(unsigned long param)
 	u32 timer_stat;
 	u32 temp_int_stat;
 	u32 intf_int_stat;
-	u32 debug_error;
 	u32 processed_intf_int = 0;
 	u16 processed_timer_int = 0;
 	u16 completion_ints = 0;
@@ -2084,14 +2107,7 @@ void nes_dpc(unsigned long param)
 				intf_int_stat = nes_read32(nesdev->regs+NES_INTF_INT_STAT);
 				intf_int_stat &= nesdev->intf_int_req;
 				if (NES_INTF_INT_CRITERR & intf_int_stat) {
-					debug_error = nes_read_indexed(nesdev, NES_IDX_DEBUG_ERROR_CONTROL_STATUS);
-					printk(KERN_ERR PFX "Critical Error reported by device!!! 0x%02X\n",
-							(u16)debug_error);
-					nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_CONTROL_STATUS,
-							0x01010000 | (debug_error & 0x0000ffff));
-					/* BUG(); */
-					if (crit_err_count++ > 10)
-						nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS1, 1 << 0x17);
+					process_critical_error(nesdev);
 				}
 				if (NES_INTF_INT_PCIERR & intf_int_stat) {
 					printk(KERN_ERR PFX "PCI Error reported by device!!!\n");

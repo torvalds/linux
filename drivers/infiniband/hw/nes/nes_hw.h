@@ -1096,6 +1096,7 @@ struct nes_adapter {
 	u16 pd_config_base[4];
 
 	u16 link_interrupt_count[4];
+	u8 crit_error_count[32];
 
 	/* the phy index for each port */
 	u8  phy_index[4];
