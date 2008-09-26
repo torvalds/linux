@@ -640,7 +640,7 @@ kernel_trap:
 	return;
 }
 
-#define DO_ERROR(trapnr, signr, str, name) \
+#define DO_ERROR(trapnr, signr, str, name)				\
 asmlinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\

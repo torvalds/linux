@@ -482,13 +482,17 @@ die_if_kernel(const char *str, struct pt_regs *regs, long err)
 }
 
 static void __kprobes
-do_trap(int trapnr, int signr, char *str, int vm86, struct pt_regs *regs,
+do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	long error_code, siginfo_t *info)
 {
 	struct task_struct *tsk = current;
 
 	if (regs->flags & X86_VM_MASK) {
-		if (vm86)
+		/*
+		 * traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
+		 * On nmi (interrupt 2), do_trap should not be called.
+		 */
+		if (trapnr < 6)
 			goto vm86_trap;
 		goto trap_signal;
 	}
@@ -537,37 +541,10 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 							== NOTIFY_STOP)	\
 		return;							\
 	conditional_sti(regs);						\
-	do_trap(trapnr, signr, str, 0, regs, error_code, NULL);		\
+	do_trap(trapnr, signr, str, regs, error_code, NULL);		\
 }
 
-#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr, irq)	\
-void do_##name(struct pt_regs *regs, long error_code)			\
-{									\
-	siginfo_t info;							\
-	if (irq)							\
-		local_irq_enable();					\
-	info.si_signo = signr;						\
-	info.si_errno = 0;						\
-	info.si_code = sicode;						\
-	info.si_addr = (void __user *)siaddr;				\
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
-							== NOTIFY_STOP)	\
-		return;							\
-	conditional_sti(regs);						\
-	do_trap(trapnr, signr, str, 0, regs, error_code, &info);	\
-}
-
-#define DO_VM86_ERROR(trapnr, signr, str, name)				\
-void do_##name(struct pt_regs *regs, long error_code)			\
-{									\
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
-							== NOTIFY_STOP)	\
-		return;							\
-	conditional_sti(regs);						\
-	do_trap(trapnr, signr, str, 1, regs, error_code, NULL);		\
-}
-
-#define DO_VM86_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr)	\
+#define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr)		\
 void do_##name(struct pt_regs *regs, long error_code)			\
 {									\
 	siginfo_t info;							\
@@ -579,18 +556,18 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 							== NOTIFY_STOP)	\
 		return;							\
 	conditional_sti(regs);						\
-	do_trap(trapnr, signr, str, 1, regs, error_code, &info);	\
+	do_trap(trapnr, signr, str, regs, error_code, &info);		\
 }
 
-DO_VM86_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
-DO_VM86_ERROR(4, SIGSEGV, "overflow", overflow)
-DO_VM86_ERROR(5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
+DO_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
+DO_ERROR(4, SIGSEGV, "overflow", overflow)
+DO_ERROR(5, SIGSEGV, "bounds", bounds)
+DO_ERROR_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip)
 DO_ERROR(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS, "segment not present", segment_not_present)
 DO_ERROR(12, SIGBUS, "stack segment", stack_segment)
-DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
+DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 
 void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
@@ -868,7 +845,7 @@ void __kprobes do_int3(struct pt_regs *regs, long error_code)
 		return;
 #endif
 
-	do_trap(3, SIGTRAP, "int3", 1, regs, error_code, NULL);
+	do_trap(3, SIGTRAP, "int3", regs, error_code, NULL);
 }
 
 /*
@@ -1214,7 +1191,7 @@ void do_iret_error(struct pt_regs *regs, long error_code)
 	if (notify_die(DIE_TRAP, "iret exception",
 			regs, error_code, 32, SIGILL) == NOTIFY_STOP)
 		return;
-	do_trap(32, SIGILL, "iret exception", 0, regs, error_code, &info);
+	do_trap(32, SIGILL, "iret exception", regs, error_code, &info);
 }
 
 void __init trap_init(void)
