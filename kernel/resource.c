@@ -38,10 +38,6 @@ EXPORT_SYMBOL(iomem_resource);
 
 static DEFINE_RWLOCK(resource_lock);
 
-#ifdef CONFIG_PROC_FS
-
-enum { MAX_IORES_LEVEL = 5 };
-
 static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct resource *p = v;
@@ -52,6 +48,10 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 		p = p->parent;
 	return p->sibling;
 }
+
+#ifdef CONFIG_PROC_FS
+
+enum { MAX_IORES_LEVEL = 5 };
 
 static void *r_start(struct seq_file *m, loff_t *pos)
 	__acquires(resource_lock)
@@ -852,7 +852,11 @@ int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
 			continue;
 		printk(KERN_WARNING "resource map sanity check conflict: "
 		       "0x%llx 0x%llx 0x%llx 0x%llx %s\n",
-		       addr, addr + size - 1, p->start, p->end, p->name);
+		       (unsigned long long)addr,
+		       (unsigned long long)(addr + size - 1),
+		       (unsigned long long)p->start,
+		       (unsigned long long)p->end,
+		       p->name);
 		err = -1;
 		break;
 	}
