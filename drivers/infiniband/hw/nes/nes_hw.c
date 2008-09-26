@@ -861,7 +861,8 @@ static void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_cou
 
 	nes_write_indexed(nesdev, 0x00005000, 0x00018000);
 	/* nes_write_indexed(nesdev, 0x00005000, 0x00010000); */
-	nes_write_indexed(nesdev, 0x00005004, 0x00020001);
+	nes_write_indexed(nesdev, NES_IDX_WQM_CONFIG1, (wqm_quanta << 1) |
+							 0x00000001);
 	nes_write_indexed(nesdev, 0x00005008, 0x1F1F1F1F);
 	nes_write_indexed(nesdev, 0x00005010, 0x1F1F1F1F);
 	nes_write_indexed(nesdev, 0x00005018, 0x1F1F1F1F);

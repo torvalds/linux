@@ -156,6 +156,7 @@ enum indexed_regs {
 	NES_IDX_ENDNODE0_NSTAT_TX_OCTETS_HI = 0x7004,
 	NES_IDX_ENDNODE0_NSTAT_TX_FRAMES_LO = 0x7008,
 	NES_IDX_ENDNODE0_NSTAT_TX_FRAMES_HI = 0x700c,
+	NES_IDX_WQM_CONFIG1 = 0x5004,
 	NES_IDX_CM_CONFIG = 0x5100,
 	NES_IDX_NIC_LOGPORT_TO_PHYPORT = 0x6000,
 	NES_IDX_NIC_PHYPORT_TO_USW = 0x6008,
@@ -1079,6 +1080,7 @@ struct nes_adapter {
 	u32 et_rx_max_coalesced_frames_high;
 	u32 et_rate_sample_interval;
 	u32 timer_int_limit;
+	u32 wqm_quanta;
 
 	/* Adapter base MAC address */
 	u32 mac_addr_low;
