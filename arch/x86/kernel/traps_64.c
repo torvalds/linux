@@ -899,8 +899,6 @@ asmlinkage void __kprobes do_debug(struct pt_regs *regs,
 	unsigned long condition;
 	siginfo_t info;
 
-	trace_hardirqs_fixup();
-
 	get_debugreg(condition, 6);
 
 	/*
