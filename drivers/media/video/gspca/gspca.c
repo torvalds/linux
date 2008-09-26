@@ -278,7 +278,7 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 	}
 	gspca_dev->last_packet_type = packet_type;
 
-	/* if last packet, wake the application and advance in the queue */
+	/* if last packet, wake up the application and advance in the queue */
 	if (packet_type == LAST_PACKET) {
 		frame->v4l2_buf.bytesused = frame->data_end - frame->data;
 		frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
@@ -420,7 +420,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 }
 
 /*
- * search an input transfer endpoint in an alternate setting
+ * look for an input transfer endpoint in an alternate setting
  */
 static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 					  __u8 epaddr,
@@ -444,7 +444,7 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 }
 
 /*
- * search an input (isoc or bulk) endpoint
+ * look for an input (isoc or bulk) endpoint
  *
  * The endpoint is defined by the subdriver.
  * Use only the first isoc (some Zoran - 0x0572:0x0001 - have two such ep).
@@ -591,7 +591,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		gspca_dev->streaming = 1;
 		atomic_set(&gspca_dev->nevent, 0);
 
-		/* start the bulk transfer is done by the subdriver */
+		/* bulk transfers are started by the subdriver */
 		if (gspca_dev->bulk)
 			break;
 
@@ -626,7 +626,7 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 	return ret;
 }
 
-/* Note both the queue and the usb lock should be hold when calling this */
+/* Note: both the queue and the usb locks should be held when calling this */
 static void gspca_stream_off(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->streaming = 0;
@@ -1685,7 +1685,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 		}
 
 		/* if the process slept for more than 1 second,
-		 * get anewer frame */
+		 * get a newer frame */
 		frame = &gspca_dev->frame[v4l2_buf.index];
 		if (--n < 0)
 			break;			/* avoid infinite loop */
