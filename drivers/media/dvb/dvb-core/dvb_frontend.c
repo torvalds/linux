@@ -1262,8 +1262,10 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			goto out;
 		}
 
-		for (i = 0; i < tvps->num; i++)
-			err |= dtv_property_process_set(fe, tvp + i, inode, file);
+		for (i = 0; i < tvps->num; i++) {
+			(tvp + i)->result = dtv_property_process_set(fe, tvp + i, inode, file);
+			err |= (tvp + i)->result;
+		}
 
 		if(fe->dtv_property_cache.state == DTV_TUNE) {
 			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
@@ -1295,8 +1297,10 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			goto out;
 		}
 
-		for (i = 0; i < tvps->num; i++)
-			err |= dtv_property_process_get(fe, tvp + i, inode, file);
+		for (i = 0; i < tvps->num; i++) {
+			(tvp + i)->result = dtv_property_process_get(fe, tvp + i, inode, file);
+			err |= (tvp + i)->result;
+		}
 
 		if (copy_to_user(tvps->props, tvp, tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;

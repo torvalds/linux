@@ -323,6 +323,7 @@ struct dtv_property {
 			void *reserved2;
 		} buffer;
 	} u;
+	int result;
 } __attribute__ ((packed));
 
 /* No more than 16 properties during any given ioctl */
