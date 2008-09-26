@@ -1386,7 +1386,8 @@ config FORCEDETH_NAPI
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on NET_PCI && (ISA || MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X)
+	depends on NET_ETHERNET && (ISA || EISA || MACH_IXDP2351 \
+		|| ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1396,6 +1397,11 @@ config CS89x0
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.
+
+config CS89x0_NONISA_IRQ
+	def_bool y
+	depends on CS89x0 != n
+	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
