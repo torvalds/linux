@@ -39,8 +39,9 @@ enum regnames {
 	GDB_FS,			/* 14 */
 	GDB_GS,			/* 15 */
 };
+#define NUMREGBYTES		((GDB_GS+1)*4)
 #else /* ! CONFIG_X86_32 */
-enum regnames {
+enum regnames64 {
 	GDB_AX,			/* 0 */
 	GDB_BX,			/* 1 */
 	GDB_CX,			/* 2 */
@@ -58,18 +59,15 @@ enum regnames {
 	GDB_R14,		/* 14 */
 	GDB_R15,		/* 15 */
 	GDB_PC,			/* 16 */
-	GDB_PS,			/* 17 */
 };
-#endif /* CONFIG_X86_32 */
 
-/*
- * Number of bytes of registers:
- */
-#ifdef CONFIG_X86_32
-# define NUMREGBYTES		64
-#else
-# define NUMREGBYTES		((GDB_PS+1)*8)
-#endif
+enum regnames32 {
+	GDB_PS = 34,
+	GDB_CS,
+	GDB_SS,
+};
+#define NUMREGBYTES		((GDB_SS+1)*4)
+#endif /* CONFIG_X86_32 */
 
 static inline void arch_kgdb_breakpoint(void)
 {
