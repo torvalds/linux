@@ -276,7 +276,7 @@ int __init ibmphp_access_ebda (void)
 	iounmap (io_mem);
 	debug ("returned ebda segment: %x\n", ebda_seg);
 	
-	io_mem = ioremap (ebda_seg<<4, 65000);
+	io_mem = ioremap(ebda_seg<<4, 1024);
 	if (!io_mem )
 		return -ENOMEM;
 	next_offset = 0x180;
