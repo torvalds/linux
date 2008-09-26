@@ -1220,6 +1220,9 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	if (err < 0)
 		return err;
 
+	if (chip->driver_type == AZX_DRIVER_NVIDIA)
+		chip->bus->needs_damn_long_delay = 1;
+
 	codecs = audio_codecs = 0;
 	max_slots = azx_max_codecs[chip->driver_type];
 	if (!max_slots)
