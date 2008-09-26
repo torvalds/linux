@@ -484,7 +484,7 @@ static int retire_playback_sync_urb_hs(struct snd_usb_substream *subs,
 }
 
 /*
- * process after E-Mu 0202/0404 high speed playback sync complete
+ * process after E-Mu 0202/0404/Tracker Pre high speed playback sync complete
  *
  * These devices return the number of samples per packet instead of the number
  * of samples per microframe.
@@ -2264,6 +2264,7 @@ static void init_substream(struct snd_usb_stream *as, int stream, struct audiofo
 		switch (as->chip->usb_id) {
 		case USB_ID(0x041e, 0x3f02): /* E-Mu 0202 USB */
 		case USB_ID(0x041e, 0x3f04): /* E-Mu 0404 USB */
+		case USB_ID(0x041e, 0x3f0a): /* E-Mu Tracker Pre */
 			subs->ops.retire_sync = retire_playback_sync_urb_hs_emu;
 			break;
 		}

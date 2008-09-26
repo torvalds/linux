@@ -62,6 +62,13 @@
 	.idProduct = 0x3f04,
 	.bInterfaceClass = USB_CLASS_AUDIO,
 },
+{
+	/* E-Mu Tracker Pre */
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x041e,
+	.idProduct = 0x3f0a,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+},
 
 /*
  * Logitech QuickCam: bDeviceClass is vendor-specific, so generic interface
