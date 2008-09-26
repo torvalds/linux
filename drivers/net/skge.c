@@ -501,7 +501,7 @@ static int skge_set_ring_param(struct net_device *dev,
 			       struct ethtool_ringparam *p)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	int err;
+	int err = 0;
 
 	if (p->rx_pending == 0 || p->rx_pending > MAX_RX_RING_SIZE ||
 	    p->tx_pending < TX_LOW_WATER || p->tx_pending > MAX_TX_RING_SIZE)
@@ -517,7 +517,7 @@ static int skge_set_ring_param(struct net_device *dev,
 			dev_close(dev);
 	}
 
-	return 0;
+	return err;
 }
 
 static u32 skge_get_msglevel(struct net_device *netdev)
