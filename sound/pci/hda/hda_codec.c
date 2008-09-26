@@ -94,6 +94,9 @@ static const struct hda_codec_preset *hda_preset_tables[] = {
 #ifdef CONFIG_SND_HDA_CODEC_VIA
 	snd_hda_preset_via,
 #endif
+#ifdef CONFIG_SND_HDA_CODEC_NVHDMI
+	snd_hda_preset_nvhdmi,
+#endif
 	NULL
 };
 
