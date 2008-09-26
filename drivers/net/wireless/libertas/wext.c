@@ -1025,6 +1025,18 @@ static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 				new_rate);
 			goto out;
 		}
+		if (priv->fwrelease < 0x09000000) {
+			ret = lbs_set_power_adapt_cfg(priv, 0,
+					POW_ADAPT_DEFAULT_P0,
+					POW_ADAPT_DEFAULT_P1,
+					POW_ADAPT_DEFAULT_P2);
+			if (ret)
+				goto out;
+		}
+		ret = lbs_set_tpc_cfg(priv, 0, TPC_DEFAULT_P0, TPC_DEFAULT_P1,
+				TPC_DEFAULT_P2, 1);
+		if (ret)
+			goto out;
 	}
 
 	/* Try the newer command first (Firmware Spec 5.1 and above) */
