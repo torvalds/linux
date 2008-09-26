@@ -119,6 +119,10 @@ static unsigned long e740_pin_config[] __initdata = {
 	GPIO44_BTUART_CTS,
 	GPIO45_GPIO, /* Used by TMIO for #SUSPEND */
 
+	/* UDC */
+	GPIO13_GPIO,
+	GPIO3_GPIO,
+
 	/* IrDA */
 	GPIO38_GPIO | MFP_LPM_DRIVE_HIGH,
 
