@@ -232,9 +232,7 @@ static int get_futex_key(u32 __user *uaddr, struct rw_semaphore *fshared,
 	}
 
 again:
-	down_read(&mm->mmap_sem);
-	err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
-	up_read(&mm->mmap_sem);
+	err = get_user_pages_fast(address, 1, 0, &page);
 	if (err < 0)
 		return err;
 
