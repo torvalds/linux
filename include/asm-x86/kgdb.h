@@ -42,9 +42,9 @@ enum regnames {
 #else /* ! CONFIG_X86_32 */
 enum regnames {
 	GDB_AX,			/* 0 */
-	GDB_DX,			/* 1 */
+	GDB_BX,			/* 1 */
 	GDB_CX,			/* 2 */
-	GDB_BX,			/* 3 */
+	GDB_DX,			/* 3 */
 	GDB_SI,			/* 4 */
 	GDB_DI,			/* 5 */
 	GDB_BP,			/* 6 */
