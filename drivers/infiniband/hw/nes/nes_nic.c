@@ -437,7 +437,7 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct nes_hw_nic_sq_wqe *nic_sqe;
 	struct tcphdr *tcph;
 	/* struct udphdr *udph; */
-#define NES_MAX_TSO_FRAGS 18
+#define NES_MAX_TSO_FRAGS MAX_SKB_FRAGS
 	/* 64K segment plus overflow on each side */
 	dma_addr_t tso_bus_address[NES_MAX_TSO_FRAGS];
 	dma_addr_t bus_address;
