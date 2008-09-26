@@ -2492,7 +2492,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		set_bit(irq / BITS_PER_LONG, &vcpu->arch.irq_summary);
 	}
 
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) /* nmi */
+	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR)
 		return 1;  /* already handled by vmx_vcpu_run() */
 
 	if (is_no_device(intr_info)) {
@@ -3337,7 +3337,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 
 	/* We need to handle NMIs before interrupts are enabled */
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200 &&
+	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
 	    (intr_info & INTR_INFO_VALID_MASK)) {
 		KVMTRACE_0D(NMI, vcpu, handler);
 		asm("int $2");
