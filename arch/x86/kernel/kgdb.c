@@ -378,10 +378,8 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		if (remcomInBuffer[0] == 's') {
 			linux_regs->flags |= X86_EFLAGS_TF;
 			kgdb_single_step = 1;
-			if (kgdb_contthread) {
-				atomic_set(&kgdb_cpu_doing_single_step,
-					   raw_smp_processor_id());
-			}
+			atomic_set(&kgdb_cpu_doing_single_step,
+				   raw_smp_processor_id());
 		}
 
 		get_debugreg(dr6, 6);
@@ -466,9 +464,15 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 
 	case DIE_DEBUG:
 		if (atomic_read(&kgdb_cpu_doing_single_step) ==
-			raw_smp_processor_id() &&
-			user_mode(regs))
-			return single_step_cont(regs, args);
+		    raw_smp_processor_id()) {
+			if (user_mode(regs))
+				return single_step_cont(regs, args);
+			break;
+		} else if (test_thread_flag(TIF_SINGLESTEP))
+			/* This means a user thread is single stepping
+			 * a system call which should be ignored
+			 */
+			return NOTIFY_DONE;
 		/* fall through */
 	default:
 		if (user_mode(regs))
