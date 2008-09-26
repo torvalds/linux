@@ -592,11 +592,6 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	unsigned long flags;
 #endif
 
-	/*
-	 * We can fault from pretty much anywhere, with unknown IRQ state.
-	 */
-	trace_hardirqs_fixup();
-
 	tsk = current;
 	mm = tsk->mm;
 	prefetchw(&mm->mmap_sem);
