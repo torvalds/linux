@@ -161,6 +161,45 @@ static inline int match_futex(union futex_key *key1, union futex_key *key2)
 		&& key1->both.offset == key2->both.offset);
 }
 
+/*
+ * Take a reference to the resource addressed by a key.
+ * Can be called while holding spinlocks.
+ *
+ */
+static void get_futex_key_refs(union futex_key *key)
+{
+	if (!key->both.ptr)
+		return;
+
+	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
+	case FUT_OFF_INODE:
+		atomic_inc(&key->shared.inode->i_count);
+		break;
+	case FUT_OFF_MMSHARED:
+		atomic_inc(&key->private.mm->mm_count);
+		break;
+	}
+}
+
+/*
+ * Drop a reference to the resource addressed by a key.
+ * The hash bucket spinlock must not be held.
+ */
+static void drop_futex_key_refs(union futex_key *key)
+{
+	if (!key->both.ptr)
+		return;
+
+	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
+	case FUT_OFF_INODE:
+		iput(key->shared.inode);
+		break;
+	case FUT_OFF_MMSHARED:
+		mmdrop(key->private.mm);
+		break;
+	}
+}
+
 /**
  * get_futex_key - Get parameters which are the keys for a futex.
  * @uaddr: virtual address of the futex
@@ -184,7 +223,6 @@ static int get_futex_key(u32 __user *uaddr, struct rw_semaphore *fshared,
 {
 	unsigned long address = (unsigned long)uaddr;
 	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
 	struct page *page;
 	int err;
 
@@ -210,98 +248,47 @@ static int get_futex_key(u32 __user *uaddr, struct rw_semaphore *fshared,
 		key->private.address = address;
 		return 0;
 	}
-	/*
-	 * The futex is hashed differently depending on whether
-	 * it's in a shared or private mapping.  So check vma first.
-	 */
-	vma = find_extend_vma(mm, address);
-	if (unlikely(!vma))
-		return -EFAULT;
 
-	/*
-	 * Permissions.
-	 */
-	if (unlikely((vma->vm_flags & (VM_IO|VM_READ)) != VM_READ))
-		return (vma->vm_flags & VM_IO) ? -EPERM : -EACCES;
+again:
+	err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
+	if (err < 0)
+		return err;
+
+	lock_page(page);
+	if (!page->mapping) {
+		unlock_page(page);
+		put_page(page);
+		goto again;
+	}
 
 	/*
 	 * Private mappings are handled in a simple way.
 	 *
 	 * NOTE: When userspace waits on a MAP_SHARED mapping, even if
 	 * it's a read-only handle, it's expected that futexes attach to
-	 * the object not the particular process.  Therefore we use
-	 * VM_MAYSHARE here, not VM_SHARED which is restricted to shared
-	 * mappings of _writable_ handles.
+	 * the object not the particular process.
 	 */
-	if (likely(!(vma->vm_flags & VM_MAYSHARE))) {
-		key->both.offset |= FUT_OFF_MMSHARED; /* reference taken on mm */
+	if (PageAnon(page)) {
+		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
 		key->private.mm = mm;
 		key->private.address = address;
-		return 0;
+	} else {
+		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+		key->shared.inode = page->mapping->host;
+		key->shared.pgoff = page->index;
 	}
 
-	/*
-	 * Linear file mappings are also simple.
-	 */
-	key->shared.inode = vma->vm_file->f_path.dentry->d_inode;
-	key->both.offset |= FUT_OFF_INODE; /* inode-based key. */
-	if (likely(!(vma->vm_flags & VM_NONLINEAR))) {
-		key->shared.pgoff = (((address - vma->vm_start) >> PAGE_SHIFT)
-				     + vma->vm_pgoff);
-		return 0;
-	}
+	get_futex_key_refs(key);
 
-	/*
-	 * We could walk the page table to read the non-linear
-	 * pte, and get the page index without fetching the page
-	 * from swap.  But that's a lot of code to duplicate here
-	 * for a rare case, so we simply fetch the page.
-	 */
-	err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
-	if (err >= 0) {
-		key->shared.pgoff =
-			page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-		put_page(page);
-		return 0;
-	}
-	return err;
+	unlock_page(page);
+	put_page(page);
+	return 0;
 }
 
-/*
- * Take a reference to the resource addressed by a key.
- * Can be called while holding spinlocks.
- *
- */
-static void get_futex_key_refs(union futex_key *key)
+static inline
+void put_futex_key(struct rw_semaphore *fshared, union futex_key *key)
 {
-	if (key->both.ptr == NULL)
-		return;
-	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
-		case FUT_OFF_INODE:
-			atomic_inc(&key->shared.inode->i_count);
-			break;
-		case FUT_OFF_MMSHARED:
-			atomic_inc(&key->private.mm->mm_count);
-			break;
-	}
-}
-
-/*
- * Drop a reference to the resource addressed by a key.
- * The hash bucket spinlock must not be held.
- */
-static void drop_futex_key_refs(union futex_key *key)
-{
-	if (!key->both.ptr)
-		return;
-	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
-		case FUT_OFF_INODE:
-			iput(key->shared.inode);
-			break;
-		case FUT_OFF_MMSHARED:
-			mmdrop(key->private.mm);
-			break;
-	}
+	drop_futex_key_refs(key);
 }
 
 static u32 cmpxchg_futex_value_locked(u32 __user *uaddr, u32 uval, u32 newval)
@@ -385,6 +372,7 @@ static int refill_pi_state_cache(void)
 	/* pi_mutex gets initialized later */
 	pi_state->owner = NULL;
 	atomic_set(&pi_state->refcount, 1);
+	pi_state->key = FUTEX_KEY_INIT;
 
 	current->pi_state_cache = pi_state;
 
@@ -462,7 +450,7 @@ void exit_pi_state_list(struct task_struct *curr)
 	struct list_head *next, *head = &curr->pi_state_list;
 	struct futex_pi_state *pi_state;
 	struct futex_hash_bucket *hb;
-	union futex_key key;
+	union futex_key key = FUTEX_KEY_INIT;
 
 	if (!futex_cmpxchg_enabled)
 		return;
@@ -725,7 +713,7 @@ static int futex_wake(u32 __user *uaddr, struct rw_semaphore *fshared,
 	struct futex_hash_bucket *hb;
 	struct futex_q *this, *next;
 	struct plist_head *head;
-	union futex_key key;
+	union futex_key key = FUTEX_KEY_INIT;
 	int ret;
 
 	if (!bitset)
@@ -760,6 +748,7 @@ static int futex_wake(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 	spin_unlock(&hb->lock);
 out:
+	put_futex_key(fshared, &key);
 	futex_unlock_mm(fshared);
 	return ret;
 }
@@ -773,7 +762,7 @@ futex_wake_op(u32 __user *uaddr1, struct rw_semaphore *fshared,
 	      u32 __user *uaddr2,
 	      int nr_wake, int nr_wake2, int op)
 {
-	union futex_key key1, key2;
+	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
 	struct futex_hash_bucket *hb1, *hb2;
 	struct plist_head *head;
 	struct futex_q *this, *next;
@@ -873,6 +862,8 @@ retry:
 	if (hb1 != hb2)
 		spin_unlock(&hb2->lock);
 out:
+	put_futex_key(fshared, &key2);
+	put_futex_key(fshared, &key1);
 	futex_unlock_mm(fshared);
 
 	return ret;
@@ -886,7 +877,7 @@ static int futex_requeue(u32 __user *uaddr1, struct rw_semaphore *fshared,
 			 u32 __user *uaddr2,
 			 int nr_wake, int nr_requeue, u32 *cmpval)
 {
-	union futex_key key1, key2;
+	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
 	struct futex_hash_bucket *hb1, *hb2;
 	struct plist_head *head1;
 	struct futex_q *this, *next;
@@ -974,6 +965,8 @@ out_unlock:
 		drop_futex_key_refs(&key1);
 
 out:
+	put_futex_key(fshared, &key2);
+	put_futex_key(fshared, &key1);
 	futex_unlock_mm(fshared);
 	return ret;
 }
@@ -1220,6 +1213,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
  retry:
 	futex_lock_mm(fshared);
 
+	q.key = FUTEX_KEY_INIT;
 	ret = get_futex_key(uaddr, fshared, &q.key);
 	if (unlikely(ret != 0))
 		goto out_release_sem;
@@ -1360,6 +1354,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 	queue_unlock(&q, hb);
 
  out_release_sem:
+	put_futex_key(fshared, &q.key);
 	futex_unlock_mm(fshared);
 	return ret;
 }
@@ -1411,6 +1406,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
  retry:
 	futex_lock_mm(fshared);
 
+	q.key = FUTEX_KEY_INIT;
 	ret = get_futex_key(uaddr, fshared, &q.key);
 	if (unlikely(ret != 0))
 		goto out_release_sem;
@@ -1625,6 +1621,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 	queue_unlock(&q, hb);
 
  out_release_sem:
+	put_futex_key(fshared, &q.key);
 	futex_unlock_mm(fshared);
 	if (to)
 		destroy_hrtimer_on_stack(&to->timer);
@@ -1671,7 +1668,7 @@ static int futex_unlock_pi(u32 __user *uaddr, struct rw_semaphore *fshared)
 	struct futex_q *this, *next;
 	u32 uval;
 	struct plist_head *head;
-	union futex_key key;
+	union futex_key key = FUTEX_KEY_INIT;
 	int ret, attempt = 0;
 
 retry:
@@ -1744,6 +1741,7 @@ retry_unlocked:
 out_unlock:
 	spin_unlock(&hb->lock);
 out:
+	put_futex_key(fshared, &key);
 	futex_unlock_mm(fshared);
 
 	return ret;
