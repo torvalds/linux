@@ -227,7 +227,7 @@ struct cpuidle_driver omap3_idle_driver = {
  * Registers the OMAP3 specific cpuidle driver with the cpuidle
  * framework with the valid set of states.
  */
-int omap3_idle_init(void)
+int __init omap3_idle_init(void)
 {
 	int i, count = 0;
 	struct omap3_processor_cx *cx;
@@ -272,5 +272,9 @@ int omap3_idle_init(void)
 
 	return 0;
 }
-device_initcall(omap3_idle_init);
+#else
+int __init omap3_idle_init(void)
+{
+	return 0;
+}
 #endif /* CONFIG_CPU_IDLE */
