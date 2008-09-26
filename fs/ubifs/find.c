@@ -507,7 +507,6 @@ int ubifs_find_free_space(struct ubifs_info *c, int min_space, int *free,
 		rsvd_idx_lebs = 0;
 	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
 	       c->lst.taken_empty_lebs;
-	ubifs_assert(lebs + c->lst.idx_lebs >= c->min_idx_lebs);
 	if (rsvd_idx_lebs < lebs)
 		/*
 		 * OK to allocate an empty LEB, but we still don't want to go
