@@ -1065,7 +1065,8 @@ KPROBE_ENTRY(error_entry)
 	je  error_kernelspace
 error_swapgs:	
 	SWAPGS
-error_sti:	
+error_sti:
+	TRACE_IRQS_OFF
 	movq %rdi,RDI(%rsp) 	
 	CFI_REL_OFFSET	rdi,RDI
 	movq %rsp,%rdi
