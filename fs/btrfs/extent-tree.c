@@ -1091,15 +1091,25 @@ out:
 int btrfs_cache_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		    struct extent_buffer *buf, u32 nr_extents)
 {
-	u32 nritems;
 	struct btrfs_key key;
 	struct btrfs_file_extent_item *fi;
+	u64 root_gen;
+	u32 nritems;
 	int i;
 	int level;
 	int ret = 0;
+	int shared = 0;
 
 	if (!root->ref_cows)
 		return 0;
+
+	if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID) {
+		shared = 0;
+		root_gen = root->root_key.offset;
+	} else {
+		shared = 1;
+		root_gen = trans->transid - 1;
+	}
 
 	level = btrfs_header_level(buf);
 	nritems = btrfs_header_nritems(buf);
@@ -1114,7 +1124,7 @@ int btrfs_cache_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			goto out;
 		}
 
-		ref->root_gen = root->root_key.offset;
+		ref->root_gen = root_gen;
 		ref->bytenr = buf->start;
 		ref->owner = btrfs_header_owner(buf);
 		ref->generation = btrfs_header_generation(buf);
@@ -1143,8 +1153,7 @@ int btrfs_cache_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			info++;
 		}
 
-		BUG_ON(!root->ref_tree);
-		ret = btrfs_add_leaf_ref(root, ref);
+		ret = btrfs_add_leaf_ref(root, ref, shared);
 		WARN_ON(ret);
 		btrfs_free_leaf_ref(root, ref);
 	}

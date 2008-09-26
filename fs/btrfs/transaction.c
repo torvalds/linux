@@ -650,7 +650,7 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 
-		ret = btrfs_remove_leaf_refs(root, max_useless);
+		ret = btrfs_remove_leaf_refs(root, max_useless, 0);
 		BUG_ON(ret);
 
 		free_extent_buffer(dirty->root->node);

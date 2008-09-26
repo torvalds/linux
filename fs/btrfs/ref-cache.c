@@ -78,7 +78,6 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 bytenr,
 	}
 
 	entry = rb_entry(node, struct btrfs_leaf_ref, rb_node);
-	entry->in_tree = 1;
 	rb_link_node(node, parent, p);
 	rb_insert_color(node, root);
 	return NULL;
@@ -103,23 +102,29 @@ static struct rb_node *tree_search(struct rb_root *root, u64 bytenr)
 	return NULL;
 }
 
-int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen)
+int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen,
+			   int shared)
 {
 	struct btrfs_leaf_ref *ref = NULL;
 	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
 
+	if (shared)
+		tree = &root->fs_info->shared_ref_tree;
 	if (!tree)
 		return 0;
 
 	spin_lock(&tree->lock);
 	while(!list_empty(&tree->list)) {
 		ref = list_entry(tree->list.next, struct btrfs_leaf_ref, list);
-		BUG_ON(!ref->in_tree);
+		BUG_ON(ref->tree != tree);
 		if (ref->root_gen > max_root_gen)
 			break;
+		if (!xchg(&ref->in_tree, 0)) {
+			cond_resched_lock(&tree->lock);
+			continue;
+		}
 
 		rb_erase(&ref->rb_node, &tree->root);
-		ref->in_tree = 0;
 		list_del_init(&ref->list);
 
 		spin_unlock(&tree->lock);
@@ -137,25 +142,34 @@ struct btrfs_leaf_ref *btrfs_lookup_leaf_ref(struct btrfs_root *root,
 	struct rb_node *rb;
 	struct btrfs_leaf_ref *ref = NULL;
 	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
-
-	if (!tree)
-		return NULL;
-
-	spin_lock(&tree->lock);
-	rb = tree_search(&tree->root, bytenr);
-	if (rb)
-		ref = rb_entry(rb, struct btrfs_leaf_ref, rb_node);
-	if (ref)
-		atomic_inc(&ref->usage);
-	spin_unlock(&tree->lock);
-	return ref;
+again:
+	if (tree) {
+		spin_lock(&tree->lock);
+		rb = tree_search(&tree->root, bytenr);
+		if (rb)
+			ref = rb_entry(rb, struct btrfs_leaf_ref, rb_node);
+		if (ref)
+			atomic_inc(&ref->usage);
+		spin_unlock(&tree->lock);
+		if (ref)
+			return ref;
+	}
+	if (tree != &root->fs_info->shared_ref_tree) {
+		tree = &root->fs_info->shared_ref_tree;
+		goto again;
+	}
+	return NULL;
 }
 
-int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
+int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref,
+		       int shared)
 {
 	int ret = 0;
 	struct rb_node *rb;
 	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
+
+	if (shared)
+		tree = &root->fs_info->shared_ref_tree;
 
 	spin_lock(&tree->lock);
 	rb = tree_insert(&tree->root, ref->bytenr, &ref->rb_node);
@@ -163,6 +177,8 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 		ret = -EEXIST;
 	} else {
 		atomic_inc(&ref->usage);
+		ref->tree = tree;
+		ref->in_tree = 1;
 		list_add_tail(&ref->list, &tree->list);
 	}
 	spin_unlock(&tree->lock);
@@ -171,13 +187,15 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 
 int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 {
-	struct btrfs_leaf_ref_tree *tree = root->ref_tree;
+	struct btrfs_leaf_ref_tree *tree;
 
-	BUG_ON(!ref->in_tree);
+	if (!xchg(&ref->in_tree, 0))
+		return 0;
+
+	tree = ref->tree;
 	spin_lock(&tree->lock);
 
 	rb_erase(&ref->rb_node, &tree->root);
-	ref->in_tree = 0;
 	list_del_init(&ref->list);
 
 	spin_unlock(&tree->lock);

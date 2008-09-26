@@ -81,6 +81,10 @@ struct btrfs_ordered_sum;
 #define BTRFS_TREE_LOG_OBJECTID -6ULL
 #define BTRFS_TREE_LOG_FIXUP_OBJECTID -7ULL
 
+/* for space balancing */
+#define BTRFS_TREE_RELOC_OBJECTID -8ULL
+#define BTRFS_DATA_RELOC_TREE_OBJECTID -9ULL
+
 /* dummy objectid represents multiple objectids */
 #define BTRFS_MULTIPLE_OBJECTIDS -255ULL
 
@@ -539,6 +543,12 @@ struct btrfs_block_group_cache {
 	struct list_head list;
 };
 
+struct btrfs_leaf_ref_tree {
+	struct rb_root root;
+	struct list_head list;
+	spinlock_t lock;
+};
+
 struct btrfs_device;
 struct btrfs_fs_devices;
 struct btrfs_fs_info {
@@ -637,6 +647,8 @@ struct btrfs_fs_info {
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
 
+	struct btrfs_leaf_ref_tree shared_ref_tree;
+
 	struct kobject super_kobj;
 	struct completion kobj_unregister;
 	int do_barriers;
@@ -668,13 +680,6 @@ struct btrfs_fs_info {
 	u64 system_alloc_profile;
 
 	void *bdev_holder;
-};
-
-struct btrfs_leaf_ref_tree {
-	struct rb_root root;
-	struct btrfs_leaf_ref *last;
-	struct list_head list;
-	spinlock_t lock;
 };
 
 /*

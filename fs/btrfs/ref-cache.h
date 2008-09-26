@@ -27,6 +27,7 @@ struct btrfs_extent_info {
 
 struct btrfs_leaf_ref {
 	struct rb_node rb_node;
+	struct btrfs_leaf_ref_tree *tree;
 	int in_tree;
 	atomic_t usage;
 
@@ -64,8 +65,10 @@ struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(struct btrfs_root *root,
 void btrfs_free_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref);
 struct btrfs_leaf_ref *btrfs_lookup_leaf_ref(struct btrfs_root *root,
 					     u64 bytenr);
-int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref);
-int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen);
+int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref,
+		       int shared);
+int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen,
+			   int shared);
 int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref);
 
 #endif
