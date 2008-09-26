@@ -272,14 +272,18 @@ static int nes_netdev_stop(struct net_device *netdev)
 			break;
 	}
 
-	if (first_nesvnic->netdev_open == 0)
+	if ((first_nesvnic->netdev_open == 1) && (first_nesvnic != nesvnic)  &&
+		(PCI_FUNC(first_nesvnic->nesdev->pcidev->devfn) !=
+		PCI_FUNC(nesvnic->nesdev->pcidev->devfn))) {
+			nes_write_indexed(nesdev, NES_IDX_MAC_INT_MASK+
+				(0x200*nesdev->mac_index), 0xffffffff);
+			nes_write_indexed(first_nesvnic->nesdev,
+				NES_IDX_MAC_INT_MASK+
+				(0x200*first_nesvnic->nesdev->mac_index),
+			~(NES_MAC_INT_LINK_STAT_CHG | NES_MAC_INT_XGMII_EXT |
+			NES_MAC_INT_TX_UNDERFLOW | NES_MAC_INT_TX_ERROR));
+	} else {
 		nes_write_indexed(nesdev, NES_IDX_MAC_INT_MASK+(0x200*nesdev->mac_index), 0xffffffff);
-	else if ((first_nesvnic != nesvnic) &&
-		 (PCI_FUNC(first_nesvnic->nesdev->pcidev->devfn) != PCI_FUNC(nesvnic->nesdev->pcidev->devfn))) {
-		nes_write_indexed(nesdev, NES_IDX_MAC_INT_MASK + (0x200 * nesdev->mac_index), 0xffffffff);
-		nes_write_indexed(first_nesvnic->nesdev, NES_IDX_MAC_INT_MASK + (0x200 * first_nesvnic->nesdev->mac_index),
-				~(NES_MAC_INT_LINK_STAT_CHG | NES_MAC_INT_XGMII_EXT |
-				NES_MAC_INT_TX_UNDERFLOW | NES_MAC_INT_TX_ERROR));
 	}
 
 	nic_active_mask = ~((u32)(1 << nesvnic->nic_index));
