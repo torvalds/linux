@@ -561,6 +561,7 @@ void sync_buffer(int cpu)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
 	struct mm_struct *mm = NULL;
+	struct mm_struct *oldmm;
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
@@ -586,34 +587,39 @@ void sync_buffer(int cpu)
 		struct op_sample *s = &cpu_buf->buffer[cpu_buf->tail_pos];
 
 		if (is_code(s->eip)) {
-			if (s->event <= CPU_IS_KERNEL) {
+			switch (s->event) {
+			case 0:
+			case CPU_IS_KERNEL:
 				/* kernel/userspace switch */
 				in_kernel = s->event;
 				if (state == sb_buffer_start)
 					state = sb_sample_start;
 				add_kernel_ctx_switch(s->event);
-			} else if (s->event == CPU_TRACE_BEGIN) {
+				break;
+			case CPU_TRACE_BEGIN:
 				state = sb_bt_start;
 				add_trace_begin();
+				break;
 #ifdef CONFIG_OPROFILE_IBS
-			} else if (s->event == IBS_FETCH_BEGIN) {
+			case IBS_FETCH_BEGIN:
 				state = sb_bt_start;
 				add_ibs_begin(cpu_buf, IBS_FETCH_CODE, mm);
-			} else if (s->event == IBS_OP_BEGIN) {
+				break;
+			case IBS_OP_BEGIN:
 				state = sb_bt_start;
 				add_ibs_begin(cpu_buf, IBS_OP_CODE, mm);
+				break;
 #endif
-			} else {
-				struct mm_struct *oldmm = mm;
-
+			default:
 				/* userspace context switch */
+				oldmm = mm;
 				new = (struct task_struct *)s->event;
-
 				release_mm(oldmm);
 				mm = take_tasks_mm(new);
 				if (mm != oldmm)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
+				break;
 			}
 		} else if (state >= sb_bt_start &&
 			   !add_sample(mm, s, in_kernel)) {
