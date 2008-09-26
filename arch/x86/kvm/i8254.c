@@ -603,10 +603,25 @@ void kvm_free_pit(struct kvm *kvm)
 
 static void __inject_pit_timer_intr(struct kvm *kvm)
 {
+	struct kvm_vcpu *vcpu;
+	int i;
+
 	mutex_lock(&kvm->lock);
 	kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 1);
 	kvm_set_irq(kvm, kvm->arch.vpit->irq_source_id, 0, 0);
 	mutex_unlock(&kvm->lock);
+
+	/*
+	 * Provides NMI watchdog support in IOAPIC mode.
+	 * The route is: PIT -> PIC -> LVT0 in NMI mode,
+	 * timer IRQs will continue to flow through the IOAPIC.
+	 */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		vcpu = kvm->vcpus[i];
+		if (!vcpu)
+			continue;
+		kvm_apic_local_deliver(vcpu, APIC_LVT0);
+	}
 }
 
 void kvm_inject_pit_timer_irqs(struct kvm_vcpu *vcpu)

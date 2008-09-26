@@ -380,6 +380,14 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		}
 		break;
 
+	case APIC_DM_EXTINT:
+		/*
+		 * Should only be called by kvm_apic_local_deliver() with LVT0,
+		 * before NMI watchdog was enabled. Already handled by
+		 * kvm_apic_accept_pic_intr().
+		 */
+		break;
+
 	default:
 		printk(KERN_ERR "TODO: unsupported delivery mode %x\n",
 		       delivery_mode);
@@ -743,10 +751,13 @@ static void apic_mmio_write(struct kvm_io_device *this,
 		apic_set_reg(apic, APIC_ICR2, val & 0xff000000);
 		break;
 
+	case APIC_LVT0:
+		if (val == APIC_DM_NMI)
+			apic_debug("Receive NMI setting on APIC_LVT0 "
+				"for cpu %d\n", apic->vcpu->vcpu_id);
 	case APIC_LVTT:
 	case APIC_LVTTHMR:
 	case APIC_LVTPC:
-	case APIC_LVT0:
 	case APIC_LVT1:
 	case APIC_LVTERR:
 		/* TODO: Check vector */
@@ -961,12 +972,25 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int __inject_apic_timer_irq(struct kvm_lapic *apic)
+int kvm_apic_local_deliver(struct kvm_vcpu *vcpu, int lvt_type)
 {
-	int vector;
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	int vector, mode, trig_mode;
+	u32 reg;
 
-	vector = apic_lvt_vector(apic, APIC_LVTT);
-	return __apic_accept_irq(apic, APIC_DM_FIXED, vector, 1, 0);
+	if (apic && apic_enabled(apic)) {
+		reg = apic_get_reg(apic, lvt_type);
+		vector = reg & APIC_VECTOR_MASK;
+		mode = reg & APIC_MODE_MASK;
+		trig_mode = reg & APIC_LVT_LEVEL_TRIGGER;
+		return __apic_accept_irq(apic, mode, vector, 1, trig_mode);
+	}
+	return 0;
+}
+
+static inline int __inject_apic_timer_irq(struct kvm_lapic *apic)
+{
+	return kvm_apic_local_deliver(apic->vcpu, APIC_LVTT);
 }
 
 static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
