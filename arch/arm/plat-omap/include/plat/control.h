@@ -207,6 +207,10 @@
 #define OMAP3_PADCONF_WAKEUPEVENT0	(1 << 15)
 #define OMAP3_PADCONF_WAKEUPENABLE0	(1 << 14)
 
+#define OMAP343X_SCRATCHPAD_ROM		(OMAP343X_CTRL_BASE + 0x860)
+#define OMAP343X_SCRATCHPAD		(OMAP343X_CTRL_BASE + 0x910)
+#define OMAP343X_SCRATCHPAD_ROM_OFFSET	0x19C
+
 #ifndef __ASSEMBLY__
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
 		defined(CONFIG_ARCH_OMAP4)
@@ -217,6 +221,12 @@ extern u32 omap_ctrl_readl(u16 offset);
 extern void omap_ctrl_writeb(u8 val, u16 offset);
 extern void omap_ctrl_writew(u16 val, u16 offset);
 extern void omap_ctrl_writel(u32 val, u16 offset);
+
+extern void omap3_save_scratchpad_contents(void);
+extern void omap3_clear_scratchpad_contents(void);
+extern u32 *get_restore_pointer(void);
+extern u32 omap3_arm_context[128];
+
 #else
 #define omap_ctrl_base_get()		0
 #define omap_ctrl_readb(x)		0
