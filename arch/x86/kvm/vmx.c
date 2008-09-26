@@ -2767,6 +2767,7 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 
 	KVMTRACE_0D(PEND_INTR, vcpu, handler);
+	++vcpu->stat.irq_window_exits;
 
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
@@ -2775,7 +2776,6 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	if (kvm_run->request_interrupt_window &&
 	    !vcpu->arch.irq_summary) {
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
-		++vcpu->stat.irq_window_exits;
 		return 0;
 	}
 	return 1;
