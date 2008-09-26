@@ -246,41 +246,28 @@ struct dvb_frontend_event {
 	struct dvb_frontend_parameters parameters;
 };
 
-/* TODO: Turn this into a series of defines, so future maintainers
- * don't insert random new commands and break backwards
- * binary compatability.
- */
-typedef enum dtv_cmd_types {
-	DTV_UNDEFINED,
-	DTV_TUNE,
-	DTV_CLEAR,
+/* S2API Commands */
+#define DTV_UNDEFINED		0
+#define DTV_TUNE		1
+#define DTV_CLEAR		2
+#define DTV_FREQUENCY		3
+#define DTV_MODULATION		4
+#define DTV_BANDWIDTH_HZ	5
+#define DTV_INVERSION		6
+#define DTV_DISEQC_MASTER	7
+#define DTV_SYMBOL_RATE		8
+#define DTV_INNER_FEC		9
+#define DTV_VOLTAGE		10
+#define DTV_TONE		11
+#define DTV_PILOT		12
+#define DTV_ROLLOFF		13
+#define DTV_DISEQC_SLAVE_REPLY	14
 
-	DTV_FREQUENCY,
-	DTV_MODULATION,
+/* Basic enumeration set for querying unlimited capabilities */
+#define DTV_FE_CAPABILITY_COUNT	15
+#define DTV_FE_CAPABILITY	16
+#define DTV_DELIVERY_SYSTEM	17
 
-	/* XXX PB: I would like to have field which describes the
-	 * bandwidth of a channel in Hz or kHz - maybe we can remove the
-	 * DTV_BANDWIDTH now and put a compat layer */
-	DTV_BANDWIDTH_HZ,
-
-	DTV_INVERSION,
-	DTV_DISEQC_MASTER,
-	DTV_SYMBOL_RATE,
-	DTV_INNER_FEC,
-	DTV_VOLTAGE,
-	DTV_TONE,
-	DTV_PILOT,
-	DTV_ROLLOFF,
-
-	DTV_DISEQC_SLAVE_REPLY,
-
-	/* Basic enumeration set for querying unlimited capabilities */
-	DTV_FE_CAPABILITY_COUNT,
-	DTV_FE_CAPABILITY,
-
-	/* New commands are always appended */
-	DTV_DELIVERY_SYSTEM,
-} dtv_cmd_types_t;
 
 typedef enum fe_pilot {
 	PILOT_ON,
