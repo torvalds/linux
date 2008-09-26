@@ -397,9 +397,6 @@ static int do_probe_callback(void *data)
 	addr.sin_port = htons(cb->cb_port);
 	addr.sin_addr.s_addr = htonl(cb->cb_addr);
 
-	/* Initialize rpc_stat */
-	memset(args.program->stats, 0, sizeof(struct rpc_stat));
-
 	/* Create RPC client */
 	client = rpc_create(&args);
 	if (IS_ERR(client)) {
