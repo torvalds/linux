@@ -541,7 +541,7 @@ int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
  * yet with increased caps.
  * So we check for increased caps on the target process.
  */
-static inline int cap_safe_nice(struct task_struct *p)
+static int cap_safe_nice(struct task_struct *p)
 {
 	if (!cap_issubset(p->cap_permitted, current->cap_permitted) &&
 	    !capable(CAP_SYS_NICE))
