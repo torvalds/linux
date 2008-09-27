@@ -585,6 +585,13 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 	ACPI_EXCEPTION((AE_INFO, status,
 			"Could not update object reference count"));
 
+	/* Free any stacked Update State objects */
+
+	while (state_list) {
+		state = acpi_ut_pop_generic_state(&state_list);
+		acpi_ut_delete_generic_state(state);
+	}
+
 	return_ACPI_STATUS(status);
 }
 
