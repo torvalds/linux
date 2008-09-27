@@ -635,10 +635,12 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 					    ACPI_WALK_METHOD_RESTART;
 				}
 			} else {
-				/* On error, delete any return object */
+				/* On error, delete any return object or implicit return */
 
 				acpi_ut_remove_reference(previous_walk_state->
 							 return_desc);
+				acpi_ds_clear_implicit_return
+				    (previous_walk_state);
 			}
 		}
 
