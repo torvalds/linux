@@ -1255,8 +1255,7 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 	return 0;
 }
 
-int ieee80211_master_start_xmit(struct sk_buff *skb,
-				struct net_device *dev)
+int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
 	struct ieee80211_local *local = mpriv->local;
@@ -1308,8 +1307,6 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		}
 	} else if (unlikely(osdata->vif.type == NL80211_IFTYPE_MONITOR)) {
 		struct ieee80211_sub_if_data *sdata;
-		struct ieee80211_local *local = osdata->local;
-		struct ieee80211_hdr *hdr;
 		int hdrlen;
 		u16 len_rthdr;
 
