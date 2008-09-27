@@ -105,7 +105,6 @@ static void atlx_check_for_link(struct atlx_adapter *adapter)
 				netdev->name);
 			adapter->link_speed = SPEED_0;
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
 		}
 	}
 	schedule_work(&adapter->link_chg_task);

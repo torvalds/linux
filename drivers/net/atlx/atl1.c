@@ -2642,6 +2642,7 @@ static void atl1_down(struct atl1_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
+	netif_stop_queue(netdev);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_config_timer);
 	adapter->phy_timer_pending = false;
@@ -2655,7 +2656,6 @@ static void atl1_down(struct atl1_adapter *adapter)
 	adapter->link_speed = SPEED_0;
 	adapter->link_duplex = -1;
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	atl1_clean_tx_ring(adapter);
 	atl1_clean_rx_ring(adapter);
@@ -2723,6 +2723,8 @@ static int atl1_open(struct net_device *netdev)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	int err;
+
+	netif_carrier_off(netdev);
 
 	/* allocate transmit descriptors */
 	err = atl1_setup_ring_resources(adapter);
