@@ -195,7 +195,28 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 	} else {
 		/*
 		 * 2) Object is not a method, return its current value
+		 *
+		 * Disallow certain object types. For these, "evaluation" is undefined.
 		 */
+		switch (info->resolved_node->type) {
+		case ACPI_TYPE_DEVICE:
+		case ACPI_TYPE_EVENT:
+		case ACPI_TYPE_MUTEX:
+		case ACPI_TYPE_REGION:
+		case ACPI_TYPE_THERMAL:
+		case ACPI_TYPE_LOCAL_SCOPE:
+
+			ACPI_ERROR((AE_INFO,
+				    "[%4.4s] Evaluation of object type [%s] is not supported",
+				    info->resolved_node->name.ascii,
+				    acpi_ut_get_type_name(info->resolved_node->
+							  type)));
+
+			return_ACPI_STATUS(AE_TYPE);
+
+		default:
+			break;
+		}
 
 		/*
 		 * Objects require additional resolution steps (e.g., the Node may be
