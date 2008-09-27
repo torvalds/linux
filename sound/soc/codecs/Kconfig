@@ -3,6 +3,7 @@ config SND_SOC_ALL_CODECS
 	depends on I2C
 	select SPI
 	select SPI_MASTER
+	select SND_SOC_AD73311
 	select SND_SOC_AK4535
 	select SND_SOC_CS4270
 	select SND_SOC_SSM2602
@@ -32,6 +33,9 @@ config SND_SOC_AC97_CODEC
 	select SND_AC97_CODEC
 
 config SND_SOC_AD1980
+	tristate
+
+config SND_SOC_AD73311
 	tristate
 
 config SND_SOC_AK4535
