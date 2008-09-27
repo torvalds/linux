@@ -741,10 +741,12 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							      obj_desc->
 							      reference.offset,
 							      walk_state,
+							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node
-							       **)&obj_desc->
-							      reference.object);
+							       acpi_namespace_node,
+							       &obj_desc->
+							       reference.
+							       object));
 #endif
 			break;
 
@@ -760,10 +762,12 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							      obj_desc->
 							      reference.offset,
 							      walk_state,
+							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node
-							       **)&obj_desc->
-							      reference.object);
+							       acpi_namespace_node,
+							       &obj_desc->
+							       reference.
+							       object));
 #endif
 			break;
 

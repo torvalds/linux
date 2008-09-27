@@ -318,6 +318,7 @@ struct acpi_object_reference {
 	struct acpi_namespace_node *node;
 	union acpi_operand_object **where;
 	u32 offset;		/* Used for arg_op, local_op, and index_op */
+	u32 value;		/* Used for ddb_handle */
 };
 
 /*

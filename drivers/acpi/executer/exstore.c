@@ -193,8 +193,8 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 		if (source_desc->reference.opcode == AML_LOAD_OP) {	/* Load and load_table */
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
-					      " Table OwnerId %p\n",
-					      source_desc->reference.object));
+					      " Table Index %X\n",
+					      source_desc->reference.value));
 			break;
 		}
 

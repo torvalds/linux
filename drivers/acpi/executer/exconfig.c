@@ -96,7 +96,7 @@ acpi_ex_add_table(u32 table_index,
 
 	/* Install the new table into the local data structures */
 
-	obj_desc->reference.object = ACPI_TO_POINTER(table_index);
+	obj_desc->reference.value = table_index;
 
 	/* Add the table to the namespace */
 
@@ -505,9 +505,9 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the table index from the ddb_handle (acpi_size for 64-bit case) */
+	/* Get the table index from the ddb_handle */
 
-	table_index = (u32) (acpi_size) table_desc->reference.object;
+	table_index = table_desc->reference.value;
 
 	/* Invoke table handler if present */
 

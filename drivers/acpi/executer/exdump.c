@@ -214,10 +214,11 @@ static struct acpi_exdump_info acpi_ex_dump_index_field[5] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(index_field.data_obj), "Data Object"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_reference[7] = {
+static struct acpi_exdump_info acpi_ex_dump_reference[8] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_reference), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(reference.target_type), "Target Type"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(reference.offset), "Offset"},
+	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(reference.value), "Value"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.object), "Object Desc"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.node), "Node"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.where), "Where"},
@@ -497,24 +498,24 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 		switch (obj_desc->reference.opcode) {
 		case AML_DEBUG_OP:
 
-			acpi_os_printf("Reference: Debug\n");
+			acpi_os_printf("Reference: [Debug]\n");
 			break;
 
 		case AML_INDEX_OP:
 
-			acpi_os_printf("Reference: Index %p\n",
+			acpi_os_printf("Reference: [Index] %p\n",
 				       obj_desc->reference.object);
 			break;
 
 		case AML_LOAD_OP:
 
-			acpi_os_printf("Reference: [DdbHandle] TableIndex %p\n",
-				       obj_desc->reference.object);
+			acpi_os_printf("Reference: [DdbHandle] TableIndex %X\n",
+				       obj_desc->reference.value);
 			break;
 
 		case AML_REF_OF_OP:
 
-			acpi_os_printf("Reference: (RefOf) %p [%s]\n",
+			acpi_os_printf("Reference: [RefOf] %p [%s]\n",
 				       obj_desc->reference.object,
 				       acpi_ut_get_type_name(((union
 							       acpi_operand_object
@@ -526,7 +527,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case AML_ARG_OP:
 
-			acpi_os_printf("Reference: Arg%d",
+			acpi_os_printf("Reference: [Arg%d]",
 				       obj_desc->reference.offset);
 
 			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
@@ -544,7 +545,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case AML_LOCAL_OP:
 
-			acpi_os_printf("Reference: Local%d",
+			acpi_os_printf("Reference: [Local%d]",
 				       obj_desc->reference.offset);
 
 			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
@@ -562,7 +563,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case AML_INT_NAMEPATH_OP:
 
-			acpi_os_printf("Reference: Namepath %X [%4.4s]\n",
+			acpi_os_printf("Reference: [Namepath] %X [%4.4s]\n",
 				       obj_desc->reference.node->name.integer,
 				       obj_desc->reference.node->name.ascii);
 			break;
@@ -883,13 +884,11 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 			acpi_os_printf(" Target: %p",
 				       obj_desc->reference.object);
 			if (obj_desc->reference.opcode == AML_LOAD_OP) {
-				/*
-				 * For DDBHandle reference,
-				 * obj_desc->Reference.Object is the table index
-				 */
-				acpi_os_printf(" [DDBHandle]\n");
+				acpi_os_printf(" [DDBHandle] Table Index: %X\n",
+					       obj_desc->reference.value);
 			} else {
-				acpi_os_printf(" [%s]\n",
+				acpi_os_printf(" Target: %p [%s]\n",
+					       obj_desc->reference.object,
 					       acpi_ut_get_type_name(((union
 								       acpi_operand_object
 								       *)
