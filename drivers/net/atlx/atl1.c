@@ -24,16 +24,12 @@
  * file called COPYING.
  *
  * Contact Information:
- * Xiong Huang <xiong_huang@attansic.com>
- * Attansic Technology Corp. 3F 147, Xianzheng 9th Road, Zhubei,
- * Xinzhu  302, TAIWAN, REPUBLIC OF CHINA
- *
+ * Xiong Huang <xiong.huang@atheros.com>
+ * Jie Yang <jie.yang@atheros.com>
  * Chris Snook <csnook@redhat.com>
  * Jay Cliburn <jcliburn@gmail.com>
  *
- * This version is adapted from the Attansic reference driver for
- * inclusion in the Linux kernel.  It is currently under heavy development.
- * A very incomplete list of things that need to be dealt with:
+ * This version is adapted from the Attansic reference driver.
  *
  * TODO:
  * Add more ethtool functions.
