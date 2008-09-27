@@ -610,16 +610,11 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	return 0;
 
 error:
-	if (codec->control_data) {
-		i2c_detach_client(i2c_client);
-		codec->control_data = NULL;
-	}
+	codec->control_data = NULL;
 
 	kfree(codec->reg_cache);
 	codec->reg_cache = NULL;
 	codec->reg_cache_size = 0;
-
-	kfree(i2c_client);
 
 	return ret;
 }
