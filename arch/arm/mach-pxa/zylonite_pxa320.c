@@ -123,6 +123,10 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO28_MMC2_CLK,
 	GPIO29_MMC2_CMD,
 
+	/* USB Host */
+	GPIO2_2_USBH_PEN,
+	GPIO3_2_USBH_PWR,
+
 	/* Debug LEDs */
 	GPIO1_2_GPIO | MFP_LPM_DRIVE_HIGH,
 	GPIO4_2_GPIO | MFP_LPM_DRIVE_HIGH,

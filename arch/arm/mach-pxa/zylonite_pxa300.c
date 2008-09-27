@@ -119,6 +119,10 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO13_MMC2_CLK,
 	GPIO14_MMC2_CMD,
 
+	/* USB Host */
+	GPIO0_2_USBH_PEN,
+	GPIO1_2_USBH_PWR,
+
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
 	GPIO22_I2C_SDA,
