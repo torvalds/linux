@@ -425,19 +425,9 @@ static struct pxaficp_platform_data trizeps4_ficp_platform_data = {
 /****************************************************************************
  * OHCI USB port
  ****************************************************************************/
-static int trizeps4_ohci_init(struct device *dev)
-{
-	/* Set the Power Control Polarity Low and Power Sense
-	   Polarity Low to active low. */
-	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data trizeps4_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= trizeps4_ohci_init,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
 };
 
 static struct map_desc trizeps4_io_desc[] __initdata = {

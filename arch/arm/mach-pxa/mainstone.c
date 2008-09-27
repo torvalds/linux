@@ -508,19 +508,9 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mst_gpio_keys_device,
 };
 
-static int mainstone_ohci_init(struct device *dev)
-{
-	/* Set the Power Control Polarity Low and Power Sense
-	   Polarity Low to active low. */
-	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data mainstone_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= mainstone_ohci_init,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
 };
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)

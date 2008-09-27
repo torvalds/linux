@@ -495,19 +495,13 @@ static int spitz_ohci_init(struct device *dev)
 	 */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
 
-	gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
-
-	UHCHR = (UHCHR) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	UHCRHDA |= UHCRHDA_NOCP;
-
-	return 0;
+	return gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
 }
 
 static struct pxaohci_platform_data spitz_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	.init		= spitz_ohci_init,
+	.flags		= ENABLE_PORT_ALL | NO_OC_PROTECTION,
 	.power_budget	= 150,
 };
 

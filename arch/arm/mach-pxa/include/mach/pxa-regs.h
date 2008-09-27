@@ -784,6 +784,9 @@
 
 #define UHCRHDA		__REG(0x4C000048) /* UHC Root Hub Descriptor A */
 #define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
+#define UHCRHDA_OCPM	(1 << 11)	/* Over Current Protection Mode */
+#define UHCRHDA_POTPGT(x) \
+			(((x) & 0xff) << 24) /* Power On To Power Good Time */
 
 #define UHCRHDB		__REG(0x4C00004C) /* UHC Root Hub Descriptor B */
 #define UHCRHS		__REG(0x4C000050) /* UHC Root Hub Status */

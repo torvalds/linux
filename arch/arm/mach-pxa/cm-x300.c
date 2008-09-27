@@ -365,19 +365,11 @@ static inline void cm_x300_init_mmc(void) {}
 #endif
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-static int cm_x300_ohci_init(struct device *dev)
-{
-	/* Set the Power Control Polarity Low */
-	UHCHR = (UHCHR | UHCHR_PCPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data cm_x300_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= cm_x300_ohci_init,
+	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
 };
+
 static void __init cm_x300_init_ohci(void)
 {
 	pxa_set_ohci_info(&cm_x300_ohci_platform_data);

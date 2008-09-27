@@ -76,6 +76,41 @@ extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
 
+static inline void pxa27x_setup_hc(struct pxaohci_platform_data *inf)
+{
+	uint32_t uhchr = UHCHR;
+	uint32_t uhcrhda = UHCRHDA;
+
+	if (inf->flags & ENABLE_PORT1)
+		uhchr &= ~UHCHR_SSEP1;
+
+	if (inf->flags & ENABLE_PORT2)
+		uhchr &= ~UHCHR_SSEP2;
+
+	if (inf->flags & ENABLE_PORT3)
+		uhchr &= ~UHCHR_SSEP3;
+
+	if (inf->flags & POWER_CONTROL_LOW)
+		uhchr |= UHCHR_PCPL;
+
+	if (inf->flags & POWER_SENSE_LOW)
+		uhchr |= UHCHR_PSPL;
+
+	if (inf->flags & NO_OC_PROTECTION)
+		uhcrhda |= UHCRHDA_NOCP;
+
+	if (inf->flags & OC_MODE_PERPORT)
+		uhcrhda |= UHCRHDA_OCPM;
+
+	if (inf->power_on_delay) {
+		uhcrhda &= ~UHCRHDA_POTPGT(0xff);
+		uhcrhda |= UHCRHDA_POTPGT(inf->power_on_delay / 2);
+	}
+
+	UHCHR = uhchr;
+	UHCRHDA = uhcrhda;
+}
+
 static int pxa27x_start_hc(struct device *dev)
 {
 	int retval = 0;
@@ -92,6 +127,8 @@ static int pxa27x_start_hc(struct device *dev)
 	UHCHR |= UHCHR_FSBIR;
 	while (UHCHR & UHCHR_FSBIR)
 		cpu_relax();
+
+	pxa27x_setup_hc(inf);
 
 	if (inf->init)
 		retval = inf->init(dev);

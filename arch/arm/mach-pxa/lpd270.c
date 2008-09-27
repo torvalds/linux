@@ -448,19 +448,9 @@ static struct platform_device *platform_devices[] __initdata = {
 	&lpd270_flash_device[1],
 };
 
-static int lpd270_ohci_init(struct device *dev)
-{
-	/* Set the Power Control Polarity Low and Power Sense
-	   Polarity Low to active low. */
-	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data lpd270_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= lpd270_ohci_init,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
 };
 
 static void __init lpd270_init(void)
