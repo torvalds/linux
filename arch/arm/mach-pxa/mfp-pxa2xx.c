@@ -338,6 +338,9 @@ static int __init pxa2xx_mfp_init(void)
 {
 	int i;
 
+	if (!cpu_is_pxa2xx())
+		return 0;
+
 	if (cpu_is_pxa25x())
 		pxa25x_mfp_init();
 
