@@ -43,7 +43,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
-#include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
 #include <acpi/actables.h>
 #include <acpi/acdispat.h>
@@ -91,7 +90,7 @@ acpi_ex_add_table(u32 table_index,
 
 	/* Init the table handle */
 
-	obj_desc->reference.opcode = AML_LOAD_OP;
+	obj_desc->reference.class = ACPI_REFCLASS_TABLE;
 	*ddb_handle = obj_desc;
 
 	/* Install the new table into the local data structures */

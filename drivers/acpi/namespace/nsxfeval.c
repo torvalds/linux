@@ -45,7 +45,6 @@
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acinterp.h>
-#include <acpi/amlcode.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsxfeval")
@@ -399,13 +398,13 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 	 * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
 	 * an union acpi_object.
 	 */
-	switch (info->return_object->reference.opcode) {
-	case AML_INDEX_OP:
+	switch (info->return_object->reference.class) {
+	case ACPI_REFCLASS_INDEX:
 
 		obj_desc = *(info->return_object->reference.where);
 		break;
 
-	case AML_REF_OF_OP:
+	case ACPI_REFCLASS_REFOF:
 
 		node = info->return_object->reference.object;
 		if (node) {

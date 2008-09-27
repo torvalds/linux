@@ -123,6 +123,10 @@ void acpi_db_check_integrity(void);
 
 void acpi_db_generate_gpe(char *gpe_arg, char *block_arg);
 
+void acpi_db_check_predefined_names(void);
+
+void acpi_db_batch_execute(void);
+
 /*
  * dbdisply - debug display commands
  */

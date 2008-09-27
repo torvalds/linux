@@ -45,7 +45,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
-#include <acpi/amlcode.h>
 
 ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
 #define _COMPONENT          ACPI_UTILITIES
@@ -590,25 +589,31 @@ char *acpi_ut_get_descriptor_name(void *object)
 
 /* Printable names of reference object sub-types */
 
+static const char *acpi_gbl_ref_class_names[] = {
+	/* 00 */ "Local",
+	/* 01 */ "Argument",
+	/* 02 */ "RefOf",
+	/* 03 */ "Index",
+	/* 04 */ "DdbHandle",
+	/* 05 */ "Named Object",
+	/* 06 */ "Debug"
+};
+
 const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
 {
+	if (!object)
+		return "NULL Object";
 
-	switch (object->reference.opcode) {
-	case AML_INT_NAMEPATH_OP:
-		return "Name";
+	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND)
+		return "Not an Operand object";
 
-	case AML_LOAD_OP:
-		return "DDB-Handle";
+	if (object->common.type != ACPI_TYPE_LOCAL_REFERENCE)
+		return "Not a Reference object";
 
-	case AML_REF_OF_OP:
-		return "RefOf";
+	if (object->reference.class > ACPI_REFCLASS_MAX)
+		return "Unknown Reference class";
 
-	case AML_INDEX_OP:
-		return "Index";
-
-	default:
-		return "Unknown";
-	}
+	return acpi_gbl_ref_class_names[object->reference.class];
 }
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
@@ -812,4 +817,4 @@ acpi_status acpi_ut_init_globals(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
-    ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
