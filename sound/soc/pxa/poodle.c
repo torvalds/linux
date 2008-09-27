@@ -242,8 +242,8 @@ static int poodle_wm8731_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_disable_pin(codec, "LLINEIN");
-	snd_soc_dapm_disable_pin(codec, "RLINEIN");
+	snd_soc_dapm_nc_pin(codec, "LLINEIN");
+	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 	snd_soc_dapm_enable_pin(codec, "MICIN");
 
 	/* Add poodle specific controls */

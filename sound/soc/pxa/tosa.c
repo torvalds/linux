@@ -190,8 +190,8 @@ static int tosa_ac97_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "MONOOUT");
+	snd_soc_dapm_nc_pin(codec, "OUT3");
+	snd_soc_dapm_nc_pin(codec, "MONOOUT");
 
 	/* add tosa specific controls */
 	for (i = 0; i < ARRAY_SIZE(tosa_controls); i++) {

@@ -291,13 +291,13 @@ static int spitz_wm8750_init(struct snd_soc_codec *codec)
 	int i, err;
 
 	/* NC codec pins */
-	snd_soc_dapm_disable_pin(codec, "RINPUT1");
-	snd_soc_dapm_disable_pin(codec, "LINPUT2");
-	snd_soc_dapm_disable_pin(codec, "RINPUT2");
-	snd_soc_dapm_disable_pin(codec, "LINPUT3");
-	snd_soc_dapm_disable_pin(codec, "RINPUT3");
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "MONO1");
+	snd_soc_dapm_nc_pin(codec, "RINPUT1");
+	snd_soc_dapm_nc_pin(codec, "LINPUT2");
+	snd_soc_dapm_nc_pin(codec, "RINPUT2");
+	snd_soc_dapm_nc_pin(codec, "LINPUT3");
+	snd_soc_dapm_nc_pin(codec, "RINPUT3");
+	snd_soc_dapm_nc_pin(codec, "OUT3");
+	snd_soc_dapm_nc_pin(codec, "MONO1");
 
 	/* Add spitz specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8750_spitz_controls); i++) {
