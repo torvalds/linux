@@ -277,8 +277,8 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 
 #define MAX_IBS_SAMPLE_SIZE 14
 
-void oprofile_add_ibs_sample(struct pt_regs *const regs,
-			     unsigned int *const ibs_sample, int ibs_code)
+void oprofile_add_ibs_sample(struct pt_regs * const regs,
+			     unsigned int * const ibs_sample, int ibs_code)
 {
 	int is_kernel = !user_mode(regs);
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
