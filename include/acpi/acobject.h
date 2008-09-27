@@ -379,6 +379,13 @@ union acpi_operand_object {
 	struct acpi_object_extra extra;
 	struct acpi_object_data data;
 	struct acpi_object_cache_list cache;
+
+	/*
+	 * Add namespace node to union in order to simplify code that accepts both
+	 * ACPI_OPERAND_OBJECTs and ACPI_NAMESPACE_NODEs. The structures share
+	 * a common descriptor_type field in order to differentiate them.
+	 */
+	struct acpi_namespace_node node;
 };
 
 /******************************************************************************
