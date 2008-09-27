@@ -148,21 +148,22 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 				info->param_count++;
 		}
 
-		/* Error if too few arguments were passed in */
+		/*
+		 * Warning if too few or too many arguments have been passed by the
+		 * caller. We don't want to abort here with an error because an
+		 * incorrect number of arguments may not cause the method to fail.
+		 * However, the method will fail if there are too few arguments passed
+		 * and the method attempts to use one of the missing ones.
+		 */
 
 		if (info->param_count < info->obj_desc->method.param_count) {
-			ACPI_ERROR((AE_INFO,
+			ACPI_WARNING((AE_INFO,
 				    "Insufficient arguments - "
 				    "method [%4.4s] needs %d, found %d",
 				    acpi_ut_get_node_name(info->resolved_node),
 				    info->obj_desc->method.param_count,
 				    info->param_count));
-			return_ACPI_STATUS(AE_MISSING_ARGUMENTS);
-		}
-
-		/* Just a warning if too many arguments */
-
-		else if (info->param_count >
+		} else if (info->param_count >
 				info->obj_desc->method.param_count) {
 			ACPI_WARNING((AE_INFO,
 				      "Excess arguments - "
