@@ -247,9 +247,9 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	int i, err;
 
 	/* Not connected */
-	snd_soc_dapm_disable_pin(codec, "MONO_LOUT");
-	snd_soc_dapm_disable_pin(codec, "HPLCOM");
-	snd_soc_dapm_disable_pin(codec, "HPRCOM");
+	snd_soc_dapm_nc_pin(codec, "MONO_LOUT");
+	snd_soc_dapm_nc_pin(codec, "HPLCOM");
+	snd_soc_dapm_nc_pin(codec, "HPRCOM");
 
 	/* Add N810 specific controls */
 	for (i = 0; i < ARRAY_SIZE(aic33_n810_controls); i++) {
