@@ -512,9 +512,14 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		/*
 		 * Create a new string object and string buffer
 		 * (-1 because of extra separator included in string_length from above)
+		 * Allow creation of zero-length strings from zero-length buffers.
 		 */
+		if (string_length) {
+			string_length--;
+		}
+
 		return_desc = acpi_ut_create_string_object((acpi_size)
-							   (string_length - 1));
+							   string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -537,7 +542,9 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		 * Null terminate the string
 		 * (overwrites final comma/space from above)
 		 */
-		new_buf--;
+		if (obj_desc->buffer.length) {
+			new_buf--;
+		}
 		*new_buf = 0;
 		break;
 
