@@ -25,9 +25,80 @@
 #include <linux/clk.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h> /* FIXME: for PSSR */
 #include <mach/ohci.h>
+
+/*
+ * UHC: USB Host Controller (OHCI-like) register definitions
+ */
+#define UHC_BASE_PHYS	(0x4C000000)
+#define UHCREV		__REG(0x4C000000) /* UHC HCI Spec Revision */
+#define UHCHCON		__REG(0x4C000004) /* UHC Host Control Register */
+#define UHCCOMS		__REG(0x4C000008) /* UHC Command Status Register */
+#define UHCINTS		__REG(0x4C00000C) /* UHC Interrupt Status Register */
+#define UHCINTE		__REG(0x4C000010) /* UHC Interrupt Enable */
+#define UHCINTD		__REG(0x4C000014) /* UHC Interrupt Disable */
+#define UHCHCCA		__REG(0x4C000018) /* UHC Host Controller Comm. Area */
+#define UHCPCED		__REG(0x4C00001C) /* UHC Period Current Endpt Descr */
+#define UHCCHED		__REG(0x4C000020) /* UHC Control Head Endpt Descr */
+#define UHCCCED		__REG(0x4C000024) /* UHC Control Current Endpt Descr */
+#define UHCBHED		__REG(0x4C000028) /* UHC Bulk Head Endpt Descr */
+#define UHCBCED		__REG(0x4C00002C) /* UHC Bulk Current Endpt Descr */
+#define UHCDHEAD	__REG(0x4C000030) /* UHC Done Head */
+#define UHCFMI		__REG(0x4C000034) /* UHC Frame Interval */
+#define UHCFMR		__REG(0x4C000038) /* UHC Frame Remaining */
+#define UHCFMN		__REG(0x4C00003C) /* UHC Frame Number */
+#define UHCPERS		__REG(0x4C000040) /* UHC Periodic Start */
+#define UHCLS		__REG(0x4C000044) /* UHC Low Speed Threshold */
+
+#define UHCRHDA		__REG(0x4C000048) /* UHC Root Hub Descriptor A */
+#define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
+#define UHCRHDA_OCPM	(1 << 11)	/* Over Current Protection Mode */
+#define UHCRHDA_POTPGT(x) \
+			(((x) & 0xff) << 24) /* Power On To Power Good Time */
+
+#define UHCRHDB		__REG(0x4C00004C) /* UHC Root Hub Descriptor B */
+#define UHCRHS		__REG(0x4C000050) /* UHC Root Hub Status */
+#define UHCRHPS1	__REG(0x4C000054) /* UHC Root Hub Port 1 Status */
+#define UHCRHPS2	__REG(0x4C000058) /* UHC Root Hub Port 2 Status */
+#define UHCRHPS3	__REG(0x4C00005C) /* UHC Root Hub Port 3 Status */
+
+#define UHCSTAT		__REG(0x4C000060) /* UHC Status Register */
+#define UHCSTAT_UPS3	(1 << 16)	/* USB Power Sense Port3 */
+#define UHCSTAT_SBMAI	(1 << 15)	/* System Bus Master Abort Interrupt*/
+#define UHCSTAT_SBTAI	(1 << 14)	/* System Bus Target Abort Interrupt*/
+#define UHCSTAT_UPRI	(1 << 13)	/* USB Port Resume Interrupt */
+#define UHCSTAT_UPS2	(1 << 12)	/* USB Power Sense Port 2 */
+#define UHCSTAT_UPS1	(1 << 11)	/* USB Power Sense Port 1 */
+#define UHCSTAT_HTA	(1 << 10)	/* HCI Target Abort */
+#define UHCSTAT_HBA	(1 << 8)	/* HCI Buffer Active */
+#define UHCSTAT_RWUE	(1 << 7)	/* HCI Remote Wake Up Event */
+
+#define UHCHR           __REG(0x4C000064) /* UHC Reset Register */
+#define UHCHR_SSEP3	(1 << 11)	/* Sleep Standby Enable for Port3 */
+#define UHCHR_SSEP2	(1 << 10)	/* Sleep Standby Enable for Port2 */
+#define UHCHR_SSEP1	(1 << 9)	/* Sleep Standby Enable for Port1 */
+#define UHCHR_PCPL	(1 << 7)	/* Power control polarity low */
+#define UHCHR_PSPL	(1 << 6)	/* Power sense polarity low */
+#define UHCHR_SSE	(1 << 5)	/* Sleep Standby Enable */
+#define UHCHR_UIT	(1 << 4)	/* USB Interrupt Test */
+#define UHCHR_SSDC	(1 << 3)	/* Simulation Scale Down Clock */
+#define UHCHR_CGR	(1 << 2)	/* Clock Generation Reset */
+#define UHCHR_FHR	(1 << 1)	/* Force Host Controller Reset */
+#define UHCHR_FSBIR	(1 << 0)	/* Force System Bus Iface Reset */
+
+#define UHCHIE          __REG(0x4C000068) /* UHC Interrupt Enable Register*/
+#define UHCHIE_UPS3IE	(1 << 14)	/* Power Sense Port3 IntEn */
+#define UHCHIE_UPRIE	(1 << 13)	/* Port Resume IntEn */
+#define UHCHIE_UPS2IE	(1 << 12)	/* Power Sense Port2 IntEn */
+#define UHCHIE_UPS1IE	(1 << 11)	/* Power Sense Port1 IntEn */
+#define UHCHIE_TAIE	(1 << 10)	/* HCI Interface Transfer Abort
+					   Interrupt Enable*/
+#define UHCHIE_HBAIE	(1 << 8)	/* HCI Buffer Active IntEn */
+#define UHCHIE_RWIE	(1 << 7)	/* Remote Wake-up IntEn */
+
+#define UHCHIT          __REG(0x4C00006C) /* UHC Interrupt Test register */
+
 
 #define PXA_UHC_MAX_PORTNUM    3
 
