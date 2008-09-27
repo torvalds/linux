@@ -836,6 +836,13 @@ static int __init enable_mtrr_cleanup_setup(char *str)
 }
 early_param("enble_mtrr_cleanup", enable_mtrr_cleanup_setup);
 
+static int __init mtrr_cleanup_debug_setup(char *str)
+{
+	debug_print = 1;
+	return 0;
+}
+early_param("mtrr_cleanup_debug", mtrr_cleanup_debug_setup);
+
 struct var_mtrr_state {
 	unsigned long	range_startk;
 	unsigned long	range_sizek;
@@ -1227,7 +1234,7 @@ static int __init mtrr_cleanup(unsigned address_bits)
 	if (mtrr_chunk_size && mtrr_gran_size) {
 		int num_reg;
 
-		debug_print = 1;
+		debug_print++;
 		/* convert ranges to var ranges state */
 		num_reg = x86_setup_var_mtrrs(range, nr_range, mtrr_chunk_size,
 					      mtrr_gran_size);
@@ -1263,7 +1270,7 @@ static int __init mtrr_cleanup(unsigned address_bits)
 		}
 		printk(KERN_INFO "invalid mtrr_gran_size or mtrr_chunk_size, "
 		       "will find optimal one\n");
-		debug_print = 0;
+		debug_print--;
 		memset(result, 0, sizeof(result[0]));
 	}
 
@@ -1366,8 +1373,9 @@ static int __init mtrr_cleanup(unsigned address_bits)
 		chunk_size <<= 10;
 		gran_size = result[i].gran_sizek;
 		gran_size <<= 10;
-		debug_print = 1;
+		debug_print++;
 		x86_setup_var_mtrrs(range, nr_range, chunk_size, gran_size);
+		debug_print--;
 		set_var_mtrr_all(address_bits);
 		return 1;
 	}
