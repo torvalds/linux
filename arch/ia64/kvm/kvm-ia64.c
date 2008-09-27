@@ -45,6 +45,7 @@
 #include "iodev.h"
 #include "ioapic.h"
 #include "lapic.h"
+#include "irq.h"
 
 static unsigned long kvm_vmm_base;
 static unsigned long kvm_vsa_base;

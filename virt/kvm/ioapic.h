@@ -79,13 +79,6 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 	return kvm->arch.vioapic;
 }
 
-#ifdef CONFIG_IA64
-static inline int irqchip_in_kernel(struct kvm *kvm)
-{
-	return 1;
-}
-#endif
-
 struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
 				       unsigned long bitmap);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
