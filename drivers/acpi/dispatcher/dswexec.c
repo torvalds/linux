@@ -166,6 +166,10 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 		status = AE_CTRL_FALSE;
 	}
 
+	/* Predicate can be used for an implicit return value */
+
+	(void)acpi_ds_do_implicit_return(local_obj_desc, walk_state, TRUE);
+
       cleanup:
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%p\n",
