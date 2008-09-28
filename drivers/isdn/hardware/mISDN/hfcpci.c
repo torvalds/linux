@@ -23,6 +23,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
+ * Module options:
+ *
+ * debug:
+ *	NOTE: only one poll value must be given for all cards
+ *	See hfc_pci.h for debug flags.
+ *
+ * poll:
+ *	NOTE: only one poll value must be given for all cards
+ *	Give the number of samples for each fifo process.
+ *	By default 128 is used. Decrease to reduce delay, increase to
+ *	reduce cpu load. If unsure, don't mess with it!
+ *	A value of 128 will use controller's interrupt. Other values will
+ *	use kernel timer, because the controller will not allow lower values
+ *	than 128.
+ *	Also note that the value depends on the kernel timer frequency.
+ *	If kernel uses a frequency of 1000 Hz, steps of 8 samples are possible.
+ *	If the kernel uses 100 Hz, steps of 80 samples are possible.
+ *	If the kernel uses 300 Hz, steps of about 26 samples are possible.
+ *
  */
 
 #include <linux/module.h>
@@ -36,10 +55,14 @@ static const char *hfcpci_revision = "2.0";
 
 static int HFC_cnt;
 static uint debug;
+static uint poll, tics;
+struct timer_list hfc_tl;
+u32	hfc_jiffies;
 
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL");
 module_param(debug, uint, 0);
+module_param(poll, uint, S_IRUGO | S_IWUSR);
 
 static LIST_HEAD(HFClist);
 static DEFINE_RWLOCK(HFClock);
@@ -519,9 +542,9 @@ receive_dmsg(struct hfc_pci *hc)
 }
 
 /*
- * check for transparent receive data and read max one threshold size if avail
+ * check for transparent receive data and read max one 'poll' size if avail
  */
-static int
+static void
 hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *bz, u_char *bdata)
 {
 	 __le16 *z1r, *z2r;
@@ -533,16 +556,18 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *bz, u_char *bdata)
 
 	fcnt = le16_to_cpu(*z1r) - le16_to_cpu(*z2r);
 	if (!fcnt)
-		return 0;	/* no data avail */
+		return;	/* no data avail */
 
 	if (fcnt <= 0)
 		fcnt += B_FIFO_SIZE;	/* bytes actually buffered */
-	if (fcnt > HFCPCI_BTRANS_THRESHOLD)
-		fcnt = HFCPCI_BTRANS_THRESHOLD;		/* limit size */
-
 	new_z2 = le16_to_cpu(*z2r) + fcnt;	/* new position in fifo */
 	if (new_z2 >= (B_FIFO_SIZE + B_SUB_VAL))
 		new_z2 -= B_FIFO_SIZE;	/* buffer wrap */
+
+	if (fcnt > MAX_DATA_SIZE) {	/* flush, if oversized */
+		*z2r = cpu_to_le16(new_z2);		/* new position */
+		return;
+	}
 
 	bch->rx_skb = mI_alloc_skb(fcnt, GFP_ATOMIC);
 	if (bch->rx_skb) {
@@ -568,7 +593,6 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *bz, u_char *bdata)
 		printk(KERN_WARNING "HFCPCI: receive out of memory\n");
 
 	*z2r = cpu_to_le16(new_z2);		/* new position */
-	return 1;
 }
 
 /*
@@ -579,11 +603,10 @@ main_rec_hfcpci(struct bchannel *bch)
 {
 	struct hfc_pci	*hc = bch->hw;
 	int		rcnt, real_fifo;
-	int		receive, count = 5;
+	int		receive = 0, count = 5;
 	struct bzfifo	*bz;
 	u_char		*bdata;
 	struct zt	*zp;
-
 
 	if ((bch->nr & 2) && (!hc->hw.bswapped)) {
 		bz = &((union fifo_area *)(hc->hw.fifos))->b_chans.rxbz_b2;
@@ -624,9 +647,10 @@ Begin:
 			receive = 1;
 		else
 			receive = 0;
-	} else if (test_bit(FLG_TRANSPARENT, &bch->Flags))
-		receive = hfcpci_empty_fifo_trans(bch, bz, bdata);
-	else
+	} else if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
+		hfcpci_empty_fifo_trans(bch, bz, bdata);
+		return;
+	} else
 		receive = 0;
 	if (count && receive)
 		goto Begin;
@@ -782,9 +806,9 @@ hfcpci_fill_fifo(struct bchannel *bch)
 
 next_t_frame:
 		count = bch->tx_skb->len - bch->tx_idx;
-		/* maximum fill shall be HFCPCI_BTRANS_MAX */
-		if (count > HFCPCI_BTRANS_MAX - fcnt)
-			count = HFCPCI_BTRANS_MAX - fcnt;
+		/* maximum fill shall be poll*2 */
+		if (count > (poll << 1) - fcnt)
+			count = (poll << 1) - fcnt;
 		if (count <= 0)
 			return;
 		/* data is suitable for fifo */
@@ -1164,43 +1188,78 @@ hfcpci_int(int intno, void *dev_id)
 		val &= ~0x80;
 		Write_hfc(hc, HFCPCI_CTMT, hc->hw.ctmt | HFCPCI_CLTIMER);
 	}
-	if (val & 0x08) {
+	if (val & 0x08) { 	/* B1 rx */
 		bch = Sel_BCS(hc, hc->hw.bswapped ? 2 : 1);
 		if (bch)
 			main_rec_hfcpci(bch);
 		else if (hc->dch.debug)
 			printk(KERN_DEBUG "hfcpci spurious 0x08 IRQ\n");
 	}
-	if (val & 0x10) {
+	if (val & 0x10) {	/* B2 rx */
 		bch = Sel_BCS(hc, 2);
 		if (bch)
 			main_rec_hfcpci(bch);
 		else if (hc->dch.debug)
 			printk(KERN_DEBUG "hfcpci spurious 0x10 IRQ\n");
 	}
-	if (val & 0x01) {
+	if (val & 0x01) {	/* B1 tx */
 		bch = Sel_BCS(hc, hc->hw.bswapped ? 2 : 1);
 		if (bch)
 			tx_birq(bch);
 		else if (hc->dch.debug)
 			printk(KERN_DEBUG "hfcpci spurious 0x01 IRQ\n");
 	}
-	if (val & 0x02) {
+	if (val & 0x02) {	/* B2 tx */
 		bch = Sel_BCS(hc, 2);
 		if (bch)
 			tx_birq(bch);
 		else if (hc->dch.debug)
 			printk(KERN_DEBUG "hfcpci spurious 0x02 IRQ\n");
 	}
-	if (val & 0x20)
+	if (val & 0x20)		/* D rx */
 		receive_dmsg(hc);
-	if (val & 0x04) {	/* dframe transmitted */
+	if (val & 0x04) {	/* D tx */
 		if (test_and_clear_bit(FLG_BUSY_TIMER, &hc->dch.Flags))
 			del_timer(&hc->dch.timer);
 		tx_dirq(&hc->dch);
 	}
 	spin_unlock(&hc->lock);
 	return IRQ_HANDLED;
+}
+
+static void
+hfcpci_softirq(void *arg)
+{
+	u_long		flags;
+	struct bchannel	*bch;
+	struct hfc_pci	*hc;
+
+	write_lock_irqsave(&HFClock, flags);
+	list_for_each_entry(hc, &HFClist, list) {
+		if (hc->hw.int_m2 & HFCPCI_IRQ_ENABLE) {
+			spin_lock(&hc->lock);
+			bch = Sel_BCS(hc, hc->hw.bswapped ? 2 : 1);
+			if (bch && bch->state == ISDN_P_B_RAW) { /* B1 rx&tx */
+				main_rec_hfcpci(bch);
+				tx_birq(bch);
+			}
+			bch = Sel_BCS(hc, hc->hw.bswapped ? 1 : 2);
+			if (bch && bch->state == ISDN_P_B_RAW) { /* B2 rx&tx */
+				main_rec_hfcpci(bch);
+				tx_birq(bch);
+			}
+			spin_unlock(&hc->lock);
+		}
+	}
+	write_unlock_irqrestore(&HFClock, flags);
+
+	/* if next event would be in the past ... */
+	if ((s32)(hfc_jiffies + tics - jiffies) <= 0)
+		hfc_jiffies = jiffies + 1;
+	else
+		hfc_jiffies += tics;
+	hfc_tl.expires = hfc_jiffies;
+	add_timer(&hfc_tl);
 }
 
 /*
@@ -1312,14 +1371,16 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 		}
 		if (fifo2 & 2) {
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B2;
-			hc->hw.int_m1 |= (HFCPCI_INTS_B2TRANS +
-			    HFCPCI_INTS_B2REC);
+			if (!tics)
+				hc->hw.int_m1 |= (HFCPCI_INTS_B2TRANS +
+				    HFCPCI_INTS_B2REC);
 			hc->hw.ctmt |= 2;
 			hc->hw.conn &= ~0x18;
 		} else {
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B1;
-			hc->hw.int_m1 |= (HFCPCI_INTS_B1TRANS +
-			    HFCPCI_INTS_B1REC);
+			if (!tics)
+				hc->hw.int_m1 |= (HFCPCI_INTS_B1TRANS +
+				    HFCPCI_INTS_B1REC);
 			hc->hw.ctmt |= 1;
 			hc->hw.conn &= ~0x03;
 		}
@@ -1427,7 +1488,8 @@ set_hfcpci_rxtest(struct bchannel *bch, int protocol, int chan)
 		if (chan & 2) {
 			hc->hw.sctrl_r |= SCTRL_B2_ENA;
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B2RX;
-			hc->hw.int_m1 |= HFCPCI_INTS_B2REC;
+			if (!tics)
+				hc->hw.int_m1 |= HFCPCI_INTS_B2REC;
 			hc->hw.ctmt |= 2;
 			hc->hw.conn &= ~0x18;
 #ifdef REVERSE_BITORDER
@@ -1436,7 +1498,8 @@ set_hfcpci_rxtest(struct bchannel *bch, int protocol, int chan)
 		} else {
 			hc->hw.sctrl_r |= SCTRL_B1_ENA;
 			hc->hw.fifo_en |= HFCPCI_FIFOEN_B1RX;
-			hc->hw.int_m1 |= HFCPCI_INTS_B1REC;
+			if (!tics)
+				hc->hw.int_m1 |= HFCPCI_INTS_B1REC;
 			hc->hw.ctmt |= 1;
 			hc->hw.conn &= ~0x03;
 #ifdef REVERSE_BITORDER
@@ -2273,7 +2336,39 @@ HFC_init(void)
 {
 	int		err;
 
+	if (!poll)
+		poll = HFCPCI_BTRANS_THRESHOLD;
+
+	if (poll != HFCPCI_BTRANS_THRESHOLD) {
+		tics = poll * HZ / 8000;
+		if (tics < 1)
+			tics = 1;
+		poll = tics * 8000 / HZ;
+		if (poll > 256 || poll < 8) {
+			printk(KERN_ERR "%s: Wrong poll value %d not in range "
+				"of 8..256.\n", __func__, poll);
+			err = -EINVAL;
+			return err;
+		}
+	}
+	if (poll != HFCPCI_BTRANS_THRESHOLD) {
+		printk(KERN_INFO "%s: Using alternative poll value of %d\n",
+			__func__, poll);
+		hfc_tl.function = (void *)hfcpci_softirq;
+		hfc_tl.data = 0;
+		init_timer(&hfc_tl);
+		hfc_tl.expires = jiffies + tics;
+		hfc_jiffies = hfc_tl.expires;
+		add_timer(&hfc_tl);
+	} else
+		tics = 0; /* indicate the use of controller's timer */
+
 	err = pci_register_driver(&hfc_driver);
+	if (err) {
+		if (timer_pending(&hfc_tl))
+			del_timer(&hfc_tl);
+	}
+
 	return err;
 }
 
@@ -2281,6 +2376,9 @@ static void __exit
 HFC_cleanup(void)
 {
 	struct hfc_pci	*card, *next;
+
+	if (timer_pending(&hfc_tl))
+		del_timer(&hfc_tl);
 
 	list_for_each_entry_safe(card, next, &HFClist, list) {
 		release_card(card);

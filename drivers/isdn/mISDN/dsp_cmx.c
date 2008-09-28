@@ -137,6 +137,7 @@
 /* #define CMX_CONF_DEBUG */
 
 /*#define CMX_DEBUG * massive read/write pointer output */
+/*#define CMX_DELAY_DEBUG * gives rx-buffer delay overview */
 /*#define CMX_TX_DEBUG * massive read/write on tx-buffer with content */
 
 static inline int
@@ -1135,6 +1136,25 @@ dsp_cmx_conf(struct dsp *dsp, u32 conf_id)
 	return 0;
 }
 
+#ifdef CMX_DELAY_DEBUG
+int delaycount;
+static void
+showdelay(struct dsp *dsp, int samples, int delay)
+{
+	char bar[] = "--------------------------------------------------|";
+	int sdelay;
+
+	delaycount += samples;
+	if (delaycount < 8000)
+		return;
+	delaycount = 0;
+
+	sdelay = delay * 50 / (dsp_poll << 2);
+
+	printk(KERN_DEBUG "DELAY (%s) %3d >%s\n", dsp->name, delay,
+		sdelay > 50 ? "..." : bar + 50 - sdelay);
+}
+#endif
 
 /*
  * audio data is received from card
@@ -1256,6 +1276,9 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 
 	/* increase write-pointer */
 	dsp->rx_W = ((dsp->rx_W+len) & CMX_BUFF_MASK);
+#ifdef CMX_DELAY_DEBUG
+	showdelay(dsp, len, (dsp->rx_W-dsp->rx_R) & CMX_BUFF_MASK);
+#endif
 }
 
 
