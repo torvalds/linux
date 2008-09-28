@@ -380,6 +380,7 @@ static int do_probe_callback(void *data)
 		.addrsize	= sizeof(addr),
 		.timeout	= &timeparms,
 		.program	= &cb_program,
+		.prognumber	= cb->cb_prog,
 		.version	= nfs_cb_version[1]->number,
 		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),

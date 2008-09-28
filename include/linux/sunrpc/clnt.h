@@ -104,6 +104,7 @@ struct rpc_create_args {
 	const struct rpc_timeout *timeout;
 	char			*servername;
 	struct rpc_program	*program;
+	u32			prognumber;	/* overrides program->number */
 	u32			version;
 	rpc_authflavor_t	authflavor;
 	unsigned long		flags;
