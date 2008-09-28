@@ -444,7 +444,8 @@ static int dvb_register(struct cx23885_tsport *port)
 				.fname   = XC3028L_DEFAULT_FIRMWARE,
 				.max_len = 64,
 				.demod   = 5000,
-				.d2633   = 1
+				/* This is true for all demods with v36 firmware? */
+				.type    = XC2028_D2633,
 			};
 
 			fe = dvb_attach(xc2028_attach,

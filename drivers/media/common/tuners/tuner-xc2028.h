@@ -24,16 +24,22 @@
 #define	XC3028_FE_ZARLINK456	4560
 #define	XC3028_FE_CHINA		5200
 
+enum firmware_type {
+	XC2028_AUTO = 0,        /* By default, auto-detects */
+	XC2028_D2633,
+	XC2028_D2620,
+};
+
 struct xc2028_ctrl {
 	char			*fname;
 	int			max_len;
 	unsigned int		scode_table;
 	unsigned int		mts   :1;
-	unsigned int		d2633 :1;
 	unsigned int		input1:1;
 	unsigned int		vhfbw7:1;
 	unsigned int		uhfbw8:1;
 	unsigned int		demod;
+	enum firmware_type	type:2;
 };
 
 struct xc2028_config {

@@ -1013,11 +1013,6 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 
 	tuner_dbg("%s called\n", __func__);
 
-	if (priv->ctrl.d2633)
-		type |= D2633;
-	else
-		type |= D2620;
-
 	switch(fe->ops.info.type) {
 	case FE_OFDM:
 		bw = p->u.ofdm.bandwidth;
@@ -1032,10 +1027,8 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		break;
 	case FE_ATSC:
 		bw = BANDWIDTH_6_MHZ;
-		/* The only ATSC firmware (at least on v2.7) is D2633,
-		   so overrides ctrl->d2633 */
-		type |= ATSC| D2633;
-		type &= ~D2620;
+		/* The only ATSC firmware (at least on v2.7) is D2633 */
+		type |= ATSC | D2633;
 		break;
 	/* DVB-S is not supported */
 	default:
@@ -1067,6 +1060,28 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 	default:
 		tuner_err("error: bandwidth not supported.\n");
 	};
+
+	/*
+	  Selects between D2633 or D2620 firmware.
+	  It doesn't make sense for ATSC, since it should be D2633 on all cases
+	 */
+	if (fe->ops.info.type != FE_ATSC) {
+		switch (priv->ctrl.type) {
+		case XC2028_D2633:
+			type |= D2633;
+			break;
+		case XC2028_D2620:
+			type |= D2620;
+			break;
+		case XC2028_AUTO:
+		default:
+			/* Zarlink seems to need D2633 */
+			if (priv->ctrl.demod == XC3028_FE_ZARLINK456)
+				type |= D2633;
+			else
+				type |= D2620;
+		}
+	}
 
 	/* All S-code tables need a 200kHz shift */
 	if (priv->ctrl.demod)
