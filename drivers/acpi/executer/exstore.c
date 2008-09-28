@@ -403,7 +403,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 		ACPI_ERROR((AE_INFO, "Unknown Reference opcode %X",
 			    ref_desc->reference.opcode));
-		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_ERROR);
+		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_INFO);
 
 		status = AE_AML_INTERNAL;
 		break;
