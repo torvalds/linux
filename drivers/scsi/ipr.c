@@ -7473,7 +7473,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto out_scsi_host_put;
 	}
 
-	ipr_regs = ioremap(ipr_regs_pci, pci_resource_len(pdev, 0));
+	ipr_regs = pci_ioremap_bar(pdev, 0);
 
 	if (!ipr_regs) {
 		dev_err(&pdev->dev,
