@@ -1447,11 +1447,11 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 		if (!kvm_is_mmio_pfn(pfn)) {
 			kvm_set_pmt_entry(kvm, base_gfn + i,
 					pfn << PAGE_SHIFT,
-					_PAGE_MA_WB);
+				_PAGE_AR_RWX | _PAGE_MA_WB);
 			memslot->rmap[i] = (unsigned long)pfn_to_page(pfn);
 		} else {
 			kvm_set_pmt_entry(kvm, base_gfn + i,
-					GPFN_LOW_MMIO | (pfn << PAGE_SHIFT),
+					GPFN_PHYS_MMIO | (pfn << PAGE_SHIFT),
 					_PAGE_MA_UC);
 			memslot->rmap[i] = 0;
 			}
