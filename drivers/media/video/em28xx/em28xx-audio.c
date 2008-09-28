@@ -117,10 +117,10 @@ static void em28xx_audio_isocirq(struct urb *urb)
 
 			if (oldptr + length >= runtime->buffer_size) {
 				unsigned int cnt =
-				    runtime->buffer_size - oldptr - 1;
+				    runtime->buffer_size - oldptr;
 				memcpy(runtime->dma_area + oldptr * stride, cp,
 				       cnt * stride);
-				memcpy(runtime->dma_area, cp + cnt,
+				memcpy(runtime->dma_area, cp + cnt * stride,
 				       length * stride - cnt * stride);
 			} else {
 				memcpy(runtime->dma_area + oldptr * stride, cp,

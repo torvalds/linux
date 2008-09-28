@@ -577,7 +577,7 @@ struct em28xx_board em28xx_boards[] = {
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
+			.amux     = 3,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
