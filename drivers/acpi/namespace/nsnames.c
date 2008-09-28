@@ -115,7 +115,6 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 	return (AE_OK);
 }
 
-#ifdef ACPI_DEBUG_OUTPUT
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_external_pathname
@@ -163,7 +162,6 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	return_PTR(name_buffer);
 }
-#endif
 
 /*******************************************************************************
  *

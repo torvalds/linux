@@ -78,6 +78,7 @@ ACPI_MODULE_NAME("nseval")
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 {
 	acpi_status status;
+	struct acpi_namespace_node *node;
 
 	ACPI_FUNCTION_TRACE(ns_evaluate);
 
@@ -116,6 +117,8 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "%s [%p] Value %p\n", info->pathname,
 			  info->resolved_node,
 			  acpi_ns_get_attached_object(info->resolved_node)));
+
+	node = info->resolved_node;
 
 	/*
 	 * Two major cases here:
@@ -261,9 +264,35 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 		}
 	}
 
-	/*
-	 * Check if there is a return value that must be dealt with
-	 */
+	/* Validation of return values for ACPI-predefined methods and objects */
+
+	if ((status == AE_OK) || (status == AE_CTRL_RETURN_VALUE)) {
+		/*
+		 * If this is the first evaluation, check the return value. This
+		 * ensures that any warnings will only be emitted during the very
+		 * first evaluation of the object.
+		 */
+		if (!(node->flags & ANOBJ_EVALUATED)) {
+			/*
+			 * Check for a predefined ACPI name. If found, validate the
+			 * returned object.
+			 *
+			 * Note: Ignore return status for now, emit warnings if there are
+			 * problems with the returned object. May change later to abort
+			 * the method on invalid return object.
+			 */
+			(void)acpi_ns_check_predefined_names(node,
+							     info->
+							     return_object);
+		}
+
+		/* Mark the node as having been evaluated */
+
+		node->flags |= ANOBJ_EVALUATED;
+	}
+
+	/* Check if there is a return value that must be dealt with */
+
 	if (status == AE_CTRL_RETURN_VALUE) {
 
 		/* If caller does not want the return value, delete it */
