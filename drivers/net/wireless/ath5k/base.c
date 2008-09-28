@@ -396,7 +396,11 @@ ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val)
 	for (i = 0; i < ARRAY_SIZE(srev_names); i++) {
 		if (srev_names[i].sr_type != type)
 			continue;
-		if ((val & 0xff) < srev_names[i + 1].sr_val) {
+
+		if ((val & 0xf0) == srev_names[i].sr_val)
+			name = srev_names[i].sr_name;
+
+		if ((val & 0xff) == srev_names[i].sr_val) {
 			name = srev_names[i].sr_name;
 			break;
 		}
