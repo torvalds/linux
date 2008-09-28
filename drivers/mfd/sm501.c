@@ -1625,8 +1625,7 @@ static int sm501_pci_probe(struct pci_dev *dev,
 		goto err3;
 	}
 
-	sm->regs = ioremap(pci_resource_start(dev, 1),
-			   pci_resource_len(dev, 1));
+	sm->regs = pci_ioremap_bar(dev, 1);
 
 	if (sm->regs == NULL) {
 		dev_err(&dev->dev, "cannot remap registers\n");
