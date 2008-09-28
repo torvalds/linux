@@ -29,6 +29,7 @@
 #include <linux/string.h>
 #include <linux/pagemap.h>
 #include <linux/io.h>
+#include <linux/kref.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
@@ -834,6 +835,16 @@ out:
 	return ret;
 }
 
+static void gspca_delete(struct kref *kref)
+{
+	struct gspca_dev *gspca_dev = container_of(kref, struct gspca_dev, kref);
+
+	PDEBUG(D_STREAM, "device deleted");
+
+	kfree(gspca_dev->usb_buf);
+	kfree(gspca_dev);
+}
+
 static int dev_open(struct inode *inode, struct file *file)
 {
 	struct gspca_dev *gspca_dev;
@@ -853,6 +864,10 @@ static int dev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	gspca_dev->users++;
+
+	/* one more user */
+	kref_get(&gspca_dev->kref);
+
 	file->private_data = gspca_dev;
 #ifdef GSPCA_DEBUG
 	/* activate the v4l2 debug */
@@ -895,7 +910,11 @@ static int dev_close(struct inode *inode, struct file *file)
 	}
 	file->private_data = NULL;
 	mutex_unlock(&gspca_dev->queue_lock);
+
 	PDEBUG(D_STREAM, "close done");
+
+	kref_put(&gspca_dev->kref, gspca_delete);
+
 	return 0;
 }
 
@@ -1809,6 +1828,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 		err("couldn't kzalloc gspca struct");
 		return -EIO;
 	}
+	kref_init(&gspca_dev->kref);
 	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
 		err("out of memory");
@@ -1858,8 +1878,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	PDEBUG(D_PROBE, "probe ok");
 	return 0;
 out:
-	kfree(gspca_dev->usb_buf);
-	kfree(gspca_dev);
+	kref_put(&gspca_dev->kref, gspca_delete);
 	return ret;
 }
 EXPORT_SYMBOL(gspca_dev_probe);
@@ -1874,8 +1893,8 @@ void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
-	if (!gspca_dev)
-		return;
+	usb_set_intfdata(intf, NULL);
+
 	gspca_dev->present = 0;
 	mutex_lock(&gspca_dev->queue_lock);
 	mutex_lock(&gspca_dev->usb_lock);
@@ -1883,16 +1902,12 @@ void gspca_disconnect(struct usb_interface *intf)
 	destroy_urbs(gspca_dev);
 	mutex_unlock(&gspca_dev->usb_lock);
 	mutex_unlock(&gspca_dev->queue_lock);
-	while (gspca_dev->users != 0) {		/* wait until fully closed */
-		atomic_inc(&gspca_dev->nevent);
-		wake_up_interruptible(&gspca_dev->wq);	/* wake processes */
-		schedule();
-	}
+
 /* We don't want people trying to open up the device */
 	video_unregister_device(&gspca_dev->vdev);
-/* Free the memory */
-	kfree(gspca_dev->usb_buf);
-	kfree(gspca_dev);
+
+	kref_put(&gspca_dev->kref, gspca_delete);
+
 	PDEBUG(D_PROBE, "disconnect complete");
 }
 EXPORT_SYMBOL(gspca_disconnect);
