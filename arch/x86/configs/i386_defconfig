@@ -213,7 +213,6 @@ CONFIG_M686=y
 # CONFIG_MCRUSOE is not set
 # CONFIG_MEFFICEON is not set
 # CONFIG_MWINCHIPC6 is not set
-# CONFIG_MWINCHIP2 is not set
 # CONFIG_MWINCHIP3D is not set
 # CONFIG_MGEODEGX1 is not set
 # CONFIG_MGEODE_LX is not set

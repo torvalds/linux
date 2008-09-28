@@ -52,8 +52,6 @@ struct mod_arch_specific {};
 #define MODULE_PROC_FAMILY "EFFICEON "
 #elif defined CONFIG_MWINCHIPC6
 #define MODULE_PROC_FAMILY "WINCHIPC6 "
-#elif defined CONFIG_MWINCHIP2
-#define MODULE_PROC_FAMILY "WINCHIP2 "
 #elif defined CONFIG_MWINCHIP3D
 #define MODULE_PROC_FAMILY "WINCHIP3D "
 #elif defined CONFIG_MCYRIXIII
