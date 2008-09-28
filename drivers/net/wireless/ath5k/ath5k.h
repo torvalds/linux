@@ -281,7 +281,9 @@ enum ath5k_radio {
 	AR5K_RF5112	= 2,
 	AR5K_RF2413	= 3,
 	AR5K_RF5413	= 4,
-	AR5K_RF2425	= 5,
+	AR5K_RF2316	= 5,
+	AR5K_RF2317	= 6,
+	AR5K_RF2425	= 7,
 };
 
 /*
@@ -289,7 +291,7 @@ enum ath5k_radio {
  */
 
 enum ath5k_srev_type {
-	AR5K_VERSION_VER,
+	AR5K_VERSION_MAC,
 	AR5K_VERSION_RAD,
 };
 
@@ -301,23 +303,24 @@ struct ath5k_srev_name {
 
 #define AR5K_SREV_UNKNOWN	0xffff
 
-#define AR5K_SREV_VER_AR5210	0x00
-#define AR5K_SREV_VER_AR5311	0x10
-#define AR5K_SREV_VER_AR5311A	0x20
-#define AR5K_SREV_VER_AR5311B	0x30
-#define AR5K_SREV_VER_AR5211	0x40
-#define AR5K_SREV_VER_AR5212	0x50
-#define AR5K_SREV_VER_AR5213	0x55
-#define AR5K_SREV_VER_AR5213A	0x59
-#define AR5K_SREV_VER_AR2413	0x78
-#define AR5K_SREV_VER_AR2414	0x79
-#define AR5K_SREV_VER_AR2424	0xa0 /* PCI-E */
-#define AR5K_SREV_VER_AR5424	0xa3 /* PCI-E */
-#define AR5K_SREV_VER_AR5413	0xa4
-#define AR5K_SREV_VER_AR5414	0xa5
-#define AR5K_SREV_VER_AR5416	0xc0 /* PCI-E */
-#define AR5K_SREV_VER_AR5418	0xca /* PCI-E */
-#define AR5K_SREV_VER_AR2425	0xe2 /* PCI-E */
+#define AR5K_SREV_AR5210	0x00 /* Crete */
+#define AR5K_SREV_AR5311	0x10 /* Maui 1 */
+#define AR5K_SREV_AR5311A	0x20 /* Maui 2 */
+#define AR5K_SREV_AR5311B	0x30 /* Spirit */
+#define AR5K_SREV_AR5211	0x40 /* Oahu */
+#define AR5K_SREV_AR5212	0x50 /* Venice */
+#define AR5K_SREV_AR5213	0x55 /* ??? */
+#define AR5K_SREV_AR5213A	0x59 /* Hainan */
+#define AR5K_SREV_AR2413	0x78 /* Griffin lite */
+#define AR5K_SREV_AR2414	0x70 /* Griffin */
+#define AR5K_SREV_AR5424	0x90 /* Condor */
+#define AR5K_SREV_AR5413	0xa4 /* Eagle lite */
+#define AR5K_SREV_AR5414	0xa0 /* Eagle */
+#define AR5K_SREV_AR2415	0xb0 /* Cobra */
+#define AR5K_SREV_AR5416	0xc0 /* PCI-E */
+#define AR5K_SREV_AR5418	0xca /* PCI-E */
+#define AR5K_SREV_AR2425	0xe0 /* Swan */
+#define AR5K_SREV_AR2417	0xf0 /* Nala */
 
 #define AR5K_SREV_RAD_5110	0x00
 #define AR5K_SREV_RAD_5111	0x10
@@ -329,10 +332,20 @@ struct ath5k_srev_name {
 #define AR5K_SREV_RAD_2112	0x40
 #define AR5K_SREV_RAD_2112A	0x45
 #define	AR5K_SREV_RAD_2112B	0x46
-#define AR5K_SREV_RAD_SC0	0x50	/* Found on 2413/2414 */
-#define AR5K_SREV_RAD_SC1	0x60	/* Found on 5413/5414 */
-#define AR5K_SREV_RAD_SC2	0xa0	/* Found on 2424-5/5424 */
-#define AR5K_SREV_RAD_5133	0xc0	/* MIMO found on 5418 */
+#define AR5K_SREV_RAD_2413	0x50
+#define AR5K_SREV_RAD_5413	0x60
+#define AR5K_SREV_RAD_2316	0x70
+#define AR5K_SREV_RAD_2317	0x80
+#define AR5K_SREV_RAD_5424	0xa0 /* Mostly same as 5413 */
+#define AR5K_SREV_RAD_2425	0xa2
+#define AR5K_SREV_RAD_5133	0xc0
+
+#define AR5K_SREV_PHY_5211	0x30
+#define AR5K_SREV_PHY_5212	0x41
+#define AR5K_SREV_PHY_2112B	0x43
+#define AR5K_SREV_PHY_2413	0x45
+#define AR5K_SREV_PHY_5413	0x61
+#define AR5K_SREV_PHY_2425	0x70
 
 /* IEEE defs */
 #define IEEE80211_MAX_LEN       2500

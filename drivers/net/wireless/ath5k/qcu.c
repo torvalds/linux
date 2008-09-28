@@ -375,7 +375,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		case AR5K_TX_QUEUE_BEACON:
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
 				AR5K_QCU_MISC_FRSHED_DBA_GT |
-				AR5K_QCU_MISC_CBREXP_BCN |
+				AR5K_QCU_MISC_CBREXP_BCN_DIS |
 				AR5K_QCU_MISC_BCN_ENABLE);
 
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
@@ -395,8 +395,8 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		case AR5K_TX_QUEUE_CAB:
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
 				AR5K_QCU_MISC_FRSHED_DBA_GT |
-				AR5K_QCU_MISC_CBREXP |
-				AR5K_QCU_MISC_CBREXP_BCN);
+				AR5K_QCU_MISC_CBREXP_DIS |
+				AR5K_QCU_MISC_CBREXP_BCN_DIS);
 
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
 				(AR5K_DCU_MISC_ARBLOCK_CTL_GLOBAL <<
@@ -405,7 +405,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 
 		case AR5K_TX_QUEUE_UAPSD:
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
-				AR5K_QCU_MISC_CBREXP);
+				AR5K_QCU_MISC_CBREXP_DIS);
 			break;
 
 		case AR5K_TX_QUEUE_DATA:

@@ -168,19 +168,19 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 				CHANNEL_2GHZ);
 
 	/* Return on unsuported chips (unsupported eeprom etc) */
-	if ((srev >= AR5K_SREV_VER_AR5416) &&
-	(srev < AR5K_SREV_VER_AR2425)) {
+	if ((srev >= AR5K_SREV_AR5416) &&
+	(srev < AR5K_SREV_AR2425)) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
 		goto err_free;
-	} else if (srev == AR5K_SREV_VER_AR2425) {
+	} else if (srev == AR5K_SREV_AR2425) {
 		ATH5K_WARN(sc, "Support for RF2425 is under development.\n");
 	}
 
 	/* Identify single chip solutions */
-	if (((srev <= AR5K_SREV_VER_AR5414) &&
-	(srev >= AR5K_SREV_VER_AR2413)) ||
-	(srev == AR5K_SREV_VER_AR2425)) {
+	if (((srev <= AR5K_SREV_AR5414) &&
+	(srev >= AR5K_SREV_AR2413)) ||
+	(srev == AR5K_SREV_AR2425)) {
 		ah->ah_single_chip = true;
 	} else {
 		ah->ah_single_chip = false;
@@ -199,24 +199,24 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	 * correctly. For now we are based on mac's srev to
 	 * identify RF2425 radio.
 	 */
-	} else if (srev == AR5K_SREV_VER_AR2425) {
+	} else if (srev == AR5K_SREV_AR2425) {
 		ah->ah_radio = AR5K_RF2425;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2425;
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
 		ah->ah_radio = AR5K_RF5111;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_2413) {
 		ah->ah_radio = AR5K_RF5112;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5413) {
 		ah->ah_radio = AR5K_RF2413;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_2316) {
 		ah->ah_radio = AR5K_RF5413;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
 		/* AR5424 */
-		if (srev >= AR5K_SREV_VER_AR5424) {
+		if (srev >= AR5K_SREV_AR5424) {
 			ah->ah_radio = AR5K_RF5413;
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
 		/* AR2424 */
@@ -252,8 +252,8 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 
 	/* Write AR5K_PCICFG_UNK on 2112B and later chips */
 	if (ah->ah_radio_5ghz_revision > AR5K_SREV_RAD_2112B ||
-	srev > AR5K_SREV_VER_AR2413) {
-		ath5k_hw_reg_write(ah, AR5K_PCICFG_UNK, AR5K_PCICFG);
+	srev > AR5K_SREV_AR2413) {
+		ath5k_hw_reg_write(ah, AR5K_PCICFG_RETRY_FIX, AR5K_PCICFG);
 	}
 
 	/*
