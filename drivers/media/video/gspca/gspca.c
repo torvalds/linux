@@ -540,7 +540,8 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		if (npkt != 0) {		/* ISOC */
 			urb->pipe = usb_rcvisocpipe(gspca_dev->dev,
 						    ep->desc.bEndpointAddress);
-			urb->transfer_flags = URB_ISO_ASAP;
+			urb->transfer_flags = URB_ISO_ASAP
+					| URB_NO_TRANSFER_DMA_MAP;
 			urb->interval = ep->desc.bInterval;
 			urb->complete = isoc_irq;
 			urb->number_of_packets = npkt;
@@ -551,6 +552,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		} else {		/* bulk */
 			urb->pipe = usb_rcvbulkpipe(gspca_dev->dev,
 						ep->desc.bEndpointAddress),
+			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 			urb->complete = bulk_irq;
 		}
 	}
