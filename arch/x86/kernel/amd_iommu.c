@@ -470,10 +470,6 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
  * efficient allocator.
  *
  ****************************************************************************/
-static unsigned long dma_mask_to_pages(unsigned long mask)
-{
-	return PAGE_ALIGN(mask) >> PAGE_SHIFT;
-}
 
 /*
  * The address allocator core function.
@@ -486,14 +482,14 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 					     unsigned long align_mask,
 					     u64 dma_mask)
 {
-	unsigned long limit = dma_mask_to_pages(dma_mask);
+	unsigned long limit;
 	unsigned long address;
-	unsigned long size = dom->aperture_size >> PAGE_SHIFT;
 	unsigned long boundary_size;
 
 	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 			PAGE_SIZE) >> PAGE_SHIFT;
-	limit = limit < size ? limit : size;
+	limit = iommu_device_max_index(dom->aperture_size >> PAGE_SHIFT, 0,
+				       dma_mask >> PAGE_SHIFT);
 
 	if (dom->next_bit >= limit) {
 		dom->next_bit = 0;
