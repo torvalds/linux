@@ -1424,7 +1424,7 @@
 #define AR5K_DIAG_SW_OBSPT_S		18
 #define AR5K_DIAG_SW_RX_CLEAR_HIGH	0x0010000	/* Force RX Clear high */
 #define AR5K_DIAG_SW_IGNORE_CARR_SENSE	0x0020000	/* Ignore virtual carrier sense */
-#define AR5K_DIAG_SW_CHANEL_IDLE_HIGH	0x0040000	/* Force channel idle high (?) */
+#define AR5K_DIAG_SW_CHANEL_IDLE_HIGH	0x0040000	/* Force channel idle high */
 #define AR5K_DIAG_SW_PHEAR_ME		0x0080000	/* ??? */
 
 /*
@@ -1660,7 +1660,7 @@
  */
 #define AR5K_QUIET_CTL1			0x80fc			/* Register Address */
 #define AR5K_QUIET_CTL1_NEXT_QT_TSF	0x0000ffff	/* Next quiet period TSF (TU) */
-#define AR5K_QUIET_CTL1_NEXT_QT_TSF_0
+#define AR5K_QUIET_CTL1_NEXT_QT_TSF_S	0
 #define AR5K_QUIET_CTL1_QT_EN		0x00010000	/* Enable quiet period */
 #define AR5K_QUIET_CTL1_ACK_CTS_EN	0x00020000	/* Send ACK/CTS during quiet period */
 
