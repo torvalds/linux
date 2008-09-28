@@ -113,16 +113,16 @@ static int acpi_bus_hot_remove_device(void *context)
 
 
 	if (acpi_bus_trim(device, 1)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Removing device failed\n"));
+		printk(KERN_ERR PREFIX
+				"Removing device failed\n");
 		return -1;
 	}
 
 	/* power off device */
 	status = acpi_evaluate_object(handle, "_PS3", NULL, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				"Power-off device failed\n"));
+		printk(KERN_WARNING PREFIX
+				"Power-off device failed\n");
 
 	if (device->flags.lockable) {
 		arg_list.count = 1;
@@ -477,7 +477,7 @@ static int acpi_device_register(struct acpi_device *device,
 
 	result = acpi_device_setup_files(device);
 	if(result)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error creating sysfs interface for device %s\n", device->dev.bus_id));
+		printk(KERN_ERR PREFIX "Error creating sysfs interface for device %s\n", device->dev.bus_id);
 
 	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;

@@ -1213,8 +1213,8 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 				  acpi_bus_private_data_handler,
 				  tz->thermal_zone);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Error attaching device data\n"));
+		printk(KERN_ERR PREFIX
+				"Error attaching device data\n");
 		return -ENODEV;
 	}
 

@@ -454,8 +454,8 @@ static int acpi_memory_device_start (struct acpi_device *device)
 		/* call add_memory func */
 		result = acpi_memory_enable_device(mem_device);
 		if (result)
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				"Error in acpi_memory_enable_device\n"));
+			printk(KERN_ERR PREFIX
+				"Error in acpi_memory_enable_device\n");
 	}
 	return result;
 }

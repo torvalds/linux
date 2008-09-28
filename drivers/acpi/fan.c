@@ -327,8 +327,8 @@ static int acpi_fan_resume(struct acpi_device *device)
 
 	result = acpi_bus_get_power(device->handle, &power_state);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error reading fan power state\n"));
+		printk(KERN_ERR PREFIX
+				  "Error reading fan power state\n");
 		return result;
 	}
 
