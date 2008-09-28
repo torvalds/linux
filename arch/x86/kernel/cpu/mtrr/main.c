@@ -992,9 +992,36 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 	/* only cut back, when it is not the last */
 	if (sizek) {
 		while (range0_basek + range0_sizek > (basek + sizek)) {
-			range0_sizek -= chunk_sizek;
+			if (range0_sizek >= chunk_sizek)
+				range0_sizek -= chunk_sizek;
+			else
+				range0_sizek = 0;
+
 			if (!range0_sizek)
 				break;
+		}
+	}
+
+second_try:
+	range_basek = range0_basek + range0_sizek;
+
+	/* one hole in the middle */
+	if (range_basek > basek && range_basek <= (basek + sizek))
+		second_sizek = range_basek - basek;
+
+	if (range0_sizek > state->range_sizek) {
+
+		/* one hole in middle or at end */
+		hole_sizek = range0_sizek - state->range_sizek - second_sizek;
+
+		/* hole size should be less than half of range0 size */
+		if (hole_sizek > (range0_sizek >> 1) &&
+		    range0_sizek >= chunk_sizek) {
+			range0_sizek -= chunk_sizek;
+			second_sizek = 0;
+			hole_sizek = 0;
+
+			goto second_try;
 		}
 	}
 
@@ -1005,43 +1032,28 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 				(range0_basek + range0_sizek)<<10);
 		state->reg = range_to_mtrr(state->reg, range0_basek,
 				range0_sizek, MTRR_TYPE_WRBACK);
-
 	}
 
-	range_basek = range0_basek + range0_sizek;
-
-	/* one hole in the middle */
-	if (range_basek > basek && range_basek <= (basek + sizek))
-		second_sizek = range_basek - basek;
-
-	if (range0_sizek > state->range_sizek) {
-		unsigned long hole_basek, hole_sizek;
-
-		/* one hole in middle or at end */
-		hole_sizek = range0_sizek - state->range_sizek - second_sizek;
-		if (hole_sizek) {
-			hole_basek = range_basek - hole_sizek - second_sizek;
-			if (debug_print)
-				printk(KERN_DEBUG "hole: %016lx - %016lx\n",
-					 hole_basek<<10,
-					 (hole_basek + hole_sizek)<<10);
-			state->reg = range_to_mtrr(state->reg, hole_basek,
-						   hole_sizek,
-						   MTRR_TYPE_UNCACHABLE);
-		}
-	} else  {
+	if (range0_sizek < state->range_sizek) {
 		/* need to handle left over */
 		range_sizek = state->range_sizek - range0_sizek;
 
-		if (range_sizek) {
-			if (debug_print)
-				printk(KERN_DEBUG "range: %016lx - %016lx\n",
-					 range_basek<<10,
-					 (range_basek + range_sizek)<<10);
-			state->reg = range_to_mtrr(state->reg, range_basek,
-					 range_sizek,
-					 MTRR_TYPE_WRBACK);
-		}
+		if (debug_print)
+			printk(KERN_DEBUG "range: %016lx - %016lx\n",
+				 range_basek<<10,
+				 (range_basek + range_sizek)<<10);
+		state->reg = range_to_mtrr(state->reg, range_basek,
+				 range_sizek, MTRR_TYPE_WRBACK);
+	}
+
+	if (hole_sizek) {
+		hole_basek = range_basek - hole_sizek - second_sizek;
+		if (debug_print)
+			printk(KERN_DEBUG "hole: %016lx - %016lx\n",
+				 hole_basek<<10,
+				 (hole_basek + hole_sizek)<<10);
+		state->reg = range_to_mtrr(state->reg, hole_basek,
+				 hole_sizek, MTRR_TYPE_UNCACHABLE);
 	}
 
 	return second_sizek;
