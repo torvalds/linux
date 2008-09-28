@@ -633,8 +633,20 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
  */
 void ath5k_hw_reset_tsf(struct ath5k_hw *ah)
 {
+	u32 val;
+
 	ATH5K_TRACE(ah->ah_sc);
-	AR5K_REG_ENABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_RESET_TSF);
+
+	val = ath5k_hw_reg_read(ah, AR5K_BEACON) | AR5K_BEACON_RESET_TSF;
+
+	/*
+	 * Each write to the RESET_TSF bit toggles a hardware internal
+	 * signal to reset TSF, but if left high it will cause a TSF reset
+	 * on the next chip reset as well.  Thus we always write the value
+	 * twice to clear the signal.
+	 */
+	ath5k_hw_reg_write(ah, val, AR5K_BEACON);
+	ath5k_hw_reg_write(ah, val, AR5K_BEACON);
 }
 
 /*
