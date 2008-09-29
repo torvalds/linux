@@ -184,12 +184,16 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 static void
-print_tickdevice(struct seq_file *m, struct tick_device *td)
+print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 {
 	struct clock_event_device *dev = td->evtdev;
 
 	SEQ_printf(m, "\n");
 	SEQ_printf(m, "Tick Device: mode:     %d\n", td->mode);
+	if (cpu < 0)
+		SEQ_printf(m, "Broadcast device\n");
+	else
+		SEQ_printf(m, "Per CPU device: %d\n", cpu);
 
 	SEQ_printf(m, "Clock Event Device: ");
 	if (!dev) {
@@ -223,7 +227,7 @@ static void timer_list_show_tickdevices(struct seq_file *m)
 	int cpu;
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	print_tickdevice(m, tick_get_broadcast_device());
+	print_tickdevice(m, tick_get_broadcast_device(), -1);
 	SEQ_printf(m, "tick_broadcast_mask: %08lx\n",
 		   tick_get_broadcast_mask()->bits[0]);
 #ifdef CONFIG_TICK_ONESHOT
@@ -233,7 +237,7 @@ static void timer_list_show_tickdevices(struct seq_file *m)
 	SEQ_printf(m, "\n");
 #endif
 	for_each_online_cpu(cpu)
-		   print_tickdevice(m, tick_get_device(cpu));
+		print_tickdevice(m, tick_get_device(cpu), cpu);
 	SEQ_printf(m, "\n");
 }
 #else
