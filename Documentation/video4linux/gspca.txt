@@ -97,6 +97,29 @@ sunplus		04a5:3003	Benq DC 1300
 sunplus		04a5:3008	Benq DC 1500
 sunplus		04a5:300a	Benq DC 3410
 spca500		04a5:300c	Benq DC 1016
+finepix		04cb:0104	Fujifilm FinePix 4800
+finepix		04cb:0109	Fujifilm FinePix A202
+finepix		04cb:010b	Fujifilm FinePix A203
+finepix		04cb:010f	Fujifilm FinePix A204
+finepix		04cb:0111	Fujifilm FinePix A205
+finepix		04cb:0113	Fujifilm FinePix A210
+finepix		04cb:0115	Fujifilm FinePix A303
+finepix		04cb:0117	Fujifilm FinePix A310
+finepix		04cb:0119	Fujifilm FinePix F401
+finepix		04cb:011b	Fujifilm FinePix F402
+finepix		04cb:011d	Fujifilm FinePix F410
+finepix		04cb:0121	Fujifilm FinePix F601
+finepix		04cb:0123	Fujifilm FinePix F700
+finepix		04cb:0125	Fujifilm FinePix M603
+finepix		04cb:0127	Fujifilm FinePix S300
+finepix		04cb:0129	Fujifilm FinePix S304
+finepix		04cb:012b	Fujifilm FinePix S500
+finepix		04cb:012d	Fujifilm FinePix S602
+finepix		04cb:012f	Fujifilm FinePix S700
+finepix		04cb:0131	Fujifilm FinePix unknown model
+finepix		04cb:013b	Fujifilm FinePix unknown model
+finepix		04cb:013d	Fujifilm FinePix unknown model
+finepix		04cb:013f	Fujifilm FinePix F420
 sunplus		04f1:1001	JVC GC A50
 spca561		04fc:0561	Flexcam 100
 sunplus		04fc:500c	Sunplus CA500C

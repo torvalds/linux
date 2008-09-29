@@ -1,5 +1,5 @@
 obj-$(CONFIG_USB_GSPCA)	+= gspca_main.o \
-	gspca_conex.o gspca_etoms.o gspca_mars.o \
+	gspca_conex.o gspca_etoms.o gspca_finepix.o gspca_mars.o \
 	gspca_ov519.o gspca_pac207.o gspca_pac7311.o \
 	gspca_sonixb.o gspca_sonixj.o gspca_spca500.o gspca_spca501.o \
 	gspca_spca505.o gspca_spca506.o gspca_spca508.o gspca_spca561.o \
@@ -9,6 +9,7 @@ obj-$(CONFIG_USB_GSPCA)	+= gspca_main.o \
 gspca_main-objs := gspca.o
 gspca_conex-objs := conex.o
 gspca_etoms-objs := etoms.o
+gspca_finepix-objs := finepix.o
 gspca_mars-objs := mars.o
 gspca_ov519-objs := ov519.o
 gspca_pac207-objs := pac207.o
