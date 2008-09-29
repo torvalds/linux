@@ -175,7 +175,7 @@ print_out:
 	return (ret == -EBUSY) ? 0 : ret;
 }
 
-static int mmio_print_rw(struct trace_iterator *iter)
+static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
 	struct trace_mmiotrace_rw *field =
@@ -215,11 +215,11 @@ static int mmio_print_rw(struct trace_iterator *iter)
 		break;
 	}
 	if (ret)
-		return 1;
-	return 0;
+		return TRACE_TYPE_HANDLED;
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int mmio_print_map(struct trace_iterator *iter)
+static enum print_line_t mmio_print_map(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
 	struct mmiotrace_map *m	= (struct mmiotrace_map *)entry;
@@ -227,7 +227,7 @@ static int mmio_print_map(struct trace_iterator *iter)
 	unsigned long long t	= ns2usecs(iter->ts);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
-	int ret = 1;
+	int ret;
 
 	switch (m->opcode) {
 	case MMIO_PROBE:
@@ -247,11 +247,11 @@ static int mmio_print_map(struct trace_iterator *iter)
 		break;
 	}
 	if (ret)
-		return 1;
-	return 0;
+		return TRACE_TYPE_HANDLED;
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int mmio_print_mark(struct trace_iterator *iter)
+static enum print_line_t mmio_print_mark(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
 	struct print_entry *print = (struct print_entry *)entry;
@@ -265,16 +265,15 @@ static int mmio_print_mark(struct trace_iterator *iter)
 	/* The trailing newline must be in the message. */
 	ret = trace_seq_printf(s, "MARK %lu.%06lu %s", secs, usec_rem, msg);
 	if (!ret)
-		return 0;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	if (entry->flags & TRACE_FLAG_CONT)
 		trace_seq_print_cont(s, iter);
 
-	return 1;
+	return TRACE_TYPE_HANDLED;
 }
 
-/* return 0 to abort printing without consuming current entry in pipe mode */
-static int mmio_print_line(struct trace_iterator *iter)
+static enum print_line_t mmio_print_line(struct trace_iterator *iter)
 {
 	switch (iter->ent->type) {
 	case TRACE_MMIO_RW:
@@ -284,7 +283,7 @@ static int mmio_print_line(struct trace_iterator *iter)
 	case TRACE_PRINT:
 		return mmio_print_mark(iter);
 	default:
-		return 1; /* ignore unknown entries */
+		return TRACE_TYPE_HANDLED; /* ignore unknown entries */
 	}
 }
 
