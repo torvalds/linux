@@ -67,7 +67,6 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 bytenr,
 	while(*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct btrfs_leaf_ref, rb_node);
-		WARN_ON(!entry->in_tree);
 
 		if (bytenr < entry->bytenr)
 			p = &(*p)->rb_left;
