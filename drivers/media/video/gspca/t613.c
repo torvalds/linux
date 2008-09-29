@@ -916,7 +916,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		return;
 	}
 
-	if (data[len - 1] == 0xff && data[len] == 0xd9) {
+	if (data[len - 2] == 0xff && data[len - 1] == 0xd9) {
 		/* Just in case, i have seen packets with the marker,
 		 * other's do not include it... */
 		data += 2;
