@@ -17,6 +17,27 @@
  */
 
 #include <linux/highmem.h>
+
+/* this is some deeply nasty code.  ctree.h has a different
+ * definition for this BTRFS_SETGET_FUNCS macro, behind a #ifndef
+ *
+ * The end result is that anyone who #includes ctree.h gets a
+ * declaration for the btrfs_set_foo functions and btrfs_foo functions
+ *
+ * This file declares the macros and then #includes ctree.h, which results
+ * in cpp creating the function here based on the template below.
+ *
+ * These setget functions do all the extent_buffer related mapping
+ * required to efficiently read and write specific fields in the extent
+ * buffers.  Every pointer to metadata items in btrfs is really just
+ * an unsigned long offset into the extent buffer which has been
+ * cast to a specific type.  This gives us all the gcc type checking.
+ *
+ * The extent buffer api is used to do all the kmapping and page
+ * spanning work required to get extent buffers in highmem and have
+ * a metadata blocksize different from the page size.
+ */
+
 #define BTRFS_SETGET_FUNCS(name, type, member, bits)			\
 u##bits btrfs_##name(struct extent_buffer *eb,				\
 				   type *s)				\

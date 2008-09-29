@@ -19,8 +19,11 @@
 #define __REFCACHE__
 
 struct btrfs_extent_info {
+	/* bytenr and num_bytes find the extent in the extent allocation tree */
 	u64 bytenr;
 	u64 num_bytes;
+
+	/* objectid and offset find the back reference for the file */
 	u64 objectid;
 	u64 offset;
 };

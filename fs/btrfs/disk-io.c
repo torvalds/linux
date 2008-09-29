@@ -55,6 +55,11 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 
+/*
+ * end_io_wq structs are used to do processing in task context when an IO is
+ * complete.  This is used during reads to verify checksums, and it is used
+ * by writes to insert metadata for new file extents after IO is complete.
+ */
 struct end_io_wq {
 	struct bio *bio;
 	bio_end_io_t *end_io;
@@ -66,6 +71,11 @@ struct end_io_wq {
 	struct btrfs_work work;
 };
 
+/*
+ * async submit bios are used to offload expensive checksumming
+ * onto the worker threads.  They checksum file and metadata bios
+ * just before they are sent down the IO stack.
+ */
 struct async_submit_bio {
 	struct inode *inode;
 	struct bio *bio;
@@ -76,6 +86,10 @@ struct async_submit_bio {
 	struct btrfs_work work;
 };
 
+/*
+ * extents on the btree inode are pretty simple, there's one extent
+ * that covers the entire device
+ */
 struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 				    size_t page_offset, u64 start, u64 len,
 				    int create)
@@ -151,6 +165,10 @@ void btrfs_csum_final(u32 crc, char *result)
 	*(__le32 *)result = ~cpu_to_le32(crc);
 }
 
+/*
+ * compute the csum for a btree block, and either verify it or write it
+ * into the csum field of the block.
+ */
 static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			   int verify)
 {
@@ -204,6 +222,12 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	return 0;
 }
 
+/*
+ * we can't consider a given block up to date unless the transid of the
+ * block matches the transid in the parent node's pointer.  This is how we
+ * detect blocks that either didn't get written at all or got written
+ * in the wrong place.
+ */
 static int verify_parent_transid(struct extent_io_tree *io_tree,
 				 struct extent_buffer *eb, u64 parent_transid)
 {
@@ -228,9 +252,12 @@ out:
 	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
 		      GFP_NOFS);
 	return ret;
-
 }
 
+/*
+ * helper to read a given tree block, doing retries as required when
+ * the checksums don't match and we have alternate mirrors to try.
+ */
 static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 					  struct extent_buffer *eb,
 					  u64 start, u64 parent_transid)
@@ -260,6 +287,10 @@ printk("read extent buffer pages failed with ret %d mirror no %d\n", ret, mirror
 	return -EIO;
 }
 
+/*
+ * checksum a dirty tree block before IO.  This has extra checks to make
+ * sure we only fill in the checksum field in the first page of a multi-page block
+ */
 int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
 	struct extent_io_tree *tree;

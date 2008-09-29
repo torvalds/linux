@@ -114,6 +114,10 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
+/*
+ * search through the tree for an extent_map with a given offset.  If
+ * it can't be found, try to find some neighboring extents
+ */
 static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 				     struct rb_node **prev_ret,
 				     struct rb_node **next_ret)
@@ -160,6 +164,10 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
+/*
+ * look for an offset in the tree, and if it can't be found, return
+ * the first offset we can find smaller than 'offset'.
+ */
 static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
 {
 	struct rb_node *prev;
@@ -170,6 +178,7 @@ static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
 	return ret;
 }
 
+/* check to see if two extent_map structs are adjacent and safe to merge */
 static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 {
 	if (test_bit(EXTENT_FLAG_PINNED, &prev->flags))
@@ -250,6 +259,7 @@ out:
 }
 EXPORT_SYMBOL(add_extent_mapping);
 
+/* simple helper to do math around the end of an extent, handling wrap */
 static u64 range_end(u64 start, u64 len)
 {
 	if (start + len < start)

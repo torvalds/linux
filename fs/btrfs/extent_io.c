@@ -914,6 +914,10 @@ int wait_on_extent_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 }
 EXPORT_SYMBOL(wait_on_extent_writeback);
 
+/*
+ * either insert or lock state struct between start and end use mask to tell
+ * us if waiting is desired.
+ */
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask)
 {
 	int err;
@@ -982,6 +986,13 @@ int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 }
 EXPORT_SYMBOL(set_range_writeback);
 
+/*
+ * find the first offset in the io tree with 'bits' set. zero is
+ * returned if we find something, and *start_ret and *end_ret are
+ * set to reflect the state struct that was found.
+ *
+ * If nothing was found, 1 is returned, < 0 on error
+ */
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, int bits)
 {
@@ -1017,6 +1028,10 @@ out:
 }
 EXPORT_SYMBOL(find_first_extent_bit);
 
+/* find the first state struct with 'bits' set after 'start', and
+ * return it.  tree->lock must be held.  NULL will returned if
+ * nothing was found after 'start'
+ */
 struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
 						 u64 start, int bits)
 {
@@ -1046,8 +1061,14 @@ out:
 }
 EXPORT_SYMBOL(find_first_extent_bit_state);
 
-u64 find_lock_delalloc_range(struct extent_io_tree *tree,
-			     u64 *start, u64 *end, u64 max_bytes)
+/*
+ * find a contiguous range of bytes in the file marked as delalloc, not
+ * more than 'max_bytes'.  start and end are used to return the range,
+ *
+ * 1 is returned if we find something, 0 if nothing was in the tree
+ */
+static noinline u64 find_lock_delalloc_range(struct extent_io_tree *tree,
+					     u64 *start, u64 *end, u64 max_bytes)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -1130,6 +1151,11 @@ out:
 	return found;
 }
 
+/*
+ * count the number of bytes in the tree that have a given bit(s)
+ * set.  This can be fairly slow, except for EXTENT_DIRTY which is
+ * cached.  The total number found is returned.
+ */
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end, u64 max_bytes,
 		     unsigned long bits)
@@ -1245,6 +1271,10 @@ int unlock_range(struct extent_io_tree *tree, u64 start, u64 end)
 }
 EXPORT_SYMBOL(unlock_range);
 
+/*
+ * set the private field for a given byte offset in the tree.  If there isn't
+ * an extent_state there already, this does nothing.
+ */
 int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
 {
 	struct rb_node *node;

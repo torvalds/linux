@@ -231,17 +231,25 @@ static struct btrfs_worker_thread *next_worker(struct btrfs_workers *workers)
 
 	/*
 	 * if we pick a busy task, move the task to the end of the list.
-	 * hopefully this will keep things somewhat evenly balanced
+	 * hopefully this will keep things somewhat evenly balanced.
+	 * Do the move in batches based on the sequence number.  This groups
+	 * requests submitted at roughly the same time onto the same worker.
 	 */
 	next = workers->worker_list.next;
 	worker = list_entry(next, struct btrfs_worker_thread, worker_list);
 	atomic_inc(&worker->num_pending);
 	worker->sequence++;
+
 	if (worker->sequence % workers->idle_thresh == 0)
 		list_move_tail(next, &workers->worker_list);
 	return worker;
 }
 
+/*
+ * selects a worker thread to take the next job.  This will either find
+ * an idle worker, start a new worker up to the max count, or just return
+ * one of the existing busy workers.
+ */
 static struct btrfs_worker_thread *find_worker(struct btrfs_workers *workers)
 {
 	struct btrfs_worker_thread *worker;

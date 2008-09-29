@@ -63,14 +63,17 @@ struct btrfs_workers {
 	/* once a worker has this many requests or fewer, it is idle */
 	int idle_thresh;
 
-	/* list with all the work threads */
+	/* list with all the work threads.  The workers on the idle thread
+	 * may be actively servicing jobs, but they haven't yet hit the
+	 * idle thresh limit above.
+	 */
 	struct list_head worker_list;
 	struct list_head idle_list;
 
 	/* lock for finding the next worker thread to queue on */
 	spinlock_t lock;
 
-	/* extra name for this worker */
+	/* extra name for this worker, used for current->name */
 	char *name;
 };
 

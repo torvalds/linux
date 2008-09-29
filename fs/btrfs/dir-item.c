@@ -21,6 +21,14 @@
 #include "hash.h"
 #include "transaction.h"
 
+/*
+ * insert a name into a directory, doing overflow properly if there is a hash
+ * collision.  data_size indicates how big the item inserted should be.  On
+ * success a struct btrfs_dir_item pointer is returned, otherwise it is
+ * an ERR_PTR.
+ *
+ * The name is not copied into the dir item, you have to do that yourself.
+ */
 static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 						   *trans,
 						   struct btrfs_root *root,
@@ -55,6 +63,10 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 	return (struct btrfs_dir_item *)ptr;
 }
 
+/*
+ * xattrs work a lot like directories, this inserts an xattr item
+ * into the tree
+ */
 int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root, const char *name,
 			    u16 name_len, const void *data, u16 data_len,
@@ -109,6 +121,13 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/*
+ * insert a directory item in the tree, doing all the magic for
+ * both indexes. 'dir' indicates which objectid to insert it into,
+ * 'location' is the key to stuff into the directory item, 'type' is the
+ * type of the inode we're pointing to, and 'index' is the sequence number
+ * to use for the second index (if one is created).
+ */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, const char *name, int name_len, u64 dir,
 			  struct btrfs_key *location, u8 type, u64 index)
@@ -184,6 +203,11 @@ out:
 	return 0;
 }
 
+/*
+ * lookup a directory item based on name.  'dir' is the objectid
+ * we're searching in, and 'mod' tells us if you plan on deleting the
+ * item (use mod < 0) or changing the options (use mod > 0)
+ */
 struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 					     struct btrfs_root *root,
 					     struct btrfs_path *path, u64 dir,
@@ -222,6 +246,14 @@ struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 	return btrfs_match_dir_item_name(root, path, name, name_len);
 }
 
+/*
+ * lookup a directory item based on index.  'dir' is the objectid
+ * we're searching in, and 'mod' tells us if you plan on deleting the
+ * item (use mod < 0) or changing the options (use mod > 0)
+ *
+ * The name is used to make sure the index really points to the name you were
+ * looking for.
+ */
 struct btrfs_dir_item *
 btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
@@ -282,6 +314,11 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
 	return btrfs_match_dir_item_name(root, path, name, name_len);
 }
 
+/*
+ * helper function to look at the directory item pointed to by 'path'
+ * this walks through all the entries in a dir item and finds one
+ * for a specific name.
+ */
 struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
 			      struct btrfs_path *path,
 			      const char *name, int name_len)
@@ -313,6 +350,10 @@ struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
 	return NULL;
 }
 
+/*
+ * given a pointer into a directory item, delete it.  This
+ * handles items that have more than one entry in them.
+ */
 int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct btrfs_path *path,

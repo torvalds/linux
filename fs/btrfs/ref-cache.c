@@ -21,6 +21,16 @@
 #include "ref-cache.h"
 #include "transaction.h"
 
+/*
+ * leaf refs are used to cache the information about which extents
+ * a given leaf has references on.  This allows us to process that leaf
+ * in btrfs_drop_snapshot without needing to read it back from disk.
+ */
+
+/*
+ * kmalloc a leaf reference struct and update the counters for the
+ * total ref cache size
+ */
 struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(struct btrfs_root *root,
 					    int nr_extents)
 {
@@ -40,6 +50,10 @@ struct btrfs_leaf_ref *btrfs_alloc_leaf_ref(struct btrfs_root *root,
 	return ref;
 }
 
+/*
+ * free a leaf reference struct and update the counters for the
+ * total ref cache size
+ */
 void btrfs_free_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 {
 	if (!ref)
@@ -135,6 +149,10 @@ int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen,
 	return 0;
 }
 
+/*
+ * find the leaf ref for a given extent.  This returns the ref struct with
+ * a usage reference incremented
+ */
 struct btrfs_leaf_ref *btrfs_lookup_leaf_ref(struct btrfs_root *root,
 					     u64 bytenr)
 {
@@ -160,6 +178,10 @@ again:
 	return NULL;
 }
 
+/*
+ * add a fully filled in leaf ref struct
+ * remove all the refs older than a given root generation
+ */
 int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref,
 		       int shared)
 {
@@ -184,6 +206,10 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref,
 	return ret;
 }
 
+/*
+ * remove a single leaf ref from the tree.  This drops the ref held by the tree
+ * only
+ */
 int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref)
 {
 	struct btrfs_leaf_ref_tree *tree;

@@ -41,6 +41,9 @@
 #include "compat.h"
 
 
+/* simple helper to fault in pages and copy.  This should go away
+ * and be replaced with calls into generic code.
+ */
 static int noinline btrfs_copy_from_user(loff_t pos, int num_pages,
 					 int write_bytes,
 					 struct page **prepared_pages,
@@ -72,12 +75,19 @@ static int noinline btrfs_copy_from_user(loff_t pos, int num_pages,
 	return page_fault ? -EFAULT : 0;
 }
 
+/*
+ * unlocks pages after btrfs_file_write is done with them
+ */
 static void noinline btrfs_drop_pages(struct page **pages, size_t num_pages)
 {
 	size_t i;
 	for (i = 0; i < num_pages; i++) {
 		if (!pages[i])
 			break;
+		/* page checked is some magic around finding pages that
+		 * have been modified without going through btrfs_set_page_dirty
+		 * clear it here
+		 */
 		ClearPageChecked(pages[i]);
 		unlock_page(pages[i]);
 		mark_page_accessed(pages[i]);
@@ -85,6 +95,10 @@ static void noinline btrfs_drop_pages(struct page **pages, size_t num_pages)
 	}
 }
 
+/* this does all the hard work for inserting an inline extent into
+ * the btree.  Any existing inline extent is extended as required to make room,
+ * otherwise things are inserted as required into the btree
+ */
 static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, struct inode *inode,
 				u64 offset, size_t size,
@@ -228,6 +242,14 @@ fail:
 	return err;
 }
 
+/*
+ * after copy_from_user, pages need to be dirtied and we need to make
+ * sure holes are created between the current EOF and the start of
+ * any next extents (if required).
+ *
+ * this also makes the decision about creating an inline extent vs
+ * doing real data extents, marking pages dirty and delalloc as required.
+ */
 static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct file *file,
@@ -362,6 +384,10 @@ out_unlock:
 	return err;
 }
 
+/*
+ * this drops all the extents in the cache that intersect the range
+ * [start, end].  Existing extents are split as required.
+ */
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			    int skip_pinned)
 {
@@ -536,6 +562,9 @@ out:
  * If an extent intersects the range but is not entirely inside the range
  * it is either truncated or split.  Anything entirely inside the range
  * is deleted from the tree.
+ *
+ * inline_limit is used to tell this code which offsets in the file to keep
+ * if they contain inline extents.
  */
 int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
@@ -796,7 +825,9 @@ out:
 }
 
 /*
- * this gets pages into the page cache and locks them down
+ * this gets pages into the page cache and locks them down, it also properly
+ * waits for data=ordered extents to finish before allowing the pages to be
+ * modified.
  */
 static int noinline prepare_pages(struct btrfs_root *root, struct file *file,
 			 struct page **pages, size_t num_pages,
@@ -1034,6 +1065,17 @@ int btrfs_release_file(struct inode * inode, struct file * filp)
 	return 0;
 }
 
+/*
+ * fsync call for both files and directories.  This logs the inode into
+ * the tree log instead of forcing full commits whenever possible.
+ *
+ * It needs to call filemap_fdatawait so that all ordered extent updates are
+ * in the metadata btree are up to date for copying to the log.
+ *
+ * It drops the inode mutex before doing the tree log commit.  This is an
+ * important optimization for directories because holding the mutex prevents
+ * new operations on the dir while we write to disk.
+ */
 int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;

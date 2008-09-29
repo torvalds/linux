@@ -26,7 +26,6 @@
 #include "btrfs_inode.h"
 #include "extent_io.h"
 
-
 static u64 entry_end(struct btrfs_ordered_extent *entry)
 {
 	if (entry->file_offset + entry->len < entry->file_offset)
@@ -34,6 +33,9 @@ static u64 entry_end(struct btrfs_ordered_extent *entry)
 	return entry->file_offset + entry->len;
 }
 
+/* returns NULL if the insertion worked, or it returns the node it did find
+ * in the tree
+ */
 static struct rb_node *tree_insert(struct rb_root *root, u64 file_offset,
 				   struct rb_node *node)
 {
@@ -58,6 +60,10 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 file_offset,
 	return NULL;
 }
 
+/*
+ * look for a given offset in the tree, and if it can't be found return the
+ * first lesser offset
+ */
 static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
 				     struct rb_node **prev_ret)
 {
@@ -108,6 +114,9 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
 	return NULL;
 }
 
+/*
+ * helper to check if a given offset is inside a given entry
+ */
 static int offset_in_entry(struct btrfs_ordered_extent *entry, u64 file_offset)
 {
 	if (file_offset < entry->file_offset ||
@@ -116,6 +125,10 @@ static int offset_in_entry(struct btrfs_ordered_extent *entry, u64 file_offset)
 	return 1;
 }
 
+/*
+ * look find the first ordered struct that has this offset, otherwise
+ * the first one less than this offset
+ */
 static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
 					  u64 file_offset)
 {
@@ -305,6 +318,10 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 	return 0;
 }
 
+/*
+ * wait for all the ordered extents in a root.  This is done when balancing
+ * space between drives.
+ */
 int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only)
 {
 	struct list_head splice;

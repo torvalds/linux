@@ -46,6 +46,9 @@ static noinline void put_transaction(struct btrfs_transaction *transaction)
 	}
 }
 
+/*
+ * either allocate a new transaction or hop into the existing one
+ */
 static noinline int join_transaction(struct btrfs_root *root)
 {
 	struct btrfs_transaction *cur_trans;
@@ -85,6 +88,12 @@ static noinline int join_transaction(struct btrfs_root *root)
 	return 0;
 }
 
+/*
+ * this does all the record keeping required to make sure that a
+ * reference counted root is properly recorded in a given transaction.
+ * This is required to make sure the old root from before we joined the transaction
+ * is deleted when the transaction commits
+ */
 noinline int btrfs_record_root_in_trans(struct btrfs_root *root)
 {
 	struct btrfs_dirty_root *dirty;
@@ -127,6 +136,10 @@ noinline int btrfs_record_root_in_trans(struct btrfs_root *root)
 	return 0;
 }
 
+/* wait for commit against the current transaction to become unblocked
+ * when this is done, it is safe to start a new transaction, but the current
+ * transaction might not be fully on disk.
+ */
 static void wait_current_trans(struct btrfs_root *root)
 {
 	struct btrfs_transaction *cur_trans;
@@ -198,7 +211,7 @@ struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
 	return start_transaction(r, num_blocks, 2);
 }
 
-
+/* wait for a transaction commit to be fully complete */
 static noinline int wait_for_commit(struct btrfs_root *root,
 				    struct btrfs_transaction *commit)
 {
@@ -218,6 +231,10 @@ static noinline int wait_for_commit(struct btrfs_root *root,
 	return 0;
 }
 
+/*
+ * rate limit against the drop_snapshot code.  This helps to slow down new operations
+ * if the drop_snapshot code isn't able to keep up.
+ */
 static void throttle_on_drops(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *info = root->fs_info;
@@ -302,7 +319,11 @@ int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 	return __btrfs_end_transaction(trans, root, 1);
 }
 
-
+/*
+ * when btree blocks are allocated, they have some corresponding bits set for
+ * them in one of two extent_io trees.  This is used to make sure all of
+ * those extents are on disk for transaction or log commit
+ */
 int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 					struct extent_io_tree *dirty_pages)
 {
@@ -393,6 +414,16 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 					   &trans->transaction->dirty_pages);
 }
 
+/*
+ * this is used to update the root pointer in the tree of tree roots.
+ *
+ * But, in the case of the extent allocation tree, updating the root
+ * pointer may allocate blocks which may change the root of the extent
+ * allocation tree.
+ *
+ * So, this loops and repeats and makes sure the cowonly root didn't
+ * change while the root pointer was being updated in the metadata.
+ */
 static int update_cowonly_root(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
@@ -418,6 +449,9 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+/*
+ * update all the cowonly tree roots on disk
+ */
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root)
 {
@@ -433,6 +467,11 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+/*
+ * dead roots are old snapshots that need to be deleted.  This allocates
+ * a dirty root struct and adds it into the list of dead roots that need to
+ * be deleted
+ */
 int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest)
 {
 	struct btrfs_dirty_root *dirty;
@@ -449,6 +488,12 @@ int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest)
 	return 0;
 }
 
+/*
+ * at transaction commit time we need to schedule the old roots for
+ * deletion via btrfs_drop_snapshot.  This runs through all the
+ * reference counted roots that were modified in the current
+ * transaction and puts them into the drop list
+ */
 static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 				    struct radix_tree_root *radix,
 				    struct list_head *list)
@@ -541,6 +586,10 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 	return err;
 }
 
+/*
+ * defrag a given btree.  If cacheonly == 1, this won't read from the disk,
+ * otherwise every leaf in the btree is read and defragged.
+ */
 int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 {
 	struct btrfs_fs_info *info = root->fs_info;
@@ -570,6 +619,10 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 	return 0;
 }
 
+/*
+ * Given a list of roots that need to be deleted, call btrfs_drop_snapshot on
+ * all of them
+ */
 static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 				     struct list_head *list)
 {
@@ -664,6 +717,10 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 	return ret;
 }
 
+/*
+ * new snapshots need to be created at a very specific time in the
+ * transaction commit.  This does the actual creation
+ */
 static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_pending_snapshot *pending)
@@ -734,6 +791,9 @@ fail:
 	return ret;
 }
 
+/*
+ * create all the snapshots we've scheduled for creation
+ */
 static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 					     struct btrfs_fs_info *fs_info)
 {
@@ -944,6 +1004,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/*
+ * interface function to delete all the snapshots we have scheduled for deletion
+ */
 int btrfs_clean_old_snapshots(struct btrfs_root *root)
 {
 	struct list_head dirty_roots;

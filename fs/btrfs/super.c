@@ -519,6 +519,9 @@ static struct file_system_type btrfs_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
+/*
+ * used by btrfsctl to scan devices when no FS is mounted
+ */
 static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {

@@ -27,7 +27,6 @@
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
 #include <asm/kmap_types.h>
-#include "bit-radix.h"
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"

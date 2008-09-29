@@ -25,6 +25,15 @@
 #include "extent_io.h"
 #include "locking.h"
 
+/*
+ * locks the per buffer mutex in an extent buffer.  This uses adaptive locks
+ * and the spin is not tuned very extensively.  The spinning does make a big
+ * difference in almost every workload, but spinning for the right amount of
+ * time needs some help.
+ *
+ * In general, we want to spin as long as the lock holder is doing btree searches,
+ * and we should give up if they are in more expensive code.
+ */
 int btrfs_tree_lock(struct extent_buffer *eb)
 {
 	int i;
@@ -57,6 +66,10 @@ int btrfs_tree_locked(struct extent_buffer *eb)
 	return mutex_is_locked(&eb->mutex);
 }
 
+/*
+ * btrfs_search_slot uses this to decide if it should drop its locks
+ * before doing something expensive like allocating free blocks for cow.
+ */
 int btrfs_path_lock_waiting(struct btrfs_path *path, int level)
 {
 	int i;

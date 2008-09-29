@@ -83,6 +83,10 @@ static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 
 static void btrfs_truncate(struct inode *inode);
 
+/*
+ * a very lame attempt at stopping writes when the FS is 85% full.  There
+ * are countless ways this is incorrect, but it is better than nothing.
+ */
 int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 			   int for_del)
 {
@@ -108,6 +112,12 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 	return ret;
 }
 
+/*
+ * when extent_io.c finds a delayed allocation range in the file,
+ * the call backs end up in this code.  The basic idea is to
+ * allocate extents on disk for the range, and create ordered data structs
+ * in ram to track those extents.
+ */
 static int cow_file_range(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -185,6 +195,13 @@ out:
 	return ret;
 }
 
+/*
+ * when nowcow writeback call back.  This checks for snapshots or COW copies
+ * of the extents that exist in the file, and COWs the file as required.
+ *
+ * If no cow copies or snapshots exist, we write directly to the existing
+ * blocks on disk
+ */
 static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
 {
 	u64 extent_start;
@@ -291,6 +308,9 @@ out:
 	return err;
 }
 
+/*
+ * extent_io.c call back to do delayed allocation processing
+ */
 static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -305,6 +325,11 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 	return ret;
 }
 
+/*
+ * extent_io.c set_bit_hook, used to track delayed allocation
+ * bytes in this file, and to maintain the list of inodes that
+ * have pending delalloc work to be done.
+ */
 int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 		       unsigned long old, unsigned long bits)
 {
@@ -323,6 +348,9 @@ int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
+/*
+ * extent_io.c clear_bit_hook, see set_bit_hook for why
+ */
 int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 			 unsigned long old, unsigned long bits)
 {
@@ -349,6 +377,10 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
+/*
+ * extent_io.c merge_bio_hook, this must check the chunk tree to make sure
+ * we don't create bios that span stripes or chunks
+ */
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio)
 {
@@ -371,6 +403,14 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	return 0;
 }
 
+/*
+ * in order to insert checksums into the metadata in large chunks,
+ * we wait until bio submission time.   All the pages in the bio are
+ * checksummed and sums are attached onto the ordered extent record.
+ *
+ * At IO completion time the cums attached on the ordered extent record
+ * are inserted into the btree
+ */
 int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num)
 {
@@ -383,6 +423,10 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	return btrfs_map_bio(root, rw, bio, mirror_num, 1);
 }
 
+/*
+ * extent_io.c submission hook. This does the right thing for csum calculation on write,
+ * or reading the csums from the tree before a read
+ */
 int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num)
 {
@@ -408,6 +452,10 @@ mapit:
 	return btrfs_map_bio(root, rw, bio, mirror_num, 0);
 }
 
+/*
+ * given a list of ordered sums record them in the inode.  This happens
+ * at IO completion time based on sums calculated at bio submission time.
+ */
 static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 			     struct inode *inode, u64 file_offset,
 			     struct list_head *list)
@@ -430,12 +478,12 @@ int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end)
 				   GFP_NOFS);
 }
 
+/* see btrfs_writepage_start_hook for details on why this is required */
 struct btrfs_writepage_fixup {
 	struct page *page;
 	struct btrfs_work work;
 };
 
-/* see btrfs_writepage_start_hook for details on why this is required */
 void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 {
 	struct btrfs_writepage_fixup *fixup;
@@ -522,6 +570,10 @@ int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 	return -EAGAIN;
 }
 
+/* as ordered data IO finishes, this gets called so we can finish
+ * an ordered extent if the range of bytes in the file it covers are
+ * fully written.
+ */
 static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -631,6 +683,14 @@ int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 	return btrfs_finish_ordered_io(page->mapping->host, start, end);
 }
 
+/*
+ * When IO fails, either with EIO or csum verification fails, we
+ * try other mirrors that might have a good copy of the data.  This
+ * io_failure_record is used to record state as we go through all the
+ * mirrors.  If another mirror has good data, the page is set up to date
+ * and things continue.  If a good mirror can't be found, the original
+ * bio end_io callback is called to indicate things have failed.
+ */
 struct io_failure_record {
 	struct page *page;
 	u64 start;
@@ -725,6 +785,10 @@ int btrfs_io_failed_hook(struct bio *failed_bio,
 	return 0;
 }
 
+/*
+ * each time an IO finishes, we do a fast check in the IO failure tree
+ * to see if we need to process or clean up an io_failure_record
+ */
 int btrfs_clean_io_failures(struct inode *inode, u64 start)
 {
 	u64 private;
@@ -753,6 +817,11 @@ int btrfs_clean_io_failures(struct inode *inode, u64 start)
 	return 0;
 }
 
+/*
+ * when reads are done, we need to check csums to verify the data is correct
+ * if there's a match, we allow the bio to finish.  If not, we go through
+ * the io_failure_record routines to find good copies
+ */
 int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -990,6 +1059,9 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 	btrfs_free_path(path);
 }
 
+/*
+ * read an inode from the btree into the in-memory inode
+ */
 void btrfs_read_locked_inode(struct inode *inode)
 {
 	struct btrfs_path *path;
@@ -1083,6 +1155,9 @@ make_bad:
 	make_bad_inode(inode);
 }
 
+/*
+ * given a leaf and an inode, copy the inode fields into the leaf
+ */
 static void fill_inode_item(struct btrfs_trans_handle *trans,
 			    struct extent_buffer *leaf,
 			    struct btrfs_inode_item *item,
@@ -1118,6 +1193,9 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 				    BTRFS_I(inode)->block_group->key.objectid);
 }
 
+/*
+ * copy everything in the in-memory inode into the btree.
+ */
 int noinline btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode)
@@ -1151,6 +1229,11 @@ failed:
 }
 
 
+/*
+ * unlink helper that gets used here in inode.c and in the tree logging
+ * recovery code.  It remove a link in a directory with a given name, and
+ * also drops the back refs in the inode to the directory
+ */
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root,
 		       struct inode *dir, struct inode *inode,
@@ -1309,7 +1392,7 @@ fail:
 /*
  * this can truncate away extent items, csum items and directory items.
  * It starts at a high offset and removes keys until it can't find
- * any higher than i_size.
+ * any higher than new_size
  *
  * csum items that cross the new i_size are truncated to the new size
  * as well.
@@ -2123,6 +2206,11 @@ void btrfs_dirty_inode(struct inode *inode)
 	btrfs_end_transaction(trans, root);
 }
 
+/*
+ * find the highest existing sequence number in a directory
+ * and then set the in-memory index_cnt variable to reflect
+ * free sequence numbers
+ */
 static int btrfs_set_inode_index_count(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -2175,6 +2263,10 @@ out:
 	return ret;
 }
 
+/*
+ * helper to find a free sequence number in a given directory.  This current
+ * code is very simple, later versions will do smarter things in the btree
+ */
 static int btrfs_set_inode_index(struct inode *dir, struct inode *inode,
 				 u64 *index)
 {
@@ -2305,6 +2397,12 @@ static inline u8 btrfs_inode_type(struct inode *inode)
 	return btrfs_type_by_mode[(inode->i_mode & S_IFMT) >> S_SHIFT];
 }
 
+/*
+ * utility function to add 'inode' into 'parent_inode' with
+ * a give name and a given sequence number.
+ * if 'add_backref' is true, also insert a backref from the
+ * inode to the parent directory.
+ */
 int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct inode *parent_inode, struct inode *inode,
 		   const char *name, int name_len, int add_backref, u64 index)
@@ -2611,6 +2709,10 @@ out_unlock:
 	return err;
 }
 
+/* helper for btfs_get_extent.  Given an existing extent in the tree,
+ * and an extent that you want to insert, deal with overlap and insert
+ * the new extent into the tree.
+ */
 static int merge_extent_mapping(struct extent_map_tree *em_tree,
 				struct extent_map *existing,
 				struct extent_map *em,
@@ -2627,6 +2729,14 @@ static int merge_extent_mapping(struct extent_map_tree *em_tree,
 	return add_extent_mapping(em_tree, em);
 }
 
+/*
+ * a bit scary, this does extent mapping from logical file offset to the disk.
+ * the ugly parts come from merging extents from the disk with the
+ * in-ram representation.  This gets more complex because of the data=ordered code,
+ * where the in-ram extents might be locked pending data=ordered completion.
+ *
+ * This also copies inline extents directly into the page.
+ */
 struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 				    size_t pg_offset, u64 start, u64 len,
 				    int create)
@@ -2869,76 +2979,11 @@ out:
 	return em;
 }
 
-#if 0 /* waiting for O_DIRECT reads */
-static int btrfs_get_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create)
-{
-	struct extent_map *em;
-	u64 start = (u64)iblock << inode->i_blkbits;
-	struct btrfs_multi_bio *multi = NULL;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 len;
-	u64 logical;
-	u64 map_length;
-	int ret = 0;
-
-	em = btrfs_get_extent(inode, NULL, 0, start, bh_result->b_size, 0);
-
-	if (!em || IS_ERR(em))
-		goto out;
-
-	if (em->start > start || em->start + em->len <= start) {
-	    goto out;
-	}
-
-	if (em->block_start == EXTENT_MAP_INLINE) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	len = em->start + em->len - start;
-	len = min_t(u64, len, INT_LIMIT(typeof(bh_result->b_size)));
-
-	if (em->block_start == EXTENT_MAP_HOLE ||
-	    em->block_start == EXTENT_MAP_DELALLOC) {
-		bh_result->b_size = len;
-		goto out;
-	}
-
-	logical = start - em->start;
-	logical = em->block_start + logical;
-
-	map_length = len;
-	ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,
-			      logical, &map_length, &multi, 0);
-	BUG_ON(ret);
-	bh_result->b_blocknr = multi->stripes[0].physical >> inode->i_blkbits;
-	bh_result->b_size = min(map_length, len);
-
-	bh_result->b_bdev = multi->stripes[0].dev->bdev;
-	set_buffer_mapped(bh_result);
-	kfree(multi);
-out:
-	free_extent_map(em);
-	return ret;
-}
-#endif
-
 static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 			const struct iovec *iov, loff_t offset,
 			unsigned long nr_segs)
 {
 	return -EINVAL;
-#if 0
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
-
-	if (rw == WRITE)
-		return -EINVAL;
-
-	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, btrfs_get_block, NULL);
-#endif
 }
 
 static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
@@ -3202,6 +3247,9 @@ void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
 	}
 }
 
+/*
+ * create a new subvolume directory/inode (helper for the ioctl).
+ */
 int btrfs_create_subvol_root(struct btrfs_root *new_root,
 		struct btrfs_trans_handle *trans, u64 new_dirid,
 		struct btrfs_block_group_cache *block_group)
@@ -3223,6 +3271,9 @@ int btrfs_create_subvol_root(struct btrfs_root *new_root,
 	return btrfs_update_inode(trans, new_root, inode);
 }
 
+/* helper function for file defrag and space balancing.  This
+ * forces readahead on a given range of bytes in an inode
+ */
 unsigned long btrfs_force_ra(struct address_space *mapping,
 			      struct file_ra_state *ra, struct file *file,
 			      pgoff_t offset, pgoff_t last_index)
@@ -3424,6 +3475,10 @@ out_unlock:
 	return ret;
 }
 
+/*
+ * some fairly slow code that needs optimization. This walks the list
+ * of all the inodes with pending delalloc and forces them to disk.
+ */
 int btrfs_start_delalloc_inodes(struct btrfs_root *root)
 {
 	struct list_head *head = &root->fs_info->delalloc_inodes;

@@ -22,8 +22,10 @@
 #include "print-tree.h"
 
 /*
- * returns 0 on finding something, 1 if no more roots are there
- * and < 0 on error
+ *  search forward for a root, starting with objectid 'search_start'
+ *  if a root key is found, the objectid we find is filled into 'found_objectid'
+ *  and 0 is returned.  < 0 is returned on error, 1 if there is nothing
+ *  left in the tree.
  */
 int btrfs_search_root(struct btrfs_root *root, u64 search_start,
 		      u64 *found_objectid)
@@ -66,6 +68,11 @@ out:
 	return ret;
 }
 
+/*
+ * lookup the root with the highest offset for a given objectid.  The key we do
+ * find is copied into 'key'.  If we find something return 0, otherwise 1, < 0
+ * on error.
+ */
 int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 			struct btrfs_root_item *item, struct btrfs_key *key)
 {
@@ -104,6 +111,9 @@ out:
 	return ret;
 }
 
+/*
+ * copy the data in 'item' into the btree
+ */
 int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_root_item
 		      *item)
@@ -147,6 +157,12 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	return ret;
 }
 
+/*
+ * at mount time we want to find all the old transaction snapshots that were in
+ * the process of being deleted if we crashed.  This is any root item with an offset
+ * lower than the latest root.  They need to be queued for deletion to finish
+ * what was happening when we crashed.
+ */
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 			  struct btrfs_root *latest)
 {
@@ -227,6 +243,7 @@ err:
 	return ret;
 }
 
+/* drop the root item for 'key' from 'root' */
 int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_key *key)
 {
