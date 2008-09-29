@@ -1261,38 +1261,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
-static void remove_siblinginfo(int cpu)
-{
-	int sibling;
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-
-	for_each_cpu_mask_nr(sibling, per_cpu(cpu_core_map, cpu)) {
-		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
-		/*/
-		 * last thread sibling in this cpu core going down
-		 */
-		if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1)
-			cpu_data(sibling).booted_cores--;
-	}
-
-	for_each_cpu_mask_nr(sibling, per_cpu(cpu_sibling_map, cpu))
-		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
-	cpus_clear(per_cpu(cpu_sibling_map, cpu));
-	cpus_clear(per_cpu(cpu_core_map, cpu));
-	c->phys_proc_id = 0;
-	c->cpu_core_id = 0;
-	cpu_clear(cpu, cpu_sibling_setup_map);
-}
-
 static int additional_cpus __initdata = -1;
-
-static __init int setup_additional_cpus(char *s)
-{
-	return s && get_option(&s, &additional_cpus) ? 0 : -EINVAL;
-}
-early_param("additional_cpus", setup_additional_cpus);
 
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
@@ -1339,6 +1308,37 @@ __init void prefill_possible_map(void)
 
 	nr_cpu_ids = possible;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+static void remove_siblinginfo(int cpu)
+{
+	int sibling;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+	for_each_cpu_mask_nr(sibling, per_cpu(cpu_core_map, cpu)) {
+		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
+		/*/
+		 * last thread sibling in this cpu core going down
+		 */
+		if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1)
+			cpu_data(sibling).booted_cores--;
+	}
+
+	for_each_cpu_mask_nr(sibling, per_cpu(cpu_sibling_map, cpu))
+		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
+	cpus_clear(per_cpu(cpu_sibling_map, cpu));
+	cpus_clear(per_cpu(cpu_core_map, cpu));
+	c->phys_proc_id = 0;
+	c->cpu_core_id = 0;
+	cpu_clear(cpu, cpu_sibling_setup_map);
+}
+
+static __init int setup_additional_cpus(char *s)
+{
+	return s && get_option(&s, &additional_cpus) ? 0 : -EINVAL;
+}
+early_param("additional_cpus", setup_additional_cpus);
 
 static void __ref remove_cpu_from_maps(int cpu)
 {
