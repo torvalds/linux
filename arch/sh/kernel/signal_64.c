@@ -563,7 +563,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
 
 		if (__copy_to_user(frame->retcode,
-			(unsigned long long)sa_default_restorer & (~1), 16) != 0)
+			(void *)((unsigned long)sa_default_restorer & (~1)), 16) != 0)
 			goto give_sigsegv;
 
 		/* Cohere the trampoline with the I-cache. */
@@ -681,7 +681,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
 
 		if (__copy_to_user(frame->retcode,
-			(unsigned long long)sa_default_rt_restorer & (~1), 16) != 0)
+			(void *)((unsigned long)sa_default_rt_restorer & (~1)), 16) != 0)
 			goto give_sigsegv;
 
 		flush_icache_range(DEREF_REG_PR-1, DEREF_REG_PR-1+15);
