@@ -481,51 +481,6 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 	/* We return the initrd size. */
 	return len;
 }
-
-/* Once we know how much memory we have we can construct simple linear page
- * tables which set virtual == physical which will get the Guest far enough
- * into the boot to create its own.
- *
- * We lay them out of the way, just below the initrd (which is why we need to
- * know its size here). */
-static unsigned long setup_pagetables(unsigned long mem,
-				      unsigned long initrd_size)
-{
-	unsigned long *pgdir, *linear;
-	unsigned int mapped_pages, i, linear_pages;
-	unsigned int ptes_per_page = getpagesize()/sizeof(void *);
-
-	mapped_pages = mem/getpagesize();
-
-	/* Each PTE page can map ptes_per_page pages: how many do we need? */
-	linear_pages = (mapped_pages + ptes_per_page-1)/ptes_per_page;
-
-	/* We put the toplevel page directory page at the top of memory. */
-	pgdir = from_guest_phys(mem) - initrd_size - getpagesize();
-
-	/* Now we use the next linear_pages pages as pte pages */
-	linear = (void *)pgdir - linear_pages*getpagesize();
-
-	/* Linear mapping is easy: put every page's address into the mapping in
-	 * order.  PAGE_PRESENT contains the flags Present, Writable and
-	 * Executable. */
-	for (i = 0; i < mapped_pages; i++)
-		linear[i] = ((i * getpagesize()) | PAGE_PRESENT);
-
-	/* The top level points to the linear page table pages above. */
-	for (i = 0; i < mapped_pages; i += ptes_per_page) {
-		pgdir[i/ptes_per_page]
-			= ((to_guest_phys(linear) + i*sizeof(void *))
-			   | PAGE_PRESENT);
-	}
-
-	verbose("Linear mapping of %u pages in %u pte pages at %#lx\n",
-		mapped_pages, linear_pages, to_guest_phys(linear));
-
-	/* We return the top level (guest-physical) address: the kernel needs
-	 * to know where it is. */
-	return to_guest_phys(pgdir);
-}
 /*:*/
 
 /* Simple routine to roll all the commandline arguments together with spaces
@@ -548,13 +503,13 @@ static void concat(char *dst, char *args[])
 
 /*L:185 This is where we actually tell the kernel to initialize the Guest.  We
  * saw the arguments it expects when we looked at initialize() in lguest_user.c:
- * the base of Guest "physical" memory, the top physical page to allow, the
- * top level pagetable and the entry point for the Guest. */
-static int tell_kernel(unsigned long pgdir, unsigned long start)
+ * the base of Guest "physical" memory, the top physical page to allow and the
+ * entry point for the Guest. */
+static int tell_kernel(unsigned long start)
 {
 	unsigned long args[] = { LHREQ_INITIALIZE,
 				 (unsigned long)guest_base,
-				 guest_limit / getpagesize(), pgdir, start };
+				 guest_limit / getpagesize(), start };
 	int fd;
 
 	verbose("Guest: %p - %p (%#lx)\n",
@@ -1941,7 +1896,7 @@ int main(int argc, char *argv[])
 {
 	/* Memory, top-level pagetable, code startpoint and size of the
 	 * (optional) initrd. */
-	unsigned long mem = 0, pgdir, start, initrd_size = 0;
+	unsigned long mem = 0, start, initrd_size = 0;
 	/* Two temporaries and the /dev/lguest file descriptor. */
 	int i, c, lguest_fd;
 	/* The boot information for the Guest. */
@@ -2040,9 +1995,6 @@ int main(int argc, char *argv[])
 		boot->hdr.type_of_loader = 0xFF;
 	}
 
-	/* Set up the initial linear pagetables, starting below the initrd. */
-	pgdir = setup_pagetables(mem, initrd_size);
-
 	/* The Linux boot header contains an "E820" memory map: ours is a
 	 * simple, single region. */
 	boot->e820_entries = 1;
@@ -2064,7 +2016,7 @@ int main(int argc, char *argv[])
 
 	/* We tell the kernel to initialize the Guest: this returns the open
 	 * /dev/lguest file descriptor. */
-	lguest_fd = tell_kernel(pgdir, start);
+	lguest_fd = tell_kernel(start);
 
 	/* We clone off a thread, which wakes the Launcher whenever one of the
 	 * input file descriptors needs attention.  We call this the Waker, and

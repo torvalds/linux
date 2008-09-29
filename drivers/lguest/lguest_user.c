@@ -146,7 +146,7 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	return 0;
 }
 
-/*L:020 The initialization write supplies 4 pointer sized (32 or 64 bit)
+/*L:020 The initialization write supplies 3 pointer sized (32 or 64 bit)
  * values (in addition to the LHREQ_INITIALIZE value).  These are:
  *
  * base: The start of the Guest-physical memory inside the Launcher memory.
@@ -154,9 +154,6 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
  * pfnlimit: The highest (Guest-physical) page number the Guest should be
  * allowed to access.  The Guest memory lives inside the Launcher, so it sets
  * this to ensure the Guest can only reach its own memory.
- *
- * pgdir: The (Guest-physical) address of the top of the initial Guest
- * pagetables (which are set up by the Launcher).
  *
  * start: The first instruction to execute ("eip" in x86-speak).
  */
@@ -166,7 +163,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	 * Guest. */
 	struct lguest *lg;
 	int err;
-	unsigned long args[4];
+	unsigned long args[3];
 
 	/* We grab the Big Lguest lock, which protects against multiple
 	 * simultaneous initializations. */
@@ -192,14 +189,14 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	lg->mem_base = (void __user *)args[0];
 	lg->pfn_limit = args[1];
 
-	/* This is the first cpu (cpu 0) and it will start booting at args[3] */
-	err = lg_cpu_start(&lg->cpus[0], 0, args[3]);
+	/* This is the first cpu (cpu 0) and it will start booting at args[2] */
+	err = lg_cpu_start(&lg->cpus[0], 0, args[2]);
 	if (err)
 		goto release_guest;
 
 	/* Initialize the Guest's shadow page tables, using the toplevel
 	 * address the Launcher gave us.  This allocates memory, so can fail. */
-	err = init_guest_pagetable(lg, args[2]);
+	err = init_guest_pagetable(lg);
 	if (err)
 		goto free_regs;
 
