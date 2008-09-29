@@ -2012,6 +2012,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	}
 
 	msleep(10);
+	nvm->ops.release_nvm(hw);
 	return 0;
 }
 
