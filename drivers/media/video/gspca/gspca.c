@@ -461,25 +461,34 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 	ep = NULL;
 	i = gspca_dev->alt;			/* previous alt setting */
+
+	/* try isoc */
 	while (--i > 0) {			/* alt 0 is unusable */
 		ep = alt_xfer(&intf->altsetting[i],
 				gspca_dev->cam.epaddr,
-				gspca_dev->bulk
-					? USB_ENDPOINT_XFER_BULK
-					: USB_ENDPOINT_XFER_ISOC);
+				USB_ENDPOINT_XFER_ISOC);
 		if (ep)
 			break;
 	}
+
+	/* if no isoc, try bulk */
 	if (ep == NULL) {
-		err("no transfer endpoint found");
-		return NULL;
+		ep = alt_xfer(&intf->altsetting[0],
+				gspca_dev->cam.epaddr,
+				USB_ENDPOINT_XFER_BULK);
+		if (ep == NULL) {
+			err("no transfer endpoint found");
+			return NULL;
+		}
 	}
 	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
 			i, ep->desc.bEndpointAddress);
-	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
-	if (ret < 0) {
-		err("set interface err %d", ret);
-		return NULL;
+	if (i > 0) {
+		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
+		if (ret < 0) {
+			err("set interface err %d", ret);
+			return NULL;
+		}
 	}
 	gspca_dev->alt = i;		/* memorize the current alt setting */
 	return ep;
@@ -497,9 +506,10 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	/* calculate the packet size and the number of packets */
 	psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 
-	/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
-	psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
-	if (!gspca_dev->bulk) {
+	if (gspca_dev->alt != 0) {		/* isoc */
+
+		/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
+		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
 		npkt = ISO_MAX_SIZE / psize;
 		if (npkt > ISO_MAX_PKT)
 			npkt = ISO_MAX_PKT;
@@ -508,9 +518,11 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			"isoc %d pkts size %d = bsize:%d",
 			npkt, psize, bsize);
 		nurbs = DEF_NURBS;
-	} else {
+	} else {				/* bulk */
 		npkt = 0;
-		bsize = psize;
+		bsize = gspca_dev->cam.	bulk_size;
+		if (bsize == 0)
+			bsize = psize;
 		PDEBUG(D_STREAM, "bulk bsize:%d", bsize);
 		nurbs = 1;
 	}
@@ -595,7 +607,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		atomic_set(&gspca_dev->nevent, 0);
 
 		/* bulk transfers are started by the subdriver */
-		if (gspca_dev->bulk)
+		if (gspca_dev->alt == 0)
 			break;
 
 		/* submit the URBs */

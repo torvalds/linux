@@ -56,6 +56,7 @@ extern int gspca_debug;
 
 /* device information - set at probe time */
 struct cam {
+	int bulk_size;		/* buffer size when image transfer by bulk */
 	struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
 	__u8 epaddr;
@@ -144,7 +145,6 @@ struct gspca_dev {
 
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
-	__u8 bulk;		/* image transfer by isoc (0) or bulk (1) */
 	__u8 curr_mode;			/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
 	__u16 width;
