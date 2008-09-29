@@ -45,22 +45,25 @@ static void boot_trace_ctrl_update(struct trace_array *tr)
 		stop_boot_trace(tr);
 }
 
-static int initcall_print_line(struct trace_iterator *iter)
+static enum print_line_t initcall_print_line(struct trace_iterator *iter)
 {
-	int ret = 0;
+	int ret;
 	struct trace_entry *entry = iter->ent;
 	struct trace_boot *field = (struct trace_boot *)entry;
 	struct boot_trace *it = &field->initcall;
 	struct trace_seq *s = &iter->seq;
 
-	if (entry->type == TRACE_BOOT)
+	if (entry->type == TRACE_BOOT) {
 		ret = trace_seq_printf(s, "%pF called from %i "
 				       "returned %d after %lld msecs\n",
 				       it->func, it->caller, it->result,
 				       it->duration);
-	if (ret)
-		return 1;
-	return 0;
+		if (ret)
+			return TRACE_TYPE_HANDLED;
+		else
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
+	return TRACE_TYPE_UNHANDLED;
 }
 
 struct tracer boot_tracer __read_mostly =
