@@ -24,6 +24,131 @@
 #include "cx18-io.h"
 #include "cx18-irq.h"
 
+void cx18_log_statistics(struct cx18 *cx)
+{
+	int i;
+
+	if (!(cx18_debug & CX18_DBGFLG_INFO))
+		return;
+
+	for (i = 0; i <= CX18_MAX_MMIO_RETRIES; i++)
+		CX18_DEBUG_INFO("retried_write[%d] = %d\n", i,
+				atomic_read(&cx->mmio_stats.retried_write[i]));
+	for (i = 0; i <= CX18_MAX_MMIO_RETRIES; i++)
+		CX18_DEBUG_INFO("retried_read[%d] = %d\n", i,
+				atomic_read(&cx->mmio_stats.retried_read[i]));
+	return;
+}
+
+void cx18_raw_writel_retry(struct cx18 *cx, u32 val, void __iomem *addr)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		cx18_raw_writel_noretry(cx, val, addr);
+		if (val == cx18_raw_readl_noretry(cx, addr))
+			break;
+	}
+	cx18_log_write_retries(cx, i, addr);
+}
+
+u32 cx18_raw_readl_retry(struct cx18 *cx, const void __iomem *addr)
+{
+	int i;
+	u32 val;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		val = cx18_raw_readl_noretry(cx, addr);
+		if (val != 0xffffffff) /* PCI bus read error */
+			break;
+	}
+	cx18_log_read_retries(cx, i, addr);
+	return val;
+}
+
+u16 cx18_raw_readw_retry(struct cx18 *cx, const void __iomem *addr)
+{
+	int i;
+	u16 val;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		val = cx18_raw_readw_noretry(cx, addr);
+		if (val != 0xffff) /* PCI bus read error */
+			break;
+	}
+	cx18_log_read_retries(cx, i, addr);
+	return val;
+}
+
+void cx18_writel_retry(struct cx18 *cx, u32 val, void __iomem *addr)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		cx18_writel_noretry(cx, val, addr);
+		if (val == cx18_readl_noretry(cx, addr))
+			break;
+	}
+	cx18_log_write_retries(cx, i, addr);
+}
+
+void cx18_writew_retry(struct cx18 *cx, u16 val, void __iomem *addr)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		cx18_writew_noretry(cx, val, addr);
+		if (val == cx18_readw_noretry(cx, addr))
+			break;
+	}
+	cx18_log_write_retries(cx, i, addr);
+}
+
+void cx18_writeb_retry(struct cx18 *cx, u8 val, void __iomem *addr)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		cx18_writeb_noretry(cx, val, addr);
+		if (val == cx18_readb_noretry(cx, addr))
+			break;
+	}
+	cx18_log_write_retries(cx, i, addr);
+}
+
+u32 cx18_readl_retry(struct cx18 *cx, const void __iomem *addr)
+{
+	int i;
+	u32 val;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		val = cx18_readl_noretry(cx, addr);
+		if (val != 0xffffffff) /* PCI bus read error */
+			break;
+	}
+	cx18_log_read_retries(cx, i, addr);
+	return val;
+}
+
+u16 cx18_readw_retry(struct cx18 *cx, const void __iomem *addr)
+{
+	int i;
+	u16 val;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		val = cx18_readw_noretry(cx, addr);
+		if (val != 0xffff) /* PCI bus read error */
+			break;
+	}
+	cx18_log_read_retries(cx, i, addr);
+	return val;
+}
+
+u8 cx18_readb_retry(struct cx18 *cx, const void __iomem *addr)
+{
+	int i;
+	u8 val;
+	for (i = 0; i < CX18_MAX_MMIO_RETRIES; i++) {
+		val = cx18_readb_noretry(cx, addr);
+		if (val != 0xff) /* PCI bus read error */
+			break;
+	}
+	cx18_log_read_retries(cx, i, addr);
+	return val;
+}
+
 void cx18_memcpy_fromio(struct cx18 *cx, void *to,
 			const void __iomem *from, unsigned int len)
 {
@@ -126,14 +251,4 @@ void cx18_setup_page(struct cx18 *cx, u32 addr)
 	val = cx18_read_reg(cx, 0xD000F8);
 	val = (val & ~0x1f00) | ((addr >> 17) & 0x1f00);
 	cx18_write_reg(cx, val, 0xD000F8);
-}
-
-/* Tries to recover from the CX23418 responding improperly on the PCI bus */
-int cx18_pci_try_recover(struct cx18 *cx)
-{
-	u16 status;
-
-	pci_read_config_word(cx->dev, PCI_STATUS, &status);
-	pci_write_config_word(cx->dev, PCI_STATUS, status);
-	return 0;
 }

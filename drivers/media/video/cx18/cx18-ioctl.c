@@ -752,6 +752,7 @@ static int cx18_log_status(struct file *file, void *fh)
 	CX18_INFO("Read MPEG/VBI: %lld/%lld bytes\n",
 			(long long)cx->mpg_data_received,
 			(long long)cx->vbi_data_inserted);
+	cx18_log_statistics(cx);
 	CX18_INFO("==================  END STATUS CARD #%d  ==================\n", cx->num);
 	return 0;
 }

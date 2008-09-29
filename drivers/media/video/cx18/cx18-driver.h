@@ -171,6 +171,7 @@
 
 #define CX18_MAX_PGM_INDEX (400)
 
+extern int cx18_retry_mmio;	/* enable check & retry of mmio accesses */
 extern int cx18_debug;
 
 
@@ -344,6 +345,13 @@ struct cx18_i2c_algo_callback_data {
 	int bus_index;   /* 0 or 1 for the cx23418's 1st or 2nd I2C bus */
 };
 
+#define CX18_MAX_MMIO_RETRIES 10
+
+struct cx18_mmio_stats {
+	atomic_t retried_write[CX18_MAX_MMIO_RETRIES+1];
+	atomic_t retried_read[CX18_MAX_MMIO_RETRIES+1];
+};
+
 /* Struct to hold info about cx18 cards */
 struct cx18 {
 	int num;		/* board number, -1 during init! */
@@ -432,6 +440,9 @@ struct cx18 {
 	u32 gpio_dir;
 	u32 gpio_val;
 	struct mutex gpio_lock;
+
+	/* Statistics */
+	struct cx18_mmio_stats mmio_stats;
 
 	/* v4l2 and User settings */
 

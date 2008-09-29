@@ -42,6 +42,12 @@ int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value)
 	return 0;
 }
 
+int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value)
+{
+	cx18_write_reg_noretry(cx, value, 0xc40000 + addr);
+	return 0;
+}
+
 u8 cx18_av_read(struct cx18 *cx, u16 addr)
 {
 	u32 x = cx18_read_reg(cx, 0xc40000 + (addr & ~3));
@@ -53,6 +59,11 @@ u8 cx18_av_read(struct cx18 *cx, u16 addr)
 u32 cx18_av_read4(struct cx18 *cx, u16 addr)
 {
 	return cx18_read_reg(cx, 0xc40000 + addr);
+}
+
+u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr)
+{
+	return cx18_read_reg_noretry(cx, 0xc40000 + addr);
 }
 
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned and_mask,

@@ -96,6 +96,7 @@ static int enc_pcm_buffers = CX18_DEFAULT_ENC_PCM_BUFFERS;
 
 static int cx18_pci_latency = 1;
 
+int cx18_retry_mmio = 1;
 int cx18_debug;
 
 module_param_array(tuner, int, &tuner_c, 0644);
@@ -106,6 +107,7 @@ module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
 module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
 module_param_named(debug, cx18_debug, int, 0644);
+module_param_named(retry_mmio, cx18_retry_mmio, int, 0644);
 module_param(cx18_pci_latency, int, 0644);
 module_param(cx18_first_minor, int, 0644);
 
@@ -147,6 +149,9 @@ MODULE_PARM_DESC(debug,
 MODULE_PARM_DESC(cx18_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
+MODULE_PARM_DESC(retry_mmio,
+		 "Check and retry memory mapped IO accesses\n"
+		 "\t\t\tDefault: 1 [Yes]");
 MODULE_PARM_DESC(mmio_ndelay,
 		 "Delay (ns) for each CX23418 memory mapped IO access.\n"
 		 "\t\t\tTry larger values that are close to a multiple of the\n"
@@ -827,6 +832,7 @@ err:
 	if (retval == 0)
 		retval = -ENODEV;
 	CX18_ERR("Error %d on initialization\n", retval);
+	cx18_log_statistics(cx);
 
 	kfree(cx18_cards[cx18_cards_active]);
 	cx18_cards[cx18_cards_active] = NULL;
@@ -931,6 +937,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	pci_disable_device(cx->dev);
 
+	cx18_log_statistics(cx);
 	CX18_INFO("Removed %s, card #%d\n", cx->card_name, cx->num);
 }
 

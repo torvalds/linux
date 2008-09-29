@@ -50,7 +50,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 		cx18_av_write4(cx, 0x8100, 0x00010000);
 
 		/* Put the 8051 in reset and enable firmware upload */
-		cx18_av_write4(cx, CXADEC_DL_CTL, 0x0F000000);
+		cx18_av_write4_noretry(cx, CXADEC_DL_CTL, 0x0F000000);
 
 		ptr = fw->data;
 		size = fw->size;
@@ -59,22 +59,28 @@ int cx18_av_loadfw(struct cx18 *cx)
 			u32 dl_control = 0x0F000000 | i | ((u32)ptr[i] << 16);
 			u32 value = 0;
 			int retries2;
+			int unrec_err = 0;
 
-			for (retries2 = 0; retries2 < 5; retries2++) {
-				cx18_av_write4(cx, CXADEC_DL_CTL, dl_control);
+			for (retries2 = 0; retries2 < CX18_MAX_MMIO_RETRIES;
+			     retries2++) {
+				cx18_av_write4_noretry(cx, CXADEC_DL_CTL,
+						       dl_control);
 				udelay(10);
-				value = cx18_av_read4(cx, CXADEC_DL_CTL);
+				value = cx18_av_read4_noretry(cx,
+							      CXADEC_DL_CTL);
 				if (value == dl_control)
 					break;
 				/* Check if we can correct the byte by changing
 				   the address.  We can only write the lower
 				   address byte of the address. */
 				if ((value & 0x3F00) != (dl_control & 0x3F00)) {
-					retries2 = 5;
+					unrec_err = 1;
 					break;
 				}
 			}
-			if (retries2 >= 5)
+			cx18_log_write_retries(cx, retries2,
+					cx->reg_mem + 0xc40000 + CXADEC_DL_CTL);
+			if (unrec_err || retries2 >= CX18_MAX_MMIO_RETRIES)
 				break;
 		}
 		if (i == size)
