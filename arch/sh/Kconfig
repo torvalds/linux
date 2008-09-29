@@ -28,7 +28,6 @@ config SUPERH32
 
 config SUPERH64
 	def_bool y if CPU_SH5
-	select GENERIC_CALIBRATE_DELAY
 
 config ARCH_DEFCONFIG
 	string
