@@ -699,6 +699,10 @@ static int saa7134_hw_enable2(struct saa7134_dev *dev)
 			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18A;
 	}
 
+	if (dev->has_remote == SAA7134_REMOTE_I2C) {
+		request_module("ir-kbd-i2c");
+	}
+
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, irq2_mask);
 
