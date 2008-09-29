@@ -177,6 +177,14 @@ struct trace_array {
 	struct trace_array_cpu	*data[NR_CPUS];
 };
 
+
+/* Return values for print_line callback */
+enum print_line_t {
+	TRACE_TYPE_PARTIAL_LINE	= 0,	/* Retry after flushing the seq */
+	TRACE_TYPE_HANDLED	= 1,
+	TRACE_TYPE_UNHANDLED	= 2	/* Relay to other output functions */
+};
+
 /*
  * A specific tracer, represented by methods that operate on a trace array:
  */
@@ -197,7 +205,7 @@ struct tracer {
 	int			(*selftest)(struct tracer *trace,
 					    struct trace_array *tr);
 #endif
-	int			(*print_line)(struct trace_iterator *iter);
+	enum print_line_t	(*print_line)(struct trace_iterator *iter);
 	struct tracer		*next;
 	int			print_max;
 };

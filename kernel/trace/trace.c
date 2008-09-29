@@ -1250,7 +1250,7 @@ void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 		trace_seq_putc(s, '\n');
 }
 
-static int
+static enum print_line_t
 print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1267,7 +1267,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	unsigned state;
 
 	if (entry->type == TRACE_CONT)
-		return 1;
+		return TRACE_TYPE_HANDLED;
 
 	next_entry = find_next_entry(iter, NULL, &next_ts);
 	if (!next_entry)
@@ -1357,10 +1357,10 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
-	return 1;
+	return TRACE_TYPE_HANDLED;
 }
 
-static int print_trace_fmt(struct trace_iterator *iter)
+static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
@@ -1376,7 +1376,7 @@ static int print_trace_fmt(struct trace_iterator *iter)
 	entry = iter->ent;
 
 	if (entry->type == TRACE_CONT)
-		return 1;
+		return TRACE_TYPE_HANDLED;
 
 	comm = trace_find_cmdline(iter->ent->pid);
 
@@ -1386,13 +1386,13 @@ static int print_trace_fmt(struct trace_iterator *iter)
 
 	ret = trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
 	if (!ret)
-		return 0;
+		return TRACE_TYPE_PARTIAL_LINE;
 	ret = trace_seq_printf(s, "[%03d] ", iter->cpu);
 	if (!ret)
-		return 0;
+		return TRACE_TYPE_PARTIAL_LINE;
 	ret = trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
 	if (!ret)
-		return 0;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	switch (entry->type) {
 	case TRACE_FN: {
@@ -1400,12 +1400,12 @@ static int print_trace_fmt(struct trace_iterator *iter)
 
 		ret = seq_print_ip_sym(s, field->ip, sym_flags);
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		if ((sym_flags & TRACE_ITER_PRINT_PARENT) &&
 						field->parent_ip) {
 			ret = trace_seq_printf(s, " <-");
 			if (!ret)
-				return 0;
+				return TRACE_TYPE_PARTIAL_LINE;
 			if (kretprobed(field->parent_ip))
 				ret = trace_seq_puts(s, KRETPROBE_MSG);
 			else
@@ -1413,11 +1413,11 @@ static int print_trace_fmt(struct trace_iterator *iter)
 						       field->parent_ip,
 						       sym_flags);
 			if (!ret)
-				return 0;
+				return TRACE_TYPE_PARTIAL_LINE;
 		}
 		ret = trace_seq_printf(s, "\n");
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_CTX:
@@ -1439,7 +1439,7 @@ static int print_trace_fmt(struct trace_iterator *iter)
 				       field->next_prio,
 				       T);
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_SPECIAL: {
@@ -1450,7 +1450,7 @@ static int print_trace_fmt(struct trace_iterator *iter)
 				 field->arg2,
 				 field->arg3);
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_STACK: {
@@ -1460,16 +1460,16 @@ static int print_trace_fmt(struct trace_iterator *iter)
 			if (i) {
 				ret = trace_seq_puts(s, " <= ");
 				if (!ret)
-					return 0;
+					return TRACE_TYPE_PARTIAL_LINE;
 			}
 			ret = seq_print_ip_sym(s, field->caller[i],
 					       sym_flags);
 			if (!ret)
-				return 0;
+				return TRACE_TYPE_PARTIAL_LINE;
 		}
 		ret = trace_seq_puts(s, "\n");
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_PRINT: {
@@ -1482,10 +1482,10 @@ static int print_trace_fmt(struct trace_iterator *iter)
 		break;
 	}
 	}
-	return 1;
+	return TRACE_TYPE_HANDLED;
 }
 
-static int print_raw_fmt(struct trace_iterator *iter)
+static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
@@ -1495,12 +1495,12 @@ static int print_raw_fmt(struct trace_iterator *iter)
 	entry = iter->ent;
 
 	if (entry->type == TRACE_CONT)
-		return 1;
+		return TRACE_TYPE_HANDLED;
 
 	ret = trace_seq_printf(s, "%d %d %llu ",
 		entry->pid, iter->cpu, iter->ts);
 	if (!ret)
-		return 0;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	switch (entry->type) {
 	case TRACE_FN: {
@@ -1510,7 +1510,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 					field->ip,
 					field->parent_ip);
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_CTX:
@@ -1533,7 +1533,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 				       field->next_prio,
 				       T);
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_SPECIAL:
@@ -1545,7 +1545,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 				 field->arg2,
 				 field->arg3);
 		if (!ret)
-			return 0;
+			return TRACE_TYPE_PARTIAL_LINE;
 		break;
 	}
 	case TRACE_PRINT: {
@@ -1557,7 +1557,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 		break;
 	}
 	}
-	return 1;
+	return TRACE_TYPE_HANDLED;
 }
 
 #define SEQ_PUT_FIELD_RET(s, x)				\
@@ -1572,7 +1572,7 @@ do {							\
 		return 0;				\
 } while (0)
 
-static int print_hex_fmt(struct trace_iterator *iter)
+static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	unsigned char newline = '\n';
@@ -1582,7 +1582,7 @@ static int print_hex_fmt(struct trace_iterator *iter)
 	entry = iter->ent;
 
 	if (entry->type == TRACE_CONT)
-		return 1;
+		return TRACE_TYPE_HANDLED;
 
 	SEQ_PUT_HEX_FIELD_RET(s, entry->pid);
 	SEQ_PUT_HEX_FIELD_RET(s, iter->cpu);
@@ -1628,10 +1628,10 @@ static int print_hex_fmt(struct trace_iterator *iter)
 	}
 	SEQ_PUT_FIELD_RET(s, newline);
 
-	return 1;
+	return TRACE_TYPE_HANDLED;
 }
 
-static int print_bin_fmt(struct trace_iterator *iter)
+static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
@@ -1639,7 +1639,7 @@ static int print_bin_fmt(struct trace_iterator *iter)
 	entry = iter->ent;
 
 	if (entry->type == TRACE_CONT)
-		return 1;
+		return TRACE_TYPE_HANDLED;
 
 	SEQ_PUT_FIELD_RET(s, entry->pid);
 	SEQ_PUT_FIELD_RET(s, iter->cpu);
@@ -1686,13 +1686,18 @@ static int trace_empty(struct trace_iterator *iter)
 		if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
 			return 0;
 	}
-	return 1;
+	return TRACE_TYPE_HANDLED;
 }
 
-static int print_trace_line(struct trace_iterator *iter)
+static enum print_line_t print_trace_line(struct trace_iterator *iter)
 {
-	if (iter->trace && iter->trace->print_line)
-		return iter->trace->print_line(iter);
+	enum print_line_t ret;
+
+	if (iter->trace && iter->trace->print_line) {
+		ret = iter->trace->print_line(iter);
+		if (ret != TRACE_TYPE_UNHANDLED)
+			return ret;
+	}
 
 	if (trace_flags & TRACE_ITER_BIN)
 		return print_bin_fmt(iter);
@@ -2525,11 +2530,11 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	ring_buffer_lock(iter->tr->buffer, &flags);
 
 	while (find_next_entry_inc(iter) != NULL) {
-		int ret;
+		enum print_line_t ret;
 		int len = iter->seq.len;
 
 		ret = print_trace_line(iter);
-		if (!ret) {
+		if (ret == TRACE_TYPE_PARTIAL_LINE) {
 			/* don't print partial lines */
 			iter->seq.len = len;
 			break;
