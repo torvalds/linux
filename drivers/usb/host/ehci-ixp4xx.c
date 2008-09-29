@@ -1,7 +1,7 @@
 /*
  * IXP4XX EHCI Host Controller Driver
  *
- * Author: Vladimir Barinov <vbarinov@ru.mvista.com>
+ * Author: Vladimir Barinov <vbarinov@embeddedalley.com>
  *
  * Based on "ehci-fsl.c" by Randy Vinson <rvinson@mvista.com>
  *
