@@ -1591,11 +1591,12 @@ static void __cpuinit init_hrtimers_cpu(int cpu)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
+static int migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 				struct hrtimer_clock_base *new_base)
 {
 	struct hrtimer *timer;
 	struct rb_node *node;
+	int raise = 0;
 
 	while ((node = rb_first(&old_base->active))) {
 		timer = rb_entry(node, struct hrtimer, node);
@@ -1607,7 +1608,27 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		 * Enqueue the timer. Allow reprogramming of the event device
 		 */
 		enqueue_hrtimer(timer, new_base, 1);
+
+#ifdef CONFIG_HIGH_RES_TIMERS
+		/*
+		 * Happens with high res enabled when the timer was
+		 * already expired and the callback mode is
+		 * HRTIMER_CB_IRQSAFE_NO_SOFTIRQ
+		 * (hrtimer_sleeper). The enqueue code does not move
+		 * them to the soft irq pending list for
+		 * performance/latency reasons, but in the migration
+		 * state, we need to do that otherwise we end up with
+		 * a stale timer.
+		 */
+		if (timer->state == HRTIMER_STATE_INACTIVE) {
+			timer->state = HRTIMER_STATE_PENDING;
+			list_add_tail(&timer->cb_entry,
+				      &new_base->cpu_base->cb_pending);
+			raise = 1;
+		}
+#endif
 	}
+	return raise;
 }
 
 #ifdef CONFIG_HIGH_RES_TIMERS
@@ -1652,8 +1673,9 @@ static void migrate_hrtimers(int cpu)
 	spin_lock_nested(&old_base->lock, SINGLE_DEPTH_NESTING);
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
-		migrate_hrtimer_list(&old_base->clock_base[i],
-				     &new_base->clock_base[i]);
+		if (migrate_hrtimer_list(&old_base->clock_base[i],
+					 &new_base->clock_base[i]))
+			raise = 1;
 	}
 
 	if (migrate_hrtimer_pending(old_base, new_base))
