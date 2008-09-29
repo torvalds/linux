@@ -26,16 +26,20 @@ do {								\
 	retval = 0;						\
 	switch (size) {						\
 	case 1:							\
-		retval = __get_user_asm_b(x, ptr);		\
+		retval = __get_user_asm_b((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	case 2:							\
-		retval = __get_user_asm_w(x, ptr);		\
+		retval = __get_user_asm_w((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	case 4:							\
-		retval = __get_user_asm_l(x, ptr);		\
+		retval = __get_user_asm_l((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	case 8:							\
-		retval = __get_user_asm_q(x, ptr);		\
+		retval = __get_user_asm_q((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	default:						\
 		__get_user_unknown();				\
@@ -54,16 +58,20 @@ do {								\
 	retval = 0;						\
 	switch (size) {						\
 	case 1:							\
-		retval = __put_user_asm_b(x, ptr);		\
+		retval = __put_user_asm_b((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	case 2:							\
-		retval = __put_user_asm_w(x, ptr);		\
+		retval = __put_user_asm_w((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	case 4:							\
-		retval = __put_user_asm_l(x, ptr);		\
+		retval = __put_user_asm_l((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	case 8:							\
-		retval = __put_user_asm_q(x, ptr);		\
+		retval = __put_user_asm_q((void *)&x,		\
+					  (long)ptr);		\
 		break;						\
 	default:						\
 		__put_user_unknown();				\
