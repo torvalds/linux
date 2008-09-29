@@ -2439,7 +2439,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
 	if (sret != -EBUSY)
 		return sret;
-	sret = 0;
 
 	trace_seq_reset(&iter->seq);
 
@@ -2450,6 +2449,8 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 			goto out;
 	}
 
+waitagain:
+	sret = 0;
 	while (trace_empty(iter)) {
 
 		if ((filp->f_flags & O_NONBLOCK)) {
@@ -2556,8 +2557,13 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
 	if (iter->seq.readpos >= iter->seq.len)
 		trace_seq_reset(&iter->seq);
+
+	/*
+	 * If there was nothing to send to user, inspite of consuming trace
+	 * entries, go back to wait for more entries.
+	 */
 	if (sret == -EBUSY)
-		sret = 0;
+		goto waitagain;
 
 out:
 	mutex_unlock(&trace_types_lock);
