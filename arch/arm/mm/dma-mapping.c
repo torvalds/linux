@@ -585,12 +585,8 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
-		if (!dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
-					sg_dma_len(s), dir))
-			continue;
-
-		if (!arch_is_coherent())
-			dma_cache_maint(sg_virt(s), s->length, dir);
+		dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
+					sg_dma_len(s), dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);

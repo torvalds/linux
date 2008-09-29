@@ -376,11 +376,7 @@ static inline void dma_sync_single_range_for_cpu(struct device *dev,
 {
 	BUG_ON(!valid_dma_direction(dir));
 
-	if (!dmabounce_sync_for_cpu(dev, handle, offset, size, dir))
-		return;
-
-	if (!arch_is_coherent())
-		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
+	dmabounce_sync_for_cpu(dev, handle, offset, size, dir);
 }
 
 static inline void dma_sync_single_range_for_device(struct device *dev,
