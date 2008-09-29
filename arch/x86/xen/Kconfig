@@ -26,7 +26,7 @@ config XEN_MAX_DOMAIN_MEMORY
 
 config XEN_SAVE_RESTORE
        bool
-       depends on PM
+       depends on XEN && PM
        default y
 
 config XEN_DEBUG_FS
