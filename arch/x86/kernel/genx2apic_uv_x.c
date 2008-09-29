@@ -114,7 +114,7 @@ static void uv_send_IPI_one(int cpu, int vector)
 	unsigned long val, apicid, lapicid;
 	int pnode;
 
-	apicid = per_cpu(x86_cpu_to_apicid, cpu); /* ZZZ - cache node-local ? */
+	apicid = per_cpu(x86_cpu_to_apicid, cpu);
 	lapicid = apicid & 0x3f;		/* ZZZ macro needed */
 	pnode = uv_apicid_to_pnode(apicid);
 	val =
@@ -202,12 +202,10 @@ static unsigned int phys_pkg_id(int index_msb)
 	return uv_read_apic_id() >> index_msb;
 }
 
-#ifdef ZZZ		/* Needs x2apic patch */
 static void uv_send_IPI_self(int vector)
 {
 	apic_write(APIC_SELF_IPI, vector);
 }
-#endif
 
 struct genapic apic_x2apic_uv_x = {
 	.name = "UV large system",
@@ -215,15 +213,15 @@ struct genapic apic_x2apic_uv_x = {
 	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
 	.target_cpus = uv_target_cpus,
-	.vector_allocation_domain = uv_vector_allocation_domain,/* Fixme ZZZ */
+	.vector_allocation_domain = uv_vector_allocation_domain,
 	.apic_id_registered = uv_apic_id_registered,
 	.init_apic_ldr = uv_init_apic_ldr,
 	.send_IPI_all = uv_send_IPI_all,
 	.send_IPI_allbutself = uv_send_IPI_allbutself,
 	.send_IPI_mask = uv_send_IPI_mask,
-	/* ZZZ.send_IPI_self = uv_send_IPI_self, */
+	.send_IPI_self = uv_send_IPI_self,
 	.cpu_mask_to_apicid = uv_cpu_mask_to_apicid,
-	.phys_pkg_id = phys_pkg_id,	/* Fixme ZZZ */
+	.phys_pkg_id = phys_pkg_id,
 	.get_apic_id = get_apic_id,
 	.set_apic_id = set_apic_id,
 	.apic_id_mask = (0xFFFFFFFFu),
