@@ -102,7 +102,7 @@ static int get_##name (struct hotplug_slot *slot, type *value)		\
 {									\
 	struct hotplug_slot_ops *ops = slot->ops;			\
 	int retval = 0;							\
-	if (try_module_get(ops->owner))					\
+	if (!try_module_get(ops->owner))				\
 		return -ENODEV;						\
 	if (ops->get_##name)						\
 		retval = ops->get_##name(slot, value);			\
