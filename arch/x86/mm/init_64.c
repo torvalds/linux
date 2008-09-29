@@ -510,7 +510,7 @@ static int is_kernel(unsigned long pfn)
 	unsigned long pg_addresss = pfn << PAGE_SHIFT;
 
 	if (pg_addresss >= (unsigned long) __pa(_text) &&
-	    pg_addresss <= (unsigned long) __pa(_end))
+	    pg_addresss < (unsigned long) __pa(_end))
 		return 1;
 
 	return 0;
