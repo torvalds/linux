@@ -1610,10 +1610,36 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 	}
 }
 
+#ifdef CONFIG_HIGH_RES_TIMERS
+static int migrate_hrtimer_pending(struct hrtimer_cpu_base *old_base,
+				   struct hrtimer_cpu_base *new_base)
+{
+	struct hrtimer *timer;
+	int raise = 0;
+
+	while (!list_empty(&old_base->cb_pending)) {
+		timer = list_entry(old_base->cb_pending.next,
+				   struct hrtimer, cb_entry);
+
+		__remove_hrtimer(timer, timer->base, HRTIMER_STATE_PENDING, 0);
+		timer->base = &new_base->clock_base[timer->base->index];
+		list_add_tail(&timer->cb_entry, &new_base->cb_pending);
+		raise = 1;
+	}
+	return raise;
+}
+#else
+static int migrate_hrtimer_pending(struct hrtimer_cpu_base *old_base,
+				   struct hrtimer_cpu_base *new_base)
+{
+	return 0;
+}
+#endif
+
 static void migrate_hrtimers(int cpu)
 {
 	struct hrtimer_cpu_base *old_base, *new_base;
-	int i;
+	int i, raise = 0;
 
 	BUG_ON(cpu_online(cpu));
 	old_base = &per_cpu(hrtimer_bases, cpu);
@@ -1630,10 +1656,16 @@ static void migrate_hrtimers(int cpu)
 				     &new_base->clock_base[i]);
 	}
 
+	if (migrate_hrtimer_pending(old_base, new_base))
+		raise = 1;
+
 	spin_unlock(&old_base->lock);
 	spin_unlock(&new_base->lock);
 	local_irq_enable();
 	put_cpu_var(hrtimer_bases);
+
+	if (raise)
+		hrtimer_raise_softirq();
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
