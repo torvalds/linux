@@ -1628,6 +1628,36 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio2 = 0x0cfb,
 		},
 	},
+	[CX88_BOARD_PROLINK_PV_GLOBAL_XTREME] = {
+		.name           = "Prolink Pixelview Global Extreme",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0 = 0x04fb,
+			.gpio1 = 0x04080,
+			.gpio2 = 0x0cf7,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0 = 0x04fb,
+			.gpio1 = 0x04080,
+			.gpio2 = 0x0cfb,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0 = 0x04fb,
+			.gpio1 = 0x04080,
+			.gpio2 = 0x0cfb,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0 = 0x04ff,
+			.gpio1 = 0x04080,
+			.gpio2 = 0x0cf7,
+		},
+	},
 	/* Both radio, analog and ATSC work with this board.
 	   However, for analog to work, s5h1409 gate should be open,
 	   otherwise, tuner-xc3028 won't be detected.
@@ -2126,6 +2156,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x4935,
 		.card      = CX88_BOARD_PROLINK_PV_8000GT,
 	}, {
+		.subvendor = 0x1554,
+		.subdevice = 0x4976,
+		.card      = CX88_BOARD_PROLINK_PV_GLOBAL_XTREME,
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0x08c1,
 		.card      = CX88_BOARD_KWORLD_ATSC_120,
@@ -2429,6 +2463,7 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 		return cx88_xc3028_geniatech_tuner_callback(core,
 							command, arg);
 	case CX88_BOARD_PROLINK_PV_8000GT:
+	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 		return cx88_pv_8000gt_callback(core, command, arg);
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
@@ -2582,6 +2617,7 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		udelay(1000);
 		break;
 
+	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 	case CX88_BOARD_PROLINK_PV_8000GT:
 		cx_write(MO_GP2_IO, 0xcf7);
 		mdelay(50);
@@ -2629,9 +2665,10 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		ctl->demod = XC3028_FE_OREN538;
 		break;
+	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 	case CX88_BOARD_PROLINK_PV_8000GT:
 		/*
-		 * This board uses non-MTS firmware
+		 * Those boards uses non-MTS firmware
 		 */
 		break;
 	default:

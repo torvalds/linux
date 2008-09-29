@@ -261,6 +261,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_PROLINK_PV_8000GT:
+	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 		ir_codes = ir_codes_pixelview_new;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x3f;
