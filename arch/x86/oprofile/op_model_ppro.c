@@ -200,9 +200,9 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 }
 
 
-struct op_x86_model_spec const op_ppro_spec = {
-	.num_counters = 2,
-	.num_controls = 2,
+struct op_x86_model_spec op_ppro_spec = {
+	.num_counters = 2,	/* can be overriden */
+	.num_controls = 2,	/* dito */
 	.fill_in_addresses = &ppro_fill_in_addresses,
 	.setup_ctrs = &ppro_setup_ctrs,
 	.check_ctrs = &ppro_check_ctrs,
@@ -238,6 +238,8 @@ void arch_perfmon_setup_counters(void)
 
 	op_arch_perfmon_spec.num_counters = num_counters;
 	op_arch_perfmon_spec.num_controls = num_counters;
+	op_ppro_spec.num_counters = num_counters;
+	op_ppro_spec.num_controls = num_counters;
 }
 
 struct op_x86_model_spec op_arch_perfmon_spec = {
