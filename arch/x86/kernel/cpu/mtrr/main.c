@@ -1353,10 +1353,8 @@ static int __init mtrr_cleanup(unsigned address_bits)
 		nr_mtrr_spare_reg = num_var_ranges - 1;
 	num_reg_good = -1;
 	for (i = num_var_ranges - nr_mtrr_spare_reg; i > 0; i--) {
-		if (!min_loss_pfn[i]) {
+		if (!min_loss_pfn[i])
 			num_reg_good = i;
-			break;
-		}
 	}
 
 	index_good = -1;
