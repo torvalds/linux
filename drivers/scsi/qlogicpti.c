@@ -914,6 +914,7 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 				ds[i].d_count = sg_dma_len(s);
 			}
 			sg_count -= n;
+			sg = s;
 		}
 	} else {
 		cmd->dataseg[0].d_base = 0;
