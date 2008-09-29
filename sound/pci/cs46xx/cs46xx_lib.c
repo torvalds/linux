@@ -3501,8 +3501,9 @@ static struct cs_card_type __devinitdata cards[] = {
 		.name = "Mitac MI6020/21",
 		.amp = amp_voyetra,
 	},
+	/* Hercules Game Theatre XP */
 	{
-		.vendor = 0x14AF,
+		.vendor = 0x14af, /* Guillemot Corporation */
 		.id = 0x0050,
 		.name = "Hercules Game Theatre XP",
 		.amp = amp_hercules,
@@ -3544,7 +3545,23 @@ static struct cs_card_type __devinitdata cards[] = {
 		.amp = amp_hercules,
 		.mixer_init = hercules_mixer_init,
 	},
+	/* Herculess Fortissimo */
+	{
+		.vendor = 0x1681,
+		.id = 0xa010,
+		.name = "Hercules Gamesurround Fortissimo II",
+	},
+	{
+		.vendor = 0x1681,
+		.id = 0xa011,
+		.name = "Hercules Gamesurround Fortissimo III 7.1",
+	},
 	/* Teratec */
+	{
+		.vendor = 0x153b,
+		.id = 0x112e,
+		.name = "Terratec DMX XFire 1024",
+	},
 	{
 		.vendor = 0x153b,
 		.id = 0x1136,
