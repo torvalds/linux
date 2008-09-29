@@ -1602,7 +1602,13 @@ static int migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		timer = rb_entry(node, struct hrtimer, node);
 		BUG_ON(hrtimer_callback_running(timer));
 		debug_hrtimer_deactivate(timer);
-		__remove_hrtimer(timer, old_base, HRTIMER_STATE_INACTIVE, 0);
+
+		/*
+		 * Mark it as STATE_MIGRATE not INACTIVE otherwise the
+		 * timer could be seen as !active and just vanish away
+		 * under us on another CPU
+		 */
+		__remove_hrtimer(timer, old_base, HRTIMER_STATE_MIGRATE, 0);
 		timer->base = new_base;
 		/*
 		 * Enqueue the timer. Allow reprogramming of the event device
@@ -1620,13 +1626,15 @@ static int migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		 * state, we need to do that otherwise we end up with
 		 * a stale timer.
 		 */
-		if (timer->state == HRTIMER_STATE_INACTIVE) {
+		if (timer->state == HRTIMER_STATE_MIGRATE) {
 			timer->state = HRTIMER_STATE_PENDING;
 			list_add_tail(&timer->cb_entry,
 				      &new_base->cpu_base->cb_pending);
 			raise = 1;
 		}
 #endif
+		/* Clear the migration state bit */
+		timer->state &= ~HRTIMER_STATE_MIGRATE;
 	}
 	return raise;
 }

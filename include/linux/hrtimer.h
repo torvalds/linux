@@ -67,9 +67,10 @@ enum hrtimer_cb_mode {
  * 0x02		callback function running
  * 0x04		callback pending (high resolution mode)
  *
- * Special case:
+ * Special cases:
  * 0x03		callback function running and enqueued
  *		(was requeued on another CPU)
+ * 0x09		timer was migrated on CPU hotunplug
  * The "callback function running and enqueued" status is only possible on
  * SMP. It happens for example when a posix timer expired and the callback
  * queued a signal. Between dropping the lock which protects the posix timer
@@ -87,6 +88,7 @@ enum hrtimer_cb_mode {
 #define HRTIMER_STATE_ENQUEUED	0x01
 #define HRTIMER_STATE_CALLBACK	0x02
 #define HRTIMER_STATE_PENDING	0x04
+#define HRTIMER_STATE_MIGRATE	0x08
 
 /**
  * struct hrtimer - the basic hrtimer structure
