@@ -315,6 +315,13 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PB31_AF_UART4_RXD	(GPIO_PORTB | GPIO_IN  | GPIO_AF | 31)
 #define PC5_PF_I2C2_SDA		(GPIO_PORTC | GPIO_IN  | GPIO_PF | 5)
 #define PC6_PF_I2C2_SCL		(GPIO_PORTC | GPIO_IN  | GPIO_PF | 6)
+#define PC7_PF_USBOTG_DATA5	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 7)
+#define PC8_PF_USBOTG_DATA6	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 8)
+#define PC9_PF_USBOTG_DATA0	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 9)
+#define PC10_PF_USBOTG_DATA2	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 10)
+#define PC11_PF_USBOTG_DATA1	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 11)
+#define PC12_PF_USBOTG_DATA4	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 12)
+#define PC13_PF_USBOTG_DATA3	(GPIO_PORTC | GPIO_OUT | GPIO_PF | 13)
 #define PC16_PF_SSI4_FS		(GPIO_PORTC | GPIO_IN  | GPIO_PF | 16)
 #define PC17_PF_SSI4_RXD	(GPIO_PORTC | GPIO_IN  | GPIO_PF | 17)
 #define PC18_PF_SSI4_TXD	(GPIO_PORTC | GPIO_IN  | GPIO_PF | 18)
@@ -365,6 +372,9 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PD30_PF_CSPI1_MISO	(GPIO_PORTD | GPIO_IN | GPIO_PF  | 30)
 #define PD31_PF_CSPI1_MOSI	(GPIO_PORTD | GPIO_OUT | GPIO_PF  | 31)
 #define PF23_AIN_FEC_TX_EN	(GPIO_PORTF | GPIO_OUT | GPIO_AIN | 23)
+#define PE0_PF_USBOTG_NXT	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 0)
+#define PE1_PF_USBOTG_STP	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 1)
+#define PE2_PF_USBOTG_DIR	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 2)
 #define PE3_PF_UART2_CTS	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 3)
 #define PE4_PF_UART2_RTS	(GPIO_PORTE | GPIO_IN  | GPIO_PF | 4)
 #define PE6_PF_UART2_TXD	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 6)
@@ -383,6 +393,8 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PE21_AF_CSPI3_SS	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 21)
 #define PE22_AF_CSPI3_MOSI	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 22)
 #define PE23_AF_CSPI3_SCLK	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 23)
+#define PE24_PF_USBOTG_CLK	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 24)
+#define PE25_PF_USBOTG_DATA7	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 25)
 #endif
 
 /* decode irq number to use with IMR(x), ISR(x) and friends */
