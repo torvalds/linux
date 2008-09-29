@@ -672,13 +672,14 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 			 */
 			BUG_ON(timer->function(timer) != HRTIMER_NORESTART);
 			return 1;
-		case HRTIMER_CB_IRQSAFE_NO_SOFTIRQ:
+		case HRTIMER_CB_IRQSAFE_PERCPU:
+		case HRTIMER_CB_IRQSAFE_UNLOCKED:
 			/*
 			 * This is solely for the sched tick emulation with
 			 * dynamic tick support to ensure that we do not
 			 * restart the tick right on the edge and end up with
 			 * the tick timer in the softirq ! The calling site
-			 * takes care of this.
+			 * takes care of this. Also used for hrtimer sleeper !
 			 */
 			debug_hrtimer_deactivate(timer);
 			return 1;
@@ -1245,7 +1246,8 @@ static void __run_hrtimer(struct hrtimer *timer)
 	timer_stats_account_hrtimer(timer);
 
 	fn = timer->function;
-	if (timer->cb_mode == HRTIMER_CB_IRQSAFE_NO_SOFTIRQ) {
+	if (timer->cb_mode == HRTIMER_CB_IRQSAFE_PERCPU ||
+	    timer->cb_mode == HRTIMER_CB_IRQSAFE_UNLOCKED) {
 		/*
 		 * Used for scheduler timers, avoid lock inversion with
 		 * rq->lock and tasklist_lock.
@@ -1452,7 +1454,7 @@ void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
 	sl->timer.function = hrtimer_wakeup;
 	sl->task = task;
 #ifdef CONFIG_HIGH_RES_TIMERS
-	sl->timer.cb_mode = HRTIMER_CB_IRQSAFE_NO_SOFTIRQ;
+	sl->timer.cb_mode = HRTIMER_CB_IRQSAFE_UNLOCKED;
 #endif
 }
 
@@ -1592,7 +1594,7 @@ static void __cpuinit init_hrtimers_cpu(int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 
 static int migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
-				struct hrtimer_clock_base *new_base)
+				struct hrtimer_clock_base *new_base, int dcpu)
 {
 	struct hrtimer *timer;
 	struct rb_node *node;
@@ -1602,6 +1604,18 @@ static int migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		timer = rb_entry(node, struct hrtimer, node);
 		BUG_ON(hrtimer_callback_running(timer));
 		debug_hrtimer_deactivate(timer);
+
+		/*
+		 * Should not happen. Per CPU timers should be
+		 * canceled _before_ the migration code is called
+		 */
+		if (timer->cb_mode == HRTIMER_CB_IRQSAFE_PERCPU) {
+			__remove_hrtimer(timer, old_base,
+					 HRTIMER_STATE_INACTIVE, 0);
+			WARN(1, "hrtimer (%p %p)active but cpu %d dead\n",
+			     timer, timer->function, dcpu);
+			continue;
+		}
 
 		/*
 		 * Mark it as STATE_MIGRATE not INACTIVE otherwise the
@@ -1619,12 +1633,11 @@ static int migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		/*
 		 * Happens with high res enabled when the timer was
 		 * already expired and the callback mode is
-		 * HRTIMER_CB_IRQSAFE_NO_SOFTIRQ
-		 * (hrtimer_sleeper). The enqueue code does not move
-		 * them to the soft irq pending list for
-		 * performance/latency reasons, but in the migration
-		 * state, we need to do that otherwise we end up with
-		 * a stale timer.
+		 * HRTIMER_CB_IRQSAFE_UNLOCKED (hrtimer_sleeper). The
+		 * enqueue code does not move them to the soft irq
+		 * pending list for performance/latency reasons, but
+		 * in the migration state, we need to do that
+		 * otherwise we end up with a stale timer.
 		 */
 		if (timer->state == HRTIMER_STATE_MIGRATE) {
 			timer->state = HRTIMER_STATE_PENDING;
@@ -1682,7 +1695,7 @@ static void migrate_hrtimers(int cpu)
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		if (migrate_hrtimer_list(&old_base->clock_base[i],
-					 &new_base->clock_base[i]))
+					 &new_base->clock_base[i], cpu))
 			raise = 1;
 	}
 
