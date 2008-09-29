@@ -490,34 +490,7 @@ static int cs4270_mute(struct snd_soc_dai *dai, int mute)
 
 #endif
 
-static int cs4270_i2c_probe(struct i2c_adapter *adap, int addr, int kind);
-
-/*
- * Notify the driver that a new I2C bus has been found.
- *
- * This function is called for each I2C bus in the system.  The function
- * then asks the I2C subsystem to probe that bus at the addresses on which
- * our device (the CS4270) could exist.  If a device is found at one of
- * those addresses, then our probe function (cs4270_i2c_probe) is called.
- */
-static int cs4270_i2c_attach(struct i2c_adapter *adapter)
-{
-	return i2c_probe(adapter, &addr_data, cs4270_i2c_probe);
-}
-
-static int cs4270_i2c_detach(struct i2c_client *client)
-{
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-
-	i2c_detach_client(client);
-	codec->control_data = NULL;
-
-	kfree(codec->reg_cache);
-	codec->reg_cache = NULL;
-
-	kfree(client);
-	return 0;
-}
+static int cs4270_i2c_probe(struct i2c_client *, const struct i2c_device_id *);
 
 /* A list of non-DAPM controls that the CS4270 supports */
 static const struct snd_kcontrol_new cs4270_snd_controls[] = {
@@ -525,14 +498,19 @@ static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 		CS4270_VOLA, CS4270_VOLB, 0, 0xFF, 1)
 };
 
+static const struct i2c_device_id cs4270_id[] = {
+	{"cs4270", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, cs4270_id);
+
 static struct i2c_driver cs4270_i2c_driver = {
 	.driver = {
 		.name = "CS4270 I2C",
 		.owner = THIS_MODULE,
 	},
-	.id =             I2C_DRIVERID_CS4270,
-	.attach_adapter = cs4270_i2c_attach,
-	.detach_client =  cs4270_i2c_detach,
+	.id_table = cs4270_id,
+	.probe = cs4270_i2c_probe,
 };
 
 /*
@@ -561,11 +539,11 @@ static struct snd_soc_device *cs4270_socdev;
  * Note: snd_soc_new_pcms() must be called before this function can be called,
  * because of snd_ctl_add().
  */
-static int cs4270_i2c_probe(struct i2c_adapter *adapter, int addr, int kind)
+static int cs4270_i2c_probe(struct i2c_client *i2c_client,
+	const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = cs4270_socdev;
 	struct snd_soc_codec *codec = socdev->codec;
-	struct i2c_client *i2c_client = NULL;
 	int i;
 	int ret = 0;
 
@@ -578,25 +556,12 @@ static int cs4270_i2c_probe(struct i2c_adapter *adapter, int addr, int kind)
 
 	/* Note: codec_dai->codec is NULL here */
 
-	i2c_client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!i2c_client) {
-		printk(KERN_ERR "cs4270: could not allocate I2C client\n");
-		return -ENOMEM;
-	}
-
 	codec->reg_cache = kzalloc(CS4270_NUMREGS, GFP_KERNEL);
 	if (!codec->reg_cache) {
 		printk(KERN_ERR "cs4270: could not allocate register cache\n");
 		ret = -ENOMEM;
 		goto error;
 	}
-
-	i2c_set_clientdata(i2c_client, codec);
-	strcpy(i2c_client->name, "CS4270");
-
-	i2c_client->driver = &cs4270_i2c_driver;
-	i2c_client->adapter = adapter;
-	i2c_client->addr = addr;
 
 	/* Verify that we have a CS4270 */
 
@@ -612,17 +577,9 @@ static int cs4270_i2c_probe(struct i2c_adapter *adapter, int addr, int kind)
 		goto error;
 	}
 
-	printk(KERN_INFO "cs4270: found device at I2C address %X\n", addr);
+	printk(KERN_INFO "cs4270: found device at I2C address %X\n",
+		i2c_client->addr);
 	printk(KERN_INFO "cs4270: hardware revision %X\n", ret & 0xF);
-
-	/* Tell the I2C layer a new client has arrived */
-
-	ret = i2c_attach_client(i2c_client);
-	if (ret) {
-		printk(KERN_ERR "cs4270: could not attach codec, "
-			"I2C address %x, error code %i\n", addr, ret);
-		goto error;
-	}
 
 	codec->control_data = i2c_client;
 	codec->read = cs4270_read_reg_cache;
@@ -648,19 +605,16 @@ static int cs4270_i2c_probe(struct i2c_adapter *adapter, int addr, int kind)
 			goto error;
 	}
 
+	i2c_set_clientdata(i2c_client, codec);
+
 	return 0;
 
 error:
-	if (codec->control_data) {
-		i2c_detach_client(i2c_client);
-		codec->control_data = NULL;
-	}
+	codec->control_data = NULL;
 
 	kfree(codec->reg_cache);
 	codec->reg_cache = NULL;
 	codec->reg_cache_size = 0;
-
-	kfree(i2c_client);
 
 	return ret;
 }
