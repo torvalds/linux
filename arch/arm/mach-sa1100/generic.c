@@ -42,7 +42,7 @@ EXPORT_SYMBOL(reset_status);
 static const unsigned short cclk_frequency_100khz[NR_FREQS] = {
 	 590,	/*  59.0 MHz */
 	 737,	/*  73.7 MHz */
-	 885, 	/*  88.5 MHz */
+	 885,	/*  88.5 MHz */
 	1032,	/* 103.2 MHz */
 	1180,	/* 118.0 MHz */
 	1327,	/* 132.7 MHz */
@@ -52,10 +52,10 @@ static const unsigned short cclk_frequency_100khz[NR_FREQS] = {
 	1917,	/* 191.7 MHz */
 	2064,	/* 206.4 MHz */
 	2212,	/* 221.2 MHz */
-	2359,   /* 235.9 MHz */
-	2507,   /* 250.7 MHz */
-	2654,   /* 265.4 MHz */
-	2802    /* 280.2 MHz */
+	2359,	/* 235.9 MHz */
+	2507,	/* 250.7 MHz */
+	2654,	/* 265.4 MHz */
+	2802	/* 280.2 MHz */
 };
 
 #if defined(CONFIG_CPU_FREQ_SA1100) || defined(CONFIG_CPU_FREQ_SA1110)
@@ -113,7 +113,7 @@ unsigned int sa11x0_getspeed(unsigned int cpu)
 #else
 /*
  * We still need to provide this so building without cpufreq works.
- */ 
+ */
 unsigned int cpufreq_get(unsigned int cpu)
 {
 	return cclk_frequency_100khz[PPCR & 0xf] * 100;
@@ -389,7 +389,7 @@ EXPORT_SYMBOL(sa1100fb_lcd_power);
  */
 
 static struct map_desc standard_io_desc[] __initdata = {
-  	{	/* PCM */
+	{	/* PCM */
 		.virtual	=  0xf8000000,
 		.pfn		= __phys_to_pfn(0x80000000),
 		.length		= 0x00100000,
