@@ -12,6 +12,8 @@
  *
  * Based on: mpc86xx_hpcn.c (MPC86xx HPCN board specific routines)
  * Copyright 2006 Freescale Semiconductor Inc.
+ *
+ * NEC fixup adapted from arch/mips/pci/fixup-lm2e.c
  */
 
 #include <linux/stddef.h>
@@ -75,6 +77,21 @@ static void gef_sbc610_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
+static void __init gef_sbc610_nec_fixup(struct pci_dev *pdev)
+{
+	unsigned int val;
+
+	printk(KERN_INFO "Running NEC uPD720101 Fixup\n");
+
+	/* Ensure ports 1, 2, 3, 4 & 5 are enabled */
+	pci_read_config_dword(pdev, 0xe0, &val);
+	pci_write_config_dword(pdev, 0xe0, (val & ~7) | 0x5);
+
+	/* System clock is 48-MHz Oscillator and EHCI Enabled. */
+	pci_write_config_dword(pdev, 0xe4, 1 << 5);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
+	gef_sbc610_nec_fixup);
 
 /*
  * Called very early, device-tree isn't unflattened
