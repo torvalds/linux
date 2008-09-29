@@ -289,6 +289,7 @@ static inline void unmap_single(struct device *dev, dma_addr_t dma_addr,
 
 	if (buf) {
 		BUG_ON(buf->size != size);
+		BUG_ON(buf->direction != dir);
 
 		dev_dbg(dev,
 			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
@@ -334,7 +335,7 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, ptr, size, dir);
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(!valid_dma_direction(dir));
 
 	return map_single(dev, ptr, size, dir);
 }
@@ -346,7 +347,7 @@ dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	dev_dbg(dev, "%s(page=%p,off=%#lx,size=%zx,dir=%x)\n",
 		__func__, page, offset, size, dir);
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(!valid_dma_direction(dir));
 
 	return map_single(dev, page_address(page) + offset, size, dir);
 }
@@ -365,8 +366,6 @@ void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, (void *) dma_addr, size, dir);
 
-	BUG_ON(dir == DMA_NONE);
-
 	unmap_single(dev, dma_addr, size, dir);
 }
 EXPORT_SYMBOL(dma_unmap_single);
@@ -382,6 +381,8 @@ int dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 	buf = find_safe_buffer_dev(dev, addr, __func__);
 	if (!buf)
 		return 1;
+
+	BUG_ON(buf->direction != dir);
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
 		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
@@ -409,6 +410,8 @@ int dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
 	buf = find_safe_buffer_dev(dev, addr, __func__);
 	if (!buf)
 		return 1;
+
+	BUG_ON(buf->direction != dir);
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
 		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),

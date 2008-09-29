@@ -277,6 +277,8 @@ int dmabounce_sync_for_device(struct device *, dma_addr_t, unsigned long,
 static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
 		size_t size, enum dma_data_direction dir)
 {
+	BUG_ON(!valid_dma_direction(dir));
+
 	if (!arch_is_coherent())
 		dma_cache_maint(cpu_addr, size, dir);
 
@@ -301,6 +303,8 @@ static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
 static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	     unsigned long offset, size_t size, enum dma_data_direction dir)
 {
+	BUG_ON(!valid_dma_direction(dir));
+
 	if (!arch_is_coherent())
 		dma_cache_maint(page_address(page) + offset, size, dir);
 
@@ -370,6 +374,8 @@ static inline void dma_sync_single_range_for_cpu(struct device *dev,
 		dma_addr_t handle, unsigned long offset, size_t size,
 		enum dma_data_direction dir)
 {
+	BUG_ON(!valid_dma_direction(dir));
+
 	if (!dmabounce_sync_for_cpu(dev, handle, offset, size, dir))
 		return;
 
@@ -381,6 +387,8 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 		dma_addr_t handle, unsigned long offset, size_t size,
 		enum dma_data_direction dir)
 {
+	BUG_ON(!valid_dma_direction(dir));
+
 	if (!dmabounce_sync_for_device(dev, handle, offset, size, dir))
 		return;
 
