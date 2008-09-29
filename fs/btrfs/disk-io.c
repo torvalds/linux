@@ -460,6 +460,13 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->submit_bio_hook = submit_bio_hook;
 	async->work.func = run_one_async_submit;
 	async->work.flags = 0;
+
+	while(atomic_read(&fs_info->async_submit_draining) &&
+	      atomic_read(&fs_info->nr_async_submits)) {
+		wait_event(fs_info->async_submit_wait,
+			   (atomic_read(&fs_info->nr_async_submits) == 0));
+	}
+
 	atomic_inc(&fs_info->nr_async_submits);
 	btrfs_queue_worker(&fs_info->workers, &async->work);
 
@@ -495,10 +502,7 @@ static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				 int mirror_num)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 offset;
 	int ret;
-
-	offset = bio->bi_sector << 9;
 
 	/*
 	 * when we're called for a write, we're already in the async
@@ -1360,6 +1364,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	atomic_set(&fs_info->nr_async_submits, 0);
+	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->nr_async_bios, 0);
 	atomic_set(&fs_info->throttles, 0);
 	atomic_set(&fs_info->throttle_gen, 0);

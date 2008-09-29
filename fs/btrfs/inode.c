@@ -3440,13 +3440,24 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root)
 			list_del_init(&binode->delalloc_inodes);
 		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
 		if (inode) {
-			filemap_write_and_wait(inode->i_mapping);
+			filemap_flush(inode->i_mapping);
 			iput(inode);
 		}
 		cond_resched();
 		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 	}
 	spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+
+	/* the filemap_flush will queue IO into the worker threads, but
+	 * we have to make sure the IO is actually started and that
+	 * ordered extents get created before we return
+	 */
+	atomic_inc(&root->fs_info->async_submit_draining);
+	while(atomic_read(&root->fs_info->nr_async_submits)) {
+		wait_event(root->fs_info->async_submit_wait,
+		   (atomic_read(&root->fs_info->nr_async_submits) == 0));
+	}
+	atomic_dec(&root->fs_info->async_submit_draining);
 	return 0;
 }
 

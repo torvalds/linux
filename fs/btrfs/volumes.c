@@ -1038,6 +1038,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		return -EIO;
 	}
 
+	filemap_write_and_wait(bdev->bd_inode->i_mapping);
 	mutex_lock(&root->fs_info->volume_mutex);
 
 	trans = btrfs_start_transaction(root, 1);

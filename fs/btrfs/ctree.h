@@ -610,6 +610,7 @@ struct btrfs_fs_info {
 	struct list_head dead_roots;
 
 	atomic_t nr_async_submits;
+	atomic_t async_submit_draining;
 	atomic_t nr_async_bios;
 	atomic_t tree_log_writers;
 	atomic_t tree_log_commit;
