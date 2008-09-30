@@ -48,6 +48,7 @@
 #include <linux/i2c.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <linux/videotext.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
