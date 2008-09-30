@@ -72,9 +72,9 @@ asmlinkage void double_fault(void);
 asmlinkage void do_int3(struct pt_regs *, long);
 asmlinkage void do_stack_segment(struct pt_regs *, long);
 asmlinkage void do_debug(struct pt_regs *, unsigned long);
-asmlinkage void do_coprocessor_error(struct pt_regs *);
-asmlinkage void do_simd_coprocessor_error(struct pt_regs *);
-asmlinkage void do_spurious_interrupt_bug(struct pt_regs *);
+asmlinkage void do_coprocessor_error(struct pt_regs *, long);
+asmlinkage void do_simd_coprocessor_error(struct pt_regs *, long);
+asmlinkage void do_spurious_interrupt_bug(struct pt_regs *, long);
 
 asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code);
 

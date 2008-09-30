@@ -452,17 +452,11 @@ static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
  * the correct behaviour even in the presence of the asynchronous
  * IRQ13 behaviour
  */
-asmlinkage void do_coprocessor_error(struct pt_regs *regs)
+void math_error(void __user *ip)
 {
-	void __user *ip = (void __user *)(regs->ip);
 	struct task_struct *task;
 	siginfo_t info;
 	unsigned short cwd, swd;
-
-	conditional_sti(regs);
-	if (!user_mode(regs) &&
-	    kernel_math_error(regs, "kernel x87 math error", 16))
-		return;
 
 	/*
 	 * Save the info for the exception handler and clear the error.
@@ -516,22 +510,25 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 	force_sig_info(SIGFPE, &info, task);
 }
 
+asmlinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
+{
+	conditional_sti(regs);
+	if (!user_mode(regs) &&
+	    kernel_math_error(regs, "kernel x87 math error", 16))
+		return;
+	math_error((void __user *)regs->ip);
+}
+
 asmlinkage void bad_intr(void)
 {
 	printk("bad interrupt");
 }
 
-asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
+static void simd_math_error(void __user *ip)
 {
-	void __user *ip = (void __user *)(regs->ip);
 	struct task_struct *task;
 	siginfo_t info;
 	unsigned short mxcsr;
-
-	conditional_sti(regs);
-	if (!user_mode(regs) &&
-			kernel_math_error(regs, "kernel simd math error", 19))
-		return;
 
 	/*
 	 * Save the info for the exception handler and clear the error.
@@ -575,7 +572,16 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-asmlinkage void do_spurious_interrupt_bug(struct pt_regs *regs)
+asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
+{
+	conditional_sti(regs);
+	if (!user_mode(regs) &&
+			kernel_math_error(regs, "kernel simd math error", 19))
+		return;
+	simd_math_error((void __user *)regs->ip);
+}
+
+asmlinkage void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
 }
 
