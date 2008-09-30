@@ -483,7 +483,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	struct ib_recv_wr recv_wr, *bad_recv_wr;
 	struct svc_rdma_op_ctxt *ctxt;
 	struct page *page;
-	unsigned long pa;
+	dma_addr_t pa;
 	int sge_no;
 	int buflen;
 	int ret;
@@ -495,13 +495,15 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 		BUG_ON(sge_no >= xprt->sc_max_sge);
 		page = svc_rdma_get_page();
 		ctxt->pages[sge_no] = page;
-		atomic_inc(&xprt->sc_dma_used);
 		pa = ib_dma_map_page(xprt->sc_cm_id->device,
 				     page, 0, PAGE_SIZE,
 				     DMA_FROM_DEVICE);
+		if (ib_dma_mapping_error(xprt->sc_cm_id->device, pa))
+			goto err_put_ctxt;
+		atomic_inc(&xprt->sc_dma_used);
 		ctxt->sge[sge_no].addr = pa;
 		ctxt->sge[sge_no].length = PAGE_SIZE;
-		ctxt->sge[sge_no].lkey = xprt->sc_phys_mr->lkey;
+		ctxt->sge[sge_no].lkey = xprt->sc_dma_lkey;
 		buflen += PAGE_SIZE;
 	}
 	ctxt->count = sge_no;
@@ -517,6 +519,10 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 		svc_rdma_put_context(ctxt, 1);
 	}
 	return ret;
+
+ err_put_ctxt:
+	svc_rdma_put_context(ctxt, 1);
+	return -ENOMEM;
 }
 
 /*
