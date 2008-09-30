@@ -530,9 +530,9 @@ static irqreturn_t __ei_interrupt(int irq, void *dev_id)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void __ei_poll(struct net_device *dev)
 {
-	disable_irq_lockdep(dev->irq);
+	disable_irq(dev->irq);
 	__ei_interrupt(dev->irq, dev);
-	enable_irq_lockdep(dev->irq);
+	enable_irq(dev->irq);
 }
 #endif
 
