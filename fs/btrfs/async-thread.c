@@ -302,8 +302,20 @@ int btrfs_requeue_work(struct btrfs_work *work)
 	spin_lock_irqsave(&worker->lock, flags);
 	atomic_inc(&worker->num_pending);
 	list_add_tail(&work->list, &worker->pending);
-	check_busy_worker(worker);
+
+	/* by definition we're busy, take ourselves off the idle
+	 * list
+	 */
+	if (worker->idle) {
+		spin_lock_irqsave(&worker->workers->lock, flags);
+		worker->idle = 0;
+		list_move_tail(&worker->worker_list,
+			       &worker->workers->worker_list);
+		spin_unlock_irqrestore(&worker->workers->lock, flags);
+	}
+
 	spin_unlock_irqrestore(&worker->lock, flags);
+
 out:
 	return 0;
 }

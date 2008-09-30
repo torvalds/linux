@@ -5145,6 +5145,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 
 		ret = btrfs_add_block_group_cache(root->fs_info, cache);
 		BUG_ON(ret);
+
+		set_avail_alloc_bits(root->fs_info, cache->flags);
 	}
 	ret = 0;
 error:
