@@ -890,7 +890,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
  *	Change name of a device, can pass format strings "eth%d".
  *	for wildcarding.
  */
-int dev_change_name(struct net_device *dev, char *newname)
+int dev_change_name(struct net_device *dev, const char *newname)
 {
 	char oldname[IFNAMSIZ];
 	int err = 0;
@@ -916,7 +916,6 @@ int dev_change_name(struct net_device *dev, char *newname)
 		err = dev_alloc_name(dev, newname);
 		if (err < 0)
 			return err;
-		strcpy(newname, dev->name);
 	}
 	else if (__dev_get_by_name(net, newname))
 		return -EEXIST;
@@ -4754,10 +4753,10 @@ err_name:
 	return -ENOMEM;
 }
 
-char *netdev_drivername(struct net_device *dev, char *buffer, int len)
+char *netdev_drivername(const struct net_device *dev, char *buffer, int len)
 {
-	struct device_driver *driver;
-	struct device *parent;
+	const struct device_driver *driver;
+	const struct device *parent;
 
 	if (len <= 0 || !buffer)
 		return buffer;
