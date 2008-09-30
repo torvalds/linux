@@ -92,6 +92,7 @@ Code	Seq#	Include File		Comments
 'J'	00-1F	drivers/scsi/gdth_ioctl.h
 'K'	all	linux/kd.h
 'L'	00-1F	linux/loop.h
+'L'	20-2F	driver/usb/misc/vstusb.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
 'M'	all	linux/soundcard.h
