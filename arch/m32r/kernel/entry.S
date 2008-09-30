@@ -143,7 +143,7 @@ ret_from_intr:
 	and3	r4, r4, #0x8000		; check BSM bit
 #endif
 	beqz	r4, resume_kernel
-ENTRY(resume_userspace)
+resume_userspace:
 	DISABLE_INTERRUPTS(r4)		; make sure we don't miss an interrupt
 					; setting need_resched or sigpending
 					; between sampling and the iret

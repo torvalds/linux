@@ -50,7 +50,6 @@
 #ifndef _IPS_H_
    #define _IPS_H_
 
-#include <linux/version.h>
 #include <linux/nmi.h>
    #include <asm/uaccess.h>
    #include <asm/io.h>

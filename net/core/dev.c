@@ -122,6 +122,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
 #include <linux/jhash.h>
@@ -1339,19 +1340,23 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 }
 
 
+static inline void __netif_reschedule(struct Qdisc *q)
+{
+	struct softnet_data *sd;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	sd = &__get_cpu_var(softnet_data);
+	q->next_sched = sd->output_queue;
+	sd->output_queue = q;
+	raise_softirq_irqoff(NET_TX_SOFTIRQ);
+	local_irq_restore(flags);
+}
+
 void __netif_schedule(struct Qdisc *q)
 {
-	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state)) {
-		struct softnet_data *sd;
-		unsigned long flags;
-
-		local_irq_save(flags);
-		sd = &__get_cpu_var(softnet_data);
-		q->next_sched = sd->output_queue;
-		sd->output_queue = q;
-		raise_softirq_irqoff(NET_TX_SOFTIRQ);
-		local_irq_restore(flags);
-	}
+	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state))
+		__netif_reschedule(q);
 }
 EXPORT_SYMBOL(__netif_schedule);
 
@@ -1663,7 +1668,7 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 {
 	u32 addr1, addr2, ports;
 	u32 hash, ihl;
-	u8 ip_proto;
+	u8 ip_proto = 0;
 
 	if (unlikely(!simple_tx_hashrnd_initialized)) {
 		get_random_bytes(&simple_tx_hashrnd, 4);
@@ -1672,7 +1677,8 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 
 	switch (skb->protocol) {
 	case __constant_htons(ETH_P_IP):
-		ip_proto = ip_hdr(skb)->protocol;
+		if (!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)))
+			ip_proto = ip_hdr(skb)->protocol;
 		addr1 = ip_hdr(skb)->saddr;
 		addr2 = ip_hdr(skb)->daddr;
 		ihl = ip_hdr(skb)->ihl;
@@ -1800,9 +1806,13 @@ gso:
 
 		spin_lock(root_lock);
 
-		rc = qdisc_enqueue_root(skb, q);
-		qdisc_run(q);
-
+		if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
+			kfree_skb(skb);
+			rc = NET_XMIT_DROP;
+		} else {
+			rc = qdisc_enqueue_root(skb, q);
+			qdisc_run(q);
+		}
 		spin_unlock(root_lock);
 
 		goto out;
@@ -1974,15 +1984,22 @@ static void net_tx_action(struct softirq_action *h)
 
 			head = head->next_sched;
 
-			smp_mb__before_clear_bit();
-			clear_bit(__QDISC_STATE_SCHED, &q->state);
-
 			root_lock = qdisc_lock(q);
 			if (spin_trylock(root_lock)) {
+				smp_mb__before_clear_bit();
+				clear_bit(__QDISC_STATE_SCHED,
+					  &q->state);
 				qdisc_run(q);
 				spin_unlock(root_lock);
 			} else {
-				__netif_schedule(q);
+				if (!test_bit(__QDISC_STATE_DEACTIVATED,
+					      &q->state)) {
+					__netif_reschedule(q);
+				} else {
+					smp_mb__before_clear_bit();
+					clear_bit(__QDISC_STATE_SCHED,
+						  &q->state);
+				}
 			}
 		}
 	}
@@ -2084,7 +2101,8 @@ static int ing_filter(struct sk_buff *skb)
 	q = rxq->qdisc;
 	if (q != &noop_qdisc) {
 		spin_lock(qdisc_lock(q));
-		result = qdisc_enqueue_root(skb, q);
+		if (likely(!test_bit(__QDISC_STATE_DEACTIVATED, &q->state)))
+			result = qdisc_enqueue_root(skb, q);
 		spin_unlock(qdisc_lock(q));
 	}
 

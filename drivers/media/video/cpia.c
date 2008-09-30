@@ -3955,7 +3955,7 @@ struct cam_data *cpia_register_camera(struct cpia_camera_ops *ops, void *lowleve
 	camera->lowlevel_data = lowlevel;
 
 	/* register v4l device */
-	if (video_register_device(&camera->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	if (video_register_device(&camera->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		kfree(camera);
 		printk(KERN_DEBUG "video_register_device failed\n");
 		return NULL;

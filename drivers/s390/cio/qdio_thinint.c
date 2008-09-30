@@ -113,7 +113,11 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 	struct qdio_q *q;
 	int i;
 
-	for_each_input_queue(irq_ptr, q, i) {
+	for (i = 0; i < irq_ptr->nr_input_qs; i++) {
+		q = irq_ptr->input_qs[i];
+		/* if establish triggered an error */
+		if (!q || !q->entry.prev || !q->entry.next)
+			continue;
 		list_del_rcu(&q->entry);
 		synchronize_rcu();
 	}

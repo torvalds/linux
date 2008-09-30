@@ -641,9 +641,12 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			if (tmp && tmp->prio > ctx->prio &&
 			    !(tmp->flags & SPU_CREATE_NOSCHED) &&
-			    (!victim || tmp->prio > victim->prio))
+			    (!victim || tmp->prio > victim->prio)) {
 				victim = spu->ctx;
+			}
 		}
+		if (victim)
+			get_spu_context(victim);
 		mutex_unlock(&cbe_spu_info[node].list_mutex);
 
 		if (victim) {
@@ -658,6 +661,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 			 * look at another context or give up after X retries.
 			 */
 			if (!mutex_trylock(&victim->state_mutex)) {
+				put_spu_context(victim);
 				victim = NULL;
 				goto restart;
 			}
@@ -670,6 +674,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 				 * restart the search.
 				 */
 				mutex_unlock(&victim->state_mutex);
+				put_spu_context(victim);
 				victim = NULL;
 				goto restart;
 			}
@@ -687,6 +692,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 				spu_add_to_rq(victim);
 
 			mutex_unlock(&victim->state_mutex);
+			put_spu_context(victim);
 
 			return spu;
 		}
@@ -722,17 +728,33 @@ static void spu_schedule(struct spu *spu, struct spu_context *ctx)
 	/* not a candidate for interruptible because it's called either
 	   from the scheduler thread or from spu_deactivate */
 	mutex_lock(&ctx->state_mutex);
-	__spu_schedule(spu, ctx);
+	if (ctx->state == SPU_STATE_SAVED)
+		__spu_schedule(spu, ctx);
 	spu_release(ctx);
 }
 
-static void spu_unschedule(struct spu *spu, struct spu_context *ctx)
+/**
+ * spu_unschedule - remove a context from a spu, and possibly release it.
+ * @spu:	The SPU to unschedule from
+ * @ctx:	The context currently scheduled on the SPU
+ * @free_spu	Whether to free the SPU for other contexts
+ *
+ * Unbinds the context @ctx from the SPU @spu. If @free_spu is non-zero, the
+ * SPU is made available for other contexts (ie, may be returned by
+ * spu_get_idle). If this is zero, the caller is expected to schedule another
+ * context to this spu.
+ *
+ * Should be called with ctx->state_mutex held.
+ */
+static void spu_unschedule(struct spu *spu, struct spu_context *ctx,
+		int free_spu)
 {
 	int node = spu->node;
 
 	mutex_lock(&cbe_spu_info[node].list_mutex);
 	cbe_spu_info[node].nr_active--;
-	spu->alloc_state = SPU_FREE;
+	if (free_spu)
+		spu->alloc_state = SPU_FREE;
 	spu_unbind_context(spu, ctx);
 	ctx->stats.invol_ctx_switch++;
 	spu->stats.invol_ctx_switch++;
@@ -832,7 +854,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 	if (spu) {
 		new = grab_runnable_context(max_prio, spu->node);
 		if (new || force) {
-			spu_unschedule(spu, ctx);
+			spu_unschedule(spu, ctx, new == NULL);
 			if (new) {
 				if (new->flags & SPU_CREATE_NOSCHED)
 					wake_up(&new->stop_wq);
@@ -905,7 +927,7 @@ static noinline void spusched_tick(struct spu_context *ctx)
 
 	new = grab_runnable_context(ctx->prio + 1, spu->node);
 	if (new) {
-		spu_unschedule(spu, ctx);
+		spu_unschedule(spu, ctx, 0);
 		if (test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
 			spu_add_to_rq(ctx);
 	} else {
@@ -985,9 +1007,11 @@ static int spusched_thread(void *unused)
 				struct spu_context *ctx = spu->ctx;
 
 				if (ctx) {
+					get_spu_context(ctx);
 					mutex_unlock(mtx);
 					spusched_tick(ctx);
 					mutex_lock(mtx);
+					put_spu_context(ctx);
 				}
 			}
 			mutex_unlock(mtx);
@@ -1030,7 +1054,7 @@ void spuctx_switch_state(struct spu_context *ctx,
 		node = spu->node;
 		if (old_state == SPU_UTIL_USER)
 			atomic_dec(&cbe_spu_info[node].busy_spus);
-		if (new_state == SPU_UTIL_USER);
+		if (new_state == SPU_UTIL_USER)
 			atomic_inc(&cbe_spu_info[node].busy_spus);
 	}
 }

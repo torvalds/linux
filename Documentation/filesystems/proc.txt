@@ -1339,6 +1339,25 @@ Enables/Disables the protection of the per-process proc entries "maps" and
 "smaps".  When enabled, the contents of these files are visible only to
 readers that are allowed to ptrace() the given process.
 
+msgmni
+------
+
+Maximum number of message queue ids on the system.
+This value scales to the amount of lowmem. It is automatically recomputed
+upon memory add/remove or ipc namespace creation/removal.
+When a value is written into this file, msgmni's value becomes fixed, i.e. it
+is not recomputed anymore when one of the above events occurs.
+Use auto_msgmni to change this behavior.
+
+auto_msgmni
+-----------
+
+Enables/Disables automatic recomputing of msgmni upon memory add/remove or
+upon ipc namespace creation/removal (see the msgmni description above).
+Echoing "1" into this file enables msgmni automatic recomputing.
+Echoing "0" turns it off.
+auto_msgmni default value is 1.
+
 
 2.4 /proc/sys/vm - The virtual memory subsystem
 -----------------------------------------------
@@ -2394,6 +2413,8 @@ The following 4 memory types are supported:
   - (bit 1) anonymous shared memory
   - (bit 2) file-backed private memory
   - (bit 3) file-backed shared memory
+  - (bit 4) ELF header pages in file-backed private memory areas (it is
+            effective only if the bit 2 is cleared)
 
   Note that MMIO pages such as frame buffer are never dumped and vDSO pages
   are always dumped regardless of the bitmask status.

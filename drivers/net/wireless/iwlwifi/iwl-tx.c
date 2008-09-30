@@ -402,12 +402,11 @@ static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 /**
  * iwl_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
-static int iwl_tx_queue_init(struct iwl_priv *priv,
-			     struct iwl_tx_queue *txq,
+static int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			     int slots_num, u32 txq_id)
 {
 	int i, len;
-	int rc = 0;
+	int ret;
 
 	/*
 	 * Alloc buffer array for commands (Tx or other types of commands).
@@ -426,19 +425,16 @@ static int iwl_tx_queue_init(struct iwl_priv *priv,
 				continue;
 		}
 
-		txq->cmd[i] = kmalloc(len, GFP_KERNEL | GFP_DMA);
+		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
 		if (!txq->cmd[i])
-			return -ENOMEM;
+			goto err;
 	}
 
 	/* Alloc driver data array and TFD circular buffer */
-	rc = iwl_tx_queue_alloc(priv, txq, txq_id);
-	if (rc) {
-		for (i = 0; i < slots_num; i++)
-			kfree(txq->cmd[i]);
+	ret = iwl_tx_queue_alloc(priv, txq, txq_id);
+	if (ret)
+		goto err;
 
-		return -ENOMEM;
-	}
 	txq->need_update = 0;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
@@ -452,6 +448,17 @@ static int iwl_tx_queue_init(struct iwl_priv *priv,
 	iwl_hw_tx_queue_init(priv, txq);
 
 	return 0;
+err:
+	for (i = 0; i < slots_num; i++) {
+		kfree(txq->cmd[i]);
+		txq->cmd[i] = NULL;
+	}
+
+	if (txq_id == IWL_CMD_QUEUE_NUM) {
+		kfree(txq->cmd[slots_num]);
+		txq->cmd[slots_num] = NULL;
+	}
+	return -ENOMEM;
 }
 /**
  * iwl_hw_txq_ctx_free - Free TXQ Context
@@ -493,7 +500,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	/* Alloc keep-warm buffer */
 	ret = iwl_kw_alloc(priv);
 	if (ret) {
-		IWL_ERROR("Keep Warm allocation failed");
+		IWL_ERROR("Keep Warm allocation failed\n");
 		goto error_kw;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1463,7 +1470,7 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
 	if (scd_flow >= priv->hw_params.max_txq_num) {
-		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues");
+		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues\n");
 		return;
 	}
 

@@ -208,6 +208,36 @@ static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
 	return value;
 }
 
+static void atmel_lcdfb_stop_nowait(struct atmel_lcdfb_info *sinfo)
+{
+	/* Turn off the LCD controller and the DMA controller */
+	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
+			sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
+
+	/* Wait for the LCDC core to become idle */
+	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
+		msleep(10);
+
+	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
+}
+
+static void atmel_lcdfb_stop(struct atmel_lcdfb_info *sinfo)
+{
+	atmel_lcdfb_stop_nowait(sinfo);
+
+	/* Wait for DMA engine to become idle... */
+	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
+		msleep(10);
+}
+
+static void atmel_lcdfb_start(struct atmel_lcdfb_info *sinfo)
+{
+	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, sinfo->default_dmacon);
+	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
+		(sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET)
+		| ATMEL_LCDC_PWR);
+}
+
 static void atmel_lcdfb_update_dma(struct fb_info *info,
 			       struct fb_var_screeninfo *var)
 {
@@ -420,26 +450,8 @@ static void atmel_lcdfb_reset(struct atmel_lcdfb_info *sinfo)
 {
 	might_sleep();
 
-	/* LCD power off */
-	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON, sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
-
-	/* wait for the LCDC core to become idle */
-	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
-		msleep(10);
-
-	/* DMA disable */
-	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
-
-	/* wait for DMA engine to become idle */
-	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
-		msleep(10);
-
-	/* LCD power on */
-	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
-		(sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET) | ATMEL_LCDC_PWR);
-
-	/* DMA enable */
-	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, sinfo->default_dmacon);
+	atmel_lcdfb_stop(sinfo);
+	atmel_lcdfb_start(sinfo);
 }
 
 /**
@@ -471,14 +483,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 		 info->var.xres, info->var.yres,
 		 info->var.xres_virtual, info->var.yres_virtual);
 
-	/* Turn off the LCD controller and the DMA controller */
-	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON, sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
-
-	/* Wait for the LCDC core to become idle */
-	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
-		msleep(10);
-
-	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
+	atmel_lcdfb_stop_nowait(sinfo);
 
 	if (info->var.bits_per_pixel == 1)
 		info->fix.visual = FB_VISUAL_MONO01;
@@ -583,13 +588,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
 		msleep(10);
 
-	dev_dbg(info->device, "  * re-enable DMA engine\n");
-	/* ...and enable it with updated configuration */
-	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, sinfo->default_dmacon);
-
-	dev_dbg(info->device, "  * re-enable LCDC core\n");
-	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
-		(sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET) | ATMEL_LCDC_PWR);
+	atmel_lcdfb_start(sinfo);
 
 	dev_dbg(info->device, "  * DONE\n");
 
@@ -939,7 +938,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		dev_err(dev, "failed to register framebuffer device: %d\n", ret);
-		goto free_cmap;
+		goto reset_drvdata;
 	}
 
 	/* add selected videomode to modelist */
@@ -955,7 +954,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	return 0;
 
-
+reset_drvdata:
+	dev_set_drvdata(dev, NULL);
 free_cmap:
 	fb_dealloc_cmap(&info->cmap);
 unregister_irqs:
@@ -992,10 +992,11 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fb_info *info = dev_get_drvdata(dev);
-	struct atmel_lcdfb_info *sinfo = info->par;
+	struct atmel_lcdfb_info *sinfo;
 
-	if (!sinfo)
+	if (!info || !info->par)
 		return 0;
+	sinfo = info->par;
 
 	cancel_work_sync(&sinfo->task);
 	exit_backlight(sinfo);
@@ -1030,11 +1031,20 @@ static int atmel_lcdfb_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct atmel_lcdfb_info *sinfo = info->par;
 
+	/*
+	 * We don't want to handle interrupts while the clock is
+	 * stopped. It may take forever.
+	 */
+	lcdc_writel(sinfo, ATMEL_LCDC_IDR, ~0UL);
+
 	sinfo->saved_lcdcon = lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_VAL);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, 0);
 	if (sinfo->atmel_lcdfb_power_control)
 		sinfo->atmel_lcdfb_power_control(0);
+
+	atmel_lcdfb_stop(sinfo);
 	atmel_lcdfb_stop_clock(sinfo);
+
 	return 0;
 }
 
@@ -1044,9 +1054,15 @@ static int atmel_lcdfb_resume(struct platform_device *pdev)
 	struct atmel_lcdfb_info *sinfo = info->par;
 
 	atmel_lcdfb_start_clock(sinfo);
+	atmel_lcdfb_start(sinfo);
 	if (sinfo->atmel_lcdfb_power_control)
 		sinfo->atmel_lcdfb_power_control(1);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, sinfo->saved_lcdcon);
+
+	/* Enable FIFO & DMA errors */
+	lcdc_writel(sinfo, ATMEL_LCDC_IER, ATMEL_LCDC_UFLWI
+			| ATMEL_LCDC_OWRI | ATMEL_LCDC_MERI);
+
 	return 0;
 }
 

@@ -780,7 +780,8 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha, unsigned int t,
 		sp = pha->outstanding_cmds[cnt];
 		if (!sp)
 			continue;
-		if (ha->vp_idx != sp->ha->vp_idx)
+
+		if (ha->vp_idx != sp->fcport->ha->vp_idx)
 			continue;
 		match = 0;
 		switch (type) {
@@ -1080,9 +1081,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *ha, int res)
 		sp = ha->outstanding_cmds[cnt];
 		if (sp) {
 			ha->outstanding_cmds[cnt] = NULL;
-			sp->flags = 0;
 			sp->cmd->result = res;
-			sp->cmd->host_scribble = (unsigned char *)NULL;
 			qla2x00_sp_compl(ha, sp);
 		}
 	}
@@ -1741,6 +1740,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto probe_failed;
 
+	ha->isp_ops->enable_intrs(ha);
+
 	scsi_scan_host(host);
 
 	qla2x00_alloc_sysfs_attr(ha);
@@ -1776,9 +1777,14 @@ probe_out:
 static void
 qla2x00_remove_one(struct pci_dev *pdev)
 {
-	scsi_qla_host_t *ha;
+	scsi_qla_host_t *ha, *vha, *temp;
 
 	ha = pci_get_drvdata(pdev);
+
+	list_for_each_entry_safe(vha, temp, &ha->vp_list, vp_list)
+		fc_vport_terminate(vha->fc_vport);
+
+	set_bit(UNLOADING, &ha->dpc_flags);
 
 	qla2x00_dfs_remove(ha);
 
@@ -2451,8 +2457,10 @@ qla2x00_do_dpc(void *data)
 void
 qla2xxx_wake_dpc(scsi_qla_host_t *ha)
 {
-	if (ha->dpc_thread)
-		wake_up_process(ha->dpc_thread);
+	struct task_struct *t = ha->dpc_thread;
+
+	if (!test_bit(UNLOADING, &ha->dpc_flags) && t)
+		wake_up_process(t);
 }
 
 /*

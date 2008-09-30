@@ -87,7 +87,7 @@
 #define UBIFS_SK_LEN 8
 
 /* Minimum index tree fanout */
-#define UBIFS_MIN_FANOUT 2
+#define UBIFS_MIN_FANOUT 3
 
 /* Maximum number of levels in UBIFS indexing B-tree */
 #define UBIFS_MAX_LEVELS 512

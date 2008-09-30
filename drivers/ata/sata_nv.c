@@ -405,28 +405,45 @@ static struct scsi_host_template nv_swncq_sht = {
 	.slave_configure	= nv_swncq_slave_config,
 };
 
-static struct ata_port_operations nv_generic_ops = {
+/* OSDL bz3352 reports that some nv controllers can't determine device
+ * signature reliably and nv_hardreset is implemented to work around
+ * the problem.  This was reported on nf3 and it's unclear whether any
+ * other controllers are affected.  However, the workaround has been
+ * applied to all variants and there isn't much to gain by trying to
+ * find out exactly which ones are affected at this point especially
+ * because NV has moved over to ahci for newer controllers.
+ */
+static struct ata_port_operations nv_common_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.hardreset		= nv_hardreset,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 };
 
+/* OSDL bz11195 reports that link doesn't come online after hardreset
+ * on generic nv's and there have been several other similar reports
+ * on linux-ide.  Disable hardreset for generic nv's.
+ */
+static struct ata_port_operations nv_generic_ops = {
+	.inherits		= &nv_common_ops,
+	.hardreset		= ATA_OP_NULL,
+};
+
 static struct ata_port_operations nv_nf2_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_common_ops,
 	.freeze			= nv_nf2_freeze,
 	.thaw			= nv_nf2_thaw,
 };
 
 static struct ata_port_operations nv_ck804_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_common_ops,
 	.freeze			= nv_ck804_freeze,
 	.thaw			= nv_ck804_thaw,
 	.host_stop		= nv_ck804_host_stop,
 };
 
 static struct ata_port_operations nv_adma_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_common_ops,
 
 	.check_atapi_dma	= nv_adma_check_atapi_dma,
 	.sff_tf_read		= nv_adma_tf_read,
@@ -450,7 +467,7 @@ static struct ata_port_operations nv_adma_ops = {
 };
 
 static struct ata_port_operations nv_swncq_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_common_ops,
 
 	.qc_defer		= ata_std_qc_defer,
 	.qc_prep		= nv_swncq_qc_prep,

@@ -266,4 +266,19 @@ do {									\
 	}								\
 } while (0)
 
+/*
+ * format for entries in the Global Offset Table
+ */
+struct got_entry {
+	uint64_t val;
+};
+
+/*
+ * Layout of the Function Descriptor
+ */
+struct fdesc {
+	uint64_t ip;
+	uint64_t gp;
+};
+
 #endif /* _ASM_IA64_ELF_H */

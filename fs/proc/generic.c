@@ -330,6 +330,7 @@ retry:
 		spin_lock(&proc_inum_lock);
 		ida_remove(&proc_inum_ida, i);
 		spin_unlock(&proc_inum_lock);
+		return 0;
 	}
 	return PROC_DYNAMIC_FIRST + i;
 }
@@ -546,8 +547,8 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 
 	for (tmp = dir->subdir; tmp; tmp = tmp->next)
 		if (strcmp(tmp->name, dp->name) == 0) {
-			printk(KERN_WARNING "proc_dir_entry '%s' already "
-					"registered\n", dp->name);
+			printk(KERN_WARNING "proc_dir_entry '%s/%s' already registered\n",
+				dir->name, dp->name);
 			dump_stack();
 			break;
 		}

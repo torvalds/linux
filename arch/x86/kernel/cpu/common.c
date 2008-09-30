@@ -13,6 +13,7 @@
 #include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <asm/pat.h>
+#include <asm/asm.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
@@ -334,11 +335,24 @@ static void __init early_cpu_detect(void)
 
 	get_cpu_vendor(c, 1);
 
+	early_get_cap(c);
+
 	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
 	    cpu_devs[c->x86_vendor]->c_early_init)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
+}
 
-	early_get_cap(c);
+/*
+ * The NOPL instruction is supposed to exist on all CPUs with
+ * family >= 6; unfortunately, that's not true in practice because
+ * of early VIA chips and (more importantly) broken virtualizers that
+ * are not easy to detect.  In the latter case it doesn't even *fail*
+ * reliably, so probing for it doesn't even work.  Disable it completely
+ * unless we can find a reliable way to detect all the broken cases.
+ */
+static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
+{
+	clear_cpu_cap(c, X86_FEATURE_NOPL);
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
@@ -395,8 +409,8 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		}
 
 		init_scattered_cpuid_features(c);
+		detect_nopl(c);
 	}
-
 }
 
 static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)

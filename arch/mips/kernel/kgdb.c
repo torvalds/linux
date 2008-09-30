@@ -62,13 +62,13 @@ void arch_kgdb_breakpoint(void)
 
 static void kgdb_call_nmi_hook(void *ignored)
 {
-	kgdb_nmicallback(raw_smp_processor_id(), (void *)0);
+	kgdb_nmicallback(raw_smp_processor_id(), NULL);
 }
 
 void kgdb_roundup_cpus(unsigned long flags)
 {
 	local_irq_enable();
-	smp_call_function(kgdb_call_nmi_hook, NULL, NULL);
+	smp_call_function(kgdb_call_nmi_hook, NULL, 0);
 	local_irq_disable();
 }
 
@@ -190,9 +190,6 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	struct pt_regs *regs = args->regs;
 	int trap = (regs->cp0_cause & 0x7c) >> 2;
 
-	if (fixup_exception(regs))
-		return NOTIFY_DONE;
-
 	/* Userpace events, ignore. */
 	if (user_mode(regs))
 		return NOTIFY_DONE;
@@ -239,8 +236,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 		if (remcom_in_buffer[0] == 's')
-			if (kgdb_contthread)
-				atomic_set(&kgdb_cpu_doing_single_step, cpu);
+			atomic_set(&kgdb_cpu_doing_single_step, cpu);
 
 		return 0;
 	}

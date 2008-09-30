@@ -29,7 +29,7 @@
  */
 
 #include <asm/blackfin.h>
-#include <asm/mach/irq.h>
+#include <mach/irq.h>
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>
@@ -37,7 +37,7 @@
 #include <asm/traps.h>
 #include <asm/thread_info.h>
 
-#include <asm/mach-common/context.S>
+#include <asm/context.S>
 
 .extern _ret_from_exception
 

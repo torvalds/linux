@@ -813,7 +813,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		}
 	}
 
-	if (count == 8) {
+	if (rates_len > count) {
 		pos = skb_put(skb, rates_len - count + 2);
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = rates_len - count;
@@ -2103,6 +2103,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			rcu_read_unlock();
 			return;
 		}
+		/* update new sta with its last rx activity */
+		sta->last_rx = jiffies;
 	}
 
 	/*
@@ -2866,7 +2868,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		       jiffies);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 		if (beacon_timestamp > rx_timestamp) {
-#ifndef CONFIG_MAC80211_IBSS_DEBUG
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: beacon TSF higher than "
 			       "local TSF - IBSS merge with BSSID %s\n",
 			       dev->name, print_mac(mac, mgmt->bssid));

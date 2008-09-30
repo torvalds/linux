@@ -100,8 +100,8 @@
 #include <linux/io.h>
 
 #ifdef	CONFIG_ARM
-#include <asm/arch/hardware.h>
-#include <asm/arch/memory.h>
+#include <mach/hardware.h>
+#include <mach/memory.h>
 #include <asm/mach-types.h>
 #endif
 
@@ -114,23 +114,14 @@
 
 
 
-#if MUSB_DEBUG > 0
-unsigned debug = MUSB_DEBUG;
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "initial debug message level");
-
-#define MUSB_VERSION_SUFFIX	"/dbg"
-#endif
+unsigned debug;
+module_param(debug, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
 #define DRIVER_DESC "Inventra Dual-Role USB Controller Driver"
 
-#define MUSB_VERSION_BASE "6.0"
-
-#ifndef MUSB_VERSION_SUFFIX
-#define MUSB_VERSION_SUFFIX	""
-#endif
-#define MUSB_VERSION	MUSB_VERSION_BASE MUSB_VERSION_SUFFIX
+#define MUSB_VERSION "6.0"
 
 #define DRIVER_INFO DRIVER_DESC ", v" MUSB_VERSION
 
@@ -2037,6 +2028,8 @@ bad_config:
 		musb->xceiv.state = OTG_STATE_A_IDLE;
 
 		status = usb_add_hcd(musb_to_hcd(musb), -1, 0);
+		if (status)
+			goto fail;
 
 		DBG(1, "%s mode, status %d, devctl %02x %c\n",
 			"HOST", status,
@@ -2051,6 +2044,8 @@ bad_config:
 		musb->xceiv.state = OTG_STATE_B_IDLE;
 
 		status = musb_gadget_setup(musb);
+		if (status)
+			goto fail;
 
 		DBG(1, "%s mode, status %d, dev%02x\n",
 			is_otg_enabled(musb) ? "OTG" : "PERIPHERAL",
@@ -2059,16 +2054,14 @@ bad_config:
 
 	}
 
-	if (status == 0)
-		musb_debug_create("driver/musb_hdrc", musb);
-	else {
+	return 0;
+
 fail:
-		if (musb->clock)
-			clk_put(musb->clock);
-		device_init_wakeup(dev, 0);
-		musb_free(musb);
-		return status;
-	}
+	if (musb->clock)
+		clk_put(musb->clock);
+	device_init_wakeup(dev, 0);
+	musb_free(musb);
+	return status;
 
 #ifdef CONFIG_SYSFS
 	status = device_create_file(dev, &dev_attr_mode);
@@ -2131,7 +2124,6 @@ static int __devexit musb_remove(struct platform_device *pdev)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
 	musb_shutdown(pdev);
-	musb_debug_delete("driver/musb_hdrc", musb);
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (musb->board_mode == MUSB_HOST)
 		usb_remove_hcd(musb_to_hcd(musb));
