@@ -807,6 +807,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
+	int dma_mr_acc;
+	int need_dma_mr;
 	int ret;
 	int i;
 
@@ -922,14 +924,76 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	}
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
 
-	/* Register all of physical memory */
-	newxprt->sc_phys_mr = ib_get_dma_mr(newxprt->sc_pd,
-					    IB_ACCESS_LOCAL_WRITE |
-					    IB_ACCESS_REMOTE_WRITE);
-	if (IS_ERR(newxprt->sc_phys_mr)) {
-		dprintk("svcrdma: Failed to create DMA MR ret=%d\n", ret);
+	/*
+	 * Use the most secure set of MR resources based on the
+	 * transport type and available memory management features in
+	 * the device. Here's the table implemented below:
+	 *
+	 *		Fast	Global	DMA	Remote WR
+	 *		Reg	LKEY	MR	Access
+	 *		Sup'd	Sup'd	Needed	Needed
+	 *
+	 * IWARP	N	N	Y	Y
+	 *		N	Y	Y	Y
+	 *		Y	N	Y	N
+	 *		Y	Y	N	-
+	 *
+	 * IB		N	N	Y	N
+	 *		N	Y	N	-
+	 *		Y	N	Y	N
+	 *		Y	Y	N	-
+	 *
+	 * NB:	iWARP requires remote write access for the data sink
+	 *	of an RDMA_READ. IB does not.
+	 */
+	if (devattr.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
+		newxprt->sc_frmr_pg_list_len =
+			devattr.max_fast_reg_page_list_len;
+		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
+	}
+
+	/*
+	 * Determine if a DMA MR is required and if so, what privs are required
+	 */
+	switch (rdma_node_get_transport(newxprt->sc_cm_id->device->node_type)) {
+	case RDMA_TRANSPORT_IWARP:
+		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
+		if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)) {
+			need_dma_mr = 1;
+			dma_mr_acc =
+				(IB_ACCESS_LOCAL_WRITE |
+				 IB_ACCESS_REMOTE_WRITE);
+		} else if (!(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
+			need_dma_mr = 1;
+			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
+		} else
+			need_dma_mr = 0;
+		break;
+	case RDMA_TRANSPORT_IB:
+		if (!(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
+			need_dma_mr = 1;
+			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
+		} else
+			need_dma_mr = 0;
+		break;
+	default:
 		goto errout;
 	}
+
+	/* Create the DMA MR if needed, otherwise, use the DMA LKEY */
+	if (need_dma_mr) {
+		/* Register all of physical memory */
+		newxprt->sc_phys_mr =
+			ib_get_dma_mr(newxprt->sc_pd, dma_mr_acc);
+		if (IS_ERR(newxprt->sc_phys_mr)) {
+			dprintk("svcrdma: Failed to create DMA MR ret=%d\n",
+				ret);
+			goto errout;
+		}
+		newxprt->sc_dma_lkey = newxprt->sc_phys_mr->lkey;
+	} else
+		newxprt->sc_dma_lkey =
+			newxprt->sc_cm_id->device->local_dma_lkey;
 
 	/* Post receive buffers */
 	for (i = 0; i < newxprt->sc_max_requests; i++) {
