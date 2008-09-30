@@ -95,6 +95,47 @@ die_if_kernel(const char *str, struct pt_regs *regs, long err)
 		die(str, regs, err);
 }
 
+/*
+ * Perform the lazy TSS's I/O bitmap copy. If the TSS has an
+ * invalid offset set (the LAZY one) and the faulting thread has
+ * a valid I/O bitmap pointer, we copy the I/O bitmap in the TSS,
+ * we set the offset field correctly and return 1.
+ */
+static int lazy_iobitmap_copy(void)
+{
+	struct thread_struct *thread;
+	struct tss_struct *tss;
+	int cpu;
+
+	cpu = get_cpu();
+	tss = &per_cpu(init_tss, cpu);
+	thread = &current->thread;
+
+	if (tss->x86_tss.io_bitmap_base == INVALID_IO_BITMAP_OFFSET_LAZY &&
+	    thread->io_bitmap_ptr) {
+		memcpy(tss->io_bitmap, thread->io_bitmap_ptr,
+		       thread->io_bitmap_max);
+		/*
+		 * If the previously set map was extending to higher ports
+		 * than the current one, pad extra space with 0xff (no access).
+		 */
+		if (thread->io_bitmap_max < tss->io_bitmap_max) {
+			memset((char *) tss->io_bitmap +
+				thread->io_bitmap_max, 0xff,
+				tss->io_bitmap_max - thread->io_bitmap_max);
+		}
+		tss->io_bitmap_max = thread->io_bitmap_max;
+		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
+		tss->io_bitmap_owner = thread;
+		put_cpu();
+
+		return 1;
+	}
+	put_cpu();
+
+	return 0;
+}
+
 static void __kprobes
 do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	long error_code, siginfo_t *info)
@@ -187,44 +228,13 @@ void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk;
-	struct thread_struct *thread;
-	struct tss_struct *tss;
-	int cpu;
 
 	conditional_sti(regs);
 
-	cpu = get_cpu();
-	tss = &per_cpu(init_tss, cpu);
-	thread = &current->thread;
-
-	/*
-	 * Perform the lazy TSS's I/O bitmap copy. If the TSS has an
-	 * invalid offset set (the LAZY one) and the faulting thread has
-	 * a valid I/O bitmap pointer, we copy the I/O bitmap in the TSS
-	 * and we set the offset field correctly. Then we let the CPU to
-	 * restart the faulting instruction.
-	 */
-	if (tss->x86_tss.io_bitmap_base == INVALID_IO_BITMAP_OFFSET_LAZY &&
-	    thread->io_bitmap_ptr) {
-		memcpy(tss->io_bitmap, thread->io_bitmap_ptr,
-		       thread->io_bitmap_max);
-		/*
-		 * If the previously set map was extending to higher ports
-		 * than the current one, pad extra space with 0xff (no access).
-		 */
-		if (thread->io_bitmap_max < tss->io_bitmap_max) {
-			memset((char *) tss->io_bitmap +
-				thread->io_bitmap_max, 0xff,
-				tss->io_bitmap_max - thread->io_bitmap_max);
-		}
-		tss->io_bitmap_max = thread->io_bitmap_max;
-		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
-		tss->io_bitmap_owner = thread;
-		put_cpu();
-
+	if (lazy_iobitmap_copy()) {
+		/* restart the faulting instruction */
 		return;
 	}
-	put_cpu();
 
 	if (regs->flags & X86_VM_MASK)
 		goto gp_in_vm86;
