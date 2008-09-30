@@ -19,8 +19,7 @@
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
-#include <linux/video_decoder.h>
+#include <linux/videodev2.h>
 #include <linux/ioctl.h>
 
 #include "wis-i2c.h"
@@ -204,7 +203,7 @@ static int wis_saa7115_command(struct i2c_client *client,
 	struct wis_saa7115 *dec = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case DECODER_SET_INPUT:
+	case VIDIOC_S_INPUT:
 	{
 		int *input = arg;
 
@@ -222,7 +221,7 @@ static int wis_saa7115_command(struct i2c_client *client,
 		int h_scaling_increment = (704 / h_integer_scaler) *
 					1024 / res->width;
 		/* Fine-grained scaler only */
-		int v_scaling_increment = (dec->norm == VIDEO_MODE_NTSC ?
+		int v_scaling_increment = (dec->norm & V4L2_STD_NTSC ?
 				240 : 288) * 1024 / res->height;
 		u8 regs[] = {
 			0x88,	0xc0,
@@ -262,20 +261,20 @@ static int wis_saa7115_command(struct i2c_client *client,
 		write_regs(client, regs);
 		break;
 	}
-	case DECODER_SET_NORM:
+	case VIDIOC_S_STD:
 	{
-		int *input = arg;
+		v4l2_std_id *input = arg;
 		u8 regs[] = {
 			0x88,	0xc0,
-			0x98,	*input == VIDEO_MODE_NTSC ? 0x12 : 0x16,
-			0x9a,	*input == VIDEO_MODE_NTSC ? 0xf2 : 0x20,
-			0x9b,	*input == VIDEO_MODE_NTSC ? 0x00 : 0x01,
-			0xc8,	*input == VIDEO_MODE_NTSC ? 0x12 : 0x16,
-			0xca,	*input == VIDEO_MODE_NTSC ? 0xf2 : 0x20,
-			0xcb,	*input == VIDEO_MODE_NTSC ? 0x00 : 0x01,
+			0x98,	*input & V4L2_STD_NTSC ? 0x12 : 0x16,
+			0x9a,	*input & V4L2_STD_NTSC ? 0xf2 : 0x20,
+			0x9b,	*input & V4L2_STD_NTSC ? 0x00 : 0x01,
+			0xc8,	*input & V4L2_STD_NTSC ? 0x12 : 0x16,
+			0xca,	*input & V4L2_STD_NTSC ? 0xf2 : 0x20,
+			0xcb,	*input & V4L2_STD_NTSC ? 0x00 : 0x01,
 			0x88,	0xf0,
-			0x30,	*input == VIDEO_MODE_NTSC ? 0x66 : 0x00,
-			0x31,	*input == VIDEO_MODE_NTSC ? 0x90 : 0xe0,
+			0x30,	*input & V4L2_STD_NTSC ? 0x66 : 0x00,
+			0x31,	*input & V4L2_STD_NTSC ? 0x90 : 0xe0,
 			0,	0,
 		};
 		write_regs(client, regs);
@@ -424,7 +423,7 @@ static int wis_saa7115_detect(struct i2c_adapter *adapter, int addr, int kind)
 		kfree(client);
 		return -ENOMEM;
 	}
-	dec->norm = VIDEO_MODE_NTSC;
+	dec->norm = V4L2_STD_NTSC;
 	dec->brightness = 128;
 	dec->contrast = 64;
 	dec->saturation = 64;

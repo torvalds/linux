@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/tvaudio.h>
 #include <media/v4l2-common.h>
 

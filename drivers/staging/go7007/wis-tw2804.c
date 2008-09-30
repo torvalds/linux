@@ -19,8 +19,7 @@
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
-#include <linux/video_decoder.h>
+#include <linux/videodev2.h>
 #include <linux/ioctl.h>
 
 #include "wis-i2c.h"
@@ -159,20 +158,20 @@ static int wis_tw2804_command(struct i2c_client *client,
 	}
 
 	switch (cmd) {
-	case DECODER_SET_NORM:
+	case VIDIOC_S_STD:
 	{
-		int *input = arg;
+		v4l2_std_id *input = arg;
 		u8 regs[] = {
-			0x01, *input == VIDEO_MODE_NTSC ? 0xc4 : 0x84,
-			0x09, *input == VIDEO_MODE_NTSC ? 0x07 : 0x04,
-			0x0a, *input == VIDEO_MODE_NTSC ? 0xf0 : 0x20,
-			0x0b, *input == VIDEO_MODE_NTSC ? 0x07 : 0x04,
-			0x0c, *input == VIDEO_MODE_NTSC ? 0xf0 : 0x20,
-			0x0d, *input == VIDEO_MODE_NTSC ? 0x40 : 0x4a,
-			0x16, *input == VIDEO_MODE_NTSC ? 0x00 : 0x40,
-			0x17, *input == VIDEO_MODE_NTSC ? 0x00 : 0x40,
-			0x20, *input == VIDEO_MODE_NTSC ? 0x07 : 0x0f,
-			0x21, *input == VIDEO_MODE_NTSC ? 0x07 : 0x0f,
+			0x01, *input & V4L2_STD_NTSC ? 0xc4 : 0x84,
+			0x09, *input & V4L2_STD_NTSC ? 0x07 : 0x04,
+			0x0a, *input & V4L2_STD_NTSC ? 0xf0 : 0x20,
+			0x0b, *input & V4L2_STD_NTSC ? 0x07 : 0x04,
+			0x0c, *input & V4L2_STD_NTSC ? 0xf0 : 0x20,
+			0x0d, *input & V4L2_STD_NTSC ? 0x40 : 0x4a,
+			0x16, *input & V4L2_STD_NTSC ? 0x00 : 0x40,
+			0x17, *input & V4L2_STD_NTSC ? 0x00 : 0x40,
+			0x20, *input & V4L2_STD_NTSC ? 0x07 : 0x0f,
+			0x21, *input & V4L2_STD_NTSC ? 0x07 : 0x0f,
 			0xff,	0xff,
 		};
 		write_regs(client, regs, dec->channel);
@@ -322,7 +321,7 @@ static int wis_tw2804_detect(struct i2c_adapter *adapter, int addr, int kind)
 		return -ENOMEM;
 	}
 	dec->channel = -1;
-	dec->norm = VIDEO_MODE_NTSC;
+	dec->norm = V4L2_STD_NTSC;
 	dec->brightness = 128;
 	dec->contrast = 128;
 	dec->saturation = 128;

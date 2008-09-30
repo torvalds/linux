@@ -19,8 +19,7 @@
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
-#include <linux/video_decoder.h>
+#include <linux/videodev2.h>
 #include <linux/ioctl.h>
 
 #include "wis-i2c.h"
@@ -106,7 +105,7 @@ static int wis_tw9903_command(struct i2c_client *client,
 	struct wis_tw9903 *dec = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case DECODER_SET_INPUT:
+	case VIDIOC_S_INPUT:
 	{
 		int *input = arg;
 
@@ -119,7 +118,7 @@ static int wis_tw9903_command(struct i2c_client *client,
 		struct video_decoder_resolution *res = arg;
 		/*int hscale = 256 * 720 / res->width;*/
 		int hscale = 256 * 720 / (res->width - (res->width > 704 ? 0 : 8));
-		int vscale = 256 * (dec->norm == VIDEO_MODE_NTSC ?  240 : 288)
+		int vscale = 256 * (dec->norm & V4L2_STD_NTSC ?  240 : 288)
 				/ res->height;
 		u8 regs[] = {
 			0x0d, vscale & 0xff,
@@ -134,14 +133,14 @@ static int wis_tw9903_command(struct i2c_client *client,
 		break;
 	}
 #endif
-	case DECODER_SET_NORM:
+	case VIDIOC_S_STD:
 	{
-		int *input = arg;
+		v4l2_std_id *input = arg;
 		u8 regs[] = {
-			0x05, *input == VIDEO_MODE_NTSC ? 0x80 : 0x00,
-			0x07, *input == VIDEO_MODE_NTSC ? 0x02 : 0x12,
-			0x08, *input == VIDEO_MODE_NTSC ? 0x14 : 0x18,
-			0x09, *input == VIDEO_MODE_NTSC ? 0xf0 : 0x20,
+			0x05, *input & V4L2_STD_NTSC ? 0x80 : 0x00,
+			0x07, *input & V4L2_STD_NTSC ? 0x02 : 0x12,
+			0x08, *input & V4L2_STD_NTSC ? 0x14 : 0x18,
+			0x09, *input & V4L2_STD_NTSC ? 0xf0 : 0x20,
 			0,	0,
 		};
 		write_regs(client, regs);
@@ -297,7 +296,7 @@ static int wis_tw9903_detect(struct i2c_adapter *adapter, int addr, int kind)
 		kfree(client);
 		return -ENOMEM;
 	}
-	dec->norm = VIDEO_MODE_NTSC;
+	dec->norm = V4L2_STD_NTSC;
 	dec->brightness = 0;
 	dec->contrast = 0x60;
 	dec->hue = 0;

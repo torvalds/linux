@@ -19,8 +19,7 @@
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
-#include <linux/video_decoder.h>
+#include <linux/videodev2.h>
 #include <linux/ioctl.h>
 
 #include "wis-i2c.h"
@@ -124,7 +123,7 @@ static int wis_saa7113_command(struct i2c_client *client,
 	struct wis_saa7113 *dec = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case DECODER_SET_INPUT:
+	case VIDIOC_S_INPUT:
 	{
 		int *input = arg;
 
@@ -133,23 +132,19 @@ static int wis_saa7113_command(struct i2c_client *client,
 				*input < 6 ? 0x40 : 0x80);
 		break;
 	}
-	case DECODER_SET_NORM:
+	case VIDIOC_S_STD:
 	{
-		int *input = arg;
+		v4l2_std_id *input = arg;
 		dec->norm = *input;
-		switch (dec->norm) {
-		case VIDEO_MODE_PAL:
-			write_reg(client, 0x0e, 0x01);
-			write_reg(client, 0x10, 0x48);
-			break;
-		case VIDEO_MODE_NTSC:
+		if (dec->norm & V4L2_STD_NTSC) {
 			write_reg(client, 0x0e, 0x01);
 			write_reg(client, 0x10, 0x40);
-			break;
-		case VIDEO_MODE_SECAM:
+		} else if (dec->norm & V4L2_STD_PAL) {
+			write_reg(client, 0x0e, 0x01);
+			write_reg(client, 0x10, 0x48);
+		} else if (dec->norm * V4L2_STD_SECAM) {
 			write_reg(client, 0x0e, 0x50);
 			write_reg(client, 0x10, 0x48);
-			break;
 		}
 		break;
 	}
@@ -295,7 +290,7 @@ static int wis_saa7113_detect(struct i2c_adapter *adapter, int addr, int kind)
 		kfree(client);
 		return -ENOMEM;
 	}
-	dec->norm = VIDEO_MODE_NTSC;
+	dec->norm = V4L2_STD_NTSC;
 	dec->brightness = 128;
 	dec->contrast = 71;
 	dec->saturation = 64;

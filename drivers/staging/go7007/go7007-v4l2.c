@@ -26,8 +26,7 @@
 #include <linux/time.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
-#include <linux/videodev.h>
-#include <linux/video_decoder.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/i2c.h>
@@ -835,7 +834,6 @@ static int go7007_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_STD:
 	{
 		v4l2_std_id *std = arg;
-		int norm;
 
 		if (go->streaming)
 			return -EBUSY;
@@ -856,20 +854,17 @@ static int go7007_do_ioctl(struct inode *inode, struct file *file,
 		if (*std & V4L2_STD_NTSC) {
 			go->standard = GO7007_STD_NTSC;
 			go->sensor_framerate = 30000;
-			norm = VIDEO_MODE_NTSC;
 		} else if (*std & V4L2_STD_PAL) {
 			go->standard = GO7007_STD_PAL;
 			go->sensor_framerate = 25025;
-			norm = VIDEO_MODE_PAL;
 		} else if (*std & V4L2_STD_SECAM) {
 			go->standard = GO7007_STD_PAL;
 			go->sensor_framerate = 25025;
-			norm = VIDEO_MODE_SECAM;
 		} else
 			return -EINVAL;
 		if (go->i2c_adapter_online)
 			i2c_clients_command(&go->i2c_adapter,
-						DECODER_SET_NORM, &norm);
+					    VIDIOC_S_STD, std);
 		set_capture_size(go, NULL, 0);
 		return 0;
 	}
@@ -933,7 +928,7 @@ static int go7007_do_ioctl(struct inode *inode, struct file *file,
 			return -EBUSY;
 		go->input = *input;
 		if (go->i2c_adapter_online) {
-			i2c_clients_command(&go->i2c_adapter, DECODER_SET_INPUT,
+			i2c_clients_command(&go->i2c_adapter, VIDIOC_S_INPUT,
 				&go->board_info->inputs[*input].video_input);
 			i2c_clients_command(&go->i2c_adapter, VIDIOC_S_AUDIO,
 				&go->board_info->inputs[*input].audio_input);
@@ -1459,6 +1454,7 @@ static struct file_operations go7007_fops = {
 
 static struct video_device go7007_template = {
 	.name		= "go7007",
+	.vfl_type	= VID_TYPE_CAPTURE,
 	.fops		= &go7007_fops,
 	.minor		= -1,
 	.release	= go7007_vfl_release,
