@@ -6667,7 +6667,8 @@ static int patch_alc882(struct hda_codec *codec)
 			break;
 		default:
 			/* ALC889A is handled better as ALC888-compatible */
-			if (codec->revision_id == 0x100103) {
+			if (codec->revision_id == 0x100101 ||
+			    codec->revision_id == 0x100103) {
 				alc_free(codec);
 				return patch_alc883(codec);
 			}
@@ -16317,6 +16318,8 @@ struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0880, .name = "ALC880", .patch = patch_alc880 },
 	{ .id = 0x10ec0882, .name = "ALC882", .patch = patch_alc882 },
 	{ .id = 0x10ec0883, .name = "ALC883", .patch = patch_alc883 },
+	{ .id = 0x10ec0885, .rev = 0x100101, .name = "ALC889A",
+	  .patch = patch_alc882 }, /* should be patch_alc883() in future */
 	{ .id = 0x10ec0885, .rev = 0x100103, .name = "ALC889A",
 	  .patch = patch_alc882 }, /* should be patch_alc883() in future */
 	{ .id = 0x10ec0885, .name = "ALC885", .patch = patch_alc882 },
