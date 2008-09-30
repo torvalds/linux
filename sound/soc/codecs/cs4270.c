@@ -681,7 +681,7 @@ static int cs4270_probe(struct platform_device *pdev)
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
 		printk(KERN_ERR "cs4270: failed to create PCMs\n");
-		return ret;
+		goto error_free_codec;
 	}
 
 #ifdef USE_I2C
@@ -690,8 +690,7 @@ static int cs4270_probe(struct platform_device *pdev)
 	ret = i2c_add_driver(&cs4270_i2c_driver);
 	if (ret) {
 		printk(KERN_ERR "cs4270: failed to attach driver");
-		snd_soc_free_pcms(socdev);
-		return ret;
+		goto error_free_pcms;
 	}
 
 	/* Did we find a CS4270 on the I2C bus? */
@@ -713,9 +712,22 @@ static int cs4270_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "cs4270: failed to register card\n");
-		snd_soc_free_pcms(socdev);
-		return ret;
+		goto error_del_driver;
 	}
+
+	return 0;
+
+error_del_driver:
+#ifdef USE_I2C
+	i2c_del_driver(&cs4270_i2c_driver);
+
+error_free_pcms:
+#endif
+	snd_soc_free_pcms(socdev);
+
+error_free_codec:
+	kfree(socdev->codec);
+	socdev->codec = NULL;
 
 	return ret;
 }
@@ -727,8 +739,7 @@ static int cs4270_remove(struct platform_device *pdev)
 	snd_soc_free_pcms(socdev);
 
 #ifdef USE_I2C
-	if (socdev->codec->control_data)
-		i2c_del_driver(&cs4270_i2c_driver);
+	i2c_del_driver(&cs4270_i2c_driver);
 #endif
 
 	kfree(socdev->codec);
