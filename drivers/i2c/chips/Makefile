@@ -11,6 +11,7 @@
 #
 
 obj-$(CONFIG_DS1682)		+= ds1682.o
+obj-$(CONFIG_SENSORS_PCA963X)	+= pca963x.o
 obj-$(CONFIG_SENSORS_TSL2550)	+= tsl2550.o
 
 ifeq ($(CONFIG_I2C_DEBUG_CHIP),y)
