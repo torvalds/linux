@@ -24,11 +24,6 @@ const char *escape_ssid(const char *ssid, u8 ssid_len)
 	const char *s = ssid;
 	char *d = escaped;
 
-	if (is_empty_ssid(ssid, ssid_len)) {
-		memcpy(escaped, "<hidden>", sizeof("<hidden>"));
-		return escaped;
-	}
-
 	ssid_len = min_t(u8, ssid_len, IEEE80211_MAX_SSID_LEN);
 	while (ssid_len--) {
 		if (*s == '\0') {

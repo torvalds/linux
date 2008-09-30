@@ -5435,16 +5435,6 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 		return 0;
 	}
 
-	/* If we do not have an ESSID for this AP, we can not associate with
-	 * it */
-	if (network->flags & NETWORK_EMPTY_ESSID) {
-		IPW_DEBUG_MERGE("Network '%s (%pM)' excluded "
-				"because of hidden ESSID.\n",
-				escape_ssid(network->ssid, network->ssid_len),
-				network->bssid);
-		return 0;
-	}
-
 	if (unlikely(roaming)) {
 		/* If we are roaming, then ensure check if this is a valid
 		 * network to try and roam to */
@@ -5644,16 +5634,6 @@ static int ipw_best_network(struct ipw_priv *priv,
 	     !(network->capability & WLAN_CAPABILITY_IBSS))) {
 		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded due to "
 				"capability mismatch.\n",
-				escape_ssid(network->ssid, network->ssid_len),
-				network->bssid);
-		return 0;
-	}
-
-	/* If we do not have an ESSID for this AP, we can not associate with
-	 * it */
-	if (network->flags & NETWORK_EMPTY_ESSID) {
-		IPW_DEBUG_ASSOC("Network '%s (%pM)' excluded "
-				"because of hidden ESSID.\n",
 				escape_ssid(network->ssid, network->ssid_len),
 				network->bssid);
 		return 0;
@@ -6881,8 +6861,7 @@ static int ipw_qos_handle_probe_response(struct ipw_priv *priv,
 	if ((priv->status & STATUS_ASSOCIATED) &&
 	    (priv->ieee->iw_mode == IW_MODE_ADHOC) && (active_network == 0)) {
 		if (memcmp(network->bssid, priv->bssid, ETH_ALEN))
-			if ((network->capability & WLAN_CAPABILITY_IBSS) &&
-			    !(network->flags & NETWORK_EMPTY_ESSID))
+			if (network->capability & WLAN_CAPABILITY_IBSS)
 				if ((network->ssid_len ==
 				     priv->assoc_network->ssid_len) &&
 				    !memcmp(network->ssid,

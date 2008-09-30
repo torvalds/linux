@@ -729,7 +729,6 @@ struct ieee80211_txb {
 
 #define MAX_WPA_IE_LEN 64
 
-#define NETWORK_EMPTY_ESSID    (1<<0)
 #define NETWORK_HAS_OFDM       (1<<1)
 #define NETWORK_HAS_CCK        (1<<2)
 
