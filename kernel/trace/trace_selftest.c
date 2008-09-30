@@ -498,6 +498,9 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 
 	wake_up_process(p);
 
+	/* give a little time to let the thread wake up */
+	msleep(100);
+
 	/* stop the tracing. */
 	tr->ctrl = 0;
 	trace->ctrl_update(tr);
