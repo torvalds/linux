@@ -365,16 +365,14 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 			kvm_vcpu_kick(vcpu);
 		} else {
-			printk(KERN_DEBUG
-			       "Ignoring de-assert INIT to vcpu %d\n",
-			       vcpu->vcpu_id);
+			apic_debug("Ignoring de-assert INIT to vcpu %d\n",
+				   vcpu->vcpu_id);
 		}
-
 		break;
 
 	case APIC_DM_STARTUP:
-		printk(KERN_DEBUG "SIPI to vcpu %d vector 0x%02x\n",
-		       vcpu->vcpu_id, vector);
+		apic_debug("SIPI to vcpu %d vector 0x%02x\n",
+			   vcpu->vcpu_id, vector);
 		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
 			vcpu->arch.sipi_vector = vector;
 			vcpu->arch.mp_state = KVM_MP_STATE_SIPI_RECEIVED;
@@ -679,9 +677,9 @@ static void apic_mmio_write(struct kvm_io_device *this,
 	 * Refer SDM 8.4.1
 	 */
 	if (len != 4 || alignment) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "apic write: bad size=%d %lx\n",
-			       len, (long)address);
+		/* Don't shout loud, $infamous_os would cause only noise. */
+		apic_debug("apic write: bad size=%d %lx\n",
+			   len, (long)address);
 		return;
 	}
 

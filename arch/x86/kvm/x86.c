@@ -3224,8 +3224,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED)) {
-		printk("vcpu %d received sipi with vector # %x\n",
-		       vcpu->vcpu_id, vcpu->arch.sipi_vector);
+		pr_debug("vcpu %d received sipi with vector # %x\n",
+			 vcpu->vcpu_id, vcpu->arch.sipi_vector);
 		kvm_lapic_reset(vcpu);
 		r = kvm_x86_ops->vcpu_reset(vcpu);
 		if (r)
