@@ -80,10 +80,7 @@ static void tracepoint_entry_free_old(struct tracepoint_entry *entry, void *old)
 	entry->rcu_pending = 1;
 	/* write rcu_pending before calling the RCU callback */
 	smp_wmb();
-#ifdef CONFIG_PREEMPT_RCU
-	synchronize_sched();	/* Until we have the call_rcu_sched() */
-#endif
-	call_rcu(&entry->rcu, free_old_closure);
+	call_rcu_sched(&entry->rcu, free_old_closure);
 }
 
 static void debug_print_probes(struct tracepoint_entry *entry)
@@ -245,9 +242,9 @@ static int remove_tracepoint(const char *name)
 	if (e->refcount)
 		return -EBUSY;
 	hlist_del(&e->hlist);
-	/* Make sure the call_rcu has been executed */
+	/* Make sure the call_rcu_sched has been executed */
 	if (e->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	kfree(e);
 	return 0;
 }
@@ -344,11 +341,11 @@ int tracepoint_probe_register(const char *name, void *probe)
 		}
 	}
 	/*
-	 * If we detect that a call_rcu is pending for this tracepoint,
+	 * If we detect that a call_rcu_sched is pending for this tracepoint,
 	 * make sure it's executed now.
 	 */
 	if (entry->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	old = tracepoint_entry_add_probe(entry, probe);
 	if (IS_ERR(old)) {
 		ret = PTR_ERR(old);
@@ -387,7 +384,7 @@ int tracepoint_probe_unregister(const char *name, void *probe)
 	if (!entry)
 		goto end;
 	if (entry->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	old = tracepoint_entry_remove_probe(entry, probe);
 	mutex_unlock(&tracepoints_mutex);
 	tracepoint_update_probes();		/* may update entry */
