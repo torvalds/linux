@@ -930,22 +930,23 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2880_BOARD_KWORLD_DVB_310U] = {
 		.name	      = "KWorld DVB-T 310U",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.vchannels    = 3,
 		.tuner_type   = TUNER_XC2028,
+		.has_dvb      = 1,
+		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
-			.amux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
-		}, {
+			.amux     = EM28XX_AMUX_AC97_LINE_IN,
+		}, {	/* S-video has not been tested yet */
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
-			.amux     = 1,
+			.amux     = EM28XX_AMUX_AC97_LINE_IN,
 		} },
 	},
 	[EM2881_BOARD_DNT_DA2_HYBRID] = {
@@ -1260,6 +1261,7 @@ static struct em28xx_reg_seq em2882_terratec_hybrid_xs_digital[] = {
 static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
 	{0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF},
+	{0x966a0441, EM2880_BOARD_KWORLD_DVB_310U, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -1745,6 +1747,20 @@ void em28xx_card_setup(struct em28xx *dev)
 		break;
 	case EM2820_BOARD_UNKNOWN:
 	case EM2800_BOARD_UNKNOWN:
+		/*
+		 * The K-WORLD DVB-T 310U is detected as an MSI Digivox AD.
+		 *
+		 * This occurs because they share identical USB vendor and
+		 * product IDs.
+		 *
+		 * What we do here is look up the EEPROM hash of the K-WORLD
+		 * and if it is found then we decide that we do not have
+		 * a DIGIVOX and reset the device to the K-WORLD instead.
+		 *
+		 * This solution is only valid if they do not share eeprom
+		 * hash identities which has not been determined as yet.
+		 */
+	case EM2880_BOARD_MSI_DIGIVOX_AD:
 		if (!em28xx_hint_board(dev))
 			em28xx_set_model(dev);
 		break;

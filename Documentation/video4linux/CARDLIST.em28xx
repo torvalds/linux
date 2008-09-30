@@ -46,7 +46,7 @@
  45 -> Pinnacle PCTV DVB-T                      (em2870)
  46 -> Compro, VideoMate U3                     (em2870)        [185b:2870]
  47 -> KWorld DVB-T 305U                        (em2880)        [eb1a:e305]
- 48 -> KWorld DVB-T 310U                        (em2880)
+ 48 -> KWorld DVB-T 310U                        (em2880)        [eb1a:e310]
  49 -> MSI DigiVox A/D                          (em2880)        [eb1a:e310]
  50 -> MSI DigiVox A/D II                       (em2880)        [eb1a:e320]
  51 -> Terratec Hybrid XS Secam                 (em2880)        [0ccd:004c]
