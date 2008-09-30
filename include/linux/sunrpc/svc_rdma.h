@@ -72,6 +72,7 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct svc_rdma_op_ctxt *read_hdr;
+	struct svc_rdma_fastreg_mr *frmr;
 	int hdr_count;
 	struct xdr_buf arg;
 	struct list_head dto_q;
@@ -103,15 +104,29 @@ struct svc_rdma_chunk_sge {
 	int start;		/* sge no for this chunk */
 	int count;		/* sge count for this chunk */
 };
+struct svc_rdma_fastreg_mr {
+	struct ib_mr *mr;
+	void *kva;
+	struct ib_fast_reg_page_list *page_list;
+	int page_list_len;
+	unsigned long access_flags;
+	unsigned long map_len;
+	enum dma_data_direction direction;
+	struct list_head frmr_list;
+};
 struct svc_rdma_req_map {
+	struct svc_rdma_fastreg_mr *frmr;
 	unsigned long count;
 	union {
 		struct kvec sge[RPCSVC_MAXPAGES];
 		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
 	};
 };
-
+#define RDMACTXT_F_FAST_UNREG	1
 #define RDMACTXT_F_LAST_CTXT	2
+
+#define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
+#define	SVCRDMA_DEVCAP_READ_W_INV	2	/* read w/ invalidate */
 
 struct svcxprt_rdma {
 	struct svc_xprt      sc_xprt;		/* SVC transport structure */
@@ -136,6 +151,11 @@ struct svcxprt_rdma {
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
 	struct ib_mr         *sc_phys_mr;	/* MR for server memory */
+	u32		     sc_dev_caps;	/* distilled device caps */
+	u32		     sc_dma_lkey;	/* local dma key */
+	unsigned int	     sc_frmr_pg_list_len;
+	struct list_head     sc_frmr_q;
+	spinlock_t	     sc_frmr_q_lock;
 
 	spinlock_t	     sc_lock;		/* transport lock */
 
