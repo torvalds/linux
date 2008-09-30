@@ -1197,11 +1197,11 @@ struct mtrr_cleanup_result {
 };
 
 /*
- * gran_size: 1M, 2M, ..., 2G
+ * gran_size: 64K, 128K, 256K, 512K, 1M, 2M, ..., 2G
  * chunk size: gran_size, ..., 2G
- * so we need (1+12)*6
+ * so we need (1+16)*8
  */
-#define NUM_RESULT	78
+#define NUM_RESULT	136
 #define PSHIFT		(PAGE_SHIFT - 10)
 
 static struct mtrr_cleanup_result __initdata result[NUM_RESULT];
@@ -1323,7 +1323,7 @@ static int __init mtrr_cleanup(unsigned address_bits)
 	i = 0;
 	memset(min_loss_pfn, 0xff, sizeof(min_loss_pfn));
 	memset(result, 0, sizeof(result));
-	for (gran_size = (1ULL<<20); gran_size < (1ULL<<32); gran_size <<= 1) {
+	for (gran_size = (1ULL<<16); gran_size < (1ULL<<32); gran_size <<= 1) {
 		char gran_factor;
 		unsigned long gran_base;
 
