@@ -956,6 +956,7 @@ rollback:
  *	dev_set_alias - change ifalias of a device
  *	@dev: device
  *	@alias: name up to IFALIASZ
+ *	@len: limit of bytes to copy from info
  *
  *	Set ifalias for a device,
  */
@@ -3330,6 +3331,12 @@ static void dev_addr_discard(struct net_device *dev)
 	netif_addr_unlock_bh(dev);
 }
 
+/**
+ *	dev_get_flags - get flags reported to userspace
+ *	@dev: device
+ *
+ *	Get the combination of flag bits exported through APIs to userspace.
+ */
 unsigned dev_get_flags(const struct net_device *dev)
 {
 	unsigned flags;
@@ -3354,6 +3361,14 @@ unsigned dev_get_flags(const struct net_device *dev)
 	return flags;
 }
 
+/**
+ *	dev_change_flags - change device settings
+ *	@dev: device
+ *	@flags: device state flags
+ *
+ *	Change settings on device based state flags. The flags are
+ *	in the userspace exported format.
+ */
 int dev_change_flags(struct net_device *dev, unsigned flags)
 {
 	int ret, changes;
@@ -3423,6 +3438,13 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	return ret;
 }
 
+/**
+ *	dev_set_mtu - Change maximum transfer unit
+ *	@dev: device
+ *	@new_mtu: new transfer unit
+ *
+ *	Change the maximum transfer size of the network device.
+ */
 int dev_set_mtu(struct net_device *dev, int new_mtu)
 {
 	int err;
@@ -3447,6 +3469,13 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
+/**
+ *	dev_set_mac_address - Change Media Access Control Address
+ *	@dev: device
+ *	@sa: new address
+ *
+ *	Change the hardware (MAC) address of the device
+ */
 int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 {
 	int err;
@@ -4350,7 +4379,12 @@ void free_netdev(struct net_device *dev)
 	put_device(&dev->dev);
 }
 
-/* Synchronize with packet receive processing. */
+/**
+ *	synchronize_net -  Synchronize with packet receive processing
+ *
+ *	Wait for packets currently being received to be done.
+ *	Does not block later packets from starting.
+ */
 void synchronize_net(void)
 {
 	might_sleep();
@@ -4652,7 +4686,7 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 }
 
 /**
- * netdev_dma_regiser - register the networking subsystem as a DMA client
+ * netdev_dma_register - register the networking subsystem as a DMA client
  */
 static int __init netdev_dma_register(void)
 {
@@ -4753,6 +4787,14 @@ err_name:
 	return -ENOMEM;
 }
 
+/**
+ *	netdev_drivername - network driver for the device
+ *	@dev: network device
+ *	@buffer: buffer for resulting name
+ *	@len: size of buffer
+ *
+ *	Determine network driver for device.
+ */
 char *netdev_drivername(const struct net_device *dev, char *buffer, int len)
 {
 	const struct device_driver *driver;
