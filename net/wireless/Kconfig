@@ -15,7 +15,7 @@ config NL80211
 	  If unsure, say Y.
 
 config WIRELESS_OLD_REGULATORY
-	bool "Old wireless static regulatory defintions"
+	bool "Old wireless static regulatory definitions"
 	default n
 	---help---
 	  This option enables the old static regulatory information
