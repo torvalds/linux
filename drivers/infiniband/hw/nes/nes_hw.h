@@ -1100,6 +1100,7 @@ struct nes_adapter {
 	u8  mac_sw_state[4];
 	u8  mac_link_down[4];
 	u8  phy_type[4];
+	u8  log_port;
 
 	/* PCI information */
 	unsigned int  devfn;

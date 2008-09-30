@@ -562,7 +562,26 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 			nesdev->nesadapter->pd_config_base[PCI_FUNC(nesdev->pcidev->devfn)]; */
 	nesdev->base_doorbell_index = 1;
 	nesdev->doorbell_start = nesdev->nesadapter->doorbell_start;
-	nesdev->mac_index = PCI_FUNC(nesdev->pcidev->devfn) % nesdev->nesadapter->port_count;
+	if (nesdev->nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G) {
+		switch (PCI_FUNC(nesdev->pcidev->devfn) %
+			nesdev->nesadapter->port_count) {
+		case 1:
+			nesdev->mac_index = 2;
+			break;
+		case 2:
+			nesdev->mac_index = 1;
+			break;
+		case 3:
+			nesdev->mac_index = 3;
+			break;
+		case 0:
+		default:
+			nesdev->mac_index = 0;
+		}
+	} else {
+		nesdev->mac_index = PCI_FUNC(nesdev->pcidev->devfn) %
+						nesdev->nesadapter->port_count;
+	}
 
 	tasklet_init(&nesdev->dpc_tasklet, nes_dpc, (unsigned long)nesdev);
 
@@ -581,7 +600,7 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nesdev->int_req = (0x101 << PCI_FUNC(nesdev->pcidev->devfn)) |
 			(1 << (PCI_FUNC(nesdev->pcidev->devfn)+16));
 	if (PCI_FUNC(nesdev->pcidev->devfn) < 4) {
-		nesdev->int_req |= (1 << (PCI_FUNC(nesdev->pcidev->devfn)+24));
+		nesdev->int_req |= (1 << (PCI_FUNC(nesdev->mac_index)+24));
 	}
 
 	/* TODO: This really should be the first driver to load, not function 0 */
@@ -772,14 +791,14 @@ static ssize_t nes_show_adapter(struct device_driver *ddp, char *buf)
 
 	list_for_each_entry(nesdev, &nes_dev_list, list) {
 		if (i == ee_flsh_adapter) {
-			devfn      = nesdev->nesadapter->devfn;
-			bus_number = nesdev->nesadapter->bus_number;
+			devfn = nesdev->pcidev->devfn;
+			bus_number = nesdev->pcidev->bus->number;
 			break;
 		}
 		i++;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%x:%x", bus_number, devfn);
+	return snprintf(buf, PAGE_SIZE, "%x:%x\n", bus_number, devfn);
 }
 
 static ssize_t nes_store_adapter(struct device_driver *ddp,

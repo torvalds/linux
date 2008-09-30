@@ -61,7 +61,7 @@ u32 int_mod_cq_depth_1;
 static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq);
 static void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_count);
 static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
-			   u8 OneG_Mode);
+				struct nes_adapter *nesadapter, u8  OneG_Mode);
 static void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq);
 static void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq);
 static void nes_process_ceq(struct nes_device *nesdev, struct nes_hw_ceq *ceq);
@@ -292,9 +292,6 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	if ((port_count = nes_reset_adapter_ne020(nesdev, &OneG_Mode)) == 0)
 		return NULL;
-	if (nes_init_serdes(nesdev, hw_rev, port_count, OneG_Mode))
-		return NULL;
-	nes_init_csr_ne020(nesdev, hw_rev, port_count);
 
 	max_qp = nes_read_indexed(nesdev, NES_IDX_QP_CTX_SIZE);
 	nes_debug(NES_DBG_INIT, "QP_CTX_SIZE=%u\n", max_qp);
@@ -352,6 +349,19 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	nes_debug(NES_DBG_INIT, "Allocating new nesadapter @ %p, size = %u (actual size = %u).\n",
 			nesadapter, (u32)sizeof(struct nes_adapter), adapter_size);
+
+	if (nes_read_eeprom_values(nesdev, nesadapter)) {
+		printk(KERN_ERR PFX "Unable to read EEPROM data.\n");
+		kfree(nesadapter);
+		return NULL;
+	}
+
+	if (nes_init_serdes(nesdev, hw_rev, port_count, nesadapter,
+							OneG_Mode)) {
+		kfree(nesadapter);
+		return NULL;
+	}
+	nes_init_csr_ne020(nesdev, hw_rev, port_count);
 
 	/* populate the new nesadapter */
 	nesadapter->devfn = nesdev->pcidev->devfn;
@@ -468,20 +478,25 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	/* setup port configuration */
 	if (nesadapter->port_count == 1) {
-		u32temp = 0x00000000;
+		nesadapter->log_port = 0x00000000;
 		if (nes_drv_opt & NES_DRV_OPT_DUAL_LOGICAL_PORT)
 			nes_write_indexed(nesdev, NES_IDX_TX_POOL_SIZE, 0x00000002);
 		else
 			nes_write_indexed(nesdev, NES_IDX_TX_POOL_SIZE, 0x00000003);
 	} else {
-		if (nesadapter->port_count == 2)
-			u32temp = 0x00000044;
-		else
-			u32temp = 0x000000e4;
+		if (nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G) {
+			nesadapter->log_port = 0x000000D8;
+		} else {
+			if (nesadapter->port_count == 2)
+				nesadapter->log_port = 0x00000044;
+			else
+				nesadapter->log_port = 0x000000e4;
+		}
 		nes_write_indexed(nesdev, NES_IDX_TX_POOL_SIZE, 0x00000003);
 	}
 
-	nes_write_indexed(nesdev, NES_IDX_NIC_LOGPORT_TO_PHYPORT, u32temp);
+	nes_write_indexed(nesdev, NES_IDX_NIC_LOGPORT_TO_PHYPORT,
+						nesadapter->log_port);
 	nes_debug(NES_DBG_INIT, "Probe time, LOG2PHY=%u\n",
 			nes_read_indexed(nesdev, NES_IDX_NIC_LOGPORT_TO_PHYPORT));
 
@@ -706,23 +721,43 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
  * nes_init_serdes
  */
 static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
-			   u8 OneG_Mode)
+				struct nes_adapter *nesadapter, u8  OneG_Mode)
 {
 	int i;
 	u32 u32temp;
+	u32 serdes_common_control;
 
 	if (hw_rev != NE020_REV) {
 		/* init serdes 0 */
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL0, 0x000000FF);
-		if (!OneG_Mode)
+		if (nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G) {
+			serdes_common_control = nes_read_indexed(nesdev,
+					NES_IDX_ETH_SERDES_COMMON_CONTROL0);
+			serdes_common_control |= 0x000000100;
+			nes_write_indexed(nesdev,
+					NES_IDX_ETH_SERDES_COMMON_CONTROL0,
+					serdes_common_control);
+		} else if (!OneG_Mode) {
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_HIGHZ_LANE_MODE0, 0x11110000);
-		if (port_count > 1) {
+		}
+		if (((port_count > 1) &&
+			(nesadapter->phy_type[0] != NES_PHY_TYPE_PUMA_1G)) ||
+			((port_count > 2) &&
+			(nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G))) {
 			/* init serdes 1 */
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL1, 0x000000FF);
-			if (!OneG_Mode)
+			if (nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G) {
+				serdes_common_control = nes_read_indexed(nesdev,
+					NES_IDX_ETH_SERDES_COMMON_CONTROL1);
+				serdes_common_control |= 0x000000100;
+				nes_write_indexed(nesdev,
+					NES_IDX_ETH_SERDES_COMMON_CONTROL1,
+					serdes_common_control);
+			} else if (!OneG_Mode) {
 				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_HIGHZ_LANE_MODE1, 0x11110000);
 			}
+		}
 	} else {
 		/* init serdes 0 */
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, 0x00000008);
@@ -2258,7 +2293,8 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 			spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 		}
 		/* read the PHY interrupt status register */
-		if (nesadapter->OneG_Mode) {
+		if ((nesadapter->OneG_Mode) &&
+		(nesadapter->phy_type[mac_index] != NES_PHY_TYPE_PUMA_1G)) {
 			do {
 				nes_read_1G_phy_reg(nesdev, 0x1a,
 						nesadapter->phy_index[mac_index], &phy_data);
