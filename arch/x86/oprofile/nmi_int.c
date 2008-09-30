@@ -24,8 +24,6 @@
 #include "op_counter.h"
 #include "op_x86_model.h"
 
-DEFINE_PER_CPU(int, switch_index);
-
 static struct op_x86_model_spec const *model;
 static DEFINE_PER_CPU(struct op_msrs, cpu_msrs);
 static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
@@ -34,8 +32,6 @@ static int nmi_start(void);
 static void nmi_stop(void);
 static void nmi_cpu_start(void *dummy);
 static void nmi_cpu_stop(void *dummy);
-static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs);
-static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs);
 
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
@@ -111,47 +107,6 @@ static void exit_sysfs(void)
 #define exit_sysfs() do { } while (0)
 #endif /* CONFIG_PM */
 
-static void nmi_cpu_switch(void *dummy)
-{
-	int cpu = smp_processor_id();
-	int si = per_cpu(switch_index, cpu);
-	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
-
-	nmi_cpu_stop(NULL);
-	nmi_cpu_save_mpx_registers(msrs);
-
-	/* move to next set */
-	si += model->num_hardware_counters;
-	if ((si > model->num_counters) || (counter_config[si].count == 0))
-		per_cpu(switch_index, smp_processor_id()) = 0;
-	else
-		per_cpu(switch_index, smp_processor_id()) = si;
-
-	nmi_cpu_restore_mpx_registers(msrs);
-	model->setup_ctrs(msrs);
-	nmi_cpu_start(NULL);
-}
-
-/*
- * Quick check to see if multiplexing is necessary.
- * The check should be sufficient since counters are used
- * in ordre.
- */
-static int nmi_multiplex_on(void)
-{
-	return counter_config[model->num_hardware_counters].count ? 0 : -EINVAL;
-}
-
-static int nmi_switch_event(void)
-{
-	if (nmi_multiplex_on() < 0)
-		return -EINVAL;
-
-	on_each_cpu(nmi_cpu_switch, NULL, 1);
-
-	return 0;
-}
-
 static int profile_exceptions_notify(struct notifier_block *self,
 				     unsigned long val, void *data)
 {
@@ -215,10 +170,11 @@ static void free_msrs(void)
 
 static int allocate_msrs(void)
 {
-	int i, success = 1;
+	int success = 1;
 	size_t controls_size = sizeof(struct op_msr) * model->num_controls;
 	size_t counters_size = sizeof(struct op_msr) * model->num_counters;
 
+	int i;
 	for_each_possible_cpu(i) {
 		per_cpu(cpu_msrs, i).counters = kmalloc(counters_size,
 								GFP_KERNEL);
@@ -226,8 +182,8 @@ static int allocate_msrs(void)
 			success = 0;
 			break;
 		}
-		per_cpu(cpu_msrs, i).controls =
-				kmalloc(controls_size, GFP_KERNEL);
+		per_cpu(cpu_msrs, i).controls = kmalloc(controls_size,
+								GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).controls) {
 			success = 0;
 			break;
@@ -271,8 +227,7 @@ static int nmi_setup(void)
 		return err;
 	}
 
-	/*
-	 * We need to serialize save and setup for HT because the subset
+	/* We need to serialize save and setup for HT because the subset
 	 * of msrs are distinct for save and setup operations
 	 */
 
@@ -288,6 +243,7 @@ static int nmi_setup(void)
 				per_cpu(cpu_msrs, 0).controls,
 				sizeof(struct op_msr) * model->num_controls);
 		}
+
 	}
 	on_each_cpu(nmi_save_registers, NULL, 1);
 	on_each_cpu(nmi_cpu_setup, NULL, 1);
@@ -295,41 +251,7 @@ static int nmi_setup(void)
 	return 0;
 }
 
-static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
-{
-	unsigned int si = __get_cpu_var(switch_index);
-	unsigned int const nr_ctrs = model->num_hardware_counters;
-	struct op_msr *counters = &msrs->counters[si];
-	unsigned int i;
-
-	for (i = 0; i < nr_ctrs; ++i) {
-		int offset = i + si;
-		if (counters[offset].addr) {
-			rdmsr(counters[offset].addr,
-				counters[offset].multiplex.low,
-				counters[offset].multiplex.high);
-		}
-	}
-}
-
-static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
-{
-	unsigned int si = __get_cpu_var(switch_index);
-	unsigned int const nr_ctrs = model->num_hardware_counters;
-	struct op_msr *counters = &msrs->counters[si];
-	unsigned int i;
-
-	for (i = 0; i < nr_ctrs; ++i) {
-		int offset = i + si;
-		if (counters[offset].addr) {
-			wrmsr(counters[offset].addr,
-				counters[offset].multiplex.low,
-				counters[offset].multiplex.high);
-		}
-	}
-}
-
-static void nmi_cpu_restore_registers(struct op_msrs *msrs)
+static void nmi_restore_registers(struct op_msrs *msrs)
 {
 	unsigned int const nr_ctrs = model->num_counters;
 	unsigned int const nr_ctrls = model->num_controls;
@@ -369,8 +291,7 @@ static void nmi_cpu_shutdown(void *dummy)
 	apic_write(APIC_LVTERR, v | APIC_LVT_MASKED);
 	apic_write(APIC_LVTPC, per_cpu(saved_lvtpc, cpu));
 	apic_write(APIC_LVTERR, v);
-	nmi_cpu_restore_registers(msrs);
-	__get_cpu_var(switch_index) = 0;
+	nmi_restore_registers(msrs);
 }
 
 static void nmi_shutdown(void)
@@ -435,7 +356,6 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 		oprofilefs_create_ulong(sb, dir, "unit_mask", &counter_config[i].unit_mask);
 		oprofilefs_create_ulong(sb, dir, "kernel", &counter_config[i].kernel);
 		oprofilefs_create_ulong(sb, dir, "user", &counter_config[i].user);
-		counter_config[i].save_count_low = 0;
 	}
 
 	return 0;
@@ -580,14 +500,12 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	register_cpu_notifier(&oprofile_cpu_nb);
 #endif
 	/* default values, can be overwritten by model */
-	__raw_get_cpu_var(switch_index) = 0;
 	ops->create_files = nmi_create_files;
 	ops->setup = nmi_setup;
 	ops->shutdown = nmi_shutdown;
 	ops->start = nmi_start;
 	ops->stop = nmi_stop;
 	ops->cpu_type = cpu_type;
-	ops->switch_events = nmi_switch_event;
 
 	if (model->init)
 		ret = model->init(ops);
@@ -607,7 +525,7 @@ void op_nmi_exit(void)
 #ifdef CONFIG_SMP
 		unregister_cpu_notifier(&oprofile_cpu_nb);
 #endif
+	}
 	if (model->exit)
 		model->exit();
-	}
 }
