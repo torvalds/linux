@@ -356,6 +356,8 @@ int tracepoint_probe_register(const char *name, void *probe)
 	mutex_lock(&tracepoints_mutex);
 	entry = get_tracepoint(name);
 	WARN_ON(!entry);
+	if (entry->rcu_pending)
+		rcu_barrier_sched();
 	tracepoint_entry_free_old(entry, old);
 end:
 	mutex_unlock(&tracepoints_mutex);
@@ -392,6 +394,8 @@ int tracepoint_probe_unregister(const char *name, void *probe)
 	entry = get_tracepoint(name);
 	if (!entry)
 		goto end;
+	if (entry->rcu_pending)
+		rcu_barrier_sched();
 	tracepoint_entry_free_old(entry, old);
 	remove_tracepoint(name);	/* Ignore busy error message */
 	ret = 0;
