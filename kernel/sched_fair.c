@@ -1088,7 +1088,7 @@ static inline unsigned long effective_load(struct task_group *tg, int cpu,
 #endif
 
 static int
-wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
+wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	    struct task_struct *p, int prev_cpu, int this_cpu, int sync,
 	    int idx, unsigned long load, unsigned long this_load,
 	    unsigned int imbalance)
@@ -1136,8 +1136,8 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	schedstat_inc(p, se.nr_wakeups_affine_attempts);
 	tl_per_task = cpu_avg_load_per_task(this_cpu);
 
-	if ((tl <= load && tl + target_load(prev_cpu, idx) <= tl_per_task) ||
-			balanced) {
+	if (balanced || (tl <= load && tl + target_load(prev_cpu, idx) <=
+			tl_per_task)) {
 		/*
 		 * This domain has SD_WAKE_AFFINE and
 		 * p is cache cold in this domain, and
@@ -1156,16 +1156,17 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	struct sched_domain *sd, *this_sd = NULL;
 	int prev_cpu, this_cpu, new_cpu;
 	unsigned long load, this_load;
-	struct rq *rq, *this_rq;
+	struct rq *this_rq;
 	unsigned int imbalance;
 	int idx;
 
 	prev_cpu	= task_cpu(p);
-	rq		= task_rq(p);
 	this_cpu	= smp_processor_id();
 	this_rq		= cpu_rq(this_cpu);
 	new_cpu		= prev_cpu;
 
+	if (prev_cpu == this_cpu)
+		goto out;
 	/*
 	 * 'this_sd' is the first domain that both
 	 * this_cpu and prev_cpu are present in:
@@ -1193,12 +1194,9 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	load = source_load(prev_cpu, idx);
 	this_load = target_load(this_cpu, idx);
 
-	if (wake_affine(rq, this_sd, this_rq, p, prev_cpu, this_cpu, sync, idx,
+	if (wake_affine(this_sd, this_rq, p, prev_cpu, this_cpu, sync, idx,
 				     load, this_load, imbalance))
 		return this_cpu;
-
-	if (prev_cpu == this_cpu)
-		goto out;
 
 	/*
 	 * Start passive balancing when half the imbalance_pct
