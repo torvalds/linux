@@ -7,24 +7,24 @@
  * Loosely based on earlier PAT patchset from Eric Biederman and Andi Kleen.
  */
 
-#include <linux/mm.h>
-#include <linux/kernel.h>
-#include <linux/gfp.h>
-#include <linux/fs.h>
+#include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
-#include <linux/seq_file.h>
+#include <linux/kernel.h>
+#include <linux/gfp.h>
+#include <linux/mm.h>
+#include <linux/fs.h>
 
-#include <asm/msr.h>
-#include <asm/tlbflush.h>
-#include <asm/processor.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <asm/pat.h>
-#include <asm/e820.h>
 #include <asm/cacheflush.h>
+#include <asm/processor.h>
+#include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 #include <asm/fcntl.h>
+#include <asm/e820.h>
 #include <asm/mtrr.h>
+#include <asm/page.h>
+#include <asm/msr.h>
+#include <asm/pat.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_X86_PAT
@@ -46,6 +46,7 @@ early_param("nopat", nopat);
 
 
 static int debug_enable;
+
 static int __init pat_debug_setup(char *str)
 {
 	debug_enable = 1;
@@ -145,14 +146,14 @@ static char *cattr_name(unsigned long flags)
  */
 
 struct memtype {
-	u64 start;
-	u64 end;
-	unsigned long type;
-	struct list_head nd;
+	u64			start;
+	u64			end;
+	unsigned long		type;
+	struct list_head	nd;
 };
 
 static LIST_HEAD(memtype_list);
-static DEFINE_SPINLOCK(memtype_lock); 	/* protects memtype list */
+static DEFINE_SPINLOCK(memtype_lock);	/* protects memtype list */
 
 /*
  * Does intersection of PAT memory type and MTRR memory type and returns
@@ -180,8 +181,8 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	return req_type;
 }
 
-static int chk_conflict(struct memtype *new, struct memtype *entry,
-			unsigned long *type)
+static int
+chk_conflict(struct memtype *new, struct memtype *entry, unsigned long *type)
 {
 	if (new->type != entry->type) {
 		if (type) {
@@ -211,15 +212,6 @@ static struct memtype *cached_entry;
 static u64 cached_start;
 
 /*
- * RED-PEN:  TODO: Add PageReserved() check as well here,
- * once we add SetPageReserved() to all the drivers using
- * set_memory_* or set_pages_*.
- *
- * This will help prevent accidentally freeing pages
- * before setting the attribute back to WB.
- */
-
-/*
  * For RAM pages, mark the pages as non WB memory type using
  * PageNonWB (PG_arch_1). We allow only one set_memory_uc() or
  * set_memory_wc() on a RAM page at a time before marking it as WB again.
@@ -232,7 +224,7 @@ static u64 cached_start;
  * UC and WC mapping.
  */
 static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
-		       unsigned long *new_type)
+				  unsigned long *new_type)
 {
 	struct page *page;
 	u64 pfn, end_pfn;
@@ -295,15 +287,15 @@ out:
  * it will return a negative return value.
  */
 int reserve_memtype(u64 start, u64 end, unsigned long req_type,
-			unsigned long *new_type)
+		    unsigned long *new_type)
 {
 	struct memtype *new, *entry;
 	unsigned long actual_type;
 	struct list_head *where;
-	int err = 0;
 	int is_range_ram;
+	int err = 0;
 
- 	BUG_ON(start >= end); /* end is exclusive */
+	BUG_ON(start >= end); /* end is exclusive */
 
 	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
@@ -336,9 +328,10 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			actual_type = _PAGE_CACHE_WB;
 		else
 			actual_type = _PAGE_CACHE_UC_MINUS;
-	} else
+	} else {
 		actual_type = pat_x_mtrr_type(start, end,
 					      req_type & _PAGE_CACHE_MASK);
+	}
 
 	is_range_ram = pagerange_is_ram(start, end);
 	if (is_range_ram == 1)
@@ -350,9 +343,9 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (!new)
 		return -ENOMEM;
 
-	new->start = start;
-	new->end = end;
-	new->type = actual_type;
+	new->start	= start;
+	new->end	= end;
+	new->type	= actual_type;
 
 	if (new_type)
 		*new_type = actual_type;
@@ -411,6 +404,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		       start, end, cattr_name(new->type), cattr_name(req_type));
 		kfree(new);
 		spin_unlock(&memtype_lock);
+
 		return err;
 	}
 
@@ -469,6 +463,7 @@ int free_memtype(u64 start, u64 end)
 	}
 
 	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
+
 	return err;
 }
 
@@ -575,9 +570,9 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 
 void map_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 {
+	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
 	u64 addr = (u64)pfn << PAGE_SHIFT;
 	unsigned long flags;
-	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
 
 	reserve_memtype(addr, addr + size, want_flags, &flags);
 	if (flags != want_flags) {
@@ -620,6 +615,7 @@ static struct memtype *memtype_get_idx(loff_t pos)
 	}
 	spin_unlock(&memtype_lock);
 	kfree(print_entry);
+
 	return NULL;
 }
 
@@ -650,6 +646,7 @@ static int memtype_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%s @ 0x%Lx-0x%Lx\n", cattr_name(print_entry->type),
 			print_entry->start, print_entry->end);
 	kfree(print_entry);
+
 	return 0;
 }
 
