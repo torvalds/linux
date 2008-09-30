@@ -191,7 +191,7 @@ static void __wakeup_reset(struct trace_array *tr)
 
 	for_each_possible_cpu(cpu) {
 		data = tr->data[cpu];
-		tracing_reset(data);
+		tracing_reset(tr, cpu);
 	}
 
 	wakeup_cpu = -1;

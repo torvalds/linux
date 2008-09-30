@@ -5,6 +5,7 @@
 #include <asm/atomic.h>
 #include <linux/sched.h>
 #include <linux/clocksource.h>
+#include <linux/ring_buffer.h>
 #include <linux/mmiotrace.h>
 #include <linux/ftrace.h>
 
@@ -102,7 +103,6 @@ struct trace_field {
 	char			flags;
 	char			preempt_count;
 	int			pid;
-	cycle_t			t;
 	union {
 		struct ftrace_entry		fn;
 		struct ctx_switch_entry		ctx;
@@ -139,16 +139,9 @@ struct trace_entry {
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	struct list_head	trace_pages;
 	atomic_t		disabled;
-	raw_spinlock_t		lock;
-	struct lock_class_key	lock_key;
 
 	/* these fields get copied into max-trace: */
-	unsigned		trace_head_idx;
-	unsigned		trace_tail_idx;
-	void			*trace_head; /* producer */
-	void			*trace_tail; /* consumer */
 	unsigned long		trace_idx;
 	unsigned long		overrun;
 	unsigned long		saved_latency;
@@ -172,6 +165,7 @@ struct trace_iterator;
  * They have on/off state as well:
  */
 struct trace_array {
+	struct ring_buffer	*buffer;
 	unsigned long		entries;
 	long			ctrl;
 	int			cpu;
@@ -219,27 +213,21 @@ struct trace_iterator {
 	struct trace_array	*tr;
 	struct tracer		*trace;
 	void			*private;
-	long			last_overrun[NR_CPUS];
-	long			overrun[NR_CPUS];
+	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
 
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
 	struct trace_entry	*ent;
 	int			cpu;
-
-	struct trace_entry	*prev_ent;
-	int			prev_cpu;
+	u64			ts;
 
 	unsigned long		iter_flags;
 	loff_t			pos;
-	unsigned long		next_idx[NR_CPUS];
-	struct list_head	*next_page[NR_CPUS];
-	unsigned		next_page_idx[NR_CPUS];
 	long			idx;
 };
 
 void trace_wake_up(void);
-void tracing_reset(struct trace_array_cpu *data);
+void tracing_reset(struct trace_array *tr, int cpu);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *tracing_init_dentry(void);
 void init_tracer_sysprof_debugfs(struct dentry *d_tracer);

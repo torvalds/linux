@@ -18,58 +18,20 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	return 0;
 }
 
-static int
-trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
+static int trace_test_buffer_cpu(struct trace_array *tr, int cpu)
 {
-	struct trace_entry *entries;
-	struct page *page;
-	int idx = 0;
-	int i;
+	struct ring_buffer_event *event;
+	struct trace_entry *entry;
 
-	BUG_ON(list_empty(&data->trace_pages));
-	page = list_entry(data->trace_pages.next, struct page, lru);
-	entries = page_address(page);
+	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL))) {
+		entry = ring_buffer_event_data(event);
 
-	check_pages(data);
-	if (head_page(data) != entries)
-		goto failed;
-
-	/*
-	 * The starting trace buffer always has valid elements,
-	 * if any element exists.
-	 */
-	entries = head_page(data);
-
-	for (i = 0; i < tr->entries; i++) {
-
-		if (i < data->trace_idx && !trace_valid_entry(&entries[idx])) {
+		if (!trace_valid_entry(entry)) {
 			printk(KERN_CONT ".. invalid entry %d ",
-				entries[idx].type);
+				entry->type);
 			goto failed;
 		}
-
-		idx++;
-		if (idx >= ENTRIES_PER_PAGE) {
-			page = virt_to_page(entries);
-			if (page->lru.next == &data->trace_pages) {
-				if (i != tr->entries - 1) {
-					printk(KERN_CONT ".. entries buffer mismatch");
-					goto failed;
-				}
-			} else {
-				page = list_entry(page->lru.next, struct page, lru);
-				entries = page_address(page);
-			}
-			idx = 0;
-		}
 	}
-
-	page = virt_to_page(entries);
-	if (page->lru.next != &data->trace_pages) {
-		printk(KERN_CONT ".. too many entries");
-		goto failed;
-	}
-
 	return 0;
 
  failed:
@@ -91,13 +53,11 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	/* Don't allow flipping of max traces now */
 	raw_local_irq_save(flags);
 	__raw_spin_lock(&ftrace_max_lock);
+
+	cnt = ring_buffer_entries(tr->buffer);
+
 	for_each_possible_cpu(cpu) {
-		if (!head_page(tr->data[cpu]))
-			continue;
-
-		cnt += tr->data[cpu]->trace_idx;
-
-		ret = trace_test_buffer_cpu(tr, tr->data[cpu]);
+		ret = trace_test_buffer_cpu(tr, cpu);
 		if (ret)
 			break;
 	}

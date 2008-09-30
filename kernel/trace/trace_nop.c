@@ -30,7 +30,7 @@ static void nop_trace_init(struct trace_array *tr)
 	ctx_trace = tr;
 
 	for_each_online_cpu(cpu)
-		tracing_reset(tr->data[cpu]);
+		tracing_reset(tr, cpu);
 
 	if (tr->ctrl)
 		start_nop_trace(tr);

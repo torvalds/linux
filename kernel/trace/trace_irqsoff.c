@@ -173,7 +173,7 @@ out_unlock:
 out:
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
-	tracing_reset(data);
+	tracing_reset(tr, cpu);
 	trace_function(tr, data, CALLER_ADDR0, parent_ip, flags);
 }
 
@@ -203,7 +203,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
 	data->critical_start = parent_ip ? : ip;
-	tracing_reset(data);
+	tracing_reset(tr, cpu);
 
 	local_save_flags(flags);
 
@@ -234,7 +234,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 
 	data = tr->data[cpu];
 
-	if (unlikely(!data) || unlikely(!head_page(data)) ||
+	if (unlikely(!data) ||
 	    !data->critical_start || atomic_read(&data->disabled))
 		return;
 

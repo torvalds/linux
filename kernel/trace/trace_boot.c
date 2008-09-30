@@ -34,7 +34,7 @@ static void boot_trace_init(struct trace_array *tr)
 	trace_boot_enabled = 0;
 
 	for_each_cpu_mask(cpu, cpu_possible_map)
-		tracing_reset(tr->data[cpu]);
+		tracing_reset(tr, cpu);
 }
 
 static void boot_trace_ctrl_update(struct trace_array *tr)
@@ -74,6 +74,7 @@ struct tracer boot_tracer __read_mostly =
 
 void trace_boot(struct boot_trace *it)
 {
+	struct ring_buffer_event *event;
 	struct trace_entry *entry;
 	struct trace_array_cpu *data;
 	unsigned long irq_flags;
@@ -85,17 +86,18 @@ void trace_boot(struct boot_trace *it)
 	preempt_disable();
 	data = tr->data[smp_processor_id()];
 
-	raw_local_irq_save(irq_flags);
-	__raw_spin_lock(&data->lock);
-
-	entry = tracing_get_trace_entry(tr, data);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
+					 &irq_flags);
+	if (!event)
+		goto out;
+	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(entry, 0);
 	entry->type = TRACE_BOOT;
 	entry->field.initcall = *it;
+	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 
-	__raw_spin_unlock(&data->lock);
-	raw_local_irq_restore(irq_flags);
 	trace_wake_up();
 
+ out:
 	preempt_enable();
 }
