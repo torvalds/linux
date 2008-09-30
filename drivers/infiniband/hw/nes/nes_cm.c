@@ -1826,7 +1826,7 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 /**
  * mini_cm_connect - make a connection node with params
  */
-struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
+static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 	struct nes_vnic *nesvnic, u16 private_data_len,
 	void *private_data, struct nes_cm_info *cm_info)
 {
