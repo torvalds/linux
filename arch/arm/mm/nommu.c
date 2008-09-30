@@ -41,12 +41,26 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 			BOOTMEM_DEFAULT);
 }
 
+static void __init sanity_check_meminfo(struct meminfo *mi)
+{
+	int i, j;
+
+	for (i = 0, j = 0; i < mi->nr_banks; i++) {
+		struct membank *mb = &mi->bank[i];
+
+		if (mb->size != 0 && mb->node < MAX_NUMNODES)
+			mi->bank[j++] = mi->bank[i];
+	}
+	mi->nr_banks = j;
+}
+
 /*
  * paging_init() sets up the page tables, initialises the zone memory
  * maps, and sets up the zero page, bad page and bad page tables.
  */
 void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 {
+	sanity_check_meminfo(mi);
 	bootmem_init(mi);
 }
 

@@ -333,14 +333,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 void __init bootmem_init(struct meminfo *mi)
 {
 	unsigned long memend_pfn = 0;
-	int node, initrd_node, i;
-
-	/*
-	 * Invalidate the node number for empty or invalid memory banks
-	 */
-	for (i = 0; i < mi->nr_banks; i++)
-		if (mi->bank[i].size == 0 || mi->bank[i].node >= MAX_NUMNODES)
-			mi->bank[i].node = -1;
+	int node, initrd_node;
 
 	memcpy(&meminfo, mi, sizeof(meminfo));
 

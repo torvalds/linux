@@ -569,9 +569,10 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 static int __init check_membank_valid(struct membank *mb)
 {
 	/*
-	 * Check whether this memory region has non-zero size.
+	 * Check whether this memory region has non-zero size or
+	 * invalid node number.
 	 */
-	if (mb->size == 0)
+	if (mb->size == 0 || mb->node >= MAX_NUMNODES)
 		return 0;
 
 	/*
@@ -605,8 +606,7 @@ static int __init check_membank_valid(struct membank *mb)
 
 static void __init sanity_check_meminfo(struct meminfo *mi)
 {
-	int i;
-	int j;
+	int i, j;
 
 	for (i = 0, j = 0; i < mi->nr_banks; i++) {
 		if (check_membank_valid(&mi->bank[i]))
