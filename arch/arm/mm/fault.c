@@ -72,9 +72,8 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		}
 
 		pmd = pmd_offset(pgd, addr);
-#if PTRS_PER_PMD != 1
-		printk(", *pmd=%08lx", pmd_val(*pmd));
-#endif
+		if (PTRS_PER_PMD != 1)
+			printk(", *pmd=%08lx", pmd_val(*pmd));
 
 		if (pmd_none(*pmd))
 			break;
