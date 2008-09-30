@@ -88,6 +88,20 @@ static inline void conditional_sti(struct pt_regs *regs)
 		local_irq_enable();
 }
 
+static inline void preempt_conditional_sti(struct pt_regs *regs)
+{
+	inc_preempt_count();
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_enable();
+}
+
+static inline void preempt_conditional_cli(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_disable();
+	dec_preempt_count();
+}
+
 static inline void
 die_if_kernel(const char *str, struct pt_regs *regs, long err)
 {
@@ -498,7 +512,7 @@ dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
-	unsigned int condition;
+	unsigned long condition;
 	int si_code;
 
 	get_debugreg(condition, 6);
@@ -512,9 +526,9 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 						SIGTRAP) == NOTIFY_STOP)
 		return;
+
 	/* It's safe to allow irq's after DR6 has been saved */
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_enable();
+	preempt_conditional_sti(regs);
 
 	/* Mask out spurious debug traps due to lazy DR7 setting */
 	if (condition & (DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3)) {
@@ -533,16 +547,11 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	 * kernel space (but re-enable TF when returning to user mode).
 	 */
 	if (condition & DR_STEP) {
-		/*
-		 * We already checked v86 mode above, so we can
-		 * check for kernel mode by just checking the CPL
-		 * of CS.
-		 */
 		if (!user_mode(regs))
 			goto clear_TF_reenable;
 	}
 
-	si_code = get_si_code((unsigned long)condition);
+	si_code = get_si_code(condition);
 	/* Ok, finally something we can handle */
 	send_sigtrap(tsk, regs, error_code, si_code);
 
@@ -552,15 +561,18 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	 */
 clear_dr7:
 	set_debugreg(0, 7);
+	preempt_conditional_cli(regs);
 	return;
 
 debug_vm86:
 	handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code, 1);
+	preempt_conditional_cli(regs);
 	return;
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 	regs->flags &= ~X86_EFLAGS_TF;
+	preempt_conditional_cli(regs);
 	return;
 }
 

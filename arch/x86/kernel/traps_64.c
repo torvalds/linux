@@ -380,7 +380,7 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
 	unsigned long condition;
-	siginfo_t info;
+	int si_code;
 
 	get_debugreg(condition, 6);
 
@@ -394,6 +394,7 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 						SIGTRAP) == NOTIFY_STOP)
 		return;
 
+	/* It's safe to allow irq's after DR6 has been saved */
 	preempt_conditional_sti(regs);
 
 	/* Mask out spurious debug traps due to lazy DR7 setting */
@@ -402,6 +403,7 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 			goto clear_dr7;
 	}
 
+	/* Save debug status register where ptrace can see it */
 	tsk->thread.debugreg6 = condition;
 
 	/*
@@ -413,15 +415,14 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 			goto clear_TF_reenable;
 	}
 
+	si_code = get_si_code(condition);
 	/* Ok, finally something we can handle */
-	tsk->thread.trap_no = 1;
-	tsk->thread.error_code = error_code;
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
-	info.si_code = get_si_code(condition);
-	info.si_addr = user_mode(regs) ? (void __user *)regs->ip : NULL;
-	force_sig_info(SIGTRAP, &info, tsk);
+	send_sigtrap(tsk, regs, error_code, si_code);
 
+	/*
+	 * Disable additional traps. They'll be re-enabled when
+	 * the signal is delivered.
+	 */
 clear_dr7:
 	set_debugreg(0, 7);
 	preempt_conditional_cli(regs);
