@@ -227,6 +227,7 @@ static int get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
 			return -EFAULT;
 		key->private.mm = mm;
 		key->private.address = address;
+		get_futex_key_refs(key);
 		return 0;
 	}
 
