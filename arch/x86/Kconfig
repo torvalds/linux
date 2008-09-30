@@ -1120,7 +1120,7 @@ config MTRR
 	  See <file:Documentation/mtrr.txt> for more information.
 
 config MTRR_SANITIZER
-	bool
+	def_bool y
 	prompt "MTRR cleanup support"
 	depends on MTRR
 	help
@@ -1131,7 +1131,7 @@ config MTRR_SANITIZER
 	  The largest mtrr entry size for a continous block can be set with
 	  mtrr_chunk_size.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config MTRR_SANITIZER_ENABLE_DEFAULT
 	int "MTRR cleanup enable value (0-1)"
