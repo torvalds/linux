@@ -140,14 +140,6 @@
 #endif
 
 /*
- * Amount of memory reserved for the vmalloc() area, and minimum
- * address for vmalloc mappings.
- */
-extern unsigned long vmalloc_reserve;
-
-#define VMALLOC_MIN		(void *)(VMALLOC_END - vmalloc_reserve)
-
-/*
  * PFNs are used to describe any physical page; this means
  * PFN 0 == physical address 0.
  *
