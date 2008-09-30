@@ -49,10 +49,11 @@ static int initcall_print_line(struct trace_iterator *iter)
 {
 	int ret = 0;
 	struct trace_entry *entry = iter->ent;
-	struct boot_trace *it = &entry->field.initcall;
+	struct trace_boot *field = (struct trace_boot *)entry;
+	struct boot_trace *it = &field->initcall;
 	struct trace_seq *s = &iter->seq;
 
-	if (iter->ent->type == TRACE_BOOT)
+	if (entry->type == TRACE_BOOT)
 		ret = trace_seq_printf(s, "%pF called from %i "
 				       "returned %d after %lld msecs\n",
 				       it->func, it->caller, it->result,
@@ -75,7 +76,7 @@ struct tracer boot_tracer __read_mostly =
 void trace_boot(struct boot_trace *it)
 {
 	struct ring_buffer_event *event;
-	struct trace_entry *entry;
+	struct trace_boot *entry;
 	struct trace_array_cpu *data;
 	unsigned long irq_flags;
 	struct trace_array *tr = boot_trace;
@@ -91,9 +92,9 @@ void trace_boot(struct boot_trace *it)
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(entry, 0);
-	entry->type = TRACE_BOOT;
-	entry->field.initcall = *it;
+	tracing_generic_entry_update(&entry->ent, 0);
+	entry->ent.type = TRACE_BOOT;
+	entry->initcall = *it;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
 
 	trace_wake_up();

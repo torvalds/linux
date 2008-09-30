@@ -27,9 +27,24 @@ enum trace_type {
 };
 
 /*
+ * The trace entry - the most basic unit of tracing. This is what
+ * is printed in the end as a single line in the trace output, such as:
+ *
+ *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
+ */
+struct trace_entry {
+	unsigned char		type;
+	unsigned char		cpu;
+	unsigned char		flags;
+	unsigned char		preempt_count;
+	int			pid;
+};
+
+/*
  * Function trace entry - function address and parent function addres:
  */
 struct ftrace_entry {
+	struct trace_entry	ent;
 	unsigned long		ip;
 	unsigned long		parent_ip;
 };
@@ -39,6 +54,7 @@ extern struct tracer boot_tracer;
  * Context switch trace entry - which task (and prio) we switched from/to:
  */
 struct ctx_switch_entry {
+	struct trace_entry	ent;
 	unsigned int		prev_pid;
 	unsigned char		prev_prio;
 	unsigned char		prev_state;
@@ -52,6 +68,7 @@ struct ctx_switch_entry {
  * Special (free-form) trace entry:
  */
 struct special_entry {
+	struct trace_entry	ent;
 	unsigned long		arg1;
 	unsigned long		arg2;
 	unsigned long		arg3;
@@ -64,6 +81,7 @@ struct special_entry {
 #define FTRACE_STACK_ENTRIES	8
 
 struct stack_entry {
+	struct trace_entry	ent;
 	unsigned long		caller[FTRACE_STACK_ENTRIES];
 };
 
@@ -71,8 +89,32 @@ struct stack_entry {
  * ftrace_printk entry:
  */
 struct print_entry {
+	struct trace_entry	ent;
 	unsigned long		ip;
 	char			buf[];
+};
+
+#define TRACE_OLD_SIZE		88
+
+struct trace_field_cont {
+	unsigned char		type;
+	/* Temporary till we get rid of this completely */
+	char			buf[TRACE_OLD_SIZE - 1];
+};
+
+struct trace_mmiotrace_rw {
+	struct trace_entry	ent;
+	struct mmiotrace_rw	rw;
+};
+
+struct trace_mmiotrace_map {
+	struct trace_entry	ent;
+	struct mmiotrace_map	map;
+};
+
+struct trace_boot {
+	struct trace_entry	ent;
+	struct boot_trace	initcall;
 };
 
 /*
@@ -92,46 +134,7 @@ enum trace_flag_type {
 	TRACE_FLAG_CONT			= 0x10,
 };
 
-/*
- * The trace field - the most basic unit of tracing. This is what
- * is printed in the end as a single line in the trace output, such as:
- *
- *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
- */
-struct trace_field {
-	char			cpu;
-	char			flags;
-	char			preempt_count;
-	int			pid;
-	union {
-		struct ftrace_entry		fn;
-		struct ctx_switch_entry		ctx;
-		struct special_entry		special;
-		struct stack_entry		stack;
-		struct print_entry		print;
-		struct mmiotrace_rw		mmiorw;
-		struct mmiotrace_map		mmiomap;
-		struct boot_trace		initcall;
-	};
-};
-
-struct trace_field_cont {
-	char				buf[sizeof(struct trace_field)];
-};
-
-struct trace_entry {
-	char 				type;
-	union {
-		struct trace_field	field;
-		struct trace_field_cont	cont;
-	};
-};
-
-#define TRACE_ENTRY_SIZE	sizeof(struct trace_entry)
 #define TRACE_BUF_SIZE		1024
-#define TRACE_PRINT_BUF_SIZE \
-	(sizeof(struct trace_field) - offsetof(struct trace_field, print.buf))
-#define TRACE_CONT_BUF_SIZE	sizeof(struct trace_field)
 
 /*
  * The CPU trace array - it consists of thousands of trace entries
