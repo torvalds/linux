@@ -135,10 +135,8 @@ static void urb_callback(struct urb *urb)
 		struct gspca_frame *frame;
 
 		frame = gspca_get_i_frame(&dev->gspca_dev);
-		if (frame == NULL) {
+		if (frame == NULL)
 			gspca_dev->last_packet_type = DISCARD_PACKET;
-			break;
-		}
 		if (urb->actual_length < FPIX_MAX_TRANSFER ||
 			(data[urb->actual_length-2] == 0xff &&
 				data[urb->actual_length-1] == 0xd9)) {
@@ -149,18 +147,21 @@ static void urb_callback(struct urb *urb)
 			 * but there's nothing we can do. We also end
 			 * here if the the jpeg ends right at the end
 			 * of the frame. */
-			gspca_frame_add(gspca_dev, LAST_PACKET,
-					frame,
-					data, urb->actual_length);
+			if (frame)
+				gspca_frame_add(gspca_dev, LAST_PACKET,
+						frame,
+						data, urb->actual_length);
 			dev_new_state(FPIX_REQ_FRAME);
 			schedule_delayed_work(&dev->wqe, NEXT_FRAME_DELAY);
 		} else {
 
 			/* got a partial image */
-			gspca_frame_add(gspca_dev,
-				    gspca_dev->last_packet_type == LAST_PACKET
-					    ? FIRST_PACKET : INTER_PACKET,
-					frame,
+			if (frame)
+				gspca_frame_add(gspca_dev,
+						gspca_dev->last_packet_type
+								== LAST_PACKET
+						? FIRST_PACKET : INTER_PACKET,
+						frame,
 					data, urb->actual_length);
 			read_frame_part(dev);
 		}
