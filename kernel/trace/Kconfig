@@ -18,9 +18,13 @@ config HAVE_FTRACE_MCOUNT_RECORD
 config TRACER_MAX_TRACE
 	bool
 
+config RING_BUFFER
+	bool
+
 config TRACING
 	bool
 	select DEBUG_FS
+	select RING_BUFFER
 	select STACKTRACE
 	select TRACEPOINTS
 
