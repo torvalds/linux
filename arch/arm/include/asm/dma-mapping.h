@@ -297,8 +297,7 @@ static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
  * or written back.
  *
  * The device owns this memory once this call has completed.  The CPU
- * can regain ownership by calling dma_unmap_page() or
- * dma_sync_single_for_cpu().
+ * can regain ownership by calling dma_unmap_page().
  */
 static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	     unsigned long offset, size_t size, enum dma_data_direction dir)
@@ -315,8 +314,8 @@ static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
  * dma_unmap_single - unmap a single buffer previously mapped
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @handle: DMA address of buffer
- * @size: size of buffer to map
- * @dir: DMA transfer direction
+ * @size: size of buffer (same as passed to dma_map_single)
+ * @dir: DMA transfer direction (same as passed to dma_map_single)
  *
  * Unmap a single streaming mode DMA translation.  The handle and size
  * must match what was provided in the previous dma_map_single() call.
@@ -336,11 +335,11 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
  * dma_unmap_page - unmap a buffer previously mapped through dma_map_page()
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @handle: DMA address of buffer
- * @size: size of buffer to map
- * @dir: DMA transfer direction
+ * @size: size of buffer (same as passed to dma_map_page)
+ * @dir: DMA transfer direction (same as passed to dma_map_page)
  *
- * Unmap a single streaming mode DMA translation.  The handle and size
- * must match what was provided in the previous dma_map_single() call.
+ * Unmap a page streaming mode DMA translation.  The handle and size
+ * must match what was provided in the previous dma_map_page() call.
  * All other usages are undefined.
  *
  * After this call, reads by the CPU to the buffer are guaranteed to see
