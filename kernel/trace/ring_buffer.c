@@ -289,6 +289,12 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 	kfree(cpu_buffer);
 }
 
+/*
+ * Causes compile errors if the struct buffer_page gets bigger
+ * than the struct page.
+ */
+extern int ring_buffer_page_too_big(void);
+
 /**
  * ring_buffer_alloc - allocate a new ring_buffer
  * @size: the size in bytes that is needed.
@@ -304,6 +310,11 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 	struct ring_buffer *buffer;
 	int bsize;
 	int cpu;
+
+	/* Paranoid! Optimizes out when all is well */
+	if (sizeof(struct buffer_page) > sizeof(struct page))
+		ring_buffer_page_too_big();
+
 
 	/* keep it in its own cache line */
 	buffer = kzalloc(ALIGN(sizeof(*buffer), cache_line_size()),
