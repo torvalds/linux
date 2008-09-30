@@ -4042,9 +4042,11 @@ EXPORT_PER_CPU_SYMBOL(kstat);
  */
 unsigned long long task_delta_exec(struct task_struct *p)
 {
-	struct rq *rq;
 	unsigned long flags;
+	struct rq *rq;
 	u64 ns = 0;
+
+	rq = task_rq_lock(p, &flags);
 
 	if (task_current(rq, p)) {
 		u64 delta_exec;
@@ -4054,6 +4056,8 @@ unsigned long long task_delta_exec(struct task_struct *p)
 		if ((s64)delta_exec > 0)
 			ns = delta_exec;
 	}
+
+	task_rq_unlock(rq, &flags);
 
 	return ns;
 }
