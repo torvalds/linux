@@ -373,9 +373,10 @@ void ipoib_flush_paths(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path, *tp;
 	LIST_HEAD(remove_list);
+	unsigned long flags;
 
-	spin_lock_irq(&priv->tx_lock);
-	spin_lock(&priv->lock);
+	netif_tx_lock_bh(dev);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	list_splice_init(&priv->path_list, &remove_list);
 
@@ -385,15 +386,16 @@ void ipoib_flush_paths(struct net_device *dev)
 	list_for_each_entry_safe(path, tp, &remove_list, list) {
 		if (path->query)
 			ib_sa_cancel_query(path->query_id, path->query);
-		spin_unlock(&priv->lock);
-		spin_unlock_irq(&priv->tx_lock);
+		spin_unlock_irqrestore(&priv->lock, flags);
+		netif_tx_unlock_bh(dev);
 		wait_for_completion(&path->done);
 		path_free(dev, path);
-		spin_lock_irq(&priv->tx_lock);
-		spin_lock(&priv->lock);
+		netif_tx_lock_bh(dev);
+		spin_lock_irqsave(&priv->lock, flags);
 	}
-	spin_unlock(&priv->lock);
-	spin_unlock_irq(&priv->tx_lock);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	netif_tx_unlock_bh(dev);
 }
 
 static void path_rec_completion(int status,
@@ -555,6 +557,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 	struct ipoib_neigh *neigh;
+	unsigned long flags;
 
 	neigh = ipoib_neigh_alloc(skb->dst->neighbour, skb->dev);
 	if (!neigh) {
@@ -563,11 +566,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		return;
 	}
 
-	/*
-	 * We can only be called from ipoib_start_xmit, so we're
-	 * inside tx_lock -- no need to save/restore flags.
-	 */
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	path = __path_find(dev, skb->dst->neighbour->ha + 4);
 	if (!path) {
@@ -614,7 +613,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		__skb_queue_tail(&neigh->queue, skb);
 	}
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return;
 
 err_list:
@@ -626,7 +625,7 @@ err_drop:
 	++dev->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
@@ -650,12 +649,9 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
+	unsigned long flags;
 
-	/*
-	 * We can only be called from ipoib_start_xmit, so we're
-	 * inside tx_lock -- no need to save/restore flags.
-	 */
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	path = __path_find(dev, phdr->hwaddr + 4);
 	if (!path || !path->valid) {
@@ -667,7 +663,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			__skb_queue_tail(&path->queue, skb);
 
 			if (path_rec_start(dev, path)) {
-				spin_unlock(&priv->lock);
+				spin_unlock_irqrestore(&priv->lock, flags);
 				path_free(dev, path);
 				return;
 			} else
@@ -677,7 +673,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			dev_kfree_skb_any(skb);
 		}
 
-		spin_unlock(&priv->lock);
+		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
 
@@ -696,7 +692,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		dev_kfree_skb_any(skb);
 	}
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -705,13 +701,10 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
-	if (unlikely(!spin_trylock_irqsave(&priv->tx_lock, flags)))
-		return NETDEV_TX_LOCKED;
-
 	if (likely(skb->dst && skb->dst->neighbour)) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
 			ipoib_path_lookup(skb, dev);
-			goto out;
+			return NETDEV_TX_OK;
 		}
 
 		neigh = *to_ipoib_neigh(skb->dst->neighbour);
@@ -721,7 +714,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					    skb->dst->neighbour->ha + 4,
 					    sizeof(union ib_gid))) ||
 					 (neigh->dev != dev))) {
-				spin_lock(&priv->lock);
+				spin_lock_irqsave(&priv->lock, flags);
 				/*
 				 * It's safe to call ipoib_put_ah() inside
 				 * priv->lock here, because we know that
@@ -732,25 +725,25 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				ipoib_put_ah(neigh->ah);
 				list_del(&neigh->list);
 				ipoib_neigh_free(dev, neigh);
-				spin_unlock(&priv->lock);
+				spin_unlock_irqrestore(&priv->lock, flags);
 				ipoib_path_lookup(skb, dev);
-				goto out;
+				return NETDEV_TX_OK;
 			}
 
 		if (ipoib_cm_get(neigh)) {
 			if (ipoib_cm_up(neigh)) {
 				ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
-				goto out;
+				return NETDEV_TX_OK;
 			}
 		} else if (neigh->ah) {
 			ipoib_send(dev, skb, neigh->ah, IPOIB_QPN(skb->dst->neighbour->ha));
-			goto out;
+			return NETDEV_TX_OK;
 		}
 
 		if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
-			spin_lock(&priv->lock);
+			spin_lock_irqsave(&priv->lock, flags);
 			__skb_queue_tail(&neigh->queue, skb);
-			spin_unlock(&priv->lock);
+			spin_unlock_irqrestore(&priv->lock, flags);
 		} else {
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
@@ -779,15 +772,12 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   IPOIB_GID_RAW_ARG(phdr->hwaddr + 4));
 				dev_kfree_skb_any(skb);
 				++dev->stats.tx_dropped;
-				goto out;
+				return NETDEV_TX_OK;
 			}
 
 			unicast_arp_send(skb, dev, phdr);
 		}
 	}
-
-out:
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	return NETDEV_TX_OK;
 }
@@ -1052,7 +1042,6 @@ static void ipoib_setup(struct net_device *dev)
 	dev->type		 = ARPHRD_INFINIBAND;
 	dev->tx_queue_len	 = ipoib_sendq_size * 2;
 	dev->features		 = (NETIF_F_VLAN_CHALLENGED	|
-				    NETIF_F_LLTX		|
 				    NETIF_F_HIGHDMA);
 
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
@@ -1064,7 +1053,6 @@ static void ipoib_setup(struct net_device *dev)
 	ipoib_lro_setup(priv);
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->tx_lock);
 
 	mutex_init(&priv->vlan_mutex);
 
