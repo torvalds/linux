@@ -190,7 +190,7 @@ vm86_trap:
 }
 
 #define DO_ERROR(trapnr, signr, str, name)				\
-void do_##name(struct pt_regs *regs, long error_code)			\
+dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
@@ -200,7 +200,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 }
 
 #define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr)		\
-void do_##name(struct pt_regs *regs, long error_code)			\
+dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	siginfo_t info;							\
 	info.si_signo = signr;						\
@@ -224,7 +224,7 @@ DO_ERROR(11, SIGBUS, "segment not present", segment_not_present)
 DO_ERROR(12, SIGBUS, "stack segment", stack_segment)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 
-void __kprobes
+dotraplinkage void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk;
@@ -428,7 +428,8 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	reassert_nmi();
 }
 
-notrace __kprobes void do_nmi(struct pt_regs *regs, long error_code)
+dotraplinkage notrace __kprobes void
+do_nmi(struct pt_regs *regs, long error_code)
 {
 	int cpu;
 
@@ -456,7 +457,7 @@ void restart_nmi(void)
 	acpi_nmi_enable();
 }
 
-void __kprobes do_int3(struct pt_regs *regs, long error_code)
+dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_KPROBES
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
@@ -494,7 +495,7 @@ void __kprobes do_int3(struct pt_regs *regs, long error_code)
  * find every occurrence of the TF bit that could be saved away even
  * by user code)
  */
-void __kprobes do_debug(struct pt_regs *regs, long error_code)
+dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
 	unsigned int condition;
@@ -627,7 +628,7 @@ void math_error(void __user *ip)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-void do_coprocessor_error(struct pt_regs *regs, long error_code)
+dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
 	ignore_fpu_irq = 1;
@@ -682,7 +683,8 @@ static void simd_math_error(void __user *ip)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
+dotraplinkage void
+do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
 
@@ -706,7 +708,8 @@ void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 	force_sig(SIGSEGV, current);
 }
 
-void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
+dotraplinkage void
+do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
 #if 0
@@ -784,7 +787,8 @@ asmlinkage void math_emulate(long arg)
 
 #endif /* CONFIG_MATH_EMULATION */
 
-void __kprobes do_device_not_available(struct pt_regs *regs, long error)
+dotraplinkage void __kprobes
+do_device_not_available(struct pt_regs *regs, long error)
 {
 	if (read_cr0() & X86_CR0_EM) {
 		conditional_sti(regs);
@@ -796,14 +800,14 @@ void __kprobes do_device_not_available(struct pt_regs *regs, long error)
 }
 
 #ifdef CONFIG_X86_MCE
-void __kprobes do_machine_check(struct pt_regs *regs, long error)
+dotraplinkage void __kprobes do_machine_check(struct pt_regs *regs, long error)
 {
 	conditional_sti(regs);
 	machine_check_vector(regs, error);
 }
 #endif
 
-void do_iret_error(struct pt_regs *regs, long error_code)
+dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 {
 	siginfo_t info;
 	local_irq_enable();

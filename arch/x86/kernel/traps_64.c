@@ -125,7 +125,7 @@ kernel_trap:
 }
 
 #define DO_ERROR(trapnr, signr, str, name)				\
-asmlinkage void do_##name(struct pt_regs *regs, long error_code)	\
+dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
@@ -135,7 +135,7 @@ asmlinkage void do_##name(struct pt_regs *regs, long error_code)	\
 }
 
 #define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr)		\
-asmlinkage void do_##name(struct pt_regs *regs, long error_code)	\
+dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	siginfo_t info;							\
 	info.si_signo = signr;						\
@@ -159,7 +159,7 @@ DO_ERROR(11, SIGBUS, "segment not present", segment_not_present)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 
 /* Runs on IST stack */
-asmlinkage void do_stack_segment(struct pt_regs *regs, long error_code)
+dotraplinkage void do_stack_segment(struct pt_regs *regs, long error_code)
 {
 	if (notify_die(DIE_TRAP, "stack segment", regs, error_code,
 			12, SIGBUS) == NOTIFY_STOP)
@@ -169,7 +169,7 @@ asmlinkage void do_stack_segment(struct pt_regs *regs, long error_code)
 	preempt_conditional_cli(regs);
 }
 
-asmlinkage void do_double_fault(struct pt_regs *regs, long error_code)
+dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 {
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
@@ -186,7 +186,7 @@ asmlinkage void do_double_fault(struct pt_regs *regs, long error_code)
 		die(str, regs, error_code);
 }
 
-asmlinkage void __kprobes
+dotraplinkage void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk;
@@ -317,7 +317,7 @@ asmlinkage notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		io_check_error(reason, regs);
 }
 
-asmlinkage notrace __kprobes void
+dotraplinkage notrace __kprobes void
 do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_enter();
@@ -343,7 +343,7 @@ void restart_nmi(void)
 }
 
 /* runs on IST stack. */
-asmlinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
+dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
 			== NOTIFY_STOP)
@@ -376,8 +376,7 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 }
 
 /* runs on IST stack. */
-asmlinkage void __kprobes do_debug(struct pt_regs *regs,
-				   unsigned long error_code)
+dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
 	unsigned long condition;
@@ -510,7 +509,7 @@ void math_error(void __user *ip)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-asmlinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
+dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
 	if (!user_mode(regs) &&
@@ -572,7 +571,8 @@ static void simd_math_error(void __user *ip)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
+dotraplinkage void
+do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
 	if (!user_mode(regs) &&
@@ -581,7 +581,8 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 	simd_math_error((void __user *)regs->ip);
 }
 
-asmlinkage void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
+dotraplinkage void
+do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
 }
 
@@ -632,6 +633,12 @@ asmlinkage void math_state_restore(void)
 	me->fpu_counter++;
 }
 EXPORT_SYMBOL_GPL(math_state_restore);
+
+dotraplinkage void __kprobes
+do_device_not_available(struct pt_regs *regs, long error)
+{
+	math_state_restore();
+}
 
 void __init trap_init(void)
 {
