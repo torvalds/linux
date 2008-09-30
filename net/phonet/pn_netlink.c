@@ -54,11 +54,16 @@ errout:
 		rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_IFADDR, err);
 }
 
-static int newaddr_doit(struct sk_buff *skb, struct nlmsghdr *nlm, void *attr)
+static const struct nla_policy ifa_phonet_policy[IFA_MAX+1] = {
+	[IFA_LOCAL] = { .type = NLA_U8 },
+};
+
+static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *attr)
 {
-	struct rtattr **rta = attr;
-	struct ifaddrmsg *ifm = NLMSG_DATA(nlm);
+	struct net *net = sock_net(skb->sk);
+	struct nlattr *tb[IFA_MAX+1];
 	struct net_device *dev;
+	struct ifaddrmsg *ifm;
 	int err;
 	u8 pnaddr;
 
@@ -67,52 +72,28 @@ static int newaddr_doit(struct sk_buff *skb, struct nlmsghdr *nlm, void *attr)
 
 	ASSERT_RTNL();
 
-	if (rta[IFA_LOCAL - 1] == NULL)
+	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_phonet_policy);
+	if (err < 0)
+		return err;
+
+	ifm = nlmsg_data(nlh);
+	if (tb[IFA_LOCAL] == NULL)
+		return -EINVAL;
+	pnaddr = nla_get_u8(tb[IFA_LOCAL]);
+	if (pnaddr & 3)
+		/* Phonet addresses only have 6 high-order bits */
 		return -EINVAL;
 
-	dev = __dev_get_by_index(&init_net, ifm->ifa_index);
+	dev = __dev_get_by_index(net, ifm->ifa_index);
 	if (dev == NULL)
 		return -ENODEV;
 
-	if (ifm->ifa_prefixlen > 0)
-		return -EINVAL;
-
-	memcpy(&pnaddr, RTA_DATA(rta[IFA_LOCAL - 1]), 1);
-
-	err = phonet_address_add(dev, pnaddr);
+	if (nlh->nlmsg_type == RTM_NEWADDR)
+		err = phonet_address_add(dev, pnaddr);
+	else
+		err = phonet_address_del(dev, pnaddr);
 	if (!err)
-		rtmsg_notify(RTM_NEWADDR, dev, pnaddr);
-	return err;
-}
-
-static int deladdr_doit(struct sk_buff *skb, struct nlmsghdr *nlm, void *attr)
-{
-	struct rtattr **rta = attr;
-	struct ifaddrmsg *ifm = NLMSG_DATA(nlm);
-	struct net_device *dev;
-	int err;
-	u8 pnaddr;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	ASSERT_RTNL();
-
-	if (rta[IFA_LOCAL - 1] == NULL)
-		return -EINVAL;
-
-	dev = __dev_get_by_index(&init_net, ifm->ifa_index);
-	if (dev == NULL)
-		return -ENODEV;
-
-	if (ifm->ifa_prefixlen > 0)
-		return -EADDRNOTAVAIL;
-
-	memcpy(&pnaddr, RTA_DATA(rta[IFA_LOCAL - 1]), 1);
-
-	err = phonet_address_del(dev, pnaddr);
-	if (!err)
-		rtmsg_notify(RTM_DELADDR, dev, pnaddr);
+		rtmsg_notify(nlh->nlmsg_type, dev, pnaddr);
 	return err;
 }
 
@@ -121,25 +102,23 @@ static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr *nlh;
-	unsigned int orig_len = skb->len;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(struct ifaddrmsg));
-	ifm = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), 0);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_PHONET;
 	ifm->ifa_prefixlen = 0;
 	ifm->ifa_flags = IFA_F_PERMANENT;
-	ifm->ifa_scope = RT_SCOPE_HOST;
+	ifm->ifa_scope = RT_SCOPE_LINK;
 	ifm->ifa_index = dev->ifindex;
-	RTA_PUT(skb, IFA_LOCAL, 1, &addr);
-	nlh->nlmsg_len = skb->len - orig_len;
+	NLA_PUT_U8(skb, IFA_LOCAL, addr);
+	return nlmsg_end(skb, nlh);
 
-	return 0;
-
-nlmsg_failure:
-rtattr_failure:
-	skb_trim(skb, orig_len);
-
-	return -1;
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
@@ -180,7 +159,7 @@ out:
 
 void __init phonet_netlink_register(void)
 {
-	rtnl_register(PF_PHONET, RTM_NEWADDR, newaddr_doit, NULL);
-	rtnl_register(PF_PHONET, RTM_DELADDR, deladdr_doit, NULL);
+	rtnl_register(PF_PHONET, RTM_NEWADDR, addr_doit, NULL);
+	rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL);
 	rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit);
 }
