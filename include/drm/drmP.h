@@ -580,9 +580,52 @@ struct drm_driver {
 	int (*kernel_context_switch) (struct drm_device *dev, int old,
 				      int new);
 	void (*kernel_context_switch_unlock) (struct drm_device *dev);
-	int (*vblank_wait) (struct drm_device *dev, unsigned int *sequence);
-	int (*vblank_wait2) (struct drm_device *dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
+
+	/**
+	 * get_vblank_counter - get raw hardware vblank counter
+	 * @dev: DRM device
+	 * @crtc: counter to fetch
+	 *
+	 * Driver callback for fetching a raw hardware vblank counter
+	 * for @crtc.  If a device doesn't have a hardware counter, the
+	 * driver can simply return the value of drm_vblank_count and
+	 * make the enable_vblank() and disable_vblank() hooks into no-ops,
+	 * leaving interrupts enabled at all times.
+	 *
+	 * Wraparound handling and loss of events due to modesetting is dealt
+	 * with in the DRM core code.
+	 *
+	 * RETURNS
+	 * Raw vblank counter value.
+	 */
+	u32 (*get_vblank_counter) (struct drm_device *dev, int crtc);
+
+	/**
+	 * enable_vblank - enable vblank interrupt events
+	 * @dev: DRM device
+	 * @crtc: which irq to enable
+	 *
+	 * Enable vblank interrupts for @crtc.  If the device doesn't have
+	 * a hardware vblank counter, this routine should be a no-op, since
+	 * interrupts will have to stay on to keep the count accurate.
+	 *
+	 * RETURNS
+	 * Zero on success, appropriate errno if the given @crtc's vblank
+	 * interrupt cannot be enabled.
+	 */
+	int (*enable_vblank) (struct drm_device *dev, int crtc);
+
+	/**
+	 * disable_vblank - disable vblank interrupt events
+	 * @dev: DRM device
+	 * @crtc: which irq to enable
+	 *
+	 * Disable vblank interrupts for @crtc.  If the device doesn't have
+	 * a hardware vblank counter, this routine should be a no-op, since
+	 * interrupts will have to stay on to keep the count accurate.
+	 */
+	void (*disable_vblank) (struct drm_device *dev, int crtc);
 
 	/**
 	 * Called by \c drm_device_is_agp.  Typically used to determine if a
@@ -601,7 +644,7 @@ struct drm_driver {
 
 	irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
 	void (*irq_preinstall) (struct drm_device *dev);
-	void (*irq_postinstall) (struct drm_device *dev);
+	int (*irq_postinstall) (struct drm_device *dev);
 	void (*irq_uninstall) (struct drm_device *dev);
 	void (*reclaim_buffers) (struct drm_device *dev,
 				 struct drm_file * file_priv);
@@ -730,13 +773,28 @@ struct drm_device {
 	/** \name VBLANK IRQ support */
 	/*@{ */
 
-	wait_queue_head_t vbl_queue;	/**< VBLANK wait queue */
-	atomic_t vbl_received;
-	atomic_t vbl_received2;		/**< number of secondary VBLANK interrupts */
+	/*
+	 * At load time, disabling the vblank interrupt won't be allowed since
+	 * old clients may not call the modeset ioctl and therefore misbehave.
+	 * Once the modeset ioctl *has* been called though, we can safely
+	 * disable them when unused.
+	 */
+	int vblank_disable_allowed;
+
+	wait_queue_head_t *vbl_queue;   /**< VBLANK wait queue */
+	atomic_t *_vblank_count;        /**< number of VBLANK interrupts (driver must alloc the right number of counters) */
 	spinlock_t vbl_lock;
-	struct list_head vbl_sigs;		/**< signal list to send on VBLANK */
-	struct list_head vbl_sigs2;	/**< signals to send on secondary VBLANK */
-	unsigned int vbl_pending;
+	struct list_head *vbl_sigs;	/**< signal list to send on VBLANK */
+	atomic_t vbl_signal_pending;    /* number of signals pending on all crtcs*/
+	atomic_t *vblank_refcount;      /* number of users of vblank interruptsper crtc */
+	u32 *last_vblank;               /* protected by dev->vbl_lock, used */
+					/* for wraparound handling */
+	int *vblank_enabled;            /* so we don't call enable more than
+					   once per disable */
+	int *vblank_inmodeset;          /* Display driver is setting mode */
+	struct timer_list vblank_disable_timer;
+
+	u32 max_vblank_count;           /**< size of vblank counter register */
 	spinlock_t tasklet_lock;	/**< For drm_locked_tasklet */
 	void (*locked_tasklet_func)(struct drm_device *dev);
 
@@ -757,6 +815,7 @@ struct drm_device {
 	struct pci_controller *hose;
 #endif
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
+	int num_crtcs;                  /**< Number of CRTCs on this device */
 	void *dev_private;		/**< device private data */
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
@@ -990,10 +1049,19 @@ extern void drm_driver_irq_preinstall(struct drm_device *dev);
 extern void drm_driver_irq_postinstall(struct drm_device *dev);
 extern void drm_driver_irq_uninstall(struct drm_device *dev);
 
+extern int drm_vblank_init(struct drm_device *dev, int num_crtcs);
 extern int drm_wait_vblank(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
+			   struct drm_file *filp);
 extern int drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
-extern void drm_vbl_send_signals(struct drm_device *dev);
+extern void drm_locked_tasklet(struct drm_device *dev,
+			       void(*func)(struct drm_device *));
+extern u32 drm_vblank_count(struct drm_device *dev, int crtc);
+extern void drm_handle_vblank(struct drm_device *dev, int crtc);
+extern int drm_vblank_get(struct drm_device *dev, int crtc);
+extern void drm_vblank_put(struct drm_device *dev, int crtc);
+/* Modesetting support */
+extern int drm_modeset_ctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 extern void drm_locked_tasklet(struct drm_device *dev, void(*func)(struct drm_device*));
 
 				/* AGP/GART support (drm_agpsupport.h) */

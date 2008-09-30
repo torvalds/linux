@@ -378,17 +378,17 @@ extern void radeon_mem_release(struct drm_file *file_priv,
 			       struct mem_block *heap);
 
 				/* radeon_irq.c */
+extern void radeon_irq_set_state(struct drm_device *dev, u32 mask, int state);
 extern int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern void radeon_do_release(struct drm_device * dev);
-extern int radeon_driver_vblank_wait(struct drm_device * dev,
-				     unsigned int *sequence);
-extern int radeon_driver_vblank_wait2(struct drm_device * dev,
-				      unsigned int *sequence);
+extern u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc);
+extern int radeon_enable_vblank(struct drm_device *dev, int crtc);
+extern void radeon_disable_vblank(struct drm_device *dev, int crtc);
 extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(struct drm_device * dev);
-extern void radeon_driver_irq_postinstall(struct drm_device * dev);
+extern int radeon_driver_irq_postinstall(struct drm_device *dev);
 extern void radeon_driver_irq_uninstall(struct drm_device * dev);
 extern void radeon_enable_interrupt(struct drm_device *dev);
 extern int radeon_vblank_crtc_get(struct drm_device *dev);
@@ -397,19 +397,22 @@ extern int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value);
 extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
 extern int radeon_driver_unload(struct drm_device *dev);
 extern int radeon_driver_firstopen(struct drm_device *dev);
-extern void radeon_driver_preclose(struct drm_device * dev, struct drm_file *file_priv);
-extern void radeon_driver_postclose(struct drm_device * dev, struct drm_file * filp);
+extern void radeon_driver_preclose(struct drm_device *dev,
+				   struct drm_file *file_priv);
+extern void radeon_driver_postclose(struct drm_device *dev,
+				    struct drm_file *file_priv);
 extern void radeon_driver_lastclose(struct drm_device * dev);
-extern int radeon_driver_open(struct drm_device * dev, struct drm_file * filp_priv);
+extern int radeon_driver_open(struct drm_device *dev,
+			      struct drm_file *file_priv);
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(struct drm_device *dev);
 
-extern int r300_do_cp_cmdbuf(struct drm_device * dev,
+extern int r300_do_cp_cmdbuf(struct drm_device *dev,
 			     struct drm_file *file_priv,
-			     drm_radeon_kcmd_buffer_t * cmdbuf);
+			     drm_radeon_kcmd_buffer_t *cmdbuf);
 
 /* Flags for stats.boxes
  */
@@ -623,6 +626,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK		(1 << 25)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
+#       define R500_DISPLAY_INT_STATUS          (1 << 0)
 
 #define RADEON_HOST_PATH_CNTL		0x0130
 #	define RADEON_HDP_SOFT_RESET		(1 << 26)
@@ -1115,6 +1119,9 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define R200_PP_AFS_1                     0x2f00	/* same as txcblend_0 */
 
 #define R200_VAP_PVS_CNTL_1               0x22D0
+
+#define RADEON_CRTC_CRNT_FRAME 0x0214
+#define RADEON_CRTC2_CRNT_FRAME 0x0314
 
 #define R500_D1CRTC_STATUS 0x609c
 #define R500_D2CRTC_STATUS 0x689c

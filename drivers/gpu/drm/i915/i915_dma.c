@@ -673,7 +673,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 
 	switch (param->param) {
 	case I915_PARAM_IRQ_ACTIVE:
-		value = dev->irq_enabled;
+		value = dev->pdev->irq ? 1 : 0;
 		break;
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 		value = dev_priv->allow_batchbuffer ? 1 : 0;
@@ -808,7 +808,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * and the registers being closely associated.
 	 */
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
-		pci_enable_msi(dev->pdev);
+		if (pci_enable_msi(dev->pdev))
+			DRM_ERROR("failed to enable MSI\n");
 
 	intel_opregion_init(dev);
 

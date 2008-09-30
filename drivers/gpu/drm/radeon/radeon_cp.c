@@ -1287,7 +1287,7 @@ static int radeon_do_resume_cp(struct drm_device * dev)
 	radeon_cp_init_ring_buffer(dev, dev_priv);
 
 	radeon_do_engine_reset(dev);
-	radeon_enable_interrupt(dev);
+	radeon_irq_set_state(dev, RADEON_SW_INT_ENABLE, 1);
 
 	DRM_DEBUG("radeon_do_resume_cp() complete\n");
 
