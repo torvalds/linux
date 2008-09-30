@@ -1750,7 +1750,7 @@ static int trace_empty(struct trace_iterator *iter)
 		}
 	}
 
-	return TRACE_TYPE_HANDLED;
+	return 1;
 }
 
 static enum print_line_t print_trace_line(struct trace_iterator *iter)
