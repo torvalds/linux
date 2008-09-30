@@ -2238,7 +2238,10 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	total_needed += empty_size;
 
 new_group:
-	block_group = btrfs_lookup_first_block_group(info, search_start);
+	block_group = btrfs_lookup_block_group(info, search_start);
+	if (!block_group)
+		block_group = btrfs_lookup_first_block_group(info,
+							     search_start);
 
 	/*
 	 * Ok this looks a little tricky, buts its really simple.  First if we
@@ -2255,8 +2258,10 @@ new_group:
 	if (!block_group || (!block_group_bits(block_group, data) &&
 			     last_ptr && *last_ptr)) {
 		if (search_start != orig_search_start) {
-			if (last_ptr && *last_ptr)
+			if (last_ptr && *last_ptr) {
+				total_needed += empty_cluster;
 				*last_ptr = 0;
+			}
 			search_start = orig_search_start;
 			goto new_group;
 		} else if (!chunk_alloc_done && allowed_chunk_alloc) {
