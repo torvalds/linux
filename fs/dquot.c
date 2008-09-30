@@ -1631,6 +1631,11 @@ int vfs_quota_disable(struct super_block *sb, int type, unsigned int flags)
 		dqopt->ops[cnt] = NULL;
 	}
 	mutex_unlock(&dqopt->dqonoff_mutex);
+
+	/* Skip syncing and setting flags if quota files are hidden */
+	if (dqopt->flags & DQUOT_QUOTA_SYS_FILE)
+		goto put_inodes;
+
 	/* Sync the superblock so that buffers with quota data are written to
 	 * disk (and so userspace sees correct data afterwards). */
 	if (sb->s_op->sync_fs)
@@ -1655,6 +1660,12 @@ int vfs_quota_disable(struct super_block *sb, int type, unsigned int flags)
 				mark_inode_dirty(toputinode[cnt]);
 			}
 			mutex_unlock(&dqopt->dqonoff_mutex);
+		}
+	if (sb->s_bdev)
+		invalidate_bdev(sb->s_bdev);
+put_inodes:
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
+		if (toputinode[cnt]) {
 			/* On remount RO, we keep the inode pointer so that we
 			 * can reenable quota on the subsequent remount RW. We
 			 * have to check 'flags' variable and not use sb_has_
@@ -1667,8 +1678,6 @@ int vfs_quota_disable(struct super_block *sb, int type, unsigned int flags)
 			else if (!toputinode[cnt]->i_nlink)
 				ret = -EBUSY;
 		}
-	if (sb->s_bdev)
-		invalidate_bdev(sb->s_bdev);
 	return ret;
 }
 
@@ -1715,25 +1724,31 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		goto out_fmt;
 	}
 
-	/* As we bypass the pagecache we must now flush the inode so that
-	 * we see all the changes from userspace... */
-	write_inode_now(inode, 1);
-	/* And now flush the block cache so that kernel sees the changes */
-	invalidate_bdev(sb->s_bdev);
+	if (!(dqopt->flags & DQUOT_QUOTA_SYS_FILE)) {
+		/* As we bypass the pagecache we must now flush the inode so
+		 * that we see all the changes from userspace... */
+		write_inode_now(inode, 1);
+		/* And now flush the block cache so that kernel sees the
+		 * changes */
+		invalidate_bdev(sb->s_bdev);
+	}
 	mutex_lock(&inode->i_mutex);
 	mutex_lock(&dqopt->dqonoff_mutex);
 	if (sb_has_quota_loaded(sb, type)) {
 		error = -EBUSY;
 		goto out_lock;
 	}
-	/* We don't want quota and atime on quota files (deadlocks possible)
-	 * Also nobody should write to the file - we use special IO operations
-	 * which ignore the immutable bit. */
-	down_write(&dqopt->dqptr_sem);
-	oldflags = inode->i_flags & (S_NOATIME | S_IMMUTABLE | S_NOQUOTA);
-	inode->i_flags |= S_NOQUOTA | S_NOATIME | S_IMMUTABLE;
-	up_write(&dqopt->dqptr_sem);
-	sb->dq_op->drop(inode);
+
+	if (!(dqopt->flags & DQUOT_QUOTA_SYS_FILE)) {
+		/* We don't want quota and atime on quota files (deadlocks
+		 * possible) Also nobody should write to the file - we use
+		 * special IO operations which ignore the immutable bit. */
+		down_write(&dqopt->dqptr_sem);
+		oldflags = inode->i_flags & (S_NOATIME | S_IMMUTABLE | S_NOQUOTA);
+		inode->i_flags |= S_NOQUOTA | S_NOATIME | S_IMMUTABLE;
+		up_write(&dqopt->dqptr_sem);
+		sb->dq_op->drop(inode);
+	}
 
 	error = -EIO;
 	dqopt->files[type] = igrab(inode);

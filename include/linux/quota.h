@@ -332,6 +332,13 @@ enum {
 #define DQUOT_SUSPENDED		(1 << _DQUOT_SUSPENDED)
 #define DQUOT_STATE_FLAGS	(DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED | \
 				 DQUOT_SUSPENDED)
+/* Other quota flags */
+#define DQUOT_QUOTA_SYS_FILE	(1 << 6)	/* Quota file is a special
+						 * system file and user cannot
+						 * touch it. Filesystem is
+						 * responsible for setting
+						 * S_NOQUOTA, S_NOATIME flags
+						 */
 
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
 {

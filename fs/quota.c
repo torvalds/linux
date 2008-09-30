@@ -160,6 +160,9 @@ static void quota_sync_sb(struct super_block *sb, int type)
 	int cnt;
 
 	sb->s_qcop->quota_sync(sb, type);
+
+	if (sb_dqopt(sb)->flags & DQUOT_QUOTA_SYS_FILE)
+		return;
 	/* This is not very clever (and fast) but currently I don't know about
 	 * any other simple way of getting quota data to disk and we must get
 	 * them there for userspace to be visible... */
