@@ -128,6 +128,17 @@ struct buffer_page {
 };
 
 /*
+ * Also stolen from mm/slob.c. Thanks to Mathieu Desnoyers for pointing
+ * this issue out.
+ */
+static inline void free_buffer_page(struct buffer_page *bpage)
+{
+	reset_page_mapcount(&bpage->page);
+	bpage->page.mapping = NULL;
+	__free_page(&bpage->page);
+}
+
+/*
  * We need to fit the time_stamp delta into 27 bits.
  */
 static inline int test_time_stamp(u64 delta)
@@ -240,7 +251,7 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
  free_pages:
 	list_for_each_entry_safe(page, tmp, &pages, list) {
 		list_del_init(&page->list);
-		__free_page(&page->page);
+		free_buffer_page(page);
 	}
 	return -ENOMEM;
 }
@@ -284,7 +295,7 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 
 	list_for_each_entry_safe(page, tmp, head, list) {
 		list_del_init(&page->list);
-		__free_page(&page->page);
+		free_buffer_page(page);
 	}
 	kfree(cpu_buffer);
 }
@@ -393,7 +404,7 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 		p = cpu_buffer->pages.next;
 		page = list_entry(p, struct buffer_page, list);
 		list_del_init(&page->list);
-		__free_page(&page->page);
+		free_buffer_page(page);
 	}
 	BUG_ON(list_empty(&cpu_buffer->pages));
 
@@ -520,7 +531,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
  free_pages:
 	list_for_each_entry_safe(page, tmp, &pages, list) {
 		list_del_init(&page->list);
-		__free_page(&page->page);
+		free_buffer_page(page);
 	}
 	return -ENOMEM;
 }
