@@ -288,35 +288,36 @@ void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
 void tracing_generic_entry_update(struct trace_entry *entry,
-						unsigned long flags);
+				  unsigned long flags,
+				  int pc);
 
 void ftrace(struct trace_array *tr,
 			    struct trace_array_cpu *data,
 			    unsigned long ip,
 			    unsigned long parent_ip,
-			    unsigned long flags);
+			    unsigned long flags, int pc);
 void tracing_sched_switch_trace(struct trace_array *tr,
 				struct trace_array_cpu *data,
 				struct task_struct *prev,
 				struct task_struct *next,
-				unsigned long flags);
+				unsigned long flags, int pc);
 void tracing_record_cmdline(struct task_struct *tsk);
 
 void tracing_sched_wakeup_trace(struct trace_array *tr,
 				struct trace_array_cpu *data,
 				struct task_struct *wakee,
 				struct task_struct *cur,
-				unsigned long flags);
+				unsigned long flags, int pc);
 void trace_special(struct trace_array *tr,
 		   struct trace_array_cpu *data,
 		   unsigned long arg1,
 		   unsigned long arg2,
-		   unsigned long arg3);
+		   unsigned long arg3, int pc);
 void trace_function(struct trace_array *tr,
 		    struct trace_array_cpu *data,
 		    unsigned long ip,
 		    unsigned long parent_ip,
-		    unsigned long flags);
+		    unsigned long flags, int pc);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);

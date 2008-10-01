@@ -44,10 +44,12 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	long disabled;
 	int resched;
 	int cpu;
+	int pc;
 
 	if (likely(!wakeup_task))
 		return;
 
+	pc = preempt_count();
 	resched = need_resched();
 	preempt_disable_notrace();
 
@@ -70,7 +72,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	if (task_cpu(wakeup_task) != cpu)
 		goto unlock;
 
-	trace_function(tr, data, ip, parent_ip, flags);
+	trace_function(tr, data, ip, parent_ip, flags, pc);
 
  unlock:
 	__raw_spin_unlock(&wakeup_lock);
@@ -121,6 +123,7 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	unsigned long flags;
 	long disabled;
 	int cpu;
+	int pc;
 
 	tracing_record_cmdline(prev);
 
@@ -139,6 +142,8 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	if (next != wakeup_task)
 		return;
 
+	pc = preempt_count();
+
 	/* The task we are waiting for is waking up */
 	data = wakeup_trace->data[wakeup_cpu];
 
@@ -155,7 +160,7 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
 
-	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2, flags);
+	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
 
 	/*
 	 * usecs conversion is slow so we try to delay the conversion
@@ -220,6 +225,7 @@ probe_wakeup(struct rq *rq, struct task_struct *p)
 	int cpu = smp_processor_id();
 	unsigned long flags;
 	long disabled;
+	int pc;
 
 	if (likely(!tracer_enabled))
 		return;
@@ -232,6 +238,7 @@ probe_wakeup(struct rq *rq, struct task_struct *p)
 			p->prio >= current->prio)
 		return;
 
+	pc = preempt_count();
 	disabled = atomic_inc_return(&wakeup_trace->data[cpu]->disabled);
 	if (unlikely(disabled != 1))
 		goto out;
@@ -256,7 +263,7 @@ probe_wakeup(struct rq *rq, struct task_struct *p)
 
 	wakeup_trace->data[wakeup_cpu]->preempt_timestamp = ftrace_now(cpu);
 	trace_function(wakeup_trace, wakeup_trace->data[wakeup_cpu],
-		       CALLER_ADDR1, CALLER_ADDR2, flags);
+		       CALLER_ADDR1, CALLER_ADDR2, flags, pc);
 
 out_locked:
 	__raw_spin_unlock(&wakeup_lock);

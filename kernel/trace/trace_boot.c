@@ -95,7 +95,7 @@ void trace_boot(struct boot_trace *it)
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0);
+	tracing_generic_entry_update(&entry->ent, 0, 0);
 	entry->ent.type = TRACE_BOOT;
 	entry->initcall = *it;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);

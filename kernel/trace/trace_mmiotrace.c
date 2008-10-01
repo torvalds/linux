@@ -324,7 +324,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0);
+	tracing_generic_entry_update(&entry->ent, 0, preempt_count());
 	entry->ent.type			= TRACE_MMIO_RW;
 	entry->rw			= *rw;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
@@ -352,7 +352,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0);
+	tracing_generic_entry_update(&entry->ent, 0, preempt_count());
 	entry->ent.type			= TRACE_MMIO_MAP;
 	entry->map			= *map;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
