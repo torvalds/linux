@@ -1641,7 +1641,7 @@ static void zfcp_fsf_close_wka_port_handler(struct zfcp_fsf_req *req)
 
 	if (req->qtcb->header.fsf_status == FSF_PORT_HANDLE_NOT_VALID) {
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		zfcp_erp_adapter_reopen(wka_port->adapter, 0, 107, req);
+		zfcp_erp_adapter_reopen(wka_port->adapter, 0, 84, req);
 	}
 
 	wka_port->status = ZFCP_WKA_PORT_OFFLINE;

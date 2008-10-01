@@ -1443,7 +1443,7 @@ void zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
 {
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL, &adapter->status);
 	up(&adapter->erp_ready_sem);
-	zfcp_rec_dbf_event_thread_lock(2, adapter);
+	zfcp_rec_dbf_event_thread_lock(3, adapter);
 
 	wait_event(adapter->erp_thread_wqh,
 		   !(atomic_read(&adapter->status) &
