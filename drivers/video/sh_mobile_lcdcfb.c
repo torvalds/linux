@@ -16,7 +16,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <asm/sh_mobile_lcdc.h>
+#include <video/sh_mobile_lcdc.h>
 
 #define PALETTE_NR 16
 
@@ -34,7 +34,9 @@ struct sh_mobile_lcdc_chan {
 
 struct sh_mobile_lcdc_priv {
 	void __iomem *base;
+#ifdef CONFIG_HAVE_CLK
 	struct clk *clk;
+#endif
 	unsigned long lddckr;
 	struct sh_mobile_lcdc_chan ch[2];
 };
@@ -422,6 +424,7 @@ static int sh_mobile_lcdc_setup_clocks(struct device *dev, int clock_source,
 
 	priv->lddckr = icksel << 16;
 
+#ifdef CONFIG_HAVE_CLK
 	if (str) {
 		priv->clk = clk_get(dev, str);
 		if (IS_ERR(priv->clk)) {
@@ -431,6 +434,7 @@ static int sh_mobile_lcdc_setup_clocks(struct device *dev, int clock_source,
 
 		clk_enable(priv->clk);
 	}
+#endif
 
 	return 0;
 }
@@ -688,10 +692,12 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		fb_dealloc_cmap(&info->cmap);
 	}
 
+#ifdef CONFIG_HAVE_CLK
 	if (priv->clk) {
 		clk_disable(priv->clk);
 		clk_put(priv->clk);
 	}
+#endif
 
 	if (priv->base)
 		iounmap(priv->base);
