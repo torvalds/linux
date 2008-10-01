@@ -39,6 +39,7 @@
 #include <sysdev/fsl_soc.h>
 
 #include "mpc86xx.h"
+#include "gef_pic.h"
 
 #undef DEBUG
 
@@ -47,6 +48,28 @@
 #else
 #define DBG (fmt...) do { } while (0)
 #endif
+
+void __iomem *sbc610_regs;
+
+static void __init gef_sbc610_init_irq(void)
+{
+	struct device_node *cascade_node = NULL;
+
+	mpc86xx_init_irq();
+
+	/*
+	 * There is a simple interrupt handler in the main FPGA, this needs
+	 * to be cascaded into the MPIC
+	 */
+	cascade_node = of_find_compatible_node(NULL, NULL, "gef,fpga-pic");
+	if (!cascade_node) {
+		printk(KERN_WARNING "SBC610: No FPGA PIC\n");
+		return;
+	}
+
+	gef_pic_init(cascade_node);
+	of_node_put(cascade_node);
+}
 
 static void __init gef_sbc610_setup_arch(void)
 {
@@ -145,7 +168,7 @@ define_machine(gef_sbc610) {
 	.name			= "GE Fanuc SBC610",
 	.probe			= gef_sbc610_probe,
 	.setup_arch		= gef_sbc610_setup_arch,
-	.init_IRQ		= mpc86xx_init_irq,
+	.init_IRQ		= gef_sbc610_init_irq,
 	.show_cpuinfo		= gef_sbc610_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
