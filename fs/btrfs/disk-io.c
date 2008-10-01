@@ -1371,7 +1371,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	struct btrfs_super_block *disk_super;
 
-	if (!extent_root || !tree_root || !fs_info) {
+	if (!extent_root || !tree_root || !fs_info ||
+	    !chunk_root || !dev_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
