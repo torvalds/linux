@@ -35,4 +35,6 @@ source "drivers/staging/go7007/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
 
+source "drivers/staging/winbond/Kconfig"
+
 endif # STAGING
