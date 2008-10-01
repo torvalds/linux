@@ -479,9 +479,7 @@ config ARCH_RPC
 config ARCH_SA1100
 	bool "SA1100-based"
 	select ISA
-	select ARCH_DISCONTIGMEM_ENABLE
 	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_SELECT_MEMORY_MODEL
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
