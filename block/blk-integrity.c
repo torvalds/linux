@@ -108,51 +108,51 @@ new_segment:
 EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
 /**
- * blk_integrity_compare - Compare integrity profile of two block devices
- * @bd1:	Device to compare
- * @bd2:	Device to compare
+ * blk_integrity_compare - Compare integrity profile of two disks
+ * @gd1:	Disk to compare
+ * @gd2:	Disk to compare
  *
  * Description: Meta-devices like DM and MD need to verify that all
  * sub-devices use the same integrity format before advertising to
  * upper layers that they can send/receive integrity metadata.  This
- * function can be used to check whether two block devices have
+ * function can be used to check whether two gendisk devices have
  * compatible integrity formats.
  */
-int blk_integrity_compare(struct block_device *bd1, struct block_device *bd2)
+int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 {
-	struct blk_integrity *b1 = bd1->bd_disk->integrity;
-	struct blk_integrity *b2 = bd2->bd_disk->integrity;
+	struct blk_integrity *b1 = gd1->integrity;
+	struct blk_integrity *b2 = gd2->integrity;
 
-	BUG_ON(bd1->bd_disk == NULL);
-	BUG_ON(bd2->bd_disk == NULL);
+	if (!b1 && !b2)
+		return 0;
 
 	if (!b1 || !b2)
-		return 0;
+		return -1;
 
 	if (b1->sector_size != b2->sector_size) {
 		printk(KERN_ERR "%s: %s/%s sector sz %u != %u\n", __func__,
-		       bd1->bd_disk->disk_name, bd2->bd_disk->disk_name,
+		       gd1->disk_name, gd2->disk_name,
 		       b1->sector_size, b2->sector_size);
 		return -1;
 	}
 
 	if (b1->tuple_size != b2->tuple_size) {
 		printk(KERN_ERR "%s: %s/%s tuple sz %u != %u\n", __func__,
-		       bd1->bd_disk->disk_name, bd2->bd_disk->disk_name,
+		       gd1->disk_name, gd2->disk_name,
 		       b1->tuple_size, b2->tuple_size);
 		return -1;
 	}
 
 	if (b1->tag_size && b2->tag_size && (b1->tag_size != b2->tag_size)) {
 		printk(KERN_ERR "%s: %s/%s tag sz %u != %u\n", __func__,
-		       bd1->bd_disk->disk_name, bd2->bd_disk->disk_name,
+		       gd1->disk_name, gd2->disk_name,
 		       b1->tag_size, b2->tag_size);
 		return -1;
 	}
 
 	if (strcmp(b1->name, b2->name)) {
 		printk(KERN_ERR "%s: %s/%s type %s != %s\n", __func__,
-		       bd1->bd_disk->disk_name, bd2->bd_disk->disk_name,
+		       gd1->disk_name, gd2->disk_name,
 		       b1->name, b2->name);
 		return -1;
 	}
