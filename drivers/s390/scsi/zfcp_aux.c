@@ -129,7 +129,12 @@ static void __init zfcp_init_device_configure(void)
 		goto out_unit;
 	up(&zfcp_data.config_sema);
 	ccw_device_set_online(adapter->ccw_device);
+
 	zfcp_erp_wait(adapter);
+	wait_event(adapter->erp_done_wqh,
+		   !(atomic_read(&unit->status) &
+				ZFCP_STATUS_UNIT_SCSI_WORK_PENDING));
+
 	down(&zfcp_data.config_sema);
 	zfcp_unit_put(unit);
 out_unit:

@@ -1189,6 +1189,7 @@ static void zfcp_erp_scsi_scan(struct work_struct *work)
 			 scsilun_to_int((struct scsi_lun *)&unit->fcp_lun), 0);
 	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
 	zfcp_unit_put(unit);
+	wake_up(&unit->port->adapter->erp_done_wqh);
 	kfree(p);
 }
 
