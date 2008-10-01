@@ -63,9 +63,6 @@ ring_buffer_event_time_delta(struct ring_buffer_event *event)
 	return event->time_delta;
 }
 
-void ring_buffer_lock(struct ring_buffer *buffer, unsigned long *flags);
-void ring_buffer_unlock(struct ring_buffer *buffer, unsigned long flags);
-
 /*
  * size is in bytes for each per CPU buffer.
  */

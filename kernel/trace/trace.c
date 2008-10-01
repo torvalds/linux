@@ -42,6 +42,20 @@
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
+static DEFINE_PER_CPU(local_t, ftrace_cpu_disabled);
+
+static inline void ftrace_disable_cpu(void)
+{
+	preempt_disable();
+	local_inc(&__get_cpu_var(ftrace_cpu_disabled));
+}
+
+static inline void ftrace_enable_cpu(void)
+{
+	local_dec(&__get_cpu_var(ftrace_cpu_disabled));
+	preempt_enable();
+}
+
 static cpumask_t __read_mostly		tracing_buffer_mask;
 
 #define for_each_tracing_cpu(cpu)	\
@@ -406,7 +420,9 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tr->buffer = max_tr.buffer;
 	max_tr.buffer = buf;
 
+	ftrace_disable_cpu();
 	ring_buffer_reset(tr->buffer);
+	ftrace_enable_cpu();
 
 	__update_max_tr(tr, tsk, cpu);
 	__raw_spin_unlock(&ftrace_max_lock);
@@ -428,8 +444,12 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	WARN_ON_ONCE(!irqs_disabled());
 	__raw_spin_lock(&ftrace_max_lock);
 
+	ftrace_disable_cpu();
+
 	ring_buffer_reset(max_tr.buffer);
 	ret = ring_buffer_swap_cpu(max_tr.buffer, tr->buffer, cpu);
+
+	ftrace_enable_cpu();
 
 	WARN_ON_ONCE(ret);
 
@@ -543,7 +563,9 @@ void unregister_tracer(struct tracer *type)
 
 void tracing_reset(struct trace_array *tr, int cpu)
 {
+	ftrace_disable_cpu();
 	ring_buffer_reset_cpu(tr->buffer, cpu);
+	ftrace_enable_cpu();
 }
 
 #define SAVED_CMDLINES 128
@@ -653,6 +675,10 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
 	unsigned long irq_flags;
+
+	/* If we are reading the ring buffer, don't trace */
+	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+		return;
 
 	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
 					 &irq_flags);
@@ -870,8 +896,14 @@ enum trace_file_type {
 
 static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
 {
+	/* Don't allow ftrace to trace into the ring buffers */
+	ftrace_disable_cpu();
+
 	iter->idx++;
-	ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
+	if (iter->buffer_iter[iter->cpu])
+		ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
+
+	ftrace_enable_cpu();
 }
 
 static struct trace_entry *
@@ -880,9 +912,19 @@ peek_next_entry(struct trace_iterator *iter, int cpu, u64 *ts)
 	struct ring_buffer_event *event;
 	struct ring_buffer_iter *buf_iter = iter->buffer_iter[cpu];
 
-	event = ring_buffer_iter_peek(buf_iter, ts);
+	/* Don't allow ftrace to trace into the ring buffers */
+	ftrace_disable_cpu();
+
+	if (buf_iter)
+		event = ring_buffer_iter_peek(buf_iter, ts);
+	else
+		event = ring_buffer_peek(iter->tr->buffer, cpu, ts);
+
+	ftrace_enable_cpu();
+
 	return event ? ring_buffer_event_data(event) : NULL;
 }
+
 static struct trace_entry *
 __find_next_entry(struct trace_iterator *iter, int *ent_cpu, u64 *ent_ts)
 {
@@ -938,7 +980,10 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 
 static void trace_consume(struct trace_iterator *iter)
 {
+	/* Don't allow ftrace to trace into the ring buffers */
+	ftrace_disable_cpu();
 	ring_buffer_consume(iter->tr->buffer, iter->cpu, &iter->ts);
+	ftrace_enable_cpu();
 }
 
 static void *s_next(struct seq_file *m, void *v, loff_t *pos)
@@ -991,9 +1036,13 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 		iter->cpu = 0;
 		iter->idx = -1;
 
+		ftrace_disable_cpu();
+
 		for_each_tracing_cpu(cpu) {
 			ring_buffer_iter_reset(iter->buffer_iter[cpu]);
 		}
+
+		ftrace_enable_cpu();
 
 		for (p = iter; p && l < *pos; p = s_next(m, p, &l))
 			;
@@ -1242,7 +1291,16 @@ void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 		cont = (struct trace_field_cont *)ent;
 		if (ok)
 			ok = (trace_seq_printf(s, "%s", cont->buf) > 0);
-		ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
+
+		ftrace_disable_cpu();
+
+		if (iter->buffer_iter[iter->cpu])
+			ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
+		else
+			ring_buffer_consume(iter->tr->buffer, iter->cpu, NULL);
+
+		ftrace_enable_cpu();
+
 		ent = peek_next_entry(iter, iter->cpu, NULL);
 	} while (ent && ent->type == TRACE_CONT);
 
@@ -1683,9 +1741,15 @@ static int trace_empty(struct trace_iterator *iter)
 	int cpu;
 
 	for_each_tracing_cpu(cpu) {
-		if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
-			return 0;
+		if (iter->buffer_iter[cpu]) {
+			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
+				return 0;
+		} else {
+			if (!ring_buffer_empty_cpu(iter->tr->buffer, cpu))
+				return 0;
+		}
 	}
+
 	return TRACE_TYPE_HANDLED;
 }
 
@@ -1776,8 +1840,10 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	iter->pos = -1;
 
 	for_each_tracing_cpu(cpu) {
+
 		iter->buffer_iter[cpu] =
 			ring_buffer_read_start(iter->tr->buffer, cpu);
+
 		if (!iter->buffer_iter[cpu])
 			goto fail_buffer;
 	}
@@ -2341,7 +2407,6 @@ static atomic_t tracing_reader;
 static int tracing_open_pipe(struct inode *inode, struct file *filp)
 {
 	struct trace_iterator *iter;
-	int cpu;
 
 	if (tracing_disabled)
 		return -ENODEV;
@@ -2362,38 +2427,17 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	iter->trace = current_trace;
 	filp->private_data = iter;
 
-	for_each_tracing_cpu(cpu) {
-		iter->buffer_iter[cpu] =
-			ring_buffer_read_start(iter->tr->buffer, cpu);
-		if (!iter->buffer_iter[cpu])
-			goto fail_buffer;
-	}
-
 	if (iter->trace->pipe_open)
 		iter->trace->pipe_open(iter);
 	mutex_unlock(&trace_types_lock);
 
 	return 0;
-
- fail_buffer:
-	for_each_tracing_cpu(cpu) {
-		if (iter->buffer_iter[cpu])
-			ring_buffer_read_finish(iter->buffer_iter[cpu]);
-	}
-	mutex_unlock(&trace_types_lock);
-
-	return -ENOMEM;
 }
 
 static int tracing_release_pipe(struct inode *inode, struct file *file)
 {
 	struct trace_iterator *iter = file->private_data;
-	int cpu;
 
-	for_each_tracing_cpu(cpu) {
-		if (iter->buffer_iter[cpu])
-			ring_buffer_read_finish(iter->buffer_iter[cpu]);
-	}
 	kfree(iter);
 	atomic_dec(&tracing_reader);
 
@@ -2429,7 +2473,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
 {
 	struct trace_iterator *iter = filp->private_data;
-	unsigned long flags;
 #ifdef CONFIG_FTRACE
 	int ftrace_save;
 #endif
@@ -2528,7 +2571,6 @@ waitagain:
 	ftrace_enabled = 0;
 #endif
 	smp_wmb();
-	ring_buffer_lock(iter->tr->buffer, &flags);
 
 	while (find_next_entry_inc(iter) != NULL) {
 		enum print_line_t ret;
@@ -2547,7 +2589,6 @@ waitagain:
 			break;
 	}
 
-	ring_buffer_unlock(iter->tr->buffer, flags);
 #ifdef CONFIG_FTRACE
 	ftrace_enabled = ftrace_save;
 #endif
@@ -3010,8 +3051,8 @@ void ftrace_dump(void)
 	static struct trace_iterator iter;
 	static cpumask_t mask;
 	static int dump_ran;
-	unsigned long flags, irq_flags;
-	int cnt = 0;
+	unsigned long flags;
+	int cnt = 0, cpu;
 
 	/* only one dump */
 	spin_lock_irqsave(&ftrace_dump_lock, flags);
@@ -3022,6 +3063,10 @@ void ftrace_dump(void)
 
 	/* No turning back! */
 	ftrace_kill_atomic();
+
+	for_each_tracing_cpu(cpu) {
+		atomic_inc(&global_trace.data[cpu]->disabled);
+	}
 
 	printk(KERN_TRACE "Dumping ftrace buffer:\n");
 
@@ -3036,8 +3081,6 @@ void ftrace_dump(void)
 	 */
 
 	cpus_clear(mask);
-
-	ring_buffer_lock(iter.tr->buffer, &irq_flags);
 
 	while (!trace_empty(&iter)) {
 
@@ -3065,8 +3108,6 @@ void ftrace_dump(void)
 		printk(KERN_TRACE "   (ftrace buffer empty)\n");
 	else
 		printk(KERN_TRACE "---------------------------------\n");
-
-	ring_buffer_unlock(iter.tr->buffer, irq_flags);
 
  out:
 	spin_unlock_irqrestore(&ftrace_dump_lock, flags);
