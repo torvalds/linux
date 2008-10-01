@@ -40,7 +40,7 @@ static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct ieee80211_rx_stats *rx_stats)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	u16 fc = le16_to_cpu(hdr->frame_ctl);
+	u16 fc = le16_to_cpu(hdr->frame_control);
 
 	skb->dev = ieee->dev;
 	skb_reset_mac_header(skb);

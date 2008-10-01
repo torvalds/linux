@@ -4446,7 +4446,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 #ifdef CONFIG_IPW2200_QOS
 #define IPW_GET_PACKET_STYPE(x) WLAN_FC_GET_STYPE( \
-			 le16_to_cpu(((struct ieee80211_hdr *)(x))->frame_ctl))
+			 le16_to_cpu(((struct ieee80211_hdr *)(x))->frame_control))
 					if ((priv->status & STATUS_AUTH) &&
 					    (IPW_GET_PACKET_STYPE(&notif->u.raw)
 					     == IEEE80211_STYPE_ASSOC_RESP)) {
@@ -7665,12 +7665,12 @@ static void ipw_rebuild_decrypted_skb(struct ipw_priv *priv,
 	u16 fc;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = le16_to_cpu(hdr->frame_ctl);
+	fc = le16_to_cpu(hdr->frame_control);
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
 		return;
 
 	fc &= ~IEEE80211_FCTL_PROTECTED;
-	hdr->frame_ctl = cpu_to_le16(fc);
+	hdr->frame_control = cpu_to_le16(fc);
 	switch (priv->ieee->sec.level) {
 	case SEC_LEVEL_3:
 		/* Remove CCMP HDR */
@@ -7982,17 +7982,17 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	}
 
 	hdr = (void *)rxb->skb->data + IPW_RX_FRAME_SIZE;
-	if (ieee80211_is_management(le16_to_cpu(hdr->frame_ctl))) {
+	if (ieee80211_is_management(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_MGMT)
 			return;
 		if (filter & IPW_PROM_MGMT_HEADER_ONLY)
 			hdr_only = 1;
-	} else if (ieee80211_is_control(le16_to_cpu(hdr->frame_ctl))) {
+	} else if (ieee80211_is_control(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_CTL)
 			return;
 		if (filter & IPW_PROM_CTL_HEADER_ONLY)
 			hdr_only = 1;
-	} else if (ieee80211_is_data(le16_to_cpu(hdr->frame_ctl))) {
+	} else if (ieee80211_is_data(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_DATA)
 			return;
 		if (filter & IPW_PROM_DATA_HEADER_ONLY)
@@ -8010,7 +8010,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	ipw_rt = (void *)skb->data;
 
 	if (hdr_only)
-		len = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
+		len = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
 
 	memcpy(ipw_rt->payload, hdr, len);
 
@@ -8230,7 +8230,7 @@ static  int is_duplicate_packet(struct ipw_priv *priv,
 	/* Comment this line now since we observed the card receives
 	 * duplicate packets but the FCTL_RETRY bit is not set in the
 	 * IBSS mode with fragmentation enabled.
-	 BUG_ON(!(le16_to_cpu(header->frame_ctl) & IEEE80211_FCTL_RETRY)); */
+	 BUG_ON(!(le16_to_cpu(header->frame_control) & IEEE80211_FCTL_RETRY)); */
 	return 1;
 }
 
@@ -10381,17 +10381,17 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 
 	/* Filtering of fragment chains is done agains the first fragment */
 	hdr = (void *)txb->fragments[0]->data;
-	if (ieee80211_is_management(le16_to_cpu(hdr->frame_ctl))) {
+	if (ieee80211_is_management(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_MGMT)
 			return;
 		if (filter & IPW_PROM_MGMT_HEADER_ONLY)
 			hdr_only = 1;
-	} else if (ieee80211_is_control(le16_to_cpu(hdr->frame_ctl))) {
+	} else if (ieee80211_is_control(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_CTL)
 			return;
 		if (filter & IPW_PROM_CTL_HEADER_ONLY)
 			hdr_only = 1;
-	} else if (ieee80211_is_data(le16_to_cpu(hdr->frame_ctl))) {
+	} else if (ieee80211_is_data(le16_to_cpu(hdr->frame_control))) {
 		if (filter & IPW_PROM_NO_DATA)
 			return;
 		if (filter & IPW_PROM_DATA_HEADER_ONLY)
@@ -10406,7 +10406,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 
 		if (hdr_only) {
 			hdr = (void *)src->data;
-			len = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
+			len = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
 		} else
 			len = src->len;
 
