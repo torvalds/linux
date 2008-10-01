@@ -869,7 +869,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 		if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
 			return zfcp_erp_open_ptp_port(act);
 		if (!(p_status & ZFCP_STATUS_PORT_DID_DID)) {
-			schedule_work(&port->gid_pn_work);
+			queue_work(zfcp_data.work_queue, &port->gid_pn_work);
 			return ZFCP_ERP_CONTINUES;
 		}
 	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
@@ -1209,7 +1209,7 @@ static void zfcp_erp_schedule_work(struct zfcp_unit *unit)
 	atomic_set_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
 	INIT_WORK(&p->work, zfcp_erp_scsi_scan);
 	p->unit = unit;
-	schedule_work(&p->work);
+	queue_work(zfcp_data.work_queue, &p->work);
 }
 
 static void zfcp_erp_rport_register(struct zfcp_port *port)

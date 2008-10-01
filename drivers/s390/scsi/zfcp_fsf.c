@@ -329,7 +329,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 	zfcp_fsf_req_free(req);
 
 	atomic_inc(&adapter->stat_miss);
-	schedule_work(&adapter->stat_work);
+	queue_work(zfcp_data.work_queue, &adapter->stat_work);
 }
 
 static void zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *req)

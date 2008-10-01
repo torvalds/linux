@@ -168,6 +168,8 @@ static int __init zfcp_module_init(void)
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
+	zfcp_data.work_queue = create_singlethread_workqueue("zfcp_wq");
+
 	INIT_LIST_HEAD(&zfcp_data.adapter_list_head);
 	sema_init(&zfcp_data.config_sema, 1);
 	rwlock_init(&zfcp_data.config_lock);

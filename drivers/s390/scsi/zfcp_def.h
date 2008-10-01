@@ -602,6 +602,7 @@ struct zfcp_data {
 	struct kmem_cache	*fsf_req_qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
+	struct workqueue_struct	*work_queue;
 };
 
 /* struct used by memory pools for fsf_requests */
