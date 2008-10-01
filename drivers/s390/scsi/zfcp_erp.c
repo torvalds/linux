@@ -1236,6 +1236,8 @@ static void zfcp_erp_rports_del(struct zfcp_adapter *adapter)
 {
 	struct zfcp_port *port;
 	list_for_each_entry(port, &adapter->port_list_head, list) {
+		if (!port->rport)
+			continue;
 		fc_remote_port_delete(port->rport);
 		port->rport = NULL;
 	}
