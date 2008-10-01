@@ -1699,6 +1699,8 @@ fail:
 	kfree(tree_root);
 	bdi_destroy(&fs_info->bdi);
 	kfree(fs_info);
+	kfree(chunk_root);
+	kfree(dev_root);
 	return ERR_PTR(err);
 }
 
