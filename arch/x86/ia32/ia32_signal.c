@@ -351,21 +351,21 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	savesegment(es, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->es);
 
-	err |= __put_user((u32)regs->di, &sc->di);
-	err |= __put_user((u32)regs->si, &sc->si);
-	err |= __put_user((u32)regs->bp, &sc->bp);
-	err |= __put_user((u32)regs->sp, &sc->sp);
-	err |= __put_user((u32)regs->bx, &sc->bx);
-	err |= __put_user((u32)regs->dx, &sc->dx);
-	err |= __put_user((u32)regs->cx, &sc->cx);
-	err |= __put_user((u32)regs->ax, &sc->ax);
-	err |= __put_user((u32)regs->cs, &sc->cs);
-	err |= __put_user((u32)regs->ss, &sc->ss);
+	err |= __put_user(regs->di, &sc->di);
+	err |= __put_user(regs->si, &sc->si);
+	err |= __put_user(regs->bp, &sc->bp);
+	err |= __put_user(regs->sp, &sc->sp);
+	err |= __put_user(regs->bx, &sc->bx);
+	err |= __put_user(regs->dx, &sc->dx);
+	err |= __put_user(regs->cx, &sc->cx);
+	err |= __put_user(regs->ax, &sc->ax);
+	err |= __put_user(regs->cs, &sc->cs);
+	err |= __put_user(regs->ss, &sc->ss);
 	err |= __put_user(current->thread.trap_no, &sc->trapno);
 	err |= __put_user(current->thread.error_code, &sc->err);
-	err |= __put_user((u32)regs->ip, &sc->ip);
-	err |= __put_user((u32)regs->flags, &sc->flags);
-	err |= __put_user((u32)regs->sp, &sc->sp_at_signal);
+	err |= __put_user(regs->ip, &sc->ip);
+	err |= __put_user(regs->flags, &sc->flags);
+	err |= __put_user(regs->sp, &sc->sp_at_signal);
 
 	tmp = save_i387_xstate_ia32(fpstate);
 	if (tmp < 0)
