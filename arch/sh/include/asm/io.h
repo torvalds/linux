@@ -101,44 +101,33 @@
 #define outsw		__outsw
 #define outsl		__outsl
 
-#define __raw_readb(a)		__readb((void __iomem *)(a))
-#define __raw_readw(a)		__readw((void __iomem *)(a))
-#define __raw_readl(a)		__readl((void __iomem *)(a))
-#define __raw_writeb(v, a)	__writeb(v, (void __iomem *)(a))
-#define __raw_writew(v, a)	__writew(v, (void __iomem *)(a))
-#define __raw_writel(v, a)	__writel(v, (void __iomem *)(a))
+#define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a) = (v))
+#define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile unsigned short __force *)(a) = (v))
+#define __raw_writel(v,a)	(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a) = (v))
 
-void __raw_writesl(unsigned long addr, const void *data, int longlen);
-void __raw_readsl(unsigned long addr, void *data, int longlen);
+#define __raw_readb(a)		(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a))
+#define __raw_readw(a)		(__chk_io_ptr(a), *(volatile unsigned short __force *)(a))
+#define __raw_readl(a)		(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a))
+
+void __raw_writesl(void __iomem *addr, const void *data, int longlen);
+void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 
 /*
  * The platform header files may define some of these macros to use
  * the inlined versions where appropriate.  These macros may also be
  * redefined by userlevel programs.
  */
-#ifdef __readb
-# define readb(a)	({ unsigned int r_ = __raw_readb(a); mb(); r_; })
-#endif
-#ifdef __raw_readw
-# define readw(a)	({ unsigned int r_ = __raw_readw(a); mb(); r_; })
-#endif
-#ifdef __raw_readl
-# define readl(a)	({ unsigned int r_ = __raw_readl(a); mb(); r_; })
-#endif
+#define readb(a)	({ unsigned int r_ = __readb(a); mb(); r_; })
+#define readw(a)	({ unsigned int r_ = __readw(a); mb(); r_; })
+#define readl(a)	({ unsigned int r_ = __readl(a); mb(); r_; })
 
-#ifdef __raw_writeb
-# define writeb(v,a)	({ __raw_writeb((v),(a)); mb(); })
-#endif
-#ifdef __raw_writew
-# define writew(v,a)	({ __raw_writew((v),(a)); mb(); })
-#endif
-#ifdef __raw_writel
-# define writel(v,a)	({ __raw_writel((v),(a)); mb(); })
-#endif
+#define writeb(v,a)	({ __writeb((v),(a)); mb(); })
+#define writew(v,a)	({ __writew((v),(a)); mb(); })
+#define writel(v,a)	({ __writel((v),(a)); mb(); })
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
-static inline void writes##bwlq(volatile void __iomem *mem,		\
+static inline void __raw_writes##bwlq(volatile void __iomem *mem,	\
 				const void *addr, unsigned int count)	\
 {									\
 	const volatile type *__addr = addr;				\
@@ -149,8 +138,8 @@ static inline void writes##bwlq(volatile void __iomem *mem,		\
 	}								\
 }									\
 									\
-static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
-			       unsigned int count)			\
+static inline void __raw_reads##bwlq(volatile void __iomem *mem,	\
+			       void *addr, unsigned int count)		\
 {									\
 	volatile type *__addr = addr;					\
 									\
@@ -162,7 +151,13 @@ static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
 
 __BUILD_MEMORY_STRING(b, u8)
 __BUILD_MEMORY_STRING(w, u16)
+
+#define writesb	__raw_writesb
+#define writesw	__raw_writesw
 #define writesl __raw_writesl
+
+#define readsb	__raw_readsb
+#define readsw	__raw_readsw
 #define readsl  __raw_readsl
 
 #define readb_relaxed(a) readb(a)
@@ -170,25 +165,25 @@ __BUILD_MEMORY_STRING(w, u16)
 #define readl_relaxed(a) readl(a)
 
 /* Simple MMIO */
-#define ioread8(a)		readb(a)
-#define ioread16(a)		readw(a)
+#define ioread8(a)		__raw_readb(a)
+#define ioread16(a)		__raw_readw(a)
 #define ioread16be(a)		be16_to_cpu(__raw_readw((a)))
-#define ioread32(a)		readl(a)
+#define ioread32(a)		__raw_readl(a)
 #define ioread32be(a)		be32_to_cpu(__raw_readl((a)))
 
-#define iowrite8(v,a)		writeb((v),(a))
-#define iowrite16(v,a)		writew((v),(a))
+#define iowrite8(v,a)		__raw_writeb((v),(a))
+#define iowrite16(v,a)		__raw_writew((v),(a))
 #define iowrite16be(v,a)	__raw_writew(cpu_to_be16((v)),(a))
-#define iowrite32(v,a)		writel((v),(a))
+#define iowrite32(v,a)		__raw_writel((v),(a))
 #define iowrite32be(v,a)	__raw_writel(cpu_to_be32((v)),(a))
 
-#define ioread8_rep(a, d, c)	readsb((a), (d), (c))
-#define ioread16_rep(a, d, c)	readsw((a), (d), (c))
-#define ioread32_rep(a, d, c)	readsl((a), (d), (c))
+#define ioread8_rep(a, d, c)	__raw_readsb((a), (d), (c))
+#define ioread16_rep(a, d, c)	__raw_readsw((a), (d), (c))
+#define ioread32_rep(a, d, c)	__raw_readsl((a), (d), (c))
 
-#define iowrite8_rep(a, s, c)	writesb((a), (s), (c))
-#define iowrite16_rep(a, s, c)	writesw((a), (s), (c))
-#define iowrite32_rep(a, s, c)	writesl((a), (s), (c))
+#define iowrite8_rep(a, s, c)	__raw_writesb((a), (s), (c))
+#define iowrite16_rep(a, s, c)	__raw_writesw((a), (s), (c))
+#define iowrite32_rep(a, s, c)	__raw_writesl((a), (s), (c))
 
 #define mmiowb()	wmb()	/* synco on SH-4A, otherwise a nop */
 
