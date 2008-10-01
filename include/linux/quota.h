@@ -168,7 +168,7 @@ enum {
 #include <asm/atomic.h>
 
 typedef __kernel_uid32_t qid_t; /* Type in which we store ids in memory */
-typedef __u64 qsize_t;          /* Type in which we store sizes */
+typedef long long qsize_t;	/* Type in which we store sizes */
 
 extern spinlock_t dq_data_lock;
 
@@ -336,6 +336,7 @@ enum {
 						 * responsible for setting
 						 * S_NOQUOTA, S_NOATIME flags
 						 */
+#define DQUOT_NEGATIVE_USAGE	(1 << 7)	/* Allow negative quota usage */
 
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
 {
