@@ -73,4 +73,10 @@
 
 #endif
 
+/*
+ * Sparsemem version of the above
+ */
+#define MAX_PHYSMEM_BITS	32
+#define SECTION_SIZE_BITS	24
+
 #endif
