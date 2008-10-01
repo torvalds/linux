@@ -1,5 +1,5 @@
-config RT2X00
-	tristate "Ralink driver support"
+menuconfig RT2X00
+	bool "Ralink driver support"
 	depends on MAC80211 && WLAN_80211 && EXPERIMENTAL
 	---help---
 	  This will enable the experimental support for the Ralink drivers,
@@ -16,39 +16,6 @@ config RT2X00
 	  called "rt2x00pci.ko" and "rt2x00usb.ko".
 
 if RT2X00
-
-config RT2X00_LIB
-	tristate
-
-config RT2X00_LIB_PCI
-	tristate
-	select RT2X00_LIB
-
-config RT2X00_LIB_USB
-	tristate
-	select RT2X00_LIB
-
-config RT2X00_LIB_FIRMWARE
-	boolean
-	depends on RT2X00_LIB
-	select FW_LOADER
-
-config RT2X00_LIB_CRYPTO
-	boolean
-	depends on RT2X00_LIB
-
-config RT2X00_LIB_RFKILL
-	boolean
-	depends on RT2X00_LIB
-	depends on RFKILL
-	default y
-
-config RT2X00_LIB_LEDS
-	boolean
-	depends on RT2X00_LIB
-	depends on NEW_LEDS
-	depends on LEDS_CLASS
-	default y
 
 config RT2400PCI
 	tristate "Ralink rt2400 (PCI/PCMCIA) support"
@@ -108,6 +75,38 @@ config RT73USB
 	  Supported chips: RT2571W, RT2573 & RT2671.
 
 	  When compiled as a module, this driver will be called "rt73usb.ko".
+
+config RT2X00_LIB_PCI
+	tristate
+	select RT2X00_LIB
+
+config RT2X00_LIB_USB
+	tristate
+	select RT2X00_LIB
+
+config RT2X00_LIB
+	tristate
+
+config RT2X00_LIB_FIRMWARE
+	boolean
+	select FW_LOADER
+
+config RT2X00_LIB_CRYPTO
+	boolean
+
+config RT2X00_LIB_RFKILL
+	boolean
+	default y if (RT2X00_LIB=y && RFKILL=y) || (RT2X00_LIB=m && RFKILL!=n)
+
+comment "rt2x00 rfkill support disabled due to modularized RFKILL and built-in rt2x00"
+	depends on RT2X00_LIB=y && RFKILL=m
+
+config RT2X00_LIB_LEDS
+	boolean
+	default y if (RT2X00_LIB=y && LEDS_CLASS=y) || (RT2X00_LIB=m && LEDS_CLASS!=n)
+
+comment "rt2x00 leds support disabled due to modularized LEDS_CLASS and built-in rt2x00"
+	depends on RT2X00_LIB=y && LEDS_CLASS=m
 
 config RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"

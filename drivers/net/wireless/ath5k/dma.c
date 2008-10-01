@@ -68,7 +68,7 @@ int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
 	/*
 	 * It may take some time to disable the DMA receive unit
 	 */
-	for (i = 2000; i > 0 &&
+	for (i = 1000; i > 0 &&
 			(ath5k_hw_reg_read(ah, AR5K_CR) & AR5K_CR_RXE) != 0;
 			i--)
 		udelay(10);
@@ -182,11 +182,10 @@ int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue)
  * have any pending frames. Returns -EBUSY if we still have pending frames,
  * -EINVAL if queue number is out of range.
  *
- * TODO: Test queue drain code
  */
 int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 {
-	unsigned int i = 100;
+	unsigned int i = 40;
 	u32 tx_queue, pending;
 
 	ATH5K_TRACE(ah->ah_sc);
@@ -233,13 +232,53 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 			udelay(100);
 		} while (--i && pending);
 
+		/* For 2413+ order PCU to drop packets using
+		 * QUIET mechanism */
+		if (ah->ah_mac_version >= (AR5K_SREV_AR2414 >> 4) &&
+		pending){
+			/* Set periodicity and duration */
+			ath5k_hw_reg_write(ah,
+				AR5K_REG_SM(100, AR5K_QUIET_CTL2_QT_PER)|
+				AR5K_REG_SM(10, AR5K_QUIET_CTL2_QT_DUR),
+				AR5K_QUIET_CTL2);
+
+			/* Enable quiet period for current TSF */
+			ath5k_hw_reg_write(ah,
+				AR5K_QUIET_CTL1_QT_EN |
+				AR5K_REG_SM(ath5k_hw_reg_read(ah,
+						AR5K_TSF_L32_5211) >> 10,
+						AR5K_QUIET_CTL1_NEXT_QT_TSF),
+				AR5K_QUIET_CTL1);
+
+			/* Force channel idle high */
+			AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW_5211,
+					AR5K_DIAG_SW_CHANEL_IDLE_HIGH);
+
+			/* Wait a while and disable mechanism */
+			udelay(200);
+			AR5K_REG_DISABLE_BITS(ah, AR5K_QUIET_CTL1,
+						AR5K_QUIET_CTL1_QT_EN);
+
+			/* Re-check for pending frames */
+			i = 40;
+			do {
+				pending = ath5k_hw_reg_read(ah,
+					AR5K_QUEUE_STATUS(queue)) &
+					AR5K_QCU_STS_FRMPENDCNT;
+				udelay(100);
+			} while (--i && pending);
+
+			AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW_5211,
+					AR5K_DIAG_SW_CHANEL_IDLE_HIGH);
+		}
+
 		/* Clear register */
 		ath5k_hw_reg_write(ah, 0, AR5K_QCU_TXD);
 		if (pending)
 			return -EBUSY;
 	}
 
-	/* TODO: Check for success else return error */
+	/* TODO: Check for success on 5210 else return error */
 	return 0;
 }
 
@@ -415,7 +454,7 @@ done:
 bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
-	return ath5k_hw_reg_read(ah, AR5K_INTPEND);
+	return ath5k_hw_reg_read(ah, AR5K_INTPEND) == 1 ? 1 : 0;
 }
 
 /**

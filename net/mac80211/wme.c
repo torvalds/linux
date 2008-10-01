@@ -73,9 +73,8 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 
 
 /* Indicate which queue to use.  */
-static u16 classify80211(struct sk_buff *skb, struct net_device *dev)
+static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
@@ -113,14 +112,15 @@ static u16 classify80211(struct sk_buff *skb, struct net_device *dev)
 
 u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
+	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
+	struct ieee80211_local *local = mpriv->local;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct sta_info *sta;
 	u16 queue;
 	u8 tid;
 
-	queue = classify80211(skb, dev);
+	queue = classify80211(local, skb);
 	if (unlikely(queue >= local->hw.queues))
 		queue = local->hw.queues - 1;
 

@@ -1949,7 +1949,7 @@ int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
 	cmd.enable = !!enable;
-	cmd.usesnr = !!enable;
+	cmd.usesnr = !!usesnr;
 	cmd.P0 = p0;
 	cmd.P1 = p1;
 	cmd.P2 = p2;

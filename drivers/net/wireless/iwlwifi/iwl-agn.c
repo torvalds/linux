@@ -2875,6 +2875,13 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		goto out;
 	}
 
+	if (conf->flags & IEEE80211_CONF_PS)
+		ret = iwl_power_set_user_mode(priv, IWL_POWER_INDEX_3);
+	else
+		ret = iwl_power_set_user_mode(priv, IWL_POWER_MODE_CAM);
+	if (ret)
+		IWL_DEBUG_MAC80211("Error setting power level\n");
+
 	IWL_DEBUG_MAC80211("TX Power old=%d new=%d\n",
 			   priv->tx_power_user_lmt, conf->power_level);
 
@@ -4236,13 +4243,13 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
 	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
 	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (!err)
-			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		/* both attempts failed: */
 		if (err) {
 			printk(KERN_WARNING "%s: No suitable DMA available.\n",
