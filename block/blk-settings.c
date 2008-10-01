@@ -89,6 +89,12 @@ void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
 
+void blk_queue_lld_busy(struct request_queue *q, lld_busy_fn *fn)
+{
+	q->lld_busy_fn = fn;
+}
+EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
+
 /**
  * blk_queue_make_request - define an alternate make_request function for a device
  * @q:  the request queue for the device to be affected

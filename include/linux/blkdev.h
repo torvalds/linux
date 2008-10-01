@@ -269,6 +269,7 @@ typedef int (merge_bvec_fn) (struct request_queue *, struct bvec_merge_data *,
 typedef void (prepare_flush_fn) (struct request_queue *, struct request *);
 typedef void (softirq_done_fn)(struct request *);
 typedef int (dma_drain_needed_fn)(struct request *);
+typedef int (lld_busy_fn) (struct request_queue *q);
 
 enum blk_eh_timer_return {
 	BLK_EH_NOT_HANDLED,
@@ -325,6 +326,7 @@ struct request_queue
 	softirq_done_fn		*softirq_done_fn;
 	rq_timed_out_fn		*rq_timed_out_fn;
 	dma_drain_needed_fn	*dma_drain_needed;
+	lld_busy_fn		*lld_busy_fn;
 
 	/*
 	 * Dispatch queue sorting
@@ -699,6 +701,7 @@ extern struct request *blk_get_request(struct request_queue *, int, gfp_t);
 extern void blk_insert_request(struct request_queue *, struct request *, int, void *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern int blk_rq_check_limits(struct request_queue *q, struct request *rq);
+extern int blk_lld_busy(struct request_queue *q);
 extern int blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
 extern void blk_plug_device(struct request_queue *);
@@ -835,6 +838,7 @@ extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
 extern int blk_queue_dma_drain(struct request_queue *q,
 			       dma_drain_needed_fn *dma_drain_needed,
 			       void *buf, unsigned int size);
+extern void blk_queue_lld_busy(struct request_queue *q, lld_busy_fn *fn);
 extern void blk_queue_segment_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_prep_rq(struct request_queue *, prep_rq_fn *pfn);
 extern void blk_queue_merge_bvec(struct request_queue *, merge_bvec_fn *);
