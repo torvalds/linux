@@ -1350,7 +1350,9 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	}
 	switch (entry->type) {
 	case TRACE_FN: {
-		struct ftrace_entry *field = (struct ftrace_entry *)entry;
+		struct ftrace_entry *field;
+
+		trace_assign_type(field, entry);
 
 		seq_print_ip_sym(s, field->ip, sym_flags);
 		trace_seq_puts(s, " (");
@@ -1363,8 +1365,9 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	}
 	case TRACE_CTX:
 	case TRACE_WAKE: {
-		struct ctx_switch_entry *field =
-			(struct ctx_switch_entry *)entry;
+		struct ctx_switch_entry *field;
+
+		trace_assign_type(field, entry);
 
 		T = field->next_state < sizeof(state_to_char) ?
 			state_to_char[field->next_state] : 'X';
@@ -1384,7 +1387,9 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		break;
 	}
 	case TRACE_SPECIAL: {
-		struct special_entry *field = (struct special_entry *)entry;
+		struct special_entry *field;
+
+		trace_assign_type(field, entry);
 
 		trace_seq_printf(s, "# %ld %ld %ld\n",
 				 field->arg1,
@@ -1393,7 +1398,9 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		break;
 	}
 	case TRACE_STACK: {
-		struct stack_entry *field = (struct stack_entry *)entry;
+		struct stack_entry *field;
+
+		trace_assign_type(field, entry);
 
 		for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 			if (i)
@@ -1404,7 +1411,9 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		break;
 	}
 	case TRACE_PRINT: {
-		struct print_entry *field = (struct print_entry *)entry;
+		struct print_entry *field;
+
+		trace_assign_type(field, entry);
 
 		seq_print_ip_sym(s, field->ip, sym_flags);
 		trace_seq_printf(s, ": %s", field->buf);
@@ -1454,7 +1463,9 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 
 	switch (entry->type) {
 	case TRACE_FN: {
-		struct ftrace_entry *field = (struct ftrace_entry *)entry;
+		struct ftrace_entry *field;
+
+		trace_assign_type(field, entry);
 
 		ret = seq_print_ip_sym(s, field->ip, sym_flags);
 		if (!ret)
@@ -1480,8 +1491,9 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_CTX:
 	case TRACE_WAKE: {
-		struct ctx_switch_entry *field =
-			(struct ctx_switch_entry *)entry;
+		struct ctx_switch_entry *field;
+
+		trace_assign_type(field, entry);
 
 		S = field->prev_state < sizeof(state_to_char) ?
 			state_to_char[field->prev_state] : 'X';
@@ -1501,7 +1513,9 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_SPECIAL: {
-		struct special_entry *field = (struct special_entry *)entry;
+		struct special_entry *field;
+
+		trace_assign_type(field, entry);
 
 		ret = trace_seq_printf(s, "# %ld %ld %ld\n",
 				 field->arg1,
@@ -1512,7 +1526,9 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_STACK: {
-		struct stack_entry *field = (struct stack_entry *)entry;
+		struct stack_entry *field;
+
+		trace_assign_type(field, entry);
 
 		for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 			if (i) {
@@ -1531,7 +1547,9 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_PRINT: {
-		struct print_entry *field = (struct print_entry *)entry;
+		struct print_entry *field;
+
+		trace_assign_type(field, entry);
 
 		seq_print_ip_sym(s, field->ip, sym_flags);
 		trace_seq_printf(s, ": %s", field->buf);
@@ -1562,7 +1580,9 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 
 	switch (entry->type) {
 	case TRACE_FN: {
-		struct ftrace_entry *field = (struct ftrace_entry *)entry;
+		struct ftrace_entry *field;
+
+		trace_assign_type(field, entry);
 
 		ret = trace_seq_printf(s, "%x %x\n",
 					field->ip,
@@ -1573,8 +1593,9 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_CTX:
 	case TRACE_WAKE: {
-		struct ctx_switch_entry *field =
-			(struct ctx_switch_entry *)entry;
+		struct ctx_switch_entry *field;
+
+		trace_assign_type(field, entry);
 
 		S = field->prev_state < sizeof(state_to_char) ?
 			state_to_char[field->prev_state] : 'X';
@@ -1596,7 +1617,9 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_SPECIAL:
 	case TRACE_STACK: {
-		struct special_entry *field = (struct special_entry *)entry;
+		struct special_entry *field;
+
+		trace_assign_type(field, entry);
 
 		ret = trace_seq_printf(s, "# %ld %ld %ld\n",
 				 field->arg1,
@@ -1607,7 +1630,9 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 		break;
 	}
 	case TRACE_PRINT: {
-		struct print_entry *field = (struct print_entry *)entry;
+		struct print_entry *field;
+
+		trace_assign_type(field, entry);
 
 		trace_seq_printf(s, "# %lx %s", field->ip, field->buf);
 		if (entry->flags & TRACE_FLAG_CONT)
@@ -1648,7 +1673,9 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 	switch (entry->type) {
 	case TRACE_FN: {
-		struct ftrace_entry *field = (struct ftrace_entry *)entry;
+		struct ftrace_entry *field;
+
+		trace_assign_type(field, entry);
 
 		SEQ_PUT_HEX_FIELD_RET(s, field->ip);
 		SEQ_PUT_HEX_FIELD_RET(s, field->parent_ip);
@@ -1656,8 +1683,9 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_CTX:
 	case TRACE_WAKE: {
-		struct ctx_switch_entry *field =
-			(struct ctx_switch_entry *)entry;
+		struct ctx_switch_entry *field;
+
+		trace_assign_type(field, entry);
 
 		S = field->prev_state < sizeof(state_to_char) ?
 			state_to_char[field->prev_state] : 'X';
@@ -1676,7 +1704,9 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_SPECIAL:
 	case TRACE_STACK: {
-		struct special_entry *field = (struct special_entry *)entry;
+		struct special_entry *field;
+
+		trace_assign_type(field, entry);
 
 		SEQ_PUT_HEX_FIELD_RET(s, field->arg1);
 		SEQ_PUT_HEX_FIELD_RET(s, field->arg2);
@@ -1705,15 +1735,18 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 
 	switch (entry->type) {
 	case TRACE_FN: {
-		struct ftrace_entry *field = (struct ftrace_entry *)entry;
+		struct ftrace_entry *field;
+
+		trace_assign_type(field, entry);
 
 		SEQ_PUT_FIELD_RET(s, field->ip);
 		SEQ_PUT_FIELD_RET(s, field->parent_ip);
 		break;
 	}
 	case TRACE_CTX: {
-		struct ctx_switch_entry *field =
-			(struct ctx_switch_entry *)entry;
+		struct ctx_switch_entry *field;
+
+		trace_assign_type(field, entry);
 
 		SEQ_PUT_FIELD_RET(s, field->prev_pid);
 		SEQ_PUT_FIELD_RET(s, field->prev_prio);
@@ -1725,7 +1758,9 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 	}
 	case TRACE_SPECIAL:
 	case TRACE_STACK: {
-		struct special_entry *field = (struct special_entry *)entry;
+		struct special_entry *field;
+
+		trace_assign_type(field, entry);
 
 		SEQ_PUT_FIELD_RET(s, field->arg1);
 		SEQ_PUT_FIELD_RET(s, field->arg2);

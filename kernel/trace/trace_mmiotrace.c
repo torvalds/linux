@@ -178,14 +178,16 @@ print_out:
 static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
-	struct trace_mmiotrace_rw *field =
-		(struct trace_mmiotrace_rw *)entry;
-	struct mmiotrace_rw *rw	= &field->rw;
+	struct trace_mmiotrace_rw *field;
+	struct mmiotrace_rw *rw;
 	struct trace_seq *s	= &iter->seq;
 	unsigned long long t	= ns2usecs(iter->ts);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
 	int ret = 1;
+
+	trace_assign_type(field, entry);
+	rw = &field->rw;
 
 	switch (rw->opcode) {
 	case MMIO_READ:
@@ -222,12 +224,16 @@ static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 static enum print_line_t mmio_print_map(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
-	struct mmiotrace_map *m	= (struct mmiotrace_map *)entry;
+	struct trace_mmiotrace_map *field;
+	struct mmiotrace_map *m;
 	struct trace_seq *s	= &iter->seq;
 	unsigned long long t	= ns2usecs(iter->ts);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
 	int ret;
+
+	trace_assign_type(field, entry);
+	m = &field->map;
 
 	switch (m->opcode) {
 	case MMIO_PROBE:

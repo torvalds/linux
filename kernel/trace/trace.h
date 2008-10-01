@@ -177,6 +177,48 @@ struct trace_array {
 	struct trace_array_cpu	*data[NR_CPUS];
 };
 
+#define FTRACE_CMP_TYPE(var, type) \
+	__builtin_types_compatible_p(typeof(var), type *)
+
+#undef IF_ASSIGN
+#define IF_ASSIGN(var, entry, etype, id)		\
+	if (FTRACE_CMP_TYPE(var, etype)) {		\
+		var = (typeof(var))(entry);		\
+		WARN_ON(id && (entry)->type != id);	\
+		break;					\
+	}
+
+/* Will cause compile errors if type is not found. */
+extern void __ftrace_bad_type(void);
+
+/*
+ * The trace_assign_type is a verifier that the entry type is
+ * the same as the type being assigned. To add new types simply
+ * add a line with the following format:
+ *
+ * IF_ASSIGN(var, ent, type, id);
+ *
+ *  Where "type" is the trace type that includes the trace_entry
+ *  as the "ent" item. And "id" is the trace identifier that is
+ *  used in the trace_type enum.
+ *
+ *  If the type can have more than one id, then use zero.
+ */
+#define trace_assign_type(var, ent)					\
+	do {								\
+		IF_ASSIGN(var, ent, struct ftrace_entry, TRACE_FN);	\
+		IF_ASSIGN(var, ent, struct ctx_switch_entry, 0);	\
+		IF_ASSIGN(var, ent, struct trace_field_cont, TRACE_CONT); \
+		IF_ASSIGN(var, ent, struct stack_entry, TRACE_STACK);	\
+		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
+		IF_ASSIGN(var, ent, struct special_entry, 0);		\
+		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
+			  TRACE_MMIO_RW);				\
+		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
+			  TRACE_MMIO_MAP);				\
+		IF_ASSIGN(var, ent, struct trace_boot, TRACE_BOOT);	\
+		__ftrace_bad_type();					\
+	} while (0)
 
 /* Return values for print_line callback */
 enum print_line_t {
