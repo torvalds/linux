@@ -576,6 +576,8 @@ extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
 extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			 struct group_filter __user *optval,
 			 int __user *optlen);
+extern unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
+				    const struct in6_addr *daddr, u32 rnd);
 
 #ifdef CONFIG_PROC_FS
 extern int  ac6_proc_init(struct net *net);

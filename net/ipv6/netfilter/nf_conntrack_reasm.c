@@ -27,7 +27,6 @@
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 #include <linux/random.h>
-#include <linux/jhash.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -103,39 +102,12 @@ struct ctl_table nf_ct_ipv6_sysctl_table[] = {
 };
 #endif
 
-static unsigned int ip6qhashfn(__be32 id, const struct in6_addr *saddr,
-			       const struct in6_addr *daddr)
-{
-	u32 a, b, c;
-
-	a = (__force u32)saddr->s6_addr32[0];
-	b = (__force u32)saddr->s6_addr32[1];
-	c = (__force u32)saddr->s6_addr32[2];
-
-	a += JHASH_GOLDEN_RATIO;
-	b += JHASH_GOLDEN_RATIO;
-	c += nf_frags.rnd;
-	__jhash_mix(a, b, c);
-
-	a += (__force u32)saddr->s6_addr32[3];
-	b += (__force u32)daddr->s6_addr32[0];
-	c += (__force u32)daddr->s6_addr32[1];
-	__jhash_mix(a, b, c);
-
-	a += (__force u32)daddr->s6_addr32[2];
-	b += (__force u32)daddr->s6_addr32[3];
-	c += (__force u32)id;
-	__jhash_mix(a, b, c);
-
-	return c & (INETFRAGS_HASHSZ - 1);
-}
-
 static unsigned int nf_hashfn(struct inet_frag_queue *q)
 {
 	const struct nf_ct_frag6_queue *nq;
 
 	nq = container_of(q, struct nf_ct_frag6_queue, q);
-	return ip6qhashfn(nq->id, &nq->saddr, &nq->daddr);
+	return inet6_hash_frag(nq->id, &nq->saddr, &nq->daddr, nf_frags.rnd);
 }
 
 static void nf_skb_free(struct sk_buff *skb)
@@ -209,7 +181,7 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst)
 	arg.dst = dst;
 
 	read_lock_bh(&nf_frags.lock);
-	hash = ip6qhashfn(id, src, dst);
+	hash = inet6_hash_frag(id, src, dst, nf_frags.rnd);
 
 	q = inet_frag_find(&nf_init_frags, &nf_frags, &arg, hash);
 	local_bh_enable();
