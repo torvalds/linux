@@ -754,7 +754,7 @@ struct request *elv_next_request(struct request_queue *q)
 		 * not ever see it.
 		 */
 		if (blk_empty_barrier(rq)) {
-			end_queued_request(rq, 1);
+			__blk_end_request(rq, 0, blk_rq_bytes(rq));
 			continue;
 		}
 		if (!(rq->cmd_flags & REQ_STARTED)) {
@@ -825,7 +825,7 @@ struct request *elv_next_request(struct request_queue *q)
 			break;
 		} else if (ret == BLKPREP_KILL) {
 			rq->cmd_flags |= REQ_QUIET;
-			end_queued_request(rq, 0);
+			__blk_end_request(rq, -EIO, blk_rq_bytes(rq));
 		} else {
 			printk(KERN_ERR "%s: bad return=%d\n", __func__, ret);
 			break;
@@ -922,7 +922,7 @@ void elv_abort_queue(struct request_queue *q)
 		rq = list_entry_rq(q->queue_head.next);
 		rq->cmd_flags |= REQ_QUIET;
 		blk_add_trace_rq(q, rq, BLK_TA_ABORT);
-		end_queued_request(rq, 0);
+		__blk_end_request(rq, -EIO, blk_rq_bytes(rq));
 	}
 }
 EXPORT_SYMBOL(elv_abort_queue);
