@@ -107,7 +107,8 @@ void bio_integrity_free(struct bio *bio, struct bio_set *bs)
 	BUG_ON(bip == NULL);
 
 	/* A cloned bio doesn't own the integrity metadata */
-	if (!bio_flagged(bio, BIO_CLONED) && bip->bip_buf != NULL)
+	if (!bio_flagged(bio, BIO_CLONED) && !bio_flagged(bio, BIO_FS_INTEGRITY)
+	    && bip->bip_buf != NULL)
 		kfree(bip->bip_buf);
 
 	mempool_free(bip->bip_vec, bs->bvec_pools[bip->bip_pool]);

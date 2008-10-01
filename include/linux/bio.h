@@ -109,6 +109,7 @@ struct bio {
 #define BIO_EOPNOTSUPP	7	/* not supported */
 #define BIO_CPU_AFFINE	8	/* complete bio on same CPU as submitted */
 #define BIO_NULL_MAPPED 9	/* contains invalid user pages */
+#define BIO_FS_INTEGRITY 10	/* fs owns integrity data, not block layer */
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
 /*
