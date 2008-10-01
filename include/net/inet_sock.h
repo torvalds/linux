@@ -72,7 +72,8 @@ struct inet_request_sock {
 				sack_ok	   : 1,
 				wscale_ok  : 1,
 				ecn_ok	   : 1,
-				acked	   : 1;
+				acked	   : 1,
+				no_srccheck: 1;
 	struct ip_options	*opt;
 };
 
@@ -202,6 +203,11 @@ static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops
 		inet_rsk(req)->opt = NULL;
 
 	return req;
+}
+
+static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
+{
+	return inet_sk(sk)->transparent ? FLOWI_FLAG_ANYSRC : 0;
 }
 
 #endif	/* _INET_SOCK_H */
