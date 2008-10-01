@@ -369,7 +369,8 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
 
-	strcpy(buts->name, name);
+	strncpy(buts->name, name, BLKTRACE_BDEV_SIZE);
+	buts->name[BLKTRACE_BDEV_SIZE - 1] = '\0';
 
 	/*
 	 * some device names have larger paths - convert the slashes

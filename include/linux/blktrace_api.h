@@ -122,15 +122,13 @@ enum {
 	Blktrace_stopped,
 };
 
+#define BLKTRACE_BDEV_SIZE	32
+
 /*
  * User setup structure passed with BLKTRACESTART
  */
 struct blk_user_trace_setup {
-#ifdef __KERNEL__
-	char name[BDEVNAME_SIZE];	/* output */
-#else
-	char name[32];			/* output */
-#endif
+	char name[BLKTRACE_BDEV_SIZE];	/* output */
 	__u16 act_mask;			/* input */
 	__u32 buf_size;			/* input */
 	__u32 buf_nr;			/* input */
