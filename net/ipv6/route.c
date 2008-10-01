@@ -2688,6 +2688,8 @@ int __init ip6_route_init(void)
 	if (ret)
 		goto out_kmem_cache;
 
+	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops_template.kmem_cachep;
+
 	/* Registering of the loopback is done before this portion of code,
 	 * the loopback reference in rt6_info will not be taken, do it
 	 * manually for init_net */
