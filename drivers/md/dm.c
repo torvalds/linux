@@ -843,6 +843,8 @@ static int dm_merge_bvec(struct request_queue *q,
 		goto out;
 
 	ti = dm_table_find_target(map, bvm->bi_sector);
+	if (!dm_target_is_valid(ti))
+		goto out_table;
 
 	/*
 	 * Find maximum amount of I/O that won't need splitting
@@ -861,6 +863,7 @@ static int dm_merge_bvec(struct request_queue *q,
 	if (max_size && ti->type->merge)
 		max_size = ti->type->merge(ti, bvm, biovec, max_size);
 
+out_table:
 	dm_table_put(map);
 
 out:
