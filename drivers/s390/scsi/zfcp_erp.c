@@ -1395,9 +1395,9 @@ static int zfcp_erp_thread(void *data)
 				zfcp_erp_wakeup(adapter);
 		}
 
-		zfcp_rec_dbf_event_thread(4, adapter);
+		zfcp_rec_dbf_event_thread_lock(4, adapter);
 		down_interruptible(&adapter->erp_ready_sem);
-		zfcp_rec_dbf_event_thread(5, adapter);
+		zfcp_rec_dbf_event_thread_lock(5, adapter);
 	}
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
