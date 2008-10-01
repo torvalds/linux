@@ -890,9 +890,11 @@ EXPORT_SYMBOL(blk_get_request);
  */
 void blk_start_queueing(struct request_queue *q)
 {
-	if (!blk_queue_plugged(q))
+	if (!blk_queue_plugged(q)) {
+		if (unlikely(blk_queue_stopped(q)))
+			return;
 		q->request_fn(q);
-	else
+	} else
 		__generic_unplug_device(q);
 }
 EXPORT_SYMBOL(blk_start_queueing);
