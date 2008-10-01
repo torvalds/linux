@@ -28,7 +28,7 @@ static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 	return 0;
 }
 
-static volatile struct qdio_buffer_element *
+static struct qdio_buffer_element *
 zfcp_qdio_sbale(struct zfcp_qdio_queue *q, int sbal_idx, int sbale_idx)
 {
 	return &q->sbal[sbal_idx]->element[sbale_idx];
@@ -145,7 +145,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) parm;
 	struct zfcp_qdio_queue *queue = &adapter->resp_q;
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int sbal_idx, sbale_idx, sbal_no;
 
 	if (unlikely(qdio_err)) {
@@ -190,8 +190,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
  * @fsf_req: pointer to struct fsf_req
  * Returns: pointer to qdio_buffer_element (SBALE) structure
  */
-volatile struct qdio_buffer_element *
-zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
+struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
 {
 	return zfcp_qdio_sbale(&req->adapter->req_q, req->sbal_last, 0);
 }
@@ -201,8 +200,7 @@ zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
  * @fsf_req: pointer to struct fsf_req
  * Returns: pointer to qdio_buffer_element (SBALE) structure
  */
-volatile struct qdio_buffer_element *
-zfcp_qdio_sbale_curr(struct zfcp_fsf_req *req)
+struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_fsf_req *req)
 {
 	return zfcp_qdio_sbale(&req->adapter->req_q, req->sbal_last,
 			       req->sbale_curr);
@@ -216,10 +214,10 @@ static void zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
 					% QDIO_MAX_BUFFERS_PER_Q;
 }
 
-static volatile struct qdio_buffer_element *
+static struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 
 	/* set last entry flag in current SBALE of current SBAL */
 	sbale = zfcp_qdio_sbale_curr(fsf_req);
@@ -250,7 +248,7 @@ zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 	return sbale;
 }
 
-static volatile struct qdio_buffer_element *
+static struct qdio_buffer_element *
 zfcp_qdio_sbale_next(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 {
 	if (fsf_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
@@ -273,7 +271,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 				unsigned int sbtype, void *start_addr,
 				unsigned int total_length)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	unsigned long remaining, length;
 	void *addr;
 
@@ -308,7 +306,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 int zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 			    struct scatterlist *sg, int max_sbals)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int retval, bytes = 0;
 
 	/* figure out last allowed SBAL */
@@ -345,7 +343,7 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	int first = fsf_req->sbal_first;
 	int count = fsf_req->sbal_number;
 	int retval, pci, pci_batch;
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 
 	/* acknowledgements for transferred buffers */
 	pci_batch = req_q->pci_batch + count;
@@ -419,7 +417,7 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 	struct zfcp_qdio_queue *req_q;
 	int first, count;
 
-	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status))
+	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return;
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
@@ -451,10 +449,10 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
  */
 int zfcp_qdio_open(struct zfcp_adapter *adapter)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int cc;
 
-	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status))
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
 		return -EIO;
 
 	if (qdio_establish(&adapter->qdio_init_data))

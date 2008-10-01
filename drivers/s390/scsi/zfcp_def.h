@@ -39,29 +39,6 @@
 
 /********************* GENERAL DEFINES *********************************/
 
-/**
- * zfcp_sg_to_address - determine kernel address from struct scatterlist
- * @list: struct scatterlist
- * Return: kernel address
- */
-static inline void *
-zfcp_sg_to_address(struct scatterlist *list)
-{
-	return sg_virt(list);
-}
-
-/**
- * zfcp_address_to_sg - set up struct scatterlist from kernel address
- * @address: kernel address
- * @list: struct scatterlist
- * @size: buffer size
- */
-static inline void
-zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
-{
-	sg_set_buf(list, address, size);
-}
-
 #define REQUEST_LIST_SIZE 128
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
@@ -218,13 +195,6 @@ struct fcp_logo {
 #define ZFCP_LS_RSCN			0x61
 #define ZFCP_LS_RNID			0x78
 
-struct zfcp_ls_rjt_par {
-	u8 action;
- 	u8 reason_code;
- 	u8 reason_expl;
- 	u8 vendor_unique;
-} __attribute__ ((packed));
-
 struct zfcp_ls_adisc {
 	u8		code;
 	u8		field[3];
@@ -233,20 +203,6 @@ struct zfcp_ls_adisc {
 	u64		wwnn;
 	u32		nport_id;
 } __attribute__ ((packed));
-
-struct zfcp_ls_adisc_acc {
-	u8		code;
-	u8		field[3];
-	u32		hard_nport_id;
-	u64		wwpn;
-	u64		wwnn;
-	u32		nport_id;
-} __attribute__ ((packed));
-
-struct zfcp_rc_entry {
-	u8 code;
-	const char *description;
-};
 
 /*
  * FC-GS-2 stuff
@@ -281,9 +237,7 @@ struct zfcp_rc_entry {
 #define ZFCP_STATUS_COMMON_RUNNING		0x40000000
 #define ZFCP_STATUS_COMMON_ERP_FAILED		0x20000000
 #define ZFCP_STATUS_COMMON_UNBLOCKED		0x10000000
-#define ZFCP_STATUS_COMMON_OPENING              0x08000000
 #define ZFCP_STATUS_COMMON_OPEN                 0x04000000
-#define ZFCP_STATUS_COMMON_CLOSING              0x02000000
 #define ZFCP_STATUS_COMMON_ERP_INUSE		0x01000000
 #define ZFCP_STATUS_COMMON_ACCESS_DENIED	0x00800000
 #define ZFCP_STATUS_COMMON_ACCESS_BOXED		0x00400000
@@ -291,14 +245,12 @@ struct zfcp_rc_entry {
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
-#define ZFCP_STATUS_ADAPTER_REGISTERED		0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
 #define ZFCP_STATUS_ADAPTER_ERP_THREAD_UP	0x00000020
 #define ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL	0x00000080
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
-#define ZFCP_STATUS_ADAPTER_XPORT_OK		0x00000800
 
 /* FC-PH/FC-GS well-known address identifiers for generic services */
 #define ZFCP_DID_MANAGEMENT_SERVICE		0xFFFFFA
@@ -321,20 +273,16 @@ struct zfcp_rc_entry {
 		 ZFCP_STATUS_PORT_NO_SCSI_ID)
 
 /* logical unit status */
-#define ZFCP_STATUS_UNIT_TEMPORARY		0x00000002
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
 #define ZFCP_STATUS_UNIT_READONLY		0x00000008
 #define ZFCP_STATUS_UNIT_REGISTERED		0x00000010
 #define ZFCP_STATUS_UNIT_SCSI_WORK_PENDING	0x00000020
 
 /* FSF request status (this does not have a common part) */
-#define ZFCP_STATUS_FSFREQ_NOT_INIT		0x00000000
-#define ZFCP_STATUS_FSFREQ_POOL  		0x00000001
 #define ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT	0x00000002
 #define ZFCP_STATUS_FSFREQ_COMPLETED		0x00000004
 #define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
 #define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
-#define ZFCP_STATUS_FSFREQ_ABORTING		0x00000020
 #define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED	0x00000040
 #define ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED       0x00000080
 #define ZFCP_STATUS_FSFREQ_ABORTED              0x00000100
@@ -475,7 +423,7 @@ struct zfcp_erp_action {
 	struct zfcp_adapter *adapter; /* device which should be recovered */
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
-	volatile u32 status;	      /* recovery status */
+	u32		status;	      /* recovery status */
 	u32 step;	              /* active step of this erp action */
 	struct zfcp_fsf_req *fsf_req; /* fsf request currently pending
 					 for this action */
@@ -626,7 +574,7 @@ struct zfcp_fsf_req {
 	u8			sbal_response;	/* SBAL used in interrupt */
 	wait_queue_head_t      completion_wq;  /* can be used by a routine
 						  to wait for completion */
-	volatile u32	       status;	       /* status of this request */
+	u32			status;	       /* status of this request */
 	u32		       fsf_command;    /* FSF Command copy */
 	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
 	u32		       seq_no;         /* Sequence number of request */
@@ -678,14 +626,7 @@ struct zfcp_fsf_req_qtcb {
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
 
-#ifndef atomic_test_mask
-#define atomic_test_mask(mask, target) \
-           ((atomic_read(target) & mask) == mask)
-#endif
-
 #define zfcp_get_busid_by_adapter(adapter) (adapter->ccw_device->dev.bus_id)
-#define zfcp_get_busid_by_port(port) (zfcp_get_busid_by_adapter(port->adapter))
-#define zfcp_get_busid_by_unit(unit) (zfcp_get_busid_by_port(unit->port))
 
 /*
  * Helper functions for request ID management.
@@ -746,12 +687,6 @@ zfcp_unit_put(struct zfcp_unit *unit)
 }
 
 static inline void
-zfcp_unit_wait(struct zfcp_unit *unit)
-{
-	wait_event(unit->remove_wq, atomic_read(&unit->refcount) == 0);
-}
-
-static inline void
 zfcp_port_get(struct zfcp_port *port)
 {
 	atomic_inc(&port->refcount);
@@ -765,12 +700,6 @@ zfcp_port_put(struct zfcp_port *port)
 }
 
 static inline void
-zfcp_port_wait(struct zfcp_port *port)
-{
-	wait_event(port->remove_wq, atomic_read(&port->refcount) == 0);
-}
-
-static inline void
 zfcp_adapter_get(struct zfcp_adapter *adapter)
 {
 	atomic_inc(&adapter->refcount);
@@ -781,12 +710,6 @@ zfcp_adapter_put(struct zfcp_adapter *adapter)
 {
 	if (atomic_dec_return(&adapter->refcount) == 0)
 		wake_up(&adapter->remove_wq);
-}
-
-static inline void
-zfcp_adapter_wait(struct zfcp_adapter *adapter)
-{
-	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
 }
 
 #endif /* ZFCP_DEF_H */

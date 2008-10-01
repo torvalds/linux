@@ -183,7 +183,6 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		return retval;
 	}
 	fsf_req->data = NULL;
-	fsf_req->status |= ZFCP_STATUS_FSFREQ_ABORTING;
 
 	/* don't access old fsf_req after releasing the abort_lock */
 	write_unlock_irqrestore(&adapter->abort_lock, flags);
@@ -313,7 +312,6 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 		scsi_host_put(adapter->scsi_host);
 		return -EIO;
 	}
-	atomic_set_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return 0;
 }
@@ -337,7 +335,6 @@ void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return;
 }

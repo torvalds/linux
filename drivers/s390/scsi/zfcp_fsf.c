@@ -621,7 +621,6 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 
 static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 {
-	struct zfcp_adapter *adapter = req->adapter;
 	struct fsf_qtcb *qtcb = req->qtcb;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
@@ -630,11 +629,9 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 	switch (qtcb->header.fsf_status) {
 	case FSF_GOOD:
 		zfcp_fsf_exchange_port_evaluate(req);
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
 		break;
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:
 		zfcp_fsf_exchange_port_evaluate(req);
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
 		zfcp_fsf_link_down_info_eval(req, 43,
 			&qtcb->header.fsf_status_qual.link_down_info);
 		break;
@@ -708,7 +705,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_adapter *adapter,
 						u32 fsf_cmd, int req_flags,
 						mempool_t *pool)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 
 	struct zfcp_fsf_req *req;
 	struct zfcp_qdio_queue *req_q = &adapter->req_q;
@@ -810,7 +807,7 @@ int zfcp_fsf_status_read(struct zfcp_adapter *adapter)
 {
 	struct zfcp_fsf_req *req;
 	struct fsf_status_read_buffer *sr_buf;
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int retval = -EIO;
 
 	spin_lock_bh(&adapter->req_q.lock);
@@ -923,7 +920,7 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 						struct zfcp_unit *unit,
 						int req_flags)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 
 	spin_lock(&adapter->req_q.lock);
@@ -1171,8 +1168,8 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 		goto out;
 	}
 
-	ret = zfcp_fsf_setup_sbals(req, els->req, els->resp,
-				   FSF_MAX_SBALS_PER_ELS_REQ);
+	ret = zfcp_fsf_setup_sbals(req, els->req, els->resp, 2);
+
 	if (ret)
 		goto failed_send;
 
@@ -1201,7 +1198,7 @@ out:
 
 int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	int retval = -EIO;
@@ -1245,7 +1242,7 @@ out:
 int zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
 				       struct fsf_qtcb_bottom_config *data)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 	int retval = -EIO;
 
@@ -1294,7 +1291,7 @@ out:
  */
 int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	int retval = -EIO;
@@ -1341,7 +1338,7 @@ out:
 int zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 				     struct fsf_qtcb_bottom_port *data)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 	int retval = -EIO;
 
@@ -1386,7 +1383,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	struct fsf_plogi *plogi;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		goto skip_fsfstatus;
+		return;
 
 	switch (header->fsf_status) {
 	case FSF_PORT_ALREADY_OPEN:
@@ -1456,9 +1453,6 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	}
-
-skip_fsfstatus:
-	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING, &port->status);
 }
 
 /**
@@ -1468,7 +1462,7 @@ skip_fsfstatus:
  */
 int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
 	int retval = -EIO;
@@ -1495,7 +1489,6 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	req->data = erp_action->port;
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
-	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &erp_action->port->status);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
@@ -1513,7 +1506,7 @@ static void zfcp_fsf_close_port_handler(struct zfcp_fsf_req *req)
 	struct zfcp_port *port = req->data;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		goto skip_fsfstatus;
+		return;
 
 	switch (req->qtcb->header.fsf_status) {
 	case FSF_PORT_HANDLE_NOT_VALID:
@@ -1528,9 +1521,6 @@ static void zfcp_fsf_close_port_handler(struct zfcp_fsf_req *req)
 					    ZFCP_CLEAR);
 		break;
 	}
-
-skip_fsfstatus:
-	atomic_clear_mask(ZFCP_STATUS_COMMON_CLOSING, &port->status);
 }
 
 /**
@@ -1540,7 +1530,7 @@ skip_fsfstatus:
  */
 int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
 	int retval = -EIO;
@@ -1566,7 +1556,6 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 	req->erp_action = erp_action;
 	req->qtcb->header.port_handle = erp_action->port->handle;
 	erp_action->fsf_req = req;
-	atomic_set_mask(ZFCP_STATUS_COMMON_CLOSING, &erp_action->port->status);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
@@ -1637,7 +1626,7 @@ skip_fsfstatus:
  */
 int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
 	int retval = -EIO;
@@ -1688,7 +1677,7 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 	int exclusive, readwrite;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		goto skip_fsfstatus;
+		return;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			  ZFCP_STATUS_COMMON_ACCESS_BOXED |
@@ -1798,9 +1787,6 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 		}
 		break;
 	}
-
-skip_fsfstatus:
-	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING, &unit->status);
 }
 
 /**
@@ -1810,7 +1796,7 @@ skip_fsfstatus:
  */
 int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
 	int retval = -EIO;
@@ -1841,8 +1827,6 @@ int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 	if (!(adapter->connection_features & FSF_FEATURE_NPIV_MODE))
 		req->qtcb->bottom.support.option = FSF_OPEN_LUN_SUPPRESS_BOXING;
 
-	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &erp_action->unit->status);
-
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
@@ -1859,7 +1843,7 @@ static void zfcp_fsf_close_unit_handler(struct zfcp_fsf_req *req)
 	struct zfcp_unit *unit = req->data;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		goto skip_fsfstatus;
+		return;
 
 	switch (req->qtcb->header.fsf_status) {
 	case FSF_PORT_HANDLE_NOT_VALID:
@@ -1889,8 +1873,6 @@ static void zfcp_fsf_close_unit_handler(struct zfcp_fsf_req *req)
 		atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN, &unit->status);
 		break;
 	}
-skip_fsfstatus:
-	atomic_clear_mask(ZFCP_STATUS_COMMON_CLOSING, &unit->status);
 }
 
 /**
@@ -1900,7 +1882,7 @@ skip_fsfstatus:
  */
 int zfcp_fsf_close_unit(struct zfcp_erp_action *erp_action)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
 	int retval = -EIO;
@@ -1926,7 +1908,6 @@ int zfcp_fsf_close_unit(struct zfcp_erp_action *erp_action)
 	req->data = erp_action->unit;
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
-	atomic_set_mask(ZFCP_STATUS_COMMON_CLOSING, &erp_action->unit->status);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
@@ -2275,7 +2256,7 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
 					   struct zfcp_unit *unit,
 					   u8 tm_flags, int req_flags)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 	struct fcp_cmnd_iu *fcp_cmnd_iu;
 
@@ -2335,7 +2316,7 @@ static void zfcp_fsf_control_file_handler(struct zfcp_fsf_req *req)
 struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 					   struct zfcp_fsf_cfdc *fsf_cfdc)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
 	struct fsf_qtcb_bottom_support *bottom;
 	int direction, retval = -EIO, bytes;

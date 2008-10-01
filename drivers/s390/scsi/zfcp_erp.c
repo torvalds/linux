@@ -669,8 +669,6 @@ static int zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *act)
 	int ret;
 	struct zfcp_adapter *adapter = act->adapter;
 
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
-
 	write_lock_irq(&adapter->erp_lock);
 	zfcp_erp_action_to_running(act);
 	write_unlock_irq(&adapter->erp_lock);
@@ -741,8 +739,7 @@ static int zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *act,
 				       ZFCP_STATUS_COMMON_OPEN, ZFCP_CLEAR);
  failed_qdio:
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
-			  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-			  ZFCP_STATUS_ADAPTER_XPORT_OK,
+			  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
 			  &act->adapter->status);
 	return retval;
 }
@@ -751,15 +748,11 @@ static int zfcp_erp_adapter_strategy(struct zfcp_erp_action *act)
 {
 	int retval;
 
-	atomic_set_mask(ZFCP_STATUS_COMMON_CLOSING, &act->adapter->status);
 	zfcp_erp_adapter_strategy_generic(act, 1); /* close */
-	atomic_clear_mask(ZFCP_STATUS_COMMON_CLOSING, &act->adapter->status);
 	if (act->status & ZFCP_STATUS_ERP_CLOSE_ONLY)
 		return ZFCP_ERP_EXIT;
 
-	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &act->adapter->status);
 	retval = zfcp_erp_adapter_strategy_generic(act, 0); /* open */
-	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING, &act->adapter->status);
 
 	if (retval == ZFCP_ERP_FAILED)
 		ssleep(8);
@@ -783,9 +776,7 @@ static int zfcp_erp_port_forced_strategy_close(struct zfcp_erp_action *act)
 
 static void zfcp_erp_port_strategy_clearstati(struct zfcp_port *port)
 {
-	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING |
-			  ZFCP_STATUS_COMMON_CLOSING |
-			  ZFCP_STATUS_COMMON_ACCESS_DENIED |
+	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			  ZFCP_STATUS_PORT_DID_DID |
 			  ZFCP_STATUS_PORT_PHYS_CLOSING |
 			  ZFCP_STATUS_PORT_INVALID_WWPN,
@@ -998,9 +989,7 @@ static int zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 
 static void zfcp_erp_unit_strategy_clearstati(struct zfcp_unit *unit)
 {
-	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING |
-			  ZFCP_STATUS_COMMON_CLOSING |
-			  ZFCP_STATUS_COMMON_ACCESS_DENIED |
+	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			  ZFCP_STATUS_UNIT_SHARED |
 			  ZFCP_STATUS_UNIT_READONLY,
 			  &unit->status);

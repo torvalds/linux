@@ -67,14 +67,14 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 
 	list_for_each_entry_safe(port, p, &adapter->port_remove_lh, list) {
 		list_for_each_entry_safe(unit, u, &port->unit_remove_lh, list) {
-			if (atomic_test_mask(ZFCP_STATUS_UNIT_REGISTERED,
-				&unit->status))
+			if (atomic_read(&unit->status) &
+			    ZFCP_STATUS_UNIT_REGISTERED)
 				scsi_remove_device(unit->device);
 			zfcp_unit_dequeue(unit);
 		}
 		zfcp_port_dequeue(port);
 	}
-	zfcp_adapter_wait(adapter);
+	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
 	zfcp_adapter_dequeue(adapter);
 
 	up(&zfcp_data.config_sema);

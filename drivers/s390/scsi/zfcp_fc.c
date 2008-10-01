@@ -47,10 +47,11 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list) {
-		if (atomic_test_mask(ZFCP_STATUS_PORT_WKA, &port->status))
+		if ((atomic_read(&port->status) & ZFCP_STATUS_PORT_WKA) ==
+		      ZFCP_STATUS_PORT_WKA)
 			continue;
 		/* FIXME: ZFCP_STATUS_PORT_DID_DID check is racy */
-		if (!atomic_test_mask(ZFCP_STATUS_PORT_DID_DID, &port->status))
+		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_DID_DID))
 			/* Try to connect to unused ports anyway. */
 			zfcp_erp_port_reopen(port,
 					     ZFCP_STATUS_COMMON_ERP_FAILED,
@@ -255,14 +256,14 @@ struct zfcp_els_adisc {
 	struct scatterlist req;
 	struct scatterlist resp;
 	struct zfcp_ls_adisc ls_adisc;
-	struct zfcp_ls_adisc_acc ls_adisc_acc;
+	struct zfcp_ls_adisc ls_adisc_acc;
 };
 
 static void zfcp_fc_adisc_handler(unsigned long data)
 {
 	struct zfcp_els_adisc *adisc = (struct zfcp_els_adisc *) data;
 	struct zfcp_port *port = adisc->els.port;
-	struct zfcp_ls_adisc_acc *ls_adisc = &adisc->ls_adisc_acc;
+	struct zfcp_ls_adisc *ls_adisc = &adisc->ls_adisc_acc;
 
 	if (adisc->els.status) {
 		/* request rejected or timed out */
@@ -295,7 +296,7 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	sg_init_one(adisc->els.req, &adisc->ls_adisc,
 		    sizeof(struct zfcp_ls_adisc));
 	sg_init_one(adisc->els.resp, &adisc->ls_adisc_acc,
-		    sizeof(struct zfcp_ls_adisc_acc));
+		    sizeof(struct zfcp_ls_adisc));
 
 	adisc->els.req_count = 1;
 	adisc->els.resp_count = 1;
@@ -345,16 +346,16 @@ static int zfcp_scan_get_nameserver(struct zfcp_adapter *adapter)
 	if (!adapter->nameserver_port)
 		return -EINTR;
 
-	if (!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
-			       &adapter->nameserver_port->status)) {
+	if (!(atomic_read(&adapter->nameserver_port->status) &
+	      ZFCP_STATUS_COMMON_UNBLOCKED)) {
 		ret = zfcp_erp_port_reopen(adapter->nameserver_port, 0, 148,
 					   NULL);
 		if (ret)
 			return ret;
 		zfcp_erp_wait(adapter);
 	}
-	return !atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
-				  &adapter->nameserver_port->status);
+	return !(atomic_read(&adapter->nameserver_port->status) &
+		 ZFCP_STATUS_COMMON_UNBLOCKED);
 }
 
 static void zfcp_gpn_ft_handler(unsigned long _done)

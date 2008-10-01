@@ -351,7 +351,7 @@ err_out_free:
  */
 void zfcp_unit_dequeue(struct zfcp_unit *unit)
 {
-	zfcp_unit_wait(unit);
+	wait_event(unit->remove_wq, atomic_read(&unit->refcount) == 0);
 	write_lock_irq(&zfcp_data.config_lock);
 	list_del(&unit->list);
 	write_unlock_irq(&zfcp_data.config_lock);
@@ -740,7 +740,7 @@ err_out:
  */
 void zfcp_port_dequeue(struct zfcp_port *port)
 {
-	zfcp_port_wait(port);
+	wait_event(port->remove_wq, atomic_read(&port->refcount) == 0);
 	write_lock_irq(&zfcp_data.config_lock);
 	list_del(&port->list);
 	port->adapter->ports--;
