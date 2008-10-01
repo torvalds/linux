@@ -224,3 +224,20 @@ int __init zfcp_ccw_register(void)
 {
 	return ccw_driver_register(&zfcp_ccw_driver);
 }
+
+/**
+ * zfcp_get_adapter_by_busid - find zfcp_adapter struct
+ * @busid: bus id string of zfcp adapter to find
+ */
+struct zfcp_adapter *zfcp_get_adapter_by_busid(char *busid)
+{
+	struct ccw_device *ccw_device;
+	struct zfcp_adapter *adapter = NULL;
+
+	ccw_device = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (ccw_device) {
+		adapter = dev_get_drvdata(&ccw_device->dev);
+		put_device(&ccw_device->dev);
+	}
+	return adapter;
+}

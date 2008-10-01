@@ -106,19 +106,6 @@ static int __init zfcp_device_setup(char *devstr)
 	return 0;
 }
 
-static struct zfcp_adapter *zfcp_get_adapter_by_busid(char *bus_id)
-{
-	struct zfcp_adapter *adapter;
-
-	list_for_each_entry(adapter, &zfcp_data.adapter_list_head, list)
-		if ((strncmp(bus_id, adapter->ccw_device->dev.bus_id,
-			     BUS_ID_SIZE) == 0) &&
-		    !(atomic_read(&adapter->status) &
-		      ZFCP_STATUS_COMMON_REMOVE))
-		    return adapter;
-	return NULL;
-}
-
 static void __init zfcp_init_device_configure(void)
 {
 	struct zfcp_adapter *adapter;
