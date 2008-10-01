@@ -115,16 +115,10 @@ void *ring_buffer_event_data(struct ring_buffer_event *event)
  * Thanks to Peter Zijlstra for suggesting this idea.
  */
 struct buffer_page {
-	union {
-		struct {
-			unsigned long	 flags;		/* mandatory */
-			atomic_t	 _count;	/* mandatory */
-			u64		 time_stamp;	/* page time stamp */
-			unsigned	 size;		/* size of page data */
-			struct list_head list;		/* list of free pages */
-		};
-		struct page page;
-	};
+	u64		 time_stamp;	/* page time stamp */
+	unsigned	 size;		/* size of page data */
+	struct list_head list;		/* list of free pages */
+	void *page;			/* Actual data page */
 };
 
 /*
@@ -133,9 +127,9 @@ struct buffer_page {
  */
 static inline void free_buffer_page(struct buffer_page *bpage)
 {
-	reset_page_mapcount(&bpage->page);
-	bpage->page.mapping = NULL;
-	__free_page(&bpage->page);
+	if (bpage->page)
+		__free_page(bpage->page);
+	kfree(bpage);
 }
 
 /*
@@ -237,11 +231,16 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	unsigned i;
 
 	for (i = 0; i < nr_pages; i++) {
+		page = kzalloc_node(ALIGN(sizeof(*page), cache_line_size()),
+				    GFP_KERNEL, cpu_to_node(cpu));
+		if (!page)
+			goto free_pages;
+		list_add(&page->list, &pages);
+
 		addr = __get_free_page(GFP_KERNEL);
 		if (!addr)
 			goto free_pages;
-		page = (struct buffer_page *)virt_to_page(addr);
-		list_add(&page->list, &pages);
+		page->page = (void *)addr;
 	}
 
 	list_splice(&pages, head);
@@ -262,6 +261,7 @@ static struct ring_buffer_per_cpu *
 rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
+	struct buffer_page *page;
 	unsigned long addr;
 	int ret;
 
@@ -275,10 +275,17 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	spin_lock_init(&cpu_buffer->lock);
 	INIT_LIST_HEAD(&cpu_buffer->pages);
 
+	page = kzalloc_node(ALIGN(sizeof(*page), cache_line_size()),
+			    GFP_KERNEL, cpu_to_node(cpu));
+	if (!page)
+		goto fail_free_buffer;
+
+	cpu_buffer->reader_page = page;
 	addr = __get_free_page(GFP_KERNEL);
 	if (!addr)
-		goto fail_free_buffer;
-	cpu_buffer->reader_page = (struct buffer_page *)virt_to_page(addr);
+		goto fail_free_reader;
+	page->page = (void *)addr;
+
 	INIT_LIST_HEAD(&cpu_buffer->reader_page->list);
 	cpu_buffer->reader_page->size = 0;
 
@@ -523,11 +530,16 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 
 	for_each_buffer_cpu(buffer, cpu) {
 		for (i = 0; i < new_pages; i++) {
+			page = kzalloc_node(ALIGN(sizeof(*page),
+						  cache_line_size()),
+					    GFP_KERNEL, cpu_to_node(cpu));
+			if (!page)
+				goto free_pages;
+			list_add(&page->list, &pages);
 			addr = __get_free_page(GFP_KERNEL);
 			if (!addr)
 				goto free_pages;
-			page = (struct buffer_page *)virt_to_page(addr);
-			list_add(&page->list, &pages);
+			page->page = (void *)addr;
 		}
 	}
 
@@ -567,9 +579,7 @@ static inline int rb_null_event(struct ring_buffer_event *event)
 
 static inline void *rb_page_index(struct buffer_page *page, unsigned index)
 {
-	void *addr = page_address(&page->page);
-
-	return addr + index;
+	return page->page + index;
 }
 
 static inline struct ring_buffer_event *
