@@ -69,10 +69,6 @@ __tagtable(ATAG_INITRD2, parse_tag_initrd2);
  */
 static struct meminfo meminfo = { 0, };
 
-#define for_each_nodebank(iter,mi,no)			\
-	for (iter = 0; iter < mi->nr_banks; iter++)	\
-		if (mi->bank[iter].node == no)
-
 void show_mem(void)
 {
 	int free = 0, total = 0, reserved = 0;
@@ -86,11 +82,12 @@ void show_mem(void)
 		struct page *map = n->node_mem_map - n->node_start_pfn;
 
 		for_each_nodebank (i,mi,node) {
+			struct membank *bank = &mi->bank[i];
 			unsigned int pfn1, pfn2;
 			struct page *page, *end;
 
-			pfn1 = __phys_to_pfn(mi->bank[i].start);
-			pfn2 = __phys_to_pfn(mi->bank[i].size + mi->bank[i].start);
+			pfn1 = bank_pfn_start(bank);
+			pfn2 = bank_pfn_end(bank);
 
 			page = map + pfn1;
 			end  = map + pfn2;
@@ -129,17 +126,17 @@ void show_mem(void)
 static unsigned int __init
 find_bootmap_pfn(int node, struct meminfo *mi, unsigned int bootmap_pages)
 {
-	unsigned int start_pfn, bank, bootmap_pfn;
+	unsigned int start_pfn, i, bootmap_pfn;
 
 	start_pfn   = PAGE_ALIGN(__pa(&_end)) >> PAGE_SHIFT;
 	bootmap_pfn = 0;
 
-	for_each_nodebank(bank, mi, node) {
+	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
 		unsigned int start, end;
 
-		start = mi->bank[bank].start >> PAGE_SHIFT;
-		end   = (mi->bank[bank].size +
-			 mi->bank[bank].start) >> PAGE_SHIFT;
+		start = bank_pfn_start(bank);
+		end   = bank_pfn_end(bank);
 
 		if (end < start_pfn)
 			continue;
@@ -178,13 +175,10 @@ static int __init check_initrd(struct meminfo *mi)
 		initrd_node = -1;
 
 		for (i = 0; i < mi->nr_banks; i++) {
-			unsigned long bank_end;
-
-			bank_end = mi->bank[i].start + mi->bank[i].size;
-
-			if (mi->bank[i].start <= phys_initrd_start &&
-			    end <= bank_end)
-				initrd_node = mi->bank[i].node;
+			struct membank *bank = &mi->bank[i];
+			if (bank_phys_start(bank) <= phys_initrd_start &&
+			    end <= bank_phys_end(bank))
+				initrd_node = bank->node;
 		}
 	}
 
@@ -204,9 +198,9 @@ static inline void map_memory_bank(struct membank *bank)
 #ifdef CONFIG_MMU
 	struct map_desc map;
 
-	map.pfn = __phys_to_pfn(bank->start);
-	map.virtual = __phys_to_virt(bank->start);
-	map.length = bank->size;
+	map.pfn = bank_pfn_start(bank);
+	map.virtual = __phys_to_virt(bank_phys_start(bank));
+	map.length = bank_phys_size(bank);
 	map.type = MT_MEMORY;
 
 	create_mapping(&map);
@@ -232,8 +226,8 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 		struct membank *bank = &mi->bank[i];
 		unsigned long start, end;
 
-		start = bank->start >> PAGE_SHIFT;
-		end = (bank->start + bank->size) >> PAGE_SHIFT;
+		start = bank_pfn_start(bank);
+		end = bank_pfn_end(bank);
 
 		if (start_pfn > start)
 			start_pfn = start;
@@ -263,8 +257,10 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	pgdat = NODE_DATA(node);
 	init_bootmem_node(pgdat, boot_pfn, start_pfn, end_pfn);
 
-	for_each_nodebank(i, mi, node)
-		free_bootmem_node(pgdat, mi->bank[i].start, mi->bank[i].size);
+	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
+		free_bootmem_node(pgdat, bank_phys_start(bank), bank_phys_size(bank));
+	}
 
 	/*
 	 * Reserve the bootmem bitmap for this node.
@@ -317,7 +313,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	 */
 	zhole_size[0] = zone_size[0];
 	for_each_nodebank(i, mi, node)
-		zhole_size[0] -= mi->bank[i].size >> PAGE_SHIFT;
+		zhole_size[0] -= bank_pfn_size(&mi->bank[i]);
 
 	/*
 	 * Adjust the sizes according to any special requirements for
@@ -427,7 +423,9 @@ static void __init free_unused_memmap_node(int node, struct meminfo *mi)
 	 * information on the command line.
 	 */
 	for_each_nodebank(i, mi, node) {
-		bank_start = mi->bank[i].start >> PAGE_SHIFT;
+		struct membank *bank = &mi->bank[i];
+
+		bank_start = bank_pfn_start(bank);
 		if (bank_start < prev_bank_end) {
 			printk(KERN_ERR "MEM: unordered memory banks.  "
 				"Not freeing memmap.\n");
@@ -441,8 +439,7 @@ static void __init free_unused_memmap_node(int node, struct meminfo *mi)
 		if (prev_bank_end && prev_bank_end != bank_start)
 			free_memmap(node, prev_bank_end, bank_start);
 
-		prev_bank_end = (mi->bank[i].start +
-				 mi->bank[i].size) >> PAGE_SHIFT;
+		prev_bank_end = bank_pfn_end(bank);
 	}
 }
 
@@ -487,8 +484,8 @@ void __init mem_init(void)
 
 	num_physpages = 0;
 	for (i = 0; i < meminfo.nr_banks; i++) {
-		num_physpages += meminfo.bank[i].size >> PAGE_SHIFT;
-		printk(" %ldMB", meminfo.bank[i].size >> 20);
+		num_physpages += bank_pfn_size(&meminfo.bank[i]);
+		printk(" %ldMB", bank_phys_size(&meminfo.bank[i]) >> 20);
 	}
 
 	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
