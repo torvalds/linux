@@ -419,7 +419,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	struct pci_dev *pdev = NULL;
 	struct resource *found = NULL;
 	unsigned long prot = pgprot_val(protection);
-	unsigned long offset = pfn << PAGE_SHIFT;
+	resource_size_t offset = ((resource_size_t)pfn) << PAGE_SHIFT;
 	int i;
 
 	if (page_is_ram(pfn))
@@ -470,7 +470,8 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
-	resource_size_t offset = vma->vm_pgoff << PAGE_SHIFT;
+	resource_size_t offset =
+		((resource_size_t)vma->vm_pgoff) << PAGE_SHIFT;
 	struct resource *rp;
 	int ret;
 
