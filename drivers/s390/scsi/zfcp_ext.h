@@ -49,6 +49,8 @@ extern void zfcp_hba_dbf_event_fsf_unsol(const char *, struct zfcp_adapter *,
 					 struct fsf_status_read_buffer *);
 extern void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *, unsigned int, int,
 				    int);
+extern void zfcp_hba_dbf_event_berr(struct zfcp_adapter *,
+				    struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_els_request(struct zfcp_fsf_req *);

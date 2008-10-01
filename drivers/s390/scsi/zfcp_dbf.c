@@ -318,6 +318,26 @@ void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *adapter,
 	spin_unlock_irqrestore(&adapter->hba_dbf_lock, flags);
 }
 
+/**
+ * zfcp_hba_dbf_event_berr - trace event for bit error threshold
+ * @adapter: adapter affected by this QDIO related event
+ * @req: fsf request
+ */
+void zfcp_hba_dbf_event_berr(struct zfcp_adapter *adapter,
+			     struct zfcp_fsf_req *req)
+{
+	struct zfcp_hba_dbf_record *r = &adapter->hba_dbf_buf;
+	struct fsf_status_read_buffer *sr_buf = req->data;
+	struct fsf_bit_error_payload *err = &sr_buf->payload.bit_error;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->hba_dbf_lock, flags);
+	memset(r, 0, sizeof(*r));
+	strncpy(r->tag, "berr", ZFCP_DBF_TAG_SIZE);
+	memcpy(&r->u.berr, err, sizeof(struct fsf_bit_error_payload));
+	debug_event(adapter->hba_dbf, 0, r, sizeof(*r));
+	spin_unlock_irqrestore(&adapter->hba_dbf_lock, flags);
+}
 static void zfcp_hba_dbf_view_response(char **p,
 				       struct zfcp_hba_dbf_record_response *r)
 {
@@ -399,6 +419,30 @@ static void zfcp_hba_dbf_view_qdio(char **p, struct zfcp_hba_dbf_record_qdio *r)
 	zfcp_dbf_out(p, "sbal_count", "0x%02x", r->sbal_count);
 }
 
+static void zfcp_hba_dbf_view_berr(char **p, struct fsf_bit_error_payload *r)
+{
+	zfcp_dbf_out(p, "link_failures", "%d", r->link_failure_error_count);
+	zfcp_dbf_out(p, "loss_of_sync_err", "%d", r->loss_of_sync_error_count);
+	zfcp_dbf_out(p, "loss_of_sig_err", "%d", r->loss_of_signal_error_count);
+	zfcp_dbf_out(p, "prim_seq_err", "%d",
+		     r->primitive_sequence_error_count);
+	zfcp_dbf_out(p, "inval_trans_word_err", "%d",
+		     r->invalid_transmission_word_error_count);
+	zfcp_dbf_out(p, "CRC_errors", "%d", r->crc_error_count);
+	zfcp_dbf_out(p, "prim_seq_event_to", "%d",
+		     r->primitive_sequence_event_timeout_count);
+	zfcp_dbf_out(p, "elast_buf_overrun_err", "%d",
+		     r->elastic_buffer_overrun_error_count);
+	zfcp_dbf_out(p, "adv_rec_buf2buf_cred", "%d",
+		     r->advertised_receive_b2b_credit);
+	zfcp_dbf_out(p, "curr_rec_buf2buf_cred", "%d",
+		     r->current_receive_b2b_credit);
+	zfcp_dbf_out(p, "adv_trans_buf2buf_cred", "%d",
+		     r->advertised_transmit_b2b_credit);
+	zfcp_dbf_out(p, "curr_trans_buf2buf_cred", "%d",
+		     r->current_transmit_b2b_credit);
+}
+
 static int zfcp_hba_dbf_view_format(debug_info_t *id, struct debug_view *view,
 				    char *out_buf, const char *in_buf)
 {
@@ -418,6 +462,8 @@ static int zfcp_hba_dbf_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_hba_dbf_view_status(&p, &r->u.status);
 	else if (strncmp(r->tag, "qdio", ZFCP_DBF_TAG_SIZE) == 0)
 		zfcp_hba_dbf_view_qdio(&p, &r->u.qdio);
+	else if (strncmp(r->tag, "berr", ZFCP_DBF_TAG_SIZE) == 0)
+		zfcp_hba_dbf_view_berr(&p, &r->u.berr);
 
 	p += sprintf(p, "\n");
 	return p - out_buf;
