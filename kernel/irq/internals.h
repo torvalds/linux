@@ -10,6 +10,9 @@ extern void irq_chip_set_defaults(struct irq_chip *chip);
 /* Set default handler: */
 extern void compat_irq_chip_set_default_handler(struct irq_desc *desc);
 
+extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
+		unsigned long flags);
+
 #ifdef CONFIG_PROC_FS
 extern void register_irq_proc(unsigned int irq);
 extern void register_handler_proc(unsigned int irq, struct irqaction *action);

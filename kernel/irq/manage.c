@@ -216,7 +216,7 @@ void enable_irq(unsigned int irq)
 }
 EXPORT_SYMBOL(enable_irq);
 
-int set_irq_wake_real(unsigned int irq, unsigned int on)
+static int set_irq_wake_real(unsigned int irq, unsigned int on)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	int ret = -ENXIO;
@@ -305,10 +305,11 @@ void compat_irq_chip_set_default_handler(struct irq_desc *desc)
 		desc->handle_irq = NULL;
 }
 
-static int __irq_set_trigger(struct irq_chip *chip, unsigned int irq,
+int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		unsigned long flags)
 {
 	int ret;
+	struct irq_chip *chip = desc->chip;
 
 	if (!chip || !chip->set_type) {
 		/*
@@ -326,6 +327,11 @@ static int __irq_set_trigger(struct irq_chip *chip, unsigned int irq,
 		pr_err("setting trigger mode %d for irq %u failed (%pF)\n",
 				(int)(flags & IRQF_TRIGGER_MASK),
 				irq, chip->set_type);
+	else {
+		/* note that IRQF_TRIGGER_MASK == IRQ_TYPE_SENSE_MASK */
+		desc->status &= ~IRQ_TYPE_SENSE_MASK;
+		desc->status |= flags & IRQ_TYPE_SENSE_MASK;
+	}
 
 	return ret;
 }
@@ -404,7 +410,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 
 		/* Setup the type (level, edge polarity) if configured: */
 		if (new->flags & IRQF_TRIGGER_MASK) {
-			ret = __irq_set_trigger(desc->chip, irq, new->flags);
+			ret = __irq_set_trigger(desc, irq, new->flags);
 
 			if (ret) {
 				spin_unlock_irqrestore(&desc->lock, flags);
@@ -430,6 +436,14 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 
 		/* Set default affinity mask once everything is setup */
 		irq_select_affinity(irq);
+
+	} else if ((new->flags & IRQF_TRIGGER_MASK)
+			&& (new->flags & IRQF_TRIGGER_MASK)
+				!= (desc->status & IRQ_TYPE_SENSE_MASK)) {
+		/* hope the handler works with the actual trigger mode... */
+		pr_warning("IRQ %d uses trigger mode %d; requested %d\n",
+				irq, (int)(desc->status & IRQ_TYPE_SENSE_MASK),
+				(int)(new->flags & IRQF_TRIGGER_MASK));
 	}
 
 	*p = new;
@@ -586,6 +600,7 @@ EXPORT_SYMBOL(free_irq);
  *	IRQF_SHARED		Interrupt is shared
  *	IRQF_DISABLED	Disable local interrupts while processing
  *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
+ *	IRQF_TRIGGER_*		Specify active edge(s) or level
  *
  */
 int request_irq(unsigned int irq, irq_handler_t handler,
