@@ -837,10 +837,10 @@ static int dm_merge_bvec(struct request_queue *q,
 	struct dm_table *map = dm_get_table(md);
 	struct dm_target *ti;
 	sector_t max_sectors;
-	int max_size;
+	int max_size = 0;
 
 	if (unlikely(!map))
-		return 0;
+		goto out;
 
 	ti = dm_table_find_target(map, bvm->bi_sector);
 
@@ -861,13 +861,14 @@ static int dm_merge_bvec(struct request_queue *q,
 	if (max_size && ti->type->merge)
 		max_size = ti->type->merge(ti, bvm, biovec, max_size);
 
+	dm_table_put(map);
+
+out:
 	/*
 	 * Always allow an entire first page
 	 */
 	if (max_size <= biovec->bv_len && !(bvm->bi_size >> SECTOR_SHIFT))
 		max_size = biovec->bv_len;
-
-	dm_table_put(map);
 
 	return max_size;
 }
