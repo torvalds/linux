@@ -419,7 +419,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			     (1<<IP_TTL) | (1<<IP_HDRINCL) |
 			     (1<<IP_MTU_DISCOVER) | (1<<IP_RECVERR) |
 			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
-			     (1<<IP_PASSSEC))) ||
+			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT))) ||
 	    optname == IP_MULTICAST_TTL ||
 	    optname == IP_MULTICAST_LOOP) {
 		if (optlen >= sizeof(int)) {
@@ -878,6 +878,16 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		err = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
+	case IP_TRANSPARENT:
+		if (!capable(CAP_NET_ADMIN)) {
+			err = -EPERM;
+			break;
+		}
+		if (optlen < 1)
+			goto e_inval;
+		inet->transparent = !!val;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -1129,6 +1139,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	}
 	case IP_FREEBIND:
 		val = inet->freebind;
+		break;
+	case IP_TRANSPARENT:
+		val = inet->transparent;
 		break;
 	default:
 		release_sock(sk);

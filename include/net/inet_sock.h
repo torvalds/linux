@@ -129,7 +129,8 @@ struct inet_sock {
 				is_icsk:1,
 				freebind:1,
 				hdrincl:1,
-				mc_loop:1;
+				mc_loop:1,
+				transparent:1;
 	int			mc_index;
 	__be32			mc_addr;
 	struct ip_mc_socklist	*mc_list;
