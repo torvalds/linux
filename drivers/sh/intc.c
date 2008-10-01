@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
+#include <linux/sh_intc.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
