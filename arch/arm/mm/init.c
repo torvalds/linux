@@ -79,7 +79,7 @@ void show_mem(void)
 	show_free_areas();
 	for_each_online_node(node) {
 		pg_data_t *n = NODE_DATA(node);
-		struct page *map = n->node_mem_map - n->node_start_pfn;
+		struct page *map = pgdat_page_nr(n, 0) - n->node_start_pfn;
 
 		for_each_nodebank (i,mi,node) {
 			struct membank *bank = &mi->bank[i];
@@ -207,10 +207,8 @@ static inline void map_memory_bank(struct membank *bank)
 #endif
 }
 
-static unsigned long __init
-bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
+static unsigned long __init bootmem_init_node(int node, struct meminfo *mi)
 {
-	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
 	unsigned long start_pfn, end_pfn, boot_pfn;
 	unsigned int boot_pages;
 	pg_data_t *pgdat;
@@ -260,6 +258,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	for_each_nodebank(i, mi, node) {
 		struct membank *bank = &mi->bank[i];
 		free_bootmem_node(pgdat, bank_phys_start(bank), bank_phys_size(bank));
+		memory_present(node, bank_pfn_start(bank), bank_pfn_end(bank));
 	}
 
 	/*
@@ -268,31 +267,39 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	reserve_bootmem_node(pgdat, boot_pfn << PAGE_SHIFT,
 			     boot_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
 
-	/*
-	 * Reserve any special node zero regions.
-	 */
-	if (node == 0)
-		reserve_node_zero(pgdat);
+	return end_pfn;
+}
 
+static void __init bootmem_reserve_initrd(int node)
+{
 #ifdef CONFIG_BLK_DEV_INITRD
-	/*
-	 * If the initrd is in this node, reserve its memory.
-	 */
-	if (node == initrd_node) {
-		int res = reserve_bootmem_node(pgdat, phys_initrd_start,
-				     phys_initrd_size, BOOTMEM_EXCLUSIVE);
+	pg_data_t *pgdat = NODE_DATA(node);
+	int res;
 
-		if (res == 0) {
-			initrd_start = __phys_to_virt(phys_initrd_start);
-			initrd_end = initrd_start + phys_initrd_size;
-		} else {
-			printk(KERN_ERR
-				"INITRD: 0x%08lx+0x%08lx overlaps in-use "
-				"memory region - disabling initrd\n",
-				phys_initrd_start, phys_initrd_size);
-		}
+	res = reserve_bootmem_node(pgdat, phys_initrd_start,
+			     phys_initrd_size, BOOTMEM_EXCLUSIVE);
+
+	if (res == 0) {
+		initrd_start = __phys_to_virt(phys_initrd_start);
+		initrd_end = initrd_start + phys_initrd_size;
+	} else {
+		printk(KERN_ERR
+			"INITRD: 0x%08lx+0x%08lx overlaps in-use "
+			"memory region - disabling initrd\n",
+			phys_initrd_start, phys_initrd_size);
 	}
 #endif
+}
+
+static void __init bootmem_free_node(int node, struct meminfo *mi)
+{
+	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
+	unsigned long start_pfn, end_pfn;
+	pg_data_t *pgdat = NODE_DATA(node);
+	int i;
+
+	start_pfn = pgdat->bdata->node_min_pfn;
+	end_pfn = pgdat->bdata->node_low_pfn;
 
 	/*
 	 * initialise the zones within this node.
@@ -322,8 +329,6 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	arch_adjust_zones(node, zone_size, zhole_size);
 
 	free_area_init_node(node, zone_size, start_pfn, zhole_size);
-
-	return end_pfn;
 }
 
 void __init bootmem_init(struct meminfo *mi)
@@ -342,9 +347,19 @@ void __init bootmem_init(struct meminfo *mi)
 	 * Run through each node initialising the bootmem allocator.
 	 */
 	for_each_node(node) {
-		unsigned long end_pfn;
+		unsigned long end_pfn = bootmem_init_node(node, mi);
 
-		end_pfn = bootmem_init_node(node, initrd_node, mi);
+		/*
+		 * Reserve any special node zero regions.
+		 */
+		if (node == 0)
+			reserve_node_zero(NODE_DATA(node));
+
+		/*
+		 * If the initrd is in this node, reserve its memory.
+		 */
+		if (node == initrd_node)
+			bootmem_reserve_initrd(node);
 
 		/*
 		 * Remember the highest memory PFN.
@@ -352,6 +367,19 @@ void __init bootmem_init(struct meminfo *mi)
 		if (end_pfn > memend_pfn)
 			memend_pfn = end_pfn;
 	}
+
+	/*
+	 * sparse_init() needs the bootmem allocator up and running.
+	 */
+	sparse_init();
+
+	/*
+	 * Now free memory in each node - free_area_init_node needs
+	 * the sparse mem_map arrays initialized by sparse_init()
+	 * for memmap_init_zone(), otherwise all PFNs are invalid.
+	 */
+	for_each_node(node)
+		bootmem_free_node(node, mi);
 
 	high_memory = __va(memend_pfn << PAGE_SHIFT);
 
