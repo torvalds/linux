@@ -100,8 +100,7 @@ static int __init zfcp_device_setup(char *devstr)
 
  err_out:
 	kfree(str);
-	pr_err("zfcp: Parse error for device parameter string %s, "
-	       "device not attached.\n", devstr);
+	pr_err("zfcp: %s is not a valid SCSI device\n", devstr);
 	return 0;
 }
 
@@ -193,13 +192,14 @@ static int __init zfcp_module_init(void)
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval) {
-		pr_err("zfcp: registration of misc device zfcp_cfdc failed\n");
+		pr_err("zfcp: Registering the misc device zfcp_cfdc failed\n");
 		goto out_misc;
 	}
 
 	retval = zfcp_ccw_register();
 	if (retval) {
-		pr_err("zfcp: Registration with common I/O layer failed.\n");
+		pr_err("zfcp: The zfcp device driver could not register with "
+		       "the common I/O layer\n");
 		goto out_ccw_register;
 	}
 

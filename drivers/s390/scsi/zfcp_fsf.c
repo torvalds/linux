@@ -50,19 +50,16 @@ static u32 fsf_qtcb_type[] = {
 	[FSF_QTCB_UPLOAD_CONTROL_FILE] =  FSF_SUPPORT_COMMAND
 };
 
-static const char *zfcp_act_subtable_type[] = {
-	"unknown", "OS", "WWPN", "DID", "LUN"
-};
-
 static void zfcp_act_eval_err(struct zfcp_adapter *adapter, u32 table)
 {
 	u16 subtable = table >> 16;
 	u16 rule = table & 0xffff;
+	const char *act_type[] = { "unknown", "OS", "WWPN", "DID", "LUN" };
 
-	if (subtable && subtable < ARRAY_SIZE(zfcp_act_subtable_type))
+	if (subtable && subtable < ARRAY_SIZE(act_type))
 		dev_warn(&adapter->ccw_device->dev,
-			 "Access denied in subtable %s, rule %d.\n",
-			 zfcp_act_subtable_type[subtable], rule);
+			 "Access denied according to ACT rule type %s, "
+			 "rule %d\n", act_type[subtable], rule);
 }
 
 static void zfcp_fsf_access_denied_port(struct zfcp_fsf_req *req,
@@ -70,7 +67,7 @@ static void zfcp_fsf_access_denied_port(struct zfcp_fsf_req *req,
 {
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 	dev_warn(&req->adapter->ccw_device->dev,
-		 "Access denied, cannot send command to port 0x%016Lx.\n",
+		 "Access denied to port 0x%016Lx\n",
 		 port->wwpn);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[0]);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[1]);
@@ -83,7 +80,7 @@ static void zfcp_fsf_access_denied_unit(struct zfcp_fsf_req *req,
 {
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 	dev_warn(&req->adapter->ccw_device->dev,
-		 "Access denied for unit 0x%016Lx on port 0x%016Lx.\n",
+		 "Access denied to unit 0x%016Lx on port 0x%016Lx\n",
 		 unit->fcp_lun, unit->port->wwpn);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[0]);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[1]);
@@ -93,9 +90,8 @@ static void zfcp_fsf_access_denied_unit(struct zfcp_fsf_req *req,
 
 static void zfcp_fsf_class_not_supp(struct zfcp_fsf_req *req)
 {
-	dev_err(&req->adapter->ccw_device->dev,
-		"Required FC class not supported by adapter, "
-		"shutting down adapter.\n");
+	dev_err(&req->adapter->ccw_device->dev, "FCP device not "
+		"operational because of an unsupported FC class\n");
 	zfcp_erp_adapter_shutdown(req->adapter, 0, 123, req);
 	req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 }
@@ -171,42 +167,6 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
-static void zfcp_fsf_bit_error_threshold(struct zfcp_fsf_req *req)
-{
-	struct zfcp_adapter *adapter = req->adapter;
-	struct fsf_status_read_buffer *sr_buf = req->data;
-	struct fsf_bit_error_payload *err = &sr_buf->payload.bit_error;
-
-	dev_warn(&adapter->ccw_device->dev,
-		 "Warning: bit error threshold data "
-		 "received for the adapter: "
-		 "link failures = %i, loss of sync errors = %i, "
-		 "loss of signal errors = %i, "
-		 "primitive sequence errors = %i, "
-		 "invalid transmission word errors = %i, "
-		 "CRC errors = %i).\n",
-		 err->link_failure_error_count,
-		 err->loss_of_sync_error_count,
-		 err->loss_of_signal_error_count,
-		 err->primitive_sequence_error_count,
-		 err->invalid_transmission_word_error_count,
-		 err->crc_error_count);
-	dev_warn(&adapter->ccw_device->dev,
-		 "Additional bit error threshold data of the adapter: "
-		 "primitive sequence event time-outs = %i, "
-		 "elastic buffer overrun errors = %i, "
-		 "advertised receive buffer-to-buffer credit = %i, "
-		 "current receice buffer-to-buffer credit = %i, "
-		 "advertised transmit buffer-to-buffer credit = %i, "
-		 "current transmit buffer-to-buffer credit = %i).\n",
-		 err->primitive_sequence_event_timeout_count,
-		 err->elastic_buffer_overrun_error_count,
-		 err->advertised_receive_b2b_credit,
-		 err->current_receive_b2b_credit,
-		 err->advertised_transmit_b2b_credit,
-		 err->current_transmit_b2b_credit);
-}
-
 static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, u8 id,
 					 struct fsf_link_down_info *link_down)
 {
@@ -223,62 +183,66 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, u8 id,
 	switch (link_down->error_code) {
 	case FSF_PSQ_LINK_NO_LIGHT:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: no light detected.\n");
+			 "There is no light signal from the local "
+			 "fibre channel cable\n");
 		break;
 	case FSF_PSQ_LINK_WRAP_PLUG:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: wrap plug detected.\n");
+			 "There is a wrap plug instead of a fibre "
+			 "channel cable\n");
 		break;
 	case FSF_PSQ_LINK_NO_FCP:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "adjacent node on link does not support FCP.\n");
+			 "The adjacent fibre channel node does not "
+			 "support FCP\n");
 		break;
 	case FSF_PSQ_LINK_FIRMWARE_UPDATE:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "firmware update in progress.\n");
+			 "The FCP device is suspended because of a "
+			 "firmware update\n");
 		break;
 	case FSF_PSQ_LINK_INVALID_WWPN:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "duplicate or invalid WWPN detected.\n");
+			 "The FCP device detected a WWPN that is "
+			 "duplicate or not valid\n");
 		break;
 	case FSF_PSQ_LINK_NO_NPIV_SUPPORT:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "no support for NPIV by Fabric.\n");
+			 "The fibre channel fabric does not support NPIV\n");
 		break;
 	case FSF_PSQ_LINK_NO_FCP_RESOURCES:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "out of resource in FCP daughtercard.\n");
+			 "The FCP adapter cannot support more NPIV ports\n");
 		break;
 	case FSF_PSQ_LINK_NO_FABRIC_RESOURCES:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "out of resource in Fabric.\n");
+			 "The adjacent switch cannot support "
+			 "more NPIV ports\n");
 		break;
 	case FSF_PSQ_LINK_FABRIC_LOGIN_UNABLE:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link is down: "
-			 "unable to login to Fabric.\n");
+			 "The FCP adapter could not log in to the "
+			 "fibre channel fabric\n");
 		break;
 	case FSF_PSQ_LINK_WWPN_ASSIGNMENT_CORRUPTED:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "WWPN assignment file corrupted on adapter.\n");
+			 "The WWPN assignment file on the FCP adapter "
+			 "has been damaged\n");
 		break;
 	case FSF_PSQ_LINK_MODE_TABLE_CURRUPTED:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "Mode table corrupted on adapter.\n");
+			 "The mode table on the FCP adapter "
+			 "has been damaged\n");
 		break;
 	case FSF_PSQ_LINK_NO_WWPN_ASSIGNMENT:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "No WWPN for assignment table on adapter.\n");
+			 "All NPIV ports on the FCP adapter have "
+			 "been assigned\n");
 		break;
 	default:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The local link to adapter is down.\n");
+			 "The link between the FCP adapter and "
+			 "the FC fabric is down\n");
 	}
 out:
 	zfcp_erp_adapter_failed(adapter, id, req);
@@ -286,27 +250,18 @@ out:
 
 static void zfcp_fsf_status_read_link_down(struct zfcp_fsf_req *req)
 {
-	struct zfcp_adapter *adapter = req->adapter;
 	struct fsf_status_read_buffer *sr_buf = req->data;
 	struct fsf_link_down_info *ldi =
 		(struct fsf_link_down_info *) &sr_buf->payload;
 
 	switch (sr_buf->status_subtype) {
 	case FSF_STATUS_READ_SUB_NO_PHYSICAL_LINK:
-		dev_warn(&adapter->ccw_device->dev,
-			 "Physical link is down.\n");
 		zfcp_fsf_link_down_info_eval(req, 38, ldi);
 		break;
 	case FSF_STATUS_READ_SUB_FDISC_FAILED:
-		dev_warn(&adapter->ccw_device->dev,
-			 "Local link is down "
-			 "due to failed FDISC login.\n");
 		zfcp_fsf_link_down_info_eval(req, 39, ldi);
 		break;
 	case FSF_STATUS_READ_SUB_FIRMWARE_UPDATE:
-		dev_warn(&adapter->ccw_device->dev,
-			 "Local link is down "
-			 "due to firmware update on adapter.\n");
 		zfcp_fsf_link_down_info_eval(req, 40, NULL);
 	};
 }
@@ -335,14 +290,16 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 	case FSF_STATUS_READ_SENSE_DATA_AVAIL:
 		break;
 	case FSF_STATUS_READ_BIT_ERROR_THRESHOLD:
-		zfcp_fsf_bit_error_threshold(req);
+		dev_warn(&adapter->ccw_device->dev,
+			 "The error threshold for checksum statistics "
+			 "has been exceeded\n");
 		break;
 	case FSF_STATUS_READ_LINK_DOWN:
 		zfcp_fsf_status_read_link_down(req);
 		break;
 	case FSF_STATUS_READ_LINK_UP:
 		dev_info(&adapter->ccw_device->dev,
-			 "Local link was replugged.\n");
+			 "The local link has been restored\n");
 		/* All ports should be marked as ready to run again */
 		zfcp_erp_modify_adapter_status(adapter, 30, NULL,
 					       ZFCP_STATUS_COMMON_RUNNING,
@@ -386,8 +343,8 @@ static void zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *req)
 		break;
 	case FSF_SQ_NO_RECOM:
 		dev_err(&req->adapter->ccw_device->dev,
-			"No recommendation could be given for a "
-			"problem on the adapter.\n");
+			"The FCP adapter reported a problem "
+			"that cannot be recovered\n");
 		zfcp_erp_adapter_shutdown(req->adapter, 0, 121, req);
 		break;
 	}
@@ -403,8 +360,7 @@ static void zfcp_fsf_fsfstatus_eval(struct zfcp_fsf_req *req)
 	switch (req->qtcb->header.fsf_status) {
 	case FSF_UNKNOWN_COMMAND:
 		dev_err(&req->adapter->ccw_device->dev,
-			"Command issued by the device driver (0x%x) is "
-			"not known by the adapter.\n",
+			"The FCP adapter does not recognize the command 0x%x\n",
 			req->qtcb->header.fsf_command);
 		zfcp_erp_adapter_shutdown(req->adapter, 0, 120, req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -435,11 +391,9 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		return;
 	case FSF_PROT_QTCB_VERSION_ERROR:
 		dev_err(&adapter->ccw_device->dev,
-			"The QTCB version requested by zfcp (0x%x) is not "
-			"supported by the FCP adapter (lowest supported "
-			"0x%x, highest supported 0x%x).\n",
-			FSF_QTCB_CURRENT_VERSION, psq->word[0],
-			psq->word[1]);
+			"QTCB version 0x%x not supported by FCP adapter "
+			"(0x%x to 0x%x)\n", FSF_QTCB_CURRENT_VERSION,
+			psq->word[0], psq->word[1]);
 		zfcp_erp_adapter_shutdown(adapter, 0, 117, req);
 		break;
 	case FSF_PROT_ERROR_STATE:
@@ -449,8 +403,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		break;
 	case FSF_PROT_UNSUPP_QTCB_TYPE:
 		dev_err(&adapter->ccw_device->dev,
-			"Packet header type used by the device driver is "
-			"incompatible with that used on the adapter.\n");
+			"The QTCB type is not supported by the FCP adapter\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 118, req);
 		break;
 	case FSF_PROT_HOST_CONNECTION_INITIALIZING:
@@ -459,7 +412,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		break;
 	case FSF_PROT_DUPLICATE_REQUEST_ID:
 		dev_err(&adapter->ccw_device->dev,
-			"The request identifier 0x%Lx is ambiguous.\n",
+			"0x%Lx is an ambiguous request identifier\n",
 			(unsigned long long)qtcb->bottom.support.req_handle);
 		zfcp_erp_adapter_shutdown(adapter, 0, 78, req);
 		break;
@@ -479,9 +432,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		break;
 	default:
 		dev_err(&adapter->ccw_device->dev,
-			"Transfer protocol status information"
-			"provided by the adapter (0x%x) "
-			"is not compatible with the device driver.\n",
+			"0x%x is not a valid transfer protocol status\n",
 			qtcb->prefix.prot_status);
 		zfcp_erp_adapter_shutdown(adapter, 0, 119, req);
 	}
@@ -559,33 +510,17 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		adapter->peer_wwpn = bottom->plogi_payload.wwpn;
 		adapter->peer_wwnn = bottom->plogi_payload.wwnn;
 		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
-		if (req->erp_action)
-			dev_info(&adapter->ccw_device->dev,
-				 "Point-to-Point fibrechannel "
-				 "configuration detected.\n");
 		break;
 	case FSF_TOPO_FABRIC:
 		fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
-		if (req->erp_action)
-			dev_info(&adapter->ccw_device->dev,
-				 "Switched fabric fibrechannel "
-				 "network detected.\n");
 		break;
 	case FSF_TOPO_AL:
 		fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
-		dev_err(&adapter->ccw_device->dev,
-			"Unsupported arbitrated loop fibrechannel "
-			"topology detected, shutting down "
-			"adapter.\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, 127, req);
-		return -EIO;
 	default:
-		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
 		dev_err(&adapter->ccw_device->dev,
-			"The fibrechannel topology reported by the"
-			" adapter is not known by the zfcp driver,"
-			" shutting down adapter.\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, 128, req);
+			"Unknown or unsupported arbitrated loop "
+			"fibre channel topology detected\n");
+		zfcp_erp_adapter_shutdown(adapter, 0, 127, req);
 		return -EIO;
 	}
 
@@ -616,11 +551,9 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 
 		if (bottom->max_qtcb_size < sizeof(struct fsf_qtcb)) {
 			dev_err(&adapter->ccw_device->dev,
-				"Maximum QTCB size (%d bytes) allowed by "
-				"the adapter is lower than the minimum "
-				"required by the driver (%ld bytes).\n",
-				bottom->max_qtcb_size,
-				sizeof(struct fsf_qtcb));
+				"FCP adapter maximum QTCB size (%d bytes) "
+				"is too small\n",
+				bottom->max_qtcb_size);
 			zfcp_erp_adapter_shutdown(adapter, 0, 129, req);
 			return;
 		}
@@ -656,15 +589,15 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 
 	if (FSF_QTCB_CURRENT_VERSION < bottom->low_qtcb_version) {
 		dev_err(&adapter->ccw_device->dev,
-			"The adapter only supports newer control block "
-			"versions, try updated device driver.\n");
+			"The FCP adapter only supports newer "
+			"control block versions\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 125, req);
 		return;
 	}
 	if (FSF_QTCB_CURRENT_VERSION > bottom->high_qtcb_version) {
 		dev_err(&adapter->ccw_device->dev,
-			"The adapter only supports older control block "
-			"versions, consider a microcode upgrade.\n");
+			"The FCP adapter only supports older "
+			"control block versions\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 126, req);
 	}
 }
@@ -1463,9 +1396,8 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
 		dev_warn(&req->adapter->ccw_device->dev,
-			 "The adapter is out of resources. The remote port "
-			 "0x%016Lx could not be opened, disabling it.\n",
-			 port->wwpn);
+			 "Not enough FCP adapter resources to open "
+			 "remote port 0x%016Lx\n", port->wwpn);
 		zfcp_erp_port_failed(port, 31, req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
@@ -1477,8 +1409,8 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 			break;
 		case FSF_SQ_NO_RETRY_POSSIBLE:
 			dev_warn(&req->adapter->ccw_device->dev,
-				 "The remote port 0x%016Lx could not be "
-				 "opened. Disabling it.\n", port->wwpn);
+				 "Remote port 0x%016Lx could not be opened\n",
+				 port->wwpn);
 			zfcp_erp_port_failed(port, 32, req);
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
@@ -1784,14 +1716,12 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 	case FSF_LUN_SHARING_VIOLATION:
 		if (header->fsf_status_qual.word[0])
 			dev_warn(&adapter->ccw_device->dev,
-				 "FCP-LUN 0x%Lx at the remote port "
-				 "with WWPN 0x%Lx "
-				 "connected to the adapter "
-				 "is already in use in LPAR%d, CSS%d.\n",
+				 "LUN 0x%Lx on port 0x%Lx is already in "
+				 "use by CSS%d, MIF Image ID %x\n",
 				 unit->fcp_lun,
 				 unit->port->wwpn,
-				 queue_designator->hla,
-				 queue_designator->cssid);
+				 queue_designator->cssid,
+				 queue_designator->hla);
 		else
 			zfcp_act_eval_err(adapter,
 					  header->fsf_status_qual.word[2]);
@@ -1802,8 +1732,8 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_MAXIMUM_NUMBER_OF_LUNS_EXCEEDED:
 		dev_warn(&adapter->ccw_device->dev,
-			 "The adapter ran out of resources. There is no "
-			 "handle available for unit 0x%016Lx on port 0x%016Lx.",
+			 "No handle is available for LUN "
+			 "0x%016Lx on port 0x%016Lx\n",
 			 unit->fcp_lun, unit->port->wwpn);
 		zfcp_erp_unit_failed(unit, 34, req);
 		/* fall through */
@@ -1841,25 +1771,25 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
                 		atomic_set_mask(ZFCP_STATUS_UNIT_READONLY,
 						&unit->status);
 				dev_info(&adapter->ccw_device->dev,
-					 "Read-only access for unit 0x%016Lx "
-					 "on port 0x%016Lx.\n",
+					 "SCSI device at LUN 0x%016Lx on port "
+					 "0x%016Lx opened read-only\n",
 					 unit->fcp_lun, unit->port->wwpn);
         		}
 
         		if (exclusive && !readwrite) {
 				dev_err(&adapter->ccw_device->dev,
-					"Exclusive access of read-only unit "
-					"0x%016Lx on port 0x%016Lx not "
-					"supported, disabling unit.\n",
+					"Exclusive read-only access not "
+					"supported (unit 0x%016Lx, "
+					"port 0x%016Lx)\n",
 					unit->fcp_lun, unit->port->wwpn);
 				zfcp_erp_unit_failed(unit, 35, req);
 				req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 				zfcp_erp_unit_shutdown(unit, 0, 80, req);
         		} else if (!exclusive && readwrite) {
 				dev_err(&adapter->ccw_device->dev,
-					"Shared access of read-write unit "
-					"0x%016Lx on port 0x%016Lx not "
-					"supported, disabling unit.\n",
+					"Shared read-write access not "
+					"supported (unit 0x%016Lx, port "
+					"0x%016Lx\n)",
 					unit->fcp_lun, unit->port->wwpn);
 				zfcp_erp_unit_failed(unit, 36, req);
 				req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -2166,9 +2096,8 @@ static void zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_DIRECTION_INDICATOR_NOT_VALID:
 		dev_err(&req->adapter->ccw_device->dev,
-			"Invalid data direction (%d) given for unit "
-			"0x%016Lx on port 0x%016Lx, shutting down "
-			"adapter.\n",
+			"Incorrect direction %d, unit 0x%016Lx on port "
+			"0x%016Lx closed\n",
 			req->qtcb->bottom.io.data_direction,
 			unit->fcp_lun, unit->port->wwpn);
 		zfcp_erp_adapter_shutdown(unit->port->adapter, 0, 133, req);
@@ -2176,9 +2105,8 @@ static void zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_CMND_LENGTH_NOT_VALID:
 		dev_err(&req->adapter->ccw_device->dev,
-			"An invalid control-data-block length field (%d) "
-			"was found in a command for unit 0x%016Lx on port "
-			"0x%016Lx. Shutting down adapter.\n",
+			"Incorrect CDB length %d, unit 0x%016Lx on "
+			"port 0x%016Lx closed\n",
 			req->qtcb->bottom.io.fcp_cmnd_length,
 			unit->fcp_lun, unit->port->wwpn);
 		zfcp_erp_adapter_shutdown(unit->port->adapter, 0, 134, req);
@@ -2306,10 +2234,9 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 			retval = -EIO;
 		else {
 			dev_err(&adapter->ccw_device->dev,
-				"SCSI request too large. "
-				"Shutting down unit 0x%016Lx on port "
-				"0x%016Lx.\n", unit->fcp_lun,
-				unit->port->wwpn);
+				"Oversize data package, unit 0x%016Lx "
+				"on port 0x%016Lx closed\n",
+				unit->fcp_lun, unit->port->wwpn);
 			zfcp_erp_unit_shutdown(unit, 0, 131, req);
 			retval = -EINVAL;
 		}

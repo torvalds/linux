@@ -294,7 +294,8 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 					     sizeof (struct zfcp_adapter *));
 	if (!adapter->scsi_host) {
 		dev_err(&adapter->ccw_device->dev,
-			"registration with SCSI stack failed.");
+			"Registering the FCP device with the "
+			"SCSI stack failed\n");
 		return -EIO;
 	}
 

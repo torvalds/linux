@@ -901,11 +901,6 @@ static int zfcp_erp_open_ptp_port(struct zfcp_erp_action *act)
 	struct zfcp_port *port = act->port;
 
 	if (port->wwpn != adapter->peer_wwpn) {
-		dev_err(&adapter->ccw_device->dev,
-			"Failed to open port 0x%016Lx, "
-			"Peer WWPN 0x%016Lx does not "
-			"match.\n", port->wwpn,
-			adapter->peer_wwpn);
 		zfcp_erp_port_failed(port, 25, NULL);
 		return ZFCP_ERP_FAILED;
 	}
@@ -929,7 +924,8 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 			return zfcp_erp_open_ptp_port(act);
 		if (!ns_port) {
 			dev_err(&adapter->ccw_device->dev,
-				"Nameserver port unavailable.\n");
+				"Attaching the name server port to the "
+				"FCP device failed\n");
 			return ZFCP_ERP_FAILED;
 		}
 		if (!(atomic_read(&ns_port->status) &
@@ -1065,8 +1061,13 @@ static int zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 		break;
 	case ZFCP_ERP_FAILED :
 		atomic_inc(&unit->erp_counter);
-		if (atomic_read(&unit->erp_counter) > ZFCP_MAX_ERPS)
+		if (atomic_read(&unit->erp_counter) > ZFCP_MAX_ERPS) {
+			dev_err(&unit->port->adapter->ccw_device->dev,
+				"ERP failed for unit 0x%016Lx on "
+				"port 0x%016Lx\n",
+				unit->fcp_lun, unit->port->wwpn);
 			zfcp_erp_unit_failed(unit, 21, NULL);
+		}
 		break;
 	}
 
@@ -1091,8 +1092,12 @@ static int zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 			result = ZFCP_ERP_EXIT;
 		}
 		atomic_inc(&port->erp_counter);
-		if (atomic_read(&port->erp_counter) > ZFCP_MAX_ERPS)
+		if (atomic_read(&port->erp_counter) > ZFCP_MAX_ERPS) {
+			dev_err(&port->adapter->ccw_device->dev,
+				"ERP failed for remote port 0x%016Lx\n",
+				port->wwpn);
 			zfcp_erp_port_failed(port, 22, NULL);
+		}
 		break;
 	}
 
@@ -1114,8 +1119,12 @@ static int zfcp_erp_strategy_check_adapter(struct zfcp_adapter *adapter,
 
 	case ZFCP_ERP_FAILED :
 		atomic_inc(&adapter->erp_counter);
-		if (atomic_read(&adapter->erp_counter) > ZFCP_MAX_ERPS)
+		if (atomic_read(&adapter->erp_counter) > ZFCP_MAX_ERPS) {
+			dev_err(&adapter->ccw_device->dev,
+				"ERP cannot recover an error "
+				"on the FCP device\n");
 			zfcp_erp_adapter_failed(adapter, 23, NULL);
+		}
 		break;
 	}
 
@@ -1263,8 +1272,7 @@ static void zfcp_erp_schedule_work(struct zfcp_unit *unit)
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		dev_err(&unit->port->adapter->ccw_device->dev,
-			"Out of resources. Could not register unit "
-			"0x%016Lx on port 0x%016Lx with SCSI stack.\n",
+			"Registering unit 0x%016Lx on port 0x%016Lx failed\n",
 			unit->fcp_lun, unit->port->wwpn);
 		return;
 	}
@@ -1286,8 +1294,8 @@ static void zfcp_erp_rport_register(struct zfcp_port *port)
 	port->rport = fc_remote_port_add(port->adapter->scsi_host, 0, &ids);
 	if (!port->rport) {
 		dev_err(&port->adapter->ccw_device->dev,
-			"Failed registration of rport "
-			"0x%016Lx.\n", port->wwpn);
+			"Registering port 0x%016Lx failed\n",
+			port->wwpn);
 		return;
 	}
 
@@ -1484,7 +1492,7 @@ int zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 	retval = kernel_thread(zfcp_erp_thread, adapter, SIGCHLD);
 	if (retval < 0) {
 		dev_err(&adapter->ccw_device->dev,
-			"Creation of ERP thread failed.\n");
+			"Creating an ERP thread for the FCP device failed.\n");
 		return retval;
 	}
 	wait_event(adapter->erp_thread_wqh,
@@ -1526,7 +1534,6 @@ void zfcp_erp_adapter_failed(struct zfcp_adapter *adapter, u8 id, void *ref)
 {
 	zfcp_erp_modify_adapter_status(adapter, id, ref,
 				       ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
-	dev_err(&adapter->ccw_device->dev, "Adapter ERP failed.\n");
 }
 
 /**
@@ -1539,15 +1546,6 @@ void zfcp_erp_port_failed(struct zfcp_port *port, u8 id, void *ref)
 {
 	zfcp_erp_modify_port_status(port, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
-
-	if (atomic_read(&port->status) & ZFCP_STATUS_PORT_WKA)
-		dev_err(&port->adapter->ccw_device->dev,
-			"Port ERP failed for WKA port d_id=0x%06x.\n",
-			port->d_id);
-	else
-		dev_err(&port->adapter->ccw_device->dev,
-			"Port ERP failed for port wwpn=0x%016Lx.\n",
-			port->wwpn);
 }
 
 /**
@@ -1560,10 +1558,6 @@ void zfcp_erp_unit_failed(struct zfcp_unit *unit, u8 id, void *ref)
 {
 	zfcp_erp_modify_unit_status(unit, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
-
-	dev_err(&unit->port->adapter->ccw_device->dev,
-		"Unit ERP failed for unit 0x%016Lx on port 0x%016Lx.\n",
-		unit->fcp_lun, unit->port->wwpn);
 }
 
 /**

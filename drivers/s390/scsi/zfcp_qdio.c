@@ -57,7 +57,7 @@ void zfcp_qdio_free(struct zfcp_adapter *adapter)
 
 static void zfcp_qdio_handler_error(struct zfcp_adapter *adapter, u8 id)
 {
-	dev_warn(&adapter->ccw_device->dev, "QDIO problem occurred.\n");
+	dev_warn(&adapter->ccw_device->dev, "A QDIO problem occurred\n");
 
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
@@ -174,8 +174,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 
 		if (unlikely(!(sbale->flags & SBAL_FLAGS_LAST_ENTRY)))
 			dev_warn(&adapter->ccw_device->dev,
-				 "Protocol violation by adapter. "
-				 "Continuing operations.\n");
+				 "A QDIO protocol error occurred, "
+				 "operations continue\n");
 	}
 
 	/*
@@ -457,17 +457,11 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status))
 		return -EIO;
 
-	if (qdio_establish(&adapter->qdio_init_data)) {
-		dev_err(&adapter->ccw_device->dev,
-			 "Establish of QDIO queues failed.\n");
-		return -EIO;
-	}
+	if (qdio_establish(&adapter->qdio_init_data))
+		goto failed_establish;
 
-	if (qdio_activate(adapter->ccw_device)) {
-		dev_err(&adapter->ccw_device->dev,
-			 "Activate of QDIO queues failed.\n");
+	if (qdio_activate(adapter->ccw_device))
 		goto failed_qdio;
-	}
 
 	for (cc = 0; cc < QDIO_MAX_BUFFERS_PER_Q; cc++) {
 		sbale = &(adapter->resp_q.sbal[cc]->element[0]);
@@ -477,11 +471,8 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	}
 
 	if (do_QDIO(adapter->ccw_device, QDIO_FLAG_SYNC_INPUT, 0, 0,
-		     QDIO_MAX_BUFFERS_PER_Q)) {
-		dev_err(&adapter->ccw_device->dev,
-			 "Init of QDIO response queue failed.\n");
+		     QDIO_MAX_BUFFERS_PER_Q))
 		goto failed_qdio;
-	}
 
 	/* set index of first avalable SBALS / number of available SBALS */
 	adapter->req_q.first = 0;
@@ -492,5 +483,8 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 
 failed_qdio:
 	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
+failed_establish:
+	dev_err(&adapter->ccw_device->dev,
+		"Setting up the QDIO connection to the FCP adapter failed\n");
 	return -EIO;
 }

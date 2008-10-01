@@ -25,7 +25,8 @@ static int zfcp_ccw_probe(struct ccw_device *ccw_device)
 	down(&zfcp_data.config_sema);
 	if (zfcp_adapter_enqueue(ccw_device)) {
 		dev_err(&ccw_device->dev,
-			"Setup of data structures failed.\n");
+			"Setting up data structures for the "
+			"FCP adapter failed\n");
 		retval = -EINVAL;
 	}
 	up(&zfcp_data.config_sema);
@@ -156,15 +157,18 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 
 	switch (event) {
 	case CIO_GONE:
-		dev_warn(&adapter->ccw_device->dev, "device gone\n");
+		dev_warn(&adapter->ccw_device->dev,
+			 "The FCP device has been detached\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 87, NULL);
 		break;
 	case CIO_NO_PATH:
-		dev_warn(&adapter->ccw_device->dev, "no path\n");
+		dev_warn(&adapter->ccw_device->dev,
+			 "The CHPID for the FCP device is offline\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 88, NULL);
 		break;
 	case CIO_OPER:
-		dev_info(&adapter->ccw_device->dev, "operational again\n");
+		dev_info(&adapter->ccw_device->dev,
+			 "The FCP device is operational again\n");
 		zfcp_erp_modify_adapter_status(adapter, 11, NULL,
 					       ZFCP_STATUS_COMMON_RUNNING,
 					       ZFCP_SET);
