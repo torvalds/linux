@@ -1102,7 +1102,7 @@ static struct xfrm_policy *xfrm_policy_construct(struct xfrm_userpolicy_info *p,
 	return xp;
  error:
 	*errp = err;
-	xp->dead = 1;
+	xp->walk.dead = 1;
 	xfrm_policy_destroy(xp);
 	return NULL;
 }
@@ -1595,7 +1595,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENOENT;
 
 	read_lock(&xp->lock);
-	if (xp->dead) {
+	if (xp->walk.dead) {
 		read_unlock(&xp->lock);
 		goto out;
 	}

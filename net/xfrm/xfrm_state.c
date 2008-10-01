@@ -59,14 +59,6 @@ static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 static unsigned int xfrm_state_num;
 static unsigned int xfrm_state_genid;
 
-/* Counter indicating ongoing walk, protected by xfrm_state_lock. */
-static unsigned long xfrm_state_walk_ongoing;
-/* Counter indicating walk completion, protected by xfrm_cfg_mutex. */
-static unsigned long xfrm_state_walk_completed;
-
-/* List of outstanding state walks used to set the completed counter.  */
-static LIST_HEAD(xfrm_state_walks);
-
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
@@ -199,8 +191,7 @@ static DEFINE_RWLOCK(xfrm_state_afinfo_lock);
 static struct xfrm_state_afinfo *xfrm_state_afinfo[NPROTO];
 
 static struct work_struct xfrm_state_gc_work;
-static LIST_HEAD(xfrm_state_gc_leftovers);
-static LIST_HEAD(xfrm_state_gc_list);
+static HLIST_HEAD(xfrm_state_gc_list);
 static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 int __xfrm_state_delete(struct xfrm_state *x);
@@ -412,23 +403,16 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 
 static void xfrm_state_gc_task(struct work_struct *data)
 {
-	struct xfrm_state *x, *tmp;
-	unsigned long completed;
+	struct xfrm_state *x;
+	struct hlist_node *entry, *tmp;
+	struct hlist_head gc_list;
 
-	mutex_lock(&xfrm_cfg_mutex);
 	spin_lock_bh(&xfrm_state_gc_lock);
-	list_splice_tail_init(&xfrm_state_gc_list, &xfrm_state_gc_leftovers);
+	hlist_move_list(&xfrm_state_gc_list, &gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 
-	completed = xfrm_state_walk_completed;
-	mutex_unlock(&xfrm_cfg_mutex);
-
-	list_for_each_entry_safe(x, tmp, &xfrm_state_gc_leftovers, gclist) {
-		if ((long)(x->lastused - completed) > 0)
-			break;
-		list_del(&x->gclist);
+	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, gclist)
 		xfrm_state_gc_destroy(x);
-	}
 
 	wake_up(&km_waitq);
 }
@@ -529,7 +513,7 @@ struct xfrm_state *xfrm_state_alloc(void)
 	if (x) {
 		atomic_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
-		INIT_LIST_HEAD(&x->all);
+		INIT_LIST_HEAD(&x->km.all);
 		INIT_HLIST_NODE(&x->bydst);
 		INIT_HLIST_NODE(&x->bysrc);
 		INIT_HLIST_NODE(&x->byspi);
@@ -556,7 +540,7 @@ void __xfrm_state_destroy(struct xfrm_state *x)
 	WARN_ON(x->km.state != XFRM_STATE_DEAD);
 
 	spin_lock_bh(&xfrm_state_gc_lock);
-	list_add_tail(&x->gclist, &xfrm_state_gc_list);
+	hlist_add_head(&x->gclist, &xfrm_state_gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 	schedule_work(&xfrm_state_gc_work);
 }
@@ -569,8 +553,7 @@ int __xfrm_state_delete(struct xfrm_state *x)
 	if (x->km.state != XFRM_STATE_DEAD) {
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
-		x->lastused = xfrm_state_walk_ongoing;
-		list_del_rcu(&x->all);
+		list_del(&x->km.all);
 		hlist_del(&x->bydst);
 		hlist_del(&x->bysrc);
 		if (x->id.spi)
@@ -871,7 +854,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;
-			list_add_tail(&x->all, &xfrm_state_all);
+			list_add(&x->km.all, &xfrm_state_all);
 			hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 			h = xfrm_src_hash(daddr, saddr, family);
 			hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
@@ -940,7 +923,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	x->genid = ++xfrm_state_genid;
 
-	list_add_tail(&x->all, &xfrm_state_all);
+	list_add(&x->km.all, &xfrm_state_all);
 
 	h = xfrm_dst_hash(&x->id.daddr, &x->props.saddr,
 			  x->props.reqid, x->props.family);
@@ -1069,7 +1052,7 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		xfrm_state_hold(x);
 		x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
 		add_timer(&x->timer);
-		list_add_tail(&x->all, &xfrm_state_all);
+		list_add(&x->km.all, &xfrm_state_all);
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
@@ -1566,79 +1549,59 @@ int xfrm_state_walk(struct xfrm_state_walk *walk,
 		    int (*func)(struct xfrm_state *, int, void*),
 		    void *data)
 {
-	struct xfrm_state *old, *x, *last = NULL;
+	struct xfrm_state *state;
+	struct xfrm_state_walk *x;
 	int err = 0;
 
-	if (walk->state == NULL && walk->count != 0)
+	if (walk->seq != 0 && list_empty(&walk->all))
 		return 0;
 
-	old = x = walk->state;
-	walk->state = NULL;
 	spin_lock_bh(&xfrm_state_lock);
-	if (x == NULL)
-		x = list_first_entry(&xfrm_state_all, struct xfrm_state, all);
+	if (list_empty(&walk->all))
+		x = list_first_entry(&xfrm_state_all, struct xfrm_state_walk, all);
+	else
+		x = list_entry(&walk->all, struct xfrm_state_walk, all);
 	list_for_each_entry_from(x, &xfrm_state_all, all) {
-		if (x->km.state == XFRM_STATE_DEAD)
+		if (x->state == XFRM_STATE_DEAD)
 			continue;
-		if (!xfrm_id_proto_match(x->id.proto, walk->proto))
+		state = container_of(x, struct xfrm_state, km);
+		if (!xfrm_id_proto_match(state->id.proto, walk->proto))
 			continue;
-		if (last) {
-			err = func(last, walk->count, data);
-			if (err) {
-				xfrm_state_hold(last);
-				walk->state = last;
-				goto out;
-			}
+		err = func(state, walk->seq, data);
+		if (err) {
+			list_move_tail(&walk->all, &x->all);
+			goto out;
 		}
-		last = x;
-		walk->count++;
+		walk->seq++;
 	}
-	if (walk->count == 0) {
+	if (walk->seq == 0) {
 		err = -ENOENT;
 		goto out;
 	}
-	if (last)
-		err = func(last, 0, data);
+	list_del_init(&walk->all);
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	if (old != NULL)
-		xfrm_state_put(old);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_walk);
 
 void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
 {
+	INIT_LIST_HEAD(&walk->all);
 	walk->proto = proto;
-	walk->state = NULL;
-	walk->count = 0;
-	list_add_tail(&walk->list, &xfrm_state_walks);
-	walk->genid = ++xfrm_state_walk_ongoing;
+	walk->state = XFRM_STATE_DEAD;
+	walk->seq = 0;
 }
 EXPORT_SYMBOL(xfrm_state_walk_init);
 
 void xfrm_state_walk_done(struct xfrm_state_walk *walk)
 {
-	struct list_head *prev;
-
-	if (walk->state != NULL) {
-		xfrm_state_put(walk->state);
-		walk->state = NULL;
-	}
-
-	prev = walk->list.prev;
-	list_del(&walk->list);
-
-	if (prev != &xfrm_state_walks) {
-		list_entry(prev, struct xfrm_state_walk, list)->genid =
-			walk->genid;
+	if (list_empty(&walk->all))
 		return;
-	}
 
-	xfrm_state_walk_completed = walk->genid;
-
-	if (!list_empty(&xfrm_state_gc_leftovers))
-		schedule_work(&xfrm_state_gc_work);
+	spin_lock_bh(&xfrm_state_lock);
+	list_del(&walk->all);
+	spin_lock_bh(&xfrm_state_lock);
 }
 EXPORT_SYMBOL(xfrm_state_walk_done);
 

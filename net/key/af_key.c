@@ -58,6 +58,7 @@ struct pfkey_sock {
 			struct xfrm_policy_walk	policy;
 			struct xfrm_state_walk	state;
 		} u;
+		struct sk_buff	*skb;
 	} dump;
 };
 
@@ -76,6 +77,10 @@ static int pfkey_can_dump(struct sock *sk)
 static void pfkey_terminate_dump(struct pfkey_sock *pfk)
 {
 	if (pfk->dump.dump) {
+		if (pfk->dump.skb) {
+			kfree_skb(pfk->dump.skb);
+			pfk->dump.skb = NULL;
+		}
 		pfk->dump.done(pfk);
 		pfk->dump.dump = NULL;
 		pfk->dump.done = NULL;
@@ -308,11 +313,24 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 
 static int pfkey_do_dump(struct pfkey_sock *pfk)
 {
+	struct sadb_msg *hdr;
 	int rc;
 
 	rc = pfk->dump.dump(pfk);
 	if (rc == -ENOBUFS)
 		return 0;
+
+	if (pfk->dump.skb) {
+		if (!pfkey_can_dump(&pfk->sk))
+			return 0;
+
+		hdr = (struct sadb_msg *) pfk->dump.skb->data;
+		hdr->sadb_msg_seq = 0;
+		hdr->sadb_msg_errno = rc;
+		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
+				&pfk->sk);
+		pfk->dump.skb = NULL;
+	}
 
 	pfkey_terminate_dump(pfk);
 	return rc;
@@ -1744,9 +1762,14 @@ static int dump_sa(struct xfrm_state *x, int count, void *ptr)
 	out_hdr->sadb_msg_satype = pfkey_proto2satype(x->id.proto);
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_reserved = 0;
-	out_hdr->sadb_msg_seq = count;
+	out_hdr->sadb_msg_seq = count + 1;
 	out_hdr->sadb_msg_pid = pfk->dump.msg_pid;
-	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ONE, &pfk->sk);
+
+	if (pfk->dump.skb)
+		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
+				&pfk->sk);
+	pfk->dump.skb = out_skb;
+
 	return 0;
 }
 
@@ -2245,7 +2268,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	return 0;
 
 out:
-	xp->dead = 1;
+	xp->walk.dead = 1;
 	xfrm_policy_destroy(xp);
 	return err;
 }
@@ -2583,9 +2606,14 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 	out_hdr->sadb_msg_type = SADB_X_SPDDUMP;
 	out_hdr->sadb_msg_satype = SADB_SATYPE_UNSPEC;
 	out_hdr->sadb_msg_errno = 0;
-	out_hdr->sadb_msg_seq = count;
+	out_hdr->sadb_msg_seq = count + 1;
 	out_hdr->sadb_msg_pid = pfk->dump.msg_pid;
-	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ONE, &pfk->sk);
+
+	if (pfk->dump.skb)
+		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
+				&pfk->sk);
+	pfk->dump.skb = out_skb;
+
 	return 0;
 }
 

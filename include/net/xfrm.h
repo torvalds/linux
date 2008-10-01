@@ -117,12 +117,21 @@ extern struct mutex xfrm_cfg_mutex;
       metrics. Plus, it will be made via sk->sk_dst_cache. Solved.
  */
 
+struct xfrm_state_walk {
+	struct list_head	all;
+	u8			state;
+	union {
+		u8		dying;
+		u8		proto;
+	};
+	u32			seq;
+};
+
 /* Full description of state of transformer. */
 struct xfrm_state
 {
-	struct list_head	all;
 	union {
-		struct list_head	gclist;
+		struct hlist_node	gclist;
 		struct hlist_node	bydst;
 	};
 	struct hlist_node	bysrc;
@@ -136,12 +145,8 @@ struct xfrm_state
 
 	u32			genid;
 
-	/* Key manger bits */
-	struct {
-		u8		state;
-		u8		dying;
-		u32		seq;
-	} km;
+	/* Key manager bits */
+	struct xfrm_state_walk	km;
 
 	/* Parameters of this state. */
 	struct {
@@ -449,10 +454,20 @@ struct xfrm_tmpl
 
 #define XFRM_MAX_DEPTH		6
 
+struct xfrm_policy_walk_entry {
+	struct list_head	all;
+	u8			dead;
+};
+
+struct xfrm_policy_walk {
+	struct xfrm_policy_walk_entry walk;
+	u8 type;
+	u32 seq;
+};
+
 struct xfrm_policy
 {
 	struct xfrm_policy	*next;
-	struct list_head	bytype;
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 
@@ -467,13 +482,12 @@ struct xfrm_policy
 	struct xfrm_lifetime_cfg lft;
 	struct xfrm_lifetime_cur curlft;
 	struct dst_entry       *bundles;
-	u16			family;
+	struct xfrm_policy_walk_entry walk;
 	u8			type;
 	u8			action;
 	u8			flags;
-	u8			dead;
 	u8			xfrm_nr;
-	/* XXX 1 byte hole, try to pack */
+	u16			family;
 	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
@@ -1245,20 +1259,6 @@ struct xfrm6_tunnel {
 	int priority;
 };
 
-struct xfrm_state_walk {
-	struct list_head list;
-	unsigned long genid;
-	struct xfrm_state *state;
-	int count;
-	u8 proto;
-};
-
-struct xfrm_policy_walk {
-	struct xfrm_policy *policy;
-	int count;
-	u8 type, cur_type;
-};
-
 extern void xfrm_init(void);
 extern void xfrm4_init(void);
 extern void xfrm_state_init(void);
@@ -1410,24 +1410,10 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
 
-static inline void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type)
-{
-	walk->cur_type = XFRM_POLICY_TYPE_MAIN;
-	walk->type = type;
-	walk->policy = NULL;
-	walk->count = 0;
-}
-
-static inline void xfrm_policy_walk_done(struct xfrm_policy_walk *walk)
-{
-	if (walk->policy != NULL) {
-		xfrm_pol_put(walk->policy);
-		walk->policy = NULL;
-	}
-}
-
+extern void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type);
 extern int xfrm_policy_walk(struct xfrm_policy_walk *walk,
 	int (*func)(struct xfrm_policy *, int, int, void*), void *);
+extern void xfrm_policy_walk_done(struct xfrm_policy_walk *walk);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
 struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 					  struct xfrm_selector *sel,
