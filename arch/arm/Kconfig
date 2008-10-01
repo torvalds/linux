@@ -250,6 +250,7 @@ config ARCH_CLPS7500
 	select TIMER_ACORN
 	select ISA
 	select NO_IOPORT
+	select ARCH_SPARSEMEM_ENABLE
 	help
 	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
 
@@ -470,6 +471,7 @@ config ARCH_RPC
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
 	select NO_IOPORT
+	select ARCH_SPARSEMEM_ENABLE
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
