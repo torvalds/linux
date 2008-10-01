@@ -2378,7 +2378,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	for (i = 0; i < PHY_MAX_ADDR; ++i)
 		sc->mii_bus.irq[i] = SBMAC_PHY_INT;
 
-	sc->mii_bus.dev = &pldev->dev;
+	sc->mii_bus.parent = &pldev->dev;
 	dev_set_drvdata(&pldev->dev, &sc->mii_bus);
 
 	return 0;

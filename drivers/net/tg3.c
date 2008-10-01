@@ -961,7 +961,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 	snprintf(mdio_bus->id, MII_BUS_ID_SIZE, "%x",
 		 (tp->pdev->bus->number << 8) | tp->pdev->devfn);
 	mdio_bus->priv     = tp;
-	mdio_bus->dev      = &tp->pdev->dev;
+	mdio_bus->parent   = &tp->pdev->dev;
 	mdio_bus->read     = &tg3_mdio_read;
 	mdio_bus->write    = &tg3_mdio_write;
 	mdio_bus->reset    = &tg3_mdio_reset;

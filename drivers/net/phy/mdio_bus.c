@@ -107,7 +107,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 
 	phydev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
 
-	phydev->dev.parent = bus->dev;
+	phydev->dev.parent = bus->parent;
 	phydev->dev.bus = &mdio_bus_type;
 	snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, addr);
 

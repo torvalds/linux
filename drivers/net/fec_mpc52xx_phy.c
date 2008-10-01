@@ -127,7 +127,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 	bus->priv = priv;
 
-	bus->dev = dev;
+	bus->parent = dev;
 	dev_set_drvdata(dev, bus);
 
 	/* set MII speed */

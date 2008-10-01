@@ -768,7 +768,7 @@ static int tc_mii_init(struct net_device *dev)
 	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "%x",
 		 (lp->pci_dev->bus->number << 8) | lp->pci_dev->devfn);
 	lp->mii_bus.priv = dev;
-	lp->mii_bus.dev = &lp->pci_dev->dev;
+	lp->mii_bus.parent = &lp->pci_dev->dev;
 	lp->mii_bus.irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
 	if (!lp->mii_bus.irq) {
 		err = -ENOMEM;

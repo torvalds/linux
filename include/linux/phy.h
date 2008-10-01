@@ -99,7 +99,7 @@ struct mii_bus {
 	 */
 	struct mutex mdio_lock;
 
-	struct device *dev;
+	struct device *parent;
 
 	/* list of all PHYs on bus */
 	struct phy_device *phy_map[PHY_MAX_ADDR];

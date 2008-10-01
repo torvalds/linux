@@ -250,7 +250,7 @@ static int macb_mii_init(struct macb *bp)
 	bp->mii_bus.reset = &macb_mdio_reset;
 	snprintf(bp->mii_bus.id, MII_BUS_ID_SIZE, "%x", bp->pdev->id);
 	bp->mii_bus.priv = bp;
-	bp->mii_bus.dev = &bp->dev->dev;
+	bp->mii_bus.parent = &bp->dev->dev;
 	pdata = bp->pdev->dev.platform_data;
 
 	if (pdata)

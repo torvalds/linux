@@ -272,7 +272,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	prop = of_get_property(np, "mdio-pin", NULL);
 	priv->mdio_pin = *prop;
 
-	new_bus->dev = dev;
+	new_bus->parent = dev;
 	dev_set_drvdata(dev, new_bus);
 
 	err = mdiobus_register(new_bus);

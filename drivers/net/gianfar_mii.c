@@ -196,7 +196,7 @@ static int gfar_mdio_probe(struct device *dev)
 
 	new_bus->irq = pdata->irq;
 
-	new_bus->dev = dev;
+	new_bus->parent = dev;
 	dev_set_drvdata(dev, new_bus);
 
 	/*

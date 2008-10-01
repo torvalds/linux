@@ -2368,7 +2368,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		msp->smi_bus.read = smi_bus_read;
 		msp->smi_bus.write = smi_bus_write,
 		snprintf(msp->smi_bus.id, MII_BUS_ID_SIZE, "%d", pdev->id);
-		msp->smi_bus.dev = &pdev->dev;
+		msp->smi_bus.parent = &pdev->dev;
 		msp->smi_bus.phy_mask = 0xffffffff;
 		if (mdiobus_register(&msp->smi_bus) < 0)
 			goto out_unmap;

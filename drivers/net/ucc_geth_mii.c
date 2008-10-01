@@ -187,7 +187,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 
 	new_bus->priv = (void __force *)regs;
 
-	new_bus->dev = device;
+	new_bus->parent = device;
 	dev_set_drvdata(device, new_bus);
 
 	/* Read MII management master from device tree */

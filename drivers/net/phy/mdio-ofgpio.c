@@ -142,7 +142,7 @@ static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
 		if (!strcmp(np->type, "ethernet-phy"))
 			add_phy(new_bus, np);
 
-	new_bus->dev = &ofdev->dev;
+	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
 	ret = mdiobus_register(new_bus);
