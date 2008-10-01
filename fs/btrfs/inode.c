@@ -1390,6 +1390,154 @@ fail:
 }
 
 /*
+ * when truncating bytes in a file, it is possible to avoid reading
+ * the leaves that contain only checksum items.  This can be the
+ * majority of the IO required to delete a large file, but it must
+ * be done carefully.
+ *
+ * The keys in the level just above the leaves are checked to make sure
+ * the lowest key in a given leaf is a csum key, and starts at an offset
+ * after the new  size.
+ *
+ * Then the key for the next leaf is checked to make sure it also has
+ * a checksum item for the same file.  If it does, we know our target leaf
+ * contains only checksum items, and it can be safely freed without reading
+ * it.
+ *
+ * This is just an optimization targeted at large files.  It may do
+ * nothing.  It will return 0 unless things went badly.
+ */
+static noinline int drop_csum_leaves(struct btrfs_trans_handle *trans,
+				     struct btrfs_root *root,
+				     struct btrfs_path *path,
+				     struct inode *inode, u64 new_size)
+{
+	struct btrfs_key key;
+	int ret;
+	int nritems;
+	struct btrfs_key found_key;
+	struct btrfs_key other_key;
+
+	path->lowest_level = 1;
+	key.objectid = inode->i_ino;
+	key.type = BTRFS_CSUM_ITEM_KEY;
+	key.offset = new_size;
+again:
+	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
+	if (ret < 0)
+		goto out;
+
+	if (path->nodes[1] == NULL) {
+		ret = 0;
+		goto out;
+	}
+	ret = 0;
+	btrfs_node_key_to_cpu(path->nodes[1], &found_key, path->slots[1]);
+	nritems = btrfs_header_nritems(path->nodes[1]);
+
+	if (!nritems)
+		goto out;
+
+	if (path->slots[1] >= nritems)
+		goto next_node;
+
+	/* did we find a key greater than anything we want to delete? */
+	if (found_key.objectid > inode->i_ino ||
+	   (found_key.objectid == inode->i_ino && found_key.type > key.type))
+		goto out;
+
+	/* we check the next key in the node to make sure the leave contains
+	 * only checksum items.  This comparison doesn't work if our
+	 * leaf is the last one in the node
+	 */
+	if (path->slots[1] + 1 >= nritems) {
+next_node:
+		/* search forward from the last key in the node, this
+		 * will bring us into the next node in the tree
+		 */
+		btrfs_node_key_to_cpu(path->nodes[1], &found_key, nritems - 1);
+
+		/* unlikely, but we inc below, so check to be safe */
+		if (found_key.offset == (u64)-1)
+			goto out;
+
+		/* search_forward needs a path with locks held, do the
+		 * search again for the original key.  It is possible
+		 * this will race with a balance and return a path that
+		 * we could modify, but this drop is just an optimization
+		 * and is allowed to miss some leaves.
+		 */
+		btrfs_release_path(root, path);
+		found_key.offset++;
+
+		/* setup a max key for search_forward */
+		other_key.offset = (u64)-1;
+		other_key.type = key.type;
+		other_key.objectid = key.objectid;
+
+		path->keep_locks = 1;
+		ret = btrfs_search_forward(root, &found_key, &other_key,
+					   path, 0, 0);
+		path->keep_locks = 0;
+		if (ret || found_key.objectid != key.objectid ||
+		    found_key.type != key.type) {
+			ret = 0;
+			goto out;
+		}
+
+		key.offset = found_key.offset;
+		btrfs_release_path(root, path);
+		cond_resched();
+		goto again;
+	}
+
+	/* we know there's one more slot after us in the tree,
+	 * read that key so we can verify it is also a checksum item
+	 */
+	btrfs_node_key_to_cpu(path->nodes[1], &other_key, path->slots[1] + 1);
+
+	if (found_key.objectid < inode->i_ino)
+		goto next_key;
+
+	if (found_key.type != key.type || found_key.offset < new_size)
+		goto next_key;
+
+	/*
+	 * if the key for the next leaf isn't a csum key from this objectid,
+	 * we can't be sure there aren't good items inside this leaf.
+	 * Bail out
+	 */
+	if (other_key.objectid != inode->i_ino || other_key.type != key.type)
+		goto out;
+
+	/*
+	 * it is safe to delete this leaf, it contains only
+	 * csum items from this inode at an offset >= new_size
+	 */
+	ret = btrfs_del_leaf(trans, root, path,
+			     btrfs_node_blockptr(path->nodes[1],
+						 path->slots[1]));
+	BUG_ON(ret);
+
+next_key:
+	btrfs_release_path(root, path);
+
+	if (other_key.objectid == inode->i_ino &&
+	    other_key.type == key.type && other_key.offset > key.offset) {
+		key.offset = other_key.offset;
+		cond_resched();
+		goto again;
+	}
+	ret = 0;
+out:
+	/* fixup any changes we've made to the path */
+	path->lowest_level = 0;
+	path->keep_locks = 0;
+	btrfs_release_path(root, path);
+	return ret;
+}
+
+/*
  * this can truncate away extent items, csum items and directory items.
  * It starts at a high offset and removes keys until it can't find
  * any higher than new_size
@@ -1436,6 +1584,10 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	key.type = (u8)-1;
 
 	btrfs_init_path(path);
+
+	ret = drop_csum_leaves(trans, root, path, inode, new_size);
+	BUG_ON(ret);
+
 search_again:
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0) {

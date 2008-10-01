@@ -1388,7 +1388,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_key prealloc_block;
 
 	lowest_level = p->lowest_level;
-	WARN_ON(lowest_level && ins_len);
+	WARN_ON(lowest_level && ins_len > 0);
 	WARN_ON(p->nodes[0] != NULL);
 	WARN_ON(cow && root == root->fs_info->extent_root &&
 		!mutex_is_locked(&root->fs_info->alloc_mutex));
@@ -3187,6 +3187,36 @@ static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 }
 
 /*
+ * a helper function to delete the leaf pointed to by path->slots[1] and
+ * path->nodes[1].  bytenr is the node block pointer, but since the callers
+ * already know it, it is faster to have them pass it down than to
+ * read it out of the node again.
+ *
+ * This deletes the pointer in path->nodes[1] and frees the leaf
+ * block extent.  zero is returned if it all worked out, < 0 otherwise.
+ *
+ * The path must have already been setup for deleting the leaf, including
+ * all the proper balancing.  path->nodes[1] must be locked.
+ */
+noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root,
+			    struct btrfs_path *path, u64 bytenr)
+{
+	int ret;
+	u64 root_gen = btrfs_header_generation(path->nodes[1]);
+
+	ret = del_ptr(trans, root, path, 1, path->slots[1]);
+	if (ret)
+		return ret;
+
+	ret = btrfs_free_extent(trans, root, bytenr,
+				btrfs_level_size(root, 0),
+				path->nodes[1]->start,
+				btrfs_header_owner(path->nodes[1]),
+				root_gen, 0, 0, 1);
+	return ret;
+}
+/*
  * delete the item at the leaf level in path.  If that empties
  * the leaf, remove it from the tree
  */
@@ -3251,17 +3281,8 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		if (leaf == root->node) {
 			btrfs_set_header_level(leaf, 0);
 		} else {
-			u64 root_gen = btrfs_header_generation(path->nodes[1]);
-			wret = del_ptr(trans, root, path, 1, path->slots[1]);
-			if (wret)
-				ret = wret;
-			wret = btrfs_free_extent(trans, root,
-					 leaf->start, leaf->len,
-					 path->nodes[1]->start,
-					 btrfs_header_owner(path->nodes[1]),
-					 root_gen, 0, 0, 1);
-			if (wret)
-				ret = wret;
+			ret = btrfs_del_leaf(trans, root, path, leaf->start);
+			BUG_ON(ret);
 		}
 	} else {
 		int used = leaf_space_used(leaf, 0, nritems);
@@ -3296,24 +3317,10 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			}
 
 			if (btrfs_header_nritems(leaf) == 0) {
-				u64 root_gen;
-				u64 bytenr = leaf->start;
-				u32 blocksize = leaf->len;
-
-				root_gen = btrfs_header_generation(
-							   path->nodes[1]);
-
-				wret = del_ptr(trans, root, path, 1, slot);
-				if (wret)
-					ret = wret;
-
+				path->slots[1] = slot;
+				ret = btrfs_del_leaf(trans, root, path, leaf->start);
+				BUG_ON(ret);
 				free_extent_buffer(leaf);
-				wret = btrfs_free_extent(trans, root, bytenr,
-					     blocksize, path->nodes[1]->start,
-					     btrfs_header_owner(path->nodes[1]),
-					     root_gen, 0, 0, 1);
-				if (wret)
-					ret = wret;
 			} else {
 				/* if we're still in the path, make sure
 				 * we're dirty.  Otherwise, one of the
@@ -3418,8 +3425,8 @@ again:
 		level = btrfs_header_level(cur);
 		sret = bin_search(cur, min_key, level, &slot);
 
-		/* at level = 0, we're done, setup the path and exit */
-		if (level == 0) {
+		/* at the lowest level, we're done, setup the path and exit */
+		if (level == path->lowest_level) {
 			if (slot >= nritems)
 				goto find_next_key;
 			ret = 0;
