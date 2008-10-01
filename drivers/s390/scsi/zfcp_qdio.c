@@ -346,7 +346,7 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	struct qdio_buffer_element *sbale;
 
 	/* acknowledgements for transferred buffers */
-	pci_batch = req_q->pci_batch + count;
+	pci_batch = adapter->req_q_pci_batch + count;
 	if (unlikely(pci_batch >= ZFCP_QDIO_PCI_INTERVAL)) {
 		pci_batch %= ZFCP_QDIO_PCI_INTERVAL;
 		pci = first + count - (pci_batch + 1);
@@ -366,7 +366,7 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	atomic_sub(count, &req_q->count);
 	req_q->first += count;
 	req_q->first %= QDIO_MAX_BUFFERS_PER_Q;
-	req_q->pci_batch = pci_batch;
+	adapter->req_q_pci_batch = pci_batch;
 	return 0;
 }
 
@@ -422,9 +422,9 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
 	req_q = &adapter->req_q;
-	spin_lock_bh(&req_q->lock);
+	spin_lock_bh(&adapter->req_q_lock);
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	spin_unlock_bh(&req_q->lock);
+	spin_unlock_bh(&adapter->req_q_lock);
 
 	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
 
@@ -437,7 +437,7 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 	}
 	req_q->first = 0;
 	atomic_set(&req_q->count, 0);
-	req_q->pci_batch = 0;
+	adapter->req_q_pci_batch = 0;
 	adapter->resp_q.first = 0;
 	atomic_set(&adapter->resp_q.count, 0);
 }
@@ -475,7 +475,7 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	/* set index of first avalable SBALS / number of available SBALS */
 	adapter->req_q.first = 0;
 	atomic_set(&adapter->req_q.count, QDIO_MAX_BUFFERS_PER_Q);
-	adapter->req_q.pci_batch = 0;
+	adapter->req_q_pci_batch = 0;
 
 	return 0;
 

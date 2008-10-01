@@ -412,14 +412,9 @@ struct zfcp_wka_port {
 };
 
 struct zfcp_qdio_queue {
-	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q]; /* SBALs */
-	u8		   first;	      /* index of next free bfr
-						 in queue (free_count>0) */
-	atomic_t           count;	      /* number of free buffers
-						 in queue */
-	spinlock_t	   lock;	      /* lock for operations on queue */
-	int                pci_batch;	      /* SBALs since PCI indication
-						 was last set */
+	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
+	u8		   first;	/* index of next free bfr in queue */
+	atomic_t           count;	/* number of free buffers in queue */
 };
 
 struct zfcp_erp_action {
@@ -471,13 +466,13 @@ struct zfcp_adapter {
 	u16			timer_ticks;       /* time int for a tick */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	struct list_head	port_list_head;	   /* remote port list */
-	struct list_head        port_remove_lh;    /* head of ports to be
-						      removed */
-	u32			ports;	           /* number of remote ports */
 	unsigned long		req_no;		   /* unique FSF req number */
 	struct list_head	*req_list;	   /* list of pending reqs */
 	spinlock_t		req_list_lock;	   /* request list lock */
 	struct zfcp_qdio_queue	req_q;		   /* request queue */
+	spinlock_t		req_q_lock;	   /* for operations on queue */
+	int			req_q_pci_batch;   /* SBALs since PCI indication
+						      was last set */
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	wait_queue_head_t	request_wq;	   /* can be used to wait for
 						      more avaliable SBALs */
@@ -516,7 +511,6 @@ struct zfcp_adapter {
 	struct zfcp_scsi_dbf_record	scsi_dbf_buf;
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
-	struct device           generic_services;  /* directory for WKA ports */
 	struct fc_host_statistics *fc_stats;
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
@@ -533,9 +527,6 @@ struct zfcp_port {
 						  refcount drop to zero */
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
 	struct list_head       unit_list_head; /* head of logical unit list */
-	struct list_head       unit_remove_lh; /* head of luns to be removed
-						  list */
-	u32		       units;	       /* # of logical units in list */
 	atomic_t	       status;	       /* status of this remote port */
 	u64		       wwnn;	       /* WWNN if known */
 	u64		       wwpn;	       /* WWPN */
@@ -556,7 +547,6 @@ struct zfcp_unit {
 						  refcount drop to zero */
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */
-	unsigned int	       scsi_lun;       /* own SCSI LUN */
 	u64		       fcp_lun;	       /* own FCP_LUN */
 	u32		       handle;	       /* handle assigned by FSF */
         struct scsi_device     *device;        /* scsi device struct pointer */
@@ -599,11 +589,7 @@ struct zfcp_fsf_req {
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
 	struct scsi_transport_template *scsi_transport_template;
-        atomic_t                status;             /* Module status flags */
 	struct list_head	adapter_list_head;  /* head of adapter list */
-	struct list_head	adapter_remove_lh;  /* head of adapters to be
-						       removed */
-	u32			adapters;	    /* # of adapters in list */
 	rwlock_t                config_lock;        /* serialises changes
 						       to adapter/port/unit
 						       lists */

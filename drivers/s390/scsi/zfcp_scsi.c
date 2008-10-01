@@ -105,13 +105,17 @@ static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *adapter,
 {
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
+	int scsi_lun;
 
 	list_for_each_entry(port, &adapter->port_list_head, list) {
 		if (!port->rport || (id != port->rport->scsi_target_id))
 			continue;
-		list_for_each_entry(unit, &port->unit_list_head, list)
-			if (lun == unit->scsi_lun)
+		list_for_each_entry(unit, &port->unit_list_head, list) {
+			scsi_lun = scsilun_to_int(
+				(struct scsi_lun *)&unit->fcp_lun);
+			if (lun == scsi_lun)
 				return unit;
+		}
 	}
 
 	return NULL;

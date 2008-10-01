@@ -137,6 +137,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	struct zfcp_port *port;
 	u64 wwpn;
 	int retval = 0;
+	LIST_HEAD(port_remove_lh);
 
 	down(&zfcp_data.config_sema);
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
@@ -154,7 +155,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	if (port && (atomic_read(&port->refcount) == 0)) {
 		zfcp_port_get(port);
 		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
-		list_move(&port->list, &adapter->port_remove_lh);
+		list_move(&port->list, &port_remove_lh);
 	} else
 		port = NULL;
 	write_unlock_irq(&zfcp_data.config_lock);
@@ -235,6 +236,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = 0;
+	LIST_HEAD(unit_remove_lh);
 
 	down(&zfcp_data.config_sema);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
@@ -252,7 +254,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	if (unit && (atomic_read(&unit->refcount) == 0)) {
 		zfcp_unit_get(unit);
 		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
-		list_move(&unit->list, &port->unit_remove_lh);
+		list_move(&unit->list, &unit_remove_lh);
 	} else
 		unit = NULL;
 

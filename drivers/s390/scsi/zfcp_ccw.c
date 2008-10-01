@@ -47,6 +47,8 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port, *p;
 	struct zfcp_unit *unit, *u;
+	LIST_HEAD(unit_remove_lh);
+	LIST_HEAD(port_remove_lh);
 
 	ccw_device_set_offline(ccw_device);
 	down(&zfcp_data.config_sema);
@@ -55,18 +57,18 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	write_lock_irq(&zfcp_data.config_lock);
 	list_for_each_entry_safe(port, p, &adapter->port_list_head, list) {
 		list_for_each_entry_safe(unit, u, &port->unit_list_head, list) {
-			list_move(&unit->list, &port->unit_remove_lh);
+			list_move(&unit->list, &unit_remove_lh);
 			atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE,
 					&unit->status);
 		}
-		list_move(&port->list, &adapter->port_remove_lh);
+		list_move(&port->list, &port_remove_lh);
 		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	}
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 	write_unlock_irq(&zfcp_data.config_lock);
 
-	list_for_each_entry_safe(port, p, &adapter->port_remove_lh, list) {
-		list_for_each_entry_safe(unit, u, &port->unit_remove_lh, list) {
+	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
+		list_for_each_entry_safe(unit, u, &unit_remove_lh, list) {
 			if (atomic_read(&unit->status) &
 			    ZFCP_STATUS_UNIT_REGISTERED)
 				scsi_remove_device(unit->device);

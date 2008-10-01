@@ -526,7 +526,8 @@ static void zfcp_validate_port(struct zfcp_port *port)
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_NOESC, &port->status);
 
-	if ((port->supported_classes != 0) || (port->units != 0)) {
+	if ((port->supported_classes != 0) ||
+	    !list_empty(&port->unit_list_head)) {
 		zfcp_port_put(port);
 		return;
 	}
