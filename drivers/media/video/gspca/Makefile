@@ -28,3 +28,6 @@ gspca_t613-objs := t613.o
 gspca_tv8532-objs := tv8532.o
 gspca_vc032x-objs := vc032x.o
 gspca_zc3xx-objs := zc3xx.o
+
+obj-$(CONFIG_USB_M5602)         += m5602/
+

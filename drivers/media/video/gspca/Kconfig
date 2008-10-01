@@ -11,3 +11,6 @@ config USB_GSPCA
 
 	  To compile this driver as modules, choose M here: the
 	  modules will be called gspca_xxxx.
+
+source "drivers/media/video/gspca/m5602/Kconfig"
+
