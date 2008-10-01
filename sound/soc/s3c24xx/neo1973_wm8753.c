@@ -518,12 +518,12 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "LINE1");
 	snd_soc_dapm_nc_pin(codec, "LINE2");
 
-	/* set endpoints to default mode */
-	set_scenario_endpoints(codec, NEO_AUDIO_OFF);
-
 	/* Add neo1973 specific widgets */
 	snd_soc_dapm_new_controls(codec, wm8753_dapm_widgets,
 				  ARRAY_SIZE(wm8753_dapm_widgets));
+
+	/* set endpoints to default mode */
+	set_scenario_endpoints(codec, NEO_AUDIO_OFF);
 
 	/* add neo1973 specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8753_neo1973_controls); i++) {
