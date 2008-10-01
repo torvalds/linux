@@ -847,7 +847,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer,
 	if (atomic_read(&buffer->record_disabled))
 		return NULL;
 
-	raw_local_irq_save(*flags);
+	local_irq_save(*flags);
 	cpu = raw_smp_processor_id();
 
 	if (!cpu_isset(cpu, buffer->cpumask))
@@ -909,7 +909,7 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 	rb_commit(cpu_buffer, event);
 
 	spin_unlock(&cpu_buffer->lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return 0;
 }
@@ -1583,13 +1583,13 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (!cpu_isset(cpu, buffer->cpumask))
 		return;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
 	spin_unlock(&cpu_buffer->lock);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 /**
