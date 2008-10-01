@@ -556,7 +556,7 @@ void mipsmt_prepare_cpus(void)
 void __cpuinit smtc_boot_secondary(int cpu, struct task_struct *idle)
 {
 	extern u32 kernelsp[NR_CPUS];
-	long flags;
+	unsigned long flags;
 	int mtflags;
 
 	LOCK_MT_PRA();
@@ -753,7 +753,7 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 {
 	int tcstatus;
 	struct smtc_ipi *pipi;
-	long flags;
+	unsigned long flags;
 	int mtflags;
 
 	if (cpu == smp_processor_id()) {
@@ -975,7 +975,7 @@ static irqreturn_t ipi_interrupt(int irq, void *dev_idm)
 	struct smtc_ipi *pipi;
 	unsigned long tcstatus;
 	int sent;
-	long flags;
+	unsigned long flags;
 	unsigned int mtflags;
 	unsigned int vpflags;
 
