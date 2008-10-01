@@ -738,6 +738,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 #endif
 	long off;
 
+	BUG_ON(nhead < 0);
+
 	if (skb_shared(skb))
 		BUG();
 
