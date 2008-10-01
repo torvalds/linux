@@ -23,7 +23,6 @@ enum zfcp_erp_steps {
 	ZFCP_ERP_STEP_FSF_XCONFIG	= 0x0001,
 	ZFCP_ERP_STEP_PHYS_PORT_CLOSING	= 0x0010,
 	ZFCP_ERP_STEP_PORT_CLOSING	= 0x0100,
-	ZFCP_ERP_STEP_NAMESERVER_OPEN	= 0x0200,
 	ZFCP_ERP_STEP_NAMESERVER_LOOKUP	= 0x0400,
 	ZFCP_ERP_STEP_PORT_OPENING	= 0x0800,
 	ZFCP_ERP_STEP_UNIT_CLOSING	= 0x1000,
@@ -532,8 +531,7 @@ static void _zfcp_erp_port_reopen_all(struct zfcp_adapter *adapter,
 	struct zfcp_port *port;
 
 	list_for_each_entry(port, &adapter->port_list_head, list)
-		if (!(atomic_read(&port->status) & ZFCP_STATUS_PORT_WKA))
-			_zfcp_erp_port_reopen(port, clear, id, ref);
+		_zfcp_erp_port_reopen(port, clear, id, ref);
 }
 
 static void _zfcp_erp_unit_reopen_all(struct zfcp_port *port, int clear, u8 id,
@@ -777,7 +775,6 @@ static int zfcp_erp_port_forced_strategy_close(struct zfcp_erp_action *act)
 static void zfcp_erp_port_strategy_clearstati(struct zfcp_port *port)
 {
 	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
-			  ZFCP_STATUS_PORT_DID_DID |
 			  ZFCP_STATUS_PORT_PHYS_CLOSING |
 			  ZFCP_STATUS_PORT_INVALID_WWPN,
 			  &port->status);
@@ -830,62 +827,6 @@ static int zfcp_erp_port_strategy_open_port(struct zfcp_erp_action *erp_action)
 	return ZFCP_ERP_CONTINUES;
 }
 
-static void zfcp_erp_port_strategy_open_ns_wake(struct zfcp_erp_action *ns_act)
-{
-	unsigned long flags;
-	struct zfcp_adapter *adapter = ns_act->adapter;
-	struct zfcp_erp_action *act, *tmp;
-	int status;
-
-	read_lock_irqsave(&adapter->erp_lock, flags);
-	list_for_each_entry_safe(act, tmp, &adapter->erp_running_head, list) {
-		if (act->step == ZFCP_ERP_STEP_NAMESERVER_OPEN) {
-			status = atomic_read(&adapter->nameserver_port->status);
-			if (status & ZFCP_STATUS_COMMON_ERP_FAILED)
-				zfcp_erp_port_failed(act->port, 27, NULL);
-			zfcp_erp_action_ready(act);
-		}
-	}
-	read_unlock_irqrestore(&adapter->erp_lock, flags);
-}
-
-static int zfcp_erp_port_strategy_open_nameserver(struct zfcp_erp_action *act)
-{
-	int retval;
-
-	switch (act->step) {
-	case ZFCP_ERP_STEP_UNINITIALIZED:
-	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
-	case ZFCP_ERP_STEP_PORT_CLOSING:
-		return zfcp_erp_port_strategy_open_port(act);
-
-	case ZFCP_ERP_STEP_PORT_OPENING:
-		if (atomic_read(&act->port->status) & ZFCP_STATUS_COMMON_OPEN)
-			retval = ZFCP_ERP_SUCCEEDED;
-		else
-			retval = ZFCP_ERP_FAILED;
-		/* this is needed anyway  */
-		zfcp_erp_port_strategy_open_ns_wake(act);
-		return retval;
-
-	default:
-		return ZFCP_ERP_FAILED;
-	}
-}
-
-static int zfcp_erp_port_strategy_open_lookup(struct zfcp_erp_action *act)
-{
-	int retval;
-
-	retval = zfcp_fc_ns_gid_pn_request(act);
-	if (retval == -ENOMEM)
-		return ZFCP_ERP_NOMEM;
-	act->step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
-	if (retval)
-		return ZFCP_ERP_FAILED;
-	return ZFCP_ERP_CONTINUES;
-}
-
 static int zfcp_erp_open_ptp_port(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
@@ -900,11 +841,25 @@ static int zfcp_erp_open_ptp_port(struct zfcp_erp_action *act)
 	return zfcp_erp_port_strategy_open_port(act);
 }
 
+void zfcp_erp_port_strategy_open_lookup(struct work_struct *work)
+{
+	int retval;
+	struct zfcp_port *port = container_of(work, struct zfcp_port,
+					      gid_pn_work);
+
+	retval = zfcp_fc_ns_gid_pn(&port->erp_action);
+	if (retval == -ENOMEM)
+		zfcp_erp_notify(&port->erp_action, ZFCP_ERP_NOMEM);
+	port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
+	if (retval)
+		zfcp_erp_notify(&port->erp_action, ZFCP_ERP_FAILED);
+
+}
+
 static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
 	struct zfcp_port *port = act->port;
-	struct zfcp_port *ns_port = adapter->nameserver_port;
 	int p_status = atomic_read(&port->status);
 
 	switch (act->step) {
@@ -913,29 +868,10 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 	case ZFCP_ERP_STEP_PORT_CLOSING:
 		if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
 			return zfcp_erp_open_ptp_port(act);
-		if (!ns_port) {
-			dev_err(&adapter->ccw_device->dev,
-				"Attaching the name server port to the "
-				"FCP device failed\n");
-			return ZFCP_ERP_FAILED;
+		if (!(p_status & ZFCP_STATUS_PORT_DID_DID)) {
+			schedule_work(&port->gid_pn_work);
+			return ZFCP_ERP_CONTINUES;
 		}
-		if (!(atomic_read(&ns_port->status) &
-		      ZFCP_STATUS_COMMON_UNBLOCKED)) {
-			/* nameserver port may live again */
-			atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING,
-					&ns_port->status);
-			if (zfcp_erp_port_reopen(ns_port, 0, 77, act) >= 0) {
-				act->step = ZFCP_ERP_STEP_NAMESERVER_OPEN;
-				return ZFCP_ERP_CONTINUES;
-			}
-			return ZFCP_ERP_FAILED;
-		}
-		/* else nameserver port is already open, fall through */
-	case ZFCP_ERP_STEP_NAMESERVER_OPEN:
-		if (!(atomic_read(&ns_port->status) & ZFCP_STATUS_COMMON_OPEN))
-			return ZFCP_ERP_FAILED;
-		return zfcp_erp_port_strategy_open_lookup(act);
-
 	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
 		if (!(p_status & ZFCP_STATUS_PORT_DID_DID)) {
 			if (p_status & (ZFCP_STATUS_PORT_INVALID_WWPN)) {
@@ -948,24 +884,25 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 
 	case ZFCP_ERP_STEP_PORT_OPENING:
 		/* D_ID might have changed during open */
-		if ((p_status & ZFCP_STATUS_COMMON_OPEN) &&
-		    (p_status & ZFCP_STATUS_PORT_DID_DID))
-			return ZFCP_ERP_SUCCEEDED;
+		if (p_status & ZFCP_STATUS_COMMON_OPEN) {
+			if (p_status & ZFCP_STATUS_PORT_DID_DID)
+				return ZFCP_ERP_SUCCEEDED;
+			else {
+				act->step = ZFCP_ERP_STEP_PORT_CLOSING;
+				return ZFCP_ERP_CONTINUES;
+			}
 		/* fall through otherwise */
+		}
 	}
 	return ZFCP_ERP_FAILED;
-}
-
-static int zfcp_erp_port_strategy_open(struct zfcp_erp_action *act)
-{
-	if (atomic_read(&act->port->status) & (ZFCP_STATUS_PORT_WKA))
-		return zfcp_erp_port_strategy_open_nameserver(act);
-	return zfcp_erp_port_strategy_open_common(act);
 }
 
 static int zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 {
 	struct zfcp_port *port = erp_action->port;
+
+	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC)
+		goto close_init_done;
 
 	switch (erp_action->step) {
 	case ZFCP_ERP_STEP_UNINITIALIZED:
@@ -979,12 +916,12 @@ static int zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 			return ZFCP_ERP_FAILED;
 		break;
 	}
+
+close_init_done:
 	if (erp_action->status & ZFCP_STATUS_ERP_CLOSE_ONLY)
 		return ZFCP_ERP_EXIT;
-	else
-		return zfcp_erp_port_strategy_open(erp_action);
 
-	return ZFCP_ERP_FAILED;
+	return zfcp_erp_port_strategy_open_common(erp_action);
 }
 
 static void zfcp_erp_unit_strategy_clearstati(struct zfcp_unit *unit)
@@ -1296,12 +1233,10 @@ static void zfcp_erp_rport_register(struct zfcp_port *port)
 static void zfcp_erp_rports_del(struct zfcp_adapter *adapter)
 {
 	struct zfcp_port *port;
-	list_for_each_entry(port, &adapter->port_list_head, list)
-		if (port->rport && !(atomic_read(&port->status) &
-					ZFCP_STATUS_PORT_WKA)) {
-			fc_remote_port_delete(port->rport);
-			port->rport = NULL;
-		}
+	list_for_each_entry(port, &adapter->port_list_head, list) {
+		fc_remote_port_delete(port->rport);
+		port->rport = NULL;
+	}
 }
 
 static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
@@ -1737,9 +1672,8 @@ static void zfcp_erp_port_access_changed(struct zfcp_port *port, u8 id,
 
 	if (!(status & (ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			ZFCP_STATUS_COMMON_ACCESS_BOXED))) {
-		if (!(status & ZFCP_STATUS_PORT_WKA))
-			list_for_each_entry(unit, &port->unit_list_head, list)
-				zfcp_erp_unit_access_changed(unit, id, ref);
+		list_for_each_entry(unit, &port->unit_list_head, list)
+				    zfcp_erp_unit_access_changed(unit, id, ref);
 		return;
 	}
 
@@ -1762,10 +1696,7 @@ void zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter, u8 id,
 		return;
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	if (adapter->nameserver_port)
-		zfcp_erp_port_access_changed(adapter->nameserver_port, id, ref);
 	list_for_each_entry(port, &adapter->port_list_head, list)
-		if (port != adapter->nameserver_port)
-			zfcp_erp_port_access_changed(port, id, ref);
+		zfcp_erp_port_access_changed(port, id, ref);
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }

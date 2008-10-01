@@ -253,6 +253,7 @@ struct zfcp_ls_adisc {
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
 
 /* FC-PH/FC-GS well-known address identifiers for generic services */
+#define ZFCP_DID_WKA				0xFFFFF0
 #define ZFCP_DID_MANAGEMENT_SERVICE		0xFFFFFA
 #define ZFCP_DID_TIME_SERVICE			0xFFFFFB
 #define ZFCP_DID_DIRECTORY_SERVICE		0xFFFFFC
@@ -264,13 +265,15 @@ struct zfcp_ls_adisc {
 #define ZFCP_STATUS_PORT_DID_DID		0x00000002
 #define ZFCP_STATUS_PORT_PHYS_CLOSING		0x00000004
 #define ZFCP_STATUS_PORT_NO_WWPN		0x00000008
-#define ZFCP_STATUS_PORT_NO_SCSI_ID		0x00000010
 #define ZFCP_STATUS_PORT_INVALID_WWPN		0x00000020
 
-/* for ports with well known addresses */
-#define ZFCP_STATUS_PORT_WKA \
-		(ZFCP_STATUS_PORT_NO_WWPN | \
-		 ZFCP_STATUS_PORT_NO_SCSI_ID)
+/* well known address (WKA) port status*/
+enum zfcp_wka_status {
+	ZFCP_WKA_PORT_OFFLINE,
+	ZFCP_WKA_PORT_CLOSING,
+	ZFCP_WKA_PORT_OPENING,
+	ZFCP_WKA_PORT_ONLINE,
+};
 
 /* logical unit status */
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
@@ -340,7 +343,7 @@ typedef void (*zfcp_send_ct_handler_t)(unsigned long);
 
 /**
  * struct zfcp_send_ct - used to pass parameters to function zfcp_fsf_send_ct
- * @port: port where the request is sent to
+ * @wka_port: port where the request is sent to
  * @req: scatter-gather list for request
  * @resp: scatter-gather list for response
  * @req_count: number of elements in request scatter-gather list
@@ -352,7 +355,7 @@ typedef void (*zfcp_send_ct_handler_t)(unsigned long);
  * @status: used to pass error status to calling function
  */
 struct zfcp_send_ct {
-	struct zfcp_port *port;
+	struct zfcp_wka_port *wka_port;
 	struct scatterlist *req;
 	struct scatterlist *resp;
 	unsigned int req_count;
@@ -404,6 +407,17 @@ struct zfcp_send_els {
 	struct completion *completion;
 	int ls_code;
 	int status;
+};
+
+struct zfcp_wka_port {
+	struct zfcp_adapter	*adapter;
+	wait_queue_head_t	completion_wq;
+	enum zfcp_wka_status	status;
+	atomic_t		refcount;
+	u32			d_id;
+	u32			handle;
+	struct mutex		mutex;
+	struct delayed_work	work;
 };
 
 struct zfcp_qdio_queue {
@@ -496,7 +510,7 @@ struct zfcp_adapter {
 						      actions */
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
-	struct zfcp_port	*nameserver_port;  /* adapter's nameserver */
+	struct zfcp_wka_port	nsp;		   /* adapter's nameserver */
 	debug_info_t		*rec_dbf;
 	debug_info_t		*hba_dbf;
 	debug_info_t		*san_dbf;          /* debug feature areas */
@@ -540,6 +554,7 @@ struct zfcp_port {
         atomic_t               erp_counter;
 	u32                    maxframe_size;
 	u32                    supported_classes;
+	struct work_struct     gid_pn_work;
 };
 
 struct zfcp_unit {

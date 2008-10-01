@@ -961,7 +961,6 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_send_ct *send_ct = req->data;
-	struct zfcp_port *port = send_ct->port;
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 
 	send_ct->status = -EINVAL;
@@ -980,17 +979,14 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
         case FSF_ADAPTER_STATUS_AVAILABLE:
                 switch (header->fsf_status_qual.word[0]){
                 case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			zfcp_test_link(port);
                 case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
                 }
                 break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_port(req, port);
 		break;
         case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(port, 49, req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
 			       ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -1041,8 +1037,8 @@ static int zfcp_fsf_setup_sbals(struct zfcp_fsf_req *req,
 int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 		     struct zfcp_erp_action *erp_action)
 {
-	struct zfcp_port *port = ct->port;
-	struct zfcp_adapter *adapter = port->adapter;
+	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_adapter *adapter = wka_port->adapter;
 	struct zfcp_fsf_req *req;
 	int ret = -EIO;
 
@@ -1063,7 +1059,7 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 		goto failed_send;
 
 	req->handler = zfcp_fsf_send_ct_handler;
-	req->qtcb->header.port_handle = port->handle;
+	req->qtcb->header.port_handle = wka_port->handle;
 	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
 	req->qtcb->bottom.support.timeout = ct->timeout;
 	req->data = ct;
@@ -1435,9 +1431,6 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		 * another GID_PN straight after a port has been opened.
 		 * Alternately, an ADISC/PDISC ELS should suffice, as well.
 		 */
-		if (atomic_read(&port->status) & ZFCP_STATUS_PORT_NO_WWPN)
-			break;
-
 		plogi = (struct fsf_plogi *) req->qtcb->bottom.support.els;
 		if (req->qtcb->bottom.support.els1_length >= sizeof(*plogi)) {
 			if (plogi->serv_param.wwpn != port->wwpn)
@@ -1563,6 +1556,130 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 		zfcp_fsf_req_free(req);
 		erp_action->fsf_req = NULL;
 	}
+out:
+	spin_unlock_bh(&adapter->req_q.lock);
+	return retval;
+}
+
+static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
+{
+	struct zfcp_wka_port *wka_port = req->data;
+	struct fsf_qtcb_header *header = &req->qtcb->header;
+
+	if (req->status & ZFCP_STATUS_FSFREQ_ERROR) {
+		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+		goto out;
+	}
+
+	switch (header->fsf_status) {
+	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
+		dev_warn(&req->adapter->ccw_device->dev,
+			 "Opening WKA port 0x%x failed\n", wka_port->d_id);
+	case FSF_ADAPTER_STATUS_AVAILABLE:
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
+	case FSF_ACCESS_DENIED:
+		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+		break;
+	case FSF_PORT_ALREADY_OPEN:
+	case FSF_GOOD:
+		wka_port->handle = header->port_handle;
+		wka_port->status = ZFCP_WKA_PORT_ONLINE;
+	}
+out:
+	wake_up(&wka_port->completion_wq);
+}
+
+/**
+ * zfcp_fsf_open_wka_port - create and send open wka-port request
+ * @wka_port: pointer to struct zfcp_wka_port
+ * Returns: 0 on success, error otherwise
+ */
+int zfcp_fsf_open_wka_port(struct zfcp_wka_port *wka_port)
+{
+	struct qdio_buffer_element *sbale;
+	struct zfcp_adapter *adapter = wka_port->adapter;
+	struct zfcp_fsf_req *req;
+	int retval = -EIO;
+
+	spin_lock_bh(&adapter->req_q.lock);
+	if (zfcp_fsf_req_sbal_get(adapter))
+		goto out;
+
+	req = zfcp_fsf_req_create(adapter,
+				  FSF_QTCB_OPEN_PORT_WITH_DID,
+				  ZFCP_REQ_AUTO_CLEANUP,
+				  adapter->pool.fsf_req_erp);
+	if (unlikely(IS_ERR(req))) {
+		retval = PTR_ERR(req);
+		goto out;
+	}
+
+	sbale = zfcp_qdio_sbale_req(req);
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
+	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+
+	req->handler = zfcp_fsf_open_wka_port_handler;
+	req->qtcb->bottom.support.d_id = wka_port->d_id;
+	req->data = wka_port;
+
+	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
+	retval = zfcp_fsf_req_send(req);
+	if (retval)
+		zfcp_fsf_req_free(req);
+out:
+	spin_unlock_bh(&adapter->req_q.lock);
+	return retval;
+}
+
+static void zfcp_fsf_close_wka_port_handler(struct zfcp_fsf_req *req)
+{
+	struct zfcp_wka_port *wka_port = req->data;
+
+	if (req->qtcb->header.fsf_status == FSF_PORT_HANDLE_NOT_VALID) {
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
+		zfcp_erp_adapter_reopen(wka_port->adapter, 0, 107, req);
+	}
+
+	wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+	wake_up(&wka_port->completion_wq);
+}
+
+/**
+ * zfcp_fsf_close_wka_port - create and send close wka port request
+ * @erp_action: pointer to struct zfcp_erp_action
+ * Returns: 0 on success, error otherwise
+ */
+int zfcp_fsf_close_wka_port(struct zfcp_wka_port *wka_port)
+{
+	struct qdio_buffer_element *sbale;
+	struct zfcp_adapter *adapter = wka_port->adapter;
+	struct zfcp_fsf_req *req;
+	int retval = -EIO;
+
+	spin_lock_bh(&adapter->req_q.lock);
+	if (zfcp_fsf_req_sbal_get(adapter))
+		goto out;
+
+	req = zfcp_fsf_req_create(adapter, FSF_QTCB_CLOSE_PORT,
+				  ZFCP_REQ_AUTO_CLEANUP,
+				  adapter->pool.fsf_req_erp);
+	if (unlikely(IS_ERR(req))) {
+		retval = PTR_ERR(req);
+		goto out;
+	}
+
+	sbale = zfcp_qdio_sbale_req(req);
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
+	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+
+	req->handler = zfcp_fsf_close_wka_port_handler;
+	req->data = wka_port;
+	req->qtcb->header.port_handle = wka_port->handle;
+
+	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
+	retval = zfcp_fsf_req_send(req);
+	if (retval)
+		zfcp_fsf_req_free(req);
 out:
 	spin_unlock_bh(&adapter->req_q.lock);
 	return retval;

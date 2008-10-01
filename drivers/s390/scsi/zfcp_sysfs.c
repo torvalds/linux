@@ -273,22 +273,7 @@ out:
 }
 static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);
 
-static struct attribute *zfcp_port_ns_attrs[] = {
-	&dev_attr_port_failed.attr,
-	&dev_attr_port_in_recovery.attr,
-	&dev_attr_port_status.attr,
-	&dev_attr_port_access_denied.attr,
-	NULL
-};
-
-/**
- * zfcp_sysfs_ns_port_attrs - sysfs attributes for nameserver
- */
-struct attribute_group zfcp_sysfs_ns_port_attrs = {
-	.attrs = zfcp_port_ns_attrs,
-};
-
-static struct attribute *zfcp_port_no_ns_attrs[] = {
+static struct attribute *zfcp_port_attrs[] = {
 	&dev_attr_unit_add.attr,
 	&dev_attr_unit_remove.attr,
 	&dev_attr_port_failed.attr,
@@ -302,7 +287,7 @@ static struct attribute *zfcp_port_no_ns_attrs[] = {
  * zfcp_sysfs_port_attrs - sysfs attributes for all other ports
  */
 struct attribute_group zfcp_sysfs_port_attrs = {
-	.attrs = zfcp_port_no_ns_attrs,
+	.attrs = zfcp_port_attrs,
 };
 
 static struct attribute *zfcp_unit_attrs[] = {

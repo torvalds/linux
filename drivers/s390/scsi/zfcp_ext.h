@@ -91,17 +91,21 @@ extern void zfcp_erp_port_access_denied(struct zfcp_port *, u8, void *);
 extern void zfcp_erp_unit_access_denied(struct zfcp_unit *, u8, void *);
 extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, u8, void *);
 extern void zfcp_erp_timeout_handler(unsigned long);
+extern void zfcp_erp_port_strategy_open_lookup(struct work_struct *);
 
 /* zfcp_fc.c */
 extern int zfcp_scan_ports(struct zfcp_adapter *);
 extern void _zfcp_scan_ports_later(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
-extern int zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *);
+extern int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_test_link(struct zfcp_port *);
+extern void zfcp_fc_nameserver_init(struct zfcp_adapter *);
 
 /* zfcp_fsf.c */
 extern int zfcp_fsf_open_port(struct zfcp_erp_action *);
+extern int zfcp_fsf_open_wka_port(struct zfcp_wka_port *);
+extern int zfcp_fsf_close_wka_port(struct zfcp_wka_port *);
 extern int zfcp_fsf_close_port(struct zfcp_erp_action *);
 extern int zfcp_fsf_close_physical_port(struct zfcp_erp_action *);
 extern int zfcp_fsf_open_unit(struct zfcp_erp_action *);
@@ -153,7 +157,6 @@ extern struct fc_function_template zfcp_transport_functions;
 /* zfcp_sysfs.c */
 extern struct attribute_group zfcp_sysfs_unit_attrs;
 extern struct attribute_group zfcp_sysfs_adapter_attrs;
-extern struct attribute_group zfcp_sysfs_ns_port_attrs;
 extern struct attribute_group zfcp_sysfs_port_attrs;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];

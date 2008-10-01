@@ -519,7 +519,7 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[75]	= "physical port recovery escalation after failed port "
 		  "recovery",
 	[76]	= "port recovery escalation after failed unit recovery",
-	[77]	= "recovery opening nameserver port",
+	[77]	= "",
 	[78]	= "duplicate request id",
 	[79]	= "link down",
 	[80]	= "exclusive read-only unit access unsupported",
@@ -829,8 +829,8 @@ void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
 void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_port *port = ct->port;
-	struct zfcp_adapter *adapter = port->adapter;
+	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_adapter *adapter = wka_port->adapter;
 	struct ct_hdr *hdr = sg_virt(ct->req);
 	struct zfcp_san_dbf_record *r = &adapter->san_dbf_buf;
 	struct zfcp_san_dbf_record_ct_request *oct = &r->u.ct_req;
@@ -842,7 +842,7 @@ void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 	r->fsf_reqid = (unsigned long)fsf_req;
 	r->fsf_seqno = fsf_req->seq_no;
 	r->s_id = fc_host_port_id(adapter->scsi_host);
-	r->d_id = port->d_id;
+	r->d_id = wka_port->d_id;
 	oct->cmd_req_code = hdr->cmd_rsp_code;
 	oct->revision = hdr->revision;
 	oct->gs_type = hdr->gs_type;
@@ -863,8 +863,8 @@ void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_port *port = ct->port;
-	struct zfcp_adapter *adapter = port->adapter;
+	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_adapter *adapter = wka_port->adapter;
 	struct ct_hdr *hdr = sg_virt(ct->resp);
 	struct zfcp_san_dbf_record *r = &adapter->san_dbf_buf;
 	struct zfcp_san_dbf_record_ct_response *rct = &r->u.ct_resp;
@@ -875,7 +875,7 @@ void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 	strncpy(r->tag, "rctc", ZFCP_DBF_TAG_SIZE);
 	r->fsf_reqid = (unsigned long)fsf_req;
 	r->fsf_seqno = fsf_req->seq_no;
-	r->s_id = port->d_id;
+	r->s_id = wka_port->d_id;
 	r->d_id = fc_host_port_id(adapter->scsi_host);
 	rct->cmd_rsp_code = hdr->cmd_rsp_code;
 	rct->revision = hdr->revision;

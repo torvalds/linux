@@ -450,19 +450,6 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
 					     stat_work));
 }
 
-static int zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
-{
-	struct zfcp_port *port;
-
-	port = zfcp_port_enqueue(adapter, 0, ZFCP_STATUS_PORT_WKA,
-				 ZFCP_DID_DIRECTORY_SERVICE);
-	if (IS_ERR(port))
-		return PTR_ERR(port);
-	zfcp_port_put(port);
-
-	return 0;
-}
-
 /**
  * zfcp_adapter_enqueue - enqueue a new adapter to the list
  * @ccw_device: pointer to the struct cc_device
@@ -552,7 +539,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	zfcp_data.adapters++;
 
-	zfcp_nameserver_enqueue(adapter);
+	zfcp_fc_nameserver_init(adapter);
 
 	return 0;
 
@@ -638,7 +625,6 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 {
 	struct zfcp_port *port;
 	int retval;
-	char *bus_id;
 
 	port = kzalloc(sizeof(struct zfcp_port), GFP_KERNEL);
 	if (!port)
@@ -648,6 +634,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 
 	INIT_LIST_HEAD(&port->unit_list_head);
 	INIT_LIST_HEAD(&port->unit_remove_lh);
+	INIT_WORK(&port->gid_pn_work, zfcp_erp_port_strategy_open_lookup);
 
 	port->adapter = adapter;
 	port->d_id = d_id;
@@ -657,34 +644,8 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set(&port->refcount, 0);
 
-	if (status & ZFCP_STATUS_PORT_WKA) {
-		switch (d_id) {
-		case ZFCP_DID_DIRECTORY_SERVICE:
-			bus_id = "directory";
-			break;
-		case ZFCP_DID_MANAGEMENT_SERVICE:
-			bus_id = "management";
-			break;
-		case ZFCP_DID_KEY_DISTRIBUTION_SERVICE:
-			bus_id = "key_distribution";
-			break;
-		case ZFCP_DID_ALIAS_SERVICE:
-			bus_id = "alias";
-			break;
-		case ZFCP_DID_TIME_SERVICE:
-			bus_id = "time";
-			break;
-		default:
-			kfree(port);
-			return ERR_PTR(-EINVAL);
-		}
-		snprintf(port->sysfs_device.bus_id, BUS_ID_SIZE, "%s", bus_id);
-		port->sysfs_device.parent = &adapter->generic_services;
-	} else {
-		snprintf(port->sysfs_device.bus_id,
-			 BUS_ID_SIZE, "0x%016llx", wwpn);
-		port->sysfs_device.parent = &adapter->ccw_device->dev;
-	}
+	snprintf(port->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx", wwpn);
+	port->sysfs_device.parent = &adapter->ccw_device->dev;
 
 	port->sysfs_device.release = zfcp_sysfs_port_release;
 	dev_set_drvdata(&port->sysfs_device, port);
@@ -700,12 +661,8 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 	if (device_register(&port->sysfs_device))
 		goto err_out_free;
 
-	if (status & ZFCP_STATUS_PORT_WKA)
-		retval = sysfs_create_group(&port->sysfs_device.kobj,
-					    &zfcp_sysfs_ns_port_attrs);
-	else
-		retval = sysfs_create_group(&port->sysfs_device.kobj,
-					    &zfcp_sysfs_port_attrs);
+	retval = sysfs_create_group(&port->sysfs_device.kobj,
+				    &zfcp_sysfs_port_attrs);
 
 	if (retval) {
 		device_unregister(&port->sysfs_device);
@@ -718,9 +675,6 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 	list_add_tail(&port->list, &adapter->port_list_head);
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &port->status);
-	if (d_id == ZFCP_DID_DIRECTORY_SERVICE)
-		if (!adapter->nameserver_port)
-			adapter->nameserver_port = port;
 	adapter->ports++;
 
 	write_unlock_irq(&zfcp_data.config_lock);
@@ -749,12 +703,7 @@ void zfcp_port_dequeue(struct zfcp_port *port)
 		fc_remote_port_delete(port->rport);
 	port->rport = NULL;
 	zfcp_adapter_put(port->adapter);
-	if (atomic_read(&port->status) & ZFCP_STATUS_PORT_WKA)
-		sysfs_remove_group(&port->sysfs_device.kobj,
-				   &zfcp_sysfs_ns_port_attrs);
-	else
-		sysfs_remove_group(&port->sysfs_device.kobj,
-				   &zfcp_sysfs_port_attrs);
+	sysfs_remove_group(&port->sysfs_device.kobj, &zfcp_sysfs_port_attrs);
 	device_unregister(&port->sysfs_device);
 }
 
