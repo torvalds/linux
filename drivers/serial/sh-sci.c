@@ -3,7 +3,7 @@
  *
  * SuperH on-chip serial module support.  (SCI with no FIFO / with FIFO)
  *
- *  Copyright (C) 2002 - 2006  Paul Mundt
+ *  Copyright (C) 2002 - 2008  Paul Mundt
  *  Modified to support SH7720 SCIF. Markus Brunner, Mark Jonas (Jul 2007).
  *
  * based off of the old drivers/char/sh-sci.c by:
@@ -46,6 +46,7 @@
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 #include <linux/ctype.h>
+#include <linux/err.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/clock.h>
@@ -1145,12 +1146,16 @@ static void sci_config_port(struct uart_port *port, int flags)
 		break;
 	}
 
-#if defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
-	if (port->mapbase == 0)
+	if (port->flags & UPF_IOREMAP && !port->membase) {
+#if defined(CONFIG_SUPERH64)
 		port->mapbase = onchip_remap(SCIF_ADDR_SH5, 1024, "SCIF");
-
-	port->membase = (void __iomem *)port->mapbase;
+		port->membase = (void __iomem *)port->mapbase;
+#else
+		port->membase = ioremap_nocache(port->mapbase, 0x40);
 #endif
+
+		printk(KERN_ERR "sci: can't remap port#%d\n", port->line);
+	}
 }
 
 static int sci_verify_port(struct uart_port *port, struct serial_struct *ser)
@@ -1436,7 +1441,7 @@ static struct uart_driver sci_uart_driver = {
 static int __devinit sci_probe(struct platform_device *dev)
 {
 	struct plat_sci_port *p = dev->dev.platform_data;
-	int i;
+	int i, ret = -EINVAL;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
 		struct sci_port *sciport = &sci_ports[i];
@@ -1453,12 +1458,22 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 		sciport->port.mapbase	= p->mapbase;
 
-		/*
-		 * For the simple (and majority of) cases where we don't need
-		 * to do any remapping, just cast the cookie directly.
-		 */
-		if (p->mapbase && !p->membase && !(p->flags & UPF_IOREMAP))
-			p->membase = (void __iomem *)p->mapbase;
+		if (p->mapbase && !p->membase) {
+			if (p->flags & UPF_IOREMAP) {
+				p->membase = ioremap_nocache(p->mapbase, 0x40);
+				if (IS_ERR(p->membase)) {
+					ret = PTR_ERR(p->membase);
+					goto err_unreg;
+				}
+			} else {
+				/*
+				 * For the simple (and majority of) cases
+				 * where we don't need to do any remapping,
+				 * just cast the cookie directly.
+				 */
+				p->membase = (void __iomem *)p->mapbase;
+			}
+		}
 
 		sciport->port.membase	= p->membase;
 
@@ -1489,6 +1504,12 @@ static int __devinit sci_probe(struct platform_device *dev)
 #endif
 
 	return 0;
+
+err_unreg:
+	for (i = i - 1; i >= 0; i--)
+		uart_remove_one_port(&sci_uart_driver, &sci_ports[i].port);
+
+	return ret;
 }
 
 static int __devexit sci_remove(struct platform_device *dev)
