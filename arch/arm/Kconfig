@@ -839,6 +839,7 @@ config OABI_COMPAT
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say Y.
 
+# Discontigmem is deprecated
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
@@ -851,8 +852,11 @@ config ARCH_DISCONTIGMEM_ENABLE
 config ARCH_SPARSEMEM_ENABLE
 	bool
 
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool ARCH_SPARSEMEM_ENABLE
+
 config ARCH_SELECT_MEMORY_MODEL
-	bool
+	def_bool ARCH_DISCONTIGMEM_ENABLE && ARCH_SPARSEMEM_ENABLE
 
 config NODES_SHIFT
 	int
