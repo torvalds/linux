@@ -8,8 +8,9 @@
 #ifndef LIB80211_H
 #define LIB80211_H
 
-/* escape_ssid() is intended to be used in debug (and possibly error)
+/* print_ssid() is intended to be used in debug (and possibly error)
  * messages. It should never be used for passing ssid to user space. */
-const char *escape_ssid(const char *ssid, u8 ssid_len);
+const char *print_ssid(char *buf, const char *ssid, u8 ssid_len);
+#define DECLARE_SSID_BUF(var) char var[32 * 4 + 1] __maybe_unused
 
 #endif /* LIB80211_H */

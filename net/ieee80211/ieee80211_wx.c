@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 
+#include <net/lib80211.h>
 #include <net/ieee80211.h>
 #include <linux/wireless.h>
 
@@ -258,6 +259,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	char *ev = extra;
 	char *stop = ev + wrqu->data.length;
 	int i = 0;
+	DECLARE_SSID_BUF(ssid);
 
 	IEEE80211_DEBUG_WX("Getting scan\n");
 
@@ -277,7 +279,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		else
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
 					     "%pM)' due to age (%dms).\n",
-					     escape_ssid(network->ssid,
+					     print_ssid(ssid, network->ssid,
 							 network->ssid_len),
 					     network->bssid,
 					     jiffies_to_msecs(jiffies -
@@ -307,6 +309,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	int i, key, key_provided, len;
 	struct ieee80211_crypt_data **crypt;
 	int host_crypto = ieee->host_encrypt || ieee->host_decrypt || ieee->host_build_iv;
+	DECLARE_SSID_BUF(ssid);
 
 	IEEE80211_DEBUG_WX("SET_ENCODE\n");
 
@@ -402,7 +405,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			memset(sec.keys[key] + erq->length, 0,
 			       len - erq->length);
 		IEEE80211_DEBUG_WX("Setting key %d to '%s' (%d:%d bytes)\n",
-				   key, escape_ssid(sec.keys[key], len),
+				   key, print_ssid(ssid, sec.keys[key], len),
 				   erq->length, len);
 		sec.key_sizes[key] = len;
 		if (*crypt)

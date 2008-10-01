@@ -1978,6 +1978,7 @@ static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 	u8 ssid_len = 0;
 	struct assoc_request * assoc_req;
 	int in_ssid_len = dwrq->length;
+	DECLARE_SSID_BUF(ssid_buf);
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -2006,7 +2007,7 @@ static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 		lbs_deb_wext("requested any SSID\n");
 	} else {
 		lbs_deb_wext("requested SSID '%s'\n",
-		             escape_ssid(ssid, ssid_len));
+		             print_ssid(ssid_buf, ssid, ssid_len));
 	}
 
 out:

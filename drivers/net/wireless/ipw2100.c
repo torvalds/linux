@@ -163,6 +163,8 @@ that only one external action is invoked at a time.
 #include <linux/ctype.h>
 #include <linux/pm_qos_params.h>
 
+#include <net/lib80211.h>
+
 #include "ipw2100.h"
 
 #define IPW2100_VERSION "git-1.2.2"
@@ -1914,6 +1916,7 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 	u32 chan;
 	char *txratename;
 	u8 bssid[ETH_ALEN];
+	DECLARE_SSID_BUF(ssid);
 
 	/*
 	 * TBD: BSSID is usually 00:00:00:00:00:00 here and not
@@ -1975,7 +1978,7 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 	}
 
 	IPW_DEBUG_INFO("%s: Associated with '%s' at %s, channel %d (BSSID=%pM)\n",
-		       priv->net_dev->name, escape_ssid(essid, essid_len),
+		       priv->net_dev->name, print_ssid(ssid, essid, essid_len),
 		       txratename, chan, bssid);
 
 	/* now we copy read ssid into dev */
@@ -2002,8 +2005,9 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 		.host_command_length = ssid_len
 	};
 	int err;
+	DECLARE_SSID_BUF(ssid);
 
-	IPW_DEBUG_HC("SSID: '%s'\n", escape_ssid(essid, ssid_len));
+	IPW_DEBUG_HC("SSID: '%s'\n", print_ssid(ssid, essid, ssid_len));
 
 	if (ssid_len)
 		memcpy(cmd.host_command_parameters, essid, ssid_len);
@@ -2044,9 +2048,11 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 
 static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 {
+	DECLARE_SSID_BUF(ssid);
+
 	IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE | IPW_DL_ASSOC,
 		  "disassociated: '%s' %pM \n",
-		  escape_ssid(priv->essid, priv->essid_len),
+		  print_ssid(ssid, priv->essid, priv->essid_len),
 		  priv->bssid);
 
 	priv->status &= ~(STATUS_ASSOCIATED | STATUS_ASSOCIATING);
@@ -6958,6 +6964,7 @@ static int ipw2100_wx_set_essid(struct net_device *dev,
 	char *essid = "";	/* ANY */
 	int length = 0;
 	int err = 0;
+	DECLARE_SSID_BUF(ssid);
 
 	mutex_lock(&priv->action_mutex);
 	if (!(priv->status & STATUS_INITIALIZED)) {
@@ -6987,8 +6994,8 @@ static int ipw2100_wx_set_essid(struct net_device *dev,
 		goto done;
 	}
 
-	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n", escape_ssid(essid, length),
-		     length);
+	IPW_DEBUG_WX("Setting ESSID: '%s' (%d)\n",
+		     print_ssid(ssid, essid, length), length);
 
 	priv->essid_len = length;
 	memcpy(priv->essid, essid, priv->essid_len);
@@ -7009,12 +7016,13 @@ static int ipw2100_wx_get_essid(struct net_device *dev,
 	 */
 
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	DECLARE_SSID_BUF(ssid);
 
 	/* If we are associated, trying to associate, or have a statically
 	 * configured ESSID then return that; otherwise return ANY */
 	if (priv->config & CFG_STATIC_ESSID || priv->status & STATUS_ASSOCIATED) {
 		IPW_DEBUG_WX("Getting essid: '%s'\n",
-			     escape_ssid(priv->essid, priv->essid_len));
+			     print_ssid(ssid, priv->essid, priv->essid_len));
 		memcpy(extra, priv->essid, priv->essid_len);
 		wrqu->essid.length = priv->essid_len;
 		wrqu->essid.flags = 1;	/* active */

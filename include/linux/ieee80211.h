@@ -12,8 +12,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef IEEE80211_H
-#define IEEE80211_H
+#ifndef LINUX_IEEE80211_H
+#define LINUX_IEEE80211_H
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
@@ -1114,4 +1114,4 @@ static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
 		return hdr->addr1;
 }
 
-#endif /* IEEE80211_H */
+#endif /* LINUX_IEEE80211_H */
