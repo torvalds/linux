@@ -68,7 +68,7 @@ static void zfcp_fsf_access_denied_port(struct zfcp_fsf_req *req,
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 	dev_warn(&req->adapter->ccw_device->dev,
 		 "Access denied to port 0x%016Lx\n",
-		 port->wwpn);
+		 (unsigned long long)port->wwpn);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[0]);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[1]);
 	zfcp_erp_port_access_denied(port, 55, req);
@@ -81,7 +81,8 @@ static void zfcp_fsf_access_denied_unit(struct zfcp_fsf_req *req,
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 	dev_warn(&req->adapter->ccw_device->dev,
 		 "Access denied to unit 0x%016Lx on port 0x%016Lx\n",
-		 unit->fcp_lun, unit->port->wwpn);
+		 (unsigned long long)unit->fcp_lun,
+		 (unsigned long long)unit->port->wwpn);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[0]);
 	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[1]);
 	zfcp_erp_unit_access_denied(unit, 59, req);
@@ -1390,7 +1391,8 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
 		dev_warn(&req->adapter->ccw_device->dev,
 			 "Not enough FCP adapter resources to open "
-			 "remote port 0x%016Lx\n", port->wwpn);
+			 "remote port 0x%016Lx\n",
+			 (unsigned long long)port->wwpn);
 		zfcp_erp_port_failed(port, 31, req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
@@ -1403,7 +1405,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		case FSF_SQ_NO_RETRY_POSSIBLE:
 			dev_warn(&req->adapter->ccw_device->dev,
 				 "Remote port 0x%016Lx could not be opened\n",
-				 port->wwpn);
+				 (unsigned long long)port->wwpn);
 			zfcp_erp_port_failed(port, 32, req);
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
@@ -1824,8 +1826,8 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 			dev_warn(&adapter->ccw_device->dev,
 				 "LUN 0x%Lx on port 0x%Lx is already in "
 				 "use by CSS%d, MIF Image ID %x\n",
-				 unit->fcp_lun,
-				 unit->port->wwpn,
+				 (unsigned long long)unit->fcp_lun,
+				 (unsigned long long)unit->port->wwpn,
 				 queue_designator->cssid,
 				 queue_designator->hla);
 		else
@@ -1840,7 +1842,8 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 		dev_warn(&adapter->ccw_device->dev,
 			 "No handle is available for LUN "
 			 "0x%016Lx on port 0x%016Lx\n",
-			 unit->fcp_lun, unit->port->wwpn);
+			 (unsigned long long)unit->fcp_lun,
+			 (unsigned long long)unit->port->wwpn);
 		zfcp_erp_unit_failed(unit, 34, req);
 		/* fall through */
 	case FSF_INVALID_COMMAND_OPTION:
@@ -1879,7 +1882,8 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 				dev_info(&adapter->ccw_device->dev,
 					 "SCSI device at LUN 0x%016Lx on port "
 					 "0x%016Lx opened read-only\n",
-					 unit->fcp_lun, unit->port->wwpn);
+					 (unsigned long long)unit->fcp_lun,
+					 (unsigned long long)unit->port->wwpn);
         		}
 
         		if (exclusive && !readwrite) {
@@ -1887,7 +1891,8 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 					"Exclusive read-only access not "
 					"supported (unit 0x%016Lx, "
 					"port 0x%016Lx)\n",
-					unit->fcp_lun, unit->port->wwpn);
+					(unsigned long long)unit->fcp_lun,
+					(unsigned long long)unit->port->wwpn);
 				zfcp_erp_unit_failed(unit, 35, req);
 				req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 				zfcp_erp_unit_shutdown(unit, 0, 80, req);
@@ -1896,7 +1901,8 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 					"Shared read-write access not "
 					"supported (unit 0x%016Lx, port "
 					"0x%016Lx\n)",
-					unit->fcp_lun, unit->port->wwpn);
+					(unsigned long long)unit->fcp_lun,
+					(unsigned long long)unit->port->wwpn);
 				zfcp_erp_unit_failed(unit, 36, req);
 				req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 				zfcp_erp_unit_shutdown(unit, 0, 81, req);
@@ -2197,7 +2203,8 @@ static void zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *req)
 			"Incorrect direction %d, unit 0x%016Lx on port "
 			"0x%016Lx closed\n",
 			req->qtcb->bottom.io.data_direction,
-			unit->fcp_lun, unit->port->wwpn);
+			(unsigned long long)unit->fcp_lun,
+			(unsigned long long)unit->port->wwpn);
 		zfcp_erp_adapter_shutdown(unit->port->adapter, 0, 133, req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
@@ -2206,7 +2213,8 @@ static void zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *req)
 			"Incorrect CDB length %d, unit 0x%016Lx on "
 			"port 0x%016Lx closed\n",
 			req->qtcb->bottom.io.fcp_cmnd_length,
-			unit->fcp_lun, unit->port->wwpn);
+			(unsigned long long)unit->fcp_lun,
+			(unsigned long long)unit->port->wwpn);
 		zfcp_erp_adapter_shutdown(unit->port->adapter, 0, 134, req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
@@ -2235,6 +2243,20 @@ skip_fsfstatus:
 		req->unit = NULL;
 		zfcp_unit_put(unit);
 	}
+}
+
+static void zfcp_set_fcp_dl(struct fcp_cmnd_iu *fcp_cmd, u32 fcp_dl)
+{
+	u32 *fcp_dl_ptr;
+
+	/*
+	 * fcp_dl_addr = start address of fcp_cmnd structure +
+	 * size of fixed part + size of dynamically sized add_dcp_cdb field
+	 * SEE FCP-2 documentation
+	 */
+	fcp_dl_ptr = (u32 *) ((unsigned char *) &fcp_cmd[1] +
+			(fcp_cmd->add_fcp_cdb_length << 2));
+	*fcp_dl_ptr = fcp_dl;
 }
 
 /**
@@ -2322,7 +2344,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	memcpy(fcp_cmnd_iu->fcp_cdb, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
 
 	req->qtcb->bottom.io.fcp_cmnd_length = sizeof(struct fcp_cmnd_iu) +
-		fcp_cmnd_iu->add_fcp_cdb_length + sizeof(fcp_dl_t);
+		fcp_cmnd_iu->add_fcp_cdb_length + sizeof(u32);
 
 	real_bytes = zfcp_qdio_sbals_from_sg(req, sbtype,
 					     scsi_sglist(scsi_cmnd),
@@ -2334,7 +2356,8 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 			dev_err(&adapter->ccw_device->dev,
 				"Oversize data package, unit 0x%016Lx "
 				"on port 0x%016Lx closed\n",
-				unit->fcp_lun, unit->port->wwpn);
+				(unsigned long long)unit->fcp_lun,
+				(unsigned long long)unit->port->wwpn);
 			zfcp_erp_unit_shutdown(unit, 0, 131, req);
 			retval = -EINVAL;
 		}
@@ -2397,7 +2420,7 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *adapter,
 	req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
 	req->qtcb->bottom.io.service_class = FSF_CLASS_3;
 	req->qtcb->bottom.io.fcp_cmnd_length = 	sizeof(struct fcp_cmnd_iu) +
-						sizeof(fcp_dl_t);
+						sizeof(u32);
 
 	sbale = zfcp_qdio_sbale_req(req);
 	sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE;

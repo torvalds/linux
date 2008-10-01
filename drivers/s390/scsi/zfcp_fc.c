@@ -178,7 +178,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	schedule_work(&fsf_req->adapter->scan_work);
 }
 
-static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, wwn_t wwpn)
+static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_port *port;

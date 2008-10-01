@@ -88,11 +88,13 @@ static int __init zfcp_device_setup(char *devstr)
 	strncpy(zfcp_data.init_busid, token, BUS_ID_SIZE);
 
 	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0, &zfcp_data.init_wwpn))
+	if (!token || strict_strtoull(token, 0,
+				(unsigned long long *) &zfcp_data.init_wwpn))
 		goto err_out;
 
 	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0, &zfcp_data.init_fcp_lun))
+	if (!token || strict_strtoull(token, 0,
+				(unsigned long long *) &zfcp_data.init_fcp_lun))
 		goto err_out;
 
 	kfree(str);
@@ -231,8 +233,7 @@ module_init(zfcp_module_init);
  *
  * Returns: pointer to zfcp_unit or NULL
  */
-struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port,
-				       fcp_lun_t fcp_lun)
+struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
 {
 	struct zfcp_unit *unit;
 
@@ -251,7 +252,7 @@ struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port,
  * Returns: pointer to zfcp_port or NULL
  */
 struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
-					wwn_t wwpn)
+					u64 wwpn)
 {
 	struct zfcp_port *port;
 
@@ -276,7 +277,7 @@ static void zfcp_sysfs_unit_release(struct device *dev)
  *
  * Sets up some unit internal structures and creates sysfs entry.
  */
-struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
+struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 {
 	struct zfcp_unit *unit;
 
@@ -290,7 +291,8 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;
 
-	snprintf(unit->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx", fcp_lun);
+	snprintf(unit->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx",
+		 (unsigned long long) fcp_lun);
 	unit->sysfs_device.parent = &port->sysfs_device;
 	unit->sysfs_device.release = zfcp_sysfs_unit_release;
 	dev_set_drvdata(&unit->sysfs_device, unit);
@@ -620,7 +622,7 @@ static void zfcp_sysfs_port_release(struct device *dev)
  * d_id is used to enqueue ports with a well known address like the Directory
  * Service for nameserver lookup.
  */
-struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
+struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 				     u32 status, u32 d_id)
 {
 	struct zfcp_port *port;
@@ -644,7 +646,8 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set(&port->refcount, 0);
 
-	snprintf(port->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx", wwpn);
+	snprintf(port->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx",
+		 (unsigned long long) wwpn);
 	port->sysfs_device.parent = &adapter->ccw_device->dev;
 
 	port->sysfs_device.release = zfcp_sysfs_port_release;

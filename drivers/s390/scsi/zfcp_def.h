@@ -78,11 +78,6 @@
 
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
-typedef unsigned long long wwn_t;
-typedef unsigned long long fcp_lun_t;
-/* data length field may be at variable position in FCP-2 FCP_CMND IU */
-typedef unsigned int       fcp_dl_t;
-
 /* timeout for name-server lookup (in seconds) */
 #define ZFCP_NS_GID_PN_TIMEOUT		10
 
@@ -106,7 +101,7 @@ typedef unsigned int       fcp_dl_t;
 
 /* FCP(-2) FCP_CMND IU */
 struct fcp_cmnd_iu {
-	fcp_lun_t fcp_lun;	   /* FCP logical unit number */
+	u64 fcp_lun;	   /* FCP logical unit number */
 	u8  crn;	           /* command reference number */
 	u8  reserved0:5;	   /* reserved */
 	u8  task_attribute:3;	   /* task attribute */
@@ -181,7 +176,7 @@ struct fcp_rscn_element {
 struct fcp_logo {
         u32 command;
         u32 nport_did;
-        wwn_t nport_wwpn;
+	u64 nport_wwpn;
 } __attribute__((packed));
 
 /*
@@ -330,7 +325,7 @@ struct ct_hdr {
  * a port name is required */
 struct ct_iu_gid_pn_req {
 	struct ct_hdr header;
-	wwn_t wwpn;
+	u64 wwpn;
 } __attribute__ ((packed));
 
 /* FS_ACC IU and data unit for GID_PN nameserver request */
@@ -338,8 +333,6 @@ struct ct_iu_gid_pn_resp {
 	struct ct_hdr header;
 	u32 d_id;
 } __attribute__ ((packed));
-
-typedef void (*zfcp_send_ct_handler_t)(unsigned long);
 
 /**
  * struct zfcp_send_ct - used to pass parameters to function zfcp_fsf_send_ct
@@ -360,7 +353,7 @@ struct zfcp_send_ct {
 	struct scatterlist *resp;
 	unsigned int req_count;
 	unsigned int resp_count;
-	zfcp_send_ct_handler_t handler;
+	void (*handler)(unsigned long);
 	unsigned long handler_data;
 	int timeout;
 	struct completion *completion;
@@ -376,8 +369,6 @@ struct zfcp_gid_pn_data {
 	struct ct_iu_gid_pn_resp ct_iu_resp;
         struct zfcp_port *port;
 };
-
-typedef void (*zfcp_send_els_handler_t)(unsigned long);
 
 /**
  * struct zfcp_send_els - used to pass parameters to function zfcp_fsf_send_els
@@ -402,7 +393,7 @@ struct zfcp_send_els {
 	struct scatterlist *resp;
 	unsigned int req_count;
 	unsigned int resp_count;
-	zfcp_send_els_handler_t handler;
+	void (*handler)(unsigned long);
 	unsigned long handler_data;
 	struct completion *completion;
 	int ls_code;
@@ -468,8 +459,8 @@ struct zfcp_adapter {
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
 						      refcount drop to zero */
-	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
-	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
+	u64			peer_wwnn;	   /* P2P peer WWNN */
+	u64			peer_wwpn;	   /* P2P peer WWPN */
 	u32			peer_d_id;	   /* P2P peer D_ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u32			hydra_version;	   /* Hydra version */
@@ -546,8 +537,8 @@ struct zfcp_port {
 						  list */
 	u32		       units;	       /* # of logical units in list */
 	atomic_t	       status;	       /* status of this remote port */
-	wwn_t		       wwnn;	       /* WWNN if known */
-	wwn_t		       wwpn;	       /* WWPN */
+	u64		       wwnn;	       /* WWNN if known */
+	u64		       wwpn;	       /* WWPN */
 	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
@@ -566,7 +557,7 @@ struct zfcp_unit {
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */
 	unsigned int	       scsi_lun;       /* own SCSI LUN */
-	fcp_lun_t	       fcp_lun;	       /* own FCP_LUN */
+	u64		       fcp_lun;	       /* own FCP_LUN */
 	u32		       handle;	       /* handle assigned by FSF */
         struct scsi_device     *device;        /* scsi device struct pointer */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
@@ -620,11 +611,11 @@ struct zfcp_data {
 						       changes */
 	atomic_t		loglevel;            /* current loglevel */
 	char                    init_busid[BUS_ID_SIZE];
-	wwn_t                   init_wwpn;
-	fcp_lun_t               init_fcp_lun;
-	struct kmem_cache		*fsf_req_qtcb_cache;
-	struct kmem_cache		*sr_buffer_cache;
-	struct kmem_cache		*gid_pn_cache;
+	u64			init_wwpn;
+	u64			init_fcp_lun;
+	struct kmem_cache	*fsf_req_qtcb_cache;
+	struct kmem_cache	*sr_buffer_cache;
+	struct kmem_cache	*gid_pn_cache;
 };
 
 /* struct used by memory pools for fsf_requests */

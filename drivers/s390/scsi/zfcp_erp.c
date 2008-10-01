@@ -991,7 +991,8 @@ static int zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 			dev_err(&unit->port->adapter->ccw_device->dev,
 				"ERP failed for unit 0x%016Lx on "
 				"port 0x%016Lx\n",
-				unit->fcp_lun, unit->port->wwpn);
+				(unsigned long long)unit->fcp_lun,
+				(unsigned long long)unit->port->wwpn);
 			zfcp_erp_unit_failed(unit, 21, NULL);
 		}
 		break;
@@ -1021,7 +1022,7 @@ static int zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 		if (atomic_read(&port->erp_counter) > ZFCP_MAX_ERPS) {
 			dev_err(&port->adapter->ccw_device->dev,
 				"ERP failed for remote port 0x%016Lx\n",
-				port->wwpn);
+				(unsigned long long)port->wwpn);
 			zfcp_erp_port_failed(port, 22, NULL);
 		}
 		break;
@@ -1199,7 +1200,8 @@ static void zfcp_erp_schedule_work(struct zfcp_unit *unit)
 	if (!p) {
 		dev_err(&unit->port->adapter->ccw_device->dev,
 			"Registering unit 0x%016Lx on port 0x%016Lx failed\n",
-			unit->fcp_lun, unit->port->wwpn);
+			(unsigned long long)unit->fcp_lun,
+			(unsigned long long)unit->port->wwpn);
 		return;
 	}
 
@@ -1221,7 +1223,7 @@ static void zfcp_erp_rport_register(struct zfcp_port *port)
 	if (!port->rport) {
 		dev_err(&port->adapter->ccw_device->dev,
 			"Registering port 0x%016Lx failed\n",
-			port->wwpn);
+			(unsigned long long)port->wwpn);
 		return;
 	}
 

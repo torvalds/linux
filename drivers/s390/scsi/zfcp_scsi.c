@@ -21,20 +21,6 @@ char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *fcp_rsp_iu)
 	return fcp_sns_info_ptr;
 }
 
-void zfcp_set_fcp_dl(struct fcp_cmnd_iu *fcp_cmd, fcp_dl_t fcp_dl)
-{
-	fcp_dl_t *fcp_dl_ptr;
-
-	/*
-	 * fcp_dl_addr = start address of fcp_cmnd structure +
-	 * size of fixed part + size of dynamically sized add_dcp_cdb field
-	 * SEE FCP-2 documentation
-	 */
-	fcp_dl_ptr = (fcp_dl_t *) ((unsigned char *) &fcp_cmd[1] +
-				   (fcp_cmd->add_fcp_cdb_length << 2));
-	*fcp_dl_ptr = fcp_dl;
-}
-
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;

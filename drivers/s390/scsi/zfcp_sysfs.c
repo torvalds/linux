@@ -26,9 +26,9 @@ static ZFCP_DEV_ATTR(_feat, _name, S_IRUGO,				       \
 ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, status, "0x%08x\n",
 		 atomic_read(&adapter->status));
 ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, peer_wwnn, "0x%016llx\n",
-		 adapter->peer_wwnn);
+		 (unsigned long long) adapter->peer_wwnn);
 ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, peer_wwpn, "0x%016llx\n",
-		 adapter->peer_wwpn);
+		 (unsigned long long) adapter->peer_wwpn);
 ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, peer_d_id, "0x%06x\n",
 		 adapter->peer_d_id);
 ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, card_version, "0x%04x\n",
@@ -135,7 +135,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 {
 	struct zfcp_adapter *adapter = dev_get_drvdata(dev);
 	struct zfcp_port *port;
-	wwn_t wwpn;
+	u64 wwpn;
 	int retval = 0;
 
 	down(&zfcp_data.config_sema);
@@ -144,7 +144,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 		goto out;
 	}
 
-	if (strict_strtoull(buf, 0, &wwpn)) {
+	if (strict_strtoull(buf, 0, (unsigned long long *) &wwpn)) {
 		retval = -EINVAL;
 		goto out;
 	}
@@ -200,7 +200,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 {
 	struct zfcp_port *port = dev_get_drvdata(dev);
 	struct zfcp_unit *unit;
-	fcp_lun_t fcp_lun;
+	u64 fcp_lun;
 	int retval = -EINVAL;
 
 	down(&zfcp_data.config_sema);
@@ -209,7 +209,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 		goto out;
 	}
 
-	if (strict_strtoull(buf, 0, &fcp_lun))
+	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		goto out;
 
 	unit = zfcp_unit_enqueue(port, fcp_lun);
@@ -233,7 +233,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 {
 	struct zfcp_port *port = dev_get_drvdata(dev);
 	struct zfcp_unit *unit;
-	fcp_lun_t fcp_lun;
+	u64 fcp_lun;
 	int retval = 0;
 
 	down(&zfcp_data.config_sema);
@@ -242,7 +242,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 		goto out;
 	}
 
-	if (strict_strtoull(buf, 0, &fcp_lun)) {
+	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun)) {
 		retval = -EINVAL;
 		goto out;
 	}
@@ -380,8 +380,10 @@ static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_scsi_##_name##_show, NULL);
 
 ZFCP_DEFINE_SCSI_ATTR(hba_id, "%s\n",
 	unit->port->adapter->ccw_device->dev.bus_id);
-ZFCP_DEFINE_SCSI_ATTR(wwpn, "0x%016llx\n", unit->port->wwpn);
-ZFCP_DEFINE_SCSI_ATTR(fcp_lun, "0x%016llx\n", unit->fcp_lun);
+ZFCP_DEFINE_SCSI_ATTR(wwpn, "0x%016llx\n",
+		      (unsigned long long) unit->port->wwpn);
+ZFCP_DEFINE_SCSI_ATTR(fcp_lun, "0x%016llx\n",
+		      (unsigned long long) unit->fcp_lun);
 
 struct device_attribute *zfcp_sysfs_sdev_attrs[] = {
 	&dev_attr_fcp_lun,

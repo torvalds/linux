@@ -12,16 +12,14 @@
 #include "zfcp_def.h"
 
 /* zfcp_aux.c */
-extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *,
-					      fcp_lun_t);
-extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *,
-					       wwn_t);
+extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, u64);
+extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, u64);
 extern int zfcp_adapter_enqueue(struct ccw_device *);
 extern void zfcp_adapter_dequeue(struct zfcp_adapter *);
-extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, wwn_t, u32,
+extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern void zfcp_port_dequeue(struct zfcp_port *);
-extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, fcp_lun_t);
+extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
 extern void zfcp_unit_dequeue(struct zfcp_unit *);
 extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
@@ -150,7 +148,6 @@ extern void zfcp_qdio_close(struct zfcp_adapter *);
 extern struct zfcp_data zfcp_data;
 extern int zfcp_adapter_scsi_register(struct zfcp_adapter *);
 extern void zfcp_adapter_scsi_unregister(struct zfcp_adapter *);
-extern void zfcp_set_fcp_dl(struct fcp_cmnd_iu *, fcp_dl_t);
 extern char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *);
 extern struct fc_function_template zfcp_transport_functions;
 
