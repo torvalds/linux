@@ -86,24 +86,24 @@ static inline unsigned int set_field(unsigned int value,
 
 static void write_8(unsigned long addr, unsigned long h, unsigned long data)
 {
-	ctrl_outb(set_field(0, data, h), addr);
+	__raw_writeb(set_field(0, data, h), addr);
 }
 
 static void write_16(unsigned long addr, unsigned long h, unsigned long data)
 {
-	ctrl_outw(set_field(0, data, h), addr);
+	__raw_writew(set_field(0, data, h), addr);
 }
 
 static void write_32(unsigned long addr, unsigned long h, unsigned long data)
 {
-	ctrl_outl(set_field(0, data, h), addr);
+	__raw_writel(set_field(0, data, h), addr);
 }
 
 static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	ctrl_outb(set_field(ctrl_inb(addr), data, h), addr);
+	__raw_writeb(set_field(__raw_readb(addr), data, h), addr);
 	local_irq_restore(flags);
 }
 
@@ -111,7 +111,7 @@ static void modify_16(unsigned long addr, unsigned long h, unsigned long data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	ctrl_outw(set_field(ctrl_inw(addr), data, h), addr);
+	__raw_writew(set_field(__raw_readw(addr), data, h), addr);
 	local_irq_restore(flags);
 }
 
@@ -119,7 +119,7 @@ static void modify_32(unsigned long addr, unsigned long h, unsigned long data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	ctrl_outl(set_field(ctrl_inl(addr), data, h), addr);
+	__raw_writel(set_field(__raw_readl(addr), data, h), addr);
 	local_irq_restore(flags);
 }
 
@@ -246,16 +246,16 @@ static void intc_mask_ack(unsigned int irq)
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
 		switch (_INTC_FN(handle)) {
 		case REG_FN_MODIFY_BASE + 0:	/* 8bit */
-			ctrl_inb(addr);
-			ctrl_outb(0xff ^ set_field(0, 1, handle), addr);
+			__raw_readb(addr);
+			__raw_writeb(0xff ^ set_field(0, 1, handle), addr);
 			break;
 		case REG_FN_MODIFY_BASE + 1:	/* 16bit */
-			ctrl_inw(addr);
-			ctrl_outw(0xffff ^ set_field(0, 1, handle), addr);
+			__raw_readw(addr);
+			__raw_writew(0xffff ^ set_field(0, 1, handle), addr);
 			break;
 		case REG_FN_MODIFY_BASE + 3:	/* 32bit */
-			ctrl_inl(addr);
-			ctrl_outl(0xffffffff ^ set_field(0, 1, handle), addr);
+			__raw_readl(addr);
+			__raw_writel(0xffffffff ^ set_field(0, 1, handle), addr);
 			break;
 		default:
 			BUG();
