@@ -370,12 +370,9 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	tmp = save_i387_xstate_ia32(fpstate);
 	if (tmp < 0)
 		err = -EFAULT;
-	else {
-		clear_used_math();
-		stts();
+	else
 		err |= __put_user(ptr_to_compat(tmp ? fpstate : NULL),
 					&sc->fpstate);
-	}
 
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
