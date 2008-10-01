@@ -16,6 +16,7 @@
 #include <linux/udp.h>
 #include <net/checksum.h>
 #include <net/tcp.h>
+#include <net/route.h>
 
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/nf_conntrack.h>

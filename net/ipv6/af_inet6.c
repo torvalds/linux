@@ -50,6 +50,7 @@
 #include <net/ipip.h>
 #include <net/protocol.h>
 #include <net/inet_common.h>
+#include <net/route.h>
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>

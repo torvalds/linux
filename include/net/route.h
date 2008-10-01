@@ -204,4 +204,9 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 	return rt->peer;
 }
 
+static inline int inet_iif(const struct sk_buff *skb)
+{
+	return skb->rtable->rt_iif;
+}
+
 #endif	/* _ROUTE_H */
