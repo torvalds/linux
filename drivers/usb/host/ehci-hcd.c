@@ -145,16 +145,6 @@ static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
 	return -ETIMEDOUT;
 }
 
-static int handshake_on_error_set_halt(struct ehci_hcd *ehci, void __iomem *ptr,
-				       u32 mask, u32 done, int usec)
-{
-	int error = handshake(ehci, ptr, mask, done, usec);
-	if (error)
-		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
-
-	return error;
-}
-
 /* force HC to halt state from unknown (EHCI spec section 2.3) */
 static int ehci_halt (struct ehci_hcd *ehci)
 {
@@ -171,6 +161,22 @@ static int ehci_halt (struct ehci_hcd *ehci)
 	ehci_writel(ehci, temp, &ehci->regs->command);
 	return handshake (ehci, &ehci->regs->status,
 			  STS_HALT, STS_HALT, 16 * 125);
+}
+
+static int handshake_on_error_set_halt(struct ehci_hcd *ehci, void __iomem *ptr,
+				       u32 mask, u32 done, int usec)
+{
+	int error;
+
+	error = handshake(ehci, ptr, mask, done, usec);
+	if (error) {
+		ehci_halt(ehci);
+		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
+		ehci_err(ehci, "force halt; handhake %p %08x %08x -> %d\n",
+			ptr, mask, done, error);
+	}
+
+	return error;
 }
 
 /* put TDI/ARC silicon into EHCI mode */

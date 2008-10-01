@@ -144,8 +144,8 @@ static int rdc321x_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rdc321x_wdt_ioctl(struct inode *inode, struct file *file,
-				unsigned int cmd, unsigned long arg)
+static long rdc321x_wdt_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	unsigned int value;
@@ -204,7 +204,7 @@ static ssize_t rdc321x_wdt_write(struct file *file, const char __user *buf,
 static const struct file_operations rdc321x_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.ioctl		= rdc321x_wdt_ioctl,
+	.unlocked_ioctl	= rdc321x_wdt_ioctl,
 	.open		= rdc321x_wdt_open,
 	.write		= rdc321x_wdt_write,
 	.release	= rdc321x_wdt_release,

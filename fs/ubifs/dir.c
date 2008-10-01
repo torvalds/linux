@@ -426,7 +426,7 @@ static int ubifs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	while (1) {
 		dbg_gen("feed '%s', ino %llu, new f_pos %#x",
-			dent->name, le64_to_cpu(dent->inum),
+			dent->name, (unsigned long long)le64_to_cpu(dent->inum),
 			key_hash_flash(c, &dent->key));
 		ubifs_assert(dent->ch.sqnum > ubifs_inode(dir)->creat_sqnum);
 
@@ -587,7 +587,6 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	if (err) {
 		if (err != -ENOSPC)
 			return err;
-		err = 0;
 		budgeted = 0;
 	}
 

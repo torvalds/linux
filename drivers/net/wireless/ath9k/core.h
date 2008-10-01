@@ -976,7 +976,6 @@ struct ath_softc {
 	u32 sc_keymax;		/* size of key cache */
 	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);	/* key use bit map */
 	u8 sc_splitmic;		/* split TKIP MIC keys */
-	int sc_keytype;
 
 	/* RX */
 	struct list_head sc_rxbuf;

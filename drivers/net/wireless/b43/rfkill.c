@@ -44,23 +44,6 @@ static bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
 	return 0;
 }
 
-/* Update the rfkill state */
-static void b43_rfkill_update_state(struct b43_wldev *dev)
-{
-	struct b43_rfkill *rfk = &(dev->wl->rfkill);
-
-	if (!dev->radio_hw_enable) {
-		rfk->rfkill->state = RFKILL_STATE_HARD_BLOCKED;
-		return;
-	}
-
-	if (!dev->phy.radio_on)
-		rfk->rfkill->state = RFKILL_STATE_SOFT_BLOCKED;
-	else
-		rfk->rfkill->state = RFKILL_STATE_UNBLOCKED;
-
-}
-
 /* The poll callback for the hardware button. */
 static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 {
@@ -78,7 +61,6 @@ static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 	if (unlikely(enabled != dev->radio_hw_enable)) {
 		dev->radio_hw_enable = enabled;
 		report_change = 1;
-		b43_rfkill_update_state(dev);
 		b43info(wl, "Radio hardware status changed to %s\n",
 			enabled ? "ENABLED" : "DISABLED");
 	}

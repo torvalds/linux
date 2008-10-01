@@ -340,3 +340,11 @@ Why:  Accounting can now be enabled/disabled without kernel recompilation.
       controlled by a kernel/module/sysfs/sysctl parameter.
 Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
+---------------------------
+
+What: ide-scsi (BLK_DEV_IDESCSI)
+When: 2.6.29
+Why:  The 2.6 kernel supports direct writing to ide CD drives, which
+      eliminates the need for ide-scsi. The new method is more
+      efficient in every way.
+Who:  FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>

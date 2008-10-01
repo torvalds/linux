@@ -49,6 +49,7 @@ int blk_verify_command(struct blk_cmd_filter *filter,
 }
 EXPORT_SYMBOL(blk_verify_command);
 
+#if 0
 /* and now, the sysfs stuff */
 static ssize_t rcf_cmds_show(struct blk_cmd_filter *filter, char *page,
 			     int rw)
@@ -233,3 +234,4 @@ void blk_unregister_filter(struct gendisk *disk)
 	kobject_put(disk->holder_dir->parent);
 }
 EXPORT_SYMBOL(blk_unregister_filter);
+#endif

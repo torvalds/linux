@@ -6597,7 +6597,7 @@ struct flash_spec {
 
 struct bnx2_irq {
 	irq_handler_t	handler;
-	u16		vector;
+	unsigned int	vector;
 	u8		requested;
 	char		name[16];
 };

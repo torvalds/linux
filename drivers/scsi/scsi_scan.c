@@ -1080,7 +1080,8 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * PDT=1Fh none (no FDD connected to the requested logical unit)
 	 */
 	if (((result[0] >> 5) == 1 || starget->pdt_1f_for_no_lun) &&
-	     (result[0] & 0x1f) == 0x1f) {
+	    (result[0] & 0x1f) == 0x1f &&
+	    !scsi_is_wlun(lun)) {
 		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO
 					"scsi scan: peripheral device type"
 					" of 31, no device added\n"));

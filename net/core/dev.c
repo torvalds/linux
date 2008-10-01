@@ -122,6 +122,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
 #include <linux/jhash.h>
@@ -1698,7 +1699,7 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 {
 	u32 addr1, addr2, ports;
 	u32 hash, ihl;
-	u8 ip_proto;
+	u8 ip_proto = 0;
 
 	if (unlikely(!simple_tx_hashrnd_initialized)) {
 		get_random_bytes(&simple_tx_hashrnd, 4);
@@ -1707,7 +1708,8 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		ip_proto = ip_hdr(skb)->protocol;
+		if (!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)))
+			ip_proto = ip_hdr(skb)->protocol;
 		addr1 = ip_hdr(skb)->saddr;
 		addr2 = ip_hdr(skb)->daddr;
 		ihl = ip_hdr(skb)->ihl;
