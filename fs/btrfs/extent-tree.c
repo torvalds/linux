@@ -1505,7 +1505,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	u64 thresh;
 	u64 start;
 	u64 num_bytes;
-	int ret = 0;
+	int ret = 0, waited = 0;
 
 	flags = reduce_alloc_profile(extent_root, flags);
 
@@ -1530,7 +1530,18 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	    space_info->bytes_reserved + alloc_bytes) < thresh)
 		goto out;
 
-	mutex_lock(&extent_root->fs_info->chunk_mutex);
+	while (!mutex_trylock(&extent_root->fs_info->chunk_mutex)) {
+		if (!force)
+			goto out;
+		mutex_unlock(&extent_root->fs_info->alloc_mutex);
+		cond_resched();
+		mutex_lock(&extent_root->fs_info->alloc_mutex);
+		waited = 1;
+	}
+
+	if (waited && space_info->full)
+		goto out_unlock;
+
 	ret = btrfs_alloc_chunk(trans, extent_root, &start, &num_bytes, flags);
 	if (ret == -ENOSPC) {
 printk("space info full %Lu\n", flags);
