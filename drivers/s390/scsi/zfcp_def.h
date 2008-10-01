@@ -568,6 +568,7 @@ struct zfcp_adapter {
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
 	struct work_struct	scan_work;
+	atomic_t		qdio_outb_full;	   /* queue full incidents */
 };
 
 struct zfcp_port {

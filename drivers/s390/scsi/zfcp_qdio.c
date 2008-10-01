@@ -282,6 +282,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 	     addr += length, remaining -= length) {
 		sbale = zfcp_qdio_sbale_next(fsf_req, sbtype);
 		if (!sbale) {
+			atomic_inc(&fsf_req->adapter->qdio_outb_full);
 			zfcp_qdio_undo_sbals(fsf_req);
 			return -EINVAL;
 		}
