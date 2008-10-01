@@ -61,8 +61,8 @@ struct inet_request_sock {
 	struct request_sock	req;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	u16			inet6_rsk_offset;
-	/* 2 bytes hole, try to pack */
 #endif
+	__be16			loc_port;
 	__be32			loc_addr;
 	__be32			rmt_addr;
 	__be16			rmt_port;
