@@ -322,10 +322,10 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 
 	if (type) {
 		if (dif)
-			sd_printk(KERN_INFO, sdkp,
+			sd_printk(KERN_NOTICE, sdkp,
 				  "Enabling DIF Type %d protection\n", type);
 		else
-			sd_printk(KERN_INFO, sdkp,
+			sd_printk(KERN_NOTICE, sdkp,
 				  "Disabling DIF Type %d protection\n", type);
 	}
 
@@ -344,7 +344,7 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		else
 			blk_integrity_register(disk, &dif_type1_integrity_crc);
 
-	sd_printk(KERN_INFO, sdkp,
+	sd_printk(KERN_NOTICE, sdkp,
 		  "Enabling DIX %s protection\n", disk->integrity->name);
 
 	/* Signal to block layer that we support sector tagging */
@@ -354,7 +354,7 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		else
 			disk->integrity->tag_size = sizeof(u16);
 
-		sd_printk(KERN_INFO, sdkp, "DIF application tag size %u\n",
+		sd_printk(KERN_NOTICE, sdkp, "DIF application tag size %u\n",
 			  disk->integrity->tag_size);
 	}
 }
