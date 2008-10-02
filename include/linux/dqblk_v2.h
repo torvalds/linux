@@ -16,8 +16,4 @@
 #define V2_DEL_ALLOC QTREE_DEL_ALLOC
 #define V2_DEL_REWRITE QTREE_DEL_REWRITE
 
-struct v2_mem_dqinfo {
-	struct qtree_mem_dqinfo i;
-};
-
 #endif /* _LINUX_DQBLK_V2_H */

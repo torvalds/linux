@@ -208,10 +208,7 @@ struct mem_dqinfo {
 	unsigned int dqi_igrace;
 	qsize_t dqi_maxblimit;
 	qsize_t dqi_maxilimit;
-	union {
-		struct v1_mem_dqinfo v1_i;
-		struct v2_mem_dqinfo v2_i;
-	} u;
+	void *dqi_priv;
 };
 
 struct super_block;

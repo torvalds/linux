@@ -71,6 +71,7 @@ static int v2_read_file_info(struct super_block *sb, int type)
 {
 	struct v2_disk_dqinfo dinfo;
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
+	struct qtree_mem_dqinfo *qinfo;
 	ssize_t size;
 
 	size = sb->s_op->quota_read(sb, type, (char *)&dinfo,
@@ -80,22 +81,29 @@ static int v2_read_file_info(struct super_block *sb, int type)
 			sb->s_id);
 		return -1;
 	}
+	info->dqi_priv = kmalloc(sizeof(struct qtree_mem_dqinfo), GFP_NOFS);
+	if (!info->dqi_priv) {
+		printk(KERN_WARNING
+		       "Not enough memory for quota information structure.\n");
+		return -1;
+	}
+	qinfo = info->dqi_priv;
 	/* limits are stored as unsigned 32-bit data */
 	info->dqi_maxblimit = 0xffffffff;
 	info->dqi_maxilimit = 0xffffffff;
 	info->dqi_bgrace = le32_to_cpu(dinfo.dqi_bgrace);
 	info->dqi_igrace = le32_to_cpu(dinfo.dqi_igrace);
 	info->dqi_flags = le32_to_cpu(dinfo.dqi_flags);
-	info->u.v2_i.i.dqi_sb = sb;
-	info->u.v2_i.i.dqi_type = type;
-	info->u.v2_i.i.dqi_blocks = le32_to_cpu(dinfo.dqi_blocks);
-	info->u.v2_i.i.dqi_free_blk = le32_to_cpu(dinfo.dqi_free_blk);
-	info->u.v2_i.i.dqi_free_entry = le32_to_cpu(dinfo.dqi_free_entry);
-	info->u.v2_i.i.dqi_blocksize_bits = V2_DQBLKSIZE_BITS;
-	info->u.v2_i.i.dqi_usable_bs = 1 << V2_DQBLKSIZE_BITS;
-	info->u.v2_i.i.dqi_qtree_depth = qtree_depth(&info->u.v2_i.i);
-	info->u.v2_i.i.dqi_entry_size = sizeof(struct v2_disk_dqblk);
-	info->u.v2_i.i.dqi_ops = &v2_qtree_ops;
+	qinfo->dqi_sb = sb;
+	qinfo->dqi_type = type;
+	qinfo->dqi_blocks = le32_to_cpu(dinfo.dqi_blocks);
+	qinfo->dqi_free_blk = le32_to_cpu(dinfo.dqi_free_blk);
+	qinfo->dqi_free_entry = le32_to_cpu(dinfo.dqi_free_entry);
+	qinfo->dqi_blocksize_bits = V2_DQBLKSIZE_BITS;
+	qinfo->dqi_usable_bs = 1 << V2_DQBLKSIZE_BITS;
+	qinfo->dqi_qtree_depth = qtree_depth(qinfo);
+	qinfo->dqi_entry_size = sizeof(struct v2_disk_dqblk);
+	qinfo->dqi_ops = &v2_qtree_ops;
 	return 0;
 }
 
@@ -104,6 +112,7 @@ static int v2_write_file_info(struct super_block *sb, int type)
 {
 	struct v2_disk_dqinfo dinfo;
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
+	struct qtree_mem_dqinfo *qinfo = info->dqi_priv;
 	ssize_t size;
 
 	spin_lock(&dq_data_lock);
@@ -112,9 +121,9 @@ static int v2_write_file_info(struct super_block *sb, int type)
 	dinfo.dqi_igrace = cpu_to_le32(info->dqi_igrace);
 	dinfo.dqi_flags = cpu_to_le32(info->dqi_flags & DQF_MASK);
 	spin_unlock(&dq_data_lock);
-	dinfo.dqi_blocks = cpu_to_le32(info->u.v2_i.i.dqi_blocks);
-	dinfo.dqi_free_blk = cpu_to_le32(info->u.v2_i.i.dqi_free_blk);
-	dinfo.dqi_free_entry = cpu_to_le32(info->u.v2_i.i.dqi_free_entry);
+	dinfo.dqi_blocks = cpu_to_le32(qinfo->dqi_blocks);
+	dinfo.dqi_free_blk = cpu_to_le32(qinfo->dqi_free_blk);
+	dinfo.dqi_free_entry = cpu_to_le32(qinfo->dqi_free_entry);
 	size = sb->s_op->quota_write(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
@@ -150,7 +159,7 @@ static void v2_mem2diskdqb(void *dp, struct dquot *dquot)
 	struct v2_disk_dqblk *d = dp;
 	struct mem_dqblk *m = &dquot->dq_dqb;
 	struct qtree_mem_dqinfo *info =
-			&sb_dqinfo(dquot->dq_sb, dquot->dq_type)->u.v2_i.i;
+			sb_dqinfo(dquot->dq_sb, dquot->dq_type)->dqi_priv;
 
 	d->dqb_ihardlimit = cpu_to_le32(m->dqb_ihardlimit);
 	d->dqb_isoftlimit = cpu_to_le32(m->dqb_isoftlimit);
@@ -169,7 +178,7 @@ static int v2_is_id(void *dp, struct dquot *dquot)
 {
 	struct v2_disk_dqblk *d = dp;
 	struct qtree_mem_dqinfo *info =
-			&sb_dqinfo(dquot->dq_sb, dquot->dq_type)->u.v2_i.i;
+			sb_dqinfo(dquot->dq_sb, dquot->dq_type)->dqi_priv;
 
 	if (qtree_entry_unused(info, dp))
 		return 0;
@@ -178,24 +187,30 @@ static int v2_is_id(void *dp, struct dquot *dquot)
 
 static int v2_read_dquot(struct dquot *dquot)
 {
-	return qtree_read_dquot(&sb_dqinfo(dquot->dq_sb, dquot->dq_type)->u.v2_i.i, dquot);
+	return qtree_read_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_type)->dqi_priv, dquot);
 }
 
 static int v2_write_dquot(struct dquot *dquot)
 {
-	return qtree_write_dquot(&sb_dqinfo(dquot->dq_sb, dquot->dq_type)->u.v2_i.i, dquot);
+	return qtree_write_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_type)->dqi_priv, dquot);
 }
 
 static int v2_release_dquot(struct dquot *dquot)
 {
-	return qtree_release_dquot(&sb_dqinfo(dquot->dq_sb, dquot->dq_type)->u.v2_i.i, dquot);
+	return qtree_release_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_type)->dqi_priv, dquot);
+}
+
+static int v2_free_file_info(struct super_block *sb, int type)
+{
+	kfree(sb_dqinfo(sb, type)->dqi_priv);
+	return 0;
 }
 
 static struct quota_format_ops v2_format_ops = {
 	.check_quota_file	= v2_check_quota_file,
 	.read_file_info		= v2_read_file_info,
 	.write_file_info	= v2_write_file_info,
-	.free_file_info		= NULL,
+	.free_file_info		= v2_free_file_info,
 	.read_dqblk		= v2_read_dquot,
 	.commit_dqblk		= v2_write_dquot,
 	.release_dqblk		= v2_release_dquot,
