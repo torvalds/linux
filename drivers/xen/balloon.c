@@ -53,7 +53,6 @@
 #include <asm/tlb.h>
 
 #include <xen/interface/memory.h>
-#include <xen/balloon.h>
 #include <xen/xenbus.h>
 #include <xen/features.h>
 #include <xen/page.h>
