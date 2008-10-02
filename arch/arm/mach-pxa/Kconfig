@@ -49,6 +49,10 @@ config MACH_MAINSTONE
 	select PXA27x
 	select HAVE_PWM
 
+config MACH_MP900C
+	bool "Nec Mobilepro 900/c"
+	select PXA25x
+
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
 	select PXA25x
