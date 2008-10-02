@@ -588,6 +588,8 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"STK", "OPENstorage D280"},
 	{"SUN", "CSM200_R"},
 	{"SUN", "LCSM100_F"},
+	{"DELL", "MD3000"},
+	{"DELL", "MD3000i"},
 	{NULL, NULL},
 };
 
