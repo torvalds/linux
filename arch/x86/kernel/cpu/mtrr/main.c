@@ -1044,7 +1044,7 @@ second_try:
 		hole_sizek = range0_sizek - state->range_sizek - second_sizek;
 
 		/* hole size should be less than half of range0 size */
-		if (hole_sizek > (range0_sizek >> 1) &&
+		if (hole_sizek >= (range0_sizek >> 1) &&
 		    range0_sizek >= chunk_sizek) {
 			range0_sizek -= chunk_sizek;
 			second_sizek = 0;
