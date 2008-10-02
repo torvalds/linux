@@ -1016,6 +1016,12 @@ extern int blk_integrity_compare(struct block_device *, struct block_device *);
 extern int blk_rq_map_integrity_sg(struct request *, struct scatterlist *);
 extern int blk_rq_count_integrity_sg(struct request *);
 
+static inline
+struct blk_integrity *bdev_get_integrity(struct block_device *bdev)
+{
+	return bdev->bd_disk->integrity;
+}
+
 static inline int blk_integrity_rq(struct request *rq)
 {
 	if (rq->bio == NULL)
@@ -1029,6 +1035,7 @@ static inline int blk_integrity_rq(struct request *rq)
 #define blk_integrity_rq(rq)			(0)
 #define blk_rq_count_integrity_sg(a)		(0)
 #define blk_rq_map_integrity_sg(a, b)		(0)
+#define bdev_get_integrity(a)			(0)
 #define blk_integrity_compare(a, b)		(0)
 #define blk_integrity_register(a, b)		(0)
 #define blk_integrity_unregister(a)		do { } while (0);

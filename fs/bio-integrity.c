@@ -150,11 +150,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 }
 EXPORT_SYMBOL(bio_integrity_add_page);
 
-static struct blk_integrity *bdev_get_integrity(struct block_device *bdev)
-{
-	return bdev->bd_disk->integrity;
-}
-
 static int bdev_integrity_enabled(struct block_device *bdev, int rw)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bdev);
