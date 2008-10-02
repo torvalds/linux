@@ -80,12 +80,21 @@
  * Quota structure used for communication with userspace via quotactl
  * Following flags are used to specify which fields are valid
  */
-#define QIF_BLIMITS	1
-#define QIF_SPACE	2
-#define QIF_ILIMITS	4
-#define QIF_INODES	8
-#define QIF_BTIME	16
-#define QIF_ITIME	32
+enum {
+	QIF_BLIMITS_B = 0,
+	QIF_SPACE_B,
+	QIF_ILIMITS_B,
+	QIF_INODES_B,
+	QIF_BTIME_B,
+	QIF_ITIME_B,
+};
+
+#define QIF_BLIMITS	(1 << QIF_BLIMITS_B)
+#define QIF_SPACE	(1 << QIF_SPACE_B)
+#define QIF_ILIMITS	(1 << QIF_ILIMITS_B)
+#define QIF_INODES	(1 << QIF_INODES_B)
+#define QIF_BTIME	(1 << QIF_BTIME_B)
+#define QIF_ITIME	(1 << QIF_ITIME_B)
 #define QIF_LIMITS	(QIF_BLIMITS | QIF_ILIMITS)
 #define QIF_USAGE	(QIF_SPACE | QIF_INODES)
 #define QIF_TIMES	(QIF_BTIME | QIF_ITIME)
@@ -242,6 +251,11 @@ extern struct dqstats dqstats;
 #define DQ_FAKE_B	3	/* no limits only usage */
 #define DQ_READ_B	4	/* dquot was read into memory */
 #define DQ_ACTIVE_B	5	/* dquot is active (dquot_release not called) */
+#define DQ_LASTSET_B	6	/* Following 6 bits (see QIF_) are reserved\
+				 * for the mask of entries set via SETQUOTA\
+				 * quotactl. They are set under dq_data_lock\
+				 * and the quota format handling dquot can\
+				 * clear them when it sees fit. */
 
 struct dquot {
 	struct hlist_node dq_hash;	/* Hash list in memory */
