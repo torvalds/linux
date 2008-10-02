@@ -1778,6 +1778,9 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	ew32(CTRL, (ctrl | E1000_CTRL_RST));
 	msleep(20);
 
+	/* release the swflag because it is not reset by hardware reset */
+	e1000_release_swflag_ich8lan(hw);
+
 	ret_val = e1000e_get_auto_rd_done(hw);
 	if (ret_val) {
 		/*
