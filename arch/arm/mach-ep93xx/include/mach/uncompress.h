@@ -31,10 +31,19 @@ static void __raw_writel(unsigned int value, unsigned int ptr)
 	*((volatile unsigned int *)ptr) = value;
 }
 
+#if defined(CONFIG_EP93XX_EARLY_UART1)
+#define UART_BASE		EP93XX_UART1_PHYS_BASE
+#elif defined(CONFIG_EP93XX_EARLY_UART2)
+#define UART_BASE		EP93XX_UART2_PHYS_BASE
+#elif defined(CONFIG_EP93XX_EARLY_UART3)
+#define UART_BASE		EP93XX_UART3_PHYS_BASE
+#else
+#define UART_BASE		EP93XX_UART1_PHYS_BASE
+#endif
 
-#define PHYS_UART1_DATA		0x808c0000
-#define PHYS_UART1_FLAG		0x808c0018
-#define UART1_FLAG_TXFF		0x20
+#define PHYS_UART_DATA		(UART_BASE + 0x00)
+#define PHYS_UART_FLAG		(UART_BASE + 0x18)
+#define UART_FLAG_TXFF		0x20
 
 static inline void putc(int c)
 {
@@ -42,11 +51,11 @@ static inline void putc(int c)
 
 	for (i = 0; i < 1000; i++) {
 		/* Transmit fifo not full?  */
-		if (!(__raw_readb(PHYS_UART1_FLAG) & UART1_FLAG_TXFF))
+		if (!(__raw_readb(PHYS_UART_FLAG) & UART_FLAG_TXFF))
 			break;
 	}
 
-	__raw_writeb(c, PHYS_UART1_DATA);
+	__raw_writeb(c, PHYS_UART_DATA);
 }
 
 static inline void flush(void)
