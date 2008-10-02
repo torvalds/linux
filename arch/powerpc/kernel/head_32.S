@@ -369,13 +369,13 @@ i##n:								\
 DataAccess:
 	EXCEPTION_PROLOG
 	mfspr	r10,SPRN_DSISR
+	stw	r10,_DSISR(r11)
 	andis.	r0,r10,0xa470		/* weird error? */
 	bne	1f			/* if not, try to put a PTE */
 	mfspr	r4,SPRN_DAR		/* into the hash table */
 	rlwinm	r3,r10,32-15,21,21	/* DSISR_STORE -> _PAGE_RW */
 	bl	hash_page
-1:	stw	r10,_DSISR(r11)
-	mr	r5,r10
+1:	lwz	r5,_DSISR(r11)		/* get DSISR value */
 	mfspr	r4,SPRN_DAR
 	EXC_XFER_EE_LITE(0x300, handle_page_fault)
 

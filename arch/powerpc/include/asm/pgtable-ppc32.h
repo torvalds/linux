@@ -261,6 +261,7 @@ extern int icache_44x_need_flush;
 #define _PAGE_HWEXEC	0x00000004		/* H: Execute permission */
 #define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
 #define _PAGE_DIRTY	0x00000010		/* S: Page dirty */
+#define _PAGE_SPECIAL	0x00000020		/* S: Special page */
 #define _PAGE_USER	0x00000040		/* S: User page */
 #define _PAGE_ENDIAN	0x00000080		/* H: E bit */
 #define _PAGE_GUARDED	0x00000100		/* H: G bit */
@@ -276,6 +277,7 @@ extern int icache_44x_need_flush;
 /* ERPN in a PTE never gets cleared, ignore it */
 #define _PTE_NONE_MASK	0xffffffff00000000ULL
 
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #elif defined(CONFIG_FSL_BOOKE)
 /*
@@ -305,6 +307,7 @@ extern int icache_44x_need_flush;
 #define _PAGE_COHERENT	0x00100	/* H: M bit */
 #define _PAGE_NO_CACHE	0x00200	/* H: I bit */
 #define _PAGE_WRITETHRU	0x00400	/* H: W bit */
+#define _PAGE_SPECIAL	0x00800 /* S: Special page */
 
 #ifdef CONFIG_PTE_64BIT
 /* ERPN in a PTE never gets cleared, ignore it */
@@ -314,6 +317,8 @@ extern int icache_44x_need_flush;
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
+
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #elif defined(CONFIG_8xx)
 /* Definitions for 8xx embedded chips. */
@@ -362,8 +367,14 @@ extern int icache_44x_need_flush;
 #define _PAGE_ACCESSED	0x100	/* R: page referenced */
 #define _PAGE_EXEC	0x200	/* software: i-cache coherency required */
 #define _PAGE_RW	0x400	/* software: user write access allowed */
+#define _PAGE_SPECIAL	0x800	/* software: Special page */
 
+#ifdef CONFIG_PTE_64BIT
+/* We never clear the high word of the pte */
+#define _PTE_NONE_MASK	(0xffffffff00000000ULL | _PAGE_HASHPTE)
+#else
 #define _PTE_NONE_MASK	_PAGE_HASHPTE
+#endif
 
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
@@ -371,6 +382,8 @@ extern int icache_44x_need_flush;
 
 /* Hash table based platforms need atomic updates of the linux PTE */
 #define PTE_ATOMIC_UPDATES	1
+
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #endif
 
@@ -403,6 +416,9 @@ extern int icache_44x_need_flush;
 #endif
 #ifndef _PAGE_WRITETHRU
 #define _PAGE_WRITETHRU	0
+#endif
+#ifndef _PAGE_SPECIAL
+#define _PAGE_SPECIAL	0
 #endif
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
@@ -517,7 +533,8 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 
 #define pte_none(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
-#define pte_clear(mm,addr,ptep)	do { set_pte_at((mm), (addr), (ptep), __pte(0)); } while (0)
+#define pte_clear(mm, addr, ptep) \
+	do { pte_update(ptep, ~_PAGE_HASHPTE, 0); } while (0)
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
@@ -533,7 +550,7 @@ static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
-static inline int pte_special(pte_t pte)	{ return 0; }
+static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline void pte_uncache(pte_t pte)       { pte_val(pte) |= _PAGE_NO_CACHE; }
 static inline void pte_cache(pte_t pte)         { pte_val(pte) &= ~_PAGE_NO_CACHE; }
@@ -552,7 +569,7 @@ static inline pte_t pte_mkdirty(pte_t pte) {
 static inline pte_t pte_mkyoung(pte_t pte) {
 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte) {
-	return pte; }
+	pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 static inline unsigned long pte_pgprot(pte_t pte)
 {
 	return __pgprot(pte_val(pte)) & PAGE_PROT_BITS;
@@ -574,6 +591,10 @@ extern int flush_hash_pages(unsigned context, unsigned long va,
 /* Add an HPTE to the hash table */
 extern void add_hash_page(unsigned context, unsigned long va,
 			  unsigned long pmdval);
+
+/* Flush an entry from the TLB/hash table */
+extern void flush_hash_entry(struct mm_struct *mm, pte_t *ptep,
+			     unsigned long address);
 
 /*
  * Atomic PTE updates.
@@ -612,9 +633,6 @@ static inline unsigned long pte_update(pte_t *p,
 	return old;
 }
 #else /* CONFIG_PTE_64BIT */
-/* TODO: Change that to only modify the low word and move set_pte_at()
- * out of line
- */
 static inline unsigned long long pte_update(pte_t *p,
 					    unsigned long clr,
 					    unsigned long set)
@@ -652,14 +670,35 @@ static inline unsigned long long pte_update(pte_t *p,
  * On machines which use an MMU hash table we avoid changing the
  * _PAGE_HASHPTE bit.
  */
+
+static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t pte)
+{
+#if (_PAGE_HASHPTE != 0) && defined(CONFIG_SMP) && !defined(CONFIG_PTE_64BIT)
+	pte_update(ptep, ~_PAGE_HASHPTE, pte_val(pte) & ~_PAGE_HASHPTE);
+#elif defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP)
+#if _PAGE_HASHPTE != 0
+	if (pte_val(*ptep) & _PAGE_HASHPTE)
+		flush_hash_entry(mm, ptep, addr);
+#endif
+	__asm__ __volatile__("\
+		stw%U0%X0 %2,%0\n\
+		eieio\n\
+		stw%U0%X0 %L2,%1"
+	: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
+	: "r" (pte) : "memory");
+#else
+	*ptep = (*ptep & _PAGE_HASHPTE) | (pte & ~_PAGE_HASHPTE);
+#endif
+}
+
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-#if _PAGE_HASHPTE != 0
-	pte_update(ptep, ~_PAGE_HASHPTE, pte_val(pte) & ~_PAGE_HASHPTE);
-#else
-	*ptep = pte;
+#if defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP)
+	WARN_ON(pte_present(*ptep));
 #endif
+	__set_pte_at(mm, addr, ptep, pte);
 }
 
 /*

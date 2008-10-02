@@ -75,7 +75,7 @@ _GLOBAL(hash_page_sync)
  * Returns to the caller if the access is illegal or there is no
  * mapping for the address.  Otherwise it places an appropriate PTE
  * in the hash table and returns from the exception.
- * Uses r0, r3 - r8, ctr, lr.
+ * Uses r0, r3 - r8, r10, ctr, lr.
  */
 	.text
 _GLOBAL(hash_page)
@@ -106,9 +106,15 @@ _GLOBAL(hash_page)
 	addi	r5,r5,swapper_pg_dir@l	/* kernel page table */
 	rlwimi	r3,r9,32-12,29,29	/* MSR_PR -> _PAGE_USER */
 112:	add	r5,r5,r7		/* convert to phys addr */
+#ifndef CONFIG_PTE_64BIT
 	rlwimi	r5,r4,12,20,29		/* insert top 10 bits of address */
 	lwz	r8,0(r5)		/* get pmd entry */
 	rlwinm.	r8,r8,0,0,19		/* extract address of pte page */
+#else
+	rlwinm	r8,r4,13,19,29		/* Compute pgdir/pmd offset */
+	lwzx	r8,r8,r5		/* Get L1 entry */
+	rlwinm.	r8,r8,0,0,20		/* extract pt base address */
+#endif
 #ifdef CONFIG_SMP
 	beq-	hash_page_out		/* return if no mapping */
 #else
@@ -118,7 +124,11 @@ _GLOBAL(hash_page)
 	   to the address following the rfi. */
 	beqlr-
 #endif
+#ifndef CONFIG_PTE_64BIT
 	rlwimi	r8,r4,22,20,29		/* insert next 10 bits of address */
+#else
+	rlwimi	r8,r4,23,20,28		/* compute pte address */
+#endif
 	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
 	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 
@@ -127,9 +137,15 @@ _GLOBAL(hash_page)
 	 * because almost always, there won't be a permission violation
 	 * and there won't already be an HPTE, and thus we will have
 	 * to update the PTE to set _PAGE_HASHPTE.  -- paulus.
+	 *
+	 * If PTE_64BIT is set, the low word is the flags word; use that
+	 * word for locking since it contains all the interesting bits.
 	 */
+#if (PTE_FLAGS_OFFSET != 0)
+	addi	r8,r8,PTE_FLAGS_OFFSET
+#endif
 retry:
-	lwarx	r6,0,r8			/* get linux-style pte */
+	lwarx	r6,0,r8			/* get linux-style pte, flag word */
 	andc.	r5,r3,r6		/* check access & ~permission */
 #ifdef CONFIG_SMP
 	bne-	hash_page_out		/* return if access not permitted */
@@ -137,6 +153,15 @@ retry:
 	bnelr-
 #endif
 	or	r5,r0,r6		/* set accessed/dirty bits */
+#ifdef CONFIG_PTE_64BIT
+#ifdef CONFIG_SMP
+	subf	r10,r6,r8		/* create false data dependency */
+	subi	r10,r10,PTE_FLAGS_OFFSET
+	lwzx	r10,r6,r10		/* Get upper PTE word */
+#else
+	lwz	r10,-PTE_FLAGS_OFFSET(r8)
+#endif /* CONFIG_SMP */
+#endif /* CONFIG_PTE_64BIT */
 	stwcx.	r5,0,r8			/* attempt to update PTE */
 	bne-	retry			/* retry if someone got there first */
 
@@ -203,9 +228,9 @@ _GLOBAL(add_hash_page)
 	 * we can't take a hash table miss (assuming the code is
 	 * covered by a BAT).  -- paulus
 	 */
-	mfmsr	r10
+	mfmsr	r9
 	SYNC
-	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
+	rlwinm	r0,r9,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear MSR_DR */
 	mtmsr	r0
 	SYNC_601
@@ -214,14 +239,14 @@ _GLOBAL(add_hash_page)
 	tophys(r7,0)
 
 #ifdef CONFIG_SMP
-	addis	r9,r7,mmu_hash_lock@ha
-	addi	r9,r9,mmu_hash_lock@l
-10:	lwarx	r0,0,r9			/* take the mmu_hash_lock */
+	addis	r6,r7,mmu_hash_lock@ha
+	addi	r6,r6,mmu_hash_lock@l
+10:	lwarx	r0,0,r6			/* take the mmu_hash_lock */
 	cmpi	0,r0,0
 	bne-	11f
-	stwcx.	r8,0,r9
+	stwcx.	r8,0,r6
 	beq+	12f
-11:	lwz	r0,0(r9)
+11:	lwz	r0,0(r6)
 	cmpi	0,r0,0
 	beq	10b
 	b	11b
@@ -234,10 +259,24 @@ _GLOBAL(add_hash_page)
 	 * HPTE, so we just unlock and return.
 	 */
 	mr	r8,r5
+#ifndef CONFIG_PTE_64BIT
 	rlwimi	r8,r4,22,20,29
+#else
+	rlwimi	r8,r4,23,20,28
+	addi	r8,r8,PTE_FLAGS_OFFSET
+#endif
 1:	lwarx	r6,0,r8
 	andi.	r0,r6,_PAGE_HASHPTE
 	bne	9f			/* if HASHPTE already set, done */
+#ifdef CONFIG_PTE_64BIT
+#ifdef CONFIG_SMP
+	subf	r10,r6,r8		/* create false data dependency */
+	subi	r10,r10,PTE_FLAGS_OFFSET
+	lwzx	r10,r6,r10		/* Get upper PTE word */
+#else
+	lwz	r10,-PTE_FLAGS_OFFSET(r8)
+#endif /* CONFIG_SMP */
+#endif /* CONFIG_PTE_64BIT */
 	ori	r5,r6,_PAGE_HASHPTE
 	stwcx.	r5,0,r8
 	bne-	1b
@@ -246,13 +285,15 @@ _GLOBAL(add_hash_page)
 
 9:
 #ifdef CONFIG_SMP
+	addis	r6,r7,mmu_hash_lock@ha
+	addi	r6,r6,mmu_hash_lock@l
 	eieio
 	li	r0,0
-	stw	r0,0(r9)		/* clear mmu_hash_lock */
+	stw	r0,0(r6)		/* clear mmu_hash_lock */
 #endif
 
 	/* reenable interrupts and DR */
-	mtmsr	r10
+	mtmsr	r9
 	SYNC_601
 	isync
 
@@ -267,7 +308,8 @@ _GLOBAL(add_hash_page)
  * r5 contains the linux PTE, r6 contains the old value of the
  * linux PTE (before setting _PAGE_HASHPTE) and r7 contains the
  * offset to be added to addresses (0 if the MMU is on,
- * -KERNELBASE if it is off).
+ * -KERNELBASE if it is off).  r10 contains the upper half of
+ * the PTE if CONFIG_PTE_64BIT.
  * On SMP, the caller should have the mmu_hash_lock held.
  * We assume that the caller has (or will) set the _PAGE_HASHPTE
  * bit in the linux PTE in memory.  The value passed in r6 should
@@ -313,6 +355,11 @@ _GLOBAL(create_hpte)
 BEGIN_FTR_SECTION
 	ori	r8,r8,_PAGE_COHERENT	/* set M (coherence required) */
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_COHERENT)
+#ifdef CONFIG_PTE_64BIT
+	/* Put the XPN bits into the PTE */
+	rlwimi	r8,r10,8,20,22
+	rlwimi	r8,r10,2,29,29
+#endif
 
 	/* Construct the high word of the PPC-style PTE (r5) */
 	rlwinm	r5,r3,7,1,24		/* put VSID in 0x7fffff80 bits */
@@ -499,14 +546,18 @@ _GLOBAL(flush_hash_pages)
 	isync
 
 	/* First find a PTE in the range that has _PAGE_HASHPTE set */
+#ifndef CONFIG_PTE_64BIT
 	rlwimi	r5,r4,22,20,29
-1:	lwz	r0,0(r5)
+#else
+	rlwimi	r5,r4,23,20,28
+#endif
+1:	lwz	r0,PTE_FLAGS_OFFSET(r5)
 	cmpwi	cr1,r6,1
 	andi.	r0,r0,_PAGE_HASHPTE
 	bne	2f
 	ble	cr1,19f
 	addi	r4,r4,0x1000
-	addi	r5,r5,4
+	addi	r5,r5,PTE_SIZE
 	addi	r6,r6,-1
 	b	1b
 
@@ -545,7 +596,10 @@ _GLOBAL(flush_hash_pages)
 	 * already clear, we're done (for this pte).  If not,
 	 * clear it (atomically) and proceed.  -- paulus.
 	 */
-33:	lwarx	r8,0,r5			/* fetch the pte */
+#if (PTE_FLAGS_OFFSET != 0)
+	addi	r5,r5,PTE_FLAGS_OFFSET
+#endif
+33:	lwarx	r8,0,r5			/* fetch the pte flags word */
 	andi.	r0,r8,_PAGE_HASHPTE
 	beq	8f			/* done if HASHPTE is already clear */
 	rlwinm	r8,r8,0,31,29		/* clear HASHPTE bit */
@@ -590,7 +644,7 @@ _GLOBAL(flush_hash_patch_B)
 
 8:	ble	cr1,9f			/* if all ptes checked */
 81:	addi	r6,r6,-1
-	addi	r5,r5,4			/* advance to next pte */
+	addi	r5,r5,PTE_SIZE
 	addi	r4,r4,0x1000
 	lwz	r0,0(r5)		/* check next pte */
 	cmpwi	cr1,r6,1

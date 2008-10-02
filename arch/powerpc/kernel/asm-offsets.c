@@ -352,6 +352,7 @@ int main(void)
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
+	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
 	DEFINE(TLBE_BYTES, sizeof(struct tlbe));

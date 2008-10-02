@@ -29,6 +29,9 @@
 #include <linux/mm.h>
 
 extern void _tlbie(unsigned long address, unsigned int pid);
+extern void _tlbil_all(void);
+extern void _tlbil_pid(unsigned int pid);
+extern void _tlbil_va(unsigned long address, unsigned int pid);
 
 #if defined(CONFIG_40x) || defined(CONFIG_8xx)
 #define _tlbia()	asm volatile ("tlbia; sync" : : : "memory")
@@ -38,31 +41,31 @@ extern void _tlbia(void);
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
-	_tlbia();
+	_tlbil_pid(mm->context.id);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long vmaddr)
 {
-	_tlbie(vmaddr, vma ? vma->vm_mm->context.id : 0);
+	_tlbil_va(vmaddr, vma ? vma->vm_mm->context.id : 0);
 }
 
 static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
 					 unsigned long vmaddr)
 {
-	_tlbie(vmaddr, vma ? vma->vm_mm->context.id : 0);
+	flush_tlb_page(vma, vmaddr);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
-	_tlbia();
+	_tlbil_pid(vma->vm_mm->context.id);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start,
 					  unsigned long end)
 {
-	_tlbia();
+	_tlbil_pid(0);
 }
 
 #elif defined(CONFIG_PPC32)
