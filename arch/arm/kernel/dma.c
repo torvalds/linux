@@ -26,23 +26,6 @@ EXPORT_SYMBOL(dma_spin_lock);
 static dma_t dma_chan[MAX_DMA_CHANNELS];
 
 /*
- * Get dma list for /proc/dma
- */
-int get_dma_list(char *buf)
-{
-	dma_t *dma;
-	char *p = buf;
-	int i;
-
-	for (i = 0, dma = dma_chan; i < MAX_DMA_CHANNELS; i++, dma++)
-		if (dma->lock)
-			p += sprintf(p, "%2d: %14s %s\n", i,
-				     dma->d_ops->type, dma->device_id);
-
-	return p - buf;
-}
-
-/*
  * Request DMA channel
  *
  * On certain platforms, we have to allocate an interrupt as well...

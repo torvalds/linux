@@ -231,7 +231,6 @@ static inline void sparc_dma_pause(struct sparc_dma_registers *regs,
 #define for_each_dvma(dma) \
         for((dma) = dma_chain; (dma); (dma) = (dma)->next)
 
-extern int get_dma_list(char *);
 extern int request_dma(unsigned int, __const__ char *);
 extern void free_dma(unsigned int);
 
