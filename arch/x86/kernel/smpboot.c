@@ -1261,7 +1261,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
-static int additional_cpus __initdata = -1;
+static int additional_cpus __initdata = CONFIG_HOTPLUG_ADDITIONAL_CPUS;
 
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
