@@ -37,4 +37,6 @@ source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
 
+source "drivers/staging/wlan-ng/Kconfig"
+
 endif # STAGING
