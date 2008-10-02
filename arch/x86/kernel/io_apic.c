@@ -58,6 +58,8 @@
 #include <asm/setup.h>
 #include <asm/irq_remapping.h>
 #include <asm/hpet.h>
+#include <asm/uv/uv_hub.h>
+#include <asm/uv/uv_irq.h>
 
 #include <mach_ipi.h>
 #include <mach_apic.h>
@@ -3691,6 +3693,72 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 	return err;
 }
 #endif /* CONFIG_HT_IRQ */
+
+#ifdef CONFIG_X86_64
+/*
+ * Re-target the irq to the specified CPU and enable the specified MMR located
+ * on the specified blade to allow the sending of MSIs to the specified CPU.
+ */
+int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
+		       unsigned long mmr_offset)
+{
+	const cpumask_t *eligible_cpu = get_cpu_mask(cpu);
+	struct irq_cfg *cfg;
+	int mmr_pnode;
+	unsigned long mmr_value;
+	struct uv_IO_APIC_route_entry *entry;
+	unsigned long flags;
+	int err;
+
+	err = assign_irq_vector(irq, *eligible_cpu);
+	if (err != 0)
+		return err;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	set_irq_chip_and_handler_name(irq, &uv_irq_chip, handle_percpu_irq,
+				      irq_name);
+	spin_unlock_irqrestore(&vector_lock, flags);
+
+	cfg = irq_cfg(irq);
+
+	mmr_value = 0;
+	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
+	BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
+
+	entry->vector = cfg->vector;
+	entry->delivery_mode = INT_DELIVERY_MODE;
+	entry->dest_mode = INT_DEST_MODE;
+	entry->polarity = 0;
+	entry->trigger = 0;
+	entry->mask = 0;
+	entry->dest = cpu_mask_to_apicid(*eligible_cpu);
+
+	mmr_pnode = uv_blade_to_pnode(mmr_blade);
+	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
+
+	return irq;
+}
+
+/*
+ * Disable the specified MMR located on the specified blade so that MSIs are
+ * longer allowed to be sent.
+ */
+void arch_disable_uv_irq(int mmr_blade, unsigned long mmr_offset)
+{
+	unsigned long mmr_value;
+	struct uv_IO_APIC_route_entry *entry;
+	int mmr_pnode;
+
+	mmr_value = 0;
+	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
+	BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
+
+	entry->mask = 1;
+
+	mmr_pnode = uv_blade_to_pnode(mmr_blade);
+	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
+}
+#endif /* CONFIG_X86_64 */
 
 int __init io_apic_get_redir_entries (int ioapic)
 {
