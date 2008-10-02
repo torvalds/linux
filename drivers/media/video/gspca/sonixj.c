@@ -977,13 +977,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
-		reg_w(gspca_dev, 0x02, regGpio, 2);
+		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
 			return -ENODEV;
 		regGpio[1] = 0x70;
-		reg_w(gspca_dev, 0x02, regGpio, 2);
+		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	default:
 /*	case BRIDGE_SN9C110: */
@@ -1184,7 +1184,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	static const __u8 CA[] = { 0x28, 0xd8, 0x14, 0xec };
 	static const __u8 CE[] = { 0x32, 0xdd, 0x2d, 0xdd };	/* MI0360 */
 	static const __u8 CE_ov76xx[] =
-			{ 0x32, 0xdd, 0x32, 0xdd };	/* OV7630/48 */
+				{ 0x32, 0xdd, 0x32, 0xdd };
 
 	sn9c1xx = sn_tb[(int) sd->sensor];
 	configure_gpio(gspca_dev, sn9c1xx);
@@ -1224,8 +1224,15 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x20, gamma_def, sizeof gamma_def);
 	for (i = 0; i < 8; i++)
 		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
+	switch (sd->sensor) {
+	case SENSOR_OV7660:
+		reg_w1(gspca_dev, 0x9a, 0x05);
+		break;
+	default:
 		reg_w1(gspca_dev, 0x9a, 0x08);
 		reg_w1(gspca_dev, 0x99, 0x59);
+		break;
+	}
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode)
@@ -1276,8 +1283,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 /*			reg1 = 0x44; */
 /*			reg1 = 0x46;	(done) */
 		} else {
-			reg17 = 0x22;	/* 640 MCKSIZE */
-			reg1 = 0x06;
+			reg17 = 0xa2;	/* 640 */
+			reg1 = 0x44;
 		}
 		break;
 	}
@@ -1286,6 +1293,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7630:
 	case SENSOR_OV7648:
+	case SENSOR_OV7660:
 		reg_w(gspca_dev, 0xce, CE_ov76xx, 4);
 		break;
 	default:
