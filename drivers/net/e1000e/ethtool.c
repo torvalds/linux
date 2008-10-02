@@ -529,6 +529,9 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	if (eeprom->magic != (adapter->pdev->vendor | (adapter->pdev->device << 16)))
 		return -EFAULT;
 
+	if (adapter->flags & FLAG_READ_ONLY_NVM)
+		return -EINVAL;
+
 	max_len = hw->nvm.word_size * 2;
 
 	first_word = eeprom->offset >> 1;

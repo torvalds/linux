@@ -47,7 +47,7 @@
 
 #include "e1000.h"
 
-#define DRV_VERSION "0.3.3.3-k2"
+#define DRV_VERSION "0.3.3.3-k4"
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -4467,6 +4467,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	adapter->bd_number = cards_found++;
 
+	e1000e_check_options(adapter);
+
 	/* setup adapter struct */
 	err = e1000_sw_init(adapter);
 	if (err)
@@ -4481,6 +4483,10 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	err = ei->get_variants(adapter);
 	if (err)
 		goto err_hw_init;
+
+	if ((adapter->flags & FLAG_IS_ICH) &&
+	    (adapter->flags & FLAG_READ_ONLY_NVM))
+		e1000e_write_protect_nvm_ich8lan(&adapter->hw);
 
 	hw->mac.ops.get_bus_info(&adapter->hw);
 
@@ -4572,8 +4578,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	INIT_WORK(&adapter->reset_task, e1000_reset_task);
 	INIT_WORK(&adapter->watchdog_task, e1000_watchdog_task);
-
-	e1000e_check_options(adapter);
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
