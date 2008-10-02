@@ -1112,6 +1112,15 @@ void snd_usbmidi_disconnect(struct list_head* p)
 		}
 		if (ep->in)
 			usb_kill_urb(ep->in->urb);
+		/* free endpoints here; later call can result in Oops */
+		if (ep->out) {
+			snd_usbmidi_out_endpoint_delete(ep->out);
+			ep->out = NULL;
+		}
+		if (ep->in) {
+			snd_usbmidi_in_endpoint_delete(ep->in);
+			ep->in = NULL;
+		}
 	}
 	del_timer_sync(&umidi->error_timer);
 }
