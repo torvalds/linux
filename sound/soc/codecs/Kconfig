@@ -7,6 +7,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4535
 	select SND_SOC_CS4270
 	select SND_SOC_SSM2602
+	select SND_SOC_TLV320AIC23
 	select SND_SOC_TLV320AIC26
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_UDA1380
@@ -61,6 +62,10 @@ config SND_SOC_CS4270_VD33_ERRATA
 
 config SND_SOC_SSM2602
 	tristate
+
+config SND_SOC_TLV320AIC23
+	tristate
+	depends on I2C
 
 config SND_SOC_TLV320AIC26
 	tristate "TI TLV320AIC26 Codec support"
