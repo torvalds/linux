@@ -324,10 +324,6 @@ void microcode_update_cpu(int cpu)
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	int err = 0;
 
-	/* We should bind the task to the CPU */
-	BUG_ON(raw_smp_processor_id() != cpu);
-
-	mutex_lock(&microcode_mutex);
 	/*
 	 * Check if the system resume is in progress (uci->valid != NULL),
 	 * otherwise just request a firmware:
@@ -340,11 +336,8 @@ void microcode_update_cpu(int cpu)
 			err = microcode_ops->request_microcode_fw(cpu,
 					&microcode_pdev->dev);
 	}
-
 	if (!err)
 		microcode_ops->apply_microcode(cpu);
-
-	mutex_unlock(&microcode_mutex);
 }
 
 static void microcode_init_cpu(int cpu)
@@ -352,7 +345,13 @@ static void microcode_init_cpu(int cpu)
 	cpumask_t old = current->cpus_allowed;
 
 	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	/* We should bind the task to the CPU */
+	BUG_ON(raw_smp_processor_id() != cpu);
+
+	mutex_lock(&microcode_mutex);
 	microcode_update_cpu(cpu);
+	mutex_unlock(&microcode_mutex);
+
 	set_cpus_allowed_ptr(current, &old);
 }
 
