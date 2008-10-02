@@ -712,7 +712,6 @@ int do_one_initcall(initcall_t fn)
 
 	if (initcall_debug) {
 		it.caller = task_pid_nr(current);
-		it.func = fn;
 		printk("calling  %pF @ %i\n", fn, it.caller);
 		it.calltime = ktime_get();
 	}
@@ -725,7 +724,7 @@ int do_one_initcall(initcall_t fn)
 		it.duration = (unsigned long long) delta.tv64 >> 20;
 		printk("initcall %pF returned %d after %Ld msecs\n", fn,
 			it.result, it.duration);
-		trace_boot(&it);
+		trace_boot(&it, fn);
 	}
 
 	msgbuf[0] = 0;

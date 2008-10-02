@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/ftrace.h>
+#include <linux/kallsyms.h>
 
 #include "trace.h"
 
@@ -56,17 +57,19 @@ static enum print_line_t initcall_print_line(struct trace_iterator *iter)
 	struct timespec rettime = ktime_to_timespec(it->rettime);
 
 	if (entry->type == TRACE_BOOT) {
-		ret = trace_seq_printf(s, "[%5ld.%06ld] calling  %pF @ %i\n",
+		ret = trace_seq_printf(s, "[%5ld.%06ld] calling  %s @ %i\n",
 					  calltime.tv_sec,
 					  calltime.tv_nsec,
 					  it->func, it->caller);
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
-		ret = trace_seq_printf(s, "[%5ld.%06ld] initcall %pF "
+
+		ret = trace_seq_printf(s, "[%5ld.%06ld] initcall %s "
 					  "returned %d after %lld msecs\n",
 					  rettime.tv_sec,
 					  rettime.tv_nsec,
 					  it->func, it->result, it->duration);
+
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 		return TRACE_TYPE_HANDLED;
@@ -83,8 +86,7 @@ struct tracer boot_tracer __read_mostly =
 	.print_line	= initcall_print_line,
 };
 
-
-void trace_boot(struct boot_trace *it)
+void trace_boot(struct boot_trace *it, initcall_t fn)
 {
 	struct ring_buffer_event *event;
 	struct trace_boot *entry;
@@ -95,6 +97,10 @@ void trace_boot(struct boot_trace *it)
 	if (!trace_boot_enabled)
 		return;
 
+	/* Get its name now since this function could
+	 * disappear because it is in the .init section.
+	 */
+	sprint_symbol(it->func, (unsigned long)fn);
 	preempt_disable();
 	data = tr->data[smp_processor_id()];
 
