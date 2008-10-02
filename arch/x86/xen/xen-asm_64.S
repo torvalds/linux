@@ -26,8 +26,15 @@
 /* Pseudo-flag used for virtual NMI, which we don't implement yet */
 #define XEN_EFLAGS_NMI	0x80000000
 
-#if 0
-#include <asm/percpu.h>
+#if 1
+/*
+	x86-64 does not yet support direct access to percpu variables
+	via a segment override, so we just need to make sure this code
+	never gets used
+ */
+#define BUG			ud2a
+#define PER_CPU_VAR(var, off)	0xdeadbeef
+#endif
 
 /*
 	Enable events.  This clears the event mask and tests the pending
@@ -35,6 +42,8 @@
 	events, then enter the hypervisor to get them handled.
  */
 ENTRY(xen_irq_enable_direct)
+	BUG
+
 	/* Unmask events */
 	movb $0, PER_CPU_VAR(xen_vcpu_info, XEN_vcpu_info_mask)
 
@@ -58,6 +67,8 @@ ENDPATCH(xen_irq_enable_direct)
 	non-zero.
  */
 ENTRY(xen_irq_disable_direct)
+	BUG
+
 	movb $1, PER_CPU_VAR(xen_vcpu_info, XEN_vcpu_info_mask)
 ENDPATCH(xen_irq_disable_direct)
 	ret
@@ -74,6 +85,8 @@ ENDPATCH(xen_irq_disable_direct)
 	Xen and x86 use opposite senses (mask vs enable).
  */
 ENTRY(xen_save_fl_direct)
+	BUG
+
 	testb $0xff, PER_CPU_VAR(xen_vcpu_info, XEN_vcpu_info_mask)
 	setz %ah
 	addb %ah,%ah
@@ -91,6 +104,8 @@ ENDPATCH(xen_save_fl_direct)
 	if so.
  */
 ENTRY(xen_restore_fl_direct)
+	BUG
+
 	testb $X86_EFLAGS_IF>>8, %ah
 	setz PER_CPU_VAR(xen_vcpu_info, XEN_vcpu_info_mask)
 	/* Preempt here doesn't matter because that will deal with
@@ -133,7 +148,6 @@ check_events:
 	pop %rcx
 	pop %rax
 	ret
-#endif
 
 ENTRY(xen_adjust_exception_frame)
 	mov 8+0(%rsp),%rcx

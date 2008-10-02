@@ -112,7 +112,14 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
  *
  * 0: not available, 1: available
  */
-static int have_vcpu_info_placement = 1;
+static int have_vcpu_info_placement =
+#ifdef CONFIG_X86_32
+	1
+#else
+	0
+#endif
+	;
+
 
 static void xen_vcpu_setup(int cpu)
 {
@@ -941,6 +948,7 @@ static void *xen_kmap_atomic_pte(struct page *page, enum km_type type)
 }
 #endif
 
+#ifdef CONFIG_X86_32
 static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
 {
 	/* If there's an existing pte, then don't allow _PAGE_RW to be set */
@@ -959,6 +967,7 @@ static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
 
 	xen_set_pte(ptep, pte);
 }
+#endif
 
 static __init void xen_pagetable_setup_start(pgd_t *base)
 {
@@ -1025,7 +1034,6 @@ void xen_setup_vcpu_info_placement(void)
 
 	/* xen_vcpu_setup managed to place the vcpu_info within the
 	   percpu area for all cpus, so make use of it */
-#ifdef CONFIG_X86_32
 	if (have_vcpu_info_placement) {
 		printk(KERN_INFO "Xen: using vcpu_info placement\n");
 
@@ -1035,7 +1043,6 @@ void xen_setup_vcpu_info_placement(void)
 		pv_irq_ops.irq_enable = xen_irq_enable_direct;
 		pv_mmu_ops.read_cr2 = xen_read_cr2_direct;
 	}
-#endif
 }
 
 static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
@@ -1056,12 +1063,10 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
 	goto patch_site
 
 	switch (type) {
-#ifdef CONFIG_X86_32
 		SITE(pv_irq_ops, irq_enable);
 		SITE(pv_irq_ops, irq_disable);
 		SITE(pv_irq_ops, save_fl);
 		SITE(pv_irq_ops, restore_fl);
-#endif /* CONFIG_X86_32 */
 #undef SITE
 
 	patch_site:
@@ -1399,47 +1404,10 @@ static void *m2v(phys_addr_t maddr)
 	return __ka(m2p(maddr));
 }
 
-#ifdef CONFIG_X86_64
-static void walk(pgd_t *pgd, unsigned long addr)
-{
-	unsigned l4idx = pgd_index(addr);
-	unsigned l3idx = pud_index(addr);
-	unsigned l2idx = pmd_index(addr);
-	unsigned l1idx = pte_index(addr);
-	pgd_t l4;
-	pud_t l3;
-	pmd_t l2;
-	pte_t l1;
-
-	xen_raw_printk("walk %p, %lx -> %d %d %d %d\n",
-		       pgd, addr, l4idx, l3idx, l2idx, l1idx);
-
-	l4 = pgd[l4idx];
-	xen_raw_printk("  l4: %016lx\n", l4.pgd);
-	xen_raw_printk("      %016lx\n", pgd_val(l4));
-
-	l3 = ((pud_t *)(m2v(l4.pgd)))[l3idx];
-	xen_raw_printk("  l3: %016lx\n", l3.pud);
-	xen_raw_printk("      %016lx\n", pud_val(l3));
-
-	l2 = ((pmd_t *)(m2v(l3.pud)))[l2idx];
-	xen_raw_printk("  l2: %016lx\n", l2.pmd);
-	xen_raw_printk("      %016lx\n", pmd_val(l2));
-
-	l1 = ((pte_t *)(m2v(l2.pmd)))[l1idx];
-	xen_raw_printk("  l1: %016lx\n", l1.pte);
-	xen_raw_printk("      %016lx\n", pte_val(l1));
-}
-#endif
-
 static void set_page_prot(void *addr, pgprot_t prot)
 {
 	unsigned long pfn = __pa(addr) >> PAGE_SHIFT;
 	pte_t pte = pfn_pte(pfn, prot);
-
-	xen_raw_printk("addr=%p pfn=%lx mfn=%lx prot=%016llx pte=%016llx\n",
-		       addr, pfn, get_phys_to_machine(pfn),
-		       pgprot_val(prot), pte.pte);
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)addr, pte, 0))
 		BUG();
@@ -1697,15 +1665,6 @@ asmlinkage void __init xen_start_kernel(void)
 	}
 
 	xen_raw_console_write("about to get started...\n");
-
-#if 0
-	xen_raw_printk("&boot_params=%p __pa(&boot_params)=%lx __va(__pa(&boot_params))=%lx\n",
-		       &boot_params, __pa_symbol(&boot_params),
-		       __va(__pa_symbol(&boot_params)));
-
-	walk(pgd, &boot_params);
-	walk(pgd, __va(__pa(&boot_params)));
-#endif
 
 	/* Start the world */
 #ifdef CONFIG_X86_32
