@@ -53,8 +53,9 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
-/* Default PCI flags is 0 */
-unsigned int ppc_pci_flags;
+/* Default PCI flags is 0 on ppc32, modified at boot on ppc64 */
+unsigned int ppc_pci_flags = 0;
+
 
 static struct dma_mapping_ops *pci_dma_ops;
 
@@ -853,15 +854,12 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 int pci_proc_domain(struct pci_bus *bus)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
-#ifdef CONFIG_PPC64
-	return hose->buid != 0;
-#else
+
 	if (!(ppc_pci_flags & PPC_PCI_ENABLE_PROC_DOMAINS))
 		return 0;
 	if (ppc_pci_flags & PPC_PCI_COMPAT_DOMAIN_0)
 		return hose->global_number != 0;
 	return 1;
-#endif
 }
 
 void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
