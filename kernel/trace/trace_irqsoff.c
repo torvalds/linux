@@ -142,10 +142,10 @@ check_critical_timing(struct trace_array *tr,
 
 	local_save_flags(flags);
 
+	pc = preempt_count();
+
 	if (!report_latency(delta))
 		goto out;
-
-	pc = preempt_count();
 
 	spin_lock_irqsave(&max_trace_lock, flags);
 
