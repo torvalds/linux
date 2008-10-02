@@ -57,8 +57,6 @@
 #include <asm/div64.h>
 #include "internal.h"
 
-#define LOAD_INT(x) ((x) >> FSHIFT)
-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
 /*
  * Warning: stuff below (imported functions) assumes that its output will fit
  * into one page. For some of those functions it may be wrong. Moreover, we
@@ -78,29 +76,6 @@ static int proc_calc_metrics(char *page, char **start, off_t off,
 	if (len>count) len = count;
 	if (len<0) len = 0;
 	return len;
-}
-
-static int loadavg_read_proc(char *page, char **start, off_t off,
-				 int count, int *eof, void *data)
-{
-	int a, b, c;
-	int len;
-	unsigned long seq;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		a = avenrun[0] + (FIXED_1/200);
-		b = avenrun[1] + (FIXED_1/200);
-		c = avenrun[2] + (FIXED_1/200);
-	} while (read_seqretry(&xtime_lock, seq));
-
-	len = sprintf(page,"%d.%02d %d.%02d %d.%02d %ld/%d %d\n",
-		LOAD_INT(a), LOAD_FRAC(a),
-		LOAD_INT(b), LOAD_FRAC(b),
-		LOAD_INT(c), LOAD_FRAC(c),
-		nr_running(), nr_threads,
-		task_active_pid_ns(current)->last_pid);
-	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
 static int uptime_read_proc(char *page, char **start, off_t off,
@@ -861,7 +836,6 @@ void __init proc_misc_init(void)
 		char *name;
 		int (*read_proc)(char*,char**,off_t,int,int*,void*);
 	} *p, simple_ones[] = {
-		{"loadavg",     loadavg_read_proc},
 		{"uptime",	uptime_read_proc},
 		{"meminfo",	meminfo_read_proc},
 		{"version",	version_read_proc},
