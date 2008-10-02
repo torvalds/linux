@@ -478,18 +478,13 @@ request_standard_resources(struct meminfo *mi, struct machine_desc *mdesc)
 	kernel_data.end     = virt_to_phys(&_end - 1);
 
 	for (i = 0; i < mi->nr_banks; i++) {
-		unsigned long virt_start, virt_end;
-
 		if (mi->bank[i].size == 0)
 			continue;
 
-		virt_start = __phys_to_virt(mi->bank[i].start);
-		virt_end   = virt_start + mi->bank[i].size - 1;
-
 		res = alloc_bootmem_low(sizeof(*res));
 		res->name  = "System RAM";
-		res->start = __virt_to_phys(virt_start);
-		res->end   = __virt_to_phys(virt_end);
+		res->start = mi->bank[i].start;
+		res->end   = mi->bank[i].start + mi->bank[i].size - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 
 		request_resource(&iomem_resource, res);
