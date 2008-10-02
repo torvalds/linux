@@ -955,6 +955,7 @@ static int __init uhci_hcd_init(void)
 
 	printk(KERN_INFO "uhci_hcd: " DRIVER_DESC "%s\n",
 			ignore_oc ? ", overcurrent ignored" : "");
+	set_bit(USB_UHCI_LOADED, &usb_hcds_loaded);
 
 	if (DEBUG_CONFIGURED) {
 		errbuf = kmalloc(ERRBUF_LEN, GFP_KERNEL);
@@ -987,6 +988,7 @@ debug_failed:
 
 errbuf_failed:
 
+	clear_bit(USB_UHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
 
@@ -996,6 +998,7 @@ static void __exit uhci_hcd_cleanup(void)
 	kmem_cache_destroy(uhci_up_cachep);
 	debugfs_remove(uhci_debugfs_root);
 	kfree(errbuf);
+	clear_bit(USB_UHCI_LOADED, &usb_hcds_loaded);
 }
 
 module_init(uhci_hcd_init);

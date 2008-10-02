@@ -81,6 +81,10 @@
 
 /*-------------------------------------------------------------------------*/
 
+/* Keep track of which host controller drivers are loaded */
+unsigned long usb_hcds_loaded;
+EXPORT_SYMBOL_GPL(usb_hcds_loaded);
+
 /* host controllers we manage */
 LIST_HEAD (usb_bus_list);
 EXPORT_SYMBOL_GPL (usb_bus_list);
