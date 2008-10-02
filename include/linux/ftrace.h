@@ -1,13 +1,13 @@
 #ifndef _LINUX_FTRACE_H
 #define _LINUX_FTRACE_H
 
-#ifdef CONFIG_FTRACE
-
 #include <linux/linkage.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kallsyms.h>
+
+#ifdef CONFIG_FTRACE
 
 extern int ftrace_enabled;
 extern int
