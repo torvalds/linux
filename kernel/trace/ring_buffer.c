@@ -232,7 +232,7 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 
 	for (i = 0; i < nr_pages; i++) {
 		page = kzalloc_node(ALIGN(sizeof(*page), cache_line_size()),
-				    GFP_KERNEL, cpu_to_node(cpu));
+				    GFP_KERNEL, cpu_to_node(i));
 		if (!page)
 			goto free_pages;
 		list_add(&page->list, &pages);
