@@ -216,6 +216,8 @@ struct boot_trace {
 	initcall_t		func;
 	int			result;
 	unsigned long long	duration;
+	ktime_t			calltime;
+	ktime_t			rettime;
 };
 
 #ifdef CONFIG_BOOT_TRACER

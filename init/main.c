@@ -706,34 +706,32 @@ __setup("initcall_debug", initcall_debug_setup);
 int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
-	ktime_t t0, t1, delta;
+	ktime_t delta;
 	char msgbuf[64];
-	int result;
 	struct boot_trace it;
 
 	if (initcall_debug) {
 		it.caller = task_pid_nr(current);
 		it.func = fn;
 		printk("calling  %pF @ %i\n", fn, it.caller);
-		t0 = ktime_get();
+		it.calltime = ktime_get();
 	}
 
-	result = fn();
+	it.result = fn();
 
 	if (initcall_debug) {
-		t1 = ktime_get();
-		delta = ktime_sub(t1, t0);
-		it.result = result;
+		it.rettime = ktime_get();
+		delta = ktime_sub(it.rettime, it.calltime);
 		it.duration = (unsigned long long) delta.tv64 >> 20;
 		printk("initcall %pF returned %d after %Ld msecs\n", fn,
-			result, it.duration);
+			it.result, it.duration);
 		trace_boot(&it);
 	}
 
 	msgbuf[0] = 0;
 
-	if (result && result != -ENODEV && initcall_debug)
-		sprintf(msgbuf, "error code %d ", result);
+	if (it.result && it.result != -ENODEV && initcall_debug)
+		sprintf(msgbuf, "error code %d ", it.result);
 
 	if (preempt_count() != count) {
 		strlcat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
@@ -747,7 +745,7 @@ int do_one_initcall(initcall_t fn)
 		printk("initcall %pF returned with %s\n", fn, msgbuf);
 	}
 
-	return result;
+	return it.result;
 }
 
 
