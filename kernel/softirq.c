@@ -205,7 +205,18 @@ restart:
 
 	do {
 		if (pending & 1) {
+			int prev_count = preempt_count();
+
 			h->action(h);
+
+			if (unlikely(prev_count != preempt_count())) {
+				printk(KERN_ERR "huh, entered sotfirq %ld %p"
+				       "with preempt_count %08x,"
+				       " exited with %08x?\n", h - softirq_vec,
+				       h->action, prev_count, preempt_count());
+				preempt_count() = prev_count;
+			}
+
 			rcu_bh_qsctr_inc(cpu);
 		}
 		h++;
