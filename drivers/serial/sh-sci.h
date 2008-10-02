@@ -793,9 +793,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
 #define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(16*bps)-1)
 #elif defined(__H8300H__) || defined(__H8300S__)
-#define SCBRR_VALUE(bps) (((CONFIG_CPU_CLOCK*1000/32)/bps)-1)
-#elif defined(CONFIG_SUPERH64)
-#define SCBRR_VALUE(bps) ((current_cpu_data.module_clock+16*bps)/(32*bps)-1)
+#define SCBRR_VALUE(bps, clk) (((clk*1000/32)/bps)-1)
 #else /* Generic SH */
 #define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(32*bps)-1)
 #endif

@@ -78,7 +78,7 @@ struct sci_port {
 	struct timer_list	break_timer;
 	int			break_flag;
 
-#ifdef CONFIG_SUPERH
+#ifdef CONFIG_HAVE_CLK
 	/* Port clock */
 	struct clk		*clk;
 #endif
@@ -831,7 +831,7 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_CPU_FREQ
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
 /*
  * Here we define a transistion notifier so that we can update all of our
  * ports' baud rate when the peripheral clock changes.
@@ -860,7 +860,7 @@ static int sci_notifier(struct notifier_block *self,
 			 * Clean this up later..
 			 */
 			clk = clk_get(NULL, "module_clk");
-			port->uartclk = clk_get_rate(clk) * 16;
+			port->uartclk = clk_get_rate(clk);
 			clk_put(clk);
 		}
 
@@ -873,7 +873,7 @@ static int sci_notifier(struct notifier_block *self,
 }
 
 static struct notifier_block sci_nb = { &sci_notifier, NULL, 0 };
-#endif /* CONFIG_CPU_FREQ */
+#endif /* CONFIG_CPU_FREQ && CONFIG_HAVE_CLK */
 
 static int sci_request_irq(struct sci_port *port)
 {
@@ -1008,7 +1008,7 @@ static int sci_startup(struct uart_port *port)
 	if (s->enable)
 		s->enable(port);
 
-#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#ifdef CONFIG_HAVE_CLK
 	s->clk = clk_get(NULL, "module_clk");
 #endif
 
@@ -1030,7 +1030,7 @@ static void sci_shutdown(struct uart_port *port)
 	if (s->disable)
 		s->disable(port);
 
-#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#ifdef CONFIG_HAVE_CLK
 	clk_put(s->clk);
 	s->clk = NULL;
 #endif
@@ -1041,24 +1041,11 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = &sci_ports[port->line];
 	unsigned int status, baud, smr_val;
-	int t;
+	int t = -1;
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
-
-	switch (baud) {
-		case 0:
-			t = -1;
-			break;
-		default:
-		{
-#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
-			t = SCBRR_VALUE(baud, clk_get_rate(s->clk));
-#else
-			t = SCBRR_VALUE(baud);
-#endif
-			break;
-		}
-	}
+	if (likely(baud))
+		t = SCBRR_VALUE(baud, port->uartclk);
 
 	do {
 		status = sci_in(port, SCxSR);
@@ -1207,17 +1194,17 @@ static void __init sci_init_ports(void)
 		sci_ports[i].disable	= h8300_sci_disable;
 #endif
 		sci_ports[i].port.uartclk = CONFIG_CPU_CLOCK;
-#elif defined(CONFIG_SUPERH64)
-		sci_ports[i].port.uartclk = current_cpu_data.module_clock * 16;
-#else
+#elif defined(CONFIG_HAVE_CLK)
 		/*
 		 * XXX: We should use a proper SCI/SCIF clock
 		 */
 		{
 			struct clk *clk = clk_get(NULL, "module_clk");
-			sci_ports[i].port.uartclk = clk_get_rate(clk) * 16;
+			sci_ports[i].port.uartclk = clk_get_rate(clk);
 			clk_put(clk);
 		}
+#else
+#error "Need a valid uartclk"
 #endif
 
 		sci_ports[i].break_timer.data = (unsigned long)&sci_ports[i];
@@ -1285,7 +1272,7 @@ static int __init serial_console_setup(struct console *co, char *options)
 
 	port->type = serial_console_port->type;
 
-#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#ifdef CONFIG_HAVE_CLK
 	if (!serial_console_port->clk)
 		serial_console_port->clk = clk_get(NULL, "module_clk");
 #endif
@@ -1479,7 +1466,7 @@ static int __devinit sci_probe(struct platform_device *dev)
 	kgdb_putchar	= kgdb_sci_putchar;
 #endif
 
-#ifdef CONFIG_CPU_FREQ
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
 	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
 	dev_info(&dev->dev, "CPU frequency notifier registered\n");
 #endif
