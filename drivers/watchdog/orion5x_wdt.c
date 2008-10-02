@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 /*
  * Watchdog timer block registers.
@@ -35,10 +36,13 @@
 static int nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat =  WDT_MAX_DURATION;	/* (seconds) */
 static unsigned long wdt_status;
+static spinlock_t wdt_lock;
 
 static void wdt_enable(void)
 {
 	u32 reg;
+
+	spin_lock(&wdt_lock);
 
 	/* Set watchdog duration */
 	writel(ORION5X_TCLK * heartbeat, WDT_VAL);
@@ -57,11 +61,15 @@ static void wdt_enable(void)
 	reg = readl(CPU_RESET_MASK);
 	reg |= WDT_RESET;
 	writel(reg, CPU_RESET_MASK);
+
+	spin_unlock(&wdt_lock);
 }
 
 static void wdt_disable(void)
 {
 	u32 reg;
+
+	spin_lock(&wdt_lock);
 
 	/* Disable reset on watchdog */
 	reg = readl(CPU_RESET_MASK);
@@ -72,6 +80,16 @@ static void wdt_disable(void)
 	reg = readl(TIMER_CTRL);
 	reg &= ~WDT_EN;
 	writel(reg, TIMER_CTRL);
+
+	spin_unlock(&wdt_lock);
+}
+
+static int orion5x_wdt_get_timeleft(int *time_left)
+{
+	spin_lock(&wdt_lock);
+	*time_left = readl(WDT_VAL) / ORION5X_TCLK;
+	spin_unlock(&wdt_lock);
+	return 0;
 }
 
 static int orion5x_wdt_open(struct inode *inode, struct file *file)
@@ -81,12 +99,6 @@ static int orion5x_wdt_open(struct inode *inode, struct file *file)
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
 	return nonseekable_open(inode, file);
-}
-
-static int orion5x_wdt_get_timeleft(int *time_left)
-{
-	*time_left = readl(WDT_VAL) / ORION5X_TCLK;
-	return 0;
 }
 
 static ssize_t orion5x_wdt_write(struct file *file, const char *data,
@@ -200,6 +212,8 @@ static struct miscdevice orion5x_wdt_miscdev = {
 static int __init orion5x_wdt_init(void)
 {
 	int ret;
+
+	spin_lock_init(&wdt_lock);
 
 	ret = misc_register(&orion5x_wdt_miscdev);
 	if (ret == 0)
