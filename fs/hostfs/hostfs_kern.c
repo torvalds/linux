@@ -822,7 +822,7 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	return err;
 }
 
-int hostfs_permission(struct inode *ino, int desired, struct nameidata *nd)
+int hostfs_permission(struct inode *ino, int desired)
 {
 	char *name;
 	int r = 0, w = 0, x = 0, err;

@@ -103,7 +103,6 @@ static int attach_inform(struct i2c_client *client)
 
 	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
-
 	return 0;
 }
 

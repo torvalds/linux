@@ -103,6 +103,18 @@ config TOUCHSCREEN_MTOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtouch.
 
+config TOUCHSCREEN_INEXIO
+	tristate "iNexio serial touchscreens"
+	select SERIO
+	help
+	  Say Y here if you have an iNexio serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called inexio.
+
 config TOUCHSCREEN_MK712
 	tristate "ICS MicroClock MK712 touchscreen"
 	help
@@ -134,6 +146,18 @@ config TOUCHSCREEN_HP7XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called jornada720_ts.
 
+config TOUCHSCREEN_HTCPEN
+	tristate "HTC Shift X9500 touchscreen"
+	depends on ISA
+	help
+	  Say Y here if you have an HTC Shift UMPC also known as HTC X9500
+	  Clio / Shangrila and want to support the built-in touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called htcpen.
+
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
 	select SERIO
@@ -145,6 +169,17 @@ config TOUCHSCREEN_PENMOUNT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called penmount.
+
+config TOUCHSCREEN_MIGOR
+	tristate "Renesas MIGO-R touchscreen"
+	depends on SH_MIGOR && I2C
+	help
+	  Say Y here to enable MIGO-R touchscreen support.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called migor_ts.
 
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"
@@ -169,6 +204,18 @@ config TOUCHSCREEN_TOUCHWIN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchwin.
+
+config TOUCHSCREEN_ATMEL_TSADCC
+	tristate "Atmel Touchscreen Interface"
+	depends on ARCH_AT91SAM9RL
+	help
+	  Say Y here if you have a 4-wire touchscreen connected to the
+          ADC Controller on your Atmel SoC (such as the AT91SAM9RL).
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_tsadcc.
 
 config TOUCHSCREEN_UCB1400
 	tristate "Philips UCB1400 touchscreen"
@@ -202,29 +249,26 @@ config TOUCHSCREEN_WM97XX
 config TOUCHSCREEN_WM9705
 	bool "WM9705 Touchscreen interface support"
 	depends on TOUCHSCREEN_WM97XX
+	default y
 	help
-	  Say Y here if you have a Wolfson Microelectronics WM9705
-	  touchscreen controller connected to your system.
-
-	  If unsure, say N.
+	  Say Y here to enable support for the Wolfson Microelectronics
+	  WM9705 touchscreen controller.
 
 config TOUCHSCREEN_WM9712
 	bool "WM9712 Touchscreen interface support"
 	depends on TOUCHSCREEN_WM97XX
+	default y
 	help
-	  Say Y here if you have a Wolfson Microelectronics WM9712
-	  touchscreen controller connected to your system.
-
-	  If unsure, say N.
+	  Say Y here to enable support for the Wolfson Microelectronics
+	  WM9712 touchscreen controller.
 
 config TOUCHSCREEN_WM9713
 	bool "WM9713 Touchscreen interface support"
 	depends on TOUCHSCREEN_WM97XX
+	default y
 	help
-	  Say Y here if you have a Wolfson Microelectronics WM9713 touchscreen
-	  controller connected to your system.
-
-	  If unsure, say N.
+	  Say Y here to enable support for the Wolfson Microelectronics
+	  WM9713 touchscreen controller.
 
 config TOUCHSCREEN_WM97XX_MAINSTONE
 	tristate "WM97xx Mainstone accelerated touch"
@@ -315,5 +359,16 @@ config TOUCHSCREEN_USB_GOTOP
 	default y
 	bool "GoTop Super_Q2/GogoPen/PenPower tablet device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_TOUCHIT213
+	tristate "Sahara TouchIT-213 touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Sahara TouchIT-213 Tablet PC.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called touchit213.
 
 endif

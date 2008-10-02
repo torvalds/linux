@@ -22,9 +22,9 @@
 
 #include <linux/platform_device.h>
 
-#include <asm/arch/regs-wan.h>
-#include <asm/arch/regs-lan.h>
-#include <asm/arch/regs-hpna.h>
+#include <mach/regs-wan.h>
+#include <mach/regs-lan.h>
+#include <mach/regs-hpna.h>
 
 
 /* --------------------------------------------------------------------

@@ -27,6 +27,7 @@ enum cx2341x_port {
 
 enum cx2341x_cap {
 	CX2341X_CAP_HAS_SLICED_VBI = 1 << 0,
+	CX2341X_CAP_HAS_TS 	   = 1 << 1,
 };
 
 struct cx2341x_mpeg_params {
@@ -88,13 +89,13 @@ typedef int (*cx2341x_mbox_func)(void *priv, u32 cmd, int in, int out,
 int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		const struct cx2341x_mpeg_params *old,
 		const struct cx2341x_mpeg_params *new);
-int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params,
+int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 		struct v4l2_queryctrl *qctrl);
-const char **cx2341x_ctrl_get_menu(u32 id);
+const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id);
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		struct v4l2_ext_controls *ctrls, unsigned int cmd);
 void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p);
-void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix);
+void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix);
 
 /* Firmware names */
 #define CX2341X_FIRM_ENC_FILENAME "v4l-cx2341x-enc.fw"

@@ -60,7 +60,7 @@ static unsigned long dma_reserve __initdata;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-int direct_gbpages __meminitdata
+int direct_gbpages
 #ifdef CONFIG_DIRECT_GBPAGES
 				= 1
 #endif
@@ -86,46 +86,13 @@ early_param("gbpages", parse_direct_gbpages_on);
  * around without checking the pgd every time.
  */
 
-void show_mem(void)
-{
-	long i, total = 0, reserved = 0;
-	long shared = 0, cached = 0;
-	struct page *page;
-	pg_data_t *pgdat;
-
-	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas();
-	for_each_online_pgdat(pgdat) {
-		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
-			/*
-			 * This loop can take a while with 256 GB and
-			 * 4k pages so defer the NMI watchdog:
-			 */
-			if (unlikely(i % MAX_ORDER_NR_PAGES == 0))
-				touch_nmi_watchdog();
-
-			if (!pfn_valid(pgdat->node_start_pfn + i))
-				continue;
-
-			page = pfn_to_page(pgdat->node_start_pfn + i);
-			total++;
-			if (PageReserved(page))
-				reserved++;
-			else if (PageSwapCache(page))
-				cached++;
-			else if (page_count(page))
-				shared += page_count(page) - 1;
-		}
-	}
-	printk(KERN_INFO "%lu pages of RAM\n",		total);
-	printk(KERN_INFO "%lu reserved pages\n",	reserved);
-	printk(KERN_INFO "%lu pages shared\n",		shared);
-	printk(KERN_INFO "%lu pages swap cached\n",	cached);
-}
-
 int after_bootmem;
 
-static __init void *spp_getpage(void)
+/*
+ * NOTE: This function is marked __ref because it calls __init function
+ * (alloc_bootmem_pages). It's safe to do it ONLY when after_bootmem == 0.
+ */
+static __ref void *spp_getpage(void)
 {
 	void *ptr;
 
@@ -274,7 +241,7 @@ static unsigned long __initdata table_start;
 static unsigned long __meminitdata table_end;
 static unsigned long __meminitdata table_top;
 
-static __meminit void *alloc_low_page(unsigned long *phys)
+static __ref void *alloc_low_page(unsigned long *phys)
 {
 	unsigned long pfn = table_end++;
 	void *adr;
@@ -295,7 +262,7 @@ static __meminit void *alloc_low_page(unsigned long *phys)
 	return adr;
 }
 
-static __meminit void unmap_low_page(void *adr)
+static __ref void unmap_low_page(void *adr)
 {
 	if (after_bootmem)
 		return;
@@ -351,6 +318,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 {
 	unsigned long pages = 0;
 	unsigned long last_map_addr = end;
+	unsigned long start = address;
 
 	int i = pmd_index(address);
 
@@ -368,16 +336,24 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 		}
 
 		if (pmd_val(*pmd)) {
-			if (!pmd_large(*pmd))
+			if (!pmd_large(*pmd)) {
+				spin_lock(&init_mm.page_table_lock);
 				last_map_addr = phys_pte_update(pmd, address,
-								 end);
+								end);
+				spin_unlock(&init_mm.page_table_lock);
+			}
+			/* Count entries we're using from level2_ident_pgt */
+			if (start == 0)
+				pages++;
 			continue;
 		}
 
 		if (page_size_mask & (1<<PG_LEVEL_2M)) {
 			pages++;
+			spin_lock(&init_mm.page_table_lock);
 			set_pte((pte_t *)pmd,
 				pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
+			spin_unlock(&init_mm.page_table_lock);
 			last_map_addr = (address & PMD_MASK) + PMD_SIZE;
 			continue;
 		}
@@ -386,7 +362,9 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 		last_map_addr = phys_pte_init(pte, address, end);
 		unmap_low_page(pte);
 
+		spin_lock(&init_mm.page_table_lock);
 		pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
+		spin_unlock(&init_mm.page_table_lock);
 	}
 	update_page_count(PG_LEVEL_2M, pages);
 	return last_map_addr;
@@ -399,9 +377,7 @@ phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end,
 	pmd_t *pmd = pmd_offset(pud, 0);
 	unsigned long last_map_addr;
 
-	spin_lock(&init_mm.page_table_lock);
 	last_map_addr = phys_pmd_init(pmd, address, end, page_size_mask);
-	spin_unlock(&init_mm.page_table_lock);
 	__flush_tlb_all();
 	return last_map_addr;
 }
@@ -437,20 +413,21 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 
 		if (page_size_mask & (1<<PG_LEVEL_1G)) {
 			pages++;
+			spin_lock(&init_mm.page_table_lock);
 			set_pte((pte_t *)pud,
 				pfn_pte(addr >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
+			spin_unlock(&init_mm.page_table_lock);
 			last_map_addr = (addr & PUD_MASK) + PUD_SIZE;
 			continue;
 		}
 
 		pmd = alloc_low_page(&pmd_phys);
-
-		spin_lock(&init_mm.page_table_lock);
 		last_map_addr = phys_pmd_init(pmd, addr, end, page_size_mask);
 		unmap_low_page(pmd);
+
+		spin_lock(&init_mm.page_table_lock);
 		pud_populate(&init_mm, pud, __va(pmd_phys));
 		spin_unlock(&init_mm.page_table_lock);
-
 	}
 	__flush_tlb_all();
 	update_page_count(PG_LEVEL_1G, pages);
@@ -517,118 +494,6 @@ static void __init init_gbpages(void)
 		direct_gbpages = 0;
 }
 
-#ifdef CONFIG_MEMTEST
-
-static void __init memtest(unsigned long start_phys, unsigned long size,
-				 unsigned pattern)
-{
-	unsigned long i;
-	unsigned long *start;
-	unsigned long start_bad;
-	unsigned long last_bad;
-	unsigned long val;
-	unsigned long start_phys_aligned;
-	unsigned long count;
-	unsigned long incr;
-
-	switch (pattern) {
-	case 0:
-		val = 0UL;
-		break;
-	case 1:
-		val = -1UL;
-		break;
-	case 2:
-		val = 0x5555555555555555UL;
-		break;
-	case 3:
-		val = 0xaaaaaaaaaaaaaaaaUL;
-		break;
-	default:
-		return;
-	}
-
-	incr = sizeof(unsigned long);
-	start_phys_aligned = ALIGN(start_phys, incr);
-	count = (size - (start_phys_aligned - start_phys))/incr;
-	start = __va(start_phys_aligned);
-	start_bad = 0;
-	last_bad = 0;
-
-	for (i = 0; i < count; i++)
-		start[i] = val;
-	for (i = 0; i < count; i++, start++, start_phys_aligned += incr) {
-		if (*start != val) {
-			if (start_phys_aligned == last_bad + incr) {
-				last_bad += incr;
-			} else {
-				if (start_bad) {
-					printk(KERN_CONT "\n  %016lx bad mem addr %016lx - %016lx reserved",
-						val, start_bad, last_bad + incr);
-					reserve_early(start_bad, last_bad - start_bad, "BAD RAM");
-				}
-				start_bad = last_bad = start_phys_aligned;
-			}
-		}
-	}
-	if (start_bad) {
-		printk(KERN_CONT "\n  %016lx bad mem addr %016lx - %016lx reserved",
-			val, start_bad, last_bad + incr);
-		reserve_early(start_bad, last_bad - start_bad, "BAD RAM");
-	}
-
-}
-
-/* default is disabled */
-static int memtest_pattern __initdata;
-
-static int __init parse_memtest(char *arg)
-{
-	if (arg)
-		memtest_pattern = simple_strtoul(arg, NULL, 0);
-	return 0;
-}
-
-early_param("memtest", parse_memtest);
-
-static void __init early_memtest(unsigned long start, unsigned long end)
-{
-	u64 t_start, t_size;
-	unsigned pattern;
-
-	if (!memtest_pattern)
-		return;
-
-	printk(KERN_INFO "early_memtest: pattern num %d", memtest_pattern);
-	for (pattern = 0; pattern < memtest_pattern; pattern++) {
-		t_start = start;
-		t_size = 0;
-		while (t_start < end) {
-			t_start = find_e820_area_size(t_start, &t_size, 1);
-
-			/* done ? */
-			if (t_start >= end)
-				break;
-			if (t_start + t_size > end)
-				t_size = end - t_start;
-
-			printk(KERN_CONT "\n  %016llx - %016llx pattern %d",
-				(unsigned long long)t_start,
-				(unsigned long long)t_start + t_size, pattern);
-
-			memtest(t_start, t_size, pattern);
-
-			t_start += t_size;
-		}
-	}
-	printk(KERN_CONT "\n");
-}
-#else
-static void __init early_memtest(unsigned long start, unsigned long end)
-{
-}
-#endif
-
 static unsigned long __init kernel_physical_mapping_init(unsigned long start,
 						unsigned long end,
 						unsigned long page_size_mask)
@@ -654,16 +519,14 @@ static unsigned long __init kernel_physical_mapping_init(unsigned long start,
 			continue;
 		}
 
-		if (after_bootmem)
-			pud = pud_offset(pgd, start & PGDIR_MASK);
-		else
-			pud = alloc_low_page(&pud_phys);
-
+		pud = alloc_low_page(&pud_phys);
 		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next),
 						 page_size_mask);
 		unmap_low_page(pud);
-		pgd_populate(&init_mm, pgd_offset_k(start),
-			     __va(pud_phys));
+
+		spin_lock(&init_mm.page_table_lock);
+		pgd_populate(&init_mm, pgd, __va(pud_phys));
+		spin_unlock(&init_mm.page_table_lock);
 	}
 
 	return last_map_addr;

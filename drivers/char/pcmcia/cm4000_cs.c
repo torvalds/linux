@@ -1896,7 +1896,7 @@ static int cm4000_probe(struct pcmcia_device *link)
 		return ret;
 	}
 
-	device_create(cmm_class, NULL, MKDEV(major, i), "cmm%d", i);
+	device_create_drvdata(cmm_class, NULL, MKDEV(major, i), NULL, "cmm%d", i);
 
 	return 0;
 }

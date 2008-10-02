@@ -166,7 +166,7 @@ struct sock_common {
   *	@sk_err: last error
   *	@sk_err_soft: errors that don't cause failure but are the cause of a
   *		      persistent failure not just 'timed out'
-  *	@sk_drops: raw drops counter
+  *	@sk_drops: raw/udp drops counter
   *	@sk_ack_backlog: current listen backlog
   *	@sk_max_ack_backlog: listen backlog set in listen()
   *	@sk_priority: %SO_PRIORITY setting
@@ -524,7 +524,7 @@ struct proto {
 	int			(*ioctl)(struct sock *sk, int cmd,
 					 unsigned long arg);
 	int			(*init)(struct sock *sk);
-	int			(*destroy)(struct sock *sk);
+	void			(*destroy)(struct sock *sk);
 	void			(*shutdown)(struct sock *sk, int how);
 	int			(*setsockopt)(struct sock *sk, int level, 
 					int optname, char __user *optval,
@@ -565,7 +565,7 @@ struct proto {
 #endif
 
 	/* Memory pressure */
-	void			(*enter_memory_pressure)(void);
+	void			(*enter_memory_pressure)(struct sock *sk);
 	atomic_t		*memory_allocated;	/* Current allocated memory. */
 	atomic_t		*sockets_allocated;	/* Current number of sockets. */
 	/*
@@ -990,6 +990,11 @@ static inline void sock_put(struct sock *sk)
 extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 			  const int nested);
 
+static inline void sk_set_socket(struct sock *sk, struct socket *sock)
+{
+	sk->sk_socket = sock;
+}
+
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
  * Note that parent inode held reference count on this struct sock,
@@ -1001,7 +1006,7 @@ static inline void sock_orphan(struct sock *sk)
 {
 	write_lock_bh(&sk->sk_callback_lock);
 	sock_set_flag(sk, SOCK_DEAD);
-	sk->sk_socket = NULL;
+	sk_set_socket(sk, NULL);
 	sk->sk_sleep  = NULL;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
@@ -1011,7 +1016,7 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	write_lock_bh(&sk->sk_callback_lock);
 	sk->sk_sleep = &parent->wait;
 	parent->sk = sk;
-	sk->sk_socket = parent;
+	sk_set_socket(sk, parent);
 	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
@@ -1205,7 +1210,7 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 
 	page = alloc_pages(sk->sk_allocation, 0);
 	if (!page) {
-		sk->sk_prot->enter_memory_pressure();
+		sk->sk_prot->enter_memory_pressure(sk);
 		sk_stream_moderate_sndbuf(sk);
 	}
 	return page;
@@ -1330,30 +1335,6 @@ extern int net_msg_warn;
 
 #define LIMIT_NETDEBUG(fmt, args...) \
 	do { if (net_msg_warn && net_ratelimit()) printk(fmt,##args); } while(0)
-
-/*
- * Macros for sleeping on a socket. Use them like this:
- *
- * SOCK_SLEEP_PRE(sk)
- * if (condition)
- * 	schedule();
- * SOCK_SLEEP_POST(sk)
- *
- * N.B. These are now obsolete and were, afaik, only ever used in DECnet
- * and when the last use of them in DECnet has gone, I'm intending to
- * remove them.
- */
-
-#define SOCK_SLEEP_PRE(sk) 	{ struct task_struct *tsk = current; \
-				DECLARE_WAITQUEUE(wait, tsk); \
-				tsk->state = TASK_INTERRUPTIBLE; \
-				add_wait_queue((sk)->sk_sleep, &wait); \
-				release_sock(sk);
-
-#define SOCK_SLEEP_POST(sk)	tsk->state = TASK_RUNNING; \
-				remove_wait_queue((sk)->sk_sleep, &wait); \
-				lock_sock(sk); \
-				}
 
 extern __u32 sysctl_wmem_max;
 extern __u32 sysctl_rmem_max;

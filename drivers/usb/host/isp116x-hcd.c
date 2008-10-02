@@ -94,6 +94,10 @@ static void write_ptddata_to_fifo(struct isp116x *isp116x, void *buf, int len)
 	u16 w;
 	int quot = len % 4;
 
+	/* buffer is already in 'usb data order', which is LE. */
+	/* When reading buffer as u16, we have to take care byte order */
+	/* doesn't get mixed up */
+
 	if ((unsigned long)dp2 & 1) {
 		/* not aligned */
 		for (; len > 1; len -= 2) {
@@ -105,8 +109,11 @@ static void write_ptddata_to_fifo(struct isp116x *isp116x, void *buf, int len)
 			isp116x_write_data16(isp116x, (u16) * dp);
 	} else {
 		/* aligned */
-		for (; len > 1; len -= 2)
-			isp116x_raw_write_data16(isp116x, *dp2++);
+		for (; len > 1; len -= 2) {
+			/* Keep byte order ! */
+			isp116x_raw_write_data16(isp116x, cpu_to_le16(*dp2++));
+		}
+
 		if (len)
 			isp116x_write_data16(isp116x, 0xff & *((u8 *) dp2));
 	}
@@ -124,6 +131,10 @@ static void read_ptddata_from_fifo(struct isp116x *isp116x, void *buf, int len)
 	u16 w;
 	int quot = len % 4;
 
+	/* buffer is already in 'usb data order', which is LE. */
+	/* When reading buffer as u16, we have to take care byte order */
+	/* doesn't get mixed up */
+
 	if ((unsigned long)dp2 & 1) {
 		/* not aligned */
 		for (; len > 1; len -= 2) {
@@ -131,12 +142,16 @@ static void read_ptddata_from_fifo(struct isp116x *isp116x, void *buf, int len)
 			*dp++ = w & 0xff;
 			*dp++ = (w >> 8) & 0xff;
 		}
+
 		if (len)
 			*dp = 0xff & isp116x_read_data16(isp116x);
 	} else {
 		/* aligned */
-		for (; len > 1; len -= 2)
-			*dp2++ = isp116x_raw_read_data16(isp116x);
+		for (; len > 1; len -= 2) {
+			/* Keep byte order! */
+			*dp2++ = le16_to_cpu(isp116x_raw_read_data16(isp116x));
+		}
+
 		if (len)
 			*(u8 *) dp2 = 0xff & isp116x_read_data16(isp116x);
 	}
@@ -867,7 +882,7 @@ static void isp116x_endpoint_disable(struct usb_hcd *hcd,
 	for (i = 0; i < 100 && !list_empty(&hep->urb_list); i++)
 		msleep(3);
 	if (!list_empty(&hep->urb_list))
-		WARN("ep %p not empty?\n", ep);
+		WARNING("ep %p not empty?\n", ep);
 
 	kfree(ep);
 	hep->hcpriv = NULL;
@@ -1592,7 +1607,7 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 	}
 
 	/* allocate and initialize hcd */
-	hcd = usb_create_hcd(&isp116x_hc_driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd(&isp116x_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		ret = -ENOMEM;
 		goto err5;

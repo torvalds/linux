@@ -111,7 +111,7 @@ static int __init spiderpci_pci_setup_chip(struct pci_controller *phb,
 
 	dummy_page_da = dma_map_single(phb->parent, dummy_page_va,
 				       PAGE_SIZE, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dummy_page_da)) {
+	if (dma_mapping_error(phb->parent, dummy_page_da)) {
 		pr_err("SPIDER-IOWA:Map dummy page filed.\n");
 		kfree(dummy_page_va);
 		return -1;

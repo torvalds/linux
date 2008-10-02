@@ -418,7 +418,7 @@ asmlinkage long sparc_pipe(struct pt_regs *regs)
 	int fd[2];
 	int error;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, 0);
 	if (error)
 		goto out;
 	regs->u_regs[UREG_I1] = fd[1];
@@ -542,7 +542,7 @@ asmlinkage long sparc64_personality(unsigned long personality)
 	return ret;
 }
 
-int sparc64_mmap_check(unsigned long addr, unsigned long len)
+int sparc_mmap_check(unsigned long addr, unsigned long len)
 {
 	if (test_thread_flag(TIF_32BIT)) {
 		if (len >= STACK_TOP32)
@@ -614,9 +614,9 @@ asmlinkage unsigned long sys64_mremap(unsigned long addr,
 		goto out;
 	if (unlikely(new_len >= VA_EXCLUDE_START))
 		goto out;
-	if (unlikely(sparc64_mmap_check(addr, old_len)))
+	if (unlikely(sparc_mmap_check(addr, old_len)))
 		goto out;
-	if (unlikely(sparc64_mmap_check(new_addr, new_len)))
+	if (unlikely(sparc_mmap_check(new_addr, new_len)))
 		goto out;
 
 	down_write(&current->mm->mmap_sem);

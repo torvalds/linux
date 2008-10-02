@@ -522,7 +522,7 @@ extern int wanrouter_proc_init(void);
 extern void wanrouter_proc_cleanup(void);
 extern int wanrouter_proc_add(struct wan_device *wandev);
 extern int wanrouter_proc_delete(struct wan_device *wandev);
-extern int wanrouter_ioctl( struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
+extern long wanrouter_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 /* Public Data */
 /* list of registered devices */

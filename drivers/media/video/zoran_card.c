@@ -59,8 +59,6 @@
 #include "zoran_device.h"
 #include "zoran_procfs.h"
 
-#define I2C_NAME(x) (x)->name
-
 extern const struct zoran_format zoran_formats[];
 
 static int card[BUZ_MAX] = { -1, -1, -1, -1 };
@@ -163,7 +161,7 @@ static struct pci_device_id zr36067_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
 
 int zoran_num;			/* number of Buzs in use */
-struct zoran zoran[BUZ_MAX];
+struct zoran *zoran[BUZ_MAX];
 
 /* videocodec bus functions ZR36060 */
 static u32
@@ -357,16 +355,14 @@ i2cid_to_modulename (u16 i2c_id)
 	case I2C_DRIVERID_BT856:
 		name = "bt856";
 		break;
+	case I2C_DRIVERID_BT866:
+		name = "bt866";
+		break;
 	case I2C_DRIVERID_VPX3220:
 		name = "vpx3220";
 		break;
-/*	case I2C_DRIVERID_VPX3224:
-		name = "vpx3224";
-		break;
-	case I2C_DRIVERID_MSE3000:
-		name = "mse3000";
-		break;*/
-	default:
+	case I2C_DRIVERID_KS0127:
+		name = "ks0127";
 		break;
 	}
 
@@ -387,8 +383,6 @@ codecid_to_modulename (u16 codecid)
 		break;
 	case CODEC_TYPE_ZR36016:
 		name = "zr36016";
-		break;
-	default:
 		break;
 	}
 
@@ -430,7 +424,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC10_old,
 		.name = "DC10(old)",
 		.i2c_decoder = I2C_DRIVERID_VPX3220,
-		/*.i2c_encoder = I2C_DRIVERID_MSE3000,*/
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
 
@@ -809,7 +802,7 @@ clientunreg_unlock_and_return:
 	return res;
 }
 
-static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
+static const struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.setsda = zoran_i2c_setsda,
 	.setscl = zoran_i2c_setscl,
 	.getsda = zoran_i2c_getsda,
@@ -818,24 +811,17 @@ static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.timeout = 100,
 };
 
-static struct i2c_adapter zoran_i2c_adapter_template = {
-	.name = "zr36057",
-	.id = I2C_HW_B_ZR36067,
-	.algo = NULL,
-	.client_register = zoran_i2c_client_register,
-	.client_unregister = zoran_i2c_client_unregister,
-};
-
 static int
 zoran_register_i2c (struct zoran *zr)
 {
 	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
 	       sizeof(struct i2c_algo_bit_data));
 	zr->i2c_algo.data = zr;
-	memcpy(&zr->i2c_adapter, &zoran_i2c_adapter_template,
-	       sizeof(struct i2c_adapter));
-	strncpy(I2C_NAME(&zr->i2c_adapter), ZR_DEVNAME(zr),
-		sizeof(I2C_NAME(&zr->i2c_adapter)) - 1);
+	zr->i2c_adapter.id = I2C_HW_B_ZR36067;
+	zr->i2c_adapter.client_register = zoran_i2c_client_register;
+	zr->i2c_adapter.client_unregister = zoran_i2c_client_unregister;
+	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
+		sizeof(zr->i2c_adapter.name));
 	i2c_set_adapdata(&zr->i2c_adapter, zr);
 	zr->i2c_adapter.algo_data = &zr->i2c_algo;
 	zr->i2c_adapter.dev.parent = &zr->pci_dev->dev;
@@ -1147,7 +1133,7 @@ zr36057_init (struct zoran *zr)
 		goto exit_free;
 	}
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
-		zr->stat_com[j] = 1;	/* mark as unavailable to zr36057 */
+		zr->stat_com[j] = cpu_to_le32(1); /* mark as unavailable to zr36057 */
 	}
 
 	/*
@@ -1184,7 +1170,7 @@ static void
 zoran_release (struct zoran *zr)
 {
 	if (!zr->initialized)
-		return;
+		goto exit_free;
 	/* unregister videocodec bus */
 	if (zr->codec) {
 		struct videocodec_master *master = zr->codec->master_data;
@@ -1212,6 +1198,8 @@ zoran_release (struct zoran *zr)
 	iounmap(zr->zr36057_mem);
 	pci_disable_device(zr->pci_dev);
 	video_unregister_device(zr->video_dev);
+exit_free:
+	kfree(zr);
 }
 
 void
@@ -1289,8 +1277,14 @@ find_zr36057 (void)
 	while (zoran_num < BUZ_MAX &&
 	       (dev = pci_get_device(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
 		card_num = card[zoran_num];
-		zr = &zoran[zoran_num];
-		memset(zr, 0, sizeof(struct zoran));	// Just in case if previous cycle failed
+		zr = kzalloc(sizeof(struct zoran), GFP_KERNEL);
+		if (!zr) {
+			dprintk(1,
+				KERN_ERR
+				"%s: find_zr36057() - kzalloc failed\n",
+				ZORAN_NAME);
+			continue;
+		}
 		zr->pci_dev = dev;
 		//zr->zr36057_mem = NULL;
 		zr->id = zoran_num;
@@ -1298,7 +1292,7 @@ find_zr36057 (void)
 		spin_lock_init(&zr->spinlock);
 		mutex_init(&zr->resource_lock);
 		if (pci_enable_device(dev))
-			continue;
+			goto zr_free_mem;
 		zr->zr36057_adr = pci_resource_start(zr->pci_dev, 0);
 		pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION,
 				     &zr->revision);
@@ -1314,7 +1308,7 @@ find_zr36057 (void)
 					KERN_ERR
 					"%s: find_zr36057() - no card specified, please use the card=X insmod option\n",
 					ZR_DEVNAME(zr));
-				continue;
+				goto zr_free_mem;
 			}
 		} else {
 			int i;
@@ -1353,7 +1347,7 @@ find_zr36057 (void)
 						KERN_ERR
 						"%s: find_zr36057() - unknown card\n",
 						ZR_DEVNAME(zr));
-					continue;
+					goto zr_free_mem;
 				}
 			}
 		}
@@ -1363,7 +1357,7 @@ find_zr36057 (void)
 				KERN_ERR
 				"%s: find_zr36057() - invalid cardnum %d\n",
 				ZR_DEVNAME(zr), card_num);
-			continue;
+			goto zr_free_mem;
 		}
 
 		/* even though we make this a non pointer and thus
@@ -1381,7 +1375,7 @@ find_zr36057 (void)
 				KERN_ERR
 				"%s: find_zr36057() - ioremap failed\n",
 				ZR_DEVNAME(zr));
-			continue;
+			goto zr_free_mem;
 		}
 
 		result = request_irq(zr->pci_dev->irq,
@@ -1550,7 +1544,7 @@ find_zr36057 (void)
 		}
 		/* Success so keep the pci_dev referenced */
 		pci_dev_get(zr->pci_dev);
-		zoran_num++;
+		zoran[zoran_num++] = zr;
 		continue;
 
 		// Init errors
@@ -1569,6 +1563,8 @@ find_zr36057 (void)
 		free_irq(zr->pci_dev->irq, zr);
 	      zr_unmap:
 		iounmap(zr->zr36057_mem);
+	      zr_free_mem:
+		kfree(zr);
 		continue;
 	}
 	if (dev)	/* Clean up ref count on early exit */
@@ -1640,7 +1636,7 @@ init_dc10_cards (void)
 
 	/* take care of Natoma chipset and a revision 1 zr36057 */
 	for (i = 0; i < zoran_num; i++) {
-		struct zoran *zr = &zoran[i];
+		struct zoran *zr = zoran[i];
 
 		if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
 			zr->jpg_buffers.need_contiguous = 1;
@@ -1652,7 +1648,7 @@ init_dc10_cards (void)
 
 		if (zr36057_init(zr) < 0) {
 			for (i = 0; i < zoran_num; i++)
-				zoran_release(&zoran[i]);
+				zoran_release(zoran[i]);
 			return -EIO;
 		}
 		zoran_proc_init(zr);
@@ -1667,7 +1663,7 @@ unload_dc10_cards (void)
 	int i;
 
 	for (i = 0; i < zoran_num; i++)
-		zoran_release(&zoran[i]);
+		zoran_release(zoran[i]);
 }
 
 module_init(init_dc10_cards);

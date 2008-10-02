@@ -34,7 +34,8 @@
 static SYSDEV_ATTR(_name, 0444, show_##_name, NULL)
 
 #define define_id_show_func(name)				\
-static ssize_t show_##name(struct sys_device *dev, char *buf)	\
+static ssize_t show_##name(struct sys_device *dev,		\
+		struct sysdev_attribute *attr, char *buf)	\
 {								\
 	unsigned int cpu = dev->id;				\
 	return sprintf(buf, "%d\n", topology_##name(cpu));	\
@@ -59,14 +60,17 @@ static ssize_t show_cpumap(int type, cpumask_t *mask, char *buf)
 
 #ifdef arch_provides_topology_pointers
 #define define_siblings_show_map(name)					\
-static ssize_t show_##name(struct sys_device *dev, char *buf)	\
+static ssize_t show_##name(struct sys_device *dev,			\
+			   struct sysdev_attribute *attr, char *buf)	\
 {									\
 	unsigned int cpu = dev->id;					\
 	return show_cpumap(0, &(topology_##name(cpu)), buf);		\
 }
 
 #define define_siblings_show_list(name)					\
-static ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
+static ssize_t show_##name##_list(struct sys_device *dev,		\
+				  struct sysdev_attribute *attr,	\
+				  char *buf)				\
 {									\
 	unsigned int cpu = dev->id;					\
 	return show_cpumap(1, &(topology_##name(cpu)), buf);		\
@@ -74,7 +78,8 @@ static ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
 
 #else
 #define define_siblings_show_map(name)					\
-static ssize_t show_##name(struct sys_device *dev, char *buf)	\
+static ssize_t show_##name(struct sys_device *dev,			\
+			   struct sysdev_attribute *attr, char *buf)	\
 {									\
 	unsigned int cpu = dev->id;					\
 	cpumask_t mask = topology_##name(cpu);				\
@@ -82,7 +87,9 @@ static ssize_t show_##name(struct sys_device *dev, char *buf)	\
 }
 
 #define define_siblings_show_list(name)					\
-static ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
+static ssize_t show_##name##_list(struct sys_device *dev,		\
+				  struct sysdev_attribute *attr,	\
+				  char *buf)				\
 {									\
 	unsigned int cpu = dev->id;					\
 	cpumask_t mask = topology_##name(cpu);				\

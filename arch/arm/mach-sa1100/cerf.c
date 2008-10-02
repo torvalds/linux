@@ -19,7 +19,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 
 #include <asm/mach-types.h>
@@ -28,8 +28,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
 
-#include <asm/arch/cerf.h>
-#include <asm/arch/mcp.h>
+#include <mach/cerf.h>
+#include <mach/mcp.h>
 #include "generic.h"
 
 static struct resource cerfuart2_resources[] = {
@@ -96,7 +96,7 @@ static struct resource cerf_flash_resource = {
 static void __init cerf_init_irq(void)
 {
 	sa1100_init_irq();
-	set_irq_type(CERF_ETH_IRQ, IRQT_RISING);
+	set_irq_type(CERF_ETH_IRQ, IRQ_TYPE_EDGE_RISING);
 }
 
 static struct map_desc cerf_io_desc[] __initdata = {

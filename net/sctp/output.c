@@ -50,6 +50,7 @@
 #include <linux/init.h>
 #include <net/inet_ecn.h>
 #include <net/icmp.h>
+#include <net/net_namespace.h>
 
 #ifndef TEST_FRAME
 #include <net/tcp.h>
@@ -157,7 +158,8 @@ void sctp_packet_free(struct sctp_packet *packet)
  * packet can be sent only after receiving the COOKIE_ACK.
  */
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
-				       struct sctp_chunk *chunk)
+				       struct sctp_chunk *chunk,
+				       int one_packet)
 {
 	sctp_xmit_t retval;
 	int error = 0;
@@ -175,7 +177,9 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 			/* If we have an empty packet, then we can NOT ever
 			 * return PMTU_FULL.
 			 */
-			retval = sctp_packet_append_chunk(packet, chunk);
+			if (!one_packet)
+				retval = sctp_packet_append_chunk(packet,
+								  chunk);
 		}
 		break;
 
@@ -361,7 +365,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
 	struct sctphdr *sh;
-	__u32 crc32 = 0;
+	__be32 crc32 = __constant_cpu_to_be32(0);
 	struct sk_buff *nskb;
 	struct sctp_chunk *chunk, *tmp;
 	struct sock *sk;
@@ -529,12 +533,13 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	if (!(dst->dev->features & NETIF_F_NO_CSUM)) {
 		crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
 		crc32 = sctp_end_cksum(crc32);
-	}
+	} else
+		nskb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	/* 3) Put the resultant value into the checksum field in the
 	 *    common header, and leave the rest of the bits unchanged.
 	 */
-	sh->checksum = htonl(crc32);
+	sh->checksum = crc32;
 
 	/* IP layer ECN support
 	 * From RFC 2481
@@ -582,17 +587,15 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet*** skb len %d\n",
 			  nskb->len);
 
-	if (tp->param_flags & SPP_PMTUD_ENABLE)
-		(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
-	else
-		(*tp->af_specific->sctp_xmit)(nskb, tp, 1);
+	nskb->local_df = packet->ipfragok;
+	(*tp->af_specific->sctp_xmit)(nskb, tp);
 
 out:
 	packet->size = packet->overhead;
 	return err;
 no_route:
 	kfree_skb(nskb);
-	IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+	IP_INC_STATS_BH(&init_net, IPSTATS_MIB_OUTNOROUTES);
 
 	/* FIXME: Returning the 'err' will effect all the associations
 	 * associated with a socket, although only one of the paths of the

@@ -232,7 +232,8 @@ error:	kfree(priv);
 }
 
 /* open this device, set default parameters */
-static int ch341_open(struct usb_serial_port *port, struct file *filp)
+static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
+				struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
 	struct ch341_private *priv = usb_get_serial_port_data(serial->port[0]);
@@ -256,7 +257,7 @@ static int ch341_open(struct usb_serial_port *port, struct file *filp)
 	if (r)
 		goto out;
 
-	r = usb_serial_generic_open(port, filp);
+	r = usb_serial_generic_open(tty, port, filp);
 
 out:	return r;
 }
@@ -264,11 +265,10 @@ out:	return r;
 /* Old_termios contains the original termios settings and
  * tty->termios contains the new setting to be used.
  */
-static void ch341_set_termios(struct usb_serial_port *port,
-			      struct ktermios *old_termios)
+static void ch341_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct ch341_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty = port->tty;
 	unsigned baud_rate;
 
 	dbg("ch341_set_termios()");

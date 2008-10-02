@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
- *  Copyright (c) 2006 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2006 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 #include "cx23885.h"
 
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
-MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
+MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
 
 static unsigned int debug;
@@ -76,12 +76,12 @@ LIST_HEAD(cx23885_devlist);
  * 0x00010ea0 0x00010xxx Free
  */
 
-static struct sram_channel cx23887_sram_channels[] = {
+static struct sram_channel cx23885_sram_channels[] = {
 	[SRAM_CH01] = {
 		.name		= "VID A",
 		.cmds_start	= 0x10000,
-		.ctrl_start	= 0x105b0,
-		.cdt		= 0x107b0,
+		.ctrl_start	= 0x10380,
+		.cdt		= 0x104c0,
 		.fifo_start	= 0x40,
 		.fifo_size	= 0x2800,
 		.ptr1_reg	= DMA1_PTR1,
@@ -104,8 +104,8 @@ static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH03] = {
 		.name		= "TS1 B",
 		.cmds_start	= 0x100A0,
-		.ctrl_start	= 0x10780,
-		.cdt		= 0x10400,
+		.ctrl_start	= 0x10400,
+		.cdt		= 0x10580,
 		.fifo_start	= 0x5000,
 		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA3_PTR1,
@@ -140,7 +140,118 @@ static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH06] = {
 		.name		= "TS2 C",
 		.cmds_start	= 0x10140,
-		.ctrl_start	= 0x10680,
+		.ctrl_start	= 0x10440,
+		.cdt		= 0x105e0,
+		.fifo_start	= 0x6000,
+		.fifo_size	= 0x1000,
+		.ptr1_reg	= DMA5_PTR1,
+		.ptr2_reg	= DMA5_PTR2,
+		.cnt1_reg	= DMA5_CNT1,
+		.cnt2_reg	= DMA5_CNT2,
+	},
+	[SRAM_CH07] = {
+		.name		= "ch7",
+		.cmds_start	= 0x0,
+		.ctrl_start	= 0x0,
+		.cdt		= 0x0,
+		.fifo_start	= 0x0,
+		.fifo_size	= 0x0,
+		.ptr1_reg	= DMA6_PTR1,
+		.ptr2_reg	= DMA6_PTR2,
+		.cnt1_reg	= DMA6_CNT1,
+		.cnt2_reg	= DMA6_CNT2,
+	},
+	[SRAM_CH08] = {
+		.name		= "ch8",
+		.cmds_start	= 0x0,
+		.ctrl_start	= 0x0,
+		.cdt		= 0x0,
+		.fifo_start	= 0x0,
+		.fifo_size	= 0x0,
+		.ptr1_reg	= DMA7_PTR1,
+		.ptr2_reg	= DMA7_PTR2,
+		.cnt1_reg	= DMA7_CNT1,
+		.cnt2_reg	= DMA7_CNT2,
+	},
+	[SRAM_CH09] = {
+		.name		= "ch9",
+		.cmds_start	= 0x0,
+		.ctrl_start	= 0x0,
+		.cdt		= 0x0,
+		.fifo_start	= 0x0,
+		.fifo_size	= 0x0,
+		.ptr1_reg	= DMA8_PTR1,
+		.ptr2_reg	= DMA8_PTR2,
+		.cnt1_reg	= DMA8_CNT1,
+		.cnt2_reg	= DMA8_CNT2,
+	},
+};
+
+static struct sram_channel cx23887_sram_channels[] = {
+	[SRAM_CH01] = {
+		.name		= "VID A",
+		.cmds_start	= 0x10000,
+		.ctrl_start	= 0x105b0,
+		.cdt		= 0x107b0,
+		.fifo_start	= 0x40,
+		.fifo_size	= 0x2800,
+		.ptr1_reg	= DMA1_PTR1,
+		.ptr2_reg	= DMA1_PTR2,
+		.cnt1_reg	= DMA1_CNT1,
+		.cnt2_reg	= DMA1_CNT2,
+	},
+	[SRAM_CH02] = {
+		.name		= "ch2",
+		.cmds_start	= 0x0,
+		.ctrl_start	= 0x0,
+		.cdt		= 0x0,
+		.fifo_start	= 0x0,
+		.fifo_size	= 0x0,
+		.ptr1_reg	= DMA2_PTR1,
+		.ptr2_reg	= DMA2_PTR2,
+		.cnt1_reg	= DMA2_CNT1,
+		.cnt2_reg	= DMA2_CNT2,
+	},
+	[SRAM_CH03] = {
+		.name		= "TS1 B",
+		.cmds_start	= 0x100A0,
+		.ctrl_start	= 0x10630,
+		.cdt		= 0x10870,
+		.fifo_start	= 0x5000,
+		.fifo_size	= 0x1000,
+		.ptr1_reg	= DMA3_PTR1,
+		.ptr2_reg	= DMA3_PTR2,
+		.cnt1_reg	= DMA3_CNT1,
+		.cnt2_reg	= DMA3_CNT2,
+	},
+	[SRAM_CH04] = {
+		.name		= "ch4",
+		.cmds_start	= 0x0,
+		.ctrl_start	= 0x0,
+		.cdt		= 0x0,
+		.fifo_start	= 0x0,
+		.fifo_size	= 0x0,
+		.ptr1_reg	= DMA4_PTR1,
+		.ptr2_reg	= DMA4_PTR2,
+		.cnt1_reg	= DMA4_CNT1,
+		.cnt2_reg	= DMA4_CNT2,
+	},
+	[SRAM_CH05] = {
+		.name		= "ch5",
+		.cmds_start	= 0x0,
+		.ctrl_start	= 0x0,
+		.cdt		= 0x0,
+		.fifo_start	= 0x0,
+		.fifo_size	= 0x0,
+		.ptr1_reg	= DMA5_PTR1,
+		.ptr2_reg	= DMA5_PTR2,
+		.cnt1_reg	= DMA5_CNT1,
+		.cnt2_reg	= DMA5_CNT2,
+	},
+	[SRAM_CH06] = {
+		.name		= "TS2 C",
+		.cmds_start	= 0x10140,
+		.ctrl_start	= 0x10670,
 		.cdt		= 0x108d0,
 		.fifo_start	= 0x6000,
 		.fifo_size	= 0x1000,
@@ -291,9 +402,9 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 		lines = 6;
 	BUG_ON(lines < 2);
 
-	cx_write(8 + 0, cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC) );
-	cx_write(8 + 4, cpu_to_le32(8) );
-	cx_write(8 + 8, cpu_to_le32(0) );
+	cx_write(8 + 0, RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
+	cx_write(8 + 4, 8);
+	cx_write(8 + 8, 0);
 
 	/* write CDT */
 	for (i = 0; i < lines; i++) {
@@ -408,11 +519,11 @@ static void cx23885_risc_disasm(struct cx23885_tsport *port,
 	       dev->name, risc->cpu, (unsigned long)risc->dma);
 	for (i = 0; i < (risc->size >> 2); i += n) {
 		printk("%s:   %04d: ", dev->name, i);
-		n = cx23885_risc_decode(risc->cpu[i]);
+		n = cx23885_risc_decode(le32_to_cpu(risc->cpu[i]));
 		for (j = 1; j < n; j++)
 			printk("%s:   %04d: 0x%08x [ arg #%d ]\n",
 			       dev->name, i + j, risc->cpu[i + j], j);
-		if (risc->cpu[i] == RISC_JUMP)
+		if (risc->cpu[i] == cpu_to_le32(RISC_JUMP))
 			break;
 	}
 }
@@ -460,6 +571,7 @@ static void cx23885_reset(struct cx23885_dev *dev)
 	cx_write(AUDIO_INT_INT_STAT, 0xffffffff);
 	cx_write(AUDIO_EXT_INT_STAT, 0xffffffff);
 	cx_write(CLK_DELAY, cx_read(CLK_DELAY) & 0x80000000);
+	cx_write(PAD_CTRL, 0x00500300);
 
 	mdelay(100);
 
@@ -625,7 +737,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	atomic_inc(&dev->refcount);
 
 	dev->nr = cx23885_devcount++;
-	dev->sram_channels = cx23887_sram_channels;
 	sprintf(dev->name, "cx23885[%d]", dev->nr);
 
 	mutex_lock(&devlist);
@@ -637,11 +748,13 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		dev->bridge = CX23885_BRIDGE_887;
 		/* Apply a sensible clock frequency for the PCIe bridge */
 		dev->clk_freq = 25000000;
+		dev->sram_channels = cx23887_sram_channels;
 	} else
 	if(dev->pci->device == 0x8852) {
 		dev->bridge = CX23885_BRIDGE_885;
 		/* Apply a sensible clock frequency for the PCIe bridge */
 		dev->clk_freq = 28000000;
+		dev->sram_channels = cx23885_sram_channels;
 	} else
 		BUG();
 
@@ -1010,8 +1123,9 @@ static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)
 		port->reg_gpcnt_ctl, cx_read(port->reg_gpcnt_ctl));
 	dprintk(1, "%s() dma_ctl(0x%08X)        0x%08x\n", __func__,
 		port->reg_dma_ctl, cx_read(port->reg_dma_ctl));
-	dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __func__,
-		port->reg_src_sel, cx_read(port->reg_src_sel));
+	if (port->reg_src_sel)
+		dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __func__,
+			port->reg_src_sel, cx_read(port->reg_src_sel));
 	dprintk(1, "%s() lngth(0x%08X)          0x%08x\n", __func__,
 		port->reg_lngth, cx_read(port->reg_lngth));
 	dprintk(1, "%s() hw_sop_ctrl(0x%08X)    0x%08x\n", __func__,
@@ -1041,6 +1155,9 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 
 	dprintk(1, "%s() w: %d, h: %d, f: %d\n", __func__,
 		buf->vb.width, buf->vb.height, buf->vb.field);
+
+	/* Stop the fifo and risc engine for this port */
+	cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
 
 	/* setup fifo + format */
 	cx23885_sram_channel_setup(dev,
@@ -1083,7 +1200,21 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	cx_write(port->reg_gpcnt_ctl, 3);
 	q->count = 1;
 
-	if (cx23885_boards[dev->board].portb & CX23885_MPEG_ENCODER) {
+	/* Set VIDB pins to input */
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
+		reg = cx_read(PAD_CTRL);
+		reg &= ~0x3; /* Clear TS1_OE & TS1_SOP_OE */
+		cx_write(PAD_CTRL, reg);
+	}
+
+	/* Set VIDC pins to input */
+	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
+		reg = cx_read(PAD_CTRL);
+		reg &= ~0x4; /* Clear TS2_SOP_OE */
+		cx_write(PAD_CTRL, reg);
+	}
+
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) {
 
 		reg = cx_read(PAD_CTRL);
 		reg = reg & ~0x1;    /* Clear TS1_OE */
@@ -1133,7 +1264,7 @@ static int cx23885_stop_dma(struct cx23885_tsport *port)
 	cx_clear(port->reg_ts_int_msk, port->ts_int_msk_val);
 	cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
 
-	if (cx23885_boards[dev->board].portb & CX23885_MPEG_ENCODER) {
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) {
 
 		reg = cx_read(PAD_CTRL);
 

@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <asm/mach/time.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 /*
  * Number of timer ticks per jiffy.

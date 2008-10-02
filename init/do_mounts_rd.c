@@ -10,8 +10,6 @@
 
 #include "do_mounts.h"
 
-#define BUILD_CRAMDISK
-
 int __initdata rd_prompt = 1;/* 1 = prompt for RAM disk, 0 = don't prompt */
 
 static int __init prompt_ramdisk(char *str)
@@ -162,14 +160,8 @@ int __init rd_load_image(char *from)
 		goto done;
 
 	if (nblocks == 0) {
-#ifdef BUILD_CRAMDISK
 		if (crd_load(in_fd, out_fd) == 0)
 			goto successful_load;
-#else
-		printk(KERN_NOTICE
-		       "RAMDISK: Kernel does not support compressed "
-		       "RAM disk images\n");
-#endif
 		goto done;
 	}
 
@@ -267,8 +259,6 @@ int __init rd_load_disk(int n)
 	return rd_load_image("/dev/root");
 }
 
-#ifdef BUILD_CRAMDISK
-
 /*
  * gzip declarations
  */
@@ -313,32 +303,11 @@ static int crd_infd, crd_outfd;
 
 static int  __init fill_inbuf(void);
 static void __init flush_window(void);
-static void __init *malloc(size_t size);
-static void __init free(void *where);
 static void __init error(char *m);
-static void __init gzip_mark(void **);
-static void __init gzip_release(void **);
+
+#define NO_INFLATE_MALLOC
 
 #include "../lib/inflate.c"
-
-static void __init *malloc(size_t size)
-{
-	return kmalloc(size, GFP_KERNEL);
-}
-
-static void __init free(void *where)
-{
-	kfree(where);
-}
-
-static void __init gzip_mark(void **ptr)
-{
-}
-
-static void __init gzip_release(void **ptr)
-{
-}
-
 
 /* ===========================================================================
  * Fill the input buffer. This is called only when the buffer is empty
@@ -425,5 +394,3 @@ static int __init crd_load(int in_fd, int out_fd)
 	kfree(window);
 	return result;
 }
-
-#endif  /* BUILD_CRAMDISK */

@@ -29,6 +29,7 @@
 #ifndef _SMC911X_H_
 #define _SMC911X_H_
 
+#include <linux/smc911x.h>
 /*
  * Use the DMA feature on PXA chips
  */
@@ -38,42 +39,160 @@
   #define SMC_USE_32BIT		1
   #define SMC_IRQ_SENSE		IRQF_TRIGGER_FALLING
 #elif defined(CONFIG_SH_MAGIC_PANEL_R2)
-  #define SMC_USE_SH_DMA	0
   #define SMC_USE_16BIT		0
   #define SMC_USE_32BIT		1
   #define SMC_IRQ_SENSE		IRQF_TRIGGER_LOW
+#else
+/*
+ * Default configuration
+ */
+
+#define SMC_DYNAMIC_BUS_CONFIG
 #endif
 
+/* store this information for the driver.. */
+struct smc911x_local {
+	/*
+	 * If I have to wait until the DMA is finished and ready to reload a
+	 * packet, I will store the skbuff here. Then, the DMA will send it
+	 * out and free it.
+	 */
+	struct sk_buff *pending_tx_skb;
+
+	/* version/revision of the SMC911x chip */
+	u16 version;
+	u16 revision;
+
+	/* FIFO sizes */
+	int tx_fifo_kb;
+	int tx_fifo_size;
+	int rx_fifo_size;
+	int afc_cfg;
+
+	/* Contains the current active receive/phy mode */
+	int ctl_rfduplx;
+	int ctl_rspeed;
+
+	u32 msg_enable;
+	u32 phy_type;
+	struct mii_if_info mii;
+
+	/* work queue */
+	struct work_struct phy_configure;
+
+	int tx_throttle;
+	spinlock_t lock;
+
+	struct net_device *netdev;
+
+#ifdef SMC_USE_DMA
+	/* DMA needs the physical address of the chip */
+	u_long physaddr;
+	int rxdma;
+	int txdma;
+	int rxdma_active;
+	int txdma_active;
+	struct sk_buff *current_rx_skb;
+	struct sk_buff *current_tx_skb;
+	struct device *dev;
+#endif
+	void __iomem *base;
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+	struct smc911x_platdata cfg;
+#endif
+};
 
 /*
  * Define the bus width specific IO macros
  */
 
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+static inline unsigned int SMC_inl(struct smc911x_local *lp, int reg)
+{
+	void __iomem *ioaddr = lp->base + reg;
+
+	if (lp->cfg.flags & SMC911X_USE_32BIT)
+		return readl(ioaddr);
+
+	if (lp->cfg.flags & SMC911X_USE_16BIT)
+		return readw(ioaddr) | (readw(ioaddr + 2) << 16);
+
+	BUG();
+}
+
+static inline void SMC_outl(unsigned int value, struct smc911x_local *lp,
+			    int reg)
+{
+	void __iomem *ioaddr = lp->base + reg;
+
+	if (lp->cfg.flags & SMC911X_USE_32BIT) {
+		writel(value, ioaddr);
+		return;
+	}
+
+	if (lp->cfg.flags & SMC911X_USE_16BIT) {
+		writew(value & 0xffff, ioaddr);
+		writew(value >> 16, ioaddr + 2);
+		return;
+	}
+
+	BUG();
+}
+
+static inline void SMC_insl(struct smc911x_local *lp, int reg,
+			      void *addr, unsigned int count)
+{
+	void __iomem *ioaddr = lp->base + reg;
+
+	if (lp->cfg.flags & SMC911X_USE_32BIT) {
+		readsl(ioaddr, addr, count);
+		return;
+	}
+
+	if (lp->cfg.flags & SMC911X_USE_16BIT) {
+		readsw(ioaddr, addr, count * 2);
+		return;
+	}
+
+	BUG();
+}
+
+static inline void SMC_outsl(struct smc911x_local *lp, int reg,
+			     void *addr, unsigned int count)
+{
+	void __iomem *ioaddr = lp->base + reg;
+
+	if (lp->cfg.flags & SMC911X_USE_32BIT) {
+		writesl(ioaddr, addr, count);
+		return;
+	}
+
+	if (lp->cfg.flags & SMC911X_USE_16BIT) {
+		writesw(ioaddr, addr, count * 2);
+		return;
+	}
+
+	BUG();
+}
+#else
 #if	SMC_USE_16BIT
-#define SMC_inb(a, r)			 readb((a) + (r))
-#define SMC_inw(a, r)			 readw((a) + (r))
-#define SMC_inl(a, r)			 ((SMC_inw(a, r) & 0xFFFF)+(SMC_inw(a+2, r)<<16))
-#define SMC_outb(v, a, r)		 writeb(v, (a) + (r))
-#define SMC_outw(v, a, r)		 writew(v, (a) + (r))
-#define SMC_outl(v, a, r) 			 \
+#define SMC_inl(lp, r)		 ((readw((lp)->base + (r)) & 0xFFFF) + (readw((lp)->base + (r) + 2) << 16))
+#define SMC_outl(v, lp, r) 			 \
 	do{					 \
-		 writel(v & 0xFFFF, (a) + (r));	 \
-		 writel(v >> 16, (a) + (r) + 2); \
+		 writew(v & 0xFFFF, (lp)->base + (r));	 \
+		 writew(v >> 16, (lp)->base + (r) + 2); \
 	 } while (0)
-#define SMC_insl(a, r, p, l)	 readsw((short*)((a) + (r)), p, l*2)
-#define SMC_outsl(a, r, p, l)	 writesw((short*)((a) + (r)), p, l*2)
+#define SMC_insl(lp, r, p, l)	 readsw((short*)((lp)->base + (r)), p, l*2)
+#define SMC_outsl(lp, r, p, l)	 writesw((short*)((lp)->base + (r)), p, l*2)
 
 #elif	SMC_USE_32BIT
-#define SMC_inb(a, r)		 readb((a) + (r))
-#define SMC_inw(a, r)		 readw((a) + (r))
-#define SMC_inl(a, r)		 readl((a) + (r))
-#define SMC_outb(v, a, r)	 writeb(v, (a) + (r))
-#define SMC_outl(v, a, r)	 writel(v, (a) + (r))
-#define SMC_insl(a, r, p, l)	 readsl((int*)((a) + (r)), p, l)
-#define SMC_outsl(a, r, p, l)	 writesl((int*)((a) + (r)), p, l)
+#define SMC_inl(lp, r)		 readl((lp)->base + (r))
+#define SMC_outl(v, lp, r)	 writel(v, (lp)->base + (r))
+#define SMC_insl(lp, r, p, l)	 readsl((int*)((lp)->base + (r)), p, l)
+#define SMC_outsl(lp, r, p, l)	 writesl((int*)((lp)->base + (r)), p, l)
 
 #endif /* SMC_USE_16BIT */
-
+#endif /* SMC_DYNAMIC_BUS_CONFIG */
 
 
 #ifdef SMC_USE_PXA_DMA
@@ -103,29 +222,29 @@
  */
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 static dma_addr_t rx_dmabuf, tx_dmabuf;
 static int rx_dmalen, tx_dmalen;
 
 #ifdef SMC_insl
 #undef SMC_insl
-#define SMC_insl(a, r, p, l) \
-	smc_pxa_dma_insl(lp->dev, a, lp->physaddr, r, lp->rxdma, p, l)
+#define SMC_insl(lp, r, p, l) \
+	smc_pxa_dma_insl(lp, lp->physaddr, r, lp->rxdma, p, l)
 
 static inline void
-smc_pxa_dma_insl(struct device *dev, u_long ioaddr, u_long physaddr,
+smc_pxa_dma_insl(struct smc911x_local *lp, u_long physaddr,
 		int reg, int dma, u_char *buf, int len)
 {
 	/* 64 bit alignment is required for memory to memory DMA */
 	if ((long)buf & 4) {
-		*((u32 *)buf) = SMC_inl(ioaddr, reg);
+		*((u32 *)buf) = SMC_inl(lp, reg);
 		buf += 4;
 		len--;
 	}
 
 	len *= 4;
-	rx_dmabuf = dma_map_single(dev, buf, len, DMA_FROM_DEVICE);
+	rx_dmabuf = dma_map_single(lp->dev, buf, len, DMA_FROM_DEVICE);
 	rx_dmalen = len;
 	DCSR(dma) = DCSR_NODESC;
 	DTADR(dma) = rx_dmabuf;
@@ -136,52 +255,24 @@ smc_pxa_dma_insl(struct device *dev, u_long ioaddr, u_long physaddr,
 }
 #endif
 
-#ifdef SMC_insw
-#undef SMC_insw
-#define SMC_insw(a, r, p, l) \
-	smc_pxa_dma_insw(lp->dev, a, lp->physaddr, r, lp->rxdma, p, l)
-
-static inline void
-smc_pxa_dma_insw(struct device *dev, u_long ioaddr, u_long physaddr,
-		int reg, int dma, u_char *buf, int len)
-{
-	/* 64 bit alignment is required for memory to memory DMA */
-	while ((long)buf & 6) {
-		*((u16 *)buf) = SMC_inw(ioaddr, reg);
-		buf += 2;
-		len--;
-	}
-
-	len *= 2;
-	rx_dmabuf = dma_map_single(dev, buf, len, DMA_FROM_DEVICE);
-	rx_dmalen = len;
-	DCSR(dma) = DCSR_NODESC;
-	DTADR(dma) = rx_dmabuf;
-	DSADR(dma) = physaddr + reg;
-	DCMD(dma) = (DCMD_INCTRGADDR | DCMD_BURST32 |
-		DCMD_WIDTH2 | DCMD_ENDIRQEN | (DCMD_LENGTH & rx_dmalen));
-	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
-}
-#endif
-
 #ifdef SMC_outsl
 #undef SMC_outsl
-#define SMC_outsl(a, r, p, l) \
-	 smc_pxa_dma_outsl(lp->dev, a, lp->physaddr, r, lp->txdma, p, l)
+#define SMC_outsl(lp, r, p, l) \
+	 smc_pxa_dma_outsl(lp, lp->physaddr, r, lp->txdma, p, l)
 
 static inline void
-smc_pxa_dma_outsl(struct device *dev, u_long ioaddr, u_long physaddr,
+smc_pxa_dma_outsl(struct smc911x_local *lp, u_long physaddr,
 		int reg, int dma, u_char *buf, int len)
 {
 	/* 64 bit alignment is required for memory to memory DMA */
 	if ((long)buf & 4) {
-		SMC_outl(*((u32 *)buf), ioaddr, reg);
+		SMC_outl(*((u32 *)buf), lp, reg);
 		buf += 4;
 		len--;
 	}
 
 	len *= 4;
-	tx_dmabuf = dma_map_single(dev, buf, len, DMA_TO_DEVICE);
+	tx_dmabuf = dma_map_single(lp->dev, buf, len, DMA_TO_DEVICE);
 	tx_dmalen = len;
 	DCSR(dma) = DCSR_NODESC;
 	DSADR(dma) = tx_dmabuf;
@@ -191,35 +282,6 @@ smc_pxa_dma_outsl(struct device *dev, u_long ioaddr, u_long physaddr,
 	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
 }
 #endif
-
-#ifdef SMC_outsw
-#undef SMC_outsw
-#define SMC_outsw(a, r, p, l) \
-	smc_pxa_dma_outsw(lp->dev, a, lp->physaddr, r, lp->txdma, p, l)
-
-static inline void
-smc_pxa_dma_outsw(struct device *dev, u_long ioaddr, u_long physaddr,
-		  int reg, int dma, u_char *buf, int len)
-{
-	/* 64 bit alignment is required for memory to memory DMA */
-	while ((long)buf & 6) {
-		SMC_outw(*((u16 *)buf), ioaddr, reg);
-		buf += 2;
-		len--;
-	}
-
-	len *= 2;
-	tx_dmabuf = dma_map_single(dev, buf, len, DMA_TO_DEVICE);
-	tx_dmalen = len;
-	DCSR(dma) = DCSR_NODESC;
-	DSADR(dma) = tx_dmabuf;
-	DTADR(dma) = physaddr + reg;
-	DCMD(dma) = (DCMD_INCSRCADDR | DCMD_BURST32 |
-		DCMD_WIDTH2 | DCMD_ENDIRQEN | (DCMD_LENGTH & tx_dmalen));
-	DCSR(dma) = DCSR_NODESC | DCSR_RUN;
-}
-#endif
-
 #endif	 /* SMC_USE_PXA_DMA */
 
 
@@ -629,213 +691,213 @@ static const struct chip_id chip_ids[] =  {
  * capabilities.  Please use those and not the in/out primitives.
  */
 /* FIFO read/write macros */
-#define SMC_PUSH_DATA(p, l)	SMC_outsl( ioaddr, TX_DATA_FIFO, p, (l) >> 2 )
-#define SMC_PULL_DATA(p, l)	SMC_insl ( ioaddr, RX_DATA_FIFO, p, (l) >> 2 )
-#define SMC_SET_TX_FIFO(x) 	SMC_outl( x, ioaddr, TX_DATA_FIFO )
-#define SMC_GET_RX_FIFO()	SMC_inl( ioaddr, RX_DATA_FIFO )
+#define SMC_PUSH_DATA(lp, p, l)	SMC_outsl( lp, TX_DATA_FIFO, p, (l) >> 2 )
+#define SMC_PULL_DATA(lp, p, l)	SMC_insl ( lp, RX_DATA_FIFO, p, (l) >> 2 )
+#define SMC_SET_TX_FIFO(lp, x) 	SMC_outl( x, lp, TX_DATA_FIFO )
+#define SMC_GET_RX_FIFO(lp)	SMC_inl( lp, RX_DATA_FIFO )
 
 
 /* I/O mapped register read/write macros */
-#define SMC_GET_TX_STS_FIFO()		SMC_inl( ioaddr, TX_STATUS_FIFO )
-#define SMC_GET_RX_STS_FIFO()		SMC_inl( ioaddr, RX_STATUS_FIFO )
-#define SMC_GET_RX_STS_FIFO_PEEK()	SMC_inl( ioaddr, RX_STATUS_FIFO_PEEK )
-#define SMC_GET_PN()			(SMC_inl( ioaddr, ID_REV ) >> 16)
-#define SMC_GET_REV()			(SMC_inl( ioaddr, ID_REV ) & 0xFFFF)
-#define SMC_GET_IRQ_CFG()		SMC_inl( ioaddr, INT_CFG )
-#define SMC_SET_IRQ_CFG(x)		SMC_outl( x, ioaddr, INT_CFG )
-#define SMC_GET_INT()			SMC_inl( ioaddr, INT_STS )
-#define SMC_ACK_INT(x)			SMC_outl( x, ioaddr, INT_STS )
-#define SMC_GET_INT_EN()		SMC_inl( ioaddr, INT_EN )
-#define SMC_SET_INT_EN(x)		SMC_outl( x, ioaddr, INT_EN )
-#define SMC_GET_BYTE_TEST()		SMC_inl( ioaddr, BYTE_TEST )
-#define SMC_SET_BYTE_TEST(x)		SMC_outl( x, ioaddr, BYTE_TEST )
-#define SMC_GET_FIFO_INT()		SMC_inl( ioaddr, FIFO_INT )
-#define SMC_SET_FIFO_INT(x)		SMC_outl( x, ioaddr, FIFO_INT )
-#define SMC_SET_FIFO_TDA(x)					\
+#define SMC_GET_TX_STS_FIFO(lp)		SMC_inl( lp, TX_STATUS_FIFO )
+#define SMC_GET_RX_STS_FIFO(lp)		SMC_inl( lp, RX_STATUS_FIFO )
+#define SMC_GET_RX_STS_FIFO_PEEK(lp)	SMC_inl( lp, RX_STATUS_FIFO_PEEK )
+#define SMC_GET_PN(lp)			(SMC_inl( lp, ID_REV ) >> 16)
+#define SMC_GET_REV(lp)			(SMC_inl( lp, ID_REV ) & 0xFFFF)
+#define SMC_GET_IRQ_CFG(lp)		SMC_inl( lp, INT_CFG )
+#define SMC_SET_IRQ_CFG(lp, x)		SMC_outl( x, lp, INT_CFG )
+#define SMC_GET_INT(lp)			SMC_inl( lp, INT_STS )
+#define SMC_ACK_INT(lp, x)			SMC_outl( x, lp, INT_STS )
+#define SMC_GET_INT_EN(lp)		SMC_inl( lp, INT_EN )
+#define SMC_SET_INT_EN(lp, x)		SMC_outl( x, lp, INT_EN )
+#define SMC_GET_BYTE_TEST(lp)		SMC_inl( lp, BYTE_TEST )
+#define SMC_SET_BYTE_TEST(lp, x)		SMC_outl( x, lp, BYTE_TEST )
+#define SMC_GET_FIFO_INT(lp)		SMC_inl( lp, FIFO_INT )
+#define SMC_SET_FIFO_INT(lp, x)		SMC_outl( x, lp, FIFO_INT )
+#define SMC_SET_FIFO_TDA(lp, x)					\
 	do {							\
 		unsigned long __flags;				\
 		int __mask;					\
 		local_irq_save(__flags);			\
-		__mask = SMC_GET_FIFO_INT() & ~(0xFF<<24);	\
-		SMC_SET_FIFO_INT( __mask | (x)<<24 );		\
+		__mask = SMC_GET_FIFO_INT((lp)) & ~(0xFF<<24);	\
+		SMC_SET_FIFO_INT( (lp), __mask | (x)<<24 );	\
 		local_irq_restore(__flags);			\
 	} while (0)
-#define SMC_SET_FIFO_TSL(x)					\
+#define SMC_SET_FIFO_TSL(lp, x)					\
 	do {							\
 		unsigned long __flags;				\
 		int __mask;					\
 		local_irq_save(__flags);			\
-		__mask = SMC_GET_FIFO_INT() & ~(0xFF<<16);	\
-		SMC_SET_FIFO_INT( __mask | (((x) & 0xFF)<<16));	\
+		__mask = SMC_GET_FIFO_INT((lp)) & ~(0xFF<<16);	\
+		SMC_SET_FIFO_INT( (lp), __mask | (((x) & 0xFF)<<16));	\
 		local_irq_restore(__flags);			\
 	} while (0)
-#define SMC_SET_FIFO_RSA(x)					\
+#define SMC_SET_FIFO_RSA(lp, x)					\
 	do {							\
 		unsigned long __flags;				\
 		int __mask;					\
 		local_irq_save(__flags);			\
-		__mask = SMC_GET_FIFO_INT() & ~(0xFF<<8);	\
-		SMC_SET_FIFO_INT( __mask | (((x) & 0xFF)<<8));	\
+		__mask = SMC_GET_FIFO_INT((lp)) & ~(0xFF<<8);	\
+		SMC_SET_FIFO_INT( (lp), __mask | (((x) & 0xFF)<<8));	\
 		local_irq_restore(__flags);			\
 	} while (0)
-#define SMC_SET_FIFO_RSL(x)					\
+#define SMC_SET_FIFO_RSL(lp, x)					\
 	do {							\
 		unsigned long __flags;				\
 		int __mask;					\
 		local_irq_save(__flags);			\
-		__mask = SMC_GET_FIFO_INT() & ~0xFF;		\
-		SMC_SET_FIFO_INT( __mask | ((x) & 0xFF));	\
+		__mask = SMC_GET_FIFO_INT((lp)) & ~0xFF;	\
+		SMC_SET_FIFO_INT( (lp),__mask | ((x) & 0xFF));	\
 		local_irq_restore(__flags);			\
 	} while (0)
-#define SMC_GET_RX_CFG()		SMC_inl( ioaddr, RX_CFG )
-#define SMC_SET_RX_CFG(x)		SMC_outl( x, ioaddr, RX_CFG )
-#define SMC_GET_TX_CFG()		SMC_inl( ioaddr, TX_CFG )
-#define SMC_SET_TX_CFG(x)		SMC_outl( x, ioaddr, TX_CFG )
-#define SMC_GET_HW_CFG()		SMC_inl( ioaddr, HW_CFG )
-#define SMC_SET_HW_CFG(x)		SMC_outl( x, ioaddr, HW_CFG )
-#define SMC_GET_RX_DP_CTRL()		SMC_inl( ioaddr, RX_DP_CTRL )
-#define SMC_SET_RX_DP_CTRL(x)		SMC_outl( x, ioaddr, RX_DP_CTRL )
-#define SMC_GET_PMT_CTRL()		SMC_inl( ioaddr, PMT_CTRL )
-#define SMC_SET_PMT_CTRL(x)		SMC_outl( x, ioaddr, PMT_CTRL )
-#define SMC_GET_GPIO_CFG()		SMC_inl( ioaddr, GPIO_CFG )
-#define SMC_SET_GPIO_CFG(x)		SMC_outl( x, ioaddr, GPIO_CFG )
-#define SMC_GET_RX_FIFO_INF()		SMC_inl( ioaddr, RX_FIFO_INF )
-#define SMC_SET_RX_FIFO_INF(x)		SMC_outl( x, ioaddr, RX_FIFO_INF )
-#define SMC_GET_TX_FIFO_INF()		SMC_inl( ioaddr, TX_FIFO_INF )
-#define SMC_SET_TX_FIFO_INF(x)		SMC_outl( x, ioaddr, TX_FIFO_INF )
-#define SMC_GET_GPT_CFG()		SMC_inl( ioaddr, GPT_CFG )
-#define SMC_SET_GPT_CFG(x)		SMC_outl( x, ioaddr, GPT_CFG )
-#define SMC_GET_RX_DROP()		SMC_inl( ioaddr, RX_DROP )
-#define SMC_SET_RX_DROP(x)		SMC_outl( x, ioaddr, RX_DROP )
-#define SMC_GET_MAC_CMD()		SMC_inl( ioaddr, MAC_CSR_CMD )
-#define SMC_SET_MAC_CMD(x)		SMC_outl( x, ioaddr, MAC_CSR_CMD )
-#define SMC_GET_MAC_DATA()		SMC_inl( ioaddr, MAC_CSR_DATA )
-#define SMC_SET_MAC_DATA(x)		SMC_outl( x, ioaddr, MAC_CSR_DATA )
-#define SMC_GET_AFC_CFG()		SMC_inl( ioaddr, AFC_CFG )
-#define SMC_SET_AFC_CFG(x)		SMC_outl( x, ioaddr, AFC_CFG )
-#define SMC_GET_E2P_CMD()		SMC_inl( ioaddr, E2P_CMD )
-#define SMC_SET_E2P_CMD(x)		SMC_outl( x, ioaddr, E2P_CMD )
-#define SMC_GET_E2P_DATA()		SMC_inl( ioaddr, E2P_DATA )
-#define SMC_SET_E2P_DATA(x)		SMC_outl( x, ioaddr, E2P_DATA )
+#define SMC_GET_RX_CFG(lp)		SMC_inl( lp, RX_CFG )
+#define SMC_SET_RX_CFG(lp, x)		SMC_outl( x, lp, RX_CFG )
+#define SMC_GET_TX_CFG(lp)		SMC_inl( lp, TX_CFG )
+#define SMC_SET_TX_CFG(lp, x)		SMC_outl( x, lp, TX_CFG )
+#define SMC_GET_HW_CFG(lp)		SMC_inl( lp, HW_CFG )
+#define SMC_SET_HW_CFG(lp, x)		SMC_outl( x, lp, HW_CFG )
+#define SMC_GET_RX_DP_CTRL(lp)		SMC_inl( lp, RX_DP_CTRL )
+#define SMC_SET_RX_DP_CTRL(lp, x)		SMC_outl( x, lp, RX_DP_CTRL )
+#define SMC_GET_PMT_CTRL(lp)		SMC_inl( lp, PMT_CTRL )
+#define SMC_SET_PMT_CTRL(lp, x)		SMC_outl( x, lp, PMT_CTRL )
+#define SMC_GET_GPIO_CFG(lp)		SMC_inl( lp, GPIO_CFG )
+#define SMC_SET_GPIO_CFG(lp, x)		SMC_outl( x, lp, GPIO_CFG )
+#define SMC_GET_RX_FIFO_INF(lp)		SMC_inl( lp, RX_FIFO_INF )
+#define SMC_SET_RX_FIFO_INF(lp, x)		SMC_outl( x, lp, RX_FIFO_INF )
+#define SMC_GET_TX_FIFO_INF(lp)		SMC_inl( lp, TX_FIFO_INF )
+#define SMC_SET_TX_FIFO_INF(lp, x)		SMC_outl( x, lp, TX_FIFO_INF )
+#define SMC_GET_GPT_CFG(lp)		SMC_inl( lp, GPT_CFG )
+#define SMC_SET_GPT_CFG(lp, x)		SMC_outl( x, lp, GPT_CFG )
+#define SMC_GET_RX_DROP(lp)		SMC_inl( lp, RX_DROP )
+#define SMC_SET_RX_DROP(lp, x)		SMC_outl( x, lp, RX_DROP )
+#define SMC_GET_MAC_CMD(lp)		SMC_inl( lp, MAC_CSR_CMD )
+#define SMC_SET_MAC_CMD(lp, x)		SMC_outl( x, lp, MAC_CSR_CMD )
+#define SMC_GET_MAC_DATA(lp)		SMC_inl( lp, MAC_CSR_DATA )
+#define SMC_SET_MAC_DATA(lp, x)		SMC_outl( x, lp, MAC_CSR_DATA )
+#define SMC_GET_AFC_CFG(lp)		SMC_inl( lp, AFC_CFG )
+#define SMC_SET_AFC_CFG(lp, x)		SMC_outl( x, lp, AFC_CFG )
+#define SMC_GET_E2P_CMD(lp)		SMC_inl( lp, E2P_CMD )
+#define SMC_SET_E2P_CMD(lp, x)		SMC_outl( x, lp, E2P_CMD )
+#define SMC_GET_E2P_DATA(lp)		SMC_inl( lp, E2P_DATA )
+#define SMC_SET_E2P_DATA(lp, x)		SMC_outl( x, lp, E2P_DATA )
 
 /* MAC register read/write macros */
-#define SMC_GET_MAC_CSR(a,v)						\
+#define SMC_GET_MAC_CSR(lp,a,v)						\
 	do {								\
-		while (SMC_GET_MAC_CMD() & MAC_CSR_CMD_CSR_BUSY_);	\
-		SMC_SET_MAC_CMD(MAC_CSR_CMD_CSR_BUSY_ |			\
+		while (SMC_GET_MAC_CMD((lp)) & MAC_CSR_CMD_CSR_BUSY_);	\
+		SMC_SET_MAC_CMD((lp),MAC_CSR_CMD_CSR_BUSY_ |		\
 			MAC_CSR_CMD_R_NOT_W_ | (a) );			\
-		while (SMC_GET_MAC_CMD() & MAC_CSR_CMD_CSR_BUSY_);	\
-		v = SMC_GET_MAC_DATA();					\
+		while (SMC_GET_MAC_CMD((lp)) & MAC_CSR_CMD_CSR_BUSY_);	\
+		v = SMC_GET_MAC_DATA((lp));			       	\
 	} while (0)
-#define SMC_SET_MAC_CSR(a,v)						\
+#define SMC_SET_MAC_CSR(lp,a,v)						\
 	do {								\
-		while (SMC_GET_MAC_CMD() & MAC_CSR_CMD_CSR_BUSY_);	\
-		SMC_SET_MAC_DATA(v);					\
-		SMC_SET_MAC_CMD(MAC_CSR_CMD_CSR_BUSY_ | (a) );		\
-		while (SMC_GET_MAC_CMD() & MAC_CSR_CMD_CSR_BUSY_);	\
+		while (SMC_GET_MAC_CMD((lp)) & MAC_CSR_CMD_CSR_BUSY_);	\
+		SMC_SET_MAC_DATA((lp), v);				\
+		SMC_SET_MAC_CMD((lp), MAC_CSR_CMD_CSR_BUSY_ | (a) );	\
+		while (SMC_GET_MAC_CMD((lp)) & MAC_CSR_CMD_CSR_BUSY_);	\
 	} while (0)
-#define SMC_GET_MAC_CR(x)	SMC_GET_MAC_CSR( MAC_CR, x )
-#define SMC_SET_MAC_CR(x)	SMC_SET_MAC_CSR( MAC_CR, x )
-#define SMC_GET_ADDRH(x)	SMC_GET_MAC_CSR( ADDRH, x )
-#define SMC_SET_ADDRH(x)	SMC_SET_MAC_CSR( ADDRH, x )
-#define SMC_GET_ADDRL(x)	SMC_GET_MAC_CSR( ADDRL, x )
-#define SMC_SET_ADDRL(x)	SMC_SET_MAC_CSR( ADDRL, x )
-#define SMC_GET_HASHH(x)	SMC_GET_MAC_CSR( HASHH, x )
-#define SMC_SET_HASHH(x)	SMC_SET_MAC_CSR( HASHH, x )
-#define SMC_GET_HASHL(x)	SMC_GET_MAC_CSR( HASHL, x )
-#define SMC_SET_HASHL(x)	SMC_SET_MAC_CSR( HASHL, x )
-#define SMC_GET_MII_ACC(x)	SMC_GET_MAC_CSR( MII_ACC, x )
-#define SMC_SET_MII_ACC(x)	SMC_SET_MAC_CSR( MII_ACC, x )
-#define SMC_GET_MII_DATA(x)	SMC_GET_MAC_CSR( MII_DATA, x )
-#define SMC_SET_MII_DATA(x)	SMC_SET_MAC_CSR( MII_DATA, x )
-#define SMC_GET_FLOW(x)		SMC_GET_MAC_CSR( FLOW, x )
-#define SMC_SET_FLOW(x)		SMC_SET_MAC_CSR( FLOW, x )
-#define SMC_GET_VLAN1(x)	SMC_GET_MAC_CSR( VLAN1, x )
-#define SMC_SET_VLAN1(x)	SMC_SET_MAC_CSR( VLAN1, x )
-#define SMC_GET_VLAN2(x)	SMC_GET_MAC_CSR( VLAN2, x )
-#define SMC_SET_VLAN2(x)	SMC_SET_MAC_CSR( VLAN2, x )
-#define SMC_SET_WUFF(x)		SMC_SET_MAC_CSR( WUFF, x )
-#define SMC_GET_WUCSR(x)	SMC_GET_MAC_CSR( WUCSR, x )
-#define SMC_SET_WUCSR(x)	SMC_SET_MAC_CSR( WUCSR, x )
+#define SMC_GET_MAC_CR(lp, x)	SMC_GET_MAC_CSR( (lp), MAC_CR, x )
+#define SMC_SET_MAC_CR(lp, x)	SMC_SET_MAC_CSR( (lp), MAC_CR, x )
+#define SMC_GET_ADDRH(lp, x)	SMC_GET_MAC_CSR( (lp), ADDRH, x )
+#define SMC_SET_ADDRH(lp, x)	SMC_SET_MAC_CSR( (lp), ADDRH, x )
+#define SMC_GET_ADDRL(lp, x)	SMC_GET_MAC_CSR( (lp), ADDRL, x )
+#define SMC_SET_ADDRL(lp, x)	SMC_SET_MAC_CSR( (lp), ADDRL, x )
+#define SMC_GET_HASHH(lp, x)	SMC_GET_MAC_CSR( (lp), HASHH, x )
+#define SMC_SET_HASHH(lp, x)	SMC_SET_MAC_CSR( (lp), HASHH, x )
+#define SMC_GET_HASHL(lp, x)	SMC_GET_MAC_CSR( (lp), HASHL, x )
+#define SMC_SET_HASHL(lp, x)	SMC_SET_MAC_CSR( (lp), HASHL, x )
+#define SMC_GET_MII_ACC(lp, x)	SMC_GET_MAC_CSR( (lp), MII_ACC, x )
+#define SMC_SET_MII_ACC(lp, x)	SMC_SET_MAC_CSR( (lp), MII_ACC, x )
+#define SMC_GET_MII_DATA(lp, x)	SMC_GET_MAC_CSR( (lp), MII_DATA, x )
+#define SMC_SET_MII_DATA(lp, x)	SMC_SET_MAC_CSR( (lp), MII_DATA, x )
+#define SMC_GET_FLOW(lp, x)		SMC_GET_MAC_CSR( (lp), FLOW, x )
+#define SMC_SET_FLOW(lp, x)		SMC_SET_MAC_CSR( (lp), FLOW, x )
+#define SMC_GET_VLAN1(lp, x)	SMC_GET_MAC_CSR( (lp), VLAN1, x )
+#define SMC_SET_VLAN1(lp, x)	SMC_SET_MAC_CSR( (lp), VLAN1, x )
+#define SMC_GET_VLAN2(lp, x)	SMC_GET_MAC_CSR( (lp), VLAN2, x )
+#define SMC_SET_VLAN2(lp, x)	SMC_SET_MAC_CSR( (lp), VLAN2, x )
+#define SMC_SET_WUFF(lp, x)		SMC_SET_MAC_CSR( (lp), WUFF, x )
+#define SMC_GET_WUCSR(lp, x)	SMC_GET_MAC_CSR( (lp), WUCSR, x )
+#define SMC_SET_WUCSR(lp, x)	SMC_SET_MAC_CSR( (lp), WUCSR, x )
 
 /* PHY register read/write macros */
-#define SMC_GET_MII(a,phy,v)					\
+#define SMC_GET_MII(lp,a,phy,v)					\
 	do {							\
 		u32 __v;					\
 		do {						\
-			SMC_GET_MII_ACC(__v);			\
+			SMC_GET_MII_ACC((lp), __v);			\
 		} while ( __v & MII_ACC_MII_BUSY_ );		\
-		SMC_SET_MII_ACC( ((phy)<<11) | ((a)<<6) |	\
+		SMC_SET_MII_ACC( (lp), ((phy)<<11) | ((a)<<6) |	\
 			MII_ACC_MII_BUSY_);			\
 		do {						\
-			SMC_GET_MII_ACC(__v);			\
+			SMC_GET_MII_ACC( (lp), __v);			\
 		} while ( __v & MII_ACC_MII_BUSY_ );		\
-		SMC_GET_MII_DATA(v);				\
+		SMC_GET_MII_DATA((lp), v);				\
 	} while (0)
-#define SMC_SET_MII(a,phy,v)					\
+#define SMC_SET_MII(lp,a,phy,v)					\
 	do {							\
 		u32 __v;					\
 		do {						\
-			SMC_GET_MII_ACC(__v);			\
+			SMC_GET_MII_ACC((lp), __v);			\
 		} while ( __v & MII_ACC_MII_BUSY_ );		\
-		SMC_SET_MII_DATA(v);				\
-		SMC_SET_MII_ACC( ((phy)<<11) | ((a)<<6) |	\
+		SMC_SET_MII_DATA((lp), v);				\
+		SMC_SET_MII_ACC( (lp), ((phy)<<11) | ((a)<<6) |	\
 			MII_ACC_MII_BUSY_	 |		\
 			MII_ACC_MII_WRITE_  );			\
 		do {						\
-			SMC_GET_MII_ACC(__v);			\
+			SMC_GET_MII_ACC((lp), __v);			\
 		} while ( __v & MII_ACC_MII_BUSY_ );		\
 	} while (0)
-#define SMC_GET_PHY_BMCR(phy,x)		SMC_GET_MII( MII_BMCR, phy, x )
-#define SMC_SET_PHY_BMCR(phy,x)		SMC_SET_MII( MII_BMCR, phy, x )
-#define SMC_GET_PHY_BMSR(phy,x)		SMC_GET_MII( MII_BMSR, phy, x )
-#define SMC_GET_PHY_ID1(phy,x)		SMC_GET_MII( MII_PHYSID1, phy, x )
-#define SMC_GET_PHY_ID2(phy,x)		SMC_GET_MII( MII_PHYSID2, phy, x )
-#define SMC_GET_PHY_MII_ADV(phy,x)	SMC_GET_MII( MII_ADVERTISE, phy, x )
-#define SMC_SET_PHY_MII_ADV(phy,x)	SMC_SET_MII( MII_ADVERTISE, phy, x )
-#define SMC_GET_PHY_MII_LPA(phy,x)	SMC_GET_MII( MII_LPA, phy, x )
-#define SMC_SET_PHY_MII_LPA(phy,x)	SMC_SET_MII( MII_LPA, phy, x )
-#define SMC_GET_PHY_CTRL_STS(phy,x)	SMC_GET_MII( PHY_MODE_CTRL_STS, phy, x )
-#define SMC_SET_PHY_CTRL_STS(phy,x)	SMC_SET_MII( PHY_MODE_CTRL_STS, phy, x )
-#define SMC_GET_PHY_INT_SRC(phy,x)	SMC_GET_MII( PHY_INT_SRC, phy, x )
-#define SMC_SET_PHY_INT_SRC(phy,x)	SMC_SET_MII( PHY_INT_SRC, phy, x )
-#define SMC_GET_PHY_INT_MASK(phy,x)	SMC_GET_MII( PHY_INT_MASK, phy, x )
-#define SMC_SET_PHY_INT_MASK(phy,x)	SMC_SET_MII( PHY_INT_MASK, phy, x )
-#define SMC_GET_PHY_SPECIAL(phy,x)	SMC_GET_MII( PHY_SPECIAL, phy, x )
+#define SMC_GET_PHY_BMCR(lp,phy,x)		SMC_GET_MII( (lp), MII_BMCR, phy, x )
+#define SMC_SET_PHY_BMCR(lp,phy,x)		SMC_SET_MII( (lp), MII_BMCR, phy, x )
+#define SMC_GET_PHY_BMSR(lp,phy,x)		SMC_GET_MII( (lp), MII_BMSR, phy, x )
+#define SMC_GET_PHY_ID1(lp,phy,x)		SMC_GET_MII( (lp), MII_PHYSID1, phy, x )
+#define SMC_GET_PHY_ID2(lp,phy,x)		SMC_GET_MII( (lp), MII_PHYSID2, phy, x )
+#define SMC_GET_PHY_MII_ADV(lp,phy,x)	SMC_GET_MII( (lp), MII_ADVERTISE, phy, x )
+#define SMC_SET_PHY_MII_ADV(lp,phy,x)	SMC_SET_MII( (lp), MII_ADVERTISE, phy, x )
+#define SMC_GET_PHY_MII_LPA(lp,phy,x)	SMC_GET_MII( (lp), MII_LPA, phy, x )
+#define SMC_SET_PHY_MII_LPA(lp,phy,x)	SMC_SET_MII( (lp), MII_LPA, phy, x )
+#define SMC_GET_PHY_CTRL_STS(lp,phy,x)	SMC_GET_MII( (lp), PHY_MODE_CTRL_STS, phy, x )
+#define SMC_SET_PHY_CTRL_STS(lp,phy,x)	SMC_SET_MII( (lp), PHY_MODE_CTRL_STS, phy, x )
+#define SMC_GET_PHY_INT_SRC(lp,phy,x)	SMC_GET_MII( (lp), PHY_INT_SRC, phy, x )
+#define SMC_SET_PHY_INT_SRC(lp,phy,x)	SMC_SET_MII( (lp), PHY_INT_SRC, phy, x )
+#define SMC_GET_PHY_INT_MASK(lp,phy,x)	SMC_GET_MII( (lp), PHY_INT_MASK, phy, x )
+#define SMC_SET_PHY_INT_MASK(lp,phy,x)	SMC_SET_MII( (lp), PHY_INT_MASK, phy, x )
+#define SMC_GET_PHY_SPECIAL(lp,phy,x)	SMC_GET_MII( (lp), PHY_SPECIAL, phy, x )
 
 
 
 /* Misc read/write macros */
 
 #ifndef SMC_GET_MAC_ADDR
-#define SMC_GET_MAC_ADDR(addr)					\
+#define SMC_GET_MAC_ADDR(lp, addr)				\
 	do {							\
 		unsigned int __v;				\
 								\
-		SMC_GET_MAC_CSR(ADDRL, __v);			\
+		SMC_GET_MAC_CSR((lp), ADDRL, __v);			\
 		addr[0] = __v; addr[1] = __v >> 8;		\
 		addr[2] = __v >> 16; addr[3] = __v >> 24;	\
-		SMC_GET_MAC_CSR(ADDRH, __v);			\
+		SMC_GET_MAC_CSR((lp), ADDRH, __v);			\
 		addr[4] = __v; addr[5] = __v >> 8;		\
 	} while (0)
 #endif
 
-#define SMC_SET_MAC_ADDR(addr)					\
+#define SMC_SET_MAC_ADDR(lp, addr)				\
 	do {							\
-		 SMC_SET_MAC_CSR(ADDRL,				\
+		 SMC_SET_MAC_CSR((lp), ADDRL,				\
 				 addr[0] |			\
 				(addr[1] << 8) |		\
 				(addr[2] << 16) |		\
 				(addr[3] << 24));		\
-		 SMC_SET_MAC_CSR(ADDRH, addr[4]|(addr[5] << 8));\
+		 SMC_SET_MAC_CSR((lp), ADDRH, addr[4]|(addr[5] << 8));\
 	} while (0)
 
 
-#define SMC_WRITE_EEPROM_CMD(cmd, addr)					\
+#define SMC_WRITE_EEPROM_CMD(lp, cmd, addr)				\
 	do {								\
-		while (SMC_GET_E2P_CMD() & MAC_CSR_CMD_CSR_BUSY_);	\
-		SMC_SET_MAC_CMD(MAC_CSR_CMD_R_NOT_W_ | a );		\
-		while (SMC_GET_MAC_CMD() & MAC_CSR_CMD_CSR_BUSY_);	\
+		while (SMC_GET_E2P_CMD((lp)) & MAC_CSR_CMD_CSR_BUSY_);	\
+		SMC_SET_MAC_CMD((lp), MAC_CSR_CMD_R_NOT_W_ | a );		\
+		while (SMC_GET_MAC_CMD((lp)) & MAC_CSR_CMD_CSR_BUSY_);	\
 	} while (0)
 
 #endif	 /* _SMC911X_H_ */

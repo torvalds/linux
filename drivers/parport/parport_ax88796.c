@@ -406,6 +406,8 @@ static int parport_ax88796_resume(struct platform_device *dev)
 #define parport_ax88796_resume  NULL
 #endif
 
+MODULE_ALIAS("platform:ax88796-pp");
+
 static struct platform_driver axdrv = {
 	.driver		= {
 		.name	= "ax88796-pp",

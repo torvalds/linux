@@ -51,9 +51,9 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 #include <media/tvaudio.h>
 #include <media/msp3400.h>
@@ -110,6 +110,7 @@ MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x80 >> 1, 0x88 >> 1, I2C_CLIENT_END };
+
 I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
@@ -332,7 +333,6 @@ void msp_set_audio(struct i2c_client *client)
 }
 
 /* ------------------------------------------------------------------------ */
-
 
 static void msp_wake_thread(struct i2c_client *client)
 {
@@ -1003,7 +1003,6 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.resume = msp_resume,
 	.id_table = msp_id,
 };
-
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

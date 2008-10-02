@@ -900,14 +900,14 @@ static int register_root_hub(struct usb_hcd *hcd)
 	if (retval != sizeof usb_dev->descriptor) {
 		mutex_unlock(&usb_bus_list_lock);
 		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
-				usb_dev->dev.bus_id, retval);
+				dev_name(&usb_dev->dev), retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
 	}
 
 	retval = usb_new_device (usb_dev);
 	if (retval) {
 		dev_err (parent_dev, "can't register root hub for %s, %d\n",
-				usb_dev->dev.bus_id, retval);
+				dev_name(&usb_dev->dev), retval);
 	}
 	mutex_unlock(&usb_bus_list_lock);
 
@@ -922,15 +922,6 @@ static int register_root_hub(struct usb_hcd *hcd)
 	}
 
 	return retval;
-}
-
-void usb_enable_root_hub_irq (struct usb_bus *bus)
-{
-	struct usb_hcd *hcd;
-
-	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_irq_enable && hcd->state != HC_STATE_HALT)
-		hcd->driver->hub_irq_enable (hcd);
 }
 
 
@@ -1764,7 +1755,7 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
  * If memory is unavailable, returns NULL.
  */
 struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
-		struct device *dev, char *bus_name)
+		struct device *dev, const char *bus_name)
 {
 	struct usb_hcd *hcd;
 
@@ -1885,7 +1876,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		 * with IRQF_SHARED. As usb_hcd_irq() will always disable
 		 * interrupts we can remove it here.
 		 */
-		irqflags &= ~IRQF_DISABLED;
+		if (irqflags & IRQF_SHARED)
+			irqflags &= ~IRQF_DISABLED;
 
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 				hcd->driver->description, hcd->self.busnum);

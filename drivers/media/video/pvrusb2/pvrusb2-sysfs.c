@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *
@@ -71,6 +70,7 @@ struct pvr2_sysfs_ctl_item {
 	struct device_attribute attr_val;
 	struct device_attribute attr_custom;
 	struct pvr2_ctrl *cptr;
+	int ctl_id;
 	struct pvr2_sysfs *chptr;
 	struct pvr2_sysfs_ctl_item *item_next;
 	struct attribute *attr_gen[7];
@@ -83,38 +83,29 @@ struct pvr2_sysfs_class {
 	struct class class;
 };
 
-static ssize_t show_name(int id,struct device *class_dev,char *buf)
+static ssize_t show_name(struct device *class_dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	const char *name;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-
-	name = pvr2_ctrl_get_desc(cptr);
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_name(cid=%d) is %s",sfp,id,name);
-
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_name);
+	name = pvr2_ctrl_get_desc(cip->cptr);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_name(cid=%d) is %s",
+			 cip->chptr, cip->ctl_id, name);
 	if (!name) return -EINVAL;
-
-	return scnprintf(buf,PAGE_SIZE,"%s\n",name);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", name);
 }
 
-static ssize_t show_type(int id,struct device *class_dev,char *buf)
+static ssize_t show_type(struct device *class_dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	const char *name;
 	enum pvr2_ctl_type tp;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-
-	tp = pvr2_ctrl_get_type(cptr);
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_type);
+	tp = pvr2_ctrl_get_type(cip->cptr);
 	switch (tp) {
 	case pvr2_ctl_int: name = "integer"; break;
 	case pvr2_ctl_enum: name = "enum"; break;
@@ -122,403 +113,178 @@ static ssize_t show_type(int id,struct device *class_dev,char *buf)
 	case pvr2_ctl_bool: name = "boolean"; break;
 	default: name = "?"; break;
 	}
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_type(cid=%d) is %s",sfp,id,name);
-
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_type(cid=%d) is %s",
+			 cip->chptr, cip->ctl_id, name);
 	if (!name) return -EINVAL;
-
-	return scnprintf(buf,PAGE_SIZE,"%s\n",name);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", name);
 }
 
-static ssize_t show_min(int id,struct device *class_dev,char *buf)
+static ssize_t show_min(struct device *class_dev,
+			struct device_attribute *attr,
+			char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	long val;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-	val = pvr2_ctrl_get_min(cptr);
-
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_min(cid=%d) is %ld",sfp,id,val);
-
-	return scnprintf(buf,PAGE_SIZE,"%ld\n",val);
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_min);
+	val = pvr2_ctrl_get_min(cip->cptr);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_min(cid=%d) is %ld",
+			 cip->chptr, cip->ctl_id, val);
+	return scnprintf(buf, PAGE_SIZE, "%ld\n", val);
 }
 
-static ssize_t show_max(int id,struct device *class_dev,char *buf)
+static ssize_t show_max(struct device *class_dev,
+			struct device_attribute *attr,
+			char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	long val;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-	val = pvr2_ctrl_get_max(cptr);
-
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_max(cid=%d) is %ld",sfp,id,val);
-
-	return scnprintf(buf,PAGE_SIZE,"%ld\n",val);
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_max);
+	val = pvr2_ctrl_get_max(cip->cptr);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_max(cid=%d) is %ld",
+			 cip->chptr, cip->ctl_id, val);
+	return scnprintf(buf, PAGE_SIZE, "%ld\n", val);
 }
 
-static ssize_t show_val_norm(int id,struct device *class_dev,char *buf)
+static ssize_t show_val_norm(struct device *class_dev,
+			     struct device_attribute *attr,
+			     char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
-	int val,ret;
+	struct pvr2_sysfs_ctl_item *cip;
+	int val;
+	int ret;
 	unsigned int cnt = 0;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-
-	ret = pvr2_ctrl_get_value(cptr,&val);
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_val);
+	ret = pvr2_ctrl_get_value(cip->cptr, &val);
 	if (ret < 0) return ret;
-
-	ret = pvr2_ctrl_value_to_sym(cptr,~0,val,
-				     buf,PAGE_SIZE-1,&cnt);
-
+	ret = pvr2_ctrl_value_to_sym(cip->cptr, ~0, val,
+				     buf, PAGE_SIZE - 1, &cnt);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_val_norm(cid=%d) is %.*s (%d)",
-			 sfp,id,cnt,buf,val);
+			 cip->chptr, cip->ctl_id, cnt, buf, val);
 	buf[cnt] = '\n';
 	return cnt+1;
 }
 
-static ssize_t show_val_custom(int id,struct device *class_dev,char *buf)
+static ssize_t show_val_custom(struct device *class_dev,
+			       struct device_attribute *attr,
+			       char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
-	int val,ret;
+	struct pvr2_sysfs_ctl_item *cip;
+	int val;
+	int ret;
 	unsigned int cnt = 0;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-
-	ret = pvr2_ctrl_get_value(cptr,&val);
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_custom);
+	ret = pvr2_ctrl_get_value(cip->cptr, &val);
 	if (ret < 0) return ret;
-
-	ret = pvr2_ctrl_custom_value_to_sym(cptr,~0,val,
-					    buf,PAGE_SIZE-1,&cnt);
-
+	ret = pvr2_ctrl_custom_value_to_sym(cip->cptr, ~0, val,
+					    buf, PAGE_SIZE - 1, &cnt);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_val_custom(cid=%d) is %.*s (%d)",
-			 sfp,id,cnt,buf,val);
+			 cip->chptr, cip->ctl_id, cnt, buf, val);
 	buf[cnt] = '\n';
 	return cnt+1;
 }
 
-static ssize_t show_enum(int id,struct device *class_dev,char *buf)
+static ssize_t show_enum(struct device *class_dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	long val;
-	unsigned int bcnt,ccnt,ecnt;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-	ecnt = pvr2_ctrl_get_cnt(cptr);
+	unsigned int bcnt, ccnt, ecnt;
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_enum);
+	ecnt = pvr2_ctrl_get_cnt(cip->cptr);
 	bcnt = 0;
 	for (val = 0; val < ecnt; val++) {
-		pvr2_ctrl_get_valname(cptr,val,buf+bcnt,PAGE_SIZE-bcnt,&ccnt);
+		pvr2_ctrl_get_valname(cip->cptr, val, buf + bcnt,
+				      PAGE_SIZE - bcnt, &ccnt);
 		if (!ccnt) continue;
 		bcnt += ccnt;
 		if (bcnt >= PAGE_SIZE) break;
 		buf[bcnt] = '\n';
 		bcnt++;
 	}
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_enum(cid=%d)",sfp,id);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_enum(cid=%d)",
+			 cip->chptr, cip->ctl_id);
 	return bcnt;
 }
 
-static ssize_t show_bits(int id,struct device *class_dev,char *buf)
+static ssize_t show_bits(struct device *class_dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
-	struct pvr2_ctrl *cptr;
-	struct pvr2_sysfs *sfp;
-	int valid_bits,msk;
-	unsigned int bcnt,ccnt;
-
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
-	if (!sfp) return -EINVAL;
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
-	if (!cptr) return -EINVAL;
-	valid_bits = pvr2_ctrl_get_mask(cptr);
+	struct pvr2_sysfs_ctl_item *cip;
+	int valid_bits, msk;
+	unsigned int bcnt, ccnt;
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_bits);
+	valid_bits = pvr2_ctrl_get_mask(cip->cptr);
 	bcnt = 0;
 	for (msk = 1; valid_bits; msk <<= 1) {
 		if (!(msk & valid_bits)) continue;
 		valid_bits &= ~msk;
-		pvr2_ctrl_get_valname(cptr,msk,buf+bcnt,PAGE_SIZE-bcnt,&ccnt);
+		pvr2_ctrl_get_valname(cip->cptr, msk, buf + bcnt,
+				      PAGE_SIZE - bcnt, &ccnt);
 		bcnt += ccnt;
 		if (bcnt >= PAGE_SIZE) break;
 		buf[bcnt] = '\n';
 		bcnt++;
 	}
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_bits(cid=%d)",sfp,id);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_bits(cid=%d)",
+			 cip->chptr, cip->ctl_id);
 	return bcnt;
 }
 
-static int store_val_any(int id,int customfl,struct pvr2_sysfs *sfp,
+static int store_val_any(struct pvr2_sysfs_ctl_item *cip, int customfl,
 			 const char *buf,unsigned int count)
 {
-	struct pvr2_ctrl *cptr;
 	int ret;
 	int mask,val;
-
-	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (customfl) {
-		ret = pvr2_ctrl_custom_sym_to_value(cptr,buf,count,&mask,&val);
+		ret = pvr2_ctrl_custom_sym_to_value(cip->cptr, buf, count,
+						    &mask, &val);
 	} else {
-		ret = pvr2_ctrl_sym_to_value(cptr,buf,count,&mask,&val);
+		ret = pvr2_ctrl_sym_to_value(cip->cptr, buf, count,
+					     &mask, &val);
 	}
 	if (ret < 0) return ret;
-	ret = pvr2_ctrl_set_mask_value(cptr,mask,val);
-	pvr2_hdw_commit_ctl(sfp->channel.hdw);
+	ret = pvr2_ctrl_set_mask_value(cip->cptr, mask, val);
+	pvr2_hdw_commit_ctl(cip->chptr->channel.hdw);
 	return ret;
 }
 
-static ssize_t store_val_norm(int id,struct device *class_dev,
-			     const char *buf,size_t count)
+static ssize_t store_val_norm(struct device *class_dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	int ret;
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_val);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) store_val_norm(cid=%d) \"%.*s\"",
-			 sfp,id,(int)count,buf);
-	ret = store_val_any(id,0,sfp,buf,count);
+			 cip->chptr, cip->ctl_id, (int)count, buf);
+	ret = store_val_any(cip, 0, buf, count);
 	if (!ret) ret = count;
 	return ret;
 }
 
-static ssize_t store_val_custom(int id,struct device *class_dev,
-				const char *buf,size_t count)
+static ssize_t store_val_custom(struct device *class_dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
-	struct pvr2_sysfs *sfp;
+	struct pvr2_sysfs_ctl_item *cip;
 	int ret;
-	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
+	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_custom);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) store_val_custom(cid=%d) \"%.*s\"",
-			 sfp,id,(int)count,buf);
-	ret = store_val_any(id,1,sfp,buf,count);
+			 cip->chptr, cip->ctl_id, (int)count, buf);
+	ret = store_val_any(cip, 1, buf, count);
 	if (!ret) ret = count;
 	return ret;
 }
-
-/*
-  Mike Isely <isely@pobox.com> 30-April-2005
-
-  This next batch of horrible preprocessor hackery is needed because the
-  kernel's device_attribute mechanism fails to pass the actual
-  attribute through to the show / store functions, which means we have no
-  way to package up any attribute-specific parameters, like for example the
-  control id.  So we work around this brain-damage by encoding the control
-  id into the show / store functions themselves and pick the function based
-  on the control id we're setting up.  These macros try to ease the pain.
-  Yuck.
-*/
-
-#define CREATE_SHOW_INSTANCE(sf_name,ctl_id) \
-static ssize_t sf_name##_##ctl_id(struct device *class_dev, \
-struct device_attribute *attr, char *buf) \
-{ return sf_name(ctl_id,class_dev,buf); }
-
-#define CREATE_STORE_INSTANCE(sf_name,ctl_id) \
-static ssize_t sf_name##_##ctl_id(struct device *class_dev, \
-struct device_attribute *attr, const char *buf, size_t count) \
-{ return sf_name(ctl_id,class_dev,buf,count); }
-
-#define CREATE_BATCH(ctl_id) \
-CREATE_SHOW_INSTANCE(show_name,ctl_id) \
-CREATE_SHOW_INSTANCE(show_type,ctl_id) \
-CREATE_SHOW_INSTANCE(show_min,ctl_id) \
-CREATE_SHOW_INSTANCE(show_max,ctl_id) \
-CREATE_SHOW_INSTANCE(show_val_norm,ctl_id) \
-CREATE_SHOW_INSTANCE(show_val_custom,ctl_id) \
-CREATE_SHOW_INSTANCE(show_enum,ctl_id) \
-CREATE_SHOW_INSTANCE(show_bits,ctl_id) \
-CREATE_STORE_INSTANCE(store_val_norm,ctl_id) \
-CREATE_STORE_INSTANCE(store_val_custom,ctl_id) \
-
-CREATE_BATCH(0)
-CREATE_BATCH(1)
-CREATE_BATCH(2)
-CREATE_BATCH(3)
-CREATE_BATCH(4)
-CREATE_BATCH(5)
-CREATE_BATCH(6)
-CREATE_BATCH(7)
-CREATE_BATCH(8)
-CREATE_BATCH(9)
-CREATE_BATCH(10)
-CREATE_BATCH(11)
-CREATE_BATCH(12)
-CREATE_BATCH(13)
-CREATE_BATCH(14)
-CREATE_BATCH(15)
-CREATE_BATCH(16)
-CREATE_BATCH(17)
-CREATE_BATCH(18)
-CREATE_BATCH(19)
-CREATE_BATCH(20)
-CREATE_BATCH(21)
-CREATE_BATCH(22)
-CREATE_BATCH(23)
-CREATE_BATCH(24)
-CREATE_BATCH(25)
-CREATE_BATCH(26)
-CREATE_BATCH(27)
-CREATE_BATCH(28)
-CREATE_BATCH(29)
-CREATE_BATCH(30)
-CREATE_BATCH(31)
-CREATE_BATCH(32)
-CREATE_BATCH(33)
-CREATE_BATCH(34)
-CREATE_BATCH(35)
-CREATE_BATCH(36)
-CREATE_BATCH(37)
-CREATE_BATCH(38)
-CREATE_BATCH(39)
-CREATE_BATCH(40)
-CREATE_BATCH(41)
-CREATE_BATCH(42)
-CREATE_BATCH(43)
-CREATE_BATCH(44)
-CREATE_BATCH(45)
-CREATE_BATCH(46)
-CREATE_BATCH(47)
-CREATE_BATCH(48)
-CREATE_BATCH(49)
-CREATE_BATCH(50)
-CREATE_BATCH(51)
-CREATE_BATCH(52)
-CREATE_BATCH(53)
-CREATE_BATCH(54)
-CREATE_BATCH(55)
-CREATE_BATCH(56)
-CREATE_BATCH(57)
-CREATE_BATCH(58)
-CREATE_BATCH(59)
-
-struct pvr2_sysfs_func_set {
-	ssize_t (*show_name)(struct device *,
-			     struct device_attribute *attr, char *);
-	ssize_t (*show_type)(struct device *,
-			     struct device_attribute *attr, char *);
-	ssize_t (*show_min)(struct device *,
-			    struct device_attribute *attr, char *);
-	ssize_t (*show_max)(struct device *,
-			    struct device_attribute *attr, char *);
-	ssize_t (*show_enum)(struct device *,
-			     struct device_attribute *attr, char *);
-	ssize_t (*show_bits)(struct device *,
-			     struct device_attribute *attr, char *);
-	ssize_t (*show_val_norm)(struct device *,
-				 struct device_attribute *attr, char *);
-	ssize_t (*store_val_norm)(struct device *,
-				  struct device_attribute *attr,
-				  const char *,size_t);
-	ssize_t (*show_val_custom)(struct device *,
-				   struct device_attribute *attr, char *);
-	ssize_t (*store_val_custom)(struct device *,
-				    struct device_attribute *attr,
-				    const char *,size_t);
-};
-
-#define INIT_BATCH(ctl_id) \
-[ctl_id] = { \
-    .show_name = show_name_##ctl_id, \
-    .show_type = show_type_##ctl_id, \
-    .show_min = show_min_##ctl_id, \
-    .show_max = show_max_##ctl_id, \
-    .show_enum = show_enum_##ctl_id, \
-    .show_bits = show_bits_##ctl_id, \
-    .show_val_norm = show_val_norm_##ctl_id, \
-    .store_val_norm = store_val_norm_##ctl_id, \
-    .show_val_custom = show_val_custom_##ctl_id, \
-    .store_val_custom = store_val_custom_##ctl_id, \
-} \
-
-static struct pvr2_sysfs_func_set funcs[] = {
-	INIT_BATCH(0),
-	INIT_BATCH(1),
-	INIT_BATCH(2),
-	INIT_BATCH(3),
-	INIT_BATCH(4),
-	INIT_BATCH(5),
-	INIT_BATCH(6),
-	INIT_BATCH(7),
-	INIT_BATCH(8),
-	INIT_BATCH(9),
-	INIT_BATCH(10),
-	INIT_BATCH(11),
-	INIT_BATCH(12),
-	INIT_BATCH(13),
-	INIT_BATCH(14),
-	INIT_BATCH(15),
-	INIT_BATCH(16),
-	INIT_BATCH(17),
-	INIT_BATCH(18),
-	INIT_BATCH(19),
-	INIT_BATCH(20),
-	INIT_BATCH(21),
-	INIT_BATCH(22),
-	INIT_BATCH(23),
-	INIT_BATCH(24),
-	INIT_BATCH(25),
-	INIT_BATCH(26),
-	INIT_BATCH(27),
-	INIT_BATCH(28),
-	INIT_BATCH(29),
-	INIT_BATCH(30),
-	INIT_BATCH(31),
-	INIT_BATCH(32),
-	INIT_BATCH(33),
-	INIT_BATCH(34),
-	INIT_BATCH(35),
-	INIT_BATCH(36),
-	INIT_BATCH(37),
-	INIT_BATCH(38),
-	INIT_BATCH(39),
-	INIT_BATCH(40),
-	INIT_BATCH(41),
-	INIT_BATCH(42),
-	INIT_BATCH(43),
-	INIT_BATCH(44),
-	INIT_BATCH(45),
-	INIT_BATCH(46),
-	INIT_BATCH(47),
-	INIT_BATCH(48),
-	INIT_BATCH(49),
-	INIT_BATCH(50),
-	INIT_BATCH(51),
-	INIT_BATCH(52),
-	INIT_BATCH(53),
-	INIT_BATCH(54),
-	INIT_BATCH(55),
-	INIT_BATCH(56),
-	INIT_BATCH(57),
-	INIT_BATCH(58),
-	INIT_BATCH(59),
-};
-
 
 static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 {
 	struct pvr2_sysfs_ctl_item *cip;
-	struct pvr2_sysfs_func_set *fp;
 	struct pvr2_ctrl *cptr;
 	unsigned int cnt,acnt;
 	int ret;
 
-	if ((ctl_id < 0) || (ctl_id >= ARRAY_SIZE(funcs))) {
-		return;
-	}
-
-	fp = funcs + ctl_id;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,ctl_id);
 	if (!cptr) return;
 
@@ -527,6 +293,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	pvr2_sysfs_trace("Creating pvr2_sysfs_ctl_item id=%p",cip);
 
 	cip->cptr = cptr;
+	cip->ctl_id = ctl_id;
 
 	cip->chptr = sfp;
 	cip->item_next = NULL;
@@ -539,19 +306,19 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 
 	cip->attr_name.attr.name = "name";
 	cip->attr_name.attr.mode = S_IRUGO;
-	cip->attr_name.show = fp->show_name;
+	cip->attr_name.show = show_name;
 
 	cip->attr_type.attr.name = "type";
 	cip->attr_type.attr.mode = S_IRUGO;
-	cip->attr_type.show = fp->show_type;
+	cip->attr_type.show = show_type;
 
 	cip->attr_min.attr.name = "min_val";
 	cip->attr_min.attr.mode = S_IRUGO;
-	cip->attr_min.show = fp->show_min;
+	cip->attr_min.show = show_min;
 
 	cip->attr_max.attr.name = "max_val";
 	cip->attr_max.attr.mode = S_IRUGO;
-	cip->attr_max.show = fp->show_max;
+	cip->attr_max.show = show_max;
 
 	cip->attr_val.attr.name = "cur_val";
 	cip->attr_val.attr.mode = S_IRUGO;
@@ -561,11 +328,11 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 
 	cip->attr_enum.attr.name = "enum_val";
 	cip->attr_enum.attr.mode = S_IRUGO;
-	cip->attr_enum.show = fp->show_enum;
+	cip->attr_enum.show = show_enum;
 
 	cip->attr_bits.attr.name = "bit_val";
 	cip->attr_bits.attr.mode = S_IRUGO;
-	cip->attr_bits.show = fp->show_bits;
+	cip->attr_bits.show = show_bits;
 
 	if (pvr2_ctrl_is_writable(cptr)) {
 		cip->attr_val.attr.mode |= S_IWUSR|S_IWGRP;
@@ -576,12 +343,12 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->attr_gen[acnt++] = &cip->attr_name.attr;
 	cip->attr_gen[acnt++] = &cip->attr_type.attr;
 	cip->attr_gen[acnt++] = &cip->attr_val.attr;
-	cip->attr_val.show = fp->show_val_norm;
-	cip->attr_val.store = fp->store_val_norm;
+	cip->attr_val.show = show_val_norm;
+	cip->attr_val.store = store_val_norm;
 	if (pvr2_ctrl_has_custom_symbols(cptr)) {
 		cip->attr_gen[acnt++] = &cip->attr_custom.attr;
-		cip->attr_custom.show = fp->show_val_custom;
-		cip->attr_custom.store = fp->store_val_custom;
+		cip->attr_custom.show = show_val_custom;
+		cip->attr_custom.store = store_val_custom;
 	}
 	switch (pvr2_ctrl_get_type(cptr)) {
 	case pvr2_ctl_enum:

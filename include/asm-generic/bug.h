@@ -34,9 +34,14 @@ struct bug_entry {
 #ifndef __WARN
 #ifndef __ASSEMBLY__
 extern void warn_on_slowpath(const char *file, const int line);
+extern void warn_slowpath(const char *file, const int line,
+		const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 #define WANT_WARN_ON_SLOWPATH
 #endif
 #define __WARN() warn_on_slowpath(__FILE__, __LINE__)
+#define __WARN_printf(arg...) warn_slowpath(__FILE__, __LINE__, arg)
+#else
+#define __WARN_printf(arg...) __WARN()
 #endif
 
 #ifndef WARN_ON
@@ -44,6 +49,15 @@ extern void warn_on_slowpath(const char *file, const int line);
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
 		__WARN();						\
+	unlikely(__ret_warn_on);					\
+})
+#endif
+
+#ifndef WARN
+#define WARN(condition, format...) ({						\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on))					\
+		__WARN_printf(format);					\
 	unlikely(__ret_warn_on);					\
 })
 #endif
@@ -63,6 +77,14 @@ extern void warn_on_slowpath(const char *file, const int line);
 	unlikely(__ret_warn_on);					\
 })
 #endif
+
+#ifndef WARN
+#define WARN(condition, format...) ({					\
+	int __ret_warn_on = !!(condition);				\
+	unlikely(__ret_warn_on);					\
+})
+#endif
+
 #endif
 
 #define WARN_ON_ONCE(condition)	({				\
@@ -74,6 +96,19 @@ extern void warn_on_slowpath(const char *file, const int line);
 			__warned = 1;				\
 	unlikely(__ret_warn_once);				\
 })
+
+#define WARN_ONCE(condition, format...)	({			\
+	static int __warned;					\
+	int __ret_warn_once = !!(condition);			\
+								\
+	if (unlikely(__ret_warn_once))				\
+		if (WARN(!__warned, format)) 			\
+			__warned = 1;				\
+	unlikely(__ret_warn_once);				\
+})
+
+#define WARN_ON_RATELIMIT(condition, state)			\
+		WARN_ON((condition) && __ratelimit(state))
 
 #ifdef CONFIG_SMP
 # define WARN_ON_SMP(x)			WARN_ON(x)

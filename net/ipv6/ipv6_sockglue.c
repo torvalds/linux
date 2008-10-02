@@ -7,8 +7,6 @@
  *
  *	Based on linux/net/ipv4/ip_sockglue.c
  *
- *	$Id: ipv6_sockglue.c,v 1.41 2002/02/01 22:01:04 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -61,7 +59,7 @@ DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
 struct ip6_ra_chain *ip6_ra_chain;
 DEFINE_RWLOCK(ip6_ra_lock);
 
-int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
+int ip6_ra_control(struct sock *sk, int sel)
 {
 	struct ip6_ra_chain *ra, *new_ra, **rap;
 
@@ -83,8 +81,6 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 			*rap = ra->next;
 			write_unlock_bh(&ip6_ra_lock);
 
-			if (ra->destructor)
-				ra->destructor(sk);
 			sock_put(sk);
 			kfree(ra);
 			return 0;
@@ -96,7 +92,6 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 	}
 	new_ra->sk = sk;
 	new_ra->sel = sel;
-	new_ra->destructor = destructor;
 	new_ra->next = ra;
 	*rap = new_ra;
 	sock_hold(sk);
@@ -351,6 +346,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		 */
 		if (optlen == 0)
 			optval = NULL;
+		else if (optval == NULL)
+			goto e_inval;
 		else if (optlen < sizeof(struct ipv6_opt_hdr) ||
 			 optlen & 0x7 || optlen > 8 * 255)
 			goto e_inval;
@@ -634,7 +631,7 @@ done:
 	case IPV6_ROUTER_ALERT:
 		if (optlen < sizeof(int))
 			goto e_inval;
-		retv = ip6_ra_control(sk, val, NULL);
+		retv = ip6_ra_control(sk, val);
 		break;
 	case IPV6_MTU_DISCOVER:
 		if (optlen < sizeof(int))
@@ -914,7 +911,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		} else {
 			if (np->rxopt.bits.rxinfo) {
 				struct in6_pktinfo src_info;
-				src_info.ipi6_ifindex = np->mcast_oif;
+				src_info.ipi6_ifindex = np->mcast_oif ? np->mcast_oif : sk->sk_bound_dev_if;
 				ipv6_addr_copy(&src_info.ipi6_addr, &np->daddr);
 				put_cmsg(&msg, SOL_IPV6, IPV6_PKTINFO, sizeof(src_info), &src_info);
 			}
@@ -924,7 +921,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			}
 			if (np->rxopt.bits.rxoinfo) {
 				struct in6_pktinfo src_info;
-				src_info.ipi6_ifindex = np->mcast_oif;
+				src_info.ipi6_ifindex = np->mcast_oif ? np->mcast_oif : sk->sk_bound_dev_if;
 				ipv6_addr_copy(&src_info.ipi6_addr, &np->daddr);
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292PKTINFO, sizeof(src_info), &src_info);
 			}
@@ -1043,7 +1040,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			dst_release(dst);
 		}
 		if (val < 0)
-			val = ipv6_devconf.hop_limit;
+			val = sock_net(sk)->ipv6.devconf_all->hop_limit;
 		break;
 	}
 

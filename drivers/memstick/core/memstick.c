@@ -185,7 +185,7 @@ static void memstick_free(struct device *dev)
 }
 
 static struct class memstick_host_class = {
-	.name       = "memstick_host",
+	.name        = "memstick_host",
 	.dev_release = memstick_free
 };
 
@@ -249,8 +249,11 @@ EXPORT_SYMBOL(memstick_next_req);
  */
 void memstick_new_req(struct memstick_host *host)
 {
-	host->retries = cmd_retries;
-	host->request(host);
+	if (host->card) {
+		host->retries = cmd_retries;
+		INIT_COMPLETION(host->card->mrq_complete);
+		host->request(host);
+	}
 }
 EXPORT_SYMBOL(memstick_new_req);
 
@@ -261,7 +264,7 @@ EXPORT_SYMBOL(memstick_new_req);
  * @sg - TPC argument
  */
 void memstick_init_req_sg(struct memstick_request *mrq, unsigned char tpc,
-			  struct scatterlist *sg)
+			  const struct scatterlist *sg)
 {
 	mrq->tpc = tpc;
 	if (tpc & 8)
@@ -291,7 +294,7 @@ EXPORT_SYMBOL(memstick_init_req_sg);
  * user supplied buffer.
  */
 void memstick_init_req(struct memstick_request *mrq, unsigned char tpc,
-		       void *buf, size_t length)
+		       const void *buf, size_t length)
 {
 	mrq->tpc = tpc;
 	if (tpc & 8)
@@ -415,10 +418,14 @@ err_out:
 	return NULL;
 }
 
-static void memstick_power_on(struct memstick_host *host)
+static int memstick_power_on(struct memstick_host *host)
 {
-	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
-	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
+	int rc = host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
+
+	if (!rc)
+		rc = host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
+
+	return rc;
 }
 
 static void memstick_check(struct work_struct *work)
@@ -429,8 +436,11 @@ static void memstick_check(struct work_struct *work)
 
 	dev_dbg(&host->dev, "memstick_check started\n");
 	mutex_lock(&host->lock);
-	if (!host->card)
-		memstick_power_on(host);
+	if (!host->card) {
+		if (memstick_power_on(host))
+			goto out_power_off;
+	} else if (host->card->stop)
+		host->card->stop(host->card);
 
 	card = memstick_alloc_card(host);
 
@@ -448,7 +458,8 @@ static void memstick_check(struct work_struct *work)
 			    || !(host->card->check(host->card))) {
 				device_unregister(&host->card->dev);
 				host->card = NULL;
-			}
+			} else if (host->card->start)
+				host->card->start(host->card);
 		}
 
 		if (!host->card) {
@@ -461,6 +472,7 @@ static void memstick_check(struct work_struct *work)
 			kfree(card);
 	}
 
+out_power_off:
 	if (!host->card)
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 
@@ -573,11 +585,15 @@ EXPORT_SYMBOL(memstick_suspend_host);
  */
 void memstick_resume_host(struct memstick_host *host)
 {
+	int rc = 0;
+
 	mutex_lock(&host->lock);
 	if (host->card)
-		memstick_power_on(host);
+		rc = memstick_power_on(host);
 	mutex_unlock(&host->lock);
-	memstick_detect_change(host);
+
+	if (!rc)
+		memstick_detect_change(host);
 }
 EXPORT_SYMBOL(memstick_resume_host);
 

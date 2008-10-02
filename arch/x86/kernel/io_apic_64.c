@@ -45,6 +45,7 @@
 #include <asm/proto.h>
 #include <asm/acpi.h>
 #include <asm/dma.h>
+#include <asm/i8259.h>
 #include <asm/nmi.h>
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
@@ -100,7 +101,7 @@ int timer_through_8259 __initdata;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-DEFINE_SPINLOCK(vector_lock);
+static DEFINE_SPINLOCK(vector_lock);
 
 /*
  * # of IRQ routing registers
@@ -696,6 +697,19 @@ static int pin_2_irq(int idx, int apic, int pin)
 	return irq;
 }
 
+void lock_vector_lock(void)
+{
+	/* Used to the online set of cpus does not change
+	 * during assign_irq_vector.
+	 */
+	spin_lock(&vector_lock);
+}
+
+void unlock_vector_lock(void)
+{
+	spin_unlock(&vector_lock);
+}
+
 static int __assign_irq_vector(int irq, cpumask_t mask)
 {
 	/*
@@ -731,7 +745,7 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 			return 0;
 	}
 
-	for_each_cpu_mask(cpu, mask) {
+	for_each_cpu_mask_nr(cpu, mask) {
 		cpumask_t domain, new_mask;
 		int new_cpu;
 		int vector, offset;
@@ -752,7 +766,7 @@ next:
 			continue;
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
-		for_each_cpu_mask(new_cpu, new_mask)
+		for_each_cpu_mask_nr(new_cpu, new_mask)
 			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;
 		/* Found one! */
@@ -762,7 +776,7 @@ next:
 			cfg->move_in_progress = 1;
 			cfg->old_domain = cfg->domain;
 		}
-		for_each_cpu_mask(new_cpu, new_mask)
+		for_each_cpu_mask_nr(new_cpu, new_mask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq;
 		cfg->vector = vector;
 		cfg->domain = domain;
@@ -794,14 +808,14 @@ static void __clear_irq_vector(int irq)
 
 	vector = cfg->vector;
 	cpus_and(mask, cfg->domain, cpu_online_map);
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu_mask_nr(cpu, mask)
 		per_cpu(vector_irq, cpu)[vector] = -1;
 
 	cfg->vector = 0;
 	cpus_clear(cfg->domain);
 }
 
-static void __setup_vector_irq(int cpu)
+void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
 	/* This function must be called with vector_lock held */
@@ -823,14 +837,6 @@ static void __setup_vector_irq(int cpu)
 			per_cpu(vector_irq, cpu)[vector] = -1;
 	}
 }
-
-void setup_vector_irq(int cpu)
-{
-	spin_lock(&vector_lock);
-	__setup_vector_irq(smp_processor_id());
-	spin_unlock(&vector_lock);
-}
-
 
 static struct irq_chip ioapic_chip;
 
@@ -1372,12 +1378,10 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 static int ioapic_retrigger_irq(unsigned int irq)
 {
 	struct irq_cfg *cfg = &irq_cfg[irq];
-	cpumask_t mask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	mask = cpumask_of_cpu(first_cpu(cfg->domain));
-	send_IPI_mask(mask, cfg->vector);
+	send_IPI_mask(cpumask_of_cpu(first_cpu(cfg->domain)), cfg->vector);
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
@@ -1696,8 +1700,9 @@ static inline void __init check_timer(void)
 	pin2  = ioapic_i8259.pin;
 	apic2 = ioapic_i8259.apic;
 
-	apic_printk(APIC_VERBOSE,KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
-		cfg->vector, apic1, pin1, apic2, pin2);
+	apic_printk(APIC_QUIET, KERN_INFO "..TIMER: vector=0x%02X "
+		    "apic1=%d pin1=%d apic2=%d pin2=%d\n",
+		    cfg->vector, apic1, pin1, apic2, pin2);
 
 	/*
 	 * Some BIOS writers are clueless and report the ExtINTA
@@ -1735,14 +1740,13 @@ static inline void __init check_timer(void)
 		}
 		clear_IO_APIC_pin(apic1, pin1);
 		if (!no_pin1)
-			apic_printk(APIC_QUIET,KERN_ERR "..MP-BIOS bug: "
+			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS bug: "
 				    "8254 timer not connected to IO-APIC\n");
 
-		apic_printk(APIC_VERBOSE,KERN_INFO
-			"...trying to set up timer (IRQ0) "
-			"through the 8259A ... ");
-		apic_printk(APIC_VERBOSE,"\n..... (found apic %d pin %d) ...",
-			apic2, pin2);
+		apic_printk(APIC_QUIET, KERN_INFO "...trying to set up timer "
+			    "(IRQ0) through the 8259A ...\n");
+		apic_printk(APIC_QUIET, KERN_INFO
+			    "..... (found apic %d pin %d) ...\n", apic2, pin2);
 		/*
 		 * legacy devices should be connected to IO APIC #0
 		 */
@@ -1751,7 +1755,7 @@ static inline void __init check_timer(void)
 		unmask_IO_APIC_irq(0);
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
-			apic_printk(APIC_VERBOSE," works.\n");
+			apic_printk(APIC_QUIET, KERN_INFO "....... works.\n");
 			timer_through_8259 = 1;
 			if (nmi_watchdog == NMI_IO_APIC) {
 				disable_8259A_irq(0);
@@ -1765,29 +1769,32 @@ static inline void __init check_timer(void)
 		 */
 		disable_8259A_irq(0);
 		clear_IO_APIC_pin(apic2, pin2);
-		apic_printk(APIC_VERBOSE," failed.\n");
+		apic_printk(APIC_QUIET, KERN_INFO "....... failed.\n");
 	}
 
 	if (nmi_watchdog == NMI_IO_APIC) {
-		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
+		apic_printk(APIC_QUIET, KERN_WARNING "timer doesn't work "
+			    "through the IO-APIC - disabling NMI Watchdog!\n");
 		nmi_watchdog = NMI_NONE;
 	}
 
-	apic_printk(APIC_VERBOSE, KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
+	apic_printk(APIC_QUIET, KERN_INFO
+		    "...trying to set up timer as Virtual Wire IRQ...\n");
 
 	lapic_register_intr(0);
 	apic_write(APIC_LVT0, APIC_DM_FIXED | cfg->vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
 	if (timer_irq_works()) {
-		apic_printk(APIC_VERBOSE," works.\n");
+		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
 		goto out;
 	}
 	disable_8259A_irq(0);
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | cfg->vector);
-	apic_printk(APIC_VERBOSE," failed.\n");
+	apic_printk(APIC_QUIET, KERN_INFO "..... failed.\n");
 
-	apic_printk(APIC_VERBOSE, KERN_INFO "...trying to set up timer as ExtINT IRQ...");
+	apic_printk(APIC_QUIET, KERN_INFO
+		    "...trying to set up timer as ExtINT IRQ...\n");
 
 	init_8259A(0);
 	make_8259A_irq(0);
@@ -1796,11 +1803,12 @@ static inline void __init check_timer(void)
 	unlock_ExtINT_logic();
 
 	if (timer_irq_works()) {
-		apic_printk(APIC_VERBOSE," works.\n");
+		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
 		goto out;
 	}
-	apic_printk(APIC_VERBOSE," failed :(.\n");
-	panic("IO-APIC + timer doesn't work! Try using the 'noapic' kernel parameter\n");
+	apic_printk(APIC_QUIET, KERN_INFO "..... failed :(.\n");
+	panic("IO-APIC + timer doesn't work!  Boot with apic=debug and send a "
+		"report.  Then try booting with the 'noapic' option.\n");
 out:
 	local_irq_restore(flags);
 }

@@ -1,8 +1,6 @@
 /*
  * ip_vs_proto.c: transport protocol load balancing support for IPVS
  *
- * Version:     $Id: ip_vs_proto.c,v 1.2 2003/04/18 09:03:16 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Julian Anastasov <ja@ssi.bg>
  *
@@ -45,7 +43,7 @@ static struct ip_vs_protocol *ip_vs_proto_table[IP_VS_PROTO_TAB_SIZE];
 /*
  *	register an ipvs protocol
  */
-static int __used register_ip_vs_protocol(struct ip_vs_protocol *pp)
+static int __used __init register_ip_vs_protocol(struct ip_vs_protocol *pp)
 {
 	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
 
@@ -192,7 +190,7 @@ ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
 }
 
 
-int ip_vs_protocol_init(void)
+int __init ip_vs_protocol_init(void)
 {
 	char protocols[64];
 #define REGISTER_PROTOCOL(p)			\

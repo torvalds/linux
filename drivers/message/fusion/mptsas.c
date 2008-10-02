@@ -300,7 +300,7 @@ mptsas_port_delete(MPT_ADAPTER *ioc, struct mptsas_portinfo_details * port_detai
 	phy_info = port_info->phy_info;
 
 	dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: [%p]: num_phys=%02d "
-	    "bitmask=0x%016llX\n", ioc->name, __FUNCTION__, port_details,
+	    "bitmask=0x%016llX\n", ioc->name, __func__, port_details,
 	    port_details->num_phys, (unsigned long long)
 	    port_details->phy_bitmask));
 
@@ -411,7 +411,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		 */
 		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "%s: [%p]: deleting phy = %d\n",
-		    ioc->name, __FUNCTION__, port_details, i));
+		    ioc->name, __func__, port_details, i));
 		port_details->num_phys--;
 		port_details->phy_bitmask &= ~ (1 << phy_info->phy_id);
 		memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
@@ -497,7 +497,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 			continue;
 		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "%s: [%p]: phy_id=%02d num_phys=%02d "
-		    "bitmask=0x%016llX\n", ioc->name, __FUNCTION__,
+		    "bitmask=0x%016llX\n", ioc->name, __func__,
 		    port_details, i, port_details->num_phys,
 		    (unsigned long long)port_details->phy_bitmask));
 		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "\t\tport = %p rphy=%p\n",
@@ -553,7 +553,7 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 
 	if ((mf = mpt_get_msg_frame(ioc->TaskCtx, ioc)) == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, no msg frames @%d!!\n",
-		    ioc->name,__FUNCTION__, __LINE__));
+		    ioc->name,__func__, __LINE__));
 		return 0;
 	}
 
@@ -606,7 +606,7 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 	    GFP_ATOMIC);
 	if (!target_reset_list) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, failed to allocate mem @%d..!!\n",
-		    ioc->name,__FUNCTION__, __LINE__));
+		    ioc->name,__func__, __LINE__));
 		return;
 	}
 
@@ -673,7 +673,7 @@ mptsas_dev_reset_complete(MPT_ADAPTER *ioc)
 	ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
 	if (!ev) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, failed to allocate mem @%d..!!\n",
-		    ioc->name,__FUNCTION__, __LINE__));
+		    ioc->name,__func__, __LINE__));
 		return;
 	}
 
@@ -1183,7 +1183,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	reply = (SasIoUnitControlReply_t *)ioc->sas_mgmt.reply;
 	if (reply->IOCStatus != MPI_IOCSTATUS_SUCCESS) {
 		printk(MYIOC_s_INFO_FMT "%s: IOCStatus=0x%X IOCLogInfo=0x%X\n",
-		    ioc->name, __FUNCTION__, reply->IOCStatus, reply->IOCLogInfo);
+		    ioc->name, __func__, reply->IOCStatus, reply->IOCLogInfo);
 		error = -ENXIO;
 		goto out_unlock;
 	}
@@ -1270,14 +1270,14 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 	if (!rsp) {
 		printk(MYIOC_s_ERR_FMT "%s: the smp response space is missing\n",
-		    ioc->name, __FUNCTION__);
+		    ioc->name, __func__);
 		return -EINVAL;
 	}
 
 	/* do we need to support multiple segments? */
 	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
 		printk(MYIOC_s_ERR_FMT "%s: multiple segments req %u %u, rsp %u %u\n",
-		    ioc->name, __FUNCTION__, req->bio->bi_vcnt, req->data_len,
+		    ioc->name, __func__, req->bio->bi_vcnt, req->data_len,
 		    rsp->bio->bi_vcnt, rsp->data_len);
 		return -EINVAL;
 	}
@@ -1343,7 +1343,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 	timeleft = wait_for_completion_timeout(&ioc->sas_mgmt.done, 10 * HZ);
 	if (!timeleft) {
-		printk(MYIOC_s_ERR_FMT "%s: smp timeout!\n", ioc->name, __FUNCTION__);
+		printk(MYIOC_s_ERR_FMT "%s: smp timeout!\n", ioc->name, __func__);
 		/* On timeout reset the board */
 		mpt_HardResetHandler(ioc, CAN_SLEEP);
 		ret = -ETIMEDOUT;
@@ -1361,7 +1361,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		rsp->data_len -= smprep->ResponseDataLength;
 	} else {
 		printk(MYIOC_s_ERR_FMT "%s: smp passthru reply failed to be returned\n",
-		    ioc->name, __FUNCTION__);
+		    ioc->name, __func__);
 		ret = -ENXIO;
 	}
 unmap:
@@ -2006,7 +2006,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 			if (error) {
 				dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 					"%s: exit at line=%d\n", ioc->name,
-					__FUNCTION__, __LINE__));
+					__func__, __LINE__));
 				goto out;
 			}
 			mptsas_set_port(ioc, phy_info, port);
@@ -2076,7 +2076,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 		if (!rphy) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-				__FUNCTION__, __LINE__));
+				__func__, __LINE__));
 			goto out;
 		}
 
@@ -2085,7 +2085,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 		if (error) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-				__FUNCTION__, __LINE__));
+				__func__, __LINE__));
 			sas_rphy_free(rphy);
 			goto out;
 		}
@@ -2613,7 +2613,7 @@ mptsas_hotplug_work(struct work_struct *work)
 				    (ev->channel << 8) + ev->id)) {
 					dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 					"%s: exit at line=%d\n", ioc->name,
-						__FUNCTION__, __LINE__));
+						__func__, __LINE__));
 					break;
 				}
 				phy_info = mptsas_find_phyinfo_by_sas_address(
@@ -2633,20 +2633,20 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (!phy_info){
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-				__FUNCTION__, __LINE__));
+				__func__, __LINE__));
 			break;
 		}
 		if (!phy_info->port_details) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			break;
 		}
 		rphy = mptsas_get_rphy(phy_info);
 		if (!rphy) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			break;
 		}
 
@@ -2654,7 +2654,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (!port) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			break;
 		}
 
@@ -2665,7 +2665,7 @@ mptsas_hotplug_work(struct work_struct *work)
 			if (!vtarget) {
 				dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 					"%s: exit at line=%d\n", ioc->name,
-					__FUNCTION__, __LINE__));
+					__func__, __LINE__));
 				break;
 			}
 
@@ -2720,7 +2720,7 @@ mptsas_hotplug_work(struct work_struct *work)
 			(ev->channel << 8) + ev->id)) {
 				dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 					"%s: exit at line=%d\n", ioc->name,
-					__FUNCTION__, __LINE__));
+					__func__, __LINE__));
 			break;
 		}
 
@@ -2732,7 +2732,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (!phy_info || !phy_info->port_details) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			break;
 		}
 
@@ -2744,7 +2744,7 @@ mptsas_hotplug_work(struct work_struct *work)
 			if (!vtarget) {
 				dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				    "%s: exit at line=%d\n", ioc->name,
-				    __FUNCTION__, __LINE__));
+				    __func__, __LINE__));
 				break;
 			}
 			/*
@@ -2767,7 +2767,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (mptsas_get_rphy(phy_info)) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			if (ev->channel) printk("%d\n", __LINE__);
 			break;
 		}
@@ -2776,7 +2776,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (!port) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			break;
 		}
 		memcpy(&phy_info->attached, &sas_device,
@@ -2801,7 +2801,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (!rphy) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			break; /* non-fatal: an rphy can be added later */
 		}
 
@@ -2809,7 +2809,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		if (sas_rphy_add(rphy)) {
 			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 				"%s: exit at line=%d\n", ioc->name,
-			       	__FUNCTION__, __LINE__));
+			       	__func__, __LINE__));
 			sas_rphy_free(rphy);
 			break;
 		}

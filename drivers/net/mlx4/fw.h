@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -98,7 +98,7 @@ struct mlx4_dev_cap {
 	int cmpt_entry_sz;
 	int mtt_entry_sz;
 	int resize_srq;
-	u8  bmme_flags;
+	u32 bmme_flags;
 	u32 reserved_lkey;
 	u64 max_icm_sz;
 	int max_gso_sz;

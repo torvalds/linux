@@ -8,7 +8,7 @@ config VT
 	bool "Virtual terminal" if EMBEDDED
 	depends on !S390
 	select INPUT
-	default y if !VIOCONS
+	default y
 	---help---
 	  If you say Y here, you will get support for terminal devices with
 	  display and keyboard devices. These are called "virtual" because you
@@ -35,6 +35,14 @@ config VT
 
 	  If unsure, say Y, or else you won't be able to do much with your new
 	  shiny Linux system :-)
+
+config CONSOLE_TRANSLATIONS
+	depends on VT
+	default y
+	bool "Enable character translations in console" if EMBEDDED
+	---help---
+	  This enables support for font mapping and Unicode translation
+	  on virtual consoles.
 
 config VT_CONSOLE
 	bool "Support for console on virtual terminal" if EMBEDDED
@@ -299,16 +307,6 @@ config SPECIALIX
 	  <file:Documentation/specialix.txt>. Also it's possible to say M here
 	  and compile this driver as kernel loadable module which will be
 	  called specialix.
-
-config SPECIALIX_RTSCTS
-	bool "Specialix DTR/RTS pin is RTS"
-	depends on SPECIALIX
-	help
-	  The Specialix IO8+ card can only support either RTS or DTR. If you
-	  say N here, the driver will use the pin as "DTR" when the tty is in
-	  software handshake mode.  If you say Y here or hardware handshake is
-	  on, it will always be RTS.  Read the file
-	  <file:Documentation/specialix.txt> for more information.
 
 config SX
 	tristate "Specialix SX (and SI) card support"
@@ -588,11 +586,14 @@ config HVC_DRIVER
 	  It will automatically be selected if one of the back-end console drivers
 	  is selected.
 
+config HVC_IRQ
+	bool
 
 config HVC_CONSOLE
 	bool "pSeries Hypervisor Virtual Console support"
 	depends on PPC_PSERIES
 	select HVC_DRIVER
+	select HVC_IRQ
 	help
 	  pSeries machines when partitioned support a hypervisor virtual
 	  console. This driver allows each pSeries partition to have a console
@@ -603,6 +604,7 @@ config HVC_ISERIES
 	depends on PPC_ISERIES
 	default y
 	select HVC_DRIVER
+	select HVC_IRQ
 	help
 	  iSeries machines support a hypervisor virtual console.
 
@@ -624,13 +626,18 @@ config HVC_XEN
 	bool "Xen Hypervisor Console support"
 	depends on XEN
 	select HVC_DRIVER
+	select HVC_IRQ
 	default y
 	help
 	  Xen virtual console device driver
 
 config VIRTIO_CONSOLE
-	bool
+	tristate "Virtio console"
+	depends on VIRTIO
 	select HVC_DRIVER
+	help
+	  Virtio console for use with lguest and other hypervisors.
+
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
@@ -866,13 +873,6 @@ config DS1302
 	  into your computer.
 
 endif # RTC_LIB
-
-config COBALT_LCD
-	bool "Support for Cobalt LCD"
-	depends on MIPS_COBALT
-	help
-	  This option enables support for the LCD display and buttons found
-	  on Cobalt systems through a misc device.
 
 config DTLK
 	tristate "Double Talk PC internal speech card support"

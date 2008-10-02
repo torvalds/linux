@@ -43,7 +43,6 @@ void ps2_init(struct ps2dev *ps2dev, struct serio *serio);
 int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout);
 void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout);
 int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command);
-int ps2_schedule_command(struct ps2dev *ps2dev, unsigned char *param, int command);
 int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data);
 int ps2_handle_response(struct ps2dev *ps2dev, unsigned char data);
 void ps2_cmd_aborted(struct ps2dev *ps2dev);

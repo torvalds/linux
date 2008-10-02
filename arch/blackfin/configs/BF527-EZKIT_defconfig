@@ -1,7 +1,6 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.24.7
-# Fri May 16 10:02:29 2008
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -290,7 +289,7 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
 CONFIG_ZONE_DMA_FLAG=1
 CONFIG_VIRT_TO_BUS=y
-# CONFIG_BFIN_GPTIMERS is not set
+CONFIG_BFIN_GPTIMERS=y
 CONFIG_BFIN_DMA_5XX=y
 # CONFIG_DMA_UNCACHED_4M is not set
 # CONFIG_DMA_UNCACHED_2M is not set
@@ -430,7 +429,58 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 #
 # CONFIG_NET_PKTGEN is not set
 # CONFIG_HAMRADIO is not set
-# CONFIG_IRDA is not set
+CONFIG_IRDA=m
+
+#
+# IrDA protocols
+#
+CONFIG_IRLAN=m
+CONFIG_IRCOMM=m
+# CONFIG_IRDA_ULTRA is not set
+
+#
+# IrDA options
+#
+# CONFIG_IRDA_CACHE_LAST_LSAP is not set
+# CONFIG_IRDA_FAST_RR is not set
+# CONFIG_IRDA_DEBUG is not set
+
+#
+# Infrared-port device drivers
+#
+
+#
+# SIR device drivers
+#
+CONFIG_IRTTY_SIR=m
+CONFIG_BFIN_SIR=m
+CONFIG_BFIN_SIR0=y
+CONFIG_SIR_BFIN_DMA=y
+# CONFIG_SIR_BFIN_PIO is not set
+
+#
+# Dongle support
+#
+# CONFIG_DONGLE is not set
+# CONFIG_KINGSUN_DONGLE is not set
+# CONFIG_KSDAZZLE_DONGLE is not set
+# CONFIG_KS959_DONGLE is not set
+
+#
+# Old SIR device drivers
+#
+# CONFIG_IRPORT_SIR is not set
+
+#
+# Old Serial dongle support
+#
+
+#
+# FIR device drivers
+#
+# CONFIG_USB_IRDA is not set
+# CONFIG_SIGMATEL_FIR is not set
+# CONFIG_MCS_FIR is not set
 # CONFIG_BT is not set
 # CONFIG_AF_RXRPC is not set
 
@@ -689,8 +739,11 @@ CONFIG_BFIN_OTP=y
 # CONFIG_BFIN_SPORT is not set
 # CONFIG_BFIN_TIMER_LATENCY is not set
 # CONFIG_TWI_LCD is not set
-# CONFIG_SIMPLE_GPIO is not set
-# CONFIG_VT is not set
+CONFIG_SIMPLE_GPIO=m
+CONFIG_VT=y
+CONFIG_VT_CONSOLE=y
+CONFIG_HW_CONSOLE=y
+# CONFIG_VT_HW_CONSOLE_BINDING is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
 
 #
@@ -872,8 +925,36 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_VGASTATE is not set
 # CONFIG_VIDEO_OUTPUT_CONTROL is not set
-# CONFIG_FB is not set
-# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
+CONFIG_FB=y
+# CONFIG_FIRMWARE_EDID is not set
+# CONFIG_FB_DDC is not set
+CONFIG_FB_CFB_FILLRECT=y
+CONFIG_FB_CFB_COPYAREA=y
+CONFIG_FB_CFB_IMAGEBLIT=y
+# CONFIG_FB_CFB_REV_PIXELS_IN_BYTE is not set
+# CONFIG_FB_SYS_FILLRECT is not set
+# CONFIG_FB_SYS_COPYAREA is not set
+# CONFIG_FB_SYS_IMAGEBLIT is not set
+# CONFIG_FB_SYS_FOPS is not set
+CONFIG_FB_DEFERRED_IO=y
+# CONFIG_FB_SVGALIB is not set
+# CONFIG_FB_MACMODES is not set
+# CONFIG_FB_BACKLIGHT is not set
+# CONFIG_FB_MODE_HELPERS is not set
+# CONFIG_FB_TILEBLITTING is not set
+
+#
+# Frame buffer hardware drivers
+#
+CONFIG_FB_BFIN_T350MCQB=y
+# CONFIG_FB_BFIN_7393 is not set
+# CONFIG_FB_S1D13XXX is not set
+# CONFIG_FB_VIRTUAL is not set
+CONFIG_BACKLIGHT_LCD_SUPPORT=y
+CONFIG_LCD_CLASS_DEVICE=m
+CONFIG_LCD_LTV350QV=m
+CONFIG_BACKLIGHT_CLASS_DEVICE=m
+# CONFIG_BACKLIGHT_CORGI is not set
 
 #
 # Display device support
@@ -881,9 +962,99 @@ CONFIG_SSB_POSSIBLE=y
 # CONFIG_DISPLAY_SUPPORT is not set
 
 #
+# Console display driver support
+#
+CONFIG_DUMMY_CONSOLE=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+# CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY is not set
+# CONFIG_FRAMEBUFFER_CONSOLE_ROTATION is not set
+# CONFIG_FONTS is not set
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
+CONFIG_LOGO=y
+# CONFIG_LOGO_LINUX_MONO is not set
+# CONFIG_LOGO_LINUX_VGA16 is not set
+# CONFIG_LOGO_LINUX_CLUT224 is not set
+# CONFIG_LOGO_BLACKFIN_VGA16 is not set
+CONFIG_LOGO_BLACKFIN_CLUT224=y
+
+#
 # Sound
 #
-# CONFIG_SOUND is not set
+CONFIG_SOUND=m
+
+#
+# Advanced Linux Sound Architecture
+#
+CONFIG_SND=m
+CONFIG_SND_TIMER=m
+CONFIG_SND_PCM=m
+# CONFIG_SND_SEQUENCER is not set
+# CONFIG_SND_MIXER_OSS is not set
+# CONFIG_SND_PCM_OSS is not set
+# CONFIG_SND_DYNAMIC_MINORS is not set
+CONFIG_SND_SUPPORT_OLD_API=y
+CONFIG_SND_VERBOSE_PROCFS=y
+# CONFIG_SND_VERBOSE_PRINTK is not set
+# CONFIG_SND_DEBUG is not set
+
+#
+# Generic devices
+#
+# CONFIG_SND_DUMMY is not set
+# CONFIG_SND_MTPAV is not set
+# CONFIG_SND_SERIAL_U16550 is not set
+# CONFIG_SND_MPU401 is not set
+
+#
+# SPI devices
+#
+
+#
+# ALSA Blackfin devices
+#
+# CONFIG_SND_BLACKFIN_AD1836 is not set
+# CONFIG_SND_BLACKFIN_AD1836_TDM is not set
+# CONFIG_SND_BLACKFIN_AD1836_I2S is not set
+# CONFIG_SND_BLACKFIN_AD1836_MULSUB is not set
+# CONFIG_SND_BLACKFIN_AD1836_5P1 is not set
+# CONFIG_SND_BFIN_AD73311 is not set
+# CONFIG_SND_BFIN_AD73322 is not set
+
+#
+# USB devices
+#
+# CONFIG_SND_USB_AUDIO is not set
+# CONFIG_SND_USB_CAIAQ is not set
+
+#
+# System on Chip audio support
+#
+CONFIG_SND_SOC_AC97_BUS=y
+CONFIG_SND_SOC=m
+CONFIG_SND_BF5XX_SOC=m
+CONFIG_SND_MMAP_SUPPORT=y
+CONFIG_SND_BF5XX_SOC_I2S=m
+CONFIG_SND_BF5XX_SOC_AC97=m
+# CONFIG_SND_BF5XX_SOC_WM8750 is not set
+# CONFIG_SND_BF5XX_SOC_WM8731 is not set
+CONFIG_SND_BF5XX_SOC_SSM2602=m
+CONFIG_SND_BF5XX_SOC_BF5xx=m
+CONFIG_SND_BF5XX_SPORT_NUM=0
+# CONFIG_SND_BF5XX_HAVE_COLD_RESET is not set
+
+#
+# SoC Audio support for SuperH
+#
+CONFIG_SND_SOC_SSM2602=m
+# CONFIG_SND_SOC_SSM2602_SPI is not set
+CONFIG_SND_SOC_AD1980=m
+
+#
+# Open Sound System
+#
+# CONFIG_SOUND_PRIME is not set
+CONFIG_AC97_BUS=m
 CONFIG_HID_SUPPORT=y
 CONFIG_HID=y
 # CONFIG_HID_DEBUG is not set

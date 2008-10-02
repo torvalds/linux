@@ -103,7 +103,8 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 		rover = net_random() % remaining + low;
 
 		do {
-			head = &hashinfo->bhash[inet_bhashfn(rover, hashinfo->bhash_size)];
+			head = &hashinfo->bhash[inet_bhashfn(net, rover,
+					hashinfo->bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
 				if (tb->ib_net == net && tb->port == rover)
@@ -130,7 +131,8 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 		 */
 		snum = rover;
 	} else {
-		head = &hashinfo->bhash[inet_bhashfn(snum, hashinfo->bhash_size)];
+		head = &hashinfo->bhash[inet_bhashfn(net, snum,
+				hashinfo->bhash_size)];
 		spin_lock(&head->lock);
 		inet_bind_bucket_for_each(tb, node, &head->chain)
 			if (tb->ib_net == net && tb->port == snum)
@@ -165,7 +167,7 @@ tb_not_found:
 success:
 	if (!inet_csk(sk)->icsk_bind_hash)
 		inet_bind_hash(sk, tb, snum);
-	BUG_TRAP(inet_csk(sk)->icsk_bind_hash == tb);
+	WARN_ON(inet_csk(sk)->icsk_bind_hash != tb);
 	ret = 0;
 
 fail_unlock:
@@ -258,7 +260,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 	}
 
 	newsk = reqsk_queue_get_child(&icsk->icsk_accept_queue, sk);
-	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
+	WARN_ON(newsk->sk_state == TCP_SYN_RECV);
 out:
 	release_sock(sk);
 	return newsk;
@@ -336,15 +338,16 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 			    .uli_u = { .ports =
 				       { .sport = inet_sk(sk)->sport,
 					 .dport = ireq->rmt_port } } };
+	struct net *net = sock_net(sk);
 
 	security_req_classify_flow(req, &fl);
-	if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0)) {
-		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+	if (ip_route_output_flow(net, &rt, &fl, sk, 0)) {
+		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
 	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway) {
 		ip_rt_put(rt);
-		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
 	return &rt->u.dst;
@@ -383,7 +386,7 @@ struct request_sock *inet_csk_search_req(const struct sock *sk,
 		    ireq->rmt_addr == raddr &&
 		    ireq->loc_addr == laddr &&
 		    AF_INET_FAMILY(req->rsk_ops->family)) {
-			BUG_TRAP(!req->sk);
+			WARN_ON(req->sk);
 			*prevp = prev;
 			break;
 		}
@@ -536,14 +539,14 @@ EXPORT_SYMBOL_GPL(inet_csk_clone);
  */
 void inet_csk_destroy_sock(struct sock *sk)
 {
-	BUG_TRAP(sk->sk_state == TCP_CLOSE);
-	BUG_TRAP(sock_flag(sk, SOCK_DEAD));
+	WARN_ON(sk->sk_state != TCP_CLOSE);
+	WARN_ON(!sock_flag(sk, SOCK_DEAD));
 
 	/* It cannot be in hash table! */
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 
 	/* If it has not 0 inet_sk(sk)->num, it must be bound */
-	BUG_TRAP(!inet_sk(sk)->num || inet_csk(sk)->icsk_bind_hash);
+	WARN_ON(inet_sk(sk)->num && !inet_csk(sk)->icsk_bind_hash);
 
 	sk->sk_prot->destroy(sk);
 
@@ -626,7 +629,7 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		local_bh_disable();
 		bh_lock_sock(child);
-		BUG_TRAP(!sock_owned_by_user(child));
+		WARN_ON(sock_owned_by_user(child));
 		sock_hold(child);
 
 		sk->sk_prot->disconnect(child, O_NONBLOCK);
@@ -644,7 +647,7 @@ void inet_csk_listen_stop(struct sock *sk)
 		sk_acceptq_removed(sk);
 		__reqsk_free(req);
 	}
-	BUG_TRAP(!sk->sk_ack_backlog);
+	WARN_ON(sk->sk_ack_backlog);
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_listen_stop);

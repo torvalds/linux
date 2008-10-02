@@ -71,11 +71,11 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 		return nfserr_inval;
 
 	if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
-		accmode |= MAY_READ;
+		accmode |= NFSD_MAY_READ;
 	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-		accmode |= (MAY_WRITE | MAY_TRUNC);
+		accmode |= (NFSD_MAY_WRITE | NFSD_MAY_TRUNC);
 	if (open->op_share_deny & NFS4_SHARE_DENY_WRITE)
-		accmode |= MAY_WRITE;
+		accmode |= NFSD_MAY_WRITE;
 
 	status = fh_verify(rqstp, current_fh, S_IFREG, accmode);
 
@@ -126,7 +126,8 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 			&resfh.fh_handle.fh_base, resfh.fh_handle.fh_size);
 
 	if (!created)
-		status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
+		status = do_open_permission(rqstp, current_fh, open,
+					    NFSD_MAY_NOP);
 
 out:
 	fh_put(&resfh);
@@ -157,7 +158,8 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 	open->op_truncate = (open->op_iattr.ia_valid & ATTR_SIZE) &&
 		(open->op_iattr.ia_size == 0);
 
-	status = do_open_permission(rqstp, current_fh, open, MAY_OWNER_OVERRIDE);
+	status = do_open_permission(rqstp, current_fh, open,
+				    NFSD_MAY_OWNER_OVERRIDE);
 
 	return status;
 }
@@ -186,7 +188,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		cstate->current_fh.fh_handle.fh_size = rp->rp_openfh_len;
 		memcpy(&cstate->current_fh.fh_handle.fh_base, rp->rp_openfh,
 				rp->rp_openfh_len);
-		status = fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+		status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 		if (status)
 			dprintk("nfsd4_open: replay failed"
 				" restoring previous filehandle\n");
@@ -285,7 +287,7 @@ nfsd4_putfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	cstate->current_fh.fh_handle.fh_size = putfh->pf_fhlen;
 	memcpy(&cstate->current_fh.fh_handle.fh_base, putfh->pf_fhval,
 	       putfh->pf_fhlen);
-	return fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+	return fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 }
 
 static __be32
@@ -363,7 +365,8 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	fh_init(&resfh, NFS4_FHSIZE);
 
-	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, MAY_CREATE);
+	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR,
+			   NFSD_MAY_CREATE);
 	if (status == nfserr_symlink)
 		status = nfserr_notdir;
 	if (status)
@@ -445,7 +448,7 @@ nfsd4_getattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	__be32 status;
 
-	status = fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+	status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 	if (status)
 		return status;
 
@@ -730,7 +733,7 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int count;
 	__be32 status;
 
-	status = fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+	status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 	if (status)
 		return status;
 
@@ -843,9 +846,12 @@ struct nfsd4_operation {
 #define ALLOWED_WITHOUT_FH 1
 /* GETATTR and ops not listed as returning NFS4ERR_MOVED: */
 #define ALLOWED_ON_ABSENT_FS 2
+	char *op_name;
 };
 
 static struct nfsd4_operation nfsd4_ops[];
+
+static const char *nfsd4_op_name(unsigned opnum);
 
 /*
  * COMPOUND call.
@@ -860,11 +866,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_compound_state *cstate = NULL;
 	int		slack_bytes;
 	__be32		status;
-
-	status = nfserr_resource;
-	cstate = cstate_alloc();
-	if (cstate == NULL)
-		goto out;
 
 	resp->xbuf = &rqstp->rq_res;
 	resp->p = rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len;
@@ -884,11 +885,18 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	if (args->minorversion > NFSD_SUPPORTED_MINOR_VERSION)
 		goto out;
 
+	status = nfserr_resource;
+	cstate = cstate_alloc();
+	if (cstate == NULL)
+		goto out;
+
 	status = nfs_ok;
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
 
-		dprintk("nfsv4 compound op #%d: %d\n", resp->opcnt, op->opnum);
+		dprintk("nfsv4 compound op #%d/%d: %d (%s)\n",
+			resp->opcnt, args->opcnt, op->opnum,
+			nfsd4_op_name(op->opnum));
 
 		/*
 		 * The XDR decode routines may have pre-set op->status;
@@ -949,128 +957,171 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
+	cstate_free(cstate);
 out:
 	nfsd4_release_compoundargs(args);
-	cstate_free(cstate);
+	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
 
 static struct nfsd4_operation nfsd4_ops[OP_RELEASE_LOCKOWNER+1] = {
 	[OP_ACCESS] = {
 		.op_func = (nfsd4op_func)nfsd4_access,
+		.op_name = "OP_ACCESS",
 	},
 	[OP_CLOSE] = {
 		.op_func = (nfsd4op_func)nfsd4_close,
+		.op_name = "OP_CLOSE",
 	},
 	[OP_COMMIT] = {
 		.op_func = (nfsd4op_func)nfsd4_commit,
+		.op_name = "OP_COMMIT",
 	},
 	[OP_CREATE] = {
 		.op_func = (nfsd4op_func)nfsd4_create,
+		.op_name = "OP_CREATE",
 	},
 	[OP_DELEGRETURN] = {
 		.op_func = (nfsd4op_func)nfsd4_delegreturn,
+		.op_name = "OP_DELEGRETURN",
 	},
 	[OP_GETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_getattr,
 		.op_flags = ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_GETATTR",
 	},
 	[OP_GETFH] = {
 		.op_func = (nfsd4op_func)nfsd4_getfh,
+		.op_name = "OP_GETFH",
 	},
 	[OP_LINK] = {
 		.op_func = (nfsd4op_func)nfsd4_link,
+		.op_name = "OP_LINK",
 	},
 	[OP_LOCK] = {
 		.op_func = (nfsd4op_func)nfsd4_lock,
+		.op_name = "OP_LOCK",
 	},
 	[OP_LOCKT] = {
 		.op_func = (nfsd4op_func)nfsd4_lockt,
+		.op_name = "OP_LOCKT",
 	},
 	[OP_LOCKU] = {
 		.op_func = (nfsd4op_func)nfsd4_locku,
+		.op_name = "OP_LOCKU",
 	},
 	[OP_LOOKUP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookup,
+		.op_name = "OP_LOOKUP",
 	},
 	[OP_LOOKUPP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookupp,
+		.op_name = "OP_LOOKUPP",
 	},
 	[OP_NVERIFY] = {
 		.op_func = (nfsd4op_func)nfsd4_nverify,
+		.op_name = "OP_NVERIFY",
 	},
 	[OP_OPEN] = {
 		.op_func = (nfsd4op_func)nfsd4_open,
+		.op_name = "OP_OPEN",
 	},
 	[OP_OPEN_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_open_confirm,
+		.op_name = "OP_OPEN_CONFIRM",
 	},
 	[OP_OPEN_DOWNGRADE] = {
 		.op_func = (nfsd4op_func)nfsd4_open_downgrade,
+		.op_name = "OP_OPEN_DOWNGRADE",
 	},
 	[OP_PUTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_PUTFH",
 	},
 	[OP_PUTPUBFH] = {
-		/* unsupported; just for future reference: */
+		/* unsupported, just for future reference: */
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_PUTPUBFH",
 	},
 	[OP_PUTROOTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_PUTROOTFH",
 	},
 	[OP_READ] = {
 		.op_func = (nfsd4op_func)nfsd4_read,
+		.op_name = "OP_READ",
 	},
 	[OP_READDIR] = {
 		.op_func = (nfsd4op_func)nfsd4_readdir,
+		.op_name = "OP_READDIR",
 	},
 	[OP_READLINK] = {
 		.op_func = (nfsd4op_func)nfsd4_readlink,
+		.op_name = "OP_READLINK",
 	},
 	[OP_REMOVE] = {
 		.op_func = (nfsd4op_func)nfsd4_remove,
+		.op_name = "OP_REMOVE",
 	},
 	[OP_RENAME] = {
+		.op_name = "OP_RENAME",
 		.op_func = (nfsd4op_func)nfsd4_rename,
 	},
 	[OP_RENEW] = {
 		.op_func = (nfsd4op_func)nfsd4_renew,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_RENEW",
 	},
 	[OP_RESTOREFH] = {
 		.op_func = (nfsd4op_func)nfsd4_restorefh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_RESTOREFH",
 	},
 	[OP_SAVEFH] = {
 		.op_func = (nfsd4op_func)nfsd4_savefh,
+		.op_name = "OP_SAVEFH",
 	},
 	[OP_SECINFO] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo,
+		.op_name = "OP_SECINFO",
 	},
 	[OP_SETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_setattr,
+		.op_name = "OP_SETATTR",
 	},
 	[OP_SETCLIENTID] = {
 		.op_func = (nfsd4op_func)nfsd4_setclientid,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_SETCLIENTID",
 	},
 	[OP_SETCLIENTID_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_setclientid_confirm,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_SETCLIENTID_CONFIRM",
 	},
 	[OP_VERIFY] = {
 		.op_func = (nfsd4op_func)nfsd4_verify,
+		.op_name = "OP_VERIFY",
 	},
 	[OP_WRITE] = {
 		.op_func = (nfsd4op_func)nfsd4_write,
+		.op_name = "OP_WRITE",
 	},
 	[OP_RELEASE_LOCKOWNER] = {
 		.op_func = (nfsd4op_func)nfsd4_release_lockowner,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_name = "OP_RELEASE_LOCKOWNER",
 	},
 };
+
+static const char *nfsd4_op_name(unsigned opnum)
+{
+	if (opnum < ARRAY_SIZE(nfsd4_ops))
+		return nfsd4_ops[opnum].op_name;
+	return "unknown_operation";
+}
 
 #define nfs4svc_decode_voidargs		NULL
 #define nfs4svc_release_void		NULL

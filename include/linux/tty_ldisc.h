@@ -104,7 +104,7 @@
 #include <linux/fs.h>
 #include <linux/wait.h>
 
-struct tty_ldisc {
+struct tty_ldisc_ops {
 	int	magic;
 	char	*name;
 	int	num;
@@ -139,6 +139,11 @@ struct tty_ldisc {
 
 	struct  module *owner;
 	
+	int refcount;
+};
+
+struct tty_ldisc {
+	struct tty_ldisc_ops *ops;
 	int refcount;
 };
 

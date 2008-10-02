@@ -35,6 +35,7 @@
 #include <linux/proc_fs.h>
 #include <linux/highmem.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 
 /* Version Information */
@@ -521,7 +522,7 @@ static int zr364xx_vidioc_g_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int zr364xx_vidioc_enum_fmt_cap(struct file *file,
+static int zr364xx_vidioc_enum_fmt_vid_cap(struct file *file,
 				       void *priv, struct v4l2_fmtdesc *f)
 {
 	if (f->index > 0)
@@ -537,7 +538,7 @@ static int zr364xx_vidioc_enum_fmt_cap(struct file *file,
 	return 0;
 }
 
-static int zr364xx_vidioc_try_fmt_cap(struct file *file, void *priv,
+static int zr364xx_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				      struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -564,7 +565,7 @@ static int zr364xx_vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int zr364xx_vidioc_g_fmt_cap(struct file *file, void *priv,
+static int zr364xx_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -589,7 +590,7 @@ static int zr364xx_vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int zr364xx_vidioc_s_fmt_cap(struct file *file, void *priv,
+static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -761,19 +762,12 @@ static const struct file_operations zr364xx_fops = {
 	.llseek = no_llseek,
 };
 
-static struct video_device zr364xx_template = {
-	.owner = THIS_MODULE,
-	.name = DRIVER_DESC,
-	.type = VID_TYPE_CAPTURE,
-	.fops = &zr364xx_fops,
-	.release = video_device_release,
-	.minor = -1,
-
+static const struct v4l2_ioctl_ops zr364xx_ioctl_ops = {
 	.vidioc_querycap	= zr364xx_vidioc_querycap,
-	.vidioc_enum_fmt_cap	= zr364xx_vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap	= zr364xx_vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap	= zr364xx_vidioc_s_fmt_cap,
-	.vidioc_g_fmt_cap	= zr364xx_vidioc_g_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = zr364xx_vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= zr364xx_vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= zr364xx_vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= zr364xx_vidioc_g_fmt_vid_cap,
 	.vidioc_enum_input	= zr364xx_vidioc_enum_input,
 	.vidioc_g_input		= zr364xx_vidioc_g_input,
 	.vidioc_s_input		= zr364xx_vidioc_s_input,
@@ -782,6 +776,14 @@ static struct video_device zr364xx_template = {
 	.vidioc_queryctrl	= zr364xx_vidioc_queryctrl,
 	.vidioc_g_ctrl		= zr364xx_vidioc_g_ctrl,
 	.vidioc_s_ctrl		= zr364xx_vidioc_s_ctrl,
+};
+
+static struct video_device zr364xx_template = {
+	.name = DRIVER_DESC,
+	.fops = &zr364xx_fops,
+	.ioctl_ops = &zr364xx_ioctl_ops,
+	.release = video_device_release,
+	.minor = -1,
 };
 
 

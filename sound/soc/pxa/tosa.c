@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
+#include <linux/gpio.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -28,11 +29,10 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware/tmio.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/tosa.h>
+#include <mach/tosa.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-pcm.h"
@@ -137,10 +137,7 @@ static int tosa_set_spk(struct snd_kcontrol *kcontrol,
 static int tosa_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
-	if (SND_SOC_DAPM_EVENT_ON(event))
-		set_tc6393_gpio(&tc6393_device.dev,TOSA_TC6393_L_MUTE);
-	else
-		reset_tc6393_gpio(&tc6393_device.dev,TOSA_TC6393_L_MUTE);
+	gpio_set_value(TOSA_GPIO_L_MUTE, SND_SOC_DAPM_EVENT_ON(event) ? 1 :0);
 	return 0;
 }
 
@@ -254,16 +251,28 @@ static int __init tosa_init(void)
 	if (!machine_is_tosa())
 		return -ENODEV;
 
+	ret = gpio_request(TOSA_GPIO_L_MUTE, "Headphone Jack");
+	if (ret)
+		return ret;
+	gpio_direction_output(TOSA_GPIO_L_MUTE, 0);
+
 	tosa_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!tosa_snd_device)
-		return -ENOMEM;
+	if (!tosa_snd_device) {
+		ret = -ENOMEM;
+		goto err_alloc;
+	}
 
 	platform_set_drvdata(tosa_snd_device, &tosa_snd_devdata);
 	tosa_snd_devdata.dev = &tosa_snd_device->dev;
 	ret = platform_device_add(tosa_snd_device);
 
-	if (ret)
-		platform_device_put(tosa_snd_device);
+	if (!ret)
+		return 0;
+
+	platform_device_put(tosa_snd_device);
+
+err_alloc:
+	gpio_free(TOSA_GPIO_L_MUTE);
 
 	return ret;
 }
@@ -271,6 +280,7 @@ static int __init tosa_init(void)
 static void __exit tosa_exit(void)
 {
 	platform_device_unregister(tosa_snd_device);
+	gpio_free(TOSA_GPIO_L_MUTE);
 }
 
 module_init(tosa_init);

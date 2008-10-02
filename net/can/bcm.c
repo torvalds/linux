@@ -1303,7 +1303,7 @@ static int bcm_notifier(struct notifier_block *nb, unsigned long msg,
 	struct bcm_op *op;
 	int notify_enodev = 0;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (dev->type != ARPHRD_CAN)

@@ -29,7 +29,7 @@ static inline void dvma_unmap_iommu(unsigned long a, int b)
 extern void sun3_dvma_init(void);
 #endif
 
-unsigned long iommu_use[IOMMU_TOTAL_ENTRIES];
+static unsigned long iommu_use[IOMMU_TOTAL_ENTRIES];
 
 #define dvma_index(baddr) ((baddr - DVMA_START) >> DVMA_PAGE_SHIFT)
 

@@ -686,8 +686,9 @@ static int __init pg_init(void)
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
 		if (dev->present)
-			device_create(pg_class, NULL, MKDEV(major, unit),
-				      "pg%u", unit);
+			device_create_drvdata(pg_class, NULL,
+					      MKDEV(major, unit), NULL,
+					      "pg%u", unit);
 	}
 	err = 0;
 	goto out;

@@ -26,6 +26,8 @@
 #define MPC834X_SICRL_USB1         0x20000000
 #define MPC831X_SICRL_USB_MASK     0x00000c00
 #define MPC831X_SICRL_USB_ULPI     0x00000800
+#define MPC8315_SICRL_USB_MASK     0x000000fc
+#define MPC8315_SICRL_USB_ULPI     0x00000054
 #define MPC837X_SICRL_USB_MASK     0xf0000000
 #define MPC837X_SICRL_USB_ULPI     0x50000000
 
@@ -34,6 +36,8 @@
 #define MPC834X_SICRH_USB_UTMI     0x00020000
 #define MPC831X_SICRH_USB_MASK     0x000000e0
 #define MPC831X_SICRH_USB_ULPI     0x000000a0
+#define MPC8315_SICRH_USB_MASK     0x0000ff00
+#define MPC8315_SICRH_USB_ULPI     0x00000000
 
 /* USB Control Register */
 #define FSL_USB2_CONTROL_OFFS      0x500
@@ -55,7 +59,6 @@
  * mpc83xx_* files. Mostly for use by mpc83xx_setup
  */
 
-extern int mpc83xx_add_bridge(struct device_node *dev);
 extern void mpc83xx_restart(char *cmd);
 extern long mpc83xx_time_init(void);
 extern int mpc834x_usb_cfg(void);

@@ -237,7 +237,6 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
 
 /* linux/mm/swapfile.c */
 extern long total_swap_pages;
-extern unsigned int nr_swapfiles;
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(void);
 extern swp_entry_t get_swap_page_of_type(int);
@@ -253,8 +252,6 @@ extern struct swap_info_struct *get_swap_info_struct(unsigned);
 extern int can_share_swap_page(struct page *);
 extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
-
-extern spinlock_t swap_lock;
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;

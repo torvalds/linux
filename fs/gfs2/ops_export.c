@@ -134,7 +134,7 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 	struct dentry *dentry;
 
 	gfs2_str2qstr(&dotdot, "..");
-	inode = gfs2_lookupi(child->d_inode, &dotdot, 1, NULL);
+	inode = gfs2_lookupi(child->d_inode, &dotdot, 1);
 
 	if (!inode)
 		return ERR_PTR(-ENOENT);

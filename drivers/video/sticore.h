@@ -352,8 +352,6 @@ struct sti_struct *sti_get_rom(unsigned int index); /* 0: default sti */
 
 /* functions to call the STI ROM directly */
 
-int  sti_init_graph(struct sti_struct *sti);
-void sti_inq_conf(struct sti_struct *sti);
 void sti_putc(struct sti_struct *sti, int c, int y, int x);
 void sti_set(struct sti_struct *sti, int src_y, int src_x,
 	     int height, int width, u8 color);

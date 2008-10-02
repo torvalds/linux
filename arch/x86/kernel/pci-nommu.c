@@ -7,7 +7,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/processor.h>
 #include <asm/dma.h>
 
@@ -72,21 +72,9 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	return nents;
 }
 
-/* Make sure we keep the same behaviour */
-static int nommu_mapping_error(dma_addr_t dma_addr)
-{
-#ifdef CONFIG_X86_32
-	return 0;
-#else
-	return (dma_addr == bad_dma_address);
-#endif
-}
-
-
-const struct dma_mapping_ops nommu_dma_ops = {
+struct dma_mapping_ops nommu_dma_ops = {
 	.map_single = nommu_map_single,
 	.map_sg = nommu_map_sg,
-	.mapping_error = nommu_mapping_error,
 	.is_phys = 1,
 };
 

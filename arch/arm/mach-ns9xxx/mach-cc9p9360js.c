@@ -11,7 +11,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch-ns9xxx/processor-ns9360.h>
+#include <mach/processor-ns9360.h>
 
 #include "board-jscc9p9360.h"
 #include "generic.h"

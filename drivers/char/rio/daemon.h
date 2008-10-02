@@ -33,12 +33,6 @@
 #ifndef	__rio_daemon_h__
 #define	__rio_daemon_h__
 
-#ifdef SCCS_LABELS
-#ifndef lint
-static char *_daemon_h_sccs_ = "@(#)daemon.h	1.3";
-#endif
-#endif
-
 
 /*
 ** structures used on /dev/rio

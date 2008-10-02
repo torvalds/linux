@@ -23,6 +23,7 @@
 #include <asm/atomic.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include "uvcvideo.h"
 
@@ -1032,7 +1033,7 @@ static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_video_device *video = video_get_drvdata(vdev);
-	struct uvc_buffer *buffer;
+	struct uvc_buffer *uninitialized_var(buffer);
 	struct page *page;
 	unsigned long addr, start, size;
 	unsigned int i;
@@ -1103,3 +1104,4 @@ struct file_operations uvc_fops = {
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
 };
+

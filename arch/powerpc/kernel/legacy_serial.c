@@ -493,18 +493,18 @@ static int __init serial_dev_init(void)
 device_initcall(serial_dev_init);
 
 
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 /*
  * This is called very early, as part of console_init() (typically just after
  * time_init()). This function is respondible for trying to find a good
  * default console on serial ports. It tries to match the open firmware
- * default output with one of the available serial console drivers, either
- * one of the platform serial ports that have been probed earlier by
- * find_legacy_serial_ports() or some more platform specific ones.
+ * default output with one of the available serial console drivers that have
+ * been probed earlier by find_legacy_serial_ports()
  */
 static int __init check_legacy_serial_console(void)
 {
 	struct device_node *prom_stdout = NULL;
-	int speed = 0, offset = 0;
+	int i, speed = 0, offset = 0;
 	const char *name;
 	const u32 *spd;
 
@@ -548,31 +548,20 @@ static int __init check_legacy_serial_console(void)
 	if (spd)
 		speed = *spd;
 
-	if (0)
-		;
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	else if (strcmp(name, "serial") == 0) {
-		int i;
-		/* Look for it in probed array */
-		for (i = 0; i < legacy_serial_count; i++) {
-			if (prom_stdout != legacy_serial_infos[i].np)
-				continue;
-			offset = i;
-			speed = legacy_serial_infos[i].speed;
-			break;
-		}
-		if (i >= legacy_serial_count)
-			goto not_found;
-	}
-#endif /* CONFIG_SERIAL_8250_CONSOLE */
-#ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
-	else if (strcmp(name, "ch-a") == 0)
-		offset = 0;
-	else if (strcmp(name, "ch-b") == 0)
-		offset = 1;
-#endif /* CONFIG_SERIAL_PMACZILOG_CONSOLE */
-	else
+	if (strcmp(name, "serial") != 0)
 		goto not_found;
+
+	/* Look for it in probed array */
+	for (i = 0; i < legacy_serial_count; i++) {
+		if (prom_stdout != legacy_serial_infos[i].np)
+			continue;
+		offset = i;
+		speed = legacy_serial_infos[i].speed;
+		break;
+	}
+	if (i >= legacy_serial_count)
+		goto not_found;
+
 	of_node_put(prom_stdout);
 
 	DBG("Found serial console at ttyS%d\n", offset);
@@ -591,3 +580,4 @@ static int __init check_legacy_serial_console(void)
 }
 console_initcall(check_legacy_serial_console);
 
+#endif /* CONFIG_SERIAL_8250_CONSOLE */

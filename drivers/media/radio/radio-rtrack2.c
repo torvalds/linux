@@ -17,6 +17,7 @@
 #include <asm/uaccess.h>	/* copy to/from user		*/
 #include <linux/videodev2.h>	/* kernel radio structs		*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/spinlock.h>
 
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
@@ -294,12 +295,7 @@ static const struct file_operations rtrack2_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device rtrack2_radio=
-{
-	.owner		= THIS_MODULE,
-	.name		= "RadioTrack II radio",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &rtrack2_fops,
+static const struct v4l2_ioctl_ops rtrack2_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -312,6 +308,12 @@ static struct video_device rtrack2_radio=
 	.vidioc_s_audio     = vidioc_s_audio,
 	.vidioc_g_input     = vidioc_g_input,
 	.vidioc_s_input     = vidioc_s_input,
+};
+
+static struct video_device rtrack2_radio = {
+	.name		= "RadioTrack II radio",
+	.fops           = &rtrack2_fops,
+	.ioctl_ops 	= &rtrack2_ioctl_ops,
 };
 
 static int __init rtrack2_init(void)
@@ -330,8 +332,7 @@ static int __init rtrack2_init(void)
 	rtrack2_radio.priv=&rtrack2_unit;
 
 	spin_lock_init(&lock);
-	if(video_register_device(&rtrack2_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&rtrack2_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 4);
 		return -EINVAL;
 	}

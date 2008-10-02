@@ -55,6 +55,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
 #include <asm/kdebug.h>
+#include <asm/idle.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -88,6 +89,7 @@ static void cpu_exit_clear(void)
 	cpu_clear(cpu, cpu_callin_map);
 
 	numa_remove_cpu(cpu);
+	c1e_remove_cpu(cpu);
 }
 
 /* We don't actually take CPU down, just spin without interrupts. */
@@ -95,7 +97,6 @@ static inline void play_dead(void)
 {
 	/* This must be done before dead CPU ack */
 	cpu_exit_clear();
-	wbinvd();
 	mb();
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;
@@ -104,8 +105,8 @@ static inline void play_dead(void)
 	 * With physical CPU hotplug, we should halt the cpu
 	 */
 	local_irq_disable();
-	while (1)
-		halt();
+	/* mask all interrupts, flush any and all caches, and halt */
+	wbinvd_halt();
 }
 #else
 static inline void play_dead(void)
@@ -128,7 +129,7 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched()) {
 
 			check_pgt_cache();

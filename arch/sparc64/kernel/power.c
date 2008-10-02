@@ -13,11 +13,11 @@
 #include <linux/pm.h>
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
+#include <linux/of_device.h>
 
 #include <asm/system.h>
 #include <asm/auxio.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/io.h>
 #include <asm/sstate.h>
 #include <asm/reboot.h>

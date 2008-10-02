@@ -1,6 +1,4 @@
 /*
- * $Id: h3600_ts_input.c,v 1.4 2002/01/23 06:39:37 jsimmons Exp $
- *
  *  Copyright (c) 2001 "Crazy" James Simmons jsimmons@transvirtual.com
  *
  *  Sponsored by Transvirtual Technology.
@@ -41,8 +39,8 @@
 #include <linux/delay.h>
 
 /* SA1100 serial defines */
-#include <asm/arch/hardware.h>
-#include <asm/arch/irqs.h>
+#include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #define DRIVER_DESC	"H3600 touchscreen driver"
 

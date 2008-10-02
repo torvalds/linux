@@ -225,7 +225,7 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
 
-		target = (rdev->sb_offset << 1) + offset + index * (PAGE_SIZE/512);
+		target = rdev->sb_start + offset + index * (PAGE_SIZE/512);
 
 		if (sync_page_io(rdev->bdev, target, PAGE_SIZE, page, READ)) {
 			page->index = index;
@@ -238,15 +238,47 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 
 }
 
+static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
+{
+	/* Iterate the disks of an mddev, using rcu to protect access to the
+	 * linked list, and raising the refcount of devices we return to ensure
+	 * they don't disappear while in use.
+	 * As devices are only added or removed when raid_disk is < 0 and
+	 * nr_pending is 0 and In_sync is clear, the entries we return will
+	 * still be in the same position on the list when we re-enter
+	 * list_for_each_continue_rcu.
+	 */
+	struct list_head *pos;
+	rcu_read_lock();
+	if (rdev == NULL)
+		/* start at the beginning */
+		pos = &mddev->disks;
+	else {
+		/* release the previous rdev and start from there. */
+		rdev_dec_pending(rdev, mddev);
+		pos = &rdev->same_set;
+	}
+	list_for_each_continue_rcu(pos, &mddev->disks) {
+		rdev = list_entry(pos, mdk_rdev_t, same_set);
+		if (rdev->raid_disk >= 0 &&
+		    test_bit(In_sync, &rdev->flags) &&
+		    !test_bit(Faulty, &rdev->flags)) {
+			/* this is a usable devices */
+			atomic_inc(&rdev->nr_pending);
+			rcu_read_unlock();
+			return rdev;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
-	mdk_rdev_t *rdev;
-	struct list_head *tmp;
+	mdk_rdev_t *rdev = NULL;
 	mddev_t *mddev = bitmap->mddev;
 
-	rdev_for_each(rdev, tmp, mddev)
-		if (test_bit(In_sync, &rdev->flags)
-		    && !test_bit(Faulty, &rdev->flags)) {
+	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 			int size = PAGE_SIZE;
 			if (page->index == bitmap->file_pages-1)
 				size = roundup(bitmap->last_page_size,
@@ -260,32 +292,36 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				    + (long)(page->index * (PAGE_SIZE/512))
 				    + size/512 > 0)
 					/* bitmap runs in to metadata */
-					return -EINVAL;
+					goto bad_alignment;
 				if (rdev->data_offset + mddev->size*2
-				    > rdev->sb_offset*2 + bitmap->offset)
+				    > rdev->sb_start + bitmap->offset)
 					/* data runs in to bitmap */
-					return -EINVAL;
-			} else if (rdev->sb_offset*2 < rdev->data_offset) {
+					goto bad_alignment;
+			} else if (rdev->sb_start < rdev->data_offset) {
 				/* METADATA BITMAP DATA */
-				if (rdev->sb_offset*2
+				if (rdev->sb_start
 				    + bitmap->offset
 				    + page->index*(PAGE_SIZE/512) + size/512
 				    > rdev->data_offset)
 					/* bitmap runs in to data */
-					return -EINVAL;
+					goto bad_alignment;
 			} else {
 				/* DATA METADATA BITMAP - no problems */
 			}
 			md_super_write(mddev, rdev,
-				       (rdev->sb_offset<<1) + bitmap->offset
+				       rdev->sb_start + bitmap->offset
 				       + page->index * (PAGE_SIZE/512),
 				       size,
 				       page);
-		}
+	}
 
 	if (wait)
 		md_super_wait(mddev);
 	return 0;
+
+ bad_alignment:
+	rcu_read_unlock();
+	return -EINVAL;
 }
 
 static void bitmap_file_kick(struct bitmap *bitmap);
@@ -454,8 +490,11 @@ void bitmap_update_sb(struct bitmap *bitmap)
 	spin_unlock_irqrestore(&bitmap->lock, flags);
 	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
 	sb->events = cpu_to_le64(bitmap->mddev->events);
-	if (!bitmap->mddev->degraded)
-		sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
+	if (bitmap->mddev->events < bitmap->events_cleared) {
+		/* rocking back to read-only */
+		bitmap->events_cleared = bitmap->mddev->events;
+		sb->events_cleared = cpu_to_le64(bitmap->events_cleared);
+	}
 	kunmap_atomic(sb, KM_USER0);
 	write_page(bitmap, bitmap->sb_page, 1);
 }
@@ -1085,9 +1124,19 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 			} else
 				spin_unlock_irqrestore(&bitmap->lock, flags);
 			lastpage = page;
-/*
-			printk("bitmap clean at page %lu\n", j);
-*/
+
+			/* We are possibly going to clear some bits, so make
+			 * sure that events_cleared is up-to-date.
+			 */
+			if (bitmap->need_sync) {
+				bitmap_super_t *sb;
+				bitmap->need_sync = 0;
+				sb = kmap_atomic(bitmap->sb_page, KM_USER0);
+				sb->events_cleared =
+					cpu_to_le64(bitmap->events_cleared);
+				kunmap_atomic(sb, KM_USER0);
+				write_page(bitmap, bitmap->sb_page, 1);
+			}
 			spin_lock_irqsave(&bitmap->lock, flags);
 			clear_page_attr(bitmap, page, BITMAP_PAGE_CLEAN);
 		}
@@ -1216,7 +1265,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 		case 0:
 			bitmap_file_set_bit(bitmap, offset);
 			bitmap_count_page(bitmap,offset, 1);
-			blk_plug_device(bitmap->mddev->queue);
+			blk_plug_device_unlocked(bitmap->mddev->queue);
 			/* fall through */
 		case 1:
 			*bmc = 2;
@@ -1255,6 +1304,12 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 		if (!bmc) {
 			spin_unlock_irqrestore(&bitmap->lock, flags);
 			return;
+		}
+
+		if (success &&
+		    bitmap->events_cleared < bitmap->mddev->events) {
+			bitmap->events_cleared = bitmap->mddev->events;
+			bitmap->need_sync = 1;
 		}
 
 		if (!success && ! (*bmc & NEEDED_MASK))

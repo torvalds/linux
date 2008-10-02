@@ -549,7 +549,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 			override = 0;
 		in6_ifa_put(ifp);
 	} else {
-		if (ipv6_dev_get_saddr(dev, daddr,
+		if (ipv6_dev_get_saddr(dev_net(dev), dev, daddr,
 				       inet6_sk(dev_net(dev)->ipv6.ndisc_sk)->srcprefs,
 				       &tmpaddr))
 			return;
@@ -784,15 +784,17 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 		idev = ifp->idev;
 	} else {
+		struct net *net = dev_net(dev);
+
 		idev = in6_dev_get(dev);
 		if (!idev) {
 			/* XXX: count this drop? */
 			return;
 		}
 
-		if (ipv6_chk_acast_addr(dev_net(dev), dev, &msg->target) ||
+		if (ipv6_chk_acast_addr(net, dev, &msg->target) ||
 		    (idev->cnf.forwarding &&
-		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
+		     (net->ipv6.devconf_all->proxy_ndp || idev->cnf.proxy_ndp) &&
 		     (is_router = pndisc_is_router(&msg->target, dev)) >= 0)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
@@ -921,6 +923,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 
 	if (neigh) {
 		u8 old_flags = neigh->flags;
+		struct net *net = dev_net(dev);
 
 		if (neigh->nud_state & NUD_FAILED)
 			goto out;
@@ -931,8 +934,8 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		 * has already sent a NA to us.
 		 */
 		if (lladdr && !memcmp(lladdr, dev->dev_addr, dev->addr_len) &&
-		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
-		    pneigh_lookup(&nd_tbl, dev_net(dev), &msg->target, dev, 0)) {
+		    net->ipv6.devconf_all->forwarding && net->ipv6.devconf_all->proxy_ndp &&
+		    pneigh_lookup(&nd_tbl, net, &msg->target, dev, 0)) {
 			/* XXX: idev->cnf.prixy_ndp */
 			goto out;
 		}

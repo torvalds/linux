@@ -67,7 +67,7 @@ static struct ctl_table net_core_table[] = {
 	{
 		.ctl_name	= NET_CORE_MSG_COST,
 		.procname	= "message_cost",
-		.data		= &net_msg_cost,
+		.data		= &net_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -76,7 +76,7 @@ static struct ctl_table net_core_table[] = {
 	{
 		.ctl_name	= NET_CORE_MSG_BURST,
 		.procname	= "message_burst",
-		.data		= &net_msg_burst,
+		.data		= &net_ratelimit_state.burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -125,14 +125,6 @@ static struct ctl_table net_core_table[] = {
 #endif /* CONFIG_XFRM */
 #endif /* CONFIG_NET */
 	{
-		.ctl_name	= NET_CORE_SOMAXCONN,
-		.procname	= "somaxconn",
-		.data		= &init_net.core.sysctl_somaxconn,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
 		.ctl_name	= NET_CORE_BUDGET,
 		.procname	= "netdev_budget",
 		.data		= &netdev_budget,
@@ -151,6 +143,18 @@ static struct ctl_table net_core_table[] = {
 	{ .ctl_name = 0 }
 };
 
+static struct ctl_table netns_core_table[] = {
+	{
+		.ctl_name	= NET_CORE_SOMAXCONN,
+		.procname	= "somaxconn",
+		.data		= &init_net.core.sysctl_somaxconn,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{ .ctl_name = 0 }
+};
+
 static __net_initdata struct ctl_path net_core_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "core", .ctl_name = NET_CORE, },
@@ -159,23 +163,17 @@ static __net_initdata struct ctl_path net_core_path[] = {
 
 static __net_init int sysctl_core_net_init(struct net *net)
 {
-	struct ctl_table *tbl, *tmp;
+	struct ctl_table *tbl;
 
 	net->core.sysctl_somaxconn = SOMAXCONN;
 
-	tbl = net_core_table;
+	tbl = netns_core_table;
 	if (net != &init_net) {
-		tbl = kmemdup(tbl, sizeof(net_core_table), GFP_KERNEL);
+		tbl = kmemdup(tbl, sizeof(netns_core_table), GFP_KERNEL);
 		if (tbl == NULL)
 			goto err_dup;
 
-		for (tmp = tbl; tmp->procname; tmp++) {
-			if (tmp->data >= (void *)&init_net &&
-					tmp->data < (void *)(&init_net + 1))
-				tmp->data += (char *)net - (char *)&init_net;
-			else
-				tmp->mode &= ~0222;
-		}
+		tbl[0].data = &net->core.sysctl_somaxconn;
 	}
 
 	net->core.sysctl_hdr = register_net_sysctl_table(net,
@@ -186,7 +184,7 @@ static __net_init int sysctl_core_net_init(struct net *net)
 	return 0;
 
 err_reg:
-	if (tbl != net_core_table)
+	if (tbl != netns_core_table)
 		kfree(tbl);
 err_dup:
 	return -ENOMEM;
@@ -198,7 +196,7 @@ static __net_exit void sysctl_core_net_exit(struct net *net)
 
 	tbl = net->core.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->core.sysctl_hdr);
-	BUG_ON(tbl == net_core_table);
+	BUG_ON(tbl == netns_core_table);
 	kfree(tbl);
 }
 
@@ -209,6 +207,7 @@ static __net_initdata struct pernet_operations sysctl_core_ops = {
 
 static __init int sysctl_core_init(void)
 {
+	register_net_sysctl_rotable(net_core_path, net_core_table);
 	return register_pernet_subsys(&sysctl_core_ops);
 }
 

@@ -32,6 +32,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -43,14 +44,9 @@
 #include <asm/cpm1.h>
 #endif
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
-#include <linux/of_platform.h>
-#endif
-
 #include "fs_enet.h"
 
 /*************************************************/
-
 #if defined(CONFIG_CPM1)
 /* for a 8xx __raw_xxx's are sufficient */
 #define __fs_out32(addr, x)	__raw_writel(x, addr)
@@ -65,6 +61,8 @@
 #define __fs_out16(addr, x)	out_be16(addr, x)
 #define __fs_in32(addr)	in_be32(addr)
 #define __fs_in16(addr)	in_be16(addr)
+#define __fs_out8(addr, x)	out_8(addr, x)
+#define __fs_in8(addr)	in_8(addr)
 #endif
 
 /* write, read, set bits, clear bits */
@@ -99,7 +97,6 @@ static inline int scc_cr_cmd(struct fs_enet_private *fep, u32 op)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	struct of_device *ofdev = to_of_device(fep->dev);
 
 	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
@@ -115,27 +112,6 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		iounmap(fep->scc.sccp);
 		return -EINVAL;
 	}
-#else
-	struct platform_device *pdev = to_platform_device(fep->dev);
-	struct resource *r;
-
-	/* Fill out IRQ field */
-	fep->interrupt = platform_get_irq_byname(pdev, "interrupt");
-	if (fep->interrupt < 0)
-		return -EINVAL;
-
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	fep->scc.sccp = ioremap(r->start, r->end - r->start + 1);
-
-	if (fep->scc.sccp == NULL)
-		return -EINVAL;
-
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pram");
-	fep->scc.ep = ioremap(r->start, r->end - r->start + 1);
-
-	if (fep->scc.ep == NULL)
-		return -EINVAL;
-#endif
 
 	return 0;
 }
@@ -148,16 +124,6 @@ static int do_pd_setup(struct fs_enet_private *fep)
 static int setup_data(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-	struct fs_platform_info *fpi = fep->fpi;
-
-	fep->scc.idx = fs_get_scc_index(fpi->fs_no);
-	if ((unsigned int)fep->fcc.idx >= 4) /* max 4 SCCs */
-		return -EINVAL;
-
-	fpi->cp_command = fep->fcc.idx << 6;
-#endif
 
 	do_pd_setup(fep);
 
@@ -297,8 +263,13 @@ static void restart(struct net_device *dev)
 
 	/* Initialize function code registers for big-endian.
 	 */
+#ifndef CONFIG_NOT_COHERENT_CACHE
+	W8(ep, sen_genscc.scc_rfcr, SCC_EB | SCC_GBL);
+	W8(ep, sen_genscc.scc_tfcr, SCC_EB | SCC_GBL);
+#else
 	W8(ep, sen_genscc.scc_rfcr, SCC_EB);
 	W8(ep, sen_genscc.scc_tfcr, SCC_EB);
+#endif
 
 	/* Set maximum bytes per receive buffer.
 	 * This appears to be an Ethernet frame size, not the buffer

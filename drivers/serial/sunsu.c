@@ -1,4 +1,4 @@
-/* $Id: su.c,v 1.55 2002/01/08 16:00:16 davem Exp $
+/*
  * su.c: Small serial driver for keyboard/mouse interface on sparc32/PCI
  *
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)
@@ -35,11 +35,11 @@
 #include <linux/serial_reg.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 
 #if defined(CONFIG_SERIAL_SUNSU_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -311,7 +311,7 @@ static void sunsu_enable_ms(struct uart_port *port)
 static struct tty_struct *
 receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 {
-	struct tty_struct *tty = up->port.info->tty;
+	struct tty_struct *tty = up->port.info->port.tty;
 	unsigned char ch, flag;
 	int max_count = 256;
 	int saw_console_brk = 0;

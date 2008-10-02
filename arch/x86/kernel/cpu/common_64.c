@@ -7,19 +7,18 @@
 #include <linux/module.h>
 #include <linux/kgdb.h>
 #include <linux/topology.h>
-#include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
-#include <linux/module.h>
 #include <linux/percpu.h>
-#include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
 #include <asm/io.h>
+#include <asm/linkage.h>
 #include <asm/mmu_context.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <asm/pat.h>
+#include <asm/asm.h>
 #include <asm/numa.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
@@ -217,6 +216,39 @@ static void __init early_cpu_support_print(void)
 	}
 }
 
+/*
+ * The NOPL instruction is supposed to exist on all CPUs with
+ * family >= 6, unfortunately, that's not true in practice because
+ * of early VIA chips and (more importantly) broken virtualizers that
+ * are not easy to detect.  Hence, probe for it based on first
+ * principles.
+ *
+ * Note: no 64-bit chip is known to lack these, but put the code here
+ * for consistency with 32 bits, and to make it utterly trivial to
+ * diagnose the problem should it ever surface.
+ */
+static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
+{
+	const u32 nopl_signature = 0x888c53b1; /* Random number */
+	u32 has_nopl = nopl_signature;
+
+	clear_cpu_cap(c, X86_FEATURE_NOPL);
+	if (c->x86 >= 6) {
+		asm volatile("\n"
+			     "1:      .byte 0x0f,0x1f,0xc0\n" /* nopl %eax */
+			     "2:\n"
+			     "        .section .fixup,\"ax\"\n"
+			     "3:      xor %0,%0\n"
+			     "        jmp 2b\n"
+			     "        .previous\n"
+			     _ASM_EXTABLE(1b,3b)
+			     : "+a" (has_nopl));
+
+		if (has_nopl == nopl_signature)
+			set_cpu_cap(c, X86_FEATURE_NOPL);
+	}
+}
+
 static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c);
 
 void __init early_cpu_init(void)
@@ -305,7 +337,6 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 
-	c->extended_cpuid_level = cpuid_eax(0x80000000);
 	if (c->extended_cpuid_level >= 0x80000007)
 		c->x86_power = cpuid_edx(0x80000007);
 
@@ -316,18 +347,13 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		c->x86_phys_bits = eax & 0xff;
 	}
 
-	/* Assume all 64-bit CPUs support 32-bit syscall */
-	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
+	detect_nopl(c);
 
 	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
 	    cpu_devs[c->x86_vendor]->c_early_init)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	validate_pat_support(c);
-
-	/* early_param could clear that, but recall get it set again */
-	if (disable_apic)
-		clear_cpu_cap(c, X86_FEATURE_APIC);
 }
 
 /*
@@ -503,22 +529,24 @@ void pda_init(int cpu)
 		/* others are initialized in smpboot.c */
 		pda->pcurrent = &init_task;
 		pda->irqstackptr = boot_cpu_stack;
+		pda->irqstackptr += IRQSTACKSIZE - 64;
 	} else {
-		pda->irqstackptr = (char *)
-			__get_free_pages(GFP_ATOMIC, IRQSTACK_ORDER);
-		if (!pda->irqstackptr)
-			panic("cannot allocate irqstack for cpu %d", cpu);
+		if (!pda->irqstackptr) {
+			pda->irqstackptr = (char *)
+				__get_free_pages(GFP_ATOMIC, IRQSTACK_ORDER);
+			if (!pda->irqstackptr)
+				panic("cannot allocate irqstack for cpu %d",
+				      cpu);
+			pda->irqstackptr += IRQSTACKSIZE - 64;
+		}
 
 		if (pda->nodenumber == 0 && cpu_to_node(cpu) != NUMA_NO_NODE)
 			pda->nodenumber = cpu_to_node(cpu);
 	}
-
-	pda->irqstackptr += IRQSTACKSIZE-64;
 }
 
 char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
-			   DEBUG_STKSZ]
-__attribute__((section(".bss.page_aligned")));
+			   DEBUG_STKSZ] __page_aligned_bss;
 
 extern asmlinkage void ignore_sysret(void);
 
@@ -612,19 +640,22 @@ void __cpuinit cpu_init(void)
 	/*
 	 * set up and load the per-CPU TSS
 	 */
-	for (v = 0; v < N_EXCEPTION_STACKS; v++) {
+	if (!orig_ist->ist[0]) {
 		static const unsigned int order[N_EXCEPTION_STACKS] = {
-			[0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
-			[DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+		  [0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
+		  [DEBUG_STACK - 1] = DEBUG_STACK_ORDER
 		};
-		if (cpu) {
-			estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
-			if (!estacks)
-				panic("Cannot allocate exception stack %ld %d\n",
-				      v, cpu);
+		for (v = 0; v < N_EXCEPTION_STACKS; v++) {
+			if (cpu) {
+				estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
+				if (!estacks)
+					panic("Cannot allocate exception "
+					      "stack %ld %d\n", v, cpu);
+			}
+			estacks += PAGE_SIZE << order[v];
+			orig_ist->ist[v] = t->x86_tss.ist[v] =
+					(unsigned long)estacks;
 		}
-		estacks += PAGE_SIZE << order[v];
-		orig_ist->ist[v] = t->x86_tss.ist[v] = (unsigned long)estacks;
 	}
 
 	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);

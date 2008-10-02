@@ -7,13 +7,20 @@ config MAC80211
 	select CRC32
 	select WIRELESS_EXT
 	select CFG80211
-	select NET_SCH_FIFO
 	---help---
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.
 
 menu "Rate control algorithm selection"
 	depends on MAC80211 != n
+
+config MAC80211_RC_PID
+	bool "PID controller based rate control algorithm" if EMBEDDED
+	default y
+	---help---
+	  This option enables a TX rate control algorithm for
+	  mac80211 that uses a PID controller to select the TX
+	  rate.
 
 choice
 	prompt "Default rate control algorithm"
@@ -26,39 +33,18 @@ choice
 
 config MAC80211_RC_DEFAULT_PID
 	bool "PID controller based rate control algorithm"
-	select MAC80211_RC_PID
+	depends on MAC80211_RC_PID
 	---help---
 	  Select the PID controller based rate control as the
 	  default rate control algorithm. You should choose
 	  this unless you know what you are doing.
 
-config MAC80211_RC_DEFAULT_NONE
-	bool "No default algorithm"
-	depends on EMBEDDED
-	help
-	  Selecting this option will select no default algorithm
-	  and allow you to not build any. Do not choose this
-	  option unless you know your driver comes with another
-	  suitable algorithm.
 endchoice
-
-comment "Selecting 'y' for an algorithm will"
-comment "build the algorithm into mac80211."
 
 config MAC80211_RC_DEFAULT
 	string
 	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
-
-config MAC80211_RC_PID
-	tristate "PID controller based rate control algorithm"
-	---help---
-	  This option enables a TX rate control algorithm for
-	  mac80211 that uses a PID controller to select the TX
-	  rate.
-
-	  Say Y or M unless you're sure you want to use a
-	  different rate control algorithm.
 
 endmenu
 
@@ -89,10 +75,16 @@ config MAC80211_DEBUGFS
 
 	  Say N unless you know you need this.
 
+menuconfig MAC80211_DEBUG_MENU
+	bool "Select mac80211 debugging features"
+	depends on MAC80211
+	---help---
+	  This option collects various mac80211 debug settings.
+
 config MAC80211_DEBUG_PACKET_ALIGNMENT
 	bool "Enable packet alignment debugging"
-	depends on MAC80211
-	help
+	depends on MAC80211_DEBUG_MENU
+	---help---
 	  This option is recommended for driver authors and strongly
 	  discouraged for everybody else, it will trigger a warning
 	  when a driver hands mac80211 a buffer that is aligned in
@@ -101,33 +93,95 @@ config MAC80211_DEBUG_PACKET_ALIGNMENT
 
 	  Say N unless you're writing a mac80211 based driver.
 
-config MAC80211_DEBUG
-	bool "Enable debugging output"
-	depends on MAC80211
+config MAC80211_NOINLINE
+	bool "Do not inline TX/RX handlers"
+	depends on MAC80211_DEBUG_MENU
 	---help---
-	  This option will enable debug tracing output for the
-	  ieee80211 network stack.
+	  This option affects code generation in mac80211, when
+	  selected some functions are marked "noinline" to allow
+	  easier debugging of problems in the transmit and receive
+	  paths.
 
-	  If you are not trying to debug or develop the ieee80211
-	  subsystem, you most likely want to say N here.
+	  This option increases code size a bit and inserts a lot
+	  of function calls in the code, but is otherwise safe to
+	  enable.
+
+	  If unsure, say N unless you expect to be finding problems
+	  in mac80211.
+
+config MAC80211_VERBOSE_DEBUG
+	bool "Verbose debugging output"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  many debugging messages. It should not be selected
+	  on production systems as some of the messages are
+	  remotely triggerable.
+
+	  Do not select this option.
 
 config MAC80211_HT_DEBUG
-	bool "Enable HT debugging output"
-	depends on MAC80211_DEBUG
+	bool "Verbose HT debugging"
+	depends on MAC80211_DEBUG_MENU
 	---help---
 	  This option enables 802.11n High Throughput features
 	  debug tracing output.
 
-	  If you are not trying to debug of develop the ieee80211
-	  subsystem, you most likely want to say N here.
+	  It should not be selected on production systems as some
+	  of the messages are remotely triggerable.
 
-config MAC80211_VERBOSE_DEBUG
-	bool "Verbose debugging output"
-	depends on MAC80211_DEBUG
+	  Do not select this option.
+
+config MAC80211_TKIP_DEBUG
+	bool "Verbose TKIP debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  very verbose TKIP debugging messages. It should not
+	  be selected on production systems as those messages
+	  are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_IBSS_DEBUG
+	bool "Verbose IBSS debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  very verbose IBSS debugging messages. It should not
+	  be selected on production systems as those messages
+	  are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_VERBOSE_PS_DEBUG
+	bool "Verbose powersave mode debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out very
+	  verbose power save mode debugging messages (when mac80211
+	  is an AP and has power saving stations.)
+	  It should not be selected on production systems as those
+	  messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_VERBOSE_MPL_DEBUG
+	bool "Verbose mesh peer link debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very
+	  verbose mesh peer link debugging messages (when mac80211
+	  is taking part in a mesh network).
+	  It should not be selected on production systems as those
+	  messages are remotely triggerable.
+
+	  Do not select this option.
 
 config MAC80211_LOWTX_FRAME_DUMP
 	bool "Debug frame dumping"
-	depends on MAC80211_DEBUG
+	depends on MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option will cause the stack to
 	  print a message for each frame that is handed
@@ -138,30 +192,20 @@ config MAC80211_LOWTX_FRAME_DUMP
 	  If unsure, say N and insert the debugging code
 	  you require into the driver you are debugging.
 
-config TKIP_DEBUG
-	bool "TKIP debugging"
-	depends on MAC80211_DEBUG
-
 config MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"
-	depends on MAC80211_DEBUG
-
-config MAC80211_IBSS_DEBUG
-	bool "Support for IBSS testing"
-	depends on MAC80211_DEBUG
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_DEBUGFS
 	---help---
-	  Say Y here if you intend to debug the IBSS code.
+	  Selecting this option causes mac80211 to keep additional
+	  and very verbose statistics about TX and RX handler use
+	  and show them in debugfs.
 
-config MAC80211_VERBOSE_PS_DEBUG
-	bool "Verbose powersave mode debugging"
-	depends on MAC80211_DEBUG
-	---help---
-	  Say Y here to print out verbose powersave
-	  mode debug messages.
+	  If unsure, say N.
 
-config MAC80211_VERBOSE_MPL_DEBUG
-	bool "Verbose mesh peer link debugging"
-	depends on MAC80211_DEBUG && MAC80211_MESH
+config MAC80211_VERBOSE_SPECT_MGMT_DEBUG
+	bool "Verbose Spectrum Management (IEEE 802.11h)debugging"
+	depends on MAC80211_DEBUG_MENU
 	---help---
-	  Say Y here to print out verbose mesh peer link
+	  Say Y here to print out verbose Spectrum Management (IEEE 802.11h)
 	  debug messages.

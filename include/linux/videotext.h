@@ -45,10 +45,10 @@
 #define VTXIOCCLRCACHE_OLD 0x710b  /* clear cache on VTX-interface (if avail.) */
 #define VTXIOCSETVIRT_OLD  0x710c  /* turn on virtual mode (this disables TV-display) */
 
-/* 
+/*
  *	Definitions for VTXIOCGETINFO
  */
- 
+
 #define SAA5243 0
 #define SAA5246 1
 #define SAA5249 2
@@ -57,10 +57,10 @@
 
 typedef struct {
 	int version_major, version_minor;	/* version of driver; if version_major changes, driver */
-						/* is not backward compatible!!! CHECK THIS!!! */  
+						/* is not backward compatible!!! CHECK THIS!!! */
 	int numpages;				/* number of page-buffers of vtx-chipset */
 	int cct_type;				/* type of vtx-chipset (SAA5243, SAA5246, SAA5248 or
-  						 * SAA5249) */
+						 * SAA5249) */
 }
 vtx_info_t;
 
@@ -81,7 +81,7 @@ vtx_info_t;
 #define PGMASK_HOUR (HR_TEN | HR_UNIT)
 #define PGMASK_MINUTE (MIN_TEN | MIN_UNIT)
 
-typedef struct 
+typedef struct
 {
 	int page;	/* number of requested page (hexadecimal) */
 	int hour;	/* requested hour (hexadecimal) */
@@ -98,11 +98,11 @@ vtx_pagereq_t;
 /*
  *	Definitions for VTXIOC{GETSTAT,PUTSTAT}
  */
- 
+
 #define VTX_PAGESIZE (40 * 24)
 #define VTX_VIRTUALSIZE (40 * 49)
 
-typedef struct 
+typedef struct
 {
 	int pagenum;			/* number of page (hexadecimal) */
 	int hour;			/* hour (hexadecimal) */
@@ -121,5 +121,5 @@ typedef struct
 	unsigned hamming : 1;		/* hamming-error occurred */
 }
 vtx_pageinfo_t;
- 
+
 #endif /* _VTX_H */

@@ -12,7 +12,7 @@
 #include "sysdep/ptrace.h"
 
 /* Set during early boot */
-int host_has_cmov = 1;
+static int host_has_cmov = 1;
 static jmp_buf cmov_test_return;
 
 static void cmov_sigill_test_handler(int sig)

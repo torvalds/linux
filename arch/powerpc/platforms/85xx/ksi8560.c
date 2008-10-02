@@ -222,6 +222,7 @@ static void ksi8560_show_cpuinfo(struct seq_file *m)
 
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .type = "soc", },
+	{ .type = "simple-bus", },
 	{ .name = "cpm", },
 	{ .name = "localbus", },
 	{},

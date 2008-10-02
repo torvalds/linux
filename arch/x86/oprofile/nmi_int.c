@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <linux/kdebug.h>
+#include <linux/cpu.h>
 #include <asm/nmi.h>
 #include <asm/msr.h>
 #include <asm/apic.h>
@@ -28,23 +29,48 @@ static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 
 static int nmi_start(void);
 static void nmi_stop(void);
+static void nmi_cpu_start(void *dummy);
+static void nmi_cpu_stop(void *dummy);
 
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
+
+#ifdef CONFIG_SMP
+static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
+				 void *data)
+{
+	int cpu = (unsigned long)data;
+	switch (action) {
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
+		smp_call_function_single(cpu, nmi_cpu_start, NULL, 0);
+		break;
+	case CPU_DOWN_PREPARE:
+		smp_call_function_single(cpu, nmi_cpu_stop, NULL, 1);
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block oprofile_cpu_nb = {
+	.notifier_call = oprofile_cpu_notifier
+};
+#endif
 
 #ifdef CONFIG_PM
 
 static int nmi_suspend(struct sys_device *dev, pm_message_t state)
 {
+	/* Only one CPU left, just stop that one */
 	if (nmi_enabled == 1)
-		nmi_stop();
+		nmi_cpu_stop(NULL);
 	return 0;
 }
 
 static int nmi_resume(struct sys_device *dev)
 {
 	if (nmi_enabled == 1)
-		nmi_start();
+		nmi_cpu_start(NULL);
 	return 0;
 }
 
@@ -269,10 +295,12 @@ static void nmi_cpu_shutdown(void *dummy)
 
 static void nmi_shutdown(void)
 {
-	struct op_msrs *msrs = &get_cpu_var(cpu_msrs);
+	struct op_msrs *msrs;
+
 	nmi_enabled = 0;
 	on_each_cpu(nmi_cpu_shutdown, NULL, 1);
 	unregister_die_notifier(&profile_exceptions_nb);
+	msrs = &get_cpu_var(cpu_msrs);
 	model->shutdown(msrs);
 	free_msrs();
 	put_cpu_var(cpu_msrs);
@@ -369,20 +397,34 @@ static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
 
-	if (cpu_model == 14)
-		*cpu_type = "i386/core";
-	else if (cpu_model == 15 || cpu_model == 23)
-		*cpu_type = "i386/core_2";
-	else if (cpu_model > 0xd)
-		return 0;
-	else if (cpu_model == 9) {
-		*cpu_type = "i386/p6_mobile";
-	} else if (cpu_model > 5) {
-		*cpu_type = "i386/piii";
-	} else if (cpu_model > 2) {
-		*cpu_type = "i386/pii";
-	} else {
+	switch (cpu_model) {
+	case 0 ... 2:
 		*cpu_type = "i386/ppro";
+		break;
+	case 3 ... 5:
+		*cpu_type = "i386/pii";
+		break;
+	case 6 ... 8:
+		*cpu_type = "i386/piii";
+		break;
+	case 9:
+		*cpu_type = "i386/p6_mobile";
+		break;
+	case 10 ... 13:
+		*cpu_type = "i386/p6";
+		break;
+	case 14:
+		*cpu_type = "i386/core";
+		break;
+	case 15: case 23:
+		*cpu_type = "i386/core_2";
+		break;
+	case 26:
+		*cpu_type = "i386/core_2";
+		break;
+	default:
+		/* Unknown */
+		return 0;
 	}
 
 	model = &op_ppro_spec;
@@ -449,6 +491,9 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	}
 
 	init_sysfs();
+#ifdef CONFIG_SMP
+	register_cpu_notifier(&oprofile_cpu_nb);
+#endif
 	using_nmi = 1;
 	ops->create_files = nmi_create_files;
 	ops->setup = nmi_setup;
@@ -462,6 +507,10 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 void op_nmi_exit(void)
 {
-	if (using_nmi)
+	if (using_nmi) {
 		exit_sysfs();
+#ifdef CONFIG_SMP
+		unregister_cpu_notifier(&oprofile_cpu_nb);
+#endif
+	}
 }

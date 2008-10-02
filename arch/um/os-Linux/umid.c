@@ -245,7 +245,7 @@ int __init set_umid(char *name)
 /* Changed in make_umid, which is called during early boot */
 static int umid_setup = 0;
 
-int __init make_umid(void)
+static int __init make_umid(void)
 {
 	int fd, err;
 	char tmp[256];

@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
 #include <asm/uaccess.h>
@@ -894,9 +895,7 @@ static const struct file_operations pms_fops = {
 
 static struct video_device pms_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Mediavision PMS",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &pms_fops,
 };
 
@@ -1020,9 +1019,22 @@ static int init_mediavision(void)
  *	Initialization and module stuff
  */
 
+#ifndef MODULE
+static int enable;
+module_param(enable, int, 0);
+#endif
+
 static int __init init_pms_cards(void)
 {
 	printk(KERN_INFO "Mediavision Pro Movie Studio driver 0.02\n");
+
+#ifndef MODULE
+	if (!enable) {
+		printk(KERN_INFO "PMS: not enabled, use pms.enable=1 to "
+				 "probe\n");
+		return -ENODEV;
+	}
+#endif
 
 	data_port = io_port +1;
 

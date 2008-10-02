@@ -33,11 +33,6 @@
 #ifndef __rio_param_h__
 #define __rio_param_h__
 
-#ifdef SCCS_LABELS
-static char *_param_h_sccs_ = "@(#)param.h	1.2";
-#endif
-
-
 /*
 ** the param command block, as used in OPEN and PARAM calls.
 */

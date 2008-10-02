@@ -208,5 +208,17 @@ config IP6_NF_RAW
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+# security table for MAC policy
+config IP6_NF_SECURITY
+       tristate "Security table"
+       depends on IP6_NF_IPTABLES
+       depends on SECURITY
+       depends on NETFILTER_ADVANCED
+       help
+         This option adds a `security' table to iptables, for use
+         with Mandatory Access Control (MAC) policy.
+        
+         If unsure, say N.
+
 endmenu
 

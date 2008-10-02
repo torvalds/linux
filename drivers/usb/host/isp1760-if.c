@@ -35,13 +35,15 @@ static int of_isp1760_probe(struct of_device *dev,
 	int virq;
 	u64 res_len;
 	int ret;
+	const unsigned int *prop;
+	unsigned int devflags = 0;
 
 	ret = of_address_to_resource(dp, 0, &memory);
 	if (ret)
 		return -ENXIO;
 
 	res = request_mem_region(memory.start, memory.end - memory.start + 1,
-			dev->dev.bus_id);
+			dev_name(&dev->dev));
 	if (!res)
 		return -EBUSY;
 
@@ -55,8 +57,32 @@ static int of_isp1760_probe(struct of_device *dev,
 	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 			oirq.size);
 
+	if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
+		devflags |= ISP1760_FLAG_ISP1761;
+
+	if (of_get_property(dp, "port1-disable", NULL) != NULL)
+		devflags |= ISP1760_FLAG_PORT1_DIS;
+
+	/* Some systems wire up only 16 of the 32 data lines */
+	prop = of_get_property(dp, "bus-width", NULL);
+	if (prop && *prop == 16)
+		devflags |= ISP1760_FLAG_BUS_WIDTH_16;
+
+	if (of_get_property(dp, "port1-otg", NULL) != NULL)
+		devflags |= ISP1760_FLAG_OTG_EN;
+
+	if (of_get_property(dp, "analog-oc", NULL) != NULL)
+		devflags |= ISP1760_FLAG_ANALOG_OC;
+
+	if (of_get_property(dp, "dack-polarity", NULL) != NULL)
+		devflags |= ISP1760_FLAG_DACK_POL_HIGH;
+
+	if (of_get_property(dp, "dreq-polarity", NULL) != NULL)
+		devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
+
 	hcd = isp1760_register(memory.start, res_len, virq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev->dev.bus_id);
+		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
+		devflags);
 	if (IS_ERR(hcd)) {
 		ret = PTR_ERR(hcd);
 		goto release_reg;
@@ -87,6 +113,9 @@ static struct of_device_id of_isp1760_match[] = {
 	{
 		.compatible = "nxp,usb-isp1760",
 	},
+	{
+		.compatible = "nxp,usb-isp1761",
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, of_isp1760_match);
@@ -116,6 +145,7 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 	int length;
 	int status = 1;
 	struct usb_hcd *hcd;
+	unsigned int devflags = 0;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -200,7 +230,8 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 
 	dev->dev.dma_mask = NULL;
 	hcd = isp1760_register(pci_mem_phy0, length, dev->irq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev->dev.bus_id);
+		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
+		devflags);
 	pci_set_drvdata(dev, hcd);
 	if (!hcd)
 		return 0;

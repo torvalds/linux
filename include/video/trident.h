@@ -4,9 +4,9 @@
 #endif
 
 #if TRIDENTFB_DEBUG
-#define debug(f,a...)	printk("%s:" f,  __FUNCTION__ , ## a);mdelay(1000);
+#define debug(f, a...)	printk("%s:" f,  __func__ , ## a);
 #else
-#define debug(f,a...)
+#define debug(f, a...)
 #endif
 
 #define output(f, a...) pr_info("tridentfb: " f, ## a)
@@ -24,7 +24,9 @@
 #define CYBER9397DVD	0x939A
 #define CYBER9520	0x9520
 #define CYBER9525DVD	0x9525
+#define TGUI9440	0x9440
 #define TGUI9660	0x9660
+#define PROVIDIA9685	0x9685
 #define IMAGE975	0x9750
 #define IMAGE985	0x9850
 #define BLADE3D		0x9880
@@ -39,35 +41,10 @@
 #define CYBERBLADEXPm8  0x9910
 #define CYBERBLADEXPm16 0x9930
 
-/* acceleration families */
-#define IMAGE	0
-#define BLADE	1
-#define XP	2
-
-#define is_image(id)	
-#define is_xp(id)	((id == CYBERBLADEXPAi1) ||\
-			 (id == CYBERBLADEXPm8) ||\
-			 (id == CYBERBLADEXPm16)) 
-
-#define is_blade(id)	((id == BLADE3D) ||\
-			 (id == CYBERBLADEE4) ||\
-			 (id == CYBERBLADEi7) ||\
-			 (id == CYBERBLADEi7D) ||\
-			 (id == CYBERBLADEi1) ||\
-			 (id == CYBERBLADEi1D) ||\
-			 (id ==	CYBERBLADEAi1) ||\
-			 (id ==	CYBERBLADEAi1D))
-
 /* these defines are for 'lcd' variable */
 #define LCD_STRETCH	0
 #define LCD_CENTER	1
 #define LCD_BIOS	2
-
-/* display types */
-#define DISPLAY_CRT	0
-#define DISPLAY_FP	1
-
-#define flatpanel (displaytype == DISPLAY_FP)
 
 /* General Registers */
 #define SPR	0x1F		/* Software Programming Register (videoram) */
@@ -88,33 +65,7 @@
 #define SKey 0x37
 #define SPKey 0x57
 
-/* 0x3x4 */
-#define CRTHTotal	0x00
-#define CRTHDispEnd	0x01
-#define CRTHBlankStart	0x02
-#define CRTHBlankEnd	0x03
-#define CRTHSyncStart	0x04
-#define CRTHSyncEnd	0x05
-
-#define CRTVTotal	0x06
-#define CRTVDispEnd	0x12
-#define CRTVBlankStart	0x15
-#define CRTVBlankEnd	0x16
-#define CRTVSyncStart	0x10
-#define CRTVSyncEnd	0x11
-
-#define CRTOverflow	0x07
-#define CRTPRowScan	0x08
-#define CRTMaxScanLine	0x09
-#define CRTModeControl	0x17
-#define CRTLineCompare	0x18
-
 /* 3x4 */
-#define StartAddrHigh 0x0C
-#define StartAddrLow 0x0D
-#define Offset 0x13
-#define Underline 0x14
-#define CRTCMode 0x17
 #define CRTCModuleTest 0x1E
 #define FIFOControl 0x20
 #define LinearAddReg 0x21
@@ -173,3 +124,23 @@
 #define BiosMode     0x5c
 #define BiosReg      0x5d
 
+/* Graphics Engine */
+#define STATUS	0x2120
+#define OLDCMD	0x2124
+#define DRAWFL	0x2128
+#define OLDCLR	0x212C
+#define OLDDST	0x2138
+#define OLDSRC	0x213C
+#define OLDDIM	0x2140
+#define CMD	0x2144
+#define ROP	0x2148
+#define COLOR	0x2160
+#define BGCOLOR	0x2164
+#define SRC1	0x2100
+#define SRC2	0x2104
+#define DST1	0x2108
+#define DST2	0x210C
+
+#define ROP_S	0xCC
+#define ROP_P	0xF0
+#define ROP_X	0x66

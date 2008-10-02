@@ -122,7 +122,7 @@ static void hid_reset(struct work_struct *work)
 		dev_dbg(&usbhid->intf->dev, "resetting device\n");
 		rc = rc_lock = usb_lock_device_for_reset(hid_to_usb_dev(hid), usbhid->intf);
 		if (rc_lock >= 0) {
-			rc = usb_reset_composite_device(hid_to_usb_dev(hid), usbhid->intf);
+			rc = usb_reset_device(hid_to_usb_dev(hid));
 			if (rc_lock)
 				usb_unlock_device(hid_to_usb_dev(hid));
 		}

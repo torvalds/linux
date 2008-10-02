@@ -156,6 +156,14 @@ struct ehca_mod_qp_parm {
 
 #define EHCA_MOD_QP_PARM_MAX 4
 
+#define QMAP_IDX_MASK 0xFFFFULL
+
+/* struct for tracking if cqes have been reported to the application */
+struct ehca_qmap_entry {
+	u16 app_wr_id;
+	u16 reported;
+};
+
 struct ehca_qp {
 	union {
 		struct ib_qp ib_qp;
@@ -165,6 +173,7 @@ struct ehca_qp {
 	enum ehca_ext_qp_type ext_type;
 	enum ib_qp_state state;
 	struct ipz_queue ipz_squeue;
+	struct ehca_qmap_entry *sq_map;
 	struct ipz_queue ipz_rqueue;
 	struct h_galpas galpas;
 	u32 qkey;
@@ -194,6 +203,7 @@ struct ehca_qp {
 	u32 packet_count;
 	atomic_t nr_events; /* events seen */
 	wait_queue_head_t wait_completion;
+	int mig_armed;
 };
 
 #define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)

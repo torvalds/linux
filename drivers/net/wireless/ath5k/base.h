@@ -45,6 +45,7 @@
 #include <linux/list.h>
 #include <linux/wireless.h>
 #include <linux/if_ether.h>
+#include <linux/leds.h>
 
 #include "ath5k.h"
 #include "debug.h"
@@ -55,12 +56,11 @@
 
 struct ath5k_buf {
 	struct list_head	list;
-	unsigned int		flags;	/* tx descriptor flags */
+	unsigned int		flags;	/* rx descriptor flags */
 	struct ath5k_desc	*desc;	/* virtual addr of desc */
 	dma_addr_t		daddr;	/* physical addr of desc */
 	struct sk_buff		*skb;	/* skbuff for buf */
 	dma_addr_t		skbaddr;/* physical addr of skb data */
-	struct ieee80211_tx_control ctl;
 };
 
 /*
@@ -80,6 +80,19 @@ struct ath5k_txq {
 	bool			setup;
 };
 
+#define ATH5K_LED_MAX_NAME_LEN 31
+
+/*
+ * State for LED triggers
+ */
+struct ath5k_led
+{
+	char name[ATH5K_LED_MAX_NAME_LEN + 1];	/* name of the LED in sysfs */
+	struct ath5k_softc *sc;			/* driver state */
+	struct led_classdev led_dev;		/* led classdev */
+};
+
+
 #if CHAN_DEBUG
 #define ATH_CHAN_MAX	(26+26+26+200+200)
 #else
@@ -92,7 +105,8 @@ struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
-	struct ieee80211_tx_queue_stats tx_stats;
+	/* FIXME: how many does it really need? */
+	struct ieee80211_tx_queue_stats tx_stats[16];
 	struct ieee80211_low_level_stats ll_stats;
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
@@ -118,26 +132,17 @@ struct ath5k_softc {
 	size_t			desc_len;	/* size of TX/RX descriptors */
 	u16			cachelsz;	/* cache line size */
 
-	DECLARE_BITMAP(status, 6);
+	DECLARE_BITMAP(status, 4);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
 #define ATH_STAT_MRRETRY	1		/* multi-rate retry support */
 #define ATH_STAT_PROMISC	2
-#define ATH_STAT_LEDBLINKING	3		/* LED blink operation active */
-#define ATH_STAT_LEDENDBLINK	4		/* finish LED blink operation */
-#define ATH_STAT_LEDSOFT	5		/* enable LED gpio status */
+#define ATH_STAT_LEDSOFT	3		/* enable LED gpio status */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
 	unsigned int		curmode;	/* current phy mode */
 	struct ieee80211_channel *curchan;	/* current h/w channel */
 
 	struct ieee80211_vif *vif;
-
-	struct {
-		u8	rxflags;	/* radiotap rx flags */
-		u8	txflags;	/* radiotap tx flags */
-		u16	ledon;		/* softled on time */
-		u16	ledoff;		/* softled off time */
-	} hwmap[32];				/* h/w rate ix mappings */
 
 	enum ath5k_int		imask;		/* interrupt mask copy */
 
@@ -148,9 +153,6 @@ struct ath5k_softc {
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
 				led_on,		/* pin setting for LED on */
 				led_off;	/* off time for current blink */
-	struct timer_list	led_tim;	/* led off timer */
-	u8			led_rxrate;	/* current rx rate for LED */
-	u8			led_txrate;	/* current tx rate for LED */
 
 	struct tasklet_struct	restq;		/* reset tasklet */
 
@@ -159,6 +161,7 @@ struct ath5k_softc {
 	spinlock_t		rxbuflock;
 	u32			*rxlink;	/* link ptr in last RX desc */
 	struct tasklet_struct	rxtq;		/* rx intr tasklet */
+	struct ath5k_led	rx_led;		/* rx led */
 
 	struct list_head	txbuf;		/* transmit buffer */
 	spinlock_t		txbuflock;
@@ -167,7 +170,9 @@ struct ath5k_softc {
 
 	struct ath5k_txq	*txq;		/* beacon and tx*/
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
+	struct ath5k_led	tx_led;		/* tx led */
 
+	spinlock_t		block;		/* protects beacon */
 	struct ath5k_buf	*bbuf;		/* beacon buffer */
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */

@@ -48,8 +48,8 @@ static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 				u32 lower, u32 upper);
 static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest);
 
-struct node **tipc_local_nodes = NULL;
-struct node_map tipc_cltr_bcast_nodes = {0,{0,}};
+struct tipc_node **tipc_local_nodes = NULL;
+struct tipc_node_map tipc_cltr_bcast_nodes = {0,{0,}};
 u32 tipc_highest_allowed_slave = 0;
 
 struct cluster *tipc_cltr_create(u32 addr)
@@ -115,7 +115,7 @@ void tipc_cltr_delete(struct cluster *c_ptr)
 
 u32 tipc_cltr_next_node(struct cluster *c_ptr, u32 addr)
 {
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	u32 n_num = tipc_node(addr) + 1;
 
 	if (!c_ptr)
@@ -133,7 +133,7 @@ u32 tipc_cltr_next_node(struct cluster *c_ptr, u32 addr)
 	return 0;
 }
 
-void tipc_cltr_attach_node(struct cluster *c_ptr, struct node *n_ptr)
+void tipc_cltr_attach_node(struct cluster *c_ptr, struct tipc_node *n_ptr)
 {
 	u32 n_num = tipc_node(n_ptr->addr);
 	u32 max_n_num = tipc_max_nodes;
@@ -196,7 +196,7 @@ u32 tipc_cltr_select_router(struct cluster *c_ptr, u32 ref)
  * Uses deterministic and fair algorithm.
  */
 
-struct node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector)
+struct tipc_node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector)
 {
 	u32 n_num;
 	u32 mask = tipc_max_nodes;
@@ -238,7 +238,7 @@ static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
 	if (buf) {
 		msg = buf_msg(buf);
 		memset((char *)msg, 0, size);
-		msg_init(msg, ROUTE_DISTRIBUTOR, 0, TIPC_OK, INT_H_SIZE, dest);
+		msg_init(msg, ROUTE_DISTRIBUTOR, 0, INT_H_SIZE, dest);
 	}
 	return buf;
 }
@@ -379,7 +379,7 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	struct cluster *c_ptr;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	unchar *node_table;
 	u32 table_size;
 	u32 router;
@@ -499,7 +499,7 @@ static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 			 u32 lower, u32 upper)
 {
 	struct sk_buff *buf_copy;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	u32 n_num;
 	u32 tstop;
 
@@ -534,7 +534,7 @@ void tipc_cltr_broadcast(struct sk_buff *buf)
 {
 	struct sk_buff *buf_copy;
 	struct cluster *c_ptr;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	u32 n_num;
 	u32 tstart;
 	u32 tstop;
@@ -571,6 +571,6 @@ exit:
 int tipc_cltr_init(void)
 {
 	tipc_highest_allowed_slave = LOWEST_SLAVE + tipc_max_slaves;
-	return tipc_cltr_create(tipc_own_addr) ? TIPC_OK : -ENOMEM;
+	return tipc_cltr_create(tipc_own_addr) ? 0 : -ENOMEM;
 }
 

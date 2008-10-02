@@ -399,8 +399,9 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 		goto err_irq;
 	}
 
-	if (IS_ERR(device_create(phantom_class, &pdev->dev, MKDEV(phantom_major,
-			minor), "phantom%u", minor)))
+	if (IS_ERR(device_create_drvdata(phantom_class, &pdev->dev,
+					 MKDEV(phantom_major, minor),
+					 NULL, "phantom%u", minor)))
 		dev_err(&pdev->dev, "can't create device\n");
 
 	pci_set_drvdata(pdev, pht);
@@ -562,6 +563,6 @@ module_init(phantom_init);
 module_exit(phantom_exit);
 
 MODULE_AUTHOR("Jiri Slaby <jirislaby@gmail.com>");
-MODULE_DESCRIPTION("Sensable Phantom driver");
+MODULE_DESCRIPTION("Sensable Phantom driver (PCI devices)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PHANTOM_VERSION);

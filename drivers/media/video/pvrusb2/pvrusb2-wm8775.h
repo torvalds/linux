@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>

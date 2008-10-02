@@ -6,6 +6,7 @@
 
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include "aoe.h"
@@ -36,7 +37,7 @@ struct ErrMsg {
 
 static struct ErrMsg emsgs[NMSG];
 static int emsgs_head_idx, emsgs_tail_idx;
-static struct semaphore emsgs_sema;
+static struct completion emsgs_comp;
 static spinlock_t emsgs_lock;
 static int nblocked_emsgs_readers;
 static struct class *aoe_class;
@@ -141,7 +142,7 @@ bail:		spin_unlock_irqrestore(&emsgs_lock, flags);
 	spin_unlock_irqrestore(&emsgs_lock, flags);
 
 	if (nblocked_emsgs_readers)
-		up(&emsgs_sema);
+		complete(&emsgs_comp);
 }
 
 static ssize_t
@@ -221,7 +222,7 @@ aoechr_read(struct file *filp, char __user *buf, size_t cnt, loff_t *off)
 
 		spin_unlock_irqrestore(&emsgs_lock, flags);
 
-		n = down_interruptible(&emsgs_sema);
+		n = wait_for_completion_interruptible(&emsgs_comp);
 
 		spin_lock_irqsave(&emsgs_lock, flags);
 
@@ -269,7 +270,7 @@ aoechr_init(void)
 		printk(KERN_ERR "aoe: can't register char device\n");
 		return n;
 	}
-	sema_init(&emsgs_sema, 0);
+	init_completion(&emsgs_comp);
 	spin_lock_init(&emsgs_lock);
 	aoe_class = class_create(THIS_MODULE, "aoe");
 	if (IS_ERR(aoe_class)) {
@@ -277,8 +278,9 @@ aoechr_init(void)
 		return PTR_ERR(aoe_class);
 	}
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		device_create(aoe_class, NULL,
-			      MKDEV(AOE_MAJOR, chardevs[i].minor), chardevs[i].name);
+		device_create_drvdata(aoe_class, NULL,
+				      MKDEV(AOE_MAJOR, chardevs[i].minor),
+				      NULL, chardevs[i].name);
 
 	return 0;
 }

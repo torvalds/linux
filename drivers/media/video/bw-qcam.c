@@ -74,6 +74,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/sched.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 
@@ -906,9 +907,7 @@ static const struct file_operations qcam_fops = {
 };
 static struct video_device qcam_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Connectix Quickcam",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &qcam_fops,
 };
 
@@ -947,8 +946,7 @@ static int init_bwqcam(struct parport *port)
 
 	printk(KERN_INFO "Connectix Quickcam on %s\n", qcam->pport->name);
 
-	if(video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
-	{
+	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		parport_unregister_device(qcam->pdev);
 		kfree(qcam);
 		return -ENODEV;

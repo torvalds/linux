@@ -53,6 +53,7 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/file.h>
@@ -69,6 +70,7 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/cgroup.h>
 #include <linux/cpuset.h>
 #include <linux/audit.h>
@@ -231,10 +233,14 @@ static int check_mem_permission(struct task_struct *task)
 	 * If current is actively ptrace'ing, and would also be
 	 * permitted to freshly attach with ptrace now, permit it.
 	 */
-	if (task->parent == current && (task->ptrace & PT_PTRACED) &&
-	    task_is_stopped_or_traced(task) &&
-	    ptrace_may_access(task, PTRACE_MODE_ATTACH))
-		return 0;
+	if (task_is_stopped_or_traced(task)) {
+		int match;
+		rcu_read_lock();
+		match = (tracehook_tracer_task(task) == current);
+		rcu_read_unlock();
+		if (match && ptrace_may_access(task, PTRACE_MODE_ATTACH))
+			return 0;
+	}
 
 	/*
 	 * Noone else is allowed.
@@ -503,6 +509,26 @@ static int proc_pid_limits(struct task_struct *task, char *buffer)
 
 	return count;
 }
+
+#ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+static int proc_pid_syscall(struct task_struct *task, char *buffer)
+{
+	long nr;
+	unsigned long args[6], sp, pc;
+
+	if (task_current_syscall(task, &nr, args, 6, &sp, &pc))
+		return sprintf(buffer, "running\n");
+
+	if (nr < 0)
+		return sprintf(buffer, "%ld 0x%lx 0x%lx\n", nr, sp, pc);
+
+	return sprintf(buffer,
+		       "%ld 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
+		       nr,
+		       args[0], args[1], args[2], args[3], args[4], args[5],
+		       sp, pc);
+}
+#endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
 /************************************************************************/
 /*                       Here the fs part begins                        */
@@ -1834,8 +1860,7 @@ static const struct file_operations proc_fd_operations = {
  * /proc/pid/fd needs a special permission handler so that a process can still
  * access /proc/self/fd after it has executed a setuid().
  */
-static int proc_fd_permission(struct inode *inode, int mask,
-				struct nameidata *nd)
+static int proc_fd_permission(struct inode *inode, int mask)
 {
 	int rv;
 
@@ -2376,29 +2401,47 @@ static int proc_base_fill_cache(struct file *filp, void *dirent,
 }
 
 #ifdef CONFIG_TASK_IO_ACCOUNTING
-static int proc_pid_io_accounting(struct task_struct *task, char *buffer)
+static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 {
+	struct task_io_accounting acct = task->ioac;
+	unsigned long flags;
+
+	if (whole && lock_task_sighand(task, &flags)) {
+		struct task_struct *t = task;
+
+		task_io_accounting_add(&acct, &task->signal->ioac);
+		while_each_thread(task, t)
+			task_io_accounting_add(&acct, &t->ioac);
+
+		unlock_task_sighand(task, &flags);
+	}
 	return sprintf(buffer,
-#ifdef CONFIG_TASK_XACCT
 			"rchar: %llu\n"
 			"wchar: %llu\n"
 			"syscr: %llu\n"
 			"syscw: %llu\n"
-#endif
 			"read_bytes: %llu\n"
 			"write_bytes: %llu\n"
 			"cancelled_write_bytes: %llu\n",
-#ifdef CONFIG_TASK_XACCT
-			(unsigned long long)task->rchar,
-			(unsigned long long)task->wchar,
-			(unsigned long long)task->syscr,
-			(unsigned long long)task->syscw,
-#endif
-			(unsigned long long)task->ioac.read_bytes,
-			(unsigned long long)task->ioac.write_bytes,
-			(unsigned long long)task->ioac.cancelled_write_bytes);
+			(unsigned long long)acct.rchar,
+			(unsigned long long)acct.wchar,
+			(unsigned long long)acct.syscr,
+			(unsigned long long)acct.syscw,
+			(unsigned long long)acct.read_bytes,
+			(unsigned long long)acct.write_bytes,
+			(unsigned long long)acct.cancelled_write_bytes);
 }
-#endif
+
+static int proc_tid_io_accounting(struct task_struct *task, char *buffer)
+{
+	return do_io_accounting(task, buffer, 0);
+}
+
+static int proc_tgid_io_accounting(struct task_struct *task, char *buffer)
+{
+	return do_io_accounting(task, buffer, 1);
+}
+#endif /* CONFIG_TASK_IO_ACCOUNTING */
 
 /*
  * Thread groups
@@ -2419,6 +2462,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	INF("limits",	  S_IRUSR, pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",      S_IRUGO|S_IWUSR, pid_sched),
+#endif
+#ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+	INF("syscall",    S_IRUSR, pid_syscall),
 #endif
 	INF("cmdline",    S_IRUGO, pid_cmdline),
 	ONE("stat",       S_IRUGO, tgid_stat),
@@ -2470,7 +2516,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("coredump_filter", S_IRUGO|S_IWUSR, coredump_filter),
 #endif
 #ifdef CONFIG_TASK_IO_ACCOUNTING
-	INF("io",	S_IRUGO, pid_io_accounting),
+	INF("io",	S_IRUGO, tgid_io_accounting),
 #endif
 };
 
@@ -2752,6 +2798,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, pid_sched),
 #endif
+#ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+	INF("syscall",   S_IRUSR, pid_syscall),
+#endif
 	INF("cmdline",   S_IRUGO, pid_cmdline),
 	ONE("stat",      S_IRUGO, tid_stat),
 	ONE("statm",     S_IRUGO, pid_statm),
@@ -2796,6 +2845,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),
+#endif
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+	INF("io",	S_IRUGO, tid_io_accounting),
 #endif
 };
 

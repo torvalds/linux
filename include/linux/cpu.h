@@ -69,10 +69,11 @@ static inline void unregister_cpu_notifier(struct notifier_block *nb)
 #endif
 
 int cpu_up(unsigned int cpu);
-
 extern void cpu_hotplug_init(void);
+extern void cpu_maps_update_begin(void);
+extern void cpu_maps_update_done(void);
 
-#else
+#else	/* CONFIG_SMP */
 
 static inline int register_cpu_notifier(struct notifier_block *nb)
 {
@@ -87,10 +88,16 @@ static inline void cpu_hotplug_init(void)
 {
 }
 
+static inline void cpu_maps_update_begin(void)
+{
+}
+
+static inline void cpu_maps_update_done(void)
+{
+}
+
 #endif /* CONFIG_SMP */
 extern struct sysdev_class cpu_sysdev_class;
-extern void cpu_maps_update_begin(void);
-extern void cpu_maps_update_done(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */

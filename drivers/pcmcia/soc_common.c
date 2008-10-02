@@ -43,7 +43,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -51,7 +51,7 @@
 
 /* FIXME: platform dependent resource declaration has to move out of this file */
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #endif
 
 #ifdef DEBUG
@@ -149,10 +149,10 @@ soc_common_pcmcia_config_skt(struct soc_pcmcia_socket *skt, socket_state_t *stat
 		 */
 		if (skt->irq_state != 1 && state->io_irq) {
 			skt->irq_state = 1;
-			set_irq_type(skt->irq, IRQT_FALLING);
+			set_irq_type(skt->irq, IRQ_TYPE_EDGE_FALLING);
 		} else if (skt->irq_state == 1 && state->io_irq == 0) {
 			skt->irq_state = 0;
-			set_irq_type(skt->irq, IRQT_NOEDGE);
+			set_irq_type(skt->irq, IRQ_TYPE_NONE);
 		}
 
 		skt->cs_state = *state;
@@ -527,7 +527,7 @@ int soc_pcmcia_request_irqs(struct soc_pcmcia_socket *skt,
 				  IRQF_DISABLED, irqs[i].str, skt);
 		if (res)
 			break;
-		set_irq_type(irqs[i].irq, IRQT_NOEDGE);
+		set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
 	}
 
 	if (res) {
@@ -560,7 +560,7 @@ void soc_pcmcia_disable_irqs(struct soc_pcmcia_socket *skt,
 
 	for (i = 0; i < nr; i++)
 		if (irqs[i].sock == skt->nr)
-			set_irq_type(irqs[i].irq, IRQT_NOEDGE);
+			set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
 }
 EXPORT_SYMBOL(soc_pcmcia_disable_irqs);
 
@@ -571,8 +571,8 @@ void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt,
 
 	for (i = 0; i < nr; i++)
 		if (irqs[i].sock == skt->nr) {
-			set_irq_type(irqs[i].irq, IRQT_RISING);
-			set_irq_type(irqs[i].irq, IRQT_BOTHEDGE);
+			set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_RISING);
+			set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_BOTH);
 		}
 }
 EXPORT_SYMBOL(soc_pcmcia_enable_irqs);
@@ -748,7 +748,9 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 
 		add_timer(&skt->poll_timer);
 
-		device_create_file(&skt->socket.dev, &dev_attr_status);
+		ret = device_create_file(&skt->socket.dev, &dev_attr_status);
+		if (ret)
+			goto out_err_8;
 	}
 
 	dev_set_drvdata(dev, sinfo);
@@ -758,6 +760,8 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 	do {
 		skt = &sinfo->skt[i];
 
+		device_remove_file(&skt->socket.dev, &dev_attr_status);
+ out_err_8:
 		del_timer_sync(&skt->poll_timer);
 		pcmcia_unregister_socket(&skt->socket);
 

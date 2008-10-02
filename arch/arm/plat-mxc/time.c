@@ -26,10 +26,10 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/time.h>
-#include <asm/arch/common.h>
-#include <asm/arch/mxc_timer.h>
+#include <mach/common.h>
+#include <mach/mxc_timer.h>
 
 static struct clock_event_device clockevent_mxc;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;

@@ -308,7 +308,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 	dev_vdbg(&(d)->gadget->dev , fmt , ## args)
 #define ERROR(d, fmt, args...) \
 	dev_err(&(d)->gadget->dev , fmt , ## args)
-#define WARN(d, fmt, args...) \
+#define WARNING(d, fmt, args...) \
 	dev_warn(&(d)->gadget->dev , fmt , ## args)
 #define INFO(d, fmt, args...) \
 	dev_info(&(d)->gadget->dev , fmt , ## args)
@@ -1091,7 +1091,7 @@ static int ep0_queue(struct fsg_dev *fsg)
 	if (rc != 0 && rc != -ESHUTDOWN) {
 
 		/* We can't do much more than wait for a reset */
-		WARN(fsg, "error in submission: %s --> %d\n",
+		WARNING(fsg, "error in submission: %s --> %d\n",
 				fsg->ep0->name, rc);
 	}
 	return rc;
@@ -1227,7 +1227,7 @@ static void received_cbi_adsc(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 
 	/* Save the command for later */
 	if (fsg->cbbuf_cmnd_size)
-		WARN(fsg, "CB[I] overwriting previous command\n");
+		WARNING(fsg, "CB[I] overwriting previous command\n");
 	fsg->cbbuf_cmnd_size = req->actual;
 	memcpy(fsg->cbbuf_cmnd, req->buf, fsg->cbbuf_cmnd_size);
 
@@ -1506,7 +1506,7 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 		 * submissions if DMA is enabled. */
 		if (rc != -ESHUTDOWN && !(rc == -EOPNOTSUPP &&
 						req->length == 0))
-			WARN(fsg, "error in submission: %s --> %d\n",
+			WARNING(fsg, "error in submission: %s --> %d\n",
 					ep->name, rc);
 	}
 }
@@ -2294,7 +2294,7 @@ static int halt_bulk_in_endpoint(struct fsg_dev *fsg)
 		VDBG(fsg, "delayed bulk-in endpoint halt\n");
 	while (rc != 0) {
 		if (rc != -EAGAIN) {
-			WARN(fsg, "usb_ep_set_halt -> %d\n", rc);
+			WARNING(fsg, "usb_ep_set_halt -> %d\n", rc);
 			rc = 0;
 			break;
 		}
@@ -2317,7 +2317,7 @@ static int wedge_bulk_in_endpoint(struct fsg_dev *fsg)
 		VDBG(fsg, "delayed bulk-in endpoint wedge\n");
 	while (rc != 0) {
 		if (rc != -EAGAIN) {
-			WARN(fsg, "usb_ep_set_wedge -> %d\n", rc);
+			WARNING(fsg, "usb_ep_set_wedge -> %d\n", rc);
 			rc = 0;
 			break;
 		}
@@ -3755,7 +3755,7 @@ static int __init check_parameters(struct fsg_dev *fsg)
 		if (gcnum >= 0)
 			mod_data.release = 0x0300 + gcnum;
 		else {
-			WARN(fsg, "controller '%s' not recognized\n",
+			WARNING(fsg, "controller '%s' not recognized\n",
 				fsg->gadget->name);
 			mod_data.release = 0x0399;
 		}
@@ -3867,8 +3867,8 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;
 		dev_set_drvdata(&curlun->dev, fsg);
-		snprintf(curlun->dev.bus_id, BUS_ID_SIZE,
-				"%s-lun%d", gadget->dev.bus_id, i);
+		dev_set_name(&curlun->dev,"%s-lun%d",
+			     dev_name(&gadget->dev), i);
 
 		if ((rc = device_register(&curlun->dev)) != 0) {
 			INFO(fsg, "failed to register LUN%d: %d\n", i, rc);

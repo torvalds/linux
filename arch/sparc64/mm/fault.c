@@ -1,7 +1,7 @@
 /*
  * arch/sparc64/mm/fault.c: Page fault handlers for the 64-bit Sparc.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2008 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997, 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
 
@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
-#include <linux/kallsyms.h>
 #include <linux/kdebug.h>
 
 #include <asm/page.h>
@@ -115,7 +114,7 @@ static void bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 	printk(KERN_CRIT "OOPS: Bogus kernel PC [%016lx] in fault handler\n",
 	       regs->tpc);
 	printk(KERN_CRIT "OOPS: RPC [%016lx]\n", regs->u_regs[15]);
-	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
+	printk("OOPS: RPC <%pS>\n", (void *) regs->u_regs[15]);
 	printk(KERN_CRIT "OOPS: Fault was to vaddr[%lx]\n", vaddr);
 	dump_stack();
 	unhandled_fault(regs->tpc, current, regs);

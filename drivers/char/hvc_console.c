@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/kbd_kern.h>
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -74,23 +73,6 @@ static int hvc_init(void);
 #ifdef CONFIG_MAGIC_SYSRQ
 static int sysrq_pressed;
 #endif
-
-struct hvc_struct {
-	spinlock_t lock;
-	int index;
-	struct tty_struct *tty;
-	unsigned int count;
-	int do_wakeup;
-	char *outbuf;
-	int outbuf_size;
-	int n_outbuf;
-	uint32_t vtermno;
-	struct hv_ops *ops;
-	int irq_requested;
-	int irq;
-	struct list_head next;
-	struct kref kref; /* ref count & hvc_struct lifetime */
-};
 
 /* dynamic list of hvc_struct instances */
 static LIST_HEAD(hvc_structs);
@@ -298,27 +280,15 @@ int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hvc_instantiate);
 
 /* Wake the sleeping khvcd */
-static void hvc_kick(void)
+void hvc_kick(void)
 {
 	hvc_kicked = 1;
 	wake_up_process(hvc_task);
 }
-
-static int hvc_poll(struct hvc_struct *hp);
-
-/*
- * NOTE: This API isn't used if the console adapter doesn't support interrupts.
- * In this case the console is poll driven.
- */
-static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance)
-{
-	/* if hvc_poll request a repoll, then kick the hvcd thread */
-	if (hvc_poll(dev_instance))
-		hvc_kick();
-	return IRQ_HANDLED;
-}
+EXPORT_SYMBOL_GPL(hvc_kick);
 
 static void hvc_unthrottle(struct tty_struct *tty)
 {
@@ -333,7 +303,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 {
 	struct hvc_struct *hp;
 	unsigned long flags;
-	int irq = 0;
 	int rc = 0;
 
 	/* Auto increments kref reference if found. */
@@ -352,18 +321,14 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	tty->low_latency = 1; /* Makes flushes to ldisc synchronous. */
 
 	hp->tty = tty;
-	/* Save for request_irq outside of spin_lock. */
-	irq = hp->irq;
-	if (irq)
-		hp->irq_requested = 1;
 
 	spin_unlock_irqrestore(&hp->lock, flags);
-	/* check error, fallback to non-irq */
-	if (irq)
-		rc = request_irq(irq, hvc_handle_interrupt, IRQF_DISABLED, "hvc_console", hp);
+
+	if (hp->ops->notifier_add)
+		rc = hp->ops->notifier_add(hp, hp->data);
 
 	/*
-	 * If the request_irq() fails and we return an error.  The tty layer
+	 * If the notifier fails we return an error.  The tty layer
 	 * will call hvc_close() after a failed open but we don't want to clean
 	 * up there so we'll clean up here and clear out the previously set
 	 * tty fields and return the kref reference.
@@ -371,7 +336,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	if (rc) {
 		spin_lock_irqsave(&hp->lock, flags);
 		hp->tty = NULL;
-		hp->irq_requested = 0;
 		spin_unlock_irqrestore(&hp->lock, flags);
 		tty->driver_data = NULL;
 		kref_put(&hp->kref, destroy_hvc_struct);
@@ -386,7 +350,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 static void hvc_close(struct tty_struct *tty, struct file * filp)
 {
 	struct hvc_struct *hp;
-	int irq = 0;
 	unsigned long flags;
 
 	if (tty_hung_up_p(filp))
@@ -404,9 +367,8 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 	spin_lock_irqsave(&hp->lock, flags);
 
 	if (--hp->count == 0) {
-		if (hp->irq_requested)
-			irq = hp->irq;
-		hp->irq_requested = 0;
+		if (hp->ops->notifier_del)
+			hp->ops->notifier_del(hp, hp->data);
 
 		/* We are done with the tty pointer now. */
 		hp->tty = NULL;
@@ -418,10 +380,6 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		 * waking periodically to check chars_in_buffer().
 		 */
 		tty_wait_until_sent(tty, HVC_CLOSE_WAIT);
-
-		if (irq)
-			free_irq(irq, hp);
-
 	} else {
 		if (hp->count < 0)
 			printk(KERN_ERR "hvc_close %X: oops, count is %d\n",
@@ -436,7 +394,6 @@ static void hvc_hangup(struct tty_struct *tty)
 {
 	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;
-	int irq = 0;
 	int temp_open_count;
 
 	if (!hp)
@@ -458,13 +415,12 @@ static void hvc_hangup(struct tty_struct *tty)
 	hp->count = 0;
 	hp->n_outbuf = 0;
 	hp->tty = NULL;
-	if (hp->irq_requested)
-		/* Saved for use outside of spin_lock. */
-		irq = hp->irq;
-	hp->irq_requested = 0;
+
+	if (hp->ops->notifier_del)
+			hp->ops->notifier_del(hp, hp->data);
+
 	spin_unlock_irqrestore(&hp->lock, flags);
-	if (irq)
-		free_irq(irq, hp);
+
 	while(temp_open_count) {
 		--temp_open_count;
 		kref_put(&hp->kref, destroy_hvc_struct);
@@ -575,7 +531,7 @@ static u32 timeout = MIN_TIMEOUT;
 #define HVC_POLL_READ	0x00000001
 #define HVC_POLL_WRITE	0x00000002
 
-static int hvc_poll(struct hvc_struct *hp)
+int hvc_poll(struct hvc_struct *hp)
 {
 	struct tty_struct *tty;
 	int i, n, poll_mask = 0;
@@ -602,10 +558,10 @@ static int hvc_poll(struct hvc_struct *hp)
 	if (test_bit(TTY_THROTTLED, &tty->flags))
 		goto throttled;
 
-	/* If we aren't interrupt driven and aren't throttled, we always
+	/* If we aren't notifier driven and aren't throttled, we always
 	 * request a reschedule
 	 */
-	if (hp->irq == 0)
+	if (!hp->irq_requested)
 		poll_mask |= HVC_POLL_READ;
 
 	/* Read data if any */
@@ -674,6 +630,7 @@ static int hvc_poll(struct hvc_struct *hp)
 
 	return poll_mask;
 }
+EXPORT_SYMBOL_GPL(hvc_poll);
 
 /*
  * This kthread is either polling or interrupt driven.  This is determined by
@@ -733,7 +690,7 @@ static const struct tty_operations hvc_ops = {
 	.chars_in_buffer = hvc_chars_in_buffer,
 };
 
-struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
+struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 					struct hv_ops *ops, int outbuf_size)
 {
 	struct hvc_struct *hp;
@@ -754,7 +711,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
 	memset(hp, 0x00, sizeof(*hp));
 
 	hp->vtermno = vtermno;
-	hp->irq = irq;
+	hp->data = data;
 	hp->ops = ops;
 	hp->outbuf_size = outbuf_size;
 	hp->outbuf = &((char *)hp)[ALIGN(sizeof(*hp), sizeof(long))];
@@ -784,6 +741,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
 
 	return hp;
 }
+EXPORT_SYMBOL_GPL(hvc_alloc);
 
 int __devexit hvc_remove(struct hvc_struct *hp)
 {

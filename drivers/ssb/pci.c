@@ -510,17 +510,15 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	sprom_do_read(bus, buf);
 	err = sprom_check_crc(buf, bus->sprom_size);
 	if (err) {
-		/* check for rev 4 sprom - has special signature */
-		if (buf[32] == 0x5372) {
-			kfree(buf);
-			buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
-				      GFP_KERNEL);
-			if (!buf)
-				goto out;
-			bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
-			sprom_do_read(bus, buf);
-			err = sprom_check_crc(buf, bus->sprom_size);
-		}
+		/* try for a 440 byte SPROM - revision 4 and higher */
+		kfree(buf);
+		buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
+			      GFP_KERNEL);
+		if (!buf)
+			goto out;
+		bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
+		sprom_do_read(bus, buf);
+		err = sprom_check_crc(buf, bus->sprom_size);
 		if (err)
 			ssb_printk(KERN_WARNING PFX "WARNING: Invalid"
 				   " SPROM CRC (corrupt SPROM)\n");

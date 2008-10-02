@@ -21,11 +21,11 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/mach-types.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/lubbock.h>
+#include <mach/pxa-regs.h>
+#include <mach/lubbock.h>
 
 #include "sa1111_generic.h"
 

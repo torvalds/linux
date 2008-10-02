@@ -1,4 +1,4 @@
-/* $Id: dvma.h,v 1.4 1999/03/27 20:23:41 tsbogend Exp $
+/*
  * include/asm-m68k/dma.h
  *
  * Copyright 1995 (C) David S. Miller (davem@caip.rutgers.edu)
@@ -13,7 +13,7 @@
 #define DVMA_PAGE_SHIFT	13
 #define DVMA_PAGE_SIZE	(1UL << DVMA_PAGE_SHIFT)
 #define DVMA_PAGE_MASK	(~(DVMA_PAGE_SIZE-1))
-#define DVMA_PAGE_ALIGN(addr)	(((addr)+DVMA_PAGE_SIZE-1)&DVMA_PAGE_MASK)
+#define DVMA_PAGE_ALIGN(addr)	ALIGN(addr, DVMA_PAGE_SIZE)
 
 extern void dvma_init(void);
 extern int dvma_map_iommu(unsigned long kaddr, unsigned long baddr,
@@ -62,8 +62,6 @@ static inline int dvma_map_cpu(unsigned long kaddr, unsigned long vaddr,
 {
 	return 0;
 }
-
-extern unsigned long dvma_page(unsigned long kaddr, unsigned long vaddr);
 
 #else /* Sun3x */
 

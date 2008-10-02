@@ -29,7 +29,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mtd/physmap.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -38,9 +38,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
 
@@ -147,7 +147,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return dk_nand_partition;
 }
 
-static struct at91_nand_data __initdata dk_nand_data = {
+static struct atmel_nand_data __initdata dk_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	.det_pin	= AT91_PIN_PB1,

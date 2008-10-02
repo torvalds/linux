@@ -18,9 +18,8 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/pci.h>
-
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #define WATCHDOG_NAME "ALi_M1535"
 #define PFX WATCHDOG_NAME ": "
@@ -30,17 +29,21 @@
 static unsigned long ali_is_open;
 static char ali_expect_release;
 static struct pci_dev *ali_pci;
-static u32 ali_timeout_bits;	/* stores the computed timeout */
+static u32 ali_timeout_bits;		/* stores the computed timeout */
 static DEFINE_SPINLOCK(ali_lock);	/* Guards the hardware */
 
 /* module parameters */
 static int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, int, 0);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. (0<timeout<18000, default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+MODULE_PARM_DESC(timeout,
+		"Watchdog timeout in seconds. (0 < timeout < 18000, default="
+				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+MODULE_PARM_DESC(nowayout,
+		"Watchdog cannot be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	ali_start	-	start watchdog countdown
@@ -103,15 +106,16 @@ static void ali_keepalive(void)
 
 static int ali_settimer(int t)
 {
-	if(t < 0)
+	if (t < 0)
 		return -EINVAL;
-	else if(t < 60)
+	else if (t < 60)
 		ali_timeout_bits = t|(1<<6);
-	else if(t < 3600)
+	else if (t < 3600)
 		ali_timeout_bits = (t/60)|(1<<7);
-	else if(t < 18000)
+	else if (t < 18000)
 		ali_timeout_bits = (t/300)|(1<<6)|(1<<7);
-	else return -EINVAL;
+	else
+		return -EINVAL;
 
 	timeout = t;
 	return 0;
@@ -134,21 +138,22 @@ static int ali_settimer(int t)
  */
 
 static ssize_t ali_write(struct file *file, const char __user *data,
-			      size_t len, loff_t * ppos)
+			      size_t len, loff_t *ppos)
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
 		if (!nowayout) {
 			size_t i;
 
-			/* note: just in case someone wrote the magic character
-			 * five months ago... */
+			/* note: just in case someone wrote the
+			   magic character five months ago... */
 			ali_expect_release = 0;
 
-			/* scan to see whether or not we got the magic character */
+			/* scan to see whether or not we got
+			   the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if(get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					ali_expect_release = 42;
@@ -163,7 +168,6 @@ static ssize_t ali_write(struct file *file, const char __user *data,
 
 /*
  *	ali_ioctl	-	handle watchdog ioctls
- *	@inode: VFS inode
  *	@file: VFS file pointer
  *	@cmd: ioctl number
  *	@arg: arguments to the ioctl
@@ -172,8 +176,7 @@ static ssize_t ali_write(struct file *file, const char __user *data,
  *	we want an extension to enable irq ack monitoring and the like
  */
 
-static int ali_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long ali_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -186,57 +189,45 @@ static int ali_ioctl(struct inode *inode, struct file *file,
 	};
 
 	switch (cmd) {
-		case WDIOC_GETSUPPORT:
-			return copy_to_user(argp, &ident,
-				sizeof (ident)) ? -EFAULT : 0;
+	case WDIOC_GETSUPPORT:
+		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 
-		case WDIOC_GETSTATUS:
-		case WDIOC_GETBOOTSTATUS:
-			return put_user(0, p);
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		return put_user(0, p);
+	case WDIOC_SETOPTIONS:
+	{
+		int new_options, retval = -EINVAL;
 
-		case WDIOC_KEEPALIVE:
-			ali_keepalive();
-			return 0;
-
-		case WDIOC_SETOPTIONS:
-		{
-			int new_options, retval = -EINVAL;
-
-			if (get_user (new_options, p))
-				return -EFAULT;
-
-			if (new_options & WDIOS_DISABLECARD) {
-				ali_stop();
-				retval = 0;
-			}
-
-			if (new_options & WDIOS_ENABLECARD) {
-				ali_start();
-				retval = 0;
-			}
-
-			return retval;
+		if (get_user(new_options, p))
+			return -EFAULT;
+		if (new_options & WDIOS_DISABLECARD) {
+			ali_stop();
+			retval = 0;
 		}
-
-		case WDIOC_SETTIMEOUT:
-		{
-			int new_timeout;
-
-			if (get_user(new_timeout, p))
-				return -EFAULT;
-
-			if (ali_settimer(new_timeout))
-			    return -EINVAL;
-
-			ali_keepalive();
-			/* Fall */
+		if (new_options & WDIOS_ENABLECARD) {
+			ali_start();
+			retval = 0;
 		}
-
-		case WDIOC_GETTIMEOUT:
-			return put_user(timeout, p);
-
-		default:
-			return -ENOTTY;
+		return retval;
+	}
+	case WDIOC_KEEPALIVE:
+		ali_keepalive();
+		return 0;
+	case WDIOC_SETTIMEOUT:
+	{
+		int new_timeout;
+		if (get_user(new_timeout, p))
+			return -EFAULT;
+		if (ali_settimer(new_timeout))
+			return -EINVAL;
+		ali_keepalive();
+		/* Fall */
+	}
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout, p);
+	default:
+		return -ENOTTY;
 	}
 }
 
@@ -274,10 +265,11 @@ static int ali_release(struct inode *inode, struct file *file)
 	/*
 	 *      Shut off the timer.
 	 */
-	if (ali_expect_release == 42) {
+	if (ali_expect_release == 42)
 		ali_stop();
-	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+	else {
+		printk(KERN_CRIT PFX
+				"Unexpected close, not stopping watchdog!\n");
 		ali_keepalive();
 	}
 	clear_bit(0, &ali_is_open);
@@ -292,13 +284,11 @@ static int ali_release(struct inode *inode, struct file *file)
  */
 
 
-static int ali_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
+static int ali_notify_sys(struct notifier_block *this,
+					unsigned long code, void *unused)
 {
-	if (code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		ali_stop();
-	}
-
+	if (code == SYS_DOWN || code == SYS_HALT)
+		ali_stop();		/* Turn the WDT off */
 	return NOTIFY_DONE;
 }
 
@@ -340,10 +330,10 @@ static int __init ali_find_watchdog(void)
 
 	/* Check for the a 7101 PMU */
 	pdev = pci_get_device(PCI_VENDOR_ID_AL, 0x7101, NULL);
-	if(pdev == NULL)
+	if (pdev == NULL)
 		return -ENODEV;
 
-	if(pci_enable_device(pdev)) {
+	if (pci_enable_device(pdev)) {
 		pci_dev_put(pdev);
 		return -EIO;
 	}
@@ -355,9 +345,12 @@ static int __init ali_find_watchdog(void)
 	 */
 	pci_read_config_dword(pdev, 0xCC, &wdog);
 
-	wdog &= ~0x3F;		/* Timer bits */
-	wdog &= ~((1<<27)|(1<<26)|(1<<25)|(1<<24));	/* Issued events */
-	wdog &= ~((1<<16)|(1<<13)|(1<<12)|(1<<11)|(1<<10)|(1<<9));	/* No monitor bits */
+	/* Timer bits */
+	wdog &= ~0x3F;
+	/* Issued events */
+	wdog &= ~((1<<27)|(1<<26)|(1<<25)|(1<<24));
+	/* No monitor bits */
+	wdog &= ~((1<<16)|(1<<13)|(1<<12)|(1<<11)|(1<<10)|(1<<9));
 
 	pci_write_config_dword(pdev, 0xCC, wdog);
 
@@ -369,12 +362,12 @@ static int __init ali_find_watchdog(void)
  */
 
 static const struct file_operations ali_fops = {
-	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
-	.write =	ali_write,
-	.ioctl =	ali_ioctl,
-	.open =		ali_open,
-	.release =	ali_release,
+	.owner 		=	THIS_MODULE,
+	.llseek 	=	no_llseek,
+	.write		=	ali_write,
+	.unlocked_ioctl =	ali_ioctl,
+	.open 		=	ali_open,
+	.release 	=	ali_release,
 };
 
 static struct miscdevice ali_miscdev = {
@@ -399,15 +392,16 @@ static int __init watchdog_init(void)
 	int ret;
 
 	/* Check whether or not the hardware watchdog is there */
-	if (ali_find_watchdog() != 0) {
+	if (ali_find_watchdog() != 0)
 		return -ENODEV;
-	}
 
-	/* Check that the timeout value is within it's range ; if not reset to the default */
+	/* Check that the timeout value is within it's range;
+	   if not reset to the default */
 	if (timeout < 1 || timeout >= 18000) {
 		timeout = WATCHDOG_TIMEOUT;
-		printk(KERN_INFO PFX "timeout value must be 0<timeout<18000, using %d\n",
-			timeout);
+		printk(KERN_INFO PFX
+		     "timeout value must be 0 < timeout < 18000, using %d\n",
+							timeout);
 	}
 
 	/* Calculate the watchdog's timeout */
@@ -415,15 +409,16 @@ static int __init watchdog_init(void)
 
 	ret = register_reboot_notifier(&ali_notifier);
 	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
+		printk(KERN_ERR PFX
+			"cannot register reboot notifier (err=%d)\n", ret);
 		goto out;
 	}
 
 	ret = misc_register(&ali_miscdev);
 	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
+		printk(KERN_ERR PFX
+			"cannot register miscdev on minor=%d (err=%d)\n",
+						WATCHDOG_MINOR, ret);
 		goto unreg_reboot;
 	}
 

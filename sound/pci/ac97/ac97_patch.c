@@ -3381,8 +3381,8 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 }
 
 /* create a virtual master control and add slaves */
-int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
-			 const unsigned int *tlv, const char **slaves)
+static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
+				const unsigned int *tlv, const char **slaves)
 {
 	struct snd_kcontrol *kctl;
 	const char **s;

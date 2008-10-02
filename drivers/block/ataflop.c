@@ -1880,11 +1880,11 @@ static int __init atari_floppy_init (void)
 
 	if (!MACH_IS_ATARI)
 		/* Amiga, Mac, ... don't have Atari-compatible floppy :-) */
-		return -ENXIO;
+		return -ENODEV;
 
 	if (MACH_IS_HADES)
 		/* Hades doesn't have Atari-compatible floppy */
-		return -ENXIO;
+		return -ENODEV;
 
 	if (register_blkdev(FLOPPY_MAJOR,"fd"))
 		return -EBUSY;

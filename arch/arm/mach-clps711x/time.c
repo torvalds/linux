@@ -22,7 +22,7 @@
 #include <linux/irq.h>
 #include <linux/sched.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/io.h>

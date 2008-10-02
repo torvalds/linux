@@ -50,10 +50,18 @@ static int is_activesync(struct usb_interface_descriptor *desc)
 		&& desc->bInterfaceProtocol == 1;
 }
 
+static int is_wireless_rndis(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER
+		&& desc->bInterfaceSubClass == 1
+		&& desc->bInterfaceProtocol == 3;
+}
+
 #else
 
 #define is_rndis(desc)		0
 #define is_activesync(desc)	0
+#define is_wireless_rndis(desc)	0
 
 #endif
 
@@ -110,7 +118,8 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	 * of cdc-acm, it'll fail RNDIS requests cleanly.
 	 */
 	rndis = is_rndis(&intf->cur_altsetting->desc)
-		|| is_activesync(&intf->cur_altsetting->desc);
+		|| is_activesync(&intf->cur_altsetting->desc)
+		|| is_wireless_rndis(&intf->cur_altsetting->desc);
 
 	memset(info, 0, sizeof *info);
 	info->control = intf;

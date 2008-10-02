@@ -29,9 +29,6 @@
 **
 ** -----------------------------------------------------------------------------
 */
-#ifdef SCCS_LABELS
-static char *_riotable_c_sccs_ = "@(#)riotable.c	1.2";
-#endif
 
 #include <linux/module.h>
 #include <linux/slab.h>

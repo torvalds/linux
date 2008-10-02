@@ -110,9 +110,14 @@ config PPC
 	default y
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_IDE
+	select HAVE_IOREMAP_PROT
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_KPROBES
+	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_LMB
 	select HAVE_DMA_ATTRS if PPC64
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -199,7 +204,7 @@ config ARCH_HIBERNATION_POSSIBLE
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200
+	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx
 
 config PPC_DCR_NATIVE
 	bool
@@ -568,11 +573,15 @@ config FSL_GTM
 config MCA
 	bool
 
+# Platforms that what PCI turned unconditionally just do select PCI
+# in their config node.  Platforms that want to choose at config
+# time should select PPC_PCI_CHOICE
+config PPC_PCI_CHOICE
+	bool
+
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
-		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
-		|| PPC_PS3 || 44x
-	default y if !40x && !CPM2 && !8xx && !PPC_MPC512x && !PPC_83xx \
+	bool "PCI support" if PPC_PCI_CHOICE
+	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
@@ -838,6 +847,7 @@ source "crypto/Kconfig"
 config PPC_CLOCK
 	bool
 	default n
+	select HAVE_CLK
 
 config PPC_LIB_RHEAP
 	bool

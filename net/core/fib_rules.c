@@ -69,7 +69,7 @@ static void rules_ops_put(struct fib_rules_ops *ops)
 static void flush_route_cache(struct fib_rules_ops *ops)
 {
 	if (ops->flush_cache)
-		ops->flush_cache();
+		ops->flush_cache(ops);
 }
 
 int fib_rules_register(struct fib_rules_ops *ops)

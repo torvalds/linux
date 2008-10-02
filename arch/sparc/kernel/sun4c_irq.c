@@ -68,7 +68,8 @@ unsigned char *interrupt_enable = NULL;
 
 static int sun4c_pil_map[] = { 0, 1, 2, 3, 5, 7, 8, 9 };
 
-unsigned int sun4c_sbint_to_irq(struct sbus_dev *sdev, unsigned int sbint)
+static unsigned int sun4c_sbint_to_irq(struct sbus_dev *sdev,
+				       unsigned int sbint)
 {
 	if (sbint >= sizeof(sun4c_pil_map)) {
 		printk(KERN_ERR "%s: bogus SBINT %d\n", sdev->prom_name, sbint);

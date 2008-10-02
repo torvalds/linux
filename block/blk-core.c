@@ -212,6 +212,24 @@ void blk_plug_device(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_plug_device);
 
+/**
+ * blk_plug_device_unlocked - plug a device without queue lock held
+ * @q:    The &struct request_queue to plug
+ *
+ * Description:
+ *   Like @blk_plug_device(), but grabs the queue lock and disables
+ *   interrupts.
+ **/
+void blk_plug_device_unlocked(struct request_queue *q)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	blk_plug_device(q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
+}
+EXPORT_SYMBOL(blk_plug_device_unlocked);
+
 /*
  * remove the queue from the plugged list, if present. called with
  * queue lock held and interrupts disabled.
@@ -563,6 +581,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
 
 	q->sg_reserved_size = INT_MAX;
+
+	blk_set_cmd_filter_defaults(&q->cmd_filter);
 
 	/*
 	 * all done

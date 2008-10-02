@@ -17,7 +17,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 
-#include <asm/arch/portmux.h>
+#include <mach/portmux.h>
 
 #include "pio.h"
 
@@ -360,6 +360,8 @@ static int __init pio_probe(struct platform_device *pdev)
 	pio->chip.label = pio->name;
 	pio->chip.base = pdev->id * 32;
 	pio->chip.ngpio = 32;
+	pio->chip.dev = &pdev->dev;
+	pio->chip.owner = THIS_MODULE;
 
 	pio->chip.direction_input = direction_input;
 	pio->chip.get = gpio_get;

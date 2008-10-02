@@ -1,8 +1,6 @@
 /*
  * IPVS:        Source Hashing scheduling module
  *
- * Version:     $Id: ip_vs_sh.c,v 1.5 2002/09/15 08:14:08 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@gnuchina.org>
  *
  *              This program is free software; you can redistribute it and/or
@@ -232,6 +230,7 @@ static struct ip_vs_scheduler ip_vs_sh_scheduler =
 	.name =			"sh",
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list	 =		LIST_HEAD_INIT(ip_vs_sh_scheduler.n_list),
 	.init_service =		ip_vs_sh_init_svc,
 	.done_service =		ip_vs_sh_done_svc,
 	.update_service =	ip_vs_sh_update_svc,
@@ -241,7 +240,6 @@ static struct ip_vs_scheduler ip_vs_sh_scheduler =
 
 static int __init ip_vs_sh_init(void)
 {
-	INIT_LIST_HEAD(&ip_vs_sh_scheduler.n_list);
 	return register_ip_vs_scheduler(&ip_vs_sh_scheduler);
 }
 

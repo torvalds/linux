@@ -67,9 +67,9 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/time.h>
+#include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/hil.h>
-#include <linux/semaphore.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -104,6 +104,10 @@ EXPORT_SYMBOL(hp_sdc_release_cooked_irq);
 EXPORT_SYMBOL(__hp_sdc_enqueue_transaction);
 EXPORT_SYMBOL(hp_sdc_enqueue_transaction);
 EXPORT_SYMBOL(hp_sdc_dequeue_transaction);
+
+static unsigned int hp_sdc_disabled;
+module_param_named(no_hpsdc, hp_sdc_disabled, bool, 0);
+MODULE_PARM_DESC(no_hpsdc, "Do not enable HP SDC driver.");
 
 static hp_i8042_sdc	hp_sdc;	/* All driver state is kept in here. */
 
@@ -979,6 +983,11 @@ static int __init hp_sdc_register(void)
 	mm_segment_t fs;
 	unsigned char i;
 #endif
+
+	if (hp_sdc_disabled) {
+		printk(KERN_WARNING PREFIX "HP SDC driver disabled by no_hpsdc=1.\n");
+		return -ENODEV;
+	}
 
 	hp_sdc.dev = NULL;
 	hp_sdc.dev_err = 0;

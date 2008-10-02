@@ -82,7 +82,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		"2:	b	1b					\n"
 		"	.previous					\n"
 		: "=&r" (temp), "=m" (*m)
-		: "i" (bit), "m" (*m), "r" (~0));
+		: "ir" (bit), "m" (*m), "r" (~0));
 #endif /* CONFIG_CPU_MIPSR2 */
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
@@ -147,7 +147,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		"2:	b	1b					\n"
 		"	.previous					\n"
 		: "=&r" (temp), "=m" (*m)
-		: "i" (bit), "m" (*m));
+		: "ir" (bit), "m" (*m));
 #endif /* CONFIG_CPU_MIPSR2 */
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
@@ -428,7 +428,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"2:	b	1b					\n"
 		"	.previous					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
-		: "i" (bit), "m" (*m)
+		: "ir" (bit), "m" (*m)
 		: "memory");
 #endif
 	} else if (cpu_has_llsc) {

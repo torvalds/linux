@@ -247,19 +247,24 @@ static void hil_ptr_disconnect(struct serio *serio)
 
 static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 {
-	struct hil_ptr	 *ptr;
-	const char	 *txt;
-	unsigned int	 i, naxsets, btntype;
-	uint8_t		 did, *idd;
+	struct hil_ptr	*ptr;
+	const char	*txt;
+	unsigned int	i, naxsets, btntype;
+	uint8_t		did, *idd;
+	int		error;
 
-	if (!(ptr = kzalloc(sizeof(struct hil_ptr), GFP_KERNEL)))
+	ptr = kzalloc(sizeof(struct hil_ptr), GFP_KERNEL);
+	if (!ptr)
 		return -ENOMEM;
 
 	ptr->dev = input_allocate_device();
-	if (!ptr->dev)
+	if (!ptr->dev) {
+		error = -ENOMEM;
 		goto bail0;
+	}
 
-	if (serio_open(serio, driver))
+	error = serio_open(serio, driver);
+	if (error)
 		goto bail1;
 
 	serio_set_drvdata(serio, ptr);
@@ -297,6 +302,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	did = ptr->idd[0];
 	idd = ptr->idd + 1;
 	txt = "unknown";
+
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_REL) {
 		ptr->dev->evbit[0] = BIT_MASK(EV_REL);
 		txt = "relative";
@@ -306,8 +312,11 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 		ptr->dev->evbit[0] = BIT_MASK(EV_ABS);
 		txt = "absolute";
 	}
-	if (!ptr->dev->evbit[0])
+
+	if (!ptr->dev->evbit[0]) {
+		error = -ENODEV;
 		goto bail2;
+	}
 
 	ptr->nbtn = HIL_IDD_NUM_BUTTONS(idd);
 	if (ptr->nbtn)
@@ -380,13 +389,19 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	ptr->dev->id.version	= 0x0100; /* TODO: get from ptr->rsc */
 	ptr->dev->dev.parent	= &serio->dev;
 
-	input_register_device(ptr->dev);
+	error = input_register_device(ptr->dev);
+	if (error) {
+		printk(KERN_INFO PREFIX "Unable to register input device\n");
+		goto bail2;
+	}
+
 	printk(KERN_INFO "input: %s (%s), ID: %d\n",
 		ptr->dev->name,
 		(btntype == BTN_MOUSE) ? "HIL mouse":"HIL tablet or touchpad",
 		did);
 
 	return 0;
+
  bail2:
 	serio_close(serio);
  bail1:
@@ -394,7 +409,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
  bail0:
 	kfree(ptr);
 	serio_set_drvdata(serio, NULL);
-	return -ENODEV;
+	return error;
 }
 
 static struct serio_device_id hil_ptr_ids[] = {

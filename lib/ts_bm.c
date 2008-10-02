@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 #include <linux/textsearch.h>
 
 /* Alphabet size, use ASCII */
@@ -64,6 +65,7 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 	unsigned int i, text_len, consumed = state->offset;
 	const u8 *text;
 	int shift = bm->patlen - 1, bs;
+	const u8 icase = conf->flags & TS_IGNORECASE;
 
 	for (;;) {
 		text_len = conf->get_next_block(consumed, &text, conf, state);
@@ -75,7 +77,9 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 			DEBUGP("Searching in position %d (%c)\n", 
 				shift, text[shift]);
 			for (i = 0; i < bm->patlen; i++) 
-			     if (text[shift-i] != bm->pattern[bm->patlen-1-i])
+				if ((icase ? toupper(text[shift-i])
+				    : text[shift-i])
+					!= bm->pattern[bm->patlen-1-i])
 				     goto next;
 
 			/* London calling... */
@@ -111,14 +115,18 @@ static int subpattern(u8 *pattern, int i, int j, int g)
 	return ret;
 }
 
-static void compute_prefix_tbl(struct ts_bm *bm)
+static void compute_prefix_tbl(struct ts_bm *bm, int flags)
 {
 	int i, j, g;
 
 	for (i = 0; i < ASIZE; i++)
 		bm->bad_shift[i] = bm->patlen;
-	for (i = 0; i < bm->patlen - 1; i++)
+	for (i = 0; i < bm->patlen - 1; i++) {
 		bm->bad_shift[bm->pattern[i]] = bm->patlen - 1 - i;
+		if (flags & TS_IGNORECASE)
+			bm->bad_shift[tolower(bm->pattern[i])]
+			    = bm->patlen - 1 - i;
+	}
 
 	/* Compute the good shift array, used to match reocurrences 
 	 * of a subpattern */
@@ -135,10 +143,11 @@ static void compute_prefix_tbl(struct ts_bm *bm)
 }
 
 static struct ts_config *bm_init(const void *pattern, unsigned int len,
-				 gfp_t gfp_mask)
+				 gfp_t gfp_mask, int flags)
 {
 	struct ts_config *conf;
 	struct ts_bm *bm;
+	int i;
 	unsigned int prefix_tbl_len = len * sizeof(unsigned int);
 	size_t priv_size = sizeof(*bm) + len + prefix_tbl_len;
 
@@ -146,11 +155,16 @@ static struct ts_config *bm_init(const void *pattern, unsigned int len,
 	if (IS_ERR(conf))
 		return conf;
 
+	conf->flags = flags;
 	bm = ts_config_priv(conf);
 	bm->patlen = len;
 	bm->pattern = (u8 *) bm->good_shift + prefix_tbl_len;
-	memcpy(bm->pattern, pattern, len);
-	compute_prefix_tbl(bm);
+	if (flags & TS_IGNORECASE)
+		for (i = 0; i < len; i++)
+			bm->pattern[i] = toupper(((u8 *)pattern)[i]);
+	else
+		memcpy(bm->pattern, pattern, len);
+	compute_prefix_tbl(bm, flags);
 
 	return conf;
 }

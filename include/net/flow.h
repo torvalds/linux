@@ -47,7 +47,6 @@ struct flowi {
 #define fl4_scope	nl_u.ip4_u.scope
 
 	__u8	proto;
-	__u8	flags;
 	union {
 		struct {
 			__be16	sport;

@@ -47,6 +47,8 @@
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif
+#include <linux/kprobes.h>
+#include <linux/kdebug.h>
 
 extern unsigned long _get_SP(void);
 
@@ -239,21 +241,53 @@ void discard_lazy_cpu_state(void)
 }
 #endif /* CONFIG_SMP */
 
+void do_dabr(struct pt_regs *regs, unsigned long address,
+		    unsigned long error_code)
+{
+	siginfo_t info;
+
+	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
+			11, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (debugger_dabr_match(regs))
+		return;
+
+	/* Clear the DAC and struct entries.  One shot trigger */
+#if defined(CONFIG_BOOKE)
+	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~(DBSR_DAC1R | DBSR_DAC1W
+							| DBCR0_IDM));
+#endif
+
+	/* Clear the DABR */
+	set_dabr(0);
+
+	/* Deliver the signal to userspace */
+	info.si_signo = SIGTRAP;
+	info.si_errno = 0;
+	info.si_code = TRAP_HWBKPT;
+	info.si_addr = (void __user *)address;
+	force_sig_info(SIGTRAP, &info, current);
+}
+
 static DEFINE_PER_CPU(unsigned long, current_dabr);
 
 int set_dabr(unsigned long dabr)
 {
 	__get_cpu_var(current_dabr) = dabr;
 
-#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 	if (ppc_md.set_dabr)
 		return ppc_md.set_dabr(dabr);
-#endif
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #if defined(CONFIG_PPC64) || defined(CONFIG_6xx)
 	mtspr(SPRN_DABR, dabr);
 #endif
+
+#if defined(CONFIG_BOOKE)
+	mtspr(SPRN_DAC1, dabr);
+#endif
+
 	return 0;
 }
 
@@ -336,6 +370,12 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
+
+#if defined(CONFIG_BOOKE)
+	/* If new thread DAC (HW breakpoint) is the same then leave it */
+	if (new->thread.dabr)
+		set_dabr(new->thread.dabr);
+#endif
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
@@ -525,6 +565,10 @@ void flush_thread(void)
 	if (current->thread.dabr) {
 		current->thread.dabr = 0;
 		set_dabr(0);
+
+#if defined(CONFIG_BOOKE)
+		current->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W);
+#endif
 	}
 }
 

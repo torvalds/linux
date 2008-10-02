@@ -90,7 +90,7 @@ static void affs_destroy_inode(struct inode *inode)
 	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
 
@@ -290,7 +290,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	init_MUTEX(&sbi->s_bmlock);
+	mutex_init(&sbi->s_bmlock);
 
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,
 				&blocksize,&sbi->s_prefix,

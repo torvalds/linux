@@ -153,25 +153,8 @@ static uch *output_data;
 static unsigned long output_ptr;
 
 
-static void *malloc(int size);
-
-static inline void free(void *where)
-{	/* Don't care */
-}
-
 static unsigned long free_mem_ptr = (unsigned long) &end;
 static unsigned long free_mem_end_ptr = (unsigned long) &end + 0x90000;
-
-static inline void gzip_mark(void **ptr)
-{
-	kputs(".");
-	*ptr = (void *) free_mem_ptr;
-}
-
-static inline void gzip_release(void **ptr)
-{
-	free_mem_ptr = (unsigned long) *ptr;
-}
 
 #define INPLACE_MOVE_ROUTINE	0x1000
 #define LOW_BUFFER_START	0x2000
@@ -185,26 +168,6 @@ static char *vidmem = (char *)0xb8000;
 static int lines, cols;
 
 #include "../../../../lib/inflate.c"
-
-static void *malloc(int size)
-{
-	void *p;
-
-	if (size < 0)
-		error("Malloc error\n");
-	if (!free_mem_ptr)
-		error("Memory error\n");
-
-	free_mem_ptr = (free_mem_ptr + 3) & ~3;	/* Align */
-
-	p = (void *) free_mem_ptr;
-	free_mem_ptr += size;
-
-	if (free_mem_ptr >= free_mem_end_ptr)
-		error("\nOut of memory\n");
-
-	return p;
-}
 
 static inline void scroll(void)
 {

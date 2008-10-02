@@ -45,10 +45,6 @@
 #include <asm/macints.h>
 #endif
 
-#ifndef MAX_HWIFS
-#define MAX_HWIFS	4	/* same as the other archs */
-#endif
-
 /*
  * Get rid of defs from io.h - ide has its private and conflicting versions
  * Since so far no single m68k platform uses ISA/PCI I/O space for IDE, we

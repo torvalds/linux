@@ -83,6 +83,15 @@ config BRIDGE_EBT_IP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config BRIDGE_EBT_IP6
+	tristate "ebt: IP6 filter support"
+	depends on BRIDGE_NF_EBTABLES && IPV6
+	help
+	  This option adds the IP6 match, which allows basic IPV6 header field
+	  filtering.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config BRIDGE_EBT_LIMIT
 	tristate "ebt: limit match support"
 	depends on BRIDGE_NF_EBTABLES
@@ -221,7 +230,7 @@ config BRIDGE_EBT_NFLOG
 	  either the old LOG target, the old ULOG target or nfnetlink_log
 	  as backend.
 
-	  This option adds the ulog watcher, that you can use in any rule
+	  This option adds the nflog watcher, that you can use in any rule
 	  in any ebtables table.
 
 	  To compile it as a module, choose M here.  If unsure, say N.

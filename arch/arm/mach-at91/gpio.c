@@ -20,9 +20,9 @@
 #include <linux/module.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
-#include <asm/arch/at91_pio.h>
-#include <asm/arch/gpio.h>
+#include <mach/hardware.h>
+#include <mach/at91_pio.h>
+#include <mach/gpio.h>
 
 #include "generic.h"
 

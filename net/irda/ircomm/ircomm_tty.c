@@ -650,12 +650,7 @@ static void ircomm_tty_do_softint(struct work_struct *work)
 	}
 
 	/* Check if user (still) wants to be waken up */
-	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-	    tty->ldisc.write_wakeup)
-	{
-		(tty->ldisc.write_wakeup)(tty);
-	}
-	wake_up_interruptible(&tty->write_wait);
+	tty_wakeup(tty);
 }
 
 /*
@@ -1141,6 +1136,7 @@ static int ircomm_tty_data_indication(void *instance, void *sap,
 				      struct sk_buff *skb)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
+	struct tty_ldisc *ld;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
@@ -1173,7 +1169,11 @@ static int ircomm_tty_data_indication(void *instance, void *sap,
 	 * involve the flip buffers, since we are not running in an interrupt
 	 * handler
 	 */
-	self->tty->ldisc.receive_buf(self->tty, skb->data, NULL, skb->len);
+
+	ld = tty_ldisc_ref(self->tty);
+	if (ld)
+		ld->ops->receive_buf(self->tty, skb->data, NULL, skb->len);
+	tty_ldisc_deref(ld);
 
 	/* No need to kfree_skb - see ircomm_ttp_data_indication() */
 

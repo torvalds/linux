@@ -2,7 +2,7 @@
  * net/tipc/netlink.c: TIPC configuration handling
  *
  * Copyright (c) 2005-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,15 +45,17 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 	struct nlmsghdr *req_nlh = info->nlhdr;
 	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
 	int hdr_space = NLMSG_SPACE(GENL_HDRLEN + TIPC_GENL_HDRLEN);
+	u16 cmd;
 
 	if ((req_userhdr->cmd & 0xC000) && (!capable(CAP_NET_ADMIN)))
-		rep_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_NET_ADMIN);
+		cmd = TIPC_CMD_NOT_NET_ADMIN;
 	else
-		rep_buf = tipc_cfg_do_cmd(req_userhdr->dest,
-					  req_userhdr->cmd,
-					  NLMSG_DATA(req_nlh) + GENL_HDRLEN + TIPC_GENL_HDRLEN,
-					  NLMSG_PAYLOAD(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN),
-					  hdr_space);
+		cmd = req_userhdr->cmd;
+
+	rep_buf = tipc_cfg_do_cmd(req_userhdr->dest, cmd,
+			NLMSG_DATA(req_nlh) + GENL_HDRLEN + TIPC_GENL_HDRLEN,
+			NLMSG_PAYLOAD(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN),
+			hdr_space);
 
 	if (rep_buf) {
 		skb_push(rep_buf, hdr_space);

@@ -8,6 +8,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_connbytes.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_acct.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -27,12 +28,15 @@ connbytes_mt(const struct sk_buff *skb, const struct net_device *in,
 	u_int64_t what = 0;	/* initialize to make gcc happy */
 	u_int64_t bytes = 0;
 	u_int64_t pkts = 0;
-	const struct ip_conntrack_counter *counters;
+	const struct nf_conn_counter *counters;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		return false;
-	counters = ct->counters;
+
+	counters = nf_conn_acct_find(ct);
+	if (!counters)
+		return false;
 
 	switch (sinfo->what) {
 	case XT_CONNBYTES_PKTS:

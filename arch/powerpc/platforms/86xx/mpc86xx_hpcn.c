@@ -45,7 +45,6 @@
 #endif
 
 #ifdef CONFIG_PCI
-extern int uses_fsl_uli_m1575;
 extern int uli_exclude_device(struct pci_controller *hose,
 				u_char bus, u_char devfn);
 
@@ -87,7 +86,6 @@ mpc86xx_hpcn_setup_arch(void)
 			fsl_add_bridge(np, 0);
 	}
 
-	uses_fsl_uli_m1575 = 1;
 	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
 
 #endif

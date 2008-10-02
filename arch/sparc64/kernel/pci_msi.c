@@ -120,9 +120,9 @@ static struct irq_chip msi_irq = {
 	/* XXX affinity XXX */
 };
 
-int sparc64_setup_msi_irq(unsigned int *virt_irq_p,
-			  struct pci_dev *pdev,
-			  struct msi_desc *entry)
+static int sparc64_setup_msi_irq(unsigned int *virt_irq_p,
+				 struct pci_dev *pdev,
+				 struct msi_desc *entry)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	const struct sparc64_msiq_ops *ops = pbm->msi_ops;
@@ -179,8 +179,8 @@ out_err:
 	return err;
 }
 
-void sparc64_teardown_msi_irq(unsigned int virt_irq,
-			      struct pci_dev *pdev)
+static void sparc64_teardown_msi_irq(unsigned int virt_irq,
+				     struct pci_dev *pdev)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 	const struct sparc64_msiq_ops *ops = pbm->msi_ops;

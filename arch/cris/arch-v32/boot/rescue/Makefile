@@ -7,9 +7,8 @@ ccflags-y += -O2 -I $(srctree)/include/asm/arch/mach/ \
 		-I $(srctree)/include/asm/arch
 asflags-y += -I $(srctree)/include/asm/arch/mach/ -I $(srctree)/include/asm/arch
 LD = gcc-cris -mlinux -march=v32 -nostdlib
-ldflags-y += -T $(obj)/rescue.ld
+ldflags-y += -T $(srctree)/$(obj)/rescue.ld
 LDPOSTFLAGS = -lgcc
-OBJCOPY = objcopy-cris
 OBJCOPYFLAGS = -O binary --remove-section=.bss
 obj-$(CONFIG_ETRAX_AXISFLASHMAP) = head.o
 OBJECT := $(obj)/head.o

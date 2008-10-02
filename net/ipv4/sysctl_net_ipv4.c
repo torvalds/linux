@@ -1,8 +1,6 @@
 /*
  * sysctl_net_ipv4.c: sysctl interface to net IPV4 subsystem.
  *
- * $Id: sysctl_net_ipv4.c,v 1.50 2001/10/20 00:00:11 davem Exp $
- *
  * Begun April 1, 1996, Mike Shaver.
  * Added /proc/sys/net/ipv4 directory entry (empty =) ). [MS]
  */
@@ -234,6 +232,7 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &ipv4_doint_and_flush,
 		.strategy	= &ipv4_doint_and_flush_strategy,
+		.extra2		= &init_net,
 	},
 	{
 		.ctl_name	= NET_IPV4_NO_PMTU_DISC,
@@ -402,13 +401,6 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &ipv4_local_port_range,
 		.strategy	= &ipv4_sysctl_local_port_range,
-	},
-	{
-		.ctl_name	= NET_IPV4_ROUTE,
-		.procname	= "route",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= ipv4_route_table
 	},
 #ifdef CONFIG_IP_MULTICAST
 	{
@@ -795,7 +787,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_icmp_ratelimit,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= &proc_dointvec_ms_jiffies,
+		.strategy	= &sysctl_ms_jiffies
 	},
 	{
 		.ctl_name	= NET_IPV4_ICMP_RATEMASK,

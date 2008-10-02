@@ -48,8 +48,6 @@
  * Signal information.
  * Defaul offset is required for RSSI <-> dBm conversion.
  */
-#define MAX_SIGNAL			100
-#define MAX_RX_SSI			-1
 #define DEFAULT_RSSI_OFFSET		121
 
 /*
@@ -61,6 +59,11 @@
 #define EEPROM_SIZE			0x0200
 #define BBP_SIZE			0x0040
 #define RF_SIZE				0x0014
+
+/*
+ * Number of TX queues.
+ */
+#define NUM_TX_QUEUES			2
 
 /*
  * Control/Status Registers(CSR).
@@ -748,7 +751,7 @@
 #define LEDCSR_LED_DEFAULT		FIELD32(0x00100000)
 
 /*
- * AES control register.
+ * SECCSR3: AES control register.
  */
 #define SECCSR3				0x00fc
 
@@ -892,7 +895,7 @@
 #define ARTCSR2_ACK_CTS_54MBS		FIELD32(0xff000000)
 
 /*
- * SECCSR1_RT2509: WEP control register.
+ * SECCSR1: WEP control register.
  * KICK_ENCRYPT: Kick encryption engine, self-clear.
  * ONE_SHOT: 0: ring mode, 1: One shot only mode.
  * DESC_ADDRESS: Descriptor physical address of frame.

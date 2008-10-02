@@ -22,6 +22,7 @@
 #include <linux/parser.h>
 #include <linux/completion.h>
 #include <linux/vfs.h>
+#include <linux/quotaops.h>
 #include <linux/mount.h>
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>
@@ -759,7 +760,7 @@ static struct file_system_type jfs_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct jfs_inode_info *jfs_ip = (struct jfs_inode_info *) foo;
 

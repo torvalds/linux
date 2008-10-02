@@ -68,7 +68,7 @@ Audio DAPM widgets fall into a number of types:-
 (Widgets are defined in include/sound/soc-dapm.h)
 
 Widgets are usually added in the codec driver and the machine driver. There are
-convience macros defined in soc-dapm.h that can be used to quickly build a
+convenience macros defined in soc-dapm.h that can be used to quickly build a
 list of widgets of the codecs and machines DAPM widgets.
 
 Most widgets have a name, register, shift and invert. Some widgets have extra

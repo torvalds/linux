@@ -1,6 +1,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/quota.h>
+#include <linux/quotaops.h>
 #include <linux/dqblk_v1.h>
 #include <linux/quotaio_v1.h>
 #include <linux/kernel.h>

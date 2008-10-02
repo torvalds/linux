@@ -36,6 +36,30 @@ config LCD_LTV350QV
 
 	  The LTV350QV panel is present on all ATSTK1000 boards.
 
+config LCD_ILI9320
+	tristate
+	depends on LCD_CLASS_DEVICE && BACKLIGHT_LCD_SUPPORT
+	default n
+	help
+	  If you have a panel based on the ILI9320 controller chip
+	  then say y to include a power driver for it.
+
+config LCD_VGG2432A4
+	tristate "VGG2432A4 LCM device support"
+	depends on BACKLIGHT_LCD_SUPPORT && LCD_CLASS_DEVICE && SPI_MASTER
+	select LCD_ILI9320
+	default n
+	help
+	  If you have a VGG2432A4 panel based on the ILI9320 controller chip
+	  then say y to include a power driver for it.
+
+config LCD_PLATFORM
+	tristate "Platform LCD controls"
+	depends on LCD_CLASS_DEVICE
+	help
+	  This driver provides a platform-device registered LCD power
+	  control interface.
+
 #
 # Backlight
 #
@@ -62,6 +86,18 @@ config BACKLIGHT_ATMEL_LCDC
 
 	  If in doubt, it's safe to enable this option; it doesn't kick
 	  in unless the board's description says it's wired that way.
+
+config BACKLIGHT_ATMEL_PWM
+	tristate "Atmel PWM backlight control"
+	depends on BACKLIGHT_CLASS_DEVICE && ATMEL_PWM
+	default n
+	help
+	  Say Y here if you want to use the PWM peripheral in Atmel AT91 and
+	  AVR32 devices. This driver will need additional platform data to know
+	  which PWM instance to use and how to configure it.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called atmel-pwm-bl.
 
 config BACKLIGHT_CORGI
 	tristate "Generic (aka Sharp Corgi) Backlight Driver"
@@ -119,3 +155,12 @@ config BACKLIGHT_PWM
 	help
 	  If you have a LCD backlight adjustable by PWM, say Y to enable
 	  this driver.
+
+config BACKLIGHT_MBP_NVIDIA
+       tristate "MacBook Pro Nvidia Backlight Driver"
+       depends on BACKLIGHT_CLASS_DEVICE && X86
+       default n
+       help
+         If you have an Apple Macbook Pro with Nvidia graphics hardware say Y
+	 to enable a driver for its backlight
+

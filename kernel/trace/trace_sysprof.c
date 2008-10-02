@@ -161,7 +161,7 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 		__trace_special(tr, data, 2, regs->ip, 0);
 
 		while (i < sample_max_depth) {
-			frame.next_fp = 0;
+			frame.next_fp = NULL;
 			frame.return_address = 0;
 			if (!copy_stack_frame(fp, &frame))
 				break;

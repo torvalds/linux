@@ -77,21 +77,11 @@ static int ppc_spurious_interrupts;
 EXPORT_SYMBOL(__irq_offset_value);
 atomic_t ppc_n_lost_interrupts;
 
-#ifndef CONFIG_PPC_MERGE
-#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
-unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
-#endif
-
 #ifdef CONFIG_TAU_INT
 extern int tau_initialized;
 extern int tau_interrupts(int);
 #endif
 #endif /* CONFIG_PPC32 */
-
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
-extern atomic_t ipi_recv;
-extern atomic_t ipi_sent;
-#endif
 
 #ifdef CONFIG_PPC64
 EXPORT_SYMBOL(irq_desc);
@@ -216,21 +206,14 @@ int show_interrupts(struct seq_file *p, void *v)
 skip:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	} else if (i == NR_IRQS) {
-#ifdef CONFIG_PPC32
-#ifdef CONFIG_TAU_INT
+#if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
 		if (tau_initialized){
 			seq_puts(p, "TAU: ");
 			for_each_online_cpu(j)
 				seq_printf(p, "%10u ", tau_interrupts(j));
 			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 		}
-#endif
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
-		/* should this be per processor send/receive? */
-		seq_printf(p, "IPI (recv/sent): %10u/%u\n",
-				atomic_read(&ipi_recv), atomic_read(&ipi_sent));
-#endif
-#endif /* CONFIG_PPC32 */
+#endif /* CONFIG_PPC32 && CONFIG_TAU_INT*/
 		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
 	}
 	return 0;
@@ -453,8 +436,6 @@ void do_softirq(void)
 /*
  * IRQ controller and virtual interrupts
  */
-
-#ifdef CONFIG_PPC_MERGE
 
 static LIST_HEAD(irq_hosts);
 static DEFINE_SPINLOCK(irq_big_lock);
@@ -1113,8 +1094,6 @@ static int __init irq_debugfs_init(void)
 }
 __initcall(irq_debugfs_init);
 #endif /* CONFIG_VIRQ_DEBUG */
-
-#endif /* CONFIG_PPC_MERGE */
 
 #ifdef CONFIG_PPC64
 static int __init setup_noirqdistrib(char *str)

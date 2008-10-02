@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: ip6_fib.c,v 1.25 2001/10/31 21:55:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -289,7 +287,7 @@ static int fib6_dump_node(struct fib6_walker_t *w)
 			w->leaf = rt;
 			return 1;
 		}
-		BUG_TRAP(res!=0);
+		WARN_ON(res == 0);
 	}
 	w->leaf = NULL;
 	return 0;
@@ -380,6 +378,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 
 	arg.skb = skb;
 	arg.cb = cb;
+	arg.net = net;
 	w->args = &arg;
 
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
@@ -663,17 +662,17 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 
 static __inline__ void fib6_start_gc(struct net *net, struct rt6_info *rt)
 {
-	if (net->ipv6.ip6_fib_timer->expires == 0 &&
+	if (!timer_pending(&net->ipv6.ip6_fib_timer) &&
 	    (rt->rt6i_flags & (RTF_EXPIRES|RTF_CACHE)))
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
+		mod_timer(&net->ipv6.ip6_fib_timer,
+			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 void fib6_force_start_gc(struct net *net)
 {
-	if (net->ipv6.ip6_fib_timer->expires == 0)
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
+	if (!timer_pending(&net->ipv6.ip6_fib_timer))
+		mod_timer(&net->ipv6.ip6_fib_timer,
+			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 /*
@@ -780,7 +779,7 @@ out:
 			pn->leaf = fib6_find_prefix(info->nl_net, pn);
 #if RT6_DEBUG >= 2
 			if (!pn->leaf) {
-				BUG_TRAP(pn->leaf != NULL);
+				WARN_ON(pn->leaf == NULL);
 				pn->leaf = info->nl_net->ipv6.ip6_null_entry;
 			}
 #endif
@@ -944,7 +943,7 @@ struct fib6_node * fib6_locate(struct fib6_node *root,
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src_len) {
-		BUG_TRAP(saddr!=NULL);
+		WARN_ON(saddr == NULL);
 		if (fn && fn->subtree)
 			fn = fib6_locate_1(fn->subtree, saddr, src_len,
 					   offsetof(struct rt6_info, rt6i_src));
@@ -998,9 +997,9 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		RT6_TRACE("fixing tree: plen=%d iter=%d\n", fn->fn_bit, iter);
 		iter++;
 
-		BUG_TRAP(!(fn->fn_flags&RTN_RTINFO));
-		BUG_TRAP(!(fn->fn_flags&RTN_TL_ROOT));
-		BUG_TRAP(fn->leaf==NULL);
+		WARN_ON(fn->fn_flags & RTN_RTINFO);
+		WARN_ON(fn->fn_flags & RTN_TL_ROOT);
+		WARN_ON(fn->leaf != NULL);
 
 		children = 0;
 		child = NULL;
@@ -1016,7 +1015,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 			fn->leaf = fib6_find_prefix(net, fn);
 #if RT6_DEBUG >= 2
 			if (fn->leaf==NULL) {
-				BUG_TRAP(fn->leaf);
+				WARN_ON(!fn->leaf);
 				fn->leaf = net->ipv6.ip6_null_entry;
 			}
 #endif
@@ -1027,16 +1026,17 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		pn = fn->parent;
 #ifdef CONFIG_IPV6_SUBTREES
 		if (FIB6_SUBTREE(pn) == fn) {
-			BUG_TRAP(fn->fn_flags&RTN_ROOT);
+			WARN_ON(!(fn->fn_flags & RTN_ROOT));
 			FIB6_SUBTREE(pn) = NULL;
 			nstate = FWS_L;
 		} else {
-			BUG_TRAP(!(fn->fn_flags&RTN_ROOT));
+			WARN_ON(fn->fn_flags & RTN_ROOT);
 #endif
 			if (pn->right == fn) pn->right = child;
 			else if (pn->left == fn) pn->left = child;
 #if RT6_DEBUG >= 2
-			else BUG_TRAP(0);
+			else
+				WARN_ON(1);
 #endif
 			if (child)
 				child->parent = pn;
@@ -1156,14 +1156,14 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 
 #if RT6_DEBUG >= 2
 	if (rt->u.dst.obsolete>0) {
-		BUG_TRAP(fn==NULL);
+		WARN_ON(fn != NULL);
 		return -ENOENT;
 	}
 #endif
 	if (fn == NULL || rt == net->ipv6.ip6_null_entry)
 		return -ENOENT;
 
-	BUG_TRAP(fn->fn_flags&RTN_RTINFO);
+	WARN_ON(!(fn->fn_flags & RTN_RTINFO));
 
 	if (!(rt->rt6i_flags&RTF_CACHE)) {
 		struct fib6_node *pn = fn;
@@ -1268,7 +1268,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 			w->node = pn;
 #ifdef CONFIG_IPV6_SUBTREES
 			if (FIB6_SUBTREE(pn) == fn) {
-				BUG_TRAP(fn->fn_flags&RTN_ROOT);
+				WARN_ON(!(fn->fn_flags & RTN_ROOT));
 				w->state = FWS_L;
 				continue;
 			}
@@ -1283,7 +1283,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 				continue;
 			}
 #if RT6_DEBUG >= 2
-			BUG_TRAP(0);
+			WARN_ON(1);
 #endif
 		}
 	}
@@ -1325,7 +1325,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 			}
 			return 0;
 		}
-		BUG_TRAP(res==0);
+		WARN_ON(res != 0);
 	}
 	w->leaf = rt;
 	return 0;
@@ -1449,27 +1449,23 @@ void fib6_run_gc(unsigned long expires, struct net *net)
 		gc_args.timeout = expires ? (int)expires :
 			net->ipv6.sysctl.ip6_rt_gc_interval;
 	} else {
-		local_bh_disable();
-		if (!spin_trylock(&fib6_gc_lock)) {
-			mod_timer(net->ipv6.ip6_fib_timer, jiffies + HZ);
-			local_bh_enable();
+		if (!spin_trylock_bh(&fib6_gc_lock)) {
+			mod_timer(&net->ipv6.ip6_fib_timer, jiffies + HZ);
 			return;
 		}
 		gc_args.timeout = net->ipv6.sysctl.ip6_rt_gc_interval;
 	}
-	gc_args.more = 0;
 
-	icmp6_dst_gc(&gc_args.more);
+	gc_args.more = icmp6_dst_gc();
 
 	fib6_clean_all(net, fib6_age, 0, NULL);
 
 	if (gc_args.more)
-		mod_timer(net->ipv6.ip6_fib_timer, jiffies +
-			  net->ipv6.sysctl.ip6_rt_gc_interval);
-	else {
-		del_timer(net->ipv6.ip6_fib_timer);
-		net->ipv6.ip6_fib_timer->expires = 0;
-	}
+		mod_timer(&net->ipv6.ip6_fib_timer,
+			  round_jiffies(jiffies
+					+ net->ipv6.sysctl.ip6_rt_gc_interval));
+	else
+		del_timer(&net->ipv6.ip6_fib_timer);
 	spin_unlock_bh(&fib6_gc_lock);
 }
 
@@ -1480,24 +1476,15 @@ static void fib6_gc_timer_cb(unsigned long arg)
 
 static int fib6_net_init(struct net *net)
 {
-	int ret;
-	struct timer_list *timer;
-
-	ret = -ENOMEM;
-	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
-	if (!timer)
-		goto out;
-
-	setup_timer(timer, fib6_gc_timer_cb, (unsigned long)net);
-	net->ipv6.ip6_fib_timer = timer;
+	setup_timer(&net->ipv6.ip6_fib_timer, fib6_gc_timer_cb, (unsigned long)net);
 
 	net->ipv6.rt6_stats = kzalloc(sizeof(*net->ipv6.rt6_stats), GFP_KERNEL);
 	if (!net->ipv6.rt6_stats)
 		goto out_timer;
 
-	net->ipv6.fib_table_hash =
-		kzalloc(sizeof(*net->ipv6.fib_table_hash)*FIB_TABLE_HASHSZ,
-			GFP_KERNEL);
+	net->ipv6.fib_table_hash = kcalloc(FIB_TABLE_HASHSZ,
+					   sizeof(*net->ipv6.fib_table_hash),
+					   GFP_KERNEL);
 	if (!net->ipv6.fib_table_hash)
 		goto out_rt6_stats;
 
@@ -1523,9 +1510,7 @@ static int fib6_net_init(struct net *net)
 #endif
 	fib6_tables_init(net);
 
-	ret = 0;
-out:
-	return ret;
+	return 0;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 out_fib6_main_tbl:
@@ -1536,15 +1521,14 @@ out_fib_table_hash:
 out_rt6_stats:
 	kfree(net->ipv6.rt6_stats);
 out_timer:
-	kfree(timer);
-	goto out;
+	return -ENOMEM;
  }
 
 static void fib6_net_exit(struct net *net)
 {
 	rt6_ifdown(net, NULL);
-	del_timer_sync(net->ipv6.ip6_fib_timer);
-	kfree(net->ipv6.ip6_fib_timer);
+	del_timer_sync(&net->ipv6.ip6_fib_timer);
+
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	kfree(net->ipv6.fib6_local_tbl);
 #endif

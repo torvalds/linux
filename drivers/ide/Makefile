@@ -1,13 +1,6 @@
 #
-# Makefile for the kernel ata, atapi, and ide block device drivers.
-#
-# 12 September 2000, Bartlomiej Zolnierkiewicz <bkz@linux-ide.org>
-# Rewritten to use lists instead of if-statements.
-#
-# Note : at this point, these files are compiled on all systems.
-# In the future, some of these should be built conditionally.
-#
 # link order is important here
+#
 
 EXTRA_CFLAGS				+= -Idrivers/ide
 

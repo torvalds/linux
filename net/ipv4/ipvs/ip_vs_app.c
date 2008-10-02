@@ -1,8 +1,6 @@
 /*
  * ip_vs_app.c: Application module support for IPVS
  *
- * Version:     $Id: ip_vs_app.c,v 1.17 2003/03/22 06:31:21 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *
  *              This program is free software; you can redistribute it and/or
@@ -610,7 +608,7 @@ int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 }
 
 
-int ip_vs_app_init(void)
+int __init ip_vs_app_init(void)
 {
 	/* we will replace it with proc_net_ipvs_create() soon */
 	proc_net_fops_create(&init_net, "ip_vs_app", 0, &ip_vs_app_fops);

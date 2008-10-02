@@ -295,6 +295,117 @@ int sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 EXPORT_SYMBOL(sg_alloc_table);
 
 /**
+ * sg_miter_start - start mapping iteration over a sg list
+ * @miter: sg mapping iter to be started
+ * @sgl: sg list to iterate over
+ * @nents: number of sg entries
+ *
+ * Description:
+ *   Starts mapping iterator @miter.
+ *
+ * Context:
+ *   Don't care.
+ */
+void sg_miter_start(struct sg_mapping_iter *miter, struct scatterlist *sgl,
+		    unsigned int nents, unsigned int flags)
+{
+	memset(miter, 0, sizeof(struct sg_mapping_iter));
+
+	miter->__sg = sgl;
+	miter->__nents = nents;
+	miter->__offset = 0;
+	miter->__flags = flags;
+}
+EXPORT_SYMBOL(sg_miter_start);
+
+/**
+ * sg_miter_next - proceed mapping iterator to the next mapping
+ * @miter: sg mapping iter to proceed
+ *
+ * Description:
+ *   Proceeds @miter@ to the next mapping.  @miter@ should have been
+ *   started using sg_miter_start().  On successful return,
+ *   @miter@->page, @miter@->addr and @miter@->length point to the
+ *   current mapping.
+ *
+ * Context:
+ *   IRQ disabled if SG_MITER_ATOMIC.  IRQ must stay disabled till
+ *   @miter@ is stopped.  May sleep if !SG_MITER_ATOMIC.
+ *
+ * Returns:
+ *   true if @miter contains the next mapping.  false if end of sg
+ *   list is reached.
+ */
+bool sg_miter_next(struct sg_mapping_iter *miter)
+{
+	unsigned int off, len;
+
+	/* check for end and drop resources from the last iteration */
+	if (!miter->__nents)
+		return false;
+
+	sg_miter_stop(miter);
+
+	/* get to the next sg if necessary.  __offset is adjusted by stop */
+	if (miter->__offset == miter->__sg->length && --miter->__nents) {
+		miter->__sg = sg_next(miter->__sg);
+		miter->__offset = 0;
+	}
+
+	/* map the next page */
+	off = miter->__sg->offset + miter->__offset;
+	len = miter->__sg->length - miter->__offset;
+
+	miter->page = nth_page(sg_page(miter->__sg), off >> PAGE_SHIFT);
+	off &= ~PAGE_MASK;
+	miter->length = min_t(unsigned int, len, PAGE_SIZE - off);
+	miter->consumed = miter->length;
+
+	if (miter->__flags & SG_MITER_ATOMIC)
+		miter->addr = kmap_atomic(miter->page, KM_BIO_SRC_IRQ) + off;
+	else
+		miter->addr = kmap(miter->page) + off;
+
+	return true;
+}
+EXPORT_SYMBOL(sg_miter_next);
+
+/**
+ * sg_miter_stop - stop mapping iteration
+ * @miter: sg mapping iter to be stopped
+ *
+ * Description:
+ *   Stops mapping iterator @miter.  @miter should have been started
+ *   started using sg_miter_start().  A stopped iteration can be
+ *   resumed by calling sg_miter_next() on it.  This is useful when
+ *   resources (kmap) need to be released during iteration.
+ *
+ * Context:
+ *   IRQ disabled if the SG_MITER_ATOMIC is set.  Don't care otherwise.
+ */
+void sg_miter_stop(struct sg_mapping_iter *miter)
+{
+	WARN_ON(miter->consumed > miter->length);
+
+	/* drop resources from the last iteration */
+	if (miter->addr) {
+		miter->__offset += miter->consumed;
+
+		if (miter->__flags & SG_MITER_ATOMIC) {
+			WARN_ON(!irqs_disabled());
+			kunmap_atomic(miter->addr, KM_BIO_SRC_IRQ);
+		} else
+			kunmap(miter->addr);
+
+		miter->page = NULL;
+		miter->addr = NULL;
+		miter->length = 0;
+		miter->consumed = 0;
+	}
+}
+EXPORT_SYMBOL(sg_miter_stop);
+
+/**
  * sg_copy_buffer - Copy data between a linear buffer and an SG list
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
@@ -309,56 +420,33 @@ EXPORT_SYMBOL(sg_alloc_table);
 static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 			     void *buf, size_t buflen, int to_buffer)
 {
-	struct scatterlist *sg;
-	size_t buf_off = 0;
-	int i;
+	unsigned int offset = 0;
+	struct sg_mapping_iter miter;
+	unsigned long flags;
 
-	WARN_ON(!irqs_disabled());
+	sg_miter_start(&miter, sgl, nents, SG_MITER_ATOMIC);
 
-	for_each_sg(sgl, sg, nents, i) {
-		struct page *page;
-		int n = 0;
-		unsigned int sg_off = sg->offset;
-		unsigned int sg_copy = sg->length;
+	local_irq_save(flags);
 
-		if (sg_copy > buflen)
-			sg_copy = buflen;
-		buflen -= sg_copy;
+	while (sg_miter_next(&miter) && offset < buflen) {
+		unsigned int len;
 
-		while (sg_copy > 0) {
-			unsigned int page_copy;
-			void *p;
+		len = min(miter.length, buflen - offset);
 
-			page_copy = PAGE_SIZE - sg_off;
-			if (page_copy > sg_copy)
-				page_copy = sg_copy;
-
-			page = nth_page(sg_page(sg), n);
-			p = kmap_atomic(page, KM_BIO_SRC_IRQ);
-
-			if (to_buffer)
-				memcpy(buf + buf_off, p + sg_off, page_copy);
-			else {
-				memcpy(p + sg_off, buf + buf_off, page_copy);
-				flush_kernel_dcache_page(page);
-			}
-
-			kunmap_atomic(p, KM_BIO_SRC_IRQ);
-
-			buf_off += page_copy;
-			sg_off += page_copy;
-			if (sg_off == PAGE_SIZE) {
-				sg_off = 0;
-				n++;
-			}
-			sg_copy -= page_copy;
+		if (to_buffer)
+			memcpy(buf + offset, miter.addr, len);
+		else {
+			memcpy(miter.addr, buf + offset, len);
+			flush_kernel_dcache_page(miter.page);
 		}
 
-		if (!buflen)
-			break;
+		offset += len;
 	}
 
-	return buf_off;
+	sg_miter_stop(&miter);
+
+	local_irq_restore(flags);
+	return offset;
 }
 
 /**

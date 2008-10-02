@@ -72,7 +72,8 @@ void arch_release_hugepage(struct page *page)
 	page[1].index = 0;
 }
 
-pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_alloc(struct mm_struct *mm,
+			unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgdp;
 	pud_t *pudp;
@@ -117,6 +118,11 @@ int pmd_huge(pmd_t pmd)
 		return 0;
 
 	return !!(pmd_val(pmd) & _SEGMENT_ENTRY_LARGE);
+}
+
+int pud_huge(pud_t pud)
+{
+	return 0;
 }
 
 struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,

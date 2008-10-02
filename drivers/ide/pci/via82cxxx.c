@@ -35,6 +35,8 @@
 #include <asm/processor.h>
 #endif
 
+#define DRV_NAME "via82cxxx"
+
 #define VIA_IDE_ENABLE		0x40
 #define VIA_IDE_CONFIG		0x41
 #define VIA_FIFO_CONFIG		0x43
@@ -113,7 +115,8 @@ struct via82cxxx_dev
 static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(dev);
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 	u8 t;
 
 	if (~vdev->via_config->flags & VIA_BAD_AST) {
@@ -153,7 +156,8 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *peer = hwif->drives + (~drive->dn & 1);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(dev);
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 	struct ide_timing t, p;
 	unsigned int T, UT;
 
@@ -258,36 +262,18 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 /**
  *	init_chipset_via82cxxx	-	initialization handler
  *	@dev: PCI device
- *	@name: Name of interface
  *
  *	The initialization callback. Here we determine the IDE chip type
  *	and initialize its drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev)
 {
-	struct pci_dev *isa = NULL;
-	struct via82cxxx_dev *vdev;
-	struct via_isa_bridge *via_config;
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
+	struct via_isa_bridge *via_config = vdev->via_config;
 	u8 t, v;
 	u32 u;
-
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
-	if (!vdev) {
-		printk(KERN_ERR "VP_IDE: out of memory :(\n");
-		return -ENOMEM;
-	}
-	pci_set_drvdata(dev, vdev);
-
-	/*
-	 * Find the ISA bridge to see how good the IDE is.
-	 */
-	vdev->via_config = via_config = via_config_find(&isa);
-
-	/* We checked this earlier so if it fails here deeep badness
-	   is involved */
-
-	BUG_ON(!via_config->id);
 
 	/*
 	 * Detect cable and configure Clk66
@@ -334,39 +320,6 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 
 	pci_write_config_byte(dev, VIA_FIFO_CONFIG, t);
 
-	/*
-	 * Determine system bus clock.
-	 */
-
-	via_clock = (ide_pci_clk ? ide_pci_clk : 33) * 1000;
-
-	switch (via_clock) {
-		case 33000: via_clock = 33333; break;
-		case 37000: via_clock = 37500; break;
-		case 41000: via_clock = 41666; break;
-	}
-
-	if (via_clock < 20000 || via_clock > 50000) {
-		printk(KERN_WARNING "VP_IDE: User given PCI clock speed "
-			"impossible (%d), using 33 MHz instead.\n", via_clock);
-		printk(KERN_WARNING "VP_IDE: Use ide0=ata66 if you want "
-			"to assume 80-wire cable.\n");
-		via_clock = 33333;
-	}
-
-	/*
-	 * Print the boot message.
-	 */
-
-	printk(KERN_INFO "VP_IDE: VIA %s (rev %02x) IDE %sDMA%s "
-		"controller on pci%s\n",
-		via_config->name, isa->revision,
-		via_config->udma_mask ? "U" : "MW",
-		via_dma[via_config->udma_mask ?
-			(fls(via_config->udma_mask) - 1) : 0],
-		pci_name(dev));
-
-	pci_dev_put(isa);
 	return 0;
 }
 
@@ -399,10 +352,11 @@ static int via_cable_override(struct pci_dev *pdev)
 	return 0;
 }
 
-static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
+static u8 via82cxxx_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(pdev);
+	struct ide_host *host = pci_get_drvdata(pdev);
+	struct via82cxxx_dev *vdev = host->host_priv;
 
 	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
@@ -420,12 +374,11 @@ static const struct ide_port_ops via_port_ops = {
 };
 
 static const struct ide_port_info via82cxxx_chipset __devinitdata = {
-	.name		= "VP_IDE",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_via82cxxx,
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
 	.port_ops	= &via_port_ops,
 	.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
-			  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 			  IDE_HFLAG_POST_SET_MODE |
 			  IDE_HFLAG_IO_32BIT,
 	.pio_mask	= ATA_PIO5,
@@ -437,6 +390,8 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 {
 	struct pci_dev *isa = NULL;
 	struct via_isa_bridge *via_config;
+	struct via82cxxx_dev *vdev;
+	int rc;
 	u8 idx = id->driver_data;
 	struct ide_port_info d;
 
@@ -446,10 +401,40 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	 * Find the ISA bridge and check we know what it is.
 	 */
 	via_config = via_config_find(&isa);
-	pci_dev_put(isa);
 	if (!via_config->id) {
-		printk(KERN_WARNING "VP_IDE: Unknown VIA SouthBridge, disabling DMA.\n");
+		printk(KERN_WARNING DRV_NAME " %s: unknown chipset, skipping\n",
+			pci_name(dev));
 		return -ENODEV;
+	}
+
+	/*
+	 * Print the boot message.
+	 */
+	printk(KERN_INFO DRV_NAME " %s: VIA %s (rev %02x) IDE %sDMA%s\n",
+		pci_name(dev), via_config->name, isa->revision,
+		via_config->udma_mask ? "U" : "MW",
+		via_dma[via_config->udma_mask ?
+			(fls(via_config->udma_mask) - 1) : 0]);
+
+	pci_dev_put(isa);
+
+	/*
+	 * Determine system bus clock.
+	 */
+	via_clock = (ide_pci_clk ? ide_pci_clk : 33) * 1000;
+
+	switch (via_clock) {
+	case 33000: via_clock = 33333; break;
+	case 37000: via_clock = 37500; break;
+	case 41000: via_clock = 41666; break;
+	}
+
+	if (via_clock < 20000 || via_clock > 50000) {
+		printk(KERN_WARNING DRV_NAME ": User given PCI clock speed "
+			"impossible (%d), using 33 MHz instead.\n", via_clock);
+		printk(KERN_WARNING DRV_NAME ": Use ide0=ata66 if you want "
+			"to assume 80-wire cable.\n");
+		via_clock = 33333;
 	}
 
 	if (idx == 0)
@@ -467,7 +452,29 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 	d.udma_mask = via_config->udma_mask;
 
-	return ide_setup_pci_device(dev, &d);
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
+		printk(KERN_ERR DRV_NAME " %s: out of memory :(\n",
+			pci_name(dev));
+		return -ENOMEM;
+	}
+
+	vdev->via_config = via_config;
+
+	rc = ide_pci_init_one(dev, &d, vdev);
+	if (rc)
+		kfree(vdev);
+
+	return rc;
+}
+
+static void __devexit via_remove(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct via82cxxx_dev *vdev = host->host_priv;
+
+	ide_pci_remove(dev);
+	kfree(vdev);
 }
 
 static const struct pci_device_id via_pci_tbl[] = {
@@ -484,6 +491,7 @@ static struct pci_driver driver = {
 	.name 		= "VIA_IDE",
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
+	.remove		= __devexit_p(via_remove),
 };
 
 static int __init via_ide_init(void)
@@ -491,7 +499,13 @@ static int __init via_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit via_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(via_ide_init);
+module_exit(via_ide_exit);
 
 MODULE_AUTHOR("Vojtech Pavlik, Michel Aubry, Jeff Garzik, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for VIA IDE");

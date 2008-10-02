@@ -1,4 +1,4 @@
-/* $Id: md.h,v 1.1 1997/12/15 15:12:04 jj Exp $
+/*
  * md.h: High speed xor_block operation for RAID4/5
  *
  */

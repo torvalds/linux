@@ -628,27 +628,18 @@ static long cirrusfb_get_mclk(long freq, int bpp, long *div)
 static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
 {
-	int nom, den;		/* translyting from pixels->bytes */
-	int yres, i;
-	static struct { int xres, yres; } modes[] =
-	{ { 1600, 1280 },
-	  { 1280, 1024 },
-	  { 1024, 768 },
-	  { 800, 600 },
-	  { 640, 480 },
-	  { -1, -1 } };
+	int yres;
+	/* memory size in pixels */
+	unsigned pixels = info->screen_size * 8 / var->bits_per_pixel;
 
 	switch (var->bits_per_pixel) {
 	case 1:
-		nom = 4;
-		den = 8;
+		pixels /= 4;
 		break;		/* 8 pixel per byte, only 1/4th of mem usable */
 	case 8:
 	case 16:
 	case 24:
 	case 32:
-		nom = var->bits_per_pixel / 8;
-		den = 1;
 		break;		/* 1 pixel == 1 byte */
 	default:
 		printk(KERN_ERR "cirrusfb: mode %dx%dx%d rejected..."
@@ -658,42 +649,28 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	if (var->xres * nom / den * var->yres > info->screen_size) {
-		printk(KERN_ERR "cirrusfb: mode %dx%dx%d rejected..."
-			"resolution too high to fit into video memory!\n",
-			var->xres, var->yres, var->bits_per_pixel);
-		DPRINTK("EXIT - EINVAL error\n");
-		return -EINVAL;
-	}
-
+	if (var->xres_virtual < var->xres)
+		var->xres_virtual = var->xres;
 	/* use highest possible virtual resolution */
-	if (var->xres_virtual == -1 &&
-	    var->yres_virtual == -1) {
-		printk(KERN_INFO
-		     "cirrusfb: using maximum available virtual resolution\n");
-		for (i = 0; modes[i].xres != -1; i++) {
-			int size = modes[i].xres * nom / den * modes[i].yres;
-			if (size < info->screen_size / 2)
-				break;
-		}
-		if (modes[i].xres == -1) {
-			printk(KERN_ERR "cirrusfb: could not find a virtual "
-				"resolution that fits into video memory!!\n");
-			DPRINTK("EXIT - EINVAL error\n");
-			return -EINVAL;
-		}
-		var->xres_virtual = modes[i].xres;
-		var->yres_virtual = modes[i].yres;
+	if (var->yres_virtual == -1) {
+		var->yres_virtual = pixels / var->xres_virtual;
 
 		printk(KERN_INFO "cirrusfb: virtual resolution set to "
 			"maximum of %dx%d\n", var->xres_virtual,
 			var->yres_virtual);
 	}
-
-	if (var->xres_virtual < var->xres)
-		var->xres_virtual = var->xres;
 	if (var->yres_virtual < var->yres)
 		var->yres_virtual = var->yres;
+
+	if (var->xres_virtual * var->yres_virtual > pixels) {
+		printk(KERN_ERR "cirrusfb: mode %dx%dx%d rejected... "
+		      "virtual resolution too high to fit into video memory!\n",
+			var->xres_virtual, var->yres_virtual,
+			var->bits_per_pixel);
+		DPRINTK("EXIT - EINVAL error\n");
+		return -EINVAL;
+	}
+
 
 	if (var->xoffset < 0)
 		var->xoffset = 0;

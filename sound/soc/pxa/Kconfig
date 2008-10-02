@@ -48,6 +48,7 @@ config SND_PXA2XX_SOC_POODLE
 config SND_PXA2XX_SOC_TOSA
 	tristate "SoC AC97 Audio support for Tosa"
 	depends on SND_PXA2XX_SOC && MACH_TOSA
+	depends on MFD_TC6393XB
 	select SND_PXA2XX_SOC_AC97
 	select SND_SOC_WM9712
 	help

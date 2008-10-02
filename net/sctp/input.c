@@ -61,6 +61,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 #include <net/sctp/checksum.h>
+#include <net/net_namespace.h>
 
 /* Forward declarations for internal helpers. */
 static int sctp_rcv_ootb(struct sk_buff *);
@@ -82,8 +83,8 @@ static inline int sctp_rcv_checksum(struct sk_buff *skb)
 {
 	struct sk_buff *list = skb_shinfo(skb)->frag_list;
 	struct sctphdr *sh = sctp_hdr(skb);
-	__u32 cmp = ntohl(sh->checksum);
-	__u32 val = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
+	__be32 cmp = sh->checksum;
+	__be32 val = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
 
 	for (; list; list = list->next)
 		val = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
@@ -430,6 +431,9 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	struct sock *sk = NULL;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport = NULL;
+	struct sctp_init_chunk *chunkhdr;
+	__u32 vtag = ntohl(sctphdr->vtag);
+	int len = skb->len - ((void *)sctphdr - (void *)skb->data);
 
 	*app = NULL; *tpp = NULL;
 
@@ -451,8 +455,28 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 
 	sk = asoc->base.sk;
 
-	if (ntohl(sctphdr->vtag) != asoc->c.peer_vtag) {
-		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	/* RFC 4960, Appendix C. ICMP Handling
+	 *
+	 * ICMP6) An implementation MUST validate that the Verification Tag
+	 * contained in the ICMP message matches the Verification Tag of
+	 * the peer.  If the Verification Tag is not 0 and does NOT
+	 * match, discard the ICMP message.  If it is 0 and the ICMP
+	 * message contains enough bytes to verify that the chunk type is
+	 * an INIT chunk and that the Initiate Tag matches the tag of the
+	 * peer, continue with ICMP7.  If the ICMP message is too short
+	 * or the chunk type or the Initiate Tag does not match, silently
+	 * discard the packet.
+	 */
+	if (vtag == 0) {
+		chunkhdr = (struct sctp_init_chunk *)((void *)sctphdr
+				+ sizeof(struct sctphdr));
+		if (len < sizeof(struct sctphdr) + sizeof(sctp_chunkhdr_t)
+			  + sizeof(__be32) ||
+		    chunkhdr->chunk_hdr.type != SCTP_CID_INIT ||
+		    ntohl(chunkhdr->init_hdr.init_tag) != asoc->c.my_vtag) {
+			goto out;
+		}
+	} else if (vtag != asoc->c.peer_vtag) {
 		goto out;
 	}
 
@@ -462,7 +486,7 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	 * servers this needs to be solved differently.
 	 */
 	if (sock_owned_by_user(sk))
-		NET_INC_STATS_BH(LINUX_MIB_LOCKDROPPEDICMPS);
+		NET_INC_STATS_BH(&init_net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	*app = asoc;
 	*tpp = transport;
@@ -511,7 +535,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	int err;
 
 	if (skb->len < ihlen + 8) {
-		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+		ICMP_INC_STATS_BH(&init_net, ICMP_MIB_INERRORS);
 		return;
 	}
 
@@ -525,7 +549,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	skb->network_header = saveip;
 	skb->transport_header = savesctp;
 	if (!sk) {
-		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+		ICMP_INC_STATS_BH(&init_net, ICMP_MIB_INERRORS);
 		return;
 	}
 	/* Warning:  The sock lock is held.  Remember to call

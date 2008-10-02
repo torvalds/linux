@@ -297,8 +297,8 @@ static int test_func(void *data)
  *
  * opcode:data
  */
-static ssize_t sysfs_test_command(struct sys_device *dev, const char *buf,
-				  size_t count)
+static ssize_t sysfs_test_command(struct sys_device *dev, struct sysdev_attribute *attr,
+				  const char *buf, size_t count)
 {
 	struct sched_param schedpar;
 	struct test_thread_data *td;
@@ -360,7 +360,8 @@ static ssize_t sysfs_test_command(struct sys_device *dev, const char *buf,
  * @dev:	thread to query
  * @buf:	char buffer to be filled with thread status info
  */
-static ssize_t sysfs_test_status(struct sys_device *dev, char *buf)
+static ssize_t sysfs_test_status(struct sys_device *dev, struct sysdev_attribute *attr,
+				 char *buf)
 {
 	struct test_thread_data *td;
 	struct task_struct *tsk;

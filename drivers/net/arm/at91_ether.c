@@ -32,9 +32,9 @@
 #include <asm/uaccess.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/at91rm9200_emac.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/board.h>
+#include <mach/at91rm9200_emac.h>
+#include <mach/gpio.h>
+#include <mach/board.h>
 
 #include "at91_ether.h"
 
@@ -677,7 +677,7 @@ static void at91ether_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev->dev.parent->bus_id, sizeof(info->bus_info));
+	strlcpy(info->bus_info, dev_name(dev->dev.parent), sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops at91ether_ethtool_ops = {
@@ -820,7 +820,7 @@ static int at91ether_tx(struct sk_buff *skb, struct net_device *dev)
 		lp->skb = skb;
 		lp->skb_length = skb->len;
 		lp->skb_physaddr = dma_map_single(NULL, skb->data, skb->len, DMA_TO_DEVICE);
-		lp->stats.tx_bytes += skb->len;
+		dev->stats.tx_bytes += skb->len;
 
 		/* Set address of the data in the Transmit Address register */
 		at91_emac_write(AT91_EMAC_TAR, lp->skb_physaddr);
@@ -843,34 +843,33 @@ static int at91ether_tx(struct sk_buff *skb, struct net_device *dev)
  */
 static struct net_device_stats *at91ether_stats(struct net_device *dev)
 {
-	struct at91_private *lp = netdev_priv(dev);
 	int ale, lenerr, seqe, lcol, ecol;
 
 	if (netif_running(dev)) {
-		lp->stats.rx_packets += at91_emac_read(AT91_EMAC_OK);		/* Good frames received */
+		dev->stats.rx_packets += at91_emac_read(AT91_EMAC_OK);		/* Good frames received */
 		ale = at91_emac_read(AT91_EMAC_ALE);
-		lp->stats.rx_frame_errors += ale;				/* Alignment errors */
+		dev->stats.rx_frame_errors += ale;				/* Alignment errors */
 		lenerr = at91_emac_read(AT91_EMAC_ELR) + at91_emac_read(AT91_EMAC_USF);
-		lp->stats.rx_length_errors += lenerr;				/* Excessive Length or Undersize Frame error */
+		dev->stats.rx_length_errors += lenerr;				/* Excessive Length or Undersize Frame error */
 		seqe = at91_emac_read(AT91_EMAC_SEQE);
-		lp->stats.rx_crc_errors += seqe;				/* CRC error */
-		lp->stats.rx_fifo_errors += at91_emac_read(AT91_EMAC_DRFC);	/* Receive buffer not available */
-		lp->stats.rx_errors += (ale + lenerr + seqe
+		dev->stats.rx_crc_errors += seqe;				/* CRC error */
+		dev->stats.rx_fifo_errors += at91_emac_read(AT91_EMAC_DRFC);	/* Receive buffer not available */
+		dev->stats.rx_errors += (ale + lenerr + seqe
 			+ at91_emac_read(AT91_EMAC_CDE) + at91_emac_read(AT91_EMAC_RJB));
 
-		lp->stats.tx_packets += at91_emac_read(AT91_EMAC_FRA);		/* Frames successfully transmitted */
-		lp->stats.tx_fifo_errors += at91_emac_read(AT91_EMAC_TUE);	/* Transmit FIFO underruns */
-		lp->stats.tx_carrier_errors += at91_emac_read(AT91_EMAC_CSE);	/* Carrier Sense errors */
-		lp->stats.tx_heartbeat_errors += at91_emac_read(AT91_EMAC_SQEE);/* Heartbeat error */
+		dev->stats.tx_packets += at91_emac_read(AT91_EMAC_FRA);		/* Frames successfully transmitted */
+		dev->stats.tx_fifo_errors += at91_emac_read(AT91_EMAC_TUE);	/* Transmit FIFO underruns */
+		dev->stats.tx_carrier_errors += at91_emac_read(AT91_EMAC_CSE);	/* Carrier Sense errors */
+		dev->stats.tx_heartbeat_errors += at91_emac_read(AT91_EMAC_SQEE);/* Heartbeat error */
 
 		lcol = at91_emac_read(AT91_EMAC_LCOL);
 		ecol = at91_emac_read(AT91_EMAC_ECOL);
-		lp->stats.tx_window_errors += lcol;			/* Late collisions */
-		lp->stats.tx_aborted_errors += ecol;			/* 16 collisions */
+		dev->stats.tx_window_errors += lcol;			/* Late collisions */
+		dev->stats.tx_aborted_errors += ecol;			/* 16 collisions */
 
-		lp->stats.collisions += (at91_emac_read(AT91_EMAC_SCOL) + at91_emac_read(AT91_EMAC_MCOL) + lcol + ecol);
+		dev->stats.collisions += (at91_emac_read(AT91_EMAC_SCOL) + at91_emac_read(AT91_EMAC_MCOL) + lcol + ecol);
 	}
-	return &lp->stats;
+	return &dev->stats;
 }
 
 /*
@@ -896,16 +895,16 @@ static void at91ether_rx(struct net_device *dev)
 
 			skb->protocol = eth_type_trans(skb, dev);
 			dev->last_rx = jiffies;
-			lp->stats.rx_bytes += pktlen;
+			dev->stats.rx_bytes += pktlen;
 			netif_rx(skb);
 		}
 		else {
-			lp->stats.rx_dropped += 1;
+			dev->stats.rx_dropped += 1;
 			printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n", dev->name);
 		}
 
 		if (dlist->descriptors[lp->rxBuffIndex].size & EMAC_MULTICAST)
-			lp->stats.multicast++;
+			dev->stats.multicast++;
 
 		dlist->descriptors[lp->rxBuffIndex].addr &= ~EMAC_DESC_DONE;	/* reset ownership bit */
 		if (lp->rxBuffIndex == MAX_RX_DESCR-1)				/* wrap after last buffer */
@@ -934,7 +933,7 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	if (intstatus & AT91_EMAC_TCOM) {	/* Transmit complete */
 		/* The TCOM bit is set even if the transmission failed. */
 		if (intstatus & (AT91_EMAC_TUND | AT91_EMAC_RTRY))
-			lp->stats.tx_errors += 1;
+			dev->stats.tx_errors += 1;
 
 		if (lp->skb) {
 			dev_kfree_skb_irq(lp->skb);

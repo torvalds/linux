@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *
@@ -23,6 +22,7 @@
 #include "pvrusb2-debug.h"
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>

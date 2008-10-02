@@ -57,7 +57,7 @@ atomic_t irq_mis_count;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-static DEFINE_SPINLOCK(vector_lock);
+DEFINE_SPINLOCK(vector_lock);
 
 int timer_through_8259 __initdata;
 
@@ -756,7 +756,7 @@ void send_IPI_self(int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 #endif /* !CONFIG_SMP */
 
@@ -1207,10 +1207,6 @@ static int assign_irq_vector(int irq)
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return vector;
-}
-
-void setup_vector_irq(int cpu)
-{
 }
 
 static struct irq_chip ioapic_chip;
@@ -2030,7 +2026,7 @@ static void mask_lapic_irq(unsigned int irq)
 	unsigned long v;
 
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v | APIC_LVT_MASKED);
 }
 
 static void unmask_lapic_irq(unsigned int irq)
@@ -2038,7 +2034,7 @@ static void unmask_lapic_irq(unsigned int irq)
 	unsigned long v;
 
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v & ~APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v & ~APIC_LVT_MASKED);
 }
 
 static struct irq_chip lapic_chip __read_mostly = {
@@ -2168,7 +2164,7 @@ static inline void __init check_timer(void)
 	 * The AEOI mode will finish them in the 8259A
 	 * automatically.
 	 */
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
 	timer_ack = (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
 
@@ -2177,8 +2173,9 @@ static inline void __init check_timer(void)
 	pin2  = ioapic_i8259.pin;
 	apic2 = ioapic_i8259.apic;
 
-	printk(KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
-		vector, apic1, pin1, apic2, pin2);
+	apic_printk(APIC_QUIET, KERN_INFO "..TIMER: vector=0x%02X "
+		    "apic1=%d pin1=%d apic2=%d pin2=%d\n",
+		    vector, apic1, pin1, apic2, pin2);
 
 	/*
 	 * Some BIOS writers are clueless and report the ExtINTA
@@ -2216,12 +2213,13 @@ static inline void __init check_timer(void)
 		}
 		clear_IO_APIC_pin(apic1, pin1);
 		if (!no_pin1)
-			printk(KERN_ERR "..MP-BIOS bug: "
-			       "8254 timer not connected to IO-APIC\n");
+			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS bug: "
+				    "8254 timer not connected to IO-APIC\n");
 
-		printk(KERN_INFO "...trying to set up timer (IRQ0) "
-		       "through the 8259A ... ");
-		printk("\n..... (found pin %d) ...", pin2);
+		apic_printk(APIC_QUIET, KERN_INFO "...trying to set up timer "
+			    "(IRQ0) through the 8259A ...\n");
+		apic_printk(APIC_QUIET, KERN_INFO
+			    "..... (found apic %d pin %d) ...\n", apic2, pin2);
 		/*
 		 * legacy devices should be connected to IO APIC #0
 		 */
@@ -2230,7 +2228,7 @@ static inline void __init check_timer(void)
 		unmask_IO_APIC_irq(0);
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
-			printk("works.\n");
+			apic_printk(APIC_QUIET, KERN_INFO "....... works.\n");
 			timer_through_8259 = 1;
 			if (nmi_watchdog == NMI_IO_APIC) {
 				disable_8259A_irq(0);
@@ -2244,44 +2242,47 @@ static inline void __init check_timer(void)
 		 */
 		disable_8259A_irq(0);
 		clear_IO_APIC_pin(apic2, pin2);
-		printk(" failed.\n");
+		apic_printk(APIC_QUIET, KERN_INFO "....... failed.\n");
 	}
 
 	if (nmi_watchdog == NMI_IO_APIC) {
-		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
+		apic_printk(APIC_QUIET, KERN_WARNING "timer doesn't work "
+			    "through the IO-APIC - disabling NMI Watchdog!\n");
 		nmi_watchdog = NMI_NONE;
 	}
 	timer_ack = 0;
 
-	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
+	apic_printk(APIC_QUIET, KERN_INFO
+		    "...trying to set up timer as Virtual Wire IRQ...\n");
 
 	lapic_register_intr(0, vector);
-	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
+	apic_write(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
 	if (timer_irq_works()) {
-		printk(" works.\n");
+		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
 		goto out;
 	}
 	disable_8259A_irq(0);
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
-	printk(" failed.\n");
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
+	apic_printk(APIC_QUIET, KERN_INFO "..... failed.\n");
 
-	printk(KERN_INFO "...trying to set up timer as ExtINT IRQ...");
+	apic_printk(APIC_QUIET, KERN_INFO
+		    "...trying to set up timer as ExtINT IRQ...\n");
 
 	init_8259A(0);
 	make_8259A_irq(0);
-	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_DM_EXTINT);
 
 	unlock_ExtINT_logic();
 
 	if (timer_irq_works()) {
-		printk(" works.\n");
+		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
 		goto out;
 	}
-	printk(" failed :(.\n");
+	apic_printk(APIC_QUIET, KERN_INFO "..... failed :(.\n");
 	panic("IO-APIC + timer doesn't work!  Boot with apic=debug and send a "
-		"report.  Then try booting with the 'noapic' option");
+		"report.  Then try booting with the 'noapic' option.\n");
 out:
 	local_irq_restore(flags);
 }

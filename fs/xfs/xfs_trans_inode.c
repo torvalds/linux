@@ -291,7 +291,7 @@ xfs_trans_inode_broot_debug(
 	iip = ip->i_itemp;
 	if (iip->ili_root_size != 0) {
 		ASSERT(iip->ili_orig_root != NULL);
-		kmem_free(iip->ili_orig_root, iip->ili_root_size);
+		kmem_free(iip->ili_orig_root);
 		iip->ili_root_size = 0;
 		iip->ili_orig_root = NULL;
 	}

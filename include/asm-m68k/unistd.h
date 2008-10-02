@@ -325,10 +325,16 @@
 #define __NR_fallocate		320
 #define __NR_timerfd_settime	321
 #define __NR_timerfd_gettime	322
+#define __NR_signalfd4		323
+#define __NR_eventfd2		324
+#define __NR_epoll_create1	325
+#define __NR_dup3		326
+#define __NR_pipe2		327
+#define __NR_inotify_init1	328
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		323
+#define NR_syscalls		329
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

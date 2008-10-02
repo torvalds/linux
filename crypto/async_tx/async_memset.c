@@ -72,19 +72,11 @@ async_memset(struct page *dest, int val, unsigned int offset,
 		dest_buf = (void *) (((char *) page_address(dest)) + offset);
 
 		/* wait for any prerequisite operations */
-		if (depend_tx) {
-			/* if ack is already set then we cannot be sure
-			 * we are referring to the correct operation
-			 */
-			BUG_ON(depend_tx->ack);
-			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
-				panic("%s: DMA_ERROR waiting for depend_tx\n",
-					__func__);
-		}
+		async_tx_quiesce(&depend_tx);
 
 		memset(dest_buf, val, len);
 
-		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
+		async_tx_sync_epilog(cb_fn, cb_param);
 	}
 
 	return tx;

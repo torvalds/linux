@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 
-#include <asm/arch/ep93xx-regs.h>
+#include <mach/ep93xx-regs.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 

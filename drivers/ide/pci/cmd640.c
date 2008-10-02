@@ -181,11 +181,6 @@ static u8 recovery_counts[4] = {16, 16, 16, 16}; /* Recovery count (encoded) */
 static DEFINE_SPINLOCK(cmd640_lock);
 
 /*
- * These are initialized to point at the devices we control
- */
-static ide_hwif_t  *cmd_hwif0, *cmd_hwif1;
-
-/*
  * Interface to access cmd640x registers
  */
 static unsigned int cmd640_key;
@@ -717,8 +712,7 @@ static int __init cmd640x_init(void)
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	u8 b, cfr;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
+	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -781,15 +775,10 @@ static int __init cmd640x_init(void)
 	printk(KERN_INFO "cmd640: buggy cmd640%c interface on %s, config=0x%02x"
 			 "\n", 'a' + cmd640_chip_version - 1, bus_type, cfr);
 
-	cmd_hwif0 = ide_find_port();
-
 	/*
 	 * Initialize data for primary port
 	 */
-	if (cmd_hwif0) {
-		ide_init_port_hw(cmd_hwif0, &hw[0]);
-		idx[0] = cmd_hwif0->index;
-	}
+	hws[0] = &hw[0];
 
 	/*
 	 * Ensure compatibility by always using the slowest timings
@@ -829,13 +818,9 @@ static int __init cmd640x_init(void)
 	/*
 	 * Initialize data for secondary cmd640 port, if enabled
 	 */
-	if (second_port_cmd640) {
-		cmd_hwif1 = ide_find_port();
-		if (cmd_hwif1) {
-			ide_init_port_hw(cmd_hwif1, &hw[1]);
-			idx[1] = cmd_hwif1->index;
-		}
-	}
+	if (second_port_cmd640)
+		hws[1] = &hw[1];
+
 	printk(KERN_INFO "cmd640: %sserialized, secondary interface %s\n",
 			 second_port_cmd640 ? "" : "not ", port2);
 
@@ -843,9 +828,7 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	ide_device_add(idx, &cmd640_port_info);
-
-	return 1;
+	return ide_host_add(&cmd640_port_info, hws, NULL);
 }
 
 module_param_named(probe_vlb, cmd640_vlb, bool, 0);

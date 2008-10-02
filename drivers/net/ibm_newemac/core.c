@@ -295,7 +295,9 @@ static void emac_rx_disable(struct emac_instance *dev)
 static inline void emac_netif_stop(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 1;
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 	dev->ndev->trans_start = jiffies;	/* prevent tx timeout */
 	mal_poll_disable(dev->mal, &dev->commac);
@@ -305,9 +307,11 @@ static inline void emac_netif_stop(struct emac_instance *dev)
 static inline void emac_netif_start(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 0;
 	if (dev->mcast_pending && netif_running(dev->ndev))
 		__emac_set_multicast_list(dev);
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 
 	netif_wake_queue(dev->ndev);
@@ -658,9 +662,6 @@ static int emac_configure(struct emac_instance *dev)
 	/* We need to take GPCS PHY out of isolate mode after EMAC reset */
 	if (emac_phy_gpcs(dev->phy.mode))
 		emac_mii_reset_phy(&dev->phy);
-
-	/* Required for Pause packet support in EMAC */
-	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	return 0;
 }
@@ -1145,6 +1146,9 @@ static int emac_open(struct net_device *ndev)
 		emac_print_link_status(dev);
 	} else
 		netif_carrier_on(dev->ndev);
+
+	/* Required for Pause packet support in EMAC */
+	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	emac_configure(dev);
 	mal_poll_add(dev->mal, &dev->commac);

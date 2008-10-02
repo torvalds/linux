@@ -23,13 +23,14 @@
 #include <linux/suspend.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/dma.h>
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/pm.h>
+#include <mach/dma.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -109,6 +110,52 @@ static const struct clkops clk_pxa25x_lcd_ops = {
 	.getrate	= clk_pxa25x_lcd_getrate,
 };
 
+static unsigned long gpio12_config_32k[] = {
+	GPIO12_32KHz,
+};
+
+static unsigned long gpio12_config_gpio[] = {
+	GPIO12_GPIO,
+};
+
+static void clk_gpio12_enable(struct clk *clk)
+{
+	pxa2xx_mfp_config(gpio12_config_32k, 1);
+}
+
+static void clk_gpio12_disable(struct clk *clk)
+{
+	pxa2xx_mfp_config(gpio12_config_gpio, 1);
+}
+
+static const struct clkops clk_pxa25x_gpio12_ops = {
+	.enable         = clk_gpio12_enable,
+	.disable        = clk_gpio12_disable,
+};
+
+static unsigned long gpio11_config_3m6[] = {
+	GPIO11_3_6MHz,
+};
+
+static unsigned long gpio11_config_gpio[] = {
+	GPIO11_GPIO,
+};
+
+static void clk_gpio11_enable(struct clk *clk)
+{
+	pxa2xx_mfp_config(gpio11_config_3m6, 1);
+}
+
+static void clk_gpio11_disable(struct clk *clk)
+{
+	pxa2xx_mfp_config(gpio11_config_gpio, 1);
+}
+
+static const struct clkops clk_pxa25x_gpio11_ops = {
+	.enable         = clk_gpio11_enable,
+	.disable        = clk_gpio11_disable,
+};
+
 /*
  * 3.6864MHz -> OST, GPIO, SSP, PWM, PLLs (95.842MHz, 147.456MHz)
  * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
@@ -119,8 +166,7 @@ static struct clk pxa25x_hwuart_clk =
 ;
 
 /*
- * PXA 2xx clock declarations. Order is important (see aliases below)
- * Please be careful not to disrupt the ordering.
+ * PXA 2xx clock declarations.
  */
 static struct clk pxa25x_clks[] = {
 	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
@@ -128,6 +174,8 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
 	INIT_CKEN("UARTCLK", STUART, 14745600, 1, NULL),
 	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa25x_device_udc.dev),
+	INIT_CLK("GPIO11_CLK", &clk_pxa25x_gpio11_ops, 3686400, 0, NULL),
+	INIT_CLK("GPIO12_CLK", &clk_pxa25x_gpio12_ops, 32768, 0, NULL),
 	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
 
@@ -144,8 +192,6 @@ static struct clk pxa25x_clks[] = {
 	*/
 	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
 };
-
-static struct clk gpio7_clk = INIT_CKOTHER("GPIO7_CK", &pxa25x_clks[4], NULL);
 
 #ifdef CONFIG_PM
 
@@ -293,10 +339,13 @@ static int __init pxa25x_init(void)
 	int i, ret = 0;
 
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
-	if (cpu_is_pxa25x())
+	if (cpu_is_pxa255())
 		clks_register(&pxa25x_hwuart_clk, 1);
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+
+		reset_status = RCSR;
+
 		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
 
 		if ((ret = pxa_init_dma(16)))
@@ -317,10 +366,8 @@ static int __init pxa25x_init(void)
 	}
 
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
-	if (cpu_is_pxa25x())
+	if (cpu_is_pxa255())
 		ret = platform_device_register(&pxa_device_hwuart);
-
-	clks_register(&gpio7_clk, 1);
 
 	return ret;
 }

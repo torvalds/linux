@@ -123,7 +123,7 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 		}
 	}
 
-	BUG_TRAP(lopt->qlen == 0);
+	WARN_ON(lopt->qlen != 0);
 	if (lopt_size > PAGE_SIZE)
 		vfree(lopt);
 	else

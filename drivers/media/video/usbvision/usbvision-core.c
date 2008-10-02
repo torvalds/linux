@@ -30,7 +30,6 @@
 #include <linux/mm.h>
 #include <linux/utsname.h>
 #include <linux/highmem.h>
-#include <linux/videodev.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -43,7 +42,6 @@
 #include <media/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include <media/audiochip.h>
 
 #include <linux/workqueue.h>
 
@@ -167,7 +165,6 @@ static void usbvision_rvfree(void *mem, unsigned long size)
 
 	vfree(mem);
 }
-
 
 
 #if ENABLE_HEXDUMP
@@ -2317,7 +2314,6 @@ static void usbvision_powerOffTimer(unsigned long data)
 	del_timer(&usbvision->powerOffTimer);
 	INIT_WORK(&usbvision->powerOffWork, call_usbvision_power_off);
 	(void) schedule_work(&usbvision->powerOffWork);
-
 }
 
 void usbvision_init_powerOffTimer(struct usb_usbvision *usbvision)
@@ -2518,7 +2514,6 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		}
 	}
 
-
 	/* Submit all URBs */
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
 			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb,
@@ -2563,7 +2558,6 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 		usb_free_urb(usbvision->sbuf[bufIdx].urb);
 		usbvision->sbuf[bufIdx].urb = NULL;
 	}
-
 
 	PDEBUG(DBG_ISOC, "%s: streaming=Stream_Off\n", __func__);
 	usbvision->streaming = Stream_Off;

@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.2.9c"
+#define DRIVER_VERSION "v.1.3.2"
 #define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -30,8 +30,6 @@
 
 #define SWIMS_USB_REQUEST_SetPower	0x00
 #define SWIMS_USB_REQUEST_SetNmea	0x07
-#define SWIMS_USB_REQUEST_SetMode	0x0B
-#define SWIMS_SET_MODE_Modem		0x0001
 
 /* per port private data */
 #define N_IN_URB	4
@@ -40,18 +38,11 @@
 
 static int debug;
 static int nmea;
-static int truinstall = 1;
-
-enum devicetype {
-	DEVICE_3_PORT =		0,
-	DEVICE_1_PORT =		1,
-	DEVICE_INSTALLER =	2,
-};
 
 static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 {
 	int result;
-	dev_dbg(&udev->dev, "%s", "SET POWER STATE\n");
+	dev_dbg(&udev->dev, "%s", __func__);
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetPower,	/* __u8 request      */
 			USB_TYPE_VENDOR,		/* __u8 request type */
@@ -63,25 +54,10 @@ static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 	return result;
 }
 
-static int sierra_set_ms_mode(struct usb_device *udev, __u16 eSWocMode)
-{
-	int result;
-	dev_dbg(&udev->dev, "%s", "DEVICE MODE SWITCH\n");
-	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-			SWIMS_USB_REQUEST_SetMode,	/* __u8 request      */
-			USB_TYPE_VENDOR,		/* __u8 request type */
-			eSWocMode,			/* __u16 value       */
-			0x0000,				/* __u16 index       */
-			NULL,				/* void *data        */
-			0,				/* __u16 size 	     */
-			USB_CTRL_SET_TIMEOUT);		/* int timeout       */
-	return result;
-}
-
 static int sierra_vsc_set_nmea(struct usb_device *udev, __u16 enable)
 {
 	int result;
-	dev_dbg(&udev->dev, "%s", "NMEA Enable sent\n");
+	dev_dbg(&udev->dev, "%s", __func__);
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetNmea,	/* __u8 request      */
 			USB_TYPE_VENDOR,		/* __u8 request type */
@@ -97,6 +73,7 @@ static int sierra_calc_num_ports(struct usb_serial *serial)
 {
 	int result;
 	int *num_ports = usb_get_serial_data(serial);
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	result = *num_ports;
 
@@ -110,22 +87,23 @@ static int sierra_calc_num_ports(struct usb_serial *serial)
 
 static int sierra_calc_interface(struct usb_serial *serial)
 {
-		int interface;
-		struct usb_interface *p_interface;
-		struct usb_host_interface *p_host_interface;
+	int interface;
+	struct usb_interface *p_interface;
+	struct usb_host_interface *p_host_interface;
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
-		/* Get the interface structure pointer from the serial struct */
-		p_interface = serial->interface;
+	/* Get the interface structure pointer from the serial struct */
+	p_interface = serial->interface;
 
-		/* Get a pointer to the host interface structure */
-		p_host_interface = p_interface->cur_altsetting;
+	/* Get a pointer to the host interface structure */
+	p_host_interface = p_interface->cur_altsetting;
 
-		/* read the interface descriptor for this active altsetting
-		 * to find out the interface number we are on
-		*/
-		interface = p_host_interface->desc.bInterfaceNumber;
+	/* read the interface descriptor for this active altsetting
+	 * to find out the interface number we are on
+	*/
+	interface = p_host_interface->desc.bInterfaceNumber;
 
-		return interface;
+	return interface;
 }
 
 static int sierra_probe(struct usb_serial *serial,
@@ -135,43 +113,40 @@ static int sierra_probe(struct usb_serial *serial,
 	struct usb_device *udev;
 	int *num_ports;
 	u8 ifnum;
+	u8 numendpoints;
+
+	dev_dbg(&serial->dev->dev, "%s", __func__);
 
 	num_ports = kmalloc(sizeof(*num_ports), GFP_KERNEL);
 	if (!num_ports)
 		return -ENOMEM;
 
 	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	numendpoints = serial->interface->cur_altsetting->desc.bNumEndpoints;
 	udev = serial->dev;
 
-		/* Figure out the interface number from the serial structure */
-		ifnum = sierra_calc_interface(serial);
+	/* Figure out the interface number from the serial structure */
+	ifnum = sierra_calc_interface(serial);
 
-		/*
-		 * If this interface supports more than 1 alternate
-		 * select the 2nd one
-		 */
-		if (serial->interface->num_altsetting == 2) {
-			dev_dbg(&udev->dev,
-				"Selecting alt setting for interface %d\n",
-				ifnum);
+	/*
+	 * If this interface supports more than 1 alternate
+	 * select the 2nd one
+	 */
+	if (serial->interface->num_altsetting == 2) {
+		dev_dbg(&udev->dev, "Selecting alt setting for interface %d\n",
+			ifnum);
+		/* We know the alternate setting is 1 for the MC8785 */
+		usb_set_interface(udev, ifnum, 1);
+	}
 
-			/* We know the alternate setting is 1 for the MC8785 */
-			usb_set_interface(udev, ifnum, 1);
-		}
-
-	/* Check if in installer mode */
-	if (truinstall && id->driver_info == DEVICE_INSTALLER) {
-		dev_dbg(&udev->dev, "%s", "FOUND TRU-INSTALL DEVICE(SW)\n");
-		result = sierra_set_ms_mode(udev, SWIMS_SET_MODE_Modem);
-		/* Don't bind to the device when in installer mode */
-		kfree(num_ports);
-		return -EIO;
-	} else if (id->driver_info == DEVICE_1_PORT)
-		*num_ports = 1;
-	else if (ifnum == 0x99)
+	/* Dummy interface present on some SKUs should be ignored */
+	if (ifnum == 0x99)
 		*num_ports = 0;
+	else if (numendpoints <= 3)
+		*num_ports = 1;
 	else
-		*num_ports = 3;
+		*num_ports = (numendpoints-1)/2;
+
 	/*
 	 * save off our num_ports info so that we can use it in the
 	 * calc_num_ports callback
@@ -185,42 +160,57 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
 	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x0f30, 0x1b1d) },	/* Sierra Wireless MC5720 */
+	{ USB_DEVICE(0x03f0, 0x1b1d) }, /* HP ev2200 a.k.a MC5720 */
 	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
+	{ USB_DEVICE(0x1199, 0x0024) },	/* Sierra Wireless MC5727 */
 	{ USB_DEVICE(0x1199, 0x0220) },	/* Sierra Wireless MC5725 */
 	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
 	{ USB_DEVICE(0x1199, 0x0021) },	/* Sierra Wireless AirCard 597E */
 	{ USB_DEVICE(0x1199, 0x0120) },	/* Sierra Wireless USB Dongle 595U */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0023, 0xFF, 0xFF, 0xFF) }, /* Sierra Wireless C597 */
+	 /* Sierra Wireless C597 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0023, 0xFF, 0xFF, 0xFF) },
+	 /* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0025, 0xFF, 0xFF, 0xFF) },
+	{ USB_DEVICE(0x1199, 0x0026) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0027) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0028) }, /* Sierra Wireless Device */
 
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6803) },	/* Sierra Wireless MC8765 */
 	{ USB_DEVICE(0x1199, 0x6812) },	/* Sierra Wireless MC8775 & AC 875U */
-	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 (Thinkpad internal) */
+	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 (Lenovo) */
 	{ USB_DEVICE(0x1199, 0x6815) },	/* Sierra Wireless MC8775 */
 	{ USB_DEVICE(0x03f0, 0x1e1d) },	/* HP hs2300 a.k.a MC8775 */
 	{ USB_DEVICE(0x1199, 0x6820) },	/* Sierra Wireless AirCard 875 */
 	{ USB_DEVICE(0x1199, 0x6821) },	/* Sierra Wireless AirCard 875U */
-	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780*/
-	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781*/
-	{ USB_DEVICE(0x1199, 0x683B), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless MC8785 Composite*/
+	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780 */
+	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
+	{ USB_DEVICE(0x1199, 0x683A) },	/* Sierra Wireless MC8785 */
+	{ USB_DEVICE(0x1199, 0x683B) },	/* Sierra Wireless MC8785 Composite */
+	{ USB_DEVICE(0x1199, 0x683C) },	/* Sierra Wireless MC8790 */
+	{ USB_DEVICE(0x1199, 0x683D) },	/* Sierra Wireless MC8790 */
+	{ USB_DEVICE(0x1199, 0x683E) },	/* Sierra Wireless MC8790 */
 	{ USB_DEVICE(0x1199, 0x6850) },	/* Sierra Wireless AirCard 880 */
 	{ USB_DEVICE(0x1199, 0x6851) },	/* Sierra Wireless AirCard 881 */
 	{ USB_DEVICE(0x1199, 0x6852) },	/* Sierra Wireless AirCard 880 E */
 	{ USB_DEVICE(0x1199, 0x6853) },	/* Sierra Wireless AirCard 881 E */
 	{ USB_DEVICE(0x1199, 0x6855) },	/* Sierra Wireless AirCard 880 U */
 	{ USB_DEVICE(0x1199, 0x6856) },	/* Sierra Wireless AirCard 881 U */
-	{ USB_DEVICE(0x1199, 0x6859), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless AirCard 885 E */
-	{ USB_DEVICE(0x1199, 0x685A), .driver_info = DEVICE_1_PORT },	/* Sierra Wireless AirCard 885 E */
+	{ USB_DEVICE(0x1199, 0x6859) },	/* Sierra Wireless AirCard 885 E */
+	{ USB_DEVICE(0x1199, 0x685A) },	/* Sierra Wireless AirCard 885 E */
+	/* Sierra Wireless C885 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6880, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6890, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6891, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
 
-	{ USB_DEVICE(0x1199, 0x6468) }, /* Sierra Wireless MP3G - EVDO */
-	{ USB_DEVICE(0x1199, 0x6469) }, /* Sierra Wireless MP3G - UMTS/HSPA */
+	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
+	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
 
-	{ USB_DEVICE(0x1199, 0x0112), .driver_info = DEVICE_1_PORT }, /* Sierra Wireless AirCard 580 */
-	{ USB_DEVICE(0x0F3D, 0x0112), .driver_info = DEVICE_1_PORT }, /* Airprime/Sierra PC 5220 */
-
-	{ USB_DEVICE(0x1199, 0x0FFF), .driver_info = DEVICE_INSTALLER},
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -250,7 +240,8 @@ struct sierra_port_private {
 	int ri_state;
 };
 
-static int sierra_send_setup(struct usb_serial_port *port)
+static int sierra_send_setup(struct tty_struct *tty,
+						struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
@@ -260,20 +251,26 @@ static int sierra_send_setup(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (port->tty) {
+	if (tty) {
 		int val = 0;
 		if (portdata->dtr_state)
 			val |= 0x01;
 		if (portdata->rts_state)
 			val |= 0x02;
 
-		/* Determine which port is targeted */
-		if (port->bulk_out_endpointAddress == 2)
-			interface = 0;
-		else if (port->bulk_out_endpointAddress == 4)
-			interface = 1;
-		else if (port->bulk_out_endpointAddress == 5)
-			interface = 2;
+		/* If composite device then properly report interface */
+		if (serial->num_ports == 1)
+			interface = sierra_calc_interface(serial);
+
+		/* Otherwise the need to do non-composite mapping */
+		else {
+			if (port->bulk_out_endpointAddress == 2)
+				interface = 0;
+			else if (port->bulk_out_endpointAddress == 4)
+				interface = 1;
+			else if (port->bulk_out_endpointAddress == 5)
+				interface = 2;
+		}
 
 		return usb_control_msg(serial->dev,
 				usb_rcvctrlpipe(serial->dev, 0),
@@ -284,32 +281,17 @@ static int sierra_send_setup(struct usb_serial_port *port)
 	return 0;
 }
 
-static void sierra_rx_throttle(struct usb_serial_port *port)
+static void sierra_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s", __func__);
+	tty_termios_copy_hw(tty->termios, old_termios);
+	sierra_send_setup(tty, port);
 }
 
-static void sierra_rx_unthrottle(struct usb_serial_port *port)
+static int sierra_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	dbg("%s", __func__);
-}
-
-static void sierra_break_ctl(struct usb_serial_port *port, int break_state)
-{
-	/* Unfortunately, I don't know how to send a break */
-	dbg("%s", __func__);
-}
-
-static void sierra_set_termios(struct usb_serial_port *port,
-			struct ktermios *old_termios)
-{
-	dbg("%s", __func__);
-	tty_termios_copy_hw(port->tty->termios, old_termios);
-	sierra_send_setup(port);
-}
-
-static int sierra_tiocmget(struct usb_serial_port *port, struct file *file)
-{
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int value;
 	struct sierra_port_private *portdata;
 
@@ -325,9 +307,10 @@ static int sierra_tiocmget(struct usb_serial_port *port, struct file *file)
 	return value;
 }
 
-static int sierra_tiocmset(struct usb_serial_port *port, struct file *file,
+static int sierra_tiocmset(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct sierra_port_private *portdata;
 
 	portdata = usb_get_serial_port_data(port);
@@ -341,13 +324,7 @@ static int sierra_tiocmset(struct usb_serial_port *port, struct file *file,
 		portdata->rts_state = 0;
 	if (clear & TIOCM_DTR)
 		portdata->dtr_state = 0;
-	return sierra_send_setup(port);
-}
-
-static int sierra_ioctl(struct usb_serial_port *port, struct file *file,
-			unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
+	return sierra_send_setup(tty, port);
 }
 
 static void sierra_outdat_callback(struct urb *urb)
@@ -374,8 +351,8 @@ static void sierra_outdat_callback(struct urb *urb)
 }
 
 /* Write */
-static int sierra_write(struct usb_serial_port *port,
-			const unsigned char *buf, int count)
+static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
+					const unsigned char *buf, int count)
 {
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
@@ -463,7 +440,7 @@ static void sierra_indat_callback(struct urb *urb)
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
 	} else {
-		tty = port->tty;
+		tty = port->port.tty;
 		if (urb->actual_length) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
@@ -473,7 +450,7 @@ static void sierra_indat_callback(struct urb *urb)
 		}
 
 		/* Resubmit urb so we continue receiving */
-		if (port->open_count && status != -ESHUTDOWN) {
+		if (port->port.count && status != -ESHUTDOWN) {
 			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (err)
 				dev_err(&port->dev, "resubmit read urb failed."
@@ -517,9 +494,9 @@ static void sierra_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->tty && !C_CLOCAL(port->tty) &&
+			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
 					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->tty);
+				tty_hangup(port->port.tty);
 		} else {
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);
@@ -537,8 +514,9 @@ static void sierra_instat_callback(struct urb *urb)
 	}
 }
 
-static int sierra_write_room(struct usb_serial_port *port)
+static int sierra_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	unsigned long flags;
 
@@ -557,22 +535,8 @@ static int sierra_write_room(struct usb_serial_port *port)
 	return 2048;
 }
 
-static int sierra_chars_in_buffer(struct usb_serial_port *port)
-{
-	dbg("%s - port %d", __func__, port->number);
-
-	/*
-	 * We can't really account for how much data we
-	 * have sent out, but hasn't made it through to the
-	 * device as we can't see the backend here, so just
-	 * tell the tty layer that everything is flushed.
-	 *
-	 * FIXME: should walk the outstanding urbs info
-	 */
-	return 0;
-}
-
-static int sierra_open(struct usb_serial_port *port, struct file *filp)
+static int sierra_open(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	struct sierra_port_private *portdata;
 	struct usb_serial *serial = port->serial;
@@ -612,9 +576,10 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 		}
 	}
 
-	port->tty->low_latency = 1;
+	if (tty)
+		tty->low_latency = 1;
 
-	sierra_send_setup(port);
+	sierra_send_setup(tty, port);
 
 	/* start up the interrupt endpoint if we have one */
 	if (port->interrupt_in_urb) {
@@ -626,7 +591,8 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 	return 0;
 }
 
-static void sierra_close(struct usb_serial_port *port, struct file *filp)
+static void sierra_close(struct tty_struct *tty,
+			struct usb_serial_port *port, struct file *filp)
 {
 	int i;
 	struct usb_serial *serial = port->serial;
@@ -641,7 +607,7 @@ static void sierra_close(struct usb_serial_port *port, struct file *filp)
 	if (serial->dev) {
 		mutex_lock(&serial->disc_mutex);
 		if (!serial->disconnected)
-			sierra_send_setup(port);
+			sierra_send_setup(tty, port);
 		mutex_unlock(&serial->disc_mutex);
 
 		/* Stop reading/writing urbs */
@@ -651,7 +617,7 @@ static void sierra_close(struct usb_serial_port *port, struct file *filp)
 
 	usb_kill_urb(port->interrupt_in_urb);
 
-	port->tty = NULL;
+	port->port.tty = NULL;	/* FIXME */
 }
 
 static int sierra_startup(struct usb_serial *serial)
@@ -743,7 +709,7 @@ static void sierra_shutdown(struct usb_serial *serial)
 static struct usb_serial_driver sierra_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"sierra1",
+		.name =		"sierra",
 	},
 	.description       = "Sierra USB modem",
 	.id_table          = id_table,
@@ -754,12 +720,7 @@ static struct usb_serial_driver sierra_device = {
 	.close             = sierra_close,
 	.write             = sierra_write,
 	.write_room        = sierra_write_room,
-	.chars_in_buffer   = sierra_chars_in_buffer,
-	.throttle          = sierra_rx_throttle,
-	.unthrottle        = sierra_rx_unthrottle,
-	.ioctl             = sierra_ioctl,
 	.set_termios       = sierra_set_termios,
-	.break_ctl         = sierra_break_ctl,
 	.tiocmget          = sierra_tiocmget,
 	.tiocmset          = sierra_tiocmset,
 	.attach            = sierra_startup,
@@ -792,7 +753,7 @@ failed_device_register:
 
 static void __exit sierra_exit(void)
 {
-	usb_deregister (&sierra_driver);
+	usb_deregister(&sierra_driver);
 	usb_serial_deregister(&sierra_device);
 }
 
@@ -804,14 +765,8 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-module_param(truinstall, bool, 0);
-MODULE_PARM_DESC(truinstall, "TRU-Install support");
-
-module_param(nmea, bool, 0);
+module_param(nmea, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nmea, "NMEA streaming");
 
-#ifdef CONFIG_USB_DEBUG
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug messages");
-#endif
-

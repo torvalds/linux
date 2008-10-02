@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -118,6 +118,7 @@ struct mlx4_bitmap {
 
 struct mlx4_buddy {
 	unsigned long	      **bits;
+	unsigned int	       *num_free;
 	int			max_order;
 	spinlock_t		lock;
 };

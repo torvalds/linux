@@ -43,6 +43,7 @@
 #include <linux/limits.h>
 #include <linux/dcache.h>
 #include <linux/syscalls.h>
+#include <linux/vmstat.h>
 #include <linux/nfs_fs.h>
 #include <linux/acpi.h>
 #include <linux/reboot.h>
@@ -80,7 +81,6 @@ extern int sysctl_drop_caches;
 extern int percpu_pagelist_fraction;
 extern int compat_log;
 extern int maps_protect;
-extern int sysctl_stat_interval;
 extern int latencytop_enabled;
 extern int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifdef CONFIG_RCU_TORTURE_TEST
@@ -88,12 +88,13 @@ extern int rcutorture_runnable;
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 
 /* Constants used for minimum and  maximum */
-#if defined(CONFIG_DETECT_SOFTLOCKUP) || defined(CONFIG_HIGHMEM)
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_DETECT_SOFTLOCKUP)
 static int one = 1;
 #endif
 
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 static int sixty = 60;
+static int neg_one = -1;
 #endif
 
 #ifdef CONFIG_MMU
@@ -110,7 +111,7 @@ static int min_percpu_pagelist_fract = 8;
 
 static int ngroups_max = NGROUPS_MAX;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 extern char modprobe_path[];
 #endif
 #ifdef CONFIG_CHR_DEV_SG
@@ -158,13 +159,15 @@ static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *
 static struct ctl_table root_table[];
 static struct ctl_table_root sysctl_table_root;
 static struct ctl_table_header root_table_header = {
+	.count = 1,
 	.ctl_table = root_table,
-	.ctl_entry = LIST_HEAD_INIT(sysctl_table_root.header_list),
+	.ctl_entry = LIST_HEAD_INIT(sysctl_table_root.default_set.list),
 	.root = &sysctl_table_root,
+	.set = &sysctl_table_root.default_set,
 };
 static struct ctl_table_root sysctl_table_root = {
 	.root_list = LIST_HEAD_INIT(sysctl_table_root.root_list),
-	.header_list = LIST_HEAD_INIT(root_table_header.ctl_entry),
+	.default_set.list = LIST_HEAD_INIT(root_table_header.ctl_entry),
 };
 
 static struct ctl_table kern_table[];
@@ -475,7 +478,7 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &ftrace_enable_sysctl,
 	},
 #endif
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	{
 		.ctl_name	= KERN_MODPROBE,
 		.procname	= "modprobe",
@@ -623,7 +626,7 @@ static struct ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_PRINTK_RATELIMIT,
 		.procname	= "printk_ratelimit",
-		.data		= &printk_ratelimit_jiffies,
+		.data		= &printk_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -632,7 +635,7 @@ static struct ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_PRINTK_RATELIMIT_BURST,
 		.procname	= "printk_ratelimit_burst",
-		.data		= &printk_ratelimit_burst,
+		.data		= &printk_ratelimit_state.burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -739,13 +742,24 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 	{
 		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "softlockup_panic",
+		.data		= &softlockup_panic,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "softlockup_thresh",
 		.data		= &softlockup_thresh,
-		.maxlen		= sizeof(unsigned long),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &proc_dointvec_minmax,
 		.strategy	= &sysctl_intvec,
-		.extra1		= &one,
+		.extra1		= &neg_one,
 		.extra2		= &sixty,
 	},
 	{
@@ -947,7 +961,7 @@ static struct ctl_table vm_table[] = {
 #ifdef CONFIG_HUGETLB_PAGE
 	 {
 		.procname	= "nr_hugepages",
-		.data		= &max_huge_pages,
+		.data		= NULL,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &hugetlb_sysctl_handler,
@@ -973,10 +987,12 @@ static struct ctl_table vm_table[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nr_overcommit_hugepages",
-		.data		= &sysctl_overcommit_huge_pages,
-		.maxlen		= sizeof(sysctl_overcommit_huge_pages),
+		.data		= NULL,
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &hugetlb_overcommit_handler,
+		.extra1		= (void *)&hugetlb_zero,
+		.extra2		= (void *)&hugetlb_infinity,
 	},
 #endif
 	{
@@ -1372,12 +1388,41 @@ static void start_unregistering(struct ctl_table_header *p)
 		spin_unlock(&sysctl_lock);
 		wait_for_completion(&wait);
 		spin_lock(&sysctl_lock);
+	} else {
+		/* anything non-NULL; we'll never dereference it */
+		p->unregistering = ERR_PTR(-EINVAL);
 	}
 	/*
 	 * do not remove from the list until nobody holds it; walking the
 	 * list in do_sysctl() relies on that.
 	 */
 	list_del_init(&p->ctl_entry);
+}
+
+void sysctl_head_get(struct ctl_table_header *head)
+{
+	spin_lock(&sysctl_lock);
+	head->count++;
+	spin_unlock(&sysctl_lock);
+}
+
+void sysctl_head_put(struct ctl_table_header *head)
+{
+	spin_lock(&sysctl_lock);
+	if (!--head->count)
+		kfree(head);
+	spin_unlock(&sysctl_lock);
+}
+
+struct ctl_table_header *sysctl_head_grab(struct ctl_table_header *head)
+{
+	if (!head)
+		BUG();
+	spin_lock(&sysctl_lock);
+	if (!use_table(head))
+		head = ERR_PTR(-ENOENT);
+	spin_unlock(&sysctl_lock);
+	return head;
 }
 
 void sysctl_head_finish(struct ctl_table_header *head)
@@ -1389,14 +1434,20 @@ void sysctl_head_finish(struct ctl_table_header *head)
 	spin_unlock(&sysctl_lock);
 }
 
+static struct ctl_table_set *
+lookup_header_set(struct ctl_table_root *root, struct nsproxy *namespaces)
+{
+	struct ctl_table_set *set = &root->default_set;
+	if (root->lookup)
+		set = root->lookup(root, namespaces);
+	return set;
+}
+
 static struct list_head *
 lookup_header_list(struct ctl_table_root *root, struct nsproxy *namespaces)
 {
-	struct list_head *header_list;
-	header_list = &root->header_list;
-	if (root->lookup)
-		header_list = root->lookup(root, namespaces);
-	return header_list;
+	struct ctl_table_set *set = lookup_header_set(root, namespaces);
+	return &set->list;
 }
 
 struct ctl_table_header *__sysctl_head_next(struct nsproxy *namespaces,
@@ -1466,9 +1517,9 @@ static int do_sysctl_strategy(struct ctl_table_root *root,
 	int op = 0, rc;
 
 	if (oldval)
-		op |= 004;
+		op |= MAY_READ;
 	if (newval)
-		op |= 002;
+		op |= MAY_WRITE;
 	if (sysctl_perm(root, table, op))
 		return -EPERM;
 
@@ -1510,7 +1561,7 @@ repeat:
 		if (n == table->ctl_name) {
 			int error;
 			if (table->child) {
-				if (sysctl_perm(root, table, 001))
+				if (sysctl_perm(root, table, MAY_EXEC))
 					return -EPERM;
 				name++;
 				nlen--;
@@ -1585,7 +1636,7 @@ static int test_perm(int mode, int op)
 		mode >>= 6;
 	else if (in_egroup_p(0))
 		mode >>= 3;
-	if ((mode & op & 0007) == op)
+	if ((op & ~mode & (MAY_READ|MAY_WRITE|MAY_EXEC)) == 0)
 		return 0;
 	return -EACCES;
 }
@@ -1595,7 +1646,7 @@ int sysctl_perm(struct ctl_table_root *root, struct ctl_table *table, int op)
 	int error;
 	int mode;
 
-	error = security_sysctl(table, op);
+	error = security_sysctl(table, op & (MAY_READ | MAY_WRITE | MAY_EXEC));
 	if (error)
 		return error;
 
@@ -1629,6 +1680,54 @@ static __init int sysctl_init(void)
 }
 
 core_initcall(sysctl_init);
+
+static struct ctl_table *is_branch_in(struct ctl_table *branch,
+				      struct ctl_table *table)
+{
+	struct ctl_table *p;
+	const char *s = branch->procname;
+
+	/* branch should have named subdirectory as its first element */
+	if (!s || !branch->child)
+		return NULL;
+
+	/* ... and nothing else */
+	if (branch[1].procname || branch[1].ctl_name)
+		return NULL;
+
+	/* table should contain subdirectory with the same name */
+	for (p = table; p->procname || p->ctl_name; p++) {
+		if (!p->child)
+			continue;
+		if (p->procname && strcmp(p->procname, s) == 0)
+			return p;
+	}
+	return NULL;
+}
+
+/* see if attaching q to p would be an improvement */
+static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
+{
+	struct ctl_table *to = p->ctl_table, *by = q->ctl_table;
+	struct ctl_table *next;
+	int is_better = 0;
+	int not_in_parent = !p->attached_by;
+
+	while ((next = is_branch_in(by, to)) != NULL) {
+		if (by == q->attached_by)
+			is_better = 1;
+		if (to == p->attached_by)
+			not_in_parent = 1;
+		by = by->child;
+		to = next->child;
+	}
+
+	if (is_better && not_in_parent) {
+		q->attached_by = by;
+		q->attached_to = to;
+		q->parent = p;
+	}
+}
 
 /**
  * __register_sysctl_paths - register a sysctl hierarchy
@@ -1706,10 +1805,10 @@ struct ctl_table_header *__register_sysctl_paths(
 	struct nsproxy *namespaces,
 	const struct ctl_path *path, struct ctl_table *table)
 {
-	struct list_head *header_list;
 	struct ctl_table_header *header;
 	struct ctl_table *new, **prevp;
 	unsigned int n, npath;
+	struct ctl_table_set *set;
 
 	/* Count the path components */
 	for (npath = 0; path[npath].ctl_name || path[npath].procname; ++npath)
@@ -1751,6 +1850,7 @@ struct ctl_table_header *__register_sysctl_paths(
 	header->unregistering = NULL;
 	header->root = root;
 	sysctl_set_parent(NULL, header->ctl_table);
+	header->count = 1;
 #ifdef CONFIG_SYSCTL_SYSCALL_CHECK
 	if (sysctl_check_table(namespaces, header->ctl_table)) {
 		kfree(header);
@@ -1758,8 +1858,20 @@ struct ctl_table_header *__register_sysctl_paths(
 	}
 #endif
 	spin_lock(&sysctl_lock);
-	header_list = lookup_header_list(root, namespaces);
-	list_add_tail(&header->ctl_entry, header_list);
+	header->set = lookup_header_set(root, namespaces);
+	header->attached_by = header->ctl_table;
+	header->attached_to = root_table;
+	header->parent = &root_table_header;
+	for (set = header->set; set; set = set->parent) {
+		struct ctl_table_header *p;
+		list_for_each_entry(p, &set->list, ctl_entry) {
+			if (p->unregistering)
+				continue;
+			try_attach(p, header);
+		}
+	}
+	header->parent->count++;
+	list_add_tail(&header->ctl_entry, &header->set->list);
 	spin_unlock(&sysctl_lock);
 
 	return header;
@@ -1814,8 +1926,37 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 
 	spin_lock(&sysctl_lock);
 	start_unregistering(header);
+	if (!--header->parent->count) {
+		WARN_ON(1);
+		kfree(header->parent);
+	}
+	if (!--header->count)
+		kfree(header);
 	spin_unlock(&sysctl_lock);
-	kfree(header);
+}
+
+int sysctl_is_seen(struct ctl_table_header *p)
+{
+	struct ctl_table_set *set = p->set;
+	int res;
+	spin_lock(&sysctl_lock);
+	if (p->unregistering)
+		res = 0;
+	else if (!set->is_seen)
+		res = 1;
+	else
+		res = set->is_seen(set);
+	spin_unlock(&sysctl_lock);
+	return res;
+}
+
+void setup_sysctl_set(struct ctl_table_set *p,
+	struct ctl_table_set *parent,
+	int (*is_seen)(struct ctl_table_set *))
+{
+	INIT_LIST_HEAD(&p->list);
+	p->parent = parent ? parent : &sysctl_table_root.default_set;
+	p->is_seen = is_seen;
 }
 
 #else /* !CONFIG_SYSCTL */
@@ -1831,6 +1972,16 @@ struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
 }
 
 void unregister_sysctl_table(struct ctl_table_header * table)
+{
+}
+
+void setup_sysctl_set(struct ctl_table_set *p,
+	struct ctl_table_set *parent,
+	int (*is_seen)(struct ctl_table_set *))
+{
+}
+
+void sysctl_head_put(struct ctl_table_header *head)
 {
 }
 

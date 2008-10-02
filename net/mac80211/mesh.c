@@ -315,6 +315,13 @@ struct mesh_table *mesh_table_alloc(int size_order)
 	return newtbl;
 }
 
+static void __mesh_table_free(struct mesh_table *tbl)
+{
+	kfree(tbl->hash_buckets);
+	kfree(tbl->hashwlock);
+	kfree(tbl);
+}
+
 void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 {
 	struct hlist_head *mesh_hash;
@@ -330,9 +337,7 @@ void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 		}
 		spin_unlock(&tbl->hashwlock[i]);
 	}
-	kfree(tbl->hash_buckets);
-	kfree(tbl->hashwlock);
-	kfree(tbl);
+	__mesh_table_free(tbl);
 }
 
 static void ieee80211_mesh_path_timer(unsigned long data)
@@ -349,21 +354,16 @@ struct mesh_table *mesh_table_grow(struct mesh_table *tbl)
 {
 	struct mesh_table *newtbl;
 	struct hlist_head *oldhash;
-	struct hlist_node *p;
-	int err = 0;
+	struct hlist_node *p, *q;
 	int i;
 
 	if (atomic_read(&tbl->entries)
-			< tbl->mean_chain_len * (tbl->hash_mask + 1)) {
-		err = -EPERM;
+			< tbl->mean_chain_len * (tbl->hash_mask + 1))
 		goto endgrow;
-	}
 
 	newtbl = mesh_table_alloc(tbl->size_order + 1);
-	if (!newtbl) {
-		err = -ENOMEM;
+	if (!newtbl)
 		goto endgrow;
-	}
 
 	newtbl->free_node = tbl->free_node;
 	newtbl->mean_chain_len = tbl->mean_chain_len;
@@ -373,13 +373,19 @@ struct mesh_table *mesh_table_grow(struct mesh_table *tbl)
 	oldhash = tbl->hash_buckets;
 	for (i = 0; i <= tbl->hash_mask; i++)
 		hlist_for_each(p, &oldhash[i])
-			tbl->copy_node(p, newtbl);
+			if (tbl->copy_node(p, newtbl) < 0)
+				goto errcopy;
 
+	return newtbl;
+
+errcopy:
+	for (i = 0; i <= newtbl->hash_mask; i++) {
+		hlist_for_each_safe(p, q, &newtbl->hash_buckets[i])
+			tbl->free_node(p, 0);
+	}
+	__mesh_table_free(newtbl);
 endgrow:
-	if (err)
-		return NULL;
-	else
-		return newtbl;
+	return NULL;
 }
 
 /**

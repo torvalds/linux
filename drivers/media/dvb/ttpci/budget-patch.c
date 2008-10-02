@@ -116,7 +116,8 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
 			DiseqcSendByte(budget, 0xff);
 		else {
 			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI);
-			udelay(12500);
+			mdelay(12);
+			udelay(500);
 			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);
 		}
 		msleep(20);
@@ -431,22 +432,22 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 	// in budget patch GPIO3 is connected to VSYNC_B
 	count = 0;
 #if 0
-	WRITE_RPS1(cpu_to_le32(CMD_UPLOAD |
-	  MASK_10 | MASK_09 | MASK_08 | MASK_06 | MASK_05 | MASK_04 | MASK_03 | MASK_02 ));
+	WRITE_RPS1(CMD_UPLOAD |
+	  MASK_10 | MASK_09 | MASK_08 | MASK_06 | MASK_05 | MASK_04 | MASK_03 | MASK_02 );
 #endif
-	WRITE_RPS1(cpu_to_le32(CMD_PAUSE | EVT_VBI_B));
-	WRITE_RPS1(cpu_to_le32(CMD_WR_REG_MASK | (GPIO_CTRL>>2)));
-	WRITE_RPS1(cpu_to_le32(GPIO3_MSK));
-	WRITE_RPS1(cpu_to_le32(SAA7146_GPIO_OUTLO<<24));
+	WRITE_RPS1(CMD_PAUSE | EVT_VBI_B);
+	WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+	WRITE_RPS1(GPIO3_MSK);
+	WRITE_RPS1(SAA7146_GPIO_OUTLO<<24);
 #if RPS_IRQ
 	// issue RPS1 interrupt to increment counter
-	WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+	WRITE_RPS1(CMD_INTERRUPT);
 	// at least a NOP is neede between two interrupts
-	WRITE_RPS1(cpu_to_le32(CMD_NOP));
+	WRITE_RPS1(CMD_NOP);
 	// interrupt again
-	WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+	WRITE_RPS1(CMD_INTERRUPT);
 #endif
-	WRITE_RPS1(cpu_to_le32(CMD_STOP));
+	WRITE_RPS1(CMD_STOP);
 
 #if RPS_IRQ
 	// set event counter 1 source as RPS1 interrupt (0x03)          (rE4 p53)
@@ -558,28 +559,28 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 
 
 	// Wait Source Line Counter Threshold                           (p36)
-	WRITE_RPS1(cpu_to_le32(CMD_PAUSE | EVT_HS));
+	WRITE_RPS1(CMD_PAUSE | EVT_HS);
 	// Set GPIO3=1                                                  (p42)
-	WRITE_RPS1(cpu_to_le32(CMD_WR_REG_MASK | (GPIO_CTRL>>2)));
-	WRITE_RPS1(cpu_to_le32(GPIO3_MSK));
-	WRITE_RPS1(cpu_to_le32(SAA7146_GPIO_OUTHI<<24));
+	WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+	WRITE_RPS1(GPIO3_MSK);
+	WRITE_RPS1(SAA7146_GPIO_OUTHI<<24);
 #if RPS_IRQ
 	// issue RPS1 interrupt
-	WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+	WRITE_RPS1(CMD_INTERRUPT);
 #endif
 	// Wait reset Source Line Counter Threshold                     (p36)
-	WRITE_RPS1(cpu_to_le32(CMD_PAUSE | RPS_INV | EVT_HS));
+	WRITE_RPS1(CMD_PAUSE | RPS_INV | EVT_HS);
 	// Set GPIO3=0                                                  (p42)
-	WRITE_RPS1(cpu_to_le32(CMD_WR_REG_MASK | (GPIO_CTRL>>2)));
-	WRITE_RPS1(cpu_to_le32(GPIO3_MSK));
-	WRITE_RPS1(cpu_to_le32(SAA7146_GPIO_OUTLO<<24));
+	WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+	WRITE_RPS1(GPIO3_MSK);
+	WRITE_RPS1(SAA7146_GPIO_OUTLO<<24);
 #if RPS_IRQ
 	// issue RPS1 interrupt
-	WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+	WRITE_RPS1(CMD_INTERRUPT);
 #endif
 	// Jump to begin of RPS program                                 (p37)
-	WRITE_RPS1(cpu_to_le32(CMD_JUMP));
-	WRITE_RPS1(cpu_to_le32(dev->d_rps1.dma_handle));
+	WRITE_RPS1(CMD_JUMP);
+	WRITE_RPS1(dev->d_rps1.dma_handle);
 
 	// Fix VSYNC level
 	saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);

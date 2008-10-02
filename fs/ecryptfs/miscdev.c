@@ -358,46 +358,6 @@ out_unlock_daemon:
 }
 
 /**
- * ecryptfs_miscdev_helo
- * @euid: effective user id of miscdevess sending helo packet
- * @user_ns: The namespace in which @euid applies
- * @pid: miscdevess id of miscdevess sending helo packet
- *
- * Returns zero on success; non-zero otherwise
- */
-static int ecryptfs_miscdev_helo(uid_t euid, struct user_namespace *user_ns,
-				 struct pid *pid)
-{
-	int rc;
-
-	rc = ecryptfs_process_helo(ECRYPTFS_TRANSPORT_MISCDEV, euid, user_ns,
-				   pid);
-	if (rc)
-		printk(KERN_WARNING "Error processing HELO; rc = [%d]\n", rc);
-	return rc;
-}
-
-/**
- * ecryptfs_miscdev_quit
- * @euid: effective user id of miscdevess sending quit packet
- * @user_ns: The namespace in which @euid applies
- * @pid: miscdevess id of miscdevess sending quit packet
- *
- * Returns zero on success; non-zero otherwise
- */
-static int ecryptfs_miscdev_quit(uid_t euid, struct user_namespace *user_ns,
-				 struct pid *pid)
-{
-	int rc;
-
-	rc = ecryptfs_process_quit(euid, user_ns, pid);
-	if (rc)
-		printk(KERN_WARNING
-		       "Error processing QUIT message; rc = [%d]\n", rc);
-	return rc;
-}
-
-/**
  * ecryptfs_miscdev_response - miscdevess response to message previously sent to daemon
  * @data: Bytes comprising struct ecryptfs_message
  * @data_size: sizeof(struct ecryptfs_message) + data len
@@ -512,26 +472,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 			       __func__, rc);
 		break;
 	case ECRYPTFS_MSG_HELO:
-		rc = ecryptfs_miscdev_helo(current->euid,
-					   current->nsproxy->user_ns,
-					   task_pid(current));
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to process "
-			       "helo from pid [0x%p]; rc = [%d]\n", __func__,
-			       task_pid(current), rc);
-			goto out_free;
-		}
-		break;
 	case ECRYPTFS_MSG_QUIT:
-		rc = ecryptfs_miscdev_quit(current->euid,
-					   current->nsproxy->user_ns,
-					   task_pid(current));
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to process "
-			       "quit from pid [0x%p]; rc = [%d]\n", __func__,
-			       task_pid(current), rc);
-			goto out_free;
-		}
 		break;
 	default:
 		ecryptfs_printk(KERN_WARNING, "Dropping miscdev "

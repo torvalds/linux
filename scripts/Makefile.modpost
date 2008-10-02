@@ -101,6 +101,7 @@ quiet_cmd_kernel-mod = MODPOST $@
       cmd_kernel-mod = $(modpost) $@
 
 vmlinux.o: FORCE
+	@rm -fr $(kernelmarkersfile)
 	$(call cmd,kernel-mod)
 
 # Declare generated files as targets for modpost

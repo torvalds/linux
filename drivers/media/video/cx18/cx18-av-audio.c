@@ -30,23 +30,37 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	if (freq != 32000 && freq != 44100 && freq != 48000)
 		return -EINVAL;
 
-	/* common for all inputs and rates */
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
 	cx18_av_write(cx, 0x127, 0x50);
 
-	if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		switch (freq) {
 		case 32000:
 			/* VID_PLL and AUX_PLL */
-			cx18_av_write4(cx, 0x108, 0x1006040f);
+			cx18_av_write4(cx, 0x108, 0x1408040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x01bb39ee);
+			/* 0x8.9504318a * 28,636,363.636 / 0x14 = 32000 * 384 */
+			cx18_av_write4(cx, 0x110, 0x012a0863);
 
-			/* src3/4/6_ctl = 0x0801f77f */
+			/* src3/4/6_ctl */
+			/* 0x1.f77f = (4 * 15734.26) / 32000 */
 			cx18_av_write4(cx, 0x900, 0x0801f77f);
 			cx18_av_write4(cx, 0x904, 0x0801f77f);
 			cx18_av_write4(cx, 0x90c, 0x0801f77f);
+
+			/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x14 */
+			cx18_av_write(cx, 0x127, 0x54);
+
+			/* AUD_COUNT = 0x2fff = 8 samples * 4 * 384 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11202fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x0d2ef8 = 107999.000 * 8 =
+			 *  ((8 samples/32,000) * (13,500,000 * 8) * 4 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa10d2ef8);
 			break;
 
 		case 44100:
@@ -54,12 +68,24 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1009040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x00ec6bd6);
+			/* 0x9.7635e7 * 28,636,363.63 / 0x10 = 44100 * 384 */
+			cx18_av_write4(cx, 0x110, 0x00ec6bce);
 
-			/* src3/4/6_ctl = 0x08016d59 */
+			/* src3/4/6_ctl */
+			/* 0x1.6d59 = (4 * 15734.26) / 44100 */
 			cx18_av_write4(cx, 0x900, 0x08016d59);
 			cx18_av_write4(cx, 0x904, 0x08016d59);
 			cx18_av_write4(cx, 0x90c, 0x08016d59);
+
+			/* AUD_COUNT = 0x92ff = 49 samples * 2 * 384 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x112092ff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1d4bf8 = 239999.000 * 8 =
+			 *  ((49 samples/44,100) * (13,500,000 * 8) * 2 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11d4bf8);
 			break;
 
 		case 48000:
@@ -67,12 +93,24 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x100a040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x0098d6e5);
+			/* 0xa.4c6b6ea * 28,636,363.63 / 0x10 = 48000 * 384 */
+			cx18_av_write4(cx, 0x110, 0x0098d6dd);
 
-			/* src3/4/6_ctl = 0x08014faa */
+			/* src3/4/6_ctl */
+			/* 0x1.4faa = (4 * 15734.26) / 48000 */
 			cx18_av_write4(cx, 0x900, 0x08014faa);
 			cx18_av_write4(cx, 0x904, 0x08014faa);
 			cx18_av_write4(cx, 0x90c, 0x08014faa);
+
+			/* AUD_COUNT = 0x5fff = 4 samples * 16 * 384 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11205fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1193f8 = 143999.000 * 8 =
+			 *  ((4 samples/48,000) * (13,500,000 * 8) * 16 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11193f8);
 			break;
 		}
 	} else {
@@ -82,18 +120,31 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1e08040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x012a0869);
+			/* 0x8.9504318 * 28,636,363.63 / 0x1e = 32000 * 256 */
+			cx18_av_write4(cx, 0x110, 0x012a0863);
 
-			/* src1_ctl = 0x08010000 */
+			/* src1_ctl */
+			/* 0x1.0000 = 32000/32000 */
 			cx18_av_write4(cx, 0x8f8, 0x08010000);
 
-			/* src3/4/6_ctl = 0x08020000 */
+			/* src3/4/6_ctl */
+			/* 0x2.0000 = 2 * (32000/32000) */
 			cx18_av_write4(cx, 0x900, 0x08020000);
 			cx18_av_write4(cx, 0x904, 0x08020000);
 			cx18_av_write4(cx, 0x90c, 0x08020000);
 
 			/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x14 */
 			cx18_av_write(cx, 0x127, 0x54);
+
+			/* AUD_COUNT = 0x1fff = 8 samples * 4 * 256 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11201fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x0d2ef8 = 107999.000 * 8 =
+			 *  ((8 samples/32,000) * (13,500,000 * 8) * 4 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa10d2ef8);
 			break;
 
 		case 44100:
@@ -101,15 +152,28 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x1809040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x00ec6bd6);
+			/* 0x9.7635e74 * 28,636,363.63 / 0x18 = 44100 * 256 */
+			cx18_av_write4(cx, 0x110, 0x00ec6bce);
 
-			/* src1_ctl = 0x08010000 */
+			/* src1_ctl */
+			/* 0x1.60cd = 44100/32000 */
 			cx18_av_write4(cx, 0x8f8, 0x080160cd);
 
-			/* src3/4/6_ctl = 0x08020000 */
+			/* src3/4/6_ctl */
+			/* 0x1.7385 = 2 * (32000/44100) */
 			cx18_av_write4(cx, 0x900, 0x08017385);
 			cx18_av_write4(cx, 0x904, 0x08017385);
 			cx18_av_write4(cx, 0x90c, 0x08017385);
+
+			/* AUD_COUNT = 0x61ff = 49 samples * 2 * 256 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x112061ff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1d4bf8 = 239999.000 * 8 =
+			 *  ((49 samples/44,100) * (13,500,000 * 8) * 2 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11d4bf8);
 			break;
 
 		case 48000:
@@ -117,15 +181,28 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 			cx18_av_write4(cx, 0x108, 0x180a040f);
 
 			/* AUX_PLL_FRAC */
-			cx18_av_write4(cx, 0x110, 0x0098d6e5);
+			/* 0xa.4c6b6ea * 28,636,363.63 / 0x18 = 48000 * 256 */
+			cx18_av_write4(cx, 0x110, 0x0098d6dd);
 
-			/* src1_ctl = 0x08010000 */
+			/* src1_ctl */
+			/* 0x1.8000 = 48000/32000 */
 			cx18_av_write4(cx, 0x8f8, 0x08018000);
 
-			/* src3/4/6_ctl = 0x08020000 */
+			/* src3/4/6_ctl */
+			/* 0x1.5555 = 2 * (32000/48000) */
 			cx18_av_write4(cx, 0x900, 0x08015555);
 			cx18_av_write4(cx, 0x904, 0x08015555);
 			cx18_av_write4(cx, 0x90c, 0x08015555);
+
+			/* AUD_COUNT = 0x3fff = 4 samples * 16 * 256 - 1 */
+			cx18_av_write4(cx, 0x12c, 0x11203fff);
+
+			/*
+			 * EN_AV_LOCK = 1
+			 * VID_COUNT = 0x1193f8 = 143999.000 * 8 =
+			 *  ((4 samples/48,000) * (13,500,000 * 8) * 16 - 1) * 8
+			 */
+			cx18_av_write4(cx, 0x128, 0xa11193f8);
 			break;
 		}
 	}
@@ -148,7 +225,7 @@ void cx18_av_audio_set_path(struct cx18 *cx)
 	/* Mute everything to prevent the PFFT! */
 	cx18_av_write(cx, 0x8d3, 0x1f);
 
-	if (state->aud_input == CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input <= CX18_AV_AUDIO_SERIAL2) {
 		/* Set Path1 to Serial Audio Input */
 		cx18_av_write4(cx, 0x8d0, 0x01011012);
 
@@ -165,7 +242,7 @@ void cx18_av_audio_set_path(struct cx18 *cx)
 	/* deassert soft reset */
 	cx18_av_and_or(cx, 0x810, ~0x1, 0x00);
 
-	if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		/* When the microcontroller detects the
 		 * audio format, it will unmute the lines */
 		cx18_av_and_or(cx, 0x803, ~0x10, 0x10);
@@ -271,7 +348,7 @@ static void set_mute(struct cx18 *cx, int mute)
 {
 	struct cx18_av_state *state = &cx->av_state;
 
-	if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		/* Must turn off microcontroller in order to mute sound.
 		 * Not sure if this is the best method, but it does work.
 		 * If the microcontroller is running, then it will undo any
@@ -298,14 +375,14 @@ int cx18_av_audio(struct cx18 *cx, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		if (state->aud_input != CX18_AV_AUDIO_SERIAL) {
+		if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 			cx18_av_and_or(cx, 0x803, ~0x10, 0);
 			cx18_av_write(cx, 0x8d3, 0x1f);
 		}
 		cx18_av_and_or(cx, 0x810, ~0x1, 1);
 		retval = set_audclk_freq(cx, *(u32 *)arg);
 		cx18_av_and_or(cx, 0x810, ~0x1, 0);
-		if (state->aud_input != CX18_AV_AUDIO_SERIAL)
+		if (state->aud_input > CX18_AV_AUDIO_SERIAL2)
 			cx18_av_and_or(cx, 0x803, ~0x10, 0x10);
 		return retval;
 

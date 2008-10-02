@@ -32,6 +32,7 @@
 #include <linux/file.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
+#include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
 /**
@@ -372,7 +373,6 @@ out:
  */
 static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
 {
-	u64 file_size;
 	char *file_size_virt;
 	int rc;
 
@@ -381,9 +381,7 @@ static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
 		rc = -ENOMEM;
 		goto out;
 	}
-	file_size = (u64)i_size_read(ecryptfs_inode);
-	file_size = cpu_to_be64(file_size);
-	memcpy(file_size_virt, &file_size, sizeof(u64));
+	put_unaligned_be64(i_size_read(ecryptfs_inode), file_size_virt);
 	rc = ecryptfs_write_lower(ecryptfs_inode, file_size_virt, 0,
 				  sizeof(u64));
 	kfree(file_size_virt);
@@ -403,7 +401,6 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	struct dentry *lower_dentry =
 		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
 	struct inode *lower_inode = lower_dentry->d_inode;
-	u64 file_size;
 	int rc;
 
 	if (!lower_inode->i_op->getxattr || !lower_inode->i_op->setxattr) {
@@ -424,9 +421,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 					   xattr_virt, PAGE_CACHE_SIZE);
 	if (size < 0)
 		size = 8;
-	file_size = (u64)i_size_read(ecryptfs_inode);
-	file_size = cpu_to_be64(file_size);
-	memcpy(xattr_virt, &file_size, sizeof(u64));
+	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
 	rc = lower_inode->i_op->setxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
 					 xattr_virt, size, 0);
 	mutex_unlock(&lower_inode->i_mutex);

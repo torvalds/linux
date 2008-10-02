@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 
-
 #define MPEG_VIDEO_TARGET_BITRATE_MAX  27000
 #define MPEG_VIDEO_MAX_BITRATE_MAX     27000
 #define MPEG_TOTAL_TARGET_BITRATE_MAX  27000
@@ -21,6 +20,7 @@
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {0x20, I2C_CLIENT_END};
+
 I2C_CLIENT_INSMOD;
 
 MODULE_DESCRIPTION("device driver for saa6752hs MPEG2 encoder");
@@ -448,6 +448,104 @@ static int handle_ctrl(struct saa6752hs_mpeg_params *params,
 	return 0;
 }
 
+static int saa6752hs_qctrl(struct saa6752hs_mpeg_params *params,
+		struct v4l2_queryctrl *qctrl)
+{
+	int err;
+
+	switch (qctrl->id) {
+	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
+				V4L2_MPEG_AUDIO_ENCODING_LAYER_2, 1,
+				V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
+
+	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_L2_BITRATE_256K,
+				V4L2_MPEG_AUDIO_L2_BITRATE_384K, 1,
+				V4L2_MPEG_AUDIO_L2_BITRATE_256K);
+
+	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
+				V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000, 1,
+				V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000);
+
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_2,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_2, 1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
+
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_VIDEO_ASPECT_4x3,
+				V4L2_MPEG_VIDEO_ASPECT_16x9, 1,
+				V4L2_MPEG_VIDEO_ASPECT_4x3);
+
+	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
+		err = v4l2_ctrl_query_fill_std(qctrl);
+		if (err == 0 &&
+		    params->vi_bitrate_mode ==
+				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		return err;
+
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_TS,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_TS, 1,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_TS);
+
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+	case V4L2_CID_MPEG_STREAM_PID_PMT:
+	case V4L2_CID_MPEG_STREAM_PID_AUDIO:
+	case V4L2_CID_MPEG_STREAM_PID_VIDEO:
+	case V4L2_CID_MPEG_STREAM_PID_PCR:
+		return v4l2_ctrl_query_fill_std(qctrl);
+
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static int saa6752hs_qmenu(struct saa6752hs_mpeg_params *params,
+		struct v4l2_querymenu *qmenu)
+{
+	static const char *mpeg_audio_l2_bitrate[] = {
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"256 kbps",
+		"",
+		"384 kbps",
+		NULL
+	};
+	struct v4l2_queryctrl qctrl;
+	int err;
+
+	qctrl.id = qmenu->id;
+	err = saa6752hs_qctrl(params, &qctrl);
+	if (err)
+		return err;
+	if (qmenu->id == V4L2_CID_MPEG_AUDIO_L2_BITRATE)
+		return v4l2_ctrl_query_menu(qmenu, &qctrl,
+				mpeg_audio_l2_bitrate);
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			v4l2_ctrl_get_menu(qmenu->id));
+}
+
 static int saa6752hs_init(struct i2c_client* client)
 {
 	unsigned char buf[9], buf2[4];
@@ -609,7 +707,6 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 	i2c_attach_client(&h->client);
 
 	v4l_info(&h->client,"saa6752hs: chip found @ 0x%x\n", addr<<1);
-
 	return 0;
 }
 
@@ -662,6 +759,10 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		h->params = params;
 		break;
+	case VIDIOC_QUERYCTRL:
+		return saa6752hs_qctrl(&h->params, arg);
+	case VIDIOC_QUERYMENU:
+		return saa6752hs_qmenu(&h->params, arg);
 	case VIDIOC_G_FMT:
 	{
 	   struct v4l2_format *f = arg;

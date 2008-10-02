@@ -386,3 +386,39 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return txx9_board_vec->pci_map_irq(dev, slot, pin);
 }
+
+char * (*txx9_board_pcibios_setup)(char *str) __devinitdata;
+
+char *__devinit txx9_pcibios_setup(char *str)
+{
+	if (txx9_board_pcibios_setup && !txx9_board_pcibios_setup(str))
+		return NULL;
+	if (!strcmp(str, "picmg")) {
+		/* PICMG compliant backplane (TOSHIBA JMB-PICMG-ATX
+		   (5V or 3.3V), JMB-PICMG-L2 (5V only), etc.) */
+		txx9_pci_option |= TXX9_PCI_OPT_PICMG;
+		return NULL;
+	} else if (!strcmp(str, "nopicmg")) {
+		/* non-PICMG compliant backplane (TOSHIBA
+		   RBHBK4100,RBHBK4200, Interface PCM-PCM05, etc.) */
+		txx9_pci_option &= ~TXX9_PCI_OPT_PICMG;
+		return NULL;
+	} else if (!strncmp(str, "clk=", 4)) {
+		char *val = str + 4;
+		txx9_pci_option &= ~TXX9_PCI_OPT_CLK_MASK;
+		if (strcmp(val, "33") == 0)
+			txx9_pci_option |= TXX9_PCI_OPT_CLK_33;
+		else if (strcmp(val, "66") == 0)
+			txx9_pci_option |= TXX9_PCI_OPT_CLK_66;
+		else /* "auto" */
+			txx9_pci_option |= TXX9_PCI_OPT_CLK_AUTO;
+		return NULL;
+	} else if (!strncmp(str, "err=", 4)) {
+		if (!strcmp(str + 4, "panic"))
+			txx9_pci_err_action = TXX9_PCI_ERR_PANIC;
+		else if (!strcmp(str + 4, "ignore"))
+			txx9_pci_err_action = TXX9_PCI_ERR_IGNORE;
+		return NULL;
+	}
+	return str;
+}

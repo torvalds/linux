@@ -2,7 +2,6 @@
 #define _ASM_X8664_GART_H 1
 
 #include <asm/e820.h>
-#include <asm/iommu.h>
 
 extern void set_up_gart_resume(u32, u32);
 

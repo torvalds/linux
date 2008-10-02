@@ -149,7 +149,7 @@ int	  xfs_log_mount(struct xfs_mount	*mp,
 			struct xfs_buftarg	*log_target,
 			xfs_daddr_t		start_block,
 			int		 	num_bblocks);
-int	  xfs_log_mount_finish(struct xfs_mount *mp, int);
+int	  xfs_log_mount_finish(struct xfs_mount *mp);
 void	  xfs_log_move_tail(struct xfs_mount	*mp,
 			    xfs_lsn_t		tail_lsn);
 int	  xfs_log_notify(struct xfs_mount	*mp,

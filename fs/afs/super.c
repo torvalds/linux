@@ -27,7 +27,7 @@
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
 
-static void afs_i_init_once(struct kmem_cache *cachep, void *foo);
+static void afs_i_init_once(void *foo);
 static int afs_get_sb(struct file_system_type *fs_type,
 		      int flags, const char *dev_name,
 		      void *data, struct vfsmount *mnt);
@@ -449,7 +449,7 @@ static void afs_put_super(struct super_block *sb)
 /*
  * initialise an inode cache slab element prior to any use
  */
-static void afs_i_init_once(struct kmem_cache *cachep, void *_vnode)
+static void afs_i_init_once(void *_vnode)
 {
 	struct afs_vnode *vnode = _vnode;
 

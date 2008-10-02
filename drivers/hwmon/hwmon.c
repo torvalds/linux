@@ -55,7 +55,8 @@ again:
 		return ERR_PTR(err);
 
 	id = id & MAX_ID_MASK;
-	hwdev = device_create(hwmon_class, dev, MKDEV(0,0), HWMON_ID_FORMAT, id);
+	hwdev = device_create_drvdata(hwmon_class, dev, MKDEV(0, 0), NULL,
+				      HWMON_ID_FORMAT, id);
 
 	if (IS_ERR(hwdev)) {
 		spin_lock(&idr_lock);

@@ -102,7 +102,7 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	/* The temperature transition interrupt handler setup */
 	h = THERMAL_APIC_VECTOR;		/* our delivery vector */
 	h |= (APIC_DM_FIXED | APIC_LVT_MASKED);	/* we'll mask till we're ready */
-	apic_write_around(APIC_LVTTHMR, h);
+	apic_write(APIC_LVTTHMR, h);
 
 	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
 	wrmsr(MSR_IA32_THERM_INTERRUPT, l | 0x03 , h);
@@ -114,7 +114,7 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	wrmsr(MSR_IA32_MISC_ENABLE, l | (1<<3), h);
 
 	l = apic_read(APIC_LVTTHMR);
-	apic_write_around(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
+	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 	printk(KERN_INFO "CPU%d: Thermal monitoring enabled\n", cpu);
 
 	/* enable thermal throttle processing */

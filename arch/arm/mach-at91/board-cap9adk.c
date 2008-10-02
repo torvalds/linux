@@ -33,7 +33,7 @@
 
 #include <video/atmel_lcdc.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -42,10 +42,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91cap9_matrix.h>
-#include <asm/arch/at91sam9_smc.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91cap9_matrix.h>
+#include <mach/at91sam9_smc.h>
 
 #include "generic.h"
 
@@ -181,14 +181,14 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return cap9adk_nand_partitions;
 }
 
-static struct at91_nand_data __initdata cap9adk_nand_data = {
+static struct atmel_nand_data __initdata cap9adk_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 //	.det_pin	= ... not connected
 //	.rdy_pin	= ... not connected
 	.enable_pin	= AT91_PIN_PD15,
 	.partition_info	= nand_partitions,
-#if defined(CONFIG_MTD_NAND_AT91_BUSWIDTH_16)
+#if defined(CONFIG_MTD_NAND_ATMEL_BUSWIDTH_16)
 	.bus_width_16	= 1,
 #else
 	.bus_width_16	= 0,
@@ -330,10 +330,10 @@ static void __init cap9adk_board_init(void)
 	/* Serial */
 	at91_add_device_serial();
 	/* USB Host */
-	set_irq_type(AT91CAP9_ID_UHP, IRQT_HIGH);
+	set_irq_type(AT91CAP9_ID_UHP, IRQ_TYPE_LEVEL_HIGH);
 	at91_add_device_usbh(&cap9adk_usbh_data);
 	/* USB HS */
-	set_irq_type(AT91CAP9_ID_UDPHS, IRQT_HIGH);
+	set_irq_type(AT91CAP9_ID_UDPHS, IRQ_TYPE_LEVEL_HIGH);
 	at91_add_device_usba(&cap9adk_usba_udc_data);
 	/* SPI */
 	at91_add_device_spi(cap9adk_spi_devices, ARRAY_SIZE(cap9adk_spi_devices));
@@ -350,7 +350,7 @@ static void __init cap9adk_board_init(void)
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* LCD Controller */
-	set_irq_type(AT91CAP9_ID_LCDC, IRQT_HIGH);
+	set_irq_type(AT91CAP9_ID_LCDC, IRQ_TYPE_LEVEL_HIGH);
 	at91_add_device_lcdc(&cap9adk_lcdc_data);
 	/* AC97 */
 	at91_add_device_ac97(&cap9adk_ac97_data);

@@ -284,6 +284,16 @@ config USB_LH7A40X
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+# built in ../musb along with host support
+config USB_GADGET_MUSB_HDRC
+	boolean "Inventra HDRC USB Peripheral (TI, ...)"
+	depends on USB_MUSB_HDRC && (USB_MUSB_PERIPHERAL || USB_MUSB_OTG)
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	help
+	  This OTG-capable silicon IP is used in dual designs including
+	  the TI DaVinci, OMAP 243x, OMAP 343x, and TUSB 6010.
+
 config USB_GADGET_OMAP
 	boolean "OMAP USB Device Controller"
 	depends on ARCH_OMAP
@@ -585,6 +595,20 @@ config USB_G_PRINTER
 
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
+
+config USB_CDC_COMPOSITE
+	tristate "CDC Composite Device (Ethernet and ACM)"
+	depends on NET
+	help
+	  This driver provides two functions in one configuration:
+	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
+
+	  This driver requires four bulk and two interrupt endpoints,
+	  plus the ability to handle altsettings.  Not all peripheral
+	  controllers are that capable.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module.
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.

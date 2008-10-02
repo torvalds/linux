@@ -101,6 +101,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH8},"
 			 "{Intel, ICH9},"
 			 "{Intel, ICH10},"
+			 "{Intel, PCH},"
 			 "{Intel, SCH},"
 			 "{ATI, SB450},"
 			 "{ATI, SB600},"
@@ -277,6 +278,9 @@ enum {
 /* Defines for Nvidia HDA support */
 #define NVIDIA_HDA_TRANSREG_ADDR      0x4e
 #define NVIDIA_HDA_ENABLE_COHBITS     0x0f
+#define NVIDIA_HDA_ISTRM_COH          0x4d
+#define NVIDIA_HDA_OSTRM_COH          0x4c
+#define NVIDIA_HDA_ENABLE_COHBIT      0x01
 
 /* Defines for Intel SCH HDA snoop control */
 #define INTEL_SCH_HDA_DEVC      0x78
@@ -899,6 +903,12 @@ static void azx_init_pci(struct azx *chip)
 		update_pci_byte(chip->pci,
 				NVIDIA_HDA_TRANSREG_ADDR,
 				0x0f, NVIDIA_HDA_ENABLE_COHBITS);
+		update_pci_byte(chip->pci,
+				NVIDIA_HDA_ISTRM_COH,
+				0x01, NVIDIA_HDA_ENABLE_COHBIT);
+		update_pci_byte(chip->pci,
+				NVIDIA_HDA_OSTRM_COH,
+				0x01, NVIDIA_HDA_ENABLE_COHBIT);
 		break;
 	case AZX_DRIVER_SCH:
 		pci_read_config_word(chip->pci, INTEL_SCH_HDA_DEVC, &snoop);
@@ -1047,9 +1057,13 @@ static int azx_setup_periods(struct azx *chip,
 	pos_adj = bdl_pos_adj[chip->dev_index];
 	if (pos_adj > 0) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
+		int pos_align = pos_adj;
 		pos_adj = (pos_adj * runtime->rate + 47999) / 48000;
 		if (!pos_adj)
-			pos_adj = 1;
+			pos_adj = pos_align;
+		else
+			pos_adj = ((pos_adj + pos_align - 1) / pos_align) *
+				pos_align;
 		pos_adj = frames_to_bytes(runtime, pos_adj);
 		if (pos_adj >= period_bytes) {
 			snd_printk(KERN_WARNING "Too big adjustment %d\n",
@@ -2259,6 +2273,8 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x8086, 0x293f), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x3a3e), .driver_data = AZX_DRIVER_ICH },
 	{ PCI_DEVICE(0x8086, 0x3a6e), .driver_data = AZX_DRIVER_ICH },
+	/* PCH */
+	{ PCI_DEVICE(0x8086, 0x3b56), .driver_data = AZX_DRIVER_ICH },
 	/* SCH */
 	{ PCI_DEVICE(0x8086, 0x811b), .driver_data = AZX_DRIVER_SCH },
 	/* ATI SB 450/600 */
@@ -2268,6 +2284,7 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x1002, 0x793b), .driver_data = AZX_DRIVER_ATIHDMI },
 	{ PCI_DEVICE(0x1002, 0x7919), .driver_data = AZX_DRIVER_ATIHDMI },
 	{ PCI_DEVICE(0x1002, 0x960f), .driver_data = AZX_DRIVER_ATIHDMI },
+	{ PCI_DEVICE(0x1002, 0x970f), .driver_data = AZX_DRIVER_ATIHDMI },
 	{ PCI_DEVICE(0x1002, 0xaa00), .driver_data = AZX_DRIVER_ATIHDMI },
 	{ PCI_DEVICE(0x1002, 0xaa08), .driver_data = AZX_DRIVER_ATIHDMI },
 	{ PCI_DEVICE(0x1002, 0xaa10), .driver_data = AZX_DRIVER_ATIHDMI },

@@ -270,8 +270,8 @@ The pinout of the connectors on the IO8+ is:
 Hardware handshaking issues.
 ============================
 
-The driver can be compiled in two different ways. The default
-("Specialix DTR/RTS pin is RTS" is off) the pin behaves as DTR when
+The driver can be told to operate in two different ways. The default
+behaviour is specialix.sx_rtscts = 0 where the pin behaves as DTR when
 hardware handshaking is off. It behaves as the RTS hardware
 handshaking signal when hardware handshaking is selected.
 
@@ -280,7 +280,7 @@ cable will either be compatible with hardware handshaking or with
 software handshaking. So switching on the fly is not really an
 option.
 
-I actually prefer to use the "Specialix DTR/RTS pin is RTS" option.
+I actually prefer to use the "specialix.sx_rtscts=1" option.
 This makes the DTR/RTS pin always an RTS pin, and ioctls to
 change DTR are always ignored. I have a cable that is configured
 for this. 
@@ -379,7 +379,5 @@ it doesn't fit in your computer, bring back the card.
             You have to WRITE to the address register to even 
             read-probe a CD186x register. Disable autodetection?
          -- Specialix: any suggestions?
-       - Arbitrary baud rates are not implemented yet. 
-            If you need this, bug me about it. 
 
 

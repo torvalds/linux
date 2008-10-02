@@ -75,9 +75,9 @@
  */
 
 /* If a device driver keeps reading an MMIO register in an interrupt
- * handler after a slot isolation event has occurred, we assume it
- * is broken and panic.  This sets the threshold for how many read
- * attempts we allow before panicking.
+ * handler after a slot isolation event, it might be broken.
+ * This sets the threshold for how many read attempts we allow
+ * before printing an error message.
  */
 #define EEH_MAX_FAILS	2100000
 
@@ -470,6 +470,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	unsigned long flags;
 	struct pci_dn *pdn;
 	int rc = 0;
+	const char *location;
 
 	total_mmio_ffs++;
 
@@ -509,18 +510,15 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	rc = 1;
 	if (pdn->eeh_mode & EEH_MODE_ISOLATED) {
 		pdn->eeh_check_count ++;
-		if (pdn->eeh_check_count >= EEH_MAX_FAILS) {
-			printk (KERN_ERR "EEH: Device driver ignored %d bad reads, panicing\n",
-			        pdn->eeh_check_count);
+		if (pdn->eeh_check_count % EEH_MAX_FAILS == 0) {
+			location = of_get_property(dn, "ibm,loc-code", NULL);
+			printk (KERN_ERR "EEH: %d reads ignored for recovering device at "
+				"location=%s driver=%s pci addr=%s\n",
+				pdn->eeh_check_count, location,
+				dev->driver->name, pci_name(dev));
+			printk (KERN_ERR "EEH: Might be infinite loop in %s driver\n",
+				dev->driver->name);
 			dump_stack();
-			msleep(5000);
-			
-			/* re-read the slot reset state */
-			if (read_slot_reset_state(pdn, rets) != 0)
-				rets[0] = -1;	/* reset state unknown */
-
-			/* If we are here, then we hit an infinite loop. Stop. */
-			panic("EEH: MMIO halt (%d) on device:%s\n", rets[0], pci_name(dev));
 		}
 		goto dn_unlock;
 	}

@@ -1,8 +1,6 @@
 /*
  * IPVS:        Weighted Round-Robin Scheduling module
  *
- * Version:     $Id: ip_vs_wrr.c,v 1.12 2002/09/15 08:14:08 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *
  *              This program is free software; you can redistribute it and/or
@@ -214,6 +212,7 @@ static struct ip_vs_scheduler ip_vs_wrr_scheduler = {
 	.name =			"wrr",
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list =		LIST_HEAD_INIT(ip_vs_wrr_scheduler.n_list),
 	.init_service =		ip_vs_wrr_init_svc,
 	.done_service =		ip_vs_wrr_done_svc,
 	.update_service =	ip_vs_wrr_update_svc,
@@ -222,7 +221,6 @@ static struct ip_vs_scheduler ip_vs_wrr_scheduler = {
 
 static int __init ip_vs_wrr_init(void)
 {
-	INIT_LIST_HEAD(&ip_vs_wrr_scheduler.n_list);
 	return register_ip_vs_scheduler(&ip_vs_wrr_scheduler) ;
 }
 

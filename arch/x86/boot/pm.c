@@ -98,12 +98,6 @@ static void reset_coprocessor(void)
 /*
  * Set up the GDT
  */
-#define GDT_ENTRY(flags, base, limit)		\
-	(((u64)(base & 0xff000000) << 32) |	\
-	 ((u64)flags << 40) |			\
-	 ((u64)(limit & 0x00ff0000) << 32) |	\
-	 ((u64)(base & 0x00ffffff) << 16) |	\
-	 ((u64)(limit & 0x0000ffff)))
 
 struct gdt_ptr {
 	u16 len;

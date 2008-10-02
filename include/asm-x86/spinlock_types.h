@@ -5,7 +5,7 @@
 # error "please don't include this file directly"
 #endif
 
-typedef struct {
+typedef struct raw_spinlock {
 	unsigned int slock;
 } raw_spinlock_t;
 

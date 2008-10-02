@@ -651,7 +651,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		"%s\n"
 		"%s version " DRIVER_VERSION "\n",
 		hcd->self.controller->bus->name,
-		hcd->self.controller->bus_id,
+		dev_name(hcd->self.controller),
 		hcd->product_desc,
 		hcd_name);
 

@@ -12,6 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/console_struct.h>
 #include <linux/mm.h>
+#include <linux/consolemap.h>
 
 /*
  * Presently, a lot of graphics programs do not restore the contents of
@@ -34,7 +35,6 @@ extern int fg_console, last_console, want_console;
 int vc_allocate(unsigned int console);
 int vc_cons_allocated(unsigned int console);
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines);
-int vc_lock_resize(struct vc_data *vc, unsigned int cols, unsigned int lines);
 void vc_deallocate(unsigned int console);
 void reset_palette(struct vc_data *vc);
 void do_blank_screen(int entering_gfx);
@@ -54,6 +54,7 @@ void redraw_screen(struct vc_data *vc, int is_switch);
 struct tty_struct;
 int tioclinux(struct tty_struct *tty, unsigned long arg);
 
+#ifdef CONFIG_CONSOLE_TRANSLATIONS
 /* consolemap.c */
 
 struct unimapinit;
@@ -70,6 +71,24 @@ int con_set_default_unimap(struct vc_data *vc);
 void con_free_unimap(struct vc_data *vc);
 void con_protect_unimap(struct vc_data *vc, int rdonly);
 int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
+
+#define vc_translate(vc, c) ((vc)->vc_translate[(c) |			\
+					((vc)->vc_toggle_meta ? 0x80 : 0)])
+#else
+#define con_set_trans_old(arg) (0)
+#define con_get_trans_old(arg) (-EINVAL)
+#define con_set_trans_new(arg) (0)
+#define con_get_trans_new(arg) (-EINVAL)
+#define con_clear_unimap(vc, ui) (0)
+#define con_set_unimap(vc, ct, list) (0)
+#define con_set_default_unimap(vc) (0)
+#define con_copy_unimap(d, s) (0)
+#define con_get_unimap(vc, ct, uct, list) (-EINVAL)
+#define con_free_unimap(vc) do { ; } while (0)
+#define con_protect_unimap(vc, rdonly) do { ; } while (0)
+
+#define vc_translate(vc, c) (c)
+#endif
 
 /* vt.c */
 int vt_waitactive(int vt);

@@ -26,7 +26,7 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -35,14 +35,15 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/corgi.h>
-#include <asm/arch/sharpsl.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/i2c.h>
+#include <mach/irda.h>
+#include <mach/mmc.h>
+#include <mach/udc.h>
+#include <mach/corgi.h>
+#include <mach/sharpsl.h>
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
@@ -465,6 +466,7 @@ static void corgi_irda_transceiver_mode(struct device *dev, int mode)
 		GPSR(CORGI_GPIO_IR_ON) = GPIO_bit(CORGI_GPIO_IR_ON);
 	else
 		GPCR(CORGI_GPIO_IR_ON) = GPIO_bit(CORGI_GPIO_IR_ON);
+	pxa2xx_transceiver_mode(dev, mode);
 }
 
 static struct pxaficp_platform_data corgi_ficp_platform_data = {
@@ -531,6 +533,7 @@ static void __init corgi_init(void)
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
+	pxa_set_i2c_info(NULL);
 
 	platform_scoop_config = &corgi_pcmcia_config;
 

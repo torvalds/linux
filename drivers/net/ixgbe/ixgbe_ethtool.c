@@ -90,6 +90,8 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_header_split", IXGBE_STAT(rx_hdr_split)},
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
+	{"lro_aggregated", IXGBE_STAT(lro_aggregated)},
+	{"lro_flushed", IXGBE_STAT(lro_flushed)},
 };
 
 #define IXGBE_QUEUE_STATS_LEN \
@@ -250,22 +252,10 @@ static int ixgbe_set_tso(struct net_device *netdev, u32 data)
 		netdev->features |= NETIF_F_TSO;
 		netdev->features |= NETIF_F_TSO6;
 	} else {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-		struct ixgbe_adapter *adapter = netdev_priv(netdev);
-		int i;
-#endif
-		netif_stop_queue(netdev);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			netif_stop_subqueue(netdev, i);
-#endif
+		netif_tx_stop_all_queues(netdev);
 		netdev->features &= ~NETIF_F_TSO;
 		netdev->features &= ~NETIF_F_TSO6;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-#endif
-		netif_start_queue(netdev);
+		netif_tx_start_all_queues(netdev);
 	}
 	return 0;
 }
@@ -787,6 +777,7 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	int stat_count = sizeof(struct ixgbe_queue_stats) / sizeof(u64);
 	int j, k;
 	int i;
+	u64 aggregated = 0, flushed = 0, no_desc = 0;
 
 	ixgbe_update_stats(adapter);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
@@ -801,11 +792,17 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 		i += k;
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
+		aggregated += adapter->rx_ring[j].lro_mgr.stats.aggregated;
+		flushed += adapter->rx_ring[j].lro_mgr.stats.flushed;
+		no_desc += adapter->rx_ring[j].lro_mgr.stats.no_desc;
 		queue_stat = (u64 *)&adapter->rx_ring[j].stats;
 		for (k = 0; k < stat_count; k++)
 			data[i + k] = queue_stat[k];
 		i += k;
 	}
+	adapter->lro_aggregated = aggregated;
+	adapter->lro_flushed = flushed;
+	adapter->lro_no_desc = no_desc;
 }
 
 static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
@@ -973,6 +970,8 @@ static struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_ethtool_stats      = ixgbe_get_ethtool_stats,
 	.get_coalesce           = ixgbe_get_coalesce,
 	.set_coalesce           = ixgbe_set_coalesce,
+	.get_flags              = ethtool_op_get_flags,
+	.set_flags              = ethtool_op_set_flags,
 };
 
 void ixgbe_set_ethtool_ops(struct net_device *netdev)

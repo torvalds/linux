@@ -2,8 +2,8 @@ menuconfig MPC85xx
 	bool "Machine Type"
 	depends on PPC_85xx
 	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI if PCI
 	select MPIC
+	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y
@@ -86,7 +86,6 @@ config TQM8548
 	help
 	  This option enables support for the TQ Components TQM8548 board.
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 	select TQM85xx
 
 config TQM8555

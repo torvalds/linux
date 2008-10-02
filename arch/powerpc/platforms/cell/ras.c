@@ -236,6 +236,52 @@ static struct notifier_block cbe_ptcal_reboot_notifier = {
 	.notifier_call = cbe_ptcal_notify_reboot
 };
 
+#ifdef CONFIG_PPC_IBM_CELL_RESETBUTTON
+static int sysreset_hack;
+
+static int __init cbe_sysreset_init(void)
+{
+	struct cbe_pmd_regs __iomem *regs;
+
+	sysreset_hack = machine_is_compatible("IBM,CBPLUS-1.0");
+	if (!sysreset_hack)
+		return 0;
+
+	regs = cbe_get_cpu_pmd_regs(0);
+	if (!regs)
+		return 0;
+
+	/* Enable JTAG system-reset hack */
+	out_be32(&regs->fir_mode_reg,
+		in_be32(&regs->fir_mode_reg) |
+		CBE_PMD_FIR_MODE_M8);
+
+	return 0;
+}
+device_initcall(cbe_sysreset_init);
+
+int cbe_sysreset_hack(void)
+{
+	struct cbe_pmd_regs __iomem *regs;
+
+	/*
+	 * The BMC can inject user triggered system reset exceptions,
+	 * but cannot set the system reset reason in srr1,
+	 * so check an extra register here.
+	 */
+	if (sysreset_hack && (smp_processor_id() == 0)) {
+		regs = cbe_get_cpu_pmd_regs(0);
+		if (!regs)
+			return 0;
+		if (in_be64(&regs->ras_esc_0) & 0x0000ffff) {
+			out_be64(&regs->ras_esc_0, 0);
+			return 0;
+		}
+	}
+	return 1;
+}
+#endif /* CONFIG_PPC_IBM_CELL_RESETBUTTON */
+
 int __init cbe_ptcal_init(void)
 {
 	int ret;

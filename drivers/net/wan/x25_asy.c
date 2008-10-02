@@ -754,7 +754,7 @@ static void x25_asy_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 }
 
-static struct tty_ldisc x25_ldisc = {
+static struct tty_ldisc_ops x25_ldisc = {
 	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
 	.name		= "X.25",

@@ -321,8 +321,15 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		 * some hardware cannot handle TKIP with QoS, so
 		 * we indicate whether QoS could be in use.
 		 */
-		if (sta->flags & WLAN_STA_WME)
+		if (test_sta_flags(sta, WLAN_STA_WME))
 			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
+
+		/*
+		 * This key is for a specific sta interface,
+		 * inform the driver that it should try to store
+		 * this key as pairwise key.
+		 */
+		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
 	} else {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 			struct sta_info *ap;
@@ -335,7 +342,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 			/* same here, the AP could be using QoS */
 			ap = sta_info_get(key->local, key->sdata->u.sta.bssid);
 			if (ap) {
-				if (ap->flags & WLAN_STA_WME)
+				if (test_sta_flags(ap, WLAN_STA_WME))
 					key->conf.flags |=
 						IEEE80211_KEY_FLAG_WMM_STA;
 			}

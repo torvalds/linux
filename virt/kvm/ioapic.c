@@ -146,6 +146,11 @@ static int ioapic_inj_irq(struct kvm_ioapic *ioapic,
 	return kvm_apic_set_irq(vcpu, vector, trig_mode);
 }
 
+static void ioapic_inj_nmi(struct kvm_vcpu *vcpu)
+{
+	kvm_inject_nmi(vcpu);
+}
+
 static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 				       u8 dest_mode)
 {
@@ -239,8 +244,19 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 			}
 		}
 		break;
-
-		/* TODO: NMI */
+	case IOAPIC_NMI:
+		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
+			if (!(deliver_bitmask & (1 << vcpu_id)))
+				continue;
+			deliver_bitmask &= ~(1 << vcpu_id);
+			vcpu = ioapic->kvm->vcpus[vcpu_id];
+			if (vcpu)
+				ioapic_inj_nmi(vcpu);
+			else
+				ioapic_debug("NMI to vcpu %d failed\n",
+						vcpu->vcpu_id);
+		}
+		break;
 	default:
 		printk(KERN_WARNING "Unsupported delivery mode %d\n",
 		       delivery_mode);
@@ -291,7 +307,8 @@ void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
 			__kvm_ioapic_update_eoi(ioapic, i);
 }
 
-static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr)
+static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int is_write)
 {
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 

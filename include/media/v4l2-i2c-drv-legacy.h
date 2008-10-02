@@ -68,7 +68,6 @@ static int v4l2_i2c_drv_detach_legacy(struct i2c_client *client)
 	if (err)
 		return err;
 	kfree(client);
-
 	return 0;
 }
 

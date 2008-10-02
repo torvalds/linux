@@ -87,8 +87,7 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 	return 0;
 
 no_locks:
-	if (host)
-		nlm_release_host(host);
+	nlm_release_host(host);
 	if (error)
 		return error;
 	return nlm_lck_denied_nolocks;
@@ -113,7 +112,7 @@ nlmsvc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 {
 	struct nlm_host	*host;
 	struct nlm_file	*file;
-	int rc = rpc_success;
+	__be32 rc = rpc_success;
 
 	dprintk("lockd: TEST          called\n");
 	resp->cookie = argp->cookie;
@@ -129,7 +128,7 @@ nlmsvc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
 	/* Now check for conflicting locks */
-	resp->status = cast_status(nlmsvc_testlock(rqstp, file, &argp->lock, &resp->lock, &resp->cookie));
+	resp->status = cast_status(nlmsvc_testlock(rqstp, file, host, &argp->lock, &resp->lock, &resp->cookie));
 	if (resp->status == nlm_drop_reply)
 		rc = rpc_drop_reply;
 	else
@@ -147,7 +146,7 @@ nlmsvc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 {
 	struct nlm_host	*host;
 	struct nlm_file	*file;
-	int rc = rpc_success;
+	__be32 rc = rpc_success;
 
 	dprintk("lockd: LOCK          called\n");
 
@@ -176,7 +175,7 @@ nlmsvc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 #endif
 
 	/* Now try to lock the file */
-	resp->status = cast_status(nlmsvc_lock(rqstp, file, &argp->lock,
+	resp->status = cast_status(nlmsvc_lock(rqstp, file, host, &argp->lock,
 					       argp->block, &argp->cookie));
 	if (resp->status == nlm_drop_reply)
 		rc = rpc_drop_reply;

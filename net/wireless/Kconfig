@@ -29,3 +29,15 @@ config WIRELESS_EXT
 
 	  Say N (if you can) unless you know you need wireless
 	  extensions for external modules.
+
+config WIRELESS_EXT_SYSFS
+	bool "Wireless extensions sysfs files"
+	default y
+	depends on WIRELESS_EXT && SYSFS
+	help
+	  This option enables the deprecated wireless statistics
+	  files in /sys/class/net/*/wireless/. The same information
+	  is available via the ioctls as well.
+
+	  Say Y if you have programs using it, like old versions of
+	  hal.

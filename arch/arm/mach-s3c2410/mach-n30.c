@@ -26,15 +26,15 @@
 #include <linux/serial_core.h>
 #include <linux/timer.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/fb.h>
-#include <asm/arch/leds-gpio.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-lcd.h>
+#include <mach/fb.h>
+#include <mach/leds-gpio.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-lcd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>

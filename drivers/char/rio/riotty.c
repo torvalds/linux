@@ -29,10 +29,6 @@
 **
 ** -----------------------------------------------------------------------------
 */
-#ifdef SCCS_LABELS
-static char *_riotty_c_sccs_ = "@(#)riotty.c	1.3";
-#endif
-
 
 #define __EXPLICIT_DEF_H__
 
@@ -144,14 +140,14 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 
 	tty->driver_data = PortP;
 
-	PortP->gs.tty = tty;
-	PortP->gs.count++;
+	PortP->gs.port.tty = tty;
+	PortP->gs.port.count++;
 
 	rio_dprintk(RIO_DEBUG_TTY, "%d bytes in tx buffer\n", PortP->gs.xmit_cnt);
 
 	retval = gs_init_port(&PortP->gs);
 	if (retval) {
-		PortP->gs.count--;
+		PortP->gs.port.count--;
 		return -ENXIO;
 	}
 	/*
@@ -297,7 +293,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	 ** insert test for carrier here. -- ???
 	 ** I already see that test here. What's the deal? -- REW
 	 */
-	if ((PortP->gs.tty->termios->c_cflag & CLOCAL) ||
+	if ((PortP->gs.port.tty->termios->c_cflag & CLOCAL) ||
 			(PortP->ModemState & RIOC_MSVR1_CD)) {
 		rio_dprintk(RIO_DEBUG_TTY, "open(%d) Modem carr on\n", SysPort);
 		/*
@@ -305,16 +301,16 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		   wakeup((caddr_t) &tp->tm.c_canq);
 		 */
 		PortP->State |= RIO_CARR_ON;
-		wake_up_interruptible(&PortP->gs.open_wait);
+		wake_up_interruptible(&PortP->gs.port.open_wait);
 	} else {	/* no carrier - wait for DCD */
 			/*
-		   while (!(PortP->gs.tty->termios->c_state & CARR_ON) &&
+		   while (!(PortP->gs.port.tty->termios->c_state & CARR_ON) &&
 		   !(filp->f_flags & O_NONBLOCK) && !p->RIOHalted )
 		 */
 		while (!(PortP->State & RIO_CARR_ON) && !(filp->f_flags & O_NONBLOCK) && !p->RIOHalted) {
 				rio_dprintk(RIO_DEBUG_TTY, "open(%d) sleeping for carr on\n", SysPort);
 			/*
-			   PortP->gs.tty->termios->c_state |= WOPEN;
+			   PortP->gs.port.tty->termios->c_state |= WOPEN;
 			 */
 			PortP->State |= RIO_WOPEN;
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
@@ -384,7 +380,7 @@ int riotclose(void *ptr)
 	/* PortP = p->RIOPortp[SysPort]; */
 	rio_dprintk(RIO_DEBUG_TTY, "Port is at address %p\n", PortP);
 	/* tp = PortP->TtyP; *//* Get tty */
-	tty = PortP->gs.tty;
+	tty = PortP->gs.port.tty;
 	rio_dprintk(RIO_DEBUG_TTY, "TTY is at address %p\n", tty);
 
 	if (PortP->gs.closing_wait)

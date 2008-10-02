@@ -111,7 +111,7 @@ static int pty_write(struct tty_struct * tty, const unsigned char *buf, int coun
 	c = to->receive_room;
 	if (c > count)
 		c = count;
-	to->ldisc.receive_buf(to, buf, NULL, c);
+	to->ldisc.ops->receive_buf(to, buf, NULL, c);
 	
 	return c;
 }
@@ -149,11 +149,11 @@ static int pty_chars_in_buffer(struct tty_struct *tty)
 	int count;
 
 	/* We should get the line discipline lock for "tty->link" */
-	if (!to || !to->ldisc.chars_in_buffer)
+	if (!to || !to->ldisc.ops->chars_in_buffer)
 		return 0;
 
 	/* The ldisc must report 0 if no characters available to be read */
-	count = to->ldisc.chars_in_buffer(to);
+	count = to->ldisc.ops->chars_in_buffer(to);
 
 	if (tty->driver->subtype == PTY_TYPE_SLAVE) return count;
 
@@ -186,8 +186,8 @@ static void pty_flush_buffer(struct tty_struct *tty)
 	if (!to)
 		return;
 	
-	if (to->ldisc.flush_buffer)
-		to->ldisc.flush_buffer(to);
+	if (to->ldisc.ops->flush_buffer)
+		to->ldisc.ops->flush_buffer(to);
 	
 	if (to->packet) {
 		spin_lock_irqsave(&tty->ctrl_lock, flags);

@@ -877,7 +877,8 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++)
 		count++;
 
-	printk(KERN_INFO "(%d early reservations) ==> bootmem\n", count);
+	printk(KERN_INFO "(%d early reservations) ==> bootmem [%010llx - %010llx]\n",
+			 count, start, end);
 	for (i = 0; i < count; i++) {
 		struct early_res *r = &early_res[i];
 		printk(KERN_INFO "  #%d [%010llx - %010llx] %16s", i,
@@ -1202,7 +1203,7 @@ static int __init parse_memmap_opt(char *p)
 	if (!p)
 		return -EINVAL;
 
-	if (!strcmp(p, "exactmap")) {
+	if (!strncmp(p, "exactmap", 8)) {
 #ifdef CONFIG_CRASH_DUMP
 		/*
 		 * If we are doing a crash dump, we still need to know
@@ -1298,11 +1299,6 @@ void __init e820_reserve_resources(void)
 	}
 }
 
-/*
- * Non-standard memory setup can be specified via this quirk:
- */
-char * (*arch_memory_setup_quirk)(void);
-
 char *__init default_machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
@@ -1343,8 +1339,8 @@ char *__init default_machine_specific_memory_setup(void)
 
 char *__init __attribute__((weak)) machine_specific_memory_setup(void)
 {
-	if (arch_memory_setup_quirk) {
-		char *who = arch_memory_setup_quirk();
+	if (x86_quirks->arch_memory_setup) {
+		char *who = x86_quirks->arch_memory_setup();
 
 		if (who)
 			return who;
@@ -1367,24 +1363,3 @@ void __init setup_memory_map(void)
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
 	e820_print_map(who);
 }
-
-#ifdef CONFIG_X86_64
-int __init arch_get_ram_range(int slot, u64 *addr, u64 *size)
-{
-	int i;
-
-	if (slot < 0 || slot >= e820.nr_map)
-		return -1;
-	for (i = slot; i < e820.nr_map; i++) {
-		if (e820.map[i].type != E820_RAM)
-			continue;
-		break;
-	}
-	if (i == e820.nr_map || e820.map[i].addr > (max_pfn << PAGE_SHIFT))
-		return -1;
-	*addr = e820.map[i].addr;
-	*size = min_t(u64, e820.map[i].size + e820.map[i].addr,
-		max_pfn << PAGE_SHIFT) - *addr;
-	return i + 1;
-}
-#endif

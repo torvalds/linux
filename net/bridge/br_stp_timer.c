@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_stp_timer.c,v 1.3 2000/05/05 02:17:17 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version

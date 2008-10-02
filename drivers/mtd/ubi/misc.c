@@ -37,7 +37,7 @@ int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
 {
 	int i;
 
-	ubi_assert(length % ubi->min_io_size == 0);
+	ubi_assert(!(length & (ubi->min_io_size - 1)));
 
 	for (i = length - 1; i >= 0; i--)
 		if (((const uint8_t *)buf)[i] != 0xFF)

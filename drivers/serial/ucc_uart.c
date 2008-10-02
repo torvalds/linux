@@ -466,7 +466,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	int i;
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	struct qe_bd *bdp;
 	u16 status;
 	unsigned int flg;

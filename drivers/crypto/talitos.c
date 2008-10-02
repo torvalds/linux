@@ -96,8 +96,14 @@ struct talitos_private {
 	unsigned int exec_units;
 	unsigned int desc_types;
 
+	/* SEC Compatibility info */
+	unsigned long features;
+
 	/* next channel to be assigned next incoming descriptor */
 	atomic_t last_chan;
+
+	/* per-channel number of requests pending in channel h/w fifo */
+	atomic_t *submit_count;
 
 	/* per-channel request fifo */
 	struct talitos_request **fifo;
@@ -129,6 +135,9 @@ struct talitos_private {
 	/* hwrng device */
 	struct hwrng rng;
 };
+
+/* .features flag */
+#define TALITOS_FTR_SRC_LINK_TBL_LEN_INCLUDES_EXTENT 0x00000001
 
 /*
  * map virtual single (contiguous) pointer to h/w descriptor pointer
@@ -263,14 +272,14 @@ static int talitos_submit(struct device *dev, struct talitos_desc *desc,
 
 	spin_lock_irqsave(&priv->head_lock[ch], flags);
 
-	head = priv->head[ch];
-	request = &priv->fifo[ch][head];
-
-	if (request->desc) {
-		/* request queue is full */
+	if (!atomic_inc_not_zero(&priv->submit_count[ch])) {
+		/* h/w fifo is full */
 		spin_unlock_irqrestore(&priv->head_lock[ch], flags);
 		return -EAGAIN;
 	}
+
+	head = priv->head[ch];
+	request = &priv->fifo[ch][head];
 
 	/* map descriptor and save caller data */
 	request->dma_desc = dma_map_single(dev, desc, sizeof(*desc),
@@ -335,6 +344,9 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 		priv->tail[ch] = (tail + 1) & (priv->fifo_len - 1);
 
 		spin_unlock_irqrestore(&priv->tail_lock[ch], flags);
+
+		atomic_dec(&priv->submit_count[ch]);
+
 		saved_req.callback(dev, saved_req.desc, saved_req.context,
 				   status);
 		/* channel may resume processing in single desc error case */
@@ -779,7 +791,7 @@ static void ipsec_esp_encrypt_done(struct device *dev,
 	/* copy the generated ICV to dst */
 	if (edesc->dma_len) {
 		icvdata = &edesc->link_tbl[edesc->src_nents +
-					   edesc->dst_nents + 1];
+					   edesc->dst_nents + 2];
 		sg = sg_last(areq->dst, edesc->dst_nents);
 		memcpy((char *)sg_virt(sg) + sg->length - ctx->authsize,
 		       icvdata, ctx->authsize);
@@ -808,7 +820,7 @@ static void ipsec_esp_decrypt_done(struct device *dev,
 		/* auth check */
 		if (edesc->dma_len)
 			icvdata = &edesc->link_tbl[edesc->src_nents +
-						   edesc->dst_nents + 1];
+						   edesc->dst_nents + 2];
 		else
 			icvdata = &edesc->link_tbl[0];
 
@@ -842,7 +854,7 @@ static int sg_to_link_tbl(struct scatterlist *sg, int sg_count,
 
 	/* adjust (decrease) last one (or two) entry's len to cryptlen */
 	link_tbl_ptr--;
-	while (link_tbl_ptr->len <= (-cryptlen)) {
+	while (be16_to_cpu(link_tbl_ptr->len) <= (-cryptlen)) {
 		/* Empty this entry, and move to previous one */
 		cryptlen += be16_to_cpu(link_tbl_ptr->len);
 		link_tbl_ptr->len = 0;
@@ -874,7 +886,7 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 	unsigned int cryptlen = areq->cryptlen;
 	unsigned int authsize = ctx->authsize;
 	unsigned int ivsize;
-	int sg_count;
+	int sg_count, ret;
 
 	/* hmac key */
 	map_single_talitos_ptr(dev, &desc->ptr[0], ctx->authkeylen, &ctx->key,
@@ -915,10 +927,30 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 		sg_count = sg_to_link_tbl(areq->src, sg_count, cryptlen,
 					  &edesc->link_tbl[0]);
 		if (sg_count > 1) {
+			struct talitos_ptr *link_tbl_ptr =
+				&edesc->link_tbl[sg_count-1];
+			struct scatterlist *sg;
+			struct talitos_private *priv = dev_get_drvdata(dev);
+
 			desc->ptr[4].j_extent |= DESC_PTR_LNKTBL_JUMP;
 			desc->ptr[4].ptr = cpu_to_be32(edesc->dma_link_tbl);
 			dma_sync_single_for_device(ctx->dev, edesc->dma_link_tbl,
 						   edesc->dma_len, DMA_BIDIRECTIONAL);
+			/* If necessary for this SEC revision,
+			 * add a link table entry for ICV.
+			 */
+			if ((priv->features &
+			     TALITOS_FTR_SRC_LINK_TBL_LEN_INCLUDES_EXTENT) &&
+			    (edesc->desc.hdr & DESC_HDR_MODE0_ENCRYPT) == 0) {
+				link_tbl_ptr->j_extent = 0;
+				link_tbl_ptr++;
+				link_tbl_ptr->j_extent = DESC_PTR_LNKTBL_RETURN;
+				link_tbl_ptr->len = cpu_to_be16(authsize);
+				sg = sg_last(areq->src, edesc->src_nents ? : 1);
+				link_tbl_ptr->ptr = cpu_to_be32(
+						(char *)sg_dma_address(sg)
+						+ sg->length - authsize);
+			}
 		} else {
 			/* Only one segment now, so no link tbl needed */
 			desc->ptr[4].ptr = cpu_to_be32(sg_dma_address(areq->src));
@@ -938,12 +970,11 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 		desc->ptr[5].ptr = cpu_to_be32(sg_dma_address(areq->dst));
 	} else {
 		struct talitos_ptr *link_tbl_ptr =
-			&edesc->link_tbl[edesc->src_nents];
-		struct scatterlist *sg;
+			&edesc->link_tbl[edesc->src_nents + 1];
 
 		desc->ptr[5].ptr = cpu_to_be32((struct talitos_ptr *)
 					       edesc->dma_link_tbl +
-					       edesc->src_nents);
+					       edesc->src_nents + 1);
 		if (areq->src == areq->dst) {
 			memcpy(link_tbl_ptr, &edesc->link_tbl[0],
 			       edesc->src_nents * sizeof(struct talitos_ptr));
@@ -951,14 +982,10 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 			sg_count = sg_to_link_tbl(areq->dst, sg_count, cryptlen,
 						  link_tbl_ptr);
 		}
+		/* Add an entry to the link table for ICV data */
 		link_tbl_ptr += sg_count - 1;
-
-		/* handle case where sg_last contains the ICV exclusively */
-		sg = sg_last(areq->dst, edesc->dst_nents);
-		if (sg->length == ctx->authsize)
-			link_tbl_ptr--;
-
 		link_tbl_ptr->j_extent = 0;
+		sg_count++;
 		link_tbl_ptr++;
 		link_tbl_ptr->j_extent = DESC_PTR_LNKTBL_RETURN;
 		link_tbl_ptr->len = cpu_to_be16(authsize);
@@ -967,7 +994,7 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 		link_tbl_ptr->ptr = cpu_to_be32((struct talitos_ptr *)
 						edesc->dma_link_tbl +
 					        edesc->src_nents +
-						edesc->dst_nents + 1);
+						edesc->dst_nents + 2);
 
 		desc->ptr[5].j_extent |= DESC_PTR_LNKTBL_JUMP;
 		dma_sync_single_for_device(ctx->dev, edesc->dma_link_tbl,
@@ -978,7 +1005,12 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 	map_single_talitos_ptr(dev, &desc->ptr[6], ivsize, ctx->iv, 0,
 			       DMA_FROM_DEVICE);
 
-	return talitos_submit(dev, desc, callback, areq);
+	ret = talitos_submit(dev, desc, callback, areq);
+	if (ret != -EINPROGRESS) {
+		ipsec_esp_unmap(dev, edesc, areq);
+		kfree(edesc);
+	}
+	return ret;
 }
 
 
@@ -1009,6 +1041,8 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
 	struct ipsec_esp_edesc *edesc;
 	int src_nents, dst_nents, alloc_len, dma_len;
+	gfp_t flags = areq->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
+		      GFP_ATOMIC;
 
 	if (areq->cryptlen + ctx->authsize > TALITOS_MAX_DATA_LEN) {
 		dev_err(ctx->dev, "cryptlen exceeds h/w max limit\n");
@@ -1022,17 +1056,17 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 		dst_nents = src_nents;
 	} else {
 		dst_nents = sg_count(areq->dst, areq->cryptlen + ctx->authsize);
-		dst_nents = (dst_nents == 1) ? 0 : src_nents;
+		dst_nents = (dst_nents == 1) ? 0 : dst_nents;
 	}
 
 	/*
 	 * allocate space for base edesc plus the link tables,
-	 * allowing for a separate entry for the generated ICV (+ 1),
+	 * allowing for two separate entries for ICV and generated ICV (+ 2),
 	 * and the ICV data itself
 	 */
 	alloc_len = sizeof(struct ipsec_esp_edesc);
 	if (src_nents || dst_nents) {
-		dma_len = (src_nents + dst_nents + 1) *
+		dma_len = (src_nents + dst_nents + 2) *
 				 sizeof(struct talitos_ptr) + ctx->authsize;
 		alloc_len += dma_len;
 	} else {
@@ -1040,7 +1074,7 @@ static struct ipsec_esp_edesc *ipsec_esp_edesc_alloc(struct aead_request *areq,
 		alloc_len += icv_stashing ? ctx->authsize : 0;
 	}
 
-	edesc = kmalloc(alloc_len, GFP_DMA);
+	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(ctx->dev, "could not allocate edescriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1091,7 +1125,7 @@ static int aead_authenc_decrypt(struct aead_request *req)
 	/* stash incoming ICV for later cmp with ICV generated by the h/w */
 	if (edesc->dma_len)
 		icvdata = &edesc->link_tbl[edesc->src_nents +
-					   edesc->dst_nents + 1];
+					   edesc->dst_nents + 2];
 	else
 		icvdata = &edesc->link_tbl[0];
 
@@ -1123,6 +1157,8 @@ static int aead_authenc_givencrypt(
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_MODE0_ENCRYPT;
 
 	memcpy(req->giv, ctx->iv, crypto_aead_ivsize(authenc));
+	/* avoid consecutive packets going out with same IV */
+	*(__be64 *)req->giv ^= cpu_to_be64(req->seq);
 
 	return ipsec_esp(edesc, areq, req->giv, req->seq,
 			 ipsec_esp_encrypt_done);
@@ -1337,6 +1373,7 @@ static int __devexit talitos_remove(struct of_device *ofdev)
 	if (hw_supports(dev, DESC_HDR_SEL0_RNG))
 		talitos_unregister_rng(dev);
 
+	kfree(priv->submit_count);
 	kfree(priv->tail);
 	kfree(priv->head);
 
@@ -1414,6 +1451,8 @@ static int talitos_probe(struct of_device *ofdev,
 
 	priv->ofdev = ofdev;
 
+	INIT_LIST_HEAD(&priv->alg_list);
+
 	tasklet_init(&priv->done_task, talitos_done, (unsigned long)dev);
 	tasklet_init(&priv->error_task, talitos_error, (unsigned long)dev);
 
@@ -1466,8 +1505,8 @@ static int talitos_probe(struct of_device *ofdev,
 		goto err_out;
 	}
 
-	of_node_put(np);
-	np = NULL;
+	if (of_device_is_compatible(np, "fsl,sec3.0"))
+		priv->features |= TALITOS_FTR_SRC_LINK_TBL_LEN_INCLUDES_EXTENT;
 
 	priv->head_lock = kmalloc(sizeof(spinlock_t) * priv->num_channels,
 				  GFP_KERNEL);
@@ -1504,6 +1543,16 @@ static int talitos_probe(struct of_device *ofdev,
 		}
 	}
 
+	priv->submit_count = kmalloc(sizeof(atomic_t) * priv->num_channels,
+				     GFP_KERNEL);
+	if (!priv->submit_count) {
+		dev_err(dev, "failed to allocate fifo submit count space\n");
+		err = -ENOMEM;
+		goto err_out;
+	}
+	for (i = 0; i < priv->num_channels; i++)
+		atomic_set(&priv->submit_count[i], -priv->chfifo_len);
+
 	priv->head = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
 	priv->tail = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
 	if (!priv->head || !priv->tail) {
@@ -1530,8 +1579,6 @@ static int talitos_probe(struct of_device *ofdev,
 	}
 
 	/* register crypto algorithms the device supports */
-	INIT_LIST_HEAD(&priv->alg_list);
-
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
 		if (hw_supports(dev, driver_algs[i].desc_hdr_template)) {
 			struct talitos_crypto_alg *t_alg;
@@ -1559,8 +1606,6 @@ static int talitos_probe(struct of_device *ofdev,
 
 err_out:
 	talitos_remove(ofdev);
-	if (np)
-		of_node_put(np);
 
 	return err;
 }

@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_ioctl.c,v 1.4 2000/11/08 05:16:40 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -190,15 +188,21 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case BRCTL_SET_BRIDGE_HELLO_TIME:
+	{
+		unsigned long t = clock_t_to_jiffies(args[1]);
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
+		if (t < HZ)
+			return -EINVAL;
+
 		spin_lock_bh(&br->lock);
-		br->bridge_hello_time = clock_t_to_jiffies(args[1]);
+		br->bridge_hello_time = t;
 		if (br_is_root_bridge(br))
 			br->hello_time = br->bridge_hello_time;
 		spin_unlock_bh(&br->lock);
 		return 0;
+	}
 
 	case BRCTL_SET_BRIDGE_MAX_AGE:
 		if (!capable(CAP_NET_ADMIN))

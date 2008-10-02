@@ -26,7 +26,7 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
@@ -39,10 +39,9 @@ static int debug;
 
 module_param(debug, bool, 0644);
 
-MODULE_PARM_DESC(debug, "Debugging messages\n\t\t\t0=Off (default), 1=On");
+MODULE_PARM_DESC(debug, "Debugging messages, 0=Off (default), 1=On");
 
 static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
-
 
 I2C_CLIENT_INSMOD;
 
@@ -189,4 +188,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.probe = cs53l32a_probe,
 	.id_table = cs53l32a_id,
 };
-

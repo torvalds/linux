@@ -94,7 +94,7 @@ enum azf_freq_t {
   AZF_FREQ(48000),
   AZF_FREQ(66200),
 #undef AZF_FREQ
-} AZF_FREQUENCIES;
+};
 
 /** recording area (see also: playback bit flag definitions) **/
 #define IDX_IO_REC_FLAGS	0x20 /* ??, PU:0x0000 */
@@ -210,7 +210,7 @@ enum azf_freq_t {
 
 enum {
 	AZF_GAME_LEGACY_IO_PORT = 0x200
-} AZF_GAME_CONFIGS;
+};
 
 #define IDX_GAME_LEGACY_COMPATIBLE	0x00
 	/* in some operation mode, writing anything to this port

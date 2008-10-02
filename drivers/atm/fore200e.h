@@ -754,7 +754,6 @@ typedef enum fore200e_state {
     FORE200E_STATE_CONFIGURE,     /* bus interface configured          */
     FORE200E_STATE_MAP,           /* board space mapped in host memory */
     FORE200E_STATE_RESET,         /* board resetted                    */
-    FORE200E_STATE_LOAD_FW,       /* firmware loaded                   */
     FORE200E_STATE_START_FW,      /* firmware started                  */
     FORE200E_STATE_INITIALIZE,    /* initialize command successful     */
     FORE200E_STATE_INIT_CMDQ,     /* command queue initialized         */
@@ -803,8 +802,6 @@ typedef struct fore200e_bus {
     int                  descr_alignment;     /* tpd/rpd/rbd DMA alignment requirement  */
     int                  buffer_alignment;    /* rx buffers DMA alignment requirement   */
     int                  status_alignment;    /* status words DMA alignment requirement */
-    const unsigned char* fw_data;             /* address of firmware data start         */
-    const unsigned int*  fw_size;             /* address of firmware data size          */
     u32                  (*read)(volatile u32 __iomem *);
     void                 (*write)(u32, volatile u32 __iomem *);
     u32                  (*dma_map)(struct fore200e*, void*, int, int);

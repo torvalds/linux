@@ -37,13 +37,6 @@
 #ifndef _parmap_h
 #define _parmap_h
 
-
-#ifdef SCCS_LABELS
-#ifndef lint
-/* static char *_rio_parmmap_h_sccs = "@(#)parmmap.h	1.4"; */
-#endif
-#endif
-
 typedef struct PARM_MAP PARM_MAP;
 
 struct PARM_MAP {

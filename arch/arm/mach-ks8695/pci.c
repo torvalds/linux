@@ -31,10 +31,10 @@
 #include <asm/io.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/devices.h>
-#include <asm/arch/regs-pci.h>
+#include <mach/devices.h>
+#include <mach/regs-pci.h>
 
 
 static int pci_dbg;

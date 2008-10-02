@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: reassembly.c,v 1.26 2001/03/07 22:00:57 davem Exp $
- *
  *	Based on: net/ipv4/ip_fragment.c
  *
  *	This program is free software; you can redistribute it and/or
@@ -475,8 +473,8 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		fq->q.fragments = head;
 	}
 
-	BUG_TRAP(head != NULL);
-	BUG_TRAP(FRAG6_CB(head)->offset == 0);
+	WARN_ON(head == NULL);
+	WARN_ON(FRAG6_CB(head)->offset != 0);
 
 	/* Unfragmented part is taken from the first segment. */
 	payload_len = ((head->data - skb_network_header(head)) -
@@ -634,7 +632,7 @@ static struct inet6_protocol frag_protocol =
 };
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table ip6_frags_ctl_table[] = {
+static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
 		.procname	= "ip6frag_high_thresh",
@@ -660,6 +658,10 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 		.strategy	= &sysctl_jiffies,
 	},
+	{ }
+};
+
+static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_SECRET_INTERVAL,
 		.procname	= "ip6frag_secret_interval",
@@ -672,21 +674,20 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{ }
 };
 
-static int ip6_frags_sysctl_register(struct net *net)
+static int ip6_frags_ns_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
-	table = ip6_frags_ctl_table;
+	table = ip6_frags_ns_ctl_table;
 	if (net != &init_net) {
-		table = kmemdup(table, sizeof(ip6_frags_ctl_table), GFP_KERNEL);
+		table = kmemdup(table, sizeof(ip6_frags_ns_ctl_table), GFP_KERNEL);
 		if (table == NULL)
 			goto err_alloc;
 
 		table[0].data = &net->ipv6.frags.high_thresh;
 		table[1].data = &net->ipv6.frags.low_thresh;
 		table[2].data = &net->ipv6.frags.timeout;
-		table[3].mode &= ~0222;
 	}
 
 	hdr = register_net_sysctl_table(net, net_ipv6_ctl_path, table);
@@ -703,7 +704,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void ip6_frags_sysctl_unregister(struct net *net)
+static void ip6_frags_ns_sysctl_unregister(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -711,13 +712,36 @@ static void ip6_frags_sysctl_unregister(struct net *net)
 	unregister_net_sysctl_table(net->ipv6.sysctl.frags_hdr);
 	kfree(table);
 }
+
+static struct ctl_table_header *ip6_ctl_header;
+
+static int ip6_frags_sysctl_register(void)
+{
+	ip6_ctl_header = register_net_sysctl_rotable(net_ipv6_ctl_path,
+			ip6_frags_ctl_table);
+	return ip6_ctl_header == NULL ? -ENOMEM : 0;
+}
+
+static void ip6_frags_sysctl_unregister(void)
+{
+	unregister_net_sysctl_table(ip6_ctl_header);
+}
 #else
-static inline int ip6_frags_sysctl_register(struct net *net)
+static inline int ip6_frags_ns_sysctl_register(struct net *net)
 {
 	return 0;
 }
 
-static inline void ip6_frags_sysctl_unregister(struct net *net)
+static inline void ip6_frags_ns_sysctl_unregister(struct net *net)
+{
+}
+
+static inline int ip6_frags_sysctl_register(void)
+{
+	return 0;
+}
+
+static inline void ip6_frags_sysctl_unregister(void)
 {
 }
 #endif
@@ -730,12 +754,12 @@ static int ipv6_frags_init_net(struct net *net)
 
 	inet_frags_init_net(&net->ipv6.frags);
 
-	return ip6_frags_sysctl_register(net);
+	return ip6_frags_ns_sysctl_register(net);
 }
 
 static void ipv6_frags_exit_net(struct net *net)
 {
-	ip6_frags_sysctl_unregister(net);
+	ip6_frags_ns_sysctl_unregister(net);
 	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
 }
 
@@ -752,7 +776,13 @@ int __init ipv6_frag_init(void)
 	if (ret)
 		goto out;
 
-	register_pernet_subsys(&ip6_frags_ops);
+	ret = ip6_frags_sysctl_register();
+	if (ret)
+		goto err_sysctl;
+
+	ret = register_pernet_subsys(&ip6_frags_ops);
+	if (ret)
+		goto err_pernet;
 
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;
@@ -765,11 +795,18 @@ int __init ipv6_frag_init(void)
 	inet_frags_init(&ip6_frags);
 out:
 	return ret;
+
+err_pernet:
+	ip6_frags_sysctl_unregister();
+err_sysctl:
+	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
+	goto out;
 }
 
 void ipv6_frag_exit(void)
 {
 	inet_frags_fini(&ip6_frags);
+	ip6_frags_sysctl_unregister();
 	unregister_pernet_subsys(&ip6_frags_ops);
 	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 }

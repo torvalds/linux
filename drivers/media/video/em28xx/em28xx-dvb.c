@@ -5,6 +5,8 @@
 
  (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 	- Fixes for the driver to properly work with HVR-950
+	- Fixes for the driver to properly work with Pinnacle PCTV HD Pro Stick
+	- Fixes for the driver to properly work with AMD ATI TV Wonder HD 600
 
  (c) 2008 Aidan Thornton <makosoft@googlemail.com>
 
@@ -26,6 +28,9 @@
 
 #include "lgdt330x.h"
 #include "zl10353.h"
+#ifdef EM28XX_DRX397XD_SUPPORT
+#include "drx397xD.h"
+#endif
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -227,6 +232,13 @@ static struct zl10353_config em28xx_zl10353_with_xc3028 = {
 	.if2 = 45600,
 };
 
+#ifdef EM28XX_DRX397XD_SUPPORT
+/* [TODO] djh - not sure yet what the device config needs to contain */
+static struct drx397xD_config em28xx_drx397xD_with_xc3028 = {
+	.demod_address = (0xe0 >> 1),
+};
+#endif
+
 /* ------------------------------------------------------------------ */
 
 static int attach_xc3028(u8 addr, struct em28xx *dev)
@@ -398,7 +410,9 @@ static int dvb_init(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
+	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
 		dvb->frontend = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
 					   &dev->i2c_adap);
@@ -413,6 +427,28 @@ static int dvb_init(struct em28xx *dev)
 					   &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
+			goto out_free;
+		}
+		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+#ifdef EM28XX_DRX397XD_SUPPORT
+		/* We don't have the config structure properly populated, so
+		   this is commented out for now */
+		dvb->frontend = dvb_attach(drx397xD_attach,
+					   &em28xx_drx397xD_with_xc3028,
+					   &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		break;
+#endif
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+		dvb->frontend = dvb_attach(zl10353_attach,
+						&em28xx_zl10353_with_xc3028,
+						&dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			 result = -EINVAL;
 			goto out_free;
 		}
 		break;

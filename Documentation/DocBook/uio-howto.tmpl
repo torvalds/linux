@@ -21,6 +21,18 @@
     </affiliation>
 </author>
 
+<copyright>
+	<year>2006-2008</year>
+	<holder>Hans-Jürgen Koch.</holder>
+</copyright>
+
+<legalnotice>
+<para>
+This documentation is Free Software licensed under the terms of the
+GPL version 2.
+</para>
+</legalnotice>
+
 <pubdate>2006-12-11</pubdate>
 
 <abstract>
@@ -29,6 +41,12 @@
 </abstract>
 
 <revhistory>
+	<revision>
+	<revnumber>0.5</revnumber>
+	<date>2008-05-22</date>
+	<authorinitials>hjk</authorinitials>
+	<revremark>Added description of write() function.</revremark>
+	</revision>
 	<revision>
 	<revnumber>0.4</revnumber>
 	<date>2007-11-26</date>
@@ -57,19 +75,8 @@
 </bookinfo>
 
 <chapter id="aboutthisdoc">
-<?dbhtml filename="about.html"?>
+<?dbhtml filename="aboutthis.html"?>
 <title>About this document</title>
-
-<sect1 id="copyright">
-<?dbhtml filename="copyright.html"?>
-<title>Copyright and License</title>
-<para>
-      Copyright (c) 2006 by Hans-Jürgen Koch.</para>
-<para>
-This documentation is Free Software licensed under the terms of the
-GPL version 2.
-</para>
-</sect1>
 
 <sect1 id="translations">
 <?dbhtml filename="translations.html"?>
@@ -188,6 +195,30 @@ interested in translating it, please email me
 	integer value read from <filename>/dev/uioX</filename>
 	represents the total interrupt count. You can use this number
 	to figure out if you missed some interrupts.
+	</para>
+	<para>
+	For some hardware that has more than one interrupt source internally,
+	but not separate IRQ mask and status registers, there might be
+	situations where userspace cannot determine what the interrupt source
+	was if the kernel handler disables them by writing to the chip's IRQ
+	register. In such a case, the kernel has to disable the IRQ completely
+	to leave the chip's register untouched. Now the userspace part can
+	determine the cause of the interrupt, but it cannot re-enable
+	interrupts. Another cornercase is chips where re-enabling interrupts
+	is a read-modify-write operation to a combined IRQ status/acknowledge
+	register. This would be racy if a new interrupt occurred
+	simultaneously.
+	</para>
+	<para>
+	To address these problems, UIO also implements a write() function. It
+	is normally not used and can be ignored for hardware that has only a
+	single interrupt source or has separate IRQ mask and status registers.
+	If you need it, however, a write to <filename>/dev/uioX</filename>
+	will call the <function>irqcontrol()</function> function implemented
+	by the driver. You have to write a 32-bit value that is usually either
+	0 or 1 to disable or enable interrupts. If a driver does not implement
+	<function>irqcontrol()</function>, <function>write()</function> will
+	return with <varname>-ENOSYS</varname>.
 	</para>
 
 	<para>
@@ -361,6 +392,14 @@ device is actually used.
 </varname>: Optional. If you define your own
 <function>open()</function>, you will probably also want a custom
 <function>release()</function> function.
+</para></listitem>
+
+<listitem><para>
+<varname>int (*irqcontrol)(struct uio_info *info, s32 irq_on)
+</varname>: Optional. If you need to be able to enable or disable
+interrupts from userspace by writing to <filename>/dev/uioX</filename>,
+you can implement this function. The parameter <varname>irq_on</varname>
+will be 0 to disable interrupts and 1 to enable them.
 </para></listitem>
 </itemizedlist>
 

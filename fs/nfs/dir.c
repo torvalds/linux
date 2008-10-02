@@ -1884,7 +1884,7 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 		return status;
 	nfs_access_add_cache(inode, &cache);
 out:
-	if ((cache.mask & mask) == mask)
+	if ((mask & ~cache.mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
 		return 0;
 	return -EACCES;
 }
@@ -1907,17 +1907,17 @@ int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
 	return nfs_do_access(inode, cred, nfs_open_permission_mask(openflags));
 }
 
-int nfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+int nfs_permission(struct inode *inode, int mask)
 {
 	struct rpc_cred *cred;
 	int res = 0;
 
 	nfs_inc_stats(inode, NFSIOS_VFSACCESS);
 
-	if (mask == 0)
+	if ((mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
 		goto out;
 	/* Is this sys_access() ? */
-	if (nd != NULL && (nd->flags & LOOKUP_ACCESS))
+	if (mask & MAY_ACCESS)
 		goto force_lookup;
 
 	switch (inode->i_mode & S_IFMT) {
@@ -1926,8 +1926,7 @@ int nfs_permission(struct inode *inode, int mask, struct nameidata *nd)
 		case S_IFREG:
 			/* NFSv4 has atomic_open... */
 			if (nfs_server_capable(inode, NFS_CAP_ATOMIC_OPEN)
-					&& nd != NULL
-					&& (nd->flags & LOOKUP_OPEN))
+					&& (mask & MAY_OPEN))
 				goto out;
 			break;
 		case S_IFDIR:

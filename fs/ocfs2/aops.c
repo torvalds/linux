@@ -594,7 +594,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)) && !p_blkno) {
+	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)) && !p_blkno && create) {
 		ocfs2_error(inode->i_sb,
 			    "Inode %llu has a hole at block %llu\n",
 			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -1073,12 +1073,15 @@ static void ocfs2_write_failure(struct inode *inode,
 	for(i = 0; i < wc->w_num_pages; i++) {
 		tmppage = wc->w_pages[i];
 
-		if (ocfs2_should_order_data(inode))
-			walk_page_buffers(wc->w_handle, page_buffers(tmppage),
-					  from, to, NULL,
-					  ocfs2_journal_dirty_data);
+		if (page_has_buffers(tmppage)) {
+			if (ocfs2_should_order_data(inode))
+				walk_page_buffers(wc->w_handle,
+						  page_buffers(tmppage),
+						  from, to, NULL,
+						  ocfs2_journal_dirty_data);
 
-		block_commit_write(tmppage, from, to);
+			block_commit_write(tmppage, from, to);
+		}
 	}
 }
 
@@ -1901,12 +1904,14 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 			to = PAGE_CACHE_SIZE;
 		}
 
-		if (ocfs2_should_order_data(inode))
-			walk_page_buffers(wc->w_handle, page_buffers(tmppage),
-					  from, to, NULL,
-					  ocfs2_journal_dirty_data);
-
-		block_commit_write(tmppage, from, to);
+		if (page_has_buffers(tmppage)) {
+			if (ocfs2_should_order_data(inode))
+				walk_page_buffers(wc->w_handle,
+						  page_buffers(tmppage),
+						  from, to, NULL,
+						  ocfs2_journal_dirty_data);
+			block_commit_write(tmppage, from, to);
+		}
 	}
 
 out_write_size:

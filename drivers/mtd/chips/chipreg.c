@@ -1,6 +1,4 @@
 /*
- * $Id: chipreg.c,v 1.17 2004/11/16 18:29:00 dwmw2 Exp $
- *
  * Registration for chip drivers
  *
  */

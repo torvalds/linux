@@ -142,7 +142,7 @@ int __init qdio_setup_perf_stats(void)
 	return 0;
 }
 
-void __exit qdio_remove_perf_stats(void)
+void qdio_remove_perf_stats(void)
 {
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("qdio_perf", NULL);

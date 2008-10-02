@@ -58,9 +58,17 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
 config TIME_LOW_RES
 	bool
 	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default n
 
 config NO_IOPORT
 	def_bool y
@@ -108,11 +116,13 @@ config M5206e
 
 config M520x
 	bool "MCF520x"
+	select GENERIC_CLOCKEVENTS
 	help
 	   Freescale Coldfire 5207/5208 processor support.
 
 config M523x
 	bool "MCF523x"
+	select GENERIC_CLOCKEVENTS
 	help
 	  Freescale Coldfire 5230/1/2/4/5 processor support
 
@@ -138,6 +148,7 @@ config M5275
 
 config M528x
 	bool "MCF528x"
+	select GENERIC_CLOCKEVENTS
 	help
 	  Motorola ColdFire 5280/5282 processor support.
 
@@ -161,6 +172,7 @@ endchoice
 config M527x
 	bool
 	depends on (M5271 || M5275)
+	select GENERIC_CLOCKEVENTS
 	default y
 
 config COLDFIRE
@@ -674,6 +686,9 @@ endchoice
 if COLDFIRE
 source "kernel/Kconfig.preempt"
 endif
+
+source "kernel/time/Kconfig"
+
 source "mm/Kconfig"
 
 endmenu

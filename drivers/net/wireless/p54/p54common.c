@@ -146,10 +146,10 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	if (priv->fw_var >= 0x300) {
 		/* Firmware supports QoS, use it! */
-		priv->tx_stats.data[0].limit = 3;
-		priv->tx_stats.data[1].limit = 4;
-		priv->tx_stats.data[2].limit = 3;
-		priv->tx_stats.data[3].limit = 1;
+		priv->tx_stats[0].limit = 3;
+		priv->tx_stats[1].limit = 4;
+		priv->tx_stats[2].limit = 3;
+		priv->tx_stats[3].limit = 1;
 		dev->queues = 4;
 	}
 }
@@ -355,8 +355,9 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct ieee80211_rx_status rx_status = {0};
 	u16 freq = le16_to_cpu(hdr->freq);
 
-	rx_status.ssi = hdr->rssi;
+	rx_status.signal = hdr->rssi;
 	/* XX correct? */
+	rx_status.qual = (100 * hdr->rssi) / 127;
 	rx_status.rate_idx = hdr->rate & 0xf;
 	rx_status.freq = freq;
 	rx_status.band = IEEE80211_BAND_2GHZ;
@@ -375,11 +376,8 @@ static void inline p54_wake_free_queues(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	int i;
 
-	/* ieee80211_start_queues is great if all queues are really empty.
-	 * But, what if some are full? */
-
 	for (i = 0; i < dev->queues; i++)
-		if (priv->tx_stats.data[i].len < priv->tx_stats.data[i].limit)
+		if (priv->tx_stats[i].len < priv->tx_stats[i].limit)
 			ieee80211_wake_queue(dev, i);
 }
 
@@ -395,45 +393,42 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u32 last_addr = priv->rx_start;
 
 	while (entry != (struct sk_buff *)&priv->tx_queue) {
-		range = (struct memrecord *)&entry->cb;
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
+		range = (void *)info->driver_data;
 		if (range->start_addr == addr) {
-			struct ieee80211_tx_status status;
 			struct p54_control_hdr *entry_hdr;
 			struct p54_tx_control_allocdata *entry_data;
 			int pad = 0;
 
-			if (entry->next != (struct sk_buff *)&priv->tx_queue)
-				freed = ((struct memrecord *)&entry->next->cb)->start_addr - last_addr;
-			else
+			if (entry->next != (struct sk_buff *)&priv->tx_queue) {
+				struct ieee80211_tx_info *ni;
+				struct memrecord *mr;
+
+				ni = IEEE80211_SKB_CB(entry->next);
+				mr = (struct memrecord *)ni->driver_data;
+				freed = mr->start_addr - last_addr;
+			} else
 				freed = priv->rx_end - last_addr;
 
 			last_addr = range->end_addr;
 			__skb_unlink(entry, &priv->tx_queue);
-			if (!range->control) {
-				kfree_skb(entry);
-				break;
-			}
-			memset(&status, 0, sizeof(status));
-			memcpy(&status.control, range->control,
-			       sizeof(status.control));
-			kfree(range->control);
-			priv->tx_stats.data[status.control.queue].len--;
-
+			memset(&info->status, 0, sizeof(info->status));
 			entry_hdr = (struct p54_control_hdr *) entry->data;
 			entry_data = (struct p54_tx_control_allocdata *) entry_hdr->data;
 			if ((entry_hdr->magic1 & cpu_to_le16(0x4000)) != 0)
 				pad = entry_data->align[0];
 
-			if (!(status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
+			priv->tx_stats[entry_data->hw_queue - 4].len--;
+			if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 				if (!(payload->status & 0x01))
-					status.flags |= IEEE80211_TX_STATUS_ACK;
+					info->flags |= IEEE80211_TX_STAT_ACK;
 				else
-					status.excessive_retries = 1;
+					info->status.excessive_retries = 1;
 			}
-			status.retry_count = payload->retries - 1;
-			status.ack_signal = le16_to_cpu(payload->ack_rssi);
+			info->status.retry_count = payload->retries - 1;
+			info->status.ack_signal = le16_to_cpu(payload->ack_rssi);
 			skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
-			ieee80211_tx_status_irqsafe(dev, entry, &status);
+			ieee80211_tx_status_irqsafe(dev, entry);
 			break;
 		} else
 			last_addr = range->end_addr;
@@ -498,13 +493,11 @@ EXPORT_SYMBOL_GPL(p54_rx);
  * allocated areas.
  */
 static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
-			       struct p54_control_hdr *data, u32 len,
-			       struct ieee80211_tx_control *control)
+			       struct p54_control_hdr *data, u32 len)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *entry = priv->tx_queue.next;
 	struct sk_buff *target_skb = NULL;
-	struct memrecord *range;
 	u32 last_addr = priv->rx_start;
 	u32 largest_hole = 0;
 	u32 target_addr = priv->rx_start;
@@ -516,7 +509,8 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	left = skb_queue_len(&priv->tx_queue);
 	while (left--) {
 		u32 hole_size;
-		range = (struct memrecord *)&entry->cb;
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
+		struct memrecord *range = (void *)info->driver_data;
 		hole_size = range->start_addr - last_addr;
 		if (!target_skb && hole_size >= len) {
 			target_skb = entry->prev;
@@ -531,17 +525,18 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 		target_skb = priv->tx_queue.prev;
 		largest_hole = max(largest_hole, priv->rx_end - last_addr - len);
 		if (!skb_queue_empty(&priv->tx_queue)) {
-			range = (struct memrecord *)&target_skb->cb;
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(target_skb);
+			struct memrecord *range = (void *)info->driver_data;
 			target_addr = range->end_addr;
 		}
 	} else
 		largest_hole = max(largest_hole, priv->rx_end - last_addr);
 
 	if (skb) {
-		range = (struct memrecord *)&skb->cb;
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		struct memrecord *range = (void *)info->driver_data;
 		range->start_addr = target_addr;
 		range->end_addr = target_addr + len;
-		range->control = control;
 		__skb_queue_after(&priv->tx_queue, target_skb, skb);
 		if (largest_hole < IEEE80211_MAX_RTS_THRESHOLD + 0x170 +
 				   sizeof(struct p54_control_hdr))
@@ -552,31 +547,28 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	data->req_id = cpu_to_le32(target_addr + 0x70);
 }
 
-static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
-		  struct ieee80211_tx_control *control)
+static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
-	struct ieee80211_tx_queue_stats_data *current_queue;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_queue_stats *current_queue;
 	struct p54_common *priv = dev->priv;
 	struct p54_control_hdr *hdr;
+	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	struct p54_tx_control_allocdata *txhdr;
-	struct ieee80211_tx_control *control_copy;
 	size_t padding, len;
 	u8 rate;
+	u8 cts_rate = 0x20;
 
-	current_queue = &priv->tx_stats.data[control->queue];
+	current_queue = &priv->tx_stats[skb_get_queue_mapping(skb)];
 	if (unlikely(current_queue->len > current_queue->limit))
 		return NETDEV_TX_BUSY;
 	current_queue->len++;
 	current_queue->count++;
 	if (current_queue->len == current_queue->limit)
-		ieee80211_stop_queue(dev, control->queue);
+		ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
 
 	padding = (unsigned long)(skb->data - (sizeof(*hdr) + sizeof(*txhdr))) & 3;
 	len = skb->len;
-
-	control_copy = kmalloc(sizeof(*control), GFP_ATOMIC);
-	if (control_copy)
-		memcpy(control_copy, control, sizeof(*control));
 
 	txhdr = (struct p54_tx_control_allocdata *)
 			skb_push(skb, sizeof(*txhdr) + padding);
@@ -587,34 +579,49 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	else
 		hdr->magic1 = cpu_to_le16(0x0010);
 	hdr->len = cpu_to_le16(len);
-	hdr->type = (control->flags & IEEE80211_TXCTL_NO_ACK) ? 0 : cpu_to_le16(1);
-	hdr->retry1 = hdr->retry2 = control->retry_limit;
-	p54_assign_address(dev, skb, hdr, skb->len, control_copy);
-
-	memset(txhdr->wep_key, 0x0, 16);
-	txhdr->padding = 0;
-	txhdr->padding2 = 0;
+	hdr->type = (info->flags & IEEE80211_TX_CTL_NO_ACK) ? 0 : cpu_to_le16(1);
+	hdr->retry1 = hdr->retry2 = info->control.retry_limit;
 
 	/* TODO: add support for alternate retry TX rates */
-	rate = control->tx_rate->hw_value;
-	if (control->flags & IEEE80211_TXCTL_SHORT_PREAMBLE)
+	rate = ieee80211_get_tx_rate(dev, info)->hw_value;
+	if (info->flags & IEEE80211_TX_CTL_SHORT_PREAMBLE) {
 		rate |= 0x10;
-	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
+		cts_rate |= 0x10;
+	}
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
 		rate |= 0x40;
-	else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+		cts_rate |= ieee80211_get_rts_cts_rate(dev, info)->hw_value;
+	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
 		rate |= 0x20;
+		cts_rate |= ieee80211_get_rts_cts_rate(dev, info)->hw_value;
+	}
 	memset(txhdr->rateset, rate, 8);
-	txhdr->wep_key_present = 0;
-	txhdr->wep_key_len = 0;
-	txhdr->frame_type = cpu_to_le32(control->queue + 4);
-	txhdr->magic4 = 0;
-	txhdr->antenna = (control->antenna_sel_tx == 0) ?
-		2 : control->antenna_sel_tx - 1;
+	txhdr->key_type = 0;
+	txhdr->key_len = 0;
+	txhdr->hw_queue = skb_get_queue_mapping(skb) + 4;
+	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
+		2 : info->antenna_sel_tx - 1;
 	txhdr->output_power = 0x7f; // HW Maximum
-	txhdr->magic5 = (control->flags & IEEE80211_TXCTL_NO_ACK) ?
-		0 : ((rate > 0x3) ? cpu_to_le32(0x33) : cpu_to_le32(0x23));
+	txhdr->cts_rate = (info->flags & IEEE80211_TX_CTL_NO_ACK) ?
+			  0 : cts_rate;
 	if (padding)
 		txhdr->align[0] = padding;
+
+	/* FIXME: The sequence that follows is needed for this driver to
+	 * work with mac80211 since "mac80211: fix TX sequence numbers".
+	 * As with the temporary code in rt2x00, changes will be needed
+	 * to get proper sequence numbers on beacons. In addition, this
+	 * patch places the sequence number in the hardware state, which
+	 * limits us to a single virtual state.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			priv->seqno += 0x10;
+		ieee80211hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		ieee80211hdr->seq_ctrl |= cpu_to_le16(priv->seqno);
+	}
+	/* modifies skb->cb and with it info, so must be last! */
+	p54_assign_address(dev, skb, hdr, skb->len);
 
 	priv->tx(dev, hdr, skb->len, 0);
 	return 0;
@@ -638,7 +645,7 @@ static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
 	filter = (struct p54_tx_control_filter *) hdr->data;
 	hdr->magic1 = cpu_to_le16(0x8001);
 	hdr->len = cpu_to_le16(sizeof(*filter));
-	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*filter), NULL);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*filter));
 	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_FILTER_SET);
 
 	filter->filter_type = cpu_to_le16(filter_type);
@@ -682,7 +689,7 @@ static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
 	hdr->magic1 = cpu_to_le16(0x8001);
 	hdr->len = cpu_to_le16(sizeof(*chan));
 	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_CHANNEL_CHANGE);
-	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + payload_len, NULL);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + payload_len);
 
 	chan->magic1 = cpu_to_le16(0x1);
 	chan->magic2 = cpu_to_le16(0x0);
@@ -755,7 +762,7 @@ static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
 	hdr->magic1 = cpu_to_le16(0x8001);
 	hdr->len = cpu_to_le16(sizeof(*led));
 	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_LED);
-	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*led), NULL);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*led));
 
 	led = (struct p54_tx_control_led *) hdr->data;
 	led->mode = cpu_to_le16(mode);
@@ -805,14 +812,14 @@ static void p54_set_vdcf(struct ieee80211_hw *dev)
 
 	hdr = (void *)priv->cached_vdcf + priv->tx_hdr_len;
 
-	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*vdcf), NULL);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*vdcf));
 
 	vdcf = (struct p54_tx_control_vdcf *) hdr->data;
 
 	if (dev->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME) {
 		vdcf->slottime = 9;
-		vdcf->magic1 = 0x00;
-		vdcf->magic2 = 0x10;
+		vdcf->magic1 = 0x10;
+		vdcf->magic2 = 0x00;
 	} else {
 		vdcf->slottime = 20;
 		vdcf->magic1 = 0x0a;
@@ -830,9 +837,20 @@ static int p54_start(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	int err;
 
+	if (!priv->cached_vdcf) {
+		priv->cached_vdcf = kzalloc(sizeof(struct p54_tx_control_vdcf)+
+			priv->tx_hdr_len + sizeof(struct p54_control_hdr),
+			GFP_KERNEL);
+
+		if (!priv->cached_vdcf)
+			return -ENOMEM;
+	}
+
 	err = priv->open(dev);
 	if (!err)
 		priv->mode = IEEE80211_IF_TYPE_MNTR;
+
+	p54_init_vdcf(dev);
 
 	return err;
 }
@@ -841,12 +859,8 @@ static void p54_stop(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
-	while ((skb = skb_dequeue(&priv->tx_queue))) {
-		struct memrecord *range = (struct memrecord *)&skb->cb;
-		if (range->control)
-			kfree(range->control);
+	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
-	}
 	priv->stop(dev);
 	priv->mode = IEEE80211_IF_TYPE_INVALID;
 }
@@ -898,9 +912,12 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 {
 	int ret;
+	struct p54_common *priv = dev->priv;
 
+	mutex_lock(&priv->conf_mutex);
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
+	mutex_unlock(&priv->conf_mutex);
 	return ret;
 }
 
@@ -910,10 +927,12 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
+	mutex_lock(&priv->conf_mutex);
 	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 0, 1, 0, 0xF642);
 	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 2, 0, 0, 0);
 	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
 	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -936,7 +955,7 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 	}
 }
 
-static int p54_conf_tx(struct ieee80211_hw *dev, int queue,
+static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;
@@ -945,7 +964,7 @@ static int p54_conf_tx(struct ieee80211_hw *dev, int queue,
 	vdcf = (struct p54_tx_control_vdcf *)(((struct p54_control_hdr *)
 		((void *)priv->cached_vdcf + priv->tx_hdr_len))->data);
 
-	if ((params) && !((queue < 0) || (queue > 4))) {
+	if ((params) && !(queue > 4)) {
 		P54_SET_QUEUE(vdcf->queue[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
 	} else
@@ -967,11 +986,8 @@ static int p54_get_tx_stats(struct ieee80211_hw *dev,
 			    struct ieee80211_tx_queue_stats *stats)
 {
 	struct p54_common *priv = dev->priv;
-	unsigned int i;
 
-	for (i = 0; i < dev->queues; i++)
-		memcpy(&stats->data[i], &priv->tx_stats.data[i],
-			sizeof(stats->data[i]));
+	memcpy(stats, &priv->tx_stats, sizeof(stats[0]) * dev->queues);
 
 	return 0;
 }
@@ -1004,25 +1020,18 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	skb_queue_head_init(&priv->tx_queue);
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
-		    IEEE80211_HW_RX_INCLUDES_FCS;
+		     IEEE80211_HW_RX_INCLUDES_FCS |
+		     IEEE80211_HW_SIGNAL_UNSPEC;
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
-	dev->max_rssi = 127;
+	dev->max_signal = 127;
 
-	priv->tx_stats.data[0].limit = 5;
+	priv->tx_stats[0].limit = 5;
 	dev->queues = 1;
 
 	dev->extra_tx_headroom = sizeof(struct p54_control_hdr) + 4 +
 				 sizeof(struct p54_tx_control_allocdata);
 
-        priv->cached_vdcf = kzalloc(sizeof(struct p54_tx_control_vdcf) +
-              priv->tx_hdr_len + sizeof(struct p54_control_hdr), GFP_KERNEL);
-
-	if (!priv->cached_vdcf) {
-		ieee80211_free_hw(dev);
-		return NULL;
-	}
-
-	p54_init_vdcf(dev);
+	mutex_init(&priv->conf_mutex);
 
 	return dev;
 }

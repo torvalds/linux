@@ -42,7 +42,7 @@ extern void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int nelems, enum dma_data_direction direction);
 extern void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 	int nelems, enum dma_data_direction direction);
-extern int dma_mapping_error(dma_addr_t dma_addr);
+extern int dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 extern int dma_supported(struct device *dev, u64 mask);
 
 static inline int

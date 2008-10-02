@@ -1,7 +1,3 @@
-/*
- * $Id$
- */
-
 #ifndef _NET_IP6_TUNNEL_H
 #define _NET_IP6_TUNNEL_H
 
@@ -19,7 +15,6 @@
 struct ip6_tnl {
 	struct ip6_tnl *next;	/* next tunnel in list */
 	struct net_device *dev;	/* virtual device associated with tunnel */
-	struct net_device_stats stat;	/* statistics for tunnel device */
 	int recursion;		/* depth of hard_start_xmit recursion */
 	struct ip6_tnl_parm parms;	/* tunnel configuration parameters */
 	struct flowi fl;	/* flowi template for xmit */

@@ -11,7 +11,6 @@ struct ip_tunnel
 {
 	struct ip_tunnel	*next;
 	struct net_device	*dev;
-	struct net_device_stats	stat;
 
 	int			recursion;	/* Depth of hard_start_xmit recursion */
 	int			err_count;	/* Number of arrived ICMP errors */

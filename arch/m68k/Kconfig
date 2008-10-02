@@ -490,28 +490,6 @@ config ATARI_MFPSER
 	  Note for Falcon users: You also have an MFP port, it's just not
 	  wired to the outside... But you could use the port under Linux.
 
-config ATARI_SCC
-	tristate "Atari SCC serial support"
-	depends on ATARI
-	---help---
-	  If you have serial ports based on a Zilog SCC chip (Modem2, Serial2,
-	  LAN) and like to use them under Linux, say Y. All built-in SCC's are
-	  supported (TT, MegaSTE, Falcon), and also the ST-ESCC. If you have
-	  two connectors for channel A (Serial2 and LAN), they are visible as
-	  two separate devices.
-
-	  To compile this driver as a module, choose M here.
-
-config ATARI_SCC_DMA
-	bool "Atari SCC serial DMA support"
-	depends on ATARI_SCC
-	help
-	  This enables DMA support for receiving data on channel A of the SCC.
-	  If you have a TT you may say Y here and read
-	  drivers/char/atari_SCC.README. All other users should say N here,
-	  because only the TT has SCC-DMA, even if your machine keeps claiming
-	  so at boot time.
-
 config ATARI_MIDI
 	tristate "Atari MIDI serial support"
 	depends on ATARI
@@ -578,18 +556,6 @@ config MAC_HID
 	depends on INPUT_ADBHID
 	default y
 
-config ADB_KEYBOARD
-	bool "Support for ADB keyboard (old driver)"
-	depends on MAC && !INPUT_ADBHID
-	help
-	  This option allows you to use an ADB keyboard attached to your
-	  machine. Note that this disables any other (ie. PS/2) keyboard
-	  support, even if your machine is physically capable of using both at
-	  the same time.
-
-	  If you use an ADB keyboard (4 pin connector), say Y here.
-	  If you use a PS/2 keyboard (6 pin connector), say N here.
-
 config HPDCA
 	tristate "HP DCA serial support"
 	depends on DIO && SERIAL_8250
@@ -640,7 +606,7 @@ config DN_SERIAL
 
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
-	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_SCC=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
+	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all

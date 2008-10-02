@@ -61,6 +61,12 @@ obj-$(CONFIG_DVB_USB_AF9005) += dvb-usb-af9005.o
 dvb-usb-af9005-remote-objs = af9005-remote.o
 obj-$(CONFIG_DVB_USB_AF9005_REMOTE) += dvb-usb-af9005-remote.o
 
+dvb-usb-anysee-objs = anysee.o
+obj-$(CONFIG_DVB_USB_ANYSEE) += dvb-usb-anysee.o
+
+dvb-usb-dw2102-objs = dw2102.o
+obj-$(CONFIG_DVB_USB_DW2102) += dvb-usb-dw2102.o
+
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 # due to tuner-xc3028
 EXTRA_CFLAGS += -Idrivers/media/common/tuners

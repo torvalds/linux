@@ -4,8 +4,6 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.186 2005/11/23 22:07:52 nico Exp $
- *
  *
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
  * 	- completely revamped method functions so they are aware and
@@ -50,6 +48,8 @@
 #define I82802AC	0x00ac
 #define MANUFACTURER_ST         0x0020
 #define M50LPW080       0x002F
+#define M50FLW080A	0x0080
+#define M50FLW080B	0x0081
 #define AT49BV640D	0x02de
 
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
@@ -204,7 +204,7 @@ static void fixup_intel_strataflash(struct mtd_info *mtd, void* param)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	struct cfi_pri_amdstd *extp = cfi->cmdset_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 
 	printk(KERN_WARNING "cfi_cmdset_0001: Suspend "
 	                    "erase on write disabled.\n");
@@ -301,6 +301,8 @@ static struct cfi_fixup jedec_fixup_table[] = {
 	{ MANUFACTURER_INTEL, I82802AB,   fixup_use_fwh_lock, NULL, },
 	{ MANUFACTURER_INTEL, I82802AC,   fixup_use_fwh_lock, NULL, },
 	{ MANUFACTURER_ST,    M50LPW080,  fixup_use_fwh_lock, NULL, },
+	{ MANUFACTURER_ST,    M50FLW080A, fixup_use_fwh_lock, NULL, },
+	{ MANUFACTURER_ST,    M50FLW080B, fixup_use_fwh_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 static struct cfi_fixup fixup_table[] = {
@@ -1147,7 +1149,7 @@ static int inval_cache_and_wait_for_operation(
 	struct cfi_private *cfi = map->fldrv_priv;
 	map_word status, status_OK = CMD(0x80);
 	int chip_state = chip->state;
-	unsigned int timeo, sleep_time;
+	unsigned int timeo, sleep_time, reset_timeo;
 
 	spin_unlock(chip->mutex);
 	if (inval_len)
@@ -1158,6 +1160,7 @@ static int inval_cache_and_wait_for_operation(
 	timeo = chip_op_time * 8;
 	if (!timeo)
 		timeo = 500000;
+	reset_timeo = timeo;
 	sleep_time = chip_op_time / 2;
 
 	for (;;) {
@@ -1198,6 +1201,12 @@ static int inval_cache_and_wait_for_operation(
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
 			spin_lock(chip->mutex);
+		}
+		if (chip->erase_suspended || chip->write_suspended)  {
+			/* Suspend has occured while sleep: reset timeout */
+			timeo = reset_timeo;
+			chip->erase_suspended = 0;
+			chip->write_suspended = 0;
 		}
 	}
 

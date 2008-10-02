@@ -66,6 +66,7 @@ static struct kmem_cache *befs_inode_cachep;
 static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= befs_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static const struct inode_operations befs_dir_inode_operations = {
@@ -289,7 +290,7 @@ befs_destroy_inode(struct inode *inode)
         kmem_cache_free(befs_inode_cachep, BEFS_I(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
         struct befs_inode_info *bi = (struct befs_inode_info *) foo;
 

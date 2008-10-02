@@ -30,4 +30,13 @@ extern void cbe_system_error_exception(struct pt_regs *regs);
 extern void cbe_maintenance_exception(struct pt_regs *regs);
 extern void cbe_thermal_exception(struct pt_regs *regs);
 
+#ifdef CONFIG_PPC_IBM_CELL_RESETBUTTON
+extern int cbe_sysreset_hack(void);
+#else
+static inline int cbe_sysreset_hack(void)
+{
+	return 1;
+}
+#endif /* CONFIG_PPC_IBM_CELL_RESETBUTTON */
+
 #endif

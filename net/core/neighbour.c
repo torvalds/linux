@@ -930,6 +930,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				buff = neigh->arp_queue.next;
 				__skb_unlink(buff, &neigh->arp_queue);
 				kfree_skb(buff);
+				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			__skb_queue_tail(&neigh->arp_queue, skb);
 		}
@@ -2280,6 +2281,7 @@ static struct neighbour *neigh_get_idx(struct seq_file *seq, loff_t *pos)
 	struct neighbour *n = neigh_get_first(seq);
 
 	if (n) {
+		--(*pos);
 		while (*pos) {
 			n = neigh_get_next(seq, n, pos);
 			if (!n)
@@ -2340,6 +2342,7 @@ static struct pneigh_entry *pneigh_get_idx(struct seq_file *seq, loff_t *pos)
 	struct pneigh_entry *pn = pneigh_get_first(seq);
 
 	if (pn) {
+		--(*pos);
 		while (*pos) {
 			pn = pneigh_get_next(seq, pn, pos);
 			if (!pn)
@@ -2353,10 +2356,11 @@ static void *neigh_get_idx_any(struct seq_file *seq, loff_t *pos)
 {
 	struct neigh_seq_state *state = seq->private;
 	void *rc;
+	loff_t idxpos = *pos;
 
-	rc = neigh_get_idx(seq, pos);
+	rc = neigh_get_idx(seq, &idxpos);
 	if (!rc && !(state->flags & NEIGH_SEQ_NEIGH_ONLY))
-		rc = pneigh_get_idx(seq, pos);
+		rc = pneigh_get_idx(seq, &idxpos);
 
 	return rc;
 }
@@ -2365,7 +2369,6 @@ void *neigh_seq_start(struct seq_file *seq, loff_t *pos, struct neigh_table *tbl
 	__acquires(tbl->lock)
 {
 	struct neigh_seq_state *state = seq->private;
-	loff_t pos_minus_one;
 
 	state->tbl = tbl;
 	state->bucket = 0;
@@ -2373,8 +2376,7 @@ void *neigh_seq_start(struct seq_file *seq, loff_t *pos, struct neigh_table *tbl
 
 	read_lock_bh(&tbl->lock);
 
-	pos_minus_one = *pos - 1;
-	return *pos ? neigh_get_idx_any(seq, &pos_minus_one) : SEQ_START_TOKEN;
+	return *pos ? neigh_get_idx_any(seq, pos) : SEQ_START_TOKEN;
 }
 EXPORT_SYMBOL(neigh_seq_start);
 
@@ -2384,7 +2386,7 @@ void *neigh_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	void *rc;
 
 	if (v == SEQ_START_TOKEN) {
-		rc = neigh_get_idx(seq, pos);
+		rc = neigh_get_first(seq);
 		goto out;
 	}
 
@@ -2462,12 +2464,12 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	struct neigh_statistics *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs\n");
+		seq_printf(seq, "entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08lx %08lx %08lx  %08lx %08lx  %08lx  "
-			"%08lx %08lx  %08lx %08lx\n",
+			"%08lx %08lx  %08lx %08lx %08lx\n",
 		   atomic_read(&tbl->entries),
 
 		   st->allocs,
@@ -2483,7 +2485,8 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 		   st->rcv_probes_ucast,
 
 		   st->periodic_gc_runs,
-		   st->forced_gc_runs
+		   st->forced_gc_runs,
+		   st->unres_discards
 		   );
 
 	return 0;

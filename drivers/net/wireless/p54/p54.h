@@ -52,6 +52,8 @@ struct p54_common {
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);
 	int mode;
+	u16 seqno;
+	struct mutex conf_mutex;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	struct pda_iq_autocal_entry *iq_autocal;
@@ -64,7 +66,7 @@ struct p54_common {
 	unsigned int tx_hdr_len;
 	void *cached_vdcf;
 	unsigned int fw_var;
-	struct ieee80211_tx_queue_stats tx_stats;
+	struct ieee80211_tx_queue_stats tx_stats[4];
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);

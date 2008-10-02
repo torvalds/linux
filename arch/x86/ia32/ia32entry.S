@@ -15,6 +15,16 @@
 #include <asm/irqflags.h>
 #include <linux/linkage.h>
 
+/* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
+#include <linux/elf-em.h>
+#define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
+#define __AUDIT_ARCH_LE	   0x40000000
+
+#ifndef CONFIG_AUDITSYSCALL
+#define sysexit_audit int_ret_from_sys_call
+#define sysretl_audit int_ret_from_sys_call
+#endif
+
 #define IA32_NR_syscalls ((ia32_syscall_end - ia32_sys_call_table)/8)
 
 	.macro IA32_ARG_FIXUP noebp=0
@@ -37,6 +47,11 @@
 	movq	%rax,R8(%rsp)
 	.endm
 
+	/*
+	 * Reload arg registers from stack in case ptrace changed them.
+	 * We don't reload %eax because syscall_trace_enter() returned
+	 * the value it wants us to use in the table lookup.
+	 */
 	.macro LOAD_ARGS32 offset
 	movl \offset(%rsp),%r11d
 	movl \offset+8(%rsp),%r10d
@@ -46,7 +61,6 @@
 	movl \offset+48(%rsp),%edx
 	movl \offset+56(%rsp),%esi
 	movl \offset+64(%rsp),%edi
-	movl \offset+72(%rsp),%eax
 	.endm
 	
 	.macro CFI_STARTPROC32 simple
@@ -137,21 +151,22 @@ ENTRY(ia32_sysenter_target)
  	.previous	
 	GET_THREAD_INFO(%r10)
 	orl    $TS_COMPAT,TI_status(%r10)
-	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
-		 TI_flags(%r10)
+	testl  $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
-sysenter_do_call:	
 	cmpl	$(IA32_NR_syscalls-1),%eax
 	ja	ia32_badsys
+sysenter_do_call:
 	IA32_ARG_FIXUP 1
+sysenter_dispatch:
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX-ARGOFFSET(%rsp)
 	GET_THREAD_INFO(%r10)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK,TI_flags(%r10)
-	jnz	int_ret_from_sys_call
+	jnz	sysexit_audit
+sysexit_from_sys_call:
 	andl    $~TS_COMPAT,TI_status(%r10)
 	/* clear IF, that popfq doesn't enable interrupts early */
 	andl  $~0x200,EFLAGS-R11(%rsp) 
@@ -167,9 +182,63 @@ sysenter_do_call:
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS_SYSEXIT32
 
-sysenter_tracesys:
+#ifdef CONFIG_AUDITSYSCALL
+	.macro auditsys_entry_common
+	movl %esi,%r9d			/* 6th arg: 4th syscall arg */
+	movl %edx,%r8d			/* 5th arg: 3rd syscall arg */
+	/* (already in %ecx)		   4th arg: 2nd syscall arg */
+	movl %ebx,%edx			/* 3rd arg: 1st syscall arg */
+	movl %eax,%esi			/* 2nd arg: syscall number */
+	movl $AUDIT_ARCH_I386,%edi	/* 1st arg: audit arch */
+	call audit_syscall_entry
+	movl RAX-ARGOFFSET(%rsp),%eax	/* reload syscall number */
+	cmpl $(IA32_NR_syscalls-1),%eax
+	ja ia32_badsys
+	movl %ebx,%edi			/* reload 1st syscall arg */
+	movl RCX-ARGOFFSET(%rsp),%esi	/* reload 2nd syscall arg */
+	movl RDX-ARGOFFSET(%rsp),%edx	/* reload 3rd syscall arg */
+	movl RSI-ARGOFFSET(%rsp),%ecx	/* reload 4th syscall arg */
+	movl RDI-ARGOFFSET(%rsp),%r8d	/* reload 5th syscall arg */
+	.endm
+
+	.macro auditsys_exit exit,ebpsave=RBP
+	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags(%r10)
+	jnz int_ret_from_sys_call
+	TRACE_IRQS_ON
+	sti
+	movl %eax,%esi		/* second arg, syscall return value */
+	cmpl $0,%eax		/* is it < 0? */
+	setl %al		/* 1 if so, 0 if not */
+	movzbl %al,%edi		/* zero-extend that into %edi */
+	inc %edi /* first arg, 0->1(AUDITSC_SUCCESS), 1->2(AUDITSC_FAILURE) */
+	call audit_syscall_exit
+	GET_THREAD_INFO(%r10)
+	movl RAX-ARGOFFSET(%rsp),%eax	/* reload syscall return value */
+	movl \ebpsave-ARGOFFSET(%rsp),%ebp /* reload user register value */
+	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
+	cli
+	TRACE_IRQS_OFF
+	testl %edi,TI_flags(%r10)
+	jnz int_with_check
+	jmp \exit
+	.endm
+
+sysenter_auditsys:
 	CFI_RESTORE_STATE
+	auditsys_entry_common
+	movl %ebp,%r9d			/* reload 6th syscall arg */
+	jmp sysenter_dispatch
+
+sysexit_audit:
+	auditsys_exit sysexit_from_sys_call
+#endif
+
+sysenter_tracesys:
 	xchgl	%r9d,%ebp
+#ifdef CONFIG_AUDITSYSCALL
+	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%r10)
+	jz	sysenter_auditsys
+#endif
 	SAVE_REST
 	CLEAR_RREGS
 	movq	%r9,R9(%rsp)
@@ -242,21 +311,22 @@ ENTRY(ia32_cstar_target)
 	.previous	
 	GET_THREAD_INFO(%r10)
 	orl   $TS_COMPAT,TI_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
-		TI_flags(%r10)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
 	cmpl $IA32_NR_syscalls-1,%eax
 	ja  ia32_badsys
 	IA32_ARG_FIXUP 1
+cstar_dispatch:
 	call *ia32_sys_call_table(,%rax,8)
 	movq %rax,RAX-ARGOFFSET(%rsp)
 	GET_THREAD_INFO(%r10)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl $_TIF_ALLWORK_MASK,TI_flags(%r10)
-	jnz  int_ret_from_sys_call
+	jnz sysretl_audit
+sysretl_from_sys_call:
 	andl $~TS_COMPAT,TI_status(%r10)
 	RESTORE_ARGS 1,-ARG_SKIP,1,1,1
 	movl RIP-ARGOFFSET(%rsp),%ecx
@@ -268,8 +338,23 @@ cstar_do_call:
 	CFI_RESTORE rsp
 	USERGS_SYSRET32
 	
-cstar_tracesys:	
+#ifdef CONFIG_AUDITSYSCALL
+cstar_auditsys:
 	CFI_RESTORE_STATE
+	movl %r9d,R9-ARGOFFSET(%rsp)	/* register to be clobbered by call */
+	auditsys_entry_common
+	movl R9-ARGOFFSET(%rsp),%r9d	/* reload 6th syscall arg */
+	jmp cstar_dispatch
+
+sysretl_audit:
+	auditsys_exit sysretl_from_sys_call, RCX /* user %ebp in RCX slot */
+#endif
+
+cstar_tracesys:
+#ifdef CONFIG_AUDITSYSCALL
+	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%r10)
+	jz cstar_auditsys
+#endif
 	xchgl %r9d,%ebp
 	SAVE_REST
 	CLEAR_RREGS
@@ -321,6 +406,7 @@ ENTRY(ia32_syscall)
 	/*CFI_REL_OFFSET	rflags,EFLAGS-RIP*/
 	/*CFI_REL_OFFSET	cs,CS-RIP*/
 	CFI_REL_OFFSET	rip,RIP-RIP
+	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	SWAPGS
 	/*
 	 * No need to follow this irqs on/off section: the syscall
@@ -336,8 +422,7 @@ ENTRY(ia32_syscall)
 	SAVE_ARGS 0,0,1
 	GET_THREAD_INFO(%r10)
 	orl   $TS_COMPAT,TI_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
-		TI_flags(%r10)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls-1),%eax
@@ -741,4 +826,10 @@ ia32_sys_call_table:
 	.quad sys32_fallocate
 	.quad compat_sys_timerfd_settime	/* 325 */
 	.quad compat_sys_timerfd_gettime
+	.quad compat_sys_signalfd4
+	.quad sys_eventfd2
+	.quad sys_epoll_create1
+	.quad sys_dup3			/* 330 */
+	.quad sys_pipe2
+	.quad sys_inotify_init1
 ia32_syscall_end:

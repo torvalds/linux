@@ -5,8 +5,6 @@
  *
  *		PF_INET protocol family socket handler.
  *
- * Version:	$Id: af_inet.c,v 1.137 2002/02/01 22:01:03 davem Exp $
- *
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche, <flla@stud.uni-sb.de>
@@ -112,11 +110,10 @@
 #include <net/ipip.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
+#include <net/net_namespace.h>
 #ifdef CONFIG_IP_MROUTE
 #include <linux/mroute.h>
 #endif
-
-DEFINE_SNMP_STAT(struct linux_mib, net_statistics) __read_mostly;
 
 extern void ip_mc_drop_socket(struct sock *sk);
 
@@ -151,10 +148,10 @@ void inet_sock_destruct(struct sock *sk)
 		return;
 	}
 
-	BUG_TRAP(!atomic_read(&sk->sk_rmem_alloc));
-	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
-	BUG_TRAP(!sk->sk_wmem_queued);
-	BUG_TRAP(!sk->sk_forward_alloc);
+	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(sk->sk_wmem_queued);
+	WARN_ON(sk->sk_forward_alloc);
 
 	kfree(inet->opt);
 	dst_release(sk->sk_dst_cache);
@@ -267,7 +264,6 @@ static inline int inet_netns_ok(struct net *net, int protocol)
 static int inet_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
-	struct list_head *p;
 	struct inet_protosw *answer;
 	struct inet_sock *inet;
 	struct proto *answer_prot;
@@ -284,13 +280,12 @@ static int inet_create(struct net *net, struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
-	answer = NULL;
 lookup_protocol:
 	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
-	list_for_each_rcu(p, &inetsw[sock->type]) {
-		answer = list_entry(p, struct inet_protosw, list);
+	list_for_each_entry_rcu(answer, &inetsw[sock->type], list) {
 
+		err = 0;
 		/* Check the non-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
@@ -305,10 +300,9 @@ lookup_protocol:
 				break;
 		}
 		err = -EPROTONOSUPPORT;
-		answer = NULL;
 	}
 
-	if (unlikely(answer == NULL)) {
+	if (unlikely(err)) {
 		if (try_loading_module < 2) {
 			rcu_read_unlock();
 			/*
@@ -344,7 +338,7 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
-	BUG_TRAP(answer_prot->slab != NULL);
+	WARN_ON(answer_prot->slab == NULL);
 
 	err = -ENOBUFS;
 	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot);
@@ -664,8 +658,8 @@ int inet_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	lock_sock(sk2);
 
-	BUG_TRAP((1 << sk2->sk_state) &
-		 (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT | TCPF_CLOSE));
+	WARN_ON(!((1 << sk2->sk_state) &
+		  (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT | TCPF_CLOSE)));
 
 	sock_graft(sk2, newsock);
 
@@ -1341,48 +1335,68 @@ static struct net_protocol icmp_protocol = {
 	.netns_ok =	1,
 };
 
-static int __init init_ipv4_mibs(void)
+static __net_init int ipv4_mib_init_net(struct net *net)
 {
-	if (snmp_mib_init((void **)net_statistics,
-			  sizeof(struct linux_mib)) < 0)
-		goto err_net_mib;
-	if (snmp_mib_init((void **)ip_statistics,
-			  sizeof(struct ipstats_mib)) < 0)
-		goto err_ip_mib;
-	if (snmp_mib_init((void **)icmp_statistics,
-			  sizeof(struct icmp_mib)) < 0)
-		goto err_icmp_mib;
-	if (snmp_mib_init((void **)icmpmsg_statistics,
-			  sizeof(struct icmpmsg_mib)) < 0)
-		goto err_icmpmsg_mib;
-	if (snmp_mib_init((void **)tcp_statistics,
+	if (snmp_mib_init((void **)net->mib.tcp_statistics,
 			  sizeof(struct tcp_mib)) < 0)
 		goto err_tcp_mib;
-	if (snmp_mib_init((void **)udp_statistics,
+	if (snmp_mib_init((void **)net->mib.ip_statistics,
+			  sizeof(struct ipstats_mib)) < 0)
+		goto err_ip_mib;
+	if (snmp_mib_init((void **)net->mib.net_statistics,
+			  sizeof(struct linux_mib)) < 0)
+		goto err_net_mib;
+	if (snmp_mib_init((void **)net->mib.udp_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udp_mib;
-	if (snmp_mib_init((void **)udplite_statistics,
+	if (snmp_mib_init((void **)net->mib.udplite_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udplite_mib;
+	if (snmp_mib_init((void **)net->mib.icmp_statistics,
+			  sizeof(struct icmp_mib)) < 0)
+		goto err_icmp_mib;
+	if (snmp_mib_init((void **)net->mib.icmpmsg_statistics,
+			  sizeof(struct icmpmsg_mib)) < 0)
+		goto err_icmpmsg_mib;
 
-	tcp_mib_init();
-
+	tcp_mib_init(net);
 	return 0;
 
-err_udplite_mib:
-	snmp_mib_free((void **)udp_statistics);
-err_udp_mib:
-	snmp_mib_free((void **)tcp_statistics);
-err_tcp_mib:
-	snmp_mib_free((void **)icmpmsg_statistics);
 err_icmpmsg_mib:
-	snmp_mib_free((void **)icmp_statistics);
+	snmp_mib_free((void **)net->mib.icmp_statistics);
 err_icmp_mib:
-	snmp_mib_free((void **)ip_statistics);
-err_ip_mib:
-	snmp_mib_free((void **)net_statistics);
+	snmp_mib_free((void **)net->mib.udplite_statistics);
+err_udplite_mib:
+	snmp_mib_free((void **)net->mib.udp_statistics);
+err_udp_mib:
+	snmp_mib_free((void **)net->mib.net_statistics);
 err_net_mib:
+	snmp_mib_free((void **)net->mib.ip_statistics);
+err_ip_mib:
+	snmp_mib_free((void **)net->mib.tcp_statistics);
+err_tcp_mib:
 	return -ENOMEM;
+}
+
+static __net_exit void ipv4_mib_exit_net(struct net *net)
+{
+	snmp_mib_free((void **)net->mib.icmpmsg_statistics);
+	snmp_mib_free((void **)net->mib.icmp_statistics);
+	snmp_mib_free((void **)net->mib.udplite_statistics);
+	snmp_mib_free((void **)net->mib.udp_statistics);
+	snmp_mib_free((void **)net->mib.net_statistics);
+	snmp_mib_free((void **)net->mib.ip_statistics);
+	snmp_mib_free((void **)net->mib.tcp_statistics);
+}
+
+static __net_initdata struct pernet_operations ipv4_mib_ops = {
+	.init = ipv4_mib_init_net,
+	.exit = ipv4_mib_exit_net,
+};
+
+static int __init init_ipv4_mibs(void)
+{
+	return register_pernet_subsys(&ipv4_mib_ops);
 }
 
 static int ipv4_proc_init(void);
@@ -1424,6 +1438,10 @@ static int __init inet_init(void)
 	 */
 
 	(void)sock_register(&inet_family_ops);
+
+#ifdef CONFIG_SYSCTL
+	ip_static_sysctl_init();
+#endif
 
 	/*
 	 *	Add all the base protocols.
@@ -1481,14 +1499,15 @@ static int __init inet_init(void)
 	 *	Initialise the multicast router
 	 */
 #if defined(CONFIG_IP_MROUTE)
-	ip_mr_init();
+	if (ip_mr_init())
+		printk(KERN_CRIT "inet_init: Cannot init ipv4 mroute\n");
 #endif
 	/*
 	 *	Initialise per-cpu ipv4 mibs
 	 */
 
 	if (init_ipv4_mibs())
-		printk(KERN_CRIT "inet_init: Cannot init ipv4 mibs\n"); ;
+		printk(KERN_CRIT "inet_init: Cannot init ipv4 mibs\n");
 
 	ipv4_proc_init();
 
@@ -1560,5 +1579,4 @@ EXPORT_SYMBOL(inet_sock_destruct);
 EXPORT_SYMBOL(inet_stream_connect);
 EXPORT_SYMBOL(inet_stream_ops);
 EXPORT_SYMBOL(inet_unregister_protosw);
-EXPORT_SYMBOL(net_statistics);
 EXPORT_SYMBOL(sysctl_ip_nonlocal_bind);

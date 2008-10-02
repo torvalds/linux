@@ -262,10 +262,10 @@
 /* 250 */	CALL(sys_epoll_create)
 		CALL(ABI(sys_epoll_ctl, sys_oabi_epoll_ctl))
 		CALL(ABI(sys_epoll_wait, sys_oabi_epoll_wait))
-	 	CALL(sys_remap_file_pages)
+		CALL(sys_remap_file_pages)
 		CALL(sys_ni_syscall)	/* sys_set_thread_area */
 /* 255 */	CALL(sys_ni_syscall)	/* sys_get_thread_area */
- 		CALL(sys_set_tid_address)
+		CALL(sys_set_tid_address)
 		CALL(sys_timer_create)
 		CALL(sys_timer_settime)
 		CALL(sys_timer_gettime)
@@ -364,6 +364,12 @@
 		CALL(sys_fallocate)
 		CALL(sys_timerfd_settime)
 		CALL(sys_timerfd_gettime)
+/* 355 */	CALL(sys_signalfd4)
+		CALL(sys_eventfd2)
+		CALL(sys_epoll_create1)
+		CALL(sys_dup3)
+		CALL(sys_pipe2)
+/* 360 */	CALL(sys_inotify_init1)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

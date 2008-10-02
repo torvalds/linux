@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <asm/e820.h>
 #include <asm/io.h>
+#include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>

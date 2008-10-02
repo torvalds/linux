@@ -173,119 +173,95 @@ static void sdhci_led_control(struct led_classdev *led,
  *                                                                           *
 \*****************************************************************************/
 
-static inline char* sdhci_sg_to_buffer(struct sdhci_host* host)
-{
-	return sg_virt(host->cur_sg);
-}
-
-static inline int sdhci_next_sg(struct sdhci_host* host)
-{
-	/*
-	 * Skip to next SG entry.
-	 */
-	host->cur_sg++;
-	host->num_sg--;
-
-	/*
-	 * Any entries left?
-	 */
-	if (host->num_sg > 0) {
-		host->offset = 0;
-		host->remain = host->cur_sg->length;
-	}
-
-	return host->num_sg;
-}
-
 static void sdhci_read_block_pio(struct sdhci_host *host)
 {
-	int blksize, chunk_remain;
-	u32 data;
-	char *buffer;
-	int size;
+	unsigned long flags;
+	size_t blksize, len, chunk;
+	u32 scratch;
+	u8 *buf;
 
 	DBG("PIO reading\n");
 
 	blksize = host->data->blksz;
-	chunk_remain = 0;
-	data = 0;
+	chunk = 0;
 
-	buffer = sdhci_sg_to_buffer(host) + host->offset;
+	local_irq_save(flags);
 
 	while (blksize) {
-		if (chunk_remain == 0) {
-			data = readl(host->ioaddr + SDHCI_BUFFER);
-			chunk_remain = min(blksize, 4);
-		}
+		if (!sg_miter_next(&host->sg_miter))
+			BUG();
 
-		size = min(host->remain, chunk_remain);
+		len = min(host->sg_miter.length, blksize);
 
-		chunk_remain -= size;
-		blksize -= size;
-		host->offset += size;
-		host->remain -= size;
+		blksize -= len;
+		host->sg_miter.consumed = len;
 
-		while (size) {
-			*buffer = data & 0xFF;
-			buffer++;
-			data >>= 8;
-			size--;
-		}
+		buf = host->sg_miter.addr;
 
-		if (host->remain == 0) {
-			if (sdhci_next_sg(host) == 0) {
-				BUG_ON(blksize != 0);
-				return;
+		while (len) {
+			if (chunk == 0) {
+				scratch = readl(host->ioaddr + SDHCI_BUFFER);
+				chunk = 4;
 			}
-			buffer = sdhci_sg_to_buffer(host);
+
+			*buf = scratch & 0xFF;
+
+			buf++;
+			scratch >>= 8;
+			chunk--;
+			len--;
 		}
 	}
+
+	sg_miter_stop(&host->sg_miter);
+
+	local_irq_restore(flags);
 }
 
 static void sdhci_write_block_pio(struct sdhci_host *host)
 {
-	int blksize, chunk_remain;
-	u32 data;
-	char *buffer;
-	int bytes, size;
+	unsigned long flags;
+	size_t blksize, len, chunk;
+	u32 scratch;
+	u8 *buf;
 
 	DBG("PIO writing\n");
 
 	blksize = host->data->blksz;
-	chunk_remain = 4;
-	data = 0;
+	chunk = 0;
+	scratch = 0;
 
-	bytes = 0;
-	buffer = sdhci_sg_to_buffer(host) + host->offset;
+	local_irq_save(flags);
 
 	while (blksize) {
-		size = min(host->remain, chunk_remain);
+		if (!sg_miter_next(&host->sg_miter))
+			BUG();
 
-		chunk_remain -= size;
-		blksize -= size;
-		host->offset += size;
-		host->remain -= size;
+		len = min(host->sg_miter.length, blksize);
 
-		while (size) {
-			data >>= 8;
-			data |= (u32)*buffer << 24;
-			buffer++;
-			size--;
-		}
+		blksize -= len;
+		host->sg_miter.consumed = len;
 
-		if (chunk_remain == 0) {
-			writel(data, host->ioaddr + SDHCI_BUFFER);
-			chunk_remain = min(blksize, 4);
-		}
+		buf = host->sg_miter.addr;
 
-		if (host->remain == 0) {
-			if (sdhci_next_sg(host) == 0) {
-				BUG_ON(blksize != 0);
-				return;
+		while (len) {
+			scratch |= (u32)*buf << (chunk * 8);
+
+			buf++;
+			chunk++;
+			len--;
+
+			if ((chunk == 4) || ((len == 0) && (blksize == 0))) {
+				writel(scratch, host->ioaddr + SDHCI_BUFFER);
+				chunk = 0;
+				scratch = 0;
 			}
-			buffer = sdhci_sg_to_buffer(host);
 		}
 	}
+
+	sg_miter_stop(&host->sg_miter);
+
+	local_irq_restore(flags);
 }
 
 static void sdhci_transfer_pio(struct sdhci_host *host)
@@ -294,7 +270,7 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 
 	BUG_ON(!host->data);
 
-	if (host->num_sg == 0)
+	if (host->blocks == 0)
 		return;
 
 	if (host->data->flags & MMC_DATA_READ)
@@ -302,13 +278,23 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	else
 		mask = SDHCI_SPACE_AVAILABLE;
 
+	/*
+	 * Some controllers (JMicron JMB38x) mess up the buffer bits
+	 * for transfers < 4 bytes. As long as it is just one block,
+	 * we can ignore the bits.
+	 */
+	if ((host->quirks & SDHCI_QUIRK_BROKEN_SMALL_PIO) &&
+		(host->data->blocks == 1))
+		mask = ~0;
+
 	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
 		if (host->data->flags & MMC_DATA_READ)
 			sdhci_read_block_pio(host);
 		else
 			sdhci_write_block_pio(host);
 
-		if (host->num_sg == 0)
+		host->blocks--;
+		if (host->blocks == 0)
 			break;
 	}
 
@@ -360,7 +346,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->align_addr = dma_map_single(mmc_dev(host->mmc),
 		host->align_buffer, 128 * 4, direction);
-	if (dma_mapping_error(host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->align_addr))
 		goto fail;
 	BUG_ON(host->align_addr & 0x3);
 
@@ -389,6 +375,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		if (offset) {
 			if (data->flags & MMC_DATA_WRITE) {
 				buffer = sdhci_kmap_atomic(sg, &flags);
+				WARN_ON(((long)buffer & PAGE_MASK) > (PAGE_SIZE - 3));
 				memcpy(align, buffer, offset);
 				sdhci_kunmap_atomic(buffer, &flags);
 			}
@@ -461,7 +448,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->adma_addr = dma_map_single(mmc_dev(host->mmc),
 		host->adma_desc, (128 * 2 + 1) * 4, DMA_TO_DEVICE);
-	if (dma_mapping_error(host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->adma_addr))
 		goto unmap_entries;
 	BUG_ON(host->adma_addr & 0x3);
 
@@ -510,6 +497,7 @@ static void sdhci_adma_table_post(struct sdhci_host *host,
 				size = 4 - (sg_dma_address(sg) & 0x3);
 
 				buffer = sdhci_kmap_atomic(sg, &flags);
+				WARN_ON(((long)buffer & PAGE_MASK) > (PAGE_SIZE - 3));
 				memcpy(buffer, align, size);
 				sdhci_kunmap_atomic(buffer, &flags);
 
@@ -666,7 +654,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				writel(host->adma_addr,
 					host->ioaddr + SDHCI_ADMA_ADDRESS);
@@ -685,9 +673,9 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
-				WARN_ON(count != 1);
+				WARN_ON(sg_cnt != 1);
 				writel(sg_dma_address(data->sg),
 					host->ioaddr + SDHCI_DMA_ADDRESS);
 			}
@@ -711,11 +699,9 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	}
 
 	if (!(host->flags & SDHCI_REQ_USE_DMA)) {
-		host->cur_sg = data->sg;
-		host->num_sg = data->sg_len;
-
-		host->offset = 0;
-		host->remain = host->cur_sg->length;
+		sg_miter_start(&host->sg_miter,
+			data->sg, data->sg_len, SG_MITER_ATOMIC);
+		host->blocks = data->blocks;
 	}
 
 	/* We do not handle DMA boundaries, so set it to max (512 KiB) */
@@ -1581,9 +1567,15 @@ int sdhci_add_host(struct sdhci_host *host)
 		}
 	}
 
-	/* XXX: Hack to get MMC layer to avoid highmem */
-	if (!(host->flags & SDHCI_USE_DMA))
-		mmc_dev(host->mmc)->dma_mask = NULL;
+	/*
+	 * If we use DMA, then it's up to the caller to set the DMA
+	 * mask, but PIO does not need the hw shim so we set a new
+	 * mask here in that case.
+	 */
+	if (!(host->flags & SDHCI_USE_DMA)) {
+		host->dma_mask = DMA_BIT_MASK(64);
+		mmc_dev(host->mmc)->dma_mask = &host->dma_mask;
+	}
 
 	host->max_clk =
 		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;

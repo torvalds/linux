@@ -1026,7 +1026,7 @@ sl811h_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	if (!list_empty(&hep->urb_list))
 		msleep(3);
 	if (!list_empty(&hep->urb_list))
-		WARN("ep %p not empty?\n", ep);
+		WARNING("ep %p not empty?\n", ep);
 
 	kfree(ep);
 	hep->hcpriv = NULL;
@@ -1674,7 +1674,7 @@ sl811h_probe(struct platform_device *dev)
 	}
 
 	/* allocate and initialize hcd */
-	hcd = usb_create_hcd(&sl811h_hc_driver, &dev->dev, dev->dev.bus_id);
+	hcd = usb_create_hcd(&sl811h_hc_driver, &dev->dev, dev_name(&dev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err5;

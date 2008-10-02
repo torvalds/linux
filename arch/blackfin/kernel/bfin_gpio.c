@@ -186,7 +186,10 @@ static struct str_ident {
 	char name[RESOURCE_LABEL_SIZE];
 } str_ident[MAX_RESOURCES];
 
-#if defined(CONFIG_PM) && !defined(CONFIG_BF54x)
+#if defined(CONFIG_PM)
+#if defined(CONFIG_BF54x)
+static struct gpio_port_s gpio_bank_saved[gpio_bank(MAX_BLACKFIN_GPIOS)];
+#else
 static unsigned short wakeup_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned char wakeup_flags_map[MAX_BLACKFIN_GPIOS];
 static struct gpio_port_s gpio_bank_saved[gpio_bank(MAX_BLACKFIN_GPIOS)];
@@ -206,7 +209,7 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INT
 #ifdef BF561_FAMILY
 static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INTB, IRQ_PROG1_INTB, IRQ_PROG2_INTB};
 #endif
-
+#endif
 #endif /* CONFIG_PM */
 
 #if defined(BF548_FAMILY)
@@ -667,7 +670,7 @@ static int bfin_gpio_wakeup_type(unsigned gpio, unsigned char type)
 	return 0;
 }
 
-u32 bfin_pm_setup(void)
+u32 bfin_pm_standby_setup(void)
 {
 	u16 bank, mask, i, gpio;
 
@@ -679,7 +682,7 @@ u32 bfin_pm_setup(void)
 		gpio_bankb[bank]->maskb = 0;
 
 		if (mask) {
-#ifdef BF537_FAMILY
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
 			gpio_bank_saved[bank].fer   = *port_fer[bank];
 #endif
 			gpio_bank_saved[bank].inen  = gpio_bankb[bank]->inen;
@@ -715,7 +718,7 @@ u32 bfin_pm_setup(void)
 	return 0;
 }
 
-void bfin_pm_restore(void)
+void bfin_pm_standby_restore(void)
 {
 	u16 bank, mask, i;
 
@@ -724,7 +727,7 @@ void bfin_pm_restore(void)
 		bank = gpio_bank(i);
 
 		if (mask) {
-#ifdef BF537_FAMILY
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
 			*port_fer[bank]   	= gpio_bank_saved[bank].fer;
 #endif
 			gpio_bankb[bank]->inen  = gpio_bank_saved[bank].inen;
@@ -743,8 +746,111 @@ void bfin_pm_restore(void)
 	AWA_DUMMY_READ(maskb);
 }
 
+void bfin_gpio_pm_hibernate_suspend(void)
+{
+	int i, bank;
+
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
+		bank = gpio_bank(i);
+
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+			gpio_bank_saved[bank].fer   = *port_fer[bank];
+#ifdef BF527_FAMILY
+			gpio_bank_saved[bank].mux   = *port_mux[bank];
+#else
+			if (bank == 0)
+				gpio_bank_saved[bank].mux   = bfin_read_PORT_MUX();
+#endif
+#endif
+			gpio_bank_saved[bank].data  = gpio_bankb[bank]->data;
+			gpio_bank_saved[bank].inen  = gpio_bankb[bank]->inen;
+			gpio_bank_saved[bank].polar = gpio_bankb[bank]->polar;
+			gpio_bank_saved[bank].dir   = gpio_bankb[bank]->dir;
+			gpio_bank_saved[bank].edge  = gpio_bankb[bank]->edge;
+			gpio_bank_saved[bank].both  = gpio_bankb[bank]->both;
+			gpio_bank_saved[bank].maska  = gpio_bankb[bank]->maska;
+	}
+
+	AWA_DUMMY_READ(maska);
+}
+
+void bfin_gpio_pm_hibernate_restore(void)
+{
+	int i, bank;
+
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
+			bank = gpio_bank(i);
+
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#ifdef BF527_FAMILY
+			*port_mux[bank] = gpio_bank_saved[bank].mux;
+#else
+			if (bank == 0)
+				bfin_write_PORT_MUX(gpio_bank_saved[bank].mux);
+#endif
+			*port_fer[bank]   	= gpio_bank_saved[bank].fer;
+#endif
+			gpio_bankb[bank]->inen  = gpio_bank_saved[bank].inen;
+			gpio_bankb[bank]->dir   = gpio_bank_saved[bank].dir;
+			gpio_bankb[bank]->polar = gpio_bank_saved[bank].polar;
+			gpio_bankb[bank]->edge  = gpio_bank_saved[bank].edge;
+			gpio_bankb[bank]->both  = gpio_bank_saved[bank].both;
+
+			gpio_bankb[bank]->data_set = gpio_bank_saved[bank].data
+							| gpio_bank_saved[bank].dir;
+
+			gpio_bankb[bank]->maska = gpio_bank_saved[bank].maska;
+	}
+	AWA_DUMMY_READ(maska);
+}
+
+
 #endif
 #else /* BF548_FAMILY */
+#ifdef CONFIG_PM
+
+u32 bfin_pm_standby_setup(void)
+{
+	return 0;
+}
+
+void bfin_pm_standby_restore(void)
+{
+
+}
+
+void bfin_gpio_pm_hibernate_suspend(void)
+{
+	int i, bank;
+
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
+		bank = gpio_bank(i);
+
+			gpio_bank_saved[bank].fer  = gpio_array[bank]->port_fer;
+			gpio_bank_saved[bank].mux  = gpio_array[bank]->port_mux;
+			gpio_bank_saved[bank].data  = gpio_array[bank]->port_data;
+			gpio_bank_saved[bank].data  = gpio_array[bank]->port_data;
+			gpio_bank_saved[bank].inen  = gpio_array[bank]->port_inen;
+			gpio_bank_saved[bank].dir   = gpio_array[bank]->port_dir_set;
+	}
+}
+
+void bfin_gpio_pm_hibernate_restore(void)
+{
+	int i, bank;
+
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
+			bank = gpio_bank(i);
+
+			gpio_array[bank]->port_mux  = gpio_bank_saved[bank].mux;
+			gpio_array[bank]->port_fer  = gpio_bank_saved[bank].fer;
+			gpio_array[bank]->port_inen  = gpio_bank_saved[bank].inen;
+			gpio_array[bank]->port_dir_set   = gpio_bank_saved[bank].dir;
+			gpio_array[bank]->port_set = gpio_bank_saved[bank].data
+							| gpio_bank_saved[bank].dir;
+	}
+}
+#endif
 
 unsigned short get_gpio_dir(unsigned gpio)
 {

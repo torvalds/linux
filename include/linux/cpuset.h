@@ -78,6 +78,8 @@ extern void cpuset_track_online_nodes(void);
 
 extern int current_cpuset_is_being_rebound(void);
 
+extern void rebuild_sched_domains(void);
+
 #else /* !CONFIG_CPUSETS */
 
 static inline int cpuset_init_early(void) { return 0; }
@@ -154,6 +156,11 @@ static inline void cpuset_track_online_nodes(void) {}
 static inline int current_cpuset_is_being_rebound(void)
 {
 	return 0;
+}
+
+static inline void rebuild_sched_domains(void)
+{
+	partition_sched_domains(1, NULL, NULL);
 }
 
 #endif /* !CONFIG_CPUSETS */

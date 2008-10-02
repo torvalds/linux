@@ -7,6 +7,10 @@
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 
+#ifdef CONFIG_OLPC
+#include <asm/olpc.h>
+#endif
+
 #define DRV_NAME "usb8xxx"
 
 #include "host.h"
@@ -146,6 +150,14 @@ static void if_usb_fw_timeo(unsigned long priv)
 	wake_up(&cardp->fw_wq);
 }
 
+#ifdef CONFIG_OLPC
+static void if_usb_reset_olpc_card(struct lbs_private *priv)
+{
+	printk(KERN_CRIT "Resetting OLPC wireless via EC...\n");
+	olpc_ec_cmd(0x25, NULL, 0, NULL, 0);
+}
+#endif
+
 /**
  *  @brief sets the configuration values
  *  @param ifnum	interface number
@@ -231,6 +243,11 @@ static int if_usb_probe(struct usb_interface *intf,
 	cardp->priv->fw_ready = 1;
 
 	priv->hw_host_to_card = if_usb_host_to_card;
+#ifdef CONFIG_OLPC
+	if (machine_is_olpc())
+		priv->reset_card = if_usb_reset_olpc_card;
+#endif
+
 	cardp->boot2_version = udev->descriptor.bcdDevice;
 
 	if_usb_submit_rx_urb(cardp);
@@ -363,6 +380,11 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 	msleep(100);
 	ret = usb_reset_device(cardp->udev);
 	msleep(100);
+
+#ifdef CONFIG_OLPC
+	if (ret && machine_is_olpc())
+		if_usb_reset_olpc_card(NULL);
+#endif
 
 	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 

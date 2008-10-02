@@ -703,7 +703,8 @@ static unsigned long long spu_acct_time(struct spu *spu,
 }
 
 
-static ssize_t spu_stat_show(struct sys_device *sysdev, char *buf)
+static ssize_t spu_stat_show(struct sys_device *sysdev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct spu *spu = container_of(sysdev, struct spu, sysdev);
 

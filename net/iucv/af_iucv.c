@@ -644,6 +644,7 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		txmsg.class = 0;
+		memcpy(&txmsg.class, skb->data, skb->len >= 4 ? 4 : skb->len);
 		txmsg.tag = iucv->send_tag++;
 		memcpy(skb->cb, &txmsg.tag, 4);
 		skb_queue_tail(&iucv->send_skb_q, skb);

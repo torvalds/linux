@@ -16,17 +16,23 @@ config CPU_PXA310
 config CPU_PXA320
 	bool "PXA320 (codename Monahans-P)"
 
+config CPU_PXA930
+	bool "PXA930 (codename Tavor-P)"
+
 endmenu
 
 endif
-
-menu "Select target boards"
 
 config ARCH_GUMSTIX
 	bool "Gumstix XScale boards"
 	help
 	  Say Y here if you intend to run this kernel on a
 	  Gumstix Full Function Minature Computer.
+
+config MACH_GUMSTIX_F
+	bool "Basix, Connex, ws-200ax, ws-400ax systems"
+	depends on ARCH_GUMSTIX
+	select PXA25x
 
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform"
@@ -57,146 +63,6 @@ config PXA_SHARPSL
 	  SL-C750 (Shepherd), SL-C760 (Husky), SL-C1000 (Akita),
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
-
-config ARCH_PXA_ESERIES
-	bool "PXA based Toshiba e-series PDAs"
-	select PXA25x
-
-config MACH_E330
-	bool "Toshiba e330"
-	default y
-	depends on ARCH_PXA_ESERIES
-	help
-	  Say Y here if you intend to run this kernel on a Toshiba
-	  e330 family PDA.
-
-config MACH_E740
-	bool "Toshiba e740"
-	default y
-	depends on ARCH_PXA_ESERIES
-	help
-	  Say Y here if you intend to run this kernel on a Toshiba
-	  e740 family PDA.
-
-config MACH_E750
-	bool "Toshiba e750"
-	default y
-	depends on ARCH_PXA_ESERIES
-	help
-	  Say Y here if you intend to run this kernel on a Toshiba
-	  e750 family PDA.
-
-config MACH_E400
-	bool "Toshiba e400"
-	default y
-	depends on ARCH_PXA_ESERIES
-	help
-	  Say Y here if you intend to run this kernel on a Toshiba
-	  e400 family PDA.
-
-config MACH_E800
-	bool "Toshiba e800"
-	default y
-	depends on ARCH_PXA_ESERIES
-	help
-	  Say Y here if you intend to run this kernel on a Toshiba
-	  e800 family PDA.
-
-config MACH_TRIZEPS4
-	bool "Keith und Koep Trizeps4 DIMM-Module"
-	select PXA27x
-
-config MACH_EM_X270
-	bool "CompuLab EM-x270 platform"
-	select PXA27x
-
-config MACH_COLIBRI
-	bool "Toradex Colibri PX27x"
-	select PXA27x
-
-config MACH_ZYLONITE
-	bool "PXA3xx Development Platform"
-	select PXA3xx
-	select HAVE_PWM
-
-config MACH_LITTLETON
-	bool "PXA3xx Form Factor Platform (aka Littleton)"
-	select PXA3xx
-	select PXA_SSP
-
-config MACH_ARMCORE
-	bool "CompuLab CM-X270 modules"
-	select PXA27x
-	select IWMMXT
-
-config MACH_MAGICIAN
-	bool "Enable HTC Magician Support"
-	depends on ARCH_PXA
-	select PXA27x
-	select IWMMXT
-
-config MACH_PCM027
-	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
-	select PXA27x
-	select IWMMXT
-
-endmenu
-
-choice
-	prompt "Used baseboard"
-	depends on MACH_PCM027
-
-config MACH_PCM990_BASEBOARD
-	bool "PHYTEC PCM-990 development board"
-	select HAVE_PWM
-
-endchoice
-
-choice
-	prompt "display on pcm990"
-	depends on MACH_PCM990_BASEBOARD
-
-config PCM990_DISPLAY_SHARP
-	bool "sharp lq084v1dg21 stn display"
-
-config PCM990_DISPLAY_NEC
-	bool "nec nl6448bc20_18d tft display"
-
-config PCM990_DISPLAY_NONE
-	bool "no display"
-
-endchoice
-
-if ARCH_GUMSTIX
-
-choice
-	prompt "Select target Gumstix board"
-
-config MACH_GUMSTIX_F
-	bool "Basix, Connex, ws-200ax, ws-400ax systems"
-	select PXA25x
-
-endchoice
-
-endif
-
-
-if MACH_TRIZEPS4
-
-choice
-	prompt "Select base board for Trizeps 4 module"
-
-config MACH_TRIZEPS4_CONXS
-	bool "ConXS Eval Board"
-
-config MACH_TRIZEPS4_ANY
-	bool "another Board"
-
-endchoice
-
-endif
-
-endmenu
 
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
@@ -249,6 +115,186 @@ config MACH_TOSA
 	depends on PXA_SHARPSL
 	select PXA25x
 
+config ARCH_PXA_ESERIES
+	bool "PXA based Toshiba e-series PDAs"
+	select PXA25x
+
+config MACH_E330
+	bool "Toshiba e330"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e330 family PDA.
+
+config MACH_E350
+	bool "Toshiba e350"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e350 family PDA.
+
+config MACH_E740
+	bool "Toshiba e740"
+	default y
+	depends on ARCH_PXA_ESERIES
+	select FB_W100
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e740 family PDA.
+
+config MACH_E750
+	bool "Toshiba e750"
+	default y
+	depends on ARCH_PXA_ESERIES
+	select FB_W100
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e750 family PDA.
+
+config MACH_E400
+	bool "Toshiba e400"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e400 family PDA.
+
+config MACH_E800
+	bool "Toshiba e800"
+	default y
+	depends on ARCH_PXA_ESERIES
+	select FB_W100
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e800 family PDA.
+
+config MACH_TRIZEPS4
+	bool "Keith und Koep Trizeps4 DIMM-Module"
+	select PXA27x
+
+config MACH_TRIZEPS4_CONXS
+	bool "ConXS Eval Board"
+	depends on MACH_TRIZEPS4
+
+config MACH_EM_X270
+	bool "CompuLab EM-x270 platform"
+	select PXA27x
+
+config MACH_COLIBRI
+	bool "Toradex Colibri PX27x"
+	select PXA27x
+
+config MACH_ZYLONITE
+	bool "PXA3xx Development Platform (aka Zylonite)"
+	select PXA3xx
+	select HAVE_PWM
+
+config MACH_LITTLETON
+	bool "PXA3xx Form Factor Platform (aka Littleton)"
+	select PXA3xx
+	select PXA_SSP
+
+config MACH_TAVOREVB
+	bool "PXA930 Evaluation Board (aka TavorEVB)"
+	select PXA3xx
+	select PXA930
+
+config MACH_SAAR
+	bool "PXA930 Handheld Platform (aka SAAR)"
+	select PXA3xx
+	select PXA930
+
+config MACH_ARMCORE
+	bool "CompuLab CM-X270 modules"
+	select PXA27x
+	select IWMMXT
+
+config MACH_MAGICIAN
+	bool "Enable HTC Magician Support"
+	select PXA27x
+	select IWMMXT
+
+config MACH_PCM027
+	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
+	select PXA27x
+	select IWMMXT
+	select PXA_SSP
+
+config ARCH_PXA_PALM
+	bool "PXA based Palm PDAs"
+	select HAVE_PWM
+
+config MACH_PALMTX
+	bool "Palm T|X"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on a Palm T|X
+	  handheld computer.
+
+config MACH_PCM990_BASEBOARD
+	bool "PHYTEC PCM-990 development board"
+	select HAVE_PWM
+	depends on MACH_PCM027
+
+choice
+	prompt "display on pcm990"
+	depends on MACH_PCM990_BASEBOARD
+
+config PCM990_DISPLAY_SHARP
+	bool "sharp lq084v1dg21 stn display"
+
+config PCM990_DISPLAY_NEC
+	bool "nec nl6448bc20_18d tft display"
+
+config PCM990_DISPLAY_NONE
+	bool "no display"
+
+endchoice
+
+
+config PXA_EZX
+	bool "Motorola EZX Platform"
+	select PXA27x
+	select IWMMXT
+	select HAVE_PWM
+
+config MACH_EZX_A780
+	bool "Motorola EZX A780"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_E680
+	bool "Motorola EZX E680"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_A1200
+	bool "Motorola EZX A1200"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_A910
+	bool "Motorola EZX A910"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_E6
+	bool "Motorola EZX E6"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_E2
+	bool "Motorola EZX E2"
+	default y
+	depends on PXA_EZX
+
+endmenu
+
 config PXA25x
 	bool
 	help
@@ -288,4 +334,13 @@ config PXA_PWM
 	default BACKLIGHT_PWM
 	help
 	  Enable support for PXA2xx/PXA3xx PWM controllers
+
+config TOSA_BT
+	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
+	depends on MACH_TOSA
+	select RFKILL
+	help
+	  This is a simple driver that is able to control
+	  the state of built in bluetooth chip on tosa.
+
 endif

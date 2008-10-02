@@ -39,7 +39,7 @@
  */
 
 #include <linux/err.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 #include "ubi.h"
 
@@ -56,11 +56,11 @@ static int set_update_marker(struct ubi_device *ubi, struct ubi_volume *vol)
 	int err;
 	struct ubi_vtbl_record vtbl_rec;
 
-	dbg_msg("set update marker for volume %d", vol->vol_id);
+	dbg_gen("set update marker for volume %d", vol->vol_id);
 
 	if (vol->upd_marker) {
 		ubi_assert(ubi->vtbl[vol->vol_id].upd_marker);
-		dbg_msg("already set");
+		dbg_gen("already set");
 		return 0;
 	}
 
@@ -92,7 +92,7 @@ static int clear_update_marker(struct ubi_device *ubi, struct ubi_volume *vol,
 	uint64_t tmp;
 	struct ubi_vtbl_record vtbl_rec;
 
-	dbg_msg("clear update marker for volume %d", vol->vol_id);
+	dbg_gen("clear update marker for volume %d", vol->vol_id);
 
 	memcpy(&vtbl_rec, &ubi->vtbl[vol->vol_id],
 	       sizeof(struct ubi_vtbl_record));
@@ -133,7 +133,7 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 	int i, err;
 	uint64_t tmp;
 
-	dbg_msg("start update of volume %d, %llu bytes", vol->vol_id, bytes);
+	dbg_gen("start update of volume %d, %llu bytes", vol->vol_id, bytes);
 	ubi_assert(!vol->updating && !vol->changing_leb);
 	vol->updating = 1;
 
@@ -183,7 +183,7 @@ int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 {
 	ubi_assert(!vol->updating && !vol->changing_leb);
 
-	dbg_msg("start changing LEB %d:%d, %u bytes",
+	dbg_gen("start changing LEB %d:%d, %u bytes",
 		vol->vol_id, req->lnum, req->bytes);
 	if (req->bytes == 0)
 		return ubi_eba_atomic_leb_change(ubi, vol, req->lnum, NULL, 0,
@@ -237,16 +237,17 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	int err;
 
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
-		len = ALIGN(len, ubi->min_io_size);
-		memset(buf + len, 0xFF, len - len);
+		int l = ALIGN(len, ubi->min_io_size);
 
-		len = ubi_calc_data_len(ubi, buf, len);
+		memset(buf + len, 0xFF, l - len);
+		len = ubi_calc_data_len(ubi, buf, l);
 		if (len == 0) {
-			dbg_msg("all %d bytes contain 0xFF - skip", len);
+			dbg_gen("all %d bytes contain 0xFF - skip", len);
 			return 0;
 		}
 
-		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, len, UBI_UNKNOWN);
+		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, len,
+					UBI_UNKNOWN);
 	} else {
 		/*
 		 * When writing static volume, and this is the last logical
@@ -267,6 +268,7 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 
 /**
  * ubi_more_update_data - write more update data.
+ * @ubi: UBI device description object
  * @vol: volume description object
  * @buf: write data (user-space memory buffer)
  * @count: how much bytes to write
@@ -283,7 +285,7 @@ int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 	uint64_t tmp;
 	int lnum, offs, err = 0, len, to_write = count;
 
-	dbg_msg("write %d of %lld bytes, %lld already passed",
+	dbg_gen("write %d of %lld bytes, %lld already passed",
 		count, vol->upd_bytes, vol->upd_received);
 
 	if (ubi->ro_mode)
@@ -384,6 +386,7 @@ int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 
 /**
  * ubi_more_leb_change_data - accept more data for atomic LEB change.
+ * @ubi: UBI device description object
  * @vol: volume description object
  * @buf: write data (user-space memory buffer)
  * @count: how much bytes to write
@@ -400,7 +403,7 @@ int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
 {
 	int err;
 
-	dbg_msg("write %d of %lld bytes, %lld already passed",
+	dbg_gen("write %d of %lld bytes, %lld already passed",
 		count, vol->upd_bytes, vol->upd_received);
 
 	if (ubi->ro_mode)
@@ -418,7 +421,8 @@ int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
 	if (vol->upd_received == vol->upd_bytes) {
 		int len = ALIGN((int)vol->upd_bytes, ubi->min_io_size);
 
-		memset(vol->upd_buf + vol->upd_bytes, 0xFF, len - vol->upd_bytes);
+		memset(vol->upd_buf + vol->upd_bytes, 0xFF,
+		       len - vol->upd_bytes);
 		len = ubi_calc_data_len(ubi, vol->upd_buf, len);
 		err = ubi_eba_atomic_leb_change(ubi, vol, vol->ch_lnum,
 						vol->upd_buf, len, UBI_UNKNOWN);

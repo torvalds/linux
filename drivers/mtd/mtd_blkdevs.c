@@ -1,6 +1,4 @@
 /*
- * $Id: mtd_blkdevs.c,v 1.27 2005/11/07 11:14:20 gleixner Exp $
- *
  * (C) 2003 David Woodhouse <dwmw2@infradead.org>
  *
  * Interface to Linux 2.5 block layer for MTD 'translation layers'.
@@ -212,7 +210,7 @@ static struct block_device_operations mtd_blktrans_ops = {
 int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 {
 	struct mtd_blktrans_ops *tr = new->tr;
-	struct list_head *this;
+	struct mtd_blktrans_dev *d;
 	int last_devnum = -1;
 	struct gendisk *gd;
 
@@ -221,8 +219,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		BUG();
 	}
 
-	list_for_each(this, &tr->devs) {
-		struct mtd_blktrans_dev *d = list_entry(this, struct mtd_blktrans_dev, list);
+	list_for_each_entry(d, &tr->devs, list) {
 		if (new->devnum == -1) {
 			/* Use first free number */
 			if (d->devnum != last_devnum+1) {
@@ -309,33 +306,24 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 
 static void blktrans_notify_remove(struct mtd_info *mtd)
 {
-	struct list_head *this, *this2, *next;
+	struct mtd_blktrans_ops *tr;
+	struct mtd_blktrans_dev *dev, *next;
 
-	list_for_each(this, &blktrans_majors) {
-		struct mtd_blktrans_ops *tr = list_entry(this, struct mtd_blktrans_ops, list);
-
-		list_for_each_safe(this2, next, &tr->devs) {
-			struct mtd_blktrans_dev *dev = list_entry(this2, struct mtd_blktrans_dev, list);
-
+	list_for_each_entry(tr, &blktrans_majors, list)
+		list_for_each_entry_safe(dev, next, &tr->devs, list)
 			if (dev->mtd == mtd)
 				tr->remove_dev(dev);
-		}
-	}
 }
 
 static void blktrans_notify_add(struct mtd_info *mtd)
 {
-	struct list_head *this;
+	struct mtd_blktrans_ops *tr;
 
 	if (mtd->type == MTD_ABSENT)
 		return;
 
-	list_for_each(this, &blktrans_majors) {
-		struct mtd_blktrans_ops *tr = list_entry(this, struct mtd_blktrans_ops, list);
-
+	list_for_each_entry(tr, &blktrans_majors, list)
 		tr->add_mtd(tr, mtd);
-	}
-
 }
 
 static struct mtd_notifier blktrans_notifier = {
@@ -406,7 +394,7 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 
 int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 {
-	struct list_head *this, *next;
+	struct mtd_blktrans_dev *dev, *next;
 
 	mutex_lock(&mtd_table_mutex);
 
@@ -416,10 +404,8 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	/* Remove it from the list of active majors */
 	list_del(&tr->list);
 
-	list_for_each_safe(this, next, &tr->devs) {
-		struct mtd_blktrans_dev *dev = list_entry(this, struct mtd_blktrans_dev, list);
+	list_for_each_entry_safe(dev, next, &tr->devs, list)
 		tr->remove_dev(dev);
-	}
 
 	blk_cleanup_queue(tr->blkcore_priv->rq);
 	unregister_blkdev(tr->major, tr->name);

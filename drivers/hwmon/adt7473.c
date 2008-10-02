@@ -39,32 +39,20 @@ I2C_CLIENT_INSMOD_1(adt7473);
 #define ADT7473_REG_BASE_ADDR			0x20
 
 #define ADT7473_REG_VOLT_BASE_ADDR		0x21
-#define ADT7473_REG_VOLT_MAX_ADDR		0x22
 #define ADT7473_REG_VOLT_MIN_BASE_ADDR		0x46
-#define ADT7473_REG_VOLT_MIN_MAX_ADDR		0x49
 
 #define ADT7473_REG_TEMP_BASE_ADDR		0x25
-#define ADT7473_REG_TEMP_MAX_ADDR		0x27
 #define ADT7473_REG_TEMP_LIMITS_BASE_ADDR	0x4E
-#define ADT7473_REG_TEMP_LIMITS_MAX_ADDR	0x53
 #define ADT7473_REG_TEMP_TMIN_BASE_ADDR		0x67
-#define ADT7473_REG_TEMP_TMIN_MAX_ADDR		0x69
 #define ADT7473_REG_TEMP_TMAX_BASE_ADDR		0x6A
-#define ADT7473_REG_TEMP_TMAX_MAX_ADDR		0x6C
 
 #define ADT7473_REG_FAN_BASE_ADDR		0x28
-#define ADT7473_REG_FAN_MAX_ADDR		0x2F
 #define ADT7473_REG_FAN_MIN_BASE_ADDR		0x54
-#define ADT7473_REG_FAN_MIN_MAX_ADDR		0x5B
 
 #define ADT7473_REG_PWM_BASE_ADDR		0x30
-#define ADT7473_REG_PWM_MAX_ADDR		0x32
 #define	ADT7473_REG_PWM_MIN_BASE_ADDR		0x64
-#define ADT7473_REG_PWM_MIN_MAX_ADDR		0x66
 #define ADT7473_REG_PWM_MAX_BASE_ADDR		0x38
-#define ADT7473_REG_PWM_MAX_MAX_ADDR		0x3A
 #define ADT7473_REG_PWM_BHVR_BASE_ADDR		0x5C
-#define ADT7473_REG_PWM_BHVR_MAX_ADDR		0x5E
 #define		ADT7473_PWM_BHVR_MASK		0xE0
 #define		ADT7473_PWM_BHVR_SHIFT		5
 
@@ -102,7 +90,6 @@ I2C_CLIENT_INSMOD_1(adt7473);
 #define		ADT7473_FAN4_ALARM		0x20
 #define		ADT7473_R1T_SHORT		0x40
 #define		ADT7473_R2T_SHORT		0x80
-#define ADT7473_REG_MAX_ADDR			0x80
 
 #define ALARM2(x)	((x) << 8)
 
@@ -583,10 +570,9 @@ static ssize_t set_max_duty_at_crit(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adt7473_data *data = i2c_get_clientdata(client);
 	int temp = simple_strtol(buf, NULL, 10);
-	temp = temp && 0xFF;
 
 	mutex_lock(&data->lock);
-	data->max_duty_at_overheat = temp;
+	data->max_duty_at_overheat = !!temp;
 	reg = i2c_smbus_read_byte_data(client, ADT7473_REG_CFG4);
 	if (temp)
 		reg |= ADT7473_CFG4_MAX_DUTY_AT_OVT;

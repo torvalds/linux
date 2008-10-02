@@ -75,7 +75,7 @@ static struct uart_port ulite_ports[ULITE_NR_UARTS];
 
 static int ulite_receive(struct uart_port *port, int stat)
 {
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	unsigned char ch = 0;
 	char flag = TTY_NORMAL;
 
@@ -162,7 +162,7 @@ static irqreturn_t ulite_isr(int irq, void *dev_id)
 		busy |= ulite_transmit(port, stat);
 	} while (busy);
 
-	tty_flip_buffer_push(port->info->tty);
+	tty_flip_buffer_push(port->info->port.tty);
 
 	return IRQ_HANDLED;
 }

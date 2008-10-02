@@ -418,7 +418,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	mutex_lock(&rmidi->open_mutex);
 	while (1) {
 		subdevice = -1;
-		down_read(&card->controls_rwsem);
+		read_lock(&card->ctl_files_rwlock);
 		list_for_each_entry(kctl, &card->ctl_files, list) {
 			if (kctl->pid == current->pid) {
 				subdevice = kctl->prefer_rawmidi_subdevice;
@@ -426,7 +426,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 					break;
 			}
 		}
-		up_read(&card->controls_rwsem);
+		read_unlock(&card->ctl_files_rwlock);
 		err = snd_rawmidi_kernel_open(rmidi->card, rmidi->device,
 					      subdevice, fflags, rawmidi_file);
 		if (err >= 0)

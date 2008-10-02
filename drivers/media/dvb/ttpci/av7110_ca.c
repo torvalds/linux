@@ -208,7 +208,7 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 		return -EINVAL;
 	DVB_RINGBUFFER_SKIP(cibuf, 2);
 
-	return dvb_ringbuffer_read(cibuf, (u8 *)buf, len, 1);
+	return dvb_ringbuffer_read_user(cibuf, buf, len);
 }
 
 static int dvb_ca_open(struct inode *inode, struct file *file)

@@ -266,21 +266,10 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 	rate = ide_rate_filter(drive, rate);
 
+	BUG_ON(rate < XFER_PIO_0);
+
 	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5)
 		return ide_set_pio_mode(drive, rate);
-
-	/*
-	 * TODO: transfer modes 0x00-0x07 passed from the user-space are
-	 * currently handled here which needs fixing (please note that such
-	 * case could happen iff the transfer mode has already been set on
-	 * the device by ide-proc.c::set_xfer_rate()).
-	 */
-	if (rate < XFER_PIO_0) {
-		if (hwif->host_flags & IDE_HFLAG_ABUSE_SET_DMA_MODE)
-			return ide_set_dma_mode(drive, rate);
-		else
-			return ide_config_drive_speed(drive, rate);
-	}
 
 	return ide_set_dma_mode(drive, rate);
 }
@@ -336,7 +325,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 	else
 		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
 
-	drive->hwif->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &task);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(", LBAsect=%llu",

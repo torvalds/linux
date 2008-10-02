@@ -112,8 +112,6 @@ void __init profile_init(void)
 
 /* Profile event notifications */
 
-#ifdef CONFIG_PROFILING
-
 static BLOCKING_NOTIFIER_HEAD(task_exit_notifier);
 static ATOMIC_NOTIFIER_HEAD(task_free_notifier);
 static BLOCKING_NOTIFIER_HEAD(munmap_notifier);
@@ -202,8 +200,6 @@ void unregister_timer_hook(int (*hook)(struct pt_regs *))
 	synchronize_sched();  /* Allow ongoing interrupts to complete. */
 }
 EXPORT_SYMBOL_GPL(unregister_timer_hook);
-
-#endif /* CONFIG_PROFILING */
 
 
 #ifdef CONFIG_SMP

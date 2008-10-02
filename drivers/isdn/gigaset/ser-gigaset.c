@@ -766,7 +766,7 @@ gigaset_tty_wakeup(struct tty_struct *tty)
 	cs_put(cs);
 }
 
-static struct tty_ldisc gigaset_ldisc = {
+static struct tty_ldisc_ops gigaset_ldisc = {
 	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
 	.name		= "ser_gigaset",

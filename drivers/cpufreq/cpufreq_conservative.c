@@ -333,7 +333,7 @@ static void dbs_check_cpu(int cpu)
 {
 	unsigned int idle_ticks, up_idle_ticks, down_idle_ticks;
 	unsigned int tmp_idle_ticks, total_idle_ticks;
-	unsigned int freq_step;
+	unsigned int freq_target;
 	unsigned int freq_down_sampling_rate;
 	struct cpu_dbs_info_s *this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 	struct cpufreq_policy *policy;
@@ -383,13 +383,13 @@ static void dbs_check_cpu(int cpu)
 		if (this_dbs_info->requested_freq == policy->max)
 			return;
 
-		freq_step = (dbs_tuners_ins.freq_step * policy->max) / 100;
+		freq_target = (dbs_tuners_ins.freq_step * policy->max) / 100;
 
 		/* max freq cannot be less than 100. But who knows.... */
-		if (unlikely(freq_step == 0))
-			freq_step = 5;
+		if (unlikely(freq_target == 0))
+			freq_target = 5;
 
-		this_dbs_info->requested_freq += freq_step;
+		this_dbs_info->requested_freq += freq_target;
 		if (this_dbs_info->requested_freq > policy->max)
 			this_dbs_info->requested_freq = policy->max;
 
@@ -425,19 +425,19 @@ static void dbs_check_cpu(int cpu)
 		/*
 		 * if we are already at the lowest speed then break out early
 		 * or if we 'cannot' reduce the speed as the user might want
-		 * freq_step to be zero
+		 * freq_target to be zero
 		 */
 		if (this_dbs_info->requested_freq == policy->min
 				|| dbs_tuners_ins.freq_step == 0)
 			return;
 
-		freq_step = (dbs_tuners_ins.freq_step * policy->max) / 100;
+		freq_target = (dbs_tuners_ins.freq_step * policy->max) / 100;
 
 		/* max freq cannot be less than 100. But who knows.... */
-		if (unlikely(freq_step == 0))
-			freq_step = 5;
+		if (unlikely(freq_target == 0))
+			freq_target = 5;
 
-		this_dbs_info->requested_freq -= freq_step;
+		this_dbs_info->requested_freq -= freq_target;
 		if (this_dbs_info->requested_freq < policy->min)
 			this_dbs_info->requested_freq = policy->min;
 
@@ -497,7 +497,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			return rc;
 		}
 
-		for_each_cpu_mask(j, policy->cpus) {
+		for_each_cpu_mask_nr(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
 			j_dbs_info->cur_policy = policy;

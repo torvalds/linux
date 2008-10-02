@@ -170,7 +170,7 @@ iscsi_create_endpoint(int dd_size)
 	int err;
 
 	for (id = 1; id < ISCSI_MAX_EPID; id++) {
-		dev = class_find_device(&iscsi_endpoint_class, &id,
+		dev = class_find_device(&iscsi_endpoint_class, NULL, &id,
 					iscsi_match_epid);
 		if (!dev)
 			break;
@@ -222,7 +222,7 @@ struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle)
 	struct iscsi_endpoint *ep;
 	struct device *dev;
 
-	dev = class_find_device(&iscsi_endpoint_class, &handle,
+	dev = class_find_device(&iscsi_endpoint_class, NULL, &handle,
 				iscsi_match_epid);
 	if (!dev)
 		return NULL;
@@ -247,8 +247,8 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	atomic_set(&ihost->nr_scans, 0);
 	mutex_init(&ihost->mutex);
 
-	snprintf(ihost->scan_workq_name, KOBJ_NAME_LEN, "iscsi_scan_%d",
-		shost->host_no);
+	snprintf(ihost->scan_workq_name, sizeof(ihost->scan_workq_name),
+		 "iscsi_scan_%d", shost->host_no);
 	ihost->scan_workq = create_singlethread_workqueue(
 						ihost->scan_workq_name);
 	if (!ihost->scan_workq)

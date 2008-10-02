@@ -72,11 +72,7 @@ static void kvm_add_trace(void *probe_private, void *call_data,
 	rec.cycle_in 	= p->cycle_in;
 
 	if (rec.cycle_in) {
-		u64 cycle = 0;
-
-		cycle = get_cycles();
-		rec.u.cycle.cycle_lo = (u32)cycle;
-		rec.u.cycle.cycle_hi = (u32)(cycle >> 32);
+		rec.u.cycle.cycle_u64 = get_cycles();
 
 		for (i = 0; i < rec.extra_u32; i++)
 			rec.u.cycle.extra_u32[i] = va_arg(*args, u32);
@@ -114,8 +110,18 @@ static int kvm_subbuf_start_callback(struct rchan_buf *buf, void *subbuf,
 {
 	struct kvm_trace *kt;
 
-	if (!relay_buf_full(buf))
+	if (!relay_buf_full(buf)) {
+		if (!prev_subbuf) {
+			/*
+			 * executed only once when the channel is opened
+			 * save metadata as first record
+			 */
+			subbuf_start_reserve(buf, sizeof(u32));
+			*(u32 *)subbuf = 0x12345678;
+		}
+
 		return 1;
+	}
 
 	kt = buf->chan->private_data;
 	atomic_inc(&kt->lost_records);

@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/pci-aspm.h>
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acresrc.h>
@@ -372,6 +373,12 @@ static int __init acpi_pci_init(void)
 		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
 	}
+
+	if (acpi_gbl_FADT.boot_flags & BAF_PCIE_ASPM_CONTROL) {
+		printk(KERN_INFO"ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
+		pcie_no_aspm();
+	}
+
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;

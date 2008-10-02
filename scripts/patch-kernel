@@ -213,6 +213,7 @@ fi
 if [ $stopvers != "default" ]; then
 	STOPSUBLEVEL=`echo $stopvers | cut -d. -f3`
 	STOPEXTRA=`echo $stopvers | cut -d. -f4`
+	STOPFULLVERSION=${stopvers%%.$STOPEXTRA}
 	#echo "#___STOPSUBLEVEL=/$STOPSUBLEVEL/, STOPEXTRA=/$STOPEXTRA/"
 else
 	STOPSUBLEVEL=9999
@@ -249,7 +250,7 @@ while :				# incrementing SUBLEVEL (s in v.p.s)
 do
     CURRENTFULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
     EXTRAVER=
-    if [ $stopvers = $CURRENTFULLVERSION ]; then
+    if [ $STOPFULLVERSION = $CURRENTFULLVERSION ]; then
         echo "Stopping at $CURRENTFULLVERSION base as requested."
         break
     fi

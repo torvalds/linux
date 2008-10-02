@@ -32,11 +32,11 @@
 #include <linux/serio.h>
 #endif
 #include <linux/init.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 
 #if defined(CONFIG_SERIAL_SUNZILOG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -329,8 +329,8 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 
 	tty = NULL;
 	if (up->port.info != NULL &&		/* Unopened serial console */
-	    up->port.info->tty != NULL)		/* Keyboard || mouse */
-		tty = up->port.info->tty;
+	    up->port.info->port.tty != NULL)	/* Keyboard || mouse */
+		tty = up->port.info->port.tty;
 
 	for (;;) {
 

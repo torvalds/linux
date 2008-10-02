@@ -1,7 +1,5 @@
 /* Driver for Freecom USB/IDE adaptor
  *
- * $Id: freecom.c,v 1.22 2002/04/22 03:39:43 mdharm Exp $
- *
  * Freecom v0.1:
  *
  * First release
@@ -27,8 +25,6 @@
  * Programmers Reference Guide.  For further information contact Freecom
  * (http://www.freecom.de/)
  */
-
-#include <linux/hdreg.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

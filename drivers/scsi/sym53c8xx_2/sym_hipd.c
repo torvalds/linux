@@ -5741,6 +5741,8 @@ void sym_hcb_free(struct sym_hcb *np)
 
 	for (target = 0; target < SYM_CONF_MAX_TARGET ; target++) {
 		tp = &np->target[target];
+		if (tp->luntbl)
+			sym_mfree_dma(tp->luntbl, 256, "LUNTBL");
 #if SYM_CONF_MAX_LUN > 1
 		kfree(tp->lunmp);
 #endif 

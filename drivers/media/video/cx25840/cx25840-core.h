@@ -24,8 +24,6 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-extern int cx25840_debug;
-
 /* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
    present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
    certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
@@ -44,6 +42,7 @@ struct cx25840_state {
 	u32 audclk_freq;
 	int audmode;
 	int unmute_volume; /* -1 if not muted */
+	int default_volume;
 	int vbi_line_offset;
 	u32 id;
 	u32 rev;
@@ -61,6 +60,7 @@ int cx25840_write4(struct i2c_client *client, u16 addr, u32 value);
 u8 cx25840_read(struct i2c_client *client, u16 addr);
 u32 cx25840_read4(struct i2c_client *client, u16 addr);
 int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned mask, u8 value);
+void cx25840_std_setup(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-firmware.c                                                      */
@@ -73,7 +73,6 @@ void cx25840_audio_set_path(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-vbi.c                                                           */
-void cx25840_vbi_setup(struct i2c_client *client);
 int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg);
 
 #endif

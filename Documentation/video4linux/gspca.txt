@@ -1,0 +1,247 @@
+List of the webcams known by gspca.
+
+The modules are:
+	gspca_main	main driver
+	gspca_xxxx	subdriver module with xxxx as follows
+
+xxxx		vend:prod
+----
+spca501		0000:0000	MystFromOri Unknow Camera
+spca501		040a:0002	Kodak DVC-325
+spca500		040a:0300	Kodak EZ200
+zc3xx		041e:041e	Creative WebCam Live!
+spca500		041e:400a	Creative PC-CAM 300
+sunplus		041e:400b	Creative PC-CAM 600
+sunplus		041e:4012	PC-Cam350
+sunplus		041e:4013	Creative Pccam750
+zc3xx		041e:4017	Creative Webcam Mobile PD1090
+spca508		041e:4018	Creative Webcam Vista (PD1100)
+spca561		041e:401a	Creative Webcam Vista (PD1100)
+zc3xx		041e:401c	Creative NX
+spca505		041e:401d	Creative Webcam NX ULTRA
+zc3xx		041e:401e	Creative Nx Pro
+zc3xx		041e:401f	Creative Webcam Notebook PD1171
+pac207		041e:4028	Creative Webcam Vista Plus
+zc3xx		041e:4029	Creative WebCam Vista Pro
+zc3xx		041e:4034	Creative Instant P0620
+zc3xx		041e:4035	Creative Instant P0620D
+zc3xx		041e:4036	Creative Live !
+zc3xx		041e:403a	Creative Nx Pro 2
+spca561		041e:403b	Creative Webcam Vista (VF0010)
+zc3xx		041e:4051	Creative Live!Cam Notebook Pro (VF0250)
+ov519		041e:4052	Creative Live! VISTA IM
+zc3xx		041e:4053	Creative Live!Cam Video IM
+ov519		041e:405f	Creative Live! VISTA VF0330
+ov519		041e:4060	Creative Live! VISTA VF0350
+ov519		041e:4061	Creative Live! VISTA VF0400
+ov519		041e:4064	Creative Live! VISTA VF0420
+ov519		041e:4068	Creative Live! VISTA VF0470
+spca561		0458:7004	Genius VideoCAM Express V2
+sunplus		0458:7006	Genius Dsc 1.3 Smart
+zc3xx		0458:7007	Genius VideoCam V2
+zc3xx		0458:700c	Genius VideoCam V3
+zc3xx		0458:700f	Genius VideoCam Web V2
+sonixj		0458:7025	Genius Eye 311Q
+sonixj		045e:00f5	MicroSoft VX3000
+sonixj		045e:00f7	MicroSoft VX1000
+ov519		045e:028c	Micro$oft xbox cam
+spca508		0461:0815	Micro Innovation IC200
+sunplus		0461:0821	Fujifilm MV-1
+zc3xx		0461:0a00	MicroInnovation WebCam320
+spca500		046d:0890	Logitech QuickCam traveler
+vc032x		046d:0892	Logitech Orbicam
+vc032x		046d:0896	Logitech Orbicam
+zc3xx		046d:08a0	Logitech QC IM
+zc3xx		046d:08a1	Logitech QC IM 0x08A1 +sound
+zc3xx		046d:08a2	Labtec Webcam Pro
+zc3xx		046d:08a3	Logitech QC Chat
+zc3xx		046d:08a6	Logitech QCim
+zc3xx		046d:08a7	Logitech QuickCam Image
+zc3xx		046d:08a9	Logitech Notebook Deluxe
+zc3xx		046d:08aa	Labtec Webcam  Notebook
+zc3xx		046d:08ac	Logitech QuickCam Cool
+zc3xx		046d:08ad	Logitech QCCommunicate STX
+zc3xx		046d:08ae	Logitech QuickCam for Notebooks
+zc3xx		046d:08af	Logitech QuickCam Cool
+zc3xx		046d:08b9	Logitech QC IM ???
+zc3xx		046d:08d7	Logitech QCam STX
+zc3xx		046d:08d9	Logitech QuickCam IM/Connect
+zc3xx		046d:08d8	Logitech Notebook Deluxe
+zc3xx		046d:08da	Logitech QuickCam Messenger
+zc3xx		046d:08dd	Logitech QuickCam for Notebooks
+spca500		046d:0900	Logitech Inc. ClickSmart 310
+spca500		046d:0901	Logitech Inc. ClickSmart 510
+sunplus		046d:0905	Logitech ClickSmart 820
+tv8532		046d:0920	QC Express
+tv8532		046d:0921	Labtec Webcam
+spca561		046d:0928	Logitech QC Express Etch2
+spca561		046d:0929	Labtec Webcam Elch2
+spca561		046d:092a	Logitech QC for Notebook
+spca561		046d:092b	Labtec Webcam Plus
+spca561		046d:092c	Logitech QC chat Elch2
+spca561		046d:092d	Logitech QC Elch2
+spca561		046d:092e	Logitech QC Elch2
+spca561		046d:092f	Logitech QC Elch2
+sunplus		046d:0960	Logitech ClickSmart 420
+sunplus		0471:0322	Philips DMVC1300K
+zc3xx		0471:0325	Philips SPC 200 NC
+zc3xx		0471:0326	Philips SPC 300 NC
+sonixj		0471:0327	Philips SPC 600 NC
+sonixj		0471:0328	Philips SPC 700 NC
+zc3xx		0471:032d	Philips SPC 210 NC
+zc3xx		0471:032e	Philips SPC 315 NC
+sonixj		0471:0330	Philips SPC 710 NC
+spca501		0497:c001	Smile International
+sunplus		04a5:3003	Benq DC 1300
+sunplus		04a5:3008	Benq DC 1500
+sunplus		04a5:300a	Benq DC 3410
+spca500		04a5:300c	Benq DC 1016
+sunplus		04f1:1001	JVC GC A50
+spca561		04fc:0561	Flexcam 100
+sunplus		04fc:500c	Sunplus CA500C
+sunplus		04fc:504a	Aiptek Mini PenCam 1.3
+sunplus		04fc:504b	Maxell MaxPocket LE 1.3
+sunplus		04fc:5330	Digitrex 2110
+sunplus		04fc:5360	Sunplus Generic
+spca500		04fc:7333	PalmPixDC85
+sunplus		04fc:ffff	Pure DigitalDakota
+spca501		0506:00df	3Com HomeConnect Lite
+sunplus		052b:1513	Megapix V4
+tv8532		0545:808b	Veo Stingray
+tv8532		0545:8333	Veo Stingray
+sunplus		0546:3155	Polaroid PDC3070
+sunplus		0546:3191	Polaroid Ion 80
+sunplus		0546:3273	Polaroid PDC2030
+ov519		054c:0154	Sonny toy4
+ov519		054c:0155	Sonny toy5
+zc3xx		055f:c005	Mustek Wcam300A
+spca500		055f:c200	Mustek Gsmart 300
+sunplus		055f:c211	Kowa Bs888e Microcamera
+spca500		055f:c220	Gsmart Mini
+sunplus		055f:c230	Mustek Digicam 330K
+sunplus		055f:c232	Mustek MDC3500
+sunplus		055f:c360	Mustek DV4000 Mpeg4
+sunplus		055f:c420	Mustek gSmart Mini 2
+sunplus		055f:c430	Mustek Gsmart LCD 2
+sunplus		055f:c440	Mustek DV 3000
+sunplus		055f:c520	Mustek gSmart Mini 3
+sunplus		055f:c530	Mustek Gsmart LCD 3
+sunplus		055f:c540	Gsmart D30
+sunplus		055f:c630	Mustek MDC4000
+sunplus		055f:c650	Mustek MDC5500Z
+zc3xx		055f:d003	Mustek WCam300A
+zc3xx		055f:d004	Mustek WCam300 AN
+conex		0572:0041	Creative Notebook cx11646
+ov519		05a9:0519	OmniVision
+ov519		05a9:0530	OmniVision
+ov519		05a9:4519	OmniVision
+ov519		05a9:8519	OmniVision
+sunplus		05da:1018	Digital Dream Enigma 1.3
+stk014		05e1:0893	Syntek DV4000
+spca561		060b:a001	Maxell Compact Pc PM3
+zc3xx		0698:2003	CTX M730V built in
+spca500		06bd:0404	Agfa CL20
+spca500		06be:0800	Optimedia
+sunplus		06d6:0031	Trust 610 LCD PowerC@m Zoom
+spca506		06e1:a190	ADS Instant VCD
+spca508		0733:0110	ViewQuest VQ110
+spca508		0130:0130	Clone Digital Webcam 11043
+spca501		0733:0401	Intel Create and Share
+spca501		0733:0402	ViewQuest M318B
+spca505		0733:0430	Intel PC Camera Pro
+sunplus		0733:1311	Digital Dream Epsilon 1.3
+sunplus		0733:1314	Mercury 2.1MEG Deluxe Classic Cam
+sunplus		0733:2211	Jenoptik jdc 21 LCD
+sunplus		0733:2221	Mercury Digital Pro 3.1p
+sunplus		0733:3261	Concord 3045 spca536a
+sunplus		0733:3281	Cyberpix S550V
+spca506		0734:043b	3DeMon USB Capture aka
+spca500		084d:0003	D-Link DSC-350
+spca500		08ca:0103	Aiptek PocketDV
+sunplus		08ca:0104	Aiptek PocketDVII 1.3
+sunplus		08ca:0106	Aiptek Pocket DV3100+
+sunplus		08ca:2008	Aiptek Mini PenCam 2 M
+sunplus		08ca:2010	Aiptek PocketCam 3M
+sunplus		08ca:2016	Aiptek PocketCam 2 Mega
+sunplus		08ca:2018	Aiptek Pencam SD 2M
+sunplus		08ca:2020	Aiptek Slim 3000F
+sunplus		08ca:2022	Aiptek Slim 3200
+sunplus		08ca:2024	Aiptek DV3500 Mpeg4
+sunplus		08ca:2028	Aiptek PocketCam4M
+sunplus		08ca:2040	Aiptek PocketDV4100M
+sunplus		08ca:2042	Aiptek PocketDV5100
+sunplus		08ca:2050	Medion MD 41437
+sunplus		08ca:2060	Aiptek PocketDV5300
+tv8532		0923:010f	ICM532 cams
+mars		093a:050f	Mars-Semi Pc-Camera
+pac207		093a:2460	PAC207 Qtec Webcam 100
+pac207		093a:2463	Philips SPC 220 NC
+pac207		093a:2464	Labtec Webcam 1200
+pac207		093a:2468	PAC207
+pac207		093a:2470	Genius GF112
+pac207		093a:2471	Genius VideoCam ge111
+pac207		093a:2472	Genius VideoCam ge110
+pac7311		093a:2600	PAC7311 Typhoon
+pac7311		093a:2601	Philips SPC 610 NC
+pac7311		093a:2603	PAC7312
+pac7311		093a:2608	Trust WB-3300p
+pac7311		093a:260e	Gigaware VGA PC Camera, Trust WB-3350p, SIGMA cam 2350
+pac7311		093a:260f	SnakeCam
+pac7311		093a:2621	PAC731x
+pac7311		093a:2624	PAC7302
+pac7311		093a:2626	Labtec 2200
+zc3xx		0ac8:0302	Z-star Vimicro zc0302
+vc032x		0ac8:0321	Vimicro generic vc0321
+vc032x		0ac8:0323	Vimicro Vc0323
+vc032x		0ac8:0328	A4Tech PK-130MG
+zc3xx		0ac8:301b	Z-Star zc301b
+zc3xx		0ac8:303b	Vimicro 0x303b
+zc3xx		0ac8:305b	Z-star Vimicro zc0305b
+zc3xx		0ac8:307b	Ldlc VC302+Ov7620
+vc032x		0ac8:c001	Sony embedded vimicro
+vc032x		0ac8:c002	Sony embedded vimicro
+spca508		0af9:0010	Hama USB Sightcam 100
+spca508		0af9:0011	Hama USB Sightcam 100
+sonixb		0c45:6001	Genius VideoCAM NB
+sonixb		0c45:6005	Microdia Sweex Mini Webcam
+sonixb		0c45:6007	Sonix sn9c101 + Tas5110D
+sonixb		0c45:6009	spcaCam@120
+sonixb		0c45:600d	spcaCam@120
+sonixb		0c45:6011	Microdia PC Camera (SN9C102)
+sonixb		0c45:6019	Generic Sonix OV7630
+sonixb		0c45:6024	Generic Sonix Tas5130c
+sonixb		0c45:6025	Xcam Shanga
+sonixb		0c45:6028	Sonix Btc Pc380
+sonixb		0c45:6029	spcaCam@150
+sonixb		0c45:602c	Generic Sonix OV7630
+sonixb		0c45:602d	LIC-200 LG
+sonixb		0c45:602e	Genius VideoCam Messenger
+sonixj		0c45:6040	Speed NVC 350K
+sonixj		0c45:607c	Sonix sn9c102p Hv7131R
+sonixj		0c45:60c0	Sangha Sn535
+sonixj		0c45:60ec	SN9C105+MO4000
+sonixj		0c45:60fb	Surfer NoName
+sonixj		0c45:60fc	LG-LIC300
+sonixj		0c45:6128	Microdia/Sonix SNP325
+sonixj		0c45:612a	Avant Camera
+sonixj		0c45:612c	Typhoon Rasy Cam 1.3MPix
+sonixj		0c45:6130	Sonix Pccam
+sonixj		0c45:6138	Sn9c120 Mo4000
+sonixj		0c45:613b	Surfer SN-206
+sonixj		0c45:613c	Sonix Pccam168
+sonixj		0c45:6143	Sonix Pccam168
+sunplus		0d64:0303	Sunplus FashionCam DXG
+etoms		102c:6151	Qcam Sangha CIF
+etoms		102c:6251	Qcam xxxxxx VGA
+zc3xx		10fd:0128	Typhoon Webshot II USB 300k 0x0128
+spca561		10fd:7e50	FlyCam Usb 100
+zc3xx		10fd:8050	Typhoon Webshot II USB 300k
+spca501		1776:501c	Arowana 300K CMOS Camera
+t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
+vc032x		17ef:4802	Lenovo Vc0323+MI1310_SOC
+pac207		2001:f115	D-Link DSB-C120
+spca500		2899:012c	Toptro Industrial
+spca508		8086:0110	Intel Easy PC Camera
+spca500		8086:0630	Intel Pocket PC Camera
+spca506		99fa:8988	Grandtec V.cap
+spca561		abcd:cdee	Petcam

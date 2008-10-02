@@ -27,6 +27,7 @@ config SBC8641D
 config MPC8610_HPCD
 	bool "Freescale MPC8610 HPCD"
 	select DEFAULT_UIMAGE
+	select FSL_ULI1575
 	help
 	  This option enables support for the MPC8610 HPCD board.
 
@@ -34,6 +35,7 @@ endif
 
 config MPC8641
 	bool
+	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
@@ -41,6 +43,7 @@ config MPC8641
 
 config MPC8610
 	bool
+	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC

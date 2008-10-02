@@ -19,7 +19,7 @@
 void __init tx4938_irq_init(void)
 {
 	mips_cpu_irq_init();
-	txx9_irq_init(TX4938_IRC_REG);
+	txx9_irq_init(TX4938_IRC_REG & 0xfffffffffULL);
 	set_irq_chained_handler(MIPS_CPU_IRQ_BASE + TX4938_IRC_INT,
 				handle_simple_irq);
 }

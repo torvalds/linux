@@ -572,12 +572,16 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	int irq;
 	DECLARE_MAC_BUF(mac);
 
+#ifdef __ISAPNP__
 	if (idev) {
 		irq = pnp_irq(idev, 0);
 		vp->dev = &idev->dev;
 	} else {
 		irq = inw(ioaddr + 0x2002) & 15;
 	}
+#else
+	irq = inw(ioaddr + 0x2002) & 15;
+#endif
 
 	dev->base_addr = ioaddr;
 	dev->irq = irq;

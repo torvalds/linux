@@ -333,11 +333,6 @@ config PCI_SYSCALL
 config IOMMU_HELPER
 	def_bool PCI
 
-config ALPHA_CORE_AGP
-	bool
-	depends on ALPHA_GENERIC || ALPHA_TITAN || ALPHA_MARVEL
-	default y
-
 config ALPHA_NONAME
 	bool
 	depends on ALPHA_BOOK1 || ALPHA_NONAME_CH

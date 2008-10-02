@@ -1,6 +1,4 @@
  /*
- * $Id: iforce-usb.c,v 1.16 2002/06/09 11:08:04 jdeneux Exp $
- *
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
  *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
  *
@@ -89,10 +87,10 @@ static void iforce_usb_irq(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, urb->status);
+		    __func__, urb->status);
 		return;
 	default:
-		dbg("%s - urb has status of: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb has status of: %d", __func__, urb->status);
 		goto exit;
 	}
 
@@ -103,7 +101,7 @@ exit:
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, status);
+		     __func__, status);
 }
 
 static void iforce_usb_out(struct urb *urb)

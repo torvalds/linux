@@ -29,9 +29,6 @@
 **
 ** -----------------------------------------------------------------------------
 */
-#ifdef SCCS_LABELS
-static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
-#endif
 
 #include <linux/module.h>
 #include <linux/slab.h>

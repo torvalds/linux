@@ -538,7 +538,7 @@ EXPORT_SYMBOL(xfrm_state_alloc);
 
 void __xfrm_state_destroy(struct xfrm_state *x)
 {
-	BUG_TRAP(x->km.state == XFRM_STATE_DEAD);
+	WARN_ON(x->km.state != XFRM_STATE_DEAD);
 
 	spin_lock_bh(&xfrm_state_lock);
 	list_del(&x->all);
@@ -780,10 +780,12 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 {
 	unsigned int h;
 	struct hlist_node *entry;
-	struct xfrm_state *x, *x0;
+	struct xfrm_state *x, *x0, *to_put;
 	int acquire_in_progress = 0;
 	int error = 0;
 	struct xfrm_state *best = NULL;
+
+	to_put = NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
 	h = xfrm_dst_hash(daddr, saddr, tmpl->reqid, family);
@@ -833,7 +835,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		if (tmpl->id.spi &&
 		    (x0 = __xfrm_state_lookup(daddr, tmpl->id.spi,
 					      tmpl->id.proto, family)) != NULL) {
-			xfrm_state_put(x0);
+			to_put = x0;
 			error = -EEXIST;
 			goto out;
 		}
@@ -849,13 +851,14 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		error = security_xfrm_state_alloc_acquire(x, pol->security, fl->secid);
 		if (error) {
 			x->km.state = XFRM_STATE_DEAD;
-			xfrm_state_put(x);
+			to_put = x;
 			x = NULL;
 			goto out;
 		}
 
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;
+			list_add_tail(&x->all, &xfrm_state_all);
 			hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 			h = xfrm_src_hash(daddr, saddr, family);
 			hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
@@ -870,7 +873,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			xfrm_hash_grow_check(x->bydst.next != NULL);
 		} else {
 			x->km.state = XFRM_STATE_DEAD;
-			xfrm_state_put(x);
+			to_put = x;
 			x = NULL;
 			error = -ESRCH;
 		}
@@ -881,6 +884,8 @@ out:
 	else
 		*err = acquire_in_progress ? -EAGAIN : error;
 	spin_unlock_bh(&xfrm_state_lock);
+	if (to_put)
+		xfrm_state_put(to_put);
 	return x;
 }
 
@@ -1051,6 +1056,7 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		xfrm_state_hold(x);
 		x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
 		add_timer(&x->timer);
+		list_add_tail(&x->all, &xfrm_state_all);
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
@@ -1067,18 +1073,20 @@ static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq);
 
 int xfrm_state_add(struct xfrm_state *x)
 {
-	struct xfrm_state *x1;
+	struct xfrm_state *x1, *to_put;
 	int family;
 	int err;
 	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
 
 	family = x->props.family;
 
+	to_put = NULL;
+
 	spin_lock_bh(&xfrm_state_lock);
 
 	x1 = __xfrm_state_locate(x, use_spi, family);
 	if (x1) {
-		xfrm_state_put(x1);
+		to_put = x1;
 		x1 = NULL;
 		err = -EEXIST;
 		goto out;
@@ -1088,7 +1096,7 @@ int xfrm_state_add(struct xfrm_state *x)
 		x1 = __xfrm_find_acq_byseq(x->km.seq);
 		if (x1 && ((x1->id.proto != x->id.proto) ||
 		    xfrm_addr_cmp(&x1->id.daddr, &x->id.daddr, family))) {
-			xfrm_state_put(x1);
+			to_put = x1;
 			x1 = NULL;
 		}
 	}
@@ -1109,6 +1117,9 @@ out:
 		xfrm_state_delete(x1);
 		xfrm_state_put(x1);
 	}
+
+	if (to_put)
+		xfrm_state_put(to_put);
 
 	return err;
 }
@@ -1269,9 +1280,11 @@ EXPORT_SYMBOL(xfrm_state_migrate);
 
 int xfrm_state_update(struct xfrm_state *x)
 {
-	struct xfrm_state *x1;
+	struct xfrm_state *x1, *to_put;
 	int err;
 	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
+
+	to_put = NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
 	x1 = __xfrm_state_locate(x, use_spi, x->props.family);
@@ -1281,7 +1294,7 @@ int xfrm_state_update(struct xfrm_state *x)
 		goto out;
 
 	if (xfrm_state_kern(x1)) {
-		xfrm_state_put(x1);
+		to_put = x1;
 		err = -EEXIST;
 		goto out;
 	}
@@ -1294,6 +1307,9 @@ int xfrm_state_update(struct xfrm_state *x)
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
+
+	if (to_put)
+		xfrm_state_put(to_put);
 
 	if (err)
 		return err;

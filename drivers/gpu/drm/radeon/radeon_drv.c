@@ -38,7 +38,7 @@
 
 int radeon_no_wb;
 
-MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers\n");
+MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
 
 static int dri_library_name(struct drm_device *dev, char *buf)

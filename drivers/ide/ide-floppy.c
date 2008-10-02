@@ -125,25 +125,9 @@ typedef struct ide_floppy_obj {
 	int wp;
 	/* Supports format progress report */
 	int srfp;
-	/* Status/Action flags */
-	unsigned long flags;
 } idefloppy_floppy_t;
 
 #define IDEFLOPPY_TICKS_DELAY	HZ/20	/* default delay for ZIP 100 (50ms) */
-
-/* Floppy flag bits values. */
-enum {
-	/* DRQ interrupt device */
-	IDEFLOPPY_FLAG_DRQ_INTERRUPT		= (1 <<	0),
-	/* Media may have changed */
-	IDEFLOPPY_FLAG_MEDIA_CHANGED		= (1 << 1),
-	/* Format in progress */
-	IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS	= (1 << 2),
-	/* Avoid commands not supported in Clik drive */
-	IDEFLOPPY_FLAG_CLIK_DRIVE		= (1 << 3),
-	/* Requires BH algorithm for packets */
-	IDEFLOPPY_FLAG_ZIP_DRIVE		= (1 << 4),
-};
 
 /* Defines for the MODE SENSE command */
 #define MODE_SENSE_CURRENT		0x00
@@ -174,24 +158,31 @@ static DEFINE_MUTEX(idefloppy_ref_mutex);
 #define ide_floppy_g(disk) \
 	container_of((disk)->private_data, struct ide_floppy_obj, driver)
 
+static void idefloppy_cleanup_obj(struct kref *);
+
 static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
 {
 	struct ide_floppy_obj *floppy = NULL;
 
 	mutex_lock(&idefloppy_ref_mutex);
 	floppy = ide_floppy_g(disk);
-	if (floppy)
-		kref_get(&floppy->kref);
+	if (floppy) {
+		if (ide_device_get(floppy->drive))
+			floppy = NULL;
+		else
+			kref_get(&floppy->kref);
+	}
 	mutex_unlock(&idefloppy_ref_mutex);
 	return floppy;
 }
 
-static void idefloppy_cleanup_obj(struct kref *);
-
 static void ide_floppy_put(struct ide_floppy_obj *floppy)
 {
+	ide_drive_t *drive = floppy->drive;
+
 	mutex_lock(&idefloppy_ref_mutex);
 	kref_put(&floppy->kref, idefloppy_cleanup_obj);
+	ide_device_put(drive);
 	mutex_unlock(&idefloppy_ref_mutex);
 }
 
@@ -247,9 +238,9 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 		data = bvec_kmap_irq(bvec, &flags);
 		if (direction)
-			hwif->output_data(drive, NULL, data, count);
+			hwif->tp_ops->output_data(drive, NULL, data, count);
 		else
-			hwif->input_data(drive, NULL, data, count);
+			hwif->tp_ops->input_data(drive, NULL, data, count);
 		bvec_kunmap_irq(data, &flags);
 
 		bcount -= count;
@@ -291,6 +282,7 @@ static void idefloppy_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->rq_disk = floppy->disk;
+	memcpy(rq->cmd, pc->c, 12);
 	ide_do_drive_cmd(drive, rq);
 }
 
@@ -354,7 +346,6 @@ static void idefloppy_init_pc(struct ide_atapi_pc *pc)
 	memset(pc, 0, sizeof(*pc));
 	pc->buf = pc->pc_buf;
 	pc->buf_size = IDEFLOPPY_PC_BUFFER_SIZE;
-	pc->callback = ide_floppy_callback;
 }
 
 static void idefloppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
@@ -402,7 +393,7 @@ static int idefloppy_transfer_pc(ide_drive_t *drive)
 	idefloppy_floppy_t *floppy = drive->driver_data;
 
 	/* Send the actual packet */
-	drive->hwif->output_data(drive, NULL, floppy->pc->c, 12);
+	drive->hwif->tp_ops->output_data(drive, NULL, floppy->pc->c, 12);
 
 	/* Timeout for the packet command */
 	return IDEFLOPPY_WAIT_CMD;
@@ -429,7 +420,7 @@ static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 	 * 40 and 50msec work well. idefloppy_pc_intr will not be actually
 	 * used until after the packet is moved in about 50 msec.
 	 */
-	if (pc->flags & PC_FLAG_ZIP_DRIVE) {
+	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
 		timeout = floppy->ticks;
 		expiry = &idefloppy_transfer_pc;
 	} else {
@@ -474,7 +465,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		pc->error = IDEFLOPPY_ERROR_GENERAL;
 
 		floppy->failed_pc = NULL;
-		pc->callback(drive);
+		drive->pc_callback(drive);
 		return ide_stopped;
 	}
 
@@ -574,6 +565,8 @@ static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 	put_unaligned(cpu_to_be16(blocks), (unsigned short *)&pc->c[7]);
 	put_unaligned(cpu_to_be32(block), (unsigned int *) &pc->c[2]);
 
+	memcpy(rq->cmd, pc->c, 12);
+
 	pc->rq = rq;
 	pc->b_count = cmd == READ ? 0 : rq->bio->bi_size;
 	if (rq->cmd_flags & REQ_RW)
@@ -647,12 +640,6 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		return ide_stopped;
 	}
 
-	if (floppy->flags & IDEFLOPPY_FLAG_DRQ_INTERRUPT)
-		pc->flags |= PC_FLAG_DRQ_INTERRUPT;
-
-	if (floppy->flags & IDEFLOPPY_FLAG_ZIP_DRIVE)
-		pc->flags |= PC_FLAG_ZIP_DRIVE;
-
 	pc->rq = rq;
 
 	return idefloppy_issue_pc(drive, pc);
@@ -671,6 +658,7 @@ static int idefloppy_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->buffer = (char *) pc;
 	rq->cmd_type = REQ_TYPE_SPECIAL;
+	memcpy(rq->cmd, pc->c, 12);
 	error = blk_execute_rq(drive->queue, floppy->disk, rq, 0);
 	blk_put_request(rq);
 
@@ -795,7 +783,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		switch (pc.buf[desc_start + 4] & 0x03) {
 		/* Clik! drive returns this instead of CAPACITY_CURRENT */
 		case CAPACITY_UNFORMATTED:
-			if (!(floppy->flags & IDEFLOPPY_FLAG_CLIK_DRIVE))
+			if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
 				/*
 				 * If it is not a clik drive, break out
 				 * (maintains previous driver behaviour)
@@ -841,7 +829,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	}
 
 	/* Clik! disk does not support get_flexible_disk_page */
-	if (!(floppy->flags & IDEFLOPPY_FLAG_CLIK_DRIVE))
+	if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
 		(void) ide_floppy_get_flexible_disk_page(drive);
 
 	set_capacity(floppy->disk, floppy->blocks * floppy->bs_factor);
@@ -949,11 +937,12 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 
 		/* Else assume format_unit has finished, and we're at 0x10000 */
 	} else {
+		ide_hwif_t *hwif = drive->hwif;
 		unsigned long flags;
 		u8 stat;
 
 		local_irq_save(flags);
-		stat = ide_read_status(drive);
+		stat = hwif->tp_ops->read_status(hwif);
 		local_irq_restore(flags);
 
 		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;
@@ -1039,9 +1028,10 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 
 	*((u16 *) &gcw) = drive->id->config;
 	floppy->pc = floppy->pc_stack;
+	drive->pc_callback = ide_floppy_callback;
 
 	if (((gcw[0] & 0x60) >> 5) == 1)
-		floppy->flags |= IDEFLOPPY_FLAG_DRQ_INTERRUPT;
+		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 	/*
 	 * We used to check revisions here. At this point however I'm giving up.
 	 * Just assume they are all broken, its easier.
@@ -1052,7 +1042,7 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	 * we'll leave the limitation below for the 2.2.x tree.
 	 */
 	if (!strncmp(drive->id->model, "IOMEGA ZIP 100 ATAPI", 20)) {
-		floppy->flags |= IDEFLOPPY_FLAG_ZIP_DRIVE;
+		drive->atapi_flags |= IDE_AFLAG_ZIP_DRIVE;
 		/* This value will be visible in the /proc/ide/hdx/settings */
 		floppy->ticks = IDEFLOPPY_TICKS_DELAY;
 		blk_queue_max_sectors(drive->queue, 64);
@@ -1064,7 +1054,7 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	 */
 	if (strncmp(drive->id->model, "IOMEGA Clik!", 11) == 0) {
 		blk_queue_max_sectors(drive->queue, 64);
-		floppy->flags |= IDEFLOPPY_FLAG_CLIK_DRIVE;
+		drive->atapi_flags |= IDE_AFLAG_CLIK_DRIVE;
 	}
 
 	(void) ide_floppy_get_capacity(drive);
@@ -1153,7 +1143,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 	floppy->openers++;
 
 	if (floppy->openers == 1) {
-		floppy->flags &= ~IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
+		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 		/* Just in case */
 
 		idefloppy_init_pc(&pc);
@@ -1180,14 +1170,14 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 			ret = -EROFS;
 			goto out_put_floppy;
 		}
-		floppy->flags |= IDEFLOPPY_FLAG_MEDIA_CHANGED;
+		drive->atapi_flags |= IDE_AFLAG_MEDIA_CHANGED;
 		/* IOMEGA Clik! drives do not support lock/unlock commands */
-		if (!(floppy->flags & IDEFLOPPY_FLAG_CLIK_DRIVE)) {
+		if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE)) {
 			idefloppy_create_prevent_cmd(&pc, 1);
 			(void) idefloppy_queue_pc_tail(drive, &pc);
 		}
 		check_disk_change(inode->i_bdev);
-	} else if (floppy->flags & IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS) {
+	} else if (drive->atapi_flags & IDE_AFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
 		goto out_put_floppy;
 	}
@@ -1210,12 +1200,12 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 
 	if (floppy->openers == 1) {
 		/* IOMEGA Clik! drives do not support lock/unlock commands */
-		if (!(floppy->flags & IDEFLOPPY_FLAG_CLIK_DRIVE)) {
+		if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE)) {
 			idefloppy_create_prevent_cmd(&pc, 0);
 			(void) idefloppy_queue_pc_tail(drive, &pc);
 		}
 
-		floppy->flags &= ~IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
+		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 	}
 
 	floppy->openers--;
@@ -1236,15 +1226,17 @@ static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ide_floppy_lockdoor(idefloppy_floppy_t *floppy,
-		struct ide_atapi_pc *pc, unsigned long arg, unsigned int cmd)
+static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
+			       unsigned long arg, unsigned int cmd)
 {
+	idefloppy_floppy_t *floppy = drive->driver_data;
+
 	if (floppy->openers > 1)
 		return -EBUSY;
 
 	/* The IOMEGA Clik! Drive doesn't support this command -
 	 * no room for an eject mechanism */
-	if (!(floppy->flags & IDEFLOPPY_FLAG_CLIK_DRIVE)) {
+	if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE)) {
 		int prevent = arg ? 1 : 0;
 
 		if (cmd == CDROMEJECT)
@@ -1265,16 +1257,17 @@ static int ide_floppy_lockdoor(idefloppy_floppy_t *floppy,
 static int ide_floppy_format_unit(idefloppy_floppy_t *floppy,
 				  int __user *arg)
 {
-	int blocks, length, flags, err = 0;
 	struct ide_atapi_pc pc;
+	ide_drive_t *drive = floppy->drive;
+	int blocks, length, flags, err = 0;
 
 	if (floppy->openers > 1) {
 		/* Don't format if someone is using the disk */
-		floppy->flags &= ~IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
+		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 		return -EBUSY;
 	}
 
-	floppy->flags |= IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
+	drive->atapi_flags |= IDE_AFLAG_FORMAT_IN_PROGRESS;
 
 	/*
 	 * Send ATAPI_FORMAT_UNIT to the drive.
@@ -1298,15 +1291,15 @@ static int ide_floppy_format_unit(idefloppy_floppy_t *floppy,
 		goto out;
 	}
 
-	(void) idefloppy_get_sfrp_bit(floppy->drive);
+	(void) idefloppy_get_sfrp_bit(drive);
 	idefloppy_create_format_unit_cmd(&pc, blocks, length, flags);
 
-	if (idefloppy_queue_pc_tail(floppy->drive, &pc))
+	if (idefloppy_queue_pc_tail(drive, &pc))
 		err = -EIO;
 
 out:
 	if (err)
-		floppy->flags &= ~IDEFLOPPY_FLAG_FORMAT_IN_PROGRESS;
+		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 	return err;
 }
 
@@ -1325,7 +1318,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	case CDROMEJECT:
 		/* fall through */
 	case CDROM_LOCKDOOR:
-		return ide_floppy_lockdoor(floppy, &pc, arg, cmd);
+		return ide_floppy_lockdoor(drive, &pc, arg, cmd);
 	case IDEFLOPPY_IOCTL_FORMAT_SUPPORTED:
 		return 0;
 	case IDEFLOPPY_IOCTL_FORMAT_GET_CAPACITY:
@@ -1366,8 +1359,8 @@ static int idefloppy_media_changed(struct gendisk *disk)
 		drive->attach = 0;
 		return 0;
 	}
-	ret = !!(floppy->flags & IDEFLOPPY_FLAG_MEDIA_CHANGED);
-	floppy->flags &= ~IDEFLOPPY_FLAG_MEDIA_CHANGED;
+	ret = !!(drive->atapi_flags & IDE_AFLAG_MEDIA_CHANGED);
+	drive->atapi_flags &= ~IDE_AFLAG_MEDIA_CHANGED;
 	return ret;
 }
 

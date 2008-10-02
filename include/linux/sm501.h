@@ -46,24 +46,6 @@ extern unsigned long sm501_modify_reg(struct device *dev,
 				      unsigned long set,
 				      unsigned long clear);
 
-/* sm501_gpio_set
- *
- * set the state of the given GPIO line
-*/
-
-extern void sm501_gpio_set(struct device *dev,
-			   unsigned long gpio,
-			   unsigned int to,
-			   unsigned int dir);
-
-/* sm501_gpio_get
- *
- * get the state of the given GPIO line
-*/
-
-extern unsigned long sm501_gpio_get(struct device *dev,
-				    unsigned long gpio);
-
 
 /* Platform data definitions */
 
@@ -73,6 +55,8 @@ extern unsigned long sm501_gpio_get(struct device *dev,
 #define SM501FB_FLAG_USE_HWACCEL	(1<<3)
 #define SM501FB_FLAG_PANEL_NO_FPEN	(1<<4)
 #define SM501FB_FLAG_PANEL_NO_VBIASEN	(1<<5)
+#define SM501FB_FLAG_PANEL_INV_FPEN	(1<<6)
+#define SM501FB_FLAG_PANEL_INV_VBIASEN	(1<<7)
 
 struct sm501_platdata_fbsub {
 	struct fb_videomode	*def_mode;
@@ -102,11 +86,19 @@ struct sm501_platdata_fb {
 	struct sm501_platdata_fbsub	*fb_pnl;
 };
 
-/* gpio i2c */
+/* gpio i2c
+ *
+ * Note, we have to pass in the bus number, as the number used will be
+ * passed to the i2c-gpio driver's platform_device.id, subsequently used
+ * to register the i2c bus.
+*/
 
 struct sm501_platdata_gpio_i2c {
+	unsigned int		bus_num;
 	unsigned int		pin_sda;
 	unsigned int		pin_scl;
+	int			udelay;
+	int			timeout;
 };
 
 /* sm501_initdata
@@ -129,6 +121,7 @@ struct sm501_reg_init {
 #define SM501_USE_FBACCEL	(1<<6)
 #define SM501_USE_AC97		(1<<7)
 #define SM501_USE_I2S		(1<<8)
+#define SM501_USE_GPIO		(1<<9)
 
 #define SM501_USE_ALL		(0xffffffff)
 
@@ -155,6 +148,8 @@ struct sm501_init_gpio {
 	struct sm501_reg_init	gpio_ddr_high;
 };
 
+#define SM501_FLAG_SUSPEND_OFF		(1<<4)
+
 /* sm501_platdata
  *
  * This is passed with the platform device to allow the board
@@ -167,6 +162,12 @@ struct sm501_platdata {
 	struct sm501_initdata		*init;
 	struct sm501_init_gpio		*init_gpiop;
 	struct sm501_platdata_fb	*fb;
+
+	int				 flags;
+	int				 gpio_base;
+
+	int	(*get_power)(struct device *dev);
+	int	(*set_power)(struct device *dev, unsigned int on);
 
 	struct sm501_platdata_gpio_i2c	*gpio_i2c;
 	unsigned int			 gpio_i2c_nr;

@@ -408,7 +408,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->class = class >> 8;
 	dev->revision = class & 0xff;
 
-	sprintf(dev->dev.bus_id, "%04x:%02x:%02x.%d", pci_domain_nr(bus),
+	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	if (ofpci_verbose)
@@ -425,7 +425,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
 
-	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
+	if (!strcmp(node->name, "pci")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;

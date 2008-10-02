@@ -363,6 +363,7 @@ static int search_rsb_list(struct list_head *head, char *name, int len,
 		if (len == r->res_length && !memcmp(name, r->res_name, len))
 			goto found;
 	}
+	*r_ret = NULL;
 	return -EBADR;
 
  found:
@@ -1782,7 +1783,8 @@ static void grant_pending_locks(struct dlm_rsb *r)
 
 	list_for_each_entry_safe(lkb, s, &r->res_grantqueue, lkb_statequeue) {
 		if (lkb->lkb_bastfn && lock_requires_bast(lkb, high, cw)) {
-			if (cw && high == DLM_LOCK_PR)
+			if (cw && high == DLM_LOCK_PR &&
+			    lkb->lkb_grmode == DLM_LOCK_PR)
 				queue_bast(r, lkb, DLM_LOCK_CW);
 			else
 				queue_bast(r, lkb, high);

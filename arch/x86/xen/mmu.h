@@ -10,18 +10,6 @@ enum pt_level {
 	PT_PTE
 };
 
-/*
- * Page-directory addresses above 4GB do not fit into architectural %cr3.
- * When accessing %cr3, or equivalent field in vcpu_guest_context, guests
- * must use the following accessor macros to pack/unpack valid MFNs.
- *
- * Note that Xen is using the fact that the pagetable base is always
- * page-aligned, and putting the 12 MSB of the address into the 12 LSB
- * of cr3.
- */
-#define xen_pfn_to_cr3(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
-#define xen_cr3_to_pfn(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
-
 
 void set_pte_mfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
@@ -44,13 +32,26 @@ pgd_t xen_make_pgd(pgdval_t);
 void xen_set_pte(pte_t *ptep, pte_t pteval);
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval);
+
+#ifdef CONFIG_X86_PAE
 void xen_set_pte_atomic(pte_t *ptep, pte_t pte);
+void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void xen_pmd_clear(pmd_t *pmdp);
+#endif	/* CONFIG_X86_PAE */
+
 void xen_set_pmd(pmd_t *pmdp, pmd_t pmdval);
 void xen_set_pud(pud_t *ptr, pud_t val);
 void xen_set_pmd_hyper(pmd_t *pmdp, pmd_t pmdval);
 void xen_set_pud_hyper(pud_t *ptr, pud_t val);
-void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-void xen_pmd_clear(pmd_t *pmdp);
+
+#if PAGETABLE_LEVELS == 4
+pudval_t xen_pud_val(pud_t pud);
+pud_t xen_make_pud(pudval_t pudval);
+void xen_set_pgd(pgd_t *pgdp, pgd_t pgd);
+void xen_set_pgd_hyper(pgd_t *pgdp, pgd_t pgd);
+#endif
+
+pgd_t *xen_get_user_pgd(pgd_t *pgd);
 
 pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 void  xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,

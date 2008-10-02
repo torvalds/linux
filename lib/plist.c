@@ -31,12 +31,13 @@
 static void plist_check_prev_next(struct list_head *t, struct list_head *p,
 				  struct list_head *n)
 {
-	if (n->prev != p || p->next != n) {
-		printk("top: %p, n: %p, p: %p\n", t, t->next, t->prev);
-		printk("prev: %p, n: %p, p: %p\n", p, p->next, p->prev);
-		printk("next: %p, n: %p, p: %p\n", n, n->next, n->prev);
-		WARN_ON(1);
-	}
+	WARN(n->prev != p || p->next != n,
+			"top: %p, n: %p, p: %p\n"
+			"prev: %p, n: %p, p: %p\n"
+			"next: %p, n: %p, p: %p\n",
+			 t, t->next, t->prev,
+			p, p->next, p->prev,
+			n, n->next, n->prev);
 }
 
 static void plist_check_list(struct list_head *top)

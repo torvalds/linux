@@ -111,10 +111,7 @@ struct ulp_iscsi_info {
 	unsigned int llimit;
 	unsigned int ulimit;
 	unsigned int tagmask;
-	unsigned int pgsz3;
-	unsigned int pgsz2;
-	unsigned int pgsz1;
-	unsigned int pgsz0;
+	u8 pgsz_factor[4];
 	unsigned int max_rxsz;
 	unsigned int max_txsz;
 	struct pci_dev *pdev;

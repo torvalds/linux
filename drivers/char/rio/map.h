@@ -33,10 +33,6 @@
 #ifndef __rio_map_h__
 #define __rio_map_h__
 
-#ifdef SCCS_LABELS
-static char *_map_h_sccs_ = "@(#)map.h	1.2";
-#endif
-
 /*
 ** mapping structure passed to and from the config.rio program to
 ** determine the current topology of the world

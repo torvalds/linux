@@ -513,21 +513,11 @@ Additional Configurations
   Intel(R) PRO/1000 PT Dual Port Server Connection
   Intel(R) PRO/1000 PT Dual Port Server Adapter
   Intel(R) PRO/1000 PF Dual Port Server Adapter
-  Intel(R) PRO/1000 PT Quad Port Server Adapter 
+  Intel(R) PRO/1000 PT Quad Port Server Adapter
 
   NAPI
   ----
-  NAPI (Rx polling mode) is supported in the e1000 driver.  NAPI is enabled
-  or disabled based on the configuration of the kernel.  To override
-  the default, use the following compile-time flags.
-
-  To enable NAPI, compile the driver module, passing in a configuration option:
-
-       make CFLAGS_EXTRA=-DE1000_NAPI install
-
-  To disable NAPI, compile the driver module, passing in a configuration option:
-
-       make CFLAGS_EXTRA=-DE1000_NO_NAPI install
+  NAPI (Rx polling mode) is enabled in the e1000 driver.
 
   See www.cyberus.ca/~hadi/usenix-paper.tgz for more information on NAPI.
 

@@ -69,7 +69,7 @@
  *     systems, we use one-to-one mapping between IA-64 vector and IRQ.  A
  *     platform can implement platform_irq_to_vector(irq) and
  *     platform_local_vector_to_irq(vector) APIs to differentiate the mapping.
- *     Please see also include/asm-ia64/hw_irq.h for those APIs.
+ *     Please see also arch/ia64/include/asm/hw_irq.h for those APIs.
  *
  * To sum up, there are three levels of mappings involved:
  *
@@ -585,6 +585,15 @@ static inline int irq_is_shared (int irq)
 	return (iosapic_intr_info[irq].count > 1);
 }
 
+struct irq_chip*
+ia64_native_iosapic_get_irq_chip(unsigned long trigger)
+{
+	if (trigger == IOSAPIC_EDGE)
+		return &irq_type_iosapic_edge;
+	else
+		return &irq_type_iosapic_level;
+}
+
 static int
 register_intr (unsigned int gsi, int irq, unsigned char delivery,
 	       unsigned long polarity, unsigned long trigger)
@@ -635,13 +644,10 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 	iosapic_intr_info[irq].dmode    = delivery;
 	iosapic_intr_info[irq].trigger  = trigger;
 
-	if (trigger == IOSAPIC_EDGE)
-		irq_type = &irq_type_iosapic_edge;
-	else
-		irq_type = &irq_type_iosapic_level;
+	irq_type = iosapic_get_irq_chip(trigger);
 
 	idesc = irq_desc + irq;
-	if (idesc->chip != irq_type) {
+	if (irq_type != NULL && idesc->chip != irq_type) {
 		if (idesc->chip != &no_irq_type)
 			printk(KERN_WARNING
 			       "%s: changing vector %d from %s to %s\n",
@@ -974,6 +980,22 @@ iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 }
 
 void __init
+ia64_native_iosapic_pcat_compat_init(void)
+{
+	if (pcat_compat) {
+		/*
+		 * Disable the compatibility mode interrupts (8259 style),
+		 * needs IN/OUT support enabled.
+		 */
+		printk(KERN_INFO
+		       "%s: Disabling PC-AT compatible 8259 interrupts\n",
+		       __func__);
+		outb(0xff, 0xA1);
+		outb(0xff, 0x21);
+	}
+}
+
+void __init
 iosapic_system_init (int system_pcat_compat)
 {
 	int irq;
@@ -987,17 +1009,8 @@ iosapic_system_init (int system_pcat_compat)
 	}
 
 	pcat_compat = system_pcat_compat;
-	if (pcat_compat) {
-		/*
-		 * Disable the compatibility mode interrupts (8259 style),
-		 * needs IN/OUT support enabled.
-		 */
-		printk(KERN_INFO
-		       "%s: Disabling PC-AT compatible 8259 interrupts\n",
-		       __func__);
-		outb(0xff, 0xA1);
-		outb(0xff, 0x21);
-	}
+	if (pcat_compat)
+		iosapic_pcat_compat_init();
 }
 
 static inline int

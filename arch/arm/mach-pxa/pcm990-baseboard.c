@@ -22,25 +22,40 @@
 
 #include <linux/irq.h>
 #include <linux/platform_device.h>
-#include <linux/ide.h>
 #include <linux/i2c.h>
 #include <linux/pwm_backlight.h>
 
 #include <media/soc_camera.h>
 
 #include <asm/gpio.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/camera.h>
+#include <mach/i2c.h>
+#include <mach/camera.h>
 #include <asm/mach/map.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/pcm990_baseboard.h>
-#include <asm/arch/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/audio.h>
+#include <mach/mmc.h>
+#include <mach/ohci.h>
+#include <mach/pcm990_baseboard.h>
+#include <mach/pxafb.h>
+#include <mach/mfp-pxa27x.h>
 
 #include "devices.h"
+#include "generic.h"
+
+static unsigned long pcm990_pin_config[] __initdata = {
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO112_MMC_CMD,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	/* USB */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+	/* PWM0 */
+	GPIO16_PWM0_OUT,
+};
 
 /*
  * pcm990_lcd_power - control power supply to the LCD
@@ -277,16 +292,6 @@ static int pcm990_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 {
 	int err;
 
-	/*
-	 * enable GPIO for PXA27x MMC controller
-	 */
-	pxa_gpio_mode(GPIO32_MMCCLK_MD);
-	pxa_gpio_mode(GPIO112_MMCCMD_MD);
-	pxa_gpio_mode(GPIO92_MMCDAT0_MD);
-	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
-	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
-	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
-
 	err = request_irq(PCM027_MMCDET_IRQ, mci_detect_int, IRQF_DISABLED,
 			     "MMC card detect", data);
 	if (err)
@@ -333,8 +338,6 @@ static struct pxamci_platform_data pcm990_mci_platform_data = {
  */
 static int pcm990_ohci_init(struct device *dev)
 {
-	pxa_gpio_mode(PCM990_USB_OVERCURRENT);
-	pxa_gpio_mode(PCM990_USB_PWR_EN);
 	/*
 	 * disable USB port 2 and 3
 	 * power sense is active low
@@ -361,23 +364,27 @@ static struct pxaohci_platform_data pcm990_ohci_platform_data = {
  * PXA27x Camera specific stuff
  */
 #if defined(CONFIG_VIDEO_PXA27x) || defined(CONFIG_VIDEO_PXA27x_MODULE)
+static unsigned long pcm990_camera_pin_config[] = {
+	/* CIF */
+	GPIO98_CIF_DD_0,
+	GPIO105_CIF_DD_1,
+	GPIO104_CIF_DD_2,
+	GPIO103_CIF_DD_3,
+	GPIO95_CIF_DD_4,
+	GPIO94_CIF_DD_5,
+	GPIO93_CIF_DD_6,
+	GPIO108_CIF_DD_7,
+	GPIO107_CIF_DD_8,
+	GPIO106_CIF_DD_9,
+	GPIO42_CIF_MCLK,
+	GPIO45_CIF_PCLK,
+	GPIO43_CIF_FV,
+	GPIO44_CIF_LV,
+};
+
 static int pcm990_pxacamera_init(struct device *dev)
 {
-	pxa_gpio_mode(GPIO98_CIF_DD_0_MD);
-	pxa_gpio_mode(GPIO105_CIF_DD_1_MD);
-	pxa_gpio_mode(GPIO104_CIF_DD_2_MD);
-	pxa_gpio_mode(GPIO103_CIF_DD_3_MD);
-	pxa_gpio_mode(GPIO95_CIF_DD_4_MD);
-	pxa_gpio_mode(GPIO94_CIF_DD_5_MD);
-	pxa_gpio_mode(GPIO93_CIF_DD_6_MD);
-	pxa_gpio_mode(GPIO108_CIF_DD_7_MD);
-	pxa_gpio_mode(GPIO107_CIF_DD_8_MD);
-	pxa_gpio_mode(GPIO106_CIF_DD_9_MD);
-	pxa_gpio_mode(GPIO42_CIF_MCLK_MD);
-	pxa_gpio_mode(GPIO45_CIF_PCLK_MD);
-	pxa_gpio_mode(GPIO43_CIF_FV_MD);
-	pxa_gpio_mode(GPIO44_CIF_LV_MD);
-
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(pcm990_camera_pin_config));
 	return 0;
 }
 
@@ -449,8 +456,10 @@ static struct map_desc pcm990_io_desc[] __initdata = {
  */
 void __init pcm990_baseboard_init(void)
 {
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(pcm990_pin_config));
+
 	/* register CPLD access */
-	iotable_init(pcm990_io_desc, ARRAY_SIZE(pcm990_io_desc));
+	iotable_init(ARRAY_AND_SIZE(pcm990_io_desc));
 
 	/* register CPLD's IRQ controller */
 	pcm990_init_irq();
@@ -458,7 +467,6 @@ void __init pcm990_baseboard_init(void)
 #ifndef CONFIG_PCM990_DISPLAY_NONE
 	set_pxa_fb_info(&pcm990_fbinfo);
 #endif
-	pxa_gpio_mode(GPIO16_PWM0_MD);
 	platform_device_register(&pcm990_backlight_device);
 
 	/* MMC */
@@ -473,9 +481,8 @@ void __init pcm990_baseboard_init(void)
 #if defined(CONFIG_VIDEO_PXA27x) || defined(CONFIG_VIDEO_PXA27x_MODULE)
 	pxa_set_camera_info(&pcm990_pxacamera_platform_data);
 
-	i2c_register_board_info(0, pcm990_i2c_devices,
-		ARRAY_SIZE(pcm990_i2c_devices));
+	i2c_register_board_info(0, ARRAY_AND_SIZE(pcm990_i2c_devices));
 #endif
 
-	printk(KERN_INFO"PCM-990 Evaluation baseboard initialized\n");
+	printk(KERN_INFO "PCM-990 Evaluation baseboard initialized\n");
 }

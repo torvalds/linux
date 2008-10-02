@@ -24,8 +24,6 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
-int force_mwait __cpuinitdata;
-
 static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
 	if (cpuid_eax(0x80000000) >= 0x80000007) {
@@ -33,6 +31,11 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 		if (c->x86_power & (1<<8))
 			set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 	}
+
+	/*  Set MTRR capability flag if appropriate */
+	if (c->x86_model == 13 || c->x86_model == 9 ||
+	   (c->x86_model == 8 && c->x86_mask >= 8))
+		set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 }
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
@@ -168,10 +171,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 						mbytes);
 				}
 
-				/*  Set MTRR capability flag if appropriate */
-				if (c->x86_model == 13 || c->x86_model == 9 ||
-				   (c->x86_model == 8 && c->x86_mask >= 8))
-					set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 				break;
 			}
 

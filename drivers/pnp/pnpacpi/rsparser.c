@@ -405,8 +405,6 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		extended_irq = &res->data.extended_irq;
-		if (extended_irq->producer_consumer == ACPI_PRODUCER)
-			return AE_OK;
 
 		if (extended_irq->interrupt_count == 0)
 			pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);

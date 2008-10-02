@@ -1193,7 +1193,6 @@ static const struct sip_handler sip_handlers[] = {
 static int process_sip_response(struct sk_buff *skb,
 				const char **dptr, unsigned int *datalen)
 {
-	static const struct sip_handler *handler;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchoff, matchlen;
@@ -1214,6 +1213,8 @@ static int process_sip_response(struct sk_buff *skb,
 	dataoff = matchoff + matchlen + 1;
 
 	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
+		const struct sip_handler *handler;
+
 		handler = &sip_handlers[i];
 		if (handler->response == NULL)
 			continue;
@@ -1228,13 +1229,14 @@ static int process_sip_response(struct sk_buff *skb,
 static int process_sip_request(struct sk_buff *skb,
 			       const char **dptr, unsigned int *datalen)
 {
-	static const struct sip_handler *handler;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchoff, matchlen;
 	unsigned int cseq, i;
 
 	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
+		const struct sip_handler *handler;
+
 		handler = &sip_handlers[i];
 		if (handler->request == NULL)
 			continue;

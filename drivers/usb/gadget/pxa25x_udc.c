@@ -61,7 +61,7 @@
  * This driver is PXA25x only.  Grab the right register definitions.
  */
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa25x-udc.h>
+#include <mach/pxa25x-udc.h>
 #endif
 
 #include <asm/mach/udc_pxa2xx.h>
@@ -152,9 +152,10 @@ static int is_vbus_present(void)
 static void pullup_off(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+	int off_level = mach->gpio_pullup_inverted;
 
 	if (mach->gpio_pullup)
-		gpio_set_value(mach->gpio_pullup, 0);
+		gpio_set_value(mach->gpio_pullup, off_level);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
@@ -162,9 +163,10 @@ static void pullup_off(void)
 static void pullup_on(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
+	int on_level = !mach->gpio_pullup_inverted;
 
 	if (mach->gpio_pullup)
-		gpio_set_value(mach->gpio_pullup, 1);
+		gpio_set_value(mach->gpio_pullup, on_level);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }
@@ -340,7 +342,7 @@ pxa25x_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
 	struct pxa25x_request	*req;
 
 	req = container_of (_req, struct pxa25x_request, req);
-	WARN_ON (!list_empty (&req->queue));
+	WARN_ON(!list_empty (&req->queue));
 	kfree(req);
 }
 
@@ -1554,7 +1556,7 @@ config_change:
 					 * tell us about config change events,
 					 * so later ones may fail...
 					 */
-					WARN("config change %02x fail %d?\n",
+					WARNING("config change %02x fail %d?\n",
 						u.r.bRequest, i);
 					return;
 					/* TODO experiment:  if has_cfr,
@@ -1818,7 +1820,7 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 static void nop_release (struct device *dev)
 {
-	DMSG("%s %s\n", __func__, dev->bus_id);
+	DMSG("%s %s\n", __func__, dev_name(dev));
 }
 
 /* this uses load-time allocation and initialization (instead of
@@ -2328,7 +2330,7 @@ static int pxa25x_udc_suspend(struct platform_device *dev, pm_message_t state)
 	unsigned long flags;
 
 	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
-		WARN("USB host won't detect disconnect!\n");
+		WARNING("USB host won't detect disconnect!\n");
 	udc->suspended = 1;
 
 	local_irq_save(flags);

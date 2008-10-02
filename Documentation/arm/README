@@ -79,7 +79,7 @@ Machine/Platform support
   To this end, we now have arch/arm/mach-$(MACHINE) directories which are
   designed to house the non-driver files for a particular machine (eg, PCI,
   memory management, architecture definitions etc).  For all future
-  machines, there should be a corresponding include/asm-arm/arch-$(MACHINE)
+  machines, there should be a corresponding arch/arm/mach-$(MACHINE)/include/mach
   directory.
 
 
@@ -176,7 +176,7 @@ Kernel entry (head.S)
   class typically based around one or more system on a chip devices, and
   acts as a natural container around the actual implementations.  These
   classes are given directories - arch/arm/mach-<class> and
-  include/asm-arm/arch-<class> - which contain the source files to
+  arch/arm/mach-<class> - which contain the source files to/include/mach
   support the machine class.  This directories also contain any machine
   specific supporting code.
 

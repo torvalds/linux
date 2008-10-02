@@ -60,7 +60,7 @@
 
 #define PAGES2KB(_p) ((_p)<<(PAGE_SHIFT-10))
 
-#define BALLOON_CLASS_NAME "memory"
+#define BALLOON_CLASS_NAME "xen_memory"
 
 struct balloon_stats {
 	/* We aim for 'current allocation' == 'target allocation'. */
@@ -610,6 +610,7 @@ static ssize_t show_target_kb(struct sys_device *dev, char *buf)
 }
 
 static ssize_t store_target_kb(struct sys_device *dev,
+			       struct sysdev_attribute *attr,
 			       const char *buf,
 			       size_t count)
 {

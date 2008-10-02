@@ -1,6 +1,4 @@
 /*
- * $Id: evbug.c,v 1.10 2001/09/25 10:12:07 vojtech Exp $
- *
  *  Copyright (c) 1999-2001 Vojtech Pavlik
  */
 
@@ -41,7 +39,7 @@ MODULE_LICENSE("GPL");
 static void evbug_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
 	printk(KERN_DEBUG "evbug.c: Event. Dev: %s, Type: %d, Code: %d, Value: %d\n",
-		handle->dev->phys, type, code, value);
+		handle->dev->dev.bus_id, type, code, value);
 }
 
 static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
@@ -66,7 +64,10 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 	if (error)
 		goto err_unregister_handle;
 
-	printk(KERN_DEBUG "evbug.c: Connected device: \"%s\", %s\n", dev->name, dev->phys);
+	printk(KERN_DEBUG "evbug.c: Connected device: %s (%s at %s)\n",
+		dev->dev.bus_id,
+		dev->name ?: "unknown",
+		dev->phys ?: "unknown");
 
 	return 0;
 
@@ -79,7 +80,8 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 
 static void evbug_disconnect(struct input_handle *handle)
 {
-	printk(KERN_DEBUG "evbug.c: Disconnected device: %s\n", handle->dev->phys);
+	printk(KERN_DEBUG "evbug.c: Disconnected device: %s\n",
+		handle->dev->dev.bus_id);
 
 	input_close_device(handle);
 	input_unregister_handle(handle);

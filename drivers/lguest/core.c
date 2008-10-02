@@ -135,6 +135,7 @@ static void unmap_switcher(void)
 	/* Now we just need to free the pages we copied the switcher into */
 	for (i = 0; i < TOTAL_SWITCHER_PAGES; i++)
 		__free_pages(switcher_page[i], 0);
+	kfree(switcher_page);
 }
 
 /*H:032

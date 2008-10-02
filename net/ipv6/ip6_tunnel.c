@@ -6,8 +6,6 @@
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
  *	Yasuyuki Kozakai	<kozakai@linux-ipv6.org>
  *
- *	$Id$
- *
  *      Based on:
  *      linux/net/ipv6/sit.c and linux/net/ipv4/ipip.c
  *
@@ -711,7 +709,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		}
 
 		if (!ip6_tnl_rcv_ctl(t)) {
-			t->stat.rx_dropped++;
+			t->dev->stats.rx_dropped++;
 			read_unlock(&ip6_tnl_lock);
 			goto discard;
 		}
@@ -728,8 +726,8 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
 
-		t->stat.rx_packets++;
-		t->stat.rx_bytes += skb->len;
+		t->dev->stats.rx_packets++;
+		t->dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		read_unlock(&ip6_tnl_lock);
 		return 0;
@@ -849,7 +847,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 			 __u32 *pmtu)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	struct net_device_stats *stats = &t->stat;
+	struct net_device_stats *stats = &t->dev->stats;
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct ipv6_tel_txoption opt;
 	struct dst_entry *dst;
@@ -1043,11 +1041,11 @@ static int
 ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	struct net_device_stats *stats = &t->stat;
+	struct net_device_stats *stats = &t->dev->stats;
 	int ret;
 
 	if (t->recursion++) {
-		t->stat.collisions++;
+		stats->collisions++;
 		goto tx_err;
 	}
 
@@ -1289,19 +1287,6 @@ ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 /**
- * ip6_tnl_get_stats - return the stats for tunnel device
- *   @dev: virtual device associated with tunnel
- *
- * Return: stats for device
- **/
-
-static struct net_device_stats *
-ip6_tnl_get_stats(struct net_device *dev)
-{
-	return &(((struct ip6_tnl *)netdev_priv(dev))->stat);
-}
-
-/**
  * ip6_tnl_change_mtu - change mtu manually for tunnel device
  *   @dev: virtual device associated with tunnel
  *   @new_mtu: the new mtu
@@ -1334,7 +1319,6 @@ static void ip6_tnl_dev_setup(struct net_device *dev)
 	dev->uninit = ip6_tnl_dev_uninit;
 	dev->destructor = free_netdev;
 	dev->hard_start_xmit = ip6_tnl_xmit;
-	dev->get_stats = ip6_tnl_get_stats;
 	dev->do_ioctl = ip6_tnl_ioctl;
 	dev->change_mtu = ip6_tnl_change_mtu;
 

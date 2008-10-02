@@ -542,13 +542,14 @@ dummy_queue (struct usb_ep *_ep, struct usb_request *_req,
 		req->req.context = dum;
 		req->req.complete = fifo_complete;
 
+		list_add_tail(&req->queue, &ep->queue);
 		spin_unlock (&dum->lock);
 		_req->actual = _req->length;
 		_req->status = 0;
 		_req->complete (_ep, _req);
 		spin_lock (&dum->lock);
-	}
-	list_add_tail (&req->queue, &ep->queue);
+	}  else
+		list_add_tail(&req->queue, &ep->queue);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	/* real hardware would likely enable transfers here, in case
@@ -862,7 +863,7 @@ static int dummy_udc_probe (struct platform_device *pdev)
 	/* maybe claim OTG support, though we won't complete HNP */
 	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
 
-	strcpy (dum->gadget.dev.bus_id, "gadget");
+	dev_set_name(&dum->gadget.dev, "gadget");
 	dum->gadget.dev.parent = &pdev->dev;
 	dum->gadget.dev.release = dummy_gadget_release;
 	rc = device_register (&dum->gadget.dev);
@@ -1865,7 +1866,7 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
 
-	hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd)
 		return -ENOMEM;
 	the_controller = hcd_to_dummy (hcd);

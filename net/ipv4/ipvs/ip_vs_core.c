@@ -5,8 +5,6 @@
  *              high-performance and highly available server based on a
  *              cluster of servers.
  *
- * Version:     $Id: ip_vs_core.c,v 1.34 2003/05/10 03:05:23 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Peter Kese <peter.kese@ijs.si>
  *              Julian Anastasov <ja@ssi.bg>
@@ -993,7 +991,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	       == sysctl_ip_vs_sync_threshold[0])) ||
 	     ((cp->protocol == IPPROTO_TCP) && (cp->old_state != cp->state) &&
 	      ((cp->state == IP_VS_TCP_S_FIN_WAIT) ||
-	       (cp->state == IP_VS_TCP_S_CLOSE)))))
+	       (cp->state == IP_VS_TCP_S_CLOSE_WAIT) ||
+	       (cp->state == IP_VS_TCP_S_TIME_WAIT)))))
 		ip_vs_sync_conn(cp);
 	cp->old_state = cp->state;
 

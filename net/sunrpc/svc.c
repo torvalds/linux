@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -291,15 +292,14 @@ svc_pool_map_put(void)
 
 
 /*
- * Set the current thread's cpus_allowed mask so that it
+ * Set the given thread's cpus_allowed mask so that it
  * will only run on cpus in the given pool.
- *
- * Returns 1 and fills in oldmask iff a cpumask was applied.
  */
-static inline int
-svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
+static inline void
+svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 {
 	struct svc_pool_map *m = &svc_pool_map;
+	unsigned int node = m->pool_to[pidx];
 
 	/*
 	 * The caller checks for sv_nrpools > 1, which
@@ -307,26 +307,17 @@ svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
 	 */
 	BUG_ON(m->count == 0);
 
-	switch (m->mode)
-	{
-	default:
-		return 0;
+	switch (m->mode) {
 	case SVC_POOL_PERCPU:
 	{
-		unsigned int cpu = m->pool_to[pidx];
-
-		*oldmask = current->cpus_allowed;
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-		return 1;
+		set_cpus_allowed_ptr(task, &cpumask_of_cpu(node));
+		break;
 	}
 	case SVC_POOL_PERNODE:
 	{
-		unsigned int node = m->pool_to[pidx];
 		node_to_cpumask_ptr(nodecpumask, node);
-
-		*oldmask = current->cpus_allowed;
-		set_cpus_allowed_ptr(current, nodecpumask);
-		return 1;
+		set_cpus_allowed_ptr(task, nodecpumask);
+		break;
 	}
 	}
 }
@@ -443,7 +434,7 @@ EXPORT_SYMBOL(svc_create);
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 		void (*shutdown)(struct svc_serv *serv),
-		  svc_thread_fn func, int sig, struct module *mod)
+		  svc_thread_fn func, struct module *mod)
 {
 	struct svc_serv *serv;
 	unsigned int npools = svc_pool_map_get();
@@ -452,7 +443,6 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 
 	if (serv != NULL) {
 		serv->sv_function = func;
-		serv->sv_kill_signal = sig;
 		serv->sv_module = mod;
 	}
 
@@ -461,7 +451,8 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 EXPORT_SYMBOL(svc_create_pooled);
 
 /*
- * Destroy an RPC service.  Should be called with the BKL held
+ * Destroy an RPC service. Should be called with appropriate locking to
+ * protect the sv_nrthreads, sv_permsocks and sv_tempsocks.
  */
 void
 svc_destroy(struct svc_serv *serv)
@@ -578,46 +569,6 @@ out_enomem:
 EXPORT_SYMBOL(svc_prepare_thread);
 
 /*
- * Create a thread in the given pool.  Caller must hold BKL.
- * On a NUMA or SMP machine, with a multi-pool serv, the thread
- * will be restricted to run on the cpus belonging to the pool.
- */
-static int
-__svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
-		    struct svc_pool *pool)
-{
-	struct svc_rqst	*rqstp;
-	int		error = -ENOMEM;
-	int		have_oldmask = 0;
-	cpumask_t	uninitialized_var(oldmask);
-
-	rqstp = svc_prepare_thread(serv, pool);
-	if (IS_ERR(rqstp)) {
-		error = PTR_ERR(rqstp);
-		goto out;
-	}
-
-	if (serv->sv_nrpools > 1)
-		have_oldmask = svc_pool_map_set_cpumask(pool->sp_id, &oldmask);
-
-	error = kernel_thread((int (*)(void *)) func, rqstp, 0);
-
-	if (have_oldmask)
-		set_cpus_allowed(current, oldmask);
-
-	if (error < 0)
-		goto out_thread;
-	svc_sock_update_bufs(serv);
-	error = 0;
-out:
-	return error;
-
-out_thread:
-	svc_exit_thread(rqstp);
-	goto out;
-}
-
-/*
  * Choose a pool in which to create a new thread, for svc_set_num_threads
  */
 static inline struct svc_pool *
@@ -674,7 +625,7 @@ found_pool:
  * of threads the given number.  If `pool' is non-NULL, applies
  * only to threads in that pool, otherwise round-robins between
  * all pools.  Must be called with a svc_get() reference and
- * the BKL held.
+ * the BKL or another lock to protect access to svc_serv fields.
  *
  * Destroying threads relies on the service threads filling in
  * rqstp->rq_task, which only the nfs ones do.  Assumes the serv
@@ -686,7 +637,9 @@ found_pool:
 int
 svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
-	struct task_struct *victim;
+	struct svc_rqst	*rqstp;
+	struct task_struct *task;
+	struct svc_pool *chosen_pool;
 	int error = 0;
 	unsigned int state = serv->sv_nrthreads-1;
 
@@ -702,18 +655,34 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	/* create new threads */
 	while (nrservs > 0) {
 		nrservs--;
-		__module_get(serv->sv_module);
-		error = __svc_create_thread(serv->sv_function, serv,
-					    choose_pool(serv, pool, &state));
-		if (error < 0) {
-			module_put(serv->sv_module);
+		chosen_pool = choose_pool(serv, pool, &state);
+
+		rqstp = svc_prepare_thread(serv, chosen_pool);
+		if (IS_ERR(rqstp)) {
+			error = PTR_ERR(rqstp);
 			break;
 		}
+
+		__module_get(serv->sv_module);
+		task = kthread_create(serv->sv_function, rqstp, serv->sv_name);
+		if (IS_ERR(task)) {
+			error = PTR_ERR(task);
+			module_put(serv->sv_module);
+			svc_exit_thread(rqstp);
+			break;
+		}
+
+		rqstp->rq_task = task;
+		if (serv->sv_nrpools > 1)
+			svc_pool_map_set_cpumask(task, chosen_pool->sp_id);
+
+		svc_sock_update_bufs(serv);
+		wake_up_process(task);
 	}
 	/* destroy old threads */
 	while (nrservs < 0 &&
-	       (victim = choose_victim(serv, pool, &state)) != NULL) {
-		send_sig(serv->sv_kill_signal, victim, 1);
+	       (task = choose_victim(serv, pool, &state)) != NULL) {
+		send_sig(SIGINT, task, 1);
 		nrservs++;
 	}
 
@@ -722,7 +691,8 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 EXPORT_SYMBOL(svc_set_num_threads);
 
 /*
- * Called from a server thread as it's exiting.  Caller must hold BKL.
+ * Called from a server thread as it's exiting. Caller must hold the BKL or
+ * the "service mutex", whichever is appropriate for the service.
  */
 void
 svc_exit_thread(struct svc_rqst *rqstp)

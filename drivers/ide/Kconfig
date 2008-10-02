@@ -54,16 +54,6 @@ menuconfig IDE
 
 if IDE
 
-config IDE_MAX_HWIFS
-	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH || IA64 || EMBEDDED
-	range 1 10
-	default 4
-	help
-	  This is the maximum number of IDE hardware interfaces that will
-	  be supported by the driver. Make sure it is at least as high as
-	  the number of IDE interfaces in your system.
-
 config BLK_DEV_IDE
 	tristate "Enhanced IDE/MFM/RLL disk/cdrom/tape/floppy support"
 	---help---
@@ -252,7 +242,7 @@ config BLK_DEV_IDEFLOPPY
 	  module will be called ide-floppy.
 
 config BLK_DEV_IDESCSI
-	tristate "SCSI emulation support"
+	tristate "SCSI emulation support (DEPRECATED)"
 	depends on SCSI
 	select IDE_ATAPI
 	---help---
@@ -264,20 +254,6 @@ config BLK_DEV_IDESCSI
 	  This will provide SCSI host adapter emulation for IDE ATAPI devices,
 	  and will allow you to use a SCSI device driver instead of a native
 	  ATAPI driver.
-
-	  This is useful if you have an ATAPI device for which no native
-	  driver has been written (for example, an ATAPI PD-CD drive);
-	  you can then use this emulation together with an appropriate SCSI
-	  device driver. In order to do this, say Y here and to "SCSI support"
-	  and "SCSI generic support", below. You must then provide the kernel
-	  command line "hdx=ide-scsi" (try "man bootparam" or see the
-	  documentation of your boot loader (lilo or loadlin) about how to
-	  pass options to the kernel at boot time) for devices if you want the
-	  native EIDE sub-drivers to skip over the native support, so that
-	  this SCSI emulation can be used instead.
-
-	  Note that this option does NOT allow you to attach SCSI devices to a
-	  box that doesn't have a SCSI host adapter installed.
 
 	  If both this SCSI emulation and native ATAPI support are compiled
 	  into the kernel, the native support will be used.
@@ -314,8 +290,22 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	depends on ALPHA || X86 || IA64 || M32R || MIPS || PPC32
+	depends on ALPHA || X86 || IA64 || M32R || MIPS
 	help
+	  This is the generic IDE driver.  This driver attaches to the
+	  fixed legacy ports (e.g. on PCs 0x1f0/0x170, 0x1e8/0x168 and
+	  so on).  Please note that if this driver is built into the
+	  kernel or loaded before other ATA (IDE or libata) drivers
+	  and the controller is located at legacy ports, this driver
+	  may grab those ports and thus can prevent the controller
+	  specific driver from attaching.
+
+	  Also, currently, IDE generic doesn't allow IRQ sharing
+	  meaning that the IRQs it grabs won't be available to other
+	  controllers sharing those IRQs which usually makes drivers
+	  for those controllers fail.  Generally, it's not a good idea
+	  to load IDE generic driver on modern systems.
+
 	  If unsure, say N.
 
 config BLK_DEV_PLATFORM
@@ -510,6 +500,7 @@ config BLK_DEV_TRIFLEX
 
 config BLK_DEV_CY82C693
 	tristate "CY82C693 chipset support"
+	depends on ALPHA
 	select IDE_TIMINGS
 	select BLK_DEV_IDEDMA_PCI
 	help
@@ -548,6 +539,7 @@ config BLK_DEV_CS5535
 
 config BLK_DEV_HPT34X
 	tristate "HPT34X chipset support"
+	depends on BROKEN
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver adds up to 4 more EIDE devices sharing a single

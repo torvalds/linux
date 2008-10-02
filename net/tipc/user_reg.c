@@ -91,7 +91,7 @@ static int reg_init(void)
 		}
 	}
 	spin_unlock_bh(&reg_lock);
-	return users ? TIPC_OK : -ENOMEM;
+	return users ? 0 : -ENOMEM;
 }
 
 /**
@@ -129,7 +129,7 @@ int tipc_reg_start(void)
 			tipc_k_signal((Handler)reg_callback,
 				      (unsigned long)&users[u]);
 	}
-	return TIPC_OK;
+	return 0;
 }
 
 /**
@@ -184,7 +184,7 @@ int tipc_attach(u32 *userid, tipc_mode_event cb, void *usr_handle)
 
 	if (cb && (tipc_mode != TIPC_NOT_RUNNING))
 		tipc_k_signal((Handler)reg_callback, (unsigned long)user_ptr);
-	return TIPC_OK;
+	return 0;
 }
 
 /**
@@ -230,7 +230,7 @@ int tipc_reg_add_port(struct user_port *up_ptr)
 	struct tipc_user *user_ptr;
 
 	if (up_ptr->user_ref == 0)
-		return TIPC_OK;
+		return 0;
 	if (up_ptr->user_ref > MAX_USERID)
 		return -EINVAL;
 	if ((tipc_mode == TIPC_NOT_RUNNING) || !users )
@@ -240,7 +240,7 @@ int tipc_reg_add_port(struct user_port *up_ptr)
 	user_ptr = &users[up_ptr->user_ref];
 	list_add(&up_ptr->uport_list, &user_ptr->ports);
 	spin_unlock_bh(&reg_lock);
-	return TIPC_OK;
+	return 0;
 }
 
 /**
@@ -250,7 +250,7 @@ int tipc_reg_add_port(struct user_port *up_ptr)
 int tipc_reg_remove_port(struct user_port *up_ptr)
 {
 	if (up_ptr->user_ref == 0)
-		return TIPC_OK;
+		return 0;
 	if (up_ptr->user_ref > MAX_USERID)
 		return -EINVAL;
 	if (!users )
@@ -259,6 +259,6 @@ int tipc_reg_remove_port(struct user_port *up_ptr)
 	spin_lock_bh(&reg_lock);
 	list_del_init(&up_ptr->uport_list);
 	spin_unlock_bh(&reg_lock);
-	return TIPC_OK;
+	return 0;
 }
 

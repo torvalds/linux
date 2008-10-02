@@ -362,8 +362,9 @@ static int init_coda_psdev(void)
 		goto out_chrdev;
 	}		
 	for (i = 0; i < MAX_CODADEVS; i++)
-		device_create(coda_psdev_class, NULL,
-			      MKDEV(CODA_PSDEV_MAJOR,i), "cfs%d", i);
+		device_create_drvdata(coda_psdev_class, NULL,
+				      MKDEV(CODA_PSDEV_MAJOR, i),
+				      NULL, "cfs%d", i);
 	coda_sysctl_init();
 	goto out;
 
@@ -377,11 +378,7 @@ MODULE_AUTHOR("Jan Harkes, Peter J. Braam");
 MODULE_DESCRIPTION("Coda Distributed File System VFS interface");
 MODULE_ALIAS_CHARDEV_MAJOR(CODA_PSDEV_MAJOR);
 MODULE_LICENSE("GPL");
-#ifdef CONFIG_CODA_FS_OLD_API
-MODULE_VERSION("5.3.21");
-#else
 MODULE_VERSION("6.6");
-#endif
 
 static int __init init_coda(void)
 {

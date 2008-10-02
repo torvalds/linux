@@ -24,7 +24,7 @@
  * requirement that the application has is cleaned up when closes the file
  * pointer or exits the pm_qos_object will get an opportunity to clean up.
  *
- * mark gross mgross@linux.intel.com
+ * Mark Gross <mgross@linux.intel.com>
  */
 
 #include <linux/pm_qos_params.h>
@@ -43,7 +43,7 @@
 #include <linux/uaccess.h>
 
 /*
- * locking rule: all changes to target_value or requirements or notifiers lists
+ * locking rule: all changes to requirements or notifiers lists
  * or pm_qos_object list and pm_qos_objects need to happen with pm_qos_lock
  * held, taken with _irqsave.  One lock to rule them all
  */
@@ -66,7 +66,7 @@ struct pm_qos_object {
 	struct miscdevice pm_qos_power_miscdev;
 	char *name;
 	s32 default_value;
-	s32 target_value;
+	atomic_t target_value;
 	s32 (*comparitor)(s32, s32);
 };
 
@@ -77,7 +77,7 @@ static struct pm_qos_object cpu_dma_pm_qos = {
 	.notifiers = &cpu_dma_lat_notifier,
 	.name = "cpu_dma_latency",
 	.default_value = 2000 * USEC_PER_SEC,
-	.target_value = 2000 * USEC_PER_SEC,
+	.target_value = ATOMIC_INIT(2000 * USEC_PER_SEC),
 	.comparitor = min_compare
 };
 
@@ -87,7 +87,7 @@ static struct pm_qos_object network_lat_pm_qos = {
 	.notifiers = &network_lat_notifier,
 	.name = "network_latency",
 	.default_value = 2000 * USEC_PER_SEC,
-	.target_value = 2000 * USEC_PER_SEC,
+	.target_value = ATOMIC_INIT(2000 * USEC_PER_SEC),
 	.comparitor = min_compare
 };
 
@@ -99,7 +99,7 @@ static struct pm_qos_object network_throughput_pm_qos = {
 	.notifiers = &network_throughput_notifier,
 	.name = "network_throughput",
 	.default_value = 0,
-	.target_value = 0,
+	.target_value = ATOMIC_INIT(0),
 	.comparitor = max_compare
 };
 
@@ -150,11 +150,11 @@ static void update_target(int target)
 		extreme_value = pm_qos_array[target]->comparitor(
 				extreme_value, node->value);
 	}
-	if (pm_qos_array[target]->target_value != extreme_value) {
+	if (atomic_read(&pm_qos_array[target]->target_value) != extreme_value) {
 		call_notifier = 1;
-		pm_qos_array[target]->target_value = extreme_value;
+		atomic_set(&pm_qos_array[target]->target_value, extreme_value);
 		pr_debug(KERN_ERR "new target for qos %d is %d\n", target,
-			pm_qos_array[target]->target_value);
+			atomic_read(&pm_qos_array[target]->target_value));
 	}
 	spin_unlock_irqrestore(&pm_qos_lock, flags);
 
@@ -193,14 +193,7 @@ static int find_pm_qos_object_by_minor(int minor)
  */
 int pm_qos_requirement(int pm_qos_class)
 {
-	int ret_val;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pm_qos_lock, flags);
-	ret_val = pm_qos_array[pm_qos_class]->target_value;
-	spin_unlock_irqrestore(&pm_qos_lock, flags);
-
-	return ret_val;
+	return atomic_read(&pm_qos_array[pm_qos_class]->target_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_requirement);
 
@@ -211,8 +204,8 @@ EXPORT_SYMBOL_GPL(pm_qos_requirement);
  * @value: defines the qos request
  *
  * This function inserts a new entry in the pm_qos_class list of requested qos
- * performance charactoistics.  It recomputes the agregate QoS expectations for
- * the pm_qos_class of parrameters.
+ * performance characteristics.  It recomputes the aggregate QoS expectations
+ * for the pm_qos_class of parameters.
  */
 int pm_qos_add_requirement(int pm_qos_class, char *name, s32 value)
 {
@@ -250,10 +243,10 @@ EXPORT_SYMBOL_GPL(pm_qos_add_requirement);
  * @name: identifies the request
  * @value: defines the qos request
  *
- * Updates an existing qos requierement for the pm_qos_class of parameters along
+ * Updates an existing qos requirement for the pm_qos_class of parameters along
  * with updating the target pm_qos_class value.
  *
- * If the named request isn't in the lest then no change is made.
+ * If the named request isn't in the list then no change is made.
  */
 int pm_qos_update_requirement(int pm_qos_class, char *name, s32 new_value)
 {
@@ -287,7 +280,7 @@ EXPORT_SYMBOL_GPL(pm_qos_update_requirement);
  * @pm_qos_class: identifies which list of qos request to us
  * @name: identifies the request
  *
- * Will remove named qos request from pm_qos_class list of parrameters and
+ * Will remove named qos request from pm_qos_class list of parameters and
  * recompute the current target value for the pm_qos_class.
  */
 void pm_qos_remove_requirement(int pm_qos_class, char *name)
@@ -319,7 +312,7 @@ EXPORT_SYMBOL_GPL(pm_qos_remove_requirement);
  * @notifier: notifier block managed by caller.
  *
  * will register the notifier into a notification chain that gets called
- * uppon changes to the pm_qos_class target value.
+ * upon changes to the pm_qos_class target value.
  */
  int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier)
 {
@@ -338,7 +331,7 @@ EXPORT_SYMBOL_GPL(pm_qos_add_notifier);
  * @notifier: notifier block to be removed.
  *
  * will remove the notifier from the notification chain that gets called
- * uppon changes to the pm_qos_class target value.
+ * upon changes to the pm_qos_class target value.
  */
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier)
 {

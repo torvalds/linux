@@ -40,12 +40,19 @@
 #include <asm/sysmips.h>
 #include <asm/uaccess.h>
 
-asmlinkage int sys_pipe(nabi_no_regargs volatile struct pt_regs regs)
+/*
+ * For historic reasons the pipe(2) syscall on MIPS has an unusual calling
+ * convention.  It returns results in registers $v0 / $v1 which means there
+ * is no need for it to do verify the validity of a userspace pointer
+ * argument.  Historically that used to be expensive in Linux.  These days
+ * the performance advantage is negligible.
+ */
+asmlinkage int sysm_pipe(nabi_no_regargs volatile struct pt_regs regs)
 {
 	int fd[2];
 	int error, res;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, 0);
 	if (error) {
 		res = error;
 		goto out;

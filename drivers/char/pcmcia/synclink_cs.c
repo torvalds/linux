@@ -232,7 +232,6 @@ typedef struct _mgslpc_info {
 
 	/* SPPP/Cisco HDLC device parts */
 	int netcount;
-	int dosyncppp;
 	spinlock_t netlock;
 
 #if SYNCLINK_GENERIC_HDLC
@@ -459,13 +458,11 @@ static int ttymajor=0;
 
 static int debug_level = 0;
 static int maxframe[MAX_DEVICE_COUNT] = {0,};
-static int dosyncppp[MAX_DEVICE_COUNT] = {1,1,1,1};
 
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
-module_param_array(dosyncppp, int, NULL, 0);
 
 MODULE_LICENSE("GPL");
 
@@ -514,8 +511,8 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 		return;
 	ld = tty_ldisc_ref(tty);
 	if (ld) {
-		if (ld->receive_buf)
-			ld->receive_buf(tty, data, flags, count);
+		if (ld->ops->receive_buf)
+			ld->ops->receive_buf(tty, data, flags, count);
 		tty_ldisc_deref(ld);
 	}
 }
@@ -2230,7 +2227,7 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
  * Arguments:		tty		pointer to tty instance data
  *			break_state	-1=set break condition, 0=clear
  */
-static void mgslpc_break(struct tty_struct *tty, int break_state)
+static int mgslpc_break(struct tty_struct *tty, int break_state)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
@@ -2240,7 +2237,7 @@ static void mgslpc_break(struct tty_struct *tty, int break_state)
 			 __FILE__,__LINE__, info->device_name, break_state);
 
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_break"))
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&info->lock,flags);
  	if (break_state == -1)
@@ -2248,6 +2245,7 @@ static void mgslpc_break(struct tty_struct *tty, int break_state)
 	else
 		clear_reg_bits(info, CHA+DAFO, BIT6);
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 0;
 }
 
 /* Service an IOCTL request
@@ -2914,7 +2912,6 @@ static void mgslpc_add_device(MGSLPC_INFO *info)
 	if (info->line < MAX_DEVICE_COUNT) {
 		if (maxframe[info->line])
 			info->max_frame_size = maxframe[info->line];
-		info->dosyncppp = dosyncppp[info->line];
 	}
 
 	mgslpc_device_count++;
@@ -3886,9 +3883,8 @@ static bool rx_get_frame(MGSLPC_INFO *info)
 		framesize = 0;
 #if SYNCLINK_GENERIC_HDLC
 		{
-			struct net_device_stats *stats = hdlc_stats(info->netdev);
-			stats->rx_errors++;
-			stats->rx_frame_errors++;
+			info->netdev->stats.rx_errors++;
+			info->netdev->stats.rx_frame_errors++;
 		}
 #endif
 	} else
@@ -4144,7 +4140,6 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
 static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	MGSLPC_INFO *info = dev_to_port(dev);
-	struct net_device_stats *stats = hdlc_stats(dev);
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -4159,8 +4154,8 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	info->tx_put = info->tx_count = skb->len;
 
 	/* update network statistics */
-	stats->tx_packets++;
-	stats->tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	/* done with socket buffer, so free it */
 	dev_kfree_skb(skb);
@@ -4376,14 +4371,13 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void hdlcdev_tx_timeout(struct net_device *dev)
 {
 	MGSLPC_INFO *info = dev_to_port(dev);
-	struct net_device_stats *stats = hdlc_stats(dev);
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("hdlcdev_tx_timeout(%s)\n",dev->name);
 
-	stats->tx_errors++;
-	stats->tx_aborted_errors++;
+	dev->stats.tx_errors++;
+	dev->stats.tx_aborted_errors++;
 
 	spin_lock_irqsave(&info->lock,flags);
 	tx_stop(info);
@@ -4416,27 +4410,26 @@ static void hdlcdev_rx(MGSLPC_INFO *info, char *buf, int size)
 {
 	struct sk_buff *skb = dev_alloc_skb(size);
 	struct net_device *dev = info->netdev;
-	struct net_device_stats *stats = hdlc_stats(dev);
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("hdlcdev_rx(%s)\n",dev->name);
 
 	if (skb == NULL) {
 		printk(KERN_NOTICE "%s: can't alloc skb, dropping packet\n", dev->name);
-		stats->rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 
-	memcpy(skb_put(skb, size),buf,size);
+	memcpy(skb_put(skb, size), buf, size);
 
-	skb->protocol = hdlc_type_trans(skb, info->netdev);
+	skb->protocol = hdlc_type_trans(skb, dev);
 
-	stats->rx_packets++;
-	stats->rx_bytes += size;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += size;
 
 	netif_rx(skb);
 
-	info->netdev->last_rx = jiffies;
+	dev->last_rx = jiffies;
 }
 
 /**

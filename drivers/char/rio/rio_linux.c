@@ -25,11 +25,6 @@
  *      Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
  *      USA.
  *
- * Revision history:
- * $Log: rio.c,v $
- * Revision 1.1  1999/07/11 10:13:54  wolff
- * Initial revision
- *
  * */
 
 #include <linux/module.h>
@@ -184,7 +179,7 @@ static int rio_set_real_termios(void *ptr);
 static void rio_hungup(void *ptr);
 static void rio_close(void *ptr);
 static int rio_chars_in_buffer(void *ptr);
-static int rio_fw_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
+static long rio_fw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 static int rio_init_drivers(void);
 
 static void my_hd(void *addr, int len);
@@ -245,7 +240,7 @@ static struct real_driver rio_real_driver = {
 
 static const struct file_operations rio_fw_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = rio_fw_ioctl,
+	.unlocked_ioctl = rio_fw_ioctl,
 };
 
 static struct miscdevice rio_fw_device = {
@@ -436,7 +431,7 @@ static void rio_disable_tx_interrupts(void *ptr)
 {
 	func_enter();
 
-	/*  port->gs.flags &= ~GS_TX_INTEN; */
+	/*  port->gs.port.flags &= ~GS_TX_INTEN; */
 
 	func_exit();
 }
@@ -460,7 +455,7 @@ static void rio_enable_tx_interrupts(void *ptr)
 	 * In general we cannot count on "tx empty" interrupts, although
 	 * the interrupt routine seems to be able to tell the difference.
 	 */
-	PortP->gs.flags &= ~GS_TX_INTEN;
+	PortP->gs.port.flags &= ~GS_TX_INTEN;
 
 	func_exit();
 }
@@ -515,7 +510,7 @@ static void rio_shutdown_port(void *ptr)
 	func_enter();
 
 	PortP = (struct Port *) ptr;
-	PortP->gs.tty = NULL;
+	PortP->gs.port.tty = NULL;
 	func_exit();
 }
 
@@ -534,7 +529,7 @@ static void rio_hungup(void *ptr)
 	func_enter();
 
 	PortP = (struct Port *) ptr;
-	PortP->gs.tty = NULL;
+	PortP->gs.port.tty = NULL;
 
 	func_exit();
 }
@@ -554,24 +549,26 @@ static void rio_close(void *ptr)
 
 	riotclose(ptr);
 
-	if (PortP->gs.count) {
-		printk(KERN_ERR "WARNING port count:%d\n", PortP->gs.count);
-		PortP->gs.count = 0;
+	if (PortP->gs.port.count) {
+		printk(KERN_ERR "WARNING port count:%d\n", PortP->gs.port.count);
+		PortP->gs.port.count = 0;
 	}
 
-	PortP->gs.tty = NULL;
+	PortP->gs.port.tty = NULL;
 	func_exit();
 }
 
 
 
-static int rio_fw_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long rio_fw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int rc = 0;
 	func_enter();
 
 	/* The "dev" argument isn't used. */
+	lock_kernel();
 	rc = riocontrol(p, 0, cmd, arg, capable(CAP_SYS_ADMIN));
+	unlock_kernel();
 
 	func_exit();
 	return rc;
@@ -854,8 +851,8 @@ static int rio_init_datastructures(void)
 		/*
 		 * Initializing wait queue
 		 */
-		init_waitqueue_head(&port->gs.open_wait);
-		init_waitqueue_head(&port->gs.close_wait);
+		init_waitqueue_head(&port->gs.port.open_wait);
+		init_waitqueue_head(&port->gs.port.close_wait);
 	}
 #else
 	/* We could postpone initializing them to when they are configured. */

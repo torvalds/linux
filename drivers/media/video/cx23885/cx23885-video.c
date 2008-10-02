@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
- *  Copyright (c) 2007 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2007 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 
 #include "cx23885.h"
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 /* Include V4L1 specific functions. Should be removed soon */
@@ -40,7 +41,7 @@
 #endif
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
-MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
+MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
@@ -326,7 +327,7 @@ struct video_device *cx23885_vdev_init(struct cx23885_dev *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev     = &pci->dev;
+	vfd->parent  = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, cx23885_boards[dev->board].name);
@@ -915,7 +916,7 @@ static void init_controls(struct cx23885_dev *dev)
 /* ------------------------------------------------------------------ */
 /* VIDEO IOCTLS                                                       */
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
 	struct cx23885_fh *fh   = priv;
@@ -932,7 +933,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
@@ -983,7 +984,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
 	struct cx23885_fh *fh = priv;
@@ -991,7 +992,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	int err;
 
 	dprintk(2, "%s()\n", __func__);
-	err = vidioc_try_fmt_cap(file, priv, f);
+	err = vidioc_try_fmt_vid_cap(file, priv, f);
 
 	if (0 != err)
 		return err;
@@ -1025,7 +1026,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	struct v4l2_fmtdesc *f)
 {
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
@@ -1433,20 +1434,15 @@ static const struct file_operations video_fops = {
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx23885_vbi_template;
-static struct video_device cx23885_video_template = {
-	.name                 = "cx23885-video",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
-	.fops                 = &video_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
-	.vidioc_g_fmt_vbi     = cx23885_vbi_fmt,
-	.vidioc_try_fmt_vbi   = cx23885_vbi_fmt,
-	.vidioc_s_fmt_vbi     = cx23885_vbi_fmt,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vbi_cap     = cx23885_vbi_fmt,
+	.vidioc_try_fmt_vbi_cap   = cx23885_vbi_fmt,
+	.vidioc_s_fmt_vbi_cap     = cx23885_vbi_fmt,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
@@ -1471,6 +1467,14 @@ static struct video_device cx23885_video_template = {
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
+};
+
+static struct video_device cx23885_vbi_template;
+static struct video_device cx23885_video_template = {
+	.name                 = "cx23885-video",
+	.fops                 = &video_fops,
+	.minor                = -1,
+	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1512,7 +1516,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	memcpy(&cx23885_vbi_template, &cx23885_video_template,
 		sizeof(cx23885_vbi_template));
 	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
-	cx23885_vbi_template.type = VID_TYPE_TELETEXT|VID_TYPE_TUNER;
 
 	dev->tvnorm = cx23885_video_template.current_norm;
 

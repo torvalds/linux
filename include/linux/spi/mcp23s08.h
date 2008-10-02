@@ -1,17 +1,24 @@
 
-/* FIXME driver should be able to handle all four slaves that
- * can be hooked up to each chipselect, as well as IRQs...
- */
+/* FIXME driver should be able to handle IRQs...  */
+
+struct mcp23s08_chip_info {
+	bool	is_present;		/* true iff populated */
+	u8	pullups;		/* BIT(x) means enable pullup x */
+};
 
 struct mcp23s08_platform_data {
-	/* four slaves can share one SPI chipselect */
-	u8		slave;
+	/* Four slaves (numbered 0..3) can share one SPI chipselect, and
+	 * will provide 8..32 GPIOs using 1..4 gpio_chip instances.
+	 */
+	struct mcp23s08_chip_info	chip[4];
 
-	/* number assigned to the first GPIO */
+	/* "base" is the number of the first GPIO.  Dynamic assignment is
+	 * not currently supported, and even if there are gaps in chip
+	 * addressing the GPIO numbers are sequential .. so for example
+	 * if only slaves 0 and 3 are present, their GPIOs range from
+	 * base to base+15.
+	 */
 	unsigned	base;
-
-	/* pins with pullups */
-	u8		pullups;
 
 	void		*context;	/* param to setup/teardown */
 

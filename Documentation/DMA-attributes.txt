@@ -22,3 +22,12 @@ ready and available in memory.  The DMA of the "completion indication"
 could race with data DMA.  Mapping the memory used for completion
 indications with DMA_ATTR_WRITE_BARRIER would prevent the race.
 
+DMA_ATTR_WEAK_ORDERING
+----------------------
+
+DMA_ATTR_WEAK_ORDERING specifies that reads and writes to the mapping
+may be weakly ordered, that is that reads and writes may pass each other.
+
+Since it is optional for platforms to implement DMA_ATTR_WEAK_ORDERING,
+those that do not will simply ignore the attribute and exhibit default
+behavior.

@@ -51,6 +51,7 @@
 #include <asm/mca.h>
 #include <asm/meminit.h>
 #include <asm/page.h>
+#include <asm/paravirt.h>
 #include <asm/patch.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -313,7 +314,7 @@ static inline void __init setup_crashkernel(unsigned long total, int *n)
  *
  * Setup the reserved memory areas set aside for the boot parameters,
  * initrd, etc.  There are currently %IA64_MAX_RSVD_REGIONS defined,
- * see include/asm-ia64/meminit.h if you need to define more.
+ * see arch/ia64/include/asm/meminit.h if you need to define more.
  */
 void __init
 reserve_memory (void)
@@ -340,6 +341,8 @@ reserve_memory (void)
 	rsvd_region[n].start = (unsigned long) ia64_imva((void *)KERNEL_START);
 	rsvd_region[n].end   = (unsigned long) ia64_imva(_end);
 	n++;
+
+	n += paravirt_reserve_memory(&rsvd_region[n]);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (ia64_boot_param->initrd_start) {
@@ -519,6 +522,8 @@ setup_arch (char **cmdline_p)
 {
 	unw_init();
 
+	paravirt_arch_setup_early();
+
 	ia64_patch_vtop((u64) __start___vtop_patchlist, (u64) __end___vtop_patchlist);
 
 	*cmdline_p = __va(ia64_boot_param->command_line);
@@ -583,6 +588,9 @@ setup_arch (char **cmdline_p)
 	acpi_boot_init();
 #endif
 
+	paravirt_banner();
+	paravirt_arch_setup_console(cmdline_p);
+
 #ifdef CONFIG_VT
 	if (!conswitchp) {
 # if defined(CONFIG_DUMMY_CONSOLE)
@@ -602,11 +610,15 @@ setup_arch (char **cmdline_p)
 #endif
 
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
+	if (paravirt_arch_setup_nomca())
+		nomca = 1;
 	if (!nomca)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
+#ifndef CONFIG_IA64_HP_SIM
 	check_sal_cache_flush();
+#endif
 	paging_init();
 }
 
@@ -917,16 +929,18 @@ cpu_init (void)
 	if (smp_processor_id() == 0) {
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));
 		cpu_set(0, cpu_core_map[0]);
+	} else {
+		/*
+		 * Set ar.k3 so that assembly code in MCA handler can compute
+		 * physical addresses of per cpu variables with a simple:
+		 *   phys = ar.k3 + &per_cpu_var
+		 * and the alt-dtlb-miss handler can set per-cpu mapping into
+		 * the TLB when needed. head.S already did this for cpu0.
+		 */
+		ia64_set_kr(IA64_KR_PER_CPU_DATA,
+			    ia64_tpa(cpu_data) - (long) __per_cpu_start);
 	}
 #endif
-
-	/*
-	 * We set ar.k3 so that assembly code in MCA handler can compute
-	 * physical addresses of per cpu variables with a simple:
-	 *   phys = ar.k3 + &per_cpu_var
-	 */
-	ia64_set_kr(IA64_KR_PER_CPU_DATA,
-		    ia64_tpa(cpu_data) - (long) __per_cpu_start);
 
 	get_max_cacheline_size();
 

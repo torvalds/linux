@@ -1088,7 +1088,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		 * the value 0x7FFFFFFF here. I think that is some weird
 		 * compiler optimization in the original driver.
 		 * Essentially, what we do here is resetting all NRSSI LT
-		 * entries to -32 (see the limit_value() in nrssi_hw_update())
+		 * entries to -32 (see the clamp_val() in nrssi_hw_update())
 		 */
 		b43legacy_nrssi_hw_update(dev, 0xFFFF);
 		b43legacy_calc_nrssi_threshold(dev);
@@ -1756,7 +1756,7 @@ static s8 b43legacy_phy_estimate_power_out(struct b43legacy_wldev *dev, s8 tssi)
 	switch (phy->type) {
 	case B43legacy_PHYTYPE_B:
 	case B43legacy_PHYTYPE_G:
-		tmp = limit_value(tmp, 0x00, 0x3F);
+		tmp = clamp_val(tmp, 0x00, 0x3F);
 		dbm = phy->tssi2dbm[tmp];
 		break;
 	default:
@@ -1859,7 +1859,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 
 	/* find the desired power in Q5.2 - power_level is in dBm
 	 * and limit it - max_pwr is already in Q5.2 */
-	desired_pwr = limit_value(phy->power_level << 2, 0, max_pwr);
+	desired_pwr = clamp_val(phy->power_level << 2, 0, max_pwr);
 	if (b43legacy_debug(dev, B43legacy_DBG_XMITPOWER))
 		b43legacydbg(dev->wl, "Current TX power output: " Q52_FMT
 		       " dBm, Desired TX power output: " Q52_FMT
@@ -1905,7 +1905,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 			radio_attenuation++;
 		}
 	}
-	baseband_attenuation = limit_value(baseband_attenuation, 0, 11);
+	baseband_attenuation = clamp_val(baseband_attenuation, 0, 11);
 
 	txpower = phy->txctl1;
 	if ((phy->radio_ver == 0x2050) && (phy->radio_rev == 2)) {
@@ -1933,8 +1933,8 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	}
 	/* Save the control values */
 	phy->txctl1 = txpower;
-	baseband_attenuation = limit_value(baseband_attenuation, 0, 11);
-	radio_attenuation = limit_value(radio_attenuation, 0, 9);
+	baseband_attenuation = clamp_val(baseband_attenuation, 0, 11);
+	radio_attenuation = clamp_val(radio_attenuation, 0, 9);
 	phy->rfatt = radio_attenuation;
 	phy->bbatt = baseband_attenuation;
 
@@ -1979,7 +1979,7 @@ s8 b43legacy_tssi2dbm_entry(s8 entry [], u8 index, s16 pab0, s16 pab1, s16 pab2)
 		f = q;
 		i++;
 	} while (delta >= 2);
-	entry[index] = limit_value(b43legacy_tssi2dbm_ad(m1 * f, 8192),
+	entry[index] = clamp_val(b43legacy_tssi2dbm_ad(m1 * f, 8192),
 				   -127, 128);
 	return 0;
 }

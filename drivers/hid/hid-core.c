@@ -780,7 +780,7 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
  */
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
 {
-	__le64 x;
+	u64 x;
 	u64 m = (1ULL << n) - 1;
 
 	if (n > 32)
@@ -796,10 +796,10 @@ static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u3
 	report += offset >> 3;
 	offset &= 7;
 
-	x = get_unaligned((__le64 *)report);
-	x &= cpu_to_le64(~(m << offset));
-	x |= cpu_to_le64(((u64) value) << offset);
-	put_unaligned(x, (__le64 *) report);
+	x = get_unaligned_le64(report);
+	x &= ~(m << offset);
+	x |= ((u64)value) << offset;
+	put_unaligned_le64(x, report);
 }
 
 /*

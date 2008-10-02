@@ -2,7 +2,7 @@
  * include/linux/tipc_config.h: Include file for TIPC configuration interface
  * 
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,6 +134,14 @@
 #define  TIPC_CMD_SET_MAX_NODES     0x8009    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_SLAVES    0x800A    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_NETID         0x800B    /* tx unsigned, rx none */
+
+/*
+ * Reserved commands:
+ * May not be issued by any process.
+ * Used internally by TIPC.
+ */
+
+#define  TIPC_CMD_NOT_NET_ADMIN     0xC001    /* tx none, rx none */
 
 /*
  * TLV types defined for TIPC

@@ -1970,6 +1970,9 @@ __orinoco_set_multicast_list(struct net_device *dev)
 			priv->promiscuous = promisc;
 	}
 
+	/* If we're not in promiscuous mode, then we need to set the
+	 * group address if either we want to multicast, or if we were
+	 * multicasting and want to stop */
 	if (! promisc && (mc_count || priv->mc_count) ) {
 		struct dev_mc_list *p = dev->mc_list;
 		struct hermes_multicast mclist;
@@ -1989,22 +1992,16 @@ __orinoco_set_multicast_list(struct net_device *dev)
 			printk(KERN_WARNING "%s: Multicast list is "
 			       "longer than mc_count\n", dev->name);
 
-		err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFGROUPADDRESSES,
-				       HERMES_BYTES_TO_RECLEN(priv->mc_count * ETH_ALEN),
-				       &mclist);
+		err = hermes_write_ltv(hw, USER_BAP,
+				   HERMES_RID_CNFGROUPADDRESSES,
+				   HERMES_BYTES_TO_RECLEN(mc_count * ETH_ALEN),
+				   &mclist);
 		if (err)
 			printk(KERN_ERR "%s: Error %d setting multicast list.\n",
 			       dev->name, err);
 		else
 			priv->mc_count = mc_count;
 	}
-
-	/* Since we can set the promiscuous flag when it wasn't asked
-	   for, make sure the net_device knows about it. */
-	if (priv->promiscuous)
-		dev->flags |= IFF_PROMISC;
-	else
-		dev->flags &= ~IFF_PROMISC;
 }
 
 /* This must be called from user context, without locks held - use
@@ -4046,6 +4043,7 @@ static int orinoco_ioctl_setscan(struct net_device *dev,
  * format that the Wireless Tools will understand - Jean II
  * Return message length or -errno for fatal errors */
 static inline char *orinoco_translate_scan(struct net_device *dev,
+					   struct iw_request_info *info,
 					   char *current_ev,
 					   char *end_buf,
 					   union hermes_scan_info *bss,
@@ -4062,7 +4060,8 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bss->a.bssid, ETH_ALEN);
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_ADDR_LEN);
 
 	/* Other entries will be displayed in the order we give them */
 
@@ -4072,7 +4071,8 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 		iwe.u.data.length = 32;
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, bss->a.essid);
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, bss->a.essid);
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
@@ -4082,7 +4082,8 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_UINT_LEN);
 	}
 
 	channel = bss->s.channel;
@@ -4091,7 +4092,7 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 		iwe.cmd = SIOCGIWFREQ;
 		iwe.u.freq.m = channel_frequency[channel-1] * 100000;
 		iwe.u.freq.e = 1;
-		current_ev = iwe_stream_add_event(current_ev, end_buf,
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
 						  &iwe, IW_EV_FREQ_LEN);
 	}
 
@@ -4106,7 +4107,8 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 		iwe.u.qual.qual = iwe.u.qual.level - iwe.u.qual.noise;
 	else
 		iwe.u.qual.qual = 0;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
@@ -4115,7 +4117,8 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, bss->a.essid);
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, bss->a.essid);
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
 	 * for given network. */
@@ -4126,11 +4129,12 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 		      jiffies_to_msecs(jiffies - last_scanned));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, custom);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, custom);
 
 	/* Bit rate is not available in Lucent/Agere firmwares */
 	if (priv->firmware_type != FIRMWARE_TYPE_AGERE) {
-		char *current_val = current_ev + IW_EV_LCP_LEN;
+		char *current_val = current_ev + iwe_stream_lcp_len(info);
 		int i;
 		int step;
 
@@ -4149,12 +4153,13 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 				break;
 			/* Bit rate given in 500 kb/s units (+ 0x80) */
 			iwe.u.bitrate.value = ((bss->p.rates[i] & 0x7f) * 500000);
-			current_val = iwe_stream_add_value(current_ev, current_val,
+			current_val = iwe_stream_add_value(info, current_ev,
+							   current_val,
 							   end_buf, &iwe,
 							   IW_EV_PARAM_LEN);
 		}
 		/* Check if we added any event */
-		if ((current_val - current_ev) > IW_EV_LCP_LEN)
+		if ((current_val - current_ev) > iwe_stream_lcp_len(info))
 			current_ev = current_val;
 	}
 
@@ -4190,7 +4195,7 @@ static int orinoco_ioctl_getscan(struct net_device *dev,
 
 	list_for_each_entry(bss, &priv->bss_list, list) {
 		/* Translate to WE format this entry */
-		current_ev = orinoco_translate_scan(dev, current_ev,
+		current_ev = orinoco_translate_scan(dev, info, current_ev,
 						    extra + srq->length,
 						    &bss->bss,
 						    bss->last_scanned);

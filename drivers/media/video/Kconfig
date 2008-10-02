@@ -24,21 +24,21 @@ config VIDEOBUF_VMALLOC
 	select VIDEOBUF_GEN
 	tristate
 
+config VIDEOBUF_DMA_CONTIG
+	depends on HAS_DMA
+	select VIDEOBUF_GEN
+	tristate
+
 config VIDEOBUF_DVB
 	tristate
 	select VIDEOBUF_GEN
-	select VIDEOBUF_DMA_SG
 
 config VIDEO_BTCX
-	tristate
-
-config VIDEO_IR_I2C
 	tristate
 
 config VIDEO_IR
 	tristate
 	depends on INPUT
-	select VIDEO_IR_I2C if I2C
 
 config VIDEO_TVEEPROM
 	tristate
@@ -81,6 +81,19 @@ config VIDEO_HELPER_CHIPS_AUTO
 
 	  Unselect this only if you know exactly what you are doing, since
 	  it may break support on some boards.
+
+	  In doubt, say Y.
+
+config VIDEO_IR_I2C
+	tristate "I2C module for IR" if !VIDEO_HELPER_CHIPS_AUTO
+	depends on I2C && VIDEO_IR
+	default y
+	---help---
+	  Most boards have an IR chip directly connected via GPIO. However,
+	  some video boards have the IR connected via I2C bus.
+
+	  If your board doesn't have an I2C IR chip, you may disable this
+	  option.
 
 	  In doubt, say Y.
 
@@ -474,17 +487,6 @@ config VIDEO_PMS
 	  To compile this driver as a module, choose M here: the
 	  module will be called pms.
 
-config VIDEO_PLANB
-	tristate "PlanB Video-In on PowerMac"
-	depends on PPC_PMAC && VIDEO_V4L1 && BROKEN
-	help
-	  PlanB is the V4L driver for the PowerMac 7x00/8x00 series video
-	  input hardware. If you want to experiment with this, say Y.
-	  Otherwise, or if you don't understand a word, say N. See
-	  <http://www.cpu.lu/~mlan/linux/dev/planb.html> for more info.
-
-	  Saying M will compile this driver as a module (planb).
-
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
 	depends on PARPORT && VIDEO_V4L1
@@ -600,9 +602,6 @@ config VIDEO_STRADIS
 	  driver for PCI.  There is a product page at
 	  <http://www.stradis.com/>.
 
-config VIDEO_ZORAN_ZR36060
-	tristate
-
 config VIDEO_ZORAN
 	tristate "Zoran ZR36057/36067 Video For Linux"
 	depends on PCI && I2C_ALGOBIT && VIDEO_V4L1 && VIRT_TO_BUS
@@ -616,25 +615,6 @@ config VIDEO_ZORAN
 	  To compile this driver as a module, choose M here: the
 	  module will be called zr36067.
 
-config VIDEO_ZORAN_BUZ
-	tristate "Iomega Buz support"
-	depends on VIDEO_ZORAN
-	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_SAA7185 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ZORAN_ZR36060
-	help
-	  Support for the Iomega Buz MJPEG capture/playback card.
-
-config VIDEO_ZORAN_DC10
-	tristate "Pinnacle/Miro DC10(+) support"
-	depends on VIDEO_ZORAN
-	select VIDEO_SAA7110
-	select VIDEO_ADV7175 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ZORAN_ZR36060
-	help
-	  Support for the Pinnacle/Miro DC10(+) MJPEG capture/playback
-	  card.
-
 config VIDEO_ZORAN_DC30
 	tristate "Pinnacle/Miro DC30(+) support"
 	depends on VIDEO_ZORAN
@@ -645,32 +625,54 @@ config VIDEO_ZORAN_DC30
 	  card. This also supports really old DC10 cards based on the
 	  zr36050 MJPEG codec and zr36016 VFE.
 
+config VIDEO_ZORAN_ZR36060
+	tristate "Zoran ZR36060"
+	depends on VIDEO_ZORAN
+	help
+	  Say Y to support Zoran boards based on 36060 chips.
+	  This includes Iomega Buz, Pinnacle DC10, Linux media Labs 33
+	  and 33 R10 and AverMedia 6 boards.
+
+config VIDEO_ZORAN_BUZ
+	tristate "Iomega Buz support"
+	depends on VIDEO_ZORAN_ZR36060
+	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA7185 if VIDEO_HELPER_CHIPS_AUTO
+	help
+	  Support for the Iomega Buz MJPEG capture/playback card.
+
+config VIDEO_ZORAN_DC10
+	tristate "Pinnacle/Miro DC10(+) support"
+	depends on VIDEO_ZORAN_ZR36060
+	select VIDEO_SAA7110 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_ADV7175 if VIDEO_HELPER_CHIPS_AUTO
+	help
+	  Support for the Pinnacle/Miro DC10(+) MJPEG capture/playback
+	  card.
+
 config VIDEO_ZORAN_LML33
 	tristate "Linux Media Labs LML33 support"
-	depends on VIDEO_ZORAN
+	depends on VIDEO_ZORAN_ZR36060
 	select VIDEO_BT819 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ZORAN_ZR36060
 	help
 	  Support for the Linux Media Labs LML33 MJPEG capture/playback
 	  card.
 
 config VIDEO_ZORAN_LML33R10
 	tristate "Linux Media Labs LML33R10 support"
-	depends on VIDEO_ZORAN
+	depends on VIDEO_ZORAN_ZR36060
 	select VIDEO_SAA7114 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_ADV7170 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ZORAN_ZR36060
 	help
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
 	  card.
 
 config VIDEO_ZORAN_AVS6EYES
 	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
-	depends on VIDEO_ZORAN && EXPERIMENTAL && VIDEO_V4L1
+	depends on VIDEO_ZORAN_ZR36060 && EXPERIMENTAL && VIDEO_V4L1
 	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_KS0127 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ZORAN_ZR36060
 	help
 	  Support for the AverMedia 6 Eyes video surveillance card.
 
@@ -793,13 +795,9 @@ menuconfig V4L_USB_DRIVERS
 
 if V4L_USB_DRIVERS && USB
 
-config USB_VIDEO_CLASS
-	tristate "USB Video Class (UVC)"
-	---help---
-	  Support for the USB Video Class (UVC).  Currently only video
-	  input devices, such as webcams, are supported.
+source "drivers/media/video/uvc/Kconfig"
 
-	  For more information see: <http://linux-uvc.berlios.de/>
+source "drivers/media/video/gspca/Kconfig"
 
 source "drivers/media/video/pvrusb2/Kconfig"
 
@@ -905,12 +903,21 @@ config USB_STKWEBCAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called stkwebcam.
 
+config USB_S2255
+	tristate "USB Sensoray 2255 video capture device"
+	depends on VIDEO_V4L2
+	select VIDEOBUF_VMALLOC
+	default n
+	help
+	  Say Y here if you want support for the Sensoray 2255 USB device.
+	  This driver can be compiled as a module, called s2255drv.
+
 endif # V4L_USB_DRIVERS
 
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF_GEN
 	help
 	  SoC Camera is a common API to several cameras, not connecting
 	  over a bus like PCI or USB. For example some i2c camera connected
@@ -945,11 +952,26 @@ config MT9V022_PCA9536_SWITCH
 	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
 	  extender to switch between 8 and 10 bit datawidth modes
 
+config SOC_CAMERA_PLATFORM
+	tristate "platform camera support"
+	depends on SOC_CAMERA
+	help
+	  This is a generic SoC camera platform driver, useful for testing
+
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
 	depends on VIDEO_DEV && PXA27x
 	select SOC_CAMERA
+	select VIDEOBUF_DMA_SG
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+
+config VIDEO_SH_MOBILE_CEU
+	tristate "SuperH Mobile CEU Interface driver"
+	depends on VIDEO_DEV && HAS_DMA
+	select SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the SuperH Mobile CEU Interface
 
 endif # VIDEO_CAPTURE_DRIVERS

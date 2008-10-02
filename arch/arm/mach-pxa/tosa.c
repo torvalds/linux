@@ -18,36 +18,39 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
-#include <linux/mmc/host.h>
-#include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/fb.h>
+#include <linux/mmc/host.h>
+#include <linux/mfd/tc6393xb.h>
+#include <linux/mfd/tmio.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
+#include <linux/pm.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/pda_power.h>
+#include <linux/rfkill.h>
 
 #include <asm/setup.h>
-#include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/udc.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/irda.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/udc.h>
+#include <mach/tosa_bt.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/irq.h>
-#include <asm/arch/tosa.h>
+#include <mach/tosa.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
+#include "clock.h"
 #include "devices.h"
 
 static unsigned long tosa_pin_config[] = {
@@ -86,7 +89,7 @@ static unsigned long tosa_pin_config[] = {
 	GPIO6_MMC_CLK,
 	GPIO8_MMC_CS0,
 	GPIO9_GPIO, /* Detect */
-	// GPIO10 nSD_INT
+	GPIO10_GPIO, /* nSD_INT */
 
 	/* CF */
 	GPIO13_GPIO, /* CD_IRQ */
@@ -124,34 +127,34 @@ static unsigned long tosa_pin_config[] = {
 	GPIO44_BTUART_CTS,
 	GPIO45_BTUART_RTS,
 
-	/* IrDA */
-	GPIO46_STUART_RXD,
-	GPIO47_STUART_TXD,
-
 	/* Keybd */
-	GPIO58_GPIO,
-	GPIO59_GPIO,
-	GPIO60_GPIO,
-	GPIO61_GPIO,
-	GPIO62_GPIO,
-	GPIO63_GPIO,
-	GPIO64_GPIO,
-	GPIO65_GPIO,
-	GPIO66_GPIO,
-	GPIO67_GPIO,
-	GPIO68_GPIO,
-	GPIO69_GPIO,
-	GPIO70_GPIO,
-	GPIO71_GPIO,
-	GPIO72_GPIO,
-	GPIO73_GPIO,
-	GPIO74_GPIO,
-	GPIO75_GPIO,
+	GPIO58_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO59_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO60_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO61_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO62_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO63_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO64_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO65_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO66_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO67_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO68_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO69_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO70_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO71_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO72_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO73_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO74_GPIO | MFP_LPM_DRIVE_LOW,
+	GPIO75_GPIO | MFP_LPM_DRIVE_LOW,
 
 	/* SPI */
 	GPIO81_SSP2_CLK_OUT,
 	GPIO82_SSP2_FRM_OUT,
 	GPIO83_SSP2_TXD,
+
+	/* IrDA is managed in other way */
+	GPIO46_GPIO,
+	GPIO47_GPIO,
 };
 
 /*
@@ -249,6 +252,15 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 
 	tosa_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
+	err = gpio_request(TOSA_GPIO_nSD_DETECT, "MMC/SD card detect");
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: can't request nSD_DETECT gpio\n");
+		goto err_gpio_detect;
+	}
+	err = gpio_direction_input(TOSA_GPIO_nSD_DETECT);
+	if (err)
+		goto err_gpio_detect_dir;
+
 	err = request_irq(TOSA_IRQ_GPIO_nSD_DETECT, tosa_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"MMC/SD card detect", data);
@@ -257,7 +269,7 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 		goto err_irq;
 	}
 
-	err = gpio_request(TOSA_GPIO_SD_WP, "sd_wp");
+	err = gpio_request(TOSA_GPIO_SD_WP, "SD Write Protect");
 	if (err) {
 		printk(KERN_ERR "tosa_mci_init: can't request SD_WP gpio\n");
 		goto err_gpio_wp;
@@ -266,7 +278,7 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 	if (err)
 		goto err_gpio_wp_dir;
 
-	err = gpio_request(TOSA_GPIO_PWR_ON, "sd_pwr");
+	err = gpio_request(TOSA_GPIO_PWR_ON, "SD Power");
 	if (err) {
 		printk(KERN_ERR "tosa_mci_init: can't request SD_PWR gpio\n");
 		goto err_gpio_pwr;
@@ -275,8 +287,20 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 	if (err)
 		goto err_gpio_pwr_dir;
 
+	err = gpio_request(TOSA_GPIO_nSD_INT, "SD Int");
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: can't request SD_PWR gpio\n");
+		goto err_gpio_int;
+	}
+	err = gpio_direction_input(TOSA_GPIO_nSD_INT);
+	if (err)
+		goto err_gpio_int_dir;
+
 	return 0;
 
+err_gpio_int_dir:
+	gpio_free(TOSA_GPIO_nSD_INT);
+err_gpio_int:
 err_gpio_pwr_dir:
 	gpio_free(TOSA_GPIO_PWR_ON);
 err_gpio_pwr:
@@ -285,6 +309,9 @@ err_gpio_wp_dir:
 err_gpio_wp:
 	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
 err_irq:
+err_gpio_detect_dir:
+	gpio_free(TOSA_GPIO_nSD_DETECT);
+err_gpio_detect:
 	return err;
 }
 
@@ -306,9 +333,11 @@ static int tosa_mci_get_ro(struct device *dev)
 
 static void tosa_mci_exit(struct device *dev, void *data)
 {
+	gpio_free(TOSA_GPIO_nSD_INT);
 	gpio_free(TOSA_GPIO_PWR_ON);
 	gpio_free(TOSA_GPIO_SD_WP);
 	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(TOSA_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data tosa_mci_platform_data = {
@@ -322,29 +351,55 @@ static struct pxamci_platform_data tosa_mci_platform_data = {
 /*
  * Irda
  */
+static void tosa_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF) {
+		gpio_set_value(TOSA_GPIO_IR_POWERDWN, 0);
+		pxa2xx_transceiver_mode(dev, mode);
+		gpio_direction_output(TOSA_GPIO_IRDA_TX, 0);
+	} else {
+		pxa2xx_transceiver_mode(dev, mode);
+		gpio_set_value(TOSA_GPIO_IR_POWERDWN, 1);
+	}
+}
+
 static int tosa_irda_startup(struct device *dev)
 {
 	int ret;
 
+	ret = gpio_request(TOSA_GPIO_IRDA_TX, "IrDA TX");
+	if (ret)
+		goto err_tx;
+	ret = gpio_direction_output(TOSA_GPIO_IRDA_TX, 0);
+	if (ret)
+		goto err_tx_dir;
+
 	ret = gpio_request(TOSA_GPIO_IR_POWERDWN, "IrDA powerdown");
 	if (ret)
-		return ret;
+		goto err_pwr;
 
 	ret = gpio_direction_output(TOSA_GPIO_IR_POWERDWN, 0);
 	if (ret)
-		gpio_free(TOSA_GPIO_IR_POWERDWN);
+		goto err_pwr_dir;
 
+	tosa_irda_transceiver_mode(dev, IR_SIRMODE | IR_OFF);
+
+	return 0;
+
+err_pwr_dir:
+	gpio_free(TOSA_GPIO_IR_POWERDWN);
+err_pwr:
+err_tx_dir:
+	gpio_free(TOSA_GPIO_IRDA_TX);
+err_tx:
 	return ret;
-	}
+}
 
 static void tosa_irda_shutdown(struct device *dev)
 {
+	tosa_irda_transceiver_mode(dev, IR_SIRMODE | IR_OFF);
 	gpio_free(TOSA_GPIO_IR_POWERDWN);
-}
-
-static void tosa_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(TOSA_GPIO_IR_POWERDWN, !(mode & IR_OFF));
+	gpio_free(TOSA_GPIO_IRDA_TX);
 }
 
 static struct pxaficp_platform_data tosa_ficp_platform_data = {
@@ -352,6 +407,70 @@ static struct pxaficp_platform_data tosa_ficp_platform_data = {
 	.transceiver_mode = tosa_irda_transceiver_mode,
 	.startup = tosa_irda_startup,
 	.shutdown = tosa_irda_shutdown,
+};
+
+/*
+ * Tosa AC IN
+ */
+static int tosa_power_init(struct device *dev)
+{
+	int ret = gpio_request(TOSA_GPIO_AC_IN, "ac in");
+	if (ret)
+		goto err_gpio_req;
+
+	ret = gpio_direction_input(TOSA_GPIO_AC_IN);
+	if (ret)
+		goto err_gpio_in;
+
+	return 0;
+
+err_gpio_in:
+	gpio_free(TOSA_GPIO_AC_IN);
+err_gpio_req:
+	return ret;
+}
+
+static void tosa_power_exit(struct device *dev)
+{
+	gpio_free(TOSA_GPIO_AC_IN);
+}
+
+static int tosa_power_ac_online(void)
+{
+	return gpio_get_value(TOSA_GPIO_AC_IN) == 0;
+}
+
+static char *tosa_ac_supplied_to[] = {
+	"main-battery",
+	"backup-battery",
+	"jacket-battery",
+};
+
+static struct pda_power_pdata tosa_power_data = {
+	.init			= tosa_power_init,
+	.is_ac_online		= tosa_power_ac_online,
+	.exit			= tosa_power_exit,
+	.supplied_to		= tosa_ac_supplied_to,
+	.num_supplicants	= ARRAY_SIZE(tosa_ac_supplied_to),
+};
+
+static struct resource tosa_power_resource[] = {
+	{
+		.name		= "ac",
+		.start		= gpio_to_irq(TOSA_GPIO_AC_IN),
+		.end		= gpio_to_irq(TOSA_GPIO_AC_IN),
+		.flags		= IORESOURCE_IRQ |
+				  IORESOURCE_IRQ_HIGHEDGE |
+				  IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+static struct platform_device tosa_power_device = {
+	.name			= "pda-power",
+	.id			= -1,
+	.dev.platform_data	= &tosa_power_data,
+	.resource		= tosa_power_resource,
+	.num_resources		= ARRAY_SIZE(tosa_power_resource),
 };
 
 /*
@@ -403,6 +522,14 @@ static struct gpio_keys_button tosa_gpio_keys[] = {
 		.wakeup	= 1,
 		.active_low = 1,
 	},
+	{
+		.type	= EV_SW,
+		.code	= SW_HEADPHONE_INSERT,
+		.gpio	= TOSA_GPIO_EAR_IN,
+		.desc	= "HeadPhone insert",
+		.active_low = 1,
+		.debounce_interval = 300,
+	},
 };
 
 static struct gpio_keys_platform_data tosa_gpio_keys_platform_data = {
@@ -439,7 +566,7 @@ static struct gpio_led tosa_gpio_leds[] = {
 	},
 	{
 		.name			= "tosa:blue:bluetooth",
-		.default_trigger	= "none",
+		.default_trigger	= "tosa-bt",
 		.gpio			= TOSA_GPIO_BT_LED,
 	},
 };
@@ -457,21 +584,184 @@ static struct platform_device tosaled_device = {
 	},
 };
 
+/*
+ * Toshiba Mobile IO Controller
+ */
+static struct resource tc6393xb_resources[] = {
+	[0] = {
+		.start	= TOSA_LCDC_PHYS,
+		.end	= TOSA_LCDC_PHYS + 0x3ffffff,
+		.flags	= IORESOURCE_MEM,
+	},
+
+	[1] = {
+		.start	= TOSA_IRQ_GPIO_TC6393XB_INT,
+		.end	= TOSA_IRQ_GPIO_TC6393XB_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static int tosa_tc6393xb_enable(struct platform_device *dev)
+{
+	int rc;
+
+	rc = gpio_request(TOSA_GPIO_TC6393XB_REST_IN, "tc6393xb #pclr");
+	if (rc)
+		goto err_req_pclr;
+	rc = gpio_request(TOSA_GPIO_TC6393XB_SUSPEND, "tc6393xb #suspend");
+	if (rc)
+		goto err_req_suspend;
+	rc = gpio_request(TOSA_GPIO_TC6393XB_L3V_ON, "l3v");
+	if (rc)
+		goto err_req_l3v;
+	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_L3V_ON, 0);
+	if (rc)
+		goto err_dir_l3v;
+	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_SUSPEND, 0);
+	if (rc)
+		goto err_dir_suspend;
+	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_REST_IN, 0);
+	if (rc)
+		goto err_dir_pclr;
+
+	mdelay(1);
+
+	gpio_set_value(TOSA_GPIO_TC6393XB_SUSPEND, 1);
+
+	mdelay(10);
+
+	gpio_set_value(TOSA_GPIO_TC6393XB_REST_IN, 1);
+	gpio_set_value(TOSA_GPIO_TC6393XB_L3V_ON, 1);
+
+	return 0;
+err_dir_pclr:
+err_dir_suspend:
+err_dir_l3v:
+	gpio_free(TOSA_GPIO_TC6393XB_L3V_ON);
+err_req_l3v:
+	gpio_free(TOSA_GPIO_TC6393XB_SUSPEND);
+err_req_suspend:
+	gpio_free(TOSA_GPIO_TC6393XB_REST_IN);
+err_req_pclr:
+	return rc;
+}
+
+static int tosa_tc6393xb_disable(struct platform_device *dev)
+{
+	gpio_free(TOSA_GPIO_TC6393XB_L3V_ON);
+	gpio_free(TOSA_GPIO_TC6393XB_SUSPEND);
+	gpio_free(TOSA_GPIO_TC6393XB_REST_IN);
+
+	return 0;
+}
+
+static int tosa_tc6393xb_resume(struct platform_device *dev)
+{
+	gpio_set_value(TOSA_GPIO_TC6393XB_SUSPEND, 1);
+	mdelay(10);
+	gpio_set_value(TOSA_GPIO_TC6393XB_L3V_ON, 1);
+	mdelay(10);
+
+	return 0;
+}
+
+static int tosa_tc6393xb_suspend(struct platform_device *dev)
+{
+	gpio_set_value(TOSA_GPIO_TC6393XB_L3V_ON, 0);
+	gpio_set_value(TOSA_GPIO_TC6393XB_SUSPEND, 0);
+	return 0;
+}
+
+static struct mtd_partition tosa_nand_partition[] = {
+	{
+		.name	= "smf",
+		.offset	= 0,
+		.size	= 7 * 1024 * 1024,
+	},
+	{
+		.name	= "root",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 28 * 1024 * 1024,
+	},
+	{
+		.name	= "home",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
+
+static struct nand_bbt_descr tosa_tc6393xb_nand_bbt = {
+	.options	= 0,
+	.offs		= 4,
+	.len		= 2,
+	.pattern	= scan_ff_pattern
+};
+
+static struct tmio_nand_data tosa_tc6393xb_nand_config = {
+	.num_partitions	= ARRAY_SIZE(tosa_nand_partition),
+	.partition	= tosa_nand_partition,
+	.badblock_pattern = &tosa_tc6393xb_nand_bbt,
+};
+
+static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
+	.scr_pll2cr	= 0x0cc1,
+	.scr_gper	= 0x3300,
+	.scr_gpo_dsr	=
+		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
+	.scr_gpo_doecr	=
+		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
+
+	.irq_base	= IRQ_BOARD_START,
+	.gpio_base	= TOSA_TC6393XB_GPIO_BASE,
+
+	.enable		= tosa_tc6393xb_enable,
+	.disable	= tosa_tc6393xb_disable,
+	.suspend	= tosa_tc6393xb_suspend,
+	.resume		= tosa_tc6393xb_resume,
+
+	.nand_data	= &tosa_tc6393xb_nand_config,
+};
+
+
+static struct platform_device tc6393xb_device = {
+	.name	= "tc6393xb",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &tosa_tc6393xb_setup,
+	},
+	.num_resources	= ARRAY_SIZE(tc6393xb_resources),
+	.resource	= tc6393xb_resources,
+};
+
+static struct tosa_bt_data tosa_bt_data = {
+	.gpio_pwr	= TOSA_GPIO_BT_PWR_EN,
+	.gpio_reset	= TOSA_GPIO_BT_RESET,
+};
+
+static struct platform_device tosa_bt_device = {
+	.name	= "tosa-bt",
+	.id	= -1,
+	.dev.platform_data = &tosa_bt_data,
+};
+
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
+	&tc6393xb_device,
+	&tosa_power_device,
 	&tosakbd_device,
 	&tosa_gpio_keys_device,
 	&tosaled_device,
+	&tosa_bt_device,
 };
 
 static void tosa_poweroff(void)
 {
-	gpio_direction_output(TOSA_GPIO_ON_RESET, 0);
-	gpio_set_value(TOSA_GPIO_ON_RESET, 1);
-
-	mdelay(1000);
-	arm_machine_restart('h');
+	arm_machine_restart('g');
 }
 
 static void tosa_restart(char mode)
@@ -485,9 +775,13 @@ static void tosa_restart(char mode)
 
 static void __init tosa_init(void)
 {
+	int dummy;
+
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
+
+	init_gpio_reset(TOSA_GPIO_ON_RESET);
 
 	pm_power_off = tosa_poweroff;
 	arm_pm_restart = tosa_restart;
@@ -497,11 +791,17 @@ static void __init tosa_init(void)
 	/* enable batt_fault */
 	PMCR = 0x01;
 
+	dummy = gpiochip_reserve(TOSA_SCOOP_GPIO_BASE, 12);
+	dummy = gpiochip_reserve(TOSA_SCOOP_JC_GPIO_BASE, 12);
+	dummy = gpiochip_reserve(TOSA_TC6393XB_GPIO_BASE, 16);
+
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
+
+	clk_add_alias("CLK_CK3P6MI", &tc6393xb_device.dev, "GPIO11_CLK", NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

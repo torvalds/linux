@@ -26,6 +26,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/string.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_drivers.h>

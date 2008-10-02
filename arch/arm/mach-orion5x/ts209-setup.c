@@ -26,7 +26,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 #include "tsx09-common.h"
@@ -117,7 +117,7 @@ void __init qnap_ts209_pci_preinit(void)
 	pin = QNAP_TS209_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "qnap_ts209_pci_preinit failed to "
 					"set_irq_type pin %d\n", pin);
@@ -131,7 +131,7 @@ void __init qnap_ts209_pci_preinit(void)
 	pin = QNAP_TS209_PCI_SLOT1_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int2") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "qnap_ts209_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
@@ -207,12 +207,12 @@ static struct i2c_board_info __initdata qnap_ts209_i2c_rtc = {
 
 static struct gpio_keys_button qnap_ts209_buttons[] = {
 	{
-		.code		= KEY_RESTART,
+		.code		= KEY_COPY,
 		.gpio		= QNAP_TS209_GPIO_KEY_MEDIA,
 		.desc		= "USB Copy Button",
 		.active_low	= 1,
 	}, {
-		.code		= KEY_POWER,
+		.code		= KEY_RESTART,
 		.gpio		= QNAP_TS209_GPIO_KEY_RESET,
 		.desc		= "Reset Button",
 		.active_low	= 1,
@@ -287,6 +287,10 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Configure peripherals.
 	 */
+	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
+				   QNAP_TS209_NOR_BOOT_SIZE);
+	platform_device_register(&qnap_ts209_nor_flash);
+
 	orion5x_ehci0_init();
 	orion5x_ehci1_init();
 	qnap_tsx09_find_mac_addr(QNAP_TS209_NOR_BOOT_BASE +
@@ -296,10 +300,8 @@ static void __init qnap_ts209_init(void)
 	orion5x_i2c_init();
 	orion5x_sata_init(&qnap_ts209_sata_data);
 	orion5x_uart0_init();
-
-	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
-				   QNAP_TS209_NOR_BOOT_SIZE);
-	platform_device_register(&qnap_ts209_nor_flash);
+	orion5x_uart1_init();
+	orion5x_xor_init();
 
 	platform_device_register(&qnap_ts209_button_device);
 

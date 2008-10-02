@@ -46,6 +46,7 @@
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"
@@ -75,7 +76,8 @@
 #define CX18_CARD_HVR_1600_SAMSUNG    1	/* Hauppauge HVR 1600 (Samsung memory) */
 #define CX18_CARD_COMPRO_H900 	      2	/* Compro VideoMate H900 */
 #define CX18_CARD_YUAN_MPC718 	      3	/* Yuan MPC718 */
-#define CX18_CARD_LAST 		      3
+#define CX18_CARD_CNXT_RAPTOR_PAL     4	/* Conexant Raptor PAL */
+#define CX18_CARD_LAST 		      4
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
@@ -94,6 +96,7 @@
 #define CX18_PCI_ID_HAUPPAUGE 		0x0070
 #define CX18_PCI_ID_COMPRO 		0x185b
 #define CX18_PCI_ID_YUAN 		0x12ab
+#define CX18_PCI_ID_CONEXANT		0x14f1
 
 /* ======================================================================== */
 /* ========================== START USER SETTABLE DMA VARIABLES =========== */
@@ -228,9 +231,7 @@ struct cx18_dvb {
 	struct dvb_net dvbnet;
 	int enabled;
 	int feeding;
-
 	struct mutex feedlock;
-
 };
 
 struct cx18;	 /* forward reference */
@@ -427,6 +428,7 @@ struct cx18 {
 	/* gpio */
 	u32 gpio_dir;
 	u32 gpio_val;
+	struct mutex gpio_lock;
 
 	/* v4l2 and User settings */
 

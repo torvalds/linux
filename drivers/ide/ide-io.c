@@ -330,7 +330,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			tf->error = err;
 			tf->status = stat;
 
-			drive->hwif->tf_read(drive, task);
+			drive->hwif->tp_ops->tf_read(drive, task);
 
 			if (task->tf_flags & IDE_TFLAG_DYN)
 				kfree(task);
@@ -381,8 +381,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 		if (err == ABRT_ERR) {
 			if (drive->select.b.lba &&
 			    /* some newer drives don't support WIN_SPECIFY */
-			    hwif->INB(hwif->io_ports.command_addr) ==
-				WIN_SPECIFY)
+			    hwif->tp_ops->read_status(hwif) == WIN_SPECIFY)
 				return ide_stopped;
 		} else if ((err & BAD_CRC) == BAD_CRC) {
 			/* UDMA crc error, just retry the operation */
@@ -408,7 +407,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 		return ide_stopped;
 	}
 
-	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
+	if (hwif->tp_ops->read_status(hwif) & (BUSY_STAT | DRQ_STAT))
 		rq->errors |= ERROR_RESET;
 
 	if ((rq->errors & ERROR_RESET) == ERROR_RESET) {
@@ -435,10 +434,9 @@ static ide_startstop_t ide_atapi_error(ide_drive_t *drive, struct request *rq, u
 		/* add decoding error stuff */
 	}
 
-	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
+	if (hwif->tp_ops->read_status(hwif) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		hwif->OUTBSYNC(hwif, WIN_IDLEIMMEDIATE,
-			       hwif->io_ports.command_addr);
+		hwif->tp_ops->exec_command(hwif, WIN_IDLEIMMEDIATE);
 
 	if (rq->errors >= ERROR_MAX) {
 		ide_kill_rq(drive, rq);
@@ -712,7 +710,8 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 #ifdef DEBUG
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
-	ide_end_drive_cmd(drive, ide_read_status(drive), ide_read_error(drive));
+	ide_end_drive_cmd(drive, hwif->tp_ops->read_status(hwif),
+			  ide_read_error(drive));
 
  	return ide_stopped;
 }
@@ -747,16 +746,17 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		 * the bus may be broken enough to walk on our toes at this
 		 * point.
 		 */
+		ide_hwif_t *hwif = drive->hwif;
 		int rc;
 #ifdef DEBUG_PM
 		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
 #endif
-		rc = ide_wait_not_busy(HWIF(drive), 35000);
+		rc = ide_wait_not_busy(hwif, 35000);
 		if (rc)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
 		SELECT_DRIVE(drive);
-		ide_set_irq(drive, 1);
-		rc = ide_wait_not_busy(HWIF(drive), 100000);
+		hwif->tp_ops->set_irq(hwif, 1);
+		rc = ide_wait_not_busy(hwif, 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
 	}
@@ -1042,7 +1042,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 			 * quirk_list may not like intr setups/cleanups
 			 */
 			if (drive->quirk_list != 1)
-				ide_set_irq(drive, 0);
+				hwif->tp_ops->set_irq(hwif, 0);
 		}
 		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;
@@ -1142,7 +1142,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
 		(void)hwif->dma_ops->dma_end(drive);
 		ret = ide_error(drive, "dma timeout error",
-				ide_read_status(drive));
+				hwif->tp_ops->read_status(hwif));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
 		hwif->dma_ops->dma_timeout(drive);
@@ -1267,7 +1267,7 @@ void ide_timer_expiry (unsigned long data)
 				} else
 					startstop =
 					ide_error(drive, "irq timeout",
-						  ide_read_status(drive));
+						  hwif->tp_ops->read_status(hwif));
 			}
 			drive->service_time = jiffies - drive->service_start;
 			spin_lock_irq(&ide_lock);
@@ -1323,7 +1323,8 @@ static void unexpected_intr (int irq, ide_hwgroup_t *hwgroup)
 	 */
 	do {
 		if (hwif->irq == irq) {
-			stat = hwif->INB(hwif->io_ports.status_addr);
+			stat = hwif->tp_ops->read_status(hwif);
+
 			if (!OK_STAT(stat, READY_STAT, BAD_STAT)) {
 				/* Try to not flood the console with msgs */
 				static unsigned long last_msgtime, count;
@@ -1413,7 +1414,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 			 * Whack the status register, just in case
 			 * we have a leftover pending IRQ.
 			 */
-			(void) hwif->INB(hwif->io_ports.status_addr);
+			(void)hwif->tp_ops->read_status(hwif);
 #endif /* CONFIG_BLK_DEV_IDEPCI */
 		}
 		spin_unlock_irqrestore(&ide_lock, flags);
@@ -1519,6 +1520,7 @@ EXPORT_SYMBOL(ide_do_drive_cmd);
 
 void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	ide_task_t task;
 
 	memset(&task, 0, sizeof(task));
@@ -1529,9 +1531,9 @@ void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 	task.tf.lbah    = (bcount >> 8) & 0xff;
 
 	ide_tf_dump(drive->name, &task.tf);
-	ide_set_irq(drive, 1);
+	hwif->tp_ops->set_irq(hwif, 1);
 	SELECT_MASK(drive, 0);
-	drive->hwif->tf_load(drive, &task);
+	hwif->tp_ops->tf_load(drive, &task);
 }
 
 EXPORT_SYMBOL_GPL(ide_pktcmd_tf_load);
@@ -1543,9 +1545,9 @@ void ide_pad_transfer(ide_drive_t *drive, int write, int len)
 
 	while (len > 0) {
 		if (write)
-			hwif->output_data(drive, NULL, buf, min(4, len));
+			hwif->tp_ops->output_data(drive, NULL, buf, min(4, len));
 		else
-			hwif->input_data(drive, NULL, buf, min(4, len));
+			hwif->tp_ops->input_data(drive, NULL, buf, min(4, len));
 		len -= 4;
 	}
 }

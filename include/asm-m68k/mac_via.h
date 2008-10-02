@@ -253,7 +253,6 @@
 
 extern volatile __u8 *via1,*via2;
 extern int rbv_present,via_alt_mapping;
-extern __u8 rbv_clear;
 
 static inline int rbv_set_video_bpp(int bpp)
 {

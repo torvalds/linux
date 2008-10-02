@@ -1140,11 +1140,11 @@ static void hamachi_tx_timeout(struct net_device *dev)
 	}
 	/* Fill in the Rx buffers.  Handle allocation failure gracefully. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = dev_alloc_skb(hmp->rx_buf_sz);
+		struct sk_buff *skb = netdev_alloc_skb(dev, hmp->rx_buf_sz);
 		hmp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		skb->dev = dev;         /* Mark as being used by this device. */
+
 		skb_reserve(skb, 2); /* 16 byte align the IP header. */
                 hmp->rx_ring[i].addr = cpu_to_leXX(pci_map_single(hmp->pci_dev,
 			skb->data, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
@@ -1178,14 +1178,6 @@ static void hamachi_init_ring(struct net_device *dev)
 	hmp->cur_rx = hmp->cur_tx = 0;
 	hmp->dirty_rx = hmp->dirty_tx = 0;
 
-#if 0
-	/* This is wrong.  I'm not sure what the original plan was, but this
-	 * is wrong.  An MTU of 1 gets you a buffer of 1536, while an MTU
-	 * of 1501 gets a buffer of 1533? -KDU
-	 */
-	hmp->rx_buf_sz = (dev->mtu <= 1500 ? PKT_BUF_SZ : dev->mtu + 32);
-#endif
-	/* My attempt at a reasonable correction */
 	/* +26 gets the maximum ethernet encapsulation, +7 & ~7 because the
 	 * card needs room to do 8 byte alignment, +2 so we can reserve
 	 * the first 2 bytes, and +16 gets room for the status word from the

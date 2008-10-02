@@ -300,6 +300,7 @@ struct sctp_sock {
 
 	/* The default SACK delay timeout for new associations. */
 	__u32 sackdelay;
+	__u32 sackfreq;
 
 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
@@ -523,8 +524,7 @@ static inline void sctp_ssn_skip(struct sctp_stream *stream, __u16 id,
  */
 struct sctp_af {
 	int		(*sctp_xmit)	(struct sk_buff *skb,
-					 struct sctp_transport *,
-					 int ipfragok);
+					 struct sctp_transport *);
 	int		(*setsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,
@@ -826,7 +826,7 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *,
 				     __u16 sport, __u16 dport);
 struct sctp_packet *sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *,
-                                       struct sctp_chunk *);
+                                       struct sctp_chunk *, int);
 sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *,
                                      struct sctp_chunk *);
 int sctp_packet_transmit(struct sctp_packet *);
@@ -946,6 +946,7 @@ struct sctp_transport {
 
 	/* SACK delay timeout */
 	unsigned long sackdelay;
+	__u32 sackfreq;
 
 	/* When was the last time (in jiffies) that we heard from this
 	 * transport?  We use this to pick new active and retran paths.
@@ -1159,7 +1160,6 @@ void sctp_outq_init(struct sctp_association *, struct sctp_outq *);
 void sctp_outq_teardown(struct sctp_outq *);
 void sctp_outq_free(struct sctp_outq*);
 int sctp_outq_tail(struct sctp_outq *, struct sctp_chunk *chunk);
-int sctp_outq_flush(struct sctp_outq *, int);
 int sctp_outq_sack(struct sctp_outq *, struct sctp_sackhdr *);
 int sctp_outq_is_empty(const struct sctp_outq *);
 void sctp_outq_restart(struct sctp_outq *);
@@ -1209,6 +1209,8 @@ int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
+int sctp_bind_addr_conflict(struct sctp_bind_addr *, const union sctp_addr *,
+			 struct sctp_sock *, struct sctp_sock *);
 int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 			 const union sctp_addr *addr);
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -1553,6 +1555,7 @@ struct sctp_association {
 		 *             : SACK's are not delayed (see Section 6).
 		 */
 		__u8    sack_needed;     /* Do we need to sack the peer? */
+		__u32	sack_cnt;
 
 		/* These are capabilities which our peer advertised.  */
 		__u8	ecn_capable;	 /* Can peer do ECN? */
@@ -1662,6 +1665,7 @@ struct sctp_association {
 
 	/* SACK delay timeout */
 	unsigned long sackdelay;
+	__u32 sackfreq;
 
 
 	unsigned long timeouts[SCTP_NUM_TIMEOUT_TYPES];

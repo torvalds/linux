@@ -46,6 +46,7 @@
 #include <linux/videotext.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
 #include "saa5246a.h"
@@ -66,6 +67,7 @@ static struct video_device saa_template;	/* Declared near bottom */
 
 /* Addresses to scan */
 static unsigned short normal_i2c[]	 = { I2C_ADDRESS, I2C_CLIENT_END };
+
 I2C_CLIENT_INSMOD;
 
 static struct i2c_client client_template;
@@ -828,9 +830,7 @@ static const struct file_operations saa_fops = {
 
 static struct video_device saa_template =
 {
-	.owner	  = THIS_MODULE,
 	.name	  = IF_NAME,
-	.type	  = VID_TYPE_TELETEXT,
 	.fops	  = &saa_fops,
 	.release  = video_device_release,
 	.minor    = -1,

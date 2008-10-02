@@ -615,7 +615,7 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	int matches;
 
-	if (dev->type != ARPHRD_CAN || dev_net(dev) != &init_net) {
+	if (dev->type != ARPHRD_CAN || !net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(skb);
 		return 0;
 	}
@@ -728,7 +728,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 	struct net_device *dev = (struct net_device *)data;
 	struct dev_rcv_lists *d;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (dev->type != ARPHRD_CAN)

@@ -60,6 +60,7 @@
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 
@@ -250,6 +251,7 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DEC_PAUSED	   20 	/* the decoder is paused */
 #define IVTV_F_I_INITED		   21 	/* set after first open */
 #define IVTV_F_I_FAILED		   22 	/* set if first open failed */
+#define IVTV_F_I_WORK_INITED       23	/* worker thread was initialized */
 
 /* Event notifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
@@ -634,7 +636,6 @@ struct ivtv {
 	/* Locking */
 	spinlock_t lock;                /* lock access to this struct */
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
-
 
 	/* Streams */
 	int stream_buf_size[IVTV_MAX_STREAMS];          /* stream buffer size */

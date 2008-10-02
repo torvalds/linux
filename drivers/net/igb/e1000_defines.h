@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -90,13 +90,18 @@
 #define E1000_I2CCMD_ERROR            0x80000000
 #define E1000_MAX_SGMII_PHY_REG_ADDR  255
 #define E1000_I2CCMD_PHY_TIMEOUT      200
+#define E1000_IVAR_VALID              0x80
+#define E1000_GPIE_NSICR              0x00000001
+#define E1000_GPIE_MSIX_MODE          0x00000010
+#define E1000_GPIE_EIAME              0x40000000
+#define E1000_GPIE_PBA                0x80000000
 
-/* Receive Decriptor bit definitions */
+/* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
 #define E1000_RXD_STAT_EOP      0x02    /* End of Packet */
 #define E1000_RXD_STAT_IXSM     0x04    /* Ignore checksum */
 #define E1000_RXD_STAT_VP       0x08    /* IEEE VLAN Packet */
-#define E1000_RXD_STAT_UDPCS    0x10    /* UDP xsum caculated */
+#define E1000_RXD_STAT_UDPCS    0x10    /* UDP xsum calculated */
 #define E1000_RXD_STAT_TCPCS    0x20    /* TCP xsum calculated */
 #define E1000_RXD_STAT_DYNINT   0x800   /* Pkt caused INT via DYNINT */
 #define E1000_RXD_ERR_CE        0x01    /* CRC Error */
@@ -213,6 +218,7 @@
 /* Device Control */
 #define E1000_CTRL_FD       0x00000001  /* Full duplex.0=half; 1=full */
 #define E1000_CTRL_GIO_MASTER_DISABLE 0x00000004 /*Blocks new Master requests */
+#define E1000_CTRL_LRST     0x00000008  /* Link reset. 0=normal,1=reset */
 #define E1000_CTRL_ASDE     0x00000020  /* Auto-speed detect enable */
 #define E1000_CTRL_SLU      0x00000040  /* Set link up (Force Link) */
 #define E1000_CTRL_ILOS     0x00000080  /* Invert Loss-Of Signal */
@@ -244,15 +250,18 @@
  */
 
 #define E1000_CONNSW_ENRGSRC             0x4
+#define E1000_PCS_CFG_PCS_EN             8
 #define E1000_PCS_LCTL_FLV_LINK_UP       1
 #define E1000_PCS_LCTL_FSV_100           2
 #define E1000_PCS_LCTL_FSV_1000          4
 #define E1000_PCS_LCTL_FDV_FULL          8
 #define E1000_PCS_LCTL_FSD               0x10
 #define E1000_PCS_LCTL_FORCE_LINK        0x20
+#define E1000_PCS_LCTL_FORCE_FCTRL       0x80
 #define E1000_PCS_LCTL_AN_ENABLE         0x10000
 #define E1000_PCS_LCTL_AN_RESTART        0x20000
 #define E1000_PCS_LCTL_AN_TIMEOUT        0x40000
+#define E1000_ENABLE_SERDES_LOOPBACK     0x0410
 
 #define E1000_PCS_LSTS_LINK_OK           1
 #define E1000_PCS_LSTS_SPEED_100         2
@@ -340,6 +349,7 @@
 #define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */
+#define E1000_RFCTL_LEF        0x00040000
 
 /* Collision related configuration parameters */
 #define E1000_COLLISION_THRESHOLD       15
@@ -359,6 +369,7 @@
 #define E1000_PBA_16K 0x0010    /* 16KB, default TX allocation */
 #define E1000_PBA_24K 0x0018
 #define E1000_PBA_34K 0x0022
+#define E1000_PBA_64K 0x0040    /* 64KB */
 
 #define IFS_MAX       80
 #define IFS_MIN       40
@@ -379,7 +390,7 @@
 #define E1000_ICR_RXO           0x00000040 /* rx overrun */
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_MDAC          0x00000200 /* MDIO access complete */
-#define E1000_ICR_RXCFG         0x00000400 /* RX /c/ ordered set */
+#define E1000_ICR_RXCFG         0x00000400 /* Rx /c/ ordered set */
 #define E1000_ICR_GPI_EN0       0x00000800 /* GP Int 0 */
 #define E1000_ICR_GPI_EN1       0x00001000 /* GP Int 1 */
 #define E1000_ICR_GPI_EN2       0x00002000 /* GP Int 2 */
@@ -443,12 +454,6 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
-/* queue 0 Rx descriptor FIFO parity error */
-/* queue 0 Tx descriptor FIFO parity error */
-/* host arb read buffer parity error */
-/* packet buffer parity error */
-/* queue 1 Rx descriptor FIFO parity error */
-/* queue 1 Tx descriptor FIFO parity error */
 
 /* Extended Interrupt Mask Set */
 #define E1000_EIMS_TCP_TIMER    E1000_EICR_TCP_TIMER /* TCP Timer */
@@ -457,12 +462,6 @@
 /* Interrupt Cause Set */
 #define E1000_ICS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_ICS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
-/* queue 0 Rx descriptor FIFO parity error */
-/* queue 0 Tx descriptor FIFO parity error */
-/* host arb read buffer parity error */
-/* packet buffer parity error */
-/* queue 1 Rx descriptor FIFO parity error */
-/* queue 1 Tx descriptor FIFO parity error */
 
 /* Extended Interrupt Cause Set */
 
@@ -539,6 +538,7 @@
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
 #define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
+#define MII_CR_POWER_DOWN       0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN      0x1000  /* Auto Neg Enable */
 #define MII_CR_LOOPBACK         0x4000  /* 0 = normal, 1 = loopback */
 #define MII_CR_RESET            0x8000  /* 0 = normal, 1 = PHY reset */
@@ -567,7 +567,6 @@
 /* 1000BASE-T Control Register */
 #define CR_1000T_HD_CAPS         0x0100 /* Advertise 1000T HD capability */
 #define CR_1000T_FD_CAPS         0x0200 /* Advertise 1000T FD capability  */
-					/* 0=DTE device */
 #define CR_1000T_MS_VALUE        0x0800 /* 1=Configure PHY as Master */
 					/* 0=Configure PHY as Slave */
 #define CR_1000T_MS_ENABLE       0x1000 /* 1=Master/Slave manual config value */
@@ -581,7 +580,7 @@
 /* PHY 1000 MII Register/Bit Definitions */
 /* PHY Registers defined by IEEE */
 #define PHY_CONTROL      0x00 /* Control Register */
-#define PHY_STATUS       0x01 /* Status Regiser */
+#define PHY_STATUS       0x01 /* Status Register */
 #define PHY_ID1          0x02 /* Phy Id Reg (word 1) */
 #define PHY_ID2          0x03 /* Phy Id Reg (word 2) */
 #define PHY_AUTONEG_ADV  0x04 /* Autoneg Advertisement */
@@ -708,8 +707,8 @@
 /* Auto crossover enabled all speeds */
 #define M88E1000_PSCR_AUTO_X_MODE      0x0060
 /*
- * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T RX Threshold
- * 0=Normal 10BASE-T RX Threshold
+ * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold
+ * 0=Normal 10BASE-T Rx Threshold
  */
 /* 1=5-bit interface in 100BASE-TX, 0=MII interface in 100BASE-TX */
 #define M88E1000_PSCR_ASSERT_CRS_ON_TX     0x0800 /* 1=Assert CRS on Transmit */

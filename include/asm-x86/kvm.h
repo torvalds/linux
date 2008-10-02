@@ -228,5 +228,6 @@ struct kvm_pit_state {
 #define KVM_TRC_CLTS             (KVM_TRC_HANDLER + 0x12)
 #define KVM_TRC_LMSW             (KVM_TRC_HANDLER + 0x13)
 #define KVM_TRC_APIC_ACCESS      (KVM_TRC_HANDLER + 0x14)
+#define KVM_TRC_TDP_FAULT        (KVM_TRC_HANDLER + 0x15)
 
 #endif

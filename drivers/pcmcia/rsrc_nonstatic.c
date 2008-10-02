@@ -275,7 +275,7 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 		destroy_cis_cache(s);
 	}
 	s->cis_mem.res = NULL;
-	if ((ret != 0) || (count == 0))
+	if ((ret != 0) || (*count == 0))
 		return 0;
 	return 1;
 }

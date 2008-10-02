@@ -269,7 +269,7 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 		return -1;
 	}
 
-	dvb_ringbuffer_read(buf, dest, (size_t) blen, 0);
+	dvb_ringbuffer_read(buf, dest, (size_t) blen);
 
 	dprintk(2, "pread=0x%08lx, pwrite=0x%08lx\n",
 	       (unsigned long) buf->pread, (unsigned long) buf->pwrite);

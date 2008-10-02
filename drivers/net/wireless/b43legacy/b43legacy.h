@@ -823,23 +823,6 @@ void b43legacydbg(struct b43legacy_wl *wl, const char *fmt, ...)
 # define b43legacydbg(wl, fmt...) do { /* nothing */ } while (0)
 #endif /* DEBUG */
 
-
-/** Limit a value between two limits */
-#ifdef limit_value
-# undef limit_value
-#endif
-#define limit_value(value, min, max)  \
-	({						\
-		typeof(value) __value = (value);	\
-		typeof(value) __min = (min);		\
-		typeof(value) __max = (max);		\
-		if (__value < __min)			\
-			__value = __min;		\
-		else if (__value > __max)		\
-			__value = __max;		\
-		__value;				\
-	})
-
 /* Macros for printing a value in Q5.2 format */
 #define Q52_FMT		"%u.%u"
 #define Q52_ARG(q52)	((q52) / 4), (((q52) & 3) * 100 / 4)

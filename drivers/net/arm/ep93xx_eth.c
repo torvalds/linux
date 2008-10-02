@@ -20,8 +20,8 @@
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <asm/arch/ep93xx-regs.h>
-#include <asm/arch/platform.h>
+#include <mach/ep93xx-regs.h>
+#include <mach/platform.h>
 #include <asm/io.h>
 
 #define DRV_MODULE_NAME		"ep93xx-eth"
@@ -482,7 +482,7 @@ static int ep93xx_alloc_buffers(struct ep93xx_priv *ep)
 			goto err;
 
 		d = dma_map_single(NULL, page, PAGE_SIZE, DMA_FROM_DEVICE);
-		if (dma_mapping_error(d)) {
+		if (dma_mapping_error(NULL, d)) {
 			free_page((unsigned long)page);
 			goto err;
 		}
@@ -505,7 +505,7 @@ static int ep93xx_alloc_buffers(struct ep93xx_priv *ep)
 			goto err;
 
 		d = dma_map_single(NULL, page, PAGE_SIZE, DMA_TO_DEVICE);
-		if (dma_mapping_error(d)) {
+		if (dma_mapping_error(NULL, d)) {
 			free_page((unsigned long)page);
 			goto err;
 		}
@@ -848,7 +848,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 
 	ep->res = request_mem_region(pdev->resource[0].start,
 			pdev->resource[0].end - pdev->resource[0].start + 1,
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 	if (ep->res == NULL) {
 		dev_err(&pdev->dev, "Could not reserve memory region\n");
 		err = -ENOMEM;

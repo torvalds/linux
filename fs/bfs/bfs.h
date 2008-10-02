@@ -16,8 +16,9 @@ struct bfs_sb_info {
 	unsigned long si_freei;
 	unsigned long si_lf_eblk;
 	unsigned long si_lasti;
-	unsigned long * si_imap;
-	struct buffer_head * si_sbh;		/* buffer header w/superblock */
+	unsigned long *si_imap;
+	struct buffer_head *si_sbh;		/* buffer header w/superblock */
+	struct mutex bfs_lock;
 };
 
 /*

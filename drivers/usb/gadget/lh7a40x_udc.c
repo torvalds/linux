@@ -1970,7 +1970,7 @@ static const struct usb_gadget_ops lh7a40x_udc_ops = {
 
 static void nop_release(struct device *dev)
 {
-	DEBUG("%s %s\n", __func__, dev->bus_id);
+	DEBUG("%s %s\n", __func__, dev_name(dev));
 }
 
 static struct lh7a40x_udc memory = {

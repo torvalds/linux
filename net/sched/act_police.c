@@ -116,7 +116,7 @@ static void tcf_police_destroy(struct tcf_police *p)
 			return;
 		}
 	}
-	BUG_TRAP(0);
+	WARN_ON(1);
 }
 
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
@@ -272,7 +272,7 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&police->tcf_lock);
 
-	police->tcf_bstats.bytes += skb->len;
+	police->tcf_bstats.bytes += qdisc_pkt_len(skb);
 	police->tcf_bstats.packets++;
 
 	if (police->tcfp_ewma_rate &&
@@ -282,7 +282,7 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 		return police->tcf_action;
 	}
 
-	if (skb->len <= police->tcfp_mtu) {
+	if (qdisc_pkt_len(skb) <= police->tcfp_mtu) {
 		if (police->tcfp_R_tab == NULL) {
 			spin_unlock(&police->tcf_lock);
 			return police->tcfp_result;
@@ -295,12 +295,12 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 			ptoks = toks + police->tcfp_ptoks;
 			if (ptoks > (long)L2T_P(police, police->tcfp_mtu))
 				ptoks = (long)L2T_P(police, police->tcfp_mtu);
-			ptoks -= L2T_P(police, skb->len);
+			ptoks -= L2T_P(police, qdisc_pkt_len(skb));
 		}
 		toks += police->tcfp_toks;
 		if (toks > (long)police->tcfp_burst)
 			toks = police->tcfp_burst;
-		toks -= L2T(police, skb->len);
+		toks -= L2T(police, qdisc_pkt_len(skb));
 		if ((toks|ptoks) >= 0) {
 			police->tcfp_t_c = now;
 			police->tcfp_toks = toks;

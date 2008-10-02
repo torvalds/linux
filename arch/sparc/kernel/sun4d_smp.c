@@ -262,8 +262,9 @@ static struct smp_funcall {
 static DEFINE_SPINLOCK(cross_call_lock);
 
 /* Cross calls must be serialized, at least currently. */
-void smp4d_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
-		    unsigned long arg3, unsigned long arg4, unsigned long arg5)
+static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
+			     unsigned long arg2, unsigned long arg3,
+			     unsigned long arg4)
 {
 	if(smp_processors_ready) {
 		register int high = smp_highest_cpu;
@@ -278,7 +279,7 @@ void smp4d_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			register unsigned long a2 asm("i2") = arg2;
 			register unsigned long a3 asm("i3") = arg3;
 			register unsigned long a4 asm("i4") = arg4;
-			register unsigned long a5 asm("i5") = arg5;
+			register unsigned long a5 asm("i5") = 0;
 
 			__asm__ __volatile__(
 				"std %0, [%6]\n\t"
@@ -290,11 +291,10 @@ void smp4d_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 
 		/* Init receive/complete mapping, plus fire the IPI's off. */
 		{
-			cpumask_t mask;
 			register int i;
 
-			mask = cpumask_of_cpu(hard_smp4d_processor_id());
-			cpus_andnot(mask, cpu_online_map, mask);
+			cpu_clear(smp_processor_id(), mask);
+			cpus_and(mask, cpu_online_map, mask);
 			for(i = 0; i <= high; i++) {
 				if (cpu_isset(i, mask)) {
 					ccall_info.processors_in[i] = 0;
@@ -309,12 +309,16 @@ void smp4d_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 
 			i = 0;
 			do {
+				if (!cpu_isset(i, mask))
+					continue;
 				while(!ccall_info.processors_in[i])
 					barrier();
 			} while(++i <= high);
 
 			i = 0;
 			do {
+				if (!cpu_isset(i, mask))
+					continue;
 				while(!ccall_info.processors_out[i])
 					barrier();
 			} while(++i <= high);

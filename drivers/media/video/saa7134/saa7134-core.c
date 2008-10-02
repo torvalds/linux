@@ -150,7 +150,6 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
 
-
 static void request_module_async(struct work_struct *work){
 	struct saa7134_dev* dev = container_of(work, struct saa7134_dev, request_module_wk);
 	if (card_is_empress(dev))
@@ -799,7 +798,7 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev     = &dev->pci->dev;
+	vfd->parent  = &dev->pci->dev;
 	vfd->release = video_device_release;
 	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
@@ -946,11 +945,12 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		dev->board = SAA7134_BOARD_UNKNOWN;
 	}
 	dev->autodetected = card[dev->nr] != dev->board;
-	dev->tuner_type   = saa7134_boards[dev->board].tuner_type;
+	dev->tuner_type = saa7134_boards[dev->board].tuner_type;
+	dev->tuner_addr = saa7134_boards[dev->board].tuner_addr;
 	dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
 	if (UNSET != tuner[dev->nr])
 		dev->tuner_type = tuner[dev->nr];
-		printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 		dev->name,pci_dev->subsystem_vendor,
 		pci_dev->subsystem_device,saa7134_boards[dev->board].name,
 		dev->board, dev->autodetected ?
@@ -1008,11 +1008,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	v4l2_prio_init(&dev->prio);
 
 	/* register v4l devices */
-	if (saa7134_no_overlay <= 0) {
-		saa7134_video_template.type |= VID_TYPE_OVERLAY;
-	} else {
-		printk("%s: Overlay support disabled.\n",dev->name);
-	}
+	if (saa7134_no_overlay > 0)
+		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
+
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
@@ -1025,7 +1023,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	       dev->name,dev->video_dev->minor & 0x1f);
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
-	dev->vbi_dev->type = VID_TYPE_TUNER | VID_TYPE_TELETEXT;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);

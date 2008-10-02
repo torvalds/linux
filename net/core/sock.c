@@ -7,8 +7,6 @@
  *		handler for protocols to use and generic option handler.
  *
  *
- * Version:	$Id: sock.c,v 1.117 2002/02/01 22:01:03 davem Exp $
- *
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche, <flla@stud.uni-sb.de>
@@ -182,7 +180,7 @@ static const char *af_family_clock_key_strings[AF_MAX+1] = {
   "clock-AF_ASH"   , "clock-AF_ECONET"   , "clock-AF_ATMSVC"   ,
   "clock-21"       , "clock-AF_SNA"      , "clock-AF_IRDA"     ,
   "clock-AF_PPPOX" , "clock-AF_WANPIPE"  , "clock-AF_LLC"      ,
-  "clock-27"       , "clock-28"          , "clock-29"          ,
+  "clock-27"       , "clock-28"          , "clock-AF_CAN"      ,
   "clock-AF_TIPC"  , "clock-AF_BLUETOOTH", "clock-AF_IUCV"     ,
   "clock-AF_RXRPC" , "clock-AF_MAX"
 };
@@ -1068,7 +1066,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		 * to be taken into account in all callers. -acme
 		 */
 		sk_refcnt_debug_inc(newsk);
-		newsk->sk_socket = NULL;
+		sk_set_socket(newsk, NULL);
 		newsk->sk_sleep	 = NULL;
 
 		if (newsk->sk_prot->sockets_allocated)
@@ -1444,7 +1442,7 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 	/* Under pressure. */
 	if (allocated > prot->sysctl_mem[1])
 		if (prot->enter_memory_pressure)
-			prot->enter_memory_pressure();
+			prot->enter_memory_pressure(sk);
 
 	/* Over hard limit. */
 	if (allocated > prot->sysctl_mem[2])
@@ -1704,7 +1702,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_rcvbuf		=	sysctl_rmem_default;
 	sk->sk_sndbuf		=	sysctl_wmem_default;
 	sk->sk_state		=	TCP_CLOSE;
-	sk->sk_socket		=	sock;
+	sk_set_socket(sk, sock);
 
 	sock_set_flag(sk, SOCK_ZAPPED);
 

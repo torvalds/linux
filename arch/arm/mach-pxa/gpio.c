@@ -18,10 +18,10 @@
 #include <linux/sysdev.h>
 
 #include <asm/gpio.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
 
 #include "generic.h"
 

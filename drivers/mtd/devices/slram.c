@@ -1,7 +1,5 @@
 /*======================================================================
 
-  $Id: slram.c,v 1.36 2005/11/07 11:14:25 gleixner Exp $
-
   This driver provides a method to access memory not used by the kernel
   itself (i.e. if the kernel commandline mem=xxx is used). To actually
   use slram at least mtdblock or mtdchar is required (for block or

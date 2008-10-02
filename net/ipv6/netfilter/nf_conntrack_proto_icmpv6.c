@@ -89,9 +89,8 @@ static int icmpv6_packet(struct nf_conn *ct,
 	   means this will only run once even if count hits zero twice
 	   (theoretically possible with SMP) */
 	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY) {
-		if (atomic_dec_and_test(&ct->proto.icmp.count)
-		    && del_timer(&ct->timeout))
-			ct->timeout.function((unsigned long)ct);
+		if (atomic_dec_and_test(&ct->proto.icmp.count))
+			nf_ct_kill_acct(ct, ctinfo, skb);
 	} else {
 		atomic_inc(&ct->proto.icmp.count);
 		nf_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, skb);

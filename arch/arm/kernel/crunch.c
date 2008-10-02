@@ -15,7 +15,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <asm/arch/ep93xx-regs.h>
+#include <mach/ep93xx-regs.h>
 #include <asm/thread_notify.h>
 #include <asm/io.h>
 

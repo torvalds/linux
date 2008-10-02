@@ -3,14 +3,14 @@
 
 #include <linux/pm.h>
 #include <linux/delay.h>
+
+#include <asm/alternative.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
-
-#define Dprintk(x...)
 
 /*
  * Debugging macros
@@ -35,7 +35,7 @@ extern void generic_apic_probe(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
-extern int apic_verbosity;
+extern unsigned int apic_verbosity;
 extern int local_apic_timer_c2_ok;
 
 extern int ioapic_force;
@@ -48,7 +48,6 @@ extern int disable_apic;
 #include <asm/paravirt.h>
 #else
 #define apic_write native_apic_write
-#define apic_write_atomic native_apic_write_atomic
 #define apic_read native_apic_read
 #define setup_boot_clock setup_boot_APIC_clock
 #define setup_secondary_clock setup_secondary_APIC_clock
@@ -58,12 +57,11 @@ extern int is_vsmp_box(void);
 
 static inline void native_apic_write(unsigned long reg, u32 v)
 {
-	*((volatile u32 *)(APIC_BASE + reg)) = v;
-}
+	volatile u32 *addr = (volatile u32 *)(APIC_BASE + reg);
 
-static inline void native_apic_write_atomic(unsigned long reg, u32 v)
-{
-	(void)xchg((u32 *)(APIC_BASE + reg), v);
+	alternative_io("movl %0, %1", "xchgl %0, %1", X86_FEATURE_11AP,
+		       ASM_OUTPUT2("=r" (v), "=m" (*addr)),
+		       ASM_OUTPUT2("0" (v), "m" (*addr)));
 }
 
 static inline u32 native_apic_read(unsigned long reg)
@@ -75,16 +73,6 @@ extern void apic_wait_icr_idle(void);
 extern u32 safe_apic_wait_icr_idle(void);
 extern int get_physical_broadcast(void);
 
-#ifdef CONFIG_X86_GOOD_APIC
-# define FORCE_READ_AROUND_WRITE 0
-# define apic_read_around(x)
-# define apic_write_around(x, y) apic_write((x), (y))
-#else
-# define FORCE_READ_AROUND_WRITE 1
-# define apic_read_around(x) apic_read(x)
-# define apic_write_around(x, y) apic_write_atomic((x), (y))
-#endif
-
 static inline void ack_APIC_irq(void)
 {
 	/*
@@ -95,7 +83,7 @@ static inline void ack_APIC_irq(void)
 	 */
 
 	/* Docs say use 0 for future compatibility */
-	apic_write_around(APIC_EOI, 0);
+	apic_write(APIC_EOI, 0);
 }
 
 extern int lapic_get_maxlvt(void);

@@ -1739,7 +1739,6 @@ static int netdrv_close (struct net_device *dev)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	synchronize_irq (dev->irq);
 	free_irq (dev->irq, dev);
 
 	netdrv_tx_clear (dev);

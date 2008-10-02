@@ -46,7 +46,8 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 		return -ENODEV;
 	}
 	if (channel < 0 || channel >= cs->channels) {
-		err("%s: invalid channel ID (%d)", __func__, channel);
+		dev_err(cs->dev, "%s: invalid channel ID (%d)\n",
+			__func__, channel);
 		return -ENODEV;
 	}
 	bcs = &cs->bcs[channel];
@@ -58,11 +59,13 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 
 	if (!len) {
 		if (ack)
-			notice("%s: not ACKing empty packet", __func__);
+			dev_notice(cs->dev, "%s: not ACKing empty packet\n",
+				   __func__);
 		return 0;
 	}
 	if (len > MAX_BUF_SIZE) {
-		err("%s: packet too large (%d bytes)", __func__, len);
+		dev_err(cs->dev, "%s: packet too large (%d bytes)\n",
+			__func__, len);
 		return -EINVAL;
 	}
 
@@ -116,8 +119,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	gigaset_debugdrivers();
 
 	if (!cs) {
-		warn("LL tried to access unknown device with nr. %d",
-		     cntrl->driver);
+		err("%s: invalid driver ID (%d)", __func__, cntrl->driver);
 		return -ENODEV;
 	}
 
@@ -126,7 +128,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		gig_dbg(DEBUG_ANY, "ISDN_CMD_IOCTL (driver: %d, arg: %ld)",
 			cntrl->driver, cntrl->arg);
 
-		warn("ISDN_CMD_IOCTL is not supported.");
+		dev_warn(cs->dev, "ISDN_CMD_IOCTL not supported\n");
 		return -EINVAL;
 
 	case ISDN_CMD_DIAL:
@@ -138,22 +140,23 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			cntrl->parm.setup.si1, cntrl->parm.setup.si2);
 
 		if (cntrl->arg >= cs->channels) {
-			err("ISDN_CMD_DIAL: invalid channel (%d)",
-			    (int) cntrl->arg);
+			dev_err(cs->dev,
+				"ISDN_CMD_DIAL: invalid channel (%d)\n",
+				(int) cntrl->arg);
 			return -EINVAL;
 		}
 
 		bcs = cs->bcs + cntrl->arg;
 
 		if (!gigaset_get_channel(bcs)) {
-			err("ISDN_CMD_DIAL: channel not free");
+			dev_err(cs->dev, "ISDN_CMD_DIAL: channel not free\n");
 			return -EBUSY;
 		}
 
 		sp = kmalloc(sizeof *sp, GFP_ATOMIC);
 		if (!sp) {
 			gigaset_free_channel(bcs);
-			err("ISDN_CMD_DIAL: out of memory");
+			dev_err(cs->dev, "ISDN_CMD_DIAL: out of memory\n");
 			return -ENOMEM;
 		}
 		*sp = cntrl->parm.setup;
@@ -173,8 +176,9 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		gig_dbg(DEBUG_ANY, "ISDN_CMD_ACCEPTD");
 
 		if (cntrl->arg >= cs->channels) {
-			err("ISDN_CMD_ACCEPTD: invalid channel (%d)",
-			    (int) cntrl->arg);
+			dev_err(cs->dev,
+				"ISDN_CMD_ACCEPTD: invalid channel (%d)\n",
+				(int) cntrl->arg);
 			return -EINVAL;
 		}
 
@@ -196,8 +200,9 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			(int) cntrl->arg);
 
 		if (cntrl->arg >= cs->channels) {
-			err("ISDN_CMD_HANGUP: invalid channel (%u)",
-			    (unsigned) cntrl->arg);
+			dev_err(cs->dev,
+				"ISDN_CMD_HANGUP: invalid channel (%d)\n",
+				(int) cntrl->arg);
 			return -EINVAL;
 		}
 
@@ -224,8 +229,9 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			cntrl->arg & 0xff, (cntrl->arg >> 8));
 
 		if ((cntrl->arg & 0xff) >= cs->channels) {
-			err("ISDN_CMD_SETL2: invalid channel (%u)",
-			    (unsigned) cntrl->arg & 0xff);
+			dev_err(cs->dev,
+				"ISDN_CMD_SETL2: invalid channel (%d)\n",
+				(int) cntrl->arg & 0xff);
 			return -EINVAL;
 		}
 
@@ -244,14 +250,16 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			cntrl->arg & 0xff, (cntrl->arg >> 8));
 
 		if ((cntrl->arg & 0xff) >= cs->channels) {
-			err("ISDN_CMD_SETL3: invalid channel (%u)",
-			    (unsigned) cntrl->arg & 0xff);
+			dev_err(cs->dev,
+				"ISDN_CMD_SETL3: invalid channel (%d)\n",
+				(int) cntrl->arg & 0xff);
 			return -EINVAL;
 		}
 
 		if (cntrl->arg >> 8 != ISDN_PROTO_L3_TRANS) {
-			err("ISDN_CMD_SETL3: invalid protocol %lu",
-			    cntrl->arg >> 8);
+			dev_err(cs->dev,
+				"ISDN_CMD_SETL3: invalid protocol %lu\n",
+				cntrl->arg >> 8);
 			return -EINVAL;
 		}
 
@@ -262,8 +270,9 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	case ISDN_CMD_ALERT:
 		gig_dbg(DEBUG_ANY, "ISDN_CMD_ALERT"); //FIXME
 		if (cntrl->arg >= cs->channels) {
-			err("ISDN_CMD_ALERT: invalid channel (%d)",
-			    (int) cntrl->arg);
+			dev_err(cs->dev,
+				"ISDN_CMD_ALERT: invalid channel (%d)\n",
+				(int) cntrl->arg);
 			return -EINVAL;
 		}
 		//bcs = cs->bcs + cntrl->arg;
@@ -295,7 +304,8 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		gig_dbg(DEBUG_ANY, "ISDN_CMD_GETSIL");
 		break;
 	default:
-		err("unknown command %d from LL", cntrl->command);
+		dev_err(cs->dev, "unknown command %d from LL\n",
+			cntrl->command);
 		return -EINVAL;
 	}
 

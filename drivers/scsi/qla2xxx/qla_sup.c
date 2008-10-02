@@ -869,11 +869,9 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	uint32_t i;
 	uint32_t *dwptr;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	unsigned long flags;
 
 	ret = QLA_SUCCESS;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
 	/* Enable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
@@ -907,7 +905,6 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return ret;
 }
@@ -2303,6 +2300,51 @@ qla24xx_get_flash_version(scsi_qla_host_t *ha, void *mbuf)
 	}
 
 	return ret;
+}
+
+static int
+qla2xxx_is_vpd_valid(uint8_t *pos, uint8_t *end)
+{
+	if (pos >= end || *pos != 0x82)
+		return 0;
+
+	pos += 3 + pos[1];
+	if (pos >= end || *pos != 0x90)
+		return 0;
+
+	pos += 3 + pos[1];
+	if (pos >= end || *pos != 0x78)
+		return 0;
+
+	return 1;
+}
+
+int
+qla2xxx_get_vpd_field(scsi_qla_host_t *ha, char *key, char *str, size_t size)
+{
+	uint8_t *pos = ha->vpd;
+	uint8_t *end = pos + ha->vpd_size;
+	int len = 0;
+
+	if (!IS_FWI2_CAPABLE(ha) || !qla2xxx_is_vpd_valid(pos, end))
+		return 0;
+
+	while (pos < end && *pos != 0x78) {
+		len = (*pos == 0x82) ? pos[1] : pos[2];
+
+		if (!strncmp(pos, key, strlen(key)))
+			break;
+
+		if (*pos != 0x90 && *pos != 0x91)
+			pos += len;
+
+		pos += 3;
+	}
+
+	if (pos < end - len && *pos != 0x78)
+		return snprintf(str, size, "%.*s", len, pos + 3);
+
+	return 0;
 }
 
 static int

@@ -33,10 +33,6 @@
 #ifndef __rio_pci_h__
 #define	__rio_pci_h__
 
-#ifdef SCCS_LABELS
-static char *_pci_h_sccs_ = "@(#)pci.h	1.2";
-#endif
-
 /*
 ** PCI stuff
 */

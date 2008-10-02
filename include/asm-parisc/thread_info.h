@@ -34,15 +34,11 @@ struct thread_info {
 
 /* thread information allocation */
 
-#define THREAD_ORDER            2
+#define THREAD_SIZE_ORDER            2
 /* Be sure to hunt all references to this down when you change the size of
  * the kernel stack */
-#define THREAD_SIZE             (PAGE_SIZE << THREAD_ORDER)
-#define THREAD_SHIFT            (PAGE_SHIFT + THREAD_ORDER)
-
-#define alloc_thread_info(tsk) ((struct thread_info *) \
-			__get_free_pages(GFP_KERNEL, THREAD_ORDER))
-#define free_thread_info(ti)    free_pages((unsigned long) (ti), THREAD_ORDER)
+#define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)
+#define THREAD_SHIFT            (PAGE_SHIFT + THREAD_SIZE_ORDER)
 
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *)mfctl(30))

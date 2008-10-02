@@ -75,10 +75,6 @@
 #define IVTV_REG_I2C_GETSCL_OFFSET 0x7008
 #define IVTV_REG_I2C_GETSDA_OFFSET 0x700c
 
-#ifndef I2C_ADAP_CLASS_TV_ANALOG
-#define I2C_ADAP_CLASS_TV_ANALOG I2C_CLASS_TV_ANALOG
-#endif /* I2C_ADAP_CLASS_TV_ANALOG */
-
 #define IVTV_CS53L32A_I2C_ADDR		0x11
 #define IVTV_M52790_I2C_ADDR		0x48
 #define IVTV_CX25840_I2C_ADDR 		0x44
@@ -139,7 +135,7 @@ static const u8 hw_addrs[] = {
 static const char * const hw_devicenames[] = {
 	"cx25840",
 	"saa7115",
-	"saa7127",
+	"saa7127_auto",	/* saa7127 or saa7129 */
 	"msp3400",
 	"tuner",
 	"wm8775",

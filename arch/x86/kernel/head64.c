@@ -39,6 +39,13 @@ static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
 static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
 #endif
 
+void __init x86_64_init_pda(void)
+{
+	_cpu_pda = __cpu_pda;
+	cpu_pda(0) = &_boot_cpu_pda;
+	pda_init(0);
+}
+
 static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
@@ -81,6 +88,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
 	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
 				(__START_KERNEL & PGDIR_MASK)));
+	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
 	/* clear bss before set_intr_gate with early_idt_handler */
 	clear_bss();
@@ -102,9 +110,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	early_printk("Kernel alive\n");
 
-	_cpu_pda = __cpu_pda;
-	cpu_pda(0) = &_boot_cpu_pda;
-	pda_init(0);
+	x86_64_init_pda();
 
 	early_printk("Kernel really alive\n");
 

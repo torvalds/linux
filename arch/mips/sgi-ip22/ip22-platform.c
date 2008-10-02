@@ -150,7 +150,7 @@ static int __init sgiseeq_devinit(void)
 		return res;
 
 	/* Second HPC is missing? */
-	if (!ip22_is_fullhouse() ||
+	if (ip22_is_fullhouse() ||
 	    get_dbe(tmp, (unsigned int *)&hpc3c1->pbdma[1]))
 		return 0;
 
@@ -188,8 +188,7 @@ static int __init sgi_button_devinit(void)
 	if (ip22_is_fullhouse())
 		return 0; /* full house has no volume buttons */
 
-	return IS_ERR(platform_device_register_simple("sgiindybtns",
-						      -1, NULL, 0));
+	return IS_ERR(platform_device_register_simple("sgibtns", -1, NULL, 0));
 }
 
 device_initcall(sgi_button_devinit);

@@ -84,6 +84,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	memset(&erp, 0, sizeof(erp));
 
 	erp.short_preamble = bss_conf->use_short_preamble;
+	erp.cts_protection = bss_conf->use_cts_prot;
+
 	erp.ack_timeout = PLCP + get_duration(ACK_SIZE, 10);
 	erp.ack_consume_time = SIFS + PLCP + get_duration(ACK_SIZE, 10);
 
@@ -252,6 +254,8 @@ config:
 			libconf.ant.rx = default_ant->rx;
 		else if (active_ant->rx == ANTENNA_SW_DIVERSITY)
 			libconf.ant.rx = ANTENNA_B;
+		else
+			libconf.ant.rx = active_ant->rx;
 
 		if (conf->antenna_sel_tx)
 			libconf.ant.tx = conf->antenna_sel_tx;
@@ -259,6 +263,8 @@ config:
 			libconf.ant.tx = default_ant->tx;
 		else if (active_ant->tx == ANTENNA_SW_DIVERSITY)
 			libconf.ant.tx = ANTENNA_B;
+		else
+			libconf.ant.tx = active_ant->tx;
 	}
 
 	if (flags & CONFIG_UPDATE_SLOT_TIME) {
@@ -269,7 +275,7 @@ config:
 		libconf.sifs = SIFS;
 		libconf.pifs = short_slot_time ? SHORT_PIFS : PIFS;
 		libconf.difs = short_slot_time ? SHORT_DIFS : DIFS;
-		libconf.eifs = EIFS;
+		libconf.eifs = short_slot_time ? SHORT_EIFS : EIFS;
 	}
 
 	libconf.conf = conf;

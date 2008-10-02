@@ -90,10 +90,13 @@ struct e1000_adapter;
 #define E1000_ERR(args...) printk(KERN_ERR "e1000: " args)
 
 #define PFX "e1000: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__FUNCTION__ , ## args))
+
+#define DPRINTK(nlevel, klevel, fmt, args...)				\
+do {									\
+	if (NETIF_MSG_##nlevel & adapter->msg_enable)			\
+		printk(KERN_##klevel PFX "%s: %s: " fmt,		\
+		       adapter->netdev->name, __func__, ##args);	\
+} while (0)
 
 #define E1000_MAX_INTR 10
 
@@ -151,9 +154,9 @@ struct e1000_adapter;
 #define E1000_MASTER_SLAVE	e1000_ms_hw_default
 #endif
 
-#define E1000_MNG_VLAN_NONE -1
+#define E1000_MNG_VLAN_NONE (-1)
 /* Number of packet split data buffers (not including the header buffer) */
-#define PS_PAGE_BUFFERS MAX_PS_BUFFERS-1
+#define PS_PAGE_BUFFERS (MAX_PS_BUFFERS - 1)
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
@@ -165,9 +168,13 @@ struct e1000_buffer {
 	u16 next_to_watch;
 };
 
+struct e1000_ps_page {
+	struct page *ps_page[PS_PAGE_BUFFERS];
+};
 
-struct e1000_ps_page { struct page *ps_page[PS_PAGE_BUFFERS]; };
-struct e1000_ps_page_dma { u64 ps_page_dma[PS_PAGE_BUFFERS]; };
+struct e1000_ps_page_dma {
+	u64 ps_page_dma[PS_PAGE_BUFFERS];
+};
 
 struct e1000_tx_ring {
 	/* pointer to the descriptor ring memory */
@@ -217,13 +224,13 @@ struct e1000_rx_ring {
 	u16 rdt;
 };
 
-#define E1000_DESC_UNUSED(R) \
-	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
-	(R)->next_to_clean - (R)->next_to_use - 1)
+#define E1000_DESC_UNUSED(R)						\
+	((((R)->next_to_clean > (R)->next_to_use)			\
+	  ? 0 : (R)->count) + (R)->next_to_clean - (R)->next_to_use - 1)
 
-#define E1000_RX_DESC_PS(R, i)	    \
+#define E1000_RX_DESC_PS(R, i)						\
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))
-#define E1000_RX_DESC_EXT(R, i)	    \
+#define E1000_RX_DESC_EXT(R, i)						\
 	(&(((union e1000_rx_desc_extended *)((R).desc))[i]))
 #define E1000_GET_DESC(R, i, type)	(&(((struct type *)((R).desc))[i]))
 #define E1000_RX_DESC(R, i)		E1000_GET_DESC(R, i, e1000_rx_desc)
@@ -246,9 +253,7 @@ struct e1000_adapter {
 	u16 link_speed;
 	u16 link_duplex;
 	spinlock_t stats_lock;
-#ifdef CONFIG_E1000_NAPI
 	spinlock_t tx_queue_lock;
-#endif
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
@@ -286,22 +291,16 @@ struct e1000_adapter {
 	bool detect_tx_hung;
 
 	/* RX */
-#ifdef CONFIG_E1000_NAPI
-	bool (*clean_rx) (struct e1000_adapter *adapter,
-			  struct e1000_rx_ring *rx_ring,
-			  int *work_done, int work_to_do);
-#else
-	bool (*clean_rx) (struct e1000_adapter *adapter,
-			  struct e1000_rx_ring *rx_ring);
-#endif
-	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
-			      struct e1000_rx_ring *rx_ring,
-				int cleaned_count);
+	bool (*clean_rx)(struct e1000_adapter *adapter,
+			 struct e1000_rx_ring *rx_ring,
+			 int *work_done, int work_to_do);
+	void (*alloc_rx_buf)(struct e1000_adapter *adapter,
+			     struct e1000_rx_ring *rx_ring,
+			     int cleaned_count);
 	struct e1000_rx_ring *rx_ring;      /* One per active queue */
-#ifdef CONFIG_E1000_NAPI
 	struct napi_struct napi;
 	struct net_device *polling_netdev;  /* One per active queue */
-#endif
+
 	int num_tx_queues;
 	int num_rx_queues;
 
@@ -316,7 +315,6 @@ struct e1000_adapter {
 	u32 gorcl;
 	u64 gorcl_old;
 	u16 rx_ps_bsize0;
-
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -342,6 +340,10 @@ struct e1000_adapter {
 	bool quad_port_a;
 	unsigned long flags;
 	u32 eeprom_wol;
+
+	/* for ioport free */
+	int bars;
+	int need_ioport;
 };
 
 enum e1000_state_t {
@@ -353,9 +355,18 @@ enum e1000_state_t {
 extern char e1000_driver_name[];
 extern const char e1000_driver_version[];
 
+extern int e1000_up(struct e1000_adapter *adapter);
+extern void e1000_down(struct e1000_adapter *adapter);
+extern void e1000_reinit_locked(struct e1000_adapter *adapter);
+extern void e1000_reset(struct e1000_adapter *adapter);
+extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx);
+extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
+extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
+extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
+extern void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
+extern void e1000_update_stats(struct e1000_adapter *adapter);
 extern void e1000_power_up_phy(struct e1000_adapter *);
 extern void e1000_set_ethtool_ops(struct net_device *netdev);
 extern void e1000_check_options(struct e1000_adapter *adapter);
-
 
 #endif /* _E1000_H_ */

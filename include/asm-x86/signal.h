@@ -181,12 +181,12 @@ typedef struct sigaltstack {
 #ifdef __KERNEL__
 #include <asm/sigcontext.h>
 
-#ifdef __386__
+#ifdef __i386__
 
 #define __HAVE_ARCH_SIG_BITOPS
 
 #define sigaddset(set,sig)		    \
-	(__builtin_constantp(sig)	    \
+	(__builtin_constant_p(sig)	    \
 	 ? __const_sigaddset((set), (sig))  \
 	 : __gen_sigaddset((set), (sig)))
 

@@ -115,6 +115,23 @@ extern void rtc_time_to_tm(unsigned long time, struct rtc_time *tm);
 
 extern struct class *rtc_class;
 
+/*
+ * For these RTC methods the device parameter is the physical device
+ * on whatever bus holds the hardware (I2C, Platform, SPI, etc), which
+ * was passed to rtc_device_register().  Its driver_data normally holds
+ * device state, including the rtc_device pointer for the RTC.
+ *
+ * Most of these methods are called with rtc_device.ops_lock held,
+ * through the rtc_*(struct rtc_device *, ...) calls.
+ *
+ * The (current) exceptions are mostly filesystem hooks:
+ *   - the proc() hook for procfs
+ *   - non-ioctl() chardev hooks:  open(), release(), read_callback()
+ *   - periodic irq calls:  irq_set_state(), irq_set_freq()
+ *
+ * REVISIT those periodic irq calls *do* have ops_lock when they're
+ * issued through ioctl() ...
+ */
 struct rtc_class_ops {
 	int (*open)(struct device *);
 	void (*release)(struct device *);
@@ -208,8 +225,6 @@ typedef struct rtc_task {
 int rtc_register(rtc_task_t *task);
 int rtc_unregister(rtc_task_t *task);
 int rtc_control(rtc_task_t *t, unsigned int cmd, unsigned long arg);
-void rtc_get_rtc_time(struct rtc_time *rtc_tm);
-irqreturn_t rtc_interrupt(int irq, void *dev_id);
 
 #endif /* __KERNEL__ */
 

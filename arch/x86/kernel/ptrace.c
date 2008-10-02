@@ -1357,8 +1357,6 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
-#ifdef CONFIG_X86_32
-
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 {
 	struct siginfo info;
@@ -1377,89 +1375,10 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 	force_sig_info(SIGTRAP, &info, tsk);
 }
 
-/* notification of system call entry/exit
- * - triggered by current->work.syscall_trace
- */
-int do_syscall_trace(struct pt_regs *regs, int entryexit)
-{
-	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);
-	/*
-	 * With TIF_SYSCALL_EMU set we want to ignore TIF_SINGLESTEP for syscall
-	 * interception
-	 */
-	int is_singlestep = !is_sysemu && test_thread_flag(TIF_SINGLESTEP);
-	int ret = 0;
-
-	/* do the secure computing check first */
-	if (!entryexit)
-		secure_computing(regs->orig_ax);
-
-	if (unlikely(current->audit_context)) {
-		if (entryexit)
-			audit_syscall_exit(AUDITSC_RESULT(regs->ax),
-						regs->ax);
-		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
-		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
-		 * not used, entry.S will call us only on syscall exit, not
-		 * entry; so when TIF_SYSCALL_AUDIT is used we must avoid
-		 * calling send_sigtrap() on syscall entry.
-		 *
-		 * Note that when PTRACE_SYSEMU_SINGLESTEP is used,
-		 * is_singlestep is false, despite his name, so we will still do
-		 * the correct thing.
-		 */
-		else if (is_singlestep)
-			goto out;
-	}
-
-	if (!(current->ptrace & PT_PTRACED))
-		goto out;
-
-	/* If a process stops on the 1st tracepoint with SYSCALL_TRACE
-	 * and then is resumed with SYSEMU_SINGLESTEP, it will come in
-	 * here. We have to check this and return */
-	if (is_sysemu && entryexit)
-		return 0;
-
-	/* Fake a debug trap */
-	if (is_singlestep)
-		send_sigtrap(current, regs, 0);
-
- 	if (!test_thread_flag(TIF_SYSCALL_TRACE) && !is_sysemu)
-		goto out;
-
-	/* the 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall stop and SIGTRAP delivery */
-	/* Note that the debugger could change the result of test_thread_flag!*/
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80:0));
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
-	ret = is_sysemu;
-out:
-	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(AUDIT_ARCH_I386, regs->orig_ax,
-				    regs->bx, regs->cx, regs->dx, regs->si);
-	if (ret == 0)
-		return 0;
-
-	regs->orig_ax = -1; /* force skip of syscall restarting */
-	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
-	return 1;
-}
-
-#else  /* CONFIG_X86_64 */
-
 static void syscall_trace(struct pt_regs *regs)
 {
+	if (!(current->ptrace & PT_PTRACED))
+		return;
 
 #if 0
 	printk("trace %s ip %lx sp %lx ax %d origrax %d caller %lx tiflags %x ptrace %x\n",
@@ -1481,39 +1400,81 @@ static void syscall_trace(struct pt_regs *regs)
 	}
 }
 
-asmlinkage void syscall_trace_enter(struct pt_regs *regs)
+#ifdef CONFIG_X86_32
+# define IS_IA32	1
+#elif defined CONFIG_IA32_EMULATION
+# define IS_IA32	test_thread_flag(TIF_IA32)
+#else
+# define IS_IA32	0
+#endif
+
+/*
+ * We must return the syscall number to actually look up in the table.
+ * This can be -1L to skip running any syscall at all.
+ */
+asmregparm long syscall_trace_enter(struct pt_regs *regs)
 {
+	long ret = 0;
+
+	/*
+	 * If we stepped into a sysenter/syscall insn, it trapped in
+	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
+	 * If user-mode had set TF itself, then it's still clear from
+	 * do_debug() and we need to set it again to restore the user
+	 * state.  If we entered on the slow path, TF was already set.
+	 */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		regs->flags |= X86_EFLAGS_TF;
+
 	/* do the secure computing check first */
 	secure_computing(regs->orig_ax);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
-	    && (current->ptrace & PT_PTRACED))
+	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
+		ret = -1L;
+
+	if (ret || test_thread_flag(TIF_SYSCALL_TRACE))
 		syscall_trace(regs);
 
 	if (unlikely(current->audit_context)) {
-		if (test_thread_flag(TIF_IA32)) {
+		if (IS_IA32)
 			audit_syscall_entry(AUDIT_ARCH_I386,
 					    regs->orig_ax,
 					    regs->bx, regs->cx,
 					    regs->dx, regs->si);
-		} else {
+#ifdef CONFIG_X86_64
+		else
 			audit_syscall_entry(AUDIT_ARCH_X86_64,
 					    regs->orig_ax,
 					    regs->di, regs->si,
 					    regs->dx, regs->r10);
-		}
+#endif
 	}
+
+	return ret ?: regs->orig_ax;
 }
 
-asmlinkage void syscall_trace_leave(struct pt_regs *regs)
+asmregparm void syscall_trace_leave(struct pt_regs *regs)
 {
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 
-	if ((test_thread_flag(TIF_SYSCALL_TRACE)
-	     || test_thread_flag(TIF_SINGLESTEP))
-	    && (current->ptrace & PT_PTRACED))
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		syscall_trace(regs);
-}
 
-#endif	/* CONFIG_X86_32 */
+	/*
+	 * If TIF_SYSCALL_EMU is set, we only get here because of
+	 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
+	 * We already reported this syscall instruction in
+	 * syscall_trace_enter(), so don't do any more now.
+	 */
+	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
+		return;
+
+	/*
+	 * If we are single-stepping, synthesize a trap to follow the
+	 * system call instruction.
+	 */
+	if (test_thread_flag(TIF_SINGLESTEP) &&
+	    (current->ptrace & PT_PTRACED))
+		send_sigtrap(current, regs, 0);
+}

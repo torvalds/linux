@@ -42,18 +42,6 @@ static void ide_outb (u8 val, unsigned long port)
 	outb(val, port);
 }
 
-static void ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
-{
-	outb(addr, port);
-}
-
-void default_hwif_iops (ide_hwif_t *hwif)
-{
-	hwif->OUTB	= ide_outb;
-	hwif->OUTBSYNC	= ide_outbsync;
-	hwif->INB	= ide_inb;
-}
-
 /*
  *	MMIO operations, typically used for SATA controllers
  */
@@ -68,31 +56,19 @@ static void ide_mm_outb (u8 value, unsigned long port)
 	writeb(value, (void __iomem *) port);
 }
 
-static void ide_mm_outbsync(ide_hwif_t *hwif, u8 value, unsigned long port)
-{
-	writeb(value, (void __iomem *) port);
-}
-
-void default_hwif_mmiops (ide_hwif_t *hwif)
-{
-	hwif->OUTB	= ide_mm_outb;
-	/* Most systems will need to override OUTBSYNC, alas however
-	   this one is controller specific! */
-	hwif->OUTBSYNC	= ide_mm_outbsync;
-	hwif->INB	= ide_mm_inb;
-}
-
-EXPORT_SYMBOL(default_hwif_mmiops);
-
 void SELECT_DRIVE (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
+	ide_task_t task;
 
 	if (port_ops && port_ops->selectproc)
 		port_ops->selectproc(drive);
 
-	hwif->OUTB(drive->select.all, hwif->io_ports.device_addr);
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_OUT_DEVICE;
+
+	drive->hwif->tp_ops->tf_load(drive, &task);
 }
 
 void SELECT_MASK(ide_drive_t *drive, int mask)
@@ -103,7 +79,61 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 		port_ops->maskproc(drive, mask);
 }
 
-static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
+void ide_exec_command(ide_hwif_t *hwif, u8 cmd)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(cmd, (void __iomem *)hwif->io_ports.command_addr);
+	else
+		outb(cmd, hwif->io_ports.command_addr);
+}
+EXPORT_SYMBOL_GPL(ide_exec_command);
+
+u8 ide_read_status(ide_hwif_t *hwif)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)hwif->io_ports.status_addr);
+	else
+		return inb(hwif->io_ports.status_addr);
+}
+EXPORT_SYMBOL_GPL(ide_read_status);
+
+u8 ide_read_altstatus(ide_hwif_t *hwif)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)hwif->io_ports.ctl_addr);
+	else
+		return inb(hwif->io_ports.ctl_addr);
+}
+EXPORT_SYMBOL_GPL(ide_read_altstatus);
+
+u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
+{
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		return readb((void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
+	else
+		return inb(hwif->dma_base + ATA_DMA_STATUS);
+}
+EXPORT_SYMBOL_GPL(ide_read_sff_dma_status);
+
+void ide_set_irq(ide_hwif_t *hwif, int on)
+{
+	u8 ctl = ATA_DEVCTL_OBS;
+
+	if (on == 4) { /* hack for SRST */
+		ctl |= 4;
+		on &= ~4;
+	}
+
+	ctl |= on ? 0 : 2;
+
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(ctl, (void __iomem *)hwif->io_ports.ctl_addr);
+	else
+		outb(ctl, hwif->io_ports.ctl_addr);
+}
+EXPORT_SYMBOL_GPL(ide_set_irq);
+
+void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -155,8 +185,9 @@ static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		tf_outb((tf->device & HIHI) | drive->select.all,
 			 io_ports->device_addr);
 }
+EXPORT_SYMBOL_GPL(ide_tf_load);
 
-static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
+void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -188,6 +219,8 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 	/* be sure we're looking at the low order bits */
 	tf_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
+	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+		tf->feature = tf_inb(io_ports->feature_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = tf_inb(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -214,6 +247,7 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 			tf->hob_lbah    = tf_inb(io_ports->lbah_addr);
 	}
 }
+EXPORT_SYMBOL_GPL(ide_tf_read);
 
 /*
  * Some localbus EIDE interfaces require a special access sequence
@@ -236,8 +270,8 @@ static void ata_vlb_sync(unsigned long port)
  * so if an odd len is specified, be sure that there's at least one
  * extra byte allocated for the buffer.
  */
-static void ata_input_data(ide_drive_t *drive, struct request *rq,
-			   void *buf, unsigned int len)
+void ide_input_data(ide_drive_t *drive, struct request *rq, void *buf,
+		    unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -277,12 +311,13 @@ static void ata_input_data(ide_drive_t *drive, struct request *rq,
 			insw(data_addr, buf, len / 2);
 	}
 }
+EXPORT_SYMBOL_GPL(ide_input_data);
 
 /*
  * This is used for most PIO data transfers *to* the IDE interface
  */
-static void ata_output_data(ide_drive_t *drive, struct request *rq,
-			    void *buf, unsigned int len)
+void ide_output_data(ide_drive_t *drive, struct request *rq, void *buf,
+		     unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -320,15 +355,50 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 			outsw(data_addr, buf, len / 2);
 	}
 }
+EXPORT_SYMBOL_GPL(ide_output_data);
 
-void default_hwif_transport(ide_hwif_t *hwif)
+u8 ide_read_error(ide_drive_t *drive)
 {
-	hwif->tf_load	  = ide_tf_load;
-	hwif->tf_read	  = ide_tf_read;
+	ide_task_t task;
 
-	hwif->input_data  = ata_input_data;
-	hwif->output_data = ata_output_data;
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_FEATURE;
+
+	drive->hwif->tp_ops->tf_read(drive, &task);
+
+	return task.tf.error;
 }
+EXPORT_SYMBOL_GPL(ide_read_error);
+
+void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
+			IDE_TFLAG_IN_NSECT;
+
+	drive->hwif->tp_ops->tf_read(drive, &task);
+
+	*bcount = (task.tf.lbah << 8) | task.tf.lbam;
+	*ireason = task.tf.nsect & 3;
+}
+EXPORT_SYMBOL_GPL(ide_read_bcount_and_ireason);
+
+const struct ide_tp_ops default_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
 
 void ide_fix_driveid (struct hd_driveid *id)
 {
@@ -414,11 +484,11 @@ void ide_fix_driveid (struct hd_driveid *id)
 	for (i = 0; i < 3; i++)
 		id->words157_159[i] = __le16_to_cpu(id->words157_159[i]);
 	id->cfa_power      = __le16_to_cpu(id->cfa_power);
-	for (i = 0; i < 14; i++)
+	for (i = 0; i < 15; i++)
 		id->words161_175[i] = __le16_to_cpu(id->words161_175[i]);
-	for (i = 0; i < 31; i++)
+	for (i = 0; i < 30; i++)
 		id->words176_205[i] = __le16_to_cpu(id->words176_205[i]);
-	for (i = 0; i < 48; i++)
+	for (i = 0; i < 49; i++)
 		id->words206_254[i] = __le16_to_cpu(id->words206_254[i]);
 	id->integrity_word  = __le16_to_cpu(id->integrity_word);
 # else
@@ -440,10 +510,8 @@ void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 
 	if (byteswap) {
 		/* convert from big-endian to host byte order */
-		for (p = end ; p != s;) {
-			unsigned short *pp = (unsigned short *) (p -= 2);
-			*pp = ntohs(*pp);
-		}
+		for (p = end ; p != s;)
+			be16_to_cpus((u16 *)(p -= 2));
 	}
 	/* strip leading blanks */
 	while (s != end && *s == ' ')
@@ -483,10 +551,10 @@ int drive_is_ready (ide_drive_t *drive)
 	 * about possible isa-pnp and pci-pnp issues yet.
 	 */
 	if (hwif->io_ports.ctl_addr)
-		stat = ide_read_altstatus(drive);
+		stat = hwif->tp_ops->read_altstatus(hwif);
 	else
 		/* Note: this may clear a pending IRQ!! */
-		stat = ide_read_status(drive);
+		stat = hwif->tp_ops->read_status(hwif);
 
 	if (stat & BUSY_STAT)
 		/* drive busy:  definitely not interrupting */
@@ -511,24 +579,26 @@ EXPORT_SYMBOL(drive_is_ready);
  */
 static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long timeout, u8 *rstat)
 {
+	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	unsigned long flags;
 	int i;
 	u8 stat;
 
 	udelay(1);	/* spec allows drive 400ns to assert "BUSY" */
-	stat = ide_read_status(drive);
+	stat = tp_ops->read_status(hwif);
 
 	if (stat & BUSY_STAT) {
 		local_irq_set(flags);
 		timeout += jiffies;
-		while ((stat = ide_read_status(drive)) & BUSY_STAT) {
+		while ((stat = tp_ops->read_status(hwif)) & BUSY_STAT) {
 			if (time_after(jiffies, timeout)) {
 				/*
 				 * One last read after the timeout in case
 				 * heavy interrupt load made us not make any
 				 * progress during the timeout..
 				 */
-				stat = ide_read_status(drive);
+				stat = tp_ops->read_status(hwif);
 				if (!(stat & BUSY_STAT))
 					break;
 
@@ -548,7 +618,7 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 	 */
 	for (i = 0; i < 10; i++) {
 		udelay(1);
-		stat = ide_read_status(drive);
+		stat = tp_ops->read_status(hwif);
 
 		if (OK_STAT(stat, good, bad)) {
 			*rstat = stat;
@@ -674,6 +744,7 @@ no_80w:
 int ide_driveid_update(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	struct hd_driveid *id;
 	unsigned long timeout, flags;
 	u8 stat;
@@ -684,9 +755,9 @@ int ide_driveid_update(ide_drive_t *drive)
 	 */
 
 	SELECT_MASK(drive, 1);
-	ide_set_irq(drive, 0);
+	tp_ops->set_irq(hwif, 0);
 	msleep(50);
-	hwif->OUTBSYNC(hwif, WIN_IDENTIFY, hwif->io_ports.command_addr);
+	tp_ops->exec_command(hwif, WIN_IDENTIFY);
 	timeout = jiffies + WAIT_WORSTCASE;
 	do {
 		if (time_after(jiffies, timeout)) {
@@ -695,11 +766,11 @@ int ide_driveid_update(ide_drive_t *drive)
 		}
 
 		msleep(50);	/* give drive a breather */
-		stat = ide_read_altstatus(drive);
+		stat = tp_ops->read_altstatus(hwif);
 	} while (stat & BUSY_STAT);
 
 	msleep(50);	/* wait for IRQ and DRQ_STAT */
-	stat = ide_read_status(drive);
+	stat = tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
 		SELECT_MASK(drive, 0);
@@ -713,8 +784,8 @@ int ide_driveid_update(ide_drive_t *drive)
 		local_irq_restore(flags);
 		return 0;
 	}
-	hwif->input_data(drive, NULL, id, SECTOR_SIZE);
-	(void)ide_read_status(drive);	/* clear drive IRQ */
+	tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
+	(void)tp_ops->read_status(hwif);	/* clear drive IRQ */
 	local_irq_enable();
 	local_irq_restore(flags);
 	ide_fix_driveid(id);
@@ -735,9 +806,10 @@ int ide_driveid_update(ide_drive_t *drive)
 int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct ide_io_ports *io_ports = &hwif->io_ports;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int error = 0;
 	u8 stat;
+	ide_task_t task;
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
@@ -770,12 +842,19 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	SELECT_DRIVE(drive);
 	SELECT_MASK(drive, 0);
 	udelay(1);
-	ide_set_irq(drive, 0);
-	hwif->OUTB(speed, io_ports->nsect_addr);
-	hwif->OUTB(SETFEATURES_XFER, io_ports->feature_addr);
-	hwif->OUTBSYNC(hwif, WIN_SETFEATURES, io_ports->command_addr);
+	tp_ops->set_irq(hwif, 0);
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
+	task.tf.feature = SETFEATURES_XFER;
+	task.tf.nsect   = speed;
+
+	tp_ops->tf_load(drive, &task);
+
+	tp_ops->exec_command(hwif, WIN_SETFEATURES);
+
 	if (drive->quirk_list == 2)
-		ide_set_irq(drive, 1);
+		tp_ops->set_irq(hwif, 1);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,
 				BUSY_STAT|DRQ_STAT|ERR_STAT,
@@ -796,8 +875,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if ((speed >= XFER_SW_DMA_0 || (hwif->host_flags & IDE_HFLAG_VDMA)) &&
-	    drive->using_dma)
+	if (speed >= XFER_SW_DMA_0 && drive->using_dma)
 		hwif->dma_ops->dma_host_set(drive, 1);
 	else if (hwif->dma_ops)	/* check if host supports DMA */
 		ide_dma_off_quietly(drive);
@@ -881,7 +959,7 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 
 	spin_lock_irqsave(&ide_lock, flags);
 	__ide_set_handler(drive, handler, timeout, expiry);
-	hwif->OUTBSYNC(hwif, cmd, hwif->io_ports.command_addr);
+	hwif->tp_ops->exec_command(hwif, cmd);
 	/*
 	 * Drive takes 400nS to respond, we must avoid the IRQ being
 	 * serviced before that.
@@ -899,7 +977,7 @@ void ide_execute_pkt_cmd(ide_drive_t *drive)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ide_lock, flags);
-	hwif->OUTBSYNC(hwif, WIN_PACKETCMD, hwif->io_ports.command_addr);
+	hwif->tp_ops->exec_command(hwif, WIN_PACKETCMD);
 	ndelay(400);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
@@ -924,12 +1002,13 @@ static ide_startstop_t do_reset1 (ide_drive_t *, int);
  */
 static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 {
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	u8 stat;
 
 	SELECT_DRIVE(drive);
 	udelay (10);
-	stat = ide_read_status(drive);
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, 0, BUSY_STAT))
 		printk("%s: ATAPI reset complete\n", drive->name);
@@ -975,7 +1054,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 	}
 
-	tmp = ide_read_status(drive);
+	tmp = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(tmp, 0, BUSY_STAT)) {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
@@ -1089,14 +1168,16 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	ide_hwif_t *hwif;
 	ide_hwgroup_t *hwgroup;
 	struct ide_io_ports *io_ports;
+	const struct ide_tp_ops *tp_ops;
 	const struct ide_port_ops *port_ops;
-	u8 ctl;
 
 	spin_lock_irqsave(&ide_lock, flags);
 	hwif = HWIF(drive);
 	hwgroup = HWGROUP(drive);
 
 	io_ports = &hwif->io_ports;
+
+	tp_ops = hwif->tp_ops;
 
 	/* We must not reset with running handlers */
 	BUG_ON(hwgroup->handler != NULL);
@@ -1106,7 +1187,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		pre_reset(drive);
 		SELECT_DRIVE(drive);
 		udelay (20);
-		hwif->OUTBSYNC(hwif, WIN_SRST, io_ports->command_addr);
+		tp_ops->exec_command(hwif, WIN_SRST);
 		ndelay(400);
 		hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwgroup->polling = 1;
@@ -1135,16 +1216,15 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * immediate interrupt due to the edge transition it produces.
 	 * This single interrupt gives us a "fast poll" for drives that
 	 * recover from reset very quickly, saving us the first 50ms wait time.
+	 *
+	 * TODO: add ->softreset method and stop abusing ->set_irq
 	 */
 	/* set SRST and nIEN */
-	hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS | 6, io_ports->ctl_addr);
+	tp_ops->set_irq(hwif, 4);
 	/* more than enough time */
 	udelay(10);
-	if (drive->quirk_list == 2)
-		ctl = ATA_DEVCTL_OBS;		/* clear SRST and nIEN */
-	else
-		ctl = ATA_DEVCTL_OBS | 2;	/* clear SRST, leave nIEN */
-	hwif->OUTBSYNC(hwif, ctl, io_ports->ctl_addr);
+	/* clear SRST, leave nIEN (unless device is on the quirk list) */
+	tp_ops->set_irq(hwif, drive->quirk_list == 2);
 	/* more than enough time */
 	udelay(10);
 	hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
@@ -1189,7 +1269,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		 * about locking issues (2.5 work ?).
 		 */
 		mdelay(1);
-		stat = hwif->INB(hwif->io_ports.status_addr);
+		stat = hwif->tp_ops->read_status(hwif);
 		if ((stat & BUSY_STAT) == 0)
 			return 0;
 		/*

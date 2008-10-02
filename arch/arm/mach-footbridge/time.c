@@ -1,5 +1,5 @@
 /*
- *  linux/include/asm-arm/arch-ebsa285/time.h
+ *  arch/arm/mach-footbridge/include/mach/time.h
  *
  *  Copyright (C) 1998 Russell King.
  *  Copyright (C) 1998 Phil Blundell
@@ -23,7 +23,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/bcd.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 
 #include <asm/mach/time.h>
@@ -49,12 +49,12 @@ static unsigned long __init get_isa_cmos_time(void)
 	} while (sec != CMOS_READ(RTC_SECONDS));
 
 	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(sec);
-		BCD_TO_BIN(min);
-		BCD_TO_BIN(hour);
-		BCD_TO_BIN(day);
-		BCD_TO_BIN(mon);
-		BCD_TO_BIN(year);
+		sec = bcd2bin(sec);
+		min = bcd2bin(min);
+		hour = bcd2bin(hour);
+		day = bcd2bin(day);
+		mon = bcd2bin(mon);
+		year = bcd2bin(year);
 	}
 	if ((year += 1900) < 1970)
 		year += 100;
@@ -76,7 +76,7 @@ static int set_isa_cmos_time(void)
 
 	cmos_minutes = CMOS_READ(RTC_MINUTES);
 	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-		BCD_TO_BIN(cmos_minutes);
+		cmos_minutes = bcd2bin(cmos_minutes);
 
 	/*
 	 * since we're only adjusting minutes and seconds,
@@ -92,8 +92,8 @@ static int set_isa_cmos_time(void)
 
 	if (abs(real_minutes - cmos_minutes) < 30) {
 		if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-			BIN_TO_BCD(real_seconds);
-			BIN_TO_BCD(real_minutes);
+			real_seconds = bin2bcd(real_seconds);
+			real_minutes = bin2bcd(real_minutes);
 		}
 		CMOS_WRITE(real_seconds,RTC_SECONDS);
 		CMOS_WRITE(real_minutes,RTC_MINUTES);

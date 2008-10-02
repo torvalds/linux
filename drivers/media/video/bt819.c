@@ -516,7 +516,7 @@ bt819_detect_client (struct i2c_adapter *adapter,
 
 	dprintk(1,
 		KERN_INFO
-		"saa7111.c: detecting bt819 client on address 0x%x\n",
+		"bt819: detecting bt819 client on address 0x%x\n",
 		address << 1);
 
 	/* Check if the adapter supports the needed features */

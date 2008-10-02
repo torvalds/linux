@@ -93,14 +93,15 @@ DECLARE_PER_CPU(int, cpu_state);
 static inline void play_dead(void)
 {
 	idle_task_exit();
-	wbinvd();
+	c1e_remove_cpu(raw_smp_processor_id());
+
 	mb();
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;
 
 	local_irq_disable();
-	while (1)
-		halt();
+	/* mask all interrupts, flush any and all caches, and halt */
+	wbinvd_halt();
 }
 #else
 static inline void play_dead(void)
@@ -120,7 +121,7 @@ void cpu_idle(void)
 	current_thread_info()->status |= TS_POLLING;
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched()) {
 
 			rmb();
@@ -537,8 +538,8 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
-	struct thread_struct *prev = &prev_p->thread,
-				 *next = &next_p->thread;
+	struct thread_struct *prev = &prev_p->thread;
+	struct thread_struct *next = &next_p->thread;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 	unsigned fsindex, gsindex;
@@ -586,35 +587,34 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* 
 	 * Switch FS and GS.
+	 *
+	 * Segment register != 0 always requires a reload.  Also
+	 * reload when it has changed.  When prev process used 64bit
+	 * base always reload to avoid an information leak.
 	 */
-	{ 
-		/* segment register != 0 always requires a reload. 
-		   also reload when it has changed. 
-		   when prev process used 64bit base always reload
-		   to avoid an information leak. */
-		if (unlikely(fsindex | next->fsindex | prev->fs)) {
-			loadsegment(fs, next->fsindex);
-			/* check if the user used a selector != 0
-	                 * if yes clear 64bit base, since overloaded base
-                         * is always mapped to the Null selector
-                         */
-			if (fsindex)
+	if (unlikely(fsindex | next->fsindex | prev->fs)) {
+		loadsegment(fs, next->fsindex);
+		/* 
+		 * Check if the user used a selector != 0; if yes
+		 *  clear 64bit base, since overloaded base is always
+		 *  mapped to the Null selector
+		 */
+		if (fsindex)
 			prev->fs = 0;				
-		}
-		/* when next process has a 64bit base use it */
-		if (next->fs) 
-			wrmsrl(MSR_FS_BASE, next->fs); 
-		prev->fsindex = fsindex;
-
-		if (unlikely(gsindex | next->gsindex | prev->gs)) {
-			load_gs_index(next->gsindex);
-			if (gsindex)
-			prev->gs = 0;				
-		}
-		if (next->gs)
-			wrmsrl(MSR_KERNEL_GS_BASE, next->gs); 
-		prev->gsindex = gsindex;
 	}
+	/* when next process has a 64bit base use it */
+	if (next->fs)
+		wrmsrl(MSR_FS_BASE, next->fs);
+	prev->fsindex = fsindex;
+
+	if (unlikely(gsindex | next->gsindex | prev->gs)) {
+		load_gs_index(next->gsindex);
+		if (gsindex)
+			prev->gs = 0;				
+	}
+	if (next->gs)
+		wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
+	prev->gsindex = gsindex;
 
 	/* Must be after DS reload */
 	unlazy_fpu(prev_p);
@@ -627,7 +627,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	write_pda(pcurrent, next_p); 
 
 	write_pda(kernelstack,
-	(unsigned long)task_stack_page(next_p) + THREAD_SIZE - PDA_STACKOFFSET);
+		  (unsigned long)task_stack_page(next_p) +
+		  THREAD_SIZE - PDA_STACKOFFSET);
 #ifdef CONFIG_CC_STACKPROTECTOR
 	write_pda(stack_canary, next_p->stack_canary);
 	/*

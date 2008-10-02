@@ -641,6 +641,7 @@ config PCI
        bool
        depends on ETRAX_CARDBUS
        default y
+       select HAVE_GENERIC_DMA_COHERENT
 
 config ETRAX_IOP_FW_LOAD
 	tristate "IO-processor hotplug firmware loading support"

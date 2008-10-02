@@ -156,9 +156,9 @@ static int __init check_initrd(struct meminfo *mi)
 	}
 
 	if (initrd_node == -1) {
-		printk(KERN_ERR "initrd (0x%08lx - 0x%08lx) extends beyond "
+		printk(KERN_ERR "INITRD: 0x%08lx+0x%08lx extends beyond "
 		       "physical memory - disabling initrd\n",
-		       phys_initrd_start, end);
+		       phys_initrd_start, phys_initrd_size);
 		phys_initrd_start = phys_initrd_size = 0;
 	}
 #endif
@@ -239,23 +239,31 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	reserve_bootmem_node(pgdat, boot_pfn << PAGE_SHIFT,
 			     boot_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
 
+	/*
+	 * Reserve any special node zero regions.
+	 */
+	if (node == 0)
+		reserve_node_zero(pgdat);
+
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*
 	 * If the initrd is in this node, reserve its memory.
 	 */
 	if (node == initrd_node) {
-		reserve_bootmem_node(pgdat, phys_initrd_start,
-				     phys_initrd_size, BOOTMEM_DEFAULT);
-		initrd_start = __phys_to_virt(phys_initrd_start);
-		initrd_end = initrd_start + phys_initrd_size;
+		int res = reserve_bootmem_node(pgdat, phys_initrd_start,
+				     phys_initrd_size, BOOTMEM_EXCLUSIVE);
+
+		if (res == 0) {
+			initrd_start = __phys_to_virt(phys_initrd_start);
+			initrd_end = initrd_start + phys_initrd_size;
+		} else {
+			printk(KERN_ERR
+				"INITRD: 0x%08lx+0x%08lx overlaps in-use "
+				"memory region - disabling initrd\n",
+				phys_initrd_start, phys_initrd_size);
+		}
 	}
 #endif
-
-	/*
-	 * Finally, reserve any node zero regions.
-	 */
-	if (node == 0)
-		reserve_node_zero(pgdat);
 
 	/*
 	 * initialise the zones within this node.
@@ -284,7 +292,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	 */
 	arch_adjust_zones(node, zone_size, zhole_size);
 
-	free_area_init_node(node, pgdat, zone_size, start_pfn, zhole_size);
+	free_area_init_node(node, zone_size, start_pfn, zhole_size);
 
 	return end_pfn;
 }

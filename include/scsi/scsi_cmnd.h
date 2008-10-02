@@ -77,6 +77,9 @@ struct scsi_cmnd {
 	int allowed;
 	int timeout_per_command;
 
+	unsigned char prot_op;
+	unsigned char prot_type;
+
 	unsigned short cmd_len;
 	enum dma_data_direction sc_data_direction;
 
@@ -87,6 +90,8 @@ struct scsi_cmnd {
 
 	/* These elements define the operation we ultimately want to perform */
 	struct scsi_data_buffer sdb;
+	struct scsi_data_buffer *prot_sdb;
+
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
 
@@ -207,5 +212,86 @@ static inline int scsi_sg_copy_to_buffer(struct scsi_cmnd *cmd,
 	return sg_copy_to_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
 				 buf, buflen);
 }
+
+/*
+ * The operations below are hints that tell the controller driver how
+ * to handle I/Os with DIF or similar types of protection information.
+ */
+enum scsi_prot_operations {
+	/* Normal I/O */
+	SCSI_PROT_NORMAL = 0,
+
+	/* OS-HBA: Protected, HBA-Target: Unprotected */
+	SCSI_PROT_READ_INSERT,
+	SCSI_PROT_WRITE_STRIP,
+
+	/* OS-HBA: Unprotected, HBA-Target: Protected */
+	SCSI_PROT_READ_STRIP,
+	SCSI_PROT_WRITE_INSERT,
+
+	/* OS-HBA: Protected, HBA-Target: Protected */
+	SCSI_PROT_READ_PASS,
+	SCSI_PROT_WRITE_PASS,
+
+	/* OS-HBA: Protected, HBA-Target: Protected, checksum conversion */
+	SCSI_PROT_READ_CONVERT,
+	SCSI_PROT_WRITE_CONVERT,
+};
+
+static inline void scsi_set_prot_op(struct scsi_cmnd *scmd, unsigned char op)
+{
+	scmd->prot_op = op;
+}
+
+static inline unsigned char scsi_get_prot_op(struct scsi_cmnd *scmd)
+{
+	return scmd->prot_op;
+}
+
+/*
+ * The controller usually does not know anything about the target it
+ * is communicating with.  However, when DIX is enabled the controller
+ * must be know target type so it can verify the protection
+ * information passed along with the I/O.
+ */
+enum scsi_prot_target_type {
+	SCSI_PROT_DIF_TYPE0 = 0,
+	SCSI_PROT_DIF_TYPE1,
+	SCSI_PROT_DIF_TYPE2,
+	SCSI_PROT_DIF_TYPE3,
+};
+
+static inline void scsi_set_prot_type(struct scsi_cmnd *scmd, unsigned char type)
+{
+	scmd->prot_type = type;
+}
+
+static inline unsigned char scsi_get_prot_type(struct scsi_cmnd *scmd)
+{
+	return scmd->prot_type;
+}
+
+static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
+{
+	return scmd->request->sector;
+}
+
+static inline unsigned scsi_prot_sg_count(struct scsi_cmnd *cmd)
+{
+	return cmd->prot_sdb ? cmd->prot_sdb->table.nents : 0;
+}
+
+static inline struct scatterlist *scsi_prot_sglist(struct scsi_cmnd *cmd)
+{
+	return cmd->prot_sdb ? cmd->prot_sdb->table.sgl : NULL;
+}
+
+static inline struct scsi_data_buffer *scsi_prot(struct scsi_cmnd *cmd)
+{
+	return cmd->prot_sdb;
+}
+
+#define scsi_for_each_prot_sg(cmd, sg, nseg, __i)		\
+	for_each_sg(scsi_prot_sglist(cmd), sg, nseg, __i)
 
 #endif /* _SCSI_SCSI_CMND_H */

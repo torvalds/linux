@@ -136,6 +136,7 @@
 #define MGSL_INTERFACE_RTS_EN   0x10
 #define MGSL_INTERFACE_LL       0x20
 #define MGSL_INTERFACE_RL       0x40
+#define MGSL_INTERFACE_MSB_FIRST 0x80
 
 typedef struct _MGSL_PARAMS
 {

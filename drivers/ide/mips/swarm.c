@@ -72,12 +72,11 @@ static const struct ide_port_info swarm_port_info = {
  */
 static int __devinit swarm_ide_probe(struct device *dev)
 {
-	ide_hwif_t *hwif;
 	u8 __iomem *base;
+	struct ide_host *host;
 	phys_t offset, size;
-	hw_regs_t hw;
-	int i;
-	u8 idx[] = { 0xff, 0xff, 0xff, 0xff };
+	int i, rc;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	if (!SIBYTE_HAVE_IDE)
 		return -ENODEV;
@@ -108,6 +107,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	base = ioremap(offset, size);
 
+	memset(&hw, 0, sizeof(hw));
 	for (i = 0; i <= 7; i++)
 		hw.io_ports_array[i] =
 				(unsigned long)(base + ((0x1f0 + i) << 5));
@@ -116,26 +116,17 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	hw.irq = K_INT_GB_IDE;
 	hw.chipset = ide_generic;
 
-	hwif = ide_find_port_slot(&swarm_port_info);
-	if (hwif == NULL)
+	rc = ide_host_add(&swarm_port_info, hws, &host);
+	if (rc)
 		goto err;
 
-	ide_init_port_hw(hwif, &hw);
-
-	/* Setup MMIO ops. */
-	default_hwif_mmiops(hwif);
-
-	idx[0] = hwif->index;
-
-	ide_device_add(idx, &swarm_port_info);
-
-	dev_set_drvdata(dev, hwif);
+	dev_set_drvdata(dev, host);
 
 	return 0;
 err:
 	release_resource(&swarm_ide_resource);
 	iounmap(base);
-	return -ENOMEM;
+	return rc;
 }
 
 static struct device_driver swarm_ide_driver = {

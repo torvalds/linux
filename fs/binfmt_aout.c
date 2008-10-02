@@ -444,12 +444,6 @@ beyond_if:
 	regs->gp = ex.a_gpvalue;
 #endif
 	start_thread(regs, ex.a_entry, current->mm->start_stack);
-	if (unlikely(current->ptrace & PT_PTRACED)) {
-		if (current->ptrace & PT_TRACE_EXEC)
-			ptrace_notify ((PTRACE_EVENT_EXEC << 8) | SIGTRAP);
-		else
-			send_sig(SIGTRAP, current, 0);
-	}
 	return 0;
 }
 

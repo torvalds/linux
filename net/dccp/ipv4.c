@@ -196,8 +196,8 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 static void dccp_v4_err(struct sk_buff *skb, u32 info)
 {
 	const struct iphdr *iph = (struct iphdr *)skb->data;
-	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data +
-							(iph->ihl << 2));
+	const u8 offset = iph->ihl << 2;
+	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data + offset);
 	struct dccp_sock *dp;
 	struct inet_sock *inet;
 	const int type = icmp_hdr(skb)->type;
@@ -205,17 +205,19 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	struct sock *sk;
 	__u64 seq;
 	int err;
+	struct net *net = dev_net(skb->dev);
 
-	if (skb->len < (iph->ihl << 2) + 8) {
-		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	if (skb->len < offset + sizeof(*dh) ||
+	    skb->len < offset + __dccp_basic_hdr_len(dh)) {
+		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 		return;
 	}
 
-	sk = inet_lookup(dev_net(skb->dev), &dccp_hashinfo,
+	sk = inet_lookup(net, &dccp_hashinfo,
 			iph->daddr, dh->dccph_dport,
 			iph->saddr, dh->dccph_sport, inet_iif(skb));
 	if (sk == NULL) {
-		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 		return;
 	}
 
@@ -229,7 +231,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	 * servers this needs to be solved differently.
 	 */
 	if (sock_owned_by_user(sk))
-		NET_INC_STATS_BH(LINUX_MIB_LOCKDROPPEDICMPS);
+		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	if (sk->sk_state == DCCP_CLOSED)
 		goto out;
@@ -237,8 +239,8 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	dp = dccp_sk(sk);
 	seq = dccp_hdr_seq(dh);
 	if ((1 << sk->sk_state) & ~(DCCPF_REQUESTING | DCCPF_LISTEN) &&
-	    !between48(seq, dp->dccps_swl, dp->dccps_swh)) {
-		NET_INC_STATS_BH(LINUX_MIB_OUTOFWINDOWICMPS);
+	    !between48(seq, dp->dccps_awl, dp->dccps_awh)) {
+		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
 
@@ -282,10 +284,10 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		 * ICMPs are not backlogged, hence we cannot get an established
 		 * socket here.
 		 */
-		BUG_TRAP(!req->sk);
+		WARN_ON(req->sk);
 
 		if (seq != dccp_rsk(req)->dreq_iss) {
-			NET_INC_STATS_BH(LINUX_MIB_OUTOFWINDOWICMPS);
+			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 			goto out;
 		}
 		/*
@@ -408,9 +410,9 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 	return newsk;
 
 exit_overflow:
-	NET_INC_STATS_BH(LINUX_MIB_LISTENOVERFLOWS);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
 exit:
-	NET_INC_STATS_BH(LINUX_MIB_LISTENDROPS);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	dst_release(dst);
 	return NULL;
 }
@@ -464,7 +466,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 
 	security_skb_classify_flow(skb, &fl);
 	if (ip_route_output_flow(net, &rt, &fl, sk, 0)) {
-		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
 

@@ -4,8 +4,6 @@
 #	Maintained by Geert Uytterhoeven <zorro@linux-m68k.org>
 #	If you have any new entries, please send them to the maintainer.
 #
-#	$Id: zorro.ids,v 1.19 2002/10/14 13:08:58 geert Exp $
-#
 
 # Manufacturers and Products. Please keep sorted.
 

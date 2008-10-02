@@ -203,20 +203,6 @@ config UNIX98_PTYS
 	  Read the instructions in <file:Documentation/Changes> pertaining to
 	  pseudo terminals. It's safe to say N.
 
-config UNIX98_PTY_COUNT
-	int "Maximum number of Unix98 PTYs in use (0-2048)"
-	depends on UNIX98_PTYS
-	default "256"
-	help
-	  The maximum number of Unix98 PTYs that can be used at any one time.
-	  The default is 256, and should be enough for desktop systems. Server
-	  machines which support incoming telnet/rlogin/ssh connections and/or
-	  serve several X terminals may want to increase this: every incoming
-	  connection and every xterm uses up one PTY.
-
-	  When not in use, each additional set of 256 PTYs occupy
-	  approximately 8 KB of kernel memory on 32-bit architectures.
-
 source "drivers/char/pcmcia/Kconfig"
 
 source "drivers/serial/Kconfig"

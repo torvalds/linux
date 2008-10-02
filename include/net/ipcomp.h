@@ -14,6 +14,12 @@ struct ipcomp_data {
 
 struct ip_comp_hdr;
 struct sk_buff;
+struct xfrm_state;
+
+int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb);
+int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb);
+void ipcomp_destroy(struct xfrm_state *x);
+int ipcomp_init_state(struct xfrm_state *x);
 
 static inline struct ip_comp_hdr *ip_comp_hdr(const struct sk_buff *skb)
 {

@@ -1,6 +1,4 @@
 /*
- * $Id: q40kbd.c,v 1.12 2002/02/02 22:26:44 vojtech Exp $
- *
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *
  *  Based on the work of:
@@ -49,7 +47,7 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Q40 PS/2 keyboard controller driver");
 MODULE_LICENSE("GPL");
 
-DEFINE_SPINLOCK(q40kbd_lock);
+static DEFINE_SPINLOCK(q40kbd_lock);
 static struct serio *q40kbd_port;
 static struct platform_device *q40kbd_device;
 

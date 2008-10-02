@@ -52,13 +52,13 @@ extern struct irqaction static_irqaction[MAX_STATIC_ALLOC];
 extern int static_irq_count;
 unsigned char cpu_leds[32];
 #ifdef CONFIG_SMP
-unsigned char sbus_tid[32];
+static unsigned char sbus_tid[32];
 #endif
 
 static struct irqaction *irq_action[NR_IRQS];
 extern spinlock_t irq_action_lock;
 
-struct sbus_action {
+static struct sbus_action {
 	struct irqaction *action;
 	/* For SMP this needs to be extended */
 } *sbus_actions;
@@ -267,7 +267,8 @@ unsigned int sun4d_build_irq(struct sbus_dev *sdev, int irq)
 		return irq;
 }
 
-unsigned int sun4d_sbint_to_irq(struct sbus_dev *sdev, unsigned int sbint)
+static unsigned int sun4d_sbint_to_irq(struct sbus_dev *sdev,
+				       unsigned int sbint)
 {
 	if (sbint >= sizeof(sbus_to_pil)) {
 		printk(KERN_ERR "%s: bogus SBINT %d\n", sdev->prom_name, sbint);

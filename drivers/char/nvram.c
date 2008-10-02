@@ -107,7 +107,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -444,7 +443,7 @@ nvram_init(void)
 
 	/* First test whether the driver should init at all */
 	if (!CHECK_DRIVER_INIT())
-		return -ENXIO;
+		return -ENODEV;
 
 	ret = misc_register(&nvram_dev);
 	if (ret) {

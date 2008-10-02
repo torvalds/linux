@@ -97,13 +97,9 @@ void xfs_attr_trace_l_cb(char *where, struct xfs_attr_list_context *context,
 void xfs_attr_trace_l_cl(char *where, struct xfs_attr_list_context *context,
 			      struct xfs_attr_leafblock *leaf);
 void xfs_attr_trace_enter(int type, char *where,
-			     __psunsigned_t a2, __psunsigned_t a3,
-			     __psunsigned_t a4, __psunsigned_t a5,
-			     __psunsigned_t a6, __psunsigned_t a7,
-			     __psunsigned_t a8, __psunsigned_t a9,
-			     __psunsigned_t a10, __psunsigned_t a11,
-			     __psunsigned_t a12, __psunsigned_t a13,
-			     __psunsigned_t a14, __psunsigned_t a15);
+			     struct xfs_attr_list_context *context,
+			     __psunsigned_t a13, __psunsigned_t a14,
+			     __psunsigned_t a15);
 #else
 #define	xfs_attr_trace_l_c(w,c)
 #define	xfs_attr_trace_l_cn(w,c,n)

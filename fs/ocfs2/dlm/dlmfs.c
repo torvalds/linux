@@ -267,8 +267,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	return writelen;
 }
 
-static void dlmfs_init_once(struct kmem_cache *cachep,
-			    void *foo)
+static void dlmfs_init_once(void *foo)
 {
 	struct dlmfs_inode_private *ip =
 		(struct dlmfs_inode_private *) foo;

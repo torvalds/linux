@@ -412,7 +412,7 @@ static int ip28_be_interrupt(const struct pt_regs *regs)
 	 * Now we have an asynchronous bus error, speculatively or DMA caused.
 	 * Need to search all DMA descriptors for the error address.
 	 */
-	for (i = 0; i < ARRAY_SIZE(hpc3); ++i) {
+	for (i = 0; i < sizeof(hpc3)/sizeof(struct hpc3_stat); ++i) {
 		struct hpc3_stat *hp = (struct hpc3_stat *)&hpc3 + i;
 		if ((cpu_err_stat & CPU_ERRMASK) &&
 		    (cpu_err_addr == hp->ndptr || cpu_err_addr == hp->cbp))
@@ -421,7 +421,7 @@ static int ip28_be_interrupt(const struct pt_regs *regs)
 		    (gio_err_addr == hp->ndptr || gio_err_addr == hp->cbp))
 			break;
 	}
-	if (i < ARRAY_SIZE(hpc3)) {
+	if (i < sizeof(hpc3)/sizeof(struct hpc3_stat)) {
 		struct hpc3_stat *hp = (struct hpc3_stat *)&hpc3 + i;
 		printk(KERN_ERR "at DMA addresses: HPC3 @ %08lx:"
 		       " ctl %08x, ndp %08x, cbp %08x\n",

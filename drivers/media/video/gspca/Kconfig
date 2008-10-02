@@ -1,0 +1,13 @@
+config USB_GSPCA
+	tristate "USB GSPCA driver"
+	depends on VIDEO_V4L2
+	---help---
+	  Say Y here if you want support for various USB webcams.
+
+	  See <file:Documentation/video4linux/gspca.txt> for more info.
+
+	  This driver uses the Video For Linux API. You must say Y or M to
+	  "Video For Linux" to use this driver.
+
+	  To compile this driver as modules, choose M here: the
+	  modules will be called gspca_xxxx.

@@ -104,9 +104,7 @@ static int close_rio(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int
-ioctl_rio(struct inode *inode, struct file *file, unsigned int cmd,
-	  unsigned long arg)
+static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct RioCommand rio_cmd;
 	struct rio_usb_data *rio = &rio_instance;
@@ -116,6 +114,7 @@ ioctl_rio(struct inode *inode, struct file *file, unsigned int cmd,
 	int retries;
 	int retval=0;
 
+	lock_kernel();
 	mutex_lock(&(rio->lock));
         /* Sanity check to make sure rio is connected, powered, etc */
         if (rio->present == 0 || rio->rio_dev == NULL) {
@@ -254,6 +253,7 @@ ioctl_rio(struct inode *inode, struct file *file, unsigned int cmd,
 
 err_out:
 	mutex_unlock(&(rio->lock));
+	unlock_kernel();
 	return retval;
 }
 
@@ -433,7 +433,7 @@ file_operations usb_rio_fops = {
 	.owner =	THIS_MODULE,
 	.read =		read_rio,
 	.write =	write_rio,
-	.ioctl =	ioctl_rio,
+	.unlocked_ioctl = ioctl_rio,
 	.open =		open_rio,
 	.release =	close_rio,
 };

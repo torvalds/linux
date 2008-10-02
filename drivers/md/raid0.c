@@ -295,16 +295,16 @@ static int raid0_run (mddev_t *mddev)
 		goto out_free_conf;
 
 	/* calculate array device size */
-	mddev->array_size = 0;
+	mddev->array_sectors = 0;
 	rdev_for_each(rdev, tmp, mddev)
-		mddev->array_size += rdev->size;
+		mddev->array_sectors += rdev->size * 2;
 
 	printk("raid0 : md_size is %llu blocks.\n", 
-		(unsigned long long)mddev->array_size);
+		(unsigned long long)mddev->array_sectors / 2);
 	printk("raid0 : conf->hash_spacing is %llu blocks.\n",
 		(unsigned long long)conf->hash_spacing);
 	{
-		sector_t s = mddev->array_size;
+		sector_t s = mddev->array_sectors / 2;
 		sector_t space = conf->hash_spacing;
 		int round;
 		conf->preshift = 0;

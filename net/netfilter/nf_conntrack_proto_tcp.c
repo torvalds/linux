@@ -67,7 +67,8 @@ static const char *const tcp_conntrack_names[] = {
 /* RFC1122 says the R2 limit should be at least 100 seconds.
    Linux uses 15 packets as limit, which corresponds
    to ~13-30min depending on RTO. */
-static unsigned int nf_ct_tcp_timeout_max_retrans __read_mostly =   5 MINS;
+static unsigned int nf_ct_tcp_timeout_max_retrans __read_mostly    =   5 MINS;
+static unsigned int nf_ct_tcp_timeout_unacknowledged __read_mostly =   5 MINS;
 
 static unsigned int tcp_timeouts[TCP_CONNTRACK_MAX] __read_mostly = {
 	[TCP_CONNTRACK_SYN_SENT]	= 2 MINS,
@@ -625,8 +626,10 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		swin = win + (sack - ack);
 		if (sender->td_maxwin < swin)
 			sender->td_maxwin = swin;
-		if (after(end, sender->td_end))
+		if (after(end, sender->td_end)) {
 			sender->td_end = end;
+			sender->flags |= IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED;
+		}
 		/*
 		 * Update receiver data.
 		 */
@@ -637,6 +640,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			if (win == 0)
 				receiver->td_maxend++;
 		}
+		if (ack == receiver->td_end)
+			receiver->flags &= ~IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED;
 
 		/*
 		 * Check retransmissions.
@@ -844,14 +849,13 @@ static int tcp_packet(struct nf_conn *ct,
 			/* Attempt to reopen a closed/aborted connection.
 			 * Delete this connection and look up again. */
 			write_unlock_bh(&tcp_lock);
+
 			/* Only repeat if we can actually remove the timer.
 			 * Destruction may already be in progress in process
 			 * context and we must give it a chance to terminate.
 			 */
-			if (del_timer(&ct->timeout)) {
-				ct->timeout.function((unsigned long)ct);
+			if (nf_ct_kill(ct))
 				return -NF_REPEAT;
-			}
 			return -NF_DROP;
 		}
 		/* Fall through */
@@ -884,8 +888,7 @@ static int tcp_packet(struct nf_conn *ct,
 			if (LOG_INVALID(IPPROTO_TCP))
 				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 					  "nf_ct_tcp: killing out of sync session ");
-			if (del_timer(&ct->timeout))
-				ct->timeout.function((unsigned long)ct);
+			nf_ct_kill(ct);
 			return -NF_DROP;
 		}
 		ct->proto.tcp.last_index = index;
@@ -953,9 +956,16 @@ static int tcp_packet(struct nf_conn *ct,
 	if (old_state != new_state
 	    && new_state == TCP_CONNTRACK_FIN_WAIT)
 		ct->proto.tcp.seen[dir].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
-	timeout = ct->proto.tcp.retrans >= nf_ct_tcp_max_retrans
-		  && tcp_timeouts[new_state] > nf_ct_tcp_timeout_max_retrans
-		  ? nf_ct_tcp_timeout_max_retrans : tcp_timeouts[new_state];
+
+	if (ct->proto.tcp.retrans >= nf_ct_tcp_max_retrans &&
+	    tcp_timeouts[new_state] > nf_ct_tcp_timeout_max_retrans)
+		timeout = nf_ct_tcp_timeout_max_retrans;
+	else if ((ct->proto.tcp.seen[0].flags | ct->proto.tcp.seen[1].flags) &
+		 IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED &&
+		 tcp_timeouts[new_state] > nf_ct_tcp_timeout_unacknowledged)
+		timeout = nf_ct_tcp_timeout_unacknowledged;
+	else
+		timeout = tcp_timeouts[new_state];
 	write_unlock_bh(&tcp_lock);
 
 	nf_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, skb);
@@ -968,8 +978,7 @@ static int tcp_packet(struct nf_conn *ct,
 		   problem case, so we can delete the conntrack
 		   immediately.  --RR */
 		if (th->rst) {
-			if (del_timer(&ct->timeout))
-				ct->timeout.function((unsigned long)ct);
+			nf_ct_kill_acct(ct, ctinfo, skb);
 			return NF_ACCEPT;
 		}
 	} else if (!test_bit(IPS_ASSURED_BIT, &ct->status)
@@ -1234,6 +1243,13 @@ static struct ctl_table tcp_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
 		.data		= &nf_ct_tcp_timeout_max_retrans,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "nf_conntrack_tcp_timeout_unacknowledged",
+		.data		= &nf_ct_tcp_timeout_unacknowledged,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,

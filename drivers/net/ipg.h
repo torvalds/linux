@@ -7,7 +7,6 @@
 #ifndef __LINUX_IPG_H
 #define __LINUX_IPG_H
 
-#include <linux/version.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -21,7 +20,6 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
 #include <asm/bitops.h>
 
 /*
@@ -536,83 +534,6 @@ enum ipg_regs {
  */
 #define		IPG_FRAMESBETWEENTXDMACOMPLETES 0x1
 
-#ifdef JUMBO_FRAME
-
-# ifdef JUMBO_FRAME_SIZE_2K
-# define JUMBO_FRAME_SIZE 2048
-# define __IPG_RXFRAG_SIZE 2048
-# else
-#  ifdef JUMBO_FRAME_SIZE_3K
-#  define JUMBO_FRAME_SIZE 3072
-#  define __IPG_RXFRAG_SIZE 3072
-#  else
-#   ifdef JUMBO_FRAME_SIZE_4K
-#   define JUMBO_FRAME_SIZE 4096
-#   define __IPG_RXFRAG_SIZE 4088
-#   else
-#    ifdef JUMBO_FRAME_SIZE_5K
-#    define JUMBO_FRAME_SIZE 5120
-#    define __IPG_RXFRAG_SIZE 4088
-#    else
-#     ifdef JUMBO_FRAME_SIZE_6K
-#     define JUMBO_FRAME_SIZE 6144
-#     define __IPG_RXFRAG_SIZE 4088
-#     else
-#      ifdef JUMBO_FRAME_SIZE_7K
-#      define JUMBO_FRAME_SIZE 7168
-#      define __IPG_RXFRAG_SIZE 4088
-#      else
-#       ifdef JUMBO_FRAME_SIZE_8K
-#       define JUMBO_FRAME_SIZE 8192
-#       define __IPG_RXFRAG_SIZE 4088
-#       else
-#        ifdef JUMBO_FRAME_SIZE_9K
-#        define JUMBO_FRAME_SIZE 9216
-#        define __IPG_RXFRAG_SIZE 4088
-#        else
-#         ifdef JUMBO_FRAME_SIZE_10K
-#         define JUMBO_FRAME_SIZE 10240
-#         define __IPG_RXFRAG_SIZE 4088
-#         else
-#         define JUMBO_FRAME_SIZE 4096
-#         endif
-#        endif
-#       endif
-#      endif
-#     endif
-#    endif
-#   endif
-#  endif
-# endif
-#endif
-
-/* Size of allocated received buffers. Nominally 0x0600.
- * Define larger if expecting jumbo frames.
- */
-#ifdef JUMBO_FRAME
-/* IPG_TXFRAG_SIZE must <= 0x2b00, or TX will crash */
-#define		IPG_TXFRAG_SIZE		JUMBO_FRAME_SIZE
-#endif
-
-/* Size of allocated received buffers. Nominally 0x0600.
- * Define larger if expecting jumbo frames.
- */
-#ifdef JUMBO_FRAME
-/* 4088 = 4096 - 8 */
-#define		IPG_RXFRAG_SIZE		__IPG_RXFRAG_SIZE
-#define     IPG_RXSUPPORT_SIZE   IPG_MAX_RXFRAME_SIZE
-#else
-#define		IPG_RXFRAG_SIZE		0x0600
-#define     IPG_RXSUPPORT_SIZE   IPG_RXFRAG_SIZE
-#endif
-
-/* IPG_MAX_RXFRAME_SIZE <= IPG_RXFRAG_SIZE */
-#ifdef JUMBO_FRAME
-#define		IPG_MAX_RXFRAME_SIZE		JUMBO_FRAME_SIZE
-#else
-#define		IPG_MAX_RXFRAME_SIZE		0x0600
-#endif
-
 #define		IPG_RFDLIST_LENGTH		0x100
 
 /* Maximum number of RFDs to process per interrupt.
@@ -786,9 +707,11 @@ struct ipg_nic_private {
 	unsigned int tx_dirty;
 	unsigned int rx_current;
 	unsigned int rx_dirty;
-#ifdef JUMBO_FRAME
+	bool is_jumbo;
 	struct ipg_jumbo jumbo;
-#endif
+	unsigned long rxfrag_size;
+	unsigned long rxsupport_size;
+	unsigned long max_rxframe_size;
 	unsigned int rx_buf_sz;
 	struct pci_dev *pdev;
 	struct net_device *dev;

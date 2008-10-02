@@ -14,7 +14,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>
 #include <linux/mnt_namespace.h>
@@ -157,12 +156,6 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 		goto out;
 	}
 
-	err = ns_cgroup_clone(tsk);
-	if (err) {
-		put_nsproxy(new_ns);
-		goto out;
-	}
-
 	tsk->nsproxy = new_ns;
 
 out:
@@ -209,7 +202,7 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 		goto out;
 	}
 
-	err = ns_cgroup_clone(current);
+	err = ns_cgroup_clone(current, task_pid(current));
 	if (err)
 		put_nsproxy(*new_nsp);
 

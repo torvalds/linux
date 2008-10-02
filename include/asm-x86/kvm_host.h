@@ -13,6 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/mmu_notifier.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -27,6 +28,7 @@
 #define KVM_PRIVATE_MEM_SLOTS 4
 
 #define KVM_PIO_PAGE_OFFSET 1
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 2
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
@@ -79,6 +81,7 @@
 #define KVM_MIN_FREE_MMU_PAGES 5
 #define KVM_REFILL_PAGES 25
 #define KVM_MAX_CPUID_ENTRIES 40
+#define KVM_NR_VAR_MTRR 8
 
 extern spinlock_t kvm_lock;
 extern struct list_head vm_list;
@@ -109,12 +112,12 @@ enum {
 };
 
 enum {
-	VCPU_SREG_CS,
-	VCPU_SREG_DS,
 	VCPU_SREG_ES,
+	VCPU_SREG_CS,
+	VCPU_SREG_SS,
+	VCPU_SREG_DS,
 	VCPU_SREG_FS,
 	VCPU_SREG_GS,
-	VCPU_SREG_SS,
 	VCPU_SREG_TR,
 	VCPU_SREG_LDTR,
 };
@@ -243,11 +246,13 @@ struct kvm_vcpu_arch {
 	gfn_t last_pt_write_gfn;
 	int   last_pt_write_count;
 	u64  *last_pte_updated;
+	gfn_t last_pte_gfn;
 
 	struct {
 		gfn_t gfn;	/* presumed gfn during guest pte update */
 		pfn_t pfn;	/* pfn corresponding to that gfn */
 		int largepage;
+		unsigned long mmu_seq;
 	} update_pte;
 
 	struct i387_fxsave_struct host_fx_image;
@@ -287,6 +292,10 @@ struct kvm_vcpu_arch {
 	unsigned int hv_clock_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
+
+	bool nmi_pending;
+
+	u64 mtrr[0x100];
 };
 
 struct kvm_mem_alias {
@@ -344,6 +353,7 @@ struct kvm_vcpu_stat {
 	u32 mmio_exits;
 	u32 signal_exits;
 	u32 irq_window_exits;
+	u32 nmi_window_exits;
 	u32 halt_exits;
 	u32 halt_wakeup;
 	u32 request_irq_exits;
@@ -379,7 +389,6 @@ struct kvm_x86_ops {
 	void (*prepare_guest_switch)(struct kvm_vcpu *vcpu);
 	void (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
-	void (*vcpu_decache)(struct kvm_vcpu *vcpu);
 
 	int (*set_guest_debug)(struct kvm_vcpu *vcpu,
 			       struct kvm_debug_guest *dbg);
@@ -497,6 +506,10 @@ int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
 int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
 		    unsigned long value);
 
+void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
+int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
+				int type_bits, int seg);
+
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason);
 
 void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
@@ -514,6 +527,8 @@ void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
 			   u32 error_code);
+
+void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 
 void fx_init(struct kvm_vcpu *vcpu);
 
@@ -543,6 +558,7 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code);
 
 void kvm_enable_tdp(void);
+void kvm_disable_tdp(void);
 
 int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
 int complete_pio(struct kvm_vcpu *vcpu);
@@ -554,55 +570,53 @@ static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 	return (struct kvm_mmu_page *)page_private(page);
 }
 
-static inline u16 read_fs(void)
+static inline u16 kvm_read_fs(void)
 {
 	u16 seg;
 	asm("mov %%fs, %0" : "=g"(seg));
 	return seg;
 }
 
-static inline u16 read_gs(void)
+static inline u16 kvm_read_gs(void)
 {
 	u16 seg;
 	asm("mov %%gs, %0" : "=g"(seg));
 	return seg;
 }
 
-static inline u16 read_ldt(void)
+static inline u16 kvm_read_ldt(void)
 {
 	u16 ldt;
 	asm("sldt %0" : "=g"(ldt));
 	return ldt;
 }
 
-static inline void load_fs(u16 sel)
+static inline void kvm_load_fs(u16 sel)
 {
 	asm("mov %0, %%fs" : : "rm"(sel));
 }
 
-static inline void load_gs(u16 sel)
+static inline void kvm_load_gs(u16 sel)
 {
 	asm("mov %0, %%gs" : : "rm"(sel));
 }
 
-#ifndef load_ldt
-static inline void load_ldt(u16 sel)
+static inline void kvm_load_ldt(u16 sel)
 {
 	asm("lldt %0" : : "rm"(sel));
 }
-#endif
 
-static inline void get_idt(struct descriptor_table *table)
+static inline void kvm_get_idt(struct descriptor_table *table)
 {
 	asm("sidt %0" : "=m"(*table));
 }
 
-static inline void get_gdt(struct descriptor_table *table)
+static inline void kvm_get_gdt(struct descriptor_table *table)
 {
 	asm("sgdt %0" : "=m"(*table));
 }
 
-static inline unsigned long read_tr_base(void)
+static inline unsigned long kvm_read_tr_base(void)
 {
 	u16 tr;
 	asm("str %0" : "=g"(tr));
@@ -619,17 +633,17 @@ static inline unsigned long read_msr(unsigned long msr)
 }
 #endif
 
-static inline void fx_save(struct i387_fxsave_struct *image)
+static inline void kvm_fx_save(struct i387_fxsave_struct *image)
 {
 	asm("fxsave (%0)":: "r" (image));
 }
 
-static inline void fx_restore(struct i387_fxsave_struct *image)
+static inline void kvm_fx_restore(struct i387_fxsave_struct *image)
 {
 	asm("fxrstor (%0)":: "r" (image));
 }
 
-static inline void fx_finit(void)
+static inline void kvm_fx_finit(void)
 {
 	asm("finit");
 }
@@ -690,5 +704,35 @@ enum {
 #define KVMTRACE_0D(evt, vcpu, name) \
 	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
 						vcpu, 0, 0, 0, 0, 0, 0)
+
+#ifdef CONFIG_64BIT
+# define KVM_EX_ENTRY ".quad"
+# define KVM_EX_PUSH "pushq"
+#else
+# define KVM_EX_ENTRY ".long"
+# define KVM_EX_PUSH "pushl"
+#endif
+
+/*
+ * Hardware virtualization extension instructions may fault if a
+ * reboot turns off virtualization while processes are running.
+ * Trap the fault and ignore the instruction if that happens.
+ */
+asmlinkage void kvm_handle_fault_on_reboot(void);
+
+#define __kvm_handle_fault_on_reboot(insn) \
+	"666: " insn "\n\t" \
+	".pushsection .fixup, \"ax\" \n" \
+	"667: \n\t" \
+	KVM_EX_PUSH " $666b \n\t" \
+	"jmp kvm_handle_fault_on_reboot \n\t" \
+	".popsection \n\t" \
+	".pushsection __ex_table, \"a\" \n\t" \
+	KVM_EX_ENTRY " 666b, 667b \n\t" \
+	".popsection"
+
+#define KVM_ARCH_WANT_MMU_NOTIFIER
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+int kvm_age_hva(struct kvm *kvm, unsigned long hva);
 
 #endif

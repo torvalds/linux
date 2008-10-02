@@ -14,7 +14,6 @@
 #include <linux/pfn.h>
 #include <asm/sections.h>
 
-static bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL_GPL(node_data);
 
@@ -35,7 +34,7 @@ void __init setup_memory(void)
 	NODE_DATA(0) = pfn_to_kaddr(free_pfn);
 	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
 	free_pfn += PFN_UP(sizeof(struct pglist_data));
-	NODE_DATA(0)->bdata = &plat_node_bdata[0];
+	NODE_DATA(0)->bdata = &bootmem_node_data[0];
 
 	/* Set up node 0 */
 	setup_bootmem_allocator(free_pfn);
@@ -66,7 +65,7 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	free_pfn += PFN_UP(sizeof(struct pglist_data));
 	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
-	NODE_DATA(nid)->bdata = &plat_node_bdata[nid];
+	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
 	NODE_DATA(nid)->node_start_pfn = start_pfn;
 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 

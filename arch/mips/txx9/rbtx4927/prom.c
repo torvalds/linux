@@ -36,10 +36,7 @@
 
 void __init rbtx4927_prom_init(void)
 {
-	extern int tx4927_get_mem_size(void);
-	int msize;
-
 	prom_init_cmdline();
-	msize = tx4927_get_mem_size();
-	add_memory_region(0, msize << 20, BOOT_MEM_RAM);
+	add_memory_region(0, tx4927_get_mem_size(), BOOT_MEM_RAM);
+	txx9_sio_putchar_init(TX4927_SIO_REG(0) & 0xfffffffffULL);
 }

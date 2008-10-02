@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_input.c,v 1.10 2001/12/24 04:50:20 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -24,13 +22,13 @@ const u8 br_group_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
 static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 {
-	struct net_device *indev;
+	struct net_device *indev, *brdev = br->dev;
 
-	br->statistics.rx_packets++;
-	br->statistics.rx_bytes += skb->len;
+	brdev->stats.rx_packets++;
+	brdev->stats.rx_bytes += skb->len;
 
 	indev = skb->dev;
-	skb->dev = br->dev;
+	skb->dev = brdev;
 
 	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
 		netif_receive_skb);
@@ -64,7 +62,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	dst = NULL;
 
 	if (is_multicast_ether_addr(dest)) {
-		br->statistics.multicast++;
+		br->dev->stats.multicast++;
 		skb2 = skb;
 	} else if ((dst = __br_fdb_get(br, dest)) && dst->is_local) {
 		skb2 = skb;
@@ -136,14 +134,11 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 		if (skb->protocol == htons(ETH_P_PAUSE))
 			goto drop;
 
-		/* Process STP BPDU's through normal netif_receive_skb() path */
-		if (p->br->stp_enabled != BR_NO_STP) {
-			if (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
-				    NULL, br_handle_local_finish))
-				return NULL;
-			else
-				return skb;
-		}
+		if (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
+			    NULL, br_handle_local_finish))
+			return NULL;	/* frame consumed by filter */
+		else
+			return skb;	/* continue processing */
 	}
 
 	switch (p->state) {

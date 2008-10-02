@@ -24,6 +24,7 @@
 #include <asm/signal.h>
 #include <asm/uaccess.h>
 
+#include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 
 #define SIGNALLING_NAN 0x7ff800007ff80000LL

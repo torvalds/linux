@@ -563,7 +563,7 @@ int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev
 
 	DEB_EE(("dev:%p\n",dev));
 
-	if( VFL_TYPE_GRABBER == (*vid)->type ) {
+	if ((*vid)->vfl_type == VFL_TYPE_GRABBER) {
 		vv->video_minor = -1;
 	} else {
 		vv->vbi_minor = -1;

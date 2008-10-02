@@ -1032,7 +1032,7 @@ static int dvb_ca_en50221_thread(void *data)
 					/* we need this extra check for annoying interfaces like the budget-av */
 					if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) &&
 					    (ca->pub->poll_slot_status)) {
-						int status = ca->pub->poll_slot_status(ca->pub, slot, 0);
+						status = ca->pub->poll_slot_status(ca->pub, slot, 0);
 						if (!(status & DVB_CA_EN50221_POLL_CAM_PRESENT)) {
 							ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_NONE;
 							dvb_ca_en50221_thread_update_delay(ca);
@@ -1089,7 +1089,7 @@ static int dvb_ca_en50221_thread(void *data)
 					/* we need this extra check for annoying interfaces like the budget-av */
 					if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) &&
 					    (ca->pub->poll_slot_status)) {
-						int status = ca->pub->poll_slot_status(ca->pub, slot, 0);
+						status = ca->pub->poll_slot_status(ca->pub, slot, 0);
 						if (!(status & DVB_CA_EN50221_POLL_CAM_PRESENT)) {
 							ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_NONE;
 							dvb_ca_en50221_thread_update_delay(ca);
@@ -1357,7 +1357,7 @@ static int dvb_ca_en50221_io_read_condition(struct dvb_ca_private *ca,
 
 		idx = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
 		while (idx != -1) {
-			dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2, 0);
+			dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
 			if (connection_id == -1)
 				connection_id = hdr[0];
 			if ((hdr[0] == connection_id) && ((hdr[1] & 0x80) == 0)) {
@@ -1438,7 +1438,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 			goto exit;
 		}
 
-		dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2, 0);
+		dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
 		if (connection_id == -1)
 			connection_id = hdr[0];
 		if (hdr[0] == connection_id) {
@@ -1449,8 +1449,8 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 					fraglen -= 2;
 				}
 
-				if ((status = dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 2,
-								      (u8 *)buf + pktlen, fraglen, 1)) < 0) {
+				if ((status = dvb_ringbuffer_pkt_read_user(&ca->slot_info[slot].rx_buffer, idx, 2,
+								      buf + pktlen, fraglen)) < 0) {
 					goto exit;
 				}
 				pktlen += fraglen;

@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.20
-                          April 09th, 2008
+                            Version 0.21
+                           May 29th, 2008
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -44,7 +44,7 @@ detailed description):
 	- LCD brightness control
 	- Volume control
 	- Fan control and monitoring: fan speed, fan enable/disable
-	- Experimental: WAN enable and disable
+	- WAN enable and disable
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -621,7 +621,8 @@ Bluetooth
 ---------
 
 procfs: /proc/acpi/ibm/bluetooth
-sysfs device attribute: bluetooth_enable
+sysfs device attribute: bluetooth_enable (deprecated)
+sysfs rfkill class: switch "tpacpi_bluetooth_sw"
 
 This feature shows the presence and current state of a ThinkPad
 Bluetooth device in the internal ThinkPad CDC slot.
@@ -643,8 +644,12 @@ Sysfs notes:
 		0: disables Bluetooth / Bluetooth is disabled
 		1: enables Bluetooth / Bluetooth is enabled.
 
-	Note: this interface will be probably be superseded by the
-	generic rfkill class, so it is NOT to be considered stable yet.
+	Note: this interface has been superseded by the	generic rfkill
+	class.  It has been deprecated, and it will be removed in year
+	2010.
+
+	rfkill controller switch "tpacpi_bluetooth_sw": refer to
+	Documentation/rfkill.txt for details.
 
 Video output control -- /proc/acpi/ibm/video
 --------------------------------------------
@@ -1370,16 +1375,12 @@ with EINVAL, try to set pwm1_enable to 1 and pwm1 to at least 128 (255
 would be the safest choice, though).
 
 
-EXPERIMENTAL: WAN
------------------
+WAN
+---
 
 procfs: /proc/acpi/ibm/wan
-sysfs device attribute: wwan_enable
-
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
+sysfs device attribute: wwan_enable (deprecated)
+sysfs rfkill class: switch "tpacpi_wwan_sw"
 
 This feature shows the presence and current state of a W-WAN (Sierra
 Wireless EV-DO) device.
@@ -1404,8 +1405,12 @@ Sysfs notes:
 		0: disables WWAN card / WWAN card is disabled
 		1: enables WWAN card / WWAN card is enabled.
 
-	Note: this interface will be probably be superseded by the
-	generic rfkill class, so it is NOT to be considered stable yet.
+	Note: this interface has been superseded by the	generic rfkill
+	class.  It has been deprecated, and it will be removed in year
+	2010.
+
+	rfkill controller switch "tpacpi_wwan_sw": refer to
+	Documentation/rfkill.txt for details.
 
 Multiple Commands, Module Parameters
 ------------------------------------

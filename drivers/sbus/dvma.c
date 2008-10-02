@@ -16,7 +16,7 @@
 
 struct sbus_dma *dma_chain;
 
-void __init init_one_dvma(struct sbus_dma *dma, int num_dma)
+static void __init init_one_dvma(struct sbus_dma *dma, int num_dma)
 {
 	printk("dma%d: ", num_dma);
 	

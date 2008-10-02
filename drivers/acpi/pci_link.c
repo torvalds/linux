@@ -113,20 +113,23 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 
 	switch (resource->type) {
 	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_END_TAG:
 		return AE_OK;
 	case ACPI_RESOURCE_TYPE_IRQ:
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
 			if (!p || !p->interrupt_count) {
-				printk(KERN_WARNING PREFIX "Blank IRQ resource\n");
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+						  "Blank _PRS IRQ resource\n"));
 				return AE_OK;
 			}
 			for (i = 0;
 			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
-					printk(KERN_WARNING PREFIX "Invalid IRQ %d\n",
-						      p->interrupts[i]);
+					printk(KERN_WARNING PREFIX
+					       "Invalid _PRS IRQ %d\n",
+					       p->interrupts[i]);
 					continue;
 				}
 				link->irq.possible[i] = p->interrupts[i];
@@ -143,15 +146,16 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 			    &resource->data.extended_irq;
 			if (!p || !p->interrupt_count) {
 				printk(KERN_WARNING PREFIX
-					      "Blank EXT IRQ resource\n");
+					      "Blank _PRS EXT IRQ resource\n");
 				return AE_OK;
 			}
 			for (i = 0;
 			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
-					printk(KERN_WARNING PREFIX "Invalid IRQ %d\n",
-						      p->interrupts[i]);
+					printk(KERN_WARNING PREFIX
+					       "Invalid _PRS IRQ %d\n",
+					       p->interrupts[i]);
 					continue;
 				}
 				link->irq.possible[i] = p->interrupts[i];
@@ -163,7 +167,8 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 			break;
 		}
 	default:
-		printk(KERN_ERR PREFIX "Resource is not an IRQ entry\n");
+		printk(KERN_ERR PREFIX "_PRS resource type 0x%x isn't an IRQ\n",
+		       resource->type);
 		return AE_OK;
 	}
 
@@ -199,6 +204,9 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 
 
 	switch (resource->type) {
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_END_TAG:
+		return AE_OK;
 	case ACPI_RESOURCE_TYPE_IRQ:
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
@@ -208,7 +216,7 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 				 * particularly those those w/ _STA disabled
 				 */
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-						  "Blank IRQ resource\n"));
+						  "Blank _CRS IRQ resource\n"));
 				return AE_OK;
 			}
 			*irq = p->interrupts[0];
@@ -224,7 +232,7 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 				 * return at least 1 IRQ
 				 */
 				printk(KERN_WARNING PREFIX
-					      "Blank EXT IRQ resource\n");
+					      "Blank _CRS EXT IRQ resource\n");
 				return AE_OK;
 			}
 			*irq = p->interrupts[0];
@@ -232,10 +240,11 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 		}
 		break;
 	default:
-		printk(KERN_ERR PREFIX "Resource %d isn't an IRQ\n", resource->type);
-	case ACPI_RESOURCE_TYPE_END_TAG:
+		printk(KERN_ERR PREFIX "_CRS resource type 0x%x isn't an IRQ\n",
+		       resource->type);
 		return AE_OK;
 	}
+
 	return AE_CTRL_TERMINATE;
 }
 
@@ -840,7 +849,7 @@ static int __init acpi_irq_penalty_update(char *str, int used)
 		if (irq < 0)
 			continue;
 
-		if (irq >= ACPI_MAX_IRQS)
+		if (irq >= ARRAY_SIZE(acpi_irq_penalty))
 			continue;
 
 		if (used)
@@ -863,10 +872,12 @@ static int __init acpi_irq_penalty_update(char *str, int used)
  */
 void acpi_penalize_isa_irq(int irq, int active)
 {
-	if (active)
-		acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
-	else
-		acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
+	if (irq >= 0 && irq < ARRAY_SIZE(acpi_irq_penalty)) {
+		if (active)
+			acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
+		else
+			acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
+	}
 }
 
 /*

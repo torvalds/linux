@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -30,31 +30,27 @@
 
 static struct config_group *space_list;
 static struct config_group *comm_list;
-static struct comm *local_comm;
+static struct dlm_comm *local_comm;
 
-struct clusters;
-struct cluster;
-struct spaces;
-struct space;
-struct comms;
-struct comm;
-struct nodes;
-struct node;
+struct dlm_clusters;
+struct dlm_cluster;
+struct dlm_spaces;
+struct dlm_space;
+struct dlm_comms;
+struct dlm_comm;
+struct dlm_nodes;
+struct dlm_node;
 
-static int make_cluster(struct config_group *, const char *,
-			struct config_group **);
+static struct config_group *make_cluster(struct config_group *, const char *);
 static void drop_cluster(struct config_group *, struct config_item *);
 static void release_cluster(struct config_item *);
-static int make_space(struct config_group *, const char *,
-		      struct config_group **);
+static struct config_group *make_space(struct config_group *, const char *);
 static void drop_space(struct config_group *, struct config_item *);
 static void release_space(struct config_item *);
-static int make_comm(struct config_group *, const char *,
-		     struct config_item **);
+static struct config_item *make_comm(struct config_group *, const char *);
 static void drop_comm(struct config_group *, struct config_item *);
 static void release_comm(struct config_item *);
-static int make_node(struct config_group *, const char *,
-		     struct config_item **);
+static struct config_item *make_node(struct config_group *, const char *);
 static void drop_node(struct config_group *, struct config_item *);
 static void release_node(struct config_item *);
 
@@ -72,17 +68,22 @@ static ssize_t show_node(struct config_item *i, struct configfs_attribute *a,
 static ssize_t store_node(struct config_item *i, struct configfs_attribute *a,
 			  const char *buf, size_t len);
 
-static ssize_t comm_nodeid_read(struct comm *cm, char *buf);
-static ssize_t comm_nodeid_write(struct comm *cm, const char *buf, size_t len);
-static ssize_t comm_local_read(struct comm *cm, char *buf);
-static ssize_t comm_local_write(struct comm *cm, const char *buf, size_t len);
-static ssize_t comm_addr_write(struct comm *cm, const char *buf, size_t len);
-static ssize_t node_nodeid_read(struct node *nd, char *buf);
-static ssize_t node_nodeid_write(struct node *nd, const char *buf, size_t len);
-static ssize_t node_weight_read(struct node *nd, char *buf);
-static ssize_t node_weight_write(struct node *nd, const char *buf, size_t len);
+static ssize_t comm_nodeid_read(struct dlm_comm *cm, char *buf);
+static ssize_t comm_nodeid_write(struct dlm_comm *cm, const char *buf,
+				size_t len);
+static ssize_t comm_local_read(struct dlm_comm *cm, char *buf);
+static ssize_t comm_local_write(struct dlm_comm *cm, const char *buf,
+				size_t len);
+static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf,
+				size_t len);
+static ssize_t node_nodeid_read(struct dlm_node *nd, char *buf);
+static ssize_t node_nodeid_write(struct dlm_node *nd, const char *buf,
+				size_t len);
+static ssize_t node_weight_read(struct dlm_node *nd, char *buf);
+static ssize_t node_weight_write(struct dlm_node *nd, const char *buf,
+				size_t len);
 
-struct cluster {
+struct dlm_cluster {
 	struct config_group group;
 	unsigned int cl_tcp_port;
 	unsigned int cl_buffer_size;
@@ -113,11 +114,11 @@ enum {
 
 struct cluster_attribute {
 	struct configfs_attribute attr;
-	ssize_t (*show)(struct cluster *, char *);
-	ssize_t (*store)(struct cluster *, const char *, size_t);
+	ssize_t (*show)(struct dlm_cluster *, char *);
+	ssize_t (*store)(struct dlm_cluster *, const char *, size_t);
 };
 
-static ssize_t cluster_set(struct cluster *cl, unsigned int *cl_field,
+static ssize_t cluster_set(struct dlm_cluster *cl, unsigned int *cl_field,
 			   int *info_field, int check_zero,
 			   const char *buf, size_t len)
 {
@@ -138,12 +139,12 @@ static ssize_t cluster_set(struct cluster *cl, unsigned int *cl_field,
 }
 
 #define CLUSTER_ATTR(name, check_zero)                                        \
-static ssize_t name##_write(struct cluster *cl, const char *buf, size_t len)  \
+static ssize_t name##_write(struct dlm_cluster *cl, const char *buf, size_t len) \
 {                                                                             \
 	return cluster_set(cl, &cl->cl_##name, &dlm_config.ci_##name,         \
 			   check_zero, buf, len);                             \
 }                                                                             \
-static ssize_t name##_read(struct cluster *cl, char *buf)                     \
+static ssize_t name##_read(struct dlm_cluster *cl, char *buf)                 \
 {                                                                             \
 	return snprintf(buf, PAGE_SIZE, "%u\n", cl->cl_##name);               \
 }                                                                             \
@@ -185,8 +186,8 @@ enum {
 
 struct comm_attribute {
 	struct configfs_attribute attr;
-	ssize_t (*show)(struct comm *, char *);
-	ssize_t (*store)(struct comm *, const char *, size_t);
+	ssize_t (*show)(struct dlm_comm *, char *);
+	ssize_t (*store)(struct dlm_comm *, const char *, size_t);
 };
 
 static struct comm_attribute comm_attr_nodeid = {
@@ -226,8 +227,8 @@ enum {
 
 struct node_attribute {
 	struct configfs_attribute attr;
-	ssize_t (*show)(struct node *, char *);
-	ssize_t (*store)(struct node *, const char *, size_t);
+	ssize_t (*show)(struct dlm_node *, char *);
+	ssize_t (*store)(struct dlm_node *, const char *, size_t);
 };
 
 static struct node_attribute node_attr_nodeid = {
@@ -252,26 +253,26 @@ static struct configfs_attribute *node_attrs[] = {
 	NULL,
 };
 
-struct clusters {
+struct dlm_clusters {
 	struct configfs_subsystem subsys;
 };
 
-struct spaces {
+struct dlm_spaces {
 	struct config_group ss_group;
 };
 
-struct space {
+struct dlm_space {
 	struct config_group group;
 	struct list_head members;
 	struct mutex members_lock;
 	int members_count;
 };
 
-struct comms {
+struct dlm_comms {
 	struct config_group cs_group;
 };
 
-struct comm {
+struct dlm_comm {
 	struct config_item item;
 	int nodeid;
 	int local;
@@ -279,11 +280,11 @@ struct comm {
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
 };
 
-struct nodes {
+struct dlm_nodes {
 	struct config_group ns_group;
 };
 
-struct node {
+struct dlm_node {
 	struct config_item item;
 	struct list_head list; /* space->members */
 	int nodeid;
@@ -376,38 +377,40 @@ static struct config_item_type node_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-static struct cluster *to_cluster(struct config_item *i)
+static struct dlm_cluster *to_cluster(struct config_item *i)
 {
-	return i ? container_of(to_config_group(i), struct cluster, group):NULL;
+	return i ? container_of(to_config_group(i), struct dlm_cluster, group) :
+		   NULL;
 }
 
-static struct space *to_space(struct config_item *i)
+static struct dlm_space *to_space(struct config_item *i)
 {
-	return i ? container_of(to_config_group(i), struct space, group) : NULL;
+	return i ? container_of(to_config_group(i), struct dlm_space, group) :
+		   NULL;
 }
 
-static struct comm *to_comm(struct config_item *i)
+static struct dlm_comm *to_comm(struct config_item *i)
 {
-	return i ? container_of(i, struct comm, item) : NULL;
+	return i ? container_of(i, struct dlm_comm, item) : NULL;
 }
 
-static struct node *to_node(struct config_item *i)
+static struct dlm_node *to_node(struct config_item *i)
 {
-	return i ? container_of(i, struct node, item) : NULL;
+	return i ? container_of(i, struct dlm_node, item) : NULL;
 }
 
-static int make_cluster(struct config_group *g, const char *name,
-			struct config_group **new_g)
+static struct config_group *make_cluster(struct config_group *g,
+					 const char *name)
 {
-	struct cluster *cl = NULL;
-	struct spaces *sps = NULL;
-	struct comms *cms = NULL;
+	struct dlm_cluster *cl = NULL;
+	struct dlm_spaces *sps = NULL;
+	struct dlm_comms *cms = NULL;
 	void *gps = NULL;
 
-	cl = kzalloc(sizeof(struct cluster), GFP_KERNEL);
+	cl = kzalloc(sizeof(struct dlm_cluster), GFP_KERNEL);
 	gps = kcalloc(3, sizeof(struct config_group *), GFP_KERNEL);
-	sps = kzalloc(sizeof(struct spaces), GFP_KERNEL);
-	cms = kzalloc(sizeof(struct comms), GFP_KERNEL);
+	sps = kzalloc(sizeof(struct dlm_spaces), GFP_KERNEL);
+	cms = kzalloc(sizeof(struct dlm_comms), GFP_KERNEL);
 
 	if (!cl || !gps || !sps || !cms)
 		goto fail;
@@ -435,20 +438,19 @@ static int make_cluster(struct config_group *g, const char *name,
 
 	space_list = &sps->ss_group;
 	comm_list = &cms->cs_group;
-	*new_g = &cl->group;
-	return 0;
+	return &cl->group;
 
  fail:
 	kfree(cl);
 	kfree(gps);
 	kfree(sps);
 	kfree(cms);
-	return -ENOMEM;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void drop_cluster(struct config_group *g, struct config_item *i)
 {
-	struct cluster *cl = to_cluster(i);
+	struct dlm_cluster *cl = to_cluster(i);
 	struct config_item *tmp;
 	int j;
 
@@ -466,21 +468,20 @@ static void drop_cluster(struct config_group *g, struct config_item *i)
 
 static void release_cluster(struct config_item *i)
 {
-	struct cluster *cl = to_cluster(i);
+	struct dlm_cluster *cl = to_cluster(i);
 	kfree(cl->group.default_groups);
 	kfree(cl);
 }
 
-static int make_space(struct config_group *g, const char *name,
-		      struct config_group **new_g)
+static struct config_group *make_space(struct config_group *g, const char *name)
 {
-	struct space *sp = NULL;
-	struct nodes *nds = NULL;
+	struct dlm_space *sp = NULL;
+	struct dlm_nodes *nds = NULL;
 	void *gps = NULL;
 
-	sp = kzalloc(sizeof(struct space), GFP_KERNEL);
+	sp = kzalloc(sizeof(struct dlm_space), GFP_KERNEL);
 	gps = kcalloc(2, sizeof(struct config_group *), GFP_KERNEL);
-	nds = kzalloc(sizeof(struct nodes), GFP_KERNEL);
+	nds = kzalloc(sizeof(struct dlm_nodes), GFP_KERNEL);
 
 	if (!sp || !gps || !nds)
 		goto fail;
@@ -495,19 +496,18 @@ static int make_space(struct config_group *g, const char *name,
 	INIT_LIST_HEAD(&sp->members);
 	mutex_init(&sp->members_lock);
 	sp->members_count = 0;
-	*new_g = &sp->group;
-	return 0;
+	return &sp->group;
 
  fail:
 	kfree(sp);
 	kfree(gps);
 	kfree(nds);
-	return -ENOMEM;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void drop_space(struct config_group *g, struct config_item *i)
 {
-	struct space *sp = to_space(i);
+	struct dlm_space *sp = to_space(i);
 	struct config_item *tmp;
 	int j;
 
@@ -524,31 +524,29 @@ static void drop_space(struct config_group *g, struct config_item *i)
 
 static void release_space(struct config_item *i)
 {
-	struct space *sp = to_space(i);
+	struct dlm_space *sp = to_space(i);
 	kfree(sp->group.default_groups);
 	kfree(sp);
 }
 
-static int make_comm(struct config_group *g, const char *name,
-		     struct config_item **new_i)
+static struct config_item *make_comm(struct config_group *g, const char *name)
 {
-	struct comm *cm;
+	struct dlm_comm *cm;
 
-	cm = kzalloc(sizeof(struct comm), GFP_KERNEL);
+	cm = kzalloc(sizeof(struct dlm_comm), GFP_KERNEL);
 	if (!cm)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&cm->item, name, &comm_type);
 	cm->nodeid = -1;
 	cm->local = 0;
 	cm->addr_count = 0;
-	*new_i = &cm->item;
-	return 0;
+	return &cm->item;
 }
 
 static void drop_comm(struct config_group *g, struct config_item *i)
 {
-	struct comm *cm = to_comm(i);
+	struct dlm_comm *cm = to_comm(i);
 	if (local_comm == cm)
 		local_comm = NULL;
 	dlm_lowcomms_close(cm->nodeid);
@@ -559,19 +557,18 @@ static void drop_comm(struct config_group *g, struct config_item *i)
 
 static void release_comm(struct config_item *i)
 {
-	struct comm *cm = to_comm(i);
+	struct dlm_comm *cm = to_comm(i);
 	kfree(cm);
 }
 
-static int make_node(struct config_group *g, const char *name,
-		     struct config_item **new_i)
+static struct config_item *make_node(struct config_group *g, const char *name)
 {
-	struct space *sp = to_space(g->cg_item.ci_parent);
-	struct node *nd;
+	struct dlm_space *sp = to_space(g->cg_item.ci_parent);
+	struct dlm_node *nd;
 
-	nd = kzalloc(sizeof(struct node), GFP_KERNEL);
+	nd = kzalloc(sizeof(struct dlm_node), GFP_KERNEL);
 	if (!nd)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&nd->item, name, &node_type);
 	nd->nodeid = -1;
@@ -583,14 +580,13 @@ static int make_node(struct config_group *g, const char *name,
 	sp->members_count++;
 	mutex_unlock(&sp->members_lock);
 
-	*new_i = &nd->item;
-	return 0;
+	return &nd->item;
 }
 
 static void drop_node(struct config_group *g, struct config_item *i)
 {
-	struct space *sp = to_space(g->cg_item.ci_parent);
-	struct node *nd = to_node(i);
+	struct dlm_space *sp = to_space(g->cg_item.ci_parent);
+	struct dlm_node *nd = to_node(i);
 
 	mutex_lock(&sp->members_lock);
 	list_del(&nd->list);
@@ -602,11 +598,11 @@ static void drop_node(struct config_group *g, struct config_item *i)
 
 static void release_node(struct config_item *i)
 {
-	struct node *nd = to_node(i);
+	struct dlm_node *nd = to_node(i);
 	kfree(nd);
 }
 
-static struct clusters clusters_root = {
+static struct dlm_clusters clusters_root = {
 	.subsys = {
 		.su_group = {
 			.cg_item = {
@@ -636,7 +632,7 @@ void dlm_config_exit(void)
 static ssize_t show_cluster(struct config_item *i, struct configfs_attribute *a,
 			    char *buf)
 {
-	struct cluster *cl = to_cluster(i);
+	struct dlm_cluster *cl = to_cluster(i);
 	struct cluster_attribute *cla =
 			container_of(a, struct cluster_attribute, attr);
 	return cla->show ? cla->show(cl, buf) : 0;
@@ -646,7 +642,7 @@ static ssize_t store_cluster(struct config_item *i,
 			     struct configfs_attribute *a,
 			     const char *buf, size_t len)
 {
-	struct cluster *cl = to_cluster(i);
+	struct dlm_cluster *cl = to_cluster(i);
 	struct cluster_attribute *cla =
 		container_of(a, struct cluster_attribute, attr);
 	return cla->store ? cla->store(cl, buf, len) : -EINVAL;
@@ -655,7 +651,7 @@ static ssize_t store_cluster(struct config_item *i,
 static ssize_t show_comm(struct config_item *i, struct configfs_attribute *a,
 			 char *buf)
 {
-	struct comm *cm = to_comm(i);
+	struct dlm_comm *cm = to_comm(i);
 	struct comm_attribute *cma =
 			container_of(a, struct comm_attribute, attr);
 	return cma->show ? cma->show(cm, buf) : 0;
@@ -664,29 +660,31 @@ static ssize_t show_comm(struct config_item *i, struct configfs_attribute *a,
 static ssize_t store_comm(struct config_item *i, struct configfs_attribute *a,
 			  const char *buf, size_t len)
 {
-	struct comm *cm = to_comm(i);
+	struct dlm_comm *cm = to_comm(i);
 	struct comm_attribute *cma =
 		container_of(a, struct comm_attribute, attr);
 	return cma->store ? cma->store(cm, buf, len) : -EINVAL;
 }
 
-static ssize_t comm_nodeid_read(struct comm *cm, char *buf)
+static ssize_t comm_nodeid_read(struct dlm_comm *cm, char *buf)
 {
 	return sprintf(buf, "%d\n", cm->nodeid);
 }
 
-static ssize_t comm_nodeid_write(struct comm *cm, const char *buf, size_t len)
+static ssize_t comm_nodeid_write(struct dlm_comm *cm, const char *buf,
+				 size_t len)
 {
 	cm->nodeid = simple_strtol(buf, NULL, 0);
 	return len;
 }
 
-static ssize_t comm_local_read(struct comm *cm, char *buf)
+static ssize_t comm_local_read(struct dlm_comm *cm, char *buf)
 {
 	return sprintf(buf, "%d\n", cm->local);
 }
 
-static ssize_t comm_local_write(struct comm *cm, const char *buf, size_t len)
+static ssize_t comm_local_write(struct dlm_comm *cm, const char *buf,
+				size_t len)
 {
 	cm->local= simple_strtol(buf, NULL, 0);
 	if (cm->local && !local_comm)
@@ -694,7 +692,7 @@ static ssize_t comm_local_write(struct comm *cm, const char *buf, size_t len)
 	return len;
 }
 
-static ssize_t comm_addr_write(struct comm *cm, const char *buf, size_t len)
+static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 {
 	struct sockaddr_storage *addr;
 
@@ -716,7 +714,7 @@ static ssize_t comm_addr_write(struct comm *cm, const char *buf, size_t len)
 static ssize_t show_node(struct config_item *i, struct configfs_attribute *a,
 			 char *buf)
 {
-	struct node *nd = to_node(i);
+	struct dlm_node *nd = to_node(i);
 	struct node_attribute *nda =
 			container_of(a, struct node_attribute, attr);
 	return nda->show ? nda->show(nd, buf) : 0;
@@ -725,29 +723,31 @@ static ssize_t show_node(struct config_item *i, struct configfs_attribute *a,
 static ssize_t store_node(struct config_item *i, struct configfs_attribute *a,
 			  const char *buf, size_t len)
 {
-	struct node *nd = to_node(i);
+	struct dlm_node *nd = to_node(i);
 	struct node_attribute *nda =
 		container_of(a, struct node_attribute, attr);
 	return nda->store ? nda->store(nd, buf, len) : -EINVAL;
 }
 
-static ssize_t node_nodeid_read(struct node *nd, char *buf)
+static ssize_t node_nodeid_read(struct dlm_node *nd, char *buf)
 {
 	return sprintf(buf, "%d\n", nd->nodeid);
 }
 
-static ssize_t node_nodeid_write(struct node *nd, const char *buf, size_t len)
+static ssize_t node_nodeid_write(struct dlm_node *nd, const char *buf,
+				 size_t len)
 {
 	nd->nodeid = simple_strtol(buf, NULL, 0);
 	return len;
 }
 
-static ssize_t node_weight_read(struct node *nd, char *buf)
+static ssize_t node_weight_read(struct dlm_node *nd, char *buf)
 {
 	return sprintf(buf, "%d\n", nd->weight);
 }
 
-static ssize_t node_weight_write(struct node *nd, const char *buf, size_t len)
+static ssize_t node_weight_write(struct dlm_node *nd, const char *buf,
+				 size_t len)
 {
 	nd->weight = simple_strtol(buf, NULL, 0);
 	return len;
@@ -757,7 +757,7 @@ static ssize_t node_weight_write(struct node *nd, const char *buf, size_t len)
  * Functions for the dlm to get the info that's been configured
  */
 
-static struct space *get_space(char *name)
+static struct dlm_space *get_space(char *name)
 {
 	struct config_item *i;
 
@@ -771,15 +771,15 @@ static struct space *get_space(char *name)
 	return to_space(i);
 }
 
-static void put_space(struct space *sp)
+static void put_space(struct dlm_space *sp)
 {
 	config_item_put(&sp->group.cg_item);
 }
 
-static struct comm *get_comm(int nodeid, struct sockaddr_storage *addr)
+static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 {
 	struct config_item *i;
-	struct comm *cm = NULL;
+	struct dlm_comm *cm = NULL;
 	int found = 0;
 
 	if (!comm_list)
@@ -812,7 +812,7 @@ static struct comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 	return cm;
 }
 
-static void put_comm(struct comm *cm)
+static void put_comm(struct dlm_comm *cm)
 {
 	config_item_put(&cm->item);
 }
@@ -821,8 +821,8 @@ static void put_comm(struct comm *cm)
 int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
 		    int **new_out, int *new_count_out)
 {
-	struct space *sp;
-	struct node *nd;
+	struct dlm_space *sp;
+	struct dlm_node *nd;
 	int i = 0, rv = 0, ids_count = 0, new_count = 0;
 	int *ids, *new;
 
@@ -885,8 +885,8 @@ int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
 
 int dlm_node_weight(char *lsname, int nodeid)
 {
-	struct space *sp;
-	struct node *nd;
+	struct dlm_space *sp;
+	struct dlm_node *nd;
 	int w = -EEXIST;
 
 	sp = get_space(lsname);
@@ -908,7 +908,7 @@ int dlm_node_weight(char *lsname, int nodeid)
 
 int dlm_nodeid_to_addr(int nodeid, struct sockaddr_storage *addr)
 {
-	struct comm *cm = get_comm(nodeid, NULL);
+	struct dlm_comm *cm = get_comm(nodeid, NULL);
 	if (!cm)
 		return -EEXIST;
 	if (!cm->addr_count)
@@ -920,7 +920,7 @@ int dlm_nodeid_to_addr(int nodeid, struct sockaddr_storage *addr)
 
 int dlm_addr_to_nodeid(struct sockaddr_storage *addr, int *nodeid)
 {
-	struct comm *cm = get_comm(0, addr);
+	struct dlm_comm *cm = get_comm(0, addr);
 	if (!cm)
 		return -EEXIST;
 	*nodeid = cm->nodeid;

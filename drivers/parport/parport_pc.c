@@ -2867,7 +2867,7 @@ static struct parport_pc_pci {
 	 * and 840 locks up if you write 1 to bit 2! */
 	/* oxsemi_952 */		{ 1, { { 0, 1 }, } },
 	/* oxsemi_954 */		{ 1, { { 0, -1 }, } },
-	/* oxsemi_840 */		{ 1, { { 0, -1 }, } },
+	/* oxsemi_840 */		{ 1, { { 0, 1 }, } },
 	/* aks_0100 */                  { 1, { { 0, -1 }, } },
 	/* mobility_pp */		{ 1, { { 0, 1 }, } },
 	/* netmos_9705 */               { 1, { { 0, -1 }, } }, /* untested */

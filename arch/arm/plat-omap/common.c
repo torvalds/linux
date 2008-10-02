@@ -19,20 +19,20 @@
 #include <linux/serial_reg.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <asm/arch/common.h>
-#include <asm/arch/board.h>
-#include <asm/arch/control.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/fpga.h>
+#include <mach/common.h>
+#include <mach/board.h>
+#include <mach/control.h>
+#include <mach/mux.h>
+#include <mach/fpga.h>
 
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 # include "../mach-omap2/sdrc.h"

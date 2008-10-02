@@ -159,7 +159,7 @@ static void ds_var_data(struct ds_info *dp,
 			struct ds_cap_state *cp,
 			void *buf, int len);
 
-struct ds_cap_state ds_states_template[] = {
+static struct ds_cap_state ds_states_template[] = {
 	{
 		.service_id	= "md-update",
 		.data		= md_update_data,

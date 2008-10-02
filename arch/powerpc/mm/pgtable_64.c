@@ -107,8 +107,17 @@ void __iomem * __ioremap_at(phys_addr_t pa, void *ea, unsigned long size,
 {
 	unsigned long i;
 
+	/* Make sure we have the base flags */
 	if ((flags & _PAGE_PRESENT) == 0)
 		flags |= pgprot_val(PAGE_KERNEL);
+
+	/* Non-cacheable page cannot be coherent */
+	if (flags & _PAGE_NO_CACHE)
+		flags &= ~_PAGE_COHERENT;
+
+	/* We don't support the 4K PFN hack with ioremap */
+	if (flags & _PAGE_4K_PFN)
+		return NULL;
 
 	WARN_ON(pa & ~PAGE_MASK);
 	WARN_ON(((unsigned long)ea) & ~PAGE_MASK);
@@ -190,6 +199,13 @@ void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
 			     unsigned long flags)
 {
+	/* writeable implies dirty for kernel addresses */
+	if (flags & _PAGE_RW)
+		flags |= _PAGE_DIRTY;
+
+	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
+	flags &= ~(_PAGE_USER | _PAGE_EXEC);
+
 	if (ppc_md.ioremap)
 		return ppc_md.ioremap(addr, size, flags);
 	return __ioremap(addr, size, flags);

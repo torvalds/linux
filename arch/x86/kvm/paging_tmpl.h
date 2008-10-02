@@ -263,6 +263,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	pfn = vcpu->arch.update_pte.pfn;
 	if (is_error_pfn(pfn))
 		return;
+	if (mmu_notifier_retry(vcpu, vcpu->arch.update_pte.mmu_seq))
+		return;
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, largepage, gpte_to_gfn(gpte),
@@ -343,7 +345,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		shadow_addr = __pa(shadow_page->spt);
 		shadow_pte = shadow_addr | PT_PRESENT_MASK | PT_ACCESSED_MASK
 			| PT_WRITABLE_MASK | PT_USER_MASK;
-		*shadow_ent = shadow_pte;
+		set_shadow_pte(shadow_ent, shadow_pte);
 	}
 
 	mmu_set_spte(vcpu, shadow_ent, access, walker->pte_access & access,
@@ -380,6 +382,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	int r;
 	pfn_t pfn;
 	int largepage = 0;
+	unsigned long mmu_seq;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 	kvm_mmu_audit(vcpu, "pre page fault");
@@ -413,6 +416,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 			largepage = 1;
 		}
 	}
+	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	/* implicit mb(), we'll read before PT lock is unlocked */
 	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
 	up_read(&current->mm->mmap_sem);
 
@@ -424,6 +429,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
+	if (mmu_notifier_retry(vcpu, mmu_seq))
+		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
 				  largepage, &write_pt, pfn);
@@ -439,6 +446,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return write_pt;
+
+out_unlock:
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	kvm_release_pfn_clean(pfn);
+	return 0;
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
@@ -460,8 +472,9 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 				 struct kvm_mmu_page *sp)
 {
-	int i, offset = 0, r = 0;
-	pt_element_t pt;
+	int i, j, offset, r;
+	pt_element_t pt[256 / sizeof(pt_element_t)];
+	gpa_t pte_gpa;
 
 	if (sp->role.metaphysical
 	    || (PTTYPE == 32 && sp->role.level > PT_PAGE_TABLE_LEVEL)) {
@@ -469,19 +482,20 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 		return;
 	}
 
-	if (PTTYPE == 32)
+	pte_gpa = gfn_to_gpa(sp->gfn);
+	if (PTTYPE == 32) {
 		offset = sp->role.quadrant << PT64_LEVEL_BITS;
+		pte_gpa += offset * sizeof(pt_element_t);
+	}
 
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-		gpa_t pte_gpa = gfn_to_gpa(sp->gfn);
-		pte_gpa += (i+offset) * sizeof(pt_element_t);
-
-		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &pt,
-					  sizeof(pt_element_t));
-		if (r || is_present_pte(pt))
-			sp->spt[i] = shadow_trap_nonpresent_pte;
-		else
-			sp->spt[i] = shadow_notrap_nonpresent_pte;
+	for (i = 0; i < PT64_ENT_PER_PAGE; i += ARRAY_SIZE(pt)) {
+		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa, pt, sizeof pt);
+		pte_gpa += ARRAY_SIZE(pt) * sizeof(pt_element_t);
+		for (j = 0; j < ARRAY_SIZE(pt); ++j)
+			if (r || is_present_pte(pt[j]))
+				sp->spt[i+j] = shadow_trap_nonpresent_pte;
+			else
+				sp->spt[i+j] = shadow_notrap_nonpresent_pte;
 	}
 }
 

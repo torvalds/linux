@@ -9,13 +9,18 @@
  */
 #include <linux/blkdev.h>
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
+#include <linux/seq_file.h>
+#include <linux/stat.h>
 
 #include <linux/mmc/host.h>
 
@@ -23,8 +28,7 @@
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
 
 #include "atmel-mci-regs.h"
 
@@ -88,6 +92,188 @@ struct atmel_mci {
 #define atmci_clear_pending(host, event)			\
 	clear_bit(event, &host->pending_events)
 
+/*
+ * The debugfs stuff below is mostly optimized away when
+ * CONFIG_DEBUG_FS is not set.
+ */
+static int atmci_req_show(struct seq_file *s, void *v)
+{
+	struct atmel_mci	*host = s->private;
+	struct mmc_request	*mrq = host->mrq;
+	struct mmc_command	*cmd;
+	struct mmc_command	*stop;
+	struct mmc_data		*data;
+
+	/* Make sure we get a consistent snapshot */
+	spin_lock_irq(&host->mmc->lock);
+
+	if (mrq) {
+		cmd = mrq->cmd;
+		data = mrq->data;
+		stop = mrq->stop;
+
+		if (cmd)
+			seq_printf(s,
+				"CMD%u(0x%x) flg %x rsp %x %x %x %x err %d\n",
+				cmd->opcode, cmd->arg, cmd->flags,
+				cmd->resp[0], cmd->resp[1], cmd->resp[2],
+				cmd->resp[2], cmd->error);
+		if (data)
+			seq_printf(s, "DATA %u / %u * %u flg %x err %d\n",
+				data->bytes_xfered, data->blocks,
+				data->blksz, data->flags, data->error);
+		if (stop)
+			seq_printf(s,
+				"CMD%u(0x%x) flg %x rsp %x %x %x %x err %d\n",
+				stop->opcode, stop->arg, stop->flags,
+				stop->resp[0], stop->resp[1], stop->resp[2],
+				stop->resp[2], stop->error);
+	}
+
+	spin_unlock_irq(&host->mmc->lock);
+
+	return 0;
+}
+
+static int atmci_req_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, atmci_req_show, inode->i_private);
+}
+
+static const struct file_operations atmci_req_fops = {
+	.owner		= THIS_MODULE,
+	.open		= atmci_req_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void atmci_show_status_reg(struct seq_file *s,
+		const char *regname, u32 value)
+{
+	static const char	*sr_bit[] = {
+		[0]	= "CMDRDY",
+		[1]	= "RXRDY",
+		[2]	= "TXRDY",
+		[3]	= "BLKE",
+		[4]	= "DTIP",
+		[5]	= "NOTBUSY",
+		[8]	= "SDIOIRQA",
+		[9]	= "SDIOIRQB",
+		[16]	= "RINDE",
+		[17]	= "RDIRE",
+		[18]	= "RCRCE",
+		[19]	= "RENDE",
+		[20]	= "RTOE",
+		[21]	= "DCRCE",
+		[22]	= "DTOE",
+		[30]	= "OVRE",
+		[31]	= "UNRE",
+	};
+	unsigned int		i;
+
+	seq_printf(s, "%s:\t0x%08x", regname, value);
+	for (i = 0; i < ARRAY_SIZE(sr_bit); i++) {
+		if (value & (1 << i)) {
+			if (sr_bit[i])
+				seq_printf(s, " %s", sr_bit[i]);
+			else
+				seq_puts(s, " UNKNOWN");
+		}
+	}
+	seq_putc(s, '\n');
+}
+
+static int atmci_regs_show(struct seq_file *s, void *v)
+{
+	struct atmel_mci	*host = s->private;
+	u32			*buf;
+
+	buf = kmalloc(MCI_REGS_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* Grab a more or less consistent snapshot */
+	spin_lock_irq(&host->mmc->lock);
+	clk_enable(host->mck);
+	memcpy_fromio(buf, host->regs, MCI_REGS_SIZE);
+	clk_disable(host->mck);
+	spin_unlock_irq(&host->mmc->lock);
+
+	seq_printf(s, "MR:\t0x%08x%s%s CLKDIV=%u\n",
+			buf[MCI_MR / 4],
+			buf[MCI_MR / 4] & MCI_MR_RDPROOF ? " RDPROOF" : "",
+			buf[MCI_MR / 4] & MCI_MR_WRPROOF ? " WRPROOF" : "",
+			buf[MCI_MR / 4] & 0xff);
+	seq_printf(s, "DTOR:\t0x%08x\n", buf[MCI_DTOR / 4]);
+	seq_printf(s, "SDCR:\t0x%08x\n", buf[MCI_SDCR / 4]);
+	seq_printf(s, "ARGR:\t0x%08x\n", buf[MCI_ARGR / 4]);
+	seq_printf(s, "BLKR:\t0x%08x BCNT=%u BLKLEN=%u\n",
+			buf[MCI_BLKR / 4],
+			buf[MCI_BLKR / 4] & 0xffff,
+			(buf[MCI_BLKR / 4] >> 16) & 0xffff);
+
+	/* Don't read RSPR and RDR; it will consume the data there */
+
+	atmci_show_status_reg(s, "SR", buf[MCI_SR / 4]);
+	atmci_show_status_reg(s, "IMR", buf[MCI_IMR / 4]);
+
+	kfree(buf);
+
+	return 0;
+}
+
+static int atmci_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, atmci_regs_show, inode->i_private);
+}
+
+static const struct file_operations atmci_regs_fops = {
+	.owner		= THIS_MODULE,
+	.open		= atmci_regs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void atmci_init_debugfs(struct atmel_mci *host)
+{
+	struct mmc_host	*mmc;
+	struct dentry	*root;
+	struct dentry	*node;
+
+	mmc = host->mmc;
+	root = mmc->debugfs_root;
+	if (!root)
+		return;
+
+	node = debugfs_create_file("regs", S_IRUSR, root, host,
+			&atmci_regs_fops);
+	if (IS_ERR(node))
+		return;
+	if (!node)
+		goto err;
+
+	node = debugfs_create_file("req", S_IRUSR, root, host, &atmci_req_fops);
+	if (!node)
+		goto err;
+
+	node = debugfs_create_x32("pending_events", S_IRUSR, root,
+				     (u32 *)&host->pending_events);
+	if (!node)
+		goto err;
+
+	node = debugfs_create_x32("completed_events", S_IRUSR, root,
+				     (u32 *)&host->completed_events);
+	if (!node)
+		goto err;
+
+	return;
+
+err:
+	dev_err(&host->pdev->dev,
+		"failed to initialize debugfs for controller\n");
+}
 
 static void atmci_enable(struct atmel_mci *host)
 {
@@ -388,7 +574,7 @@ static int atmci_get_ro(struct mmc_host *mmc)
 	int			read_only = 0;
 	struct atmel_mci	*host = mmc_priv(mmc);
 
-	if (host->wp_pin >= 0) {
+	if (gpio_is_valid(host->wp_pin)) {
 		read_only = gpio_get_value(host->wp_pin);
 		dev_dbg(&mmc->class_dev, "card is %s\n",
 				read_only ? "read-only" : "read-write");
@@ -450,7 +636,7 @@ static void atmci_detect_change(unsigned long data)
 	 * been freed.
 	 */
 	smp_rmb();
-	if (host->detect_pin < 0)
+	if (!gpio_is_valid(host->detect_pin))
 		return;
 
 	enable_irq(gpio_to_irq(host->detect_pin));
@@ -865,7 +1051,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	/* Assume card is present if we don't have a detect pin */
 	host->present = 1;
-	if (host->detect_pin >= 0) {
+	if (gpio_is_valid(host->detect_pin)) {
 		if (gpio_request(host->detect_pin, "mmc_detect")) {
 			dev_dbg(&mmc->class_dev, "no detect pin available\n");
 			host->detect_pin = -1;
@@ -873,7 +1059,11 @@ static int __init atmci_probe(struct platform_device *pdev)
 			host->present = !gpio_get_value(host->detect_pin);
 		}
 	}
-	if (host->wp_pin >= 0) {
+
+	if (!gpio_is_valid(host->detect_pin))
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
+
+	if (gpio_is_valid(host->wp_pin)) {
 		if (gpio_request(host->wp_pin, "mmc_wp")) {
 			dev_dbg(&mmc->class_dev, "no WP pin available\n");
 			host->wp_pin = -1;
@@ -884,7 +1074,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	mmc_add_host(mmc);
 
-	if (host->detect_pin >= 0) {
+	if (gpio_is_valid(host->detect_pin)) {
 		setup_timer(&host->detect_timer, atmci_detect_change,
 				(unsigned long)host);
 
@@ -905,6 +1095,8 @@ static int __init atmci_probe(struct platform_device *pdev)
 			"Atmel MCI controller at 0x%08lx irq %d\n",
 			host->mapbase, irq);
 
+	atmci_init_debugfs(host);
+
 	return 0;
 
 err_request_irq:
@@ -923,7 +1115,9 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (host) {
-		if (host->detect_pin >= 0) {
+		/* Debugfs stuff is cleaned up by mmc core */
+
+		if (gpio_is_valid(host->detect_pin)) {
 			int pin = host->detect_pin;
 
 			/* Make sure the timer doesn't enable the interrupt */
@@ -943,7 +1137,7 @@ static int __exit atmci_remove(struct platform_device *pdev)
 		mci_readl(host, SR);
 		clk_disable(host->mck);
 
-		if (host->wp_pin >= 0)
+		if (gpio_is_valid(host->wp_pin))
 			gpio_free(host->wp_pin);
 
 		free_irq(platform_get_irq(pdev, 0), host->mmc);

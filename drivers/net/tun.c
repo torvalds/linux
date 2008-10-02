@@ -18,15 +18,11 @@
 /*
  *  Changes:
  *
- *  Brian Braunstein <linuxkernel@bristyle.com> 2007/03/23
- *    Fixed hw address handling.  Now net_device.dev_addr is kept consistent
- *    with tun.dev_addr when the address is set by this module.
- *
  *  Mike Kershaw <dragorn@kismetwireless.net> 2005/08/14
  *    Add TUNSETLINK ioctl to set the link encapsulation
  *
  *  Mark Smith <markzzzsmith@yahoo.com.au>
- *   Use random_ether_addr() for tap MAC address.
+ *    Use random_ether_addr() for tap MAC address.
  *
  *  Harald Roelle <harald.roelle@ifi.lmu.de>  2004/04/20
  *    Fixes in packet dropping, queue length setting and queue wakeup.
@@ -64,6 +60,7 @@
 #include <linux/if_tun.h>
 #include <linux/crc32.h>
 #include <linux/nsproxy.h>
+#include <linux/virtio_net.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -83,9 +80,16 @@ static int debug;
 #define DBG1( a... )
 #endif
 
+#define FLT_EXACT_COUNT 8
+struct tap_filter {
+	unsigned int    count;    /* Number of addrs. Zero means disabled */
+	u32             mask[2];  /* Mask of the hashed addrs */
+	unsigned char	addr[FLT_EXACT_COUNT][ETH_ALEN];
+};
+
 struct tun_struct {
 	struct list_head        list;
-	unsigned long 		flags;
+	unsigned int 		flags;
 	int			attached;
 	uid_t			owner;
 	gid_t			group;
@@ -94,18 +98,118 @@ struct tun_struct {
 	struct sk_buff_head	readq;
 
 	struct net_device	*dev;
+	struct fasync_struct	*fasync;
 
-	struct fasync_struct    *fasync;
-
-	unsigned long if_flags;
-	u8 dev_addr[ETH_ALEN];
-	u32 chr_filter[2];
-	u32 net_filter[2];
+	struct tap_filter       txflt;
 
 #ifdef TUN_DEBUG
 	int debug;
 #endif
 };
+
+/* TAP filterting */
+static void addr_hash_set(u32 *mask, const u8 *addr)
+{
+	int n = ether_crc(ETH_ALEN, addr) >> 26;
+	mask[n >> 5] |= (1 << (n & 31));
+}
+
+static unsigned int addr_hash_test(const u32 *mask, const u8 *addr)
+{
+	int n = ether_crc(ETH_ALEN, addr) >> 26;
+	return mask[n >> 5] & (1 << (n & 31));
+}
+
+static int update_filter(struct tap_filter *filter, void __user *arg)
+{
+	struct { u8 u[ETH_ALEN]; } *addr;
+	struct tun_filter uf;
+	int err, alen, n, nexact;
+
+	if (copy_from_user(&uf, arg, sizeof(uf)))
+		return -EFAULT;
+
+	if (!uf.count) {
+		/* Disabled */
+		filter->count = 0;
+		return 0;
+	}
+
+	alen = ETH_ALEN * uf.count;
+	addr = kmalloc(alen, GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+
+	if (copy_from_user(addr, arg + sizeof(uf), alen)) {
+		err = -EFAULT;
+		goto done;
+	}
+
+	/* The filter is updated without holding any locks. Which is
+	 * perfectly safe. We disable it first and in the worst
+	 * case we'll accept a few undesired packets. */
+	filter->count = 0;
+	wmb();
+
+	/* Use first set of addresses as an exact filter */
+	for (n = 0; n < uf.count && n < FLT_EXACT_COUNT; n++)
+		memcpy(filter->addr[n], addr[n].u, ETH_ALEN);
+
+	nexact = n;
+
+	/* The rest is hashed */
+	memset(filter->mask, 0, sizeof(filter->mask));
+	for (; n < uf.count; n++)
+		addr_hash_set(filter->mask, addr[n].u);
+
+	/* For ALLMULTI just set the mask to all ones.
+	 * This overrides the mask populated above. */
+	if ((uf.flags & TUN_FLT_ALLMULTI))
+		memset(filter->mask, ~0, sizeof(filter->mask));
+
+	/* Now enable the filter */
+	wmb();
+	filter->count = nexact;
+
+	/* Return the number of exact filters */
+	err = nexact;
+
+done:
+	kfree(addr);
+	return err;
+}
+
+/* Returns: 0 - drop, !=0 - accept */
+static int run_filter(struct tap_filter *filter, const struct sk_buff *skb)
+{
+	/* Cannot use eth_hdr(skb) here because skb_mac_hdr() is incorrect
+	 * at this point. */
+	struct ethhdr *eh = (struct ethhdr *) skb->data;
+	int i;
+
+	/* Exact match */
+	for (i = 0; i < filter->count; i++)
+		if (!compare_ether_addr(eh->h_dest, filter->addr[i]))
+			return 1;
+
+	/* Inexact match (multicast only) */
+	if (is_multicast_ether_addr(eh->h_dest))
+		return addr_hash_test(filter->mask, eh->h_dest);
+
+	return 0;
+}
+
+/*
+ * Checks whether the packet is accepted or not.
+ * Returns: 0 - drop, !=0 - accept
+ */
+static int check_filter(struct tap_filter *filter, const struct sk_buff *skb)
+{
+	if (!filter->count)
+		return 1;
+
+	return run_filter(filter, skb);
+}
 
 /* Network device part of the driver */
 
@@ -141,7 +245,12 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!tun->attached)
 		goto drop;
 
-	/* Packet dropping */
+	/* Drop if the filter does not like it.
+	 * This is a noop if the filter is disabled.
+	 * Filter can be enabled only for the TAP devices. */
+	if (!check_filter(&tun->txflt, skb))
+		goto drop;
+
 	if (skb_queue_len(&tun->readq) >= dev->tx_queue_len) {
 		if (!(tun->flags & TUN_ONE_QUEUE)) {
 			/* Normal queueing mode. */
@@ -158,7 +267,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	/* Queue packet */
+	/* Enqueue packet */
 	skb_queue_tail(&tun->readq, skb);
 	dev->trans_start = jiffies;
 
@@ -174,41 +283,14 @@ drop:
 	return 0;
 }
 
-/** Add the specified Ethernet address to this multicast filter. */
-static void
-add_multi(u32* filter, const u8* addr)
+static void tun_net_mclist(struct net_device *dev)
 {
-	int bit_nr = ether_crc(ETH_ALEN, addr) >> 26;
-	filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-}
-
-/** Remove the specified Ethernet addres from this multicast filter. */
-static void
-del_multi(u32* filter, const u8* addr)
-{
-	int bit_nr = ether_crc(ETH_ALEN, addr) >> 26;
-	filter[bit_nr >> 5] &= ~(1 << (bit_nr & 31));
-}
-
-/** Update the list of multicast groups to which the network device belongs.
- * This list is used to filter packets being sent from the character device to
- * the network device. */
-static void
-tun_net_mclist(struct net_device *dev)
-{
-	struct tun_struct *tun = netdev_priv(dev);
-	const struct dev_mc_list *mclist;
-	int i;
-	DECLARE_MAC_BUF(mac);
-	DBG(KERN_DEBUG "%s: tun_net_mclist: mc_count %d\n",
-			dev->name, dev->mc_count);
-	memset(tun->chr_filter, 0, sizeof tun->chr_filter);
-	for (i = 0, mclist = dev->mc_list; i < dev->mc_count && mclist != NULL;
-			i++, mclist = mclist->next) {
-		add_multi(tun->net_filter, mclist->dmi_addr);
-		DBG(KERN_DEBUG "%s: tun_net_mclist: %s\n",
-		    dev->name, print_mac(mac, mclist->dmi_addr));
-	}
+	/*
+	 * This callback is supposed to deal with mc filter in
+	 * _rx_ path and has nothing to do with the _tx_ path.
+	 * In rx path we always accept everything userspace gives us.
+	 */
+	return;
 }
 
 #define MIN_MTU 68
@@ -244,13 +326,11 @@ static void tun_net_init(struct net_device *dev)
 
 	case TUN_TAP_DEV:
 		/* Ethernet TAP Device */
+		ether_setup(dev);
+		dev->change_mtu         = tun_net_change_mtu;
 		dev->set_multicast_list = tun_net_mclist;
 
-		ether_setup(dev);
-		dev->change_mtu = tun_net_change_mtu;
-
-		/* random address already created for us by tun_set_iff, use it */
-		memcpy(dev->dev_addr, tun->dev_addr, min(sizeof(tun->dev_addr), sizeof(dev->dev_addr)) );
+		random_ether_addr(dev->dev_addr);
 
 		dev->tx_queue_len = TUN_READQ_SIZE;  /* We prefer our own queue length */
 		break;
@@ -278,12 +358,73 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
+/* prepad is the amount to reserve at front.  len is length after that.
+ * linear is a hint as to how much to copy (usually headers). */
+static struct sk_buff *tun_alloc_skb(size_t prepad, size_t len, size_t linear,
+				     gfp_t gfp)
+{
+	struct sk_buff *skb;
+	unsigned int i;
+
+	skb = alloc_skb(prepad + len, gfp|__GFP_NOWARN);
+	if (skb) {
+		skb_reserve(skb, prepad);
+		skb_put(skb, len);
+		return skb;
+	}
+
+	/* Under a page?  Don't bother with paged skb. */
+	if (prepad + len < PAGE_SIZE)
+		return NULL;
+
+	/* Start with a normal skb, and add pages. */
+	skb = alloc_skb(prepad + linear, gfp);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, prepad);
+	skb_put(skb, linear);
+
+	len -= linear;
+
+	for (i = 0; i < MAX_SKB_FRAGS; i++) {
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+
+		f->page = alloc_page(gfp|__GFP_ZERO);
+		if (!f->page)
+			break;
+
+		f->page_offset = 0;
+		f->size = PAGE_SIZE;
+
+		skb->data_len += PAGE_SIZE;
+		skb->len += PAGE_SIZE;
+		skb->truesize += PAGE_SIZE;
+		skb_shinfo(skb)->nr_frags++;
+
+		if (len < PAGE_SIZE) {
+			len = 0;
+			break;
+		}
+		len -= PAGE_SIZE;
+	}
+
+	/* Too large, or alloc fail? */
+	if (unlikely(len)) {
+		kfree_skb(skb);
+		skb = NULL;
+	}
+
+	return skb;
+}
+
 /* Get packet from user space buffer */
 static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv, size_t count)
 {
 	struct tun_pi pi = { 0, __constant_htons(ETH_P_IP) };
 	struct sk_buff *skb;
 	size_t len = count, align = 0;
+	struct virtio_net_hdr gso = { 0 };
 
 	if (!(tun->flags & TUN_NO_PI)) {
 		if ((len -= sizeof(pi)) > count)
@@ -293,24 +434,43 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 			return -EFAULT;
 	}
 
+	if (tun->flags & TUN_VNET_HDR) {
+		if ((len -= sizeof(gso)) > count)
+			return -EINVAL;
+
+		if (memcpy_fromiovec((void *)&gso, iv, sizeof(gso)))
+			return -EFAULT;
+
+		if (gso.hdr_len > len)
+			return -EINVAL;
+	}
+
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
 		align = NET_IP_ALIGN;
 		if (unlikely(len < ETH_HLEN))
 			return -EINVAL;
 	}
 
-	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
+	if (!(skb = tun_alloc_skb(align, len, gso.hdr_len, GFP_KERNEL))) {
 		tun->dev->stats.rx_dropped++;
 		return -ENOMEM;
 	}
 
-	if (align)
-		skb_reserve(skb, align);
-	if (memcpy_fromiovec(skb_put(skb, len), iv, len)) {
+	if (skb_copy_datagram_from_iovec(skb, 0, iv, len)) {
 		tun->dev->stats.rx_dropped++;
 		kfree_skb(skb);
 		return -EFAULT;
 	}
+
+	if (gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
+		if (!skb_partial_csum_set(skb, gso.csum_start,
+					  gso.csum_offset)) {
+			tun->dev->stats.rx_frame_errors++;
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+	} else if (tun->flags & TUN_NOCHECKSUM)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
@@ -338,8 +498,35 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 		break;
 	};
 
-	if (tun->flags & TUN_NOCHECKSUM)
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (gso.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+		pr_debug("GSO!\n");
+		switch (gso.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+		case VIRTIO_NET_HDR_GSO_TCPV4:
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+			break;
+		case VIRTIO_NET_HDR_GSO_TCPV6:
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+			break;
+		default:
+			tun->dev->stats.rx_frame_errors++;
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+
+		if (gso.gso_type & VIRTIO_NET_HDR_GSO_ECN)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+
+		skb_shinfo(skb)->gso_size = gso.gso_size;
+		if (skb_shinfo(skb)->gso_size == 0) {
+			tun->dev->stats.rx_frame_errors++;
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+
+		/* Header must be checked, and gso_segs computed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
 
 	netif_rx_ni(skb);
 	tun->dev->last_rx = jiffies;
@@ -385,6 +572,39 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 		total += sizeof(pi);
 	}
 
+	if (tun->flags & TUN_VNET_HDR) {
+		struct virtio_net_hdr gso = { 0 }; /* no info leak */
+		if ((len -= sizeof(gso)) < 0)
+			return -EINVAL;
+
+		if (skb_is_gso(skb)) {
+			struct skb_shared_info *sinfo = skb_shinfo(skb);
+
+			/* This is a hint as to how much should be linear. */
+			gso.hdr_len = skb_headlen(skb);
+			gso.gso_size = sinfo->gso_size;
+			if (sinfo->gso_type & SKB_GSO_TCPV4)
+				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+			else if (sinfo->gso_type & SKB_GSO_TCPV6)
+				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+			else
+				BUG();
+			if (sinfo->gso_type & SKB_GSO_TCP_ECN)
+				gso.gso_type |= VIRTIO_NET_HDR_GSO_ECN;
+		} else
+			gso.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			gso.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
+			gso.csum_start = skb->csum_start - skb_headroom(skb);
+			gso.csum_offset = skb->csum_offset;
+		} /* else everything is zero */
+
+		if (unlikely(memcpy_toiovec(iv, (void *)&gso, sizeof(gso))))
+			return -EFAULT;
+		total += sizeof(gso);
+	}
+
 	len = min_t(int, skb->len, len);
 
 	skb_copy_datagram_iovec(skb, 0, iv, len);
@@ -404,7 +624,6 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
 	ssize_t len, ret = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (!tun)
 		return -EBADFD;
@@ -417,10 +636,6 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 
 	add_wait_queue(&tun->read_wait, &wait);
 	while (len) {
-		const u8 ones[ ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-		u8 addr[ ETH_ALEN];
-		int bit_nr;
-
 		current->state = TASK_INTERRUPTIBLE;
 
 		/* Read frames from the queue */
@@ -440,36 +655,9 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		}
 		netif_wake_queue(tun->dev);
 
-		/** Decide whether to accept this packet. This code is designed to
-		 * behave identically to an Ethernet interface. Accept the packet if
-		 * - we are promiscuous.
-		 * - the packet is addressed to us.
-		 * - the packet is broadcast.
-		 * - the packet is multicast and
-		 *   - we are multicast promiscous.
-		 *   - we belong to the multicast group.
-		 */
-		skb_copy_from_linear_data(skb, addr, min_t(size_t, sizeof addr,
-								   skb->len));
-		bit_nr = ether_crc(sizeof addr, addr) >> 26;
-		if ((tun->if_flags & IFF_PROMISC) ||
-				memcmp(addr, tun->dev_addr, sizeof addr) == 0 ||
-				memcmp(addr, ones, sizeof addr) == 0 ||
-				(((addr[0] == 1 && addr[1] == 0 && addr[2] == 0x5e) ||
-				  (addr[0] == 0x33 && addr[1] == 0x33)) &&
-				 ((tun->if_flags & IFF_ALLMULTI) ||
-				  (tun->chr_filter[bit_nr >> 5] & (1 << (bit_nr & 31)))))) {
-			DBG(KERN_DEBUG "%s: tun_chr_readv: accepted: %s\n",
-					tun->dev->name, print_mac(mac, addr));
-			ret = tun_put_user(tun, skb, (struct iovec *) iv, len);
-			kfree_skb(skb);
-			break;
-		} else {
-			DBG(KERN_DEBUG "%s: tun_chr_readv: rejected: %s\n",
-					tun->dev->name, print_mac(mac, addr));
-			kfree_skb(skb);
-			continue;
-		}
+		ret = tun_put_user(tun, skb, (struct iovec *) iv, len);
+		kfree_skb(skb);
+		break;
 	}
 
 	current->state = TASK_RUNNING;
@@ -565,12 +753,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun = netdev_priv(dev);
 		tun->dev = dev;
 		tun->flags = flags;
-		/* Be promiscuous by default to maintain previous behaviour. */
-		tun->if_flags = IFF_PROMISC;
-		/* Generate random Ethernet address. */
-		*(__be16 *)tun->dev_addr = htons(0x00FF);
-		get_random_bytes(tun->dev_addr + sizeof(u16), 4);
-		memset(tun->chr_filter, 0, sizeof tun->chr_filter);
+		tun->txflt.count = 0;
 
 		tun_net_init(dev);
 
@@ -599,6 +782,11 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else
 		tun->flags &= ~TUN_ONE_QUEUE;
 
+	if (ifr->ifr_flags & IFF_VNET_HDR)
+		tun->flags |= TUN_VNET_HDR;
+	else
+		tun->flags &= ~TUN_VNET_HDR;
+
 	file->private_data = tun;
 	tun->attached = 1;
 	get_net(dev_net(tun->dev));
@@ -618,12 +806,83 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	return err;
 }
 
+static int tun_get_iff(struct net *net, struct file *file, struct ifreq *ifr)
+{
+	struct tun_struct *tun = file->private_data;
+
+	if (!tun)
+		return -EBADFD;
+
+	DBG(KERN_INFO "%s: tun_get_iff\n", tun->dev->name);
+
+	strcpy(ifr->ifr_name, tun->dev->name);
+
+	ifr->ifr_flags = 0;
+
+	if (ifr->ifr_flags & TUN_TUN_DEV)
+		ifr->ifr_flags |= IFF_TUN;
+	else
+		ifr->ifr_flags |= IFF_TAP;
+
+	if (tun->flags & TUN_NO_PI)
+		ifr->ifr_flags |= IFF_NO_PI;
+
+	if (tun->flags & TUN_ONE_QUEUE)
+		ifr->ifr_flags |= IFF_ONE_QUEUE;
+
+	if (tun->flags & TUN_VNET_HDR)
+		ifr->ifr_flags |= IFF_VNET_HDR;
+
+	return 0;
+}
+
+/* This is like a cut-down ethtool ops, except done via tun fd so no
+ * privs required. */
+static int set_offload(struct net_device *dev, unsigned long arg)
+{
+	unsigned int old_features, features;
+
+	old_features = dev->features;
+	/* Unset features, set them as we chew on the arg. */
+	features = (old_features & ~(NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST
+				    |NETIF_F_TSO_ECN|NETIF_F_TSO|NETIF_F_TSO6));
+
+	if (arg & TUN_F_CSUM) {
+		features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
+		arg &= ~TUN_F_CSUM;
+
+		if (arg & (TUN_F_TSO4|TUN_F_TSO6)) {
+			if (arg & TUN_F_TSO_ECN) {
+				features |= NETIF_F_TSO_ECN;
+				arg &= ~TUN_F_TSO_ECN;
+			}
+			if (arg & TUN_F_TSO4)
+				features |= NETIF_F_TSO;
+			if (arg & TUN_F_TSO6)
+				features |= NETIF_F_TSO6;
+			arg &= ~(TUN_F_TSO4|TUN_F_TSO6);
+		}
+	}
+
+	/* This gives the user a way to test for new features in future by
+	 * trying to set them. */
+	if (arg)
+		return -EINVAL;
+
+	dev->features = features;
+	if (old_features != dev->features)
+		netdev_features_change(dev);
+
+	return 0;
+}
+
 static int tun_chr_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct tun_struct *tun = file->private_data;
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
+	int ret;
 	DECLARE_MAC_BUF(mac);
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
@@ -647,12 +906,30 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 
+	if (cmd == TUNGETFEATURES) {
+		/* Currently this just means: "what IFF flags are valid?".
+		 * This is needed because we never checked for invalid flags on
+		 * TUNSETIFF. */
+		return put_user(IFF_TUN | IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE |
+				IFF_VNET_HDR,
+				(unsigned int __user*)argp);
+	}
+
 	if (!tun)
 		return -EBADFD;
 
 	DBG(KERN_INFO "%s: tun_chr_ioctl cmd %d\n", tun->dev->name, cmd);
 
 	switch (cmd) {
+	case TUNGETIFF:
+		ret = tun_get_iff(current->nsproxy->net_ns, file, &ifr);
+		if (ret)
+			return ret;
+
+		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+			return -EFAULT;
+		break;
+
 	case TUNSETNOCSUM:
 		/* Disable/Enable checksum */
 		if (arg)
@@ -690,9 +967,6 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case TUNSETLINK:
-	{
-		int ret;
-
 		/* Only allow setting the type when the interface is down */
 		rtnl_lock();
 		if (tun->dev->flags & IFF_UP) {
@@ -706,85 +980,44 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		}
 		rtnl_unlock();
 		return ret;
-	}
 
 #ifdef TUN_DEBUG
 	case TUNSETDEBUG:
 		tun->debug = arg;
 		break;
 #endif
+	case TUNSETOFFLOAD:
+		rtnl_lock();
+		ret = set_offload(tun->dev, arg);
+		rtnl_unlock();
+		return ret;
 
-	case SIOCGIFFLAGS:
-		ifr.ifr_flags = tun->if_flags;
-		if (copy_to_user( argp, &ifr, sizeof ifr))
-			return -EFAULT;
-		return 0;
-
-	case SIOCSIFFLAGS:
-		/** Set the character device's interface flags. Currently only
-		 * IFF_PROMISC and IFF_ALLMULTI are used. */
-		tun->if_flags = ifr.ifr_flags;
-		DBG(KERN_INFO "%s: interface flags 0x%lx\n",
-				tun->dev->name, tun->if_flags);
-		return 0;
+	case TUNSETTXFILTER:
+		/* Can be set only for TAPs */
+		if ((tun->flags & TUN_TYPE_MASK) != TUN_TAP_DEV)
+			return -EINVAL;
+		rtnl_lock();
+		ret = update_filter(&tun->txflt, (void __user *)arg);
+		rtnl_unlock();
+		return ret;
 
 	case SIOCGIFHWADDR:
-		/* Note: the actual net device's address may be different */
-		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev_addr,
-				min(sizeof ifr.ifr_hwaddr.sa_data, sizeof tun->dev_addr));
-		if (copy_to_user( argp, &ifr, sizeof ifr))
+		/* Get hw addres */
+		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev->dev_addr, ETH_ALEN);
+		ifr.ifr_hwaddr.sa_family = tun->dev->type;
+		if (copy_to_user(argp, &ifr, sizeof ifr))
 			return -EFAULT;
 		return 0;
 
 	case SIOCSIFHWADDR:
-	{
-		/* try to set the actual net device's hw address */
-		int ret;
+		/* Set hw address */
+		DBG(KERN_DEBUG "%s: set hw address: %s\n",
+			tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
 
 		rtnl_lock();
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
 		rtnl_unlock();
-
-		if (ret == 0) {
-			/** Set the character device's hardware address. This is used when
-			 * filtering packets being sent from the network device to the character
-			 * device. */
-			memcpy(tun->dev_addr, ifr.ifr_hwaddr.sa_data,
-					min(sizeof ifr.ifr_hwaddr.sa_data, sizeof tun->dev_addr));
-			DBG(KERN_DEBUG "%s: set hardware address: %x:%x:%x:%x:%x:%x\n",
-					tun->dev->name,
-					tun->dev_addr[0], tun->dev_addr[1], tun->dev_addr[2],
-					tun->dev_addr[3], tun->dev_addr[4], tun->dev_addr[5]);
-		}
-
-		return  ret;
-	}
-
-	case SIOCADDMULTI:
-		/** Add the specified group to the character device's multicast filter
-		 * list. */
-		rtnl_lock();
-		netif_tx_lock_bh(tun->dev);
-		add_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
-		netif_tx_unlock_bh(tun->dev);
-		rtnl_unlock();
-
-		DBG(KERN_DEBUG "%s: add multi: %s\n",
-		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
-		return 0;
-
-	case SIOCDELMULTI:
-		/** Remove the specified group from the character device's multicast
-		 * filter list. */
-		rtnl_lock();
-		netif_tx_lock_bh(tun->dev);
-		del_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
-		netif_tx_unlock_bh(tun->dev);
-		rtnl_unlock();
-
-		DBG(KERN_DEBUG "%s: del multi: %s\n",
-		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
-		return 0;
+		return ret;
 
 	default:
 		return -EINVAL;

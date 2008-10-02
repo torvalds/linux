@@ -154,7 +154,8 @@ static unsigned long irq_mask[] = {
 
 static int sun4m_pil_map[] = { 0, 2, 3, 5, 7, 9, 11, 13 };
 
-unsigned int sun4m_sbint_to_irq(struct sbus_dev *sdev, unsigned int sbint) 
+static unsigned int sun4m_sbint_to_irq(struct sbus_dev *sdev,
+				       unsigned int sbint)
 {
 	if (sbint >= sizeof(sun4m_pil_map)) {
 		printk(KERN_ERR "%s: bogus SBINT %d\n", sdev->prom_name, sbint);
@@ -163,7 +164,7 @@ unsigned int sun4m_sbint_to_irq(struct sbus_dev *sdev, unsigned int sbint)
 	return sun4m_pil_map[sbint] | 0x30;
 }
 
-inline unsigned long sun4m_get_irqmask(unsigned int irq)
+static unsigned long sun4m_get_irqmask(unsigned int irq)
 {
 	unsigned long mask;
     
@@ -281,7 +282,7 @@ static void sun4m_set_udt(int cpu)
 #define TIMER_IRQ  	(OBIO_INTR | 10)
 #define PROFILE_IRQ	(OBIO_INTR | 14)
 
-struct sun4m_timer_regs *sun4m_timers;
+static struct sun4m_timer_regs *sun4m_timers;
 unsigned int lvl14_resolution = (((1000000/HZ) + 1) << 10);
 
 static void sun4m_clear_clock_irq(void)

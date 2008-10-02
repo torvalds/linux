@@ -1,8 +1,6 @@
 /*
  * Direct MTD block device access
  *
- * $Id: mtdblock.c,v 1.68 2005/11/07 11:14:20 gleixner Exp $
- *
  * (C) 2000-2003 Nicolas Pitre <nico@cam.org>
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
  */

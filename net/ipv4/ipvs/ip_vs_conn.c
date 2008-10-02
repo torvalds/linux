@@ -5,8 +5,6 @@
  *              high-performance and highly available server based on a
  *              cluster of servers.
  *
- * Version:     $Id: ip_vs_conn.c,v 1.31 2003/04/18 09:03:16 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Peter Kese <peter.kese@ijs.si>
  *              Julian Anastasov <ja@ssi.bg>
@@ -967,7 +965,7 @@ static void ip_vs_conn_flush(void)
 }
 
 
-int ip_vs_conn_init(void)
+int __init ip_vs_conn_init(void)
 {
 	int idx;
 

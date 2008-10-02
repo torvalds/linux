@@ -21,6 +21,7 @@
 #include <linux/smp_lock.h>
 #include <linux/freezer.h>
 #include <linux/fs_struct.h>
+#include <linux/kthread.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
@@ -36,27 +37,37 @@
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
-/* these signals will be delivered to an nfsd thread 
- * when handling a request
- */
-#define ALLOWED_SIGS	(sigmask(SIGKILL))
-/* these signals will be delivered to an nfsd thread
- * when not handling a request. i.e. when waiting
- */
-#define SHUTDOWN_SIGS	(sigmask(SIGKILL) | sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT))
-/* if the last thread dies with SIGHUP, then the exports table is
- * left unchanged ( like 2.4-{0-9} ).  Any other signal will clear
- * the exports table (like 2.2).
- */
-#define	SIG_NOCLEAN	SIGHUP
-
 extern struct svc_program	nfsd_program;
-static void			nfsd(struct svc_rqst *rqstp);
+static int			nfsd(void *vrqstp);
 struct timeval			nfssvc_boot;
-       struct svc_serv 		*nfsd_serv;
 static atomic_t			nfsd_busy;
 static unsigned long		nfsd_last_call;
 static DEFINE_SPINLOCK(nfsd_call_lock);
+
+/*
+ * nfsd_mutex protects nfsd_serv -- both the pointer itself and the members
+ * of the svc_serv struct. In particular, ->sv_nrthreads but also to some
+ * extent ->sv_temp_socks and ->sv_permsocks. It also protects nfsdstats.th_cnt
+ *
+ * If (out side the lock) nfsd_serv is non-NULL, then it must point to a
+ * properly initialised 'struct svc_serv' with ->sv_nrthreads > 0. That number
+ * of nfsd threads must exist and each must listed in ->sp_all_threads in each
+ * entry of ->sv_pools[].
+ *
+ * Transitions of the thread count between zero and non-zero are of particular
+ * interest since the svc_serv needs to be created and initialized at that
+ * point, or freed.
+ *
+ * Finally, the nfsd_mutex also protects some of the global variables that are
+ * accessed when nfsd starts and that are settable via the write_* routines in
+ * nfsctl.c. In particular:
+ *
+ *	user_recovery_dirname
+ *	user_lease_time
+ *	nfsd_versions
+ */
+DEFINE_MUTEX(nfsd_mutex);
+struct svc_serv 		*nfsd_serv;
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 static struct svc_stat	nfsd_acl_svcstats;
@@ -145,13 +156,14 @@ int nfsd_vers(int vers, enum vers_op change)
 
 int nfsd_nrthreads(void)
 {
-	if (nfsd_serv == NULL)
-		return 0;
-	else
-		return nfsd_serv->sv_nrthreads;
+	int rv = 0;
+	mutex_lock(&nfsd_mutex);
+	if (nfsd_serv)
+		rv = nfsd_serv->sv_nrthreads;
+	mutex_unlock(&nfsd_mutex);
+	return rv;
 }
 
-static int killsig;	/* signal that was used to kill last nfsd */
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
@@ -162,11 +174,9 @@ static void nfsd_last_thread(struct svc_serv *serv)
 	nfsd_racache_shutdown();
 	nfs4_state_shutdown();
 
-	printk(KERN_WARNING "nfsd: last server has exited\n");
-	if (killsig != SIG_NOCLEAN) {
-		printk(KERN_WARNING "nfsd: unexporting all filesystems\n");
-		nfsd_export_flush();
-	}
+	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
+			    "cache\n");
+	nfsd_export_flush();
 }
 
 void nfsd_reset_versions(void)
@@ -190,13 +200,14 @@ void nfsd_reset_versions(void)
 	}
 }
 
+
 int nfsd_create_serv(void)
 {
 	int err = 0;
-	lock_kernel();
+
+	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 	if (nfsd_serv) {
 		svc_get(nfsd_serv);
-		unlock_kernel();
 		return 0;
 	}
 	if (nfsd_max_blksize == 0) {
@@ -217,13 +228,11 @@ int nfsd_create_serv(void)
 	}
 
 	atomic_set(&nfsd_busy, 0);
-	nfsd_serv = svc_create_pooled(&nfsd_program,
-				      nfsd_max_blksize,
-				      nfsd_last_thread,
-				      nfsd, SIG_NOCLEAN, THIS_MODULE);
+	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
+				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
 		err = -ENOMEM;
-	unlock_kernel();
+
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
 	return err;
 }
@@ -282,6 +291,8 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 	int tot = 0;
 	int err = 0;
 
+	WARN_ON(!mutex_is_locked(&nfsd_mutex));
+
 	if (nfsd_serv == NULL || n <= 0)
 		return 0;
 
@@ -316,7 +327,6 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 		nthreads[0] = 1;
 
 	/* apply the new numbers */
-	lock_kernel();
 	svc_get(nfsd_serv);
 	for (i = 0; i < n; i++) {
 		err = svc_set_num_threads(nfsd_serv, &nfsd_serv->sv_pools[i],
@@ -325,7 +335,6 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 			break;
 	}
 	svc_destroy(nfsd_serv);
-	unlock_kernel();
 
 	return err;
 }
@@ -334,8 +343,8 @@ int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
-	
-	lock_kernel();
+
+	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
 	error = -EINVAL;
 	if (nrservs <= 0)
@@ -363,7 +372,7 @@ nfsd_svc(unsigned short port, int nrservs)
  failure:
 	svc_destroy(nfsd_serv);		/* Release server */
  out:
-	unlock_kernel();
+	mutex_unlock(&nfsd_mutex);
 	return error;
 }
 
@@ -391,18 +400,17 @@ update_thread_usage(int busy_threads)
 /*
  * This is the NFS server kernel thread
  */
-static void
-nfsd(struct svc_rqst *rqstp)
+static int
+nfsd(void *vrqstp)
 {
+	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
 	struct fs_struct *fsp;
-	int		err;
-	sigset_t shutdown_mask, allowed_mask;
+	int err, preverr = 0;
 
 	/* Lock module and set up kernel thread */
-	lock_kernel();
-	daemonize("nfsd");
+	mutex_lock(&nfsd_mutex);
 
-	/* After daemonize() this kernel thread shares current->fs
+	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with a
 	 * umask of 0 instead of init's umask. */
 	fsp = copy_fs_struct(current->fs);
@@ -414,14 +422,17 @@ nfsd(struct svc_rqst *rqstp)
 	current->fs = fsp;
 	current->fs->umask = 0;
 
-	siginitsetinv(&shutdown_mask, SHUTDOWN_SIGS);
-	siginitsetinv(&allowed_mask, ALLOWED_SIGS);
+	/*
+	 * thread is spawned with all signals set to SIG_IGN, re-enable
+	 * the ones that will bring down the thread
+	 */
+	allow_signal(SIGKILL);
+	allow_signal(SIGHUP);
+	allow_signal(SIGINT);
+	allow_signal(SIGQUIT);
 
 	nfsdstats.th_cnt++;
-
-	rqstp->rq_task = current;
-
-	unlock_kernel();
+	mutex_unlock(&nfsd_mutex);
 
 	/*
 	 * We want less throttling in balance_dirty_pages() so that nfs to
@@ -435,25 +446,29 @@ nfsd(struct svc_rqst *rqstp)
 	 * The main request loop
 	 */
 	for (;;) {
-		/* Block all but the shutdown signals */
-		sigprocmask(SIG_SETMASK, &shutdown_mask, NULL);
-
 		/*
 		 * Find a socket with data available and call its
 		 * recvfrom routine.
 		 */
 		while ((err = svc_recv(rqstp, 60*60*HZ)) == -EAGAIN)
 			;
-		if (err < 0)
+		if (err == -EINTR)
 			break;
+		else if (err < 0) {
+			if (err != preverr) {
+				printk(KERN_WARNING "%s: unexpected error "
+					"from svc_recv (%d)\n", __func__, -err);
+				preverr = err;
+			}
+			schedule_timeout_uninterruptible(HZ);
+			continue;
+		}
+
 		update_thread_usage(atomic_read(&nfsd_busy));
 		atomic_inc(&nfsd_busy);
 
 		/* Lock the export hash tables for reading. */
 		exp_readlock();
-
-		/* Process request with signals blocked.  */
-		sigprocmask(SIG_SETMASK, &allowed_mask, NULL);
 
 		svc_process(rqstp);
 
@@ -463,22 +478,10 @@ nfsd(struct svc_rqst *rqstp)
 		atomic_dec(&nfsd_busy);
 	}
 
-	if (err != -EINTR) {
-		printk(KERN_WARNING "nfsd: terminating on error %d\n", -err);
-	} else {
-		unsigned int	signo;
-
-		for (signo = 1; signo <= _NSIG; signo++)
-			if (sigismember(&current->pending.signal, signo) &&
-			    !sigismember(&current->blocked, signo))
-				break;
-		killsig = signo;
-	}
 	/* Clear signals before calling svc_exit_thread() */
 	flush_signals(current);
 
-	lock_kernel();
-
+	mutex_lock(&nfsd_mutex);
 	nfsdstats.th_cnt --;
 
 out:
@@ -486,8 +489,9 @@ out:
 	svc_exit_thread(rqstp);
 
 	/* Release module */
-	unlock_kernel();
+	mutex_unlock(&nfsd_mutex);
 	module_put_and_exit(0);
+	return 0;
 }
 
 static __be32 map_new_errors(u32 vers, __be32 nfserr)

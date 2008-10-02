@@ -522,7 +522,7 @@ static unsigned int snd_es1371_wait_src_ready(struct ensoniq * ensoniq)
 			return r;
 		cond_resched();
 	}
-	snd_printk(KERN_ERR "wait source ready timeout 0x%lx [0x%x]\n",
+	snd_printk(KERN_ERR "wait src ready timeout 0x%lx [0x%x]\n",
 		   ES_REG(ensoniq, 1371_SMPRATE), r);
 	return 0;
 }
@@ -1629,6 +1629,7 @@ static int __devinit snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = ensoniq;
 	ac97.private_free = snd_ensoniq_mixer_free_ac97;
+	ac97.pci = ensoniq->pci;
 	ac97.scaps = AC97_SCAP_AUDIO;
 	if ((err = snd_ac97_mixer(pbus, &ac97, &ensoniq->u.es1371.ac97)) < 0)
 		return err;

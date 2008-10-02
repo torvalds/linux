@@ -42,7 +42,7 @@ extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 
 /*
 	modprobe_path is set via /proc/sys.
@@ -352,16 +352,17 @@ static inline void register_pm_notifier_callback(void) {}
  * @path: path to usermode executable
  * @argv: arg vector for process
  * @envp: environment for process
+ * @gfp_mask: gfp mask for memory allocation
  *
  * Returns either %NULL on allocation failure, or a subprocess_info
  * structure.  This should be passed to call_usermodehelper_exec to
  * exec the process and free the structure.
  */
-struct subprocess_info *call_usermodehelper_setup(char *path,
-						  char **argv, char **envp)
+struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+						  char **envp, gfp_t gfp_mask)
 {
 	struct subprocess_info *sub_info;
-	sub_info = kzalloc(sizeof(struct subprocess_info),  GFP_ATOMIC);
+	sub_info = kzalloc(sizeof(struct subprocess_info), gfp_mask);
 	if (!sub_info)
 		goto out;
 
@@ -417,12 +418,12 @@ int call_usermodehelper_stdinpipe(struct subprocess_info *sub_info,
 {
 	struct file *f;
 
-	f = create_write_pipe();
+	f = create_write_pipe(0);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 	*filp = f;
 
-	f = create_read_pipe(f);
+	f = create_read_pipe(f, 0);
 	if (IS_ERR(f)) {
 		free_write_pipe(*filp);
 		return PTR_ERR(f);
@@ -494,7 +495,7 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 	struct subprocess_info *sub_info;
 	int ret;
 
-	sub_info = call_usermodehelper_setup(path, argv, envp);
+	sub_info = call_usermodehelper_setup(path, argv, envp, GFP_KERNEL);
 	if (sub_info == NULL)
 		return -ENOMEM;
 

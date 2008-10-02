@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: ip6_output.c,v 1.34 2002/02/01 22:01:04 davem Exp $
- *
  *	Based on linux/net/ipv4/ip_output.c
  *
  *	This program is free software; you can redistribute it and/or
@@ -118,7 +116,7 @@ static int ip6_dev_loopback_xmit(struct sk_buff *newskb)
 	__skb_pull(newskb, skb_network_offset(newskb));
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
-	BUG_TRAP(newskb->dst);
+	WARN_ON(!newskb->dst);
 
 	netif_rx(newskb);
 	return 0;
@@ -175,6 +173,13 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 
 int ip6_output(struct sk_buff *skb)
 {
+	struct inet6_dev *idev = ip6_dst_idev(skb->dst);
+	if (unlikely(idev->cnf.disable_ipv6)) {
+		IP6_INC_STATS(idev, IPSTATS_MIB_OUTDISCARDS);
+		kfree_skb(skb);
+		return 0;
+	}
+
 	if ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
 				dst_allfrag(skb->dst))
 		return ip6_fragment(skb, ip6_output2);
@@ -231,6 +236,10 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	skb_reset_network_header(skb);
 	hdr = ipv6_hdr(skb);
 
+	/* Allow local fragmentation. */
+	if (ipfragok)
+		skb->local_df = 1;
+
 	/*
 	 *	Fill in the IPv6 header
 	 */
@@ -260,7 +269,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	skb->mark = sk->sk_mark;
 
 	mtu = dst_mtu(dst);
-	if ((skb->len <= mtu) || ipfragok || skb_is_gso(skb)) {
+	if ((skb->len <= mtu) || skb->local_df || skb_is_gso(skb)) {
 		IP6_INC_STATS(ip6_dst_idev(skb->dst),
 			      IPSTATS_MIB_OUTREQUESTS);
 		return NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
@@ -406,8 +415,11 @@ int ip6_forward(struct sk_buff *skb)
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct net *net = dev_net(dst->dev);
 
-	if (ipv6_devconf.forwarding == 0)
+	if (net->ipv6.devconf_all->forwarding == 0)
 		goto error;
+
+	if (skb_warn_if_lro(skb))
+		goto drop;
 
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_FWD, skb)) {
 		IP6_INC_STATS(ip6_dst_idev(dst), IPSTATS_MIB_INDISCARDS);
@@ -450,7 +462,7 @@ int ip6_forward(struct sk_buff *skb)
 	}
 
 	/* XXX: idev->cnf.proxy_ndp? */
-	if (ipv6_devconf.proxy_ndp &&
+	if (net->ipv6.devconf_all->proxy_ndp &&
 	    pneigh_lookup(&nd_tbl, net, &hdr->daddr, skb->dev, 0)) {
 		int proxied = ip6_forward_proxy_check(skb);
 		if (proxied > 0)
@@ -497,7 +509,8 @@ int ip6_forward(struct sk_buff *skb)
 		int addrtype = ipv6_addr_type(&hdr->saddr);
 
 		/* This check is security critical. */
-		if (addrtype & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LOOPBACK))
+		if (addrtype == IPV6_ADDR_ANY ||
+		    addrtype & (IPV6_ADDR_MULTICAST | IPV6_ADDR_LOOPBACK))
 			goto error;
 		if (addrtype & IPV6_ADDR_LINKLOCAL) {
 			icmpv6_send(skb, ICMPV6_DEST_UNREACH,
@@ -921,7 +934,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 		goto out_err_release;
 
 	if (ipv6_addr_any(&fl->fl6_src)) {
-		err = ipv6_dev_get_saddr(ip6_dst_idev(*dst)->dev,
+		err = ipv6_dev_get_saddr(net, ip6_dst_idev(*dst)->dev,
 					 &fl->fl6_dst,
 					 sk ? inet6_sk(sk)->srcprefs : 0,
 					 &fl->fl6_src);
@@ -930,39 +943,39 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	}
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
-		/*
-		 * Here if the dst entry we've looked up
-		 * has a neighbour entry that is in the INCOMPLETE
-		 * state and the src address from the flow is
-		 * marked as OPTIMISTIC, we release the found
-		 * dst entry and replace it instead with the
-		 * dst entry of the nexthop router
-		 */
-		if (!((*dst)->neighbour->nud_state & NUD_VALID)) {
-			struct inet6_ifaddr *ifp;
-			struct flowi fl_gw;
-			int redirect;
+	/*
+	 * Here if the dst entry we've looked up
+	 * has a neighbour entry that is in the INCOMPLETE
+	 * state and the src address from the flow is
+	 * marked as OPTIMISTIC, we release the found
+	 * dst entry and replace it instead with the
+	 * dst entry of the nexthop router
+	 */
+	if ((*dst)->neighbour && !((*dst)->neighbour->nud_state & NUD_VALID)) {
+		struct inet6_ifaddr *ifp;
+		struct flowi fl_gw;
+		int redirect;
 
-			ifp = ipv6_get_ifaddr(net, &fl->fl6_src,
-					      (*dst)->dev, 1);
+		ifp = ipv6_get_ifaddr(net, &fl->fl6_src,
+				      (*dst)->dev, 1);
 
-			redirect = (ifp && ifp->flags & IFA_F_OPTIMISTIC);
-			if (ifp)
-				in6_ifa_put(ifp);
+		redirect = (ifp && ifp->flags & IFA_F_OPTIMISTIC);
+		if (ifp)
+			in6_ifa_put(ifp);
 
-			if (redirect) {
-				/*
-				 * We need to get the dst entry for the
-				 * default router instead
-				 */
-				dst_release(*dst);
-				memcpy(&fl_gw, fl, sizeof(struct flowi));
-				memset(&fl_gw.fl6_dst, 0, sizeof(struct in6_addr));
-				*dst = ip6_route_output(net, sk, &fl_gw);
-				if ((err = (*dst)->error))
-					goto out_err_release;
-			}
+		if (redirect) {
+			/*
+			 * We need to get the dst entry for the
+			 * default router instead
+			 */
+			dst_release(*dst);
+			memcpy(&fl_gw, fl, sizeof(struct flowi));
+			memset(&fl_gw.fl6_dst, 0, sizeof(struct in6_addr));
+			*dst = ip6_route_output(net, sk, &fl_gw);
+			if ((err = (*dst)->error))
+				goto out_err_release;
 		}
+	}
 #endif
 
 	return 0;

@@ -1,9 +1,10 @@
 /* arch/sparc64/mm/tsb.c
  *
- * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2006, 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/kernel.h>
+#include <linux/preempt.h>
 #include <asm/system.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
@@ -96,12 +97,6 @@ void flush_tsb_user(struct mmu_gather *mp)
 #elif defined(CONFIG_SPARC64_PAGE_SIZE_64KB)
 #define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_64K
 #define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_64K
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_512KB)
-#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_512K
-#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_512K
-#elif defined(CONFIG_SPARC64_PAGE_SIZE_4MB)
-#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_4MB
-#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_4MB
 #else
 #error Broken base page size setting...
 #endif
@@ -421,7 +416,9 @@ retry_tsb_alloc:
 		tsb_context_switch(mm);
 
 		/* Now force other processors to do the same.  */
+		preempt_disable();
 		smp_tsb_sync(mm);
+		preempt_enable();
 
 		/* Now it is safe to free the old tsb.  */
 		kmem_cache_free(tsb_caches[old_cache_index], old_tsb);

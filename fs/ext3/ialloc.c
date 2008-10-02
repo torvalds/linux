@@ -669,6 +669,14 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 	if (IS_ERR(inode))
 		goto iget_failed;
 
+	/*
+	 * If the orphans has i_nlinks > 0 then it should be able to be
+	 * truncated, otherwise it won't be removed from the orphan list
+	 * during processing and an infinite loop will result.
+	 */
+	if (inode->i_nlink && !ext3_can_truncate(inode))
+		goto bad_orphan;
+
 	if (NEXT_ORPHAN(inode) > max_ino)
 		goto bad_orphan;
 	brelse(bitmap_bh);
@@ -690,6 +698,7 @@ bad_orphan:
 		printk(KERN_NOTICE "NEXT_ORPHAN(inode)=%u\n",
 		       NEXT_ORPHAN(inode));
 		printk(KERN_NOTICE "max_ino=%lu\n", max_ino);
+		printk(KERN_NOTICE "i_nlink=%u\n", inode->i_nlink);
 		/* Avoid freeing blocks if we got a bad deleted inode */
 		if (inode->i_nlink == 0)
 			inode->i_blocks = 0;

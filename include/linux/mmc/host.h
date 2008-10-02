@@ -157,6 +157,8 @@ struct mmc_host {
 	struct led_trigger	*led;		/* activity led */
 #endif
 
+	struct dentry		*debugfs_root;
+
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

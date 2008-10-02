@@ -19,22 +19,22 @@
 #include "ieee80211_i.h"
 #include "sta_info.h"
 
-/* TODO: kdoc */
+/**
+ * struct rate_selection - rate selection for rate control algos
+ * @rate: selected transmission rate index
+ * @nonerp: Non-ERP rate to use instead if ERP cannot be used
+ * @probe: rate for probing (or -1)
+ *
+ */
 struct rate_selection {
-	/* Selected transmission rate */
-	struct ieee80211_rate *rate;
-	/* Non-ERP rate to use if mac80211 decides it cannot use an ERP rate */
-	struct ieee80211_rate *nonerp;
-	/* probe with this rate, or NULL for no probing */
-	struct ieee80211_rate *probe;
+	s8 rate_idx, nonerp_idx, probe_idx;
 };
 
 struct rate_control_ops {
 	struct module *module;
 	const char *name;
 	void (*tx_status)(void *priv, struct net_device *dev,
-			  struct sk_buff *skb,
-			  struct ieee80211_tx_status *status);
+			  struct sk_buff *skb);
 	void (*get_rate)(void *priv, struct net_device *dev,
 			 struct ieee80211_supported_band *band,
 			 struct sk_buff *skb,
@@ -76,13 +76,12 @@ struct rate_control_ref *rate_control_get(struct rate_control_ref *ref);
 void rate_control_put(struct rate_control_ref *ref);
 
 static inline void rate_control_tx_status(struct net_device *dev,
-					  struct sk_buff *skb,
-					  struct ieee80211_tx_status *status)
+					  struct sk_buff *skb)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct rate_control_ref *ref = local->rate_ctrl;
 
-	ref->ops->tx_status(ref->priv, dev, skb, status);
+	ref->ops->tx_status(ref->priv, dev, skb);
 }
 
 
@@ -138,7 +137,7 @@ static inline int rate_supported(struct sta_info *sta,
 	return (sta == NULL || sta->supp_rates[band] & BIT(index));
 }
 
-static inline int
+static inline s8
 rate_lowest_index(struct ieee80211_local *local,
 		  struct ieee80211_supported_band *sband,
 		  struct sta_info *sta)
@@ -155,14 +154,6 @@ rate_lowest_index(struct ieee80211_local *local,
 	return 0;
 }
 
-static inline struct ieee80211_rate *
-rate_lowest(struct ieee80211_local *local,
-	    struct ieee80211_supported_band *sband,
-	    struct sta_info *sta)
-{
-	return &sband->bitrates[rate_lowest_index(local, sband, sta)];
-}
-
 
 /* functions for rate control related to a device */
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
@@ -171,9 +162,7 @@ void rate_control_deinitialize(struct ieee80211_local *local);
 
 
 /* Rate control algorithms */
-#if defined(RC80211_PID_COMPILE) || \
-	(defined(CONFIG_MAC80211_RC_PID) && \
-	 !defined(CONFIG_MAC80211_RC_PID_MODULE))
+#ifdef CONFIG_MAC80211_RC_PID
 extern int rc80211_pid_init(void);
 extern void rc80211_pid_exit(void);
 #else

@@ -6,7 +6,6 @@
 #ifdef __KERNEL__
 #include <linux/in.h>
 #endif
-#include <linux/pim.h>
 
 /*
  *	Based on the MROUTING 3.5 defines primarily to keep
@@ -130,6 +129,7 @@ struct igmpmsg
  */
 
 #ifdef __KERNEL__
+#include <linux/pim.h>
 #include <net/sock.h>
 
 #ifdef CONFIG_IP_MROUTE
@@ -144,11 +144,37 @@ static inline int ip_mroute_opt(int opt)
 }
 #endif
 
+#ifdef CONFIG_IP_MROUTE
 extern int ip_mroute_setsockopt(struct sock *, int, char __user *, int);
 extern int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 extern int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
-extern void ip_mr_init(void);
+extern int ip_mr_init(void);
+#else
+static inline
+int ip_mroute_setsockopt(struct sock *sock,
+			 int optname, char __user *optval, int optlen)
+{
+	return -ENOPROTOOPT;
+}
 
+static inline
+int ip_mroute_getsockopt(struct sock *sock,
+			 int optname, char __user *optval, int __user *optlen)
+{
+	return -ENOPROTOOPT;
+}
+
+static inline
+int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
+{
+	return -ENOIOCTLCMD;
+}
+
+static inline int ip_mr_init(void)
+{
+	return 0;
+}
+#endif
 
 struct vif_device
 {

@@ -15,20 +15,11 @@
 /* some controllers are compatible with 4927 */
 #include <asm/txx9/tx4927.h>
 
-#define tx4938_read_nfmc(addr) (*(volatile unsigned int *)(addr))
-#define tx4938_write_nfmc(b, addr) (*(volatile unsigned int *)(addr)) = (b)
-
-#define TX4938_PCIIO_0 0x10000000
-#define TX4938_PCIIO_1 0x01010000
-#define TX4938_PCIMEM_0 0x08000000
-#define TX4938_PCIMEM_1 0x11000000
-
-#define TX4938_PCIIO_SIZE_0 0x01000000
-#define TX4938_PCIIO_SIZE_1 0x00010000
-#define TX4938_PCIMEM_SIZE_0 0x08000000
-#define TX4938_PCIMEM_SIZE_1 0x00010000
-
-#define TX4938_REG_BASE	0xff1f0000 /* == TX4937_REG_BASE */
+#ifdef CONFIG_64BIT
+#define TX4938_REG_BASE	0xffffffffff1f0000UL /* == TX4937_REG_BASE */
+#else
+#define TX4938_REG_BASE	0xff1f0000UL /* == TX4937_REG_BASE */
+#endif
 #define TX4938_REG_SIZE	0x00010000 /* == TX4937_REG_SIZE */
 
 /* NDFMC, SRAMC, PCIC1, SPIC: TX4938 only */
@@ -49,149 +40,8 @@
 #define TX4938_ACLC_REG		(TX4938_REG_BASE + 0xf700)
 #define TX4938_SPI_REG		(TX4938_REG_BASE + 0xf800)
 
-#define _CONST64(c)	c##ull
-
-#include <asm/byteorder.h>
-
-#ifdef __BIG_ENDIAN
-#define endian_def_l2(e1, e2)	\
-	volatile unsigned long e1, e2
-#define endian_def_s2(e1, e2)	\
-	volatile unsigned short e1, e2
-#define endian_def_sb2(e1, e2, e3)	\
-	volatile unsigned short e1;volatile unsigned char e2, e3
-#define endian_def_b2s(e1, e2, e3)	\
-	volatile unsigned char e1, e2;volatile unsigned short e3
-#define endian_def_b4(e1, e2, e3, e4)	\
-	volatile unsigned char e1, e2, e3, e4
-#else
-#define endian_def_l2(e1, e2)	\
-	volatile unsigned long e2, e1
-#define endian_def_s2(e1, e2)	\
-	volatile unsigned short e2, e1
-#define endian_def_sb2(e1, e2, e3)	\
-	volatile unsigned char e3, e2;volatile unsigned short e1
-#define endian_def_b2s(e1, e2, e3)	\
-	volatile unsigned short e3;volatile unsigned char e2, e1
-#define endian_def_b4(e1, e2, e3, e4)	\
-	volatile unsigned char e4, e3, e2, e1
-#endif
-
-
-struct tx4938_sdramc_reg {
-	volatile unsigned long long cr[4];
-	volatile unsigned long long unused0[4];
-	volatile unsigned long long tr;
-	volatile unsigned long long unused1[2];
-	volatile unsigned long long cmd;
-	volatile unsigned long long sfcmd;
-};
-
-struct tx4938_ebusc_reg {
-	volatile unsigned long long cr[8];
-};
-
-struct tx4938_dma_reg {
-	struct tx4938_dma_ch_reg {
-		volatile unsigned long long cha;
-		volatile unsigned long long sar;
-		volatile unsigned long long dar;
-		endian_def_l2(unused0, cntr);
-		endian_def_l2(unused1, sair);
-		endian_def_l2(unused2, dair);
-		endian_def_l2(unused3, ccr);
-		endian_def_l2(unused4, csr);
-	} ch[4];
-	volatile unsigned long long dbr[8];
-	volatile unsigned long long tdhr;
-	volatile unsigned long long midr;
-	endian_def_l2(unused0, mcr);
-};
-
-struct tx4938_aclc_reg {
-	volatile unsigned long acctlen;
-	volatile unsigned long acctldis;
-	volatile unsigned long acregacc;
-	volatile unsigned long unused0;
-	volatile unsigned long acintsts;
-	volatile unsigned long acintmsts;
-	volatile unsigned long acinten;
-	volatile unsigned long acintdis;
-	volatile unsigned long acsemaph;
-	volatile unsigned long unused1[7];
-	volatile unsigned long acgpidat;
-	volatile unsigned long acgpodat;
-	volatile unsigned long acslten;
-	volatile unsigned long acsltdis;
-	volatile unsigned long acfifosts;
-	volatile unsigned long unused2[11];
-	volatile unsigned long acdmasts;
-	volatile unsigned long acdmasel;
-	volatile unsigned long unused3[6];
-	volatile unsigned long acaudodat;
-	volatile unsigned long acsurrdat;
-	volatile unsigned long accentdat;
-	volatile unsigned long aclfedat;
-	volatile unsigned long acaudiat;
-	volatile unsigned long unused4;
-	volatile unsigned long acmodoat;
-	volatile unsigned long acmodidat;
-	volatile unsigned long unused5[15];
-	volatile unsigned long acrevid;
-};
-
-
-struct tx4938_tmr_reg {
-	volatile unsigned long tcr;
-	volatile unsigned long tisr;
-	volatile unsigned long cpra;
-	volatile unsigned long cprb;
-	volatile unsigned long itmr;
-	volatile unsigned long unused0[3];
-	volatile unsigned long ccdr;
-	volatile unsigned long unused1[3];
-	volatile unsigned long pgmr;
-	volatile unsigned long unused2[3];
-	volatile unsigned long wtmr;
-	volatile unsigned long unused3[43];
-	volatile unsigned long trr;
-};
-
-struct tx4938_sio_reg {
-	volatile unsigned long lcr;
-	volatile unsigned long dicr;
-	volatile unsigned long disr;
-	volatile unsigned long cisr;
-	volatile unsigned long fcr;
-	volatile unsigned long flcr;
-	volatile unsigned long bgr;
-	volatile unsigned long tfifo;
-	volatile unsigned long rfifo;
-};
-
-struct tx4938_ndfmc_reg {
-	endian_def_l2(unused0, dtr);
-	endian_def_l2(unused1, mcr);
-	endian_def_l2(unused2, sr);
-	endian_def_l2(unused3, isr);
-	endian_def_l2(unused4, imr);
-	endian_def_l2(unused5, spr);
-	endian_def_l2(unused6, rstr);
-};
-
-struct tx4938_spi_reg {
-	volatile unsigned long mcr;
-	volatile unsigned long cr0;
-	volatile unsigned long cr1;
-	volatile unsigned long fs;
-	volatile unsigned long unused1;
-	volatile unsigned long sr;
-	volatile unsigned long dr;
-	volatile unsigned long unused2;
-};
-
 struct tx4938_sramc_reg {
-	volatile unsigned long long cr;
+	u64 cr;
 };
 
 struct tx4938_ccfg_reg {
@@ -208,34 +58,6 @@ struct tx4938_ccfg_reg {
 	u64 unused3;
 	u64 jmpadr;
 };
-
-#undef endian_def_l2
-#undef endian_def_s2
-#undef endian_def_sb2
-#undef endian_def_b2s
-#undef endian_def_b4
-
-/*
- * NDFMC
- */
-
-/* NDFMCR : NDFMC Mode Control */
-#define TX4938_NDFMCR_WE	0x80
-#define TX4938_NDFMCR_ECC_ALL	0x60
-#define TX4938_NDFMCR_ECC_RESET	0x60
-#define TX4938_NDFMCR_ECC_READ	0x40
-#define TX4938_NDFMCR_ECC_ON	0x20
-#define TX4938_NDFMCR_ECC_OFF	0x00
-#define TX4938_NDFMCR_CE	0x10
-#define TX4938_NDFMCR_BSPRT	0x04
-#define TX4938_NDFMCR_ALE	0x02
-#define TX4938_NDFMCR_CLE	0x01
-
-/* NDFMCR : NDFMC Status */
-#define TX4938_NDFSR_BUSY	0x80
-
-/* NDFMCR : NDFMC Reset */
-#define TX4938_NDFRSTR_RST	0x01
 
 /*
  * IRC
@@ -268,13 +90,15 @@ struct tx4938_ccfg_reg {
 
 #define TX4938_IRC_INT	2	/* IP[2] in Status register */
 
+#define TX4938_NUM_PIO	16
+
 /*
  * CCFG
  */
 /* CCFG : Chip Configuration */
-#define TX4938_CCFG_WDRST	_CONST64(0x0000020000000000)
-#define TX4938_CCFG_WDREXEN	_CONST64(0x0000010000000000)
-#define TX4938_CCFG_BCFG_MASK	_CONST64(0x000000ff00000000)
+#define TX4938_CCFG_WDRST	0x0000020000000000ULL
+#define TX4938_CCFG_WDREXEN	0x0000010000000000ULL
+#define TX4938_CCFG_BCFG_MASK	0x000000ff00000000ULL
 #define TX4938_CCFG_TINTDIS	0x01000000
 #define TX4938_CCFG_PCI66	0x00800000
 #define TX4938_CCFG_PCIMODE	0x00400000
@@ -310,12 +134,12 @@ struct tx4938_ccfg_reg {
 #define TX4938_CCFG_ACEHOLD	0x00000001
 
 /* PCFG : Pin Configuration */
-#define TX4938_PCFG_ETH0_SEL	_CONST64(0x8000000000000000)
-#define TX4938_PCFG_ETH1_SEL	_CONST64(0x4000000000000000)
-#define TX4938_PCFG_ATA_SEL	_CONST64(0x2000000000000000)
-#define TX4938_PCFG_ISA_SEL	_CONST64(0x1000000000000000)
-#define TX4938_PCFG_SPI_SEL	_CONST64(0x0800000000000000)
-#define TX4938_PCFG_NDF_SEL	_CONST64(0x0400000000000000)
+#define TX4938_PCFG_ETH0_SEL	0x8000000000000000ULL
+#define TX4938_PCFG_ETH1_SEL	0x4000000000000000ULL
+#define TX4938_PCFG_ATA_SEL	0x2000000000000000ULL
+#define TX4938_PCFG_ISA_SEL	0x1000000000000000ULL
+#define TX4938_PCFG_SPI_SEL	0x0800000000000000ULL
+#define TX4938_PCFG_NDF_SEL	0x0400000000000000ULL
 #define TX4938_PCFG_SDCLKDLY_MASK	0x30000000
 #define TX4938_PCFG_SDCLKDLY(d)	((d)<<28)
 #define TX4938_PCFG_SYSCLKEN	0x08000000
@@ -336,8 +160,8 @@ struct tx4938_ccfg_reg {
 #define TX4938_PCFG_DMASEL3_SIO0	0x00000008
 
 /* CLKCTR : Clock Control */
-#define TX4938_CLKCTR_NDFCKD	_CONST64(0x0001000000000000)
-#define TX4938_CLKCTR_NDFRST	_CONST64(0x0000000100000000)
+#define TX4938_CLKCTR_NDFCKD	0x0001000000000000ULL
+#define TX4938_CLKCTR_NDFRST	0x0000000100000000ULL
 #define TX4938_CLKCTR_ETH1CKD	0x80000000
 #define TX4938_CLKCTR_ETH0CKD	0x40000000
 #define TX4938_CLKCTR_SPICKD	0x20000000
@@ -424,20 +248,16 @@ struct tx4938_ccfg_reg {
 #define TX4938_DMA_CSR_DESERR	0x00000002
 #define TX4938_DMA_CSR_SORERR	0x00000001
 
-#define tx4938_sdramcptr	((struct tx4938_sdramc_reg *)TX4938_SDRAMC_REG)
-#define tx4938_ebuscptr         ((struct tx4938_ebusc_reg *)TX4938_EBUSC_REG)
-#define tx4938_dmaptr(ch)	((struct tx4938_dma_reg *)TX4938_DMA_REG(ch))
-#define tx4938_ndfmcptr		((struct tx4938_ndfmc_reg *)TX4938_NDFMC_REG)
+#define tx4938_sdramcptr	tx4927_sdramcptr
+#define tx4938_ebuscptr		tx4927_ebuscptr
 #define tx4938_pcicptr		tx4927_pcicptr
 #define tx4938_pcic1ptr \
 		((struct tx4927_pcic_reg __iomem *)TX4938_PCIC1_REG)
 #define tx4938_ccfgptr \
 		((struct tx4938_ccfg_reg __iomem *)TX4938_CCFG_REG)
-#define tx4938_sioptr(ch)	((struct tx4938_sio_reg *)TX4938_SIO_REG(ch))
 #define tx4938_pioptr		((struct txx9_pio_reg __iomem *)TX4938_PIO_REG)
-#define tx4938_aclcptr		((struct tx4938_aclc_reg *)TX4938_ACLC_REG)
-#define tx4938_spiptr		((struct tx4938_spi_reg *)TX4938_SPI_REG)
-#define tx4938_sramcptr		((struct tx4938_sramc_reg *)TX4938_SRAMC_REG)
+#define tx4938_sramcptr \
+		((struct tx4938_sramc_reg __iomem *)TX4938_SRAMC_REG)
 
 
 #define TX4938_REV_PCODE()	\
@@ -447,19 +267,27 @@ struct tx4938_ccfg_reg {
 #define tx4938_ccfg_set(bits)	tx4927_ccfg_set(bits)
 #define tx4938_ccfg_change(change, new)	tx4927_ccfg_change(change, new)
 
-#define TX4938_SDRAMC_BA(ch)	((tx4938_sdramcptr->cr[ch] >> 49) << 21)
-#define TX4938_SDRAMC_SIZE(ch)	(((tx4938_sdramcptr->cr[ch] >> 33) + 1) << 21)
+#define TX4938_SDRAMC_CR(ch)	TX4927_SDRAMC_CR(ch)
+#define TX4938_SDRAMC_BA(ch)	TX4927_SDRAMC_BA(ch)
+#define TX4938_SDRAMC_SIZE(ch)	TX4927_SDRAMC_SIZE(ch)
 
-#define TX4938_EBUSC_CR(ch)	__raw_readq(&tx4938_ebuscptr->cr[(ch)])
-#define TX4938_EBUSC_BA(ch)	((tx4938_ebuscptr->cr[ch] >> 48) << 20)
-#define TX4938_EBUSC_SIZE(ch)	\
-	(0x00100000 << ((unsigned long)(tx4938_ebuscptr->cr[ch] >> 8) & 0xf))
+#define TX4938_EBUSC_CR(ch)	TX4927_EBUSC_CR(ch)
+#define TX4938_EBUSC_BA(ch)	TX4927_EBUSC_BA(ch)
+#define TX4938_EBUSC_SIZE(ch)	TX4927_EBUSC_SIZE(ch)
 
+#define tx4938_get_mem_size() tx4927_get_mem_size()
+void tx4938_wdt_init(void);
+void tx4938_setup(void);
+void tx4938_time_init(unsigned int tmrnr);
+void tx4938_sio_init(unsigned int sclk, unsigned int cts_mask);
+void tx4938_spi_init(int busid);
+void tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1);
 int tx4938_report_pciclk(void);
 void tx4938_report_pci1clk(void);
 int tx4938_pciclk66_setup(void);
 struct pci_dev;
 int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot);
+void tx4938_setup_pcierr_irq(void);
 void tx4938_irq_init(void);
 
 #endif

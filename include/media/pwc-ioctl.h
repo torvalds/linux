@@ -55,8 +55,7 @@
 #include <linux/types.h>
 #include <linux/version.h>
 
-
- /* Enumeration of image sizes */
+/* Enumeration of image sizes */
 #define PSZ_SQCIF	0x00
 #define PSZ_QSIF	0x01
 #define PSZ_QCIF	0x02

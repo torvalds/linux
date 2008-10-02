@@ -480,7 +480,7 @@ void __init lguest_arch_host_init(void)
 		 * bit on its CPU, depending on the argument (0 == unset). */
 		on_each_cpu(adjust_pge, (void *)0, 1);
 		/* Turn off the feature in the global feature set. */
-		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PGE);
 	}
 	put_online_cpus();
 };
@@ -491,7 +491,7 @@ void __exit lguest_arch_host_fini(void)
 	/* If we had PGE before we started, turn it back on now. */
 	get_online_cpus();
 	if (cpu_had_pge) {
-		set_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+		set_cpu_cap(&boot_cpu_data, X86_FEATURE_PGE);
 		/* adjust_pge's argument "1" means set PGE. */
 		on_each_cpu(adjust_pge, (void *)1, 1);
 	}

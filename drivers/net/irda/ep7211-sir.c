@@ -14,7 +14,7 @@
 #include <net/irda/irda_device.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include "sir-dev.h"
 

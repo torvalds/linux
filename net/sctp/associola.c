@@ -136,6 +136,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Set association default SACK delay */
 	asoc->sackdelay = msecs_to_jiffies(sp->sackdelay);
+	asoc->sackfreq = sp->sackfreq;
 
 	/* Set the association default flags controlling
 	 * Heartbeat, SACK delay, and Path MTU Discovery.
@@ -261,6 +262,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * already received one packet.]
 	 */
 	asoc->peer.sack_needed = 1;
+	asoc->peer.sack_cnt = 0;
 
 	/* Assume that the peer will tell us if he recognizes ASCONF
 	 * as part of INIT exchange.
@@ -462,7 +464,7 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 		spin_unlock_bh(&sctp_assocs_id_lock);
 	}
 
-	BUG_TRAP(!atomic_read(&asoc->rmem_alloc));
+	WARN_ON(atomic_read(&asoc->rmem_alloc));
 
 	if (asoc->base.malloced) {
 		kfree(asoc);
@@ -597,11 +599,12 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Check to see if this is a duplicate. */
 	peer = sctp_assoc_lookup_paddr(asoc, addr);
 	if (peer) {
+		/* An UNKNOWN state is only set on transports added by
+		 * user in sctp_connectx() call.  Such transports should be
+		 * considered CONFIRMED per RFC 4960, Section 5.4.
+		 */
 		if (peer->state == SCTP_UNKNOWN) {
-			if (peer_state == SCTP_ACTIVE)
-				peer->state = SCTP_ACTIVE;
-			if (peer_state == SCTP_UNCONFIRMED)
-				peer->state = SCTP_UNCONFIRMED;
+			peer->state = SCTP_ACTIVE;
 		}
 		return peer;
 	}
@@ -624,6 +627,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	 * association configured value.
 	 */
 	peer->sackdelay = asoc->sackdelay;
+	peer->sackfreq = asoc->sackfreq;
 
 	/* Enable/disable heartbeat, SACK delay, and path MTU discovery
 	 * based on association setting.
@@ -650,6 +654,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	SCTP_DEBUG_PRINTK("sctp_assoc_add_peer:association %p PMTU set to "
 			  "%d\n", asoc, asoc->pathmtu);
+	peer->pmtu_pending = 0;
 
 	asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
 

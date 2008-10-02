@@ -120,7 +120,7 @@ static int mt9m001_init(struct soc_camera_device *icd)
 	int ret;
 
 	/* Disable chip, synchronous option update */
-	dev_dbg(icd->vdev->dev, "%s\n", __func__);
+	dev_dbg(icd->vdev->parent, "%s\n", __func__);
 
 	ret = reg_write(icd, MT9M001_RESET, 1);
 	if (ret >= 0)

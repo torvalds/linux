@@ -158,9 +158,10 @@ static void netlink_sock_destruct(struct sock *sk)
 		printk(KERN_ERR "Freeing alive netlink socket %p\n", sk);
 		return;
 	}
-	BUG_TRAP(!atomic_read(&sk->sk_rmem_alloc));
-	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
-	BUG_TRAP(!nlk_sk(sk)->groups);
+
+	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(nlk_sk(sk)->groups);
 }
 
 /* This lock without WQ_FLAG_EXCLUSIVE is good on UP and it is _very_ bad on
@@ -759,7 +760,7 @@ struct sock *netlink_getsockbyfilp(struct file *filp)
  * 0: continue
  * 1: repeat lookup - reference dropped while waiting for socket memory.
  */
-int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock,
+int netlink_attachskb(struct sock *sk, struct sk_buff *skb,
 		      long *timeo, struct sock *ssk)
 {
 	struct netlink_sock *nlk;
@@ -892,7 +893,7 @@ retry:
 		return err;
 	}
 
-	err = netlink_attachskb(sk, skb, nonblock, &timeo, ssk);
+	err = netlink_attachskb(sk, skb, &timeo, ssk);
 	if (err == 1)
 		goto retry;
 	if (err)

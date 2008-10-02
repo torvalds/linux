@@ -51,6 +51,8 @@ extern void mac_serial_print(const char *);
 static int peng, line;
 #endif
 
+#if 0
+
 void mac_debugging_short(int pos, short num)
 {
 #ifdef DEBUG_SCREEN
@@ -125,6 +127,8 @@ void mac_debugging_long(int pos, long addr)
 #endif
 }
 
+#endif  /*  0  */
+
 #ifdef DEBUG_SERIAL
 /*
  * TODO: serial debug code
@@ -141,12 +145,6 @@ struct mac_SCC {
 };
 
 # define scc (*((volatile struct mac_SCC*)mac_bi_data.sccbase))
-
-/* Flag that serial port is already initialized and used */
-int mac_SCC_init_done;
-/* Can be set somewhere, if a SCC master reset has already be done and should
- * not be repeated; used by kgdb */
-int mac_SCC_reset_done;
 
 static int scc_port = -1;
 
@@ -171,8 +169,8 @@ static struct console mac_console_driver = {
  * this driver if Mac.
  */
 
-void mac_debug_console_write(struct console *co, const char *str,
-			     unsigned int count)
+static void mac_debug_console_write(struct console *co, const char *str,
+				    unsigned int count)
 {
 	mac_serial_print(str);
 }
@@ -209,8 +207,8 @@ static inline void mac_scca_out(char c)
 	scc.cha_a_data = c;
 }
 
-void mac_sccb_console_write(struct console *co, const char *str,
-			    unsigned int count)
+static void mac_sccb_console_write(struct console *co, const char *str,
+				   unsigned int count)
 {
 	while (count--) {
 		if (*str == '\n')
@@ -219,8 +217,8 @@ void mac_sccb_console_write(struct console *co, const char *str,
 	}
 }
 
-void mac_scca_console_write(struct console *co, const char *str,
-			    unsigned int count)
+static void mac_scca_console_write(struct console *co, const char *str,
+				   unsigned int count)
 {
 	while (count--) {
 		if (*str == '\n')
@@ -265,14 +263,8 @@ void mac_scca_console_write(struct console *co, const char *str,
 		    barrier();				\
 	} while(0)
 
-#ifndef CONFIG_SERIAL_CONSOLE
 static void __init mac_init_scc_port(int cflag, int port)
-#else
-void mac_init_scc_port(int cflag, int port)
-#endif
 {
-	extern int mac_SCC_reset_done;
-
 	/*
 	 * baud rates: 1200, 1800, 2400, 4800, 9600, 19.2k, 38.4k, 57.6k, 115.2k
 	 */
@@ -340,21 +332,8 @@ void mac_init_scc_port(int cflag, int port)
 		SCCA_WRITE(3, reg3 | 1);
 		SCCA_WRITE(5, reg5 | 8);
 	}
-
-	mac_SCC_reset_done = 1;
-	mac_SCC_init_done = 1;
 }
 #endif /* DEBUG_SERIAL */
-
-void mac_init_scca_port(int cflag)
-{
-	mac_init_scc_port(cflag, 0);
-}
-
-void mac_init_sccb_port(int cflag)
-{
-	mac_init_scc_port(cflag, 1);
-}
 
 static int __init mac_debug_setup(char *arg)
 {

@@ -171,8 +171,9 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 	else
 		sprintf(s->name, "sound/%s%d", name, r / SOUND_STEP);
 
-	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
-		      s->name+6);
+	device_create_drvdata(sound_class, dev,
+			      MKDEV(SOUND_MAJOR, s->unit_minor),
+			      NULL, s->name+6);
 	return r;
 
  fail:

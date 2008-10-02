@@ -274,8 +274,6 @@ load_som_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	map_hpux_gateway_page(current,current->mm);
 
 	start_thread_som(regs, som_entry, bprm->p);
-	if (current->ptrace & PT_PTRACED)
-		send_sig(SIGTRAP, current, 0);
 	return 0;
 
 	/* error cleanup */

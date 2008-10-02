@@ -42,6 +42,7 @@
 #include <linux/cache.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/inet_lro.h>
 #include "t3cdev.h"
 #include <asm/io.h>
 
@@ -92,6 +93,7 @@ struct sge_fl {                     /* SGE per free-buffer list state */
 	unsigned int gen;           /* free list generation */
 	struct fl_pg_chunk pg_chunk;/* page chunk cache */
 	unsigned int use_pages;     /* whether FL uses pages or sk_buffs */
+	unsigned int order;	    /* order of page allocations */
 	struct rx_desc *desc;       /* address of HW Rx descriptor ring */
 	struct rx_sw_desc *sdesc;   /* address of SW Rx descriptor ring */
 	dma_addr_t   phys_addr;     /* physical address of HW ring start */
@@ -116,12 +118,15 @@ struct sge_rspq {		/* state for an SGE response queue */
 	unsigned int polling;	/* is the queue serviced through NAPI? */
 	unsigned int holdoff_tmr;	/* interrupt holdoff timer in 100ns */
 	unsigned int next_holdoff;	/* holdoff time for next interrupt */
+	unsigned int rx_recycle_buf; /* whether recycling occurred
+					within current sop-eop */
 	struct rsp_desc *desc;	/* address of HW response ring */
 	dma_addr_t phys_addr;	/* physical address of the ring */
 	unsigned int cntxt_id;	/* SGE context id for the response q */
 	spinlock_t lock;	/* guards response processing */
 	struct sk_buff *rx_head;	/* offload packet receive queue head */
 	struct sk_buff *rx_tail;	/* offload packet receive queue tail */
+	struct sk_buff *pg_skb; /* used to build frag list in napi handler */
 
 	unsigned long offload_pkts;
 	unsigned long offload_bundles;
@@ -169,9 +174,15 @@ enum {				/* per port SGE statistics */
 	SGE_PSTAT_TX_CSUM,	/* # of TX checksum offloads */
 	SGE_PSTAT_VLANEX,	/* # of VLAN tag extractions */
 	SGE_PSTAT_VLANINS,	/* # of VLAN tag insertions */
+	SGE_PSTAT_LRO_AGGR,	/* # of page chunks added to LRO sessions */
+	SGE_PSTAT_LRO_FLUSHED,	/* # of flushed LRO sessions */
+	SGE_PSTAT_LRO_NO_DESC,	/* # of overflown LRO sessions */
 
 	SGE_PSTAT_MAX		/* must be last */
 };
+
+#define T3_MAX_LRO_SES 8
+#define T3_MAX_LRO_MAX_PKTS 64
 
 struct sge_qset {		/* an SGE queue set */
 	struct adapter *adap;
@@ -179,6 +190,13 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
+	struct net_lro_mgr lro_mgr;
+	struct net_lro_desc lro_desc[T3_MAX_LRO_SES];
+	struct skb_frag_struct *lro_frag_tbl;
+	int lro_nfrags;
+	int lro_enabled;
+	int lro_frag_len;
+	void *lro_va;
 	struct net_device *netdev;
 	unsigned long txq_stopped;	/* which Tx queues are stopped */
 	struct timer_list tx_reclaim_timer;	/* reclaims TX buffers */

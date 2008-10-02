@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-pxa/cm-x270.c
  *
- * Copyright (C) 2007 CompuLab, Ltd.
+ * Copyright (C) 2007, 2008 CompuLab, Ltd.
  * Mike Rapoport <mike@compulab.co.il>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,44 +9,156 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/types.h>
-#include <linux/pm.h>
-#include <linux/fb.h>
 #include <linux/platform_device.h>
-#include <linux/irq.h>
 #include <linux/sysdev.h>
-#include <linux/io.h>
-#include <linux/delay.h>
+#include <linux/irq.h>
+#include <linux/gpio.h>
 
 #include <linux/dm9000.h>
 #include <linux/rtc-v3020.h>
-#include <linux/serial_8250.h>
-
 #include <video/mbxfb.h>
+#include <linux/leds.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/bitfield.h>
-#include <asm/arch/cm-x270.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/audio.h>
+#include <mach/pxafb.h>
+#include <mach/ohci.h>
+#include <mach/mmc.h>
+#include <mach/bitfield.h>
 
 #include <asm/hardware/it8152.h>
 
 #include "generic.h"
 #include "cm-x270-pci.h"
 
+/* virtual addresses for statically mapped regions */
+#define CMX270_VIRT_BASE	(0xe8000000)
+#define CMX270_IT8152_VIRT	(CMX270_VIRT_BASE)
+
 #define RTC_PHYS_BASE		(PXA_CS1_PHYS + (5 << 22))
 #define DM9000_PHYS_BASE	(PXA_CS1_PHYS + (6 << 22))
 
-static struct resource cmx270_dm9k_resource[] = {
+/* GPIO IRQ usage */
+#define GPIO10_ETHIRQ		(10)
+#define GPIO22_IT8152_IRQ	(22)
+#define GPIO83_MMC_IRQ		(83)
+#define GPIO95_GFXIRQ		(95)
+
+#define CMX270_ETHIRQ		IRQ_GPIO(GPIO10_ETHIRQ)
+#define CMX270_IT8152_IRQ	IRQ_GPIO(GPIO22_IT8152_IRQ)
+#define CMX270_MMC_IRQ		IRQ_GPIO(GPIO83_MMC_IRQ)
+#define CMX270_GFXIRQ		IRQ_GPIO(GPIO95_GFXIRQ)
+
+/* MMC power enable */
+#define GPIO105_MMC_POWER	(105)
+
+static unsigned long cmx270_pin_config[] = {
+	/* AC'97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+	GPIO98_AC97_SYSCLK,
+	GPIO113_AC97_nRESET,
+
+	/* BTUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+	GPIO45_BTUART_RTS,
+
+	/* STUART */
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+
+	/* MCI controller */
+	GPIO32_MMC_CLK,
+	GPIO112_MMC_CMD,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+
+	/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
+	/* SSP1 */
+	GPIO23_SSP1_SCLK,
+	GPIO24_SSP1_SFRM,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
+
+	/* SSP2 */
+	GPIO19_SSP2_SCLK,
+	GPIO14_SSP2_SFRM,
+	GPIO87_SSP2_TXD,
+	GPIO88_SSP2_RXD,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* SDRAM and local bus */
+	GPIO15_nCS_1,
+	GPIO78_nCS_2,
+	GPIO79_nCS_3,
+	GPIO80_nCS_4,
+	GPIO33_nCS_5,
+	GPIO49_nPWE,
+	GPIO18_RDY,
+
+	/* GPIO */
+	GPIO0_GPIO	| WAKEUP_ON_EDGE_BOTH,
+	GPIO105_GPIO	| MFP_LPM_DRIVE_HIGH,	/* MMC/SD power */
+	GPIO53_GPIO,				/* PC card reset */
+
+	/* NAND controls */
+	GPIO11_GPIO	| MFP_LPM_DRIVE_HIGH,	/* NAND CE# */
+	GPIO89_GPIO,				/* NAND Ready/Busy */
+
+	/* interrupts */
+	GPIO10_GPIO,	/* DM9000 interrupt */
+	GPIO83_GPIO,	/* MMC card detect */
+};
+
+#if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+static struct resource cmx270_dm9000_resource[] = {
 	[0] = {
 		.start = DM9000_PHYS_BASE,
 		.end   = DM9000_PHYS_BASE + 4,
@@ -64,31 +176,45 @@ static struct resource cmx270_dm9k_resource[] = {
 	}
 };
 
-/* for the moment we limit ourselves to 32bit IO until some
- * better IO routines can be written and tested
- */
-static struct dm9000_plat_data cmx270_dm9k_platdata = {
+static struct dm9000_plat_data cmx270_dm9000_platdata = {
 	.flags		= DM9000_PLATF_32BITONLY,
 };
 
-/* Ethernet device */
-static struct platform_device cmx270_device_dm9k = {
+static struct platform_device cmx270_dm9000_device = {
 	.name		= "dm9000",
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(cmx270_dm9k_resource),
-	.resource	= cmx270_dm9k_resource,
+	.num_resources	= ARRAY_SIZE(cmx270_dm9000_resource),
+	.resource	= cmx270_dm9000_resource,
 	.dev		= {
-		.platform_data = &cmx270_dm9k_platdata,
+		.platform_data = &cmx270_dm9000_platdata,
 	}
 };
 
-/* touchscreen controller */
+static void __init cmx270_init_dm9000(void)
+{
+	platform_device_register(&cmx270_dm9000_device);
+}
+#else
+static inline void cmx270_init_dm9000(void) {}
+#endif
+
+/* UCB1400 touchscreen controller */
+#if defined(CONFIG_TOUCHSCREEN_UCB1400) || defined(CONFIG_TOUCHSCREEN_UCB1400_MODULE)
 static struct platform_device cmx270_ts_device = {
 	.name		= "ucb1400_ts",
 	.id		= -1,
 };
 
-/* RTC */
+static void __init cmx270_init_touchscreen(void)
+{
+	platform_device_register(&cmx270_ts_device);
+}
+#else
+static inline void cmx270_init_touchscreen(void) {}
+#endif
+
+/* V3020 RTC */
+#if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
 static struct resource cmx270_v3020_resource[] = {
 	[0] = {
 		.start = RTC_PHYS_BASE,
@@ -111,28 +237,67 @@ static struct platform_device cmx270_rtc_device = {
 	}
 };
 
-/*
- * CM-X270 LEDs
- */
-static struct platform_device cmx270_led_device = {
-	.name		= "cm-x270-led",
-	.id		= -1,
+static void __init cmx270_init_rtc(void)
+{
+	platform_device_register(&cmx270_rtc_device);
+}
+#else
+static inline void cmx270_init_rtc(void) {}
+#endif
+
+/* CM-X270 LEDs */
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+static struct gpio_led cmx270_leds[] = {
+	[0] = {
+		.name = "cm-x270:red",
+		.default_trigger = "nand-disk",
+		.gpio = 93,
+		.active_low = 1,
+	},
+	[1] = {
+		.name = "cm-x270:green",
+		.default_trigger = "heartbeat",
+		.gpio = 94,
+		.active_low = 1,
+	},
 };
 
+static struct gpio_led_platform_data cmx270_gpio_led_pdata = {
+	.num_leds = ARRAY_SIZE(cmx270_leds),
+	.leds = cmx270_leds,
+};
+
+static struct platform_device cmx270_led_device = {
+	.name		= "leds-gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &cmx270_gpio_led_pdata,
+	},
+};
+
+static void __init cmx270_init_leds(void)
+{
+	platform_device_register(&cmx270_led_device);
+}
+#else
+static inline void cmx270_init_leds(void) {}
+#endif
+
 /* 2700G graphics */
+#if defined(CONFIG_FB_MBX) || defined(CONFIG_FB_MBX_MODULE)
 static u64 fb_dma_mask = ~(u64)0;
 
 static struct resource cmx270_2700G_resource[] = {
 	/* frame buffer memory including ODFB and External SDRAM */
 	[0] = {
-		.start = MARATHON_PHYS,
-		.end   = MARATHON_PHYS + 0x02000000,
+		.start = PXA_CS2_PHYS,
+		.end   = PXA_CS2_PHYS + 0x01ffffff,
 		.flags = IORESOURCE_MEM,
 	},
 	/* Marathon registers */
 	[1] = {
-		.start = MARATHON_PHYS + 0x03fe0000,
-		.end   = MARATHON_PHYS + 0x03ffffff,
+		.start = PXA_CS2_PHYS + 0x03fe0000,
+		.end   = PXA_CS2_PHYS + 0x03ffffff,
 		.flags = IORESOURCE_MEM,
 	},
 };
@@ -200,43 +365,15 @@ static struct platform_device cmx270_2700G = {
 	.id		= -1,
 };
 
-static u64 ata_dma_mask = ~(u64)0;
+static void __init cmx270_init_2700G(void)
+{
+	platform_device_register(&cmx270_2700G);
+}
+#else
+static inline void cmx270_init_2700G(void) {}
+#endif
 
-static struct platform_device cmx270_ata = {
-	.name = "pata_cm_x270",
-	.id = -1,
-	.dev		= {
-		.dma_mask	= &ata_dma_mask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-
-/* platform devices */
-static struct platform_device *platform_devices[] __initdata = {
-	&cmx270_device_dm9k,
-	&cmx270_rtc_device,
-	&cmx270_2700G,
-	&cmx270_led_device,
-	&cmx270_ts_device,
-	&cmx270_ata,
-};
-
-/* Map PCI companion and IDE/General Purpose CS statically */
-static struct map_desc cmx270_io_desc[] __initdata = {
-	[0] = { /* IDE/general purpose space */
-		.virtual	= CMX270_IDE104_VIRT,
-		.pfn		= __phys_to_pfn(CMX270_IDE104_PHYS),
-		.length		= SZ_64M - SZ_8M,
-		.type		= MT_DEVICE
-	},
-	[1] = { /* PCI bridge */
-		.virtual	= CMX270_IT8152_VIRT,
-		.pfn		= __phys_to_pfn(CMX270_IT8152_PHYS),
-		.length		= SZ_64M,
-		.type		= MT_DEVICE
-	},
-};
-
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 /*
   Display definitions
   keep these for backwards compatibility, although symbolic names (as
@@ -446,7 +583,16 @@ static int __init cmx270_set_display(char *str)
 */
 __setup("monitor=", cmx270_set_display);
 
+static void __init cmx270_init_display(void)
+{
+	set_pxa_fb_info(cmx270_display);
+}
+#else
+static inline void cmx270_init_display(void) {}
+#endif
+
 /* PXA27x OHCI controller setup */
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 static int cmx270_ohci_init(struct device *dev)
 {
 	/* Set the Power Control Polarity Low */
@@ -461,35 +607,37 @@ static struct pxaohci_platform_data cmx270_ohci_platform_data = {
 	.init		= cmx270_ohci_init,
 };
 
+static void __init cmx270_init_ohci(void)
+{
+	pxa_set_ohci_info(&cmx270_ohci_platform_data);
+}
+#else
+static inline void cmx270_init_ohci(void) {}
+#endif
 
+#if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static int cmx270_mci_init(struct device *dev,
 			   irq_handler_t cmx270_detect_int,
 			   void *data)
 {
 	int err;
 
-	/*
-	 * setup GPIO for PXA27x MMC controller
-	 */
-	pxa_gpio_mode(GPIO32_MMCCLK_MD);
-	pxa_gpio_mode(GPIO112_MMCCMD_MD);
-	pxa_gpio_mode(GPIO92_MMCDAT0_MD);
-	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
-	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
-	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
+	err = gpio_request(GPIO105_MMC_POWER, "MMC/SD power");
+	if (err) {
+		dev_warn(dev, "power gpio unavailable\n");
+		return err;
+	}
 
-	/* SB-X270 uses GPIO105 as SD power enable */
-	pxa_gpio_mode(105 | GPIO_OUT);
-
-	/* card detect IRQ on GPIO 83 */
-	pxa_gpio_mode(IRQ_TO_GPIO(CMX270_MMC_IRQ));
+	gpio_direction_output(GPIO105_MMC_POWER, 0);
 
 	err = request_irq(CMX270_MMC_IRQ, cmx270_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err)
-		printk(KERN_ERR "cmx270_mci_init: MMC/SD: can't"
-		       " request MMC card detect IRQ\n");
+	if (err) {
+		gpio_free(GPIO105_MMC_POWER);
+		dev_err(dev, "cmx270_mci_init: MMC/SD: can't"
+			" request MMC card detect IRQ\n");
+	}
 
 	return err;
 }
@@ -499,17 +647,18 @@ static void cmx270_mci_setpower(struct device *dev, unsigned int vdd)
 	struct pxamci_platform_data *p_d = dev->platform_data;
 
 	if ((1 << vdd) & p_d->ocr_mask) {
-		printk(KERN_DEBUG "%s: on\n", __func__);
-		GPCR(105) = GPIO_bit(105);
+		dev_dbg(dev, "power on\n");
+		gpio_set_value(GPIO105_MMC_POWER, 0);
 	} else {
-		GPSR(105) = GPIO_bit(105);
-		printk(KERN_DEBUG "%s: off\n", __func__);
+		gpio_set_value(GPIO105_MMC_POWER, 1);
+		dev_dbg(dev, "power off\n");
 	}
 }
 
 static void cmx270_mci_exit(struct device *dev, void *data)
 {
 	free_irq(CMX270_MMC_IRQ, data);
+	gpio_free(GPIO105_MMC_POWER);
 }
 
 static struct pxamci_platform_data cmx270_mci_platform_data = {
@@ -518,6 +667,14 @@ static struct pxamci_platform_data cmx270_mci_platform_data = {
 	.setpower 	= cmx270_mci_setpower,
 	.exit		= cmx270_mci_exit,
 };
+
+static void __init cmx270_init_mmc(void)
+{
+	pxa_set_mci_info(&cmx270_mci_platform_data);
+}
+#else
+static inline void cmx270_init_mmc(void) {}
+#endif
 
 #ifdef CONFIG_PM
 static unsigned long sleep_save_msc[10];
@@ -580,53 +737,63 @@ static int __init cmx270_pm_init(void)
 static int __init cmx270_pm_init(void) { return 0; }
 #endif
 
+#if defined(CONFIG_SND_PXA2XX_AC97) || defined(CONFIG_SND_PXA2XX_AC97_MODULE)
+static void __init cmx270_init_ac97(void)
+{
+	pxa_set_ac97_info(NULL);
+}
+#else
+static inline void cmx270_init_ac97(void) {}
+#endif
+
 static void __init cmx270_init(void)
 {
 	cmx270_pm_init();
 
-	set_pxa_fb_info(cmx270_display);
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(cmx270_pin_config));
 
-	/* register CM-X270 platform devices */
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	pxa_set_ac97_info(NULL);
-
-	/* set MCI and OHCI platform parameters */
-	pxa_set_mci_info(&cmx270_mci_platform_data);
-	pxa_set_ohci_info(&cmx270_ohci_platform_data);
-
-	/* This enables the STUART */
-	pxa_gpio_mode(GPIO46_STRXD_MD);
-	pxa_gpio_mode(GPIO47_STTXD_MD);
-
-	/* This enables the BTUART  */
-	pxa_gpio_mode(GPIO42_BTRXD_MD);
-	pxa_gpio_mode(GPIO43_BTTXD_MD);
-	pxa_gpio_mode(GPIO44_BTCTS_MD);
-	pxa_gpio_mode(GPIO45_BTRTS_MD);
+	cmx270_init_dm9000();
+	cmx270_init_rtc();
+	cmx270_init_display();
+	cmx270_init_mmc();
+	cmx270_init_ohci();
+	cmx270_init_ac97();
+	cmx270_init_touchscreen();
+	cmx270_init_leds();
+	cmx270_init_2700G();
 }
 
 static void __init cmx270_init_irq(void)
 {
 	pxa27x_init_irq();
 
-
-	cmx270_pci_init_irq();
-
-	/* Setup interrupt for dm9000 */
-	pxa_gpio_mode(IRQ_TO_GPIO(CMX270_ETHIRQ));
-	set_irq_type(CMX270_ETHIRQ, IRQT_RISING);
-
-	/* Setup interrupt for 2700G */
-	pxa_gpio_mode(IRQ_TO_GPIO(CMX270_GFXIRQ));
-	set_irq_type(CMX270_GFXIRQ, IRQT_FALLING);
+	cmx270_pci_init_irq(GPIO22_IT8152_IRQ);
 }
+
+#ifdef CONFIG_PCI
+/* Map PCI companion statically */
+static struct map_desc cmx270_io_desc[] __initdata = {
+	[0] = { /* PCI bridge */
+		.virtual	= CMX270_IT8152_VIRT,
+		.pfn		= __phys_to_pfn(PXA_CS4_PHYS),
+		.length		= SZ_64M,
+		.type		= MT_DEVICE
+	},
+};
 
 static void __init cmx270_map_io(void)
 {
 	pxa_map_io();
 	iotable_init(cmx270_io_desc, ARRAY_SIZE(cmx270_io_desc));
-}
 
+	it8152_base_address = CMX270_IT8152_VIRT;
+}
+#else
+static void __init cmx270_map_io(void)
+{
+	pxa_map_io();
+}
+#endif
 
 MACHINE_START(ARMCORE, "Compulab CM-x270")
 	.boot_params	= 0xa0000100,

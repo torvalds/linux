@@ -803,7 +803,6 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 int do_migrate_pages(struct mm_struct *mm,
 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
 {
-	LIST_HEAD(pagelist);
 	int busy = 0;
 	int err = 0;
 	nodemask_t tmp;
@@ -1481,7 +1480,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 
 	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
 		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
-						HPAGE_SHIFT), gfp_flags);
+				huge_page_shift(hstate_vma(vma))), gfp_flags);
 	} else {
 		zl = policy_zonelist(gfp_flags, *mpol);
 		if ((*mpol)->mode == MPOL_BIND)
@@ -2220,9 +2219,12 @@ static void check_huge_range(struct vm_area_struct *vma,
 {
 	unsigned long addr;
 	struct page *page;
+	struct hstate *h = hstate_vma(vma);
+	unsigned long sz = huge_page_size(h);
 
-	for (addr = start; addr < end; addr += HPAGE_SIZE) {
-		pte_t *ptep = huge_pte_offset(vma->vm_mm, addr & HPAGE_MASK);
+	for (addr = start; addr < end; addr += sz) {
+		pte_t *ptep = huge_pte_offset(vma->vm_mm,
+						addr & huge_page_mask(h));
 		pte_t pte;
 
 		if (!ptep)

@@ -100,10 +100,11 @@ static const struct drive_list_entry drive_blacklist [] = {
  
 ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 stat = 0, dma_stat = 0;
 
-	dma_stat = drive->hwif->dma_ops->dma_end(drive);
-	stat = ide_read_status(drive);
+	dma_stat = hwif->dma_ops->dma_end(drive);
+	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat,DRIVE_READY,drive->bad_wstat|DRQ_STAT)) {
 		if (!dma_stat) {
@@ -172,7 +173,7 @@ EXPORT_SYMBOL_GPL(ide_build_sglist);
 int ide_build_dmatable (ide_drive_t *drive, struct request *rq)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	unsigned int *table	= hwif->dmatable_cpu;
+	__le32 *table = (__le32 *)hwif->dmatable_cpu;
 	unsigned int is_trm290	= (hwif->chipset == ide_trm290) ? 1 : 0;
 	unsigned int count = 0;
 	int i;
@@ -334,7 +335,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 static int dma_timer_expiry (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	printk(KERN_WARNING "%s: dma_timer_expiry: dma status == 0x%02x\n",
 		drive->name, dma_stat);
@@ -369,14 +370,18 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 unit			= (drive->select.b.unit & 0x01);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
 	else
 		dma_stat &= ~(1 << (5 + unit));
 
-	hwif->OUTB(dma_stat, hwif->dma_status);
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(dma_stat,
+		       (void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
+	else
+		outb(dma_stat, hwif->dma_base + ATA_DMA_STATUS);
 }
 
 EXPORT_SYMBOL_GPL(ide_dma_host_set);
@@ -449,6 +454,7 @@ int ide_dma_setup(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
 	unsigned int reading;
+	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat;
 
 	if (rq_data_dir(rq))
@@ -470,13 +476,21 @@ int ide_dma_setup(ide_drive_t *drive)
 		outl(hwif->dmatable_dma, hwif->dma_base + ATA_DMA_TABLE_OFS);
 
 	/* specify r/w */
-	hwif->OUTB(reading, hwif->dma_command);
+	if (mmio)
+		writeb(reading, (void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
+	else
+		outb(reading, hwif->dma_base + ATA_DMA_CMD);
 
-	/* read dma_status for INTR & ERROR flags */
-	dma_stat = hwif->INB(hwif->dma_status);
+	/* read DMA status for INTR & ERROR flags */
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
 
 	/* clear INTR & ERROR flags */
-	hwif->OUTB(dma_stat|6, hwif->dma_status);
+	if (mmio)
+		writeb(dma_stat | 6,
+		       (void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
+	else
+		outb(dma_stat | 6, hwif->dma_base + ATA_DMA_STATUS);
+
 	drive->waiting_for_dma = 1;
 	return 0;
 }
@@ -492,16 +506,24 @@ EXPORT_SYMBOL_GPL(ide_dma_exec_cmd);
 
 void ide_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_cmd		= hwif->INB(hwif->dma_command);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 dma_cmd;
 
 	/* Note that this is done *after* the cmd has
 	 * been issued to the drive, as per the BM-IDE spec.
 	 * The Promise Ultra33 doesn't work correctly when
 	 * we do this part before issuing the drive cmd.
 	 */
-	/* start DMA */
-	hwif->OUTB(dma_cmd|1, hwif->dma_command);
+	if (hwif->host_flags & IDE_HFLAG_MMIO) {
+		dma_cmd = readb((void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
+		/* start DMA */
+		writeb(dma_cmd | 1,
+		       (void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
+	} else {
+		dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
+		outb(dma_cmd | 1, hwif->dma_base + ATA_DMA_CMD);
+	}
+
 	hwif->dma = 1;
 	wmb();
 }
@@ -511,18 +533,33 @@ EXPORT_SYMBOL_GPL(ide_dma_start);
 /* returns 1 on error, 0 otherwise */
 int __ide_dma_end (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 dma_stat = 0, dma_cmd = 0;
 
 	drive->waiting_for_dma = 0;
-	/* get dma_command mode */
-	dma_cmd = hwif->INB(hwif->dma_command);
-	/* stop DMA */
-	hwif->OUTB(dma_cmd&~1, hwif->dma_command);
+
+	if (mmio) {
+		/* get DMA command mode */
+		dma_cmd = readb((void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
+		/* stop DMA */
+		writeb(dma_cmd & ~1,
+		       (void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
+	} else {
+		dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
+		outb(dma_cmd & ~1, hwif->dma_base + ATA_DMA_CMD);
+	}
+
 	/* get DMA status */
-	dma_stat = hwif->INB(hwif->dma_status);
-	/* clear the INTR & ERROR bits */
-	hwif->OUTB(dma_stat|6, hwif->dma_status);
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+
+	if (mmio)
+		/* clear the INTR & ERROR bits */
+		writeb(dma_stat | 6,
+		       (void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
+	else
+		outb(dma_stat | 6, hwif->dma_base + ATA_DMA_STATUS);
+
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
@@ -537,7 +574,7 @@ EXPORT_SYMBOL(__ide_dma_end);
 int ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	/* return 1 if INTR asserted */
 	if ((dma_stat & 4) == 4)
@@ -612,11 +649,7 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		if (id->field_valid & 2) {
 			mask = id->dma_1word & hwif->swdma_mask;
 		} else if (id->tDMA) {
-			/*
-			 * ide_fix_driveid() doesn't convert ->tDMA to the
-			 * CPU endianness so we need to do it here
-			 */
-			u8 mode = le16_to_cpu(id->tDMA);
+			u8 mode = id->tDMA;
 
 			/*
 			 * if the mode is valid convert it to the mask
@@ -719,9 +752,8 @@ static int ide_tune_dma(ide_drive_t *drive)
 static int ide_dma_check(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	int vdma = (hwif->host_flags & IDE_HFLAG_VDMA)? 1 : 0;
 
-	if (!vdma && ide_tune_dma(drive))
+	if (ide_tune_dma(drive))
 		return 0;
 
 	/* TODO: always do PIO fallback */
@@ -730,7 +762,7 @@ static int ide_dma_check(ide_drive_t *drive)
 
 	ide_set_max_pio(drive);
 
-	return vdma ? 0 : -1;
+	return -1;
 }
 
 int ide_id_dma_bug(ide_drive_t *drive)
@@ -842,7 +874,7 @@ int ide_allocate_dma_engine(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
-static const struct ide_dma_ops sff_dma_ops = {
+const struct ide_dma_ops sff_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
@@ -852,18 +884,5 @@ static const struct ide_dma_ops sff_dma_ops = {
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
 };
-
-void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
-{
-	hwif->dma_base = base;
-
-	if (!hwif->dma_command)
-		hwif->dma_command	= hwif->dma_base + 0;
-	if (!hwif->dma_status)
-		hwif->dma_status	= hwif->dma_base + 2;
-
-	hwif->dma_ops = &sff_dma_ops;
-}
-
-EXPORT_SYMBOL_GPL(ide_setup_dma);
+EXPORT_SYMBOL_GPL(sff_dma_ops);
 #endif /* CONFIG_BLK_DEV_IDEDMA_SFF */

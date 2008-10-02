@@ -16,10 +16,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/i2c.h>
+#include <linux/i2c/pca953x.h>
 
 #include <asm/gpio.h>
-#include <asm/arch/mfp-pxa300.h>
-#include <asm/arch/zylonite.h>
+#include <mach/mfp-pxa300.h>
+#include <mach/i2c.h>
+#include <mach/zylonite.h>
 
 #include "generic.h"
 
@@ -109,6 +112,10 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO12_MMC2_DAT3,
 	GPIO13_MMC2_CLK,
 	GPIO14_MMC2_CMD,
+
+	/* Standard I2C */
+	GPIO21_I2C_SCL,
+	GPIO22_I2C_SDA,
 };
 
 static mfp_cfg_t pxa300_mfp_cfg[] __initdata = {
@@ -192,6 +199,39 @@ static void __init zylonite_detect_lcd_panel(void)
 		pxa3xx_mfp_write(lcd_detect_pins[i], mfpr_save[i]);
 }
 
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static struct pca953x_platform_data gpio_exp[] = {
+	[0] = {
+		.gpio_base	= 128,
+	},
+	[1] = {
+		.gpio_base	= 144,
+	},
+};
+
+struct i2c_board_info zylonite_i2c_board_info[] = {
+	{
+		.type		= "pca9539",
+		.addr		= 0x74,
+		.platform_data	= &gpio_exp[0],
+		.irq		= IRQ_GPIO(18),
+	}, {
+		.type		= "pca9539",
+		.addr		= 0x75,
+		.platform_data	= &gpio_exp[1],
+		.irq		= IRQ_GPIO(19),
+	},
+};
+
+static void __init zylonite_init_i2c(void)
+{
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(zylonite_i2c_board_info));
+}
+#else
+static inline void zylonite_init_i2c(void) {}
+#endif
+
 void __init zylonite_pxa300_init(void)
 {
 	if (cpu_is_pxa300() || cpu_is_pxa310()) {
@@ -207,6 +247,8 @@ void __init zylonite_pxa300_init(void)
 
 		/* WM9713 IRQ */
 		wm9713_irq = mfp_to_gpio(MFP_PIN_GPIO26);
+
+		zylonite_init_i2c();
 	}
 
 	if (cpu_is_pxa300()) {
@@ -222,4 +264,8 @@ void __init zylonite_pxa300_init(void)
 		zylonite_mmc_slot[2].gpio_cd = EXT_GPIO(30);
 		zylonite_mmc_slot[2].gpio_wp = EXT_GPIO(31);
 	}
+
+	/* GPIOs for Debug LEDs */
+	gpio_debug_led1 = EXT_GPIO(25);
+	gpio_debug_led2 = EXT_GPIO(26);
 }

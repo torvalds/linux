@@ -9,10 +9,10 @@
 #include <linux/device.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/arch/simpad.h>
+#include <mach/simpad.h>
 #include "sa1100_generic.h"
  
 extern long get_cs3_shadow(void);

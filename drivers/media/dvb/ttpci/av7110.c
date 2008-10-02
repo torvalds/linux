@@ -587,7 +587,7 @@ static void gpioirq(unsigned long data)
 		}
 		DVB_RINGBUFFER_SKIP(cibuf, 2);
 
-		dvb_ringbuffer_read(cibuf, av7110->debi_virt, len, 0);
+		dvb_ringbuffer_read(cibuf, av7110->debi_virt, len);
 
 		iwdebi(av7110, DEBINOSWAP, TX_LEN, len, 2);
 		iwdebi(av7110, DEBINOSWAP, IRQ_STATE_EXT, len, 2);
@@ -1198,7 +1198,6 @@ static int start_ts_capture(struct av7110 *budget)
 	if (budget->feeding1)
 		return ++budget->feeding1;
 	memset(budget->grabbing, 0x00, TS_HEIGHT * TS_WIDTH);
-	budget->tsf = 0xff;
 	budget->ttbp = 0;
 	SAA7146_IER_ENABLE(budget->dev, MASK_10); /* VPE */
 	saa7146_write(budget->dev, MC1, (MASK_04 | MASK_20)); /* DMA3 on */
@@ -2403,18 +2402,18 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, MC1, MASK_29);
 		/* RPS1 timeout disable */
 		saa7146_write(dev, RPS_TOV1, 0);
-		WRITE_RPS1(cpu_to_le32(CMD_PAUSE | EVT_VBI_B));
-		WRITE_RPS1(cpu_to_le32(CMD_WR_REG_MASK | (GPIO_CTRL>>2)));
-		WRITE_RPS1(cpu_to_le32(GPIO3_MSK));
-		WRITE_RPS1(cpu_to_le32(SAA7146_GPIO_OUTLO<<24));
+		WRITE_RPS1(CMD_PAUSE | EVT_VBI_B);
+		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+		WRITE_RPS1(GPIO3_MSK);
+		WRITE_RPS1(SAA7146_GPIO_OUTLO<<24);
 #if RPS_IRQ
 		/* issue RPS1 interrupt to increment counter */
-		WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+		WRITE_RPS1(CMD_INTERRUPT);
 #endif
-		WRITE_RPS1(cpu_to_le32(CMD_STOP));
+		WRITE_RPS1(CMD_STOP);
 		/* Jump to begin of RPS program as safety measure               (p37) */
-		WRITE_RPS1(cpu_to_le32(CMD_JUMP));
-		WRITE_RPS1(cpu_to_le32(dev->d_rps1.dma_handle));
+		WRITE_RPS1(CMD_JUMP);
+		WRITE_RPS1(dev->d_rps1.dma_handle);
 
 #if RPS_IRQ
 		/* set event counter 1 source as RPS1 interrupt (0x03)          (rE4 p53)
@@ -2472,11 +2471,7 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	   get recognized before the main driver is fully loaded */
 	saa7146_write(dev, GPIO_CTRL, 0x500000);
 
-#ifdef I2C_ADAP_CLASS_TV_DIGITAL
-	av7110->i2c_adap.class = I2C_ADAP_CLASS_TV_DIGITAL;
-#else
 	av7110->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
-#endif
 	strlcpy(av7110->i2c_adap.name, pci_ext->ext_priv, sizeof(av7110->i2c_adap.name));
 
 	saa7146_i2c_adapter_prepare(dev, &av7110->i2c_adap, SAA7146_I2C_BUS_BIT_RATE_120); /* 275 kHz */
@@ -2527,28 +2522,28 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 		count = 0;
 
 		/* Wait Source Line Counter Threshold                           (p36) */
-		WRITE_RPS1(cpu_to_le32(CMD_PAUSE | EVT_HS));
+		WRITE_RPS1(CMD_PAUSE | EVT_HS);
 		/* Set GPIO3=1                                                  (p42) */
-		WRITE_RPS1(cpu_to_le32(CMD_WR_REG_MASK | (GPIO_CTRL>>2)));
-		WRITE_RPS1(cpu_to_le32(GPIO3_MSK));
-		WRITE_RPS1(cpu_to_le32(SAA7146_GPIO_OUTHI<<24));
+		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+		WRITE_RPS1(GPIO3_MSK);
+		WRITE_RPS1(SAA7146_GPIO_OUTHI<<24);
 #if RPS_IRQ
 		/* issue RPS1 interrupt */
-		WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+		WRITE_RPS1(CMD_INTERRUPT);
 #endif
 		/* Wait reset Source Line Counter Threshold                     (p36) */
-		WRITE_RPS1(cpu_to_le32(CMD_PAUSE | RPS_INV | EVT_HS));
+		WRITE_RPS1(CMD_PAUSE | RPS_INV | EVT_HS);
 		/* Set GPIO3=0                                                  (p42) */
-		WRITE_RPS1(cpu_to_le32(CMD_WR_REG_MASK | (GPIO_CTRL>>2)));
-		WRITE_RPS1(cpu_to_le32(GPIO3_MSK));
-		WRITE_RPS1(cpu_to_le32(SAA7146_GPIO_OUTLO<<24));
+		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+		WRITE_RPS1(GPIO3_MSK);
+		WRITE_RPS1(SAA7146_GPIO_OUTLO<<24);
 #if RPS_IRQ
 		/* issue RPS1 interrupt */
-		WRITE_RPS1(cpu_to_le32(CMD_INTERRUPT));
+		WRITE_RPS1(CMD_INTERRUPT);
 #endif
 		/* Jump to begin of RPS program                                 (p37) */
-		WRITE_RPS1(cpu_to_le32(CMD_JUMP));
-		WRITE_RPS1(cpu_to_le32(dev->d_rps1.dma_handle));
+		WRITE_RPS1(CMD_JUMP);
+		WRITE_RPS1(dev->d_rps1.dma_handle);
 
 		/* Fix VSYNC level */
 		saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);

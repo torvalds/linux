@@ -45,9 +45,9 @@
 #include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 
 struct uart_pxa_port {
@@ -101,7 +101,7 @@ static void serial_pxa_stop_rx(struct uart_port *port)
 
 static inline void receive_chars(struct uart_pxa_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.info->tty;
+	struct tty_struct *tty = up->port.info->port.tty;
 	unsigned int ch, flag;
 	int max_count = 256;
 

@@ -26,23 +26,23 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/board.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/keypad.h>
-#include <asm/arch/common.h>
-#include <asm/arch/omap-alsa.h>
+#include <mach/mcbsp.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/dma.h>
+#include <mach/tc.h>
+#include <mach/board.h>
+#include <mach/irda.h>
+#include <mach/keypad.h>
+#include <mach/common.h>
+#include <mach/omap-alsa.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -298,11 +298,11 @@ palmz71_powercable(int irq, void *dev_id)
 	if (omap_get_gpio_datain(PALMZ71_USBDETECT_GPIO)) {
 		printk(KERN_INFO "PM: Power cable connected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
-				IRQT_FALLING);
+				IRQ_TYPE_EDGE_FALLING);
 	} else {
 		printk(KERN_INFO "PM: Power cable disconnected\n");
 		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
-				IRQT_RISING);
+				IRQ_TYPE_EDGE_RISING);
 	}
 	return IRQ_HANDLED;
 }

@@ -179,6 +179,8 @@ int sctp_eps_proc_init(void);
 void sctp_eps_proc_exit(void);
 int sctp_assocs_proc_init(void);
 void sctp_assocs_proc_exit(void);
+int sctp_remaddr_proc_init(void);
+void sctp_remaddr_proc_exit(void);
 
 
 /*
@@ -218,8 +220,6 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
 #define sctp_release_sock(sk)    release_sock(sk)
 #define sctp_bh_lock_sock(sk)    bh_lock_sock(sk)
 #define sctp_bh_unlock_sock(sk)  bh_unlock_sock(sk)
-#define SCTP_SOCK_SLEEP_PRE(sk)  SOCK_SLEEP_PRE(sk)
-#define SCTP_SOCK_SLEEP_POST(sk) SOCK_SLEEP_POST(sk)
 
 /* SCTP SNMP MIB stats handlers */
 DECLARE_SNMP_STAT(struct sctp_mib, sctp_statistics);

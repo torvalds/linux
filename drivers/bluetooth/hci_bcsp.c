@@ -39,6 +39,8 @@
 #include <linux/signal.h>
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
+#include <linux/bitrev.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -122,27 +124,6 @@ static void bcsp_crc_update(u16 *crc, u8 d)
 	reg = (reg >> 4) ^ crc_table[(reg ^ (d >> 4)) & 0x000f];
 
 	*crc = reg;
-}
-
-/*
-   Get reverse of generated crc
-
-   Implementation note
-        The crc generator (bcsp_crc_init() and bcsp_crc_update())
-        creates a reversed crc, so it needs to be swapped back before
-        being passed on.
-*/
-static u16 bcsp_crc_reverse(u16 crc)
-{
-	u16 b, rev;
-
-	for (b = 0, rev = 0; b < 16; b++) {
-		rev = rev << 1;
-		rev |= (crc & 1);
-		crc = crc >> 1;
-	}
-
-	return (rev);
 }
 
 /* ---- BCSP core ---- */
@@ -235,10 +216,10 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 	}
 
 	if (hciextn && chan == 5) {
-		struct hci_command_hdr *hdr = (struct hci_command_hdr *) data;
+		__le16 opcode = ((struct hci_command_hdr *)data)->opcode;
 
 		/* Vendor specific commands */
-		if (hci_opcode_ogf(__le16_to_cpu(hdr->opcode)) == 0x3f) {
+		if (hci_opcode_ogf(__le16_to_cpu(opcode)) == 0x3f) {
 			u8 desc = *(data + HCI_COMMAND_HDR_SIZE);
 			if ((desc & 0xf0) == 0xc0) {
 				data += HCI_COMMAND_HDR_SIZE + 1;
@@ -296,7 +277,7 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 
 	/* Put CRC */
 	if (bcsp->use_crc) {
-		bcsp_txmsg_crc = bcsp_crc_reverse(bcsp_txmsg_crc);
+		bcsp_txmsg_crc = bitrev16(bcsp_txmsg_crc);
 		bcsp_slip_one_byte(nskb, (u8) ((bcsp_txmsg_crc >> 8) & 0x00ff));
 		bcsp_slip_one_byte(nskb, (u8) (bcsp_txmsg_crc & 0x00ff));
 	}
@@ -566,6 +547,11 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 	bcsp->rx_skb = NULL;
 }
 
+static u16 bscp_get_crc(struct bcsp_struct *bcsp)
+{
+	return get_unaligned_be16(&bcsp->rx_skb->data[bcsp->rx_skb->len - 2]);
+}
+
 /* Recv data */
 static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 {
@@ -624,14 +610,10 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 			continue;
 
 		case BCSP_W4_CRC:
-			if (bcsp_crc_reverse(bcsp->message_crc) !=
-					(bcsp->rx_skb->data[bcsp->rx_skb->len - 2] << 8) +
-					bcsp->rx_skb->data[bcsp->rx_skb->len - 1]) {
-
+			if (bitrev16(bcsp->message_crc) != bscp_get_crc(bcsp)) {
 				BT_ERR ("Checksum failed: computed %04x received %04x",
-					bcsp_crc_reverse(bcsp->message_crc),
-					(bcsp->rx_skb-> data[bcsp->rx_skb->len - 2] << 8) +
-					bcsp->rx_skb->data[bcsp->rx_skb->len - 1]);
+					bitrev16(bcsp->message_crc),
+					bscp_get_crc(bcsp));
 
 				kfree_skb(bcsp->rx_skb);
 				bcsp->rx_state = BCSP_W4_PKT_DELIMITER;

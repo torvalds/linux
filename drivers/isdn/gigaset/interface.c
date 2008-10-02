@@ -197,7 +197,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		if (!--cs->open_count) {
 			spin_lock_irqsave(&cs->lock, flags);
@@ -232,7 +232,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		retval = 0;
 		switch (cmd) {
@@ -364,9 +364,9 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else if (cs->mstate != MS_LOCKED) {
-		warn("can't write to unlocked device");
+		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
 	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
@@ -398,9 +398,9 @@ static int if_write_room(struct tty_struct *tty)
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else if (cs->mstate != MS_LOCKED) {
-		warn("can't write to unlocked device");
+		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
 	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
@@ -430,9 +430,9 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else if (cs->mstate != MS_LOCKED) {
-		warn("can't write to unlocked device");
+		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
 	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
@@ -460,7 +460,7 @@ static void if_throttle(struct tty_struct *tty)
 	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		//FIXME
 	}
@@ -483,7 +483,7 @@ static void if_unthrottle(struct tty_struct *tty)
 	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count)
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		//FIXME
 	}
@@ -510,7 +510,7 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count) {
-		warn("%s: device not opened", __func__);
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 		goto out;
 	}
 
@@ -623,7 +623,8 @@ void gigaset_if_init(struct cardstate *cs)
 	if (!IS_ERR(cs->tty_dev))
 		dev_set_drvdata(cs->tty_dev, cs);
 	else {
-		warn("could not register device to the tty subsystem");
+		dev_warn(cs->dev,
+			 "could not register device to the tty subsystem\n");
 		cs->tty_dev = NULL;
 	}
 	mutex_unlock(&cs->mutex);

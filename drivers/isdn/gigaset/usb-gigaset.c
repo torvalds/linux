@@ -498,8 +498,9 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 
 			if (status) {
 				ucs->busy = 0;
-				err("could not submit urb (error %d)\n",
-				    -status);
+				dev_err(cs->dev,
+					"could not submit urb (error %d)\n",
+					-status);
 				cb->len = 0; /* skip urb => remove cb+wakeup
 						in next loop cycle */
 			}
@@ -670,7 +671,7 @@ static int write_modem(struct cardstate *cs)
 	spin_unlock_irqrestore(&cs->lock, flags);
 
 	if (ret) {
-		err("could not submit urb (error %d)\n", -ret);
+		dev_err(cs->dev, "could not submit urb (error %d)\n", -ret);
 		ucs->busy = 0;
 	}
 

@@ -147,9 +147,12 @@ static struct priority_group *alloc_priority_group(void)
 static void free_pgpaths(struct list_head *pgpaths, struct dm_target *ti)
 {
 	struct pgpath *pgpath, *tmp;
+	struct multipath *m = ti->private;
 
 	list_for_each_entry_safe(pgpath, tmp, pgpaths, list) {
 		list_del(&pgpath->list);
+		if (m->hw_handler_name)
+			scsi_dh_detach(bdev_get_queue(pgpath->path.dev->bdev));
 		dm_put_device(ti, pgpath->path.dev);
 		free_pgpath(pgpath);
 	}
@@ -525,8 +528,10 @@ static int parse_path_selector(struct arg_set *as, struct priority_group *pg,
 	}
 
 	r = read_param(_params, shift(as), &ps_argc, &ti->error);
-	if (r)
+	if (r) {
+		dm_put_path_selector(pst);
 		return -EINVAL;
+	}
 
 	r = pst->create(&pg->ps, ps_argc, as->argv);
 	if (r) {
@@ -546,6 +551,7 @@ static struct pgpath *parse_path(struct arg_set *as, struct path_selector *ps,
 {
 	int r;
 	struct pgpath *p;
+	struct multipath *m = ti->private;
 
 	/* we need at least a path arg */
 	if (as->argc < 1) {
@@ -562,6 +568,15 @@ static struct pgpath *parse_path(struct arg_set *as, struct path_selector *ps,
 	if (r) {
 		ti->error = "error getting device";
 		goto bad;
+	}
+
+	if (m->hw_handler_name) {
+		r = scsi_dh_attach(bdev_get_queue(p->path.dev->bdev),
+				   m->hw_handler_name);
+		if (r < 0) {
+			dm_put_device(ti, p->path.dev);
+			goto bad;
+		}
 	}
 
 	r = ps->type->add_path(ps, &p->path, as->argc, as->argv, &ti->error);
@@ -623,8 +638,10 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 		struct pgpath *pgpath;
 		struct arg_set path_args;
 
-		if (as->argc < nr_params)
+		if (as->argc < nr_params) {
+			ti->error = "not enough path parameters";
 			goto bad;
+		}
 
 		path_args.argc = nr_params;
 		path_args.argv = as->argv;
@@ -867,7 +884,7 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (pgpath->path.is_active)
 		goto out;
 
-	if (!pgpath->pg->ps.type) {
+	if (!pgpath->pg->ps.type->reinstate_path) {
 		DMWARN("Reinstate path not supported by path selector %s",
 		       pgpath->pg->ps.type->name);
 		r = -EINVAL;

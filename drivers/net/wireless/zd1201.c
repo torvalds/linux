@@ -1152,32 +1152,36 @@ static int zd1201_get_scan(struct net_device *dev,
 		iwe.cmd = SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(iwe.u.ap_addr.sa_data, zd->rxdata+i+6, 6);
-		cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_ADDR_LEN);
+		cev = iwe_stream_add_event(info, cev, end_buf,
+					   &iwe, IW_EV_ADDR_LEN);
 
 		iwe.cmd = SIOCGIWESSID;
 		iwe.u.data.length = zd->rxdata[i+16];
 		iwe.u.data.flags = 1;
-		cev = iwe_stream_add_point(cev, end_buf, &iwe, zd->rxdata+i+18);
+		cev = iwe_stream_add_point(info, cev, end_buf,
+					   &iwe, zd->rxdata+i+18);
 
 		iwe.cmd = SIOCGIWMODE;
 		if (zd->rxdata[i+14]&0x01)
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_UINT_LEN);
+		cev = iwe_stream_add_event(info, cev, end_buf,
+					   &iwe, IW_EV_UINT_LEN);
 		
 		iwe.cmd = SIOCGIWFREQ;
 		iwe.u.freq.m = zd->rxdata[i+0];
 		iwe.u.freq.e = 0;
-		cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_FREQ_LEN);
+		cev = iwe_stream_add_event(info, cev, end_buf,
+					   &iwe, IW_EV_FREQ_LEN);
 		
 		iwe.cmd = SIOCGIWRATE;
 		iwe.u.bitrate.fixed = 0;
 		iwe.u.bitrate.disabled = 0;
 		for (j=0; j<10; j++) if (zd->rxdata[i+50+j]) {
 			iwe.u.bitrate.value = (zd->rxdata[i+50+j]&0x7f)*500000;
-			cev=iwe_stream_add_event(cev, end_buf, &iwe,
-			    IW_EV_PARAM_LEN);
+			cev = iwe_stream_add_event(info, cev, end_buf,
+						   &iwe, IW_EV_PARAM_LEN);
 		}
 		
 		iwe.cmd = SIOCGIWENCODE;
@@ -1186,14 +1190,15 @@ static int zd1201_get_scan(struct net_device *dev,
 			iwe.u.data.flags = IW_ENCODE_ENABLED;
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
-		cev = iwe_stream_add_point(cev, end_buf, &iwe, NULL);
+		cev = iwe_stream_add_point(info, cev, end_buf, &iwe, NULL);
 		
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.qual = zd->rxdata[i+4];
 		iwe.u.qual.noise= zd->rxdata[i+2]/10-100;
 		iwe.u.qual.level = (256+zd->rxdata[i+4]*100)/255-100;
 		iwe.u.qual.updated = 7;
-		cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_QUAL_LEN);
+		cev = iwe_stream_add_event(info, cev, end_buf,
+					   &iwe, IW_EV_QUAL_LEN);
 	}
 
 	if (!enabled_save)

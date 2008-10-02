@@ -53,7 +53,6 @@ void __init paging_init(void)
 	wp_works_ok = 0;
 #endif
 	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
-	memset(empty_zero_page, 0, PAGE_SIZE);
 
 	address = PAGE_OFFSET;
 	pg_dir = swapper_pg_dir;
@@ -95,7 +94,7 @@ void __init paging_init(void)
 
 	/* I really wish I knew why the following change made things better...  -- Sam */
 /*	free_area_init(zones_size); */
-	free_area_init_node(0, NODE_DATA(0), zones_size,
+	free_area_init_node(0, zones_size,
 			    (__pa(PAGE_OFFSET) >> PAGE_SHIFT) + 1, NULL);
 
 

@@ -29,7 +29,6 @@
 #include <linux/skbuff.h>
 #include <linux/wireless.h>
 #include <net/mac80211.h>
-#include <net/ieee80211.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -446,8 +445,7 @@ static int rs_adjust_next_rate(struct iwl3945_priv *priv, int rate)
  */
 static void rs_tx_status(void *priv_rate,
 			 struct net_device *dev,
-			 struct sk_buff *skb,
-			 struct ieee80211_tx_status *tx_resp)
+			 struct sk_buff *skb)
 {
 	u8 retries, current_count;
 	int scale_rate_index, first_index, last_index;
@@ -458,14 +456,15 @@ static void rs_tx_status(void *priv_rate,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct iwl3945_rs_sta *rs_sta;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	IWL_DEBUG_RATE("enter\n");
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 
-	retries = tx_resp->retry_count;
-	first_index = tx_resp->control.tx_rate->hw_value;
+	retries = info->status.retry_count;
+	first_index = sband->bitrates[info->tx_rate_idx].hw_value;
 	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT)) {
 		IWL_DEBUG_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
@@ -526,11 +525,11 @@ static void rs_tx_status(void *priv_rate,
 	/* Update the last index window with success/failure based on ACK */
 	IWL_DEBUG_RATE("Update rate %d with %s.\n",
 		       last_index,
-		       (tx_resp->flags & IEEE80211_TX_STATUS_ACK) ?
+		       (info->flags & IEEE80211_TX_STAT_ACK) ?
 		       "success" : "failure");
 	iwl3945_collect_tx_data(rs_sta,
 			    &rs_sta->win[last_index],
-			    tx_resp->flags & IEEE80211_TX_STATUS_ACK, 1);
+			    info->flags & IEEE80211_TX_STAT_ACK, 1);
 
 	/* We updated the rate scale window -- if its been more than
 	 * flush_time since the last run, schedule the flush
@@ -670,7 +669,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	    is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !sta->rate_ctrl_priv) {
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
-		sel->rate = rate_lowest(local, sband, sta);
+		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		rcu_read_unlock();
 		return;
 	}
@@ -814,7 +813,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
 
-	sel->rate = &sband->bitrates[sta->txrate_idx];
+	sel->rate_idx = sta->txrate_idx;
 }
 
 static struct rate_control_ops rs_ops = {

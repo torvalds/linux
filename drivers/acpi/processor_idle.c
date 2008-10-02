@@ -41,7 +41,6 @@
 #include <linux/pm_qos_params.h>
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
-#include <linux/cpuidle.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -272,6 +271,8 @@ static atomic_t c3_cpu_count;
 /* Common C-state entry for C2, C3, .. */
 static void acpi_cstate_enter(struct acpi_processor_cx *cstate)
 {
+	/* Don't trace irqs off for idle */
+	stop_critical_timings();
 	if (cstate->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */
 		acpi_processor_ffh_cstate_enter(cstate);
@@ -284,6 +285,7 @@ static void acpi_cstate_enter(struct acpi_processor_cx *cstate)
 		   gets asserted in time to freeze execution properly. */
 		unused = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
+	start_critical_timings();
 }
 #endif /* !CONFIG_CPU_IDLE */
 
@@ -1329,9 +1331,15 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 	if (!pr->flags.power_setup_done)
 		return -ENODEV;
 
-	/* Fall back to the default idle loop */
-	pm_idle = pm_idle_save;
-	synchronize_sched();	/* Relies on interrupts forcing exit from idle. */
+	/*
+	 * Fall back to the default idle loop, when pm_idle_save had
+	 * been initialized.
+	 */
+	if (pm_idle_save) {
+		pm_idle = pm_idle_save;
+		/* Relies on interrupts forcing exit from idle. */
+		synchronize_sched();
+	}
 
 	pr->flags.power = 0;
 	result = acpi_processor_get_power_info(pr);
@@ -1418,6 +1426,8 @@ static inline void acpi_idle_update_bm_rld(struct acpi_processor *pr,
  */
 static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 {
+	/* Don't trace irqs off for idle */
+	stop_critical_timings();
 	if (cx->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */
 		acpi_processor_ffh_cstate_enter(cx);
@@ -1432,6 +1442,7 @@ static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 		   gets asserted in time to freeze execution properly. */
 		unused = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
+	start_critical_timings();
 }
 
 /**
@@ -1890,7 +1901,8 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 
 	/* Unregister the idle handler when processor #0 is removed. */
 	if (pr->id == 0) {
-		pm_idle = pm_idle_save;
+		if (pm_idle_save)
+			pm_idle = pm_idle_save;
 
 		/*
 		 * We are about to unload the current idle thread pm callback

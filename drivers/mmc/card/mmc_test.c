@@ -21,13 +21,17 @@
 #define RESULT_UNSUP_HOST	2
 #define RESULT_UNSUP_CARD	3
 
-#define BUFFER_SIZE	(PAGE_SIZE * 4)
+#define BUFFER_ORDER		2
+#define BUFFER_SIZE		(PAGE_SIZE << BUFFER_ORDER)
 
 struct mmc_test_card {
 	struct mmc_card	*card;
 
 	u8		scratch[BUFFER_SIZE];
 	u8		*buffer;
+#ifdef CONFIG_HIGHMEM
+	struct page	*highmem;
+#endif
 };
 
 /*******************************************************************/
@@ -799,6 +803,94 @@ static int mmc_test_multi_xfersize_read(struct mmc_test_card *test)
 	return 0;
 }
 
+#ifdef CONFIG_HIGHMEM
+
+static int mmc_test_write_high(struct mmc_test_card *test)
+{
+	int ret;
+	struct scatterlist sg;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, test->highmem, 512, 0);
+
+	ret = mmc_test_transfer(test, &sg, 1, 0, 1, 512, 1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int mmc_test_read_high(struct mmc_test_card *test)
+{
+	int ret;
+	struct scatterlist sg;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, test->highmem, 512, 0);
+
+	ret = mmc_test_transfer(test, &sg, 1, 0, 1, 512, 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int mmc_test_multi_write_high(struct mmc_test_card *test)
+{
+	int ret;
+	unsigned int size;
+	struct scatterlist sg;
+
+	if (test->card->host->max_blk_count == 1)
+		return RESULT_UNSUP_HOST;
+
+	size = PAGE_SIZE * 2;
+	size = min(size, test->card->host->max_req_size);
+	size = min(size, test->card->host->max_seg_size);
+	size = min(size, test->card->host->max_blk_count * 512);
+
+	if (size < 1024)
+		return RESULT_UNSUP_HOST;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, test->highmem, size, 0);
+
+	ret = mmc_test_transfer(test, &sg, 1, 0, size/512, 512, 1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int mmc_test_multi_read_high(struct mmc_test_card *test)
+{
+	int ret;
+	unsigned int size;
+	struct scatterlist sg;
+
+	if (test->card->host->max_blk_count == 1)
+		return RESULT_UNSUP_HOST;
+
+	size = PAGE_SIZE * 2;
+	size = min(size, test->card->host->max_req_size);
+	size = min(size, test->card->host->max_seg_size);
+	size = min(size, test->card->host->max_blk_count * 512);
+
+	if (size < 1024)
+		return RESULT_UNSUP_HOST;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, test->highmem, size, 0);
+
+	ret = mmc_test_transfer(test, &sg, 1, 0, size/512, 512, 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+#endif /* CONFIG_HIGHMEM */
+
 static const struct mmc_test_case mmc_test_cases[] = {
 	{
 		.name = "Basic write (no data verification)",
@@ -913,9 +1005,42 @@ static const struct mmc_test_case mmc_test_cases[] = {
 		.name = "Correct xfer_size at read (midway failure)",
 		.run = mmc_test_multi_xfersize_read,
 	},
+
+#ifdef CONFIG_HIGHMEM
+
+	{
+		.name = "Highmem write",
+		.prepare = mmc_test_prepare_write,
+		.run = mmc_test_write_high,
+		.cleanup = mmc_test_cleanup,
+	},
+
+	{
+		.name = "Highmem read",
+		.prepare = mmc_test_prepare_read,
+		.run = mmc_test_read_high,
+		.cleanup = mmc_test_cleanup,
+	},
+
+	{
+		.name = "Multi-block highmem write",
+		.prepare = mmc_test_prepare_write,
+		.run = mmc_test_multi_write_high,
+		.cleanup = mmc_test_cleanup,
+	},
+
+	{
+		.name = "Multi-block highmem read",
+		.prepare = mmc_test_prepare_read,
+		.run = mmc_test_multi_read_high,
+		.cleanup = mmc_test_cleanup,
+	},
+
+#endif /* CONFIG_HIGHMEM */
+
 };
 
-static struct mutex mmc_test_lock;
+static DEFINE_MUTEX(mmc_test_lock);
 
 static void mmc_test_run(struct mmc_test_card *test, int testcase)
 {
@@ -1014,12 +1139,23 @@ static ssize_t mmc_test_store(struct device *dev,
 	test->card = card;
 
 	test->buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
+#ifdef CONFIG_HIGHMEM
+	test->highmem = alloc_pages(GFP_KERNEL | __GFP_HIGHMEM, BUFFER_ORDER);
+#endif
+
+#ifdef CONFIG_HIGHMEM
+	if (test->buffer && test->highmem) {
+#else
 	if (test->buffer) {
+#endif
 		mutex_lock(&mmc_test_lock);
 		mmc_test_run(test, testcase);
 		mutex_unlock(&mmc_test_lock);
 	}
 
+#ifdef CONFIG_HIGHMEM
+	__free_pages(test->highmem, BUFFER_ORDER);
+#endif
 	kfree(test->buffer);
 	kfree(test);
 
@@ -1035,11 +1171,11 @@ static int mmc_test_probe(struct mmc_card *card)
 	if ((card->type != MMC_TYPE_MMC) && (card->type != MMC_TYPE_SD))
 		return -ENODEV;
 
-	mutex_init(&mmc_test_lock);
-
 	ret = device_create_file(&card->dev, &dev_attr_test);
 	if (ret)
 		return ret;
+
+	dev_info(&card->dev, "Card claimed for testing.\n");
 
 	return 0;
 }

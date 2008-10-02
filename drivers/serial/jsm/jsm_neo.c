@@ -998,7 +998,7 @@ static void neo_param(struct jsm_channel *ch)
 			{     50, B50     },
 		};
 
-		cflag = C_BAUD(ch->uart_port.info->tty);
+		cflag = C_BAUD(ch->uart_port.info->port.tty);
 		baud = 9600;
 		for (i = 0; i < ARRAY_SIZE(baud_rates); i++) {
 			if (baud_rates[i].cflag == cflag) {

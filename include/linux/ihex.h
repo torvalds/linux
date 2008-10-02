@@ -18,7 +18,7 @@ struct ihex_binrec {
 	__be32 addr;
 	__be16 len;
 	uint8_t data[0];
-} __attribute__((aligned(4)));
+} __attribute__((packed));
 
 /* Find the next record, taking into account the 4-byte alignment */
 static inline const struct ihex_binrec *

@@ -228,7 +228,6 @@ tsetup_mmu_patchme:
 	 */
 #define glob_tmp     g1
 
-	.globl	tsetup_sun4c_stackchk
 tsetup_sun4c_stackchk:
 	/* Done by caller: andcc %sp, 0x7, %g0 */
 	bne	trap_setup_user_stack_is_bolixed

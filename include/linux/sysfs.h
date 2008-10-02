@@ -101,6 +101,9 @@ void sysfs_remove_bin_file(struct kobject *kobj, struct bin_attribute *attr);
 
 int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
 				   const char *name);
+int __must_check sysfs_create_link_nowarn(struct kobject *kobj,
+					  struct kobject *target,
+					  const char *name);
 void sysfs_remove_link(struct kobject *kobj, const char *name);
 
 int __must_check sysfs_create_group(struct kobject *kobj,
@@ -176,6 +179,13 @@ static inline void sysfs_remove_bin_file(struct kobject *kobj,
 
 static inline int sysfs_create_link(struct kobject *kobj,
 				    struct kobject *target, const char *name)
+{
+	return 0;
+}
+
+static inline int sysfs_create_link_nowarn(struct kobject *kobj,
+					   struct kobject *target,
+					   const char *name)
 {
 	return 0;
 }

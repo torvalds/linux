@@ -224,4 +224,42 @@ size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
  */
 #define SG_MAX_SINGLE_ALLOC		(PAGE_SIZE / sizeof(struct scatterlist))
 
+
+/*
+ * Mapping sg iterator
+ *
+ * Iterates over sg entries mapping page-by-page.  On each successful
+ * iteration, @miter->page points to the mapped page and
+ * @miter->length bytes of data can be accessed at @miter->addr.  As
+ * long as an interation is enclosed between start and stop, the user
+ * is free to choose control structure and when to stop.
+ *
+ * @miter->consumed is set to @miter->length on each iteration.  It
+ * can be adjusted if the user can't consume all the bytes in one go.
+ * Also, a stopped iteration can be resumed by calling next on it.
+ * This is useful when iteration needs to release all resources and
+ * continue later (e.g. at the next interrupt).
+ */
+
+#define SG_MITER_ATOMIC		(1 << 0)	 /* use kmap_atomic */
+
+struct sg_mapping_iter {
+	/* the following three fields can be accessed directly */
+	struct page		*page;		/* currently mapped page */
+	void			*addr;		/* pointer to the mapped area */
+	size_t			length;		/* length of the mapped area */
+	size_t			consumed;	/* number of consumed bytes */
+
+	/* these are internal states, keep away */
+	struct scatterlist	*__sg;		/* current entry */
+	unsigned int		__nents;	/* nr of remaining entries */
+	unsigned int		__offset;	/* offset within sg */
+	unsigned int		__flags;
+};
+
+void sg_miter_start(struct sg_mapping_iter *miter, struct scatterlist *sgl,
+		    unsigned int nents, unsigned int flags);
+bool sg_miter_next(struct sg_mapping_iter *miter);
+void sg_miter_stop(struct sg_mapping_iter *miter);
+
 #endif /* _LINUX_SCATTERLIST_H */

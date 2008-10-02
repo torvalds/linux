@@ -31,7 +31,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/arch/mailbox.h>
+#include <mach/mailbox.h>
 #include "mailbox.h"
 
 static struct omap_mbox *mboxes;
@@ -334,7 +334,7 @@ static int omap_mbox_init(struct omap_mbox *mbox)
 	}
 
 	mbox->dev.class = &omap_mbox_class;
-	strlcpy(mbox->dev.bus_id, mbox->name, KOBJ_NAME_LEN);
+	dev_set_name(&mbox->dev, "%s", mbox->name);
 	dev_set_drvdata(&mbox->dev, mbox);
 
 	ret = device_register(&mbox->dev);

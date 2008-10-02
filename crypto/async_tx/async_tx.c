@@ -137,7 +137,8 @@ async_tx_run_dependencies(struct dma_async_tx_descriptor *tx)
 		spin_lock_bh(&next->lock);
 		next->parent = NULL;
 		_next = next->next;
-		next->next = NULL;
+		if (_next && _next->chan == chan)
+			next->next = NULL;
 		spin_unlock_bh(&next->lock);
 
 		next->tx_submit(next);
@@ -295,7 +296,7 @@ dma_channel_add_remove(struct dma_client *client,
 	case DMA_RESOURCE_REMOVED:
 		found = 0;
 		spin_lock_irqsave(&async_tx_lock, flags);
-		list_for_each_entry_rcu(ref, &async_tx_master_list, node)
+		list_for_each_entry(ref, &async_tx_master_list, node)
 			if (ref->chan == chan) {
 				/* permit backing devices to go away */
 				dma_chan_put(ref->chan);
@@ -608,22 +609,33 @@ async_trigger_callback(enum async_tx_flags flags,
 		pr_debug("%s: (sync)\n", __func__);
 
 		/* wait for any prerequisite operations */
-		if (depend_tx) {
-			/* if ack is already set then we cannot be sure
-			 * we are referring to the correct operation
-			 */
-			BUG_ON(async_tx_test_ack(depend_tx));
-			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
-				panic("%s: DMA_ERROR waiting for depend_tx\n",
-					__func__);
-		}
+		async_tx_quiesce(&depend_tx);
 
-		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
+		async_tx_sync_epilog(cb_fn, cb_param);
 	}
 
 	return tx;
 }
 EXPORT_SYMBOL_GPL(async_trigger_callback);
+
+/**
+ * async_tx_quiesce - ensure tx is complete and freeable upon return
+ * @tx - transaction to quiesce
+ */
+void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
+{
+	if (*tx) {
+		/* if ack is already set then we cannot be sure
+		 * we are referring to the correct operation
+		 */
+		BUG_ON(async_tx_test_ack(*tx));
+		if (dma_wait_for_async_tx(*tx) == DMA_ERROR)
+			panic("DMA_ERROR waiting for transaction\n");
+		async_tx_ack(*tx);
+		*tx = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(async_tx_quiesce);
 
 module_init(async_tx_init);
 module_exit(async_tx_exit);

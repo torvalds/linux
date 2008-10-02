@@ -1212,6 +1212,9 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"TxCsumOffload      ",
 	"RxCsumGood         ",
+	"LroAggregated      ",
+	"LroFlushed         ",
+	"LroNoDesc          ",
 	"RxDrops            ",
 
 	"CheckTXEnToggled   ",
@@ -1340,6 +1343,9 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_VLANINS);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_TX_CSUM);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_RX_CSUM_GOOD);
+	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_AGGR);
+	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_FLUSHED);
+	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_NO_DESC);
 	*data++ = s->rx_cong_drops;
 
 	*data++ = s->num_toggled;
@@ -1558,6 +1564,13 @@ static int set_rx_csum(struct net_device *dev, u32 data)
 	struct port_info *p = netdev_priv(dev);
 
 	p->rx_csum_offload = data;
+	if (!data) {
+		struct adapter *adap = p->adapter;
+		int i;
+
+		for (i = p->first_qset; i < p->first_qset + p->nqsets; i++)
+			adap->sge.qs[i].lro_enabled = 0;
+	}
 	return 0;
 }
 
@@ -1830,6 +1843,11 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 				}
 			}
 		}
+		if (t.lro >= 0) {
+			struct sge_qset *qs = &adapter->sge.qs[t.qset_idx];
+			q->lro = t.lro;
+			qs->lro_enabled = t.lro;
+		}
 		break;
 	}
 	case CHELSIO_GET_QSET_PARAMS:{
@@ -1849,6 +1867,7 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		t.fl_size[0] = q->fl_size;
 		t.fl_size[1] = q->jumbo_size;
 		t.polling = q->polling;
+		t.lro = q->lro;
 		t.intr_lat = q->coalesce_usecs;
 		t.cong_thres = q->cong_thres;
 

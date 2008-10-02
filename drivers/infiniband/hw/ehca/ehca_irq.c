@@ -178,6 +178,10 @@ static void dispatch_qp_event(struct ehca_shca *shca, struct ehca_qp *qp,
 {
 	struct ib_event event;
 
+	/* PATH_MIG without the QP ever having been armed is false alarm */
+	if (event_type == IB_EVENT_PATH_MIG && !qp->mig_armed)
+		return;
+
 	event.device = &shca->ib_device;
 	event.event = event_type;
 
@@ -646,8 +650,8 @@ static inline int find_next_online_cpu(struct ehca_comp_pool *pool)
 		ehca_dmp(&cpu_online_map, sizeof(cpumask_t), "");
 
 	spin_lock_irqsave(&pool->last_cpu_lock, flags);
-	cpu = next_cpu(pool->last_cpu, cpu_online_map);
-	if (cpu == NR_CPUS)
+	cpu = next_cpu_nr(pool->last_cpu, cpu_online_map);
+	if (cpu >= nr_cpu_ids)
 		cpu = first_cpu(cpu_online_map);
 	pool->last_cpu = cpu;
 	spin_unlock_irqrestore(&pool->last_cpu_lock, flags);

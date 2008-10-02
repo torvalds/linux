@@ -48,7 +48,7 @@ char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Network Driver";
 
-#define DRV_VERSION "1.3.18-k2"
+#define DRV_VERSION "1.3.18-k4"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 	 "Copyright (c) 1999-2007 Intel Corporation.";
@@ -70,9 +70,9 @@ static struct pci_device_id ixgbe_pci_tbl[] = {
 	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT),
 	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT_DUAL_PORT),
-	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4),
+	 board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT),
 	 board_82598 },
 
 	/* required last entry */
@@ -266,28 +266,16 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
 		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
 			netif_wake_subqueue(netdev, tx_ring->queue_index);
 			adapter->restart_queue++;
 		}
-#else
-		if (netif_queue_stopped(netdev) &&
-		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
-			netif_wake_queue(netdev);
-			adapter->restart_queue++;
-		}
-#endif
 	}
 
 	if (adapter->detect_tx_hung)
 		if (ixgbe_check_tx_hang(adapter, tx_ring, eop, eop_desc))
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 			netif_stop_subqueue(netdev, tx_ring->queue_index);
-#else
-			netif_stop_queue(netdev);
-#endif
 
 	if (total_tx_packets >= tx_ring->work_limit)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, tx_ring->eims_value);
@@ -389,24 +377,39 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
  * ixgbe_receive_skb - Send a completed packet up the stack
  * @adapter: board private structure
  * @skb: packet to send up
- * @is_vlan: packet has a VLAN tag
- * @tag: VLAN tag from descriptor
+ * @status: hardware indication of status of receive
+ * @rx_ring: rx descriptor ring (for a specific queue) to setup
+ * @rx_desc: rx descriptor
  **/
 static void ixgbe_receive_skb(struct ixgbe_adapter *adapter,
-			      struct sk_buff *skb, bool is_vlan,
-			      u16 tag)
+			      struct sk_buff *skb, u8 status,
+			      struct ixgbe_ring *ring,
+                              union ixgbe_adv_rx_desc *rx_desc)
 {
-	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
-		if (adapter->vlgrp && is_vlan)
-			vlan_hwaccel_receive_skb(skb, adapter->vlgrp, tag);
-		else
-			netif_receive_skb(skb);
-	} else {
+	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
+	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
+	if (adapter->netdev->features & NETIF_F_LRO &&
+	    skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (adapter->vlgrp && is_vlan)
-			vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
+			lro_vlan_hwaccel_receive_skb(&ring->lro_mgr, skb,
+			                             adapter->vlgrp, tag,
+			                             rx_desc);
 		else
-			netif_rx(skb);
+			lro_receive_skb(&ring->lro_mgr, skb, rx_desc);
+		ring->lro_used = true;
+	} else {
+		if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
+			if (adapter->vlgrp && is_vlan)
+				vlan_hwaccel_receive_skb(skb, adapter->vlgrp, tag);
+			else
+				netif_receive_skb(skb);
+		} else {
+			if (adapter->vlgrp && is_vlan)
+				vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
+			else
+				netif_rx(skb);
+		}
 	}
 }
 
@@ -546,8 +549,8 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 	struct sk_buff *skb;
 	unsigned int i;
 	u32 upper_len, len, staterr;
-	u16 hdr_info, vlan_tag;
-	bool is_vlan, cleaned = false;
+	u16 hdr_info;
+	bool cleaned = false;
 	int cleaned_count = 0;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
@@ -556,8 +559,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 	rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	rx_buffer_info = &rx_ring->rx_buffer_info[i];
-	is_vlan = (staterr & IXGBE_RXD_STAT_VP);
-	vlan_tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
 	while (staterr & IXGBE_RXD_STAT_DD) {
 		if (*work_done >= work_to_do)
@@ -635,7 +636,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 		total_rx_packets++;
 
 		skb->protocol = eth_type_trans(skb, netdev);
-		ixgbe_receive_skb(adapter, skb, is_vlan, vlan_tag);
+		ixgbe_receive_skb(adapter, skb, staterr, rx_ring, rx_desc);
 		netdev->last_rx = jiffies;
 
 next_desc:
@@ -652,8 +653,11 @@ next_desc:
 		rx_buffer_info = next_buffer;
 
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
-		is_vlan = (staterr & IXGBE_RXD_STAT_VP);
-		vlan_tag = le16_to_cpu(rx_desc->wb.upper.vlan);
+	}
+
+	if (rx_ring->lro_used) {
+		lro_flush_all(&rx_ring->lro_mgr);
+		rx_ring->lro_used = false;
 	}
 
 	rx_ring->next_to_clean = i;
@@ -1382,6 +1386,33 @@ static void ixgbe_configure_tx(struct ixgbe_adapter *adapter)
 
 #define IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT			2
 /**
+ * ixgbe_get_skb_hdr - helper function for LRO header processing
+ * @skb: pointer to sk_buff to be added to LRO packet
+ * @iphdr: pointer to tcp header structure
+ * @tcph: pointer to tcp header structure
+ * @hdr_flags: pointer to header flags
+ * @priv: private data
+ **/
+static int ixgbe_get_skb_hdr(struct sk_buff *skb, void **iphdr, void **tcph,
+                             u64 *hdr_flags, void *priv)
+{
+	union ixgbe_adv_rx_desc *rx_desc = priv;
+
+	/* Verify that this is a valid IPv4 TCP packet */
+	if (!(rx_desc->wb.lower.lo_dword.pkt_info &
+	    (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP)))
+		return -1;
+
+	/* Set network headers */
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, ip_hdrlen(skb));
+	*iphdr = ip_hdr(skb);
+	*tcph = tcp_hdr(skb);
+	*hdr_flags = LRO_IPV4 | LRO_TCP;
+	return 0;
+}
+
+/**
  * ixgbe_configure_rx - Configure 8254x Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -1470,6 +1501,17 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		adapter->rx_ring[i].tail = IXGBE_RDT(i);
 	}
 
+	/* Intitial LRO Settings */
+	adapter->rx_ring[i].lro_mgr.max_aggr = IXGBE_MAX_LRO_AGGREGATE;
+	adapter->rx_ring[i].lro_mgr.max_desc = IXGBE_MAX_LRO_DESCRIPTORS;
+	adapter->rx_ring[i].lro_mgr.get_skb_header = ixgbe_get_skb_hdr;
+	adapter->rx_ring[i].lro_mgr.features = LRO_F_EXTRACT_VLAN_ID;
+	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
+		adapter->rx_ring[i].lro_mgr.features |= LRO_F_NAPI;
+	adapter->rx_ring[i].lro_mgr.dev = adapter->netdev;
+	adapter->rx_ring[i].lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
+	adapter->rx_ring[i].lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
+
 	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
 		/* Fill out redirection table */
 		for (i = 0, j = 0; i < 128; i++, j++) {
@@ -1532,7 +1574,7 @@ static void ixgbe_vlan_rx_register(struct net_device *netdev,
 	if (grp) {
 		/* enable VLAN tag insert/strip */
 		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-		ctrl |= IXGBE_VLNCTRL_VME | IXGBE_VLNCTRL_VFE;
+		ctrl |= IXGBE_VLNCTRL_VME;
 		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
 	}
@@ -1594,23 +1636,29 @@ static void ixgbe_set_multi(struct net_device *netdev)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct dev_mc_list *mc_ptr;
 	u8 *mta_list;
-	u32 fctrl;
+	u32 fctrl, vlnctrl;
 	int i;
 
 	/* Check for Promiscuous and All Multicast modes */
 
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+	vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
 
 	if (netdev->flags & IFF_PROMISC) {
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
-	} else if (netdev->flags & IFF_ALLMULTI) {
-		fctrl |= IXGBE_FCTRL_MPE;
-		fctrl &= ~IXGBE_FCTRL_UPE;
+		vlnctrl &= ~IXGBE_VLNCTRL_VFE;
 	} else {
-		fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+		if (netdev->flags & IFF_ALLMULTI) {
+			fctrl |= IXGBE_FCTRL_MPE;
+			fctrl &= ~IXGBE_FCTRL_UPE;
+		} else {
+			fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+		}
+		vlnctrl |= IXGBE_VLNCTRL_VFE;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 
 	if (netdev->mc_count) {
 		mta_list = kcalloc(netdev->mc_count, ETH_ALEN, GFP_ATOMIC);
@@ -1967,7 +2015,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	del_timer_sync(&adapter->watchdog_timer);
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
@@ -2138,11 +2186,7 @@ static void __devinit ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 		case (IXGBE_FLAG_RSS_ENABLED):
 			rss_m = 0xF;
 			nrq = rss_i;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 			ntq = rss_i;
-#else
-			ntq = 1;
-#endif
 			break;
 		case 0:
 		default:
@@ -2260,6 +2304,12 @@ static int __devinit ixgbe_set_interrupt_capability(struct ixgbe_adapter
 	int vector, v_budget;
 
 	/*
+	 * Set the default interrupt throttle rate.
+	 */
+	adapter->rx_eitr = (1000000 / IXGBE_DEFAULT_ITR_RX_USECS);
+	adapter->tx_eitr = (1000000 / IXGBE_DEFAULT_ITR_TX_USECS);
+
+	/*
 	 * It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
 	 * than CPU's.  So let's be conservative and only ask for
@@ -2316,10 +2366,8 @@ try_msi:
 	}
 
 out:
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->egress_subqueue_count = adapter->num_tx_queues;
-#endif
+	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 
 	return err;
 }
@@ -2490,12 +2538,18 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	int size;
 
+	size = sizeof(struct net_lro_desc) * IXGBE_MAX_LRO_DESCRIPTORS;
+	rxdr->lro_mgr.lro_arr = vmalloc(size);
+	if (!rxdr->lro_mgr.lro_arr)
+		return -ENOMEM;
+	memset(rxdr->lro_mgr.lro_arr, 0, size);
+
 	size = sizeof(struct ixgbe_rx_buffer) * rxdr->count;
 	rxdr->rx_buffer_info = vmalloc(size);
 	if (!rxdr->rx_buffer_info) {
 		DPRINTK(PROBE, ERR,
 			"vmalloc allocation failed for the rx desc ring\n");
-		return -ENOMEM;
+		goto alloc_failed;
 	}
 	memset(rxdr->rx_buffer_info, 0, size);
 
@@ -2509,13 +2563,18 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 		DPRINTK(PROBE, ERR,
 			"Memory allocation failed for the rx desc ring\n");
 		vfree(rxdr->rx_buffer_info);
-		return -ENOMEM;
+		goto alloc_failed;
 	}
 
 	rxdr->next_to_clean = 0;
 	rxdr->next_to_use = 0;
 
 	return 0;
+
+alloc_failed:
+	vfree(rxdr->lro_mgr.lro_arr);
+	rxdr->lro_mgr.lro_arr = NULL;
+	return -ENOMEM;
 }
 
 /**
@@ -2565,6 +2624,9 @@ static void ixgbe_free_rx_resources(struct ixgbe_adapter *adapter,
 				    struct ixgbe_ring *rx_ring)
 {
 	struct pci_dev *pdev = adapter->pdev;
+
+	vfree(rx_ring->lro_mgr.lro_arr);
+	rx_ring->lro_mgr.lro_arr = NULL;
 
 	ixgbe_clean_rx_ring(adapter, rx_ring);
 
@@ -2711,6 +2773,8 @@ static int ixgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_up;
 
+	netif_tx_start_all_queues(netdev);
+
 	return 0;
 
 err_up:
@@ -2842,9 +2906,6 @@ static void ixgbe_watchdog(unsigned long data)
 	struct net_device *netdev = adapter->netdev;
 	bool link_up;
 	u32 link_speed = 0;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-	int i;
-#endif
 
 	adapter->hw.mac.ops.check_link(&adapter->hw, &(link_speed), &link_up);
 
@@ -2865,11 +2926,7 @@ static void ixgbe_watchdog(unsigned long data)
 				 (FLOW_TX ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-			for (i = 0; i < adapter->num_tx_queues; i++)
-				netif_wake_subqueue(netdev, i);
-#endif
+			netif_tx_wake_all_queues(netdev);
 		} else {
 			/* Force detection of hung controller */
 			adapter->detect_tx_hung = true;
@@ -2878,7 +2935,7 @@ static void ixgbe_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			DPRINTK(LINK, INFO, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
+			netif_tx_stop_all_queues(netdev);
 		}
 	}
 
@@ -3196,11 +3253,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_stop_subqueue(netdev, tx_ring->queue_index);
-#else
-	netif_stop_queue(netdev);
-#endif
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
 	 * but since that doesn't exist yet, just open code it. */
@@ -3212,11 +3265,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 		return -EBUSY;
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_wake_subqueue(netdev, tx_ring->queue_index);
-#else
-	netif_wake_queue(netdev);
-#endif
 	++adapter->restart_queue;
 	return 0;
 }
@@ -3244,9 +3293,7 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int f;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	len -= skb->data_len;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	r_idx = (adapter->num_tx_queues - 1) & skb->queue_mapping;
-#endif
 	tx_ring = &adapter->tx_ring[r_idx];
 
 
@@ -3434,11 +3481,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), MAX_TX_QUEUES);
-#else
-	netdev = alloc_etherdev(sizeof(struct ixgbe_adapter));
-#endif
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_etherdev;
@@ -3518,15 +3561,17 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
 
+	netdev->features |= NETIF_F_LRO;
 	netdev->features |= NETIF_F_TSO;
-
 	netdev->features |= NETIF_F_TSO6;
+
+	netdev->vlan_features |= NETIF_F_TSO;
+	netdev->vlan_features |= NETIF_F_TSO6;
+	netdev->vlan_features |= NETIF_F_HW_CSUM;
+	netdev->vlan_features |= NETIF_F_SG;
+
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
-
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-	netdev->features |= NETIF_F_MULTI_QUEUE;
-#endif
 
 	/* make sure the EEPROM is good */
 	if (ixgbe_validate_eeprom_checksum(hw, NULL) < 0) {
@@ -3593,11 +3638,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	ixgbe_start_hw(hw);
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		netif_stop_subqueue(netdev, i);
-#endif
+	netif_tx_stop_all_queues(netdev);
 
 	ixgbe_napi_add_all(adapter);
 

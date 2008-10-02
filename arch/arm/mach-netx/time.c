@@ -22,10 +22,10 @@
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/time.h>
-#include <asm/arch/netx-regs.h>
+#include <mach/netx-regs.h>
 
 /*
  * IRQ handler for the timer

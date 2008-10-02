@@ -648,7 +648,7 @@ static int ddp_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = ptr;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_DOWN)
@@ -959,7 +959,7 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -986,7 +986,7 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1405,7 +1405,7 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	int origlen;
 	__u16 len_hops;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		goto freeit;
 
 	/* Don't mangle buffer if shared */
@@ -1493,7 +1493,7 @@ freeit:
 static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		     struct packet_type *pt, struct net_device *orig_dev)
 {
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		goto freeit;
 
 	/* Expand any short form frames */

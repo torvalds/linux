@@ -18,9 +18,10 @@ CONFIG_PAGE_OFFSET	?= 0x80000000
 CONFIG_MEMORY_START	?= 0x0c000000
 CONFIG_BOOT_LINK_OFFSET	?= 0x00800000
 CONFIG_ZERO_PAGE_OFFSET	?= 0x00001000
+CONFIG_ENTRY_OFFSET	?= 0x00001000
 
 export CONFIG_PAGE_OFFSET CONFIG_MEMORY_START CONFIG_BOOT_LINK_OFFSET \
-       CONFIG_ZERO_PAGE_OFFSET
+       CONFIG_ZERO_PAGE_OFFSET CONFIG_ENTRY_OFFSET
 
 targets := zImage vmlinux.srec uImage uImage.srec
 subdir- := compressed
@@ -40,7 +41,7 @@ KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%08x" \
 KERNEL_ENTRY	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
 			$(CONFIG_MEMORY_START) + \
-			$(CONFIG_ZERO_PAGE_OFFSET)+0x1000]')
+			$(CONFIG_ZERO_PAGE_OFFSET) + $(CONFIG_ENTRY_OFFSET)]')
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sh -O linux -T kernel \

@@ -129,9 +129,9 @@ nlmsvc_lookup_block(struct nlm_file *file, struct nlm_lock *lock)
 
 static inline int nlm_cookie_match(struct nlm_cookie *a, struct nlm_cookie *b)
 {
-	if(a->len != b->len)
+	if (a->len != b->len)
 		return 0;
-	if(memcmp(a->data,b->data,a->len))
+	if (memcmp(a->data, b->data, a->len))
 		return 0;
 	return 1;
 }
@@ -180,6 +180,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_host *host,
 	struct nlm_block	*block;
 	struct nlm_rqst		*call = NULL;
 
+	nlm_get_host(host);
 	call = nlm_alloc_call(host);
 	if (call == NULL)
 		return NULL;
@@ -358,10 +359,10 @@ nlmsvc_defer_lock_rqst(struct svc_rqst *rqstp, struct nlm_block *block)
  */
 __be32
 nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
-			struct nlm_lock *lock, int wait, struct nlm_cookie *cookie)
+	    struct nlm_host *host, struct nlm_lock *lock, int wait,
+	    struct nlm_cookie *cookie)
 {
 	struct nlm_block	*block = NULL;
-	struct nlm_host		*host;
 	int			error;
 	__be32			ret;
 
@@ -373,11 +374,6 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 				(long long)lock->fl.fl_end,
 				wait);
 
-	/* Create host handle for callback */
-	host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len);
-	if (host == NULL)
-		return nlm_lck_denied_nolocks;
-
 	/* Lock file against concurrent access */
 	mutex_lock(&file->f_mutex);
 	/* Get existing block (in case client is busy-waiting)
@@ -385,8 +381,7 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 	 */
 	block = nlmsvc_lookup_block(file, lock);
 	if (block == NULL) {
-		block = nlmsvc_create_block(rqstp, nlm_get_host(host), file,
-				lock, cookie);
+		block = nlmsvc_create_block(rqstp, host, file, lock, cookie);
 		ret = nlm_lck_denied_nolocks;
 		if (block == NULL)
 			goto out;
@@ -417,14 +412,14 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 	lock->fl.fl_flags &= ~FL_SLEEP;
 
 	dprintk("lockd: vfs_lock_file returned %d\n", error);
-	switch(error) {
+	switch (error) {
 		case 0:
 			ret = nlm_granted;
 			goto out;
 		case -EAGAIN:
 			ret = nlm_lck_denied;
-			break;
-		case -EINPROGRESS:
+			goto out;
+		case FILE_LOCK_DEFERRED:
 			if (wait)
 				break;
 			/* Filesystem lock operation is in progress
@@ -439,10 +434,6 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 			goto out;
 	}
 
-	ret = nlm_lck_denied;
-	if (!wait)
-		goto out;
-
 	ret = nlm_lck_blocked;
 
 	/* Append to list of blocked */
@@ -450,7 +441,6 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 out:
 	mutex_unlock(&file->f_mutex);
 	nlmsvc_release_block(block);
-	nlm_release_host(host);
 	dprintk("lockd: nlmsvc_lock returned %u\n", ret);
 	return ret;
 }
@@ -460,8 +450,8 @@ out:
  */
 __be32
 nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
-		struct nlm_lock *lock, struct nlm_lock *conflock,
-		struct nlm_cookie *cookie)
+		struct nlm_host *host, struct nlm_lock *lock,
+		struct nlm_lock *conflock, struct nlm_cookie *cookie)
 {
 	struct nlm_block 	*block = NULL;
 	int			error;
@@ -479,16 +469,9 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 
 	if (block == NULL) {
 		struct file_lock *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
-		struct nlm_host	*host;
 
 		if (conf == NULL)
 			return nlm_granted;
-		/* Create host handle for callback */
-		host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len);
-		if (host == NULL) {
-			kfree(conf);
-			return nlm_lck_denied_nolocks;
-		}
 		block = nlmsvc_create_block(rqstp, host, file, lock, cookie);
 		if (block == NULL) {
 			kfree(conf);
@@ -520,7 +503,7 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 	}
 
 	error = vfs_test_lock(file->f_file, &lock->fl);
-	if (error == -EINPROGRESS) {
+	if (error == FILE_LOCK_DEFERRED) {
 		ret = nlmsvc_defer_lock_rqst(rqstp, block);
 		goto out;
 	}
@@ -744,8 +727,7 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 	switch (error) {
 	case 0:
 		break;
-	case -EAGAIN:
-	case -EINPROGRESS:
+	case FILE_LOCK_DEFERRED:
 		dprintk("lockd: lock still blocked error %d\n", error);
 		nlmsvc_insert_block(block, NLM_NEVER);
 		nlmsvc_release_block(block);
@@ -897,7 +879,7 @@ nlmsvc_retry_blocked(void)
 
 		if (block->b_when == NLM_NEVER)
 			break;
-	        if (time_after(block->b_when,jiffies)) {
+		if (time_after(block->b_when, jiffies)) {
 			timeout = block->b_when - jiffies;
 			break;
 		}

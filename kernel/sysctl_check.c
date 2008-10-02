@@ -1532,6 +1532,8 @@ int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table)
 			sysctl_check_leaf(namespaces, table, &fail);
 		}
 		sysctl_check_bin_path(table, &fail);
+		if (table->mode > 0777)
+			set_fail(&fail, table, "bogus .mode");
 		if (fail) {
 			set_fail(&fail, table, NULL);
 			error = -EINVAL;

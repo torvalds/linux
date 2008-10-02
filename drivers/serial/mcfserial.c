@@ -327,7 +327,7 @@ static void mcfrs_start(struct tty_struct *tty)
 static inline void receive_chars(struct mcf_serial *info)
 {
 	volatile unsigned char	*uartp;
-	struct tty_struct	*tty = info->tty;
+	struct tty_struct	*tty = info->port.tty;
 	unsigned char		status, ch, flag;
 
 	if (!tty)
@@ -382,7 +382,7 @@ static inline void transmit_chars(struct mcf_serial *info)
 		info->stats.tx++;
 	}
 
-	if ((info->xmit_cnt <= 0) || info->tty->stopped) {
+	if ((info->xmit_cnt <= 0) || info->port.tty->stopped) {
 		info->imr &= ~MCFUART_UIR_TXREADY;
 		uartp[MCFUART_UIMR] = info->imr;
 		return;
@@ -428,7 +428,7 @@ irqreturn_t mcfrs_interrupt(int irq, void *dev_id)
 static void mcfrs_offintr(struct work_struct *work)
 {
 	struct mcf_serial *info = container_of(work, struct mcf_serial, tqueue);
-	struct tty_struct *tty = info->tty;
+	struct tty_struct *tty = info->port.tty;
 	
 	if (tty)
 		tty_wakeup(tty);
@@ -498,7 +498,7 @@ static void mcfrs_timer(void)
 static void do_serial_hangup(struct work_struct *work)
 {
 	struct mcf_serial *info = container_of(work, struct mcf_serial, tqueue_hangup);
-	struct tty_struct *tty = info->tty;
+	struct tty_struct *tty = info->port.tty;
 	
 	if (tty)
 		tty_hangup(tty);
@@ -532,8 +532,8 @@ static int startup(struct mcf_serial * info)
 	uartp[MCFUART_UCR] = MCFUART_UCR_CMDRESETTX;  /* reset TX */
 	mcfrs_setsignals(info, 1, 1);
 
-	if (info->tty)
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (info->port.tty)
+		clear_bit(TTY_IO_ERROR, &info->port.tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
 	/*
@@ -578,7 +578,7 @@ static void shutdown(struct mcf_serial * info)
 	uartp[MCFUART_UCR] = MCFUART_UCR_CMDRESETRX;  /* reset RX */
 	uartp[MCFUART_UCR] = MCFUART_UCR_CMDRESETTX;  /* reset TX */
 
-	if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
+	if (!info->port.tty || (info->port.tty->termios->c_cflag & HUPCL))
 		mcfrs_setsignals(info, 0, 0);
 
 	if (info->xmit_buf) {
@@ -586,8 +586,8 @@ static void shutdown(struct mcf_serial * info)
 		info->xmit_buf = 0;
 	}
 
-	if (info->tty)
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (info->port.tty)
+		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 	
 	info->flags &= ~ASYNC_INITIALIZED;
 	local_irq_restore(flags);
@@ -609,9 +609,9 @@ static void mcfrs_change_speed(struct mcf_serial *info)
 	unsigned int		fraction;
 #endif
 
-	if (!info->tty || !info->tty->termios)
+	if (!info->port.tty || !info->port.tty->termios)
 		return;
-	cflag = info->tty->termios->c_cflag;
+	cflag = info->port.tty->termios->c_cflag;
 	if (info->addr == 0)
 		return;
 
@@ -623,7 +623,7 @@ static void mcfrs_change_speed(struct mcf_serial *info)
 	if (i & CBAUDEX) {
 		i &= ~CBAUDEX;
 		if (i < 1 || i > 4)
-			info->tty->termios->c_cflag &= ~CBAUDEX;
+			info->port.tty->termios->c_cflag &= ~CBAUDEX;
 		else
 			i += 15;
 	}
@@ -1216,7 +1216,7 @@ static void mcfrs_close(struct tty_struct *tty, struct file * filp)
 	
 	tty->closing = 0;
 	info->event = 0;
-	info->tty = 0;
+	info->port.tty = NULL;
 #if 0	
 	if (tty->ldisc.num != ldiscs[N_TTY].num) {
 		if (tty->ldisc.close)
@@ -1325,7 +1325,7 @@ void mcfrs_hangup(struct tty_struct *tty)
 	info->event = 0;
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
-	info->tty = 0;
+	info->port.tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
 
@@ -1452,7 +1452,7 @@ int mcfrs_open(struct tty_struct *tty, struct file * filp)
 #endif
 	info->count++;
 	tty->driver_data = info;
-	info->tty = tty;
+	info->port.tty = tty;
 
 	/*
 	 * Start up serial port
@@ -1767,7 +1767,7 @@ mcfrs_init(void)
 	for (i = 0, info = mcfrs_table; (i < NR_PORTS); i++, info++) {
 		info->magic = SERIAL_MAGIC;
 		info->line = i;
-		info->tty = 0;
+		info->port.tty = NULL;
 		info->custom_divisor = 16;
 		info->close_delay = 50;
 		info->closing_wait = 3000;

@@ -26,13 +26,13 @@
 #include <linux/time.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 
 #include <asm/mach-types.h>
 
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/h1940.h>
+#include <mach/regs-gpio.h>
+#include <mach/h1940.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/pm.h>

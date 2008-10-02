@@ -56,14 +56,14 @@
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-irq.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/pm.h>
@@ -292,27 +292,27 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 	/* Set the external interrupt to pointed trigger type */
 	switch (type)
 	{
-		case IRQT_NOEDGE:
+		case IRQ_TYPE_NONE:
 			printk(KERN_WARNING "No edge setting!\n");
 			break;
 
-		case IRQT_RISING:
+		case IRQ_TYPE_EDGE_RISING:
 			newvalue = S3C2410_EXTINT_RISEEDGE;
 			break;
 
-		case IRQT_FALLING:
+		case IRQ_TYPE_EDGE_FALLING:
 			newvalue = S3C2410_EXTINT_FALLEDGE;
 			break;
 
-		case IRQT_BOTHEDGE:
+		case IRQ_TYPE_EDGE_BOTH:
 			newvalue = S3C2410_EXTINT_BOTHEDGE;
 			break;
 
-		case IRQT_LOW:
+		case IRQ_TYPE_LEVEL_LOW:
 			newvalue = S3C2410_EXTINT_LOWLEV;
 			break;
 
-		case IRQT_HIGH:
+		case IRQ_TYPE_LEVEL_HIGH:
 			newvalue = S3C2410_EXTINT_HILEV;
 			break;
 

@@ -1117,6 +1117,8 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_HT_EXPRESS) },
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS) },
 	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P_2) },
+/* 35 */{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK_52009) },
+	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_3) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1372,7 +1374,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 4,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -1380,6 +1382,14 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Pinnacle PCTV Dual DVB-T Diversity Stick",
 				{ &dib0700_usb_id_table[18], NULL },
+				{ NULL },
+			},
+			{   "Hauppauge Nova-TD Stick (52009)",
+				{ &dib0700_usb_id_table[35], NULL },
+				{ NULL },
+			},
+			{   "Hauppauge Nova-TD-500 (84xxx)",
+				{ &dib0700_usb_id_table[36], NULL },
 				{ NULL },
 			}
 		}

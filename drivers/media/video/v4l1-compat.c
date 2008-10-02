@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>

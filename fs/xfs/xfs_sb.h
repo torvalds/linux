@@ -46,10 +46,12 @@ struct xfs_mount;
 #define XFS_SB_VERSION_SECTORBIT	0x0800
 #define	XFS_SB_VERSION_EXTFLGBIT	0x1000
 #define	XFS_SB_VERSION_DIRV2BIT		0x2000
+#define	XFS_SB_VERSION_BORGBIT		0x4000	/* ASCII only case-insens. */
 #define	XFS_SB_VERSION_MOREBITSBIT	0x8000
 #define	XFS_SB_VERSION_OKSASHFBITS	\
 	(XFS_SB_VERSION_EXTFLGBIT | \
-	 XFS_SB_VERSION_DIRV2BIT)
+	 XFS_SB_VERSION_DIRV2BIT | \
+	 XFS_SB_VERSION_BORGBIT)
 #define	XFS_SB_VERSION_OKREALFBITS	\
 	(XFS_SB_VERSION_ATTRBIT | \
 	 XFS_SB_VERSION_NLINKBIT | \
@@ -437,6 +439,12 @@ static inline int xfs_sb_version_hassector(xfs_sb_t *sbp)
 		((sbp)->sb_versionnum & XFS_SB_VERSION_SECTORBIT);
 }
 
+static inline int xfs_sb_version_hasasciici(xfs_sb_t *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
+		(sbp->sb_versionnum & XFS_SB_VERSION_BORGBIT);
+}
+
 static inline int xfs_sb_version_hasmorebits(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
@@ -471,6 +479,13 @@ static inline void xfs_sb_version_addattr2(xfs_sb_t *sbp)
 		((sbp)->sb_versionnum | XFS_SB_VERSION_MOREBITSBIT),	\
 	((sbp)->sb_features2 =	\
 		((sbp)->sb_features2 | XFS_SB_VERSION2_ATTR2BIT)));
+}
+
+static inline void xfs_sb_version_removeattr2(xfs_sb_t *sbp)
+{
+	sbp->sb_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
+	if (!sbp->sb_features2)
+		sbp->sb_versionnum &= ~XFS_SB_VERSION_MOREBITSBIT;
 }
 
 /*

@@ -19,6 +19,7 @@
 #include <media/tuner.h>
 #include <media/tuner-types.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 #include "mt20xx.h"
 #include "tda8290.h"
@@ -1297,7 +1298,6 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.legacy_probe = tuner_legacy_probe,
 	.id_table = tuner_id,
 };
-
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

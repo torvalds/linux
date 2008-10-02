@@ -36,11 +36,6 @@
 #include <linux/jiffies.h>
 #include <asm/io.h>
 
-static struct i2c_algo_bit_data bttv_i2c_algo_bit_template;
-static struct i2c_adapter bttv_i2c_adap_sw_template;
-static struct i2c_adapter bttv_i2c_adap_hw_template;
-static struct i2c_client bttv_i2c_client_template;
-
 static int attach_inform(struct i2c_client *client);
 
 static int i2c_debug;
@@ -104,21 +99,13 @@ static int bttv_bit_getsda(void *data)
 	return state;
 }
 
-static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
+static struct i2c_algo_bit_data __devinitdata bttv_i2c_algo_bit_template = {
 	.setsda  = bttv_bit_setsda,
 	.setscl  = bttv_bit_setscl,
 	.getsda  = bttv_bit_getsda,
 	.getscl  = bttv_bit_getscl,
 	.udelay  = 16,
 	.timeout = 200,
-};
-
-static struct i2c_adapter bttv_i2c_adap_sw_template = {
-	.owner             = THIS_MODULE,
-	.class             = I2C_CLASS_TV_ANALOG,
-	.name              = "bttv",
-	.id                = I2C_HW_B_BT848,
-	.client_register   = attach_inform,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -270,18 +257,9 @@ static int bttv_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int
 	return retval;
 }
 
-static struct i2c_algorithm bttv_algo = {
+static const struct i2c_algorithm bttv_algo = {
 	.master_xfer   = bttv_i2c_xfer,
 	.functionality = functionality,
-};
-
-static struct i2c_adapter bttv_i2c_adap_hw_template = {
-	.owner             = THIS_MODULE,
-	.class         = I2C_CLASS_TV_ANALOG,
-	.name          = "bt878",
-	.id            = I2C_HW_B_BT848 /* FIXME */,
-	.algo          = &bttv_algo,
-	.client_register = attach_inform,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -331,10 +309,6 @@ void bttv_call_i2c_clients(struct bttv *btv, unsigned int cmd, void *arg)
 		return;
 	i2c_clients_command(&btv->c.i2c_adap, cmd, arg);
 }
-
-static struct i2c_client bttv_i2c_client_template = {
-	.name	= "bttv internal",
-};
 
 
 /* read I2C */
@@ -417,29 +391,34 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 /* init + register i2c algo-bit adapter */
 int __devinit init_bttv_i2c(struct bttv *btv)
 {
-	memcpy(&btv->i2c_client, &bttv_i2c_client_template,
-	       sizeof(bttv_i2c_client_template));
+	strlcpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);
 
 	if (i2c_hw)
 		btv->use_i2c_hw = 1;
 	if (btv->use_i2c_hw) {
 		/* bt878 */
-		memcpy(&btv->c.i2c_adap, &bttv_i2c_adap_hw_template,
-		       sizeof(bttv_i2c_adap_hw_template));
+		strlcpy(btv->c.i2c_adap.name, "bt878",
+			sizeof(btv->c.i2c_adap.name));
+		btv->c.i2c_adap.id = I2C_HW_B_BT848;	/* FIXME */
+		btv->c.i2c_adap.algo = &bttv_algo;
 	} else {
 		/* bt848 */
 	/* Prevents usage of invalid delay values */
 		if (i2c_udelay<5)
 			i2c_udelay=5;
-		bttv_i2c_algo_bit_template.udelay=i2c_udelay;
 
-		memcpy(&btv->c.i2c_adap, &bttv_i2c_adap_sw_template,
-		       sizeof(bttv_i2c_adap_sw_template));
+		strlcpy(btv->c.i2c_adap.name, "bttv",
+			sizeof(btv->c.i2c_adap.name));
+		btv->c.i2c_adap.id = I2C_HW_B_BT848;
 		memcpy(&btv->i2c_algo, &bttv_i2c_algo_bit_template,
 		       sizeof(bttv_i2c_algo_bit_template));
+		btv->i2c_algo.udelay = i2c_udelay;
 		btv->i2c_algo.data = btv;
 		btv->c.i2c_adap.algo_data = &btv->i2c_algo;
 	}
+	btv->c.i2c_adap.owner = THIS_MODULE;
+	btv->c.i2c_adap.class = I2C_CLASS_TV_ANALOG;
+	btv->c.i2c_adap.client_register = attach_inform;
 
 	btv->c.i2c_adap.dev.parent = &btv->c.pci->dev;
 	snprintf(btv->c.i2c_adap.name, sizeof(btv->c.i2c_adap.name),
