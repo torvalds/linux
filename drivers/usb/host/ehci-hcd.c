@@ -60,7 +60,6 @@
  * providing early devices for those host controllers to talk to!
  */
 
-#define DRIVER_VERSION "10 Dec 2004"
 #define DRIVER_AUTHOR "David Brownell"
 #define DRIVER_DESC "USB 2.0 'Enhanced' Host Controller (EHCI) Driver"
 
@@ -621,9 +620,9 @@ static int ehci_run (struct usb_hcd *hcd)
 
 	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci_info (ehci,
-		"USB %x.%x started, EHCI %x.%02x, driver %s%s\n",
+		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
-		temp >> 8, temp & 0xff, DRIVER_VERSION,
+		temp >> 8, temp & 0xff,
 		ignore_oc ? ", overcurrent ignored" : "");
 
 	ehci_writel(ehci, INTR_MASK,
@@ -995,9 +994,7 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
-#define DRIVER_INFO DRIVER_VERSION " " DRIVER_DESC
-
-MODULE_DESCRIPTION (DRIVER_INFO);
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR (DRIVER_AUTHOR);
 MODULE_LICENSE ("GPL");
 
@@ -1045,6 +1042,10 @@ static int __init ehci_hcd_init(void)
 {
 	int retval = 0;
 
+	if (usb_disabled())
+		return -ENODEV;
+
+	printk(KERN_INFO "%s: " DRIVER_DESC "\n", hcd_name);
 	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd sitd %Zd\n",
 		 hcd_name,
 		 sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
