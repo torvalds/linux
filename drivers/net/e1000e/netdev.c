@@ -2954,9 +2954,6 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned long irq_flags;
-	u16 phy_tmp;
-
-#define PHY_IDLE_ERROR_COUNT_MASK 0x00FF
 
 	/*
 	 * Prevent stats update while adapter is being reset, or if the pci
@@ -3045,15 +3042,6 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 
 	/* Tx Dropped needs to be maintained elsewhere */
 
-	/* Phy Stats */
-	if (hw->phy.media_type == e1000_media_type_copper) {
-		if ((adapter->link_speed == SPEED_1000) &&
-		   (!e1e_rphy(hw, PHY_1000T_STATUS, &phy_tmp))) {
-			phy_tmp &= PHY_IDLE_ERROR_COUNT_MASK;
-			adapter->phy_stats.idle_errors += phy_tmp;
-		}
-	}
-
 	/* Management Stats */
 	adapter->stats.mgptc += er32(MGTPTC);
 	adapter->stats.mgprc += er32(MGTPRC);
@@ -3072,7 +3060,6 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 	struct e1000_phy_regs *phy = &adapter->phy_regs;
 	int ret_val;
 	unsigned long irq_flags;
-
 
 	spin_lock_irqsave(&adapter->stats_lock, irq_flags);
 
