@@ -395,10 +395,10 @@ static struct dentry_operations proc_sys_dentry_operations = {
 	.d_compare	= proc_sys_compare,
 };
 
-static struct proc_dir_entry *proc_sys_root;
-
 int proc_sys_init(void)
 {
+	struct proc_dir_entry *proc_sys_root;
+
 	proc_sys_root = proc_mkdir("sys", NULL);
 	proc_sys_root->proc_iops = &proc_sys_dir_operations;
 	proc_sys_root->proc_fops = &proc_sys_dir_file_operations;
