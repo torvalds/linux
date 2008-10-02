@@ -441,7 +441,7 @@ static struct k_itimer * alloc_posix_timer(void)
 		return tmr;
 	if (unlikely(!(tmr->sigq = sigqueue_alloc()))) {
 		kmem_cache_free(posix_timers_cache, tmr);
-		tmr = NULL;
+		return NULL;
 	}
 	memset(&tmr->sigq->info, 0, sizeof(siginfo_t));
 	return tmr;
