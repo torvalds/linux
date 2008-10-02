@@ -165,14 +165,8 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
 	return acc;
 }
 
-static int open_vmcore(struct inode *inode, struct file *filp)
-{
-	return 0;
-}
-
 const struct file_operations proc_vmcore_operations = {
 	.read		= read_vmcore,
-	.open		= open_vmcore,
 };
 
 static struct vmcore* __init get_new_element(void)
