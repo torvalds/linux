@@ -76,7 +76,7 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
  */
-int i915_init_phys_hws(struct drm_device *dev)
+static int i915_init_phys_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	/* Program Hardware Status Page */
@@ -101,7 +101,7 @@ int i915_init_phys_hws(struct drm_device *dev)
  * Frees the hardware status page, whether it's a physical address or a virtual
  * address set up by the X Server.
  */
-void i915_free_hws(struct drm_device *dev)
+static void i915_free_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	if (dev_priv->status_page_dmah) {
@@ -145,8 +145,8 @@ static int i915_dma_cleanup(struct drm_device * dev)
 
 	if (dev_priv->ring.virtual_start) {
 		drm_core_ioremapfree(&dev_priv->ring.map, dev);
-		dev_priv->ring.virtual_start = 0;
-		dev_priv->ring.map.handle = 0;
+		dev_priv->ring.virtual_start = NULL;
+		dev_priv->ring.map.handle = NULL;
 		dev_priv->ring.map.size = 0;
 	}
 
@@ -827,9 +827,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	base = drm_get_resource_start(dev, mmio_bar);
 	size = drm_get_resource_len(dev, mmio_bar);
 
-	ret = drm_addmap(dev, base, size, _DRM_REGISTERS,
-			 _DRM_KERNEL | _DRM_DRIVER,
-			 &dev_priv->mmio_map);
+	dev_priv->regs = ioremap(base, size);
 
 	i915_gem_load(dev);
 
@@ -867,8 +865,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_free_hws(dev);
 
-	if (dev_priv->mmio_map)
-		drm_rmmap(dev, dev_priv->mmio_map);
+	if (dev_priv->regs != NULL)
+		iounmap(dev_priv->regs);
 
 	intel_opregion_free(dev);
 

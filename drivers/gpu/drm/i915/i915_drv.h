@@ -110,8 +110,8 @@ struct intel_opregion {
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
+	void __iomem *regs;
 	drm_local_map_t *sarea;
-	drm_local_map_t *mmio_map;
 
 	drm_i915_sarea_t *sarea_priv;
 	drm_i915_ring_buffer_t ring;
@@ -553,12 +553,12 @@ extern void opregion_enable_asle(struct drm_device *dev);
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
-#define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, (reg))
-#define I915_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, (reg), (val))
-#define I915_READ16(reg)	DRM_READ16(dev_priv->mmio_map, (reg))
-#define I915_WRITE16(reg,val)	DRM_WRITE16(dev_priv->mmio_map, (reg), (val))
-#define I915_READ8(reg)		DRM_READ8(dev_priv->mmio_map, (reg))
-#define I915_WRITE8(reg,val)	DRM_WRITE8(dev_priv->mmio_map, (reg), (val))
+#define I915_READ(reg)          readl(dev_priv->regs + (reg))
+#define I915_WRITE(reg, val)     writel(val, dev_priv->regs + (reg))
+#define I915_READ16(reg)	readw(dev_priv->regs + (reg))
+#define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
+#define I915_READ8(reg)		readb(dev_priv->regs + (reg))
+#define I915_WRITE8(reg, val)	writeb(val, dev_priv->regs + (reg))
 
 #define I915_VERBOSE 0
 

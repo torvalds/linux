@@ -176,7 +176,8 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	ssize_t remain;
 	loff_t offset;
 	char __user *user_data;
-	char *vaddr;
+	char __iomem *vaddr;
+	char *vaddr_atomic;
 	int i, o, l;
 	int ret = 0;
 	unsigned long pfn;
@@ -219,16 +220,20 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		pfn = (dev->agp->base >> PAGE_SHIFT) + i;
 
 #ifdef CONFIG_HIGHMEM
-		/* kmap_atomic can't map IO pages on non-HIGHMEM kernels
+		/* This is a workaround for the low performance of iounmap
+		 * (approximate 10% cpu cost on normal 3D workloads).
+		 * kmap_atomic on HIGHMEM kernels happens to let us map card
+		 * memory without taking IPIs.  When the vmap rework lands
+		 * we should be able to dump this hack.
 		 */
-		vaddr = kmap_atomic_pfn(pfn, KM_USER0);
+		vaddr_atomic = kmap_atomic_pfn(pfn, KM_USER0);
 #if WATCH_PWRITE
 		DRM_INFO("pwrite i %d o %d l %d pfn %ld vaddr %p\n",
-			 i, o, l, pfn, vaddr);
+			 i, o, l, pfn, vaddr_atomic);
 #endif
-		unwritten = __copy_from_user_inatomic_nocache(vaddr + o,
+		unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + o,
 							      user_data, l);
-		kunmap_atomic(vaddr, KM_USER0);
+		kunmap_atomic(vaddr_atomic, KM_USER0);
 
 		if (unwritten)
 #endif /* CONFIG_HIGHMEM */
@@ -271,7 +276,7 @@ fail:
 	return ret;
 }
 
-int
+static int
 i915_gem_shmem_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		      struct drm_i915_gem_pwrite *args,
 		      struct drm_file *file_priv)
@@ -587,7 +592,7 @@ i915_add_request(struct drm_device *dev, uint32_t flush_domains)
  * Ensures that all commands in the ring are finished
  * before signalling the CPU
  */
-uint32_t
+static uint32_t
 i915_retire_commands(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -734,7 +739,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
  * Waits for a sequence number to be signaled, and cleans up the
  * request and object lists appropriately for that event.
  */
-int
+static int
 i915_wait_request(struct drm_device *dev, uint32_t seqno)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -1483,7 +1488,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int i, ret;
 	uint32_t last_reloc_offset = -1;
-	void *reloc_page = NULL;
+	void __iomem *reloc_page = NULL;
 
 	/* Choose the GTT offset for our buffer and put it there. */
 	ret = i915_gem_object_pin(obj, (uint32_t) entry->alignment);
@@ -1500,8 +1505,8 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	for (i = 0; i < entry->relocation_count; i++) {
 		struct drm_gem_object *target_obj;
 		struct drm_i915_gem_object *target_obj_priv;
-		uint32_t reloc_val, reloc_offset, *reloc_entry;
-		int ret;
+		uint32_t reloc_val, reloc_offset;
+		uint32_t __iomem *reloc_entry;
 
 		ret = copy_from_user(&reloc, relocs + i, sizeof(reloc));
 		if (ret != 0) {
@@ -1624,7 +1629,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			}
 		}
 
-		reloc_entry = (uint32_t *)((char *)reloc_page +
+		reloc_entry = (uint32_t __iomem *)(reloc_page +
 					   (reloc_offset & (PAGE_SIZE - 1)));
 		reloc_val = target_obj_priv->gtt_offset + reloc.delta;
 
