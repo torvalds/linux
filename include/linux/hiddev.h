@@ -193,6 +193,8 @@ struct hiddev_usage_ref_multi {
  * 		finfo.field_index = i;
  * 		ioctl(fd, HIDIOCGFIELDINFO, &finfo);
  * 		for (j = 0; j < finfo.maxusage; j++) {
+ * 			uref.report_type = rinfo.report_type;
+ * 			uref.report_id = rinfo.report_id;
  * 			uref.field_index = i;
  * 			uref.usage_index = j;
  * 			ioctl(fd, HIDIOCGUCODE, &uref);
