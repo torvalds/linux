@@ -1295,16 +1295,14 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (ieee80211_vif_is_mesh(&osdata->vif) &&
 	    ieee80211_is_data(hdr->frame_control)) {
-		if (ieee80211_is_data(hdr->frame_control)) {
-			if (is_multicast_ether_addr(hdr->addr3))
-				memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
-			else
-				if (mesh_nexthop_lookup(skb, osdata))
-					return  0;
-			if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
-				IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.mesh,
-							     fwded_frames);
-		}
+		if (is_multicast_ether_addr(hdr->addr3))
+			memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
+		else
+			if (mesh_nexthop_lookup(skb, osdata))
+				return  0;
+		if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
+			IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.mesh,
+							    fwded_frames);
 	} else if (unlikely(osdata->vif.type == NL80211_IFTYPE_MONITOR)) {
 		struct ieee80211_sub_if_data *sdata;
 		int hdrlen;
