@@ -164,6 +164,87 @@ static void __call_rcu(struct rcu_head *head, struct rcu_ctrlblk *rcp,
 	}
 }
 
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+
+static void record_gp_stall_check_time(struct rcu_ctrlblk *rcp)
+{
+	rcp->gp_start = jiffies;
+	rcp->jiffies_stall = jiffies + RCU_SECONDS_TILL_STALL_CHECK;
+}
+
+static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	int cpu;
+	long delta;
+	unsigned long flags;
+
+	/* Only let one CPU complain about others per time interval. */
+
+	spin_lock_irqsave(&rcp->lock, flags);
+	delta = jiffies - rcp->jiffies_stall;
+	if (delta < 2 || rcp->cur != rcp->completed) {
+		spin_unlock_irqrestore(&rcp->lock, flags);
+		return;
+	}
+	rcp->jiffies_stall = jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
+	spin_unlock_irqrestore(&rcp->lock, flags);
+
+	/* OK, time to rat on our buddy... */
+
+	printk(KERN_ERR "RCU detected CPU stalls:");
+	for_each_possible_cpu(cpu) {
+		if (cpu_isset(cpu, rcp->cpumask))
+			printk(" %d", cpu);
+	}
+	printk(" (detected by %d, t=%ld jiffies)\n",
+	       smp_processor_id(), (long)(jiffies - rcp->gp_start));
+}
+
+static void print_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	unsigned long flags;
+
+	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu jiffies)\n",
+			smp_processor_id(), jiffies,
+			jiffies - rcp->gp_start);
+	dump_stack();
+	spin_lock_irqsave(&rcp->lock, flags);
+	if ((long)(jiffies - rcp->jiffies_stall) >= 0)
+		rcp->jiffies_stall =
+			jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
+	spin_unlock_irqrestore(&rcp->lock, flags);
+	set_need_resched();  /* kick ourselves to get things going. */
+}
+
+static void check_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	long delta;
+
+	delta = jiffies - rcp->jiffies_stall;
+	if (cpu_isset(smp_processor_id(), rcp->cpumask) && delta >= 0) {
+
+		/* We haven't checked in, so go dump stack. */
+		print_cpu_stall(rcp);
+
+	} else if (rcp->cur != rcp->completed && delta >= 2) {
+
+		/* They had two seconds to dump stack, so complain. */
+		print_other_cpu_stall(rcp);
+	}
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
+static void record_gp_stall_check_time(struct rcu_ctrlblk *rcp)
+{
+}
+
+static void check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
 /**
  * call_rcu - Queue an RCU callback for invocation after a grace period.
  * @head: structure to be used for queueing the RCU updates.
@@ -293,84 +374,6 @@ static void rcu_do_batch(struct rcu_data *rdp)
  *   period (if necessary).
  */
 
-#ifdef CONFIG_DEBUG_RCU_STALL
-
-static inline void record_gp_check_time(struct rcu_ctrlblk *rcp)
-{
-	rcp->gp_check = get_seconds() + 3;
-}
-
-static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
-{
-	int cpu;
-	long delta;
-	unsigned long flags;
-
-	/* Only let one CPU complain about others per time interval. */
-
-	spin_lock_irqsave(&rcp->lock, flags);
-	delta = get_seconds() - rcp->gp_check;
-	if (delta < 2L || cpus_empty(rcp->cpumask)) {
-		spin_unlock(&rcp->lock);
-		return;
-	}
-	rcp->gp_check = get_seconds() + 30;
-	spin_unlock_irqrestore(&rcp->lock, flags);
-
-	/* OK, time to rat on our buddy... */
-
-	printk(KERN_ERR "RCU detected CPU stalls:");
-	for_each_cpu_mask(cpu, rcp->cpumask)
-		printk(" %d", cpu);
-	printk(" (detected by %d, t=%lu/%lu)\n",
-	       smp_processor_id(), get_seconds(), rcp->gp_check);
-}
-
-static void print_cpu_stall(struct rcu_ctrlblk *rcp)
-{
-	unsigned long flags;
-
-	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu)\n",
-			smp_processor_id(), get_seconds(), rcp->gp_check);
-	dump_stack();
-	spin_lock_irqsave(&rcp->lock, flags);
-	if ((long)(get_seconds() - rcp->gp_check) >= 0L)
-		rcp->gp_check = get_seconds() + 30;
-	spin_unlock_irqrestore(&rcp->lock, flags);
-}
-
-static void check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
-{
-	long delta;
-
-	delta = get_seconds() - rcp->gp_check;
-	if (cpu_isset(smp_processor_id(), rcp->cpumask) && delta >= 0L) {
-
-		/* We haven't checked in, so go dump stack. */
-
-		print_cpu_stall(rcp);
-
-	} else {
-		if (!cpus_empty(rcp->cpumask) && delta >= 2L) {
-			/* They had two seconds to dump stack, so complain. */
-			print_other_cpu_stall(rcp);
-		}
-	}
-}
-
-#else /* #ifdef CONFIG_DEBUG_RCU_STALL */
-
-static inline void record_gp_check_time(struct rcu_ctrlblk *rcp)
-{
-}
-
-static inline void
-check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
-{
-}
-
-#endif /* #else #ifdef CONFIG_DEBUG_RCU_STALL */
-
 /*
  * Register a new batch of callbacks, and start it up if there is currently no
  * active batch and the batch to be registered has not already occurred.
@@ -381,7 +384,7 @@ static void rcu_start_batch(struct rcu_ctrlblk *rcp)
 	if (rcp->cur != rcp->pending &&
 			rcp->completed == rcp->cur) {
 		rcp->cur++;
-		record_gp_check_time(rcp);
+		record_gp_stall_check_time(rcp);
 
 		/*
 		 * Accessing nohz_cpu_mask before incrementing rcp->cur needs a
@@ -603,7 +606,7 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 static int __rcu_pending(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
 	/* Check for CPU stalls, if enabled. */
-	check_cpu_stall(rcp, rdp);
+	check_cpu_stall(rcp);
 
 	if (rdp->nxtlist) {
 		long completed_snap = ACCESS_ONCE(rcp->completed);
@@ -769,6 +772,9 @@ static struct notifier_block __cpuinitdata rcu_nb = {
  */
 void __init __rcu_init(void)
 {
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 	rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE,
 			(void *)(long)smp_processor_id());
 	/* Register notifier for non-boot CPUs */
