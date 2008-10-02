@@ -1,0 +1,1225 @@
+ /***************************************************************************
+ *
+ * Copyright (C) 2007-2008 SMSC
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ *****************************************************************************/
+
+#include <linux/module.h>
+#include <linux/kmod.h>
+#include <linux/init.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/ethtool.h>
+#include <linux/mii.h>
+#include <linux/usb.h>
+#include <linux/crc32.h>
+#include <linux/usb/usbnet.h>
+#include "smsc95xx.h"
+
+#define SMSC_CHIPNAME			"smsc95xx"
+#define SMSC_DRIVER_VERSION		"1.0.3"
+#define HS_USB_PKT_SIZE			(512)
+#define FS_USB_PKT_SIZE			(64)
+#define DEFAULT_HS_BURST_CAP_SIZE	(16 * 1024 + 5 * HS_USB_PKT_SIZE)
+#define DEFAULT_FS_BURST_CAP_SIZE	(6 * 1024 + 33 * FS_USB_PKT_SIZE)
+#define DEFAULT_BULK_IN_DELAY		(0x00002000)
+#define MAX_SINGLE_PACKET_SIZE		(2048)
+#define LAN95XX_EEPROM_MAGIC		(0x9500)
+#define EEPROM_MAC_OFFSET		(0x01)
+#define DEFAULT_RX_CSUM_ENABLE		(true)
+#define SMSC95XX_INTERNAL_PHY_ID	(1)
+#define SMSC95XX_TX_OVERHEAD		(8)
+#define FLOW_CTRL_TX			(1)
+#define FLOW_CTRL_RX			(2)
+
+struct smsc95xx_priv {
+	u32 mac_cr;
+	spinlock_t mac_cr_lock;
+	bool use_rx_csum;
+};
+
+struct usb_context {
+	struct usb_ctrlrequest req;
+	struct completion notify;
+	struct usbnet *dev;
+};
+
+int turbo_mode = true;
+module_param(turbo_mode, bool, 0644);
+MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
+
+static int smsc95xx_read_reg(struct usbnet *dev, u32 index, u32 *data)
+{
+	u32 *buf = kmalloc(4, GFP_KERNEL);
+	int ret;
+
+	BUG_ON(!dev);
+
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
+		USB_VENDOR_REQUEST_READ_REGISTER,
+		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		00, index, buf, 4, USB_CTRL_GET_TIMEOUT);
+
+	if (unlikely(ret < 0))
+		devwarn(dev, "Failed to read register index 0x%08x", index);
+
+	le32_to_cpus(buf);
+	*data = *buf;
+	kfree(buf);
+
+	return ret;
+}
+
+static int smsc95xx_write_reg(struct usbnet *dev, u32 index, u32 data)
+{
+	u32 *buf = kmalloc(4, GFP_KERNEL);
+	int ret;
+
+	BUG_ON(!dev);
+
+	if (!buf)
+		return -ENOMEM;
+
+	*buf = data;
+	cpu_to_le32s(buf);
+
+	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
+		USB_VENDOR_REQUEST_WRITE_REGISTER,
+		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		00, index, buf, 4, USB_CTRL_SET_TIMEOUT);
+
+	if (unlikely(ret < 0))
+		devwarn(dev, "Failed to write register index 0x%08x", index);
+
+	kfree(buf);
+
+	return ret;
+}
+
+/* Loop until the read is completed with timeout
+ * called with phy_mutex held */
+static int smsc95xx_phy_wait_not_busy(struct usbnet *dev)
+{
+	unsigned long start_time = jiffies;
+	u32 val;
+
+	do {
+		smsc95xx_read_reg(dev, MII_ADDR, &val);
+		if (!(val & MII_BUSY_))
+			return 0;
+	} while (!time_after(jiffies, start_time + HZ));
+
+	return -EIO;
+}
+
+static int smsc95xx_mdio_read(struct net_device *netdev, int phy_id, int idx)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	u32 val, addr;
+
+	mutex_lock(&dev->phy_mutex);
+
+	/* confirm MII not busy */
+	if (smsc95xx_phy_wait_not_busy(dev)) {
+		devwarn(dev, "MII is busy in smsc95xx_mdio_read");
+		mutex_unlock(&dev->phy_mutex);
+		return -EIO;
+	}
+
+	/* set the address, index & direction (read from PHY) */
+	phy_id &= dev->mii.phy_id_mask;
+	idx &= dev->mii.reg_num_mask;
+	addr = (phy_id << 11) | (idx << 6) | MII_READ_;
+	smsc95xx_write_reg(dev, MII_ADDR, addr);
+
+	if (smsc95xx_phy_wait_not_busy(dev)) {
+		devwarn(dev, "Timed out reading MII reg %02X", idx);
+		mutex_unlock(&dev->phy_mutex);
+		return -EIO;
+	}
+
+	smsc95xx_read_reg(dev, MII_DATA, &val);
+
+	mutex_unlock(&dev->phy_mutex);
+
+	return (u16)(val & 0xFFFF);
+}
+
+static void smsc95xx_mdio_write(struct net_device *netdev, int phy_id, int idx,
+				int regval)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	u32 val, addr;
+
+	mutex_lock(&dev->phy_mutex);
+
+	/* confirm MII not busy */
+	if (smsc95xx_phy_wait_not_busy(dev)) {
+		devwarn(dev, "MII is busy in smsc95xx_mdio_write");
+		mutex_unlock(&dev->phy_mutex);
+		return;
+	}
+
+	val = regval;
+	smsc95xx_write_reg(dev, MII_DATA, val);
+
+	/* set the address, index & direction (write to PHY) */
+	phy_id &= dev->mii.phy_id_mask;
+	idx &= dev->mii.reg_num_mask;
+	addr = (phy_id << 11) | (idx << 6) | MII_WRITE_;
+	smsc95xx_write_reg(dev, MII_ADDR, addr);
+
+	if (smsc95xx_phy_wait_not_busy(dev))
+		devwarn(dev, "Timed out writing MII reg %02X", idx);
+
+	mutex_unlock(&dev->phy_mutex);
+}
+
+static int smsc95xx_wait_eeprom(struct usbnet *dev)
+{
+	unsigned long start_time = jiffies;
+	u32 val;
+
+	do {
+		smsc95xx_read_reg(dev, E2P_CMD, &val);
+		if (!(val & E2P_CMD_BUSY_) || (val & E2P_CMD_TIMEOUT_))
+			break;
+		udelay(40);
+	} while (!time_after(jiffies, start_time + HZ));
+
+	if (val & (E2P_CMD_TIMEOUT_ | E2P_CMD_BUSY_)) {
+		devwarn(dev, "EEPROM read operation timeout");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int smsc95xx_eeprom_confirm_not_busy(struct usbnet *dev)
+{
+	unsigned long start_time = jiffies;
+	u32 val;
+
+	do {
+		smsc95xx_read_reg(dev, E2P_CMD, &val);
+
+		if (!(val & E2P_CMD_LOADED_)) {
+			devwarn(dev, "No EEPROM present");
+			return -EIO;
+		}
+
+		if (!(val & E2P_CMD_BUSY_))
+			return 0;
+
+		udelay(40);
+	} while (!time_after(jiffies, start_time + HZ));
+
+	devwarn(dev, "EEPROM is busy");
+	return -EIO;
+}
+
+static int smsc95xx_read_eeprom(struct usbnet *dev, u32 offset, u32 length,
+				u8 *data)
+{
+	u32 val;
+	int i, ret;
+
+	BUG_ON(!dev);
+	BUG_ON(!data);
+
+	ret = smsc95xx_eeprom_confirm_not_busy(dev);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < length; i++) {
+		val = E2P_CMD_BUSY_ | E2P_CMD_READ_ | (offset & E2P_CMD_ADDR_);
+		smsc95xx_write_reg(dev, E2P_CMD, val);
+
+		ret = smsc95xx_wait_eeprom(dev);
+		if (ret < 0)
+			return ret;
+
+		smsc95xx_read_reg(dev, E2P_DATA, &val);
+
+		data[i] = val & 0xFF;
+		offset++;
+	}
+
+	return 0;
+}
+
+static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
+				 u8 *data)
+{
+	u32 val;
+	int i, ret;
+
+	BUG_ON(!dev);
+	BUG_ON(!data);
+
+	ret = smsc95xx_eeprom_confirm_not_busy(dev);
+	if (ret)
+		return ret;
+
+	/* Issue write/erase enable command */
+	val = E2P_CMD_BUSY_ | E2P_CMD_EWEN_;
+	smsc95xx_write_reg(dev, E2P_CMD, val);
+
+	ret = smsc95xx_wait_eeprom(dev);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < length; i++) {
+
+		/* Fill data register */
+		val = data[i];
+		smsc95xx_write_reg(dev, E2P_DATA, val);
+
+		/* Send "write" command */
+		val = E2P_CMD_BUSY_ | E2P_CMD_WRITE_ | (offset & E2P_CMD_ADDR_);
+		smsc95xx_write_reg(dev, E2P_CMD, val);
+
+		ret = smsc95xx_wait_eeprom(dev);
+		if (ret < 0)
+			return ret;
+
+		offset++;
+	}
+
+	return 0;
+}
+
+static void smsc95xx_async_cmd_callback(struct urb *urb, struct pt_regs *regs)
+{
+	struct usb_context *usb_context = urb->context;
+	struct usbnet *dev = usb_context->dev;
+
+	if (urb->status < 0)
+		devwarn(dev, "async callback failed with %d", urb->status);
+
+	complete(&usb_context->notify);
+
+	kfree(usb_context);
+	usb_free_urb(urb);
+}
+
+static int smsc95xx_write_reg_async(struct usbnet *dev, u32 index, u32 *data)
+{
+	struct usb_context *usb_context;
+	int status;
+	struct urb *urb;
+	const u32 size = 4;
+
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb) {
+		devwarn(dev, "Error allocating URB");
+		return -ENOMEM;
+	}
+
+	usb_context = kmalloc(sizeof(struct usb_context), GFP_ATOMIC);
+	if (usb_context == NULL) {
+		devwarn(dev, "Error allocating control msg");
+		usb_free_urb(urb);
+		return -ENOMEM;
+	}
+
+	usb_context->req.bRequestType =
+		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
+	usb_context->req.bRequest = USB_VENDOR_REQUEST_WRITE_REGISTER;
+	usb_context->req.wValue = 00;
+	usb_context->req.wIndex = cpu_to_le32(index);
+	usb_context->req.wLength = cpu_to_le32(size);
+	init_completion(&usb_context->notify);
+
+	usb_fill_control_urb(urb, dev->udev, usb_sndctrlpipe(dev->udev, 0),
+		(void *)&usb_context->req, data, size,
+		(usb_complete_t)smsc95xx_async_cmd_callback,
+		(void *)usb_context);
+
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status < 0) {
+		devwarn(dev, "Error submitting control msg, sts=%d", status);
+		kfree(usb_context);
+		usb_free_urb(urb);
+	}
+
+	return status;
+}
+
+/* returns hash bit number for given MAC address
+ * example:
+ * 01 00 5E 00 00 01 -> returns bit number 31 */
+static unsigned int smsc95xx_hash(char addr[ETH_ALEN])
+{
+	return (ether_crc(ETH_ALEN, addr) >> 26) & 0x3f;
+}
+
+static void smsc95xx_set_multicast(struct net_device *netdev)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	u32 hash_hi = 0;
+	u32 hash_lo = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->mac_cr_lock, flags);
+
+	if (dev->net->flags & IFF_PROMISC) {
+		if (netif_msg_drv(dev))
+			devdbg(dev, "promiscuous mode enabled");
+		pdata->mac_cr |= MAC_CR_PRMS_;
+		pdata->mac_cr &= ~(MAC_CR_MCPAS_ | MAC_CR_HPFILT_);
+	} else if (dev->net->flags & IFF_ALLMULTI) {
+		if (netif_msg_drv(dev))
+			devdbg(dev, "receive all multicast enabled");
+		pdata->mac_cr |= MAC_CR_MCPAS_;
+		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_HPFILT_);
+	} else if (dev->net->mc_count > 0) {
+		struct dev_mc_list *mc_list = dev->net->mc_list;
+		int count = 0;
+
+		pdata->mac_cr |= MAC_CR_HPFILT_;
+		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_MCPAS_);
+
+		while (mc_list) {
+			count++;
+			if (mc_list->dmi_addrlen == ETH_ALEN) {
+				u32 bitnum = smsc95xx_hash(mc_list->dmi_addr);
+				u32 mask = 0x01 << (bitnum & 0x1F);
+				if (bitnum & 0x20)
+					hash_hi |= mask;
+				else
+					hash_lo |= mask;
+			} else {
+				devwarn(dev, "dmi_addrlen != 6");
+			}
+			mc_list = mc_list->next;
+		}
+
+		if (count != ((u32)dev->net->mc_count))
+			devwarn(dev, "mc_count != dev->mc_count");
+
+		if (netif_msg_drv(dev))
+			devdbg(dev, "HASHH=0x%08X, HASHL=0x%08X", hash_hi,
+				hash_lo);
+	} else {
+		if (netif_msg_drv(dev))
+			devdbg(dev, "receive own packets only");
+		pdata->mac_cr &=
+			~(MAC_CR_PRMS_ | MAC_CR_MCPAS_ | MAC_CR_HPFILT_);
+	}
+
+	spin_unlock_irqrestore(&pdata->mac_cr_lock, flags);
+
+	/* Initiate async writes, as we can't wait for completion here */
+	smsc95xx_write_reg_async(dev, HASHH, &hash_hi);
+	smsc95xx_write_reg_async(dev, HASHL, &hash_lo);
+	smsc95xx_write_reg_async(dev, MAC_CR, &pdata->mac_cr);
+}
+
+static u8 smsc95xx_resolve_flowctrl_fulldplx(u16 lcladv, u16 rmtadv)
+{
+	u8 cap = 0;
+
+	if (lcladv & ADVERTISE_PAUSE_CAP) {
+		if (lcladv & ADVERTISE_PAUSE_ASYM) {
+			if (rmtadv & LPA_PAUSE_CAP)
+				cap = FLOW_CTRL_TX | FLOW_CTRL_RX;
+			else if (rmtadv & LPA_PAUSE_ASYM)
+				cap = FLOW_CTRL_RX;
+		} else {
+			if (rmtadv & LPA_PAUSE_CAP)
+				cap = FLOW_CTRL_TX | FLOW_CTRL_RX;
+		}
+	} else if (lcladv & ADVERTISE_PAUSE_ASYM) {
+		if ((rmtadv & LPA_PAUSE_CAP) && (rmtadv & LPA_PAUSE_ASYM))
+			cap = FLOW_CTRL_TX;
+	}
+
+	return cap;
+}
+
+static void smsc95xx_phy_update_flowcontrol(struct usbnet *dev, u8 duplex,
+					    u16 lcladv, u16 rmtadv)
+{
+	u32 flow, afc_cfg = 0;
+
+	int ret = smsc95xx_read_reg(dev, AFC_CFG, &afc_cfg);
+	if (ret < 0) {
+		devwarn(dev, "error reading AFC_CFG");
+		return;
+	}
+
+	if (duplex == DUPLEX_FULL) {
+		u8 cap = smsc95xx_resolve_flowctrl_fulldplx(lcladv, rmtadv);
+
+		if (cap & FLOW_CTRL_RX)
+			flow = 0xFFFF0002;
+		else
+			flow = 0;
+
+		if (cap & FLOW_CTRL_TX)
+			afc_cfg |= 0xF;
+		else
+			afc_cfg &= ~0xF;
+
+		if (netif_msg_link(dev))
+			devdbg(dev, "rx pause %s, tx pause %s",
+				(cap & FLOW_CTRL_RX ? "enabled" : "disabled"),
+				(cap & FLOW_CTRL_TX ? "enabled" : "disabled"));
+	} else {
+		if (netif_msg_link(dev))
+			devdbg(dev, "half duplex");
+		flow = 0;
+		afc_cfg |= 0xF;
+	}
+
+	smsc95xx_write_reg(dev, FLOW, flow);
+	smsc95xx_write_reg(dev,	AFC_CFG, afc_cfg);
+}
+
+static int smsc95xx_link_reset(struct usbnet *dev)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	struct mii_if_info *mii = &dev->mii;
+	struct ethtool_cmd ecmd;
+	unsigned long flags;
+	u16 lcladv, rmtadv;
+	u32 intdata;
+
+	/* clear interrupt status */
+	smsc95xx_mdio_read(dev->net, mii->phy_id, PHY_INT_SRC);
+	intdata = 0xFFFFFFFF;
+	smsc95xx_write_reg(dev, INT_STS, intdata);
+
+	mii_check_media(mii, 1, 1);
+	mii_ethtool_gset(&dev->mii, &ecmd);
+	lcladv = smsc95xx_mdio_read(dev->net, mii->phy_id, MII_ADVERTISE);
+	rmtadv = smsc95xx_mdio_read(dev->net, mii->phy_id, MII_LPA);
+
+	if (netif_msg_link(dev))
+		devdbg(dev, "speed: %d duplex: %d lcladv: %04x rmtadv: %04x",
+			ecmd.speed, ecmd.duplex, lcladv, rmtadv);
+
+	spin_lock_irqsave(&pdata->mac_cr_lock, flags);
+	if (ecmd.duplex != DUPLEX_FULL) {
+		pdata->mac_cr &= ~MAC_CR_FDPX_;
+		pdata->mac_cr |= MAC_CR_RCVOWN_;
+	} else {
+		pdata->mac_cr &= ~MAC_CR_RCVOWN_;
+		pdata->mac_cr |= MAC_CR_FDPX_;
+	}
+	spin_unlock_irqrestore(&pdata->mac_cr_lock, flags);
+
+	smsc95xx_write_reg(dev, MAC_CR, pdata->mac_cr);
+
+	smsc95xx_phy_update_flowcontrol(dev, ecmd.duplex, lcladv, rmtadv);
+
+	return 0;
+}
+
+static void smsc95xx_status(struct usbnet *dev, struct urb *urb)
+{
+	u32 intdata;
+
+	if (urb->actual_length != 4) {
+		devwarn(dev, "unexpected urb length %d", urb->actual_length);
+		return;
+	}
+
+	memcpy(&intdata, urb->transfer_buffer, 4);
+	le32_to_cpus(intdata);
+
+	if (netif_msg_link(dev))
+		devdbg(dev, "intdata: 0x%08X", intdata);
+
+	if (intdata & INT_ENP_PHY_INT_)
+		usbnet_defer_kevent(dev, EVENT_LINK_RESET);
+	else
+		devwarn(dev, "unexpected interrupt, intdata=0x%08X", intdata);
+}
+
+/* Enable or disable Rx checksum offload engine */
+static int smsc95xx_set_rx_csum(struct usbnet *dev, bool enable)
+{
+	u32 read_buf;
+	int ret = smsc95xx_read_reg(dev, COE_CR, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read COE_CR: %d", ret);
+		return ret;
+	}
+
+	if (enable)
+		read_buf |= Rx_COE_EN_;
+	else
+		read_buf &= ~Rx_COE_EN_;
+
+	ret = smsc95xx_write_reg(dev, COE_CR, read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write COE_CR: %d", ret);
+		return ret;
+	}
+
+	if (netif_msg_hw(dev))
+		devdbg(dev, "COE_CR = 0x%08x", read_buf);
+	return 0;
+}
+
+static int smsc95xx_ethtool_get_eeprom_len(struct net_device *net)
+{
+	return MAX_EEPROM_SIZE;
+}
+
+static int smsc95xx_ethtool_get_eeprom(struct net_device *netdev,
+				       struct ethtool_eeprom *ee, u8 *data)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+
+	ee->magic = LAN95XX_EEPROM_MAGIC;
+
+	return smsc95xx_read_eeprom(dev, ee->offset, ee->len, data);
+}
+
+static int smsc95xx_ethtool_set_eeprom(struct net_device *netdev,
+				       struct ethtool_eeprom *ee, u8 *data)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+
+	if (ee->magic != LAN95XX_EEPROM_MAGIC) {
+		devwarn(dev, "EEPROM: magic value mismatch, magic = 0x%x",
+			ee->magic);
+		return -EINVAL;
+	}
+
+	return smsc95xx_write_eeprom(dev, ee->offset, ee->len, data);
+}
+
+static u32 smsc95xx_ethtool_get_rx_csum(struct net_device *netdev)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+
+	return pdata->use_rx_csum;
+}
+
+static int smsc95xx_ethtool_set_rx_csum(struct net_device *netdev, u32 val)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+
+	pdata->use_rx_csum = !!val;
+
+	return smsc95xx_set_rx_csum(dev, pdata->use_rx_csum);
+}
+
+static struct ethtool_ops smsc95xx_ethtool_ops = {
+	.get_link	= usbnet_get_link,
+	.nway_reset	= usbnet_nway_reset,
+	.get_drvinfo	= usbnet_get_drvinfo,
+	.get_msglevel	= usbnet_get_msglevel,
+	.set_msglevel	= usbnet_set_msglevel,
+	.get_settings	= usbnet_get_settings,
+	.set_settings	= usbnet_set_settings,
+	.get_eeprom_len	= smsc95xx_ethtool_get_eeprom_len,
+	.get_eeprom	= smsc95xx_ethtool_get_eeprom,
+	.set_eeprom	= smsc95xx_ethtool_set_eeprom,
+	.get_rx_csum	= smsc95xx_ethtool_get_rx_csum,
+	.set_rx_csum	= smsc95xx_ethtool_set_rx_csum,
+};
+
+static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+
+	if (!netif_running(netdev))
+		return -EINVAL;
+
+	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
+}
+
+static void smsc95xx_init_mac_address(struct usbnet *dev)
+{
+	/* try reading mac address from EEPROM */
+	if (smsc95xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
+			dev->net->dev_addr) == 0) {
+		if (is_valid_ether_addr(dev->net->dev_addr)) {
+			/* eeprom values are valid so use them */
+			if (netif_msg_ifup(dev))
+				devdbg(dev, "MAC address read from EEPROM");
+			return;
+		}
+	}
+
+	/* no eeprom, or eeprom values are invalid. generate random MAC */
+	random_ether_addr(dev->net->dev_addr);
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "MAC address set to random_ether_addr");
+}
+
+static int smsc95xx_set_mac_address(struct usbnet *dev)
+{
+	u32 addr_lo = dev->net->dev_addr[0] | dev->net->dev_addr[1] << 8 |
+		dev->net->dev_addr[2] << 16 | dev->net->dev_addr[3] << 24;
+	u32 addr_hi = dev->net->dev_addr[4] | dev->net->dev_addr[5] << 8;
+	int ret;
+
+	ret = smsc95xx_write_reg(dev, ADDRL, addr_lo);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write ADDRL: %d", ret);
+		return ret;
+	}
+
+	ret = smsc95xx_write_reg(dev, ADDRH, addr_hi);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write ADDRH: %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+/* starts the TX path */
+static void smsc95xx_start_tx_path(struct usbnet *dev)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	unsigned long flags;
+	u32 reg_val;
+
+	/* Enable Tx at MAC */
+	spin_lock_irqsave(&pdata->mac_cr_lock, flags);
+	pdata->mac_cr |= MAC_CR_TXEN_;
+	spin_unlock_irqrestore(&pdata->mac_cr_lock, flags);
+
+	smsc95xx_write_reg(dev, MAC_CR, pdata->mac_cr);
+
+	/* Enable Tx at SCSRs */
+	reg_val = TX_CFG_ON_;
+	smsc95xx_write_reg(dev, TX_CFG, reg_val);
+}
+
+/* Starts the Receive path */
+static void smsc95xx_start_rx_path(struct usbnet *dev)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->mac_cr_lock, flags);
+	pdata->mac_cr |= MAC_CR_RXEN_;
+	spin_unlock_irqrestore(&pdata->mac_cr_lock, flags);
+
+	smsc95xx_write_reg(dev, MAC_CR, pdata->mac_cr);
+}
+
+static int smsc95xx_phy_initialize(struct usbnet *dev)
+{
+	/* Initialize MII structure */
+	dev->mii.dev = dev->net;
+	dev->mii.mdio_read = smsc95xx_mdio_read;
+	dev->mii.mdio_write = smsc95xx_mdio_write;
+	dev->mii.phy_id_mask = 0x1f;
+	dev->mii.reg_num_mask = 0x1f;
+	dev->mii.phy_id = SMSC95XX_INTERNAL_PHY_ID;
+
+	smsc95xx_mdio_write(dev->net, dev->mii.phy_id, MII_BMCR, BMCR_RESET);
+	smsc95xx_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
+		ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP |
+		ADVERTISE_PAUSE_ASYM);
+
+	/* read to clear */
+	smsc95xx_mdio_read(dev->net, dev->mii.phy_id, PHY_INT_SRC);
+
+	smsc95xx_mdio_write(dev->net, dev->mii.phy_id, PHY_INT_MASK,
+		PHY_INT_MASK_DEFAULT_);
+	mii_nway_restart(&dev->mii);
+
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "phy initialised succesfully");
+	return 0;
+}
+
+static int smsc95xx_reset(struct usbnet *dev)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	u32 read_buf, write_buf, burst_cap;
+	int ret = 0, timeout;
+	DECLARE_MAC_BUF(mac);
+
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "entering smsc95xx_reset");
+
+	write_buf = HW_CFG_LRST_;
+	ret = smsc95xx_write_reg(dev, HW_CFG, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write HW_CFG_LRST_ bit in HW_CFG "
+			"register, ret = %d", ret);
+		return ret;
+	}
+
+	timeout = 0;
+	do {
+		ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
+		if (ret < 0) {
+			devwarn(dev, "Failed to read HW_CFG: %d", ret);
+			return ret;
+		}
+		msleep(10);
+		timeout++;
+	} while ((read_buf & HW_CFG_LRST_) && (timeout < 100));
+
+	if (timeout >= 100) {
+		devwarn(dev, "timeout waiting for completion of Lite Reset");
+		return ret;
+	}
+
+	write_buf = PM_CTL_PHY_RST_;
+	ret = smsc95xx_write_reg(dev, PM_CTRL, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write PM_CTRL: %d", ret);
+		return ret;
+	}
+
+	timeout = 0;
+	do {
+		ret = smsc95xx_read_reg(dev, PM_CTRL, &read_buf);
+		if (ret < 0) {
+			devwarn(dev, "Failed to read PM_CTRL: %d", ret);
+			return ret;
+		}
+		msleep(10);
+		timeout++;
+	} while ((read_buf & PM_CTL_PHY_RST_) && (timeout < 100));
+
+	if (timeout >= 100) {
+		devwarn(dev, "timeout waiting for PHY Reset");
+		return ret;
+	}
+
+	smsc95xx_init_mac_address(dev);
+
+	ret = smsc95xx_set_mac_address(dev);
+	if (ret < 0)
+		return ret;
+
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "MAC Address: %s",
+			print_mac(mac, dev->net->dev_addr));
+
+	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read HW_CFG: %d", ret);
+		return ret;
+	}
+
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "Read Value from HW_CFG : 0x%08x", read_buf);
+
+	read_buf |= HW_CFG_BIR_;
+
+	ret = smsc95xx_write_reg(dev, HW_CFG, read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write HW_CFG_BIR_ bit in HW_CFG "
+			"register, ret = %d", ret);
+		return ret;
+	}
+
+	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read HW_CFG: %d", ret);
+		return ret;
+	}
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "Read Value from HW_CFG after writing "
+			"HW_CFG_BIR_: 0x%08x", read_buf);
+
+	if (!turbo_mode) {
+		burst_cap = 0;
+		dev->rx_urb_size = MAX_SINGLE_PACKET_SIZE;
+	} else if (dev->udev->speed == USB_SPEED_HIGH) {
+		burst_cap = DEFAULT_HS_BURST_CAP_SIZE / HS_USB_PKT_SIZE;
+		dev->rx_urb_size = DEFAULT_HS_BURST_CAP_SIZE;
+	} else {
+		burst_cap = DEFAULT_FS_BURST_CAP_SIZE / FS_USB_PKT_SIZE;
+		dev->rx_urb_size = DEFAULT_FS_BURST_CAP_SIZE;
+	}
+
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "rx_urb_size=%ld", (ulong)dev->rx_urb_size);
+
+	ret = smsc95xx_write_reg(dev, BURST_CAP, burst_cap);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write BURST_CAP: %d", ret);
+		return ret;
+	}
+
+	ret = smsc95xx_read_reg(dev, BURST_CAP, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read BURST_CAP: %d", ret);
+		return ret;
+	}
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "Read Value from BURST_CAP after writing: 0x%08x",
+			read_buf);
+
+	read_buf = DEFAULT_BULK_IN_DELAY;
+	ret = smsc95xx_write_reg(dev, BULK_IN_DLY, read_buf);
+	if (ret < 0) {
+		devwarn(dev, "ret = %d", ret);
+		return ret;
+	}
+
+	ret = smsc95xx_read_reg(dev, BULK_IN_DLY, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read BULK_IN_DLY: %d", ret);
+		return ret;
+	}
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "Read Value from BULK_IN_DLY after writing: "
+			"0x%08x", read_buf);
+
+	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read HW_CFG: %d", ret);
+		return ret;
+	}
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "Read Value from HW_CFG: 0x%08x", read_buf);
+
+	if (turbo_mode)
+		read_buf |= (HW_CFG_MEF_ | HW_CFG_BCE_);
+
+	read_buf &= ~HW_CFG_RXDOFF_;
+
+	/* set Rx data offset=2, Make IP header aligns on word boundary. */
+	read_buf |= NET_IP_ALIGN << 9;
+
+	ret = smsc95xx_write_reg(dev, HW_CFG, read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write HW_CFG register, ret=%d", ret);
+		return ret;
+	}
+
+	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read HW_CFG: %d", ret);
+		return ret;
+	}
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "Read Value from HW_CFG after writing: 0x%08x",
+			read_buf);
+
+	write_buf = 0xFFFFFFFF;
+	ret = smsc95xx_write_reg(dev, INT_STS, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write INT_STS register, ret=%d", ret);
+		return ret;
+	}
+
+	ret = smsc95xx_read_reg(dev, ID_REV, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read ID_REV: %d", ret);
+		return ret;
+	}
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "ID_REV = 0x%08x", read_buf);
+
+	/* Init Tx */
+	write_buf = 0;
+	ret = smsc95xx_write_reg(dev, FLOW, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write FLOW: %d", ret);
+		return ret;
+	}
+
+	read_buf = AFC_CFG_DEFAULT;
+	ret = smsc95xx_write_reg(dev, AFC_CFG, read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write AFC_CFG: %d", ret);
+		return ret;
+	}
+
+	/* Don't need mac_cr_lock during initialisation */
+	ret = smsc95xx_read_reg(dev, MAC_CR, &pdata->mac_cr);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read MAC_CR: %d", ret);
+		return ret;
+	}
+
+	/* Init Rx */
+	/* Set Vlan */
+	write_buf = (u32)ETH_P_8021Q;
+	ret = smsc95xx_write_reg(dev, VLAN1, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write VAN1: %d", ret);
+		return ret;
+	}
+
+	/* Enable or disable Rx checksum offload engine */
+	ret = smsc95xx_set_rx_csum(dev, pdata->use_rx_csum);
+	if (ret < 0) {
+		devwarn(dev, "Failed to set Rx csum offload: %d", ret);
+		return ret;
+	}
+
+	smsc95xx_set_multicast(dev->net);
+
+	if (smsc95xx_phy_initialize(dev) < 0)
+		return -EIO;
+
+	ret = smsc95xx_read_reg(dev, INT_EP_CTL, &read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to read INT_EP_CTL: %d", ret);
+		return ret;
+	}
+
+	/* enable PHY interrupts */
+	read_buf |= INT_EP_CTL_PHY_INT_;
+
+	ret = smsc95xx_write_reg(dev, INT_EP_CTL, read_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write INT_EP_CTL: %d", ret);
+		return ret;
+	}
+
+	smsc95xx_start_tx_path(dev);
+	smsc95xx_start_rx_path(dev);
+
+	if (netif_msg_ifup(dev))
+		devdbg(dev, "smsc95xx_reset, return 0");
+	return 0;
+}
+
+static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	struct smsc95xx_priv *pdata = NULL;
+	int ret;
+
+	printk(KERN_INFO SMSC_CHIPNAME " v" SMSC_DRIVER_VERSION "\n");
+
+	ret = usbnet_get_endpoints(dev, intf);
+	if (ret < 0) {
+		devwarn(dev, "usbnet_get_endpoints failed: %d", ret);
+		return ret;
+	}
+
+	dev->data[0] = (unsigned long)kzalloc(sizeof(struct smsc95xx_priv),
+		GFP_KERNEL);
+
+	pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	if (!pdata) {
+		devwarn(dev, "Unable to allocate struct smsc95xx_priv");
+		return -ENOMEM;
+	}
+
+	spin_lock_init(&pdata->mac_cr_lock);
+
+	pdata->use_rx_csum = DEFAULT_RX_CSUM_ENABLE;
+
+	/* Init all registers */
+	ret = smsc95xx_reset(dev);
+
+	dev->net->do_ioctl = smsc95xx_ioctl;
+	dev->net->ethtool_ops = &smsc95xx_ethtool_ops;
+	dev->net->set_multicast_list = smsc95xx_set_multicast;
+	dev->net->flags |= IFF_MULTICAST;
+	dev->net->hard_header_len += SMSC95XX_TX_OVERHEAD;
+	return 0;
+}
+
+static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	if (pdata) {
+		if (netif_msg_ifdown(dev))
+			devdbg(dev, "free pdata");
+		kfree(pdata);
+		pdata = NULL;
+		dev->data[0] = 0;
+	}
+}
+
+static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
+{
+	skb->csum = *(u16 *)(skb_tail_pointer(skb) - 2);
+	skb->ip_summed = CHECKSUM_COMPLETE;
+	skb_trim(skb, skb->len - 2);
+}
+
+static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+
+	while (skb->len > 0) {
+		u32 header, align_count;
+		struct sk_buff *ax_skb;
+		unsigned char *packet;
+		u16 size;
+
+		memcpy(&header, skb->data, sizeof(header));
+		le32_to_cpus(&header);
+		skb_pull(skb, 4 + NET_IP_ALIGN);
+		packet = skb->data;
+
+		/* get the packet length */
+		size = (u16)((header & RX_STS_FL_) >> 16);
+		align_count = (4 - ((size + NET_IP_ALIGN) % 4)) % 4;
+
+		if (unlikely(header & RX_STS_ES_)) {
+			if (netif_msg_rx_err(dev))
+				devdbg(dev, "Error header=0x%08x", header);
+			dev->stats.rx_errors++;
+			dev->stats.rx_dropped++;
+
+			if (header & RX_STS_CRC_) {
+				dev->stats.rx_crc_errors++;
+			} else {
+				if (header & (RX_STS_TL_ | RX_STS_RF_))
+					dev->stats.rx_frame_errors++;
+
+				if ((header & RX_STS_LE_) &&
+					(!(header & RX_STS_FT_)))
+					dev->stats.rx_length_errors++;
+			}
+		} else {
+			/* ETH_FRAME_LEN + 4(CRC) + 2(COE) + 4(Vlan) */
+			if (unlikely(size > (ETH_FRAME_LEN + 12))) {
+				if (netif_msg_rx_err(dev))
+					devdbg(dev, "size err header=0x%08x",
+						header);
+				return 0;
+			}
+
+			/* last frame in this batch */
+			if (skb->len == size) {
+				if (pdata->use_rx_csum)
+					smsc95xx_rx_csum_offload(skb);
+
+				skb->truesize = size + sizeof(struct sk_buff);
+
+				return 1;
+			}
+
+			ax_skb = skb_clone(skb, GFP_ATOMIC);
+			if (unlikely(!ax_skb)) {
+				devwarn(dev, "Error allocating skb");
+				return 0;
+			}
+
+			ax_skb->len = size;
+			ax_skb->data = packet;
+			skb_set_tail_pointer(ax_skb, size);
+
+			if (pdata->use_rx_csum)
+				smsc95xx_rx_csum_offload(ax_skb);
+
+			ax_skb->truesize = size + sizeof(struct sk_buff);
+
+			usbnet_skb_return(dev, ax_skb);
+		}
+
+		skb_pull(skb, size);
+
+		/* padding bytes before the next frame starts */
+		if (skb->len)
+			skb_pull(skb, align_count);
+	}
+
+	if (unlikely(skb->len < 0)) {
+		devwarn(dev, "invalid rx length<0 %d", skb->len);
+		return 0;
+	}
+
+	return 1;
+}
+
+static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
+					 struct sk_buff *skb, gfp_t flags)
+{
+	u32 tx_cmd_a, tx_cmd_b;
+
+	if (skb_headroom(skb) < SMSC95XX_TX_OVERHEAD) {
+		struct sk_buff *skb2 = skb_copy_expand(skb,
+			SMSC95XX_TX_OVERHEAD, 0, flags);
+		dev_kfree_skb_any(skb);
+		skb = skb2;
+		if (!skb)
+			return NULL;
+	}
+
+	skb_push(skb, 4);
+	tx_cmd_b = (u32)(skb->len - 4);
+	cpu_to_le32s(&tx_cmd_b);
+	memcpy(skb->data, &tx_cmd_b, 4);
+
+	skb_push(skb, 4);
+	tx_cmd_a = (u32)(skb->len - 8) | TX_CMD_A_FIRST_SEG_ |
+		TX_CMD_A_LAST_SEG_;
+	cpu_to_le32s(&tx_cmd_a);
+	memcpy(skb->data, &tx_cmd_a, 4);
+
+	return skb;
+}
+
+static const struct driver_info smsc95xx_info = {
+	.description	= "smsc95xx USB 2.0 Ethernet",
+	.bind		= smsc95xx_bind,
+	.unbind		= smsc95xx_unbind,
+	.link_reset	= smsc95xx_link_reset,
+	.reset		= smsc95xx_reset,
+	.rx_fixup	= smsc95xx_rx_fixup,
+	.tx_fixup	= smsc95xx_tx_fixup,
+	.status		= smsc95xx_status,
+	.flags		= FLAG_ETHER,
+};
+
+static const struct usb_device_id products[] = {
+	{
+		/* SMSC9500 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9500),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{ },		/* END */
+};
+MODULE_DEVICE_TABLE(usb, products);
+
+static struct usb_driver smsc95xx_driver = {
+	.name		= "smsc95xx",
+	.id_table	= products,
+	.probe		= usbnet_probe,
+	.suspend	= usbnet_suspend,
+	.resume		= usbnet_resume,
+	.disconnect	= usbnet_disconnect,
+};
+
+static int __init smsc95xx_init(void)
+{
+	return usb_register(&smsc95xx_driver);
+}
+module_init(smsc95xx_init);
+
+static void __exit smsc95xx_exit(void)
+{
+	usb_deregister(&smsc95xx_driver);
+}
+module_exit(smsc95xx_exit);
+
+MODULE_AUTHOR("Nancy Lin");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_DESCRIPTION("SMSC95XX USB 2.0 Ethernet Devices");
+MODULE_LICENSE("GPL");

@@ -4353,6 +4353,12 @@ L:	linux-usb@vger.kernel.org
 W:	http://www.connecttech.com
 S:	Supported
 
+USB SMSC95XX ETHERNET DRIVER
+P:	Steve Glendinning
+M:	steve.glendinning@smsc.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 USB SN9C1xx DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it

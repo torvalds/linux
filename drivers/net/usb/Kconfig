@@ -188,6 +188,14 @@ config USB_NET_DM9601
 	  This option adds support for Davicom DM9601 based USB 1.1
 	  10/100 Ethernet adapters.
 
+config USB_NET_SMSC95XX
+	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
+	depends on USB_USBNET
+	select CRC32
+	help
+	  This option adds support for SMSC LAN95XX based USB 2.0
+	  10/100 Ethernet adapters.
+
 config USB_NET_GL620A
 	tristate "GeneSys GL620USB-A based cables"
 	depends on USB_USBNET
