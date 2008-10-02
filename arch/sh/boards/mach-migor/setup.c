@@ -19,11 +19,11 @@
 #include <linux/clk.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
+#include <video/sh_mobile_lcdc.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
-#include <asm/sh_mobile_lcdc.h>
 #include <asm/migor.h>
 
 /* Address     IRQ  Size  Bus  Description

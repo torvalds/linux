@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/sh_mobile_lcdc.h>
+#include <video/sh_mobile_lcdc.h>
 #include <asm/migor.h>
 
 /* LCD Module is a PH240320T according to board schematics. This module

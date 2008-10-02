@@ -33,7 +33,7 @@ static void disable_ipr_irq(unsigned int irq)
 	struct ipr_data *p = get_irq_chip_data(irq);
 	unsigned long addr = get_ipr_desc(irq)->ipr_offsets[p->ipr_idx];
 	/* Set the priority in IPR to 0 */
-	ctrl_outw(ctrl_inw(addr) & (0xffff ^ (0xf << p->shift)), addr);
+	__raw_writew(__raw_readw(addr) & (0xffff ^ (0xf << p->shift)), addr);
 }
 
 static void enable_ipr_irq(unsigned int irq)
@@ -41,7 +41,7 @@ static void enable_ipr_irq(unsigned int irq)
 	struct ipr_data *p = get_irq_chip_data(irq);
 	unsigned long addr = get_ipr_desc(irq)->ipr_offsets[p->ipr_idx];
 	/* Set priority in IPR back to original value */
-	ctrl_outw(ctrl_inw(addr) | (p->priority << p->shift), addr);
+	__raw_writew(__raw_readw(addr) | (p->priority << p->shift), addr);
 }
 
 /*

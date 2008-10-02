@@ -320,18 +320,16 @@
 #define SCI_EVENT_WRITE_WAKEUP	0
 
 #define SCI_IN(size, offset)					\
-  unsigned int addr = port->mapbase + (offset);			\
   if ((size) == 8) {						\
-    return ctrl_inb(addr);					\
+    return ioread8(port->membase + (offset));			\
   } else {							\
-    return ctrl_inw(addr);					\
+    return ioread16(port->membase + (offset));			\
   }
 #define SCI_OUT(size, offset, value)				\
-  unsigned int addr = port->mapbase + (offset);			\
   if ((size) == 8) {						\
-    ctrl_outb(value, addr);					\
+    iowrite8(value, port->membase + (offset));			\
   } else if ((size) == 16) {					\
-    ctrl_outw(value, addr);					\
+    iowrite16(value, port->membase + (offset));			\
   }
 
 #define CPU_SCIx_FNS(name, sci_offset, sci_size, scif_offset, scif_size)\

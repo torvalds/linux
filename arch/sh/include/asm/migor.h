@@ -54,7 +54,7 @@
 
 #define BSC_CS6ABCR 0xfec1001c
 
-#include <asm/sh_mobile_lcdc.h>
+#include <video/sh_mobile_lcdc.h>
 
 int migor_lcd_qvga_setup(void *board_data, void *sys_ops_handle,
 			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
