@@ -78,26 +78,6 @@ static int proc_calc_metrics(char *page, char **start, off_t off,
 	return len;
 }
 
-static int uptime_read_proc(char *page, char **start, off_t off,
-				 int count, int *eof, void *data)
-{
-	struct timespec uptime;
-	struct timespec idle;
-	int len;
-	cputime_t idletime = cputime_add(init_task.utime, init_task.stime);
-
-	do_posix_clock_monotonic_gettime(&uptime);
-	monotonic_to_bootbased(&uptime);
-	cputime_to_timespec(idletime, &idle);
-	len = sprintf(page,"%lu.%02lu %lu.%02lu\n",
-			(unsigned long) uptime.tv_sec,
-			(uptime.tv_nsec / (NSEC_PER_SEC / 100)),
-			(unsigned long) idle.tv_sec,
-			(idle.tv_nsec / (NSEC_PER_SEC / 100)));
-
-	return proc_calc_metrics(page, start, off, count, eof, len);
-}
-
 int __attribute__((weak)) arch_report_meminfo(char *page)
 {
 	return 0;
@@ -836,7 +816,6 @@ void __init proc_misc_init(void)
 		char *name;
 		int (*read_proc)(char*,char**,off_t,int,int*,void*);
 	} *p, simple_ones[] = {
-		{"uptime",	uptime_read_proc},
 		{"meminfo",	meminfo_read_proc},
 		{"version",	version_read_proc},
 #ifdef CONFIG_PROC_HARDWARE
