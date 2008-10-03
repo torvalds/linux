@@ -81,8 +81,6 @@ struct nlm_reboot {
 	unsigned int	len;
 	u32		state;
 	__be32		addr;
-	__be32		vers;
-	__be32		proto;
 };
 
 /*
