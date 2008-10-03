@@ -239,7 +239,7 @@ static void record_gp_stall_check_time(struct rcu_ctrlblk *rcp)
 {
 }
 
-static void check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
+static inline void check_cpu_stall(struct rcu_ctrlblk *rcp)
 {
 }
 
