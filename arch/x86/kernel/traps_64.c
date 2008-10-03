@@ -252,13 +252,19 @@ mem_parity_error(unsigned char reason, struct pt_regs *regs)
 static notrace __kprobes void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
-	printk("NMI: IOCK error (debug interrupt?)\n");
+	unsigned long i;
+
+	printk(KERN_EMERG "NMI: IOCK error (debug interrupt?)\n");
 	show_registers(regs);
 
 	/* Re-enable the IOCK line, wait for a few seconds */
 	reason = (reason & 0xf) | 8;
 	outb(reason, 0x61);
-	mdelay(2000);
+
+	i = 2000;
+	while (--i)
+		udelay(1000);
+
 	reason &= ~8;
 	outb(reason, 0x61);
 }
