@@ -7,13 +7,11 @@
  */
 
 /*
- * 'Traps.c' handles hardware traps and faults after we have saved some
- * state in 'asm.s'.
+ * Handle hardware traps and faults.
  */
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 #include <linux/spinlock.h>
-#include <linux/highmem.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/utsname.h>
@@ -32,6 +30,8 @@
 #include <linux/bug.h>
 #include <linux/nmi.h>
 #include <linux/mm.h>
+#include <linux/smp.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -46,22 +46,26 @@
 #include <linux/edac.h>
 #endif
 
-#include <asm/processor-flags.h>
-#include <asm/arch_hooks.h>
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
+#include <asm/kmemcheck.h>
 #include <asm/debugreg.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/unwind.h>
+#include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+
+#include <mach_traps.h>
+
+#include <asm/processor-flags.h>
+#include <asm/arch_hooks.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/io.h>
 #include <asm/traps.h>
 
-#include "mach_traps.h"
 #include "cpu/mcheck/mce.h"
 
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
@@ -340,7 +344,8 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 static notrace __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
-	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
+	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) ==
+			NOTIFY_STOP)
 		return;
 #ifdef CONFIG_MCA
 	/*
@@ -446,13 +451,9 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 dotraplinkage notrace __kprobes void
 do_nmi(struct pt_regs *regs, long error_code)
 {
-	int cpu;
-
 	nmi_enter();
 
-	cpu = smp_processor_id();
-
-	++nmi_count(cpu);
+	{ int cpu; cpu = smp_processor_id(); ++nmi_count(cpu); }
 
 	if (!ignore_nmis)
 		default_do_nmi(regs);
@@ -472,6 +473,7 @@ void restart_nmi(void)
 	acpi_nmi_enable();
 }
 
+/* May run on IST stack. */
 dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_KPROBES
@@ -510,6 +512,8 @@ dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
  * about restoring all the debug state, and ptrace doesn't have to
  * find every occurrence of the TF bit that could be saved away even
  * by user code)
+ *
+ * May run on IST stack.
  */
 dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {

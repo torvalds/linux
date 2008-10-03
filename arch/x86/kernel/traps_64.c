@@ -7,10 +7,8 @@
  */
 
 /*
- * 'Traps.c' handles hardware traps and faults after we have saved some
- * state in 'entry.S'.
+ * Handle hardware traps and faults.
  */
-#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 #include <linux/spinlock.h>
@@ -41,18 +39,21 @@
 
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
+#include <asm/kmemcheck.h>
 #include <asm/debugreg.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/unwind.h>
+#include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+
+#include <mach_traps.h>
+
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
 #include <asm/pda.h>
-#include <asm/traps.h>
 
-#include <mach_traps.h>
 
 static int ignore_nmis;
 
@@ -73,8 +74,6 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_disable();
-	/* Make sure to not schedule here because we could be running
-	   on an exception stack. */
 	dec_preempt_count();
 }
 
@@ -228,9 +227,12 @@ gp_in_kernel:
 static notrace __kprobes void
 mem_parity_error(unsigned char reason, struct pt_regs *regs)
 {
-	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
-		reason);
-	printk(KERN_EMERG "You have some hardware problem, likely on the PCI bus.\n");
+	printk(KERN_EMERG
+		"Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
+			reason, smp_processor_id());
+
+	printk(KERN_EMERG
+		"You have some hardware problem, likely on the PCI bus.\n");
 
 #if defined(CONFIG_EDAC)
 	if (edac_handler_set()) {
@@ -275,19 +277,18 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) ==
 			NOTIFY_STOP)
 		return;
-	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
-		reason);
-	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
+	printk(KERN_EMERG
+		"Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
+			reason, smp_processor_id());
 
+	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
 	if (panic_on_unrecovered_nmi)
 		panic("NMI: Not continuing");
 
 	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 }
 
-/* Runs on IST stack. This code must keep interrupts off all the time.
-   Nested NMIs are prevented by the CPU. */
-asmlinkage notrace __kprobes void default_do_nmi(struct pt_regs *regs)
+static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int cpu;
@@ -348,7 +349,7 @@ void restart_nmi(void)
 	acpi_nmi_enable();
 }
 
-/* runs on IST stack. */
+/* May run on IST stack. */
 dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
@@ -381,7 +382,30 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 	return regs;
 }
 
-/* runs on IST stack. */
+/*
+ * Our handling of the processor debug registers is non-trivial.
+ * We do not clear them on entry and exit from the kernel. Therefore
+ * it is possible to get a watchpoint trap here from inside the kernel.
+ * However, the code in ./ptrace.c has ensured that the user can
+ * only set watchpoints on userspace addresses. Therefore the in-kernel
+ * watchpoint trap can only occur in code which is reading/writing
+ * from user space. Such code must not hold kernel locks (since it
+ * can equally take a page fault), therefore it is safe to call
+ * force_sig_info even though that claims and releases locks.
+ *
+ * Code in ./signal.c ensures that the debug control register
+ * is restored before we deliver any signal, and therefore that
+ * user code runs with the correct debug control register even though
+ * we clear it here.
+ *
+ * Being careful here means that we don't have to be as careful in a
+ * lot of more complicated places (task switching can be a bit lazy
+ * about restoring all the debug state, and ptrace doesn't have to
+ * find every occurrence of the TF bit that could be saved away even
+ * by user code)
+ *
+ * May run on IST stack.
+ */
 dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
@@ -523,11 +547,6 @@ dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 	    kernel_math_error(regs, "kernel x87 math error", 16))
 		return;
 	math_error((void __user *)regs->ip);
-}
-
-asmlinkage void bad_intr(void)
-{
-	printk("bad interrupt");
 }
 
 static void simd_math_error(void __user *ip)
