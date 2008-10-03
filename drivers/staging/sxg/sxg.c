@@ -453,7 +453,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	// fails.  If we hit a minimum, fail.
 
 	for (;;) {
-		DBG_ERROR("%s Allocate XmtRings size[%x]\n", __FUNCTION__,
+		DBG_ERROR("%s Allocate XmtRings size[%lx]\n", __FUNCTION__,
 			  (sizeof(SXG_XMT_RING) * 1));
 
 		// Start with big items first - receive and transmit rings.  At the moment
@@ -470,7 +470,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 		}
 		memset(adapter->XmtRings, 0, sizeof(SXG_XMT_RING) * 1);
 
-		DBG_ERROR("%s Allocate RcvRings size[%x]\n", __FUNCTION__,
+		DBG_ERROR("%s Allocate RcvRings size[%lx]\n", __FUNCTION__,
 			  (sizeof(SXG_RCV_RING) * 1));
 		adapter->RcvRings =
 		    pci_alloc_consistent(adapter->pcidev,
@@ -531,7 +531,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 		return (STATUS_RESOURCES);
 	}
 
-	DBG_ERROR("%s Allocate EventRings size[%x]\n", __FUNCTION__,
+	DBG_ERROR("%s Allocate EventRings size[%lx]\n", __FUNCTION__,
 		  (sizeof(SXG_EVENT_RING) * RssIds));
 
 	// Allocate event queues.
@@ -562,7 +562,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	}
 	memset(adapter->Isr, 0, sizeof(u32) * IsrCount);
 
-	DBG_ERROR("%s Allocate shared XMT ring zero index location size[%x]\n",
+	DBG_ERROR("%s Allocate shared XMT ring zero index location size[%lx]\n",
 		  __FUNCTION__, sizeof(u32));
 
 	// Allocate shared XMT ring zero index location
