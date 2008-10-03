@@ -255,18 +255,20 @@ static void pxa27x_stop_hc(struct device *dev)
  */
 int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device *pdev)
 {
-	int retval;
+	int retval, irq;
 	struct usb_hcd *hcd;
 	struct pxaohci_platform_data *inf;
+	struct resource *r;
 
 	inf = pdev->dev.platform_data;
 
 	if (!inf)
 		return -ENODEV;
 
-	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
-		pr_debug ("resource[1] is not IORESOURCE_IRQ");
-		return -ENOMEM;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		pr_err("no resource of IORESOURCE_IRQ");
+		return -ENXIO;
 	}
 
 	usb_clk = clk_get(&pdev->dev, "USBCLK");
@@ -276,8 +278,16 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	hcd = usb_create_hcd (driver, &pdev->dev, "pxa27x");
 	if (!hcd)
 		return -ENOMEM;
-	hcd->rsrc_start = pdev->resource[0].start;
-	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r) {
+		pr_err("no resource of IORESOURCE_MEM");
+		retval = -ENXIO;
+		goto err1;
+	}
+
+	hcd->rsrc_start = r->start;
+	hcd->rsrc_len = resource_size(r);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		pr_debug("request_mem_region failed");
@@ -305,7 +315,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (retval == 0)
 		return retval;
 
