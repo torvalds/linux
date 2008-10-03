@@ -358,7 +358,7 @@ Here is a list of some of the different kernel trees available:
     - pcmcia, Dominik Brodowski <linux@dominikbrodowski.net>
 	git.kernel.org:/pub/scm/linux/kernel/git/brodo/pcmcia-2.6.git
 
-    - SCSI, James Bottomley <James.Bottomley@SteelEye.com>
+    - SCSI, James Bottomley <James.Bottomley@hansenpartnership.com>
 	git.kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
 
     - x86, Ingo Molnar <mingo@elte.hu>

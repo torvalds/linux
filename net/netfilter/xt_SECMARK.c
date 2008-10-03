@@ -5,7 +5,7 @@
  * Based on the nfmark match by:
  * (C) 1999-2001 Marc Boucher <marc@mbsi.ca>
  *
- * (C) 2006 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ * (C) 2006,2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -89,6 +89,12 @@ secmark_tg_check(const char *tablename, const void *entry,
 {
 	struct xt_secmark_target_info *info = targinfo;
 
+	if (strcmp(tablename, "mangle") && strcmp(tablename, "security")) {
+		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
+		       "or \'security\' tables, not \'%s\'.\n", tablename);
+		return false;
+	}
+
 	if (mode && mode != info->mode) {
 		printk(KERN_INFO PFX "mode already set to %hu cannot mix with "
 		       "rules for mode %hu\n", mode, info->mode);
@@ -127,7 +133,6 @@ static struct xt_target secmark_tg_reg[] __read_mostly = {
 		.destroy	= secmark_tg_destroy,
 		.target		= secmark_tg,
 		.targetsize	= sizeof(struct xt_secmark_target_info),
-		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 	{
@@ -137,7 +142,6 @@ static struct xt_target secmark_tg_reg[] __read_mostly = {
 		.destroy	= secmark_tg_destroy,
 		.target		= secmark_tg,
 		.targetsize	= sizeof(struct xt_secmark_target_info),
-		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 };

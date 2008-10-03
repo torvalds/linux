@@ -120,7 +120,7 @@ struct file *get_empty_filp(void)
 
 	tsk = current;
 	INIT_LIST_HEAD(&f->f_u.fu_list);
-	atomic_set(&f->f_count, 1);
+	atomic_long_set(&f->f_count, 1);
 	rwlock_init(&f->f_owner.lock);
 	f->f_uid = tsk->fsuid;
 	f->f_gid = tsk->fsgid;
@@ -219,7 +219,7 @@ EXPORT_SYMBOL(init_file);
 
 void fput(struct file *file)
 {
-	if (atomic_dec_and_test(&file->f_count))
+	if (atomic_long_dec_and_test(&file->f_count))
 		__fput(file);
 }
 
@@ -294,7 +294,7 @@ struct file *fget(unsigned int fd)
 	rcu_read_lock();
 	file = fcheck_files(files, fd);
 	if (file) {
-		if (!atomic_inc_not_zero(&file->f_count)) {
+		if (!atomic_long_inc_not_zero(&file->f_count)) {
 			/* File object ref couldn't be taken */
 			rcu_read_unlock();
 			return NULL;
@@ -326,7 +326,7 @@ struct file *fget_light(unsigned int fd, int *fput_needed)
 		rcu_read_lock();
 		file = fcheck_files(files, fd);
 		if (file) {
-			if (atomic_inc_not_zero(&file->f_count))
+			if (atomic_long_inc_not_zero(&file->f_count))
 				*fput_needed = 1;
 			else
 				/* Didn't get the reference, someone's freed */
@@ -341,7 +341,7 @@ struct file *fget_light(unsigned int fd, int *fput_needed)
 
 void put_filp(struct file *file)
 {
-	if (atomic_dec_and_test(&file->f_count)) {
+	if (atomic_long_dec_and_test(&file->f_count)) {
 		security_file_free(file);
 		file_kill(file);
 		file_free(file);

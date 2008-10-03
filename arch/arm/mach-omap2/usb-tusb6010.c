@@ -15,9 +15,9 @@
 
 #include <linux/usb/musb.h>
 
-#include <asm/arch/gpmc.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
+#include <mach/gpmc.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
 
 
 static u8		async_cs, sync_cs;
@@ -317,7 +317,6 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 		printk(error, 6, status);
 		return -ENODEV;
 	}
-	data->multipoint = 1;
 	tusb_device.dev.platform_data = data;
 
 	/* REVISIT let the driver know what DMA channels work */

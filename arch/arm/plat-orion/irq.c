@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <asm/plat-orion/irq.h>
+#include <plat/irq.h>
 
 static void orion_irq_mask(u32 irq)
 {

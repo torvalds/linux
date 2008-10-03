@@ -23,18 +23,18 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/bootmem.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/sram.h>
-#include <asm/arch/omapfb.h>
+#include <mach/board.h>
+#include <mach/sram.h>
+#include <mach/omapfb.h>
 
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 
@@ -182,7 +182,7 @@ void __init omapfb_reserve_sdram(void)
 		return;
 
 	bdata = NODE_DATA(0)->bdata;
-	sdram_start = bdata->node_boot_start;
+	sdram_start = bdata->node_min_pfn << PAGE_SHIFT;
 	sdram_size = (bdata->node_low_pfn << PAGE_SHIFT) - sdram_start;
 	reserved = 0;
 	for (i = 0; ; i++) {
@@ -340,5 +340,3 @@ unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
 
 
 #endif
-
-

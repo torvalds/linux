@@ -225,7 +225,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
+static void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
 		  int error_code)
 {
 	struct siginfo info;

@@ -1,7 +1,7 @@
 include include/asm-generic/Kbuild.asm
 
-header-$(CONFIG_ETRAX_ARCH_V10) += arch-v10/
-header-$(CONFIG_ETRAX_ARCH_V32) += arch-v32/
+header-y += arch-v10/
+header-y += arch-v32/
 
 header-y += ethernet.h
 header-y += rtc.h

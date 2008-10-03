@@ -35,6 +35,7 @@ atomic_t therm_throt_en = ATOMIC_INIT(0);
 
 #define define_therm_throt_sysdev_show_func(name)                            \
 static ssize_t therm_throt_sysdev_show_##name(struct sys_device *dev,        \
+					struct sysdev_attribute *attr,	     \
                                               char *buf)                     \
 {                                                                            \
 	unsigned int cpu = dev->id;                                          \

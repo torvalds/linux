@@ -27,6 +27,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "ide_pci_generic"
+
 static int ide_generic_all;		/* Set to claim all devices */
 
 module_param_named(all_generic_ide, ide_generic_all, bool, 0444);
@@ -34,9 +36,9 @@ MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unknown PCI IDE st
 
 #define IDE_HFLAGS_UMC (IDE_HFLAG_NO_DMA | IDE_HFLAG_FORCE_LEGACY_IRQS)
 
-#define DECLARE_GENERIC_PCI_DEV(name_str, extra_flags) \
+#define DECLARE_GENERIC_PCI_DEV(extra_flags) \
 	{ \
-		.name		= name_str, \
+		.name		= DRV_NAME, \
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | \
 				  extra_flags, \
 		.swdma_mask	= ATA_SWDMA2, \
@@ -45,10 +47,11 @@ MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unknown PCI IDE st
 	}
 
 static const struct ide_port_info generic_chipsets[] __devinitdata = {
-	/*  0 */ DECLARE_GENERIC_PCI_DEV("Unknown",	0),
+	/*  0: Unknown */
+	DECLARE_GENERIC_PCI_DEV(0),
 
-	{	/* 1 */
-		.name		= "NS87410",
+	{	/* 1: NS87410 */
+		.name		= DRV_NAME,
 		.enablebits	= { {0x43, 0x08, 0x08}, {0x47, 0x08, 0x08} },
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 		.swdma_mask	= ATA_SWDMA2,
@@ -56,17 +59,15 @@ static const struct ide_port_info generic_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA6,
 	},
 
-	/*  2 */ DECLARE_GENERIC_PCI_DEV("SAMURAI",	0),
-	/*  3 */ DECLARE_GENERIC_PCI_DEV("HT6565",	0),
-	/*  4 */ DECLARE_GENERIC_PCI_DEV("UM8673F",	IDE_HFLAGS_UMC),
-	/*  5 */ DECLARE_GENERIC_PCI_DEV("UM8886A",	IDE_HFLAGS_UMC),
-	/*  6 */ DECLARE_GENERIC_PCI_DEV("UM8886BF",	IDE_HFLAGS_UMC),
-	/*  7 */ DECLARE_GENERIC_PCI_DEV("HINT_IDE",	0),
-	/*  8 */ DECLARE_GENERIC_PCI_DEV("VIA_IDE",	IDE_HFLAG_NO_AUTODMA),
-	/*  9 */ DECLARE_GENERIC_PCI_DEV("OPTI621V",	IDE_HFLAG_NO_AUTODMA),
+	/*  2: SAMURAI / HT6565 / HINT_IDE */
+	DECLARE_GENERIC_PCI_DEV(0),
+	/*  3: UM8673F / UM8886A / UM8886BF */
+	DECLARE_GENERIC_PCI_DEV(IDE_HFLAGS_UMC),
+	/*  4: VIA_IDE / OPTI621V / Piccolo010{2,3,5} */
+	DECLARE_GENERIC_PCI_DEV(IDE_HFLAG_NO_AUTODMA),
 
-	{	/* 10 */
-		.name		= "VIA8237SATA",
+	{	/* 5: VIA8237SATA */
+		.name		= DRV_NAME,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
 		.swdma_mask	= ATA_SWDMA2,
@@ -74,12 +75,8 @@ static const struct ide_port_info generic_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA6,
 	},
 
-	/* 11 */ DECLARE_GENERIC_PCI_DEV("Piccolo0102",	IDE_HFLAG_NO_AUTODMA),
-	/* 12 */ DECLARE_GENERIC_PCI_DEV("Piccolo0103",	IDE_HFLAG_NO_AUTODMA),
-	/* 13 */ DECLARE_GENERIC_PCI_DEV("Piccolo0105",	IDE_HFLAG_NO_AUTODMA),
-
-	{	/* 14 */
-		.name		= "Revolution",
+	{	/* 6: Revolution */
+		.name		= DRV_NAME,
 		.host_flags	= IDE_HFLAG_CLEAR_SIMPLEX |
 				  IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
@@ -134,12 +131,12 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 		u16 command;
 		pci_read_config_word(dev, PCI_COMMAND, &command);
 		if (!(command & PCI_COMMAND_IO)) {
-			printk(KERN_INFO "Skipping disabled %s IDE "
-					"controller.\n", d->name);
+			printk(KERN_INFO "%s %s: skipping disabled "
+				"controller\n", d->name, pci_name(dev));
 			goto out;
 		}
 	}
-	ret = ide_setup_pci_device(dev, d);
+	ret = ide_pci_init_one(dev, d, NULL);
 out:
 	return ret;
 }
@@ -147,20 +144,20 @@ out:
 static const struct pci_device_id generic_pci_tbl[] = {
 	{ PCI_VDEVICE(NS,	PCI_DEVICE_ID_NS_87410),		 1 },
 	{ PCI_VDEVICE(PCTECH,	PCI_DEVICE_ID_PCTECH_SAMURAI_IDE),	 2 },
-	{ PCI_VDEVICE(HOLTEK,	PCI_DEVICE_ID_HOLTEK_6565),		 3 },
-	{ PCI_VDEVICE(UMC,	PCI_DEVICE_ID_UMC_UM8673F),		 4 },
-	{ PCI_VDEVICE(UMC,	PCI_DEVICE_ID_UMC_UM8886A),		 5 },
-	{ PCI_VDEVICE(UMC,	PCI_DEVICE_ID_UMC_UM8886BF),		 6 },
-	{ PCI_VDEVICE(HINT,	PCI_DEVICE_ID_HINT_VXPROII_IDE),	 7 },
-	{ PCI_VDEVICE(VIA,	PCI_DEVICE_ID_VIA_82C561),		 8 },
-	{ PCI_VDEVICE(OPTI,	PCI_DEVICE_ID_OPTI_82C558),		 9 },
+	{ PCI_VDEVICE(HOLTEK,	PCI_DEVICE_ID_HOLTEK_6565),		 2 },
+	{ PCI_VDEVICE(UMC,	PCI_DEVICE_ID_UMC_UM8673F),		 3 },
+	{ PCI_VDEVICE(UMC,	PCI_DEVICE_ID_UMC_UM8886A),		 3 },
+	{ PCI_VDEVICE(UMC,	PCI_DEVICE_ID_UMC_UM8886BF),		 3 },
+	{ PCI_VDEVICE(HINT,	PCI_DEVICE_ID_HINT_VXPROII_IDE),	 2 },
+	{ PCI_VDEVICE(VIA,	PCI_DEVICE_ID_VIA_82C561),		 4 },
+	{ PCI_VDEVICE(OPTI,	PCI_DEVICE_ID_OPTI_82C558),		 4 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
-	{ PCI_VDEVICE(VIA,	PCI_DEVICE_ID_VIA_8237_SATA),		10 },
+	{ PCI_VDEVICE(VIA,	PCI_DEVICE_ID_VIA_8237_SATA),		 5 },
 #endif
-	{ PCI_VDEVICE(TOSHIBA,	PCI_DEVICE_ID_TOSHIBA_PICCOLO),		11 },
-	{ PCI_VDEVICE(TOSHIBA,	PCI_DEVICE_ID_TOSHIBA_PICCOLO_1),	12 },
-	{ PCI_VDEVICE(TOSHIBA,	PCI_DEVICE_ID_TOSHIBA_PICCOLO_2),	13 },
-	{ PCI_VDEVICE(NETCELL,	PCI_DEVICE_ID_REVOLUTION),		14 },
+	{ PCI_VDEVICE(TOSHIBA,	PCI_DEVICE_ID_TOSHIBA_PICCOLO),		 4 },
+	{ PCI_VDEVICE(TOSHIBA,	PCI_DEVICE_ID_TOSHIBA_PICCOLO_1),	 4 },
+	{ PCI_VDEVICE(TOSHIBA,	PCI_DEVICE_ID_TOSHIBA_PICCOLO_2),	 4 },
+	{ PCI_VDEVICE(NETCELL,	PCI_DEVICE_ID_REVOLUTION),		 6 },
 	/*
 	 * Must come last.  If you add entries adjust
 	 * this table and generic_chipsets[] appropriately.
@@ -174,6 +171,7 @@ static struct pci_driver driver = {
 	.name		= "PCI_IDE",
 	.id_table	= generic_pci_tbl,
 	.probe		= generic_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init generic_ide_init(void)
@@ -181,7 +179,13 @@ static int __init generic_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit generic_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(generic_ide_init);
+module_exit(generic_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for generic PCI IDE");

@@ -124,12 +124,12 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				mandatory = 1;
 			break;
 		case DCCPO_NDP_COUNT:
-			if (len > 3)
+			if (len > 6)
 				goto out_invalid_option;
 
 			opt_recv->dccpor_ndp = dccp_decode_value_var(value, len);
-			dccp_pr_debug("%s rx opt: NDP count=%d\n", dccp_role(sk),
-				      opt_recv->dccpor_ndp);
+			dccp_pr_debug("%s opt: NDP count=%llu\n", dccp_role(sk),
+				      (unsigned long long)opt_recv->dccpor_ndp);
 			break;
 		case DCCPO_CHANGE_L:
 			/* fall through */
@@ -307,9 +307,11 @@ static void dccp_encode_value_var(const u32 value, unsigned char *to,
 		*to++ = (value & 0xFF);
 }
 
-static inline int dccp_ndp_len(const int ndp)
+static inline u8 dccp_ndp_len(const u64 ndp)
 {
-	return likely(ndp <= 0xFF) ? 1 : ndp <= 0xFFFF ? 2 : 3;
+	if (likely(ndp <= 0xFF))
+		return 1;
+	return likely(ndp <= USHORT_MAX) ? 2 : (ndp <= UINT_MAX ? 4 : 6);
 }
 
 int dccp_insert_option(struct sock *sk, struct sk_buff *skb,
@@ -336,7 +338,7 @@ EXPORT_SYMBOL_GPL(dccp_insert_option);
 static int dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	int ndp = dp->dccps_ndp_count;
+	u64 ndp = dp->dccps_ndp_count;
 
 	if (dccp_non_data_packet(skb))
 		++dp->dccps_ndp_count;

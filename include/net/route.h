@@ -111,7 +111,7 @@ struct in_device;
 extern int		ip_rt_init(void);
 extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
 				       __be32 src, struct net_device *dev);
-extern void		rt_cache_flush(int how);
+extern void		rt_cache_flush(struct net *net, int how);
 extern int		__ip_route_output_key(struct net *, struct rtable **, const struct flowi *flp);
 extern int		ip_route_output_key(struct net *, struct rtable **, struct flowi *flp);
 extern int		ip_route_output_flow(struct net *, struct rtable **rp, struct flowi *flp, struct sock *sk, int flags);
@@ -203,7 +203,5 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 	rt_bind_peer(rt, 0);
 	return rt->peer;
 }
-
-extern ctl_table ipv4_route_table[];
 
 #endif	/* _ROUTE_H */

@@ -1,6 +1,4 @@
 /*
- * $Id: interact.c,v 1.16 2002/01/22 20:28:25 vojtech Exp $
- *
  *  Copyright (c) 2001 Vojtech Pavlik
  *
  *  Based on the work of:

@@ -98,8 +98,6 @@ struct nfs4_callback {
 	u32                     cb_ident;
 	/* RPC client info */
 	atomic_t		cb_set;     /* successful CB_NULL call */
-	struct rpc_program      cb_program;
-	struct rpc_stat         cb_stat;
 	struct rpc_clnt *       cb_client;
 };
 

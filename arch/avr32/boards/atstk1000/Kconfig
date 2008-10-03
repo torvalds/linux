@@ -18,6 +18,10 @@ config BOARD_ATSTK1004
 	bool "ATSTK1004"
 	select CPU_AT32AP7002
 
+config BOARD_ATSTK1006
+	bool "ATSTK1006"
+	select CPU_AT32AP7000
+
 endchoice
 
 

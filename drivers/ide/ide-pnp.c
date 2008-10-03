@@ -29,9 +29,10 @@ static struct pnp_device_id idepnp_devices[] = {
 
 static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
-	hw_regs_t hw;
-	ide_hwif_t *hwif;
+	struct ide_host *host;
 	unsigned long base, ctl;
+	int rc;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	printk(KERN_INFO DRV_NAME ": generic PnP IDE interface\n");
 
@@ -59,31 +60,25 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	hw.irq = pnp_irq(dev, 0);
 	hw.chipset = ide_generic;
 
-	hwif = ide_find_port();
-	if (hwif) {
-		u8 index = hwif->index;
-		u8 idx[4] = { index, 0xff, 0xff, 0xff };
+	rc = ide_host_add(NULL, hws, &host);
+	if (rc)
+		goto out;
 
-		ide_init_port_hw(hwif, &hw);
+	pnp_set_drvdata(dev, host);
 
-		pnp_set_drvdata(dev, hwif);
-
-		ide_device_add(idx, NULL);
-
-		return 0;
-	}
-
+	return 0;
+out:
 	release_region(ctl, 1);
 	release_region(base, 8);
 
-	return -1;
+	return rc;
 }
 
 static void idepnp_remove(struct pnp_dev *dev)
 {
-	ide_hwif_t *hwif = pnp_get_drvdata(dev);
+	struct ide_host *host = pnp_get_drvdata(dev);
 
-	ide_unregister(hwif);
+	ide_host_remove(host);
 
 	release_region(pnp_port_start(dev, 1), 1);
 	release_region(pnp_port_start(dev, 0), 8);

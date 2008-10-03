@@ -5,8 +5,6 @@
  *              high-performance and highly available server based on a
  *              cluster of servers.
  *
- * Version:     $Id: ip_vs_ctl.c,v 1.36 2003/06/08 09:31:19 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Peter Kese <peter.kese@ijs.si>
  *              Julian Anastasov <ja@ssi.bg>
@@ -685,9 +683,22 @@ static void
 ip_vs_zero_stats(struct ip_vs_stats *stats)
 {
 	spin_lock_bh(&stats->lock);
-	memset(stats, 0, (char *)&stats->lock - (char *)stats);
-	spin_unlock_bh(&stats->lock);
+
+	stats->conns = 0;
+	stats->inpkts = 0;
+	stats->outpkts = 0;
+	stats->inbytes = 0;
+	stats->outbytes = 0;
+
+	stats->cps = 0;
+	stats->inpps = 0;
+	stats->outpps = 0;
+	stats->inbps = 0;
+	stats->outbps = 0;
+
 	ip_vs_zero_estimator(stats);
+
+	spin_unlock_bh(&stats->lock);
 }
 
 /*
@@ -1591,7 +1602,7 @@ static struct ctl_table vs_vars[] = {
 	{ .ctl_name = 0 }
 };
 
-struct ctl_path net_vs_ctl_path[] = {
+const struct ctl_path net_vs_ctl_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
 	{ .procname = "vs", },
@@ -1786,7 +1797,9 @@ static const struct file_operations ip_vs_info_fops = {
 
 #endif
 
-struct ip_vs_stats ip_vs_stats;
+struct ip_vs_stats ip_vs_stats = {
+	.lock = __SPIN_LOCK_UNLOCKED(ip_vs_stats.lock),
+};
 
 #ifdef CONFIG_PROC_FS
 static int ip_vs_stats_show(struct seq_file *seq, void *v)
@@ -2308,7 +2321,7 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
 };
 
 
-int ip_vs_control_init(void)
+int __init ip_vs_control_init(void)
 {
 	int ret;
 	int idx;
@@ -2335,8 +2348,6 @@ int ip_vs_control_init(void)
 		INIT_LIST_HEAD(&ip_vs_rtable[idx]);
 	}
 
-	memset(&ip_vs_stats, 0, sizeof(ip_vs_stats));
-	spin_lock_init(&ip_vs_stats.lock);
 	ip_vs_new_estimator(&ip_vs_stats);
 
 	/* Hook the defense timer */

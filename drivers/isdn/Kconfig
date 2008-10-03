@@ -3,7 +3,7 @@
 #
 
 menuconfig ISDN
-	tristate "ISDN support"
+	bool "ISDN support"
 	depends on NET
 	depends on !S390
 	---help---
@@ -20,6 +20,8 @@ menuconfig ISDN
 	  Select this option if you want your kernel to support ISDN.
 
 if ISDN
+
+source "drivers/isdn/mISDN/Kconfig"
 
 menuconfig ISDN_I4L
 	tristate "Old ISDN4Linux (deprecated)"

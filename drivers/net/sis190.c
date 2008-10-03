@@ -1656,7 +1656,7 @@ static inline void sis190_init_rxfilter(struct net_device *dev)
 	SIS_PCI_COMMIT();
 }
 
-static int __devinit sis190_get_mac_addr(struct pci_dev *pdev, 
+static int __devinit sis190_get_mac_addr(struct pci_dev *pdev,
 					 struct net_device *dev)
 {
 	int rc;

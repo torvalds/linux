@@ -2,7 +2,7 @@
  *  Driver for Xceive XC5000 "QAM/8VSB single chip tuner"
  *
  *  Copyright (c) 2007 Xceive Corporation
- *  Copyright (c) 2007 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2007 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,6 +35,10 @@
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+
+static int xc5000_load_fw_on_attach;
+module_param_named(init_fw, xc5000_load_fw_on_attach, int, 0644);
+MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
 
 #define dprintk(level,fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
@@ -971,6 +975,9 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		sizeof(struct dvb_tuner_ops));
 
 	fe->tuner_priv = priv;
+
+	if (xc5000_load_fw_on_attach)
+		xc5000_init(fe);
 
 	return fe;
 }

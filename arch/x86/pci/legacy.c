@@ -14,7 +14,7 @@ static void __devinit pcibios_fixup_peer_bridges(void)
 	int n, devfn;
 	long node;
 
-	if (pcibios_last_bus <= 0 || pcibios_last_bus >= 0xff)
+	if (pcibios_last_bus <= 0 || pcibios_last_bus > 0xff)
 		return;
 	DBG("PCI: Peer bridge fixup\n");
 
@@ -57,14 +57,17 @@ static int __init pci_legacy_init(void)
 
 int __init pci_subsys_init(void)
 {
+#ifdef CONFIG_X86_NUMAQ
+	pci_numaq_init();
+#endif
 #ifdef CONFIG_ACPI
 	pci_acpi_init();
 #endif
+#ifdef CONFIG_X86_VISWS
+	pci_visws_init();
+#endif
 	pci_legacy_init();
 	pcibios_irq_init();
-#ifdef CONFIG_X86_NUMAQ
-	pci_numa_init();
-#endif
 	pcibios_init();
 
 	return 0;

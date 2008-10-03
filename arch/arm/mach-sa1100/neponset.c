@@ -10,14 +10,14 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/serial_sa1100.h>
-#include <asm/arch/assabet.h>
-#include <asm/arch/neponset.h>
+#include <mach/assabet.h>
+#include <mach/neponset.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/sizes.h>
 
@@ -151,7 +151,7 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	/*
 	 * Install handler for GPIO25.
 	 */
-	set_irq_type(IRQ_GPIO25, IRQT_RISING);
+	set_irq_type(IRQ_GPIO25, IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(IRQ_GPIO25, neponset_irq_handler);
 
 	/*

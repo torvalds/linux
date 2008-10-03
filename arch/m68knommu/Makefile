@@ -8,6 +8,8 @@
 # (C) Copyright 2002, Greg Ungerer <gerg@snapgear.com>
 #
 
+KBUILD_DEFCONFIG := m5208evb_defconfig
+
 platform-$(CONFIG_M68328)	:= 68328
 platform-$(CONFIG_M68EZ328)	:= 68EZ328
 platform-$(CONFIG_M68VZ328)	:= 68VZ328
@@ -90,13 +92,14 @@ export PLATFORM BOARD MODEL CPUCLASS
 cflags-$(CONFIG_M5206)		:= -m5200
 cflags-$(CONFIG_M5206e)		:= -m5200
 cflags-$(CONFIG_M520x)		:= -m5307
-cflags-$(CONFIG_M523x)		:= -m5307
+cflags-$(CONFIG_M523x)		:= $(call cc-option,-mcpu=523x,-m5307)
 cflags-$(CONFIG_M5249)		:= -m5200
-cflags-$(CONFIG_M527x)		:= -m5307
+cflags-$(CONFIG_M5271)		:= $(call cc-option,-mcpu=5271,-m5307)
 cflags-$(CONFIG_M5272)		:= -m5307
-cflags-$(CONFIG_M528x)		:= -m5307
+cflags-$(CONFIG_M5275)		:= $(call cc-option,-mcpu=5275,-m5307)
+cflags-$(CONFIG_M528x)		:= $(call cc-option,-m528x,-m5307)
 cflags-$(CONFIG_M5307)		:= -m5307
-cflags-$(CONFIG_M532x)		:= -m5307
+cflags-$(CONFIG_M532x)		:= $(call cc-option,-mcpu=532x,-m5307)
 cflags-$(CONFIG_M5407)		:= -m5200
 cflags-$(CONFIG_M68328)		:= -m68000
 cflags-$(CONFIG_M68EZ328)	:= -m68000

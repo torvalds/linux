@@ -123,7 +123,7 @@ struct acpi_processor_errata errata __read_mostly;
 static int set_no_mwait(const struct dmi_system_id *id)
 {
 	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disable mwait for CPU C-stetes\n", id->ident);
+		"disabling mwait for CPU C-states\n", id->ident);
 	idle_nomwait = 1;
 	return 0;
 }
@@ -138,7 +138,7 @@ static struct dmi_system_id __cpuinitdata processor_idle_dmi_table[] = {
 	{
 	set_no_mwait, "Extensa 5220", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
-	DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
+	DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 	DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
 	DMI_MATCH(DMI_BOARD_NAME, "Columbia") }, NULL},
 	{},
@@ -714,9 +714,8 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 		goto end;
 	}
 
-	printk(KERN_INFO PREFIX
-		"%s is registered as cooling_device%d\n",
-		device->dev.bus_id, pr->cdev->id);
+	dev_info(&device->dev, "registered as cooling_device%d\n",
+		 pr->cdev->id);
 
 	result = sysfs_create_link(&device->dev.kobj,
 				   &pr->cdev->device.kobj,

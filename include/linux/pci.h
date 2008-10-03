@@ -124,6 +124,8 @@ enum pci_dev_flags {
 	 * generation too.
 	 */
 	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) 1,
+	/* Device configuration is irrevocably lost if disabled into D3 */
+	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
 };
 
 typedef unsigned short __bitwise pci_bus_flags_t;
@@ -532,7 +534,7 @@ extern void pci_sort_breadthfirst(void);
 #ifdef CONFIG_PCI_LEGACY
 struct pci_dev __deprecated *pci_find_device(unsigned int vendor,
 					     unsigned int device,
-					     const struct pci_dev *from);
+					     struct pci_dev *from);
 struct pci_dev __deprecated *pci_find_slot(unsigned int bus,
 					   unsigned int devfn);
 #endif /* CONFIG_PCI_LEGACY */
@@ -548,7 +550,7 @@ struct pci_dev *pci_get_device(unsigned int vendor, unsigned int device,
 				struct pci_dev *from);
 struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
 				unsigned int ss_vendor, unsigned int ss_device,
-				const struct pci_dev *from);
+				struct pci_dev *from);
 struct pci_dev *pci_get_slot(struct pci_bus *bus, unsigned int devfn);
 struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn);
 struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from);
@@ -638,7 +640,10 @@ int pci_save_state(struct pci_dev *dev);
 int pci_restore_state(struct pci_dev *dev);
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
+bool pci_pme_capable(struct pci_dev *dev, pci_power_t state);
+void pci_pme_active(struct pci_dev *dev, bool enable);
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
+pci_power_t pci_target_state(struct pci_dev *dev);
 int pci_prepare_to_sleep(struct pci_dev *dev);
 int pci_back_from_sleep(struct pci_dev *dev);
 
@@ -676,10 +681,12 @@ void pci_enable_bridges(struct pci_bus *bus);
 /* Proper probing supporting hot-pluggable devices */
 int __must_check __pci_register_driver(struct pci_driver *, struct module *,
 				       const char *mod_name);
-static inline int __must_check pci_register_driver(struct pci_driver *driver)
-{
-	return __pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME);
-}
+
+/*
+ * pci_register_driver must be a macro so that KBUILD_MODNAME can be expanded
+ */
+#define pci_register_driver(driver)		\
+	__pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 
 void pci_unregister_driver(struct pci_driver *dev);
 void pci_remove_behind_bridge(struct pci_dev *dev);
@@ -809,7 +816,7 @@ _PCI_NOP_ALL(write,)
 
 static inline struct pci_dev *pci_find_device(unsigned int vendor,
 					      unsigned int device,
-					      const struct pci_dev *from)
+					      struct pci_dev *from)
 {
 	return NULL;
 }
@@ -831,7 +838,7 @@ static inline struct pci_dev *pci_get_subsys(unsigned int vendor,
 					     unsigned int device,
 					     unsigned int ss_vendor,
 					     unsigned int ss_device,
-					     const struct pci_dev *from)
+					     struct pci_dev *from)
 {
 	return NULL;
 }

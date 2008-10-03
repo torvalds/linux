@@ -506,7 +506,7 @@ static void *alloc_rxbuf_page(struct pci_dev *hwdev, dma_addr_t *dma_handle)
 		return NULL;
 	*dma_handle = pci_map_single(hwdev, buf, PAGE_SIZE,
 				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(*dma_handle)) {
+	if (pci_dma_mapping_error(hwdev, *dma_handle)) {
 		free_page((unsigned long)buf);
 		return NULL;
 	}
@@ -536,7 +536,7 @@ static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 		return NULL;
 	*dma_handle = pci_map_single(hwdev, skb->data, RX_BUF_SIZE,
 				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(*dma_handle)) {
+	if (pci_dma_mapping_error(hwdev, *dma_handle)) {
 		dev_kfree_skb_any(skb);
 		return NULL;
 	}
@@ -672,7 +672,6 @@ static void tc_handle_link_change(struct net_device *dev)
 			if (dev->flags & IFF_PROMISC)
 				tc35815_set_multicast_list(dev);
 #endif
-			netif_schedule(dev);
 		} else {
 			lp->speed = 0;
 			lp->duplex = -1;

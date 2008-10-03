@@ -280,7 +280,7 @@ static int __init do_ne2_probe(struct net_device *dev)
 #ifndef MODULE
 struct net_device * __init ne2_probe(int unit)
 {
-	struct net_device *dev = alloc_ei_netdev();
+	struct net_device *dev = alloc_eip_netdev();
 	int err;
 
 	if (!dev)
@@ -404,7 +404,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 
 	/* Read the 16 bytes of station address PROM.
 	   We must first initialize registers, similar to
-	   NS8390_init(eifdev, 0).
+	   NS8390p_init(eifdev, 0).
 	   We can't reliably read the SAPROM address without this.
 	   (I learned the hard way!). */
 	{
@@ -457,7 +457,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 
 	/* Snarf the interrupt now.  There's no point in waiting since we cannot
 	   share and the board will usually be enabled. */
-	retval = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
+	retval = request_irq(dev->irq, eip_interrupt, 0, DRV_NAME, dev);
 	if (retval) {
 		printk (" unable to get IRQ %d (irqval=%d).\n",
 				dev->irq, retval);
@@ -497,9 +497,9 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	dev->open = &ne_open;
 	dev->stop = &ne_close;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
+	dev->poll_controller = eip_poll;
 #endif
-	NS8390_init(dev, 0);
+	NS8390p_init(dev, 0);
 
 	retval = register_netdev(dev);
 	if (retval)
@@ -515,7 +515,7 @@ out:
 
 static int ne_open(struct net_device *dev)
 {
-	ei_open(dev);
+	eip_open(dev);
 	return 0;
 }
 
@@ -523,7 +523,7 @@ static int ne_close(struct net_device *dev)
 {
 	if (ei_debug > 1)
 		printk("%s: Shutting down ethercard.\n", dev->name);
-	ei_close(dev);
+	eip_close(dev);
 	return 0;
 }
 
@@ -748,7 +748,7 @@ retry:
 		if (time_after(jiffies, dma_start + 2*HZ/100)) {		/* 20ms */
 			printk("%s: timeout waiting for Tx RDC.\n", dev->name);
 			ne_reset_8390(dev);
-			NS8390_init(dev,1);
+			NS8390p_init(dev, 1);
 			break;
 		}
 
@@ -781,7 +781,7 @@ int __init init_module(void)
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
-		dev = alloc_ei_netdev();
+		dev = alloc_eip_netdev();
 		if (!dev)
 			break;
 		dev->irq = irq[this_dev];

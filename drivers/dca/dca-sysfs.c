@@ -13,9 +13,11 @@ static spinlock_t dca_idr_lock;
 int dca_sysfs_add_req(struct dca_provider *dca, struct device *dev, int slot)
 {
 	struct device *cd;
+	static int req_count;
 
-	cd = device_create(dca_class, dca->cd, MKDEV(0, slot + 1),
-			   "requester%d", slot);
+	cd = device_create_drvdata(dca_class, dca->cd,
+				   MKDEV(0, slot + 1), NULL,
+				   "requester%d", req_count++);
 	if (IS_ERR(cd))
 		return PTR_ERR(cd);
 	return 0;
@@ -46,7 +48,8 @@ idr_try_again:
 		return err;
 	}
 
-	cd = device_create(dca_class, dev, MKDEV(0, 0), "dca%d", dca->id);
+	cd = device_create_drvdata(dca_class, dev, MKDEV(0, 0), NULL,
+				   "dca%d", dca->id);
 	if (IS_ERR(cd)) {
 		spin_lock(&dca_idr_lock);
 		idr_remove(&dca_idr, dca->id);

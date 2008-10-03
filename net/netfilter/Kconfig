@@ -33,9 +33,8 @@ config NF_CONNTRACK
 	  into connections.
 
 	  This is required to do Masquerading or other kinds of Network
-	  Address Translation (except for Fast NAT).  It can also be used to
-	  enhance packet filtering (see `Connection state match support'
-	  below).
+	  Address Translation.  It can also be used to enhance packet
+	  filtering (see `Connection state match support' below).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -49,6 +48,15 @@ config NF_CT_ACCT
 
 	  Those counters can be used for flow-based accounting or the
 	  `connbytes' match.
+
+	  Please note that currently this option only sets a default state.
+	  You may change it at boot time with nf_conntrack.acct=0/1 kernel
+	  paramater or by loading the nf_conntrack module with acct=0/1.
+
+	  You may also disable/enable it on a running system with:
+	   sysctl net.netfilter.nf_conntrack_acct=0/1
+
+	  This option will be removed in 2.6.29.
 
 	  If unsure, say `N'.
 

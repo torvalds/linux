@@ -27,8 +27,23 @@ struct ethtool_cmd {
 	__u8	autoneg;	/* Enable or disable autonegotiation */
 	__u32	maxtxpkt;	/* Tx pkts before generating tx int */
 	__u32	maxrxpkt;	/* Rx pkts before generating rx int */
-	__u32	reserved[4];
+	__u16	speed_hi;
+	__u16	reserved2;
+	__u32	reserved[3];
 };
+
+static inline void ethtool_cmd_speed_set(struct ethtool_cmd *ep,
+						__u32 speed)
+{
+
+	ep->speed = (__u16)speed;
+	ep->speed_hi = (__u16)(speed >> 16);
+}
+
+static inline __u32 ethtool_cmd_speed(struct ethtool_cmd *ep)
+{
+	return (ep->speed_hi << 16) | ep->speed;
+}
 
 #define ETHTOOL_BUSINFO_LEN	32
 /* these strings are set to whatever the driver author decides... */
@@ -272,6 +287,12 @@ enum ethtool_flags {
 	ETH_FLAG_LRO		= (1 << 15),	/* LRO is enabled */
 };
 
+struct ethtool_rxnfc {
+	__u32		cmd;
+	__u32		flow_type;
+	__u64		data;
+};
+
 #ifdef __KERNEL__
 
 struct net_device;
@@ -396,6 +417,8 @@ struct ethtool_ops {
 	/* the following hooks are obsolete */
 	int	(*self_test_count)(struct net_device *);/* use get_sset_count */
 	int	(*get_stats_count)(struct net_device *);/* use get_sset_count */
+	int	(*get_rxhash)(struct net_device *, struct ethtool_rxnfc *);
+	int	(*set_rxhash)(struct net_device *, struct ethtool_rxnfc *);
 };
 #endif /* __KERNEL__ */
 
@@ -441,6 +464,9 @@ struct ethtool_ops {
 #define ETHTOOL_SFLAGS		0x00000026 /* Set flags bitmap(ethtool_value) */
 #define ETHTOOL_GPFLAGS		0x00000027 /* Get driver-private flags bitmap */
 #define ETHTOOL_SPFLAGS		0x00000028 /* Set driver-private flags bitmap */
+
+#define	ETHTOOL_GRXFH		0x00000029 /* Get RX flow hash configuration */
+#define	ETHTOOL_SRXFH		0x0000002a /* Set RX flow hash configuration */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -527,5 +553,27 @@ struct ethtool_ops {
 #define WAKE_ARP		(1 << 4)
 #define WAKE_MAGIC		(1 << 5)
 #define WAKE_MAGICSECURE	(1 << 6) /* only meaningful if WAKE_MAGIC */
+
+/* L3-L4 network traffic flow types */
+#define	TCP_V4_FLOW	0x01
+#define	UDP_V4_FLOW	0x02
+#define	SCTP_V4_FLOW	0x03
+#define	AH_ESP_V4_FLOW	0x04
+#define	TCP_V6_FLOW	0x05
+#define	UDP_V6_FLOW	0x06
+#define	SCTP_V6_FLOW	0x07
+#define	AH_ESP_V6_FLOW	0x08
+
+/* L3-L4 network traffic flow hash options */
+#define	RXH_DEV_PORT	(1 << 0)
+#define	RXH_L2DA	(1 << 1)
+#define	RXH_VLAN	(1 << 2)
+#define	RXH_L3_PROTO	(1 << 3)
+#define	RXH_IP_SRC	(1 << 4)
+#define	RXH_IP_DST	(1 << 5)
+#define	RXH_L4_B_0_1	(1 << 6) /* src port in case of TCP/UDP/SCTP */
+#define	RXH_L4_B_2_3	(1 << 7) /* dst port in case of TCP/UDP/SCTP */
+#define	RXH_DISCARD	(1 << 31)
+
 
 #endif /* _LINUX_ETHTOOL_H */

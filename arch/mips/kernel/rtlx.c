@@ -522,8 +522,8 @@ static int __init rtlx_module_init(void)
 		atomic_set(&channel_wqs[i].in_open, 0);
 		mutex_init(&channel_wqs[i].mutex);
 
-		dev = device_create(mt_class, NULL, MKDEV(major, i),
-		                    "%s%d", module_name, i);
+		dev = device_create_drvdata(mt_class, NULL, MKDEV(major, i),
+					    NULL, "%s%d", module_name, i);
 		if (IS_ERR(dev)) {
 			err = PTR_ERR(dev);
 			goto out_chrdev;

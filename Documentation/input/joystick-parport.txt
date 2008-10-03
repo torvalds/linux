@@ -2,7 +2,6 @@
 	       (c) 1998-2000 Vojtech Pavlik <vojtech@ucw.cz>
 	       (c) 1998 Andree Borrmann <a.borrmann@tu-bs.de>
 			     Sponsored by SuSE
-	$Id: joystick-parport.txt,v 1.6 2001/09/25 09:31:32 vojtech Exp $
 ----------------------------------------------------------------------------
 
 0. Disclaimer

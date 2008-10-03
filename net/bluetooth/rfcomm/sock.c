@@ -23,8 +23,6 @@
 
 /*
  * RFCOMM sockets.
- *
- * $Id: sock.c,v 1.24 2002/10/03 01:00:34 maxk Exp $
  */
 
 #include <linux/module.h>
@@ -309,13 +307,13 @@ static struct sock *rfcomm_sock_alloc(struct net *net, struct socket *sock, int 
 	sk->sk_destruct = rfcomm_sock_destruct;
 	sk->sk_sndtimeo = RFCOMM_CONN_TIMEOUT;
 
-	sk->sk_sndbuf   = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
-	sk->sk_rcvbuf   = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
+	sk->sk_sndbuf = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
+	sk->sk_rcvbuf = RFCOMM_MAX_CREDITS * RFCOMM_DEFAULT_MTU * 10;
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
 
 	sk->sk_protocol = proto;
-	sk->sk_state	= BT_OPEN;
+	sk->sk_state    = BT_OPEN;
 
 	bt_sock_link(&rfcomm_sk_list, sk);
 
@@ -412,6 +410,8 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	sk->sk_state = BT_CONNECT;
 	bacpy(&bt_sk(sk)->dst, &sa->rc_bdaddr);
 	rfcomm_pi(sk)->channel = sa->rc_channel;
+
+	d->link_mode = rfcomm_pi(sk)->link_mode;
 
 	err = rfcomm_dlc_open(d, &bt_sk(sk)->src, &sa->rc_bdaddr, sa->rc_channel);
 	if (!err)
@@ -688,6 +688,8 @@ static int rfcomm_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		copied += chunk;
 		size   -= chunk;
 
+		sock_recv_timestamp(msg, sk, skb);
+
 		if (!(flags & MSG_PEEK)) {
 			atomic_sub(chunk, &sk->sk_rmem_alloc);
 
@@ -793,15 +795,20 @@ static int rfcomm_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 	struct sock *sk = sock->sk;
 	int err;
 
-	lock_sock(sk);
+	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);
 
+	err = bt_sock_ioctl(sock, cmd, arg);
+
+	if (err == -ENOIOCTLCMD) {
 #ifdef CONFIG_BT_RFCOMM_TTY
-	err = rfcomm_dev_ioctl(sk, cmd, (void __user *)arg);
+		lock_sock(sk);
+		err = rfcomm_dev_ioctl(sk, cmd, (void __user *) arg);
+		release_sock(sk);
 #else
-	err = -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
 #endif
+	}
 
-	release_sock(sk);
 	return err;
 }
 

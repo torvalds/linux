@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -47,7 +47,7 @@ struct mlx4_mpt_entry {
 	__be32 flags;
 	__be32 qpn;
 	__be32 key;
-	__be32 pd;
+	__be32 pd_flags;
 	__be64 start;
 	__be64 length;
 	__be32 lkey;
@@ -61,12 +61,15 @@ struct mlx4_mpt_entry {
 } __attribute__((packed));
 
 #define MLX4_MPT_FLAG_SW_OWNS	    (0xfUL << 28)
+#define MLX4_MPT_FLAG_FREE	    (0x3UL << 28)
 #define MLX4_MPT_FLAG_MIO	    (1 << 17)
 #define MLX4_MPT_FLAG_BIND_ENABLE   (1 << 15)
 #define MLX4_MPT_FLAG_PHYSICAL	    (1 <<  9)
 #define MLX4_MPT_FLAG_REGION	    (1 <<  8)
 
-#define MLX4_MTT_FLAG_PRESENT		1
+#define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 27)
+#define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
+#define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
 
 #define MLX4_MPT_STATUS_SW		0xF0
 #define MLX4_MPT_STATUS_HW		0x00
@@ -79,23 +82,26 @@ static u32 mlx4_buddy_alloc(struct mlx4_buddy *buddy, int order)
 
 	spin_lock(&buddy->lock);
 
-	for (o = order; o <= buddy->max_order; ++o) {
-		m = 1 << (buddy->max_order - o);
-		seg = find_first_bit(buddy->bits[o], m);
-		if (seg < m)
-			goto found;
-	}
+	for (o = order; o <= buddy->max_order; ++o)
+		if (buddy->num_free[o]) {
+			m = 1 << (buddy->max_order - o);
+			seg = find_first_bit(buddy->bits[o], m);
+			if (seg < m)
+				goto found;
+		}
 
 	spin_unlock(&buddy->lock);
 	return -1;
 
  found:
 	clear_bit(seg, buddy->bits[o]);
+	--buddy->num_free[o];
 
 	while (o > order) {
 		--o;
 		seg <<= 1;
 		set_bit(seg ^ 1, buddy->bits[o]);
+		++buddy->num_free[o];
 	}
 
 	spin_unlock(&buddy->lock);
@@ -113,11 +119,13 @@ static void mlx4_buddy_free(struct mlx4_buddy *buddy, u32 seg, int order)
 
 	while (test_bit(seg ^ 1, buddy->bits[order])) {
 		clear_bit(seg ^ 1, buddy->bits[order]);
+		--buddy->num_free[order];
 		seg >>= 1;
 		++order;
 	}
 
 	set_bit(seg, buddy->bits[order]);
+	++buddy->num_free[order];
 
 	spin_unlock(&buddy->lock);
 }
@@ -131,7 +139,9 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 
 	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
 			      GFP_KERNEL);
-	if (!buddy->bits)
+	buddy->num_free = kzalloc((buddy->max_order + 1) * sizeof (int *),
+				  GFP_KERNEL);
+	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
 
 	for (i = 0; i <= buddy->max_order; ++i) {
@@ -143,6 +153,7 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 	}
 
 	set_bit(0, buddy->bits[buddy->max_order]);
+	buddy->num_free[buddy->max_order] = 1;
 
 	return 0;
 
@@ -150,9 +161,10 @@ err_out_free:
 	for (i = 0; i <= buddy->max_order; ++i)
 		kfree(buddy->bits[i]);
 
-	kfree(buddy->bits);
-
 err_out:
+	kfree(buddy->bits);
+	kfree(buddy->num_free);
+
 	return -ENOMEM;
 }
 
@@ -164,6 +176,7 @@ static void mlx4_buddy_cleanup(struct mlx4_buddy *buddy)
 		kfree(buddy->bits[i]);
 
 	kfree(buddy->bits);
+	kfree(buddy->num_free);
 }
 
 static u32 mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
@@ -314,21 +327,33 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 
 	memset(mpt_entry, 0, sizeof *mpt_entry);
 
-	mpt_entry->flags = cpu_to_be32(MLX4_MPT_FLAG_SW_OWNS	 |
-				       MLX4_MPT_FLAG_MIO	 |
+	mpt_entry->flags = cpu_to_be32(MLX4_MPT_FLAG_MIO	 |
 				       MLX4_MPT_FLAG_REGION	 |
 				       mr->access);
 
 	mpt_entry->key	       = cpu_to_be32(key_to_hw_index(mr->key));
-	mpt_entry->pd	       = cpu_to_be32(mr->pd);
+	mpt_entry->pd_flags    = cpu_to_be32(mr->pd | MLX4_MPT_PD_FLAG_EN_INV);
 	mpt_entry->start       = cpu_to_be64(mr->iova);
 	mpt_entry->length      = cpu_to_be64(mr->size);
 	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
+
 	if (mr->mtt.order < 0) {
 		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
 		mpt_entry->mtt_seg = 0;
-	} else
+	} else {
 		mpt_entry->mtt_seg = cpu_to_be64(mlx4_mtt_addr(dev, &mr->mtt));
+	}
+
+	if (mr->mtt.order >= 0 && mr->mtt.page_shift == 0) {
+		/* fast register MR in free state */
+		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_FREE);
+		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_FAST_REG |
+						   MLX4_MPT_PD_FLAG_RAE);
+		mpt_entry->mtt_sz    = cpu_to_be32((1 << mr->mtt.order) *
+						   MLX4_MTT_ENTRY_PER_SEG);
+	} else {
+		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_SW_OWNS);
+	}
 
 	err = mlx4_SW2HW_MPT(dev, mailbox,
 			     key_to_hw_index(mr->key) & (dev->caps.num_mpts - 1));

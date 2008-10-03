@@ -491,8 +491,8 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 		 * the lowest available address range.
 		 */
 		dma_addr_t handle;
-		handle = swiotlb_map_single(NULL, NULL, size, DMA_FROM_DEVICE);
-		if (swiotlb_dma_mapping_error(handle))
+		handle = swiotlb_map_single(hwdev, NULL, size, DMA_FROM_DEVICE);
+		if (swiotlb_dma_mapping_error(hwdev, handle))
 			return NULL;
 
 		ret = bus_to_virt(handle);
@@ -824,7 +824,7 @@ swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 }
 
 int
-swiotlb_dma_mapping_error(dma_addr_t dma_addr)
+swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
 {
 	return (dma_addr == virt_to_bus(io_tlb_overflow_buffer));
 }

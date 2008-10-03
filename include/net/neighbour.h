@@ -75,7 +75,7 @@ struct neigh_statistics
 	unsigned long destroys;		/* number of destroyed neighs */
 	unsigned long hash_grows;	/* number of hash resizes */
 
-	unsigned long res_failed;	/* nomber of failed resolutions */
+	unsigned long res_failed;	/* number of failed resolutions */
 
 	unsigned long lookups;		/* number of lookups */
 	unsigned long hits;		/* number of hits (among lookups) */
@@ -85,6 +85,8 @@ struct neigh_statistics
 
 	unsigned long periodic_gc_runs;	/* number of periodic GC runs */
 	unsigned long forced_gc_runs;	/* number of forced GC runs */
+
+	unsigned long unres_discards;	/* number of unresolved drops */
 };
 
 #define NEIGH_CACHE_STAT_INC(tbl, field)				\

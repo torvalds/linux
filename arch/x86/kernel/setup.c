@@ -57,12 +57,8 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/delay.h>
-#include <linux/highmem.h>
 
 #include <linux/kallsyms.h>
-#include <linux/edd.h>
-#include <linux/iscsi_ibft.h>
-#include <linux/kexec.h>
 #include <linux/cpufreq.h>
 #include <linux/dma-mapping.h>
 #include <linux/ctype.h>
@@ -96,7 +92,7 @@
 #include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/dma.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
@@ -104,7 +100,6 @@
 #include <asm/paravirt.h>
 
 #include <asm/percpu.h>
-#include <asm/sections.h>
 #include <asm/topology.h>
 #include <asm/apicdef.h>
 #ifdef CONFIG_X86_64
@@ -450,7 +445,7 @@ static void __init reserve_early_setup_data(void)
  * @size: Size of the crashkernel memory to reserve.
  * Returns the base address on success, and -1ULL on failure.
  */
-unsigned long long find_and_reserve_crashkernel(unsigned long long size)
+unsigned long long __init find_and_reserve_crashkernel(unsigned long long size)
 {
 	const unsigned long long alignment = 16<<20; 	/* 16M */
 	unsigned long long start = 0LL;
@@ -579,6 +574,10 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
+static struct x86_quirks default_x86_quirks __initdata;
+
+struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -598,11 +597,11 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
 	pre_setup_arch_hook();
-	early_cpu_init();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
 
+	early_cpu_init();
 	early_ioremap_init();
 
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
@@ -666,13 +665,22 @@ void __init setup_arch(char **cmdline_p)
 	bss_resource.start = virt_to_phys(&__bss_start);
 	bss_resource.end = virt_to_phys(&__bss_stop)-1;
 
-#ifdef CONFIG_X86_64
-	early_cpu_init();
-#endif
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	parse_early_param();
+
+#ifdef CONFIG_X86_64
+	check_efer();
+#endif
+
+#if defined(CONFIG_VMI) && defined(CONFIG_X86_32)
+	/*
+	 * Must be before kernel pagetables are setup
+	 * or fixmap area is touched.
+	 */
+	vmi_init();
+#endif
 
 	/* after early param, so could get panic from serial */
 	reserve_early_setup_data();
@@ -681,7 +689,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_LOCAL_APIC
 		disable_apic = 1;
 #endif
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+		setup_clear_cpu_cap(X86_FEATURE_APIC);
 	}
 
 #ifdef CONFIG_PCI
@@ -734,7 +742,6 @@ void __init setup_arch(char **cmdline_p)
 #else
 	num_physpages = max_pfn;
 
-	check_efer();
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */
@@ -792,10 +799,6 @@ void __init setup_arch(char **cmdline_p)
 
 	initmem_init(0, max_pfn);
 
-#ifdef CONFIG_X86_64
-	dma32_reserve_bootmem();
-#endif
-
 #ifdef CONFIG_ACPI_SLEEP
 	/*
 	 * Reserve low memory region for sleep support.
@@ -810,21 +813,25 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	reserve_crashkernel();
 
+#ifdef CONFIG_X86_64
+	/*
+	 * dma32_reserve_bootmem() allocates bootmem which may conflict
+	 * with the crashkernel command line, so do that after
+	 * reserve_crashkernel()
+	 */
+	dma32_reserve_bootmem();
+#endif
+
 	reserve_ibft_region();
 
 #ifdef CONFIG_KVM_CLOCK
 	kvmclock_init();
 #endif
 
-#if defined(CONFIG_VMI) && defined(CONFIG_X86_32)
-	/*
-	 * Must be after max_low_pfn is determined, and before kernel
-	 * pagetables are setup.
-	 */
-	vmi_init();
-#endif
-
+	paravirt_pagetable_setup_start(swapper_pg_dir);
 	paging_init();
+	paravirt_pagetable_setup_done(swapper_pg_dir);
+	paravirt_post_allocator_init();
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();
@@ -854,23 +861,9 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 #endif
 
-#ifdef CONFIG_X86_NUMAQ
-	/*
-	 * need to check online nodes num, call it
-	 * here before time_init/tsc_init
-	 */
-	numaq_tsc_disable();
-#endif
-
 	init_apic_mappings();
 	ioapic_init_mappings();
 
-#if defined(CONFIG_SMP) && defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
-	if (def_to_bigsmp)
-		printk(KERN_WARNING "More than 8 CPUs detected and "
-			"CONFIG_X86_PC cannot handle it.\nUse "
-			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
-#endif
 	kvm_guest_init();
 
 	e820_reserve_resources();

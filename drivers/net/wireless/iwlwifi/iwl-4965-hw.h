@@ -62,12 +62,17 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-4965-hw.h) only for hardware-related definitions.
- * Use iwl-4965-commands.h for uCode API definitions.
- * Use iwl-4965.h for driver implementation definitions.
+ * Use iwl-commands.h for uCode API definitions.
+ * Use iwl-dev.h for driver implementation definitions.
  */
 
 #ifndef __iwl_4965_hw_h__
 #define __iwl_4965_hw_h__
+
+#include "iwl-fh.h"
+
+/* EERPROM */
+#define IWL4965_EEPROM_IMG_SIZE			1024
 
 /*
  * uCode queue management definitions ...
@@ -77,7 +82,7 @@
  */
 #define IWL_CMD_QUEUE_NUM       4
 #define IWL_CMD_FIFO_NUM        4
-#define IWL_BACK_QUEUE_FIRST_ID 7
+#define IWL49_FIRST_AMPDU_QUEUE	7
 
 /* Tx rates */
 #define IWL_CCK_RATES 4
@@ -93,11 +98,16 @@
 #define IWL_RSSI_OFFSET	44
 
 
-#include "iwl-4965-commands.h"
+#include "iwl-commands.h"
 
-#define PCI_LINK_CTRL      0x0F0
+/* PCI registers */
+#define PCI_LINK_CTRL      0x0F0	/* 1 byte */
 #define PCI_POWER_SOURCE   0x0C8
 #define PCI_REG_WUM8       0x0E8
+
+/* PCI register values */
+#define PCI_LINK_VAL_L0S_EN	0x01
+#define PCI_LINK_VAL_L1_EN	0x02
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
 
 #define TFD_QUEUE_SIZE_MAX      (256)
@@ -131,10 +141,8 @@
 #define RTC_DATA_LOWER_BOUND			(0x800000)
 #define IWL49_RTC_DATA_UPPER_BOUND		(0x80A000)
 
-#define IWL49_RTC_INST_SIZE	\
-			(IWL49_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
-#define IWL49_RTC_DATA_SIZE	\
-			(IWL49_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+#define IWL49_RTC_INST_SIZE  (IWL49_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
+#define IWL49_RTC_DATA_SIZE  (IWL49_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
 
 #define IWL_MAX_INST_SIZE IWL49_RTC_INST_SIZE
 #define IWL_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
@@ -785,585 +793,6 @@ enum {
 
 /********************* END TXPOWER *****************************************/
 
-/****************************/
-/* Flow Handler Definitions */
-/****************************/
-
-/**
- * This I/O area is directly read/writable by driver (e.g. Linux uses writel())
- * Addresses are offsets from device's PCI hardware base address.
- */
-#define FH_MEM_LOWER_BOUND                   (0x1000)
-#define FH_MEM_UPPER_BOUND                   (0x1EF0)
-
-/**
- * Keep-Warm (KW) buffer base address.
- *
- * Driver must allocate a 4KByte buffer that is used by 4965 for keeping the
- * host DRAM powered on (via dummy accesses to DRAM) to maintain low-latency
- * DRAM access when 4965 is Txing or Rxing.  The dummy accesses prevent host
- * from going into a power-savings mode that would cause higher DRAM latency,
- * and possible data over/under-runs, before all Tx/Rx is complete.
- *
- * Driver loads IWL_FH_KW_MEM_ADDR_REG with the physical address (bits 35:4)
- * of the buffer, which must be 4K aligned.  Once this is set up, the 4965
- * automatically invokes keep-warm accesses when normal accesses might not
- * be sufficient to maintain fast DRAM response.
- *
- * Bit fields:
- *  31-0:  Keep-warm buffer physical base address [35:4], must be 4K aligned
- */
-#define IWL_FH_KW_MEM_ADDR_REG		     (FH_MEM_LOWER_BOUND + 0x97C)
-
-
-/**
- * TFD Circular Buffers Base (CBBC) addresses
- *
- * 4965 has 16 base pointer registers, one for each of 16 host-DRAM-resident
- * circular buffers (CBs/queues) containing Transmit Frame Descriptors (TFDs)
- * (see struct iwl_tfd_frame).  These 16 pointer registers are offset by 0x04
- * bytes from one another.  Each TFD circular buffer in DRAM must be 256-byte
- * aligned (address bits 0-7 must be 0).
- *
- * Bit fields in each pointer register:
- *  27-0: TFD CB physical base address [35:8], must be 256-byte aligned
- */
-#define FH_MEM_CBBC_LOWER_BOUND              (FH_MEM_LOWER_BOUND + 0x9D0)
-#define FH_MEM_CBBC_UPPER_BOUND              (FH_MEM_LOWER_BOUND + 0xA10)
-
-/* Find TFD CB base pointer for given queue (range 0-15). */
-#define FH_MEM_CBBC_QUEUE(x)  (FH_MEM_CBBC_LOWER_BOUND + (x) * 0x4)
-
-
-/**
- * Rx SRAM Control and Status Registers (RSCSR)
- *
- * These registers provide handshake between driver and 4965 for the Rx queue
- * (this queue handles *all* command responses, notifications, Rx data, etc.
- * sent from 4965 uCode to host driver).  Unlike Tx, there is only one Rx
- * queue, and only one Rx DMA/FIFO channel.  Also unlike Tx, which can
- * concatenate up to 20 DRAM buffers to form a Tx frame, each Receive Buffer
- * Descriptor (RBD) points to only one Rx Buffer (RB); there is a 1:1
- * mapping between RBDs and RBs.
- *
- * Driver must allocate host DRAM memory for the following, and set the
- * physical address of each into 4965 registers:
- *
- * 1)  Receive Buffer Descriptor (RBD) circular buffer (CB), typically with 256
- *     entries (although any power of 2, up to 4096, is selectable by driver).
- *     Each entry (1 dword) points to a receive buffer (RB) of consistent size
- *     (typically 4K, although 8K or 16K are also selectable by driver).
- *     Driver sets up RB size and number of RBDs in the CB via Rx config
- *     register FH_MEM_RCSR_CHNL0_CONFIG_REG.
- *
- *     Bit fields within one RBD:
- *     27-0:  Receive Buffer physical address bits [35:8], 256-byte aligned
- *
- *     Driver sets physical address [35:8] of base of RBD circular buffer
- *     into FH_RSCSR_CHNL0_RBDCB_BASE_REG [27:0].
- *
- * 2)  Rx status buffer, 8 bytes, in which 4965 indicates which Rx Buffers
- *     (RBs) have been filled, via a "write pointer", actually the index of
- *     the RB's corresponding RBD within the circular buffer.  Driver sets
- *     physical address [35:4] into FH_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
- *
- *     Bit fields in lower dword of Rx status buffer (upper dword not used
- *     by driver; see struct iwl4965_shared, val0):
- *     31-12:  Not used by driver
- *     11- 0:  Index of last filled Rx buffer descriptor
- *             (4965 writes, driver reads this value)
- *
- * As the driver prepares Receive Buffers (RBs) for 4965 to fill, driver must
- * enter pointers to these RBs into contiguous RBD circular buffer entries,
- * and update the 4965's "write" index register, FH_RSCSR_CHNL0_RBDCB_WPTR_REG.
- *
- * This "write" index corresponds to the *next* RBD that the driver will make
- * available, i.e. one RBD past the tail of the ready-to-fill RBDs within
- * the circular buffer.  This value should initially be 0 (before preparing any
- * RBs), should be 8 after preparing the first 8 RBs (for example), and must
- * wrap back to 0 at the end of the circular buffer (but don't wrap before
- * "read" index has advanced past 1!  See below).
- * NOTE:  4965 EXPECTS THE WRITE INDEX TO BE INCREMENTED IN MULTIPLES OF 8.
- *
- * As the 4965 fills RBs (referenced from contiguous RBDs within the circular
- * buffer), it updates the Rx status buffer in host DRAM, 2) described above,
- * to tell the driver the index of the latest filled RBD.  The driver must
- * read this "read" index from DRAM after receiving an Rx interrupt from 4965.
- *
- * The driver must also internally keep track of a third index, which is the
- * next RBD to process.  When receiving an Rx interrupt, driver should process
- * all filled but unprocessed RBs up to, but not including, the RB
- * corresponding to the "read" index.  For example, if "read" index becomes "1",
- * driver may process the RB pointed to by RBD 0.  Depending on volume of
- * traffic, there may be many RBs to process.
- *
- * If read index == write index, 4965 thinks there is no room to put new data.
- * Due to this, the maximum number of filled RBs is 255, instead of 256.  To
- * be safe, make sure that there is a gap of at least 2 RBDs between "write"
- * and "read" indexes; that is, make sure that there are no more than 254
- * buffers waiting to be filled.
- */
-#define FH_MEM_RSCSR_LOWER_BOUND	(FH_MEM_LOWER_BOUND + 0xBC0)
-#define FH_MEM_RSCSR_UPPER_BOUND	(FH_MEM_LOWER_BOUND + 0xC00)
-#define FH_MEM_RSCSR_CHNL0		(FH_MEM_RSCSR_LOWER_BOUND)
-
-/**
- * Physical base address of 8-byte Rx Status buffer.
- * Bit fields:
- *  31-0: Rx status buffer physical base address [35:4], must 16-byte aligned.
- */
-#define FH_RSCSR_CHNL0_STTS_WPTR_REG		(FH_MEM_RSCSR_CHNL0)
-
-/**
- * Physical base address of Rx Buffer Descriptor Circular Buffer.
- * Bit fields:
- *  27-0:  RBD CD physical base address [35:8], must be 256-byte aligned.
- */
-#define FH_RSCSR_CHNL0_RBDCB_BASE_REG		(FH_MEM_RSCSR_CHNL0 + 0x004)
-
-/**
- * Rx write pointer (index, really!).
- * Bit fields:
- *  11-0:  Index of driver's most recent prepared-to-be-filled RBD, + 1.
- *         NOTE:  For 256-entry circular buffer, use only bits [7:0].
- */
-#define FH_RSCSR_CHNL0_RBDCB_WPTR_REG		(FH_MEM_RSCSR_CHNL0 + 0x008)
-#define FH_RSCSR_CHNL0_WPTR        (FH_RSCSR_CHNL0_RBDCB_WPTR_REG)
-
-
-/**
- * Rx Config/Status Registers (RCSR)
- * Rx Config Reg for channel 0 (only channel used)
- *
- * Driver must initialize FH_MEM_RCSR_CHNL0_CONFIG_REG as follows for
- * normal operation (see bit fields).
- *
- * Clearing FH_MEM_RCSR_CHNL0_CONFIG_REG to 0 turns off Rx DMA.
- * Driver should poll FH_MEM_RSSR_RX_STATUS_REG	for
- * FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE (bit 24) before continuing.
- *
- * Bit fields:
- * 31-30: Rx DMA channel enable: '00' off/pause, '01' pause at end of frame,
- *        '10' operate normally
- * 29-24: reserved
- * 23-20: # RBDs in circular buffer = 2^value; use "8" for 256 RBDs (normal),
- *        min "5" for 32 RBDs, max "12" for 4096 RBDs.
- * 19-18: reserved
- * 17-16: size of each receive buffer; '00' 4K (normal), '01' 8K,
- *        '10' 12K, '11' 16K.
- * 15-14: reserved
- * 13-12: IRQ destination; '00' none, '01' host driver (normal operation)
- * 11- 4: timeout for closing Rx buffer and interrupting host (units 32 usec)
- *        typical value 0x10 (about 1/2 msec)
- *  3- 0: reserved
- */
-#define FH_MEM_RCSR_LOWER_BOUND      (FH_MEM_LOWER_BOUND + 0xC00)
-#define FH_MEM_RCSR_UPPER_BOUND      (FH_MEM_LOWER_BOUND + 0xCC0)
-#define FH_MEM_RCSR_CHNL0            (FH_MEM_RCSR_LOWER_BOUND)
-
-#define FH_MEM_RCSR_CHNL0_CONFIG_REG	(FH_MEM_RCSR_CHNL0)
-
-#define FH_RCSR_CHNL0_RX_CONFIG_RB_TIMEOUT_MASK   (0x00000FF0) /* bit 4-11 */
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_MASK     (0x00001000) /* bit 12 */
-#define FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MASK (0x00008000) /* bit 15 */
-#define FH_RCSR_CHNL0_RX_CONFIG_RB_SIZE_MASK	  (0x00030000) /* bits 16-17 */
-#define FH_RCSR_CHNL0_RX_CONFIG_RBDBC_SIZE_MASK   (0x00F00000) /* bits 20-23 */
-#define FH_RCSR_CHNL0_RX_CONFIG_DMA_CHNL_EN_MASK  (0xC0000000) /* bits 30-31 */
-
-#define FH_RCSR_RX_CONFIG_RBDCB_SIZE_BITSHIFT	(20)
-#define FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_BITSHIFT	(4)
-#define RX_RB_TIMEOUT	(0x10)
-
-#define FH_RCSR_RX_CONFIG_CHNL_EN_PAUSE_VAL         (0x00000000)
-#define FH_RCSR_RX_CONFIG_CHNL_EN_PAUSE_EOF_VAL     (0x40000000)
-#define FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL        (0x80000000)
-
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K    (0x00000000)
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K    (0x00010000)
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_12K   (0x00020000)
-#define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_16K   (0x00030000)
-
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL       (0x00000000)
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL     (0x00001000)
-
-
-/**
- * Rx Shared Status Registers (RSSR)
- *
- * After stopping Rx DMA channel (writing 0 to FH_MEM_RCSR_CHNL0_CONFIG_REG),
- * driver must poll FH_MEM_RSSR_RX_STATUS_REG until Rx channel is idle.
- *
- * Bit fields:
- *  24:  1 = Channel 0 is idle
- *
- * FH_MEM_RSSR_SHARED_CTRL_REG and FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV contain
- * default values that should not be altered by the driver.
- */
-#define FH_MEM_RSSR_LOWER_BOUND                	(FH_MEM_LOWER_BOUND + 0xC40)
-#define FH_MEM_RSSR_UPPER_BOUND               	(FH_MEM_LOWER_BOUND + 0xD00)
-
-#define FH_MEM_RSSR_SHARED_CTRL_REG           	(FH_MEM_RSSR_LOWER_BOUND)
-#define FH_MEM_RSSR_RX_STATUS_REG	(FH_MEM_RSSR_LOWER_BOUND + 0x004)
-#define FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV  (FH_MEM_RSSR_LOWER_BOUND + 0x008)
-
-#define FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE	(0x01000000)
-
-
-/**
- * Transmit DMA Channel Control/Status Registers (TCSR)
- *
- * 4965 has one configuration register for each of 8 Tx DMA/FIFO channels
- * supported in hardware (don't confuse these with the 16 Tx queues in DRAM,
- * which feed the DMA/FIFO channels); config regs are separated by 0x20 bytes.
- *
- * To use a Tx DMA channel, driver must initialize its
- * IWL_FH_TCSR_CHNL_TX_CONFIG_REG(chnl) with:
- *
- * IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
- * IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL
- *
- * All other bits should be 0.
- *
- * Bit fields:
- * 31-30: Tx DMA channel enable: '00' off/pause, '01' pause at end of frame,
- *        '10' operate normally
- * 29- 4: Reserved, set to "0"
- *     3: Enable internal DMA requests (1, normal operation), disable (0)
- *  2- 0: Reserved, set to "0"
- */
-#define IWL_FH_TCSR_LOWER_BOUND  (FH_MEM_LOWER_BOUND + 0xD00)
-#define IWL_FH_TCSR_UPPER_BOUND  (FH_MEM_LOWER_BOUND + 0xE60)
-
-/* Find Control/Status reg for given Tx DMA/FIFO channel */
-#define IWL_FH_TCSR_CHNL_TX_CONFIG_REG(_chnl) \
-	(IWL_FH_TCSR_LOWER_BOUND + 0x20 * _chnl)
-
-#define IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE_VAL    (0x00000000)
-#define IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL     (0x00000008)
-
-#define IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE            (0x00000000)
-#define IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE_EOF        (0x40000000)
-#define IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE           (0x80000000)
-
-/**
- * Tx Shared Status Registers (TSSR)
- *
- * After stopping Tx DMA channel (writing 0 to
- * IWL_FH_TCSR_CHNL_TX_CONFIG_REG(chnl)), driver must poll
- * IWL_FH_TSSR_TX_STATUS_REG until selected Tx channel is idle
- * (channel's buffers empty | no pending requests).
- *
- * Bit fields:
- * 31-24:  1 = Channel buffers empty (channel 7:0)
- * 23-16:  1 = No pending requests (channel 7:0)
- */
-#define IWL_FH_TSSR_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xEA0)
-#define IWL_FH_TSSR_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xEC0)
-
-#define IWL_FH_TSSR_TX_STATUS_REG	(IWL_FH_TSSR_LOWER_BOUND + 0x010)
-
-#define IWL_FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl)	\
-	((1 << (_chnl)) << 24)
-#define IWL_FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl) \
-	((1 << (_chnl)) << 16)
-
-#define IWL_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) \
-	(IWL_FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) | \
-	IWL_FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl))
-
-
-/********************* START TX SCHEDULER *************************************/
-
-/**
- * 4965 Tx Scheduler
- *
- * The Tx Scheduler selects the next frame to be transmitted, chosing TFDs
- * (Transmit Frame Descriptors) from up to 16 circular Tx queues resident in
- * host DRAM.  It steers each frame's Tx command (which contains the frame
- * data) into one of up to 7 prioritized Tx DMA FIFO channels within the
- * device.  A queue maps to only one (selectable by driver) Tx DMA channel,
- * but one DMA channel may take input from several queues.
- *
- * Tx DMA channels have dedicated purposes.  For 4965, they are used as follows:
- *
- * 0 -- EDCA BK (background) frames, lowest priority
- * 1 -- EDCA BE (best effort) frames, normal priority
- * 2 -- EDCA VI (video) frames, higher priority
- * 3 -- EDCA VO (voice) and management frames, highest priority
- * 4 -- Commands (e.g. RXON, etc.)
- * 5 -- HCCA short frames
- * 6 -- HCCA long frames
- * 7 -- not used by driver (device-internal only)
- *
- * Driver should normally map queues 0-6 to Tx DMA/FIFO channels 0-6.
- * In addition, driver can map queues 7-15 to Tx DMA/FIFO channels 0-3 to
- * support 11n aggregation via EDCA DMA channels.
- *
- * The driver sets up each queue to work in one of two modes:
- *
- * 1)  Scheduler-Ack, in which the scheduler automatically supports a
- *     block-ack (BA) window of up to 64 TFDs.  In this mode, each queue
- *     contains TFDs for a unique combination of Recipient Address (RA)
- *     and Traffic Identifier (TID), that is, traffic of a given
- *     Quality-Of-Service (QOS) priority, destined for a single station.
- *
- *     In scheduler-ack mode, the scheduler keeps track of the Tx status of
- *     each frame within the BA window, including whether it's been transmitted,
- *     and whether it's been acknowledged by the receiving station.  The device
- *     automatically processes block-acks received from the receiving STA,
- *     and reschedules un-acked frames to be retransmitted (successful
- *     Tx completion may end up being out-of-order).
- *
- *     The driver must maintain the queue's Byte Count table in host DRAM
- *     (struct iwl4965_sched_queue_byte_cnt_tbl) for this mode.
- *     This mode does not support fragmentation.
- *
- * 2)  FIFO (a.k.a. non-Scheduler-ACK), in which each TFD is processed in order.
- *     The device may automatically retry Tx, but will retry only one frame
- *     at a time, until receiving ACK from receiving station, or reaching
- *     retry limit and giving up.
- *
- *     The command queue (#4) must use this mode!
- *     This mode does not require use of the Byte Count table in host DRAM.
- *
- * Driver controls scheduler operation via 3 means:
- * 1)  Scheduler registers
- * 2)  Shared scheduler data base in internal 4956 SRAM
- * 3)  Shared data in host DRAM
- *
- * Initialization:
- *
- * When loading, driver should allocate memory for:
- * 1)  16 TFD circular buffers, each with space for (typically) 256 TFDs.
- * 2)  16 Byte Count circular buffers in 16 KBytes contiguous memory
- *     (1024 bytes for each queue).
- *
- * After receiving "Alive" response from uCode, driver must initialize
- * the scheduler (especially for queue #4, the command queue, otherwise
- * the driver can't issue commands!):
- */
-
-/**
- * Max Tx window size is the max number of contiguous TFDs that the scheduler
- * can keep track of at one time when creating block-ack chains of frames.
- * Note that "64" matches the number of ack bits in a block-ack packet.
- * Driver should use SCD_WIN_SIZE and SCD_FRAME_LIMIT values to initialize
- * SCD_CONTEXT_QUEUE_OFFSET(x) values.
- */
-#define SCD_WIN_SIZE				64
-#define SCD_FRAME_LIMIT				64
-
-/* SCD registers are internal, must be accessed via HBUS_TARG_PRPH regs */
-#define SCD_START_OFFSET		0xa02c00
-
-/*
- * 4965 tells driver SRAM address for internal scheduler structs via this reg.
- * Value is valid only after "Alive" response from uCode.
- */
-#define SCD_SRAM_BASE_ADDR           (SCD_START_OFFSET + 0x0)
-
-/*
- * Driver may need to update queue-empty bits after changing queue's
- * write and read pointers (indexes) during (re-)initialization (i.e. when
- * scheduler is not tracking what's happening).
- * Bit fields:
- * 31-16:  Write mask -- 1: update empty bit, 0: don't change empty bit
- * 15-00:  Empty state, one for each queue -- 1: empty, 0: non-empty
- * NOTE:  This register is not used by Linux driver.
- */
-#define SCD_EMPTY_BITS               (SCD_START_OFFSET + 0x4)
-
-/*
- * Physical base address of array of byte count (BC) circular buffers (CBs).
- * Each Tx queue has a BC CB in host DRAM to support Scheduler-ACK mode.
- * This register points to BC CB for queue 0, must be on 1024-byte boundary.
- * Others are spaced by 1024 bytes.
- * Each BC CB is 2 bytes * (256 + 64) = 740 bytes, followed by 384 bytes pad.
- * (Index into a queue's BC CB) = (index into queue's TFD CB) = (SSN & 0xff).
- * Bit fields:
- * 25-00:  Byte Count CB physical address [35:10], must be 1024-byte aligned.
- */
-#define SCD_DRAM_BASE_ADDR           (SCD_START_OFFSET + 0x10)
-
-/*
- * Enables any/all Tx DMA/FIFO channels.
- * Scheduler generates requests for only the active channels.
- * Set this to 0xff to enable all 8 channels (normal usage).
- * Bit fields:
- *  7- 0:  Enable (1), disable (0), one bit for each channel 0-7
- */
-#define SCD_TXFACT                   (SCD_START_OFFSET + 0x1c)
-
-/* Mask to enable contiguous Tx DMA/FIFO channels between "lo" and "hi". */
-#define SCD_TXFACT_REG_TXFIFO_MASK(lo, hi) \
-       ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
-
-/*
- * Queue (x) Write Pointers (indexes, really!), one for each Tx queue.
- * Initialized and updated by driver as new TFDs are added to queue.
- * NOTE:  If using Block Ack, index must correspond to frame's
- *        Start Sequence Number; index = (SSN & 0xff)
- * NOTE:  Alternative to HBUS_TARG_WRPTR, which is what Linux driver uses?
- */
-#define SCD_QUEUE_WRPTR(x)           (SCD_START_OFFSET + 0x24 + (x) * 4)
-
-/*
- * Queue (x) Read Pointers (indexes, really!), one for each Tx queue.
- * For FIFO mode, index indicates next frame to transmit.
- * For Scheduler-ACK mode, index indicates first frame in Tx window.
- * Initialized by driver, updated by scheduler.
- */
-#define SCD_QUEUE_RDPTR(x)           (SCD_START_OFFSET + 0x64 + (x) * 4)
-
-/*
- * Select which queues work in chain mode (1) vs. not (0).
- * Use chain mode to build chains of aggregated frames.
- * Bit fields:
- * 31-16:  Reserved
- * 15-00:  Mode, one bit for each queue -- 1: Chain mode, 0: one-at-a-time
- * NOTE:  If driver sets up queue for chain mode, it should be also set up
- *        Scheduler-ACK mode as well, via SCD_QUEUE_STATUS_BITS(x).
- */
-#define SCD_QUEUECHAIN_SEL           (SCD_START_OFFSET + 0xd0)
-
-/*
- * Select which queues interrupt driver when scheduler increments
- * a queue's read pointer (index).
- * Bit fields:
- * 31-16:  Reserved
- * 15-00:  Interrupt enable, one bit for each queue -- 1: enabled, 0: disabled
- * NOTE:  This functionality is apparently a no-op; driver relies on interrupts
- *        from Rx queue to read Tx command responses and update Tx queues.
- */
-#define SCD_INTERRUPT_MASK           (SCD_START_OFFSET + 0xe4)
-
-/*
- * Queue search status registers.  One for each queue.
- * Sets up queue mode and assigns queue to Tx DMA channel.
- * Bit fields:
- * 19-10: Write mask/enable bits for bits 0-9
- *     9: Driver should init to "0"
- *     8: Scheduler-ACK mode (1), non-Scheduler-ACK (i.e. FIFO) mode (0).
- *        Driver should init to "1" for aggregation mode, or "0" otherwise.
- *   7-6: Driver should init to "0"
- *     5: Window Size Left; indicates whether scheduler can request
- *        another TFD, based on window size, etc.  Driver should init
- *        this bit to "1" for aggregation mode, or "0" for non-agg.
- *   4-1: Tx FIFO to use (range 0-7).
- *     0: Queue is active (1), not active (0).
- * Other bits should be written as "0"
- *
- * NOTE:  If enabling Scheduler-ACK mode, chain mode should also be enabled
- *        via SCD_QUEUECHAIN_SEL.
- */
-#define SCD_QUEUE_STATUS_BITS(x)     (SCD_START_OFFSET + 0x104 + (x) * 4)
-
-/* Bit field positions */
-#define SCD_QUEUE_STTS_REG_POS_ACTIVE		(0)
-#define SCD_QUEUE_STTS_REG_POS_TXF		(1)
-#define SCD_QUEUE_STTS_REG_POS_WSL		(5)
-#define SCD_QUEUE_STTS_REG_POS_SCD_ACK		(8)
-
-/* Write masks */
-#define SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN	(10)
-#define SCD_QUEUE_STTS_REG_MSK			(0x0007FC00)
-
-/**
- * 4965 internal SRAM structures for scheduler, shared with driver ...
- *
- * Driver should clear and initialize the following areas after receiving
- * "Alive" response from 4965 uCode, i.e. after initial
- * uCode load, or after a uCode load done for error recovery:
- *
- * SCD_CONTEXT_DATA_OFFSET (size 128 bytes)
- * SCD_TX_STTS_BITMAP_OFFSET (size 256 bytes)
- * SCD_TRANSLATE_TBL_OFFSET (size 32 bytes)
- *
- * Driver accesses SRAM via HBUS_TARG_MEM_* registers.
- * Driver reads base address of this scheduler area from SCD_SRAM_BASE_ADDR.
- * All OFFSET values must be added to this base address.
- */
-
-/*
- * Queue context.  One 8-byte entry for each of 16 queues.
- *
- * Driver should clear this entire area (size 0x80) to 0 after receiving
- * "Alive" notification from uCode.  Additionally, driver should init
- * each queue's entry as follows:
- *
- * LS Dword bit fields:
- *  0-06:  Max Tx window size for Scheduler-ACK.  Driver should init to 64.
- *
- * MS Dword bit fields:
- * 16-22:  Frame limit.  Driver should init to 10 (0xa).
- *
- * Driver should init all other bits to 0.
- *
- * Init must be done after driver receives "Alive" response from 4965 uCode,
- * and when setting up queue for aggregation.
- */
-#define SCD_CONTEXT_DATA_OFFSET			0x380
-#define SCD_CONTEXT_QUEUE_OFFSET(x)	(SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
-
-#define SCD_QUEUE_CTX_REG1_WIN_SIZE_POS		(0)
-#define SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK		(0x0000007F)
-#define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
-#define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
-
-/*
- * Tx Status Bitmap
- *
- * Driver should clear this entire area (size 0x100) to 0 after receiving
- * "Alive" notification from uCode.  Area is used only by device itself;
- * no other support (besides clearing) is required from driver.
- */
-#define SCD_TX_STTS_BITMAP_OFFSET		0x400
-
-/*
- * RAxTID to queue translation mapping.
- *
- * When queue is in Scheduler-ACK mode, frames placed in a that queue must be
- * for only one combination of receiver address (RA) and traffic ID (TID), i.e.
- * one QOS priority level destined for one station (for this wireless link,
- * not final destination).  The SCD_TRANSLATE_TABLE area provides 16 16-bit
- * mappings, one for each of the 16 queues.  If queue is not in Scheduler-ACK
- * mode, the device ignores the mapping value.
- *
- * Bit fields, for each 16-bit map:
- * 15-9:  Reserved, set to 0
- *  8-4:  Index into device's station table for recipient station
- *  3-0:  Traffic ID (tid), range 0-15
- *
- * Driver should clear this entire area (size 32 bytes) to 0 after receiving
- * "Alive" notification from uCode.  To update a 16-bit map value, driver
- * must read a dword-aligned value from device SRAM, replace the 16-bit map
- * value of interest, and write the dword value back into device SRAM.
- */
-#define SCD_TRANSLATE_TBL_OFFSET		0x500
-
-/* Find translation table dword to read/write for given queue */
-#define SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
-	((SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffffffc)
-
-#define SCD_TXFIFO_POS_TID			(0)
-#define SCD_TXFIFO_POS_RA			(4)
-#define SCD_QUEUE_RA_TID_MAP_RATID_MSK		(0x01FF)
-
-/*********************** END TX SCHEDULER *************************************/
-
-static inline u8 iwl4965_hw_get_rate(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0xFF;
-}
-static inline u16 iwl4965_hw_get_rate_n_flags(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0xFFFF;
-}
-static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
-{
-	return cpu_to_le32(flags|(u16)rate);
-}
-
 
 /**
  * Tx/Rx Queues
@@ -1385,14 +814,15 @@ static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
  * up to 7 DMA channels (FIFOs).  Each Tx queue is supported by a circular array
  * in DRAM containing 256 Transmit Frame Descriptors (TFDs).
  */
-#define IWL4965_MAX_WIN_SIZE	64
-#define IWL4965_QUEUE_SIZE	256
-#define IWL4965_NUM_FIFOS	7
-#define IWL4965_MAX_NUM_QUEUES	16
-
+#define IWL49_MAX_WIN_SIZE	64
+#define IWL49_QUEUE_SIZE	256
+#define IWL49_NUM_FIFOS 	7
+#define IWL49_CMD_FIFO_NUM	4
+#define IWL49_NUM_QUEUES	16
+#define IWL49_NUM_AMPDU_QUEUES	8
 
 /**
- * struct iwl4965_tfd_frame_data
+ * struct iwl_tfd_frame_data
  *
  * Describes up to 2 buffers containing (contiguous) portions of a Tx frame.
  * Each buffer must be on dword boundary.
@@ -1411,7 +841,7 @@ static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
  * 31-20: Tx buffer 2 length (bytes)
  * 19- 0: Tx buffer 2 address bits [35:16]
  */
-struct iwl4965_tfd_frame_data {
+struct iwl_tfd_frame_data {
 	__le32 tb1_addr;
 
 	__le32 val1;
@@ -1441,7 +871,7 @@ struct iwl4965_tfd_frame_data {
 
 
 /**
- * struct iwl4965_tfd_frame
+ * struct iwl_tfd_frame
  *
  * Transmit Frame Descriptor (TFD)
  *
@@ -1468,7 +898,7 @@ struct iwl4965_tfd_frame_data {
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
  */
-struct iwl4965_tfd_frame {
+struct iwl_tfd_frame {
 	__le32 val0;
 	/* __le32 rsvd1:24; */
 	/* __le32 num_tbs:5; */
@@ -1477,7 +907,7 @@ struct iwl4965_tfd_frame {
 #define IWL_num_tbs_SYM val0
 	/* __le32 rsvd2:1; */
 	/* __le32 padding:2; */
-	struct iwl4965_tfd_frame_data pa[10];
+	struct iwl_tfd_frame_data pa[10];
 	__le32 reserved;
 } __attribute__ ((packed));
 
@@ -1520,10 +950,10 @@ struct iwl4965_queue_byte_cnt_entry {
  * 4965 assumes tables are separated by 1024 bytes.
  */
 struct iwl4965_sched_queue_byte_cnt_tbl {
-	struct iwl4965_queue_byte_cnt_entry tfd_offset[IWL4965_QUEUE_SIZE +
-						       IWL4965_MAX_WIN_SIZE];
+	struct iwl4965_queue_byte_cnt_entry tfd_offset[IWL49_QUEUE_SIZE +
+						       IWL49_MAX_WIN_SIZE];
 	u8 dont_care[1024 -
-		     (IWL4965_QUEUE_SIZE + IWL4965_MAX_WIN_SIZE) *
+		     (IWL49_QUEUE_SIZE + IWL49_MAX_WIN_SIZE) *
 		     sizeof(__le16)];
 } __attribute__ ((packed));
 
@@ -1553,7 +983,7 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
  */
 struct iwl4965_shared {
 	struct iwl4965_sched_queue_byte_cnt_tbl
-	 queues_byte_cnt_tbls[IWL4965_MAX_NUM_QUEUES];
+	 queues_byte_cnt_tbls[IWL49_NUM_QUEUES];
 	__le32 rb_closed;
 
 	/* __le32 rb_closed_stts_rb_num:12; */

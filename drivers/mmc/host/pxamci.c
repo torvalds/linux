@@ -31,8 +31,8 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mmc.h>
+#include <mach/pxa-regs.h>
+#include <mach/mmc.h>
 
 #include "pxamci.h"
 
@@ -177,7 +177,7 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	if (dalgn)
 		DALGN |= (1 << host->dma);
 	else
-		DALGN &= (1 << host->dma);
+		DALGN &= ~(1 << host->dma);
 	DDADR(host->dma) = host->sg_dma;
 	DCSR(host->dma) = DCSR_RUN;
 }

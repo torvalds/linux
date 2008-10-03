@@ -29,12 +29,12 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
 #include <asm/mach/dma.h>
-#include <asm/arch/map.h>
+#include <mach/map.h>
 
 #include <asm/plat-s3c24xx/dma.h>
 
@@ -1304,7 +1304,7 @@ struct sysdev_class dma_sysclass = {
 
 /* kmem cache implementation */
 
-static void s3c2410_dma_cache_ctor(struct kmem_cache *c, void *p)
+static void s3c2410_dma_cache_ctor(void *p)
 {
 	memset(p, 0, sizeof(struct s3c2410_dma_buf));
 }

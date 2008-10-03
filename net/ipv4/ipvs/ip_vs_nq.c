@@ -1,8 +1,6 @@
 /*
  * IPVS:        Never Queue scheduling module
  *
- * Version:     $Id: ip_vs_nq.c,v 1.2 2003/06/08 09:31:19 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *
  *              This program is free software; you can redistribute it and/or
@@ -138,6 +136,7 @@ static struct ip_vs_scheduler ip_vs_nq_scheduler =
 	.name =			"nq",
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list =		LIST_HEAD_INIT(ip_vs_nq_scheduler.n_list),
 	.init_service =		ip_vs_nq_init_svc,
 	.done_service =		ip_vs_nq_done_svc,
 	.update_service =	ip_vs_nq_update_svc,
@@ -147,7 +146,6 @@ static struct ip_vs_scheduler ip_vs_nq_scheduler =
 
 static int __init ip_vs_nq_init(void)
 {
-	INIT_LIST_HEAD(&ip_vs_nq_scheduler.n_list);
 	return register_ip_vs_scheduler(&ip_vs_nq_scheduler);
 }
 

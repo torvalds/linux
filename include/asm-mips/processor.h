@@ -45,7 +45,7 @@ extern unsigned int vced_count, vcei_count;
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
+#define TASK_UNMAPPED_BASE	((TASK_SIZE / 3) & ~(PAGE_SIZE))
 #endif
 
 #ifdef CONFIG_64BIT

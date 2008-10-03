@@ -27,6 +27,8 @@
 #include <linux/signal.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/seccomp.h>
+#include <linux/tracehook.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -120,18 +122,25 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	return 0;
 }
 
+void user_enable_single_step(struct task_struct *child)
+{
+	struct pt_regs *regs = child->thread.uregs;
+
+	regs->sr |= SR_SSTEP;	/* auto-resetting upon exception */
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	struct pt_regs *regs = child->thread.uregs;
+
+	regs->sr &= ~SR_SSTEP;
+}
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		unsigned long tmp;
@@ -153,12 +162,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = put_user(tmp, (unsigned long *)data);
 		break;
 	}
-
-	/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
 
 	case PTRACE_POKEUSR:
                 /* write the word at location addr in the USER area. We must
@@ -191,58 +194,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		break;
 
-	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-	case PTRACE_CONT: { /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-/*
- * make the child exit.  Best I can do is send it a sigkill.
- * perhaps it should be put in the status that it wants to
- * exit.
- */
-	case PTRACE_KILL: {
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-	}
-
-	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-		struct pt_regs *regs;
-
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		if ((child->ptrace & PT_DTRACE) == 0) {
-			/* Spurious delayed TF traps may occur */
-			child->ptrace |= PT_DTRACE;
-		}
-
-		regs = child->thread.uregs;
-
-		regs->sr |= SR_SSTEP;	/* auto-resetting upon exception */
-
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
@@ -273,38 +224,51 @@ asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 	return sys_ptrace(request, pid, addr, data);
 }
 
-asmlinkage void syscall_trace(struct pt_regs *regs, int entryexit)
+static inline int audit_arch(void)
 {
-	struct task_struct *tsk = current;
+	int arch = EM_SH;
 
-	if (unlikely(current->audit_context) && entryexit)
+#ifdef CONFIG_64BIT
+	arch |= __AUDIT_ARCH_64BIT;
+#endif
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	arch |= __AUDIT_ARCH_LE;
+#endif
+
+	return arch;
+}
+
+asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
+{
+	long long ret = 0;
+
+	secure_computing(regs->regs[9]);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		/*
+		 * Tracing decided this syscall should not happen.
+		 * We'll return a bogus call number to get an ENOSYS
+		 * error, but leave the original number in regs->regs[0].
+		 */
+		ret = -1LL;
+
+	if (unlikely(current->audit_context))
+		audit_syscall_entry(audit_arch(), regs->regs[1],
+				    regs->regs[2], regs->regs[3],
+				    regs->regs[4], regs->regs[5]);
+
+	return ret ?: regs->regs[9];
+}
+
+asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
+{
+	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[9]),
 				   regs->regs[9]);
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    !test_thread_flag(TIF_SINGLESTEP))
-		goto out;
-	if (!(tsk->ptrace & PT_PTRACED))
-		goto out;
-
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) &&
-				!test_thread_flag(TIF_SINGLESTEP) ? 0x80 : 0));
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (tsk->exit_code) {
-		send_sig(tsk->exit_code, tsk, 1);
-		tsk->exit_code = 0;
-	}
-
-out:
-	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(AUDIT_ARCH_SH, regs->regs[1],
-				    regs->regs[2], regs->regs[3],
-				    regs->regs[4], regs->regs[5]);
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, 0);
 }
 
 /* Called with interrupts disabled */
@@ -338,5 +302,5 @@ asmlinkage void do_software_break_point(unsigned long long vec,
  */
 void ptrace_disable(struct task_struct *child)
 {
-        /* nothing to do.. */
+	user_disable_single_step(child);
 }

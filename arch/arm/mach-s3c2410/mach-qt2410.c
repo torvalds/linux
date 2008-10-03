@@ -42,19 +42,19 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/leds-gpio.h>
+#include <mach/regs-gpio.h>
+#include <mach/leds-gpio.h>
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/fb.h>
+#include <mach/fb.h>
 #include <asm/plat-s3c/nand.h>
 #include <asm/plat-s3c24xx/udc.h>
-#include <asm/arch/spi.h>
-#include <asm/arch/spi-gpio.h>
+#include <mach/spi.h>
+#include <mach/spi-gpio.h>
 
 #include <asm/plat-s3c24xx/common-smdk.h>
 #include <asm/plat-s3c24xx/devs.h>

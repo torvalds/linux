@@ -55,13 +55,13 @@
 #define DEBUGOUT7 DEBUGOUT3
 
 
-#define E1000_WRITE_REG(a, reg, value) ( \
-    writel((value), ((a)->hw_addr + \
-        (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg))))
+#define er32(reg)							\
+	(readl(hw->hw_addr + ((hw->mac_type >= e1000_82543)		\
+			       ? E1000_##reg : E1000_82542_##reg)))
 
-#define E1000_READ_REG(a, reg) ( \
-    readl((a)->hw_addr + \
-        (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg)))
+#define ew32(reg, value)						\
+	(writel((value), (hw->hw_addr + ((hw->mac_type >= e1000_82543)	\
+					 ? E1000_##reg : E1000_82542_##reg))))
 
 #define E1000_WRITE_REG_ARRAY(a, reg, offset, value) ( \
     writel((value), ((a)->hw_addr + \
@@ -96,7 +96,7 @@
         (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg) + \
         (offset)))
 
-#define E1000_WRITE_FLUSH(a) E1000_READ_REG(a, STATUS)
+#define E1000_WRITE_FLUSH() er32(STATUS)
 
 #define E1000_WRITE_ICH_FLASH_REG(a, reg, value) ( \
     writel((value), ((a)->flash_address + reg)))

@@ -42,7 +42,6 @@
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
-static bootmem_data_t node0_bdata;
 
 /*
  * numa interface - we expect the numa architecture specific code to have
@@ -385,7 +384,7 @@ void __init initmem_init(unsigned long start_pfn,
 	for_each_online_node(nid)
 		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
-	NODE_DATA(0)->bdata = &node0_bdata;
+	NODE_DATA(0)->bdata = &bootmem_node_data[0];
 	setup_bootmem_allocator();
 }
 

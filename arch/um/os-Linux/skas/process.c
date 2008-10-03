@@ -96,7 +96,7 @@ bad_wait:
 
 extern unsigned long current_stub_stack(void);
 
-void get_skas_faultinfo(int pid, struct faultinfo * fi)
+static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 {
 	int err;
 

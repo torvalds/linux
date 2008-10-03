@@ -794,7 +794,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	enum ccid3_fback_type do_feedback = CCID3_FBACK_NONE;
-	const u32 ndp = dccp_sk(sk)->dccps_options_received.dccpor_ndp;
+	const u64 ndp = dccp_sk(sk)->dccps_options_received.dccpor_ndp;
 	const bool is_data_packet = dccp_data_packet(skb);
 
 	if (unlikely(hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)) {
@@ -825,18 +825,16 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/*
-	 * Handle pending losses and otherwise check for new loss
+	 * Perform loss detection and handle pending losses
 	 */
-	if (tfrc_rx_hist_loss_pending(&hcrx->ccid3hcrx_hist) &&
-	    tfrc_rx_handle_loss(&hcrx->ccid3hcrx_hist,
-				&hcrx->ccid3hcrx_li_hist,
-				skb, ndp, ccid3_first_li, sk) ) {
+	if (tfrc_rx_handle_loss(&hcrx->ccid3hcrx_hist, &hcrx->ccid3hcrx_li_hist,
+				skb, ndp, ccid3_first_li, sk)) {
 		do_feedback = CCID3_FBACK_PARAM_CHANGE;
 		goto done_receiving;
 	}
 
-	if (tfrc_rx_hist_new_loss_indicated(&hcrx->ccid3hcrx_hist, skb, ndp))
-		goto update_records;
+	if (tfrc_rx_hist_loss_pending(&hcrx->ccid3hcrx_hist))
+		return; /* done receiving */
 
 	/*
 	 * Handle data packets: RTT sampling and monitoring p

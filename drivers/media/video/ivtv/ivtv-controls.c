@@ -47,11 +47,11 @@ static const u32 *ctrl_classes[] = {
 	NULL
 };
 
-static int ivtv_queryctrl(struct ivtv *itv, struct v4l2_queryctrl *qctrl)
-{
-	const char *name;
 
-	IVTV_DEBUG_IOCTL("VIDIOC_QUERYCTRL(%08x)\n", qctrl->id);
+int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
+{
+	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
+	const char *name;
 
 	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
 	if (qctrl->id == 0)
@@ -87,21 +87,35 @@ static int ivtv_queryctrl(struct ivtv *itv, struct v4l2_queryctrl *qctrl)
 	return 0;
 }
 
-static int ivtv_querymenu(struct ivtv *itv, struct v4l2_querymenu *qmenu)
+int ivtv_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 {
+	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	struct v4l2_queryctrl qctrl;
 
 	qctrl.id = qmenu->id;
-	ivtv_queryctrl(itv, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+	ivtv_queryctrl(file, fh, &qctrl);
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			cx2341x_ctrl_get_menu(&itv->params, qmenu->id));
+}
+
+static int ivtv_try_ctrl(struct file *file, void *fh,
+					struct v4l2_ext_control *vctrl)
+{
+	struct v4l2_queryctrl qctrl;
+	const char **menu_items = NULL;
+	int err;
+
+	qctrl.id = vctrl->id;
+	err = ivtv_queryctrl(file, fh, &qctrl);
+	if (err)
+		return err;
+	if (qctrl.type == V4L2_CTRL_TYPE_MENU)
+		menu_items = v4l2_ctrl_get_menu(qctrl.id);
+	return v4l2_ctrl_check(vctrl, &qctrl, menu_items);
 }
 
 static int ivtv_s_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 {
-	s32 v = vctrl->value;
-
-	IVTV_DEBUG_IOCTL("VIDIOC_S_CTRL(%08x, %x)\n", vctrl->id, v);
-
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
 	case V4L2_CID_BRIGHTNESS:
@@ -119,7 +133,7 @@ static int ivtv_s_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 		return ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_S_CTRL, vctrl);
 
 	default:
-		IVTV_DEBUG_IOCTL("invalid control %x\n", vctrl->id);
+		IVTV_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -127,8 +141,6 @@ static int ivtv_s_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 
 static int ivtv_g_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 {
-	IVTV_DEBUG_IOCTL("VIDIOC_G_CTRL(%08x)\n", vctrl->id);
-
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
 	case V4L2_CID_BRIGHTNESS:
@@ -145,7 +157,7 @@ static int ivtv_g_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_LOUDNESS:
 		return ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_G_CTRL, vctrl);
 	default:
-		IVTV_DEBUG_IOCTL("invalid control %x\n", vctrl->id);
+		IVTV_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -191,119 +203,106 @@ static int ivtv_setup_vbi_fmt(struct ivtv *itv, enum v4l2_mpeg_stream_vbi_fmt fm
 	return 0;
 }
 
-int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
+int ivtv_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 {
+	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	struct v4l2_control ctrl;
 
-	switch (cmd) {
-	case VIDIOC_QUERYMENU:
-		IVTV_DEBUG_IOCTL("VIDIOC_QUERYMENU\n");
-		return ivtv_querymenu(itv, arg);
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
 
-	case VIDIOC_QUERYCTRL:
-		return ivtv_queryctrl(itv, arg);
-
-	case VIDIOC_S_CTRL:
-		return ivtv_s_ctrl(itv, arg);
-
-	case VIDIOC_G_CTRL:
-		return ivtv_g_ctrl(itv, arg);
-
-	case VIDIOC_S_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *c = arg;
-
-		if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
-			int i;
-			int err = 0;
-
-			for (i = 0; i < c->count; i++) {
-				ctrl.id = c->controls[i].id;
-				ctrl.value = c->controls[i].value;
-				err = ivtv_s_ctrl(itv, &ctrl);
-				c->controls[i].value = ctrl.value;
-				if (err) {
-					c->error_idx = i;
-					break;
-				}
+		for (i = 0; i < c->count; i++) {
+			ctrl.id = c->controls[i].id;
+			ctrl.value = c->controls[i].value;
+			err = ivtv_g_ctrl(itv, &ctrl);
+			c->controls[i].value = ctrl.value;
+			if (err) {
+				c->error_idx = i;
+				break;
 			}
-			return err;
 		}
-		IVTV_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
-		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-			static u32 freqs[3] = { 44100, 48000, 32000 };
-			struct cx2341x_mpeg_params p = itv->params;
-			int err = cx2341x_ext_ctrls(&p, atomic_read(&itv->capturing), arg, cmd);
-			unsigned idx;
+		return err;
+	}
+	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
+		return cx2341x_ext_ctrls(&itv->params, 0, c, VIDIOC_G_EXT_CTRLS);
+	return -EINVAL;
+}
 
-			if (err)
-				return err;
+int ivtv_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
+{
+	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
+	struct v4l2_control ctrl;
 
-			if (p.video_encoding != itv->params.video_encoding) {
-				int is_mpeg1 = p.video_encoding ==
-						V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-				struct v4l2_format fmt;
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
 
-				/* fix videodecoder resolution */
-				fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-				fmt.fmt.pix.width = itv->params.width / (is_mpeg1 ? 2 : 1);
-				fmt.fmt.pix.height = itv->params.height;
-				itv->video_dec_func(itv, VIDIOC_S_FMT, &fmt);
+		for (i = 0; i < c->count; i++) {
+			ctrl.id = c->controls[i].id;
+			ctrl.value = c->controls[i].value;
+			err = ivtv_s_ctrl(itv, &ctrl);
+			c->controls[i].value = ctrl.value;
+			if (err) {
+				c->error_idx = i;
+				break;
 			}
-			err = cx2341x_update(itv, ivtv_api_func, &itv->params, &p);
-			if (!err && itv->params.stream_vbi_fmt != p.stream_vbi_fmt) {
-				err = ivtv_setup_vbi_fmt(itv, p.stream_vbi_fmt);
-			}
-			itv->params = p;
-			itv->dualwatch_stereo_mode = p.audio_properties & 0x0300;
-			idx = p.audio_properties & 0x03;
-			/* The audio clock of the digitizer must match the codec sample
-			   rate otherwise you get some very strange effects. */
-			if (idx < sizeof(freqs))
-			    ivtv_call_i2c_clients(itv, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freqs[idx]);
-			return err;
 		}
-		return -EINVAL;
+		return err;
 	}
+	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
+		static u32 freqs[3] = { 44100, 48000, 32000 };
+		struct cx2341x_mpeg_params p = itv->params;
+		int err = cx2341x_ext_ctrls(&p, atomic_read(&itv->capturing), c, VIDIOC_S_EXT_CTRLS);
+		unsigned idx;
 
-	case VIDIOC_G_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *c = arg;
-
-		if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
-			int i;
-			int err = 0;
-
-			for (i = 0; i < c->count; i++) {
-				ctrl.id = c->controls[i].id;
-				ctrl.value = c->controls[i].value;
-				err = ivtv_g_ctrl(itv, &ctrl);
-				c->controls[i].value = ctrl.value;
-				if (err) {
-					c->error_idx = i;
-					break;
-				}
-			}
+		if (err)
 			return err;
+
+		if (p.video_encoding != itv->params.video_encoding) {
+			int is_mpeg1 = p.video_encoding ==
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
+			struct v4l2_format fmt;
+
+			/* fix videodecoder resolution */
+			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			fmt.fmt.pix.width = itv->params.width / (is_mpeg1 ? 2 : 1);
+			fmt.fmt.pix.height = itv->params.height;
+			itv->video_dec_func(itv, VIDIOC_S_FMT, &fmt);
 		}
-		IVTV_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
-		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&itv->params, 0, arg, cmd);
-		return -EINVAL;
+		err = cx2341x_update(itv, ivtv_api_func, &itv->params, &p);
+		if (!err && itv->params.stream_vbi_fmt != p.stream_vbi_fmt)
+			err = ivtv_setup_vbi_fmt(itv, p.stream_vbi_fmt);
+		itv->params = p;
+		itv->dualwatch_stereo_mode = p.audio_properties & 0x0300;
+		idx = p.audio_properties & 0x03;
+		/* The audio clock of the digitizer must match the codec sample
+		   rate otherwise you get some very strange effects. */
+		if (idx < sizeof(freqs))
+			ivtv_call_i2c_clients(itv, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freqs[idx]);
+		return err;
 	}
+	return -EINVAL;
+}
 
-	case VIDIOC_TRY_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *c = arg;
+int ivtv_try_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
+{
+	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
-		IVTV_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
-		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&itv->params, atomic_read(&itv->capturing), arg, cmd);
-		return -EINVAL;
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
+
+		for (i = 0; i < c->count; i++) {
+			err = ivtv_try_ctrl(file, fh, &c->controls[i]);
+			if (err) {
+				c->error_idx = i;
+				break;
+			}
+		}
+		return err;
 	}
-
-	default:
-		return -EINVAL;
-	}
-	return 0;
+	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
+		return cx2341x_ext_ctrls(&itv->params, atomic_read(&itv->capturing), c, VIDIOC_TRY_EXT_CTRLS);
+	return -EINVAL;
 }

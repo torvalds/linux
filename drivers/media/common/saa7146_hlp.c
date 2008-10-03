@@ -338,7 +338,7 @@ static void calculate_clipping_registers_rect(struct saa7146_dev *dev, struct sa
 	struct saa7146_video_dma *vdma2, u32* clip_format, u32* arbtr_ctrl, enum v4l2_field field)
 {
 	struct saa7146_vv *vv = dev->vv_data;
-	u32 *clipping = vv->d_clipping.cpu_addr;
+	__le32 *clipping = vv->d_clipping.cpu_addr;
 
 	int width = fh->ov.win.w.width;
 	int height =  fh->ov.win.w.height;

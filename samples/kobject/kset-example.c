@@ -211,7 +211,7 @@ static struct foo_obj *create_foo_obj(const char *name)
 	 */
 	retval = kobject_init_and_add(&foo->kobj, &foo_ktype, NULL, "%s", name);
 	if (retval) {
-		kfree(foo);
+		kobject_put(&foo->kobj);
 		return NULL;
 	}
 

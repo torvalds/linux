@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
+#include <linux/kdev_t.h>
 
 #include <rdma/ib_cache.h>
 #include <rdma/ib_cm.h>
@@ -162,8 +163,8 @@ struct cm_port {
 
 struct cm_device {
 	struct list_head list;
-	struct ib_device *device;
-	struct kobject dev_obj;
+	struct ib_device *ib_device;
+	struct device *device;
 	u8 ack_delay;
 	struct cm_port *port[0];
 };
@@ -339,7 +340,7 @@ static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 {
 	av->port = port;
 	av->pkey_index = wc->pkey_index;
-	ib_init_ah_from_wc(port->cm_dev->device, port->port_num, wc,
+	ib_init_ah_from_wc(port->cm_dev->ib_device, port->port_num, wc,
 			   grh, &av->ah_attr);
 }
 
@@ -353,7 +354,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
-		if (!ib_find_cached_gid(cm_dev->device, &path->sgid,
+		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
 					&p, NULL)) {
 			port = cm_dev->port[p-1];
 			break;
@@ -364,13 +365,13 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	if (!port)
 		return -EINVAL;
 
-	ret = ib_find_cached_pkey(cm_dev->device, port->port_num,
+	ret = ib_find_cached_pkey(cm_dev->ib_device, port->port_num,
 				  be16_to_cpu(path->pkey), &av->pkey_index);
 	if (ret)
 		return ret;
 
 	av->port = port;
-	ib_init_ah_from_path(cm_dev->device, port->port_num, path,
+	ib_init_ah_from_path(cm_dev->ib_device, port->port_num, path,
 			     &av->ah_attr);
 	av->timeout = path->packet_life_time + 1;
 	return 0;
@@ -1515,7 +1516,7 @@ static int cm_req_handler(struct cm_work *work)
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 
-	cm_id = ib_create_cm_id(work->port->cm_dev->device, NULL, NULL);
+	cm_id = ib_create_cm_id(work->port->cm_dev->ib_device, NULL, NULL);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
@@ -1550,7 +1551,7 @@ static int cm_req_handler(struct cm_work *work)
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
 	if (ret) {
-		ib_get_cached_gid(work->port->cm_dev->device,
+		ib_get_cached_gid(work->port->cm_dev->ib_device,
 				  work->port->port_num, 0, &work->path[0].sgid);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
 			       &work->path[0].sgid, sizeof work->path[0].sgid,
@@ -2950,7 +2951,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	struct cm_sidr_req_msg *sidr_req_msg;
 	struct ib_wc *wc;
 
-	cm_id = ib_create_cm_id(work->port->cm_dev->device, NULL, NULL);
+	cm_id = ib_create_cm_id(work->port->cm_dev->ib_device, NULL, NULL);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
@@ -3578,7 +3579,7 @@ static void cm_get_ack_delay(struct cm_device *cm_dev)
 {
 	struct ib_device_attr attr;
 
-	if (ib_query_device(cm_dev->device, &attr))
+	if (ib_query_device(cm_dev->ib_device, &attr))
 		cm_dev->ack_delay = 0; /* acks will rely on packet life time */
 	else
 		cm_dev->ack_delay = attr.local_ca_ack_delay;
@@ -3618,18 +3619,6 @@ static struct kobj_type cm_port_obj_type = {
 	.release = cm_release_port_obj
 };
 
-static void cm_release_dev_obj(struct kobject *obj)
-{
-	struct cm_device *cm_dev;
-
-	cm_dev = container_of(obj, struct cm_device, dev_obj);
-	kfree(cm_dev);
-}
-
-static struct kobj_type cm_dev_obj_type = {
-	.release = cm_release_dev_obj
-};
-
 struct class cm_class = {
 	.name    = "infiniband_cm",
 };
@@ -3640,7 +3629,7 @@ static int cm_create_port_fs(struct cm_port *port)
 	int i, ret;
 
 	ret = kobject_init_and_add(&port->port_obj, &cm_port_obj_type,
-				   &port->cm_dev->dev_obj,
+				   &port->cm_dev->device->kobj,
 				   "%d", port->port_num);
 	if (ret) {
 		kfree(port);
@@ -3676,7 +3665,7 @@ static void cm_remove_port_fs(struct cm_port *port)
 	kobject_put(&port->port_obj);
 }
 
-static void cm_add_one(struct ib_device *device)
+static void cm_add_one(struct ib_device *ib_device)
 {
 	struct cm_device *cm_dev;
 	struct cm_port *port;
@@ -3691,26 +3680,27 @@ static void cm_add_one(struct ib_device *device)
 	int ret;
 	u8 i;
 
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+	if (rdma_node_get_transport(ib_device->node_type) != RDMA_TRANSPORT_IB)
 		return;
 
 	cm_dev = kzalloc(sizeof(*cm_dev) + sizeof(*port) *
-			 device->phys_port_cnt, GFP_KERNEL);
+			 ib_device->phys_port_cnt, GFP_KERNEL);
 	if (!cm_dev)
 		return;
 
-	cm_dev->device = device;
+	cm_dev->ib_device = ib_device;
 	cm_get_ack_delay(cm_dev);
 
-	ret = kobject_init_and_add(&cm_dev->dev_obj, &cm_dev_obj_type,
-				   &cm_class.subsys.kobj, "%s", device->name);
-	if (ret) {
+	cm_dev->device = device_create_drvdata(&cm_class, &ib_device->dev,
+					       MKDEV(0, 0), NULL,
+					       "%s", ib_device->name);
+	if (!cm_dev->device) {
 		kfree(cm_dev);
 		return;
 	}
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
-	for (i = 1; i <= device->phys_port_cnt; i++) {
+	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
 		port = kzalloc(sizeof *port, GFP_KERNEL);
 		if (!port)
 			goto error1;
@@ -3723,7 +3713,7 @@ static void cm_add_one(struct ib_device *device)
 		if (ret)
 			goto error1;
 
-		port->mad_agent = ib_register_mad_agent(device, i,
+		port->mad_agent = ib_register_mad_agent(ib_device, i,
 							IB_QPT_GSI,
 							&reg_req,
 							0,
@@ -3733,11 +3723,11 @@ static void cm_add_one(struct ib_device *device)
 		if (IS_ERR(port->mad_agent))
 			goto error2;
 
-		ret = ib_modify_port(device, i, 0, &port_modify);
+		ret = ib_modify_port(ib_device, i, 0, &port_modify);
 		if (ret)
 			goto error3;
 	}
-	ib_set_client_data(device, &cm_client, cm_dev);
+	ib_set_client_data(ib_device, &cm_client, cm_dev);
 
 	write_lock_irqsave(&cm.device_lock, flags);
 	list_add_tail(&cm_dev->list, &cm.device_list);
@@ -3753,14 +3743,14 @@ error1:
 	port_modify.clr_port_cap_mask = IB_PORT_CM_SUP;
 	while (--i) {
 		port = cm_dev->port[i-1];
-		ib_modify_port(device, port->port_num, 0, &port_modify);
+		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
 		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
-	kobject_put(&cm_dev->dev_obj);
+	device_unregister(cm_dev->device);
 }
 
-static void cm_remove_one(struct ib_device *device)
+static void cm_remove_one(struct ib_device *ib_device)
 {
 	struct cm_device *cm_dev;
 	struct cm_port *port;
@@ -3770,7 +3760,7 @@ static void cm_remove_one(struct ib_device *device)
 	unsigned long flags;
 	int i;
 
-	cm_dev = ib_get_client_data(device, &cm_client);
+	cm_dev = ib_get_client_data(ib_device, &cm_client);
 	if (!cm_dev)
 		return;
 
@@ -3778,14 +3768,14 @@ static void cm_remove_one(struct ib_device *device)
 	list_del(&cm_dev->list);
 	write_unlock_irqrestore(&cm.device_lock, flags);
 
-	for (i = 1; i <= device->phys_port_cnt; i++) {
+	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
 		port = cm_dev->port[i-1];
-		ib_modify_port(device, port->port_num, 0, &port_modify);
+		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
 		ib_unregister_mad_agent(port->mad_agent);
 		flush_workqueue(cm.wq);
 		cm_remove_port_fs(port);
 	}
-	kobject_put(&cm_dev->dev_obj);
+	device_unregister(cm_dev->device);
 }
 
 static int __init ib_cm_init(void)

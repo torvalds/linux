@@ -81,6 +81,7 @@ static const struct cx18_api_info api_info[] = {
 	API_ENTRY(CPU, CX18_CPU_GET_ENC_PTS,                    0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL_ACK,			0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL,			API_FAST),
+	API_ENTRY(CPU, CX18_APU_RESETAI,			API_FAST),
 	API_ENTRY(0, 0,						0),
 };
 

@@ -1162,8 +1162,9 @@ int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 	if (minor >= MON_BIN_MAX_MINOR)
 		return 0;
 
-	dev = device_create(mon_bin_class, ubus? ubus->controller: NULL,
-			MKDEV(MAJOR(mon_bin_dev0), minor), "usbmon%d", minor);
+	dev = device_create_drvdata(mon_bin_class, ubus? ubus->controller: NULL,
+				    MKDEV(MAJOR(mon_bin_dev0), minor), NULL,
+				    "usbmon%d", minor);
 	if (IS_ERR(dev))
 		return 0;
 

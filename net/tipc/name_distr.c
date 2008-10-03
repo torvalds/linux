@@ -41,9 +41,6 @@
 #include "msg.h"
 #include "name_distr.h"
 
-#undef  DBG_OUTPUT
-#define DBG_OUTPUT NULL
-
 #define ITEM_SIZE sizeof(struct distr_item)
 
 /**
@@ -106,8 +103,7 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 
 	if (buf != NULL) {
 		msg = buf_msg(buf);
-		msg_init(msg, NAME_DISTRIBUTOR, type, TIPC_OK,
-			 LONG_H_SIZE, dest);
+		msg_init(msg, NAME_DISTRIBUTOR, type, LONG_H_SIZE, dest);
 		msg_set_size(msg, LONG_H_SIZE + size);
 	}
 	return buf;

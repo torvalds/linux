@@ -28,9 +28,8 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/timer.h>
-
-#include <asm/hardware.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <mach/hardware.h>
 
 #define WDT_VERSION	"0.3"
 #define PFX		"ep93xx_wdt: "
@@ -136,9 +135,8 @@ static struct watchdog_info ident = {
 	.identity = "EP93xx Watchdog",
 };
 
-static int
-ep93xx_wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		 unsigned long arg)
+static long ep93xx_wdt_ioctl(struct file *file,
+					unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 
@@ -156,14 +154,14 @@ ep93xx_wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		ret = put_user(boot_status, (int __user *)arg);
 		break;
 
-	case WDIOC_GETTIMEOUT:
-		/* actually, it is 0.250 seconds.... */
-		ret = put_user(1, (int __user *)arg);
-		break;
-
 	case WDIOC_KEEPALIVE:
 		wdt_keepalive();
 		ret = 0;
+		break;
+
+	case WDIOC_GETTIMEOUT:
+		/* actually, it is 0.250 seconds.... */
+		ret = put_user(1, (int __user *)arg);
 		break;
 	}
 	return ret;
@@ -174,8 +172,8 @@ static int ep93xx_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		wdt_shutdown();
 	else
-		printk(KERN_CRIT PFX "Device closed unexpectedly - "
-			"timer will not stop\n");
+		printk(KERN_CRIT PFX
+			"Device closed unexpectedly - timer will not stop\n");
 
 	clear_bit(WDT_IN_USE, &wdt_status);
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
@@ -186,7 +184,7 @@ static int ep93xx_wdt_release(struct inode *inode, struct file *file)
 static const struct file_operations ep93xx_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ep93xx_wdt_write,
-	.ioctl		= ep93xx_wdt_ioctl,
+	.unlocked_ioctl	= ep93xx_wdt_ioctl,
 	.open		= ep93xx_wdt_open,
 	.release	= ep93xx_wdt_release,
 };
@@ -243,7 +241,9 @@ module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 module_param(timeout, int, 0);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. (1<=timeout<=3600, default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+MODULE_PARM_DESC(timeout,
+	"Watchdog timeout in seconds. (1<=timeout<=3600, default="
+				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
 MODULE_AUTHOR("Ray Lehtiniemi <rayl@mail.com>,"
 		"Alessandro Zummo <a.zummo@towertech.it>");

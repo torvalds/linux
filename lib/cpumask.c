@@ -15,6 +15,15 @@ int __next_cpu(int n, const cpumask_t *srcp)
 }
 EXPORT_SYMBOL(__next_cpu);
 
+#if NR_CPUS > 64
+int __next_cpu_nr(int n, const cpumask_t *srcp)
+{
+	return min_t(int, nr_cpu_ids,
+				find_next_bit(srcp->bits, nr_cpu_ids, n+1));
+}
+EXPORT_SYMBOL(__next_cpu_nr);
+#endif
+
 int __any_online_cpu(const cpumask_t *mask)
 {
 	int cpu;

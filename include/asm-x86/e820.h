@@ -90,6 +90,14 @@ static inline void e820_mark_nosave_regions(unsigned long limit_pfn)
 }
 #endif
 
+#ifdef CONFIG_MEMTEST
+extern void early_memtest(unsigned long start, unsigned long end);
+#else
+static inline void early_memtest(unsigned long start, unsigned long end)
+{
+}
+#endif
+
 extern unsigned long end_user_pfn;
 
 extern u64 find_e820_area(u64 start, u64 end, u64 size, u64 align);

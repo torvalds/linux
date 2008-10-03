@@ -279,7 +279,7 @@ static int speedstep_target (struct cpufreq_policy *policy,
 
 	cpus_allowed = current->cpus_allowed;
 
-	for_each_cpu_mask(i, policy->cpus) {
+	for_each_cpu_mask_nr(i, policy->cpus) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
@@ -292,7 +292,7 @@ static int speedstep_target (struct cpufreq_policy *policy,
 	/* allow to be run on all CPUs */
 	set_cpus_allowed_ptr(current, &cpus_allowed);
 
-	for_each_cpu_mask(i, policy->cpus) {
+	for_each_cpu_mask_nr(i, policy->cpus) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}

@@ -172,7 +172,7 @@ static inline int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 
 	/* Process all fragments */
 	while (1) {
-		if (unlikely(pci_dma_mapping_error(dma_addr)))
+		if (unlikely(pci_dma_mapping_error(pci_dev, dma_addr)))
 			goto pci_err;
 
 		/* Store fields for marking in the per-fragment final
@@ -661,7 +661,8 @@ efx_tsoh_heap_alloc(struct efx_tx_queue *tx_queue, size_t header_len)
 	tsoh->dma_addr = pci_map_single(tx_queue->efx->pci_dev,
 					TSOH_BUFFER(tsoh), header_len,
 					PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(tsoh->dma_addr))) {
+	if (unlikely(pci_dma_mapping_error(tx_queue->efx->pci_dev,
+					   tsoh->dma_addr))) {
 		kfree(tsoh);
 		return NULL;
 	}
@@ -863,7 +864,7 @@ static inline int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
 
 	st->ifc.unmap_addr = pci_map_page(efx->pci_dev, page, page_off,
 					  len, PCI_DMA_TODEVICE);
-	if (likely(!pci_dma_mapping_error(st->ifc.unmap_addr))) {
+	if (likely(!pci_dma_mapping_error(efx->pci_dev, st->ifc.unmap_addr))) {
 		st->ifc.unmap_len = len;
 		st->ifc.len = len;
 		st->ifc.dma_addr = st->ifc.unmap_addr;

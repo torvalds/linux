@@ -10,6 +10,7 @@ extern u32 get_baudrate(void);
 extern u32 fsl_get_sys_freq(void);
 
 struct spi_board_info;
+struct device_node;
 
 extern int fsl_spi_init(struct spi_board_info *board_infos,
 			unsigned int num_board_infos,

@@ -5,8 +5,6 @@
  *
  *		Implementation of the Transmission Control Protocol(TCP).
  *
- * Version:	$Id: tcp_timer.c,v 1.88 2002/02/01 22:01:04 davem Exp $
- *
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Mark Evans, <evansmp@uhura.aston.ac.uk>
@@ -50,7 +48,7 @@ static void tcp_write_err(struct sock *sk)
 	sk->sk_error_report(sk);
 
 	tcp_done(sk);
-	NET_INC_STATS_BH(LINUX_MIB_TCPABORTONTIMEOUT);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONTIMEOUT);
 }
 
 /* Do not allow orphaned sockets to eat all our resources.
@@ -91,7 +89,7 @@ static int tcp_out_of_resources(struct sock *sk, int do_reset)
 		if (do_reset)
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 		tcp_done(sk);
-		NET_INC_STATS_BH(LINUX_MIB_TCPABORTONMEMORY);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONMEMORY);
 		return 1;
 	}
 	return 0;
@@ -181,7 +179,7 @@ static void tcp_delack_timer(unsigned long data)
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
 		icsk->icsk_ack.blocked = 1;
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_DELAYEDACKLOCKED);
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, jiffies + TCP_DELACK_MIN);
 		goto out_unlock;
 	}
@@ -200,7 +198,7 @@ static void tcp_delack_timer(unsigned long data)
 	if (!skb_queue_empty(&tp->ucopy.prequeue)) {
 		struct sk_buff *skb;
 
-		NET_INC_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSCHEDULERFAILED);
 
 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
 			sk->sk_backlog_rcv(sk, skb);
@@ -220,7 +218,7 @@ static void tcp_delack_timer(unsigned long data)
 			icsk->icsk_ack.ato      = TCP_ATO_MIN;
 		}
 		tcp_send_ack(sk);
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_DELAYEDACKS);
 	}
 	TCP_CHECK_TIMER(sk);
 
@@ -289,7 +287,7 @@ static void tcp_retransmit_timer(struct sock *sk)
 	if (!tp->packets_out)
 		goto out;
 
-	BUG_TRAP(!tcp_write_queue_empty(sk));
+	WARN_ON(tcp_write_queue_empty(sk));
 
 	if (!tp->snd_wnd && !sock_flag(sk, SOCK_DEAD) &&
 	    !((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))) {
@@ -328,24 +326,27 @@ static void tcp_retransmit_timer(struct sock *sk)
 		goto out;
 
 	if (icsk->icsk_retransmits == 0) {
+		int mib_idx;
+
 		if (icsk->icsk_ca_state == TCP_CA_Disorder ||
 		    icsk->icsk_ca_state == TCP_CA_Recovery) {
 			if (tcp_is_sack(tp)) {
 				if (icsk->icsk_ca_state == TCP_CA_Recovery)
-					NET_INC_STATS_BH(LINUX_MIB_TCPSACKRECOVERYFAIL);
+					mib_idx = LINUX_MIB_TCPSACKRECOVERYFAIL;
 				else
-					NET_INC_STATS_BH(LINUX_MIB_TCPSACKFAILURES);
+					mib_idx = LINUX_MIB_TCPSACKFAILURES;
 			} else {
 				if (icsk->icsk_ca_state == TCP_CA_Recovery)
-					NET_INC_STATS_BH(LINUX_MIB_TCPRENORECOVERYFAIL);
+					mib_idx = LINUX_MIB_TCPRENORECOVERYFAIL;
 				else
-					NET_INC_STATS_BH(LINUX_MIB_TCPRENOFAILURES);
+					mib_idx = LINUX_MIB_TCPRENOFAILURES;
 			}
 		} else if (icsk->icsk_ca_state == TCP_CA_Loss) {
-			NET_INC_STATS_BH(LINUX_MIB_TCPLOSSFAILURES);
+			mib_idx = LINUX_MIB_TCPLOSSFAILURES;
 		} else {
-			NET_INC_STATS_BH(LINUX_MIB_TCPTIMEOUTS);
+			mib_idx = LINUX_MIB_TCPTIMEOUTS;
 		}
+		NET_INC_STATS_BH(sock_net(sk), mib_idx);
 	}
 
 	if (tcp_use_frto(sk)) {

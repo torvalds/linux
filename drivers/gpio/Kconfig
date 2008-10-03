@@ -2,15 +2,40 @@
 # GPIO infrastructure and expanders
 #
 
-config HAVE_GPIO_LIB
+config ARCH_WANT_OPTIONAL_GPIOLIB
 	bool
+	help
+	  Select this config option from the architecture Kconfig, if
+	  it is possible to use gpiolib on the architecture, but let the
+	  user decide whether to actually build it or not.
+	  Select this instead of ARCH_REQUIRE_GPIOLIB, if your architecture does
+	  not depend on GPIOs being available, but rather let the user
+	  decide whether he needs it or not.
+
+config ARCH_REQUIRE_GPIOLIB
+	bool
+	select GPIOLIB
 	help
 	  Platforms select gpiolib if they use this infrastructure
 	  for all their GPIOs, usually starting with ones integrated
 	  into SOC processors.
+	  Selecting this from the architecture code will cause the gpiolib
+	  code to always get built in.
 
-menu "GPIO Support"
-	depends on HAVE_GPIO_LIB
+
+
+menuconfig GPIOLIB
+	bool "GPIO Support"
+	depends on ARCH_WANT_OPTIONAL_GPIOLIB || ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
+	help
+	  This enables GPIO support through the generic GPIO library.
+	  You only need to enable this, if you also want to enable
+	  one or more of the GPIO expansion card drivers below.
+
+	  If unsure, say N.
+
+if GPIOLIB
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
@@ -23,9 +48,43 @@ config DEBUG_GPIO
 	  slower.  The diagnostics help catch the type of setup errors
 	  that are most common when setting up new platforms or boards.
 
+config GPIO_SYSFS
+	bool "/sys/class/gpio/... (sysfs interface)"
+	depends on SYSFS && EXPERIMENTAL
+	help
+	  Say Y here to add a sysfs interface for GPIOs.
+
+	  This is mostly useful to work around omissions in a system's
+	  kernel support.  Those are common in custom and semicustom
+	  hardware assembled using standard kernels with a minimum of
+	  custom patches.  In those cases, userspace code may import
+	  a given GPIO from the kernel, if no kernel driver requested it.
+
+	  Kernel drivers may also request that a particular GPIO be
+	  exported to userspace; this can be useful when debugging.
+
 # put expanders in the right section, in alphabetical order
 
 comment "I2C GPIO expanders:"
+
+config GPIO_MAX732X
+	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
+	depends on I2C
+	help
+	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
+	  Port Expanders. Each IO port on these chips has a fixed role of
+	  Input (designated by 'I'), Push-Pull Output ('O'), or Open-Drain
+	  Input and Output (designed by 'P'). The combinations are listed
+	  below:
+
+	  8 bits:	max7319 (8I), max7320 (8O), max7321 (8P),
+		  	max7322 (4I4O), max7323 (4P4O)
+
+	  16 bits:	max7324 (8I8O), max7325 (8P8O),
+		  	max7326 (4I12O), max7327 (4P12O)
+
+	  Board setup code must specify the model to use, and the start
+	  number for these GPIOs.
 
 config GPIO_PCA953X
 	tristate "PCA953x, PCA955x, and MAX7310 I/O ports"
@@ -45,7 +104,7 @@ config GPIO_PCA953X
 	  will be called pca953x.
 
 config GPIO_PCF857X
-	tristate "PCF857x, PCA857x, and PCA967x I2C GPIO expanders"
+	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
 	depends on I2C
 	help
 	  Say yes here to provide access to most "quasi-bidirectional" I2C
@@ -54,7 +113,8 @@ config GPIO_PCF857X
 	  some of them.  Compatible models include:
 
 	  8 bits:   pcf8574, pcf8574a, pca8574, pca8574a,
-	            pca9670, pca9672, pca9674, pca9674a
+	            pca9670, pca9672, pca9674, pca9674a,
+	  	    max7328, max7329
 
 	  16 bits:  pcf8575, pcf8575c, pca8575,
 	            pca9671, pca9673, pca9675
@@ -67,7 +127,31 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+comment "PCI GPIO expanders:"
+
+config GPIO_BT8XX
+	tristate "BT8XX GPIO abuser"
+	depends on PCI && VIDEO_BT848=n
+	help
+	  The BT8xx frame grabber chip has 24 GPIO pins than can be abused
+	  as a cheap PCI GPIO card.
+
+	  This chip can be found on Miro, Hauppauge and STB TV-cards.
+
+	  The card needs to be physically altered for using it as a
+	  GPIO card. For more information on how to build a GPIO card
+	  from a BT8xx TV card, see the documentation file at
+	  Documentation/bt8xxgpio.txt
+
+	  If unsure, say N.
+
 comment "SPI GPIO expanders:"
+
+config GPIO_MAX7301
+	tristate "Maxim MAX7301 GPIO expander"
+	depends on SPI_MASTER
+	help
+	  gpio driver for Maxim MAX7301 SPI GPIO expander.
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23S08 I/O expander"
@@ -76,4 +160,4 @@ config GPIO_MCP23S08
 	  SPI driver for Microchip MCP23S08 I/O expander.  This provides
 	  a GPIO interface supporting inputs and outputs.
 
-endmenu
+endif

@@ -202,7 +202,6 @@ static void elmc_xmt_int(struct net_device *dev);
 static void elmc_rnr_int(struct net_device *dev);
 
 struct priv {
-	struct net_device_stats stats;
 	unsigned long base;
 	char *memtop;
 	unsigned long mapped_start;		/* Start of ioremap */
@@ -641,10 +640,8 @@ static int init586(struct net_device *dev)
 	cfg_cmd->time_low = 0x00;
 	cfg_cmd->time_high = 0xf2;
 	cfg_cmd->promisc = 0;
-	if (dev->flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+	if (dev->flags & (IFF_ALLMULTI | IFF_PROMISC))
 		cfg_cmd->promisc = 1;
-		dev->flags |= IFF_PROMISC;
-	}
 	cfg_cmd->carr_coll = 0x00;
 
 	p->scb->cbl_offset = make16(cfg_cmd);
@@ -989,18 +986,18 @@ static void elmc_rcv_int(struct net_device *dev)
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
 					dev->last_rx = jiffies;
-					p->stats.rx_packets++;
-					p->stats.rx_bytes += totlen;
+					dev->stats.rx_packets++;
+					dev->stats.rx_bytes += totlen;
 				} else {
-					p->stats.rx_dropped++;
+					dev->stats.rx_dropped++;
 				}
 			} else {
 				printk(KERN_WARNING "%s: received oversized frame.\n", dev->name);
-				p->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			}
 		} else {	/* frame !(ok), only with 'save-bad-frames' */
 			printk(KERN_WARNING "%s: oops! rfd-error-status: %04x\n", dev->name, status);
-			p->stats.rx_errors++;
+			dev->stats.rx_errors++;
 		}
 		p->rfd_top->status = 0;
 		p->rfd_top->last = RFD_SUSP;
@@ -1018,7 +1015,7 @@ static void elmc_rnr_int(struct net_device *dev)
 {
 	struct priv *p = (struct priv *) dev->priv;
 
-	p->stats.rx_errors++;
+	dev->stats.rx_errors++;
 
 	WAIT_4_SCB_CMD();	/* wait for the last cmd */
 	p->scb->cmd = RUC_ABORT;	/* usually the RU is in the 'no resource'-state .. abort it now. */
@@ -1046,24 +1043,24 @@ static void elmc_xmt_int(struct net_device *dev)
 		printk(KERN_WARNING "%s: strange .. xmit-int without a 'COMPLETE'\n", dev->name);
 	}
 	if (status & STAT_OK) {
-		p->stats.tx_packets++;
-		p->stats.collisions += (status & TCMD_MAXCOLLMASK);
+		dev->stats.tx_packets++;
+		dev->stats.collisions += (status & TCMD_MAXCOLLMASK);
 	} else {
-		p->stats.tx_errors++;
+		dev->stats.tx_errors++;
 		if (status & TCMD_LATECOLL) {
 			printk(KERN_WARNING "%s: late collision detected.\n", dev->name);
-			p->stats.collisions++;
+			dev->stats.collisions++;
 		} else if (status & TCMD_NOCARRIER) {
-			p->stats.tx_carrier_errors++;
+			dev->stats.tx_carrier_errors++;
 			printk(KERN_WARNING "%s: no carrier detected.\n", dev->name);
 		} else if (status & TCMD_LOSTCTS) {
 			printk(KERN_WARNING "%s: loss of CTS detected.\n", dev->name);
 		} else if (status & TCMD_UNDERRUN) {
-			p->stats.tx_fifo_errors++;
+			dev->stats.tx_fifo_errors++;
 			printk(KERN_WARNING "%s: DMA underrun detected.\n", dev->name);
 		} else if (status & TCMD_MAXCOLL) {
 			printk(KERN_WARNING "%s: Max. collisions exceeded.\n", dev->name);
-			p->stats.collisions += 16;
+			dev->stats.collisions += 16;
 		}
 	}
 
@@ -1215,12 +1212,12 @@ static struct net_device_stats *elmc_get_stats(struct net_device *dev)
 	ovrn = p->scb->ovrn_errs;
 	p->scb->ovrn_errs -= ovrn;
 
-	p->stats.rx_crc_errors += crc;
-	p->stats.rx_fifo_errors += ovrn;
-	p->stats.rx_frame_errors += aln;
-	p->stats.rx_dropped += rsc;
+	dev->stats.rx_crc_errors += crc;
+	dev->stats.rx_fifo_errors += ovrn;
+	dev->stats.rx_frame_errors += aln;
+	dev->stats.rx_dropped += rsc;
 
-	return &p->stats;
+	return &dev->stats;
 }
 
 /********************************************************

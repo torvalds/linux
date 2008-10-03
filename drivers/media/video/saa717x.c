@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-common.h>

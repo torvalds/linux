@@ -1,6 +1,4 @@
 /*
- * $Id: iforce-main.c,v 1.19 2002/07/07 10:22:50 jdeneux Exp $
- *
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
  *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
  *

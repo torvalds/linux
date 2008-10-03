@@ -314,7 +314,7 @@ xfs_bioerror_relse(
 		 * ASYNC buffers.
 		 */
 		XFS_BUF_ERROR(bp, EIO);
-		XFS_BUF_V_IODONESEMA(bp);
+		XFS_BUF_FINISH_IOWAIT(bp);
 	} else {
 		xfs_buf_relse(bp);
 	}

@@ -15,7 +15,6 @@
 #include <linux/init.h>
 
 #include <asm/assembler.h>
-#include <asm/mach-types.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>

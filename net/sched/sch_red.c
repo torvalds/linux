@@ -92,12 +92,12 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			break;
 	}
 
-	ret = child->enqueue(skb, child);
+	ret = qdisc_enqueue(skb, child);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
-		sch->bstats.bytes += skb->len;
+		sch->bstats.bytes += qdisc_pkt_len(skb);
 		sch->bstats.packets++;
 		sch->q.qlen++;
-	} else {
+	} else if (net_xmit_drop_count(ret)) {
 		q->stats.pdrop++;
 		sch->qstats.drops++;
 	}
@@ -174,33 +174,6 @@ static void red_destroy(struct Qdisc *sch)
 	qdisc_destroy(q->qdisc);
 }
 
-static struct Qdisc *red_create_dflt(struct Qdisc *sch, u32 limit)
-{
-	struct Qdisc *q;
-	struct nlattr *nla;
-	int ret;
-
-	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
-			      TC_H_MAKE(sch->handle, 1));
-	if (q) {
-		nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)),
-			      GFP_KERNEL);
-		if (nla) {
-			nla->nla_type = RTM_NEWQDISC;
-			nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
-			((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
-
-			ret = q->ops->change(q, nla);
-			kfree(nla);
-
-			if (ret == 0)
-				return q;
-		}
-		qdisc_destroy(q);
-	}
-	return NULL;
-}
-
 static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 	[TCA_RED_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
 	[TCA_RED_STAB]	= { .len = RED_STAB_SIZE },
@@ -228,9 +201,9 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	ctl = nla_data(tb[TCA_RED_PARMS]);
 
 	if (ctl->limit > 0) {
-		child = red_create_dflt(sch, ctl->limit);
-		if (child == NULL)
-			return -ENOMEM;
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
 	}
 
 	sch_tree_lock(sch);

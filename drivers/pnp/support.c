@@ -77,7 +77,7 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 {
 #ifdef DEBUG
 	char buf[128];
-	int len = 0;
+	int len;
 	struct pnp_resource *pnp_res;
 	struct resource *res;
 
@@ -89,9 +89,10 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 	dev_dbg(&dev->dev, "%s: current resources:\n", desc);
 	list_for_each_entry(pnp_res, &dev->resources, list) {
 		res = &pnp_res->res;
+		len = 0;
 
-		len += snprintf(buf + len, sizeof(buf) - len, "  %-3s ",
-				pnp_resource_type_name(res));
+		len += scnprintf(buf + len, sizeof(buf) - len, "  %-3s ",
+				 pnp_resource_type_name(res));
 
 		if (res->flags & IORESOURCE_DISABLED) {
 			dev_dbg(&dev->dev, "%sdisabled\n", buf);
@@ -101,18 +102,18 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 		switch (pnp_resource_type(res)) {
 		case IORESOURCE_IO:
 		case IORESOURCE_MEM:
-			len += snprintf(buf + len, sizeof(buf) - len,
-					"%#llx-%#llx flags %#lx",
-					(unsigned long long) res->start,
-					(unsigned long long) res->end,
-					res->flags);
+			len += scnprintf(buf + len, sizeof(buf) - len,
+					 "%#llx-%#llx flags %#lx",
+					 (unsigned long long) res->start,
+					 (unsigned long long) res->end,
+					 res->flags);
 			break;
 		case IORESOURCE_IRQ:
 		case IORESOURCE_DMA:
-			len += snprintf(buf + len, sizeof(buf) - len,
-					"%lld flags %#lx",
-					(unsigned long long) res->start,
-					res->flags);
+			len += scnprintf(buf + len, sizeof(buf) - len,
+					 "%lld flags %#lx",
+					 (unsigned long long) res->start,
+					 res->flags);
 			break;
 		}
 		dev_dbg(&dev->dev, "%s\n", buf);
@@ -144,66 +145,67 @@ void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 	struct pnp_dma *dma;
 
 	if (pnp_option_is_dependent(option))
-		len += snprintf(buf + len, sizeof(buf) - len,
-				"  dependent set %d (%s) ",
-				pnp_option_set(option),
-				pnp_option_priority_name(option));
+		len += scnprintf(buf + len, sizeof(buf) - len,
+				 "  dependent set %d (%s) ",
+				 pnp_option_set(option),
+				 pnp_option_priority_name(option));
 	else
-		len += snprintf(buf + len, sizeof(buf) - len, "  independent ");
+		len += scnprintf(buf + len, sizeof(buf) - len,
+				 "  independent ");
 
 	switch (option->type) {
 	case IORESOURCE_IO:
 		port = &option->u.port;
-		len += snprintf(buf + len, sizeof(buf) - len, "io  min %#llx "
-				"max %#llx align %lld size %lld flags %#x",
-				(unsigned long long) port->min,
-				(unsigned long long) port->max,
-				(unsigned long long) port->align,
-				(unsigned long long) port->size, port->flags);
+		len += scnprintf(buf + len, sizeof(buf) - len, "io  min %#llx "
+				 "max %#llx align %lld size %lld flags %#x",
+				 (unsigned long long) port->min,
+				 (unsigned long long) port->max,
+				 (unsigned long long) port->align,
+				 (unsigned long long) port->size, port->flags);
 		break;
 	case IORESOURCE_MEM:
 		mem = &option->u.mem;
-		len += snprintf(buf + len, sizeof(buf) - len, "mem min %#llx "
-				"max %#llx align %lld size %lld flags %#x",
-				(unsigned long long) mem->min,
-				(unsigned long long) mem->max,
-				(unsigned long long) mem->align,
-				(unsigned long long) mem->size, mem->flags);
+		len += scnprintf(buf + len, sizeof(buf) - len, "mem min %#llx "
+				 "max %#llx align %lld size %lld flags %#x",
+				 (unsigned long long) mem->min,
+				 (unsigned long long) mem->max,
+				 (unsigned long long) mem->align,
+				 (unsigned long long) mem->size, mem->flags);
 		break;
 	case IORESOURCE_IRQ:
 		irq = &option->u.irq;
-		len += snprintf(buf + len, sizeof(buf) - len, "irq");
+		len += scnprintf(buf + len, sizeof(buf) - len, "irq");
 		if (bitmap_empty(irq->map.bits, PNP_IRQ_NR))
-			len += snprintf(buf + len, sizeof(buf) - len,
-					" <none>");
+			len += scnprintf(buf + len, sizeof(buf) - len,
+					 " <none>");
 		else {
 			for (i = 0; i < PNP_IRQ_NR; i++)
 				if (test_bit(i, irq->map.bits))
-					len += snprintf(buf + len,
-							sizeof(buf) - len,
-							" %d", i);
+					len += scnprintf(buf + len,
+							 sizeof(buf) - len,
+							 " %d", i);
 		}
-		len += snprintf(buf + len, sizeof(buf) - len, " flags %#x",
-				irq->flags);
+		len += scnprintf(buf + len, sizeof(buf) - len, " flags %#x",
+				 irq->flags);
 		if (irq->flags & IORESOURCE_IRQ_OPTIONAL)
-			len += snprintf(buf + len, sizeof(buf) - len,
-					" (optional)");
+			len += scnprintf(buf + len, sizeof(buf) - len,
+					 " (optional)");
 		break;
 	case IORESOURCE_DMA:
 		dma = &option->u.dma;
-		len += snprintf(buf + len, sizeof(buf) - len, "dma");
+		len += scnprintf(buf + len, sizeof(buf) - len, "dma");
 		if (!dma->map)
-			len += snprintf(buf + len, sizeof(buf) - len,
-					" <none>");
+			len += scnprintf(buf + len, sizeof(buf) - len,
+					 " <none>");
 		else {
 			for (i = 0; i < 8; i++)
 				if (dma->map & (1 << i))
-					len += snprintf(buf + len,
-							sizeof(buf) - len,
-							" %d", i);
+					len += scnprintf(buf + len,
+							 sizeof(buf) - len,
+							 " %d", i);
 		}
-		len += snprintf(buf + len, sizeof(buf) - len, " (bitmask %#x) "
-				"flags %#x", dma->map, dma->flags);
+		len += scnprintf(buf + len, sizeof(buf) - len, " (bitmask %#x) "
+				 "flags %#x", dma->map, dma->flags);
 		break;
 	}
 	dev_dbg(&dev->dev, "%s\n", buf);

@@ -580,7 +580,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	char __user *buf = ubuf;
 	int i, err;
 
-	cpu_tsc = kmalloc(NR_CPUS * sizeof(long), GFP_KERNEL);
+	cpu_tsc = kmalloc(nr_cpu_ids * sizeof(long), GFP_KERNEL);
 	if (!cpu_tsc)
 		return -ENOMEM;
 
@@ -759,13 +759,18 @@ static struct sysdev_class mce_sysclass = {
 };
 
 DEFINE_PER_CPU(struct sys_device, device_mce);
+void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu) __cpuinitdata;
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \
-	static ssize_t show_ ## name(struct sys_device *s, char *buf) {	\
+	static ssize_t show_ ## name(struct sys_device *s,		\
+				     struct sysdev_attribute *attr,	\
+				     char *buf) {			\
 		return sprintf(buf, "%lx\n", (unsigned long)var);	\
 	}								\
-	static ssize_t set_ ## name(struct sys_device *s,const char *buf,size_t siz) { \
+	static ssize_t set_ ## name(struct sys_device *s,		\
+				    struct sysdev_attribute *attr,	\
+				    const char *buf, size_t siz) {	\
 		char *end;						\
 		unsigned long new = simple_strtoul(buf, &end, 0);	\
 		if (end == buf) return -EINVAL;				\
@@ -786,14 +791,16 @@ ACCESSOR(bank3ctl,bank[3],mce_restart())
 ACCESSOR(bank4ctl,bank[4],mce_restart())
 ACCESSOR(bank5ctl,bank[5],mce_restart())
 
-static ssize_t show_trigger(struct sys_device *s, char *buf)
+static ssize_t show_trigger(struct sys_device *s, struct sysdev_attribute *attr,
+				char *buf)
 {
 	strcpy(buf, trigger);
 	strcat(buf, "\n");
 	return strlen(trigger) + 1;
 }
 
-static ssize_t set_trigger(struct sys_device *s,const char *buf,size_t siz)
+static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
+				const char *buf,size_t siz)
 {
 	char *p;
 	int len;
@@ -806,12 +813,12 @@ static ssize_t set_trigger(struct sys_device *s,const char *buf,size_t siz)
 }
 
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
-ACCESSOR(tolerant,tolerant,)
+static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 ACCESSOR(check_interval,check_interval,mce_restart())
 static struct sysdev_attribute *mce_attributes[] = {
 	&attr_bank0ctl, &attr_bank1ctl, &attr_bank2ctl,
 	&attr_bank3ctl, &attr_bank4ctl, &attr_bank5ctl,
-	&attr_tolerant, &attr_check_interval, &attr_trigger,
+	&attr_tolerant.attr, &attr_check_interval, &attr_trigger,
 	NULL
 };
 
@@ -877,9 +884,13 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		mce_create_device(cpu);
+		if (threshold_cpu_callback)
+			threshold_cpu_callback(action, cpu);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
+		if (threshold_cpu_callback)
+			threshold_cpu_callback(action, cpu);
 		mce_remove_device(cpu);
 		break;
 	}

@@ -25,7 +25,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include "common.h"
 
 MACHINE_START(H7201, "Hynix GMS30C7201")

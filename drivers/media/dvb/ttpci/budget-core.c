@@ -497,11 +497,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	if (bi->type != BUDGET_FS_ACTIVY)
 		saa7146_write(dev, GPIO_CTRL, 0x500000);	/* GPIO 3 = 1 */
 
-#ifdef I2C_ADAP_CLASS_TV_DIGITAL
-	budget->i2c_adap.class = I2C_ADAP_CLASS_TV_DIGITAL;
-#else
 	budget->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
-#endif
 
 	strlcpy(budget->i2c_adap.name, budget->card->name, sizeof(budget->i2c_adap.name));
 

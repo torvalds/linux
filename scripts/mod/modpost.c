@@ -1468,7 +1468,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
  * marked __initdata will be discarded when the module has been intialized.
  * Likewise for modules used built-in the sections marked __exit
  * are discarded because __exit marked function are supposed to be called
- * only when a moduel is unloaded which never happes for built-in modules.
+ * only when a module is unloaded which never happens for built-in modules.
  * The check_sec_ref() function traverses all relocation records
  * to find all references to a section that reference a section that will
  * be discarded and warns about it.
@@ -1992,7 +1992,8 @@ static void read_markers(const char *fname)
 			mod->skip = 1;
 		}
 
-		add_marker(mod, marker, fmt);
+		if (!mod->skip)
+			add_marker(mod, marker, fmt);
 	}
 	return;
 fail:

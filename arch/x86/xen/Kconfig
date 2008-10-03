@@ -6,8 +6,8 @@ config XEN
 	bool "Xen guest support"
 	select PARAVIRT
 	select PARAVIRT_CLOCK
-	depends on X86_32
-	depends on X86_CMPXCHG && X86_TSC && X86_PAE && !(X86_VISWS || X86_VOYAGER)
+	depends on X86_64 || (X86_32 && X86_PAE && !(X86_VISWS || X86_VOYAGER))
+	depends on X86_CMPXCHG && X86_TSC
 	help
 	  This is the Linux Xen port.  Enabling this will allow the
 	  kernel to boot in a paravirtualized environment under the
@@ -15,10 +15,16 @@ config XEN
 
 config XEN_MAX_DOMAIN_MEMORY
        int "Maximum allowed size of a domain in gigabytes"
-       default 8
+       default 8 if X86_32
+       default 32 if X86_64
        depends on XEN
        help
          The pseudo-physical to machine address array is sized
          according to the maximum possible memory size of a Xen
          domain.  This array uses 1 page per gigabyte, so there's no
          need to be too stingy here.
+
+config XEN_SAVE_RESTORE
+       bool
+       depends on PM
+       default y

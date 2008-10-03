@@ -22,20 +22,19 @@
  * - proto->start() and stop() are called with spin_lock_irq held.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
 #include <linux/errno.h>
-#include <linux/if_arp.h>
-#include <linux/init.h>
-#include <linux/skbuff.h>
-#include <linux/pkt_sched.h>
-#include <linux/inetdevice.h>
-#include <linux/lapb.h>
-#include <linux/rtnetlink.h>
-#include <linux/notifier.h>
 #include <linux/hdlc.h>
+#include <linux/if_arp.h>
+#include <linux/inetdevice.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/pkt_sched.h>
+#include <linux/poll.h>
+#include <linux/rtnetlink.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 
 
@@ -57,7 +56,7 @@ static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 
 static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
 {
-	return hdlc_stats(dev);
+	return &dev->stats;
 }
 
 
@@ -109,7 +108,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 
 	if (dev->get_stats != hdlc_get_stats)
 		return NOTIFY_DONE; /* not an HDLC device */
- 
+
 	if (event != NETDEV_CHANGE)
 		return NOTIFY_DONE; /* Only interrested in carrier changes */
 
@@ -357,7 +356,7 @@ static struct packet_type hdlc_packet_type = {
 
 
 static struct notifier_block hdlc_notifier = {
-        .notifier_call = hdlc_device_event,
+	.notifier_call = hdlc_device_event,
 };
 
 
@@ -367,8 +366,8 @@ static int __init hdlc_module_init(void)
 
 	printk(KERN_INFO "%s\n", version);
 	if ((result = register_netdevice_notifier(&hdlc_notifier)) != 0)
-                return result;
-        dev_add_pack(&hdlc_packet_type);
+		return result;
+	dev_add_pack(&hdlc_packet_type);
 	return 0;
 }
 

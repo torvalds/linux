@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_stp_if.c,v 1.4 2001/04/14 21:14:39 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -215,6 +213,10 @@ void br_stp_recalculate_bridge_id(struct net_bridge *br)
 			(const unsigned char *)br_mac_zero_aligned;
 	const unsigned char *addr = br_mac_zero;
 	struct net_bridge_port *p;
+
+	/* user has chosen a value so keep it */
+	if (br->flags & BR_SET_MAC_ADDR)
+		return;
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (addr == br_mac_zero ||

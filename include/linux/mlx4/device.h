@@ -68,6 +68,14 @@ enum {
 	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1 << 21
 };
 
+enum {
+	MLX4_BMME_FLAG_LOCAL_INV	= 1 <<  6,
+	MLX4_BMME_FLAG_REMOTE_INV	= 1 <<  7,
+	MLX4_BMME_FLAG_TYPE_2_WIN	= 1 <<  9,
+	MLX4_BMME_FLAG_RESERVED_LKEY	= 1 << 10,
+	MLX4_BMME_FLAG_FAST_REG_WR	= 1 << 11,
+};
+
 enum mlx4_event {
 	MLX4_EVENT_TYPE_COMP		   = 0x00,
 	MLX4_EVENT_TYPE_PATH_MIG	   = 0x01,
@@ -133,6 +141,10 @@ enum {
 	MLX4_STAT_RATE_OFFSET	= 5
 };
 
+enum {
+	MLX4_MTT_FLAG_PRESENT		= 1
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;
@@ -184,6 +196,8 @@ struct mlx4_caps {
 	u32			max_msg_sz;
 	u32			page_size_cap;
 	u32			flags;
+	u32			bmme_flags;
+	u32			reserved_lkey;
 	u16			stat_rate_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;

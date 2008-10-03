@@ -560,17 +560,19 @@ static int __init oss_init(void)
 	sound_dmap_flag = (dmabuf > 0 ? 1 : 0);
 
 	for (i = 0; i < ARRAY_SIZE(dev_list); i++) {
-		device_create(sound_class, NULL,
-			      MKDEV(SOUND_MAJOR, dev_list[i].minor),
-			      "%s", dev_list[i].name);
+		device_create_drvdata(sound_class, NULL,
+				      MKDEV(SOUND_MAJOR, dev_list[i].minor),
+				      NULL, "%s", dev_list[i].name);
 
 		if (!dev_list[i].num)
 			continue;
 
 		for (j = 1; j < *dev_list[i].num; j++)
-			device_create(sound_class, NULL,
-				      MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
-				      "%s%d", dev_list[i].name, j);
+			device_create_drvdata(sound_class, NULL,
+					      MKDEV(SOUND_MAJOR,
+						    dev_list[i].minor + (j*0x10)),
+					      NULL,
+					      "%s%d", dev_list[i].name, j);
 	}
 
 	if (sound_nblocks >= 1024)

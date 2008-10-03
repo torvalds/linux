@@ -644,7 +644,9 @@ static void microcode_fini_cpu(int cpu)
 	mutex_unlock(&microcode_mutex);
 }
 
-static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
+static ssize_t reload_store(struct sys_device *dev,
+			    struct sysdev_attribute *attr,
+			    const char *buf, size_t sz)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 	char *end;
@@ -655,9 +657,7 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 	if (end == buf)
 		return -EINVAL;
 	if (val == 1) {
-		cpumask_t old;
-
-		old = current->cpus_allowed;
+		cpumask_t old = current->cpus_allowed;
 
 		get_online_cpus();
 		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
@@ -674,14 +674,16 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 	return sz;
 }
 
-static ssize_t version_show(struct sys_device *dev, char *buf)
+static ssize_t version_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 
 	return sprintf(buf, "0x%x\n", uci->rev);
 }
 
-static ssize_t pf_show(struct sys_device *dev, char *buf)
+static ssize_t pf_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 

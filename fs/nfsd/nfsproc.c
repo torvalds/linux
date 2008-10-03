@@ -65,7 +65,7 @@ nfsd_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
-	nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_NOP);
+	nfserr = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_NOP);
 	return nfsd_return_attrs(nfserr, resp);
 }
 
@@ -215,11 +215,11 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 		SVCFH_fmt(dirfhp), argp->len, argp->name);
 
 	/* First verify the parent file handle */
-	nfserr = fh_verify(rqstp, dirfhp, S_IFDIR, MAY_EXEC);
+	nfserr = fh_verify(rqstp, dirfhp, S_IFDIR, NFSD_MAY_EXEC);
 	if (nfserr)
 		goto done; /* must fh_put dirfhp even on error */
 
-	/* Check for MAY_WRITE in nfsd_create if necessary */
+	/* Check for NFSD_MAY_WRITE in nfsd_create if necessary */
 
 	nfserr = nfserr_acces;
 	if (!argp->len)
@@ -281,7 +281,7 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 					nfserr = nfsd_permission(rqstp,
 								 newfhp->fh_export,
 								 newfhp->fh_dentry,
-								 MAY_WRITE|MAY_LOCAL_ACCESS);
+								 NFSD_MAY_WRITE|NFSD_MAY_LOCAL_ACCESS);
 					if (nfserr && nfserr != nfserr_rofs)
 						goto out_unlock;
 				}
@@ -614,6 +614,7 @@ nfserrno (int errno)
 #endif
 		{ nfserr_stale, -ESTALE },
 		{ nfserr_jukebox, -ETIMEDOUT },
+		{ nfserr_jukebox, -ERESTARTSYS },
 		{ nfserr_dropit, -EAGAIN },
 		{ nfserr_dropit, -ENOMEM },
 		{ nfserr_badname, -ESRCH },

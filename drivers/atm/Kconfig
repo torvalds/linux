@@ -294,7 +294,7 @@ config ATM_HORIZON_DEBUG
 
 config ATM_IA
 	tristate "Interphase ATM PCI x575/x525/x531"
-	depends on PCI && !64BIT
+	depends on PCI
 	---help---
 	  This is a driver for the Interphase (i)ChipSAR adapter cards
 	  which include a variety of variants in term of the size of the
@@ -325,81 +325,22 @@ config ATM_IA_DEBUG
 	  speed of the driver, and the size of your syslog files! When
 	  inactive, they will have only a modest impact on performance.
 
-config ATM_FORE200E_MAYBE
+config ATM_FORE200E
 	tristate "FORE Systems 200E-series"
-	depends on PCI || SBUS
+	depends on (PCI || SBUS)
+	select FW_LOADER
 	---help---
 	  This is a driver for the FORE Systems 200E-series ATM adapter
 	  cards. It simultaneously supports PCA-200E and SBA-200E models
 	  on PCI and SBUS hosts. Say Y (or M to compile as a module
 	  named fore_200e) here if you have one of these ATM adapters.
 
-	  Note that the driver will actually be compiled only if you
-	  additionally enable the support for PCA-200E and/or SBA-200E
-	  cards.
-
 	  See the file <file:Documentation/networking/fore200e.txt> for
 	  further details.
 
-config ATM_FORE200E_PCA
-	bool "PCA-200E support"
-	depends on ATM_FORE200E_MAYBE && PCI
-	help
-	  Say Y here if you want your PCA-200E cards to be probed.
-
-config ATM_FORE200E_PCA_DEFAULT_FW
-	bool "Use default PCA-200E firmware (normally enabled)"
-	depends on ATM_FORE200E_PCA
-	help
-	  Use the default PCA-200E firmware data shipped with the driver.
-
-	  Normal users do not have to deal with the firmware stuff, so
-	  they should say Y here.
-
-config ATM_FORE200E_PCA_FW
-	string "Pathname of user-supplied binary firmware"
-	depends on ATM_FORE200E_PCA && !ATM_FORE200E_PCA_DEFAULT_FW
-	default ""
-	help
-	  This defines the pathname of an alternative PCA-200E binary
-	  firmware image supplied by the user. This pathname may be
-	  absolute or relative to the drivers/atm directory.
-
-	  The driver comes with an adequate firmware image, so normal users do
-	  not have to supply an alternative one. They just say Y to "Use
-	  default PCA-200E firmware" instead.
-
-config ATM_FORE200E_SBA
-	bool "SBA-200E support"
-	depends on ATM_FORE200E_MAYBE && SBUS
-	help
-	  Say Y here if you want your SBA-200E cards to be probed.
-
-config ATM_FORE200E_SBA_DEFAULT_FW
-	bool "Use default SBA-200E firmware (normally enabled)"
-	depends on ATM_FORE200E_SBA
-	help
-	  Use the default SBA-200E firmware data shipped with the driver.
-
-	  Normal users do not have to deal with the firmware stuff, so
-	  they should say Y here.
-
-config ATM_FORE200E_SBA_FW
-	string "Pathname of user-supplied binary firmware"
-	depends on ATM_FORE200E_SBA && !ATM_FORE200E_SBA_DEFAULT_FW
-	default ""
-	help
-	  This defines the pathname of an alternative SBA-200E binary
-	  firmware image supplied by the user. This pathname may be
-	  absolute or relative to the drivers/atm directory.
-
-	  The driver comes with an adequate firmware image, so normal users do
-	  not have to supply an alternative one. They just say Y to "Use
-	  default SBA-200E firmware", above.
-
 config ATM_FORE200E_USE_TASKLET
 	bool "Defer interrupt work to a tasklet"
-	depends on (PCI || SBUS) && (ATM_FORE200E_PCA || ATM_FORE200E_SBA)
+	depends on ATM_FORE200E
 	default n
 	help
 	  This defers work to be done by the interrupt handler to a
@@ -408,7 +349,7 @@ config ATM_FORE200E_USE_TASKLET
 
 config ATM_FORE200E_TX_RETRY
 	int "Maximum number of tx retries"
-	depends on (PCI || SBUS) && (ATM_FORE200E_PCA || ATM_FORE200E_SBA)
+	depends on ATM_FORE200E
 	default "16"
 	---help---
 	  Specifies the number of times the driver attempts to transmit
@@ -425,7 +366,7 @@ config ATM_FORE200E_TX_RETRY
 
 config ATM_FORE200E_DEBUG
 	int "Debugging level (0-3)"
-	depends on (PCI || SBUS) && (ATM_FORE200E_PCA || ATM_FORE200E_SBA)
+	depends on ATM_FORE200E
 	default "0"
 	help
 	  Specifies the level of debugging messages issued by the driver.
@@ -435,12 +376,6 @@ config ATM_FORE200E_DEBUG
 	  When active, these messages can have a significant impact on
 	  the performances of the driver, and the size of your syslog files!
 	  Keep the debugging level to 0 during normal operations.
-
-config ATM_FORE200E
-	tristate
-	depends on (PCI || SBUS) && (ATM_FORE200E_PCA || ATM_FORE200E_SBA)
-	default m if ATM_FORE200E_MAYBE!=y
-	default y if ATM_FORE200E_MAYBE=y
 
 config ATM_HE
 	tristate "ForeRunner HE Series"

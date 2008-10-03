@@ -1,8 +1,6 @@
 /*
  * IPVS:        Locality-Based Least-Connection with Replication scheduler
  *
- * Version:     $Id: ip_vs_lblcr.c,v 1.11 2002/09/15 08:14:08 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@gnuchina.org>
  *
  *              This program is free software; you can redistribute it and/or
@@ -730,6 +728,7 @@ static struct ip_vs_scheduler ip_vs_lblcr_scheduler =
 	.name =			"lblcr",
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list =		LIST_HEAD_INIT(ip_vs_lblcr_scheduler.n_list),
 	.init_service =		ip_vs_lblcr_init_svc,
 	.done_service =		ip_vs_lblcr_done_svc,
 	.update_service =	ip_vs_lblcr_update_svc,
@@ -741,7 +740,6 @@ static int __init ip_vs_lblcr_init(void)
 {
 	int ret;
 
-	INIT_LIST_HEAD(&ip_vs_lblcr_scheduler.n_list);
 	sysctl_header = register_sysctl_paths(net_vs_ctl_path, vs_vars_table);
 	ret = register_ip_vs_scheduler(&ip_vs_lblcr_scheduler);
 	if (ret)

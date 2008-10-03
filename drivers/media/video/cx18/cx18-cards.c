@@ -27,6 +27,8 @@
 #include "cx18-i2c.h"
 #include <media/cs5345.h>
 
+#define V4L2_STD_PAL_SECAM (V4L2_STD_PAL|V4L2_STD_SECAM)
+
 /********************** card configuration *******************************/
 
 /* usual i2c tuner addresses to probe */
@@ -65,12 +67,12 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
 		  CX18_AV_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
 		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_2 },
 		{ CX18_CARD_INPUT_LINE_IN2,
-		  CX18_AV_AUDIO_SERIAL, CS5345_IN_3 },
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_3 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX18_AV_AUDIO_SERIAL, CS5345_IN_4 },
+			 CX18_AV_AUDIO_SERIAL1, CS5345_IN_4 },
 	.ddr = {
 		/* ESMT M13S128324A-5B memory */
 		.chip_config = 0x003,
@@ -86,6 +88,7 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 		.active_lo_mask = 0x3001,
 		.msecs_asserted = 10,
 		.msecs_recovery = 40,
+		.ir_reset_mask  = 0x0001,
 	},
 	.i2c = &cx18_i2c_std,
 };
@@ -110,12 +113,12 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
 		  CX18_AV_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
 		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_2 },
 		{ CX18_CARD_INPUT_LINE_IN2,
-		  CX18_AV_AUDIO_SERIAL, CS5345_IN_3 },
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_3 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX18_AV_AUDIO_SERIAL, CS5345_IN_4 },
+			 CX18_AV_AUDIO_SERIAL1, CS5345_IN_4 },
 	.ddr = {
 		/* Samsung K4D263238G-VC33 memory */
 		.chip_config = 0x003,
@@ -131,6 +134,7 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 		.active_lo_mask = 0x3001,
 		.msecs_asserted = 10,
 		.msecs_recovery = 40,
+		.ir_reset_mask  = 0x0001,
 	},
 	.i2c = &cx18_i2c_std,
 };
@@ -161,10 +165,10 @@ static const struct cx18_card cx18_card_h900 = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
 		  CX18_AV_AUDIO8, 0 },
 		{ CX18_CARD_INPUT_LINE_IN1,
-		  CX18_AV_AUDIO_SERIAL, 0 },
+		  CX18_AV_AUDIO_SERIAL1, 0 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX18_AV_AUDIO_SERIAL, 0 },
+			 CX18_AV_AUDIO_SERIAL1, 0 },
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
@@ -194,7 +198,7 @@ static const struct cx18_card_pci_info cx18_pci_mpc718[] = {
 static const struct cx18_card cx18_card_mpc718 = {
 	.type = CX18_CARD_YUAN_MPC718,
 	.name = "Yuan MPC718",
-	.comment = "Some Composite and S-Video inputs are currently working.\n",
+	.comment = "Analog video capture works; some audio line in may not.\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,
@@ -209,11 +213,11 @@ static const struct cx18_card cx18_card_mpc718 = {
 		{ CX18_CARD_INPUT_COMPOSITE3, 2, CX18_AV_COMPOSITE3 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,       0 },
-		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL, 0 },
-		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL, 0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,        0 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 0 },
+		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL1, 0 },
 	},
-	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 0 },
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL1, 0 },
 	.tuners = {
 		/* XC3028 tuner */
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
@@ -227,16 +231,73 @@ static const struct cx18_card cx18_card_mpc718 = {
 		.tune_lane = 0,
 		.initial_emrs = 2,
 	},
-	.xceive_pin = 15,
+	.xceive_pin = 0,
 	.pci_list = cx18_pci_mpc718,
 	.i2c = &cx18_i2c_std,
 };
+
+/* ------------------------------------------------------------------------- */
+
+/* Conexant Raptor PAL/SECAM: note that this card is analog only! */
+
+static const struct cx18_card_pci_info cx18_pci_cnxt_raptor_pal[] = {
+	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_CONEXANT, 0x0009 },
+	{ 0, 0, 0 }
+};
+
+static const struct cx18_card cx18_card_cnxt_raptor_pal = {
+	.type = CX18_CARD_CNXT_RAPTOR_PAL,
+	.name = "Conexant Raptor PAL/SECAM",
+	.comment = "VBI is not yet supported\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
+	.hw_audio_ctrl = CX18_HW_CX23418,
+	.hw_muxer = CX18_HW_GPIO,
+	.hw_all = CX18_HW_TUNER | CX18_HW_GPIO,
+	.video_inputs = {
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+			CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE1 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2,
+			CX18_AV_SVIDEO_LUMA7 | CX18_AV_SVIDEO_CHROMA8 },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE6 },
+	},
+	.audio_inputs = {
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
+		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL2, 1 },
+	},
+	.tuners = {
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+	},
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL1, 2 },
+	.ddr = {
+		/* MT 46V16M16 memory */
+		.chip_config = 0x50306,
+		.refresh = 0x753,
+		.timing1 = 0x33220953,
+		.timing2 = 0x09,
+		.tune_lane = 0,
+		.initial_emrs = 0,
+	},
+	.gpio_init.initial_value = 0x1002,
+	.gpio_init.direction = 0xf002,
+	.gpio_audio_input = { .mask   = 0xf002,
+			      .tuner  = 0x1002,   /* LED D1  Tuner AF  */
+			      .linein = 0x2000,   /* LED D2  Line In 1 */
+			      .radio  = 0x4002 }, /* LED D3  Tuner AF  */
+	.pci_list = cx18_pci_cnxt_raptor_pal,
+	.i2c = &cx18_i2c_std,
+};
+
+/* ------------------------------------------------------------------------- */
 
 static const struct cx18_card *cx18_card_list[] = {
 	&cx18_card_hvr1600_esmt,
 	&cx18_card_hvr1600_samsung,
 	&cx18_card_h900,
 	&cx18_card_mpc718,
+	&cx18_card_cnxt_raptor_pal,
 };
 
 const struct cx18_card *cx18_get_card(u16 index)

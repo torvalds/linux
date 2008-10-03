@@ -336,16 +336,9 @@ static int __init cfag12864b_init(void)
 			"ks0108 is not initialized\n");
 		goto none;
 	}
+	BUILD_BUG_ON(PAGE_SIZE < CFAG12864B_SIZE);
 
-	if (PAGE_SIZE < CFAG12864B_SIZE) {
-		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
-			"page size (%i) < cfag12864b size (%i)\n",
-			(unsigned int)PAGE_SIZE, CFAG12864B_SIZE);
-		ret = -ENOMEM;
-		goto none;
-	}
-
-	cfag12864b_buffer = (unsigned char *) __get_free_page(GFP_KERNEL);
+	cfag12864b_buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
 	if (cfag12864b_buffer == NULL) {
 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
 			"can't get a free page\n");
@@ -366,8 +359,6 @@ static int __init cfag12864b_init(void)
 	cfag12864b_workqueue = create_singlethread_workqueue(CFAG12864B_NAME);
 	if (cfag12864b_workqueue == NULL)
 		goto cachealloced;
-
-	memset(cfag12864b_buffer, 0, CFAG12864B_SIZE);
 
 	cfag12864b_clear();
 	cfag12864b_on();

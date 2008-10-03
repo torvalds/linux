@@ -58,25 +58,28 @@ static void queue_process(struct work_struct *work)
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
 		struct net_device *dev = skb->dev;
+		struct netdev_queue *txq;
 
 		if (!netif_device_present(dev) || !netif_running(dev)) {
 			__kfree_skb(skb);
 			continue;
 		}
 
+		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+
 		local_irq_save(flags);
-		netif_tx_lock(dev);
-		if ((netif_queue_stopped(dev) ||
-		     netif_subqueue_stopped(dev, skb)) ||
-		     dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
+		__netif_tx_lock(txq, smp_processor_id());
+		if (netif_tx_queue_stopped(txq) ||
+		    netif_tx_queue_frozen(txq) ||
+		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
-			netif_tx_unlock(dev);
+			__netif_tx_unlock(txq);
 			local_irq_restore(flags);
 
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
-		netif_tx_unlock(dev);
+		__netif_tx_unlock(txq);
 		local_irq_restore(flags);
 	}
 }
@@ -278,17 +281,19 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 	/* don't get messages out of order, and no recursion */
 	if (skb_queue_len(&npinfo->txq) == 0 && !netpoll_owner_active(dev)) {
+		struct netdev_queue *txq;
 		unsigned long flags;
+
+		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 
 		local_irq_save(flags);
 		/* try until next clock tick */
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
-			if (netif_tx_trylock(dev)) {
-				if (!netif_queue_stopped(dev) &&
-				    !netif_subqueue_stopped(dev, skb))
+			if (__netif_tx_trylock(txq)) {
+				if (!netif_tx_queue_stopped(txq))
 					status = dev->hard_start_xmit(skb, dev);
-				netif_tx_unlock(dev);
+				__netif_tx_unlock(txq);
 
 				if (status == NETDEV_TX_OK)
 					break;

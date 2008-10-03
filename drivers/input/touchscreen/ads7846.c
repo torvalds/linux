@@ -517,7 +517,9 @@ static void ads7846_rx(void *ads)
 	if (x == MAX_12BIT)
 		x = 0;
 
-	if (likely(x && z1)) {
+	if (ts->model == 7843) {
+		Rt = ts->pressure_max / 2;
+	} else if (likely(x && z1)) {
 		/* compute touch pressure resistance using equation #2 */
 		Rt = z2;
 		Rt -= z1;
@@ -525,11 +527,9 @@ static void ads7846_rx(void *ads)
 		Rt *= ts->x_plate_ohms;
 		Rt /= z1;
 		Rt = (Rt + 2047) >> 12;
-	} else
+	} else {
 		Rt = 0;
-
-	if (ts->model == 7843)
-		Rt = ts->pressure_max / 2;
+	}
 
 	/* Sample found inconsistent by debouncing or pressure is beyond
 	 * the maximum. Don't report it to user space, repeat at least
@@ -633,19 +633,17 @@ static void ads7846_rx_val(void *ads)
 	struct ads7846 *ts = ads;
 	struct spi_message *m;
 	struct spi_transfer *t;
-	u16 *rx_val;
 	int val;
 	int action;
 	int status;
 
 	m = &ts->msg[ts->msg_idx];
 	t = list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
-	rx_val = t->rx_buf;
 
 	/* adjust:  on-wire is a must-ignore bit, a BE12 value, then padding;
 	 * built from two 8 bit values written msb-first.
 	 */
-	val = be16_to_cpu(*rx_val) >> 3;
+	val = be16_to_cpup((__be16 *)t->rx_buf) >> 3;
 
 	action = ts->filter(ts->filter_data, ts->msg_idx, &val);
 	switch (action) {
@@ -659,7 +657,7 @@ static void ads7846_rx_val(void *ads)
 		m = ts->last_msg;
 		break;
 	case ADS7846_FILTER_OK:
-		*rx_val = val;
+		*(u16 *)t->rx_buf = val;
 		ts->tc.ignore = 0;
 		m = &ts->msg[++ts->msg_idx];
 		break;

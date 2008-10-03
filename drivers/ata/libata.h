@@ -66,7 +66,6 @@ enum {
 
 extern unsigned int ata_print_id;
 extern struct workqueue_struct *ata_aux_wq;
-extern int atapi_enabled;
 extern int atapi_passthru16;
 extern int libata_fua;
 extern int libata_noacpi;

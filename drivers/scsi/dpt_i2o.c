@@ -271,8 +271,8 @@ rebuild_sys_tab:
 		pHba->initialized = TRUE;
 		pHba->state &= ~DPTI_STATE_RESET;
 		if (adpt_sysfs_class) {
-			struct device *dev = device_create(adpt_sysfs_class,
-				NULL, MKDEV(DPTI_I2O_MAJOR, pHba->unit),
+			struct device *dev = device_create_drvdata(adpt_sysfs_class,
+				NULL, MKDEV(DPTI_I2O_MAJOR, pHba->unit), NULL,
 				"dpti%d", pHba->unit);
 			if (IS_ERR(dev)) {
 				printk(KERN_WARNING"dpti%d: unable to "

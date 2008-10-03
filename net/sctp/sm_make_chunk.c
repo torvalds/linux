@@ -1886,11 +1886,13 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 			    /* if the peer reports AUTH, assume that he
 			     * supports AUTH.
 			     */
-			    asoc->peer.auth_capable = 1;
+			    if (sctp_auth_enable)
+				    asoc->peer.auth_capable = 1;
 			    break;
 		    case SCTP_CID_ASCONF:
 		    case SCTP_CID_ASCONF_ACK:
-			    asoc->peer.asconf_capable = 1;
+			    if (sctp_addip_enable)
+				    asoc->peer.asconf_capable = 1;
 			    break;
 		    default:
 			    break;
@@ -2319,11 +2321,9 @@ clean_up:
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		list_del_init(pos);
-		sctp_transport_free(transport);
+		if (transport->state != SCTP_ACTIVE)
+			sctp_assoc_rm_peer(asoc, transport);
 	}
-
-	asoc->peer.transport_count = 0;
 
 nomem:
 	return 0;
@@ -2364,8 +2364,13 @@ static int sctp_process_param(struct sctp_association *asoc,
 	case SCTP_PARAM_IPV6_ADDRESS:
 		if (PF_INET6 != asoc->base.sk->sk_family)
 			break;
-		/* Fall through. */
+		goto do_addr_param;
+
 	case SCTP_PARAM_IPV4_ADDRESS:
+		/* v4 addresses are not allowed on v6-only socket */
+		if (ipv6_only_sock(asoc->base.sk))
+			break;
+do_addr_param:
 		af = sctp_get_af_specific(param_type2af(param.p->type));
 		af->from_addr_param(&addr, param.addr, htons(asoc->peer.port), 0);
 		scope = sctp_scope(peer_addr);
@@ -2455,6 +2460,9 @@ static int sctp_process_param(struct sctp_association *asoc,
 		break;
 
 	case SCTP_PARAM_SET_PRIMARY:
+		if (!sctp_addip_enable)
+			goto fall_through;
+
 		addr_param = param.v + sizeof(sctp_addip_param_t);
 
 		af = sctp_get_af_specific(param_type2af(param.p->type));

@@ -51,8 +51,6 @@ static inline unsigned int lx_get_pitch(unsigned int xres, int bpp)
 }
 
 void lx_set_mode(struct fb_info *);
-void lx_get_gamma(struct fb_info *, unsigned int *, int);
-void lx_set_gamma(struct fb_info *, unsigned int *, int);
 unsigned int lx_framebuffer_size(void);
 int lx_blank_display(struct fb_info *, int);
 void lx_set_palette_reg(struct fb_info *, unsigned int, unsigned int,

@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>

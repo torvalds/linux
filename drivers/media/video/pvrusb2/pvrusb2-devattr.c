@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2007 Mike Isely <isely@pobox.com>
  *
@@ -98,13 +97,13 @@ static const struct pvr2_device_desc pvr2_device_24xxx = {
 		.flag_has_cx25840 = !0,
 		.flag_has_wm8775 = !0,
 		.flag_has_hauppauge_rom = !0,
-		.flag_has_hauppauge_custom_ir = !0,
 		.flag_has_analogtuner = !0,
 		.flag_has_fmradio = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_24XXX,
 };
 
 
@@ -182,7 +181,7 @@ static int pvr2_lgh06xf_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
+static struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
 	.frontend_attach = pvr2_lgdt3303_attach,
 	.tuner_attach    = pvr2_lgh06xf_attach,
 };
@@ -242,7 +241,7 @@ static int pvr2_fcv1236d_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
+static struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
 	.frontend_attach = pvr2_lgdt3302_attach,
 	.tuner_attach    = pvr2_fcv1236d_attach,
 };
@@ -315,7 +314,7 @@ static int pvr2_73xxx_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
+static struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
 	.frontend_attach = pvr2_tda10048_attach,
 	.tuner_attach    = pvr2_73xxx_tda18271_8295_attach,
 };
@@ -331,7 +330,7 @@ static const char *pvr2_fw1_names_73xxx[] = {
 };
 
 static const struct pvr2_device_desc pvr2_device_73xxx = {
-		.description = "WinTV PVR USB2 Model Category 73xxx",
+		.description = "WinTV HVR-1900 Model Category 73xxx",
 		.shortname = "73xxx",
 		.client_modules.lst = pvr2_client_73xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_73xxx),
@@ -345,6 +344,7 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_73xxx_dvb_props,
 #endif
@@ -418,12 +418,12 @@ static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-struct pvr2_dvb_props pvr2_750xx_dvb_props = {
+static struct pvr2_dvb_props pvr2_750xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1409_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
 
-struct pvr2_dvb_props pvr2_751xx_dvb_props = {
+static struct pvr2_dvb_props pvr2_751xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1411_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
@@ -439,7 +439,7 @@ static const char *pvr2_fw1_names_75xxx[] = {
 };
 
 static const struct pvr2_device_desc pvr2_device_750xx = {
-		.description = "WinTV PVR USB2 Model Category 750xx",
+		.description = "WinTV HVR-1950 Model Category 750xx",
 		.shortname = "750xx",
 		.client_modules.lst = pvr2_client_75xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_75xxx),
@@ -454,13 +454,14 @@ static const struct pvr2_device_desc pvr2_device_750xx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_750xx_dvb_props,
 #endif
 };
 
 static const struct pvr2_device_desc pvr2_device_751xx = {
-		.description = "WinTV PVR USB2 Model Category 751xx",
+		.description = "WinTV HVR-1950 Model Category 751xx",
 		.shortname = "751xx",
 		.client_modules.lst = pvr2_client_75xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_75xxx),
@@ -475,6 +476,7 @@ static const struct pvr2_device_desc pvr2_device_751xx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_751xx_dvb_props,
 #endif

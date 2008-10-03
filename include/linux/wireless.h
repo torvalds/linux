@@ -611,6 +611,7 @@
 #define IW_ENCODE_ALG_WEP	1
 #define IW_ENCODE_ALG_TKIP	2
 #define IW_ENCODE_ALG_CCMP	3
+#define IW_ENCODE_ALG_PMK	4
 /* struct iw_encode_ext ->ext_flags */
 #define IW_ENCODE_EXT_TX_SEQ_VALID	0x00000001
 #define IW_ENCODE_EXT_RX_SEQ_VALID	0x00000002
@@ -630,6 +631,7 @@
 #define IW_ENC_CAPA_WPA2	0x00000002
 #define IW_ENC_CAPA_CIPHER_TKIP	0x00000004
 #define IW_ENC_CAPA_CIPHER_CCMP	0x00000008
+#define IW_ENC_CAPA_4WAY_HANDSHAKE	0x00000010
 
 /* Event capability macros - in (struct iw_range *)->event_capa
  * Because we have more than 32 possible events, we use an array of
@@ -674,6 +676,19 @@ struct	iw_point
   __u16		length;		/* number of fields or size in bytes */
   __u16		flags;		/* Optional params */
 };
+
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+
+#include <linux/compat.h>
+
+struct compat_iw_point {
+	compat_caddr_t pointer;
+	__u16 length;
+	__u16 flags;
+};
+#endif
+#endif
 
 /*
  *	A frequency
@@ -1097,6 +1112,21 @@ struct iw_event
 			  (char *) NULL)
 #define IW_EV_POINT_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_point) - \
 			 IW_EV_POINT_OFF)
+
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+struct __compat_iw_event {
+	__u16		len;			/* Real length of this stuff */
+	__u16		cmd;			/* Wireless IOCTL */
+	compat_caddr_t	pointer;
+};
+#define IW_EV_COMPAT_LCP_LEN offsetof(struct __compat_iw_event, pointer)
+#define IW_EV_COMPAT_POINT_OFF offsetof(struct compat_iw_point, length)
+#define IW_EV_COMPAT_POINT_LEN	\
+	(IW_EV_COMPAT_LCP_LEN + sizeof(struct compat_iw_point) - \
+	 IW_EV_COMPAT_POINT_OFF)
+#endif
+#endif
 
 /* Size of the Event prefix when packed in stream */
 #define IW_EV_LCP_PK_LEN	(4)

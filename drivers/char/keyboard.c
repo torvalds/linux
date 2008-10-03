@@ -46,6 +46,8 @@
 
 extern void ctrl_alt_del(void);
 
+#define to_handle_h(n) container_of(n, struct input_handle, h_node)
+
 /*
  * Exported functions/variables
  */

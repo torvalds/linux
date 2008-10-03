@@ -74,7 +74,6 @@
  * currently programmed in the FPGA.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -87,7 +86,6 @@
 #include <linux/mutex.h>
 #include <linux/smp_lock.h>
 #include <linux/sysctl.h>
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
@@ -658,8 +656,9 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 		dev_err(dev, "cdev_add() failed\n");
 		goto failed3;
 	}
-	/*  devfs_mk_cdev(devt, S_IFCHR|S_IRUGO|S_IWUGO, DRIVER_NAME); */
-	device_create(icap_class, dev, devt, "%s%d", DRIVER_NAME, id);
+
+	device_create_drvdata(icap_class, dev, devt, NULL,
+			      "%s%d", DRIVER_NAME, id);
 	return 0;		/* success */
 
  failed3:

@@ -307,6 +307,7 @@ struct dasd_uid {
 	__u16 ssid;
 	__u8 real_unit_addr;
 	__u8 base_unit_addr;
+	char vduit[33];
 };
 
 /*

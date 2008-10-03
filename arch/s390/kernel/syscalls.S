@@ -330,3 +330,9 @@ SYSCALL(sys_eventfd,sys_eventfd,sys_eventfd_wrapper)
 SYSCALL(sys_timerfd_create,sys_timerfd_create,sys_timerfd_create_wrapper)
 SYSCALL(sys_timerfd_settime,sys_timerfd_settime,compat_sys_timerfd_settime_wrapper) /* 320 */
 SYSCALL(sys_timerfd_gettime,sys_timerfd_gettime,compat_sys_timerfd_gettime_wrapper)
+SYSCALL(sys_signalfd4,sys_signalfd4,compat_sys_signalfd4_wrapper)
+SYSCALL(sys_eventfd2,sys_eventfd2,sys_eventfd2_wrapper)
+SYSCALL(sys_inotify_init1,sys_inotify_init1,sys_inotify_init1_wrapper)
+SYSCALL(sys_pipe2,sys_pipe2,sys_pipe2_wrapper) /* 325 */
+SYSCALL(sys_dup3,sys_dup3,sys_dup3_wrapper)
+SYSCALL(sys_epoll_create1,sys_epoll_create1,sys_epoll_create1_wrapper)

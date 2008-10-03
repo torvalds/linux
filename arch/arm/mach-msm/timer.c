@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 
 #include <asm/mach/time.h>
-#include <asm/arch/msm_iomap.h>
+#include <mach/msm_iomap.h>
 
 #include <asm/io.h>
 

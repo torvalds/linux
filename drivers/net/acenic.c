@@ -52,7 +52,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -1457,11 +1456,6 @@ static int __devinit ace_init(struct net_device *dev)
 	ace_set_txprd(regs, ap, 0);
 	writel(0, &regs->RxRetCsm);
 
-	/*
-	 * Zero the stats before starting the interface
-	 */
-	memset(&ap->stats, 0, sizeof(ap->stats));
-
        /*
 	* Enable DMA engine now.
 	* If we do this sooner, Mckinley box pukes.
@@ -2041,8 +2035,8 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 			netif_rx(skb);
 
 		dev->last_rx = jiffies;
-		ap->stats.rx_packets++;
-		ap->stats.rx_bytes += retdesc->size;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += retdesc->size;
 
 		idx = (idx + 1) % RX_RETURN_RING_ENTRIES;
 	}
@@ -2090,8 +2084,8 @@ static inline void ace_tx_int(struct net_device *dev,
 		}
 
 		if (skb) {
-			ap->stats.tx_packets++;
-			ap->stats.tx_bytes += skb->len;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += skb->len;
 			dev_kfree_skb_irq(skb);
 			info->skb = NULL;
 		}
@@ -2863,11 +2857,11 @@ static struct net_device_stats *ace_get_stats(struct net_device *dev)
 	struct ace_mac_stats __iomem *mac_stats =
 		(struct ace_mac_stats __iomem *)ap->regs->Stats;
 
-	ap->stats.rx_missed_errors = readl(&mac_stats->drop_space);
-	ap->stats.multicast = readl(&mac_stats->kept_mc);
-	ap->stats.collisions = readl(&mac_stats->coll);
+	dev->stats.rx_missed_errors = readl(&mac_stats->drop_space);
+	dev->stats.multicast = readl(&mac_stats->kept_mc);
+	dev->stats.collisions = readl(&mac_stats->coll);
 
-	return &ap->stats;
+	return &dev->stats;
 }
 
 

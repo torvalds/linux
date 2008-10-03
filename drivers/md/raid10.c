@@ -76,11 +76,13 @@ static void r10bio_pool_free(void *r10_bio, void *data)
 	kfree(r10_bio);
 }
 
+/* Maximum size of each resync request */
 #define RESYNC_BLOCK_SIZE (64*1024)
-//#define RESYNC_BLOCK_SIZE PAGE_SIZE
-#define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
 #define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
-#define RESYNC_WINDOW (2048*1024)
+/* amount of memory to reserve for resync requests */
+#define RESYNC_WINDOW (1024*1024)
+/* maximum number of concurrent requests, memory permitting */
+#define RESYNC_DEPTH (32*1024*1024/RESYNC_BLOCK_SIZE)
 
 /*
  * When performing a resync, we need to read and compare, so
@@ -214,6 +216,9 @@ static void reschedule_retry(r10bio_t *r10_bio)
 	list_add(&r10_bio->retry_list, &conf->retry_list);
 	conf->nr_queued ++;
 	spin_unlock_irqrestore(&conf->device_lock, flags);
+
+	/* wake up frozen array... */
+	wake_up(&conf->wait_barrier);
 
 	md_wakeup_thread(mddev->thread);
 }
@@ -687,7 +692,6 @@ static int flush_pending_writes(conf_t *conf)
  *    there is no normal IO happeing.  It must arrange to call
  *    lower_barrier when the particular background IO completes.
  */
-#define RESYNC_DEPTH 32
 
 static void raise_barrier(conf_t *conf, int force)
 {
@@ -1114,24 +1118,30 @@ static int raid10_spare_active(mddev_t *mddev)
 static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	conf_t *conf = mddev->private;
-	int found = 0;
+	int err = -EEXIST;
 	int mirror;
 	mirror_info_t *p;
+	int first = 0;
+	int last = mddev->raid_disks - 1;
 
 	if (mddev->recovery_cp < MaxSector)
 		/* only hot-add to in-sync arrays, as recovery is
 		 * very different from resync
 		 */
-		return 0;
+		return -EBUSY;
 	if (!enough(conf))
-		return 0;
+		return -EINVAL;
+
+	if (rdev->raid_disk)
+		first = last = rdev->raid_disk;
 
 	if (rdev->saved_raid_disk >= 0 &&
+	    rdev->saved_raid_disk >= first &&
 	    conf->mirrors[rdev->saved_raid_disk].rdev == NULL)
 		mirror = rdev->saved_raid_disk;
 	else
-		mirror = 0;
-	for ( ; mirror < mddev->raid_disks; mirror++)
+		mirror = first;
+	for ( ; mirror <= last ; mirror++)
 		if ( !(p=conf->mirrors+mirror)->rdev) {
 
 			blk_queue_stack_limits(mddev->queue,
@@ -1146,7 +1156,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
-			found = 1;
+			err = 0;
 			if (rdev->saved_raid_disk != mirror)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
@@ -1154,7 +1164,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 
 	print_conf(conf);
-	return found;
+	return err;
 }
 
 static int raid10_remove_disk(mddev_t *mddev, int number)
@@ -2159,7 +2169,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_size = size << (conf->chunk_shift-1);
+	mddev->array_sectors = size << conf->chunk_shift;
 	mddev->resync_max_sectors = size << conf->chunk_shift;
 
 	mddev->queue->unplug_fn = raid10_unplug;

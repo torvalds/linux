@@ -325,6 +325,7 @@ static int __devinit snd_cs423x_pnp_init_mpu(int dev, struct pnp_dev *pdev)
 static int __devinit snd_card_cs4232_pnp(int dev, struct snd_card_cs4236 *acard,
 					 struct pnp_dev *pdev)
 {
+	acard->wss = pdev;
 	if (snd_cs423x_pnp_init_wss(dev, acard->wss) < 0)
 		return -EBUSY;
 	cport[dev] = -1;

@@ -29,6 +29,4 @@ struct baboon {
 				 */
 };
 
-extern volatile struct baboon *baboon;
-
 #endif /* __ASSEMBLY **/

@@ -9,7 +9,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.19';
+my $V = '0.21';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -17,7 +17,6 @@ my $quiet = 0;
 my $tree = 1;
 my $chk_signoff = 1;
 my $chk_patch = 1;
-my $tst_type = 0;
 my $tst_only;
 my $emacs = 0;
 my $terse = 0;
@@ -44,7 +43,6 @@ GetOptions(
 	'summary-file!'	=> \$summary_file,
 
 	'debug=s'	=> \%debug,
-	'test-type!'	=> \$tst_type,
 	'test-only=s'	=> \$tst_only,
 ) or exit;
 
@@ -67,6 +65,7 @@ if ($#ARGV < 0) {
 
 my $dbg_values = 0;
 my $dbg_possible = 0;
+my $dbg_type = 0;
 for my $key (keys %debug) {
 	eval "\${dbg_$key} = '$debug{$key}';"
 }
@@ -169,24 +168,23 @@ our @modifierList = (
 );
 
 sub build_types {
-	my $mods = "(?:  \n" . join("|\n  ", @modifierList) . "\n)";
-	my $all = "(?:  \n" . join("|\n  ", @typeList) . "\n)";
+	my $mods = "(?x:  \n" . join("|\n  ", @modifierList) . "\n)";
+	my $all = "(?x:  \n" . join("|\n  ", @typeList) . "\n)";
+	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
 	$NonptrType	= qr{
-			(?:const\s+)?
-			(?:$mods\s+)?
+			(?:$Modifier\s+|const\s+)*
 			(?:
 				(?:typeof|__typeof__)\s*\(\s*\**\s*$Ident\s*\)|
 				(?:${all}\b)
 			)
-			(?:\s+$Sparse|\s+const)*
+			(?:\s+$Modifier|\s+const)*
 		  }x;
 	$Type	= qr{
 			$NonptrType
 			(?:\s*\*+\s*const|\s*\*+|(?:\s*\[\s*\])+)?
-			(?:\s+$Inline|\s+$Sparse|\s+$Attribute|\s+$mods)*
+			(?:\s+$Inline|\s+$Modifier)*
 		  }x;
 	$Declare	= qr{(?:$Storage\s+)?$Type};
-	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
 }
 build_types();
 
@@ -470,7 +468,9 @@ sub ctx_statement_block {
 		}
 		$off++;
 	}
+	# We are truly at the end, so shuffle to the next line.
 	if ($off == $len) {
+		$loff = $len + 1;
 		$line++;
 		$remain--;
 	}
@@ -631,7 +631,7 @@ sub ctx_locate_comment {
 	my ($first_line, $end_line) = @_;
 
 	# Catch a comment on the end of the line itself.
-	my ($current_comment) = ($rawlines[$end_line - 1] =~ m@.*(/\*.*\*/)\s*$@);
+	my ($current_comment) = ($rawlines[$end_line - 1] =~ m@.*(/\*.*\*/)\s*(?:\\\s*)?$@);
 	return $current_comment if (defined $current_comment);
 
 	# Look through the context and try and figure out if there is a
@@ -689,17 +689,20 @@ sub cat_vet {
 my $av_preprocessor = 0;
 my $av_pending;
 my @av_paren_type;
+my $av_pend_colon;
 
 sub annotate_reset {
 	$av_preprocessor = 0;
 	$av_pending = '_';
 	@av_paren_type = ('E');
+	$av_pend_colon = 'O';
 }
 
 sub annotate_values {
 	my ($stream, $type) = @_;
 
 	my $res;
+	my $var = '_' x length($stream);
 	my $cur = $stream;
 
 	print "$stream\n" if ($dbg_values > 1);
@@ -715,8 +718,12 @@ sub annotate_values {
 				$av_preprocessor = 0;
 			}
 
-		} elsif ($cur =~ /^($Type)/) {
+		} elsif ($cur =~ /^($Type)\s*(?:$Ident|,|\)|\()/) {
 			print "DECLARE($1)\n" if ($dbg_values > 1);
+			$type = 'T';
+
+		} elsif ($cur =~ /^($Modifier)\s*/) {
+			print "MODIFIER($1)\n" if ($dbg_values > 1);
 			$type = 'T';
 
 		} elsif ($cur =~ /^(\#\s*define\s*$Ident)(\(?)/o) {
@@ -780,7 +787,12 @@ sub annotate_values {
 			$av_pending = 'N';
 			$type = 'N';
 
-		} elsif ($cur =~/^(return|case|else)/o) {
+		} elsif ($cur =~/^(case)/o) {
+			print "CASE($1)\n" if ($dbg_values > 1);
+			$av_pend_colon = 'C';
+			$type = 'N';
+
+		} elsif ($cur =~/^(return|else|goto)/o) {
 			print "KEYWORD($1)\n" if ($dbg_values > 1);
 			$type = 'N';
 
@@ -800,9 +812,19 @@ sub annotate_values {
 				print "PAREN('$1')\n" if ($dbg_values > 1);
 			}
 
-		} elsif ($cur =~ /^($Ident)\(/o) {
+		} elsif ($cur =~ /^($Ident)\s*\(/o) {
 			print "FUNC($1)\n" if ($dbg_values > 1);
+			$type = 'V';
 			$av_pending = 'V';
+
+		} elsif ($cur =~ /^($Ident\s*):/) {
+			if ($type eq 'E') {
+				$av_pend_colon = 'L';
+			} elsif ($type eq 'T') {
+				$av_pend_colon = 'B';
+			}
+			print "IDENT_COLON($1,$type>$av_pend_colon)\n" if ($dbg_values > 1);
+			$type = 'V';
 
 		} elsif ($cur =~ /^($Ident|$Constant)/o) {
 			print "IDENT($1)\n" if ($dbg_values > 1);
@@ -815,9 +837,38 @@ sub annotate_values {
 		} elsif ($cur =~/^(;|{|})/) {
 			print "END($1)\n" if ($dbg_values > 1);
 			$type = 'E';
+			$av_pend_colon = 'O';
 
-		} elsif ($cur =~ /^(;|\?|:|\[)/o) {
+		} elsif ($cur =~ /^(\?)/o) {
+			print "QUESTION($1)\n" if ($dbg_values > 1);
+			$type = 'N';
+
+		} elsif ($cur =~ /^(:)/o) {
+			print "COLON($1,$av_pend_colon)\n" if ($dbg_values > 1);
+
+			substr($var, length($res), 1, $av_pend_colon);
+			if ($av_pend_colon eq 'C' || $av_pend_colon eq 'L') {
+				$type = 'E';
+			} else {
+				$type = 'N';
+			}
+			$av_pend_colon = 'O';
+
+		} elsif ($cur =~ /^(;|\[)/o) {
 			print "CLOSE($1)\n" if ($dbg_values > 1);
+			$type = 'N';
+
+		} elsif ($cur =~ /^(-(?![->])|\+(?!\+)|\*|\&(?!\&))/o) {
+			my $variant;
+
+			print "OPV($1)\n" if ($dbg_values > 1);
+			if ($type eq 'V') {
+				$variant = 'B';
+			} else {
+				$variant = 'U';
+			}
+
+			substr($var, length($res), 1, $variant);
 			$type = 'N';
 
 		} elsif ($cur =~ /^($Operators)/o) {
@@ -835,17 +886,17 @@ sub annotate_values {
 		}
 	}
 
-	return $res;
+	return ($res, $var);
 }
 
 sub possible {
 	my ($possible, $line) = @_;
 
 	print "CHECK<$possible> ($line)\n" if ($dbg_possible > 1);
-	if ($possible !~ /^(?:$Storage|$Type|DEFINE_\S+)$/ &&
+	if ($possible !~ /^(?:$Modifier|$Storage|$Type|DEFINE_\S+)$/ &&
 	    $possible ne 'goto' && $possible ne 'return' &&
 	    $possible ne 'case' && $possible ne 'else' &&
-	    $possible ne 'asm' &&
+	    $possible ne 'asm' && $possible ne '__asm__' &&
 	    $possible !~ /^(typedef|struct|enum)\b/) {
 		# Check for modifiers.
 		$possible =~ s/\s*$Storage\s*//g;
@@ -854,8 +905,10 @@ sub possible {
 
 		} elsif ($possible =~ /\s/) {
 			$possible =~ s/\s*$Type\s*//g;
-			warn "MODIFIER: $possible ($line)\n" if ($dbg_possible);
-			push(@modifierList, $possible);
+			for my $modifier (split(' ', $possible)) {
+				warn "MODIFIER: $modifier ($possible) ($line)\n" if ($dbg_possible);
+				push(@modifierList, $modifier);
+			}
 
 		} else {
 			warn "POSSIBLE: $possible ($line)\n" if ($dbg_possible);
@@ -1135,7 +1188,9 @@ sub process {
 		}
 #80 column limit
 		if ($line =~ /^\+/ && $prevrawline !~ /\/\*\*/ &&
-		    $rawline !~ /^.\s*\*\s*\@$Ident\s/ && $length > 80)
+		    $rawline !~ /^.\s*\*\s*\@$Ident\s/ &&
+		    $line !~ /^\+\s*printk\s*\(\s*(?:KERN_\S+\s*)?"[X\t]*"\s*(?:,|\)\s*;)\s*$/ &&
+		    $length > 80)
 		{
 			WARN("line over 80 characters\n" . $herecurr);
 		}
@@ -1162,10 +1217,10 @@ sub process {
 		}
 
 # Check for potential 'bare' types
-		my ($stat, $cond);
+		my ($stat, $cond, $line_nr_next, $remain_next);
 		if ($realcnt && $line =~ /.\s*\S/) {
-			($stat, $cond) = ctx_statement_block($linenr,
-								$realcnt, 0);
+			($stat, $cond, $line_nr_next, $remain_next) =
+				ctx_statement_block($linenr, $realcnt, 0);
 			$stat =~ s/\n./\n /g;
 			$cond =~ s/\n./\n /g;
 
@@ -1179,7 +1234,7 @@ sub process {
 			} elsif ($s =~ /^.\s*$Ident\s*\(/s) {
 
 			# declarations always start with types
-			} elsif ($prev_values eq 'E' && $s =~ /^.\s*(?:$Storage\s+)?(?:$Inline\s+)?(?:const\s+)?((?:\s*$Ident)+)\b(?:\s+$Sparse)?\s*\**\s*(?:$Ident|\(\*[^\)]*\))\s*(?:;|=|,|\()/s) {
+			} elsif ($prev_values eq 'E' && $s =~ /^.\s*(?:$Storage\s+)?(?:$Inline\s+)?(?:const\s+)?((?:\s*$Ident)+?)\b(?:\s+$Sparse)?\s*\**\s*(?:$Ident|\(\*[^\)]*\))(?:\s*$Modifier)?\s*(?:;|=|,|\()/s) {
 				my $type = $1;
 				$type =~ s/\s+/ /g;
 				possible($type, "A:" . $s);
@@ -1239,6 +1294,10 @@ sub process {
 				ERROR("switch and case should be at the same indent\n$hereline$err");
 			}
 		}
+		if ($line =~ /^.\s*(?:case\s*.*|default\s*):/g &&
+		    $line !~ /\G(?:\s*{)?(?:\s*$;*)(?:\s*\\)?\s*$/g) {
+			ERROR("trailing statements should be on next line\n" . $herecurr);
+		}
 
 # if/while/etc brace do not go on next line, unless defining a do while loop,
 # or if that brace on the next line is for something else
@@ -1246,17 +1305,22 @@ sub process {
 			my $pre_ctx = "$1$2";
 
 			my ($level, @ctx) = ctx_statement_level($linenr, $realcnt, 0);
-			my $ctx_ln = $linenr + $#ctx + 1;
 			my $ctx_cnt = $realcnt - $#ctx - 1;
 			my $ctx = join("\n", @ctx);
 
-			##warn "realcnt<$realcnt> ctx_cnt<$ctx_cnt>\n";
+			my $ctx_ln = $linenr;
+			my $ctx_skip = $realcnt;
 
-			# Skip over any removed lines in the context following statement.
-			while (defined($lines[$ctx_ln - 1]) && $lines[$ctx_ln - 1] =~ /^-/) {
+			while ($ctx_skip > $ctx_cnt || ($ctx_skip == $ctx_cnt &&
+					defined $lines[$ctx_ln - 1] &&
+					$lines[$ctx_ln - 1] =~ /^-/)) {
+				##print "SKIP<$ctx_skip> CNT<$ctx_cnt>\n";
+				$ctx_skip-- if (!defined $lines[$ctx_ln - 1] || $lines[$ctx_ln - 1] !~ /^-/);
 				$ctx_ln++;
 			}
-			##warn "pre<$pre_ctx>\nline<$line>\nctx<$ctx>\nnext<$lines[$ctx_ln - 1]>\n";
+
+			#print "realcnt<$realcnt> ctx_cnt<$ctx_cnt>\n";
+			#print "pre<$pre_ctx>\nline<$line>\nctx<$ctx>\nnext<$lines[$ctx_ln - 1]>\n";
 
 			if ($ctx !~ /{\s*/ && defined($lines[$ctx_ln -1]) && $lines[$ctx_ln - 1] =~ /^\+\s*{/) {
 				ERROR("that open brace { should be on the previous line\n" .
@@ -1276,12 +1340,14 @@ sub process {
 
 		# Track the 'values' across context and added lines.
 		my $opline = $line; $opline =~ s/^./ /;
-		my $curr_values = annotate_values($opline . "\n", $prev_values);
+		my ($curr_values, $curr_vars) =
+				annotate_values($opline . "\n", $prev_values);
 		$curr_values = $prev_values . $curr_values;
 		if ($dbg_values) {
 			my $outline = $opline; $outline =~ s/\t/ /g;
 			print "$linenr > .$outline\n";
 			print "$linenr > $curr_values\n";
+			print "$linenr >  $curr_vars\n";
 		}
 		$prev_values = substr($curr_values, -1);
 
@@ -1289,8 +1355,12 @@ sub process {
 		if ($line=~/^[^\+]/) {next;}
 
 # TEST: allow direct testing of the type matcher.
-		if ($tst_type && $line =~ /^.$Declare$/) {
-			ERROR("TEST: is type $Declare\n" . $herecurr);
+		if ($dbg_type) {
+			if ($line =~ /^.\s*$Declare\s*$/) {
+				ERROR("TEST: is type\n" . $herecurr);
+			} elsif ($dbg_type > 1 && $line =~ /^.+($Declare)/) {
+				ERROR("TEST: is not type ($1 is)\n". $herecurr);
+			}
 			next;
 		}
 
@@ -1365,11 +1435,11 @@ sub process {
 			ERROR("\"(foo $1 )\" should be \"(foo $1)\"\n" .
 				$herecurr);
 
-		} elsif ($line =~ m{$NonptrType(\*+)(?:\s+(?:$Attribute|$Sparse))?\s+[A-Za-z\d_]+}) {
+		} elsif ($line =~ m{\b$NonptrType(\*+)(?:\s+(?:$Attribute|$Sparse))?\s+[A-Za-z\d_]+}) {
 			ERROR("\"foo$1 bar\" should be \"foo $1bar\"\n" .
 				$herecurr);
 
-		} elsif ($line =~ m{$NonptrType\s+(\*+)(?!\s+(?:$Attribute|$Sparse))\s+[A-Za-z\d_]+}) {
+		} elsif ($line =~ m{\b$NonptrType\s+(\*+)(?!\s+(?:$Attribute|$Sparse))\s+[A-Za-z\d_]+}) {
 			ERROR("\"foo $1 bar\" should be \"foo $1bar\"\n" .
 				$herecurr);
 		}
@@ -1421,6 +1491,17 @@ sub process {
 			ERROR("open brace '{' following $1 go on the same line\n" . $hereprev);
 		}
 
+# check for spacing round square brackets; allowed:
+#  1. with a type on the left -- int [] a;
+#  2. at the beginning of a line for slice initialisers -- [0..10] = 5,
+		while ($line =~ /(.*?\s)\[/g) {
+			my ($where, $prefix) = ($-[1], $1);
+			if ($prefix !~ /$Type\s+$/ &&
+			    ($where != 0 || $prefix !~ /^.\s+$/)) {
+				ERROR("space prohibited before open square bracket '['\n" . $herecurr);
+			}
+		}
+
 # check for spaces between functions and their parentheses.
 		while ($line =~ /($Ident)\s+\(/g) {
 			my $name = $1;
@@ -1457,7 +1538,8 @@ sub process {
 				<<=|>>=|<=|>=|==|!=|
 				\+=|-=|\*=|\/=|%=|\^=|\|=|&=|
 				=>|->|<<|>>|<|>|=|!|~|
-				&&|\|\||,|\^|\+\+|--|&|\||\+|-|\*|\/|%
+				&&|\|\||,|\^|\+\+|--|&|\||\+|-|\*|\/|%|
+				\?|:
 			}x;
 			my @elements = split(/($ops|;)/, $opline);
 			my $off = 0;
@@ -1504,22 +1586,11 @@ sub process {
 				my $ptr = substr($blank, 0, $off) . "^";
 				my $hereptr = "$hereline$ptr\n";
 
-				# Classify operators into binary, unary, or
-				# definitions (* only) where they have more
-				# than one mode.
+				# Pull out the value of this operator.
 				my $op_type = substr($curr_values, $off + 1, 1);
-				my $op_left = substr($curr_values, $off, 1);
-				my $is_unary;
-				if ($op_type eq 'T') {
-					$is_unary = 2;
-				} elsif ($op_left eq 'V') {
-					$is_unary = 0;
-				} else {
-					$is_unary = 1;
-				}
-				#if ($op eq '-' || $op eq '&' || $op eq '*') {
-				#	print "UNARY: <$op_left$op_type $is_unary $a:$op:$c> <$ca:$op:$cc> <$unary_ctx>\n";
-				#}
+
+				# Get the full operator variant.
+				my $opv = $op . substr($curr_vars, $off, 1);
 
 				# Ignore operators passed as parameters.
 				if ($op_type ne 'V' &&
@@ -1538,8 +1609,10 @@ sub process {
 				# // is a comment
 				} elsif ($op eq '//') {
 
-				# -> should have no spaces
-				} elsif ($op eq '->') {
+				# No spaces for:
+				#   ->
+				#   :   when part of a bitfield
+				} elsif ($op eq '->' || $opv eq ':B') {
 					if ($ctx =~ /Wx.|.xW/) {
 						ERROR("spaces prohibited around that '$op' $at\n" . $hereptr);
 					}
@@ -1551,18 +1624,19 @@ sub process {
 					}
 
 				# '*' as part of a type definition -- reported already.
-				} elsif ($op eq '*' && $is_unary == 2) {
+				} elsif ($opv eq '*_') {
 					#warn "'*' is part of type\n";
 
 				# unary operators should have a space before and
 				# none after.  May be left adjacent to another
 				# unary operator, or a cast
 				} elsif ($op eq '!' || $op eq '~' ||
-				         ($is_unary && ($op eq '*' || $op eq '-' || $op eq '&'))) {
+					 $opv eq '*U' || $opv eq '-U' ||
+					 $opv eq '&U') {
 					if ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
 						ERROR("space required before that '$op' $at\n" . $hereptr);
 					}
-					if ($op  eq '*' && $cc =~/\s*const\b/) {
+					if ($op eq '*' && $cc =~/\s*const\b/) {
 						# A unary '*' may be const
 
 					} elsif ($ctx =~ /.xW/) {
@@ -1595,11 +1669,33 @@ sub process {
 							$hereptr);
 					}
 
+				# A colon needs no spaces before when it is
+				# terminating a case value or a label.
+				} elsif ($opv eq ':C' || $opv eq ':L') {
+					if ($ctx =~ /Wx./) {
+						ERROR("space prohibited before that '$op' $at\n" . $hereptr);
+					}
+
 				# All the others need spaces both sides.
 				} elsif ($ctx !~ /[EWC]x[CWE]/) {
+					my $ok = 0;
+
 					# Ignore email addresses <foo@bar>
-					if (!($op eq '<' && $cb =~ /$;\S+\@\S+>/) &&
-					    !($op eq '>' && $cb =~ /<\S+\@\S+$;/)) {
+					if (($op eq '<' &&
+					     $cc =~ /^\S+\@\S+>/) ||
+					    ($op eq '>' &&
+					     $ca =~ /<\S+\@\S+$/))
+					{
+					    	$ok = 1;
+					}
+
+					# Ignore ?:
+					if (($opv eq ':O' && $ca =~ /\?$/) ||
+					    ($op eq '?' && $cc =~ /^:/)) {
+					    	$ok = 1;
+					}
+
+					if ($ok == 0) {
 						ERROR("spaces required around that '$op' $at\n" . $hereptr);
 					}
 				}
@@ -1670,6 +1766,7 @@ sub process {
 			my $value = $2;
 
 			# Flatten any parentheses and braces
+			$value =~ s/\)\(/\) \(/g;
 			while ($value =~ s/\([^\(\)]*\)/1/) {
 			}
 
@@ -1686,8 +1783,9 @@ sub process {
 			ERROR("space required before the open parenthesis '('\n" . $herecurr);
 		}
 
-# Check for illegal assignment in if conditional.
-		if ($line =~ /\bif\s*\(/) {
+# Check for illegal assignment in if conditional -- and check for trailing
+# statements after the conditional.
+		if ($line =~ /\b(?:if|while|for)\s*\(/ && $line !~ /^.\s*#/) {
 			my ($s, $c) = ($stat, $cond);
 
 			if ($c =~ /\bif\s*\(.*[^<>!=]=[^=].*/) {
@@ -1699,10 +1797,60 @@ sub process {
 			substr($s, 0, length($c), '');
 			$s =~ s/\n.*//g;
 			$s =~ s/$;//g; 	# Remove any comments
-			if (length($c) && $s !~ /^\s*({|;|)\s*\\*\s*$/ &&
-			    $c !~ /^.\s*\#\s*if/)
+			if (length($c) && $s !~ /^\s*{?\s*\\*\s*$/ &&
+			    $c !~ /}\s*while\s*/)
 			{
 				ERROR("trailing statements should be on next line\n" . $herecurr);
+			}
+		}
+
+# Check relative indent for conditionals and blocks.
+		if ($line =~ /\b(?:(?:if|while|for)\s*\(|do\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
+			my ($s, $c) = ($stat, $cond);
+
+			substr($s, 0, length($c), '');
+
+			# Make sure we remove the line prefixes as we have
+			# none on the first line, and are going to readd them
+			# where necessary.
+			$s =~ s/\n./\n/gs;
+
+			# We want to check the first line inside the block
+			# starting at the end of the conditional, so remove:
+			#  1) any blank line termination
+			#  2) any opening brace { on end of the line
+			#  3) any do (...) {
+			my $continuation = 0;
+			my $check = 0;
+			$s =~ s/^.*\bdo\b//;
+			$s =~ s/^\s*{//;
+			if ($s =~ s/^\s*\\//) {
+				$continuation = 1;
+			}
+			if ($s =~ s/^\s*\n//) {
+				$check = 1;
+			}
+
+			# Also ignore a loop construct at the end of a
+			# preprocessor statement.
+			if (($prevline =~ /^.\s*#\s*define\s/ ||
+			    $prevline =~ /\\\s*$/) && $continuation == 0) {
+				$check = 0;
+			}
+
+			# Ignore the current line if its is a preprocessor
+			# line.
+			if ($s =~ /^\s*#\s*/) {
+				$check = 0;
+			}
+
+			my (undef, $sindent) = line_stats("+" . $s);
+
+			##print "line<$line> prevline<$prevline> indent<$indent> sindent<$sindent> check<$check> continuation<$continuation> s<$s>\n";
+
+			if ($check && (($sindent % 8) != 0 ||
+			    ($sindent <= $indent && $s ne ''))) {
+				WARN("suspect code indent for conditional statements\n" . $herecurr);
 			}
 		}
 
@@ -1777,7 +1925,8 @@ sub process {
 # multi-statement macros should be enclosed in a do while loop, grab the
 # first statement and ensure its the whole macro if its not enclosed
 # in a known good container
-		if ($line =~ /^.\s*\#\s*define\s*$Ident(\()?/) {
+		if ($realfile !~ m@/vmlinux.lds.h$@ &&
+		    $line =~ /^.\s*\#\s*define\s*$Ident(\()?/) {
 			my $ln = $linenr;
 			my $cnt = $realcnt;
 			my ($off, $dstat, $dcond, $rest);
@@ -1791,30 +1940,26 @@ sub process {
 				$lines[$ln - 1] =~ /^(?:-|..*\\$)/)
 			{
 				$ctx .= $rawlines[$ln - 1] . "\n";
+				$cnt-- if ($lines[$ln - 1] !~ /^-/);
 				$ln++;
-				$cnt--;
 			}
 			$ctx .= $rawlines[$ln - 1];
 
 			($dstat, $dcond, $ln, $cnt, $off) =
 				ctx_statement_block($linenr, $ln - $linenr + 1, 0);
 			#print "dstat<$dstat> dcond<$dcond> cnt<$cnt> off<$off>\n";
-			#print "LINE<$lines[$ln]> len<" . length($lines[$ln]) . "\n";
+			#print "LINE<$lines[$ln-1]> len<" . length($lines[$ln-1]) . "\n";
 
 			# Extract the remainder of the define (if any) and
 			# rip off surrounding spaces, and trailing \'s.
 			$rest = '';
-			if (defined $lines[$ln - 1] &&
-			    $off > length($lines[$ln - 1]))
-			{
+			while ($off != 0 || ($cnt > 0 && $rest =~ /(?:^|\\)\s*$/)) {
+				#print "ADDING $off <" . substr($lines[$ln - 1], $off) . ">\n";
+				if ($off != 0 || $lines[$ln - 1] !~ /^-/) {
+					$rest .= substr($lines[$ln - 1], $off) . "\n";
+					$cnt--;
+				}
 				$ln++;
-				$cnt--;
-				$off = 0;
-			}
-			while ($cnt > 0) {
-				$rest .= substr($lines[$ln - 1], $off) . "\n";
-				$ln++;
-				$cnt--;
 				$off = 0;
 			}
 			$rest =~ s/\\\n.//g;
@@ -1827,6 +1972,7 @@ sub process {
 			} else {
 				$dstat =~ s/^.\s*\#\s*define\s+$Ident\s*//;
 			}
+			$dstat =~ s/$;//g;
 			$dstat =~ s/\\\n.//g;
 			$dstat =~ s/^\s*//s;
 			$dstat =~ s/\s*$//s;
@@ -1845,6 +1991,7 @@ sub process {
 				DEFINE_PER_CPU|
 				__typeof__\(
 			}x;
+			#print "REST<$rest>\n";
 			if ($rest ne '') {
 				if ($rest !~ /while\s*\(/ &&
 				    $dstat !~ /$exceptions/)
@@ -2001,7 +2148,14 @@ sub process {
 		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
 			my $expr = $1;
 			if ($line =~ /\bkfree\(\Q$expr\E\);/) {
-				WARN("kfree(NULL) is safe this check is probabally not required\n" . $hereprev);
+				WARN("kfree(NULL) is safe this check is probably not required\n" . $hereprev);
+			}
+		}
+# check for needless usb_free_urb() checks
+		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
+			my $expr = $1;
+			if ($line =~ /\busb_free_urb\(\Q$expr\E\);/) {
+				WARN("usb_free_urb(NULL) is safe this check is probably not required\n" . $hereprev);
 			}
 		}
 
@@ -2105,6 +2259,10 @@ sub process {
 # recommend strict_strto* over simple_strto*
 		if ($line =~ /\bsimple_(strto.*?)\s*\(/) {
 			WARN("consider using strict_$1 in preference to simple_$1\n" . $herecurr);
+		}
+# check for __initcall(), use device_initcall() explicitly please
+		if ($line =~ /^.\s*__initcall\s*\(/) {
+			WARN("please use device_initcall() instead of __initcall()\n" . $herecurr);
 		}
 
 # use of NR_CPUS is usually wrong

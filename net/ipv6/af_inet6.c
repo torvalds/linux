@@ -7,8 +7,6 @@
  *
  *	Adapted from linux/net/ipv4/af_inet.c
  *
- *	$Id: af_inet6.c,v 1.66 2002/02/01 22:01:04 davem Exp $
- *
  * 	Fixes:
  *	piggy, Karl Knutson	:	Socket protocol table
  * 	Hideaki YOSHIFUJI	:	sin6_scope_id support
@@ -61,9 +59,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#ifdef CONFIG_IPV6_MROUTE
 #include <linux/mroute6.h>
-#endif
 
 MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
@@ -87,7 +83,6 @@ static int inet6_create(struct net *net, struct socket *sock, int protocol)
 	struct inet_sock *inet;
 	struct ipv6_pinfo *np;
 	struct sock *sk;
-	struct list_head *p;
 	struct inet_protosw *answer;
 	struct proto *answer_prot;
 	unsigned char answer_flags;
@@ -101,13 +96,12 @@ static int inet6_create(struct net *net, struct socket *sock, int protocol)
 		build_ehash_secret();
 
 	/* Look for the requested type/protocol pair. */
-	answer = NULL;
 lookup_protocol:
 	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
-	list_for_each_rcu(p, &inetsw6[sock->type]) {
-		answer = list_entry(p, struct inet_protosw, list);
+	list_for_each_entry_rcu(answer, &inetsw6[sock->type], list) {
 
+		err = 0;
 		/* Check the non-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
@@ -122,10 +116,9 @@ lookup_protocol:
 				break;
 		}
 		err = -EPROTONOSUPPORT;
-		answer = NULL;
 	}
 
-	if (!answer) {
+	if (err) {
 		if (try_loading_module < 2) {
 			rcu_read_unlock();
 			/*
@@ -157,7 +150,7 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
-	BUG_TRAP(answer_prot->slab != NULL);
+	WARN_ON(answer_prot->slab == NULL);
 
 	err = -ENOBUFS;
 	sk = sk_alloc(net, PF_INET6, GFP_KERNEL, answer_prot);
@@ -373,7 +366,7 @@ int inet6_release(struct socket *sock)
 
 EXPORT_SYMBOL(inet6_release);
 
-int inet6_destroy_sock(struct sock *sk)
+void inet6_destroy_sock(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff *skb;
@@ -391,8 +384,6 @@ int inet6_destroy_sock(struct sock *sk)
 
 	if ((opt = xchg(&np->opt, NULL)) != NULL)
 		sock_kfree_s(sk, opt, opt->tot_len);
-
-	return 0;
 }
 
 EXPORT_SYMBOL_GPL(inet6_destroy_sock);
@@ -943,6 +934,11 @@ static int __init inet6_init(void)
 	if (err)
 		goto out_unregister_sock;
 
+#ifdef CONFIG_SYSCTL
+	err = ipv6_static_sysctl_register();
+	if (err)
+		goto static_sysctl_fail;
+#endif
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
 	 *	for TCP and UDP is to consider one TCP and UDP instance
@@ -956,9 +952,9 @@ static int __init inet6_init(void)
 	err = icmpv6_init();
 	if (err)
 		goto icmp_fail;
-#ifdef CONFIG_IPV6_MROUTE
-	ip6_mr_init();
-#endif
+	err = ip6_mr_init();
+	if (err)
+		goto ipmr_fail;
 	err = ndisc_init();
 	if (err)
 		goto ndisc_fail;
@@ -1061,10 +1057,16 @@ netfilter_fail:
 igmp_fail:
 	ndisc_cleanup();
 ndisc_fail:
+	ip6_mr_cleanup();
+ipmr_fail:
 	icmpv6_cleanup();
 icmp_fail:
 	unregister_pernet_subsys(&inet6_net_ops);
 register_pernet_fail:
+#ifdef CONFIG_SYSCTL
+	ipv6_static_sysctl_unregister();
+static_sysctl_fail:
+#endif
 	cleanup_ipv6_mibs();
 out_unregister_sock:
 	sock_unregister(PF_INET6);
@@ -1115,10 +1117,14 @@ static void __exit inet6_exit(void)
 	ipv6_netfilter_fini();
 	igmp6_cleanup();
 	ndisc_cleanup();
+	ip6_mr_cleanup();
 	icmpv6_cleanup();
 	rawv6_exit();
 
 	unregister_pernet_subsys(&inet6_net_ops);
+#ifdef CONFIG_SYSCTL
+	ipv6_static_sysctl_unregister();
+#endif
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
 	proto_unregister(&udplitev6_prot);

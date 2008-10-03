@@ -147,7 +147,7 @@ static ssize_t i2cdev_read (struct file *file, char __user *buf, size_t count,
 	if (tmp==NULL)
 		return -ENOMEM;
 
-	pr_debug("i2c-dev: i2c-%d reading %zd bytes.\n",
+	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
 
 	ret = i2c_master_recv(client,tmp,count);
@@ -175,7 +175,7 @@ static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t c
 		return -EFAULT;
 	}
 
-	pr_debug("i2c-dev: i2c-%d writing %zd bytes.\n",
+	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
 
 	ret = i2c_master_send(client,tmp,count);
@@ -521,9 +521,9 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 		return PTR_ERR(i2c_dev);
 
 	/* register this i2c device with the driver core */
-	i2c_dev->dev = device_create(i2c_dev_class, &adap->dev,
-				     MKDEV(I2C_MAJOR, adap->nr),
-				     "i2c-%d", adap->nr);
+	i2c_dev->dev = device_create_drvdata(i2c_dev_class, &adap->dev,
+					     MKDEV(I2C_MAJOR, adap->nr),
+					     NULL, "i2c-%d", adap->nr);
 	if (IS_ERR(i2c_dev->dev)) {
 		res = PTR_ERR(i2c_dev->dev);
 		goto error;
@@ -583,8 +583,10 @@ static int __init i2c_dev_init(void)
 		goto out;
 
 	i2c_dev_class = class_create(THIS_MODULE, "i2c-dev");
-	if (IS_ERR(i2c_dev_class))
+	if (IS_ERR(i2c_dev_class)) {
+		res = PTR_ERR(i2c_dev_class);
 		goto out_unreg_chrdev;
+	}
 
 	res = i2c_add_driver(&i2cdev_driver);
 	if (res)

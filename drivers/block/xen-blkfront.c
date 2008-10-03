@@ -154,8 +154,8 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	return 0;
 }
 
-int blkif_ioctl(struct inode *inode, struct file *filep,
-		unsigned command, unsigned long argument)
+static int blkif_ioctl(struct inode *inode, struct file *filep,
+		       unsigned command, unsigned long argument)
 {
 	struct blkfront_info *info =
 		inode->i_bdev->bd_disk->private_data;

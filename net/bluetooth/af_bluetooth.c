@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <net/sock.h>
+#include <asm/ioctls.h>
 
 #if defined(CONFIG_KMOD)
 #include <linux/kmod.h>
@@ -48,7 +49,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.11"
+#define VERSION "2.13"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
@@ -266,6 +267,8 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_reset_transport_header(skb);
 	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	if (err == 0)
+		sock_recv_timestamp(msg, sk, skb);
 
 	skb_free_datagram(sk, skb);
 
@@ -328,6 +331,54 @@ unsigned int bt_sock_poll(struct file * file, struct socket *sock, poll_table *w
 	return mask;
 }
 EXPORT_SYMBOL(bt_sock_poll);
+
+int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	struct sock *sk = sock->sk;
+	struct sk_buff *skb;
+	long amount;
+	int err;
+
+	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);
+
+	switch (cmd) {
+	case TIOCOUTQ:
+		if (sk->sk_state == BT_LISTEN)
+			return -EINVAL;
+
+		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
+		if (amount < 0)
+			amount = 0;
+		err = put_user(amount, (int __user *) arg);
+		break;
+
+	case TIOCINQ:
+		if (sk->sk_state == BT_LISTEN)
+			return -EINVAL;
+
+		lock_sock(sk);
+		skb = skb_peek(&sk->sk_receive_queue);
+		amount = skb ? skb->len : 0;
+		release_sock(sk);
+		err = put_user(amount, (int __user *) arg);
+		break;
+
+	case SIOCGSTAMP:
+		err = sock_get_timestamp(sk, (struct timeval __user *) arg);
+		break;
+
+	case SIOCGSTAMPNS:
+		err = sock_get_timestampns(sk, (struct timespec __user *) arg);
+		break;
+
+	default:
+		err = -ENOIOCTLCMD;
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(bt_sock_ioctl);
 
 int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 {
@@ -405,7 +456,7 @@ static void __exit bt_exit(void)
 subsys_initcall(bt_init);
 module_exit(bt_exit);
 
-MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth Core ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

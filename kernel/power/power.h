@@ -53,8 +53,6 @@ extern int hibernation_platform_enter(void);
 
 extern int pfn_is_nosave(unsigned long);
 
-extern struct mutex pm_mutex;
-
 #define power_attr(_name) \
 static struct kobj_attribute _name##_attr = {	\
 	.attr	= {				\

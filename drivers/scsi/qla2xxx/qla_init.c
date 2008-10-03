@@ -334,6 +334,8 @@ static int
 qla2x00_isp_firmware(scsi_qla_host_t *ha)
 {
 	int  rval;
+	uint16_t loop_id, topo, sw_cap;
+	uint8_t domain, area, al_pa;
 
 	/* Assume loading risc code */
 	rval = QLA_FUNCTION_FAILED;
@@ -345,6 +347,11 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 
 		/* Verify checksum of loaded RISC code. */
 		rval = qla2x00_verify_checksum(ha, ha->fw_srisc_address);
+		if (rval == QLA_SUCCESS) {
+			/* And, verify we are not in ROM code. */
+			rval = qla2x00_get_adapter_id(ha, &loop_id, &al_pa,
+			    &area, &domain, &topo, &sw_cap);
+		}
 	}
 
 	if (rval) {
@@ -722,7 +729,7 @@ qla24xx_chip_diag(scsi_qla_host_t *ha)
 	/* Perform RISC reset. */
 	qla24xx_reset_risc(ha);
 
-	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * 1024;
+	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * ha->request_q_length;
 
 	rval = qla2x00_mbx_reg_test(ha);
 	if (rval) {
@@ -768,6 +775,38 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
 
+		/* Allocate memory for Fibre Channel Event Buffer. */
+		if (!IS_QLA25XX(ha))
+			goto try_eft;
+
+		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
+		    GFP_KERNEL);
+		if (!tc) {
+			qla_printk(KERN_WARNING, ha, "Unable to allocate "
+			    "(%d KB) for FCE.\n", FCE_SIZE / 1024);
+			goto try_eft;
+		}
+
+		memset(tc, 0, FCE_SIZE);
+		rval = qla2x00_enable_fce_trace(ha, tc_dma, FCE_NUM_BUFFERS,
+		    ha->fce_mb, &ha->fce_bufs);
+		if (rval) {
+			qla_printk(KERN_WARNING, ha, "Unable to initialize "
+			    "FCE (%d).\n", rval);
+			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
+			    tc_dma);
+			ha->flags.fce_enabled = 0;
+			goto try_eft;
+		}
+
+		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
+		    FCE_SIZE / 1024);
+
+		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
+		ha->flags.fce_enabled = 1;
+		ha->fce_dma = tc_dma;
+		ha->fce = tc;
+try_eft:
 		/* Allocate memory for Extended Trace Buffer. */
 		tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
 		    GFP_KERNEL);
@@ -793,38 +832,6 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		eft_size = EFT_SIZE;
 		ha->eft_dma = tc_dma;
 		ha->eft = tc;
-
-		/* Allocate memory for Fibre Channel Event Buffer. */
-		if (!IS_QLA25XX(ha))
-			goto cont_alloc;
-
-		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
-		    GFP_KERNEL);
-		if (!tc) {
-			qla_printk(KERN_WARNING, ha, "Unable to allocate "
-			    "(%d KB) for FCE.\n", FCE_SIZE / 1024);
-			goto cont_alloc;
-		}
-
-		memset(tc, 0, FCE_SIZE);
-		rval = qla2x00_enable_fce_trace(ha, tc_dma, FCE_NUM_BUFFERS,
-		    ha->fce_mb, &ha->fce_bufs);
-		if (rval) {
-			qla_printk(KERN_WARNING, ha, "Unable to initialize "
-			    "FCE (%d).\n", rval);
-			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
-			    tc_dma);
-			ha->flags.fce_enabled = 0;
-			goto cont_alloc;
-		}
-
-		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
-		    FCE_SIZE / 1024);
-
-		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
-		ha->flags.fce_enabled = 1;
-		ha->fce_dma = tc_dma;
-		ha->fce = tc;
 	}
 cont_alloc:
 	req_q_size = ha->request_q_length * sizeof(request_t);
@@ -969,8 +976,9 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_attributes, &ha->fw_memory_size);
 				qla2x00_resize_request_q(ha);
 				ha->flags.npiv_supported = 0;
-				if ((IS_QLA24XX(ha) || IS_QLA25XX(ha)) &&
-				    (ha->fw_attributes & BIT_2)) {
+				if ((IS_QLA24XX(ha) || IS_QLA25XX(ha) ||
+				     IS_QLA84XX(ha)) &&
+					 (ha->fw_attributes & BIT_2)) {
 					ha->flags.npiv_supported = 1;
 					if ((!ha->max_npiv_vports) ||
 					    ((ha->max_npiv_vports + 1) %
@@ -1501,18 +1509,25 @@ qla2x00_set_model_info(scsi_qla_host_t *ha, uint8_t *model, size_t len, char *de
 		index = (ha->pdev->subsystem_device & 0xff);
 		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
 		    index < QLA_MODEL_NAMES)
-			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+			strncpy(ha->model_desc,
+			    qla2x00_model_name[index * 2 + 1],
+			    sizeof(ha->model_desc) - 1);
 	} else {
 		index = (ha->pdev->subsystem_device & 0xff);
 		if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_QLOGIC &&
 		    index < QLA_MODEL_NAMES) {
 			strcpy(ha->model_number,
 			    qla2x00_model_name[index * 2]);
-			ha->model_desc = qla2x00_model_name[index * 2 + 1];
+			strncpy(ha->model_desc,
+			    qla2x00_model_name[index * 2 + 1],
+			    sizeof(ha->model_desc) - 1);
 		} else {
 			strcpy(ha->model_number, def);
 		}
 	}
+	if (IS_FWI2_CAPABLE(ha))
+		qla2xxx_get_vpd_field(ha, "\x82", ha->model_desc,
+		    sizeof(ha->model_desc));
 }
 
 /* On sparc systems, obtain port and node WWN from firmware
@@ -1864,12 +1879,11 @@ qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
 	struct fc_rport *rport;
-	unsigned long flags;
 
-	spin_lock_irqsave(&fcport->rport_lock, flags);
+	spin_lock_irq(fcport->ha->host->host_lock);
 	rport = fcport->drport;
 	fcport->drport = NULL;
-	spin_unlock_irqrestore(&fcport->rport_lock, flags);
+	spin_unlock_irq(fcport->ha->host->host_lock);
 	if (rport)
 		fc_remote_port_delete(rport);
 }
@@ -1898,7 +1912,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
-	spin_lock_init(&fcport->rport_lock);
 
 	return fcport;
 }
@@ -2007,8 +2020,10 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 	if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)) {
 		if (test_bit(LOCAL_LOOP_UPDATE, &save_flags))
 			set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
-		if (test_bit(RSCN_UPDATE, &save_flags))
+		if (test_bit(RSCN_UPDATE, &save_flags)) {
+			ha->flags.rscn_queue_overflow = 1;
 			set_bit(RSCN_UPDATE, &ha->dpc_flags);
+		}
 	}
 
 	return (rval);
@@ -2243,28 +2258,24 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 	struct fc_rport_identifiers rport_ids;
 	struct fc_rport *rport;
-	unsigned long flags;
 
 	if (fcport->drport)
 		qla2x00_rport_del(fcport);
-	if (fcport->rport)
-		return;
 
 	rport_ids.node_name = wwn_to_u64(fcport->node_name);
 	rport_ids.port_name = wwn_to_u64(fcport->port_name);
 	rport_ids.port_id = fcport->d_id.b.domain << 16 |
 	    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
-	rport = fc_remote_port_add(ha->host, 0, &rport_ids);
+	fcport->rport = rport = fc_remote_port_add(ha->host, 0, &rport_ids);
 	if (!rport) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to allocate fc remote port!\n");
 		return;
 	}
-	spin_lock_irqsave(&fcport->rport_lock, flags);
-	fcport->rport = rport;
+	spin_lock_irq(fcport->ha->host->host_lock);
 	*((fc_port_t **)rport->dd_data) = fcport;
-	spin_unlock_irqrestore(&fcport->rport_lock, flags);
+	spin_unlock_irq(fcport->ha->host->host_lock);
 
 	rport->supported_classes = fcport->supported_classes;
 
@@ -2565,7 +2576,8 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		} else if (qla2x00_gnn_id(ha, swl) != QLA_SUCCESS) {
 			kfree(swl);
 			swl = NULL;
-		} else if (qla2x00_gfpn_id(ha, swl) == QLA_SUCCESS) {
+		} else if (ql2xiidmaenable &&
+		    qla2x00_gfpn_id(ha, swl) == QLA_SUCCESS) {
 			qla2x00_gpsc(ha, swl);
 		}
 	}
@@ -3220,7 +3232,8 @@ qla2x00_update_fcports(scsi_qla_host_t *ha)
 
 	/* Go with deferred removal of rport references. */
 	list_for_each_entry(fcport, &ha->fcports, list)
-		if (fcport->drport)
+		if (fcport->drport &&
+		    atomic_read(&fcport->state) != FCS_UNCONFIGURED)
 			qla2x00_rport_del(fcport);
 }
 
@@ -3239,10 +3252,12 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 {
 	int rval;
 	uint8_t        status = 0;
+	scsi_qla_host_t *vha;
 
 	if (ha->flags.online) {
 		ha->flags.online = 0;
 		clear_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+		ha->qla_stats.total_isp_aborts++;
 
 		qla_printk(KERN_INFO, ha,
 		    "Performing ISP error recovery - ha= %p.\n", ha);
@@ -3252,6 +3267,8 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			qla2x00_mark_all_devices_lost(ha, 0);
+			list_for_each_entry(vha, &ha->vp_list, vp_list)
+			       qla2x00_mark_all_devices_lost(vha, 0);
 		} else {
 			if (!atomic_read(&ha->loop_down_timer))
 				atomic_set(&ha->loop_down_timer,
@@ -3283,17 +3300,6 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 
-			if (ha->eft) {
-				memset(ha->eft, 0, EFT_SIZE);
-				rval = qla2x00_enable_eft_trace(ha,
-				    ha->eft_dma, EFT_NUM_BUFFERS);
-				if (rval) {
-					qla_printk(KERN_WARNING, ha,
-					    "Unable to reinitialize EFT "
-					    "(%d).\n", rval);
-				}
-			}
-
 			if (ha->fce) {
 				ha->flags.fce_enabled = 1;
 				memset(ha->fce, 0,
@@ -3306,6 +3312,17 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 					    "Unable to reinitialize FCE "
 					    "(%d).\n", rval);
 					ha->flags.fce_enabled = 0;
+				}
+			}
+
+			if (ha->eft) {
+				memset(ha->eft, 0, EFT_SIZE);
+				rval = qla2x00_enable_eft_trace(ha,
+				    ha->eft_dma, EFT_NUM_BUFFERS);
+				if (rval) {
+					qla_printk(KERN_WARNING, ha,
+					    "Unable to reinitialize EFT "
+					    "(%d).\n", rval);
 				}
 			}
 		} else {	/* failed the ISP abort */
@@ -4026,8 +4043,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
 	ret = qla2x00_stop_firmware(ha);
 	for (retries = 5; ret != QLA_SUCCESS && ret != QLA_FUNCTION_TIMEOUT &&
 	    retries ; retries--) {
-		qla2x00_reset_chip(ha);
-		if (qla2x00_chip_diag(ha) != QLA_SUCCESS)
+		ha->isp_ops->reset_chip(ha);
+		if (ha->isp_ops->chip_diag(ha) != QLA_SUCCESS)
 			continue;
 		if (qla2x00_setup_chip(ha) != QLA_SUCCESS)
 			continue;
@@ -4049,7 +4066,7 @@ qla24xx_configure_vhba(scsi_qla_host_t *ha)
 	rval = qla2x00_fw_ready(ha->parent);
 	if (rval == QLA_SUCCESS) {
 		clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
-		qla2x00_marker(ha->parent, 0, 0, MK_SYNC_ALL);
+		qla2x00_marker(ha, 0, 0, MK_SYNC_ALL);
 	}
 
 	ha->flags.management_server_logged_in = 0;

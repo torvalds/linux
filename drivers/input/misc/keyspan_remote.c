@@ -159,7 +159,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 	if (dev->data.pos >= dev->data.len) {
 		dev_dbg(&dev->udev->dev,
 			"%s - Error ran out of data. pos: %d, len: %d\n",
-			__FUNCTION__, dev->data.pos, dev->data.len);
+			__func__, dev->data.pos, dev->data.len);
 		return -1;
 	}
 
@@ -267,7 +267,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.tester = remote->data.tester >> 6;
 				remote->data.bits_left -= 6;
 			} else {
-				err("%s - Unknown sequence found in system data.\n", __FUNCTION__);
+				err("%s - Unknown sequence found in system data.\n", __func__);
 				remote->stage = 0;
 				return;
 			}
@@ -286,7 +286,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.tester = remote->data.tester >> 6;
 				remote->data.bits_left -= 6;
 			} else {
-				err("%s - Unknown sequence found in button data.\n", __FUNCTION__);
+				err("%s - Unknown sequence found in button data.\n", __func__);
 				remote->stage = 0;
 				return;
 			}
@@ -302,7 +302,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.tester = remote->data.tester >> 6;
 			remote->data.bits_left -= 6;
 		} else {
-			err("%s - Error in message, invalid toggle.\n", __FUNCTION__);
+			err("%s - Error in message, invalid toggle.\n", __func__);
 			remote->stage = 0;
 			return;
 		}
@@ -317,7 +317,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 
 		dev_dbg(&remote->udev->dev,
 			"%s found valid message: system: %d, button: %d, toggle: %d\n",
-			__FUNCTION__, message.system, message.button, message.toggle);
+			__func__, message.system, message.button, message.toggle);
 
 		if (message.toggle != remote->toggle) {
 			keyspan_report_button(remote, message.button, 1);
@@ -341,7 +341,7 @@ static int keyspan_setup(struct usb_device* dev)
 				 0x11, 0x40, 0x5601, 0x0, NULL, 0, 0);
 	if (retval) {
 		dev_dbg(&dev->dev, "%s - failed to set bit rate due to error: %d\n",
-			__FUNCTION__, retval);
+			__func__, retval);
 		return(retval);
 	}
 
@@ -349,7 +349,7 @@ static int keyspan_setup(struct usb_device* dev)
 				 0x44, 0x40, 0x0, 0x0, NULL, 0, 0);
 	if (retval) {
 		dev_dbg(&dev->dev, "%s - failed to set resume sensitivity due to error: %d\n",
-			__FUNCTION__, retval);
+			__func__, retval);
 		return(retval);
 	}
 
@@ -357,11 +357,11 @@ static int keyspan_setup(struct usb_device* dev)
 				 0x22, 0x40, 0x0, 0x0, NULL, 0, 0);
 	if (retval) {
 		dev_dbg(&dev->dev, "%s - failed to turn receive on due to error: %d\n",
-			__FUNCTION__, retval);
+			__func__, retval);
 		return(retval);
 	}
 
-	dev_dbg(&dev->dev, "%s - Setup complete.\n", __FUNCTION__);
+	dev_dbg(&dev->dev, "%s - Setup complete.\n", __func__);
 	return(retval);
 }
 
@@ -397,7 +397,7 @@ static void keyspan_irq_recv(struct urb *urb)
 resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result: %d", __FUNCTION__, retval);
+		err ("%s - usb_submit_urb failed with result: %d", __func__, retval);
 }
 
 static int keyspan_open(struct input_dev *dev)

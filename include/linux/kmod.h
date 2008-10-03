@@ -19,29 +19,31 @@
  *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/gfp.h>
 #include <linux/stddef.h>
 #include <linux/errno.h>
 #include <linux/compiler.h>
 
 #define KMOD_PATH_LEN 256
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 /* modprobe exit status on success, -ve on error.  Return value
  * usually useless though. */
 extern int request_module(const char * name, ...) __attribute__ ((format (printf, 1, 2)));
+#define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
 #else
 static inline int request_module(const char * name, ...) { return -ENOSYS; }
+#define try_then_request_module(x, mod...) (x)
 #endif
 
-#define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
 
 struct key;
 struct file;
 struct subprocess_info;
 
 /* Allocate a subprocess_info structure */
-struct subprocess_info *call_usermodehelper_setup(char *path,
-						  char **argv, char **envp);
+struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+						  char **envp, gfp_t gfp_mask);
 
 /* Set various pieces of state into the subprocess_info structure */
 void call_usermodehelper_setkeys(struct subprocess_info *info,
@@ -68,8 +70,9 @@ static inline int
 call_usermodehelper(char *path, char **argv, char **envp, enum umh_wait wait)
 {
 	struct subprocess_info *info;
+	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
 
-	info = call_usermodehelper_setup(path, argv, envp);
+	info = call_usermodehelper_setup(path, argv, envp, gfp_mask);
 	if (info == NULL)
 		return -ENOMEM;
 	return call_usermodehelper_exec(info, wait);
@@ -80,8 +83,9 @@ call_usermodehelper_keys(char *path, char **argv, char **envp,
 			 struct key *session_keyring, enum umh_wait wait)
 {
 	struct subprocess_info *info;
+	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
 
-	info = call_usermodehelper_setup(path, argv, envp);
+	info = call_usermodehelper_setup(path, argv, envp, gfp_mask);
 	if (info == NULL)
 		return -ENOMEM;
 

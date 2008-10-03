@@ -1,6 +1,4 @@
 /*
- *    $Id: zorro.c,v 1.1.2.1 1998/06/07 23:21:02 geert Exp $
- *
  *    Zorro Bus Services
  *
  *    Copyright (C) 1995-2003 Geert Uytterhoeven

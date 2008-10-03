@@ -19,7 +19,7 @@
 
 static unsigned long ptelist[120];
 
-inline unsigned long dvma_page(unsigned long kaddr, unsigned long vaddr)
+static unsigned long dvma_page(unsigned long kaddr, unsigned long vaddr)
 {
 	unsigned long pte;
 	unsigned long j;

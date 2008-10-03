@@ -56,7 +56,7 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
-	int prox, id, pressure;
+	int prox, pressure;
 
 	if (data[0] != 2) {
 		dbg("wacom_pl_irq: received unknown report #%d", data[0]);
@@ -65,7 +65,7 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 
 	prox = data[1] & 0x40;
 
-	id = ERASER_DEVICE_ID;
+	wacom->id[0] = ERASER_DEVICE_ID;
 	if (prox) {
 
 		pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
@@ -99,10 +99,10 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 		if (wacom->tool[1] != BTN_TOOL_RUBBER) {
 			/* Unknown tool selected default to pen tool */
 			wacom->tool[1] = BTN_TOOL_PEN;
-			id = STYLUS_DEVICE_ID;
+			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
 		wacom_report_key(wcombo, wacom->tool[1], prox); /* report in proximity for tool */
-		wacom_report_abs(wcombo, ABS_MISC, id); /* report tool id */
+		wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]); /* report tool id */
 		wacom_report_abs(wcombo, ABS_X, data[3] | (data[2] << 7) | ((data[1] & 0x03) << 14));
 		wacom_report_abs(wcombo, ABS_Y, data[6] | (data[5] << 7) | ((data[4] & 0x03) << 14));
 		wacom_report_abs(wcombo, ABS_PRESSURE, pressure);
@@ -127,7 +127,6 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
-	int id;
 
 	if (data[0] != 2) {
 		printk(KERN_INFO "wacom_ptu_irq: received unknown report #%d\n", data[0]);
@@ -137,13 +136,13 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 	if (data[1] & 0x04) {
 		wacom_report_key(wcombo, BTN_TOOL_RUBBER, data[1] & 0x20);
 		wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x08);
-		id = ERASER_DEVICE_ID;
+		wacom->id[0] = ERASER_DEVICE_ID;
 	} else {
 		wacom_report_key(wcombo, BTN_TOOL_PEN, data[1] & 0x20);
 		wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x01);
-		id = STYLUS_DEVICE_ID;
+		wacom->id[0] = STYLUS_DEVICE_ID;
 	}
-	wacom_report_abs(wcombo, ABS_MISC, id); /* report tool id */
+	wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]); /* report tool id */
 	wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
 	wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
 	wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
@@ -155,27 +154,26 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
-	int x, y, id, rw;
+	int x, y, rw;
 
 	if (data[0] != 2) {
 		dbg("wacom_graphire_irq: received unknown report #%d", data[0]);
 		return 0;
 	}
 
-	id = STYLUS_DEVICE_ID;
-	if ((data[1] & 0x80) && ((data[1] & 0x07) || data[2] || data[3] || data[4]
-			|| data[5] || data[6] || (data[7] & 0x07))) {
+	if (data[1] & 0x80) {
 		/* in prox and not a pad data */
 
 		switch ((data[1] >> 5) & 3) {
 
 			case 0:	/* Pen */
 				wacom->tool[0] = BTN_TOOL_PEN;
+				wacom->id[0] = STYLUS_DEVICE_ID;
 				break;
 
 			case 1: /* Rubber */
 				wacom->tool[0] = BTN_TOOL_RUBBER;
-				id = ERASER_DEVICE_ID;
+				wacom->id[0] = ERASER_DEVICE_ID;
 				break;
 
 			case 2: /* Mouse with wheel */
@@ -190,7 +188,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 
 			case 3: /* Mouse without wheel */
 				wacom->tool[0] = BTN_TOOL_MOUSE;
-				id = CURSOR_DEVICE_ID;
+				wacom->id[0] = CURSOR_DEVICE_ID;
 				wacom_report_key(wcombo, BTN_LEFT, data[1] & 0x01);
 				wacom_report_key(wcombo, BTN_RIGHT, data[1] & 0x02);
 				if (wacom->features->type == WACOM_G4 ||
@@ -210,9 +208,9 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
 			wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x04);
 		}
-		wacom_report_abs(wcombo, ABS_MISC, id); /* report tool id */
+		wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]); /* report tool id */
 		wacom_report_key(wcombo, wacom->tool[0], 1);
-	} else if (!(data[1] & 0x90)) {
+	} else if (wacom->id[0]) {
 		wacom_report_abs(wcombo, ABS_X, 0);
 		wacom_report_abs(wcombo, ABS_Y, 0);
 		if (wacom->tool[0] == BTN_TOOL_MOUSE) {
@@ -225,6 +223,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_STYLUS, 0);
 			wacom_report_key(wcombo, BTN_STYLUS2, 0);
 		}
+		wacom->id[0] = 0;
 		wacom_report_abs(wcombo, ABS_MISC, 0); /* reset tool id */
 		wacom_report_key(wcombo, wacom->tool[0], 0);
 	}
@@ -234,13 +233,13 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 	    case WACOM_G4:
 		if (data[7] & 0xf8) {
 			wacom_input_sync(wcombo); /* sync last event */
-			wacom->id[1] = 1;
+			wacom->id[1] = PAD_DEVICE_ID;
 			wacom_report_key(wcombo, BTN_0, (data[7] & 0x40));
 			wacom_report_key(wcombo, BTN_4, (data[7] & 0x80));
 			rw = ((data[7] & 0x18) >> 3) - ((data[7] & 0x20) >> 3);
 			wacom_report_rel(wcombo, REL_WHEEL, rw);
 			wacom_report_key(wcombo, BTN_TOOL_FINGER, 0xf0);
-			wacom_report_abs(wcombo, ABS_MISC, PAD_DEVICE_ID);
+			wacom_report_abs(wcombo, ABS_MISC, wacom->id[1]);
 			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
 		} else if (wacom->id[1]) {
 			wacom_input_sync(wcombo); /* sync last event */
@@ -255,14 +254,14 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 	    case WACOM_MO:
 		if ((data[7] & 0xf8) || (data[8] & 0xff)) {
 			wacom_input_sync(wcombo); /* sync last event */
-			wacom->id[1] = 1;
+			wacom->id[1] = PAD_DEVICE_ID;
 			wacom_report_key(wcombo, BTN_0, (data[7] & 0x08));
 			wacom_report_key(wcombo, BTN_1, (data[7] & 0x20));
 			wacom_report_key(wcombo, BTN_4, (data[7] & 0x10));
 			wacom_report_key(wcombo, BTN_5, (data[7] & 0x40));
 			wacom_report_abs(wcombo, ABS_WHEEL, (data[8] & 0x7f));
 			wacom_report_key(wcombo, BTN_TOOL_FINGER, 0xf0);
-			wacom_report_abs(wcombo, ABS_MISC, PAD_DEVICE_ID);
+			wacom_report_abs(wcombo, ABS_MISC, wacom->id[1]);
 			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
 		} else if (wacom->id[1]) {
 			wacom_input_sync(wcombo); /* sync last event */

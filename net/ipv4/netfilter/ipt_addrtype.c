@@ -70,7 +70,7 @@ addrtype_mt_v1(const struct sk_buff *skb, const struct net_device *in,
 		       (info->flags & IPT_ADDRTYPE_INVERT_SOURCE);
 	if (ret && info->dest)
 		ret &= match_type(dev, iph->daddr, info->dest) ^
-		       (info->flags & IPT_ADDRTYPE_INVERT_DEST);
+		       !!(info->flags & IPT_ADDRTYPE_INVERT_DEST);
 	return ret;
 }
 

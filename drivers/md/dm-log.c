@@ -831,7 +831,7 @@ static struct dm_dirty_log_type _disk_type = {
 	.status = disk_status,
 };
 
-int __init dm_dirty_log_init(void)
+static int __init dm_dirty_log_init(void)
 {
 	int r;
 
@@ -848,7 +848,7 @@ int __init dm_dirty_log_init(void)
 	return r;
 }
 
-void __exit dm_dirty_log_exit(void)
+static void __exit dm_dirty_log_exit(void)
 {
 	dm_dirty_log_type_unregister(&_disk_type);
 	dm_dirty_log_type_unregister(&_core_type);

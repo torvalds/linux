@@ -41,7 +41,9 @@
 #include "bearer.h"
 
 
-void tipc_msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str)
+#ifdef CONFIG_TIPC_DEBUG
+
+void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 {
 	u32 usr = msg_user(msg);
 	tipc_printf(buf, str);
@@ -228,13 +230,10 @@ void tipc_msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str
 
 	switch (usr) {
 	case CONN_MANAGER:
-	case NAME_DISTRIBUTOR:
 	case TIPC_LOW_IMPORTANCE:
 	case TIPC_MEDIUM_IMPORTANCE:
 	case TIPC_HIGH_IMPORTANCE:
 	case TIPC_CRITICAL_IMPORTANCE:
-		if (msg_short(msg))
-			break;	/* No error */
 		switch (msg_errcode(msg)) {
 		case TIPC_OK:
 			break;
@@ -315,9 +314,11 @@ void tipc_msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str
 	}
 	tipc_printf(buf, "\n");
 	if ((usr == CHANGEOVER_PROTOCOL) && (msg_msgcnt(msg))) {
-		tipc_msg_print(buf,msg_get_wrapped(msg),"      /");
+		tipc_msg_dbg(buf, msg_get_wrapped(msg), "      /");
 	}
 	if ((usr == MSG_FRAGMENTER) && (msg_type(msg) == FIRST_FRAGMENT)) {
-		tipc_msg_print(buf,msg_get_wrapped(msg),"      /");
+		tipc_msg_dbg(buf, msg_get_wrapped(msg), "      /");
 	}
 }
+
+#endif

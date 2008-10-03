@@ -314,7 +314,7 @@ static int jffs2_check_acl(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-int jffs2_permission(struct inode *inode, int mask, struct nameidata *nd)
+int jffs2_permission(struct inode *inode, int mask)
 {
 	return generic_permission(inode, mask, jffs2_check_acl);
 }

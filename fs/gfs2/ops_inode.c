@@ -74,7 +74,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			return PTR_ERR(inode);
 		}
 
-		inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
+		inode = gfs2_lookupi(dir, &dentry->d_name, 0);
 		if (inode) {
 			if (!IS_ERR(inode)) {
 				gfs2_holder_uninit(ghs);
@@ -109,7 +109,7 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	dentry->d_op = &gfs2_dops;
 
-	inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
+	inode = gfs2_lookupi(dir, &dentry->d_name, 0);
 	if (inode && IS_ERR(inode))
 		return ERR_CAST(inode);
 
@@ -915,12 +915,6 @@ int gfs2_permission(struct inode *inode, int mask)
 	return error;
 }
 
-static int gfs2_iop_permission(struct inode *inode, int mask,
-			       struct nameidata *nd)
-{
-	return gfs2_permission(inode, mask);
-}
-
 static int setattr_size(struct inode *inode, struct iattr *attr)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -1150,7 +1144,7 @@ static int gfs2_removexattr(struct dentry *dentry, const char *name)
 }
 
 const struct inode_operations gfs2_file_iops = {
-	.permission = gfs2_iop_permission,
+	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
 	.setxattr = gfs2_setxattr,
@@ -1169,7 +1163,7 @@ const struct inode_operations gfs2_dir_iops = {
 	.rmdir = gfs2_rmdir,
 	.mknod = gfs2_mknod,
 	.rename = gfs2_rename,
-	.permission = gfs2_iop_permission,
+	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
 	.setxattr = gfs2_setxattr,
@@ -1181,7 +1175,7 @@ const struct inode_operations gfs2_dir_iops = {
 const struct inode_operations gfs2_symlink_iops = {
 	.readlink = gfs2_readlink,
 	.follow_link = gfs2_follow_link,
-	.permission = gfs2_iop_permission,
+	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
 	.setxattr = gfs2_setxattr,

@@ -4,13 +4,14 @@
 
 menuconfig DMADEVICES
 	bool "DMA Engine support"
-	depends on (PCI && X86) || ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX || PPC
-	depends on !HIGHMEM64G
+	depends on !HIGHMEM64G && HAS_DMA
 	help
 	  DMA engines can do asynchronous data transfers without
 	  involving the host CPU.  Currently, this framework can be
 	  used to offload memory copies in the network stack and
-	  RAID operations in the MD driver.
+	  RAID operations in the MD driver.  This menu only presents
+	  DMA Device drivers supported by the configured arch, it may
+	  be empty in some cases.
 
 if DMADEVICES
 
@@ -37,6 +38,15 @@ config INTEL_IOP_ADMA
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
 
+config DW_DMAC
+	tristate "Synopsys DesignWare AHB DMA support"
+	depends on AVR32
+	select DMA_ENGINE
+	default y if CPU_AT32AP7000
+	help
+	  Support the Synopsys DesignWare AHB DMA controller.  This
+	  can be integrated in chips such as the Atmel AT32ap7000.
+
 config FSL_DMA
 	bool "Freescale MPC85xx/MPC83xx DMA support"
 	depends on PPC
@@ -45,6 +55,14 @@ config FSL_DMA
 	  Enable support for the Freescale DMA engine. Now, it support
 	  MPC8560/40, MPC8555, MPC8548 and MPC8641 processors.
 	  The MPC8349, MPC8360 is also supported.
+
+config MV_XOR
+	bool "Marvell XOR engine support"
+	depends on PLAT_ORION
+	select ASYNC_CORE
+	select DMA_ENGINE
+	---help---
+	  Enable support for the Marvell XOR engine.
 
 config DMA_ENGINE
 	bool
@@ -55,10 +73,19 @@ comment "DMA Clients"
 config NET_DMA
 	bool "Network: TCP receive copy offload"
 	depends on DMA_ENGINE && NET
+	default (INTEL_IOATDMA || FSL_DMA)
 	help
 	  This enables the use of DMA engines in the network stack to
 	  offload receive copy-to-user operations, freeing CPU cycles.
-	  Since this is the main user of the DMA engine, it should be enabled;
-	  say Y here.
+
+	  Say Y here if you enabled INTEL_IOATDMA or FSL_DMA, otherwise
+	  say N.
+
+config DMATEST
+	tristate "DMA Test client"
+	depends on DMA_ENGINE
+	help
+	  Simple DMA test client. Say N unless you're debugging a
+	  DMA Device driver.
 
 endif

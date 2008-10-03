@@ -144,7 +144,8 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 		void *addr = bridge->driver->agp_alloc_page(bridge);
 
 		if (!addr) {
-			printk(KERN_ERR PFX "unable to get memory for scratch page.\n");
+			dev_err(&bridge->dev->dev,
+				"can't get memory for scratch page\n");
 			return -ENOMEM;
 		}
 
@@ -155,13 +156,13 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 
 	size_value = bridge->driver->fetch_size();
 	if (size_value == 0) {
-		printk(KERN_ERR PFX "unable to determine aperture size.\n");
+		dev_err(&bridge->dev->dev, "can't determine aperture size\n");
 		rc = -EINVAL;
 		goto err_out;
 	}
 	if (bridge->driver->create_gatt_table(bridge)) {
-		printk(KERN_ERR PFX
-		    "unable to get memory for graphics translation table.\n");
+		dev_err(&bridge->dev->dev,
+			"can't get memory for graphics translation table\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -169,7 +170,8 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 
 	bridge->key_list = vmalloc(PAGE_SIZE * 4);
 	if (bridge->key_list == NULL) {
-		printk(KERN_ERR PFX "error allocating memory for key lists.\n");
+		dev_err(&bridge->dev->dev,
+			"can't allocate memory for key lists\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -179,10 +181,12 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	memset(bridge->key_list, 0, PAGE_SIZE * 4);
 
 	if (bridge->driver->configure()) {
-		printk(KERN_ERR PFX "error configuring host chipset.\n");
+		dev_err(&bridge->dev->dev, "error configuring host chipset\n");
 		rc = -EINVAL;
 		goto err_out;
 	}
+	INIT_LIST_HEAD(&bridge->mapped_list);
+	spin_lock_init(&bridge->mapped_lock);
 
 	return 0;
 
@@ -269,25 +273,27 @@ int agp_add_bridge(struct agp_bridge_data *bridge)
 
 	/* Grab reference on the chipset driver. */
 	if (!try_module_get(bridge->driver->owner)) {
-		printk (KERN_INFO PFX "Couldn't lock chipset driver.\n");
+		dev_info(&bridge->dev->dev, "can't lock chipset driver\n");
 		return -EINVAL;
 	}
 
 	error = agp_backend_initialize(bridge);
 	if (error) {
-		printk (KERN_INFO PFX "agp_backend_initialize() failed.\n");
+		dev_info(&bridge->dev->dev,
+			 "agp_backend_initialize() failed\n");
 		goto err_out;
 	}
 
 	if (list_empty(&agp_bridges)) {
 		error = agp_frontend_initialize();
 		if (error) {
-			printk (KERN_INFO PFX "agp_frontend_initialize() failed.\n");
+			dev_info(&bridge->dev->dev,
+				 "agp_frontend_initialize() failed\n");
 			goto frontend_err;
 		}
 
-		printk(KERN_INFO PFX "AGP aperture is %dM @ 0x%lx\n",
-			bridge->driver->fetch_size(), bridge->gart_bus_addr);
+		dev_info(&bridge->dev->dev, "AGP aperture is %dM @ 0x%lx\n",
+			 bridge->driver->fetch_size(), bridge->gart_bus_addr);
 
 	}
 

@@ -146,7 +146,7 @@ static ssize_t lcd_read(struct file *file, char __user * buffer, size_t count, l
 	return retval;
 }
 
-static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct usb_lcd *dev;
 	u16 bcdDevice;
@@ -158,12 +158,14 @@ static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	
 	switch (cmd) {
 	case IOCTL_GET_HARD_VERSION:
+		lock_kernel();
 		bcdDevice = le16_to_cpu((dev->udev)->descriptor.bcdDevice);
 		sprintf(buf,"%1d%1d.%1d%1d",
 			(bcdDevice & 0xF000)>>12,
 			(bcdDevice & 0xF00)>>8,
 			(bcdDevice & 0xF0)>>4,
 			(bcdDevice & 0xF));
+		unlock_kernel();
 		if (copy_to_user((void __user *)arg,buf,strlen(buf))!=0)
 			return -EFAULT;
 		break;
@@ -272,7 +274,7 @@ static const struct file_operations lcd_fops = {
         .read =         lcd_read,
         .write =        lcd_write,
         .open =         lcd_open,
-	.ioctl =        lcd_ioctl,
+	.unlocked_ioctl = lcd_ioctl,
         .release =      lcd_release,
 };
 

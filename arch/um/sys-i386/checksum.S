@@ -243,13 +243,12 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst,
 	.previous
 
 .align 4
-.globl csum_partial_copy_generic_i386
-				
+
 #ifndef CONFIG_X86_USE_PPRO_CHECKSUM
 
 #define ARGBASE 16		
 #define FP		12
-		
+
 csum_partial_copy_generic_i386:
 	subl  $4,%esp	
 	pushl %edi

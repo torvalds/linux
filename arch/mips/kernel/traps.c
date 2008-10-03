@@ -23,6 +23,8 @@
 #include <linux/bootmem.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
+#include <linux/kgdb.h>
+#include <linux/kdebug.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -44,6 +46,9 @@
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 
+extern void check_wait(void);
+extern asmlinkage void r4k_wait(void);
+extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
 extern asmlinkage void handle_tlbm(void);
 extern asmlinkage void handle_tlbl(void);
@@ -371,8 +376,8 @@ void __noreturn die(const char * str, const struct pt_regs * regs)
 	do_exit(SIGSEGV);
 }
 
-extern const struct exception_table_entry __start___dbe_table[];
-extern const struct exception_table_entry __stop___dbe_table[];
+extern struct exception_table_entry __start___dbe_table[];
+extern struct exception_table_entry __stop___dbe_table[];
 
 __asm__(
 "	.section	__dbe_table, \"a\"\n"
@@ -425,6 +430,10 @@ asmlinkage void do_be(struct pt_regs *regs)
 	printk(KERN_ALERT "%s bus error, epc == %0*lx, ra == %0*lx\n",
 	       data ? "Data" : "Instruction",
 	       field, regs->cp0_epc, field, regs->regs[31]);
+	if (notify_die(DIE_OOPS, "bus error", regs, SIGBUS, 0, 0)
+	    == NOTIFY_STOP)
+		return;
+
 	die_if_kernel("Oops", regs);
 	force_sig(SIGBUS, current);
 }
@@ -623,6 +632,9 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 {
 	siginfo_t info;
 
+	if (notify_die(DIE_FP, "FP exception", regs, SIGFPE, 0, 0)
+	    == NOTIFY_STOP)
+		return;
 	die_if_kernel("FP exception in kernel code", regs);
 
 	if (fcr31 & FPU_CSR_UNI_X) {
@@ -681,6 +693,9 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 {
 	siginfo_t info;
 	char b[40];
+
+	if (notify_die(DIE_TRAP, str, regs, code, 0, 0) == NOTIFY_STOP)
+		return;
 
 	/*
 	 * A short test says that IRIX 5.3 sends SIGTRAP for all trap
@@ -761,6 +776,10 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	unsigned long old_epc = regs->cp0_epc;
 	unsigned int opcode = 0;
 	int status = -1;
+
+	if (notify_die(DIE_RI, "RI Fault", regs, SIGSEGV, 0, 0)
+	    == NOTIFY_STOP)
+		return;
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
 
@@ -1184,7 +1203,7 @@ void *set_except_vector(int n, void *addr)
 	if (n == 0 && cpu_has_divec) {
 		*(u32 *)(ebase + 0x200) = 0x08000000 |
 					  (0x03ffffff & (handler >> 2));
-		flush_icache_range(ebase + 0x200, ebase + 0x204);
+		local_flush_icache_range(ebase + 0x200, ebase + 0x204);
 	}
 	return (void *)old_handler;
 }
@@ -1235,6 +1254,9 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 
 		extern char except_vec_vi, except_vec_vi_lui;
 		extern char except_vec_vi_ori, except_vec_vi_end;
+		extern char rollback_except_vec_vi;
+		char *vec_start = (cpu_wait == r4k_wait) ?
+			&rollback_except_vec_vi : &except_vec_vi;
 #ifdef CONFIG_MIPS_MT_SMTC
 		/*
 		 * We need to provide the SMTC vectored interrupt handler
@@ -1242,11 +1264,11 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		 * Status.IM bit to be masked before going there.
 		 */
 		extern char except_vec_vi_mori;
-		const int mori_offset = &except_vec_vi_mori - &except_vec_vi;
+		const int mori_offset = &except_vec_vi_mori - vec_start;
 #endif /* CONFIG_MIPS_MT_SMTC */
-		const int handler_len = &except_vec_vi_end - &except_vec_vi;
-		const int lui_offset = &except_vec_vi_lui - &except_vec_vi;
-		const int ori_offset = &except_vec_vi_ori - &except_vec_vi;
+		const int handler_len = &except_vec_vi_end - vec_start;
+		const int lui_offset = &except_vec_vi_lui - vec_start;
+		const int ori_offset = &except_vec_vi_ori - vec_start;
 
 		if (handler_len > VECTORSPACING) {
 			/*
@@ -1256,7 +1278,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 			panic("VECTORSPACING too small");
 		}
 
-		memcpy(b, &except_vec_vi, handler_len);
+		memcpy(b, vec_start, handler_len);
 #ifdef CONFIG_MIPS_MT_SMTC
 		BUG_ON(n > 7);	/* Vector index %d exceeds SMTC maximum. */
 
@@ -1267,7 +1289,8 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		*w = (*w & 0xffff0000) | (((u32)handler >> 16) & 0xffff);
 		w = (u32 *)(b + ori_offset);
 		*w = (*w & 0xffff0000) | ((u32)handler & 0xffff);
-		flush_icache_range((unsigned long)b, (unsigned long)(b+handler_len));
+		local_flush_icache_range((unsigned long)b,
+					 (unsigned long)(b+handler_len));
 	}
 	else {
 		/*
@@ -1279,7 +1302,8 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		w = (u32 *)b;
 		*w++ = 0x08000000 | (((u32)handler >> 2) & 0x03fffff); /* j handler */
 		*w = 0;
-		flush_icache_range((unsigned long)b, (unsigned long)(b+8));
+		local_flush_icache_range((unsigned long)b,
+					 (unsigned long)(b+8));
 	}
 
 	return (void *)old_handler;
@@ -1499,7 +1523,7 @@ void __cpuinit per_cpu_trap_init(void)
 void __init set_handler(unsigned long offset, void *addr, unsigned long size)
 {
 	memcpy((void *)(ebase + offset), addr, size);
-	flush_icache_range(ebase + offset, ebase + offset + size);
+	local_flush_icache_range(ebase + offset, ebase + offset + size);
 }
 
 static char panic_null_cerr[] __cpuinitdata =
@@ -1536,6 +1560,15 @@ void __init trap_init(void)
 	extern char except_vec3_generic, except_vec3_r4000;
 	extern char except_vec4;
 	unsigned long i;
+	int rollback;
+
+	check_wait();
+	rollback = (cpu_wait == r4k_wait);
+
+#if defined(CONFIG_KGDB)
+	if (kgdb_early_setup)
+		return;	/* Already done */
+#endif
 
 	if (cpu_has_veic || cpu_has_vint)
 		ebase = (unsigned long) alloc_bootmem_low_pages(0x200 + VECTORSPACING*64);
@@ -1595,7 +1628,7 @@ void __init trap_init(void)
 	if (board_be_init)
 		board_be_init();
 
-	set_except_vector(0, handle_int);
+	set_except_vector(0, rollback ? rollback_handle_int : handle_int);
 	set_except_vector(1, handle_tlbm);
 	set_except_vector(2, handle_tlbl);
 	set_except_vector(3, handle_tlbs);
@@ -1659,6 +1692,8 @@ void __init trap_init(void)
 	signal32_init();
 #endif
 
-	flush_icache_range(ebase, ebase + 0x400);
+	local_flush_icache_range(ebase, ebase + 0x400);
 	flush_tlb_handlers();
+
+	sort_extable(__start___dbe_table, __stop___dbe_table);
 }

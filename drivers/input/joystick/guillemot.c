@@ -1,6 +1,4 @@
 /*
- * $Id: guillemot.c,v 1.10 2002/01/22 20:28:12 vojtech Exp $
- *
  *  Copyright (c) 2001 Vojtech Pavlik
  */
 

@@ -19,8 +19,6 @@
  *      along with this program; if not, write to the Free Software
  *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *  $Id: devio.c,v 1.7 2000/02/01 17:28:48 fliegl Exp $
- *
  *  This file implements the usbfs/x/y files, where
  *  x is the bus number and y the device number.
  *
@@ -60,6 +58,22 @@
 
 /* Mutual exclusion for removal, open, and release */
 DEFINE_MUTEX(usbfs_mutex);
+
+struct dev_state {
+	struct list_head list;      /* state list */
+	struct usb_device *dev;
+	struct file *file;
+	spinlock_t lock;            /* protects the async urb lists */
+	struct list_head async_pending;
+	struct list_head async_completed;
+	wait_queue_head_t wait;     /* wake up if a request completed */
+	unsigned int discsignr;
+	struct pid *disc_pid;
+	uid_t disc_uid, disc_euid;
+	void __user *disccontext;
+	unsigned long ifclaimed;
+	u32 secid;
+};
 
 struct async {
 	struct list_head asynclist;
@@ -536,23 +550,19 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 	return ret;
 }
 
-static int __match_minor(struct device *dev, void *data)
+static int match_devt(struct device *dev, void *data)
 {
-	int minor = *((int *)data);
-
-	if (dev->devt == MKDEV(USB_DEVICE_MAJOR, minor))
-		return 1;
-	return 0;
+	return dev->devt == (dev_t) (unsigned long) data;
 }
 
-static struct usb_device *usbdev_lookup_by_minor(int minor)
+static struct usb_device *usbdev_lookup_by_devt(dev_t devt)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&usb_bus_type, NULL, &minor, __match_minor);
+	dev = bus_find_device(&usb_bus_type, NULL,
+			      (void *) (unsigned long) devt, match_devt);
 	if (!dev)
 		return NULL;
-	put_device(dev);
 	return container_of(dev, struct usb_device, dev);
 }
 
@@ -575,21 +585,27 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		goto out;
 
 	ret = -ENOENT;
+
 	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
-		dev = usbdev_lookup_by_minor(iminor(inode));
+		dev = usbdev_lookup_by_devt(inode->i_rdev);
 #ifdef CONFIG_USB_DEVICEFS
 	/* procfs file */
-	if (!dev)
+	if (!dev) {
 		dev = inode->i_private;
+		if (dev && dev->usbfs_dentry &&
+					dev->usbfs_dentry->d_inode == inode)
+			usb_get_dev(dev);
+		else
+			dev = NULL;
+	}
 #endif
-	if (!dev)
+	if (!dev || dev->state == USB_STATE_NOTATTACHED)
 		goto out;
 	ret = usb_autoresume_device(dev);
 	if (ret)
 		goto out;
 
-	usb_get_dev(dev);
 	ret = 0;
 	ps->dev = dev;
 	ps->file = file;
@@ -609,8 +625,10 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
-	if (ret)
+	if (ret) {
 		kfree(ps);
+		usb_put_dev(dev);
+	}
 	mutex_unlock(&usbfs_mutex);
 	unlock_kernel();
 	return ret;
@@ -874,7 +892,7 @@ static int proc_connectinfo(struct dev_state *ps, void __user *arg)
 
 static int proc_resetdevice(struct dev_state *ps)
 {
-	return usb_reset_composite_device(ps->dev, NULL);
+	return usb_reset_device(ps->dev);
 }
 
 static int proc_setintf(struct dev_state *ps, void __user *arg)
@@ -1682,25 +1700,49 @@ const struct file_operations usbdev_file_operations = {
 	.release =	usbdev_release,
 };
 
+void usb_fs_classdev_common_remove(struct usb_device *udev)
+{
+	struct dev_state *ps;
+	struct siginfo sinfo;
+
+	while (!list_empty(&udev->filelist)) {
+		ps = list_entry(udev->filelist.next, struct dev_state, list);
+		destroy_all_async(ps);
+		wake_up_all(&ps->wait);
+		list_del_init(&ps->list);
+		if (ps->discsignr) {
+			sinfo.si_signo = ps->discsignr;
+			sinfo.si_errno = EPIPE;
+			sinfo.si_code = SI_ASYNCIO;
+			sinfo.si_addr = ps->disccontext;
+			kill_pid_info_as_uid(ps->discsignr, &sinfo,
+					ps->disc_pid, ps->disc_uid,
+					ps->disc_euid, ps->secid);
+		}
+	}
+}
+
 #ifdef CONFIG_USB_DEVICE_CLASS
 static struct class *usb_classdev_class;
 
 static int usb_classdev_add(struct usb_device *dev)
 {
-	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
+	struct device *cldev;
 
-	dev->usb_classdev = device_create(usb_classdev_class, &dev->dev,
-				MKDEV(USB_DEVICE_MAJOR, minor),
-				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
-	if (IS_ERR(dev->usb_classdev))
-		return PTR_ERR(dev->usb_classdev);
-
+	cldev = device_create_drvdata(usb_classdev_class, &dev->dev,
+				      dev->dev.devt, NULL, "usbdev%d.%d",
+				      dev->bus->busnum, dev->devnum);
+	if (IS_ERR(cldev))
+		return PTR_ERR(cldev);
+	dev->usb_classdev = cldev;
 	return 0;
 }
 
 static void usb_classdev_remove(struct usb_device *dev)
 {
-	device_unregister(dev->usb_classdev);
+	if (dev->usb_classdev)
+		device_unregister(dev->usb_classdev);
+	usb_fs_classdev_common_remove(dev);
 }
 
 static int usb_classdev_notify(struct notifier_block *self,
@@ -1750,6 +1792,11 @@ int __init usb_devio_init(void)
 		usb_classdev_class = NULL;
 		goto out;
 	}
+	/* devices of this class shadow the major:minor of their parent
+	 * device, so clear ->dev_kobj to prevent adding duplicate entries
+	 * to /sys/dev
+	 */
+	usb_classdev_class->dev_kobj = NULL;
 
 	usb_register_notify(&usbdev_nb);
 #endif

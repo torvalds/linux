@@ -597,25 +597,7 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 static int hostap_80211_header_parse(const struct sk_buff *skb,
 				     unsigned char *haddr)
 {
-	struct hostap_interface *iface = netdev_priv(skb->dev);
-	local_info_t *local = iface->local;
-
-	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
-	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
-		const unsigned char *mac = skb_mac_header(skb);
-
-		if (*(u32 *)mac == LWNG_CAP_DID_BASE) {
-			memcpy(haddr,
-			       mac + sizeof(struct linux_wlan_ng_prism_hdr) + 10,
-			       ETH_ALEN); /* addr2 */
-		} else { /* (*(u32 *)mac == htonl(LWNG_CAPHDR_VERSION)) */
-			memcpy(haddr,
-			       mac + sizeof(struct linux_wlan_ng_cap_hdr) + 10,
-			       ETH_ALEN); /* addr2 */
-		}
-	} else
-		memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
-
+	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
 	return ETH_ALEN;
 }
 

@@ -181,7 +181,7 @@ static void pnx8xxx_enable_ms(struct uart_port *port)
 
 static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 {
-	struct tty_struct *tty = sport->port.info->tty;
+	struct tty_struct *tty = sport->port.info->port.tty;
 	unsigned int status, ch, flg;
 
 	status = FIFO_TO_SM(serial_in(sport, PNX8XXX_FIFO)) |
@@ -824,7 +824,7 @@ static int __init pnx8xxx_serial_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Serial: PNX8XXX driver $Revision: 1.2 $\n");
+	printk(KERN_INFO "Serial: PNX8XXX driver\n");
 
 	pnx8xxx_init_ports();
 

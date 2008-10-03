@@ -58,6 +58,13 @@
  * device should be used. A &struct ubi_rsvol_req object has to be properly
  * filled and a pointer to it has to be passed to the IOCTL.
  *
+ * UBI volumes re-name
+ * ~~~~~~~~~~~~~~~~~~~
+ *
+ * To re-name several volumes atomically at one go, the %UBI_IOCRNVOL command
+ * of the UBI character device should be used. A &struct ubi_rnvol_req object
+ * has to be properly filled and a pointer to it has to be passed to the IOCTL.
+ *
  * UBI volume update
  * ~~~~~~~~~~~~~~~~~
  *
@@ -104,6 +111,8 @@
 #define UBI_IOCRMVOL _IOW(UBI_IOC_MAGIC, 1, int32_t)
 /* Re-size an UBI volume */
 #define UBI_IOCRSVOL _IOW(UBI_IOC_MAGIC, 2, struct ubi_rsvol_req)
+/* Re-name volumes */
+#define UBI_IOCRNVOL _IOW(UBI_IOC_MAGIC, 3, struct ubi_rnvol_req)
 
 /* IOCTL commands of the UBI control character device */
 
@@ -127,6 +136,9 @@
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
+
+/* Maximum amount of UBI volumes that can be re-named at one go */
+#define UBI_MAX_RNVOL 32
 
 /*
  * UBI data type hint constants.
@@ -176,20 +188,20 @@ enum {
  * it will be 512 in case of a 2KiB page NAND flash with 4 512-byte sub-pages.
  *
  * But in rare cases, if this optimizes things, the VID header may be placed to
- * a different offset. For example, the boot-loader might do things faster if the
- * VID header sits at the end of the first 2KiB NAND page with 4 sub-pages. As
- * the boot-loader would not normally need to read EC headers (unless it needs
- * UBI in RW mode), it might be faster to calculate ECC. This is weird example,
- * but it real-life example. So, in this example, @vid_hdr_offer would be
- * 2KiB-64 bytes = 1984. Note, that this position is not even 512-bytes
- * aligned, which is OK, as UBI is clever enough to realize this is 4th sub-page
- * of the first page and add needed padding.
+ * a different offset. For example, the boot-loader might do things faster if
+ * the VID header sits at the end of the first 2KiB NAND page with 4 sub-pages.
+ * As the boot-loader would not normally need to read EC headers (unless it
+ * needs UBI in RW mode), it might be faster to calculate ECC. This is weird
+ * example, but it real-life example. So, in this example, @vid_hdr_offer would
+ * be 2KiB-64 bytes = 1984. Note, that this position is not even 512-bytes
+ * aligned, which is OK, as UBI is clever enough to realize this is 4th
+ * sub-page of the first page and add needed padding.
  */
 struct ubi_attach_req {
 	int32_t ubi_num;
 	int32_t mtd_num;
 	int32_t vid_hdr_offset;
-	uint8_t padding[12];
+	int8_t padding[12];
 };
 
 /**
@@ -251,6 +263,48 @@ struct ubi_rsvol_req {
 } __attribute__ ((packed));
 
 /**
+ * struct ubi_rnvol_req - volumes re-name request.
+ * @count: count of volumes to re-name
+ * @padding1:  reserved for future, not used, has to be zeroed
+ * @vol_id: ID of the volume to re-name
+ * @name_len: name length
+ * @padding2:  reserved for future, not used, has to be zeroed
+ * @name: new volume name
+ *
+ * UBI allows to re-name up to %32 volumes at one go. The count of volumes to
+ * re-name is specified in the @count field. The ID of the volumes to re-name
+ * and the new names are specified in the @vol_id and @name fields.
+ *
+ * The UBI volume re-name operation is atomic, which means that should power cut
+ * happen, the volumes will have either old name or new name. So the possible
+ * use-cases of this command is atomic upgrade. Indeed, to upgrade, say, volumes
+ * A and B one may create temporary volumes %A1 and %B1 with the new contents,
+ * then atomically re-name A1->A and B1->B, in which case old %A and %B will
+ * be removed.
+ *
+ * If it is not desirable to remove old A and B, the re-name request has to
+ * contain 4 entries: A1->A, A->A1, B1->B, B->B1, in which case old A1 and B1
+ * become A and B, and old A and B will become A1 and B1.
+ *
+ * It is also OK to request: A1->A, A1->X, B1->B, B->Y, in which case old A1
+ * and B1 become A and B, and old A and B become X and Y.
+ *
+ * In other words, in case of re-naming into an existing volume name, the
+ * existing volume is removed, unless it is re-named as well at the same
+ * re-name request.
+ */
+struct ubi_rnvol_req {
+	int32_t count;
+	int8_t padding1[12];
+	struct {
+		int32_t vol_id;
+		int16_t name_len;
+		int8_t  padding2[2];
+		char    name[UBI_MAX_VOLUME_NAME + 1];
+	} ents[UBI_MAX_RNVOL];
+} __attribute__ ((packed));
+
+/**
  * struct ubi_leb_change_req - a data structure used in atomic logical
  *                             eraseblock change requests.
  * @lnum: logical eraseblock number to change
@@ -261,8 +315,8 @@ struct ubi_rsvol_req {
 struct ubi_leb_change_req {
 	int32_t lnum;
 	int32_t bytes;
-	uint8_t dtype;
-	uint8_t padding[7];
+	int8_t  dtype;
+	int8_t  padding[7];
 } __attribute__ ((packed));
 
 #endif /* __UBI_USER_H__ */

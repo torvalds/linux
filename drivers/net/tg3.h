@@ -128,6 +128,7 @@
 #define   ASIC_REV_USE_PROD_ID_REG	 0x0f
 #define   ASIC_REV_5784			 0x5784
 #define   ASIC_REV_5761			 0x5761
+#define   ASIC_REV_5785			 0x5785
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -324,6 +325,8 @@
 #define  MAC_MODE_TDE_ENABLE		 0x00200000
 #define  MAC_MODE_RDE_ENABLE		 0x00400000
 #define  MAC_MODE_FHDE_ENABLE		 0x00800000
+#define  MAC_MODE_APE_RX_EN		 0x08000000
+#define  MAC_MODE_APE_TX_EN		 0x10000000
 #define MAC_STATUS			0x00000404
 #define  MAC_STATUS_PCS_SYNCED		 0x00000001
 #define  MAC_STATUS_SIGNAL_DET		 0x00000002
@@ -528,7 +531,23 @@
 #define MAC_SERDES_CFG			0x00000590
 #define  MAC_SERDES_CFG_EDGE_SELECT	 0x00001000
 #define MAC_SERDES_STAT			0x00000594
-/* 0x598 --> 0x5b0 unused */
+/* 0x598 --> 0x5a0 unused */
+#define MAC_PHYCFG1			0x000005a0
+#define  MAC_PHYCFG1_RGMII_INT		 0x00000001
+#define  MAC_PHYCFG1_RGMII_EXT_RX_DEC	 0x02000000
+#define  MAC_PHYCFG1_RGMII_SND_STAT_EN	 0x04000000
+#define  MAC_PHYCFG1_TXC_DRV		 0x20000000
+#define MAC_PHYCFG2			0x000005a4
+#define  MAC_PHYCFG2_INBAND_ENABLE	 0x00000001
+#define MAC_EXT_RGMII_MODE		0x000005a8
+#define  MAC_RGMII_MODE_TX_ENABLE	 0x00000001
+#define  MAC_RGMII_MODE_TX_LOWPWR	 0x00000002
+#define  MAC_RGMII_MODE_TX_RESET	 0x00000004
+#define  MAC_RGMII_MODE_RX_INT_B	 0x00000100
+#define  MAC_RGMII_MODE_RX_QUALITY	 0x00000200
+#define  MAC_RGMII_MODE_RX_ACTIVITY	 0x00000400
+#define  MAC_RGMII_MODE_RX_ENG_DET	 0x00000800
+/* 0x5ac --> 0x5b0 unused */
 #define SERDES_RX_CTRL			0x000005b0	/* 5780/5714 only */
 #define  SERDES_RX_SIG_DETECT		 0x00000400
 #define SG_DIG_CTRL			0x000005b0
@@ -1109,6 +1128,7 @@
 #define  WDMAC_MODE_FIFOOREAD_ENAB	 0x00000100
 #define  WDMAC_MODE_LNGREAD_ENAB	 0x00000200
 #define  WDMAC_MODE_RX_ACCEL	 	 0x00000400
+#define  WDMAC_MODE_STATUS_TAG_FIX	 0x20000000
 #define WDMAC_STATUS			0x00004c04
 #define  WDMAC_STATUS_TGTABORT		 0x00000004
 #define  WDMAC_STATUS_MSTABORT		 0x00000008
@@ -1713,6 +1733,12 @@
 #define NIC_SRAM_DATA_CFG_3		0x00000d3c
 #define  NIC_SRAM_ASPM_DEBOUNCE		 0x00000002
 
+#define NIC_SRAM_DATA_CFG_4		0x00000d60
+#define  NIC_SRAM_GMII_MODE		 0x00000002
+#define  NIC_SRAM_RGMII_STD_IBND_DISABLE 0x00000004
+#define  NIC_SRAM_RGMII_EXT_IBND_RX_EN	 0x00000008
+#define  NIC_SRAM_RGMII_EXT_IBND_TX_EN	 0x00000010
+
 #define NIC_SRAM_RX_MINI_BUFFER_DESC	0x00001000
 
 #define NIC_SRAM_DMA_DESC_POOL_BASE	0x00002000
@@ -1865,6 +1891,7 @@
 #define  APE_EVENT_STATUS_EVENT_PENDING	 0x80000000
 
 /* APE convenience enumerations. */
+#define TG3_APE_LOCK_GRC                1
 #define TG3_APE_LOCK_MEM                4
 
 #define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
@@ -2204,6 +2231,7 @@ struct tg3_link_config {
 	u16				orig_speed;
 	u8				orig_duplex;
 	u8				orig_autoneg;
+	u32				orig_advertising;
 };
 
 struct tg3_bufmgr_config {
@@ -2404,7 +2432,10 @@ struct tg3 {
 	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;
 
+	union {
 	unsigned long			phy_crc_errors;
+	unsigned long			last_event_jiffies;
+	};
 
 	u32				rx_offset;
 	u32				tg3_flags;
@@ -2479,6 +2510,13 @@ struct tg3 {
 #define TG3_FLG3_ENABLE_APE		0x00000002
 #define TG3_FLG3_5761_5784_AX_FIXES	0x00000004
 #define TG3_FLG3_5701_DMA_BUG		0x00000008
+#define TG3_FLG3_USE_PHYLIB		0x00000010
+#define TG3_FLG3_MDIOBUS_INITED		0x00000020
+#define TG3_FLG3_MDIOBUS_PAUSED		0x00000040
+#define TG3_FLG3_PHY_CONNECTED		0x00000080
+#define TG3_FLG3_RGMII_STD_IBND_DISABLE	0x00000100
+#define TG3_FLG3_RGMII_EXT_IBND_RX_EN	0x00000200
+#define TG3_FLG3_RGMII_EXT_IBND_TX_EN	0x00000400
 
 	struct timer_list		timer;
 	u16				timer_counter;
@@ -2519,6 +2557,9 @@ struct tg3 {
 	int				msi_cap;
 	int				pcix_cap;
 
+	struct mii_bus			mdio_bus;
+	int				mdio_irq[PHY_MAX_ADDR];
+
 	/* PHY info */
 	u32				phy_id;
 #define PHY_ID_MASK			0xfffffff0
@@ -2546,6 +2587,9 @@ struct tg3 {
 #define PHY_REV_BCM5401_B2		0x3
 #define PHY_REV_BCM5401_C0		0x6
 #define PHY_REV_BCM5411_X0		0x1 /* Found on Netgear GA302T */
+#define TG3_PHY_ID_BCM50610		0x143bd60
+#define TG3_PHY_ID_BCMAC131		0x143bc70
+
 
 	u32				led_ctrl;
 	u32				phy_otp;

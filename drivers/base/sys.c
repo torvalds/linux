@@ -36,7 +36,7 @@ sysdev_show(struct kobject * kobj, struct attribute * attr, char * buffer)
 	struct sysdev_attribute * sysdev_attr = to_sysdev_attr(attr);
 
 	if (sysdev_attr->show)
-		return sysdev_attr->show(sysdev, buffer);
+		return sysdev_attr->show(sysdev, sysdev_attr, buffer);
 	return -EIO;
 }
 
@@ -49,7 +49,7 @@ sysdev_store(struct kobject * kobj, struct attribute * attr,
 	struct sysdev_attribute * sysdev_attr = to_sysdev_attr(attr);
 
 	if (sysdev_attr->store)
-		return sysdev_attr->store(sysdev, buffer, count);
+		return sysdev_attr->store(sysdev, sysdev_attr, buffer, count);
 	return -EIO;
 }
 
@@ -130,8 +130,8 @@ static struct kset *system_kset;
 
 int sysdev_class_register(struct sysdev_class * cls)
 {
-	pr_debug("Registering sysdev class '%s'\n",
-		 kobject_name(&cls->kset.kobj));
+	pr_debug("Registering sysdev class '%s'\n", cls->name);
+
 	INIT_LIST_HEAD(&cls->drivers);
 	memset(&cls->kset.kobj, 0x00, sizeof(struct kobject));
 	cls->kset.kobj.parent = &system_kset->kobj;
@@ -168,19 +168,16 @@ int sysdev_driver_register(struct sysdev_class *cls, struct sysdev_driver *drv)
 	int err = 0;
 
 	if (!cls) {
-		printk(KERN_WARNING "sysdev: invalid class passed to "
+		WARN(1, KERN_WARNING "sysdev: invalid class passed to "
 			"sysdev_driver_register!\n");
-		WARN_ON(1);
 		return -EINVAL;
 	}
 
 	/* Check whether this driver has already been added to a class. */
-	if (drv->entry.next && !list_empty(&drv->entry)) {
-		printk(KERN_WARNING "sysdev: class %s: driver (%p) has already"
+	if (drv->entry.next && !list_empty(&drv->entry))
+		WARN(1, KERN_WARNING "sysdev: class %s: driver (%p) has already"
 			" been registered to a class, something is wrong, but "
 			"will forge on!\n", cls->name, drv);
-		WARN_ON(1);
-	}
 
 	mutex_lock(&sysdev_drivers_lock);
 	if (cls && kset_get(&cls->kset)) {
@@ -194,8 +191,7 @@ int sysdev_driver_register(struct sysdev_class *cls, struct sysdev_driver *drv)
 		}
 	} else {
 		err = -EINVAL;
-		printk(KERN_ERR "%s: invalid device class\n", __func__);
-		WARN_ON(1);
+		WARN(1, KERN_ERR "%s: invalid device class\n", __func__);
 	}
 	mutex_unlock(&sysdev_drivers_lock);
 	return err;
@@ -241,7 +237,8 @@ int sysdev_register(struct sys_device * sysdev)
 	if (!cls)
 		return -EINVAL;
 
-	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
+	pr_debug("Registering sys device of class '%s'\n",
+		 kobject_name(&cls->kset.kobj));
 
 	/* initialize the kobject to 0, in case it had previously been used */
 	memset(&sysdev->kobj, 0x00, sizeof(struct kobject));
@@ -257,6 +254,9 @@ int sysdev_register(struct sys_device * sysdev)
 	if (!error) {
 		struct sysdev_driver * drv;
 
+		pr_debug("Registering sys device '%s'\n",
+			 kobject_name(&sysdev->kobj));
+
 		mutex_lock(&sysdev_drivers_lock);
 		/* Generic notification is implicit, because it's that
 		 * code that should have called us.
@@ -269,6 +269,7 @@ int sysdev_register(struct sys_device * sysdev)
 		}
 		mutex_unlock(&sysdev_drivers_lock);
 	}
+
 	kobject_uevent(&sysdev->kobj, KOBJ_ADD);
 	return error;
 }
@@ -474,3 +475,52 @@ int __init system_bus_init(void)
 
 EXPORT_SYMBOL_GPL(sysdev_register);
 EXPORT_SYMBOL_GPL(sysdev_unregister);
+
+#define to_ext_attr(x) container_of(x, struct sysdev_ext_attribute, attr)
+
+ssize_t sysdev_store_ulong(struct sys_device *sysdev,
+			   struct sysdev_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	char *end;
+	unsigned long new = simple_strtoul(buf, &end, 0);
+	if (end == buf)
+		return -EINVAL;
+	*(unsigned long *)(ea->var) = new;
+	return end - buf;
+}
+EXPORT_SYMBOL_GPL(sysdev_store_ulong);
+
+ssize_t sysdev_show_ulong(struct sys_device *sysdev,
+			  struct sysdev_attribute *attr,
+			  char *buf)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	return snprintf(buf, PAGE_SIZE, "%lx\n", *(unsigned long *)(ea->var));
+}
+EXPORT_SYMBOL_GPL(sysdev_show_ulong);
+
+ssize_t sysdev_store_int(struct sys_device *sysdev,
+			   struct sysdev_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	char *end;
+	long new = simple_strtol(buf, &end, 0);
+	if (end == buf || new > INT_MAX || new < INT_MIN)
+		return -EINVAL;
+	*(int *)(ea->var) = new;
+	return end - buf;
+}
+EXPORT_SYMBOL_GPL(sysdev_store_int);
+
+ssize_t sysdev_show_int(struct sys_device *sysdev,
+			  struct sysdev_attribute *attr,
+			  char *buf)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	return snprintf(buf, PAGE_SIZE, "%d\n", *(int *)(ea->var));
+}
+EXPORT_SYMBOL_GPL(sysdev_show_int);
+

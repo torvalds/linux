@@ -524,6 +524,44 @@ These utilities include endpoint autoconfiguration.
 <!-- !Edrivers/usb/gadget/epautoconf.c -->
 </sect1>
 
+<sect1 id="composite"><title>Composite Device Framework</title>
+
+<para>The core API is sufficient for writing drivers for composite
+USB devices (with more than one function in a given configuration),
+and also multi-configuration devices (also more than one function,
+but not necessarily sharing a given configuration).
+There is however an optional framework which makes it easier to
+reuse and combine functions.
+</para>
+
+<para>Devices using this framework provide a <emphasis>struct
+usb_composite_driver</emphasis>, which in turn provides one or
+more <emphasis>struct usb_configuration</emphasis> instances.
+Each such configuration includes at least one
+<emphasis>struct usb_function</emphasis>, which packages a user
+visible role such as "network link" or "mass storage device".
+Management functions may also exist, such as "Device Firmware
+Upgrade".
+</para>
+
+!Iinclude/linux/usb/composite.h
+!Edrivers/usb/gadget/composite.c
+
+</sect1>
+
+<sect1 id="functions"><title>Composite Device Functions</title>
+
+<para>At this writing, a few of the current gadget drivers have
+been converted to this framework.
+Near-term plans include converting all of them, except for "gadgetfs".
+</para>
+
+!Edrivers/usb/gadget/f_acm.c
+!Edrivers/usb/gadget/f_serial.c
+
+</sect1>
+
+
 </chapter>
 
 <chapter id="controllers"><title>Peripheral Controller Drivers</title>

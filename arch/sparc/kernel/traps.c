@@ -1,7 +1,7 @@
 /*
  * arch/sparc/kernel/traps.c
  *
- * Copyright 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright 1995, 2008 David S. Miller (davem@davemloft.net)
  * Copyright 2000 Jakub Jelinek (jakub@redhat.com)
  */
 
@@ -11,7 +11,6 @@
 
 #include <linux/sched.h>  /* for jiffies */
 #include <linux/kernel.h>
-#include <linux/kallsyms.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
@@ -32,9 +31,6 @@ struct trap_trace_entry {
 	unsigned long pc;
 	unsigned long type;
 };
-
-int trap_curbuf = 0;
-struct trap_trace_entry trapbuf[1024];
 
 void syscall_trace_entry(struct pt_regs *regs)
 {
@@ -72,7 +68,7 @@ void sun4d_nmi(struct pt_regs *regs)
 	prom_halt();
 }
 
-void instruction_dump (unsigned long *pc)
+static void instruction_dump(unsigned long *pc)
 {
 	int i;
 	
@@ -119,8 +115,8 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		      count++ < 30				&&
                       (((unsigned long) rw) >= PAGE_OFFSET)	&&
 		      !(((unsigned long) rw) & 0x7)) {
-			printk("Caller[%08lx]", rw->ins[7]);
-			print_symbol(": %s\n", rw->ins[7]);
+			printk("Caller[%08lx]: %pS\n", rw->ins[7],
+			       (void *) rw->ins[7]);
 			rw = (struct reg_window *)rw->ins[6];
 		}
 	}
@@ -478,10 +474,6 @@ void do_BUG(const char *file, int line)
  */
 
 extern void sparc_cpu_startup(void);
-
-int linux_smp_still_initting;
-unsigned int thiscpus_tbr;
-int thiscpus_mid;
 
 void trap_init(void)
 {

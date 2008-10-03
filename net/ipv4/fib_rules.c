@@ -258,9 +258,9 @@ static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 	       + nla_total_size(4); /* flow */
 }
 
-static void fib4_rule_flush_cache(void)
+static void fib4_rule_flush_cache(struct fib_rules_ops *ops)
 {
-	rt_cache_flush(-1);
+	rt_cache_flush(ops->fro_net, -1);
 }
 
 static struct fib_rules_ops fib4_rules_ops_template = {

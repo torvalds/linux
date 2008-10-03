@@ -294,6 +294,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	case PTRACE_SETFPREGS:
 	case PTRACE_GETVRREGS:
 	case PTRACE_SETVRREGS:
+	case PTRACE_GETVSRREGS:
+	case PTRACE_SETVSRREGS:
 	case PTRACE_GETREGS64:
 	case PTRACE_SETREGS64:
 	case PPC_PTRACE_GETFPREGS:

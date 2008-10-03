@@ -489,7 +489,7 @@ static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 	int sibling;
 
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
-	for_each_cpu_mask(sibling, this_leaf->shared_cpu_map) {
+	for_each_cpu_mask_nr(sibling, this_leaf->shared_cpu_map) {
 		sibling_leaf = CPUID4_INFO_IDX(sibling, index);	
 		cpu_clear(cpu, sibling_leaf->shared_cpu_map);
 	}
@@ -780,15 +780,14 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 			}
 			kobject_put(per_cpu(cache_kobject, cpu));
 			cpuid4_cache_sysfs_exit(cpu);
-			break;
+			return retval;
 		}
 		kobject_uevent(&(this_object->kobj), KOBJ_ADD);
 	}
-	if (!retval)
-		cpu_set(cpu, cache_dev_map);
+	cpu_set(cpu, cache_dev_map);
 
 	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
-	return retval;
+	return 0;
 }
 
 static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)

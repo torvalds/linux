@@ -16,7 +16,7 @@ static inline void flush_tlb_kernel_page(void *addr)
 				     ".chip 68k"
 				     : : "a" (addr));
 		set_fs(old_fs);
-	} else
+	} else if (CPU_IS_020_OR_030)
 		__asm__ __volatile__("pflush #4,#4,(%0)" : : "a" (addr));
 }
 
@@ -29,7 +29,7 @@ static inline void __flush_tlb(void)
 		__asm__ __volatile__(".chip 68040\n\t"
 				     "pflushan\n\t"
 				     ".chip 68k");
-	else
+	else if (CPU_IS_020_OR_030)
 		__asm__ __volatile__("pflush #0,#4");
 }
 
@@ -45,7 +45,7 @@ static inline void __flush_tlb_one(unsigned long addr)
 {
 	if (CPU_IS_040_OR_060)
 		__flush_tlb040_one(addr);
-	else
+	else if (CPU_IS_020_OR_030)
 		__asm__ __volatile__("pflush #0,#4,(%0)" : : "a" (addr));
 }
 
@@ -60,7 +60,7 @@ static inline void flush_tlb_all(void)
 		__asm__ __volatile__(".chip 68040\n\t"
 				     "pflusha\n\t"
 				     ".chip 68k");
-	else
+	else if (CPU_IS_020_OR_030)
 		__asm__ __volatile__("pflusha");
 }
 

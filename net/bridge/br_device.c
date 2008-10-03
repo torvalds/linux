@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_device.c,v 1.6 2001/12/24 00:59:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -21,12 +19,6 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
-static struct net_device_stats *br_dev_get_stats(struct net_device *dev)
-{
-	struct net_bridge *br = netdev_priv(dev);
-	return &br->statistics;
-}
-
 /* net device transmit always called with no BH (preempt_disabled) */
 int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -34,8 +26,8 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
 
-	br->statistics.tx_packets++;
-	br->statistics.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
@@ -76,10 +68,17 @@ static int br_dev_stop(struct net_device *dev)
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if (new_mtu < 68 || new_mtu > br_min_mtu(netdev_priv(dev)))
+	struct net_bridge *br = netdev_priv(dev);
+	if (new_mtu < 68 || new_mtu > br_min_mtu(br))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
+
+#ifdef CONFIG_BRIDGE_NETFILTER
+	/* remember the MTU in the rtable for PMTU */
+	br->fake_rtable.u.dst.metrics[RTAX_MTU - 1] = new_mtu;
+#endif
+
 	return 0;
 }
 
@@ -95,6 +94,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 	spin_lock_bh(&br->lock);
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	br_stp_change_bridge_id(br, addr->sa_data);
+	br->flags |= BR_SET_MAC_ADDR;
 	spin_unlock_bh(&br->lock);
 
 	return 0;
@@ -148,11 +148,16 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 }
 
 static struct ethtool_ops br_ethtool_ops = {
-	.get_drvinfo = br_getinfo,
-	.get_link = ethtool_op_get_link,
-	.set_sg = br_set_sg,
-	.set_tx_csum = br_set_tx_csum,
-	.set_tso = br_set_tso,
+	.get_drvinfo    = br_getinfo,
+	.get_link	= ethtool_op_get_link,
+	.get_tx_csum	= ethtool_op_get_tx_csum,
+	.set_tx_csum 	= br_set_tx_csum,
+	.get_sg		= ethtool_op_get_sg,
+	.set_sg		= br_set_sg,
+	.get_tso	= ethtool_op_get_tso,
+	.set_tso	= br_set_tso,
+	.get_ufo	= ethtool_op_get_ufo,
+	.get_flags	= ethtool_op_get_flags,
 };
 
 void br_dev_setup(struct net_device *dev)
@@ -161,7 +166,6 @@ void br_dev_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->do_ioctl = br_dev_ioctl;
-	dev->get_stats = br_dev_get_stats;
 	dev->hard_start_xmit = br_dev_xmit;
 	dev->open = br_dev_open;
 	dev->set_multicast_list = br_dev_set_multicast_list;

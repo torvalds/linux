@@ -6,9 +6,6 @@
  * Copyright (C) 2003 STMicroelectronics Limited
  *
  * This code is covered by the GPL.
- *
- * $Id: cfi_util.c,v 1.10 2005/11/07 11:14:23 gleixner Exp $
- *
  */
 
 #include <linux/module.h>

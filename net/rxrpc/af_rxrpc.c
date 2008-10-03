@@ -660,9 +660,9 @@ static void rxrpc_sock_destructor(struct sock *sk)
 
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
-	BUG_TRAP(sk_unhashed(sk));
-	BUG_TRAP(!sk->sk_socket);
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(!sk_unhashed(sk));
+	WARN_ON(sk->sk_socket);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		printk("Attempt to release alive rxrpc socket: %p\n", sk);

@@ -26,12 +26,12 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/bast-map.h>
-#include <asm/arch/bast-irq.h>
-#include <asm/arch/usb-control.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/bast-map.h>
+#include <mach/bast-irq.h>
+#include <mach/usb-control.h>
+#include <mach/regs-gpio.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

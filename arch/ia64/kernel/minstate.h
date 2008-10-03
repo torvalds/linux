@@ -2,6 +2,7 @@
 #include <asm/cache.h>
 
 #include "entry.h"
+#include "paravirt_inst.h"
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /* read ar.itc in advance, and use it before leaving bank 0 */
@@ -43,16 +44,16 @@
  * Note that psr.ic is NOT turned on by this macro.  This is so that
  * we can pass interruption state as arguments to a handler.
  */
-#define DO_SAVE_MIN(COVER,SAVE_IFS,EXTRA,WORKAROUND)						\
+#define IA64_NATIVE_DO_SAVE_MIN(__COVER,SAVE_IFS,EXTRA,WORKAROUND)				\
 	mov r16=IA64_KR(CURRENT);	/* M */							\
 	mov r27=ar.rsc;			/* M */							\
 	mov r20=r1;			/* A */							\
 	mov r25=ar.unat;		/* M */							\
-	mov r29=cr.ipsr;		/* M */							\
+	MOV_FROM_IPSR(p0,r29);		/* M */							\
 	mov r26=ar.pfs;			/* I */							\
-	mov r28=cr.iip;			/* M */							\
+	MOV_FROM_IIP(r28);			/* M */						\
 	mov r21=ar.fpsr;		/* M */							\
-	COVER;				/* B;; (or nothing) */					\
+	__COVER;				/* B;; (or nothing) */				\
 	;;											\
 	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r16;						\
 	;;											\
@@ -244,6 +245,6 @@
 1:						\
 	.pred.rel "mutex", pKStk, pUStk
 
-#define SAVE_MIN_WITH_COVER	DO_SAVE_MIN(cover, mov r30=cr.ifs, , RSE_WORKAROUND)
-#define SAVE_MIN_WITH_COVER_R19	DO_SAVE_MIN(cover, mov r30=cr.ifs, mov r15=r19, RSE_WORKAROUND)
+#define SAVE_MIN_WITH_COVER	DO_SAVE_MIN(COVER, mov r30=cr.ifs, , RSE_WORKAROUND)
+#define SAVE_MIN_WITH_COVER_R19	DO_SAVE_MIN(COVER, mov r30=cr.ifs, mov r15=r19, RSE_WORKAROUND)
 #define SAVE_MIN			DO_SAVE_MIN(     , mov r30=r0, , )

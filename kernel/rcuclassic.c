@@ -91,8 +91,8 @@ static void force_quiescent_state(struct rcu_data *rdp,
 		 * rdp->cpu is the current cpu.
 		 *
 		 * cpu_online_map is updated by the _cpu_down()
-		 * using stop_machine_run(). Since we're in irqs disabled
-		 * section, stop_machine_run() is not exectuting, hence
+		 * using __stop_machine(). Since we're in irqs disabled
+		 * section, __stop_machine() is not exectuting, hence
 		 * the cpu_online_map is stable.
 		 *
 		 * However,  a cpu might have been offlined _just_ before
@@ -106,7 +106,7 @@ static void force_quiescent_state(struct rcu_data *rdp,
 		 */
 		cpus_and(cpumask, rcp->cpumask, cpu_online_map);
 		cpu_clear(rdp->cpu, cpumask);
-		for_each_cpu_mask(cpu, cpumask)
+		for_each_cpu_mask_nr(cpu, cpumask)
 			smp_send_reschedule(cpu);
 	}
 }

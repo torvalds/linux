@@ -1004,8 +1004,7 @@ struct de4x5_ioctl {
 */
 #define DE4X5_GET_HWADDR	0x01 /* Get the hardware address */
 #define DE4X5_SET_HWADDR	0x02 /* Set the hardware address */
-#define DE4X5_SET_PROM  	0x03 /* Set Promiscuous Mode */
-#define DE4X5_CLR_PROM  	0x04 /* Clear Promiscuous Mode */
+/* 0x03 and 0x04 were used before and are obsoleted now. Don't use them. */
 #define DE4X5_SAY_BOO	        0x05 /* Say "Boo!" to the kernel log file */
 #define DE4X5_GET_MCA   	0x06 /* Get a multicast address */
 #define DE4X5_SET_MCA   	0x07 /* Set a multicast address */

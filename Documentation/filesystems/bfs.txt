@@ -26,11 +26,11 @@ You can simplify mounting by just typing:
 
 this will allocate the first available loopback device (and load loop.o 
 kernel module if necessary) automatically. If the loopback driver is not
-loaded automatically, make sure that your kernel is compiled with kmod 
-support (CONFIG_KMOD) enabled. Beware that umount will not
-deallocate /dev/loopN device if /etc/mtab file on your system is a
-symbolic link to /proc/mounts. You will need to do it manually using
-"-d" switch of losetup(8). Read losetup(8) manpage for more info.
+loaded automatically, make sure that you have compiled the module and
+that modprobe is functioning. Beware that umount will not deallocate
+/dev/loopN device if /etc/mtab file on your system is a symbolic link to
+/proc/mounts. You will need to do it manually using "-d" switch of
+losetup(8). Read losetup(8) manpage for more info.
 
 To create the BFS image under UnixWare you need to find out first which
 slice contains it. The command prtvtoc(1M) is your friend:

@@ -272,7 +272,7 @@ static void aircable_read(struct work_struct *work)
 	 * 64 bytes, to ensure I do not get throttled.
 	 * Ask USB mailing list for better aproach.
 	 */
-	tty = port->tty;
+	tty = port->port.tty;
 
 	if (!tty) {
 		schedule_work(&priv->rx_work);
@@ -378,13 +378,14 @@ static void aircable_shutdown(struct usb_serial *serial)
 	}
 }
 
-static int aircable_write_room(struct usb_serial_port *port)
+static int aircable_write_room(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	return serial_buf_data_avail(priv->tx_buf);
 }
 
-static int aircable_write(struct usb_serial_port *port,
+static int aircable_write(struct tty_struct *tty, struct usb_serial_port *port,
 			  const unsigned char *source, int count)
 {
 	struct aircable_private *priv = usb_get_serial_port_data(port);
@@ -466,7 +467,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 
 	if (status) {
 		dbg("%s - urb status = %d", __func__, status);
-		if (!port->open_count) {
+		if (!port->port.count) {
 			dbg("%s - port is closed, exiting.", __func__);
 			return;
 		}
@@ -494,7 +495,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	usb_serial_debug_data(debug, &port->dev, __func__,
 				urb->actual_length, urb->transfer_buffer);
 
-	tty = port->tty;
+	tty = port->port.tty;
 	if (tty && urb->actual_length) {
 		if (urb->actual_length <= 2) {
 			/* This is an incomplete package */
@@ -528,7 +529,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	}
 
 	/* Schedule the next read _if_ we are still open */
-	if (port->open_count) {
+	if (port->port.count) {
 		usb_fill_bulk_urb(port->read_urb, port->serial->dev,
 				  usb_rcvbulkpipe(port->serial->dev,
 					  port->bulk_in_endpointAddress),
@@ -547,8 +548,9 @@ static void aircable_read_bulk_callback(struct urb *urb)
 }
 
 /* Based on ftdi_sio.c throttle */
-static void aircable_throttle(struct usb_serial_port *port)
+static void aircable_throttle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
@@ -560,8 +562,9 @@ static void aircable_throttle(struct usb_serial_port *port)
 }
 
 /* Based on ftdi_sio.c unthrottle */
-static void aircable_unthrottle(struct usb_serial_port *port)
+static void aircable_unthrottle(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	int actually_throttled;
 	unsigned long flags;

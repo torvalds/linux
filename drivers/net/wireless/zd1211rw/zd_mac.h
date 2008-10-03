@@ -149,22 +149,6 @@ struct housekeeping {
 	struct delayed_work link_led_work;
 };
 
-/**
- * struct zd_tx_skb_control_block - control block for tx skbuffs
- * @control: &struct ieee80211_tx_control pointer
- * @context: context pointer
- *
- * This structure is used to fill the cb field in an &sk_buff to transmit.
- * The control field is NULL, if there is no requirement from the mac80211
- * stack to report about the packet ACK. This is the case if the flag
- * IEEE80211_TXCTL_NO_ACK is not set in &struct ieee80211_tx_control.
- */
-struct zd_tx_skb_control_block {
-	struct ieee80211_tx_control *control;
-	struct ieee80211_hw *hw;
-	void *context;
-};
-
 #define ZD_MAC_STATS_BUFFER_SIZE 16
 
 #define ZD_MAC_MAX_ACK_WAITERS 10

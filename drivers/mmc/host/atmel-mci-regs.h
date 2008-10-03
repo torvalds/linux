@@ -82,6 +82,8 @@
 # define MCI_OVRE		(  1 <<  30)	/* RX Overrun Error */
 # define MCI_UNRE		(  1 <<  31)	/* TX Underrun Error */
 
+#define MCI_REGS_SIZE		0x100
+
 /* Register access macros */
 #define mci_readl(port,reg)				\
 	__raw_readl((port)->regs + MCI_##reg)

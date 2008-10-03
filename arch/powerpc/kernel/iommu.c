@@ -49,6 +49,8 @@ static int novmerge = 1;
 
 static int protect4gb = 1;
 
+static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);
+
 static inline unsigned long iommu_num_pages(unsigned long vaddr,
 					    unsigned long slen)
 {
@@ -186,10 +188,12 @@ static unsigned long iommu_range_alloc(struct device *dev,
 static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      void *page, unsigned int npages,
 			      enum dma_data_direction direction,
-			      unsigned long mask, unsigned int align_order)
+			      unsigned long mask, unsigned int align_order,
+			      struct dma_attrs *attrs)
 {
 	unsigned long entry, flags;
 	dma_addr_t ret = DMA_ERROR_CODE;
+	int build_fail;
 
 	spin_lock_irqsave(&(tbl->it_lock), flags);
 
@@ -204,9 +208,21 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	ret = entry << IOMMU_PAGE_SHIFT;	/* Set the return dma address */
 
 	/* Put the TCEs in the HW table */
-	ppc_md.tce_build(tbl, entry, npages, (unsigned long)page & IOMMU_PAGE_MASK,
-			 direction);
+	build_fail = ppc_md.tce_build(tbl, entry, npages,
+	                              (unsigned long)page & IOMMU_PAGE_MASK,
+	                              direction, attrs);
 
+	/* ppc_md.tce_build() only returns non-zero for transient errors.
+	 * Clean up the table bitmap in this case and return
+	 * DMA_ERROR_CODE. For all other errors the functionality is
+	 * not altered.
+	 */
+	if (unlikely(build_fail)) {
+		__iommu_free(tbl, ret, npages);
+
+		spin_unlock_irqrestore(&(tbl->it_lock), flags);
+		return DMA_ERROR_CODE;
+	}
 
 	/* Flush/invalidate TLB caches if necessary */
 	if (ppc_md.tce_flush)
@@ -275,7 +291,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
-	int outcount, incount, i;
+	int outcount, incount, i, build_fail = 0;
 	unsigned int align;
 	unsigned long handle;
 	unsigned int max_seg_size;
@@ -336,7 +352,11 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			    npages, entry, dma_addr);
 
 		/* Insert into HW table */
-		ppc_md.tce_build(tbl, entry, npages, vaddr & IOMMU_PAGE_MASK, direction);
+		build_fail = ppc_md.tce_build(tbl, entry, npages,
+		                              vaddr & IOMMU_PAGE_MASK,
+		                              direction, attrs);
+		if(unlikely(build_fail))
+			goto failure;
 
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
@@ -573,7 +593,8 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 			align = PAGE_SHIFT - IOMMU_PAGE_SHIFT;
 
 		dma_handle = iommu_alloc(dev, tbl, vaddr, npages, direction,
-					 mask >> IOMMU_PAGE_SHIFT, align);
+					 mask >> IOMMU_PAGE_SHIFT, align,
+					 attrs);
 		if (dma_handle == DMA_ERROR_CODE) {
 			if (printk_ratelimit())  {
 				printk(KERN_INFO "iommu_alloc failed, "
@@ -642,7 +663,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	nio_pages = size >> IOMMU_PAGE_SHIFT;
 	io_order = get_iommu_order(size);
 	mapping = iommu_alloc(dev, tbl, ret, nio_pages, DMA_BIDIRECTIONAL,
-			      mask >> IOMMU_PAGE_SHIFT, io_order);
+			      mask >> IOMMU_PAGE_SHIFT, io_order, NULL);
 	if (mapping == DMA_ERROR_CODE) {
 		free_pages((unsigned long)ret, order);
 		return NULL;

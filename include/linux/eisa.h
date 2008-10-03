@@ -40,7 +40,7 @@ struct eisa_device {
 	u64                   dma_mask;
 	struct device         dev; /* generic device */
 #ifdef CONFIG_EISA_NAMES
-	char		      pretty_name[DEVICE_NAME_SIZE];
+	char		      pretty_name[50];
 #endif
 };
 

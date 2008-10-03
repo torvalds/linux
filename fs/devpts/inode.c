@@ -29,7 +29,7 @@
 #define DEVPTS_DEFAULT_MODE 0600
 
 extern int pty_limit;			/* Config limit on Unix98 ptys */
-static DEFINE_IDR(allocated_ptys);
+static DEFINE_IDA(allocated_ptys);
 static DEFINE_MUTEX(allocated_ptys_lock);
 
 static struct vfsmount *devpts_mnt;
@@ -180,24 +180,24 @@ static struct dentry *get_node(int num)
 int devpts_new_index(void)
 {
 	int index;
-	int idr_ret;
+	int ida_ret;
 
 retry:
-	if (!idr_pre_get(&allocated_ptys, GFP_KERNEL)) {
+	if (!ida_pre_get(&allocated_ptys, GFP_KERNEL)) {
 		return -ENOMEM;
 	}
 
 	mutex_lock(&allocated_ptys_lock);
-	idr_ret = idr_get_new(&allocated_ptys, NULL, &index);
-	if (idr_ret < 0) {
+	ida_ret = ida_get_new(&allocated_ptys, &index);
+	if (ida_ret < 0) {
 		mutex_unlock(&allocated_ptys_lock);
-		if (idr_ret == -EAGAIN)
+		if (ida_ret == -EAGAIN)
 			goto retry;
 		return -EIO;
 	}
 
 	if (index >= pty_limit) {
-		idr_remove(&allocated_ptys, index);
+		ida_remove(&allocated_ptys, index);
 		mutex_unlock(&allocated_ptys_lock);
 		return -EIO;
 	}
@@ -208,7 +208,7 @@ retry:
 void devpts_kill_index(int idx)
 {
 	mutex_lock(&allocated_ptys_lock);
-	idr_remove(&allocated_ptys, idx);
+	ida_remove(&allocated_ptys, idx);
 	mutex_unlock(&allocated_ptys_lock);
 }
 

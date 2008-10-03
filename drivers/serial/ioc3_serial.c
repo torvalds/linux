@@ -905,7 +905,7 @@ static void transmit_chars(struct uart_port *the_port)
 		return;
 
 	info = the_port->info;
-	tty = info->tty;
+	tty = info->port.tty;
 
 	if (uart_circ_empty(&info->xmit) || uart_tx_stopped(the_port)) {
 		/* Nothing to do or hw stopped */
@@ -997,14 +997,14 @@ ioc3_change_speed(struct uart_port *the_port,
 
 	the_port->ignore_status_mask = N_ALL_INPUT;
 
-	info->tty->low_latency = 1;
+	info->port.tty->low_latency = 1;
 
-	if (I_IGNPAR(info->tty))
+	if (I_IGNPAR(info->port.tty))
 		the_port->ignore_status_mask &= ~(N_PARITY_ERROR
 						  | N_FRAMING_ERROR);
-	if (I_IGNBRK(info->tty)) {
+	if (I_IGNBRK(info->port.tty)) {
 		the_port->ignore_status_mask &= ~N_BREAK;
-		if (I_IGNPAR(info->tty))
+		if (I_IGNPAR(info->port.tty))
 			the_port->ignore_status_mask &= ~N_OVERRUN_ERROR;
 	}
 	if (!(cflag & CREAD)) {
@@ -1399,14 +1399,14 @@ static int receive_chars(struct uart_port *the_port)
 	/* Make sure all the pointers are "good" ones */
 	if (!info)
 		return 0;
-	if (!info->tty)
+	if (!info->port.tty)
 		return 0;
 
 	if (!(port->ip_flags & INPUT_ENABLE))
 		return 0;
 
 	spin_lock_irqsave(&the_port->lock, pflags);
-	tty = info->tty;
+	tty = info->port.tty;
 
 	read_count = do_read(the_port, ch, MAX_CHARS);
 	if (read_count > 0) {

@@ -4,8 +4,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: ipv6.h,v 1.1 2002/05/20 15:13:07 jgrimm Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -133,7 +131,6 @@ DECLARE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
 
 #define IP6_INC_STATS(idev,field)	_DEVINC(ipv6, , idev, field)
 #define IP6_INC_STATS_BH(idev,field)	_DEVINC(ipv6, _BH, idev, field)
-#define IP6_INC_STATS_USER(idev,field)	_DEVINC(ipv6, _USER, idev, field)
 #define IP6_ADD_STATS_BH(idev,field,val) _DEVADD(ipv6, _BH, idev, field, val)
 
 DECLARE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics);
@@ -141,20 +138,15 @@ DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
 
 #define ICMP6_INC_STATS(idev, field)	_DEVINC(icmpv6, , idev, field)
 #define ICMP6_INC_STATS_BH(idev, field)	_DEVINC(icmpv6, _BH, idev, field)
-#define ICMP6_INC_STATS_USER(idev, field) _DEVINC(icmpv6, _USER, idev, field)
 
 #define ICMP6MSGOUT_INC_STATS(idev, field) \
 	_DEVINC(icmpv6msg, , idev, field +256)
 #define ICMP6MSGOUT_INC_STATS_BH(idev, field) \
 	_DEVINC(icmpv6msg, _BH, idev, field +256)
-#define ICMP6MSGOUT_INC_STATS_USER(idev, field) \
-	_DEVINC(icmpv6msg, _USER, idev, field +256)
 #define ICMP6MSGIN_INC_STATS(idev, field) \
 	 _DEVINC(icmpv6msg, , idev, field)
 #define ICMP6MSGIN_INC_STATS_BH(idev, field) \
 	_DEVINC(icmpv6msg, _BH, idev, field)
-#define ICMP6MSGIN_INC_STATS_USER(idev, field) \
-	_DEVINC(icmpv6msg, _USER, idev, field)
 
 struct ip6_ra_chain
 {
@@ -229,9 +221,7 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 		atomic_dec(&fl->users);
 }
 
-extern int 			ip6_ra_control(struct sock *sk, int sel,
-					       void (*destructor)(struct sock *));
-
+extern int 			ip6_ra_control(struct sock *sk, int sel);
 
 extern int			ipv6_parse_hopopts(struct sk_buff *skb);
 
@@ -618,6 +608,8 @@ extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
 extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
 extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
+extern int ipv6_static_sysctl_register(void);
+extern void ipv6_static_sysctl_unregister(void);
 #endif
 
 #endif /* __KERNEL__ */

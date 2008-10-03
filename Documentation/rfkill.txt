@@ -1,89 +1,545 @@
 rfkill - RF switch subsystem support
 ====================================
 
-1 Implementation details
-2 Driver support
-3 Userspace support
+1 Introduction
+2 Implementation details
+3 Kernel driver guidelines
+3.1 wireless device drivers
+3.2 platform/switch drivers
+3.3 input device drivers
+4 Kernel API
+5 Userspace support
+
+
+1. Introduction:
+
+The rfkill switch subsystem exists to add a generic interface to circuitry that
+can enable or disable the signal output of a wireless *transmitter* of any
+type.  By far, the most common use is to disable radio-frequency transmitters.
+
+Note that disabling the signal output means that the the transmitter is to be
+made to not emit any energy when "blocked".  rfkill is not about blocking data
+transmissions, it is about blocking energy emission.
+
+The rfkill subsystem offers support for keys and switches often found on
+laptops to enable wireless devices like WiFi and Bluetooth, so that these keys
+and switches actually perform an action in all wireless devices of a given type
+attached to the system.
+
+The buttons to enable and disable the wireless transmitters are important in
+situations where the user is for example using his laptop on a location where
+radio-frequency transmitters _must_ be disabled (e.g. airplanes).
+
+Because of this requirement, userspace support for the keys should not be made
+mandatory.  Because userspace might want to perform some additional smarter
+tasks when the key is pressed, rfkill provides userspace the possibility to
+take over the task to handle the key events.
 
 ===============================================================================
-1: Implementation details
+2: Implementation details
 
-The rfkill switch subsystem offers support for keys often found on laptops
-to enable wireless devices like WiFi and Bluetooth.
+The rfkill subsystem is composed of various components: the rfkill class, the
+rfkill-input module (an input layer handler), and some specific input layer
+events.
 
-This is done by providing the user 3 possibilities:
- 1 - The rfkill system handles all events; userspace is not aware of events.
- 2 - The rfkill system handles all events; userspace is informed about the events.
- 3 - The rfkill system does not handle events; userspace handles all events.
+The rfkill class provides kernel drivers with an interface that allows them to
+know when they should enable or disable a wireless network device transmitter.
+This is enabled by the CONFIG_RFKILL Kconfig option.
 
-The buttons to enable and disable the wireless radios are important in
-situations where the user is for example using his laptop on a location where
-wireless radios _must_ be disabled (e.g. airplanes).
-Because of this requirement, userspace support for the keys should not be
-made mandatory. Because userspace might want to perform some additional smarter
-tasks when the key is pressed, rfkill still provides userspace the possibility
-to take over the task to handle the key events.
+The rfkill class support makes sure userspace will be notified of all state
+changes on rfkill devices through uevents.  It provides a notification chain
+for interested parties in the kernel to also get notified of rfkill state
+changes in other drivers.  It creates several sysfs entries which can be used
+by userspace.  See section "Userspace support".
 
-The system inside the kernel has been split into 2 separate sections:
-	1 - RFKILL
-	2 - RFKILL_INPUT
+The rfkill-input module provides the kernel with the ability to implement a
+basic response when the user presses a key or button (or toggles a switch)
+related to rfkill functionality.  It is an in-kernel implementation of default
+policy of reacting to rfkill-related input events and neither mandatory nor
+required for wireless drivers to operate.  It is enabled by the
+CONFIG_RFKILL_INPUT Kconfig option.
 
-The first option enables rfkill support and will make sure userspace will
-be notified of any events through the input device. It also creates several
-sysfs entries which can be used by userspace. See section "Userspace support".
+rfkill-input is a rfkill-related events input layer handler.  This handler will
+listen to all rfkill key events and will change the rfkill state of the
+wireless devices accordingly.  With this option enabled userspace could either
+do nothing or simply perform monitoring tasks.
 
-The second option provides an rfkill input handler. This handler will
-listen to all rfkill key events and will toggle the radio accordingly.
-With this option enabled userspace could either do nothing or simply
-perform monitoring tasks.
+The rfkill-input module also provides EPO (emergency power-off) functionality
+for all wireless transmitters.  This function cannot be overridden, and it is
+always active.  rfkill EPO is related to *_RFKILL_ALL input layer events.
 
+
+Important terms for the rfkill subsystem:
+
+In order to avoid confusion, we avoid the term "switch" in rfkill when it is
+referring to an electronic control circuit that enables or disables a
+transmitter.  We reserve it for the physical device a human manipulates
+(which is an input device, by the way):
+
+rfkill switch:
+
+	A physical device a human manipulates.  Its state can be perceived by
+	the kernel either directly (through a GPIO pin, ACPI GPE) or by its
+	effect on a rfkill line of a wireless device.
+
+rfkill controller:
+
+	A hardware circuit that controls the state of a rfkill line, which a
+	kernel driver can interact with *to modify* that state (i.e. it has
+	either write-only or read/write access).
+
+rfkill line:
+
+	An input channel (hardware or software) of a wireless device, which
+	causes a wireless transmitter to stop emitting energy (BLOCK) when it
+	is active.  Point of view is extremely important here: rfkill lines are
+	always seen from the PoV of a wireless device (and its driver).
+
+soft rfkill line/software rfkill line:
+
+	A rfkill line the wireless device driver can directly change the state
+	of.  Related to rfkill_state RFKILL_STATE_SOFT_BLOCKED.
+
+hard rfkill line/hardware rfkill line:
+
+	A rfkill line that works fully in hardware or firmware, and that cannot
+	be overridden by the kernel driver.  The hardware device or the
+	firmware just exports its status to the driver, but it is read-only.
+	Related to rfkill_state RFKILL_STATE_HARD_BLOCKED.
+
+The enum rfkill_state describes the rfkill state of a transmitter:
+
+When a rfkill line or rfkill controller is in the RFKILL_STATE_UNBLOCKED state,
+the wireless transmitter (radio TX circuit for example) is *enabled*.  When the
+it is in the RFKILL_STATE_SOFT_BLOCKED or RFKILL_STATE_HARD_BLOCKED, the
+wireless transmitter is to be *blocked* from operating.
+
+RFKILL_STATE_SOFT_BLOCKED indicates that a call to toggle_radio() can change
+that state.  RFKILL_STATE_HARD_BLOCKED indicates that a call to toggle_radio()
+will not be able to change the state and will return with a suitable error if
+attempts are made to set the state to RFKILL_STATE_UNBLOCKED.
+
+RFKILL_STATE_HARD_BLOCKED is used by drivers to signal that the device is
+locked in the BLOCKED state by a hardwire rfkill line (typically an input pin
+that, when active, forces the transmitter to be disabled) which the driver
+CANNOT override.
+
+Full rfkill functionality requires two different subsystems to cooperate: the
+input layer and the rfkill class.  The input layer issues *commands* to the
+entire system requesting that devices registered to the rfkill class change
+state.  The way this interaction happens is not complex, but it is not obvious
+either:
+
+Kernel Input layer:
+
+	* Generates KEY_WWAN, KEY_WLAN, KEY_BLUETOOTH, SW_RFKILL_ALL, and
+	  other such events when the user presses certain keys, buttons, or
+	  toggles certain physical switches.
+
+	THE INPUT LAYER IS NEVER USED TO PROPAGATE STATUS, NOTIFICATIONS OR THE
+	KIND OF STUFF AN ON-SCREEN-DISPLAY APPLICATION WOULD REPORT.  It is
+	used to issue *commands* for the system to change behaviour, and these
+	commands may or may not be carried out by some kernel driver or
+	userspace application.  It follows that doing user feedback based only
+	on input events is broken, as there is no guarantee that an input event
+	will be acted upon.
+
+	Most wireless communication device drivers implementing rfkill
+	functionality MUST NOT generate these events, and have no reason to
+	register themselves with the input layer.  Doing otherwise is a common
+	misconception.  There is an API to propagate rfkill status change
+	information, and it is NOT the input layer.
+
+rfkill class:
+
+	* Calls a hook in a driver to effectively change the wireless
+	  transmitter state;
+	* Keeps track of the wireless transmitter state (with help from
+	  the driver);
+	* Generates userspace notifications (uevents) and a call to a
+	  notification chain (kernel) when there is a wireless transmitter
+	  state change;
+	* Connects a wireless communications driver with the common rfkill
+	  control system, which, for example, allows actions such as
+	  "switch all bluetooth devices offline" to be carried out by
+	  userspace or by rfkill-input.
+
+	THE RFKILL CLASS NEVER ISSUES INPUT EVENTS.  THE RFKILL CLASS DOES
+	NOT LISTEN TO INPUT EVENTS.  NO DRIVER USING THE RFKILL CLASS SHALL
+	EVER LISTEN TO, OR ACT ON RFKILL INPUT EVENTS.  Doing otherwise is
+	a layering violation.
+
+	Most wireless data communication drivers in the kernel have just to
+	implement the rfkill class API to work properly.  Interfacing to the
+	input layer is not often required (and is very often a *bug*) on
+	wireless drivers.
+
+	Platform drivers often have to attach to the input layer to *issue*
+	(but never to listen to) rfkill events for rfkill switches, and also to
+	the rfkill class to export a control interface for the platform rfkill
+	controllers to the rfkill subsystem.  This does NOT mean the rfkill
+	switch is attached to a rfkill class (doing so is almost always wrong).
+	It just means the same kernel module is the driver for different
+	devices (rfkill switches and rfkill controllers).
+
+
+Userspace input handlers (uevents) or kernel input handlers (rfkill-input):
+
+	* Implements the policy of what should happen when one of the input
+	  layer events related to rfkill operation is received.
+	* Uses the sysfs interface (userspace) or private rfkill API calls
+	  to tell the devices registered with the rfkill class to change
+	  their state (i.e. translates the input layer event into real
+	  action).
+	* rfkill-input implements EPO by handling EV_SW SW_RFKILL_ALL 0
+	  (power off all transmitters) in a special way: it ignores any
+	  overrides and local state cache and forces all transmitters to the
+	  RFKILL_STATE_SOFT_BLOCKED state (including those which are already
+	  supposed to be BLOCKED).  Note that the opposite event (power on all
+	  transmitters) is handled normally.
+
+Userspace uevent handler or kernel platform-specific drivers hooked to the
+rfkill notifier chain:
+
+	* Taps into the rfkill notifier chain or to KOBJ_CHANGE uevents,
+	  in order to know when a device that is registered with the rfkill
+	  class changes state;
+	* Issues feedback notifications to the user;
+	* In the rare platforms where this is required, synthesizes an input
+	  event to command all *OTHER* rfkill devices to also change their
+	  statues when a specific rfkill device changes state.
+
+
+===============================================================================
+3: Kernel driver guidelines
+
+Remember: point-of-view is everything for a driver that connects to the rfkill
+subsystem.  All the details below must be measured/perceived from the point of
+view of the specific driver being modified.
+
+The first thing one needs to know is whether his driver should be talking to
+the rfkill class or to the input layer.  In rare cases (platform drivers), it
+could happen that you need to do both, as platform drivers often handle a
+variety of devices in the same driver.
+
+Do not mistake input devices for rfkill controllers.  The only type of "rfkill
+switch" device that is to be registered with the rfkill class are those
+directly controlling the circuits that cause a wireless transmitter to stop
+working (or the software equivalent of them), i.e. what we call a rfkill
+controller.  Every other kind of "rfkill switch" is just an input device and
+MUST NOT be registered with the rfkill class.
+
+A driver should register a device with the rfkill class when ALL of the
+following conditions are met (they define a rfkill controller):
+
+1. The device is/controls a data communications wireless transmitter;
+
+2. The kernel can interact with the hardware/firmware to CHANGE the wireless
+   transmitter state (block/unblock TX operation);
+
+3. The transmitter can be made to not emit any energy when "blocked":
+   rfkill is not about blocking data transmissions, it is about blocking
+   energy emission;
+
+A driver should register a device with the input subsystem to issue
+rfkill-related events (KEY_WLAN, KEY_BLUETOOTH, KEY_WWAN, KEY_WIMAX,
+SW_RFKILL_ALL, etc) when ALL of the folowing conditions are met:
+
+1. It is directly related to some physical device the user interacts with, to
+   command the O.S./firmware/hardware to enable/disable a data communications
+   wireless transmitter.
+
+   Examples of the physical device are: buttons, keys and switches the user
+   will press/touch/slide/switch to enable or disable the wireless
+   communication device.
+
+2. It is NOT slaved to another device, i.e. there is no other device that
+   issues rfkill-related input events in preference to this one.
+
+   Please refer to the corner cases and examples section for more details.
+
+When in doubt, do not issue input events.  For drivers that should generate
+input events in some platforms, but not in others (e.g. b43), the best solution
+is to NEVER generate input events in the first place.  That work should be
+deferred to a platform-specific kernel module (which will know when to generate
+events through the rfkill notifier chain) or to userspace.  This avoids the
+usual maintenance problems with DMI whitelisting.
+
+
+Corner cases and examples:
 ====================================
-2: Driver support
 
-To build a driver with rfkill subsystem support, the driver should
-depend on the Kconfig symbol RFKILL; it should _not_ depend on
-RKFILL_INPUT.
+1. If the device is an input device that, because of hardware or firmware,
+causes wireless transmitters to be blocked regardless of the kernel's will, it
+is still just an input device, and NOT to be registered with the rfkill class.
 
-Unless key events trigger an interrupt to which the driver listens, polling
-will be required to determine the key state changes. For this the input
-layer providers the input-polldev handler.
+2. If the wireless transmitter switch control is read-only, it is an input
+device and not to be registered with the rfkill class (and maybe not to be made
+an input layer event source either, see below).
 
-A driver should implement a few steps to correctly make use of the
-rfkill subsystem. First for non-polling drivers:
+3. If there is some other device driver *closer* to the actual hardware the
+user interacted with (the button/switch/key) to issue an input event, THAT is
+the device driver that should be issuing input events.
 
-	- rfkill_allocate()
-	- input_allocate_device()
-	- rfkill_register()
-	- input_register_device()
+E.g:
+  [RFKILL slider switch] -- [GPIO hardware] -- [WLAN card rf-kill input]
+                           (platform driver)    (wireless card driver)
 
-For polling drivers:
+The user is closer to the RFKILL slide switch plaform driver, so the driver
+which must issue input events is the platform driver looking at the GPIO
+hardware, and NEVER the wireless card driver (which is just a slave).  It is
+very likely that there are other leaves than just the WLAN card rf-kill input
+(e.g. a bluetooth card, etc)...
 
-	- rfkill_allocate()
-	- input_allocate_polled_device()
-	- rfkill_register()
-	- input_register_polled_device()
+On the other hand, some embedded devices do this:
 
-When a key event has been detected, the correct event should be
-sent over the input device which has been registered by the driver.
+  [RFKILL slider switch] -- [WLAN card rf-kill input]
+                             (wireless card driver)
 
+In this situation, the wireless card driver *could* register itself as an input
+device and issue rf-kill related input events... but in order to AVOID the need
+for DMI whitelisting, the wireless card driver does NOT do it.  Userspace (HAL)
+or a platform driver (that exists only on these embedded devices) will do the
+dirty job of issuing the input events.
+
+
+COMMON MISTAKES in kernel drivers, related to rfkill:
 ====================================
-3: Userspace support
 
-For each key an input device will be created which will send out the correct
-key event when the rfkill key has been pressed.
+1. NEVER confuse input device keys and buttons with input device switches.
+
+  1a. Switches are always set or reset.  They report the current state
+      (on position or off position).
+
+  1b. Keys and buttons are either in the pressed or not-pressed state, and
+      that's it.  A "button" that latches down when you press it, and
+      unlatches when you press it again is in fact a switch as far as input
+      devices go.
+
+Add the SW_* events you need for switches, do NOT try to emulate a button using
+KEY_* events just because there is no such SW_* event yet.  Do NOT try to use,
+for example, KEY_BLUETOOTH when you should be using SW_BLUETOOTH instead.
+
+2. Input device switches (sources of EV_SW events) DO store their current state
+(so you *must* initialize it by issuing a gratuitous input layer event on
+driver start-up and also when resuming from sleep), and that state CAN be
+queried from userspace through IOCTLs.  There is no sysfs interface for this,
+but that doesn't mean you should break things trying to hook it to the rfkill
+class to get a sysfs interface :-)
+
+3. Do not issue *_RFKILL_ALL events by default, unless you are sure it is the
+correct event for your switch/button.  These events are emergency power-off
+events when they are trying to turn the transmitters off.  An example of an
+input device which SHOULD generate *_RFKILL_ALL events is the wireless-kill
+switch in a laptop which is NOT a hotkey, but a real switch that kills radios
+in hardware, even if the O.S. has gone to lunch.  An example of an input device
+which SHOULD NOT generate *_RFKILL_ALL events by default, is any sort of hot
+key that does nothing by itself, as well as any hot key that is type-specific
+(e.g. the one for WLAN).
+
+
+3.1 Guidelines for wireless device drivers
+------------------------------------------
+
+1. Each independent transmitter in a wireless device (usually there is only one
+transmitter per device) should have a SINGLE rfkill class attached to it.
+
+2. If the device does not have any sort of hardware assistance to allow the
+driver to rfkill the device, the driver should emulate it by taking all actions
+required to silence the transmitter.
+
+3. If it is impossible to silence the transmitter (i.e. it still emits energy,
+even if it is just in brief pulses, when there is no data to transmit and there
+is no hardware support to turn it off) do NOT lie to the users.  Do not attach
+it to a rfkill class.  The rfkill subsystem does not deal with data
+transmission, it deals with energy emission.  If the transmitter is emitting
+energy, it is not blocked in rfkill terms.
+
+4. It doesn't matter if the device has multiple rfkill input lines affecting
+the same transmitter, their combined state is to be exported as a single state
+per transmitter (see rule 1).
+
+This rule exists because users of the rfkill subsystem expect to get (and set,
+when possible) the overall transmitter rfkill state, not of a particular rfkill
+line.
+
+5. During suspend, the rfkill class will attempt to soft-block the radio
+through a call to rfkill->toggle_radio, and will try to restore its previous
+state during resume.  After a rfkill class is suspended, it will *not* call
+rfkill->toggle_radio until it is resumed.
+
+Example of a WLAN wireless driver connected to the rfkill subsystem:
+--------------------------------------------------------------------
+
+A certain WLAN card has one input pin that causes it to block the transmitter
+and makes the status of that input pin available (only for reading!) to the
+kernel driver.  This is a hard rfkill input line (it cannot be overridden by
+the kernel driver).
+
+The card also has one PCI register that, if manipulated by the driver, causes
+it to block the transmitter.  This is a soft rfkill input line.
+
+It has also a thermal protection circuitry that shuts down its transmitter if
+the card overheats, and makes the status of that protection available (only for
+reading!) to the kernel driver.  This is also a hard rfkill input line.
+
+If either one of these rfkill lines are active, the transmitter is blocked by
+the hardware and forced offline.
+
+The driver should allocate and attach to its struct device *ONE* instance of
+the rfkill class (there is only one transmitter).
+
+It can implement the get_state() hook, and return RFKILL_STATE_HARD_BLOCKED if
+either one of its two hard rfkill input lines are active.  If the two hard
+rfkill lines are inactive, it must return RFKILL_STATE_SOFT_BLOCKED if its soft
+rfkill input line is active.  Only if none of the rfkill input lines are
+active, will it return RFKILL_STATE_UNBLOCKED.
+
+Since the device has a hardware rfkill line, it IS subject to state changes
+external to rfkill.  Therefore, the driver must make sure that it calls
+rfkill_force_state() to keep the status always up-to-date, and it must do a
+rfkill_force_state() on resume from sleep.
+
+Every time the driver gets a notification from the card that one of its rfkill
+lines changed state (polling might be needed on badly designed cards that don't
+generate interrupts for such events), it recomputes the rfkill state as per
+above, and calls rfkill_force_state() to update it.
+
+The driver should implement the toggle_radio() hook, that:
+
+1. Returns an error if one of the hardware rfkill lines are active, and the
+caller asked for RFKILL_STATE_UNBLOCKED.
+
+2. Activates the soft rfkill line if the caller asked for state
+RFKILL_STATE_SOFT_BLOCKED.  It should do this even if one of the hard rfkill
+lines are active, effectively double-blocking the transmitter.
+
+3. Deactivates the soft rfkill line if none of the hardware rfkill lines are
+active and the caller asked for RFKILL_STATE_UNBLOCKED.
+
+===============================================================================
+4: Kernel API
+
+To build a driver with rfkill subsystem support, the driver should depend on
+(or select) the Kconfig symbol RFKILL; it should _not_ depend on RKFILL_INPUT.
+
+The hardware the driver talks to may be write-only (where the current state
+of the hardware is unknown), or read-write (where the hardware can be queried
+about its current state).
+
+The rfkill class will call the get_state hook of a device every time it needs
+to know the *real* current state of the hardware.  This can happen often, but
+it does not do any polling, so it is not enough on hardware that is subject
+to state changes outside of the rfkill subsystem.
+
+Therefore, calling rfkill_force_state() when a state change happens is
+mandatory when the device has a hardware rfkill line, or when something else
+like the firmware could cause its state to be changed without going through the
+rfkill class.
+
+Some hardware provides events when its status changes.  In these cases, it is
+best for the driver to not provide a get_state hook, and instead register the
+rfkill class *already* with the correct status, and keep it updated using
+rfkill_force_state() when it gets an event from the hardware.
+
+rfkill_force_state() must be used on the device resume handlers to update the
+rfkill status, should there be any chance of the device status changing during
+the sleep.
+
+There is no provision for a statically-allocated rfkill struct.  You must
+use rfkill_allocate() to allocate one.
+
+You should:
+	- rfkill_allocate()
+	- modify rfkill fields (flags, name)
+	- modify state to the current hardware state (THIS IS THE ONLY TIME
+	  YOU CAN ACCESS state DIRECTLY)
+	- rfkill_register()
+
+The only way to set a device to the RFKILL_STATE_HARD_BLOCKED state is through
+a suitable return of get_state() or through rfkill_force_state().
+
+When a device is in the RFKILL_STATE_HARD_BLOCKED state, the only way to switch
+it to a different state is through a suitable return of get_state() or through
+rfkill_force_state().
+
+If toggle_radio() is called to set a device to state RFKILL_STATE_SOFT_BLOCKED
+when that device is already at the RFKILL_STATE_HARD_BLOCKED state, it should
+not return an error.  Instead, it should try to double-block the transmitter,
+so that its state will change from RFKILL_STATE_HARD_BLOCKED to
+RFKILL_STATE_SOFT_BLOCKED should the hardware blocking cease.
+
+Please refer to the source for more documentation.
+
+===============================================================================
+5: Userspace support
+
+rfkill devices issue uevents (with an action of "change"), with the following
+environment variables set:
+
+RFKILL_NAME
+RFKILL_STATE
+RFKILL_TYPE
+
+The ABI for these variables is defined by the sysfs attributes.  It is best
+to take a quick look at the source to make sure of the possible values.
+
+It is expected that HAL will trap those, and bridge them to DBUS, etc.  These
+events CAN and SHOULD be used to give feedback to the user about the rfkill
+status of the system.
+
+Input devices may issue events that are related to rfkill.  These are the
+various KEY_* events and SW_* events supported by rfkill-input.c.
+
+******IMPORTANT******
+When rfkill-input is ACTIVE, userspace is NOT TO CHANGE THE STATE OF AN RFKILL
+SWITCH IN RESPONSE TO AN INPUT EVENT also handled by rfkill-input, unless it
+has set to true the user_claim attribute for that particular switch.  This rule
+is *absolute*; do NOT violate it.
+******IMPORTANT******
+
+Userspace must not assume it is the only source of control for rfkill switches.
+Their state CAN and WILL change due to firmware actions, direct user actions,
+and the rfkill-input EPO override for *_RFKILL_ALL.
+
+When rfkill-input is not active, userspace must initiate a rfkill status
+change by writing to the "state" attribute in order for anything to happen.
+
+Take particular care to implement EV_SW SW_RFKILL_ALL properly.  When that
+switch is set to OFF, *every* rfkill device *MUST* be immediately put into the
+RFKILL_STATE_SOFT_BLOCKED state, no questions asked.
 
 The following sysfs entries will be created:
 
 	name: Name assigned by driver to this key (interface or driver name).
 	type: Name of the key type ("wlan", "bluetooth", etc).
-	state: Current state of the key. 1: On, 0: Off.
+	state: Current state of the transmitter
+		0: RFKILL_STATE_SOFT_BLOCKED
+			transmitter is forced off, but one can override it
+			by a write to the state attribute;
+		1: RFKILL_STATE_UNBLOCKED
+			transmiter is NOT forced off, and may operate if
+			all other conditions for such operation are met
+			(such as interface is up and configured, etc);
+		2: RFKILL_STATE_HARD_BLOCKED
+			transmitter is forced off by something outside of
+			the driver's control.  One cannot set a device to
+			this state through writes to the state attribute;
 	claim: 1: Userspace handles events, 0: Kernel handles events
 
 Both the "state" and "claim" entries are also writable. For the "state" entry
-this means that when 1 or 0 is written all radios, not yet in the requested
-state, will be will be toggled accordingly.
+this means that when 1 or 0 is written, the device rfkill state (if not yet in
+the requested state), will be will be toggled accordingly.
+
 For the "claim" entry writing 1 to it means that the kernel no longer handles
 key events even though RFKILL_INPUT input was enabled. When "claim" has been
 set to 0, userspace should make sure that it listens for the input events or
-check the sysfs "state" entry regularly to correctly perform the required
-tasks when the rkfill key is pressed.
+check the sysfs "state" entry regularly to correctly perform the required tasks
+when the rkfill key is pressed.
+
+A note about input devices and EV_SW events:
+
+In order to know the current state of an input device switch (like
+SW_RFKILL_ALL), you will need to use an IOCTL.  That information is not
+available through sysfs in a generic way at this time, and it is not available
+through the rfkill class AT ALL.

@@ -175,6 +175,8 @@ extern void early_iounmap(void *addr, unsigned long size);
  */
 extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
 extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
+				unsigned long prot_val);
 
 /*
  * The default ioremap() behavior is non-cached:

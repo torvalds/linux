@@ -28,10 +28,9 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <net/mac80211.h>
 
-#include "iwl-4965.h" /* FIXME: remove */
+#include "iwl-dev.h" /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
@@ -56,6 +55,7 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_RATE_SCALE);
 		IWL_CMD(REPLY_LEDS_CMD);
 		IWL_CMD(REPLY_TX_LINK_QUALITY_CMD);
+		IWL_CMD(COEX_PRIORITY_TABLE_CMD);
 		IWL_CMD(RADAR_NOTIFICATION);
 		IWL_CMD(REPLY_QUIET_CMD);
 		IWL_CMD(REPLY_CHANNEL_SWITCH);
@@ -89,6 +89,10 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_RX_MPDU_CMD);
 		IWL_CMD(REPLY_RX);
 		IWL_CMD(REPLY_COMPRESSED_BA);
+		IWL_CMD(CALIBRATION_CFG_CMD);
+		IWL_CMD(CALIBRATION_RES_NOTIFICATION);
+		IWL_CMD(CALIBRATION_COMPLETE_NOTIFICATION);
+		IWL_CMD(REPLY_TX_POWER_DBM_CMD);
 	default:
 		return "UNKNOWN";
 
@@ -101,7 +105,7 @@ EXPORT_SYMBOL(get_cmd_string);
 static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 				    struct iwl_cmd *cmd, struct sk_buff *skb)
 {
-	struct iwl4965_rx_packet *pkt = NULL;
+	struct iwl_rx_packet *pkt = NULL;
 
 	if (!skb) {
 		IWL_ERROR("Error: Response NULL in %s.\n",
@@ -109,7 +113,7 @@ static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 		return 1;
 	}
 
-	pkt = (struct iwl4965_rx_packet *)skb->data;
+	pkt = (struct iwl_rx_packet *)skb->data;
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERROR("Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
@@ -139,7 +143,7 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EBUSY;
 
-	ret = priv->cfg->ops->utils->enqueue_hcmd(priv, cmd);
+	ret = iwl_enqueue_hcmd(priv, cmd);
 	if (ret < 0) {
 		IWL_ERROR("Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
@@ -170,7 +174,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (cmd->meta.flags & CMD_WANT_SKB)
 		cmd->meta.source = &cmd->meta;
 
-	cmd_idx = priv->cfg->ops->utils->enqueue_hcmd(priv, cmd);
+	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
 		IWL_ERROR("Error sending %s: enqueue_hcmd failed: %d\n",
@@ -223,7 +227,7 @@ cancel:
 		 * TX cmd queue. Otherwise in case the cmd comes
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source). */
-		qcmd = &priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
+		qcmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
 		qcmd->meta.flags &= ~CMD_WANT_SKB;
 	}
 fail:

@@ -1,8 +1,6 @@
 /*
  *	NET3	IP device support routines.
  *
- *	Version: $Id: devinet.c,v 1.44 2001/10/31 21:55:54 davem Exp $
- *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
@@ -140,8 +138,8 @@ void in_dev_finish_destroy(struct in_device *idev)
 {
 	struct net_device *dev = idev->dev;
 
-	BUG_TRAP(!idev->ifa_list);
-	BUG_TRAP(!idev->mc_list);
+	WARN_ON(idev->ifa_list);
+	WARN_ON(idev->mc_list);
 #ifdef NET_REFCNT_DEBUG
 	printk(KERN_DEBUG "in_dev_finish_destroy: %p=%s\n",
 	       idev, dev ? dev->name : "NIL");
@@ -170,6 +168,8 @@ static struct in_device *inetdev_init(struct net_device *dev)
 	in_dev->dev = dev;
 	if ((in_dev->arp_parms = neigh_parms_alloc(dev, &arp_tbl)) == NULL)
 		goto out_kfree;
+	if (IPV4_DEVCONF(in_dev->cnf, FORWARDING))
+		dev_disable_lro(dev);
 	/* Reference in_dev->dev */
 	dev_hold(dev);
 	/* Account for reference dev->ip_ptr (below) */
@@ -399,7 +399,7 @@ static int inet_set_ifa(struct net_device *dev, struct in_ifaddr *ifa)
 	}
 	ipv4_devconf_setall(in_dev);
 	if (ifa->ifa_dev != in_dev) {
-		BUG_TRAP(!ifa->ifa_dev);
+		WARN_ON(ifa->ifa_dev);
 		in_dev_hold(in_dev);
 		ifa->ifa_dev = in_dev;
 	}
@@ -1013,7 +1013,7 @@ static void inetdev_changename(struct net_device *dev, struct in_device *in_dev)
 		memcpy(old, ifa->ifa_label, IFNAMSIZ);
 		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 		if (named++ == 0)
-			continue;
+			goto skip;
 		dot = strchr(old, ':');
 		if (dot == NULL) {
 			sprintf(old, ":%d", named);
@@ -1024,7 +1024,14 @@ static void inetdev_changename(struct net_device *dev, struct in_device *in_dev)
 		} else {
 			strcpy(ifa->ifa_label + (IFNAMSIZ - strlen(dot) - 1), dot);
 		}
+skip:
+		rtmsg_ifa(RTM_NEWADDR, ifa, NULL, 0);
 	}
+}
+
+static inline bool inetdev_valid_mtu(unsigned mtu)
+{
+	return mtu >= 68;
 }
 
 /* Called only under RTNL semaphore */
@@ -1046,6 +1053,10 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 				IN_DEV_CONF_SET(in_dev, NOXFRM, 1);
 				IN_DEV_CONF_SET(in_dev, NOPOLICY, 1);
 			}
+		} else if (event == NETDEV_CHANGEMTU) {
+			/* Re-enabling IP */
+			if (inetdev_valid_mtu(dev->mtu))
+				in_dev = inetdev_init(dev);
 		}
 		goto out;
 	}
@@ -1056,7 +1067,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		dev->ip_ptr = NULL;
 		break;
 	case NETDEV_UP:
-		if (dev->mtu < 68)
+		if (!inetdev_valid_mtu(dev->mtu))
 			break;
 		if (dev->flags & IFF_LOOPBACK) {
 			struct in_ifaddr *ifa;
@@ -1078,9 +1089,9 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		ip_mc_down(in_dev);
 		break;
 	case NETDEV_CHANGEMTU:
-		if (dev->mtu >= 68)
+		if (inetdev_valid_mtu(dev->mtu))
 			break;
-		/* MTU falled under 68, disable IP */
+		/* disable IP when MTU is not enough */
 	case NETDEV_UNREGISTER:
 		inetdev_destroy(in_dev);
 		break;
@@ -1241,6 +1252,8 @@ static void inet_forward_change(struct net *net)
 	read_lock(&dev_base_lock);
 	for_each_netdev(net, dev) {
 		struct in_device *in_dev;
+		if (on)
+			dev_disable_lro(dev);
 		rcu_read_lock();
 		in_dev = __in_dev_get_rcu(dev);
 		if (in_dev)
@@ -1248,8 +1261,6 @@ static void inet_forward_change(struct net *net)
 		rcu_read_unlock();
 	}
 	read_unlock(&dev_base_lock);
-
-	rt_cache_flush(0);
 }
 
 static int devinet_conf_proc(ctl_table *ctl, int write,
@@ -1335,10 +1346,19 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 	if (write && *valp != val) {
 		struct net *net = ctl->extra2;
 
-		if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING))
-			inet_forward_change(net);
-		else if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING))
-			rt_cache_flush(0);
+		if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING)) {
+			rtnl_lock();
+			if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING)) {
+				inet_forward_change(net);
+			} else if (*valp) {
+				struct ipv4_devconf *cnf = ctl->extra1;
+				struct in_device *idev =
+					container_of(cnf, struct in_device, cnf);
+				dev_disable_lro(idev->dev);
+			}
+			rtnl_unlock();
+			rt_cache_flush(net, 0);
+		}
 	}
 
 	return ret;
@@ -1351,9 +1371,10 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 	int *valp = ctl->data;
 	int val = *valp;
 	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+	struct net *net = ctl->extra2;
 
 	if (write && *valp != val)
-		rt_cache_flush(0);
+		rt_cache_flush(net, 0);
 
 	return ret;
 }
@@ -1364,9 +1385,10 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 {
 	int ret = devinet_conf_sysctl(table, name, nlen, oldval, oldlenp,
 				      newval, newlen);
+	struct net *net = table->extra2;
 
 	if (ret == 1)
-		rt_cache_flush(0);
+		rt_cache_flush(net, 0);
 
 	return ret;
 }

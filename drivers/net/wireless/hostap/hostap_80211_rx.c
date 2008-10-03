@@ -78,6 +78,9 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 			prism_header = 2;
 			phdrlen = sizeof(struct linux_wlan_ng_cap_hdr);
 		}
+	} else if (dev->type == ARPHRD_IEEE80211_RADIOTAP) {
+		prism_header = 3;
+		phdrlen = sizeof(struct hostap_radiotap_rx);
 	} else {
 		prism_header = 0;
 		phdrlen = 0;
@@ -165,6 +168,24 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 		hdr->ssi_noise  = htonl(rx_stats->noise);
 		hdr->preamble   = htonl(0); /* unknown */
 		hdr->encoding   = htonl(1); /* cck */
+	} else if (prism_header == 3) {
+		struct hostap_radiotap_rx *hdr;
+		hdr = (struct hostap_radiotap_rx *)skb_push(skb, phdrlen);
+		memset(hdr, 0, phdrlen);
+		hdr->hdr.it_len = cpu_to_le16(phdrlen);
+		hdr->hdr.it_present =
+			cpu_to_le32((1 << IEEE80211_RADIOTAP_TSFT) |
+				    (1 << IEEE80211_RADIOTAP_CHANNEL) |
+				    (1 << IEEE80211_RADIOTAP_RATE) |
+				    (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
+				    (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE));
+		hdr->tsft = cpu_to_le64(rx_stats->mac_time);
+		hdr->chan_freq = cpu_to_le16(freq_list[local->channel - 1]);
+		hdr->chan_flags = cpu_to_le16(IEEE80211_CHAN_CCK |
+						 IEEE80211_CHAN_2GHZ);
+		hdr->rate = rx_stats->rate / 5;
+		hdr->dbm_antsignal = rx_stats->signal;
+		hdr->dbm_antnoise = rx_stats->noise;
 	}
 
 	ret = skb->len - phdrlen;

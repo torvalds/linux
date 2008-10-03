@@ -19,16 +19,18 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pwm_backlight.h>
+#include <linux/smc91x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/zylonite.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/pxa27x_keypad.h>
+#include <mach/hardware.h>
+#include <mach/audio.h>
+#include <mach/gpio.h>
+#include <mach/pxafb.h>
+#include <mach/zylonite.h>
+#include <mach/mmc.h>
+#include <mach/pxa27x_keypad.h>
+#include <mach/pxa3xx_nand.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -37,6 +39,8 @@
 struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 
 int gpio_eth_irq;
+int gpio_debug_led1;
+int gpio_debug_led2;
 
 int wm9713_irq;
 
@@ -56,12 +60,56 @@ static struct resource smc91x_resources[] = {
 	}
 };
 
+static struct smc91x_platdata zylonite_smc91x_info = {
+	.flags	= SMC91X_USE_8BIT | SMC91X_USE_16BIT |
+		  SMC91X_NOWAIT | SMC91X_USE_DMA,
+};
+
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
+	.dev		= {
+		.platform_data = &zylonite_smc91x_info,
+	},
 };
+
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+static struct gpio_led zylonite_debug_leds[] = {
+	[0] = {
+		.name			= "zylonite:yellow:1",
+		.default_trigger	= "heartbeat",
+	},
+	[1] = {
+		.name			= "zylonite:yellow:2",
+		.default_trigger	= "default-on",
+	},
+};
+
+static struct gpio_led_platform_data zylonite_debug_leds_info = {
+	.leds		= zylonite_debug_leds,
+	.num_leds	= ARRAY_SIZE(zylonite_debug_leds),
+};
+
+static struct platform_device zylonite_device_leds = {
+	.name		= "leds-gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &zylonite_debug_leds_info,
+	}
+};
+
+static void __init zylonite_init_leds(void)
+{
+	zylonite_debug_leds[0].gpio = gpio_debug_led1;
+	zylonite_debug_leds[1].gpio = gpio_debug_led2;
+
+	platform_device_register(&zylonite_device_leds);
+}
+#else
+static inline void zylonite_init_leds(void) {}
+#endif
 
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static struct platform_pwm_backlight_data zylonite_backlight_data = {
@@ -259,7 +307,7 @@ static void __init zylonite_init_mmc(void)
 static inline void zylonite_init_mmc(void) {}
 #endif
 
-#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULES)
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int zylonite_matrix_key_map[] = {
 	/* KEY(row, col, key_code) */
 	KEY(0, 0, KEY_A), KEY(0, 1, KEY_B), KEY(0, 2, KEY_C), KEY(0, 5, KEY_D),
@@ -324,6 +372,57 @@ static void __init zylonite_init_keypad(void)
 static inline void zylonite_init_keypad(void) {}
 #endif
 
+#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+static struct mtd_partition zylonite_nand_partitions[] = {
+	[0] = {
+		.name        = "Bootloader",
+		.offset      = 0,
+		.size        = 0x060000,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	[1] = {
+		.name        = "Kernel",
+		.offset      = 0x060000,
+		.size        = 0x200000,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	[2] = {
+		.name        = "Filesystem",
+		.offset      = 0x0260000,
+		.size        = 0x3000000,     /* 48M - rootfs */
+	},
+	[3] = {
+		.name        = "MassStorage",
+		.offset      = 0x3260000,
+		.size        = 0x3d40000,
+	},
+	[4] = {
+		.name        = "BBT",
+		.offset      = 0x6FA0000,
+		.size        = 0x80000,
+		.mask_flags  = MTD_WRITEABLE,  /* force read-only */
+	},
+	/* NOTE: we reserve some blocks at the end of the NAND flash for
+	 * bad block management, and the max number of relocation blocks
+	 * differs on different platforms. Please take care with it when
+	 * defining the partition table.
+	 */
+};
+
+static struct pxa3xx_nand_platform_data zylonite_nand_info = {
+	.enable_arbiter	= 1,
+	.parts		= zylonite_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(zylonite_nand_partitions),
+};
+
+static void __init zylonite_init_nand(void)
+{
+	pxa3xx_set_nand_info(&zylonite_nand_info);
+}
+#else
+static inline void zylonite_init_nand(void) {}
+#endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
+
 static void __init zylonite_init(void)
 {
 	/* board-processor specific initialization */
@@ -342,6 +441,8 @@ static void __init zylonite_init(void)
 	zylonite_init_lcd();
 	zylonite_init_mmc();
 	zylonite_init_keypad();
+	zylonite_init_nand();
+	zylonite_init_leds();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")

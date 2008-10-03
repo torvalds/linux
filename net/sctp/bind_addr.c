@@ -348,6 +348,43 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 	return match;
 }
 
+/* Does the address 'addr' conflict with any addresses in
+ * the bp.
+ */
+int sctp_bind_addr_conflict(struct sctp_bind_addr *bp,
+			    const union sctp_addr *addr,
+			    struct sctp_sock *bp_sp,
+			    struct sctp_sock *addr_sp)
+{
+	struct sctp_sockaddr_entry *laddr;
+	int conflict = 0;
+	struct sctp_sock *sp;
+
+	/* Pick the IPv6 socket as the basis of comparison
+	 * since it's usually a superset of the IPv4.
+	 * If there is no IPv6 socket, then default to bind_addr.
+	 */
+	if (sctp_opt2sk(bp_sp)->sk_family == AF_INET6)
+		sp = bp_sp;
+	else if (sctp_opt2sk(addr_sp)->sk_family == AF_INET6)
+		sp = addr_sp;
+	else
+		sp = bp_sp;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
+
+		conflict = sp->pf->cmp_addr(&laddr->a, addr, sp);
+		if (conflict)
+			break;
+	}
+	rcu_read_unlock();
+
+	return conflict;
+}
+
 /* Get the state of the entry in the bind_addr_list */
 int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 			 const union sctp_addr *addr)

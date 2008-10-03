@@ -1,5 +1,5 @@
 obj-y	:=  init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
-	    pat.o pgtable.o
+	    pat.o pgtable.o gup.o
 
 obj-$(CONFIG_X86_32)		+= pgtable_32.o
 
@@ -21,3 +21,4 @@ obj-$(CONFIG_K8_NUMA)		+= k8topology_64.o
 endif
 obj-$(CONFIG_ACPI_NUMA)		+= srat_$(BITS).o
 
+obj-$(CONFIG_MEMTEST)		+= memtest.o

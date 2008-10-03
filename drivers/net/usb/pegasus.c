@@ -117,7 +117,7 @@ static void ctrl_callback(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:
-		if (netif_msg_drv(pegasus))
+		if (netif_msg_drv(pegasus) && printk_ratelimit())
 			dev_dbg(&pegasus->intf->dev, "%s, status %d\n",
 				__FUNCTION__, urb->status);
 	}
@@ -166,7 +166,7 @@ static int get_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 		set_current_state(TASK_RUNNING);
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_drv(pegasus))
+		if (netif_msg_drv(pegasus) && printk_ratelimit())
 			dev_err(&pegasus->intf->dev, "%s, status %d\n",
 					__FUNCTION__, ret);
 		goto out;
@@ -275,7 +275,7 @@ static int set_register(pegasus_t * pegasus, __u16 indx, __u8 data)
 	if ((ret = usb_submit_urb(pegasus->ctrl_urb, GFP_ATOMIC))) {
 		if (ret == -ENODEV)
 			netif_device_detach(pegasus->net);
-		if (netif_msg_drv(pegasus))
+		if (netif_msg_drv(pegasus) && printk_ratelimit())
 			dev_err(&pegasus->intf->dev, "%s, status %d\n",
 					__FUNCTION__, ret);
 		goto out;
@@ -1209,8 +1209,7 @@ static void pegasus_set_multicast(struct net_device *net)
 		pegasus->eth_regs[EthCtrl2] |= RX_PROMISCUOUS;
 		if (netif_msg_link(pegasus))
 			pr_info("%s: Promiscuous mode enabled.\n", net->name);
-	} else if (net->mc_count ||
-		   (net->flags & IFF_ALLMULTI)) {
+	} else if (net->mc_count || (net->flags & IFF_ALLMULTI)) {
 		pegasus->eth_regs[EthCtrl0] |= RX_MULTICAST;
 		pegasus->eth_regs[EthCtrl2] &= ~RX_PROMISCUOUS;
 		if (netif_msg_link(pegasus))
@@ -1219,6 +1218,8 @@ static void pegasus_set_multicast(struct net_device *net)
 		pegasus->eth_regs[EthCtrl0] &= ~RX_MULTICAST;
 		pegasus->eth_regs[EthCtrl2] &= ~RX_PROMISCUOUS;
 	}
+
+	pegasus->ctrl_urb->status = 0;
 
 	pegasus->flags |= ETH_REGS_CHANGE;
 	ctrl_callback(pegasus->ctrl_urb);
@@ -1285,6 +1286,21 @@ static void check_carrier(struct work_struct *work)
 	}
 }
 
+static int pegasus_blacklisted(struct usb_device *udev)
+{
+	struct usb_device_descriptor *udd = &udev->descriptor;
+
+	/* Special quirk to keep the driver from handling the Belkin Bluetooth
+	 * dongle which happens to have the same ID.
+	 */
+	if ((udd->idVendor == VENDOR_BELKIN && udd->idProduct == 0x0121) &&
+	    (udd->bDeviceClass == USB_CLASS_WIRELESS_CONTROLLER) &&
+	    (udd->bDeviceProtocol == 1))
+		return 1;
+
+	return 0;
+}
+
 static int pegasus_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1296,6 +1312,12 @@ static int pegasus_probe(struct usb_interface *intf,
 	DECLARE_MAC_BUF(mac);
 
 	usb_get_dev(dev);
+
+	if (pegasus_blacklisted(dev)) {
+		res = -ENODEV;
+		goto out;
+	}
+
 	net = alloc_etherdev(sizeof(struct pegasus));
 	if (!net) {
 		dev_err(&intf->dev, "can't allocate %s\n", "device");

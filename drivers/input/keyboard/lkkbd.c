@@ -538,11 +538,11 @@ lkkbd_event (struct input_dev *dev, unsigned int type, unsigned int code,
 			switch (code) {
 				case SND_CLICK:
 					if (value == 0) {
-						DBG ("%s: Deactivating key clicks\n", __FUNCTION__);
+						DBG ("%s: Deactivating key clicks\n", __func__);
 						lk->serio->write (lk->serio, LK_CMD_DISABLE_KEYCLICK);
 						lk->serio->write (lk->serio, LK_CMD_DISABLE_CTRCLICK);
 					} else {
-						DBG ("%s: Activating key clicks\n", __FUNCTION__);
+						DBG ("%s: Activating key clicks\n", __func__);
 						lk->serio->write (lk->serio, LK_CMD_ENABLE_KEYCLICK);
 						lk->serio->write (lk->serio, volume_to_hw (lk->keyclick_volume));
 						lk->serio->write (lk->serio, LK_CMD_ENABLE_CTRCLICK);
@@ -560,7 +560,7 @@ lkkbd_event (struct input_dev *dev, unsigned int type, unsigned int code,
 
 		default:
 			printk (KERN_ERR "%s (): Got unknown type %d, code %d, value %d\n",
-					__FUNCTION__, type, code, value);
+					__func__, type, code, value);
 	}
 
 	return -1;

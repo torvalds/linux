@@ -19,6 +19,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "ns87415"
+
 #ifdef CONFIG_SUPERIO
 /* SUPERIO 87560 is a PoS chip that NatSem denies exists.
  * Unfortunately, it's built-in on all Astro-based PA-RISC workstations
@@ -28,10 +30,6 @@
  */
 #include <asm/superio.h>
 
-static unsigned long superio_ide_status[2];
-static unsigned long superio_ide_select[2];
-static unsigned long superio_ide_dma_status[2];
-
 #define SUPERIO_IDE_MAX_RETRIES 25
 
 /* Because of a defect in Super I/O, all reads of the PCI DMA status 
@@ -40,27 +38,28 @@ static unsigned long superio_ide_dma_status[2];
  */
 static u8 superio_ide_inb (unsigned long port)
 {
-	if (port == superio_ide_status[0] ||
-	    port == superio_ide_status[1] ||
-	    port == superio_ide_select[0] ||
-	    port == superio_ide_select[1] ||
-	    port == superio_ide_dma_status[0] ||
-	    port == superio_ide_dma_status[1]) {
-		u8 tmp;
-		int retries = SUPERIO_IDE_MAX_RETRIES;
+	u8 tmp;
+	int retries = SUPERIO_IDE_MAX_RETRIES;
 
-		/* printk(" [ reading port 0x%x with retry ] ", port); */
+	/* printk(" [ reading port 0x%x with retry ] ", port); */
 
-		do {
-			tmp = inb(port);
-			if (tmp == 0)
-				udelay(50);
-		} while (tmp == 0 && retries-- > 0);
+	do {
+		tmp = inb(port);
+		if (tmp == 0)
+			udelay(50);
+	} while (tmp == 0 && retries-- > 0);
 
-		return tmp;
-	}
+	return tmp;
+}
 
-	return inb(port);
+static u8 superio_read_status(ide_hwif_t *hwif)
+{
+	return superio_ide_inb(hwif->io_ports.status_addr);
+}
+
+static u8 superio_read_sff_dma_status(ide_hwif_t *hwif)
+{
+	return superio_ide_inb(hwif->dma_base + ATA_DMA_STATUS);
 }
 
 static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
@@ -78,6 +77,8 @@ static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
 	/* be sure we're looking at the low order bits */
 	outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
+	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+		tf->feature = inb(io_ports->feature_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -105,36 +106,32 @@ static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
 	}
 }
 
-static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
+static const struct ide_tp_ops superio_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= superio_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= superio_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= superio_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
+static void __devinit superio_init_iops(struct hwif_s *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
-	u32 base, dmabase;
+	u32 dma_stat;
 	u8 port = hwif->channel, tmp;
 
-	base = pci_resource_start(pdev, port * 2) & ~3;
-	dmabase = pci_resource_start(pdev, 4) & ~3;
-
-	superio_ide_status[port] = base + 7;
-	superio_ide_select[port] = base + 6;
-	superio_ide_dma_status[port] = dmabase + (!port ? 2 : 0xa);
+	dma_stat = (pci_resource_start(pdev, 4) & ~3) + (!port ? 2 : 0xa);
 
 	/* Clear error/interrupt, enable dma */
-	tmp = superio_ide_inb(superio_ide_dma_status[port]);
-	outb(tmp | 0x66, superio_ide_dma_status[port]);
-
-	hwif->tf_read = superio_tf_read;
-
-	/* We need to override inb to workaround a SuperIO errata */
-	hwif->INB = superio_ide_inb;
-}
-
-static void __devinit init_iops_ns87415(ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-
-	if (PCI_SLOT(dev->devfn) == 0xE)
-		/* Built-in - assume it's under superio. */
-		superio_ide_init_iops(hwif);
+	tmp = superio_ide_inb(dma_stat);
+	outb(tmp | 0x66, dma_stat);
 }
 #endif
 
@@ -200,14 +197,14 @@ static int ns87415_dma_end(ide_drive_t *drive)
 	u8 dma_stat = 0, dma_cmd = 0;
 
 	drive->waiting_for_dma = 0;
-	dma_stat = hwif->INB(hwif->dma_status);
-	/* get dma command mode */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_stat = hwif->tp_ops->read_sff_dma_status(hwif);
+	/* get DMA command mode */
+	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	/* stop DMA */
-	outb(dma_cmd & ~1, hwif->dma_command);
+	outb(dma_cmd & ~1, hwif->dma_base + ATA_DMA_CMD);
 	/* from ERRATA: clear the INTR & ERROR bits */
-	dma_cmd = hwif->INB(hwif->dma_command);
-	outb(dma_cmd | 6, hwif->dma_command);
+	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
+	outb(dma_cmd | 6, hwif->dma_base + ATA_DMA_CMD);
 	/* and free any DMA resources */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
@@ -276,7 +273,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		outb(8, hwif->io_ports.ctl_addr);
 		do {
 			udelay(50);
-			stat = hwif->INB(hwif->io_ports.status_addr);
+			stat = hwif->tp_ops->read_status(hwif);
                 	if (stat == 0xff)
                         	break;
         	} while ((stat & BUSY_STAT) && --timeout);
@@ -291,7 +288,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	outb(0x60, hwif->dma_status);
+	outb(0x60, hwif->dma_base + ATA_DMA_STATUS);
 }
 
 static const struct ide_port_ops ns87415_port_ops = {
@@ -310,10 +307,7 @@ static const struct ide_dma_ops ns87415_dma_ops = {
 };
 
 static const struct ide_port_info ns87415_chipset __devinitdata = {
-	.name		= "NS87415",
-#ifdef CONFIG_SUPERIO
-	.init_iops	= init_iops_ns87415,
-#endif
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_ns87415,
 	.port_ops	= &ns87415_port_ops,
 	.dma_ops	= &ns87415_dma_ops,
@@ -323,7 +317,16 @@ static const struct ide_port_info ns87415_chipset __devinitdata = {
 
 static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &ns87415_chipset);
+	struct ide_port_info d = ns87415_chipset;
+
+#ifdef CONFIG_SUPERIO
+	if (PCI_SLOT(dev->devfn) == 0xE) {
+		/* Built-in - assume it's under superio. */
+		d.init_iops = superio_init_iops;
+		d.tp_ops = &superio_tp_ops;
+	}
+#endif
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {
@@ -336,6 +339,7 @@ static struct pci_driver driver = {
 	.name		= "NS87415_IDE",
 	.id_table	= ns87415_pci_tbl,
 	.probe		= ns87415_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init ns87415_ide_init(void)
@@ -343,7 +347,13 @@ static int __init ns87415_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit ns87415_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(ns87415_ide_init);
+module_exit(ns87415_ide_exit);
 
 MODULE_AUTHOR("Mark Lord, Eddie Dost, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for NS87415 IDE");

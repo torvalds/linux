@@ -4,7 +4,7 @@
 
 # Common support (must be linked before board specific support)
 obj-y				+= clock.o devices.o generic.o irq.o dma.o \
-				   time.o gpio.o
+				   time.o gpio.o reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
 
@@ -18,6 +18,7 @@ obj-$(CONFIG_PXA27x)		+= mfp-pxa2xx.o pxa2xx.o pxa27x.o
 obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o pxa3xx.o smemc.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
+obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # Specific board support
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
@@ -36,7 +37,12 @@ obj-$(CONFIG_MACH_PCM990_BASEBOARD)	+= pcm990-baseboard.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_MAGICIAN)	+= magician.o
-obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o
+obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o eseries_udc.o
+obj-$(CONFIG_MACH_E740)		+= e740_lcd.o
+obj-$(CONFIG_MACH_E750)		+= e750_lcd.o
+obj-$(CONFIG_MACH_E400)		+= e400_lcd.o
+obj-$(CONFIG_MACH_E800)		+= e800_lcd.o
+obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
 
 ifeq ($(CONFIG_MACH_ZYLONITE),y)
   obj-y				+= zylonite.o
@@ -44,8 +50,11 @@ ifeq ($(CONFIG_MACH_ZYLONITE),y)
   obj-$(CONFIG_CPU_PXA320)	+= zylonite_pxa320.o
 endif
 obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
+obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
+obj-$(CONFIG_MACH_SAAR)		+= saar.o
 
 obj-$(CONFIG_MACH_ARMCORE)      += cm-x270.o
+obj-$(CONFIG_PXA_EZX)           += ezx.o
 
 # Support for blinky lights
 led-y := leds.o
@@ -59,3 +68,5 @@ obj-$(CONFIG_LEDS)		+= $(led-y)
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
 endif
+
+obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o

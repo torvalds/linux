@@ -410,8 +410,7 @@ enum {
 #define B43_IRQ_TIMEOUT			0x80000000
 
 #define B43_IRQ_ALL			0xFFFFFFFF
-#define B43_IRQ_MASKTEMPLATE		(B43_IRQ_MAC_SUSPENDED | \
-					 B43_IRQ_TBTT_INDI | \
+#define B43_IRQ_MASKTEMPLATE		(B43_IRQ_TBTT_INDI | \
 					 B43_IRQ_ATIM_END | \
 					 B43_IRQ_PMQ | \
 					 B43_IRQ_MAC_TXERR | \
@@ -422,6 +421,28 @@ enum {
 					 B43_IRQ_UCODE_DEBUG | \
 					 B43_IRQ_RFKILL | \
 					 B43_IRQ_TX_OK)
+
+/* The firmware register to fetch the debug-IRQ reason from. */
+#define B43_DEBUGIRQ_REASON_REG		63
+/* Debug-IRQ reasons. */
+#define B43_DEBUGIRQ_PANIC		0	/* The firmware panic'ed */
+#define B43_DEBUGIRQ_DUMP_SHM		1	/* Dump shared SHM */
+#define B43_DEBUGIRQ_DUMP_REGS		2	/* Dump the microcode registers */
+#define B43_DEBUGIRQ_MARKER		3	/* A "marker" was thrown by the firmware. */
+#define B43_DEBUGIRQ_ACK		0xFFFF	/* The host writes that to ACK the IRQ */
+
+/* The firmware register that contains the "marker" line. */
+#define B43_MARKER_ID_REG		2
+#define B43_MARKER_LINE_REG		3
+
+/* The firmware register to fetch the panic reason from. */
+#define B43_FWPANIC_REASON_REG		3
+/* Firmware panic reason codes */
+#define B43_FWPANIC_DIE			0 /* Firmware died. Don't auto-restart it. */
+#define B43_FWPANIC_RESTART		1 /* Firmware died. Schedule a controller reset. */
+
+/* The firmware register that contains the watchdog counter. */
+#define B43_WATCHDOG_REG		1
 
 /* Device specific rate values.
  * The actual values defined here are (rate_in_mbps * 2).
@@ -733,7 +754,6 @@ struct b43_wl {
 	/* The beacon we are currently using (AP or IBSS mode).
 	 * This beacon stuff is protected by the irq_lock. */
 	struct sk_buff *current_beacon;
-	struct ieee80211_tx_control beacon_txctl;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
 	bool beacon_templates_virgin; /* Never wrote the templates? */
@@ -767,6 +787,13 @@ struct b43_firmware {
 	u16 rev;
 	/* Firmware patchlevel */
 	u16 patch;
+
+	/* Set to true, if we are using an opensource firmware. */
+	bool opensource;
+	/* Set to true, if the core needs a PCM firmware, but
+	 * we failed to load one. This is always false for
+	 * core rev > 10, as these don't need PCM firmware. */
+	bool pcm_request_failed;
 };
 
 /* Device (802.11 core) initialization status. */
@@ -939,22 +966,6 @@ void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 static inline bool __b43_warn_on_dummy(bool x) { return x; }
 # define B43_WARN_ON(x)	__b43_warn_on_dummy(unlikely(!!(x)))
 #endif
-
-/** Limit a value between two limits */
-#ifdef limit_value
-# undef limit_value
-#endif
-#define limit_value(value, min, max)  \
-	({						\
-		typeof(value) __value = (value);	\
-		typeof(value) __min = (min);		\
-		typeof(value) __max = (max);		\
-		if (__value < __min)			\
-			__value = __min;		\
-		else if (__value > __max)		\
-			__value = __max;		\
-		__value;				\
-	})
 
 /* Convert an integer to a Q5.2 value */
 #define INT_TO_Q52(i)	((i) << 2)

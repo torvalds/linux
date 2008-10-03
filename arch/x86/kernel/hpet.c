@@ -210,8 +210,8 @@ static void hpet_legacy_clockevent_register(void)
 	/* Calculate the min / max delta */
 	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
 							   &hpet_clockevent);
-	hpet_clockevent.min_delta_ns = clockevent_delta2ns(0x30,
-							   &hpet_clockevent);
+	/* 5 usec minimum reprogramming delta. */
+	hpet_clockevent.min_delta_ns = 5000;
 
 	/*
 	 * Start hpet with the boot cpu mask and make it
@@ -270,15 +270,22 @@ static void hpet_legacy_set_mode(enum clock_event_mode mode,
 }
 
 static int hpet_legacy_next_event(unsigned long delta,
-			   struct clock_event_device *evt)
+				  struct clock_event_device *evt)
 {
-	unsigned long cnt;
+	u32 cnt;
 
 	cnt = hpet_readl(HPET_COUNTER);
-	cnt += delta;
+	cnt += (u32) delta;
 	hpet_writel(cnt, HPET_T0_CMP);
 
-	return ((long)(hpet_readl(HPET_COUNTER) - cnt ) > 0) ? -ETIME : 0;
+	/*
+	 * We need to read back the CMP register to make sure that
+	 * what we wrote hit the chip before we compare it to the
+	 * counter.
+	 */
+	WARN_ON((u32)hpet_readl(HPET_T0_CMP) != cnt);
+
+	return (s32)((u32)hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
 }
 
 /*
@@ -359,6 +366,7 @@ static int hpet_clocksource_register(void)
 int __init hpet_enable(void)
 {
 	unsigned long id;
+	int i;
 
 	if (!is_hpet_capable())
 		return 0;
@@ -369,6 +377,29 @@ int __init hpet_enable(void)
 	 * Read the period and check for a sane value:
 	 */
 	hpet_period = hpet_readl(HPET_PERIOD);
+
+	/*
+	 * AMD SB700 based systems with spread spectrum enabled use a
+	 * SMM based HPET emulation to provide proper frequency
+	 * setting. The SMM code is initialized with the first HPET
+	 * register access and takes some time to complete. During
+	 * this time the config register reads 0xffffffff. We check
+	 * for max. 1000 loops whether the config register reads a non
+	 * 0xffffffff value to make sure that HPET is up and running
+	 * before we go further. A counting loop is safe, as the HPET
+	 * access takes thousands of CPU cycles. On non SB700 based
+	 * machines this check is only done once and has no side
+	 * effects.
+	 */
+	for (i = 0; hpet_readl(HPET_CFG) == 0xFFFFFFFF; i++) {
+		if (i == 1000) {
+			printk(KERN_WARNING
+			       "HPET config register value = 0xFFFFFFFF. "
+			       "Disabling HPET\n");
+			goto out_nohpet;
+		}
+	}
+
 	if (hpet_period < HPET_MIN_PERIOD || hpet_period > HPET_MAX_PERIOD)
 		goto out_nohpet;
 
@@ -468,7 +499,7 @@ void hpet_disable(void)
 #define RTC_NUM_INTS		1
 
 static unsigned long hpet_rtc_flags;
-static unsigned long hpet_prev_update_sec;
+static int hpet_prev_update_sec;
 static struct rtc_time hpet_alarm_time;
 static unsigned long hpet_pie_count;
 static unsigned long hpet_t1_cmp;
@@ -575,6 +606,9 @@ int hpet_set_rtc_irq_bit(unsigned long bit_mask)
 
 	hpet_rtc_flags |= bit_mask;
 
+	if ((bit_mask & RTC_UIE) && !(oldbits & RTC_UIE))
+		hpet_prev_update_sec = -1;
+
 	if (!oldbits)
 		hpet_rtc_timer_init();
 
@@ -652,7 +686,7 @@ static void hpet_rtc_timer_reinit(void)
 		if (hpet_rtc_flags & RTC_PIE)
 			hpet_pie_count += lost_ints;
 		if (printk_ratelimit())
-			printk(KERN_WARNING "rtc: lost %d interrupts\n",
+			printk(KERN_WARNING "hpet1: lost %d rtc interrupts\n",
 				lost_ints);
 	}
 }
@@ -670,7 +704,8 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 
 	if (hpet_rtc_flags & RTC_UIE &&
 	    curr_time.tm_sec != hpet_prev_update_sec) {
-		rtc_int_flag = RTC_UF;
+		if (hpet_prev_update_sec >= 0)
+			rtc_int_flag = RTC_UF;
 		hpet_prev_update_sec = curr_time.tm_sec;
 	}
 

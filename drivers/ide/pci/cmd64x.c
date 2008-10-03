@@ -19,6 +19,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cmd64x"
+
 #define CMD_DEBUG 0
 
 #if CMD_DEBUG
@@ -262,7 +264,7 @@ static int cmd648_dma_test_irq(ide_drive_t *drive)
 	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
 	u8 irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
 						  MRDMODE_INTR_CH0;
-	u8 dma_stat		= inb(hwif->dma_status);
+	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 	u8 mrdmode		= inb(base + 1);
 
 #ifdef DEBUG
@@ -286,7 +288,7 @@ static int cmd64x_dma_test_irq(ide_drive_t *drive)
 	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
 	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
 						  CFR_INTR_CH0;
-	u8  dma_stat		= inb(hwif->dma_status);
+	u8  dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 	u8  irq_stat		= 0;
 
 	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
@@ -317,40 +319,22 @@ static int cmd646_1_dma_end(ide_drive_t *drive)
 
 	drive->waiting_for_dma = 0;
 	/* get DMA status */
-	dma_stat = inb(hwif->dma_status);
+	dma_stat = inb(hwif->dma_base + ATA_DMA_STATUS);
 	/* read DMA command state */
-	dma_cmd = inb(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	/* stop DMA */
-	outb(dma_cmd & ~1, hwif->dma_command);
+	outb(dma_cmd & ~1, hwif->dma_base + ATA_DMA_CMD);
 	/* clear the INTR & ERROR bits */
-	outb(dma_stat | 6, hwif->dma_status);
+	outb(dma_stat | 6, hwif->dma_base + ATA_DMA_STATUS);
 	/* and free any DMA resources */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
 	return (dma_stat & 7) != 4;
 }
 
-static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev)
 {
 	u8 mrdmode = 0;
-
-	if (dev->device == PCI_DEVICE_ID_CMD_646) {
-
-		switch (dev->revision) {
-		case 0x07:
-		case 0x05:
-			printk("%s: UltraDMA capable\n", name);
-			break;
-		case 0x03:
-		default:
-			printk("%s: MultiWord DMA force limited\n", name);
-			break;
-		case 0x01:
-			printk("%s: MultiWord DMA limited, "
-			       "IRQ workaround enabled\n", name);
-			break;
-		}
-	}
 
 	/* Set a good latency timer and cache line size value. */
 	(void) pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
@@ -370,7 +354,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 	return 0;
 }
 
-static u8 __devinit cmd64x_cable_detect(ide_hwif_t *hwif)
+static u8 cmd64x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev  *dev	= to_pci_dev(hwif->dev);
 	u8 bmidecsr = 0, mask	= hwif->channel ? 0x02 : 0x01;
@@ -425,8 +409,8 @@ static const struct ide_dma_ops cmd648_dma_ops = {
 };
 
 static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "CMD643",
+	{	/* 0: CMD643 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,
@@ -436,8 +420,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* no udma */
-	},{	/* 1 */
-		.name		= "CMD646",
+	},
+	{	/* 1: CMD646 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.chipset	= ide_cmd646,
@@ -447,8 +432,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,
-	},{	/* 2 */
-		.name		= "CMD648",
+	},
+	{	/* 2: CMD648 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,
@@ -457,8 +443,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA4,
-	},{	/* 3 */
-		.name		= "CMD649",
+	},
+	{	/* 3: CMD649 */
+		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,
@@ -507,7 +494,7 @@ static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_devic
 		}
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id cmd64x_pci_tbl[] = {
@@ -523,6 +510,7 @@ static struct pci_driver driver = {
 	.name		= "CMD64x_IDE",
 	.id_table	= cmd64x_pci_tbl,
 	.probe		= cmd64x_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init cmd64x_ide_init(void)
@@ -530,7 +518,13 @@ static int __init cmd64x_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit cmd64x_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(cmd64x_ide_init);
+module_exit(cmd64x_ide_exit);
 
 MODULE_AUTHOR("Eddie Dost, David Miller, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for CMD64x IDE");

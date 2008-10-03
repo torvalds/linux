@@ -72,7 +72,7 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct svc_rdma_op_ctxt *read_hdr;
-	struct list_head free_list;
+	int hdr_count;
 	struct xdr_buf arg;
 	struct list_head dto_q;
 	enum ib_wr_opcode wr_op;
@@ -86,6 +86,31 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
+/*
+ * NFS_ requests are mapped on the client side by the chunk lists in
+ * the RPCRDMA header. During the fetching of the RPC from the client
+ * and the writing of the reply to the client, the memory in the
+ * client and the memory in the server must be mapped as contiguous
+ * vaddr/len for access by the hardware. These data strucures keep
+ * these mappings.
+ *
+ * For an RDMA_WRITE, the 'sge' maps the RPC REPLY. For RDMA_READ, the
+ * 'sge' in the svc_rdma_req_map maps the server side RPC reply and the
+ * 'ch' field maps the read-list of the RPCRDMA header to the 'sge'
+ * mapping of the reply.
+ */
+struct svc_rdma_chunk_sge {
+	int start;		/* sge no for this chunk */
+	int count;		/* sge count for this chunk */
+};
+struct svc_rdma_req_map {
+	unsigned long count;
+	union {
+		struct kvec sge[RPCSVC_MAXPAGES];
+		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
+	};
+};
+
 #define RDMACTXT_F_LAST_CTXT	2
 
 struct svcxprt_rdma {
@@ -93,7 +118,6 @@ struct svcxprt_rdma {
 	struct rdma_cm_id    *sc_cm_id;		/* RDMA connection id */
 	struct list_head     sc_accept_q;	/* Conn. waiting accept */
 	int		     sc_ord;		/* RDMA read limit */
-	wait_queue_head_t    sc_read_wait;
 	int                  sc_max_sge;
 
 	int                  sc_sq_depth;	/* Depth of SQ */
@@ -104,12 +128,8 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
+	atomic_t	     sc_dma_used;
 	atomic_t	     sc_ctxt_used;
-	struct list_head     sc_ctxt_free;
-	int		     sc_ctxt_cnt;
-	int		     sc_ctxt_bump;
-	int		     sc_ctxt_max;
-	spinlock_t	     sc_ctxt_lock;
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
 	struct ib_qp         *sc_qp;
@@ -123,7 +143,6 @@ struct svcxprt_rdma {
 	unsigned long	     sc_flags;
 	struct list_head     sc_dto_q;		/* DTO tasklet I/O pending Q */
 	struct list_head     sc_read_complete_q;
-	spinlock_t           sc_read_complete_lock;
 	struct work_struct   sc_work;
 };
 /* sc_flags */
@@ -173,6 +192,8 @@ extern int svc_rdma_post_recv(struct svcxprt_rdma *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
+extern struct svc_rdma_req_map *svc_rdma_get_req_map(void);
+extern void svc_rdma_put_req_map(struct svc_rdma_req_map *);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
 extern struct svc_xprt_class svc_rdma_class;

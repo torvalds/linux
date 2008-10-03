@@ -899,7 +899,7 @@ relocate_new_kernel:
 
 	/* set a new stack at the bottom of our page... */
 	/* (not really needed now) */
-	addi	r1, r4, KEXEC_CONTROL_CODE_SIZE - 8 /* for LR Save+Back Chain */
+	addi	r1, r4, KEXEC_CONTROL_PAGE_SIZE - 8 /* for LR Save+Back Chain */
 	stw	r0, 0(r1)
 
 	/* Do the copies */

@@ -705,7 +705,6 @@ void __init bio_integrity_init_slab(void)
 	bio_integrity_slab = KMEM_CACHE(bio_integrity_payload,
 					SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 }
-EXPORT_SYMBOL(bio_integrity_init_slab);
 
 static int __init integrity_init(void)
 {

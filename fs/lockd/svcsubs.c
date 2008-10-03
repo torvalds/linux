@@ -373,13 +373,16 @@ nlmsvc_free_host_resources(struct nlm_host *host)
 	}
 }
 
-/*
- * Remove all locks held for clients
+/**
+ * nlmsvc_invalidate_all - remove all locks held for clients
+ *
+ * Release all locks held by NFS clients.
+ *
  */
 void
 nlmsvc_invalidate_all(void)
 {
-	/* Release all locks held by NFS clients.
+	/*
 	 * Previously, the code would call
 	 * nlmsvc_free_host_resources for each client in
 	 * turn, which is about as inefficient as it gets.
@@ -396,6 +399,12 @@ nlmsvc_match_sb(void *datap, struct nlm_file *file)
 	return sb == file->f_file->f_path.mnt->mnt_sb;
 }
 
+/**
+ * nlmsvc_unlock_all_by_sb - release locks held on this file system
+ * @sb: super block
+ *
+ * Release all locks held by clients accessing this file system.
+ */
 int
 nlmsvc_unlock_all_by_sb(struct super_block *sb)
 {
@@ -409,17 +418,22 @@ EXPORT_SYMBOL_GPL(nlmsvc_unlock_all_by_sb);
 static int
 nlmsvc_match_ip(void *datap, struct nlm_host *host)
 {
-	__be32 *server_addr = datap;
-
-	return host->h_saddr.sin_addr.s_addr == *server_addr;
+	return nlm_cmp_addr(&host->h_saddr, datap);
 }
 
+/**
+ * nlmsvc_unlock_all_by_ip - release local locks by IP address
+ * @server_addr: server's IP address as seen by clients
+ *
+ * Release all locks held by clients accessing this host
+ * via the passed in IP address.
+ */
 int
-nlmsvc_unlock_all_by_ip(__be32 server_addr)
+nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr)
 {
 	int ret;
-	ret = nlm_traverse_files(&server_addr, nlmsvc_match_ip, NULL);
-	return ret ? -EIO : 0;
 
+	ret = nlm_traverse_files(server_addr, nlmsvc_match_ip, NULL);
+	return ret ? -EIO : 0;
 }
 EXPORT_SYMBOL_GPL(nlmsvc_unlock_all_by_ip);

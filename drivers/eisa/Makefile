@@ -9,7 +9,7 @@ obj-${CONFIG_EISA_VIRTUAL_ROOT} += virtual_root.o
 
 
 # Ugly hack to get DEVICE_NAME_SIZE value...
-DEVICE_NAME_SIZE =$(shell awk '$$1=="\#define" && $$2=="DEVICE_NAME_SIZE" {print $$3-1}' $(srctree)/include/linux/device.h)
+DEVICE_NAME_SIZE = 50
 
 $(obj)/eisa-bus.o: $(obj)/devlist.h
 

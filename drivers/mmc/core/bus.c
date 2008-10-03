@@ -252,6 +252,10 @@ int mmc_add_card(struct mmc_card *card)
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_DEBUG_FS
+	mmc_add_card_debugfs(card);
+#endif
+
 	mmc_card_set_present(card);
 
 	return 0;
@@ -263,6 +267,10 @@ int mmc_add_card(struct mmc_card *card)
  */
 void mmc_remove_card(struct mmc_card *card)
 {
+#ifdef CONFIG_DEBUG_FS
+	mmc_remove_card_debugfs(card);
+#endif
+
 	if (mmc_card_present(card)) {
 		if (mmc_host_is_spi(card->host)) {
 			printk(KERN_INFO "%s: SPI card removed\n",

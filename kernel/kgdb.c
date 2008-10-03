@@ -56,12 +56,14 @@
 
 static int kgdb_break_asap;
 
+#define KGDB_MAX_THREAD_QUERY 17
 struct kgdb_state {
 	int			ex_vector;
 	int			signo;
 	int			err_code;
 	int			cpu;
 	int			pass_exception;
+	unsigned long		thr_query;
 	unsigned long		threadid;
 	long			kgdb_usethreadid;
 	struct pt_regs		*linux_regs;
@@ -166,13 +168,6 @@ early_param("nokgdbroundup", opt_nokgdbroundup);
  * Weak aliases for breakpoint management,
  * can be overriden by architectures when needed:
  */
-int __weak kgdb_validate_break_address(unsigned long addr)
-{
-	char tmp_variable[BREAK_INSTR_SIZE];
-
-	return probe_kernel_read(tmp_variable, (char *)addr, BREAK_INSTR_SIZE);
-}
-
 int __weak kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr)
 {
 	int err;
@@ -189,6 +184,25 @@ int __weak kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle)
 {
 	return probe_kernel_write((char *)addr,
 				  (char *)bundle, BREAK_INSTR_SIZE);
+}
+
+int __weak kgdb_validate_break_address(unsigned long addr)
+{
+	char tmp_variable[BREAK_INSTR_SIZE];
+	int err;
+	/* Validate setting the breakpoint and then removing it.  In the
+	 * remove fails, the kernel needs to emit a bad message because we
+	 * are deep trouble not being able to put things back the way we
+	 * found them.
+	 */
+	err = kgdb_arch_set_breakpoint(addr, tmp_variable);
+	if (err)
+		return err;
+	err = kgdb_arch_remove_breakpoint(addr, tmp_variable);
+	if (err)
+		printk(KERN_ERR "KGDB: Critical breakpoint error, kernel "
+		   "memory destroyed at: %lx", addr);
+	return err;
 }
 
 unsigned long __weak kgdb_arch_pc(int exception, struct pt_regs *regs)
@@ -433,9 +447,14 @@ int kgdb_hex2long(char **ptr, unsigned long *long_val)
 {
 	int hex_val;
 	int num = 0;
+	int negate = 0;
 
 	*long_val = 0;
 
+	if (**ptr == '-') {
+		negate = 1;
+		(*ptr)++;
+	}
 	while (**ptr) {
 		hex_val = hex(**ptr);
 		if (hex_val < 0)
@@ -445,6 +464,9 @@ int kgdb_hex2long(char **ptr, unsigned long *long_val)
 		num++;
 		(*ptr)++;
 	}
+
+	if (negate)
+		*long_val = -*long_val;
 
 	return num;
 }
@@ -466,7 +488,7 @@ static int write_mem_msg(int binary)
 		if (err)
 			return err;
 		if (CACHE_FLUSH_IS_SAFE)
-			flush_icache_range(addr, addr + length + 1);
+			flush_icache_range(addr, addr + length);
 		return 0;
 	}
 
@@ -515,10 +537,16 @@ static void int_to_threadref(unsigned char *id, int value)
 static struct task_struct *getthread(struct pt_regs *regs, int tid)
 {
 	/*
-	 * Non-positive TIDs are remapped idle tasks:
+	 * Non-positive TIDs are remapped to the cpu shadow information
 	 */
-	if (tid <= 0)
-		return idle_task(-tid);
+	if (tid == 0 || tid == -1)
+		tid = -atomic_read(&kgdb_active) - 2;
+	if (tid < 0) {
+		if (kgdb_info[-tid - 2].task)
+			return kgdb_info[-tid - 2].task;
+		else
+			return idle_task(-tid - 2);
+	}
 
 	/*
 	 * find_task_by_pid_ns() does not take the tasklist lock anymore
@@ -725,14 +753,15 @@ setundefined:
 }
 
 /*
- * Remap normal tasks to their real PID, idle tasks to -1 ... -NR_CPUs:
+ * Remap normal tasks to their real PID,
+ * CPU shadow threads are mapped to -CPU - 2
  */
 static inline int shadow_pid(int realpid)
 {
 	if (realpid)
 		return realpid;
 
-	return -1-raw_smp_processor_id();
+	return -raw_smp_processor_id() - 2;
 }
 
 static char gdbmsgbuf[BUFMAX + 1];
@@ -826,7 +855,7 @@ static void gdb_cmd_getregs(struct kgdb_state *ks)
 		local_debuggerinfo = kgdb_info[ks->cpu].debuggerinfo;
 	} else {
 		local_debuggerinfo = NULL;
-		for (i = 0; i < NR_CPUS; i++) {
+		for_each_online_cpu(i) {
 			/*
 			 * Try to find the task on some other
 			 * or possibly this node if we do not
@@ -960,10 +989,13 @@ static int gdb_cmd_reboot(struct kgdb_state *ks)
 /* Handle the 'q' query packets */
 static void gdb_cmd_query(struct kgdb_state *ks)
 {
-	struct task_struct *thread;
+	struct task_struct *g;
+	struct task_struct *p;
 	unsigned char thref[8];
 	char *ptr;
 	int i;
+	int cpu;
+	int finished = 0;
 
 	switch (remcom_in_buffer[1]) {
 	case 's':
@@ -973,22 +1005,34 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			break;
 		}
 
-		if (remcom_in_buffer[1] == 'f')
-			ks->threadid = 1;
-
+		i = 0;
 		remcom_out_buffer[0] = 'm';
 		ptr = remcom_out_buffer + 1;
-
-		for (i = 0; i < 17; ks->threadid++) {
-			thread = getthread(ks->linux_regs, ks->threadid);
-			if (thread) {
-				int_to_threadref(thref, ks->threadid);
+		if (remcom_in_buffer[1] == 'f') {
+			/* Each cpu is a shadow thread */
+			for_each_online_cpu(cpu) {
+				ks->thr_query = 0;
+				int_to_threadref(thref, -cpu - 2);
 				pack_threadid(ptr, thref);
 				ptr += BUF_THREAD_ID_SIZE;
 				*(ptr++) = ',';
 				i++;
 			}
 		}
+
+		do_each_thread(g, p) {
+			if (i >= ks->thr_query && !finished) {
+				int_to_threadref(thref, p->pid);
+				pack_threadid(ptr, thref);
+				ptr += BUF_THREAD_ID_SIZE;
+				*(ptr++) = ',';
+				ks->thr_query++;
+				if (ks->thr_query % KGDB_MAX_THREAD_QUERY == 0)
+					finished = 1;
+			}
+			i++;
+		} while_each_thread(g, p);
+
 		*(--ptr) = '\0';
 		break;
 
@@ -1011,15 +1055,15 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			error_packet(remcom_out_buffer, -EINVAL);
 			break;
 		}
-		if (ks->threadid > 0) {
+		if ((int)ks->threadid > 0) {
 			kgdb_mem2hex(getthread(ks->linux_regs,
 					ks->threadid)->comm,
 					remcom_out_buffer, 16);
 		} else {
 			static char tmpstr[23 + BUF_THREAD_ID_SIZE];
 
-			sprintf(tmpstr, "Shadow task %d for pid 0",
-					(int)(-ks->threadid-1));
+			sprintf(tmpstr, "shadowCPU%d",
+					(int)(-ks->threadid - 2));
 			kgdb_mem2hex(tmpstr, remcom_out_buffer, strlen(tmpstr));
 		}
 		break;
@@ -1418,7 +1462,7 @@ acquirelock:
 	 * Get the passive CPU lock which will hold all the non-primary
 	 * CPU in a spin state while the debugger is active
 	 */
-	if (!kgdb_single_step || !kgdb_contthread) {
+	if (!kgdb_single_step) {
 		for (i = 0; i < NR_CPUS; i++)
 			atomic_set(&passive_cpu_wait[i], 1);
 	}
@@ -1431,7 +1475,7 @@ acquirelock:
 
 #ifdef CONFIG_SMP
 	/* Signal the other CPUs to enter kgdb_wait() */
-	if ((!kgdb_single_step || !kgdb_contthread) && kgdb_do_roundup)
+	if ((!kgdb_single_step) && kgdb_do_roundup)
 		kgdb_roundup_cpus(flags);
 #endif
 
@@ -1450,7 +1494,7 @@ acquirelock:
 	kgdb_post_primary_code(ks->linux_regs, ks->ex_vector, ks->err_code);
 	kgdb_deactivate_sw_breakpoints();
 	kgdb_single_step = 0;
-	kgdb_contthread = NULL;
+	kgdb_contthread = current;
 	exception_level = 0;
 
 	/* Talk to debugger with gdbserial protocol */
@@ -1464,7 +1508,7 @@ acquirelock:
 	kgdb_info[ks->cpu].task = NULL;
 	atomic_set(&cpu_in_kgdb[ks->cpu], 0);
 
-	if (!kgdb_single_step || !kgdb_contthread) {
+	if (!kgdb_single_step) {
 		for (i = NR_CPUS-1; i >= 0; i--)
 			atomic_set(&passive_cpu_wait[i], 0);
 		/*

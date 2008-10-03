@@ -27,17 +27,6 @@
 #define RT2X00REG_H
 
 /*
- * TX result flags.
- */
-enum tx_status {
-	TX_SUCCESS = 0,
-	TX_SUCCESS_RETRY = 1,
-	TX_FAIL_RETRY = 2,
-	TX_FAIL_INVALID = 3,
-	TX_FAIL_OTHER = 4,
-};
-
-/*
  * Antenna values
  */
 enum antenna {
@@ -141,83 +130,106 @@ struct rt2x00_field32 {
 
 /*
  * Power of two check, this will check
- * if the mask that has been given contains
- * and contiguous set of bits.
+ * if the mask that has been given contains and contiguous set of bits.
+ * Note that we cannot use the is_power_of_2() function since this
+ * check must be done at compile-time.
  */
 #define is_power_of_two(x)	( !((x) & ((x)-1)) )
 #define low_bit_mask(x)		( ((x)-1) & ~(x) )
-#define is_valid_mask(x)	is_power_of_two(1 + (x) + low_bit_mask(x))
+#define is_valid_mask(x)	is_power_of_two(1LU + (x) + low_bit_mask(x))
+
+/*
+ * Macro's to find first set bit in a variable.
+ * These macro's behaves the same as the __ffs() function with
+ * the most important difference that this is done during
+ * compile-time rather then run-time.
+ */
+#define compile_ffs2(__x) \
+	__builtin_choose_expr(((__x) & 0x1), 0, 1)
+
+#define compile_ffs4(__x) \
+	__builtin_choose_expr(((__x) & 0x3), \
+			      (compile_ffs2((__x))), \
+			      (compile_ffs2((__x) >> 2) + 2))
+
+#define compile_ffs8(__x) \
+	__builtin_choose_expr(((__x) & 0xf), \
+			      (compile_ffs4((__x))), \
+			      (compile_ffs4((__x) >> 4) + 4))
+
+#define compile_ffs16(__x) \
+	__builtin_choose_expr(((__x) & 0xff), \
+			      (compile_ffs8((__x))), \
+			      (compile_ffs8((__x) >> 8) + 8))
+
+#define compile_ffs32(__x) \
+	__builtin_choose_expr(((__x) & 0xffff), \
+			      (compile_ffs16((__x))), \
+			      (compile_ffs16((__x) >> 16) + 16))
+
+/*
+ * This macro will check the requirements for the FIELD{8,16,32} macros
+ * The mask should be a constant non-zero contiguous set of bits which
+ * does not exceed the given typelimit.
+ */
+#define FIELD_CHECK(__mask, __type)			\
+	BUILD_BUG_ON(!(__mask) ||			\
+		     !is_valid_mask(__mask) ||		\
+		     (__mask) != (__type)(__mask))	\
 
 #define FIELD8(__mask)				\
 ({						\
-	BUILD_BUG_ON(!(__mask) ||		\
-		     !is_valid_mask(__mask) ||	\
-		     (__mask) != (u8)(__mask));	\
+	FIELD_CHECK(__mask, u8);		\
 	(struct rt2x00_field8) {		\
-		__ffs(__mask), (__mask)		\
+		compile_ffs8(__mask), (__mask)	\
 	};					\
 })
 
 #define FIELD16(__mask)				\
 ({						\
-	BUILD_BUG_ON(!(__mask) ||		\
-		     !is_valid_mask(__mask) ||	\
-		     (__mask) != (u16)(__mask));\
+	FIELD_CHECK(__mask, u16);		\
 	(struct rt2x00_field16) {		\
-		__ffs(__mask), (__mask)		\
+		compile_ffs16(__mask), (__mask)	\
 	};					\
 })
 
 #define FIELD32(__mask)				\
 ({						\
-	BUILD_BUG_ON(!(__mask) ||		\
-		     !is_valid_mask(__mask) ||	\
-		     (__mask) != (u32)(__mask));\
+	FIELD_CHECK(__mask, u32);		\
 	(struct rt2x00_field32) {		\
-		__ffs(__mask), (__mask)		\
+		compile_ffs32(__mask), (__mask)	\
 	};					\
 })
 
-static inline void rt2x00_set_field32(u32 *reg,
-				      const struct rt2x00_field32 field,
-				      const u32 value)
-{
-	*reg &= ~(field.bit_mask);
-	*reg |= (value << field.bit_offset) & field.bit_mask;
-}
+#define SET_FIELD(__reg, __type, __field, __value)\
+({						\
+	typecheck(__type, __field);		\
+	*(__reg) &= ~((__field).bit_mask);	\
+	*(__reg) |= ((__value) <<		\
+	    ((__field).bit_offset)) &		\
+	    ((__field).bit_mask);		\
+})
 
-static inline u32 rt2x00_get_field32(const u32 reg,
-				     const struct rt2x00_field32 field)
-{
-	return (reg & field.bit_mask) >> field.bit_offset;
-}
+#define GET_FIELD(__reg, __type, __field)	\
+({						\
+	typecheck(__type, __field);		\
+	((__reg) & ((__field).bit_mask)) >>	\
+	    ((__field).bit_offset);		\
+})
 
-static inline void rt2x00_set_field16(u16 *reg,
-				      const struct rt2x00_field16 field,
-				      const u16 value)
-{
-	*reg &= ~(field.bit_mask);
-	*reg |= (value << field.bit_offset) & field.bit_mask;
-}
+#define rt2x00_set_field32(__reg, __field, __value) \
+	SET_FIELD(__reg, struct rt2x00_field32, __field, __value)
+#define rt2x00_get_field32(__reg, __field) \
+	GET_FIELD(__reg, struct rt2x00_field32, __field)
 
-static inline u16 rt2x00_get_field16(const u16 reg,
-				     const struct rt2x00_field16 field)
-{
-	return (reg & field.bit_mask) >> field.bit_offset;
-}
+#define rt2x00_set_field16(__reg, __field, __value) \
+	SET_FIELD(__reg, struct rt2x00_field16, __field, __value)
+#define rt2x00_get_field16(__reg, __field) \
+	GET_FIELD(__reg, struct rt2x00_field16, __field)
 
-static inline void rt2x00_set_field8(u8 *reg,
-				     const struct rt2x00_field8 field,
-				     const u8 value)
-{
-	*reg &= ~(field.bit_mask);
-	*reg |= (value << field.bit_offset) & field.bit_mask;
-}
-
-static inline u8 rt2x00_get_field8(const u8 reg,
-				   const struct rt2x00_field8 field)
-{
-	return (reg & field.bit_mask) >> field.bit_offset;
-}
+#define rt2x00_set_field8(__reg, __field, __value) \
+	SET_FIELD(__reg, struct rt2x00_field8, __field, __value)
+#define rt2x00_get_field8(__reg, __field) \
+	GET_FIELD(__reg, struct rt2x00_field8, __field)
 
 #endif /* RT2X00REG_H */

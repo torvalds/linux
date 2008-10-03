@@ -13,6 +13,8 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -36,10 +38,12 @@
  * struct falcon_nic_data - Falcon NIC state
  * @next_buffer_table: First available buffer table id
  * @pci_dev2: The secondary PCI device if present
+ * @i2c_data: Operations and state for I2C bit-bashing algorithm
  */
 struct falcon_nic_data {
 	unsigned next_buffer_table;
 	struct pci_dev *pci_dev2;
+	struct i2c_algo_bit_data i2c_data;
 };
 
 /**************************************************************************
@@ -175,39 +179,52 @@ static inline int falcon_event_present(efx_qword_t *event)
  *
  **************************************************************************
  */
-static void falcon_setsdascl(struct efx_i2c_interface *i2c)
+static void falcon_setsda(void *data, int state)
 {
+	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(i2c->efx, &reg, GPIO_CTL_REG_KER);
-	EFX_SET_OWORD_FIELD(reg, GPIO0_OEN, (i2c->scl ? 0 : 1));
-	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, (i2c->sda ? 0 : 1));
-	falcon_write(i2c->efx, &reg, GPIO_CTL_REG_KER);
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, !state);
+	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
 }
 
-static int falcon_getsda(struct efx_i2c_interface *i2c)
+static void falcon_setscl(void *data, int state)
 {
+	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(i2c->efx, &reg, GPIO_CTL_REG_KER);
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, GPIO0_OEN, !state);
+	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
+}
+
+static int falcon_getsda(void *data)
+{
+	struct efx_nic *efx = (struct efx_nic *)data;
+	efx_oword_t reg;
+
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
 	return EFX_OWORD_FIELD(reg, GPIO3_IN);
 }
 
-static int falcon_getscl(struct efx_i2c_interface *i2c)
+static int falcon_getscl(void *data)
 {
+	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(i2c->efx, &reg, GPIO_CTL_REG_KER);
-	return EFX_DWORD_FIELD(reg, GPIO0_IN);
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	return EFX_OWORD_FIELD(reg, GPIO0_IN);
 }
 
-static struct efx_i2c_bit_operations falcon_i2c_bit_operations = {
-	.setsda		= falcon_setsdascl,
-	.setscl		= falcon_setsdascl,
+static struct i2c_algo_bit_data falcon_i2c_bit_operations = {
+	.setsda		= falcon_setsda,
+	.setscl		= falcon_setscl,
 	.getsda		= falcon_getsda,
 	.getscl		= falcon_getscl,
-	.udelay		= 100,
-	.mdelay		= 10,
+	.udelay		= 5,
+	/* Wait up to 50 ms for slave to let us pull SCL high */
+	.timeout	= DIV_ROUND_UP(HZ, 20),
 };
 
 /**************************************************************************
@@ -2405,12 +2422,6 @@ int falcon_probe_nic(struct efx_nic *efx)
 	struct falcon_nic_data *nic_data;
 	int rc;
 
-	/* Initialise I2C interface state */
-	efx->i2c.efx = efx;
-	efx->i2c.op = &falcon_i2c_bit_operations;
-	efx->i2c.sda = 1;
-	efx->i2c.scl = 1;
-
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
 	efx->nic_data = nic_data;
@@ -2458,6 +2469,17 @@ int falcon_probe_nic(struct efx_nic *efx)
 
 	/* Read in the non-volatile configuration */
 	rc = falcon_probe_nvconfig(efx);
+	if (rc)
+		goto fail5;
+
+	/* Initialise I2C adapter */
+ 	efx->i2c_adap.owner = THIS_MODULE;
+	nic_data->i2c_data = falcon_i2c_bit_operations;
+	nic_data->i2c_data.data = efx;
+ 	efx->i2c_adap.algo_data = &nic_data->i2c_data;
+	efx->i2c_adap.dev.parent = &efx->pci_dev->dev;
+	strlcpy(efx->i2c_adap.name, "SFC4000 GPIO", sizeof(efx->i2c_adap.name));
+	rc = i2c_bit_add_bus(&efx->i2c_adap);
 	if (rc)
 		goto fail5;
 
@@ -2635,6 +2657,10 @@ int falcon_init_nic(struct efx_nic *efx)
 void falcon_remove_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
+	int rc;
+
+	rc = i2c_del_adapter(&efx->i2c_adap);
+	BUG_ON(rc);
 
 	falcon_free_buffer(efx, &efx->irq_status);
 

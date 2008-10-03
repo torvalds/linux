@@ -635,14 +635,21 @@ config RTL8180
 	  Thanks to Realtek for their support!
 
 config RTL8187
-	tristate "Realtek 8187 USB support"
+	tristate "Realtek 8187 and 8187B USB support"
 	depends on MAC80211 && USB && WLAN_80211 && EXPERIMENTAL
 	select EEPROM_93CX6
 	---help---
-	  This is a driver for RTL8187 based cards.
-	  These are USB based chips found in cards such as:
+	  This is a driver for RTL8187 and RTL8187B based cards.
+	  These are USB based chips found in devices such as:
 
 	  Netgear WG111v2
+	  Level 1 WNC-0301USB
+	  Micronet SP907GK V5
+	  Encore ENUWI-G2
+	  Trendnet TEW-424UB
+	  ASUS P5B Deluxe
+	  Toshiba Satellite Pro series of laptops
+	  Asus Wireless Link
 
 	  Thanks to Realtek for their support!
 
@@ -673,8 +680,22 @@ config ADM8211
 
 	  Thanks to Infineon-ADMtek for their support of this driver.
 
+config MAC80211_HWSIM
+	tristate "Simulated radio testing tool for mac80211"
+	depends on MAC80211 && WLAN_80211
+	---help---
+	  This driver is a developer testing tool that can be used to test
+	  IEEE 802.11 networking stack (mac80211) functionality. This is not
+	  needed for normal wireless LAN usage and is only for testing. See
+	  Documentation/networking/mac80211_hwsim for more information on how
+	  to use this tool.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mac80211_hwsim.  If unsure, say N.
+
 source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/ath5k/Kconfig"
+source "drivers/net/wireless/ath9k/Kconfig"
 source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/b43/Kconfig"

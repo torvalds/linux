@@ -463,6 +463,82 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+
+static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
+			  const struct nf_conn *ct)
+{
+	struct nlattr *nest_parms;
+
+	read_lock_bh(&sctp_lock);
+	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_SCTP | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
+
+	NLA_PUT_U8(skb, CTA_PROTOINFO_SCTP_STATE, ct->proto.sctp.state);
+
+	NLA_PUT_BE32(skb,
+		     CTA_PROTOINFO_SCTP_VTAG_ORIGINAL,
+		     ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL]);
+
+	NLA_PUT_BE32(skb,
+		     CTA_PROTOINFO_SCTP_VTAG_REPLY,
+		     ct->proto.sctp.vtag[IP_CT_DIR_REPLY]);
+
+	read_unlock_bh(&sctp_lock);
+
+	nla_nest_end(skb, nest_parms);
+
+	return 0;
+
+nla_put_failure:
+	read_unlock_bh(&sctp_lock);
+	return -1;
+}
+
+static const struct nla_policy sctp_nla_policy[CTA_PROTOINFO_SCTP_MAX+1] = {
+	[CTA_PROTOINFO_SCTP_STATE]	    = { .type = NLA_U8 },
+	[CTA_PROTOINFO_SCTP_VTAG_ORIGINAL]  = { .type = NLA_U32 },
+	[CTA_PROTOINFO_SCTP_VTAG_REPLY]     = { .type = NLA_U32 },
+};
+
+static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
+{
+	struct nlattr *attr = cda[CTA_PROTOINFO_SCTP];
+	struct nlattr *tb[CTA_PROTOINFO_SCTP_MAX+1];
+	int err;
+
+	/* updates may not contain the internal protocol info, skip parsing */
+	if (!attr)
+		return 0;
+
+	err = nla_parse_nested(tb,
+			       CTA_PROTOINFO_SCTP_MAX,
+			       attr,
+			       sctp_nla_policy);
+	if (err < 0)
+		return err;
+
+	if (!tb[CTA_PROTOINFO_SCTP_STATE] ||
+	    !tb[CTA_PROTOINFO_SCTP_VTAG_ORIGINAL] ||
+	    !tb[CTA_PROTOINFO_SCTP_VTAG_REPLY])
+		return -EINVAL;
+
+	write_lock_bh(&sctp_lock);
+	ct->proto.sctp.state = nla_get_u8(tb[CTA_PROTOINFO_SCTP_STATE]);
+	ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL] =
+		nla_get_be32(tb[CTA_PROTOINFO_SCTP_VTAG_ORIGINAL]);
+	ct->proto.sctp.vtag[IP_CT_DIR_REPLY] =
+		nla_get_be32(tb[CTA_PROTOINFO_SCTP_VTAG_REPLY]);
+	write_unlock_bh(&sctp_lock);
+
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_SYSCTL
 static unsigned int sctp_sysctl_table_users;
 static struct ctl_table_header *sctp_sysctl_header;
@@ -591,6 +667,8 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.new 			= sctp_new,
 	.me 			= THIS_MODULE,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.to_nlattr		= sctp_to_nlattr,
+	.from_nlattr		= nlattr_to_sctp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
@@ -617,6 +695,8 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.new 			= sctp_new,
 	.me 			= THIS_MODULE,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.to_nlattr		= sctp_to_nlattr,
+	.from_nlattr		= nlattr_to_sctp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,

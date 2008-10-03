@@ -97,7 +97,7 @@ void fuse_invalidate_attr(struct inode *inode)
  * timeout is unknown (unlink, rmdir, rename and in some cases
  * lookup)
  */
-static void fuse_invalidate_entry_cache(struct dentry *entry)
+void fuse_invalidate_entry_cache(struct dentry *entry)
 {
 	fuse_dentry_settime(entry, 0);
 }
@@ -112,18 +112,16 @@ static void fuse_invalidate_entry(struct dentry *entry)
 	fuse_invalidate_entry_cache(entry);
 }
 
-static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
-			     struct dentry *entry,
+static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_req *req,
+			     u64 nodeid, struct qstr *name,
 			     struct fuse_entry_out *outarg)
 {
-	struct fuse_conn *fc = get_fuse_conn(dir);
-
 	memset(outarg, 0, sizeof(struct fuse_entry_out));
 	req->in.h.opcode = FUSE_LOOKUP;
-	req->in.h.nodeid = get_node_id(dir);
+	req->in.h.nodeid = nodeid;
 	req->in.numargs = 1;
-	req->in.args[0].size = entry->d_name.len + 1;
-	req->in.args[0].value = entry->d_name.name;
+	req->in.args[0].size = name->len + 1;
+	req->in.args[0].value = name->name;
 	req->out.numargs = 1;
 	if (fc->minor < 9)
 		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
@@ -189,7 +187,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		attr_version = fuse_get_attr_version(fc);
 
 		parent = dget_parent(entry);
-		fuse_lookup_init(req, parent->d_inode, entry, &outarg);
+		fuse_lookup_init(fc, req, get_node_id(parent->d_inode),
+				 &entry->d_name, &outarg);
 		request_send(fc, req);
 		dput(parent);
 		err = req->out.h.error;
@@ -225,7 +224,7 @@ static int invalid_nodeid(u64 nodeid)
 	return !nodeid || nodeid == FUSE_ROOT_ID;
 }
 
-static struct dentry_operations fuse_dentry_operations = {
+struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
 
@@ -239,18 +238,78 @@ int fuse_valid_type(int m)
  * Add a directory inode to a dentry, ensuring that no other dentry
  * refers to this inode.  Called with fc->inst_mutex.
  */
-static int fuse_d_add_directory(struct dentry *entry, struct inode *inode)
+static struct dentry *fuse_d_add_directory(struct dentry *entry,
+					   struct inode *inode)
 {
 	struct dentry *alias = d_find_alias(inode);
-	if (alias) {
+	if (alias && !(alias->d_flags & DCACHE_DISCONNECTED)) {
 		/* This tries to shrink the subtree below alias */
 		fuse_invalidate_entry(alias);
 		dput(alias);
 		if (!list_empty(&inode->i_dentry))
-			return -EBUSY;
+			return ERR_PTR(-EBUSY);
+	} else {
+		dput(alias);
 	}
-	d_add(entry, inode);
-	return 0;
+	return d_splice_alias(inode, entry);
+}
+
+int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
+		     struct fuse_entry_out *outarg, struct inode **inode)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+	struct fuse_req *req;
+	struct fuse_req *forget_req;
+	u64 attr_version;
+	int err;
+
+	*inode = NULL;
+	err = -ENAMETOOLONG;
+	if (name->len > FUSE_NAME_MAX)
+		goto out;
+
+	req = fuse_get_req(fc);
+	err = PTR_ERR(req);
+	if (IS_ERR(req))
+		goto out;
+
+	forget_req = fuse_get_req(fc);
+	err = PTR_ERR(forget_req);
+	if (IS_ERR(forget_req)) {
+		fuse_put_request(fc, req);
+		goto out;
+	}
+
+	attr_version = fuse_get_attr_version(fc);
+
+	fuse_lookup_init(fc, req, nodeid, name, outarg);
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	/* Zero nodeid is same as -ENOENT, but with valid timeout */
+	if (err || !outarg->nodeid)
+		goto out_put_forget;
+
+	err = -EIO;
+	if (!outarg->nodeid)
+		goto out_put_forget;
+	if (!fuse_valid_type(outarg->attr.mode))
+		goto out_put_forget;
+
+	*inode = fuse_iget(sb, outarg->nodeid, outarg->generation,
+			   &outarg->attr, entry_attr_timeout(outarg),
+			   attr_version);
+	err = -ENOMEM;
+	if (!*inode) {
+		fuse_send_forget(fc, forget_req, outarg->nodeid, 1);
+		goto out;
+	}
+	err = 0;
+
+ out_put_forget:
+	fuse_put_request(fc, forget_req);
+ out:
+	return err;
 }
 
 static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
@@ -258,66 +317,48 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 {
 	int err;
 	struct fuse_entry_out outarg;
-	struct inode *inode = NULL;
+	struct inode *inode;
+	struct dentry *newent;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req;
-	struct fuse_req *forget_req;
-	u64 attr_version;
+	bool outarg_valid = true;
 
-	if (entry->d_name.len > FUSE_NAME_MAX)
-		return ERR_PTR(-ENAMETOOLONG);
-
-	req = fuse_get_req(fc);
-	if (IS_ERR(req))
-		return ERR_CAST(req);
-
-	forget_req = fuse_get_req(fc);
-	if (IS_ERR(forget_req)) {
-		fuse_put_request(fc, req);
-		return ERR_CAST(forget_req);
+	err = fuse_lookup_name(dir->i_sb, get_node_id(dir), &entry->d_name,
+			       &outarg, &inode);
+	if (err == -ENOENT) {
+		outarg_valid = false;
+		err = 0;
 	}
+	if (err)
+		goto out_err;
 
-	attr_version = fuse_get_attr_version(fc);
-
-	fuse_lookup_init(req, dir, entry, &outarg);
-	request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
-	/* Zero nodeid is same as -ENOENT, but with valid timeout */
-	if (!err && outarg.nodeid &&
-	    (invalid_nodeid(outarg.nodeid) ||
-	     !fuse_valid_type(outarg.attr.mode)))
-		err = -EIO;
-	if (!err && outarg.nodeid) {
-		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
-				  &outarg.attr, entry_attr_timeout(&outarg),
-				  attr_version);
-		if (!inode) {
-			fuse_send_forget(fc, forget_req, outarg.nodeid, 1);
-			return ERR_PTR(-ENOMEM);
-		}
-	}
-	fuse_put_request(fc, forget_req);
-	if (err && err != -ENOENT)
-		return ERR_PTR(err);
+	err = -EIO;
+	if (inode && get_node_id(inode) == FUSE_ROOT_ID)
+		goto out_iput;
 
 	if (inode && S_ISDIR(inode->i_mode)) {
 		mutex_lock(&fc->inst_mutex);
-		err = fuse_d_add_directory(entry, inode);
+		newent = fuse_d_add_directory(entry, inode);
 		mutex_unlock(&fc->inst_mutex);
-		if (err) {
-			iput(inode);
-			return ERR_PTR(err);
-		}
-	} else
-		d_add(entry, inode);
+		err = PTR_ERR(newent);
+		if (IS_ERR(newent))
+			goto out_iput;
+	} else {
+		newent = d_splice_alias(inode, entry);
+	}
 
+	entry = newent ? newent : entry;
 	entry->d_op = &fuse_dentry_operations;
-	if (!err)
+	if (outarg_valid)
 		fuse_change_entry_timeout(entry, &outarg);
 	else
 		fuse_invalidate_entry_cache(entry);
-	return NULL;
+
+	return newent;
+
+ out_iput:
+	iput(inode);
+ out_err:
+	return ERR_PTR(err);
 }
 
 /*
@@ -857,7 +898,7 @@ static int fuse_access(struct inode *inode, int mask)
 		return PTR_ERR(req);
 
 	memset(&inarg, 0, sizeof(inarg));
-	inarg.mask = mask;
+	inarg.mask = mask & (MAY_READ | MAY_WRITE | MAY_EXEC);
 	req->in.h.opcode = FUSE_ACCESS;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;
@@ -886,7 +927,7 @@ static int fuse_access(struct inode *inode, int mask)
  * access request is sent.  Execute permission is still checked
  * locally based on file mode.
  */
-static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int fuse_permission(struct inode *inode, int mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	bool refreshed = false;
@@ -921,7 +962,7 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		   exist.  So if permissions are revoked this won't be
 		   noticed immediately, only after the attribute
 		   timeout has expired */
-	} else if (nd && (nd->flags & (LOOKUP_ACCESS | LOOKUP_CHDIR))) {
+	} else if (mask & MAY_ACCESS) {
 		err = fuse_access(inode, mask);
 	} else if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode)) {
 		if (!(inode->i_mode & S_IXUGO)) {

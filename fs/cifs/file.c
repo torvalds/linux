@@ -310,18 +310,19 @@ int cifs_open(struct inode *inode, struct file *file)
 		/* time to set mode which we can not set earlier due to
 		   problems creating new read-only files */
 		if (pTcon->unix_ext) {
-			CIFSSMBUnixSetPerms(xid, pTcon, full_path,
-					    inode->i_mode,
-					    (__u64)-1, (__u64)-1, 0 /* dev */,
+			struct cifs_unix_set_info_args args = {
+				.mode	= inode->i_mode,
+				.uid	= NO_CHANGE_64,
+				.gid	= NO_CHANGE_64,
+				.ctime	= NO_CHANGE_64,
+				.atime	= NO_CHANGE_64,
+				.mtime	= NO_CHANGE_64,
+				.device	= 0,
+			};
+			CIFSSMBUnixSetInfo(xid, pTcon, full_path, &args,
 					    cifs_sb->local_nls,
 					    cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		} else {
-			/* BB implement via Windows security descriptors eg
-			   CIFSSMBWinSetPerms(xid, pTcon, full_path, mode,
-					      -1, -1, local_nls);
-			   in the meantime could set r/o dos attribute when
-			   perms are eg: mode & 0222 == 0 */
 		}
 	}
 
@@ -832,6 +833,10 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 		return -EBADF;
 	open_file = (struct cifsFileInfo *) file->private_data;
 
+	rc = generic_write_checks(file, poffset, &write_size, 0);
+	if (rc)
+		return rc;
+
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
@@ -1280,7 +1285,7 @@ retry:
 
 			if (first < 0)
 				lock_page(page);
-			else if (TestSetPageLocked(page))
+			else if (!trylock_page(page))
 				break;
 
 			if (unlikely(page->mapping != mapping)) {

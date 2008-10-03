@@ -362,6 +362,8 @@ static int pda_power_resume(struct platform_device *pdev)
 #define pda_power_resume NULL
 #endif /* CONFIG_PM */
 
+MODULE_ALIAS("platform:pda-power");
+
 static struct platform_driver pda_power_pdrv = {
 	.driver = {
 		.name = "pda-power",

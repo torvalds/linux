@@ -111,10 +111,6 @@ static inline struct thread_info *current_thread_info(void)
 	return ti;
 }
 
-/* thread information allocation */
-#define alloc_thread_info(tsk) ((struct thread_info *) __get_free_pages(GFP_KERNEL,1))
-#define free_thread_info(ti) free_pages((unsigned long) (ti), 1)
-
 #else /* !__ASSEMBLY__ */
 
 /* how to get the thread information struct from ASM */
@@ -160,6 +156,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
 
 #define THREAD_SIZE 8192	//(2*PAGE_SIZE)
+#define THREAD_SIZE_ORDER 1
 
 #endif	/* __KERNEL__ */
 #endif	/* _XTENSA_THREAD_INFO */

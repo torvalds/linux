@@ -37,6 +37,8 @@
 #define CATWEASEL_NUM_HWIFS	3
 #define XSURF_NUM_HWIFS         2
 
+#define MAX_NUM_HWIFS		3
+
     /*
      *  Bases of the IDE interfaces (relative to the board address)
      */
@@ -148,18 +150,14 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 
 static int __init buddha_init(void)
 {
-	hw_regs_t hw;
-	ide_hwif_t *hwif;
-	int i;
-
 	struct zorro_dev *z = NULL;
 	u_long buddha_board = 0;
 	BuddhaType type;
-	int buddha_num_hwifs;
+	int buddha_num_hwifs, i;
 
 	while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
 		unsigned long board;
-		u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+		hw_regs_t hw[MAX_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
 
 		if (z->id == ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA) {
 			buddha_num_hwifs = BUDDHA_NUM_HWIFS;
@@ -221,19 +219,13 @@ fail_base2:
 				ack_intr = xsurf_ack_intr;
 			}
 
-			buddha_setup_ports(&hw, base, ctl, irq_port, ack_intr);
+			buddha_setup_ports(&hw[i], base, ctl, irq_port,
+					   ack_intr);
 
-			hwif = ide_find_port();
-			if (hwif) {
-				u8 index = hwif->index;
-
-				ide_init_port_hw(hwif, &hw);
-
-				idx[i] = index;
-			}
+			hws[i] = &hw[i];
 		}
 
-		ide_device_add(idx, NULL);
+		ide_host_add(NULL, hws, NULL);
 	}
 
 	return 0;

@@ -453,6 +453,14 @@ __build_packet_message(struct nfulnl_instance *inst,
 		}
 	}
 
+	if (indev && skb_mac_header_was_set(skb)) {
+		NLA_PUT_BE16(inst->skb, NFULA_HWTYPE, htons(skb->dev->type));
+		NLA_PUT_BE16(inst->skb, NFULA_HWLEN,
+			     htons(skb->dev->hard_header_len));
+		NLA_PUT(inst->skb, NFULA_HWHEADER, skb->dev->hard_header_len,
+			skb_mac_header(skb));
+	}
+
 	if (skb->tstamp.tv64) {
 		struct nfulnl_msg_packet_timestamp ts;
 		struct timeval tv = ktime_to_timeval(skb->tstamp);

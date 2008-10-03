@@ -297,7 +297,6 @@ static int ovcamchip_attach(struct i2c_adapter *adap)
 	switch (adap->id) {
 	case I2C_HW_SMBUS_OV511:
 	case I2C_HW_SMBUS_OV518:
-	case I2C_HW_SMBUS_OVFX2:
 	case I2C_HW_SMBUS_W9968CF:
 		PDEBUG(1, "Adapter ID 0x%06x accepted", adap->id);
 		break;

@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/time.h>
+#include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <sound/core.h>

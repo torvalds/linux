@@ -1,4 +1,3 @@
-
 /* sx.c -- driver for the Specialix SX series cards. 
  *
  *  This driver will also support the older SI, and XIO cards.
@@ -287,8 +286,8 @@ static void sx_close(void *ptr);
 static int sx_chars_in_buffer(void *ptr);
 static int sx_init_board(struct sx_board *board);
 static int sx_init_portstructs(int nboards, int nports);
-static int sx_fw_ioctl(struct inode *inode, struct file *filp,
-		unsigned int cmd, unsigned long arg);
+static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
+						unsigned long arg);
 static int sx_init_drivers(void);
 
 static struct tty_driver *sx_driver;
@@ -397,7 +396,7 @@ static struct real_driver sx_real_driver = {
 
 static const struct file_operations sx_fw_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = sx_fw_ioctl,
+	.unlocked_ioctl = sx_fw_ioctl,
 };
 
 static struct miscdevice sx_fw_device = {
@@ -930,7 +929,7 @@ static int sx_set_real_termios(void *ptr)
 
 	func_enter2();
 
-	if (!port->gs.tty)
+	if (!port->gs.port.tty)
 		return 0;
 
 	/* What is this doing here? -- REW
@@ -941,19 +940,19 @@ static int sx_set_real_termios(void *ptr)
 
 	sx_set_baud(port);
 
-#define CFLAG port->gs.tty->termios->c_cflag
+#define CFLAG port->gs.port.tty->termios->c_cflag
 	sx_write_channel_byte(port, hi_mr1,
-			(C_PARENB(port->gs.tty) ? MR1_WITH : MR1_NONE) |
-			(C_PARODD(port->gs.tty) ? MR1_ODD : MR1_EVEN) |
-			(C_CRTSCTS(port->gs.tty) ? MR1_RTS_RXFLOW : 0) |
+			(C_PARENB(port->gs.port.tty) ? MR1_WITH : MR1_NONE) |
+			(C_PARODD(port->gs.port.tty) ? MR1_ODD : MR1_EVEN) |
+			(C_CRTSCTS(port->gs.port.tty) ? MR1_RTS_RXFLOW : 0) |
 			(((CFLAG & CSIZE) == CS8) ? MR1_8_BITS : 0) |
 			(((CFLAG & CSIZE) == CS7) ? MR1_7_BITS : 0) |
 			(((CFLAG & CSIZE) == CS6) ? MR1_6_BITS : 0) |
 			(((CFLAG & CSIZE) == CS5) ? MR1_5_BITS : 0));
 
 	sx_write_channel_byte(port, hi_mr2,
-			(C_CRTSCTS(port->gs.tty) ? MR2_CTS_TXFLOW : 0) |
-			(C_CSTOPB(port->gs.tty) ? MR2_2_STOP :
+			(C_CRTSCTS(port->gs.port.tty) ? MR2_CTS_TXFLOW : 0) |
+			(C_CSTOPB(port->gs.port.tty) ? MR2_2_STOP :
 			MR2_1_STOP));
 
 	switch (CFLAG & CSIZE) {
@@ -976,44 +975,44 @@ static int sx_set_real_termios(void *ptr)
 	}
 
 	sx_write_channel_byte(port, hi_prtcl,
-			(I_IXON(port->gs.tty) ? SP_TXEN : 0) |
-			(I_IXOFF(port->gs.tty) ? SP_RXEN : 0) |
-			(I_IXANY(port->gs.tty) ? SP_TANY : 0) | SP_DCEN);
+			(I_IXON(port->gs.port.tty) ? SP_TXEN : 0) |
+			(I_IXOFF(port->gs.port.tty) ? SP_RXEN : 0) |
+			(I_IXANY(port->gs.port.tty) ? SP_TANY : 0) | SP_DCEN);
 
 	sx_write_channel_byte(port, hi_break,
-			(I_IGNBRK(port->gs.tty) ? BR_IGN : 0 |
-			I_BRKINT(port->gs.tty) ? BR_INT : 0));
+			(I_IGNBRK(port->gs.port.tty) ? BR_IGN : 0 |
+			I_BRKINT(port->gs.port.tty) ? BR_INT : 0));
 
-	sx_write_channel_byte(port, hi_txon, START_CHAR(port->gs.tty));
-	sx_write_channel_byte(port, hi_rxon, START_CHAR(port->gs.tty));
-	sx_write_channel_byte(port, hi_txoff, STOP_CHAR(port->gs.tty));
-	sx_write_channel_byte(port, hi_rxoff, STOP_CHAR(port->gs.tty));
+	sx_write_channel_byte(port, hi_txon, START_CHAR(port->gs.port.tty));
+	sx_write_channel_byte(port, hi_rxon, START_CHAR(port->gs.port.tty));
+	sx_write_channel_byte(port, hi_txoff, STOP_CHAR(port->gs.port.tty));
+	sx_write_channel_byte(port, hi_rxoff, STOP_CHAR(port->gs.port.tty));
 
 	sx_reconfigure_port(port);
 
 	/* Tell line discipline whether we will do input cooking */
-	if (I_OTHER(port->gs.tty)) {
-		clear_bit(TTY_HW_COOK_IN, &port->gs.tty->flags);
+	if (I_OTHER(port->gs.port.tty)) {
+		clear_bit(TTY_HW_COOK_IN, &port->gs.port.tty->flags);
 	} else {
-		set_bit(TTY_HW_COOK_IN, &port->gs.tty->flags);
+		set_bit(TTY_HW_COOK_IN, &port->gs.port.tty->flags);
 	}
 	sx_dprintk(SX_DEBUG_TERMIOS, "iflags: %x(%d) ",
-			(unsigned int)port->gs.tty->termios->c_iflag,
-			I_OTHER(port->gs.tty));
+			(unsigned int)port->gs.port.tty->termios->c_iflag,
+			I_OTHER(port->gs.port.tty));
 
 /* Tell line discipline whether we will do output cooking.
  * If OPOST is set and no other output flags are set then we can do output
  * processing.  Even if only *one* other flag in the O_OTHER group is set
  * we do cooking in software.
  */
-	if (O_OPOST(port->gs.tty) && !O_OTHER(port->gs.tty)) {
-		set_bit(TTY_HW_COOK_OUT, &port->gs.tty->flags);
+	if (O_OPOST(port->gs.port.tty) && !O_OTHER(port->gs.port.tty)) {
+		set_bit(TTY_HW_COOK_OUT, &port->gs.port.tty->flags);
 	} else {
-		clear_bit(TTY_HW_COOK_OUT, &port->gs.tty->flags);
+		clear_bit(TTY_HW_COOK_OUT, &port->gs.port.tty->flags);
 	}
 	sx_dprintk(SX_DEBUG_TERMIOS, "oflags: %x(%d)\n",
-			(unsigned int)port->gs.tty->termios->c_oflag,
-			O_OTHER(port->gs.tty));
+			(unsigned int)port->gs.port.tty->termios->c_oflag,
+			O_OTHER(port->gs.port.tty));
 	/* port->c_dcd = sx_get_CD (port); */
 	func_exit();
 	return 0;
@@ -1102,8 +1101,8 @@ static void sx_transmit_chars(struct sx_port *port)
 		sx_disable_tx_interrupts(port);
 	}
 
-	if ((port->gs.xmit_cnt <= port->gs.wakeup_chars) && port->gs.tty) {
-		tty_wakeup(port->gs.tty);
+	if ((port->gs.xmit_cnt <= port->gs.wakeup_chars) && port->gs.port.tty) {
+		tty_wakeup(port->gs.port.tty);
 		sx_dprintk(SX_DEBUG_TRANSMIT, "Waking up.... ldisc (%d)....\n",
 				port->gs.wakeup_chars);
 	}
@@ -1126,7 +1125,7 @@ static inline void sx_receive_chars(struct sx_port *port)
 	unsigned char *rp;
 
 	func_enter2();
-	tty = port->gs.tty;
+	tty = port->gs.port.tty;
 	while (1) {
 		rx_op = sx_read_channel_byte(port, hi_rxopos);
 		c = (sx_read_channel_byte(port, hi_rxipos) - rx_op) & 0xff;
@@ -1211,12 +1210,12 @@ static inline void sx_check_modem_signals(struct sx_port *port)
 				/* DCD went UP */
 				if ((sx_read_channel_byte(port, hi_hstat) !=
 						HS_IDLE_CLOSED) &&
-						!(port->gs.tty->termios->
+						!(port->gs.port.tty->termios->
 							c_cflag & CLOCAL)) {
 					/* Are we blocking in open? */
 					sx_dprintk(SX_DEBUG_MODEMSIGNALS, "DCD "
 						"active, unblocking open\n");
-					wake_up_interruptible(&port->gs.
+					wake_up_interruptible(&port->gs.port.
 							open_wait);
 				} else {
 					sx_dprintk(SX_DEBUG_MODEMSIGNALS, "DCD "
@@ -1224,10 +1223,10 @@ static inline void sx_check_modem_signals(struct sx_port *port)
 				}
 			} else {
 				/* DCD went down! */
-				if (!(port->gs.tty->termios->c_cflag & CLOCAL)){
+				if (!(port->gs.port.tty->termios->c_cflag & CLOCAL)){
 					sx_dprintk(SX_DEBUG_MODEMSIGNALS, "DCD "
 						"dropped. hanging up....\n");
-					tty_hangup(port->gs.tty);
+					tty_hangup(port->gs.port.tty);
 				} else {
 					sx_dprintk(SX_DEBUG_MODEMSIGNALS, "DCD "
 						"dropped. ignoring.\n");
@@ -1325,7 +1324,7 @@ static irqreturn_t sx_interrupt(int irq, void *ptr)
 
 	for (i = 0; i < board->nports; i++) {
 		port = &board->ports[i];
-		if (port->gs.flags & GS_ACTIVE) {
+		if (port->gs.port.flags & GS_ACTIVE) {
 			if (sx_read_channel_byte(port, hi_state)) {
 				sx_dprintk(SX_DEBUG_INTERRUPTS, "Port %d: "
 						"modem signal change?... \n",i);
@@ -1334,7 +1333,7 @@ static irqreturn_t sx_interrupt(int irq, void *ptr)
 			if (port->gs.xmit_cnt) {
 				sx_transmit_chars(port);
 			}
-			if (!(port->gs.flags & SX_RX_THROTTLE)) {
+			if (!(port->gs.port.flags & SX_RX_THROTTLE)) {
 				sx_receive_chars(port);
 			}
 		}
@@ -1373,7 +1372,7 @@ static void sx_disable_tx_interrupts(void *ptr)
 	struct sx_port *port = ptr;
 	func_enter2();
 
-	port->gs.flags &= ~GS_TX_INTEN;
+	port->gs.port.flags &= ~GS_TX_INTEN;
 
 	func_exit();
 }
@@ -1394,7 +1393,7 @@ static void sx_enable_tx_interrupts(void *ptr)
 
 	/* XXX Must be "HIGH_WATER" for SI card according to doc. */
 	if (data_in_buffer < LOW_WATER)
-		port->gs.flags &= ~GS_TX_INTEN;
+		port->gs.port.flags &= ~GS_TX_INTEN;
 
 	func_exit();
 }
@@ -1442,8 +1441,8 @@ static void sx_shutdown_port(void *ptr)
 
 	func_enter();
 
-	port->gs.flags &= ~GS_ACTIVE;
-	if (port->gs.tty && (port->gs.tty->termios->c_cflag & HUPCL)) {
+	port->gs.port.flags &= ~GS_ACTIVE;
+	if (port->gs.port.tty && (port->gs.port.tty->termios->c_cflag & HUPCL)) {
 		sx_setsignals(port, 0, 0);
 		sx_reconfigure_port(port);
 	}
@@ -1485,8 +1484,8 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 	spin_lock_irqsave(&port->gs.driver_lock, flags);
 
 	tty->driver_data = port;
-	port->gs.tty = tty;
-	port->gs.count++;
+	port->gs.port.tty = tty;
+	port->gs.port.count++;
 	spin_unlock_irqrestore(&port->gs.driver_lock, flags);
 
 	sx_dprintk(SX_DEBUG_OPEN, "starting port\n");
@@ -1497,12 +1496,12 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 	retval = gs_init_port(&port->gs);
 	sx_dprintk(SX_DEBUG_OPEN, "done gs_init\n");
 	if (retval) {
-		port->gs.count--;
+		port->gs.port.count--;
 		return retval;
 	}
 
-	port->gs.flags |= GS_ACTIVE;
-	if (port->gs.count <= 1)
+	port->gs.port.flags |= GS_ACTIVE;
+	if (port->gs.port.count <= 1)
 		sx_setsignals(port, 1, 1);
 
 #if 0
@@ -1513,12 +1512,12 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 		my_hd_io(port->board->base + port->ch_base, sizeof(*port));
 #endif
 
-	if (port->gs.count <= 1) {
+	if (port->gs.port.count <= 1) {
 		if (sx_send_command(port, HS_LOPEN, -1, HS_IDLE_OPEN) != 1) {
 			printk(KERN_ERR "sx: Card didn't respond to LOPEN "
 					"command.\n");
 			spin_lock_irqsave(&port->gs.driver_lock, flags);
-			port->gs.count--;
+			port->gs.port.count--;
 			spin_unlock_irqrestore(&port->gs.driver_lock, flags);
 			return -EIO;
 		}
@@ -1526,11 +1525,11 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 
 	retval = gs_block_til_ready(port, filp);
 	sx_dprintk(SX_DEBUG_OPEN, "Block til ready returned %d. Count=%d\n",
-			retval, port->gs.count);
+			retval, port->gs.port.count);
 
 	if (retval) {
 /*
- * Don't lower gs.count here because sx_close() will be called later
+ * Don't lower gs.port.count here because sx_close() will be called later
  */
 
 		return retval;
@@ -1571,14 +1570,14 @@ static void sx_close(void *ptr)
 	}
 
 	sx_dprintk(SX_DEBUG_CLOSE, "waited %d jiffies for close. count=%d\n",
-			5 * HZ - to - 1, port->gs.count);
+			5 * HZ - to - 1, port->gs.port.count);
 
-	if (port->gs.count) {
+	if (port->gs.port.count) {
 		sx_dprintk(SX_DEBUG_CLOSE, "WARNING port count:%d\n",
-				port->gs.count);
+				port->gs.port.count);
 		/*printk("%s SETTING port count to zero: %p count: %d\n",
-				__func__, port, port->gs.count);
-		port->gs.count = 0;*/
+				__func__, port, port->gs.port.count);
+		port->gs.port.count = 0;*/
 	}
 
 	func_exit();
@@ -1687,10 +1686,10 @@ static int do_memtest_w(struct sx_board *board, int min, int max)
 }
 #endif
 
-static int sx_fw_ioctl(struct inode *inode, struct file *filp,
-		unsigned int cmd, unsigned long arg)
+static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
+							unsigned long arg)
 {
-	int rc = 0;
+	long rc = 0;
 	int __user *descr = (int __user *)arg;
 	int i;
 	static struct sx_board *board = NULL;
@@ -1700,13 +1699,10 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 
 	func_enter();
 
-#if 0
-	/* Removed superuser check: Sysops can use the permissions on the device
-	   file to restrict access. Recommendation: Root only. (root.root 600) */
-	if (!capable(CAP_SYS_ADMIN)) {
+	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	}
-#endif
+
+	lock_kernel();
 
 	sx_dprintk(SX_DEBUG_FIRMWARE, "IOCTL %x: %lx\n", cmd, arg);
 
@@ -1721,19 +1717,23 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 		for (i = 0; i < SX_NBOARDS; i++)
 			sx_dprintk(SX_DEBUG_FIRMWARE, "<%x> ", boards[i].flags);
 		sx_dprintk(SX_DEBUG_FIRMWARE, "\n");
+		unlock_kernel();
 		return -EIO;
 	}
 
 	switch (cmd) {
 	case SXIO_SET_BOARD:
 		sx_dprintk(SX_DEBUG_FIRMWARE, "set board to %ld\n", arg);
+		rc = -EIO;
 		if (arg >= SX_NBOARDS)
-			return -EIO;
+			break;
 		sx_dprintk(SX_DEBUG_FIRMWARE, "not out of range\n");
 		if (!(boards[arg].flags & SX_BOARD_PRESENT))
-			return -EIO;
+			break;
 		sx_dprintk(SX_DEBUG_FIRMWARE, ".. and present!\n");
 		board = &boards[arg];
+		rc = 0;
+		/* FIXME: And this does ... nothing?? */
 		break;
 	case SXIO_GET_TYPE:
 		rc = -ENOENT;	/* If we manage to miss one, return error. */
@@ -1747,7 +1747,7 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 			rc = SX_TYPE_SI;
 		if (IS_EISA_BOARD(board))
 			rc = SX_TYPE_SI;
-		sx_dprintk(SX_DEBUG_FIRMWARE, "returning type= %d\n", rc);
+		sx_dprintk(SX_DEBUG_FIRMWARE, "returning type= %ld\n", rc);
 		break;
 	case SXIO_DO_RAMTEST:
 		if (sx_initialized)	/* Already initialized: better not ramtest the board.  */
@@ -1761,19 +1761,26 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 			rc = do_memtest(board, 0, 0x7ff8);
 			/* if (!rc) rc = do_memtest_w (board, 0, 0x7ff8); */
 		}
-		sx_dprintk(SX_DEBUG_FIRMWARE, "returning memtest result= %d\n",
-			   rc);
+		sx_dprintk(SX_DEBUG_FIRMWARE,
+				"returning memtest result= %ld\n", rc);
 		break;
 	case SXIO_DOWNLOAD:
-		if (sx_initialized)	/* Already initialized */
-			return -EEXIST;
-		if (!sx_reset(board))
-			return -EIO;
+		if (sx_initialized) {/* Already initialized */
+			rc = -EEXIST;
+			break;
+		}
+		if (!sx_reset(board)) {
+			rc = -EIO;
+			break;
+		}
 		sx_dprintk(SX_DEBUG_INIT, "reset the board...\n");
 
 		tmp = kmalloc(SX_CHUNK_SIZE, GFP_USER);
-		if (!tmp)
-			return -ENOMEM;
+		if (!tmp) {
+			rc = -ENOMEM;
+			break;
+		}
+		/* FIXME: check returns */
 		get_user(nbytes, descr++);
 		get_user(offset, descr++);
 		get_user(data, descr++);
@@ -1783,7 +1790,8 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 						(i + SX_CHUNK_SIZE > nbytes) ?
 						nbytes - i : SX_CHUNK_SIZE)) {
 					kfree(tmp);
-					return -EFAULT;
+					rc = -EFAULT;
+					break;
 				}
 				memcpy_toio(board->base2 + offset + i, tmp,
 						(i + SX_CHUNK_SIZE > nbytes) ?
@@ -1799,13 +1807,17 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 		rc = sx_nports;
 		break;
 	case SXIO_INIT:
-		if (sx_initialized)	/* Already initialized */
-			return -EEXIST;
+		if (sx_initialized) {	/* Already initialized */
+			rc = -EEXIST;
+			break;
+		}
 		/* This is not allowed until all boards are initialized... */
 		for (i = 0; i < SX_NBOARDS; i++) {
 			if ((boards[i].flags & SX_BOARD_PRESENT) &&
-				!(boards[i].flags & SX_BOARD_INITIALIZED))
-				return -EIO;
+				!(boards[i].flags & SX_BOARD_INITIALIZED)) {
+				rc = -EIO;
+				break;
+			}
 		}
 		for (i = 0; i < SX_NBOARDS; i++)
 			if (!(boards[i].flags & SX_BOARD_PRESENT))
@@ -1833,15 +1845,15 @@ static int sx_fw_ioctl(struct inode *inode, struct file *filp,
 		rc = sx_nports;
 		break;
 	default:
-		printk(KERN_WARNING "Unknown ioctl on firmware device (%x).\n",
-				cmd);
+		rc = -ENOTTY;
 		break;
 	}
+	unlock_kernel();
 	func_exit();
 	return rc;
 }
 
-static void sx_break(struct tty_struct *tty, int flag)
+static int sx_break(struct tty_struct *tty, int flag)
 {
 	struct sx_port *port = tty->driver_data;
 	int rv;
@@ -1858,6 +1870,7 @@ static void sx_break(struct tty_struct *tty, int flag)
 			read_sx_byte(port->board, CHAN_OFFSET(port, hi_hstat)));
 	unlock_kernel();
 	func_exit();
+	return 0;
 }
 
 static int sx_tiocmget(struct tty_struct *tty, struct file *file)
@@ -1939,7 +1952,7 @@ static void sx_throttle(struct tty_struct *tty)
 	 * control then throttle the port.
 	 */
 	if ((tty->termios->c_cflag & CRTSCTS) || (I_IXOFF(tty))) {
-		port->gs.flags |= SX_RX_THROTTLE;
+		port->gs.port.flags |= SX_RX_THROTTLE;
 	}
 	func_exit();
 }
@@ -1953,7 +1966,7 @@ static void sx_unthrottle(struct tty_struct *tty)
 	 * this port in case we disabled flow control while the port
 	 * was throttled
 	 */
-	port->gs.flags &= ~SX_RX_THROTTLE;
+	port->gs.port.flags &= ~SX_RX_THROTTLE;
 	func_exit();
 	return;
 }
@@ -2396,6 +2409,7 @@ static int sx_init_portstructs(int nboards, int nports)
 		board->ports = port;
 		for (j = 0; j < boards[i].nports; j++) {
 			sx_dprintk(SX_DEBUG_INIT, "initing port %d\n", j);
+			tty_port_init(&port->gs.port);
 			port->gs.magic = SX_MAGIC;
 			port->gs.close_delay = HZ / 2;
 			port->gs.closing_wait = 30 * HZ;
@@ -2408,9 +2422,6 @@ static int sx_init_portstructs(int nboards, int nports)
 			/*
 			 * Initializing wait queue
 			 */
-			init_waitqueue_head(&port->gs.open_wait);
-			init_waitqueue_head(&port->gs.close_wait);
-
 			port++;
 		}
 	}

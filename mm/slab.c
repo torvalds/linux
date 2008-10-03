@@ -406,7 +406,7 @@ struct kmem_cache {
 	unsigned int dflags;		/* dynamic flags */
 
 	/* constructor func */
-	void (*ctor)(struct kmem_cache *, void *);
+	void (*ctor)(void *obj);
 
 /* 5) cache creation/removal */
 	const char *name;
@@ -2137,8 +2137,7 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep)
  */
 struct kmem_cache *
 kmem_cache_create (const char *name, size_t size, size_t align,
-	unsigned long flags,
-	void (*ctor)(struct kmem_cache *, void *))
+	unsigned long flags, void (*ctor)(void *))
 {
 	size_t left_over, slab_size, ralign;
 	struct kmem_cache *cachep = NULL, *pc;
@@ -2653,7 +2652,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 		 * They must also be threaded.
 		 */
 		if (cachep->ctor && !(cachep->flags & SLAB_POISON))
-			cachep->ctor(cachep, objp + obj_offset(cachep));
+			cachep->ctor(objp + obj_offset(cachep));
 
 		if (cachep->flags & SLAB_RED_ZONE) {
 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
@@ -2669,7 +2668,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 					 cachep->buffer_size / PAGE_SIZE, 0);
 #else
 		if (cachep->ctor)
-			cachep->ctor(cachep, objp);
+			cachep->ctor(objp);
 #endif
 		slab_bufctl(slabp)[i] = i + 1;
 	}
@@ -3093,7 +3092,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 #endif
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON)
-		cachep->ctor(cachep, objp);
+		cachep->ctor(objp);
 #if ARCH_SLAB_MINALIGN
 	if ((u32)objp & (ARCH_SLAB_MINALIGN-1)) {
 		printk(KERN_ERR "0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",
@@ -4473,4 +4472,3 @@ size_t ksize(const void *objp)
 
 	return obj_size(virt_to_cache(objp));
 }
-EXPORT_SYMBOL(ksize);

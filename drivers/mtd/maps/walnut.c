@@ -1,6 +1,4 @@
 /*
- * $Id: walnut.c,v 1.3 2005/11/07 11:14:29 gleixner Exp $
- *
  * Mapping for Walnut flash
  * (used ebony.c as a "framework")
  *

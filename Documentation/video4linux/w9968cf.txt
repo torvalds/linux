@@ -193,9 +193,6 @@ Description:     Automatic 'ovcamchip' module loading: 0 disabled, 1 enabled.
 		 loads that module automatically. This action is performed as
 		 once soon as the 'w9968cf' module is loaded into memory.
 Default:         1
-Note:            The kernel must be compiled with the CONFIG_KMOD option
-		 enabled for the 'ovcamchip' module to be loaded and for
-		 this parameter to be present.
 -------------------------------------------------------------------------------
 Name:           simcams
 Type:           int

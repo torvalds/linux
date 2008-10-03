@@ -26,7 +26,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -544,7 +543,7 @@ fatal_error:
 
 	spin_unlock(&priv->rx_lock);
 	netif_rx_complete(priv->dev, napi);
-	netif_stop_queue(priv->dev);
+	netif_tx_stop_all_queues(priv->dev);
 	napi_disable(&priv->napi);
 
 	atomic_inc(&priv->reset_pending);
@@ -569,11 +568,7 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = max(skb->len, ETH_ZLEN);
 	queue = skb_get_queue_mapping(skb);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_stop_subqueue(dev, queue);
-#else
-	netif_stop_queue(dev);
-#endif
 
 	desc = &priv->desc_ring[queue];
 	if (unlikely(desc->dataflags & CPMAC_OWN)) {
@@ -626,24 +621,14 @@ static void cpmac_end_xmit(struct net_device *dev, int queue)
 
 		dev_kfree_skb_irq(desc->skb);
 		desc->skb = NULL;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 		if (netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
-#else
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
-#endif
 	} else {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			printk(KERN_WARNING
 			       "%s: end_xmit: spurious interrupt\n", dev->name);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 		if (netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
-#else
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
-#endif
 	}
 }
 
@@ -764,9 +749,7 @@ static void cpmac_hw_error(struct work_struct *work)
 	barrier();
 	atomic_dec(&priv->reset_pending);
 
-	for (i = 0; i < CPMAC_QUEUES; i++)
-		netif_wake_subqueue(priv->dev, i);
-	netif_wake_queue(priv->dev);
+	netif_tx_wake_all_queues(priv->dev);
 	cpmac_write(priv->regs, CPMAC_MAC_INT_ENABLE, 3);
 }
 
@@ -795,7 +778,7 @@ static void cpmac_check_status(struct net_device *dev)
 				     dev->name, tx_code, tx_channel, macstatus);
 		}
 
-		netif_stop_queue(dev);
+		netif_tx_stop_all_queues(dev);
 		cpmac_hw_stop(dev);
 		if (schedule_work(&priv->reset_work))
 			atomic_inc(&priv->reset_pending);
@@ -856,9 +839,7 @@ static void cpmac_tx_timeout(struct net_device *dev)
 	barrier();
 	atomic_dec(&priv->reset_pending);
 
-	netif_wake_queue(priv->dev);
-	for (i = 0; i < CPMAC_QUEUES; i++)
-		netif_wake_subqueue(dev, i);
+	netif_tx_wake_all_queues(priv->dev);
 }
 
 static int cpmac_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -949,7 +930,7 @@ static void cpmac_adjust_link(struct net_device *dev)
 
 	spin_lock(&priv->lock);
 	if (priv->phy->link) {
-		netif_start_queue(dev);
+		netif_tx_start_all_queues(dev);
 		if (priv->phy->duplex != priv->oldduplex) {
 			new_state = 1;
 			priv->oldduplex = priv->phy->duplex;
@@ -963,10 +944,8 @@ static void cpmac_adjust_link(struct net_device *dev)
 		if (!priv->oldlink) {
 			new_state = 1;
 			priv->oldlink = 1;
-			netif_schedule(dev);
 		}
 	} else if (priv->oldlink) {
-		netif_stop_queue(dev);
 		new_state = 1;
 		priv->oldlink = 0;
 		priv->oldspeed = 0;
@@ -1086,7 +1065,7 @@ static int cpmac_stop(struct net_device *dev)
 	struct cpmac_priv *priv = netdev_priv(dev);
 	struct resource *mem;
 
-	netif_stop_queue(dev);
+	netif_tx_stop_all_queues(dev);
 
 	cancel_work_sync(&priv->reset_work);
 	napi_disable(&priv->napi);
@@ -1179,7 +1158,6 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	dev->set_multicast_list = cpmac_set_multicast_list;
 	dev->tx_timeout         = cpmac_tx_timeout;
 	dev->ethtool_ops        = &cpmac_ethtool_ops;
-	dev->features |= NETIF_F_MULTI_QUEUE;
 
 	netif_napi_add(dev, &priv->napi, cpmac_poll, 64);
 

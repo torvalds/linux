@@ -26,7 +26,7 @@ extern int	udp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 extern int	udp_sendpage(struct sock *sk, struct page *page, int offset,
 			     size_t size, int flags);
 extern int	udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb);
-extern int	udp_destroy_sock(struct sock *sk);
+extern void	udp_destroy_sock(struct sock *sk);
 
 #ifdef CONFIG_PROC_FS
 extern int	udp4_seq_show(struct seq_file *seq, void *v);

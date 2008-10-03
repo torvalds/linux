@@ -7,8 +7,6 @@
  *	Andi Kleen		<ak@muc.de>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
  *
- *	$Id: exthdrs.c,v 1.13 2001/06/19 15:58:56 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -321,7 +319,7 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	int n, i;
 	struct ipv6_rt_hdr *hdr;
 	struct rt0_hdr *rthdr;
-	int accept_source_route = ipv6_devconf.accept_source_route;
+	int accept_source_route = dev_net(skb->dev)->ipv6.devconf_all->accept_source_route;
 
 	idev = in6_dev_get(skb->dev);
 	if (idev) {

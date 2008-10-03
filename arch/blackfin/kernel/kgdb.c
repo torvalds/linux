@@ -203,6 +203,8 @@ struct hw_breakpoint {
 
 int kgdb_arch_init(void)
 {
+	debugger_step = 0;
+
 	kgdb_remove_all_hw_break();
 	return 0;
 }
@@ -368,6 +370,7 @@ int kgdb_arch_handle_exception(int exceptionVector, int signo,
 	char *ptr;
 	int newPC;
 	int wp_status;
+	int i;
 
 	switch (remcom_in_buffer[0]) {
 	case 'c':
@@ -392,7 +395,18 @@ int kgdb_arch_handle_exception(int exceptionVector, int signo,
 		/* set the trace bit if we're stepping */
 		if (remcom_in_buffer[0] == 's') {
 			linux_regs->syscfg |= 0x1;
-			debugger_step = 1;
+			debugger_step = linux_regs->ipend;
+			debugger_step >>= 6;
+			for (i = 10; i > 0; i--, debugger_step >>= 1)
+				if (debugger_step & 1)
+					break;
+			/* i indicate event priority of current stopped instruction
+			 * user space instruction is 0, IVG15 is 1, IVTMR is 10.
+			 * debugger_step > 0 means in single step mode
+			 */
+			debugger_step = i + 1;
+		} else {
+			debugger_step = 0;
 		}
 
 		wp_status = bfin_read_WPSTAT();

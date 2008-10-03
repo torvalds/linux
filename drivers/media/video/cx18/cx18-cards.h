@@ -83,6 +83,14 @@ struct cx18_gpio_i2c_slave_reset {
 	u32 active_hi_mask; /* GPIO outputs that reset i2c chips when high */
 	int msecs_asserted; /* time period reset must remain asserted */
 	int msecs_recovery; /* time after deassert for chips to be ready */
+	u32 ir_reset_mask;  /* GPIO to reset the Zilog Z8F0811 IR contoller */
+};
+
+struct cx18_gpio_audio_input { 	/* select tuner/line in input */
+	u32 mask; 		/* leave to 0 if not supported */
+	u32 tuner;
+	u32 linein;
+	u32 radio;
 };
 
 struct cx18_card_tuner {
@@ -123,6 +131,7 @@ struct cx18_card {
 	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
 	struct cx18_gpio_init 		 gpio_init;
 	struct cx18_gpio_i2c_slave_reset gpio_i2c_slave_reset;
+	struct cx18_gpio_audio_input    gpio_audio_input;
 
 	struct cx18_card_tuner tuners[CX18_CARD_MAX_TUNERS];
 	struct cx18_card_tuner_i2c *i2c;

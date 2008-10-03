@@ -352,11 +352,12 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 				continue;
 			r_size = r->end - r->start + 1;
 			/* For bridges size != alignment */
-			align = (i < PCI_BRIDGE_RESOURCES) ? r_size : r->start;
+			align = resource_alignment(r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
-				dev_warn(&dev->dev, "BAR %d too large: "
+				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
 				       "%#016llx-%#016llx\n", i,
+				       (unsigned long long)align,
 				       (unsigned long long)r->start,
 				       (unsigned long long)r->end);
 				r->flags = 0;
@@ -530,6 +531,40 @@ void __ref pci_bus_assign_resources(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_assign_resources);
 
+static void pci_bus_dump_res(struct pci_bus *bus)
+{
+        int i;
+
+        for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
+                struct resource *res = bus->resource[i];
+                if (!res)
+                        continue;
+
+		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n",
+			bus->number, i,
+			(res->flags & IORESOURCE_IO) ? "io port" : "mmio",
+			(unsigned long long) res->start,
+			(unsigned long long) res->end);
+        }
+}
+
+static void pci_bus_dump_resources(struct pci_bus *bus)
+{
+	struct pci_bus *b;
+	struct pci_dev *dev;
+
+
+	pci_bus_dump_res(bus);
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		b = dev->subordinate;
+		if (!b)
+			continue;
+
+		pci_bus_dump_resources(b);
+	}
+}
+
 void __init
 pci_assign_unassigned_resources(void)
 {
@@ -544,5 +579,10 @@ pci_assign_unassigned_resources(void)
 	list_for_each_entry(bus, &pci_root_buses, node) {
 		pci_bus_assign_resources(bus);
 		pci_enable_bridges(bus);
+	}
+
+	/* dump the resource on buses */
+	list_for_each_entry(bus, &pci_root_buses, node) {
+		pci_bus_dump_resources(bus);
 	}
 }

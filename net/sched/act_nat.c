@@ -124,7 +124,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	egress = p->flags & TCA_NAT_FLAG_EGRESS;
 	action = p->tcf_action;
 
-	p->tcf_bstats.bytes += skb->len;
+	p->tcf_bstats.bytes += qdisc_pkt_len(skb);
 	p->tcf_bstats.packets++;
 
 	spin_unlock(&p->tcf_lock);

@@ -53,7 +53,7 @@ struct saa7146_vv;
 /* saa7146 page table */
 struct saa7146_pgtable {
 	unsigned int	size;
-	u32		*cpu;
+	__le32		*cpu;
 	dma_addr_t	dma;
 	/* used for offsets for u,v planes for planar capture modes */
 	unsigned long	offset;
@@ -101,7 +101,7 @@ struct saa7146_extension
 struct saa7146_dma
 {
 	dma_addr_t	dma_handle;
-	u32		*cpu_addr;
+	__le32		*cpu_addr;
 };
 
 struct saa7146_dev

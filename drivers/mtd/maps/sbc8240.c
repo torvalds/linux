@@ -4,9 +4,6 @@
  * Carolyn Smith, Tektronix, Inc.
  *
  * This code is GPLed
- *
- * $Id: sbc8240.c,v 1.5 2005/11/07 11:14:28 gleixner Exp $
- *
  */
 
 /*

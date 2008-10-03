@@ -954,7 +954,7 @@ static int netlbl_unlhsh_netdev_handler(struct notifier_block *this,
 	struct net_device *dev = ptr;
 	struct netlbl_unlhsh_iface *iface = NULL;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	/* XXX - should this be a check for NETDEV_DOWN or _UNREGISTER? */

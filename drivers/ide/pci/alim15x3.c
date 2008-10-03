@@ -38,6 +38,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "alim15x3"
+
 /*
  * Allow UDMA on M1543C-E chipset for WDC disks that ignore CRC checking
  * (this is DANGEROUS and could result in data corruption).
@@ -207,13 +209,12 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
 /**
  *	init_chipset_ali15x3	-	Initialise an ALi IDE controller
  *	@dev: PCI device
- *	@name: Name of the controller
  *
  *	This function initializes the ALI IDE controller and where 
  *	appropriate also sets up the 1533 southbridge.
  */
-  
-static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const char *name)
+
+static unsigned int __devinit init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;
@@ -370,7 +371,7 @@ static int ali_cable_override(struct pci_dev *pdev)
  *	FIXME: frobs bits that are not defined on newer ALi devicea
  */
 
-static u8 __devinit ali_cable_detect(ide_hwif_t *hwif)
+static u8 ali_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long flags;
@@ -471,7 +472,15 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long base = ide_pci_dma_base(hwif, d);
 
-	if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+	if (base == 0)
+		return -1;
+
+	hwif->dma_base = base;
+
+	if (ide_pci_check_simplex(hwif, d) < 0)
+		return -1;
+
+	if (ide_pci_set_master(dev, d->name) < 0)
 		return -1;
 
 	if (!hwif->channel)
@@ -483,7 +492,7 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	hwif->dma_ops = &sff_dma_ops;
 
 	return 0;
 }
@@ -507,7 +516,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 };
 
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
-	.name		= "ALI15X3",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
@@ -557,7 +566,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 	if (idx == 0)
 		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 
@@ -572,6 +581,7 @@ static struct pci_driver driver = {
 	.name		= "ALI15x3_IDE",
 	.id_table	= alim15x3_pci_tbl,
 	.probe		= alim15x3_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init ali15x3_ide_init(void)
@@ -579,7 +589,13 @@ static int __init ali15x3_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit ali15x3_ide_exit(void)
+{
+	return pci_unregister_driver(&driver);
+}
+
 module_init(ali15x3_ide_init);
+module_exit(ali15x3_ide_exit);
 
 MODULE_AUTHOR("Michael Aubry, Andrzej Krzysztofowicz, CJ, Andre Hedrick, Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for ALi 15x3 IDE");

@@ -1,8 +1,6 @@
 /*
  * IPVS:        Round-Robin Scheduling module
  *
- * Version:     $Id: ip_vs_rr.c,v 1.9 2002/09/15 08:14:08 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Peter Kese <peter.kese@ijs.si>
  *
@@ -96,6 +94,7 @@ static struct ip_vs_scheduler ip_vs_rr_scheduler = {
 	.name =			"rr",			/* name */
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list =		LIST_HEAD_INIT(ip_vs_rr_scheduler.n_list),
 	.init_service =		ip_vs_rr_init_svc,
 	.done_service =		ip_vs_rr_done_svc,
 	.update_service =	ip_vs_rr_update_svc,
@@ -104,7 +103,6 @@ static struct ip_vs_scheduler ip_vs_rr_scheduler = {
 
 static int __init ip_vs_rr_init(void)
 {
-	INIT_LIST_HEAD(&ip_vs_rr_scheduler.n_list);
 	return register_ip_vs_scheduler(&ip_vs_rr_scheduler);
 }
 

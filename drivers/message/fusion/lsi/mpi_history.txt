@@ -127,7 +127,7 @@ mpi_ioc.h
  *  08-08-01  01.02.01  Original release for v1.2 work.
  *                      New format for FWVersion and ProductId in
  *                      MSG_IOC_FACTS_REPLY and MPI_FW_HEADER.
- *  08-31-01  01.02.02  Addded event MPI_EVENT_SCSI_DEVICE_STATUS_CHANGE and
+ *  08-31-01  01.02.02  Added event MPI_EVENT_SCSI_DEVICE_STATUS_CHANGE and
  *                      related structure and defines.
  *                      Added event MPI_EVENT_ON_BUS_TIMER_EXPIRED.
  *                      Added MPI_IOCINIT_FLAGS_DISCARD_FW_IMAGE.
@@ -187,7 +187,7 @@ mpi_ioc.h
  *  10-11-06  01.05.12  Added MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED.
  *                      Added MaxInitiators field to PortFacts reply.
  *                      Added SAS Device Status Change ReasonCode for
- *                      asynchronous notificaiton.
+ *                      asynchronous notification.
  *                      Added MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE and event
  *                      data structure.
  *                      Added new ImageType values for FWDownload and FWUpload
@@ -213,7 +213,7 @@ mpi_cnfg.h
  *                      Added _RESPONSE_ID_MASK definition to SCSI_PORT_1
  *                      page and updated the page version.
  *                      Added Information field and _INFO_PARAMS_NEGOTIATED
- *                      definitionto SCSI_DEVICE_0 page.
+ *                      definition to SCSI_DEVICE_0 page.
  *  06-22-00  01.00.03  Removed batch controls from LAN_0 page and updated the
  *                      page version.
  *                      Added BucketsRemaining to LAN_1 page, redefined the

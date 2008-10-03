@@ -196,8 +196,7 @@ static int __init sputrace_init(void)
 	struct proc_dir_entry *entry;
 	int i, error = -ENOMEM;
 
-	sputrace_log = kcalloc(sizeof(struct sputrace),
-				bufsize, GFP_KERNEL);
+	sputrace_log = kcalloc(bufsize, sizeof(struct sputrace), GFP_KERNEL);
 	if (!sputrace_log)
 		goto out;
 

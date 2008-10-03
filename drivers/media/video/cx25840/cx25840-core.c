@@ -13,7 +13,7 @@
  * NTSC sliced VBI support by Christopher Neufeld <television@cneufeld.ca>
  * with additional fixes by Hans Verkuil <hverkuil@xs4all.nl>.
  *
- * CX23885 support by Steven Toth <stoth@hauppauge.com>.
+ * CX23885 support by Steven Toth <stoth@linuxtv.org>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,8 +50,7 @@ MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
-
-int cx25840_debug;
+static int cx25840_debug;
 
 module_param_named(debug,cx25840_debug, int, 0644);
 
@@ -238,7 +237,7 @@ static void cx25840_initialize(struct i2c_client *client)
 	cx25840_write(client, 0x8d3, 0x1f);
 	cx25840_write(client, 0x8e3, 0x03);
 
-	cx25840_vbi_setup(client);
+	cx25840_std_setup(client);
 
 	/* trial and error says these are needed to get audio */
 	cx25840_write(client, 0x914, 0xa0);
@@ -338,13 +337,160 @@ static void cx23885_initialize(struct i2c_client *client)
 	finish_wait(&state->fw_wait, &wait);
 	destroy_workqueue(q);
 
-	cx25840_vbi_setup(client);
+	cx25840_std_setup(client);
 
 	/* (re)set input */
 	set_input(client, state->vid_input, state->aud_input);
 
 	/* start microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0x10);
+}
+
+/* ----------------------------------------------------------------------- */
+
+void cx25840_std_setup(struct i2c_client *client)
+{
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	v4l2_std_id std = state->std;
+	int hblank, hactive, burst, vblank, vactive, sc;
+	int vblank656, src_decimation;
+	int luma_lpf, uv_lpf, comb;
+	u32 pll_int, pll_frac, pll_post;
+
+	/* datasheet startup, step 8d */
+	if (std & ~V4L2_STD_NTSC)
+		cx25840_write(client, 0x49f, 0x11);
+	else
+		cx25840_write(client, 0x49f, 0x14);
+
+	if (std & V4L2_STD_625_50) {
+		hblank = 132;
+		hactive = 720;
+		burst = 93;
+		vblank = 36;
+		vactive = 580;
+		vblank656 = 40;
+		src_decimation = 0x21f;
+		luma_lpf = 2;
+
+		if (std & V4L2_STD_SECAM) {
+			uv_lpf = 0;
+			comb = 0;
+			sc = 0x0a425f;
+		} else if (std == V4L2_STD_PAL_Nc) {
+			uv_lpf = 1;
+			comb = 0x20;
+			sc = 556453;
+		} else {
+			uv_lpf = 1;
+			comb = 0x20;
+			sc = 688739;
+		}
+	} else {
+		hactive = 720;
+		hblank = 122;
+		vactive = 487;
+		luma_lpf = 1;
+		uv_lpf = 1;
+
+		src_decimation = 0x21f;
+		if (std == V4L2_STD_PAL_60) {
+			vblank = 26;
+			vblank656 = 26;
+			burst = 0x5b;
+			luma_lpf = 2;
+			comb = 0x20;
+			sc = 688739;
+		} else if (std == V4L2_STD_PAL_M) {
+			vblank = 20;
+			vblank656 = 24;
+			burst = 0x61;
+			comb = 0x20;
+			sc = 555452;
+		} else {
+			vblank = 26;
+			vblank656 = 26;
+			burst = 0x5b;
+			comb = 0x66;
+			sc = 556063;
+		}
+	}
+
+	/* DEBUG: Displays configured PLL frequency */
+	pll_int = cx25840_read(client, 0x108);
+	pll_frac = cx25840_read4(client, 0x10c) & 0x1ffffff;
+	pll_post = cx25840_read(client, 0x109);
+	v4l_dbg(1, cx25840_debug, client,
+				"PLL regs = int: %u, frac: %u, post: %u\n",
+				pll_int, pll_frac, pll_post);
+
+	if (pll_post) {
+		int fin, fsc;
+		int pll = (28636363L * ((((u64)pll_int) << 25L) + pll_frac)) >> 25L;
+
+		pll /= pll_post;
+		v4l_dbg(1, cx25840_debug, client, "PLL = %d.%06d MHz\n",
+				pll / 1000000, pll % 1000000);
+		v4l_dbg(1, cx25840_debug, client, "PLL/8 = %d.%06d MHz\n",
+				pll / 8000000, (pll / 8) % 1000000);
+
+		fin = ((u64)src_decimation * pll) >> 12;
+		v4l_dbg(1, cx25840_debug, client,
+				"ADC Sampling freq = %d.%06d MHz\n",
+				fin / 1000000, fin % 1000000);
+
+		fsc = (((u64)sc) * pll) >> 24L;
+		v4l_dbg(1, cx25840_debug, client,
+				"Chroma sub-carrier freq = %d.%06d MHz\n",
+				fsc / 1000000, fsc % 1000000);
+
+		v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, "
+			"vblank %i, vactive %i, vblank656 %i, src_dec %i, "
+			"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, "
+			"sc 0x%06x\n",
+			hblank, hactive, vblank, vactive, vblank656,
+			src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
+	}
+
+	/* Sets horizontal blanking delay and active lines */
+	cx25840_write(client, 0x470, hblank);
+	cx25840_write(client, 0x471,
+			0xff & (((hblank >> 8) & 0x3) | (hactive << 4)));
+	cx25840_write(client, 0x472, hactive >> 4);
+
+	/* Sets burst gate delay */
+	cx25840_write(client, 0x473, burst);
+
+	/* Sets vertical blanking delay and active duration */
+	cx25840_write(client, 0x474, vblank);
+	cx25840_write(client, 0x475,
+			0xff & (((vblank >> 8) & 0x3) | (vactive << 4)));
+	cx25840_write(client, 0x476, vactive >> 4);
+	cx25840_write(client, 0x477, vblank656);
+
+	/* Sets src decimation rate */
+	cx25840_write(client, 0x478, 0xff & src_decimation);
+	cx25840_write(client, 0x479, 0xff & (src_decimation >> 8));
+
+	/* Sets Luma and UV Low pass filters */
+	cx25840_write(client, 0x47a, luma_lpf << 6 | ((uv_lpf << 4) & 0x30));
+
+	/* Enables comb filters */
+	cx25840_write(client, 0x47b, comb);
+
+	/* Sets SC Step*/
+	cx25840_write(client, 0x47c, sc);
+	cx25840_write(client, 0x47d, 0xff & sc >> 8);
+	cx25840_write(client, 0x47e, 0xff & sc >> 16);
+
+	/* Sets VBI parameters */
+	if (std & V4L2_STD_625_50) {
+		cx25840_write(client, 0x47f, 0x01);
+		state->vbi_line_offset = 5;
+	} else {
+		cx25840_write(client, 0x47f, 0x00);
+		state->vbi_line_offset = 8;
+	}
 }
 
 /* ----------------------------------------------------------------------- */
@@ -566,7 +712,7 @@ static int set_v4lstd(struct i2c_client *client)
 	}
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
 	cx25840_and_or(client, 0x403, ~0x3, pal_m);
-	cx25840_vbi_setup(client);
+	cx25840_std_setup(client);
 	if (!state->is_cx25836)
 		input_change(client);
 	return 0;
@@ -1058,6 +1204,8 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 		switch (qc->id) {
 			case V4L2_CID_AUDIO_VOLUME:
+				return v4l2_ctrl_query_fill(qc, 0, 65535,
+					65535 / 100, state->default_volume);
 			case V4L2_CID_AUDIO_MUTE:
 			case V4L2_CID_AUDIO_BALANCE:
 			case V4L2_CID_AUDIO_BASS:
@@ -1265,6 +1413,8 @@ static int cx25840_probe(struct i2c_client *client,
 	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->unmute_volume = -1;
+	state->default_volume = 228 - cx25840_read(client, 0x8d4);
+	state->default_volume = ((state->default_volume / 2) + 23) << 9;
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;

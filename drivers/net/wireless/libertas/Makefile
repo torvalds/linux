@@ -1,9 +1,5 @@
-libertas-objs := main.o wext.o \
-		rx.o tx.o cmd.o 	  \
-		cmdresp.o scan.o	  \
-		11d.o 		  \
-		debugfs.o	  \
-		ethtool.o assoc.o
+libertas-objs := main.o wext.o rx.o tx.o cmd.o cmdresp.o scan.o 11d.o	\
+		 debugfs.o persistcfg.o ethtool.o assoc.o
 
 usb8xxx-objs += if_usb.o
 libertas_cs-objs += if_cs.o

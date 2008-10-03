@@ -1,8 +1,3 @@
-/*
- * $Id: cfi_endian.h,v 1.11 2002/01/30 23:20:48 awozniak Exp $
- *
- */
-
 #include <asm/byteorder.h>
 
 #ifndef CONFIG_MTD_CFI_ADV_OPTIONS

@@ -21,7 +21,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iomd.h>
 #include <asm/io.h>
 #include <asm/irq.h>

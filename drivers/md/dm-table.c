@@ -316,29 +316,12 @@ static inline int check_space(struct dm_table *t)
  */
 static int lookup_device(const char *path, dev_t *dev)
 {
-	int r;
-	struct nameidata nd;
-	struct inode *inode;
-
-	if ((r = path_lookup(path, LOOKUP_FOLLOW, &nd)))
-		return r;
-
-	inode = nd.path.dentry->d_inode;
-	if (!inode) {
-		r = -ENOENT;
-		goto out;
-	}
-
-	if (!S_ISBLK(inode->i_mode)) {
-		r = -ENOTBLK;
-		goto out;
-	}
-
-	*dev = inode->i_rdev;
-
- out:
-	path_put(&nd.path);
-	return r;
+	struct block_device *bdev = lookup_bdev(path);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+	*dev = bdev->bd_dev;
+	bdput(bdev);
+	return 0;
 }
 
 /*
@@ -506,14 +489,13 @@ void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 	rs->max_sectors =
 		min_not_zero(rs->max_sectors, q->max_sectors);
 
-	/* FIXME: Device-Mapper on top of RAID-0 breaks because DM
-	 *        currently doesn't honor MD's merge_bvec_fn routine.
-	 *        In this case, we'll force DM to use PAGE_SIZE or
-	 *        smaller I/O, just to be safe. A better fix is in the
-	 *        works, but add this for the time being so it will at
-	 *        least operate correctly.
+	/*
+	 * Check if merge fn is supported.
+	 * If not we'll force DM to use PAGE_SIZE or
+	 * smaller I/O, just to be safe.
 	 */
-	if (q->merge_bvec_fn)
+
+	if (q->merge_bvec_fn && !ti->type->merge)
 		rs->max_sectors =
 			min_not_zero(rs->max_sectors,
 				     (unsigned int) (PAGE_SIZE >> 9));

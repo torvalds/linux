@@ -52,7 +52,10 @@ struct autofs_info {
 
 	int		flags;
 
-	struct list_head rehash;
+	struct completion expire_complete;
+
+	struct list_head active;
+	struct list_head expiring;
 
 	struct autofs_sb_info *sbi;
 	unsigned long last_used;
@@ -68,15 +71,14 @@ struct autofs_info {
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
+#define AUTOFS_INF_MOUNTPOINT	(1<<1) /* mountpoint status for direct expire */
 
 struct autofs_wait_queue {
 	wait_queue_head_t queue;
 	struct autofs_wait_queue *next;
 	autofs_wqt_t wait_queue_token;
 	/* We use the following to see what we are waiting for */
-	unsigned int hash;
-	unsigned int len;
-	char *name;
+	struct qstr name;
 	u32 dev;
 	u64 ino;
 	uid_t uid;
@@ -85,7 +87,7 @@ struct autofs_wait_queue {
 	pid_t tgid;
 	/* This is for status reporting upon return */
 	int status;
-	atomic_t wait_ctr;
+	unsigned int wait_ctr;
 };
 
 #define AUTOFS_SBI_MAGIC 0x6d4a556d
@@ -112,8 +114,9 @@ struct autofs_sb_info {
 	struct mutex wq_mutex;
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
-	spinlock_t rehash_lock;
-	struct list_head rehash_list;
+	spinlock_t lookup_lock;
+	struct list_head active_list;
+	struct list_head expiring_list;
 };
 
 static inline struct autofs_sb_info *autofs4_sbi(struct super_block *sb)
@@ -138,18 +141,14 @@ static inline int autofs4_oz_mode(struct autofs_sb_info *sbi) {
 static inline int autofs4_ispending(struct dentry *dentry)
 {
 	struct autofs_info *inf = autofs4_dentry_ino(dentry);
-	int pending = 0;
 
 	if (dentry->d_flags & DCACHE_AUTOFS_PENDING)
 		return 1;
 
-	if (inf) {
-		spin_lock(&inf->sbi->fs_lock);
-		pending = inf->flags & AUTOFS_INF_EXPIRING;
-		spin_unlock(&inf->sbi->fs_lock);
-	}
+	if (inf->flags & AUTOFS_INF_EXPIRING)
+		return 1;
 
-	return pending;
+	return 0;
 }
 
 static inline void autofs4_copy_atime(struct file *src, struct file *dst)
@@ -164,6 +163,7 @@ void autofs4_free_ino(struct autofs_info *);
 
 /* Expiration */
 int is_autofs4_dentry(struct dentry *);
+int autofs4_expire_wait(struct dentry *dentry);
 int autofs4_expire_run(struct super_block *, struct vfsmount *,
 			struct autofs_sb_info *,
 			struct autofs_packet_expire __user *);

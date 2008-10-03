@@ -2054,8 +2054,8 @@ MODULE_PARM_DESC(maxhf,
 module_param(maxvf, ushort, 0);
 MODULE_PARM_DESC(maxvf,
 	"Maximum vertical frequency [Hz], overrides EDID data");
-module_param_named(mode, mode_option, charp, 0);
-MODULE_PARM_DESC(mode,
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option,
 	"Specify initial video mode as \"<xres>x<yres>[-<bpp>][@<refresh>]\"");
 module_param(vbemode, ushort, 0);
 MODULE_PARM_DESC(vbemode,

@@ -18,6 +18,9 @@
 #include <linux/if_arp.h>
 #include <linux/spinlock.h>
 #include <net/netfilter/nf_log.h>
+#include <linux/ipv6.h>
+#include <net/ipv6.h>
+#include <linux/in6.h>
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
@@ -58,6 +61,27 @@ static void print_MAC(const unsigned char *p)
 		printk("%02x%c", *p, i == ETH_ALEN - 1 ? ' ':':');
 }
 
+static void
+print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
+{
+	if (protocol == IPPROTO_TCP ||
+	    protocol == IPPROTO_UDP ||
+	    protocol == IPPROTO_UDPLITE ||
+	    protocol == IPPROTO_SCTP ||
+	    protocol == IPPROTO_DCCP) {
+		const struct tcpudphdr *pptr;
+		struct tcpudphdr _ports;
+
+		pptr = skb_header_pointer(skb, offset,
+					  sizeof(_ports), &_ports);
+		if (pptr == NULL) {
+			printk(" INCOMPLETE TCP/UDP header");
+			return;
+		}
+		printk(" SPT=%u DPT=%u", ntohs(pptr->src), ntohs(pptr->dst));
+	}
+}
+
 #define myNIPQUAD(a) a[0], a[1], a[2], a[3]
 static void
 ebt_log_packet(unsigned int pf, unsigned int hooknum,
@@ -95,25 +119,35 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		printk(" IP SRC=%u.%u.%u.%u IP DST=%u.%u.%u.%u, IP "
 		       "tos=0x%02X, IP proto=%d", NIPQUAD(ih->saddr),
 		       NIPQUAD(ih->daddr), ih->tos, ih->protocol);
-		if (ih->protocol == IPPROTO_TCP ||
-		    ih->protocol == IPPROTO_UDP ||
-		    ih->protocol == IPPROTO_UDPLITE ||
-		    ih->protocol == IPPROTO_SCTP ||
-		    ih->protocol == IPPROTO_DCCP) {
-			const struct tcpudphdr *pptr;
-			struct tcpudphdr _ports;
-
-			pptr = skb_header_pointer(skb, ih->ihl*4,
-						  sizeof(_ports), &_ports);
-			if (pptr == NULL) {
-				printk(" INCOMPLETE TCP/UDP header");
-				goto out;
-			}
-			printk(" SPT=%u DPT=%u", ntohs(pptr->src),
-			   ntohs(pptr->dst));
-		}
+		print_ports(skb, ih->protocol, ih->ihl*4);
 		goto out;
 	}
+
+#if defined(CONFIG_BRIDGE_EBT_IP6) || defined(CONFIG_BRIDGE_EBT_IP6_MODULE)
+	if ((bitmask & EBT_LOG_IP6) && eth_hdr(skb)->h_proto ==
+	   htons(ETH_P_IPV6)) {
+		const struct ipv6hdr *ih;
+		struct ipv6hdr _iph;
+		uint8_t nexthdr;
+		int offset_ph;
+
+		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
+		if (ih == NULL) {
+			printk(" INCOMPLETE IPv6 header");
+			goto out;
+		}
+		printk(" IPv6 SRC=%x:%x:%x:%x:%x:%x:%x:%x "
+		       "IPv6 DST=%x:%x:%x:%x:%x:%x:%x:%x, IPv6 "
+		       "priority=0x%01X, Next Header=%d", NIP6(ih->saddr),
+		       NIP6(ih->daddr), ih->priority, ih->nexthdr);
+		nexthdr = ih->nexthdr;
+		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr);
+		if (offset_ph == -1)
+			goto out;
+		print_ports(skb, nexthdr, offset_ph);
+		goto out;
+	}
+#endif
 
 	if ((bitmask & EBT_LOG_ARP) &&
 	    ((eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) ||

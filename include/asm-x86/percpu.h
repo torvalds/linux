@@ -22,6 +22,32 @@
 
 DECLARE_PER_CPU(struct x8664_pda, pda);
 
+/*
+ * These are supposed to be implemented as a single instruction which
+ * operates on the per-cpu data base segment.  x86-64 doesn't have
+ * that yet, so this is a fairly inefficient workaround for the
+ * meantime.  The single instruction is atomic with respect to
+ * preemption and interrupts, so we need to explicitly disable
+ * interrupts here to achieve the same effect.  However, because it
+ * can be used from within interrupt-disable/enable, we can't actually
+ * disable interrupts; disabling preemption is enough.
+ */
+#define x86_read_percpu(var)						\
+	({								\
+		typeof(per_cpu_var(var)) __tmp;				\
+		preempt_disable();					\
+		__tmp = __get_cpu_var(var);				\
+		preempt_enable();					\
+		__tmp;							\
+	})
+
+#define x86_write_percpu(var, val)					\
+	do {								\
+		preempt_disable();					\
+		__get_cpu_var(var) = (val);				\
+		preempt_enable();					\
+	} while(0)
+
 #else /* CONFIG_X86_64 */
 
 #ifdef __ASSEMBLY__
@@ -156,7 +182,7 @@ do {							\
 	DEFINE_PER_CPU(_type, _name) = _initvalue;			\
 	__typeof__(_type) _name##_early_map[NR_CPUS] __initdata =	\
 				{ [0 ... NR_CPUS-1] = _initvalue };	\
-	__typeof__(_type) *_name##_early_ptr = _name##_early_map
+	__typeof__(_type) *_name##_early_ptr __refdata = _name##_early_map
 
 #define EXPORT_EARLY_PER_CPU_SYMBOL(_name)			\
 	EXPORT_PER_CPU_SYMBOL(_name)

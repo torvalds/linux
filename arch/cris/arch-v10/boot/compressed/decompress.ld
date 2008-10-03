@@ -1,4 +1,5 @@
-OUTPUT_FORMAT(elf32-us-cris)
+/* OUTPUT_FORMAT(elf32-us-cris) */
+OUTPUT_FORMAT(elf32-cris)
 
 MEMORY 
 	{

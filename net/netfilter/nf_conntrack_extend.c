@@ -95,13 +95,11 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	newlen = newoff + t->len;
 	rcu_read_unlock();
 
-	if (newlen >= ksize(ct->ext)) {
-		new = kmalloc(newlen, gfp);
-		if (!new)
-			return NULL;
+	new = __krealloc(ct->ext, newlen, gfp);
+	if (!new)
+		return NULL;
 
-		memcpy(new, ct->ext, ct->ext->len);
-
+	if (new != ct->ext) {
 		for (i = 0; i < NF_CT_EXT_NUM; i++) {
 			if (!nf_ct_ext_exist(ct, i))
 				continue;
@@ -117,10 +115,10 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 		ct->ext = new;
 	}
 
-	ct->ext->offset[id] = newoff;
-	ct->ext->len = newlen;
-	memset((void *)ct->ext + newoff, 0, newlen - newoff);
-	return (void *)ct->ext + newoff;
+	new->offset[id] = newoff;
+	new->len = newlen;
+	memset((void *)new + newoff, 0, newlen - newoff);
+	return (void *)new + newoff;
 }
 EXPORT_SYMBOL(__nf_ct_ext_add);
 

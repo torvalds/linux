@@ -1279,6 +1279,12 @@ static int nfs_parse_mount_options(char *raw,
 		}
 	}
 
+	if (errors > 0) {
+		dfprintk(MOUNT, "NFS: parsing encountered %d error%s\n",
+				errors, (errors == 1 ? "" : "s"));
+		if (!sloppy)
+			return 0;
+	}
 	return 1;
 
 out_nomem:
@@ -1718,9 +1724,9 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	 * ones were explicitly specified. Fall back to legacy behavior and
 	 * just return success.
 	 */
-	if ((nfsvers == 4 && options4->version == 1) ||
-	    (nfsvers <= 3 && options->version >= 1 &&
-	     options->version <= 6))
+	if ((nfsvers == 4 && (!options4 || options4->version == 1)) ||
+	    (nfsvers <= 3 && (!options || (options->version >= 1 &&
+					   options->version <= 6))))
 		return 0;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);

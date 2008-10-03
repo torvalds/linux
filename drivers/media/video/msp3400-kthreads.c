@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/freezer.h>
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/msp3400.h>
@@ -479,7 +478,6 @@ int msp3400c_thread(void *data)
 	struct msp_state *state = i2c_get_clientdata(client);
 	struct msp3400c_carrier_detect *cd;
 	int count, max1, max2, val1, val2, val, i;
-
 
 	v4l_dbg(1, msp_debug, client, "msp3400 daemon started\n");
 	set_freezable();

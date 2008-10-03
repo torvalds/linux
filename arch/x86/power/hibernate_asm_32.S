@@ -28,9 +28,9 @@ ENTRY(swsusp_arch_suspend)
 	ret
 
 ENTRY(restore_image)
-	movl	resume_pg_dir, %ecx
-	subl	$__PAGE_OFFSET, %ecx
-	movl	%ecx, %cr3
+	movl	resume_pg_dir, %eax
+	subl	$__PAGE_OFFSET, %eax
+	movl	%eax, %cr3
 
 	movl	restore_pblist, %edx
 	.p2align 4,,7
@@ -52,17 +52,21 @@ copy_loop:
 
 done:
 	/* go back to the original page tables */
-	movl	$swapper_pg_dir, %ecx
-	subl	$__PAGE_OFFSET, %ecx
-	movl	%ecx, %cr3
+	movl	$swapper_pg_dir, %eax
+	subl	$__PAGE_OFFSET, %eax
+	movl	%eax, %cr3
 	/* Flush TLB, including "global" things (vmalloc) */
-	movl	mmu_cr4_features, %eax
-	movl	%eax, %edx
+	movl	mmu_cr4_features, %ecx
+	jecxz	1f	# cr4 Pentium and higher, skip if zero
+	movl	%ecx, %edx
 	andl	$~(1<<7), %edx;  # PGE
 	movl	%edx, %cr4;  # turn off PGE
-	movl	%cr3, %ecx;  # flush TLB
-	movl	%ecx, %cr3
-	movl	%eax, %cr4;  # turn PGE back on
+1:
+	movl	%cr3, %eax;  # flush TLB
+	movl	%eax, %cr3
+	jecxz	1f	# cr4 Pentium and higher, skip if zero
+	movl	%ecx, %cr4;  # turn PGE back on
+1:
 
 	movl saved_context_esp, %esp
 	movl saved_context_ebp, %ebp

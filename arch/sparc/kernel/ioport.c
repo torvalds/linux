@@ -36,12 +36,12 @@
 #include <linux/pci.h>		/* struct pci_dev */
 #include <linux/proc_fs.h>
 #include <linux/scatterlist.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/sbus.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -49,12 +49,15 @@
 
 #define mmu_inval_dma_area(p, l)	/* Anton pulled it out for 2.4.0-xx */
 
-struct resource *_sparc_find_resource(struct resource *r, unsigned long);
+static struct resource *_sparc_find_resource(struct resource *r,
+					     unsigned long);
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
 static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
     unsigned long size, char *name);
 static void _sparc_free_io(struct resource *res);
+
+static void register_proc_sparc_ioport(void);
 
 /* This points to the next to use virtual memory for DVMA mappings */
 static struct resource _sparc_dvma = {
@@ -539,8 +542,6 @@ void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)
 
 int __init sbus_arch_preinit(void)
 {
-	extern void register_proc_sparc_ioport(void);
-
 	register_proc_sparc_ioport();
 
 #ifdef CONFIG_SUN4
@@ -853,8 +854,8 @@ _sparc_io_get_info(char *buf, char **start, off_t fpos, int length, int *eof,
  * XXX Too slow. Can have 8192 DVMA pages on sun4m in the worst case.
  * This probably warrants some sort of hashing.
  */
-struct resource *
-_sparc_find_resource(struct resource *root, unsigned long hit)
+static struct resource *_sparc_find_resource(struct resource *root,
+					     unsigned long hit)
 {
         struct resource *tmp;
 
@@ -865,7 +866,7 @@ _sparc_find_resource(struct resource *root, unsigned long hit)
 	return NULL;
 }
 
-void register_proc_sparc_ioport(void)
+static void register_proc_sparc_ioport(void)
 {
 #ifdef CONFIG_PROC_FS
 	create_proc_read_entry("io_map",0,NULL,_sparc_io_get_info,&sparc_iomap);

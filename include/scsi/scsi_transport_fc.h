@@ -489,9 +489,9 @@ struct fc_host_attrs {
 	u16 npiv_vports_inuse;
 
 	/* work queues for rport state manipulation */
-	char work_q_name[KOBJ_NAME_LEN];
+	char work_q_name[20];
 	struct workqueue_struct *work_q;
-	char devloss_work_q_name[KOBJ_NAME_LEN];
+	char devloss_work_q_name[20];
 	struct workqueue_struct *devloss_work_q;
 };
 

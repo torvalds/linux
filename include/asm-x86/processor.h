@@ -134,7 +134,7 @@ extern __u32			cleared_cpu_caps[NCAPINTS];
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
-#define current_cpu_data	cpu_data(smp_processor_id())
+#define current_cpu_data	__get_cpu_var(cpu_info)
 #else
 #define cpu_data(cpu)		boot_cpu_data
 #define current_cpu_data	boot_cpu_data
@@ -722,13 +722,34 @@ static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
 
-extern int			force_mwait;
-
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 extern unsigned long		boot_option_idle_override;
 extern unsigned long		idle_halt;
 extern unsigned long		idle_nomwait;
+
+/*
+ * on systems with caches, caches must be flashed as the absolute
+ * last instruction before going into a suspended halt.  Otherwise,
+ * dirty data can linger in the cache and become stale on resume,
+ * leading to strange errors.
+ *
+ * perform a variety of operations to guarantee that the compiler
+ * will not reorder instructions.  wbinvd itself is serializing
+ * so the processor will not reorder.
+ *
+ * Systems without cache can just go into halt.
+ */
+static inline void wbinvd_halt(void)
+{
+	mb();
+	/* check for clflush to determine if wbinvd is legal */
+	if (cpu_has_clflush)
+		asm volatile("cli; wbinvd; 1: hlt; jmp 1b" : : : "memory");
+	else
+		while (1)
+			halt();
+}
 
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);

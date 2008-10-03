@@ -486,6 +486,7 @@ static int __init ps3_register_graphics_devices(void)
 		return -ENOMEM;
 
 	p->dev.match_id = PS3_MATCH_ID_GRAPHICS;
+	p->dev.match_sub_id = PS3_MATCH_SUB_ID_FB;
 	p->dev.dev_type = PS3_DEVICE_TYPE_IOC0;
 
 	result = ps3_system_bus_device_register(&p->dev);

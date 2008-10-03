@@ -38,6 +38,7 @@
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/tlb.h>
+#include <asm/elf.h>
 
 #include "misc.h"
 #include "vti.h"
@@ -59,12 +60,6 @@ static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
-};
-
-
-struct fdesc{
-    unsigned long ip;
-    unsigned long gp;
 };
 
 static void kvm_flush_icache(unsigned long start, unsigned long len)
@@ -125,9 +120,9 @@ void kvm_arch_hardware_enable(void *garbage)
 				PAGE_KERNEL));
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
+	local_irq_restore(saved_psr);
 	if (slot < 0)
 		return;
-	local_irq_restore(saved_psr);
 
 	spin_lock(&vp_lock);
 	status = ia64_pal_vp_init_env(kvm_vsa_base ?
@@ -160,9 +155,9 @@ void kvm_arch_hardware_disable(void *garbage)
 
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
+	local_irq_restore(saved_psr);
 	if (slot < 0)
 		return;
-	local_irq_restore(saved_psr);
 
 	status = ia64_pal_vp_exit_env(host_iva);
 	if (status)
@@ -187,6 +182,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 		r = 1;
 		break;
+	case KVM_CAP_COALESCED_MMIO:
+		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
+		break;
 	default:
 		r = 0;
 	}
@@ -195,11 +193,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 }
 
 static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
-					gpa_t addr)
+					gpa_t addr, int len, int is_write)
 {
 	struct kvm_io_device *dev;
 
-	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr, len, is_write);
 
 	return dev;
 }
@@ -231,7 +229,7 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->exit_reason = KVM_EXIT_MMIO;
 	return 0;
 mmio:
-	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr);
+	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr, p->size, !p->dir);
 	if (mmio_dev) {
 		if (!p->dir)
 			kvm_iodevice_write(mmio_dev, p->addr, p->size,
@@ -1035,14 +1033,6 @@ static void kvm_free_vmm_area(void)
 	}
 }
 
-/*
- * Make sure that a cpu that is being hot-unplugged does not have any vcpus
- * cached on it. Leave it as blank for IA64.
- */
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 static void vti_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 }
@@ -1258,6 +1248,7 @@ static int vti_vcpu_setup(struct kvm_vcpu *vcpu, int id)
 uninit:
 	kvm_vcpu_uninit(vcpu);
 fail:
+	local_irq_restore(psr);
 	return r;
 }
 
@@ -1460,6 +1451,9 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	return 0;
 }
 
+void kvm_arch_flush_shadow(struct kvm *kvm)
+{
+}
 
 long kvm_arch_dev_ioctl(struct file *filp,
 		unsigned int ioctl, unsigned long arg)

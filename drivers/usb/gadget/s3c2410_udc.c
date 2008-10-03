@@ -35,7 +35,6 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/version.h>
 #include <linux/clk.h>
 
 #include <linux/debugfs.h>
@@ -49,15 +48,14 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/hardware.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/regs-udc.h>
 #include <asm/plat-s3c24xx/udc.h>
 
-#include <asm/mach-types.h>
 
 #include "s3c2410_udc.h"
 
@@ -888,7 +886,7 @@ static void s3c2410_udc_handle_ep(struct s3c2410_ep *ep)
 	}
 }
 
-#include <asm/arch/regs-irq.h>
+#include <mach/regs-irq.h>
 
 /*
  *	s3c2410_udc_irq - interrupt handler

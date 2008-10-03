@@ -535,7 +535,7 @@ static int __init etherh_addr(char *addr, struct expansion_card *ec)
 	
 	if (!ecard_readchunk(&cd, ec, 0xf5, 0)) {
 		printk(KERN_ERR "%s: unable to read podule description string\n",
-		       ec->dev.bus_id);
+		       dev_name(&ec->dev));
 		goto no_addr;
 	}
 
@@ -554,7 +554,7 @@ static int __init etherh_addr(char *addr, struct expansion_card *ec)
 	}
 
 	printk(KERN_ERR "%s: unable to parse MAC address: %s\n",
-	       ec->dev.bus_id, cd.d.string);
+	       dev_name(&ec->dev), cd.d.string);
 
  no_addr:
 	return -ENODEV;
@@ -585,7 +585,7 @@ static void etherh_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev->dev.parent->bus_id,
+	strlcpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 

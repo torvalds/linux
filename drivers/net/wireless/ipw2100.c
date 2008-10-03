@@ -157,7 +157,6 @@ that only one external action is invoked at a time.
 #include <linux/stringify.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/time.h>
 #include <linux/firmware.h>
 #include <linux/acpi.h>
@@ -6442,6 +6441,7 @@ static int ipw2100_resume(struct pci_dev *pci_dev)
 	if (err) {
 		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
 		       dev->name);
+		mutex_unlock(&priv->action_mutex);
 		return err;
 	}
 	pci_restore_state(pci_dev);
@@ -7146,7 +7146,7 @@ static int ipw2100_wx_get_rate(struct net_device *dev,
 	err = ipw2100_get_ordinal(priv, IPW_ORD_CURRENT_TX_RATE, &val, &len);
 	if (err) {
 		IPW_DEBUG_WX("failed querying ordinals.\n");
-		return err;
+		goto done;
 	}
 
 	switch (val & TX_RATE_MASK) {

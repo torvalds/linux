@@ -39,7 +39,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_instruction", VCPU_STAT(exit_instruction) },
 	{ "exit_program_interruption", VCPU_STAT(exit_program_interruption) },
 	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
-	{ "instruction_lctg", VCPU_STAT(instruction_lctg) },
+	{ "instruction_lctlg", VCPU_STAT(instruction_lctlg) },
 	{ "instruction_lctl", VCPU_STAT(instruction_lctl) },
 	{ "deliver_emergency_signal", VCPU_STAT(deliver_emergency_signal) },
 	{ "deliver_service_signal", VCPU_STAT(deliver_service_signal) },
@@ -79,10 +79,6 @@ void kvm_arch_hardware_disable(void *garbage)
 {
 }
 
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
@@ -116,7 +112,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 
 int kvm_dev_ioctl_check_extension(long ext)
 {
-	return 0;
+	switch (ext) {
+	case KVM_CAP_USER_MEMORY:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 /* Section: vm related */
@@ -198,6 +199,7 @@ out_nokvm:
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	debug_unregister(kvm->arch.dbf);
+	kvm_free_physmem(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	kfree(kvm);
 	module_put(THIS_MODULE);
@@ -250,11 +252,16 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->gbea = 1;
 }
 
+/* The current code can have up to 256 pages for virtio */
+#define VIRTIODESCSPACE (256ul * 4096ul)
+
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH);
-	vcpu->arch.sie_block->gmslm = 0xffffffffffUL;
-	vcpu->arch.sie_block->gmsor = 0x000000000000;
+	vcpu->arch.sie_block->gmslm = vcpu->kvm->arch.guest_memsize +
+				      vcpu->kvm->arch.guest_origin +
+				      VIRTIODESCSPACE - 1ul;
+	vcpu->arch.sie_block->gmsor = vcpu->kvm->arch.guest_origin;
 	vcpu->arch.sie_block->ecb   = 2;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
@@ -273,7 +280,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	if (!vcpu)
 		goto out_nomem;
 
-	vcpu->arch.sie_block = (struct sie_block *) get_zeroed_page(GFP_KERNEL);
+	vcpu->arch.sie_block = (struct kvm_s390_sie_block *)
+					get_zeroed_page(GFP_KERNEL);
 
 	if (!vcpu->arch.sie_block)
 		goto out_free_cpu;
@@ -670,6 +678,10 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	   programming practice. */
 
 	return 0;
+}
+
+void kvm_arch_flush_shadow(struct kvm *kvm)
+{
 }
 
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)

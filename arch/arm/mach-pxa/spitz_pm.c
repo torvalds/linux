@@ -20,14 +20,14 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/scoop.h>
 
-#include <asm/arch/sharpsl.h>
-#include <asm/arch/spitz.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/sharpsl.h>
+#include <mach/spitz.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx-gpio.h>
 #include "sharpsl.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */

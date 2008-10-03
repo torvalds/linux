@@ -32,6 +32,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -41,10 +42,6 @@
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
 #include <asm/cpm1.h>
-#endif
-
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
-#include <asm/of_device.h>
 #endif
 
 #include "fs_enet.h"
@@ -99,7 +96,6 @@ static int whack_reset(fec_t __iomem *fecp)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	struct of_device *ofdev = to_of_device(fep->dev);
 
 	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
@@ -111,23 +107,6 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		return -EINVAL;
 
 	return 0;
-#else
-	struct platform_device *pdev = to_platform_device(fep->dev);
-	struct resource	*r;
-
-	/* Fill out IRQ field */
-	fep->interrupt = platform_get_irq_byname(pdev,"interrupt");
-	if (fep->interrupt < 0)
-		return -EINVAL;
-
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	fep->fec.fecp = ioremap(r->start, r->end - r->start + 1);
-
-	if(fep->fec.fecp == NULL)
-		return -EINVAL;
-
-	return 0;
-#endif
 }
 
 #define FEC_NAPI_RX_EVENT_MSK	(FEC_ENET_RXF | FEC_ENET_RXB)

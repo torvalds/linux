@@ -897,6 +897,8 @@ static void hostap_monitor_set_type(local_info_t *local)
 	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
 	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
 		dev->type = ARPHRD_IEEE80211_PRISM;
+	} else if (local->monitor_type == PRISM2_MONITOR_RADIOTAP) {
+		dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	} else {
 		dev->type = ARPHRD_IEEE80211;
 	}
@@ -1793,6 +1795,7 @@ static int prism2_ioctl_siwscan(struct net_device *dev,
 
 #ifndef PRISM2_NO_STATION_MODES
 static char * __prism2_translate_scan(local_info_t *local,
+				      struct iw_request_info *info,
 				      struct hfa384x_hostscan_result *scan,
 				      struct hostap_bss_info *bss,
 				      char *current_ev, char *end_buf)
@@ -1823,7 +1826,7 @@ static char * __prism2_translate_scan(local_info_t *local,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bssid, ETH_ALEN);
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
 					  IW_EV_ADDR_LEN);
 
 	/* Other entries will be displayed in the order we give them */
@@ -1832,7 +1835,8 @@ static char * __prism2_translate_scan(local_info_t *local,
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.length = ssid_len;
 	iwe.u.data.flags = 1;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, ssid);
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, ssid);
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWMODE;
@@ -1847,8 +1851,8 @@ static char * __prism2_translate_scan(local_info_t *local,
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_UINT_LEN);
 	}
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -1864,8 +1868,8 @@ static char * __prism2_translate_scan(local_info_t *local,
 	if (chan > 0) {
 		iwe.u.freq.m = freq_list[chan - 1] * 100000;
 		iwe.u.freq.e = 1;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_FREQ_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_FREQ_LEN);
 	}
 
 	if (scan) {
@@ -1884,8 +1888,8 @@ static char * __prism2_translate_scan(local_info_t *local,
 			| IW_QUAL_NOISE_UPDATED
 			| IW_QUAL_QUAL_INVALID
 			| IW_QUAL_DBM;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_QUAL_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_QUAL_LEN);
 	}
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -1895,13 +1899,13 @@ static char * __prism2_translate_scan(local_info_t *local,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, "");
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, "");
 
 	/* TODO: add SuppRates into BSS table */
 	if (scan) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = SIOCGIWRATE;
-		current_val = current_ev + IW_EV_LCP_LEN;
+		current_val = current_ev + iwe_stream_lcp_len(info);
 		pos = scan->sup_rates;
 		for (i = 0; i < sizeof(scan->sup_rates); i++) {
 			if (pos[i] == 0)
@@ -1909,11 +1913,11 @@ static char * __prism2_translate_scan(local_info_t *local,
 			/* Bit rate given in 500 kb/s units (+ 0x80) */
 			iwe.u.bitrate.value = ((pos[i] & 0x7f) * 500000);
 			current_val = iwe_stream_add_value(
-				current_ev, current_val, end_buf, &iwe,
+				info, current_ev, current_val, end_buf, &iwe,
 				IW_EV_PARAM_LEN);
 		}
 		/* Check if we added any event */
-		if ((current_val - current_ev) > IW_EV_LCP_LEN)
+		if ((current_val - current_ev) > iwe_stream_lcp_len(info))
 			current_ev = current_val;
 	}
 
@@ -1924,15 +1928,15 @@ static char * __prism2_translate_scan(local_info_t *local,
 		iwe.cmd = IWEVCUSTOM;
 		sprintf(buf, "bcn_int=%d", le16_to_cpu(scan->beacon_interval));
 		iwe.u.data.length = strlen(buf);
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  buf);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, buf);
 
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
 		sprintf(buf, "resp_rate=%d", le16_to_cpu(scan->rate));
 		iwe.u.data.length = strlen(buf);
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  buf);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, buf);
 
 		if (local->last_scan_type == PRISM2_HOSTSCAN &&
 		    (capabilities & WLAN_CAPABILITY_IBSS)) {
@@ -1940,8 +1944,8 @@ static char * __prism2_translate_scan(local_info_t *local,
 			iwe.cmd = IWEVCUSTOM;
 			sprintf(buf, "atim=%d", le16_to_cpu(scan->atim));
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
-							  &iwe, buf);
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf, &iwe, buf);
 		}
 	}
 	kfree(buf);
@@ -1950,16 +1954,16 @@ static char * __prism2_translate_scan(local_info_t *local,
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->wpa_ie_len;
-		current_ev = iwe_stream_add_point(
-			current_ev, end_buf, &iwe, bss->wpa_ie);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss->wpa_ie);
 	}
 
 	if (bss && bss->rsn_ie_len > 0 && bss->rsn_ie_len <= MAX_WPA_IE_LEN) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->rsn_ie_len;
-		current_ev = iwe_stream_add_point(
-			current_ev, end_buf, &iwe, bss->rsn_ie);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss->rsn_ie);
 	}
 
 	return current_ev;
@@ -1969,6 +1973,7 @@ static char * __prism2_translate_scan(local_info_t *local,
 /* Translate scan data returned from the card to a card independant
  * format that the Wireless Tools will understand - Jean II */
 static inline int prism2_translate_scan(local_info_t *local,
+					struct iw_request_info *info,
 					char *buffer, int buflen)
 {
 	struct hfa384x_hostscan_result *scan;
@@ -1999,13 +2004,14 @@ static inline int prism2_translate_scan(local_info_t *local,
 			if (memcmp(bss->bssid, scan->bssid, ETH_ALEN) == 0) {
 				bss->included = 1;
 				current_ev = __prism2_translate_scan(
-					local, scan, bss, current_ev, end_buf);
+					local, info, scan, bss, current_ev,
+					end_buf);
 				found++;
 			}
 		}
 		if (!found) {
 			current_ev = __prism2_translate_scan(
-				local, scan, NULL, current_ev, end_buf);
+				local, info, scan, NULL, current_ev, end_buf);
 		}
 		/* Check if there is space for one more entry */
 		if ((end_buf - current_ev) <= IW_EV_ADDR_LEN) {
@@ -2023,7 +2029,7 @@ static inline int prism2_translate_scan(local_info_t *local,
 		bss = list_entry(ptr, struct hostap_bss_info, list);
 		if (bss->included)
 			continue;
-		current_ev = __prism2_translate_scan(local, NULL, bss,
+		current_ev = __prism2_translate_scan(local, info, NULL, bss,
 						     current_ev, end_buf);
 		/* Check if there is space for one more entry */
 		if ((end_buf - current_ev) <= IW_EV_ADDR_LEN) {
@@ -2070,7 +2076,7 @@ static inline int prism2_ioctl_giwscan_sta(struct net_device *dev,
 	}
 	local->scan_timestamp = 0;
 
-	res = prism2_translate_scan(local, extra, data->length);
+	res = prism2_translate_scan(local, info, extra, data->length);
 
 	if (res >= 0) {
 		data->length = res;
@@ -2103,7 +2109,7 @@ static int prism2_ioctl_giwscan(struct net_device *dev,
 		 * Jean II */
 
 		/* Translate to WE format */
-		res = prism2_ap_translate_scan(dev, extra);
+		res = prism2_ap_translate_scan(dev, info, extra);
 		if (res >= 0) {
 			printk(KERN_DEBUG "Scan result translation succeeded "
 			       "(length=%d)\n", res);
@@ -2516,7 +2522,8 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 	case PRISM2_PARAM_MONITOR_TYPE:
 		if (value != PRISM2_MONITOR_80211 &&
 		    value != PRISM2_MONITOR_CAPHDR &&
-		    value != PRISM2_MONITOR_PRISM) {
+		    value != PRISM2_MONITOR_PRISM &&
+		    value != PRISM2_MONITOR_RADIOTAP) {
 			ret = -EINVAL;
 			break;
 		}

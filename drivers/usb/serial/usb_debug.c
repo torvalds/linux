@@ -15,6 +15,8 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
+#define USB_DEBUG_MAX_PACKET_SIZE	8
+
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0525, 0x127a) },
 	{ },
@@ -29,6 +31,13 @@ static struct usb_driver debug_driver = {
 	.no_dynamic_id = 	1,
 };
 
+int usb_debug_open(struct tty_struct *tty, struct usb_serial_port *port,
+							struct file *filp)
+{
+	port->bulk_out_size = USB_DEBUG_MAX_PACKET_SIZE;
+	return usb_serial_generic_open(tty, port, filp);
+}
+
 static struct usb_serial_driver debug_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -36,6 +45,7 @@ static struct usb_serial_driver debug_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
+	.open =			usb_debug_open,
 };
 
 static int __init debug_init(void)

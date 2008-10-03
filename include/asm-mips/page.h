@@ -34,6 +34,9 @@
 #include <linux/pfn.h>
 #include <asm/io.h>
 
+extern void build_clear_page(void);
+extern void build_copy_page(void);
+
 /*
  * It's normally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
@@ -133,9 +136,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
 
 #endif /* !__ASSEMBLY__ */
-
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr) + PAGE_SIZE - 1) & PAGE_MASK)
 
 /*
  * __pa()/__va() should be used only during mem init.

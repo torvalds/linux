@@ -915,14 +915,10 @@ static void build_fake_packet(struct lance_private *lp)
 	lp->tx_new = TX_NEXT(entry);
 }
 
-struct net_device *last_dev;
-
 static int lance_open(struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	int status = 0;
-
-	last_dev = dev;
 
 	STOP_LANCE(lp);
 

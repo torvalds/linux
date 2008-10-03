@@ -51,29 +51,9 @@
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
 #include <asm/pda.h>
+#include <asm/traps.h>
 
 #include <mach_traps.h>
-
-asmlinkage void divide_error(void);
-asmlinkage void debug(void);
-asmlinkage void nmi(void);
-asmlinkage void int3(void);
-asmlinkage void overflow(void);
-asmlinkage void bounds(void);
-asmlinkage void invalid_op(void);
-asmlinkage void device_not_available(void);
-asmlinkage void double_fault(void);
-asmlinkage void coprocessor_segment_overrun(void);
-asmlinkage void invalid_TSS(void);
-asmlinkage void segment_not_present(void);
-asmlinkage void stack_segment(void);
-asmlinkage void general_protection(void);
-asmlinkage void page_fault(void);
-asmlinkage void coprocessor_error(void);
-asmlinkage void simd_coprocessor_error(void);
-asmlinkage void alignment_check(void);
-asmlinkage void spurious_interrupt_bug(void);
-asmlinkage void machine_check(void);
 
 int panic_on_unrecovered_nmi;
 int kstack_depth_to_print = 12;
@@ -355,17 +335,24 @@ static const struct stacktrace_ops print_trace_ops = {
 	.address = print_trace_address,
 };
 
-void show_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp)
+static void
+show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *stack, unsigned long bp, char *log_lvl)
 {
 	printk("\nCall Trace:\n");
-	dump_trace(task, regs, stack, bp, &print_trace_ops, NULL);
+	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
 	printk("\n");
 }
 
+void show_trace(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *stack, unsigned long bp)
+{
+	show_trace_log_lvl(task, regs, stack, bp, "");
+}
+
 static void
-_show_stack(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *sp, unsigned long bp)
+show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *sp, unsigned long bp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -399,12 +386,12 @@ _show_stack(struct task_struct *task, struct pt_regs *regs,
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
-	show_trace(task, regs, sp, bp);
+	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	_show_stack(task, NULL, sp, 0);
+	show_stack_log_lvl(task, NULL, sp, 0, "");
 }
 
 /*
@@ -454,7 +441,8 @@ void show_registers(struct pt_regs *regs)
 		u8 *ip;
 
 		printk("Stack: ");
-		_show_stack(NULL, regs, (unsigned long *)sp, regs->bp);
+		show_stack_log_lvl(NULL, regs, (unsigned long *)sp,
+				regs->bp, "");
 		printk("\n");
 
 		printk(KERN_EMERG "Code: ");
@@ -518,7 +506,7 @@ unsigned __kprobes long oops_begin(void)
 }
 
 void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
-{ 
+{
 	die_owner = -1;
 	bust_spinlocks(0);
 	die_nest_count--;
@@ -1143,7 +1131,14 @@ asmlinkage void math_state_restore(void)
 	}
 
 	clts();				/* Allow maths ops (or we recurse) */
-	restore_fpu_checking(&me->thread.xstate->fxsave);
+	/*
+	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
+	 */
+	if (unlikely(restore_fpu_checking(&me->thread.xstate->fxsave))) {
+		stts();
+		force_sig(SIGSEGV, me);
+		return;
+	}
 	task_thread_info(me)->status |= TS_USEDFPU;
 	me->fpu_counter++;
 }

@@ -21,13 +21,12 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 
-#include <asm/arch/platform.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/gpio.h>
+#include <mach/platform.h>
+#include <mach/irqs.h>
+#include <mach/gpio.h>
 
 #define USB_CTRL	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
 
@@ -109,8 +108,6 @@ static struct clk *usb_clk;
 
 static int isp1301_probe(struct i2c_adapter *adap);
 static int isp1301_detach(struct i2c_client *client);
-static int isp1301_command(struct i2c_client *client, unsigned int cmd,
-			   void *arg);
 
 static const unsigned short normal_i2c[] =
     { ISP1301_I2C_ADDR, ISP1301_I2C_ADDR + 1, I2C_CLIENT_END };
@@ -123,30 +120,37 @@ static struct i2c_client_address_data addr_data = {
 };
 
 struct i2c_driver isp1301_driver = {
-	.class = I2C_CLASS_HWMON,
+	.driver = {
+		.name = "isp1301_pnx",
+	},
 	.attach_adapter = isp1301_probe,
 	.detach_client = isp1301_detach,
-	.command = isp1301_command
 };
 
 static int isp1301_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct i2c_client *c;
+	int err;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
-
 	if (!c)
 		return -ENOMEM;
 
-	strcpy(c->name, "isp1301");
+	strlcpy(c->name, "isp1301_pnx", I2C_NAME_SIZE);
 	c->flags = 0;
 	c->addr = addr;
 	c->adapter = adap;
 	c->driver = &isp1301_driver;
 
+	err = i2c_attach_client(c);
+	if (err) {
+		kfree(c);
+		return err;
+	}
+
 	isp1301_i2c_client = c;
 
-	return i2c_attach_client(c);
+	return 0;
 }
 
 static int isp1301_probe(struct i2c_adapter *adap)
@@ -158,13 +162,6 @@ static int isp1301_detach(struct i2c_client *client)
 {
 	i2c_detach_client(client);
 	kfree(isp1301_i2c_client);
-	return 0;
-}
-
-/* No commands defined */
-static int isp1301_command(struct i2c_client *client, unsigned int cmd,
-			   void *arg)
-{
 	return 0;
 }
 
@@ -280,7 +277,6 @@ static const struct hc_driver ohci_pnx4008_hc_driver = {
 	 */
 	.hub_status_data = ohci_hub_status_data,
 	.hub_control = ohci_hub_control,
-	.hub_irq_enable = ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend = ohci_bus_suspend,
 	.bus_resume = ohci_bus_resume,
@@ -389,7 +385,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	while ((__raw_readl(USB_OTG_CLK_STAT) & USB_CLOCK_MASK) !=
 	       USB_CLOCK_MASK) ;
 
-	hcd = usb_create_hcd (driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err("Failed to allocate HC buffer");
 		ret = -ENOMEM;

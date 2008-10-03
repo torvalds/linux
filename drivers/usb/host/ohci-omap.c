@@ -19,15 +19,15 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/mux.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/fpga.h>
-#include <asm/arch/usb.h>
+#include <mach/mux.h>
+#include <mach/irqs.h>
+#include <mach/gpio.h>
+#include <mach/fpga.h>
+#include <mach/usb.h>
 
 
 /* OMAP-1510 OHCI has its own MMU for DMA */
@@ -208,7 +208,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 	if (cpu_is_omap16xx())
 		ocpi_enable();
 
-#ifdef	CONFIG_ARCH_OMAP_OTG
+#ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {
 		ohci->transceiver = otg_get_transceiver();
 		if (ohci->transceiver) {
@@ -225,6 +225,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 			dev_err(hcd->self.controller, "can't find transceiver\n");
 			return -ENODEV;
 		}
+		ohci->start_hnp = start_hnp;
 	}
 #endif
 
@@ -260,7 +261,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 			omap_cfg_reg(W4_USB_HIGHZ);
 		}
 		ohci_writel(ohci, rh, &ohci->regs->roothub.a);
-		distrust_firmware = 0;
+		ohci->flags &= ~OHCI_QUIRK_HUB_POWER;
 	} else if (machine_is_nokia770()) {
 		/* We require a self-powered hub, which should have
 		 * plenty of power. */
@@ -329,7 +330,7 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	}
 
 
-	hcd = usb_create_hcd (driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err0;
@@ -469,7 +470,6 @@ static const struct hc_driver ohci_omap_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

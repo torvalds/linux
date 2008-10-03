@@ -219,7 +219,6 @@
 #include <linux/time.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -235,6 +234,7 @@
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/i8253.h>
+#include <asm/olpc.h>
 #include <asm/paravirt.h>
 #include <asm/reboot.h>
 
@@ -2218,7 +2218,7 @@ static int __init apm_init(void)
 
 	dmi_check_system(apm_dmi_table);
 
-	if (apm_info.bios.version == 0 || paravirt_enabled()) {
+	if (apm_info.bios.version == 0 || paravirt_enabled() || machine_is_olpc()) {
 		printk(KERN_INFO "apm: BIOS not found.\n");
 		return -ENODEV;
 	}

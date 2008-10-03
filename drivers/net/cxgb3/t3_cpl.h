@@ -174,6 +174,13 @@ enum {				/* TCP congestion control algorithms */
 	CONG_ALG_HIGHSPEED
 };
 
+enum {			/* RSS hash type */
+	RSS_HASH_NONE = 0,
+	RSS_HASH_2_TUPLE = 1,
+	RSS_HASH_4_TUPLE = 2,
+	RSS_HASH_TCPV6 = 3
+};
+
 union opcode_tid {
 	__be32 opcode_tid;
 	__u8 opcode;
@@ -183,6 +190,13 @@ union opcode_tid {
 #define V_OPCODE(x) ((x) << S_OPCODE)
 #define G_OPCODE(x) (((x) >> S_OPCODE) & 0xFF)
 #define G_TID(x)    ((x) & 0xFFFFFF)
+
+#define S_QNUM 0
+#define G_QNUM(x) (((x) >> S_QNUM) & 0xFFFF)
+
+#define S_HASHTYPE 22
+#define M_HASHTYPE 0x3
+#define G_HASHTYPE(x) (((x) >> S_HASHTYPE) & M_HASHTYPE)
 
 /* tid is assumed to be 24-bits */
 #define MK_OPCODE_TID(opcode, tid) (V_OPCODE(opcode) | (tid))
@@ -767,6 +781,12 @@ struct tx_data_wr {
 	__be32 sndseq;
 	__be32 param;
 };
+
+/* tx_data_wr.flags fields */
+#define S_TX_ACK_PAGES	21
+#define M_TX_ACK_PAGES	0x7
+#define V_TX_ACK_PAGES(x) ((x) << S_TX_ACK_PAGES)
+#define G_TX_ACK_PAGES(x) (((x) >> S_TX_ACK_PAGES) & M_TX_ACK_PAGES)
 
 /* tx_data_wr.param fields */
 #define S_TX_PORT    0
@@ -1441,4 +1461,35 @@ struct cpl_rdma_terminate {
 #define M_TERM_TID    0xFFFFF
 #define V_TERM_TID(x) ((x) << S_TERM_TID)
 #define G_TERM_TID(x) (((x) >> S_TERM_TID) & M_TERM_TID)
+
+/* ULP_TX opcodes */
+enum { ULP_MEM_READ = 2, ULP_MEM_WRITE = 3, ULP_TXPKT = 4 };
+
+#define S_ULPTX_CMD	28
+#define M_ULPTX_CMD	0xF
+#define V_ULPTX_CMD(x)	((x) << S_ULPTX_CMD)
+
+#define S_ULPTX_NFLITS	0
+#define M_ULPTX_NFLITS	0xFF
+#define V_ULPTX_NFLITS(x) ((x) << S_ULPTX_NFLITS)
+
+struct ulp_mem_io {
+	WR_HDR;
+	__be32 cmd_lock_addr;
+	__be32 len;
+};
+
+/* ulp_mem_io.cmd_lock_addr fields */
+#define S_ULP_MEMIO_ADDR	0
+#define M_ULP_MEMIO_ADDR	0x7FFFFFF
+#define V_ULP_MEMIO_ADDR(x)	((x) << S_ULP_MEMIO_ADDR)
+#define S_ULP_MEMIO_LOCK	27
+#define V_ULP_MEMIO_LOCK(x)	((x) << S_ULP_MEMIO_LOCK)
+#define F_ULP_MEMIO_LOCK	V_ULP_MEMIO_LOCK(1U)
+
+/* ulp_mem_io.len fields */
+#define S_ULP_MEMIO_DATA_LEN	28
+#define M_ULP_MEMIO_DATA_LEN	0xF
+#define V_ULP_MEMIO_DATA_LEN(x)	((x) << S_ULP_MEMIO_DATA_LEN)
+
 #endif				/* T3_CPL_H */

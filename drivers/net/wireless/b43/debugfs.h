@@ -10,6 +10,8 @@ enum b43_dyndbg {		/* Dynamic debugging features */
 	B43_DBG_DMAVERBOSE,
 	B43_DBG_PWORK_FAST,
 	B43_DBG_PWORK_STOP,
+	B43_DBG_LO,
+	B43_DBG_FIRMWARE,
 	__B43_NR_DYNDBG,
 };
 
@@ -35,15 +37,33 @@ struct b43_dfsentry {
 	struct b43_wldev *dev;
 	struct dentry *subdir;
 
+	struct b43_dfs_file file_shm16read;
+	struct b43_dfs_file file_shm16write;
+	struct b43_dfs_file file_shm32read;
+	struct b43_dfs_file file_shm32write;
+	struct b43_dfs_file file_mmio16read;
+	struct b43_dfs_file file_mmio16write;
+	struct b43_dfs_file file_mmio32read;
+	struct b43_dfs_file file_mmio32write;
 	struct b43_dfs_file file_tsf;
-	struct b43_dfs_file file_ucode_regs;
-	struct b43_dfs_file file_shm;
 	struct b43_dfs_file file_txstat;
 	struct b43_dfs_file file_txpower_g;
 	struct b43_dfs_file file_restart;
 	struct b43_dfs_file file_loctls;
 
 	struct b43_txstatus_log txstatlog;
+
+	/* The cached address for the next mmio16read file read */
+	u16 mmio16read_next;
+	/* The cached address for the next mmio32read file read */
+	u16 mmio32read_next;
+
+	/* The cached address for the next shm16read file read */
+	u32 shm16read_routing_next;
+	u32 shm16read_addr_next;
+	/* The cached address for the next shm32read file read */
+	u32 shm32read_routing_next;
+	u32 shm32read_addr_next;
 
 	/* Enabled/Disabled list for the dynamic debugging features. */
 	u32 dyn_debug[__B43_NR_DYNDBG];

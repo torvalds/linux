@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -104,6 +105,12 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
 	if (dev->dev->caps.max_gso_sz)
 		props->device_cap_flags |= IB_DEVICE_UD_TSO;
+	if (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_RESERVED_LKEY)
+		props->device_cap_flags |= IB_DEVICE_LOCAL_DMA_LKEY;
+	if ((dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_LOCAL_INV) &&
+	    (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_REMOTE_INV) &&
+	    (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_FAST_REG_WR))
+		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
@@ -127,6 +134,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_srq		   = dev->dev->caps.num_srqs - dev->dev->caps.reserved_srqs;
 	props->max_srq_wr	   = dev->dev->caps.max_srq_wqes - 1;
 	props->max_srq_sge	   = dev->dev->caps.max_srq_sge;
+	props->max_fast_reg_page_list_len = PAGE_SIZE / sizeof (u64);
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
 		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
@@ -565,6 +573,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
+	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
 	ibdev->ib_dev.phys_port_cnt	= dev->caps.num_ports;
 	ibdev->ib_dev.num_comp_vectors	= 1;
 	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
@@ -627,6 +636,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.get_dma_mr	= mlx4_ib_get_dma_mr;
 	ibdev->ib_dev.reg_user_mr	= mlx4_ib_reg_user_mr;
 	ibdev->ib_dev.dereg_mr		= mlx4_ib_dereg_mr;
+	ibdev->ib_dev.alloc_fast_reg_mr = mlx4_ib_alloc_fast_reg_mr;
+	ibdev->ib_dev.alloc_fast_reg_page_list = mlx4_ib_alloc_fast_reg_page_list;
+	ibdev->ib_dev.free_fast_reg_page_list  = mlx4_ib_free_fast_reg_page_list;
 	ibdev->ib_dev.attach_mcast	= mlx4_ib_mcg_attach;
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;

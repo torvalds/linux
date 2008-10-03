@@ -67,7 +67,6 @@ static unsigned short normal_i2c[] = {
 		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
 		I2C_CLIENT_END };
 
-
 I2C_CLIENT_INSMOD;
 
 struct saa711x_state {
@@ -1490,10 +1489,9 @@ static int saa7115_probe(struct i2c_client *client,
 		 client->addr << 1, client->adapter->name);
 
 	state = kzalloc(sizeof(struct saa711x_state), GFP_KERNEL);
-	i2c_set_clientdata(client, state);
-	if (state == NULL) {
+	if (state == NULL)
 		return -ENOMEM;
-	}
+	i2c_set_clientdata(client, state);
 	state->input = -1;
 	state->output = SAA7115_IPORT_ON;
 	state->enable = 1;
@@ -1558,7 +1556,7 @@ static int saa7115_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id saa7115_id[] = {
-	{ "saa711x", 1 }, /* autodetect */
+	{ "saa7115_auto", 1 }, /* autodetect */
 	{ "saa7111", 0 },
 	{ "saa7113", 0 },
 	{ "saa7114", 0 },
@@ -1577,4 +1575,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.id_table = saa7115_id,
 };
-

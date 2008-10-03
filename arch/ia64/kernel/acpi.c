@@ -774,7 +774,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 static
-int acpi_map_cpu2node(acpi_handle handle, int cpu, long physid)
+int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int pxm_id;
@@ -854,8 +854,7 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	union acpi_object *obj;
 	struct acpi_madt_local_sapic *lsapic;
 	cpumask_t tmp_map;
-	long physid;
-	int cpu;
+	int cpu, physid;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
 		return -EINVAL;

@@ -139,7 +139,7 @@ static int tcf_gact(struct sk_buff *skb, struct tc_action *a, struct tcf_result 
 #else
 	action = gact->tcf_action;
 #endif
-	gact->tcf_bstats.bytes += skb->len;
+	gact->tcf_bstats.bytes += qdisc_pkt_len(skb);
 	gact->tcf_bstats.packets++;
 	if (action == TC_ACT_SHOT)
 		gact->tcf_qstats.drops++;

@@ -27,10 +27,9 @@ int ide_cdrom_open_real(struct cdrom_device_info *cdi, int purpose)
 void ide_cdrom_release_real(struct cdrom_device_info *cdi)
 {
 	ide_drive_t *drive = cdi->handle;
-	struct cdrom_info *cd = drive->driver_data;
 
 	if (!cdi->use_count)
-		cd->cd_flags &= ~IDE_CD_FLAG_TOC_VALID;
+		drive->atapi_flags &= ~IDE_AFLAG_TOC_VALID;
 }
 
 /*
@@ -83,13 +82,12 @@ int ide_cdrom_check_media_change_real(struct cdrom_device_info *cdi,
 				       int slot_nr)
 {
 	ide_drive_t *drive = cdi->handle;
-	struct cdrom_info *cd = drive->driver_data;
 	int retval;
 
 	if (slot_nr == CDSL_CURRENT) {
 		(void) cdrom_check_status(drive, NULL);
-		retval = (cd->cd_flags & IDE_CD_FLAG_MEDIA_CHANGED) ? 1 : 0;
-		cd->cd_flags &= ~IDE_CD_FLAG_MEDIA_CHANGED;
+		retval = (drive->atapi_flags & IDE_AFLAG_MEDIA_CHANGED) ? 1 : 0;
+		drive->atapi_flags &= ~IDE_AFLAG_MEDIA_CHANGED;
 		return retval;
 	} else {
 		return -EINVAL;
@@ -107,11 +105,11 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag,
 	char loej = 0x02;
 	unsigned char cmd[BLK_MAX_CDB];
 
-	if ((cd->cd_flags & IDE_CD_FLAG_NO_EJECT) && !ejectflag)
+	if ((drive->atapi_flags & IDE_AFLAG_NO_EJECT) && !ejectflag)
 		return -EDRIVE_CANT_DO_THIS;
 
 	/* reload fails on some drives, if the tray is locked */
-	if ((cd->cd_flags & IDE_CD_FLAG_DOOR_LOCKED) && ejectflag)
+	if ((drive->atapi_flags & IDE_AFLAG_DOOR_LOCKED) && ejectflag)
 		return 0;
 
 	/* only tell drive to close tray if open, if it can do that */
@@ -123,7 +121,7 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag,
 	cmd[0] = GPCMD_START_STOP_UNIT;
 	cmd[4] = loej | (ejectflag != 0);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, 0, sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sense, 0, 0);
 }
 
 /* Lock the door if LOCKFLAG is nonzero; unlock it otherwise. */
@@ -131,7 +129,6 @@ static
 int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 		    struct request_sense *sense)
 {
-	struct cdrom_info *cd = drive->driver_data;
 	struct request_sense my_sense;
 	int stat;
 
@@ -139,7 +136,7 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 		sense = &my_sense;
 
 	/* If the drive cannot lock the door, just pretend. */
-	if (cd->cd_flags & IDE_CD_FLAG_NO_DOORLOCK) {
+	if (drive->atapi_flags & IDE_AFLAG_NO_DOORLOCK) {
 		stat = 0;
 	} else {
 		unsigned char cmd[BLK_MAX_CDB];
@@ -149,7 +146,7 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 		cmd[0] = GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL;
 		cmd[4] = lockflag ? 1 : 0;
 
-		stat = ide_cd_queue_pc(drive, cmd, 0, NULL, 0,
+		stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL,
 				       sense, 0, 0);
 	}
 
@@ -160,7 +157,7 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 	    (sense->asc == 0x24 || sense->asc == 0x20)) {
 		printk(KERN_ERR "%s: door locking not supported\n",
 			drive->name);
-		cd->cd_flags |= IDE_CD_FLAG_NO_DOORLOCK;
+		drive->atapi_flags |= IDE_AFLAG_NO_DOORLOCK;
 		stat = 0;
 	}
 
@@ -170,9 +167,9 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 
 	if (stat == 0) {
 		if (lockflag)
-			cd->cd_flags |= IDE_CD_FLAG_DOOR_LOCKED;
+			drive->atapi_flags |= IDE_AFLAG_DOOR_LOCKED;
 		else
-			cd->cd_flags &= ~IDE_CD_FLAG_DOOR_LOCKED;
+			drive->atapi_flags &= ~IDE_AFLAG_DOOR_LOCKED;
 	}
 
 	return stat;
@@ -231,7 +228,7 @@ int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 		cmd[5] = speed & 0xff;
 	}
 
-	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, 0, &sense, 0, 0);
+	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
 
 	if (!ide_cdrom_get_capabilities(drive, buf)) {
 		ide_cdrom_update_speed(drive, buf);
@@ -250,7 +247,7 @@ int ide_cdrom_get_last_session(struct cdrom_device_info *cdi,
 	struct request_sense sense;
 	int ret;
 
-	if ((info->cd_flags & IDE_CD_FLAG_TOC_VALID) == 0 || !info->toc) {
+	if ((drive->atapi_flags & IDE_AFLAG_TOC_VALID) == 0 || !info->toc) {
 		ret = ide_cd_read_toc(drive, &sense);
 		if (ret)
 			return ret;
@@ -308,7 +305,7 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 	 * A reset will unlock the door. If it was previously locked,
 	 * lock it again.
 	 */
-	if (cd->cd_flags & IDE_CD_FLAG_DOOR_LOCKED)
+	if (drive->atapi_flags & IDE_AFLAG_DOOR_LOCKED)
 		(void)ide_cd_lockdoor(drive, 1, &sense);
 
 	return ret;
@@ -324,7 +321,7 @@ static int ide_cd_get_toc_entry(ide_drive_t *drive, int track,
 	/*
 	 * don't serve cached data, if the toc isn't valid
 	 */
-	if ((info->cd_flags & IDE_CD_FLAG_TOC_VALID) == 0)
+	if ((drive->atapi_flags & IDE_AFLAG_TOC_VALID) == 0)
 		return -EINVAL;
 
 	/* Check validity of requested track number. */
@@ -374,7 +371,7 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	lba_to_msf(lba_start,   &cmd[3], &cmd[4], &cmd[5]);
 	lba_to_msf(lba_end - 1, &cmd[6], &cmd[7], &cmd[8]);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, 0, &sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
 }
 
 static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)

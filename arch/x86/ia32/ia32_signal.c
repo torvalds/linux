@@ -36,6 +36,11 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
+#define FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
+			 X86_EFLAGS_DF | X86_EFLAGS_TF | X86_EFLAGS_SF | \
+			 X86_EFLAGS_ZF | X86_EFLAGS_AF | X86_EFLAGS_PF | \
+			 X86_EFLAGS_CF)
+
 asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 
@@ -248,7 +253,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	regs->ss |= 3;
 
 	err |= __get_user(tmpflags, &sc->flags);
-	regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
+	regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
 	/* disable syscall checks */
 	regs->orig_ax = -1;
 
@@ -515,7 +520,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			compat_sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
-	struct exec_domain *ed = current_thread_info()->exec_domain;
 	void __user *restorer;
 	int err = 0;
 
@@ -538,8 +542,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto give_sigsegv;
 
-	err |= __put_user((ed && ed->signal_invmap && sig < 32
-			   ? ed->signal_invmap[sig] : sig), &frame->sig);
+	err |= __put_user(sig, &frame->sig);
 	err |= __put_user(ptr_to_compat(&frame->info), &frame->pinfo);
 	err |= __put_user(ptr_to_compat(&frame->uc), &frame->puc);
 	err |= copy_siginfo_to_user32(&frame->info, info);

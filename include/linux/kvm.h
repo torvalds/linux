@@ -173,6 +173,30 @@ struct kvm_run {
 	};
 };
 
+/* for KVM_REGISTER_COALESCED_MMIO / KVM_UNREGISTER_COALESCED_MMIO */
+
+struct kvm_coalesced_mmio_zone {
+	__u64 addr;
+	__u32 size;
+	__u32 pad;
+};
+
+struct kvm_coalesced_mmio {
+	__u64 phys_addr;
+	__u32 len;
+	__u32 pad;
+	__u8  data[8];
+};
+
+struct kvm_coalesced_mmio_ring {
+	__u32 first, last;
+	struct kvm_coalesced_mmio coalesced_mmio[0];
+};
+
+#define KVM_COALESCED_MMIO_MAX \
+	((PAGE_SIZE - sizeof(struct kvm_coalesced_mmio_ring)) / \
+	 sizeof(struct kvm_coalesced_mmio))
+
 /* for KVM_TRANSLATE */
 struct kvm_translation {
 	/* in */
@@ -294,9 +318,9 @@ struct kvm_trace_rec {
 	__u32 vcpu_id;
 	union {
 		struct {
-			__u32 cycle_lo, cycle_hi;
+			__u64 cycle_u64;
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
-		} cycle;
+		} __attribute__((packed)) cycle;
 		struct {
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
 		} nocycle;
@@ -346,6 +370,8 @@ struct kvm_trace_rec {
 #define KVM_CAP_NOP_IO_DELAY 12
 #define KVM_CAP_PV_MMU 13
 #define KVM_CAP_MP_STATE 14
+#define KVM_CAP_COALESCED_MMIO 15
+#define KVM_CAP_SYNC_MMU 16  /* Changes to host mmap are reflected in guest */
 
 /*
  * ioctls for VM fds
@@ -371,6 +397,10 @@ struct kvm_trace_rec {
 #define KVM_CREATE_PIT		  _IO(KVMIO,  0x64)
 #define KVM_GET_PIT		  _IOWR(KVMIO, 0x65, struct kvm_pit_state)
 #define KVM_SET_PIT		  _IOR(KVMIO,  0x66, struct kvm_pit_state)
+#define KVM_REGISTER_COALESCED_MMIO \
+			_IOW(KVMIO,  0x67, struct kvm_coalesced_mmio_zone)
+#define KVM_UNREGISTER_COALESCED_MMIO \
+			_IOW(KVMIO,  0x68, struct kvm_coalesced_mmio_zone)
 
 /*
  * ioctls for vcpu fds

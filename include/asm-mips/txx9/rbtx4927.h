@@ -34,7 +34,23 @@
 #define RBTX4927_PCIIO		0x16000000
 #define RBTX4927_PCIIO_SIZE	0x01000000
 
-#define rbtx4927_pcireset_addr	((__u8 __iomem *)0xbc00f006UL)
+#define RBTX4927_IMASK_ADDR	(IO_BASE + TXX9_CE(2) + 0x00002000)
+#define RBTX4927_IMSTAT_ADDR	(IO_BASE + TXX9_CE(2) + 0x00002006)
+#define RBTX4927_SOFTRESET_ADDR	(IO_BASE + TXX9_CE(2) + 0x0000f000)
+#define RBTX4927_SOFTRESETLOCK_ADDR	(IO_BASE + TXX9_CE(2) + 0x0000f002)
+#define RBTX4927_PCIRESET_ADDR	(IO_BASE + TXX9_CE(2) + 0x0000f006)
+#define RBTX4927_BRAMRTC_BASE	(IO_BASE + TXX9_CE(2) + 0x00010000)
+#define RBTX4927_ETHER_BASE	(IO_BASE + TXX9_CE(2) + 0x00020000)
+
+/* Ethernet port address */
+#define RBTX4927_ETHER_ADDR	(RBTX4927_ETHER_BASE + 0x280)
+
+#define rbtx4927_imask_addr	((__u8 __iomem *)RBTX4927_IMASK_ADDR)
+#define rbtx4927_imstat_addr	((__u8 __iomem *)RBTX4927_IMSTAT_ADDR)
+#define rbtx4927_softreset_addr	((__u8 __iomem *)RBTX4927_SOFTRESET_ADDR)
+#define rbtx4927_softresetlock_addr	\
+				((__u8 __iomem *)RBTX4927_SOFTRESETLOCK_ADDR)
+#define rbtx4927_pcireset_addr	((__u8 __iomem *)RBTX4927_PCIRESET_ADDR)
 
 /* bits for ISTAT/IMASK/IMSTAT */
 #define RBTX4927_INTB_PCID	0
@@ -62,13 +78,7 @@
 #define RBTX4927_ISA_IO_OFFSET 0
 #endif
 
-#define RBTX4927_SW_RESET_DO         (void __iomem *)0xbc00f000UL
-#define RBTX4927_SW_RESET_DO_SET                0x01
-
-#define RBTX4927_SW_RESET_ENABLE     (void __iomem *)0xbc00f002UL
-#define RBTX4927_SW_RESET_ENABLE_SET            0x01
-
-#define RBTX4927_RTL_8019_BASE (0x1c020280 - RBTX4927_ISA_IO_OFFSET)
+#define RBTX4927_RTL_8019_BASE (RBTX4927_ETHER_ADDR - mips_io_port_base)
 #define RBTX4927_RTL_8019_IRQ  (TXX9_IRQ_BASE + TX4927_IR_INT(3))
 
 void rbtx4927_prom_init(void);

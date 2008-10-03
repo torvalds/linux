@@ -698,7 +698,7 @@ retry:
 
 	addr = dma_map_single(&dd->pcidev->dev, tx->txreq.map_addr,
 			      tx->map_len, DMA_TO_DEVICE);
-	if (dma_mapping_error(addr)) {
+	if (dma_mapping_error(&dd->pcidev->dev, addr)) {
 		ret = -EIO;
 		goto unlock;
 	}

@@ -158,6 +158,43 @@
  *    the compute block completes.
  */
 
+/*
+ * Operations state - intermediate states that are visible outside of sh->lock
+ * In general _idle indicates nothing is running, _run indicates a data
+ * processing operation is active, and _result means the data processing result
+ * is stable and can be acted upon.  For simple operations like biofill and
+ * compute that only have an _idle and _run state they are indicated with
+ * sh->state flags (STRIPE_BIOFILL_RUN and STRIPE_COMPUTE_RUN)
+ */
+/**
+ * enum check_states - handles syncing / repairing a stripe
+ * @check_state_idle - check operations are quiesced
+ * @check_state_run - check operation is running
+ * @check_state_result - set outside lock when check result is valid
+ * @check_state_compute_run - check failed and we are repairing
+ * @check_state_compute_result - set outside lock when compute result is valid
+ */
+enum check_states {
+	check_state_idle = 0,
+	check_state_run, /* parity check */
+	check_state_check_result,
+	check_state_compute_run, /* parity repair */
+	check_state_compute_result,
+};
+
+/**
+ * enum reconstruct_states - handles writing or expanding a stripe
+ */
+enum reconstruct_states {
+	reconstruct_state_idle = 0,
+	reconstruct_state_prexor_drain_run,	/* prexor-write */
+	reconstruct_state_drain_run,		/* write */
+	reconstruct_state_run,			/* expand */
+	reconstruct_state_prexor_drain_result,
+	reconstruct_state_drain_result,
+	reconstruct_state_result,
+};
+
 struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;			/* inactive_list or handle_list */
@@ -169,19 +206,13 @@ struct stripe_head {
 	spinlock_t		lock;
 	int			bm_seq;	/* sequence number for bitmap flushes */
 	int			disks;			/* disks in stripe */
+	enum check_states	check_state;
+	enum reconstruct_states reconstruct_state;
 	/* stripe_operations
-	 * @pending - pending ops flags (set for request->issue->complete)
-	 * @ack - submitted ops flags (set for issue->complete)
-	 * @complete - completed ops flags (set for complete)
 	 * @target - STRIPE_OP_COMPUTE_BLK target
-	 * @count - raid5_runs_ops is set to run when this is non-zero
 	 */
 	struct stripe_operations {
-		unsigned long	   pending;
-		unsigned long	   ack;
-		unsigned long	   complete;
 		int		   target;
-		int		   count;
 		u32		   zero_sum_result;
 	} ops;
 	struct r5dev {
@@ -202,6 +233,7 @@ struct stripe_head_state {
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
 	int failed_num;
+	unsigned long ops_request;
 };
 
 /* r6_state - extra state data only relevant to r6 */
@@ -228,9 +260,7 @@ struct r6_state {
 #define	R5_Wantfill	12 /* dev->toread contains a bio that needs
 				    * filling
 				    */
-#define	R5_Wantprexor	13 /* distinguish blocks ready for rmw from
-				    * other "towrites"
-				    */
+#define R5_Wantdrain	13 /* dev->towrite needs to be drained */
 /*
  * Write method
  */
@@ -254,8 +284,10 @@ struct r6_state {
 #define	STRIPE_EXPAND_READY	11
 #define	STRIPE_IO_STARTED	12 /* do not count towards 'bypass_count' */
 #define	STRIPE_FULL_WRITE	13 /* all blocks are set to be overwritten */
+#define	STRIPE_BIOFILL_RUN	14
+#define	STRIPE_COMPUTE_RUN	15
 /*
- * Operations flags (in issue order)
+ * Operation request flags
  */
 #define STRIPE_OP_BIOFILL	0
 #define STRIPE_OP_COMPUTE_BLK	1
@@ -263,14 +295,6 @@ struct r6_state {
 #define STRIPE_OP_BIODRAIN	3
 #define STRIPE_OP_POSTXOR	4
 #define STRIPE_OP_CHECK	5
-#define STRIPE_OP_IO		6
-
-/* modifiers to the base operations
- * STRIPE_OP_MOD_REPAIR_PD - compute the parity block and write it back
- * STRIPE_OP_MOD_DMA_CHECK - parity is not corrupted by the check
- */
-#define STRIPE_OP_MOD_REPAIR_PD 7
-#define STRIPE_OP_MOD_DMA_CHECK 8
 
 /*
  * Plugging:

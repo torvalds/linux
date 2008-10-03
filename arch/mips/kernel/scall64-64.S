@@ -219,7 +219,7 @@ sys_call_table:
 	PTR	sys_readv
 	PTR	sys_writev
 	PTR	sys_access			/* 5020 */
-	PTR	sys_pipe
+	PTR	sysm_pipe
 	PTR	sys_select
 	PTR	sys_sched_yield
 	PTR	sys_mremap
@@ -481,4 +481,10 @@ sys_call_table:
 	PTR	sys_timerfd_create		/* 5280 */
 	PTR	sys_timerfd_gettime
 	PTR	sys_timerfd_settime
+	PTR	sys_signalfd4
+	PTR	sys_eventfd2
+	PTR	sys_epoll_create1		/* 5285 */
+	PTR	sys_dup3
+	PTR	sys_pipe2
+	PTR	sys_inotify_init1
 	.size	sys_call_table,.-sys_call_table

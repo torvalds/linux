@@ -538,7 +538,7 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		printk(KERN_DEBUG "\t%d orphan inode numbers:\n", n);
 		for (i = 0; i < n; i++)
 			printk(KERN_DEBUG "\t  ino %llu\n",
-			       le64_to_cpu(orph->inos[i]));
+			       (unsigned long long)le64_to_cpu(orph->inos[i]));
 		break;
 	}
 	default:
@@ -568,8 +568,8 @@ void dbg_dump_budget_req(const struct ubifs_budget_req *req)
 void dbg_dump_lstats(const struct ubifs_lp_stats *lst)
 {
 	spin_lock(&dbg_lock);
-	printk(KERN_DEBUG "Lprops statistics: empty_lebs %d, idx_lebs  %d\n",
-	       lst->empty_lebs, lst->idx_lebs);
+	printk(KERN_DEBUG "(pid %d) Lprops statistics: empty_lebs %d, "
+	       "idx_lebs  %d\n", current->pid, lst->empty_lebs, lst->idx_lebs);
 	printk(KERN_DEBUG "\ttaken_empty_lebs %d, total_free %lld, "
 	       "total_dirty %lld\n", lst->taken_empty_lebs, lst->total_free,
 	       lst->total_dirty);
@@ -587,8 +587,8 @@ void dbg_dump_budg(struct ubifs_info *c)
 	struct ubifs_gced_idx_leb *idx_gc;
 
 	spin_lock(&dbg_lock);
-	printk(KERN_DEBUG "Budgeting info: budg_data_growth %lld, "
-	       "budg_dd_growth %lld, budg_idx_growth %lld\n",
+	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
+	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
 	       c->budg_data_growth, c->budg_dd_growth, c->budg_idx_growth);
 	printk(KERN_DEBUG "\tdata budget sum %lld, total budget sum %lld, "
 	       "freeable_cnt %d\n", c->budg_data_growth + c->budg_dd_growth,
@@ -634,7 +634,7 @@ void dbg_dump_lprops(struct ubifs_info *c)
 	struct ubifs_lprops lp;
 	struct ubifs_lp_stats lst;
 
-	printk(KERN_DEBUG "Dumping LEB properties\n");
+	printk(KERN_DEBUG "(pid %d) Dumping LEB properties\n", current->pid);
 	ubifs_get_lp_stats(c, &lst);
 	dbg_dump_lstats(&lst);
 
@@ -655,7 +655,7 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	if (dbg_failure_mode)
 		return;
 
-	printk(KERN_DEBUG "Dumping LEB %d\n", lnum);
+	printk(KERN_DEBUG "(pid %d) Dumping LEB %d\n", current->pid, lnum);
 
 	sleb = ubifs_scan(c, lnum, 0, c->dbg_buf);
 	if (IS_ERR(sleb)) {
@@ -720,8 +720,8 @@ void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 {
 	int i;
 
-	printk(KERN_DEBUG "Dumping heap cat %d (%d elements)\n",
-	       cat, heap->cnt);
+	printk(KERN_DEBUG "(pid %d) Dumping heap cat %d (%d elements)\n",
+	       current->pid, cat, heap->cnt);
 	for (i = 0; i < heap->cnt; i++) {
 		struct ubifs_lprops *lprops = heap->arr[i];
 
@@ -736,7 +736,7 @@ void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 {
 	int i;
 
-	printk(KERN_DEBUG "Dumping pnode:\n");
+	printk(KERN_DEBUG "(pid %d) Dumping pnode:\n", current->pid);
 	printk(KERN_DEBUG "\taddress %zx parent %zx cnext %zx\n",
 	       (size_t)pnode, (size_t)parent, (size_t)pnode->cnext);
 	printk(KERN_DEBUG "\tflags %lu iip %d level %d num %d\n",
@@ -755,7 +755,7 @@ void dbg_dump_tnc(struct ubifs_info *c)
 	int level;
 
 	printk(KERN_DEBUG "\n");
-	printk(KERN_DEBUG "Dumping the TNC tree\n");
+	printk(KERN_DEBUG "(pid %d) Dumping the TNC tree\n", current->pid);
 	znode = ubifs_tnc_levelorder_next(c->zroot.znode, NULL);
 	level = znode->level;
 	printk(KERN_DEBUG "== Level %d ==\n", level);
@@ -2208,16 +2208,17 @@ int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		  int offset, int len, int dtype)
 {
-	int err;
+	int err, failing;
 
 	if (in_failure_mode(desc))
 		return -EIO;
-	if (do_fail(desc, lnum, 1))
+	failing = do_fail(desc, lnum, 1);
+	if (failing)
 		cut_data(buf, len);
 	err = ubi_leb_write(desc, lnum, buf, offset, len, dtype);
 	if (err)
 		return err;
-	if (in_failure_mode(desc))
+	if (failing)
 		return -EIO;
 	return 0;
 }

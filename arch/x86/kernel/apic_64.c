@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 /*
  * Debug level, exported for io_apic.c
  */
-int apic_verbosity;
+unsigned int apic_verbosity;
 
 /* Have we found an MP table */
 int smp_found_config;
@@ -90,7 +90,6 @@ static unsigned long apic_phys;
 
 unsigned long mp_lapic_addr;
 
-unsigned int __cpuinitdata maxcpus = NR_CPUS;
 /*
  * Get the LAPIC version
  */
@@ -314,7 +313,7 @@ static void setup_APIC_timer(void)
 
 #define TICK_COUNT 100000000
 
-static void __init calibrate_APIC_clock(void)
+static int __init calibrate_APIC_clock(void)
 {
 	unsigned apic, apic_start;
 	unsigned long tsc, tsc_start;
@@ -368,6 +367,17 @@ static void __init calibrate_APIC_clock(void)
 		clockevent_delta2ns(0xF, &lapic_clockevent);
 
 	calibration_result = result / HZ;
+
+	/*
+	 * Do a sanity check on the APIC calibration result
+	 */
+	if (calibration_result < (1000000 / HZ)) {
+		printk(KERN_WARNING
+			"APIC frequency too slow, disabling apic timer\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -394,14 +404,7 @@ void __init setup_boot_APIC_clock(void)
 	}
 
 	printk(KERN_INFO "Using local APIC timer interrupts.\n");
-	calibrate_APIC_clock();
-
-	/*
-	 * Do a sanity check on the APIC calibration result
-	 */
-	if (calibration_result < (1000000 / HZ)) {
-		printk(KERN_WARNING
-		       "APIC frequency too slow, disabling apic timer\n");
+	if (calibrate_APIC_clock()) {
 		/* No broadcast on UP ! */
 		if (num_possible_cpus() > 1)
 			setup_APIC_timer();
@@ -1058,12 +1061,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		return;
 	}
 
-	if (num_processors >= maxcpus) {
-		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-		       " Processor ignored.\n", maxcpus);
-		return;
-	}
-
 	num_processors++;
 	cpus_complement(tmp_map, cpu_present_map);
 	cpu = first_cpu(tmp_map);
@@ -1337,7 +1334,7 @@ early_param("apic", apic_set_verbosity);
 static __init int setup_disableapic(char *str)
 {
 	disable_apic = 1;
-	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	setup_clear_cpu_cap(X86_FEATURE_APIC);
 	return 0;
 }
 early_param("disableapic", setup_disableapic);

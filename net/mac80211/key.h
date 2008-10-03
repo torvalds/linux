@@ -16,31 +16,18 @@
 #include <linux/rcupdate.h>
 #include <net/mac80211.h>
 
-/* ALG_TKIP
- * struct ieee80211_key::key is encoded as a 256-bit (32 byte) data block:
- * Temporal Encryption Key (128 bits)
- * Temporal Authenticator Tx MIC Key (64 bits)
- * Temporal Authenticator Rx MIC Key (64 bits)
- */
+#define WEP_IV_LEN		4
+#define WEP_ICV_LEN		4
+#define ALG_TKIP_KEY_LEN	32
+#define ALG_CCMP_KEY_LEN	16
+#define CCMP_HDR_LEN		8
+#define CCMP_MIC_LEN		8
+#define CCMP_TK_LEN		16
+#define CCMP_PN_LEN		6
+#define TKIP_IV_LEN		8
+#define TKIP_ICV_LEN		4
 
-#define WEP_IV_LEN 4
-#define WEP_ICV_LEN 4
-
-#define ALG_TKIP_KEY_LEN 32
-/* Starting offsets for each key */
-#define ALG_TKIP_TEMP_ENCR_KEY 0
-#define ALG_TKIP_TEMP_AUTH_TX_MIC_KEY 16
-#define ALG_TKIP_TEMP_AUTH_RX_MIC_KEY 24
-#define TKIP_IV_LEN 8
-#define TKIP_ICV_LEN 4
-
-#define ALG_CCMP_KEY_LEN 16
-#define CCMP_HDR_LEN 8
-#define CCMP_MIC_LEN 8
-#define CCMP_TK_LEN 16
-#define CCMP_PN_LEN 6
-
-#define NUM_RX_DATA_QUEUES 17
+#define NUM_RX_DATA_QUEUES	17
 
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
@@ -69,6 +56,13 @@ enum ieee80211_internal_key_flags {
 	KEY_FLAG_TODO_ADD_DEBUGFS	= BIT(5),
 };
 
+struct tkip_ctx {
+	u32 iv32;
+	u16 iv16;
+	u16 p1k[5];
+	int initialized;
+};
+
 struct ieee80211_key {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -85,16 +79,10 @@ struct ieee80211_key {
 	union {
 		struct {
 			/* last used TSC */
-			u32 iv32;
-			u16 iv16;
-			u16 p1k[5];
-			int tx_initialized;
+			struct tkip_ctx tx;
 
 			/* last received RSC */
-			u32 iv32_rx[NUM_RX_DATA_QUEUES];
-			u16 iv16_rx[NUM_RX_DATA_QUEUES];
-			u16 p1k_rx[NUM_RX_DATA_QUEUES][5];
-			int rx_initialized[NUM_RX_DATA_QUEUES];
+			struct tkip_ctx rx[NUM_RX_DATA_QUEUES];
 		} tkip;
 		struct {
 			u8 tx_pn[6];

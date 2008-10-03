@@ -62,6 +62,7 @@
 	addr = ((kprobe_opcode_t *)(kallsyms_lookup_name(name)))
 #endif
 
+static int kprobes_initialized;
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
@@ -69,8 +70,15 @@ static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 static bool kprobe_enabled;
 
 DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
-DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
+static struct {
+	spinlock_t lock ____cacheline_aligned;
+} kretprobe_table_locks[KPROBE_TABLE_SIZE];
+
+static spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
+{
+	return &(kretprobe_table_locks[hash].lock);
+}
 
 /*
  * Normally, functions that we'd want to prohibit kprobes in, are marked
@@ -368,26 +376,53 @@ void __kprobes kprobes_inc_nmissed_count(struct kprobe *p)
 	return;
 }
 
-/* Called with kretprobe_lock held */
 void __kprobes recycle_rp_inst(struct kretprobe_instance *ri,
 				struct hlist_head *head)
 {
+	struct kretprobe *rp = ri->rp;
+
 	/* remove rp inst off the rprobe_inst_table */
 	hlist_del(&ri->hlist);
-	if (ri->rp) {
-		/* remove rp inst off the used list */
-		hlist_del(&ri->uflist);
-		/* put rp inst back onto the free list */
-		INIT_HLIST_NODE(&ri->uflist);
-		hlist_add_head(&ri->uflist, &ri->rp->free_instances);
+	INIT_HLIST_NODE(&ri->hlist);
+	if (likely(rp)) {
+		spin_lock(&rp->lock);
+		hlist_add_head(&ri->hlist, &rp->free_instances);
+		spin_unlock(&rp->lock);
 	} else
 		/* Unregistering */
 		hlist_add_head(&ri->hlist, head);
 }
 
-struct hlist_head __kprobes *kretprobe_inst_table_head(struct task_struct *tsk)
+void kretprobe_hash_lock(struct task_struct *tsk,
+			 struct hlist_head **head, unsigned long *flags)
 {
-	return &kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)];
+	unsigned long hash = hash_ptr(tsk, KPROBE_HASH_BITS);
+	spinlock_t *hlist_lock;
+
+	*head = &kretprobe_inst_table[hash];
+	hlist_lock = kretprobe_table_lock_ptr(hash);
+	spin_lock_irqsave(hlist_lock, *flags);
+}
+
+void kretprobe_table_lock(unsigned long hash, unsigned long *flags)
+{
+	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
+	spin_lock_irqsave(hlist_lock, *flags);
+}
+
+void kretprobe_hash_unlock(struct task_struct *tsk, unsigned long *flags)
+{
+	unsigned long hash = hash_ptr(tsk, KPROBE_HASH_BITS);
+	spinlock_t *hlist_lock;
+
+	hlist_lock = kretprobe_table_lock_ptr(hash);
+	spin_unlock_irqrestore(hlist_lock, *flags);
+}
+
+void kretprobe_table_unlock(unsigned long hash, unsigned long *flags)
+{
+	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
+	spin_unlock_irqrestore(hlist_lock, *flags);
 }
 
 /*
@@ -401,17 +436,21 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 	struct kretprobe_instance *ri;
 	struct hlist_head *head, empty_rp;
 	struct hlist_node *node, *tmp;
-	unsigned long flags = 0;
+	unsigned long hash, flags = 0;
 
-	INIT_HLIST_HEAD(&empty_rp);
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	head = kretprobe_inst_table_head(tk);
+	if (unlikely(!kprobes_initialized))
+		/* Early boot.  kretprobe_table_locks not yet initialized. */
+		return;
+
+	hash = hash_ptr(tk, KPROBE_HASH_BITS);
+	head = &kretprobe_inst_table[hash];
+	kretprobe_table_lock(hash, &flags);
 	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
 		if (ri->task == tk)
 			recycle_rp_inst(ri, &empty_rp);
 	}
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
-
+	kretprobe_table_unlock(hash, &flags);
+	INIT_HLIST_HEAD(&empty_rp);
 	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
 		kfree(ri);
@@ -423,24 +462,29 @@ static inline void free_rp_inst(struct kretprobe *rp)
 	struct kretprobe_instance *ri;
 	struct hlist_node *pos, *next;
 
-	hlist_for_each_entry_safe(ri, pos, next, &rp->free_instances, uflist) {
-		hlist_del(&ri->uflist);
+	hlist_for_each_entry_safe(ri, pos, next, &rp->free_instances, hlist) {
+		hlist_del(&ri->hlist);
 		kfree(ri);
 	}
 }
 
 static void __kprobes cleanup_rp_inst(struct kretprobe *rp)
 {
-	unsigned long flags;
+	unsigned long flags, hash;
 	struct kretprobe_instance *ri;
 	struct hlist_node *pos, *next;
+	struct hlist_head *head;
+
 	/* No race here */
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	hlist_for_each_entry_safe(ri, pos, next, &rp->used_instances, uflist) {
-		ri->rp = NULL;
-		hlist_del(&ri->uflist);
+	for (hash = 0; hash < KPROBE_TABLE_SIZE; hash++) {
+		kretprobe_table_lock(hash, &flags);
+		head = &kretprobe_inst_table[hash];
+		hlist_for_each_entry_safe(ri, pos, next, head, hlist) {
+			if (ri->rp == rp)
+				ri->rp = NULL;
+		}
+		kretprobe_table_unlock(hash, &flags);
 	}
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	free_rp_inst(rp);
 }
 
@@ -831,32 +875,37 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 					   struct pt_regs *regs)
 {
 	struct kretprobe *rp = container_of(p, struct kretprobe, kp);
-	unsigned long flags = 0;
+	unsigned long hash, flags = 0;
+	struct kretprobe_instance *ri;
 
 	/*TODO: consider to only swap the RA after the last pre_handler fired */
-	spin_lock_irqsave(&kretprobe_lock, flags);
+	hash = hash_ptr(current, KPROBE_HASH_BITS);
+	spin_lock_irqsave(&rp->lock, flags);
 	if (!hlist_empty(&rp->free_instances)) {
-		struct kretprobe_instance *ri;
-
 		ri = hlist_entry(rp->free_instances.first,
-				 struct kretprobe_instance, uflist);
+				struct kretprobe_instance, hlist);
+		hlist_del(&ri->hlist);
+		spin_unlock_irqrestore(&rp->lock, flags);
+
 		ri->rp = rp;
 		ri->task = current;
 
 		if (rp->entry_handler && rp->entry_handler(ri, regs)) {
-			spin_unlock_irqrestore(&kretprobe_lock, flags);
+			spin_unlock_irqrestore(&rp->lock, flags);
 			return 0;
 		}
 
 		arch_prepare_kretprobe(ri, regs);
 
 		/* XXX(hch): why is there no hlist_move_head? */
-		hlist_del(&ri->uflist);
-		hlist_add_head(&ri->uflist, &ri->rp->used_instances);
-		hlist_add_head(&ri->hlist, kretprobe_inst_table_head(ri->task));
-	} else
+		INIT_HLIST_NODE(&ri->hlist);
+		kretprobe_table_lock(hash, &flags);
+		hlist_add_head(&ri->hlist, &kretprobe_inst_table[hash]);
+		kretprobe_table_unlock(hash, &flags);
+	} else {
 		rp->nmissed++;
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
+		spin_unlock_irqrestore(&rp->lock, flags);
+	}
 	return 0;
 }
 
@@ -892,7 +941,7 @@ static int __kprobes __register_kretprobe(struct kretprobe *rp,
 		rp->maxactive = NR_CPUS;
 #endif
 	}
-	INIT_HLIST_HEAD(&rp->used_instances);
+	spin_lock_init(&rp->lock);
 	INIT_HLIST_HEAD(&rp->free_instances);
 	for (i = 0; i < rp->maxactive; i++) {
 		inst = kmalloc(sizeof(struct kretprobe_instance) +
@@ -901,8 +950,8 @@ static int __kprobes __register_kretprobe(struct kretprobe *rp,
 			free_rp_inst(rp);
 			return -ENOMEM;
 		}
-		INIT_HLIST_NODE(&inst->uflist);
-		hlist_add_head(&inst->uflist, &rp->free_instances);
+		INIT_HLIST_NODE(&inst->hlist);
+		hlist_add_head(&inst->hlist, &rp->free_instances);
 	}
 
 	rp->nmissed = 0;
@@ -1009,6 +1058,7 @@ static int __init init_kprobes(void)
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		INIT_HLIST_HEAD(&kprobe_table[i]);
 		INIT_HLIST_HEAD(&kretprobe_inst_table[i]);
+		spin_lock_init(&(kretprobe_table_locks[i].lock));
 	}
 
 	/*
@@ -1050,6 +1100,7 @@ static int __init init_kprobes(void)
 	err = arch_init_kprobes();
 	if (!err)
 		err = register_die_notifier(&kprobe_exceptions_nb);
+	kprobes_initialized = (err == 0);
 
 	if (!err)
 		init_test_probes();
@@ -1286,13 +1337,8 @@ EXPORT_SYMBOL_GPL(register_jprobe);
 EXPORT_SYMBOL_GPL(unregister_jprobe);
 EXPORT_SYMBOL_GPL(register_jprobes);
 EXPORT_SYMBOL_GPL(unregister_jprobes);
-#ifdef CONFIG_KPROBES
 EXPORT_SYMBOL_GPL(jprobe_return);
-#endif
-
-#ifdef CONFIG_KPROBES
 EXPORT_SYMBOL_GPL(register_kretprobe);
 EXPORT_SYMBOL_GPL(unregister_kretprobe);
 EXPORT_SYMBOL_GPL(register_kretprobes);
 EXPORT_SYMBOL_GPL(unregister_kretprobes);
-#endif

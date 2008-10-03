@@ -57,7 +57,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  POSIX.1 says that O_NONBLOCK means return with the FIFO
 	 *  opened, even when there is no process writing the FIFO.
 	 */
-		filp->f_op = &read_fifo_fops;
+		filp->f_op = &read_pipefifo_fops;
 		pipe->r_counter++;
 		if (pipe->readers++ == 0)
 			wake_up_partner(inode);
@@ -86,7 +86,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 		if ((filp->f_flags & O_NONBLOCK) && !pipe->readers)
 			goto err;
 
-		filp->f_op = &write_fifo_fops;
+		filp->f_op = &write_pipefifo_fops;
 		pipe->w_counter++;
 		if (!pipe->writers++)
 			wake_up_partner(inode);
@@ -105,7 +105,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  This implementation will NEVER block on a O_RDWR open, since
 	 *  the process can at least talk to itself.
 	 */
-		filp->f_op = &rdwr_fifo_fops;
+		filp->f_op = &rdwr_pipefifo_fops;
 
 		pipe->readers++;
 		pipe->writers++;
@@ -151,5 +151,5 @@ err_nocleanup:
  * depending on the access mode of the file...
  */
 const struct file_operations def_fifo_fops = {
-	.open		= fifo_open,	/* will set read or write pipe_fops */
+	.open		= fifo_open,	/* will set read_ or write_pipefifo_fops */
 };

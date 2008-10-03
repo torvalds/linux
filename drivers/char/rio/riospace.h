@@ -33,10 +33,6 @@
 #ifndef __rio_riospace_h__
 #define __rio_riospace_h__
 
-#ifdef SCCS_LABELS
-static char *_riospace_h_sccs_ = "@(#)riospace.h	1.2";
-#endif
-
 #define	RIO_LOCATOR_LEN	16
 #define	MAX_RIO_BOARDS	4
 

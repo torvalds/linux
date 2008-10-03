@@ -226,9 +226,14 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 		0x4c, 0x14
 	};
 
-	static u8 flip_lgdt3303_init_data[] = {
+	static u8 flip_1_lgdt3303_init_data[] = {
 		0x4c, 0x14,
 		0x87, 0xf3
+	};
+
+	static u8 flip_2_lgdt3303_init_data[] = {
+		0x4c, 0x14,
+		0x87, 0xda
 	};
 
 	struct lgdt330x_state* state = fe->demodulator_priv;
@@ -243,10 +248,19 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 		break;
 	case LGDT3303:
 		chip_name = "LGDT3303";
-		if (state->config->clock_polarity_flip) {
-			err = i2c_write_demod_bytes(state, flip_lgdt3303_init_data,
-						    sizeof(flip_lgdt3303_init_data));
-		} else {
+		switch (state->config->clock_polarity_flip) {
+		case 2:
+			err = i2c_write_demod_bytes(state,
+					flip_2_lgdt3303_init_data,
+					sizeof(flip_2_lgdt3303_init_data));
+			break;
+		case 1:
+			err = i2c_write_demod_bytes(state,
+					flip_1_lgdt3303_init_data,
+					sizeof(flip_1_lgdt3303_init_data));
+			break;
+		case 0:
+		default:
 			err = i2c_write_demod_bytes(state, lgdt3303_init_data,
 						    sizeof(lgdt3303_init_data));
 		}

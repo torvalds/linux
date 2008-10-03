@@ -273,6 +273,25 @@ comment "SPI RTC drivers"
 
 if SPI_MASTER
 
+config RTC_DRV_M41T94
+	tristate "ST M41T94"
+	help
+	  If you say yes here you will get support for the
+	  ST M41T94 SPI RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-m41t94.
+
+config RTC_DRV_DS1305
+	tristate "Dallas/Maxim DS1305/DS1306"
+	help
+	  Select this driver to get support for the Dallas/Maxim DS1305
+	  and DS1306 real time clock chips.  These support a trickle
+	  charger, alarms, and NVRAM in addition to the clock.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1305.
+
 config RTC_DRV_MAX6902
 	tristate "Maxim MAX6902"
 	help
@@ -542,7 +561,7 @@ config RTC_DRV_AT91SAM9_GPBR
 
 config RTC_DRV_BFIN
 	tristate "Blackfin On-Chip RTC"
-	depends on BLACKFIN
+	depends on BLACKFIN && !BF561
 	help
 	  If you say yes here you will get support for the
 	  Blackfin On-Chip Real Time Clock.

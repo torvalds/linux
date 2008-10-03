@@ -34,7 +34,7 @@ struct sonet_stats {
 					/* clear error insertion */
 #define SONET_GETDIAG	_IOR('a',ATMIOC_PHYTYP+4,int)
 					/* query error insertion */
-#define SONET_SETFRAMING _IO('a',ATMIOC_PHYTYP+5)
+#define SONET_SETFRAMING _IOW('a',ATMIOC_PHYTYP+5,int)
 					/* set framing mode (SONET/SDH) */
 #define SONET_GETFRAMING _IOR('a',ATMIOC_PHYTYP+6,int)
 					/* get framing mode */

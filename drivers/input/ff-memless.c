@@ -247,9 +247,9 @@ static void ml_combine_effects(struct ff_effect *effect,
 		 * in s8, this should be changed to something more generic
 		 */
 		effect->u.ramp.start_level =
-			max(min(effect->u.ramp.start_level + x, 0x7f), -0x80);
+			clamp_val(effect->u.ramp.start_level + x, -0x80, 0x7f);
 		effect->u.ramp.end_level =
-			max(min(effect->u.ramp.end_level + y, 0x7f), -0x80);
+			clamp_val(effect->u.ramp.end_level + y, -0x80, 0x7f);
 		break;
 
 	case FF_RUMBLE:

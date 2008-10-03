@@ -78,8 +78,6 @@ static unsigned outcnt;		/* bytes in output buffer */
 static int  fill_inbuf(void);
 static void flush_window(void);
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 static char *input_data;
 static int  input_data_size;
@@ -88,50 +86,17 @@ static uch *output_data;
 static ulg output_ptr;
 static ulg bytes_out;
 
-static void *malloc(int size);
-static void free(void *where);
 static void error(char *m);
 static void gzip_mark(void **);
 static void gzip_release(void **);
 
 extern int end;
 static ulg free_mem_ptr;
-static ulg free_mem_ptr_end;
+static ulg free_mem_end_ptr;
 
 #define HEAP_SIZE 0x3000
 
 #include "../../../lib/inflate.c"
-
-static void *malloc(int size)
-{
-	void *p;
-
-	if (size <0) error("Malloc error");
-	if (free_mem_ptr <= 0) error("Memory error");
-
-	free_mem_ptr = (free_mem_ptr + 3) & ~3;	/* Align */
-
-	p = (void *)free_mem_ptr;
-	free_mem_ptr += size;
-
-	if (free_mem_ptr >= free_mem_ptr_end)
-		error("Out of memory");
-	return p;
-}
-
-static void free(void *where)
-{ /* gzip_mark & gzip_release do the free */
-}
-
-static void gzip_mark(void **ptr)
-{
-	*ptr = (void *) free_mem_ptr;
-}
-
-static void gzip_release(void **ptr)
-{
-	free_mem_ptr = (long) *ptr;
-}
 
 /* ===========================================================================
  * Fill the input buffer. This is called only when the buffer is empty
@@ -193,7 +158,7 @@ decompress_kernel(void *output_start,
 
 	/* FIXME FIXME FIXME */
 	free_mem_ptr		= (ulg)output_start + ksize;
-	free_mem_ptr_end	= (ulg)output_start + ksize + 0x200000;
+	free_mem_end_ptr	= (ulg)output_start + ksize + 0x200000;
 	/* FIXME FIXME FIXME */
 
 	/* put in temp area to reduce initial footprint */

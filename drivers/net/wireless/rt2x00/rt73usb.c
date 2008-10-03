@@ -74,10 +74,10 @@ static inline void rt73usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 					      const unsigned int offset,
 					      void *value, const u32 length)
 {
-	int timeout = REGISTER_TIMEOUT * (length / sizeof(u32));
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      value, length, timeout);
+				      value, length,
+				      REGISTER_TIMEOUT32(length));
 }
 
 static inline void rt73usb_register_write(struct rt2x00_dev *rt2x00dev,
@@ -102,10 +102,10 @@ static inline void rt73usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 					       const unsigned int offset,
 					       void *value, const u32 length)
 {
-	int timeout = REGISTER_TIMEOUT * (length / sizeof(u32));
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length, timeout);
+				      value, length,
+				      REGISTER_TIMEOUT32(length));
 }
 
 static u32 rt73usb_bbp_check(struct rt2x00_dev *rt2x00dev)
@@ -340,6 +340,17 @@ static int rt73usb_blink_set(struct led_classdev *led_cdev,
 	rt73usb_register_write(led->rt2x00dev, MAC_CSR14, reg);
 
 	return 0;
+}
+
+static void rt73usb_init_led(struct rt2x00_dev *rt2x00dev,
+			     struct rt2x00_led *led,
+			     enum led_type type)
+{
+	led->rt2x00dev = rt2x00dev;
+	led->type = type;
+	led->led_dev.brightness_set = rt73usb_brightness_set;
+	led->led_dev.blink_set = rt73usb_blink_set;
+	led->flags = LED_INITIALIZED;
 }
 #endif /* CONFIG_RT73USB_LEDS */
 
@@ -879,10 +890,6 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 	unsigned int i;
 	int status;
 	u32 reg;
-	const char *ptr = data;
-	char *cache;
-	int buflen;
-	int timeout;
 
 	/*
 	 * Wait for stable hardware.
@@ -901,31 +908,12 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 
 	/*
 	 * Write firmware to device.
-	 * We setup a seperate cache for this action,
-	 * since we are going to write larger chunks of data
-	 * then normally used cache size.
 	 */
-	cache = kmalloc(CSR_CACHE_SIZE_FIRMWARE, GFP_KERNEL);
-	if (!cache) {
-		ERROR(rt2x00dev, "Failed to allocate firmware cache.\n");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < len; i += CSR_CACHE_SIZE_FIRMWARE) {
-		buflen = min_t(int, len - i, CSR_CACHE_SIZE_FIRMWARE);
-		timeout = REGISTER_TIMEOUT * (buflen / sizeof(u32));
-
-		memcpy(cache, ptr, buflen);
-
-		rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
-					 USB_VENDOR_REQUEST_OUT,
-					 FIRMWARE_IMAGE_BASE + i, 0,
-					 cache, buflen, timeout);
-
-		ptr += buflen;
-	}
-
-	kfree(cache);
+	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
+					    USB_VENDOR_REQUEST_OUT,
+					    FIRMWARE_IMAGE_BASE,
+					    data, len,
+					    REGISTER_TIMEOUT32(len));
 
 	/*
 	 * Send firmware request to device to load firmware,
@@ -1100,6 +1088,22 @@ static int rt73usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static int rt73usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u8 value;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt73usb_bbp_read(rt2x00dev, 0, &value);
+		if ((value != 0xff) && (value != 0x00))
+			return 0;
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	return -EACCES;
+}
+
 static int rt73usb_init_bbp(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
@@ -1107,18 +1111,9 @@ static int rt73usb_init_bbp(struct rt2x00_dev *rt2x00dev)
 	u8 reg_id;
 	u8 value;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt73usb_bbp_read(rt2x00dev, 0, &value);
-		if ((value != 0xff) && (value != 0x00))
-			goto continue_csr_init;
-		NOTICE(rt2x00dev, "Waiting for BBP register.\n");
-		udelay(REGISTER_BUSY_DELAY);
-	}
+	if (unlikely(rt73usb_wait_bbp_ready(rt2x00dev)))
+		return -EACCES;
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
-	return -EACCES;
-
-continue_csr_init:
 	rt73usb_bbp_write(rt2x00dev, 3, 0x80);
 	rt73usb_bbp_write(rt2x00dev, 15, 0x30);
 	rt73usb_bbp_write(rt2x00dev, 21, 0xc8);
@@ -1168,7 +1163,8 @@ static void rt73usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt73usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DISABLE_RX,
-			   state == STATE_RADIO_RX_OFF);
+			   (state == STATE_RADIO_RX_OFF) ||
+			   (state == STATE_RADIO_RX_OFF_LINK));
 	rt73usb_register_write(rt2x00dev, TXRX_CSR0, reg);
 }
 
@@ -1177,11 +1173,9 @@ static int rt73usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all registers.
 	 */
-	if (rt73usb_init_registers(rt2x00dev) ||
-	    rt73usb_init_bbp(rt2x00dev)) {
-		ERROR(rt2x00dev, "Register initialization failed.\n");
+	if (unlikely(rt73usb_init_registers(rt2x00dev) ||
+		     rt73usb_init_bbp(rt2x00dev)))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -1203,7 +1197,6 @@ static int rt73usb_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	u32 reg;
 	unsigned int i;
 	char put_to_sleep;
-	char current_state;
 
 	put_to_sleep = (state != STATE_AWAKE);
 
@@ -1219,15 +1212,11 @@ static int rt73usb_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	 */
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt73usb_register_read(rt2x00dev, MAC_CSR12, &reg);
-		current_state =
-		    rt2x00_get_field32(reg, MAC_CSR12_BBP_CURRENT_STATE);
-		if (current_state == !put_to_sleep)
+		state = rt2x00_get_field32(reg, MAC_CSR12_BBP_CURRENT_STATE);
+		if (state == !put_to_sleep)
 			return 0;
 		msleep(10);
 	}
-
-	NOTICE(rt2x00dev, "Device failed to enter state %d, "
-	       "current device state %d.\n", !put_to_sleep, current_state);
 
 	return -EBUSY;
 }
@@ -1246,11 +1235,13 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_RX_ON:
 	case STATE_RADIO_RX_ON_LINK:
-		rt73usb_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
-		break;
 	case STATE_RADIO_RX_OFF:
 	case STATE_RADIO_RX_OFF_LINK:
-		rt73usb_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+		rt73usb_toggle_rx(rt2x00dev, state);
+		break;
+	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_OFF:
+		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -1263,6 +1254,10 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	}
 
+	if (unlikely(retval))
+		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
+		      state, retval);
+
 	return retval;
 }
 
@@ -1271,8 +1266,7 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
  */
 static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct sk_buff *skb,
-				    struct txentry_desc *txdesc,
-				    struct ieee80211_tx_control *control)
+				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txd = skbdesc->desc;
@@ -1287,7 +1281,8 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, IEEE80211_HEADER);
-	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE, 1);
+	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE,
+			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
@@ -1317,14 +1312,69 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   test_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
-			   !!(control->flags &
-			      IEEE80211_TXCTL_LONG_RETRY_LIMIT));
+			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC, 0);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skbdesc->data_len);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT,
+			   skb->len - skbdesc->desc_len);
 	rt2x00_set_field32(&word, TXD_W0_BURST2,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, CIPHER_NONE);
 	rt2x00_desc_write(txd, 0, word);
+}
+
+/*
+ * TX data initialization
+ */
+static void rt73usb_write_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	unsigned int beacon_base;
+	u32 reg;
+	u32 word, len;
+
+	/*
+	 * Add the descriptor in front of the skb.
+	 */
+	skb_push(entry->skb, entry->queue->desc_size);
+	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
+	skbdesc->desc = entry->skb->data;
+
+	/*
+	 * Adjust the beacon databyte count. The current number is
+	 * calculated before this function gets called, but falsely
+	 * assumes that the descriptor was already present in the SKB.
+	 */
+	rt2x00_desc_read(skbdesc->desc, 0, &word);
+	len  = rt2x00_get_field32(word, TXD_W0_DATABYTE_COUNT);
+	len += skbdesc->desc_len;
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, len);
+	rt2x00_desc_write(skbdesc->desc, 0, word);
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
+	 * Write entire beacon with descriptor to register.
+	 */
+	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
+	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
+					    USB_VENDOR_REQUEST_OUT, beacon_base,
+					    entry->skb->data, entry->skb->len,
+					    REGISTER_TIMEOUT32(entry->skb->len));
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	dev_kfree_skb(entry->skb);
+	entry->skb = NULL;
 }
 
 static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
@@ -1342,16 +1392,15 @@ static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	return length;
 }
 
-/*
- * TX data initialization
- */
 static void rt73usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				  const unsigned int queue)
+				  const enum data_queue_qid queue)
 {
 	u32 reg;
 
-	if (queue != RT2X00_BCN_QUEUE_BEACON)
+	if (queue != QID_BEACON) {
+		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
 		return;
+	}
 
 	/*
 	 * For Wi-Fi faily generated beacons between participating stations.
@@ -1421,25 +1470,22 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	__le32 *rxd = (__le32 *)entry->skb->data;
-	unsigned int offset = entry->queue->desc_size + 2;
 	u32 word0;
 	u32 word1;
 
 	/*
-	 * Copy descriptor to the available headroom inside the skbuffer.
+	 * Copy descriptor to the skbdesc->desc buffer, making it safe from moving of
+	 * frame data in rt2x00usb.
 	 */
-	skb_push(entry->skb, offset);
-	memcpy(entry->skb->data, rxd, entry->queue->desc_size);
-	rxd = (__le32 *)entry->skb->data;
+	memcpy(skbdesc->desc, rxd, skbdesc->desc_len);
+	rxd = (__le32 *)skbdesc->desc;
 
 	/*
-	 * The descriptor is now aligned to 4 bytes and thus it is
-	 * now safe to read it on all architectures.
+	 * It is now safe to read the descriptor on all architectures.
 	 */
 	rt2x00_desc_read(rxd, 0, &word0);
 	rt2x00_desc_read(rxd, 1, &word1);
 
-	rxdesc->flags = 0;
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
@@ -1453,25 +1499,16 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	rxdesc->rssi = rt73usb_agc_to_rssi(entry->queue->rt2x00dev, word1);
 	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 
-	rxdesc->dev_flags = 0;
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
 	/*
-	 * Adjust the skb memory window to the frame boundaries.
+	 * Set skb pointers, and update frame information.
 	 */
-	skb_pull(entry->skb, offset + entry->queue->desc_size);
+	skb_pull(entry->skb, entry->queue->desc_size);
 	skb_trim(entry->skb, rxdesc->size);
-
-	/*
-	 * Set descriptor and data pointer.
-	 */
-	skbdesc->data = entry->skb->data;
-	skbdesc->data_len = rxdesc->size;
-	skbdesc->desc = rxd;
-	skbdesc->desc_len = entry->queue->desc_size;
 }
 
 /*
@@ -1644,31 +1681,11 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT73USB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 
-	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
-	rt2x00dev->led_radio.led_dev.brightness_set =
-	    rt73usb_brightness_set;
-	rt2x00dev->led_radio.led_dev.blink_set =
-	    rt73usb_blink_set;
-	rt2x00dev->led_radio.flags = LED_INITIALIZED;
-
-	rt2x00dev->led_assoc.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_assoc.type = LED_TYPE_ASSOC;
-	rt2x00dev->led_assoc.led_dev.brightness_set =
-	    rt73usb_brightness_set;
-	rt2x00dev->led_assoc.led_dev.blink_set =
-	    rt73usb_blink_set;
-	rt2x00dev->led_assoc.flags = LED_INITIALIZED;
-
-	if (value == LED_MODE_SIGNAL_STRENGTH) {
-		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_qual.type = LED_TYPE_QUALITY;
-		rt2x00dev->led_qual.led_dev.brightness_set =
-		    rt73usb_brightness_set;
-		rt2x00dev->led_qual.led_dev.blink_set =
-		    rt73usb_blink_set;
-		rt2x00dev->led_qual.flags = LED_INITIALIZED;
-	}
+	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
+	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
+	if (value == LED_MODE_SIGNAL_STRENGTH)
+		rt73usb_init_led(rt2x00dev, &rt2x00dev->led_qual,
+				 LED_TYPE_QUALITY);
 
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_LED_MODE, value);
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_0,
@@ -1845,14 +1862,11 @@ static void rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+	    IEEE80211_HW_SIGNAL_DBM;
 	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
-	rt2x00dev->hw->max_signal = MAX_SIGNAL;
-	rt2x00dev->hw->max_rssi = MAX_RX_SSI;
-	rt2x00dev->hw->queues = 4;
 
-	SET_IEEE80211_DEV(rt2x00dev->hw, &rt2x00dev_usb(rt2x00dev)->dev);
+	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
 				rt2x00_eeprom_addr(rt2x00dev,
 						   EEPROM_MAC_ADDR_0));
@@ -1974,69 +1988,6 @@ static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 #define rt73usb_get_tsf	NULL
 #endif
 
-static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
-				 struct ieee80211_tx_control *control)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_intf *intf = vif_to_intf(control->vif);
-	struct skb_frame_desc *skbdesc;
-	unsigned int beacon_base;
-	unsigned int timeout;
-	u32 reg;
-
-	if (unlikely(!intf->beacon))
-		return -ENOBUFS;
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(skb, intf->beacon->queue->desc_size);
-	memset(skb->data, 0, intf->beacon->queue->desc_size);
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
-	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
-	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
-	skbdesc->desc = skb->data;
-	skbdesc->desc_len = intf->beacon->queue->desc_size;
-	skbdesc->entry = intf->beacon;
-
-	/*
-	 * Disable beaconing while we are reloading the beacon data,
-	 * otherwise we might be sending out invalid data.
-	 */
-	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
-	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
-
-	/*
-	 * mac80211 doesn't provide the control->queue variable
-	 * for beacons. Set our own queue identification so
-	 * it can be used during descriptor initialization.
-	 */
-	control->queue = RT2X00_BCN_QUEUE_BEACON;
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
-
-	/*
-	 * Write entire beacon with descriptor to register,
-	 * and kick the beacon generator.
-	 */
-	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-	timeout = REGISTER_TIMEOUT * (skb->len / sizeof(u32));
-	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
-				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,
-				 skb->data, skb->len, timeout);
-	rt73usb_kick_tx_queue(rt2x00dev, control->queue);
-
-	return 0;
-}
-
 static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -2052,7 +2003,6 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt73usb_get_tsf,
-	.beacon_update		= rt73usb_beacon_update,
 };
 
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
@@ -2070,6 +2020,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.link_tuner		= rt73usb_link_tuner,
 	.write_tx_desc		= rt73usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
+	.write_beacon		= rt73usb_write_beacon,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.kick_tx_queue		= rt73usb_kick_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
@@ -2083,21 +2034,21 @@ static const struct data_queue_desc rt73usb_queue_rx = {
 	.entry_num		= RX_ENTRIES,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_rx),
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt73usb_queue_tx = {
 	.entry_num		= TX_ENTRIES,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt73usb_queue_bcn = {
 	.entry_num		= 4 * BEACON_ENTRIES,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXINFO_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct rt2x00_ops rt73usb_ops = {
@@ -2106,6 +2057,7 @@ static const struct rt2x00_ops rt73usb_ops = {
 	.max_ap_intf	= 4,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
+	.tx_queues	= NUM_TX_QUEUES,
 	.rx		= &rt73usb_queue_rx,
 	.tx		= &rt73usb_queue_tx,
 	.bcn		= &rt73usb_queue_bcn,

@@ -527,7 +527,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	if (err)
 		goto out_free;
 
-	for_each_cpu_mask(i, b->cpus) {
+	for_each_cpu_mask_nr(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -617,7 +617,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 #endif
 
 	/* remove all sibling symlinks before unregistering */
-	for_each_cpu_mask(i, b->cpus) {
+	for_each_cpu_mask_nr(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -628,6 +628,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 	deallocate_threshold_block(cpu, bank);
 
 free_out:
+	kobject_del(b->kobj);
 	kobject_put(b->kobj);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
@@ -645,14 +646,11 @@ static void threshold_remove_device(unsigned int cpu)
 }
 
 /* get notified when a cpu comes on/off */
-static int __cpuinit threshold_cpu_callback(struct notifier_block *nfb,
-					    unsigned long action, void *hcpu)
+static void __cpuinit amd_64_threshold_cpu_callback(unsigned long action,
+						     unsigned int cpu)
 {
-	/* cpu was unsigned int to begin with */
-	unsigned int cpu = (unsigned long)hcpu;
-
 	if (cpu >= NR_CPUS)
-		goto out;
+		return;
 
 	switch (action) {
 	case CPU_ONLINE:
@@ -666,13 +664,7 @@ static int __cpuinit threshold_cpu_callback(struct notifier_block *nfb,
 	default:
 		break;
 	}
-      out:
-	return NOTIFY_OK;
 }
-
-static struct notifier_block threshold_cpu_notifier __cpuinitdata = {
-	.notifier_call = threshold_cpu_callback,
-};
 
 static __init int threshold_init_device(void)
 {
@@ -684,7 +676,7 @@ static __init int threshold_init_device(void)
 		if (err)
 			return err;
 	}
-	register_hotcpu_notifier(&threshold_cpu_notifier);
+	threshold_cpu_callback = amd_64_threshold_cpu_callback;
 	return 0;
 }
 

@@ -45,6 +45,7 @@
 #include <linux/delayacct.h>
 #include <linux/cgroupstats.h>
 #include <linux/hash.h>
+#include <linux/namei.h>
 
 #include <asm/atomic.h>
 
@@ -89,11 +90,7 @@ struct cgroupfs_root {
 	/* Hierarchy-specific flags */
 	unsigned long flags;
 
-	/* The path to use for release notifications. No locking
-	 * between setting and use - so if userspace updates this
-	 * while child cgroups exist, you could miss a
-	 * notification. We ensure that it's always a valid
-	 * NUL-terminated string */
+	/* The path to use for release notifications. */
 	char release_agent_path[PATH_MAX];
 };
 
@@ -118,7 +115,7 @@ static int root_count;
  * extra work in the fork/exit path if none of the subsystems need to
  * be called.
  */
-static int need_forkexit_callback;
+static int need_forkexit_callback __read_mostly;
 static int need_mm_owner_callback __read_mostly;
 
 /* convenient tests for these bits */
@@ -220,7 +217,7 @@ static struct hlist_head *css_set_hash(struct cgroup_subsys_state *css[])
  * task until after the first call to cgroup_iter_start(). This
  * reduces the fork()/exit() overhead for people who have cgroups
  * compiled into their kernel but not actually in use */
-static int use_task_css_set_links;
+static int use_task_css_set_links __read_mostly;
 
 /* When we create or destroy a css_set, the operation simply
  * takes/releases a reference count on all the cgroups referenced
@@ -241,17 +238,20 @@ static int use_task_css_set_links;
  */
 static void unlink_css_set(struct css_set *cg)
 {
+	struct cg_cgroup_link *link;
+	struct cg_cgroup_link *saved_link;
+
 	write_lock(&css_set_lock);
 	hlist_del(&cg->hlist);
 	css_set_count--;
-	while (!list_empty(&cg->cg_links)) {
-		struct cg_cgroup_link *link;
-		link = list_entry(cg->cg_links.next,
-				  struct cg_cgroup_link, cg_link_list);
+
+	list_for_each_entry_safe(link, saved_link, &cg->cg_links,
+				 cg_link_list) {
 		list_del(&link->cg_link_list);
 		list_del(&link->cgrp_link_list);
 		kfree(link);
 	}
+
 	write_unlock(&css_set_lock);
 }
 
@@ -355,6 +355,17 @@ static struct css_set *find_existing_css_set(
 	return NULL;
 }
 
+static void free_cg_links(struct list_head *tmp)
+{
+	struct cg_cgroup_link *link;
+	struct cg_cgroup_link *saved_link;
+
+	list_for_each_entry_safe(link, saved_link, tmp, cgrp_link_list) {
+		list_del(&link->cgrp_link_list);
+		kfree(link);
+	}
+}
+
 /*
  * allocate_cg_links() allocates "count" cg_cgroup_link structures
  * and chains them on tmp through their cgrp_link_list fields. Returns 0 on
@@ -368,30 +379,12 @@ static int allocate_cg_links(int count, struct list_head *tmp)
 	for (i = 0; i < count; i++) {
 		link = kmalloc(sizeof(*link), GFP_KERNEL);
 		if (!link) {
-			while (!list_empty(tmp)) {
-				link = list_entry(tmp->next,
-						  struct cg_cgroup_link,
-						  cgrp_link_list);
-				list_del(&link->cgrp_link_list);
-				kfree(link);
-			}
+			free_cg_links(tmp);
 			return -ENOMEM;
 		}
 		list_add(&link->cgrp_link_list, tmp);
 	}
 	return 0;
-}
-
-static void free_cg_links(struct list_head *tmp)
-{
-	while (!list_empty(tmp)) {
-		struct cg_cgroup_link *link;
-		link = list_entry(tmp->next,
-				  struct cg_cgroup_link,
-				  cgrp_link_list);
-		list_del(&link->cgrp_link_list);
-		kfree(link);
-	}
 }
 
 /*
@@ -415,11 +408,11 @@ static struct css_set *find_css_set(
 
 	/* First see if we already have a cgroup group that matches
 	 * the desired set */
-	write_lock(&css_set_lock);
+	read_lock(&css_set_lock);
 	res = find_existing_css_set(oldcg, cgrp, template);
 	if (res)
 		get_css_set(res);
-	write_unlock(&css_set_lock);
+	read_unlock(&css_set_lock);
 
 	if (res)
 		return res;
@@ -506,10 +499,6 @@ static struct css_set *find_css_set(
  * a task holds cgroup_mutex on a cgroup with zero count, it
  * knows that the cgroup won't be removed, as cgroup_rmdir()
  * needs that mutex.
- *
- * The cgroup_common_file_write handler for operations that modify
- * the cgroup hierarchy holds cgroup_mutex across the entire operation,
- * single threading all such cgroup modifications across the system.
  *
  * The fork and exit callbacks cgroup_fork() and cgroup_exit(), don't
  * (usually) take cgroup_mutex.  These are the two most performance
@@ -962,7 +951,6 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	struct super_block *sb;
 	struct cgroupfs_root *root;
 	struct list_head tmp_cg_links;
-	INIT_LIST_HEAD(&tmp_cg_links);
 
 	/* First find the desired set of subsystems */
 	ret = parse_cgroupfs_options(data, &opts);
@@ -1093,6 +1081,8 @@ static void cgroup_kill_sb(struct super_block *sb) {
 	struct cgroupfs_root *root = sb->s_fs_info;
 	struct cgroup *cgrp = &root->top_cgroup;
 	int ret;
+	struct cg_cgroup_link *link;
+	struct cg_cgroup_link *saved_link;
 
 	BUG_ON(!root);
 
@@ -1112,10 +1102,9 @@ static void cgroup_kill_sb(struct super_block *sb) {
 	 * root cgroup
 	 */
 	write_lock(&css_set_lock);
-	while (!list_empty(&cgrp->css_sets)) {
-		struct cg_cgroup_link *link;
-		link = list_entry(cgrp->css_sets.next,
-				  struct cg_cgroup_link, cgrp_link_list);
+
+	list_for_each_entry_safe(link, saved_link, &cgrp->css_sets,
+				 cgrp_link_list) {
 		list_del(&link->cg_link_list);
 		list_del(&link->cgrp_link_list);
 		kfree(link);
@@ -1281,17 +1270,13 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 }
 
 /*
- * Attach task with pid 'pid' to cgroup 'cgrp'. Call with
- * cgroup_mutex, may take task_lock of task
+ * Attach task with pid 'pid' to cgroup 'cgrp'. Call with cgroup_mutex
+ * held. May take task_lock of task
  */
-static int attach_task_by_pid(struct cgroup *cgrp, char *pidbuf)
+static int attach_task_by_pid(struct cgroup *cgrp, u64 pid)
 {
-	pid_t pid;
 	struct task_struct *tsk;
 	int ret;
-
-	if (sscanf(pidbuf, "%d", &pid) != 1)
-		return -EIO;
 
 	if (pid) {
 		rcu_read_lock();
@@ -1318,6 +1303,16 @@ static int attach_task_by_pid(struct cgroup *cgrp, char *pidbuf)
 	return ret;
 }
 
+static int cgroup_tasks_write(struct cgroup *cgrp, struct cftype *cft, u64 pid)
+{
+	int ret;
+	if (!cgroup_lock_live_group(cgrp))
+		return -ENODEV;
+	ret = attach_task_by_pid(cgrp, pid);
+	cgroup_unlock();
+	return ret;
+}
+
 /* The various types of files and directories in a cgroup file system */
 enum cgroup_filetype {
 	FILE_ROOT,
@@ -1327,12 +1322,54 @@ enum cgroup_filetype {
 	FILE_RELEASE_AGENT,
 };
 
+/**
+ * cgroup_lock_live_group - take cgroup_mutex and check that cgrp is alive.
+ * @cgrp: the cgroup to be checked for liveness
+ *
+ * On success, returns true; the lock should be later released with
+ * cgroup_unlock(). On failure returns false with no lock held.
+ */
+bool cgroup_lock_live_group(struct cgroup *cgrp)
+{
+	mutex_lock(&cgroup_mutex);
+	if (cgroup_is_removed(cgrp)) {
+		mutex_unlock(&cgroup_mutex);
+		return false;
+	}
+	return true;
+}
+
+static int cgroup_release_agent_write(struct cgroup *cgrp, struct cftype *cft,
+				      const char *buffer)
+{
+	BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
+	if (!cgroup_lock_live_group(cgrp))
+		return -ENODEV;
+	strcpy(cgrp->root->release_agent_path, buffer);
+	cgroup_unlock();
+	return 0;
+}
+
+static int cgroup_release_agent_show(struct cgroup *cgrp, struct cftype *cft,
+				     struct seq_file *seq)
+{
+	if (!cgroup_lock_live_group(cgrp))
+		return -ENODEV;
+	seq_puts(seq, cgrp->root->release_agent_path);
+	seq_putc(seq, '\n');
+	cgroup_unlock();
+	return 0;
+}
+
+/* A buffer size big enough for numbers or short strings */
+#define CGROUP_LOCAL_BUFFER_SIZE 64
+
 static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
 				struct file *file,
 				const char __user *userbuf,
 				size_t nbytes, loff_t *unused_ppos)
 {
-	char buffer[64];
+	char buffer[CGROUP_LOCAL_BUFFER_SIZE];
 	int retval = 0;
 	char *end;
 
@@ -1361,68 +1398,39 @@ static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
 	return retval;
 }
 
-static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
-					   struct cftype *cft,
-					   struct file *file,
-					   const char __user *userbuf,
-					   size_t nbytes, loff_t *unused_ppos)
+static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
+				   struct file *file,
+				   const char __user *userbuf,
+				   size_t nbytes, loff_t *unused_ppos)
 {
-	enum cgroup_filetype type = cft->private;
-	char *buffer;
+	char local_buffer[CGROUP_LOCAL_BUFFER_SIZE];
 	int retval = 0;
+	size_t max_bytes = cft->max_write_len;
+	char *buffer = local_buffer;
 
-	if (nbytes >= PATH_MAX)
+	if (!max_bytes)
+		max_bytes = sizeof(local_buffer) - 1;
+	if (nbytes >= max_bytes)
 		return -E2BIG;
-
-	/* +1 for nul-terminator */
-	buffer = kmalloc(nbytes + 1, GFP_KERNEL);
-	if (buffer == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(buffer, userbuf, nbytes)) {
+	/* Allocate a dynamic buffer if we need one */
+	if (nbytes >= sizeof(local_buffer)) {
+		buffer = kmalloc(nbytes + 1, GFP_KERNEL);
+		if (buffer == NULL)
+			return -ENOMEM;
+	}
+	if (nbytes && copy_from_user(buffer, userbuf, nbytes)) {
 		retval = -EFAULT;
-		goto out1;
-	}
-	buffer[nbytes] = 0;	/* nul-terminate */
-	strstrip(buffer);	/* strip -just- trailing whitespace */
-
-	mutex_lock(&cgroup_mutex);
-
-	/*
-	 * This was already checked for in cgroup_file_write(), but
-	 * check again now we're holding cgroup_mutex.
-	 */
-	if (cgroup_is_removed(cgrp)) {
-		retval = -ENODEV;
-		goto out2;
+		goto out;
 	}
 
-	switch (type) {
-	case FILE_TASKLIST:
-		retval = attach_task_by_pid(cgrp, buffer);
-		break;
-	case FILE_NOTIFY_ON_RELEASE:
-		clear_bit(CGRP_RELEASABLE, &cgrp->flags);
-		if (simple_strtoul(buffer, NULL, 10) != 0)
-			set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
-		else
-			clear_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
-		break;
-	case FILE_RELEASE_AGENT:
-		BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
-		strcpy(cgrp->root->release_agent_path, buffer);
-		break;
-	default:
-		retval = -EINVAL;
-		goto out2;
-	}
-
-	if (retval == 0)
+	buffer[nbytes] = 0;     /* nul-terminate */
+	strstrip(buffer);
+	retval = cft->write_string(cgrp, cft, buffer);
+	if (!retval)
 		retval = nbytes;
-out2:
-	mutex_unlock(&cgroup_mutex);
-out1:
-	kfree(buffer);
+out:
+	if (buffer != local_buffer)
+		kfree(buffer);
 	return retval;
 }
 
@@ -1438,6 +1446,8 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 		return cft->write(cgrp, cft, file, buf, nbytes, ppos);
 	if (cft->write_u64 || cft->write_s64)
 		return cgroup_write_X64(cgrp, cft, file, buf, nbytes, ppos);
+	if (cft->write_string)
+		return cgroup_write_string(cgrp, cft, file, buf, nbytes, ppos);
 	if (cft->trigger) {
 		int ret = cft->trigger(cgrp, (unsigned int)cft->private);
 		return ret ? ret : nbytes;
@@ -1450,7 +1460,7 @@ static ssize_t cgroup_read_u64(struct cgroup *cgrp, struct cftype *cft,
 			       char __user *buf, size_t nbytes,
 			       loff_t *ppos)
 {
-	char tmp[64];
+	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
 	u64 val = cft->read_u64(cgrp, cft);
 	int len = sprintf(tmp, "%llu\n", (unsigned long long) val);
 
@@ -1462,54 +1472,11 @@ static ssize_t cgroup_read_s64(struct cgroup *cgrp, struct cftype *cft,
 			       char __user *buf, size_t nbytes,
 			       loff_t *ppos)
 {
-	char tmp[64];
+	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
 	s64 val = cft->read_s64(cgrp, cft);
 	int len = sprintf(tmp, "%lld\n", (long long) val);
 
 	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
-}
-
-static ssize_t cgroup_common_file_read(struct cgroup *cgrp,
-					  struct cftype *cft,
-					  struct file *file,
-					  char __user *buf,
-					  size_t nbytes, loff_t *ppos)
-{
-	enum cgroup_filetype type = cft->private;
-	char *page;
-	ssize_t retval = 0;
-	char *s;
-
-	if (!(page = (char *)__get_free_page(GFP_KERNEL)))
-		return -ENOMEM;
-
-	s = page;
-
-	switch (type) {
-	case FILE_RELEASE_AGENT:
-	{
-		struct cgroupfs_root *root;
-		size_t n;
-		mutex_lock(&cgroup_mutex);
-		root = cgrp->root;
-		n = strnlen(root->release_agent_path,
-			    sizeof(root->release_agent_path));
-		n = min(n, (size_t) PAGE_SIZE);
-		strncpy(s, root->release_agent_path, n);
-		mutex_unlock(&cgroup_mutex);
-		s += n;
-		break;
-	}
-	default:
-		retval = -EINVAL;
-		goto out;
-	}
-	*s++ = '\n';
-
-	retval = simple_read_from_buffer(buf, nbytes, ppos, page, s - page);
-out:
-	free_page((unsigned long)page);
-	return retval;
 }
 
 static ssize_t cgroup_file_read(struct file *file, char __user *buf,
@@ -1560,7 +1527,7 @@ static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 	return cft->read_seq_string(state->cgroup, cft, m);
 }
 
-int cgroup_seqfile_release(struct inode *inode, struct file *file)
+static int cgroup_seqfile_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	kfree(seq->private);
@@ -1569,6 +1536,7 @@ int cgroup_seqfile_release(struct inode *inode, struct file *file)
 
 static struct file_operations cgroup_seqfile_operations = {
 	.read = seq_read,
+	.write = cgroup_file_write,
 	.llseek = seq_lseek,
 	.release = cgroup_seqfile_release,
 };
@@ -1756,15 +1724,11 @@ int cgroup_add_files(struct cgroup *cgrp,
 int cgroup_task_count(const struct cgroup *cgrp)
 {
 	int count = 0;
-	struct list_head *l;
+	struct cg_cgroup_link *link;
 
 	read_lock(&css_set_lock);
-	l = cgrp->css_sets.next;
-	while (l != &cgrp->css_sets) {
-		struct cg_cgroup_link *link =
-			list_entry(l, struct cg_cgroup_link, cgrp_link_list);
+	list_for_each_entry(link, &cgrp->css_sets, cgrp_link_list) {
 		count += atomic_read(&link->cg->ref.refcount);
-		l = l->next;
 	}
 	read_unlock(&css_set_lock);
 	return count;
@@ -2227,6 +2191,18 @@ static u64 cgroup_read_notify_on_release(struct cgroup *cgrp,
 	return notify_on_release(cgrp);
 }
 
+static int cgroup_write_notify_on_release(struct cgroup *cgrp,
+					  struct cftype *cft,
+					  u64 val)
+{
+	clear_bit(CGRP_RELEASABLE, &cgrp->flags);
+	if (val)
+		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+	else
+		clear_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+	return 0;
+}
+
 /*
  * for the common functions, 'private' gives the type of file
  */
@@ -2235,7 +2211,7 @@ static struct cftype files[] = {
 		.name = "tasks",
 		.open = cgroup_tasks_open,
 		.read = cgroup_tasks_read,
-		.write = cgroup_common_file_write,
+		.write_u64 = cgroup_tasks_write,
 		.release = cgroup_tasks_release,
 		.private = FILE_TASKLIST,
 	},
@@ -2243,15 +2219,16 @@ static struct cftype files[] = {
 	{
 		.name = "notify_on_release",
 		.read_u64 = cgroup_read_notify_on_release,
-		.write = cgroup_common_file_write,
+		.write_u64 = cgroup_write_notify_on_release,
 		.private = FILE_NOTIFY_ON_RELEASE,
 	},
 };
 
 static struct cftype cft_release_agent = {
 	.name = "release_agent",
-	.read = cgroup_common_file_read,
-	.write = cgroup_common_file_write,
+	.read_seq_string = cgroup_release_agent_show,
+	.write_string = cgroup_release_agent_write,
+	.max_write_len = PATH_MAX,
 	.private = FILE_RELEASE_AGENT,
 };
 
@@ -2391,7 +2368,7 @@ static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return cgroup_create(c_parent, dentry, mode | S_IFDIR);
 }
 
-static inline int cgroup_has_css_refs(struct cgroup *cgrp)
+static int cgroup_has_css_refs(struct cgroup *cgrp)
 {
 	/* Check the reference count on each subsystem. Since we
 	 * already established that there are no tasks in the
@@ -2761,14 +2738,15 @@ void cgroup_fork_callbacks(struct task_struct *child)
  */
 void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
 {
-	struct cgroup *oldcgrp, *newcgrp;
+	struct cgroup *oldcgrp, *newcgrp = NULL;
 
 	if (need_mm_owner_callback) {
 		int i;
 		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
 			struct cgroup_subsys *ss = subsys[i];
 			oldcgrp = task_cgroup(old, ss->subsys_id);
-			newcgrp = task_cgroup(new, ss->subsys_id);
+			if (new)
+				newcgrp = task_cgroup(new, ss->subsys_id);
 			if (oldcgrp == newcgrp)
 				continue;
 			if (ss->mm_owner_changed)
@@ -2869,16 +2847,17 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
  * cgroup_clone - clone the cgroup the given subsystem is attached to
  * @tsk: the task to be moved
  * @subsys: the given subsystem
+ * @nodename: the name for the new cgroup
  *
  * Duplicate the current cgroup in the hierarchy that the given
  * subsystem is attached to, and move this task into the new
  * child.
  */
-int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys)
+int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
+							char *nodename)
 {
 	struct dentry *dentry;
 	int ret = 0;
-	char nodename[MAX_CGROUP_TYPE_NAMELEN];
 	struct cgroup *parent, *child;
 	struct inode *inode;
 	struct css_set *cg;
@@ -2902,8 +2881,6 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys)
 	}
 	cg = tsk->cgroups;
 	parent = task_cgroup(tsk, subsys->subsys_id);
-
-	snprintf(nodename, MAX_CGROUP_TYPE_NAMELEN, "%d", tsk->pid);
 
 	/* Pin the hierarchy */
 	atomic_inc(&parent->root->sb->s_active);
@@ -3078,27 +3055,24 @@ static void cgroup_release_agent(struct work_struct *work)
 	while (!list_empty(&release_list)) {
 		char *argv[3], *envp[3];
 		int i;
-		char *pathbuf;
+		char *pathbuf = NULL, *agentbuf = NULL;
 		struct cgroup *cgrp = list_entry(release_list.next,
 						    struct cgroup,
 						    release_list);
 		list_del_init(&cgrp->release_list);
 		spin_unlock(&release_list_lock);
 		pathbuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (!pathbuf) {
-			spin_lock(&release_list_lock);
-			continue;
-		}
-
-		if (cgroup_path(cgrp, pathbuf, PAGE_SIZE) < 0) {
-			kfree(pathbuf);
-			spin_lock(&release_list_lock);
-			continue;
-		}
+		if (!pathbuf)
+			goto continue_free;
+		if (cgroup_path(cgrp, pathbuf, PAGE_SIZE) < 0)
+			goto continue_free;
+		agentbuf = kstrdup(cgrp->root->release_agent_path, GFP_KERNEL);
+		if (!agentbuf)
+			goto continue_free;
 
 		i = 0;
-		argv[i++] = cgrp->root->release_agent_path;
-		argv[i++] = (char *)pathbuf;
+		argv[i++] = agentbuf;
+		argv[i++] = pathbuf;
 		argv[i] = NULL;
 
 		i = 0;
@@ -3112,8 +3086,10 @@ static void cgroup_release_agent(struct work_struct *work)
 		 * be a slow process */
 		mutex_unlock(&cgroup_mutex);
 		call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-		kfree(pathbuf);
 		mutex_lock(&cgroup_mutex);
+ continue_free:
+		kfree(pathbuf);
+		kfree(agentbuf);
 		spin_lock(&release_list_lock);
 	}
 	spin_unlock(&release_list_lock);

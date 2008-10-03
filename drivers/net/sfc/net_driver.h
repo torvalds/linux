@@ -26,10 +26,10 @@
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
 #include <linux/inet_lro.h>
+#include <linux/i2c.h>
 
 #include "enum.h"
 #include "bitfield.h"
-#include "i2c-direct.h"
 
 #define EFX_MAX_LRO_DESCRIPTORS 8
 #define EFX_MAX_LRO_AGGR MAX_SKB_FRAGS
@@ -418,7 +418,10 @@ struct efx_blinker {
  * @init_leds: Sets up board LEDs
  * @set_fault_led: Turns the fault LED on or off
  * @blink: Starts/stops blinking
+ * @fini: Cleanup function
  * @blinker: used to blink LEDs in software
+ * @hwmon_client: I2C client for hardware monitor
+ * @ioexp_client: I2C client for power/port control
  */
 struct efx_board {
 	int type;
@@ -431,7 +434,9 @@ struct efx_board {
 	int (*init_leds)(struct efx_nic *efx);
 	void (*set_fault_led) (struct efx_nic *efx, int state);
 	void (*blink) (struct efx_nic *efx, int start);
+	void (*fini) (struct efx_nic *nic);
 	struct efx_blinker blinker;
+	struct i2c_client *hwmon_client, *ioexp_client;
 };
 
 #define STRING_TABLE_LOOKUP(val, member)	\
@@ -611,14 +616,16 @@ union efx_multicast_hash {
  * @pci_dev: The PCI device
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
- * @workqueue: Workqueue for resets, port reconfigures and the HW monitor
+ * @workqueue: Workqueue for port reconfigures and the HW monitor.
+ *	Work items do not hold and must not acquire RTNL.
+ * @reset_workqueue: Workqueue for resets.  Work item will acquire RTNL.
  * @reset_work: Scheduled reset workitem
  * @monitor_work: Hardware monitor workitem
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
  * @biu_lock: BIU (bus interface unit) lock
  * @interrupt_mode: Interrupt mode
- * @i2c: I2C interface
+ * @i2c_adap: I2C adapter
  * @board_info: Board-level information
  * @state: Device state flag. Serialised by the rtnl_lock.
  * @reset_pending: Pending reset method (normally RESET_TYPE_NONE)
@@ -679,6 +686,7 @@ struct efx_nic {
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	struct workqueue_struct *workqueue;
+	struct workqueue_struct *reset_workqueue;
 	struct work_struct reset_work;
 	struct delayed_work monitor_work;
 	resource_size_t membase_phys;
@@ -686,7 +694,7 @@ struct efx_nic {
 	spinlock_t biu_lock;
 	enum efx_int_mode interrupt_mode;
 
-	struct efx_i2c_interface i2c;
+	struct i2c_adapter i2c_adap;
 	struct efx_board board_info;
 
 	enum nic_state state;

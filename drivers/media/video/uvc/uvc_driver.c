@@ -298,7 +298,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 	switch (buffer[2]) {
 	case VS_FORMAT_UNCOMPRESSED:
 	case VS_FORMAT_FRAME_BASED:
-		if (buflen < 27) {
+		n = buffer[2] == VS_FORMAT_UNCOMPRESSED ? 27 : 28;
+		if (buflen < n) {
 			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
 			       "interface %d FORMAT error\n",
 			       dev->udev->devnum,
@@ -1457,9 +1458,7 @@ static int uvc_register_video(struct uvc_device *dev)
 	 * unregistered before the reference is released, so we don't need to
 	 * get another one.
 	 */
-	vdev->dev = &dev->intf->dev;
-	vdev->type = 0;
-	vdev->type2 = 0;
+	vdev->parent = &dev->intf->dev;
 	vdev->minor = -1;
 	vdev->fops = &uvc_fops;
 	vdev->release = video_device_release;
@@ -1632,13 +1631,16 @@ static void uvc_disconnect(struct usb_interface *intf)
 	 * reference to the uvc_device instance after uvc_v4l2_open() received
 	 * the pointer to the device (video_devdata) but before it got the
 	 * chance to increase the reference count (kref_get).
+	 *
+	 * Note that the reference can't be released with the lock held,
+	 * otherwise a AB-BA deadlock can occur with videodev_lock that
+	 * videodev acquires in videodev_open() and video_unregister_device().
 	 */
 	mutex_lock(&uvc_driver.open_mutex);
-
 	dev->state |= UVC_DEV_DISCONNECTED;
-	kref_put(&dev->kref, uvc_delete);
-
 	mutex_unlock(&uvc_driver.open_mutex);
+
+	kref_put(&dev->kref, uvc_delete);
 }
 
 static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
@@ -1825,6 +1827,15 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_STREAM_NO_FID },
+	/* Asus F9SG */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x174f,
+	  .idProduct		= 0x8a31,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_STREAM_NO_FID },
 	/* Syntek (Asus U3S) */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -1873,7 +1884,7 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
-	/* Packard Bell OEM Webcam */
+	/* Packard Bell OEM Webcam - Bison Electronics */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x5986,
@@ -1882,7 +1893,7 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
-	/* Acer Crystal Eye webcam */
+	/* Acer Crystal Eye webcam - Bison Electronics */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x5986,
@@ -1891,11 +1902,38 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
-	/* Acer OrbiCam - Unknown vendor */
+	/* Medion Akoya Mini E1210 - Bison Electronics */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x5986,
+	  .idProduct		= 0x0141,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
+	/* Acer OrbiCam - Bison Electronics */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x5986,
 	  .idProduct		= 0x0200,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
+	/* Bison Electronics */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x5986,
+	  .idProduct		= 0x0300,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
+	/* Clevo M570TU - Bison Electronics */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x5986,
+	  .idProduct		= 0x0303,
 	  .bInterfaceClass	= USB_CLASS_VIDEO,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
@@ -1953,3 +1991,4 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
+

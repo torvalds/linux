@@ -56,24 +56,31 @@ static DEFINE_MUTEX(idedisk_ref_mutex);
 #define ide_disk_g(disk) \
 	container_of((disk)->private_data, struct ide_disk_obj, driver)
 
+static void ide_disk_release(struct kref *);
+
 static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = NULL;
 
 	mutex_lock(&idedisk_ref_mutex);
 	idkp = ide_disk_g(disk);
-	if (idkp)
-		kref_get(&idkp->kref);
+	if (idkp) {
+		if (ide_device_get(idkp->drive))
+			idkp = NULL;
+		else
+			kref_get(&idkp->kref);
+	}
 	mutex_unlock(&idedisk_ref_mutex);
 	return idkp;
 }
 
-static void ide_disk_release(struct kref *);
-
 static void ide_disk_put(struct ide_disk_obj *idkp)
 {
+	ide_drive_t *drive = idkp->drive;
+
 	mutex_lock(&idedisk_ref_mutex);
 	kref_put(&idkp->kref, ide_disk_release);
+	ide_device_put(drive);
 	mutex_unlock(&idedisk_ref_mutex);
 }
 
@@ -158,7 +165,7 @@ static void ide_tf_set_cmd(ide_drive_t *drive, ide_task_t *task, u8 dma)
 	write = (task->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
 
 	if (dma)
-		index = drive->vdma ? 4 : 8;
+		index = 8;
 	else
 		index = drive->mult_count ? 0 : 4;
 
@@ -438,20 +445,6 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 	}
 }
 
-/*
- * Compute drive->capacity, the full capacity of the drive
- * Called with drive->id != NULL.
- *
- * To compute capacity, this uses either of
- *
- *    1. CHS value set by user       (whatever user sets will be trusted)
- *    2. LBA value from target drive (require new ATA feature)
- *    3. LBA value from system BIOS  (new one is OK, old one may break)
- *    4. CHS value from system BIOS  (traditional style)
- *
- * in above order (i.e., if value of higher priority is available,
- * reset will be ignored).
- */
 static void init_idedisk_capacity(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;

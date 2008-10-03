@@ -52,12 +52,12 @@ static void skb_debug(const struct sk_buff *skb)
 #define ETHERTYPE_IPV6	0x86, 0xdd
 #define PAD_BRIDGED	0x00, 0x00
 
-static unsigned char ethertype_ipv4[] = { ETHERTYPE_IPV4 };
-static unsigned char ethertype_ipv6[] = { ETHERTYPE_IPV6 };
-static unsigned char llc_oui_pid_pad[] =
+static const unsigned char ethertype_ipv4[] = { ETHERTYPE_IPV4 };
+static const unsigned char ethertype_ipv6[] = { ETHERTYPE_IPV6 };
+static const unsigned char llc_oui_pid_pad[] =
 			{ LLC, SNAP_BRIDGED, PID_ETHERNET, PAD_BRIDGED };
-static unsigned char llc_oui_ipv4[] = { LLC, SNAP_ROUTED, ETHERTYPE_IPV4 };
-static unsigned char llc_oui_ipv6[] = { LLC, SNAP_ROUTED, ETHERTYPE_IPV6 };
+static const unsigned char llc_oui_ipv4[] = { LLC, SNAP_ROUTED, ETHERTYPE_IPV4 };
+static const unsigned char llc_oui_ipv6[] = { LLC, SNAP_ROUTED, ETHERTYPE_IPV6 };
 
 enum br2684_encaps {
 	e_vc = BR2684_ENCAPS_VC,
@@ -217,8 +217,8 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct br2684_dev *brdev,
 	return 1;
 }
 
-static inline struct br2684_vcc *pick_outgoing_vcc(struct sk_buff *skb,
-						   struct br2684_dev *brdev)
+static inline struct br2684_vcc *pick_outgoing_vcc(const struct sk_buff *skb,
+						   const struct br2684_dev *brdev)
 {
 	return list_empty(&brdev->brvccs) ? NULL : list_entry_brvcc(brdev->brvccs.next);	/* 1 vcc/dev right now */
 }

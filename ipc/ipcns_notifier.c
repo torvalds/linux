@@ -55,25 +55,35 @@ static int ipcns_callback(struct notifier_block *self,
 
 int register_ipcns_notifier(struct ipc_namespace *ns)
 {
+	int rc;
+
 	memset(&ns->ipcns_nb, 0, sizeof(ns->ipcns_nb));
 	ns->ipcns_nb.notifier_call = ipcns_callback;
 	ns->ipcns_nb.priority = IPCNS_CALLBACK_PRI;
-	return blocking_notifier_chain_register(&ipcns_chain, &ns->ipcns_nb);
+	rc = blocking_notifier_chain_register(&ipcns_chain, &ns->ipcns_nb);
+	if (!rc)
+		ns->auto_msgmni = 1;
+	return rc;
 }
 
 int cond_register_ipcns_notifier(struct ipc_namespace *ns)
 {
+	int rc;
+
 	memset(&ns->ipcns_nb, 0, sizeof(ns->ipcns_nb));
 	ns->ipcns_nb.notifier_call = ipcns_callback;
 	ns->ipcns_nb.priority = IPCNS_CALLBACK_PRI;
-	return blocking_notifier_chain_cond_register(&ipcns_chain,
+	rc = blocking_notifier_chain_cond_register(&ipcns_chain,
 							&ns->ipcns_nb);
+	if (!rc)
+		ns->auto_msgmni = 1;
+	return rc;
 }
 
-int unregister_ipcns_notifier(struct ipc_namespace *ns)
+void unregister_ipcns_notifier(struct ipc_namespace *ns)
 {
-	return blocking_notifier_chain_unregister(&ipcns_chain,
-						&ns->ipcns_nb);
+	blocking_notifier_chain_unregister(&ipcns_chain, &ns->ipcns_nb);
+	ns->auto_msgmni = 0;
 }
 
 int ipcns_notify(unsigned long val)

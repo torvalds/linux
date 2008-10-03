@@ -29,6 +29,7 @@
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
+#include <asm/pgtable.h>
 #include <asm/time.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
@@ -123,6 +124,7 @@ static void *get_call_destination(u8 type)
 		.pv_irq_ops = pv_irq_ops,
 		.pv_apic_ops = pv_apic_ops,
 		.pv_mmu_ops = pv_mmu_ops,
+		.pv_lock_ops = pv_lock_ops,
 	};
 	return *((void **)&tmpl + type);
 }
@@ -266,6 +268,17 @@ enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
 	return __get_cpu_var(paravirt_lazy_mode);
 }
 
+void __init paravirt_use_bytelocks(void)
+{
+#ifdef CONFIG_SMP
+	pv_lock_ops.spin_is_locked = __byte_spin_is_locked;
+	pv_lock_ops.spin_is_contended = __byte_spin_is_contended;
+	pv_lock_ops.spin_lock = __byte_spin_lock;
+	pv_lock_ops.spin_trylock = __byte_spin_trylock;
+	pv_lock_ops.spin_unlock = __byte_spin_unlock;
+#endif
+}
+
 struct pv_info pv_info = {
 	.name = "bare hardware",
 	.paravirt_enabled = 0,
@@ -361,7 +374,6 @@ struct pv_cpu_ops pv_cpu_ops = {
 struct pv_apic_ops pv_apic_ops = {
 #ifdef CONFIG_X86_LOCAL_APIC
 	.apic_write = native_apic_write,
-	.apic_write_atomic = native_apic_write_atomic,
 	.apic_read = native_apic_read,
 	.setup_boot_clock = setup_boot_APIC_clock,
 	.setup_secondary_clock = setup_secondary_APIC_clock,
@@ -373,6 +385,9 @@ struct pv_mmu_ops pv_mmu_ops = {
 #ifndef CONFIG_X86_64
 	.pagetable_setup_start = native_pagetable_setup_start,
 	.pagetable_setup_done = native_pagetable_setup_done,
+#else
+	.pagetable_setup_start = paravirt_nop,
+	.pagetable_setup_done = paravirt_nop,
 #endif
 
 	.read_cr2 = native_read_cr2,
@@ -428,7 +443,7 @@ struct pv_mmu_ops pv_mmu_ops = {
 #endif /* PAGETABLE_LEVELS >= 3 */
 
 	.pte_val = native_pte_val,
-	.pte_flags = native_pte_val,
+	.pte_flags = native_pte_flags,
 	.pgd_val = native_pgd_val,
 
 	.make_pte = native_make_pte,
@@ -445,6 +460,18 @@ struct pv_mmu_ops pv_mmu_ops = {
 
 	.set_fixmap = native_set_fixmap,
 };
+
+struct pv_lock_ops pv_lock_ops = {
+#ifdef CONFIG_SMP
+	.spin_is_locked = __ticket_spin_is_locked,
+	.spin_is_contended = __ticket_spin_is_contended,
+
+	.spin_lock = __ticket_spin_lock,
+	.spin_trylock = __ticket_spin_trylock,
+	.spin_unlock = __ticket_spin_unlock,
+#endif
+};
+EXPORT_SYMBOL(pv_lock_ops);
 
 EXPORT_SYMBOL_GPL(pv_time_ops);
 EXPORT_SYMBOL    (pv_cpu_ops);

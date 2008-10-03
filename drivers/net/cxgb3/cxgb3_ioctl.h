@@ -90,6 +90,7 @@ struct ch_qset_params {
 	int32_t fl_size[2];
 	int32_t intr_lat;
 	int32_t polling;
+	int32_t lro;
 	int32_t cong_thres;
 };
 

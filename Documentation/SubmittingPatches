@@ -528,7 +528,33 @@ See more details on the proper patch format in the following
 references.
 
 
+16) Sending "git pull" requests  (from Linus emails)
 
+Please write the git repo address and branch name alone on the same line
+so that I can't even by mistake pull from the wrong branch, and so
+that a triple-click just selects the whole thing.
+
+So the proper format is something along the lines of:
+
+	"Please pull from
+
+		git://jdelvare.pck.nerim.net/jdelvare-2.6 i2c-for-linus
+
+	 to get these changes:"
+
+so that I don't have to hunt-and-peck for the address and inevitably
+get it wrong (actually, I've only gotten it wrong a few times, and
+checking against the diffstat tells me when I get it wrong, but I'm
+just a lot more comfortable when I don't have to "look for" the right
+thing to pull, and double-check that I have the right branch-name).
+
+
+Please use "git diff -M --stat --summary" to generate the diffstat:
+the -M enables rename detection, and the summary enables a summary of
+new/deleted or renamed files.
+
+With rename detection, the statistics are rather different [...]
+because git will notice that a fair number of the changes are renames.
 
 -----------------------------------
 SECTION 2 - HINTS, TIPS, AND TRICKS

@@ -53,7 +53,7 @@
 #define STL_SIOMEMMAJOR		28
 #define ACSI_MAJOR		28
 #define AZTECH_CDROM_MAJOR	29
-#define GRAPHDEV_MAJOR		29   /* SparcLinux & Linux/68k /dev/fb */
+#define FB_MAJOR		29   /* /dev/fb* framebuffers */
 #define CM206_CDROM_MAJOR	32
 #define IDE2_MAJOR		33
 #define IDE3_MAJOR		34

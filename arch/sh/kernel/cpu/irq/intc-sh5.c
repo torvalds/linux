@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
-#include <asm/cpu/irq.h>
+#include <cpu/irq.h>
 #include <asm/page.h>
 
 /*

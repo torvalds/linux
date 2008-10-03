@@ -406,7 +406,8 @@ void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int num, u32 lo, u32 hi)
  * deliver_trap() to bounce it back into the Guest. */
 static void default_idt_entry(struct desc_struct *idt,
 			      int trap,
-			      const unsigned long handler)
+			      const unsigned long handler,
+			      const struct desc_struct *base)
 {
 	/* A present interrupt gate. */
 	u32 flags = 0x8e00;
@@ -415,6 +416,10 @@ static void default_idt_entry(struct desc_struct *idt,
 	 * the Guest to use the "int" instruction to trigger it. */
 	if (trap == LGUEST_TRAP_ENTRY)
 		flags |= (GUEST_PL << 13);
+	else if (base)
+		/* Copy priv. level from what Guest asked for.  This allows
+		 * debug (int 3) traps from Guest userspace, for example. */
+		flags |= (base->b & 0x6000);
 
 	/* Now pack it into the IDT entry in its weird format. */
 	idt->a = (LGUEST_CS<<16) | (handler&0x0000FFFF);
@@ -428,7 +433,7 @@ void setup_default_idt_entries(struct lguest_ro_state *state,
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(state->guest_idt); i++)
-		default_idt_entry(&state->guest_idt[i], i, def[i]);
+		default_idt_entry(&state->guest_idt[i], i, def[i], NULL);
 }
 
 /*H:240 We don't use the IDT entries in the "struct lguest" directly, instead
@@ -442,6 +447,8 @@ void copy_traps(const struct lg_cpu *cpu, struct desc_struct *idt,
 	/* We can simply copy the direct traps, otherwise we use the default
 	 * ones in the Switcher: they will return to the Host. */
 	for (i = 0; i < ARRAY_SIZE(cpu->arch.idt); i++) {
+		const struct desc_struct *gidt = &cpu->arch.idt[i];
+
 		/* If no Guest can ever override this trap, leave it alone. */
 		if (!direct_trap(i))
 			continue;
@@ -449,12 +456,15 @@ void copy_traps(const struct lg_cpu *cpu, struct desc_struct *idt,
 		/* Only trap gates (type 15) can go direct to the Guest.
 		 * Interrupt gates (type 14) disable interrupts as they are
 		 * entered, which we never let the Guest do.  Not present
-		 * entries (type 0x0) also can't go direct, of course. */
-		if (idt_type(cpu->arch.idt[i].a, cpu->arch.idt[i].b) == 0xF)
-			idt[i] = cpu->arch.idt[i];
+		 * entries (type 0x0) also can't go direct, of course.
+		 *
+		 * If it can't go direct, we still need to copy the priv. level:
+		 * they might want to give userspace access to a software
+		 * interrupt. */
+		if (idt_type(gidt->a, gidt->b) == 0xF)
+			idt[i] = *gidt;
 		else
-			/* Reset it to the default. */
-			default_idt_entry(&idt[i], i, def[i]);
+			default_idt_entry(&idt[i], i, def[i], gidt);
 	}
 }
 

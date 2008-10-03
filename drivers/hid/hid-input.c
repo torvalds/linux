@@ -100,6 +100,8 @@ static struct hidinput_key_translation apple_fn_keys[] = {
 	{ KEY_F2,       KEY_BRIGHTNESSUP,   APPLE_FLAG_FKEY },
 	{ KEY_F3,       KEY_FN_F5,          APPLE_FLAG_FKEY }, /* Exposé */
 	{ KEY_F4,       KEY_FN_F4,          APPLE_FLAG_FKEY }, /* Dashboard */
+	{ KEY_F5,       KEY_KBDILLUMDOWN,   APPLE_FLAG_FKEY },
+	{ KEY_F6,       KEY_KBDILLUMUP,     APPLE_FLAG_FKEY },
 	{ KEY_F7,       KEY_PREVIOUSSONG,   APPLE_FLAG_FKEY },
 	{ KEY_F8,       KEY_PLAYPAUSE,      APPLE_FLAG_FKEY },
 	{ KEY_F9,       KEY_NEXTSONG,       APPLE_FLAG_FKEY },
@@ -612,6 +614,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0b6: map_key_clear(KEY_PREVIOUSSONG);	break;
 				case 0x0b7: map_key_clear(KEY_STOPCD);		break;
 				case 0x0b8: map_key_clear(KEY_EJECTCD);		break;
+				case 0x0bc: map_key_clear(KEY_MEDIA_REPEAT);	break;
 
 				case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
 			        case 0x0e0: map_abs_clear(ABS_VOLUME);		break;

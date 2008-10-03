@@ -356,7 +356,7 @@ static inline unsigned long ffz(unsigned long word)
  * __fls: find last set bit in word
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Undefined if no set bit exists, so code should check against 0 first.
  */
 static inline unsigned long __fls(unsigned long word)
 {

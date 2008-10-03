@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20080224";
+static const char *verstr = "20080504";
 
 #include <linux/module.h>
 
@@ -631,7 +631,7 @@ static int cross_eof(struct scsi_tape * STp, int forward)
 /* Flush the write buffer (never need to write if variable blocksize). */
 static int st_flush_write_buffer(struct scsi_tape * STp)
 {
-	int offset, transfer, blks;
+	int transfer, blks;
 	int result;
 	unsigned char cmd[MAX_COMMAND_SIZE];
 	struct st_request *SRpnt;
@@ -644,13 +644,9 @@ static int st_flush_write_buffer(struct scsi_tape * STp)
 	result = 0;
 	if (STp->dirty == 1) {
 
-		offset = (STp->buffer)->buffer_bytes;
-		transfer = ((offset + STp->block_size - 1) /
-			    STp->block_size) * STp->block_size;
+		transfer = STp->buffer->buffer_bytes;
                 DEBC(printk(ST_DEB_MSG "%s: Flushing %d bytes.\n",
                                tape_name(STp), transfer));
-
-		memset((STp->buffer)->b_data + offset, 0, transfer - offset);
 
 		memset(cmd, 0, MAX_COMMAND_SIZE);
 		cmd[0] = WRITE_6;
@@ -1670,6 +1666,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 				if (undone <= do_count) {
 					/* Only data from this write is not written */
 					count += undone;
+					b_point -= undone;
 					do_count -= undone;
 					if (STp->block_size)
 						blks = (transfer - undone) / STp->block_size;

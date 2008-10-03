@@ -31,7 +31,6 @@
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 
-
 #include <media/rds.h>
 
 /* Addresses to scan */

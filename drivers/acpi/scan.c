@@ -471,7 +471,7 @@ static int acpi_device_register(struct acpi_device *device,
 	device->dev.release = &acpi_device_release;
 	result = device_add(&device->dev);
 	if(result) {
-		printk(KERN_ERR PREFIX "Error adding device %s", device->dev.bus_id);
+		dev_err(&device->dev, "Error adding device\n");
 		goto end;
 	}
 

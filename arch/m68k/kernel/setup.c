@@ -26,6 +26,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/setup.h>
+#include <asm/fpu.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -38,6 +39,11 @@
 #endif
 #ifdef CONFIG_SUN3X
 #include <asm/dvma.h>
+#endif
+
+#if !FPSTATESIZE || !NR_IRQS
+#warning No CPU/platform type selected, your kernel will not work!
+#warning Are you building an allnoconfig kernel?
 #endif
 
 unsigned long m68k_machtype;
@@ -116,6 +122,7 @@ extern int bvme6000_parse_bootinfo(const struct bi_record *);
 extern int mvme16x_parse_bootinfo(const struct bi_record *);
 extern int mvme147_parse_bootinfo(const struct bi_record *);
 extern int hp300_parse_bootinfo(const struct bi_record *);
+extern int apollo_parse_bootinfo(const struct bi_record *);
 
 extern void config_amiga(void);
 extern void config_atari(void);
@@ -183,6 +190,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 				unknown = mvme147_parse_bootinfo(record);
 			else if (MACH_IS_HP300)
 				unknown = hp300_parse_bootinfo(record);
+			else if (MACH_IS_APOLLO)
+				unknown = apollo_parse_bootinfo(record);
 			else
 				unknown = 1;
 		}

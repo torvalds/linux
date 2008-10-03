@@ -3,8 +3,6 @@
  *
  * Copyright (C) 2005  Sean Young <sean@mess.org>
  *
- * $Id: rfd_ftl.c,v 1.8 2006/01/15 12:51:44 sean Exp $
- *
  * This type of flash translation layer (FTL) is used by the Embedded BIOS
  * by General Software. It is known as the Resident Flash Disk (RFD), see:
  *

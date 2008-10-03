@@ -26,13 +26,17 @@
 #include "cx18-cards.h"
 #include "cx18-audio.h"
 
+#define CX18_AUDIO_ENABLE 0xc72014
+
 /* Selects the audio input and output according to the current
    settings. */
 int cx18_audio_set_io(struct cx18 *cx)
 {
 	struct v4l2_routing route;
 	u32 audio_input;
+	u32 val;
 	int mux_input;
+	int err;
 
 	/* Determine which input to use */
 	if (test_bit(CX18_F_I_RADIO_USER, &cx->i_flags)) {
@@ -51,8 +55,17 @@ int cx18_audio_set_io(struct cx18 *cx)
 	cx18_i2c_hw(cx, cx->card->hw_muxer, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 
 	route.input = audio_input;
-	return cx18_i2c_hw(cx, cx->card->hw_audio_ctrl,
+	err = cx18_i2c_hw(cx, cx->card->hw_audio_ctrl,
 			VIDIOC_INT_S_AUDIO_ROUTING, &route);
+	if (err)
+		return err;
+
+	val = read_reg(CX18_AUDIO_ENABLE) & ~0x30;
+	val |= (audio_input > CX18_AV_AUDIO_SERIAL2) ? 0x20 :
+					(audio_input << 4);
+	write_reg(val | 0xb00, CX18_AUDIO_ENABLE);
+	cx18_vapi(cx, CX18_APU_RESETAI, 1, 0);
+	return 0;
 }
 
 void cx18_audio_set_route(struct cx18 *cx, struct v4l2_routing *route)

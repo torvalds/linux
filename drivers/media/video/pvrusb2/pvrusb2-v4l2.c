@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
@@ -31,6 +30,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 struct pvr2_v4l2_dev;
 struct pvr2_v4l2_fh;
@@ -1161,11 +1161,6 @@ static const struct file_operations vdev_fops = {
 
 
 static struct video_device vdev_template = {
-	.owner      = THIS_MODULE,
-	.type       = VID_TYPE_CAPTURE | VID_TYPE_TUNER,
-	.type2      = (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE
-		       | V4L2_CAP_TUNER | V4L2_CAP_AUDIO
-		       | V4L2_CAP_READWRITE),
 	.fops       = &vdev_fops,
 };
 

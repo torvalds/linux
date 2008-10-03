@@ -29,8 +29,8 @@
 #include <linux/vmalloc.h>
 #include <linux/clk.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/omapfb.h>
+#include <mach/dma.h>
+#include <mach/omapfb.h>
 
 #include <asm/mach-types.h>
 

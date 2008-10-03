@@ -2728,7 +2728,7 @@ static int strip_ioctl(struct tty_struct *tty, struct file *file,
 /************************************************************************/
 /* Initialization							*/
 
-static struct tty_ldisc strip_ldisc = {
+static struct tty_ldisc_ops strip_ldisc = {
 	.magic = TTY_LDISC_MAGIC,
 	.name = "strip",
 	.owner = THIS_MODULE,

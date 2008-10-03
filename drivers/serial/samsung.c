@@ -45,10 +45,10 @@
 
 #include <asm/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 #include "samsung.h"
 
@@ -202,7 +202,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	int max_count = 64;
 

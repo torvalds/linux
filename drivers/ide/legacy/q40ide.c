@@ -96,6 +96,27 @@ static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
 	outsw_swapw(data_addr, buf, (len + 1) / 2);
 }
 
+/* Q40 has a byte-swapped IDE interface */
+static const struct ide_tp_ops q40ide_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= q40ide_input_data,
+	.output_data		= q40ide_output_data,
+};
+
+static const struct ide_port_info q40ide_port_info = {
+	.tp_ops			= &q40ide_tp_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 /* 
  * the static array is needed to have the name reported in /proc/ioports,
  * hwif->name unfortunately isn't available yet
@@ -111,9 +132,7 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
 static int __init q40ide_init(void)
 {
     int i;
-    ide_hwif_t *hwif;
-    const char *name;
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+    hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
 
     if (!MACH_IS_Q40)
       return -ENODEV;
@@ -121,9 +140,8 @@ static int __init q40ide_init(void)
     printk(KERN_INFO "ide: Q40 IDE controller\n");
 
     for (i = 0; i < Q40IDE_NUM_HWIFS; i++) {
-	hw_regs_t hw;
+	const char *name = q40_ide_names[i];
 
-	name = q40_ide_names[i];
 	if (!request_region(pcide_bases[i], 8, name)) {
 		printk("could not reserve ports %lx-%lx for %s\n",
 		       pcide_bases[i],pcide_bases[i]+8,name);
@@ -135,26 +153,13 @@ static int __init q40ide_init(void)
 		release_region(pcide_bases[i], 8);
 		continue;
 	}
-	q40_ide_setup_ports(&hw, pcide_bases[i],
-			NULL,
-//			m68kide_iops,
+	q40_ide_setup_ports(&hw[i], pcide_bases[i], NULL,
 			q40ide_default_irq(pcide_bases[i]));
 
-	hwif = ide_find_port();
-	if (hwif) {
-		ide_init_port_hw(hwif, &hw);
-
-		/* Q40 has a byte-swapped IDE interface */
-		hwif->input_data  = q40ide_input_data;
-		hwif->output_data = q40ide_output_data;
-
-		idx[i] = hwif->index;
-	}
+	hws[i] = &hw[i];
     }
 
-    ide_device_add(idx, NULL);
-
-    return 0;
+    return ide_host_add(&q40ide_port_info, hws, NULL);
 }
 
 module_init(q40ide_init);

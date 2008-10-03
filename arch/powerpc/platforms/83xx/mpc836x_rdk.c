@@ -23,6 +23,7 @@
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pci.h>
 
 #include "mpc83xx.h"
 

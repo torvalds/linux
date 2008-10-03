@@ -444,7 +444,8 @@ scdrv_init(void)
 				continue;
 			}
 
-			device_create(snsc_class, NULL, dev, "%s", devname);
+			device_create_drvdata(snsc_class, NULL, dev, NULL,
+					      "%s", devname);
 
 			ia64_sn_irtr_intr_enable(scd->scd_nasid,
 						 0 /*ignored */ ,

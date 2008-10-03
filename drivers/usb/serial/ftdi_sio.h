@@ -1,20 +1,20 @@
 /*
- * Definitions for the FTDI USB Single Port Serial Converter - 
- * known as FTDI_SIO (Serial Input/Output application of the chipset) 
+ * Definitions for the FTDI USB Single Port Serial Converter -
+ * known as FTDI_SIO (Serial Input/Output application of the chipset)
  *
  * The example I have is known as the USC-1000 which is available from
  * http://www.dse.co.nz - cat no XH4214 It looks similar to this:
  * http://www.dansdata.com/usbser.htm but I can't be sure There are other
  * USC-1000s which don't look like my device though so beware!
  *
- * The device is based on the FTDI FT8U100AX chip. It has a DB25 on one side, 
+ * The device is based on the FTDI FT8U100AX chip. It has a DB25 on one side,
  * USB on the other.
  *
  * Thanx to FTDI (http://www.ftdi.co.uk) for so kindly providing details
  * of the protocol required to talk to the device and ongoing assistence
  * during development.
  *
- * Bill Ryder - bryder@sgi.com formerly of Silicon Graphics, Inc.- wrote the 
+ * Bill Ryder - bryder@sgi.com formerly of Silicon Graphics, Inc.- wrote the
  * FTDI_SIO implementation.
  *
  * Philipp Gühring - pg@futureware.at - added the Device ID of the USB relais
@@ -472,7 +472,7 @@
 /*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
-#define FTDI_DSS20_PID          0xFC82  
+#define FTDI_DSS20_PID          0xFC82
 
 /*
  * Home Electronics (www.home-electro.com) USB gadgets
@@ -524,7 +524,9 @@
 #define FTDI_ELV_WS300PC_PID	0xE0F6	/* PC-Wetterstation (WS 300 PC) */
 #define FTDI_ELV_FHZ1300PC_PID	0xE0E8	/* FHZ 1300 PC */
 #define FTDI_ELV_WS500_PID	0xE0E9	/* PC-Wetterstation (WS 500) */
+#define FTDI_ELV_HS485_PID	0xE0EA	/* USB to RS-485 adapter */
 #define FTDI_ELV_EM1010PC_PID	0xE0EF	/* Engery monitor EM 1010 PC */
+#define FTDI_PHI_FISCO_PID      0xE40B  /* PHI Fisco USB to Serial cable */
 
 /*
  * Definitions for ID TECH (www.idt-net.com) devices
@@ -748,6 +750,7 @@
 
 #define PAPOUCH_VID			0x5050	/* Vendor ID */
 #define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
+#define PAPOUCH_QUIDO4x4_PID		0x0900	/* Quido 4/4 Module */
 
 /*
  * ACG Identification Technologies GmbH products (http://www.acg.de/).
@@ -815,6 +818,11 @@
 #define OLIMEX_VID			0x15BA
 #define OLIMEX_ARM_USB_OCD_PID		0x0003
 
+/* Luminary Micro Stellaris Boards, VID = FTDI_VID */
+/* FTDI 2332C Dual channel device, side A=245 FIFO (JTAG), Side B=RS232 UART */
+#define LMI_LM3S_DEVEL_BOARD_PID	0xbcd8
+#define LMI_LM3S_EVAL_BOARD_PID		0xbcd9
+
 /* www.elsterelectricity.com Elster Unicom III Optical Probe */
 #define FTDI_ELSTER_UNICOM_PID		0xE700 /* Product Id */
 
@@ -830,6 +838,10 @@
 
 /* Rig Expert Ukraine devices */
 #define FTDI_REU_TINY_PID		0xED22	/* RigExpert Tiny */
+
+/* Domintell products  http://www.domintell.com */
+#define FTDI_DOMINTELL_DGQG_PID	0xEF50	/* Master */
+#define FTDI_DOMINTELL_DUSB_PID	0xEF51	/* DUSB01 module */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
@@ -884,7 +896,7 @@
 /*
  * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_RESET
- * wValue:         Control Value 
+ * wValue:         Control Value
  *                   0 = Reset SIO
  *                   1 = Purge RX buffer
  *                   2 = Purge TX buffer
@@ -952,7 +964,7 @@
  *   101 - add .625 to divisor
  *   110 - add .750 to divisor
  *   111 - add .875 to divisor
- * Bits 15 to 0 of the 17-bit divisor are placed in the urb value.  Bit 16 is 
+ * Bits 15 to 0 of the 17-bit divisor are placed in the urb value.  Bit 16 is
  * placed in bit 0 of the urb index.
  *
  * Note that there are a couple of special cases to support the highest baud
@@ -971,8 +983,8 @@ typedef enum {
 } ftdi_chip_type_t;
 
 typedef enum {
- ftdi_sio_b300 = 0, 
- ftdi_sio_b600 = 1, 
+ ftdi_sio_b300 = 0,
+ ftdi_sio_b600 = 1,
  ftdi_sio_b1200 = 2,
  ftdi_sio_b2400 = 3,
  ftdi_sio_b4800 = 4,
@@ -981,7 +993,7 @@ typedef enum {
  ftdi_sio_b38400 = 7,
  ftdi_sio_b57600 = 8,
  ftdi_sio_b115200 = 9
-} FTDI_SIO_baudrate_t ;
+} FTDI_SIO_baudrate_t;
 
 /*
  * The ftdi_8U232AM_xxMHz_byyy constants have been removed. The encoded divisor values
@@ -990,19 +1002,19 @@ typedef enum {
 
 #define FTDI_SIO_SET_DATA_REQUEST FTDI_SIO_SET_DATA
 #define FTDI_SIO_SET_DATA_REQUEST_TYPE 0x40
-#define FTDI_SIO_SET_DATA_PARITY_NONE (0x0 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_ODD (0x1 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_EVEN (0x2 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_MARK (0x3 << 8 )
-#define FTDI_SIO_SET_DATA_PARITY_SPACE (0x4 << 8 )
-#define FTDI_SIO_SET_DATA_STOP_BITS_1 (0x0 << 11 )
-#define FTDI_SIO_SET_DATA_STOP_BITS_15 (0x1 << 11 )
-#define FTDI_SIO_SET_DATA_STOP_BITS_2 (0x2 << 11 )
+#define FTDI_SIO_SET_DATA_PARITY_NONE (0x0 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_ODD (0x1 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_EVEN (0x2 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_MARK (0x3 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_SPACE (0x4 << 8)
+#define FTDI_SIO_SET_DATA_STOP_BITS_1 (0x0 << 11)
+#define FTDI_SIO_SET_DATA_STOP_BITS_15 (0x1 << 11)
+#define FTDI_SIO_SET_DATA_STOP_BITS_2 (0x2 << 11)
 #define FTDI_SIO_SET_BREAK (0x1 << 14)
 /* FTDI_SIO_SET_DATA */
 
 /*
- * BmRequestType:  0100 0000B 
+ * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_SET_DATA
  * wValue:         Data characteristics (see below)
  * wIndex:         Port
@@ -1035,7 +1047,7 @@ typedef enum {
 #define FTDI_SIO_SET_MODEM_CTRL_REQUEST_TYPE 0x40
 #define FTDI_SIO_SET_MODEM_CTRL_REQUEST FTDI_SIO_MODEM_CTRL
 
-/* 
+/*
  * BmRequestType:   0100 0000B
  * bRequest:        FTDI_SIO_MODEM_CTRL
  * wValue:          ControlValue (see below)
@@ -1049,11 +1061,11 @@ typedef enum {
  */
 
 #define FTDI_SIO_SET_DTR_MASK 0x1
-#define FTDI_SIO_SET_DTR_HIGH ( 1 | ( FTDI_SIO_SET_DTR_MASK  << 8))
-#define FTDI_SIO_SET_DTR_LOW  ( 0 | ( FTDI_SIO_SET_DTR_MASK  << 8))
+#define FTDI_SIO_SET_DTR_HIGH (1 | (FTDI_SIO_SET_DTR_MASK  << 8))
+#define FTDI_SIO_SET_DTR_LOW  (0 | (FTDI_SIO_SET_DTR_MASK  << 8))
 #define FTDI_SIO_SET_RTS_MASK 0x2
-#define FTDI_SIO_SET_RTS_HIGH ( 2 | ( FTDI_SIO_SET_RTS_MASK << 8 ))
-#define FTDI_SIO_SET_RTS_LOW ( 0 | ( FTDI_SIO_SET_RTS_MASK << 8 ))
+#define FTDI_SIO_SET_RTS_HIGH (2 | (FTDI_SIO_SET_RTS_MASK << 8))
+#define FTDI_SIO_SET_RTS_LOW (0 | (FTDI_SIO_SET_RTS_MASK << 8))
 
 /*
  * ControlValue
@@ -1076,7 +1088,7 @@ typedef enum {
 /* FTDI_SIO_SET_FLOW_CTRL */
 #define FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE 0x40
 #define FTDI_SIO_SET_FLOW_CTRL_REQUEST FTDI_SIO_SET_FLOW_CTRL
-#define FTDI_SIO_DISABLE_FLOW_CTRL 0x0 
+#define FTDI_SIO_DISABLE_FLOW_CTRL 0x0
 #define FTDI_SIO_RTS_CTS_HS (0x1 << 8)
 #define FTDI_SIO_DTR_DSR_HS (0x2 << 8)
 #define FTDI_SIO_XON_XOFF_HS (0x4 << 8)
@@ -1085,7 +1097,7 @@ typedef enum {
  *   bRequest:       FTDI_SIO_SET_FLOW_CTRL
  *   wValue:         Xoff/Xon
  *   wIndex:         Protocol/Port - hIndex is protocl / lIndex is port
- *   wLength:        0 
+ *   wLength:        0
  *   Data:           None
  *
  * hIndex protocol is:
@@ -1101,10 +1113,10 @@ typedef enum {
  *
  * A value of zero in the hIndex field disables handshaking
  *
- * If Xon/Xoff handshaking is specified, the hValue field should contain the XOFF character 
+ * If Xon/Xoff handshaking is specified, the hValue field should contain the XOFF character
  * and the lValue field contains the XON character.
- */  
- 
+ */
+
 /*
  * FTDI_SIO_GET_LATENCY_TIMER
  *
@@ -1118,7 +1130,7 @@ typedef enum {
 #define  FTDI_SIO_GET_LATENCY_TIMER_REQUEST FTDI_SIO_GET_LATENCY_TIMER
 #define  FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE 0xC0
 
-/* 
+/*
  *  BmRequestType:   1100 0000b
  *  bRequest:        FTDI_SIO_GET_LATENCY_TIMER
  *  wValue:          0
@@ -1127,7 +1139,7 @@ typedef enum {
  *  Data:            latency (on return)
  */
 
-/* 
+/*
  * FTDI_SIO_SET_LATENCY_TIMER
  *
  * Set the timeout interval. The FTDI collects data from the slave
@@ -1140,7 +1152,7 @@ typedef enum {
 #define  FTDI_SIO_SET_LATENCY_TIMER_REQUEST FTDI_SIO_SET_LATENCY_TIMER
 #define  FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE 0x40
 
-/* 
+/*
  *  BmRequestType:   0100 0000b
  *  bRequest:        FTDI_SIO_SET_LATENCY_TIMER
  *  wValue:          Latency (milliseconds)
@@ -1155,7 +1167,7 @@ typedef enum {
  */
 
 /*
- * FTDI_SIO_SET_EVENT_CHAR 
+ * FTDI_SIO_SET_EVENT_CHAR
  *
  * Set the special event character for the specified communications port.
  * If the device sees this character it will immediately return the
@@ -1168,7 +1180,7 @@ typedef enum {
 #define  FTDI_SIO_SET_EVENT_CHAR_REQUEST_TYPE 0x40
 
 
-/* 
+/*
  *  BmRequestType:   0100 0000b
  *  bRequest:        FTDI_SIO_SET_EVENT_CHAR
  *  wValue:          EventChar
@@ -1184,12 +1196,12 @@ typedef enum {
  *   B9..15  Reserved
  *
  */
-          
+
 /* FTDI_SIO_SET_ERROR_CHAR */
 
 /* Set the parity error replacement character for the specified communications port */
 
-/* 
+/*
  *  BmRequestType:  0100 0000b
  *  bRequest:       FTDI_SIO_SET_EVENT_CHAR
  *  wValue:         Error Char
@@ -1215,15 +1227,15 @@ typedef enum {
 #define FTDI_SIO_DSR_MASK 0x20
 #define FTDI_SIO_RI_MASK  0x40
 #define FTDI_SIO_RLSD_MASK 0x80
-/* 
+/*
  *   BmRequestType:   1100 0000b
  *   bRequest:        FTDI_SIO_GET_MODEM_STATUS
  *   wValue:          zero
  *   wIndex:          Port
  *   wLength:         1
  *   Data:            Status
- * 
- * One byte of data is returned 
+ *
+ * One byte of data is returned
  * B0..3 0
  * B4    CTS
  *         0 = inactive
@@ -1236,15 +1248,15 @@ typedef enum {
  *         1 = active
  * B7    Receive Line Signal Detect (RLSD)
  *         0 = inactive
- *         1 = active 
+ *         1 = active
  */
 
 
 
-/* Descriptors returned by the device 
- * 
+/* Descriptors returned by the device
+ *
  *  Device Descriptor
- * 
+ *
  * Offset	Field		Size	Value	Description
  * 0	bLength		1	0x12	Size of descriptor in bytes
  * 1	bDescriptorType	1	0x01	DEVICE Descriptor Type
@@ -1260,9 +1272,9 @@ typedef enum {
  * 15	iProduct	1	0x02	Index of prod string desc
  * 16	iSerialNumber	1	0x02	Index of serial nmr string desc
  * 17	bNumConfigurations 1    0x01	Number of possible configurations
- * 
+ *
  * Configuration Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x09	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x02	CONFIGURATION Descriptor Type
@@ -1272,9 +1284,9 @@ typedef enum {
  * 6	iConfiguration		1	0x02	Index of config string descriptor
  * 7	bmAttributes		1	0x20	Config characteristics Remote Wakeup
  * 8	MaxPower		1	0x1E	Max power consumption
- * 
+ *
  * Interface Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x09	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x04	INTERFACE Descriptor Type
@@ -1285,9 +1297,9 @@ typedef enum {
  * 6	bInterfaceSubClass	1	0xFF	Subclass Code
  * 7	bInterfaceProtocol	1	0xFF	Protocol Code
  * 8	iInterface		1	0x02	Index of interface string description
- * 
+ *
  * IN Endpoint Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x07	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x05	ENDPOINT descriptor type
@@ -1295,9 +1307,9 @@ typedef enum {
  * 3	bmAttributes		1	0x02	Endpoint attributes - Bulk
  * 4	bNumEndpoints		2	0x0040	maximum packet size
  * 5	bInterval		1	0x00	Interval for polling endpoint
- * 
+ *
  * OUT Endpoint Descriptor
- * 
+ *
  * Offset	Field			Size	Value
  * 0	bLength			1	0x07	Size of descriptor in bytes
  * 1	bDescriptorType		1	0x05	ENDPOINT descriptor type
@@ -1305,17 +1317,17 @@ typedef enum {
  * 3	bmAttributes		1	0x02	Endpoint attributes - Bulk
  * 4	bNumEndpoints		2	0x0040	maximum packet size
  * 5	bInterval		1	0x00	Interval for polling endpoint
- *     
+ *
  * DATA FORMAT
- * 
+ *
  * IN Endpoint
- * 
+ *
  * The device reserves the first two bytes of data on this endpoint to contain the current
  * values of the modem and line status registers. In the absence of data, the device 
  * generates a message consisting of these two status bytes every 40 ms
- * 
+ *
  * Byte 0: Modem Status
- * 
+ *
  * Offset	Description
  * B0	Reserved - must be 1
  * B1	Reserved - must be 0
@@ -1325,9 +1337,9 @@ typedef enum {
  * B5	Data Set Ready (DSR)
  * B6	Ring Indicator (RI)
  * B7	Receive Line Signal Detect (RLSD)
- * 
+ *
  * Byte 1: Line Status
- * 
+ *
  * Offset	Description
  * B0	Data Ready (DR)
  * B1	Overrun Error (OE)
@@ -1337,7 +1349,7 @@ typedef enum {
  * B5	Transmitter Holding Register (THRE)
  * B6	Transmitter Empty (TEMT)
  * B7	Error in RCVR FIFO
- * 
+ *
  */
 #define FTDI_RS0_CTS	(1 << 4)
 #define FTDI_RS0_DSR	(1 << 5)
@@ -1355,17 +1367,17 @@ typedef enum {
 
 /*
  * OUT Endpoint
- * 
+ *
  * This device reserves the first bytes of data on this endpoint contain the length
  * and port identifier of the message. For the FTDI USB Serial converter the port 
  * identifier is always 1.
- * 
+ *
  * Byte 0: Line Status
- * 
+ *
  * Offset	Description
  * B0	Reserved - must be 1
  * B1	Reserved - must be 0
  * B2..7	Length of message - (not including Byte 0)
- * 
+ *
  */
 

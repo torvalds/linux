@@ -47,7 +47,7 @@ struct lcd_ops {
         int (*set_contrast)(struct lcd_device *, int contrast);
 	/* Check if given framebuffer device is the one LCD is bound to;
 	   return 0 if not, !=0 if it is. If NULL, lcd always matches the fb. */
-	int (*check_fb)(struct fb_info *);
+	int (*check_fb)(struct lcd_device *, struct fb_info *);
 };
 
 struct lcd_device {

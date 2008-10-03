@@ -12,7 +12,7 @@ means no changes to adjanced clock
 Internally, the clk_set_rate_ex forwards request to clk->ops->set_rate method,
 if it is present in ops structure. The method should set the clock rate and adjust
 all needed clocks according to the passed algo_id.
-Exact values for algo_id are machine-dependend. For the sh7722, the following
+Exact values for algo_id are machine-dependent. For the sh7722, the following
 values are defined:
 
 	NO_CHANGE	= 0,

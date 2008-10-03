@@ -258,7 +258,7 @@ static int pcie_poll_cmd(struct controller *ctrl)
 			return 1;
 		}
 	}
-	while (timeout > 1000) {
+	while (timeout > 0) {
 		msleep(10);
 		timeout -= 10;
 		if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status)) {
@@ -1030,15 +1030,6 @@ static void pcie_shutdown_notification(struct controller *ctrl)
 	pciehp_free_irq(ctrl);
 }
 
-static void make_slot_name(struct slot *slot)
-{
-	if (pciehp_slot_with_bus)
-		snprintf(slot->name, SLOT_NAME_SIZE, "%04d_%04d",
-			 slot->bus, slot->number);
-	else
-		snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
-}
-
 static int pcie_init_slot(struct controller *ctrl)
 {
 	struct slot *slot;
@@ -1053,7 +1044,7 @@ static int pcie_init_slot(struct controller *ctrl)
 	slot->device = ctrl->slot_device_offset + slot->hp_slot;
 	slot->hpc_ops = ctrl->hpc_ops;
 	slot->number = ctrl->first_slot;
-	make_slot_name(slot);
+	snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	list_add(&slot->slot_list, &ctrl->slot_list);
@@ -1103,7 +1094,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	dbg("  Power Indicator      : %3s\n", PWR_LED(ctrl)    ? "yes" : "no");
 	dbg("  Hot-Plug Surprise    : %3s\n", HP_SUPR_RM(ctrl) ? "yes" : "no");
 	dbg("  EMI Present          : %3s\n", EMI(ctrl)        ? "yes" : "no");
-	dbg("  Comamnd Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
+	dbg("  Command Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
 	dbg("Slot Status            : 0x%04x\n", reg16);
 	pciehp_readw(ctrl, SLOTCTRL, &reg16);

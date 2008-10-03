@@ -24,7 +24,7 @@
 #elif defined(CONFIG_HP300)
 #define NR_IRQS	8
 #else
-#error unknown nr of irqs
+#define NR_IRQS	0
 #endif
 
 /*

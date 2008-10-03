@@ -96,7 +96,7 @@ static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
 		if (avail > todo)
 			avail = todo;
 
-		ret = dvb_ringbuffer_read(src, (u8 *)buf, avail, 1);
+		ret = dvb_ringbuffer_read_user(src, buf, avail);
 		if (ret < 0)
 			break;
 
@@ -641,7 +641,6 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		struct timespec timeout = { 0 };
 		struct dmx_pes_filter_params *para = &filter->params.pes;
 		dmx_output_t otype;
-		int ret;
 		int ts_type;
 		enum dmx_ts_pes ts_pes;
 		struct dmx_ts_feed **tsfeed = &filter->feed.ts;

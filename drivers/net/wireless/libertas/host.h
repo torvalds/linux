@@ -256,6 +256,23 @@ enum cmd_mesh_access_opts {
 	CMD_ACT_MESH_GET_AUTOSTART_ENABLED,
 };
 
+/* Define actions and types for CMD_MESH_CONFIG */
+enum cmd_mesh_config_actions {
+	CMD_ACT_MESH_CONFIG_STOP = 0,
+	CMD_ACT_MESH_CONFIG_START,
+	CMD_ACT_MESH_CONFIG_SET,
+	CMD_ACT_MESH_CONFIG_GET,
+};
+
+enum cmd_mesh_config_types {
+	CMD_TYPE_MESH_SET_BOOTFLAG = 1,
+	CMD_TYPE_MESH_SET_BOOTTIME,
+	CMD_TYPE_MESH_SET_DEF_CHANNEL,
+	CMD_TYPE_MESH_SET_MESH_IE,
+	CMD_TYPE_MESH_GET_DEFAULTS,
+	CMD_TYPE_MESH_GET_MESH_IE, /* GET_DEFAULTS is superset of GET_MESHIE */
+};
+
 /** Card Event definition */
 #define MACREG_INT_CODE_TX_PPA_FREE		0
 #define MACREG_INT_CODE_TX_DMA_DONE		1

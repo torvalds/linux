@@ -67,8 +67,8 @@ void __init paging_init(void)
 
 	/* declare the sizes of the RAM zones (only use the normal zone) */
 	zones_size[ZONE_NORMAL] =
-		(contig_page_data.bdata->node_low_pfn) -
-		(contig_page_data.bdata->node_boot_start >> PAGE_SHIFT);
+		contig_page_data.bdata->node_low_pfn -
+		contig_page_data.bdata->node_min_pfn;
 
 	/* pass the memory from the bootmem allocator to the main allocator */
 	free_area_init(zones_size);
@@ -87,7 +87,7 @@ void __init mem_init(void)
 	if (!mem_map)
 		BUG();
 
-#define START_PFN	(contig_page_data.bdata->node_boot_start >> PAGE_SHIFT)
+#define START_PFN	(contig_page_data.bdata->node_min_pfn)
 #define MAX_LOW_PFN	(contig_page_data.bdata->node_low_pfn)
 
 	max_mapnr = num_physpages = MAX_LOW_PFN - START_PFN;

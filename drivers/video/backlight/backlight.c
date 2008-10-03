@@ -191,6 +191,7 @@ static struct device_attribute bl_device_attributes[] = {
  *   backlight_device class.
  * @name: the name of the new object(must be the same as the name of the
  *   respective framebuffer device).
+ * @parent: a pointer to the parent device
  * @devdata: an optional pointer to be stored for private driver use. The
  *   methods may retrieve it by using bl_get_data(bd).
  * @ops: the backlight operations structure.

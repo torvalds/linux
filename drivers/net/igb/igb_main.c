@@ -41,22 +41,26 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
-
+#ifdef CONFIG_DCA
+#include <linux/dca.h>
+#endif
 #include "igb.h"
 
-#define DRV_VERSION "1.0.8-k2"
+#define DRV_VERSION "1.2.45-k2"
 char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
-static const char igb_copyright[] = "Copyright (c) 2007 Intel Corporation.";
-
+static const char igb_copyright[] = "Copyright (c) 2008 Intel Corporation.";
 
 static const struct e1000_info *igb_info_tbl[] = {
 	[board_82575] = &e1000_82575_info,
 };
 
 static struct pci_device_id igb_pci_tbl[] = {
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_FIBER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_FIBER_SERDES), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575GB_QUAD_COPPER), board_82575 },
@@ -71,8 +75,8 @@ static int igb_setup_all_tx_resources(struct igb_adapter *);
 static int igb_setup_all_rx_resources(struct igb_adapter *);
 static void igb_free_all_tx_resources(struct igb_adapter *);
 static void igb_free_all_rx_resources(struct igb_adapter *);
-static void igb_free_tx_resources(struct igb_adapter *, struct igb_ring *);
-static void igb_free_rx_resources(struct igb_adapter *, struct igb_ring *);
+static void igb_free_tx_resources(struct igb_ring *);
+static void igb_free_rx_resources(struct igb_ring *);
 void igb_update_stats(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void __devexit igb_remove(struct pci_dev *pdev);
@@ -84,8 +88,8 @@ static void igb_configure_rx(struct igb_adapter *);
 static void igb_setup_rctl(struct igb_adapter *);
 static void igb_clean_all_tx_rings(struct igb_adapter *);
 static void igb_clean_all_rx_rings(struct igb_adapter *);
-static void igb_clean_tx_ring(struct igb_adapter *, struct igb_ring *);
-static void igb_clean_rx_ring(struct igb_adapter *, struct igb_ring *);
+static void igb_clean_tx_ring(struct igb_ring *);
+static void igb_clean_rx_ring(struct igb_ring *);
 static void igb_set_multi(struct net_device *);
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
@@ -102,12 +106,18 @@ static irqreturn_t igb_msix_other(int irq, void *);
 static irqreturn_t igb_msix_rx(int irq, void *);
 static irqreturn_t igb_msix_tx(int irq, void *);
 static int igb_clean_rx_ring_msix(struct napi_struct *, int);
-static bool igb_clean_tx_irq(struct igb_adapter *, struct igb_ring *);
-static int igb_clean(struct napi_struct *, int);
-static bool igb_clean_rx_irq_adv(struct igb_adapter *,
-				 struct igb_ring *, int *, int);
-static void igb_alloc_rx_buffers_adv(struct igb_adapter *,
-				     struct igb_ring *, int);
+#ifdef CONFIG_DCA
+static void igb_update_rx_dca(struct igb_ring *);
+static void igb_update_tx_dca(struct igb_ring *);
+static void igb_setup_dca(struct igb_adapter *);
+#endif /* CONFIG_DCA */
+static bool igb_clean_tx_irq(struct igb_ring *);
+static int igb_poll(struct napi_struct *, int);
+static bool igb_clean_rx_irq_adv(struct igb_ring *, int *, int);
+static void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
+#ifdef CONFIG_IGB_LRO
+static int igb_get_skb_hdr(struct sk_buff *skb, void **, void **, u64 *, void *);
+#endif
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
@@ -121,6 +131,14 @@ static int igb_suspend(struct pci_dev *, pm_message_t);
 static int igb_resume(struct pci_dev *);
 #endif
 static void igb_shutdown(struct pci_dev *);
+#ifdef CONFIG_DCA
+static int igb_notify_dca(struct notifier_block *, unsigned long, void *);
+static struct notifier_block dca_notifier = {
+	.notifier_call	= igb_notify_dca,
+	.next		= NULL,
+	.priority	= 0
+};
+#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* for netdump / net console */
@@ -153,6 +171,8 @@ static struct pci_driver igb_driver = {
 	.err_handler = &igb_err_handler
 };
 
+static int global_quad_port_a; /* global quad port a indication */
+
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
 MODULE_LICENSE("GPL");
@@ -184,7 +204,12 @@ static int __init igb_init_module(void)
 
 	printk(KERN_INFO "%s\n", igb_copyright);
 
+	global_quad_port_a = 0;
+
 	ret = pci_register_driver(&igb_driver);
+#ifdef CONFIG_DCA
+	dca_register_notify(&dca_notifier);
+#endif
 	return ret;
 }
 
@@ -198,6 +223,9 @@ module_init(igb_init_module);
  **/
 static void __exit igb_exit_module(void)
 {
+#ifdef CONFIG_DCA
+	dca_unregister_notify(&dca_notifier);
+#endif
 	pci_unregister_driver(&igb_driver);
 }
 
@@ -226,17 +254,34 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		return -ENOMEM;
 	}
 
+	adapter->rx_ring->buddy = adapter->tx_ring;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igb_ring *ring = &(adapter->tx_ring[i]);
+		ring->adapter = adapter;
+		ring->queue_index = i;
+	}
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = &(adapter->rx_ring[i]);
 		ring->adapter = adapter;
+		ring->queue_index = i;
 		ring->itr_register = E1000_ITR;
 
-		if (!ring->napi.poll)
-			netif_napi_add(adapter->netdev, &ring->napi, igb_clean,
-				       adapter->napi.weight /
-				       adapter->num_rx_queues);
+		/* set a default napi handler for each rx_ring */
+		netif_napi_add(adapter->netdev, &ring->napi, igb_poll, 64);
 	}
 	return 0;
+}
+
+static void igb_free_queues(struct igb_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		netif_napi_del(&adapter->rx_ring[i].napi);
+
+	kfree(adapter->tx_ring);
+	kfree(adapter->rx_ring);
 }
 
 #define IGB_N0_QUEUE -1
@@ -245,6 +290,10 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 {
 	u32 msixbm = 0;
 	struct e1000_hw *hw = &adapter->hw;
+	u32 ivar, index;
+
+	switch (hw->mac.type) {
+	case e1000_82575:
 		/* The 82575 assigns vectors using a bitmask, which matches the
 		   bitmask for the EICR/EIMS/EIMC registers.  To assign one
 		   or more queues to a vector, we write the appropriate bits
@@ -259,6 +308,47 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 				  E1000_EICR_TX_QUEUE0 << tx_queue;
 		}
 		array_wr32(E1000_MSIXBM(0), msix_vector, msixbm);
+		break;
+	case e1000_82576:
+		/* The 82576 uses a table-based method for assigning vectors.
+		   Each queue has a single entry in the table to which we write
+		   a vector number along with a "valid" bit.  Sadly, the layout
+		   of the table is somewhat counterintuitive. */
+		if (rx_queue > IGB_N0_QUEUE) {
+			index = (rx_queue & 0x7);
+			ivar = array_rd32(E1000_IVAR0, index);
+			if (rx_queue < 8) {
+				/* vector goes into low byte of register */
+				ivar = ivar & 0xFFFFFF00;
+				ivar |= msix_vector | E1000_IVAR_VALID;
+			} else {
+				/* vector goes into third byte of register */
+				ivar = ivar & 0xFF00FFFF;
+				ivar |= (msix_vector | E1000_IVAR_VALID) << 16;
+			}
+			adapter->rx_ring[rx_queue].eims_value= 1 << msix_vector;
+			array_wr32(E1000_IVAR0, index, ivar);
+		}
+		if (tx_queue > IGB_N0_QUEUE) {
+			index = (tx_queue & 0x7);
+			ivar = array_rd32(E1000_IVAR0, index);
+			if (tx_queue < 8) {
+				/* vector goes into second byte of register */
+				ivar = ivar & 0xFFFF00FF;
+				ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
+			} else {
+				/* vector goes into high byte of register */
+				ivar = ivar & 0x00FFFFFF;
+				ivar |= (msix_vector | E1000_IVAR_VALID) << 24;
+			}
+			adapter->tx_ring[tx_queue].eims_value= 1 << msix_vector;
+			array_wr32(E1000_IVAR0, index, ivar);
+		}
+		break;
+	default:
+		BUG();
+		break;
+	}
 }
 
 /**
@@ -274,13 +364,19 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	adapter->eims_enable_mask = 0;
+	if (hw->mac.type == e1000_82576)
+		/* Turn on MSI-X capability first, or our settings
+		 * won't stick.  And it will take days to debug. */
+		wr32(E1000_GPIE, E1000_GPIE_MSIX_MODE |
+				   E1000_GPIE_PBA | E1000_GPIE_EIAME | 
+ 				   E1000_GPIE_NSICR);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *tx_ring = &adapter->tx_ring[i];
 		igb_assign_vector(adapter, IGB_N0_QUEUE, i, vector++);
 		adapter->eims_enable_mask |= tx_ring->eims_value;
 		if (tx_ring->itr_val)
-			writel(1000000000 / (tx_ring->itr_val * 256),
+			writel(tx_ring->itr_val,
 			       hw->hw_addr + tx_ring->itr_register);
 		else
 			writel(1, hw->hw_addr + tx_ring->itr_register);
@@ -288,10 +384,11 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *rx_ring = &adapter->rx_ring[i];
+		rx_ring->buddy = NULL;
 		igb_assign_vector(adapter, i, IGB_N0_QUEUE, vector++);
 		adapter->eims_enable_mask |= rx_ring->eims_value;
 		if (rx_ring->itr_val)
-			writel(1000000000 / (rx_ring->itr_val * 256),
+			writel(rx_ring->itr_val,
 			       hw->hw_addr + rx_ring->itr_register);
 		else
 			writel(1, hw->hw_addr + rx_ring->itr_register);
@@ -299,11 +396,10 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 
 	/* set vector for other causes, i.e. link changes */
+	switch (hw->mac.type) {
+	case e1000_82575:
 		array_wr32(E1000_MSIXBM(0), vector++,
 				      E1000_EIMS_OTHER);
-
-		/* disable IAM for ICR interrupt bits */
-		wr32(E1000_IAM, 0);
 
 		tmp = rd32(E1000_CTRL_EXT);
 		/* enable MSI-X PBA support*/
@@ -315,7 +411,21 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 		wr32(E1000_CTRL_EXT, tmp);
 		adapter->eims_enable_mask |= E1000_EIMS_OTHER;
+		adapter->eims_other = E1000_EIMS_OTHER;
 
+		break;
+
+	case e1000_82576:
+		tmp = (vector++ | E1000_IVAR_VALID) << 8;
+		wr32(E1000_IVAR_MISC, tmp);
+
+		adapter->eims_enable_mask = (1 << (vector)) - 1;
+		adapter->eims_other = 1 << (vector - 1);
+		break;
+	default:
+		/* do nothing, since nothing else supports MSI-X */
+		break;
+	} /* switch (hw->mac.type) */
 	wrfl();
 }
 
@@ -341,7 +451,7 @@ static int igb_request_msix(struct igb_adapter *adapter)
 		if (err)
 			goto out;
 		ring->itr_register = E1000_EITR(0) + (vector << 2);
-		ring->itr_val = adapter->itr;
+		ring->itr_val = 976; /* ~4000 ints/sec */
 		vector++;
 	}
 	for (i = 0; i < adapter->num_rx_queues; i++) {
@@ -357,6 +467,9 @@ static int igb_request_msix(struct igb_adapter *adapter)
 			goto out;
 		ring->itr_register = E1000_EITR(0) + (vector << 2);
 		ring->itr_val = adapter->itr;
+		/* overwrite the poll routine for MSIX, we've already done
+		 * netif_napi_add */
+		ring->napi.poll = &igb_clean_rx_ring_msix;
 		vector++;
 	}
 
@@ -365,9 +478,6 @@ static int igb_request_msix(struct igb_adapter *adapter)
 	if (err)
 		goto out;
 
-	adapter->napi.poll = igb_clean_rx_ring_msix;
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		adapter->rx_ring[i].napi.poll = adapter->napi.poll;
 	igb_configure_msix(adapter);
 	return 0;
 out:
@@ -380,7 +490,7 @@ static void igb_reset_interrupt_capability(struct igb_adapter *adapter)
 		pci_disable_msix(adapter->pdev);
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
-	} else if (adapter->msi_enabled)
+	} else if (adapter->flags & IGB_FLAG_HAS_MSI)
 		pci_disable_msi(adapter->pdev);
 	return;
 }
@@ -410,15 +520,19 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 			      adapter->msix_entries,
 			      numvecs);
 	if (err == 0)
-		return;
+		goto out;
 
 	igb_reset_interrupt_capability(adapter);
 
 	/* If we can't do MSI-X, try MSI */
 msi_only:
 	adapter->num_rx_queues = 1;
+	adapter->num_tx_queues = 1;
 	if (!pci_enable_msi(adapter->pdev))
-		adapter->msi_enabled = 1;
+		adapter->flags |= IGB_FLAG_HAS_MSI;
+out:
+	/* Notify the stack of the (possibly) reduced Tx Queue count. */
+	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 	return;
 }
 
@@ -436,29 +550,38 @@ static int igb_request_irq(struct igb_adapter *adapter)
 
 	if (adapter->msix_entries) {
 		err = igb_request_msix(adapter);
-		if (!err) {
-			/* enable IAM, auto-mask,
-			 * DO NOT USE EIAM or IAM in legacy mode */
-			wr32(E1000_IAM, IMS_ENABLE_MASK);
+		if (!err)
 			goto request_done;
-		}
 		/* fall back to MSI */
 		igb_reset_interrupt_capability(adapter);
 		if (!pci_enable_msi(adapter->pdev))
-			adapter->msi_enabled = 1;
+			adapter->flags |= IGB_FLAG_HAS_MSI;
 		igb_free_all_tx_resources(adapter);
 		igb_free_all_rx_resources(adapter);
 		adapter->num_rx_queues = 1;
 		igb_alloc_queues(adapter);
+	} else {
+		switch (hw->mac.type) {
+		case e1000_82575:
+			wr32(E1000_MSIXBM(0),
+			     (E1000_EICR_RX_QUEUE0 | E1000_EIMS_OTHER));
+			break;
+		case e1000_82576:
+			wr32(E1000_IVAR0, E1000_IVAR_VALID);
+			break;
+		default:
+			break;
+		}
 	}
-	if (adapter->msi_enabled) {
+
+	if (adapter->flags & IGB_FLAG_HAS_MSI) {
 		err = request_irq(adapter->pdev->irq, &igb_intr_msi, 0,
 				  netdev->name, netdev);
 		if (!err)
 			goto request_done;
 		/* fall back to legacy interrupts */
 		igb_reset_interrupt_capability(adapter);
-		adapter->msi_enabled = 0;
+		adapter->flags &= ~IGB_FLAG_HAS_MSI;
 	}
 
 	err = request_irq(adapter->pdev->irq, &igb_intr, IRQF_SHARED,
@@ -502,9 +625,12 @@ static void igb_irq_disable(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	if (adapter->msix_entries) {
+		wr32(E1000_EIAM, 0);
 		wr32(E1000_EIMC, ~0);
 		wr32(E1000_EIAC, 0);
 	}
+
+	wr32(E1000_IAM, 0);
 	wr32(E1000_IMC, ~0);
 	wrfl();
 	synchronize_irq(adapter->pdev->irq);
@@ -519,13 +645,14 @@ static void igb_irq_enable(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	if (adapter->msix_entries) {
-		wr32(E1000_EIMS,
-				adapter->eims_enable_mask);
-		wr32(E1000_EIAC,
-				adapter->eims_enable_mask);
+		wr32(E1000_EIAC, adapter->eims_enable_mask);
+		wr32(E1000_EIAM, adapter->eims_enable_mask);
+		wr32(E1000_EIMS, adapter->eims_enable_mask);
 		wr32(E1000_IMS, E1000_IMS_LSC);
-	} else
-	wr32(E1000_IMS, IMS_ENABLE_MASK);
+	} else {
+		wr32(E1000_IMS, IMS_ENABLE_MASK);
+		wr32(E1000_IAM, IMS_ENABLE_MASK);
+	}
 }
 
 static void igb_update_mng_vlan(struct igb_adapter *adapter)
@@ -592,28 +719,6 @@ static void igb_get_hw_control(struct igb_adapter *adapter)
 			ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
 }
 
-static void igb_init_manageability(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-
-	if (adapter->en_mng_pt) {
-		u32 manc2h = rd32(E1000_MANC2H);
-		u32 manc = rd32(E1000_MANC);
-
-		/* enable receiving management packets to the host */
-		/* this will probably generate destination unreachable messages
-		 * from the host OS, but the packets will be handled on SMBUS */
-		manc |= E1000_MANC_EN_MNG2HOST;
-#define E1000_MNG2HOST_PORT_623 (1 << 5)
-#define E1000_MNG2HOST_PORT_664 (1 << 6)
-		manc2h |= E1000_MNG2HOST_PORT_623;
-		manc2h |= E1000_MNG2HOST_PORT_664;
-		wr32(E1000_MANC2H, manc2h);
-
-		wr32(E1000_MANC, manc);
-	}
-}
-
 /**
  * igb_configure - configure the hardware for RX and TX
  * @adapter: private board structure
@@ -627,17 +732,19 @@ static void igb_configure(struct igb_adapter *adapter)
 	igb_set_multi(netdev);
 
 	igb_restore_vlan(adapter);
-	igb_init_manageability(adapter);
 
 	igb_configure_tx(adapter);
 	igb_setup_rctl(adapter);
 	igb_configure_rx(adapter);
+
+	igb_rx_fifo_flush_82575(&adapter->hw);
+
 	/* call IGB_DESC_UNUSED which always leaves
 	 * at least 1 descriptor unused to make sure
 	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = &adapter->rx_ring[i];
-		igb_alloc_rx_buffers_adv(adapter, ring, IGB_DESC_UNUSED(ring));
+		igb_alloc_rx_buffers_adv(ring, IGB_DESC_UNUSED(ring));
 	}
 
 
@@ -660,13 +767,10 @@ int igb_up(struct igb_adapter *adapter)
 
 	clear_bit(__IGB_DOWN, &adapter->state);
 
-	napi_enable(&adapter->napi);
-
-	if (adapter->msix_entries) {
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			napi_enable(&adapter->rx_ring[i].napi);
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		napi_enable(&adapter->rx_ring[i].napi);
+	if (adapter->msix_entries)
 		igb_configure_msix(adapter);
-	}
 
 	/* Clear any pending interrupts. */
 	rd32(E1000_ICR);
@@ -693,7 +797,7 @@ void igb_down(struct igb_adapter *adapter)
 	wr32(E1000_RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	/* disable transmits in the hardware */
 	tctl = rd32(E1000_TCTL);
@@ -703,11 +807,9 @@ void igb_down(struct igb_adapter *adapter)
 	wrfl();
 	msleep(10);
 
-	napi_disable(&adapter->napi);
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		napi_disable(&adapter->rx_ring[i].napi);
 
-	if (adapter->msix_entries)
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			napi_disable(&adapter->rx_ring[i].napi);
 	igb_irq_disable(adapter);
 
 	del_timer_sync(&adapter->watchdog_timer);
@@ -737,16 +839,23 @@ void igb_reinit_locked(struct igb_adapter *adapter)
 void igb_reset(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct e1000_fc_info *fc = &adapter->hw.fc;
+	struct e1000_mac_info *mac = &hw->mac;
+	struct e1000_fc_info *fc = &hw->fc;
 	u32 pba = 0, tx_space, min_tx_space, min_rx_space;
 	u16 hwm;
 
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
 	 */
+	if (mac->type != e1000_82576) {
 	pba = E1000_PBA_34K;
+	}
+	else {
+		pba = E1000_PBA_64K;
+	}
 
-	if (adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) {
+	if ((adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) &&
+	    (mac->type < e1000_82576)) {
 		/* adjust PBA for jumbo frames */
 		wr32(E1000_PBA, pba);
 
@@ -785,8 +894,8 @@ void igb_reset(struct igb_adapter *adapter)
 			if (pba < min_rx_space)
 				pba = min_rx_space;
 		}
+		wr32(E1000_PBA, pba);
 	}
-	wr32(E1000_PBA, pba);
 
 	/* flow control settings */
 	/* The high water mark must be low enough to fit one full frame
@@ -795,10 +904,15 @@ void igb_reset(struct igb_adapter *adapter)
 	 * - 90% of the Rx FIFO size, or
 	 * - the full Rx FIFO size minus one full frame */
 	hwm = min(((pba << 10) * 9 / 10),
-		  ((pba << 10) - adapter->max_frame_size));
+			((pba << 10) - 2 * adapter->max_frame_size));
 
-	fc->high_water = hwm & 0xFFF8;	/* 8-byte granularity */
-	fc->low_water = fc->high_water - 8;
+	if (mac->type < e1000_82576) {
+		fc->high_water = hwm & 0xFFF8;	/* 8-byte granularity */
+		fc->low_water = fc->high_water - 8;
+	} else {
+		fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
+		fc->low_water = fc->high_water - 16;
+	}
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;
 	fc->type = fc->original_type;
@@ -821,6 +935,21 @@ void igb_reset(struct igb_adapter *adapter)
 }
 
 /**
+ * igb_is_need_ioport - determine if an adapter needs ioport resources or not
+ * @pdev: PCI device information struct
+ *
+ * Returns true if an adapter needs ioport resources
+ **/
+static int igb_is_need_ioport(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	/* Currently there are no adapters that need ioport resources */
+	default:
+		return false;
+	}
+}
+
+/**
  * igb_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in igb_pci_tbl
@@ -839,13 +968,21 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	struct e1000_hw *hw;
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
 	unsigned long mmio_start, mmio_len;
-	static int cards_found;
 	int i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = IGB_EEPROM_APME;
 	u32 part_num;
+	int bars, need_ioport;
 
-	err = pci_enable_device(pdev);
+	/* do not allocate ioport bars when not needed */
+	need_ioport = igb_is_need_ioport(pdev);
+	if (need_ioport) {
+		bars = pci_select_bars(pdev, IORESOURCE_MEM | IORESOURCE_IO);
+		err = pci_enable_device(pdev);
+	} else {
+		bars = pci_select_bars(pdev, IORESOURCE_MEM);
+		err = pci_enable_device_mem(pdev);
+	}
 	if (err)
 		return err;
 
@@ -867,7 +1004,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		}
 	}
 
-	err = pci_request_regions(pdev, igb_driver_name);
+	err = pci_request_selected_regions(pdev, bars, igb_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -875,7 +1012,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	pci_save_state(pdev);
 
 	err = -ENOMEM;
-	netdev = alloc_etherdev(sizeof(struct igb_adapter));
+	netdev = alloc_etherdev_mq(sizeof(struct igb_adapter), IGB_MAX_TX_QUEUES);
 	if (!netdev)
 		goto err_alloc_etherdev;
 
@@ -888,6 +1025,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	hw = &adapter->hw;
 	hw->back = adapter;
 	adapter->msg_enable = NETIF_MSG_DRV | NETIF_MSG_PROBE;
+	adapter->bars = bars;
+	adapter->need_ioport = need_ioport;
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
@@ -907,7 +1046,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	igb_set_ethtool_ops(netdev);
 	netdev->tx_timeout = &igb_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
-	netif_napi_add(netdev, &adapter->napi, igb_clean, 64);
 	netdev->vlan_rx_register = igb_vlan_rx_register;
 	netdev->vlan_rx_add_vid = igb_vlan_rx_add_vid;
 	netdev->vlan_rx_kill_vid = igb_vlan_rx_kill_vid;
@@ -920,8 +1058,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
-
-	adapter->bd_number = cards_found;
 
 	/* PCI config space info */
 	hw->vendor_id = pdev->vendor;
@@ -947,6 +1083,17 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	igb_get_bus_info_pcie(hw);
 
+	/* set flags */
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_82575:
+		adapter->flags |= IGB_FLAG_HAS_DCA;
+		adapter->flags |= IGB_FLAG_NEED_CTX_IDX;
+		break;
+	default:
+		break;
+	}
+
 	hw->phy.autoneg_wait_to_complete = false;
 	hw->mac.adaptive_ifs = true;
 
@@ -968,8 +1115,17 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 			   NETIF_F_HW_VLAN_FILTER;
 
 	netdev->features |= NETIF_F_TSO;
-
 	netdev->features |= NETIF_F_TSO6;
+
+#ifdef CONFIG_IGB_LRO
+	netdev->features |= NETIF_F_LRO;
+#endif
+
+	netdev->vlan_features |= NETIF_F_TSO;
+	netdev->vlan_features |= NETIF_F_TSO6;
+	netdev->vlan_features |= NETIF_F_HW_CSUM;
+	netdev->vlan_features |= NETIF_F_SG;
+
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
@@ -1053,6 +1209,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		adapter->eeprom_wol = 0;
 		break;
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
+	case E1000_DEV_ID_82576_FIBER:
+	case E1000_DEV_ID_82576_SERDES:
 		/* Wake events only supported on port A for dual fiber
 		 * regardless of eeprom setting */
 		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1)
@@ -1072,12 +1230,24 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* tell the stack to leave us alone until igb_open() is called */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
+
+#ifdef CONFIG_DCA
+	if ((adapter->flags & IGB_FLAG_HAS_DCA) &&
+	    (dca_add_requester(&pdev->dev) == 0)) {
+		adapter->flags |= IGB_FLAG_DCA_ENABLED;
+		dev_info(&pdev->dev, "DCA enabled\n");
+		/* Always use CB2 mode, difference is masked
+		 * in the CB driver. */
+		wr32(E1000_DCA_CTRL, 2);
+		igb_setup_dca(adapter);
+	}
+#endif
 
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
@@ -1099,10 +1269,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev,
 		"Using %s interrupts. %d rx queue(s), %d tx queue(s)\n",
 		adapter->msix_entries ? "MSI-X" :
-		adapter->msi_enabled ? "MSI" : "legacy",
+		(adapter->flags & IGB_FLAG_HAS_MSI) ? "MSI" : "legacy",
 		adapter->num_rx_queues, adapter->num_tx_queues);
 
-	cards_found++;
 	return 0;
 
 err_register:
@@ -1115,15 +1284,14 @@ err_eeprom:
 		iounmap(hw->flash_address);
 
 	igb_remove_device(hw);
-	kfree(adapter->tx_ring);
-	kfree(adapter->rx_ring);
+	igb_free_queues(adapter);
 err_sw_init:
 err_hw_init:
 	iounmap(hw->hw_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, bars);
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -1143,6 +1311,9 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
+#ifdef CONFIG_DCA
+	struct e1000_hw *hw = &adapter->hw;
+#endif
 
 	/* flush_scheduled work may reschedule our watchdog task, so
 	 * explicitly disable watchdog tasks from being rescheduled  */
@@ -1152,25 +1323,34 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	flush_scheduled_work();
 
+#ifdef CONFIG_DCA
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
+		dev_info(&pdev->dev, "DCA disabled\n");
+		dca_remove_requester(&pdev->dev);
+		adapter->flags &= ~IGB_FLAG_DCA_ENABLED;
+		wr32(E1000_DCA_CTRL, 1);
+	}
+#endif
+
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
 	igb_release_hw_control(adapter);
 
 	unregister_netdev(netdev);
 
-	if (!igb_check_reset_block(&adapter->hw))
+	if (adapter->hw.phy.ops.reset_phy &&
+	    !igb_check_reset_block(&adapter->hw))
 		adapter->hw.phy.ops.reset_phy(&adapter->hw);
 
 	igb_remove_device(&adapter->hw);
 	igb_reset_interrupt_capability(adapter);
 
-	kfree(adapter->tx_ring);
-	kfree(adapter->rx_ring);
+	igb_free_queues(adapter);
 
 	iounmap(adapter->hw.hw_addr);
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, adapter->bars);
 
 	free_netdev(netdev);
 
@@ -1200,9 +1380,11 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	/* Number of supported queues. */
 	/* Having more queues than CPUs doesn't make sense. */
-	adapter->num_tx_queues = 1;
-	adapter->num_rx_queues = min(IGB_MAX_RX_QUEUES, num_online_cpus());
+	adapter->num_rx_queues = min((u32)IGB_MAX_RX_QUEUES, (u32)num_online_cpus());
+	adapter->num_tx_queues = min(IGB_MAX_TX_QUEUES, num_online_cpus());
 
+	/* This call may decrease the number of queues depending on
+	 * interrupt mode. */
 	igb_set_interrupt_capability(adapter);
 
 	if (igb_alloc_queues(adapter)) {
@@ -1270,15 +1452,16 @@ static int igb_open(struct net_device *netdev)
 	/* From here on the code is the same as igb_up() */
 	clear_bit(__IGB_DOWN, &adapter->state);
 
-	napi_enable(&adapter->napi);
-	if (adapter->msix_entries)
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			napi_enable(&adapter->rx_ring[i].napi);
-
-	igb_irq_enable(adapter);
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		napi_enable(&adapter->rx_ring[i].napi);
 
 	/* Clear any pending interrupts. */
 	rd32(E1000_ICR);
+
+	igb_irq_enable(adapter);
+
+	netif_tx_start_all_queues(netdev);
+
 	/* Fire a link status change interrupt to start the watchdog. */
 	wr32(E1000_ICS, E1000_ICS_LSC);
 
@@ -1364,8 +1547,6 @@ int igb_setup_tx_resources(struct igb_adapter *adapter,
 	tx_ring->adapter = adapter;
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	spin_lock_init(&tx_ring->tx_clean_lock);
-	spin_lock_init(&tx_ring->tx_lock);
 	return 0;
 
 err:
@@ -1385,6 +1566,7 @@ err:
 static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 {
 	int i, err = 0;
+	int r_idx;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		err = igb_setup_tx_resources(adapter, &adapter->tx_ring[i]);
@@ -1392,12 +1574,15 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 			dev_err(&adapter->pdev->dev,
 				"Allocation for Tx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
-				igb_free_tx_resources(adapter,
-							&adapter->tx_ring[i]);
+				igb_free_tx_resources(&adapter->tx_ring[i]);
 			break;
 		}
 	}
 
+	for (i = 0; i < IGB_MAX_TX_QUEUES; i++) {
+		r_idx = i % adapter->num_tx_queues;
+		adapter->multi_tx_table[i] = &adapter->tx_ring[r_idx];
+	}	
 	return err;
 }
 
@@ -1484,6 +1669,14 @@ int igb_setup_rx_resources(struct igb_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	int size, desc_len;
 
+#ifdef CONFIG_IGB_LRO
+	size = sizeof(struct net_lro_desc) * MAX_LRO_DESCRIPTORS;
+	rx_ring->lro_mgr.lro_arr = vmalloc(size);
+	if (!rx_ring->lro_mgr.lro_arr)
+		goto err;
+	memset(rx_ring->lro_mgr.lro_arr, 0, size);
+#endif
+
 	size = sizeof(struct igb_buffer) * rx_ring->count;
 	rx_ring->buffer_info = vmalloc(size);
 	if (!rx_ring->buffer_info)
@@ -1504,15 +1697,16 @@ int igb_setup_rx_resources(struct igb_adapter *adapter,
 
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
-	rx_ring->pending_skb = NULL;
 
 	rx_ring->adapter = adapter;
-	/* FIXME: do we want to setup ring->napi->poll here? */
-	rx_ring->napi.poll = adapter->napi.poll;
 
 	return 0;
 
 err:
+#ifdef CONFIG_IGB_LRO
+	vfree(rx_ring->lro_mgr.lro_arr);
+	rx_ring->lro_mgr.lro_arr = NULL;
+#endif
 	vfree(rx_ring->buffer_info);
 	dev_err(&adapter->pdev->dev, "Unable to allocate memory for "
 		"the receive descriptor ring\n");
@@ -1536,8 +1730,7 @@ static int igb_setup_all_rx_resources(struct igb_adapter *adapter)
 			dev_err(&adapter->pdev->dev,
 				"Allocation for Rx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
-				igb_free_rx_resources(adapter,
-							&adapter->rx_ring[i]);
+				igb_free_rx_resources(&adapter->rx_ring[i]);
 			break;
 		}
 	}
@@ -1564,10 +1757,12 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
-	/* disable the stripping of CRC because it breaks
-	 * BMC firmware connected over SMBUS
-	rctl |= E1000_RCTL_SECRC;
+	/*
+	 * enable stripping of CRC. It's unlikely this will break BMC
+	 * redirection as it did with e1000. Newer features require
+	 * that the HW strips the CRC.
 	*/
+	rctl |= E1000_RCTL_SECRC;
 
 	rctl &= ~E1000_RCTL_SBP;
 
@@ -1597,15 +1792,6 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 			rctl |= E1000_RCTL_SZ_2048;
 			rctl &= ~E1000_RCTL_BSEX;
 			break;
-		case IGB_RXBUFFER_4096:
-			rctl |= E1000_RCTL_SZ_4096;
-			break;
-		case IGB_RXBUFFER_8192:
-			rctl |= E1000_RCTL_SZ_8192;
-			break;
-		case IGB_RXBUFFER_16384:
-			rctl |= E1000_RCTL_SZ_16384;
-			break;
 		}
 	} else {
 		rctl &= ~E1000_RCTL_BSEX;
@@ -1623,10 +1809,8 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	 * so only enable packet split for jumbo frames */
 	if (rctl & E1000_RCTL_LPE) {
 		adapter->rx_ps_hdr_size = IGB_RXBUFFER_128;
-		srrctl = adapter->rx_ps_hdr_size <<
+		srrctl |= adapter->rx_ps_hdr_size <<
 			 E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
-		/* buffer size is ALWAYS one page */
-		srrctl |= PAGE_SIZE >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
 	} else {
 		adapter->rx_ps_hdr_size = 0;
@@ -1660,8 +1844,7 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	mdelay(10);
 
 	if (adapter->itr_setting > 3)
-		wr32(E1000_ITR,
-				1000000000 / (adapter->itr * 256));
+		wr32(E1000_ITR, adapter->itr);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
@@ -1686,6 +1869,16 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 		rxdctl |= IGB_RX_HTHRESH << 8;
 		rxdctl |= IGB_RX_WTHRESH << 16;
 		wr32(E1000_RXDCTL(i), rxdctl);
+#ifdef CONFIG_IGB_LRO
+		/* Intitial LRO Settings */
+		ring->lro_mgr.max_aggr = MAX_LRO_AGGR;
+		ring->lro_mgr.max_desc = MAX_LRO_DESCRIPTORS;
+		ring->lro_mgr.get_skb_header = igb_get_skb_hdr;
+		ring->lro_mgr.features = LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
+		ring->lro_mgr.dev = adapter->netdev;
+		ring->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
+		ring->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
+#endif
 	}
 
 	if (adapter->num_rx_queues > 1) {
@@ -1699,7 +1892,10 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 
 		get_random_bytes(&random[0], 40);
 
-		shift = 6;
+		if (hw->mac.type >= e1000_82576)
+			shift = 0;
+		else
+			shift = 6;
 		for (j = 0; j < (32 * 4); j++) {
 			reta.bytes[j & 3] =
 				(j % adapter->num_rx_queues) << shift;
@@ -1765,12 +1961,11 @@ static void igb_configure_rx(struct igb_adapter *adapter)
  *
  * Free all transmit software resources
  **/
-static void igb_free_tx_resources(struct igb_adapter *adapter,
-				  struct igb_ring *tx_ring)
+static void igb_free_tx_resources(struct igb_ring *tx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *pdev = tx_ring->adapter->pdev;
 
-	igb_clean_tx_ring(adapter, tx_ring);
+	igb_clean_tx_ring(tx_ring);
 
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
@@ -1791,7 +1986,7 @@ static void igb_free_all_tx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_free_tx_resources(adapter, &adapter->tx_ring[i]);
+		igb_free_tx_resources(&adapter->tx_ring[i]);
 }
 
 static void igb_unmap_and_free_tx_resource(struct igb_adapter *adapter,
@@ -1817,9 +2012,9 @@ static void igb_unmap_and_free_tx_resource(struct igb_adapter *adapter,
  * @adapter: board private structure
  * @tx_ring: ring to be cleaned
  **/
-static void igb_clean_tx_ring(struct igb_adapter *adapter,
-			      struct igb_ring *tx_ring)
+static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 {
+	struct igb_adapter *adapter = tx_ring->adapter;
 	struct igb_buffer *buffer_info;
 	unsigned long size;
 	unsigned int i;
@@ -1856,7 +2051,7 @@ static void igb_clean_all_tx_rings(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_clean_tx_ring(adapter, &adapter->tx_ring[i]);
+		igb_clean_tx_ring(&adapter->tx_ring[i]);
 }
 
 /**
@@ -1866,15 +2061,19 @@ static void igb_clean_all_tx_rings(struct igb_adapter *adapter)
  *
  * Free all receive software resources
  **/
-static void igb_free_rx_resources(struct igb_adapter *adapter,
-				  struct igb_ring *rx_ring)
+static void igb_free_rx_resources(struct igb_ring *rx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *pdev = rx_ring->adapter->pdev;
 
-	igb_clean_rx_ring(adapter, rx_ring);
+	igb_clean_rx_ring(rx_ring);
 
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
+
+#ifdef CONFIG_IGB_LRO
+	vfree(rx_ring->lro_mgr.lro_arr);
+	rx_ring->lro_mgr.lro_arr = NULL;
+#endif 
 
 	pci_free_consistent(pdev, rx_ring->size, rx_ring->desc, rx_ring->dma);
 
@@ -1892,7 +2091,7 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_free_rx_resources(adapter, &adapter->rx_ring[i]);
+		igb_free_rx_resources(&adapter->rx_ring[i]);
 }
 
 /**
@@ -1900,9 +2099,9 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
  * @adapter: board private structure
  * @rx_ring: ring to free buffers from
  **/
-static void igb_clean_rx_ring(struct igb_adapter *adapter,
-			      struct igb_ring *rx_ring)
+static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 {
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct igb_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned long size;
@@ -1930,18 +2129,15 @@ static void igb_clean_rx_ring(struct igb_adapter *adapter,
 			buffer_info->skb = NULL;
 		}
 		if (buffer_info->page) {
-			pci_unmap_page(pdev, buffer_info->page_dma,
-				       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+			if (buffer_info->page_dma)
+				pci_unmap_page(pdev, buffer_info->page_dma,
+					       PAGE_SIZE / 2,
+					       PCI_DMA_FROMDEVICE);
 			put_page(buffer_info->page);
 			buffer_info->page = NULL;
 			buffer_info->page_dma = 0;
+			buffer_info->page_offset = 0;
 		}
-	}
-
-	/* there also may be some cached data from a chained receive */
-	if (rx_ring->pending_skb) {
-		dev_kfree_skb(rx_ring->pending_skb);
-		rx_ring->pending_skb = NULL;
 	}
 
 	size = sizeof(struct igb_buffer) * rx_ring->count;
@@ -1966,7 +2162,7 @@ static void igb_clean_all_rx_rings(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_ring(adapter, &adapter->rx_ring[i]);
+		igb_clean_rx_ring(&adapter->rx_ring[i]);
 }
 
 /**
@@ -2015,19 +2211,22 @@ static void igb_set_multi(struct net_device *netdev)
 
 	rctl = rd32(E1000_RCTL);
 
-	if (netdev->flags & IFF_PROMISC)
+	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-	else if (netdev->flags & IFF_ALLMULTI) {
-		rctl |= E1000_RCTL_MPE;
-		rctl &= ~E1000_RCTL_UPE;
-	} else
-		rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
-
+		rctl &= ~E1000_RCTL_VFE;
+	} else {
+		if (netdev->flags & IFF_ALLMULTI) {
+			rctl |= E1000_RCTL_MPE;
+			rctl &= ~E1000_RCTL_UPE;
+		} else
+			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+		rctl |= E1000_RCTL_VFE;
+	}
 	wr32(E1000_RCTL, rctl);
 
 	if (!netdev->mc_count) {
 		/* nothing to program, so clear mc list */
-		igb_update_mc_addr_list(hw, NULL, 0, 1,
+		igb_update_mc_addr_list_82575(hw, NULL, 0, 1,
 					  mac->rar_entry_count);
 		return;
 	}
@@ -2045,7 +2244,8 @@ static void igb_set_multi(struct net_device *netdev)
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 		mc_ptr = mc_ptr->next;
 	}
-	igb_update_mc_addr_list(hw, mta_list, i, 1, mac->rar_entry_count);
+	igb_update_mc_addr_list_82575(hw, mta_list, i, 1,
+	                              mac->rar_entry_count);
 	kfree(mta_list);
 }
 
@@ -2079,7 +2279,9 @@ static void igb_watchdog_task(struct work_struct *work)
 	struct igb_ring *tx_ring = adapter->tx_ring;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	u32 link;
+	u32 eics = 0;
 	s32 ret_val;
+	int i;
 
 	if ((netif_carrier_ok(netdev)) &&
 	    (rd32(E1000_STATUS) & E1000_STATUS_LU))
@@ -2135,7 +2337,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			}
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
+			netif_tx_wake_all_queues(netdev);
 
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
@@ -2147,7 +2349,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			adapter->link_duplex = 0;
 			dev_info(&adapter->pdev->dev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
+			netif_tx_stop_all_queues(netdev);
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
@@ -2181,7 +2383,13 @@ link_up:
 	}
 
 	/* Cause software interrupt to ensure rx ring is cleaned */
-	wr32(E1000_ICS, E1000_ICS_RXDMT0);
+	if (adapter->msix_entries) {
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			eics |= adapter->rx_ring[i].eims_value;
+		wr32(E1000_EICS, eics);
+	} else {
+		wr32(E1000_ICS, E1000_ICS_RXDMT0);
+	}
 
 	/* Force detection of hung controller every watchdog period */
 	tx_ring->detect_tx_hung = true;
@@ -2200,38 +2408,60 @@ enum latency_range {
 };
 
 
-static void igb_lower_rx_eitr(struct igb_adapter *adapter,
-			      struct igb_ring *rx_ring)
+/**
+ * igb_update_ring_itr - update the dynamic ITR value based on packet size
+ *
+ *      Stores a new ITR value based on strictly on packet size.  This
+ *      algorithm is less sophisticated than that used in igb_update_itr,
+ *      due to the difficulty of synchronizing statistics across multiple
+ *      receive rings.  The divisors and thresholds used by this fuction
+ *      were determined based on theoretical maximum wire speed and testing
+ *      data, in order to minimize response time while increasing bulk
+ *      throughput.
+ *      This functionality is controlled by the InterruptThrottleRate module
+ *      parameter (see igb_param.c)
+ *      NOTE:  This function is called only when operating in a multiqueue
+ *             receive environment.
+ * @rx_ring: pointer to ring
+ **/
+static void igb_update_ring_itr(struct igb_ring *rx_ring)
 {
-	struct e1000_hw *hw = &adapter->hw;
-	int new_val;
+	int new_val = rx_ring->itr_val;
+	int avg_wire_size = 0;
+	struct igb_adapter *adapter = rx_ring->adapter;
 
-	new_val = rx_ring->itr_val / 2;
-	if (new_val < IGB_MIN_DYN_ITR)
-		new_val = IGB_MIN_DYN_ITR;
+	if (!rx_ring->total_packets)
+		goto clear_counts; /* no packets, so don't do anything */
 
+	/* For non-gigabit speeds, just fix the interrupt rate at 4000
+	 * ints/sec - ITR timer value of 120 ticks.
+	 */
+	if (adapter->link_speed != SPEED_1000) {
+		new_val = 120;
+		goto set_itr_val;
+	}
+	avg_wire_size = rx_ring->total_bytes / rx_ring->total_packets;
+
+	/* Add 24 bytes to size to account for CRC, preamble, and gap */
+	avg_wire_size += 24;
+
+	/* Don't starve jumbo frames */
+	avg_wire_size = min(avg_wire_size, 3000);
+
+	/* Give a little boost to mid-size frames */
+	if ((avg_wire_size > 300) && (avg_wire_size < 1200))
+		new_val = avg_wire_size / 3;
+	else
+		new_val = avg_wire_size / 2;
+
+set_itr_val:
 	if (new_val != rx_ring->itr_val) {
 		rx_ring->itr_val = new_val;
-		wr32(rx_ring->itr_register,
-				1000000000 / (new_val * 256));
+		rx_ring->set_itr = 1;
 	}
-}
-
-static void igb_raise_rx_eitr(struct igb_adapter *adapter,
-			      struct igb_ring *rx_ring)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	int new_val;
-
-	new_val = rx_ring->itr_val * 2;
-	if (new_val > IGB_MAX_DYN_ITR)
-		new_val = IGB_MAX_DYN_ITR;
-
-	if (new_val != rx_ring->itr_val) {
-		rx_ring->itr_val = new_val;
-		wr32(rx_ring->itr_register,
-				1000000000 / (new_val * 256));
-	}
+clear_counts:
+	rx_ring->total_bytes = 0;
+	rx_ring->total_packets = 0;
 }
 
 /**
@@ -2298,8 +2528,7 @@ update_itr_done:
 	return retval;
 }
 
-static void igb_set_itr(struct igb_adapter *adapter, u16 itr_register,
-			int rx_only)
+static void igb_set_itr(struct igb_adapter *adapter)
 {
 	u16 current_itr;
 	u32 new_itr = adapter->itr;
@@ -2315,25 +2544,22 @@ static void igb_set_itr(struct igb_adapter *adapter, u16 itr_register,
 				    adapter->rx_itr,
 				    adapter->rx_ring->total_packets,
 				    adapter->rx_ring->total_bytes);
-	/* conservative mode (itr 3) eliminates the lowest_latency setting */
-	if (adapter->itr_setting == 3 && adapter->rx_itr == lowest_latency)
-		adapter->rx_itr = low_latency;
 
-	if (!rx_only) {
+	if (adapter->rx_ring->buddy) {
 		adapter->tx_itr = igb_update_itr(adapter,
 					    adapter->tx_itr,
 					    adapter->tx_ring->total_packets,
 					    adapter->tx_ring->total_bytes);
-		/* conservative mode (itr 3) eliminates the
-		 * lowest_latency setting */
-		if (adapter->itr_setting == 3 &&
-		    adapter->tx_itr == lowest_latency)
-			adapter->tx_itr = low_latency;
 
 		current_itr = max(adapter->rx_itr, adapter->tx_itr);
 	} else {
 		current_itr = adapter->rx_itr;
 	}
+
+	/* conservative mode (itr 3) eliminates the lowest_latency setting */
+	if (adapter->itr_setting == 3 &&
+	    current_itr == lowest_latency)
+		current_itr = low_latency;
 
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
@@ -2351,6 +2577,13 @@ static void igb_set_itr(struct igb_adapter *adapter, u16 itr_register,
 	}
 
 set_itr_now:
+	adapter->rx_ring->total_bytes = 0;
+	adapter->rx_ring->total_packets = 0;
+	if (adapter->rx_ring->buddy) {
+		adapter->rx_ring->buddy->total_bytes = 0;
+		adapter->rx_ring->buddy->total_packets = 0;
+	}
+
 	if (new_itr != adapter->itr) {
 		/* this attempts to bias the interrupt rate towards Bulk
 		 * by adding intermediate steps when interrupt rate is
@@ -2365,7 +2598,8 @@ set_itr_now:
 		 * ends up being correct.
 		 */
 		adapter->itr = new_itr;
-		adapter->set_itr = 1;
+		adapter->rx_ring->itr_val = 1000000000 / (new_itr * 256);
+		adapter->rx_ring->set_itr = 1;
 	}
 
 	return;
@@ -2441,9 +2675,9 @@ static inline int igb_tso_adv(struct igb_adapter *adapter,
 	mss_l4len_idx = (skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT);
 	mss_l4len_idx |= (l4len << E1000_ADVTXD_L4LEN_SHIFT);
 
-	/* Context index must be unique per ring.  Luckily, so is the interrupt
-	 * mask value. */
-	mss_l4len_idx |= tx_ring->eims_value >> 4;
+	/* Context index must be unique per ring. */
+	if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
+		mss_l4len_idx |= tx_ring->queue_index << 4;
 
 	context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
 	context_desc->seqnum_seed = 0;
@@ -2507,8 +2741,9 @@ static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
 
 		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
 		context_desc->seqnum_seed = 0;
-		context_desc->mss_l4len_idx =
-					  cpu_to_le32(tx_ring->eims_value >> 4);
+		if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
+			context_desc->mss_l4len_idx =
+				cpu_to_le32(tx_ring->queue_index << 4);
 
 		buffer_info->time_stamp = jiffies;
 		buffer_info->dma = 0;
@@ -2609,9 +2844,10 @@ static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
 		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 	}
 
-	if (tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_TSO |
-			IGB_TX_FLAGS_VLAN))
-		olinfo_status |= tx_ring->eims_value >> 4;
+	if ((adapter->flags & IGB_FLAG_NEED_CTX_IDX) &&
+	    (tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_TSO |
+			 IGB_TX_FLAGS_VLAN)))
+		olinfo_status |= tx_ring->queue_index << 4;
 
 	olinfo_status |= ((paylen - hdr_len) << E1000_ADVTXD_PAYLEN_SHIFT);
 
@@ -2647,7 +2883,8 @@ static int __igb_maybe_stop_tx(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	netif_stop_queue(netdev);
+	netif_stop_subqueue(netdev, tx_ring->queue_index);
+
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
 	 * but since that doesn't exist yet, just open code it. */
@@ -2659,7 +2896,7 @@ static int __igb_maybe_stop_tx(struct net_device *netdev,
 		return -EBUSY;
 
 	/* A reprieve! */
-	netif_start_queue(netdev);
+	netif_wake_subqueue(netdev, tx_ring->queue_index);
 	++adapter->restart_queue;
 	return 0;
 }
@@ -2681,7 +2918,6 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	unsigned int tx_flags = 0;
 	unsigned int len;
-	unsigned long irq_flags;
 	u8 hdr_len = 0;
 	int tso = 0;
 
@@ -2697,10 +2933,6 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	if (!spin_trylock_irqsave(&tx_ring->tx_lock, irq_flags))
-		/* Collision - tell upper layer to requeue */
-		return NETDEV_TX_LOCKED;
-
 	/* need: 1 descriptor per page,
 	 *       + 2 desc gap to keep tail from touching head,
 	 *       + 1 desc for skb->data,
@@ -2708,21 +2940,23 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	 * otherwise try next time */
 	if (igb_maybe_stop_tx(netdev, tx_ring, skb_shinfo(skb)->nr_frags + 4)) {
 		/* this is a hard error */
-		spin_unlock_irqrestore(&tx_ring->tx_lock, irq_flags);
 		return NETDEV_TX_BUSY;
 	}
+	skb_orphan(skb);
 
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
 		tx_flags |= (vlan_tx_tag_get(skb) << IGB_TX_FLAGS_VLAN_SHIFT);
 	}
 
+	if (skb->protocol == htons(ETH_P_IP))
+		tx_flags |= IGB_TX_FLAGS_IPV4;
+
 	tso = skb_is_gso(skb) ? igb_tso_adv(adapter, tx_ring, skb, tx_flags,
 					      &hdr_len) : 0;
 
 	if (tso < 0) {
 		dev_kfree_skb_any(skb);
-		spin_unlock_irqrestore(&tx_ring->tx_lock, irq_flags);
 		return NETDEV_TX_OK;
 	}
 
@@ -2731,9 +2965,6 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	else if (igb_tx_csum_adv(adapter, tx_ring, skb, tx_flags))
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				tx_flags |= IGB_TX_FLAGS_CSUM;
-
-	if (skb->protocol == htons(ETH_P_IP))
-		tx_flags |= IGB_TX_FLAGS_IPV4;
 
 	igb_tx_queue_adv(adapter, tx_ring, tx_flags,
 			 igb_tx_map_adv(adapter, tx_ring, skb),
@@ -2744,14 +2975,17 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	/* Make sure there is space in the ring for the next send. */
 	igb_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 4);
 
-	spin_unlock_irqrestore(&tx_ring->tx_lock, irq_flags);
 	return NETDEV_TX_OK;
 }
 
 static int igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_ring *tx_ring = &adapter->tx_ring[0];
+	struct igb_ring *tx_ring;
+
+	int r_idx = 0;
+	r_idx = skb->queue_mapping & (IGB_MAX_TX_QUEUES - 1);
+	tx_ring = adapter->multi_tx_table[r_idx];
 
 	/* This goes back to the question of how to logically map a tx queue
 	 * to a flow.  Right now, performance is impacted slightly negatively
@@ -2846,7 +3080,11 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	else if (max_frame <= IGB_RXBUFFER_2048)
 		adapter->rx_buffer_len = IGB_RXBUFFER_2048;
 	else
-		adapter->rx_buffer_len = IGB_RXBUFFER_4096;
+#if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
+		adapter->rx_buffer_len = IGB_RXBUFFER_16384;
+#else
+		adapter->rx_buffer_len = PAGE_SIZE / 2;
+#endif
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
 	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
 	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE))
@@ -3010,26 +3248,19 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	struct net_device *netdev = data;
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 eicr;
-	/* disable interrupts from the "other" bit, avoid re-entry */
-	wr32(E1000_EIMC, E1000_EIMS_OTHER);
+	u32 icr = rd32(E1000_ICR);
 
-	eicr = rd32(E1000_EICR);
-
-	if (eicr & E1000_EIMS_OTHER) {
-		u32 icr = rd32(E1000_ICR);
-		/* reading ICR causes bit 31 of EICR to be cleared */
-		if (!(icr & E1000_ICR_LSC))
-			goto no_link_interrupt;
-		hw->mac.get_link_status = 1;
-		/* guard against interrupt when we're going down */
-		if (!test_bit(__IGB_DOWN, &adapter->state))
-			mod_timer(&adapter->watchdog_timer, jiffies + 1);
-	}
-
+	/* reading ICR causes bit 31 of EICR to be cleared */
+	if (!(icr & E1000_ICR_LSC))
+		goto no_link_interrupt;
+	hw->mac.get_link_status = 1;
+	/* guard against interrupt when we're going down */
+	if (!test_bit(__IGB_DOWN, &adapter->state))
+		mod_timer(&adapter->watchdog_timer, jiffies + 1);
+	
 no_link_interrupt:
 	wr32(E1000_IMS, E1000_IMS_LSC);
-	wr32(E1000_EIMS, E1000_EIMS_OTHER);
+	wr32(E1000_EIMS, adapter->eims_other);
 
 	return IRQ_HANDLED;
 }
@@ -3040,44 +3271,186 @@ static irqreturn_t igb_msix_tx(int irq, void *data)
 	struct igb_adapter *adapter = tx_ring->adapter;
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (!tx_ring->itr_val)
-		wr32(E1000_EIMC, tx_ring->eims_value);
-
+#ifdef CONFIG_DCA
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+		igb_update_tx_dca(tx_ring);
+#endif
 	tx_ring->total_bytes = 0;
 	tx_ring->total_packets = 0;
-	if (!igb_clean_tx_irq(adapter, tx_ring))
+
+	/* auto mask will automatically reenable the interrupt when we write
+	 * EICS */
+	if (!igb_clean_tx_irq(tx_ring))
 		/* Ring was not completely cleaned, so fire another interrupt */
 		wr32(E1000_EICS, tx_ring->eims_value);
-
-	if (!tx_ring->itr_val)
+	else
 		wr32(E1000_EIMS, tx_ring->eims_value);
+
 	return IRQ_HANDLED;
+}
+
+static void igb_write_itr(struct igb_ring *ring)
+{
+	struct e1000_hw *hw = &ring->adapter->hw;
+	if ((ring->adapter->itr_setting & 3) && ring->set_itr) {
+		switch (hw->mac.type) {
+		case e1000_82576:
+			wr32(ring->itr_register,
+			     ring->itr_val |
+			     0x80000000);
+			break;
+		default:
+			wr32(ring->itr_register,
+			     ring->itr_val |
+			     (ring->itr_val << 16));
+			break;
+		}
+		ring->set_itr = 0;
+	}
 }
 
 static irqreturn_t igb_msix_rx(int irq, void *data)
 {
 	struct igb_ring *rx_ring = data;
 	struct igb_adapter *adapter = rx_ring->adapter;
-	struct e1000_hw *hw = &adapter->hw;
 
-	if (!rx_ring->itr_val)
-		wr32(E1000_EIMC, rx_ring->eims_value);
+	/* Write the ITR value calculated at the end of the
+	 * previous interrupt.
+	 */
 
-	if (netif_rx_schedule_prep(adapter->netdev, &rx_ring->napi)) {
-		rx_ring->total_bytes = 0;
-		rx_ring->total_packets = 0;
-		rx_ring->no_itr_adjust = 0;
+	igb_write_itr(rx_ring);
+
+	if (netif_rx_schedule_prep(adapter->netdev, &rx_ring->napi))
 		__netif_rx_schedule(adapter->netdev, &rx_ring->napi);
-	} else {
-		if (!rx_ring->no_itr_adjust) {
-			igb_lower_rx_eitr(adapter, rx_ring);
-			rx_ring->no_itr_adjust = 1;
-		}
-	}
 
-	return IRQ_HANDLED;
+#ifdef CONFIG_DCA
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+		igb_update_rx_dca(rx_ring);
+#endif
+		return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_DCA
+static void igb_update_rx_dca(struct igb_ring *rx_ring)
+{
+	u32 dca_rxctrl;
+	struct igb_adapter *adapter = rx_ring->adapter;
+	struct e1000_hw *hw = &adapter->hw;
+	int cpu = get_cpu();
+	int q = rx_ring - adapter->rx_ring;
+
+	if (rx_ring->cpu != cpu) {
+		dca_rxctrl = rd32(E1000_DCA_RXCTRL(q));
+		if (hw->mac.type == e1000_82576) {
+			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK_82576;
+			dca_rxctrl |= dca_get_tag(cpu) <<
+			              E1000_DCA_RXCTRL_CPUID_SHIFT;
+		} else {
+			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK;
+			dca_rxctrl |= dca_get_tag(cpu);
+		}
+		dca_rxctrl |= E1000_DCA_RXCTRL_DESC_DCA_EN;
+		dca_rxctrl |= E1000_DCA_RXCTRL_HEAD_DCA_EN;
+		dca_rxctrl |= E1000_DCA_RXCTRL_DATA_DCA_EN;
+		wr32(E1000_DCA_RXCTRL(q), dca_rxctrl);
+		rx_ring->cpu = cpu;
+	}
+	put_cpu();
+}
+
+static void igb_update_tx_dca(struct igb_ring *tx_ring)
+{
+	u32 dca_txctrl;
+	struct igb_adapter *adapter = tx_ring->adapter;
+	struct e1000_hw *hw = &adapter->hw;
+	int cpu = get_cpu();
+	int q = tx_ring - adapter->tx_ring;
+
+	if (tx_ring->cpu != cpu) {
+		dca_txctrl = rd32(E1000_DCA_TXCTRL(q));
+		if (hw->mac.type == e1000_82576) {
+			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK_82576;
+			dca_txctrl |= dca_get_tag(cpu) <<
+			              E1000_DCA_TXCTRL_CPUID_SHIFT;
+		} else {
+			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK;
+			dca_txctrl |= dca_get_tag(cpu);
+		}
+		dca_txctrl |= E1000_DCA_TXCTRL_DESC_DCA_EN;
+		wr32(E1000_DCA_TXCTRL(q), dca_txctrl);
+		tx_ring->cpu = cpu;
+	}
+	put_cpu();
+}
+
+static void igb_setup_dca(struct igb_adapter *adapter)
+{
+	int i;
+
+	if (!(adapter->flags & IGB_FLAG_DCA_ENABLED))
+		return;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		adapter->tx_ring[i].cpu = -1;
+		igb_update_tx_dca(&adapter->tx_ring[i]);
+	}
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		adapter->rx_ring[i].cpu = -1;
+		igb_update_rx_dca(&adapter->rx_ring[i]);
+	}
+}
+
+static int __igb_notify_dca(struct device *dev, void *data)
+{
+	struct net_device *netdev = dev_get_drvdata(dev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	unsigned long event = *(unsigned long *)data;
+
+	if (!(adapter->flags & IGB_FLAG_HAS_DCA))
+		goto out;
+
+	switch (event) {
+	case DCA_PROVIDER_ADD:
+		/* if already enabled, don't do it again */
+		if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+			break;
+		adapter->flags |= IGB_FLAG_DCA_ENABLED;
+		/* Always use CB2 mode, difference is masked
+		 * in the CB driver. */
+		wr32(E1000_DCA_CTRL, 2);
+		if (dca_add_requester(dev) == 0) {
+			dev_info(&adapter->pdev->dev, "DCA enabled\n");
+			igb_setup_dca(adapter);
+			break;
+		}
+		/* Fall Through since DCA is disabled. */
+	case DCA_PROVIDER_REMOVE:
+		if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
+			/* without this a class_device is left
+ 			 * hanging around in the sysfs model */
+			dca_remove_requester(dev);
+			dev_info(&adapter->pdev->dev, "DCA disabled\n");
+			adapter->flags &= ~IGB_FLAG_DCA_ENABLED;
+			wr32(E1000_DCA_CTRL, 1);
+		}
+		break;
+	}
+out:
+	return 0;
+}
+
+static int igb_notify_dca(struct notifier_block *nb, unsigned long event,
+                          void *p)
+{
+	int ret_val;
+
+	ret_val = driver_for_each_device(&igb_driver.driver, NULL, &event,
+	                                 __igb_notify_dca);
+
+	return ret_val ? NOTIFY_BAD : NOTIFY_DONE;
+}
+#endif /* CONFIG_DCA */
 
 /**
  * igb_intr_msi - Interrupt Handler
@@ -3088,34 +3461,19 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct napi_struct *napi = &adapter->napi;
 	struct e1000_hw *hw = &adapter->hw;
 	/* read ICR disables interrupts using IAM */
 	u32 icr = rd32(E1000_ICR);
 
-	/* Write the ITR value calculated at the end of the
-	 * previous interrupt.
-	 */
-	if (adapter->set_itr) {
-		wr32(E1000_ITR,
-			1000000000 / (adapter->itr * 256));
-		adapter->set_itr = 0;
-	}
+	igb_write_itr(adapter->rx_ring);
 
-	/* read ICR disables interrupts using IAM */
 	if (icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		hw->mac.get_link_status = 1;
 		if (!test_bit(__IGB_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	if (netif_rx_schedule_prep(netdev, napi)) {
-		adapter->tx_ring->total_bytes = 0;
-		adapter->tx_ring->total_packets = 0;
-		adapter->rx_ring->total_bytes = 0;
-		adapter->rx_ring->total_packets = 0;
-		__netif_rx_schedule(netdev, napi);
-	}
+	netif_rx_schedule(netdev, &adapter->rx_ring[0].napi);
 
 	return IRQ_HANDLED;
 }
@@ -3129,7 +3487,6 @@ static irqreturn_t igb_intr(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct napi_struct *napi = &adapter->napi;
 	struct e1000_hw *hw = &adapter->hw;
 	/* Interrupt Auto-Mask...upon reading ICR, interrupts are masked.  No
 	 * need for the IMC write */
@@ -3138,14 +3495,7 @@ static irqreturn_t igb_intr(int irq, void *data)
 	if (!icr)
 		return IRQ_NONE;  /* Not our interrupt */
 
-	/* Write the ITR value calculated at the end of the
-	 * previous interrupt.
-	 */
-	if (adapter->set_itr) {
-		wr32(E1000_ITR,
-			1000000000 / (adapter->itr * 256));
-		adapter->set_itr = 0;
-	}
+	igb_write_itr(adapter->rx_ring);
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
 	 * not set, then the adapter didn't send an interrupt */
@@ -3161,57 +3511,41 @@ static irqreturn_t igb_intr(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	if (netif_rx_schedule_prep(netdev, napi)) {
-		adapter->tx_ring->total_bytes = 0;
-		adapter->rx_ring->total_bytes = 0;
-		adapter->tx_ring->total_packets = 0;
-		adapter->rx_ring->total_packets = 0;
-		__netif_rx_schedule(netdev, napi);
-	}
+	netif_rx_schedule(netdev, &adapter->rx_ring[0].napi);
 
 	return IRQ_HANDLED;
 }
 
 /**
- * igb_clean - NAPI Rx polling callback
- * @adapter: board private structure
+ * igb_poll - NAPI Rx polling callback
+ * @napi: napi polling structure
+ * @budget: count of how many packets we should handle
  **/
-static int igb_clean(struct napi_struct *napi, int budget)
+static int igb_poll(struct napi_struct *napi, int budget)
 {
-	struct igb_adapter *adapter = container_of(napi, struct igb_adapter,
-						   napi);
+	struct igb_ring *rx_ring = container_of(napi, struct igb_ring, napi);
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct net_device *netdev = adapter->netdev;
-	int tx_clean_complete = 1, work_done = 0;
-	int i;
+	int tx_clean_complete, work_done = 0;
 
-	/* Must NOT use netdev_priv macro here. */
-	adapter = netdev->priv;
+	/* this poll routine only supports one tx and one rx queue */
+#ifdef CONFIG_DCA
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+		igb_update_tx_dca(&adapter->tx_ring[0]);
+#endif
+	tx_clean_complete = igb_clean_tx_irq(&adapter->tx_ring[0]);
 
-	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(netdev))
-		goto quit_polling;
-
-	/* igb_clean is called per-cpu.  This lock protects tx_ring[i] from
-	 * being cleaned by multiple cpus simultaneously.  A failure obtaining
-	 * the lock means tx_ring[i] is currently being cleaned anyway. */
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		if (spin_trylock(&adapter->tx_ring[i].tx_clean_lock)) {
-			tx_clean_complete &= igb_clean_tx_irq(adapter,
-							&adapter->tx_ring[i]);
-			spin_unlock(&adapter->tx_ring[i].tx_clean_lock);
-		}
-	}
-
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_irq_adv(adapter, &adapter->rx_ring[i], &work_done,
-				     adapter->rx_ring[i].napi.weight);
+#ifdef CONFIG_DCA
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+		igb_update_rx_dca(&adapter->rx_ring[0]);
+#endif
+	igb_clean_rx_irq_adv(&adapter->rx_ring[0], &work_done, budget);
 
 	/* If no Tx and not enough Rx work done, exit the polling mode */
 	if ((tx_clean_complete && (work_done < budget)) ||
 	    !netif_running(netdev)) {
-quit_polling:
 		if (adapter->itr_setting & 3)
-			igb_set_itr(adapter, E1000_ITR, false);
+			igb_set_itr(adapter);
 		netif_rx_complete(netdev, napi);
 		if (!test_bit(__IGB_DOWN, &adapter->state))
 			igb_irq_enable(adapter);
@@ -3233,7 +3567,11 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 	if (!netif_carrier_ok(netdev))
 		goto quit_polling;
 
-	igb_clean_rx_irq_adv(adapter, rx_ring, &work_done, budget);
+#ifdef CONFIG_DCA
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+		igb_update_rx_dca(rx_ring);
+#endif
+	igb_clean_rx_irq_adv(rx_ring, &work_done, budget);
 
 
 	/* If not enough Rx work done, exit the polling mode */
@@ -3241,16 +3579,16 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 quit_polling:
 		netif_rx_complete(netdev, napi);
 
-		wr32(E1000_EIMS, rx_ring->eims_value);
-		if ((adapter->itr_setting & 3) && !rx_ring->no_itr_adjust &&
-		    (rx_ring->total_packets > IGB_DYN_ITR_PACKET_THRESHOLD)) {
-			int mean_size = rx_ring->total_bytes /
-					rx_ring->total_packets;
-			if (mean_size < IGB_DYN_ITR_LENGTH_LOW)
-				igb_raise_rx_eitr(adapter, rx_ring);
-			else if (mean_size > IGB_DYN_ITR_LENGTH_HIGH)
-				igb_lower_rx_eitr(adapter, rx_ring);
+		if (adapter->itr_setting & 3) {
+			if (adapter->num_rx_queues == 1)
+				igb_set_itr(adapter);
+			else
+				igb_update_ring_itr(rx_ring);
 		}
+
+		if (!test_bit(__IGB_DOWN, &adapter->state))
+			wr32(E1000_EIMS, rx_ring->eims_value);
+
 		return 0;
 	}
 
@@ -3268,11 +3606,11 @@ static inline u32 get_head(struct igb_ring *tx_ring)
  * @adapter: board private structure
  * returns true if ring is completely cleaned
  **/
-static bool igb_clean_tx_irq(struct igb_adapter *adapter,
-				  struct igb_ring *tx_ring)
+static bool igb_clean_tx_irq(struct igb_ring *tx_ring)
 {
-	struct net_device *netdev = adapter->netdev;
+	struct igb_adapter *adapter = tx_ring->adapter;
 	struct e1000_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_desc *tx_desc;
 	struct igb_buffer *buffer_info;
 	struct sk_buff *skb;
@@ -3334,9 +3672,9 @@ done_cleaning:
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-		if (netif_queue_stopped(netdev) &&
+		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
 		    !(test_bit(__IGB_DOWN, &adapter->state))) {
-			netif_wake_queue(netdev);
+			netif_wake_subqueue(netdev, tx_ring->queue_index);
 			++adapter->restart_queue;
 		}
 	}
@@ -3355,7 +3693,7 @@ done_cleaning:
 			/* detected Tx unit hang */
 			dev_err(&adapter->pdev->dev,
 				"Detected Tx Unit Hang\n"
-				"  Tx Queue             <%lu>\n"
+				"  Tx Queue             <%d>\n"
 				"  TDH                  <%x>\n"
 				"  TDT                  <%x>\n"
 				"  next_to_use          <%x>\n"
@@ -3365,8 +3703,7 @@ done_cleaning:
 				"  time_stamp           <%lx>\n"
 				"  jiffies              <%lx>\n"
 				"  desc.status          <%x>\n",
-				(unsigned long)((tx_ring - adapter->tx_ring) /
-					sizeof(struct igb_ring)),
+				tx_ring->queue_index,
 				readl(adapter->hw.hw_addr + tx_ring->head),
 				readl(adapter->hw.hw_addr + tx_ring->tail),
 				tx_ring->next_to_use,
@@ -3375,33 +3712,87 @@ done_cleaning:
 				tx_ring->buffer_info[i].time_stamp,
 				jiffies,
 				tx_desc->upper.fields.status);
-			netif_stop_queue(netdev);
+			netif_stop_subqueue(netdev, tx_ring->queue_index);
 		}
 	}
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
+	tx_ring->tx_stats.bytes += total_bytes;
+	tx_ring->tx_stats.packets += total_packets;
 	adapter->net_stats.tx_bytes += total_bytes;
 	adapter->net_stats.tx_packets += total_packets;
 	return retval;
 }
 
+#ifdef CONFIG_IGB_LRO
+ /**
+ * igb_get_skb_hdr - helper function for LRO header processing
+ * @skb: pointer to sk_buff to be added to LRO packet
+ * @iphdr: pointer to ip header structure
+ * @tcph: pointer to tcp header structure
+ * @hdr_flags: pointer to header flags
+ * @priv: pointer to the receive descriptor for the current sk_buff
+ **/
+static int igb_get_skb_hdr(struct sk_buff *skb, void **iphdr, void **tcph,
+                           u64 *hdr_flags, void *priv)
+{
+	union e1000_adv_rx_desc *rx_desc = priv;
+	u16 pkt_type = rx_desc->wb.lower.lo_dword.pkt_info &
+	               (E1000_RXDADV_PKTTYPE_IPV4 | E1000_RXDADV_PKTTYPE_TCP);
+
+	/* Verify that this is a valid IPv4 TCP packet */
+	if (pkt_type != (E1000_RXDADV_PKTTYPE_IPV4 |
+	                  E1000_RXDADV_PKTTYPE_TCP))
+		return -1;
+
+	/* Set network headers */
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, ip_hdrlen(skb));
+	*iphdr = ip_hdr(skb);
+	*tcph = tcp_hdr(skb);
+	*hdr_flags = LRO_IPV4 | LRO_TCP;
+
+	return 0;
+
+}
+#endif /* CONFIG_IGB_LRO */
 
 /**
  * igb_receive_skb - helper function to handle rx indications
- * @adapter: board private structure
+ * @ring: pointer to receive ring receving this packet 
  * @status: descriptor status field as written by hardware
  * @vlan: descriptor vlan field as written by hardware (no le/be conversion)
  * @skb: pointer to sk_buff to be indicated to stack
  **/
-static void igb_receive_skb(struct igb_adapter *adapter, u8 status, __le16 vlan,
-			    struct sk_buff *skb)
+static void igb_receive_skb(struct igb_ring *ring, u8 status,
+                            union e1000_adv_rx_desc * rx_desc,
+                            struct sk_buff *skb)
 {
-	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-					 le16_to_cpu(vlan) &
-					 E1000_RXD_SPC_VLAN_MASK);
-	else
-		netif_receive_skb(skb);
+	struct igb_adapter * adapter = ring->adapter;
+	bool vlan_extracted = (adapter->vlgrp && (status & E1000_RXD_STAT_VP));
+
+#ifdef CONFIG_IGB_LRO
+	if (adapter->netdev->features & NETIF_F_LRO &&
+	    skb->ip_summed == CHECKSUM_UNNECESSARY) {
+		if (vlan_extracted)
+			lro_vlan_hwaccel_receive_skb(&ring->lro_mgr, skb,
+			                   adapter->vlgrp,
+			                   le16_to_cpu(rx_desc->wb.upper.vlan),
+			                   rx_desc);
+		else
+			lro_receive_skb(&ring->lro_mgr,skb, rx_desc);
+		ring->lro_used = 1;
+	} else {
+#endif
+		if (vlan_extracted)
+			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
+			                  le16_to_cpu(rx_desc->wb.upper.vlan));
+		else
+
+			netif_receive_skb(skb);
+#ifdef CONFIG_IGB_LRO
+	}
+#endif
 }
 
 
@@ -3427,16 +3818,16 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 	adapter->hw_csum_good++;
 }
 
-static bool igb_clean_rx_irq_adv(struct igb_adapter *adapter,
-				      struct igb_ring *rx_ring,
-				      int *work_done, int budget)
+static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
+				 int *work_done, int budget)
 {
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union e1000_adv_rx_desc *rx_desc , *next_rxd;
 	struct igb_buffer *buffer_info , *next_buffer;
 	struct sk_buff *skb;
-	unsigned int i, j;
+	unsigned int i;
 	u32 length, hlen, staterr;
 	bool cleaned = false;
 	int cleaned_count = 0;
@@ -3466,64 +3857,48 @@ static bool igb_clean_rx_irq_adv(struct igb_adapter *adapter,
 		cleaned = true;
 		cleaned_count++;
 
-		if (rx_ring->pending_skb != NULL) {
-			skb = rx_ring->pending_skb;
-			rx_ring->pending_skb = NULL;
-			j = rx_ring->pending_skb_page;
-		} else {
-			skb = buffer_info->skb;
-			prefetch(skb->data - NET_IP_ALIGN);
-			buffer_info->skb = NULL;
-			if (hlen) {
-				pci_unmap_single(pdev, buffer_info->dma,
-						 adapter->rx_ps_hdr_size +
-						   NET_IP_ALIGN,
-						 PCI_DMA_FROMDEVICE);
-				skb_put(skb, hlen);
-			} else {
-				pci_unmap_single(pdev, buffer_info->dma,
-						 adapter->rx_buffer_len +
-						   NET_IP_ALIGN,
-						 PCI_DMA_FROMDEVICE);
-				skb_put(skb, length);
-				goto send_up;
-			}
-			j = 0;
+		skb = buffer_info->skb;
+		prefetch(skb->data - NET_IP_ALIGN);
+		buffer_info->skb = NULL;
+		if (!adapter->rx_ps_hdr_size) {
+			pci_unmap_single(pdev, buffer_info->dma,
+					 adapter->rx_buffer_len +
+					   NET_IP_ALIGN,
+					 PCI_DMA_FROMDEVICE);
+			skb_put(skb, length);
+			goto send_up;
 		}
 
-		while (length) {
+		if (!skb_shinfo(skb)->nr_frags) {
+			pci_unmap_single(pdev, buffer_info->dma,
+					 adapter->rx_ps_hdr_size +
+					   NET_IP_ALIGN,
+					 PCI_DMA_FROMDEVICE);
+			skb_put(skb, hlen);
+		}
+
+		if (length) {
 			pci_unmap_page(pdev, buffer_info->page_dma,
-				PAGE_SIZE, PCI_DMA_FROMDEVICE);
+				       PAGE_SIZE / 2, PCI_DMA_FROMDEVICE);
 			buffer_info->page_dma = 0;
-			skb_fill_page_desc(skb, j, buffer_info->page,
-						0, length);
-			buffer_info->page = NULL;
+
+			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags++,
+						buffer_info->page,
+						buffer_info->page_offset,
+						length);
+
+			if ((adapter->rx_buffer_len > (PAGE_SIZE / 2)) ||
+			    (page_count(buffer_info->page) != 1))
+				buffer_info->page = NULL;
+			else
+				get_page(buffer_info->page);
 
 			skb->len += length;
 			skb->data_len += length;
+
 			skb->truesize += length;
-			rx_desc->wb.upper.status_error = 0;
-			if (staterr & E1000_RXD_STAT_EOP)
-				break;
-
-			j++;
-			cleaned_count++;
-			i++;
-			if (i == rx_ring->count)
-				i = 0;
-
-			buffer_info = &rx_ring->buffer_info[i];
-			rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
-			staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
-			length = le16_to_cpu(rx_desc->wb.upper.length);
-			if (!(staterr & E1000_RXD_STAT_DD)) {
-				rx_ring->pending_skb = skb;
-				rx_ring->pending_skb_page = j;
-				goto out;
-			}
 		}
 send_up:
-		pskb_trim(skb, skb->len - 4);
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
@@ -3531,11 +3906,16 @@ send_up:
 		prefetch(next_rxd);
 		next_buffer = &rx_ring->buffer_info[i];
 
+		if (!(staterr & E1000_RXD_STAT_EOP)) {
+			buffer_info->skb = xchg(&next_buffer->skb, skb);
+			buffer_info->dma = xchg(&next_buffer->dma, 0);
+			goto next_desc;
+		}
+
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
 		}
-		rx_ring->no_itr_adjust |= (staterr & E1000_RXD_STAT_DYNINT);
 
 		total_bytes += skb->len;
 		total_packets++;
@@ -3544,7 +3924,7 @@ send_up:
 
 		skb->protocol = eth_type_trans(skb, netdev);
 
-		igb_receive_skb(adapter, staterr, rx_desc->wb.upper.vlan, skb);
+		igb_receive_skb(rx_ring, staterr, rx_desc, skb);
 
 		netdev->last_rx = jiffies;
 
@@ -3553,8 +3933,7 @@ next_desc:
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
-			igb_alloc_rx_buffers_adv(adapter, rx_ring,
-						 cleaned_count);
+			igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -3564,12 +3943,19 @@ next_desc:
 
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
-out:
+
 	rx_ring->next_to_clean = i;
 	cleaned_count = IGB_DESC_UNUSED(rx_ring);
 
+#ifdef CONFIG_IGB_LRO
+	if (rx_ring->lro_used) {
+		lro_flush_all(&rx_ring->lro_mgr);
+		rx_ring->lro_used = 0;
+	}
+#endif
+
 	if (cleaned_count)
-		igb_alloc_rx_buffers_adv(adapter, rx_ring, cleaned_count);
+		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
 
 	rx_ring->total_packets += total_packets;
 	rx_ring->total_bytes += total_bytes;
@@ -3585,10 +3971,10 @@ out:
  * igb_alloc_rx_buffers_adv - Replace used receive buffers; packet split
  * @adapter: address of board private structure
  **/
-static void igb_alloc_rx_buffers_adv(struct igb_adapter *adapter,
-				     struct igb_ring *rx_ring,
+static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 				     int cleaned_count)
 {
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union e1000_adv_rx_desc *rx_desc;
@@ -3602,16 +3988,22 @@ static void igb_alloc_rx_buffers_adv(struct igb_adapter *adapter,
 	while (cleaned_count--) {
 		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
 
-		if (adapter->rx_ps_hdr_size && !buffer_info->page) {
-			buffer_info->page = alloc_page(GFP_ATOMIC);
+		if (adapter->rx_ps_hdr_size && !buffer_info->page_dma) {
 			if (!buffer_info->page) {
-				adapter->alloc_rx_buff_failed++;
-				goto no_buffers;
+				buffer_info->page = alloc_page(GFP_ATOMIC);
+				if (!buffer_info->page) {
+					adapter->alloc_rx_buff_failed++;
+					goto no_buffers;
+				}
+				buffer_info->page_offset = 0;
+			} else {
+				buffer_info->page_offset ^= PAGE_SIZE / 2;
 			}
 			buffer_info->page_dma =
 				pci_map_page(pdev,
 					     buffer_info->page,
-					     0, PAGE_SIZE,
+					     buffer_info->page_offset,
+					     PAGE_SIZE / 2,
 					     PCI_DMA_FROMDEVICE);
 		}
 
@@ -3746,7 +4138,6 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 
 		/* enable VLAN receive filtering */
 		rctl = rd32(E1000_RCTL);
-		rctl |= E1000_RCTL_VFE;
 		rctl &= ~E1000_RCTL_CFIEN;
 		wr32(E1000_RCTL, rctl);
 		igb_update_mng_vlan(adapter);
@@ -3758,10 +4149,6 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 		ctrl &= ~E1000_CTRL_VME;
 		wr32(E1000_CTRL, ctrl);
 
-		/* disable VLAN filtering */
-		rctl = rd32(E1000_RCTL);
-		rctl &= ~E1000_RCTL_VFE;
-		wr32(E1000_RCTL, rctl);
 		if (adapter->mng_vlan_id != (u16)IGB_MNG_VLAN_NONE) {
 			igb_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 			adapter->mng_vlan_id = IGB_MNG_VLAN_NONE;
@@ -3878,7 +4265,7 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ctrl, ctrl_ext, rctl, status;
+	u32 ctrl, rctl, status;
 	u32 wufc = adapter->wol;
 #ifdef CONFIG_PM
 	int retval = 0;
@@ -3886,11 +4273,12 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev)) {
-		WARN_ON(test_bit(__IGB_RESETTING, &adapter->state));
-		igb_down(adapter);
-		igb_free_irq(adapter);
-	}
+	if (netif_running(netdev))
+		igb_close(netdev);
+
+	igb_reset_interrupt_capability(adapter);
+
+	igb_free_queues(adapter);
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -3921,33 +4309,24 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 		ctrl |= E1000_CTRL_ADVD3WUC;
 		wr32(E1000_CTRL, ctrl);
 
-		if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
-		   adapter->hw.phy.media_type ==
-					e1000_media_type_internal_serdes) {
-			/* keep the laser running in D3 */
-			ctrl_ext = rd32(E1000_CTRL_EXT);
-			ctrl_ext |= E1000_CTRL_EXT_SDP7_DATA;
-			wr32(E1000_CTRL_EXT, ctrl_ext);
-		}
-
 		/* Allow time for pending master requests to run */
 		igb_disable_pcie_master(&adapter->hw);
 
 		wr32(E1000_WUC, E1000_WUC_PME_EN);
 		wr32(E1000_WUFC, wufc);
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
 	} else {
 		wr32(E1000_WUC, 0);
 		wr32(E1000_WUFC, 0);
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
-	/* make sure adapter isn't asleep if manageability is enabled */
-	if (adapter->en_mng_pt) {
+	/* make sure adapter isn't asleep if manageability/wol is enabled */
+	if (wufc || adapter->en_mng_pt) {
 		pci_enable_wake(pdev, PCI_D3hot, 1);
 		pci_enable_wake(pdev, PCI_D3cold, 1);
+	} else {
+		igb_shutdown_fiber_serdes_link_82575(hw);
+		pci_enable_wake(pdev, PCI_D3hot, 0);
+		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
@@ -3971,7 +4350,11 @@ static int igb_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	err = pci_enable_device(pdev);
+
+	if (adapter->need_ioport)
+		err = pci_enable_device(pdev);
+	else
+		err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
 			"igb: Cannot enable PCI device from suspend\n");
@@ -3982,10 +4365,11 @@ static int igb_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
-	if (netif_running(netdev)) {
-		err = igb_request_irq(adapter);
-		if (err)
-			return err;
+	igb_set_interrupt_capability(adapter);
+
+	if (igb_alloc_queues(adapter)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
 	}
 
 	/* e1000_power_up_phy(adapter); */
@@ -3993,10 +4377,11 @@ static int igb_resume(struct pci_dev *pdev)
 	igb_reset(adapter);
 	wr32(E1000_WUS, ~0);
 
-	igb_init_manageability(adapter);
-
-	if (netif_running(netdev))
-		igb_up(adapter);
+	if (netif_running(netdev)) {
+		err = igb_open(netdev);
+		if (err)
+			return err;
+	}
 
 	netif_device_attach(netdev);
 
@@ -4026,14 +4411,17 @@ static void igb_netpoll(struct net_device *netdev)
 	int work_done = 0;
 
 	igb_irq_disable(adapter);
+	adapter->flags |= IGB_FLAG_IN_NETPOLL;
+
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_clean_tx_irq(adapter, &adapter->tx_ring[i]);
+		igb_clean_tx_irq(&adapter->tx_ring[i]);
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_irq_adv(adapter, &adapter->rx_ring[i],
+		igb_clean_rx_irq_adv(&adapter->rx_ring[i],
 				     &work_done,
 				     adapter->rx_ring[i].napi.weight);
 
+	adapter->flags &= ~IGB_FLAG_IN_NETPOLL;
 	igb_irq_enable(adapter);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
@@ -4074,8 +4462,13 @@ static pci_ers_result_t igb_io_slot_reset(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	int err;
 
-	if (pci_enable_device(pdev)) {
+	if (adapter->need_ioport)
+		err = pci_enable_device(pdev);
+	else
+		err = pci_enable_device_mem(pdev);
+	if (err) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -4104,8 +4497,6 @@ static void igb_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	igb_init_manageability(adapter);
 
 	if (netif_running(netdev)) {
 		if (igb_up(adapter)) {

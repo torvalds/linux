@@ -11,8 +11,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- *  $Id: 8250.h,v 1.8 2002/07/21 21:32:30 rmk Exp $
  */
 
 #include <linux/serial_8250.h>
@@ -49,6 +47,7 @@ struct serial8250_config {
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
 #define UART_BUG_NOMSR	(1 << 2)	/* UART has buggy MSR status bits (Au1x00) */
+#define UART_BUG_THRE	(1 << 3)	/* UART has buggy THRE reassertion */
 
 #define PROBE_RSA	(1 << 0)
 #define PROBE_ANY	(~0)

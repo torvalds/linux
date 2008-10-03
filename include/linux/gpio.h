@@ -79,6 +79,19 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 	WARN_ON(1);
 }
 
+static inline int gpio_export(unsigned gpio, bool direction_may_change)
+{
+	/* GPIO can never have been requested or set as {in,out}put */
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+static inline void gpio_unexport(unsigned gpio)
+{
+	/* GPIO can never have been exported */
+	WARN_ON(1);
+}
+
 static inline int gpio_to_irq(unsigned gpio)
 {
 	/* GPIO can never have been requested or set as input */

@@ -4,6 +4,7 @@
   */
 
 #include <net/iw_handler.h>
+#include <net/ieee80211.h>
 #include <linux/kfifo.h>
 #include "host.h"
 #include "hostcmd.h"
@@ -109,7 +110,7 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	 * CF card    firmware 5.0.16p0:   cap 0x00000303
 	 * USB dongle firmware 5.110.17p2: cap 0x00000303
 	 */
-	printk("libertas: %s, fw %u.%u.%up%u, cap 0x%08x\n",
+	lbs_pr_info("%s, fw %u.%u.%up%u, cap 0x%08x\n",
 		print_mac(mac, cmd.permanentaddr),
 		priv->fwrelease >> 24 & 0xff,
 		priv->fwrelease >> 16 & 0xff,
@@ -675,58 +676,60 @@ static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
-					      struct cmd_ds_command *cmd,
-					      u16 cmd_action)
+static __le16 lbs_rate_to_fw_bitmap(int rate, int lower_rates_ok)
 {
-	struct cmd_ds_802_11_rate_adapt_rateset
-	*rateadapt = &cmd->params.rateset;
+/*		Bit  	Rate
+*		15:13 Reserved
+*		12    54 Mbps
+*		11    48 Mbps
+*		10    36 Mbps
+*		9     24 Mbps
+*		8     18 Mbps
+*		7     12 Mbps
+*		6     9 Mbps
+*		5     6 Mbps
+*		4     Reserved
+*		3     11 Mbps
+*		2     5.5 Mbps
+*		1     2 Mbps
+*		0     1 Mbps
+**/
 
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_rate_adapt_rateset)
-			     + S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_RATE_ADAPT_RATESET);
-
-	rateadapt->action = cpu_to_le16(cmd_action);
-	rateadapt->enablehwauto = cpu_to_le16(priv->enablehwauto);
-	rateadapt->bitmap = cpu_to_le16(priv->ratebitmap);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	uint16_t ratemask;
+	int i = lbs_data_rate_to_fw_index(rate);
+	if (lower_rates_ok)
+		ratemask = (0x1fef >> (12 - i));
+	else
+		ratemask = (1 << i);
+	return cpu_to_le16(ratemask);
 }
 
-/**
- *  @brief Get the current data rate
- *
- *  @param priv    	A pointer to struct lbs_private structure
- *
- *  @return 	   	The data rate on success, error on failure
- */
-int lbs_get_data_rate(struct lbs_private *priv)
+int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
+				      uint16_t cmd_action)
 {
-	struct cmd_ds_802_11_data_rate cmd;
-	int ret = -1;
+	struct cmd_ds_802_11_rate_adapt_rateset cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	memset(&cmd, 0, sizeof(cmd));
+	if (!priv->cur_rate && !priv->enablehwauto)
+		return -EINVAL;
+
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_GET_TX_RATE);
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, &cmd);
-	if (ret)
-		goto out;
+	cmd.action = cpu_to_le16(cmd_action);
+	cmd.enablehwauto = cpu_to_le16(priv->enablehwauto);
+	cmd.bitmap = lbs_rate_to_fw_bitmap(priv->cur_rate, priv->enablehwauto);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RATE_ADAPT_RATESET, &cmd);
+	if (!ret && cmd_action == CMD_ACT_GET) {
+		priv->ratebitmap = le16_to_cpu(cmd.bitmap);
+		priv->enablehwauto = le16_to_cpu(cmd.enablehwauto);
+	}
 
-	lbs_deb_hex(LBS_DEB_CMD, "DATA_RATE_RESP", (u8 *) &cmd, sizeof (cmd));
-
-	ret = (int) lbs_fw_index_to_data_rate(cmd.rates[0]);
-	lbs_deb_cmd("DATA_RATE: current rate 0x%02x\n", ret);
-
-out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(lbs_cmd_802_11_rate_adapt_rateset);
 
 /**
  *  @brief Set the data rate
@@ -776,28 +779,6 @@ int lbs_set_data_rate(struct lbs_private *priv, u8 rate)
 out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
-}
-
-static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
-				      struct cmd_ds_command *cmd,
-				      u16 cmd_action)
-{
-	struct cmd_ds_mac_multicast_adr *pMCastAdr = &cmd->params.madr;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_multicast_adr) +
-			     S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_MAC_MULTICAST_ADR);
-
-	lbs_deb_cmd("MULTICAST_ADR: setting %d addresses\n", pMCastAdr->nr_of_adrs);
-	pMCastAdr->action = cpu_to_le16(cmd_action);
-	pMCastAdr->nr_of_adrs =
-	    cpu_to_le16((u16) priv->nr_of_multicastmacaddr);
-	memcpy(pMCastAdr->maclist, priv->multicastlist,
-	       priv->nr_of_multicastmacaddr * ETH_ALEN);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
 }
 
 /**
@@ -1052,24 +1033,69 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
+int lbs_mesh_config_send(struct lbs_private *priv,
+			 struct cmd_ds_mesh_config *cmd,
+			 uint16_t action, uint16_t type)
+{
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	cmd->hdr.command = cpu_to_le16(CMD_MESH_CONFIG);
+	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_mesh_config));
+	cmd->hdr.result = 0;
+
+	cmd->type = cpu_to_le16(type);
+	cmd->action = cpu_to_le16(action);
+
+	ret = lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
+}
+
+/* This function is the CMD_MESH_CONFIG legacy function.  It only handles the
+ * START and STOP actions.  The extended actions supported by CMD_MESH_CONFIG
+ * are all handled by preparing a struct cmd_ds_mesh_config and passing it to
+ * lbs_mesh_config_send.
+ */
+int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 {
 	struct cmd_ds_mesh_config cmd;
+	struct mrvl_meshie *ie;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.action = cpu_to_le16(enable);
 	cmd.channel = cpu_to_le16(chan);
-	cmd.type = cpu_to_le16(priv->mesh_tlv);
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	ie = (struct mrvl_meshie *)cmd.data;
 
-	if (enable) {
-		cmd.length = cpu_to_le16(priv->mesh_ssid_len);
-		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);
+	switch (action) {
+	case CMD_ACT_MESH_CONFIG_START:
+		ie->hdr.id = MFIE_TYPE_GENERIC;
+		ie->val.oui[0] = 0x00;
+		ie->val.oui[1] = 0x50;
+		ie->val.oui[2] = 0x43;
+		ie->val.type = MARVELL_MESH_IE_TYPE;
+		ie->val.subtype = MARVELL_MESH_IE_SUBTYPE;
+		ie->val.version = MARVELL_MESH_IE_VERSION;
+		ie->val.active_protocol_id = MARVELL_MESH_PROTO_ID_HWMP;
+		ie->val.active_metric_id = MARVELL_MESH_METRIC_ID;
+		ie->val.mesh_capability = MARVELL_MESH_CAPABILITY;
+		ie->val.mesh_id_len = priv->mesh_ssid_len;
+		memcpy(ie->val.mesh_id, priv->mesh_ssid, priv->mesh_ssid_len);
+		ie->hdr.len = sizeof(struct mrvl_meshie_val) -
+			IW_ESSID_MAX_SIZE + priv->mesh_ssid_len;
+		cmd.length = cpu_to_le16(sizeof(struct mrvl_meshie_val));
+		break;
+	case CMD_ACT_MESH_CONFIG_STOP:
+		break;
+	default:
+		return -1;
 	}
-	lbs_deb_cmd("mesh config enable %d TLV %x channel %d SSID %s\n",
-		    enable, priv->mesh_tlv, chan,
+	lbs_deb_cmd("mesh config action %d type %x channel %d SSID %s\n",
+		    action, priv->mesh_tlv, chan,
 		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
-	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, &cmd);
+
+	return lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
 }
 
 static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
@@ -1144,7 +1170,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	struct cmd_header *cmd;
 	uint16_t cmdsize;
 	uint16_t command;
-	int timeo = 5 * HZ;
+	int timeo = 3 * HZ;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1162,7 +1188,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	/* These commands take longer */
 	if (command == CMD_802_11_SCAN || command == CMD_802_11_ASSOCIATE ||
 	    command == CMD_802_11_AUTHENTICATE)
-		timeo = 10 * HZ;
+		timeo = 5 * HZ;
 
 	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
 		     command, le16_to_cpu(cmd->seqnum), cmdsize);
@@ -1174,7 +1200,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 		lbs_pr_info("DNLD_CMD: hw_host_to_card failed: %d\n", ret);
 		/* Let the timer kick in and retry, and potentially reset
 		   the whole thing if the condition persists */
-		timeo = HZ;
+		timeo = HZ/4;
 	}
 
 	/* Setup the timer after transmit command */
@@ -1279,8 +1305,7 @@ void lbs_set_mac_control(struct lbs_private *priv)
 	cmd.action = cpu_to_le16(priv->mac_control);
 	cmd.reserved = 0;
 
-	lbs_cmd_async(priv, CMD_MAC_CONTROL,
-		&cmd.hdr, sizeof(cmd));
+	lbs_cmd_async(priv, CMD_MAC_CONTROL, &cmd.hdr, sizeof(cmd));
 
 	lbs_deb_leave(LBS_DEB_CMD);
 }
@@ -1387,15 +1412,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 						 cmd_action, pdata_buf);
 		break;
 
-	case CMD_802_11_RATE_ADAPT_RATESET:
-		ret = lbs_cmd_802_11_rate_adapt_rateset(priv,
-							 cmdptr, cmd_action);
-		break;
-
-	case CMD_MAC_MULTICAST_ADR:
-		ret = lbs_cmd_mac_multicast_adr(priv, cmdptr, cmd_action);
-		break;
-
 	case CMD_802_11_MONITOR_MODE:
 		ret = lbs_cmd_802_11_monitor_mode(cmdptr,
 				          cmd_action, pdata_buf);
@@ -1484,7 +1500,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action);
 		break;
 	default:
-		lbs_deb_host("PREP_CMD: unknown command 0x%04x\n", cmd_no);
+		lbs_pr_err("PREP_CMD: unknown command 0x%04x\n", cmd_no);
 		ret = -1;
 		break;
 	}

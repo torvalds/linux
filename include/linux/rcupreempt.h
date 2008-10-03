@@ -115,16 +115,21 @@ DECLARE_PER_CPU(struct rcu_dyntick_sched, rcu_dyntick_sched);
 
 static inline void rcu_enter_nohz(void)
 {
+	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 1);
+
 	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	__get_cpu_var(rcu_dyntick_sched).dynticks++;
-	WARN_ON(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1);
+	WARN_ON_RATELIMIT(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1, &rs);
 }
 
 static inline void rcu_exit_nohz(void)
 {
+	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 1);
+
 	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 	__get_cpu_var(rcu_dyntick_sched).dynticks++;
-	WARN_ON(!(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1));
+	WARN_ON_RATELIMIT(!(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1),
+				&rs);
 }
 
 #else /* CONFIG_NO_HZ */

@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm-generic/bug.h>
 
 static struct mxc_gpio_port *mxc_gpio_ports;
@@ -73,19 +73,19 @@ static int gpio_set_irq_type(u32 irq, u32 type)
 	void __iomem *reg = port->base;
 
 	switch (type) {
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		edge = GPIO_INT_RISE_EDGE;
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		edge = GPIO_INT_FALL_EDGE;
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		edge = GPIO_INT_LOW_LEV;
 		break;
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		edge = GPIO_INT_HIGH_LEV;
 		break;
-	default:	/* this includes IRQT_BOTHEDGE */
+	default:	/* this includes IRQ_TYPE_EDGE_BOTH */
 		return -EINVAL;
 	}
 

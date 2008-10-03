@@ -1,0 +1,15 @@
+LED connected to GPIO
+
+Required properties:
+- compatible : should be "gpio-led".
+- label : (optional) the label for this LED. If omitted, the label is
+  taken from the node name (excluding the unit address).
+- gpios : should specify LED GPIO.
+
+Example:
+
+led@0 {
+	compatible = "gpio-led";
+	label = "hdd";
+	gpios = <&mcu_pio 0 1>;
+};

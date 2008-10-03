@@ -572,6 +572,10 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		if (!ret)
 			pci_update_current_state(dev);
 	}
+	/* This device is quirked not to be put into D3, so
+	   don't put it in D3 */
+	if (state == PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
+		return 0;
 
 	error = pci_raw_set_power_state(dev, state);
 
@@ -1040,7 +1044,7 @@ int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
  * @dev: PCI device to handle.
  * @state: PCI state from which device will issue PME#.
  */
-static bool pci_pme_capable(struct pci_dev *dev, pci_power_t state)
+bool pci_pme_capable(struct pci_dev *dev, pci_power_t state)
 {
 	if (!dev->pm_cap)
 		return false;
@@ -1056,7 +1060,7 @@ static bool pci_pme_capable(struct pci_dev *dev, pci_power_t state)
  * The caller must verify that the device is capable of generating PME# before
  * calling this function with @enable equal to 'true'.
  */
-static void pci_pme_active(struct pci_dev *dev, bool enable)
+void pci_pme_active(struct pci_dev *dev, bool enable)
 {
 	u16 pmcsr;
 
@@ -1123,18 +1127,16 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
- * pci_prepare_to_sleep - prepare PCI device for system-wide transition into
- *                        a sleep state
- * @dev: Device to handle.
+ * pci_target_state - find an appropriate low power state for a given PCI dev
+ * @dev: PCI device
  *
- * Choose the power state appropriate for the device depending on whether
- * it can wake up the system and/or is power manageable by the platform
- * (PCI_D3hot is the default) and put the device into that state.
+ * Use underlying platform code to find a supported low power state for @dev.
+ * If the platform can't manage @dev, return the deepest state from which it
+ * can generate wake events, based on any available PME info.
  */
-int pci_prepare_to_sleep(struct pci_dev *dev)
+pci_power_t pci_target_state(struct pci_dev *dev)
 {
 	pci_power_t target_state = PCI_D3hot;
-	int error;
 
 	if (platform_pci_power_manageable(dev)) {
 		/*
@@ -1161,7 +1163,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 		 * to generate PME#.
 		 */
 		if (!dev->pm_cap)
-			return -EIO;
+			return PCI_POWER_ERROR;
 
 		if (dev->pme_support) {
 			while (target_state
@@ -1169,6 +1171,25 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 				target_state--;
 		}
 	}
+
+	return target_state;
+}
+
+/**
+ * pci_prepare_to_sleep - prepare PCI device for system-wide transition into a sleep state
+ * @dev: Device to handle.
+ *
+ * Choose the power state appropriate for the device depending on whether
+ * it can wake up the system and/or is power manageable by the platform
+ * (PCI_D3hot is the default) and put the device into that state.
+ */
+int pci_prepare_to_sleep(struct pci_dev *dev)
+{
+	pci_power_t target_state = pci_target_state(dev);
+	int error;
+
+	if (target_state == PCI_POWER_ERROR)
+		return -EIO;
 
 	pci_enable_wake(dev, target_state, true);
 
@@ -1181,8 +1202,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 }
 
 /**
- * pci_back_from_sleep - turn PCI device on during system-wide transition into
- *                       the working state a sleep state
+ * pci_back_from_sleep - turn PCI device on during system-wide transition into working state
  * @dev: Device to handle.
  *
  * Disable device's sytem wake-up capability and put it into D0.
@@ -1920,7 +1940,10 @@ EXPORT_SYMBOL(pci_select_bars);
 EXPORT_SYMBOL(pci_set_power_state);
 EXPORT_SYMBOL(pci_save_state);
 EXPORT_SYMBOL(pci_restore_state);
+EXPORT_SYMBOL(pci_pme_capable);
+EXPORT_SYMBOL(pci_pme_active);
 EXPORT_SYMBOL(pci_enable_wake);
+EXPORT_SYMBOL(pci_target_state);
 EXPORT_SYMBOL(pci_prepare_to_sleep);
 EXPORT_SYMBOL(pci_back_from_sleep);
 EXPORT_SYMBOL_GPL(pci_set_pcie_reset_state);

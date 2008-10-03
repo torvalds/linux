@@ -2377,8 +2377,6 @@ static void happy_meal_set_multicast(struct net_device *dev)
 
 	spin_lock_irq(&hp->happy_lock);
 
-	netif_stop_queue(dev);
-
 	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
 		hme_write32(hp, bregs + BMAC_HTABLE0, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE1, 0xffff);
@@ -2409,8 +2407,6 @@ static void happy_meal_set_multicast(struct net_device *dev)
 		hme_write32(hp, bregs + BMAC_HTABLE2, hash_table[2]);
 		hme_write32(hp, bregs + BMAC_HTABLE3, hash_table[3]);
 	}
-
-	netif_wake_queue(dev);
 
 	spin_unlock_irq(&hp->happy_lock);
 }

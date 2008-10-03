@@ -458,11 +458,7 @@ static void __init pagetable_init(void)
 {
 	pgd_t *pgd_base = swapper_pg_dir;
 
-	paravirt_pagetable_setup_start(pgd_base);
-
 	permanent_kmaps_init(pgd_base);
-
-	paravirt_pagetable_setup_done(pgd_base);
 }
 
 #ifdef CONFIG_ACPI_SLEEP
@@ -844,6 +840,9 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		reserve_early(table_start << PAGE_SHIFT,
 				 table_end << PAGE_SHIFT, "PGTABLE");
 
+	if (!after_init_bootmem)
+		early_memtest(start, end);
+
 	return end >> PAGE_SHIFT;
 }
 
@@ -868,8 +867,6 @@ void __init paging_init(void)
 	 */
 	sparse_init();
 	zone_sizes_init();
-
-	paravirt_post_allocator_init();
 }
 
 /*

@@ -15,12 +15,11 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 
-#include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/gpio.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
 
 #ifndef CONFIG_ARCH_AT91
 #error "CONFIG_ARCH_AT91 must be defined."
@@ -91,7 +90,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
+static void usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
@@ -184,13 +183,14 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
  * context, "rmmod" or something similar.
  *
  */
-static int usb_hcd_at91_remove(struct usb_hcd *hcd,
+static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 				struct platform_device *pdev)
 {
 	usb_remove_hcd(hcd);
 	at91_stop_hc(pdev);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	usb_put_hcd(hcd);
 
 	if (cpu_is_at91sam9261())
 		clk_put(hclk);
@@ -199,7 +199,6 @@ static int usb_hcd_at91_remove(struct usb_hcd *hcd,
 	fclk = iclk = hclk = NULL;
 
 	dev_set_drvdata(&pdev->dev, NULL);
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -261,7 +260,6 @@ static const struct hc_driver ohci_at91_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,
@@ -309,7 +307,8 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, 0);
-	return usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
+	usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
+	return 0;
 }
 
 #ifdef CONFIG_PM

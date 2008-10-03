@@ -433,7 +433,6 @@ struct atmel_private {
 	struct net_device *dev;
 	struct device *sys_dev;
 	struct iw_statistics wstats;
-	struct net_device_stats	stats;	// device stats
 	spinlock_t irqlock, timerlock;	// spinlocks
 	enum { BUS_TYPE_PCCARD, BUS_TYPE_PCI } bus_type;
 	enum {
@@ -694,9 +693,9 @@ static void tx_done_irq(struct atmel_private *priv)
 
 		if (type == TX_PACKET_TYPE_DATA) {
 			if (status == TX_STATUS_SUCCESS)
-				priv->stats.tx_packets++;
+				priv->dev->stats.tx_packets++;
 			else
-				priv->stats.tx_errors++;
+				priv->dev->stats.tx_errors++;
 			netif_wake_queue(priv->dev);
 		}
 	}
@@ -792,13 +791,13 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (priv->card && priv->present_callback &&
 	    !(*priv->present_callback)(priv->card)) {
-		priv->stats.tx_errors++;
+		dev->stats.tx_errors++;
 		dev_kfree_skb(skb);
 		return 0;
 	}
 
 	if (priv->station_state != STATION_STATE_READY) {
-		priv->stats.tx_errors++;
+		dev->stats.tx_errors++;
 		dev_kfree_skb(skb);
 		return 0;
 	}
@@ -815,7 +814,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	   initial + 18 (+30-12) */
 
 	if (!(buff = find_tx_buff(priv, len + 18))) {
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		spin_unlock_irqrestore(&priv->irqlock, flags);
 		spin_unlock_bh(&priv->timerlock);
 		netif_stop_queue(dev);
@@ -851,7 +850,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* low bit of first byte of destination tells us if broadcast */
 	tx_update_descriptor(priv, *(skb->data) & 0x01, len + 18, buff, TX_PACKET_TYPE_DATA);
 	dev->trans_start = jiffies;
-	priv->stats.tx_bytes += len;
+	dev->stats.tx_bytes += len;
 
 	spin_unlock_irqrestore(&priv->irqlock, flags);
 	spin_unlock_bh(&priv->timerlock);
@@ -895,7 +894,7 @@ static void fast_rx_path(struct atmel_private *priv,
 	}
 
 	if (!(skb = dev_alloc_skb(msdu_size + 14))) {
-		priv->stats.rx_dropped++;
+		priv->dev->stats.rx_dropped++;
 		return;
 	}
 
@@ -908,7 +907,7 @@ static void fast_rx_path(struct atmel_private *priv,
 		crc = crc32_le(crc, skbp + 12, msdu_size);
 		atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + 30 + msdu_size, 4);
 		if ((crc ^ 0xffffffff) != netcrc) {
-			priv->stats.rx_crc_errors++;
+			priv->dev->stats.rx_crc_errors++;
 			dev_kfree_skb(skb);
 			return;
 		}
@@ -924,8 +923,8 @@ static void fast_rx_path(struct atmel_private *priv,
 	skb->protocol = eth_type_trans(skb, priv->dev);
 	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx(skb);
-	priv->stats.rx_bytes += 12 + msdu_size;
-	priv->stats.rx_packets++;
+	priv->dev->stats.rx_bytes += 12 + msdu_size;
+	priv->dev->stats.rx_packets++;
 }
 
 /* Test to see if the packet in card memory at packet_loc has a valid CRC
@@ -991,7 +990,7 @@ static void frag_rx_path(struct atmel_private *priv,
 			crc = crc32_le(crc, &priv->rx_buf[12], msdu_size);
 			atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + msdu_size, 4);
 			if ((crc ^ 0xffffffff) != netcrc) {
-				priv->stats.rx_crc_errors++;
+				priv->dev->stats.rx_crc_errors++;
 				memset(priv->frag_source, 0xff, 6);
 			}
 		}
@@ -1009,7 +1008,7 @@ static void frag_rx_path(struct atmel_private *priv,
 				       msdu_size);
 			atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + msdu_size, 4);
 			if ((crc ^ 0xffffffff) != netcrc) {
-				priv->stats.rx_crc_errors++;
+				priv->dev->stats.rx_crc_errors++;
 				memset(priv->frag_source, 0xff, 6);
 				more_frags = 1; /* don't send broken assembly */
 			}
@@ -1021,7 +1020,7 @@ static void frag_rx_path(struct atmel_private *priv,
 		if (!more_frags) { /* last one */
 			memset(priv->frag_source, 0xff, 6);
 			if (!(skb = dev_alloc_skb(priv->frag_len + 14))) {
-				priv->stats.rx_dropped++;
+				priv->dev->stats.rx_dropped++;
 			} else {
 				skb_reserve(skb, 2);
 				memcpy(skb_put(skb, priv->frag_len + 12),
@@ -1031,8 +1030,8 @@ static void frag_rx_path(struct atmel_private *priv,
 				skb->protocol = eth_type_trans(skb, priv->dev);
 				skb->ip_summed = CHECKSUM_NONE;
 				netif_rx(skb);
-				priv->stats.rx_bytes += priv->frag_len + 12;
-				priv->stats.rx_packets++;
+				priv->dev->stats.rx_bytes += priv->frag_len + 12;
+				priv->dev->stats.rx_packets++;
 			}
 		}
 	} else
@@ -1057,7 +1056,7 @@ static void rx_done_irq(struct atmel_private *priv)
 			if (status == 0xc1) /* determined by experiment */
 				priv->wstats.discard.nwid++;
 			else
-				priv->stats.rx_errors++;
+				priv->dev->stats.rx_errors++;
 			goto next;
 		}
 
@@ -1065,7 +1064,7 @@ static void rx_done_irq(struct atmel_private *priv)
 		rx_packet_loc = atmel_rmem16(priv, atmel_rx(priv, RX_DESC_MSDU_POS_OFFSET, priv->rx_desc_head));
 
 		if (msdu_size < 30) {
-			priv->stats.rx_errors++;
+			priv->dev->stats.rx_errors++;
 			goto next;
 		}
 
@@ -1123,7 +1122,7 @@ static void rx_done_irq(struct atmel_private *priv)
 				msdu_size -= 4;
 				crc = crc32_le(crc, (unsigned char *)&priv->rx_buf, msdu_size);
 				if ((crc ^ 0xffffffff) != (*((u32 *)&priv->rx_buf[msdu_size]))) {
-					priv->stats.rx_crc_errors++;
+					priv->dev->stats.rx_crc_errors++;
 					goto next;
 				}
 			}
@@ -1250,12 +1249,6 @@ static irqreturn_t service_interrupt(int irq, void *dev_id)
 	}
 }
 
-static struct net_device_stats *atmel_get_stats(struct net_device *dev)
-{
-	struct atmel_private *priv = netdev_priv(dev);
-	return &priv->stats;
-}
-
 static struct iw_statistics *atmel_get_wireless_stats(struct net_device *dev)
 {
 	struct atmel_private *priv = netdev_priv(dev);
@@ -1311,7 +1304,7 @@ EXPORT_SYMBOL(atmel_open);
 int atmel_open(struct net_device *dev)
 {
 	struct atmel_private *priv = netdev_priv(dev);
-	int i, channel;
+	int i, channel, err;
 
 	/* any scheduled timer is no longer needed and might screw things up.. */
 	del_timer_sync(&priv->management_timer);
@@ -1335,8 +1328,9 @@ int atmel_open(struct net_device *dev)
 	priv->site_survey_state = SITE_SURVEY_IDLE;
 	priv->station_is_associated = 0;
 
-	if (!reset_atmel_card(dev))
-		return -EAGAIN;
+	err = reset_atmel_card(dev);
+	if (err)
+		return err;
 
 	if (priv->config_reg_domain) {
 		priv->reg_domain = priv->config_reg_domain;
@@ -1518,8 +1512,6 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 		priv->crc_ok_cnt = priv->crc_ko_cnt = 0;
 	} else
 		priv->probe_crc = 0;
-	memset(&priv->stats, 0, sizeof(priv->stats));
-	memset(&priv->wstats, 0, sizeof(priv->wstats));
 	priv->last_qual = jiffies;
 	priv->last_beacon_timestamp = 0;
 	memset(priv->frag_source, 0xff, sizeof(priv->frag_source));
@@ -1568,7 +1560,6 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	dev->change_mtu = atmel_change_mtu;
 	dev->set_mac_address = atmel_set_mac_address;
 	dev->hard_start_xmit = start_tx;
-	dev->get_stats = atmel_get_stats;
 	dev->wireless_handlers = (struct iw_handler_def *)&atmel_handler_def;
 	dev->do_ioctl = atmel_ioctl;
 	dev->irq = irq;
@@ -2320,30 +2311,40 @@ static int atmel_get_scan(struct net_device *dev,
 		iwe.cmd = SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(iwe.u.ap_addr.sa_data, priv->BSSinfo[i].BSSID, 6);
-		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, IW_EV_ADDR_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev,
+						  extra + IW_SCAN_MAX_DATA,
+						  &iwe, IW_EV_ADDR_LEN);
 
 		iwe.u.data.length =  priv->BSSinfo[i].SSIDsize;
 		if (iwe.u.data.length > 32)
 			iwe.u.data.length = 32;
 		iwe.cmd = SIOCGIWESSID;
 		iwe.u.data.flags = 1;
-		current_ev = iwe_stream_add_point(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, priv->BSSinfo[i].SSID);
+		current_ev = iwe_stream_add_point(info, current_ev,
+						  extra + IW_SCAN_MAX_DATA,
+						  &iwe, priv->BSSinfo[i].SSID);
 
 		iwe.cmd = SIOCGIWMODE;
 		iwe.u.mode = priv->BSSinfo[i].BSStype;
-		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev,
+						  extra + IW_SCAN_MAX_DATA,
+						  &iwe, IW_EV_UINT_LEN);
 
 		iwe.cmd = SIOCGIWFREQ;
 		iwe.u.freq.m = priv->BSSinfo[i].channel;
 		iwe.u.freq.e = 0;
-		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, IW_EV_FREQ_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev,
+						  extra + IW_SCAN_MAX_DATA,
+						  &iwe, IW_EV_FREQ_LEN);
 
 		/* Add quality statistics */
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.level = priv->BSSinfo[i].RSSI;
 		iwe.u.qual.qual  = iwe.u.qual.level;
 		/* iwe.u.qual.noise  = SOMETHING */
-		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA , &iwe, IW_EV_QUAL_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev,
+						  extra + IW_SCAN_MAX_DATA,
+						  &iwe, IW_EV_QUAL_LEN);
 
 
 		iwe.cmd = SIOCGIWENCODE;
@@ -2352,7 +2353,9 @@ static int atmel_get_scan(struct net_device *dev,
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
 		iwe.u.data.length = 0;
-		current_ev = iwe_stream_add_point(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, NULL);
+		current_ev = iwe_stream_add_point(info, current_ev,
+						  extra + IW_SCAN_MAX_DATA,
+						  &iwe, NULL);
 	}
 
 	/* Length of data */
@@ -3059,11 +3062,19 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 	}
 
 	if (status == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG) {
-		/* Do opensystem first, then try sharedkey */
+		/* Flip back and forth between WEP auth modes until the max
+		 * authentication tries has been exceeded.
+		 */
 		if (system == WLAN_AUTH_OPEN) {
 			priv->CurrentAuthentTransactionSeqNum = 0x001;
 			priv->exclude_unencrypted = 1;
 			send_authentication_request(priv, WLAN_AUTH_SHARED_KEY, NULL, 0);
+			return;
+		} else if (   system == WLAN_AUTH_SHARED_KEY
+		           && priv->wep_is_on) {
+			priv->CurrentAuthentTransactionSeqNum = 0x001;
+			priv->exclude_unencrypted = 0;
+			send_authentication_request(priv, WLAN_AUTH_OPEN, NULL, 0);
 			return;
 		} else if (priv->connect_to_any_BSS) {
 			int bss_index;
@@ -3578,12 +3589,12 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 
 	if (i == 0) {
 		printk(KERN_ALERT "%s: MAC failed to boot.\n", priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 
 	if ((priv->host_info_base = atmel_read16(priv->dev, MR2)) == 0xffff) {
 		printk(KERN_ALERT "%s: card missing.\n", priv->dev->name);
-		return 0;
+		return -ENODEV;
 	}
 
 	/* now check for completion of MAC initialization through
@@ -3607,19 +3618,19 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 	if (i == 0) {
 		printk(KERN_ALERT "%s: MAC failed to initialise.\n",
 				priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 
 	/* Check for MAC_INIT_OK only on the register that the MAC_INIT_OK was set */
 	if ((mr3 & MAC_INIT_COMPLETE) &&
 	    !(atmel_read16(priv->dev, MR3) & MAC_INIT_OK)) {
 		printk(KERN_ALERT "%s: MAC failed MR3 self-test.\n", priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 	if ((mr1 & MAC_INIT_COMPLETE) &&
 	    !(atmel_read16(priv->dev, MR1) & MAC_INIT_OK)) {
 		printk(KERN_ALERT "%s: MAC failed MR1 self-test.\n", priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 
 	atmel_copy_to_host(priv->dev, (unsigned char *)iface,
@@ -3640,7 +3651,7 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 	iface->func_ctrl = le16_to_cpu(iface->func_ctrl);
 	iface->mac_status = le16_to_cpu(iface->mac_status);
 
-	return 1;
+	return 0;
 }
 
 /* determine type of memory and MAC address */
@@ -3691,7 +3702,7 @@ static int probe_atmel_card(struct net_device *dev)
 		/* Standard firmware in flash, boot it up and ask
 		   for the Mac Address */
 		priv->card_type = CARD_TYPE_SPI_FLASH;
-		if (atmel_wakeup_firmware(priv)) {
+		if (atmel_wakeup_firmware(priv) == 0) {
 			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, dev->dev_addr, 6);
 
 			/* got address, now squash it again until the network
@@ -3833,6 +3844,7 @@ static int reset_atmel_card(struct net_device *dev)
 	struct atmel_private *priv = netdev_priv(dev);
 	u8 configuration;
 	int old_state = priv->station_state;
+	int err = 0;
 
 	/* data to add to the firmware names, in priority order
 	   this implemenents firmware versioning */
@@ -3866,11 +3878,12 @@ static int reset_atmel_card(struct net_device *dev)
 					       dev->name);
 					strcpy(priv->firmware_id, "atmel_at76c502.bin");
 				}
-				if (request_firmware(&fw_entry, priv->firmware_id, priv->sys_dev) != 0) {
+				err = request_firmware(&fw_entry, priv->firmware_id, priv->sys_dev);
+				if (err != 0) {
 					printk(KERN_ALERT
 					       "%s: firmware %s is missing, cannot continue.\n",
 					       dev->name, priv->firmware_id);
-					return 0;
+					return err;
 				}
 			} else {
 				int fw_index = 0;
@@ -3899,7 +3912,7 @@ static int reset_atmel_card(struct net_device *dev)
 					       "%s: firmware %s is missing, cannot start.\n",
 					       dev->name, priv->firmware_id);
 					priv->firmware_id[0] = '\0';
-					return 0;
+					return -ENOENT;
 				}
 			}
 
@@ -3924,8 +3937,9 @@ static int reset_atmel_card(struct net_device *dev)
 			release_firmware(fw_entry);
 	}
 
-	if (!atmel_wakeup_firmware(priv))
-		return 0;
+	err = atmel_wakeup_firmware(priv);
+	if (err != 0)
+		return err;
 
 	/* Check the version and set the correct flag for wpa stuff,
 	   old and new firmware is incompatible.
@@ -3966,10 +3980,9 @@ static int reset_atmel_card(struct net_device *dev)
 	if (!priv->radio_on_broken) {
 		if (atmel_send_command_wait(priv, CMD_EnableRadio, NULL, 0) ==
 		    CMD_STATUS_REJECTED_RADIO_OFF) {
-			printk(KERN_INFO
-			       "%s: cannot turn the radio on. (Hey radio, you're beautiful!)\n",
+			printk(KERN_INFO "%s: cannot turn the radio on.\n",
 			       dev->name);
-                        return 0;
+                        return -EIO;
 		}
 	}
 
@@ -4004,7 +4017,7 @@ static int reset_atmel_card(struct net_device *dev)
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
-	return 1;
+	return 0;
 }
 
 static void atmel_send_command(struct atmel_private *priv, int command,

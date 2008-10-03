@@ -35,12 +35,6 @@
 
 #include <linux/kdev_t.h>
 
-#ifdef SCCS_LABELS
-#ifndef lint
-static char *_func_h_sccs_ = "@(#)func.h	1.3";
-#endif
-#endif
-
 /* rioboot.c */
 int RIOBootCodeRTA(struct rio_info *, struct DownLoad *);
 int RIOBootCodeHOST(struct rio_info *, struct DownLoad *);

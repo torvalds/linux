@@ -24,8 +24,8 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
-#include <asm/plat-orion/orion_nand.h>
+#include <mach/orion5x.h>
+#include <plat/orion_nand.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -213,7 +213,7 @@ void __init db88f5281_pci_preinit(void)
 	pin = DB88F5281_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "db88f5281_pci_preinit faield to "
 					"set_irq_type pin %d\n", pin);
@@ -226,7 +226,7 @@ void __init db88f5281_pci_preinit(void)
 	pin = DB88F5281_PCI_SLOT1_SLOT2_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int2") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "db88f5281_pci_preinit faield "
 					"to set_irq_type pin %d\n", pin);

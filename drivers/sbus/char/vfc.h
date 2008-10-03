@@ -133,8 +133,6 @@ struct vfc_dev {
 	unsigned char saa9051_state_array[VFC_SAA9051_NR];
 };
 
-extern struct vfc_dev **vfc_dev_lst;
-
 void captstat_reset(struct vfc_dev *);
 void memptr_reset(struct vfc_dev *);
 
@@ -145,8 +143,6 @@ int vfc_i2c_sendbuf(struct vfc_dev *, unsigned char, char *, int) ;
 int vfc_i2c_recvbuf(struct vfc_dev *, unsigned char, char *, int) ;
 int vfc_i2c_reset_bus(struct vfc_dev *);
 int vfc_init_i2c_bus(struct vfc_dev *);
-void vfc_lock_device(struct vfc_dev *);
-void vfc_unlock_device(struct vfc_dev *);
 
 #define VFC_CONTROL_DIAGMODE  0x10000000
 #define VFC_CONTROL_MEMPTR    0x20000000

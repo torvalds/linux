@@ -25,9 +25,9 @@
 
 #define	DCACHE_SIZE	(PAGE_SIZE * 2)
 
-#if (PAGE_SHIFT == 13) || (PAGE_SHIFT == 19)
+#if (PAGE_SHIFT == 13)
 #define PAGE_SIZE_REM	0x80
-#elif (PAGE_SHIFT == 16) || (PAGE_SHIFT == 22)
+#elif (PAGE_SHIFT == 16)
 #define PAGE_SIZE_REM	0x100
 #else
 #error Wrong PAGE_SHIFT specified
@@ -198,7 +198,7 @@ cheetah_copy_page_insn:
 	cmp		%o2, PAGE_SIZE_REM
 	bne,pt		%xcc, 1b
 	 add		%o0, 0x40, %o0
-#if (PAGE_SHIFT == 16) || (PAGE_SHIFT == 22)
+#if (PAGE_SHIFT == 16)
 	TOUCH(f0, f2, f4, f6, f8, f10, f12, f14)
 	ldda		[%o1] ASI_BLK_P, %f32
 	stda		%f48, [%o0] %asi

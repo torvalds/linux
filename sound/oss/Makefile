@@ -29,10 +29,7 @@ obj-$(CONFIG_SOUND_MSNDCLAS)	+= msnd.o msnd_classic.o
 obj-$(CONFIG_SOUND_MSNDPIN)	+= msnd.o msnd_pinnacle.o
 obj-$(CONFIG_SOUND_VWSND)	+= vwsnd.o
 obj-$(CONFIG_SOUND_AU1550_AC97)	+= au1550_ac97.o ac97_codec.o
-obj-$(CONFIG_SOUND_TRIDENT)	+= trident.o ac97_codec.o
 obj-$(CONFIG_SOUND_BCM_CS4297A)	+= swarm_cs4297a.o
-
-obj-$(CONFIG_SOUND_WM97XX)	+= ac97_plugin_wm97xx.o
 
 obj-$(CONFIG_DMASOUND)		+= dmasound/
 

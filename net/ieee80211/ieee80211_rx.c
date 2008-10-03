@@ -391,7 +391,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 		wstats.updated = 0;
 		if (rx_stats->mask & IEEE80211_STATMASK_RSSI) {
-			wstats.level = rx_stats->rssi;
+			wstats.level = rx_stats->signal;
 			wstats.updated |= IW_QUAL_LEVEL_UPDATED;
 		} else
 			wstats.updated |= IW_QUAL_LEVEL_INVALID;

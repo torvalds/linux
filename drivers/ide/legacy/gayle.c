@@ -31,6 +31,8 @@
 #define GAYLE_BASE_4000	0xdd2020	/* A4000/A4000T */
 #define GAYLE_BASE_1200	0xda0000	/* A1200/A600 and E-Matrix 530 */
 
+#define GAYLE_IDEREG_SIZE	0x2000
+
     /*
      *  Offsets from one of the above bases
      */
@@ -56,13 +58,11 @@
 #define GAYLE_NUM_HWIFS		1
 #define GAYLE_NUM_PROBE_HWIFS	GAYLE_NUM_HWIFS
 #define GAYLE_HAS_CONTROL_REG	1
-#define GAYLE_IDEREG_SIZE	0x2000
 #else /* CONFIG_BLK_DEV_IDEDOUBLER */
 #define GAYLE_NUM_HWIFS		2
 #define GAYLE_NUM_PROBE_HWIFS	(ide_doubler ? GAYLE_NUM_HWIFS : \
 					       GAYLE_NUM_HWIFS-1)
 #define GAYLE_HAS_CONTROL_REG	(!ide_doubler)
-#define GAYLE_IDEREG_SIZE	(ide_doubler ? 0x1000 : 0x2000)
 
 static int ide_doubler;
 module_param_named(doubler, ide_doubler, bool, 0);
@@ -124,8 +124,11 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 
 static int __init gayle_init(void)
 {
-    int a4000, i;
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+    unsigned long phys_base, res_start, res_n;
+    unsigned long base, ctrlport, irqport;
+    ide_ack_intr_t *ack_intr;
+    int a4000, i, rc;
+    hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
 
     if (!MACH_IS_AMIGA)
 	return -ENODEV;
@@ -148,13 +151,6 @@ found:
 #endif
 			 "");
 
-    for (i = 0; i < GAYLE_NUM_PROBE_HWIFS; i++) {
-	unsigned long base, ctrlport, irqport;
-	ide_ack_intr_t *ack_intr;
-	hw_regs_t hw;
-	ide_hwif_t *hwif;
-	unsigned long phys_base, res_start, res_n;
-
 	if (a4000) {
 	    phys_base = GAYLE_BASE_4000;
 	    irqport = (unsigned long)ZTWO_VADDR(GAYLE_IRQ_4000);
@@ -168,33 +164,26 @@ found:
  * FIXME: we now have selectable modes between mmio v/s iomio
  */
 
-	phys_base += i*GAYLE_NEXT_PORT;
-
 	res_start = ((unsigned long)phys_base) & ~(GAYLE_NEXT_PORT-1);
 	res_n = GAYLE_IDEREG_SIZE;
 
 	if (!request_mem_region(res_start, res_n, "IDE"))
-	    continue;
+		return -EBUSY;
 
-	base = (unsigned long)ZTWO_VADDR(phys_base);
+    for (i = 0; i < GAYLE_NUM_PROBE_HWIFS; i++) {
+	base = (unsigned long)ZTWO_VADDR(phys_base + i * GAYLE_NEXT_PORT);
 	ctrlport = GAYLE_HAS_CONTROL_REG ? (base + GAYLE_CONTROL) : 0;
 
-	gayle_setup_ports(&hw, base, ctrlport, irqport, ack_intr);
+	gayle_setup_ports(&hw[i], base, ctrlport, irqport, ack_intr);
 
-	hwif = ide_find_port();
-	if (hwif) {
-	    u8 index = hwif->index;
-
-	    ide_init_port_hw(hwif, &hw);
-
-	    idx[i] = index;
-	} else
-	    release_mem_region(res_start, res_n);
+	hws[i] = &hw[i];
     }
 
-    ide_device_add(idx, NULL);
+    rc = ide_host_add(NULL, hws, NULL);
+    if (rc)
+	release_mem_region(res_start, res_n);
 
-    return 0;
+    return rc;
 }
 
 module_init(gayle_init);

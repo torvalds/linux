@@ -1,8 +1,6 @@
 /*
  * inet_diag.c	Module for monitoring INET transport protocols sockets.
  *
- * Version:	$Id: inet_diag.c,v 1.3 2002/02/01 22:01:04 davem Exp $
- *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
  *	This program is free software; you can redistribute it and/or

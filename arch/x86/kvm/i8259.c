@@ -130,8 +130,10 @@ void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
 	struct kvm_pic *s = opaque;
 
-	pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
-	pic_update_irq(s);
+	if (irq >= 0 && irq < PIC_NUM_PINS) {
+		pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+		pic_update_irq(s);
+	}
 }
 
 /*
@@ -346,7 +348,8 @@ static u32 elcr_ioport_read(void *opaque, u32 addr1)
 	return s->elcr;
 }
 
-static int picdev_in_range(struct kvm_io_device *this, gpa_t addr)
+static int picdev_in_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int is_write)
 {
 	switch (addr) {
 	case 0x20:

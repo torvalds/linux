@@ -97,8 +97,8 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 		break;
 	case ALG_TKIP:
 		len = scnprintf(buf, sizeof(buf), "%08x %04x\n",
-				key->u.tkip.iv32,
-				key->u.tkip.iv16);
+				key->u.tkip.tx.iv32,
+				key->u.tkip.tx.iv16);
 		break;
 	case ALG_CCMP:
 		tpn = key->u.ccmp.tx_pn;
@@ -128,8 +128,8 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%08x %04x\n",
-				       key->u.tkip.iv32_rx[i],
-				       key->u.tkip.iv16_rx[i]);
+				       key->u.tkip.rx[i].iv32,
+				       key->u.tkip.rx[i].iv16);
 		len = p - buf;
 		break;
 	case ALG_CCMP:
@@ -265,7 +265,7 @@ void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
 	key = sdata->default_key;
 	if (key) {
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_key =
+		sdata->common_debugfs.default_key =
 			debugfs_create_symlink("default_key",
 					       sdata->debugfsdir, buf);
 	} else
@@ -277,8 +277,8 @@ void ieee80211_debugfs_key_remove_default(struct ieee80211_sub_if_data *sdata)
 	if (!sdata)
 		return;
 
-	debugfs_remove(sdata->debugfs.default_key);
-	sdata->debugfs.default_key = NULL;
+	debugfs_remove(sdata->common_debugfs.default_key);
+	sdata->common_debugfs.default_key = NULL;
 }
 
 void ieee80211_debugfs_key_sta_del(struct ieee80211_key *key,

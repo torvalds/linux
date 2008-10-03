@@ -122,7 +122,7 @@ around '10000' or more.
 show_sampling_rate_(min|max): the minimum and maximum sampling rates
 available that you may set 'sampling_rate' to.
 
-up_threshold: defines what the average CPU usaged between the samplings
+up_threshold: defines what the average CPU usage between the samplings
 of 'sampling_rate' needs to be for the kernel to make a decision on
 whether it should increase the frequency.  For example when it is set
 to its default value of '80' it means that between the checking

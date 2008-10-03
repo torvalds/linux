@@ -20,15 +20,16 @@
 #else
  #define do_debug 0
 #endif
+#ifdef DEBUGCCW
+ #define do_debug_ccw 1
+ #define DEBUGDATA 1
+#else
+ #define do_debug_ccw 0
+#endif
 #ifdef DEBUGDATA
  #define do_debug_data 1
 #else
  #define do_debug_data 0
-#endif
-#ifdef DEBUGCCW
- #define do_debug_ccw 1
-#else
- #define do_debug_ccw 0
 #endif
 
 /* define dbf debug levels similar to kernel msg levels */
@@ -41,8 +42,6 @@
 #define	CTC_DBF_NOTICE	5	/* normal but significant condition	*/
 #define	CTC_DBF_INFO	5	/* informational			*/
 #define	CTC_DBF_DEBUG	6	/* debug-level messages			*/
-
-DECLARE_PER_CPU(char[256], ctcm_dbf_txt_buf);
 
 enum ctcm_dbf_names {
 	CTCM_DBF_SETUP,
@@ -67,17 +66,12 @@ extern struct ctcm_dbf_info ctcm_dbf[CTCM_DBF_INFOS];
 
 int ctcm_register_dbf_views(void);
 void ctcm_unregister_dbf_views(void);
+void ctcm_dbf_longtext(enum ctcm_dbf_names dbf_nix, int level, char *text, ...);
 
 static inline const char *strtail(const char *s, int n)
 {
 	int l = strlen(s);
 	return (l > n) ? s + (l - n) : s;
-}
-
-/* sort out levels early to avoid unnecessary sprintfs */
-static inline int ctcm_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (dbf_grp->level >= level);
 }
 
 #define CTCM_FUNTAIL strtail((char *)__func__, 16)
@@ -94,16 +88,7 @@ static inline int ctcm_dbf_passes(debug_info_t *dbf_grp, int level)
 	} while (0)
 
 #define CTCM_DBF_TEXT_(name, level, text...) \
-	do { \
-		if (ctcm_dbf_passes(ctcm_dbf[CTCM_DBF_##name].id, level)) { \
-			char *ctcm_dbf_txt_buf = \
-					 get_cpu_var(ctcm_dbf_txt_buf); \
-			sprintf(ctcm_dbf_txt_buf, text); \
-			debug_text_event(ctcm_dbf[CTCM_DBF_##name].id, \
-					level, ctcm_dbf_txt_buf); \
-			put_cpu_var(ctcm_dbf_txt_buf); \
-		} \
-	} while (0)
+	ctcm_dbf_longtext(CTCM_DBF_##name, level, text)
 
 /*
  * cat : one of {setup, mpc_setup, trace, mpc_trace, error, mpc_error}.
@@ -112,13 +97,13 @@ static inline int ctcm_dbf_passes(debug_info_t *dbf_grp, int level)
  */
 #define CTCM_DBF_DEV_NAME(cat, dev, text) \
 	do { \
-		CTCM_DBF_TEXT_(cat, CTC_DBF_INFO, "%s(%s) : %s", \
+		CTCM_DBF_TEXT_(cat, CTC_DBF_INFO, "%s(%s) :- %s", \
 			CTCM_FUNTAIL, dev->name, text); \
 	} while (0)
 
 #define MPC_DBF_DEV_NAME(cat, dev, text) \
 	do { \
-		CTCM_DBF_TEXT_(MPC_##cat, CTC_DBF_INFO, "%s(%s) : %s", \
+		CTCM_DBF_TEXT_(MPC_##cat, CTC_DBF_INFO, "%s(%s) := %s", \
 			CTCM_FUNTAIL, dev->name, text); \
 	} while (0)
 
@@ -137,13 +122,13 @@ static inline int ctcm_dbf_passes(debug_info_t *dbf_grp, int level)
  */
 #define CTCM_DBF_DEV(cat, dev, text) \
 	do { \
-		CTCM_DBF_TEXT_(cat, CTC_DBF_INFO, "%s(%p) : %s", \
+		CTCM_DBF_TEXT_(cat, CTC_DBF_INFO, "%s(%p) :-: %s", \
 			CTCM_FUNTAIL, dev, text); \
 	} while (0)
 
 #define MPC_DBF_DEV(cat, dev, text) \
 	do { \
-		CTCM_DBF_TEXT_(MPC_##cat, CTC_DBF_INFO, "%s(%p) : %s", \
+		CTCM_DBF_TEXT_(MPC_##cat, CTC_DBF_INFO, "%s(%p) :=: %s", \
 			CTCM_FUNTAIL, dev, text); \
 	} while (0)
 

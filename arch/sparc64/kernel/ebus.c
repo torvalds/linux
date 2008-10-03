@@ -14,13 +14,13 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/of_device.h>
 
 #include <asm/system.h>
 #include <asm/page.h>
 #include <asm/ebus.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/bpp.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -401,7 +401,7 @@ static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_de
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;
 	dev->ofdev.dev.bus = &ebus_bus_type;
-	sprintf(dev->ofdev.dev.bus_id, "ebus[%08x]", dp->node);
+	dev_set_name(&dev->ofdev.dev, "ebus[%08x]", dp->node);
 
 	/* Register with core */
 	if (of_device_register(&dev->ofdev) != 0)
@@ -501,7 +501,7 @@ void __init ebus_init(void)
 		ebus->ofdev.node = dp;
 		ebus->ofdev.dev.parent = &pdev->dev;
 		ebus->ofdev.dev.bus = &ebus_bus_type;
-		sprintf(ebus->ofdev.dev.bus_id, "ebus%d", num_ebus);
+		dev_set_name(&ebus->ofdev.dev, "ebus%d", num_ebus);
 
 		/* Register with core */
 		if (of_device_register(&ebus->ofdev) != 0)

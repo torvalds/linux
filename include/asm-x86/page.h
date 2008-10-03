@@ -18,8 +18,11 @@
    (ie, 32-bit PAE). */
 #define PHYSICAL_PAGE_MASK	(((signed long)PAGE_MASK) & __PHYSICAL_MASK)
 
-/* PTE_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
-#define PTE_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+/* PTE_PFN_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
+#define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+
+/* PTE_FLAGS_MASK extracts the flags from a (pte|pmd|pud|pgd)val_t */
+#define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
 
 #define PMD_PAGE_SIZE		(_AC(1, UL) << PMD_SHIFT)
 #define PMD_PAGE_MASK		(~(PMD_PAGE_SIZE-1))
@@ -29,8 +32,7 @@
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+#define HUGE_MAX_HSTATE 2
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -144,6 +146,11 @@ static inline pteval_t native_pte_val(pte_t pte)
 	return pte.pte;
 }
 
+static inline pteval_t native_pte_flags(pte_t pte)
+{
+	return native_pte_val(pte) & PTE_FLAGS_MASK;
+}
+
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
@@ -165,7 +172,7 @@ static inline pteval_t native_pte_val(pte_t pte)
 #endif
 
 #define pte_val(x)	native_pte_val(x)
-#define pte_flags(x)	native_pte_val(x)
+#define pte_flags(x)	native_pte_flags(x)
 #define __pte(x)	native_make_pte(x)
 
 #endif	/* CONFIG_PARAVIRT */

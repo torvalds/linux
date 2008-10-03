@@ -110,6 +110,8 @@ static inline void *phys_to_virt(unsigned long address)
  */
 extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
 extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
+				unsigned long prot_val);
 
 /*
  * The default ioremap() behavior is non-cached:

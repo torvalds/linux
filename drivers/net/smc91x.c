@@ -308,7 +308,7 @@ static void smc_reset(struct net_device *dev)
 	 * can't handle it then there will be no recovery except for
 	 * a hard reset or power cycle
 	 */
-	if (nowait)
+	if (lp->cfg.flags & SMC91X_NOWAIT)
 		cfg |= CONFIG_NO_WAIT;
 
 	/*
@@ -1939,8 +1939,11 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
       	if (retval)
       		goto err_out;
 
-#ifdef SMC_USE_PXA_DMA
-	{
+#ifdef CONFIG_ARCH_PXA
+#  ifdef SMC_USE_PXA_DMA
+	lp->cfg.flags |= SMC91X_USE_DMA;
+#  endif
+	if (lp->cfg.flags & SMC91X_USE_DMA) {
 		int dma = pxa_request_dma(dev->name, DMA_PRIO_LOW,
 					  smc_pxa_dma_irq, NULL);
 		if (dma >= 0)
@@ -1980,7 +1983,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	}
 
 err_out:
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	if (retval && dev->dma != (unsigned char)-1)
 		pxa_free_dma(dev->dma);
 #endif
@@ -2050,9 +2053,11 @@ static int smc_enable_device(struct platform_device *pdev)
 	return 0;
 }
 
-static int smc_request_attrib(struct platform_device *pdev)
+static int smc_request_attrib(struct platform_device *pdev,
+			      struct net_device *ndev)
 {
 	struct resource * res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-attrib");
+	struct smc_local *lp = netdev_priv(ndev);
 
 	if (!res)
 		return 0;
@@ -2063,9 +2068,11 @@ static int smc_request_attrib(struct platform_device *pdev)
 	return 0;
 }
 
-static void smc_release_attrib(struct platform_device *pdev)
+static void smc_release_attrib(struct platform_device *pdev,
+			       struct net_device *ndev)
 {
 	struct resource * res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-attrib");
+	struct smc_local *lp = netdev_priv(ndev);
 
 	if (res)
 		release_mem_region(res->start, ATTRIB_SIZE);
@@ -2123,27 +2130,14 @@ static int smc_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct resource *res, *ires;
 	unsigned int __iomem *addr;
+	unsigned long irq_flags = SMC_IRQ_FLAGS;
 	int ret;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
-	if (!res)
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-
-	if (!request_mem_region(res->start, SMC_IO_EXTENT, CARDNAME)) {
-		ret = -EBUSY;
-		goto out;
-	}
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
 	if (!ndev) {
 		printk("%s: could not allocate device.\n", CARDNAME);
 		ret = -ENOMEM;
-		goto out_release_io;
+		goto out;
 	}
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -2152,37 +2146,47 @@ static int smc_drv_probe(struct platform_device *pdev)
 	 */
 
 	lp = netdev_priv(ndev);
-	lp->cfg.irq_flags = SMC_IRQ_FLAGS;
 
-#ifdef SMC_DYNAMIC_BUS_CONFIG
-	if (pd)
+	if (pd) {
 		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
-	else {
-		lp->cfg.flags = SMC91X_USE_8BIT;
-		lp->cfg.flags |= SMC91X_USE_16BIT;
-		lp->cfg.flags |= SMC91X_USE_32BIT;
+		lp->io_shift = SMC91X_IO_SHIFT(lp->cfg.flags);
+	} else {
+		lp->cfg.flags |= (SMC_CAN_USE_8BIT)  ? SMC91X_USE_8BIT  : 0;
+		lp->cfg.flags |= (SMC_CAN_USE_16BIT) ? SMC91X_USE_16BIT : 0;
+		lp->cfg.flags |= (SMC_CAN_USE_32BIT) ? SMC91X_USE_32BIT : 0;
+		lp->cfg.flags |= (nowait) ? SMC91X_NOWAIT : 0;
 	}
-
-	lp->cfg.flags &= ~(SMC_CAN_USE_8BIT ? 0 : SMC91X_USE_8BIT);
-	lp->cfg.flags &= ~(SMC_CAN_USE_16BIT ? 0 : SMC91X_USE_16BIT);
-	lp->cfg.flags &= ~(SMC_CAN_USE_32BIT ? 0 : SMC91X_USE_32BIT);
-#endif
 
 	ndev->dma = (unsigned char)-1;
 
-	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!ires) {
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
+	if (!res)
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		ret = -ENODEV;
 		goto out_free_netdev;
 	}
 
-	ndev->irq = ires->start;
-	if (SMC_IRQ_FLAGS == -1)
-		lp->cfg.irq_flags = ires->flags & IRQF_TRIGGER_MASK;
 
-	ret = smc_request_attrib(pdev);
-	if (ret)
+	if (!request_mem_region(res->start, SMC_IO_EXTENT, CARDNAME)) {
+		ret = -EBUSY;
 		goto out_free_netdev;
+	}
+
+	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!ires) {
+		ret = -ENODEV;
+		goto out_release_io;
+	}
+
+	ndev->irq = ires->start;
+
+	if (ires->flags & IRQF_TRIGGER_MASK)
+		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+
+	ret = smc_request_attrib(pdev, ndev);
+	if (ret)
+		goto out_release_io;
 #if defined(CONFIG_SA1100_ASSABET)
 	NCR_0 |= NCR_ENET_OSC_EN;
 #endif
@@ -2197,7 +2201,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_release_attrib;
 	}
 
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	{
 		struct smc_local *lp = netdev_priv(ndev);
 		lp->device = &pdev->dev;
@@ -2205,7 +2209,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ret = smc_probe(ndev, addr, lp->cfg.irq_flags);
+	ret = smc_probe(ndev, addr, irq_flags);
 	if (ret != 0)
 		goto out_iounmap;
 
@@ -2217,11 +2221,11 @@ static int smc_drv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	iounmap(addr);
  out_release_attrib:
-	smc_release_attrib(pdev);
- out_free_netdev:
-	free_netdev(ndev);
+	smc_release_attrib(pdev, ndev);
  out_release_io:
 	release_mem_region(res->start, SMC_IO_EXTENT);
+ out_free_netdev:
+	free_netdev(ndev);
  out:
 	printk("%s: not found (%d).\n", CARDNAME, ret);
 
@@ -2240,18 +2244,18 @@ static int smc_drv_remove(struct platform_device *pdev)
 
 	free_irq(ndev->irq, ndev);
 
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	if (ndev->dma != (unsigned char)-1)
 		pxa_free_dma(ndev->dma);
 #endif
 	iounmap(lp->base);
 
 	smc_release_datacs(pdev,ndev);
-	smc_release_attrib(pdev);
+	smc_release_attrib(pdev,ndev);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
 	if (!res)
-		platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, SMC_IO_EXTENT);
 
 	free_netdev(ndev);

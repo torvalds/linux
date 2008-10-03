@@ -398,6 +398,43 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 }
 
 /**
+ *	__sysfs_add_one - add sysfs_dirent to parent without warning
+ *	@acxt: addrm context to use
+ *	@sd: sysfs_dirent to be added
+ *
+ *	Get @acxt->parent_sd and set sd->s_parent to it and increment
+ *	nlink of parent inode if @sd is a directory and link into the
+ *	children list of the parent.
+ *
+ *	This function should be called between calls to
+ *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
+ *	passed the same @acxt as passed to sysfs_addrm_start().
+ *
+ *	LOCKING:
+ *	Determined by sysfs_addrm_start().
+ *
+ *	RETURNS:
+ *	0 on success, -EEXIST if entry with the given name already
+ *	exists.
+ */
+int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+{
+	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
+		return -EEXIST;
+
+	sd->s_parent = sysfs_get(acxt->parent_sd);
+
+	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
+		inc_nlink(acxt->parent_inode);
+
+	acxt->cnt++;
+
+	sysfs_link_sibling(sd);
+
+	return 0;
+}
+
+/**
  *	sysfs_add_one - add sysfs_dirent to parent
  *	@acxt: addrm context to use
  *	@sd: sysfs_dirent to be added
@@ -419,19 +456,12 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  */
 int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
-	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
-		return -EEXIST;
+	int ret;
 
-	sd->s_parent = sysfs_get(acxt->parent_sd);
-
-	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
-		inc_nlink(acxt->parent_inode);
-
-	acxt->cnt++;
-
-	sysfs_link_sibling(sd);
-
-	return 0;
+	ret = __sysfs_add_one(acxt, sd);
+	WARN(ret == -EEXIST, KERN_WARNING "sysfs: duplicate filename '%s' "
+		       "can not be created\n", sd->s_name);
+	return ret;
 }
 
 /**

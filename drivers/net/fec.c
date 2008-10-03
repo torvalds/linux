@@ -2,12 +2,6 @@
  * Fast Ethernet Controller (FEC) driver for Motorola MPC8xx.
  * Copyright (c) 1997 Dan Malek (dmalek@jlc.net)
  *
- * This version of the driver is specific to the FADS implementation,
- * since the board contains control registers external to the processor
- * for the control of the LevelOne LXT970 transceiver.  The MPC860T manual
- * describes connections using the internal parallel port I/O, which
- * is basically all of Port D.
- *
  * Right now, I am very wasteful with the buffers.  I allocate memory
  * pages and then divide them into 2K frame buffers.  This way I know I
  * have buffers large enough to hold one frame within one buffer descriptor.
@@ -49,17 +43,9 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || \
-    defined(CONFIG_M5272) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x)
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include "fec.h"
-#else
-#include <asm/8xx_immap.h>
-#include <asm/mpc8xx.h>
-#include "commproc.h"
-#endif
 
 #if defined(CONFIG_FEC2)
 #define	FEC_MAX_PORTS	2
@@ -67,7 +53,7 @@
 #define	FEC_MAX_PORTS	1
 #endif
 
-#if defined(CONFIG_FADS) || defined(CONFIG_RPXCLASSIC) || defined(CONFIG_M5272)
+#if defined(CONFIG_M5272)
 #define HAVE_mii_link_interrupt
 #endif
 
@@ -1235,13 +1221,8 @@ static phy_info_t const * const phy_info[] = {
 
 /* ------------------------------------------------------------------------- */
 #ifdef HAVE_mii_link_interrupt
-#ifdef CONFIG_RPXCLASSIC
-static void
-mii_link_interrupt(void *dev_id);
-#else
 static irqreturn_t
 mii_link_interrupt(int irq, void * dev_id);
-#endif
 #endif
 
 #if defined(CONFIG_M5272)
@@ -1795,24 +1776,6 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 	if (request_8xxirq(FEC_INTERRUPT, fec_enet_interrupt, 0, "fec", dev) != 0)
 		panic("Could not allocate FEC IRQ!");
-
-#ifdef CONFIG_RPXCLASSIC
-	/* Make Port C, bit 15 an input that causes interrupts.
-	*/
-	immap->im_ioport.iop_pcpar &= ~0x0001;
-	immap->im_ioport.iop_pcdir &= ~0x0001;
-	immap->im_ioport.iop_pcso &= ~0x0001;
-	immap->im_ioport.iop_pcint |= 0x0001;
-	cpm_install_handler(CPMVEC_PIO_PC15, mii_link_interrupt, dev);
-
-	/* Make LEDS reflect Link status.
-	*/
-	*((uint *) RPX_CSR_ADDR) &= ~BCSR2_FETHLEDMODE;
-#endif
-#ifdef CONFIG_FADS
-	if (request_8xxirq(SIU_IRQ2, mii_link_interrupt, 0, "mii", dev) != 0)
-		panic("Could not allocate MII IRQ!");
-#endif
 }
 
 static void __inline__ fec_get_mac(struct net_device *dev)
@@ -1821,16 +1784,6 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 
 	bd = (bd_t *)__res;
 	memcpy(dev->dev_addr, bd->bi_enetaddr, ETH_ALEN);
-
-#ifdef CONFIG_RPXCLASSIC
-	/* The Embedded Planet boards have only one MAC address in
-	 * the EEPROM, but can have two Ethernet ports.  For the
-	 * FEC port, we create another address by setting one of
-	 * the address bits above something that would have (up to
-	 * now) been allocated.
-	 */
-	dev->dev_adrd[3] |= 0x80;
-#endif
 }
 
 static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_private *fep)
@@ -2109,13 +2062,8 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 /* This interrupt occurs when the PHY detects a link change.
 */
 #ifdef HAVE_mii_link_interrupt
-#ifdef CONFIG_RPXCLASSIC
-static void
-mii_link_interrupt(void *dev_id)
-#else
 static irqreturn_t
 mii_link_interrupt(int irq, void * dev_id)
-#endif
 {
 	struct	net_device *dev = dev_id;
 	struct fec_enet_private *fep = netdev_priv(dev);

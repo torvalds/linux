@@ -481,21 +481,31 @@ next_one:
 
 			for (k = 0, temp = 0; k < template[i].np; k++) {
 				printk(KERN_INFO "page %u\n", k);
-				q = &axbuf[IDX[k]];
-				hexdump(q, template[i].tap[k]);
+				q = &xbuf[IDX[k]];
+
+				n = template[i].tap[k];
+				if (k == template[i].np - 1)
+					n += enc ? authsize : -authsize;
+				hexdump(q, n);
 				printk(KERN_INFO "%s\n",
-				       memcmp(q, template[i].result + temp,
-					      template[i].tap[k] -
-					      (k < template[i].np - 1 || enc ?
-					       0 : authsize)) ?
+				       memcmp(q, template[i].result + temp, n) ?
 				       "fail" : "pass");
 
-				for (n = 0; q[template[i].tap[k] + n]; n++)
-					;
+				q += n;
+				if (k == template[i].np - 1 && !enc) {
+					if (memcmp(q, template[i].input +
+						      temp + n, authsize))
+						n = authsize;
+					else
+						n = 0;
+				} else {
+					for (n = 0; q[n]; n++)
+						;
+				}
 				if (n) {
 					printk("Result buffer corruption %u "
 					       "bytes:\n", n);
-					hexdump(&q[template[i].tap[k]], n);
+					hexdump(q, n);
 				}
 
 				temp += template[i].tap[k];

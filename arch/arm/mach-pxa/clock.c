@@ -12,9 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/hardware.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/hardware.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -101,21 +101,6 @@ unsigned long clk_get_rate(struct clk *clk)
 EXPORT_SYMBOL(clk_get_rate);
 
 
-static void clk_gpio27_enable(struct clk *clk)
-{
-	pxa_gpio_mode(GPIO11_3_6MHz_MD);
-}
-
-static void clk_gpio27_disable(struct clk *clk)
-{
-}
-
-static const struct clkops clk_gpio27_ops = {
-	.enable		= clk_gpio27_enable,
-	.disable	= clk_gpio27_disable,
-};
-
-
 void clk_cken_enable(struct clk *clk)
 {
 	CKEN |= 1 << clk->cken;
@@ -131,14 +116,6 @@ const struct clkops clk_cken_ops = {
 	.disable	= clk_cken_disable,
 };
 
-static struct clk common_clks[] = {
-	{
-		.name		= "GPIO27_CLK",
-		.ops		= &clk_gpio27_ops,
-		.rate		= 3686400,
-	},
-};
-
 void clks_register(struct clk *clks, size_t num)
 {
 	int i;
@@ -149,9 +126,27 @@ void clks_register(struct clk *clks, size_t num)
 	mutex_unlock(&clocks_mutex);
 }
 
-static int __init clk_init(void)
+int clk_add_alias(char *alias, struct device *alias_dev, char *id,
+	struct device *dev)
 {
-	clks_register(common_clks, ARRAY_SIZE(common_clks));
+	struct clk *r = clk_lookup(dev, id);
+	struct clk *new;
+
+	if (!r)
+		return -ENODEV;
+
+	new = kzalloc(sizeof(struct clk), GFP_KERNEL);
+
+	if (!new)
+		return -ENOMEM;
+
+	new->name = alias;
+	new->dev = alias_dev;
+	new->other = r;
+
+	mutex_lock(&clocks_mutex);
+	list_add(&new->node, &clocks);
+	mutex_unlock(&clocks_mutex);
+
 	return 0;
 }
-arch_initcall(clk_init);

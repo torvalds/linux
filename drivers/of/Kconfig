@@ -4,7 +4,7 @@ config OF_DEVICE
 
 config OF_GPIO
 	def_bool y
-	depends on OF && PPC_OF && HAVE_GPIO_LIB
+	depends on OF && PPC_OF && GPIOLIB
 	help
 	  OpenFirmware GPIO accessors
 
@@ -13,3 +13,9 @@ config OF_I2C
 	depends on PPC_OF && I2C
 	help
 	  OpenFirmware I2C accessors
+
+config OF_SPI
+	def_tristate SPI
+	depends on OF && PPC_OF && SPI
+	help
+	  OpenFirmware SPI accessors

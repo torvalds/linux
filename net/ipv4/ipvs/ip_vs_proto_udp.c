@@ -1,8 +1,6 @@
 /*
  * ip_vs_proto_udp.c:	UDP load balancing support for IPVS
  *
- * Version:     $Id: ip_vs_proto_udp.c,v 1.3 2002/11/30 01:50:35 wensong Exp $
- *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Julian Anastasov <ja@ssi.bg>
  *

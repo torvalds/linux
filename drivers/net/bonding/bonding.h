@@ -22,8 +22,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.2.5"
-#define DRV_RELDATE	"March 21, 2008"
+#define DRV_VERSION	"3.3.0"
+#define DRV_RELDATE	"June 10, 2008"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -125,6 +125,7 @@ struct bond_params {
 	int mode;
 	int xmit_policy;
 	int miimon;
+	int num_grat_arp;
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;
@@ -157,6 +158,7 @@ struct slave {
 	unsigned long jiffies;
 	unsigned long last_arp_rx;
 	s8     link;    /* one of BOND_LINK_XXXX */
+	s8     new_link;
 	s8     state;   /* one of BOND_STATE_XXXX */
 	u32    original_flags;
 	u32    original_mtu;
@@ -167,6 +169,11 @@ struct slave {
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
 };
+
+/*
+ * Link pseudo-state only used internally by monitors
+ */
+#define BOND_LINK_NOCHANGE -1
 
 /*
  * Here are the locking policies for the two bonding locks:
@@ -241,6 +248,10 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 	return (struct bonding *)slave->dev->master->priv;
 }
 
+#define BOND_FOM_NONE			0
+#define BOND_FOM_ACTIVE			1
+#define BOND_FOM_FOLLOW			2
+
 #define BOND_ARP_VALIDATE_NONE		0
 #define BOND_ARP_VALIDATE_ACTIVE	(1 << BOND_STATE_ACTIVE)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
@@ -301,7 +312,7 @@ static inline void bond_unset_master_alb_flags(struct bonding *bond)
 
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
-int bond_create(char *name, struct bond_params *params, struct bonding **newbond);
+int bond_create(char *name, struct bond_params *params);
 void bond_destroy(struct bonding *bond);
 int  bond_release_and_destroy(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_create_sysfs(void);

@@ -59,9 +59,6 @@
 #define PORT_SUNZILOG	38
 #define PORT_SUNSAB	39
 
-/* NEC v850.  */
-#define PORT_V850E_UART	40
-
 /* DEC */
 #define PORT_DZ		46
 #define PORT_ZS		47
@@ -190,6 +187,7 @@ struct uart_ops {
 	void		(*break_ctl)(struct uart_port *, int ctl);
 	int		(*startup)(struct uart_port *);
 	void		(*shutdown)(struct uart_port *);
+	void		(*flush_buffer)(struct uart_port *);
 	void		(*set_termios)(struct uart_port *, struct ktermios *new,
 				       struct ktermios *old);
 	void		(*set_ldisc)(struct uart_port *);
@@ -343,13 +341,15 @@ typedef unsigned int __bitwise__ uif_t;
  * stuff here.
  */
 struct uart_info {
-	struct tty_struct	*tty;
+	struct tty_port		port;
 	struct circ_buf		xmit;
 	uif_t			flags;
 
 /*
  * Definitions for info->flags.  These are _private_ to serial_core, and
  * are specific to this structure.  They may be queried by low level drivers.
+ *
+ * FIXME: use the ASY_ definitions
  */
 #define UIF_CHECK_CD		((__force uif_t) (1 << 25))
 #define UIF_CTS_FLOW		((__force uif_t) (1 << 26))
@@ -357,11 +357,7 @@ struct uart_info {
 #define UIF_INITIALIZED		((__force uif_t) (1 << 31))
 #define UIF_SUSPENDED		((__force uif_t) (1 << 30))
 
-	int			blocked_open;
-
 	struct tasklet_struct	tlet;
-
-	wait_queue_head_t	open_wait;
 	wait_queue_head_t	delta_msr_wait;
 };
 
@@ -438,8 +434,8 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 #define uart_circ_chars_free(circ)	\
 	(CIRC_SPACE((circ)->head, (circ)->tail, UART_XMIT_SIZE))
 
-#define uart_tx_stopped(port)		\
-	((port)->info->tty->stopped || (port)->info->tty->hw_stopped)
+#define uart_tx_stopped(portp)		\
+	((portp)->info->port.tty->stopped || (portp)->info->port.tty->hw_stopped)
 
 /*
  * The following are helper functions for the low level drivers.
@@ -450,7 +446,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, port->info ? port->info->tty : NULL);
+			handle_sysrq(ch, port->info ? port->info->port.tty : NULL);
 			port->sysrq = 0;
 			return 1;
 		}
@@ -479,7 +475,7 @@ static inline int uart_handle_break(struct uart_port *port)
 	}
 #endif
 	if (port->flags & UPF_SAK)
-		do_SAK(info->tty);
+		do_SAK(info->port.tty);
 	return 0;
 }
 
@@ -502,9 +498,9 @@ uart_handle_dcd_change(struct uart_port *port, unsigned int status)
 
 	if (info->flags & UIF_CHECK_CD) {
 		if (status)
-			wake_up_interruptible(&info->open_wait);
-		else if (info->tty)
-			tty_hangup(info->tty);
+			wake_up_interruptible(&info->port.open_wait);
+		else if (info->port.tty)
+			tty_hangup(info->port.tty);
 	}
 }
 
@@ -517,7 +513,7 @@ static inline void
 uart_handle_cts_change(struct uart_port *port, unsigned int status)
 {
 	struct uart_info *info = port->info;
-	struct tty_struct *tty = info->tty;
+	struct tty_struct *tty = info->port.tty;
 
 	port->icount.cts++;
 
@@ -543,7 +539,7 @@ static inline void
 uart_insert_char(struct uart_port *port, unsigned int status,
 		 unsigned int overrun, unsigned int ch, unsigned int flag)
 {
-	struct tty_struct *tty = port->info->tty;
+	struct tty_struct *tty = port->info->port.tty;
 
 	if ((status & port->ignore_status_mask & ~overrun) == 0)
 		tty_insert_flip_char(tty, ch, flag);

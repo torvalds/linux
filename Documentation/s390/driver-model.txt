@@ -25,7 +25,7 @@ device 4711 via subchannel 1 in subchannel set 0, and subchannel 2 is a non-I/O
 subchannel. Device 1234 is accessed via subchannel 0 in subchannel set 1.
 
 The subchannel named 'defunct' does not represent any real subchannel on the
-system; it is a pseudo subchannel where disconnnected ccw devices are moved to
+system; it is a pseudo subchannel where disconnected ccw devices are moved to
 if they are displaced by another ccw device becoming operational on their
 former subchannel. The ccw devices will be moved again to a proper subchannel
 if they become operational again on that subchannel.

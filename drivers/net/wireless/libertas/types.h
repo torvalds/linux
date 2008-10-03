@@ -6,6 +6,8 @@
 
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
+#include <linux/wireless.h>
+#include <net/ieee80211.h>
 
 struct ieeetypes_cfparamset {
 	u8 elementid;
@@ -250,6 +252,34 @@ struct led_bhv {
 struct mrvlietypes_ledbhv {
 	struct mrvlietypesheader header;
 	struct led_bhv ledbhv[1];
+} __attribute__ ((packed));
+
+/* Meant to be packed as the value member of a struct ieee80211_info_element.
+ * Note that the len member of the ieee80211_info_element varies depending on
+ * the mesh_id_len */
+struct mrvl_meshie_val {
+	uint8_t oui[P80211_OUI_LEN];
+	uint8_t type;
+	uint8_t subtype;
+	uint8_t version;
+	uint8_t active_protocol_id;
+	uint8_t active_metric_id;
+	uint8_t mesh_capability;
+	uint8_t mesh_id_len;
+	uint8_t mesh_id[IW_ESSID_MAX_SIZE];
+} __attribute__ ((packed));
+
+struct mrvl_meshie {
+	struct ieee80211_info_element hdr;
+	struct mrvl_meshie_val val;
+} __attribute__ ((packed));
+
+struct mrvl_mesh_defaults {
+	__le32 bootflag;
+	uint8_t boottime;
+	uint8_t reserved;
+	__le16 channel;
+	struct mrvl_meshie meshie;
 } __attribute__ ((packed));
 
 #endif

@@ -19,6 +19,7 @@
 #include <asm/ipic.h>
 #include <asm/udbg.h>
 #include <asm/prom.h>
+#include <sysdev/fsl_pci.h>
 
 #include "mpc83xx.h"
 

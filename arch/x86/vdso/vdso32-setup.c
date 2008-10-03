@@ -193,17 +193,12 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 	}
 }
 
-/*
- * These symbols are defined by vdso32.S to mark the bounds
- * of the ELF DSO images included therein.
- */
-extern const char vdso32_default_start, vdso32_default_end;
-extern const char vdso32_sysenter_start, vdso32_sysenter_end;
 static struct page *vdso32_pages[1];
 
 #ifdef CONFIG_X86_64
 
 #define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
+#define	vdso32_syscall()	(boot_cpu_has(X86_FEATURE_SYSCALL32))
 
 /* May not be __init: called during resume */
 void syscall32_cpu_init(void)
@@ -226,6 +221,7 @@ static inline void map_compat_vdso(int map)
 #else  /* CONFIG_X86_32 */
 
 #define vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SEP))
+#define vdso32_syscall()	(0)
 
 void enable_sep_cpu(void)
 {
@@ -296,12 +292,15 @@ int __init sysenter_setup(void)
 	gate_vma_init();
 #endif
 
-	if (!vdso32_sysenter()) {
-		vsyscall = &vdso32_default_start;
-		vsyscall_len = &vdso32_default_end - &vdso32_default_start;
-	} else {
+	if (vdso32_syscall()) {
+		vsyscall = &vdso32_syscall_start;
+		vsyscall_len = &vdso32_syscall_end - &vdso32_syscall_start;
+	} else if (vdso32_sysenter()){
 		vsyscall = &vdso32_sysenter_start;
 		vsyscall_len = &vdso32_sysenter_end - &vdso32_sysenter_start;
+	} else {
+		vsyscall = &vdso32_int80_start;
+		vsyscall_len = &vdso32_int80_end - &vdso32_int80_start;
 	}
 
 	memcpy(syscall_page, vsyscall, vsyscall_len);

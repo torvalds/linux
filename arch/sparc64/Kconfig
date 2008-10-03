@@ -16,6 +16,8 @@ config SPARC64
 	select HAVE_IDE
 	select HAVE_LMB
 	select HAVE_ARCH_KGDB
+	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_ARCH_TRACEHOOK
 
 config GENERIC_TIME
 	bool
@@ -81,6 +83,10 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	def_bool y
 
+source "init/Kconfig"
+
+menu "Processor type and features"
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
@@ -93,18 +99,10 @@ config SPARC64_PAGE_SIZE_8KB
 	  8KB and 64KB work quite well, since SPARC ELF sections
 	  provide for up to 64KB alignment.
 
-	  Therefore, 512KB and 4MB are for expert hackers only.
-
 	  If you don't know what to do, choose 8KB.
 
 config SPARC64_PAGE_SIZE_64KB
 	bool "64KB"
-
-config SPARC64_PAGE_SIZE_512KB
-	bool "512KB"
-
-config SPARC64_PAGE_SIZE_4MB
-	bool "4MB"
 
 endchoice
 
@@ -136,13 +134,9 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-source "init/Kconfig"
-
 config GENERIC_HARDIRQS
 	bool
 	default y
-
-menu "General machine setup"
 
 source "kernel/time/Kconfig"
 
@@ -225,11 +219,10 @@ config HUGETLB_PAGE_SIZE_4MB
 	bool "4MB"
 
 config HUGETLB_PAGE_SIZE_512K
-	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB
 	bool "512K"
 
 config HUGETLB_PAGE_SIZE_64K
-	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB && !SPARC64_PAGE_SIZE_64KB
+	depends on !SPARC64_PAGE_SIZE_64KB
 	bool "64K"
 
 endchoice
@@ -238,6 +231,7 @@ endmenu
 
 config NUMA
 	bool "NUMA support"
+	depends on SMP
 
 config NODES_SHIFT
 	int

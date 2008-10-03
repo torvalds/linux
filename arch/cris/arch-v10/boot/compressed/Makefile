@@ -2,12 +2,10 @@
 # arch/cris/arch-v10/boot/compressed/Makefile
 #
 
-CC = gcc-cris -melf $(LINUXINCLUDE)
-ccflags-y += -O2
-LD = ld-cris
-ldflags-y += -T $(obj)/decompress.ld
+asflags-y += $(LINUXINCLUDE)
+ccflags-y += -O2 $(LINUXINCLUDE)
+ldflags-y += -T $(srctree)/$(obj)/decompress.ld
 OBJECTS = $(obj)/head.o $(obj)/misc.o
-OBJCOPY = objcopy-cris
 OBJCOPYFLAGS = -O binary --remove-section=.bss
 
 quiet_cmd_image = BUILD   $@
@@ -20,12 +18,6 @@ $(obj)/decompress.o: $(OBJECTS) FORCE
 
 $(obj)/decompress.bin: $(obj)/decompress.o FORCE
 	$(call if_changed,objcopy)
-
-$(obj)/head.o: $(obj)/head.S .config
-	@$(CC) -D__ASSEMBLY__ -traditional -c $< -o $@
-
-$(obj)/misc.o: $(obj)/misc.c .config
-	@$(CC) -D__KERNEL__ -c $< -o $@
 
 $(obj)/vmlinux: $(obj)/piggy.gz $(obj)/decompress.bin FORCE
 	$(call if_changed,image)

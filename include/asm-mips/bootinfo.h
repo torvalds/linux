@@ -51,6 +51,12 @@
 #define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
 #define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
 
+/*
+ * Valid machtype for group Mikrotik
+ */
+#define	MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532 	*/
+#define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A 	*/
+
 #define CL_SIZE			COMMAND_LINE_SIZE
 
 extern char *system_type;

@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -1253,7 +1254,7 @@ static int vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void *fh,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_fmtdesc *f)
 {
 	if (f->index > 1)
@@ -1283,7 +1284,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *fh,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *f)
 {
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1316,7 +1317,8 @@ static int vidioc_try_fmt_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
+static int vidioc_g_fmt_vid_cap(struct file *file, void *fh,
+				    struct v4l2_format *f)
 {
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1346,7 +1348,8 @@ static int vidioc_g_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *fh, struct v4l2_format *f)
+static int vidioc_s_fmt_vid_cap(struct file *file, void *fh,
+				    struct v4l2_format *f)
 {
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1695,13 +1698,7 @@ static const struct file_operations meye_fops = {
 	.llseek		= no_llseek,
 };
 
-static struct video_device meye_template = {
-	.owner		= THIS_MODULE,
-	.name		= "meye",
-	.type		= VID_TYPE_CAPTURE,
-	.fops		= &meye_fops,
-	.release	= video_device_release,
-	.minor		= -1,
+static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_enum_input	= vidioc_enum_input,
 	.vidioc_g_input		= vidioc_g_input,
@@ -1709,10 +1706,10 @@ static struct video_device meye_template = {
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_s_ctrl		= vidioc_s_ctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
-	.vidioc_enum_fmt_cap	= vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap	= vidioc_try_fmt_cap,
-	.vidioc_g_fmt_cap	= vidioc_g_fmt_cap,
-	.vidioc_s_fmt_cap	= vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= vidioc_try_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs		= vidioc_reqbufs,
 	.vidioc_querybuf	= vidioc_querybuf,
 	.vidioc_qbuf		= vidioc_qbuf,
@@ -1720,6 +1717,14 @@ static struct video_device meye_template = {
 	.vidioc_streamon	= vidioc_streamon,
 	.vidioc_streamoff	= vidioc_streamoff,
 	.vidioc_default		= vidioc_default,
+};
+
+static struct video_device meye_template = {
+	.name		= "meye",
+	.fops		= &meye_fops,
+	.ioctl_ops 	= &meye_ioctl_ops,
+	.release	= video_device_release,
+	.minor		= -1,
 };
 
 #ifdef CONFIG_PM
@@ -1799,8 +1804,9 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	}
 
 	memcpy(meye.video_dev, &meye_template, sizeof(meye_template));
-	meye.video_dev->dev = &meye.mchip_dev->dev;
+	meye.video_dev->parent = &meye.mchip_dev->dev;
 
+	ret = -EIO;
 	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
 		printk(KERN_ERR "meye: unable to power on the camera\n");
 		printk(KERN_ERR "meye: did you enable the camera in "
@@ -1808,7 +1814,6 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 		goto outsonypienable;
 	}
 
-	ret = -EIO;
 	if ((ret = pci_enable_device(meye.mchip_dev))) {
 		printk(KERN_ERR "meye: pci_enable_device failed\n");
 		goto outenabledev;

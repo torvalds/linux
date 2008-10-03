@@ -491,8 +491,8 @@ static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
-		if (ld->set_termios)
-			(ld->set_termios)(tty, &old_termios);
+		if (ld->ops->set_termios)
+			(ld->ops->set_termios)(tty, &old_termios);
 		tty_ldisc_deref(ld);
 	}
 	mutex_unlock(&tty->termios_mutex);
@@ -552,8 +552,8 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	ld = tty_ldisc_ref(tty);
 
 	if (ld != NULL) {
-		if ((opt & TERMIOS_FLUSH) && ld->flush_buffer)
-			ld->flush_buffer(tty);
+		if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
 		tty_ldisc_deref(ld);
 	}
 
@@ -937,12 +937,14 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			return 0;
 #endif
 	case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0,
+		/* FIXME: for correctness we may need to take the termios
+		   lock here - review */
+		return put_user(C_CLOCAL(real_tty) ? 1 : 0,
 						(int __user *)arg);
 	case TIOCSSOFTCAR:
 		if (get_user(arg, (unsigned int __user *) arg))
 			return -EFAULT;
-		return tty_change_softcar(tty, arg);
+		return tty_change_softcar(real_tty, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -959,12 +961,12 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 	ld = tty_ldisc_ref(tty);
 	switch (arg) {
 	case TCIFLUSH:
-		if (ld && ld->flush_buffer)
-			ld->flush_buffer(tty);
+		if (ld && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
 		break;
 	case TCIOFLUSH:
-		if (ld && ld->flush_buffer)
-			ld->flush_buffer(tty);
+		if (ld && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
 		/* fall through */
 	case TCOFLUSH:
 		tty_driver_flush_buffer(tty);

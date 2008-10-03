@@ -4,8 +4,6 @@
  *	Authors:	Alan Cox <iiitac@pyr.swan.ac.uk>
  *			Florian La Roche <rzsfl@rz.uni-sb.de>
  *
- *	Version:	$Id: skbuff.c,v 1.90 2001/11/07 05:56:19 davem Exp $
- *
  *	Fixes:
  *		Alan Cox	:	Fixed the worst of the load
  *					balancer bugs.
@@ -461,6 +459,8 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->tc_verd		= old->tc_verd;
 #endif
 #endif
+	new->vlan_tci		= old->vlan_tci;
+
 	skb_copy_secmark(new, old);
 }
 
@@ -485,6 +485,9 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(head);
 	C(data);
 	C(truesize);
+#if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
+	C(do_not_encrypt);
+#endif
 	atomic_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
@@ -1200,7 +1203,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -1229,7 +1232,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1282,114 +1285,83 @@ static inline int spd_fill_page(struct splice_pipe_desc *spd, struct page *page,
 	return 0;
 }
 
+static inline void __segment_seek(struct page **page, unsigned int *poff,
+				  unsigned int *plen, unsigned int off)
+{
+	*poff += off;
+	*page += *poff / PAGE_SIZE;
+	*poff = *poff % PAGE_SIZE;
+	*plen -= off;
+}
+
+static inline int __splice_segment(struct page *page, unsigned int poff,
+				   unsigned int plen, unsigned int *off,
+				   unsigned int *len, struct sk_buff *skb,
+				   struct splice_pipe_desc *spd)
+{
+	if (!*len)
+		return 1;
+
+	/* skip this segment if already processed */
+	if (*off >= plen) {
+		*off -= plen;
+		return 0;
+	}
+
+	/* ignore any bits we already processed */
+	if (*off) {
+		__segment_seek(&page, &poff, &plen, *off);
+		*off = 0;
+	}
+
+	do {
+		unsigned int flen = min(*len, plen);
+
+		/* the linear region may spread across several pages  */
+		flen = min_t(unsigned int, flen, PAGE_SIZE - poff);
+
+		if (spd_fill_page(spd, page, flen, poff, skb))
+			return 1;
+
+		__segment_seek(&page, &poff, &plen, flen);
+		*len -= flen;
+
+	} while (*len && plen);
+
+	return 0;
+}
+
 /*
- * Map linear and fragment data from the skb to spd. Returns number of
- * pages mapped.
+ * Map linear and fragment data from the skb to spd. It reports failure if the
+ * pipe is full or if we already spliced the requested length.
  */
 static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
-			     unsigned int *total_len,
-			     struct splice_pipe_desc *spd)
+		      unsigned int *len,
+		      struct splice_pipe_desc *spd)
 {
-	unsigned int nr_pages = spd->nr_pages;
-	unsigned int poff, plen, len, toff, tlen;
-	int headlen, seg, error = 0;
-
-	toff = *offset;
-	tlen = *total_len;
-	if (!tlen) {
-		error = 1;
-		goto err;
-	}
+	int seg;
 
 	/*
-	 * if the offset is greater than the linear part, go directly to
-	 * the fragments.
+	 * map the linear part
 	 */
-	headlen = skb_headlen(skb);
-	if (toff >= headlen) {
-		toff -= headlen;
-		goto map_frag;
-	}
-
-	/*
-	 * first map the linear region into the pages/partial map, skipping
-	 * any potential initial offset.
-	 */
-	len = 0;
-	while (len < headlen) {
-		void *p = skb->data + len;
-
-		poff = (unsigned long) p & (PAGE_SIZE - 1);
-		plen = min_t(unsigned int, headlen - len, PAGE_SIZE - poff);
-		len += plen;
-
-		if (toff) {
-			if (plen <= toff) {
-				toff -= plen;
-				continue;
-			}
-			plen -= toff;
-			poff += toff;
-			toff = 0;
-		}
-
-		plen = min(plen, tlen);
-		if (!plen)
-			break;
-
-		/*
-		 * just jump directly to update and return, no point
-		 * in going over fragments when the output is full.
-		 */
-		error = spd_fill_page(spd, virt_to_page(p), plen, poff, skb);
-		if (error)
-			goto done;
-
-		tlen -= plen;
-	}
+	if (__splice_segment(virt_to_page(skb->data),
+			     (unsigned long) skb->data & (PAGE_SIZE - 1),
+			     skb_headlen(skb),
+			     offset, len, skb, spd))
+		return 1;
 
 	/*
 	 * then map the fragments
 	 */
-map_frag:
 	for (seg = 0; seg < skb_shinfo(skb)->nr_frags; seg++) {
 		const skb_frag_t *f = &skb_shinfo(skb)->frags[seg];
 
-		plen = f->size;
-		poff = f->page_offset;
-
-		if (toff) {
-			if (plen <= toff) {
-				toff -= plen;
-				continue;
-			}
-			plen -= toff;
-			poff += toff;
-			toff = 0;
-		}
-
-		plen = min(plen, tlen);
-		if (!plen)
-			break;
-
-		error = spd_fill_page(spd, f->page, plen, poff, skb);
-		if (error)
-			break;
-
-		tlen -= plen;
+		if (__splice_segment(f->page, f->page_offset, f->size,
+				     offset, len, skb, spd))
+			return 1;
 	}
 
-done:
-	if (spd->nr_pages - nr_pages) {
-		*offset = 0;
-		*total_len = tlen;
-		return 0;
-	}
-err:
-	/* update the offset to reflect the linear part skip, if any */
-	if (!error)
-		*offset = toff;
-	return error;
+	return 0;
 }
 
 /*
@@ -1506,7 +1478,7 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + frag->size;
 		if ((copy = end - offset) > 0) {
@@ -1534,7 +1506,7 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1583,7 +1555,7 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -1612,7 +1584,7 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -1660,7 +1632,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -1693,7 +1665,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 			__wsum csum2;
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -2284,13 +2256,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 			segs = nskb;
 		tail = nskb;
 
-		nskb->dev = skb->dev;
-		skb_copy_queue_mapping(nskb, skb);
-		nskb->priority = skb->priority;
-		nskb->protocol = skb->protocol;
-		nskb->dst = dst_clone(skb->dst);
-		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
-		nskb->pkt_type = skb->pkt_type;
+		__copy_skb_header(nskb, skb);
 		nskb->mac_len = skb->mac_len;
 
 		skb_reserve(nskb, headroom);
@@ -2301,6 +2267,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		skb_copy_from_linear_data(skb, skb_put(nskb, doffset),
 					  doffset);
 		if (!sg) {
+			nskb->ip_summed = CHECKSUM_NONE;
 			nskb->csum = skb_copy_and_csum_bits(skb, offset,
 							    skb_put(nskb, len),
 							    len, 0);
@@ -2310,8 +2277,6 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		frag = skb_shinfo(nskb)->frags;
 		k = 0;
 
-		nskb->ip_summed = CHECKSUM_PARTIAL;
-		nskb->csum = skb->csum;
 		skb_copy_from_linear_data_offset(skb, offset,
 						 skb_put(nskb, hsize), hsize);
 
@@ -2403,7 +2368,7 @@ __skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 
-		BUG_TRAP(start <= offset + len);
+		WARN_ON(start > offset + len);
 
 		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
@@ -2427,7 +2392,7 @@ __skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 		for (; list; list = list->next) {
 			int end;
 
-			BUG_TRAP(start <= offset + len);
+			WARN_ON(start > offset + len);
 
 			end = start + list->len;
 			if ((copy = end - offset) > 0) {
@@ -2592,6 +2557,13 @@ bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off)
 	return true;
 }
 
+void __skb_warn_lro_forwarding(const struct sk_buff *skb)
+{
+	if (net_ratelimit())
+		pr_warning("%s: received packets cannot be forwarded"
+			   " while LRO is enabled\n", skb->dev->name);
+}
+
 EXPORT_SYMBOL(___pskb_trim);
 EXPORT_SYMBOL(__kfree_skb);
 EXPORT_SYMBOL(kfree_skb);
@@ -2625,6 +2597,7 @@ EXPORT_SYMBOL(skb_seq_read);
 EXPORT_SYMBOL(skb_abort_seq_read);
 EXPORT_SYMBOL(skb_find_text);
 EXPORT_SYMBOL(skb_append_datato_frags);
+EXPORT_SYMBOL(__skb_warn_lro_forwarding);
 
 EXPORT_SYMBOL_GPL(skb_to_sgvec);
 EXPORT_SYMBOL_GPL(skb_cow_data);

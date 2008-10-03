@@ -145,32 +145,48 @@ choice
 
 config PAGE_SIZE_4KB
 	bool "4kB"
-	depends on !X2TLB
+	depends on !MMU || !X2TLB
 	help
 	  This is the default page size used by all SuperH CPUs.
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on X2TLB
+	depends on !MMU || X2TLB
 	help
 	  This enables 8kB pages as supported by SH-X2 and later MMUs.
 
+config PAGE_SIZE_16KB
+	bool "16kB"
+	depends on !MMU
+	help
+	  This enables 16kB pages on MMU-less SH systems.
+
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on CPU_SH4 || CPU_SH5
+	depends on !MMU || CPU_SH4 || CPU_SH5
 	help
 	  This enables support for 64kB pages, possible on all SH-4
 	  CPUs and later.
 
 endchoice
 
+config ENTRY_OFFSET
+	hex
+	default "0x00001000" if PAGE_SIZE_4KB
+	default "0x00002000" if PAGE_SIZE_8KB
+	default "0x00004000" if PAGE_SIZE_16KB
+	default "0x00010000" if PAGE_SIZE_64KB
+	default "0x00000000"
+
 choice
 	prompt "HugeTLB page size"
 	depends on HUGETLB_PAGE && (CPU_SH4 || CPU_SH5) && MMU
+	default HUGETLB_PAGE_SIZE_1MB if PAGE_SIZE_64KB
 	default HUGETLB_PAGE_SIZE_64K
 
 config HUGETLB_PAGE_SIZE_64K
 	bool "64kB"
+	depends on !PAGE_SIZE_64KB
 
 config HUGETLB_PAGE_SIZE_256K
 	bool "256kB"
@@ -223,7 +239,6 @@ choice
 
 config CACHE_WRITEBACK
 	bool "Write-back"
-	depends on CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
 
 config CACHE_WRITETHROUGH
 	bool "Write-through"

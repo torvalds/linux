@@ -38,74 +38,28 @@
 #include "dvb_frontend.h"
 #include "tda1002x.h"
 
+#define REG0_INIT_VAL 0x23
 
 struct tda10023_state {
 	struct i2c_adapter* i2c;
 	/* configuration settings */
-	const struct tda1002x_config* config;
+	const struct tda10023_config *config;
 	struct dvb_frontend frontend;
 
 	u8 pwm;
 	u8 reg0;
-};
 
+	/* clock settings */
+	u32 xtal;
+	u8 pll_m;
+	u8 pll_p;
+	u8 pll_n;
+	u32 sysclk;
+};
 
 #define dprintk(x...)
 
 static int verbose;
-
-#define XTAL   28920000UL
-#define PLL_M  8UL
-#define PLL_P  4UL
-#define PLL_N  1UL
-#define SYSCLK (XTAL*PLL_M/(PLL_N*PLL_P))  // -> 57840000
-
-static u8 tda10023_inittab[]={
-	// reg mask val
-	0x2a,0xff,0x02,  // PLL3, Bypass, Power Down
-	0xff,0x64,0x00,  // Sleep 100ms
-	0x2a,0xff,0x03,  // PLL3, Bypass, Power Down
-	0xff,0x64,0x00,  // Sleep 100ms
-	0x28,0xff,PLL_M-1,  // PLL1 M=8
-	0x29,0xff,((PLL_P-1)<<6)|(PLL_N-1),  // PLL2
-	0x00,0xff,0x23,  // GPR FSAMPLING=1
-	0x2a,0xff,0x08,  // PLL3 PSACLK=1
-	0xff,0x64,0x00,  // Sleep 100ms
-	0x1f,0xff,0x00,  // RESET
-	0xff,0x64,0x00,  // Sleep 100ms
-	0xe6,0x0c,0x04,  // RSCFG_IND
-	0x10,0xc0,0x80,  // DECDVBCFG1 PBER=1
-
-	0x0e,0xff,0x82,  // GAIN1
-	0x03,0x08,0x08,  // CLKCONF DYN=1
-	0x2e,0xbf,0x30,  // AGCCONF2 TRIAGC=0,POSAGC=ENAGCIF=1 PPWMTUN=0 PPWMIF=0
-	0x01,0xff,0x30,  // AGCREF
-	0x1e,0x84,0x84,  // CONTROL SACLK_ON=1
-	0x1b,0xff,0xc8,  // ADC TWOS=1
-	0x3b,0xff,0xff,  // IFMAX
-	0x3c,0xff,0x00,  // IFMIN
-	0x34,0xff,0x00,  // PWMREF
-	0x35,0xff,0xff,  // TUNMAX
-	0x36,0xff,0x00,  // TUNMIN
-	0x06,0xff,0x7f,  // EQCONF1 POSI=7 ENADAPT=ENEQUAL=DFE=1    // 0x77
-	0x1c,0x30,0x30,  // EQCONF2 STEPALGO=SGNALGO=1
-	0x37,0xff,0xf6,  // DELTAF_LSB
-	0x38,0xff,0xff,  // DELTAF_MSB
-	0x02,0xff,0x93,  // AGCCONF1  IFS=1 KAGCIF=2 KAGCTUN=3
-	0x2d,0xff,0xf6,  // SWEEP SWPOS=1 SWDYN=7 SWSTEP=1 SWLEN=2
-	0x04,0x10,0x00,   // SWRAMP=1
-	0x12,0xff,0xa1,  // INTP1 POCLKP=1 FEL=1 MFS=0
-	0x2b,0x01,0xa1,  // INTS1
-	0x20,0xff,0x04,  // INTP2 SWAPP=? MSBFIRSTP=? INTPSEL=?
-	0x2c,0xff,0x0d,  // INTP/S TRIP=0 TRIS=0
-	0xc4,0xff,0x00,
-	0xc3,0x30,0x00,
-	0xb5,0xff,0x19,  // ERAGC_THD
-	0x00,0x03,0x01,  // GPR, CLBS soft reset
-	0x00,0x03,0x03,  // GPR, CLBS soft reset
-	0xff,0x64,0x00,  // Sleep 100ms
-	0xff,0xff,0xff
-};
 
 static u8 tda10023_readreg (struct tda10023_state* state, u8 reg)
 {
@@ -219,30 +173,34 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 	s16 SFIL=0;
 	u16 NDEC = 0;
 
-	if (sr < (u32)(SYSCLK/98.40)) {
+	/* avoid floating point operations multiplying syscloc and divider
+	   by 10 */
+	u32 sysclk_x_10 = state->sysclk * 10;
+
+	if (sr < (u32)(sysclk_x_10/984)) {
 		NDEC=3;
 		SFIL=1;
-	} else if (sr<(u32)(SYSCLK/64.0)) {
+	} else if (sr < (u32)(sysclk_x_10/640)) {
 		NDEC=3;
 		SFIL=0;
-	} else if (sr<(u32)(SYSCLK/49.2)) {
+	} else if (sr < (u32)(sysclk_x_10/492)) {
 		NDEC=2;
 		SFIL=1;
-	} else if (sr<(u32)(SYSCLK/32.0)) {
+	} else if (sr < (u32)(sysclk_x_10/320)) {
 		NDEC=2;
 		SFIL=0;
-	} else if (sr<(u32)(SYSCLK/24.6)) {
+	} else if (sr < (u32)(sysclk_x_10/246)) {
 		NDEC=1;
 		SFIL=1;
-	} else if (sr<(u32)(SYSCLK/16.0)) {
+	} else if (sr < (u32)(sysclk_x_10/160)) {
 		NDEC=1;
 		SFIL=0;
-	} else if (sr<(u32)(SYSCLK/12.3)) {
+	} else if (sr < (u32)(sysclk_x_10/123)) {
 		NDEC=0;
 		SFIL=1;
 	}
 
-	BDRI=SYSCLK*16;
+	BDRI = (state->sysclk)*16;
 	BDRI>>=NDEC;
 	BDRI +=sr/2;
 	BDRI /=sr;
@@ -255,11 +213,12 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 
 		BDRX=1<<(24+NDEC);
 		BDRX*=sr;
-		do_div(BDRX,SYSCLK); 	// BDRX/=SYSCLK;
+		do_div(BDRX, state->sysclk); 	/* BDRX/=SYSCLK; */
 
 		BDR=(s32)BDRX;
 	}
-//	printk("Symbolrate %i, BDR %i BDRI %i, NDEC %i\n",sr,BDR,BDRI,NDEC);
+	dprintk("Symbolrate %i, BDR %i BDRI %i, NDEC %i\n",
+		sr, BDR, BDRI, NDEC);
 	tda10023_writebit (state, 0x03, 0xc0, NDEC<<6);
 	tda10023_writereg (state, 0x0a, BDR&255);
 	tda10023_writereg (state, 0x0b, (BDR>>8)&255);
@@ -272,8 +231,67 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 static int tda10023_init (struct dvb_frontend *fe)
 {
 	struct tda10023_state* state = fe->demodulator_priv;
+	u8 tda10023_inittab[] = {
+/*        reg  mask val */
+/* 000 */ 0x2a, 0xff, 0x02,  /* PLL3, Bypass, Power Down */
+/* 003 */ 0xff, 0x64, 0x00,  /* Sleep 100ms */
+/* 006 */ 0x2a, 0xff, 0x03,  /* PLL3, Bypass, Power Down */
+/* 009 */ 0xff, 0x64, 0x00,  /* Sleep 100ms */
+			   /* PLL1 */
+/* 012 */ 0x28, 0xff, (state->pll_m-1),
+			   /* PLL2 */
+/* 015 */ 0x29, 0xff, ((state->pll_p-1)<<6)|(state->pll_n-1),
+			   /* GPR FSAMPLING=1 */
+/* 018 */ 0x00, 0xff, REG0_INIT_VAL,
+/* 021 */ 0x2a, 0xff, 0x08,  /* PLL3 PSACLK=1 */
+/* 024 */ 0xff, 0x64, 0x00,  /* Sleep 100ms */
+/* 027 */ 0x1f, 0xff, 0x00,  /* RESET */
+/* 030 */ 0xff, 0x64, 0x00,  /* Sleep 100ms */
+/* 033 */ 0xe6, 0x0c, 0x04,  /* RSCFG_IND */
+/* 036 */ 0x10, 0xc0, 0x80,  /* DECDVBCFG1 PBER=1 */
 
-	dprintk("DVB: TDA10023(%d): init chip\n", fe->adapter->num);
+/* 039 */ 0x0e, 0xff, 0x82,  /* GAIN1 */
+/* 042 */ 0x03, 0x08, 0x08,  /* CLKCONF DYN=1 */
+/* 045 */ 0x2e, 0xbf, 0x30,  /* AGCCONF2 TRIAGC=0,POSAGC=ENAGCIF=1
+				       PPWMTUN=0 PPWMIF=0 */
+/* 048 */ 0x01, 0xff, 0x30,  /* AGCREF */
+/* 051 */ 0x1e, 0x84, 0x84,  /* CONTROL SACLK_ON=1 */
+/* 054 */ 0x1b, 0xff, 0xc8,  /* ADC TWOS=1 */
+/* 057 */ 0x3b, 0xff, 0xff,  /* IFMAX */
+/* 060 */ 0x3c, 0xff, 0x00,  /* IFMIN */
+/* 063 */ 0x34, 0xff, 0x00,  /* PWMREF */
+/* 066 */ 0x35, 0xff, 0xff,  /* TUNMAX */
+/* 069 */ 0x36, 0xff, 0x00,  /* TUNMIN */
+/* 072 */ 0x06, 0xff, 0x7f,  /* EQCONF1 POSI=7 ENADAPT=ENEQUAL=DFE=1 */
+/* 075 */ 0x1c, 0x30, 0x30,  /* EQCONF2 STEPALGO=SGNALGO=1 */
+/* 078 */ 0x37, 0xff, 0xf6,  /* DELTAF_LSB */
+/* 081 */ 0x38, 0xff, 0xff,  /* DELTAF_MSB */
+/* 084 */ 0x02, 0xff, 0x93,  /* AGCCONF1  IFS=1 KAGCIF=2 KAGCTUN=3 */
+/* 087 */ 0x2d, 0xff, 0xf6,  /* SWEEP SWPOS=1 SWDYN=7 SWSTEP=1 SWLEN=2 */
+/* 090 */ 0x04, 0x10, 0x00,  /* SWRAMP=1 */
+/* 093 */ 0x12, 0xff, TDA10023_OUTPUT_MODE_PARALLEL_B, /*
+				INTP1 POCLKP=1 FEL=1 MFS=0 */
+/* 096 */ 0x2b, 0x01, 0xa1,  /* INTS1 */
+/* 099 */ 0x20, 0xff, 0x04,  /* INTP2 SWAPP=? MSBFIRSTP=? INTPSEL=? */
+/* 102 */ 0x2c, 0xff, 0x0d,  /* INTP/S TRIP=0 TRIS=0 */
+/* 105 */ 0xc4, 0xff, 0x00,
+/* 108 */ 0xc3, 0x30, 0x00,
+/* 111 */ 0xb5, 0xff, 0x19,  /* ERAGC_THD */
+/* 114 */ 0x00, 0x03, 0x01,  /* GPR, CLBS soft reset */
+/* 117 */ 0x00, 0x03, 0x03,  /* GPR, CLBS soft reset */
+/* 120 */ 0xff, 0x64, 0x00,  /* Sleep 100ms */
+/* 123 */ 0xff, 0xff, 0xff
+};
+	dprintk("DVB: TDA10023(%d): init chip\n", fe->dvb->num);
+
+	/* override default values if set in config */
+	if (state->config->deltaf) {
+		tda10023_inittab[80] = (state->config->deltaf & 0xff);
+		tda10023_inittab[83] = (state->config->deltaf >> 8);
+	}
+
+	if (state->config->output_mode)
+		tda10023_inittab[95] = state->config->output_mode;
 
 	tda10023_writetab(state, tda10023_inittab);
 
@@ -460,12 +478,11 @@ static void tda10023_release(struct dvb_frontend* fe)
 
 static struct dvb_frontend_ops tda10023_ops;
 
-struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config,
-				     struct i2c_adapter* i2c,
+struct dvb_frontend *tda10023_attach(const struct tda10023_config *config,
+				     struct i2c_adapter *i2c,
 				     u8 pwm)
 {
 	struct tda10023_state* state = NULL;
-	int i;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct tda10023_state), GFP_KERNEL);
@@ -474,22 +491,40 @@ struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->frontend.ops, &tda10023_ops, sizeof(struct dvb_frontend_ops));
-	state->pwm = pwm;
-	for (i=0; i < ARRAY_SIZE(tda10023_inittab);i+=3) {
-		if (tda10023_inittab[i] == 0x00) {
-			state->reg0 = tda10023_inittab[i+2];
-			break;
-		}
-	}
 
-	// Wakeup if in standby
+	/* wakeup if in standby */
 	tda10023_writereg (state, 0x00, 0x33);
 	/* check if the demod is there */
 	if ((tda10023_readreg(state, 0x1a) & 0xf0) != 0x70) goto error;
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops, &tda10023_ops, sizeof(struct dvb_frontend_ops));
+	state->pwm = pwm;
+	state->reg0 = REG0_INIT_VAL;
+	if (state->config->xtal) {
+		state->xtal  = state->config->xtal;
+		state->pll_m = state->config->pll_m;
+		state->pll_p = state->config->pll_p;
+		state->pll_n = state->config->pll_n;
+	} else {
+		/* set default values if not defined in config */
+		state->xtal  = 28920000;
+		state->pll_m = 8;
+		state->pll_p = 4;
+		state->pll_n = 1;
+	}
+
+	/* calc sysclk */
+	state->sysclk = (state->xtal * state->pll_m / \
+			(state->pll_n * state->pll_p));
+
+	state->frontend.ops.info.symbol_rate_min = (state->sysclk/2)/64;
+	state->frontend.ops.info.symbol_rate_max = (state->sysclk/2)/4;
+
+	dprintk("DVB: TDA10023 %s: xtal:%d pll_m:%d pll_p:%d pll_n:%d\n",
+		__func__, state->xtal, state->pll_m, state->pll_p,
+		state->pll_n);
+
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -504,10 +539,10 @@ static struct dvb_frontend_ops tda10023_ops = {
 		.name = "Philips TDA10023 DVB-C",
 		.type = FE_QAM,
 		.frequency_stepsize = 62500,
-		.frequency_min = 47000000,
+		.frequency_min =  47000000,
 		.frequency_max = 862000000,
-		.symbol_rate_min = (SYSCLK/2)/64,     /* SACLK/64 == (SYSCLK/2)/64 */
-		.symbol_rate_max = (SYSCLK/2)/4,      /* SACLK/4 */
+		.symbol_rate_min = 0,  /* set in tda10023_attach */
+		.symbol_rate_max = 0,  /* set in tda10023_attach */
 		.caps = 0x400 | //FE_CAN_QAM_4
 			FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
 			FE_CAN_QAM_128 | FE_CAN_QAM_256 |

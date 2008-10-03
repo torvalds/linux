@@ -104,6 +104,7 @@ static int bfs_write_inode(struct inode *inode, int unused)
 	struct bfs_inode *di;
 	struct buffer_head *bh;
 	int block, off;
+	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 
         dprintf("ino=%08x\n", ino);
 
@@ -112,13 +113,13 @@ static int bfs_write_inode(struct inode *inode, int unused)
 		return -EIO;
 	}
 
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 	block = (ino - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh) {
 		printf("Unable to read inode %s:%08x\n",
 				inode->i_sb->s_id, ino);
-		unlock_kernel();
+		mutex_unlock(&info->bfs_lock);
 		return -EIO;
 	}
 
@@ -145,7 +146,7 @@ static int bfs_write_inode(struct inode *inode, int unused)
 
 	mark_buffer_dirty(bh);
 	brelse(bh);
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	return 0;
 }
 
@@ -170,7 +171,7 @@ static void bfs_delete_inode(struct inode *inode)
 	
 	inode->i_size = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 	mark_inode_dirty(inode);
 
 	block = (ino - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
@@ -178,7 +179,7 @@ static void bfs_delete_inode(struct inode *inode)
 	if (!bh) {
 		printf("Unable to read inode %s:%08lx\n",
 					inode->i_sb->s_id, ino);
-		unlock_kernel();
+		mutex_unlock(&info->bfs_lock);
 		return;
 	}
 	off = (ino - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
@@ -204,14 +205,16 @@ static void bfs_delete_inode(struct inode *inode)
 		info->si_lf_eblk = bi->i_sblock - 1;
 		mark_buffer_dirty(info->si_sbh);
 	}
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	clear_inode(inode);
 }
 
 static void bfs_put_super(struct super_block *s)
 {
 	struct bfs_sb_info *info = BFS_SB(s);
+
 	brelse(info->si_sbh);
+	mutex_destroy(&info->bfs_lock);
 	kfree(info->si_imap);
 	kfree(info);
 	s->s_fs_info = NULL;
@@ -236,11 +239,13 @@ static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static void bfs_write_super(struct super_block *s)
 {
-	lock_kernel();
+	struct bfs_sb_info *info = BFS_SB(s);
+
+	mutex_lock(&info->bfs_lock);
 	if (!(s->s_flags & MS_RDONLY))
-		mark_buffer_dirty(BFS_SB(s)->si_sbh);
+		mark_buffer_dirty(info->si_sbh);
 	s->s_dirt = 0;
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 }
 
 static struct kmem_cache *bfs_inode_cachep;
@@ -259,7 +264,7 @@ static void bfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(bfs_inode_cachep, BFS_I(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct bfs_inode_info *bi = foo;
 
@@ -380,7 +385,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		struct bfs_inode *di;
 		int block = (i - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
 		int off = (i - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
-		unsigned long sblock, eblock;
+		unsigned long eblock;
 
 		if (!off) {
 			brelse(bh);
@@ -399,7 +404,6 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		set_bit(i, info->si_imap);
 		info->si_freeb -= BFS_FILEBLOCKS(di);
 
-		sblock =  le32_to_cpu(di->i_sblock);
 		eblock =  le32_to_cpu(di->i_eblock);
 		if (eblock > info->si_lf_eblk)
 			info->si_lf_eblk = eblock;
@@ -410,6 +414,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		s->s_dirt = 1;
 	} 
 	dump_imap("read_super", s);
+	mutex_init(&info->bfs_lock);
 	return 0;
 
 out:

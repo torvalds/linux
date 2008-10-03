@@ -257,8 +257,8 @@ static struct tty_struct *ip22zilog_receive_chars(struct uart_ip22zilog_port *up
 
 	tty = NULL;
 	if (up->port.info != NULL &&
-	    up->port.info->tty != NULL)
-		tty = up->port.info->tty;
+	    up->port.info->port.tty != NULL)
+		tty = up->port.info->port.tty;
 
 	for (;;) {
 		ch = readb(&channel->control);

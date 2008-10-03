@@ -372,7 +372,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_op = &hfs_super_operations;
 	sb->s_flags |= MS_NODIRATIME;
-	init_MUTEX(&sbi->bitmap_lock);
+	mutex_init(&sbi->bitmap_lock);
 
 	res = hfs_mdb_get(sb);
 	if (res) {
@@ -432,7 +432,7 @@ static struct file_system_type hfs_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static void hfs_init_once(struct kmem_cache *cachep, void *p)
+static void hfs_init_once(void *p)
 {
 	struct hfs_inode_info *i = p;
 

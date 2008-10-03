@@ -38,7 +38,6 @@ config VIDEO_ALLOW_V4L1
 	bool "Enable Video For Linux API 1 (DEPRECATED)"
 	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
 	default VIDEO_DEV && VIDEO_V4L2_COMMON
-	select VIDEO_V4L1_COMPAT
 	---help---
 	  Enables drivers based on the legacy V4L1 API.
 
@@ -49,9 +48,9 @@ config VIDEO_ALLOW_V4L1
 	  If you are unsure as to whether this is required, answer Y.
 
 config VIDEO_V4L1_COMPAT
-	bool "Enable Video For Linux API 1 compatible Layer"
+	bool "Enable Video For Linux API 1 compatible Layer" if !VIDEO_ALLOW_V4L1
 	depends on VIDEO_DEV
-	default VIDEO_DEV
+	default y
 	---help---
 	  Enables a compatibility API used by most V4L2 devices to allow
 	  its usage with legacy applications that supports only V4L1 api.

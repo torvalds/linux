@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Intel PRO/10GbE Linux driver
-# Copyright(c) 1999 - 2006 Intel Corporation.
+# Copyright(c) 1999 - 2008 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,

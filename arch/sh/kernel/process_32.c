@@ -34,18 +34,6 @@ void (*pm_idle)(void);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-void disable_hlt(void)
-{
-	hlt_counter++;
-}
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-}
-EXPORT_SYMBOL(enable_hlt);
-
 static int __init nohlt_setup(char *__unused)
 {
 	hlt_counter = 1;
@@ -60,7 +48,7 @@ static int __init hlt_setup(char *__unused)
 }
 __setup("hlt", hlt_setup);
 
-void default_idle(void)
+static void default_idle(void)
 {
 	if (!hlt_counter) {
 		clear_thread_flag(TIF_POLLING_NRFLAG);
@@ -86,7 +74,7 @@ void cpu_idle(void)
 		if (!idle)
 			idle = default_idle;
 
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched())
 			idle();
 		tick_nohz_restart_sched_tick();

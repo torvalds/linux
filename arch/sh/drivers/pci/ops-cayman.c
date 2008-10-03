@@ -2,7 +2,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/types.h>
-#include <asm/cpu/irq.h>
+#include <cpu/irq.h>
 #include "pci-sh5.h"
 
 static inline u8 bridge_swizzle(u8 pin, u8 slot)

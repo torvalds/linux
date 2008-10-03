@@ -237,7 +237,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	/* Take the data rate from the rxpd structure
 	 * only if the rate is auto
 	 */
-	if (priv->auto_rate)
+	if (priv->enablehwauto)
 		priv->cur_rate = lbs_fw_index_to_data_rate(p_rx_pd->rx_rate);
 
 	lbs_compute_rssi(priv, p_rx_pd);
@@ -383,7 +383,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	/* Take the data rate from the rxpd structure
 	 * only if the rate is auto
 	 */
-	if (priv->auto_rate)
+	if (priv->enablehwauto)
 		priv->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);
 
 	lbs_compute_rssi(priv, prxpd);

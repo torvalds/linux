@@ -25,15 +25,15 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-clock.h>
+#include <mach/regs-clock.h>
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-gpioj.h>
-#include <asm/arch/regs-dsc.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-gpioj.h>
+#include <mach/regs-dsc.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>
 #include <asm/plat-s3c24xx/s3c2440.h>

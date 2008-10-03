@@ -666,7 +666,6 @@ static int saa7127_probe(struct i2c_client *client,
 {
 	struct saa7127_state *state;
 	struct v4l2_sliced_vbi_data vbi = { 0, 0, 0, 0 };  /* set to disabled */
-	int read_result = 0;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -710,20 +709,29 @@ static int saa7127_probe(struct i2c_client *client,
 		saa7127_set_input_type(client, SAA7127_INPUT_TYPE_NORMAL);
 	saa7127_set_video_enable(client, 1);
 
-	/* Detect if it's an saa7129 */
-	read_result = saa7127_read(client, SAA7129_REG_FADE_KEY_COL2);
-	saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, 0xaa);
-	if (saa7127_read(client, SAA7129_REG_FADE_KEY_COL2) == 0xaa) {
-		v4l_info(client, "saa7129 found @ 0x%x (%s)\n",
-				client->addr << 1, client->adapter->name);
-		saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, read_result);
-		saa7127_write_inittab(client, saa7129_init_config_extra);
-		state->ident = V4L2_IDENT_SAA7129;
-	} else {
-		v4l_info(client, "saa7127 found @ 0x%x (%s)\n",
-				client->addr << 1, client->adapter->name);
-		state->ident = V4L2_IDENT_SAA7127;
+	if (id->driver_data) {	/* Chip type is already known */
+		state->ident = id->driver_data;
+	} else {		/* Needs detection */
+		int read_result;
+
+		/* Detect if it's an saa7129 */
+		read_result = saa7127_read(client, SAA7129_REG_FADE_KEY_COL2);
+		saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, 0xaa);
+		if (saa7127_read(client, SAA7129_REG_FADE_KEY_COL2) == 0xaa) {
+			saa7127_write(client, SAA7129_REG_FADE_KEY_COL2,
+					read_result);
+			state->ident = V4L2_IDENT_SAA7129;
+			strlcpy(client->name, "saa7129", I2C_NAME_SIZE);
+		} else {
+			state->ident = V4L2_IDENT_SAA7127;
+			strlcpy(client->name, "saa7127", I2C_NAME_SIZE);
+		}
 	}
+
+	v4l_info(client, "%s found @ 0x%x (%s)\n", client->name,
+			client->addr << 1, client->adapter->name);
+	if (state->ident == V4L2_IDENT_SAA7129)
+		saa7127_write_inittab(client, saa7129_init_config_extra);
 	return 0;
 }
 
@@ -740,7 +748,11 @@ static int saa7127_remove(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_device_id saa7127_id[] = {
-	{ "saa7127", 0 },
+	{ "saa7127_auto", 0 },	/* auto-detection */
+	{ "saa7126", V4L2_IDENT_SAA7127 },
+	{ "saa7127", V4L2_IDENT_SAA7127 },
+	{ "saa7128", V4L2_IDENT_SAA7129 },
+	{ "saa7129", V4L2_IDENT_SAA7129 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, saa7127_id);
@@ -753,4 +765,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = saa7127_remove,
 	.id_table = saa7127_id,
 };
-

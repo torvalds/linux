@@ -2593,13 +2593,16 @@ static void atafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	width = x2 - dx;
 	height = y2 - dy;
 
+	if (area->sx + dx < area->dx || area->sy + dy < area->dy)
+		return;
+
 	/* update sx,sy */
 	sx = area->sx + (dx - area->dx);
 	sy = area->sy + (dy - area->dy);
 
 	/* the source must be completely inside the virtual screen */
-	if (sx < 0 || sy < 0 || (sx + width) > info->var.xres_virtual ||
-	    (sy + height) > info->var.yres_virtual)
+	if (sx + width > info->var.xres_virtual ||
+			sy + height > info->var.yres_virtual)
 		return;
 
 	if (dy > sy || (dy == sy && dx > sx)) {
@@ -3110,7 +3113,7 @@ int __init atafb_init(void)
 	printk("atafb_init: start\n");
 
 	if (!MACH_IS_ATARI)
-		return -ENXIO;
+		return -ENODEV;
 
 	do {
 #ifdef ATAFB_EXT
@@ -3229,6 +3232,9 @@ int __init atafb_init(void)
 			  fb_info.var.bits_per_pixel)) {
 		return -EINVAL;
 	}
+
+	fb_videomode_to_modelist(atafb_modedb, NUM_TOTAL_MODES,
+				 &fb_info.modelist);
 
 	atafb_set_disp(&fb_info);
 

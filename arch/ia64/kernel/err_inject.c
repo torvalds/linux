@@ -55,7 +55,8 @@ static u64 resources[NR_CPUS];
 
 #define show(name) 							\
 static ssize_t 								\
-show_##name(struct sys_device *dev, char *buf)				\
+show_##name(struct sys_device *dev, struct sysdev_attribute *attr,	\
+		char *buf)						\
 {									\
 	u32 cpu=dev->id;						\
 	return sprintf(buf, "%lx\n", name[cpu]);			\
@@ -63,7 +64,8 @@ show_##name(struct sys_device *dev, char *buf)				\
 
 #define store(name)							\
 static ssize_t 								\
-store_##name(struct sys_device *dev, const char *buf, size_t size)	\
+store_##name(struct sys_device *dev, struct sysdev_attribute *attr,	\
+					const char *buf, size_t size)	\
 {									\
 	unsigned int cpu=dev->id;					\
 	name[cpu] = simple_strtoull(buf, NULL, 16);			\
@@ -76,7 +78,8 @@ show(call_start)
  * processor. The cpu number in driver is only used for storing data.
  */
 static ssize_t
-store_call_start(struct sys_device *dev, const char *buf, size_t size)
+store_call_start(struct sys_device *dev, struct sysdev_attribute *attr,
+		const char *buf, size_t size)
 {
 	unsigned int cpu=dev->id;
 	unsigned long call_start = simple_strtoull(buf, NULL, 16);
@@ -124,14 +127,16 @@ show(err_type_info)
 store(err_type_info)
 
 static ssize_t
-show_virtual_to_phys(struct sys_device *dev, char *buf)
+show_virtual_to_phys(struct sys_device *dev, struct sysdev_attribute *attr,
+			char *buf)
 {
 	unsigned int cpu=dev->id;
 	return sprintf(buf, "%lx\n", phys_addr[cpu]);
 }
 
 static ssize_t
-store_virtual_to_phys(struct sys_device *dev, const char *buf, size_t size)
+store_virtual_to_phys(struct sys_device *dev, struct sysdev_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int cpu=dev->id;
 	u64 virt_addr=simple_strtoull(buf, NULL, 16);
@@ -154,7 +159,8 @@ show(err_struct_info)
 store(err_struct_info)
 
 static ssize_t
-show_err_data_buffer(struct sys_device *dev, char *buf)
+show_err_data_buffer(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	unsigned int cpu=dev->id;
 
@@ -165,7 +171,9 @@ show_err_data_buffer(struct sys_device *dev, char *buf)
 }
 
 static ssize_t
-store_err_data_buffer(struct sys_device *dev, const char *buf, size_t size)
+store_err_data_buffer(struct sys_device *dev,
+			struct sysdev_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int cpu=dev->id;
 	int ret;

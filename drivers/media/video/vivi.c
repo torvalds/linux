@@ -35,9 +35,12 @@
 #include <linux/interrupt.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/freezer.h>
+
+#define VIVI_MODULE_NAME "vivi"
 
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
@@ -47,7 +50,7 @@
 #include "font.h"
 
 #define VIVI_MAJOR_VERSION 0
-#define VIVI_MINOR_VERSION 4
+#define VIVI_MINOR_VERSION 5
 #define VIVI_RELEASE 0
 #define VIVI_VERSION \
 	KERNEL_VERSION(VIVI_MAJOR_VERSION, VIVI_MINOR_VERSION, VIVI_RELEASE)
@@ -630,7 +633,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index > 0)
@@ -641,7 +644,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_fh *fh = priv;
@@ -658,7 +661,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return (0);
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct vivi_fh  *fh  = priv;
@@ -706,13 +709,13 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 }
 
 /*FIXME: This seems to be generic enough to be at videodev2 */
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_fh  *fh = priv;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
-	int ret = vidioc_try_fmt_cap(file, fh, f);
+	int ret = vidioc_try_fmt_vid_cap(file, fh, f);
 	if (ret < 0)
 		return (ret);
 
@@ -1017,10 +1020,15 @@ static int vivi_release(void)
 		list_del(list);
 		dev = list_entry(list, struct vivi_dev, vivi_devlist);
 
-		if (-1 != dev->vfd->minor)
+		if (-1 != dev->vfd->minor) {
+			printk(KERN_INFO "%s: unregistering /dev/video%d\n",
+				VIVI_MODULE_NAME, dev->vfd->minor);
 			video_unregister_device(dev->vfd);
-		else
+		} else {
+			printk(KERN_INFO "%s: releasing /dev/video%d\n",
+				VIVI_MODULE_NAME, dev->vfd->minor);
 			video_device_release(dev->vfd);
+		}
 
 		kfree(dev);
 	}
@@ -1058,18 +1066,12 @@ static const struct file_operations vivi_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device vivi_template = {
-	.name		= "vivi",
-	.type		= VID_TYPE_CAPTURE,
-	.fops           = &vivi_fops,
-	.minor		= -1,
-	.release	= video_device_release,
-
+static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
@@ -1086,6 +1088,15 @@ static struct video_device vivi_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
+};
+
+static struct video_device vivi_template = {
+	.name		= "vivi",
+	.fops           = &vivi_fops,
+	.ioctl_ops 	= &vivi_ioctl_ops,
+	.minor		= -1,
+	.release	= video_device_release,
+
 	.tvnorms              = V4L2_STD_525_60,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1093,18 +1104,28 @@ static struct video_device vivi_template = {
 	Initialization and module stuff
    ------------------------------------------------------------------*/
 
+/* This routine allocates from 1 to n_devs virtual drivers.
+
+   The real maximum number of virtual drivers will depend on how many drivers
+   will succeed. This is limited to the maximum number of devices that
+   videodev supports. Since there are 64 minors for video grabbers, this is
+   currently the theoretical maximum limit. However, a further limit does
+   exist at videodev that forbids any driver to register more than 32 video
+   grabbers.
+ */
 static int __init vivi_init(void)
 {
 	int ret = -ENOMEM, i;
 	struct vivi_dev *dev;
 	struct video_device *vfd;
 
+	if (n_devs <= 0)
+		n_devs = 1;
+
 	for (i = 0; i < n_devs; i++) {
 		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-		if (NULL == dev)
+		if (!dev)
 			break;
-
-		list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
 		/* init video dma queues */
 		INIT_LIST_HEAD(&dev->vidq.active);
@@ -1115,14 +1136,27 @@ static int __init vivi_init(void)
 		mutex_init(&dev->mutex);
 
 		vfd = video_device_alloc();
-		if (NULL == vfd)
+		if (!vfd) {
+			kfree(dev);
 			break;
+		}
 
 		*vfd = vivi_template;
 
 		ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
-		if (ret < 0)
+		if (ret < 0) {
+			video_device_release(vfd);
+			kfree(dev);
+
+			/* If some registers succeeded, keep driver */
+			if (i)
+				ret = 0;
+
 			break;
+		}
+
+		/* Now that everything is fine, let's add it to device list */
+		list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
 		snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
 			 vivi_template.name, vfd->minor);
@@ -1131,14 +1165,23 @@ static int __init vivi_init(void)
 			video_nr++;
 
 		dev->vfd = vfd;
+		printk(KERN_INFO "%s: V4L2 device registered as /dev/video%d\n",
+			VIVI_MODULE_NAME, vfd->minor);
 	}
 
 	if (ret < 0) {
 		vivi_release();
 		printk(KERN_INFO "Error %d while loading vivi driver\n", ret);
-	} else
+	} else {
 		printk(KERN_INFO "Video Technology Magazine Virtual Video "
-				 "Capture Board successfully loaded.\n");
+			"Capture Board ver %u.%u.%u successfully loaded.\n",
+			(VIVI_VERSION >> 16) & 0xFF, (VIVI_VERSION >> 8) & 0xFF,
+			VIVI_VERSION & 0xFF);
+
+		/* n_devs will reflect the actual number of allocated devices */
+		n_devs = i;
+	}
+
 	return ret;
 }
 
@@ -1154,10 +1197,10 @@ MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
 MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
 
-module_param(video_nr, int, 0);
+module_param(video_nr, uint, 0444);
 MODULE_PARM_DESC(video_nr, "video iminor start number");
 
-module_param(n_devs, int, 0);
+module_param(n_devs, uint, 0444);
 MODULE_PARM_DESC(n_devs, "number of video devices to create");
 
 module_param_named(debug, vivi_template.debug, int, 0444);

@@ -676,7 +676,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 			"%s\n"
 			"SUSPENDED (no register access)\n",
 			hcd->self.controller->bus->name,
-			hcd->self.controller->bus_id,
+			dev_name(hcd->self.controller),
 			hcd->product_desc);
 		goto done;
 	}
@@ -688,7 +688,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		"%s\n"
 		"EHCI %x.%02x, hcd state %d\n",
 		hcd->self.controller->bus->name,
-		hcd->self.controller->bus_id,
+		dev_name(hcd->self.controller),
 		hcd->product_desc,
 		i >> 8, i & 0x0ff, hcd->state);
 	size -= temp;

@@ -12,7 +12,7 @@
  *	http://www.cymru.net
  *
  *	This driver is provided under the GNU General Public License, incorporated
- *	herein by reference. The driver is provided without warranty or 
+ *	herein by reference. The driver is provided without warranty or
  *	support.
  *
  *	Release 0.04.

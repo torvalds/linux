@@ -53,10 +53,6 @@
 #ifndef _VGATYPES_H_
 #define _VGATYPES_H_
 
-#ifdef SIS_LINUX_KERNEL
-#include <linux/version.h>
-#endif
-
 #define SISIOMEMTYPE
 
 #ifdef SIS_LINUX_KERNEL

@@ -35,8 +35,8 @@
 
 #include <linux/spi/spi.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/clock.h>
+#include <mach/dma.h>
+#include <mach/clock.h>
 
 
 #define OMAP2_MCSPI_MAX_FREQ		48000000
@@ -836,7 +836,7 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 		if (tx_buf != NULL) {
 			t->tx_dma = dma_map_single(&spi->dev, (void *) tx_buf,
 					len, DMA_TO_DEVICE);
-			if (dma_mapping_error(t->tx_dma)) {
+			if (dma_mapping_error(&spi->dev, t->tx_dma)) {
 				dev_dbg(&spi->dev, "dma %cX %d bytes error\n",
 						'T', len);
 				return -EINVAL;
@@ -845,7 +845,7 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 		if (rx_buf != NULL) {
 			t->rx_dma = dma_map_single(&spi->dev, rx_buf, t->len,
 					DMA_FROM_DEVICE);
-			if (dma_mapping_error(t->rx_dma)) {
+			if (dma_mapping_error(&spi->dev, t->rx_dma)) {
 				dev_dbg(&spi->dev, "dma %cX %d bytes error\n",
 						'R', len);
 				if (tx_buf != NULL)

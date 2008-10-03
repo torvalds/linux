@@ -354,7 +354,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_mkdir		2
 	sys	sys_rmdir		1	/* 4040 */
 	sys	sys_dup			1
-	sys	sys_pipe		0
+	sys	sysm_pipe		0
 	sys	sys_times		1
 	sys	sys_ni_syscall		0
 	sys	sys_brk			1	/* 4045 */
@@ -647,6 +647,12 @@ einval:	li	v0, -EINVAL
 	sys	sys_timerfd_create	2
 	sys	sys_timerfd_gettime	2
 	sys	sys_timerfd_settime	4
+	sys	sys_signalfd4		4
+	sys	sys_eventfd2		2	/* 4325 */
+	sys	sys_epoll_create1	1
+	sys	sys_dup3		3
+	sys	sys_pipe2		2
+	sys	sys_inotify_init1	1
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

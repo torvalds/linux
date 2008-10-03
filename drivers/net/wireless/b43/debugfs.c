@@ -74,6 +74,299 @@ struct b43_dfs_file * fops_to_dfs_file(struct b43_wldev *dev,
 	} while (0)
 
 
+/* The biggest address values for SHM access from the debugfs files. */
+#define B43_MAX_SHM_ROUTING	4
+#define B43_MAX_SHM_ADDR	0xFFFF
+
+static ssize_t shm16read__read_file(struct b43_wldev *dev,
+				    char *buf, size_t bufsize)
+{
+	ssize_t count = 0;
+	unsigned int routing, addr;
+	u16 val;
+
+	routing = dev->dfsentry->shm16read_routing_next;
+	addr = dev->dfsentry->shm16read_addr_next;
+	if ((routing > B43_MAX_SHM_ROUTING) ||
+	    (addr > B43_MAX_SHM_ADDR))
+		return -EDESTADDRREQ;
+
+	val = b43_shm_read16(dev, routing, addr);
+	fappend("0x%04X\n", val);
+
+	return count;
+}
+
+static int shm16read__write_file(struct b43_wldev *dev,
+				 const char *buf, size_t count)
+{
+	unsigned int routing, addr;
+	int res;
+
+	res = sscanf(buf, "0x%X 0x%X", &routing, &addr);
+	if (res != 2)
+		return -EINVAL;
+	if (routing > B43_MAX_SHM_ROUTING)
+		return -EADDRNOTAVAIL;
+	if (addr > B43_MAX_SHM_ADDR)
+		return -EADDRNOTAVAIL;
+	if (routing == B43_SHM_SHARED) {
+		if ((addr % 2) != 0)
+			return -EADDRNOTAVAIL;
+	}
+
+	dev->dfsentry->shm16read_routing_next = routing;
+	dev->dfsentry->shm16read_addr_next = addr;
+
+	return 0;
+}
+
+static int shm16write__write_file(struct b43_wldev *dev,
+				  const char *buf, size_t count)
+{
+	unsigned int routing, addr, mask, set;
+	u16 val;
+	int res;
+	unsigned long flags;
+
+	res = sscanf(buf, "0x%X 0x%X 0x%X 0x%X",
+		     &routing, &addr, &mask, &set);
+	if (res != 4)
+		return -EINVAL;
+	if (routing > B43_MAX_SHM_ROUTING)
+		return -EADDRNOTAVAIL;
+	if (addr > B43_MAX_SHM_ADDR)
+		return -EADDRNOTAVAIL;
+	if (routing == B43_SHM_SHARED) {
+		if ((addr % 2) != 0)
+			return -EADDRNOTAVAIL;
+	}
+	if ((mask > 0xFFFF) || (set > 0xFFFF))
+		return -E2BIG;
+
+	spin_lock_irqsave(&dev->wl->shm_lock, flags);
+	if (mask == 0)
+		val = 0;
+	else
+		val = __b43_shm_read16(dev, routing, addr);
+	val &= mask;
+	val |= set;
+	__b43_shm_write16(dev, routing, addr, val);
+	spin_unlock_irqrestore(&dev->wl->shm_lock, flags);
+
+	return 0;
+}
+
+static ssize_t shm32read__read_file(struct b43_wldev *dev,
+				    char *buf, size_t bufsize)
+{
+	ssize_t count = 0;
+	unsigned int routing, addr;
+	u32 val;
+
+	routing = dev->dfsentry->shm32read_routing_next;
+	addr = dev->dfsentry->shm32read_addr_next;
+	if ((routing > B43_MAX_SHM_ROUTING) ||
+	    (addr > B43_MAX_SHM_ADDR))
+		return -EDESTADDRREQ;
+
+	val = b43_shm_read32(dev, routing, addr);
+	fappend("0x%08X\n", val);
+
+	return count;
+}
+
+static int shm32read__write_file(struct b43_wldev *dev,
+				 const char *buf, size_t count)
+{
+	unsigned int routing, addr;
+	int res;
+
+	res = sscanf(buf, "0x%X 0x%X", &routing, &addr);
+	if (res != 2)
+		return -EINVAL;
+	if (routing > B43_MAX_SHM_ROUTING)
+		return -EADDRNOTAVAIL;
+	if (addr > B43_MAX_SHM_ADDR)
+		return -EADDRNOTAVAIL;
+	if (routing == B43_SHM_SHARED) {
+		if ((addr % 2) != 0)
+			return -EADDRNOTAVAIL;
+	}
+
+	dev->dfsentry->shm32read_routing_next = routing;
+	dev->dfsentry->shm32read_addr_next = addr;
+
+	return 0;
+}
+
+static int shm32write__write_file(struct b43_wldev *dev,
+				  const char *buf, size_t count)
+{
+	unsigned int routing, addr, mask, set;
+	u32 val;
+	int res;
+	unsigned long flags;
+
+	res = sscanf(buf, "0x%X 0x%X 0x%X 0x%X",
+		     &routing, &addr, &mask, &set);
+	if (res != 4)
+		return -EINVAL;
+	if (routing > B43_MAX_SHM_ROUTING)
+		return -EADDRNOTAVAIL;
+	if (addr > B43_MAX_SHM_ADDR)
+		return -EADDRNOTAVAIL;
+	if (routing == B43_SHM_SHARED) {
+		if ((addr % 2) != 0)
+			return -EADDRNOTAVAIL;
+	}
+	if ((mask > 0xFFFFFFFF) || (set > 0xFFFFFFFF))
+		return -E2BIG;
+
+	spin_lock_irqsave(&dev->wl->shm_lock, flags);
+	if (mask == 0)
+		val = 0;
+	else
+		val = __b43_shm_read32(dev, routing, addr);
+	val &= mask;
+	val |= set;
+	__b43_shm_write32(dev, routing, addr, val);
+	spin_unlock_irqrestore(&dev->wl->shm_lock, flags);
+
+	return 0;
+}
+
+/* The biggest MMIO address that we allow access to from the debugfs files. */
+#define B43_MAX_MMIO_ACCESS	(0xF00 - 1)
+
+static ssize_t mmio16read__read_file(struct b43_wldev *dev,
+				     char *buf, size_t bufsize)
+{
+	ssize_t count = 0;
+	unsigned int addr;
+	u16 val;
+
+	addr = dev->dfsentry->mmio16read_next;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EDESTADDRREQ;
+
+	val = b43_read16(dev, addr);
+	fappend("0x%04X\n", val);
+
+	return count;
+}
+
+static int mmio16read__write_file(struct b43_wldev *dev,
+				  const char *buf, size_t count)
+{
+	unsigned int addr;
+	int res;
+
+	res = sscanf(buf, "0x%X", &addr);
+	if (res != 1)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+	if ((addr % 2) != 0)
+		return -EINVAL;
+
+	dev->dfsentry->mmio16read_next = addr;
+
+	return 0;
+}
+
+static int mmio16write__write_file(struct b43_wldev *dev,
+				   const char *buf, size_t count)
+{
+	unsigned int addr, mask, set;
+	int res;
+	u16 val;
+
+	res = sscanf(buf, "0x%X 0x%X 0x%X", &addr, &mask, &set);
+	if (res != 3)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+	if ((mask > 0xFFFF) || (set > 0xFFFF))
+		return -E2BIG;
+	if ((addr % 2) != 0)
+		return -EINVAL;
+
+	if (mask == 0)
+		val = 0;
+	else
+		val = b43_read16(dev, addr);
+	val &= mask;
+	val |= set;
+	b43_write16(dev, addr, val);
+
+	return 0;
+}
+
+static ssize_t mmio32read__read_file(struct b43_wldev *dev,
+				     char *buf, size_t bufsize)
+{
+	ssize_t count = 0;
+	unsigned int addr;
+	u32 val;
+
+	addr = dev->dfsentry->mmio32read_next;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EDESTADDRREQ;
+
+	val = b43_read32(dev, addr);
+	fappend("0x%08X\n", val);
+
+	return count;
+}
+
+static int mmio32read__write_file(struct b43_wldev *dev,
+				  const char *buf, size_t count)
+{
+	unsigned int addr;
+	int res;
+
+	res = sscanf(buf, "0x%X", &addr);
+	if (res != 1)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+	if ((addr % 4) != 0)
+		return -EINVAL;
+
+	dev->dfsentry->mmio32read_next = addr;
+
+	return 0;
+}
+
+static int mmio32write__write_file(struct b43_wldev *dev,
+				   const char *buf, size_t count)
+{
+	unsigned int addr, mask, set;
+	int res;
+	u32 val;
+
+	res = sscanf(buf, "0x%X 0x%X 0x%X", &addr, &mask, &set);
+	if (res != 3)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+	if ((mask > 0xFFFFFFFF) || (set > 0xFFFFFFFF))
+		return -E2BIG;
+	if ((addr % 4) != 0)
+		return -EINVAL;
+
+	if (mask == 0)
+		val = 0;
+	else
+		val = b43_read32(dev, addr);
+	val &= mask;
+	val |= set;
+	b43_write32(dev, addr, val);
+
+	return 0;
+}
+
 /* wl->irq_lock is locked */
 static ssize_t tsf_read_file(struct b43_wldev *dev,
 			     char *buf, size_t bufsize)
@@ -100,42 +393,6 @@ static int tsf_write_file(struct b43_wldev *dev,
 	b43_tsf_write(dev, tsf);
 
 	return 0;
-}
-
-/* wl->irq_lock is locked */
-static ssize_t ucode_regs_read_file(struct b43_wldev *dev,
-				    char *buf, size_t bufsize)
-{
-	ssize_t count = 0;
-	int i;
-
-	for (i = 0; i < 64; i++) {
-		fappend("r%d = 0x%04x\n", i,
-			b43_shm_read16(dev, B43_SHM_SCRATCH, i));
-	}
-
-	return count;
-}
-
-/* wl->irq_lock is locked */
-static ssize_t shm_read_file(struct b43_wldev *dev,
-			     char *buf, size_t bufsize)
-{
-	ssize_t count = 0;
-	int i;
-	u16 tmp;
-	__le16 *le16buf = (__le16 *)buf;
-
-	for (i = 0; i < 0x1000; i++) {
-		if (bufsize < sizeof(tmp))
-			break;
-		tmp = b43_shm_read16(dev, B43_SHM_SHARED, 2 * i);
-		le16buf[i] = cpu_to_le16(tmp);
-		count += sizeof(tmp);
-		bufsize -= sizeof(tmp);
-	}
-
-	return count;
 }
 
 static ssize_t txstat_read_file(struct b43_wldev *dev,
@@ -270,24 +527,22 @@ static int restart_write_file(struct b43_wldev *dev,
 	return err;
 }
 
-static ssize_t append_lo_table(ssize_t count, char *buf, const size_t bufsize,
-			       struct b43_loctl table[B43_NR_BB][B43_NR_RF])
+static unsigned long calc_expire_secs(unsigned long now,
+				      unsigned long time,
+				      unsigned long expire)
 {
-	unsigned int i, j;
-	struct b43_loctl *ctl;
+	expire = time + expire;
 
-	for (i = 0; i < B43_NR_BB; i++) {
-		for (j = 0; j < B43_NR_RF; j++) {
-			ctl = &(table[i][j]);
-			fappend("(bbatt %2u, rfatt %2u)  ->  "
-				"(I %+3d, Q %+3d, Used: %d, Calibrated: %d)\n",
-				i, j, ctl->i, ctl->q,
-				ctl->used,
-				b43_loctl_is_calibrated(ctl));
-		}
+	if (time_after(now, expire))
+		return 0; /* expired */
+	if (expire < now) {
+		/* jiffies wrapped */
+		expire -= MAX_JIFFY_OFFSET;
+		now -= MAX_JIFFY_OFFSET;
 	}
+	B43_WARN_ON(expire < now);
 
-	return count;
+	return (expire - now) / HZ;
 }
 
 static ssize_t loctls_read_file(struct b43_wldev *dev,
@@ -296,27 +551,45 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 	ssize_t count = 0;
 	struct b43_txpower_lo_control *lo;
 	int i, err = 0;
+	struct b43_lo_calib *cal;
+	unsigned long now = jiffies;
+	struct b43_phy *phy = &dev->phy;
 
-	if (dev->phy.type != B43_PHYTYPE_G) {
+	if (phy->type != B43_PHYTYPE_G) {
 		fappend("Device is not a G-PHY\n");
 		err = -ENODEV;
 		goto out;
 	}
-	lo = dev->phy.lo_control;
+	lo = phy->lo_control;
 	fappend("-- Local Oscillator calibration data --\n\n");
-	fappend("Measured: %d,  Rebuild: %d,  HW-power-control: %d\n",
-		lo->lo_measured,
-		lo->rebuild,
+	fappend("HW-power-control enabled: %d\n",
 		dev->phy.hardware_power_control);
-	fappend("TX Bias: 0x%02X,  TX Magn: 0x%02X\n",
-		lo->tx_bias, lo->tx_magn);
-	fappend("Power Vector: 0x%08X%08X\n",
+	fappend("TX Bias: 0x%02X,  TX Magn: 0x%02X  (expire in %lu sec)\n",
+		lo->tx_bias, lo->tx_magn,
+		calc_expire_secs(now, lo->txctl_measured_time,
+				 B43_LO_TXCTL_EXPIRE));
+	fappend("Power Vector: 0x%08X%08X  (expires in %lu sec)\n",
 		(unsigned int)((lo->power_vector & 0xFFFFFFFF00000000ULL) >> 32),
-		(unsigned int)(lo->power_vector & 0x00000000FFFFFFFFULL));
-	fappend("\nControl table WITH PADMIX:\n");
-	count = append_lo_table(count, buf, bufsize, lo->with_padmix);
-	fappend("\nControl table WITHOUT PADMIX:\n");
-	count = append_lo_table(count, buf, bufsize, lo->no_padmix);
+		(unsigned int)(lo->power_vector & 0x00000000FFFFFFFFULL),
+		calc_expire_secs(now, lo->pwr_vec_read_time,
+				 B43_LO_PWRVEC_EXPIRE));
+
+	fappend("\nCalibrated settings:\n");
+	list_for_each_entry(cal, &lo->calib_list, list) {
+		bool active;
+
+		active = (b43_compare_bbatt(&cal->bbatt, &phy->bbatt) &&
+			  b43_compare_rfatt(&cal->rfatt, &phy->rfatt));
+		fappend("BB(%d), RF(%d,%d)  ->  I=%d, Q=%d  "
+			"(expires in %lu sec)%s\n",
+			cal->bbatt.att,
+			cal->rfatt.att, cal->rfatt.with_padmix,
+			cal->ctl.i, cal->ctl.q,
+			calc_expire_secs(now, cal->calib_time,
+					 B43_LO_CALIB_EXPIRE),
+			active ? "  ACTIVE" : "");
+	}
+
 	fappend("\nUsed RF attenuation values:  Value(WithPadmix flag)\n");
 	for (i = 0; i < lo->rfatt_list.len; i++) {
 		fappend("%u(%d), ",
@@ -351,7 +624,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43_dfs_file *dfile;
 	ssize_t uninitialized_var(ret);
 	char *buf;
-	const size_t bufsize = 1024 * 128;
+	const size_t bufsize = 1024 * 16; /* 16 kiB buffer */
 	const size_t buforder = get_order(bufsize);
 	int err = 0;
 
@@ -380,8 +653,6 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 			err = -ENOMEM;
 			goto out_unlock;
 		}
-		/* Sparse warns about the following memset, because it has a big
-		 * size value. That warning is bogus, so I will ignore it. --mb */
 		memset(buf, 0, bufsize);
 		if (dfops->take_irqlock) {
 			spin_lock_irq(&dev->wl->irq_lock);
@@ -482,9 +753,15 @@ out_unlock:
 		.take_irqlock	= _take_irqlock,		\
 	}
 
+B43_DEBUGFS_FOPS(shm16read, shm16read__read_file, shm16read__write_file, 1);
+B43_DEBUGFS_FOPS(shm16write, NULL, shm16write__write_file, 1);
+B43_DEBUGFS_FOPS(shm32read, shm32read__read_file, shm32read__write_file, 1);
+B43_DEBUGFS_FOPS(shm32write, NULL, shm32write__write_file, 1);
+B43_DEBUGFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file, 1);
+B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file, 1);
+B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file, 1);
+B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file, 1);
 B43_DEBUGFS_FOPS(tsf, tsf_read_file, tsf_write_file, 1);
-B43_DEBUGFS_FOPS(ucode_regs, ucode_regs_read_file, NULL, 1);
-B43_DEBUGFS_FOPS(shm, shm_read_file, NULL, 1);
 B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL, 0);
 B43_DEBUGFS_FOPS(txpower_g, txpower_g_read_file, txpower_g_write_file, 0);
 B43_DEBUGFS_FOPS(restart, NULL, restart_write_file, 1);
@@ -523,6 +800,8 @@ static void b43_add_dynamic_debug(struct b43_wldev *dev)
 	add_dyn_dbg("debug_dmaverbose", B43_DBG_DMAVERBOSE, 0);
 	add_dyn_dbg("debug_pwork_fast", B43_DBG_PWORK_FAST, 0);
 	add_dyn_dbg("debug_pwork_stop", B43_DBG_PWORK_STOP, 0);
+	add_dyn_dbg("debug_lo", B43_DBG_LO, 0);
+	add_dyn_dbg("debug_firmware", B43_DBG_FIRMWARE, 0);
 
 #undef add_dyn_dbg
 }
@@ -569,6 +848,13 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 		return;
 	}
 
+	e->mmio16read_next = 0xFFFF; /* invalid address */
+	e->mmio32read_next = 0xFFFF; /* invalid address */
+	e->shm16read_routing_next = 0xFFFFFFFF; /* invalid routing */
+	e->shm16read_addr_next = 0xFFFFFFFF; /* invalid address */
+	e->shm32read_routing_next = 0xFFFFFFFF; /* invalid routing */
+	e->shm32read_addr_next = 0xFFFFFFFF; /* invalid address */
+
 #define ADD_FILE(name, mode)	\
 	do {							\
 		struct dentry *d;				\
@@ -581,9 +867,15 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	} while (0)
 
 
+	ADD_FILE(shm16read, 0600);
+	ADD_FILE(shm16write, 0200);
+	ADD_FILE(shm32read, 0600);
+	ADD_FILE(shm32write, 0200);
+	ADD_FILE(mmio16read, 0600);
+	ADD_FILE(mmio16write, 0200);
+	ADD_FILE(mmio32read, 0600);
+	ADD_FILE(mmio32write, 0200);
 	ADD_FILE(tsf, 0600);
-	ADD_FILE(ucode_regs, 0400);
-	ADD_FILE(shm, 0400);
 	ADD_FILE(txstat, 0400);
 	ADD_FILE(txpower_g, 0600);
 	ADD_FILE(restart, 0200);
@@ -605,9 +897,15 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 		return;
 	b43_remove_dynamic_debug(dev);
 
+	debugfs_remove(e->file_shm16read.dentry);
+	debugfs_remove(e->file_shm16write.dentry);
+	debugfs_remove(e->file_shm32read.dentry);
+	debugfs_remove(e->file_shm32write.dentry);
+	debugfs_remove(e->file_mmio16read.dentry);
+	debugfs_remove(e->file_mmio16write.dentry);
+	debugfs_remove(e->file_mmio32read.dentry);
+	debugfs_remove(e->file_mmio32write.dentry);
 	debugfs_remove(e->file_tsf.dentry);
-	debugfs_remove(e->file_ucode_regs.dentry);
-	debugfs_remove(e->file_shm.dentry);
 	debugfs_remove(e->file_txstat.dentry);
 	debugfs_remove(e->file_txpower_g.dentry);
 	debugfs_remove(e->file_restart.dentry);

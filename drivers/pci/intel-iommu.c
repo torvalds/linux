@@ -37,7 +37,7 @@
 #include "intel-iommu.h"
 #include <asm/proto.h> /* force_iommu in this header in x86-64*/
 #include <asm/cacheflush.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include "pci.h"
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
@@ -2348,11 +2348,34 @@ static void __init iommu_exit_mempool(void)
 
 }
 
+static int blacklist_iommu(const struct dmi_system_id *id)
+{
+	printk(KERN_INFO "%s detected; disabling IOMMU\n",
+	       id->ident);
+	dmar_disabled = 1;
+	return 0;
+}
+
+static struct dmi_system_id __initdata intel_iommu_dmi_table[] = {
+	{	/* Some DG33BU BIOS revisions advertised non-existent VT-d */
+		.callback = blacklist_iommu,
+		.ident = "Intel DG33BU",
+		{	DMI_MATCH(DMI_BOARD_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "DG33BU"),
+		}
+	},
+	{ }
+};
+
+
 void __init detect_intel_iommu(void)
 {
 	if (swiotlb || no_iommu || iommu_detected || dmar_disabled)
 		return;
 	if (early_dmar_detect()) {
+		dmi_check_system(intel_iommu_dmi_table);
+		if (dmar_disabled)
+			return;
 		iommu_detected = 1;
 	}
 }

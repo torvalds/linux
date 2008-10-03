@@ -52,12 +52,10 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 {
 	struct resource *res_base, *res_alt, *res_irq;
 	void __iomem *base, *alt_base;
-	ide_hwif_t *hwif;
 	struct pata_platform_info *pdata;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	int ret = 0;
-	int mmio = 0;
-	hw_regs_t hw;
+	struct ide_host *host;
+	int ret = 0, mmio = 0;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	struct ide_port_info d = platform_ide_port_info;
 
 	pdata = pdev->dev.platform_data;
@@ -94,28 +92,18 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 			res_alt->start, res_alt->end - res_alt->start + 1);
 	}
 
-	hwif = ide_find_port();
-	if (!hwif) {
-		ret = -ENODEV;
-		goto out;
-	}
-
 	memset(&hw, 0, sizeof(hw));
 	plat_ide_setup_ports(&hw, base, alt_base, pdata, res_irq->start);
 	hw.dev = &pdev->dev;
 
-	ide_init_port_hw(hwif, &hw);
-
-	if (mmio) {
+	if (mmio)
 		d.host_flags |= IDE_HFLAG_MMIO;
-		default_hwif_mmiops(hwif);
-	}
 
-	idx[0] = hwif->index;
+	ret = ide_host_add(&d, hws, &host);
+	if (ret)
+		goto out;
 
-	ide_device_add(idx, &d);
-
-	platform_set_drvdata(pdev, hwif);
+	platform_set_drvdata(pdev, host);
 
 	return 0;
 
@@ -125,9 +113,9 @@ out:
 
 static int __devexit plat_ide_remove(struct platform_device *pdev)
 {
-	ide_hwif_t *hwif = pdev->dev.driver_data;
+	struct ide_host *host = pdev->dev.driver_data;
 
-	ide_unregister(hwif);
+	ide_host_remove(host);
 
 	return 0;
 }

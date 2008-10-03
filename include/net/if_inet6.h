@@ -148,7 +148,6 @@ struct ifacaddr6
 #define	IFA_HOST	IPV6_ADDR_LOOPBACK
 #define	IFA_LINK	IPV6_ADDR_LINKLOCAL
 #define	IFA_SITE	IPV6_ADDR_SITELOCAL
-#define	IFA_GLOBAL	0x0000U
 
 struct ipv6_devstat {
 	struct proc_dir_entry	*proc_dir_entry;
@@ -193,8 +192,6 @@ struct inet6_dev
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
 	struct rcu_head		rcu;
 };
-
-extern struct ipv6_devconf ipv6_devconf;
 
 static inline void ipv6_eth_mc_map(struct in6_addr *addr, char *buf)
 {

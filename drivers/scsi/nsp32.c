@@ -23,7 +23,6 @@
  *   1.2: PowerPC (big endian) support.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -299,9 +298,9 @@ static struct scsi_host_template nsp32_template = {
 #else
 # define NSP32_DEBUG_MASK	      0xffffff
 # define nsp32_msg(type, args...) \
-	nsp32_message (__FUNCTION__, __LINE__, (type), args)
+	nsp32_message (__func__, __LINE__, (type), args)
 # define nsp32_dbg(mask, args...) \
-	nsp32_dmessage(__FUNCTION__, __LINE__, (mask), args)
+	nsp32_dmessage(__func__, __LINE__, (mask), args)
 #endif
 
 #define NSP32_DEBUG_QUEUECOMMAND	BIT(0)

@@ -452,7 +452,7 @@ static int dc390_pci_map (struct dc390_srb* pSRB)
 		/* TODO: error handling */
 		if (pSRB->SGcount != 1)
 			error = 1;
-		DEBUG1(printk("%s(): Mapped sense buffer %p at %x\n", __FUNCTION__, pcmd->sense_buffer, cmdp->saved_dma_handle));
+		DEBUG1(printk("%s(): Mapped sense buffer %p at %x\n", __func__, pcmd->sense_buffer, cmdp->saved_dma_handle));
 	/* Map SG list */
 	} else if (scsi_sg_count(pcmd)) {
 		int nseg;
@@ -466,7 +466,7 @@ static int dc390_pci_map (struct dc390_srb* pSRB)
 		if (nseg < 0)
 			error = 1;
 		DEBUG1(printk("%s(): Mapped SG %p with %d (%d) elements\n",\
-			      __FUNCTION__, scsi_sglist(pcmd), nseg, scsi_sg_count(pcmd)));
+			      __func__, scsi_sglist(pcmd), nseg, scsi_sg_count(pcmd)));
 	/* Map single segment */
 	} else
 		pSRB->SGcount = 0;
@@ -483,11 +483,11 @@ static void dc390_pci_unmap (struct dc390_srb* pSRB)
 
 	if (pSRB->SRBFlag) {
 		pci_unmap_sg(pdev, &pSRB->Segmentx, 1, DMA_FROM_DEVICE);
-		DEBUG1(printk("%s(): Unmapped sense buffer at %x\n", __FUNCTION__, cmdp->saved_dma_handle));
+		DEBUG1(printk("%s(): Unmapped sense buffer at %x\n", __func__, cmdp->saved_dma_handle));
 	} else {
 		scsi_dma_unmap(pcmd);
 		DEBUG1(printk("%s(): Unmapped SG at %p with %d elements\n",
-			      __FUNCTION__, scsi_sglist(pcmd), scsi_sg_count(pcmd)));
+			      __func__, scsi_sglist(pcmd), scsi_sg_count(pcmd)));
 	}
 }
 

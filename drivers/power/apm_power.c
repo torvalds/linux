@@ -78,7 +78,7 @@ static void find_main_battery(void)
 	main_battery = NULL;
 	bp.main = main_battery;
 
-	error = class_for_each_device(power_supply_class, &bp,
+	error = class_for_each_device(power_supply_class, NULL, &bp,
 				      __find_main_battery);
 	if (error) {
 		main_battery = bp.main;

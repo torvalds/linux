@@ -347,16 +347,23 @@ static int ps3_system_bus_match(struct device *_dev,
 	struct ps3_system_bus_driver *drv = ps3_drv_to_system_bus_drv(_drv);
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 
-	result = dev->match_id == drv->match_id;
+	if (!dev->match_sub_id)
+		result = dev->match_id == drv->match_id;
+	else
+		result = dev->match_sub_id == drv->match_sub_id &&
+			dev->match_id == drv->match_id;
 
 	if (result)
-		pr_info("%s:%d: dev=%u(%s), drv=%u(%s): match\n", __func__,
-			__LINE__, dev->match_id, dev->core.bus_id,
-			drv->match_id, drv->core.name);
+		pr_info("%s:%d: dev=%u.%u(%s), drv=%u.%u(%s): match\n",
+			__func__, __LINE__,
+			dev->match_id, dev->match_sub_id, dev->core.bus_id,
+			drv->match_id, drv->match_sub_id, drv->core.name);
 	else
-		pr_debug("%s:%d: dev=%u(%s), drv=%u(%s): miss\n", __func__,
-			__LINE__, dev->match_id, dev->core.bus_id,
-			drv->match_id, drv->core.name);
+		pr_debug("%s:%d: dev=%u.%u(%s), drv=%u.%u(%s): miss\n",
+			__func__, __LINE__,
+			dev->match_id, dev->match_sub_id, dev->core.bus_id,
+			drv->match_id, drv->match_sub_id, drv->core.name);
+
 	return result;
 }
 

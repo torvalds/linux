@@ -16,13 +16,13 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/ssp.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/regs-ssp.h>
+#include <mach/ssp.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/regs-ssp.h>
 #include "sharpsl.h"
 
 static DEFINE_SPINLOCK(corgi_ssp_lock);

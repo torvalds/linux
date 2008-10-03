@@ -170,7 +170,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
-	retval = reserve_memtype(phys_addr, phys_addr + size,
+	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
 						prot_val, &new_prot_val);
 	if (retval) {
 		pr_debug("Warning: reserve_memtype returned %d\n", retval);
@@ -329,6 +329,14 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 	free_memtype(phys_addr, phys_addr + size);
 	return (void __iomem *)ret;
 }
+
+void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
+				unsigned long prot_val)
+{
+	return __ioremap_caller(phys_addr, size, (prot_val & _PAGE_CACHE_MASK),
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_prot);
 
 /**
  * iounmap - Free a IO remapping
@@ -545,13 +553,11 @@ static int __init check_early_ioremap_leak(void)
 {
 	if (!early_ioremap_nested)
 		return 0;
-
-	printk(KERN_WARNING
+	WARN(1, KERN_WARNING
 	       "Debug warning: early ioremap leak of %d areas detected.\n",
-	       early_ioremap_nested);
+		early_ioremap_nested);
 	printk(KERN_WARNING
-	       "please boot with early_ioremap_debug and report the dmesg.\n");
-	WARN_ON(1);
+		"please boot with early_ioremap_debug and report the dmesg.\n");
 
 	return 1;
 }

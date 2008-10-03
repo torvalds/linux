@@ -1,22 +1,37 @@
-* USB (Universal Serial Bus Controller)
+Freescale QUICC Engine USB Controller
 
 Required properties:
-- compatible : could be "qe_udc" or "fhci-hcd".
-- mode : the could be "host" or "slave".
-- reg : Offset and length of the register set for the device
-- interrupts : <a b> where a is the interrupt number and b is a
-  field that represents an encoding of the sense and level
-  information for the interrupt.  This should be encoded based on
-  the information in section 2) depending on the type of interrupt
-  controller you have.
-- interrupt-parent : the phandle for the interrupt controller that
-  services interrupts for this device.
+- compatible : should be "fsl,<chip>-qe-usb", "fsl,mpc8323-qe-usb".
+- reg : the first two cells should contain usb registers location and
+  length, the next two two cells should contain PRAM location and
+  length.
+- interrupts : should contain USB interrupt.
+- interrupt-parent : interrupt source phandle.
+- fsl,fullspeed-clock : specifies the full speed USB clock source:
+  "none": clock source is disabled
+  "brg1" through "brg16": clock source is BRG1-BRG16, respectively
+  "clk1" through "clk24": clock source is CLK1-CLK24, respectively
+- fsl,lowspeed-clock : specifies the low speed USB clock source:
+  "none": clock source is disabled
+  "brg1" through "brg16": clock source is BRG1-BRG16, respectively
+  "clk1" through "clk24": clock source is CLK1-CLK24, respectively
+- hub-power-budget : USB power budget for the root hub, in mA.
+- gpios : should specify GPIOs in this order: USBOE, USBTP, USBTN, USBRP,
+  USBRN, SPEED (optional), and POWER (optional).
 
-Example(slave):
-	usb@6c0 {
-		compatible = "qe_udc";
-		reg = <6c0 40>;
-		interrupts = <8b 0>;
-		interrupt-parent = <700>;
-		mode = "slave";
-	};
+Example:
+
+usb@6c0 {
+	compatible = "fsl,mpc8360-qe-usb", "fsl,mpc8323-qe-usb";
+	reg = <0x6c0 0x40 0x8b00 0x100>;
+	interrupts = <11>;
+	interrupt-parent = <&qeic>;
+	fsl,fullspeed-clock = "clk21";
+	gpios = <&qe_pio_b  2 0 /* USBOE */
+		 &qe_pio_b  3 0 /* USBTP */
+		 &qe_pio_b  8 0 /* USBTN */
+		 &qe_pio_b  9 0 /* USBRP */
+		 &qe_pio_b 11 0 /* USBRN */
+		 &qe_pio_e 20 0 /* SPEED */
+		 &qe_pio_e 21 0 /* POWER */>;
+};

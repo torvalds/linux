@@ -205,7 +205,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 	spin_lock(&ipt->tcf_lock);
 
 	ipt->tcf_tm.lastuse = jiffies;
-	ipt->tcf_bstats.bytes += skb->len;
+	ipt->tcf_bstats.bytes += qdisc_pkt_len(skb);
 	ipt->tcf_bstats.packets++;
 
 	/* yes, we have to worry about both in and out dev

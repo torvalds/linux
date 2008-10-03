@@ -72,21 +72,29 @@ extern void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
 
+extern int fifo_set_limit(struct Qdisc *q, unsigned int limit);
+extern struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
+				      unsigned int limit);
+
 extern int register_qdisc(struct Qdisc_ops *qops);
 extern int unregister_qdisc(struct Qdisc_ops *qops);
+extern void qdisc_list_del(struct Qdisc *q);
 extern struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
 extern struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
 extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		struct nlattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
+extern void qdisc_put_stab(struct qdisc_size_table *tab);
 
-extern void __qdisc_run(struct net_device *dev);
+extern void __qdisc_run(struct Qdisc *q);
 
-static inline void qdisc_run(struct net_device *dev)
+static inline void qdisc_run(struct Qdisc *q)
 {
-	if (!netif_queue_stopped(dev) &&
-	    !test_and_set_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
-		__qdisc_run(dev);
+	struct netdev_queue *txq = q->dev_queue;
+
+	if (!netif_tx_queue_stopped(txq) &&
+	    !test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
+		__qdisc_run(q);
 }
 
 extern int tc_classify_compat(struct sk_buff *skb, struct tcf_proto *tp,

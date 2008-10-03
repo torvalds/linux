@@ -119,19 +119,7 @@ static int dio_bus_match(struct device *dev, struct device_driver *drv)
 	if (!ids)
 		return 0;
 
-	while (ids->id) {
-		if (ids->id == DIO_WILDCARD)
-			return 1;
-		if (DIO_NEEDSSECID(ids->id & 0xff)) {
-			if (ids->id == d->id)
-				return 1;
-		} else {
-			if ((ids->id & 0xff) == (d->id & 0xff))
-				return 1;
-		}
-		ids++;
-	}
-	return 0;
+	return dio_match_device(ids, d) ? 1 : 0;
 }
 
 

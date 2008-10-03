@@ -41,24 +41,25 @@
 
 struct e1000_info;
 
-#define ndev_printk(level, netdev, format, arg...) \
-	printk(level "%s: " format, (netdev)->name, ## arg)
+#define e_printk(level, adapter, format, arg...) \
+	printk(level "%s: %s: " format, pci_name(adapter->pdev), \
+	       adapter->netdev->name, ## arg)
 
 #ifdef DEBUG
-#define ndev_dbg(netdev, format, arg...) \
-	ndev_printk(KERN_DEBUG , netdev, format, ## arg)
+#define e_dbg(format, arg...) \
+	e_printk(KERN_DEBUG , adapter, format, ## arg)
 #else
-#define ndev_dbg(netdev, format, arg...) do { (void)(netdev); } while (0)
+#define e_dbg(format, arg...) do { (void)(adapter); } while (0)
 #endif
 
-#define ndev_err(netdev, format, arg...) \
-	ndev_printk(KERN_ERR , netdev, format, ## arg)
-#define ndev_info(netdev, format, arg...) \
-	ndev_printk(KERN_INFO , netdev, format, ## arg)
-#define ndev_warn(netdev, format, arg...) \
-	ndev_printk(KERN_WARNING , netdev, format, ## arg)
-#define ndev_notice(netdev, format, arg...) \
-	ndev_printk(KERN_NOTICE , netdev, format, ## arg)
+#define e_err(format, arg...) \
+	e_printk(KERN_ERR, adapter, format, ## arg)
+#define e_info(format, arg...) \
+	e_printk(KERN_INFO, adapter, format, ## arg)
+#define e_warn(format, arg...) \
+	e_printk(KERN_WARNING, adapter, format, ## arg)
+#define e_notice(format, arg...) \
+	e_printk(KERN_NOTICE, adapter, format, ## arg)
 
 
 /* Tx/Rx descriptor defines */
@@ -325,6 +326,7 @@ struct e1000_info {
 #define FLAG_RX_CSUM_ENABLED              (1 << 28)
 #define FLAG_TSO_FORCE                    (1 << 29)
 #define FLAG_RX_RESTART_NOW               (1 << 30)
+#define FLAG_MSI_TEST_FAILED              (1 << 31)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))

@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/cx2341x.h>
 
 #include "cx88.h"
@@ -715,7 +716,8 @@ static int vidioc_querymenu (struct file *file, void *priv,
 
 	qctrl.id = qmenu->id;
 	blackbird_queryctrl(dev, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			cx2341x_ctrl_get_menu(&dev->params, qmenu->id));
 }
 
 static int vidioc_querycap (struct file *file, void  *priv,
@@ -737,7 +739,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index != 0)
@@ -749,7 +751,7 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8802_fh  *fh   = priv;
@@ -768,7 +770,7 @@ static int vidioc_g_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct cx8802_fh  *fh   = priv;
@@ -784,7 +786,7 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap (struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8802_fh  *fh   = priv;
@@ -1173,18 +1175,13 @@ static const struct file_operations mpeg_fops =
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx8802_mpeg_template =
-{
-	.name                 = "cx8802",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES|VID_TYPE_MPEG_ENCODER,
-	.fops                 = &mpeg_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_querymenu     = vidioc_querymenu,
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
@@ -1206,6 +1203,13 @@ static struct video_device cx8802_mpeg_template =
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_s_std         = vidioc_s_std,
+};
+
+static struct video_device cx8802_mpeg_template = {
+	.name                 = "cx8802",
+	.fops                 = &mpeg_fops,
+	.ioctl_ops 	      = &mpeg_ioctl_ops,
+	.minor                = -1,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };

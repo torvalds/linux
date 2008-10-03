@@ -30,8 +30,8 @@
 int oss_present;
 volatile struct mac_oss *oss;
 
-irqreturn_t oss_irq(int, void *);
-irqreturn_t oss_nubus_irq(int, void *);
+static irqreturn_t oss_irq(int, void *);
+static irqreturn_t oss_nubus_irq(int, void *);
 
 extern irqreturn_t via1_irq(int, void *);
 extern irqreturn_t mac_scc_dispatch(int, void *);
@@ -92,7 +92,7 @@ void __init oss_nubus_init(void)
  * and SCSI; everything else is routed to its own autovector IRQ.
  */
 
-irqreturn_t oss_irq(int irq, void *dev_id)
+static irqreturn_t oss_irq(int irq, void *dev_id)
 {
 	int events;
 
@@ -126,7 +126,7 @@ irqreturn_t oss_irq(int irq, void *dev_id)
  * Unlike the VIA/RBV this is on its own autovector interrupt level.
  */
 
-irqreturn_t oss_nubus_irq(int irq, void *dev_id)
+static irqreturn_t oss_nubus_irq(int irq, void *dev_id)
 {
 	int events, irq_bit, i;
 

@@ -250,7 +250,7 @@ static void write_watchdog_counter(unsigned int perfctr_msr,
 
 	do_div(count, nmi_hz);
 	if(descr)
-		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsrl(perfctr_msr, 0 - count);
 }
 
@@ -261,7 +261,7 @@ static void write_watchdog_counter32(unsigned int perfctr_msr,
 
 	do_div(count, nmi_hz);
 	if(descr)
-		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsr(perfctr_msr, (u32)(-count), 0);
 }
 
@@ -478,7 +478,13 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 		perfctr_msr = MSR_P4_IQ_PERFCTR1;
 		evntsel_msr = MSR_P4_CRU_ESCR0;
 		cccr_msr = MSR_P4_IQ_CCCR1;
-		cccr_val = P4_CCCR_OVF_PMI1 | P4_CCCR_ESCR_SELECT(4);
+
+		/* Pentium 4 D processors don't support P4_CCCR_OVF_PMI1 */
+		if (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask == 4)
+			cccr_val = P4_CCCR_OVF_PMI0;
+		else
+			cccr_val = P4_CCCR_OVF_PMI1;
+		cccr_val |= P4_CCCR_ESCR_SELECT(4);
 	}
 
 	evntsel = P4_ESCR_EVENT_SELECT(0x3F)

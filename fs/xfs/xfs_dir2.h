@@ -74,7 +74,8 @@ extern int xfs_dir_createname(struct xfs_trans *tp, struct xfs_inode *dp,
 				xfs_fsblock_t *first,
 				struct xfs_bmap_free *flist, xfs_extlen_t tot);
 extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name, xfs_ino_t *inum);
+				struct xfs_name *name, xfs_ino_t *inum,
+				struct xfs_name *ci_name);
 extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t ino,
 				xfs_fsblock_t *first,
@@ -98,5 +99,8 @@ extern int xfs_dir2_isleaf(struct xfs_trans *tp, struct xfs_inode *dp,
 				int *vp);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_dabuf *bp);
+
+extern int xfs_dir_cilookup_result(struct xfs_da_args *args, const char *name,
+				int len);
 
 #endif	/* __XFS_DIR2_H__ */

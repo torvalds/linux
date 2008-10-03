@@ -36,10 +36,9 @@
 
 static s32 igb_set_default_fc(struct e1000_hw *hw);
 static s32 igb_set_fc_watermarks(struct e1000_hw *hw);
-static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);
 
 /**
- *  e1000_remove_device - Free device specific structure
+ *  igb_remove_device - Free device specific structure
  *  @hw: pointer to the HW structure
  *
  *  If a device specific structure was allocated, this function will
@@ -73,7 +72,7 @@ static s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 }
 
 /**
- *  e1000_get_bus_info_pcie - Get PCIe bus information
+ *  igb_get_bus_info_pcie - Get PCIe bus information
  *  @hw: pointer to the HW structure
  *
  *  Determines and stores the system bus information for a particular
@@ -113,7 +112,7 @@ s32 igb_get_bus_info_pcie(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_clear_vfta - Clear VLAN filter table
+ *  igb_clear_vfta - Clear VLAN filter table
  *  @hw: pointer to the HW structure
  *
  *  Clears the register array which contains the VLAN filter table by
@@ -130,7 +129,7 @@ void igb_clear_vfta(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_write_vfta - Write value to VLAN filter table
+ *  igb_write_vfta - Write value to VLAN filter table
  *  @hw: pointer to the HW structure
  *  @offset: register offset in VLAN filter table
  *  @value: register value written to VLAN filter table
@@ -145,35 +144,7 @@ void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
- *  e1000_init_rx_addrs - Initialize receive address's
- *  @hw: pointer to the HW structure
- *  @rar_count: receive address registers
- *
- *  Setups the receive address registers by setting the base receive address
- *  register to the devices MAC address and clearing all the other receive
- *  address registers to 0.
- **/
-void igb_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
-{
-	u32 i;
-
-	/* Setup the receive address */
-	hw_dbg(hw, "Programming MAC Address into RAR[0]\n");
-
-	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
-
-	/* Zero out the other (rar_entry_count - 1) receive addresses */
-	hw_dbg(hw, "Clearing RAR[1-%u]\n", rar_count-1);
-	for (i = 1; i < rar_count; i++) {
-		array_wr32(E1000_RA, (i << 1), 0);
-		wrfl();
-		array_wr32(E1000_RA, ((i << 1) + 1), 0);
-		wrfl();
-	}
-}
-
-/**
- *  e1000_check_alt_mac_addr - Check for alternate MAC addr
+ *  igb_check_alt_mac_addr - Check for alternate MAC addr
  *  @hw: pointer to the HW structure
  *
  *  Checks the nvm for an alternate MAC address.  An alternate MAC address
@@ -193,7 +164,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	ret_val = hw->nvm.ops.read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
 				 &nvm_alt_mac_addr_offset);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		hw_dbg("NVM Read Error\n");
 		goto out;
 	}
 
@@ -209,7 +180,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
 		ret_val = hw->nvm.ops.read_nvm(hw, offset, 1, &nvm_data);
 		if (ret_val) {
-			hw_dbg(hw, "NVM Read Error\n");
+			hw_dbg("NVM Read Error\n");
 			goto out;
 		}
 
@@ -233,7 +204,7 @@ out:
 }
 
 /**
- *  e1000_rar_set - Set receive address register
+ *  igb_rar_set - Set receive address register
  *  @hw: pointer to the HW structure
  *  @addr: pointer to the receive address
  *  @index: receive address array register
@@ -263,7 +234,7 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 }
 
 /**
- *  e1000_mta_set - Set multicast filter table address
+ *  igb_mta_set - Set multicast filter table address
  *  @hw: pointer to the HW structure
  *  @hash_value: determines the MTA register and bit to set
  *
@@ -272,7 +243,7 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
  *  current value is read, the new bit is OR'd in and the new value is
  *  written back into the register.
  **/
-static void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
+void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
 {
 	u32 hash_bit, hash_reg, mta;
 
@@ -298,61 +269,7 @@ static void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
 }
 
 /**
- *  e1000_update_mc_addr_list - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
- *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
- **/
-void igb_update_mc_addr_list(struct e1000_hw *hw,
-			       u8 *mc_addr_list, u32 mc_addr_count,
-			       u32 rar_used_count, u32 rar_count)
-{
-	u32 hash_value;
-	u32 i;
-
-	/*
-	 * Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = rar_used_count; i < rar_count; i++) {
-		if (mc_addr_count) {
-			hw->mac.ops.rar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			array_wr32(E1000_RA, i << 1, 0);
-			wrfl();
-			array_wr32(E1000_RA, (i << 1) + 1, 0);
-			wrfl();
-		}
-	}
-
-	/* Clear the old settings from the MTA */
-	hw_dbg(hw, "Clearing MTA\n");
-	for (i = 0; i < hw->mac.mta_reg_count; i++) {
-		array_wr32(E1000_MTA, i, 0);
-		wrfl();
-	}
-
-	/* Load any remaining multicast addresses into the hash table. */
-	for (; mc_addr_count > 0; mc_addr_count--) {
-		hash_value = igb_hash_mc_addr(hw, mc_addr_list);
-		hw_dbg(hw, "Hash value = 0x%03X\n", hash_value);
-		igb_mta_set(hw, hash_value);
-		mc_addr_list += ETH_ALEN;
-	}
-}
-
-/**
- *  e1000_hash_mc_addr - Generate a multicast hash value
+ *  igb_hash_mc_addr - Generate a multicast hash value
  *  @hw: pointer to the HW structure
  *  @mc_addr: pointer to a multicast address
  *
@@ -360,7 +277,7 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
  *  the multicast filter table array address and new table value.  See
  *  igb_mta_set()
  **/
-static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
+u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 {
 	u32 hash_value, hash_mask;
 	u8 bit_shift = 0;
@@ -423,7 +340,7 @@ static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 }
 
 /**
- *  e1000_clear_hw_cntrs_base - Clear base hardware counters
+ *  igb_clear_hw_cntrs_base - Clear base hardware counters
  *  @hw: pointer to the HW structure
  *
  *  Clears the base hardware counters by reading the counter registers.
@@ -472,7 +389,7 @@ void igb_clear_hw_cntrs_base(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_check_for_copper_link - Check for link (Copper)
+ *  igb_check_for_copper_link - Check for link (Copper)
  *  @hw: pointer to the HW structure
  *
  *  Checks to see of the link status of the hardware has changed.  If a
@@ -540,14 +457,14 @@ s32 igb_check_for_copper_link(struct e1000_hw *hw)
 	 */
 	ret_val = igb_config_fc_after_link_up(hw);
 	if (ret_val)
-		hw_dbg(hw, "Error configuring flow control\n");
+		hw_dbg("Error configuring flow control\n");
 
 out:
 	return ret_val;
 }
 
 /**
- *  e1000_setup_link - Setup flow control and link settings
+ *  igb_setup_link - Setup flow control and link settings
  *  @hw: pointer to the HW structure
  *
  *  Determines which flow control settings to use, then configures flow
@@ -578,7 +495,7 @@ s32 igb_setup_link(struct e1000_hw *hw)
 	 */
 	hw->fc.original_type = hw->fc.type;
 
-	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n", hw->fc.type);
+	hw_dbg("After fix-ups FlowControl is now = %x\n", hw->fc.type);
 
 	/* Call the necessary media_type subroutine to configure the link. */
 	ret_val = hw->mac.ops.setup_physical_interface(hw);
@@ -591,8 +508,7 @@ s32 igb_setup_link(struct e1000_hw *hw)
 	 * control is disabled, because it does not hurt anything to
 	 * initialize these registers.
 	 */
-	hw_dbg(hw,
-	       "Initializing the Flow Control address, type and timer regs\n");
+	hw_dbg("Initializing the Flow Control address, type and timer regs\n");
 	wr32(E1000_FCT, FLOW_CONTROL_TYPE);
 	wr32(E1000_FCAH, FLOW_CONTROL_ADDRESS_HIGH);
 	wr32(E1000_FCAL, FLOW_CONTROL_ADDRESS_LOW);
@@ -606,7 +522,7 @@ out:
 }
 
 /**
- *  e1000_config_collision_dist - Configure collision distance
+ *  igb_config_collision_dist - Configure collision distance
  *  @hw: pointer to the HW structure
  *
  *  Configures the collision distance to the default value and is used
@@ -627,7 +543,7 @@ void igb_config_collision_dist(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_fc_watermarks - Set flow control high/low watermarks
+ *  igb_set_fc_watermarks - Set flow control high/low watermarks
  *  @hw: pointer to the HW structure
  *
  *  Sets the flow control high/low threshold (watermark) registers.  If
@@ -665,7 +581,7 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_default_fc - Set flow control default values
+ *  igb_set_default_fc - Set flow control default values
  *  @hw: pointer to the HW structure
  *
  *  Read the EEPROM for the default values for flow control and store the
@@ -689,7 +605,7 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 				       &nvm_data);
 
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		hw_dbg("NVM Read Error\n");
 		goto out;
 	}
 
@@ -706,7 +622,7 @@ out:
 }
 
 /**
- *  e1000_force_mac_fc - Force the MAC's flow control settings
+ *  igb_force_mac_fc - Force the MAC's flow control settings
  *  @hw: pointer to the HW structure
  *
  *  Force the MAC's flow control settings.  Sets the TFCE and RFCE bits in the
@@ -740,7 +656,7 @@ s32 igb_force_mac_fc(struct e1000_hw *hw)
 	 *      3:  Both Rx and TX flow control (symmetric) is enabled.
 	 *  other:  No other values should be possible at this point.
 	 */
-	hw_dbg(hw, "hw->fc.type = %u\n", hw->fc.type);
+	hw_dbg("hw->fc.type = %u\n", hw->fc.type);
 
 	switch (hw->fc.type) {
 	case e1000_fc_none:
@@ -758,7 +674,7 @@ s32 igb_force_mac_fc(struct e1000_hw *hw)
 		ctrl |= (E1000_CTRL_TFCE | E1000_CTRL_RFCE);
 		break;
 	default:
-		hw_dbg(hw, "Flow control param set incorrectly\n");
+		hw_dbg("Flow control param set incorrectly\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -770,7 +686,7 @@ out:
 }
 
 /**
- *  e1000_config_fc_after_link_up - Configures flow control after link
+ *  igb_config_fc_after_link_up - Configures flow control after link
  *  @hw: pointer to the HW structure
  *
  *  Checks the status of auto-negotiation after link up to ensure that the
@@ -801,7 +717,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 	}
 
 	if (ret_val) {
-		hw_dbg(hw, "Error forcing flow control settings\n");
+		hw_dbg("Error forcing flow control settings\n");
 		goto out;
 	}
 
@@ -827,7 +743,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			goto out;
 
 		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
-			hw_dbg(hw, "Copper PHY and Auto Neg "
+			hw_dbg("Copper PHY and Auto Neg "
 				 "has not completed.\n");
 			goto out;
 		}
@@ -893,11 +809,11 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			 */
 			if (hw->fc.original_type == e1000_fc_full) {
 				hw->fc.type = e1000_fc_full;
-				hw_dbg(hw, "Flow Control = FULL.\r\n");
+				hw_dbg("Flow Control = FULL.\r\n");
 			} else {
 				hw->fc.type = e1000_fc_rx_pause;
-				hw_dbg(hw, "Flow Control = "
-					 "RX PAUSE frames only.\r\n");
+				hw_dbg("Flow Control = "
+				       "RX PAUSE frames only.\r\n");
 			}
 		}
 		/*
@@ -913,7 +829,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.type = e1000_fc_tx_pause;
-			hw_dbg(hw, "Flow Control = TX PAUSE frames only.\r\n");
+			hw_dbg("Flow Control = TX PAUSE frames only.\r\n");
 		}
 		/*
 		 * For transmitting PAUSE frames ONLY.
@@ -928,7 +844,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.type = e1000_fc_rx_pause;
-			hw_dbg(hw, "Flow Control = RX PAUSE frames only.\r\n");
+			hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
 		}
 		/*
 		 * Per the IEEE spec, at this point flow control should be
@@ -955,10 +871,10 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			  hw->fc.original_type == e1000_fc_tx_pause) ||
 			 hw->fc.strict_ieee) {
 			hw->fc.type = e1000_fc_none;
-			hw_dbg(hw, "Flow Control = NONE.\r\n");
+			hw_dbg("Flow Control = NONE.\r\n");
 		} else {
 			hw->fc.type = e1000_fc_rx_pause;
-			hw_dbg(hw, "Flow Control = RX PAUSE frames only.\r\n");
+			hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
 		}
 
 		/*
@@ -968,7 +884,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 */
 		ret_val = hw->mac.ops.get_speed_and_duplex(hw, &speed, &duplex);
 		if (ret_val) {
-			hw_dbg(hw, "Error getting link speed and duplex\n");
+			hw_dbg("Error getting link speed and duplex\n");
 			goto out;
 		}
 
@@ -981,7 +897,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 */
 		ret_val = igb_force_mac_fc(hw);
 		if (ret_val) {
-			hw_dbg(hw, "Error forcing flow control settings\n");
+			hw_dbg("Error forcing flow control settings\n");
 			goto out;
 		}
 	}
@@ -991,7 +907,7 @@ out:
 }
 
 /**
- *  e1000_get_speed_and_duplex_copper - Retreive current speed/duplex
+ *  igb_get_speed_and_duplex_copper - Retreive current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
@@ -1007,28 +923,28 @@ s32 igb_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
 	status = rd32(E1000_STATUS);
 	if (status & E1000_STATUS_SPEED_1000) {
 		*speed = SPEED_1000;
-		hw_dbg(hw, "1000 Mbs, ");
+		hw_dbg("1000 Mbs, ");
 	} else if (status & E1000_STATUS_SPEED_100) {
 		*speed = SPEED_100;
-		hw_dbg(hw, "100 Mbs, ");
+		hw_dbg("100 Mbs, ");
 	} else {
 		*speed = SPEED_10;
-		hw_dbg(hw, "10 Mbs, ");
+		hw_dbg("10 Mbs, ");
 	}
 
 	if (status & E1000_STATUS_FD) {
 		*duplex = FULL_DUPLEX;
-		hw_dbg(hw, "Full Duplex\n");
+		hw_dbg("Full Duplex\n");
 	} else {
 		*duplex = HALF_DUPLEX;
-		hw_dbg(hw, "Half Duplex\n");
+		hw_dbg("Half Duplex\n");
 	}
 
 	return 0;
 }
 
 /**
- *  e1000_get_hw_semaphore - Acquire hardware semaphore
+ *  igb_get_hw_semaphore - Acquire hardware semaphore
  *  @hw: pointer to the HW structure
  *
  *  Acquire the HW semaphore to access the PHY or NVM
@@ -1051,7 +967,7 @@ s32 igb_get_hw_semaphore(struct e1000_hw *hw)
 	}
 
 	if (i == timeout) {
-		hw_dbg(hw, "Driver can't access device - SMBI bit is set.\n");
+		hw_dbg("Driver can't access device - SMBI bit is set.\n");
 		ret_val = -E1000_ERR_NVM;
 		goto out;
 	}
@@ -1071,7 +987,7 @@ s32 igb_get_hw_semaphore(struct e1000_hw *hw)
 	if (i == timeout) {
 		/* Release semaphores */
 		igb_put_hw_semaphore(hw);
-		hw_dbg(hw, "Driver can't access the NVM\n");
+		hw_dbg("Driver can't access the NVM\n");
 		ret_val = -E1000_ERR_NVM;
 		goto out;
 	}
@@ -1081,7 +997,7 @@ out:
 }
 
 /**
- *  e1000_put_hw_semaphore - Release hardware semaphore
+ *  igb_put_hw_semaphore - Release hardware semaphore
  *  @hw: pointer to the HW structure
  *
  *  Release hardware semaphore used to access the PHY or NVM
@@ -1098,7 +1014,7 @@ void igb_put_hw_semaphore(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_auto_rd_done - Check for auto read completion
+ *  igb_get_auto_rd_done - Check for auto read completion
  *  @hw: pointer to the HW structure
  *
  *  Check EEPROM for Auto Read done bit.
@@ -1117,7 +1033,7 @@ s32 igb_get_auto_rd_done(struct e1000_hw *hw)
 	}
 
 	if (i == AUTO_READ_DONE_TIMEOUT) {
-		hw_dbg(hw, "Auto read by HW from NVM has not completed.\n");
+		hw_dbg("Auto read by HW from NVM has not completed.\n");
 		ret_val = -E1000_ERR_RESET;
 		goto out;
 	}
@@ -1127,7 +1043,7 @@ out:
 }
 
 /**
- *  e1000_valid_led_default - Verify a valid default LED config
+ *  igb_valid_led_default - Verify a valid default LED config
  *  @hw: pointer to the HW structure
  *  @data: pointer to the NVM (EEPROM)
  *
@@ -1140,7 +1056,7 @@ static s32 igb_valid_led_default(struct e1000_hw *hw, u16 *data)
 
 	ret_val = hw->nvm.ops.read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		hw_dbg("NVM Read Error\n");
 		goto out;
 	}
 
@@ -1152,7 +1068,7 @@ out:
 }
 
 /**
- *  e1000_id_led_init -
+ *  igb_id_led_init -
  *  @hw: pointer to the HW structure
  *
  **/
@@ -1217,7 +1133,7 @@ out:
 }
 
 /**
- *  e1000_cleanup_led - Set LED config to default operation
+ *  igb_cleanup_led - Set LED config to default operation
  *  @hw: pointer to the HW structure
  *
  *  Remove the current LED configuration and set the LED configuration
@@ -1230,7 +1146,7 @@ s32 igb_cleanup_led(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_blink_led - Blink LED
+ *  igb_blink_led - Blink LED
  *  @hw: pointer to the HW structure
  *
  *  Blink the led's which are set to be on.
@@ -1263,7 +1179,7 @@ s32 igb_blink_led(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_led_off - Turn LED off
+ *  igb_led_off - Turn LED off
  *  @hw: pointer to the HW structure
  *
  *  Turn LED off.
@@ -1290,7 +1206,7 @@ s32 igb_led_off(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_disable_pcie_master - Disables PCI-express master access
+ *  igb_disable_pcie_master - Disables PCI-express master access
  *  @hw: pointer to the HW structure
  *
  *  Returns 0 (0) if successful, else returns -10
@@ -1322,7 +1238,7 @@ s32 igb_disable_pcie_master(struct e1000_hw *hw)
 	}
 
 	if (!timeout) {
-		hw_dbg(hw, "Master requests are pending.\n");
+		hw_dbg("Master requests are pending.\n");
 		ret_val = -E1000_ERR_MASTER_REQUESTS_PENDING;
 		goto out;
 	}
@@ -1332,7 +1248,7 @@ out:
 }
 
 /**
- *  e1000_reset_adaptive - Reset Adaptive Interframe Spacing
+ *  igb_reset_adaptive - Reset Adaptive Interframe Spacing
  *  @hw: pointer to the HW structure
  *
  *  Reset the Adaptive Interframe Spacing throttle to default values.
@@ -1342,7 +1258,7 @@ void igb_reset_adaptive(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 
 	if (!mac->adaptive_ifs) {
-		hw_dbg(hw, "Not in Adaptive IFS mode!\n");
+		hw_dbg("Not in Adaptive IFS mode!\n");
 		goto out;
 	}
 
@@ -1361,7 +1277,7 @@ out:
 }
 
 /**
- *  e1000_update_adaptive - Update Adaptive Interframe Spacing
+ *  igb_update_adaptive - Update Adaptive Interframe Spacing
  *  @hw: pointer to the HW structure
  *
  *  Update the Adaptive Interframe Spacing Throttle value based on the
@@ -1372,7 +1288,7 @@ void igb_update_adaptive(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 
 	if (!mac->adaptive_ifs) {
-		hw_dbg(hw, "Not in Adaptive IFS mode!\n");
+		hw_dbg("Not in Adaptive IFS mode!\n");
 		goto out;
 	}
 
@@ -1402,7 +1318,7 @@ out:
 }
 
 /**
- *  e1000_validate_mdi_setting - Verify MDI/MDIx settings
+ *  igb_validate_mdi_setting - Verify MDI/MDIx settings
  *  @hw: pointer to the HW structure
  *
  *  Verify that when not using auto-negotitation that MDI/MDIx is correctly
@@ -1413,7 +1329,7 @@ s32 igb_validate_mdi_setting(struct e1000_hw *hw)
 	s32 ret_val = 0;
 
 	if (!hw->mac.autoneg && (hw->phy.mdix == 0 || hw->phy.mdix == 3)) {
-		hw_dbg(hw, "Invalid MDI setting detected\n");
+		hw_dbg("Invalid MDI setting detected\n");
 		hw->phy.mdix = 1;
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
@@ -1424,7 +1340,7 @@ out:
 }
 
 /**
- *  e1000_write_8bit_ctrl_reg - Write a 8bit CTRL register
+ *  igb_write_8bit_ctrl_reg - Write a 8bit CTRL register
  *  @hw: pointer to the HW structure
  *  @reg: 32bit register offset such as E1000_SCTL
  *  @offset: register offset to write to
@@ -1452,7 +1368,7 @@ s32 igb_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg,
 			break;
 	}
 	if (!(regvalue & E1000_GEN_CTL_READY)) {
-		hw_dbg(hw, "Reg %08x did not indicate ready\n", reg);
+		hw_dbg("Reg %08x did not indicate ready\n", reg);
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
@@ -1462,7 +1378,7 @@ out:
 }
 
 /**
- *  e1000_enable_mng_pass_thru - Enable processing of ARP's
+ *  igb_enable_mng_pass_thru - Enable processing of ARP's
  *  @hw: pointer to the HW structure
  *
  *  Verifies the hardware needs to allow ARPs to be processed by the host.

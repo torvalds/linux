@@ -273,12 +273,12 @@ mpt_fault_reset_work(struct work_struct *work)
 	ioc_raw_state = mpt_GetIocState(ioc, 0);
 	if ((ioc_raw_state & MPI_IOC_STATE_MASK) == MPI_IOC_STATE_FAULT) {
 		printk(MYIOC_s_WARN_FMT "IOC is in FAULT state (%04xh)!!!\n",
-		    ioc->name, ioc_raw_state & MPI_DOORBELL_DATA_MASK);
+		       ioc->name, ioc_raw_state & MPI_DOORBELL_DATA_MASK);
 		printk(MYIOC_s_WARN_FMT "Issuing HardReset from %s!!\n",
-		    ioc->name, __FUNCTION__);
+		       ioc->name, __func__);
 		rc = mpt_HardResetHandler(ioc, CAN_SLEEP);
 		printk(MYIOC_s_WARN_FMT "%s: HardReset: %s\n", ioc->name,
-		    __FUNCTION__, (rc == 0) ? "success" : "failed");
+		       __func__, (rc == 0) ? "success" : "failed");
 		ioc_raw_state = mpt_GetIocState(ioc, 0);
 		if ((ioc_raw_state & MPI_IOC_STATE_MASK) == MPI_IOC_STATE_FAULT)
 			printk(MYIOC_s_WARN_FMT "IOC is in FAULT state after "
@@ -356,7 +356,7 @@ mpt_turbo_reply(MPT_ADAPTER *ioc, u32 pa)
 	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS ||
 		MptCallbacks[cb_idx] == NULL) {
 		printk(MYIOC_s_WARN_FMT "%s: Invalid cb_idx (%d)!\n",
-				__FUNCTION__, ioc->name, cb_idx);
+				__func__, ioc->name, cb_idx);
 		goto out;
 	}
 
@@ -420,7 +420,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS ||
 		MptCallbacks[cb_idx] == NULL) {
 		printk(MYIOC_s_WARN_FMT "%s: Invalid cb_idx (%d)!\n",
-				__FUNCTION__, ioc->name, cb_idx);
+				__func__, ioc->name, cb_idx);
 		freeme = 0;
 		goto out;
 	}
@@ -1670,7 +1670,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_DELAYED_WORK(&ioc->fault_reset_work, mpt_fault_reset_work);
 	spin_lock_init(&ioc->fault_reset_work_lock);
 
-	snprintf(ioc->reset_work_q_name, KOBJ_NAME_LEN, "mpt_poll_%d", ioc->id);
+	snprintf(ioc->reset_work_q_name, sizeof(ioc->reset_work_q_name),
+		 "mpt_poll_%d", ioc->id);
 	ioc->reset_work_q =
 		create_singlethread_workqueue(ioc->reset_work_q_name);
 	if (!ioc->reset_work_q) {
@@ -2433,7 +2434,7 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 
 	if (ioc->cached_fw != NULL) {
 		ddlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: Pushing FW onto "
-		    "adapter\n", __FUNCTION__, ioc->name));
+		    "adapter\n", __func__, ioc->name));
 		if ((ret = mpt_downloadboot(ioc, (MpiFwHeader_t *)
 		    ioc->cached_fw, CAN_SLEEP)) < 0) {
 			printk(MYIOC_s_WARN_FMT
@@ -3692,7 +3693,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 	if (ioc->pcidev->device == MPI_MANUFACTPAGE_DEVID_SAS1078) {
 		drsprintk(ioc, printk(MYIOC_s_WARN_FMT "%s: Doorbell=%p; 1078 reset "
-			"address=%p\n",  ioc->name, __FUNCTION__,
+			"address=%p\n",  ioc->name, __func__,
 			&ioc->chip->Doorbell, &ioc->chip->Reset_1078));
 		CHIPREG_WRITE32(&ioc->chip->Reset_1078, 0x07);
 		if (sleepFlag == CAN_SLEEP)
@@ -4741,12 +4742,12 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 		break;
 	}
 
-	printk("%s: persist_opcode=%x\n",__FUNCTION__, persist_opcode);
+	printk("%s: persist_opcode=%x\n",__func__, persist_opcode);
 
 	/* Get a MF for this command.
 	 */
 	if ((mf = mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
-		printk("%s: no msg frames!\n",__FUNCTION__);
+		printk("%s: no msg frames!\n",__func__);
 		return -1;
         }
 
@@ -4770,13 +4771,13 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 	    (SasIoUnitControlReply_t *)ioc->persist_reply_frame;
 	if (le16_to_cpu(sasIoUnitCntrReply->IOCStatus) != MPI_IOCSTATUS_SUCCESS) {
 		printk("%s: IOCStatus=0x%X IOCLogInfo=0x%X\n",
-		    __FUNCTION__,
+		    __func__,
 		    sasIoUnitCntrReply->IOCStatus,
 		    sasIoUnitCntrReply->IOCLogInfo);
 		return -1;
 	}
 
-	printk("%s: success\n",__FUNCTION__);
+	printk("%s: success\n",__func__);
 	return 0;
 }
 
@@ -5783,7 +5784,7 @@ SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp)
 
 	if ((pAck = (EventAck_t *) mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, no msg frames!!\n",
-		    ioc->name,__FUNCTION__));
+		    ioc->name,__func__));
 		return -1;
 	}
 

@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/bootmem.h>
 #include <linux/spinlock.h>
+#include <linux/fsl_devices.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -889,8 +890,78 @@ unsigned int ipic_get_irq(void)
 	return irq_linear_revmap(primary_ipic->irqhost, irq);
 }
 
+#ifdef CONFIG_PM
+static struct {
+	u32 sicfr;
+	u32 siprr[2];
+	u32 simsr[2];
+	u32 sicnr;
+	u32 smprr[2];
+	u32 semsr;
+	u32 secnr;
+	u32 sermr;
+	u32 sercr;
+} ipic_saved_state;
+
+static int ipic_suspend(struct sys_device *sdev, pm_message_t state)
+{
+	struct ipic *ipic = primary_ipic;
+
+	ipic_saved_state.sicfr = ipic_read(ipic->regs, IPIC_SICFR);
+	ipic_saved_state.siprr[0] = ipic_read(ipic->regs, IPIC_SIPRR_A);
+	ipic_saved_state.siprr[1] = ipic_read(ipic->regs, IPIC_SIPRR_D);
+	ipic_saved_state.simsr[0] = ipic_read(ipic->regs, IPIC_SIMSR_H);
+	ipic_saved_state.simsr[1] = ipic_read(ipic->regs, IPIC_SIMSR_L);
+	ipic_saved_state.sicnr = ipic_read(ipic->regs, IPIC_SICNR);
+	ipic_saved_state.smprr[0] = ipic_read(ipic->regs, IPIC_SMPRR_A);
+	ipic_saved_state.smprr[1] = ipic_read(ipic->regs, IPIC_SMPRR_B);
+	ipic_saved_state.semsr = ipic_read(ipic->regs, IPIC_SEMSR);
+	ipic_saved_state.secnr = ipic_read(ipic->regs, IPIC_SECNR);
+	ipic_saved_state.sermr = ipic_read(ipic->regs, IPIC_SERMR);
+	ipic_saved_state.sercr = ipic_read(ipic->regs, IPIC_SERCR);
+
+	if (fsl_deep_sleep()) {
+		/* In deep sleep, make sure there can be no
+		 * pending interrupts, as this can cause
+		 * problems on 831x.
+		 */
+		ipic_write(ipic->regs, IPIC_SIMSR_H, 0);
+		ipic_write(ipic->regs, IPIC_SIMSR_L, 0);
+		ipic_write(ipic->regs, IPIC_SEMSR, 0);
+		ipic_write(ipic->regs, IPIC_SERMR, 0);
+	}
+
+	return 0;
+}
+
+static int ipic_resume(struct sys_device *sdev)
+{
+	struct ipic *ipic = primary_ipic;
+
+	ipic_write(ipic->regs, IPIC_SICFR, ipic_saved_state.sicfr);
+	ipic_write(ipic->regs, IPIC_SIPRR_A, ipic_saved_state.siprr[0]);
+	ipic_write(ipic->regs, IPIC_SIPRR_D, ipic_saved_state.siprr[1]);
+	ipic_write(ipic->regs, IPIC_SIMSR_H, ipic_saved_state.simsr[0]);
+	ipic_write(ipic->regs, IPIC_SIMSR_L, ipic_saved_state.simsr[1]);
+	ipic_write(ipic->regs, IPIC_SICNR, ipic_saved_state.sicnr);
+	ipic_write(ipic->regs, IPIC_SMPRR_A, ipic_saved_state.smprr[0]);
+	ipic_write(ipic->regs, IPIC_SMPRR_B, ipic_saved_state.smprr[1]);
+	ipic_write(ipic->regs, IPIC_SEMSR, ipic_saved_state.semsr);
+	ipic_write(ipic->regs, IPIC_SECNR, ipic_saved_state.secnr);
+	ipic_write(ipic->regs, IPIC_SERMR, ipic_saved_state.sermr);
+	ipic_write(ipic->regs, IPIC_SERCR, ipic_saved_state.sercr);
+
+	return 0;
+}
+#else
+#define ipic_suspend NULL
+#define ipic_resume NULL
+#endif
+
 static struct sysdev_class ipic_sysclass = {
 	.name = "ipic",
+	.suspend = ipic_suspend,
+	.resume = ipic_resume,
 };
 
 static struct sys_device device_ipic = {

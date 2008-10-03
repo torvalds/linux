@@ -13,6 +13,12 @@
 #ifndef JFFS2_SUMMARY_H
 #define JFFS2_SUMMARY_H
 
+/* Limit summary size to 64KiB so that we can kmalloc it. If the summary
+   is larger than that, we have to just ditch it and avoid using summary
+   for the eraseblock in question... and it probably doesn't hurt us much
+   anyway. */
+#define MAX_SUMMARY_SIZE 65536
+
 #include <linux/uio.h>
 #include <linux/jffs2.h>
 

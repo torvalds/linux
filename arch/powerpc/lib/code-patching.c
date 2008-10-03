@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 #include <asm/page.h>
 #include <asm/code-patching.h>
 

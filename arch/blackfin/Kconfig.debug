@@ -154,13 +154,6 @@ config EARLY_PRINTK
 	  all of this lives in the init section and is thrown away after the
 	  kernel boots completely.
 
-config DUAL_CORE_TEST_MODULE
-	tristate "Dual Core Test Module"
-	depends on (BF561)
-	default n
-	help
-	  Say Y here to build-in dual core test module for dual core test.
-
 config CPLB_INFO
 	bool "Display the CPLB information"
 	help

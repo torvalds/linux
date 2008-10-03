@@ -33,10 +33,6 @@
 #ifndef __rio_unixrup_h__
 #define __rio_unixrup_h__
 
-#ifdef SCCS_LABELS
-static char *_unixrup_h_sccs_ = "@(#)unixrup.h	1.2";
-#endif
-
 /*
 **    UnixRup data structure. This contains pointers to actual RUPs on the
 **    host card, and all the command/boot control stuff.

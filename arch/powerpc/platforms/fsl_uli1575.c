@@ -51,15 +51,13 @@ u8 uli_pirq_to_irq[8] = {
 	ULI_8259_NONE,		/* PIRQH */
 };
 
-/* set in board code if you want this quirks to do something */
-int uses_fsl_uli_m1575;
-
 /* Bridge */
 static void __devinit early_uli5249(struct pci_dev *dev)
 {
 	unsigned char temp;
 
-	if (!uses_fsl_uli_m1575)
+	if (!machine_is(mpc86xx_hpcn) && !machine_is(mpc8544_ds) &&
+			!machine_is(mpc8572_ds))
 		return;
 
 	pci_write_config_word(dev, PCI_COMMAND, PCI_COMMAND_IO |
@@ -82,7 +80,8 @@ static void __devinit quirk_uli1575(struct pci_dev *dev)
 {
 	int i;
 
-	if (!uses_fsl_uli_m1575)
+	if (!machine_is(mpc86xx_hpcn) && !machine_is(mpc8544_ds) &&
+			!machine_is(mpc8572_ds))
 		return;
 
 	/*
@@ -150,7 +149,8 @@ static void __devinit quirk_final_uli1575(struct pci_dev *dev)
 	 * IRQ 14: Edge
 	 * IRQ 15: Edge
 	 */
-	if (!uses_fsl_uli_m1575)
+	if (!machine_is(mpc86xx_hpcn) && !machine_is(mpc8544_ds) &&
+			!machine_is(mpc8572_ds))
 		return;
 
 	outb(0xfa, 0x4d0);
@@ -176,7 +176,8 @@ static void __devinit quirk_uli5288(struct pci_dev *dev)
 	unsigned char c;
 	unsigned int d;
 
-	if (!uses_fsl_uli_m1575)
+	if (!machine_is(mpc86xx_hpcn) && !machine_is(mpc8544_ds) &&
+			!machine_is(mpc8572_ds))
 		return;
 
 	/* read/write lock */
@@ -200,7 +201,8 @@ static void __devinit quirk_uli5229(struct pci_dev *dev)
 {
 	unsigned short temp;
 
-	if (!uses_fsl_uli_m1575)
+	if (!machine_is(mpc86xx_hpcn) && !machine_is(mpc8544_ds) &&
+			!machine_is(mpc8572_ds))
 		return;
 
 	pci_write_config_word(dev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE |
@@ -221,7 +223,7 @@ static void __devinit quirk_final_uli5249(struct pci_dev *dev)
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		if ((bus->resource[i]) &&
 			(bus->resource[i]->flags & IORESOURCE_MEM)) {
-			dummy = ioremap(bus->resource[i]->start, 0x4);
+			dummy = ioremap(bus->resource[i]->end - 3, 0x4);
 			if (dummy) {
 				in_8(dummy);
 				iounmap(dummy);
@@ -237,6 +239,103 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5288, quirk_uli5288);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5229, quirk_uli5229);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x5249, quirk_final_uli5249);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x1575, quirk_final_uli1575);
+
+static void __devinit hpcd_quirk_uli1575(struct pci_dev *dev)
+{
+	u32 temp32;
+
+	if (!machine_is(mpc86xx_hpcd))
+		return;
+
+	/* Disable INTx */
+	pci_read_config_dword(dev, 0x48, &temp32);
+	pci_write_config_dword(dev, 0x48, (temp32 | 1<<26));
+
+	/* Enable sideband interrupt */
+	pci_read_config_dword(dev, 0x90, &temp32);
+	pci_write_config_dword(dev, 0x90, (temp32 | 1<<22));
+}
+
+static void __devinit hpcd_quirk_uli5288(struct pci_dev *dev)
+{
+	unsigned char c;
+	unsigned short temp;
+
+	if (!machine_is(mpc86xx_hpcd))
+		return;
+
+	/* Interrupt Disable, Needed when SATA disabled */
+	pci_read_config_word(dev, PCI_COMMAND, &temp);
+	temp |= 1<<10;
+	pci_write_config_word(dev, PCI_COMMAND, temp);
+
+	pci_read_config_byte(dev, 0x83, &c);
+	c |= 0x80;
+	pci_write_config_byte(dev, 0x83, c);
+
+	pci_write_config_byte(dev, PCI_CLASS_PROG, 0x01);
+	pci_write_config_byte(dev, PCI_CLASS_DEVICE, 0x06);
+
+	pci_read_config_byte(dev, 0x83, &c);
+	c &= 0x7f;
+	pci_write_config_byte(dev, 0x83, c);
+}
+
+/*
+ * Since 8259PIC was disabled on the board, the IDE device can not
+ * use the legacy IRQ, we need to let the IDE device work under
+ * native mode and use the interrupt line like other PCI devices.
+ * IRQ14 is a sideband interrupt from IDE device to CPU and we use this
+ * as the interrupt for IDE device.
+ */
+static void __devinit hpcd_quirk_uli5229(struct pci_dev *dev)
+{
+	unsigned char c;
+
+	if (!machine_is(mpc86xx_hpcd))
+		return;
+
+	pci_read_config_byte(dev, 0x4b, &c);
+	c |= 0x10;
+	pci_write_config_byte(dev, 0x4b, c);
+}
+
+/*
+ * SATA interrupt pin bug fix
+ * There's a chip bug for 5288, The interrupt pin should be 2,
+ * not the read only value 1, So it use INTB#, not INTA# which
+ * actually used by the IDE device 5229.
+ * As of this bug, during the PCI initialization, 5288 read the
+ * irq of IDE device from the device tree, this function fix this
+ * bug by re-assigning a correct irq to 5288.
+ *
+ */
+static void __devinit hpcd_final_uli5288(struct pci_dev *dev)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct device_node *hosenode = hose ? hose->dn : NULL;
+	struct of_irq oirq;
+	int virq, pin = 2;
+	u32 laddr[3];
+
+	if (!machine_is(mpc86xx_hpcd))
+		return;
+
+	if (!hosenode)
+		return;
+
+	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(31, 0) << 8);
+	laddr[1] = laddr[2] = 0;
+	of_irq_map_raw(hosenode, &pin, 1, laddr, &oirq);
+	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
+				     oirq.size);
+	dev->irq = virq;
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x1575, hpcd_quirk_uli1575);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5288, hpcd_quirk_uli5288);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5229, hpcd_quirk_uli5229);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x5288, hpcd_final_uli5288);
 
 int uli_exclude_device(struct pci_controller *hose,
 			u_char bus, u_char devfn)

@@ -164,9 +164,8 @@ static int kobject_add_internal(struct kobject *kobj)
 		return -ENOENT;
 
 	if (!kobj->name || !kobj->name[0]) {
-		pr_debug("kobject: (%p): attempted to be registered with empty "
+		WARN(1, "kobject: (%p): attempted to be registered with empty "
 			 "name!\n", kobj);
-		WARN_ON(1);
 		return -EINVAL;
 	}
 
@@ -216,13 +215,18 @@ static int kobject_add_internal(struct kobject *kobj)
 static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	/* Free the old name, if necessary. */
-	kfree(kobj->name);
+	const char *old_name = kobj->name;
+	char *s;
 
 	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
 	if (!kobj->name)
 		return -ENOMEM;
 
+	/* ewww... some of these buggers have '/' in the name ... */
+	while ((s = strchr(kobj->name, '/')))
+		s[0] = '!';
+
+	kfree(old_name);
 	return 0;
 }
 
@@ -577,12 +581,10 @@ static void kobject_release(struct kref *kref)
 void kobject_put(struct kobject *kobj)
 {
 	if (kobj) {
-		if (!kobj->state_initialized) {
-			printk(KERN_WARNING "kobject: '%s' (%p): is not "
+		if (!kobj->state_initialized)
+			WARN(1, KERN_WARNING "kobject: '%s' (%p): is not "
 			       "initialized, yet kobject_put() is being "
 			       "called.\n", kobject_name(kobj), kobj);
-			WARN_ON(1);
-		}
 		kref_put(&kobj->kref, kobject_release);
 	}
 }

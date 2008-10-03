@@ -17,6 +17,20 @@
  * For details of cpus_onto(), see bitmap_onto in lib/bitmap.c.
  * For details of cpus_fold(), see bitmap_fold in lib/bitmap.c.
  *
+ * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ * Note: The alternate operations with the suffix "_nr" are used
+ *       to limit the range of the loop to nr_cpu_ids instead of
+ *       NR_CPUS when NR_CPUS > 64 for performance reasons.
+ *       If NR_CPUS is <= 64 then most assembler bitmask
+ *       operators execute faster with a constant range, so
+ *       the operator will continue to use NR_CPUS.
+ *
+ *       Another consideration is that nr_cpu_ids is initialized
+ *       to NR_CPUS and isn't lowered until the possible cpus are
+ *       discovered (including any disabled cpus).  So early uses
+ *       will span the entire range of NR_CPUS.
+ * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ *
  * The available cpumask operations are:
  *
  * void cpu_set(cpu, mask)		turn on bit 'cpu' in mask
@@ -38,17 +52,51 @@
  * int cpus_empty(mask)			Is mask empty (no bits sets)?
  * int cpus_full(mask)			Is mask full (all bits sets)?
  * int cpus_weight(mask)		Hamming weigh - number of set bits
+ * int cpus_weight_nr(mask)		Same using nr_cpu_ids instead of NR_CPUS
  *
  * void cpus_shift_right(dst, src, n)	Shift right
  * void cpus_shift_left(dst, src, n)	Shift left
  *
  * int first_cpu(mask)			Number lowest set bit, or NR_CPUS
  * int next_cpu(cpu, mask)		Next cpu past 'cpu', or NR_CPUS
+ * int next_cpu_nr(cpu, mask)		Next cpu past 'cpu', or nr_cpu_ids
  *
  * cpumask_t cpumask_of_cpu(cpu)	Return cpumask with bit 'cpu' set
+ *					(can be used as an lvalue)
  * CPU_MASK_ALL				Initializer - all bits set
  * CPU_MASK_NONE			Initializer - no bits set
  * unsigned long *cpus_addr(mask)	Array of unsigned long's in mask
+ *
+ * CPUMASK_ALLOC kmalloc's a structure that is a composite of many cpumask_t
+ * variables, and CPUMASK_PTR provides pointers to each field.
+ *
+ * The structure should be defined something like this:
+ * struct my_cpumasks {
+ *	cpumask_t mask1;
+ *	cpumask_t mask2;
+ * };
+ *
+ * Usage is then:
+ *	CPUMASK_ALLOC(my_cpumasks);
+ *	CPUMASK_PTR(mask1, my_cpumasks);
+ *	CPUMASK_PTR(mask2, my_cpumasks);
+ *
+ *	--- DO NOT reference cpumask_t pointers until this check ---
+ *	if (my_cpumasks == NULL)
+ *		"kmalloc failed"...
+ *
+ * References are now pointers to the cpumask_t variables (*mask1, ...)
+ *
+ *if NR_CPUS > BITS_PER_LONG
+ *   CPUMASK_ALLOC(m)			Declares and allocates struct m *m =
+ *						kmalloc(sizeof(*m), GFP_KERNEL)
+ *   CPUMASK_FREE(m)			Macro for kfree(m)
+ *else
+ *   CPUMASK_ALLOC(m)			Declares struct m _m, *m = &_m
+ *   CPUMASK_FREE(m)			Nop
+ *endif
+ *   CPUMASK_PTR(v, m)			Declares cpumask_t *v = &(m->v)
+ * ------------------------------------------------------------------------
  *
  * int cpumask_scnprintf(buf, len, mask) Format cpumask for printing
  * int cpumask_parse_user(ubuf, ulen, mask)	Parse ascii string as cpumask
@@ -59,7 +107,8 @@
  * void cpus_onto(dst, orig, relmap)	*dst = orig relative to relmap
  * void cpus_fold(dst, orig, sz)	dst bits = orig bits mod sz
  *
- * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask
+ * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask using NR_CPUS
+ * for_each_cpu_mask_nr(cpu, mask)	for-loop cpu over mask using nr_cpu_ids
  *
  * int num_online_cpus()		Number of online CPUs
  * int num_possible_cpus()		Number of all possible CPUs
@@ -216,33 +265,30 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 	bitmap_shift_left(dstp->bits, srcp->bits, n, nbits);
 }
 
-#ifdef CONFIG_SMP
-int __first_cpu(const cpumask_t *srcp);
-#define first_cpu(src) __first_cpu(&(src))
-int __next_cpu(int n, const cpumask_t *srcp);
-#define next_cpu(n, src) __next_cpu((n), &(src))
-#else
-#define first_cpu(src)		({ (void)(src); 0; })
-#define next_cpu(n, src)	({ (void)(src); 1; })
-#endif
+/*
+ * Special-case data structure for "single bit set only" constant CPU masks.
+ *
+ * We pre-generate all the 64 (or 32) possible bit positions, with enough
+ * padding to the left and the right, and return the constant pointer
+ * appropriately offset.
+ */
+extern const unsigned long
+	cpu_bit_bitmap[BITS_PER_LONG+1][BITS_TO_LONGS(NR_CPUS)];
 
-#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
-extern cpumask_t *cpumask_of_cpu_map;
-#define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
+static inline const cpumask_t *get_cpu_mask(unsigned int cpu)
+{
+	const unsigned long *p = cpu_bit_bitmap[1 + cpu % BITS_PER_LONG];
+	p -= cpu / BITS_PER_LONG;
+	return (const cpumask_t *)p;
+}
 
-#else
-#define cpumask_of_cpu(cpu)						\
-(*({									\
-	typeof(_unused_cpumask_arg_) m;					\
-	if (sizeof(m) == sizeof(unsigned long)) {			\
-		m.bits[0] = 1UL<<(cpu);					\
-	} else {							\
-		cpus_clear(m);						\
-		cpu_set((cpu), m);					\
-	}								\
-	&m;								\
-}))
-#endif
+/*
+ * In cases where we take the address of the cpumask immediately,
+ * gcc optimizes it out (it's a constant) and there's no huge stack
+ * variable created:
+ */
+#define cpumask_of_cpu(cpu) (*get_cpu_mask(cpu))
+
 
 #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
 
@@ -280,6 +326,15 @@ extern cpumask_t cpu_mask_all;
 } }
 
 #define cpus_addr(src) ((src).bits)
+
+#if NR_CPUS > BITS_PER_LONG
+#define	CPUMASK_ALLOC(m)	struct m *m = kmalloc(sizeof(*m), GFP_KERNEL)
+#define	CPUMASK_FREE(m)		kfree(m)
+#else
+#define	CPUMASK_ALLOC(m)	struct m _m, *m = &_m
+#define	CPUMASK_FREE(m)
+#endif
+#define	CPUMASK_PTR(v, m) 	cpumask_t *v = &(m->v)
 
 #define cpumask_scnprintf(buf, len, src) \
 			__cpumask_scnprintf((buf), (len), &(src), NR_CPUS)
@@ -343,29 +398,59 @@ static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
 	bitmap_fold(dstp->bits, origp->bits, sz, nbits);
 }
 
-#if NR_CPUS > 1
-#define for_each_cpu_mask(cpu, mask)		\
-	for ((cpu) = first_cpu(mask);		\
-		(cpu) < NR_CPUS;		\
-		(cpu) = next_cpu((cpu), (mask)))
-#else /* NR_CPUS == 1 */
-#define for_each_cpu_mask(cpu, mask)		\
+#if NR_CPUS == 1
+
+#define nr_cpu_ids		1
+#define first_cpu(src)		({ (void)(src); 0; })
+#define next_cpu(n, src)	({ (void)(src); 1; })
+#define any_online_cpu(mask)	0
+#define for_each_cpu_mask(cpu, mask)	\
 	for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
-#endif /* NR_CPUS */
+
+#else /* NR_CPUS > 1 */
+
+extern int nr_cpu_ids;
+int __first_cpu(const cpumask_t *srcp);
+int __next_cpu(int n, const cpumask_t *srcp);
+int __any_online_cpu(const cpumask_t *mask);
+
+#define first_cpu(src)		__first_cpu(&(src))
+#define next_cpu(n, src)	__next_cpu((n), &(src))
+#define any_online_cpu(mask) __any_online_cpu(&(mask))
+#define for_each_cpu_mask(cpu, mask)			\
+	for ((cpu) = -1;				\
+		(cpu) = next_cpu((cpu), (mask)),	\
+		(cpu) < NR_CPUS; )
+#endif
+
+#if NR_CPUS <= 64
 
 #define next_cpu_nr(n, src)		next_cpu(n, src)
 #define cpus_weight_nr(cpumask)		cpus_weight(cpumask)
 #define for_each_cpu_mask_nr(cpu, mask)	for_each_cpu_mask(cpu, mask)
 
+#else /* NR_CPUS > 64 */
+
+int __next_cpu_nr(int n, const cpumask_t *srcp);
+#define next_cpu_nr(n, src)	__next_cpu_nr((n), &(src))
+#define cpus_weight_nr(cpumask)	__cpus_weight(&(cpumask), nr_cpu_ids)
+#define for_each_cpu_mask_nr(cpu, mask)			\
+	for ((cpu) = -1;				\
+		(cpu) = next_cpu_nr((cpu), (mask)),	\
+		(cpu) < nr_cpu_ids; )
+
+#endif /* NR_CPUS > 64 */
+
 /*
  * The following particular system cpumasks and operations manage
- * possible, present and online cpus.  Each of them is a fixed size
+ * possible, present, active and online cpus.  Each of them is a fixed size
  * bitmap of size NR_CPUS.
  *
  *  #ifdef CONFIG_HOTPLUG_CPU
  *     cpu_possible_map - has bit 'cpu' set iff cpu is populatable
  *     cpu_present_map  - has bit 'cpu' set iff cpu is populated
  *     cpu_online_map   - has bit 'cpu' set iff cpu available to scheduler
+ *     cpu_active_map   - has bit 'cpu' set iff cpu available to migration
  *  #else
  *     cpu_possible_map - has bit 'cpu' set iff cpu is populated
  *     cpu_present_map  - copy of cpu_possible_map
@@ -416,14 +501,16 @@ static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
 extern cpumask_t cpu_possible_map;
 extern cpumask_t cpu_online_map;
 extern cpumask_t cpu_present_map;
+extern cpumask_t cpu_active_map;
 
 #if NR_CPUS > 1
-#define num_online_cpus()	cpus_weight(cpu_online_map)
-#define num_possible_cpus()	cpus_weight(cpu_possible_map)
-#define num_present_cpus()	cpus_weight(cpu_present_map)
+#define num_online_cpus()	cpus_weight_nr(cpu_online_map)
+#define num_possible_cpus()	cpus_weight_nr(cpu_possible_map)
+#define num_present_cpus()	cpus_weight_nr(cpu_present_map)
 #define cpu_online(cpu)		cpu_isset((cpu), cpu_online_map)
 #define cpu_possible(cpu)	cpu_isset((cpu), cpu_possible_map)
 #define cpu_present(cpu)	cpu_isset((cpu), cpu_present_map)
+#define cpu_active(cpu)		cpu_isset((cpu), cpu_active_map)
 #else
 #define num_online_cpus()	1
 #define num_possible_cpus()	1
@@ -431,21 +518,13 @@ extern cpumask_t cpu_present_map;
 #define cpu_online(cpu)		((cpu) == 0)
 #define cpu_possible(cpu)	((cpu) == 0)
 #define cpu_present(cpu)	((cpu) == 0)
+#define cpu_active(cpu)		((cpu) == 0)
 #endif
 
 #define cpu_is_offline(cpu)	unlikely(!cpu_online(cpu))
 
-#ifdef CONFIG_SMP
-extern int nr_cpu_ids;
-#define any_online_cpu(mask) __any_online_cpu(&(mask))
-int __any_online_cpu(const cpumask_t *mask);
-#else
-#define nr_cpu_ids			1
-#define any_online_cpu(mask)		0
-#endif
-
-#define for_each_possible_cpu(cpu)  for_each_cpu_mask((cpu), cpu_possible_map)
-#define for_each_online_cpu(cpu)  for_each_cpu_mask((cpu), cpu_online_map)
-#define for_each_present_cpu(cpu) for_each_cpu_mask((cpu), cpu_present_map)
+#define for_each_possible_cpu(cpu) for_each_cpu_mask_nr((cpu), cpu_possible_map)
+#define for_each_online_cpu(cpu)   for_each_cpu_mask_nr((cpu), cpu_online_map)
+#define for_each_present_cpu(cpu)  for_each_cpu_mask_nr((cpu), cpu_present_map)
 
 #endif /* __LINUX_CPUMASK_H */

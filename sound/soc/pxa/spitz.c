@@ -26,10 +26,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware/scoop.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/akita.h>
-#include <asm/arch/spitz.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/akita.h>
+#include <mach/spitz.h>
 #include "../codecs/wm8750.h"
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
@@ -297,7 +297,7 @@ static int spitz_wm8750_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_disable_pin(codec, "LINPUT3");
 	snd_soc_dapm_disable_pin(codec, "RINPUT3");
 	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "MONO");
+	snd_soc_dapm_disable_pin(codec, "MONO1");
 
 	/* Add spitz specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8750_spitz_controls); i++) {

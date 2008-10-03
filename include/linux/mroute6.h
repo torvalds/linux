@@ -115,6 +115,7 @@ struct sioc_mif_req6
 
 #ifdef __KERNEL__
 
+#include <linux/pim.h>
 #include <linux/skbuff.h>	/* for struct sk_buff_head */
 
 #ifdef CONFIG_IPV6_MROUTE
@@ -131,11 +132,44 @@ static inline int ip6_mroute_opt(int opt)
 
 struct sock;
 
+#ifdef CONFIG_IPV6_MROUTE
 extern int ip6_mroute_setsockopt(struct sock *, int, char __user *, int);
 extern int ip6_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 extern int ip6_mr_input(struct sk_buff *skb);
 extern int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg);
-extern void ip6_mr_init(void);
+extern int ip6_mr_init(void);
+extern void ip6_mr_cleanup(void);
+#else
+static inline
+int ip6_mroute_setsockopt(struct sock *sock,
+			  int optname, char __user *optval, int optlen)
+{
+	return -ENOPROTOOPT;
+}
+
+static inline
+int ip6_mroute_getsockopt(struct sock *sock,
+			  int optname, char __user *optval, int __user *optlen)
+{
+	return -ENOPROTOOPT;
+}
+
+static inline
+int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
+{
+	return -ENOIOCTLCMD;
+}
+
+static inline int ip6_mr_init(void)
+{
+	return 0;
+}
+
+static inline void ip6_mr_cleanup(void)
+{
+	return;
+}
+#endif
 
 struct mif_device
 {

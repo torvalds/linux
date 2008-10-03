@@ -327,6 +327,8 @@ static int attach_inform(struct i2c_client *client)
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
+	if (client->addr == 0x20 && client->driver && client->driver->command)
+		dev->mpeg_i2c_client = client;
 
 	/* Am I an i2c remote control? */
 

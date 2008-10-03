@@ -26,15 +26,6 @@ MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
 MODULE_DESCRIPTION("PS/2 driver library");
 MODULE_LICENSE("GPL");
 
-/* Work structure to schedule execution of a command */
-struct ps2work {
-	struct work_struct work;
-	struct ps2dev *ps2dev;
-	int command;
-	unsigned char param[0];
-};
-
-
 /*
  * ps2_sendbyte() sends a byte to the device and waits for acknowledge.
  * It doesn't handle retransmission, though it could - because if there
@@ -244,49 +235,6 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	return rc;
 }
 EXPORT_SYMBOL(ps2_command);
-
-/*
- * ps2_execute_scheduled_command() sends a command, previously scheduled by
- * ps2_schedule_command(), to a PS/2 device (keyboard, mouse, etc.)
- */
-
-static void ps2_execute_scheduled_command(struct work_struct *work)
-{
-	struct ps2work *ps2work = container_of(work, struct ps2work, work);
-
-	ps2_command(ps2work->ps2dev, ps2work->param, ps2work->command);
-	kfree(ps2work);
-}
-
-/*
- * ps2_schedule_command() allows to schedule delayed execution of a PS/2
- * command and can be used to issue a command from an interrupt or softirq
- * context.
- */
-
-int ps2_schedule_command(struct ps2dev *ps2dev, unsigned char *param, int command)
-{
-	struct ps2work *ps2work;
-	int send = (command >> 12) & 0xf;
-	int receive = (command >> 8) & 0xf;
-
-	if (!(ps2work = kmalloc(sizeof(struct ps2work) + max(send, receive), GFP_ATOMIC)))
-		return -1;
-
-	memset(ps2work, 0, sizeof(struct ps2work));
-	ps2work->ps2dev = ps2dev;
-	ps2work->command = command;
-	memcpy(ps2work->param, param, send);
-	INIT_WORK(&ps2work->work, ps2_execute_scheduled_command);
-
-	if (!schedule_work(&ps2work->work)) {
-		kfree(ps2work);
-		return -1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(ps2_schedule_command);
 
 /*
  * ps2_init() initializes ps2dev structure

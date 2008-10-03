@@ -20,6 +20,7 @@
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/mm.h>
 #include "dvbdev.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-hdw-internal.h"

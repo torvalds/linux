@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/log2.h>
@@ -21,10 +22,11 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
-unsigned int hpage_shift=HPAGE_SHIFT_DEFAULT;
+unsigned int hpage_shift = HPAGE_SHIFT_DEFAULT;
+EXPORT_SYMBOL(hpage_shift);
 
 pte_t *
-huge_pte_alloc (struct mm_struct *mm, unsigned long addr)
+huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 {
 	unsigned long taddr = htlbpage_to_page(addr);
 	pgd_t *pgd;
@@ -75,7 +77,8 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
  * Don't actually need to do any preparation, but need to make sure
  * the address is in the right region.
  */
-int prepare_hugepage_range(unsigned long addr, unsigned long len)
+int prepare_hugepage_range(struct file *file,
+			unsigned long addr, unsigned long len)
 {
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
@@ -106,13 +109,19 @@ int pmd_huge(pmd_t pmd)
 {
 	return 0;
 }
+
+int pud_huge(pud_t pud)
+{
+	return 0;
+}
+
 struct page *
 follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
 {
 	return NULL;
 }
 
-void hugetlb_free_pgd_range(struct mmu_gather **tlb,
+void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 			unsigned long addr, unsigned long end,
 			unsigned long floor, unsigned long ceiling)
 {
@@ -149,7 +158,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr, u
 
 	/* Handle MAP_FIXED */
 	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(addr, len))
+		if (prepare_hugepage_range(file, addr, len))
 			return -EINVAL;
 		return addr;
 	}

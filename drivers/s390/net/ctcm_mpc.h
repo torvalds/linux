@@ -231,7 +231,7 @@ static inline void ctcmpc_dump32(char *buf, int len)
 int ctcmpc_open(struct net_device *);
 void ctcm_ccw_check_rc(struct channel *, int, char *);
 void mpc_group_ready(unsigned long adev);
-int mpc_channel_action(struct channel *ch, int direction, int action);
+void mpc_channel_action(struct channel *ch, int direction, int action);
 void mpc_action_send_discontact(unsigned long thischan);
 void mpc_action_discontact(fsm_instance *fi, int event, void *arg);
 void ctcmpc_bh(unsigned long thischan);

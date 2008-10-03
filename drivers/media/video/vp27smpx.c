@@ -27,7 +27,7 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv.h>
@@ -166,4 +166,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = vp27smpx_remove,
 	.id_table = vp27smpx_id,
 };
-

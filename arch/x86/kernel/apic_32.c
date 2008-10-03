@@ -75,7 +75,7 @@ char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
 /*
  * Debug level, exported for io_apic.c
  */
-int apic_verbosity;
+unsigned int apic_verbosity;
 
 int pic_mode;
 
@@ -177,7 +177,7 @@ void __cpuinit enable_NMI_through_LVT0(void)
 	/* Level triggered for 82489DX */
 	if (!lapic_is_integrated())
 		v |= APIC_LVT_LEVEL_TRIGGER;
-	apic_write_around(APIC_LVT0, v);
+	apic_write(APIC_LVT0, v);
 }
 
 /**
@@ -212,9 +212,6 @@ int lapic_get_maxlvt(void)
  * this function twice on the boot CPU, once with a bogus timeout
  * value, second time for real. The other (noncalibrating) CPUs
  * call this function only once, with the real, calibrated value.
- *
- * We do reads before writes even if unnecessary, to get around the
- * P5 APIC double write bug.
  */
 static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 {
@@ -229,18 +226,18 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 	if (!irqen)
 		lvtt_value |= APIC_LVT_MASKED;
 
-	apic_write_around(APIC_LVTT, lvtt_value);
+	apic_write(APIC_LVTT, lvtt_value);
 
 	/*
 	 * Divide PICLK by 16
 	 */
 	tmp_value = apic_read(APIC_TDCR);
-	apic_write_around(APIC_TDCR, (tmp_value
-				& ~(APIC_TDR_DIV_1 | APIC_TDR_DIV_TMBASE))
-				| APIC_TDR_DIV_16);
+	apic_write(APIC_TDCR,
+		   (tmp_value & ~(APIC_TDR_DIV_1 | APIC_TDR_DIV_TMBASE)) |
+		   APIC_TDR_DIV_16);
 
 	if (!oneshot)
-		apic_write_around(APIC_TMICT, clocks/APIC_DIVISOR);
+		apic_write(APIC_TMICT, clocks / APIC_DIVISOR);
 }
 
 /*
@@ -249,7 +246,7 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 static int lapic_next_event(unsigned long delta,
 			    struct clock_event_device *evt)
 {
-	apic_write_around(APIC_TMICT, delta);
+	apic_write(APIC_TMICT, delta);
 	return 0;
 }
 
@@ -278,7 +275,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		v = apic_read(APIC_LVTT);
 		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
-		apic_write_around(APIC_LVTT, v);
+		apic_write(APIC_LVTT, v);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		/* Nothing to do here */
@@ -372,12 +369,7 @@ static void __init lapic_cal_handler(struct clock_event_device *dev)
 	}
 }
 
-/*
- * Setup the boot APIC
- *
- * Calibrate and verify the result.
- */
-void __init setup_boot_APIC_clock(void)
+static int __init calibrate_APIC_clock(void)
 {
 	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 	const long pm_100ms = PMTMR_TICKS_PER_SEC/10;
@@ -386,24 +378,6 @@ void __init setup_boot_APIC_clock(void)
 	unsigned long deltaj;
 	long delta, deltapm;
 	int pm_referenced = 0;
-
-	/*
-	 * The local apic timer can be disabled via the kernel
-	 * commandline or from the CPU detection code. Register the lapic
-	 * timer as a dummy clock event source on SMP systems, so the
-	 * broadcast mechanism is used. On UP systems simply ignore it.
-	 */
-	if (local_apic_timer_disabled) {
-		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1) {
-			lapic_clockevent.mult = 1;
-			setup_APIC_timer();
-		}
-		return;
-	}
-
-	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
-		    "calibrating APIC timer ...\n");
 
 	local_irq_disable();
 
@@ -489,8 +463,6 @@ void __init setup_boot_APIC_clock(void)
 		    calibration_result / (1000000 / HZ),
 		    calibration_result % (1000000 / HZ));
 
-	local_apic_timer_verify_ok = 1;
-
 	/*
 	 * Do a sanity check on the APIC calibration result
 	 */
@@ -498,11 +470,10 @@ void __init setup_boot_APIC_clock(void)
 		local_irq_enable();
 		printk(KERN_WARNING
 		       "APIC frequency too slow, disabling apic timer\n");
-		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1)
-			setup_APIC_timer();
-		return;
+		return -1;
 	}
+
+	local_apic_timer_verify_ok = 1;
 
 	/* We trust the pm timer based calibration */
 	if (!pm_referenced) {
@@ -543,21 +514,54 @@ void __init setup_boot_APIC_clock(void)
 	if (!local_apic_timer_verify_ok) {
 		printk(KERN_WARNING
 		       "APIC timer disabled due to verification failure.\n");
-		/* No broadcast on UP ! */
-		if (num_possible_cpus() == 1)
-			return;
-	} else {
-		/*
-		 * If nmi_watchdog is set to IO_APIC, we need the
-		 * PIT/HPET going.  Otherwise register lapic as a dummy
-		 * device.
-		 */
-		if (nmi_watchdog != NMI_IO_APIC)
-			lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
-		else
-			printk(KERN_WARNING "APIC timer registered as dummy,"
-				" due to nmi_watchdog=%d!\n", nmi_watchdog);
+			return -1;
 	}
+
+	return 0;
+}
+
+/*
+ * Setup the boot APIC
+ *
+ * Calibrate and verify the result.
+ */
+void __init setup_boot_APIC_clock(void)
+{
+	/*
+	 * The local apic timer can be disabled via the kernel
+	 * commandline or from the CPU detection code. Register the lapic
+	 * timer as a dummy clock event source on SMP systems, so the
+	 * broadcast mechanism is used. On UP systems simply ignore it.
+	 */
+	if (local_apic_timer_disabled) {
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1) {
+			lapic_clockevent.mult = 1;
+			setup_APIC_timer();
+		}
+		return;
+	}
+
+	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
+		    "calibrating APIC timer ...\n");
+
+	if (calibrate_APIC_clock()) {
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
+
+	/*
+	 * If nmi_watchdog is set to IO_APIC, we need the
+	 * PIT/HPET going.  Otherwise register lapic as a dummy
+	 * device.
+	 */
+	if (nmi_watchdog != NMI_IO_APIC)
+		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+	else
+		printk(KERN_WARNING "APIC timer registered as dummy,"
+			" due to nmi_watchdog=%d!\n", nmi_watchdog);
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
@@ -693,44 +697,44 @@ void clear_local_APIC(void)
 	 */
 	if (maxlvt >= 3) {
 		v = ERROR_APIC_VECTOR; /* any non-zero vector will do */
-		apic_write_around(APIC_LVTERR, v | APIC_LVT_MASKED);
+		apic_write(APIC_LVTERR, v | APIC_LVT_MASKED);
 	}
 	/*
 	 * Careful: we have to set masks only first to deassert
 	 * any level-triggered sources.
 	 */
 	v = apic_read(APIC_LVTT);
-	apic_write_around(APIC_LVTT, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVTT, v | APIC_LVT_MASKED);
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v | APIC_LVT_MASKED);
 	v = apic_read(APIC_LVT1);
-	apic_write_around(APIC_LVT1, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT1, v | APIC_LVT_MASKED);
 	if (maxlvt >= 4) {
 		v = apic_read(APIC_LVTPC);
-		apic_write_around(APIC_LVTPC, v | APIC_LVT_MASKED);
+		apic_write(APIC_LVTPC, v | APIC_LVT_MASKED);
 	}
 
 	/* lets not touch this if we didn't frob it */
 #ifdef CONFIG_X86_MCE_P4THERMAL
 	if (maxlvt >= 5) {
 		v = apic_read(APIC_LVTTHMR);
-		apic_write_around(APIC_LVTTHMR, v | APIC_LVT_MASKED);
+		apic_write(APIC_LVTTHMR, v | APIC_LVT_MASKED);
 	}
 #endif
 	/*
 	 * Clean APIC state for other OSs:
 	 */
-	apic_write_around(APIC_LVTT, APIC_LVT_MASKED);
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED);
-	apic_write_around(APIC_LVT1, APIC_LVT_MASKED);
+	apic_write(APIC_LVTT, APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED);
+	apic_write(APIC_LVT1, APIC_LVT_MASKED);
 	if (maxlvt >= 3)
-		apic_write_around(APIC_LVTERR, APIC_LVT_MASKED);
+		apic_write(APIC_LVTERR, APIC_LVT_MASKED);
 	if (maxlvt >= 4)
-		apic_write_around(APIC_LVTPC, APIC_LVT_MASKED);
+		apic_write(APIC_LVTPC, APIC_LVT_MASKED);
 
 #ifdef CONFIG_X86_MCE_P4THERMAL
 	if (maxlvt >= 5)
-		apic_write_around(APIC_LVTTHMR, APIC_LVT_MASKED);
+		apic_write(APIC_LVTTHMR, APIC_LVT_MASKED);
 #endif
 	/* Integrated APIC (!82489DX) ? */
 	if (lapic_is_integrated()) {
@@ -756,7 +760,7 @@ void disable_local_APIC(void)
 	 */
 	value = apic_read(APIC_SPIV);
 	value &= ~APIC_SPIV_APIC_ENABLED;
-	apic_write_around(APIC_SPIV, value);
+	apic_write(APIC_SPIV, value);
 
 	/*
 	 * When LAPIC was disabled by the BIOS and enabled by the kernel,
@@ -865,8 +869,8 @@ void __init sync_Arb_IDs(void)
 	apic_wait_icr_idle();
 
 	apic_printk(APIC_DEBUG, "Synchronizing Arb IDs.\n");
-	apic_write_around(APIC_ICR, APIC_DEST_ALLINC | APIC_INT_LEVELTRIG
-				| APIC_DM_INIT);
+	apic_write(APIC_ICR,
+		   APIC_DEST_ALLINC | APIC_INT_LEVELTRIG | APIC_DM_INIT);
 }
 
 /*
@@ -902,16 +906,16 @@ void __init init_bsp_APIC(void)
 	else
 		value |= APIC_SPIV_FOCUS_DISABLED;
 	value |= SPURIOUS_APIC_VECTOR;
-	apic_write_around(APIC_SPIV, value);
+	apic_write(APIC_SPIV, value);
 
 	/*
 	 * Set up the virtual wire mode.
 	 */
-	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_DM_EXTINT);
 	value = APIC_DM_NMI;
 	if (!lapic_is_integrated())		/* 82489DX */
 		value |= APIC_LVT_LEVEL_TRIGGER;
-	apic_write_around(APIC_LVT1, value);
+	apic_write(APIC_LVT1, value);
 }
 
 static void __cpuinit lapic_setup_esr(void)
@@ -926,7 +930,7 @@ static void __cpuinit lapic_setup_esr(void)
 
 		/* enables sending errors */
 		value = ERROR_APIC_VECTOR;
-		apic_write_around(APIC_LVTERR, value);
+		apic_write(APIC_LVTERR, value);
 		/*
 		 * spec says clear errors after enabling vector.
 		 */
@@ -989,7 +993,7 @@ void __cpuinit setup_local_APIC(void)
 	 */
 	value = apic_read(APIC_TASKPRI);
 	value &= ~APIC_TPRI_MASK;
-	apic_write_around(APIC_TASKPRI, value);
+	apic_write(APIC_TASKPRI, value);
 
 	/*
 	 * After a crash, we no longer service the interrupts and a pending
@@ -1047,7 +1051,7 @@ void __cpuinit setup_local_APIC(void)
 	 * Set spurious IRQ vector
 	 */
 	value |= SPURIOUS_APIC_VECTOR;
-	apic_write_around(APIC_SPIV, value);
+	apic_write(APIC_SPIV, value);
 
 	/*
 	 * Set up LVT0, LVT1:
@@ -1069,7 +1073,7 @@ void __cpuinit setup_local_APIC(void)
 		apic_printk(APIC_VERBOSE, "masked ExtINT on CPU#%d\n",
 				smp_processor_id());
 	}
-	apic_write_around(APIC_LVT0, value);
+	apic_write(APIC_LVT0, value);
 
 	/*
 	 * only the BP should see the LINT1 NMI signal, obviously.
@@ -1080,7 +1084,7 @@ void __cpuinit setup_local_APIC(void)
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
 	if (!integrated)		/* 82489DX */
 		value |= APIC_LVT_LEVEL_TRIGGER;
-	apic_write_around(APIC_LVT1, value);
+	apic_write(APIC_LVT1, value);
 }
 
 void __cpuinit end_local_APIC_setup(void)
@@ -1091,7 +1095,7 @@ void __cpuinit end_local_APIC_setup(void)
 	/* Disable the local apic timer */
 	value = apic_read(APIC_LVTT);
 	value |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
-	apic_write_around(APIC_LVTT, value);
+	apic_write(APIC_LVTT, value);
 
 	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
@@ -1214,9 +1218,6 @@ int apic_version[MAX_APICS];
 
 int __init APIC_init_uniprocessor(void)
 {
-	if (disable_apic)
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
-
 	if (!smp_found_config && !cpu_has_apic)
 		return -1;
 
@@ -1419,7 +1420,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		value &= ~APIC_VECTOR_MASK;
 		value |= APIC_SPIV_APIC_ENABLED;
 		value |= 0xf;
-		apic_write_around(APIC_SPIV, value);
+		apic_write(APIC_SPIV, value);
 
 		if (!virt_wire_setup) {
 			/*
@@ -1432,10 +1433,10 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
 			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
 			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
-			apic_write_around(APIC_LVT0, value);
+			apic_write(APIC_LVT0, value);
 		} else {
 			/* Disable LVT0 */
-			apic_write_around(APIC_LVT0, APIC_LVT_MASKED);
+			apic_write(APIC_LVT0, APIC_LVT_MASKED);
 		}
 
 		/*
@@ -1449,11 +1450,9 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
 		value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
 		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
-		apic_write_around(APIC_LVT1, value);
+		apic_write(APIC_LVT1, value);
 	}
 }
-
-unsigned int __cpuinitdata maxcpus = NR_CPUS;
 
 void __cpuinit generic_processor_info(int apicid, int version)
 {
@@ -1478,12 +1477,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
 			"  Processor ignored.\n", NR_CPUS);
-		return;
-	}
-
-	if (num_processors >= maxcpus) {
-		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-			" Processor ignored.\n", maxcpus);
 		return;
 	}
 
@@ -1700,7 +1693,7 @@ early_param("lapic", parse_lapic);
 static int __init parse_nolapic(char *arg)
 {
 	disable_apic = 1;
-	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	setup_clear_cpu_cap(X86_FEATURE_APIC);
 	return 0;
 }
 early_param("nolapic", parse_nolapic);
@@ -1719,15 +1712,19 @@ static int __init parse_lapic_timer_c2_ok(char *arg)
 }
 early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
-static int __init apic_set_verbosity(char *str)
+static int __init apic_set_verbosity(char *arg)
 {
-	if (strcmp("debug", str) == 0)
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "debug") == 0)
 		apic_verbosity = APIC_DEBUG;
-	else if (strcmp("verbose", str) == 0)
+	else if (strcmp(arg, "verbose") == 0)
 		apic_verbosity = APIC_VERBOSE;
-	return 1;
+
+	return 0;
 }
-__setup("apic=", apic_set_verbosity);
+early_param("apic", apic_set_verbosity);
 
 static int __init lapic_insert_resource(void)
 {

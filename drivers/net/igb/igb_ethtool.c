@@ -93,13 +93,16 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "tx_smbus", IGB_STAT(stats.mgptc) },
 	{ "rx_smbus", IGB_STAT(stats.mgprc) },
 	{ "dropped_smbus", IGB_STAT(stats.mgpdc) },
+#ifdef CONFIG_IGB_LRO
+	{ "lro_aggregated", IGB_STAT(lro_aggregated) },
+	{ "lro_flushed", IGB_STAT(lro_flushed) },
+	{ "lro_no_desc", IGB_STAT(lro_no_desc) },
+#endif
 };
 
 #define IGB_QUEUE_STATS_LEN \
-	((((((struct igb_adapter *)netdev->priv)->num_rx_queues > 1) ? \
-	  ((struct igb_adapter *)netdev->priv)->num_rx_queues : 0) + \
-	 (((((struct igb_adapter *)netdev->priv)->num_tx_queues > 1) ? \
-	  ((struct igb_adapter *)netdev->priv)->num_tx_queues : 0))) * \
+	((((struct igb_adapter *)netdev->priv)->num_rx_queues + \
+	 ((struct igb_adapter *)netdev->priv)->num_tx_queues) * \
 	(sizeof(struct igb_queue_stats) / sizeof(u64)))
 #define IGB_GLOBAL_STATS_LEN	\
 	sizeof(igb_gstrings_stats) / sizeof(struct igb_stats)
@@ -370,13 +373,17 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[12] = rd32(E1000_EECD);
 
 	/* Interrupt */
-	regs_buff[13] = rd32(E1000_EICR);
+	/* Reading EICS for EICR because they read the
+	 * same but EICS does not clear on read */
+	regs_buff[13] = rd32(E1000_EICS);
 	regs_buff[14] = rd32(E1000_EICS);
 	regs_buff[15] = rd32(E1000_EIMS);
 	regs_buff[16] = rd32(E1000_EIMC);
 	regs_buff[17] = rd32(E1000_EIAC);
 	regs_buff[18] = rd32(E1000_EIAM);
-	regs_buff[19] = rd32(E1000_ICR);
+	/* Reading ICS for ICR because they read the
+	 * same but ICS does not clear on read */
+	regs_buff[19] = rd32(E1000_ICS);
 	regs_buff[20] = rd32(E1000_ICS);
 	regs_buff[21] = rd32(E1000_IMS);
 	regs_buff[22] = rd32(E1000_IMC);
@@ -829,8 +836,9 @@ err_setup:
 /* ethtool register test data */
 struct igb_reg_test {
 	u16 reg;
-	u8  array_len;
-	u8  test_type;
+	u16 reg_offset;
+	u16 array_len;
+	u16 test_type;
 	u32 mask;
 	u32 write;
 };
@@ -852,34 +860,72 @@ struct igb_reg_test {
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
 
-/* default register test */
-static struct igb_reg_test reg_test_82575[] = {
-	{ E1000_FCAL, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_FCAH, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
-	{ E1000_FCT, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
-	{ E1000_VET, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_RDBAL(0), 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
-	{ E1000_RDBAH(0), 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_RDLEN(0), 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+/* 82576 reg test */
+static struct igb_reg_test reg_test_82576[] = {
+	{ E1000_FCAL,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_FCAH,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_FCT,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_VET,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDBAL(0),  0x100, 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
+	{ E1000_RDBAL(4),  0x40,  8, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(4),  0x40,  8, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(4),  0x40,  8, PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
 	/* Enable all four RX queues before testing. */
-	{ E1000_RXDCTL(0), 4, WRITE_NO_TEST, 0, E1000_RXDCTL_QUEUE_ENABLE },
+	{ E1000_RXDCTL(0), 0x100, 1,  WRITE_NO_TEST, 0, E1000_RXDCTL_QUEUE_ENABLE },
+	/* RDH is read-only for 82576, only test RDT. */
+	{ E1000_RDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RXDCTL(0), 0x100, 4,  WRITE_NO_TEST, 0, 0 },
+	{ E1000_FCRTH,	   0x100, 1,  PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
+	{ E1000_FCTTV,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TIPG,	   0x100, 1,  PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
+	{ E1000_TDBAL(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(0),  0x100, 4,  PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
+	{ E1000_TDBAL(4),  0x40, 8,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(4),  0x40, 8,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(4),  0x40, 8,  PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
+	{ E1000_RCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RCTL, 	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0x003FFFFB },
+	{ E1000_RCTL, 	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0xFFFFFFFF },
+	{ E1000_TCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_HI, 0x83FFFFFF, 0xFFFFFFFF },
+	{ E1000_RA2,	   0, 8, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA2,	   0, 8, TABLE64_TEST_HI, 0x83FFFFFF, 0xFFFFFFFF },
+	{ E1000_MTA,	   0, 128,TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ 0, 0, 0, 0 }
+};
+
+/* 82575 register test */
+static struct igb_reg_test reg_test_82575[] = {
+	{ E1000_FCAL,      0x100, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_FCAH,      0x100, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_FCT,       0x100, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_VET,       0x100, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDBAL(0),  0x100, 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	/* Enable all four RX queues before testing. */
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0, E1000_RXDCTL_QUEUE_ENABLE },
 	/* RDH is read-only for 82575, only test RDT. */
-	{ E1000_RDT(0), 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ E1000_RXDCTL(0), 4, WRITE_NO_TEST, 0, 0 },
-	{ E1000_FCRTH, 1, PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
-	{ E1000_FCTTV, 1, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ E1000_TIPG, 1, PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
-	{ E1000_TDBAL(0), 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
-	{ E1000_TDBAH(0), 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_TDLEN(0), 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
-	{ E1000_RCTL, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
-	{ E1000_RCTL, 1, SET_READ_TEST, 0x04CFB3FE, 0x003FFFFB },
-	{ E1000_RCTL, 1, SET_READ_TEST, 0x04CFB3FE, 0xFFFFFFFF },
-	{ E1000_TCTL, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
-	{ E1000_TXCW, 1, PATTERN_TEST, 0xC000FFFF, 0x0000FFFF },
-	{ E1000_RA, 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_RA, 16, TABLE64_TEST_HI, 0x800FFFFF, 0xFFFFFFFF },
-	{ E1000_MTA, 128, TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDT(0),    0x100, 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0, 0 },
+	{ E1000_FCRTH,     0x100, 1, PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
+	{ E1000_FCTTV,     0x100, 1, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TIPG,      0x100, 1, PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
+	{ E1000_TDBAL(0),  0x100, 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	{ E1000_RCTL,      0x100, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RCTL,      0x100, 1, SET_READ_TEST, 0x04CFB3FE, 0x003FFFFB },
+	{ E1000_RCTL,      0x100, 1, SET_READ_TEST, 0x04CFB3FE, 0xFFFFFFFF },
+	{ E1000_TCTL,      0x100, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_TXCW,      0x100, 1, PATTERN_TEST, 0xC000FFFF, 0x0000FFFF },
+	{ E1000_RA,        0, 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA,        0, 16, TABLE64_TEST_HI, 0x800FFFFF, 0xFFFFFFFF },
+	{ E1000_MTA,       0, 128, TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ 0, 0, 0, 0 }
 };
 
@@ -939,7 +985,15 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 	u32 i, toggle;
 
 	toggle = 0x7FFFF3FF;
-	test = reg_test_82575;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82576:
+		test = reg_test_82576;
+		break;
+	default:
+		test = reg_test_82575;
+		break;
+	}
 
 	/* Because the status register is such a special case,
 	 * we handle it separately from the rest of the register
@@ -966,19 +1020,19 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 		for (i = 0; i < test->array_len; i++) {
 			switch (test->test_type) {
 			case PATTERN_TEST:
-				REG_PATTERN_TEST(test->reg + (i * 0x100),
+				REG_PATTERN_TEST(test->reg + (i * test->reg_offset),
 						test->mask,
 						test->write);
 				break;
 			case SET_READ_TEST:
-				REG_SET_AND_CHECK(test->reg + (i * 0x100),
+				REG_SET_AND_CHECK(test->reg + (i * test->reg_offset),
 						test->mask,
 						test->write);
 				break;
 			case WRITE_NO_TEST:
 				writel(test->write,
 				    (adapter->hw.hw_addr + test->reg)
-					+ (i * 0x100));
+					+ (i * test->reg_offset));
 				break;
 			case TABLE32_TEST:
 				REG_PATTERN_TEST(test->reg + (i * 4),
@@ -1052,7 +1106,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	if (adapter->msix_entries) {
 		/* NOTE: we don't test MSI-X interrupts here, yet */
 		return 0;
-	} else if (adapter->msi_enabled) {
+	} else if (adapter->flags & IGB_FLAG_HAS_MSI) {
 		shared_int = false;
 		if (request_irq(irq, &igb_test_intr, 0, netdev->name, netdev)) {
 			*data = 1;
@@ -1394,13 +1448,39 @@ static int igb_set_phy_loopback(struct igb_adapter *adapter)
 static int igb_setup_loopback_test(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 rctl;
+	u32 reg;
 
 	if (hw->phy.media_type == e1000_media_type_fiber ||
 	    hw->phy.media_type == e1000_media_type_internal_serdes) {
-		rctl = rd32(E1000_RCTL);
-		rctl |= E1000_RCTL_LBM_TCVR;
-		wr32(E1000_RCTL, rctl);
+		reg = rd32(E1000_RCTL);
+		reg |= E1000_RCTL_LBM_TCVR;
+		wr32(E1000_RCTL, reg);
+
+		wr32(E1000_SCTL, E1000_ENABLE_SERDES_LOOPBACK);
+
+		reg = rd32(E1000_CTRL);
+		reg &= ~(E1000_CTRL_RFCE |
+			 E1000_CTRL_TFCE |
+			 E1000_CTRL_LRST);
+		reg |= E1000_CTRL_SLU |
+		       E1000_CTRL_FD; 
+		wr32(E1000_CTRL, reg);
+
+		/* Unset switch control to serdes energy detect */
+		reg = rd32(E1000_CONNSW);
+		reg &= ~E1000_CONNSW_ENRGSRC;
+		wr32(E1000_CONNSW, reg);
+
+		/* Set PCS register for forced speed */
+		reg = rd32(E1000_PCS_LCTL);
+		reg &= ~E1000_PCS_LCTL_AN_ENABLE;     /* Disable Autoneg*/
+		reg |= E1000_PCS_LCTL_FLV_LINK_UP |   /* Force link up */
+		       E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
+		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
+		       E1000_PCS_LCTL_FSD |           /* Force Speed */
+		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
+		wr32(E1000_PCS_LCTL, reg);
+
 		return 0;
 	} else if (hw->phy.media_type == e1000_media_type_copper) {
 		return igb_set_phy_loopback(adapter);
@@ -1660,6 +1740,8 @@ static int igb_wol_exclusion(struct igb_adapter *adapter,
 		wol->supported = 0;
 		break;
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
+	case E1000_DEV_ID_82576_FIBER:
+	case E1000_DEV_ID_82576_SERDES:
 		/* Wake events not supported on port B */
 		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1) {
 			wol->supported = 0;
@@ -1774,6 +1856,8 @@ static int igb_set_coalesce(struct net_device *netdev,
 			    struct ethtool_coalesce *ec)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	int i;
 
 	if ((ec->rx_coalesce_usecs > IGB_MAX_ITR_USECS) ||
 	    ((ec->rx_coalesce_usecs > 3) &&
@@ -1782,13 +1866,16 @@ static int igb_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 
 	/* convert to rate of irq's per second */
-	if (ec->rx_coalesce_usecs <= 3)
+	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3) {
 		adapter->itr_setting = ec->rx_coalesce_usecs;
-	else
-		adapter->itr_setting = (1000000 / ec->rx_coalesce_usecs);
+		adapter->itr = IGB_START_ITR;
+	} else {
+		adapter->itr_setting = ec->rx_coalesce_usecs << 2;
+		adapter->itr = adapter->itr_setting;
+	}
 
-	if (netif_running(netdev))
-		igb_reinit_locked(adapter);
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		wr32(adapter->rx_ring[i].itr_register, adapter->itr);
 
 	return 0;
 }
@@ -1801,7 +1888,7 @@ static int igb_get_coalesce(struct net_device *netdev,
 	if (adapter->itr_setting <= 3)
 		ec->rx_coalesce_usecs = adapter->itr_setting;
 	else
-		ec->rx_coalesce_usecs = 1000000 / adapter->itr_setting;
+		ec->rx_coalesce_usecs = adapter->itr_setting >> 2;
 
 	return 0;
 }
@@ -1835,12 +1922,31 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 	int stat_count = sizeof(struct igb_queue_stats) / sizeof(u64);
 	int j;
 	int i;
+#ifdef CONFIG_IGB_LRO
+	int aggregated = 0, flushed = 0, no_desc = 0;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		aggregated += adapter->rx_ring[i].lro_mgr.stats.aggregated;
+		flushed += adapter->rx_ring[i].lro_mgr.stats.flushed;
+		no_desc += adapter->rx_ring[i].lro_mgr.stats.no_desc;
+	}
+	adapter->lro_aggregated = aggregated;
+	adapter->lro_flushed = flushed;
+	adapter->lro_no_desc = no_desc;
+#endif
 
 	igb_update_stats(adapter);
 	for (i = 0; i < IGB_GLOBAL_STATS_LEN; i++) {
 		char *p = (char *)adapter+igb_gstrings_stats[i].stat_offset;
 		data[i] = (igb_gstrings_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+	for (j = 0; j < adapter->num_tx_queues; j++) {
+		int k;
+		queue_stat = (u64 *)&adapter->tx_ring[j].tx_stats;
+		for (k = 0; k < stat_count; k++)
+			data[i + k] = queue_stat[k];
+		i += k;
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
 		int k;

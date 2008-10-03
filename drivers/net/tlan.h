@@ -13,8 +13,6 @@
  *  This software may be used and distributed according to the terms
  *  of the GNU General Public License, incorporated herein by reference.
  *
- ** This file is best viewed/edited with tabstop=4, colums>=132
- *
  *
  *  Dec 10, 1999	Torben Mathiasen <torben.mathiasen@compaq.com>
  *			New Maintainer
@@ -45,7 +43,9 @@
 #define TLAN_IGNORE		0
 #define TLAN_RECORD		1
 
-#define TLAN_DBG(lvl, format, args...)	if (debug&lvl) printk(KERN_DEBUG "TLAN: " format, ##args );
+#define TLAN_DBG(lvl, format, args...)	\
+	do { if (debug&lvl) printk(KERN_DEBUG "TLAN: " format, ##args ); } while(0)
+
 #define TLAN_DEBUG_GNRL		0x0001
 #define TLAN_DEBUG_TX		0x0002
 #define TLAN_DEBUG_RX		0x0004
@@ -194,7 +194,6 @@ typedef struct tlan_private_tag {
 	u32			timerSetAt;
 	u32			timerType;
 	struct timer_list	timer;
-	struct net_device_stats	stats;
 	struct board		*adapter;
 	u32			adapterRev;
 	u32			aui;
@@ -205,7 +204,6 @@ typedef struct tlan_private_tag {
 	u32			speed;
 	u8			tlanRev;
 	u8			tlanFullDuplex;
-	char                    devName[8];
 	spinlock_t		lock;
 	u8			link;
 	u8			is_eisa;
@@ -517,12 +515,18 @@ static inline void TLan_DioWrite32(u16 base_addr, u16 internal_addr, u32 data)
  * 	xor( a, xor( b, xor( c, xor( d, xor( e, xor( f, xor( g, h ) ) ) ) ) ) )
  * #define DA( a, bit )		( ( (u8) a[bit/8] ) & ( (u8) ( 1 << bit%8 ) ) )
  *
- * 	hash  = XOR8( DA(a,0), DA(a, 6), DA(a,12), DA(a,18), DA(a,24), DA(a,30), DA(a,36), DA(a,42) );
- * 	hash |= XOR8( DA(a,1), DA(a, 7), DA(a,13), DA(a,19), DA(a,25), DA(a,31), DA(a,37), DA(a,43) ) << 1;
- * 	hash |= XOR8( DA(a,2), DA(a, 8), DA(a,14), DA(a,20), DA(a,26), DA(a,32), DA(a,38), DA(a,44) ) << 2;
- * 	hash |= XOR8( DA(a,3), DA(a, 9), DA(a,15), DA(a,21), DA(a,27), DA(a,33), DA(a,39), DA(a,45) ) << 3;
- * 	hash |= XOR8( DA(a,4), DA(a,10), DA(a,16), DA(a,22), DA(a,28), DA(a,34), DA(a,40), DA(a,46) ) << 4;
- * 	hash |= XOR8( DA(a,5), DA(a,11), DA(a,17), DA(a,23), DA(a,29), DA(a,35), DA(a,41), DA(a,47) ) << 5;
+ * 	hash  = XOR8( DA(a,0), DA(a, 6), DA(a,12), DA(a,18), DA(a,24),
+ * 	              DA(a,30), DA(a,36), DA(a,42) );
+ * 	hash |= XOR8( DA(a,1), DA(a, 7), DA(a,13), DA(a,19), DA(a,25),
+ * 		      DA(a,31), DA(a,37), DA(a,43) ) << 1;
+ * 	hash |= XOR8( DA(a,2), DA(a, 8), DA(a,14), DA(a,20), DA(a,26),
+ * 		      DA(a,32), DA(a,38), DA(a,44) ) << 2;
+ * 	hash |= XOR8( DA(a,3), DA(a, 9), DA(a,15), DA(a,21), DA(a,27),
+ * 		      DA(a,33), DA(a,39), DA(a,45) ) << 3;
+ * 	hash |= XOR8( DA(a,4), DA(a,10), DA(a,16), DA(a,22), DA(a,28),
+ * 	              DA(a,34), DA(a,40), DA(a,46) ) << 4;
+ * 	hash |= XOR8( DA(a,5), DA(a,11), DA(a,17), DA(a,23), DA(a,29),
+ * 	              DA(a,35), DA(a,41), DA(a,47) ) << 5;
  *
  */
 static inline u32 TLan_HashFunc( const u8 *a )

@@ -231,28 +231,28 @@ static int
 mptfc_abort(struct scsi_cmnd *SCpnt)
 {
 	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_abort, __FUNCTION__);
+	    mptfc_block_error_handler(SCpnt, mptscsih_abort, __func__);
 }
 
 static int
 mptfc_dev_reset(struct scsi_cmnd *SCpnt)
 {
 	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_dev_reset, __FUNCTION__);
+	    mptfc_block_error_handler(SCpnt, mptscsih_dev_reset, __func__);
 }
 
 static int
 mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __FUNCTION__);
+	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __func__);
 }
 
 static int
 mptfc_host_reset(struct scsi_cmnd *SCpnt)
 {
 	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_host_reset, __FUNCTION__);
+	    mptfc_block_error_handler(SCpnt, mptscsih_host_reset, __func__);
 }
 
 static void
@@ -1326,8 +1326,8 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* initialize workqueue */
 
-	snprintf(ioc->fc_rescan_work_q_name, KOBJ_NAME_LEN, "mptfc_wq_%d",
-		sh->host_no);
+	snprintf(ioc->fc_rescan_work_q_name, sizeof(ioc->fc_rescan_work_q_name),
+		 "mptfc_wq_%d", sh->host_no);
 	ioc->fc_rescan_work_q =
 		create_singlethread_workqueue(ioc->fc_rescan_work_q_name);
 	if (!ioc->fc_rescan_work_q)

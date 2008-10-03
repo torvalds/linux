@@ -73,7 +73,7 @@ int is_visws_box(void)
 	return visws_board_type >= 0;
 }
 
-static int __init visws_time_init_quirk(void)
+static int __init visws_time_init(void)
 {
 	printk(KERN_INFO "Starting Cobalt Timer system clock\n");
 
@@ -93,7 +93,7 @@ static int __init visws_time_init_quirk(void)
 	return 0;
 }
 
-static int __init visws_pre_intr_init_quirk(void)
+static int __init visws_pre_intr_init(void)
 {
 	init_VISWS_APIC_irqs();
 
@@ -114,7 +114,7 @@ EXPORT_SYMBOL(sgivwfb_mem_size);
 
 long long mem_size __initdata = 0;
 
-static char * __init visws_memory_setup_quirk(void)
+static char * __init visws_memory_setup(void)
 {
 	long long gfx_mem_size = 8 * MB;
 
@@ -176,7 +176,7 @@ static void visws_machine_power_off(void)
 	outl(PIIX_SPECIAL_STOP, 0xCFC);
 }
 
-static int __init visws_get_smp_config_quirk(unsigned int early)
+static int __init visws_get_smp_config(unsigned int early)
 {
 	/*
 	 * Prevent MP-table parsing by the generic code:
@@ -184,15 +184,13 @@ static int __init visws_get_smp_config_quirk(unsigned int early)
 	return 1;
 }
 
-extern unsigned int __cpuinitdata maxcpus;
-
 /*
  * The Visual Workstation is Intel MP compliant in the hardware
  * sense, but it doesn't have a BIOS(-configuration table).
  * No problem for Linux.
  */
 
-static void __init MP_processor_info (struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_config_processor *m)
 {
 	int ver, logical_apicid;
 	physid_mask_t apic_cpus;
@@ -232,7 +230,7 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	apic_version[m->mpc_apicid] = ver;
 }
 
-int __init visws_find_smp_config_quirk(unsigned int reserve)
+static int __init visws_find_smp_config(unsigned int reserve)
 {
 	struct mpc_config_processor *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));
@@ -244,8 +242,8 @@ int __init visws_find_smp_config_quirk(unsigned int reserve)
 		ncpus = CO_CPU_MAX;
 	}
 
-	if (ncpus > maxcpus)
-		ncpus = maxcpus;
+	if (ncpus > setup_max_cpus)
+		ncpus = setup_max_cpus;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	smp_found_config = 1;
@@ -258,7 +256,17 @@ int __init visws_find_smp_config_quirk(unsigned int reserve)
 	return 1;
 }
 
-extern int visws_trap_init_quirk(void);
+static int visws_trap_init(void);
+
+static struct x86_quirks visws_x86_quirks __initdata = {
+	.arch_time_init		= visws_time_init,
+	.arch_pre_intr_init	= visws_pre_intr_init,
+	.arch_memory_setup	= visws_memory_setup,
+	.arch_intr_init		= NULL,
+	.arch_trap_init		= visws_trap_init,
+	.mach_get_smp_config	= visws_get_smp_config,
+	.mach_find_smp_config	= visws_find_smp_config,
+};
 
 void __init visws_early_detect(void)
 {
@@ -272,16 +280,10 @@ void __init visws_early_detect(void)
 
 	/*
 	 * Install special quirks for timer, interrupt and memory setup:
-	 */
-	arch_time_init_quirk		= visws_time_init_quirk;
-	arch_pre_intr_init_quirk	= visws_pre_intr_init_quirk;
-	arch_memory_setup_quirk		= visws_memory_setup_quirk;
-
-	/*
 	 * Fall back to generic behavior for traps:
+	 * Override generic MP-table parsing:
 	 */
-	arch_intr_init_quirk		= NULL;
-	arch_trap_init_quirk		= visws_trap_init_quirk;
+	x86_quirks = &visws_x86_quirks;
 
 	/*
 	 * Install reboot quirks:
@@ -293,12 +295,6 @@ void __init visws_early_detect(void)
 	 * Do not use broadcast IPIs:
 	 */
 	no_broadcast = 0;
-
-	/*
-	 * Override generic MP-table parsing:
-	 */
-	mach_get_smp_config_quirk	= visws_get_smp_config_quirk;
-	mach_find_smp_config_quirk	= visws_find_smp_config_quirk;
 
 #ifdef CONFIG_X86_IO_APIC
 	/*
@@ -426,7 +422,7 @@ static __init void cobalt_init(void)
 		co_apic_read(CO_APIC_ID));
 }
 
-int __init visws_trap_init_quirk(void)
+static int __init visws_trap_init(void)
 {
 	lithium_init();
 	cobalt_init();
