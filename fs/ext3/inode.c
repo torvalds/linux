@@ -36,6 +36,7 @@
 #include <linux/mpage.h>
 #include <linux/uio.h>
 #include <linux/bio.h>
+#include <linux/fiemap.h>
 #include "xattr.h"
 #include "acl.h"
 
@@ -979,6 +980,13 @@ static int ext3_get_block(struct inode *inode, sector_t iblock,
 		ext3_journal_stop(handle);
 out:
 	return ret;
+}
+
+int ext3_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		u64 start, u64 len)
+{
+	return generic_block_fiemap(inode, fieinfo, start, len,
+				    ext3_get_block);
 }
 
 /*
