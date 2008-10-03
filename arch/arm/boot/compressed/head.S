@@ -802,7 +802,7 @@ loop1:
 		add	r2, r2, #4		@ add 4 (line length offset)
 		ldr	r4, =0x3ff
 		ands	r4, r4, r1, lsr #3	@ find maximum number on the way size
-		.word	0xe16f5f14		@ clz r5, r4 - find bit position of way size increment
+		clz	r5, r4			@ find bit position of way size increment
 		ldr	r7, =0x7fff
 		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
 loop2:

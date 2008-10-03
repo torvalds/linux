@@ -55,7 +55,7 @@ ENDPROC(cpu_v7_reset)
  *	IRQs are already disabled.
  */
 ENTRY(cpu_v7_do_idle)
-	.long	0xe320f003			@ ARM V7 WFI instruction
+	wfi
 	mov	pc, lr
 ENDPROC(cpu_v7_do_idle)
 
