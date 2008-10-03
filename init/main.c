@@ -886,6 +886,7 @@ static int __init kernel_init(void * unused)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 */
+	stop_boot_trace();
 	init_post();
 	return 0;
 }

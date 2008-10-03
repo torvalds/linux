@@ -22,9 +22,14 @@ void start_boot_trace(void)
 	trace_boot_enabled = 1;
 }
 
-void stop_boot_trace(struct trace_array *tr)
+void stop_boot_trace(void)
 {
 	trace_boot_enabled = 0;
+}
+
+void reset_boot_trace(struct trace_array *tr)
+{
+	stop_boot_trace();
 }
 
 static void boot_trace_init(struct trace_array *tr)
@@ -43,7 +48,7 @@ static void boot_trace_ctrl_update(struct trace_array *tr)
 	if (tr->ctrl)
 		start_boot_trace();
 	else
-		stop_boot_trace(tr);
+		stop_boot_trace();
 }
 
 static enum print_line_t initcall_print_line(struct trace_iterator *iter)
@@ -81,7 +86,7 @@ struct tracer boot_tracer __read_mostly =
 {
 	.name		= "initcall",
 	.init		= boot_trace_init,
-	.reset		= stop_boot_trace,
+	.reset		= reset_boot_trace,
 	.ctrl_update	= boot_trace_ctrl_update,
 	.print_line	= initcall_print_line,
 };

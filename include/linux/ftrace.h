@@ -225,9 +225,11 @@ struct boot_trace {
 #ifdef CONFIG_BOOT_TRACER
 extern void trace_boot(struct boot_trace *it, initcall_t fn);
 extern void start_boot_trace(void);
+extern void stop_boot_trace(void);
 #else
 static inline void trace_boot(struct boot_trace *it, initcall_t fn) { }
 static inline void start_boot_trace(void) { }
+static inline void stop_boot_trace(void) { }
 #endif
 
 
