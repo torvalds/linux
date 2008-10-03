@@ -614,7 +614,7 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 			return -EINVAL;
 		err = nfsd_create_serv();
 		if (!err) {
-			err = svc_addsock(nfsd_serv, fd, buf, NULL);
+			err = svc_addsock(nfsd_serv, fd, buf);
 			if (err >= 0) {
 				err = lockd_up();
 				if (err < 0)

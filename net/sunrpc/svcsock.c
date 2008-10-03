@@ -1167,8 +1167,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 int svc_addsock(struct svc_serv *serv,
 		int fd,
-		char *name_return,
-		int *proto)
+		char *name_return)
 {
 	int err = 0;
 	struct socket *so = sockfd_lookup(fd, &err);
@@ -1203,7 +1202,6 @@ int svc_addsock(struct svc_serv *serv,
 		sockfd_put(so);
 		return err;
 	}
-	if (proto) *proto = so->sk->sk_protocol;
 	return one_sock_name(name_return, svsk);
 }
 EXPORT_SYMBOL_GPL(svc_addsock);
