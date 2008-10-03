@@ -1,27 +1,26 @@
 #ifndef __ASM_SH_IO_H
 #define __ASM_SH_IO_H
-
 /*
  * Convention:
- *    read{b,w,l}/write{b,w,l} are for PCI,
+ *    read{b,w,l,q}/write{b,w,l,q} are for PCI,
  *    while in{b,w,l}/out{b,w,l} are for ISA
- * These may (will) be platform specific function.
+ *
  * In addition we have 'pausing' versions: in{b,w,l}_p/out{b,w,l}_p
  * and 'string' versions: ins{b,w,l}/outs{b,w,l}
- * For read{b,w,l} and write{b,w,l} there are also __raw versions, which
- * do not have a memory barrier after them.
  *
- * In addition, we have
- *   ctrl_in{b,w,l}/ctrl_out{b,w,l} for SuperH specific I/O.
- *   which are processor specific.
- */
-
-/*
- * We follow the Alpha convention here:
- *  __inb expands to an inline function call (which calls via the mv)
- *  _inb  is a real function call (note ___raw fns are _ version of __raw)
- *  inb   by default expands to _inb, but the machine specific code may
- *        define it to __inb if it chooses.
+ * While read{b,w,l,q} and write{b,w,l,q} contain memory barriers
+ * automatically, there are also __raw versions, which do not.
+ *
+ * Historically, we have also had ctrl_in{b,w,l,q}/ctrl_out{b,w,l,q} for
+ * SuperH specific I/O (raw I/O to on-chip CPU peripherals). In practice
+ * these have the same semantics as the __raw variants, and as such, all
+ * new code should be using the __raw versions.
+ *
+ * All ISA I/O routines are wrapped through the machine vector. If a
+ * board does not provide overrides, a generic set that are copied in
+ * from the default machine vector are used instead. These are largely
+ * for old compat code for I/O offseting to SuperIOs, all of which are
+ * better handled through the machvec ioport mapping routines these days.
  */
 #include <asm/cache.h>
 #include <asm/system.h>
@@ -31,7 +30,6 @@
 #include <asm-generic/iomap.h>
 
 #ifdef __KERNEL__
-
 /*
  * Depending on which platform we are running on, we need different
  * I/O functions.
@@ -40,90 +38,64 @@
 #include <asm/io_generic.h>
 #include <asm/io_trapped.h>
 
-#define maybebadio(port) \
-  printk(KERN_ERR "bad PC-like io %s:%u for port 0x%lx at 0x%08x\n", \
-	 __FUNCTION__, __LINE__, (port), (u32)__builtin_return_address(0))
+#define inb(p)			sh_mv.mv_inb((p))
+#define inw(p)			sh_mv.mv_inw((p))
+#define inl(p)			sh_mv.mv_inl((p))
+#define outb(x,p)		sh_mv.mv_outb((x),(p))
+#define outw(x,p)		sh_mv.mv_outw((x),(p))
+#define outl(x,p)		sh_mv.mv_outl((x),(p))
 
-/*
- * Since boards are able to define their own set of I/O routines through
- * their respective machine vector, we always wrap through the mv.
- *
- * Also, in the event that a board hasn't provided its own definition for
- * a given routine, it will be wrapped to generic code at run-time.
- */
+#define inb_p(p)		sh_mv.mv_inb_p((p))
+#define inw_p(p)		sh_mv.mv_inw_p((p))
+#define inl_p(p)		sh_mv.mv_inl_p((p))
+#define outb_p(x,p)		sh_mv.mv_outb_p((x),(p))
+#define outw_p(x,p)		sh_mv.mv_outw_p((x),(p))
+#define outl_p(x,p)		sh_mv.mv_outl_p((x),(p))
 
-#define __inb(p)	sh_mv.mv_inb((p))
-#define __inw(p)	sh_mv.mv_inw((p))
-#define __inl(p)	sh_mv.mv_inl((p))
-#define __outb(x,p)	sh_mv.mv_outb((x),(p))
-#define __outw(x,p)	sh_mv.mv_outw((x),(p))
-#define __outl(x,p)	sh_mv.mv_outl((x),(p))
+#define insb(p,b,c)		sh_mv.mv_insb((p), (b), (c))
+#define insw(p,b,c)		sh_mv.mv_insw((p), (b), (c))
+#define insl(p,b,c)		sh_mv.mv_insl((p), (b), (c))
+#define outsb(p,b,c)		sh_mv.mv_outsb((p), (b), (c))
+#define outsw(p,b,c)		sh_mv.mv_outsw((p), (b), (c))
+#define outsl(p,b,c)		sh_mv.mv_outsl((p), (b), (c))
 
-#define __inb_p(p)	sh_mv.mv_inb_p((p))
-#define __inw_p(p)	sh_mv.mv_inw_p((p))
-#define __inl_p(p)	sh_mv.mv_inl_p((p))
-#define __outb_p(x,p)	sh_mv.mv_outb_p((x),(p))
-#define __outw_p(x,p)	sh_mv.mv_outw_p((x),(p))
-#define __outl_p(x,p)	sh_mv.mv_outl_p((x),(p))
+#define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile u8  __force *)(a) = (v))
+#define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile u16 __force *)(a) = (v))
+#define __raw_writel(v,a)	(__chk_io_ptr(a), *(volatile u32 __force *)(a) = (v))
+#define __raw_writeq(v,a)	(__chk_io_ptr(a), *(volatile u64 __force *)(a) = (v))
 
-#define __insb(p,b,c)	sh_mv.mv_insb((p), (b), (c))
-#define __insw(p,b,c)	sh_mv.mv_insw((p), (b), (c))
-#define __insl(p,b,c)	sh_mv.mv_insl((p), (b), (c))
-#define __outsb(p,b,c)	sh_mv.mv_outsb((p), (b), (c))
-#define __outsw(p,b,c)	sh_mv.mv_outsw((p), (b), (c))
-#define __outsl(p,b,c)	sh_mv.mv_outsl((p), (b), (c))
+#define __raw_readb(a)		(__chk_io_ptr(a), *(volatile u8  __force *)(a))
+#define __raw_readw(a)		(__chk_io_ptr(a), *(volatile u16 __force *)(a))
+#define __raw_readl(a)		(__chk_io_ptr(a), *(volatile u32 __force *)(a))
+#define __raw_readq(a)		(__chk_io_ptr(a), *(volatile u64 __force *)(a))
 
-#define __readb(a)	sh_mv.mv_readb((a))
-#define __readw(a)	sh_mv.mv_readw((a))
-#define __readl(a)	sh_mv.mv_readl((a))
-#define __writeb(v,a)	sh_mv.mv_writeb((v),(a))
-#define __writew(v,a)	sh_mv.mv_writew((v),(a))
-#define __writel(v,a)	sh_mv.mv_writel((v),(a))
+#define readb(a)		({ u8  r_ = __raw_readb(a); mb(); r_; })
+#define readw(a)		({ u16 r_ = __raw_readw(a); mb(); r_; })
+#define readl(a)		({ u32 r_ = __raw_readl(a); mb(); r_; })
+#define readq(a)		({ u64 r_ = __raw_readq(a); mb(); r_; })
 
-#define inb		__inb
-#define inw		__inw
-#define inl		__inl
-#define outb		__outb
-#define outw		__outw
-#define outl		__outl
+#define writeb(v,a)		({ __raw_writeb((v),(a)); mb(); })
+#define writew(v,a)		({ __raw_writew((v),(a)); mb(); })
+#define writel(v,a)		({ __raw_writel((v),(a)); mb(); })
+#define writeq(v,a)		({ __raw_writeq((v),(a)); mb(); })
 
-#define inb_p		__inb_p
-#define inw_p		__inw_p
-#define inl_p		__inl_p
-#define outb_p		__outb_p
-#define outw_p		__outw_p
-#define outl_p		__outl_p
+/* SuperH on-chip I/O functions */
+#define ctrl_inb		__raw_readb
+#define ctrl_inw		__raw_readw
+#define ctrl_inl		__raw_readl
+#define ctrl_inq		__raw_readq
 
-#define insb		__insb
-#define insw		__insw
-#define insl		__insl
-#define outsb		__outsb
-#define outsw		__outsw
-#define outsl		__outsl
+#define ctrl_outb		__raw_writeb
+#define ctrl_outw		__raw_writew
+#define ctrl_outl		__raw_writel
+#define ctrl_outq		__raw_writeq
 
-#define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a) = (v))
-#define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile unsigned short __force *)(a) = (v))
-#define __raw_writel(v,a)	(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a) = (v))
-
-#define __raw_readb(a)		(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a))
-#define __raw_readw(a)		(__chk_io_ptr(a), *(volatile unsigned short __force *)(a))
-#define __raw_readl(a)		(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a))
-
-void __raw_writesl(void __iomem *addr, const void *data, int longlen);
-void __raw_readsl(const void __iomem *addr, void *data, int longlen);
-
-/*
- * The platform header files may define some of these macros to use
- * the inlined versions where appropriate.  These macros may also be
- * redefined by userlevel programs.
- */
-#define readb(a)	({ unsigned int r_ = __readb(a); mb(); r_; })
-#define readw(a)	({ unsigned int r_ = __readw(a); mb(); r_; })
-#define readl(a)	({ unsigned int r_ = __readl(a); mb(); r_; })
-
-#define writeb(v,a)	({ __writeb((v),(a)); mb(); })
-#define writew(v,a)	({ __writew((v),(a)); mb(); })
-#define writel(v,a)	({ __writel((v),(a)); mb(); })
+static inline void ctrl_delay(void)
+{
+#ifdef P2SEG
+	__raw_readw(P2SEG);
+#endif
+}
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
@@ -151,18 +123,23 @@ static inline void __raw_reads##bwlq(volatile void __iomem *mem,	\
 
 __BUILD_MEMORY_STRING(b, u8)
 __BUILD_MEMORY_STRING(w, u16)
+__BUILD_MEMORY_STRING(q, u64)
 
-#define writesb	__raw_writesb
-#define writesw	__raw_writesw
-#define writesl __raw_writesl
+void __raw_writesl(void __iomem *addr, const void *data, int longlen);
+void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 
-#define readsb	__raw_readsb
-#define readsw	__raw_readsw
-#define readsl  __raw_readsl
+#define writesb			__raw_writesb
+#define writesw			__raw_writesw
+#define writesl			__raw_writesl
 
-#define readb_relaxed(a) readb(a)
-#define readw_relaxed(a) readw(a)
-#define readl_relaxed(a) readl(a)
+#define readsb			__raw_readsb
+#define readsw			__raw_readsw
+#define readsl			__raw_readsl
+
+#define readb_relaxed(a)	readb(a)
+#define readw_relaxed(a)	readw(a)
+#define readl_relaxed(a)	readl(a)
+#define readq_relaxed(a)	readq(a)
 
 /* Simple MMIO */
 #define ioread8(a)		__raw_readb(a)
@@ -185,15 +162,17 @@ __BUILD_MEMORY_STRING(w, u16)
 #define iowrite16_rep(a, s, c)	__raw_writesw((a), (s), (c))
 #define iowrite32_rep(a, s, c)	__raw_writesl((a), (s), (c))
 
-#define mmiowb()	wmb()	/* synco on SH-4A, otherwise a nop */
+/* synco on SH-4A, otherwise a nop */
+#define mmiowb()		wmb()
 
 #define IO_SPACE_LIMIT 0xffffffff
 
 extern unsigned long generic_io_base;
 
 /*
- * This function provides a method for the generic case where a board-specific
- * ioport_map simply needs to return the port + some arbitrary port base.
+ * This function provides a method for the generic case where a
+ * board-specific ioport_map simply needs to return the port + some
+ * arbitrary port base.
  *
  * We use this at board setup time to implicitly set the port base, and
  * as a result, we can use the generic ioport_map.
@@ -206,57 +185,9 @@ static inline void __set_io_port_base(unsigned long pbase)
 #define __ioport_map(p, n) sh_mv.mv_ioport_map((p), (n))
 
 /* We really want to try and get these to memcpy etc */
-extern void memcpy_fromio(void *, volatile void __iomem *, unsigned long);
-extern void memcpy_toio(volatile void __iomem *, const void *, unsigned long);
-extern void memset_io(volatile void __iomem *, int, unsigned long);
-
-/* SuperH on-chip I/O functions */
-static inline unsigned char ctrl_inb(unsigned long addr)
-{
-	return *(volatile unsigned char*)addr;
-}
-
-static inline unsigned short ctrl_inw(unsigned long addr)
-{
-	return *(volatile unsigned short*)addr;
-}
-
-static inline unsigned int ctrl_inl(unsigned long addr)
-{
-	return *(volatile unsigned long*)addr;
-}
-
-static inline unsigned long long ctrl_inq(unsigned long addr)
-{
-	return *(volatile unsigned long long*)addr;
-}
-
-static inline void ctrl_outb(unsigned char b, unsigned long addr)
-{
-	*(volatile unsigned char*)addr = b;
-}
-
-static inline void ctrl_outw(unsigned short b, unsigned long addr)
-{
-	*(volatile unsigned short*)addr = b;
-}
-
-static inline void ctrl_outl(unsigned int b, unsigned long addr)
-{
-        *(volatile unsigned long*)addr = b;
-}
-
-static inline void ctrl_outq(unsigned long long b, unsigned long addr)
-{
-	*(volatile unsigned long long*)addr = b;
-}
-
-static inline void ctrl_delay(void)
-{
-#ifdef P2SEG
-	ctrl_inw(P2SEG);
-#endif
-}
+void memcpy_fromio(void *, const volatile void __iomem *, unsigned long);
+void memcpy_toio(volatile void __iomem *, const void *, unsigned long);
+void memset_io(volatile void __iomem *, int, unsigned long);
 
 /* Quad-word real-mode I/O, don't ask.. */
 unsigned long long peek_real_address_q(unsigned long long addr);
@@ -346,6 +277,10 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	__ioremap_mode((offset), (size), (flags))
 #define iounmap(addr)					\
 	__iounmap((addr))
+
+#define maybebadio(port) \
+	printk(KERN_ERR "bad PC-like io %s:%u for port 0x%lx at 0x%08x\n", \
+	       __func__, __LINE__, (port), (u32)__builtin_return_address(0))
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

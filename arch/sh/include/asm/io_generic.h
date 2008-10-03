@@ -33,13 +33,6 @@ void IO_CONCAT(__IO_PREFIX,outsb)(unsigned long, const void *src, unsigned long 
 void IO_CONCAT(__IO_PREFIX,outsw)(unsigned long, const void *src, unsigned long count);
 void IO_CONCAT(__IO_PREFIX,outsl)(unsigned long, const void *src, unsigned long count);
 
-u8 IO_CONCAT(__IO_PREFIX,readb)(void __iomem *);
-u16 IO_CONCAT(__IO_PREFIX,readw)(void __iomem *);
-u32 IO_CONCAT(__IO_PREFIX,readl)(void __iomem *);
-void IO_CONCAT(__IO_PREFIX,writeb)(u8, void __iomem *);
-void IO_CONCAT(__IO_PREFIX,writew)(u16, void __iomem *);
-void IO_CONCAT(__IO_PREFIX,writel)(u32, void __iomem *);
-
 void *IO_CONCAT(__IO_PREFIX,ioremap)(unsigned long offset, unsigned long size);
 void IO_CONCAT(__IO_PREFIX,iounmap)(void *addr);
 

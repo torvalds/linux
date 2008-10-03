@@ -19,12 +19,12 @@
  * Copy data from IO memory space to "real" memory space.
  * This needs to be optimized.
  */
-void memcpy_fromio(void *to, volatile void __iomem *from, unsigned long count)
+void memcpy_fromio(void *to, const volatile void __iomem *from, unsigned long count)
 {
-	char *p = to;
+	unsigned char *p = to;
         while (count) {
                 count--;
-                *p = readb((void __iomem *)from);
+                *p = readb(from);
                 p++;
                 from++;
         }
@@ -37,10 +37,10 @@ EXPORT_SYMBOL(memcpy_fromio);
  */
 void memcpy_toio(volatile void __iomem *to, const void *from, unsigned long count)
 {
-	const char *p = from;
+	const unsigned char *p = from;
         while (count) {
                 count--;
-                writeb(*p, (void __iomem *)to);
+                writeb(*p, to);
                 p++;
                 to++;
         }
@@ -55,7 +55,7 @@ void memset_io(volatile void __iomem *dst, int c, unsigned long count)
 {
         while (count) {
                 count--;
-                writeb(c, (void __iomem *)dst);
+                writeb(c, dst);
                 dst++;
         }
 }
