@@ -974,7 +974,6 @@ struct ath_softc {
 	u32 sc_keymax;		/* size of key cache */
 	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);	/* key use bit map */
 	u8 sc_splitmic;		/* split TKIP MIC keys */
-	int sc_keytype;
 
 	/* RX */
 	struct list_head sc_rxbuf;
@@ -992,6 +991,7 @@ struct ath_softc {
 	u32 sc_txintrperiod;	/* tx interrupt batching */
 	int sc_haltype2q[ATH9K_WME_AC_VO+1]; /* HAL WME	AC -> h/w qnum */
 	u32 sc_ant_tx[8];	/* recent tx frames/antenna */
+	u16 seq_no; /* TX sequence number */
 
 	/* Beacon */
 	struct ath9k_tx_queue_info sc_beacon_qi;

@@ -427,6 +427,18 @@ static int pcmcia_device_probe(struct device * dev)
 	p_drv = to_pcmcia_drv(dev->driver);
 	s = p_dev->socket;
 
+	/* The PCMCIA code passes the match data in via dev->driver_data
+	 * which is an ugly hack. Once the driver probe is called it may
+	 * and often will overwrite the match data so we must save it first
+	 *
+	 * handle pseudo multifunction devices:
+	 * there are at most two pseudo multifunction devices.
+	 * if we're matching against the first, schedule a
+	 * call which will then check whether there are two
+	 * pseudo devices, and if not, add the second one.
+	 */
+	did = p_dev->dev.driver_data;
+
 	ds_dbg(1, "trying to bind %s to %s\n", p_dev->dev.bus_id,
 	       p_drv->drv.name);
 
@@ -455,21 +467,14 @@ static int pcmcia_device_probe(struct device * dev)
 		goto put_module;
 	}
 
-	/* handle pseudo multifunction devices:
-	 * there are at most two pseudo multifunction devices.
-	 * if we're matching against the first, schedule a
-	 * call which will then check whether there are two
-	 * pseudo devices, and if not, add the second one.
-	 */
-	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_device_later(p_dev->socket, 0);
 
- put_module:
+put_module:
 	if (ret)
 		module_put(p_drv->owner);
- put_dev:
+put_dev:
 	if (ret)
 		put_device(dev);
 	return (ret);

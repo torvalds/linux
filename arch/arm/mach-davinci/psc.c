@@ -70,9 +70,6 @@ void davinci_psc_config(unsigned int domain, unsigned int id, char enable)
 {
 	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl, mdstat_mask;
 
-	if (id < 0)
-		return;
-
 	mdctl = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + MDCTL + 4 * id);
 	if (enable)
 		mdctl |= 0x00000003;	/* Enable Module */

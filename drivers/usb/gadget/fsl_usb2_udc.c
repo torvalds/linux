@@ -223,7 +223,7 @@ static int dr_controller_setup(struct fsl_udc *udc)
 	fsl_writel(tmp, &dr_regs->endpointlistaddr);
 
 	VDBG("vir[qh_base] is %p phy[qh_base] is 0x%8x reg is 0x%8x",
-		(int)udc->ep_qh, (int)tmp,
+		udc->ep_qh, (int)tmp,
 		fsl_readl(&dr_regs->endpointlistaddr));
 
 	/* Config PHY interface */

@@ -1087,7 +1087,7 @@ hotplug_hrtick(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return NOTIFY_DONE;
 }
 
-static void init_hrtick(void)
+static __init void init_hrtick(void)
 {
 	hotcpu_notifier(hotplug_hrtick, 0);
 }
@@ -8909,6 +8909,9 @@ static int sched_rt_global_constraints(void)
 	u64 rt_runtime, rt_period;
 	int ret = 0;
 
+	if (sysctl_sched_rt_period <= 0)
+		return -EINVAL;
+
 	rt_period = ktime_to_ns(tg->rt_bandwidth.rt_period);
 	rt_runtime = tg->rt_bandwidth.rt_runtime;
 
@@ -8924,6 +8927,9 @@ static int sched_rt_global_constraints(void)
 {
 	unsigned long flags;
 	int i;
+
+	if (sysctl_sched_rt_period <= 0)
+		return -EINVAL;
 
 	spin_lock_irqsave(&def_rt_bandwidth.rt_runtime_lock, flags);
 	for_each_possible_cpu(i) {

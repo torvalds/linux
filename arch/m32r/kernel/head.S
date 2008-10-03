@@ -29,7 +29,6 @@ __INITDATA
 	.global _end
 ENTRY(stext)
 ENTRY(_stext)
-ENTRY(startup_32)
 	/* Setup up the stack pointer */
 	LDIMM	(r0, spi_stack_top)
 	LDIMM	(r1, spu_stack_top)

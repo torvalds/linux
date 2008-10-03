@@ -146,18 +146,6 @@ config USB_STORAGE_KARMA
 	  on the resulting scsi device node returns the Karma to normal
 	  operation.
 
-config USB_STORAGE_SIERRA
-	bool "Sierra Wireless TRU-Install Feature Support"
-	depends on USB_STORAGE
-	help
-	  Say Y here to include additional code to support Sierra Wireless
-	  products with the TRU-Install feature (e.g., AC597E, AC881U).
-
-	  This code switches the Sierra Wireless device from being in
-	  Mass Storage mode to Modem mode. It also has the ability to
-	  support host software upgrades should full Linux support be added
-	  to TRU-Install.
-
 config USB_STORAGE_CYPRESS_ATACB
 	bool "SAT emulation on Cypress USB/ATA Bridge with ATACB"
 	depends on USB_STORAGE

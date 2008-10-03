@@ -1476,7 +1476,7 @@ again:
 	}
 
 	err = fallible_read_node(c, key, &zbr, node);
-	if (maybe_leb_gced(c, zbr.lnum, gc_seq1)) {
+	if (err <= 0 || maybe_leb_gced(c, zbr.lnum, gc_seq1)) {
 		/*
 		 * The node may have been GC'ed out from under us so try again
 		 * while keeping the TNC mutex locked.

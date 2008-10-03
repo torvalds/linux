@@ -69,6 +69,6 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
 				(z->zone && !zref_in_nodemask(z, nodes)))
 			z++;
 
-	*zone = zonelist_zone(z++);
+	*zone = zonelist_zone(z);
 	return z;
 }

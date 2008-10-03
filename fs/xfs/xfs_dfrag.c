@@ -149,7 +149,14 @@ xfs_swap_extents(
 
 	sbp = &sxp->sx_stat;
 
-	xfs_lock_two_inodes(ip, tip, lock_flags);
+	/*
+	 * we have to do two separate lock calls here to keep lockdep
+	 * happy. If we try to get all the locks in one call, lock will
+	 * report false positives when we drop the ILOCK and regain them
+	 * below.
+	 */
+	xfs_lock_two_inodes(ip, tip, XFS_IOLOCK_EXCL);
+	xfs_lock_two_inodes(ip, tip, XFS_ILOCK_EXCL);
 	locked = 1;
 
 	/* Verify that both files have the same format */
