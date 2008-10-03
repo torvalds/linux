@@ -10,6 +10,8 @@
 
 #include <linux/module.h>
 #include <linux/irq.h>
+
+#include <asm/apic.h>
 #include <asm/uv/uv_irq.h>
 
 static void uv_noop(unsigned int irq)
