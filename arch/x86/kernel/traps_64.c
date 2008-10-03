@@ -604,14 +604,15 @@ asmlinkage void __attribute__((weak)) mce_threshold_interrupt(void)
  */
 asmlinkage void math_state_restore(void)
 {
-	struct task_struct *me = current;
+	struct thread_info *thread = current_thread_info();
+	struct task_struct *tsk = thread->task;
 
-	if (!used_math()) {
+	if (!tsk_used_math(tsk)) {
 		local_irq_enable();
 		/*
 		 * does a slab alloc which can sleep
 		 */
-		if (init_fpu(me)) {
+		if (init_fpu(tsk)) {
 			/*
 			 * ran out of memory!
 			 */
@@ -625,13 +626,13 @@ asmlinkage void math_state_restore(void)
 	/*
 	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
 	 */
-	if (unlikely(restore_fpu_checking(me))) {
+	if (unlikely(restore_fpu_checking(tsk))) {
 		stts();
-		force_sig(SIGSEGV, me);
+		force_sig(SIGSEGV, tsk);
 		return;
 	}
-	task_thread_info(me)->status |= TS_USEDFPU;
-	me->fpu_counter++;
+	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
+	tsk->fpu_counter++;
 }
 EXPORT_SYMBOL_GPL(math_state_restore);
 
