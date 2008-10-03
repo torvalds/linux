@@ -65,7 +65,8 @@ struct i2c_pxa_platform_data {
 	unsigned int		slave_addr;
 	struct i2c_slave_client	*slave;
 	unsigned int		class;
-	int			use_pio;
+	unsigned int		use_pio :1;
+	unsigned int		fast_mode :1;
 };
 
 extern void pxa_set_i2c_info(struct i2c_pxa_platform_data *info);

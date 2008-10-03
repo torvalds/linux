@@ -66,7 +66,8 @@ struct pxa_i2c {
 	unsigned long		iosize;
 
 	int			irq;
-	int			use_pio;
+	unsigned int		use_pio :1;
+	unsigned int		fast_mode :1;
 };
 
 #define _IBMR(i2c)	((i2c)->reg_base + (0x0 << (i2c)->reg_shift))
@@ -366,7 +367,7 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 	writel(i2c->slave_addr, _ISAR(i2c));
 
 	/* set control register values */
-	writel(I2C_ICR_INIT, _ICR(i2c));
+	writel(I2C_ICR_INIT | (i2c->fast_mode ? ICR_FM : 0), _ICR(i2c));
 
 #ifdef CONFIG_I2C_PXA_SLAVE
 	dev_info(&i2c->adap.dev, "Enabling slave mode\n");
@@ -1010,6 +1011,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	if (plat) {
 		i2c->adap.class = plat->class;
 		i2c->use_pio = plat->use_pio;
+		i2c->fast_mode = plat->fast_mode;
 	}
 
 	if (i2c->use_pio) {
