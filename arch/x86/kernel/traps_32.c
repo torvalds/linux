@@ -313,7 +313,8 @@ mem_parity_error(unsigned char reason, struct pt_regs *regs)
 	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 
 	/* Clear and disable the memory parity error line. */
-	clear_mem_error(reason);
+	reason = (reason & 0xf) | 4;
+	outb(reason, 0x61);
 }
 
 static notrace __kprobes void
