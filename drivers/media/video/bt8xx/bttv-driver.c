@@ -2664,18 +2664,6 @@ static int bttv_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int bttv_enum_fmt_vbi_cap(struct file *file, void  *priv,
-				struct v4l2_fmtdesc *f)
-{
-	if (0 != f->index)
-		return -EINVAL;
-
-	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strcpy(f->description, "vbi data");
-
-	return 0;
-}
-
 static int bttv_enum_fmt_cap_ovr(struct v4l2_fmtdesc *f)
 {
 	int index = -1, i;
@@ -3381,7 +3369,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_g_fmt_vid_overlay       = bttv_g_fmt_vid_overlay,
 	.vidioc_try_fmt_vid_overlay     = bttv_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay       = bttv_s_fmt_vid_overlay,
-	.vidioc_enum_fmt_vbi_cap        = bttv_enum_fmt_vbi_cap,
 	.vidioc_g_fmt_vbi_cap           = bttv_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap         = bttv_try_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap           = bttv_s_fmt_vbi_cap,

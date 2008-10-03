@@ -2110,18 +2110,6 @@ static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 	return 0;
 }
 
-static int saa7134_enum_fmt_vbi_cap(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	if (0 != f->index)
-		return -EINVAL;
-
-	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strcpy(f->description, "vbi data");
-
-	return 0;
-}
-
 static int saa7134_g_fbuf(struct file *file, void *f,
 				struct v4l2_framebuffer *fb)
 {
@@ -2412,7 +2400,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vid_overlay	= saa7134_g_fmt_vid_overlay,
 	.vidioc_try_fmt_vid_overlay	= saa7134_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay	= saa7134_s_fmt_vid_overlay,
-	.vidioc_enum_fmt_vbi_cap	= saa7134_enum_fmt_vbi_cap,
 	.vidioc_g_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
