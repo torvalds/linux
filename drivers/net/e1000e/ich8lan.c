@@ -396,7 +396,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	u32 extcnf_ctrl;
 	u32 timeout = PHY_CFG_TIMEOUT;
 
-	WARN_ON(preempt_count());
+	might_sleep();
 
 	if (!mutex_trylock(&nvm_mutex)) {
 		WARN(1, KERN_ERR "e1000e mutex contention. Owned by pid %d\n",
