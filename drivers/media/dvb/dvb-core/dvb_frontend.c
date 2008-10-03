@@ -848,6 +848,13 @@ void dtv_property_dump(struct dtv_property *tvp)
 {
 	int i;
 
+	if( (tvp->cmd <= 0 || tvp->cmd > DTV_DELIVERY_SYSTEM) &&
+			tvp->cmd != DTV_API_VERSION) {
+		printk("%s: tvp.cmd = 0x%08x (undefined/unknown/invalid)\n",
+			__func__, tvp->cmd);
+		return;
+	}
+
 	printk("%s() tvp.cmd    = 0x%08x (%s)\n"
 		,__FUNCTION__
 		,tvp->cmd
