@@ -239,7 +239,8 @@ config TAU_AVERAGE
 	  If in doubt, say N here.
 
 config QUICC_ENGINE
-	bool
+	bool "Freescale QUICC Engine (QE) Support"
+	depends on FSL_SOC
 	select PPC_LIB_RHEAP
 	select CRC32
 	help
