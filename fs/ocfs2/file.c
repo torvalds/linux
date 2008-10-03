@@ -2228,6 +2228,7 @@ const struct inode_operations ocfs2_file_iops = {
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
 	.fallocate	= ocfs2_fallocate,
+	.fiemap		= ocfs2_fiemap,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {

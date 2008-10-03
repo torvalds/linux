@@ -50,4 +50,7 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster, u32 *p_cluster,
 int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
 				u64 *ret_count, unsigned int *extent_flags);
 
+int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 u64 map_start, u64 map_len);
+
 #endif  /* _EXTENT_MAP_H */

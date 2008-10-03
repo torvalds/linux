@@ -146,4 +146,13 @@ static inline unsigned int ocfs2_rec_clusters(struct ocfs2_extent_list *el,
 		return le16_to_cpu(rec->e_leaf_clusters);
 }
 
+/*
+ * This is only valid for leaf nodes, which are the only ones that can
+ * have empty extents anyway.
+ */
+static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
+{
+	return !rec->e_leaf_clusters;
+}
+
 #endif /* OCFS2_ALLOC_H */
