@@ -279,23 +279,6 @@ err:
 		"failed to initialize debugfs for controller\n");
 }
 
-static void atmci_enable(struct atmel_mci *host)
-{
-	clk_enable(host->mck);
-	mci_writel(host, CR, MCI_CR_MCIEN);
-	mci_writel(host, MR, host->mode_reg);
-	mci_writel(host, SDCR, host->sdc_reg);
-}
-
-static void atmci_disable(struct atmel_mci *host)
-{
-	mci_writel(host, CR, MCI_CR_SWRST);
-
-	/* Stall until write is complete, then disable the bus clock */
-	mci_readl(host, SR);
-	clk_disable(host->mck);
-}
-
 static inline unsigned int ns_to_clocks(struct atmel_mci *host,
 					unsigned int ns)
 {
@@ -408,8 +391,6 @@ static void atmci_request_end(struct mmc_host *mmc, struct mmc_request *mrq)
 	WARN_ON(host->cmd || host->data);
 	host->mrq = NULL;
 
-	atmci_disable(host);
-
 	mmc_request_done(mmc, mrq);
 }
 
@@ -476,8 +457,6 @@ static void atmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->completed_events = 0;
 	host->state = STATE_SENDING_CMD;
 
-	atmci_enable(host);
-
 	/* We don't support multiple blocks of weird lengths. */
 	data = mrq->data;
 	if (data) {
@@ -520,7 +499,6 @@ static void atmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	return;
 
 fail:
-	atmci_disable(host);
 	host->mrq = NULL;
 	mrq->cmd->error = -EINVAL;
 	mmc_request_done(mmc, mrq);
@@ -530,8 +508,20 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct atmel_mci	*host = mmc_priv(mmc);
 
+	switch (ios->bus_width) {
+	case MMC_BUS_WIDTH_1:
+		host->sdc_reg = 0;
+		break;
+	case MMC_BUS_WIDTH_4:
+		host->sdc_reg = MCI_SDCBUS_4BIT;
+		break;
+	}
+
 	if (ios->clock) {
 		u32 clkdiv;
+
+		if (!host->mode_reg)
+			clk_enable(host->mck);
 
 		/* Set clock rate */
 		clkdiv = DIV_ROUND_UP(host->bus_hz, 2 * ios->clock) - 1;
@@ -544,26 +534,20 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		host->mode_reg = MCI_MR_CLKDIV(clkdiv) | MCI_MR_WRPROOF
 					| MCI_MR_RDPROOF;
-	}
 
-	switch (ios->bus_width) {
-	case MMC_BUS_WIDTH_1:
-		host->sdc_reg = 0;
-		break;
-	case MMC_BUS_WIDTH_4:
-		host->sdc_reg = MCI_SDCBUS_4BIT;
-		break;
+		mci_writel(host, CR, MCI_CR_MCIEN);
+		mci_writel(host, MR, host->mode_reg);
+		mci_writel(host, SDCR, host->sdc_reg);
+	} else {
+		mci_writel(host, CR, MCI_CR_MCIDIS);
+		if (host->mode_reg) {
+			mci_readl(host, MR);
+			clk_disable(host->mck);
+		}
+		host->mode_reg = 0;
 	}
 
 	switch (ios->power_mode) {
-	case MMC_POWER_ON:
-		/* Send init sequence (74 clock cycles) */
-		atmci_enable(host);
-		mci_writel(host, CMDR, MCI_CMDR_SPCMD_INIT);
-		while (!(mci_readl(host, SR) & MCI_CMDRDY))
-			cpu_relax();
-		atmci_disable(host);
-		break;
 	default:
 		/*
 		 * TODO: None of the currently available AVR32-based
