@@ -27,6 +27,7 @@
 #include <linux/poll.h>
 #include <linux/preempt.h>
 #include <linux/time.h>
+#include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
@@ -132,9 +133,9 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 
 	file->private_data = client;
 
-	spin_lock_irqsave(&device->card->lock, flags);
+	spin_lock_irqsave(&device->client_list_lock, flags);
 	list_add_tail(&client->link, &device->client_list);
-	spin_unlock_irqrestore(&device->card->lock, flags);
+	spin_unlock_irqrestore(&device->client_list_lock, flags);
 
 	return 0;
 }
@@ -205,12 +206,14 @@ fw_device_op_read(struct file *file,
 	return dequeue_event(client, buffer, count);
 }
 
-/* caller must hold card->lock so that node pointers can be dereferenced here */
 static void
 fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 		     struct client *client)
 {
 	struct fw_card *card = client->device->card;
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
 
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
@@ -220,22 +223,23 @@ fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->bm_node_id    = 0; /* FIXME: We don't track the BM. */
 	event->irm_node_id   = card->irm_node->node_id;
 	event->root_node_id  = card->root_node->node_id;
+
+	spin_unlock_irqrestore(&card->lock, flags);
 }
 
 static void
 for_each_client(struct fw_device *device,
 		void (*callback)(struct client *client))
 {
-	struct fw_card *card = device->card;
 	struct client *c;
 	unsigned long flags;
 
-	spin_lock_irqsave(&card->lock, flags);
+	spin_lock_irqsave(&device->client_list_lock, flags);
 
 	list_for_each_entry(c, &device->client_list, link)
 		callback(c);
 
-	spin_unlock_irqrestore(&card->lock, flags);
+	spin_unlock_irqrestore(&device->client_list_lock, flags);
 }
 
 static void
@@ -274,11 +278,11 @@ static int ioctl_get_info(struct client *client, void *buffer)
 {
 	struct fw_cdev_get_info *get_info = buffer;
 	struct fw_cdev_event_bus_reset bus_reset;
-	struct fw_card *card = client->device->card;
 	unsigned long ret = 0;
 
 	client->version = get_info->version;
 	get_info->version = FW_CDEV_VERSION;
+	get_info->card = client->device->card->index;
 
 	down_read(&fw_device_rwsem);
 
@@ -300,17 +304,11 @@ static int ioctl_get_info(struct client *client, void *buffer)
 	client->bus_reset_closure = get_info->bus_reset_closure;
 	if (get_info->bus_reset != 0) {
 		void __user *uptr = u64_to_uptr(get_info->bus_reset);
-		unsigned long flags;
 
-		spin_lock_irqsave(&card->lock, flags);
 		fill_bus_reset_event(&bus_reset, client);
-		spin_unlock_irqrestore(&card->lock, flags);
-
 		if (copy_to_user(uptr, &bus_reset, sizeof(bus_reset)))
 			return -EFAULT;
 	}
-
-	get_info->card = card->index;
 
 	return 0;
 }
@@ -1009,9 +1007,9 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);
 
-	spin_lock_irqsave(&client->device->card->lock, flags);
+	spin_lock_irqsave(&client->device->client_list_lock, flags);
 	list_del(&client->link);
-	spin_unlock_irqrestore(&client->device->card->lock, flags);
+	spin_unlock_irqrestore(&client->device->client_list_lock, flags);
 
 	fw_device_put(client->device);
 	kfree(client);

@@ -29,6 +29,7 @@
 #include <linux/string.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
+#include <linux/spinlock.h>
 #include <asm/system.h>
 #include <linux/ctype.h>
 #include "fw-transaction.h"
@@ -1004,6 +1005,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;
+		spin_lock_init(&device->client_list_lock);
 		INIT_LIST_HEAD(&device->client_list);
 
 		/*
