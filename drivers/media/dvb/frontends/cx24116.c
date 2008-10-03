@@ -84,7 +84,8 @@ static int debug = 0;
 #define CX24116_ROLLOFF_035 (0x02)
 
 /* pilot bit */
-#define CX24116_PILOT (0x40)
+#define CX24116_PILOT_OFF (0x00)
+#define CX24116_PILOT_ON (0x40)
 
 /* signal status */
 #define CX24116_HAS_SIGNAL   (0x01)
@@ -148,6 +149,7 @@ struct cx24116_tuning
 	u8 fec_val;
 	u8 fec_mask;
 	u8 inversion_val;
+	u8 pilot_val;
 	u8 rolloff_val;
 };
 
@@ -1121,25 +1123,62 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24116_cmd cmd;
 	fe_status_t tunerstat;
-	int i, status, ret, retune = 1;
+	int i, status, ret, retune;
 
 	dprintk("%s()\n",__func__);
-
-	state->dnxt.modulation = c->modulation;
-	state->dnxt.frequency = c->frequency;
 
 	switch(c->delivery_system) {
 		case SYS_DVBS:
 			dprintk("%s: DVB-S delivery system selected\n",__func__);
-			state->dnxt.pilot = PILOT_OFF;
+
+			/* Only QPSK is supported for DVB-S */
+			if(c->modulation != QPSK) {
+				dprintk("%s: unsupported modulation selected (%d)\n",
+					__func__, c->modulation);
+				return -EOPNOTSUPP;
+			}
+
+			/* Pilot doesn't exist in DVB-S, turn bit off */
+			state->dnxt.pilot_val = CX24116_PILOT_OFF;
+			retune = 1;
+
+			/* DVB-S only supports 0.35 */
+			if(c->rolloff != ROLLOFF_35) {
+				dprintk("%s: unsupported rolloff selected (%d)\n",
+					__func__, c->rolloff);
+				return -EOPNOTSUPP;
+			}
 			state->dnxt.rolloff_val = CX24116_ROLLOFF_035;
-			state->dnxt.rolloff = c->rolloff;
 			break;
+
 		case SYS_DVBS2:
 			dprintk("%s: DVB-S2 delivery system selected\n",__func__);
-			if(c->pilot == PILOT_AUTO)
-				retune++;
-			state->dnxt.pilot = c->pilot;
+
+			/*
+			 * NBC 8PSK/QPSK with DVB-S is supported for DVB-S2,
+			 * but not hardware auto detection
+			 */
+			if(c->modulation != _8PSK && c->modulation != NBC_QPSK) {
+				dprintk("%s: unsupported modulation selected (%d)\n",
+					__func__, c->modulation);
+				return -EOPNOTSUPP;
+			}
+
+			switch(c->pilot) {
+				case PILOT_AUTO:	/* Not supported but emulated */
+					retune = 2;	/* Fall-through */
+				case PILOT_OFF:
+					state->dnxt.pilot_val = CX24116_PILOT_OFF;
+					break;
+				case PILOT_ON:
+					state->dnxt.pilot_val = CX24116_PILOT_ON;
+					break;
+				default:
+					dprintk("%s: unsupported pilot mode selected (%d)\n",
+						__func__, c->pilot);
+					return -EOPNOTSUPP;
+			}
+
 			switch(c->rolloff) {
 				case ROLLOFF_20:
 					state->dnxt.rolloff_val= CX24116_ROLLOFF_020;
@@ -1150,20 +1189,28 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 				case ROLLOFF_35:
 					state->dnxt.rolloff_val= CX24116_ROLLOFF_035;
 					break;
-				case ROLLOFF_AUTO:
+				case ROLLOFF_AUTO:	/* Rolloff must be explicit */
+				default:
+					dprintk("%s: unsupported rolloff selected (%d)\n",
+						__func__, c->rolloff);
 					return -EOPNOTSUPP;
 			}
-			state->dnxt.rolloff = c->rolloff;
 			break;
+
 		default:
 			dprintk("%s: unsupported delivery system selected (%d)\n",
 				__func__, c->delivery_system);
 			return -EOPNOTSUPP;
 	}
+	state->dnxt.modulation = c->modulation;
+	state->dnxt.frequency = c->frequency;
+	state->dnxt.pilot = c->pilot;
+	state->dnxt.rolloff = c->rolloff;
 
 	if ((ret = cx24116_set_inversion(state, c->inversion)) !=  0)
 		return ret;
 
+	/* FEC_NONE/AUTO for DVB-S2 is not supported and detected here */
 	if ((ret = cx24116_set_fec(state, c->modulation, c->fec_inner)) !=  0)
 		return ret;
 
@@ -1173,10 +1220,13 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	/* discard the 'current' tuning parameters and prepare to tune */
 	cx24116_clone_params(fe);
 
-	dprintk("%s:   retune      = %d\n", __func__, retune);
-	dprintk("%s:   rolloff     = %d\n", __func__, state->dcur.rolloff);
-	dprintk("%s:   pilot       = %d\n", __func__, state->dcur.pilot);
+	dprintk("%s:   modulation  = %d\n", __func__, state->dcur.modulation);
 	dprintk("%s:   frequency   = %d\n", __func__, state->dcur.frequency);
+	dprintk("%s:   pilot       = %d (val = 0x%02x)\n", __func__,
+		state->dcur.pilot, state->dcur.pilot_val);
+	dprintk("%s:   retune      = %d\n", __func__, retune);
+	dprintk("%s:   rolloff     = %d (val = 0x%02x)\n", __func__,
+		state->dcur.rolloff, state->dcur.rolloff_val);
 	dprintk("%s:   symbol_rate = %d\n", __func__, state->dcur.symbol_rate);
 	dprintk("%s:   FEC         = %d (mask/val = 0x%02x/0x%02x)\n", __func__,
 		state->dcur.fec, state->dcur.fec_mask, state->dcur.fec_val);
@@ -1210,11 +1260,8 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	/* Automatic Inversion */
 	cmd.args[0x06] = state->dcur.inversion_val;
 
-	/* Modulation / FEC & Pilot Off */
-	cmd.args[0x07] = state->dcur.fec_val;
-
-	if (state->dcur.pilot == PILOT_ON)
-		cmd.args[0x07] |= CX24116_PILOT;
+	/* Modulation / FEC / Pilot */
+	cmd.args[0x07] = state->dcur.fec_val | state->dcur.pilot_val;
 
 	cmd.args[0x08] = CX24116_SEARCH_RANGE_KHZ >> 8;
 	cmd.args[0x09] = CX24116_SEARCH_RANGE_KHZ & 0xff;
@@ -1277,7 +1324,7 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 		/* Toggle pilot bit when in auto-pilot */
 		if(state->dcur.pilot == PILOT_AUTO)
-			cmd.args[0x07] ^= CX24116_PILOT;
+			cmd.args[0x07] ^= CX24116_PILOT_ON;
 	}
 	while(--retune);
 
