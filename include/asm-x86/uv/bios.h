@@ -89,5 +89,6 @@ extern long uv_coherency_id;
 extern long uv_region_size;
 #define partition_coherence_id()	(uv_coherency_id)
 
+extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 
 #endif /* ASM_X86__UV__BIOS_H */
