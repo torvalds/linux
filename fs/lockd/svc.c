@@ -189,25 +189,28 @@ lockd(void *vrqstp)
 }
 
 /*
- * Make any sockets that are needed but not present.
- * If nlm_udpport or nlm_tcpport were set as module
- * options, make those sockets unconditionally
+ * Ensure there are active UDP and TCP listeners for lockd.
+ *
+ * Even if we have only TCP NFS mounts and/or TCP NFSDs, some
+ * local services (such as rpc.statd) still require UDP, and
+ * some NFS servers do not yet support NLM over TCP.
+ *
+ * Returns zero if all listeners are available; otherwise a
+ * negative errno value is returned.
  */
-static int make_socks(struct svc_serv *serv, int proto)
+static int make_socks(struct svc_serv *serv)
 {
 	static int warned;
 	struct svc_xprt *xprt;
 	int err = 0;
 
-	if (proto == IPPROTO_UDP || nlm_udpport) {
-		xprt = svc_find_xprt(serv, "udp", 0, 0);
-		if (!xprt)
-			err = svc_create_xprt(serv, "udp", nlm_udpport,
-					      SVC_SOCK_DEFAULTS);
-		else
-			svc_xprt_put(xprt);
-	}
-	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport)) {
+	xprt = svc_find_xprt(serv, "udp", 0, 0);
+	if (!xprt)
+		err = svc_create_xprt(serv, "udp", nlm_udpport,
+				      SVC_SOCK_DEFAULTS);
+	else
+		svc_xprt_put(xprt);
+	if (err >= 0) {
 		xprt = svc_find_xprt(serv, "tcp", 0, 0);
 		if (!xprt)
 			err = svc_create_xprt(serv, "tcp", nlm_tcpport,
@@ -237,11 +240,8 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 	/*
 	 * Check whether we're already up and running.
 	 */
-	if (nlmsvc_rqst) {
-		if (proto)
-			error = make_socks(nlmsvc_rqst->rq_server, proto);
+	if (nlmsvc_rqst)
 		goto out;
-	}
 
 	/*
 	 * Sanity check: if there's no pid,
@@ -258,7 +258,8 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 		goto out;
 	}
 
-	if ((error = make_socks(serv, proto)) < 0)
+	error = make_socks(serv);
+	if (error < 0)
 		goto destroy_and_out;
 
 	/*
