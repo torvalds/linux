@@ -789,7 +789,14 @@ static inline int sci_rxd_in(struct uart_port *port)
       defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(32*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
-#define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(16*bps)-1)
+static inline int scbrr_calc(struct uart_port *port, int bps, int clk)
+{
+	if (port->type == PORT_SCIF)
+		return (clk+16*bps)/(32*bps)-1;
+	else
+		return ((clk*2)+16*bps)/(16*bps)-1;
+}
+#define SCBRR_VALUE(bps, clk) scbrr_calc(port, bps, clk)
 #elif defined(__H8300H__) || defined(__H8300S__)
 #define SCBRR_VALUE(bps, clk) (((clk*1000/32)/bps)-1)
 #else /* Generic SH */
