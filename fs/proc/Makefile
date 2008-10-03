@@ -12,6 +12,7 @@ proc-y       += inode.o root.o base.o generic.o array.o \
 proc-y	+= loadavg.o
 proc-y	+= meminfo.o
 proc-y	+= uptime.o
+proc-y	+= version.o
 proc-$(CONFIG_PROC_SYSCTL)	+= proc_sysctl.o
 proc-$(CONFIG_NET)		+= proc_net.o
 proc-$(CONFIG_PROC_KCORE)	+= kcore.o
