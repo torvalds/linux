@@ -61,7 +61,6 @@ static noinline int join_transaction(struct btrfs_root *root)
 		root->fs_info->generation++;
 		root->fs_info->last_alloc = 0;
 		root->fs_info->last_data_alloc = 0;
-		root->fs_info->last_log_alloc = 0;
 		cur_trans->num_writers = 1;
 		cur_trans->num_joined = 0;
 		cur_trans->transid = root->fs_info->generation;

@@ -2228,13 +2228,6 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	if ((data & BTRFS_BLOCK_GROUP_DATA) && btrfs_test_opt(root, SSD))
 		last_ptr = &root->fs_info->last_data_alloc;
 
-	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
-		last_ptr = &root->fs_info->last_log_alloc;
-		if (!last_ptr == 0 && root->fs_info->last_alloc) {
-			*last_ptr = root->fs_info->last_alloc + empty_cluster;
-		}
-	}
-
 	if (last_ptr) {
 		if (*last_ptr)
 			hint_byte = *last_ptr;

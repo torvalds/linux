@@ -672,7 +672,6 @@ struct btrfs_fs_info {
 	u64 delalloc_bytes;
 	u64 last_alloc;
 	u64 last_data_alloc;
-	u64 last_log_alloc;
 
 	spinlock_t ref_cache_lock;
 	u64 total_ref_cache_size;
