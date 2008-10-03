@@ -277,6 +277,47 @@ static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 	return file->f_file->f_path.dentry->d_inode;
 }
 
+static inline int __nlm_privileged_request4(const struct sockaddr *sap)
+{
+	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+	return (sin->sin_addr.s_addr == htonl(INADDR_LOOPBACK)) &&
+			(ntohs(sin->sin_port) < 1024);
+}
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static inline int __nlm_privileged_request6(const struct sockaddr *sap)
+{
+	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
+	return (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LOOPBACK) &&
+			(ntohs(sin6->sin6_port) < 1024);
+}
+#else	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+static inline int __nlm_privileged_request6(const struct sockaddr *sap)
+{
+	return 0;
+}
+#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+
+/*
+ * Ensure incoming requests are from local privileged callers.
+ *
+ * Return TRUE if sender is local and is connecting via a privileged port;
+ * otherwise return FALSE.
+ */
+static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
+{
+	const struct sockaddr *sap = svc_addr(rqstp);
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		return __nlm_privileged_request4(sap);
+	case AF_INET6:
+		return __nlm_privileged_request6(sap);
+	default:
+		return 0;
+	}
+}
+
 static inline int __nlm_cmp_addr4(const struct sockaddr *sap1,
 				  const struct sockaddr *sap2)
 {
