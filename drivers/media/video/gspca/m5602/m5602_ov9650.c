@@ -132,6 +132,8 @@ int ov9650_probe(struct sd *sd)
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = ov9650.modes;
 	sd->gspca_dev.cam.nmodes = ov9650.nmodes;
+	sd->desc->ctrls = ov9650.ctrls;
+	sd->desc->nctrls = ov9650.nctrls;
 	return 0;
 }
 

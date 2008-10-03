@@ -152,6 +152,8 @@ struct sd {
 	/* A pointer to the currently connected sensor */
 	struct m5602_sensor *sensor;
 
+	struct sd_desc *desc;
+
 	/* The current frame's id, used to detect frame boundaries */
 	u8 frame_id;
 

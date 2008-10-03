@@ -63,6 +63,8 @@ int s5k83a_probe(struct sd *sd)
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = s5k83a.modes;
 	sd->gspca_dev.cam.nmodes = s5k83a.nmodes;
+	sd->desc->ctrls = s5k83a.ctrls;
+	sd->desc->nctrls = s5k83a.nctrls;
 	return 0;
 }
 

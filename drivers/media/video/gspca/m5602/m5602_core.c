@@ -108,44 +108,28 @@ int m5602_probe_sensor(struct sd *sd)
 {
 	/* Try the po1030 */
 	sd->sensor = &po1030;
-	if (!sd->sensor->probe(sd)) {
-		sd_desc.ctrls = po1030.ctrls;
-		sd_desc.nctrls = po1030.nctrls;
+	if (!sd->sensor->probe(sd))
 		return 0;
-	}
 
 	/* Try the mt9m111 sensor */
 	sd->sensor = &mt9m111;
-	if (!sd->sensor->probe(sd)) {
-		sd_desc.ctrls = mt9m111.ctrls;
-		sd_desc.nctrls = mt9m111.nctrls;
+	if (!sd->sensor->probe(sd))
 		return 0;
-	}
 
 	/* Try the s5k4aa */
 	sd->sensor = &s5k4aa;
-	if (!sd->sensor->probe(sd)) {
-		sd_desc.ctrls = s5k4aa.ctrls;
-		sd_desc.nctrls = s5k4aa.nctrls;
+	if (!sd->sensor->probe(sd))
 		return 0;
-	}
 
 	/* Try the ov9650 */
 	sd->sensor = &ov9650;
-	if (!sd->sensor->probe(sd)) {
-		sd_desc.ctrls = ov9650.ctrls;
-		sd_desc.nctrls = ov9650.nctrls;
+	if (!sd->sensor->probe(sd))
 		return 0;
-	}
 
 	/* Try the s5k83a */
 	sd->sensor = &s5k83a;
-	if (!sd->sensor->probe(sd)) {
-		sd_desc.ctrls = s5k83a.ctrls;
-		sd_desc.nctrls = s5k83a.nctrls;
+	if (!sd->sensor->probe(sd))
 		return 0;
-	}
-
 
 	/* More sensor probe function goes here */
 	info("Failed to find a sensor");
@@ -246,8 +230,10 @@ int m5602_configure(struct gspca_dev *gspca_dev,
 	int err;
 
 	PDEBUG(DBG_GSPCA, "m5602_configure start");
+
 	cam = &gspca_dev->cam;
 	cam->epaddr = M5602_ISOC_ENDPOINT_ADDR;
+	sd->desc = &sd_desc;
 
 	if (dump_bridge)
 		m5602_dump_bridge(sd);
