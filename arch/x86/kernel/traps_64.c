@@ -647,9 +647,9 @@ void __init trap_init(void)
 	set_intr_gate_ist(1, &debug, DEBUG_STACK);
 	set_intr_gate_ist(2, &nmi, NMI_STACK);
 	/* int3 can be called from all */
-	set_system_gate_ist(3, &int3, DEBUG_STACK);
+	set_system_intr_gate_ist(3, &int3, DEBUG_STACK);
 	/* int4 can be called from all */
-	set_system_gate(4, &overflow);
+	set_system_intr_gate(4, &overflow);
 	set_intr_gate(5, &bounds);
 	set_intr_gate(6, &invalid_op);
 	set_intr_gate(7, &device_not_available);
@@ -669,7 +669,7 @@ void __init trap_init(void)
 	set_intr_gate(19, &simd_coprocessor_error);
 
 #ifdef CONFIG_IA32_EMULATION
-	set_system_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
+	set_system_intr_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
 #endif
 	/*
 	 * Should be a barrier for any external CPU state:

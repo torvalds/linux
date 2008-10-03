@@ -847,10 +847,12 @@ void __init trap_init(void)
 #endif
 
 	set_intr_gate(0, &divide_error);
-	set_intr_gate(1, &debug);
-	set_intr_gate(2, &nmi);
-	set_system_intr_gate(3, &int3); /* int3 can be called from all */
-	set_system_intr_gate(4, &overflow); /* int4 can be called from all */
+	set_intr_gate_ist(1, &debug, DEBUG_STACK);
+	set_intr_gate_ist(2, &nmi, NMI_STACK);
+	/* int3 can be called from all */
+	set_system_intr_gate_ist(3, &int3, DEBUG_STACK);
+	/* int4 can be called from all */
+	set_system_intr_gate(4, &overflow);
 	set_intr_gate(5, &bounds);
 	set_intr_gate(6, &invalid_op);
 	set_intr_gate(7, &device_not_available);
@@ -858,14 +860,14 @@ void __init trap_init(void)
 	set_intr_gate(9, &coprocessor_segment_overrun);
 	set_intr_gate(10, &invalid_TSS);
 	set_intr_gate(11, &segment_not_present);
-	set_intr_gate(12, &stack_segment);
+	set_intr_gate_ist(12, &stack_segment, STACKFAULT_STACK);
 	set_intr_gate(13, &general_protection);
 	set_intr_gate(14, &page_fault);
 	set_intr_gate(15, &spurious_interrupt_bug);
 	set_intr_gate(16, &coprocessor_error);
 	set_intr_gate(17, &alignment_check);
 #ifdef CONFIG_X86_MCE
-	set_intr_gate(18, &machine_check);
+	set_intr_gate_ist(18, &machine_check, MCE_STACK);
 #endif
 	set_intr_gate(19, &simd_coprocessor_error);
 
@@ -881,7 +883,7 @@ void __init trap_init(void)
 		printk("done.\n");
 	}
 
-	set_system_gate(SYSCALL_VECTOR, &system_call);
+	set_system_trap_gate(SYSCALL_VECTOR, &system_call);
 
 	/* Reserve all the builtin and the syscall vector: */
 	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++)
