@@ -580,7 +580,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		status = -ENOMEM;
 		dprintk("RPC: %5u %s: no memory available\n",
 			task->tk_pid, __func__);
-		goto bailout_nofree;
+		goto bailout_release_client;
 	}
 	map->r_prog = clnt->cl_prog;
 	map->r_vers = clnt->cl_vers;
@@ -605,6 +605,8 @@ void rpcb_getport_async(struct rpc_task *task)
 	rpc_put_task(child);
 	return;
 
+bailout_release_client:
+	rpc_release_client(rpcb_clnt);
 bailout_nofree:
 	rpcb_wake_rpcbind_waiters(xprt, status);
 	task->tk_status = status;
