@@ -230,8 +230,7 @@ static int make_socks(struct svc_serv *serv)
 /*
  * Bring up the lockd process if it's not already up.
  */
-int
-lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
+int lockd_up(void)
 {
 	struct svc_serv *serv;
 	int		error = 0;

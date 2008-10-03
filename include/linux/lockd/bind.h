@@ -52,7 +52,7 @@ extern void	nlmclnt_done(struct nlm_host *host);
 
 extern int	nlmclnt_proc(struct nlm_host *host, int cmd,
 					struct file_lock *fl);
-extern int	lockd_up(int proto);
+extern int	lockd_up(void);
 extern void	lockd_down(void);
 
 #endif /* LINUX_LOCKD_BIND_H */
