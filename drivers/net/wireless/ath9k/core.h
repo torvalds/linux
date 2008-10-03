@@ -800,6 +800,28 @@ void ath_slow_ant_div(struct ath_antdiv *antdiv,
 		      struct ath_rx_status *rx_stats);
 void ath_setdefantenna(void *sc, u32 antenna);
 
+/*******/
+/* ANI */
+/*******/
+
+/* ANI values for STA only.
+   FIXME: Add appropriate values for AP later */
+
+#define ATH_ANI_POLLINTERVAL    100     /* 100 milliseconds between ANI poll */
+#define ATH_SHORT_CALINTERVAL   1000    /* 1 second between calibrations */
+#define ATH_LONG_CALINTERVAL    30000   /* 30 seconds between calibrations */
+#define ATH_RESTART_CALINTERVAL 1200000 /* 20 minutes between calibrations */
+
+struct ath_ani {
+	bool sc_caldone;
+	int16_t sc_noise_floor;
+	unsigned int sc_longcal_timer;
+	unsigned int sc_shortcal_timer;
+	unsigned int sc_resetcal_timer;
+	unsigned int sc_checkani_timer;
+	struct timer_list timer;
+};
+
 /********************/
 /*   LED Control    */
 /********************/
@@ -1028,6 +1050,9 @@ struct ath_softc {
 
 	/* Rfkill */
 	struct ath_rfkill rf_kill;
+
+	/* ANI */
+	struct ath_ani sc_ani;
 };
 
 int ath_init(u16 devid, struct ath_softc *sc);

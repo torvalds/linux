@@ -274,10 +274,12 @@ static void ath9k_rx_prepare(struct ath_softc *sc,
 	rx_status->mactime = status->tsf;
 	rx_status->band = curchan->band;
 	rx_status->freq =  curchan->center_freq;
-	rx_status->noise = ATH_DEFAULT_NOISE_FLOOR;
+	rx_status->noise = sc->sc_ani.sc_noise_floor;
 	rx_status->signal = rx_status->noise + status->rssi;
 	rx_status->rate_idx = ath_rate2idx(sc, (status->rateKbps / 100));
 	rx_status->antenna = status->antenna;
+
+	/* XXX Fix me, 64 cannot be the max rssi value, rigure it out */
 	rx_status->qual = status->rssi * 100 / 64;
 
 	if (status->flags & ATH_RX_MIC_ERROR)
@@ -427,6 +429,11 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_rate_newstate(sc, avp);
 		/* Update ratectrl about the new state */
 		ath_rc_node_update(hw, avp->rc_node);
+
+		/* Start ANI */
+		mod_timer(&sc->sc_ani.timer,
+			jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
+
 	} else {
 		DPRINTF(sc, ATH_DBG_CONFIG,
 		"%s: Bss Info DISSOC\n", __func__);
@@ -1173,6 +1180,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		return error;
 	}
 
+	if (conf->type == NL80211_IFTYPE_AP) {
+		/* TODO: is this a suitable place to start ANI for AP mode? */
+		/* Start ANI */
+		mod_timer(&sc->sc_ani.timer,
+			  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
+	}
+
 	return 0;
 }
 
@@ -1195,6 +1209,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 #ifdef CONFIG_SLOW_ANT_DIV
 	ath_slow_ant_div_stop(&sc->sc_antdiv);
 #endif
+	/* Stop ANI */
+	del_timer_sync(&sc->sc_ani.timer);
 
 	/* Update ratectrl */
 	ath_rate_newstate(sc, avp);

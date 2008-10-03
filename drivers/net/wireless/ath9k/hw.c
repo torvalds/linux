@@ -329,7 +329,7 @@ static void ath9k_hw_set_defaults(struct ath_hal *ah)
 	ah->ah_config.ofdm_trig_high = 500;
 	ah->ah_config.cck_trig_high = 200;
 	ah->ah_config.cck_trig_low = 100;
-	ah->ah_config.enable_ani = 0;
+	ah->ah_config.enable_ani = 1;
 	ah->ah_config.noise_immunity_level = 4;
 	ah->ah_config.ofdm_weaksignal_det = 1;
 	ah->ah_config.cck_weaksignal_thr = 0;
@@ -8405,23 +8405,48 @@ u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags)
 	}
 }
 
-int16_t
+/* We can tune this as we go by monitoring really low values */
+#define ATH9K_NF_TOO_LOW	-60
+
+/* AR5416 may return very high value (like -31 dBm), in those cases the nf
+ * is incorrect and we should use the static NF value. Later we can try to
+ * find out why they are reporting these values */
+static bool ath9k_hw_nf_in_range(struct ath_hal *ah, s16 nf)
+{
+	if (nf > ATH9K_NF_TOO_LOW) {
+		DPRINTF(ah->ah_sc, ATH_DBG_NF_CAL,
+			 "%s: noise floor value detected (%d) is "
+			"lower than what we think is a "
+			"reasonable value (%d)\n",
+			 __func__, nf, ATH9K_NF_TOO_LOW);
+		return false;
+	}
+	return true;
+}
+
+s16
 ath9k_hw_getchan_noise(struct ath_hal *ah, struct ath9k_channel *chan)
 {
 	struct ath9k_channel *ichan;
+	s16 nf;
 
 	ichan = ath9k_regd_check_channel(ah, chan);
 	if (ichan == NULL) {
 		DPRINTF(ah->ah_sc, ATH_DBG_NF_CAL,
 			 "%s: invalid channel %u/0x%x; no mapping\n",
 			 __func__, chan->channel, chan->channelFlags);
-		return 0;
+		return ATH_DEFAULT_NOISE_FLOOR;
 	}
 	if (ichan->rawNoiseFloor == 0) {
 		enum wireless_mode mode = ath9k_hw_chan2wmode(ah, chan);
-		return NOISE_FLOOR[mode];
+		nf = NOISE_FLOOR[mode];
 	} else
-		return ichan->rawNoiseFloor;
+		nf = ichan->rawNoiseFloor;
+
+	if (!ath9k_hw_nf_in_range(ah, nf))
+		nf = ATH_DEFAULT_NOISE_FLOOR;
+
+	return nf;
 }
 
 bool ath9k_hw_set_tsfadjust(struct ath_hal *ah, u32 setting)
