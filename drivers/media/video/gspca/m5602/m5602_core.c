@@ -146,6 +146,7 @@ int m5602_probe_sensor(struct sd *sd)
 		return 0;
 	}
 
+
 	/* More sensor probe function goes here */
 	info("Failed to find a sensor");
 	sd->sensor = NULL;
@@ -202,12 +203,13 @@ void m5602_urb_complete(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 		/* Complete the last frame (if any) */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET,
 					frame, data, 0);
+		sd->frame_count++;
 
 		/* Create a new frame */
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
 
-		PDEBUG(DBG_V4L2, "Starting new frame. First urb contained %d",
-		       len);
+		PDEBUG(DBG_V4L2, "Starting new frame %d",
+		       sd->frame_count);
 
 	} else {
 		int cur_frame_len = frame->data_end - frame->data;
@@ -217,8 +219,8 @@ void m5602_urb_complete(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 		len -= 4;
 
 		if (cur_frame_len + len <= frame->v4l2_buf.length) {
-			PDEBUG(DBG_DATA, "Continuing frame copying %d bytes",
-			       len);
+			PDEBUG(DBG_DATA, "Continuing frame %d copying %d bytes",
+			       sd->frame_count, len);
 
 			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 					data, len);
