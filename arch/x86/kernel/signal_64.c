@@ -69,6 +69,8 @@ static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 		   unsigned long *pax)
 {
+	void __user *buf;
+	unsigned int tmpflags;
 	unsigned int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -90,19 +92,12 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	 * App's signal handler can save/restore other segments if needed. */
 	COPY_SEG_STRICT(cs);
 
-	{
-		unsigned int tmpflags;
-		err |= __get_user(tmpflags, &sc->flags);
-		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
-		regs->orig_ax = -1;		/* disable syscall checks */
-	}
+	err |= __get_user(tmpflags, &sc->flags);
+	regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
+	regs->orig_ax = -1;		/* disable syscall checks */
 
-	{
-		void __user *buf;
-
-		err |= __get_user(buf, &sc->fpstate);
-		err |= restore_i387_xstate(buf);
-	}
+	err |= __get_user(buf, &sc->fpstate);
+	err |= restore_i387_xstate(buf);
 
 	err |= __get_user(*pax, &sc->ax);
 	return err;
