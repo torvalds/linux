@@ -1437,17 +1437,24 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 		int user_alloc)
 {
 	unsigned long i;
-	struct page *page;
+	unsigned long pfn;
 	int npages = mem->memory_size >> PAGE_SHIFT;
 	struct kvm_memory_slot *memslot = &kvm->memslots[mem->slot];
 	unsigned long base_gfn = memslot->base_gfn;
 
 	for (i = 0; i < npages; i++) {
-		page = gfn_to_page(kvm, base_gfn + i);
-		kvm_set_pmt_entry(kvm, base_gfn + i,
-				page_to_pfn(page) << PAGE_SHIFT,
-				_PAGE_AR_RWX|_PAGE_MA_WB);
-		memslot->rmap[i] = (unsigned long)page;
+		pfn = gfn_to_pfn(kvm, base_gfn + i);
+		if (!kvm_is_mmio_pfn(pfn)) {
+			kvm_set_pmt_entry(kvm, base_gfn + i,
+					pfn << PAGE_SHIFT,
+					_PAGE_MA_WB);
+			memslot->rmap[i] = (unsigned long)pfn_to_page(pfn);
+		} else {
+			kvm_set_pmt_entry(kvm, base_gfn + i,
+					GPFN_LOW_MMIO | (pfn << PAGE_SHIFT),
+					_PAGE_MA_UC);
+			memslot->rmap[i] = 0;
+			}
 	}
 
 	return 0;
