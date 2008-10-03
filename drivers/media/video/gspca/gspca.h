@@ -106,10 +106,12 @@ struct sd_desc {
 };
 
 /* packet types when moving from iso buf to frame buf */
-#define DISCARD_PACKET	0
-#define FIRST_PACKET	1
-#define INTER_PACKET	2
-#define LAST_PACKET	3
+enum gspca_packet_type {
+	DISCARD_PACKET,
+	FIRST_PACKET,
+	INTER_PACKET,
+	LAST_PACKET
+};
 
 struct gspca_frame {
 	__u8 *data;			/* frame buffer */
@@ -175,7 +177,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 		struct module *module);
 void gspca_disconnect(struct usb_interface *intf);
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
-				    int packet_type,
+				    enum gspca_packet_type packet_type,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len);

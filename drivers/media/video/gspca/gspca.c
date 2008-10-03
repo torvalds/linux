@@ -237,7 +237,7 @@ static void bulk_irq(struct urb *urb
  * On LAST_PACKET, a new frame is returned.
  */
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
-				    int packet_type,
+				    enum gspca_packet_type packet_type,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len)
@@ -317,7 +317,6 @@ static void *rvmalloc(unsigned long size)
 	void *mem;
 	unsigned long adr;
 
-/*	size = PAGE_ALIGN(size);	(already done) */
 	mem = vmalloc_32(size);
 	if (mem != NULL) {
 		adr = (unsigned long) mem;
@@ -937,7 +936,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	memset(cap, 0, sizeof *cap);
 	strncpy(cap->driver, gspca_dev->sd_desc->name, sizeof cap->driver);
-/*	strncpy(cap->card, gspca_dev->cam.dev_name, sizeof cap->card); */
 	if (gspca_dev->dev->product != NULL) {
 		strncpy(cap->card, gspca_dev->dev->product,
 			sizeof cap->card);
@@ -1571,7 +1569,6 @@ static int vidioc_qbuf(struct file *file, void *priv,
 	}
 
 	frame->v4l2_buf.flags |= V4L2_BUF_FLAG_QUEUED;
-/*	frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE; */
 
 	if (frame->v4l2_buf.memory == V4L2_MEMORY_USERPTR) {
 		frame->v4l2_buf.m.userptr = v4l2_buf->m.userptr;
@@ -1836,22 +1833,21 @@ int gspca_dev_probe(struct usb_interface *intf,
 	if (dev_size < sizeof *gspca_dev)
 		dev_size = sizeof *gspca_dev;
 	gspca_dev = kzalloc(dev_size, GFP_KERNEL);
-	if (gspca_dev == NULL) {
+	if (!gspca_dev) {
 		err("couldn't kzalloc gspca struct");
-		return -EIO;
+		return -ENOMEM;
 	}
 	kref_init(&gspca_dev->kref);
 	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
 		err("out of memory");
-		ret = -EIO;
+		ret = -ENOMEM;
 		goto out;
 	}
 	gspca_dev->dev = dev;
 	gspca_dev->iface = interface->bInterfaceNumber;
 	gspca_dev->nbalt = intf->num_altsetting;
 	gspca_dev->sd_desc = sd_desc;
-/*	gspca_dev->users = 0;			(done by kzalloc) */
 	gspca_dev->nbufread = 2;
 
 	/* configure the subdriver and initialize the USB device */

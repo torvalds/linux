@@ -146,7 +146,6 @@ int m5602_probe_sensor(struct sd *sd)
 		return 0;
 	}
 
-
 	/* More sensor probe function goes here */
 	info("Failed to find a sensor");
 	sd->sensor = NULL;
