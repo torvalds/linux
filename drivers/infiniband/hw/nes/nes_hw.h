@@ -968,6 +968,7 @@ struct nes_arp_entry {
 #define DEFAULT_JUMBO_NES_QL_TARGET 40
 #define DEFAULT_JUMBO_NES_QL_HIGH   128
 #define NES_NIC_CQ_DOWNWARD_TREND   16
+#define NES_PFT_SIZE		    48
 
 struct nes_hw_tune_timer {
     /* u16 cq_count; */
@@ -1117,6 +1118,7 @@ struct nes_adapter {
 	u8            virtwq;
 	u8            et_use_adaptive_rx_coalesce;
 	u8            adapter_fcn_count;
+	u8 pft_mcast_map[NES_PFT_SIZE];
 };
 
 struct nes_pbl {

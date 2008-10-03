@@ -363,6 +363,9 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	}
 	nes_init_csr_ne020(nesdev, hw_rev, port_count);
 
+	memset(nesadapter->pft_mcast_map, 255,
+	       sizeof nesadapter->pft_mcast_map);
+
 	/* populate the new nesadapter */
 	nesadapter->devfn = nesdev->pcidev->devfn;
 	nesadapter->bus_number = nesdev->pcidev->bus->number;

@@ -91,6 +91,7 @@ static struct nic_qp_map *nic_qp_mapping_per_function[] = {
 static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
 		| NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
 static int debug = -1;
+static int nics_per_function = 1;
 
 /**
  * nes_netdev_poll
@@ -201,7 +202,8 @@ static int nes_netdev_open(struct net_device *netdev)
 		nes_debug(NES_DBG_NETDEV, "i=%d, perfect filter table index= %d, PERF FILTER LOW"
 				" (Addr:%08X) = %08X, HIGH = %08X.\n",
 				i, nesvnic->qp_nic_index[i],
-				NES_IDX_PERFECT_FILTER_LOW+((nesvnic->perfect_filter_index + i) * 8),
+				NES_IDX_PERFECT_FILTER_LOW+
+					(nesvnic->qp_nic_index[i] * 8),
 				macaddr_low,
 				(u32)macaddr_high | NES_MAC_ADDR_VALID |
 				((((u32)nesvnic->nic_index) << 16)));
@@ -833,6 +835,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
+	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 	struct dev_mc_list *multicast_addr;
 	u32 nic_active_bit;
 	u32 nic_active;
@@ -842,7 +845,12 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 	u8 mc_all_on = 0;
 	u8 mc_index;
 	int mc_nic_index = -1;
+	u8 pft_entries_preallocated = max(nesadapter->adapter_fcn_count *
+					nics_per_function, 4);
+	u8 max_pft_entries_avaiable = NES_PFT_SIZE - pft_entries_preallocated;
+	unsigned long flags;
 
+	spin_lock_irqsave(&nesadapter->resource_lock, flags);
 	nic_active_bit = 1 << nesvnic->nic_index;
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -853,7 +861,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 		nic_active |= nic_active_bit;
 		nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL, nic_active);
 		mc_all_on = 1;
-	} else if ((netdev->flags & IFF_ALLMULTI) || (netdev->mc_count > NES_MULTICAST_PF_MAX) ||
+	} else if ((netdev->flags & IFF_ALLMULTI) ||
 			   (nesvnic->nic_index > 3)) {
 		nic_active = nes_read_indexed(nesdev, NES_IDX_NIC_MULTICAST_ALL);
 		nic_active |= nic_active_bit;
@@ -872,17 +880,34 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 	}
 
 	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscous = %d, All Multicast = %d.\n",
-			  netdev->mc_count, (netdev->flags & IFF_PROMISC)?1:0,
-			  (netdev->flags & IFF_ALLMULTI)?1:0);
+		  netdev->mc_count, !!(netdev->flags & IFF_PROMISC),
+		  !!(netdev->flags & IFF_ALLMULTI));
 	if (!mc_all_on) {
 		multicast_addr = netdev->mc_list;
-		perfect_filter_register_address = NES_IDX_PERFECT_FILTER_LOW + 0x80;
-		perfect_filter_register_address += nesvnic->nic_index*0x40;
-		for (mc_index=0; mc_index < NES_MULTICAST_PF_MAX; mc_index++) {
-			while (multicast_addr && nesvnic->mcrq_mcast_filter && ((mc_nic_index = nesvnic->mcrq_mcast_filter(nesvnic, multicast_addr->dmi_addr)) == 0))
+		perfect_filter_register_address = NES_IDX_PERFECT_FILTER_LOW +
+						pft_entries_preallocated * 0x8;
+		for (mc_index = 0; mc_index < max_pft_entries_avaiable;
+		mc_index++) {
+			while (multicast_addr && nesvnic->mcrq_mcast_filter &&
+			((mc_nic_index = nesvnic->mcrq_mcast_filter(nesvnic,
+					multicast_addr->dmi_addr)) == 0)) {
 				multicast_addr = multicast_addr->next;
+			}
 			if (mc_nic_index < 0)
 				mc_nic_index = nesvnic->nic_index;
+			while (nesadapter->pft_mcast_map[mc_index] < 16 &&
+				nesadapter->pft_mcast_map[mc_index] !=
+					nesvnic->nic_index &&
+					mc_index < max_pft_entries_avaiable) {
+						nes_debug(NES_DBG_NIC_RX,
+					"mc_index=%d skipping nic_index=%d,\
+					used for=%d \n", mc_index,
+					nesvnic->nic_index,
+					nesadapter->pft_mcast_map[mc_index]);
+				mc_index++;
+			}
+			if (mc_index >= max_pft_entries_avaiable)
+				break;
 			if (multicast_addr) {
 				DECLARE_MAC_BUF(mac);
 				nes_debug(NES_DBG_NIC_RX, "Assigning MC Address %s to register 0x%04X nic_idx=%d\n",
@@ -903,15 +928,33 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 						(u32)macaddr_high | NES_MAC_ADDR_VALID |
 						((((u32)(1<<mc_nic_index)) << 16)));
 				multicast_addr = multicast_addr->next;
+				nesadapter->pft_mcast_map[mc_index] =
+							nesvnic->nic_index;
 			} else {
 				nes_debug(NES_DBG_NIC_RX, "Clearing MC Address at register 0x%04X\n",
 						  perfect_filter_register_address+(mc_index * 8));
 				nes_write_indexed(nesdev,
 						perfect_filter_register_address+4+(mc_index * 8),
 						0);
+				nesadapter->pft_mcast_map[mc_index] = 255;
 			}
 		}
+		/* PFT is not large enough */
+		if (multicast_addr && multicast_addr->next) {
+			nic_active = nes_read_indexed(nesdev,
+						NES_IDX_NIC_MULTICAST_ALL);
+			nic_active |= nic_active_bit;
+			nes_write_indexed(nesdev, NES_IDX_NIC_MULTICAST_ALL,
+								nic_active);
+			nic_active = nes_read_indexed(nesdev,
+						NES_IDX_NIC_UNICAST_ALL);
+			nic_active &= ~nic_active_bit;
+			nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL,
+								nic_active);
+		}
 	}
+
+	spin_unlock_irqrestore(&nesadapter->resource_lock, flags);
 }
 
 
@@ -1615,7 +1658,9 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 			nesvnic, (unsigned long)netdev->features, nesvnic->nic.qp_id,
 			nesvnic->nic_index, nesvnic->logical_port,  nesdev->mac_index);
 
-	if (nesvnic->nesdev->nesadapter->port_count == 1) {
+	if (nesvnic->nesdev->nesadapter->port_count == 1 &&
+		nesvnic->nesdev->nesadapter->adapter_fcn_count == 1) {
+
 		nesvnic->qp_nic_index[0] = nesvnic->nic_index;
 		nesvnic->qp_nic_index[1] = nesvnic->nic_index + 1;
 		if (nes_drv_opt & NES_DRV_OPT_DUAL_LOGICAL_PORT) {
@@ -1626,11 +1671,14 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 			nesvnic->qp_nic_index[3] = nesvnic->nic_index + 3;
 		}
 	} else {
-		if (nesvnic->nesdev->nesadapter->port_count == 2) {
-			nesvnic->qp_nic_index[0] = nesvnic->nic_index;
-			nesvnic->qp_nic_index[1] = nesvnic->nic_index + 2;
-			nesvnic->qp_nic_index[2] = 0xf;
-			nesvnic->qp_nic_index[3] = 0xf;
+		if (nesvnic->nesdev->nesadapter->port_count == 2 ||
+			(nesvnic->nesdev->nesadapter->port_count == 1 &&
+			nesvnic->nesdev->nesadapter->adapter_fcn_count == 2)) {
+				nesvnic->qp_nic_index[0] = nesvnic->nic_index;
+				nesvnic->qp_nic_index[1] = nesvnic->nic_index
+									+ 2;
+				nesvnic->qp_nic_index[2] = 0xf;
+				nesvnic->qp_nic_index[3] = 0xf;
 		} else {
 			nesvnic->qp_nic_index[0] = nesvnic->nic_index;
 			nesvnic->qp_nic_index[1] = 0xf;
