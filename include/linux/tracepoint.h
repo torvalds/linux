@@ -129,6 +129,9 @@ extern int tracepoint_get_iter_range(struct tracepoint **tracepoint,
  * probe unregistration and the end of module exit to make sure there is no
  * caller executing a probe when it is freed.
  */
-#define tracepoint_synchronize_unregister() synchronize_sched()
+static inline void tracepoint_synchronize_unregister(void)
+{
+	synchronize_sched();
+}
 
 #endif
