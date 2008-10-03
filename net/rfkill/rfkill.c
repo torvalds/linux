@@ -125,6 +125,7 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 
 static void notify_rfkill_state_change(struct rfkill *rfkill)
 {
+	rfkill_led_trigger(rfkill, rfkill->state);
 	blocking_notifier_call_chain(&rfkill_notifier_list,
 			RFKILL_STATE_CHANGED,
 			rfkill);
@@ -217,10 +218,8 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 			rfkill->state = state;
 	}
 
-	if (force || rfkill->state != oldstate) {
-		rfkill_led_trigger(rfkill, rfkill->state);
+	if (force || rfkill->state != oldstate)
 		notify_rfkill_state_change(rfkill);
-	}
 
 	return retval;
 }
