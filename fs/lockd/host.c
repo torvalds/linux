@@ -264,32 +264,42 @@ nlm_destroy_host(struct nlm_host *host)
 	kfree(host);
 }
 
-/*
- * Find an NLM server handle in the cache. If there is none, create it.
+/**
+ * nlmclnt_lookup_host - Find an NLM host handle matching a remote server
+ * @sap: network address of server
+ * @salen: length of server address
+ * @protocol: transport protocol to use
+ * @version: NLM protocol version
+ * @hostname: '\0'-terminated hostname of server
+ *
+ * Returns an nlm_host structure that matches the passed-in
+ * [server address, transport protocol, NLM version, server hostname].
+ * If one doesn't already exist in the host cache, a new handle is
+ * created and returned.
  */
-struct nlm_host *nlmclnt_lookup_host(const struct sockaddr_in *sin,
-				     int proto, u32 version,
-				     const char *hostname,
-				     unsigned int hostname_len)
+struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
+				     const size_t salen,
+				     const unsigned short protocol,
+				     const u32 version, const char *hostname)
 {
 	const struct sockaddr source = {
 		.sa_family	= AF_UNSPEC,
 	};
 	struct nlm_lookup_host_info ni = {
 		.server		= 0,
-		.sap		= (struct sockaddr *)sin,
-		.salen		= sizeof(*sin),
-		.protocol	= proto,
+		.sap		= sap,
+		.salen		= salen,
+		.protocol	= protocol,
 		.version	= version,
 		.hostname	= hostname,
-		.hostname_len	= hostname_len,
+		.hostname_len	= strlen(hostname),
 		.src_sap	= &source,
 		.src_len	= sizeof(source),
 	};
 
 	dprintk("lockd: %s(host='%s', vers=%u, proto=%s)\n", __func__,
 			(hostname ? hostname : "<none>"), version,
-			(proto == IPPROTO_UDP ? "udp" : "tcp"));
+			(protocol == IPPROTO_UDP ? "udp" : "tcp"));
 
 	return nlm_lookup_host(&ni);
 }

@@ -58,10 +58,9 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 	if (status < 0)
 		return ERR_PTR(status);
 
-	host = nlmclnt_lookup_host((struct sockaddr_in *)nlm_init->address,
+	host = nlmclnt_lookup_host(nlm_init->address, nlm_init->addrlen,
 				   nlm_init->protocol, nlm_version,
-				   nlm_init->hostname,
-				   strlen(nlm_init->hostname));
+				   nlm_init->hostname);
 	if (host == NULL) {
 		lockd_down();
 		return ERR_PTR(-ENOLCK);
