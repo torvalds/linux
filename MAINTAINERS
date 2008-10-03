@@ -1198,9 +1198,7 @@ M:	hpa@zytor.com
 S:	Maintained
 
 CPUSETS
-P:	Paul Jackson
 P:	Paul Menage
-M:	pj@sgi.com
 M:	menage@google.com
 L:	linux-kernel@vger.kernel.org
 W:	http://www.bullopensource.org/cpuset/
