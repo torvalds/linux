@@ -335,6 +335,8 @@ static void process_context(struct svcxprt_rdma *xprt,
 
 	switch (ctxt->wr_op) {
 	case IB_WR_SEND:
+		if (test_bit(RDMACTXT_F_FAST_UNREG, &ctxt->flags))
+			svc_rdma_put_frmr(xprt, ctxt->frmr);
 		svc_rdma_put_context(ctxt, 1);
 		break;
 
