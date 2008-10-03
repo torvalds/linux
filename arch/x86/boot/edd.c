@@ -32,9 +32,7 @@ static int read_mbr(u8 devno, void *buf)
 		     : "+a" (ax), "+c" (cx), "+d" (dx), "+b" (bx)
 		     : : "esi", "edi", "memory");
 
-	/* Some BIOSes do not set carry flag on error but still return
-	 * error in AH. The condition below is expected to catch both */
-	return -!!ax;		/* 0 or -1 */
+	return -(u8)ax;		/* 0 or -1 */
 }
 
 static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
