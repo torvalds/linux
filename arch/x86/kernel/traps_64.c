@@ -204,7 +204,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 			printk_ratelimit()) {
 		printk(KERN_INFO
 			"%s[%d] general protection ip:%lx sp:%lx error:%lx",
-			tsk->comm, tsk->pid,
+			tsk->comm, task_pid_nr(tsk),
 			regs->ip, regs->sp, error_code);
 		print_vma_addr(" in ", regs->ip);
 		printk("\n");
