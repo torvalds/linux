@@ -40,12 +40,13 @@ static struct nsm_handle	*nsm_find(const struct sockaddr *sap,
 
 struct nlm_lookup_host_info {
 	const int		server;		/* search for server|client */
-	const struct sockaddr_in *sin;		/* address to search for */
+	const struct sockaddr	*sap;		/* address to search for */
+	const size_t		salen;		/* it's length */
 	const unsigned short	protocol;	/* transport to search for*/
 	const u32		version;	/* NLM version to search for */
 	const char		*hostname;	/* remote's hostname */
 	const size_t		hostname_len;	/* it's length */
-	const struct sockaddr_in *src_sin;	/* our address (optional) */
+	const struct sockaddr	*src_sap;	/* our address (optional) */
 	const size_t		src_len;	/* it's length */
 };
 
@@ -151,9 +152,9 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 	 * different NLM rpc_clients into one single nlm_host object.
 	 * This would allow us to have one nlm_host per address.
 	 */
-	chain = &nlm_hosts[nlm_hash_address((struct sockaddr *)ni->sin)];
+	chain = &nlm_hosts[nlm_hash_address(ni->sap)];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
-		if (!nlm_cmp_addr(nlm_addr(host), (struct sockaddr *)ni->sin))
+		if (!nlm_cmp_addr(nlm_addr(host), ni->sap))
 			continue;
 
 		/* See if we have an NSM handle for this client */
@@ -166,8 +167,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 			continue;
 		if (host->h_server != ni->server)
 			continue;
-		if (!nlm_cmp_addr(nlm_srcaddr(host),
-					(struct sockaddr *)ni->src_sin))
+		if (!nlm_cmp_addr(nlm_srcaddr(host), ni->src_sap))
 			continue;
 
 		/* Move to head of hash chain. */
@@ -188,8 +188,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 		atomic_inc(&nsm->sm_count);
 	else {
 		host = NULL;
-		nsm = nsm_find((struct sockaddr *)ni->sin,
-				sizeof(struct sockaddr_in),
+		nsm = nsm_find(ni->sap, ni->salen,
 				ni->hostname, ni->hostname_len, 1);
 		if (!nsm) {
 			dprintk("lockd: nlm_lookup_host failed; "
@@ -205,10 +204,10 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 		goto out;
 	}
 	host->h_name	   = nsm->sm_name;
-	memcpy(nlm_addr(host), ni->sin, sizeof(struct sockaddr_in));
-	host->h_addrlen = sizeof(struct sockaddr_in);
+	memcpy(nlm_addr(host), ni->sap, ni->salen);
+	host->h_addrlen = ni->salen;
 	nlm_clear_port(nlm_addr(host));
-	memcpy(nlm_srcaddr(host), ni->src_sin, sizeof(struct sockaddr_in));
+	memcpy(nlm_srcaddr(host), ni->src_sap, ni->src_len);
 	host->h_version    = ni->version;
 	host->h_proto      = ni->protocol;
 	host->h_rpcclnt    = NULL;
@@ -273,17 +272,19 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr_in *sin,
 				     const char *hostname,
 				     unsigned int hostname_len)
 {
-	const struct sockaddr_in source = {
-		.sin_family	= AF_UNSPEC,
+	const struct sockaddr source = {
+		.sa_family	= AF_UNSPEC,
 	};
 	struct nlm_lookup_host_info ni = {
 		.server		= 0,
-		.sin		= sin,
+		.sap		= (struct sockaddr *)sin,
+		.salen		= sizeof(*sin),
 		.protocol	= proto,
 		.version	= version,
 		.hostname	= hostname,
 		.hostname_len	= hostname_len,
-		.src_sin	= &source,
+		.src_sap	= &source,
+		.src_len	= sizeof(source),
 	};
 
 	dprintk("lockd: %s(host='%s', vers=%u, proto=%s)\n", __func__,
@@ -306,12 +307,14 @@ nlmsvc_lookup_host(struct svc_rqst *rqstp,
 	};
 	struct nlm_lookup_host_info ni = {
 		.server		= 1,
-		.sin		= svc_addr_in(rqstp),
+		.sap		= svc_addr(rqstp),
+		.salen		= rqstp->rq_addrlen,
 		.protocol	= rqstp->rq_prot,
 		.version	= rqstp->rq_vers,
 		.hostname	= hostname,
 		.hostname_len	= hostname_len,
-		.src_sin	= &source,
+		.src_sap	= (struct sockaddr *)&source,
+		.src_len	= sizeof(source),
 	};
 
 	dprintk("lockd: %s(host='%*s', vers=%u, proto=%s)\n", __func__,
