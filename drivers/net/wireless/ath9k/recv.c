@@ -892,7 +892,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		hdr = (struct ieee80211_hdr *)skb->data;
 		fc = hdr->frame_control;
-		memzero(&rx_status, sizeof(struct ath_recv_status));
+		memset(&rx_status, 0, sizeof(struct ath_recv_status));
 
 		if (ds->ds_rxstat.rs_more) {
 			/*
@@ -1166,7 +1166,7 @@ int ath_rx_aggr_start(struct ath_softc *sc,
 		} else {
 			/* Ensure the memory is zeroed out (all internal
 			 * pointers are null) */
-			memzero(rxtid->rxbuf, ATH_TID_MAX_BUFS *
+			memset(rxtid->rxbuf, 0, ATH_TID_MAX_BUFS *
 				sizeof(struct ath_rxbuf));
 			DPRINTF(sc, ATH_DBG_AGGR,
 				"%s: Allocated @%p\n", __func__, rxtid->rxbuf);

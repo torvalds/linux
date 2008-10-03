@@ -729,7 +729,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	/*
 	 * Setup HAL rate series
 	 */
-	memzero(series, sizeof(struct ath9k_11n_rate_series) * 4);
+	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 
 	for (i = 0; i < 4; i++) {
 		if (!bf->bf_rcs[i].tries)
@@ -817,7 +817,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		 * Disable multi-rate retry when using RTS/CTS by clearing
 		 * series 1, 2 and 3.
 		 */
-		memzero(&series[1], sizeof(struct ath9k_11n_rate_series) * 3);
+		memset(&series[1], 0, sizeof(struct ath9k_11n_rate_series) * 3);
 	}
 
 	/*
@@ -930,7 +930,7 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 					ATH_DS_BA_BITMAP(ds),
 					WME_BA_BMP_SIZE >> 3);
 			} else {
-				memzero(ba, WME_BA_BMP_SIZE >> 3);
+				memset(ba, 0, WME_BA_BMP_SIZE >> 3);
 
 				/*
 				 * AR5416 can become deaf/mute when BA
@@ -943,7 +943,7 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 					needreset = 1;
 			}
 		} else {
-			memzero(ba, WME_BA_BMP_SIZE >> 3);
+			memset(ba, 0, WME_BA_BMP_SIZE >> 3);
 		}
 	}
 
@@ -2098,7 +2098,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	struct ath9k_tx_queue_info qi;
 	int qnum;
 
-	memzero(&qi, sizeof(qi));
+	memset(&qi, 0, sizeof(qi));
 	qi.tqi_subtype = subtype;
 	qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;
 	qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;

@@ -84,9 +84,6 @@ struct ath_node;
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
-/* XXX: remove */
-#define memzero(_buf, _len) memset(_buf, 0, _len)
-
 #define ATH9K_BH_STATUS_INTACT		0
 #define ATH9K_BH_STATUS_CHANGE		1
 
@@ -184,7 +181,7 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht);
 		(_bf)->bf_lastbf = NULL;			\
 		(_bf)->bf_lastfrm = NULL;			\
 		(_bf)->bf_next = NULL;				\
-		memzero(&((_bf)->bf_state),			\
+		memset(&((_bf)->bf_state), 0,			\
 			    sizeof(struct ath_buf_state));	\
 	} while (0)
 

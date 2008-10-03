@@ -65,7 +65,7 @@ static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 	for (i = 0; i < rt->rateCount; i++)
 		sc->sc_rixmap[rt->info[i].rateCode] = (u8) i;
 
-	memzero(sc->sc_hwmap, sizeof(sc->sc_hwmap));
+	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
 	for (i = 0; i < 256; i++) {
 		u8 ix = rt->rateCodeToIndex[i];
 
@@ -417,7 +417,7 @@ static void ath_chainmask_sel_init(struct ath_softc *sc, struct ath_node *an)
 {
 	struct ath_chainmask_sel *cm = &an->an_chainmask_sel;
 
-	memzero(cm, sizeof(struct ath_chainmask_sel));
+	memset(cm, 0, sizeof(struct ath_chainmask_sel));
 
 	cm->cur_tx_mask = sc->sc_tx_chainmask;
 	cm->cur_rx_mask = sc->sc_rx_chainmask;
@@ -526,7 +526,7 @@ int ath_vap_attach(struct ath_softc *sc,
 	if (avp == NULL)
 		return -ENOMEM;
 
-	memzero(avp, sizeof(struct ath_vap));
+	memset(avp, 0, sizeof(struct ath_vap));
 	avp->av_if_data = if_data;
 	/* Set the VAP opmode */
 	avp->av_opmode = opmode;
@@ -1219,7 +1219,7 @@ struct ath_node *ath_node_attach(struct ath_softc *sc, u8 *addr, int if_id)
 	an = kmalloc(sizeof(struct ath_node), GFP_ATOMIC);
 	if (an == NULL)
 		return NULL;
-	memzero(an, sizeof(*an));
+	memset(an, 0, sizeof(*an));
 
 	an->an_sc = sc;
 	memcpy(an->an_addr, addr, ETH_ALEN);
@@ -1606,7 +1606,7 @@ int ath_descdma_setup(struct ath_softc *sc,
 		error = -ENOMEM;
 		goto fail2;
 	}
-	memzero(bf, bsize);
+	memset(bf, 0, bsize);
 	dd->dd_bufptr = bf;
 
 	INIT_LIST_HEAD(head);
@@ -1638,7 +1638,7 @@ fail2:
 	pci_free_consistent(sc->pdev,
 		dd->dd_desc_len, dd->dd_desc, dd->dd_desc_paddr);
 fail:
-	memzero(dd, sizeof(*dd));
+	memset(dd, 0, sizeof(*dd));
 	return error;
 #undef ATH_DESC_4KB_BOUND_CHECK
 #undef ATH_DESC_4KB_BOUND_NUM_SKIPPED
@@ -1663,7 +1663,7 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 
 	INIT_LIST_HEAD(head);
 	kfree(dd->dd_bufptr);
-	memzero(dd, sizeof(*dd));
+	memset(dd, 0, sizeof(*dd));
 }
 
 /*************/
