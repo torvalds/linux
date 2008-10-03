@@ -249,6 +249,15 @@ config QUICC_ENGINE
 	  Selecting this option means that you wish to build a kernel
 	  for a machine with a QE coprocessor.
 
+config QE_GPIO
+	bool "QE GPIO support"
+	depends on QUICC_ENGINE
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here if you're going to use hardware that connects to the
+	  QE GPIOs.
+
 config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
 	depends on MPC85xx || 8260
