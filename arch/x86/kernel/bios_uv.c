@@ -23,6 +23,7 @@
 #include <asm/efi.h>
 #include <linux/io.h>
 #include <asm/uv/bios.h>
+#include <asm/uv/uv_hub.h>
 
 struct uv_systab uv_systab;
 
@@ -65,14 +66,47 @@ s64 uv_bios_call_reentrant(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 	return ret;
 }
 
-long
-x86_bios_freq_base(unsigned long clock_type, unsigned long *ticks_per_second,
-					unsigned long *drift_info)
+
+long sn_partition_id;
+EXPORT_SYMBOL_GPL(sn_partition_id);
+long uv_coherency_id;
+EXPORT_SYMBOL_GPL(uv_coherency_id);
+long uv_region_size;
+EXPORT_SYMBOL_GPL(uv_region_size);
+int uv_type;
+
+
+s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
+		long *region)
+{
+	s64 ret;
+	u64 v0, v1;
+	union partition_info_u part;
+
+	ret = uv_bios_call_irqsave(UV_BIOS_GET_SN_INFO, fc,
+				(u64)(&v0), (u64)(&v1), 0, 0);
+	if (ret != BIOS_STATUS_SUCCESS)
+		return ret;
+
+	part.val = v0;
+	if (uvtype)
+		*uvtype = part.hub_version;
+	if (partid)
+		*partid = part.partition_id;
+	if (coher)
+		*coher = part.coherence_id;
+	if (region)
+		*region = part.region_size;
+	return ret;
+}
+
+
+s64 uv_bios_freq_base(u64 clock_type, u64 *ticks_per_second)
 {
 	return uv_bios_call(UV_BIOS_FREQ_BASE, clock_type,
-				(u64)ticks_per_second, 0, 0, 0);
+			   (u64)ticks_per_second, 0, 0, 0);
 }
-EXPORT_SYMBOL_GPL(x86_bios_freq_base);
+EXPORT_SYMBOL_GPL(uv_bios_freq_base);
 
 
 #ifdef CONFIG_EFI
