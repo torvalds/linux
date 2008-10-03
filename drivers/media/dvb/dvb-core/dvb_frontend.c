@@ -900,6 +900,8 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 
 	switch (fe->ops.info.type) {
 	case FE_QPSK:
+		c->modulation = QPSK;   /* implied for DVB-S in legacy API */
+		c->rolloff = ROLLOFF_35;/* implied for DVB-S */
 		c->symbol_rate = p->u.qpsk.symbol_rate;
 		c->fec_inner = p->u.qpsk.fec_inner;
 		c->delivery_system = SYS_DVBS;
