@@ -386,7 +386,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 {
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	struct btrfs_mapping_tree *map_tree;
-	u64 logical = bio->bi_sector << 9;
+	u64 logical = (u64)bio->bi_sector << 9;
 	u64 length = 0;
 	u64 map_length;
 	int ret;
