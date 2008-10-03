@@ -304,16 +304,33 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 	return nlm_lookup_host(&ni);
 }
 
-/*
- * Find an NLM client handle in the cache. If there is none, create it.
+/**
+ * nlmsvc_lookup_host - Find an NLM host handle matching a remote client
+ * @rqstp: incoming NLM request
+ * @hostname: name of client host
+ * @hostname_len: length of client hostname
+ *
+ * Returns an nlm_host structure that matches the [client address,
+ * transport protocol, NLM version, client hostname] of the passed-in
+ * NLM request.  If one doesn't already exist in the host cache, a
+ * new handle is created and returned.
+ *
+ * Before possibly creating a new nlm_host, construct a sockaddr
+ * for a specific source address in case the local system has
+ * multiple network addresses.  The family of the address in
+ * rq_daddr is guaranteed to be the same as the family of the
+ * address in rq_addr, so it's safe to use the same family for
+ * the source address.
  */
-struct nlm_host *
-nlmsvc_lookup_host(struct svc_rqst *rqstp,
-			const char *hostname, unsigned int hostname_len)
+struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
+				    const char *hostname,
+				    const size_t hostname_len)
 {
-	const struct sockaddr_in source = {
+	struct sockaddr_in sin = {
 		.sin_family	= AF_INET,
-		.sin_addr	= rqstp->rq_daddr.addr,
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family	= AF_INET6,
 	};
 	struct nlm_lookup_host_info ni = {
 		.server		= 1,
@@ -323,13 +340,25 @@ nlmsvc_lookup_host(struct svc_rqst *rqstp,
 		.version	= rqstp->rq_vers,
 		.hostname	= hostname,
 		.hostname_len	= hostname_len,
-		.src_sap	= (struct sockaddr *)&source,
-		.src_len	= sizeof(source),
+		.src_len	= rqstp->rq_addrlen,
 	};
 
 	dprintk("lockd: %s(host='%*s', vers=%u, proto=%s)\n", __func__,
 			(int)hostname_len, hostname, rqstp->rq_vers,
 			(rqstp->rq_prot == IPPROTO_UDP ? "udp" : "tcp"));
+
+	switch (ni.sap->sa_family) {
+	case AF_INET:
+		sin.sin_addr.s_addr = rqstp->rq_daddr.addr.s_addr;
+		ni.src_sap = (struct sockaddr *)&sin;
+		break;
+	case AF_INET6:
+		ipv6_addr_copy(&sin6.sin6_addr, &rqstp->rq_daddr.addr6);
+		ni.src_sap = (struct sockaddr *)&sin6;
+		break;
+	default:
+		return NULL;
+	}
 
 	return nlm_lookup_host(&ni);
 }

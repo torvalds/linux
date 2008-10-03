@@ -220,8 +220,9 @@ struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr *sap,
 					const unsigned short protocol,
 					const u32 version,
 					const char *hostname);
-struct nlm_host  *nlmsvc_lookup_host(struct svc_rqst *, const char *,
-					unsigned int);
+struct nlm_host  *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
+					const char *hostname,
+					const size_t hostname_len);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
