@@ -113,6 +113,7 @@ struct tc6393xb {
 enum {
 	TC6393XB_CELL_NAND,
 	TC6393XB_CELL_MMC,
+	TC6393XB_CELL_OHCI,
 };
 
 /*--------------------------------------------------------------------------*/
@@ -170,6 +171,78 @@ static struct resource __devinitdata tc6393xb_mmc_resources[] = {
 	},
 };
 
+const static struct resource tc6393xb_ohci_resources[] = {
+	{
+		.start	= 0x3000,
+		.end	= 0x31ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= 0x0300,
+		.end	= 0x03ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= 0x010000,
+		.end	= 0x017fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= 0x018000,
+		.end	= 0x01ffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_TC6393_OHCI,
+		.end	= IRQ_TC6393_OHCI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static int tc6393xb_ohci_enable(struct platform_device *dev)
+{
+	struct tc6393xb *tc6393xb = dev_get_drvdata(dev->dev.parent);
+	unsigned long flags;
+	u16 ccr;
+	u8 fer;
+
+	spin_lock_irqsave(&tc6393xb->lock, flags);
+
+	ccr = tmio_ioread16(tc6393xb->scr + SCR_CCR);
+	ccr |= SCR_CCR_USBCK;
+	tmio_iowrite16(ccr, tc6393xb->scr + SCR_CCR);
+
+	fer = tmio_ioread8(tc6393xb->scr + SCR_FER);
+	fer |= SCR_FER_USBEN;
+	tmio_iowrite8(fer, tc6393xb->scr + SCR_FER);
+
+	spin_unlock_irqrestore(&tc6393xb->lock, flags);
+
+	return 0;
+}
+
+static int tc6393xb_ohci_disable(struct platform_device *dev)
+{
+	struct tc6393xb *tc6393xb = dev_get_drvdata(dev->dev.parent);
+	unsigned long flags;
+	u16 ccr;
+	u8 fer;
+
+	spin_lock_irqsave(&tc6393xb->lock, flags);
+
+	fer = tmio_ioread8(tc6393xb->scr + SCR_FER);
+	fer &= ~SCR_FER_USBEN;
+	tmio_iowrite8(fer, tc6393xb->scr + SCR_FER);
+
+	ccr = tmio_ioread16(tc6393xb->scr + SCR_CCR);
+	ccr &= ~SCR_CCR_USBCK;
+	tmio_iowrite16(ccr, tc6393xb->scr + SCR_CCR);
+
+	spin_unlock_irqrestore(&tc6393xb->lock, flags);
+
+	return 0;
+}
+
 static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 	[TC6393XB_CELL_NAND] = {
 		.name = "tmio-nand",
@@ -181,6 +254,15 @@ static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 		.name = "tmio-mmc",
 		.num_resources = ARRAY_SIZE(tc6393xb_mmc_resources),
 		.resources = tc6393xb_mmc_resources,
+	},
+	[TC6393XB_CELL_OHCI] = {
+		.name = "tmio-ohci",
+		.num_resources = ARRAY_SIZE(tc6393xb_ohci_resources),
+		.resources = tc6393xb_ohci_resources,
+		.enable = tc6393xb_ohci_enable,
+		.suspend = tc6393xb_ohci_disable,
+		.resume = tc6393xb_ohci_enable,
+		.disable = tc6393xb_ohci_disable,
 	},
 };
 
@@ -469,6 +551,11 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 		&tc6393xb_cells[TC6393XB_CELL_MMC];
 	tc6393xb_cells[TC6393XB_CELL_MMC].data_size =
 		sizeof(tc6393xb_cells[TC6393XB_CELL_MMC]);
+
+	tc6393xb_cells[TC6393XB_CELL_OHCI].platform_data =
+		&tc6393xb_cells[TC6393XB_CELL_OHCI];
+	tc6393xb_cells[TC6393XB_CELL_OHCI].data_size =
+		sizeof(tc6393xb_cells[TC6393XB_CELL_OHCI]);
 
 
 	ret = mfd_add_devices(&dev->dev, dev->id,

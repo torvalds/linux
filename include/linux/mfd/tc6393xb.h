@@ -44,6 +44,7 @@ struct tc6393xb_platform_data {
  */
 #define	IRQ_TC6393_NAND		0
 #define	IRQ_TC6393_MMC		1
+#define	IRQ_TC6393_OHCI		2
 
 #define	TC6393XB_NR_IRQS	8
 
