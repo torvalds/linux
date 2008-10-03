@@ -397,7 +397,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 /*
  * Used to wait on ordered extents across a large range of bytes.
  */
-void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
+int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 {
 	u64 end;
 	u64 orig_end;
@@ -451,6 +451,7 @@ again:
 		       (unsigned long long)orig_end);
 		goto again;
 	}
+	return 0;
 }
 
 /*

@@ -905,6 +905,10 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	struct page *pinned[2];
 	unsigned long first_index;
 	unsigned long last_index;
+	int will_write;
+
+	will_write = ((file->f_flags & O_SYNC) || IS_SYNC(inode) ||
+		      (file->f_flags & O_DIRECT));
 
 	nrptrs = min((count + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE,
 		     PAGE_CACHE_SIZE / (sizeof(struct page *)));
@@ -1001,15 +1005,24 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		if (ret)
 			goto out;
 
+		if (will_write) {
+			btrfs_fdatawrite_range(inode->i_mapping, pos,
+					       pos + write_bytes - 1,
+					       WB_SYNC_NONE);
+		} else {
+			balance_dirty_pages_ratelimited_nr(inode->i_mapping,
+							   num_pages);
+			if (num_pages <
+			    (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
+				btrfs_btree_balance_dirty(root, 1);
+			btrfs_throttle(root);
+		}
+
 		buf += write_bytes;
 		count -= write_bytes;
 		pos += write_bytes;
 		num_written += write_bytes;
 
-		balance_dirty_pages_ratelimited_nr(inode->i_mapping, num_pages);
-		if (num_pages < (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
-			btrfs_btree_balance_dirty(root, 1);
-		btrfs_throttle(root);
 		cond_resched();
 	}
 out:
@@ -1023,36 +1036,29 @@ out_nolock:
 		page_cache_release(pinned[1]);
 	*ppos = pos;
 
-	if (num_written > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+	if (num_written > 0 && will_write) {
 		struct btrfs_trans_handle *trans;
 
-		err = btrfs_fdatawrite_range(inode->i_mapping, start_pos,
-					     start_pos + num_written -1,
-					     WB_SYNC_NONE);
-		if (err < 0)
+		err = btrfs_wait_ordered_range(inode, start_pos, num_written);
+		if (err)
 			num_written = err;
 
-		err = btrfs_wait_on_page_writeback_range(inode->i_mapping,
-				 start_pos, start_pos + num_written - 1);
-		if (err < 0)
-			num_written = err;
-
-		trans = btrfs_start_transaction(root, 1);
-		ret = btrfs_log_dentry_safe(trans, root, file->f_dentry);
-		if (ret == 0) {
-			btrfs_sync_log(trans, root);
-			btrfs_end_transaction(trans, root);
-		} else {
-			btrfs_commit_transaction(trans, root);
+		if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+			trans = btrfs_start_transaction(root, 1);
+			ret = btrfs_log_dentry_safe(trans, root,
+						    file->f_dentry);
+			if (ret == 0) {
+				btrfs_sync_log(trans, root);
+				btrfs_end_transaction(trans, root);
+			} else {
+				btrfs_commit_transaction(trans, root);
+			}
 		}
-	} else if (num_written > 0 && (file->f_flags & O_DIRECT)) {
-		do_sync_mapping_range(inode->i_mapping, start_pos,
-				      start_pos + num_written - 1,
-				      SYNC_FILE_RANGE_WRITE |
-				      SYNC_FILE_RANGE_WAIT_AFTER);
-		invalidate_mapping_pages(inode->i_mapping,
-		      start_pos >> PAGE_CACHE_SHIFT,
-		     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
+		if (file->f_flags & O_DIRECT) {
+			invalidate_mapping_pages(inode->i_mapping,
+			      start_pos >> PAGE_CACHE_SHIFT,
+			     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
+		}
 	}
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
