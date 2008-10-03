@@ -427,6 +427,7 @@ void __init uv_system_init(void)
 	gnode_upper = (((unsigned long)node_id.s.node_id) &
 		       ~((1 << n_val) - 1)) << m_val;
 
+	uv_bios_init();
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
