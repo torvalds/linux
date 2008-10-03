@@ -598,7 +598,7 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 		dprintk("svcrdma: Connect request on cma_id=%p, xprt = %p, "
 			"event=%d\n", cma_id, cma_id->context, event->event);
 		handle_connect_req(cma_id,
-				   event->param.conn.responder_resources);
+				   event->param.conn.initiator_depth);
 		break;
 
 	case RDMA_CM_EVENT_ESTABLISHED:
