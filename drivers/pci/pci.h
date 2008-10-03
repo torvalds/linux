@@ -82,7 +82,13 @@ static inline int pci_proc_detach_bus(struct pci_bus *bus) { return 0; }
 /* Functions for PCI Hotplug drivers to use */
 extern unsigned int pci_do_scan_bus(struct pci_bus *bus);
 
+#ifdef HAVE_PCI_LEGACY
+extern void pci_create_legacy_files(struct pci_bus *bus);
 extern void pci_remove_legacy_files(struct pci_bus *bus);
+#else
+static inline void pci_create_legacy_files(struct pci_bus *bus) { return; }
+static inline void pci_remove_legacy_files(struct pci_bus *bus) { return; }
+#endif
 
 /* Lock for read/write access to pci device and bus lists */
 extern struct rw_semaphore pci_bus_sem;

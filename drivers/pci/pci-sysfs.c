@@ -423,7 +423,7 @@ pci_write_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
  * Reads 1, 2, or 4 bytes from legacy I/O port space using an arch specific
  * callback routine (pci_legacy_read).
  */
-ssize_t
+static ssize_t
 pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
 {
@@ -448,7 +448,7 @@ pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
  * Writes 1, 2, or 4 bytes from legacy I/O port space using an arch specific
  * callback routine (pci_legacy_write).
  */
-ssize_t
+static ssize_t
 pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 		    char *buf, loff_t off, size_t count)
 {
@@ -468,11 +468,11 @@ pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
  * @attr: struct bin_attribute for this file
  * @vma: struct vm_area_struct passed to mmap
  *
- * Uses an arch specific callback, pci_mmap_legacy_page_range, to mmap
+ * Uses an arch specific callback, pci_mmap_legacy_mem_page_range, to mmap
  * legacy memory space (first meg of bus space) into application virtual
  * memory space.
  */
-int
+static int
 pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
                     struct vm_area_struct *vma)
 {
@@ -480,7 +480,90 @@ pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
                                                       struct device,
 						      kobj));
 
-        return pci_mmap_legacy_page_range(bus, vma);
+        return pci_mmap_legacy_page_range(bus, vma, pci_mmap_mem);
+}
+
+/**
+ * pci_mmap_legacy_io - map legacy PCI IO into user memory space
+ * @kobj: kobject corresponding to device to be mapped
+ * @attr: struct bin_attribute for this file
+ * @vma: struct vm_area_struct passed to mmap
+ *
+ * Uses an arch specific callback, pci_mmap_legacy_io_page_range, to mmap
+ * legacy IO space (first meg of bus space) into application virtual
+ * memory space. Returns -ENOSYS if the operation isn't supported
+ */
+static int
+pci_mmap_legacy_io(struct kobject *kobj, struct bin_attribute *attr,
+		   struct vm_area_struct *vma)
+{
+        struct pci_bus *bus = to_pci_bus(container_of(kobj,
+                                                      struct device,
+						      kobj));
+
+        return pci_mmap_legacy_page_range(bus, vma, pci_mmap_io);
+}
+
+/**
+ * pci_create_legacy_files - create legacy I/O port and memory files
+ * @b: bus to create files under
+ *
+ * Some platforms allow access to legacy I/O port and ISA memory space on
+ * a per-bus basis.  This routine creates the files and ties them into
+ * their associated read, write and mmap files from pci-sysfs.c
+ *
+ * On error unwind, but don't propogate the error to the caller
+ * as it is ok to set up the PCI bus without these files.
+ */
+void pci_create_legacy_files(struct pci_bus *b)
+{
+	int error;
+
+	b->legacy_io = kzalloc(sizeof(struct bin_attribute) * 2,
+			       GFP_ATOMIC);
+	if (!b->legacy_io)
+		goto kzalloc_err;
+
+	b->legacy_io->attr.name = "legacy_io";
+	b->legacy_io->size = 0xffff;
+	b->legacy_io->attr.mode = S_IRUSR | S_IWUSR;
+	b->legacy_io->read = pci_read_legacy_io;
+	b->legacy_io->write = pci_write_legacy_io;
+	b->legacy_io->mmap = pci_mmap_legacy_io;
+	error = device_create_bin_file(&b->dev, b->legacy_io);
+	if (error)
+		goto legacy_io_err;
+
+	/* Allocated above after the legacy_io struct */
+	b->legacy_mem = b->legacy_io + 1;
+	b->legacy_mem->attr.name = "legacy_mem";
+	b->legacy_mem->size = 1024*1024;
+	b->legacy_mem->attr.mode = S_IRUSR | S_IWUSR;
+	b->legacy_mem->mmap = pci_mmap_legacy_mem;
+	error = device_create_bin_file(&b->dev, b->legacy_mem);
+	if (error)
+		goto legacy_mem_err;
+
+	return;
+
+legacy_mem_err:
+	device_remove_bin_file(&b->dev, b->legacy_io);
+legacy_io_err:
+	kfree(b->legacy_io);
+	b->legacy_io = NULL;
+kzalloc_err:
+	printk(KERN_WARNING "pci: warning: could not create legacy I/O port "
+	       "and ISA memory resources to sysfs\n");
+	return;
+}
+
+void pci_remove_legacy_files(struct pci_bus *b)
+{
+	if (b->legacy_io) {
+		device_remove_bin_file(&b->dev, b->legacy_io);
+		device_remove_bin_file(&b->dev, b->legacy_mem);
+		kfree(b->legacy_io); /* both are allocated here */
+	}
 }
 #endif /* HAVE_PCI_LEGACY */
 
