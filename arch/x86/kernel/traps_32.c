@@ -48,7 +48,6 @@
 
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
-#include <asm/kmemcheck.h>
 #include <asm/debugreg.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
@@ -59,6 +58,11 @@
 
 #include <mach_traps.h>
 
+#ifdef CONFIG_X86_64
+#include <asm/pgalloc.h>
+#include <asm/proto.h>
+#include <asm/pda.h>
+#else
 #include <asm/processor-flags.h>
 #include <asm/arch_hooks.h>
 #include <asm/nmi.h>
@@ -83,6 +87,7 @@ char ignore_fpu_irq;
  */
 gate_desc idt_table[256]
 	__attribute__((__section__(".data.idt"))) = { { { { 0, 0 } } }, };
+#endif
 
 static int ignore_nmis;
 
@@ -106,6 +111,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	dec_preempt_count();
 }
 
+#ifdef CONFIG_X86_32
 static inline void
 die_if_kernel(const char *str, struct pt_regs *regs, long err)
 {
@@ -153,6 +159,7 @@ static int lazy_iobitmap_copy(void)
 
 	return 0;
 }
+#endif
 
 static void __kprobes
 do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
@@ -160,6 +167,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 {
 	struct task_struct *tsk = current;
 
+#ifdef CONFIG_X86_32
 	if (regs->flags & X86_VM_MASK) {
 		/*
 		 * traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
@@ -169,11 +177,14 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 			goto vm86_trap;
 		goto trap_signal;
 	}
+#endif
 
 	if (!user_mode(regs))
 		goto kernel_trap;
 
+#ifdef CONFIG_X86_32
 trap_signal:
+#endif
 	/*
 	 * We want error_code and trap_no set for userspace faults and
 	 * kernelspace faults which result in die(), but not
@@ -185,6 +196,18 @@ trap_signal:
 	 */
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = trapnr;
+
+#ifdef CONFIG_X86_64
+	if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
+	    printk_ratelimit()) {
+		printk(KERN_INFO
+		       "%s[%d] trap %s ip:%lx sp:%lx error:%lx",
+		       tsk->comm, tsk->pid, str,
+		       regs->ip, regs->sp, error_code);
+		print_vma_addr(" in ", regs->ip);
+		printk("\n");
+	}
+#endif
 
 	if (info)
 		force_sig_info(signr, info, tsk);
@@ -200,11 +223,13 @@ kernel_trap:
 	}
 	return;
 
+#ifdef CONFIG_X86_32
 vm86_trap:
 	if (handle_vm86_trap((struct kernel_vm86_regs *) regs,
 						error_code, trapnr))
 		goto trap_signal;
 	return;
+#endif
 }
 
 #define DO_ERROR(trapnr, signr, str, name)				\
@@ -239,8 +264,40 @@ DO_ERROR_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip)
 DO_ERROR(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS, "segment not present", segment_not_present)
+#ifdef CONFIG_X86_32
 DO_ERROR(12, SIGBUS, "stack segment", stack_segment)
+#endif
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
+
+#ifdef CONFIG_X86_64
+/* Runs on IST stack */
+dotraplinkage void do_stack_segment(struct pt_regs *regs, long error_code)
+{
+	if (notify_die(DIE_TRAP, "stack segment", regs, error_code,
+			12, SIGBUS) == NOTIFY_STOP)
+		return;
+	preempt_conditional_sti(regs);
+	do_trap(12, SIGBUS, "stack segment", regs, error_code, NULL);
+	preempt_conditional_cli(regs);
+}
+
+dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
+{
+	static const char str[] = "double fault";
+	struct task_struct *tsk = current;
+
+	/* Return not checked because double check cannot be ignored */
+	notify_die(DIE_TRAP, str, regs, error_code, 8, SIGSEGV);
+
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 8;
+
+	/* This is always a kernel trap and never fixable (and thus must
+	   never return). */
+	for (;;)
+		die(str, regs, error_code);
+}
+#endif
 
 dotraplinkage void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
@@ -249,6 +306,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	conditional_sti(regs);
 
+#ifdef CONFIG_X86_32
 	if (lazy_iobitmap_copy()) {
 		/* restart the faulting instruction */
 		return;
@@ -256,6 +314,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	if (regs->flags & X86_VM_MASK)
 		goto gp_in_vm86;
+#endif
 
 	tsk = current;
 	if (!user_mode(regs))
@@ -277,10 +336,12 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	force_sig(SIGSEGV, tsk);
 	return;
 
+#ifdef CONFIG_X86_32
 gp_in_vm86:
 	local_irq_enable();
 	handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
 	return;
+#endif
 
 gp_in_kernel:
 	if (fixup_exception(regs))
@@ -368,6 +429,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 }
 
+#ifdef CONFIG_X86_32
 static DEFINE_SPINLOCK(nmi_print_lock);
 
 void notrace __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
@@ -402,6 +464,7 @@ void notrace __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
 
 	do_exit(SIGSEGV);
 }
+#endif
 
 static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
@@ -441,11 +504,13 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		mem_parity_error(reason, regs);
 	if (reason & 0x40)
 		io_check_error(reason, regs);
+#ifdef CONFIG_X86_32
 	/*
 	 * Reassert NMI in case it became active meanwhile
 	 * as it's edge-triggered:
 	 */
 	reassert_nmi();
+#endif
 }
 
 dotraplinkage notrace __kprobes void
@@ -453,7 +518,11 @@ do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_enter();
 
+#ifdef CONFIG_X86_32
 	{ int cpu; cpu = smp_processor_id(); ++nmi_count(cpu); }
+#else
+	add_pda(__nmi_count, 1);
+#endif
 
 	if (!ignore_nmis)
 		default_do_nmi(regs);
@@ -490,6 +559,29 @@ dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 	do_trap(3, SIGTRAP, "int3", regs, error_code, NULL);
 	preempt_conditional_cli(regs);
 }
+
+#ifdef CONFIG_X86_64
+/* Help handler running on IST stack to switch back to user stack
+   for scheduling or signal handling. The actual stack switch is done in
+   entry.S */
+asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
+{
+	struct pt_regs *regs = eregs;
+	/* Did already sync */
+	if (eregs == (struct pt_regs *)eregs->sp)
+		;
+	/* Exception from user space */
+	else if (user_mode(eregs))
+		regs = task_pt_regs(current);
+	/* Exception from kernel and interrupts are enabled. Move to
+	   kernel process stack. */
+	else if (eregs->flags & X86_EFLAGS_IF)
+		regs = (struct pt_regs *)(eregs->sp -= sizeof(struct pt_regs));
+	if (eregs != regs)
+		*regs = *eregs;
+	return regs;
+}
+#endif
 
 /*
  * Our handling of the processor debug registers is non-trivial.
@@ -542,8 +634,10 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 			goto clear_dr7;
 	}
 
+#ifdef CONFIG_X86_32
 	if (regs->flags & X86_VM_MASK)
 		goto debug_vm86;
+#endif
 
 	/* Save debug status register where ptrace can see it */
 	tsk->thread.debugreg6 = condition;
@@ -570,10 +664,12 @@ clear_dr7:
 	preempt_conditional_cli(regs);
 	return;
 
+#ifdef CONFIG_X86_32
 debug_vm86:
 	handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code, 1);
 	preempt_conditional_cli(regs);
 	return;
+#endif
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
@@ -581,6 +677,20 @@ clear_TF_reenable:
 	preempt_conditional_cli(regs);
 	return;
 }
+
+#ifdef CONFIG_X86_64
+static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
+{
+	if (fixup_exception(regs))
+		return 1;
+
+	notify_die(DIE_GPF, str, regs, 0, trapnr, SIGFPE);
+	/* Illegal floating point operation in the kernel */
+	current->thread.trap_no = trapnr;
+	die(str, regs, 0);
+	return 0;
+}
+#endif
 
 /*
  * Note that we play around with the 'TS' bit in an attempt to get
@@ -618,7 +728,9 @@ void math_error(void __user *ip)
 	swd = get_fpu_swd(task);
 	switch (swd & ~cwd & 0x3f) {
 	case 0x000: /* No unmasked exception */
+#ifdef CONFIG_X86_32
 		return;
+#endif
 	default: /* Multiple exceptions */
 		break;
 	case 0x001: /* Invalid Op */
@@ -649,7 +761,15 @@ void math_error(void __user *ip)
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
+
+#ifdef CONFIG_X86_32
 	ignore_fpu_irq = 1;
+#else
+	if (!user_mode(regs) &&
+	    kernel_math_error(regs, "kernel x87 math error", 16))
+		return;
+#endif
+
 	math_error((void __user *)regs->ip);
 }
 
@@ -706,6 +826,7 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
 
+#ifdef CONFIG_X86_32
 	if (cpu_has_xmm) {
 		/* Handle SIMD FPU exceptions on PIII+ processors. */
 		ignore_fpu_irq = 1;
@@ -724,6 +845,12 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 	current->thread.error_code = error_code;
 	die_if_kernel("cache flush denied", regs, error_code);
 	force_sig(SIGSEGV, current);
+#else
+	if (!user_mode(regs) &&
+			kernel_math_error(regs, "kernel simd math error", 19))
+		return;
+	simd_math_error((void __user *)regs->ip);
+#endif
 }
 
 dotraplinkage void
@@ -736,6 +863,7 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 #endif
 }
 
+#ifdef CONFIG_X86_32
 unsigned long patch_espfix_desc(unsigned long uesp, unsigned long kesp)
 {
 	struct desc_struct *gdt = get_cpu_gdt_table(smp_processor_id());
@@ -754,6 +882,15 @@ unsigned long patch_espfix_desc(unsigned long uesp, unsigned long kesp)
 
 	return new_kesp;
 }
+#else
+asmlinkage void __attribute__((weak)) smp_thermal_interrupt(void)
+{
+}
+
+asmlinkage void __attribute__((weak)) mce_threshold_interrupt(void)
+{
+}
+#endif
 
 /*
  * 'math_state_restore()' saves the current math information in the
@@ -786,14 +923,24 @@ asmlinkage void math_state_restore(void)
 	}
 
 	clts();				/* Allow maths ops (or we recurse) */
+#ifdef CONFIG_X86_32
 	restore_fpu(tsk);
+#else
+	/*
+	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
+	 */
+	if (unlikely(restore_fpu_checking(tsk))) {
+		stts();
+		force_sig(SIGSEGV, tsk);
+		return;
+	}
+#endif
 	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
 	tsk->fpu_counter++;
 }
 EXPORT_SYMBOL_GPL(math_state_restore);
 
 #ifndef CONFIG_MATH_EMULATION
-
 asmlinkage void math_emulate(long arg)
 {
 	printk(KERN_EMERG
@@ -802,12 +949,12 @@ asmlinkage void math_emulate(long arg)
 	force_sig(SIGFPE, current);
 	schedule();
 }
-
 #endif /* CONFIG_MATH_EMULATION */
 
 dotraplinkage void __kprobes
 do_device_not_available(struct pt_regs *regs, long error)
 {
+#ifdef CONFIG_X86_32
 	if (read_cr0() & X86_CR0_EM) {
 		conditional_sti(regs);
 		math_emulate(0);
@@ -815,8 +962,12 @@ do_device_not_available(struct pt_regs *regs, long error)
 		math_state_restore(); /* interrupts still off */
 		conditional_sti(regs);
 	}
+#else
+	math_state_restore();
+#endif
 }
 
+#ifdef CONFIG_X86_32
 #ifdef CONFIG_X86_MCE
 dotraplinkage void __kprobes do_machine_check(struct pt_regs *regs, long error)
 {
@@ -839,10 +990,13 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 		return;
 	do_trap(32, SIGILL, "iret exception", regs, error_code, &info);
 }
+#endif
 
 void __init trap_init(void)
 {
+#ifdef CONFIG_X86_32
 	int i;
+#endif
 
 #ifdef CONFIG_EISA
 	void __iomem *p = early_ioremap(0x0FFFD9, 4);
@@ -862,7 +1016,11 @@ void __init trap_init(void)
 	set_intr_gate(5, &bounds);
 	set_intr_gate(6, &invalid_op);
 	set_intr_gate(7, &device_not_available);
+#ifdef CONFIG_X86_32
 	set_task_gate(8, GDT_ENTRY_DOUBLEFAULT_TSS);
+#else
+	set_intr_gate_ist(8, &double_fault, DOUBLEFAULT_STACK);
+#endif
 	set_intr_gate(9, &coprocessor_segment_overrun);
 	set_intr_gate(10, &invalid_TSS);
 	set_intr_gate(11, &segment_not_present);
@@ -877,6 +1035,11 @@ void __init trap_init(void)
 #endif
 	set_intr_gate(19, &simd_coprocessor_error);
 
+#ifdef CONFIG_IA32_EMULATION
+	set_system_intr_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
+#endif
+
+#ifdef CONFIG_X86_32
 	if (cpu_has_fxsr) {
 		printk(KERN_INFO "Enabling fast FPU save and restore... ");
 		set_in_cr4(X86_CR4_OSFXSR);
@@ -896,11 +1059,13 @@ void __init trap_init(void)
 		set_bit(i, used_vectors);
 
 	set_bit(SYSCALL_VECTOR, used_vectors);
-
+#endif
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */
 	cpu_init();
 
+#ifdef CONFIG_X86_32
 	trap_init_hook();
+#endif
 }
