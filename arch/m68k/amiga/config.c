@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/seq_file.h>
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/rtc.h>
@@ -93,7 +94,7 @@ static char amiga_model_name[13] = "Amiga ";
 
 static void amiga_sched_init(irq_handler_t handler);
 static void amiga_get_model(char *model);
-static int amiga_get_hardware_list(char *buffer);
+static void amiga_get_hardware_list(struct seq_file *m);
 /* amiga specific timer functions */
 static unsigned long amiga_gettimeoffset(void);
 static int a3000_hwclk(int, struct rtc_time *);
@@ -911,13 +912,11 @@ static void amiga_get_model(char *model)
 }
 
 
-static int amiga_get_hardware_list(char *buffer)
+static void amiga_get_hardware_list(struct seq_file *m)
 {
-	int len = 0;
-
 	if (AMIGAHW_PRESENT(CHIP_RAM))
-		len += sprintf(buffer+len, "Chip RAM:\t%ldK\n", amiga_chip_size>>10);
-	len += sprintf(buffer+len, "PS Freq:\t%dHz\nEClock Freq:\t%ldHz\n",
+		seq_printf(m, "Chip RAM:\t%ldK\n", amiga_chip_size>>10);
+	seq_printf(m, "PS Freq:\t%dHz\nEClock Freq:\t%ldHz\n",
 			amiga_psfreq, amiga_eclock);
 	if (AMIGAHW_PRESENT(AMI_VIDEO)) {
 		char *type;
@@ -935,14 +934,14 @@ static int amiga_get_hardware_list(char *buffer)
 			type = "Old or Unknown";
 			break;
 		}
-		len += sprintf(buffer+len, "Graphics:\t%s\n", type);
+		seq_printf(m, "Graphics:\t%s\n", type);
 	}
 
 #define AMIGAHW_ANNOUNCE(name, str)			\
 	if (AMIGAHW_PRESENT(name))			\
-		len += sprintf (buffer+len, "\t%s\n", str)
+		seq_printf (m, "\t%s\n", str)
 
-	len += sprintf (buffer + len, "Detected hardware:\n");
+	seq_printf (m, "Detected hardware:\n");
 
 	AMIGAHW_ANNOUNCE(AMI_VIDEO, "Amiga Video");
 	AMIGAHW_ANNOUNCE(AMI_BLITTER, "Blitter");
@@ -975,15 +974,13 @@ static int amiga_get_hardware_list(char *buffer)
 	AMIGAHW_ANNOUNCE(PCMCIA, "PCMCIA Slot");
 #ifdef CONFIG_ZORRO
 	if (AMIGAHW_PRESENT(ZORRO))
-		len += sprintf(buffer+len, "\tZorro II%s AutoConfig: %d Expansion "
+		seq_printf(m, "\tZorro II%s AutoConfig: %d Expansion "
 				"Device%s\n",
 				AMIGAHW_PRESENT(ZORRO3) ? "I" : "",
 				zorro_num_autocon, zorro_num_autocon == 1 ? "" : "s");
 #endif /* CONFIG_ZORRO */
 
 #undef AMIGAHW_ANNOUNCE
-
-	return len;
 }
 
 /*
