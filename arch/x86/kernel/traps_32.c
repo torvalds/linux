@@ -477,14 +477,15 @@ dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
 			== NOTIFY_STOP)
 		return;
-	conditional_sti(regs);
 #else
 	if (notify_die(DIE_TRAP, "int3", regs, error_code, 3, SIGTRAP)
 			== NOTIFY_STOP)
 		return;
 #endif
 
+	preempt_conditional_sti(regs);
 	do_trap(3, SIGTRAP, "int3", regs, error_code, NULL);
+	preempt_conditional_cli(regs);
 }
 
 /*
