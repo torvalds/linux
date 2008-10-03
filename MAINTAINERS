@@ -2704,6 +2704,7 @@ MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 P:	Michael Kerrisk
 M:	mtk.manpages@gmail.com
 W:	http://www.kernel.org/doc/man-pages
+L:	linux-man@vger.kernel.org
 S:	Supported
 
 MARVELL LIBERTAS WIRELESS DRIVER
