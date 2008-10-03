@@ -29,6 +29,30 @@ config OMAP_DEBUG_LEDS
 	depends on OMAP_DEBUG_DEVICES
 	default y if LEDS || LEDS_OMAP_DEBUG
 
+config OMAP_DEBUG_POWERDOMAIN
+	bool "Emit debug messages from powerdomain layer"
+	depends on ARCH_OMAP2 || ARCH_OMAP3
+	default n
+	help
+	  Say Y here if you want to compile in powerdomain layer
+	  debugging messages for OMAP2/3.   These messages can
+	  provide more detail as to why some powerdomain calls
+	  may be failing, and will also emit a descriptive message
+	  for every powerdomain register write.  However, the
+	  extra detail costs some memory.
+
+config OMAP_DEBUG_CLOCKDOMAIN
+	bool "Emit debug messages from clockdomain layer"
+	depends on ARCH_OMAP2 || ARCH_OMAP3
+	default n
+	help
+	  Say Y here if you want to compile in clockdomain layer
+	  debugging messages for OMAP2/3.   These messages can
+	  provide more detail as to why some clockdomain calls
+	  may be failing, and will also emit a descriptive message
+	  for every clockdomain register write.  However, the
+	  extra detail costs some memory.
+
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
 	depends on ARCH_OMAP

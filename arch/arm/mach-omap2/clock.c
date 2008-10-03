@@ -26,6 +26,7 @@
 #include <asm/io.h>
 
 #include <mach/clock.h>
+#include <mach/clockdomain.h>
 #include <mach/sram.h>
 #include <mach/cpu.h>
 #include <asm/div64.h>
@@ -62,8 +63,34 @@
 u8 cpu_mask;
 
 /*-------------------------------------------------------------------------
- * Omap2 specific clock functions
+ * OMAP2/3 specific clock functions
  *-------------------------------------------------------------------------*/
+
+/**
+ * omap2_init_clk_clkdm - look up a clockdomain name, store pointer in clk
+ * @clk: OMAP clock struct ptr to use
+ *
+ * Convert a clockdomain name stored in a struct clk 'clk' into a
+ * clockdomain pointer, and save it into the struct clk.  Intended to be
+ * called during clk_register().  No return value.
+ */
+void omap2_init_clk_clkdm(struct clk *clk)
+{
+	struct clockdomain *clkdm;
+
+	if (!clk->clkdm_name)
+		return;
+
+	clkdm = clkdm_lookup(clk->clkdm_name);
+	if (clkdm) {
+		pr_debug("clock: associated clk %s to clkdm %s\n",
+			 clk->name, clk->clkdm_name);
+		clk->clkdm = clkdm;
+	} else {
+		pr_debug("clock: could not associate clk %s to "
+			 "clkdm %s\n", clk->name, clk->clkdm_name);
+	}
+}
 
 /**
  * omap2_init_clksel_parent - set a clksel clk's parent field from the hardware
@@ -308,6 +335,9 @@ void omap2_clk_disable(struct clk *clk)
 		_omap2_clk_disable(clk);
 		if (likely((u32)clk->parent))
 			omap2_clk_disable(clk->parent);
+		if (clk->clkdm)
+			omap2_clkdm_clk_disable(clk->clkdm, clk);
+
 	}
 }
 
@@ -324,11 +354,19 @@ int omap2_clk_enable(struct clk *clk)
 			return ret;
 		}
 
+		if (clk->clkdm)
+			omap2_clkdm_clk_enable(clk->clkdm, clk);
+
 		ret = _omap2_clk_enable(clk);
 
-		if (unlikely(ret != 0) && clk->parent) {
-			omap2_clk_disable(clk->parent);
-			clk->usecount--;
+		if (unlikely(ret != 0)) {
+			if (clk->clkdm)
+				omap2_clkdm_clk_disable(clk->clkdm, clk);
+
+			if (clk->parent) {
+				omap2_clk_disable(clk->parent);
+				clk->usecount--;
+			}
 		}
 	}
 
