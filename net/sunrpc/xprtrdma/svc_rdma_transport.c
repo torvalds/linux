@@ -359,11 +359,11 @@ static void sq_cq_reap(struct svcxprt_rdma *xprt)
 			if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
 				struct svc_rdma_op_ctxt *read_hdr = ctxt->read_hdr;
 				BUG_ON(!read_hdr);
+				spin_lock_bh(&xprt->sc_rq_dto_lock);
 				set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
-				spin_lock_bh(&xprt->sc_read_complete_lock);
 				list_add_tail(&read_hdr->dto_q,
 					      &xprt->sc_read_complete_q);
-				spin_unlock_bh(&xprt->sc_read_complete_lock);
+				spin_unlock_bh(&xprt->sc_rq_dto_lock);
 				svc_xprt_enqueue(&xprt->sc_xprt);
 			}
 			svc_rdma_put_context(ctxt, 0);
@@ -428,7 +428,6 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	init_waitqueue_head(&cma_xprt->sc_send_wait);
 
 	spin_lock_init(&cma_xprt->sc_lock);
-	spin_lock_init(&cma_xprt->sc_read_complete_lock);
 	spin_lock_init(&cma_xprt->sc_rq_dto_lock);
 
 	cma_xprt->sc_ord = svcrdma_ord;

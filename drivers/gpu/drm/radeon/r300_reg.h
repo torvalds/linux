@@ -317,7 +317,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Therefore, I suspect writing zero to 0x2284 synchronizes the engine and
  * avoids bugs caused by still running shaders reading bad data from memory.
  */
-#define R300_VAP_PVS_WAITIDLE               0x2284 /* GUESS */
+#define R300_VAP_PVS_STATE_FLUSH_REG        0x2284
 
 /* Absolutely no clue what this register is about. */
 #define R300_VAP_UNKNOWN_2288               0x2288
@@ -513,7 +513,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* gap */
 
 /* Zero to flush caches. */
-#define R300_TX_CNTL                        0x4100
+#define R300_TX_INVALTAGS                   0x4100
 #define R300_TX_FLUSH                       0x0
 
 /* The upper enable bits are guessed, based on fglrx reported limits. */
@@ -1362,6 +1362,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define R300_RB3D_COLORPITCH2               0x4E40 /* GUESS */
 #define R300_RB3D_COLORPITCH3               0x4E44 /* GUESS */
 
+#define R300_RB3D_AARESOLVE_CTL             0x4E88
 /* gap */
 
 /* Guess by Vladimir.

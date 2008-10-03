@@ -589,11 +589,16 @@ omap_i2c_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
-	dev->base = (void __iomem *) IO_ADDRESS(mem->start);
+	dev->base = ioremap(mem->start, mem->end - mem->start + 1);
+	if (!dev->base) {
+		r = -ENOMEM;
+		goto err_free_mem;
+	}
+
 	platform_set_drvdata(pdev, dev);
 
 	if ((r = omap_i2c_get_clocks(dev)) != 0)
-		goto err_free_mem;
+		goto err_iounmap;
 
 	omap_i2c_unidle(dev);
 
@@ -640,6 +645,8 @@ err_unuse_clocks:
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
 	omap_i2c_idle(dev);
 	omap_i2c_put_clocks(dev);
+err_iounmap:
+	iounmap(dev->base);
 err_free_mem:
 	platform_set_drvdata(pdev, NULL);
 	kfree(dev);
@@ -661,6 +668,7 @@ omap_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
 	omap_i2c_put_clocks(dev);
+	iounmap(dev->base);
 	kfree(dev);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, (mem->end - mem->start) + 1);

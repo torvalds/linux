@@ -64,10 +64,8 @@ static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
 static unsigned		gpmc_cs_map;
 
-static void __iomem *gpmc_base =
-	(void __iomem *) IO_ADDRESS(GPMC_BASE);
-static void __iomem *gpmc_cs_base =
-	(void __iomem *) IO_ADDRESS(GPMC_BASE) + GPMC_CS0;
+static void __iomem *gpmc_base = IO_ADDRESS(GPMC_BASE);
+static void __iomem *gpmc_cs_base = IO_ADDRESS(GPMC_BASE) + GPMC_CS0;
 
 static struct clk *gpmc_fck;
 

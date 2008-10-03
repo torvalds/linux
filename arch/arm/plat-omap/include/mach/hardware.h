@@ -89,7 +89,7 @@
 #define DPLL_CTL		(0xfffecf00)
 
 /* DSP clock control. Must use __raw_readw() and __raw_writew() with these */
-#define DSP_CONFIG_REG_BASE     (0xe1008000)
+#define DSP_CONFIG_REG_BASE     IOMEM(0xe1008000)
 #define DSP_CKCTL		(DSP_CONFIG_REG_BASE + 0x0)
 #define DSP_IDLECT1		(DSP_CONFIG_REG_BASE + 0x4)
 #define DSP_IDLECT2		(DSP_CONFIG_REG_BASE + 0x8)

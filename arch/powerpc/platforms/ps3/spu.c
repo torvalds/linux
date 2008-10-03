@@ -186,14 +186,24 @@ static void spu_unmap(struct spu *spu)
 	iounmap(spu_pdata(spu)->shadow);
 }
 
+/**
+ * setup_areas - Map the spu regions into the address space.
+ *
+ * The current HV requires the spu shadow regs to be mapped with the
+ * PTE page protection bits set as read-only (PP=3).  This implementation
+ * uses the low level __ioremap() to bypass the page protection settings
+ * inforced by ioremap_flags() to get the needed PTE bits set for the
+ * shadow regs.
+ */
+
 static int __init setup_areas(struct spu *spu)
 {
 	struct table {char* name; unsigned long addr; unsigned long size;};
+	static const unsigned long shadow_flags = _PAGE_NO_CACHE | 3;
 
-	spu_pdata(spu)->shadow = ioremap_flags(spu_pdata(spu)->shadow_addr,
-					       sizeof(struct spe_shadow),
-					       pgprot_val(PAGE_READONLY) |
-					       _PAGE_NO_CACHE);
+	spu_pdata(spu)->shadow = __ioremap(spu_pdata(spu)->shadow_addr,
+					   sizeof(struct spe_shadow),
+					   shadow_flags);
 	if (!spu_pdata(spu)->shadow) {
 		pr_debug("%s:%d: ioremap shadow failed\n", __func__, __LINE__);
 		goto fail_ioremap;

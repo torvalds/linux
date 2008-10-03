@@ -208,7 +208,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 	if (cpu_is_omap16xx())
 		ocpi_enable();
 
-#ifdef	CONFIG_ARCH_OMAP_OTG
+#ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {
 		ohci->transceiver = otg_get_transceiver();
 		if (ohci->transceiver) {
@@ -344,7 +344,12 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 		goto err1;
 	}
 
-	hcd->regs = (void __iomem *) (int) IO_ADDRESS(hcd->rsrc_start);
+	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	if (!hcd->regs) {
+		dev_err(&pdev->dev, "can't ioremap OHCI HCD\n");
+		retval = -ENOMEM;
+		goto err2;
+	}
 
 	ohci = hcd_to_ohci(hcd);
 	ohci_hcd_init(ohci);
@@ -355,11 +360,11 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		retval = -ENXIO;
-		goto err2;
+		goto err3;
 	}
 	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (retval)
-		goto err2;
+		goto err3;
 
 	host_initialized = 1;
 
@@ -367,6 +372,8 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 		omap_ohci_clock_power(0);
 
 	return 0;
+err3:
+	iounmap(hcd->regs);
 err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err1:
@@ -401,6 +408,7 @@ usb_hcd_omap_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 	}
 	if (machine_is_omap_osk())
 		omap_free_gpio(9);
+	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	clk_put(usb_dc_ck);

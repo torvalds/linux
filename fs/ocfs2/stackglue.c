@@ -97,13 +97,14 @@ static int ocfs2_stack_driver_request(const char *stack_name,
 		goto out;
 	}
 
-	/* Ok, the stack is pinned */
-	p->sp_count++;
 	active_stack = p;
-
 	rc = 0;
 
 out:
+	/* If we found it, pin it */
+	if (!rc)
+		active_stack->sp_count++;
+
 	spin_unlock(&ocfs2_stack_lock);
 	return rc;
 }

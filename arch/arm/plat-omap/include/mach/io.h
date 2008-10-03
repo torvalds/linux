@@ -55,14 +55,13 @@
 
 #if defined(CONFIG_ARCH_OMAP1)
 
-#define IO_PHYS		0xFFFB0000
-#define IO_OFFSET	0x01000000	/* Virtual IO = 0xfefb0000 */
-#define IO_SIZE		0x40000
-#define IO_VIRT		(IO_PHYS - IO_OFFSET)
-#define IO_ADDRESS(pa)	((pa) - IO_OFFSET)
-#define OMAP1_IO_ADDRESS(pa)	((pa) - IO_OFFSET)
-#define io_p2v(pa)	((pa) - IO_OFFSET)
-#define io_v2p(va)	((va) + IO_OFFSET)
+#define IO_PHYS			0xFFFB0000
+#define IO_OFFSET		0x01000000	/* Virtual IO = 0xfefb0000 */
+#define IO_SIZE			0x40000
+#define IO_VIRT			(IO_PHYS - IO_OFFSET)
+#define __IO_ADDRESS(pa)	((pa) - IO_OFFSET)
+#define __OMAP1_IO_ADDRESS(pa)	((pa) - IO_OFFSET)
+#define io_v2p(va)		((va) + IO_OFFSET)
 
 #elif defined(CONFIG_ARCH_OMAP2)
 
@@ -90,11 +89,10 @@
 
 #endif
 
-#define IO_OFFSET	0x90000000
-#define IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
-#define OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
-#define io_p2v(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
-#define io_v2p(va)	((va) - IO_OFFSET)	/* Works for L3 and L4 */
+#define IO_OFFSET		0x90000000
+#define __IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
+#define __OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
+#define io_v2p(va)		((va) - IO_OFFSET)	/* Works for L3 and L4 */
 
 /* DSP */
 #define DSP_MEM_24XX_PHYS	OMAP2420_DSP_MEM_BASE	/* 0x58000000 */
@@ -149,9 +147,8 @@
 
 
 #define IO_OFFSET		0x90000000
-#define IO_ADDRESS(pa)		((pa) + IO_OFFSET)/* Works for L3 and L4 */
-#define OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
-#define io_p2v(pa)		((pa) + IO_OFFSET)/* Works for L3 and L4 */
+#define __IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
+#define __OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
 #define io_v2p(va)		((va) - IO_OFFSET)/* Works for L3 and L4 */
 
 /* DSP */
@@ -167,7 +164,14 @@
 
 #endif
 
-#ifndef __ASSEMBLER__
+#define IO_ADDRESS(pa)		IOMEM(__IO_ADDRESS(pa))
+#define OMAP1_IO_ADDRESS(pa)	IOMEM(__OMAP1_IO_ADDRESS(pa))
+#define OMAP2_IO_ADDRESS(pa)	IOMEM(__OMAP2_IO_ADDRESS(pa))
+
+#ifdef __ASSEMBLER__
+#define IOMEM(x)		x
+#else
+#define IOMEM(x)		((void __force __iomem *)(x))
 
 /*
  * Functions to access the OMAP IO region
@@ -178,19 +182,25 @@
  *	 - DO NOT use hardcoded virtual addresses to allow changing the
  *	   IO address space again if needed
  */
-#define omap_readb(a)		(*(volatile unsigned char  *)IO_ADDRESS(a))
-#define omap_readw(a)		(*(volatile unsigned short *)IO_ADDRESS(a))
-#define omap_readl(a)		(*(volatile unsigned int   *)IO_ADDRESS(a))
+#define omap_readb(a)		__raw_readb(IO_ADDRESS(a))
+#define omap_readw(a)		__raw_readw(IO_ADDRESS(a))
+#define omap_readl(a)		__raw_readl(IO_ADDRESS(a))
 
-#define omap_writeb(v,a)	(*(volatile unsigned char  *)IO_ADDRESS(a) = (v))
-#define omap_writew(v,a)	(*(volatile unsigned short *)IO_ADDRESS(a) = (v))
-#define omap_writel(v,a)	(*(volatile unsigned int   *)IO_ADDRESS(a) = (v))
+#define omap_writeb(v,a)	__raw_writeb(v, IO_ADDRESS(a))
+#define omap_writew(v,a)	__raw_writew(v, IO_ADDRESS(a))
+#define omap_writel(v,a)	__raw_writel(v, IO_ADDRESS(a))
 
 extern void omap1_map_common_io(void);
 extern void omap1_init_common_hw(void);
 
 extern void omap2_map_common_io(void);
 extern void omap2_init_common_hw(void);
+
+#define __arch_ioremap(p,s,t)	omap_ioremap(p,s,t)
+#define __arch_iounmap(v)	omap_iounmap(v)
+
+void __iomem *omap_ioremap(unsigned long phys, size_t size, unsigned int type);
+void omap_iounmap(volatile void __iomem *addr);
 
 #endif
 

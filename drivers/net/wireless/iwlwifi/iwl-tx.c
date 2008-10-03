@@ -426,7 +426,7 @@ static int iwl_tx_queue_init(struct iwl_priv *priv,
 				continue;
 		}
 
-		txq->cmd[i] = kmalloc(len, GFP_KERNEL | GFP_DMA);
+		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
 		if (!txq->cmd[i])
 			return -ENOMEM;
 	}

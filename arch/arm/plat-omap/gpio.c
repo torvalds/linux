@@ -29,7 +29,7 @@
 /*
  * OMAP1510 GPIO registers
  */
-#define OMAP1510_GPIO_BASE		(void __iomem *)0xfffce000
+#define OMAP1510_GPIO_BASE		IO_ADDRESS(0xfffce000)
 #define OMAP1510_GPIO_DATA_INPUT	0x00
 #define OMAP1510_GPIO_DATA_OUTPUT	0x04
 #define OMAP1510_GPIO_DIR_CONTROL	0x08
@@ -43,10 +43,10 @@
 /*
  * OMAP1610 specific GPIO registers
  */
-#define OMAP1610_GPIO1_BASE		(void __iomem *)0xfffbe400
-#define OMAP1610_GPIO2_BASE		(void __iomem *)0xfffbec00
-#define OMAP1610_GPIO3_BASE		(void __iomem *)0xfffbb400
-#define OMAP1610_GPIO4_BASE		(void __iomem *)0xfffbbc00
+#define OMAP1610_GPIO1_BASE		IO_ADDRESS(0xfffbe400)
+#define OMAP1610_GPIO2_BASE		IO_ADDRESS(0xfffbec00)
+#define OMAP1610_GPIO3_BASE		IO_ADDRESS(0xfffbb400)
+#define OMAP1610_GPIO4_BASE		IO_ADDRESS(0xfffbbc00)
 #define OMAP1610_GPIO_REVISION		0x0000
 #define OMAP1610_GPIO_SYSCONFIG		0x0010
 #define OMAP1610_GPIO_SYSSTATUS		0x0014
@@ -68,12 +68,12 @@
 /*
  * OMAP730 specific GPIO registers
  */
-#define OMAP730_GPIO1_BASE		(void __iomem *)0xfffbc000
-#define OMAP730_GPIO2_BASE		(void __iomem *)0xfffbc800
-#define OMAP730_GPIO3_BASE		(void __iomem *)0xfffbd000
-#define OMAP730_GPIO4_BASE		(void __iomem *)0xfffbd800
-#define OMAP730_GPIO5_BASE		(void __iomem *)0xfffbe000
-#define OMAP730_GPIO6_BASE		(void __iomem *)0xfffbe800
+#define OMAP730_GPIO1_BASE		IO_ADDRESS(0xfffbc000)
+#define OMAP730_GPIO2_BASE		IO_ADDRESS(0xfffbc800)
+#define OMAP730_GPIO3_BASE		IO_ADDRESS(0xfffbd000)
+#define OMAP730_GPIO4_BASE		IO_ADDRESS(0xfffbd800)
+#define OMAP730_GPIO5_BASE		IO_ADDRESS(0xfffbe000)
+#define OMAP730_GPIO6_BASE		IO_ADDRESS(0xfffbe800)
 #define OMAP730_GPIO_DATA_INPUT		0x00
 #define OMAP730_GPIO_DATA_OUTPUT	0x04
 #define OMAP730_GPIO_DIR_CONTROL	0x08
@@ -84,16 +84,16 @@
 /*
  * omap24xx specific GPIO registers
  */
-#define OMAP242X_GPIO1_BASE		(void __iomem *)0x48018000
-#define OMAP242X_GPIO2_BASE		(void __iomem *)0x4801a000
-#define OMAP242X_GPIO3_BASE		(void __iomem *)0x4801c000
-#define OMAP242X_GPIO4_BASE		(void __iomem *)0x4801e000
+#define OMAP242X_GPIO1_BASE		IO_ADDRESS(0x48018000)
+#define OMAP242X_GPIO2_BASE		IO_ADDRESS(0x4801a000)
+#define OMAP242X_GPIO3_BASE		IO_ADDRESS(0x4801c000)
+#define OMAP242X_GPIO4_BASE		IO_ADDRESS(0x4801e000)
 
-#define OMAP243X_GPIO1_BASE		(void __iomem *)0x4900C000
-#define OMAP243X_GPIO2_BASE		(void __iomem *)0x4900E000
-#define OMAP243X_GPIO3_BASE		(void __iomem *)0x49010000
-#define OMAP243X_GPIO4_BASE		(void __iomem *)0x49012000
-#define OMAP243X_GPIO5_BASE		(void __iomem *)0x480B6000
+#define OMAP243X_GPIO1_BASE		IO_ADDRESS(0x4900C000)
+#define OMAP243X_GPIO2_BASE		IO_ADDRESS(0x4900E000)
+#define OMAP243X_GPIO3_BASE		IO_ADDRESS(0x49010000)
+#define OMAP243X_GPIO4_BASE		IO_ADDRESS(0x49012000)
+#define OMAP243X_GPIO5_BASE		IO_ADDRESS(0x480B6000)
 
 #define OMAP24XX_GPIO_REVISION		0x0000
 #define OMAP24XX_GPIO_SYSCONFIG		0x0010
@@ -123,13 +123,14 @@
  * omap34xx specific GPIO registers
  */
 
-#define OMAP34XX_GPIO1_BASE		(void __iomem *)0x48310000
-#define OMAP34XX_GPIO2_BASE		(void __iomem *)0x49050000
-#define OMAP34XX_GPIO3_BASE		(void __iomem *)0x49052000
-#define OMAP34XX_GPIO4_BASE		(void __iomem *)0x49054000
-#define OMAP34XX_GPIO5_BASE		(void __iomem *)0x49056000
-#define OMAP34XX_GPIO6_BASE		(void __iomem *)0x49058000
+#define OMAP34XX_GPIO1_BASE		IO_ADDRESS(0x48310000)
+#define OMAP34XX_GPIO2_BASE		IO_ADDRESS(0x49050000)
+#define OMAP34XX_GPIO3_BASE		IO_ADDRESS(0x49052000)
+#define OMAP34XX_GPIO4_BASE		IO_ADDRESS(0x49054000)
+#define OMAP34XX_GPIO5_BASE		IO_ADDRESS(0x49056000)
+#define OMAP34XX_GPIO6_BASE		IO_ADDRESS(0x49058000)
 
+#define OMAP_MPUIO_VBASE		IO_ADDRESS(OMAP_MPUIO_BASE)
 
 struct gpio_bank {
 	void __iomem *base;
@@ -161,7 +162,7 @@ struct gpio_bank {
 
 #ifdef CONFIG_ARCH_OMAP16XX
 static struct gpio_bank gpio_bank_1610[5] = {
-	{ OMAP_MPUIO_BASE,     INT_MPUIO,	    IH_MPUIO_BASE,     METHOD_MPUIO},
+	{ OMAP_MPUIO_VBASE,    INT_MPUIO,	    IH_MPUIO_BASE,     METHOD_MPUIO},
 	{ OMAP1610_GPIO1_BASE, INT_GPIO_BANK1,	    IH_GPIO_BASE,      METHOD_GPIO_1610 },
 	{ OMAP1610_GPIO2_BASE, INT_1610_GPIO_BANK2, IH_GPIO_BASE + 16, METHOD_GPIO_1610 },
 	{ OMAP1610_GPIO3_BASE, INT_1610_GPIO_BANK3, IH_GPIO_BASE + 32, METHOD_GPIO_1610 },
@@ -171,14 +172,14 @@ static struct gpio_bank gpio_bank_1610[5] = {
 
 #ifdef CONFIG_ARCH_OMAP15XX
 static struct gpio_bank gpio_bank_1510[2] = {
-	{ OMAP_MPUIO_BASE,    INT_MPUIO,      IH_MPUIO_BASE, METHOD_MPUIO },
+	{ OMAP_MPUIO_VBASE,   INT_MPUIO,      IH_MPUIO_BASE, METHOD_MPUIO },
 	{ OMAP1510_GPIO_BASE, INT_GPIO_BANK1, IH_GPIO_BASE,  METHOD_GPIO_1510 }
 };
 #endif
 
 #ifdef CONFIG_ARCH_OMAP730
 static struct gpio_bank gpio_bank_730[7] = {
-	{ OMAP_MPUIO_BASE,     INT_730_MPUIO,	    IH_MPUIO_BASE,	METHOD_MPUIO },
+	{ OMAP_MPUIO_VBASE,    INT_730_MPUIO,	    IH_MPUIO_BASE,	METHOD_MPUIO },
 	{ OMAP730_GPIO1_BASE,  INT_730_GPIO_BANK1,  IH_GPIO_BASE,	METHOD_GPIO_730 },
 	{ OMAP730_GPIO2_BASE,  INT_730_GPIO_BANK2,  IH_GPIO_BASE + 32,	METHOD_GPIO_730 },
 	{ OMAP730_GPIO3_BASE,  INT_730_GPIO_BANK3,  IH_GPIO_BASE + 64,	METHOD_GPIO_730 },
@@ -1393,7 +1394,7 @@ static int __init _omap_gpio_init(void)
 
 		gpio_bank_count = 5;
 		gpio_bank = gpio_bank_1610;
-		rev = omap_readw(gpio_bank[1].base + OMAP1610_GPIO_REVISION);
+		rev = __raw_readw(gpio_bank[1].base + OMAP1610_GPIO_REVISION);
 		printk(KERN_INFO "OMAP GPIO hardware version %d.%d\n",
 		       (rev >> 4) & 0x0f, rev & 0x0f);
 	}
@@ -1412,7 +1413,7 @@ static int __init _omap_gpio_init(void)
 
 		gpio_bank_count = 4;
 		gpio_bank = gpio_bank_242x;
-		rev = omap_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
+		rev = __raw_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
 		printk(KERN_INFO "OMAP242x GPIO hardware version %d.%d\n",
 			(rev >> 4) & 0x0f, rev & 0x0f);
 	}
@@ -1421,7 +1422,7 @@ static int __init _omap_gpio_init(void)
 
 		gpio_bank_count = 5;
 		gpio_bank = gpio_bank_243x;
-		rev = omap_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
+		rev = __raw_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
 		printk(KERN_INFO "OMAP243x GPIO hardware version %d.%d\n",
 			(rev >> 4) & 0x0f, rev & 0x0f);
 	}
@@ -1432,7 +1433,7 @@ static int __init _omap_gpio_init(void)
 
 		gpio_bank_count = OMAP34XX_NR_GPIOS;
 		gpio_bank = gpio_bank_34xx;
-		rev = omap_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
+		rev = __raw_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
 		printk(KERN_INFO "OMAP34xx GPIO hardware version %d.%d\n",
 			(rev >> 4) & 0x0f, rev & 0x0f);
 	}
@@ -1441,10 +1442,9 @@ static int __init _omap_gpio_init(void)
 		int j, gpio_count = 16;
 
 		bank = &gpio_bank[i];
-		bank->base = IO_ADDRESS(bank->base);
 		spin_lock_init(&bank->lock);
 		if (bank_is_mpuio(bank))
-			omap_writew(0xFFFF, OMAP_MPUIO_BASE + OMAP_MPUIO_GPIO_MASKIT);
+			__raw_writew(0xffff, bank->base + OMAP_MPUIO_GPIO_MASKIT);
 		if (cpu_is_omap15xx() && bank->method == METHOD_GPIO_1510) {
 			__raw_writew(0xffff, bank->base + OMAP1510_GPIO_INT_MASK);
 			__raw_writew(0x0000, bank->base + OMAP1510_GPIO_INT_STATUS);
@@ -1488,7 +1488,7 @@ static int __init _omap_gpio_init(void)
 		bank->chip.set = gpio_set;
 		if (bank_is_mpuio(bank)) {
 			bank->chip.label = "mpuio";
-#ifdef CONFIG_ARCH_OMAP1
+#ifdef CONFIG_ARCH_OMAP16XX
 			bank->chip.dev = &omap_mpuio_device.dev;
 #endif
 			bank->chip.base = OMAP_MPUIO(0);

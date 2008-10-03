@@ -1233,7 +1233,7 @@ int omap_request_dma_chain(int dev_id, const char *dev_name,
 	/* request and reserve DMA channels for the chain */
 	for (i = 0; i < no_of_chans; i++) {
 		err = omap_request_dma(dev_id, dev_name,
-					callback, 0, &channels[i]);
+					callback, NULL, &channels[i]);
 		if (err < 0) {
 			int j;
 			for (j = 0; j < i; j++)
@@ -2297,13 +2297,13 @@ static int __init omap_init_dma(void)
 	int ch, r;
 
 	if (cpu_class_is_omap1()) {
-		omap_dma_base = (void __iomem *)IO_ADDRESS(OMAP1_DMA_BASE);
+		omap_dma_base = IO_ADDRESS(OMAP1_DMA_BASE);
 		dma_lch_count = OMAP1_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap24xx()) {
-		omap_dma_base = (void __iomem *)IO_ADDRESS(OMAP24XX_DMA4_BASE);
+		omap_dma_base = IO_ADDRESS(OMAP24XX_DMA4_BASE);
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap34xx()) {
-		omap_dma_base = (void __iomem *)IO_ADDRESS(OMAP34XX_DMA4_BASE);
+		omap_dma_base = IO_ADDRESS(OMAP34XX_DMA4_BASE);
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else {
 		pr_err("DMA init failed for unsupported omap\n");

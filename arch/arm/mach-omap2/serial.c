@@ -32,24 +32,24 @@ static struct clk * uart3_fck = NULL;
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= (char *)IO_ADDRESS(OMAP_UART1_BASE),
-		.mapbase	= (unsigned long)OMAP_UART1_BASE,
+		.membase	= IO_ADDRESS(OMAP_UART1_BASE),
+		.mapbase	= OMAP_UART1_BASE,
 		.irq		= 72,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	}, {
-		.membase	= (char *)IO_ADDRESS(OMAP_UART2_BASE),
-		.mapbase	= (unsigned long)OMAP_UART2_BASE,
+		.membase	= IO_ADDRESS(OMAP_UART2_BASE),
+		.mapbase	= OMAP_UART2_BASE,
 		.irq		= 73,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	}, {
-		.membase	= (char *)IO_ADDRESS(OMAP_UART3_BASE),
-		.mapbase	= (unsigned long)OMAP_UART3_BASE,
+		.membase	= IO_ADDRESS(OMAP_UART3_BASE),
+		.mapbase	= OMAP_UART3_BASE,
 		.irq		= 74,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -71,7 +71,7 @@ static inline void serial_write_reg(struct plat_serial8250_port *p, int offset,
 				    int value)
 {
 	offset <<= p->regshift;
-	__raw_writeb(value, (unsigned long)(p->membase + offset));
+	__raw_writeb(value, p->membase + offset);
 }
 
 /*
@@ -108,7 +108,7 @@ void __init omap_serial_init()
 		struct plat_serial8250_port *p = serial_platform_data + i;
 
 		if (!(info->enabled_uarts & (1 << i))) {
-			p->membase = 0;
+			p->membase = NULL;
 			p->mapbase = 0;
 			continue;
 		}

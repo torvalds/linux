@@ -201,7 +201,7 @@ static int calc_dsor_exp(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	parent = clk->parent;
-	if (unlikely(parent == 0))
+	if (unlikely(parent == NULL))
 		return -EIO;
 
 	realrate = parent->rate;
@@ -499,7 +499,7 @@ static int omap1_clk_enable_generic(struct clk *clk)
 	if (clk->flags & ALWAYS_ENABLED)
 		return 0;
 
-	if (unlikely(clk->enable_reg == 0)) {
+	if (unlikely(clk->enable_reg == NULL)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
 		       clk->name);
 		return -EINVAL;
@@ -535,7 +535,7 @@ static void omap1_clk_disable_generic(struct clk *clk)
 	__u16 regval16;
 	__u32 regval32;
 
-	if (clk->enable_reg == 0)
+	if (clk->enable_reg == NULL)
 		return;
 
 	if (clk->flags & ENABLE_REG_32BIT) {
@@ -577,7 +577,7 @@ static long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 		return clk->parent->rate / (1 << dsor_exp);
 	}
 
-	if(clk->round_rate != 0)
+	if (clk->round_rate != NULL)
 		return clk->round_rate(clk, rate);
 
 	return clk->rate;
@@ -625,7 +625,7 @@ static void __init omap1_clk_disable_unused(struct clk *clk)
 
 	/* Clocks in the DSP domain need api_ck. Just assume bootloader
 	 * has not enabled any DSP clocks */
-	if ((u32)clk->enable_reg == DSP_IDLECT2) {
+	if (clk->enable_reg == DSP_IDLECT2) {
 		printk(KERN_INFO "Skipping reset check for DSP domain "
 		       "clock \"%s\"\n", clk->name);
 		return;

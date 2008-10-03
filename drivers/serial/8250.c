@@ -1908,12 +1908,20 @@ static int serial8250_startup(struct uart_port *port)
 		 * kick the UART on a regular basis.
 		 */
 		if (!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) {
+			up->bugs |= UART_BUG_THRE;
 			pr_debug("ttyS%d - using backup timer\n", port->line);
-			up->timer.function = serial8250_backup_timeout;
-			up->timer.data = (unsigned long)up;
-			mod_timer(&up->timer, jiffies +
-				poll_timeout(up->port.timeout) + HZ / 5);
 		}
+	}
+
+	/*
+	 * The above check will only give an accurate result the first time
+	 * the port is opened so this value needs to be preserved.
+	 */
+	if (up->bugs & UART_BUG_THRE) {
+		up->timer.function = serial8250_backup_timeout;
+		up->timer.data = (unsigned long)up;
+		mod_timer(&up->timer, jiffies +
+			  poll_timeout(up->port.timeout) + HZ / 5);
 	}
 
 	/*
@@ -2203,9 +2211,9 @@ serial8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_outp(up, UART_EFR, efr);
 	}
 
-#ifdef CONFIG_ARCH_OMAP15XX
+#ifdef CONFIG_ARCH_OMAP
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
-	if (cpu_is_omap1510() && is_omap_port((unsigned int)up->port.membase)) {
+	if (cpu_is_omap1510() && is_omap_port(up)) {
 		if (baud == 115200) {
 			quot = 1;
 			serial_out(up, UART_OMAP_OSC_12M_SEL, 1);
@@ -2258,18 +2266,27 @@ serial8250_pm(struct uart_port *port, unsigned int state,
 		p->pm(port, state, oldstate);
 }
 
+static unsigned int serial8250_port_size(struct uart_8250_port *pt)
+{
+	if (pt->port.iotype == UPIO_AU)
+		return 0x100000;
+#ifdef CONFIG_ARCH_OMAP
+	if (is_omap_port(pt))
+		return 0x16 << pt->port.regshift;
+#endif
+	return 8 << pt->port.regshift;
+}
+
 /*
  * Resource handling.
  */
 static int serial8250_request_std_resource(struct uart_8250_port *up)
 {
-	unsigned int size = 8 << up->port.regshift;
+	unsigned int size = serial8250_port_size(up);
 	int ret = 0;
 
 	switch (up->port.iotype) {
 	case UPIO_AU:
-		size = 0x100000;
-		/* fall thru */
 	case UPIO_TSI:
 	case UPIO_MEM32:
 	case UPIO_MEM:
@@ -2303,12 +2320,10 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 
 static void serial8250_release_std_resource(struct uart_8250_port *up)
 {
-	unsigned int size = 8 << up->port.regshift;
+	unsigned int size = serial8250_port_size(up);
 
 	switch (up->port.iotype) {
 	case UPIO_AU:
-		size = 0x100000;
-		/* fall thru */
 	case UPIO_TSI:
 	case UPIO_MEM32:
 	case UPIO_MEM:
