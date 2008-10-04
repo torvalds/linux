@@ -284,7 +284,7 @@ static void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp, char *log_lvl)
 {
-	printk("Call Trace:\n");
+	printk("%sCall Trace:\n", log_lvl);
 	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
 }
 
@@ -330,7 +330,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			break;
 		}
 		if (i && ((i % 4) == 0))
-			printk("\n");
+			printk("\n%s", log_lvl);
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
@@ -388,9 +388,9 @@ void show_registers(struct pt_regs *regs)
 		unsigned char c;
 		u8 *ip;
 
-		printk("Stack: ");
+		printk(KERN_EMERG "Stack:\n");
 		show_stack_log_lvl(NULL, regs, (unsigned long *)sp,
-				regs->bp, "");
+				regs->bp, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 
