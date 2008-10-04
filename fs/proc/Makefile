@@ -14,6 +14,7 @@ proc-y	+= cpuinfo.o
 proc-y	+= devices.o
 proc-y	+= loadavg.o
 proc-y	+= meminfo.o
+proc-y	+= stat.o
 proc-y	+= uptime.o
 proc-y	+= version.o
 proc-$(CONFIG_PROC_SYSCTL)	+= proc_sysctl.o
