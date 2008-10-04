@@ -257,7 +257,7 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 			panic("please boot with nr_irq_cfg= %d\n", count * 2);
 
 		phys = __pa(cfg);
-		printk(KERN_DEBUG "irq_irq ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
+		printk(KERN_DEBUG "irq_cfg ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
 
 		for (i = 0; i < nr_irq_cfg; i++)
 			init_one_irq_cfg(&cfg[i]);
