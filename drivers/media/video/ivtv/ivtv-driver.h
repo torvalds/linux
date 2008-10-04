@@ -750,6 +750,12 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv);
 /* First-open initialization: load firmware, init cx25840, etc. */
 int ivtv_init_on_first_open(struct ivtv *itv);
 
+/* Test if the current VBI mode is raw (1) or sliced (0) */
+static inline int ivtv_raw_vbi(const struct ivtv *itv)
+{
+	return itv->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
+}
+
 /* This is a PCI post thing, where if the pci register is not read, then
    the write doesn't always take effect right away. By reading back the
    register any pending PCI writes will be performed (in order), and so

@@ -720,7 +720,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->speed = 1000;
 
 	/* VBI */
-	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	itv->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	itv->vbi.sliced_in = &itv->vbi.in.fmt.sliced;
 
 	/* Init the sg table for osd/yuv output */

@@ -1057,7 +1057,7 @@ static void saa711x_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	for (i = 0; i <= 23; i++)
 		lcr[i] = 0xff;
 
-	if (fmt->service_set == 0) {
+	if (fmt == NULL) {
 		/* raw VBI */
 		if (is_50hz)
 			for (i = 6; i <= 23; i++)
@@ -1113,7 +1113,7 @@ static void saa711x_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	}
 
 	/* enable/disable raw VBI capturing */
-	saa711x_writeregs(client, fmt->service_set == 0 ?
+	saa711x_writeregs(client, fmt == NULL ?
 				saa7115_cfg_vbi_on :
 				saa7115_cfg_vbi_off);
 }
@@ -1151,6 +1151,10 @@ static int saa711x_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 {
 	if (fmt->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
 		saa711x_set_lcr(client, &fmt->fmt.sliced);
+		return 0;
+	}
+	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		saa711x_set_lcr(client, NULL);
 		return 0;
 	}
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)

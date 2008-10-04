@@ -575,8 +575,11 @@ static int ivtv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
+	if (!ivtv_raw_vbi(itv) && atomic_read(&itv->capturing) > 0)
+		return -EBUSY;
 	itv->vbi.sliced_in->service_set = 0;
-	itv->video_dec_func(itv, VIDIOC_S_FMT, &itv->vbi.in);
+	itv->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
+	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
 	return ivtv_g_fmt_vbi_cap(file, fh, fmt);
 }
 
@@ -591,8 +594,9 @@ static int ivtv_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 		return ret;
 
 	check_service_set(vbifmt, itv->is_50hz);
-	if (atomic_read(&itv->capturing) > 0)
+	if (ivtv_raw_vbi(itv) && atomic_read(&itv->capturing) > 0)
 		return -EBUSY;
+	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
 	memcpy(itv->vbi.sliced_in, vbifmt, sizeof(*itv->vbi.sliced_in));
 	return 0;

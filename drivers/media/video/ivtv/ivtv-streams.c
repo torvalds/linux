@@ -334,7 +334,7 @@ void ivtv_streams_cleanup(struct ivtv *itv, int unregister)
 
 static void ivtv_vbi_setup(struct ivtv *itv)
 {
-	int raw = itv->vbi.sliced_in->service_set == 0;
+	int raw = ivtv_raw_vbi(itv);
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	int lines;
 	int i;
