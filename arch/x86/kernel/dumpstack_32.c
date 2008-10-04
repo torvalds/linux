@@ -418,13 +418,24 @@ die_nmi(char *str, struct pt_regs *regs, int do_panic)
 	do_exit(SIGSEGV);
 }
 
+static int __init oops_setup(char *s)
+{
+	if (!s)
+		return -EINVAL;
+	if (!strcmp(s, "panic"))
+		panic_on_oops = 1;
+	return 0;
+}
+early_param("oops", oops_setup);
+
 static int __init kstack_setup(char *s)
 {
+	if (!s)
+		return -EINVAL;
 	kstack_depth_to_print = simple_strtoul(s, NULL, 0);
-
-	return 1;
+	return 0;
 }
-__setup("kstack=", kstack_setup);
+early_param("kstack", kstack_setup);
 
 static int __init code_bytes_setup(char *s)
 {
