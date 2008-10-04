@@ -57,24 +57,6 @@
 #include <asm/div64.h>
 #include "internal.h"
 
-/*
- * Warning: stuff below (imported functions) assumes that its output will fit
- * into one page. For some of those functions it may be wrong. Moreover, we
- * have a way to deal with that gracefully. Right now I used straightforward
- * wrappers, but this needs further analysis wrt potential overflows.
- */
-
-static int proc_calc_metrics(char *page, char **start, off_t off,
-				 int count, int *eof, int len)
-{
-	if (len <= off+count) *eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len>count) len = count;
-	if (len<0) len = 0;
-	return len;
-}
-
 static int fragmentation_open(struct inode *inode, struct file *file)
 {
 	(void)inode;
@@ -620,15 +602,6 @@ struct proc_dir_entry *proc_root_kcore;
 
 void __init proc_misc_init(void)
 {
-	static struct {
-		char *name;
-		int (*read_proc)(char*,char**,off_t,int,int*,void*);
-	} *p, simple_ones[] = {
-		{NULL,}
-	};
-	for (p = simple_ones; p->name; p++)
-		create_proc_read_entry(p->name, 0, NULL, p->read_proc, NULL);
-
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
