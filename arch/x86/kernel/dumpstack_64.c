@@ -141,7 +141,7 @@ print_context_stack(struct thread_info *tinfo,
 
 		addr = *stack;
 		if (__kernel_text_address(addr)) {
-			if ((unsigned long) stack == bp + 8) {
+			if ((unsigned long) stack == bp + sizeof(long)) {
 				ops->address(data, addr, 1);
 				frame = frame->next_frame;
 				bp = (unsigned long) frame;

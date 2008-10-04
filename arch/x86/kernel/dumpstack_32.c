@@ -28,10 +28,16 @@ void printk_address(unsigned long address, int reliable)
 }
 
 static inline int valid_stack_ptr(struct thread_info *tinfo,
-			void *p, unsigned int size)
+			void *p, unsigned int size, void *end)
 {
 	void *t = tinfo;
-	return	p > t && p <= t + THREAD_SIZE - size;
+	if (end) {
+		if (p < end && p >= (end-THREAD_SIZE))
+			return 1;
+		else
+			return 0;
+	}
+	return p > t && p < t + THREAD_SIZE - size;
 }
 
 /* The form of the top of the frame on the stack */
@@ -43,16 +49,17 @@ struct stack_frame {
 static inline unsigned long
 print_context_stack(struct thread_info *tinfo,
 		unsigned long *stack, unsigned long bp,
-		const struct stacktrace_ops *ops, void *data)
+		const struct stacktrace_ops *ops, void *data,
+		unsigned long *end)
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
 
-	while (valid_stack_ptr(tinfo, stack, sizeof(*stack))) {
+	while (valid_stack_ptr(tinfo, stack, sizeof(*stack), end)) {
 		unsigned long addr;
 
 		addr = *stack;
 		if (__kernel_text_address(addr)) {
-			if ((unsigned long) stack == bp + 4) {
+			if ((unsigned long) stack == bp + sizeof(long)) {
 				ops->address(data, addr, 1);
 				frame = frame->next_frame;
 				bp = (unsigned long) frame;
@@ -96,7 +103,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		bp = print_context_stack(context, stack, bp, ops, data);
+		bp = print_context_stack(context, stack, bp, ops, data, NULL);
 		/*
 		 * Should be after the line below, but somewhere
 		 * in early boot context comes out corrupted and we
