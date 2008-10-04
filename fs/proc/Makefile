@@ -12,6 +12,7 @@ proc-y       += inode.o root.o base.o generic.o array.o \
 proc-y	+= cmdline.o
 proc-y	+= cpuinfo.o
 proc-y	+= devices.o
+proc-y	+= interrupts.o
 proc-y	+= loadavg.o
 proc-y	+= meminfo.o
 proc-y	+= stat.o

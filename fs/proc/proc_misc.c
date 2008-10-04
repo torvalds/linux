@@ -198,45 +198,6 @@ static const struct file_operations proc_vmalloc_operations = {
 };
 #endif
 
-/*
- * /proc/interrupts
- */
-static void *int_seq_start(struct seq_file *f, loff_t *pos)
-{
-	return (*pos <= nr_irqs) ? pos : NULL;
-}
-
-
-static void *int_seq_next(struct seq_file *f, void *v, loff_t *pos)
-{
-	(*pos)++;
-	return (*pos <= nr_irqs) ? pos : NULL;
-}
-
-static void int_seq_stop(struct seq_file *f, void *v)
-{
-	/* Nothing to do */
-}
-
-static const struct seq_operations int_seq_ops = {
-	.start = int_seq_start,
-	.next  = int_seq_next,
-	.stop  = int_seq_stop,
-	.show  = show_interrupts
-};
-
-static int interrupts_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &int_seq_ops);
-}
-
-static const struct file_operations proc_interrupts_operations = {
-	.open		= interrupts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 #ifdef CONFIG_PROC_PAGE_MONITOR
 #define KPMSIZE sizeof(u64)
 #define KPMMASK (KPMSIZE - 1)
@@ -375,7 +336,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-	proc_create("interrupts", 0, NULL, &proc_interrupts_operations);
 #ifdef CONFIG_SLABINFO
 	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
 #ifdef CONFIG_DEBUG_SLAB_LEAK
