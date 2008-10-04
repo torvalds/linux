@@ -247,24 +247,29 @@ EXPORT_SYMBOL(dump_trace);
 static void
 print_trace_warning_symbol(void *data, char *msg, unsigned long symbol)
 {
+	printk(data);
 	print_symbol(msg, symbol);
 	printk("\n");
 }
 
 static void print_trace_warning(void *data, char *msg)
 {
-	printk("%s\n", msg);
+	printk("%s%s\n", (char *)data, msg);
 }
 
 static int print_trace_stack(void *data, char *name)
 {
-	printk(" <%s> ", name);
+	printk("%s <%s> ", (char *)data, name);
 	return 0;
 }
 
+/*
+ * Print one address/symbol entries per line.
+ */
 static void print_trace_address(void *data, unsigned long addr, int reliable)
 {
 	touch_nmi_watchdog();
+	printk(data);
 	printk_address(addr, reliable);
 }
 

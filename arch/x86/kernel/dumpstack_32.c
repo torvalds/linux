@@ -104,15 +104,11 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
 		bp = print_context_stack(context, stack, bp, ops, data, NULL);
-		/*
-		 * Should be after the line below, but somewhere
-		 * in early boot context comes out corrupted and we
-		 * can't reference it:
-		 */
-		if (ops->stack(data, "IRQ") < 0)
-			break;
+
 		stack = (unsigned long *)context->previous_esp;
 		if (!stack)
+			break;
+		if (ops->stack(data, "IRQ") < 0)
 			break;
 		touch_nmi_watchdog();
 	}
@@ -134,6 +130,7 @@ static void print_trace_warning(void *data, char *msg)
 
 static int print_trace_stack(void *data, char *name)
 {
+	printk("%s <%s> ", (char *)data, name);
 	return 0;
 }
 
@@ -142,11 +139,9 @@ static int print_trace_stack(void *data, char *name)
  */
 static void print_trace_address(void *data, unsigned long addr, int reliable)
 {
-	printk("%s [<%08lx>] ", (char *)data, addr);
-	if (!reliable)
-		printk("? ");
-	print_symbol("%s\n", addr);
 	touch_nmi_watchdog();
+	printk(data);
+	printk_address(addr, reliable);
 }
 
 static const struct stacktrace_ops print_trace_ops = {
