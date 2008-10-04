@@ -529,11 +529,28 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
+static inline int scsi_device_is_busy(struct scsi_device *sdev)
+{
+	if (sdev->device_busy >= sdev->queue_depth || sdev->device_blocked)
+		return 1;
+
+	return 0;
+}
+
 static inline int scsi_target_is_busy(struct scsi_target *starget)
 {
 	return ((starget->can_queue > 0 &&
 		 starget->target_busy >= starget->can_queue) ||
 		 starget->target_blocked);
+}
+
+static inline int scsi_host_is_busy(struct Scsi_Host *shost)
+{
+	if ((shost->can_queue > 0 && shost->host_busy >= shost->can_queue) ||
+	    shost->host_blocked || shost->host_self_blocked)
+		return 1;
+
+	return 0;
 }
 
 /*
@@ -558,11 +575,7 @@ static void scsi_run_queue(struct request_queue *q)
 		scsi_single_lun_run(sdev);
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	while (!list_empty(&shost->starved_list) &&
-	       !shost->host_blocked && !shost->host_self_blocked &&
-		!((shost->can_queue > 0) &&
-		  (shost->host_busy >= shost->can_queue))) {
-
+	while (!list_empty(&shost->starved_list) && !scsi_host_is_busy(shost)) {
 		int flagset;
 
 		/*
@@ -1348,8 +1361,6 @@ int scsi_prep_fn(struct request_queue *q, struct request *req)
 static inline int scsi_dev_queue_ready(struct request_queue *q,
 				  struct scsi_device *sdev)
 {
-	if (sdev->device_busy >= sdev->queue_depth)
-		return 0;
 	if (sdev->device_busy == 0 && sdev->device_blocked) {
 		/*
 		 * unblock after device_blocked iterates to zero
@@ -1363,7 +1374,7 @@ static inline int scsi_dev_queue_ready(struct request_queue *q,
 			return 0;
 		}
 	}
-	if (sdev->device_blocked)
+	if (scsi_device_is_busy(sdev))
 		return 0;
 
 	return 1;
@@ -1440,8 +1451,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 			return 0;
 		}
 	}
-	if ((shost->can_queue > 0 && shost->host_busy >= shost->can_queue) ||
-	    shost->host_blocked || shost->host_self_blocked) {
+	if (scsi_host_is_busy(shost)) {
 		if (list_empty(&sdev->starved_entry))
 			list_add_tail(&sdev->starved_entry, &shost->starved_list);
 		return 0;
