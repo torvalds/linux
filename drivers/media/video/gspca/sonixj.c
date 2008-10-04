@@ -267,10 +267,12 @@ static const __u8 gamma_def[] = {
 	0xa6, 0xb2, 0xbf, 0xca, 0xd5, 0xe0, 0xeb, 0xf5, 0xff
 };
 
+/* color matrix and offsets */
 static const __u8 reg84[] = {
-	0x14, 0x00, 0x27, 0x00, 0x07, 0x00, 0xe5, 0x0f,
-	0xe4, 0x0f, 0x38, 0x00, 0x3e, 0x00, 0xc3, 0x0f,
-	0xf7, 0x0f, 0x00, 0x00, 0x00
+	0x14, 0x00, 0x27, 0x00, 0x07, 0x00,	/* YR YG YB gains */
+	0xe8, 0x0f, 0xda, 0x0f, 0x40, 0x00,	/* UR UG UB */
+	0x3e, 0x00, 0xcd, 0x0f, 0xf7, 0x0f,	/* VR VG VB */
+	0x00, 0x00, 0x00			/* YUV offsets */
 };
 static const __u8 hv7131r_sensor_init[][8] = {
 	{0xC1, 0x11, 0x01, 0x08, 0x01, 0x00, 0x00, 0x10},
@@ -1102,20 +1104,17 @@ static unsigned int setexposure(struct gspca_dev *gspca_dev,
 static void setbrightcont(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned val;
+	int val;
 	__u8 reg84_full[0x15];
 
-	memset(reg84_full, 0, sizeof reg84_full);
-	val = sd->contrast * 0x20 / CONTRAST_MAX + 0x10;	/* 10..30 */
-	reg84_full[2] = val;
-	reg84_full[0] = (val + 1) / 2;
-	reg84_full[4] = (val + 1) / 5;
-	if (val > BRIGHTNESS_DEF)
-		val = (sd->brightness - BRIGHTNESS_DEF) * 0x20
+	memcpy(reg84_full, reg84, sizeof reg84_full);
+	val = sd->contrast * 0x30 / CONTRAST_MAX + 0x10;	/* 10..40 */
+	reg84_full[0] = (val + 1) / 2;		/* red */
+	reg84_full[2] = val;			/* green */
+	reg84_full[4] = (val + 1) / 5;		/* blue */
+	val = (sd->brightness - BRIGHTNESS_DEF) * 0x10
 			/ BRIGHTNESS_MAX;
-	else
-		val = 0;
-	reg84_full[0x12] = val;			/* 00..1f */
+	reg84_full[0x12] = val & 0x1f;		/* 5:0 signed value */
 	reg_w(gspca_dev, 0x84, reg84_full, sizeof reg84_full);
 }
 
