@@ -49,8 +49,8 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 			break;
 	}
 	if (i == CX18_MAX_STREAMS) {
-		CX18_WARN("DMA done for unknown handle %d for stream %s\n",
-			handle, s->name);
+		CX18_WARN("Got DMA done notification for unknown/inactive"
+			  " handle %d\n", handle);
 		mb->error = CXERR_NOT_OPEN;
 		mb->cmd = 0;
 		cx18_mb_ack(cx, mb);
