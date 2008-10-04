@@ -23,8 +23,8 @@ static int die_counter;
 
 void printk_address(unsigned long address, int reliable)
 {
-	printk(" [<%016lx>] %s%pS\n",
-			address, reliable ?	"" : "? ", (void *) address);
+	printk(" [<%p>] %s%pS\n", (void *) address,
+			reliable ? "" : "? ", (void *) address);
 }
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
