@@ -213,10 +213,10 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	}
 
 	/* save the nodename */
-	clnt->cl_nodelen = strlen(utsname()->nodename);
+	clnt->cl_nodelen = strlen(init_utsname()->nodename);
 	if (clnt->cl_nodelen > UNX_MAXNODENAME)
 		clnt->cl_nodelen = UNX_MAXNODENAME;
-	memcpy(clnt->cl_nodename, utsname()->nodename, clnt->cl_nodelen);
+	memcpy(clnt->cl_nodename, init_utsname()->nodename, clnt->cl_nodelen);
 	rpc_register_client(clnt);
 	return clnt;
 
