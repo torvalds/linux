@@ -1066,7 +1066,7 @@ static struct ctrl sd_ctrls_12a[] = {
 	    {
 		.id = V4L2_CID_DO_WHITE_BALANCE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-	       .name = "White Balance",
+		.name = "White Balance",
 		.minimum = WHITE_MIN,
 		.maximum = WHITE_MAX,
 		.step = 1,
