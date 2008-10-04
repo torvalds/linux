@@ -106,17 +106,6 @@ static const struct file_operations proc_vmstat_file_operations = {
 };
 
 #ifdef CONFIG_BLOCK
-static int partitions_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &partitions_op);
-}
-static const struct file_operations proc_partitions_operations = {
-	.open		= partitions_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static int diskstats_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &diskstats_op);
@@ -519,9 +508,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-#ifdef CONFIG_BLOCK
-	proc_create("partitions", 0, NULL, &proc_partitions_operations);
-#endif
 	proc_create("stat", 0, NULL, &proc_stat_operations);
 	proc_create("interrupts", 0, NULL, &proc_interrupts_operations);
 #ifdef CONFIG_SLABINFO
