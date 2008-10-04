@@ -44,10 +44,16 @@ static struct platform_device edb9312_flash = {
 	.resource	= &edb9312_flash_resource,
 };
 
+static struct ep93xx_eth_data edb9312_eth_data = {
+	.phy_id			= 1,
+};
+
 static void __init edb9312_init_machine(void)
 {
 	ep93xx_init_devices();
 	platform_device_register(&edb9312_flash);
+
+	ep93xx_register_eth(&edb9312_eth_data, 1);
 }
 
 MACHINE_START(EDB9312, "Cirrus Logic EDB9312 Evaluation Board")

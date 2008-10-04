@@ -47,36 +47,12 @@ static struct ep93xx_eth_data edb9315a_eth_data = {
 	.phy_id			= 1,
 };
 
-static struct resource edb9315a_eth_resource[] = {
-	{
-		.start	= EP93XX_ETHERNET_PHYS_BASE,
-		.end	= EP93XX_ETHERNET_PHYS_BASE + 0xffff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_EP93XX_ETHERNET,
-		.end	= IRQ_EP93XX_ETHERNET,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device edb9315a_eth_device = {
-	.name		= "ep93xx-eth",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &edb9315a_eth_data,
-	},
-	.num_resources	= 2,
-	.resource	= edb9315a_eth_resource,
-};
-
 static void __init edb9315a_init_machine(void)
 {
 	ep93xx_init_devices();
 	platform_device_register(&edb9315a_flash);
 
-	memcpy(edb9315a_eth_data.dev_addr,
-		(void *)(EP93XX_ETHERNET_BASE + 0x50), 6);
-	platform_device_register(&edb9315a_eth_device);
+	ep93xx_register_eth(&edb9315a_eth_data, 1);
 }
 
 MACHINE_START(EDB9315A, "Cirrus Logic EDB9315A Evaluation Board")

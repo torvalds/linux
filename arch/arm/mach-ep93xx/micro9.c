@@ -29,38 +29,9 @@ static struct ep93xx_eth_data micro9_eth_data = {
        .phy_id                 = 0x1f,
 };
 
-static struct resource micro9_eth_resource[] = {
-       {
-               .start  = EP93XX_ETHERNET_PHYS_BASE,
-               .end    = EP93XX_ETHERNET_PHYS_BASE + 0xffff,
-               .flags  = IORESOURCE_MEM,
-       }, {
-               .start  = IRQ_EP93XX_ETHERNET,
-               .end    = IRQ_EP93XX_ETHERNET,
-               .flags  = IORESOURCE_IRQ,
-       }
-};
-
-static struct platform_device micro9_eth_device = {
-       .name           = "ep93xx-eth",
-       .id             = -1,
-       .dev            = {
-               .platform_data  = &micro9_eth_data,
-       },
-       .num_resources = ARRAY_SIZE(micro9_eth_resource),
-       .resource       = micro9_eth_resource,
-};
-
-static void __init micro9_eth_init(void)
-{
-       memcpy(micro9_eth_data.dev_addr,
-               (void *)(EP93XX_ETHERNET_BASE + 0x50), 6);
-       platform_device_register(&micro9_eth_device);
-}
-
 static void __init micro9_init(void)
 {
-       micro9_eth_init();
+	ep93xx_register_eth(&micro9_eth_data, 1);
 }
 
 /*

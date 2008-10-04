@@ -461,6 +461,41 @@ static struct platform_device ep93xx_ohci_device = {
 	.resource	= ep93xx_ohci_resources,
 };
 
+static struct ep93xx_eth_data ep93xx_eth_data;
+
+static struct resource ep93xx_eth_resource[] = {
+	{
+		.start	= EP93XX_ETHERNET_PHYS_BASE,
+		.end	= EP93XX_ETHERNET_PHYS_BASE + 0xffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_EP93XX_ETHERNET,
+		.end	= IRQ_EP93XX_ETHERNET,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device ep93xx_eth_device = {
+	.name		= "ep93xx-eth",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ep93xx_eth_data,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_eth_resource),
+	.resource	= ep93xx_eth_resource,
+};
+
+void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
+{
+	if (copy_addr) {
+		memcpy(data->dev_addr,
+			(void *)(EP93XX_ETHERNET_BASE + 0x50), 6);
+	}
+
+	ep93xx_eth_data = *data;
+	platform_device_register(&ep93xx_eth_device);
+}
+
 extern void ep93xx_gpio_init(void);
 
 void __init ep93xx_init_devices(void)
