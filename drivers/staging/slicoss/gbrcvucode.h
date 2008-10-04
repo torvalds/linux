@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 1997-2002 Alacritech, Inc. All rights reserved
  *
- * $Id: gbrcvucode.h,v 1.2 2006/03/27 15:12:15 mook Exp $
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,10 +31,10 @@
  * official policies, either expressed or implied, of Alacritech, Inc.
  *
  **************************************************************************/
-#define GB_RCVUCODE_VERS_STRING	"$Revision: 1.2 $"
-#define GB_RCVUCODE_VERS_DATE  	"$Date: 2006/03/27 15:12:15 $"
+#define GB_RCVUCODE_VERS_STRING	"1.2"
+#define GB_RCVUCODE_VERS_DATE  	"2006/03/27 15:12:15"
 
-static ULONG GBRcvUCodeLen = 512;
+static u32 GBRcvUCodeLen = 512;
 
 static u8 GBRcvUCode[2560] =
 {

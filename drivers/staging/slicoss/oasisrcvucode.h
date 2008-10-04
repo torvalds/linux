@@ -1,7 +1,7 @@
-#define OASIS_RCVUCODE_VERS_STRING	"$Revision: 1.2 $"
-#define OASIS_RCVUCODE_VERS_DATE  	"$Date: 2006/03/27 15:10:28 $"
+#define OASIS_RCVUCODE_VERS_STRING	"1.2"
+#define OASIS_RCVUCODE_VERS_DATE  	"2006/03/27 15:10:28"
 
-static ULONG OasisRcvUCodeLen = 512;
+static u32 OasisRcvUCodeLen = 512;
 
 static u8 OasisRcvUCode[2560] =
 {

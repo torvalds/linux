@@ -1,5 +1,4 @@
 /*
- * $Id: slicdump.h,v 1.2 2006/03/27 15:09:57 mook Exp $
  *
  * Copyright (c) 2000-2002 Alacritech, Inc.  All rights reserved.
  *
@@ -148,32 +147,32 @@
 /*
  * Break and Reset Break command structure
  */
-typedef struct _BREAK {
-    uchar     command;    /* Command word defined above */
-    uchar     resvd;
+struct BREAK {
+    unsigned char     command;    /* Command word defined above */
+    unsigned char     resvd;
     ushort    count;      /* Number of executions before break */
-    ulong32   addr;       /* Address of break point */
-} BREAK, *PBREAK;
+    u32   addr;       /* Address of break point */
+};
 
 /*
  * Dump and Load command structure
  */
-typedef struct _dump_cmd {
-    uchar     cmd;        /* Command word defined above */
-    uchar     desc;       /* Descriptor values - defined below */
+struct dump_cmd {
+    unsigned char     cmd;        /* Command word defined above */
+    unsigned char     desc;       /* Descriptor values - defined below */
     ushort    count;      /* number of 4 byte words to be transferred */
-    ulong32   addr;       /* start address of dump or load */
-} dump_cmd_t, *pdump_cmd_t;
+    u32   addr;       /* start address of dump or load */
+};
 
 /*
  * Receive or Transmit a frame.
  */
-typedef struct _RCV_OR_XMT_FRAME {
-    uchar     command;    /* Command word defined above */
-    uchar     MacId;      /* Mac ID of interface - transmit only */
+struct RCV_OR_XMT_FRAME {
+    unsigned char     command;    /* Command word defined above */
+    unsigned char     MacId;      /* Mac ID of interface - transmit only */
     ushort    count;      /* Length of frame in bytes */
-    ulong32   pad;        /* not used */
-} RCV_OR_XMT_FRAME, *PRCV_OR_XMT_FRAME;
+    u32   pad;        /* not used */
+};
 
 /*
  * Values of desc field in DUMP_OR_LOAD structure
@@ -196,12 +195,12 @@ typedef struct _RCV_OR_XMT_FRAME {
 /*
  * Map command to replace a command in ROM with a command in WCS
  */
-typedef struct _MAP {
-    uchar   command;    /* Command word defined above */
-    uchar   not_used[3];
+struct MAP {
+    unsigned char   command;    /* Command word defined above */
+    unsigned char   not_used[3];
     ushort  map_to;     /* Instruction address in WCS */
     ushort  map_out;    /* Instruction address in ROM */
-} MAP, *PMAP;
+};
 
 /*
  * Misc definitions
@@ -221,35 +220,35 @@ typedef struct _MAP {
 /*
  * Coredump header structure
  */
-typedef struct _CORE_Q {
-    ulong32   queueOff;           /* Offset of queue */
-    ulong32   queuesize;          /* size of queue */
-} CORE_Q;
+struct CORE_Q {
+    u32   queueOff;           /* Offset of queue */
+    u32   queuesize;          /* size of queue */
+};
 
 #define DRIVER_NAME_SIZE    32
 
-typedef struct _sliccore_hdr_t {
-    uchar   driver_version[DRIVER_NAME_SIZE];    /* Driver version string */
-    ulong32   RcvRegOff;          /* Offset of receive registers */
-    ulong32   RcvRegsize;         /* size of receive registers */
-    ulong32   XmtRegOff;          /* Offset of transmit registers */
-    ulong32   XmtRegsize;         /* size of transmit registers */
-    ulong32   FileRegOff;         /* Offset of register file */
-    ulong32   FileRegsize;        /* size of register file */
-    ulong32   SramOff;            /* Offset of Sram */
-    ulong32   Sramsize;           /* size of Sram */
-    ulong32   DramOff;            /* Offset of Dram */
-    ulong32   Dramsize;           /* size of Dram */
+struct sliccore_hdr {
+    unsigned char   driver_version[DRIVER_NAME_SIZE];    /* Driver version string */
+    u32   RcvRegOff;          /* Offset of receive registers */
+    u32   RcvRegsize;         /* size of receive registers */
+    u32   XmtRegOff;          /* Offset of transmit registers */
+    u32   XmtRegsize;         /* size of transmit registers */
+    u32   FileRegOff;         /* Offset of register file */
+    u32   FileRegsize;        /* size of register file */
+    u32   SramOff;            /* Offset of Sram */
+    u32   Sramsize;           /* size of Sram */
+    u32   DramOff;            /* Offset of Dram */
+    u32   Dramsize;           /* size of Dram */
     CORE_Q    queues[SLIC_MAX_QUEUE]; /* size and offsets of queues */
-    ulong32   CamAMOff;           /* Offset of CAM A contents */
-    ulong32   CamASize;           /* Size of Cam A */
-    ulong32   CamBMOff;           /* Offset of CAM B contents */
-    ulong32   CamBSize;           /* Size of Cam B */
-    ulong32   CamCMOff;           /* Offset of CAM C contents */
-    ulong32   CamCSize;           /* Size of Cam C */
-    ulong32   CamDMOff;           /* Offset of CAM D contents */
-    ulong32   CamDSize;           /* Size of Cam D */
-} sliccore_hdr_t, *p_sliccore_hdr_t;
+    u32   CamAMOff;           /* Offset of CAM A contents */
+    u32   CamASize;           /* Size of Cam A */
+    u32   CamBMOff;           /* Offset of CAM B contents */
+    u32   CamBSize;           /* Size of Cam B */
+    u32   CamCMOff;           /* Offset of CAM C contents */
+    u32   CamCSize;           /* Size of Cam C */
+    u32   CamDMOff;           /* Offset of CAM D contents */
+    u32   CamDSize;           /* Size of Cam D */
+};
 
 /*
  * definitions needed for our kernel-mode gdb stub.

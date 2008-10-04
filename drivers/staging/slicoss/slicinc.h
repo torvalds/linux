@@ -2,7 +2,6 @@
  *
  * Copyright (c) 2000-2002 Alacritech, Inc.  All rights reserved.
  *
- * $Id: slicinc.h,v 1.4 2006/07/14 16:42:56 mook Exp $
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,164 +47,135 @@
 #include "slichw.h"
 #include "slic.h"
 
-int slic_entry_probe(struct pci_dev              *pcidev,
+static int slic_entry_probe(struct pci_dev              *pcidev,
 			const struct pci_device_id  *ent);
-int slic_init(struct pci_dev           *pcidev,
-	const struct pci_device_id     *pci_tbl_entry,
-	long                      memaddr,
-	int                       chip_idx,
-	int                       acpi_idle_state);
-void slic_entry_remove(struct pci_dev *pcidev);
+static void slic_entry_remove(struct pci_dev *pcidev);
 
-void slic_init_driver(void);
-int  slic_entry_open(struct net_device *dev);
-int  slic_entry_halt(struct net_device *dev);
-int  slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-int  slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
-void slic_xmit_fail(p_adapter_t        adapter,
+static void slic_init_driver(void);
+static int  slic_entry_open(struct net_device *dev);
+static int  slic_entry_halt(struct net_device *dev);
+static int  slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+static int  slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
+static void slic_xmit_fail(struct adapter    *adapter,
 			struct sk_buff   *skb,
-			pvoid              cmd,
-			ulong32              skbtype,
-			ulong32              status);
-void slic_xmit_timeout(struct net_device *dev);
-void slic_config_pci(struct pci_dev *pcidev);
-struct sk_buff *slic_rcvqueue_getnext(p_adapter_t  adapter);
+			void *cmd,
+			u32           skbtype,
+			u32           status);
+static void slic_xmit_timeout(struct net_device *dev);
+static void slic_config_pci(struct pci_dev *pcidev);
+static struct sk_buff *slic_rcvqueue_getnext(struct adapter *adapter);
 
-inline void slic_reg32_write(void __iomem *reg, ulong32 value, uint flush);
-inline void slic_reg64_write(p_adapter_t adapter, void __iomem *reg,
-	ulong32 value, void __iomem *regh, ulong32 paddrh, uint flush);
-inline ulong32 slic_reg32_read(pulong32 reg, uint flush);
-inline ulong32 slic_reg16_read(pulong32 reg, uint flush);
+static inline void slic_reg32_write(void __iomem *reg, u32 value, uint flush);
+static inline void slic_reg64_write(struct adapter *adapter, void __iomem *reg,
+	u32 value, void __iomem *regh, u32 paddrh, uint flush);
 
 #if SLIC_GET_STATS_ENABLED
-struct net_device_stats *slic_get_stats(struct net_device *dev);
+static struct net_device_stats *slic_get_stats(struct net_device *dev);
 #endif
 
-int slic_mac_set_address(struct net_device *dev, pvoid ptr);
+static int slic_mac_set_address(struct net_device *dev, void *ptr);
+static void slic_rcv_handler(struct adapter *adapter);
+static void slic_link_event_handler(struct adapter *adapter);
+static void slic_xmit_complete(struct adapter *adapter);
+static void slic_upr_request_complete(struct adapter *adapter, u32 isr);
+static int   slic_rspqueue_init(struct adapter *adapter);
+static int   slic_rspqueue_reset(struct adapter *adapter);
+static void  slic_rspqueue_free(struct adapter *adapter);
+static struct slic_rspbuf *slic_rspqueue_getnext(struct adapter *adapter);
+static void  slic_cmdqmem_init(struct adapter *adapter);
+static void  slic_cmdqmem_free(struct adapter *adapter);
+static u32 *slic_cmdqmem_addpage(struct adapter *adapter);
+static int   slic_cmdq_init(struct adapter *adapter);
+static void  slic_cmdq_free(struct adapter *adapter);
+static void  slic_cmdq_reset(struct adapter *adapter);
+static void  slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page);
+static void  slic_cmdq_getdone(struct adapter *adapter);
+static void  slic_cmdq_putdone(struct adapter *adapter,
+						struct slic_hostcmd *cmd);
+static void  slic_cmdq_putdone_irq(struct adapter *adapter,
+						struct slic_hostcmd *cmd);
+static struct slic_hostcmd *slic_cmdq_getfree(struct adapter *adapter);
+static int   slic_rcvqueue_init(struct adapter *adapter);
+static int   slic_rcvqueue_reset(struct adapter *adapter);
+static int   slic_rcvqueue_fill(struct adapter *adapter);
+static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb);
+static void  slic_rcvqueue_free(struct adapter *adapter);
+static void slic_rcv_handle_error(struct adapter *adapter,
+					struct slic_rcvbuf *rcvbuf);
+static void slic_adapter_set_hwaddr(struct adapter *adapter);
+static void slic_card_halt(struct sliccard *card, struct adapter *adapter);
+static int slic_card_init(struct sliccard *card, struct adapter *adapter);
+static void slic_intagg_set(struct adapter *adapter, u32 value);
+static int  slic_card_download(struct adapter *adapter);
+static u32 slic_card_locate(struct adapter *adapter);
 
-int slicproc_card_read(char *page, char **start, off_t off, int count,
-			int *eof, void *data);
-int slicproc_card_write(struct file *file, const char __user *buffer,
-			ulong count, void *data);
-void slicproc_card_create(p_sliccard_t card);
-void slicproc_card_destroy(p_sliccard_t card);
-int slicproc_adapter_read(char *page, char **start, off_t off, int count,
-			int *eof, void *data);
-int slicproc_adapter_write(struct file *file, const char __user *buffer,
-			ulong count, void *data);
-void slicproc_adapter_create(p_adapter_t adapter);
-void slicproc_adapter_destroy(p_adapter_t adapter);
-void slicproc_create(void);
-void slicproc_destroy(void);
-
-void slic_interrupt_process(p_adapter_t  adapter, ulong32 isr);
-void slic_rcv_handler(p_adapter_t  adapter);
-void slic_upr_handler(p_adapter_t  adapter);
-void slic_link_event_handler(p_adapter_t  adapter);
-void slic_xmit_complete(p_adapter_t  adapter);
-void slic_upr_request_complete(p_adapter_t  adapter, ulong32 isr);
-int   slic_rspqueue_init(p_adapter_t  adapter);
-int   slic_rspqueue_reset(p_adapter_t  adapter);
-void  slic_rspqueue_free(p_adapter_t  adapter);
-p_slic_rspbuf_t slic_rspqueue_getnext(p_adapter_t  adapter);
-void  slic_cmdqmem_init(p_adapter_t  adapter);
-void  slic_cmdqmem_free(p_adapter_t  adapter);
-pulong32 slic_cmdqmem_addpage(p_adapter_t  adapter);
-int   slic_cmdq_init(p_adapter_t  adapter);
-void  slic_cmdq_free(p_adapter_t  adapter);
-void  slic_cmdq_reset(p_adapter_t  adapter);
-void  slic_cmdq_addcmdpage(p_adapter_t  adapter, pulong32 page);
-void  slic_cmdq_getdone(p_adapter_t  adapter);
-void  slic_cmdq_putdone(p_adapter_t  adapter, p_slic_hostcmd_t cmd);
-void  slic_cmdq_putdone_irq(p_adapter_t  adapter, p_slic_hostcmd_t cmd);
-p_slic_hostcmd_t slic_cmdq_getfree(p_adapter_t  adapter);
-int   slic_rcvqueue_init(p_adapter_t  adapter);
-int   slic_rcvqueue_reset(p_adapter_t  adapter);
-int   slic_rcvqueue_fill(p_adapter_t  adapter);
-ulong32 slic_rcvqueue_reinsert(p_adapter_t adapter, struct sk_buff *skb);
-void  slic_rcvqueue_free(p_adapter_t  adapter);
-void slic_rcv_handle_error(p_adapter_t adapter, p_slic_rcvbuf_t    rcvbuf);
-void slic_adapter_set_hwaddr(p_adapter_t adapter);
-void slic_card_halt(p_sliccard_t card, p_adapter_t adapter);
-int slic_card_init(p_sliccard_t card, p_adapter_t adapter);
-void slic_intagg_set(p_adapter_t  adapter, ulong32 value);
-int  slic_card_download(p_adapter_t  adapter);
-ulong32 slic_card_locate(p_adapter_t  adapter);
-int  slic_card_removeadapter(p_adapter_t  adapter);
-void slic_card_remaster(p_adapter_t  adapter);
-void slic_card_softreset(p_adapter_t  adapter);
-void slic_card_up(p_adapter_t  adapter);
-void slic_card_down(p_adapter_t  adapter);
-
-void slic_if_stop_queue(p_adapter_t adapter);
-void slic_if_start_queue(p_adapter_t adapter);
-int  slic_if_init(p_adapter_t  adapter);
-void slic_adapter_close(p_adapter_t  adapter);
-int  slic_adapter_allocresources(p_adapter_t  adapter);
-void slic_adapter_freeresources(p_adapter_t  adapter);
-void slic_link_config(p_adapter_t  adapter, ulong32 linkspeed,
-			ulong32 linkduplex);
-void slic_unmap_mmio_space(p_adapter_t adapter);
-void slic_card_cleanup(p_sliccard_t card);
-void slic_init_cleanup(p_adapter_t adapter);
-void slic_card_reclaim_buffers(p_adapter_t adapter);
-void slic_soft_reset(p_adapter_t adapter);
-void slic_card_reset(p_adapter_t adapter);
-boolean slic_mac_filter(p_adapter_t  adapter, p_ether_header ether_frame);
-void slic_mac_address_config(p_adapter_t  adapter);
-void slic_mac_config(p_adapter_t  adapter);
-void slic_mcast_set_mask(p_adapter_t  adapter);
-void slic_mac_setmcastaddrs(p_adapter_t  adapter);
-int slic_mcast_add_list(p_adapter_t adapter, pchar address);
-uchar slic_mcast_get_mac_hash(pchar macaddr);
-void  slic_mcast_set_bit(p_adapter_t adapter, pchar address);
-void slic_config_set(p_adapter_t adapter, boolean linkchange);
-void slic_config_clear(p_adapter_t  adapter);
-void slic_config_get(p_adapter_t  adapter, ulong32 config, ulong32 configh);
-void slic_timer_get_stats(ulong device);
-void slic_timer_load_check(ulong context);
-void slic_timer_ping(ulong dev);
-void slic_stall_msec(int stall);
-void slic_stall_usec(int stall);
-void slic_assert_fail(void);
-ushort slic_eeprom_cksum(pchar m, int len);
+static void slic_if_stop_queue(struct adapter *adapter);
+static void slic_if_start_queue(struct adapter *adapter);
+static int  slic_if_init(struct adapter *adapter);
+static int  slic_adapter_allocresources(struct adapter *adapter);
+static void slic_adapter_freeresources(struct adapter *adapter);
+static void slic_link_config(struct adapter *adapter, u32 linkspeed,
+			u32 linkduplex);
+static void slic_unmap_mmio_space(struct adapter *adapter);
+static void slic_card_cleanup(struct sliccard *card);
+static void slic_init_cleanup(struct adapter *adapter);
+static void slic_soft_reset(struct adapter *adapter);
+static void slic_card_reset(struct adapter *adapter);
+static bool slic_mac_filter(struct adapter *adapter,
+			struct ether_header *ether_frame);
+static void slic_mac_address_config(struct adapter *adapter);
+static void slic_mac_config(struct adapter *adapter);
+static void slic_mcast_set_mask(struct adapter *adapter);
+static int slic_mcast_add_list(struct adapter *adapter, char *address);
+static unsigned char slic_mcast_get_mac_hash(char *macaddr);
+static void  slic_mcast_set_bit(struct adapter *adapter, char *address);
+static void slic_config_set(struct adapter *adapter, bool linkchange);
+static void slic_config_clear(struct adapter *adapter);
+static void slic_config_get(struct adapter *adapter, u32 config,
+			u32 configh);
+static void slic_timer_get_stats(ulong device);
+static void slic_timer_load_check(ulong context);
+static void slic_timer_ping(ulong dev);
+static void slic_assert_fail(void);
+static ushort slic_eeprom_cksum(char *m, int len);
 /* upr */
-void slic_upr_start(p_adapter_t  adapter);
-void slic_link_upr_complete(p_adapter_t  adapter, ulong32 Isr);
-int  slic_upr_request(p_adapter_t      adapter,
-			ulong32            upr_request,
-			ulong32            upr_data,
-			ulong32            upr_data_h,
-			ulong32            upr_buffer,
-			ulong32            upr_buffer_h);
-int  slic_upr_queue_request(p_adapter_t      adapter,
-				ulong32            upr_request,
-				ulong32            upr_data,
-				ulong32            upr_data_h,
-				ulong32            upr_buffer,
-				ulong32            upr_buffer_h);
-void slic_mcast_set_list(struct net_device *dev);
-void  slic_mcast_init_crc32(void);
+static void slic_upr_start(struct adapter *adapter);
+static void slic_link_upr_complete(struct adapter *adapter, u32 Isr);
+static int  slic_upr_request(struct adapter    *adapter,
+			u32            upr_request,
+			u32            upr_data,
+			u32            upr_data_h,
+			u32            upr_buffer,
+			u32            upr_buffer_h);
+static int  slic_upr_queue_request(struct adapter      *adapter,
+				u32            upr_request,
+				u32            upr_data,
+				u32            upr_data_h,
+				u32            upr_buffer,
+				u32            upr_buffer_h);
+static void slic_mcast_set_list(struct net_device *dev);
+static void slic_mcast_init_crc32(void);
 
 #if SLIC_DUMP_ENABLED
-int   slic_dump_thread(void *context);
-uint  slic_init_dump_thread(p_sliccard_t card);
-uchar slic_get_dump_index(pchar path);
-ulong32 slic_dump_card(p_sliccard_t card, boolean resume);
-ulong32 slic_dump_halt(p_sliccard_t card, uchar proc);
-ulong32 slic_dump_reg(p_sliccard_t card, uchar proc);
-ulong32 slic_dump_data(p_sliccard_t card, ulong32 addr,
-			ushort count, uchar desc);
-ulong32 slic_dump_queue(p_sliccard_t card, ulong32 buf_phys,
-			ulong32 buf_physh, ulong32 queue);
-ulong32 slic_dump_load_queue(p_sliccard_t card, ulong32 data, ulong32 queue);
-ulong32 slic_dump_cam(p_sliccard_t card, ulong32 addr,
-			ulong32 count, uchar desc);
+static int   slic_dump_thread(void *context);
+static uint  slic_init_dump_thread(struct sliccard *card);
+static unsigned char slic_get_dump_index(char *path);
+static u32 slic_dump_card(struct sliccard *card, bool resume);
+static u32 slic_dump_halt(struct sliccard *card, unsigned char proc);
+static u32 slic_dump_reg(struct sliccard *card, unsigned char proc);
+static u32 slic_dump_data(struct sliccard *card, u32 addr,
+			ushort count, unsigned char desc);
+static u32 slic_dump_queue(struct sliccard *card, u32 buf_phys,
+			u32 buf_physh, u32 queue);
+static u32 slic_dump_load_queue(struct sliccard *card, u32 data,
+				u32 queue);
+static u32 slic_dump_cam(struct sliccard *card, u32 addr,
+			u32 count, unsigned char desc);
 
-ulong32 slic_dump_resume(p_sliccard_t card, uchar proc);
-ulong32 slic_dump_send_cmd(p_sliccard_t card, ulong32 cmd_phys,
-				ulong32 cmd_physh, ulong32 buf_phys,
-				ulong32 buf_physh);
+static u32 slic_dump_resume(struct sliccard *card, unsigned char proc);
+static u32 slic_dump_send_cmd(struct sliccard *card, u32 cmd_phys,
+				u32 cmd_physh, u32 buf_phys,
+				u32 buf_physh);
 
 #define create_file(x)         STATUS_SUCCESS
 #define write_file(w, x, y, z) STATUS_SUCCESS

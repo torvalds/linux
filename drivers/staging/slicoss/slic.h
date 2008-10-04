@@ -2,7 +2,6 @@
  *
  * Copyright (c) 2000-2002 Alacritech, Inc.  All rights reserved.
  *
- * $Id: slic.h,v 1.3 2006/07/14 16:43:02 mook Exp $
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,14 +50,14 @@ struct slic_spinlock {
 #define SLIC_RSPQ_PAGES_GB        10
 #define SLIC_RSPQ_BUFSINPAGE      (PAGE_SIZE / SLIC_RSPBUF_SIZE)
 
-typedef struct _slic_rspqueue_t {
-    ulong32             offset;
-    ulong32             pageindex;
-    ulong32             num_pages;
-    p_slic_rspbuf_t     rspbuf;
-    pulong32            vaddr[SLIC_RSPQ_PAGES_GB];
+struct slic_rspqueue {
+    u32             offset;
+    u32             pageindex;
+    u32             num_pages;
+    struct slic_rspbuf *rspbuf;
+    u32 *vaddr[SLIC_RSPQ_PAGES_GB];
     dma_addr_t          paddr[SLIC_RSPQ_PAGES_GB];
-}    slic_rspqueue_t, *p_slic_rspqueue_t;
+};
 
 #define SLIC_RCVQ_EXPANSION         1
 #define SLIC_RCVQ_ENTRIES           (256 * SLIC_RCVQ_EXPANSION)
@@ -68,45 +67,45 @@ typedef struct _slic_rspqueue_t {
 #define SLIC_RCVQ_FILLENTRIES       (16 * SLIC_RCVQ_EXPANSION)
 #define SLIC_RCVQ_FILLTHRESH        (SLIC_RCVQ_ENTRIES - SLIC_RCVQ_FILLENTRIES)
 
-typedef struct _slic_rcvqueue_t {
+struct slic_rcvqueue {
     struct sk_buff    *head;
     struct sk_buff    *tail;
-    ulong32            count;
-    ulong32            size;
-    ulong32            errors;
-} slic_rcvqueue_t, *p_slic_rcvqueue_t;
+    u32            count;
+    u32            size;
+    u32            errors;
+};
 
-typedef struct _slic_rcvbuf_info_t {
-    ulong32     id;
-    ulong32     starttime;
-    ulong32     stoptime;
-    ulong32     slicworld;
-    ulong32     lasttime;
-    ulong32     lastid;
-}  slic_rcvbuf_info_t, *pslic_rcvbuf_info_t;
+struct slic_rcvbuf_info {
+    u32     id;
+    u32     starttime;
+    u32     stoptime;
+    u32     slicworld;
+    u32     lasttime;
+    u32     lastid;
+};
 /*
  SLIC Handle structure.  Used to restrict handle values to
  32 bits by using an index rather than an address.
  Simplifies ucode in 64-bit systems
 */
-typedef struct _slic_handle_word_t {
+struct slic_handle_word {
 	union {
 		struct {
 			ushort      index;
 			ushort      bottombits; /* to denote num bufs to card */
 		}  parts;
-		ulong32         whole;
+		u32         whole;
 	}  handle;
-}  slic_handle_word_t, *pslic_handle_word_t;
+};
 
-typedef struct _slic_handle_t {
-    slic_handle_word_t          token;   /* token passed between host and card*/
+struct slic_handle {
+    struct slic_handle_word  token;  /* token passed between host and card*/
     ushort                      type;
-    pvoid                       address;    /* actual address of the object*/
+    void *address;    /* actual address of the object*/
     ushort                      offset;
-    struct _slic_handle_t       *other_handle;
-    struct _slic_handle_t       *next;
-} slic_handle_t, *pslic_handle_t;
+    struct slic_handle       *other_handle;
+    struct slic_handle       *next;
+};
 
 #define SLIC_HANDLE_FREE        0x0000
 #define SLIC_HANDLE_DATA        0x0001
@@ -120,19 +119,19 @@ typedef struct _slic_handle_t {
 
 #define SLIC_HOSTCMD_SIZE    512
 
-typedef struct _slic_hostcmd_t {
-    slic_host64_cmd_t          cmd64;
-    ulong32                    type;
+struct slic_hostcmd {
+    struct slic_host64_cmd  cmd64;
+    u32                    type;
     struct sk_buff            *skb;
-    ulong32                    paddrl;
-    ulong32                    paddrh;
-    ulong32                    busy;
-    ulong32                    cmdsize;
+    u32                    paddrl;
+    u32                    paddrh;
+    u32                    busy;
+    u32                    cmdsize;
     ushort                     numbufs;
-    pslic_handle_t             pslic_handle;/* handle associated with command */
-    struct _slic_hostcmd_t    *next;
-    struct _slic_hostcmd_t    *next_all;
-} slic_hostcmd_t, *p_slic_hostcmd_t;
+    struct slic_handle    *pslic_handle;/* handle associated with command */
+    struct slic_hostcmd    *next;
+    struct slic_hostcmd    *next_all;
+};
 
 #define SLIC_CMDQ_CMDSINPAGE    (PAGE_SIZE / SLIC_HOSTCMD_SIZE)
 #define SLIC_CMD_DUMB            3
@@ -142,18 +141,18 @@ typedef struct _slic_hostcmd_t {
 #define SLIC_CMDQ_MAXPAGES       (SLIC_CMDQ_MAXCMDS / SLIC_CMDQ_CMDSINPAGE)
 #define SLIC_CMDQ_INITPAGES      (SLIC_CMDQ_INITCMDS / SLIC_CMDQ_CMDSINPAGE)
 
-typedef struct _slic_cmdqmem_t {
-    int               pagecnt;
-    pulong32          pages[SLIC_CMDQ_MAXPAGES];
-    dma_addr_t        dma_pages[SLIC_CMDQ_MAXPAGES];
-}          slic_cmdqmem_t, *p_slic_cmdqmem_t;
+struct slic_cmdqmem {
+	int pagecnt;
+	u32 *pages[SLIC_CMDQ_MAXPAGES];
+	dma_addr_t dma_pages[SLIC_CMDQ_MAXPAGES];
+};
 
-typedef struct _slic_cmdqueue_t {
-    p_slic_hostcmd_t   head;
-    p_slic_hostcmd_t   tail;
-    int                count;
-    struct slic_spinlock	lock;
-}    slic_cmdqueue_t, *p_slic_cmdqueue_t;
+struct slic_cmdqueue {
+	struct slic_hostcmd *head;
+	struct slic_hostcmd *tail;
+	int count;
+	struct slic_spinlock lock;
+};
 
 #ifdef STATUS_SUCCESS
 #undef STATUS_SUCCESS
@@ -181,10 +180,10 @@ just set this at 15K, shouldnt make that much of a diff.
 #endif
 
 
-typedef struct _mcast_address_t {
-    uchar                     address[6];
-    struct _mcast_address_t   *next;
-}  mcast_address_t, *p_mcast_address_t;
+struct mcast_address {
+	unsigned char address[6];
+	struct mcast_address *next;
+};
 
 #define CARD_DOWN        0x00000000
 #define CARD_UP          0x00000001
@@ -236,38 +235,37 @@ typedef struct _mcast_address_t {
 #define SLIC_ADAPTER_STATE(x) ((x == ADAPT_UP) ? "UP" : "Down")
 #define SLIC_CARD_STATE(x)    ((x == CARD_UP) ? "UP" : "Down")
 
-typedef struct _slic_iface_stats {
+struct slic_iface_stats {
     /*
      * Stats
      */
-    ulong64        xmt_bytes;
-    ulong64        xmt_ucast;
-    ulong64        xmt_mcast;
-    ulong64        xmt_bcast;
-    ulong64        xmt_errors;
-    ulong64        xmt_discards;
-    ulong64        xmit_collisions;
-    ulong64        xmit_excess_xmit_collisions;
-    ulong64        rcv_bytes;
-    ulong64        rcv_ucast;
-    ulong64        rcv_mcast;
-    ulong64        rcv_bcast;
-    ulong64        rcv_errors;
-    ulong64        rcv_discards;
-} slic_iface_stats_t, *p_slic_iface_stats_t;
+    u64        xmt_bytes;
+    u64        xmt_ucast;
+    u64        xmt_mcast;
+    u64        xmt_bcast;
+    u64        xmt_errors;
+    u64        xmt_discards;
+    u64        xmit_collisions;
+    u64        xmit_excess_xmit_collisions;
+    u64        rcv_bytes;
+    u64        rcv_ucast;
+    u64        rcv_mcast;
+    u64        rcv_bcast;
+    u64        rcv_errors;
+    u64        rcv_discards;
+};
 
-typedef struct _slic_tcp_stats {
-    ulong64        xmit_tcp_segs;
-    ulong64        xmit_tcp_bytes;
-    ulong64        rcv_tcp_segs;
-    ulong64        rcv_tcp_bytes;
-} slic_tcp_stats_t, *p_slic_tcp_stats_t;
+struct sliccp_stats {
+    u64        xmit_tcp_segs;
+    u64        xmit_tcp_bytes;
+    u64        rcv_tcp_segs;
+    u64        rcv_tcp_bytes;
+};
 
-typedef struct _slicnet_stats {
-    slic_tcp_stats_t        tcp;
-    slic_iface_stats_t      iface;
-
-} slicnet_stats_t, *p_slicnet_stats_t;
+struct slicnet_stats {
+    struct sliccp_stats        tcp;
+    struct slic_iface_stats      iface;
+};
 
 #define SLIC_LOADTIMER_PERIOD     1
 #define SLIC_INTAGG_DEFAULT       200
@@ -294,13 +292,13 @@ typedef struct _slicnet_stats {
 #define SLIC_INTAGG_4GB           100
 #define SLIC_INTAGG_5GB           100
 
-typedef struct _ether_header {
-    uchar    ether_dhost[6];
-    uchar    ether_shost[6];
+struct ether_header {
+    unsigned char    ether_dhost[6];
+    unsigned char    ether_shost[6];
     ushort   ether_type;
-} ether_header, *p_ether_header;
+};
 
-typedef struct _sliccard_t {
+struct sliccard {
     uint              busnumber;
     uint              slotnumber;
     uint              state;
@@ -310,114 +308,111 @@ typedef struct _sliccard_t {
     uint              adapters_allocated;
     uint              adapters_sleeping;
     uint              gennumber;
-    ulong32           events;
-    ulong32           loadlevel_current;
-    ulong32           load;
+    u32           events;
+    u32           loadlevel_current;
+    u32           load;
     uint              reset_in_progress;
-    ulong32           pingstatus;
-    ulong32           bad_pingstatus;
+    u32           pingstatus;
+    u32           bad_pingstatus;
     struct timer_list loadtimer;
-    ulong32           loadtimerset;
+    u32           loadtimerset;
     uint              config_set;
-    slic_config_t     config;
+    struct slic_config  config;
     struct dentry      *debugfs_dir;
     struct dentry      *debugfs_cardinfo;
-    struct _adapter_t  *master;
-    struct _adapter_t  *adapter[SLIC_MAX_PORTS];
-    struct _sliccard_t *next;
-    ulong32             error_interrupts;
-    ulong32             error_rmiss_interrupts;
-    ulong32             rcv_interrupts;
-    ulong32             xmit_interrupts;
-    ulong32             num_isrs;
-    ulong32             false_interrupts;
-    ulong32             max_isr_rcvs;
-    ulong32             max_isr_xmits;
-    ulong32             rcv_interrupt_yields;
-    ulong32             tx_packets;
+    struct adapter  *master;
+    struct adapter  *adapter[SLIC_MAX_PORTS];
+    struct sliccard *next;
+    u32             error_interrupts;
+    u32             error_rmiss_interrupts;
+    u32             rcv_interrupts;
+    u32             xmit_interrupts;
+    u32             num_isrs;
+    u32             false_interrupts;
+    u32             max_isr_rcvs;
+    u32             max_isr_xmits;
+    u32             rcv_interrupt_yields;
+    u32             tx_packets;
 #if SLIC_DUMP_ENABLED
-    ulong32             dumpstatus;           /* Result of dump UPR */
-    pvoid               cmdbuffer;
+    u32             dumpstatus;           /* Result of dump UPR */
+    void *cmdbuffer;
 
     ulong               cmdbuffer_phys;
-    ulong32             cmdbuffer_physl;
-    ulong32             cmdbuffer_physh;
+    u32             cmdbuffer_physl;
+    u32             cmdbuffer_physh;
 
-    ulong32             dump_count;
+    u32             dump_count;
     struct task_struct *dump_task_id;
-    ulong32             dump_wait_count;
+    u32             dump_wait_count;
     uint                dumpthread_running; /* has a dump thread been init'd  */
     uint                dump_requested;     /* 0 no, 1 = reqstd 2=curr 3=done */
-    ulong32             dumptime_start;
-    ulong32             dumptime_complete;
-    ulong32             dumptime_delta;
-    pvoid               dumpbuffer;
+    u32             dumptime_start;
+    u32             dumptime_complete;
+    u32             dumptime_delta;
+    void *dumpbuffer;
     ulong               dumpbuffer_phys;
-    ulong32             dumpbuffer_physl;
-    ulong32             dumpbuffer_physh;
+    u32             dumpbuffer_physl;
+    u32             dumpbuffer_physh;
     wait_queue_head_t   dump_wq;
     struct file        *dumphandle;
     mm_segment_t        dumpfile_fs;
 #endif
-    ulong32             debug_ix;
+    u32             debug_ix;
     ushort              reg_type[32];
     ushort              reg_offset[32];
-    ulong32             reg_value[32];
-    ulong32             reg_valueh[32];
-} sliccard_t, *p_sliccard_t;
+    u32             reg_value[32];
+    u32             reg_valueh[32];
+};
 
 #define NUM_CFG_SPACES      2
 #define NUM_CFG_REGS        64
-#define NUM_CFG_REG_ULONGS  (NUM_CFG_REGS / sizeof(ulong32))
+#define NUM_CFG_REG_ULONGS  (NUM_CFG_REGS / sizeof(u32))
 
-typedef struct _physcard_t {
-    struct _adapter_t  *adapter[SLIC_MAX_PORTS];
-    struct _physcard_t *next;
+struct physcard {
+    struct adapter  *adapter[SLIC_MAX_PORTS];
+    struct physcard *next;
     uint                adapters_allocd;
 
  /*  the following is not currently needed
-    ulong32               bridge_busnum;
-    ulong32               bridge_cfg[NUM_CFG_SPACES][NUM_CFG_REG_ULONGS];
+    u32               bridge_busnum;
+    u32               bridge_cfg[NUM_CFG_SPACES][NUM_CFG_REG_ULONGS];
  */
-} physcard_t, *p_physcard_t;
+};
 
-typedef struct _base_driver {
+struct base_driver {
     struct slic_spinlock driver_lock;
-    ulong32              num_slic_cards;
-    ulong32              num_slic_ports;
-    ulong32              num_slic_ports_active;
-    ulong32              dynamic_intagg;
-    p_sliccard_t         slic_card;
-    p_physcard_t         phys_card;
+    u32              num_slic_cards;
+    u32              num_slic_ports;
+    u32              num_slic_ports_active;
+    u32              dynamic_intagg;
+    struct sliccard  *slic_card;
+    struct physcard  *phys_card;
     uint                 cardnuminuse[SLIC_MAX_CARDS];
-} base_driver_t, *p_base_driver_t;
+};
 
-extern base_driver_t   slic_global;
+struct slic_shmem {
+    volatile u32          isr;
+    volatile u32          linkstatus;
+    volatile struct slic_stats     inicstats;
+};
 
-typedef struct _slic_shmem_t {
-    volatile ulong32          isr;
-    volatile ulong32          linkstatus;
-    volatile slic_stats_t     inicstats;
-} slic_shmem_t, *p_slic_shmem_t;
+struct slic_reg_params {
+    u32       linkspeed;
+    u32       linkduplex;
+    u32       fail_on_bad_eeprom;
+};
 
-typedef struct _slic_reg_params_t {
-    ulong32       linkspeed;
-    ulong32       linkduplex;
-    ulong32       fail_on_bad_eeprom;
-} slic_reg_params_t, *p_reg_params_t;
+struct slic_upr {
+    uint               adapter;
+    u32            upr_request;
+    u32            upr_data;
+    u32            upr_data_h;
+    u32            upr_buffer;
+    u32            upr_buffer_h;
+    struct slic_upr *next;
+};
 
-typedef struct _slic_upr_t {
-    uint                  adapter;
-    ulong32               upr_request;
-    ulong32               upr_data;
-    ulong32               upr_data_h;
-    ulong32               upr_buffer;
-    ulong32               upr_buffer_h;
-    struct _slic_upr_t *next;
-
-} slic_upr_t, *p_slic_upr_t;
-
-typedef struct _slic_ifevents_ti {
+struct slic_ifevents {
     uint        oflow802;
     uint        uflow802;
     uint        Tprtoflow;
@@ -434,19 +429,19 @@ typedef struct _slic_ifevents_ti {
     uint        IpCsum;
     uint        TpCsum;
     uint        TpHlen;
-} slic_ifevents_t;
+};
 
-typedef struct _adapter_t {
-    pvoid               ifp;
-    p_sliccard_t        card;
+struct adapter {
+    void *ifp;
+    struct sliccard *card;
     uint                port;
-    p_physcard_t        physcard;
+    struct physcard *physcard;
     uint                physport;
     uint                cardindex;
     uint                card_size;
     uint                chipid;
-    struct net_device        *netdev;
-    struct net_device        *next_netdevice;
+    struct net_device  *netdev;
+    struct net_device  *next_netdevice;
     struct slic_spinlock     adapter_lock;
     struct slic_spinlock     reset_lock;
     struct pci_dev     *pcidev;
@@ -456,90 +451,90 @@ typedef struct _adapter_t {
     ushort              vendid;
     ushort              devid;
     ushort              subsysid;
-    ulong32             irq;
+    u32             irq;
     void __iomem *memorybase;
-    ulong32             memorylength;
-    ulong32             drambase;
-    ulong32             dramlength;
+    u32             memorylength;
+    u32             drambase;
+    u32             dramlength;
     uint                queues_initialized;
     uint                allocated;
     uint                activated;
-    ulong32             intrregistered;
+    u32             intrregistered;
     uint                isp_initialized;
     uint                gennumber;
-    ulong32             curaddrupper;
-    p_slic_shmem_t      pshmem;
+    u32             curaddrupper;
+    struct slic_shmem      *pshmem;
     dma_addr_t          phys_shmem;
-    ulong32             isrcopy;
-    p_slic_regs_t       slic_regs;
-    uchar               state;
-    uchar               linkstate;
-    uchar               linkspeed;
-    uchar               linkduplex;
+    u32             isrcopy;
+    __iomem struct slic_regs       *slic_regs;
+    unsigned char               state;
+    unsigned char               linkstate;
+    unsigned char               linkspeed;
+    unsigned char               linkduplex;
     uint                flags;
-    uchar               macaddr[6];
-    uchar               currmacaddr[6];
-    ulong32             macopts;
+    unsigned char               macaddr[6];
+    unsigned char               currmacaddr[6];
+    u32             macopts;
     ushort              devflags_prev;
-    ulong64             mcastmask;
-    p_mcast_address_t   mcastaddrs;
-    p_slic_upr_t        upr_list;
+    u64             mcastmask;
+    struct mcast_address   *mcastaddrs;
+    struct slic_upr   *upr_list;
     uint                upr_busy;
     struct timer_list   pingtimer;
-    ulong32             pingtimerset;
+    u32             pingtimerset;
     struct timer_list   statstimer;
-    ulong32             statstimerset;
+    u32             statstimerset;
     struct timer_list   loadtimer;
-    ulong32             loadtimerset;
+    u32             loadtimerset;
     struct dentry      *debugfs_entry;
     struct slic_spinlock     upr_lock;
     struct slic_spinlock     bit64reglock;
-    slic_rspqueue_t     rspqueue;
-    slic_rcvqueue_t     rcvqueue;
-    slic_cmdqueue_t     cmdq_free;
-    slic_cmdqueue_t     cmdq_done;
-    slic_cmdqueue_t     cmdq_all;
-    slic_cmdqmem_t      cmdqmem;
+    struct slic_rspqueue     rspqueue;
+    struct slic_rcvqueue     rcvqueue;
+    struct slic_cmdqueue     cmdq_free;
+    struct slic_cmdqueue     cmdq_done;
+    struct slic_cmdqueue     cmdq_all;
+    struct slic_cmdqmem      cmdqmem;
     /*
      *  SLIC Handles
     */
-    slic_handle_t       slic_handles[SLIC_CMDQ_MAXCMDS+1]; /* Object handles*/
-    pslic_handle_t      pfree_slic_handles;             /* Free object handles*/
+    struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS+1]; /* Object handles*/
+    struct slic_handle *pfree_slic_handles;          /* Free object handles*/
     struct slic_spinlock     handle_lock;           /* Object handle list lock*/
     ushort              slic_handle_ix;
 
-    ulong32             xmitq_full;
-    ulong32             all_reg_writes;
-    ulong32             icr_reg_writes;
-    ulong32             isr_reg_writes;
-    ulong32             error_interrupts;
-    ulong32             error_rmiss_interrupts;
-    ulong32             rx_errors;
-    ulong32             rcv_drops;
-    ulong32             rcv_interrupts;
-    ulong32             xmit_interrupts;
-    ulong32             linkevent_interrupts;
-    ulong32             upr_interrupts;
-    ulong32             num_isrs;
-    ulong32             false_interrupts;
-    ulong32             tx_packets;
-    ulong32             xmit_completes;
-    ulong32             tx_drops;
-    ulong32             rcv_broadcasts;
-    ulong32             rcv_multicasts;
-    ulong32             rcv_unicasts;
-    ulong32             max_isr_rcvs;
-    ulong32             max_isr_xmits;
-    ulong32             rcv_interrupt_yields;
-    ulong32             intagg_period;
-    p_inicpm_state_t    inicpm_info;
-    pvoid               pinicpm_info;
-    slic_reg_params_t   reg_params;
-    slic_ifevents_t     if_events;
-    slic_stats_t        inicstats_prev;
-    slicnet_stats_t     slic_stats;
+    u32             xmitq_full;
+    u32             all_reg_writes;
+    u32             icr_reg_writes;
+    u32             isr_reg_writes;
+    u32             error_interrupts;
+    u32             error_rmiss_interrupts;
+    u32             rx_errors;
+    u32             rcv_drops;
+    u32             rcv_interrupts;
+    u32             xmit_interrupts;
+    u32             linkevent_interrupts;
+    u32             upr_interrupts;
+    u32             num_isrs;
+    u32             false_interrupts;
+    u32             tx_packets;
+    u32             xmit_completes;
+    u32             tx_drops;
+    u32             rcv_broadcasts;
+    u32             rcv_multicasts;
+    u32             rcv_unicasts;
+    u32             max_isr_rcvs;
+    u32             max_isr_xmits;
+    u32             rcv_interrupt_yields;
+    u32             intagg_period;
+    struct inicpm_state    *inicpm_info;
+    void *pinicpm_info;
+    struct slic_reg_params   reg_params;
+    struct slic_ifevents  if_events;
+    struct slic_stats        inicstats_prev;
+    struct slicnet_stats     slic_stats;
     struct net_device_stats stats;
-} adapter_t, *p_adapter_t;
+};
 
 #if SLIC_DUMP_ENABLED
 #define SLIC_DUMP_REQUESTED      1
@@ -552,10 +547,10 @@ typedef struct _adapter_t {
  * structure is written out to the card's SRAM when the microcode panic's.
  *
  ****************************************************************************/
-typedef struct _slic_crash_info {
+struct slic_crash_info {
     ushort  cpu_id;
     ushort  crash_pc;
-} slic_crash_info, *p_slic_crash_info;
+};
 
 #define CRASH_INFO_OFFSET   0x155C
 
@@ -577,20 +572,20 @@ typedef struct _slic_crash_info {
 #define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                           \
 {                                                                        \
     _Result = TRUE;                                                      \
-    if (*(pulong32)(_AddrA) != *(pulong32)(_AddrB))                          \
+    if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                          \
 	_Result = FALSE;                                                 \
-    if (*(pushort)(&((_AddrA)[4])) != *(pushort)(&((_AddrB)[4])))        \
+    if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        \
 	_Result = FALSE;                                                 \
 }
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
-#define   SLIC_GET_ADDR_LOW(_addr)  (ulong32)((ulong64)(_addr) & \
+#define   SLIC_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & \
 	0x00000000FFFFFFFF)
-#define   SLIC_GET_ADDR_HIGH(_addr)  (ulong32)(((ulong64)(_addr) >> 32) & \
+#define   SLIC_GET_ADDR_HIGH(_addr)  (u32)(((u64)(_addr) >> 32) & \
 	0x00000000FFFFFFFF)
 #else
-#define   SLIC_GET_ADDR_LOW(_addr)   (ulong32)_addr
-#define   SLIC_GET_ADDR_HIGH(_addr)  (ulong32)0
+#define   SLIC_GET_ADDR_LOW(_addr)   (u32)_addr
+#define   SLIC_GET_ADDR_HIGH(_addr)  (u32)0
 #endif
 
 #define FLUSH       TRUE

@@ -2,7 +2,6 @@
  *
  * Copyright (c) 2000-2002 Alacritech, Inc.  All rights reserved.
  *
- * $Id: slicdbg.h,v 1.2 2006/03/27 15:10:04 mook Exp $
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -66,7 +65,7 @@
 #ifdef CONFIG_X86_64
 #define VALID_ADDRESS(p)  (1)
 #else
-#define VALID_ADDRESS(p)  (((ulong32)(p) & 0x80000000) || ((ulong32)(p) == 0))
+#define VALID_ADDRESS(p)  (((u32)(p) & 0x80000000) || ((u32)(p) == 0))
 #endif
 #ifndef ASSERT
 #define ASSERT(a)                                                             \
