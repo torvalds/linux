@@ -62,14 +62,14 @@ static enum print_line_t initcall_print_line(struct trace_iterator *iter)
 	struct timespec rettime = ktime_to_timespec(it->rettime);
 
 	if (entry->type == TRACE_BOOT) {
-		ret = trace_seq_printf(s, "[%5ld.%06ld] calling  %s @ %i\n",
+		ret = trace_seq_printf(s, "[%5ld.%09ld] calling  %s @ %i\n",
 					  calltime.tv_sec,
 					  calltime.tv_nsec,
 					  it->func, it->caller);
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 
-		ret = trace_seq_printf(s, "[%5ld.%06ld] initcall %s "
+		ret = trace_seq_printf(s, "[%5ld.%09ld] initcall %s "
 					  "returned %d after %lld msecs\n",
 					  rettime.tv_sec,
 					  rettime.tv_nsec,
