@@ -94,19 +94,6 @@ static const struct file_operations proc_zoneinfo_file_operations = {
 	.release	= seq_release,
 };
 
-extern const struct seq_operations cpuinfo_op;
-static int cpuinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &cpuinfo_op);
-}
-
-static const struct file_operations proc_cpuinfo_operations = {
-	.open		= cpuinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static int vmstat_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &vmstat_op);
@@ -532,7 +519,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-	proc_create("cpuinfo", 0, NULL, &proc_cpuinfo_operations);
 #ifdef CONFIG_BLOCK
 	proc_create("partitions", 0, NULL, &proc_partitions_operations);
 #endif
