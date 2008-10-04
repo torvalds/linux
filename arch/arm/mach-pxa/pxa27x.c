@@ -34,6 +34,13 @@
 #include "devices.h"
 #include "clock.h"
 
+void pxa27x_clear_otgph(void)
+{
+	if (cpu_is_pxa27x() && (PSSR & PSSR_OTGPH))
+		PSSR |= PSSR_OTGPH;
+}
+EXPORT_SYMBOL(pxa27x_clear_otgph);
+
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000
 

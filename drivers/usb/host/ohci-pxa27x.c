@@ -25,7 +25,6 @@
 #include <linux/clk.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa2xx-regs.h> /* FIXME: for PSSR */
 #include <mach/ohci.h>
 
 /*
@@ -182,6 +181,12 @@ static inline void pxa27x_setup_hc(struct pxaohci_platform_data *inf)
 	UHCRHDA = uhcrhda;
 }
 
+#ifdef CONFIG_CPU_PXA27x
+extern void pxa27x_clear_otgph(void);
+#else
+#define pxa27x_clear_otgph()	do {} while (0)
+#endif
+
 static int pxa27x_start_hc(struct device *dev)
 {
 	int retval = 0;
@@ -212,9 +217,7 @@ static int pxa27x_start_hc(struct device *dev)
 	UHCHIE = (UHCHIE_UPRIE | UHCHIE_RWIE);
 
 	/* Clear any OTG Pin Hold */
-	if (cpu_is_pxa27x() && (PSSR & PSSR_OTGPH))
-		PSSR |= PSSR_OTGPH;
-
+	pxa27x_clear_otgph();
 	return 0;
 }
 
