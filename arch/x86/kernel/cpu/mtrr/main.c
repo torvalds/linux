@@ -1293,6 +1293,15 @@ static int __init mtrr_cleanup(unsigned address_bits)
 	}
 	nr_range = x86_get_mtrr_mem_range(range, 0, extra_remove_base,
 					  extra_remove_size);
+	/*
+	 * [0, 1M) should always be coverred by var mtrr with WB
+	 * and fixed mtrrs should take effective before var mtrr for it
+	 */
+	nr_range = add_range_with_merge(range, nr_range, 0,
+					(1ULL<<(20 - PAGE_SHIFT)) - 1);
+	/* sort the ranges */
+	sort(range, nr_range, sizeof(struct res_range), cmp_range, NULL);
+
 	range_sums = sum_ranges(range, nr_range);
 	printk(KERN_INFO "total RAM coverred: %ldM\n",
 	       range_sums >> (20 - PAGE_SHIFT));
