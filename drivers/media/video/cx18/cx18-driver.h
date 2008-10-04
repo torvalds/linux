@@ -79,7 +79,9 @@
 #define CX18_CARD_COMPRO_H900 	      2	/* Compro VideoMate H900 */
 #define CX18_CARD_YUAN_MPC718 	      3	/* Yuan MPC718 */
 #define CX18_CARD_CNXT_RAPTOR_PAL     4	/* Conexant Raptor PAL */
-#define CX18_CARD_LAST 		      4
+#define CX18_CARD_TOSHIBA_QOSMIO_DVBT 5 /* Toshiba Qosmio Interal DVB-T/Analog*/
+#define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
+#define CX18_CARD_LAST 		      6
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
@@ -99,6 +101,8 @@
 #define CX18_PCI_ID_COMPRO 		0x185b
 #define CX18_PCI_ID_YUAN 		0x12ab
 #define CX18_PCI_ID_CONEXANT		0x14f1
+#define CX18_PCI_ID_TOSHIBA		0x1179
+#define CX18_PCI_ID_LEADTEK		0x107D
 
 /* ======================================================================== */
 /* ========================== START USER SETTABLE DMA VARIABLES =========== */
