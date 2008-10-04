@@ -110,6 +110,12 @@ while (($key,$value) = each %start) {
 
 	if ($duration >= $threshold) {
 		my $s, $s2, $e, $y;
+		$pid = $pids{$key};
+
+		if (!defined($rows{$pid})) {
+			$rows{$pid} = $rowscount;
+			$rowscount = $rowscount + 1;
+		}
 		$s = ($value - $firsttime) * $mult;
 		$s2 = $s + 6;
 		$e = ($end{$key} - $firsttime) * $mult;
