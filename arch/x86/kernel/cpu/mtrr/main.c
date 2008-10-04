@@ -759,7 +759,8 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 	/* take out UC ranges */
 	for (i = 0; i < num_var_ranges; i++) {
 		type = range_state[i].type;
-		if (type != MTRR_TYPE_UNCACHABLE)
+		if (type != MTRR_TYPE_UNCACHABLE &&
+		    type != MTRR_TYPE_WRPROT)
 			continue;
 		size = range_state[i].size_pfn;
 		if (!size)
@@ -1248,6 +1249,8 @@ static int __init mtrr_cleanup(unsigned address_bits)
 			continue;
 		if (!size)
 			type = MTRR_NUM_TYPES;
+		if (type == MTRR_TYPE_WRPROT)
+			type = MTRR_TYPE_UNCACHABLE;
 		num[type]++;
 	}
 
