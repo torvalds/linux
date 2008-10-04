@@ -24,7 +24,6 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 {
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
 	int cpu;
 	int pc;
 
@@ -41,12 +40,10 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = ctx_trace->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1))
+	if (likely(!atomic_read(&data->disabled)))
 		tracing_sched_switch_trace(ctx_trace, data, prev, next, flags, pc);
 
-	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }
 
@@ -55,7 +52,6 @@ probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee)
 {
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
 	int cpu, pc;
 
 	if (!likely(tracer_enabled))
@@ -67,13 +63,11 @@ probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee)
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = ctx_trace->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1))
+	if (likely(!atomic_read(&data->disabled)))
 		tracing_sched_wakeup_trace(ctx_trace, data, wakee, current,
 					   flags, pc);
 
-	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }
 

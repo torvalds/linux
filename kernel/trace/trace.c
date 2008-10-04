@@ -839,7 +839,6 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
-	long disabled;
 	int cpu;
 	int pc;
 
@@ -850,12 +849,10 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1))
+	if (likely(!atomic_read(&data->disabled)))
 		ftrace_trace_special(tr, data, arg1, arg2, arg3, pc);
 
-	atomic_dec(&data->disabled);
 	preempt_enable_notrace();
 }
 
@@ -2961,7 +2958,6 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	struct trace_array_cpu *data;
 	struct print_entry *entry;
 	unsigned long flags, irq_flags;
-	long disabled;
 	int cpu, len = 0, size, pc;
 
 	if (!tr->ctrl || tracing_disabled)
@@ -2971,9 +2967,8 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
 
-	if (unlikely(disabled != 1))
+	if (unlikely(atomic_read(&data->disabled)))
 		goto out;
 
 	spin_lock_irqsave(&trace_buf_lock, flags);
@@ -2999,7 +2994,6 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	spin_unlock_irqrestore(&trace_buf_lock, flags);
 
  out:
-	atomic_dec(&data->disabled);
 	preempt_enable_notrace();
 
 	return len;
