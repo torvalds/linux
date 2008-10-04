@@ -862,15 +862,19 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.data = (const struct snd_usb_audio_quirk[]) {
 			{
 				.ifnum = 1,
-				.type = QUIRK_AUDIO_EDIROL_UA700_UA25
+				.type = QUIRK_AUDIO_EDIROL_UAXX
 			},
 			{
 				.ifnum = 2,
-				.type = QUIRK_AUDIO_EDIROL_UA700_UA25
+				.type = QUIRK_AUDIO_EDIROL_UAXX
 			},
 			{
 				.ifnum = 3,
-				.type = QUIRK_AUDIO_EDIROL_UA700_UA25
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0003,
+					.in_cables  = 0x0003
+				}
 			},
 			{
 				.ifnum = -1
@@ -1204,15 +1208,19 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.data = (const struct snd_usb_audio_quirk[]) {
 			{
 				.ifnum = 0,
-				.type = QUIRK_AUDIO_EDIROL_UA700_UA25
+				.type = QUIRK_AUDIO_EDIROL_UAXX
 			},
 			{
 				.ifnum = 1,
-				.type = QUIRK_AUDIO_EDIROL_UA700_UA25
+				.type = QUIRK_AUDIO_EDIROL_UAXX
 			},
 			{
 				.ifnum = 2,
-				.type = QUIRK_AUDIO_EDIROL_UA700_UA25
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
 			},
 			{
 				.ifnum = -1
@@ -1342,6 +1350,40 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.data = & (const struct snd_usb_midi_endpoint_info) {
 			.out_cables = 0x000f,
 			.in_cables  = 0x000f
+		}
+	}
+},
+{
+	/*
+	 * This quirk is for the "Advanced Driver" mode. If off, the UA-4FX
+	 * is standard compliant, but has only 16-bit PCM and no MIDI.
+	 */
+	USB_DEVICE(0x0582, 0x00a3),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "UA-4FX",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_EDIROL_UAXX
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_EDIROL_UAXX
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
 		}
 	}
 },

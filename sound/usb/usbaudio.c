@@ -2997,12 +2997,12 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 }
 
 /*
- * Create a stream for an Edirol UA-700/UA-25 interface.  The only way
- * to detect the sample rate is by looking at wMaxPacketSize.
+ * Create a stream for an Edirol UA-700/UA-25/UA-4FX interface.  
+ * The only way to detect the sample rate is by looking at wMaxPacketSize.
  */
-static int create_ua700_ua25_quirk(struct snd_usb_audio *chip,
-				   struct usb_interface *iface,
-				   const struct snd_usb_audio_quirk *quirk)
+static int create_uaxx_quirk(struct snd_usb_audio *chip,
+			      struct usb_interface *iface,
+			      const struct snd_usb_audio_quirk *quirk)
 {
 	static const struct audioformat ua_format = {
 		.format = SNDRV_PCM_FORMAT_S24_3LE,
@@ -3017,36 +3017,11 @@ static int create_ua700_ua25_quirk(struct snd_usb_audio *chip,
 	struct audioformat *fp;
 	int stream, err;
 
-	/* both PCM and MIDI interfaces have 2 altsettings */
-	if (iface->num_altsetting != 2)
+	/* both PCM and MIDI interfaces have 2 or more altsettings */
+	if (iface->num_altsetting < 2)
 		return -ENXIO;
 	alts = &iface->altsetting[1];
 	altsd = get_iface_desc(alts);
-
-	if (altsd->bNumEndpoints == 2) {
-		static const struct snd_usb_midi_endpoint_info ua700_ep = {
-			.out_cables = 0x0003,
-			.in_cables  = 0x0003
-		};
-		static const struct snd_usb_audio_quirk ua700_quirk = {
-			.type = QUIRK_MIDI_FIXED_ENDPOINT,
-			.data = &ua700_ep
-		};
-		static const struct snd_usb_midi_endpoint_info ua25_ep = {
-			.out_cables = 0x0001,
-			.in_cables  = 0x0001
-		};
-		static const struct snd_usb_audio_quirk ua25_quirk = {
-			.type = QUIRK_MIDI_FIXED_ENDPOINT,
-			.data = &ua25_ep
-		};
-		if (chip->usb_id == USB_ID(0x0582, 0x002b))
-			return snd_usb_create_midi_interface(chip, iface,
-							     &ua700_quirk);
-		else
-			return snd_usb_create_midi_interface(chip, iface,
-							     &ua25_quirk);
-	}
 
 	if (altsd->bNumEndpoints != 1)
 		return -ENXIO;
@@ -3377,9 +3352,9 @@ static int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_MIDI_CME] = snd_usb_create_midi_interface,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
-		[QUIRK_AUDIO_EDIROL_UA700_UA25] = create_ua700_ua25_quirk,
 		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
 		[QUIRK_AUDIO_EDIROL_UA101] = create_ua101_quirk,
+		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk
 	};
 
 	if (quirk->type < QUIRK_TYPE_COUNT) {
