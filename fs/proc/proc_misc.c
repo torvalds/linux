@@ -453,20 +453,6 @@ static const struct file_operations proc_interrupts_operations = {
 	.release	= seq_release,
 };
 
-#ifdef CONFIG_FILE_LOCKING
-static int locks_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &locks_seq_operations);
-}
-
-static const struct file_operations proc_locks_operations = {
-	.open		= locks_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-#endif /* CONFIG_FILE_LOCKING */
-
 #ifdef CONFIG_PROC_PAGE_MONITOR
 #define KPMSIZE sizeof(u64)
 #define KPMMASK (KPMSIZE - 1)
@@ -605,9 +591,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-#ifdef CONFIG_FILE_LOCKING
-	proc_create("locks", 0, NULL, &proc_locks_operations);
-#endif
 	proc_create("devices", 0, NULL, &proc_devinfo_operations);
 	proc_create("cpuinfo", 0, NULL, &proc_cpuinfo_operations);
 #ifdef CONFIG_BLOCK
