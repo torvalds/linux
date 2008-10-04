@@ -232,13 +232,16 @@ static void hid_irq_in(struct urb *urb)
 static int hid_submit_out(struct hid_device *hid)
 {
 	struct hid_report *report;
+	char *raw_report;
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	report = usbhid->out[usbhid->outtail];
+	report = usbhid->out[usbhid->outtail].report;
+	raw_report = usbhid->out[usbhid->outtail].raw_report;
 
-	hid_output_report(report, usbhid->outbuf);
 	usbhid->urbout->transfer_buffer_length = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 	usbhid->urbout->dev = hid_to_usb_dev(hid);
+	memcpy(usbhid->outbuf, raw_report, usbhid->urbout->transfer_buffer_length);
+	kfree(raw_report);
 
 	dbg_hid("submitting out urb\n");
 
@@ -254,17 +257,20 @@ static int hid_submit_ctrl(struct hid_device *hid)
 {
 	struct hid_report *report;
 	unsigned char dir;
+	char *raw_report;
 	int len;
 	struct usbhid_device *usbhid = hid->driver_data;
 
 	report = usbhid->ctrl[usbhid->ctrltail].report;
+	raw_report = usbhid->ctrl[usbhid->ctrltail].raw_report;
 	dir = usbhid->ctrl[usbhid->ctrltail].dir;
 
 	len = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 	if (dir == USB_DIR_OUT) {
-		hid_output_report(report, usbhid->ctrlbuf);
 		usbhid->urbctrl->pipe = usb_sndctrlpipe(hid_to_usb_dev(hid), 0);
 		usbhid->urbctrl->transfer_buffer_length = len;
+		memcpy(usbhid->ctrlbuf, raw_report, len);
+		kfree(raw_report);
 	} else {
 		int maxpacket, padlen;
 
@@ -401,6 +407,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 	int head;
 	unsigned long flags;
 	struct usbhid_device *usbhid = hid->driver_data;
+	int len = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 
 	if ((hid->quirks & HID_QUIRK_NOGET) && dir == USB_DIR_IN)
 		return;
@@ -415,7 +422,14 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 			return;
 		}
 
-		usbhid->out[usbhid->outhead] = report;
+		usbhid->out[usbhid->outhead].raw_report = kmalloc(len, GFP_ATOMIC);
+		if (!usbhid->out[usbhid->outhead].raw_report) {
+			spin_unlock_irqrestore(&usbhid->outlock, flags);
+			warn("output queueing failed");
+			return;
+		}
+		hid_output_report(report, usbhid->out[usbhid->outhead].raw_report);
+		usbhid->out[usbhid->outhead].report = report;
 		usbhid->outhead = head;
 
 		if (!test_and_set_bit(HID_OUT_RUNNING, &usbhid->iofl))
@@ -434,6 +448,15 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 		return;
 	}
 
+	if (dir == USB_DIR_OUT) {
+		usbhid->ctrl[usbhid->ctrlhead].raw_report = kmalloc(len, GFP_ATOMIC);
+		if (!usbhid->ctrl[usbhid->ctrlhead].raw_report) {
+			spin_unlock_irqrestore(&usbhid->ctrllock, flags);
+			warn("control queueing failed");
+			return;
+		}
+		hid_output_report(report, usbhid->ctrl[usbhid->ctrlhead].raw_report);
+	}
 	usbhid->ctrl[usbhid->ctrlhead].report = report;
 	usbhid->ctrl[usbhid->ctrlhead].dir = dir;
 	usbhid->ctrlhead = head;

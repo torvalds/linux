@@ -388,6 +388,12 @@ struct hid_report_enum {
 struct hid_control_fifo {
 	unsigned char dir;
 	struct hid_report *report;
+	char *raw_report;
+};
+
+struct hid_output_fifo {
+	struct hid_report *report;
+	char *raw_report;
 };
 
 #define HID_CLAIMED_INPUT	1
