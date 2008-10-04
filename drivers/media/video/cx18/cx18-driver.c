@@ -175,7 +175,7 @@ MODULE_PARM_DESC(enc_pcm_buffers,
 		 "Encoder PCM buffers (in MB)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFFERS));
 
-MODULE_PARM_DESC(cx18_first_minor, "Set minor assigned to first card");
+MODULE_PARM_DESC(cx18_first_minor, "Set kernel number assigned to first card");
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");
@@ -959,7 +959,7 @@ static int module_start(void)
 
 	/* Validate parameters */
 	if (cx18_first_minor < 0 || cx18_first_minor >= CX18_MAX_CARDS) {
-		printk(KERN_ERR "cx18:  Exiting, ivtv_first_minor must be between 0 and %d\n",
+		printk(KERN_ERR "cx18:  Exiting, cx18_first_minor must be between 0 and %d\n",
 		     CX18_MAX_CARDS - 1);
 		return -1;
 	}

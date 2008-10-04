@@ -65,6 +65,7 @@ static struct device_attribute video_device_attrs[] = {
  */
 static struct video_device *video_device[VIDEO_NUM_DEVICES];
 static DEFINE_MUTEX(videodev_lock);
+static DECLARE_BITMAP(video_nums[VFL_TYPE_MAX], VIDEO_NUM_DEVICES);
 
 struct video_device *video_device_alloc(void)
 {
@@ -99,6 +100,7 @@ static void v4l2_chardev_release(struct kobject *kobj)
 
 	/* Free up this device for reuse */
 	video_device[vfd->minor] = NULL;
+	clear_bit(vfd->num, video_nums[vfd->vfl_type]);
 	mutex_unlock(&videodev_lock);
 
 	/* Release the character device */
@@ -217,10 +219,10 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 					int index)
 {
 	int i = 0;
-	int base;
-	int end;
 	int ret;
-	char *name_base;
+	int minor_offset = 0;
+	int minor_cnt = VIDEO_NUM_DEVICES;
+	const char *name_base;
 	void *priv = video_get_drvdata(vfd);
 
 	/* the release callback MUST be present */
@@ -231,23 +233,15 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 
 	switch (type) {
 	case VFL_TYPE_GRABBER:
-		base = MINOR_VFL_TYPE_GRABBER_MIN;
-		end = MINOR_VFL_TYPE_GRABBER_MAX+1;
 		name_base = "video";
 		break;
 	case VFL_TYPE_VTX:
-		base = MINOR_VFL_TYPE_VTX_MIN;
-		end = MINOR_VFL_TYPE_VTX_MAX+1;
 		name_base = "vtx";
 		break;
 	case VFL_TYPE_VBI:
-		base = MINOR_VFL_TYPE_VBI_MIN;
-		end = MINOR_VFL_TYPE_VBI_MAX+1;
 		name_base = "vbi";
 		break;
 	case VFL_TYPE_RADIO:
-		base = MINOR_VFL_TYPE_RADIO_MIN;
-		end = MINOR_VFL_TYPE_RADIO_MAX+1;
 		name_base = "radio";
 		break;
 	default:
@@ -256,31 +250,70 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 		return -EINVAL;
 	}
 
+	vfd->vfl_type = type;
+
+#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+	/* Keep the ranges for the first four types for historical
+	 * reasons.
+	 * Newer devices (not yet in place) should use the range
+	 * of 128-191 and just pick the first free minor there
+	 * (new style). */
+	switch (type) {
+	case VFL_TYPE_GRABBER:
+		minor_offset = 0;
+		minor_cnt = 64;
+		break;
+	case VFL_TYPE_RADIO:
+		minor_offset = 64;
+		minor_cnt = 64;
+		break;
+	case VFL_TYPE_VTX:
+		minor_offset = 192;
+		minor_cnt = 32;
+		break;
+	case VFL_TYPE_VBI:
+		minor_offset = 224;
+		minor_cnt = 32;
+		break;
+	default:
+		minor_offset = 128;
+		minor_cnt = 64;
+		break;
+	}
+#endif
+
 	/* Initialize the character device */
 	cdev_init(&vfd->cdev, vfd->fops);
 	vfd->cdev.owner = vfd->fops->owner;
 	/* pick a minor number */
 	mutex_lock(&videodev_lock);
-	if (nr >= 0 && nr < end-base) {
-		/* use the one the driver asked for */
-		i = base + nr;
-		if (NULL != video_device[i]) {
-			mutex_unlock(&videodev_lock);
-			return -ENFILE;
-		}
-	} else {
-		/* use first free */
-		for (i = base; i < end; i++)
-			if (NULL == video_device[i])
-				break;
-		if (i == end) {
-			mutex_unlock(&videodev_lock);
-			return -ENFILE;
-		}
+	nr = find_next_zero_bit(video_nums[type], minor_cnt, nr == -1 ? 0 : nr);
+	if (nr == minor_cnt)
+		nr = find_first_zero_bit(video_nums[type], minor_cnt);
+	if (nr == minor_cnt) {
+		printk(KERN_ERR "could not get a free kernel number\n");
+		mutex_unlock(&videodev_lock);
+		return -ENFILE;
 	}
-	video_device[i] = vfd;
-	vfd->vfl_type = type;
-	vfd->minor = i;
+#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+	/* 1-on-1 mapping of kernel number to minor number */
+	i = nr;
+#else
+	/* The kernel number and minor numbers are independent */
+	for (i = 0; i < VIDEO_NUM_DEVICES; i++)
+		if (video_device[i] == NULL)
+			break;
+	if (i == VIDEO_NUM_DEVICES) {
+		mutex_unlock(&videodev_lock);
+		printk(KERN_ERR "could not get a free minor\n");
+		return -ENFILE;
+	}
+#endif
+	vfd->minor = i + minor_offset;
+	vfd->num = nr;
+	set_bit(nr, video_nums[type]);
+	BUG_ON(video_device[vfd->minor]);
+	video_device[vfd->minor] = vfd;
 
 	ret = get_index(vfd, index);
 	vfd->index = ret;
@@ -306,7 +339,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	vfd->dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
 	if (vfd->parent)
 		vfd->dev.parent = vfd->parent;
-	sprintf(vfd->dev.bus_id, "%s%d", name_base, i - base);
+	sprintf(vfd->dev.bus_id, "%s%d", name_base, nr);
 	ret = device_register(&vfd->dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: device_register failed\n", __func__);
@@ -324,6 +357,7 @@ del_cdev:
 fail_minor:
 	mutex_lock(&videodev_lock);
 	video_device[vfd->minor] = NULL;
+	clear_bit(vfd->num, video_nums[type]);
 	mutex_unlock(&videodev_lock);
 	vfd->minor = -1;
 	return ret;

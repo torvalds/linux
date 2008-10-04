@@ -1600,8 +1600,7 @@ static void em28xx_release_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	em28xx_info("V4L2 devices /dev/video%d and /dev/vbi%d deregistered\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
-				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
+				dev->vdev->num, dev->vbi_dev->num);
 	list_del(&dev->devlist);
 	if (dev->sbutton_input_dev)
 		em28xx_deregister_snapshot_button(dev);
@@ -2073,8 +2072,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	video_mux(dev, 0);
 
 	em28xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
-				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
+				dev->vdev->num, dev->vbi_dev->num);
 
 	mutex_lock(&em28xx_extension_devlist_lock);
 	if (!list_empty(&em28xx_extension_devlist)) {
@@ -2274,7 +2272,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		em28xx_warn
 		    ("device /dev/video%d is open! Deregistration and memory "
 		     "deallocation are deferred on close.\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN);
+				dev->vdev->num);
 
 		dev->state |= DEV_MISCONFIGURED;
 		em28xx_uninit_isoc(dev);

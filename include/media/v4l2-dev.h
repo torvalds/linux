@@ -18,20 +18,11 @@
 
 #define VIDEO_MAJOR	81
 
-/* Minor device allocation */
-#define MINOR_VFL_TYPE_GRABBER_MIN   0
-#define MINOR_VFL_TYPE_GRABBER_MAX  63
-#define MINOR_VFL_TYPE_RADIO_MIN    64
-#define MINOR_VFL_TYPE_RADIO_MAX   127
-#define MINOR_VFL_TYPE_VTX_MIN     192
-#define MINOR_VFL_TYPE_VTX_MAX     223
-#define MINOR_VFL_TYPE_VBI_MIN     224
-#define MINOR_VFL_TYPE_VBI_MAX     255
-
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
 #define VFL_TYPE_VTX		3
+#define VFL_TYPE_MAX		4
 
 struct v4l2_ioctl_callbacks;
 
@@ -56,6 +47,7 @@ struct video_device
 	char name[32];
 	int vfl_type;
 	int minor;
+	u16 num;
 	/* attribute to differentiate multiple indices on one physical device */
 	int index;
 

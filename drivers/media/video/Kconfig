@@ -72,6 +72,15 @@ config VIDEO_ADV_DEBUG
 	  V4L devices.
 	  In doubt, say N.
 
+config VIDEO_FIXED_MINOR_RANGES
+	bool "Enable old-style fixed minor ranges for video devices"
+	default n
+	---help---
+	  Say Y here to enable the old-style fixed-range minor assignments.
+	  Only useful if you rely on the old behavior and use mknod instead of udev.
+
+	  When in doubt, say N.
+
 config VIDEO_HELPER_CHIPS_AUTO
 	bool "Autoselect pertinent encoders/decoders and other helper chips"
 	default y
