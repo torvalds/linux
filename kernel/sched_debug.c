@@ -333,12 +333,10 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	unsigned long flags;
 	int num_threads = 1;
 
-	rcu_read_lock();
 	if (lock_task_sighand(p, &flags)) {
 		num_threads = atomic_read(&p->signal->count);
 		unlock_task_sighand(p, &flags);
 	}
-	rcu_read_unlock();
 
 	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid, num_threads);
 	SEQ_printf(m,
