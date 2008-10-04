@@ -16,8 +16,11 @@
 
 #include <asm/stacktrace.h>
 
+#define STACKSLOTS_PER_LINE 4
+#define get_bp(bp) asm("movl %%rbp, %0" : "=r" (bp) :)
+
 int panic_on_unrecovered_nmi;
-int kstack_depth_to_print = 12;
+int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
 static unsigned int code_bytes = 64;
 static int die_counter;
 
@@ -177,7 +180,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	if (!bp) {
 		if (task == current) {
 			/* Grab bp right from our regs */
-			asm("movq %%rbp, %0" : "=r" (bp) : );
+			get_bp(bp);
 		} else {
 			/* bp is the last reg pushed by switch_to */
 			bp = *(unsigned long *) task->thread.sp;
@@ -329,7 +332,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		if (((long) stack & (THREAD_SIZE-1)) == 0)
 			break;
 		}
-		if (i && ((i % 4) == 0))
+		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
 			printk("\n%s", log_lvl);
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
@@ -353,7 +356,7 @@ void dump_stack(void)
 
 #ifdef CONFIG_FRAME_POINTER
 	if (!bp)
-		asm("movq %%rbp, %0" : "=r" (bp) : );
+		get_bp(bp);
 #endif
 
 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
@@ -396,7 +399,7 @@ void show_registers(struct pt_regs *regs)
 
 		ip = (u8 *)regs->ip - code_prologue;
 		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
-			/* try starting at RIP */
+			/* try starting at IP */
 			ip = (u8 *)regs->ip;
 			code_len = code_len - code_prologue + 1;
 		}
@@ -475,7 +478,7 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 
 int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 {
-	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff, ++die_counter);
+	printk(KERN_EMERG "%s: %04lx [#%d] ", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");
 #endif

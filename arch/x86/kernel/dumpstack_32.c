@@ -16,8 +16,11 @@
 
 #include <asm/stacktrace.h>
 
+#define STACKSLOTS_PER_LINE 8
+#define get_bp(bp) asm("movl %%ebp, %0" : "=r" (bp) :)
+
 int panic_on_unrecovered_nmi;
-int kstack_depth_to_print = 24;
+int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
 static unsigned int code_bytes = 64;
 static int die_counter;
 
@@ -82,7 +85,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	if (!stack) {
 		unsigned long dummy;
 		stack = &dummy;
-		if (task != current)
+		if (task && task != current)
 			stack = (unsigned long *)task->thread.sp;
 	}
 
@@ -90,7 +93,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	if (!bp) {
 		if (task == current) {
 			/* Grab bp right from our regs */
-			asm("movl %%ebp, %0" : "=r" (bp) :);
+			get_bp(bp);
 		} else {
 			/* bp is the last reg pushed by switch_to */
 			bp = *(unsigned long *) task->thread.sp;
@@ -167,7 +170,7 @@ void show_trace(struct task_struct *task, struct pt_regs *regs,
 
 static void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		   unsigned long *sp, unsigned long bp, char *log_lvl)
+		unsigned long *sp, unsigned long bp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -183,7 +186,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
-		if (i && ((i % 8) == 0))
+		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
 			printk("\n%s", log_lvl);
 		printk(" %08lx", *stack++);
 		touch_nmi_watchdog();
@@ -207,7 +210,7 @@ void dump_stack(void)
 
 #ifdef CONFIG_FRAME_POINTER
 	if (!bp)
-		asm("movl %%ebp, %0" : "=r" (bp):);
+		get_bp(bp);
 #endif
 
 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
@@ -215,8 +218,7 @@ void dump_stack(void)
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
-
-	show_trace(current, NULL, &stack, bp);
+	show_trace(NULL, NULL, &stack, bp);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -249,7 +251,7 @@ void show_registers(struct pt_regs *regs)
 
 		ip = (u8 *)regs->ip - code_prologue;
 		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
-			/* try starting at EIP */
+			/* try starting at IP */
 			ip = (u8 *)regs->ip;
 			code_len = code_len - code_prologue + 1;
 		}
@@ -317,13 +319,10 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
-
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
-
 	if (panic_on_oops)
 		panic("Fatal exception");
-
 	oops_exit();
 	do_exit(signr);
 }
