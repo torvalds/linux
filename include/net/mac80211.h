@@ -292,6 +292,20 @@ enum mac80211_tx_control_flags {
 #define IEEE80211_TX_INFO_DRIVER_DATA_PTRS \
 	(IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *))
 
+/* maximum number of alternate rate retry stages */
+#define IEEE80211_TX_MAX_ALTRATE	3
+
+/**
+ * struct ieee80211_tx_altrate - alternate rate selection/status
+ *
+ * @rate_idx: rate index to attempt to send with
+ * @limit: number of retries before fallback
+ */
+struct ieee80211_tx_altrate {
+	s8 rate_idx;
+	u8 limit;
+};
+
 /**
  * struct ieee80211_tx_info - skb transmit information
  *
@@ -335,12 +349,14 @@ struct ieee80211_tx_info {
 			struct ieee80211_key_conf *hw_key;
 			struct ieee80211_sta *sta;
 			unsigned long jiffies;
-			s8 rts_cts_rate_idx, alt_retry_rate_idx;
+			s8 rts_cts_rate_idx;
 			u8 retry_limit;
+			struct ieee80211_tx_altrate retries[IEEE80211_TX_MAX_ALTRATE];
 		} control;
 		struct {
 			u64 ampdu_ack_map;
 			int ack_signal;
+			struct ieee80211_tx_altrate retries[IEEE80211_TX_MAX_ALTRATE + 1];
 			u8 retry_count;
 			bool excessive_retries;
 			u8 ampdu_ack_len;
@@ -828,6 +844,9 @@ enum ieee80211_hw_flags {
  *	within &struct ieee80211_vif.
  * @sta_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_sta.
+ *
+ * @max_altrates: maximum number of alternate rate retry stages
+ * @max_altrate_tries: maximum number of tries for each stage
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -844,6 +863,8 @@ struct ieee80211_hw {
 	u16 ampdu_queues;
 	u16 max_listen_interval;
 	s8 max_signal;
+	u8 max_altrates;
+	u8 max_altrate_tries;
 };
 
 struct ieee80211_hw *wiphy_to_hw(struct wiphy *wiphy);
@@ -900,11 +921,11 @@ ieee80211_get_rts_cts_rate(const struct ieee80211_hw *hw,
 
 static inline struct ieee80211_rate *
 ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
-			     const struct ieee80211_tx_info *c)
+			     const struct ieee80211_tx_info *c, int idx)
 {
-	if (c->control.alt_retry_rate_idx < 0)
+	if (c->control.retries[idx].rate_idx < 0)
 		return NULL;
-	return &hw->wiphy->bands[c->band]->bitrates[c->control.alt_retry_rate_idx];
+	return &hw->wiphy->bands[c->band]->bitrates[c->control.retries[idx].rate_idx];
 }
 
 /**
