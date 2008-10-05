@@ -1903,16 +1903,11 @@ void gspca_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 
-	gspca_dev->present = 0;
-	mutex_lock(&gspca_dev->queue_lock);
-	mutex_lock(&gspca_dev->usb_lock);
-	gspca_dev->streaming = 0;
-	destroy_urbs(gspca_dev);
-	mutex_unlock(&gspca_dev->usb_lock);
-	mutex_unlock(&gspca_dev->queue_lock);
-
 /* We don't want people trying to open up the device */
 	video_unregister_device(&gspca_dev->vdev);
+
+	gspca_dev->present = 0;
+	gspca_dev->streaming = 0;
 
 	kref_put(&gspca_dev->kref, gspca_delete);
 
