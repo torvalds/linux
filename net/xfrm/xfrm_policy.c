@@ -2679,7 +2679,8 @@ static int xfrm_migrate_check(struct xfrm_migrate *m, int num_migrate)
 }
 
 int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-		 struct xfrm_migrate *m, int num_migrate)
+		 struct xfrm_migrate *m, int num_migrate,
+		 struct xfrm_kmaddress *k)
 {
 	int i, err, nx_cur = 0, nx_new = 0;
 	struct xfrm_policy *pol = NULL;
@@ -2723,7 +2724,7 @@ int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	}
 
 	/* Stage 5 - announce */
-	km_migrate(sel, dir, type, m, num_migrate);
+	km_migrate(sel, dir, type, m, num_migrate, k);
 
 	xfrm_pol_put(pol);
 

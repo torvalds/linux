@@ -492,6 +492,13 @@ struct xfrm_policy
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
+struct xfrm_kmaddress {
+	xfrm_address_t          local;
+	xfrm_address_t          remote;
+	u32			reserved;
+	u16			family;
+};
+
 struct xfrm_migrate {
 	xfrm_address_t		old_daddr;
 	xfrm_address_t		old_saddr;
@@ -531,7 +538,7 @@ struct xfrm_mgr
 	int			(*new_mapping)(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
 	int			(*notify_policy)(struct xfrm_policy *x, int dir, struct km_event *c);
 	int			(*report)(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);
-	int			(*migrate)(struct xfrm_selector *sel, u8 dir, u8 type, struct xfrm_migrate *m, int num_bundles);
+	int			(*migrate)(struct xfrm_selector *sel, u8 dir, u8 type, struct xfrm_migrate *m, int num_bundles, struct xfrm_kmaddress *k);
 };
 
 extern int xfrm_register_km(struct xfrm_mgr *km);
@@ -1432,12 +1439,14 @@ extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
 
 #ifdef CONFIG_XFRM_MIGRATE
 extern int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-		      struct xfrm_migrate *m, int num_bundles);
+		      struct xfrm_migrate *m, int num_bundles,
+		      struct xfrm_kmaddress *k);
 extern struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m);
 extern struct xfrm_state * xfrm_state_migrate(struct xfrm_state *x,
 					      struct xfrm_migrate *m);
 extern int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			struct xfrm_migrate *m, int num_bundles);
+			struct xfrm_migrate *m, int num_bundles,
+			struct xfrm_kmaddress *k);
 #endif
 
 extern wait_queue_head_t km_waitq;

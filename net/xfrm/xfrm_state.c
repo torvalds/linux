@@ -1814,7 +1814,8 @@ EXPORT_SYMBOL(km_policy_expired);
 
 #ifdef CONFIG_XFRM_MIGRATE
 int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-	       struct xfrm_migrate *m, int num_migrate)
+	       struct xfrm_migrate *m, int num_migrate,
+	       struct xfrm_kmaddress *k)
 {
 	int err = -EINVAL;
 	int ret;
@@ -1823,7 +1824,7 @@ int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	read_lock(&xfrm_km_lock);
 	list_for_each_entry(km, &xfrm_km_list, list) {
 		if (km->migrate) {
-			ret = km->migrate(sel, dir, type, m, num_migrate);
+			ret = km->migrate(sel, dir, type, m, num_migrate, k);
 			if (!ret)
 				err = ret;
 		}
