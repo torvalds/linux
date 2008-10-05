@@ -27,7 +27,9 @@
 #define PN_PROTO_TRANSPORT	0
 /* Phonet datagram socket */
 #define PN_PROTO_PHONET		1
-#define PHONET_NPROTO		2
+/* Phonet pipe */
+#define PN_PROTO_PIPE		2
+#define PHONET_NPROTO		3
 
 #define PNADDR_ANY		0
 #define PNPORT_RESOURCE_ROUTING	0

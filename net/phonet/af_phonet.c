@@ -58,6 +58,9 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol)
 		case SOCK_DGRAM:
 			protocol = PN_PROTO_PHONET;
 			break;
+		case SOCK_SEQPACKET:
+			protocol = PN_PROTO_PIPE;
+			break;
 		default:
 			return -EPROTONOSUPPORT;
 		}
