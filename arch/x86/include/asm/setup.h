@@ -8,6 +8,10 @@
 /* Interrupt control for vSMPowered x86_64 systems */
 void vsmp_init(void);
 
+
+void setup_bios_corruption_check(void);
+
+
 #ifdef CONFIG_X86_VISWS
 extern void visws_early_detect(void);
 extern int is_visws_box(void);
