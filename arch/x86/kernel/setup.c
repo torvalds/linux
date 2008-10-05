@@ -662,7 +662,7 @@ static void __init setup_bios_corruption_check(void)
 
 	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
 
-	while(addr < corruption_check_size && num_scan_areas < MAX_SCAN_AREAS) {
+	while (addr < corruption_check_size && num_scan_areas < MAX_SCAN_AREAS) {
 		u64 size;
 		addr = find_e820_area_size(addr, &size, PAGE_SIZE);
 
@@ -701,11 +701,11 @@ void check_for_bios_corruption(void)
 	if (!memory_corruption_check)
 		return;
 
-	for(i = 0; i < num_scan_areas; i++) {
+	for (i = 0; i < num_scan_areas; i++) {
 		unsigned long *addr = __va(scan_areas[i].addr);
 		unsigned long size = scan_areas[i].size;
 
-		for(; size; addr++, size -= sizeof(unsigned long)) {
+		for (; size; addr++, size -= sizeof(unsigned long)) {
 			if (!*addr)
 				continue;
 			printk(KERN_ERR "Corrupted low memory at %p (%lx phys) = %08lx\n",
@@ -721,7 +721,8 @@ void check_for_bios_corruption(void)
 static void periodic_check_for_corruption(unsigned long data)
 {
 	check_for_bios_corruption();
-	mod_timer(&periodic_check_timer, round_jiffies(jiffies + corruption_check_period*HZ));
+	mod_timer(&periodic_check_timer,
+		round_jiffies(jiffies + corruption_check_period*HZ));
 }
 
 void start_periodic_check_for_corruption(void)
