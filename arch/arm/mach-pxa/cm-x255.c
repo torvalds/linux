@@ -12,6 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/nand-gpio.h>
 
 #include <linux/spi/spi.h>
 
@@ -25,6 +28,11 @@
 #include <mach/bitfield.h>
 
 #include "generic.h"
+
+#define GPIO_NAND_CS	(5)
+#define GPIO_NAND_ALE	(4)
+#define GPIO_NAND_CLE	(3)
+#define GPIO_NAND_RB	(10)
 
 static unsigned long cmx255_pin_config[] = {
 	/* AC'97 */
@@ -134,9 +142,117 @@ static void __init cmx255_init_rtc(void)
 static inline void cmx255_init_rtc(void) {}
 #endif
 
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+static struct mtd_partition cmx255_nor_partitions[] = {
+	{
+		.name		= "ARMmon",
+		.size		= 0x00030000,
+		.offset		= 0,
+		.mask_flags	= MTD_WRITEABLE  /* force read-only */
+	} , {
+		.name		= "ARMmon setup block",
+		.size		= 0x00010000,
+		.offset		= MTDPART_OFS_APPEND,
+		.mask_flags	= MTD_WRITEABLE  /* force read-only */
+	} , {
+		.name		= "kernel",
+		.size		= 0x00160000,
+		.offset		= MTDPART_OFS_APPEND,
+	} , {
+		.name		= "ramdisk",
+		.size		= MTDPART_SIZ_FULL,
+		.offset		= MTDPART_OFS_APPEND
+	}
+};
+
+static struct physmap_flash_data cmx255_nor_flash_data[] = {
+	{
+		.width		= 2,	/* bankwidth in bytes */
+		.parts		= cmx255_nor_partitions,
+		.nr_parts	= ARRAY_SIZE(cmx255_nor_partitions)
+	}
+};
+
+static struct resource cmx255_nor_resource = {
+	.start	= PXA_CS0_PHYS,
+	.end	= PXA_CS0_PHYS + SZ_8M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device cmx255_nor = {
+	.name	= "physmap-flash",
+	.id	= -1,
+	.dev	= {
+		.platform_data = cmx255_nor_flash_data,
+	},
+	.resource = &cmx255_nor_resource,
+	.num_resources = 1,
+};
+
+static void __init cmx255_init_nor(void)
+{
+	platform_device_register(&cmx255_nor);
+}
+#else
+static inline void cmx255_init_nor(void) {}
+#endif
+
+#if defined(CONFIG_MTD_NAND_GPIO) || defined(CONFIG_MTD_NAND_GPIO_MODULE)
+static struct resource cmx255_nand_resource[] = {
+	[0] = {
+		.start = PXA_CS1_PHYS,
+		.end   = PXA_CS1_PHYS + 11,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = PXA_CS5_PHYS,
+		.end   = PXA_CS5_PHYS + 3,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct mtd_partition cmx255_nand_parts[] = {
+	[0] = {
+		.name	= "cmx255-nand",
+		.size	= MTDPART_SIZ_FULL,
+		.offset	= 0,
+	},
+};
+
+static struct gpio_nand_platdata cmx255_nand_platdata = {
+	.gpio_nce = GPIO_NAND_CS,
+	.gpio_cle = GPIO_NAND_CLE,
+	.gpio_ale = GPIO_NAND_ALE,
+	.gpio_rdy = GPIO_NAND_RB,
+	.gpio_nwp = -1,
+	.parts = cmx255_nand_parts,
+	.num_parts = ARRAY_SIZE(cmx255_nand_parts),
+	.chip_delay = 25,
+};
+
+static struct platform_device cmx255_nand = {
+	.name		= "gpio-nand",
+	.num_resources	= ARRAY_SIZE(cmx255_nand_resource),
+	.resource	= cmx255_nand_resource,
+	.id		= -1,
+	.dev		= {
+		.platform_data = &cmx255_nand_platdata,
+	}
+};
+
+static void __init cmx255_init_nand(void)
+{
+	platform_device_register(&cmx255_nand);
+}
+#else
+static inline void cmx255_init_nand(void) {}
+#endif
+
 void __init cmx255_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(cmx255_pin_config));
 
 	cmx255_init_rtc();
+	cmx255_init_nor();
+	cmx255_init_nand();
 }
