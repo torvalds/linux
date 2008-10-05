@@ -1017,6 +1017,18 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	return status;
 }
 
+static int nfs_post_op_update_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+	if (S_ISDIR(inode->i_mode))
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
+		return 0;
+	return nfs_refresh_inode_locked(inode, fattr);
+}
+
 /**
  * nfs_post_op_update_inode - try to update the inode attribute cache
  * @inode - pointer to inode
@@ -1033,15 +1045,10 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int status = 0;
+	int status;
 
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
-	if (S_ISDIR(inode->i_mode))
-		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
-	if ((fattr->valid & NFS_ATTR_FATTR) != 0)
-		status = nfs_refresh_inode_locked(inode, fattr);
+	status = nfs_post_op_update_inode_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
 	return status;
 }
@@ -1059,6 +1066,15 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr)
 {
+	int status;
+
+	spin_lock(&inode->i_lock);
+	/* Don't do a WCC update if these attributes are already stale */
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0 ||
+			!nfs_inode_attrs_need_update(inode, fattr)) {
+		fattr->valid &= ~(NFS_ATTR_WCC_V4|NFS_ATTR_WCC);
+		goto out_noforce;
+	}
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
 			(fattr->valid & NFS_ATTR_WCC_V4) == 0) {
 		fattr->pre_change_attr = NFS_I(inode)->change_attr;
@@ -1071,7 +1087,10 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 		fattr->pre_size = i_size_read(inode);
 		fattr->valid |= NFS_ATTR_WCC;
 	}
-	return nfs_post_op_update_inode(inode, fattr);
+out_noforce:
+	status = nfs_post_op_update_inode_locked(inode, fattr);
+	spin_unlock(&inode->i_lock);
+	return status;
 }
 
 /*
