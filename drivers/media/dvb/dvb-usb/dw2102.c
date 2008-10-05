@@ -14,6 +14,9 @@
 #include "si21xx.h"
 #include "stv0299.h"
 #include "z0194a.h"
+#include "stv0288.h"
+#include "stb6000.h"
+#include "eds1547.h"
 #include "cx24116.h"
 
 #ifndef USB_PID_DW2102
@@ -199,6 +202,78 @@ static int dw2102_serit_i2c_transfer(struct i2c_adapter *adap,
 	mutex_unlock(&d->i2c_mutex);
 	return num;
 }
+static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
+{
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	int ret = 0;
+
+	if (!d)
+		return -ENODEV;
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
+
+	switch (num) {
+	case 2: {
+		/* read */
+		/* first write first register number */
+		u8 ibuf [msg[1].len + 2], obuf[3];
+		obuf[0] = 0xd0;
+		obuf[1] = msg[0].len;
+		obuf[2] = msg[0].buf[0];
+		ret = dw210x_op_rw(d->udev, 0xc2, 0, 0,
+				obuf, msg[0].len + 2, DW210X_WRITE_MSG);
+		/* second read registers */
+		ret = dw210x_op_rw(d->udev, 0xc3, 0xd1 , 0,
+				ibuf, msg[1].len + 2, DW210X_READ_MSG);
+		memcpy(msg[1].buf, ibuf + 2, msg[1].len);
+
+		break;
+	}
+	case 1:
+		switch (msg[0].addr) {
+		case 0x68: {
+			/* write to register */
+			u8 obuf[msg[0].len + 2];
+			obuf[0] = 0xd0;
+			obuf[1] = msg[0].len;
+			memcpy(obuf + 2, msg[0].buf, msg[0].len);
+			ret = dw210x_op_rw(d->udev, 0xc2, 0, 0,
+					obuf, msg[0].len + 2, DW210X_WRITE_MSG);
+			break;
+		}
+		case 0x61: {
+			/* write to tuner */
+			u8 obuf[msg[0].len + 2];
+			obuf[0] = 0xc2;
+			obuf[1] = msg[0].len;
+			memcpy(obuf + 2, msg[0].buf, msg[0].len);
+			ret = dw210x_op_rw(d->udev, 0xc2, 0, 0,
+					obuf, msg[0].len + 2, DW210X_WRITE_MSG);
+			break;
+		}
+		case(DW2102_RC_QUERY): {
+			u8 ibuf[2];
+			ret  = dw210x_op_rw(d->udev, 0xb8, 0, 0,
+					ibuf, 2, DW210X_READ_MSG);
+			memcpy(msg[0].buf, ibuf , 2);
+			break;
+		}
+		case(DW2102_VOLTAGE_CTRL): {
+			u8 obuf[2];
+			obuf[0] = 0x30;
+			obuf[1] = msg[0].buf[0];
+			ret = dw210x_op_rw(d->udev, 0xb2, 0, 0,
+					obuf, 2, DW210X_WRITE_MSG);
+			break;
+		}
+		}
+
+		break;
+	}
+
+	mutex_unlock(&d->i2c_mutex);
+	return num;
+}
 
 static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
 {
@@ -297,6 +372,11 @@ static struct i2c_algorithm dw2102_serit_i2c_algo = {
 	.functionality = dw210x_i2c_func,
 };
 
+static struct i2c_algorithm dw2102_earda_i2c_algo = {
+	.master_xfer = dw2102_earda_i2c_transfer,
+	.functionality = dw210x_i2c_func,
+};
+
 static struct i2c_algorithm dw2104_i2c_algo = {
 	.master_xfer = dw2104_i2c_transfer,
 	.functionality = dw210x_i2c_func,
@@ -378,6 +458,17 @@ static int dw2102_frontend_attach(struct dvb_usb_adapter *d)
 			return 0;
 		}
 	}
+	if (dw2102_properties.i2c_algo == &dw2102_earda_i2c_algo) {
+		/*dw2102_properties.adapter->tuner_attach = dw2102_tuner_attach;*/
+		d->fe = dvb_attach(stv0288_attach, &earda_config,
+					&d->dev->i2c_adap);
+		if (d->fe != NULL) {
+			d->fe->ops.set_voltage = dw210x_set_voltage;
+			info("Attached stv0288!\n");
+			return 0;
+		}
+	}
+
 	if (dw2102_properties.i2c_algo == &dw2102_i2c_algo) {
 		/*dw2102_properties.adapter->tuner_attach = dw2102_tuner_attach;*/
 		d->fe = dvb_attach(stv0299_attach, &sharp_z0194a_config,
@@ -395,6 +486,14 @@ static int dw2102_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
 		&adap->dev->i2c_adap, DVB_PLL_OPERA1);
+	return 0;
+}
+
+static int dw2102_earda_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	dvb_attach(stb6000_attach, adap->fe, 0x61,
+		&adap->dev->i2c_adap);
+
 	return 0;
 }
 
@@ -478,7 +577,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 	u8 *b, *p;
 	int ret = 0, i;
 	u8 reset;
-	u8 reset16 [] = {0, 0, 0, 0, 0, 0, 0};
+	u8 reset16[] = {0, 0, 0, 0, 0, 0, 0};
 	const struct firmware *fw;
 	const char *filename = "dvb-usb-dw2101.fw";
 	switch (dev->descriptor.idProduct) {
@@ -544,9 +643,25 @@ static int dw2102_load_firmware(struct usb_device *dev,
 			/* check STV0299 frontend  */
 			dw210x_op_rw(dev, 0xb5, 0, 0, &reset16[0], 2,
 					DW210X_READ_MSG);
-			if (reset16[0] == 0xa1)
+			if (reset16[0] == 0xa1) {
 				dw2102_properties.i2c_algo = &dw2102_i2c_algo;
-			break;
+				dw2102_properties.adapter->tuner_attach = &dw2102_tuner_attach;
+				break;
+			} else {
+				/* check STV0288 frontend  */
+				reset16[0] = 0xd0;
+				reset16[1] = 1;
+				reset16[2] = 0;
+				dw210x_op_rw(dev, 0xc2, 0, 0, &reset16[0], 3,
+						DW210X_WRITE_MSG);
+				dw210x_op_rw(dev, 0xc3, 0xd1, 0, &reset16[0], 3,
+						DW210X_READ_MSG);
+				if (reset16[2] == 0x11) {
+					dw2102_properties.i2c_algo = &dw2102_earda_i2c_algo;
+					dw2102_properties.adapter->tuner_attach = &dw2102_earda_tuner_attach;
+					break;
+				}
+			}
 		case 0x2101:
 			dw210x_op_rw(dev, 0xbc, 0x0030, 0, &reset16[0], 2,
 					DW210X_READ_MSG);
@@ -586,7 +701,7 @@ static struct dvb_usb_device_properties dw2102_properties = {
 		{
 			.frontend_attach = dw2102_frontend_attach,
 			.streaming_ctrl = NULL,
-			.tuner_attach = dw2102_tuner_attach,
+			.tuner_attach = NULL,
 			.stream = {
 				.type = USB_BULK,
 				.count = 8,
