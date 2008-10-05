@@ -61,7 +61,6 @@ static void slic_xmit_fail(struct adapter    *adapter,
 			void *cmd,
 			u32           skbtype,
 			u32           status);
-static void slic_xmit_timeout(struct net_device *dev);
 static void slic_config_pci(struct pci_dev *pcidev);
 static struct sk_buff *slic_rcvqueue_getnext(struct adapter *adapter);
 
@@ -90,8 +89,6 @@ static void  slic_cmdq_free(struct adapter *adapter);
 static void  slic_cmdq_reset(struct adapter *adapter);
 static void  slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page);
 static void  slic_cmdq_getdone(struct adapter *adapter);
-static void  slic_cmdq_putdone(struct adapter *adapter,
-						struct slic_hostcmd *cmd);
 static void  slic_cmdq_putdone_irq(struct adapter *adapter,
 						struct slic_hostcmd *cmd);
 static struct slic_hostcmd *slic_cmdq_getfree(struct adapter *adapter);
@@ -103,7 +100,6 @@ static void  slic_rcvqueue_free(struct adapter *adapter);
 static void slic_rcv_handle_error(struct adapter *adapter,
 					struct slic_rcvbuf *rcvbuf);
 static void slic_adapter_set_hwaddr(struct adapter *adapter);
-static void slic_card_halt(struct sliccard *card, struct adapter *adapter);
 static int slic_card_init(struct sliccard *card, struct adapter *adapter);
 static void slic_intagg_set(struct adapter *adapter, u32 value);
 static int  slic_card_download(struct adapter *adapter);
@@ -120,7 +116,6 @@ static void slic_unmap_mmio_space(struct adapter *adapter);
 static void slic_card_cleanup(struct sliccard *card);
 static void slic_init_cleanup(struct adapter *adapter);
 static void slic_soft_reset(struct adapter *adapter);
-static void slic_card_reset(struct adapter *adapter);
 static bool slic_mac_filter(struct adapter *adapter,
 			struct ether_header *ether_frame);
 static void slic_mac_address_config(struct adapter *adapter);
@@ -133,7 +128,6 @@ static void slic_config_set(struct adapter *adapter, bool linkchange);
 static void slic_config_clear(struct adapter *adapter);
 static void slic_config_get(struct adapter *adapter, u32 config,
 			u32 configh);
-static void slic_timer_get_stats(ulong device);
 static void slic_timer_load_check(ulong context);
 static void slic_timer_ping(ulong dev);
 static void slic_assert_fail(void);

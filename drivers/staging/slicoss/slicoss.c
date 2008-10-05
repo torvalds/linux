@@ -3128,6 +3128,7 @@ static int slic_mac_set_address(struct net_device *dev, void *ptr)
  * 50 seconds or whatever STATS_TIMER_INTERVAL is set to.
  *
  */
+#if SLIC_GET_STATS_TIMER_ENABLED
 static void slic_timer_get_stats(ulong dev)
 {
 	struct adapter *adapter;
@@ -3163,7 +3164,7 @@ static void slic_timer_get_stats(ulong dev)
 	    SLIC_SECS_TO_JIFFS(STATS_TIMER_INTERVAL);
 	add_timer(&adapter->statstimer);
 }
-
+#endif
 static void slic_timer_load_check(ulong cardaddr)
 {
 	struct sliccard *card = (struct sliccard *)cardaddr;
