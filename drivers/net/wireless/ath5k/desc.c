@@ -318,6 +318,15 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	return 0;
 }
 
+/* no mrr support for cards older than 5212 */
+static int
+ath5k_hw_setup_no_mrr(struct ath5k_hw *ah, struct ath5k_desc *desc,
+	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2,
+	u_int tx_tries2, unsigned int tx_rate3, u_int tx_tries3)
+{
+	return 0;
+}
+
 /*
  * Proccess the tx status descriptor on 5210/5211
  */
@@ -352,8 +361,10 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
 	ts->ts_antenna = 1;
 	ts->ts_status = 0;
-	ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_0,
+	ts->ts_rate[0] = AR5K_REG_MS(tx_ctl->tx_control_0,
 		AR5K_2W_TX_DESC_CTL0_XMIT_RATE);
+	ts->ts_retry[0] = ts->ts_longretry;
+	ts->ts_final_idx = 0;
 
 	if (!(tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK)) {
 		if (tx_status->tx_status_0 &
@@ -405,29 +416,43 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS1_XMIT_ANTENNA) ? 2 : 1;
 	ts->ts_status = 0;
 
-	switch (AR5K_REG_MS(tx_status->tx_status_1,
-			AR5K_DESC_TX_STATUS1_FINAL_TS_INDEX)) {
-	case 0:
-		ts->ts_rate = tx_ctl->tx_control_3 &
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
-		break;
-	case 1:
-		ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_3,
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE1);
-		ts->ts_longretry += AR5K_REG_MS(tx_ctl->tx_control_2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
-		break;
-	case 2:
-		ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_3,
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE2);
-		ts->ts_longretry += AR5K_REG_MS(tx_ctl->tx_control_2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES2);
-		break;
+	ts->ts_final_idx = AR5K_REG_MS(tx_status->tx_status_1,
+			AR5K_DESC_TX_STATUS1_FINAL_TS_INDEX);
+
+	/* The longretry counter has the number of un-acked retries
+	 * for the final rate. To get the total number of retries
+	 * we have to add the retry counters for the other rates
+	 * as well
+	 */
+	ts->ts_retry[ts->ts_final_idx] = ts->ts_longretry;
+	switch (ts->ts_final_idx) {
 	case 3:
-		ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_3,
+		ts->ts_rate[3] = AR5K_REG_MS(tx_ctl->tx_control_3,
 			AR5K_4W_TX_DESC_CTL3_XMIT_RATE3);
-		ts->ts_longretry += AR5K_REG_MS(tx_ctl->tx_control_2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES3);
+
+		ts->ts_retry[2] = AR5K_REG_MS(tx_ctl->tx_control_2,
+			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES2);
+		ts->ts_longretry += ts->ts_retry[2];
+		/* fall through */
+	case 2:
+		ts->ts_rate[2] = AR5K_REG_MS(tx_ctl->tx_control_3,
+			AR5K_4W_TX_DESC_CTL3_XMIT_RATE2);
+
+		ts->ts_retry[1] = AR5K_REG_MS(tx_ctl->tx_control_2,
+			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
+		ts->ts_longretry += ts->ts_retry[1];
+		/* fall through */
+	case 1:
+		ts->ts_rate[1] = AR5K_REG_MS(tx_ctl->tx_control_3,
+			AR5K_4W_TX_DESC_CTL3_XMIT_RATE1);
+
+		ts->ts_retry[0] = AR5K_REG_MS(tx_ctl->tx_control_2,
+			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
+		ts->ts_longretry += ts->ts_retry[0];
+		/* fall through */
+	case 0:
+		ts->ts_rate[0] = tx_ctl->tx_control_3 &
+			AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
 		break;
 	}
 
@@ -653,7 +678,7 @@ int ath5k_hw_init_desc_functions(struct ath5k_hw *ah)
 	} else {
 		ah->ah_setup_rx_desc = ath5k_hw_setup_rx_desc;
 		ah->ah_setup_tx_desc = ath5k_hw_setup_2word_tx_desc;
-		ah->ah_setup_mrr_tx_desc = ath5k_hw_setup_mrr_tx_desc;
+		ah->ah_setup_mrr_tx_desc = ath5k_hw_setup_no_mrr;
 		ah->ah_proc_tx_desc = ath5k_hw_proc_2word_tx_status;
 	}
 
