@@ -31,8 +31,16 @@
 #define PN_PROTO_PIPE		2
 #define PHONET_NPROTO		3
 
+/* Socket options for SOL_PNPIPE level */
+#define PNPIPE_ENCAP		1
+#define PNPIPE_IFINDEX		2
+
 #define PNADDR_ANY		0
 #define PNPORT_RESOURCE_ROUTING	0
+
+/* Values for PNPIPE_ENCAP option */
+#define PNPIPE_ENCAP_NONE	0
+#define PNPIPE_ENCAP_IP		1
 
 /* ioctls */
 #define SIOCPNGETOBJECT		(SIOCPROTOPRIVATE + 0)

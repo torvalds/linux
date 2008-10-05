@@ -31,6 +31,7 @@
 #include <linux/phonet.h>
 #include <net/phonet/phonet.h>
 #include <net/phonet/pep.h>
+#include <net/phonet/gprs.h>
 
 /* sk_state values:
  * TCP_CLOSE		sock not in use yet
@@ -612,6 +613,7 @@ drop:
 static void pep_sock_close(struct sock *sk, long timeout)
 {
 	struct pep_sock *pn = pep_sk(sk);
+	int ifindex = 0;
 
 	sk_common_release(sk);
 
@@ -625,7 +627,12 @@ static void pep_sock_close(struct sock *sk, long timeout)
 			sk_del_node_init(sknode);
 		sk->sk_state = TCP_CLOSE;
 	}
+	ifindex = pn->ifindex;
+	pn->ifindex = 0;
 	release_sock(sk);
+
+	if (ifindex)
+		gprs_detach(sk);
 }
 
 static int pep_wait_connreq(struct sock *sk, int noblock)
@@ -730,12 +737,107 @@ static int pep_init(struct sock *sk)
 	return 0;
 }
 
+static int pep_setsockopt(struct sock *sk, int level, int optname,
+				char __user *optval, int optlen)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	int val = 0, err = 0;
+
+	if (level != SOL_PNPIPE)
+		return -ENOPROTOOPT;
+	if (optlen >= sizeof(int)) {
+		if (get_user(val, (int __user *) optval))
+			return -EFAULT;
+	}
+
+	lock_sock(sk);
+	switch (optname) {
+	case PNPIPE_ENCAP:
+		if (val && val != PNPIPE_ENCAP_IP) {
+			err = -EINVAL;
+			break;
+		}
+		if (!pn->ifindex == !val)
+			break; /* Nothing to do! */
+		if (!capable(CAP_NET_ADMIN)) {
+			err = -EPERM;
+			break;
+		}
+		if (val) {
+			release_sock(sk);
+			err = gprs_attach(sk);
+			if (err > 0) {
+				pn->ifindex = err;
+				err = 0;
+			}
+		} else {
+			pn->ifindex = 0;
+			release_sock(sk);
+			gprs_detach(sk);
+			err = 0;
+		}
+		goto out_norel;
+	default:
+		err = -ENOPROTOOPT;
+	}
+	release_sock(sk);
+
+out_norel:
+	return err;
+}
+
+static int pep_getsockopt(struct sock *sk, int level, int optname,
+				char __user *optval, int __user *optlen)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	int len, val;
+
+	if (level != SOL_PNPIPE)
+		return -ENOPROTOOPT;
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	switch (optname) {
+	case PNPIPE_ENCAP:
+		val = pn->ifindex ? PNPIPE_ENCAP_IP : PNPIPE_ENCAP_NONE;
+		break;
+	case PNPIPE_IFINDEX:
+		val = pn->ifindex;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	len = min_t(unsigned int, sizeof(int), len);
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (put_user(val, (int __user *) optval))
+		return -EFAULT;
+	return 0;
+}
+
+static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	struct pnpipehdr *ph;
+
+	skb_push(skb, 3);
+	skb_reset_transport_header(skb);
+	ph = pnp_hdr(skb);
+	ph->utid = 0;
+	ph->message_id = PNS_PIPE_DATA;
+	ph->pipe_handle = pn->pipe_handle;
+	if (pn_flow_safe(pn->tx_fc) && pn->tx_credits)
+		pn->tx_credits--;
+
+	return pn_skb_send(sk, skb, &pipe_srv);
+}
+
 static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 			struct msghdr *msg, size_t len)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	struct sk_buff *skb = NULL;
-	struct pnpipehdr *ph;
 	long timeo;
 	int flags = msg->msg_flags;
 	int err, done;
@@ -801,16 +903,7 @@ disabled:
 	if (err < 0)
 		goto out;
 
-	__skb_push(skb, 3);
-	skb_reset_transport_header(skb);
-	ph = pnp_hdr(skb);
-	ph->utid = 0;
-	ph->message_id = PNS_PIPE_DATA;
-	ph->pipe_handle = pn->pipe_handle;
-	if (pn_flow_safe(pn->tx_fc)) /* credit-based flow control */
-		pn->tx_credits--;
-
-	err = pn_skb_send(sk, skb, &pipe_srv);
+	err = pipe_skb_send(sk, skb);
 	if (err >= 0)
 		err = len; /* success! */
 	skb = NULL;
@@ -818,6 +911,50 @@ out:
 	release_sock(sk);
 	kfree_skb(skb);
 	return err;
+}
+
+int pep_writeable(struct sock *sk)
+{
+	struct pep_sock *pn = pep_sk(sk);
+
+	return (sk->sk_state == TCP_ESTABLISHED) ? pn->tx_credits : 0;
+}
+
+int pep_write(struct sock *sk, struct sk_buff *skb)
+{
+	struct sk_buff *rskb, *fs;
+	int flen = 0;
+
+	rskb = alloc_skb(MAX_PNPIPE_HEADER, GFP_ATOMIC);
+	if (!rskb) {
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
+	skb_shinfo(rskb)->frag_list = skb;
+	rskb->len += skb->len;
+	rskb->data_len += rskb->len;
+	rskb->truesize += rskb->len;
+
+	/* Avoid nested fragments */
+	for (fs = skb_shinfo(skb)->frag_list; fs; fs = fs->next)
+		flen += fs->len;
+	skb->next = skb_shinfo(skb)->frag_list;
+	skb_shinfo(skb)->frag_list = NULL;
+	skb->len -= flen;
+	skb->data_len -= flen;
+	skb->truesize -= flen;
+
+	skb_reserve(rskb, MAX_PHONET_HEADER + 3);
+	return pipe_skb_send(sk, rskb);
+}
+
+struct sk_buff *pep_read(struct sock *sk)
+{
+	struct sk_buff *skb = skb_dequeue(&sk->sk_receive_queue);
+
+	if (sk->sk_state == TCP_ESTABLISHED)
+		pipe_grant_credits(sk);
+	return skb;
 }
 
 static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
@@ -902,6 +1039,8 @@ static struct proto pep_proto = {
 	.accept		= pep_sock_accept,
 	.ioctl		= pep_ioctl,
 	.init		= pep_init,
+	.setsockopt	= pep_setsockopt,
+	.getsockopt	= pep_getsockopt,
 	.sendmsg	= pep_sendmsg,
 	.recvmsg	= pep_recvmsg,
 	.backlog_rcv	= pep_do_rcv,
