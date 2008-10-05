@@ -1438,24 +1438,6 @@ config HOTPLUG_CPU
 	    automatically on SMP systems. )
 	  Say N if you want to disable CPU hotplug.
 
-config HOTPLUG_RESTRICT_TO_BOOTUP_CPUS
-	def_bool n
-	prompt "Restrict CPU hotplugging to processors found during boot" if HOTPLUG_CPU
-	---help---
-	  Say no here to use the default, which allows as many CPUs as are marked
-	  "disabled" by ACPI or MPTABLES to be hotplugged after bootup.
-
-	  Say yes if you do not want to allow CPUs to be added after booting, for
-	  example if you only need CPU hotplugging enabled for suspend/resume.
-
-	  If CPU_HOTPLUG is enabled this value may be overridden at boot time
-	  with the "additional_cpus" kernel parameter.
-
-config HOTPLUG_ADDITIONAL_CPUS
-	int
-	default  0 if !HOTPLUG_CPU || HOTPLUG_RESTRICT_TO_BOOTUP_CPUS
-	default -1
-
 config COMPAT_VDSO
 	def_bool y
 	prompt "Compat VDSO support"

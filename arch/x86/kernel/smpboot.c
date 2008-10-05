@@ -1261,7 +1261,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
-static int additional_cpus __initdata = CONFIG_HOTPLUG_ADDITIONAL_CPUS;
+static int additional_cpus = -1;
 
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
@@ -1333,12 +1333,6 @@ static void remove_siblinginfo(int cpu)
 	c->cpu_core_id = 0;
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
-
-static __init int setup_additional_cpus(char *s)
-{
-	return s && get_option(&s, &additional_cpus) ? 0 : -EINVAL;
-}
-early_param("additional_cpus", setup_additional_cpus);
 
 static void __ref remove_cpu_from_maps(int cpu)
 {
