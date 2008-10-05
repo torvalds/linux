@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/vmalloc.h>
+#include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/preempt.h>
 #include <linux/time.h>
@@ -108,7 +109,6 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 {
 	struct fw_device *device;
 	struct client *client;
-	unsigned long flags;
 
 	device = fw_device_get_by_devt(inode->i_rdev);
 	if (device == NULL)
@@ -133,9 +133,9 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 
 	file->private_data = client;
 
-	spin_lock_irqsave(&device->client_list_lock, flags);
+	mutex_lock(&device->client_list_mutex);
 	list_add_tail(&client->link, &device->client_list);
-	spin_unlock_irqrestore(&device->client_list_lock, flags);
+	mutex_unlock(&device->client_list_mutex);
 
 	return 0;
 }
@@ -232,14 +232,11 @@ for_each_client(struct fw_device *device,
 		void (*callback)(struct client *client))
 {
 	struct client *c;
-	unsigned long flags;
 
-	spin_lock_irqsave(&device->client_list_lock, flags);
-
+	mutex_lock(&device->client_list_mutex);
 	list_for_each_entry(c, &device->client_list, link)
 		callback(c);
-
-	spin_unlock_irqrestore(&device->client_list_lock, flags);
+	mutex_unlock(&device->client_list_mutex);
 }
 
 static void
@@ -247,7 +244,7 @@ queue_bus_reset_event(struct client *client)
 {
 	struct bus_reset *bus_reset;
 
-	bus_reset = kzalloc(sizeof(*bus_reset), GFP_ATOMIC);
+	bus_reset = kzalloc(sizeof(*bus_reset), GFP_KERNEL);
 	if (bus_reset == NULL) {
 		fw_notify("Out of memory when allocating bus reset event\n");
 		return;
@@ -988,7 +985,6 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct client *client = file->private_data;
 	struct event *e, *next_e;
 	struct client_resource *r, *next_r;
-	unsigned long flags;
 
 	if (client->buffer.pages)
 		fw_iso_buffer_destroy(&client->buffer, client->device->card);
@@ -1007,9 +1003,9 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(e, next_e, &client->event_list, link)
 		kfree(e);
 
-	spin_lock_irqsave(&client->device->client_list_lock, flags);
+	mutex_lock(&client->device->client_list_mutex);
 	list_del(&client->link);
-	spin_unlock_irqrestore(&client->device->client_list_lock, flags);
+	mutex_unlock(&client->device->client_list_mutex);
 
 	fw_device_put(client->device);
 	kfree(client);
