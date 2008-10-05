@@ -388,6 +388,10 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		if (thisEUN == targetEUN)
 			break;
 
+		/* Unlink the last block from the chain. */
+		inftl->PUtable[prevEUN] = BLOCK_NIL;
+
+		/* Now try to erase it. */
 		if (INFTL_formatblock(inftl, thisEUN) < 0) {
 			/*
 			 * Could not erase : mark block as reserved.
@@ -396,7 +400,6 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		} else {
 			/* Correctly erased : mark it as free */
 			inftl->PUtable[thisEUN] = BLOCK_FREE;
-			inftl->PUtable[prevEUN] = BLOCK_NIL;
 			inftl->numfreeEUNs++;
 		}
 	}
