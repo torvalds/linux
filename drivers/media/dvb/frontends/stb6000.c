@@ -201,12 +201,13 @@ struct dvb_frontend *stb6000_attach(struct dvb_frontend *fe, int addr,
 						struct i2c_adapter *i2c)
 {
 	struct stb6000_priv *priv = NULL;
+	u8 b0[] = { 0 };
 	u8 b1[] = { 0, 0 };
 	struct i2c_msg msg[2] = {
 		{
 			.addr = addr,
 			.flags = 0,
-			.buf = NULL,
+			.buf = b0,
 			.len = 0
 		}, {
 			.addr = addr,
