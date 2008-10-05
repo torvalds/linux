@@ -112,6 +112,60 @@ However, connect() and getpeername() are not supported, as they did
 not seem useful with Phonet usages (could be added easily).
 
 
+Phonet Pipe protocol
+--------------------
+
+The Phonet Pipe protocol is a simple sequenced packets protocol
+with end-to-end congestion control. It uses the passive listening
+socket paradigm. The listening socket is bound to an unique free object
+ID. Each listening socket can handle up to 255 simultaneous
+connections, one per accept()'d socket.
+
+  int lfd, cfd;
+
+  lfd = socket(PF_PHONET, SOCK_SEQPACKET, PN_PROTO_PIPE);
+  listen (lfd, INT_MAX);
+
+  /* ... */
+  cfd = accept(lfd, NULL, NULL);
+  for (;;)
+  {
+    char buf[...];
+    ssize_t len = read(cfd, buf, sizeof(buf));
+
+    /* ... */
+
+    write(cfd, msg, msglen);
+  }
+
+Connections are established between two endpoints by a "third party"
+application. This means that both endpoints are passive; so connect()
+is not possible.
+
+WARNING:
+When polling a connected pipe socket for writability, there is an
+intrinsic race condition whereby writability might be lost between the
+polling and the writing system calls. In this case, the socket will
+block until write because possible again, unless non-blocking mode
+becomes enabled.
+
+
+The pipe protocol provides two socket options at the SOL_PNPIPE level:
+
+  PNPIPE_ENCAP accepts one integer value (int) of:
+
+    PNPIPE_ENCAP_NONE: The socket operates normally (default).
+
+    PNPIPE_ENCAP_IP: The socket is used as a backend for a virtual IP
+      interface. This requires CAP_NET_ADMIN capability. GPRS data
+      support on Nokia modems can use this. Note that the socket cannot
+      be reliably poll()'d or read() from while in this mode.
+
+  PNPIPE_IFINDEX is a read-only integer value. It contains the
+    interface index of the network interface created by PNPIPE_ENCAP,
+    or zero if encapsulation is off.
+
+
 Authors
 -------
 
