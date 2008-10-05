@@ -53,7 +53,7 @@ obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
 obj-$(CONFIG_MACH_SAAR)		+= saar.o
 
-obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o
+obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o cm-x270.o
 obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
 
