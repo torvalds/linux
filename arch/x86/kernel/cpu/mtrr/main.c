@@ -1273,12 +1273,14 @@ static int __init mtrr_cleanup(unsigned address_bits)
 		size_base = to_size_factor(size_base, &size_factor),
 		start_base = range_state[i].base_pfn << (PAGE_SHIFT - 10);
 		start_base = to_size_factor(start_base, &start_factor),
+		type = range_state[i].type;
 
 		printk(KERN_DEBUG "reg %d, base: %ld%cB, range: %ld%cB, type %s\n",
 			i, start_base, start_factor,
 			size_base, size_factor,
 			(type == MTRR_TYPE_UNCACHABLE) ? "UC" :
-			    ((type == MTRR_TYPE_WRBACK) ? "WB" : "Other")
+			    ((type == MTRR_TYPE_WRPROT) ? "WP" :
+			     ((type == MTRR_TYPE_WRBACK) ? "WB" : "Other"))
 			);
 	}
 
