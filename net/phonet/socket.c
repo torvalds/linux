@@ -220,7 +220,9 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 
 	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
-	else if (sk->sk_state == TCP_CLOSE_WAIT)
+	if (!skb_queue_empty(&pn->ctrlreq_queue))
+		mask |= POLLPRI;
+	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
 		return POLLHUP;
 
 	if (sk->sk_state == TCP_ESTABLISHED && pn->tx_credits)

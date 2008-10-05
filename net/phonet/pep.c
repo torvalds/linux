@@ -137,14 +137,15 @@ static int pep_reject_conn(struct sock *sk, struct sk_buff *skb, u8 code)
 
 /* Control requests are not sent by the pipe service and have a specific
  * message format. */
-static int pep_ctrlreq_error(struct sock *sk, struct sk_buff *oskb, u8 code)
+static int pep_ctrlreq_error(struct sock *sk, struct sk_buff *oskb, u8 code,
+				gfp_t priority)
 {
 	const struct pnpipehdr *oph = pnp_hdr(oskb);
 	struct sk_buff *skb;
 	struct pnpipehdr *ph;
 	struct sockaddr_pn dst;
 
-	skb = alloc_skb(MAX_PNPIPE_HEADER + 4, GFP_ATOMIC);
+	skb = alloc_skb(MAX_PNPIPE_HEADER + 4, priority);
 	if (!skb)
 		return -ENOMEM;
 	skb_set_owner_w(skb, sk);
@@ -305,6 +306,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	struct pnpipehdr *hdr = pnp_hdr(skb);
+	struct sk_buff_head *queue;
 	int err = 0;
 
 	BUG_ON(sk->sk_state == TCP_CLOSE_WAIT);
@@ -345,9 +347,11 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	case PNS_PEP_CTRL_REQ:
-		/* TODO */
-		pep_ctrlreq_error(sk, skb, PN_PIPE_NO_ERROR);
-		break;
+		if (skb_queue_len(&pn->ctrlreq_queue) >= PNPIPE_CTRLREQ_MAX)
+			break;
+		__skb_pull(skb, 4);
+		queue = &pn->ctrlreq_queue;
+		goto queue;
 
 	case PNS_PIPE_DATA:
 		__skb_pull(skb, 3); /* Pipe data header */
@@ -363,13 +367,8 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 		pn->rx_credits--;
-		skb->dev = NULL;
-		skb_set_owner_r(skb, sk);
-		err = skb->len;
-		skb_queue_tail(&sk->sk_receive_queue, skb);
-		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, err);
-		return 0;
+		queue = &sk->sk_receive_queue;
+		goto queue;
 
 	case PNS_PEP_STATUS_IND:
 		pipe_rcv_status(sk, skb);
@@ -412,12 +411,24 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 out:
 	kfree_skb(skb);
 	return err;
+
+queue:
+	skb->dev = NULL;
+	skb_set_owner_r(skb, sk);
+	err = skb->len;
+	skb_queue_tail(queue, skb);
+	if (!sock_flag(sk, SOCK_DEAD))
+		sk->sk_data_ready(sk, err);
+	return 0;
 }
 
 /* Destroy connected sock. */
 static void pipe_destruct(struct sock *sk)
 {
+	struct pep_sock *pn = pep_sk(sk);
+
 	skb_queue_purge(&sk->sk_receive_queue);
+	skb_queue_purge(&pn->ctrlreq_queue);
 }
 
 static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
@@ -490,6 +501,7 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 	pn_skb_get_dst_sockaddr(skb, &dst);
 	newpn->pn_sk.sobject = pn_sockaddr_get_object(&dst);
 	newpn->pn_sk.resource = pn->pn_sk.resource;
+	skb_queue_head_init(&newpn->ctrlreq_queue);
 	newpn->pipe_handle = pipe_handle;
 	newpn->peer_type = peer_type;
 	newpn->rx_credits = newpn->tx_credits = 0;
@@ -581,7 +593,7 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	case PNS_PEP_CTRL_REQ:
-		pep_ctrlreq_error(sk, skb, PN_PIPE_INVALID_HANDLE);
+		pep_ctrlreq_error(sk, skb, PN_PIPE_INVALID_HANDLE, GFP_ATOMIC);
 		break;
 
 	case PNS_PEP_RESET_REQ:
@@ -684,6 +696,7 @@ out:
 
 static int pep_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
+	struct pep_sock *pn = pep_sk(sk);
 	int answ;
 
 	switch (cmd) {
@@ -692,7 +705,10 @@ static int pep_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			return -EINVAL;
 
 		lock_sock(sk);
-		if (!skb_queue_empty(&sk->sk_receive_queue))
+		if (sock_flag(sk, SOCK_URGINLINE)
+		 && !skb_queue_empty(&pn->ctrlreq_queue))
+			answ = skb_peek(&pn->ctrlreq_queue)->len;
+		else if (!skb_queue_empty(&sk->sk_receive_queue))
 			answ = skb_peek(&sk->sk_receive_queue)->len;
 		else
 			answ = 0;
@@ -709,6 +725,7 @@ static int pep_init(struct sock *sk)
 
 	INIT_HLIST_HEAD(&pn->ackq);
 	INIT_HLIST_HEAD(&pn->hlist);
+	skb_queue_head_init(&pn->ctrlreq_queue);
 	pn->pipe_handle = PN_PIPE_INVALID_HANDLE;
 	return 0;
 }
@@ -810,10 +827,23 @@ static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
 	struct sk_buff *skb;
 	int err;
 
-	if (unlikely(flags & MSG_OOB))
-		return -EOPNOTSUPP;
 	if (unlikely(1 << sk->sk_state & (TCPF_LISTEN | TCPF_CLOSE)))
 		return -ENOTCONN;
+
+	if ((flags & MSG_OOB) || sock_flag(sk, SOCK_URGINLINE)) {
+		/* Dequeue and acknowledge control request */
+		struct pep_sock *pn = pep_sk(sk);
+
+		skb = skb_dequeue(&pn->ctrlreq_queue);
+		if (skb) {
+			pep_ctrlreq_error(sk, skb, PN_PIPE_NO_ERROR,
+						GFP_KERNEL);
+			msg->msg_flags |= MSG_OOB;
+			goto copy;
+		}
+		if (flags & MSG_OOB)
+			return -EINVAL;
+	}
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	lock_sock(sk);
@@ -827,9 +857,8 @@ static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
 	if (sk->sk_state == TCP_ESTABLISHED)
 		pipe_grant_credits(sk);
 	release_sock(sk);
-
+copy:
 	msg->msg_flags |= MSG_EOR;
-
 	if (skb->len > len)
 		msg->msg_flags |= MSG_TRUNC;
 	else

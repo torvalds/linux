@@ -33,6 +33,8 @@ struct pep_sock {
 
 	/* Connected socket stuff: */
 	struct sock		*listener;
+	struct sk_buff_head	ctrlreq_queue;
+#define PNPIPE_CTRLREQ_MAX	10
 	u16			peer_type;	/* peer type/subtype */
 	u8			pipe_handle;
 
