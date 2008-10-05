@@ -4259,7 +4259,7 @@ static int s_show(struct seq_file *m, void *p)
  * + further values on SMP and with statistics enabled
  */
 
-const struct seq_operations slabinfo_op = {
+static const struct seq_operations slabinfo_op = {
 	.start = s_start,
 	.next = s_next,
 	.stop = s_stop,
@@ -4315,6 +4315,19 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 		res = count;
 	return res;
 }
+
+static int slabinfo_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &slabinfo_op);
+}
+
+static const struct file_operations proc_slabinfo_operations = {
+	.open		= slabinfo_open,
+	.read		= seq_read,
+	.write		= slabinfo_write,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 
@@ -4478,6 +4491,7 @@ static const struct file_operations proc_slabstats_operations = {
 
 static int __init slab_proc_init(void)
 {
+	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
 #endif

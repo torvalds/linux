@@ -132,20 +132,6 @@ static const struct file_operations proc_modules_operations = {
 };
 #endif
 
-#ifdef CONFIG_SLABINFO
-static int slabinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &slabinfo_op);
-}
-static const struct file_operations proc_slabinfo_operations = {
-	.open		= slabinfo_open,
-	.read		= seq_read,
-	.write		= slabinfo_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-#endif
-
 #ifdef CONFIG_MMU
 static int vmalloc_open(struct inode *inode, struct file *file)
 {
@@ -309,9 +295,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-#ifdef CONFIG_SLABINFO
-	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
-#endif
 #ifdef CONFIG_MMU
 	proc_create("vmallocinfo", S_IRUSR, NULL, &proc_vmalloc_operations);
 #endif
