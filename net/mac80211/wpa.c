@@ -152,9 +152,6 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	int len, tail;
 	u8 *pos;
 
-	info->control.icv_len = TKIP_ICV_LEN;
-	info->control.iv_len = TKIP_IV_LEN;
-
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
 		/* hwaccel - with no need for preallocated room for IV/ICV */
@@ -373,9 +370,6 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	int hdrlen, len, tail;
 	u8 *pos, *pn;
 	int i;
-
-	info->control.icv_len = CCMP_MIC_LEN;
-	info->control.iv_len = CCMP_HDR_LEN;
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {

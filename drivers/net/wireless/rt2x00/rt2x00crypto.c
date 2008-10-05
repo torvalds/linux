@@ -56,10 +56,10 @@ unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
 	 * note that these lengths should only be added when
 	 * mac80211 does not generate it.
 	 */
-	overhead += tx_info->control.icv_len;
+	overhead += key->icv_len;
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
-		overhead += tx_info->control.iv_len;
+		overhead += key->iv_len;
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC)) {
 		if (key->alg == ALG_TKIP)

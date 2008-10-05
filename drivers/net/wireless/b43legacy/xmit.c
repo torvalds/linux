@@ -243,7 +243,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 		if (key->enabled) {
 			/* Hardware appends ICV. */
-			plcp_fragment_len += info->control.icv_len;
+			plcp_fragment_len += info->control.hw_key->icv_len;
 
 			key_idx = b43legacy_kidx_to_fw(dev, key_idx);
 			mac_ctl |= (key_idx << B43legacy_TX4_MAC_KEYIDX_SHIFT) &
@@ -252,7 +252,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 				   B43legacy_TX4_MAC_KEYALG_SHIFT) &
 				   B43legacy_TX4_MAC_KEYALG;
 			wlhdr_len = ieee80211_hdrlen(wlhdr->frame_control);
-			iv_len = min((size_t)info->control.iv_len,
+			iv_len = min((size_t)info->control.hw_key->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *)wlhdr) + wlhdr_len, iv_len);
 		} else {

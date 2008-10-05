@@ -237,7 +237,7 @@ static int ath_tx_prepare(struct ath_softc *sc,
 
 	if (tx_info->control.hw_key) {
 		txctl->keyix = tx_info->control.hw_key->hw_key_idx;
-		txctl->frmlen += tx_info->control.icv_len;
+		txctl->frmlen += tx_info->control.hw_key->icv_len;
 
 		if (tx_info->control.hw_key->alg == ALG_WEP)
 			txctl->keytype = ATH9K_KEY_TYPE_WEP;

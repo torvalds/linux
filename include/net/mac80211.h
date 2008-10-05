@@ -337,8 +337,6 @@ struct ieee80211_tx_info {
 			unsigned long jiffies;
 			s8 rts_cts_rate_idx, alt_retry_rate_idx;
 			u8 retry_limit;
-			u8 icv_len;
-			u8 iv_len;
 		} control;
 		struct {
 			u64 ampdu_ack_map;
@@ -635,6 +633,8 @@ enum ieee80211_key_flags {
  */
 struct ieee80211_key_conf {
 	enum ieee80211_key_alg alg;
+	u8 icv_len;
+	u8 iv_len;
 	u8 hw_key_idx;
 	u8 flags;
 	s8 keyidx;
