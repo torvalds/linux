@@ -11,7 +11,6 @@
  * remaining free memory in that area and fill it with a distinct
  * pattern.
  */
-#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 #define MAX_SCAN_AREAS	8
 
 static int __read_mostly memory_corruption_check = -1;
@@ -23,7 +22,7 @@ static struct e820entry scan_areas[MAX_SCAN_AREAS];
 static int num_scan_areas;
 
 
-static int set_corruption_check(char *arg)
+static __init int set_corruption_check(char *arg)
 {
 	char *end;
 
@@ -33,7 +32,7 @@ static int set_corruption_check(char *arg)
 }
 early_param("memory_corruption_check", set_corruption_check);
 
-static int set_corruption_check_period(char *arg)
+static __init int set_corruption_check_period(char *arg)
 {
 	char *end;
 
@@ -43,7 +42,7 @@ static int set_corruption_check_period(char *arg)
 }
 early_param("memory_corruption_check_period", set_corruption_check_period);
 
-static int set_corruption_check_size(char *arg)
+static __init int set_corruption_check_size(char *arg)
 {
 	char *end;
 	unsigned size;
@@ -115,8 +114,6 @@ void check_for_bios_corruption(void)
 	int i;
 	int corruption = 0;
 
-	printk("dot\n");
-
 	if (!memory_corruption_check)
 		return;
 
@@ -134,7 +131,7 @@ void check_for_bios_corruption(void)
 		}
 	}
 
-	WARN(corruption, KERN_ERR "Memory corruption detected in low memory\n");
+	WARN_ONCE(corruption, KERN_ERR "Memory corruption detected in low memory\n");
 }
 
 static void check_corruption(struct work_struct *dummy);
@@ -161,5 +158,4 @@ static int start_periodic_check_for_corruption(void)
 }
 
 module_init(start_periodic_check_for_corruption);
-#endif
 
