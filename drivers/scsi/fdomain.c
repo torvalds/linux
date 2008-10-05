@@ -290,9 +290,11 @@
 #include <scsi/scsi_ioctl.h>
 #include "fdomain.h"
 
+#ifndef PCMCIA
 MODULE_AUTHOR("Rickard E. Faith");
 MODULE_DESCRIPTION("Future domain SCSI driver");
 MODULE_LICENSE("GPL");
+#endif
 
   
 #define VERSION          "$Revision: 5.51 $"
