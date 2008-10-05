@@ -472,37 +472,6 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 	}
 }
 
-static int nfs_wait_schedule(void *word)
-{
-	if (signal_pending(current))
-		return -ERESTARTSYS;
-	schedule();
-	return 0;
-}
-
-/*
- * Wait for the inode to get unlocked.
- */
-static int nfs_wait_on_inode(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int error;
-
-	error = wait_on_bit_lock(&nfsi->flags, NFS_INO_REVALIDATING,
-					nfs_wait_schedule, TASK_KILLABLE);
-
-	return error;
-}
-
-static void nfs_wake_up_inode(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	clear_bit(NFS_INO_REVALIDATING, &nfsi->flags);
-	smp_mb__after_clear_bit();
-	wake_up_bit(&nfsi->flags, NFS_INO_REVALIDATING);
-}
-
 int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
@@ -697,20 +666,15 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	dfprintk(PAGECACHE, "NFS: revalidating (%s/%Ld)\n",
 		inode->i_sb->s_id, (long long)NFS_FILEID(inode));
 
-	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	if (is_bad_inode(inode))
- 		goto out_nowait;
-	if (NFS_STALE(inode))
- 		goto out_nowait;
-
-	status = nfs_wait_on_inode(inode);
-	if (status < 0)
 		goto out;
-
-	status = -ESTALE;
 	if (NFS_STALE(inode))
 		goto out;
 
+	if (NFS_STALE(inode))
+		goto out;
+
+	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	status = NFS_PROTO(inode)->getattr(server, NFS_FH(inode), &fattr);
 	if (status != 0) {
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Ld) getattr failed, error=%d\n",
@@ -740,9 +704,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		(long long)NFS_FILEID(inode));
 
  out:
-	nfs_wake_up_inode(inode);
-
- out_nowait:
 	return status;
 }
 

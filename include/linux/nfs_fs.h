@@ -200,11 +200,10 @@ struct nfs_inode {
 /*
  * Bit offsets in flags field
  */
-#define NFS_INO_REVALIDATING	(0)		/* revalidating attrs */
-#define NFS_INO_ADVISE_RDPLUS	(1)		/* advise readdirplus */
-#define NFS_INO_STALE		(2)		/* possible stale inode */
-#define NFS_INO_ACL_LRU_SET	(3)		/* Inode is on the LRU list */
-#define NFS_INO_MOUNTPOINT	(4)		/* inode is remote mountpoint */
+#define NFS_INO_ADVISE_RDPLUS	(0)		/* advise readdirplus */
+#define NFS_INO_STALE		(1)		/* possible stale inode */
+#define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
+#define NFS_INO_MOUNTPOINT	(3)		/* inode is remote mountpoint */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
