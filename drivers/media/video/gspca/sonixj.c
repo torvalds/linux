@@ -1350,6 +1350,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		setbrightness(gspca_dev);
 		setcontrast(gspca_dev);
 		break;
+	case SENSOR_OV7630:
+		setvflip(sd);
+		/* fall thru */
 	default:			/* OV76xx */
 		setbrightcont(gspca_dev);
 		break;
@@ -1582,7 +1585,8 @@ static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->vflip = val;
-	setvflip(sd);
+	if (gspca_dev->streaming)
+		setvflip(sd);
 	return 0;
 }
 
