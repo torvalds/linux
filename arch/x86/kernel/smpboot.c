@@ -1261,8 +1261,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
-static int additional_cpus = -1;
-
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
@@ -1282,21 +1280,13 @@ static int additional_cpus = -1;
  */
 __init void prefill_possible_map(void)
 {
-	int i;
-	int possible;
+	int i, possible;
 
 	/* no processor from mptable or madt */
 	if (!num_processors)
 		num_processors = 1;
 
-	if (additional_cpus == -1) {
-		if (disabled_cpus > 0)
-			additional_cpus = disabled_cpus;
-		else
-			additional_cpus = 0;
-	}
-
-	possible = num_processors + additional_cpus;
+	possible = num_processors + disabled_cpus;
 	if (possible > NR_CPUS)
 		possible = NR_CPUS;
 
