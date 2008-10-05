@@ -328,16 +328,28 @@ static int stv0288_init(struct dvb_frontend *fe)
 {
 	struct stv0288_state *state = fe->demodulator_priv;
 	int i;
+	u8 reg;
+	u8 val;
 
 	dprintk("stv0288: init chip\n");
 	stv0288_writeregI(state, 0x41, 0x04);
 	msleep(50);
 
-	for (i = 0; !(stv0288_inittab[i] == 0xff &&
+	/* we have default inittab */
+	if (state->config->inittab == NULL) {
+		for (i = 0; !(stv0288_inittab[i] == 0xff &&
 				stv0288_inittab[i + 1] == 0xff); i += 2)
-		stv0288_writeregI(state, stv0288_inittab[i],
-						stv0288_inittab[i + 1]);
-
+			stv0288_writeregI(state, stv0288_inittab[i],
+					stv0288_inittab[i + 1]);
+	} else {
+		for (i = 0; ; i += 2)  {
+			reg = state->config->inittab[i];
+			val = state->config->inittab[i+1];
+			if (reg == 0xff && val == 0xff)
+				break;
+			stv0288_writeregI(state, reg, val);
+		}
+	}
 	return 0;
 }
 

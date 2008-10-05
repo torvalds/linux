@@ -34,6 +34,8 @@ struct stv0288_config {
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
+	u8* inittab;
+
 	/* minimum delay before retuning */
 	int min_delay_ms;
 
