@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-pxa/cm-x270-pci.c
+ * linux/arch/arm/mach-pxa/cm-x2xx-pci.c
  *
  * PCI bios-type initialisation for PCI machines
  *
@@ -28,7 +28,7 @@
 #include <asm/hardware/it8152.h>
 
 unsigned long it8152_base_address;
-static int cmx270_it8152_irq_gpio;
+static int cmx2xx_it8152_irq_gpio;
 
 /*
  * Only first 64MB of memory can be accessed via PCI.
@@ -36,13 +36,13 @@ static int cmx270_it8152_irq_gpio;
  * This is really ugly and we need a better way of specifying
  * DMA-capable regions of memory.
  */
-void __init cmx270_pci_adjust_zones(int node, unsigned long *zone_size,
+void __init cmx2xx_pci_adjust_zones(int node, unsigned long *zone_size,
 	unsigned long *zhole_size)
 {
 	unsigned int sz = SZ_64M >> PAGE_SHIFT;
 
 	if (machine_is_armcore()) {
-		pr_info("Adjusting zones for CM-X270\n");
+		pr_info("Adjusting zones for CM-X2XX\n");
 
 		/*
 		 * Only adjust if > 64M on current system
@@ -57,29 +57,29 @@ void __init cmx270_pci_adjust_zones(int node, unsigned long *zone_size,
 	}
 }
 
-static void cmx270_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	/* clear our parent irq */
-	GEDR(cmx270_it8152_irq_gpio) = GPIO_bit(cmx270_it8152_irq_gpio);
+	GEDR(cmx2xx_it8152_irq_gpio) = GPIO_bit(cmx2xx_it8152_irq_gpio);
 
 	it8152_irq_demux(irq, desc);
 }
 
-void __cmx270_pci_init_irq(int irq_gpio)
+void __cmx2xx_pci_init_irq(int irq_gpio)
 {
 	it8152_init_irq();
 
-	cmx270_it8152_irq_gpio = irq_gpio;
+	cmx2xx_it8152_irq_gpio = irq_gpio;
 
 	set_irq_type(gpio_to_irq(irq_gpio), IRQ_TYPE_EDGE_RISING);
 
-	set_irq_chained_handler(gpio_to_irq(irq_gpio), cmx270_it8152_irq_demux);
+	set_irq_chained_handler(gpio_to_irq(irq_gpio), cmx2xx_it8152_irq_demux);
 }
 
 #ifdef CONFIG_PM
 static unsigned long sleep_save_ite[10];
 
-void __cmx270_pci_suspend(void)
+void __cmx2xx_pci_suspend(void)
 {
 	/* save ITE state */
 	sleep_save_ite[0] = __raw_readl(IT8152_INTC_PDCNIMR);
@@ -91,7 +91,7 @@ void __cmx270_pci_suspend(void)
 	__raw_writel((0), IT8152_INTC_LPCNIRR);
 }
 
-void __cmx270_pci_resume(void)
+void __cmx2xx_pci_resume(void)
 {
 	/* restore IT8152 state */
 	__raw_writel((sleep_save_ite[0]), IT8152_INTC_PDCNIMR);
@@ -99,12 +99,12 @@ void __cmx270_pci_resume(void)
 	__raw_writel((sleep_save_ite[2]), IT8152_INTC_LPNIAR);
 }
 #else
-void cmx270_pci_suspend(void) {}
-void cmx270_pci_resume(void) {}
+void cmx2xx_pci_suspend(void) {}
+void cmx2xx_pci_resume(void) {}
 #endif
 
 /* PCI IRQ mapping*/
-static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init cmx2xx_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -116,14 +116,14 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	/*
 	  Here comes the ugly part. The routing is baseboard specific,
-	  but defining a platform for each possible base of CM-X270 is
-	  unrealistic. Here we keep mapping for ATXBase and SB-X270.
+	  but defining a platform for each possible base of CM-X2XX is
+	  unrealistic. Here we keep mapping for ATXBase and SB-X2XX.
 	*/
 	/* ATXBASE PCI slot */
 	if (slot == 7)
 		return IT8152_PCI_INTA;
 
-	/* ATXBase/SB-x270 CardBus */
+	/* ATXBase/SB-X2XX CardBus */
 	if (slot == 8 || slot == 0)
 		return IT8152_PCI_INTB;
 
@@ -144,9 +144,9 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return(0);
 }
 
-static void cmx270_pci_preinit(void)
+static void cmx2xx_pci_preinit(void)
 {
-	pr_info("Initializing CM-X270 PCI subsystem\n");
+	pr_info("Initializing CM-X2XX PCI subsystem\n");
 
 	__raw_writel(0x800, IT8152_PCI_CFG_ADDR);
 	if (__raw_readl(IT8152_PCI_CFG_DATA) == 0x81521283) {
@@ -200,21 +200,21 @@ static void cmx270_pci_preinit(void)
 	}
 }
 
-static struct hw_pci cmx270_pci __initdata = {
+static struct hw_pci cmx2xx_pci __initdata = {
 	.swizzle	= pci_std_swizzle,
-	.map_irq	= cmx270_pci_map_irq,
+	.map_irq	= cmx2xx_pci_map_irq,
 	.nr_controllers	= 1,
 	.setup		= it8152_pci_setup,
 	.scan		= it8152_pci_scan_bus,
-	.preinit	= cmx270_pci_preinit,
+	.preinit	= cmx2xx_pci_preinit,
 };
 
-static int __init cmx270_init_pci(void)
+static int __init cmx2xx_init_pci(void)
 {
 	if (machine_is_armcore())
-		pci_common_init(&cmx270_pci);
+		pci_common_init(&cmx2xx_pci);
 
 	return 0;
 }
 
-subsys_initcall(cmx270_init_pci);
+subsys_initcall(cmx2xx_init_pci);
