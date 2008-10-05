@@ -207,9 +207,11 @@ config MACH_SAAR
 	select PXA930
 
 config MACH_ARMCORE
-	bool "CompuLab CM-X270 modules"
+	bool "CompuLab CM-X255/CM-X270 modules"
 	select PXA27x
 	select IWMMXT
+	select PXA25x
+	select PXA_SSP
 
 config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"

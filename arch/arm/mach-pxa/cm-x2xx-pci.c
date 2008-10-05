@@ -131,7 +131,11 @@ static int __init cmx2xx_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	if (slot == 9)
 		return IT8152_PCI_INTA;
 
-	/* SB-x270 Ethernet */
+	/* CM-x255 Onboard Ethernet */
+	if (slot == 15)
+		return IT8152_PCI_INTC;
+
+	/* SB-x2xx Ethernet */
 	if (slot == 16)
 		return IT8152_PCI_INTA;
 

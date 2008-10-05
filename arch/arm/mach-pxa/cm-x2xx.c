@@ -32,6 +32,7 @@
 #include "generic.h"
 #include "cm-x2xx-pci.h"
 
+extern void cmx255_init(void);
 extern void cmx270_init(void);
 
 /* virtual addresses for statically mapped regions */
@@ -39,19 +40,43 @@ extern void cmx270_init(void);
 #define CMX2XX_IT8152_VIRT	(CMX2XX_VIRT_BASE)
 
 /* physical address if local-bus attached devices */
+#define CMX255_DM9000_PHYS_BASE (PXA_CS1_PHYS + (8 << 22))
 #define CMX270_DM9000_PHYS_BASE	(PXA_CS1_PHYS + (6 << 22))
 
 /* leds */
+#define CMX255_GPIO_RED		(27)
+#define CMX255_GPIO_GREEN	(32)
 #define CMX270_GPIO_RED		(93)
 #define CMX270_GPIO_GREEN	(94)
 
 /* GPIO IRQ usage */
+#define GPIO22_ETHIRQ		(22)
 #define GPIO10_ETHIRQ		(10)
+#define CMX255_GPIO_IT8152_IRQ	(0)
 #define CMX270_GPIO_IT8152_IRQ	(22)
 
+#define CMX255_ETHIRQ		IRQ_GPIO(GPIO22_ETHIRQ)
 #define CMX270_ETHIRQ		IRQ_GPIO(GPIO10_ETHIRQ)
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+static struct resource cmx255_dm9000_resource[] = {
+	[0] = {
+		.start = CMX255_DM9000_PHYS_BASE,
+		.end   = CMX255_DM9000_PHYS_BASE + 3,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = CMX255_DM9000_PHYS_BASE + 4,
+		.end   = CMX255_DM9000_PHYS_BASE + 4 + 500,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start = CMX255_ETHIRQ,
+		.end   = CMX255_ETHIRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	}
+};
+
 static struct resource cmx270_dm9000_resource[] = {
 	[0] = {
 		.start = CMX270_DM9000_PHYS_BASE,
@@ -85,7 +110,10 @@ static struct platform_device cmx2xx_dm9000_device = {
 
 static void __init cmx2xx_init_dm9000(void)
 {
-	cmx2xx_dm9000_device.resource = cmx270_dm9000_resource,
+	if (cpu_is_pxa25x())
+		cmx2xx_dm9000_device.resource = cmx255_dm9000_resource;
+	else
+		cmx2xx_dm9000_device.resource = cmx270_dm9000_resource;
 	platform_device_register(&cmx2xx_dm9000_device);
 }
 #else
@@ -137,8 +165,13 @@ static struct platform_device cmx2xx_led_device = {
 
 static void __init cmx2xx_init_leds(void)
 {
-	cmx2xx_leds[0].gpio = CMX270_GPIO_RED;
-	cmx2xx_leds[1].gpio = CMX270_GPIO_GREEN;
+	if (cpu_is_pxa25x()) {
+		cmx2xx_leds[0].gpio = CMX255_GPIO_RED;
+		cmx2xx_leds[1].gpio = CMX255_GPIO_GREEN;
+	} else {
+		cmx2xx_leds[0].gpio = CMX270_GPIO_RED;
+		cmx2xx_leds[1].gpio = CMX270_GPIO_GREEN;
+	}
 	platform_device_register(&cmx2xx_led_device);
 }
 #else
@@ -437,7 +470,10 @@ static void __init cmx2xx_init(void)
 {
 	cmx2xx_pm_init();
 
-	cmx270_init();
+	if (cpu_is_pxa25x())
+		cmx255_init();
+	else
+		cmx270_init();
 
 	cmx2xx_init_dm9000();
 	cmx2xx_init_display();
@@ -450,7 +486,13 @@ static void __init cmx2xx_init_irq(void)
 {
 	pxa27x_init_irq();
 
-	cmx2xx_pci_init_irq(CMX270_GPIO_IT8152_IRQ);
+	if (cpu_is_pxa25x()) {
+		pxa25x_init_irq();
+		cmx2xx_pci_init_irq(CMX255_GPIO_IT8152_IRQ);
+	} else {
+		pxa27x_init_irq();
+		cmx2xx_pci_init_irq(CMX270_GPIO_IT8152_IRQ);
+	}
 }
 
 #ifdef CONFIG_PCI
