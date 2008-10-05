@@ -167,16 +167,4 @@ int m5602_read_bridge(
 int m5602_write_bridge(
 	struct sd *sd, u8 address, u8 i2c_data);
 
-int m5602_configure(struct gspca_dev *gspca_dev,
-			   const struct usb_device_id *id);
-
-int m5602_init(struct gspca_dev *gspca_dev);
-
-void m5602_start_transfer(struct gspca_dev *gspca_dev);
-
-void m5602_stop_transfer(struct gspca_dev *gspca_dev);
-
-void m5602_urb_complete(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
-			__u8 *data, int len);
-
 #endif

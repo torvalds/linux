@@ -35,16 +35,6 @@ static const __devinitdata struct usb_device_id m5602_table[] = {
 
 MODULE_DEVICE_TABLE(usb, m5602_table);
 
-/* sub-driver description, the ctrl and nctrl is filled at probe time */
-static struct sd_desc sd_desc = {
-	.name		= MODULE_NAME,
-	.config		= m5602_configure,
-	.init		= m5602_init,
-	.start		= m5602_start_transfer,
-	.stopN		= m5602_stop_transfer,
-	.pkt_scan	= m5602_urb_complete
-};
-
 /* Reads a byte from the m5602 */
 int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
 {
@@ -104,7 +94,7 @@ static void m5602_dump_bridge(struct sd *sd)
 	info("Warning: The camera probably won't work until it's power cycled");
 }
 
-int m5602_probe_sensor(struct sd *sd)
+static int m5602_probe_sensor(struct sd *sd)
 {
 	/* Try the po1030 */
 	sd->sensor = &po1030;
@@ -137,7 +127,10 @@ int m5602_probe_sensor(struct sd *sd)
 	return -ENODEV;
 }
 
-int m5602_init(struct gspca_dev *gspca_dev)
+static int m5602_configure(struct gspca_dev *gspca_dev,
+			   const struct usb_device_id *id);
+
+static int m5602_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int err;
@@ -149,7 +142,7 @@ int m5602_init(struct gspca_dev *gspca_dev)
 	return err;
 }
 
-void m5602_start_transfer(struct gspca_dev *gspca_dev)
+static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
@@ -162,9 +155,11 @@ void m5602_start_transfer(struct gspca_dev *gspca_dev)
 			4, M5602_URB_MSG_TIMEOUT);
 
 	PDEBUG(DBG_V4L2, "Transfer started");
+	return 0;
 }
 
-void m5602_urb_complete(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
+static void m5602_urb_complete(struct gspca_dev *gspca_dev,
+			struct gspca_frame *frame,
 			__u8 *data, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -216,13 +211,23 @@ void m5602_urb_complete(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 	}
 }
 
-void m5602_stop_transfer(struct gspca_dev *gspca_dev)
+static void m5602_stop_transfer(struct gspca_dev *gspca_dev)
 {
 	/* Is there are a command to stop a data transfer? */
 }
 
+/* sub-driver description, the ctrl and nctrl is filled at probe time */
+static struct sd_desc sd_desc = {
+	.name		= MODULE_NAME,
+	.config		= m5602_configure,
+	.init		= m5602_init,
+	.start		= m5602_start_transfer,
+	.stopN		= m5602_stop_transfer,
+	.pkt_scan	= m5602_urb_complete
+};
+
 /* this function is called at probe time */
-int m5602_configure(struct gspca_dev *gspca_dev,
+static int m5602_configure(struct gspca_dev *gspca_dev,
 			   const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
