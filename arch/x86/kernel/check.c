@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
-
+#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
 
@@ -108,12 +109,13 @@ void __init setup_bios_corruption_check(void)
 	update_e820();
 }
 
-static struct timer_list periodic_check_timer;
 
 void check_for_bios_corruption(void)
 {
 	int i;
 	int corruption = 0;
+
+	printk("dot\n");
 
 	if (!memory_corruption_check)
 		return;
@@ -135,24 +137,29 @@ void check_for_bios_corruption(void)
 	WARN(corruption, KERN_ERR "Memory corruption detected in low memory\n");
 }
 
-static void periodic_check_for_corruption(unsigned long data)
+static void check_corruption(struct work_struct *dummy);
+static DECLARE_DELAYED_WORK(bios_check_work, check_corruption);
+
+static void check_corruption(struct work_struct *dummy)
 {
 	check_for_bios_corruption();
-	mod_timer(&periodic_check_timer,
-		round_jiffies(jiffies + corruption_check_period*HZ));
+	schedule_delayed_work(&bios_check_work,
+		round_jiffies_relative(corruption_check_period*HZ)); 
 }
 
-void start_periodic_check_for_corruption(void)
+static int start_periodic_check_for_corruption(void)
 {
 	if (!memory_corruption_check || corruption_check_period == 0)
-		return;
+		return 0;
 
 	printk(KERN_INFO "Scanning for low memory corruption every %d seconds\n",
 	       corruption_check_period);
 
-	init_timer(&periodic_check_timer);
-	periodic_check_timer.function = &periodic_check_for_corruption;
-	periodic_check_for_corruption(0);
+	/* First time we run the checks right away */
+	schedule_delayed_work(&bios_check_work, 0);
+	return 0;
 }
+
+module_init(start_periodic_check_for_corruption);
 #endif
 
