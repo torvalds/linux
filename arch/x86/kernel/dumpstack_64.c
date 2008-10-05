@@ -17,7 +17,7 @@
 #include <asm/stacktrace.h>
 
 #define STACKSLOTS_PER_LINE 4
-#define get_bp(bp) asm("movl %%rbp, %0" : "=r" (bp) :)
+#define get_bp(bp) asm("movq %%rbp, %0" : "=r" (bp) :)
 
 int panic_on_unrecovered_nmi;
 int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
