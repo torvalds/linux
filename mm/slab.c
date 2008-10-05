@@ -95,6 +95,7 @@
 #include	<linux/init.h>
 #include	<linux/compiler.h>
 #include	<linux/cpuset.h>
+#include	<linux/proc_fs.h>
 #include	<linux/seq_file.h>
 #include	<linux/notifier.h>
 #include	<linux/kallsyms.h>
@@ -4443,13 +4444,46 @@ static int leaks_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-const struct seq_operations slabstats_op = {
+static const struct seq_operations slabstats_op = {
 	.start = leaks_start,
 	.next = s_next,
 	.stop = s_stop,
 	.show = leaks_show,
 };
+
+static int slabstats_open(struct inode *inode, struct file *file)
+{
+	unsigned long *n = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	int ret = -ENOMEM;
+	if (n) {
+		ret = seq_open(file, &slabstats_op);
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			*n = PAGE_SIZE / (2 * sizeof(unsigned long));
+			m->private = n;
+			n = NULL;
+		}
+		kfree(n);
+	}
+	return ret;
+}
+
+static const struct file_operations proc_slabstats_operations = {
+	.open		= slabstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release_private,
+};
 #endif
+
+static int __init slab_proc_init(void)
+{
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
+#endif
+	return 0;
+}
+module_init(slab_proc_init);
 #endif
 
 /**

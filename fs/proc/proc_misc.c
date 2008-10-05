@@ -144,33 +144,6 @@ static const struct file_operations proc_slabinfo_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
-
-#ifdef CONFIG_DEBUG_SLAB_LEAK
-extern const struct seq_operations slabstats_op;
-static int slabstats_open(struct inode *inode, struct file *file)
-{
-	unsigned long *n = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	int ret = -ENOMEM;
-	if (n) {
-		ret = seq_open(file, &slabstats_op);
-		if (!ret) {
-			struct seq_file *m = file->private_data;
-			*n = PAGE_SIZE / (2 * sizeof(unsigned long));
-			m->private = n;
-			n = NULL;
-		}
-		kfree(n);
-	}
-	return ret;
-}
-
-static const struct file_operations proc_slabstats_operations = {
-	.open		= slabstats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_private,
-};
-#endif
 #endif
 
 #ifdef CONFIG_MMU
@@ -338,9 +311,6 @@ void __init proc_misc_init(void)
 	/* And now for trickier ones */
 #ifdef CONFIG_SLABINFO
 	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
-#ifdef CONFIG_DEBUG_SLAB_LEAK
-	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
-#endif
 #endif
 #ifdef CONFIG_MMU
 	proc_create("vmallocinfo", S_IRUSR, NULL, &proc_vmalloc_operations);
