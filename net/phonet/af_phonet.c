@@ -64,6 +64,11 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol)
 	}
 
 	pnp = phonet_proto_get(protocol);
+#ifdef CONFIG_KMOD
+	if (pnp == NULL &&
+	    request_module("net-pf-%d-proto-%d", PF_PHONET, protocol) == 0)
+		pnp = phonet_proto_get(protocol);
+#endif
 	if (pnp == NULL)
 		return -EPROTONOSUPPORT;
 	if (sock->type != pnp->sock_type) {
@@ -94,7 +99,7 @@ out:
 }
 
 static struct net_proto_family phonet_proto_family = {
-	.family = AF_PHONET,
+	.family = PF_PHONET,
 	.create = pn_socket_create,
 	.owner = THIS_MODULE,
 };
@@ -447,7 +452,7 @@ static int __init phonet_init(void)
 
 err:
 	phonet_sysctl_exit();
-	sock_unregister(AF_PHONET);
+	sock_unregister(PF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
 	phonet_device_exit();
 	return err;
@@ -457,7 +462,7 @@ static void __exit phonet_exit(void)
 {
 	isi_unregister();
 	phonet_sysctl_exit();
-	sock_unregister(AF_PHONET);
+	sock_unregister(PF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
 	phonet_device_exit();
 }
@@ -466,3 +471,4 @@ module_init(phonet_init);
 module_exit(phonet_exit);
 MODULE_DESCRIPTION("Phonet protocol stack for Linux");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NETPROTO(PF_PHONET);
