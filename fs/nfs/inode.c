@@ -905,9 +905,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 		return -EIO;
 	}
 
-	/* Do atomic weak cache consistency updates */
-	nfs_wcc_update_inode(inode, fattr);
-
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
 			nfsi->change_attr != fattr->change_attr)
 		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
@@ -936,10 +933,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 
 	if (invalid != 0)
 		nfsi->cache_validity |= invalid;
-	else
-		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR
-				| NFS_INO_INVALID_ATIME
-				| NFS_INO_REVAL_PAGECACHE);
 
 	nfsi->read_cache_jiffies = fattr->time_start;
 	return 0;
