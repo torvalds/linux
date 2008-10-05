@@ -948,6 +948,15 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	return 0;
 }
 
+static int nfs_refresh_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	if (time_after(fattr->time_start, nfsi->last_updated))
+		return nfs_update_inode(inode, fattr);
+	return nfs_check_inode_attributes(inode, fattr);
+}
+
 /**
  * nfs_refresh_inode - try to update the inode attribute cache
  * @inode - pointer to inode
@@ -960,17 +969,12 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
  */
 int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	int status;
 
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
 		return 0;
 	spin_lock(&inode->i_lock);
-	if (time_after(fattr->time_start, nfsi->last_updated))
-		status = nfs_update_inode(inode, fattr);
-	else
-		status = nfs_check_inode_attributes(inode, fattr);
-
+	status = nfs_refresh_inode_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
 	return status;
 }
@@ -992,13 +996,16 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	int status = 0;
 
 	spin_lock(&inode->i_lock);
 	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 	if (S_ISDIR(inode->i_mode))
 		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+	if ((fattr->valid & NFS_ATTR_FATTR) != 0)
+		status = nfs_refresh_inode_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
-	return nfs_refresh_inode(inode, fattr);
+	return status;
 }
 
 /**
