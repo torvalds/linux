@@ -25,11 +25,13 @@
 
 #include <linux/kernel.h>
 #include <linux/net.h>
+#include <linux/poll.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
 #include <linux/phonet.h>
 #include <net/phonet/phonet.h>
+#include <net/phonet/pep.h>
 #include <net/phonet/pn_dev.h>
 
 static int pn_socket_release(struct socket *sock)
@@ -166,6 +168,24 @@ static int pn_socket_autobind(struct socket *sock)
 	return 0; /* socket was already bound */
 }
 
+static int pn_socket_accept(struct socket *sock, struct socket *newsock,
+				int flags)
+{
+	struct sock *sk = sock->sk;
+	struct sock *newsk;
+	int err;
+
+	newsk = sk->sk_prot->accept(sk, flags, &err);
+	if (!newsk)
+		return err;
+
+	lock_sock(newsk);
+	sock_graft(newsk, newsock);
+	newsock->state = SS_CONNECTED;
+	release_sock(newsk);
+	return 0;
+}
+
 static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 				int *sockaddr_len, int peer)
 {
@@ -180,6 +200,33 @@ static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 
 	*sockaddr_len = sizeof(struct sockaddr_pn);
 	return 0;
+}
+
+static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
+					poll_table *wait)
+{
+	struct sock *sk = sock->sk;
+	struct pep_sock *pn = pep_sk(sk);
+	unsigned int mask = 0;
+
+	poll_wait(file, &sock->wait, wait);
+
+	switch (sk->sk_state) {
+	case TCP_LISTEN:
+		return hlist_empty(&pn->ackq) ? 0 : POLLIN;
+	case TCP_CLOSE:
+		return POLLERR;
+	}
+
+	if (!skb_queue_empty(&sk->sk_receive_queue))
+		mask |= POLLIN | POLLRDNORM;
+	else if (sk->sk_state == TCP_CLOSE_WAIT)
+		return POLLHUP;
+
+	if (sk->sk_state == TCP_ESTABLISHED && pn->tx_credits)
+		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+
+	return mask;
 }
 
 static int pn_socket_ioctl(struct socket *sock, unsigned int cmd,
@@ -220,6 +267,30 @@ static int pn_socket_ioctl(struct socket *sock, unsigned int cmd,
 	return sk->sk_prot->ioctl(sk, cmd, arg);
 }
 
+static int pn_socket_listen(struct socket *sock, int backlog)
+{
+	struct sock *sk = sock->sk;
+	int err = 0;
+
+	if (sock->state != SS_UNCONNECTED)
+		return -EINVAL;
+	if (pn_socket_autobind(sock))
+		return -ENOBUFS;
+
+	lock_sock(sk);
+	if (sk->sk_state != TCP_CLOSE) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	sk->sk_state = TCP_LISTEN;
+	sk->sk_ack_backlog = 0;
+	sk->sk_max_ack_backlog = backlog;
+out:
+	release_sock(sk);
+	return err;
+}
+
 static int pn_socket_sendmsg(struct kiocb *iocb, struct socket *sock,
 				struct msghdr *m, size_t total_len)
 {
@@ -255,6 +326,32 @@ const struct proto_ops phonet_dgram_ops = {
 	.mmap		= sock_no_mmap,
 	.sendpage	= sock_no_sendpage,
 };
+
+const struct proto_ops phonet_stream_ops = {
+	.family		= AF_PHONET,
+	.owner		= THIS_MODULE,
+	.release	= pn_socket_release,
+	.bind		= pn_socket_bind,
+	.connect	= sock_no_connect,
+	.socketpair	= sock_no_socketpair,
+	.accept		= pn_socket_accept,
+	.getname	= pn_socket_getname,
+	.poll		= pn_socket_poll,
+	.ioctl		= pn_socket_ioctl,
+	.listen		= pn_socket_listen,
+	.shutdown	= sock_no_shutdown,
+	.setsockopt	= sock_no_setsockopt,
+	.getsockopt	= sock_no_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = sock_no_setsockopt,
+	.compat_getsockopt = compat_sock_no_getsockopt,
+#endif
+	.sendmsg	= pn_socket_sendmsg,
+	.recvmsg	= sock_common_recvmsg,
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage,
+};
+EXPORT_SYMBOL(phonet_stream_ops);
 
 static DEFINE_MUTEX(port_mutex);
 
