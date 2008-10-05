@@ -694,6 +694,7 @@ static void atmci_start_request(struct atmel_mci *host,
 
 	host->pending_events = 0;
 	host->completed_events = 0;
+	host->data_status = 0;
 
 	if (host->need_reset) {
 		mci_writel(host, CR, MCI_CR_SWRST);
@@ -1408,7 +1409,8 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 		if (pending & MCI_NOTBUSY) {
 			mci_writel(host, IDR,
 					ATMCI_DATA_ERROR_FLAGS | MCI_NOTBUSY);
-			host->data_status = status;
+			if (!host->data_status)
+				host->data_status = status;
 			smp_wmb();
 			atmci_set_pending(host, EVENT_DATA_COMPLETE);
 			tasklet_schedule(&host->tasklet);
