@@ -224,7 +224,7 @@ static void vesa_store_pm_info(void)
 static void vesa_store_mode_params_graphics(void)
 {
 	/* Tell the kernel we're in VESA graphics mode */
-	boot_params.screen_info.orig_video_isVGA = 0x23;
+	boot_params.screen_info.orig_video_isVGA = VIDEO_TYPE_VLFB;
 
 	/* Mode parameters */
 	boot_params.screen_info.vesa_attributes = vminfo.mode_attr;
