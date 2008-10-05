@@ -4527,7 +4527,7 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE2,
 			.tv     = 1,
 			.gpio   = 0x624000,
-	}, {
+		}, {
 			.name   = name_comp1,
 			.vmux   = 1,
 			.amux   = LINE1,
@@ -4564,13 +4564,47 @@ struct saa7134_board saa7134_boards[] = {
 			.tv   = 1,
 		}, {
 			.name = name_comp,
-		       .vmux = 4,
-		       .amux = LINE1,
+			.vmux = 4,
+			.amux = LINE1,
 		}, {
 			.name = name_svideo,
 			.vmux = 8,
 			.amux = LINE1,
 		} },
+	},
+	[SAA7134_BOARD_ASUSTeK_TIGER] = {
+		.name           = "Asus Tiger Rev:1.00",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tuner_config   = 0,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x0200000,
+		.inputs = { {
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE2,
+		}, {
+			.name   = name_comp2,
+			.vmux   = 0,
+			.amux   = LINE2,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		} },
+		.radio = {
+			.name   = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
 	},
 };
 
@@ -5358,8 +5392,8 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1043,
-		.subdevice    = 0x4857,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
+		.subdevice    = 0x4857,		/* REV:1.00 */
+		.driver_data  = SAA7134_BOARD_ASUSTeK_TIGER,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -6177,6 +6211,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_KWORLD_DVBT_210:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
+	case SAA7134_BOARD_ASUSTeK_TIGER:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:

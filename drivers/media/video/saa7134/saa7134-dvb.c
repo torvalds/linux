@@ -1335,6 +1335,11 @@ static int dvb_init(struct saa7134_dev *dev)
 			}
 		}
 		break;
+	case SAA7134_BOARD_ASUSTeK_TIGER:
+		if (configure_tda827x_fe(dev, &philips_tiger_config,
+					 &tda827x_cfg_0) < 0)
+			goto dettach_frontend;
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
