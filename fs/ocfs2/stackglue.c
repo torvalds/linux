@@ -290,7 +290,7 @@ EXPORT_SYMBOL_GPL(ocfs2_dlm_dump_lksb);
 
 int ocfs2_stack_supports_plocks(void)
 {
-	return !!(active_stack && active_stack->sp_ops->plock);
+	return active_stack && active_stack->sp_ops->plock;
 }
 EXPORT_SYMBOL_GPL(ocfs2_stack_supports_plocks);
 
