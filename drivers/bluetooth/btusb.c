@@ -113,6 +113,7 @@ static struct usb_device_id blacklist_table[] = {
 
 	/* Targus ACB10US */
 	{ USB_DEVICE(0x0a5c, 0x2100), .driver_info = BTUSB_RESET },
+	{ USB_DEVICE(0x0a5c, 0x2154), .driver_info = BTUSB_RESET },
 
 	/* ANYCOM Bluetooth USB-200 and USB-250 */
 	{ USB_DEVICE(0x0a5c, 0x2111), .driver_info = BTUSB_RESET },
@@ -149,6 +150,9 @@ static struct usb_device_id blacklist_table[] = {
 	/* Belkin F8T012 and F8T013 devices */
 	{ USB_DEVICE(0x050d, 0x0012), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x050d, 0x0013), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
+
+	/* Belkin F8T016 device */
+	{ USB_DEVICE(0x050d, 0x016a), .driver_info = BTUSB_RESET },
 
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = BTUSB_DIGIANSWER },
