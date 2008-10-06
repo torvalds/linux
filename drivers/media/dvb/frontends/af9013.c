@@ -1490,7 +1490,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 		if (i == packets)  /* set size of the last packet */
 			len = remainder;
 
-		data = (fw->data + i * FW_PACKET_MAX_DATA);
+		data = (u8 *)(fw->data + i * FW_PACKET_MAX_DATA);
 		ret = af9013_write_ofsm_regs(state, addr, data, len);
 		addr += FW_PACKET_MAX_DATA;
 
