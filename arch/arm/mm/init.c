@@ -64,10 +64,11 @@ static int __init parse_tag_initrd2(const struct tag *tag)
 __tagtable(ATAG_INITRD2, parse_tag_initrd2);
 
 /*
- * This is used to pass memory configuration data from paging_init
- * to mem_init, and by show_mem() to skip holes in the memory map.
+ * This keeps memory configuration data used by a couple memory
+ * initialization functions, as well as show_mem() for the skipping
+ * of holes in the memory map.  It is populated by arm_add_memory().
  */
-static struct meminfo meminfo = { 0, };
+struct meminfo meminfo;
 
 void show_mem(void)
 {
@@ -331,12 +332,11 @@ static void __init bootmem_free_node(int node, struct meminfo *mi)
 	free_area_init_node(node, zone_size, start_pfn, zhole_size);
 }
 
-void __init bootmem_init(struct meminfo *mi)
+void __init bootmem_init(void)
 {
+	struct meminfo *mi = &meminfo;
 	unsigned long memend_pfn = 0;
 	int node, initrd_node;
-
-	memcpy(&meminfo, mi, sizeof(meminfo));
 
 	/*
 	 * Locate which node contains the ramdisk image, if any.

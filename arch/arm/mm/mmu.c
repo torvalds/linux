@@ -654,13 +654,6 @@ __early_param("vmalloc=", early_vmalloc);
 static int __init check_membank_valid(struct membank *mb)
 {
 	/*
-	 * Check whether this memory region has non-zero size or
-	 * invalid node number.
-	 */
-	if (mb->size == 0 || mb->node >= MAX_NUMNODES)
-		return 0;
-
-	/*
 	 * Check whether this memory region would entirely overlap
 	 * the vmalloc area.
 	 */
@@ -689,18 +682,18 @@ static int __init check_membank_valid(struct membank *mb)
 	return 1;
 }
 
-static void __init sanity_check_meminfo(struct meminfo *mi)
+static void __init sanity_check_meminfo(void)
 {
 	int i, j;
 
-	for (i = 0, j = 0; i < mi->nr_banks; i++) {
-		if (check_membank_valid(&mi->bank[i]))
-			mi->bank[j++] = mi->bank[i];
+	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
+		if (check_membank_valid(&meminfo.bank[i]))
+			meminfo.bank[j++] = meminfo.bank[i];
 	}
-	mi->nr_banks = j;
+	meminfo.nr_banks = j;
 }
 
-static inline void prepare_page_table(struct meminfo *mi)
+static inline void prepare_page_table(void)
 {
 	unsigned long addr;
 
@@ -721,7 +714,7 @@ static inline void prepare_page_table(struct meminfo *mi)
 	 * Clear out all the kernel space mappings, except for the first
 	 * memory bank, up to the end of the vmalloc region.
 	 */
-	for (addr = __phys_to_virt(mi->bank[0].start + mi->bank[0].size);
+	for (addr = __phys_to_virt(bank_phys_end(&meminfo.bank[0]));
 	     addr < VMALLOC_END; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
 }
@@ -880,14 +873,14 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
  * paging_init() sets up the page tables, initialises the zone memory
  * maps, and sets up the zero page, bad page and bad page tables.
  */
-void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
+void __init paging_init(struct machine_desc *mdesc)
 {
 	void *zero_page;
 
 	build_mem_type_table();
-	sanity_check_meminfo(mi);
-	prepare_page_table(mi);
-	bootmem_init(mi);
+	sanity_check_meminfo();
+	prepare_page_table();
+	bootmem_init();
 	devicemaps_init(mdesc);
 
 	top_pmd = pmd_off_k(0xffff0000);
