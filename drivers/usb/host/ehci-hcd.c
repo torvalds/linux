@@ -706,7 +706,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		pcd_status = status;
 
 		/* resume root hub? */
-		if (!(ehci_readl(ehci, &ehci->regs->command) & CMD_RUN))
+		if (!(cmd & CMD_RUN))
 			usb_hcd_resume_root_hub(hcd);
 
 		while (i--) {
@@ -715,8 +715,11 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 			if (pstatus & PORT_OWNER)
 				continue;
-			if (!(pstatus & PORT_RESUME)
-					|| ehci->reset_done [i] != 0)
+			if (!(test_bit(i, &ehci->suspended_ports) &&
+					((pstatus & PORT_RESUME) ||
+						!(pstatus & PORT_SUSPEND)) &&
+					(pstatus & PORT_PE) &&
+					ehci->reset_done[i] == 0))
 				continue;
 
 			/* start 20 msec resume signaling from this port,
@@ -731,9 +734,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* PCI errors [4.15.2.4] */
 	if (unlikely ((status & STS_FATAL) != 0)) {
-		dbg_cmd (ehci, "fatal", ehci_readl(ehci,
-						   &ehci->regs->command));
-		dbg_status (ehci, "fatal", status);
+		dbg_cmd(ehci, "fatal", cmd);
+		dbg_status(ehci, "fatal", status);
 		if (status & STS_HALT) {
 			ehci_err (ehci, "fatal error\n");
 dead:
