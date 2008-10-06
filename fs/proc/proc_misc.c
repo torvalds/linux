@@ -57,18 +57,6 @@
 #include <asm/div64.h>
 #include "internal.h"
 
-static int zoneinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &zoneinfo_op);
-}
-
-static const struct file_operations proc_zoneinfo_file_operations = {
-	.open		= zoneinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 #ifdef CONFIG_BLOCK
 static int diskstats_open(struct inode *inode, struct file *file)
 {
@@ -234,7 +222,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
 #ifdef CONFIG_BLOCK
 	proc_create("diskstats", 0, NULL, &proc_diskstats_operations);
 #endif

@@ -795,12 +795,24 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-const struct seq_operations zoneinfo_op = {
+static const struct seq_operations zoneinfo_op = {
 	.start	= frag_start, /* iterate over all zones. The same as in
 			       * fragmentation. */
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= zoneinfo_show,
+};
+
+static int zoneinfo_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &zoneinfo_op);
+}
+
+static const struct file_operations proc_zoneinfo_file_operations = {
+	.open		= zoneinfo_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
@@ -950,6 +962,7 @@ static int __init setup_vmstat(void)
 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
 #endif
 	return 0;
 }
