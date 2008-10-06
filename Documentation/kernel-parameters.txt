@@ -794,6 +794,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Defaults to the default architecture's huge page size
 			if not specified.
 
+	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
