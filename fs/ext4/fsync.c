@@ -28,6 +28,7 @@
 #include <linux/writeback.h>
 #include <linux/jbd2.h>
 #include <linux/blkdev.h>
+#include <linux/marker.h>
 #include "ext4.h"
 #include "ext4_jbd2.h"
 
@@ -50,6 +51,10 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	int ret = 0;
 
 	J_ASSERT(ext4_journal_current_handle() == NULL);
+
+	trace_mark(ext4_sync_file, "dev %s datasync %d ino %ld parent %ld",
+		   inode->i_sb->s_id, datasync, inode->i_ino,
+		   dentry->d_parent->d_inode->i_ino);
 
 	/*
 	 * data=writeback:
