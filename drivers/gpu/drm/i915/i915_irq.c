@@ -372,6 +372,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	u32 pipea_stats, pipeb_stats;
 	int vblank = 0;
 
+	atomic_inc(&dev_priv->irq_received);
+
 	if (dev->pdev->msi_enabled)
 		I915_WRITE(IMR, ~0);
 	iir = I915_READ(IIR);
