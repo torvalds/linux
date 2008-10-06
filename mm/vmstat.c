@@ -8,7 +8,7 @@
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
  *		Christoph Lameter <christoph@lameter.com>
  */
-
+#include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -384,7 +384,7 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
 #endif
 
 #ifdef CONFIG_PROC_FS
-
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
 static char * const migratetype_names[MIGRATE_TYPES] = {
@@ -581,11 +581,23 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-const struct seq_operations fragmentation_op = {
+static const struct seq_operations fragmentation_op = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= frag_show,
+};
+
+static int fragmentation_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &fragmentation_op);
+}
+
+static const struct file_operations fragmentation_file_operations = {
+	.open		= fragmentation_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 const struct seq_operations pagetypeinfo_op = {
@@ -898,9 +910,11 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 
 static struct notifier_block __cpuinitdata vmstat_notifier =
 	{ &vmstat_cpuup_callback, NULL, 0 };
+#endif
 
 static int __init setup_vmstat(void)
 {
+#ifdef CONFIG_SMP
 	int cpu;
 
 	refresh_zone_stat_thresholds();
@@ -908,7 +922,10 @@ static int __init setup_vmstat(void)
 
 	for_each_online_cpu(cpu)
 		start_cpu_timer(cpu);
+#endif
+#ifdef CONFIG_PROC_FS
+	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+#endif
 	return 0;
 }
 module_init(setup_vmstat)
-#endif
