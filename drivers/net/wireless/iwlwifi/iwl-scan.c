@@ -843,7 +843,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
-		 * MIMO is not used here, but value is required */
+		 */
 		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
 			rx_chain = 0x6;
 	} else {
@@ -851,6 +851,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
+	/* MIMO is not used here, but value is required */
 	scan->rx_chain = RXON_RX_CHAIN_DRIVER_FORCE_MSK |
 				cpu_to_le16((0x7 << RXON_RX_CHAIN_VALID_POS) |
 				(rx_chain << RXON_RX_CHAIN_FORCE_SEL_POS) |
