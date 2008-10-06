@@ -42,7 +42,10 @@
 #include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
+#include <mach/at91sam9_smc.h>
+#include <mach/at91_shdwc.h>
 
+#include "sam9_smc.h"
 #include "generic.h"
 
 
@@ -195,6 +198,38 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 #endif
 };
 
+static struct sam9_smc_config __initdata ek_nand_smc_config = {
+	.ncs_read_setup		= 0,
+	.nrd_setup		= 1,
+	.ncs_write_setup	= 0,
+	.nwe_setup		= 1,
+
+	.ncs_read_pulse		= 3,
+	.nrd_pulse		= 3,
+	.ncs_write_pulse	= 3,
+	.nwe_pulse		= 3,
+
+	.read_cycle		= 5,
+	.write_cycle		= 5,
+
+	.mode			= AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE,
+	.tdf_cycles		= 2,
+};
+
+static void __init ek_add_device_nand(void)
+{
+	/* setup bus-width (8 or 16) */
+	if (ek_nand_data.bus_width_16)
+		ek_nand_smc_config.mode |= AT91_SMC_DBW_16;
+	else
+		ek_nand_smc_config.mode |= AT91_SMC_DBW_8;
+
+	/* configure chip-select 3 (NAND) */
+	sam9_smc_configure(3, &ek_nand_smc_config);
+
+	at91_add_device_nand(&ek_nand_data);
+}
+
 
 /*
  * MCI (SD/MMC)
@@ -303,7 +338,7 @@ static void __init ek_board_init(void)
 	/* SPI */
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 	/* NAND */
-	at91_add_device_nand(&ek_nand_data);
+	ek_add_device_nand();
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* MMC */
