@@ -85,3 +85,19 @@ Description:
 Users:
 		PowerTOP <power@bughost.org>
 		http://www.lesswatts.org/projects/powertop/
+
+What:		/sys/bus/usb/device/<busnum>-<devnum>...:<config num>-<interface num>/supports_autosuspend
+Date:		January 2008
+KernelVersion:	2.6.27
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		When read, this file returns 1 if the interface driver
+		for this interface supports autosuspend.  It also
+		returns 1 if no driver has claimed this interface, as an
+		unclaimed interface will not stop the device from being
+		autosuspended if all other interface drivers are idle.
+		The file returns 0 if autosuspend support has not been
+		added to the driver.
+Users:
+		USB PM tool
+		git://git.moblin.org/users/sarah/usb-pm-tool/
