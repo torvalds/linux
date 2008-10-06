@@ -211,6 +211,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MIPS_CMP if BROKEN	# because SYNC_R4K is broken
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
 	help
@@ -1499,6 +1500,18 @@ config MIPS_APSP_KSPD
 	  "exit" syscall notifying other kernel modules the SP program is
 	  exiting.  You probably want to say yes here.
 
+config MIPS_CMP
+	bool "MIPS CMP framework support"
+	depends on SYS_SUPPORTS_MIPS_CMP
+	select SYNC_R4K if BROKEN
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_SCHED_SMT if SMP
+	select WEAK_ORDERING
+	default n
+	help
+	  This is a placeholder option for the GCMP work. It will need to
+	  be handled differently...
+
 config SB1_PASS_1_WORKAROUNDS
 	bool
 	depends on CPU_SB1_PASS_1
@@ -1675,6 +1688,9 @@ config SMP
 config SMP_UP
 	bool
 
+config SYS_SUPPORTS_MIPS_CMP
+	bool
+
 config SYS_SUPPORTS_SMP
 	bool
 
@@ -1721,17 +1737,6 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
-
-config MIPS_CMP
-	bool "MIPS CMP framework support"
-	depends on SMP
-	select SYNC_R4K
-	select SYS_SUPPORTS_SCHED_SMT
-	select WEAK_ORDERING
-	default n
-	help
-	  This is a placeholder option for the GCMP work. It will need to
-	  be handled differently...
 
 source "kernel/time/Kconfig"
 
