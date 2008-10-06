@@ -163,8 +163,8 @@ config USB_GSPCA_STK014
 	To compile this driver as a module, choose M here: the
 	module will be called gspca_stk014.
 
-config USB_GSPCA_SPCA5XX
-	tristate "SPCA5xx USB Camera Driver"
+config USB_GSPCA_SUNPLUS
+	tristate "SUNPLUS USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
 	Say Y here if you want support for cameras based on the Sunplus
