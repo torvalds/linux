@@ -37,11 +37,9 @@ static struct omap_irq_bank {
 } __attribute__ ((aligned(4))) irq_banks[] = {
 	{
 		/* MPU INTC */
-		.base_reg	= IO_ADDRESS(OMAP24XX_IC_BASE),
+		.base_reg	= 0,
 		.nr_irqs	= 96,
-	}, {
-		/* XXX: DSP INTC */
-	}
+	},
 };
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
@@ -118,10 +116,8 @@ void __init omap_init_irq(void)
 	for (i = 0; i < ARRAY_SIZE(irq_banks); i++) {
 		struct omap_irq_bank *bank = irq_banks + i;
 
-		/* XXX */
-		if (!bank->base_reg)
-			continue;
-
+		if (cpu_is_omap24xx())
+			bank->base_reg = IO_ADDRESS(OMAP24XX_IC_BASE);
 		omap_irq_bank_init_one(bank);
 
 		nr_irqs += bank->nr_irqs;

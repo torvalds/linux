@@ -4,8 +4,11 @@
  * OMAP2 I/O mapping code
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * Updated map desc to add 2430 support : <x0khasim@ti.com>
+ * Copyright (C) 2007 Texas Instruments
+ *
+ * Author:
+ *	Juha Yrjola <juha.yrjola@nokia.com>
+ *	Syed Khasim <x0khasim@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,6 +26,11 @@
 
 #include <mach/mux.h>
 #include <mach/omapfb.h>
+#include <mach/sram.h>
+
+#include "memory.h"
+
+#include "clock.h"
 
 #include <mach/powerdomain.h>
 
@@ -30,13 +38,6 @@
 
 #include <mach/clockdomain.h>
 #include "clockdomains.h"
-
-extern void omap_sram_init(void);
-extern int omap2_clk_init(void);
-extern void omap2_check_revision(void);
-extern void omap2_init_memory(void);
-extern void gpmc_init(void);
-extern void omapfb_reserve_sdram(void);
 
 /*
  * The machine specific code may provide the extra mapping besides the

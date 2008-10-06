@@ -23,7 +23,7 @@
 #include <asm/mach-types.h>
 #include <mach/gpmc.h>
 
-#include "memory.h"
+#include <mach/sdrc.h>
 
 /* GPMC register offsets */
 #define GPMC_REVISION		0x00
