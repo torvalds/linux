@@ -288,8 +288,6 @@ static int ath_stop(struct ath_softc *sc)
 	 * hardware is gone (invalid).
 	 */
 
-	if (!(sc->sc_flags & SC_OP_INVALID))
-		ath9k_hw_set_interrupts(ah, 0);
 	ath_draintxq(sc, false);
 	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		ath_stoprecv(sc);
