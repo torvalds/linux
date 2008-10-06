@@ -8,7 +8,7 @@ proc-y			:= nommu.o task_nommu.o
 proc-$(CONFIG_MMU)	:= mmu.o task_mmu.o
 
 proc-y       += inode.o root.o base.o generic.o array.o \
-		proc_tty.o proc_misc.o
+		proc_tty.o
 proc-y	+= cmdline.o
 proc-y	+= cpuinfo.o
 proc-y	+= devices.o

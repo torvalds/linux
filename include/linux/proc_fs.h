@@ -100,7 +100,6 @@ struct vmcore {
 extern spinlock_t proc_subdir_lock;
 
 extern void proc_root_init(void);
-extern void proc_misc_init(void);
 
 void proc_flush_task(struct task_struct *task);
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *);
