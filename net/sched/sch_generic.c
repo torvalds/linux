@@ -44,7 +44,10 @@ static inline int qdisc_qlen(struct Qdisc *q)
 
 static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	__skb_queue_head(&q->requeue, skb);
+	if (unlikely(skb->next))
+		q->gso_skb = skb;
+	else
+		__skb_queue_head(&q->requeue, skb);
 
 	__netif_schedule(q);
 	return 0;
@@ -52,7 +55,10 @@ static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 
 static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 {
-	struct sk_buff *skb = skb_peek(&q->requeue);
+	struct sk_buff *skb = q->gso_skb;
+
+	if (!skb)
+		skb = skb_peek(&q->requeue);
 
 	if (unlikely(skb)) {
 		struct net_device *dev = qdisc_dev(q);
@@ -60,10 +66,15 @@ static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 
 		/* check the reason of requeuing without tx lock first */
 		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
-		if (!netif_tx_queue_stopped(txq) && !netif_tx_queue_frozen(txq))
-			__skb_unlink(skb, &q->requeue);
-		else
+		if (!netif_tx_queue_stopped(txq) &&
+		    !netif_tx_queue_frozen(txq)) {
+			if (q->gso_skb)
+				q->gso_skb = NULL;
+			else
+				__skb_unlink(skb, &q->requeue);
+		} else {
 			skb = NULL;
+		}
 	} else {
 		skb = q->dequeue(q);
 	}
@@ -548,6 +559,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	module_put(ops->owner);
 	dev_put(qdisc_dev(qdisc));
 
+	kfree_skb(qdisc->gso_skb);
 	__skb_queue_purge(&qdisc->requeue);
 
 	kfree((char *) qdisc - qdisc->padded);
