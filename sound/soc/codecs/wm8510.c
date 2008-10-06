@@ -199,7 +199,7 @@ SOC_DAPM_SINGLE("PCM Playback Switch", WM8510_MONOMIX, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new wm8510_boost_controls[] = {
-SOC_DAPM_SINGLE("Mic PGA Switch", WM8510_INPPGA,  6, 1, 0),
+SOC_DAPM_SINGLE("Mic PGA Switch", WM8510_INPPGA,  6, 1, 1),
 SOC_DAPM_SINGLE("Aux Volume", WM8510_ADCBOOST, 0, 7, 0),
 SOC_DAPM_SINGLE("Mic Volume", WM8510_ADCBOOST, 4, 7, 0),
 };
