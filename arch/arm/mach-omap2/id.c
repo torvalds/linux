@@ -17,24 +17,15 @@
 
 #include <asm/io.h>
 
+#include <mach/common.h>
 #include <mach/control.h>
 #include <mach/cpu.h>
 
-#if defined(CONFIG_ARCH_OMAP2420)
-#define TAP_BASE	IO_ADDRESS(0x48014000)
-#elif defined(CONFIG_ARCH_OMAP2430)
-#define TAP_BASE	IO_ADDRESS(0x4900A000)
-#elif defined(CONFIG_ARCH_OMAP34XX)
-#define TAP_BASE	IO_ADDRESS(0x4830A000)
-#endif
+static u32 class;
+static void __iomem *tap_base;
+static u16 tap_prod_id;
 
 #define OMAP_TAP_IDCODE		0x0204
-#if defined(CONFIG_ARCH_OMAP34XX)
-#define OMAP_TAP_PROD_ID	0x0210
-#else
-#define OMAP_TAP_PROD_ID	0x0208
-#endif
-
 #define OMAP_TAP_DIE_ID_0	0x0218
 #define OMAP_TAP_DIE_ID_1	0x021C
 #define OMAP_TAP_DIE_ID_2	0x0220
@@ -93,18 +84,24 @@ static u32 __init read_tap_reg(int reg)
 	 * it means its Cortex r0p0 which is 3430 ES1
 	 */
 	if ((((cpuid >> 4) & 0xFFF) == 0xC08) && ((cpuid & 0xF) == 0x0)) {
+
+		if (reg == tap_prod_id) {
+			regval = 0x000F00F0;
+			goto out;
+		}
+
 		switch (reg) {
 		case OMAP_TAP_IDCODE  : regval = 0x0B7AE02F; break;
 		/* Making DevType as 0xF in ES1 to differ from ES2 */
-		case OMAP_TAP_PROD_ID : regval = 0x000F00F0; break;
 		case OMAP_TAP_DIE_ID_0: regval = 0x01000000; break;
 		case OMAP_TAP_DIE_ID_1: regval = 0x1012d687; break;
 		case OMAP_TAP_DIE_ID_2:	regval = 0x00000000; break;
 		case OMAP_TAP_DIE_ID_3:	regval = 0x2d2c0000; break;
 		}
 	} else
-		regval = __raw_readl(TAP_BASE + reg);
+		regval = __raw_readl(tap_base + reg);
 
+out:
 	return regval;
 
 }
@@ -203,7 +200,7 @@ void __init omap2_check_revision(void)
 	u8  rev;
 
 	idcode = read_tap_reg(OMAP_TAP_IDCODE);
-	prod_id = read_tap_reg(OMAP_TAP_PROD_ID);
+	prod_id = read_tap_reg(tap_prod_id);
 	hawkeye = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0x0f;
 	dev_type = (prod_id >> 16) & 0x0f;
@@ -268,3 +265,13 @@ void __init omap2_check_revision(void)
 
 }
 
+void __init omap2_set_globals_tap(struct omap_globals *omap2_globals)
+{
+	class = omap2_globals->class;
+	tap_base = omap2_globals->tap;
+
+	if (class == 0x3430)
+		tap_prod_id = 0x0210;
+	else
+		tap_prod_id = 0x0208;
+}
