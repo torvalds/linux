@@ -22,6 +22,7 @@
 #include <linux/signal.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
+#include <linux/tracehook.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -603,7 +604,7 @@ void ia64_ptrace_stop(void)
 {
 	if (test_and_set_tsk_thread_flag(current, TIF_RESTORE_RSE))
 		return;
-	tsk_set_notify_resume(current);
+	set_notify_resume(current);
 	unw_init_running(do_sync_rbs, ia64_sync_user_rbs);
 }
 
@@ -613,7 +614,6 @@ void ia64_ptrace_stop(void)
 void ia64_sync_krbs(void)
 {
 	clear_tsk_thread_flag(current, TIF_RESTORE_RSE);
-	tsk_clear_notify_resume(current);
 
 	unw_init_running(do_sync_rbs, ia64_sync_kernel_rbs);
 }
@@ -644,7 +644,7 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 		spin_lock_irq(&child->sighand->siglock);
 		if (child->state == TASK_STOPPED &&
 		    !test_and_set_tsk_thread_flag(child, TIF_RESTORE_RSE)) {
-			tsk_set_notify_resume(child);
+			set_notify_resume(child);
 
 			child->state = TASK_TRACED;
 			stopped = 1;
@@ -1232,37 +1232,16 @@ arch_ptrace (struct task_struct *child, long request, long addr, long data)
 }
 
 
-static void
-syscall_trace (void)
-{
-	/*
-	 * The 0x80 provides a way for the tracing parent to
-	 * distinguish between a syscall stop and SIGTRAP delivery.
-	 */
-	ptrace_notify(SIGTRAP
-		      | ((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
-
-	/*
-	 * This isn't the same as continuing with a signal, but it
-	 * will do for normal use.  strace only continues with a
-	 * signal if the stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
-}
-
 /* "asmlinkage" so the input arguments are preserved... */
 
-asmlinkage void
+asmlinkage long
 syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 		     long arg4, long arg5, long arg6, long arg7,
 		     struct pt_regs regs)
 {
-	if (test_thread_flag(TIF_SYSCALL_TRACE) 
-	    && (current->ptrace & PT_PTRACED))
-		syscall_trace();
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		if (tracehook_report_syscall_entry(&regs))
+			return -ENOSYS;
 
 	/* copy user rbs to kernel rbs */
 	if (test_thread_flag(TIF_RESTORE_RSE))
@@ -1283,6 +1262,7 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 		audit_syscall_entry(arch, syscall, arg0, arg1, arg2, arg3);
 	}
 
+	return 0;
 }
 
 /* "asmlinkage" so the input arguments are preserved... */
@@ -1292,6 +1272,8 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 		     long arg4, long arg5, long arg6, long arg7,
 		     struct pt_regs regs)
 {
+	int step;
+
 	if (unlikely(current->audit_context)) {
 		int success = AUDITSC_RESULT(regs.r10);
 		long result = regs.r8;
@@ -1301,10 +1283,9 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 		audit_syscall_exit(success, result);
 	}
 
-	if ((test_thread_flag(TIF_SYSCALL_TRACE)
-	    || test_thread_flag(TIF_SINGLESTEP))
-	    && (current->ptrace & PT_PTRACED))
-		syscall_trace();
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(&regs, step);
 
 	/* copy user rbs to kernel rbs */
 	if (test_thread_flag(TIF_RESTORE_RSE))
@@ -1940,7 +1921,7 @@ gpregs_writeback(struct task_struct *target,
 {
 	if (test_and_set_tsk_thread_flag(target, TIF_RESTORE_RSE))
 		return 0;
-	tsk_set_notify_resume(target);
+	set_notify_resume(target);
 	return do_regset_call(do_gpregs_writeback, target, regset, 0, 0,
 		NULL, NULL);
 }

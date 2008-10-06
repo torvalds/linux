@@ -534,6 +534,11 @@ GLOBAL_ENTRY(ia64_trace_syscall)
  	stf.spill [r16]=f10
  	stf.spill [r17]=f11
 	br.call.sptk.many rp=syscall_trace_enter // give parent a chance to catch syscall args
+	cmp.lt p6,p0=r8,r0			// check tracehook
+	adds r2=PT(R8)+16,sp			// r2 = &pt_regs.r8
+	adds r3=PT(R10)+16,sp			// r3 = &pt_regs.r10
+	mov r10=0
+(p6)	br.cond.sptk strace_error		// syscall failed ->
 	adds r16=PT(F6)+16,sp
 	adds r17=PT(F7)+16,sp
 	;;
