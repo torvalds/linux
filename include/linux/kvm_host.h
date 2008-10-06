@@ -309,6 +309,12 @@ struct kvm_assigned_dev_kernel {
 	struct pci_dev *dev;
 	struct kvm *kvm;
 };
+void kvm_set_irq(struct kvm *kvm, int irq, int level);
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi);
+void kvm_register_irq_ack_notifier(struct kvm *kvm,
+				   struct kvm_irq_ack_notifier *kian);
+void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
+				     struct kvm_irq_ack_notifier *kian);
 
 #ifdef CONFIG_DMAR
 int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,

@@ -413,6 +413,10 @@ struct kvm_arch {
 	struct kvm_ioapic *vioapic;
 	struct kvm_vm_stat stat;
 	struct kvm_sal_data rdv_sal_data;
+
+	struct list_head assigned_dev_head;
+	struct dmar_domain *intel_iommu_domain;
+	struct hlist_head irq_ack_notifier_list;
 };
 
 union cpuid3_t {

@@ -23,10 +23,5 @@
 #ifndef __IRQ_H
 #define __IRQ_H
 
-struct kvm;
-
-static inline void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi)
-{
-}
 
 #endif

@@ -565,6 +565,8 @@ void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
 			   u32 error_code);
 
+void kvm_pic_set_irq(void *opaque, int irq, int level);
+
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 
 void fx_init(struct kvm_vcpu *vcpu);

@@ -99,36 +99,3 @@ void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
 	__kvm_migrate_apic_timer(vcpu);
 	__kvm_migrate_pit_timer(vcpu);
 }
-
-/* This should be called with the kvm->lock mutex held */
-void kvm_set_irq(struct kvm *kvm, int irq, int level)
-{
-	/* Not possible to detect if the guest uses the PIC or the
-	 * IOAPIC.  So set the bit in both. The guest will ignore
-	 * writes to the unused one.
-	 */
-	kvm_ioapic_set_irq(kvm->arch.vioapic, irq, level);
-	kvm_pic_set_irq(pic_irqchip(kvm), irq, level);
-}
-
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi)
-{
-	struct kvm_irq_ack_notifier *kian;
-	struct hlist_node *n;
-
-	hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list, link)
-		if (kian->gsi == gsi)
-			kian->irq_acked(kian);
-}
-
-void kvm_register_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian)
-{
-	hlist_add_head(&kian->link, &kvm->arch.irq_ack_notifier_list);
-}
-
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				     struct kvm_irq_ack_notifier *kian)
-{
-	hlist_del(&kian->link);
-}

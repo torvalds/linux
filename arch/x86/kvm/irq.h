@@ -68,7 +68,6 @@ struct kvm_pic {
 };
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm);
-void kvm_pic_set_irq(void *opaque, int irq, int level);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
 void kvm_pic_clear_isr_ack(struct kvm *kvm);
@@ -84,13 +83,6 @@ static inline int irqchip_in_kernel(struct kvm *kvm)
 }
 
 void kvm_pic_reset(struct kvm_kpic_state *s);
-
-void kvm_set_irq(struct kvm *kvm, int irq, int level);
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi);
-void kvm_register_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian);
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				     struct kvm_irq_ack_notifier *kian);
 
 void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);
