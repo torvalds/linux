@@ -51,6 +51,7 @@
 #include <asm/proto.h>
 #include <asm/ia32.h>
 #include <asm/idle.h>
+#include <asm/syscalls.h>
 
 asmlinkage extern void ret_from_fork(void);
 

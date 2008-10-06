@@ -56,6 +56,8 @@
 #include <asm/cpu.h>
 #include <asm/kdebug.h>
 #include <asm/idle.h>
+#include <asm/syscalls.h>
+#include <asm/smp.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 

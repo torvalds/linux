@@ -26,6 +26,7 @@
 #include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/vdso.h>
+#include <asm/syscalls.h>
 
 #include "sigframe.h"
 

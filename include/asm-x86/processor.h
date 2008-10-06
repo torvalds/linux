@@ -141,6 +141,8 @@ DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define current_cpu_data	boot_cpu_data
 #endif
 
+extern const struct seq_operations cpuinfo_op;
+
 static inline int hlt_works(int cpu)
 {
 #ifdef CONFIG_X86_32
@@ -153,6 +155,8 @@ static inline int hlt_works(int cpu)
 #define cache_line_size()	(boot_cpu_data.x86_cache_alignment)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
+
+extern struct pt_regs *idle_regs(struct pt_regs *);
 
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);

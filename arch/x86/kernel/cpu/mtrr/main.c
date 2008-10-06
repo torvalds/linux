@@ -729,7 +729,7 @@ struct var_mtrr_range_state {
 	mtrr_type type;
 };
 
-struct var_mtrr_range_state __initdata range_state[RANGE_NUM];
+static struct var_mtrr_range_state __initdata range_state[RANGE_NUM];
 static int __initdata debug_print;
 
 static int __init

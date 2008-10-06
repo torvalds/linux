@@ -73,6 +73,8 @@ build_mmio_write(__writeq, "q", unsigned long, "r", )
 #define writeq writeq
 #endif
 
+extern int iommu_bio_merge;
+
 #ifdef CONFIG_X86_32
 # include "io_32.h"
 #else
