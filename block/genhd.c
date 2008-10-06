@@ -1005,15 +1005,28 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	return 0;
 }
 
-const struct seq_operations diskstats_op = {
+static const struct seq_operations diskstats_op = {
 	.start	= disk_seqf_start,
 	.next	= disk_seqf_next,
 	.stop	= disk_seqf_stop,
 	.show	= diskstats_show
 };
 
+static int diskstats_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &diskstats_op);
+}
+
+static const struct file_operations proc_diskstats_operations = {
+	.open		= diskstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static int __init proc_genhd_init(void)
 {
+	proc_create("diskstats", 0, NULL, &proc_diskstats_operations);
 	proc_create("partitions", 0, NULL, &proc_partitions_operations);
 	return 0;
 }
