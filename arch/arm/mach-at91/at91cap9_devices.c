@@ -406,28 +406,13 @@ static struct platform_device at91cap9_nand_device = {
 
 void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
-	unsigned long csa, mode;
+	unsigned long csa;
 
 	if (!data)
 		return;
 
 	csa = at91_sys_read(AT91_MATRIX_EBICSA);
-	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA | AT91_MATRIX_EBI_VDDIOMSEL_3_3V);
-
-	/* set the bus interface characteristics */
-	at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(2) | AT91_SMC_NCS_WRSETUP_(1)
-			| AT91_SMC_NRDSETUP_(2) | AT91_SMC_NCS_RDSETUP_(1));
-
-	at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(4) | AT91_SMC_NCS_WRPULSE_(6)
-			| AT91_SMC_NRDPULSE_(4) | AT91_SMC_NCS_RDPULSE_(6));
-
-	at91_sys_write(AT91_SMC_CYCLE(3), AT91_SMC_NWECYCLE_(8) | AT91_SMC_NRDCYCLE_(8));
-
-	if (data->bus_width_16)
-		mode = AT91_SMC_DBW_16;
-	else
-		mode = AT91_SMC_DBW_8;
-	at91_sys_write(AT91_SMC_MODE(3), mode | AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_TDF_(1));
+	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
 
 	/* enable pin */
 	if (data->enable_pin)

@@ -313,49 +313,13 @@ static struct platform_device at91sam9260_nand_device = {
 
 void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
-	unsigned long csa, mode;
+	unsigned long csa;
 
 	if (!data)
 		return;
 
 	csa = at91_sys_read(AT91_MATRIX_EBICSA);
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_CS3A_SMC_SMARTMEDIA);
-
-	if (cpu_is_at91sam9260()) {
-		/* Timing for sam9260 */
-		/* set the bus interface characteristics */
-		at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(1) | AT91_SMC_NCS_WRSETUP_(0)
-				| AT91_SMC_NRDSETUP_(1) | AT91_SMC_NCS_RDSETUP_(0));
-
-		at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(3) | AT91_SMC_NCS_WRPULSE_(3)
-				| AT91_SMC_NRDPULSE_(3) | AT91_SMC_NCS_RDPULSE_(3));
-
-		at91_sys_write(AT91_SMC_CYCLE(3), AT91_SMC_NWECYCLE_(5) | AT91_SMC_NRDCYCLE_(5));
-
-		if (data->bus_width_16)
-			mode = AT91_SMC_DBW_16;
-		else
-			mode = AT91_SMC_DBW_8;
-		at91_sys_write(AT91_SMC_MODE(3), mode | AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_TDF_(2));
-	}
-
-	if (cpu_is_at91sam9g20()) {
-		/* Timing for sam9g20 */
-		/* set the bus interface characteristics */
-		at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(2) | AT91_SMC_NCS_WRSETUP_(0)
-				| AT91_SMC_NRDSETUP_(2) | AT91_SMC_NCS_RDSETUP_(0));
-
-		at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(4) | AT91_SMC_NCS_WRPULSE_(4)
-				| AT91_SMC_NRDPULSE_(4) | AT91_SMC_NCS_RDPULSE_(4));
-
-		at91_sys_write(AT91_SMC_CYCLE(3), AT91_SMC_NWECYCLE_(7) | AT91_SMC_NRDCYCLE_(7));
-
-		if (data->bus_width_16)
-			mode = AT91_SMC_DBW_16;
-		else
-			mode = AT91_SMC_DBW_8;
-		at91_sys_write(AT91_SMC_MODE(3), mode | AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_TDF_(3));
-	}
 
 	/* enable pin */
 	if (data->enable_pin)
