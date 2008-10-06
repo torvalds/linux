@@ -55,7 +55,6 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 };
 
 extern const struct seq_operations zoneinfo_op;
-extern const struct seq_operations vmstat_op;
 extern int sysctl_stat_interval;
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
