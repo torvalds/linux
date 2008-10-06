@@ -624,6 +624,8 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	smp_wmb();
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
+	snoop(&dev->dev, "opened by process %d: %s\n", task_pid_nr(current),
+			current->comm);
  out:
 	if (ret) {
 		kfree(ps);
