@@ -57,20 +57,6 @@
 #include <asm/div64.h>
 #include "internal.h"
 
-#ifdef CONFIG_MODULES
-extern const struct seq_operations modules_op;
-static int modules_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &modules_op);
-}
-static const struct file_operations proc_modules_operations = {
-	.open		= modules_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-#endif
-
 #ifdef CONFIG_PROC_PAGE_MONITOR
 #define KPMSIZE sizeof(u64)
 #define KPMMASK (KPMSIZE - 1)
@@ -209,9 +195,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-#ifdef CONFIG_MODULES
-	proc_create("modules", 0, NULL, &proc_modules_operations);
-#endif
 #ifdef CONFIG_SCHEDSTATS
 	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
 #endif
