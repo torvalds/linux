@@ -749,6 +749,12 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
+	/*
+	 * Maybe EC region is required at bus_scan/acpi_get_devices. So it
+	 * is necessary to enable it as early as possible.
+	 */
+	acpi_boot_ec_enable();
+
 	printk(KERN_INFO PREFIX "Interpreter enabled\n");
 
 	/* Initialize sleep structures */

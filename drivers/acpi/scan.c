@@ -1545,7 +1545,6 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	return result;
 }
 
-int __init acpi_boot_ec_enable(void);
 
 static int __init acpi_scan_init(void)
 {
@@ -1578,9 +1577,6 @@ static int __init acpi_scan_init(void)
 	 * Enumerate devices in the ACPI namespace.
 	 */
 	result = acpi_bus_scan_fixed(acpi_root);
-
-	/* EC region might be needed at bus_scan, so enable it now */
-	acpi_boot_ec_enable();
 
 	if (!result)
 		result = acpi_bus_scan(acpi_root, &ops);
