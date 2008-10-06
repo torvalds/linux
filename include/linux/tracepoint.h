@@ -124,4 +124,11 @@ extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
 extern int tracepoint_get_iter_range(struct tracepoint **tracepoint,
 	struct tracepoint *begin, struct tracepoint *end);
 
+/*
+ * tracepoint_synchronize_unregister must be called between the last tracepoint
+ * probe unregistration and the end of module exit to make sure there is no
+ * caller executing a probe when it is freed.
+ */
+#define tracepoint_synchronize_unregister() synchronize_sched()
+
 #endif
