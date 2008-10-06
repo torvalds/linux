@@ -95,6 +95,52 @@ static void __init nvidia_bugs(int num, int slot, int func)
 
 }
 
+static u32 ati_ixp4x0_rev(int num, int slot, int func)
+{
+	u32 d;
+	u8  b;
+
+	b = read_pci_config_byte(num, slot, func, 0xac);
+	b &= ~(1<<5);
+	write_pci_config_byte(num, slot, func, 0xac, b);
+
+	d = read_pci_config(num, slot, func, 0x70);
+	d |= 1<<8;
+	write_pci_config(num, slot, func, 0x70, d);
+
+	d = read_pci_config(num, slot, func, 0x8);
+	d &= 0xff;
+	return d;
+}
+
+static void __init ati_bugs(int num, int slot, int func)
+{
+#if defined(CONFIG_ACPI) && defined (CONFIG_X86_IO_APIC)
+	u32 d;
+	u8  b;
+
+	if (acpi_use_timer_override)
+		return;
+
+	d = ati_ixp4x0_rev(num, slot, func);
+	if (d  < 0x82)
+		acpi_skip_timer_override = 1;
+	else {
+		/* check for IRQ0 interrupt swap */
+		outb(0x72, 0xcd6); b = inb(0xcd7);
+		if (!(b & 0x2))
+			acpi_skip_timer_override = 1;
+	}
+
+	if (acpi_skip_timer_override) {
+		printk(KERN_INFO "SB4X0 revision 0x%x\n", d);
+		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "If you got timer trouble "
+		       "try acpi_use_timer_override\n");
+	}
+#endif
+}
+
 #define QFLAG_APPLY_ONCE 	0x1
 #define QFLAG_APPLIED		0x2
 #define QFLAG_DONE		(QFLAG_APPLY_ONCE|QFLAG_APPLIED)
@@ -114,6 +160,8 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_CLASS_BRIDGE_PCI, PCI_ANY_ID, QFLAG_APPLY_ONCE, via_bugs },
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,
 	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, fix_hypertransport_config },
+	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS,
+	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs },
 	{}
 };
 
