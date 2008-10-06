@@ -148,8 +148,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 	 * we have now. "break" is either changing perms, levels or
 	 * address space marker.
 	 */
-	prot = pgprot_val(new_prot) & ~(PTE_PFN_MASK);
-	cur = pgprot_val(st->current_prot) & ~(PTE_PFN_MASK);
+	prot = pgprot_val(new_prot) & PTE_FLAGS_MASK;
+	cur = pgprot_val(st->current_prot) & PTE_FLAGS_MASK;
 
 	if (!st->level) {
 		/* First entry */

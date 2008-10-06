@@ -137,14 +137,15 @@ relocated:
  */
 	movl output_len(%ebx), %eax
 	pushl %eax
+			# push arguments for decompress_kernel:
 	pushl %ebp	# output address
 	movl input_len(%ebx), %eax
 	pushl %eax	# input_len
 	leal input_data(%ebx), %eax
 	pushl %eax	# input_data
 	leal boot_heap(%ebx), %eax
-	pushl %eax	# heap area as third argument
-	pushl %esi	# real mode pointer as second arg
+	pushl %eax	# heap area
+	pushl %esi	# real mode pointer
 	call decompress_kernel
 	addl $20, %esp
 	popl %ecx

@@ -175,8 +175,6 @@ static inline int pmd_bad(pmd_t pmd)
 #define pte_present(x)	(pte_val((x)) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 
 #define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
-#define pte_page(x)	pfn_to_page(pte_pfn((x)))
-#define pte_pfn(x)	((pte_val((x)) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
 /*
  * Macro to mark a page protection value as "uncacheable".

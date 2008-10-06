@@ -1021,7 +1021,7 @@ config HAVE_ARCH_ALLOC_REMAP
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
-	depends on X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC && !NUMA
+	depends on X86_32 && ARCH_SELECT_MEMORY_MODEL && !NUMA
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
@@ -1037,7 +1037,7 @@ config ARCH_SPARSEMEM_DEFAULT
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on X86_64 || NUMA || (EXPERIMENTAL && X86_PC)
+	depends on X86_64 || NUMA || (EXPERIMENTAL && X86_PC) || X86_GENERICARCH
 	select SPARSEMEM_STATIC if X86_32
 	select SPARSEMEM_VMEMMAP_ENABLE if X86_64
 
@@ -1118,10 +1118,10 @@ config MTRR
 	  You can safely say Y even if your machine doesn't have MTRRs, you'll
 	  just add about 9 KB to your kernel.
 
-	  See <file:Documentation/mtrr.txt> for more information.
+	  See <file:Documentation/x86/mtrr.txt> for more information.
 
 config MTRR_SANITIZER
-	bool
+	def_bool y
 	prompt "MTRR cleanup support"
 	depends on MTRR
 	help
@@ -1132,7 +1132,7 @@ config MTRR_SANITIZER
 	  The largest mtrr entry size for a continous block can be set with
 	  mtrr_chunk_size.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config MTRR_SANITIZER_ENABLE_DEFAULT
 	int "MTRR cleanup enable value (0-1)"
@@ -1192,7 +1192,6 @@ config IRQBALANCE
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS
 	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their
@@ -1200,7 +1199,7 @@ config SECCOMP
 	  the process as file descriptors supporting the read/write
 	  syscalls, it's possible to isolate those applications in
 	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
@@ -1357,14 +1356,14 @@ config PHYSICAL_ALIGN
 	  Don't change this unless you know what you are doing.
 
 config HOTPLUG_CPU
-	bool "Support for suspend on SMP and hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL && !X86_VOYAGER
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && HOTPLUG && !X86_VOYAGER
 	---help---
-	  Say Y here to experiment with turning CPUs off and on, and to
-	  enable suspend on SMP systems. CPUs can be controlled through
-	  /sys/devices/system/cpu.
-	  Say N if you want to disable CPU hotplug and don't need to
-	  suspend.
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  ( Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
 
 config COMPAT_VDSO
 	def_bool y
@@ -1378,6 +1377,51 @@ config COMPAT_VDSO
 	  VDSO mapping and to exclusively use the randomized VDSO.
 
 	  If unsure, say Y.
+
+config CMDLINE_BOOL
+	bool "Built-in kernel command line"
+	default n
+	help
+	  Allow for specifying boot arguments to the kernel at
+	  build time.  On some systems (e.g. embedded ones), it is
+	  necessary or convenient to provide some or all of the
+	  kernel boot arguments with the kernel itself (that is,
+	  to not rely on the boot loader to provide them.)
+
+	  To compile command line arguments into the kernel,
+	  set this option to 'Y', then fill in the
+	  the boot arguments in CONFIG_CMDLINE.
+
+	  Systems with fully functional boot loaders (i.e. non-embedded)
+	  should leave this option set to 'N'.
+
+config CMDLINE
+	string "Built-in kernel command string"
+	depends on CMDLINE_BOOL
+	default ""
+	help
+	  Enter arguments here that should be compiled into the kernel
+	  image and used at boot time.  If the boot loader provides a
+	  command line at boot time, it is appended to this string to
+	  form the full kernel command line, when the system boots.
+
+	  However, you can use the CONFIG_CMDLINE_OVERRIDE option to
+	  change this behavior.
+
+	  In most cases, the command line (whether built-in or provided
+	  by the boot loader) should specify the device for the root
+	  file system.
+
+config CMDLINE_OVERRIDE
+	bool "Built-in command line overrides boot loader arguments"
+	default n
+	depends on CMDLINE_BOOL
+	help
+	  Set this option to 'Y' to have the kernel ignore the boot loader
+	  command line, and use ONLY the built-in command line.
+
+	  This is used to work around broken boot loaders.  This should
+	  be set to 'N' under normal conditions.
 
 endmenu
 
@@ -1774,7 +1818,7 @@ config COMPAT_FOR_U64_ALIGNMENT
 
 config SYSVIPC_COMPAT
 	def_bool y
-	depends on X86_64 && COMPAT && SYSVIPC
+	depends on COMPAT && SYSVIPC
 
 endmenu
 

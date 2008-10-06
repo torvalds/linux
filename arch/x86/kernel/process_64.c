@@ -37,11 +37,11 @@
 #include <linux/kdebug.h>
 #include <linux/tick.h>
 #include <linux/prctl.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
-#include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/mmu_context.h>
@@ -89,7 +89,7 @@ void exit_idle(void)
 #ifdef CONFIG_HOTPLUG_CPU
 DECLARE_PER_CPU(int, cpu_state);
 
-#include <asm/nmi.h>
+#include <linux/nmi.h>
 /* We halt the CPU with physical CPU hotplug */
 static inline void play_dead(void)
 {
@@ -154,7 +154,7 @@ void cpu_idle(void)
 }
 
 /* Prints also some state that isn't saved in the pt_regs */
-void __show_regs(struct pt_regs * regs)
+void __show_regs(struct pt_regs *regs)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L, fs, gs, shadowgs;
 	unsigned long d0, d1, d2, d3, d6, d7;
@@ -163,59 +163,61 @@ void __show_regs(struct pt_regs * regs)
 
 	printk("\n");
 	print_modules();
-	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
+	printk(KERN_INFO "Pid: %d, comm: %.20s %s %s %.*s\n",
 		current->pid, current->comm, print_tainted(),
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
-	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
+	printk(KERN_INFO "RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
 	printk_address(regs->ip, 1);
-	printk("RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->sp,
-		regs->flags);
-	printk("RAX: %016lx RBX: %016lx RCX: %016lx\n",
+	printk(KERN_INFO "RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss,
+			regs->sp, regs->flags);
+	printk(KERN_INFO "RAX: %016lx RBX: %016lx RCX: %016lx\n",
 	       regs->ax, regs->bx, regs->cx);
-	printk("RDX: %016lx RSI: %016lx RDI: %016lx\n",
+	printk(KERN_INFO "RDX: %016lx RSI: %016lx RDI: %016lx\n",
 	       regs->dx, regs->si, regs->di);
-	printk("RBP: %016lx R08: %016lx R09: %016lx\n",
+	printk(KERN_INFO "RBP: %016lx R08: %016lx R09: %016lx\n",
 	       regs->bp, regs->r8, regs->r9);
-	printk("R10: %016lx R11: %016lx R12: %016lx\n",
-	       regs->r10, regs->r11, regs->r12); 
-	printk("R13: %016lx R14: %016lx R15: %016lx\n",
-	       regs->r13, regs->r14, regs->r15); 
+	printk(KERN_INFO "R10: %016lx R11: %016lx R12: %016lx\n",
+	       regs->r10, regs->r11, regs->r12);
+	printk(KERN_INFO "R13: %016lx R14: %016lx R15: %016lx\n",
+	       regs->r13, regs->r14, regs->r15);
 
-	asm("movl %%ds,%0" : "=r" (ds)); 
-	asm("movl %%cs,%0" : "=r" (cs)); 
-	asm("movl %%es,%0" : "=r" (es)); 
+	asm("movl %%ds,%0" : "=r" (ds));
+	asm("movl %%cs,%0" : "=r" (cs));
+	asm("movl %%es,%0" : "=r" (es));
 	asm("movl %%fs,%0" : "=r" (fsindex));
 	asm("movl %%gs,%0" : "=r" (gsindex));
 
 	rdmsrl(MSR_FS_BASE, fs);
-	rdmsrl(MSR_GS_BASE, gs); 
-	rdmsrl(MSR_KERNEL_GS_BASE, shadowgs); 
+	rdmsrl(MSR_GS_BASE, gs);
+	rdmsrl(MSR_KERNEL_GS_BASE, shadowgs);
 
 	cr0 = read_cr0();
 	cr2 = read_cr2();
 	cr3 = read_cr3();
 	cr4 = read_cr4();
 
-	printk("FS:  %016lx(%04x) GS:%016lx(%04x) knlGS:%016lx\n", 
-	       fs,fsindex,gs,gsindex,shadowgs); 
-	printk("CS:  %04x DS: %04x ES: %04x CR0: %016lx\n", cs, ds, es, cr0); 
-	printk("CR2: %016lx CR3: %016lx CR4: %016lx\n", cr2, cr3, cr4);
+	printk(KERN_INFO "FS:  %016lx(%04x) GS:%016lx(%04x) knlGS:%016lx\n",
+	       fs, fsindex, gs, gsindex, shadowgs);
+	printk(KERN_INFO "CS:  %04x DS: %04x ES: %04x CR0: %016lx\n", cs, ds,
+			es, cr0);
+	printk(KERN_INFO "CR2: %016lx CR3: %016lx CR4: %016lx\n", cr2, cr3,
+			cr4);
 
 	get_debugreg(d0, 0);
 	get_debugreg(d1, 1);
 	get_debugreg(d2, 2);
-	printk("DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
+	printk(KERN_INFO "DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
 	get_debugreg(d3, 3);
 	get_debugreg(d6, 6);
 	get_debugreg(d7, 7);
-	printk("DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
+	printk(KERN_INFO "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
 }
 
 void show_regs(struct pt_regs *regs)
 {
-	printk("CPU %d:", smp_processor_id());
+	printk(KERN_INFO "CPU %d:", smp_processor_id());
 	__show_regs(regs);
 	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
 }
@@ -324,10 +326,10 @@ void prepare_to_copy(struct task_struct *tsk)
 
 int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long unused,
-	struct task_struct * p, struct pt_regs * regs)
+	struct task_struct *p, struct pt_regs *regs)
 {
 	int err;
-	struct pt_regs * childregs;
+	struct pt_regs *childregs;
 	struct task_struct *me = current;
 
 	childregs = ((struct pt_regs *)
@@ -372,10 +374,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		if (test_thread_flag(TIF_IA32))
 			err = do_set_thread_area(p, -1,
 				(struct user_desc __user *)childregs->si, 0);
-		else 			
-#endif	 
-			err = do_arch_prctl(p, ARCH_SET_FS, childregs->r8); 
-		if (err) 
+		else
+#endif
+			err = do_arch_prctl(p, ARCH_SET_FS, childregs->r8);
+		if (err)
 			goto out;
 	}
 	err = 0;
@@ -568,7 +570,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	unsigned fsindex, gsindex;
 
 	/* we're going to use this soon, after a few expensive things */
-	if (next_p->fpu_counter>5)
+	if (next_p->fpu_counter > 5)
 		prefetch(next->xstate);
 
 	/*
@@ -576,13 +578,13 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	load_sp0(tss, next);
 
-	/* 
+	/*
 	 * Switch DS and ES.
 	 * This won't pick up thread selector changes, but I guess that is ok.
 	 */
 	savesegment(es, prev->es);
 	if (unlikely(next->es | prev->es))
-		loadsegment(es, next->es); 
+		loadsegment(es, next->es);
 
 	savesegment(ds, prev->ds);
 	if (unlikely(next->ds | prev->ds))
@@ -608,7 +610,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	arch_leave_lazy_cpu_mode();
 
-	/* 
+	/*
 	 * Switch FS and GS.
 	 *
 	 * Segment register != 0 always requires a reload.  Also
@@ -617,13 +619,13 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	if (unlikely(fsindex | next->fsindex | prev->fs)) {
 		loadsegment(fs, next->fsindex);
-		/* 
+		/*
 		 * Check if the user used a selector != 0; if yes
 		 *  clear 64bit base, since overloaded base is always
 		 *  mapped to the Null selector
 		 */
 		if (fsindex)
-			prev->fs = 0;				
+			prev->fs = 0;
 	}
 	/* when next process has a 64bit base use it */
 	if (next->fs)
@@ -633,7 +635,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (unlikely(gsindex | next->gsindex | prev->gs)) {
 		load_gs_index(next->gsindex);
 		if (gsindex)
-			prev->gs = 0;				
+			prev->gs = 0;
 	}
 	if (next->gs)
 		wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
@@ -642,12 +644,12 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/* Must be after DS reload */
 	unlazy_fpu(prev_p);
 
-	/* 
+	/*
 	 * Switch the PDA and FPU contexts.
 	 */
 	prev->usersp = read_pda(oldrsp);
 	write_pda(oldrsp, next->usersp);
-	write_pda(pcurrent, next_p); 
+	write_pda(pcurrent, next_p);
 
 	write_pda(kernelstack,
 		  (unsigned long)task_stack_page(next_p) +
@@ -688,7 +690,7 @@ long sys_execve(char __user *name, char __user * __user *argv,
 		char __user * __user *envp, struct pt_regs *regs)
 {
 	long error;
-	char * filename;
+	char *filename;
 
 	filename = getname(name);
 	error = PTR_ERR(filename);
@@ -746,55 +748,55 @@ asmlinkage long sys_vfork(struct pt_regs *regs)
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long stack;
-	u64 fp,ip;
+	u64 fp, ip;
 	int count = 0;
 
-	if (!p || p == current || p->state==TASK_RUNNING)
-		return 0; 
+	if (!p || p == current || p->state == TASK_RUNNING)
+		return 0;
 	stack = (unsigned long)task_stack_page(p);
 	if (p->thread.sp < stack || p->thread.sp > stack+THREAD_SIZE)
 		return 0;
 	fp = *(u64 *)(p->thread.sp);
-	do { 
+	do {
 		if (fp < (unsigned long)stack ||
 		    fp > (unsigned long)stack+THREAD_SIZE)
-			return 0; 
+			return 0;
 		ip = *(u64 *)(fp+8);
 		if (!in_sched_functions(ip))
 			return ip;
-		fp = *(u64 *)fp; 
-	} while (count++ < 16); 
+		fp = *(u64 *)fp;
+	} while (count++ < 16);
 	return 0;
 }
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
-{ 
-	int ret = 0; 
+{
+	int ret = 0;
 	int doit = task == current;
 	int cpu;
 
-	switch (code) { 
+	switch (code) {
 	case ARCH_SET_GS:
 		if (addr >= TASK_SIZE_OF(task))
-			return -EPERM; 
+			return -EPERM;
 		cpu = get_cpu();
-		/* handle small bases via the GDT because that's faster to 
+		/* handle small bases via the GDT because that's faster to
 		   switch. */
-		if (addr <= 0xffffffff) {  
-			set_32bit_tls(task, GS_TLS, addr); 
-			if (doit) { 
+		if (addr <= 0xffffffff) {
+			set_32bit_tls(task, GS_TLS, addr);
+			if (doit) {
 				load_TLS(&task->thread, cpu);
-				load_gs_index(GS_TLS_SEL); 
+				load_gs_index(GS_TLS_SEL);
 			}
-			task->thread.gsindex = GS_TLS_SEL; 
+			task->thread.gsindex = GS_TLS_SEL;
 			task->thread.gs = 0;
-		} else { 
+		} else {
 			task->thread.gsindex = 0;
 			task->thread.gs = addr;
 			if (doit) {
 				load_gs_index(0);
 				ret = checking_wrmsrl(MSR_KERNEL_GS_BASE, addr);
-			} 
+			}
 		}
 		put_cpu();
 		break;
@@ -848,8 +850,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 				rdmsrl(MSR_KERNEL_GS_BASE, base);
 			else
 				base = task->thread.gs;
-		}
-		else
+		} else
 			base = task->thread.gs;
 		ret = put_user(base, (unsigned long __user *)addr);
 		break;

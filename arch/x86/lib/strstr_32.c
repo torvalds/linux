@@ -23,9 +23,9 @@ __asm__ __volatile__(
 	"jne 1b\n\t"
 	"xorl %%eax,%%eax\n\t"
 	"2:"
-	:"=a" (__res), "=&c" (d0), "=&S" (d1)
-	:"0" (0), "1" (0xffffffff), "2" (cs), "g" (ct)
-	:"dx", "di");
+	: "=a" (__res), "=&c" (d0), "=&S" (d1)
+	: "0" (0), "1" (0xffffffff), "2" (cs), "g" (ct)
+	: "dx", "di");
 return __res;
 }
 

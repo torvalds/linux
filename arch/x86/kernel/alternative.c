@@ -231,25 +231,25 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 			continue;
 		if (*ptr > text_end)
 			continue;
-		text_poke(*ptr, ((unsigned char []){0xf0}), 1); /* add lock prefix */
+		/* turn DS segment override prefix into lock prefix */
+		text_poke(*ptr, ((unsigned char []){0xf0}), 1);
 	};
 }
 
 static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 {
 	u8 **ptr;
-	char insn[1];
 
 	if (noreplace_smp)
 		return;
 
-	add_nops(insn, 1);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
 		if (*ptr > text_end)
 			continue;
-		text_poke(*ptr, insn, 1);
+		/* turn lock prefix into DS segment override prefix */
+		text_poke(*ptr, ((unsigned char []){0x3E}), 1);
 	};
 }
 

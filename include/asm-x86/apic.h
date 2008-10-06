@@ -81,9 +81,7 @@ extern int get_physical_broadcast(void);
 static inline void ack_APIC_irq(void)
 {
 	/*
-	 * ack_APIC_irq() actually gets compiled as a single instruction:
-	 * - a single rmw on Pentium/82489DX
-	 * - a single write on P6+ cores (CONFIG_X86_GOOD_APIC)
+	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
 	 */
 

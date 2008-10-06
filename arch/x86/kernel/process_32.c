@@ -37,6 +37,7 @@
 #include <linux/tick.h>
 #include <linux/percpu.h>
 #include <linux/prctl.h>
+#include <linux/dmi.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -163,6 +164,7 @@ void __show_registers(struct pt_regs *regs, int all)
 	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned long sp;
 	unsigned short ss, gs;
+	const char *board;
 
 	if (user_mode_vm(regs)) {
 		sp = regs->sp;
@@ -175,11 +177,15 @@ void __show_registers(struct pt_regs *regs, int all)
 	}
 
 	printk("\n");
-	printk("Pid: %d, comm: %s %s (%s %.*s)\n",
+
+	board = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (!board)
+		board = "";
+	printk("Pid: %d, comm: %s %s (%s %.*s) %s\n",
 			task_pid_nr(current), current->comm,
 			print_tainted(), init_utsname()->release,
 			(int)strcspn(init_utsname()->version, " "),
-			init_utsname()->version);
+			init_utsname()->version, board);
 
 	printk("EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
 			(u16)regs->cs, regs->ip, regs->flags,

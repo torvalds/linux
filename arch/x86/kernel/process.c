@@ -185,7 +185,8 @@ static void mwait_idle(void)
 static void poll_idle(void)
 {
 	local_irq_enable();
-	cpu_relax();
+	while (!need_resched())
+		cpu_relax();
 }
 
 /*

@@ -7,14 +7,9 @@
 /*
  * The x86 doesn't have a mmu context, but
  * we put the segment information here.
- *
- * cpu_vm_mask is used to optimize ldt flushing.
  */
 typedef struct {
 	void *ldt;
-#ifdef CONFIG_X86_64
-	rwlock_t ldtlock;
-#endif
 	int size;
 	struct mutex lock;
 	void *vdso;

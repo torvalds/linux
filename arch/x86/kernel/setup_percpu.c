@@ -162,9 +162,16 @@ void __init setup_per_cpu_areas(void)
 			printk(KERN_INFO
 			       "cpu %d has no node %d or node-local memory\n",
 				cpu, node);
+			if (ptr)
+				printk(KERN_DEBUG "per cpu data for cpu%d at %016lx\n",
+					 cpu, __pa(ptr));
 		}
-		else
+		else {
 			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
+			if (ptr)
+				printk(KERN_DEBUG "per cpu data for cpu%d on node%d at %016lx\n",
+					 cpu, node, __pa(ptr));
+		}
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
