@@ -250,6 +250,11 @@ static inline unsigned long frame_pointer(struct pt_regs *regs)
 	return regs->bp;
 }
 
+static inline unsigned long user_stack_pointer(struct pt_regs *regs)
+{
+	return regs->sp;
+}
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
