@@ -333,8 +333,7 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv);
 #define STATUS_SCAN_HW		15
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
-#define STATUS_CONF_PENDING	18
-#define STATUS_MODE_PENDING	19
+#define STATUS_MODE_PENDING	18
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
