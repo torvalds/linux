@@ -188,19 +188,11 @@ static struct file_operations proc_kpageflags_operations = {
 };
 #endif /* CONFIG_PROC_PAGE_MONITOR */
 
-struct proc_dir_entry *proc_root_kcore;
-
 void __init proc_misc_init(void)
 {
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-#ifdef CONFIG_PROC_KCORE
-	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL, &proc_kcore_operations);
-	if (proc_root_kcore)
-		proc_root_kcore->size =
-				(size_t)high_memory - PAGE_OFFSET + PAGE_SIZE;
-#endif
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
 	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
