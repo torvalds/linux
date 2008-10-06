@@ -433,8 +433,7 @@ static int pci_pm_suspend(struct device *dev)
 
 static int pci_pm_suspend_noirq(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
+	struct device_driver *drv = dev->driver;
 	int error = 0;
 
 	if (drv && drv->pm) {
@@ -469,11 +468,10 @@ static int pci_pm_resume(struct device *dev)
 
 static int pci_pm_resume_noirq(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
+	struct device_driver *drv = dev->driver;
 	int error = 0;
 
-	pci_fixup_device(pci_fixup_resume_early, pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, to_pci_dev(dev));
 
 	if (drv && drv->pm) {
 		if (drv->pm->resume_noirq)
@@ -519,8 +517,7 @@ static int pci_pm_freeze(struct device *dev)
 
 static int pci_pm_freeze_noirq(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
+	struct device_driver *drv = dev->driver;
 	int error = 0;
 
 	if (drv && drv->pm) {
@@ -553,15 +550,14 @@ static int pci_pm_thaw(struct device *dev)
 
 static int pci_pm_thaw_noirq(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
+	struct device_driver *drv = dev->driver;
 	int error = 0;
 
 	if (drv && drv->pm) {
 		if (drv->pm->thaw_noirq)
 			error = drv->pm->thaw_noirq(dev);
 	} else {
-		pci_fixup_device(pci_fixup_resume_early, pci_dev);
+		pci_fixup_device(pci_fixup_resume_early, to_pci_dev(dev));
 		error = pci_legacy_resume_early(dev);
 	}
 
@@ -589,8 +585,7 @@ static int pci_pm_poweroff(struct device *dev)
 
 static int pci_pm_poweroff_noirq(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
+	struct device_driver *drv = dev->driver;
 	int error = 0;
 
 	if (drv && drv->pm) {
@@ -625,7 +620,7 @@ static int pci_pm_restore(struct device *dev)
 static int pci_pm_restore_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
+	struct device_driver *drv = dev->driver;
 	int error = 0;
 
 	pci_fixup_device(pci_fixup_resume, pci_dev);
@@ -654,17 +649,15 @@ static int pci_pm_restore_noirq(struct device *dev)
 
 #endif /* !CONFIG_HIBERNATION */
 
-struct pm_ext_ops pci_pm_ops = {
-	.base = {
-		.prepare = pci_pm_prepare,
-		.complete = pci_pm_complete,
-		.suspend = pci_pm_suspend,
-		.resume = pci_pm_resume,
-		.freeze = pci_pm_freeze,
-		.thaw = pci_pm_thaw,
-		.poweroff = pci_pm_poweroff,
-		.restore = pci_pm_restore,
-	},
+struct dev_pm_ops pci_dev_pm_ops = {
+	.prepare = pci_pm_prepare,
+	.complete = pci_pm_complete,
+	.suspend = pci_pm_suspend,
+	.resume = pci_pm_resume,
+	.freeze = pci_pm_freeze,
+	.thaw = pci_pm_thaw,
+	.poweroff = pci_pm_poweroff,
+	.restore = pci_pm_restore,
 	.suspend_noirq = pci_pm_suspend_noirq,
 	.resume_noirq = pci_pm_resume_noirq,
 	.freeze_noirq = pci_pm_freeze_noirq,
@@ -673,7 +666,7 @@ struct pm_ext_ops pci_pm_ops = {
 	.restore_noirq = pci_pm_restore_noirq,
 };
 
-#define PCI_PM_OPS_PTR	&pci_pm_ops
+#define PCI_PM_OPS_PTR	(&pci_dev_pm_ops)
 
 #else /* !CONFIG_PM_SLEEP */
 
@@ -702,9 +695,6 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
 	drv->driver.mod_name = mod_name;
-
-	if (drv->pm)
-		drv->driver.pm = &drv->pm->base;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);

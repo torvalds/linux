@@ -286,7 +286,7 @@ static int usb_dev_restore(struct device *dev)
 	return usb_resume(dev);
 }
 
-static struct pm_ops usb_device_pm_ops = {
+static struct dev_pm_ops usb_device_pm_ops = {
 	.prepare =	usb_dev_prepare,
 	.complete =	usb_dev_complete,
 	.suspend =	usb_dev_suspend,
@@ -301,7 +301,7 @@ static struct pm_ops usb_device_pm_ops = {
 
 #define ksuspend_usb_init()	0
 #define ksuspend_usb_cleanup()	do {} while (0)
-#define usb_device_pm_ops	(*(struct pm_ops *)0)
+#define usb_device_pm_ops	(*(struct dev_pm_ops *)0)
 
 #endif	/* CONFIG_PM */
 
