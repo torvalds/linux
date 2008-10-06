@@ -489,6 +489,8 @@ static const struct pvr2_device_desc pvr2_device_751xx = {
 struct usb_device_id pvr2_device_table[] = {
 	{ USB_DEVICE(0x2040, 0x2900),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_29xxx},
+	{ USB_DEVICE(0x2040, 0x2950), /* Logically identical to 2900 */
+	  .driver_info = (kernel_ulong_t)&pvr2_device_29xxx},
 	{ USB_DEVICE(0x2040, 0x2400),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_24xxx},
 	{ USB_DEVICE(0x1164, 0x0622),
