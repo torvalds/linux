@@ -240,6 +240,14 @@ void exit_thread(void)
 		t->io_bitmap_max = 0;
 		put_cpu();
 	}
+#ifdef CONFIG_X86_DS
+	/* Free any DS contexts that have not been properly released. */
+	if (unlikely(t->ds_ctx)) {
+		/* we clear debugctl to make sure DS is not used. */
+		update_debugctlmsr(0);
+		ds_free(t->ds_ctx);
+	}
+#endif /* CONFIG_X86_DS */
 }
 
 void flush_thread(void)
@@ -473,13 +481,27 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 	next = &next_p->thread;
 
 	debugctl = prev->debugctlmsr;
-	if (next->ds_area_msr != prev->ds_area_msr) {
-		/* we clear debugctl to make sure DS
-		 * is not in use when we change it */
-		debugctl = 0;
-		update_debugctlmsr(0);
-		wrmsrl(MSR_IA32_DS_AREA, next->ds_area_msr);
+
+#ifdef CONFIG_X86_DS
+	{
+		unsigned long ds_prev = 0, ds_next = 0;
+
+		if (prev->ds_ctx)
+			ds_prev = (unsigned long)prev->ds_ctx->ds;
+		if (next->ds_ctx)
+			ds_next = (unsigned long)next->ds_ctx->ds;
+
+		if (ds_next != ds_prev) {
+			/*
+			 * We clear debugctl to make sure DS
+			 * is not in use when we change it:
+			 */
+			debugctl = 0;
+			update_debugctlmsr(0);
+			wrmsrl(MSR_IA32_DS_AREA, ds_next);
+		}
 	}
+#endif /* CONFIG_X86_DS */
 
 	if (next->debugctlmsr != debugctl)
 		update_debugctlmsr(next->debugctlmsr);
@@ -517,13 +539,13 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 	}
 
-#ifdef X86_BTS
+#ifdef CONFIG_X86_PTRACE_BTS
 	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
 
 	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
-#endif
+#endif /* CONFIG_X86_PTRACE_BTS */
 }
 
 /*
