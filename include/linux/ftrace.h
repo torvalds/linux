@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kallsyms.h>
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 
 extern int ftrace_enabled;
 extern int
@@ -36,12 +36,12 @@ void clear_ftrace_function(void);
 
 extern void ftrace_stub(unsigned long a0, unsigned long a1);
 
-#else /* !CONFIG_FTRACE */
+#else /* !CONFIG_FUNCTION_TRACER */
 # define register_ftrace_function(ops) do { } while (0)
 # define unregister_ftrace_function(ops) do { } while (0)
 # define clear_ftrace_function(ops) do { } while (0)
 static inline void ftrace_kill_atomic(void) { }
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 # define FTRACE_HASHBITS	10
@@ -101,7 +101,7 @@ void ftrace_kill_atomic(void);
 
 static inline void tracer_disable(void)
 {
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	ftrace_enabled = 0;
 #endif
 }
@@ -113,7 +113,7 @@ static inline void tracer_disable(void)
  */
 static inline int __ftrace_enabled_save(void)
 {
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	int saved_ftrace_enabled = ftrace_enabled;
 	ftrace_enabled = 0;
 	return saved_ftrace_enabled;
@@ -124,7 +124,7 @@ static inline int __ftrace_enabled_save(void)
 
 static inline void __ftrace_enabled_restore(int enabled)
 {
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	ftrace_enabled = enabled;
 #endif
 }

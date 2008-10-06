@@ -1,7 +1,7 @@
 #ifndef ASM_X86__FTRACE_H
 #define ASM_X86__FTRACE_H
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 #define MCOUNT_ADDR		((long)(mcount))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
 
@@ -19,6 +19,6 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 }
 #endif
 
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #endif /* ASM_X86__FTRACE_H */

@@ -851,7 +851,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	preempt_enable_notrace();
 }
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
 {
