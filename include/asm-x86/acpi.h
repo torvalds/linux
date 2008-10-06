@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_ACPI_H
-#define _ASM_X86_ACPI_H
+#ifndef ASM_X86__ACPI_H
+#define ASM_X86__ACPI_H
 
 /*
  *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
@@ -175,4 +175,4 @@ static inline void acpi_fake_nodes(const struct bootnode *fake_nodes,
 
 #define acpi_unlazy_tlb(x)	leave_mm(x)
 
-#endif /*__X86_ASM_ACPI_H*/
+#endif /* ASM_X86__ACPI_H */

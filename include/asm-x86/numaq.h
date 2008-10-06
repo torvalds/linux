@@ -23,8 +23,8 @@
  * Send feedback to <gone@us.ibm.com>
  */
 
-#ifndef NUMAQ_H
-#define NUMAQ_H
+#ifndef ASM_X86__NUMAQ_H
+#define ASM_X86__NUMAQ_H
 
 #ifdef CONFIG_X86_NUMAQ
 
@@ -165,5 +165,5 @@ static inline int get_memcfg_numaq(void)
 	return 0;
 }
 #endif /* CONFIG_X86_NUMAQ */
-#endif /* NUMAQ_H */
+#endif /* ASM_X86__NUMAQ_H */
 

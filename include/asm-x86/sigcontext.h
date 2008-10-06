@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SIGCONTEXT_H
-#define _ASM_X86_SIGCONTEXT_H
+#ifndef ASM_X86__SIGCONTEXT_H
+#define ASM_X86__SIGCONTEXT_H
 
 #include <linux/compiler.h>
 #include <asm/types.h>
@@ -202,4 +202,4 @@ struct sigcontext {
 
 #endif /* !__i386__ */
 
-#endif
+#endif /* ASM_X86__SIGCONTEXT_H */

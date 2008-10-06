@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_STATFS_H
-#define _ASM_X86_STATFS_H
+#ifndef ASM_X86__STATFS_H
+#define ASM_X86__STATFS_H
 
 #ifdef __i386__
 #include <asm-generic/statfs.h>
@@ -60,4 +60,4 @@ struct compat_statfs64 {
 } __attribute__((packed));
 
 #endif /* !__i386__ */
-#endif
+#endif /* ASM_X86__STATFS_H */

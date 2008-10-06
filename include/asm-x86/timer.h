@@ -1,5 +1,5 @@
-#ifndef _ASMi386_TIMER_H
-#define _ASMi386_TIMER_H
+#ifndef ASM_X86__TIMER_H
+#define ASM_X86__TIMER_H
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/percpu.h>
@@ -60,4 +60,4 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	return ns;
 }
 
-#endif
+#endif /* ASM_X86__TIMER_H */

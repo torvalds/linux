@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_BIOS_H
-#define _ASM_X86_BIOS_H
+#ifndef ASM_X86__UV__BIOS_H
+#define ASM_X86__UV__BIOS_H
 
 /*
  * BIOS layer definitions.
@@ -65,4 +65,4 @@ x86_bios_freq_base(unsigned long which, unsigned long *ticks_per_second,
 		   unsigned long *drift_info);
 extern const char *x86_bios_strerror(long status);
 
-#endif /* _ASM_X86_BIOS_H */
+#endif /* ASM_X86__UV__BIOS_H */

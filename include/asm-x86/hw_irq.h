@@ -1,5 +1,5 @@
-#ifndef _ASM_HW_IRQ_H
-#define _ASM_HW_IRQ_H
+#ifndef ASM_X86__HW_IRQ_H
+#define ASM_X86__HW_IRQ_H
 
 /*
  * (C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
@@ -112,4 +112,4 @@ static inline void __setup_vector_irq(int cpu) {}
 
 #endif /* !ASSEMBLY_ */
 
-#endif
+#endif /* ASM_X86__HW_IRQ_H */

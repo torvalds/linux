@@ -1,5 +1,5 @@
-#ifndef _ASM_IO_H
-#define _ASM_IO_H
+#ifndef ASM_X86__IO_64_H
+#define ASM_X86__IO_64_H
 
 
 /*
@@ -245,4 +245,4 @@ extern int iommu_bio_merge;
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__IO_64_H */

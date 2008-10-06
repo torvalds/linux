@@ -7,8 +7,8 @@
  * x86-64 work by Andi Kleen 2002
  */
 
-#ifndef _ASM_X86_I387_H
-#define _ASM_X86_I387_H
+#ifndef ASM_X86__I387_H
+#define ASM_X86__I387_H
 
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
@@ -336,4 +336,4 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-#endif	/* _ASM_X86_I387_H */
+#endif /* ASM_X86__I387_H */

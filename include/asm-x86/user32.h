@@ -1,5 +1,5 @@
-#ifndef USER32_H
-#define USER32_H 1
+#ifndef ASM_X86__USER32_H
+#define ASM_X86__USER32_H
 
 /* IA32 compatible user structures for ptrace.
  * These should be used for 32bit coredumps too. */
@@ -67,4 +67,4 @@ struct user32 {
 };
 
 
-#endif
+#endif /* ASM_X86__USER32_H */

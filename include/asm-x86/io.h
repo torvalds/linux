@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_IO_H
-#define _ASM_X86_IO_H
+#ifndef ASM_X86__IO_H
+#define ASM_X86__IO_H
 
 #define ARCH_HAS_IOREMAP_WC
 
@@ -99,4 +99,4 @@ extern void early_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 
-#endif /* _ASM_X86_IO_H */
+#endif /* ASM_X86__IO_H */

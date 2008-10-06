@@ -1,5 +1,5 @@
-#ifndef __ASM_PARAVIRT_H
-#define __ASM_PARAVIRT_H
+#ifndef ASM_X86__PARAVIRT_H
+#define ASM_X86__PARAVIRT_H
 /* Various instructions on x86 need to be replaced for
  * para-virtualization: those hooks are defined here. */
 
@@ -1634,4 +1634,4 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_PARAVIRT */
-#endif	/* __ASM_PARAVIRT_H */
+#endif /* ASM_X86__PARAVIRT_H */

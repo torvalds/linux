@@ -1,5 +1,5 @@
-#ifndef __ASM_IO_APIC_H
-#define __ASM_IO_APIC_H
+#ifndef ASM_X86__IO_APIC_H
+#define ASM_X86__IO_APIC_H
 
 #include <linux/types.h>
 #include <asm/mpspec.h>
@@ -189,4 +189,4 @@ static const int timer_through_8259 = 0;
 static inline void ioapic_init_mappings(void) { }
 #endif
 
-#endif
+#endif /* ASM_X86__IO_APIC_H */

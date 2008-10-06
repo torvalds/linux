@@ -29,8 +29,8 @@
  * front, then they'll all be woken up, but no other readers will be.
  */
 
-#ifndef _I386_RWSEM_H
-#define _I386_RWSEM_H
+#ifndef ASM_X86__RWSEM_H
+#define ASM_X86__RWSEM_H
 
 #ifndef _LINUX_RWSEM_H
 #error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
@@ -262,4 +262,4 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 }
 
 #endif /* __KERNEL__ */
-#endif /* _I386_RWSEM_H */
+#endif /* ASM_X86__RWSEM_H */

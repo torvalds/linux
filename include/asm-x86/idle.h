@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_64_IDLE_H
-#define _ASM_X86_64_IDLE_H 1
+#ifndef ASM_X86__IDLE_H
+#define ASM_X86__IDLE_H
 
 #define IDLE_START 1
 #define IDLE_END 2
@@ -12,4 +12,4 @@ void exit_idle(void);
 
 void c1e_remove_cpu(int cpu);
 
-#endif
+#endif /* ASM_X86__IDLE_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_MMCONFIG_H
-#define _ASM_MMCONFIG_H
+#ifndef ASM_X86__MMCONFIG_H
+#define ASM_X86__MMCONFIG_H
 
 #ifdef CONFIG_PCI_MMCONFIG
 extern void __cpuinit fam10h_check_enable_mmcfg(void);
@@ -9,4 +9,4 @@ static inline void fam10h_check_enable_mmcfg(void) { }
 static inline void check_enable_amd_mmconf_dmi(void) { }
 #endif
 
-#endif
+#endif /* ASM_X86__MMCONFIG_H */

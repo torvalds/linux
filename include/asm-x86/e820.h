@@ -1,5 +1,5 @@
-#ifndef __ASM_E820_H
-#define __ASM_E820_H
+#ifndef ASM_X86__E820_H
+#define ASM_X86__E820_H
 #define E820MAP	0x2d0		/* our map */
 #define E820MAX	128		/* number of entries in E820MAP */
 
@@ -140,4 +140,4 @@ extern char *memory_setup(void);
 #define HIGH_MEMORY	(1024*1024)
 #endif /* __KERNEL__ */
 
-#endif  /* __ASM_E820_H */
+#endif /* ASM_X86__E820_H */

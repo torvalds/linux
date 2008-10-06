@@ -1,5 +1,5 @@
-#ifndef _ASM_MMX_H
-#define _ASM_MMX_H
+#ifndef ASM_X86__MMX_H
+#define ASM_X86__MMX_H
 
 /*
  *	MMX 3Dnow! helper operations
@@ -11,4 +11,4 @@ extern void *_mmx_memcpy(void *to, const void *from, size_t size);
 extern void mmx_clear_page(void *page);
 extern void mmx_copy_page(void *to, void *from);
 
-#endif
+#endif /* ASM_X86__MMX_H */

@@ -3,8 +3,8 @@
  *
  * Definitions of structures used with the modify_ldt system call.
  */
-#ifndef _ASM_X86_LDT_H
-#define _ASM_X86_LDT_H
+#ifndef ASM_X86__LDT_H
+#define ASM_X86__LDT_H
 
 /* Maximum number of LDT entries supported. */
 #define LDT_ENTRIES	8192
@@ -37,4 +37,4 @@ struct user_desc {
 #define MODIFY_LDT_CONTENTS_CODE	2
 
 #endif /* !__ASSEMBLY__ */
-#endif
+#endif /* ASM_X86__LDT_H */
