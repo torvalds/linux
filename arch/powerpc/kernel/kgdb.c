@@ -347,9 +347,8 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 			linux_regs->msr |= MSR_SE;
 #endif
 			kgdb_single_step = 1;
-			if (kgdb_contthread)
-				atomic_set(&kgdb_cpu_doing_single_step,
-					   raw_smp_processor_id());
+			atomic_set(&kgdb_cpu_doing_single_step,
+				   raw_smp_processor_id());
 		}
 		return 0;
 	}

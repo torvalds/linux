@@ -11,8 +11,8 @@
 #define __MUSB_OMAP243X_H__
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430)
-#include <asm/arch/hardware.h>
-#include <asm/arch/usb.h>
+#include <mach/hardware.h>
+#include <mach/usb.h>
 
 /*
  * OMAP2430-specific definitions

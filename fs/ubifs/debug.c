@@ -538,7 +538,7 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		printk(KERN_DEBUG "\t%d orphan inode numbers:\n", n);
 		for (i = 0; i < n; i++)
 			printk(KERN_DEBUG "\t  ino %llu\n",
-			       le64_to_cpu(orph->inos[i]));
+			       (unsigned long long)le64_to_cpu(orph->inos[i]));
 		break;
 	}
 	default:

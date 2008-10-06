@@ -616,7 +616,9 @@ setup_arch (char **cmdline_p)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
+#ifndef CONFIG_IA64_HP_SIM
 	check_sal_cache_flush();
+#endif
 	paging_init();
 }
 

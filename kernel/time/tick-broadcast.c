@@ -235,7 +235,8 @@ static void tick_do_broadcast_on_off(void *why)
 	case CLOCK_EVT_NOTIFY_BROADCAST_FORCE:
 		if (!cpu_isset(cpu, tick_broadcast_mask)) {
 			cpu_set(cpu, tick_broadcast_mask);
-			if (td->mode == TICKDEV_MODE_PERIODIC)
+			if (tick_broadcast_device.mode ==
+			    TICKDEV_MODE_PERIODIC)
 				clockevents_shutdown(dev);
 		}
 		if (*reason == CLOCK_EVT_NOTIFY_BROADCAST_FORCE)
@@ -245,7 +246,8 @@ static void tick_do_broadcast_on_off(void *why)
 		if (!tick_broadcast_force &&
 		    cpu_isset(cpu, tick_broadcast_mask)) {
 			cpu_clear(cpu, tick_broadcast_mask);
-			if (td->mode == TICKDEV_MODE_PERIODIC)
+			if (tick_broadcast_device.mode ==
+			    TICKDEV_MODE_PERIODIC)
 				tick_setup_periodic(dev, 0);
 		}
 		break;
@@ -573,6 +575,14 @@ void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
 	cpu_clear(cpu, tick_broadcast_oneshot_mask);
 
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
+}
+
+/*
+ * Check, whether the broadcast device is in one shot mode
+ */
+int tick_broadcast_oneshot_active(void)
+{
+	return tick_broadcast_device.mode == TICKDEV_MODE_ONESHOT;
 }
 
 #endif
