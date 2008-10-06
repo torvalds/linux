@@ -729,7 +729,10 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 				     &info_buf, cifs_sb->local_nls,
 				     cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != -EOPNOTSUPP && rc != -EINVAL)
+		if (rc == 0) {
+			cifsInode->cifsAttrs = dosattr;
+			goto out;
+		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
 			goto out;
 	}
 
@@ -805,6 +808,7 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 	kfree(info_buf);
 	if (rc != 0)
 		goto out_close;
+	cifsInode->cifsAttrs = dosattr;
 
 	/* silly-rename the file */
 	CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
@@ -905,7 +909,6 @@ psx_del_no_retry:
 			if (rc == 0)
 				drop_nlink(inode);
 		}
-		cifsInode->cifsAttrs = dosattr;
 	}
 out_reval:
 	if (inode) {
@@ -963,7 +966,7 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 
 int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 {
-	int rc = 0;
+	int rc = 0, tmprc;
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
@@ -1025,6 +1028,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				kfree(pInfo);
 				goto mkdir_get_info;
 			}
+
 			/* Is an i_ino of zero legal? */
 			/* Are there sanity checks we can use to ensure that
 			   the server is really filling in that field? */
@@ -1113,12 +1117,20 @@ mkdir_get_info:
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
 			    (mode & S_IWUGO) == 0) {
 				FILE_BASIC_INFO pInfo;
+				struct cifsInodeInfo *cifsInode;
+				u32 dosattrs;
+
 				memset(&pInfo, 0, sizeof(pInfo));
-				pInfo.Attributes = cpu_to_le32(ATTR_READONLY);
-				CIFSSMBSetPathInfo(xid, pTcon, full_path,
-						&pInfo, cifs_sb->local_nls,
+				cifsInode = CIFS_I(newinode);
+				dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
+				pInfo.Attributes = cpu_to_le32(dosattrs);
+				tmprc = CIFSSMBSetPathInfo(xid, pTcon,
+						full_path, &pInfo,
+						cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				if (tmprc == 0)
+					cifsInode->cifsAttrs = dosattrs;
 			}
 			if (direntry->d_inode) {
 				if (cifs_sb->mnt_cifs_flags &
