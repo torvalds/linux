@@ -49,7 +49,6 @@ config IRQSOFF_TRACER
 	default n
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACE_IRQFLAGS
 	select TRACING
@@ -73,7 +72,6 @@ config PREEMPT_TRACER
 	default n
 	depends on GENERIC_TIME
 	depends on PREEMPT
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	select TRACER_MAX_TRACE
@@ -101,7 +99,6 @@ config SYSPROF_TRACER
 
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
@@ -112,7 +109,6 @@ config SCHED_TRACER
 
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	select MARKERS
@@ -122,7 +118,6 @@ config CONTEXT_SWITCH_TRACER
 
 config BOOT_TRACER
 	bool "Trace boot initcalls"
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	help
