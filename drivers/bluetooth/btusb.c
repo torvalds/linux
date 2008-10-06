@@ -102,6 +102,7 @@ static struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0a5c, 0x2101), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
 
 	/* Broadcom BCM2046 */
+	{ USB_DEVICE(0x0a5c, 0x2146), .driver_info = BTUSB_RESET },
 	{ USB_DEVICE(0x0a5c, 0x2151), .driver_info = BTUSB_RESET },
 
 	/* Apple MacBook Pro with Broadcom chip */
