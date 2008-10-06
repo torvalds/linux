@@ -1492,7 +1492,7 @@ static struct device_attribute *ide_port_attrs[] = {
 
 static int ide_sysfs_register_port(ide_hwif_t *hwif)
 {
-	int i, rc;
+	int i, uninitialized_var(rc);
 
 	for (i = 0; ide_port_attrs[i]; i++) {
 		rc = device_create_file(hwif->portdev, ide_port_attrs[i]);

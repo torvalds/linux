@@ -780,10 +780,6 @@ config BLK_DEV_IDEDMA_PMAC
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
 
-config BLK_DEV_IDE_SWARM
-	tristate "IDE for Sibyte evaluation boards"
-	depends on SIBYTE_SB1xxx_SOC
-
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
        depends on SOC_AU1200
