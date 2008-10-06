@@ -86,6 +86,7 @@ static int setup_l2e_send_pending(struct t3cdev *dev, struct sk_buff *skb,
 				  struct l2t_entry *e)
 {
 	struct cpl_l2t_write_req *req;
+	struct sk_buff *tmp;
 
 	if (!skb) {
 		skb = alloc_skb(sizeof(*req), GFP_ATOMIC);
@@ -103,13 +104,11 @@ static int setup_l2e_send_pending(struct t3cdev *dev, struct sk_buff *skb,
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 	skb->priority = CPL_PRIORITY_CONTROL;
 	cxgb3_ofld_send(dev, skb);
-	while (e->arpq_head) {
-		skb = e->arpq_head;
-		e->arpq_head = skb->next;
-		skb->next = NULL;
+
+	skb_queue_walk_safe(&e->arpq, skb, tmp) {
+		__skb_unlink(skb, &e->arpq);
 		cxgb3_ofld_send(dev, skb);
 	}
-	e->arpq_tail = NULL;
 	e->state = L2T_STATE_VALID;
 
 	return 0;
@@ -121,12 +120,7 @@ static int setup_l2e_send_pending(struct t3cdev *dev, struct sk_buff *skb,
  */
 static inline void arpq_enqueue(struct l2t_entry *e, struct sk_buff *skb)
 {
-	skb->next = NULL;
-	if (e->arpq_head)
-		e->arpq_tail->next = skb;
-	else
-		e->arpq_head = skb;
-	e->arpq_tail = skb;
+	__skb_queue_tail(&e->arpq, skb);
 }
 
 int t3_l2t_send_slow(struct t3cdev *dev, struct sk_buff *skb,
@@ -167,7 +161,7 @@ again:
 				break;
 
 			spin_lock_bh(&e->lock);
-			if (e->arpq_head)
+			if (!skb_queue_empty(&e->arpq))
 				setup_l2e_send_pending(dev, skb, e);
 			else	/* we lost the race */
 				__kfree_skb(skb);
@@ -357,14 +351,14 @@ EXPORT_SYMBOL(t3_l2t_get);
  * XXX: maybe we should abandon the latter behavior and just require a failure
  * handler.
  */
-static void handle_failed_resolution(struct t3cdev *dev, struct sk_buff *arpq)
+static void handle_failed_resolution(struct t3cdev *dev, struct sk_buff_head *arpq)
 {
-	while (arpq) {
-		struct sk_buff *skb = arpq;
+	struct sk_buff *skb, *tmp;
+
+	skb_queue_walk_safe(arpq, skb, tmp) {
 		struct l2t_skb_cb *cb = L2T_SKB_CB(skb);
 
-		arpq = skb->next;
-		skb->next = NULL;
+		__skb_unlink(skb, arpq);
 		if (cb->arp_failure_handler)
 			cb->arp_failure_handler(dev, skb);
 		else
@@ -378,8 +372,8 @@ static void handle_failed_resolution(struct t3cdev *dev, struct sk_buff *arpq)
  */
 void t3_l2t_update(struct t3cdev *dev, struct neighbour *neigh)
 {
+	struct sk_buff_head arpq;
 	struct l2t_entry *e;
-	struct sk_buff *arpq = NULL;
 	struct l2t_data *d = L2DATA(dev);
 	u32 addr = *(u32 *) neigh->primary_key;
 	int ifidx = neigh->dev->ifindex;
@@ -395,6 +389,8 @@ void t3_l2t_update(struct t3cdev *dev, struct neighbour *neigh)
 	return;
 
 found:
+	__skb_queue_head_init(&arpq);
+
 	read_unlock(&d->lock);
 	if (atomic_read(&e->refcnt)) {
 		if (neigh != e->neigh)
@@ -402,8 +398,7 @@ found:
 
 		if (e->state == L2T_STATE_RESOLVING) {
 			if (neigh->nud_state & NUD_FAILED) {
-				arpq = e->arpq_head;
-				e->arpq_head = e->arpq_tail = NULL;
+				skb_queue_splice_init(&e->arpq, &arpq);
 			} else if (neigh->nud_state & (NUD_CONNECTED|NUD_STALE))
 				setup_l2e_send_pending(dev, NULL, e);
 		} else {
@@ -415,8 +410,8 @@ found:
 	}
 	spin_unlock_bh(&e->lock);
 
-	if (arpq)
-		handle_failed_resolution(dev, arpq);
+	if (!skb_queue_empty(&arpq))
+		handle_failed_resolution(dev, &arpq);
 }
 
 struct l2t_data *t3_init_l2t(unsigned int l2t_capacity)

@@ -232,6 +232,7 @@ source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
+source "net/phonet/Kconfig"
 
 config FIB_RULES
 	bool

@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.2.13a"
+#define DRIVER_VERSION "v.1.3.2"
 #define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -30,9 +30,6 @@
 
 #define SWIMS_USB_REQUEST_SetPower	0x00
 #define SWIMS_USB_REQUEST_SetNmea	0x07
-#define SWIMS_USB_REQUEST_SetMode	0x0B
-#define SWIMS_USB_REQUEST_GetSwocInfo	0x0A
-#define SWIMS_SET_MODE_Modem		0x0001
 
 /* per port private data */
 #define N_IN_URB	4
@@ -163,7 +160,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
 	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x0f30, 0x1b1d) },	/* Sierra Wireless MC5720 */
+	{ USB_DEVICE(0x03f0, 0x1b1d) }, /* HP ev2200 a.k.a MC5720 */
 	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
 	{ USB_DEVICE(0x1199, 0x0024) },	/* Sierra Wireless MC5727 */
 	{ USB_DEVICE(0x1199, 0x0220) },	/* Sierra Wireless MC5725 */
@@ -175,6 +172,8 @@ static struct usb_device_id id_table [] = {
 	 /* Sierra Wireless Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0025, 0xFF, 0xFF, 0xFF) },
 	{ USB_DEVICE(0x1199, 0x0026) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0027) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0028) }, /* Sierra Wireless Device */
 
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
@@ -187,6 +186,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x6821) },	/* Sierra Wireless AirCard 875U */
 	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780 */
 	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
+	{ USB_DEVICE(0x1199, 0x683A) },	/* Sierra Wireless MC8785 */
 	{ USB_DEVICE(0x1199, 0x683B) },	/* Sierra Wireless MC8785 Composite */
 	{ USB_DEVICE(0x1199, 0x683C) },	/* Sierra Wireless MC8790 */
 	{ USB_DEVICE(0x1199, 0x683D) },	/* Sierra Wireless MC8790 */
@@ -203,6 +203,8 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6880, 0xFF, 0xFF, 0xFF)},
 	/* Sierra Wireless Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6890, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6891, 0xFF, 0xFF, 0xFF)},
 	/* Sierra Wireless Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
 

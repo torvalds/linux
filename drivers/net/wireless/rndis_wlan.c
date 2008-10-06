@@ -1627,7 +1627,6 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 static int rndis_iw_set_scan(struct net_device *dev,
     struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
 {
-	struct iw_param *param = &wrqu->param;
 	struct usbnet *usbdev = dev->priv;
 	union iwreq_data evt;
 	int ret = -EINVAL;
@@ -1635,7 +1634,7 @@ static int rndis_iw_set_scan(struct net_device *dev,
 
 	devdbg(usbdev, "SIOCSIWSCAN");
 
-	if (param->flags == 0) {
+	if (wrqu->data.flags == 0) {
 		tmp = ccpu2(1);
 		ret = rndis_set_oid(usbdev, OID_802_11_BSSID_LIST_SCAN, &tmp,
 								sizeof(tmp));

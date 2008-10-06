@@ -173,8 +173,10 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 	udelay(15);
 
 	if (ah->ah_version == AR5K_AR5210) {
-		val &= AR5K_RESET_CTL_CHIP;
-		mask &= AR5K_RESET_CTL_CHIP;
+		val &= AR5K_RESET_CTL_PCU | AR5K_RESET_CTL_DMA
+			| AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_PHY;
+		mask &= AR5K_RESET_CTL_PCU | AR5K_RESET_CTL_DMA
+			| AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_PHY;
 	} else {
 		val &= AR5K_RESET_CTL_PCU | AR5K_RESET_CTL_BASEBAND;
 		mask &= AR5K_RESET_CTL_PCU | AR5K_RESET_CTL_BASEBAND;
@@ -361,15 +363,19 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
 
 	/* Reset chipset */
-	ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
-		AR5K_RESET_CTL_BASEBAND | bus_flags);
+	if (ah->ah_version == AR5K_AR5210) {
+		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+			AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_DMA |
+			AR5K_RESET_CTL_PHY | AR5K_RESET_CTL_PCI);
+			mdelay(2);
+	} else {
+		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+			AR5K_RESET_CTL_BASEBAND | bus_flags);
+	}
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
 		return -EIO;
 	}
-
-	if (ah->ah_version == AR5K_AR5210)
-		udelay(2300);
 
 	/* ...wakeup again!*/
 	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
@@ -537,13 +543,13 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			ath5k_hw_reg_write(ah, 0x0002a002, 0x982c);
 
 			if (channel->hw_value == CHANNEL_G)
-				if (ah->ah_mac_srev < AR5K_SREV_VER_AR2413)
+				if (ah->ah_mac_srev < AR5K_SREV_AR2413)
 					ath5k_hw_reg_write(ah, 0x00f80d80,
 								0x994c);
-				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2424)
+				else if (ah->ah_mac_srev < AR5K_SREV_AR5424)
 					ath5k_hw_reg_write(ah, 0x00380140,
 								0x994c);
-				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2425)
+				else if (ah->ah_mac_srev < AR5K_SREV_AR2425)
 					ath5k_hw_reg_write(ah, 0x00fc0ec0,
 								0x994c);
 				else /* 2425 */
@@ -909,7 +915,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		ath5k_hw_reg_write(ah, 0x000100aa, 0x8118);
 		ath5k_hw_reg_write(ah, 0x00003210, 0x811c);
 		ath5k_hw_reg_write(ah, 0x00000052, 0x8108);
-		if (ah->ah_mac_srev >= AR5K_SREV_VER_AR2413)
+		if (ah->ah_mac_srev >= AR5K_SREV_AR2413)
 			ath5k_hw_reg_write(ah, 0x00000004, 0x8120);
 	}
 

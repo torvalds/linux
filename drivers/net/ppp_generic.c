@@ -1833,9 +1833,11 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 
 	/* If the queue is getting long, don't wait any longer for packets
 	   before the start of the queue. */
-	if (skb_queue_len(&ppp->mrq) >= PPP_MP_MAX_QLEN
-	    && seq_before(ppp->minseq, ppp->mrq.next->sequence))
-		ppp->minseq = ppp->mrq.next->sequence;
+	if (skb_queue_len(&ppp->mrq) >= PPP_MP_MAX_QLEN) {
+		struct sk_buff *skb = skb_peek(&ppp->mrq);
+		if (seq_before(ppp->minseq, skb->sequence))
+			ppp->minseq = skb->sequence;
+	}
 
 	/* Pull completed packets off the queue and receive them. */
 	while ((skb = ppp_mp_reconstruct(ppp)))
@@ -1864,7 +1866,7 @@ ppp_mp_insert(struct ppp *ppp, struct sk_buff *skb)
 	for (p = list->next; p != (struct sk_buff *)list; p = p->next)
 		if (seq_before(seq, p->sequence))
 			break;
-	__skb_insert(skb, p->prev, p, list);
+	__skb_queue_before(list, p, skb);
 }
 
 /*

@@ -218,17 +218,17 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct p54_control_hdr *data,
 	usb_submit_urb(data_urb, GFP_ATOMIC);
 }
 
-__le32 p54u_lm87_chksum(const u32 *data, size_t length)
+static __le32 p54u_lm87_chksum(const u32 *data, size_t length)
 {
-	__le32 chk = 0;
+	u32 chk = 0;
 
 	length >>= 2;
 	while (length--) {
-		chk ^= cpu_to_le32(*data++);
+		chk ^= *data++;
 		chk = (chk >> 5) ^ (chk << 3);
 	}
 
-	return chk;
+	return cpu_to_le32(chk);
 }
 
 static void p54u_tx_lm87(struct ieee80211_hw *dev,

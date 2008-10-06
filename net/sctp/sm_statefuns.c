@@ -119,7 +119,7 @@ static sctp_disposition_t sctp_sf_violation_paramlen(
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
 				     const sctp_subtype_t type,
-				     void *arg,
+				     void *arg, void *ext,
 				     sctp_cmd_seq_t *commands);
 
 static sctp_disposition_t sctp_sf_violation_ctsn(
@@ -315,8 +315,10 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
 	 */
-	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep)
+	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep) {
+		SCTP_INC_STATS(SCTP_MIB_OUTOFBLUES);
 		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
+	}
 
 	/* 3.1 A packet containing an INIT chunk MUST have a zero Verification
 	 * Tag.
@@ -635,8 +637,10 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
 	 */
-	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep)
+	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep) {
+		SCTP_INC_STATS(SCTP_MIB_OUTOFBLUES);
 		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
+	}
 
 	/* Make sure that the COOKIE_ECHO chunk has a valid length.
 	 * In this case, we check that we have enough for at least a
@@ -2076,10 +2080,6 @@ sctp_disposition_t sctp_sf_shutdown_pending_abort(
 		    sctp_bind_addr_state(&asoc->base.bind_addr, &chunk->dest))
 		return sctp_sf_discard_chunk(ep, asoc, type, arg, commands);
 
-	/* Stop the T5-shutdown guard timer.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
-
 	return __sctp_sf_do_9_1_abort(ep, asoc, type, arg, commands);
 }
 
@@ -3382,6 +3382,8 @@ sctp_disposition_t sctp_sf_do_8_5_1_E_sa(const struct sctp_endpoint *ep,
 	 * packet and the state function that handles OOTB SHUTDOWN_ACK is
 	 * called with a NULL association.
 	 */
+	SCTP_INC_STATS(SCTP_MIB_OUTOFBLUES);
+
 	return sctp_sf_shut_8_4_5(ep, NULL, type, arg, commands);
 }
 
@@ -3425,7 +3427,7 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 	addr_param = (union sctp_addr_param *)hdr->params;
 	length = ntohs(addr_param->p.length);
 	if (length < sizeof(sctp_paramhdr_t))
-		return sctp_sf_violation_paramlen(ep, asoc, type,
+		return sctp_sf_violation_paramlen(ep, asoc, type, arg,
 			   (void *)addr_param, commands);
 
 	/* Verify the ASCONF chunk before processing it. */
@@ -3433,8 +3435,8 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 			    (sctp_paramhdr_t *)((void *)addr_param + length),
 			    (void *)chunk->chunk_end,
 			    &err_param))
-		return sctp_sf_violation_paramlen(ep, asoc, type,
-						  (void *)&err_param, commands);
+		return sctp_sf_violation_paramlen(ep, asoc, type, arg,
+						  (void *)err_param, commands);
 
 	/* ADDIP 5.2 E1) Compare the value of the serial number to the value
 	 * the endpoint stored in a new association variable
@@ -3542,8 +3544,8 @@ sctp_disposition_t sctp_sf_do_asconf_ack(const struct sctp_endpoint *ep,
 	    (sctp_paramhdr_t *)addip_hdr->params,
 	    (void *)asconf_ack->chunk_end,
 	    &err_param))
-		return sctp_sf_violation_paramlen(ep, asoc, type,
-			   (void *)&err_param, commands);
+		return sctp_sf_violation_paramlen(ep, asoc, type, arg,
+			   (void *)err_param, commands);
 
 	if (last_asconf) {
 		addip_hdr = (sctp_addiphdr_t *)last_asconf->subh.addip_hdr;
@@ -4240,12 +4242,38 @@ static sctp_disposition_t sctp_sf_violation_paramlen(
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
 				     const sctp_subtype_t type,
-				     void *arg,
-				     sctp_cmd_seq_t *commands) {
-	static const char err_str[] = "The following parameter had invalid length:";
+				     void *arg, void *ext,
+				     sctp_cmd_seq_t *commands)
+{
+	struct sctp_chunk *chunk =  arg;
+	struct sctp_paramhdr *param = ext;
+	struct sctp_chunk *abort = NULL;
 
-	return sctp_sf_abort_violation(ep, asoc, arg, commands, err_str,
-					sizeof(err_str));
+	if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
+		goto discard;
+
+	/* Make the abort chunk. */
+	abort = sctp_make_violation_paramlen(asoc, chunk, param);
+	if (!abort)
+		goto nomem;
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
+			SCTP_ERROR(ECONNABORTED));
+	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
+			SCTP_PERR(SCTP_ERROR_PROTO_VIOLATION));
+	SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
+
+discard:
+	sctp_sf_pdiscard(ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
+
+	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
+
+	return SCTP_DISPOSITION_ABORT;
+nomem:
+	return SCTP_DISPOSITION_NOMEM;
 }
 
 /* Handle a protocol violation when the peer trying to advance the
@@ -4516,13 +4544,6 @@ sctp_disposition_t sctp_sf_do_9_2_prm_shutdown(
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_SHUTDOWN_PENDING));
-
-	/* sctpimpguide-05 Section 2.12.2
-	 * The sender of the SHUTDOWN MAY also start an overall guard timer
-	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
-	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
 
 	disposition = SCTP_DISPOSITION_CONSUME;
 	if (sctp_outq_is_empty(&asoc->outqueue)) {
@@ -4968,6 +4989,13 @@ sctp_disposition_t sctp_sf_do_9_2_start_shutdown(
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T2_SHUTDOWN));
 
+	/* RFC 4960 Section 9.2
+	 * The sender of the SHUTDOWN MAY also start an overall guard timer
+	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
+	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
+			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
+
 	if (asoc->autoclose)
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
@@ -5279,6 +5307,8 @@ sctp_disposition_t sctp_sf_t1_cookie_timer_expire(const struct sctp_endpoint *ep
 		if (!repl)
 			return SCTP_DISPOSITION_NOMEM;
 
+		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,
+				SCTP_CHUNK(repl));
 		/* Issue a sideeffect to do the needed accounting. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_COOKIEECHO_RESTART,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_T1_COOKIE));
@@ -5494,12 +5524,6 @@ sctp_disposition_t sctp_sf_autoclose_timer_expire(
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_SHUTDOWN_PENDING));
 
-	/* sctpimpguide-05 Section 2.12.2
-	 * The sender of the SHUTDOWN MAY also start an overall guard timer
-	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
-	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
 	disposition = SCTP_DISPOSITION_CONSUME;
 	if (sctp_outq_is_empty(&asoc->outqueue)) {
 		disposition = sctp_sf_do_9_2_start_shutdown(ep, asoc, type,

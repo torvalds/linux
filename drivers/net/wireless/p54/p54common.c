@@ -149,7 +149,8 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		u32 code = le32_to_cpu(bootrec->code);
 		switch (code) {
 		case BR_CODE_COMPONENT_ID:
-			priv->fw_interface = be32_to_cpup(bootrec->data);
+			priv->fw_interface = be32_to_cpup((__be32 *)
+					     bootrec->data);
 			switch (priv->fw_interface) {
 			case FW_FMAC:
 				printk(KERN_INFO "p54: FreeMAC firmware\n");
@@ -181,9 +182,8 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			priv->rx_end = le32_to_cpu(desc->rx_end) - 0x3500;
 			priv->headroom = desc->headroom;
 			priv->tailroom = desc->tailroom;
-			if (bootrec->len == 11)
-				priv->rx_mtu = (size_t) le16_to_cpu(
-					(__le16)bootrec->data[10]);
+			if (le32_to_cpu(bootrec->len) == 11)
+				priv->rx_mtu = le16_to_cpu(bootrec->rx_mtu);
 			else
 				priv->rx_mtu = (size_t)
 					0x620 - priv->tx_hdr_len;
@@ -306,11 +306,11 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 	return 0;
 }
 
-const char* p54_rf_chips[] = { "NULL", "Indigo?", "Duette",
+static const char *p54_rf_chips[] = { "NULL", "Indigo?", "Duette",
                               "Frisbee", "Xbow", "Longbow" };
 static int p54_init_xbow_synth(struct ieee80211_hw *dev);
 
-int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
+static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
 	struct eeprom_pda_wrap *wrap = NULL;
@@ -617,7 +617,7 @@ static void p54_rx_eeprom_readback(struct ieee80211_hw *dev,
 	if (!priv->eeprom)
 		return ;
 
-	memcpy(priv->eeprom, eeprom->data, eeprom->len);
+	memcpy(priv->eeprom, eeprom->data, le16_to_cpu(eeprom->len));
 
 	complete(&priv->eeprom_comp);
 }
@@ -777,8 +777,9 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 		hdr->len = cpu_to_le16(blocksize + sizeof(*eeprom_hdr));
 		eeprom_hdr->offset = cpu_to_le16(offset);
 		eeprom_hdr->len = cpu_to_le16(blocksize);
-		p54_assign_address(dev, NULL, hdr, hdr->len + sizeof(*hdr));
-	        priv->tx(dev, hdr, hdr->len + sizeof(*hdr), 0);
+		p54_assign_address(dev, NULL, hdr, le16_to_cpu(hdr->len) +
+				   sizeof(*hdr));
+		priv->tx(dev, hdr, le16_to_cpu(hdr->len) + sizeof(*hdr), 0);
 
 		if (!wait_for_completion_interruptible_timeout(&priv->eeprom_comp, HZ)) {
 			printk(KERN_ERR "%s: device does not respond!\n",
@@ -1247,18 +1248,20 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			p54_set_filter(dev, priv->filter_type, NULL);
+			p54_set_filter(dev, le16_to_cpu(priv->filter_type),
+				 NULL);
 		else
-			p54_set_filter(dev, priv->filter_type, priv->bssid);
+			p54_set_filter(dev, le16_to_cpu(priv->filter_type),
+				 priv->bssid);
 	}
 
 	if (changed_flags & FIF_PROMISC_IN_BSS) {
 		if (*total_flags & FIF_PROMISC_IN_BSS)
-			p54_set_filter(dev, priv->filter_type |
-				cpu_to_le16(0x8), NULL);
+			p54_set_filter(dev, le16_to_cpu(priv->filter_type) |
+				0x8, NULL);
 		else
-			p54_set_filter(dev, priv->filter_type &
-				~cpu_to_le16(0x8), priv->bssid);
+			p54_set_filter(dev, le16_to_cpu(priv->filter_type) &
+				~0x8, priv->bssid);
 	}
 }
 

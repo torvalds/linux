@@ -58,16 +58,15 @@ static inline int identical_mac_addr_allowed(int type1, int type2)
 
 static int ieee80211_open(struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata, *nsdata;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *nsdata;
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct ieee80211_if_init_conf conf;
 	u32 changed = 0;
 	int res;
 	bool need_hw_reconfig = 0;
 	u8 null_addr[ETH_ALEN] = {0};
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	/* fail early if user set an invalid address */
 	if (compare_ether_addr(dev->dev_addr, null_addr) &&
@@ -512,8 +511,8 @@ static int ieee80211_stop(struct net_device *dev)
 
 static void ieee80211_set_multicast_list(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	int allmulti, promisc, sdata_allmulti, sdata_promisc;
 
 	allmulti = !!(dev->flags & IFF_ALLMULTI);
@@ -625,6 +624,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	/* and set some type-dependent values */
 	sdata->vif.type = type;
 	sdata->dev->hard_start_xmit = ieee80211_subif_start_xmit;
+	sdata->wdev.iftype = type;
 
 	/* only monitor differs */
 	sdata->dev->type = ARPHRD_ETHER;

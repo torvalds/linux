@@ -1932,8 +1932,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	/* Collapse two adjacent packets if worthwhile and we can. */
 	if (!(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN) &&
 	    (skb->len < (cur_mss >> 1)) &&
-	    (tcp_write_queue_next(sk, skb) != tcp_send_head(sk)) &&
 	    (!tcp_skb_is_last(sk, skb)) &&
+	    (tcp_write_queue_next(sk, skb) != tcp_send_head(sk)) &&
 	    (skb_shinfo(skb)->nr_frags == 0 &&
 	     skb_shinfo(tcp_write_queue_next(sk, skb))->nr_frags == 0) &&
 	    (tcp_skb_pcount(skb) == 1 &&
@@ -2275,7 +2275,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	th->syn = 1;
 	th->ack = 1;
 	TCP_ECN_make_synack(req, th);
-	th->source = inet_sk(sk)->sport;
+	th->source = ireq->loc_port;
 	th->dest = ireq->rmt_port;
 	/* Setting of flags are superfluous here for callers (and ECE is
 	 * not even correctly set)

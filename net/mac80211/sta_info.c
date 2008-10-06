@@ -93,8 +93,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 }
 
 /* protected by RCU */
-static struct sta_info *__sta_info_find(struct ieee80211_local *local,
-					const u8 *addr)
+struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr)
 {
 	struct sta_info *sta;
 
@@ -106,12 +105,6 @@ static struct sta_info *__sta_info_find(struct ieee80211_local *local,
 	}
 	return sta;
 }
-
-struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr)
-{
-	return __sta_info_find(local, addr);
-}
-EXPORT_SYMBOL(sta_info_get);
 
 struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 				     struct net_device *dev)
@@ -146,7 +139,7 @@ static void __sta_info_free(struct ieee80211_local *local,
 {
 	DECLARE_MAC_BUF(mbuf);
 
-	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
+	rate_control_free_sta(sta);
 	rate_control_put(sta->rate_ctrl);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -244,7 +237,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
 	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
-						     gfp);
+						     &sta->sta, gfp);
 	if (!sta->rate_ctrl_priv) {
 		rate_control_put(sta->rate_ctrl);
 		kfree(sta);
@@ -308,7 +301,7 @@ int sta_info_insert(struct sta_info *sta)
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
-	if (__sta_info_find(local, sta->sta.addr)) {
+	if (sta_info_get(local, sta->sta.addr)) {
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 		err = -EEXIST;
 		goto out_free;
@@ -834,7 +827,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
                                          const u8 *addr)
 {
-	struct sta_info *sta = __sta_info_find(hw_to_local(hw), addr);
+	struct sta_info *sta = sta_info_get(hw_to_local(hw), addr);
 
 	if (!sta)
 		return NULL;

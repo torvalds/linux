@@ -30,7 +30,7 @@
 #define RD88F6192_GPIO_USB_VBUS		10
 
 static struct mv643xx_eth_platform_data rd88f6192_ge00_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 static struct mv_sata_platform_data rd88f6192_sata_data = {

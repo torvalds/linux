@@ -828,15 +828,18 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 			return -ESRCH;
 		if (card->load_firmware == NULL) {
 			printk(KERN_DEBUG "kcapi: load: no load function\n");
+			capi_ctr_put(card);
 			return -ESRCH;
 		}
 
 		if (ldef.t4file.len <= 0) {
 			printk(KERN_DEBUG "kcapi: load: invalid parameter: length of t4file is %d ?\n", ldef.t4file.len);
+			capi_ctr_put(card);
 			return -EINVAL;
 		}
 		if (ldef.t4file.data == NULL) {
 			printk(KERN_DEBUG "kcapi: load: invalid parameter: dataptr is 0\n");
+			capi_ctr_put(card);
 			return -EINVAL;
 		}
 
@@ -849,6 +852,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 
 		if (card->cardstate != CARD_DETECTED) {
 			printk(KERN_INFO "kcapi: load: contr=%d not in detect state\n", ldef.contr);
+			capi_ctr_put(card);
 			return -EBUSY;
 		}
 		card->cardstate = CARD_LOADING;

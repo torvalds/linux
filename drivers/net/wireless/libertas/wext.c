@@ -1025,6 +1025,18 @@ static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 				new_rate);
 			goto out;
 		}
+		if (priv->fwrelease < 0x09000000) {
+			ret = lbs_set_power_adapt_cfg(priv, 0,
+					POW_ADAPT_DEFAULT_P0,
+					POW_ADAPT_DEFAULT_P1,
+					POW_ADAPT_DEFAULT_P2);
+			if (ret)
+				goto out;
+		}
+		ret = lbs_set_tpc_cfg(priv, 0, TPC_DEFAULT_P0, TPC_DEFAULT_P1,
+				TPC_DEFAULT_P2, 1);
+		if (ret)
+			goto out;
 	}
 
 	/* Try the newer command first (Firmware Spec 5.1 and above) */
@@ -1598,8 +1610,20 @@ static int lbs_set_encodeext(struct net_device *dev,
 	}
 
 out:
-	if (ret == 0) {  /* key installation is time critical: postpone not! */
-		lbs_do_association_work(priv);
+	if (ret == 0) {
+		/* 802.1x and WPA rekeying must happen as quickly as possible,
+		 * especially during the 4-way handshake; thus if in
+		 * infrastructure mode, and either (a) 802.1x is enabled or
+		 * (b) WPA is being used, set the key right away.
+		 */
+		if (assoc_req->mode == IW_MODE_INFRA &&
+		    ((assoc_req->secinfo.key_mgmt & IW_AUTH_KEY_MGMT_802_1X) ||
+		     (assoc_req->secinfo.key_mgmt & IW_AUTH_KEY_MGMT_PSK) ||
+		      assoc_req->secinfo.WPAenabled ||
+		      assoc_req->secinfo.WPA2enabled)) {
+			lbs_do_association_work(priv);
+		} else
+			lbs_postpone_association_work(priv);
 	} else {
 		lbs_cancel_association_work(priv);
 	}
@@ -1707,11 +1731,15 @@ static int lbs_set_auth(struct net_device *dev,
 	case IW_AUTH_TKIP_COUNTERMEASURES:
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
-	case IW_AUTH_KEY_MGMT:
 	case IW_AUTH_DROP_UNENCRYPTED:
 		/*
 		 * libertas does not use these parameters
 		 */
+		break;
+
+	case IW_AUTH_KEY_MGMT:
+		assoc_req->secinfo.key_mgmt = dwrq->value;
+		updated = 1;
 		break;
 
 	case IW_AUTH_WPA_VERSION:
@@ -1793,6 +1821,10 @@ static int lbs_get_auth(struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	switch (dwrq->flags & IW_AUTH_INDEX) {
+	case IW_AUTH_KEY_MGMT:
+		dwrq->value = priv->secinfo.key_mgmt;
+		break;
+
 	case IW_AUTH_WPA_VERSION:
 		dwrq->value = 0;
 		if (priv->secinfo.WPAenabled)

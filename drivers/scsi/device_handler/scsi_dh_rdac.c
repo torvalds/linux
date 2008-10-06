@@ -551,7 +551,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			 *
 			 * Just retry and wait.
 			 */
-			return NEEDS_RETRY;
+			return ADD_TO_MLQUEUE;
 		break;
 	case ILLEGAL_REQUEST:
 		if (sense_hdr->asc == 0x94 && sense_hdr->ascq == 0x01) {
@@ -568,7 +568,7 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			/*
 			 * Power On, Reset, or Bus Device Reset, just retry.
 			 */
-			return NEEDS_RETRY;
+			return ADD_TO_MLQUEUE;
 		break;
 	}
 	/* success just means we do not care what scsi-ml does */

@@ -573,6 +573,10 @@ enum {
 /* maximum number of hardware queues we support. */
 #define QD_MAX_QUEUES (IEEE80211_MAX_AMPDU_QUEUES + IEEE80211_MAX_QUEUES)
 
+struct ieee80211_master_priv {
+	struct ieee80211_local *local;
+};
+
 struct ieee80211_local {
 	/* embed the driver visible part.
 	 * don't cast (use the static inlines below), but we keep
@@ -720,6 +724,8 @@ struct ieee80211_local {
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
+		struct dentry *rcdir;
+		struct dentry *rcname;
 		struct dentry *frequency;
 		struct dentry *antenna_sel_tx;
 		struct dentry *antenna_sel_rx;

@@ -942,8 +942,8 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 				disassoc = 1;
 			} else
 				ieee80211_send_probe_req(sdata, ifsta->bssid,
-							 local->scan_ssid,
-							 local->scan_ssid_len);
+							 ifsta->ssid,
+							 ifsta->ssid_len);
 			ifsta->flags ^= IEEE80211_STA_PROBEREQ_POLL;
 		} else {
 			ifsta->flags &= ~IEEE80211_STA_PROBEREQ_POLL;
@@ -1323,7 +1323,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		ieee80211_handle_ht(local, 1, &sta->sta.ht_info, &bss_info);
 	}
 
-	rate_control_rate_init(sta, local);
+	rate_control_rate_init(sta);
 
 	if (elems.wmm_param) {
 		set_sta_flags(sta, WLAN_STA_WME);
@@ -1451,6 +1451,8 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	ifsta->state = IEEE80211_STA_MLME_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
+
+	ieee80211_led_assoc(local, true);
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, bss->bssid, ETH_ALEN);
@@ -2342,7 +2344,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(local, band);
 
-	rate_control_rate_init(sta, local);
+	rate_control_rate_init(sta);
 
 	if (sta_info_insert(sta))
 		return NULL;

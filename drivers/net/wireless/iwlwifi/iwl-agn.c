@@ -2504,8 +2504,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	if (priv->current_ht_config.is_ht)
-		iwl_set_rxon_ht(priv, &priv->current_ht_config);
+	iwl_set_rxon_ht(priv, &priv->current_ht_config);
 
 	iwl_set_rxon_chain(priv);
 	priv->staging_rxon.assoc_id = cpu_to_le16(priv->assoc_id);
@@ -2568,8 +2567,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	iwl_chain_noise_reset(priv);
 	priv->start_calib = 1;
 
-	/* we have just associated, don't start scan too early */
-	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
 
 static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
@@ -2878,6 +2875,13 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		goto out;
 	}
 
+	if (conf->flags & IEEE80211_CONF_PS)
+		ret = iwl_power_set_user_mode(priv, IWL_POWER_INDEX_3);
+	else
+		ret = iwl_power_set_user_mode(priv, IWL_POWER_MODE_CAM);
+	if (ret)
+		IWL_DEBUG_MAC80211("Error setting power level\n");
+
 	IWL_DEBUG_MAC80211("TX Power old=%d new=%d\n",
 			   priv->tx_power_user_lmt, conf->power_level);
 
@@ -3171,6 +3175,10 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 			priv->power_data.dtim_period = bss_conf->dtim_period;
 			priv->timestamp = bss_conf->timestamp;
 			priv->assoc_capability = bss_conf->assoc_capability;
+
+			/* we have just associated, don't start scan too early
+			 * leave time for EAPOL exchange to complete
+			 */
 			priv->next_scan_jiffies = jiffies +
 					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			mutex_lock(&priv->mutex);
@@ -3189,9 +3197,9 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 
 static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 {
-	int ret;
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
+	int ret;
 
 	IWL_DEBUG_MAC80211("enter\n");
 
@@ -3210,20 +3218,27 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 		goto out_unlock;
 	}
 
-	/* we don't schedule scan within next_scan_jiffies period */
+	/* We don't schedule scan within next_scan_jiffies period.
+	 * Avoid scanning during possible EAPOL exchange, return
+	 * success immediately.
+	 */
 	if (priv->next_scan_jiffies &&
 	    time_after(priv->next_scan_jiffies, jiffies)) {
 		IWL_DEBUG_SCAN("scan rejected: within next scan period\n");
-		ret = -EAGAIN;
+		queue_work(priv->workqueue, &priv->scan_completed);
+		ret = 0;
 		goto out_unlock;
 	}
+
 	/* if we just finished scan ask for delay */
 	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
 	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
 		IWL_DEBUG_SCAN("scan rejected: within previous scan period\n");
-		ret = -EAGAIN;
+		queue_work(priv->workqueue, &priv->scan_completed);
+		ret = 0;
 		goto out_unlock;
 	}
+
 	if (ssid_len) {
 		priv->one_direct_scan = 1;
 		priv->direct_ssid_len =  min_t(u8, ssid_len, IW_ESSID_MAX_SIZE);
@@ -4228,13 +4243,13 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
 	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
 	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (!err)
-			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		/* both attempts failed: */
 		if (err) {
 			printk(KERN_WARNING "%s: No suitable DMA available.\n",

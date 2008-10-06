@@ -793,7 +793,7 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 	int err;
 	struct ubifs_budget_req req;
 	loff_t old_size = inode->i_size, new_size = attr->ia_size;
-	int offset = new_size & (UBIFS_BLOCK_SIZE - 1);
+	int offset = new_size & (UBIFS_BLOCK_SIZE - 1), budgeted = 1;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	dbg_gen("ino %lu, size %lld -> %lld", inode->i_ino, old_size, new_size);
@@ -811,8 +811,15 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 	/* A funny way to budget for truncation node */
 	req.dirtied_ino_d = UBIFS_TRUN_NODE_SZ;
 	err = ubifs_budget_space(c, &req);
-	if (err)
-		return err;
+	if (err) {
+		/*
+		 * Treat truncations to zero as deletion and always allow them,
+		 * just like we do for '->unlink()'.
+		 */
+		if (new_size || err != -ENOSPC)
+			return err;
+		budgeted = 0;
+	}
 
 	err = vmtruncate(inode, new_size);
 	if (err)
@@ -869,7 +876,12 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 	err = ubifs_jnl_truncate(c, inode, old_size, new_size);
 	mutex_unlock(&ui->ui_mutex);
 out_budg:
-	ubifs_release_budget(c, &req);
+	if (budgeted)
+		ubifs_release_budget(c, &req);
+	else {
+		c->nospace = c->nospace_rp = 0;
+		smp_wmb();
+	}
 	return err;
 }
 

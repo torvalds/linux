@@ -976,7 +976,6 @@ struct ath_softc {
 	u32 sc_keymax;		/* size of key cache */
 	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);	/* key use bit map */
 	u8 sc_splitmic;		/* split TKIP MIC keys */
-	int sc_keytype;
 
 	/* RX */
 	struct list_head sc_rxbuf;
@@ -1001,6 +1000,7 @@ struct ath_softc {
 	u32 sc_bhalq;
 	u32 sc_bmisscount;
 	u32 ast_be_xmit;	/* beacons transmitted */
+	u64 bc_tstamp;
 
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];

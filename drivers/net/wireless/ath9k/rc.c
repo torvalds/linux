@@ -20,6 +20,7 @@
  */
 
 #include "core.h"
+/* FIXME: remove this include! */
 #include "../net/mac80211/rate.h"
 
 static u32 tx_triglevel_max;
@@ -1812,20 +1813,18 @@ static void ath_rc_sib_init(struct ath_rate_node *ath_rc_priv)
 }
 
 
-static void ath_setup_rates(struct ieee80211_local *local, struct sta_info *sta)
+static void ath_setup_rates(struct ath_softc *sc,
+			    struct ieee80211_supported_band *sband,
+			    struct ieee80211_sta *sta,
+			    struct ath_rate_node *rc_priv)
 
 {
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_hw *hw = local_to_hw(local);
-	struct ath_softc *sc = hw->priv;
-	struct ath_rate_node *rc_priv = sta->rate_ctrl_priv;
 	int i, j = 0;
 
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
-	sband =  local->hw.wiphy->bands[local->hw.conf.channel->band];
 	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sta->sta.supp_rates[local->hw.conf.channel->band] & BIT(i)) {
+		if (sta->supp_rates[sband->band] & BIT(i)) {
 			rc_priv->neg_rates.rs_rates[j]
 				= (sband->bitrates[i].bitrate * 2) / 10;
 			j++;
@@ -1852,19 +1851,17 @@ void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv)
 }
 
 /* Rate Control callbacks */
-static void ath_tx_status(void *priv, struct net_device *dev,
+static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
+			  struct ieee80211_sta *sta, void *priv_sta,
 			  struct sk_buff *skb)
 {
 	struct ath_softc *sc = priv;
 	struct ath_tx_info_priv *tx_info_priv;
 	struct ath_node *an;
-	struct sta_info *sta;
-	struct ieee80211_local *local;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
 
-	local = hw_to_local(sc->hw);
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
 	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
@@ -1873,8 +1870,7 @@ static void ath_tx_status(void *priv, struct net_device *dev,
 	an = ath_node_find(sc, hdr->addr1);
 	spin_unlock_bh(&sc->node_lock);
 
-	sta = sta_info_get(local, hdr->addr1);
-	if (!an || !sta || !ieee80211_is_data(fc)) {
+	if (!an || !priv_sta || !ieee80211_is_data(fc)) {
 		if (tx_info->driver_data[0] != NULL) {
 			kfree(tx_info->driver_data[0]);
 			tx_info->driver_data[0] = NULL;
@@ -1882,24 +1878,22 @@ static void ath_tx_status(void *priv, struct net_device *dev,
 		return;
 	}
 	if (tx_info->driver_data[0] != NULL) {
-		ath_rate_tx_complete(sc, an, sta->rate_ctrl_priv, tx_info_priv);
+		ath_rate_tx_complete(sc, an, priv_sta, tx_info_priv);
 		kfree(tx_info->driver_data[0]);
 		tx_info->driver_data[0] = NULL;
 	}
 }
 
 static void ath_tx_aggr_resp(struct ath_softc *sc,
-			     struct sta_info *sta,
+			     struct ieee80211_supported_band *sband,
+			     struct ieee80211_sta *sta,
 			     struct ath_node *an,
 			     u8 tidno)
 {
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_local *local;
 	struct ath_atx_tid *txtid;
-	struct ieee80211_supported_band *sband;
 	u16 buffersize = 0;
 	int state;
-	DECLARE_MAC_BUF(mac);
+	struct sta_info *si;
 
 	if (!(sc->sc_flags & SC_OP_TXAGGR))
 		return;
@@ -1908,11 +1902,16 @@ static void ath_tx_aggr_resp(struct ath_softc *sc,
 	if (!txtid->paused)
 		return;
 
-	local = hw_to_local(sc->hw);
-	sband = hw->wiphy->bands[hw->conf.channel->band];
+	/*
+	 * XXX: This is entirely busted, we aren't supposed to
+	 *	access the sta from here because it's internal
+	 *	to mac80211, and looking at the state without
+	 *	locking is wrong too.
+	 */
+	si = container_of(sta, struct sta_info, sta);
 	buffersize = IEEE80211_MIN_AMPDU_BUF <<
 		sband->ht_info.ampdu_factor; /* FIXME */
-	state = sta->ampdu_mlme.tid_state_tx[tidno];
+	state = si->ampdu_mlme.tid_state_tx[tidno];
 
 	if (state & HT_ADDBA_RECEIVED_MSK) {
 		txtid->addba_exchangecomplete = 1;
@@ -1928,18 +1927,15 @@ static void ath_tx_aggr_resp(struct ath_softc *sc,
 	}
 }
 
-static void ath_get_rate(void *priv, struct net_device *dev,
-			 struct ieee80211_supported_band *sband,
-			 struct sk_buff *skb,
-			 struct rate_selection *sel)
+static void ath_get_rate(void *priv, struct ieee80211_supported_band *sband,
+			 struct ieee80211_sta *sta, void *priv_sta,
+			 struct sk_buff *skb, struct rate_selection *sel)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct sta_info *sta;
-	struct ath_softc *sc = (struct ath_softc *)priv;
+	struct ath_softc *sc = priv;
 	struct ieee80211_hw *hw = sc->hw;
 	struct ath_tx_info_priv *tx_info_priv;
-	struct ath_rate_node *ath_rc_priv;
+	struct ath_rate_node *ath_rc_priv = priv_sta;
 	struct ath_node *an;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	int is_probe = FALSE, chk, ret;
@@ -1955,8 +1951,7 @@ static void ath_get_rate(void *priv, struct net_device *dev,
 	ASSERT(tx_info->driver_data[0] != NULL);
 	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
 
-	sta = sta_info_get(local, hdr->addr1);
-	lowest_idx = rate_lowest_index(local, sband, sta);
+	lowest_idx = rate_lowest_index(sband, sta);
 	tx_info_priv->min_rate = (sband->bitrates[lowest_idx].bitrate * 2) / 10;
 	/* lowest rate for management and multicast/broadcast frames */
 	if (!ieee80211_is_data(fc) ||
@@ -1964,8 +1959,6 @@ static void ath_get_rate(void *priv, struct net_device *dev,
 		sel->rate_idx = lowest_idx;
 		return;
 	}
-
-	ath_rc_priv = sta->rate_ctrl_priv;
 
 	/* Find tx rate for unicast frames */
 	ath_rate_findrate(sc, ath_rc_priv,
@@ -1975,8 +1968,7 @@ static void ath_get_rate(void *priv, struct net_device *dev,
 			  &is_probe,
 			  false);
 	if (is_probe)
-		sel->probe_idx = ((struct ath_tx_ratectrl *)
-				  sta->rate_ctrl_priv)->probe_rate;
+		sel->probe_idx = ath_rc_priv->tx_ratectrl.probe_rate;
 
 	/* Ratecontrol sometimes returns invalid rate index */
 	if (tx_info_priv->rcs[0].rix != 0xff)
@@ -2020,37 +2012,31 @@ static void ath_get_rate(void *priv, struct net_device *dev,
 						__func__,
 						print_mac(mac, hdr->addr1));
 			} else if (chk == AGGR_EXCHANGE_PROGRESS)
-				ath_tx_aggr_resp(sc, sta, an, tid);
+				ath_tx_aggr_resp(sc, sband, sta, an, tid);
 		}
 	}
 }
 
-static void ath_rate_init(void *priv, void *priv_sta,
-			  struct ieee80211_local *local,
-			  struct sta_info *sta)
+static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
+                          struct ieee80211_sta *sta, void *priv_sta)
 {
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_hw *hw = local_to_hw(local);
-	struct ieee80211_conf *conf = &local->hw.conf;
-	struct ath_softc *sc = hw->priv;
+	struct ath_softc *sc = priv;
 	struct ath_rate_node *ath_rc_priv = priv_sta;
 	int i, j = 0;
 
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	ath_setup_rates(local, sta);
-	if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
+	ath_setup_rates(sc, sband, sta, ath_rc_priv);
+	if (sc->hw->conf.flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
 		for (i = 0; i < MCS_SET_SIZE; i++) {
-			if (conf->ht_conf.supp_mcs_set[i/8] & (1<<(i%8)))
+			if (sc->hw->conf.ht_conf.supp_mcs_set[i/8] & (1<<(i%8)))
 				ath_rc_priv->neg_ht_rates.rs_rates[j++] = i;
 			if (j == ATH_RATE_MAX)
 				break;
 		}
 		ath_rc_priv->neg_ht_rates.rs_nrates = j;
 	}
-	ath_rc_node_update(hw, priv_sta);
+	ath_rc_node_update(sc->hw, priv_sta);
 }
 
 static void ath_rate_clear(void *priv)
@@ -2058,13 +2044,12 @@ static void ath_rate_clear(void *priv)
 	return;
 }
 
-static void *ath_rate_alloc(struct ieee80211_local *local)
+static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
-	struct ieee80211_hw *hw = local_to_hw(local);
 	struct ath_softc *sc = hw->priv;
 
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
-	return local->hw.priv;
+	return hw->priv;
 }
 
 static void ath_rate_free(void *priv)
@@ -2072,7 +2057,7 @@ static void ath_rate_free(void *priv)
 	return;
 }
 
-static void *ath_rate_alloc_sta(void *priv, gfp_t gfp)
+static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
 	struct ath_softc *sc = priv;
 	struct ath_vap *avp = sc->sc_vaps[0];
@@ -2092,7 +2077,8 @@ static void *ath_rate_alloc_sta(void *priv, gfp_t gfp)
 	return rate_priv;
 }
 
-static void ath_rate_free_sta(void *priv, void *priv_sta)
+static void ath_rate_free_sta(void *priv, struct ieee80211_sta *sta,
+			      void *priv_sta)
 {
 	struct ath_rate_node *rate_priv = priv_sta;
 	struct ath_softc *sc = priv;
@@ -2111,7 +2097,7 @@ static struct rate_control_ops ath_rate_ops = {
 	.alloc = ath_rate_alloc,
 	.free = ath_rate_free,
 	.alloc_sta = ath_rate_alloc_sta,
-	.free_sta = ath_rate_free_sta
+	.free_sta = ath_rate_free_sta,
 };
 
 int ath_rate_control_register(void)

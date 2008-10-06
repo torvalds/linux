@@ -92,7 +92,7 @@ static struct platform_device wnr854t_nor_flash = {
 };
 
 static struct mv643xx_eth_platform_data wnr854t_eth_data = {
-	.phy_addr	= -1,
+	.phy_addr	= MV643XX_ETH_PHY_NONE,
 	.speed		= SPEED_1000,
 	.duplex		= DUPLEX_FULL,
 };

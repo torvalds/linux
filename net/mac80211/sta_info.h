@@ -189,7 +189,6 @@ struct sta_ampdu_mlme {
  * @last_qual: qual of last received frame from this STA
  * @last_noise: noise of last received frame from this STA
  * @last_seq_ctrl: last received seq/frag number from this STA (per RX queue)
- * @wme_rx_queue: TBD
  * @tx_filtered_count: TBD
  * @tx_retry_failed: TBD
  * @tx_retry_count: TBD
@@ -199,7 +198,6 @@ struct sta_ampdu_mlme {
  * @tx_fragments: number of transmitted MPDUs
  * @last_txrate_idx: Index of the last used transmit rate
  * @tid_seq: TBD
- * @wme_tx_queue: TBD
  * @ampdu_mlme: TBD
  * @timer_to_tid: identity mapping to ID timers
  * @tid_to_tx_q: map tid to tx queue
@@ -258,9 +256,6 @@ struct sta_info {
 	int last_qual;
 	int last_noise;
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	unsigned int wme_rx_queue[NUM_RX_DATA_QUEUES];
-#endif
 
 	/* Updated from TX status path only, no locking requirements */
 	unsigned long tx_filtered_count;
@@ -274,9 +269,6 @@ struct sta_info {
 	unsigned long tx_fragments;
 	unsigned int last_txrate_idx;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
-#endif
 
 	/*
 	 * Aggregation information, locked with lock.
@@ -307,10 +299,6 @@ struct sta_info {
 		struct dentry *num_ps_buf_frames;
 		struct dentry *inactive_ms;
 		struct dentry *last_seq_ctrl;
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-		struct dentry *wme_rx_queue;
-		struct dentry *wme_tx_queue;
-#endif
 		struct dentry *agg_status;
 	} debugfs;
 #endif
@@ -416,7 +404,7 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 /*
  * Get a STA info, must have be under RCU read lock.
  */
-struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr);
+struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr);
 /*
  * Get STA info by index, BROKEN!
  */

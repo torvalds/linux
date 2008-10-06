@@ -1274,7 +1274,7 @@ static int __devexit bigmac_sbus_remove(struct of_device *dev)
 	struct bigmac *bp = dev_get_drvdata(&dev->dev);
 	struct net_device *net_dev = bp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	sbus_iounmap(bp->gregs, GLOB_REG_SIZE);
 	sbus_iounmap(bp->creg, CREG_REG_SIZE);

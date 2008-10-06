@@ -162,7 +162,7 @@ EXPORT_SYMBOL(pci_find_slot);
  * time.
  */
 struct pci_dev *pci_find_device(unsigned int vendor, unsigned int device,
-				const struct pci_dev *from)
+				struct pci_dev *from)
 {
 	struct pci_dev *pdev;
 
@@ -263,7 +263,7 @@ static int match_pci_dev_by_id(struct device *dev, void *data)
  * this file.
  */
 static struct pci_dev *pci_get_dev_by_id(const struct pci_device_id *id,
-					 const struct pci_dev *from)
+					 struct pci_dev *from)
 {
 	struct device *dev;
 	struct device *dev_start = NULL;
@@ -303,7 +303,7 @@ static struct pci_dev *pci_get_dev_by_id(const struct pci_device_id *id,
  */
 struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
 			       unsigned int ss_vendor, unsigned int ss_device,
-			       const struct pci_dev *from)
+			       struct pci_dev *from)
 {
 	struct pci_dev *pdev;
 	struct pci_device_id *id;

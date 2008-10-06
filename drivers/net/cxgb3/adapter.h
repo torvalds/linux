@@ -124,8 +124,7 @@ struct sge_rspq {		/* state for an SGE response queue */
 	dma_addr_t phys_addr;	/* physical address of the ring */
 	unsigned int cntxt_id;	/* SGE context id for the response q */
 	spinlock_t lock;	/* guards response processing */
-	struct sk_buff *rx_head;	/* offload packet receive queue head */
-	struct sk_buff *rx_tail;	/* offload packet receive queue tail */
+	struct sk_buff_head rx_queue; /* offload packet receive queue */
 	struct sk_buff *pg_skb; /* used to build frag list in napi handler */
 
 	unsigned long offload_pkts;

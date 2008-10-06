@@ -815,7 +815,7 @@ void b43_dummy_transmission(struct b43_wldev *dev)
 			break;
 		udelay(10);
 	}
-	for (i = 0x00; i < 0x0A; i++) {
+	for (i = 0x00; i < 0x19; i++) {
 		value = b43_read16(dev, 0x0690);
 		if (!(value & 0x0100))
 			break;
@@ -4543,9 +4543,11 @@ static void b43_sprom_fixup(struct ssb_bus *bus)
 		pdev = bus->host_pci;
 		if (IS_PDEV(pdev, BROADCOM, 0x4318, ASUSTEK, 0x100F) ||
 		    IS_PDEV(pdev, BROADCOM, 0x4320,    DELL, 0x0003) ||
+		    IS_PDEV(pdev, BROADCOM, 0x4320,      HP, 0x12f8) ||
 		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0015) ||
 		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0014) ||
-		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0013))
+		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0013) ||
+		    IS_PDEV(pdev, BROADCOM, 0x4320, MOTOROLA, 0x7010))
 			bus->sprom.boardflags_lo &= ~B43_BFL_BTCOEXIST;
 	}
 }

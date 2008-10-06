@@ -1102,7 +1102,7 @@ static struct xfrm_policy *xfrm_policy_construct(struct xfrm_userpolicy_info *p,
 	return xp;
  error:
 	*errp = err;
-	xp->dead = 1;
+	xp->walk.dead = 1;
 	xfrm_policy_destroy(xp);
 	return NULL;
 }
@@ -1595,7 +1595,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENOENT;
 
 	read_lock(&xp->lock);
-	if (xp->dead) {
+	if (xp->walk.dead) {
 		read_unlock(&xp->lock);
 		goto out;
 	}
@@ -1710,11 +1710,22 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 #ifdef CONFIG_XFRM_MIGRATE
 static int copy_from_user_migrate(struct xfrm_migrate *ma,
+				  struct xfrm_kmaddress *k,
 				  struct nlattr **attrs, int *num)
 {
 	struct nlattr *rt = attrs[XFRMA_MIGRATE];
 	struct xfrm_user_migrate *um;
 	int i, num_migrate;
+
+	if (k != NULL) {
+		struct xfrm_user_kmaddress *uk;
+
+		uk = nla_data(attrs[XFRMA_KMADDRESS]);
+		memcpy(&k->local, &uk->local, sizeof(k->local));
+		memcpy(&k->remote, &uk->remote, sizeof(k->remote));
+		k->family = uk->family;
+		k->reserved = uk->reserved;
+	}
 
 	um = nla_data(rt);
 	num_migrate = nla_len(rt) / sizeof(*um);
@@ -1745,6 +1756,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct xfrm_userpolicy_id *pi = nlmsg_data(nlh);
 	struct xfrm_migrate m[XFRM_MAX_DEPTH];
+	struct xfrm_kmaddress km, *kmp;
 	u8 type;
 	int err;
 	int n = 0;
@@ -1752,19 +1764,20 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (attrs[XFRMA_MIGRATE] == NULL)
 		return -EINVAL;
 
+	kmp = attrs[XFRMA_KMADDRESS] ? &km : NULL;
+
 	err = copy_from_user_policy_type(&type, attrs);
 	if (err)
 		return err;
 
-	err = copy_from_user_migrate((struct xfrm_migrate *)m,
-				     attrs, &n);
+	err = copy_from_user_migrate((struct xfrm_migrate *)m, kmp, attrs, &n);
 	if (err)
 		return err;
 
 	if (!n)
 		return 0;
 
-	xfrm_migrate(&pi->sel, pi->dir, type, m, n);
+	xfrm_migrate(&pi->sel, pi->dir, type, m, n, kmp);
 
 	return 0;
 }
@@ -1795,16 +1808,30 @@ static int copy_to_user_migrate(struct xfrm_migrate *m, struct sk_buff *skb)
 	return nla_put(skb, XFRMA_MIGRATE, sizeof(um), &um);
 }
 
-static inline size_t xfrm_migrate_msgsize(int num_migrate)
+static int copy_to_user_kmaddress(struct xfrm_kmaddress *k, struct sk_buff *skb)
+{
+	struct xfrm_user_kmaddress uk;
+
+	memset(&uk, 0, sizeof(uk));
+	uk.family = k->family;
+	uk.reserved = k->reserved;
+	memcpy(&uk.local, &k->local, sizeof(uk.local));
+	memcpy(&uk.remote, &k->local, sizeof(uk.remote));
+
+	return nla_put(skb, XFRMA_KMADDRESS, sizeof(uk), &uk);
+}
+
+static inline size_t xfrm_migrate_msgsize(int num_migrate, int with_kma)
 {
 	return NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_id))
-	       + nla_total_size(sizeof(struct xfrm_user_migrate) * num_migrate)
-	       + userpolicy_type_attrsize();
+	      + (with_kma ? nla_total_size(sizeof(struct xfrm_kmaddress)) : 0)
+	      + nla_total_size(sizeof(struct xfrm_user_migrate) * num_migrate)
+	      + userpolicy_type_attrsize();
 }
 
 static int build_migrate(struct sk_buff *skb, struct xfrm_migrate *m,
-			 int num_migrate, struct xfrm_selector *sel,
-			 u8 dir, u8 type)
+			 int num_migrate, struct xfrm_kmaddress *k,
+			 struct xfrm_selector *sel, u8 dir, u8 type)
 {
 	struct xfrm_migrate *mp;
 	struct xfrm_userpolicy_id *pol_id;
@@ -1821,6 +1848,9 @@ static int build_migrate(struct sk_buff *skb, struct xfrm_migrate *m,
 	memcpy(&pol_id->sel, sel, sizeof(pol_id->sel));
 	pol_id->dir = dir;
 
+	if (k != NULL && (copy_to_user_kmaddress(k, skb) < 0))
+			goto nlmsg_failure;
+
 	if (copy_to_user_policy_type(type, skb) < 0)
 		goto nlmsg_failure;
 
@@ -1836,23 +1866,25 @@ nlmsg_failure:
 }
 
 static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			     struct xfrm_migrate *m, int num_migrate)
+			     struct xfrm_migrate *m, int num_migrate,
+			     struct xfrm_kmaddress *k)
 {
 	struct sk_buff *skb;
 
-	skb = nlmsg_new(xfrm_migrate_msgsize(num_migrate), GFP_ATOMIC);
+	skb = nlmsg_new(xfrm_migrate_msgsize(num_migrate, !!k), GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
 
 	/* build migrate */
-	if (build_migrate(skb, m, num_migrate, sel, dir, type) < 0)
+	if (build_migrate(skb, m, num_migrate, k, sel, dir, type) < 0)
 		BUG();
 
 	return nlmsg_multicast(xfrm_nl, skb, 0, XFRMNLGRP_MIGRATE, GFP_ATOMIC);
 }
 #else
 static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			     struct xfrm_migrate *m, int num_migrate)
+			     struct xfrm_migrate *m, int num_migrate,
+			     struct xfrm_kmaddress *k)
 {
 	return -ENOPROTOOPT;
 }
@@ -1901,6 +1933,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_COADDR]		= { .len = sizeof(xfrm_address_t) },
 	[XFRMA_POLICY_TYPE]	= { .len = sizeof(struct xfrm_userpolicy_type)},
 	[XFRMA_MIGRATE]		= { .len = sizeof(struct xfrm_user_migrate) },
+	[XFRMA_KMADDRESS]	= { .len = sizeof(struct xfrm_user_kmaddress) },
 };
 
 static struct xfrm_link {

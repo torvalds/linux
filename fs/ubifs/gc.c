@@ -334,15 +334,21 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 
 		err = move_nodes(c, sleb);
 		if (err)
-			goto out;
+			goto out_inc_seq;
 
 		err = gc_sync_wbufs(c);
 		if (err)
-			goto out;
+			goto out_inc_seq;
 
 		err = ubifs_change_one_lp(c, lnum, c->leb_size, 0, 0, 0, 0);
 		if (err)
-			goto out;
+			goto out_inc_seq;
+
+		/* Allow for races with TNC */
+		c->gced_lnum = lnum;
+		smp_wmb();
+		c->gc_seq += 1;
+		smp_wmb();
 
 		if (c->gc_lnum == -1) {
 			c->gc_lnum = lnum;
@@ -363,6 +369,14 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 out:
 	ubifs_scan_destroy(sleb);
 	return err;
+
+out_inc_seq:
+	/* We may have moved at least some nodes so allow for races with TNC */
+	c->gced_lnum = lnum;
+	smp_wmb();
+	c->gc_seq += 1;
+	smp_wmb();
+	goto out;
 }
 
 /**

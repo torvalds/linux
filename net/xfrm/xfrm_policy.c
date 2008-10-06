@@ -46,7 +46,7 @@ EXPORT_SYMBOL(xfrm_cfg_mutex);
 
 static DEFINE_RWLOCK(xfrm_policy_lock);
 
-static struct list_head xfrm_policy_bytype[XFRM_POLICY_TYPE_MAX];
+static struct list_head xfrm_policy_all;
 unsigned int xfrm_policy_count[XFRM_POLICY_MAX*2];
 EXPORT_SYMBOL(xfrm_policy_count);
 
@@ -164,7 +164,7 @@ static void xfrm_policy_timer(unsigned long data)
 
 	read_lock(&xp->lock);
 
-	if (xp->dead)
+	if (xp->walk.dead)
 		goto out;
 
 	dir = xfrm_policy_id2dir(xp->index);
@@ -236,7 +236,7 @@ struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 	policy = kzalloc(sizeof(struct xfrm_policy), gfp);
 
 	if (policy) {
-		INIT_LIST_HEAD(&policy->bytype);
+		INIT_LIST_HEAD(&policy->walk.all);
 		INIT_HLIST_NODE(&policy->bydst);
 		INIT_HLIST_NODE(&policy->byidx);
 		rwlock_init(&policy->lock);
@@ -252,16 +252,12 @@ EXPORT_SYMBOL(xfrm_policy_alloc);
 
 void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
-	BUG_ON(!policy->dead);
+	BUG_ON(!policy->walk.dead);
 
 	BUG_ON(policy->bundles);
 
 	if (del_timer(&policy->timer))
 		BUG();
-
-	write_lock_bh(&xfrm_policy_lock);
-	list_del(&policy->bytype);
-	write_unlock_bh(&xfrm_policy_lock);
 
 	security_xfrm_policy_free(policy->security);
 	kfree(policy);
@@ -310,8 +306,8 @@ static void xfrm_policy_kill(struct xfrm_policy *policy)
 	int dead;
 
 	write_lock_bh(&policy->lock);
-	dead = policy->dead;
-	policy->dead = 1;
+	dead = policy->walk.dead;
+	policy->walk.dead = 1;
 	write_unlock_bh(&policy->lock);
 
 	if (unlikely(dead)) {
@@ -609,6 +605,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	if (delpol) {
 		hlist_del(&delpol->bydst);
 		hlist_del(&delpol->byidx);
+		list_del(&delpol->walk.all);
 		xfrm_policy_count[dir]--;
 	}
 	policy->index = delpol ? delpol->index : xfrm_gen_index(policy->type, dir);
@@ -617,7 +614,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	policy->curlft.use_time = 0;
 	if (!mod_timer(&policy->timer, jiffies + HZ))
 		xfrm_pol_hold(policy);
-	list_add_tail(&policy->bytype, &xfrm_policy_bytype[policy->type]);
+	list_add(&policy->walk.all, &xfrm_policy_all);
 	write_unlock_bh(&xfrm_policy_lock);
 
 	if (delpol)
@@ -684,6 +681,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 				}
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
+				list_del(&pol->walk.all);
 				xfrm_policy_count[dir]--;
 			}
 			ret = pol;
@@ -727,6 +725,7 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 				}
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
+				list_del(&pol->walk.all);
 				xfrm_policy_count[dir]--;
 			}
 			ret = pol;
@@ -840,6 +839,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 					continue;
 				hlist_del(&pol->bydst);
 				hlist_del(&pol->byidx);
+				list_del(&pol->walk.all);
 				write_unlock_bh(&xfrm_policy_lock);
 
 				xfrm_audit_policy_delete(pol, 1,
@@ -867,59 +867,67 @@ int xfrm_policy_walk(struct xfrm_policy_walk *walk,
 		     int (*func)(struct xfrm_policy *, int, int, void*),
 		     void *data)
 {
-	struct xfrm_policy *old, *pol, *last = NULL;
+	struct xfrm_policy *pol;
+	struct xfrm_policy_walk_entry *x;
 	int error = 0;
 
 	if (walk->type >= XFRM_POLICY_TYPE_MAX &&
 	    walk->type != XFRM_POLICY_TYPE_ANY)
 		return -EINVAL;
 
-	if (walk->policy == NULL && walk->count != 0)
+	if (list_empty(&walk->walk.all) && walk->seq != 0)
 		return 0;
 
-	old = pol = walk->policy;
-	walk->policy = NULL;
-	read_lock_bh(&xfrm_policy_lock);
-
-	for (; walk->cur_type < XFRM_POLICY_TYPE_MAX; walk->cur_type++) {
-		if (walk->type != walk->cur_type &&
-		    walk->type != XFRM_POLICY_TYPE_ANY)
+	write_lock_bh(&xfrm_policy_lock);
+	if (list_empty(&walk->walk.all))
+		x = list_first_entry(&xfrm_policy_all, struct xfrm_policy_walk_entry, all);
+	else
+		x = list_entry(&walk->walk.all, struct xfrm_policy_walk_entry, all);
+	list_for_each_entry_from(x, &xfrm_policy_all, all) {
+		if (x->dead)
 			continue;
-
-		if (pol == NULL) {
-			pol = list_first_entry(&xfrm_policy_bytype[walk->cur_type],
-					       struct xfrm_policy, bytype);
+		pol = container_of(x, struct xfrm_policy, walk);
+		if (walk->type != XFRM_POLICY_TYPE_ANY &&
+		    walk->type != pol->type)
+			continue;
+		error = func(pol, xfrm_policy_id2dir(pol->index),
+			     walk->seq, data);
+		if (error) {
+			list_move_tail(&walk->walk.all, &x->all);
+			goto out;
 		}
-		list_for_each_entry_from(pol, &xfrm_policy_bytype[walk->cur_type], bytype) {
-			if (pol->dead)
-				continue;
-			if (last) {
-				error = func(last, xfrm_policy_id2dir(last->index),
-					     walk->count, data);
-				if (error) {
-					xfrm_pol_hold(last);
-					walk->policy = last;
-					goto out;
-				}
-			}
-			last = pol;
-			walk->count++;
-		}
-		pol = NULL;
+		walk->seq++;
 	}
-	if (walk->count == 0) {
+	if (walk->seq == 0) {
 		error = -ENOENT;
 		goto out;
 	}
-	if (last)
-		error = func(last, xfrm_policy_id2dir(last->index), 0, data);
+	list_del_init(&walk->walk.all);
 out:
-	read_unlock_bh(&xfrm_policy_lock);
-	if (old != NULL)
-		xfrm_pol_put(old);
+	write_unlock_bh(&xfrm_policy_lock);
 	return error;
 }
 EXPORT_SYMBOL(xfrm_policy_walk);
+
+void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type)
+{
+	INIT_LIST_HEAD(&walk->walk.all);
+	walk->walk.dead = 1;
+	walk->type = type;
+	walk->seq = 0;
+}
+EXPORT_SYMBOL(xfrm_policy_walk_init);
+
+void xfrm_policy_walk_done(struct xfrm_policy_walk *walk)
+{
+	if (list_empty(&walk->walk.all))
+		return;
+
+	write_lock_bh(&xfrm_policy_lock);
+	list_del(&walk->walk.all);
+	write_unlock_bh(&xfrm_policy_lock);
+}
+EXPORT_SYMBOL(xfrm_policy_walk_done);
 
 /*
  * Find policy to apply to this flow.
@@ -1077,7 +1085,7 @@ static void __xfrm_policy_link(struct xfrm_policy *pol, int dir)
 	struct hlist_head *chain = policy_hash_bysel(&pol->selector,
 						     pol->family, dir);
 
-	list_add_tail(&pol->bytype, &xfrm_policy_bytype[pol->type]);
+	list_add(&pol->walk.all, &xfrm_policy_all);
 	hlist_add_head(&pol->bydst, chain);
 	hlist_add_head(&pol->byidx, xfrm_policy_byidx+idx_hash(pol->index));
 	xfrm_policy_count[dir]++;
@@ -1095,6 +1103,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 
 	hlist_del(&pol->bydst);
 	hlist_del(&pol->byidx);
+	list_del(&pol->walk.all);
 	xfrm_policy_count[dir]--;
 
 	return pol;
@@ -1720,7 +1729,7 @@ restart:
 
 		for (pi = 0; pi < npols; pi++) {
 			read_lock_bh(&pols[pi]->lock);
-			pol_dead |= pols[pi]->dead;
+			pol_dead |= pols[pi]->walk.dead;
 			read_unlock_bh(&pols[pi]->lock);
 		}
 
@@ -2415,9 +2424,7 @@ static void __init xfrm_policy_init(void)
 			panic("XFRM: failed to allocate bydst hash\n");
 	}
 
-	for (dir = 0; dir < XFRM_POLICY_TYPE_MAX; dir++)
-		INIT_LIST_HEAD(&xfrm_policy_bytype[dir]);
-
+	INIT_LIST_HEAD(&xfrm_policy_all);
 	INIT_WORK(&xfrm_policy_gc_work, xfrm_policy_gc_task);
 	register_netdevice_notifier(&xfrm_dev_notifier);
 }
@@ -2601,7 +2608,7 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 	int i, j, n = 0;
 
 	write_lock_bh(&pol->lock);
-	if (unlikely(pol->dead)) {
+	if (unlikely(pol->walk.dead)) {
 		/* target policy has been deleted */
 		write_unlock_bh(&pol->lock);
 		return -ENOENT;
@@ -2672,7 +2679,8 @@ static int xfrm_migrate_check(struct xfrm_migrate *m, int num_migrate)
 }
 
 int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-		 struct xfrm_migrate *m, int num_migrate)
+		 struct xfrm_migrate *m, int num_migrate,
+		 struct xfrm_kmaddress *k)
 {
 	int i, err, nx_cur = 0, nx_new = 0;
 	struct xfrm_policy *pol = NULL;
@@ -2716,7 +2724,7 @@ int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	}
 
 	/* Stage 5 - announce */
-	km_migrate(sel, dir, type, m, num_migrate);
+	km_migrate(sel, dir, type, m, num_migrate, k);
 
 	xfrm_pol_put(pol);
 

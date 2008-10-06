@@ -397,7 +397,7 @@ static int atl1e_phy_setup_autoneg_adv(struct atl1e_hw *hw)
  */
 int atl1e_phy_commit(struct atl1e_hw *hw)
 {
-	struct atl1e_adapter *adapter = (struct atl1e_adapter *)hw->adapter;
+	struct atl1e_adapter *adapter = hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 	int ret_val;
 	u16 phy_data;
@@ -431,7 +431,7 @@ int atl1e_phy_commit(struct atl1e_hw *hw)
 
 int atl1e_phy_init(struct atl1e_hw *hw)
 {
-	struct atl1e_adapter *adapter = (struct atl1e_adapter *)hw->adapter;
+	struct atl1e_adapter *adapter = hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 	s32 ret_val;
 	u16 phy_val;
@@ -525,7 +525,7 @@ int atl1e_phy_init(struct atl1e_hw *hw)
  */
 int atl1e_reset_hw(struct atl1e_hw *hw)
 {
-	struct atl1e_adapter *adapter = (struct atl1e_adapter *)hw->adapter;
+	struct atl1e_adapter *adapter = hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 
 	u32 idle_status_data = 0;

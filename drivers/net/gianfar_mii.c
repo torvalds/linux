@@ -136,12 +136,12 @@ static int gfar_mdio_reset(struct mii_bus *bus)
 
 	/* Wait until the bus is free */
 	while ((gfar_read(&regs->miimind) & MIIMIND_BUSY) &&
-			timeout--)
+			--timeout)
 		cpu_relax();
 
 	mutex_unlock(&bus->mdio_lock);
 
-	if(timeout <= 0) {
+	if(timeout == 0) {
 		printk(KERN_ERR "%s: The MII Bus is stuck!\n",
 				bus->name);
 		return -EBUSY;
@@ -211,19 +211,21 @@ static int gfar_mdio_probe(struct device *dev)
 	gfar_write(&enet_regs->tbipa, 0);
 	for (i = PHY_MAX_ADDR; i > 0; i--) {
 		u32 phy_id;
-		int r;
 
-		r = get_phy_id(new_bus, i, &phy_id);
-		if (r)
-			return r;
+		err = get_phy_id(new_bus, i, &phy_id);
+		if (err)
+			goto bus_register_fail;
 
 		if (phy_id == 0xffffffff)
 			break;
 	}
 
 	/* The bus is full.  We don't support using 31 PHYs, sorry */
-	if (i == 0)
-		return -EBUSY;
+	if (i == 0) {
+		err = -EBUSY;
+
+		goto bus_register_fail;
+	}
 
 	gfar_write(&enet_regs->tbipa, i);
 

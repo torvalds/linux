@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco 10G Ethernet Driver"
-#define DRV_VERSION		"0.0.1.18163.472"
+#define DRV_VERSION		"0.0.1-18163.472-k1"
 #define DRV_COPYRIGHT		"Copyright 2008 Cisco Systems, Inc"
 #define PFX			DRV_NAME ": "
 
@@ -75,7 +75,6 @@ struct enic {
 	struct vnic_enet_config config;
 	struct vnic_dev_bar bar0;
 	struct vnic_dev *vdev;
-	struct net_device_stats net_stats;
 	struct timer_list notify_timer;
 	struct work_struct reset;
 	struct msix_entry msix_entry[ENIC_MSIX_MAX];

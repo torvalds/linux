@@ -420,7 +420,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		 * be added to the retransmit queue.
 		 */
 		if ((reason == SCTP_RTXR_FAST_RTX  &&
-			    (chunk->fast_retransmit > 0)) ||
+			    (chunk->fast_retransmit == SCTP_NEED_FRTX)) ||
 		    (reason != SCTP_RTXR_FAST_RTX  && !chunk->tsn_gap_acked)) {
 			/* If this chunk was sent less then 1 rto ago, do not
 			 * retransmit this chunk, but give the peer time
@@ -650,8 +650,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			/* Mark the chunk as ineligible for fast retransmit
 			 * after it is retransmitted.
 			 */
-			if (chunk->fast_retransmit > 0)
-				chunk->fast_retransmit = -1;
+			if (chunk->fast_retransmit == SCTP_NEED_FRTX)
+				chunk->fast_retransmit = SCTP_DONT_FRTX;
 
 			/* Force start T3-rtx timer when fast retransmitting
 			 * the earliest outstanding TSN
@@ -680,8 +680,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	 */
 	if (rtx_timeout || fast_rtx) {
 		list_for_each_entry(chunk1, lqueue, transmitted_list) {
-			if (chunk1->fast_retransmit > 0)
-				chunk1->fast_retransmit = -1;
+			if (chunk1->fast_retransmit == SCTP_NEED_FRTX)
+				chunk1->fast_retransmit = SCTP_DONT_FRTX;
 		}
 	}
 
@@ -1129,12 +1129,13 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	unsigned outstanding;
 	struct sctp_transport *primary = asoc->peer.primary_path;
 	int count_of_newacks = 0;
+	int gap_ack_blocks;
 
 	/* Grab the association's destination address list. */
 	transport_list = &asoc->peer.transport_addr_list;
 
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
-
+	gap_ack_blocks = ntohs(sack->num_gap_ack_blocks);
 	/*
 	 * SFR-CACC algorithm:
 	 * On receipt of a SACK the sender SHOULD execute the
@@ -1144,35 +1145,38 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 * on the current primary, the CHANGEOVER_ACTIVE flag SHOULD be
 	 * cleared. The CYCLING_CHANGEOVER flag SHOULD also be cleared for
 	 * all destinations.
-	 */
-	if (TSN_lte(primary->cacc.next_tsn_at_change, sack_ctsn)) {
-		primary->cacc.changeover_active = 0;
-		list_for_each_entry(transport, transport_list,
-				transports) {
-			transport->cacc.cycling_changeover = 0;
-		}
-	}
-
-	/*
-	 * SFR-CACC algorithm:
 	 * 2) If the SACK contains gap acks and the flag CHANGEOVER_ACTIVE
 	 * is set the receiver of the SACK MUST take the following actions:
 	 *
 	 * A) Initialize the cacc_saw_newack to 0 for all destination
 	 * addresses.
+	 *
+	 * Only bother if changeover_active is set. Otherwise, this is
+	 * totally suboptimal to do on every SACK.
 	 */
-	if (sack->num_gap_ack_blocks &&
-	    primary->cacc.changeover_active) {
-		list_for_each_entry(transport, transport_list, transports) {
-			transport->cacc.cacc_saw_newack = 0;
+	if (primary->cacc.changeover_active) {
+		u8 clear_cycling = 0;
+
+		if (TSN_lte(primary->cacc.next_tsn_at_change, sack_ctsn)) {
+			primary->cacc.changeover_active = 0;
+			clear_cycling = 1;
+		}
+
+		if (clear_cycling || gap_ack_blocks) {
+			list_for_each_entry(transport, transport_list,
+					transports) {
+				if (clear_cycling)
+					transport->cacc.cycling_changeover = 0;
+				if (gap_ack_blocks)
+					transport->cacc.cacc_saw_newack = 0;
+			}
 		}
 	}
 
 	/* Get the highest TSN in the sack. */
 	highest_tsn = sack_ctsn;
-	if (sack->num_gap_ack_blocks)
-		highest_tsn +=
-		    ntohs(frags[ntohs(sack->num_gap_ack_blocks) - 1].gab.end);
+	if (gap_ack_blocks)
+		highest_tsn += ntohs(frags[gap_ack_blocks - 1].gab.end);
 
 	if (TSN_lt(asoc->highest_sacked, highest_tsn)) {
 		highest_new_tsn = highest_tsn;
@@ -1181,11 +1185,11 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 		highest_new_tsn = sctp_highest_new_tsn(sack, asoc);
 	}
 
+
 	/* Run through the retransmit queue.  Credit bytes received
 	 * and free those chunks that we can.
 	 */
 	sctp_check_transmitted(q, &q->retransmit, NULL, sack, highest_new_tsn);
-	sctp_mark_missing(q, &q->retransmit, NULL, highest_new_tsn, 0);
 
 	/* Run through the transmitted queue.
 	 * Credit bytes received and free those chunks which we can.
@@ -1204,9 +1208,10 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 			count_of_newacks ++;
 	}
 
-	list_for_each_entry(transport, transport_list, transports) {
-		sctp_mark_missing(q, &transport->transmitted, transport,
-				  highest_new_tsn, count_of_newacks);
+	if (gap_ack_blocks) {
+		list_for_each_entry(transport, transport_list, transports)
+			sctp_mark_missing(q, &transport->transmitted, transport,
+					  highest_new_tsn, count_of_newacks);
 	}
 
 	/* Move the Cumulative TSN Ack Point if appropriate.  */
@@ -1651,7 +1656,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		 * chunk if it has NOT been fast retransmitted or marked for
 		 * fast retransmit already.
 		 */
-		if (!chunk->fast_retransmit &&
+		if (chunk->fast_retransmit == SCTP_CAN_FRTX &&
 		    !chunk->tsn_gap_acked &&
 		    TSN_lt(tsn, highest_new_tsn_in_sack)) {
 
@@ -1676,7 +1681,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		 */
 
 		if (chunk->tsn_missing_report >= 3) {
-			chunk->fast_retransmit = 1;
+			chunk->fast_retransmit = SCTP_NEED_FRTX;
 			do_fast_retransmit = 1;
 		}
 	}

@@ -117,7 +117,6 @@
 #define SF_PRST_WIDTH 1
 #define EE_PRST_LBN 8
 #define EE_PRST_WIDTH 1
-/* See pic_mode_t for decoding of this field */
 /* These bit definitions are extrapolated from the list of numerical
  * values for STRAP_PINS.
  */

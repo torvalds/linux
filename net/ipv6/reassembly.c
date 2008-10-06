@@ -99,8 +99,8 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
  * callers should be careful not to use the hash value outside the ipfrag_lock
  * as doing so could race with ipfrag_hash_rnd being recalculated.
  */
-static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
-			       struct in6_addr *daddr)
+unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
+			     const struct in6_addr *daddr, u32 rnd)
 {
 	u32 a, b, c;
 
@@ -110,7 +110,7 @@ static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 
 	a += JHASH_GOLDEN_RATIO;
 	b += JHASH_GOLDEN_RATIO;
-	c += ip6_frags.rnd;
+	c += rnd;
 	__jhash_mix(a, b, c);
 
 	a += (__force u32)saddr->s6_addr32[3];
@@ -125,13 +125,14 @@ static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 
 	return c & (INETFRAGS_HASHSZ - 1);
 }
+EXPORT_SYMBOL_GPL(inet6_hash_frag);
 
 static unsigned int ip6_hashfn(struct inet_frag_queue *q)
 {
 	struct frag_queue *fq;
 
 	fq = container_of(q, struct frag_queue, q);
-	return ip6qhashfn(fq->id, &fq->saddr, &fq->daddr);
+	return inet6_hash_frag(fq->id, &fq->saddr, &fq->daddr, ip6_frags.rnd);
 }
 
 int ip6_frag_match(struct inet_frag_queue *q, void *a)
@@ -247,7 +248,7 @@ fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst,
 	arg.dst = dst;
 
 	read_lock(&ip6_frags.lock);
-	hash = ip6qhashfn(id, src, dst);
+	hash = inet6_hash_frag(id, src, dst, ip6_frags.rnd);
 
 	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);
 	if (q == NULL)

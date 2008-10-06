@@ -148,6 +148,8 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
 
 #ifdef CONFIG_MIPS_MT_FPAFF
+	clear_tsk_thread_flag(p, TIF_FPUBOUND);
+
 	/*
 	 * FPU affinity support is cleaner if we track the
 	 * user-visible CPU affinity from the very beginning.

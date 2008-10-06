@@ -352,14 +352,14 @@ static int bcsp_flush(struct hci_uart *hu)
 /* Remove ack'ed packets */
 static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
 {
+	struct sk_buff *skb, *tmp;
 	unsigned long flags;
-	struct sk_buff *skb;
 	int i, pkts_to_be_removed;
 	u8 seqno;
 
 	spin_lock_irqsave(&bcsp->unack.lock, flags);
 
-	pkts_to_be_removed = bcsp->unack.qlen;
+	pkts_to_be_removed = skb_queue_len(&bcsp->unack);
 	seqno = bcsp->msgq_txseq;
 
 	while (pkts_to_be_removed) {
@@ -373,19 +373,19 @@ static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
 		BT_ERR("Peer acked invalid packet");
 
 	BT_DBG("Removing %u pkts out of %u, up to seqno %u",
-		pkts_to_be_removed, bcsp->unack.qlen, (seqno - 1) & 0x07);
+	       pkts_to_be_removed, skb_queue_len(&bcsp->unack),
+	       (seqno - 1) & 0x07);
 
-	for (i = 0, skb = ((struct sk_buff *) &bcsp->unack)->next; i < pkts_to_be_removed
-			&& skb != (struct sk_buff *) &bcsp->unack; i++) {
-		struct sk_buff *nskb;
+	i = 0;
+	skb_queue_walk_safe(&bcsp->unack, skb, tmp) {
+		if (i++ >= pkts_to_be_removed)
+			break;
 
-		nskb = skb->next;
 		__skb_unlink(skb, &bcsp->unack);
 		kfree_skb(skb);
-		skb = nskb;
 	}
 
-	if (bcsp->unack.qlen == 0)
+	if (skb_queue_empty(&bcsp->unack))
 		del_timer(&bcsp->tbcsp);
 
 	spin_unlock_irqrestore(&bcsp->unack.lock, flags);

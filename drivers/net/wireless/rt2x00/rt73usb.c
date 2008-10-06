@@ -393,7 +393,7 @@ static int rt73usb_config_shared_key(struct rt2x00_dev *rt2x00dev,
 		if (reg && reg == mask)
 			return -ENOSPC;
 
-		key->hw_key_idx += reg ? (ffz(reg) - 1) : 0;
+		key->hw_key_idx += reg ? ffz(reg) : 0;
 
 		/*
 		 * Upload key to hardware
@@ -494,7 +494,7 @@ static int rt73usb_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 				return -ENOSPC;
 		}
 
-		key->hw_key_idx += reg ? (ffz(reg) - 1) : 0;
+		key->hw_key_idx += reg ? ffz(reg) : 0;
 
 		/*
 		 * Upload key to hardware

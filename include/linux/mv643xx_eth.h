@@ -17,8 +17,13 @@
 
 struct mv643xx_eth_shared_platform_data {
 	struct mbus_dram_target_info	*dram;
+	struct platform_device	*shared_smi;
 	unsigned int		t_clk;
 };
+
+#define MV643XX_ETH_PHY_ADDR_DEFAULT	0
+#define MV643XX_ETH_PHY_ADDR(x)		(0x80 | (x))
+#define MV643XX_ETH_PHY_NONE		0xff
 
 struct mv643xx_eth_platform_data {
 	/*
@@ -30,8 +35,6 @@ struct mv643xx_eth_platform_data {
 	/*
 	 * Whether a PHY is present, and if yes, at which address.
 	 */
-	struct platform_device	*shared_smi;
-	int			force_phy_addr;
 	int			phy_addr;
 
 	/*
@@ -49,10 +52,10 @@ struct mv643xx_eth_platform_data {
 	int			duplex;
 
 	/*
-	 * Which RX/TX queues to use.
+	 * How many RX/TX queues to use.
 	 */
-	int			rx_queue_mask;
-	int			tx_queue_mask;
+	int			rx_queue_count;
+	int			tx_queue_count;
 
 	/*
 	 * Override default RX/TX queue sizes if nonzero.

@@ -471,6 +471,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 #endif
 			break;
 		case SSB_BUSTYPE_SSB:
+			dev->dma_mask = &dev->coherent_dma_mask;
 			break;
 		}
 

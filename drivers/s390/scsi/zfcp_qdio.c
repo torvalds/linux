@@ -423,9 +423,9 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
 	req_q = &adapter->req_q;
-	spin_lock(&req_q->lock);
+	spin_lock_bh(&req_q->lock);
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	spin_unlock(&req_q->lock);
+	spin_unlock_bh(&req_q->lock);
 
 	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
 

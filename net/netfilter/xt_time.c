@@ -136,17 +136,19 @@ static void localtime_3(struct xtm *r, time_t time)
 	 * from w repeatedly while counting.)
 	 */
 	if (is_leap(year)) {
+		/* use days_since_leapyear[] in a leap year */
 		for (i = ARRAY_SIZE(days_since_leapyear) - 1;
-		    i > 0 && days_since_year[i] > w; --i)
+		    i > 0 && days_since_leapyear[i] > w; --i)
 			/* just loop */;
+		r->monthday = w - days_since_leapyear[i] + 1;
 	} else {
 		for (i = ARRAY_SIZE(days_since_year) - 1;
 		    i > 0 && days_since_year[i] > w; --i)
 			/* just loop */;
+		r->monthday = w - days_since_year[i] + 1;
 	}
 
 	r->month    = i + 1;
-	r->monthday = w - days_since_year[i] + 1;
 	return;
 }
 

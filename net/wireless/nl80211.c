@@ -299,7 +299,7 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, dev->name);
-	/* TODO: interface type */
+	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, dev->ieee80211_ptr->iftype);
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
@@ -418,22 +418,23 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	int err, ifindex;
 	enum nl80211_iftype type;
 	struct net_device *dev;
-	u32 flags;
+	u32 _flags, *flags = NULL;
 
 	memset(&params, 0, sizeof(params));
-
-	if (info->attrs[NL80211_ATTR_IFTYPE]) {
-		type = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
-		if (type > NL80211_IFTYPE_MAX)
-			return -EINVAL;
-	} else
-		return -EINVAL;
 
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
 		return err;
 	ifindex = dev->ifindex;
+	type = dev->ieee80211_ptr->iftype;
 	dev_put(dev);
+
+	err = -EINVAL;
+	if (info->attrs[NL80211_ATTR_IFTYPE]) {
+		type = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
+		if (type > NL80211_IFTYPE_MAX)
+			goto unlock;
+	}
 
 	if (!drv->ops->change_virtual_intf ||
 	    !(drv->wiphy.interface_modes & (1 << type))) {
@@ -441,18 +442,32 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	if (type == NL80211_IFTYPE_MESH_POINT &&
-	    info->attrs[NL80211_ATTR_MESH_ID]) {
+	if (info->attrs[NL80211_ATTR_MESH_ID]) {
+		if (type != NL80211_IFTYPE_MESH_POINT) {
+			err = -EINVAL;
+			goto unlock;
+		}
 		params.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
 		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
 	}
 
+	if (info->attrs[NL80211_ATTR_MNTR_FLAGS]) {
+		if (type != NL80211_IFTYPE_MONITOR) {
+			err = -EINVAL;
+			goto unlock;
+		}
+		err = parse_monitor_flags(info->attrs[NL80211_ATTR_MNTR_FLAGS],
+					  &_flags);
+		if (!err)
+			flags = &_flags;
+	}
 	rtnl_lock();
-	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
-				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
-				  &flags);
 	err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
-					    type, err ? NULL : &flags, &params);
+					    type, flags, &params);
+
+	dev = __dev_get_by_index(&init_net, ifindex);
+	WARN_ON(!dev || (!err && dev->ieee80211_ptr->iftype != type));
+
 	rtnl_unlock();
 
  unlock:
