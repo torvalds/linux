@@ -1363,6 +1363,9 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	if (itv->osd_global_alpha_state)
 		fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
 
+	if (yi->track_osd)
+		fb->flags |= V4L2_FBUF_FLAG_OVERLAY;
+
 	pixfmt &= 7;
 
 	/* no local alpha for RGB565 or unknown formats */
@@ -1382,8 +1385,6 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 		else
 			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
 	}
-	if (yi->track_osd)
-		fb->flags |= V4L2_FBUF_FLAG_OVERLAY;
 
 	return 0;
 }
