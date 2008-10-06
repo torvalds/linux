@@ -367,7 +367,7 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 }
 
 static ssize_t ivtvfb_write(struct fb_info *info, const char __user *buf,
-		     size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
 	void *dst;
