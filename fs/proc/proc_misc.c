@@ -195,9 +195,6 @@ void __init proc_misc_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	/* And now for trickier ones */
-#ifdef CONFIG_SCHEDSTATS
-	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
-#endif
 #ifdef CONFIG_PROC_KCORE
 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL, &proc_kcore_operations);
 	if (proc_root_kcore)
