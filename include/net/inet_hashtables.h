@@ -378,11 +378,15 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 					     const __be16 sport,
 					     const __be16 dport)
 {
+	struct sock *sk;
 	const struct iphdr *iph = ip_hdr(skb);
 
-	return __inet_lookup(dev_net(skb->dst->dev), hashinfo,
-			     iph->saddr, sport,
-			     iph->daddr, dport, inet_iif(skb));
+	if (unlikely(sk = skb_steal_sock(skb)))
+		return sk;
+	else
+		return __inet_lookup(dev_net(skb->dst->dev), hashinfo,
+				     iph->saddr, sport,
+				     iph->daddr, dport, inet_iif(skb));
 }
 
 extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,

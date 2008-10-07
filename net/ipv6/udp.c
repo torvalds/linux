@@ -111,11 +111,15 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 					  __be16 sport, __be16 dport,
 					  struct hlist_head udptable[])
 {
+	struct sock *sk;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 
-	return __udp6_lib_lookup(dev_net(skb->dst->dev), &iph->saddr, sport,
-				 &iph->daddr, dport, inet6_iif(skb),
-				 udptable);
+	if (unlikely(sk = skb_steal_sock(skb)))
+		return sk;
+	else
+		return __udp6_lib_lookup(dev_net(skb->dst->dev), &iph->saddr, sport,
+					 &iph->daddr, dport, inet6_iif(skb),
+					 udptable);
 }
 
 /*
