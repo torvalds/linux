@@ -251,7 +251,7 @@ DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8641D, quirk_fsl_pcie_header);
 DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8610, quirk_fsl_pcie_header);
 #endif /* CONFIG_PPC_85xx || CONFIG_PPC_86xx */
 
-#if defined(CONFIG_PPC_83xx)
+#if defined(CONFIG_PPC_83xx) || defined(CONFIG_PPC_MPC512x)
 int __init mpc83xx_add_bridge(struct device_node *dev)
 {
 	int len;
@@ -310,7 +310,7 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 
 	setup_indirect_pci(hose, rsrc_cfg.start, rsrc_cfg.start + 4, 0);
 
-	printk(KERN_INFO "Found MPC83xx PCI host bridge at 0x%016llx. "
+	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",
 	       (unsigned long long)rsrc_reg.start, hose->first_busno,
 	       hose->last_busno);
