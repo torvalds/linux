@@ -755,6 +755,7 @@ spufs_create_root(struct super_block *sb, void *data)
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	SPUFS_I(inode)->i_ctx = NULL;
+	inc_nlink(inode);
 
 	ret = -EINVAL;
 	if (!spufs_parse_options(sb, data, inode))
