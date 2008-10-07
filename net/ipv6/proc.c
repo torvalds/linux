@@ -175,31 +175,46 @@ snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
 
 static int snmp6_seq_show(struct seq_file *seq, void *v)
 {
-	struct inet6_dev *idev = (struct inet6_dev *)seq->private;
-
-	if (idev) {
-		seq_printf(seq, "%-32s\t%u\n", "ifIndex", idev->dev->ifindex);
-		snmp6_seq_show_item(seq, (void **)idev->stats.ipv6, snmp6_ipstats_list);
-		snmp6_seq_show_item(seq, (void **)idev->stats.icmpv6, snmp6_icmp6_list);
-		snmp6_seq_show_icmpv6msg(seq, (void **)idev->stats.icmpv6msg);
-	} else {
-		snmp6_seq_show_item(seq, (void **)ipv6_statistics, snmp6_ipstats_list);
-		snmp6_seq_show_item(seq, (void **)icmpv6_statistics, snmp6_icmp6_list);
-		snmp6_seq_show_icmpv6msg(seq, (void **)icmpv6msg_statistics);
-		snmp6_seq_show_item(seq, (void **)udp_stats_in6, snmp6_udp6_list);
-		snmp6_seq_show_item(seq, (void **)udplite_stats_in6, snmp6_udplite6_list);
-	}
+	snmp6_seq_show_item(seq, (void **)ipv6_statistics, snmp6_ipstats_list);
+	snmp6_seq_show_item(seq, (void **)icmpv6_statistics, snmp6_icmp6_list);
+	snmp6_seq_show_icmpv6msg(seq, (void **)icmpv6msg_statistics);
+	snmp6_seq_show_item(seq, (void **)udp_stats_in6, snmp6_udp6_list);
+	snmp6_seq_show_item(seq, (void **)udplite_stats_in6, snmp6_udplite6_list);
 	return 0;
 }
 
 static int snmp6_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, snmp6_seq_show, PDE(inode)->data);
+	return single_open(file, snmp6_seq_show, NULL);
 }
 
 static const struct file_operations snmp6_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = snmp6_seq_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = single_release,
+};
+
+static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
+{
+	struct inet6_dev *idev = (struct inet6_dev *)seq->private;
+
+	seq_printf(seq, "%-32s\t%u\n", "ifIndex", idev->dev->ifindex);
+	snmp6_seq_show_item(seq, (void **)idev->stats.ipv6, snmp6_ipstats_list);
+	snmp6_seq_show_item(seq, (void **)idev->stats.icmpv6, snmp6_icmp6_list);
+	snmp6_seq_show_icmpv6msg(seq, (void **)idev->stats.icmpv6msg);
+	return 0;
+}
+
+static int snmp6_dev_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, snmp6_dev_seq_show, PDE(inode)->data);
+}
+
+static const struct file_operations snmp6_dev_seq_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = snmp6_dev_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
 	.release = single_release,
@@ -221,7 +236,8 @@ int snmp6_register_dev(struct inet6_dev *idev)
 		return -ENOENT;
 
 	p = proc_create_data(idev->dev->name, S_IRUGO,
-			     net->mib.proc_net_devsnmp6, &snmp6_seq_fops, idev);
+			     net->mib.proc_net_devsnmp6,
+			     &snmp6_dev_seq_fops, idev);
 	if (!p)
 		return -ENOMEM;
 
