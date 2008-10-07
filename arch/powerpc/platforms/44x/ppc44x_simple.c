@@ -50,8 +50,9 @@ machine_device_initcall(ppc44x_simple, ppc44x_device_probe);
  * board.c file for it rather than adding it to this list.
  */
 static char *board[] __initdata = {
+	"amcc,arches",
 	"amcc,bamboo",
-	"amcc,cayonlands",
+	"amcc,canyonlands",
 	"amcc,glacier",
 	"ibm,ebony",
 	"amcc,katmai",
