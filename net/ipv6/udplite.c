@@ -13,8 +13,6 @@
  */
 #include "udp_impl.h"
 
-DEFINE_SNMP_STAT(struct udp_mib, udplite_stats_in6) __read_mostly;
-
 static int udplitev6_rcv(struct sk_buff *skb)
 {
 	return __udp6_lib_rcv(skb, udplite_hash, IPPROTO_UDPLITE);
