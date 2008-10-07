@@ -1348,10 +1348,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		struct ieee80211_ht_bss_info bss_info;
 		ieee80211_ht_cap_ie_to_ht_info(
-				(struct ieee80211_ht_cap *)
 				elems.ht_cap_elem, &sta->sta.ht_info);
 		ieee80211_ht_addt_info_ie_to_ht_bss_info(
-				(struct ieee80211_ht_addt_info *)
 				elems.ht_info_elem, &bss_info);
 		ieee80211_handle_ht(local, 1, &sta->sta.ht_info, &bss_info);
 	}
@@ -1709,7 +1707,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_ht_bss_info bss_info;
 
 		ieee80211_ht_addt_info_ie_to_ht_bss_info(
-				(struct ieee80211_ht_addt_info *)
 				elems.ht_info_elem, &bss_info);
 		changed |= ieee80211_handle_ht(local, 1, &conf->ht_conf,
 					       &bss_info);
