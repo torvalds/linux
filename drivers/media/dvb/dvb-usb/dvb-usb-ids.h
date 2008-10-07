@@ -232,5 +232,6 @@
 #define USB_PID_DW2102					0x2102
 #define USB_PID_XTENSIONS_XD_380			0x0381
 #define USB_PID_TELESTAR_STARSTICK_2			0x8000
+#define USB_PID_MSI_DIGI_VOX_MINI_III                   0x8807
 
 #endif

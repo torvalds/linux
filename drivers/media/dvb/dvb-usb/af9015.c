@@ -1196,6 +1196,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_X_2)},
 	{USB_DEVICE(USB_VID_TELESTAR,  USB_PID_TELESTAR_STARSTICK_2)},
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A309)},
+/* 15 */{USB_DEVICE(USB_VID_MSI_2,     USB_PID_MSI_DIGI_VOX_MINI_III)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1346,7 +1347,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 5,
+		.num_device_descs = 6,
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1371,6 +1372,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "AVerMedia A309",
 				.cold_ids = {&af9015_usb_table[14], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "MSI Digi VOX mini III",
+				.cold_ids = {&af9015_usb_table[15], NULL},
 				.warm_ids = {NULL},
 			},
 		}
