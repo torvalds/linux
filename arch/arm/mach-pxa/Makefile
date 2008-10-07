@@ -53,7 +53,7 @@ obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
 obj-$(CONFIG_MACH_SAAR)		+= saar.o
 
-obj-$(CONFIG_MACH_ARMCORE)      += cm-x270.o
+obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o
 obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
 
@@ -67,7 +67,7 @@ led-$(CONFIG_MACH_TRIZEPS4)	+= leds-trizeps4.o
 obj-$(CONFIG_LEDS)		+= $(led-y)
 
 ifeq ($(CONFIG_PCI),y)
-obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
+obj-$(CONFIG_MACH_ARMCORE) += cm-x2xx-pci.o
 endif
 
 obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o

@@ -35,7 +35,7 @@
 #include <asm/hardware/it8152.h>
 
 #include "generic.h"
-#include "cm-x270-pci.h"
+#include "cm-x2xx-pci.h"
 
 /* virtual addresses for statically mapped regions */
 #define CMX270_VIRT_BASE	(0xe8000000)
