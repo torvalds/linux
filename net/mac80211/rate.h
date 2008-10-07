@@ -125,4 +125,18 @@ static inline void rc80211_pid_exit(void)
 }
 #endif
 
+#ifdef CONFIG_MAC80211_RC_MINSTREL
+extern int rc80211_minstrel_init(void);
+extern void rc80211_minstrel_exit(void);
+#else
+static inline int rc80211_minstrel_init(void)
+{
+	return 0;
+}
+static inline void rc80211_minstrel_exit(void)
+{
+}
+#endif
+
+
 #endif /* IEEE80211_RATE_H */

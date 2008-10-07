@@ -892,7 +892,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		hdr = (struct ieee80211_hdr *)skb->data;
 		fc = hdr->frame_control;
-		memzero(&rx_status, sizeof(struct ath_recv_status));
+		memset(&rx_status, 0, sizeof(struct ath_recv_status));
 
 		if (ds->ds_rxstat.rs_more) {
 			/*
@@ -999,20 +999,11 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 				rx_status.flags |= ATH_RX_SHORT_GI;
 		}
 
-		/* sc->sc_noise_floor is only available when the station
+		/* sc_noise_floor is only available when the station
 		   attaches to an AP, so we use a default value
 		   if we are not yet attached. */
-
-		/* XXX we should use either sc->sc_noise_floor or
-		 * ath_hal_getChanNoise(ah, &sc->sc_curchan)
-		 * to calculate the noise floor.
-		 * However, the value returned by ath_hal_getChanNoise
-		 * seems to be incorrect (-31dBm on the last test),
-		 * so we will use a hard-coded value until we
-		 * figure out what is going on.
-		 */
 		rx_status.abs_rssi =
-			ds->ds_rxstat.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
+			ds->ds_rxstat.rs_rssi + sc->sc_ani.sc_noise_floor;
 
 		pci_dma_sync_single_for_cpu(sc->pdev,
 					    bf->bf_buf_addr,
@@ -1166,7 +1157,7 @@ int ath_rx_aggr_start(struct ath_softc *sc,
 		} else {
 			/* Ensure the memory is zeroed out (all internal
 			 * pointers are null) */
-			memzero(rxtid->rxbuf, ATH_TID_MAX_BUFS *
+			memset(rxtid->rxbuf, 0, ATH_TID_MAX_BUFS *
 				sizeof(struct ath_rxbuf));
 			DPRINTF(sc, ATH_DBG_AGGR,
 				"%s: Allocated @%p\n", __func__, rxtid->rxbuf);

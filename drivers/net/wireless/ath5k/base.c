@@ -541,6 +541,12 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		goto err_irq;
 	}
 
+	/* set up multi-rate retry capabilities */
+	if (sc->ah->ah_version == AR5K_AR5212) {
+		hw->max_altrates = 3;
+		hw->max_altrate_tries = 11;
+	}
+
 	/* Finish private driver data initialization */
 	ret = ath5k_attach(pdev, hw);
 	if (ret)
@@ -1173,7 +1179,9 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	struct sk_buff *skb = bf->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	unsigned int pktlen, flags, keyidx = AR5K_TXKEYIX_INVALID;
-	int ret;
+	struct ieee80211_rate *rate;
+	unsigned int mrr_rate[3], mrr_tries[3];
+	int i, ret;
 
 	flags = AR5K_TXDESC_INTREQ | AR5K_TXDESC_CLRDMASK;
 
@@ -1188,7 +1196,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 
 	if (info->control.hw_key) {
 		keyidx = info->control.hw_key->hw_key_idx;
-		pktlen += info->control.icv_len;
+		pktlen += info->control.hw_key->icv_len;
 	}
 	ret = ah->ah_setup_tx_desc(ah, ds, pktlen,
 		ieee80211_get_hdrlen_from_skb(skb), AR5K_PKT_TYPE_NORMAL,
@@ -1197,6 +1205,22 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 		info->control.retry_limit, keyidx, 0, flags, 0, 0);
 	if (ret)
 		goto err_unmap;
+
+	memset(mrr_rate, 0, sizeof(mrr_rate));
+	memset(mrr_tries, 0, sizeof(mrr_tries));
+	for (i = 0; i < 3; i++) {
+		rate = ieee80211_get_alt_retry_rate(sc->hw, info, i);
+		if (!rate)
+			break;
+
+		mrr_rate[i] = rate->hw_value;
+		mrr_tries[i] = info->control.retries[i].limit;
+	}
+
+	ah->ah_setup_mrr_tx_desc(ah, ds,
+		mrr_rate[0], mrr_tries[0],
+		mrr_rate[1], mrr_tries[1],
+		mrr_rate[2], mrr_tries[2]);
 
 	ds->ds_link = 0;
 	ds->ds_data = bf->skbaddr;
@@ -1814,7 +1838,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	struct ath5k_desc *ds;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
-	int ret;
+	int i, ret;
 
 	spin_lock(&txq->lock);
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
@@ -1836,7 +1860,25 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		pci_unmap_single(sc->pdev, bf->skbaddr, skb->len,
 				PCI_DMA_TODEVICE);
 
-		info->status.retry_count = ts.ts_shortretry + ts.ts_longretry / 6;
+		memset(&info->status, 0, sizeof(info->status));
+		info->tx_rate_idx = ath5k_hw_to_driver_rix(sc,
+				ts.ts_rate[ts.ts_final_idx]);
+		info->status.retry_count = ts.ts_longretry;
+
+		for (i = 0; i < 4; i++) {
+			struct ieee80211_tx_altrate *r =
+				&info->status.retries[i];
+
+			if (ts.ts_rate[i]) {
+				r->rate_idx = ath5k_hw_to_driver_rix(sc, ts.ts_rate[i]);
+				r->limit = ts.ts_retry[i];
+			} else {
+				r->rate_idx = -1;
+				r->limit = 0;
+			}
+		}
+
+		info->status.excessive_retries = 0;
 		if (unlikely(ts.ts_status)) {
 			sc->ll_stats.dot11ACKFailureCount++;
 			if (ts.ts_status & AR5K_TXERR_XRETRY)

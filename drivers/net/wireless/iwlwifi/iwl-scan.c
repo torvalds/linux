@@ -703,7 +703,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	u16 cmd_len;
 	enum ieee80211_band band;
 	u8 n_probes = 2;
-	u8 rx_chain = 0x7; /* bitmap: ABC chains */
+	u8 rx_chain = priv->hw_params.valid_rx_ant;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -843,7 +843,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
-		 * MIMO is not used here, but value is required */
+		 */
 		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
 			rx_chain = 0x6;
 	} else {
@@ -851,6 +851,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
+	/* MIMO is not used here, but value is required */
 	scan->rx_chain = RXON_RX_CHAIN_DRIVER_FORCE_MSK |
 				cpu_to_le16((0x7 << RXON_RX_CHAIN_VALID_POS) |
 				(rx_chain << RXON_RX_CHAIN_FORCE_SEL_POS) |
@@ -915,10 +916,29 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
+static void iwl_bg_scan_completed(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+	    container_of(work, struct iwl_priv, scan_completed);
+
+	IWL_DEBUG_SCAN("SCAN complete scan\n");
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	ieee80211_scan_completed(priv->hw);
+
+	/* Since setting the TXPOWER may have been deferred while
+	 * performing the scan, fire one off */
+	mutex_lock(&priv->mutex);
+	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	mutex_unlock(&priv->mutex);
+}
+
+
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 {
-	/*  FIXME: move here when resolved PENDING
-	 *  INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed); */
+	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	INIT_WORK(&priv->request_scan, iwl_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);

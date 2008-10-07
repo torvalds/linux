@@ -454,15 +454,16 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		if (unlikely(rsel.probe_idx >= 0)) {
 			info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 			tx->flags |= IEEE80211_TX_PROBE_LAST_FRAG;
-			info->control.alt_retry_rate_idx = tx->rate_idx;
+			info->control.retries[0].rate_idx = tx->rate_idx;
+			info->control.retries[0].limit = tx->local->hw.max_altrate_tries;
 			tx->rate_idx = rsel.probe_idx;
-		} else
-			info->control.alt_retry_rate_idx = -1;
+		} else if (info->control.retries[0].limit == 0)
+			info->control.retries[0].rate_idx = -1;
 
 		if (unlikely(tx->rate_idx < 0))
 			return TX_DROP;
 	} else
-		info->control.alt_retry_rate_idx = -1;
+		info->control.retries[0].rate_idx = -1;
 
 	if (tx->sdata->bss_conf.use_cts_prot &&
 	    (tx->flags & IEEE80211_TX_FRAGMENTED) && (rsel.nonerp_idx >= 0)) {
@@ -521,7 +522,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 		 * frames.
 		 * TODO: The last fragment could still use multiple retry
 		 * rates. */
-		info->control.alt_retry_rate_idx = -1;
+		info->control.retries[0].rate_idx = -1;
 	}
 
 	/* Use CTS protection for unicast frames sent using extended rates if
@@ -551,7 +552,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 		int idx;
 
 		/* Do not use multiple retry rates when using RTS/CTS */
-		info->control.alt_retry_rate_idx = -1;
+		info->control.retries[0].rate_idx = -1;
 
 		/* Use min(data rate, max base rate) as CTS/RTS rate */
 		rate = &sband->bitrates[tx->rate_idx];
@@ -1255,8 +1256,7 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 	return 0;
 }
 
-int ieee80211_master_start_xmit(struct sk_buff *skb,
-				struct net_device *dev)
+int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
 	struct ieee80211_local *local = mpriv->local;
@@ -1296,20 +1296,16 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 
 	if (ieee80211_vif_is_mesh(&osdata->vif) &&
 	    ieee80211_is_data(hdr->frame_control)) {
-		if (ieee80211_is_data(hdr->frame_control)) {
-			if (is_multicast_ether_addr(hdr->addr3))
-				memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
-			else
-				if (mesh_nexthop_lookup(skb, osdata))
-					return  0;
-			if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
-				IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.mesh,
-							     fwded_frames);
-		}
+		if (is_multicast_ether_addr(hdr->addr3))
+			memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
+		else
+			if (mesh_nexthop_lookup(skb, osdata))
+				return  0;
+		if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
+			IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.mesh,
+							    fwded_frames);
 	} else if (unlikely(osdata->vif.type == NL80211_IFTYPE_MONITOR)) {
 		struct ieee80211_sub_if_data *sdata;
-		struct ieee80211_local *local = osdata->local;
-		struct ieee80211_hdr *hdr;
 		int hdrlen;
 		u16 len_rthdr;
 

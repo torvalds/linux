@@ -84,9 +84,6 @@ struct ath_node;
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
-/* XXX: remove */
-#define memzero(_buf, _len) memset(_buf, 0, _len)
-
 #define ATH9K_BH_STATUS_INTACT		0
 #define ATH9K_BH_STATUS_CHANGE		1
 
@@ -184,7 +181,7 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht);
 		(_bf)->bf_lastbf = NULL;			\
 		(_bf)->bf_lastfrm = NULL;			\
 		(_bf)->bf_next = NULL;				\
-		memzero(&((_bf)->bf_state),			\
+		memset(&((_bf)->bf_state), 0,			\
 			    sizeof(struct ath_buf_state));	\
 	} while (0)
 
@@ -312,7 +309,7 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 #define ATH_RX_TIMEOUT           40      /* 40 milliseconds */
 #define WME_NUM_TID              16
 #define IEEE80211_BAR_CTL_TID_M  0xF000  /* tid mask */
-#define IEEE80211_BAR_CTL_TID_S  2       /* tid shift */
+#define IEEE80211_BAR_CTL_TID_S  12      /* tid shift */
 
 enum ATH_RX_TYPE {
 	ATH_RX_NON_CONSUMED = 0,
@@ -803,6 +800,28 @@ void ath_slow_ant_div(struct ath_antdiv *antdiv,
 		      struct ath_rx_status *rx_stats);
 void ath_setdefantenna(void *sc, u32 antenna);
 
+/*******/
+/* ANI */
+/*******/
+
+/* ANI values for STA only.
+   FIXME: Add appropriate values for AP later */
+
+#define ATH_ANI_POLLINTERVAL    100     /* 100 milliseconds between ANI poll */
+#define ATH_SHORT_CALINTERVAL   1000    /* 1 second between calibrations */
+#define ATH_LONG_CALINTERVAL    30000   /* 30 seconds between calibrations */
+#define ATH_RESTART_CALINTERVAL 1200000 /* 20 minutes between calibrations */
+
+struct ath_ani {
+	bool sc_caldone;
+	int16_t sc_noise_floor;
+	unsigned int sc_longcal_timer;
+	unsigned int sc_shortcal_timer;
+	unsigned int sc_resetcal_timer;
+	unsigned int sc_checkani_timer;
+	struct timer_list timer;
+};
+
 /********************/
 /*   LED Control    */
 /********************/
@@ -1031,6 +1050,9 @@ struct ath_softc {
 
 	/* Rfkill */
 	struct ath_rfkill rf_kill;
+
+	/* ANI */
+	struct ath_ani sc_ani;
 };
 
 int ath_init(u16 devid, struct ath_softc *sc);

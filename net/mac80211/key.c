@@ -281,6 +281,20 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	key->conf.alg = alg;
 	key->conf.keyidx = idx;
 	key->conf.keylen = key_len;
+	switch (alg) {
+	case ALG_WEP:
+		key->conf.iv_len = WEP_IV_LEN;
+		key->conf.icv_len = WEP_ICV_LEN;
+		break;
+	case ALG_TKIP:
+		key->conf.iv_len = TKIP_IV_LEN;
+		key->conf.icv_len = TKIP_ICV_LEN;
+		break;
+	case ALG_CCMP:
+		key->conf.iv_len = CCMP_HDR_LEN;
+		key->conf.icv_len = CCMP_MIC_LEN;
+		break;
+	}
 	memcpy(key->conf.key, key_data, key_len);
 	INIT_LIST_HEAD(&key->list);
 	INIT_LIST_HEAD(&key->todo);

@@ -507,9 +507,10 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.noise = priv->noise;
 	/* XX correct? */
 	rx_status.qual = (100 * hdr->rssi) / 127;
-	rx_status.rate_idx = hdr->rate & 0xf;
+	rx_status.rate_idx = (dev->conf.channel->band == IEEE80211_BAND_2GHZ ?
+			hdr->rate : (hdr->rate - 4)) & 0xf;
 	rx_status.freq = freq;
-	rx_status.band = IEEE80211_BAND_2GHZ;
+	rx_status.band =  dev->conf.channel->band;
 	rx_status.antenna = hdr->antenna;
 
 	tsf32 = le32_to_cpu(hdr->tsf32);

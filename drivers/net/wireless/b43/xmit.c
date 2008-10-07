@@ -208,7 +208,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
 	rate = txrate ? txrate->hw_value : B43_CCK_RATE_1MB;
 	rate_ofdm = b43_is_ofdm_rate(rate);
-	fbrate = ieee80211_get_alt_retry_rate(dev->wl->hw, info) ? : txrate;
+	fbrate = ieee80211_get_alt_retry_rate(dev->wl->hw, info, 0) ? : txrate;
 	rate_fb = fbrate->hw_value;
 	rate_fb_ofdm = b43_is_ofdm_rate(rate_fb);
 
@@ -252,7 +252,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		}
 
 		/* Hardware appends ICV. */
-		plcp_fragment_len += info->control.icv_len;
+		plcp_fragment_len += info->control.hw_key->icv_len;
 
 		key_idx = b43_kidx_to_fw(dev, key_idx);
 		mac_ctl |= (key_idx << B43_TXH_MAC_KEYIDX_SHIFT) &
@@ -260,7 +260,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		mac_ctl |= (key->algorithm << B43_TXH_MAC_KEYALG_SHIFT) &
 			   B43_TXH_MAC_KEYALG;
 		wlhdr_len = ieee80211_hdrlen(fctl);
-		iv_len = min((size_t) info->control.iv_len,
+		iv_len = min((size_t) info->control.hw_key->iv_len,
 			     ARRAY_SIZE(txhdr->iv));
 		memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 	}

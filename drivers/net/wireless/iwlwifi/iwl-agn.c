@@ -2569,30 +2569,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 }
 
-static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
-
-static void iwl_bg_scan_completed(struct work_struct *work)
-{
-	struct iwl_priv *priv =
-	    container_of(work, struct iwl_priv, scan_completed);
-
-	IWL_DEBUG_SCAN("SCAN complete scan\n");
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (test_bit(STATUS_CONF_PENDING, &priv->status))
-		iwl4965_mac_config(priv->hw, ieee80211_get_hw_conf(priv->hw));
-
-	ieee80211_scan_completed(priv->hw);
-
-	/* Since setting the TXPOWER may have been deferred while
-	 * performing the scan, fire one off */
-	mutex_lock(&priv->mutex);
-	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
-	mutex_unlock(&priv->mutex);
-}
-
 /*****************************************************************************
  *
  * mac80211 entry point functions
@@ -2812,7 +2788,6 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	if (unlikely(!priv->cfg->mod_params->disable_hw_scan &&
 		     test_bit(STATUS_SCANNING, &priv->status))) {
 		IWL_DEBUG_MAC80211("leave - scanning\n");
-		set_bit(STATUS_CONF_PENDING, &priv->status);
 		mutex_unlock(&priv->mutex);
 		return 0;
 	}
@@ -2898,7 +2873,6 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	IWL_DEBUG_MAC80211("leave\n");
 
 out:
-	clear_bit(STATUS_CONF_PENDING, &priv->status);
 	mutex_unlock(&priv->mutex);
 	return ret;
 }
@@ -4117,8 +4091,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
-	/* FIXME : remove when resolved PENDING */
-	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	iwl_setup_scan_deferred_work(priv);
 	iwl_setup_power_deferred_work(priv);
 

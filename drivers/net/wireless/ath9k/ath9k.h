@@ -854,7 +854,7 @@ bool ath9k_hw_calibrate(struct ath_hal *ah,
 			u8 rxchainmask,
 			bool longcal,
 			bool *isCalDone);
-int16_t ath9k_hw_getchan_noise(struct ath_hal *ah,
+s16 ath9k_hw_getchan_noise(struct ath_hal *ah,
 			       struct ath9k_channel *chan);
 void ath9k_hw_write_associd(struct ath_hal *ah, const u8 *bssid,
 			    u16 assocId);
