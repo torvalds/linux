@@ -47,12 +47,6 @@ drm_clflush_page(struct page *page)
 }
 #endif
 
-static void
-drm_clflush_ipi_handler(void *null)
-{
-	wbinvd();
-}
-
 void
 drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 {
@@ -68,9 +62,8 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 
 		return;
 	}
-#endif
 
-	if (on_each_cpu(drm_clflush_ipi_handler, NULL, 1) != 0)
-		DRM_ERROR("Timed out waiting for cache flush.\n");
+	wbinvd();
+#endif
 }
 EXPORT_SYMBOL(drm_clflush_pages);
