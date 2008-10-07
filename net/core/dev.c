@@ -3812,14 +3812,11 @@ static int dev_new_index(struct net *net)
 }
 
 /* Delayed registration/unregisteration */
-static DEFINE_SPINLOCK(net_todo_list_lock);
 static LIST_HEAD(net_todo_list);
 
 static void net_set_todo(struct net_device *dev)
 {
-	spin_lock(&net_todo_list_lock);
 	list_add_tail(&dev->todo_list, &net_todo_list);
-	spin_unlock(&net_todo_list_lock);
 }
 
 static void rollback_registered(struct net_device *dev)
@@ -4146,33 +4143,24 @@ static void netdev_wait_allrefs(struct net_device *dev)
  *	free_netdev(y1);
  *	free_netdev(y2);
  *
- * We are invoked by rtnl_unlock() after it drops the semaphore.
+ * We are invoked by rtnl_unlock().
  * This allows us to deal with problems:
  * 1) We can delete sysfs objects which invoke hotplug
  *    without deadlocking with linkwatch via keventd.
  * 2) Since we run with the RTNL semaphore not held, we can sleep
  *    safely in order to wait for the netdev refcnt to drop to zero.
+ *
+ * We must not return until all unregister events added during
+ * the interval the lock was held have been completed.
  */
-static DEFINE_MUTEX(net_todo_run_mutex);
 void netdev_run_todo(void)
 {
 	struct list_head list;
 
-	/* Need to guard against multiple cpu's getting out of order. */
-	mutex_lock(&net_todo_run_mutex);
-
-	/* Not safe to do outside the semaphore.  We must not return
-	 * until all unregister events invoked by the local processor
-	 * have been completed (either by this todo run, or one on
-	 * another cpu).
-	 */
-	if (list_empty(&net_todo_list))
-		goto out;
-
 	/* Snapshot list, allow later requests */
-	spin_lock(&net_todo_list_lock);
 	list_replace_init(&net_todo_list, &list);
-	spin_unlock(&net_todo_list_lock);
+
+	__rtnl_unlock();
 
 	while (!list_empty(&list)) {
 		struct net_device *dev
@@ -4204,9 +4192,6 @@ void netdev_run_todo(void)
 		/* Free network device */
 		kobject_put(&dev->dev.kobj);
 	}
-
-out:
-	mutex_unlock(&net_todo_run_mutex);
 }
 
 static struct net_device_stats *internal_stats(struct net_device *dev)
