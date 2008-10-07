@@ -3144,8 +3144,9 @@ static void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
 
 static void flyvideo_gpio(struct bttv *btv)
 {
-	int gpio,has_remote,has_radio,is_capture_only,is_lr90,has_tda9820_tda9821;
-	int tuner=UNSET,ttype;
+	int gpio, has_remote, has_radio, is_capture_only;
+	int is_lr90, has_tda9820_tda9821;
+	int tuner_type = UNSET, ttype;
 
 	gpio_inout(0xffffff, 0);
 	udelay(8);  /* without this we would see the 0x1800 mask */
@@ -3163,20 +3164,26 @@ static void flyvideo_gpio(struct bttv *btv)
 	 * xxxF00(LR26/LR50), xxxFE0(LR90): Remote control chip (LVA001 or CF45) soldered
 	 * Note: Some bits are Audio_Mask !
 	 */
-	ttype=(gpio&0x0f0000)>>16;
-	switch(ttype) {
-	case 0x0: tuner=2; /* NTSC, e.g. TPI8NSR11P */
+	ttype = (gpio & 0x0f0000) >> 16;
+	switch (ttype) {
+	case 0x0:
+		tuner_type = 2;  /* NTSC, e.g. TPI8NSR11P */
 		break;
-	case 0x2: tuner=39;/* LG NTSC (newer TAPC series) TAPC-H701P */
+	case 0x2:
+		tuner_type = 39; /* LG NTSC (newer TAPC series) TAPC-H701P */
 		break;
-	case 0x4: tuner=5; /* Philips PAL TPI8PSB02P, TPI8PSB12P, TPI8PSB12D or FI1216, FM1216 */
+	case 0x4:
+		tuner_type = 5;  /* Philips PAL TPI8PSB02P, TPI8PSB12P, TPI8PSB12D or FI1216, FM1216 */
 		break;
-	case 0x6: tuner=37;/* LG PAL (newer TAPC series) TAPC-G702P */
+	case 0x6:
+		tuner_type = 37; /* LG PAL (newer TAPC series) TAPC-G702P */
 		break;
-		case 0xC: tuner=3; /* Philips SECAM(+PAL) FQ1216ME or FI1216MF */
+	case 0xC:
+		tuner_type = 3;  /* Philips SECAM(+PAL) FQ1216ME or FI1216MF */
 		break;
 	default:
 		printk(KERN_INFO "bttv%d: FlyVideo_gpio: unknown tuner type.\n", btv->c.nr);
+		break;
 	}
 
 	has_remote          =   gpio & 0x800000;
@@ -3189,23 +3196,26 @@ static void flyvideo_gpio(struct bttv *btv)
 	/*
 	 * gpio & 0x001000    output bit for audio routing */
 
-	if(is_capture_only)
-		tuner = TUNER_ABSENT; /* No tuner present */
+	if (is_capture_only)
+		tuner_type = TUNER_ABSENT; /* No tuner present */
 
 	printk(KERN_INFO "bttv%d: FlyVideo Radio=%s RemoteControl=%s Tuner=%d gpio=0x%06x\n",
-	       btv->c.nr, has_radio? "yes":"no ", has_remote? "yes":"no ", tuner, gpio);
+		btv->c.nr, has_radio ? "yes" : "no ",
+		has_remote ? "yes" : "no ", tuner_type, gpio);
 	printk(KERN_INFO "bttv%d: FlyVideo  LR90=%s tda9821/tda9820=%s capture_only=%s\n",
-		btv->c.nr, is_lr90?"yes":"no ", has_tda9820_tda9821?"yes":"no ",
-		is_capture_only?"yes":"no ");
+		btv->c.nr, is_lr90 ? "yes" : "no ",
+		has_tda9820_tda9821 ? "yes" : "no ",
+		is_capture_only ? "yes" : "no ");
 
-	if (tuner != UNSET) /* only set if known tuner autodetected, else let insmod option through */
-		btv->tuner_type = tuner;
+	if (tuner_type != UNSET) /* only set if known tuner autodetected, else let insmod option through */
+		btv->tuner_type = tuner_type;
 	btv->has_radio = has_radio;
 
 	/* LR90 Audio Routing is done by 2 hef4052, so Audio_Mask has 4 bits: 0x001c80
 	 * LR26/LR50 only has 1 hef4052, Audio_Mask 0x000c00
 	 * Audio options: from tuner, from tda9821/tda9821(mono,stereo,sap), from tda9874, ext., mute */
-	if(has_tda9820_tda9821) btv->audio_mode_gpio = lt9415_audio;
+	if (has_tda9820_tda9821)
+		btv->audio_mode_gpio = lt9415_audio;
 	/* todo: if(has_tda9874) btv->audio_mode_gpio = fv2000s_audio; */
 }
 
@@ -3962,7 +3972,7 @@ static int tuner_1_table[] = {
 
 static void __devinit avermedia_eeprom(struct bttv *btv)
 {
-	int tuner_make,tuner_tv_fm,tuner_format,tuner=0;
+	int tuner_make, tuner_tv_fm, tuner_format, tuner_type = 0;
 
 	tuner_make      = (eeprom_data[0x41] & 0x7);
 	tuner_tv_fm     = (eeprom_data[0x41] & 0x18) >> 3;
@@ -3970,24 +3980,24 @@ static void __devinit avermedia_eeprom(struct bttv *btv)
 	btv->has_remote = (eeprom_data[0x42] & 0x01);
 
 	if (tuner_make == 0 || tuner_make == 2)
-		if(tuner_format <=0x0a)
-			tuner = tuner_0_table[tuner_format];
+		if (tuner_format <= 0x0a)
+			tuner_type = tuner_0_table[tuner_format];
 	if (tuner_make == 1)
-		if(tuner_format <=9)
-			tuner = tuner_1_table[tuner_format];
+		if (tuner_format <= 9)
+			tuner_type = tuner_1_table[tuner_format];
 
 	if (tuner_make == 4)
-		if(tuner_format == 0x09)
-			tuner = TUNER_LG_NTSC_NEW_TAPC; /* TAPC-G702P */
+		if (tuner_format == 0x09)
+			tuner_type = TUNER_LG_NTSC_NEW_TAPC; /* TAPC-G702P */
 
 	printk(KERN_INFO "bttv%d: Avermedia eeprom[0x%02x%02x]: tuner=",
-		btv->c.nr,eeprom_data[0x41],eeprom_data[0x42]);
-	if(tuner) {
-		btv->tuner_type=tuner;
-		printk("%d",tuner);
+		btv->c.nr, eeprom_data[0x41], eeprom_data[0x42]);
+	if (tuner_type) {
+		btv->tuner_type = tuner_type;
+		printk(KERN_CONT "%d", tuner_type);
 	} else
-		printk("Unknown type");
-	printk(" radio:%s remote control:%s\n",
+		printk(KERN_CONT "Unknown type");
+	printk(KERN_CONT " radio:%s remote control:%s\n",
 	       tuner_tv_fm     ? "yes" : "no",
 	       btv->has_remote ? "yes" : "no");
 }
@@ -4029,7 +4039,8 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
 
 	gpio_inout(mask,mask);
 	gpio_bits(mask,0);
-	udelay(2500);
+	mdelay(2);
+	udelay(500);
 	gpio_bits(mask,mask);
 
 	if (bttv_gpio)

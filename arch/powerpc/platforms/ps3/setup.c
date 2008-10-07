@@ -201,7 +201,6 @@ static void __init ps3_setup_arch(void)
 	       ps3_firmware_version.rev);
 
 	ps3_spu_set_platform();
-	ps3_map_htab();
 
 #ifdef CONFIG_SMP
 	smp_init_ps3();

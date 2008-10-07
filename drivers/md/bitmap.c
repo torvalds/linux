@@ -238,15 +238,47 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 
 }
 
+static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
+{
+	/* Iterate the disks of an mddev, using rcu to protect access to the
+	 * linked list, and raising the refcount of devices we return to ensure
+	 * they don't disappear while in use.
+	 * As devices are only added or removed when raid_disk is < 0 and
+	 * nr_pending is 0 and In_sync is clear, the entries we return will
+	 * still be in the same position on the list when we re-enter
+	 * list_for_each_continue_rcu.
+	 */
+	struct list_head *pos;
+	rcu_read_lock();
+	if (rdev == NULL)
+		/* start at the beginning */
+		pos = &mddev->disks;
+	else {
+		/* release the previous rdev and start from there. */
+		rdev_dec_pending(rdev, mddev);
+		pos = &rdev->same_set;
+	}
+	list_for_each_continue_rcu(pos, &mddev->disks) {
+		rdev = list_entry(pos, mdk_rdev_t, same_set);
+		if (rdev->raid_disk >= 0 &&
+		    test_bit(In_sync, &rdev->flags) &&
+		    !test_bit(Faulty, &rdev->flags)) {
+			/* this is a usable devices */
+			atomic_inc(&rdev->nr_pending);
+			rcu_read_unlock();
+			return rdev;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
-	mdk_rdev_t *rdev;
+	mdk_rdev_t *rdev = NULL;
 	mddev_t *mddev = bitmap->mddev;
 
-	rcu_read_lock();
-	rdev_for_each_rcu(rdev, mddev)
-		if (test_bit(In_sync, &rdev->flags)
-		    && !test_bit(Faulty, &rdev->flags)) {
+	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 			int size = PAGE_SIZE;
 			if (page->index == bitmap->file_pages-1)
 				size = roundup(bitmap->last_page_size,
@@ -281,8 +313,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				       + page->index * (PAGE_SIZE/512),
 				       size,
 				       page);
-		}
-	rcu_read_unlock();
+	}
 
 	if (wait)
 		md_super_wait(mddev);

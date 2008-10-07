@@ -322,9 +322,6 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 	/* Try to acquire MMIO resources and fallback to PIO if
 	 * that fails
 	 */
-	rc = pcim_enable_device(pdev);
-	if (rc)
-		return rc;
 	rc = pcim_iomap_regions(pdev, 1 << SIL680_MMIO_BAR, DRV_NAME);
 	if (rc)
 		goto use_ioports;

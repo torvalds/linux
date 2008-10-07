@@ -190,7 +190,6 @@ void add_disk(struct gendisk *disk)
 			    disk->minors, NULL, exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
-	blk_register_filter(disk);
 
 	bdi = &disk->queue->backing_dev_info;
 	bdi_register_dev(bdi, MKDEV(disk->major, disk->first_minor));
@@ -203,7 +202,6 @@ EXPORT_SYMBOL(del_gendisk);	/* in partitions/check.c */
 
 void unlink_gendisk(struct gendisk *disk)
 {
-	blk_unregister_filter(disk);
 	sysfs_remove_link(&disk->dev.kobj, "bdi");
 	bdi_unregister(&disk->queue->backing_dev_info);
 	blk_unregister_queue(disk);
@@ -309,7 +307,7 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 	loff_t k = *pos;
 
 	if (!k)
-		seq_puts(part, "major minor  #blocks  name\n\n");
+		part->private = (void *)1LU;	/* tell show to print header */
 
 	mutex_lock(&block_class_lock);
 	dev = class_find_device(&block_class, NULL, &k, find_start);
@@ -350,6 +348,17 @@ static int show_partition(struct seq_file *part, void *v)
 	struct gendisk *sgp = v;
 	int n;
 	char buf[BDEVNAME_SIZE];
+
+	/*
+	 * Print header if start told us to do.  This is to preserve
+	 * the original behavior of not printing header if no
+	 * partition exists.  This hackery will be removed later with
+	 * class iteration clean up.
+	 */
+	if (part->private) {
+		seq_puts(part, "major minor  #blocks  name\n\n");
+		part->private = NULL;
+	}
 
 	/* Don't show non-partitionable removeable devices or empty devices */
 	if (!get_capacity(sgp) ||

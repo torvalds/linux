@@ -37,7 +37,6 @@
 #include <linux/proc_fs.h>
 #include <linux/semaphore.h>
 #include <linux/string.h>
-#include <linux/version.h>
 
 #include <mach/clock.h>
 

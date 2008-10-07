@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <asm/mach/sharpsl_param.h>
 
@@ -36,6 +37,7 @@
 #define PHAD_MAGIC	MAGIC_CHG('P','H','A','D')
 
 struct sharpsl_param_info sharpsl_param;
+EXPORT_SYMBOL(sharpsl_param);
 
 void sharpsl_save_param(void)
 {

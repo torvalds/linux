@@ -335,7 +335,7 @@ static int _sram_free(const void *addr,
 		plast->size += pavail->size;
 		kmem_cache_free(sram_piece_cache, pavail);
 	} else {
-		pavail->next = plast;
+		pavail->next = plast->next;
 		plast->next = pavail;
 		plast = pavail;
 	}
@@ -379,7 +379,7 @@ EXPORT_SYMBOL(sram_free);
 
 void *l1_data_A_sram_alloc(size_t size)
 {
-	unsigned flags;
+	unsigned long flags;
 	void *addr = NULL;
 
 	/* add mutex operation */
@@ -402,7 +402,7 @@ EXPORT_SYMBOL(l1_data_A_sram_alloc);
 
 int l1_data_A_sram_free(const void *addr)
 {
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -425,7 +425,7 @@ EXPORT_SYMBOL(l1_data_A_sram_free);
 void *l1_data_B_sram_alloc(size_t size)
 {
 #if L1_DATA_B_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -450,7 +450,7 @@ EXPORT_SYMBOL(l1_data_B_sram_alloc);
 int l1_data_B_sram_free(const void *addr)
 {
 #if L1_DATA_B_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -504,7 +504,7 @@ EXPORT_SYMBOL(l1_data_sram_free);
 void *l1_inst_sram_alloc(size_t size)
 {
 #if L1_CODE_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -529,7 +529,7 @@ EXPORT_SYMBOL(l1_inst_sram_alloc);
 int l1_inst_sram_free(const void *addr)
 {
 #if L1_CODE_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -551,7 +551,7 @@ EXPORT_SYMBOL(l1_inst_sram_free);
 /* L1 Scratchpad memory allocate function */
 void *l1sram_alloc(size_t size)
 {
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -569,7 +569,7 @@ void *l1sram_alloc(size_t size)
 /* L1 Scratchpad memory allocate function */
 void *l1sram_alloc_max(size_t *psize)
 {
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -587,7 +587,7 @@ void *l1sram_alloc_max(size_t *psize)
 /* L1 Scratchpad memory free function */
 int l1sram_free(const void *addr)
 {
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -605,7 +605,7 @@ int l1sram_free(const void *addr)
 void *l2_sram_alloc(size_t size)
 {
 #if L2_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -641,7 +641,7 @@ EXPORT_SYMBOL(l2_sram_zalloc);
 int l2_sram_free(const void *addr)
 {
 #if L2_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */

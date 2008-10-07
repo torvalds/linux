@@ -203,47 +203,23 @@ static struct clk pxa25x_clks[] = {
  * More ones like CP and general purpose register values are preserved
  * with the stack pointer in sleep.S.
  */
-enum {	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2,
-
-	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
-	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
-	SLEEP_SAVE_GAFR2_L, SLEEP_SAVE_GAFR2_U,
-
+enum {
 	SLEEP_SAVE_PSTR,
-
 	SLEEP_SAVE_CKEN,
-
 	SLEEP_SAVE_COUNT
 };
 
 
 static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
 {
-	SAVE(PGSR0); SAVE(PGSR1); SAVE(PGSR2);
-
-	SAVE(GAFR0_L); SAVE(GAFR0_U);
-	SAVE(GAFR1_L); SAVE(GAFR1_U);
-	SAVE(GAFR2_L); SAVE(GAFR2_U);
-
 	SAVE(CKEN);
 	SAVE(PSTR);
-
-	/* Clear GPIO transition detect bits */
-	GEDR0 = GEDR0; GEDR1 = GEDR1; GEDR2 = GEDR2;
 }
 
 static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 {
 	/* ensure not to come back here if it wasn't intended */
 	PSPR = 0;
-
-	/* restore registers */
-	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
-	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
-	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
-	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2);
-
-	PSSR = PSSR_RDH | PSSR_PH;
 
 	RESTORE(CKEN);
 	RESTORE(PSTR);
@@ -329,6 +305,8 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 static struct sys_device pxa25x_sysdev[] = {
 	{
 		.cls	= &pxa_irq_sysclass,
+	}, {
+		.cls	= &pxa2xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
 	},

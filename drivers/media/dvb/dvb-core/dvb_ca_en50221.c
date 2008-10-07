@@ -1032,7 +1032,7 @@ static int dvb_ca_en50221_thread(void *data)
 					/* we need this extra check for annoying interfaces like the budget-av */
 					if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) &&
 					    (ca->pub->poll_slot_status)) {
-						int status = ca->pub->poll_slot_status(ca->pub, slot, 0);
+						status = ca->pub->poll_slot_status(ca->pub, slot, 0);
 						if (!(status & DVB_CA_EN50221_POLL_CAM_PRESENT)) {
 							ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_NONE;
 							dvb_ca_en50221_thread_update_delay(ca);
@@ -1089,7 +1089,7 @@ static int dvb_ca_en50221_thread(void *data)
 					/* we need this extra check for annoying interfaces like the budget-av */
 					if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) &&
 					    (ca->pub->poll_slot_status)) {
-						int status = ca->pub->poll_slot_status(ca->pub, slot, 0);
+						status = ca->pub->poll_slot_status(ca->pub, slot, 0);
 						if (!(status & DVB_CA_EN50221_POLL_CAM_PRESENT)) {
 							ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_NONE;
 							dvb_ca_en50221_thread_update_delay(ca);

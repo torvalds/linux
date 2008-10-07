@@ -49,6 +49,10 @@ config MACH_MAINSTONE
 	select PXA27x
 	select HAVE_PWM
 
+config MACH_MP900C
+	bool "Nec Mobilepro 900/c"
+	select PXA25x
+
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
 	select PXA25x
@@ -189,6 +193,7 @@ config MACH_COLIBRI
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform (aka Zylonite)"
 	select PXA3xx
+	select PXA_SSP
 	select HAVE_PWM
 
 config MACH_LITTLETON
@@ -207,14 +212,33 @@ config MACH_SAAR
 	select PXA930
 
 config MACH_ARMCORE
-	bool "CompuLab CM-X270 modules"
+	bool "CompuLab CM-X255/CM-X270 modules"
 	select PXA27x
 	select IWMMXT
+	select PXA25x
+	select PXA_SSP
+
+config MACH_CM_X300
+	bool "CompuLab CM-X300 modules"
+	select PXA3xx
+	select CPU_PXA300
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
 	select IWMMXT
+
+config MACH_MIOA701
+	bool "Mitac Mio A701 Support"
+	select PXA27x
+	select IWMMXT
+	select LEDS_GPIO
+	select HAVE_PWM
+	select GPIO_SYSFS
+	help
+	  Say Y here if you intend to run this kernel on a
+	  MIO A701. Currently there is only basic support
+	  for this PDA.
 
 config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"

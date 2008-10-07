@@ -465,6 +465,16 @@ config PC87413_WDT
 
 	  Most people will say N.
 
+config RDC321X_WDT
+	tristate "RDC R-321x SoC watchdog"
+	depends on X86_RDC321X
+	help
+	  This is the driver for the built in hardware watchdog
+	  in the RDC R-321x SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rdc321x_wdt.
+
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
 	depends on X86
@@ -633,6 +643,16 @@ config SBC_EPX_C3_WATCHDOG
 
 # MIPS Architecture
 
+config RC32434_WDT
+	tristate "IDT RC32434 SoC Watchdog Timer"
+	depends on MIKROTIK_RB532
+	help
+	  Hardware driver for the IDT RC32434 SoC built-in
+	  watchdog timer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rc32434_wdt.
+
 config INDYDOG
 	tristate "Indy/I2 Hardware Watchdog"
 	depends on SGI_HAS_INDYDOG
@@ -691,10 +711,6 @@ config TXX9_WDT
 config MPC5200_WDT
 	tristate "MPC5200 Watchdog Timer"
 	depends on PPC_MPC52xx
-
-config 8xx_WDT
-	tristate "MPC8xx Watchdog Timer"
-	depends on 8xx
 
 config 8xxx_WDT
 	tristate "MPC8xxx Platform Watchdog Timer"

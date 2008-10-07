@@ -889,13 +889,13 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			 * initialization, so parg is 8 bits and does not
 			 * include the initialization or start bit
 			 */
-			unsigned long cmd = ((unsigned long) parg) << 1;
+			unsigned long swcmd = ((unsigned long) parg) << 1;
 			struct timeval nexttime;
 			struct timeval tv[10];
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
-				printk("%s switch command: 0x%04lx\n", __func__, cmd);
+				printk("%s switch command: 0x%04lx\n", __func__, swcmd);
 			do_gettimeofday(&nexttime);
 			if (dvb_frontend_debug)
 				memcpy(&tv[0], &nexttime, sizeof(struct timeval));
@@ -908,12 +908,12 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			for (i = 0; i < 9; i++) {
 				if (dvb_frontend_debug)
 					do_gettimeofday(&tv[i + 1]);
-				if ((cmd & 0x01) != last) {
+				if ((swcmd & 0x01) != last) {
 					/* set voltage to (last ? 13V : 18V) */
 					fe->ops.set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
 					last = (last) ? 0 : 1;
 				}
-				cmd = cmd >> 1;
+				swcmd = swcmd >> 1;
 				if (i != 8)
 					dvb_frontend_sleep_until(&nexttime, 8000);
 			}

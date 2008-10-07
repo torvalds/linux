@@ -499,7 +499,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 			p->timestamp.tv_sec / 3600,
 			(int)(p->timestamp.tv_sec / 60) % 60,
 			(int)(p->timestamp.tv_sec % 60),
-			p->timestamp.tv_usec,
+			(long)p->timestamp.tv_usec,
 			p->index,
 			prt_names(p->type, v4l2_type_names),
 			p->bytesused, p->flags,
@@ -674,7 +674,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	 __video_do_ioctl will be called again, with one or more
 	 V4L2 ioctls.
 	 ********************************************************/
-	if (_IOC_TYPE(cmd) == 'v')
+	if (_IOC_TYPE(cmd) == 'v' && _IOC_NR(cmd) < BASE_VIDIOCPRIVATE)
 		return v4l_compat_translate_ioctl(inode, file, cmd, arg,
 						__video_do_ioctl);
 #endif
