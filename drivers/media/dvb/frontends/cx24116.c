@@ -57,8 +57,9 @@ static int debug = 0;
 #define CX24116_REG_RESET   (0x20)      /* reset status > 0     */
 #define CX24116_REG_SIGNAL  (0x9e)      /* signal low           */
 #define CX24116_REG_SSTATUS (0x9d)      /* signal high / status */
+#define CX24116_REG_QUALITY8 (0xa3)
 #define CX24116_REG_QSTATUS (0xbc)
-#define CX24116_REG_QUALITY (0xd5)
+#define CX24116_REG_QUALITY0 (0xd5)
 #define CX24116_REG_BER0    (0xc9)
 #define CX24116_REG_BER8    (0xc8)
 #define CX24116_REG_BER16   (0xc7)
@@ -115,6 +116,9 @@ static int debug = 0;
 
 /* DiSEqC tone burst */
 static int toneburst = 1;
+
+/* SNR measurements */
+static int esno_snr = 1;
 
 enum cmds
 {
@@ -703,7 +707,7 @@ static int cx24116_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 }
 
 /* SNR (0..100)% = (sig & 0xf0) * 10 + (sig & 0x0f) * 10 / 16 */
-static int cx24116_read_snr(struct dvb_frontend* fe, u16* snr)
+static int cx24116_read_snr_pct(struct dvb_frontend* fe, u16* snr)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 	u8 snr_reading;
@@ -714,7 +718,7 @@ static int cx24116_read_snr(struct dvb_frontend* fe, u16* snr)
 
 	dprintk("%s()\n", __func__);
 
-	snr_reading = cx24116_readreg(state, CX24116_REG_QUALITY);
+	snr_reading = cx24116_readreg(state, CX24116_REG_QUALITY0);
 
 	if(snr_reading >= 0xa0 /* 100% */)
 		*snr = 0xffff;
@@ -726,6 +730,32 @@ static int cx24116_read_snr(struct dvb_frontend* fe, u16* snr)
 		snr_reading, *snr);
 
 	return 0;
+}
+
+/* The reelbox patches show the value in the registers represents
+ * ESNO, from 0->30db (values 0->300). We provide this value by
+ * default.
+ */
+static int cx24116_read_snr_esno(struct dvb_frontend* fe, u16* snr)
+{
+	struct cx24116_state *state = fe->demodulator_priv;
+
+	dprintk("%s()\n", __func__);
+
+	*snr = cx24116_readreg(state, CX24116_REG_QUALITY8) << 8 |
+		cx24116_readreg(state, CX24116_REG_QUALITY0);
+
+	dprintk("%s: raw 0x%04x\n", __func__, *snr);
+
+	return 0;
+}
+
+static int cx24116_read_snr(struct dvb_frontend* fe, u16* snr)
+{
+	if (esno_snr == 1)
+		return cx24116_read_snr_esno(fe, snr);
+	else
+		return cx24116_read_snr_pct(fe, snr);
 }
 
 static int cx24116_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
@@ -1382,6 +1412,9 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
 module_param(toneburst, int, 0644);
 MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, 2=MESSAGE CACHE (default:1)");
+
+module_param(esno_snr, int, 0644);
+MODULE_PARM_DESC(debug, "SNR return units, 0=PERCENTAGE 0-100, 1=ESNO(db * 10) (default:1)");
 
 MODULE_DESCRIPTION("DVB Frontend module for Conexant cx24116/cx24118 hardware");
 MODULE_AUTHOR("Steven Toth");
