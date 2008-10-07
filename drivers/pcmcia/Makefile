@@ -71,6 +71,7 @@ sa1100_cs-$(CONFIG_SA1100_SIMPAD)		+= sa1100_simpad.o
 pxa2xx_cs-$(CONFIG_ARCH_LUBBOCK)		+= pxa2xx_lubbock.o sa1111_generic.o
 pxa2xx_cs-$(CONFIG_MACH_MAINSTONE)		+= pxa2xx_mainstone.o
 pxa2xx_cs-$(CONFIG_PXA_SHARPSL)			+= pxa2xx_sharpsl.o
+pxa2xx_cs-$(CONFIG_TRIZEPS_PCMCIA)		+= pxa2xx_trizeps.o
 pxa2xx_cs-$(CONFIG_MACH_ARMCORE)		+= pxa2xx_cm_x270.o
 pxa2xx_cs-$(CONFIG_MACH_PALMTX)		+= pxa2xx_palmtx.o
 
