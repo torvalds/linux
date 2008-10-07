@@ -65,4 +65,5 @@ static inline void pxa3xx_clear_reset_status(unsigned int mask) {}
 
 extern struct sysdev_class pxa_irq_sysclass;
 extern struct sysdev_class pxa_gpio_sysclass;
+extern struct sysdev_class pxa2xx_mfp_sysclass;
 extern struct sysdev_class pxa3xx_mfp_sysclass;

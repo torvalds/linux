@@ -69,6 +69,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
+#define LIGHTFREQ_IDX 1
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -87,12 +88,12 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format vc0321_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -1463,6 +1464,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->qindex = 7;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->lightfreq = FREQ_DEF;
+	if (sd->sensor != SENSOR_OV7670)
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(gspca_dev, 0x8a, 0, 3);
@@ -1474,8 +1477,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
 }
@@ -1637,19 +1640,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x89, 0xffff, 0xffff);
 }
 
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-/*	struct usb_device *dev = gspca_dev->dev;
-	__u8 buffread;
-
-	reg_w(dev, 0x89, 0xffff, 0xffff);
-	reg_w(dev, 0xa0, 0x01, 0xb301);
-	reg_w(dev, 0xa0, 0x09, 0xb303);
-	reg_w(dev, 0x89, 0xffff, 0xffff);
-*/
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1738,11 +1728,10 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };
@@ -1774,6 +1763,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

@@ -52,6 +52,10 @@ config MACH_MAINSTONE
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
+config MACH_MP900C
+	bool "Nec Mobilepro 900/c"
+	select PXA25x
+
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
 	select PXA25x
@@ -119,6 +123,15 @@ config MACH_TOSA
 	select PXA25x
 	select PXA_HAVE_BOARD_IRQS
 
+config ARCH_VIPER
+	bool "Arcom/Eurotech VIPER SBC"
+	select PXA25x
+	select ISA
+	select I2C_GPIO
+	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
+	select PXA_HAVE_ISA_IRQS
+
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
 	select PXA25x
@@ -175,13 +188,41 @@ config MACH_E800
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e800 family PDA.
 
+config TRIZEPS_PXA
+	bool "PXA based Keith und Koep Trizeps DIMM-Modules"
+
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
+	depends on TRIZEPS_PXA
+	select TRIZEPS_PCMCIA
 	select PXA27x
 
-config MACH_TRIZEPS4_CONXS
+config MACH_TRIZEPS4WL
+	bool "Keith und Koep Trizeps4-WL DIMM-Module"
+	depends on TRIZEPS_PXA
+	select TRIZEPS_PCMCIA
+	select PXA27x
+	select PXA_SSP
+
+choice
+	prompt "Select base board for Trizeps module"
+	depends on TRIZEPS_PXA
+
+config MACH_TRIZEPS_CONXS
 	bool "ConXS Eval Board"
-	depends on MACH_TRIZEPS4
+
+config MACH_TRIZEPS_UCONXS
+	bool "uConXS Eval Board"
+
+config MACH_TRIZEPS_ANY
+	bool "another Board"
+
+endchoice
+
+config TRIZEPS_PCMCIA
+	bool
+	help
+	  Enable PCMCIA support for Trizeps modules
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
@@ -194,6 +235,7 @@ config MACH_COLIBRI
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform (aka Zylonite)"
 	select PXA3xx
+	select PXA_SSP
 	select HAVE_PWM
 
 config MACH_LITTLETON
@@ -212,15 +254,34 @@ config MACH_SAAR
 	select PXA930
 
 config MACH_ARMCORE
-	bool "CompuLab CM-X270 modules"
+	bool "CompuLab CM-X255/CM-X270 modules"
 	select PXA27x
 	select IWMMXT
+	select PXA25x
+	select PXA_SSP
+
+config MACH_CM_X300
+	bool "CompuLab CM-X300 modules"
+	select PXA3xx
+	select CPU_PXA300
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
 	select IWMMXT
 	select PXA_HAVE_BOARD_IRQS
+
+config MACH_MIOA701
+	bool "Mitac Mio A701 Support"
+	select PXA27x
+	select IWMMXT
+	select LEDS_GPIO
+	select HAVE_PWM
+	select GPIO_SYSFS
+	help
+	  Say Y here if you intend to run this kernel on a
+	  MIO A701. Currently there is only basic support
+	  for this PDA.
 
 config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
@@ -243,6 +304,16 @@ config MACH_PALMTX
 	  Say Y here if you intend to run this kernel on a Palm T|X
 	  handheld computer.
 
+config MACH_PALMZ72
+	bool "Palm Zire 72"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on Palm Zire 72
+	  handheld computer.
+
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
 	select HAVE_PWM
@@ -263,6 +334,9 @@ config PCM990_DISPLAY_NONE
 
 endchoice
 
+config MACH_AM200EPD
+	depends on MACH_GUMSTIX_F
+	bool "Enable AM200EPD board support"
 
 config PXA_EZX
 	bool "Motorola EZX Platform"

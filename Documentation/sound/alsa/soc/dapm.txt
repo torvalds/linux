@@ -135,11 +135,7 @@ when the Mic is inserted:-
 
 static int spitz_mic_bias(struct snd_soc_dapm_widget* w, int event)
 {
-	if(SND_SOC_DAPM_EVENT_ON(event))
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_MIC_BIAS);
-	else
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_MIC_BIAS);
-
+	gpio_set_value(SPITZ_GPIO_MIC_BIAS, SND_SOC_DAPM_EVENT_ON(event));
 	return 0;
 }
 
@@ -269,11 +265,7 @@ powered only when the spk is in use.
 /* turn speaker amplifier on/off depending on use */
 static int corgi_amp_event(struct snd_soc_dapm_widget *w, int event)
 {
-	if (SND_SOC_DAPM_EVENT_ON(event))
-		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_APM_ON);
-	else
-		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_APM_ON);
-
+	gpio_set_value(CORGI_GPIO_APM_ON, SND_SOC_DAPM_EVENT_ON(event));
 	return 0;
 }
 

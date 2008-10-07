@@ -1520,7 +1520,9 @@ smc_open(struct net_device *dev)
 	/* Setup the default Register Modes */
 	lp->tcr_cur_mode = TCR_DEFAULT;
 	lp->rcr_cur_mode = RCR_DEFAULT;
-	lp->rpc_cur_mode = RPC_DEFAULT;
+	lp->rpc_cur_mode = RPC_DEFAULT |
+				lp->cfg.leda << RPC_LSXA_SHFT |
+				lp->cfg.ledb << RPC_LSXB_SHFT;
 
 	/*
 	 * If we are not using a MII interface, we need to
@@ -2157,6 +2159,11 @@ static int smc_drv_probe(struct platform_device *pdev)
 		lp->cfg.flags |= (nowait) ? SMC91X_NOWAIT : 0;
 	}
 
+	if (!lp->cfg.leda && !lp->cfg.ledb) {
+		lp->cfg.leda = RPC_LSA_DEFAULT;
+		lp->cfg.ledb = RPC_LSB_DEFAULT;
+	}
+
 	ndev->dma = (unsigned char)-1;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
@@ -2255,7 +2262,7 @@ static int smc_drv_remove(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
 	if (!res)
-		platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, SMC_IO_EXTENT);
 
 	free_netdev(ndev);

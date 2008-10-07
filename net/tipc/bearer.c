@@ -599,7 +599,7 @@ int tipc_block_bearer(const char *name)
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->publ.blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		struct node *n_ptr = l_ptr->owner;
+		struct tipc_node *n_ptr = l_ptr->owner;
 
 		spin_lock_bh(&n_ptr->lock);
 		tipc_link_reset(l_ptr);

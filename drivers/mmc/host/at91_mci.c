@@ -621,11 +621,20 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 				if (cpu_is_at91sam9260 () || cpu_is_at91sam9263())
 					if (host->total_length < 12)
 						host->total_length = 12;
-				host->buffer = dma_alloc_coherent(NULL,
-						host->total_length,
-						&host->physical_address, GFP_KERNEL);
+
+				host->buffer = kmalloc(host->total_length, GFP_KERNEL);
+				if (!host->buffer) {
+					pr_debug("Can't alloc tx buffer\n");
+					cmd->error = -ENOMEM;
+					mmc_request_done(host->mmc, host->request);
+					return;
+				}
 
 				at91_mci_sg_to_dma(host, data);
+
+				host->physical_address = dma_map_single(NULL,
+						host->buffer, host->total_length,
+						DMA_TO_DEVICE);
 
 				pr_debug("Transmitting %d bytes\n", host->total_length);
 
@@ -694,7 +703,10 @@ static void at91_mci_completed_command(struct at91mci_host *host, unsigned int s
 	cmd->resp[3] = at91_mci_read(host, AT91_MCI_RSPR(3));
 
 	if (host->buffer) {
-		dma_free_coherent(NULL, host->total_length, host->buffer, host->physical_address);
+		dma_unmap_single(NULL,
+				host->physical_address, host->total_length,
+				DMA_TO_DEVICE);
+		kfree(host->buffer);
 		host->buffer = NULL;
 	}
 

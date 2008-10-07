@@ -1,0 +1,480 @@
+/*
+ * Hardware definitions for Palm Zire72
+ *
+ * Authors:
+ *	Vladimir "Farcaller" Pouzanov <farcaller@gmail.com>
+ *	Sergey Lapin <slapin@ossfans.org>
+ *	Alex Osborne <bobofdoom@gmail.com>
+ *	Jan Herman <2hp@seznam.cz>
+ *
+ * Rewrite for mainline:
+ *	Marek Vasut <marek.vasut@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * (find more info at www.hackndev.com)
+ *
+ */
+
+#include <linux/platform_device.h>
+#include <linux/sysdev.h>
+#include <linux/delay.h>
+#include <linux/irq.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
+#include <linux/pda_power.h>
+#include <linux/pwm_backlight.h>
+#include <linux/gpio.h>
+#include <linux/power_supply.h>
+
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+
+#include <mach/audio.h>
+#include <mach/palmz72.h>
+#include <mach/mmc.h>
+#include <mach/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/irda.h>
+#include <mach/pxa27x_keypad.h>
+#include <mach/udc.h>
+#include <mach/pm.h>
+
+#include "generic.h"
+#include "devices.h"
+
+/******************************************************************************
+ * Pin configuration
+ ******************************************************************************/
+static unsigned long palmz72_pin_config[] __initdata = {
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+	GPIO14_GPIO,	/* SD detect */
+	GPIO115_GPIO,	/* SD RO */
+	GPIO98_GPIO,	/* SD power */
+
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
+	/* IrDA */
+	GPIO49_GPIO,	/* ir disable */
+	GPIO46_FICP_RXD,
+	GPIO47_FICP_TXD,
+
+	/* PWM */
+	GPIO16_PWM0_OUT,
+
+	/* USB */
+	GPIO15_GPIO,	/* usb detect */
+	GPIO12_GPIO,	/* usb pullup */
+	GPIO95_GPIO,	/* usb power */
+
+	/* Matrix keypad */
+	GPIO100_KP_MKIN_0	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO101_KP_MKIN_1	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO102_KP_MKIN_2	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO97_KP_MKIN_3	| WAKEUP_ON_LEVEL_HIGH,
+	GPIO103_KP_MKOUT_0,
+	GPIO104_KP_MKOUT_1,
+	GPIO105_KP_MKOUT_2,
+
+	/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+	GPIO20_GPIO,	/* bl power */
+	GPIO21_GPIO,	/* LCD border switch */
+	GPIO22_GPIO,	/* LCD border color */
+	GPIO96_GPIO,	/* lcd power */
+
+	/* Misc. */
+	GPIO0_GPIO	| WAKEUP_ON_LEVEL_HIGH,	/* power detect */
+	GPIO88_GPIO,				/* green led */
+	GPIO27_GPIO,				/* WM9712 IRQ */
+};
+
+/******************************************************************************
+ * SD/MMC card controller
+ ******************************************************************************/
+static int palmz72_mci_init(struct device *dev,
+				irq_handler_t palmz72_detect_int, void *data)
+{
+	int err = 0;
+
+	/* Setup an interrupt for detecting card insert/remove events */
+	err = gpio_request(GPIO_NR_PALMZ72_SD_DETECT_N, "SD IRQ");
+	if (err)
+		goto err;
+	err = gpio_direction_input(GPIO_NR_PALMZ72_SD_DETECT_N);
+	if (err)
+		goto err2;
+	err = request_irq(gpio_to_irq(GPIO_NR_PALMZ72_SD_DETECT_N),
+			palmz72_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			"SD/MMC card detect", data);
+	if (err) {
+		printk(KERN_ERR "%s: cannot request SD/MMC card detect IRQ\n",
+				__func__);
+		goto err2;
+	}
+
+	/* SD_POWER is not actually power, but it is more like chip
+	 * select, i.e. it is inverted */
+
+	err = gpio_request(GPIO_NR_PALMZ72_SD_POWER_N, "SD_POWER");
+	if (err)
+		goto err3;
+	err = gpio_direction_output(GPIO_NR_PALMZ72_SD_POWER_N, 0);
+	if (err)
+		goto err4;
+	err = gpio_request(GPIO_NR_PALMZ72_SD_RO, "SD_RO");
+	if (err)
+		goto err4;
+	err = gpio_direction_input(GPIO_NR_PALMZ72_SD_RO);
+	if (err)
+		goto err5;
+
+	printk(KERN_DEBUG "%s: irq registered\n", __func__);
+
+	return 0;
+
+err5:
+	gpio_free(GPIO_NR_PALMZ72_SD_RO);
+err4:
+	gpio_free(GPIO_NR_PALMZ72_SD_POWER_N);
+err3:
+	free_irq(gpio_to_irq(GPIO_NR_PALMZ72_SD_DETECT_N), data);
+err2:
+	gpio_free(GPIO_NR_PALMZ72_SD_DETECT_N);
+err:
+	return err;
+}
+
+static void palmz72_mci_exit(struct device *dev, void *data)
+{
+	gpio_free(GPIO_NR_PALMZ72_SD_POWER_N);
+	free_irq(gpio_to_irq(GPIO_NR_PALMZ72_SD_DETECT_N), data);
+	gpio_free(GPIO_NR_PALMZ72_SD_DETECT_N);
+	gpio_free(GPIO_NR_PALMZ72_SD_RO);
+}
+
+static void palmz72_mci_power(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data *p_d = dev->platform_data;
+	if (p_d->ocr_mask & (1 << vdd))
+		gpio_set_value(GPIO_NR_PALMZ72_SD_POWER_N, 0);
+	else
+		gpio_set_value(GPIO_NR_PALMZ72_SD_POWER_N, 1);
+}
+
+static int palmz72_mci_ro(struct device *dev)
+{
+	return gpio_get_value(GPIO_NR_PALMZ72_SD_RO);
+}
+
+static struct pxamci_platform_data palmz72_mci_platform_data = {
+	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.setpower	= palmz72_mci_power,
+	.get_ro		= palmz72_mci_ro,
+	.init 		= palmz72_mci_init,
+	.exit		= palmz72_mci_exit,
+};
+
+/******************************************************************************
+ * GPIO keyboard
+ ******************************************************************************/
+static unsigned int palmz72_matrix_keys[] = {
+	KEY(0, 0, KEY_POWER),
+	KEY(0, 1, KEY_F1),
+	KEY(0, 2, KEY_ENTER),
+
+	KEY(1, 0, KEY_F2),
+	KEY(1, 1, KEY_F3),
+	KEY(1, 2, KEY_F4),
+
+	KEY(2, 0, KEY_UP),
+	KEY(2, 2, KEY_DOWN),
+
+	KEY(3, 0, KEY_RIGHT),
+	KEY(3, 2, KEY_LEFT),
+};
+
+static struct pxa27x_keypad_platform_data palmz72_keypad_platform_data = {
+	.matrix_key_rows	= 4,
+	.matrix_key_cols	= 3,
+	.matrix_key_map		= palmz72_matrix_keys,
+	.matrix_key_map_size	= ARRAY_SIZE(palmz72_matrix_keys),
+
+	.debounce_interval	= 30,
+};
+
+/******************************************************************************
+ * Backlight
+ ******************************************************************************/
+static int palmz72_backlight_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_PALMZ72_BL_POWER, "BL POWER");
+	if (ret)
+		goto err;
+	ret = gpio_direction_output(GPIO_NR_PALMZ72_BL_POWER, 0);
+	if (ret)
+		goto err2;
+	ret = gpio_request(GPIO_NR_PALMZ72_LCD_POWER, "LCD POWER");
+	if (ret)
+		goto err2;
+	ret = gpio_direction_output(GPIO_NR_PALMZ72_LCD_POWER, 0);
+	if (ret)
+		goto err3;
+
+	return 0;
+err3:
+	gpio_free(GPIO_NR_PALMZ72_LCD_POWER);
+err2:
+	gpio_free(GPIO_NR_PALMZ72_BL_POWER);
+err:
+	return ret;
+}
+
+static int palmz72_backlight_notify(int brightness)
+{
+	gpio_set_value(GPIO_NR_PALMZ72_BL_POWER, brightness);
+	gpio_set_value(GPIO_NR_PALMZ72_LCD_POWER, brightness);
+	return brightness;
+}
+
+static void palmz72_backlight_exit(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMZ72_BL_POWER);
+	gpio_free(GPIO_NR_PALMZ72_LCD_POWER);
+}
+
+static struct platform_pwm_backlight_data palmz72_backlight_data = {
+	.pwm_id		= 0,
+	.max_brightness	= PALMZ72_MAX_INTENSITY,
+	.dft_brightness	= PALMZ72_MAX_INTENSITY,
+	.pwm_period_ns	= PALMZ72_PERIOD_NS,
+	.init		= palmz72_backlight_init,
+	.notify		= palmz72_backlight_notify,
+	.exit		= palmz72_backlight_exit,
+};
+
+static struct platform_device palmz72_backlight = {
+	.name	= "pwm-backlight",
+	.dev	= {
+		.parent		= &pxa27x_device_pwm0.dev,
+		.platform_data	= &palmz72_backlight_data,
+	},
+};
+
+/******************************************************************************
+ * IrDA
+ ******************************************************************************/
+static int palmz72_irda_startup(struct device *dev)
+{
+	int err;
+	err = gpio_request(GPIO_NR_PALMZ72_IR_DISABLE, "IR DISABLE");
+	if (err)
+		goto err;
+	err = gpio_direction_output(GPIO_NR_PALMZ72_IR_DISABLE, 1);
+	if (err)
+		gpio_free(GPIO_NR_PALMZ72_IR_DISABLE);
+err:
+	return err;
+}
+
+static void palmz72_irda_shutdown(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMZ72_IR_DISABLE);
+}
+
+static void palmz72_irda_transceiver_mode(struct device *dev, int mode)
+{
+	gpio_set_value(GPIO_NR_PALMZ72_IR_DISABLE, mode & IR_OFF);
+	pxa2xx_transceiver_mode(dev, mode);
+}
+
+static struct pxaficp_platform_data palmz72_ficp_platform_data = {
+	.startup		= palmz72_irda_startup,
+	.shutdown		= palmz72_irda_shutdown,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.transceiver_mode	= palmz72_irda_transceiver_mode,
+};
+
+/******************************************************************************
+ * LEDs
+ ******************************************************************************/
+static struct gpio_led gpio_leds[] = {
+	{
+		.name			= "palmz72:green:led",
+		.default_trigger	= "none",
+		.gpio			= GPIO_NR_PALMZ72_LED_GREEN,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device palmz72_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_info,
+	}
+};
+
+/******************************************************************************
+ * Power supply
+ ******************************************************************************/
+static int power_supply_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_PALMZ72_POWER_DETECT, "CABLE_STATE_AC");
+	if (ret)
+		goto err1;
+	ret = gpio_direction_input(GPIO_NR_PALMZ72_POWER_DETECT);
+	if (ret)
+		goto err2;
+
+	ret = gpio_request(GPIO_NR_PALMZ72_USB_DETECT_N, "CABLE_STATE_USB");
+	if (ret)
+		goto err2;
+	ret = gpio_direction_input(GPIO_NR_PALMZ72_USB_DETECT_N);
+	if (ret)
+		goto err3;
+
+	return 0;
+err3:
+	gpio_free(GPIO_NR_PALMZ72_USB_DETECT_N);
+err2:
+	gpio_free(GPIO_NR_PALMZ72_POWER_DETECT);
+err1:
+	return ret;
+}
+
+static int palmz72_is_ac_online(void)
+{
+	return gpio_get_value(GPIO_NR_PALMZ72_POWER_DETECT);
+}
+
+static int palmz72_is_usb_online(void)
+{
+	return !gpio_get_value(GPIO_NR_PALMZ72_USB_DETECT_N);
+}
+
+static void power_supply_exit(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMZ72_USB_DETECT_N);
+	gpio_free(GPIO_NR_PALMZ72_POWER_DETECT);
+}
+
+static char *palmz72_supplicants[] = {
+	"main-battery",
+};
+
+static struct pda_power_pdata power_supply_info = {
+	.init            = power_supply_init,
+	.is_ac_online    = palmz72_is_ac_online,
+	.is_usb_online   = palmz72_is_usb_online,
+	.exit            = power_supply_exit,
+	.supplied_to     = palmz72_supplicants,
+	.num_supplicants = ARRAY_SIZE(palmz72_supplicants),
+};
+
+static struct platform_device power_supply = {
+	.name = "pda-power",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &power_supply_info,
+	},
+};
+
+/******************************************************************************
+ * Framebuffer
+ ******************************************************************************/
+static struct pxafb_mode_info palmz72_lcd_modes[] = {
+{
+	.pixclock	= 115384,
+	.xres		= 320,
+	.yres		= 320,
+	.bpp		= 16,
+
+	.left_margin	= 27,
+	.right_margin	= 7,
+	.upper_margin	= 7,
+	.lower_margin	= 8,
+
+	.hsync_len	= 6,
+	.vsync_len	= 1,
+},
+};
+
+static struct pxafb_mach_info palmz72_lcd_screen = {
+	.modes		= palmz72_lcd_modes,
+	.num_modes	= ARRAY_SIZE(palmz72_lcd_modes),
+	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
+};
+
+/******************************************************************************
+ * Machine init
+ ******************************************************************************/
+static struct platform_device *devices[] __initdata = {
+	&palmz72_backlight,
+	&palmz72_leds,
+	&power_supply,
+};
+
+static void __init palmz72_init(void)
+{
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmz72_pin_config));
+	set_pxa_fb_info(&palmz72_lcd_screen);
+	pxa_set_mci_info(&palmz72_mci_platform_data);
+	pxa_set_ac97_info(NULL);
+	pxa_set_ficp_info(&palmz72_ficp_platform_data);
+	pxa_set_keypad_info(&palmz72_keypad_platform_data);
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+}
+
+MACHINE_START(PALMZ72, "Palm Zire72")
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= io_p2v(0x40000000),
+	.boot_params	= 0xa0000100,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa27x_init_irq,
+	.timer		= &pxa_timer,
+	.init_machine	= palmz72_init
+MACHINE_END

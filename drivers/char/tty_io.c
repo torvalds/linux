@@ -2498,7 +2498,7 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user *arg)
 /**
  *	tty_do_resize		-	resize event
  *	@tty: tty being resized
- *	@real_tty: real tty (if using a pty/tty pair)
+ *	@real_tty: real tty (not the same as tty if using a pty/tty pair)
  *	@rows: rows (character)
  *	@cols: cols (character)
  *
@@ -2512,7 +2512,8 @@ int tty_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
 	struct pid *pgrp, *rpgrp;
 	unsigned long flags;
 
-	mutex_lock(&tty->termios_mutex);
+	/* For a PTY we need to lock the tty side */
+	mutex_lock(&real_tty->termios_mutex);
 	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
 		goto done;
 	/* Get the PID values and reference them so we can
@@ -2533,7 +2534,7 @@ int tty_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
 	tty->winsize = *ws;
 	real_tty->winsize = *ws;
 done:
-	mutex_unlock(&tty->termios_mutex);
+	mutex_unlock(&real_tty->termios_mutex);
 	return 0;
 }
 

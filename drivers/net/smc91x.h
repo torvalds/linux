@@ -43,7 +43,8 @@
 #if defined(CONFIG_ARCH_LUBBOCK) ||\
     defined(CONFIG_MACH_MAINSTONE) ||\
     defined(CONFIG_MACH_ZYLONITE) ||\
-    defined(CONFIG_MACH_LITTLETON)
+    defined(CONFIG_MACH_LITTLETON) ||\
+    defined(CONFIG_ARCH_VIPER)
 
 #include <asm/mach-types.h>
 
@@ -778,14 +779,6 @@ smc_pxa_dma_irq(int dma, void *dummy)
 #define RPC_ANEG	0x0800	// When 1 PHY is in Auto-Negotiate Mode
 #define RPC_LSXA_SHFT	5	// Bits to shift LS2A,LS1A,LS0A to lsb
 #define RPC_LSXB_SHFT	2	// Bits to get LS2B,LS1B,LS0B to lsb
-#define RPC_LED_100_10	(0x00)	// LED = 100Mbps OR's with 10Mbps link detect
-#define RPC_LED_RES	(0x01)	// LED = Reserved
-#define RPC_LED_10	(0x02)	// LED = 10Mbps link detect
-#define RPC_LED_FD	(0x03)	// LED = Full Duplex Mode
-#define RPC_LED_TX_RX	(0x04)	// LED = TX or RX packet occurred
-#define RPC_LED_100	(0x05)	// LED = 100Mbps link dectect
-#define RPC_LED_TX	(0x06)	// LED = TX packet occurred
-#define RPC_LED_RX	(0x07)	// LED = RX packet occurred
 
 #ifndef RPC_LSA_DEFAULT
 #define RPC_LSA_DEFAULT	RPC_LED_100
@@ -794,7 +787,7 @@ smc_pxa_dma_irq(int dma, void *dummy)
 #define RPC_LSB_DEFAULT RPC_LED_FD
 #endif
 
-#define RPC_DEFAULT (RPC_ANEG | (RPC_LSA_DEFAULT << RPC_LSXA_SHFT) | (RPC_LSB_DEFAULT << RPC_LSXB_SHFT) | RPC_SPEED | RPC_DPLX)
+#define RPC_DEFAULT (RPC_ANEG | RPC_SPEED | RPC_DPLX)
 
 
 /* Bank 0 0x0C is reserved */

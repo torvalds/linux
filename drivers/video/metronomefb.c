@@ -40,29 +40,63 @@
 
 #include <asm/unaligned.h>
 
-
-#define DEBUG 1
-#ifdef DEBUG
-#define DPRINTK(f, a...) printk(KERN_DEBUG "%s: " f, __func__ , ## a)
-#else
-#define DPRINTK(f, a...)
-#endif
-
-
 /* Display specific information */
 #define DPY_W 832
 #define DPY_H 622
+
+static int user_wfm_size;
 
 /* frame differs from image. frame includes non-visible pixels */
 struct epd_frame {
 	int fw; /* frame width */
 	int fh; /* frame height */
+	u16 config[4];
+	int wfm_size;
 };
 
 static struct epd_frame epd_frame_table[] = {
 	{
-	.fw = 832,
-	.fh = 622
+		.fw = 832,
+		.fh = 622,
+		.config = {
+			15 /* sdlew */
+			| 2 << 8 /* sdosz */
+			| 0 << 11 /* sdor */
+			| 0 << 12 /* sdces */
+			| 0 << 15, /* sdcer */
+			42 /* gdspl */
+			| 1 << 8 /* gdr1 */
+			| 1 << 9 /* sdshr */
+			| 0 << 15, /* gdspp */
+			18 /* gdspw */
+			| 0 << 15, /* dispc */
+			599 /* vdlc */
+			| 0 << 11 /* dsi */
+			| 0 << 12, /* dsic */
+		},
+		.wfm_size = 47001,
+	},
+	{
+		.fw = 1088,
+		.fh = 791,
+		.config = {
+			0x0104,
+			0x031f,
+			0x0088,
+			0x02ff,
+		},
+		.wfm_size = 46770,
+	},
+	{
+		.fw = 1200,
+		.fh = 842,
+		.config = {
+			0x0101,
+			0x030e,
+			0x0012,
+			0x0280,
+		},
+		.wfm_size = 46770,
 	},
 };
 
@@ -134,9 +168,8 @@ static u16 calc_img_cksum(u16 *start, int length)
 }
 
 /* here we decode the incoming waveform file and populate metromem */
-#define EXP_WFORM_SIZE 47001
-static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
-				u8 *frame_count)
+static int __devinit load_waveform(u8 *mem, size_t size, int m, int t,
+				struct metronomefb_par *par)
 {
 	int tta;
 	int wmta;
@@ -148,26 +181,31 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 	int wfm_idx, owfm_idx;
 	int mem_idx = 0;
 	struct waveform_hdr *wfm_hdr;
+	u8 *metromem = par->metromem_wfm;
+	struct device *dev = par->info->dev;
 
-	if (size != EXP_WFORM_SIZE) {
-		printk(KERN_ERR "Error: unexpected size %d != %d\n", size,
-					EXP_WFORM_SIZE);
+	if (user_wfm_size)
+		epd_frame_table[par->dt].wfm_size = user_wfm_size;
+
+	if (size != epd_frame_table[par->dt].wfm_size) {
+		dev_err(dev, "Error: unexpected size %d != %d\n", size,
+					epd_frame_table[par->dt].wfm_size);
 		return -EINVAL;
 	}
 
 	wfm_hdr = (struct waveform_hdr *) mem;
 
 	if (wfm_hdr->fvsn != 1) {
-		printk(KERN_ERR "Error: bad fvsn %x\n", wfm_hdr->fvsn);
+		dev_err(dev, "Error: bad fvsn %x\n", wfm_hdr->fvsn);
 		return -EINVAL;
 	}
 	if (wfm_hdr->luts != 0) {
-		printk(KERN_ERR "Error: bad luts %x\n", wfm_hdr->luts);
+		dev_err(dev, "Error: bad luts %x\n", wfm_hdr->luts);
 		return -EINVAL;
 	}
 	cksum = calc_cksum(32, 47, mem);
 	if (cksum != wfm_hdr->wfm_cs) {
-		printk(KERN_ERR "Error: bad cksum %x != %x\n", cksum,
+		dev_err(dev, "Error: bad cksum %x != %x\n", cksum,
 					wfm_hdr->wfm_cs);
 		return -EINVAL;
 	}
@@ -175,7 +213,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 	wfm_hdr->trc += 1;
 	for (i = 0; i < 5; i++) {
 		if (*(wfm_hdr->stuff2a + i) != 0) {
-			printk(KERN_ERR "Error: unexpected value in padding\n");
+			dev_err(dev, "Error: unexpected value in padding\n");
 			return -EINVAL;
 		}
 	}
@@ -200,7 +238,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 		return -EINVAL;
 	cksum = calc_cksum(sizeof(*wfm_hdr), cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
-		printk(KERN_ERR "Error: bad temperature range table cksum"
+		dev_err(dev, "Error: bad temperature range table cksum"
 				" %x != %x\n", cksum, mem[cksum_idx]);
 		return -EINVAL;
 	}
@@ -212,7 +250,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 		return -EINVAL;
 	cksum = calc_cksum(cksum_idx - 3, cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
-		printk(KERN_ERR "Error: bad mode table address cksum"
+		dev_err(dev, "Error: bad mode table address cksum"
 				" %x != %x\n", cksum, mem[cksum_idx]);
 		return -EINVAL;
 	}
@@ -224,7 +262,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 		return -EINVAL;
 	cksum = calc_cksum(cksum_idx - 3, cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
-		printk(KERN_ERR "Error: bad temperature table address cksum"
+		dev_err(dev, "Error: bad temperature table address cksum"
 			" %x != %x\n", cksum, mem[cksum_idx]);
 		return -EINVAL;
 	}
@@ -259,11 +297,11 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 		return -EINVAL;
 	cksum = calc_cksum(owfm_idx, cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
-		printk(KERN_ERR "Error: bad waveform data cksum"
+		dev_err(dev, "Error: bad waveform data cksum"
 				" %x != %x\n", cksum, mem[cksum_idx]);
 		return -EINVAL;
 	}
-	*frame_count = (mem_idx/64);
+	par->frame_count = (mem_idx/64);
 
 	return 0;
 }
@@ -274,14 +312,11 @@ static int metronome_display_cmd(struct metronomefb_par *par)
 	u16 cs;
 	u16 opcode;
 	static u8 borderval;
-	u8 *ptr;
 
 	/* setup display command
 	we can't immediately set the opcode since the controller
 	will try parse the command before we've set it all up
 	so we just set cs here and set the opcode at the end */
-
-	ptr = par->metromem;
 
 	if (par->metromem_cmd->opcode == 0xCC40)
 		opcode = cs = 0xCC41;
@@ -335,44 +370,17 @@ static int __devinit metronome_powerup_cmd(struct metronomefb_par *par)
 
 static int __devinit metronome_config_cmd(struct metronomefb_par *par)
 {
-	int i;
-	u16 cs;
-
 	/* setup config command
 	we can't immediately set the opcode since the controller
-	will try parse the command before we've set it all up
-	so we just set cs here and set the opcode at the end */
+	will try parse the command before we've set it all up */
 
-	cs = 0xCC10;
-
-	/* set the 12 args ( 8 bytes ) for config. see spec for meanings */
-	i = 0;
-	par->metromem_cmd->args[i] = 	15 /* sdlew */
-					| 2 << 8 /* sdosz */
-					| 0 << 11 /* sdor */
-					| 0 << 12 /* sdces */
-					| 0 << 15; /* sdcer */
-	cs += par->metromem_cmd->args[i++];
-
-	par->metromem_cmd->args[i] = 	42 /* gdspl */
-					| 1 << 8 /* gdr1 */
-					| 1 << 9 /* sdshr */
-					| 0 << 15; /* gdspp */
-	cs += par->metromem_cmd->args[i++];
-
-	par->metromem_cmd->args[i] = 	18 /* gdspw */
-					| 0 << 15; /* dispc */
-	cs += par->metromem_cmd->args[i++];
-
-	par->metromem_cmd->args[i] = 	599 /* vdlc */
-					| 0 << 11 /* dsi */
-					| 0 << 12; /* dsic */
-	cs += par->metromem_cmd->args[i++];
-
+	memcpy(par->metromem_cmd->args, epd_frame_table[par->dt].config,
+		sizeof(epd_frame_table[par->dt].config));
 	/* the rest are 0 */
-	memset((u8 *) (par->metromem_cmd->args + i), 0, (32-i)*2);
+	memset((u8 *) (par->metromem_cmd->args + 4), 0, (32-4)*2);
 
-	par->metromem_cmd->csum = cs;
+	par->metromem_cmd->csum = 0xCC10;
+	par->metromem_cmd->csum += calc_img_cksum(par->metromem_cmd->args, 4);
 	par->metromem_cmd->opcode = 0xCC10; /* config cmd */
 
 	return par->board->met_wait_event(par);
@@ -408,12 +416,9 @@ static int __devinit metronome_init_regs(struct metronomefb_par *par)
 {
 	int res;
 
-	par->board->init_gpio_regs(par);
-
-	par->board->init_lcdc_regs(par);
-
-	/* now that lcd is setup, setup dma descriptor */
-	par->board->post_dma_setup(par);
+	res = par->board->setup_io(par);
+	if (res)
+		return res;
 
 	res = metronome_powerup_cmd(par);
 	if (res)
@@ -430,16 +435,16 @@ static int __devinit metronome_init_regs(struct metronomefb_par *par)
 
 static void metronomefb_dpy_update(struct metronomefb_par *par)
 {
+	int fbsize;
 	u16 cksum;
 	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
 
+	fbsize = par->info->fix.smem_len;
 	/* copy from vm to metromem */
-	memcpy(par->metromem_img, buf, DPY_W*DPY_H);
+	memcpy(par->metromem_img, buf, fbsize);
 
-	cksum = calc_img_cksum((u16 *) par->metromem_img,
-				(epd_frame_table[0].fw * DPY_H)/2);
-	*((u16 *)(par->metromem_img) +
-			(epd_frame_table[0].fw * DPY_H)/2) = cksum;
+	cksum = calc_img_cksum((u16 *) par->metromem_img, fbsize/2);
+	*((u16 *)(par->metromem_img) + fbsize/2) = cksum;
 	metronome_display_cmd(par);
 }
 
@@ -574,8 +579,10 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	unsigned char *videomemory;
 	struct metronomefb_par *par;
 	const struct firmware *fw_entry;
-	int cmd_size, wfm_size, img_size, padding_size, totalsize;
 	int i;
+	int panel_type;
+	int fw, fh;
+	int epd_dt_index;
 
 	/* pick up board specific routines */
 	board = dev->dev.platform_data;
@@ -586,96 +593,108 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	if (!try_module_get(board->owner))
 		return -ENODEV;
 
+	info = framebuffer_alloc(sizeof(struct metronomefb_par), &dev->dev);
+	if (!info)
+		goto err;
+
 	/* we have two blocks of memory.
 	info->screen_base which is vm, and is the fb used by apps.
 	par->metromem which is physically contiguous memory and
 	contains the display controller commands, waveform,
 	processed image data and padding. this is the data pulled
-	by the device's LCD controller and pushed to Metronome */
+	by the device's LCD controller and pushed to Metronome.
+	the metromem memory is allocated by the board driver and
+	is provided to us */
 
-	videomemorysize = (DPY_W*DPY_H);
+	panel_type = board->get_panel_type();
+	switch (panel_type) {
+	case 6:
+		epd_dt_index = 0;
+		break;
+	case 8:
+		epd_dt_index = 1;
+		break;
+	case 97:
+		epd_dt_index = 2;
+		break;
+	default:
+		dev_err(&dev->dev, "Unexpected panel type. Defaulting to 6\n");
+		epd_dt_index = 0;
+		break;
+	}
+
+	fw = epd_frame_table[epd_dt_index].fw;
+	fh = epd_frame_table[epd_dt_index].fh;
+
+	/* we need to add a spare page because our csum caching scheme walks
+	 * to the end of the page */
+	videomemorysize = PAGE_SIZE + (fw * fh);
 	videomemory = vmalloc(videomemorysize);
 	if (!videomemory)
-		return -ENOMEM;
+		goto err_fb_rel;
 
 	memset(videomemory, 0, videomemorysize);
-
-	info = framebuffer_alloc(sizeof(struct metronomefb_par), &dev->dev);
-	if (!info)
-		goto err_vfree;
 
 	info->screen_base = (char __force __iomem *)videomemory;
 	info->fbops = &metronomefb_ops;
 
+	metronomefb_fix.line_length = fw;
+	metronomefb_var.xres = fw;
+	metronomefb_var.yres = fh;
+	metronomefb_var.xres_virtual = fw;
+	metronomefb_var.yres_virtual = fh;
 	info->var = metronomefb_var;
 	info->fix = metronomefb_fix;
 	info->fix.smem_len = videomemorysize;
 	par = info->par;
 	par->info = info;
 	par->board = board;
+	par->dt = epd_dt_index;
 	init_waitqueue_head(&par->waitq);
 
 	/* this table caches per page csum values. */
 	par->csum_table = vmalloc(videomemorysize/PAGE_SIZE);
 	if (!par->csum_table)
-		goto err_csum_table;
-
-	/* the metromem buffer is divided as follows:
-	command | CRC | padding
-	16kb waveform data | CRC | padding
-	image data | CRC
-	and an extra 256 bytes for dma descriptors
-	eg: IW=832 IH=622 WS=128
-	*/
-
-	cmd_size = 1 * epd_frame_table[0].fw;
-	wfm_size = ((16*1024 + 2 + epd_frame_table[0].fw - 1)
-			/ epd_frame_table[0].fw) * epd_frame_table[0].fw;
-	img_size = epd_frame_table[0].fh * epd_frame_table[0].fw;
-	padding_size = 4 * epd_frame_table[0].fw;
-	totalsize = cmd_size + wfm_size + img_size + padding_size;
-	par->metromemsize = PAGE_ALIGN(totalsize + 256);
-	DPRINTK("desired memory size = %d\n", par->metromemsize);
-	dev->dev.coherent_dma_mask = 0xffffffffull;
-	par->metromem = dma_alloc_writecombine(&dev->dev, par->metromemsize,
-						&par->metromem_dma, GFP_KERNEL);
-	if (!par->metromem) {
-		printk(KERN_ERR
-			"metronomefb: unable to allocate dma buffer\n");
 		goto err_vfree;
+
+	/* the physical framebuffer that we use is setup by
+	 * the platform device driver. It will provide us
+	 * with cmd, wfm and image memory in a contiguous area. */
+	retval = board->setup_fb(par);
+	if (retval) {
+		dev_err(&dev->dev, "Failed to setup fb\n");
+		goto err_csum_table;
+	}
+
+	/* after this point we should have a framebuffer */
+	if ((!par->metromem_wfm) ||  (!par->metromem_img) ||
+		(!par->metromem_dma)) {
+		dev_err(&dev->dev, "fb access failure\n");
+		retval = -EINVAL;
+		goto err_csum_table;
 	}
 
 	info->fix.smem_start = par->metromem_dma;
-	par->metromem_cmd = (struct metromem_cmd *) par->metromem;
-	par->metromem_wfm = par->metromem + cmd_size;
-	par->metromem_img = par->metromem + cmd_size + wfm_size;
-	par->metromem_img_csum = (u16 *) (par->metromem_img +
-					(epd_frame_table[0].fw * DPY_H));
-	DPRINTK("img offset=0x%x\n", cmd_size + wfm_size);
-	par->metromem_desc = (struct metromem_desc *) (par->metromem + cmd_size
-					+ wfm_size + img_size + padding_size);
-	par->metromem_desc_dma = par->metromem_dma + cmd_size + wfm_size
-				 + img_size + padding_size;
 
 	/* load the waveform in. assume mode 3, temp 31 for now
 		a) request the waveform file from userspace
 		b) process waveform and decode into metromem */
 	retval = request_firmware(&fw_entry, "metronome.wbf", &dev->dev);
 	if (retval < 0) {
-		printk(KERN_ERR "metronomefb: couldn't get waveform\n");
-		goto err_dma_free;
+		dev_err(&dev->dev, "Failed to get waveform\n");
+		goto err_csum_table;
 	}
 
-	retval = load_waveform((u8 *) fw_entry->data, fw_entry->size,
-				par->metromem_wfm, 3, 31, &par->frame_count);
+	retval = load_waveform((u8 *) fw_entry->data, fw_entry->size, 3, 31,
+				par);
 	release_firmware(fw_entry);
 	if (retval < 0) {
-		printk(KERN_ERR "metronomefb: couldn't process waveform\n");
-		goto err_dma_free;
+		dev_err(&dev->dev, "Failed processing waveform\n");
+		goto err_csum_table;
 	}
 
 	if (board->setup_irq(info))
-		goto err_dma_free;
+		goto err_csum_table;
 
 	retval = metronome_init_regs(par);
 	if (retval < 0)
@@ -688,8 +707,8 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 
 	retval = fb_alloc_cmap(&info->cmap, 8, 0);
 	if (retval < 0) {
-		printk(KERN_ERR "Failed to allocate colormap\n");
-		goto err_fb_rel;
+		dev_err(&dev->dev, "Failed to allocate colormap\n");
+		goto err_free_irq;
 	}
 
 	/* set cmap */
@@ -704,7 +723,7 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, info);
 
-	printk(KERN_INFO
+	dev_dbg(&dev->dev,
 		"fb%d: Metronome frame buffer device, using %dK of video"
 		" memory\n", info->node, videomemorysize >> 10);
 
@@ -712,17 +731,15 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 
 err_cmap:
 	fb_dealloc_cmap(&info->cmap);
-err_fb_rel:
-	framebuffer_release(info);
 err_free_irq:
-	board->free_irq(info);
-err_dma_free:
-	dma_free_writecombine(&dev->dev, par->metromemsize, par->metromem,
-				par->metromem_dma);
+	board->cleanup(par);
 err_csum_table:
 	vfree(par->csum_table);
 err_vfree:
 	vfree(videomemory);
+err_fb_rel:
+	framebuffer_release(info);
+err:
 	module_put(board->owner);
 	return retval;
 }
@@ -733,15 +750,15 @@ static int __devexit metronomefb_remove(struct platform_device *dev)
 
 	if (info) {
 		struct metronomefb_par *par = info->par;
-		fb_deferred_io_cleanup(info);
-		dma_free_writecombine(&dev->dev, par->metromemsize,
-					par->metromem, par->metromem_dma);
-		fb_dealloc_cmap(&info->cmap);
-		vfree(par->csum_table);
+
 		unregister_framebuffer(info);
+		fb_deferred_io_cleanup(info);
+		fb_dealloc_cmap(&info->cmap);
+		par->board->cleanup(par);
+		vfree(par->csum_table);
 		vfree((void __force *)info->screen_base);
-		par->board->free_irq(info);
 		module_put(par->board->owner);
+		dev_dbg(&dev->dev, "calling release\n");
 		framebuffer_release(info);
 	}
 	return 0;
@@ -765,6 +782,9 @@ static void __exit metronomefb_exit(void)
 {
 	platform_driver_unregister(&metronomefb_driver);
 }
+
+module_param(user_wfm_size, uint, 0);
+MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
 
 module_init(metronomefb_init);
 module_exit(metronomefb_exit);

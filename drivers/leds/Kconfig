@@ -24,26 +24,12 @@ config LEDS_ATMEL_PWM
 	  This option enables support for LEDs driven using outputs
 	  of the dedicated PWM controller found on newer Atmel SOCs.
 
-config LEDS_CORGI
-	tristate "LED Support for the Sharp SL-C7x0 series"
-	depends on LEDS_CLASS && PXA_SHARP_C7xx
-	help
-	  This option enables support for the LEDs on Sharp Zaurus
-	  SL-C7x0 series (C700, C750, C760, C860).
-
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS && SHARP_LOCOMO
 	help
 	  This option enables support for the LEDs on Sharp Locomo.
 	  Zaurus models SL-5500 and SL-5600.
-
-config LEDS_SPITZ
-	tristate "LED Support for the Sharp SL-Cxx00 series"
-	depends on LEDS_CLASS && PXA_SHARP_Cxx00
-	help
-	  This option enables support for the LEDs on Sharp Zaurus
-	  SL-Cxx00 series (C1000, C3000, C3100).
 
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"

@@ -6,7 +6,7 @@
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
-#include <asm/mach/irq.h>
+#include <mach/irq.h>
 #include <asm/dpmc.h>
 
 .section .l1.text

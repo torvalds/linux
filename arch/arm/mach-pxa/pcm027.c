@@ -31,7 +31,7 @@
 #include <asm/mach/arch.h>
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa27x.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/pcm027.h>
@@ -85,6 +85,28 @@
  *
  * *) CPU internal use only
  */
+
+static unsigned long pcm027_pin_config[] __initdata = {
+	/* Chip Selects */
+	GPIO20_nSDCS_2,
+	GPIO21_nSDCS_3,
+	GPIO15_nCS_1,
+	GPIO78_nCS_2,
+	GPIO80_nCS_4,
+	GPIO33_nCS_5,	/* Ethernet */
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
+	/* GPIO */
+	GPIO52_GPIO,	/* IRQ from network controller */
+#ifdef CONFIG_LEDS_GPIO
+	GPIO90_GPIO,	/* PCM027_LED_CPU */
+	GPIO91_GPIO,	/* PCM027_LED_HEART_BEAT */
+#endif
+	GPIO114_GPIO,	/* IRQ from CAN controller */
+};
 
 /*
  * SMC91x network controller specific stuff
@@ -206,13 +228,9 @@ static void __init pcm027_init(void)
 	 */
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa2xx_mfp_config(pcm027_pin_config, ARRAY_SIZE(pcm027_pin_config));
 
-	/* LEDs (on demand only) */
-#ifdef CONFIG_LEDS_GPIO
-	pxa_gpio_mode(PCM027_LED_CPU | GPIO_OUT);
-	pxa_gpio_mode(PCM027_LED_HEARD_BEAT | GPIO_OUT);
-#endif /* CONFIG_LEDS_GPIO */
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* at last call the baseboard to initialize itself */
 #ifdef CONFIG_MACH_PCM990_BASEBOARD
