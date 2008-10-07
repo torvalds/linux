@@ -2789,7 +2789,7 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 }
 
 /*
- * Helper for automatic ping configuration
+ * Helper for automatic pin configuration
  */
 
 static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
