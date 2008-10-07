@@ -562,7 +562,7 @@ void ocfs2_remove_xattr_clusters_from_cache(struct inode *inode,
 					    sector_t block,
 					    u32 c_len)
 {
-	u64 i, b_len = ocfs2_clusters_to_blocks(inode->i_sb, 1) * c_len;
+	unsigned int i, b_len = ocfs2_clusters_to_blocks(inode->i_sb, 1) * c_len;
 
 	for (i = 0; i < b_len; i++, block++)
 		ocfs2_remove_block_from_cache(inode, block);
