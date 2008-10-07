@@ -53,7 +53,8 @@
 	{                                                           \
 		adapter->card->reg_type[adapter->card->debug_ix] = 0;   \
 		adapter->card->reg_offset[adapter->card->debug_ix] = \
-			((unsigned char *)(&reg)) - ((unsigned char *)adapter->slic_regs); \
+		((unsigned char *)(&reg)) - \
+		((unsigned char *)adapter->slic_regs); \
 		adapter->card->reg_value[adapter->card->debug_ix++] = value;  \
 		if (adapter->card->debug_ix == 32) \
 			adapter->card->debug_ix = 0;                      \
@@ -63,7 +64,8 @@
 	{                                                           \
 		adapter->card->reg_type[adapter->card->debug_ix] = 1;        \
 		adapter->card->reg_offset[adapter->card->debug_ix] = \
-			((unsigned char *)(&reg)) - ((unsigned char *)adapter->slic_regs); \
+		((unsigned char *)(&reg)) - \
+		((unsigned char *)adapter->slic_regs); \
 		adapter->card->reg_value[adapter->card->debug_ix] = value;   \
 		adapter->card->reg_valueh[adapter->card->debug_ix++] = valh;  \
 		if (adapter->card->debug_ix == 32) \

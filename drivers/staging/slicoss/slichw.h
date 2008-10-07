@@ -702,7 +702,7 @@ struct vendor4_fru {
     unsigned char        pad[3];
 };
 
-union oemfru_t {
+union oemfru {
     struct vendor1_fru   vendor1_fru;
     struct vendor2_fru   vendor2_fru;
     struct vendor3_fru   vendor3_fru;
@@ -764,7 +764,7 @@ struct slic_eeprom {
 	unsigned char	FruFormat;	/* Alacritech FRU format type */
 	struct atk_fru   AtkFru;	/* Alacritech FRU information */
 	unsigned char	OemFruFormat;	/* optional OEM FRU format type */
-	union oemfru_t    OemFru;         /* optional OEM FRU information */
+	union oemfru    OemFru;         /* optional OEM FRU information */
 	unsigned char	Pad[4];	/* Pad to 128 bytes - includes 2 cksum bytes
 				 *(if OEM FRU info exists) and two unusable
 				 * bytes at the end */
@@ -809,7 +809,7 @@ struct oslic_eeprom {
 	unsigned char	FruFormat;	/* 35 Alacritech FRU format type */
 	struct atk_fru	AtkFru;	/* Alacritech FRU information */
 	unsigned char	OemFruFormat;	/* optional OEM FRU format type */
-	union oemfru_t    OemFru;         /* optional OEM FRU information */
+	union oemfru    OemFru;         /* optional OEM FRU information */
 	unsigned char	Pad[4];	/* Pad to 128 bytes - includes 2 checksum bytes
 				 * (if OEM FRU info exists) and two unusable
 				 * bytes at the end

@@ -1015,7 +1015,7 @@ static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef DEBUG_DUMP
 	if (adapter->kill_card) {
-		p_slic_host64_cmd_t ihcmd;
+		struct slic_host64_cmd ihcmd;
 
 		ihcmd = &hcmd->cmd64;
 
@@ -2455,7 +2455,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	unsigned char fruformat;
 	unsigned char oemfruformat;
 	struct atk_fru *patkfru;
-	union oemfru_t *poemfru;
+	union oemfru *poemfru;
 
 	DBG_MSG
 	    ("slicoss: %s ENTER card[%p] adapter[%p] card->state[%x] \
@@ -2692,7 +2692,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	 *  Allocate COMMAND BUFFER
 	 */
 	if (!card->cmdbuffer) {
-		card->cmdbuffer = kmalloc(sizeof(dump_cmd_t), GFP_ATOMIC);
+		card->cmdbuffer = kmalloc(sizeof(struct dump_cmd), GFP_ATOMIC);
 
 		ASSERT(card->cmdbuffer);
 		if (card->cmdbuffer == NULL)
@@ -2702,7 +2702,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	 *  Smear the shared memory structure and then obtain
 	 *  the PHYSICAL address of this structure
 	 */
-	memset(card->cmdbuffer, 0, sizeof(dump_cmd_t));
+	memset(card->cmdbuffer, 0, sizeof(struct dump_cmd));
 	card->cmdbuffer_phys = virt_to_bus(card->cmdbuffer);
 	card->cmdbuffer_physh = SLIC_GET_ADDR_HIGH(card->cmdbuffer_phys);
 	card->cmdbuffer_physl = SLIC_GET_ADDR_LOW(card->cmdbuffer_phys);
@@ -4417,7 +4417,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 #ifdef MOOKTODO
 	int i;
 	struct sliccard *card = seq->private;
-	pslic_config_t config = &card->config;
+	struct slic_config *config = &card->config;
 	unsigned char *fru = (unsigned char *)(&card->config.atk_fru);
 	unsigned char *oemfru = (unsigned char *)(&card->config.OemFru);
 #endif
@@ -5311,7 +5311,7 @@ static u32 slic_dump_card(struct sliccard *card, bool resume)
 	u32 queue;
 	u32 len, offset;
 	u32 sram_size, dram_size, regs;
-	sliccore_hdr_t corehdr;
+	struct sliccore_hdr corehdr;
 	u32 file_offset;
 	char *namestr;
 	u32 i;
@@ -5344,7 +5344,7 @@ static u32 slic_dump_card(struct sliccard *card, bool resume)
 	}
 	corehdr.driver_version[i] = 0;
 
-	file_offset = sizeof(sliccore_hdr_t);
+	file_offset = sizeof(struct sliccore_hdr);
 
 	/*
 	 * Issue the following debug commands to the SLIC:
@@ -5651,10 +5651,10 @@ done:
 	 */
 	file_offset = 0;
 	DBG_MSG("[slicmon] Write CoreHeader len[%x] offset[%x]\n",
-		(uint) sizeof(sliccore_hdr_t), file_offset);
+		(uint) sizeof(struct sliccore_hdr), file_offset);
 
 	result =
-	    slic_dump_write(card, &corehdr, sizeof(sliccore_hdr_t),
+	    slic_dump_write(card, &corehdr, sizeof(struct sliccore_hdr),
 			    file_offset);
 	DBG_MSG("[slicmon] corehdr  xoff[%x] xsz[%x]\n"
 		"    roff[%x] rsz[%x] fileoff[%x] filesz[%x]\n"
@@ -5663,7 +5663,7 @@ done:
 		corehdr.XmtRegsize, corehdr.RcvRegOff, corehdr.RcvRegsize,
 		corehdr.FileRegOff, corehdr.FileRegsize, corehdr.SramOff,
 		corehdr.Sramsize, corehdr.DramOff, corehdr.Dramsize,
-		(uint) sizeof(sliccore_hdr_t));
+		(uint) sizeof(struct sliccore_hdr));
 	for (i = 0; i < max_queues; i++) {
 		DBG_MSG("[slicmon]  QUEUE 0x%x  offset[%x] size[%x]\n",
 			(uint) i, corehdr.queues[i].queueOff,
@@ -5706,7 +5706,7 @@ static u32 slic_dump_resume(struct sliccard *card, unsigned char proc)
 
 static u32 slic_dump_reg(struct sliccard *card, unsigned char proc)
 {
-	pdump_cmd_t dump = (pdump_cmd_t) card->cmdbuffer;
+	struct dump_cmd *dump = (struct dump_cmd *)card->cmdbuffer;
 
 	dump->cmd = COMMAND_BYTE(CMD_DUMP, 0, proc);
 	dump->desc = DESC_REG;
@@ -5723,7 +5723,7 @@ static u32 slic_dump_reg(struct sliccard *card, unsigned char proc)
 static u32 slic_dump_data(struct sliccard *card,
 		       u32 addr, ushort count, unsigned char desc)
 {
-	pdump_cmd_t dump = (pdump_cmd_t) card->cmdbuffer;
+	struct dump_cmd *dump = (struct dump_cmd *)card->cmdbuffer;
 
 	dump->cmd = COMMAND_BYTE(CMD_DUMP, 0, PROC_RECEIVE);
 	dump->desc = desc;
@@ -5740,7 +5740,7 @@ static u32 slic_dump_data(struct sliccard *card,
 static u32 slic_dump_queue(struct sliccard *card,
 			u32 addr, u32 buf_physh, u32 queue)
 {
-	pdump_cmd_t dump = (pdump_cmd_t) card->cmdbuffer;
+	struct dump_cmd *dump = (struct dump_cmd *)card->cmdbuffer;
 
 	dump->cmd = COMMAND_BYTE(CMD_DUMP, 0, PROC_RECEIVE);
 	dump->desc = DESC_QUEUE;
@@ -5756,7 +5756,7 @@ static u32 slic_dump_queue(struct sliccard *card,
 static u32 slic_dump_load_queue(struct sliccard *card, u32 data,
 				u32 queue)
 {
-	pdump_cmd_t load = (pdump_cmd_t) card->cmdbuffer;
+	struct dump_cmd *load = (struct dump_cmd *) card->cmdbuffer;
 
 	load->cmd = COMMAND_BYTE(CMD_LOAD, 0, PROC_RECEIVE);
 	load->desc = DESC_QUEUE;
@@ -5771,7 +5771,7 @@ static u32 slic_dump_load_queue(struct sliccard *card, u32 data,
 static u32 slic_dump_cam(struct sliccard *card,
 		      u32 addr, u32 count, unsigned char desc)
 {
-	pdump_cmd_t dump = (pdump_cmd_t) card->cmdbuffer;
+	struct dump_cmd *dump = (struct dump_cmd *)card->cmdbuffer;
 
 	dump->cmd = COMMAND_BYTE(CMD_CAM_OPS, 0, PROC_NONE);
 	dump->desc = desc;

@@ -228,7 +228,7 @@ struct CORE_Q {
 #define DRIVER_NAME_SIZE    32
 
 struct sliccore_hdr {
-    unsigned char   driver_version[DRIVER_NAME_SIZE];    /* Driver version string */
+    unsigned char driver_version[DRIVER_NAME_SIZE]; /* Driver version string */
     u32   RcvRegOff;          /* Offset of receive registers */
     u32   RcvRegsize;         /* size of receive registers */
     u32   XmtRegOff;          /* Offset of transmit registers */
