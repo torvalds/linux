@@ -49,7 +49,7 @@
 
 /* Arithmetic right shift for positive and negative values for ISO C. */
 #define RC_PID_DO_ARITH_RIGHT_SHIFT(x, y) \
-	(x) < 0 ? -((-(x)) >> (y)) : (x) >> (y)
+	((x) < 0 ? -((-(x)) >> (y)) : (x) >> (y))
 
 enum rc_pid_event_type {
 	RC_PID_EVENT_TYPE_TX_STATUS,

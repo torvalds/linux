@@ -137,7 +137,7 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf)+buf-p, "\n DTKN:");
 	for (i = 0; i < STA_TID_NUM; i++)
 		p += scnprintf(p, sizeof(buf)+buf-p, "%5d",
-			sta->ampdu_mlme.tid_state_rx[i]?
+			sta->ampdu_mlme.tid_state_rx[i] ?
 			sta->ampdu_mlme.tid_rx[i]->dialog_token : 0);
 
 	p += scnprintf(p, sizeof(buf)+buf-p, "\n TX  :");
@@ -148,13 +148,13 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf)+buf-p, "\n DTKN:");
 	for (i = 0; i < STA_TID_NUM; i++)
 		p += scnprintf(p, sizeof(buf)+buf-p, "%5d",
-			sta->ampdu_mlme.tid_state_tx[i]?
+			sta->ampdu_mlme.tid_state_tx[i] ?
 			sta->ampdu_mlme.tid_tx[i]->dialog_token : 0);
 
 	p += scnprintf(p, sizeof(buf)+buf-p, "\n SSN :");
 	for (i = 0; i < STA_TID_NUM; i++)
 		p += scnprintf(p, sizeof(buf)+buf-p, "%5d",
-			sta->ampdu_mlme.tid_state_tx[i]?
+			sta->ampdu_mlme.tid_state_tx[i] ?
 			sta->ampdu_mlme.tid_tx[i]->ssn : 0);
 
 	p += scnprintf(p, sizeof(buf)+buf-p, "\n");

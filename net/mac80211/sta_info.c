@@ -290,7 +290,7 @@ int sta_info_insert(struct sta_info *sta)
 	}
 
 	if (WARN_ON(compare_ether_addr(sta->sta.addr, sdata->dev->dev_addr) == 0 ||
-	            is_multicast_ether_addr(sta->sta.addr))) {
+		    is_multicast_ether_addr(sta->sta.addr))) {
 		err = -EINVAL;
 		goto out_free;
 	}
@@ -821,7 +821,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 }
 
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
-                                         const u8 *addr)
+					 const u8 *addr)
 {
 	struct sta_info *sta = sta_info_get(hw_to_local(hw), addr);
 

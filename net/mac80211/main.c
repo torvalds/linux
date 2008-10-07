@@ -1013,7 +1013,7 @@ static int __init ieee80211_init(void)
 
 	BUILD_BUG_ON(sizeof(struct ieee80211_tx_info) > sizeof(skb->cb));
 	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, driver_data) +
-	             IEEE80211_TX_INFO_DRIVER_DATA_SIZE > sizeof(skb->cb));
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE > sizeof(skb->cb));
 
 	ret = rc80211_minstrel_init();
 	if (ret)

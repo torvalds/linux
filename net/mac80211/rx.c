@@ -26,10 +26,11 @@
 #include "tkip.h"
 #include "wme.h"
 
-u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
-				struct tid_ampdu_rx *tid_agg_rx,
-				struct sk_buff *skb, u16 mpdu_seq_num,
-				int bar_req);
+static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
+					   struct tid_ampdu_rx *tid_agg_rx,
+					   struct sk_buff *skb,
+					   u16 mpdu_seq_num,
+					   int bar_req);
 /*
  * monitor mode reception
  *
@@ -1988,17 +1989,17 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 static inline int seq_less(u16 sq1, u16 sq2)
 {
-	return (((sq1 - sq2) & SEQ_MASK) > (SEQ_MODULO >> 1));
+	return ((sq1 - sq2) & SEQ_MASK) > (SEQ_MODULO >> 1);
 }
 
 static inline u16 seq_inc(u16 sq)
 {
-	return ((sq + 1) & SEQ_MASK);
+	return (sq + 1) & SEQ_MASK;
 }
 
 static inline u16 seq_sub(u16 sq1, u16 sq2)
 {
-	return ((sq1 - sq2) & SEQ_MASK);
+	return (sq1 - sq2) & SEQ_MASK;
 }
 
 
@@ -2006,10 +2007,11 @@ static inline u16 seq_sub(u16 sq1, u16 sq2)
  * As it function blongs to Rx path it must be called with
  * the proper rcu_read_lock protection for its flow.
  */
-u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
-				struct tid_ampdu_rx *tid_agg_rx,
-				struct sk_buff *skb, u16 mpdu_seq_num,
-				int bar_req)
+static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
+					   struct tid_ampdu_rx *tid_agg_rx,
+					   struct sk_buff *skb,
+					   u16 mpdu_seq_num,
+					   int bar_req)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rx_status status;
