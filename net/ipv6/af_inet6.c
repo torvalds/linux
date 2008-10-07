@@ -806,16 +806,12 @@ static int __init init_ipv6_mibs(void)
 	if (snmp_mib_init((void **)icmpv6msg_statistics,
 			  sizeof(struct icmpv6msg_mib)) < 0)
 		goto err_icmpmsg_mib;
-	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib)) < 0)
-		goto err_udp_mib;
 	if (snmp_mib_init((void **)udplite_stats_in6,
 			  sizeof (struct udp_mib)) < 0)
 		goto err_udplite_mib;
 	return 0;
 
 err_udplite_mib:
-	snmp_mib_free((void **)udp_stats_in6);
-err_udp_mib:
 	snmp_mib_free((void **)icmpv6msg_statistics);
 err_icmpmsg_mib:
 	snmp_mib_free((void **)icmpv6_statistics);
@@ -831,17 +827,20 @@ static void cleanup_ipv6_mibs(void)
 	snmp_mib_free((void **)ipv6_statistics);
 	snmp_mib_free((void **)icmpv6_statistics);
 	snmp_mib_free((void **)icmpv6msg_statistics);
-	snmp_mib_free((void **)udp_stats_in6);
 	snmp_mib_free((void **)udplite_stats_in6);
 }
 
 static int __net_init ipv6_init_mibs(struct net *net)
 {
+	if (snmp_mib_init((void **)net->mib.udp_stats_in6,
+			  sizeof (struct udp_mib)) < 0)
+		return -ENOMEM;
 	return 0;
 }
 
 static void __net_exit ipv6_cleanup_mibs(struct net *net)
 {
+	snmp_mib_free((void **)net->mib.udp_stats_in6);
 }
 
 static int inet6_net_init(struct net *net)

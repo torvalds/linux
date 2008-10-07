@@ -180,7 +180,8 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 	snmp6_seq_show_item(seq, (void **)ipv6_statistics, snmp6_ipstats_list);
 	snmp6_seq_show_item(seq, (void **)icmpv6_statistics, snmp6_icmp6_list);
 	snmp6_seq_show_icmpv6msg(seq, (void **)icmpv6msg_statistics);
-	snmp6_seq_show_item(seq, (void **)udp_stats_in6, snmp6_udp6_list);
+	snmp6_seq_show_item(seq, (void **)net->mib.udp_stats_in6,
+			    snmp6_udp6_list);
 	snmp6_seq_show_item(seq, (void **)udplite_stats_in6, snmp6_udplite6_list);
 	return 0;
 }

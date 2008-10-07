@@ -152,8 +152,6 @@ extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 				    __be32 daddr, __be16 dport,
 				    int dif);
 
-DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
-
 /* UDP-Lite does not have a standardized MIB yet, so we inherit from UDP */
 DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 
@@ -167,12 +165,14 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 	if (is_udplite) SNMP_INC_STATS_BH((net)->mib.udplite_statistics, field);         \
 	else		SNMP_INC_STATS_BH((net)->mib.udp_statistics, field);    }  while(0)
 
-#define UDP6_INC_STATS_BH(net, field, is_udplite) 	    do { (void)net;  \
+#define UDP6_INC_STATS_BH(net, field, is_udplite) 	    do { \
 	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
-	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
-#define UDP6_INC_STATS_USER(net, field, is_udplite)	    do { (void)net;    \
+	else		SNMP_INC_STATS_BH((net)->mib.udp_stats_in6, field);  \
+} while(0)
+#define UDP6_INC_STATS_USER(net, field, is_udplite)	    do { \
 	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
-	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
+	else		SNMP_INC_STATS_USER((net)->mib.udp_stats_in6, field);  \
+} while(0)
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #define UDPX_INC_STATS_BH(sk, field) \
