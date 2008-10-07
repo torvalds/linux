@@ -1421,8 +1421,16 @@ static int __init force_acpi_ht(const struct dmi_system_id *d)
  */
 static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 {
-	pr_notice("%s detected: Ignoring BIOS IRQ0 pin2 override\n", d->ident);
-	acpi_skip_timer_override = 1;
+	/*
+	 * The ati_ixp4x0_rev() early PCI quirk should have set
+	 * the acpi_skip_timer_override flag already:
+	 */
+	if (!acpi_skip_timer_override) {
+		WARN(1, KERN_ERR "ati_ixp4x0 quirk not complete.\n");
+		pr_notice("%s detected: Ignoring BIOS IRQ0 pin2 override\n",
+			d->ident);
+		acpi_skip_timer_override = 1;
+	}
 	return 0;
 }
 
