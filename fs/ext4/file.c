@@ -140,6 +140,9 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len);
+
 const struct file_operations ext4_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
@@ -170,5 +173,6 @@ const struct inode_operations ext4_file_inode_operations = {
 #endif
 	.permission	= ext4_permission,
 	.fallocate	= ext4_fallocate,
+	.fiemap		= ext4_fiemap,
 };
 

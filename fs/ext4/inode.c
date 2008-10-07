@@ -1135,8 +1135,8 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 /* Maximum number of blocks we map for direct IO at once. */
 #define DIO_MAX_BLOCKS 4096
 
-static int ext4_get_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create)
+int ext4_get_block(struct inode *inode, sector_t iblock,
+		   struct buffer_head *bh_result, int create)
 {
 	handle_t *handle = ext4_journal_current_handle();
 	int ret = 0, started = 0;

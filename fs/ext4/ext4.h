@@ -1067,6 +1067,8 @@ struct buffer_head *ext4_getblk(handle_t *, struct inode *,
 						ext4_lblk_t, int, int *);
 struct buffer_head *ext4_bread(handle_t *, struct inode *,
 						ext4_lblk_t, int, int *);
+int ext4_get_block(struct inode *inode, sector_t iblock,
+				struct buffer_head *bh_result, int create);
 int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 				ext4_lblk_t iblock, unsigned long maxblocks,
 				struct buffer_head *bh_result,
