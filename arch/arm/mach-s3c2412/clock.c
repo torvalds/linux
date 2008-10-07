@@ -37,13 +37,13 @@
 #include <mach/hardware.h>
 #include <asm/io.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/s3c2412.h>
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/cpu.h>
 
 /* We currently have to assume that the system is running
  * from the XTPll input, and that all ***REFCLKs are being

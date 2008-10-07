@@ -27,8 +27,8 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-dsc.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/s3c2440.h>
+#include <plat/cpu.h>
+#include <plat/s3c2440.h>
 
 int s3c2440_set_dsc(unsigned int pin, unsigned int value)
 {

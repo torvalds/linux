@@ -34,7 +34,7 @@
 #include <mach/idle.h>
 
 #include <mach/regs-clock.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-power.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-gpioj.h>
@@ -43,10 +43,10 @@
 #include <mach/regs-s3c2412.h>
 
 #include <asm/plat-s3c24xx/s3c2412.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/devs.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/pm.h>
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;

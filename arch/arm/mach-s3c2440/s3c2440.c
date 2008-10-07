@@ -29,9 +29,9 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/plat-s3c24xx/s3c2440.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/s3c2440.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 static struct sys_device s3c2440_sysdev = {
 	.cls		= &s3c2440_sysclass,

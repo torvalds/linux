@@ -39,7 +39,7 @@
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
@@ -56,8 +56,8 @@
 #include <linux/serial_8250.h>
 
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"

@@ -40,13 +40,13 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/leds-gpio.h>
 
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"

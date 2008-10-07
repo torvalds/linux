@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
 */
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 
 /* The S3C2440 implementations are used by default as they are the
  * most widely re-used */

@@ -30,7 +30,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <asm/plat-s3c/nand.h>
 #include <asm/plat-s3c/iic.h>
 
@@ -49,9 +49,9 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 #include <asm/plat-s3c24xx/udc.h>
 
 static struct map_desc jive_iodesc[] __initdata = {

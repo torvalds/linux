@@ -34,9 +34,9 @@
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
-#include <asm/plat-s3c24xx/irq.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
+#include <plat/irq.h>
 
 #define INTMSK(start, end) ((1 << ((end) + 1 - (start))) - 1)
 

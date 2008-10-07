@@ -28,11 +28,11 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <asm/plat-s3c24xx/udc.h>
 
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 #include <asm/plat-s3c24xx/regs-spi.h>
 
 /* Serial port registrations */

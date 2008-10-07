@@ -35,7 +35,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/plat-s3c24xx/devs.h>
+#include <plat/devs.h>
 #include "usb-simtec.h"
 
 /* control power and monitor over-current events on various Simtec

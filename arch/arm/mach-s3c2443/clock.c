@@ -39,9 +39,9 @@
 
 #include <mach/regs-s3c2443-clock.h>
 
-#include <asm/plat-s3c24xx/s3c2443.h>
+#include <plat/s3c2443.h>
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/cpu.h>
 
 /* We currently have to assume that the system is running
  * from the XTPll input, and that all ***REFCLKs are being

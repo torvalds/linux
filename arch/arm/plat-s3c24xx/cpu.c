@@ -42,18 +42,18 @@
 #include <mach/system-reset.h>
 
 #include <mach/regs-gpio.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/devs.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/s3c2400.h>
-#include <asm/plat-s3c24xx/s3c2410.h>
+#include <plat/s3c2400.h>
+#include <plat/s3c2410.h>
 #include <asm/plat-s3c24xx/s3c2412.h>
 #include "s3c244x.h"
-#include <asm/plat-s3c24xx/s3c2440.h>
-#include <asm/plat-s3c24xx/s3c2442.h>
-#include <asm/plat-s3c24xx/s3c2443.h>
+#include <plat/s3c2440.h>
+#include <plat/s3c2442.h>
+#include <plat/s3c2443.h>
 
 struct cpu_table {
 	unsigned long	idcode;

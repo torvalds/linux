@@ -44,9 +44,9 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c/regs-serial.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/regs-serial.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 #ifdef CONFIG_MTD_PARTITIONS
 

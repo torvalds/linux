@@ -30,18 +30,18 @@
 #include <asm/irq.h>
 
 #include <mach/regs-clock.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-gpioj.h>
 #include <mach/regs-dsc.h>
 
-#include <asm/plat-s3c24xx/s3c2410.h>
-#include <asm/plat-s3c24xx/s3c2440.h>
+#include <plat/s3c2410.h>
+#include <plat/s3c2440.h>
 #include "s3c244x.h"
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),

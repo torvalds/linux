@@ -48,7 +48,7 @@
 #include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/cpu.h>
 
 /* clock information */
 
