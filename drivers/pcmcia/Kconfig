@@ -220,7 +220,8 @@ config PCMCIA_PXA2XX
 	tristate "PXA2xx support"
 	depends on ARM && ARCH_PXA && PCMCIA
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
-		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA)
+		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
+		    || ARCH_VIPER)
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 
