@@ -830,6 +830,11 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_DELIVERY_SYSTEM,
 		.set	= 1,
 	},
+	[DTV_HIERARCHY] = {
+		.name	= "DTV_HIERARCHY",
+		.cmd	= DTV_HIERARCHY,
+		.set	= 1,
+	},
 	[DTV_CODE_RATE_HP] = {
 		.name	= "DTV_CODE_RATE_HP",
 		.cmd	= DTV_CODE_RATE_HP,
@@ -880,6 +885,11 @@ struct dtv_cmds_h dtv_cmds[] = {
 	[DTV_TRANSMISSION_MODE] = {
 		.name	= "DTV_TRANSMISSION_MODE",
 		.cmd	= DTV_TRANSMISSION_MODE,
+		.set	= 0,
+	},
+	[DTV_HIERARCHY] = {
+		.name	= "DTV_HIERARCHY",
+		.cmd	= DTV_HIERARCHY,
 		.set	= 0,
 	},
 };
@@ -1173,6 +1183,9 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_TRANSMISSION_MODE:
 		tvp->u.data = fe->dtv_property_cache.transmission_mode;
 		break;
+	case DTV_HIERARCHY:
+		tvp->u.data = fe->dtv_property_cache.hierarchy;
+		break;
 	default:
 		r = -1;
 	}
@@ -1265,6 +1278,9 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 		break;
 	case DTV_TRANSMISSION_MODE:
 		fe->dtv_property_cache.transmission_mode = tvp->u.data;
+		break;
+	case DTV_HIERARCHY:
+		fe->dtv_property_cache.hierarchy = tvp->u.data;
 		break;
 	default:
 		r = -1;
