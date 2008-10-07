@@ -1,0 +1,31 @@
+menuconfig NET_DSA
+	bool "Distributed Switch Architecture support"
+	default n
+	depends on EXPERIMENTAL
+	---help---
+	  This allows you to use hardware switch chips that use
+	  the Distributed Switch Architecture.
+
+
+if NET_DSA
+
+# tagging formats
+config NET_DSA_TAG_EDSA
+	bool
+	default n
+
+
+# switch drivers
+config NET_DSA_MV88E6XXX
+	bool
+	default n
+
+config NET_DSA_MV88E6123_61_65
+	bool "Marvell 88E6123/6161/6165 ethernet switch chip support"
+	select NET_DSA_MV88E6XXX
+	select NET_DSA_TAG_EDSA
+	---help---
+	  This enables support for the Marvell 88E6123/6161/6165
+	  ethernet switch chips.
+
+endif
