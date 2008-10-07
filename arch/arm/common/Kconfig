@@ -12,7 +12,8 @@ config ICST307
 
 config SA1111
 	bool
-	select DMABOUNCE
+	select DMABOUNCE if !ARCH_PXA
+	select ZONE_DMA if !ARCH_PXA
 
 config DMABOUNCE
 	bool
