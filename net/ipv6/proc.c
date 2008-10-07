@@ -175,6 +175,8 @@ snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
 
 static int snmp6_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = (struct net *)seq->private;
+
 	snmp6_seq_show_item(seq, (void **)ipv6_statistics, snmp6_ipstats_list);
 	snmp6_seq_show_item(seq, (void **)icmpv6_statistics, snmp6_icmp6_list);
 	snmp6_seq_show_icmpv6msg(seq, (void **)icmpv6msg_statistics);
@@ -185,7 +187,7 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 
 static int snmp6_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, snmp6_seq_show, NULL);
+	return single_open_net(inode, file, snmp6_seq_show);
 }
 
 static const struct file_operations snmp6_seq_fops = {
@@ -193,7 +195,7 @@ static const struct file_operations snmp6_seq_fops = {
 	.open	 = snmp6_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = single_release_net,
 };
 
 static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
