@@ -707,7 +707,7 @@ struct snd_timer_tread {
  *                                                                          *
  ****************************************************************************/
 
-#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 5)
+#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 6)
 
 struct snd_ctl_card_info {
 	int card;			/* card number */
@@ -718,8 +718,7 @@ struct snd_ctl_card_info {
 	unsigned char longname[80];	/* name + info text about soundcard */
 	unsigned char reserved_[16];	/* reserved for future (was ID of mixer) */
 	unsigned char mixername[80];	/* visual mixer identification */
-	unsigned char components[80];	/* card components / fine identification, delimited with one space (AC97 etc..) */
-	unsigned char reserved[48];	/* reserved for future */
+	unsigned char components[128];	/* card components / fine identification, delimited with one space (AC97 etc..) */
 };
 
 typedef int __bitwise snd_ctl_elem_type_t;
