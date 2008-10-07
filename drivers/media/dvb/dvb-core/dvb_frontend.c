@@ -830,6 +830,16 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_DELIVERY_SYSTEM,
 		.set	= 1,
 	},
+	[DTV_CODE_RATE_HP] = {
+		.name	= "DTV_CODE_RATE_HP",
+		.cmd	= DTV_CODE_RATE_HP,
+		.set	= 1,
+	},
+	[DTV_CODE_RATE_LP] = {
+		.name	= "DTV_CODE_RATE_LP",
+		.cmd	= DTV_CODE_RATE_LP,
+		.set	= 1,
+	},
 	/* Get */
 	[DTV_DISEQC_SLAVE_REPLY] = {
 		.name	= "DTV_DISEQC_SLAVE_REPLY",
@@ -840,6 +850,16 @@ struct dtv_cmds_h dtv_cmds[] = {
 	[DTV_API_VERSION] = {
 		.name	= "DTV_API_VERSION",
 		.cmd	= DTV_API_VERSION,
+		.set	= 0,
+	},
+	[DTV_CODE_RATE_HP] = {
+		.name	= "DTV_CODE_RATE_HP",
+		.cmd	= DTV_CODE_RATE_HP,
+		.set	= 0,
+	},
+	[DTV_CODE_RATE_LP] = {
+		.name	= "DTV_CODE_RATE_LP",
+		.cmd	= DTV_CODE_RATE_LP,
 		.set	= 0,
 	},
 };
@@ -1121,6 +1141,12 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_API_VERSION:
 		tvp->u.data = (DVB_API_VERSION << 8) | DVB_API_VERSION_MINOR;
 		break;
+	case DTV_CODE_RATE_HP:
+		tvp->u.data = fe->dtv_property_cache.code_rate_HP;
+		break;
+	case DTV_CODE_RATE_LP:
+		tvp->u.data = fe->dtv_property_cache.code_rate_LP;
+		break;
 	default:
 		r = -1;
 	}
@@ -1201,6 +1227,12 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 		fe->dtv_property_cache.sectone = tvp->u.data;
 		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_TONE,
 			(void *)fe->dtv_property_cache.sectone);
+		break;
+	case DTV_CODE_RATE_HP:
+		fe->dtv_property_cache.code_rate_HP = tvp->u.data;
+		break;
+	case DTV_CODE_RATE_LP:
+		fe->dtv_property_cache.code_rate_LP = tvp->u.data;
 		break;
 	default:
 		r = -1;
