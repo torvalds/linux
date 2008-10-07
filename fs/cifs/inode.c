@@ -837,12 +837,12 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	int xid;
 	char *full_path = NULL;
 	struct inode *inode = dentry->d_inode;
-	struct cifsInodeInfo *cifsInode;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct super_block *sb = dir->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	struct iattr *attrs;
-	__u32 dosattr;
+	struct iattr *attrs = NULL;
+	__u32 dosattr = 0, origattr = 0;
 
 	cFYI(1, ("cifs_unlink, dir=0x%p, dentry=0x%p", dir, dentry));
 
@@ -867,8 +867,10 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 			goto psx_del_no_retry;
 	}
 
+retry_std_delete:
 	rc = CIFSSMBDelFile(xid, tcon, full_path, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+
 psx_del_no_retry:
 	if (!rc) {
 		if (inode)
@@ -879,8 +881,7 @@ psx_del_no_retry:
 		rc = cifs_rename_pending_delete(full_path, inode, xid);
 		if (rc == 0)
 			drop_nlink(inode);
-	} else if (rc == -EACCES) {
-		/* try only if r/o attribute set in local lookup data? */
+	} else if (rc == -EACCES && dosattr == 0) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
 			rc = -ENOMEM;
@@ -888,28 +889,25 @@ psx_del_no_retry:
 		}
 
 		/* try to reset dos attributes */
-		cifsInode = CIFS_I(inode);
-		dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+		origattr = cifsInode->cifsAttrs;
+		if (origattr == 0)
+			origattr |= ATTR_NORMAL;
+		dosattr = origattr & ~ATTR_READONLY;
 		if (dosattr == 0)
 			dosattr |= ATTR_NORMAL;
 		dosattr |= ATTR_HIDDEN;
 
 		rc = cifs_set_file_info(inode, attrs, xid, full_path, dosattr);
-		kfree(attrs);
 		if (rc != 0)
 			goto out_reval;
-		rc = CIFSSMBDelFile(xid, tcon, full_path, cifs_sb->local_nls,
-				    cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			if (inode)
-				drop_nlink(inode);
-		} else if (rc == -ETXTBSY) {
-			rc = cifs_rename_pending_delete(full_path, inode, xid);
-			if (rc == 0)
-				drop_nlink(inode);
-		}
+
+		goto retry_std_delete;
 	}
+
+	/* undo the setattr if we errored out and it's needed */
+	if (rc != 0 && dosattr != 0)
+		cifs_set_file_info(inode, attrs, xid, full_path, origattr);
+
 out_reval:
 	if (inode) {
 		cifsInode = CIFS_I(inode);
@@ -919,9 +917,10 @@ out_reval:
 	}
 	dir->i_ctime = dir->i_mtime = current_fs_time(sb);
 	cifsInode = CIFS_I(dir);
-	cifsInode->time = 0;	/* force revalidate of dir as well */
+	CIFS_I(dir)->time = 0;	/* force revalidate of dir as well */
 
 	kfree(full_path);
+	kfree(attrs);
 	FreeXid(xid);
 	return rc;
 }
