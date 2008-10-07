@@ -309,6 +309,7 @@ struct cifs_search_info {
 	__u32 resume_key;
 	char *ntwrk_buf_start;
 	char *srch_entries_start;
+	char *last_entry;
 	char *presume_name;
 	unsigned int resume_name_len;
 	bool endOfSearch:1;
