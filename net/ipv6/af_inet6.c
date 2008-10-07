@@ -835,6 +835,15 @@ static void cleanup_ipv6_mibs(void)
 	snmp_mib_free((void **)udplite_stats_in6);
 }
 
+static int __net_init ipv6_init_mibs(struct net *net)
+{
+	return 0;
+}
+
+static void __net_exit ipv6_cleanup_mibs(struct net *net)
+{
+}
+
 static int inet6_net_init(struct net *net)
 {
 	int err = 0;
@@ -842,6 +851,9 @@ static int inet6_net_init(struct net *net)
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
 
+	err = ipv6_init_mibs(net);
+	if (err)
+		return err;
 #ifdef CONFIG_PROC_FS
 	err = udp6_proc_init(net);
 	if (err)
@@ -852,7 +864,6 @@ static int inet6_net_init(struct net *net)
 	err = ac6_proc_init(net);
 	if (err)
 		goto proc_ac6_fail;
-out:
 #endif
 	return err;
 
@@ -861,7 +872,9 @@ proc_ac6_fail:
 	tcp6_proc_exit(net);
 proc_tcp6_fail:
 	udp6_proc_exit(net);
-	goto out;
+out:
+	ipv6_cleanup_mibs(net);
+	return err;
 #endif
 }
 
@@ -872,6 +885,7 @@ static void inet6_net_exit(struct net *net)
 	tcp6_proc_exit(net);
 	ac6_proc_exit(net);
 #endif
+	ipv6_cleanup_mibs(net);
 }
 
 static struct pernet_operations inet6_net_ops = {
