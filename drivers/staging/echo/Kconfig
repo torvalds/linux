@@ -1,0 +1,9 @@
+config ECHO
+	tristate "Line Echo Canceller support"
+	default n
+	---help---
+	  This driver provides line echo cancelling support for mISDN and
+	  Zaptel drivers.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called echo.

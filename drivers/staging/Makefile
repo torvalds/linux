@@ -8,3 +8,4 @@ obj-$(CONFIG_VIDEO_GO7007)	+= go7007/
 obj-$(CONFIG_USB_IP_COMMON)	+= usbip/
 obj-$(CONFIG_W35UND)		+= winbond/
 obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
+obj-$(CONFIG_ECHO)		+= echo/

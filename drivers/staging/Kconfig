@@ -39,4 +39,6 @@ source "drivers/staging/winbond/Kconfig"
 
 source "drivers/staging/wlan-ng/Kconfig"
 
+source "drivers/staging/echo/Kconfig"
+
 endif # STAGING
