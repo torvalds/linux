@@ -2422,7 +2422,7 @@ static void rs_free_sta(void *priv_r, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
 	struct iwl_lq_sta *lq_sta = priv_sta;
-	struct iwl_priv *priv = priv_r;
+	struct iwl_priv *priv __maybe_unused = priv_r;
 
 	IWL_DEBUG_RATE("enter\n");
 	kfree(lq_sta);
