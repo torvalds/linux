@@ -900,8 +900,10 @@ _GLOBAL(kernel_thread)
 	li	r4,0		/* new sp (unused) */
 	li	r0,__NR_clone
 	sc
-	cmpwi	0,r3,0		/* parent or child? */
-	bne	1f		/* return if parent */
+	bns+	1f		/* did system call indicate error? */
+	neg	r3,r3		/* if so, make return code negative */
+1:	cmpwi	0,r3,0		/* parent or child? */
+	bne	2f		/* return if parent */
 	li	r0,0		/* make top-level stack frame */
 	stwu	r0,-16(r1)
 	mtlr	r30		/* fn addr in lr */
@@ -911,7 +913,7 @@ _GLOBAL(kernel_thread)
 	li	r0,__NR_exit	/* exit if function returns */
 	li	r3,0
 	sc
-1:	lwz	r30,8(r1)
+2:	lwz	r30,8(r1)
 	lwz	r31,12(r1)
 	addi	r1,r1,16
 	blr
