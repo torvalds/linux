@@ -1639,9 +1639,10 @@ L:	linux-ext4@vger.kernel.org
 S:	Maintained
 
 EXT4 FILE SYSTEM
-P:	Stephen Tweedie, Andrew Morton
-M:	sct@redhat.com, akpm@linux-foundation.org, adilger@sun.com
+P:	Theodore Ts'o
+M:	tytso@mit.edu, adilger@sun.com
 L:	linux-ext4@vger.kernel.org
+W:	http://ext4.wiki.kernel.org
 S:	Maintained
 
 F71805F HARDWARE MONITORING DRIVER
