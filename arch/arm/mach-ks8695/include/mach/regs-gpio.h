@@ -24,7 +24,7 @@
 
 
 /* Port Mode Register */
-#define IOPM_(x)		(1 << (x))	/* Mode for GPIO Pin x */
+#define IOPM(x)			(1 << (x))	/* Mode for GPIO Pin x */
 
 /* Port Control Register */
 #define IOPC_IOTIM1EN		(1 << 17)	/* GPIO Pin for Timer1 Enable */
@@ -50,6 +50,6 @@
 #define IOPC_TM_EDGE		(6)		/* Both Edge Detection */
 
 /* Port Data Register */
-#define IOPD_(x)		(1 << (x))	/* Signal Level of GPIO Pin x */
+#define IOPD(x)			(1 << (x))	/* Signal Level of GPIO Pin x */
 
 #endif
