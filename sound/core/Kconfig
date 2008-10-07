@@ -108,6 +108,9 @@ config SND_RTCTIMER
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rtctimer.
 
+	  Note that this option is exclusive with the new RTC drivers
+	  (CONFIG_RTC_CLASS) since this requires the old API.
+
 config SND_SEQ_RTCTIMER_DEFAULT
 	bool "Use RTC as default sequencer timer"
 	depends on SND_RTCTIMER && SND_SEQUENCER
