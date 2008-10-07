@@ -2918,6 +2918,12 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 	return 0;
 }
 
+static void dev_change_rx_flags(struct net_device *dev, int flags)
+{
+	if (dev->flags & IFF_UP && dev->change_rx_flags)
+		dev->change_rx_flags(dev, flags);
+}
+
 static int __dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
@@ -2955,8 +2961,7 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc)
 				current->uid, current->gid,
 				audit_get_sessionid(current));
 
-		if (dev->change_rx_flags)
-			dev->change_rx_flags(dev, IFF_PROMISC);
+		dev_change_rx_flags(dev, IFF_PROMISC);
 	}
 	return 0;
 }
@@ -3022,8 +3027,7 @@ int dev_set_allmulti(struct net_device *dev, int inc)
 		}
 	}
 	if (dev->flags ^ old_flags) {
-		if (dev->change_rx_flags)
-			dev->change_rx_flags(dev, IFF_ALLMULTI);
+		dev_change_rx_flags(dev, IFF_ALLMULTI);
 		dev_set_rx_mode(dev);
 	}
 	return 0;
@@ -3347,8 +3351,8 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
 
-	if (dev->change_rx_flags && (old_flags ^ flags) & IFF_MULTICAST)
-		dev->change_rx_flags(dev, IFF_MULTICAST);
+	if ((old_flags ^ flags) & IFF_MULTICAST)
+		dev_change_rx_flags(dev, IFF_MULTICAST);
 
 	dev_set_rx_mode(dev);
 
