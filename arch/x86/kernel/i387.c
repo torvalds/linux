@@ -468,8 +468,22 @@ static int save_i387_fxsave(struct _fpstate_ia32 __user *buf)
 
 static int save_i387_xsave(void __user *buf)
 {
+	struct task_struct *tsk = current;
 	struct _fpstate_ia32 __user *fx = buf;
 	int err = 0;
+
+	/*
+	 * For legacy compatible, we always set FP/SSE bits in the bit
+	 * vector while saving the state to the user context.
+	 * This will enable us capturing any changes(during sigreturn) to
+	 * the FP/SSE bits by the legacy applications which don't touch
+	 * xstate_bv in the xsave header.
+	 *
+	 * xsave aware applications can change the xstate_bv in the xsave
+	 * header as well as change any contents in the memory layout.
+	 * xrestore as part of sigreturn will capture all the changes.
+	 */
+	tsk->thread.xstate->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
 
 	if (save_i387_fxsave(fx) < 0)
 		return -1;

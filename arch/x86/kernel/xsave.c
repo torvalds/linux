@@ -114,6 +114,8 @@ int save_i387_xstate(void __user *buf)
 
 	if (task_thread_info(tsk)->status & TS_XSAVE) {
 		struct _fpstate __user *fx = buf;
+		struct _xstate __user *x = buf;
+		u64 xstate_bv;
 
 		err = __copy_to_user(&fx->sw_reserved, &fx_sw_reserved,
 				     sizeof(struct _fpx_sw_bytes));
@@ -121,6 +123,29 @@ int save_i387_xstate(void __user *buf)
 		err |= __put_user(FP_XSTATE_MAGIC2,
 				  (__u32 __user *) (buf + sig_xstate_size
 						    - FP_XSTATE_MAGIC2_SIZE));
+
+		/*
+		 * Read the xstate_bv which we copied (directly from the cpu or
+		 * from the state in task struct) to the user buffers and
+		 * set the FP/SSE bits.
+		 */
+		err |= __get_user(xstate_bv, &x->xstate_hdr.xstate_bv);
+
+		/*
+		 * For legacy compatible, we always set FP/SSE bits in the bit
+		 * vector while saving the state to the user context. This will
+		 * enable us capturing any changes(during sigreturn) to
+		 * the FP/SSE bits by the legacy applications which don't touch
+		 * xstate_bv in the xsave header.
+		 *
+		 * xsave aware apps can change the xstate_bv in the xsave
+		 * header as well as change any contents in the memory layout.
+		 * xrestore as part of sigreturn will capture all the changes.
+		 */
+		xstate_bv |= XSTATE_FPSSE;
+
+		err |= __put_user(xstate_bv, &x->xstate_hdr.xstate_bv);
+
 		if (err)
 			return err;
 	}
