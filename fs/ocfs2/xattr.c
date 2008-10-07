@@ -144,11 +144,11 @@ static inline struct xattr_handler *ocfs2_xattr_handler(int name_index)
 	return handler;
 }
 
-static inline u32 ocfs2_xattr_name_hash(struct inode *inode,
-					char *prefix,
-					int prefix_len,
-					char *name,
-					int name_len)
+static u32 ocfs2_xattr_name_hash(struct inode *inode,
+				 char *prefix,
+				 int prefix_len,
+				 char *name,
+				 int name_len)
 {
 	/* Get hash value of uuid from super block */
 	u32 hash = OCFS2_SB(inode->i_sb)->uuid_hash;
