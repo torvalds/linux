@@ -146,6 +146,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (ret != 0) {
 		drm_gem_object_unreference(obj);
 		mutex_unlock(&dev->struct_mutex);
+		return ret;
 	}
 
 	offset = args->offset;
