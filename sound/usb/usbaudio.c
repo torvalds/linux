@@ -3023,6 +3023,31 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 	alts = &iface->altsetting[1];
 	altsd = get_iface_desc(alts);
 
+	if (altsd->bNumEndpoints == 2) {
+		static const struct snd_usb_midi_endpoint_info ua700_ep = {
+			.out_cables = 0x0003,
+			.in_cables  = 0x0003
+		};
+		static const struct snd_usb_audio_quirk ua700_quirk = {
+			.type = QUIRK_MIDI_FIXED_ENDPOINT,
+			.data = &ua700_ep
+		};
+		static const struct snd_usb_midi_endpoint_info uaxx_ep = {
+			.out_cables = 0x0001,
+			.in_cables  = 0x0001
+		};
+		static const struct snd_usb_audio_quirk uaxx_quirk = {
+			.type = QUIRK_MIDI_FIXED_ENDPOINT,
+			.data = &uaxx_ep
+		};
+		if (chip->usb_id == USB_ID(0x0582, 0x002b))
+			return snd_usb_create_midi_interface(chip, iface,
+							     &ua700_quirk);
+		else
+			return snd_usb_create_midi_interface(chip, iface,
+							     &uaxx_quirk);
+	}
+
 	if (altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
