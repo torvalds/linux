@@ -91,6 +91,17 @@ static inline struct sock *__inet6_lookup(struct net *net,
 	return inet6_lookup_listener(net, hashinfo, daddr, hnum, dif);
 }
 
+static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
+					      struct sk_buff *skb,
+					      const __be16 sport,
+					      const __be16 dport)
+{
+	return __inet6_lookup(dev_net(skb->dst->dev), hashinfo,
+			      &ipv6_hdr(skb)->saddr, sport,
+			      &ipv6_hdr(skb)->daddr, ntohs(dport),
+			      inet6_iif(skb));
+}
+
 extern struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 				 const struct in6_addr *saddr, const __be16 sport,
 				 const struct in6_addr *daddr, const __be16 dport,
