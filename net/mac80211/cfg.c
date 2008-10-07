@@ -17,13 +17,6 @@
 #include "rate.h"
 #include "mesh.h"
 
-struct ieee80211_hw *wiphy_to_hw(struct wiphy *wiphy)
-{
-	struct ieee80211_local *local = wiphy_priv(wiphy);
-	return &local->hw;
-}
-EXPORT_SYMBOL(wiphy_to_hw);
-
 static bool nl80211_type_check(enum nl80211_iftype type)
 {
 	switch (type) {
