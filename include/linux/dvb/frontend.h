@@ -164,9 +164,8 @@ typedef enum fe_modulation {
 	QAM_AUTO,
 	VSB_8,
 	VSB_16,
-	_8PSK,
-	_16APSK,
-	NBC_QPSK,
+	PSK_8,
+	APSK_16,
 	DQPSK,
 } fe_modulation_t;
 

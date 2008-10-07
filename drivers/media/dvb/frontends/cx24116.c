@@ -344,6 +344,7 @@ static int cx24116_set_inversion(struct cx24116_state* state, fe_spectral_invers
  * a scheme are support. Especially, no auto detect when in S2 mode.
  */
 struct cx24116_modfec {
+	fe_delivery_system_t delivery_system;
 	fe_modulation_t modulation;
 	fe_code_rate_t fec;
 	u8 mask;	/* In DVBS mode this is used to autodetect */
@@ -352,32 +353,32 @@ struct cx24116_modfec {
  /* QPSK. For unknown rates we set hardware to auto detect 0xfe 0x30 */
 
  /*mod   fec       mask  val */
- { QPSK, FEC_NONE, 0xfe, 0x30 },
- { QPSK, FEC_1_2,  0x02, 0x2e }, /* 00000010 00101110 */
- { QPSK, FEC_2_3,  0x04, 0x2f }, /* 00000100 00101111 */
- { QPSK, FEC_3_4,  0x08, 0x30 }, /* 00001000 00110000 */
- { QPSK, FEC_4_5,  0xfe, 0x30 }, /* 000?0000 ?        */
- { QPSK, FEC_5_6,  0x20, 0x31 }, /* 00100000 00110001 */
- { QPSK, FEC_6_7,  0xfe, 0x30 }, /* 0?000000 ?        */
- { QPSK, FEC_7_8,  0x80, 0x32 }, /* 10000000 00110010 */
- { QPSK, FEC_8_9,  0xfe, 0x30 }, /* 0000000? ?        */
- { QPSK, FEC_AUTO, 0xfe, 0x30 },
+ { SYS_DVBS, QPSK, FEC_NONE, 0xfe, 0x30 },
+ { SYS_DVBS, QPSK, FEC_1_2,  0x02, 0x2e }, /* 00000010 00101110 */
+ { SYS_DVBS, QPSK, FEC_2_3,  0x04, 0x2f }, /* 00000100 00101111 */
+ { SYS_DVBS, QPSK, FEC_3_4,  0x08, 0x30 }, /* 00001000 00110000 */
+ { SYS_DVBS, QPSK, FEC_4_5,  0xfe, 0x30 }, /* 000?0000 ?        */
+ { SYS_DVBS, QPSK, FEC_5_6,  0x20, 0x31 }, /* 00100000 00110001 */
+ { SYS_DVBS, QPSK, FEC_6_7,  0xfe, 0x30 }, /* 0?000000 ?        */
+ { SYS_DVBS, QPSK, FEC_7_8,  0x80, 0x32 }, /* 10000000 00110010 */
+ { SYS_DVBS, QPSK, FEC_8_9,  0xfe, 0x30 }, /* 0000000? ?        */
+ { SYS_DVBS, QPSK, FEC_AUTO, 0xfe, 0x30 },
  /* NBC-QPSK */
- { NBC_QPSK, FEC_1_2,  0x00, 0x04 },
- { NBC_QPSK, FEC_3_5,  0x00, 0x05 },
- { NBC_QPSK, FEC_2_3,  0x00, 0x06 },
- { NBC_QPSK, FEC_3_4,  0x00, 0x07 },
- { NBC_QPSK, FEC_4_5,  0x00, 0x08 },
- { NBC_QPSK, FEC_5_6,  0x00, 0x09 },
- { NBC_QPSK, FEC_8_9,  0x00, 0x0a },
- { NBC_QPSK, FEC_9_10, 0x00, 0x0b },
+ { SYS_DVBS2, QPSK, FEC_1_2,  0x00, 0x04 },
+ { SYS_DVBS2, QPSK, FEC_3_5,  0x00, 0x05 },
+ { SYS_DVBS2, QPSK, FEC_2_3,  0x00, 0x06 },
+ { SYS_DVBS2, QPSK, FEC_3_4,  0x00, 0x07 },
+ { SYS_DVBS2, QPSK, FEC_4_5,  0x00, 0x08 },
+ { SYS_DVBS2, QPSK, FEC_5_6,  0x00, 0x09 },
+ { SYS_DVBS2, QPSK, FEC_8_9,  0x00, 0x0a },
+ { SYS_DVBS2, QPSK, FEC_9_10, 0x00, 0x0b },
  /* 8PSK */
- { _8PSK, FEC_3_5,  0x00, 0x0c },
- { _8PSK, FEC_2_3,  0x00, 0x0d },
- { _8PSK, FEC_3_4,  0x00, 0x0e },
- { _8PSK, FEC_5_6,  0x00, 0x0f },
- { _8PSK, FEC_8_9,  0x00, 0x10 },
- { _8PSK, FEC_9_10, 0x00, 0x11 },
+ { SYS_DVBS2, PSK_8, FEC_3_5,  0x00, 0x0c },
+ { SYS_DVBS2, PSK_8, FEC_2_3,  0x00, 0x0d },
+ { SYS_DVBS2, PSK_8, FEC_3_4,  0x00, 0x0e },
+ { SYS_DVBS2, PSK_8, FEC_5_6,  0x00, 0x0f },
+ { SYS_DVBS2, PSK_8, FEC_8_9,  0x00, 0x10 },
+ { SYS_DVBS2, PSK_8, FEC_9_10, 0x00, 0x11 },
  /*
   * `val' can be found in the FECSTATUS register when tuning.
   * FECSTATUS will give the actual FEC in use if tuning was successful.
@@ -1158,7 +1159,7 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 			 * NBC 8PSK/QPSK with DVB-S is supported for DVB-S2,
 			 * but not hardware auto detection
 			 */
-			if(c->modulation != _8PSK && c->modulation != NBC_QPSK) {
+			if(c->modulation != PSK_8 && c->modulation != QPSK) {
 				dprintk("%s: unsupported modulation selected (%d)\n",
 					__func__, c->modulation);
 				return -EOPNOTSUPP;
