@@ -11,6 +11,10 @@ struct netns_mib {
 	DEFINE_SNMP_STAT(struct udp_mib, udplite_statistics);
 	DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics);
 	DEFINE_SNMP_STAT(struct icmpmsg_mib, icmpmsg_statistics);
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct proc_dir_entry *proc_net_devsnmp6;
+#endif
 };
 
 #endif

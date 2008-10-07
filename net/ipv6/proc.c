@@ -29,8 +29,6 @@
 #include <net/transp_v6.h>
 #include <net/ipv6.h>
 
-static struct proc_dir_entry *proc_net_devsnmp6;
-
 static int sockstat6_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq->private;
@@ -210,18 +208,20 @@ static const struct file_operations snmp6_seq_fops = {
 int snmp6_register_dev(struct inet6_dev *idev)
 {
 	struct proc_dir_entry *p;
+	struct net *net;
 
 	if (!idev || !idev->dev)
 		return -EINVAL;
 
-	if (!net_eq(dev_net(idev->dev), &init_net))
+	net = dev_net(idev->dev);
+	if (!net_eq(net, &init_net))
 		return 0;
 
-	if (!proc_net_devsnmp6)
+	if (!net->mib.proc_net_devsnmp6)
 		return -ENOENT;
 
 	p = proc_create_data(idev->dev->name, S_IRUGO,
-			     proc_net_devsnmp6, &snmp6_seq_fops, idev);
+			     net->mib.proc_net_devsnmp6, &snmp6_seq_fops, idev);
 	if (!p)
 		return -ENOMEM;
 
@@ -231,12 +231,13 @@ int snmp6_register_dev(struct inet6_dev *idev)
 
 int snmp6_unregister_dev(struct inet6_dev *idev)
 {
-	if (!proc_net_devsnmp6)
+	struct net *net = dev_net(idev->dev);
+	if (!net->mib.proc_net_devsnmp6)
 		return -ENOENT;
 	if (!idev || !idev->stats.proc_dir_entry)
 		return -EINVAL;
 	remove_proc_entry(idev->stats.proc_dir_entry->name,
-			  proc_net_devsnmp6);
+			  net->mib.proc_net_devsnmp6);
 	idev->stats.proc_dir_entry = NULL;
 	return 0;
 }
@@ -269,8 +270,9 @@ int __init ipv6_misc_proc_init(void)
 	if (!proc_net_fops_create(&init_net, "snmp6", S_IRUGO, &snmp6_seq_fops))
 		goto proc_snmp6_fail;
 
-	proc_net_devsnmp6 = proc_mkdir("dev_snmp6", init_net.proc_net);
-	if (!proc_net_devsnmp6)
+	init_net.mib.proc_net_devsnmp6 =
+		proc_mkdir("dev_snmp6", init_net.proc_net);
+	if (!init_net.mib.proc_net_devsnmp6)
 		goto proc_dev_snmp6_fail;
 out:
 	return rc;
