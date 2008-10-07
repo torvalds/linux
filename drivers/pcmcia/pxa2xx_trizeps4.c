@@ -245,7 +245,6 @@ static int __init trizeps_pcmcia_init(void)
 
 static void __exit trizeps_pcmcia_exit(void)
 {
-	int i;
 	platform_device_unregister(trizeps_pcmcia_device);
 }
 
