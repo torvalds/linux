@@ -41,8 +41,8 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/s3c2412.h>
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/s3c2412.h>
+#include <plat/clock.h>
 #include <plat/cpu.h>
 
 /* We currently have to assume that the system is running

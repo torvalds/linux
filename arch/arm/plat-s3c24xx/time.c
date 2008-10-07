@@ -37,7 +37,7 @@
 #include <mach/regs-irq.h>
 #include <asm/mach/time.h>
 
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/cpu.h>
 
 static unsigned long timer_startval;

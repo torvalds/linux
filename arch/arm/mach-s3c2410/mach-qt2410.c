@@ -56,7 +56,7 @@
 #include <mach/spi.h>
 #include <mach/spi-gpio.h>
 
-#include <asm/plat-s3c24xx/common-smdk.h>
+#include <plat/common-smdk.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>

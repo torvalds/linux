@@ -40,7 +40,7 @@
 #include <mach/fb.h>
 #include <asm/plat-s3c24xx/udc.h>
 
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>

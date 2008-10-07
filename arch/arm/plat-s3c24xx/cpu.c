@@ -46,10 +46,10 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/s3c2400.h>
 #include <plat/s3c2410.h>
-#include <asm/plat-s3c24xx/s3c2412.h>
+#include <plat/s3c2412.h>
 #include "s3c244x.h"
 #include <plat/s3c2440.h>
 #include <plat/s3c2442.h>

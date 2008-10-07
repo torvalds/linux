@@ -20,7 +20,7 @@
 #include <asm/dma.h>
 #include <mach/dma.h>
 
-#include <asm/plat-s3c24xx/dma.h>
+#include <plat/dma.h>
 #include <plat/cpu.h>
 
 #include <plat/regs-serial.h>

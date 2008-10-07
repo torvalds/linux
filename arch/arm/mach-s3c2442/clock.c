@@ -41,7 +41,7 @@
 
 #include <mach/regs-clock.h>
 
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/cpu.h>
 
 /* S3C2442 extended clock support */

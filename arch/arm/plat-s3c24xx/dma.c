@@ -36,7 +36,7 @@
 #include <asm/mach/dma.h>
 #include <mach/map.h>
 
-#include <asm/plat-s3c24xx/dma.h>
+#include <plat/dma.h>
 
 /* io map for dma */
 static void __iomem *dma_base;

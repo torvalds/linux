@@ -43,7 +43,7 @@
 #include <asm/plat-s3c/iic.h>
 #include <plat/regs-serial.h>
 
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/s3c2410.h>

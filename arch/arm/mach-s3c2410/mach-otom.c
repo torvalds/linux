@@ -33,7 +33,7 @@
 #include <mach/regs-gpio.h>
 
 #include <plat/s3c2410.h>
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 

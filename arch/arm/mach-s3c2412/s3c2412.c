@@ -42,10 +42,10 @@
 #include <asm/plat-s3c24xx/regs-spi.h>
 #include <mach/regs-s3c2412.h>
 
-#include <asm/plat-s3c24xx/s3c2412.h>
+#include <plat/s3c2412.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/clock.h>
 #include <plat/pm.h>
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
