@@ -55,6 +55,9 @@ static const u16 wm8510_reg[WM8510_CACHEREGNUM] = {
 	0x0001,
 };
 
+#define WM8510_POWER1_BIASEN  0x08
+#define WM8510_POWER1_BUFIOEN 0x10
+
 /*
  * read wm8510 register cache
  */
@@ -526,23 +529,35 @@ static int wm8510_mute(struct snd_soc_dai *dai, int mute)
 static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
+	u16 power1 = wm8510_read_reg_cache(codec, WM8510_POWER1) & ~0x3;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		wm8510_write(codec, WM8510_POWER1, 0x1ff);
-		wm8510_write(codec, WM8510_POWER2, 0x1ff);
-		wm8510_write(codec, WM8510_POWER3, 0x1ff);
-		break;
 	case SND_SOC_BIAS_PREPARE:
-	case SND_SOC_BIAS_STANDBY:
+		power1 |= 0x1;  /* VMID 50k */
+		wm8510_write(codec, WM8510_POWER1, power1);
 		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		power1 |= WM8510_POWER1_BIASEN | WM8510_POWER1_BUFIOEN;
+
+		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			/* Initial cap charge at VMID 5k */
+			wm8510_write(codec, WM8510_POWER1, power1 | 0x3);
+			mdelay(100);
+		}
+
+		power1 |= 0x2;  /* VMID 500k */
+		wm8510_write(codec, WM8510_POWER1, power1);
+		break;
+
 	case SND_SOC_BIAS_OFF:
-		/* everything off, dac mute, inactive */
-		wm8510_write(codec, WM8510_POWER1, 0x0);
-		wm8510_write(codec, WM8510_POWER2, 0x0);
-		wm8510_write(codec, WM8510_POWER3, 0x0);
+		wm8510_write(codec, WM8510_POWER1, 0);
+		wm8510_write(codec, WM8510_POWER2, 0);
+		wm8510_write(codec, WM8510_POWER3, 0);
 		break;
 	}
+
 	codec->bias_level = level;
 	return 0;
 }
@@ -640,6 +655,7 @@ static int wm8510_init(struct snd_soc_device *socdev)
 	}
 
 	/* power on device */
+	codec->bias_level = SND_SOC_BIAS_OFF;
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm8510_add_controls(codec);
 	wm8510_add_widgets(codec);
