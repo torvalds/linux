@@ -1344,7 +1344,7 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 
 		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once */
-		if (tvps->num > DTV_IOCTL_MAX_MSGS)
+		if ((tvps->num == 0) || (tvps->num > DTV_IOCTL_MAX_MSGS))
 			return -EINVAL;
 
 		tvp = (struct dtv_property *) kmalloc(tvps->num *
@@ -1379,7 +1379,7 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 
 		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once */
-		if (tvps->num > DTV_IOCTL_MAX_MSGS)
+		if ((tvps->num == 0) || (tvps->num > DTV_IOCTL_MAX_MSGS))
 			return -EINVAL;
 
 		tvp = (struct dtv_property *) kmalloc(tvps->num *
