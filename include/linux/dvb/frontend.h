@@ -271,8 +271,10 @@ struct dvb_frontend_event {
 #define DTV_API_VERSION				35
 #define DTV_CODE_RATE_HP			36
 #define DTV_CODE_RATE_LP			37
+#define DTV_GUARD_INTERVAL			38
+#define DTV_TRANSMISSION_MODE			39
 
-#define DTV_MAX_COMMAND				DTV_CODE_RATE_LP
+#define DTV_MAX_COMMAND				DTV_TRANSMISSION_MODE
 
 typedef enum fe_pilot {
 	PILOT_ON,

@@ -840,6 +840,16 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_CODE_RATE_LP,
 		.set	= 1,
 	},
+	[DTV_GUARD_INTERVAL] = {
+		.name	= "DTV_GUARD_INTERVAL",
+		.cmd	= DTV_GUARD_INTERVAL,
+		.set	= 1,
+	},
+	[DTV_TRANSMISSION_MODE] = {
+		.name	= "DTV_TRANSMISSION_MODE",
+		.cmd	= DTV_TRANSMISSION_MODE,
+		.set	= 1,
+	},
 	/* Get */
 	[DTV_DISEQC_SLAVE_REPLY] = {
 		.name	= "DTV_DISEQC_SLAVE_REPLY",
@@ -860,6 +870,16 @@ struct dtv_cmds_h dtv_cmds[] = {
 	[DTV_CODE_RATE_LP] = {
 		.name	= "DTV_CODE_RATE_LP",
 		.cmd	= DTV_CODE_RATE_LP,
+		.set	= 0,
+	},
+	[DTV_GUARD_INTERVAL] = {
+		.name	= "DTV_GUARD_INTERVAL",
+		.cmd	= DTV_GUARD_INTERVAL,
+		.set	= 0,
+	},
+	[DTV_TRANSMISSION_MODE] = {
+		.name	= "DTV_TRANSMISSION_MODE",
+		.cmd	= DTV_TRANSMISSION_MODE,
 		.set	= 0,
 	},
 };
@@ -1147,6 +1167,12 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_CODE_RATE_LP:
 		tvp->u.data = fe->dtv_property_cache.code_rate_LP;
 		break;
+	case DTV_GUARD_INTERVAL:
+		tvp->u.data = fe->dtv_property_cache.guard_interval;
+		break;
+	case DTV_TRANSMISSION_MODE:
+		tvp->u.data = fe->dtv_property_cache.transmission_mode;
+		break;
 	default:
 		r = -1;
 	}
@@ -1233,6 +1259,12 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 		break;
 	case DTV_CODE_RATE_LP:
 		fe->dtv_property_cache.code_rate_LP = tvp->u.data;
+		break;
+	case DTV_GUARD_INTERVAL:
+		fe->dtv_property_cache.guard_interval = tvp->u.data;
+		break;
+	case DTV_TRANSMISSION_MODE:
+		fe->dtv_property_cache.transmission_mode = tvp->u.data;
 		break;
 	default:
 		r = -1;
