@@ -121,6 +121,8 @@ int save_i387_xstate(void __user *buf)
 		err |= __put_user(FP_XSTATE_MAGIC2,
 				  (__u32 __user *) (buf + sig_xstate_size
 						    - FP_XSTATE_MAGIC2_SIZE));
+		if (err)
+			return err;
 	}
 
 	return 1;
