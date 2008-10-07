@@ -25,6 +25,7 @@ struct in_device
 	struct in_ifaddr	*ifa_list;	/* IP ifaddr chain		*/
 	rwlock_t		mc_list_lock;
 	struct ip_mc_list	*mc_list;	/* IP multicast filter chain    */
+	int			mc_count;	          /* Number of installed mcasts	*/
 	spinlock_t		mc_tomb_lock;
 	struct ip_mc_list	*mc_tomb;
 	unsigned long		mr_v1_seen;

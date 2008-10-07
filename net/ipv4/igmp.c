@@ -1234,6 +1234,7 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 	write_lock_bh(&in_dev->mc_list_lock);
 	im->next=in_dev->mc_list;
 	in_dev->mc_list=im;
+	in_dev->mc_count++;
 	write_unlock_bh(&in_dev->mc_list_lock);
 #ifdef CONFIG_IP_MULTICAST
 	igmpv3_del_delrec(in_dev, im->multiaddr);
@@ -1282,6 +1283,7 @@ void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 			if (--i->users == 0) {
 				write_lock_bh(&in_dev->mc_list_lock);
 				*ip = i->next;
+				in_dev->mc_count--;
 				write_unlock_bh(&in_dev->mc_list_lock);
 				igmp_group_dropped(i);
 
@@ -1330,6 +1332,7 @@ void ip_mc_init_dev(struct in_device *in_dev)
 	setup_timer(&in_dev->mr_gq_timer, igmp_gq_timer_expire,
 			(unsigned long)in_dev);
 	in_dev->mr_ifc_count = 0;
+	in_dev->mc_count     = 0;
 	setup_timer(&in_dev->mr_ifc_timer, igmp_ifc_timer_expire,
 			(unsigned long)in_dev);
 	in_dev->mr_qrv = IGMP_Unsolicited_Report_Count;
@@ -1369,8 +1372,8 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 	write_lock_bh(&in_dev->mc_list_lock);
 	while ((i = in_dev->mc_list) != NULL) {
 		in_dev->mc_list = i->next;
+		in_dev->mc_count--;
 		write_unlock_bh(&in_dev->mc_list_lock);
-
 		igmp_group_dropped(i);
 		ip_ma_put(i);
 
@@ -2383,7 +2386,7 @@ static int igmp_mc_seq_show(struct seq_file *seq, void *v)
 
 		if (state->in_dev->mc_list == im) {
 			seq_printf(seq, "%d\t%-10s: %5d %7s\n",
-				   state->dev->ifindex, state->dev->name, state->dev->mc_count, querier);
+				   state->dev->ifindex, state->dev->name, state->in_dev->mc_count, querier);
 		}
 
 		seq_printf(seq,
