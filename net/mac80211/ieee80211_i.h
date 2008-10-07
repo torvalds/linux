@@ -869,11 +869,6 @@ static inline struct ieee80211_hw *local_to_hw(
 	return &local->hw;
 }
 
-struct sta_attribute {
-	struct attribute attr;
-	ssize_t (*show)(const struct sta_info *, char *buf);
-	ssize_t (*store)(struct sta_info *, const char *buf, size_t count);
-};
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
