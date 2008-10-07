@@ -128,8 +128,7 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 	err = 0;
 
 bail:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(err);
 	return err;

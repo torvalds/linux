@@ -158,8 +158,7 @@ bail:
 		kunmap(page);
 		page_cache_release(page);
 	}
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	return ERR_PTR(status);
 }

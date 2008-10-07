@@ -716,8 +716,7 @@ static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 			for (i = ra_sectors >> (sb->s_blocksize_bits - 9);
 			     i > 0; i--) {
 				tmp = ocfs2_bread(inode, ++blk, &err, 1);
-				if (tmp)
-					brelse(tmp);
+				brelse(tmp);
 			}
 			last_ra_blk = blk;
 			ra_sectors = 8;
@@ -899,10 +898,8 @@ int ocfs2_find_files_on_disk(const char *name,
 leave:
 	if (status < 0) {
 		*dirent = NULL;
-		if (*dirent_bh) {
-			brelse(*dirent_bh);
-			*dirent_bh = NULL;
-		}
+		brelse(*dirent_bh);
+		*dirent_bh = NULL;
 	}
 
 	mlog_exit(status);
@@ -951,8 +948,7 @@ int ocfs2_check_dir_for_entry(struct inode *dir,
 
 	ret = 0;
 bail:
-	if (dirent_bh)
-		brelse(dirent_bh);
+	brelse(dirent_bh);
 
 	mlog_exit(ret);
 	return ret;
@@ -1127,8 +1123,7 @@ static int ocfs2_fill_new_dir_el(struct ocfs2_super *osb,
 
 	status = 0;
 bail:
-	if (new_bh)
-		brelse(new_bh);
+	brelse(new_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1574,8 +1569,7 @@ bail:
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
 
-	if (new_bh)
-		brelse(new_bh);
+	brelse(new_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1702,8 +1696,7 @@ static int ocfs2_find_dir_space_el(struct inode *dir, const char *name,
 
 	status = 0;
 bail:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(status);
 	return status;
@@ -1762,7 +1755,6 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 	*ret_de_bh = bh;
 	bh = NULL;
 out:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 	return ret;
 }

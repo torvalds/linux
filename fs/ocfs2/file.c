@@ -671,10 +671,8 @@ leave:
 		restart_func = 0;
 		goto restart_all;
 	}
-	if (bh) {
-		brelse(bh);
-		bh = NULL;
-	}
+	brelse(bh);
+	bh = NULL;
 
 	mlog_exit(status);
 	return status;
@@ -991,8 +989,7 @@ bail_unlock_rw:
 	if (size_change)
 		ocfs2_rw_unlock(inode, 1);
 bail:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(status);
 	return status;

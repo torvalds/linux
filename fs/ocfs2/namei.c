@@ -328,14 +328,9 @@ leave:
 	if (status == -ENOSPC)
 		mlog(0, "Disk is full\n");
 
-	if (new_fe_bh)
-		brelse(new_fe_bh);
-
-	if (de_bh)
-		brelse(de_bh);
-
-	if (parent_fe_bh)
-		brelse(parent_fe_bh);
+	brelse(new_fe_bh);
+	brelse(de_bh);
+	brelse(parent_fe_bh);
 
 	if ((status < 0) && inode)
 		iput(inode);
@@ -648,12 +643,9 @@ out_unlock_inode:
 out:
 	ocfs2_inode_unlock(dir, 1);
 
-	if (de_bh)
-		brelse(de_bh);
-	if (fe_bh)
-		brelse(fe_bh);
-	if (parent_fe_bh)
-		brelse(parent_fe_bh);
+	brelse(de_bh);
+	brelse(fe_bh);
+	brelse(parent_fe_bh);
 
 	mlog_exit(err);
 
@@ -852,17 +844,10 @@ leave:
 		iput(orphan_dir);
 	}
 
-	if (fe_bh)
-		brelse(fe_bh);
-
-	if (dirent_bh)
-		brelse(dirent_bh);
-
-	if (parent_node_bh)
-		brelse(parent_node_bh);
-
-	if (orphan_entry_bh)
-		brelse(orphan_entry_bh);
+	brelse(fe_bh);
+	brelse(dirent_bh);
+	brelse(parent_node_bh);
+	brelse(orphan_entry_bh);
 
 	mlog_exit(status);
 
@@ -1373,24 +1358,15 @@ bail:
 
 	if (new_inode)
 		iput(new_inode);
-	if (newfe_bh)
-		brelse(newfe_bh);
-	if (old_inode_bh)
-		brelse(old_inode_bh);
-	if (old_dir_bh)
-		brelse(old_dir_bh);
-	if (new_dir_bh)
-		brelse(new_dir_bh);
-	if (new_de_bh)
-		brelse(new_de_bh);
-	if (old_de_bh)
-		brelse(old_de_bh);
-	if (old_inode_de_bh)
-		brelse(old_inode_de_bh);
-	if (orphan_entry_bh)
-		brelse(orphan_entry_bh);
-	if (insert_entry_bh)
-		brelse(insert_entry_bh);
+	brelse(newfe_bh);
+	brelse(old_inode_bh);
+	brelse(old_dir_bh);
+	brelse(new_dir_bh);
+	brelse(new_de_bh);
+	brelse(old_de_bh);
+	brelse(old_inode_de_bh);
+	brelse(orphan_entry_bh);
+	brelse(insert_entry_bh);
 
 	mlog_exit(status);
 
@@ -1493,8 +1469,7 @@ bail:
 
 	if (bhs) {
 		for(i = 0; i < blocks; i++)
-			if (bhs[i])
-				brelse(bhs[i]);
+			brelse(bhs[i]);
 		kfree(bhs);
 	}
 
@@ -1660,12 +1635,9 @@ bail:
 
 	ocfs2_inode_unlock(dir, 1);
 
-	if (new_fe_bh)
-		brelse(new_fe_bh);
-	if (parent_fe_bh)
-		brelse(parent_fe_bh);
-	if (de_bh)
-		brelse(de_bh);
+	brelse(new_fe_bh);
+	brelse(parent_fe_bh);
+	brelse(de_bh);
 	if (inode_ac)
 		ocfs2_free_alloc_context(inode_ac);
 	if (data_ac)
@@ -1760,8 +1732,7 @@ leave:
 		iput(orphan_dir_inode);
 	}
 
-	if (orphan_dir_bh)
-		brelse(orphan_dir_bh);
+	brelse(orphan_dir_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1830,8 +1801,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, osb->slot_num);
 
 leave:
-	if (orphan_dir_bh)
-		brelse(orphan_dir_bh);
+	brelse(orphan_dir_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1899,8 +1869,7 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 	}
 
 leave:
-	if (target_de_bh)
-		brelse(target_de_bh);
+	brelse(target_de_bh);
 
 	mlog_exit(status);
 	return status;

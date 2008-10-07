@@ -554,8 +554,7 @@ done:
 	if (status < 0) {
 		if (inode_lock)
 			ocfs2_inode_unlock(inode, 1);
-		if (bh != NULL)
-			brelse(bh);
+		brelse(bh);
 		if (inode) {
 			OCFS2_I(inode)->ip_open_count--;
 			iput(inode);
@@ -869,8 +868,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 bail:
 	for(i = 0; i < CONCURRENT_JOURNAL_FILL; i++)
-		if (bhs[i])
-			brelse(bhs[i]);
+		brelse(bhs[i]);
 	mlog_exit(status);
 	return status;
 }
@@ -1286,8 +1284,7 @@ done:
 	if (inode)
 		iput(inode);
 
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(status);
 	return status;

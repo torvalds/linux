@@ -719,8 +719,7 @@ int ocfs2_num_free_extents(struct ocfs2_super *osb,
 
 	retval = le16_to_cpu(el->l_count) - le16_to_cpu(el->l_next_free_rec);
 bail:
-	if (eb_bh)
-		brelse(eb_bh);
+	brelse(eb_bh);
 
 	mlog_exit(retval);
 	return retval;
@@ -806,8 +805,7 @@ static int ocfs2_create_new_meta_bhs(struct ocfs2_super *osb,
 bail:
 	if (status < 0) {
 		for(i = 0; i < wanted; i++) {
-			if (bhs[i])
-				brelse(bhs[i]);
+			brelse(bhs[i]);
 			bhs[i] = NULL;
 		}
 	}
@@ -1017,8 +1015,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 bail:
 	if (new_eb_bhs) {
 		for (i = 0; i < new_blocks; i++)
-			if (new_eb_bhs[i])
-				brelse(new_eb_bhs[i]);
+			brelse(new_eb_bhs[i]);
 		kfree(new_eb_bhs);
 	}
 
@@ -1116,8 +1113,7 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 	new_eb_bh = NULL;
 	status = 0;
 bail:
-	if (new_eb_bh)
-		brelse(new_eb_bh);
+	brelse(new_eb_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1177,10 +1173,8 @@ static int ocfs2_find_branch_target(struct ocfs2_super *osb,
 			goto bail;
 		}
 
-		if (bh) {
-			brelse(bh);
-			bh = NULL;
-		}
+		brelse(bh);
+		bh = NULL;
 
 		status = ocfs2_read_block(osb, blkno, &bh, OCFS2_BH_CACHED,
 					  inode);
@@ -1199,8 +1193,7 @@ static int ocfs2_find_branch_target(struct ocfs2_super *osb,
 
 		if (le16_to_cpu(el->l_next_free_rec) <
 		    le16_to_cpu(el->l_count)) {
-			if (lowest_bh)
-				brelse(lowest_bh);
+			brelse(lowest_bh);
 			lowest_bh = bh;
 			get_bh(lowest_bh);
 		}
@@ -1214,8 +1207,7 @@ static int ocfs2_find_branch_target(struct ocfs2_super *osb,
 
 	*target_bh = lowest_bh;
 bail:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(status);
 	return status;
@@ -4471,8 +4463,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 		ocfs2_extent_map_insert_rec(inode, &rec);
 
 bail:
-	if (last_eb_bh)
-		brelse(last_eb_bh);
+	brelse(last_eb_bh);
 
 	mlog_exit(status);
 	return status;
@@ -5677,8 +5668,7 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 bail:
 	if (tl_inode)
 		iput(tl_inode);
-	if (tl_bh)
-		brelse(tl_bh);
+	brelse(tl_bh);
 
 	if (status < 0 && (*tl_copy)) {
 		kfree(*tl_copy);
@@ -7115,8 +7105,7 @@ static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc)
 		mlog(ML_NOTICE,
 		     "Truncate completion has non-empty dealloc context\n");
 
-	if (tc->tc_last_eb_bh)
-		brelse(tc->tc_last_eb_bh);
+	brelse(tc->tc_last_eb_bh);
 
 	kfree(tc);
 }

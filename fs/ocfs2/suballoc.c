@@ -130,10 +130,8 @@ void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
 		iput(inode);
 		ac->ac_inode = NULL;
 	}
-	if (ac->ac_bh) {
-		brelse(ac->ac_bh);
-		ac->ac_bh = NULL;
-	}
+	brelse(ac->ac_bh);
+	ac->ac_bh = NULL;
 }
 
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac)
@@ -401,8 +399,7 @@ bail:
 	if (ac)
 		ocfs2_free_alloc_context(ac);
 
-	if (bg_bh)
-		brelse(bg_bh);
+	brelse(bg_bh);
 
 	mlog_exit(status);
 	return status;
@@ -494,8 +491,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	get_bh(bh);
 	ac->ac_bh = bh;
 bail:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(status);
 	return status;
@@ -1269,10 +1265,10 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 					     &tmp_bits)) == -ENOSPC) {
 		if (!bg->bg_next_group)
 			break;
-		if (prev_group_bh) {
-			brelse(prev_group_bh);
-			prev_group_bh = NULL;
-		}
+
+		brelse(prev_group_bh);
+		prev_group_bh = NULL;
+
 		next_group = le64_to_cpu(bg->bg_next_group);
 		prev_group_bh = group_bh;
 		group_bh = NULL;
@@ -1367,10 +1363,8 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	*bg_blkno = le64_to_cpu(bg->bg_blkno);
 	*bits_left = le16_to_cpu(bg->bg_free_bits_count);
 bail:
-	if (group_bh)
-		brelse(group_bh);
-	if (prev_group_bh)
-		brelse(prev_group_bh);
+	brelse(group_bh);
+	brelse(prev_group_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1844,8 +1838,7 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 	}
 
 bail:
-	if (group_bh)
-		brelse(group_bh);
+	brelse(group_bh);
 
 	mlog_exit(status);
 	return status;

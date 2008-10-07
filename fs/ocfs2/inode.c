@@ -1174,10 +1174,9 @@ struct buffer_head *ocfs2_bread(struct inode *inode,
 	return bh;
 
 fail:
-	if (bh) {
-		brelse(bh);
-		bh = NULL;
-	}
+	brelse(bh);
+	bh = NULL;
+
 	*err = -EIO;
 	return NULL;
 }

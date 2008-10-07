@@ -294,8 +294,7 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 
 bail:
 	if (status < 0)
-		if (alloc_bh)
-			brelse(alloc_bh);
+		brelse(alloc_bh);
 	if (inode)
 		iput(inode);
 
@@ -411,8 +410,7 @@ out_commit:
 	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
-	if (main_bm_bh)
-		brelse(main_bm_bh);
+	brelse(main_bm_bh);
 
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
@@ -488,8 +486,7 @@ bail:
 		*alloc_copy = NULL;
 	}
 
-	if (alloc_bh)
-		brelse(alloc_bh);
+	brelse(alloc_bh);
 
 	if (inode) {
 		mutex_unlock(&inode->i_mutex);
@@ -557,8 +554,7 @@ out_unlock:
 out_mutex:
 	mutex_unlock(&main_bm_inode->i_mutex);
 
-	if (main_bm_bh)
-		brelse(main_bm_bh);
+	brelse(main_bm_bh);
 
 	iput(main_bm_inode);
 
@@ -1281,8 +1277,7 @@ bail:
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
 
-	if (main_bm_bh)
-		brelse(main_bm_bh);
+	brelse(main_bm_bh);
 
 	if (main_bm_inode)
 		iput(main_bm_inode);

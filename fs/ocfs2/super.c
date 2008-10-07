@@ -762,8 +762,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	return status;
 
 read_super_error:
-	if (bh != NULL)
-		brelse(bh);
+	brelse(bh);
 
 	if (inode)
 		iput(inode);
