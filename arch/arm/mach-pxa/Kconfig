@@ -174,13 +174,41 @@ config MACH_E800
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e800 family PDA.
 
+config TRIZEPS_PXA
+	bool "PXA based Keith und Koep Trizeps DIMM-Modules"
+
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
+	depends on TRIZEPS_PXA
+	select TRIZEPS_PCMCIA
 	select PXA27x
 
-config MACH_TRIZEPS4_CONXS
+config MACH_TRIZEPS4WL
+	bool "Keith und Koep Trizeps4-WL DIMM-Module"
+	depends on TRIZEPS_PXA
+	select TRIZEPS_PCMCIA
+	select PXA27x
+	select PXA_SSP
+
+choice
+	prompt "Select base board for Trizeps module"
+	depends on TRIZEPS_PXA
+
+config MACH_TRIZEPS_CONXS
 	bool "ConXS Eval Board"
-	depends on MACH_TRIZEPS4
+
+config MACH_TRIZEPS_UCONXS
+	bool "uConXS Eval Board"
+
+config MACH_TRIZEPS_ANY
+	bool "another Board"
+
+endchoice
+
+config TRIZEPS_PCMCIA
+	bool
+	help
+	  Enable PCMCIA support for Trizeps modules
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
