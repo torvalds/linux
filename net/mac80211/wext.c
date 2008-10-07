@@ -689,12 +689,8 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
-	if (need_reconfig) {
+	if (need_reconfig)
 		ieee80211_hw_config(local);
-		/* The return value of hw_config is not of big interest here,
-		 * as it doesn't say that it failed because of _this_ config
-		 * change or something else. Ignore it. */
-	}
 
 	return 0;
 }

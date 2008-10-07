@@ -222,8 +222,14 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 	       wiphy_name(local->hw.wiphy), chan->center_freq);
 #endif
 
-	if (local->open_count)
+	if (local->open_count) {
 		ret = local->ops->config(local_to_hw(local), &local->hw.conf);
+		/*
+		 * HW reconfiguration should never fail, the driver has told
+		 * us what it can support so it should live up to that promise.
+		 */
+		WARN_ON(ret);
+	}
 
 	return ret;
 }

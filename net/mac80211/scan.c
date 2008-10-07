@@ -448,18 +448,12 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	if (local->hw_scanning) {
 		local->hw_scanning = false;
-		if (ieee80211_hw_config(local))
-			printk(KERN_DEBUG "%s: failed to restore operational "
-			       "channel after scan\n", wiphy_name(local->hw.wiphy));
-
+		ieee80211_hw_config(local);
 		goto done;
 	}
 
 	local->sw_scanning = false;
-	if (ieee80211_hw_config(local))
-		printk(KERN_DEBUG "%s: failed to restore operational "
-		       "channel after scan\n", wiphy_name(local->hw.wiphy));
-
+	ieee80211_hw_config(local);
 
 	netif_tx_lock_bh(local->mdev);
 	netif_addr_lock(local->mdev);
@@ -546,12 +540,8 @@ void ieee80211_scan_work(struct work_struct *work)
 
 		if (!skip) {
 			local->scan_channel = chan;
-			if (ieee80211_hw_config(local)) {
-				printk(KERN_DEBUG "%s: failed to set freq to "
-				       "%d MHz for scan\n", wiphy_name(local->hw.wiphy),
-				       chan->center_freq);
+			if (ieee80211_hw_config(local))
 				skip = 1;
-			}
 		}
 
 		/* advance state machine to next channel/band */

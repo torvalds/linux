@@ -638,11 +638,8 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 
 	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-		    chan->flags & IEEE80211_CHAN_NO_IBSS) {
-			printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
-				"%d MHz\n", sdata->dev->name, chan->center_freq);
+		    chan->flags & IEEE80211_CHAN_NO_IBSS)
 			return ret;
-		}
 		local->oper_channel = chan;
 
 		if (local->sw_scanning || local->hw_scanning)
