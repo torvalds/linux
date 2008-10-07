@@ -317,7 +317,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 }
 
 /*
- * process queueud unsolicited events
+ * process queued unsolicited events
  */
 static void process_unsol_events(struct work_struct *work)
 {
