@@ -76,8 +76,6 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 
 #ifdef CONFIG_OCFS2_FS_STATS
 
-DEFINE_MUTEX(la_debug_mutex);
-
 static int ocfs2_la_debug_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -89,6 +87,7 @@ static int ocfs2_la_debug_open(struct inode *inode, struct file *file)
 static ssize_t ocfs2_la_debug_read(struct file *file, char __user *userbuf,
 				   size_t count, loff_t *ppos)
 {
+	static DEFINE_MUTEX(la_debug_mutex);
 	struct ocfs2_super *osb = file->private_data;
 	int written, ret;
 	char *buf = osb->local_alloc_debug_buf;
