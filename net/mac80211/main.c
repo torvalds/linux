@@ -215,8 +215,6 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 		local->hw.conf.power_level = min(chan->max_power,
 					       local->hw.conf.power_level);
 
-	local->hw.conf.max_antenna_gain = chan->max_antenna_gain;
-
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: HW CONFIG: freq=%d\n",
 	       wiphy_name(local->hw.wiphy), chan->center_freq);

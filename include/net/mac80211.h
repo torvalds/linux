@@ -470,7 +470,6 @@ enum ieee80211_conf_flags {
  * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
- * @max_antenna_gain: maximum antenna gain (in dBi)
  * @antenna_sel_tx: transmit antenna selection, 0: default/diversity,
  *	1/2: antenna 0/1
  * @antenna_sel_rx: receive antenna selection, like @antenna_sel_tx
@@ -485,7 +484,6 @@ struct ieee80211_conf {
 	u16 listen_interval;
 	u32 flags;
 	int power_level;
-	int max_antenna_gain;
 	u8 antenna_sel_tx;
 	u8 antenna_sel_rx;
 
