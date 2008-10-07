@@ -1,25 +1,35 @@
-/* e750_lcd.c
+/*
+ * Hardware definitions for the Toshiba eseries PDAs
  *
- * This file contains the definitions for the LCD timings and functions
- * to control the LCD power / frontlighting via the w100fb driver.
+ * Copyright (c) 2003 Ian Molton <spyro@f2s.com>
  *
- * (c) 2005 Ian Molton <spyro@f2s.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * This file is licensed under
+ * the terms of the GNU General Public License version 2. This program
+ * is licensed "as is" without any warranty of any kind, whether express
+ * or implied.
  *
  */
 
-#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/device.h>
-#include <linux/fb.h>
-#include <linux/err.h>
 #include <linux/platform_device.h>
-
-#include <asm/mach-types.h>
+#include <linux/fb.h>
 
 #include <video/w100fb.h>
+
+#include <asm/setup.h>
+#include <asm/mach/arch.h>
+#include <asm/mach-types.h>
+
+#include <mach/mfp-pxa25x.h>
+#include <mach/hardware.h>
+#include <mach/udc.h>
+
+#include "generic.h"
+#include "eseries.h"
+
+/* ---------------------- E750 LCD definitions -------------------- */
 
 static struct w100_gen_regs e750_lcd_regs = {
 	.lcd_format =            0x00008003,
@@ -54,7 +64,6 @@ static struct w100_mode e750_lcd_mode = {
 	.sysclk_src     = CLK_SRC_PLL,
 };
 
-
 static struct w100_gpio_regs e750_w100_gpio_info = {
 	.init_data1 = 0x01192f1b,
 	.gpio_dir1  = 0xd5ffdeff,
@@ -81,9 +90,6 @@ static struct resource e750_fb_resources[] = {
 	},
 };
 
-/* ----------------------- device declarations -------------------------- */
-
-
 static struct platform_device e750_fb_device = {
 	.name           = "w100fb",
 	.id             = -1,
@@ -94,16 +100,27 @@ static struct platform_device e750_fb_device = {
 	.resource       = e750_fb_resources,
 };
 
-static int e750_lcd_init(void)
-{
-	if (!machine_is_e750())
-		return -ENODEV;
+/* ----------------------------------------------------------------------- */
 
-	return platform_device_register(&e750_fb_device);
+static struct platform_device *devices[] __initdata = {
+	&e750_fb_device,
+};
+
+static void __init e750_init(void)
+{
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa_set_udc_info(&e7xx_udc_mach_info);
 }
 
-module_init(e750_lcd_init);
+MACHINE_START(E750, "Toshiba e750")
+	/* Maintainer: Ian Molton (spyro@f2s.com) */
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.boot_params	= 0xa0000100,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa25x_init_irq,
+	.fixup		= eseries_fixup,
+	.init_machine	= e750_init,
+	.timer		= &pxa_timer,
+MACHINE_END
 
-MODULE_AUTHOR("Ian Molton <spyro@f2s.com>");
-MODULE_DESCRIPTION("e750 lcd driver");
-MODULE_LICENSE("GPLv2");
