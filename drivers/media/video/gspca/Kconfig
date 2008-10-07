@@ -182,7 +182,7 @@ config USB_GSPCA_T613
 	To compile this driver as a module, choose M here: the
 	module will be called gspca_t613.
 
-config USB_GSPCA_TV8531
+config USB_GSPCA_TV8532
 	tristate "TV8532 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
