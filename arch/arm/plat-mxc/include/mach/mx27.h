@@ -72,7 +72,8 @@
 /* for mx27*/
 #define OTG_BASE_ADDR           USBOTG_BASE_ADDR
 #define SAHARA_BASE_ADDR        (AIPI_BASE_ADDR + 0x25000)
-#define EMMA_BASE_ADDR          (AIPI_BASE_ADDR + 0x26400)
+#define EMMA_PP_BASE_ADDR       (AIPI_BASE_ADDR + 0x26000)
+#define EMMA_PRP_BASE_ADDR      (AIPI_BASE_ADDR + 0x26400)
 #define CCM_BASE_ADDR           (AIPI_BASE_ADDR + 0x27000)
 #define SYSCTRL_BASE_ADDR       (AIPI_BASE_ADDR + 0x27800)
 #define IIM_BASE_ADDR           (AIPI_BASE_ADDR + 0x28000)
