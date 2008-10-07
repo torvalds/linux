@@ -321,13 +321,103 @@ int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 
 int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
-	int err = 0;
+	int err;
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = 0;
 	data[1] = val;
 	err = s5k83a_write_sensor(sd, S5K83A_GAIN, data, 2);
+
+	return (err < 0) ? err : 0;
+}
+
+int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	int err;
+	u8 data[1];
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	data[0] = 0x05;
+	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	*val = (data[0] | 0x40) ? 1 : 0;
+
+	return (err < 0) ? err : 0;
+}
+
+int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 data[1];
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	data[0] = 0x05;
+	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	if (err < 0)
+		return err;
+
+	/* set or zero six bit, seven is hflip */
+	data[0] = (val) ? (data[0] & 0x80) | 0x40 | S5K83A_FLIP_MASK
+			: (data[0] & 0x80) | S5K83A_FLIP_MASK;
+	err = s5k83a_write_sensor(sd, S5K83A_FLIP, data, 1);
+	if (err < 0)
+		return err;
+
+	data[0] = (val) ? 0x0b : 0x0a;
+	err = s5k83a_write_sensor(sd, S5K83A_VFLIP_TUNE, data, 1);
+
+	return (err < 0) ? err : 0;
+}
+
+int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	int err;
+	u8 data[1];
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	data[0] = 0x05;
+	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	*val = (data[0] | 0x80) ? 1 : 0;
+
+	return (err < 0) ? err : 0;
+}
+
+int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 data[1];
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	data[0] = 0x05;
+	err = s5k83a_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_read_sensor(sd, S5K83A_FLIP, data, 1);
+	if (err < 0)
+		return err;
+
+	/* set or zero seven bit, six is vflip */
+	data[0] = (val) ? (data[0] & 0x40) | 0x80 | S5K83A_FLIP_MASK
+			: (data[0] & 0x40) | S5K83A_FLIP_MASK;
+	err = s5k83a_write_sensor(sd, S5K83A_FLIP, data, 1);
+	if (err < 0)
+		return err;
+
+	data[0] = (val) ? 0x0a : 0x0b;
+	err = s5k83a_write_sensor(sd, S5K83A_HFLIP_TUNE, data, 1);
 
 	return (err < 0) ? err : 0;
 }

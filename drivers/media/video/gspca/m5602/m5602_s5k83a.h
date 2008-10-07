@@ -21,15 +21,20 @@
 
 #include "m5602_sensor.h"
 
-#define S5K83A_PAGE_MAP			0xec
-#define S5K83A_GAIN			0x18
+#define S5K83A_FLIP				0x01
+#define S5K83A_HFLIP_TUNE		0x03
+#define S5K83A_VFLIP_TUNE		0x05
 #define S5K83A_WHITENESS		0x0a
-#define S5K83A_BRIGHTNESS 		0x1b
+#define S5K83A_GAIN				0x18
+#define S5K83A_BRIGHTNESS		0x1b
+#define S5K83A_PAGE_MAP			0xec
 
 #define S5K83A_DEFAULT_BRIGHTNESS	0x71
 #define S5K83A_DEFAULT_WHITENESS	0x7e
-#define S5K83A_DEFAULT_GAIN		0x00
-#define S5K83A_MAXIMUM_GAIN		0x3c
+#define S5K83A_DEFAULT_GAIN			0x00
+#define S5K83A_MAXIMUM_GAIN			0x3c
+#define S5K83A_FLIP_MASK			0x10
+
 
 /*****************************************************************************/
 
@@ -56,6 +61,11 @@ int s5k83a_set_whiteness(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_whiteness(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
+int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+
 
 static struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
@@ -65,7 +75,7 @@ static struct m5602_sensor s5k83a = {
 	.read_sensor = s5k83a_read_sensor,
 	.write_sensor = s5k83a_write_sensor,
 	.i2c_slave_id = 0x5a,
-	.nctrls = 3,
+	.nctrls = 5,
 	.ctrls = {
 	{
 		{
@@ -107,7 +117,31 @@ static struct m5602_sensor s5k83a = {
 		},
 			.set = s5k83a_set_gain,
 			.get = s5k83a_get_gain
-	}
+	}, {
+		{
+			.id         = V4L2_CID_HFLIP,
+			.type       = V4L2_CTRL_TYPE_BOOLEAN,
+			.name       = "horizontal flip",
+			.minimum    = 0,
+			.maximum    = 1,
+			.step       = 1,
+			.default_value  = 0
+		},
+			.set = s5k83a_set_hflip,
+			.get = s5k83a_get_hflip
+	}, {
+		{
+		 .id         = V4L2_CID_VFLIP,
+		.type       = V4L2_CTRL_TYPE_BOOLEAN,
+		.name       = "vertical flip",
+		.minimum    = 0,
+		.maximum    = 1,
+		.step       = 1,
+		.default_value  = 0
+		},
+		.set = s5k83a_set_vflip,
+		.get = s5k83a_get_vflip
+		}
 	},
 	.nmodes = 1,
 	.modes = {
@@ -121,7 +155,6 @@ static struct m5602_sensor s5k83a = {
 		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
-
 	}
 	}
 };
@@ -438,7 +471,14 @@ static const unsigned char init_s5k83a[][4] =
 	{SENSOR, S5K83A_WHITENESS, S5K83A_DEFAULT_WHITENESS, 0x00},
 
 	/* set default gain */
-	{SENSOR_LONG, 0x18, 0x00, S5K83A_DEFAULT_GAIN}
+	{SENSOR_LONG, 0x18, 0x00, S5K83A_DEFAULT_GAIN},
+
+	/* set default flip */
+	{SENSOR, S5K83A_PAGE_MAP, 0x05, 0x00},
+	{SENSOR, S5K83A_FLIP, 0x00 | S5K83A_FLIP_MASK, 0x00},
+	{SENSOR, S5K83A_HFLIP_TUNE, 0x0b, 0x00},
+	{SENSOR, S5K83A_VFLIP_TUNE, 0x0a, 0x00}
+
 };
 
 #endif
