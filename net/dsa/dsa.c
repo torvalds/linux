@@ -202,6 +202,22 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 }
 
 
+/* hooks for ethertype-less tagging formats *********************************/
+/*
+ * The original DSA tag format and some other tag formats have no
+ * ethertype, which means that we need to add a little hack to the
+ * networking receive path to make sure that received frames get
+ * the right ->protocol assigned to them when one of those tag
+ * formats is in use.
+ */
+bool dsa_uses_dsa_tags(void *dsa_ptr)
+{
+	struct dsa_switch *ds = dsa_ptr;
+
+	return !!(ds->tag_protocol == htons(ETH_P_DSA));
+}
+
+
 /* link polling *************************************************************/
 static void dsa_link_poll_work(struct work_struct *ugly)
 {

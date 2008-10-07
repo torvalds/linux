@@ -10,6 +10,10 @@ menuconfig NET_DSA
 if NET_DSA
 
 # tagging formats
+config NET_DSA_TAG_DSA
+	bool
+	default n
+
 config NET_DSA_TAG_EDSA
 	bool
 	default n

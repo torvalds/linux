@@ -239,6 +239,11 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	memcpy(slave_dev->dev_addr, master->dev_addr, ETH_ALEN);
 	slave_dev->tx_queue_len = 0;
 	switch (ds->tag_protocol) {
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	case htons(ETH_P_DSA):
+		slave_dev->hard_start_xmit = dsa_xmit;
+		break;
+#endif
 #ifdef CONFIG_NET_DSA_TAG_EDSA
 	case htons(ETH_P_EDSA):
 		slave_dev->hard_start_xmit = edsa_xmit;

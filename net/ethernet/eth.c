@@ -57,6 +57,7 @@
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <net/ip.h>
+#include <net/dsa.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -183,6 +184,15 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(compare_ether_addr(eth->h_dest, dev->dev_addr)))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
+
+	/*
+	 * Some variants of DSA tagging don't have an ethertype field
+	 * at all, so we check here whether one of those tagging
+	 * variants has been configured on the receiving interface,
+	 * and if so, set skb->protocol without looking at the packet.
+	 */
+	if (netdev_uses_dsa_tags(dev))
+		return htons(ETH_P_DSA);
 
 	if (ntohs(eth->h_proto) >= 1536)
 		return eth->h_proto;

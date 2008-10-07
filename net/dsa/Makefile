@@ -1,4 +1,5 @@
 # tagging formats
+obj-$(CONFIG_NET_DSA_TAG_DSA) += tag_dsa.o
 obj-$(CONFIG_NET_DSA_TAG_EDSA) += tag_edsa.o
 
 # switch drivers

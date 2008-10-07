@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 
 #include <net/net_namespace.h>
+#include <net/dsa.h>
 
 struct vlan_group;
 struct ethtool_ops;
@@ -799,6 +800,16 @@ void dev_net_set(struct net_device *dev, struct net *net)
 	release_net(dev->nd_net);
 	dev->nd_net = hold_net(net);
 #endif
+}
+
+static inline bool netdev_uses_dsa_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_dsa_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
 }
 
 /**

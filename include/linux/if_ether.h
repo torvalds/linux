@@ -101,6 +101,7 @@
 #define ETH_P_ECONET	0x0018		/* Acorn Econet			*/
 #define ETH_P_HDLC	0x0019		/* HDLC frames			*/
 #define ETH_P_ARCNET	0x001A		/* 1A for ArcNet :-)            */
+#define ETH_P_DSA	0x001B		/* Distributed Switch Arch.	*/
 #define ETH_P_PHONET	0x00F5		/* Nokia Phonet frames          */
 
 /*

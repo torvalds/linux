@@ -192,15 +192,19 @@ static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
 
 	/*
 	 * Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
-	 * configure the EDSA tagging mode if this is the CPU port,
-	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
-	 * tunneling, determine priority by looking at 802.1p and IP
-	 * priority fields (IP prio has precedence), and set STP state
-	 * to Forwarding.  Finally, if this is the CPU port, additionally
-	 * enable forwarding of unknown unicast and multicast addresses.
+	 * configure the requested (DSA/EDSA) tagging mode if this is
+	 * the CPU port, disable Header mode, enable IGMP/MLD snooping,
+	 * disable VLAN tunneling, determine priority by looking at
+	 * 802.1p and IP priority fields (IP prio has precedence), and
+	 * set STP state to Forwarding.  Finally, if this is the CPU
+	 * port, additionally enable forwarding of unknown unicast and
+	 * multicast addresses.
 	 */
 	REG_WRITE(addr, 0x04,
-			(p == ds->cpu_port) ? 0x373f : 0x0433);
+			(p == ds->cpu_port) ?
+			 (ds->tag_protocol == htons(ETH_P_DSA)) ?
+			  0x053f : 0x373f :
+			 0x0433);
 
 	/*
 	 * Port Control 1: disable trunking.  Also, if this is the

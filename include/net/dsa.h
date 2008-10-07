@@ -30,5 +30,7 @@ struct dsa_platform_data {
 	char		*port_names[DSA_MAX_PORTS];
 };
 
+extern bool dsa_uses_dsa_tags(void *dsa_ptr);
+
 
 #endif
