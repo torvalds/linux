@@ -48,7 +48,6 @@
 
 #include "tlv320aic3x.h"
 
-#define AUDIO_NAME "aic3x"
 #define AIC3X_VERSION "0.2"
 
 /* codec private data */

@@ -28,7 +28,6 @@
 
 #include "wm8510.h"
 
-#define AUDIO_NAME "wm8510"
 #define WM8510_VERSION "0.6"
 
 struct snd_soc_codec_device soc_codec_dev_wm8510;

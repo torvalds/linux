@@ -29,7 +29,6 @@
 
 #include "wm8731.h"
 
-#define AUDIO_NAME "wm8731"
 #define WM8731_VERSION "0.13"
 
 struct snd_soc_codec_device soc_codec_dev_wm8731;

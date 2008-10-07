@@ -52,7 +52,6 @@
 
 #include "wm8753.h"
 
-#define AUDIO_NAME "wm8753"
 #define WM8753_VERSION "0.16"
 
 static int caps_charge = 2000;

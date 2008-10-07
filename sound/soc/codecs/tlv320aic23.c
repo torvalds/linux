@@ -35,7 +35,6 @@
 
 #include "tlv320aic23.h"
 
-#define AUDIO_NAME "tlv320aic23"
 #define AIC23_VERSION "0.1"
 
 struct tlv320aic23_srate_reg_info {

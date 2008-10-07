@@ -28,7 +28,6 @@
 
 #include "ak4535.h"
 
-#define AUDIO_NAME "ak4535"
 #define AK4535_VERSION "0.3"
 
 struct snd_soc_codec_device soc_codec_dev_ak4535;
