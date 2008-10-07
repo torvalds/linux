@@ -302,6 +302,17 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	return result;
 }
 
+static inline struct sock *__udp4_lib_lookup_skb(struct sk_buff *skb,
+						 __be16 sport, __be16 dport,
+						 struct hlist_head udptable[])
+{
+	const struct iphdr *iph = ip_hdr(skb);
+
+	return __udp4_lib_lookup(dev_net(skb->dst->dev), iph->saddr, sport,
+				 iph->daddr, dport, inet_iif(skb),
+				 udptable);
+}
+
 struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 			     __be32 daddr, __be16 dport, int dif)
 {
@@ -1208,8 +1219,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 		return __udp4_lib_mcast_deliver(net, skb, uh,
 				saddr, daddr, udptable);
 
-	sk = __udp4_lib_lookup(net, saddr, uh->source, daddr,
-			uh->dest, inet_iif(skb), udptable);
+	sk = __udp4_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 
 	if (sk != NULL) {
 		int ret = udp_queue_rcv_skb(sk, skb);
