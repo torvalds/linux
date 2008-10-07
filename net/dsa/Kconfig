@@ -28,6 +28,13 @@ config NET_DSA_MV88E6XXX
 	bool
 	default n
 
+config NET_DSA_MV88E6060
+	bool "Marvell 88E6060 ethernet switch chip support"
+	select NET_DSA_TAG_TRAILER
+	---help---
+	  This enables support for the Marvell 88E6060 ethernet switch
+	  chip.
+
 config NET_DSA_MV88E6XXX_NEED_PPU
 	bool
 	default n
