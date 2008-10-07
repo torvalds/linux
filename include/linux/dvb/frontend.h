@@ -328,13 +328,13 @@ struct dtv_property {
 	int result;
 } __attribute__ ((packed));
 
-/* No more than 16 properties during any given ioctl */
+/* num of properties cannot exceed DTV_IOCTL_MAX_MSGS per ioctl */
+#define DTV_IOCTL_MAX_MSGS 64
+
 struct dtv_properties {
 	__u32 num;
 	struct dtv_property *props;
 };
-
-#define DTV_IOCTL_MAX_MSGS 64
 
 #define FE_SET_PROPERTY		   _IOW('o', 82, struct dtv_properties)
 #define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
