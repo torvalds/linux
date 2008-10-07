@@ -345,6 +345,11 @@ static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 	TCP_SKB_CB(skb)->end_seq = seq;
 }
 
+static inline int tcp_urg_mode(const struct tcp_sock *tp)
+{
+	return tp->snd_una != tp->snd_up;
+}
+
 #define OPTION_SACK_ADVERTISE	(1 << 0)
 #define OPTION_TS		(1 << 1)
 #define OPTION_MD5		(1 << 2)
@@ -646,7 +651,8 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	th->check		= 0;
 	th->urg_ptr		= 0;
 
-	if (unlikely(tp->urg_mode &&
+	/* The urg_mode check is necessary during a below snd_una win probe */
+	if (unlikely(tcp_urg_mode(tp) &&
 		     between(tp->snd_up, tcb->seq + 1, tcb->seq + 0xFFFF))) {
 		th->urg_ptr		= htons(tp->snd_up - tcb->seq);
 		th->urg			= 1;
@@ -1012,7 +1018,7 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 /* Compute the current effective MSS, taking SACKs and IP options,
  * and even PMTU discovery events into account.
  *
- * LARGESEND note: !urg_mode is overkill, only frames up to snd_up
+ * LARGESEND note: !tcp_urg_mode is overkill, only frames up to snd_up
  * cannot be large. However, taking into account rare use of URG, this
  * is not a big flaw.
  */
@@ -1029,7 +1035,7 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 
 	mss_now = tp->mss_cache;
 
-	if (large_allowed && sk_can_gso(sk) && !tp->urg_mode)
+	if (large_allowed && sk_can_gso(sk) && !tcp_urg_mode(tp))
 		doing_tso = 1;
 
 	if (dst) {
@@ -1193,7 +1199,7 @@ static inline int tcp_nagle_test(struct tcp_sock *tp, struct sk_buff *skb,
 	/* Don't use the nagle rule for urgent data (or for the final FIN).
 	 * Nagle can be ignored during F-RTO too (see RFC4138).
 	 */
-	if (tp->urg_mode || (tp->frto_counter == 2) ||
+	if (tcp_urg_mode(tp) || (tp->frto_counter == 2) ||
 	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN))
 		return 1;
 
@@ -2358,6 +2364,7 @@ static void tcp_connect_init(struct sock *sk)
 	tcp_init_wl(tp, tp->write_seq, 0);
 	tp->snd_una = tp->write_seq;
 	tp->snd_sml = tp->write_seq;
+	tp->snd_up = tp->write_seq;
 	tp->rcv_nxt = 0;
 	tp->rcv_wup = 0;
 	tp->copied_seq = 0;
@@ -2567,8 +2574,7 @@ int tcp_write_wakeup(struct sock *sk)
 			tcp_event_new_data_sent(sk, skb);
 		return err;
 	} else {
-		if (tp->urg_mode &&
-		    between(tp->snd_up, tp->snd_una + 1, tp->snd_una + 0xFFFF))
+		if (between(tp->snd_up, tp->snd_una + 1, tp->snd_una + 0xFFFF))
 			tcp_xmit_probe_skb(sk, 1);
 		return tcp_xmit_probe_skb(sk, 0);
 	}

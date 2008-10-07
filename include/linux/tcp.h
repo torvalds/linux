@@ -312,8 +312,11 @@ struct tcp_sock {
 	u32	retrans_out;	/* Retransmitted packets out		*/
 
 	u16	urg_data;	/* Saved octet of OOB data and control flags */
-	u8	urg_mode;	/* In urgent mode		*/
 	u8	ecn_flags;	/* ECN status bits.			*/
+	u8	reordering;	/* Packet reordering metric.		*/
+	u32	snd_up;		/* Urgent pointer		*/
+
+	u8	keepalive_probes; /* num of allowed keep alive probes	*/
 /*
  *      Options received (usually on last packet, some only on SYN packets).
  */
@@ -361,8 +364,6 @@ struct tcp_sock {
 
 	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
 
-	u8	reordering;	/* Packet reordering metric.		*/
-	u8	keepalive_probes; /* num of allowed keep alive probes	*/
 	u32	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	high_seq;	/* snd_nxt at onset of congestion	*/
 
@@ -374,8 +375,6 @@ struct tcp_sock {
 	u32	total_retrans;	/* Total retransmits for entire connection */
 
 	u32	urg_seq;	/* Seq of received urgent pointer */
-	u32	snd_up;		/* Urgent pointer		*/
-
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */
 
