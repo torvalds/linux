@@ -165,6 +165,15 @@ int mv88e6xxx_config_prio(struct dsa_switch *ds)
 	return 0;
 }
 
+int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr)
+{
+	REG_WRITE(REG_GLOBAL, 0x01, (addr[0] << 8) | addr[1]);
+	REG_WRITE(REG_GLOBAL, 0x02, (addr[2] << 8) | addr[3]);
+	REG_WRITE(REG_GLOBAL, 0x03, (addr[4] << 8) | addr[5]);
+
+	return 0;
+}
+
 int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr)
 {
 	int i;
@@ -206,6 +215,142 @@ int mv88e6xxx_phy_write(struct dsa_switch *ds, int addr, int regnum, u16 val)
 		return mv88e6xxx_reg_write(ds, addr, regnum, val);
 	return 0;
 }
+
+#ifdef CONFIG_NET_DSA_MV88E6XXX_NEED_PPU
+static int mv88e6xxx_ppu_disable(struct dsa_switch *ds)
+{
+	int ret;
+	int i;
+
+	ret = REG_READ(REG_GLOBAL, 0x04);
+	REG_WRITE(REG_GLOBAL, 0x04, ret & ~0x4000);
+
+	for (i = 0; i < 1000; i++) {
+	        ret = REG_READ(REG_GLOBAL, 0x00);
+	        msleep(1);
+	        if ((ret & 0xc000) != 0xc000)
+	                return 0;
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int mv88e6xxx_ppu_enable(struct dsa_switch *ds)
+{
+	int ret;
+	int i;
+
+	ret = REG_READ(REG_GLOBAL, 0x04);
+	REG_WRITE(REG_GLOBAL, 0x04, ret | 0x4000);
+
+	for (i = 0; i < 1000; i++) {
+	        ret = REG_READ(REG_GLOBAL, 0x00);
+	        msleep(1);
+	        if ((ret & 0xc000) == 0xc000)
+	                return 0;
+	}
+
+	return -ETIMEDOUT;
+}
+
+static void mv88e6xxx_ppu_reenable_work(struct work_struct *ugly)
+{
+	struct mv88e6xxx_priv_state *ps;
+
+	ps = container_of(ugly, struct mv88e6xxx_priv_state, ppu_work);
+	if (mutex_trylock(&ps->ppu_mutex)) {
+	        struct dsa_switch *ds = ((struct dsa_switch *)ps) - 1;
+
+	        if (mv88e6xxx_ppu_enable(ds) == 0)
+	                ps->ppu_disabled = 0;
+	        mutex_unlock(&ps->ppu_mutex);
+	}
+}
+
+static void mv88e6xxx_ppu_reenable_timer(unsigned long _ps)
+{
+	struct mv88e6xxx_priv_state *ps = (void *)_ps;
+
+	schedule_work(&ps->ppu_work);
+}
+
+static int mv88e6xxx_ppu_access_get(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	int ret;
+
+	mutex_lock(&ps->ppu_mutex);
+
+	/*
+	 * If the PHY polling unit is enabled, disable it so that
+	 * we can access the PHY registers.  If it was already
+	 * disabled, cancel the timer that is going to re-enable
+	 * it.
+	 */
+	if (!ps->ppu_disabled) {
+	        ret = mv88e6xxx_ppu_disable(ds);
+	        if (ret < 0) {
+	                mutex_unlock(&ps->ppu_mutex);
+	                return ret;
+	        }
+	        ps->ppu_disabled = 1;
+	} else {
+	        del_timer(&ps->ppu_timer);
+	        ret = 0;
+	}
+
+	return ret;
+}
+
+static void mv88e6xxx_ppu_access_put(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+
+	/*
+	 * Schedule a timer to re-enable the PHY polling unit.
+	 */
+	mod_timer(&ps->ppu_timer, jiffies + msecs_to_jiffies(10));
+	mutex_unlock(&ps->ppu_mutex);
+}
+
+void mv88e6xxx_ppu_state_init(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+
+	mutex_init(&ps->ppu_mutex);
+	INIT_WORK(&ps->ppu_work, mv88e6xxx_ppu_reenable_work);
+	init_timer(&ps->ppu_timer);
+	ps->ppu_timer.data = (unsigned long)ps;
+	ps->ppu_timer.function = mv88e6xxx_ppu_reenable_timer;
+}
+
+int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum)
+{
+	int ret;
+
+	ret = mv88e6xxx_ppu_access_get(ds);
+	if (ret >= 0) {
+	        ret = mv88e6xxx_reg_read(ds, addr, regnum);
+	        mv88e6xxx_ppu_access_put(ds);
+	}
+
+	return ret;
+}
+
+int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
+			    int regnum, u16 val)
+{
+	int ret;
+
+	ret = mv88e6xxx_ppu_access_get(ds);
+	if (ret >= 0) {
+	        ret = mv88e6xxx_reg_write(ds, addr, regnum, val);
+	        mv88e6xxx_ppu_access_put(ds);
+	}
+
+	return ret;
+}
+#endif
 
 void mv88e6xxx_poll_link(struct dsa_switch *ds)
 {
