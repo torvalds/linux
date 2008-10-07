@@ -46,6 +46,19 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int sockstat6_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open_net(inode, file, sockstat6_seq_show);
+}
+
+static const struct file_operations sockstat6_seq_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = sockstat6_seq_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = single_release_net,
+};
+
 static struct snmp_mib snmp6_ipstats_list[] = {
 /* ipv6 mib according to RFC 2465 */
 	SNMP_MIB_ITEM("Ip6InReceives", IPSTATS_MIB_INRECEIVES),
@@ -178,19 +191,6 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
-
-static int sockstat6_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, sockstat6_seq_show);
-}
-
-static const struct file_operations sockstat6_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open	 = sockstat6_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release_net,
-};
 
 static int snmp6_seq_open(struct inode *inode, struct file *file)
 {
