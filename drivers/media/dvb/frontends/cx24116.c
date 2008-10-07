@@ -118,7 +118,7 @@ static int debug = 0;
 static int toneburst = 1;
 
 /* SNR measurements */
-static int esno_snr = 1;
+static int esno_snr = 0;
 
 enum cmds
 {
@@ -1414,7 +1414,7 @@ module_param(toneburst, int, 0644);
 MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, 2=MESSAGE CACHE (default:1)");
 
 module_param(esno_snr, int, 0644);
-MODULE_PARM_DESC(debug, "SNR return units, 0=PERCENTAGE 0-100, 1=ESNO(db * 10) (default:1)");
+MODULE_PARM_DESC(debug, "SNR return units, 0=PERCENTAGE 0-100, 1=ESNO(db * 10) (default:0)");
 
 MODULE_DESCRIPTION("DVB Frontend module for Conexant cx24116/cx24118 hardware");
 MODULE_AUTHOR("Steven Toth");
