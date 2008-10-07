@@ -217,6 +217,13 @@ bool dsa_uses_dsa_tags(void *dsa_ptr)
 	return !!(ds->tag_protocol == htons(ETH_P_DSA));
 }
 
+bool dsa_uses_trailer_tags(void *dsa_ptr)
+{
+	struct dsa_switch *ds = dsa_ptr;
+
+	return !!(ds->tag_protocol == htons(ETH_P_TRAILER));
+}
+
 
 /* link polling *************************************************************/
 static void dsa_link_poll_work(struct work_struct *ugly)

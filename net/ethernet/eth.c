@@ -193,6 +193,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (netdev_uses_dsa_tags(dev))
 		return htons(ETH_P_DSA);
+	if (netdev_uses_trailer_tags(dev))
+		return htons(ETH_P_TRAILER);
 
 	if (ntohs(eth->h_proto) >= 1536)
 		return eth->h_proto;

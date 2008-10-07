@@ -109,5 +109,8 @@ int dsa_xmit(struct sk_buff *skb, struct net_device *dev);
 /* tag_edsa.c */
 int edsa_xmit(struct sk_buff *skb, struct net_device *dev);
 
+/* tag_trailer.c */
+int trailer_xmit(struct sk_buff *skb, struct net_device *dev);
+
 
 #endif

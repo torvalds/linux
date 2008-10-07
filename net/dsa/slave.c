@@ -249,6 +249,11 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		slave_dev->hard_start_xmit = edsa_xmit;
 		break;
 #endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	case htons(ETH_P_TRAILER):
+		slave_dev->hard_start_xmit = trailer_xmit;
+		break;
+#endif
 	default:
 		BUG();
 	}

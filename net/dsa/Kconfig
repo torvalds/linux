@@ -18,6 +18,10 @@ config NET_DSA_TAG_EDSA
 	bool
 	default n
 
+config NET_DSA_TAG_TRAILER
+	bool
+	default n
+
 
 # switch drivers
 config NET_DSA_MV88E6XXX
