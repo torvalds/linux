@@ -288,6 +288,16 @@ config MACH_PALMTX
 	  Say Y here if you intend to run this kernel on a Palm T|X
 	  handheld computer.
 
+config MACH_PALMZ72
+	bool "Palm Zire 72"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on Palm Zire 72
+	  handheld computer.
+
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
 	select HAVE_PWM

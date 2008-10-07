@@ -45,6 +45,7 @@ obj-$(CONFIG_MACH_E750)		+= e750_lcd.o
 obj-$(CONFIG_MACH_E400)		+= e400_lcd.o
 obj-$(CONFIG_MACH_E800)		+= e800_lcd.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
+obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o
 
 ifeq ($(CONFIG_MACH_ZYLONITE),y)
   obj-y				+= zylonite.o
