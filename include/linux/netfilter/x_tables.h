@@ -234,6 +234,23 @@ struct xt_target_param {
 	const void *targinfo;
 };
 
+/**
+ * struct xt_tgchk_param - parameters for target extensions'
+ * checkentry functions
+ *
+ * @entryinfo:	the family-specific rule data
+ * 		(struct ipt_entry, ip6t_entry, arpt_entry, ebt_entry)
+ *
+ * Other fields see above.
+ */
+struct xt_tgchk_param {
+	const char *table;
+	void *entryinfo;
+	const struct xt_target *target;
+	void *targinfo;
+	unsigned int hook_mask;
+};
+
 struct xt_match
 {
 	struct list_head list;
@@ -291,11 +308,7 @@ struct xt_target
            hook_mask is a bitmask of hooks from which it can be
            called. */
 	/* Should return true or false. */
-	bool (*checkentry)(const char *tablename,
-			   const void *entry,
-			   const struct xt_target *target,
-			   void *targinfo,
-			   unsigned int hook_mask);
+	bool (*checkentry)(const struct xt_tgchk_param *);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_target *target, void *targinfo);
@@ -376,10 +389,8 @@ extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
 extern int xt_check_match(struct xt_mtchk_param *, u_int8_t family,
 			  unsigned int size, u_int8_t proto, bool inv_proto);
-extern int xt_check_target(const struct xt_target *target, unsigned short family,
-			   unsigned int size, const char *table, unsigned int hook,
-			   unsigned short proto, int inv_proto,
-			   const void *entry, void *targinfo);
+extern int xt_check_target(struct xt_tgchk_param *, u_int8_t family,
+			   unsigned int size, u_int8_t proto, bool inv_proto);
 
 extern struct xt_table *xt_register_table(struct net *net,
 					  struct xt_table *table,

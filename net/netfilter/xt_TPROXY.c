@@ -59,14 +59,9 @@ tproxy_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return NF_DROP;
 }
 
-static bool
-tproxy_tg_check(const char *tablename,
-		const void *entry,
-		const struct xt_target *target,
-		void *targetinfo,
-		unsigned int hook_mask)
+static bool tproxy_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ipt_ip *i = entry;
+	const struct ipt_ip *i = par->entryinfo;
 
 	if ((i->proto == IPPROTO_TCP || i->proto == IPPROTO_UDP)
 	    && !(i->invflags & IPT_INV_PROTO))

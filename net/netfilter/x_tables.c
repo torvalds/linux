@@ -471,35 +471,35 @@ int xt_compat_match_to_user(struct xt_entry_match *m, void __user **dstptr,
 EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
 #endif /* CONFIG_COMPAT */
 
-int xt_check_target(const struct xt_target *target, unsigned short family,
-		    unsigned int size, const char *table, unsigned int hook_mask,
-		    unsigned short proto, int inv_proto, const void *entry,
-		    void *targinfo)
+int xt_check_target(struct xt_tgchk_param *par, u_int8_t family,
+		    unsigned int size, u_int8_t proto, bool inv_proto)
 {
-	if (XT_ALIGN(target->targetsize) != size) {
+	if (XT_ALIGN(par->target->targetsize) != size) {
 		printk("%s_tables: %s target: invalid size %Zu != %u\n",
-		       xt_prefix[family], target->name,
-		       XT_ALIGN(target->targetsize), size);
+		       xt_prefix[family], par->target->name,
+		       XT_ALIGN(par->target->targetsize), size);
 		return -EINVAL;
 	}
-	if (target->table && strcmp(target->table, table)) {
+	if (par->target->table != NULL &&
+	    strcmp(par->target->table, par->table) != 0) {
 		printk("%s_tables: %s target: only valid in %s table, not %s\n",
-		       xt_prefix[family], target->name, target->table, table);
+		       xt_prefix[family], par->target->name,
+		       par->target->table, par->table);
 		return -EINVAL;
 	}
-	if (target->hooks && (hook_mask & ~target->hooks) != 0) {
+	if (par->target->hooks && (par->hook_mask & ~par->target->hooks) != 0) {
 		printk("%s_tables: %s target: bad hook_mask %#x/%#x\n",
-		       xt_prefix[family], target->name, hook_mask,
-		       target->hooks);
+		       xt_prefix[family], par->target->name, par->hook_mask,
+		       par->target->hooks);
 		return -EINVAL;
 	}
-	if (target->proto && (target->proto != proto || inv_proto)) {
+	if (par->target->proto && (par->target->proto != proto || inv_proto)) {
 		printk("%s_tables: %s target: only valid for protocol %u\n",
-		       xt_prefix[family], target->name, target->proto);
+		       xt_prefix[family], par->target->name,
+		       par->target->proto);
 		return -EINVAL;
 	}
-	if (target->checkentry != NULL &&
-	    !target->checkentry(table, entry, target, targinfo, hook_mask))
+	if (par->target->checkentry != NULL && !par->target->checkentry(par))
 		return -EINVAL;
 	return 0;
 }

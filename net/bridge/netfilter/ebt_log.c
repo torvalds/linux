@@ -24,12 +24,9 @@
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
-static bool
-ebt_log_tg_check(const char *table, const void *entry,
-		 const struct xt_target *target, void *data,
-		 unsigned int hook_mask)
+static bool ebt_log_tg_check(const struct xt_tgchk_param *par)
 {
-	struct ebt_log_info *info = data;
+	struct ebt_log_info *info = par->targinfo;
 
 	if (info->bitmask & ~EBT_LOG_MASK)
 		return false;

@@ -59,12 +59,9 @@ ttl_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-ttl_tg_check(const char *tablename, const void *e,
-             const struct xt_target *target, void *targinfo,
-             unsigned int hook_mask)
+static bool ttl_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ipt_TTL_info *info = targinfo;
+	const struct ipt_TTL_info *info = par->targinfo;
 
 	if (info->mode > IPT_TTL_MAXMODE) {
 		printk(KERN_WARNING "ipt_TTL: invalid or unknown Mode %u\n",

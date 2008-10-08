@@ -237,16 +237,13 @@ static inline bool find_syn_match(const struct xt_entry_match *m)
 	return false;
 }
 
-static bool
-tcpmss_tg4_check(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_tcpmss_info *info = targinfo;
-	const struct ipt_entry *e = entry;
+	const struct xt_tcpmss_info *info = par->targinfo;
+	const struct ipt_entry *e = par->entryinfo;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
-	    (hook_mask & ~((1 << NF_INET_FORWARD) |
+	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
 		printk("xt_TCPMSS: path-MTU clamping only supported in "
@@ -260,16 +257,13 @@ tcpmss_tg4_check(const char *tablename, const void *entry,
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-static bool
-tcpmss_tg6_check(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_tcpmss_info *info = targinfo;
-	const struct ip6t_entry *e = entry;
+	const struct xt_tcpmss_info *info = par->targinfo;
+	const struct ip6t_entry *e = par->entryinfo;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
-	    (hook_mask & ~((1 << NF_INET_FORWARD) |
+	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
 		printk("xt_TCPMSS: path-MTU clamping only supported in "

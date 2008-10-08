@@ -32,18 +32,19 @@ ebt_redirect_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return info->target;
 }
 
-static bool
-ebt_redirect_tg_check(const char *tablename, const void *e,
-		      const struct xt_target *target, void *data,
-		      unsigned int hookmask)
+static bool ebt_redirect_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ebt_redirect_info *info = data;
+	const struct ebt_redirect_info *info = par->targinfo;
+	unsigned int hook_mask;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
 		return false;
-	CLEAR_BASE_CHAIN_BIT;
-	if ( (strcmp(tablename, "nat") || hookmask & ~(1 << NF_BR_PRE_ROUTING)) &&
-	     (strcmp(tablename, "broute") || hookmask & ~(1 << NF_BR_BROUTING)) )
+
+	hook_mask = par->hook_mask & ~(1 << NF_BR_NUMHOOKS);
+	if ((strcmp(par->table, "nat") != 0 ||
+	    hook_mask & ~(1 << NF_BR_PRE_ROUTING)) &&
+	    (strcmp(par->table, "broute") != 0 ||
+	    hook_mask & ~(1 << NF_BR_BROUTING)))
 		return false;
 	if (INVALID_TARGET)
 		return false;

@@ -54,12 +54,9 @@ hl_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-hl_tg6_check(const char *tablename, const void *entry,
-             const struct xt_target *target, void *targinfo,
-             unsigned int hook_mask)
+static bool hl_tg6_check(const struct xt_tgchk_param *par)
 {
-	const struct ip6t_HL_info *info = targinfo;
+	const struct ip6t_HL_info *info = par->targinfo;
 
 	if (info->mode > IP6T_HL_MAXMODE) {
 		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n",

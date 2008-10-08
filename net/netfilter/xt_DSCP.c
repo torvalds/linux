@@ -61,15 +61,12 @@ dscp_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-dscp_tg_check(const char *tablename, const void *e_void,
-              const struct xt_target *target, void *targinfo,
-              unsigned int hook_mask)
+static bool dscp_tg_check(const struct xt_tgchk_param *par)
 {
-	const u_int8_t dscp = ((struct xt_DSCP_info *)targinfo)->dscp;
+	const struct xt_DSCP_info *info = par->targinfo;
 
-	if (dscp > XT_DSCP_MAX) {
-		printk(KERN_WARNING "DSCP: dscp %x out of range\n", dscp);
+	if (info->dscp > XT_DSCP_MAX) {
+		printk(KERN_WARNING "DSCP: dscp %x out of range\n", info->dscp);
 		return false;
 	}
 	return true;
@@ -95,12 +92,10 @@ tos_tg_v0(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-tos_tg_check_v0(const char *tablename, const void *e_void,
-                const struct xt_target *target, void *targinfo,
-                unsigned int hook_mask)
+static bool tos_tg_check_v0(const struct xt_tgchk_param *par)
 {
-	const u_int8_t tos = ((struct ipt_tos_target_info *)targinfo)->tos;
+	const struct ipt_tos_target_info *info = par->targinfo;
+	const uint8_t tos = info->tos;
 
 	if (tos != IPTOS_LOWDELAY && tos != IPTOS_THROUGHPUT &&
 	    tos != IPTOS_RELIABILITY && tos != IPTOS_MINCOST &&

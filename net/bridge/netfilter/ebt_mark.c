@@ -36,18 +36,14 @@ ebt_mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static bool
-ebt_mark_tg_check(const char *table, const void *e,
-		  const struct xt_target *target, void *data,
-		  unsigned int hookmask)
+static bool ebt_mark_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ebt_mark_t_info *info = data;
+	const struct ebt_mark_t_info *info = par->targinfo;
 	int tmp;
 
 	tmp = info->target | ~EBT_VERDICT_BITS;
 	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return false;
-	CLEAR_BASE_CHAIN_BIT;
 	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
 		return false;
 	tmp = info->target & ~EBT_VERDICT_BITS;

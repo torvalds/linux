@@ -254,12 +254,9 @@ ebt_ulog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return EBT_CONTINUE;
 }
 
-static bool
-ebt_ulog_tg_check(const char *table, const void *entry,
-		  const struct xt_target *target, void *data,
-		  unsigned int hookmask)
+static bool ebt_ulog_tg_check(const struct xt_tgchk_param *par)
 {
-	struct ebt_ulog_info *uloginfo = data;
+	struct ebt_ulog_info *uloginfo = par->targinfo;
 
 	if (uloginfo->nlgroup > 31)
 		return false;

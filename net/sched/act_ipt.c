@@ -40,6 +40,7 @@ static struct tcf_hashinfo ipt_hash_info = {
 
 static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int hook)
 {
+	struct xt_tgchk_param par;
 	struct xt_target *target;
 	int ret = 0;
 
@@ -49,9 +50,14 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 		return -ENOENT;
 
 	t->u.kernel.target = target;
+	par.table     = table;
+	par.entryinfo = NULL;
+	par.target    = target;
+	par.targinfo  = t->data;
+	par.hook_mask = hook;
 
-	ret = xt_check_target(target, AF_INET, t->u.target_size - sizeof(*t),
-			      table, hook, 0, 0, NULL, t->data);
+	ret = xt_check_target(&par, NFPROTO_IPV4,
+	      t->u.target_size - sizeof(*t), 0, false);
 	if (ret < 0) {
 		module_put(t->u.kernel.target->me);
 		return ret;

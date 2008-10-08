@@ -84,14 +84,9 @@ xt_rateest_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-xt_rateest_tg_checkentry(const char *tablename,
-			 const void *entry,
-			 const struct xt_target *target,
-			 void *targinfo,
-			 unsigned int hook_mask)
+static bool xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 {
-	struct xt_rateest_target_info *info = targinfo;
+	struct xt_rateest_target_info *info = par->targinfo;
 	struct xt_rateest *est;
 	struct {
 		struct nlattr		opt;

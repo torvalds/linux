@@ -36,12 +36,9 @@ nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-nflog_tg_check(const char *tablename, const void *entry,
-               const struct xt_target *target, void *targetinfo,
-               unsigned int hookmask)
+static bool nflog_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_nflog_info *info = targetinfo;
+	const struct xt_nflog_info *info = par->targinfo;
 
 	if (info->flags & ~XT_NFLOG_MASK)
 		return false;

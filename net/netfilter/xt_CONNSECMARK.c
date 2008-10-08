@@ -85,16 +85,14 @@ connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-connsecmark_tg_check(const char *tablename, const void *entry,
-                     const struct xt_target *target, void *targinfo,
-                     unsigned int hook_mask)
+static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_connsecmark_target_info *info = targinfo;
+	const struct xt_connsecmark_target_info *info = par->targinfo;
 
-	if (strcmp(tablename, "mangle") && strcmp(tablename, "security")) {
+	if (strcmp(par->table, "mangle") != 0 &&
+	    strcmp(par->table, "security") != 0) {
 		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", tablename);
+		       "or \'security\' tables, not \'%s\'.\n", par->table);
 		return false;
 	}
 
@@ -108,9 +106,9 @@ connsecmark_tg_check(const char *tablename, const void *entry,
 		return false;
 	}
 
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", target->family);
+				    "proto=%u\n", par->target->family);
 		return false;
 	}
 	return true;

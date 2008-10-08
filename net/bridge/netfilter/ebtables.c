@@ -363,9 +363,10 @@ ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 }
 
 static inline int
-ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
-   const char *name, unsigned int hookmask, unsigned int *cnt)
+ebt_check_watcher(struct ebt_entry_watcher *w, struct xt_tgchk_param *par,
+		  unsigned int *cnt)
 {
+	const struct ebt_entry *e = par->entryinfo;
 	struct xt_target *watcher;
 	size_t left = ((char *)e + e->target_offset) - (char *)w;
 	int ret;
@@ -383,9 +384,10 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 		return -ENOENT;
 	w->u.watcher = watcher;
 
-	ret = xt_check_target(watcher, NFPROTO_BRIDGE, w->watcher_size,
-	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO,
-	      e, w->data);
+	par->target   = watcher;
+	par->targinfo = w->data;
+	ret = xt_check_target(par, NFPROTO_BRIDGE, w->watcher_size,
+	      e->ethproto, e->invflags & EBT_IPROTO);
 	if (ret < 0) {
 		module_put(watcher->me);
 		return ret;
@@ -619,6 +621,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	size_t gap;
 	int ret;
 	struct xt_mtchk_param mtpar;
+	struct xt_tgchk_param tgpar;
 
 	/* don't mess with the struct ebt_entries */
 	if (e->bitmask == 0)
@@ -660,14 +663,14 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	}
 	i = 0;
 
-	mtpar.table     = name;
-	mtpar.entryinfo = e;
-	mtpar.hook_mask = hookmask;
+	mtpar.table     = tgpar.table     = name;
+	mtpar.entryinfo = tgpar.entryinfo = e;
+	mtpar.hook_mask = tgpar.hook_mask = hookmask;
 	ret = EBT_MATCH_ITERATE(e, ebt_check_match, &mtpar, &i);
 	if (ret != 0)
 		goto cleanup_matches;
 	j = 0;
-	ret = EBT_WATCHER_ITERATE(e, ebt_check_watcher, e, name, hookmask, &j);
+	ret = EBT_WATCHER_ITERATE(e, ebt_check_watcher, &tgpar, &j);
 	if (ret != 0)
 		goto cleanup_watchers;
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
@@ -703,9 +706,10 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 		goto cleanup_watchers;
 	}
 
-	ret = xt_check_target(target, NFPROTO_BRIDGE, t->target_size,
-	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO,
-	      e, t->data);
+	tgpar.target   = target;
+	tgpar.targinfo = t->data;
+	ret = xt_check_target(&tgpar, NFPROTO_BRIDGE, t->target_size,
+	      e->ethproto, e->invflags & EBT_IPROTO);
 	if (ret < 0) {
 		module_put(target->me);
 		goto cleanup_watchers;

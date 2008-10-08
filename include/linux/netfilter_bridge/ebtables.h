@@ -310,9 +310,9 @@ extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
 #define FWINV(bool,invflg) ((bool) ^ !!(info->invflags & invflg))
 /* True if the hook mask denotes that the rule is in a base chain,
  * used in the check() functions */
-#define BASE_CHAIN (hookmask & (1 << NF_BR_NUMHOOKS))
+#define BASE_CHAIN (par->hook_mask & (1 << NF_BR_NUMHOOKS))
 /* Clear the bit in the hook mask that tells if the rule is on a base chain */
-#define CLEAR_BASE_CHAIN_BIT (hookmask &= ~(1 << NF_BR_NUMHOOKS))
+#define CLEAR_BASE_CHAIN_BIT (par->hook_mask &= ~(1 << NF_BR_NUMHOOKS))
 /* True if the target is not a standard target */
 #define INVALID_TARGET (info->target < -NUM_STANDARD_TARGETS || info->target >= 0)
 

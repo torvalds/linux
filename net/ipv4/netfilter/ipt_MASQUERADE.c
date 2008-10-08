@@ -31,12 +31,9 @@ MODULE_DESCRIPTION("Xtables: automatic-address SNAT");
 static DEFINE_RWLOCK(masq_lock);
 
 /* FIXME: Multiple targets. --RR */
-static bool
-masquerade_tg_check(const char *tablename, const void *e,
-                    const struct xt_target *target, void *targinfo,
-                    unsigned int hook_mask)
+static bool masquerade_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
 		pr_debug("masquerade_check: bad MAP_IPS.\n");

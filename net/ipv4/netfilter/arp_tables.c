@@ -457,16 +457,18 @@ static inline int check_entry(struct arpt_entry *e, const char *name)
 
 static inline int check_target(struct arpt_entry *e, const char *name)
 {
-	struct arpt_entry_target *t;
-	struct xt_target *target;
+	struct arpt_entry_target *t = arpt_get_target(e);
 	int ret;
+	struct xt_tgchk_param par = {
+		.table     = name,
+		.entryinfo = e,
+		.target    = t->u.kernel.target,
+		.targinfo  = t->data,
+		.hook_mask = e->comefrom,
+	};
 
-	t = arpt_get_target(e);
-	target = t->u.kernel.target;
-
-	ret = xt_check_target(target, NFPROTO_ARP,
-			      t->u.target_size - sizeof(*t),
-			      name, e->comefrom, 0, 0, e, t->data);
+	ret = xt_check_target(&par, NFPROTO_ARP,
+	      t->u.target_size - sizeof(*t), 0, false);
 	if (ret < 0) {
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);

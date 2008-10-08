@@ -655,15 +655,18 @@ err:
 
 static int check_target(struct ipt_entry *e, const char *name)
 {
-	struct ipt_entry_target *t;
-	struct xt_target *target;
+	struct ipt_entry_target *t = ipt_get_target(e);
+	struct xt_tgchk_param par = {
+		.table     = name,
+		.entryinfo = e,
+		.target    = t->u.kernel.target,
+		.targinfo  = t->data,
+		.hook_mask = e->comefrom,
+	};
 	int ret;
 
-	t = ipt_get_target(e);
-	target = t->u.kernel.target;
-	ret = xt_check_target(target, AF_INET, t->u.target_size - sizeof(*t),
-			      name, e->comefrom, e->ip.proto,
-			      e->ip.invflags & IPT_INV_PROTO, e, t->data);
+	ret = xt_check_target(&par, NFPROTO_IPV4, t->u.target_size - sizeof(*t),
+	      e->ip.proto, e->ip.invflags & IPT_INV_PROTO);
 	if (ret < 0) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);

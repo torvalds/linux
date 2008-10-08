@@ -57,20 +57,16 @@ ebt_arpreply_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return info->target;
 }
 
-static bool
-ebt_arpreply_tg_check(const char *tablename, const void *entry,
-		      const struct xt_target *target, void *data,
-		      unsigned int hookmask)
+static bool ebt_arpreply_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ebt_arpreply_info *info = data;
-	const struct ebt_entry *e = entry;
+	const struct ebt_arpreply_info *info = par->targinfo;
+	const struct ebt_entry *e = par->entryinfo;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
 		return false;
 	if (e->ethproto != htons(ETH_P_ARP) ||
 	    e->invflags & EBT_IPROTO)
 		return false;
-	CLEAR_BASE_CHAIN_BIT;
 	return true;
 }
 

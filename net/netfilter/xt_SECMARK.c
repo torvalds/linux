@@ -80,16 +80,14 @@ static bool checkentry_selinux(struct xt_secmark_target_info *info)
 	return true;
 }
 
-static bool
-secmark_tg_check(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool secmark_tg_check(const struct xt_tgchk_param *par)
 {
-	struct xt_secmark_target_info *info = targinfo;
+	struct xt_secmark_target_info *info = par->targinfo;
 
-	if (strcmp(tablename, "mangle") && strcmp(tablename, "security")) {
+	if (strcmp(par->table, "mangle") != 0 &&
+	    strcmp(par->table, "security") != 0) {
 		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", tablename);
+		       "or \'security\' tables, not \'%s\'.\n", par->table);
 		return false;
 	}
 

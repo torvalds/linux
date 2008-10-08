@@ -213,13 +213,10 @@ reject_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 	return NF_DROP;
 }
 
-static bool
-reject_tg6_check(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool reject_tg6_check(const struct xt_tgchk_param *par)
 {
-	const struct ip6t_reject_info *rejinfo = targinfo;
-	const struct ip6t_entry *e = entry;
+	const struct ip6t_reject_info *rejinfo = par->targinfo;
+	const struct ip6t_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
 		printk("ip6t_REJECT: ECHOREPLY is not supported.\n");

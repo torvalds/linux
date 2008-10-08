@@ -112,18 +112,15 @@ connmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-connmark_tg_check_v0(const char *tablename, const void *entry,
-                     const struct xt_target *target, void *targinfo,
-                     unsigned int hook_mask)
+static bool connmark_tg_check_v0(const struct xt_tgchk_param *par)
 {
-	const struct xt_connmark_target_info *matchinfo = targinfo;
+	const struct xt_connmark_target_info *matchinfo = par->targinfo;
 
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
-		if (strcmp(tablename, "mangle") != 0) {
+		if (strcmp(par->table, "mangle") != 0) {
 			printk(KERN_WARNING "CONNMARK: restore can only be "
 			       "called from \"mangle\" table, not \"%s\"\n",
-			       tablename);
+			       par->table);
 			return false;
 		}
 	}
@@ -131,22 +128,19 @@ connmark_tg_check_v0(const char *tablename, const void *entry,
 		printk(KERN_WARNING "CONNMARK: Only supports 32bit mark\n");
 		return false;
 	}
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", target->family);
+				    "proto=%u\n", par->target->family);
 		return false;
 	}
 	return true;
 }
 
-static bool
-connmark_tg_check(const char *tablename, const void *entry,
-                  const struct xt_target *target, void *targinfo,
-                  unsigned int hook_mask)
+static bool connmark_tg_check(const struct xt_tgchk_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->target->family) < 0) {
 		printk(KERN_WARNING "cannot load conntrack support for "
-		       "proto=%u\n", target->family);
+		       "proto=%u\n", par->target->family);
 		return false;
 	}
 	return true;

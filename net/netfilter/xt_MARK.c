@@ -66,12 +66,9 @@ mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool
-mark_tg_check_v0(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool mark_tg_check_v0(const struct xt_tgchk_param *par)
 {
-	const struct xt_mark_target_info *markinfo = targinfo;
+	const struct xt_mark_target_info *markinfo = par->targinfo;
 
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
@@ -80,12 +77,9 @@ mark_tg_check_v0(const char *tablename, const void *entry,
 	return true;
 }
 
-static bool
-mark_tg_check_v1(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool mark_tg_check_v1(const struct xt_tgchk_param *par)
 {
-	const struct xt_mark_target_info_v1 *markinfo = targinfo;
+	const struct xt_mark_target_info_v1 *markinfo = par->targinfo;
 
 	if (markinfo->mode != XT_MARK_SET
 	    && markinfo->mode != XT_MARK_AND

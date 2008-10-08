@@ -313,12 +313,9 @@ static void ipt_logfn(u_int8_t pf,
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
-static bool
-ulog_tg_check(const char *tablename, const void *e,
-              const struct xt_target *target, void *targinfo,
-              unsigned int hookmask)
+static bool ulog_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ipt_ulog_info *loginfo = targinfo;
+	const struct ipt_ulog_info *loginfo = par->targinfo;
 
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		pr_debug("ipt_ULOG: prefix term %i\n",

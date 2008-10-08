@@ -42,18 +42,14 @@ out:
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static bool
-ebt_snat_tg_check(const char *tablename, const void *e,
-		  const struct xt_target *target, void *data,
-		  unsigned int hookmask)
+static bool ebt_snat_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct ebt_nat_info *info = data;
+	const struct ebt_nat_info *info = par->targinfo;
 	int tmp;
 
 	tmp = info->target | ~EBT_VERDICT_BITS;
 	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return false;
-	CLEAR_BASE_CHAIN_BIT;
 
 	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
 		return false;

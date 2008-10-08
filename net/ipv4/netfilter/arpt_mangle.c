@@ -54,11 +54,9 @@ target(struct sk_buff *skb, const struct xt_target_param *par)
 	return mangle->target;
 }
 
-static bool
-checkentry(const char *tablename, const void *e, const struct xt_target *target,
-	   void *targinfo, unsigned int hook_mask)
+static bool checkentry(const struct xt_tgchk_param *par)
 {
-	const struct arpt_mangle *mangle = targinfo;
+	const struct arpt_mangle *mangle = par->targinfo;
 
 	if (mangle->flags & ~ARPT_MANGLE_MASK ||
 	    !(mangle->flags & ARPT_MANGLE_MASK))
