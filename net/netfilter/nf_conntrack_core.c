@@ -370,14 +370,14 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	spin_unlock_bh(&nf_conntrack_lock);
 	help = nfct_help(ct);
 	if (help && help->helper)
-		nf_conntrack_event_cache(IPCT_HELPER, skb);
+		nf_conntrack_event_cache(IPCT_HELPER, ct);
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
 	    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
-		nf_conntrack_event_cache(IPCT_NATINFO, skb);
+		nf_conntrack_event_cache(IPCT_NATINFO, ct);
 #endif
 	nf_conntrack_event_cache(master_ct(ct) ?
-				 IPCT_RELATED : IPCT_NEW, skb);
+				 IPCT_RELATED : IPCT_NEW, ct);
 	return NF_ACCEPT;
 
 out:
@@ -740,7 +740,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
-		nf_conntrack_event_cache(IPCT_STATUS, skb);
+		nf_conntrack_event_cache(IPCT_STATUS, ct);
 
 	return ret;
 }
@@ -853,7 +853,7 @@ acct:
 
 	/* must be unlocked when calling event cache */
 	if (event)
-		nf_conntrack_event_cache(event, skb);
+		nf_conntrack_event_cache(event, ct);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 

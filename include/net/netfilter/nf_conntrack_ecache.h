@@ -28,10 +28,8 @@ extern void __nf_ct_event_cache_init(struct nf_conn *ct);
 extern void nf_ct_event_cache_flush(void);
 
 static inline void
-nf_conntrack_event_cache(enum ip_conntrack_events event,
-			 const struct sk_buff *skb)
+nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 {
-	struct nf_conn *ct = (struct nf_conn *)skb->nfct;
 	struct nf_conntrack_ecache *ecache;
 
 	local_bh_disable();

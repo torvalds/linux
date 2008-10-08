@@ -193,7 +193,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 		nf_conntrack_tcp_update(skb, ip_hdrlen(skb),
 					ct, CTINFO2DIR(ctinfo));
 
-		nf_conntrack_event_cache(IPCT_NATSEQADJ, skb);
+		nf_conntrack_event_cache(IPCT_NATSEQADJ, ct);
 	}
 	return 1;
 }

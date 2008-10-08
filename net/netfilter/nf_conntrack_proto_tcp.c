@@ -969,9 +969,9 @@ static int tcp_packet(struct nf_conn *ct,
 		timeout = tcp_timeouts[new_state];
 	write_unlock_bh(&tcp_lock);
 
-	nf_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, skb);
+	nf_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, ct);
 	if (new_state != old_state)
-		nf_conntrack_event_cache(IPCT_PROTOINFO, skb);
+		nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
 
 	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 		/* If only reply is a RST, we can consider ourselves not to
@@ -990,7 +990,7 @@ static int tcp_packet(struct nf_conn *ct,
 		   after SYN_RECV or a valid answer for a picked up
 		   connection. */
 		set_bit(IPS_ASSURED_BIT, &ct->status);
-		nf_conntrack_event_cache(IPCT_STATUS, skb);
+		nf_conntrack_event_cache(IPCT_STATUS, ct);
 	}
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeout);
 

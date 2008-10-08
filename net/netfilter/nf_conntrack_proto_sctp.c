@@ -369,7 +369,7 @@ static int sctp_packet(struct nf_conn *ct,
 
 		ct->proto.sctp.state = new_state;
 		if (old_state != new_state)
-			nf_conntrack_event_cache(IPCT_PROTOINFO, skb);
+			nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
 	}
 	write_unlock_bh(&sctp_lock);
 
@@ -380,7 +380,7 @@ static int sctp_packet(struct nf_conn *ct,
 	    new_state == SCTP_CONNTRACK_ESTABLISHED) {
 		pr_debug("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &ct->status);
-		nf_conntrack_event_cache(IPCT_STATUS, skb);
+		nf_conntrack_event_cache(IPCT_STATUS, ct);
 	}
 
 	return NF_ACCEPT;

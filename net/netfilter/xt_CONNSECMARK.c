@@ -43,7 +43,7 @@ static void secmark_save(const struct sk_buff *skb)
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct && !ct->secmark) {
 			ct->secmark = skb->secmark;
-			nf_conntrack_event_cache(IPCT_SECMARK, skb);
+			nf_conntrack_event_cache(IPCT_SECMARK, ct);
 		}
 	}
 }

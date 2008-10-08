@@ -54,7 +54,7 @@ connmark_tg_v0(struct sk_buff *skb, const struct net_device *in,
 			newmark = (ct->mark & ~markinfo->mask) | markinfo->mark;
 			if (newmark != ct->mark) {
 				ct->mark = newmark;
-				nf_conntrack_event_cache(IPCT_MARK, skb);
+				nf_conntrack_event_cache(IPCT_MARK, ct);
 			}
 			break;
 		case XT_CONNMARK_SAVE:
@@ -62,7 +62,7 @@ connmark_tg_v0(struct sk_buff *skb, const struct net_device *in,
 				  (skb->mark & markinfo->mask);
 			if (ct->mark != newmark) {
 				ct->mark = newmark;
-				nf_conntrack_event_cache(IPCT_MARK, skb);
+				nf_conntrack_event_cache(IPCT_MARK, ct);
 			}
 			break;
 		case XT_CONNMARK_RESTORE:
@@ -95,7 +95,7 @@ connmark_tg(struct sk_buff *skb, const struct net_device *in,
 		newmark = (ct->mark & ~info->ctmask) ^ info->ctmark;
 		if (ct->mark != newmark) {
 			ct->mark = newmark;
-			nf_conntrack_event_cache(IPCT_MARK, skb);
+			nf_conntrack_event_cache(IPCT_MARK, ct);
 		}
 		break;
 	case XT_CONNMARK_SAVE:
@@ -103,7 +103,7 @@ connmark_tg(struct sk_buff *skb, const struct net_device *in,
 		          (skb->mark & info->nfmask);
 		if (ct->mark != newmark) {
 			ct->mark = newmark;
-			nf_conntrack_event_cache(IPCT_MARK, skb);
+			nf_conntrack_event_cache(IPCT_MARK, ct);
 		}
 		break;
 	case XT_CONNMARK_RESTORE:
