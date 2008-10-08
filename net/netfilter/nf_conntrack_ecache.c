@@ -29,9 +29,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_chain);
 ATOMIC_NOTIFIER_HEAD(nf_ct_expect_chain);
 EXPORT_SYMBOL_GPL(nf_ct_expect_chain);
 
-DEFINE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
-EXPORT_PER_CPU_SYMBOL_GPL(nf_conntrack_ecache);
-
 /* deliver cached events and clear cache entry - must be called with locally
  * disabled softirqs */
 static inline void
@@ -51,10 +48,11 @@ __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
  * by code prior to async packet handling for freeing the skb */
 void nf_ct_deliver_cached_events(const struct nf_conn *ct)
 {
+	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *ecache;
 
 	local_bh_disable();
-	ecache = &__get_cpu_var(nf_conntrack_ecache);
+	ecache = per_cpu_ptr(net->ct.ecache, raw_smp_processor_id());
 	if (ecache->ct == ct)
 		__nf_ct_deliver_cached_events(ecache);
 	local_bh_enable();
@@ -64,10 +62,11 @@ EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 /* Deliver cached events for old pending events, if current conntrack != old */
 void __nf_ct_event_cache_init(struct nf_conn *ct)
 {
+	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *ecache;
 
 	/* take care of delivering potentially old events */
-	ecache = &__get_cpu_var(nf_conntrack_ecache);
+	ecache = per_cpu_ptr(net->ct.ecache, raw_smp_processor_id());
 	BUG_ON(ecache->ct == ct);
 	if (ecache->ct)
 		__nf_ct_deliver_cached_events(ecache);
@@ -79,16 +78,29 @@ EXPORT_SYMBOL_GPL(__nf_ct_event_cache_init);
 
 /* flush the event cache - touches other CPU's data and must not be called
  * while packets are still passing through the code */
-void nf_ct_event_cache_flush(void)
+void nf_ct_event_cache_flush(struct net *net)
 {
 	struct nf_conntrack_ecache *ecache;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		ecache = &per_cpu(nf_conntrack_ecache, cpu);
+		ecache = per_cpu_ptr(net->ct.ecache, cpu);
 		if (ecache->ct)
 			nf_ct_put(ecache->ct);
 	}
+}
+
+int nf_conntrack_ecache_init(struct net *net)
+{
+	net->ct.ecache = alloc_percpu(struct nf_conntrack_ecache);
+	if (!net->ct.ecache)
+		return -ENOMEM;
+	return 0;
+}
+
+void nf_conntrack_ecache_fini(struct net *net)
+{
+	free_percpu(net->ct.ecache);
 }
 
 int nf_conntrack_register_notifier(struct notifier_block *nb)

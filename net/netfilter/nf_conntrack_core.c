@@ -1023,7 +1023,8 @@ void nf_conntrack_cleanup(struct net *net)
 	   delete... */
 	synchronize_net();
 
-	nf_ct_event_cache_flush();
+	nf_ct_event_cache_flush(net);
+	nf_conntrack_ecache_fini(net);
  i_see_dead_people:
 	nf_conntrack_flush(net);
 	if (atomic_read(&net->ct.count) != 0) {
@@ -1151,11 +1152,14 @@ int nf_conntrack_init(struct net *net)
 		max_factor = 4;
 	}
 	atomic_set(&net->ct.count, 0);
+	ret = nf_conntrack_ecache_init(net);
+	if (ret < 0)
+		goto err_ecache;
 	net->ct.hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size,
 						  &net->ct.hash_vmalloc);
 	if (!net->ct.hash) {
 		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
-		goto err_out;
+		goto err_hash;
 	}
 	INIT_HLIST_HEAD(&net->ct.unconfirmed);
 
@@ -1215,6 +1219,8 @@ err_free_conntrack_slab:
 err_free_hash:
 	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
 			     nf_conntrack_htable_size);
-err_out:
+err_hash:
+	nf_conntrack_ecache_fini(net);
+err_ecache:
 	return -ENOMEM;
 }
