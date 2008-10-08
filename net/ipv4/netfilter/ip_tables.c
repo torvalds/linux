@@ -348,6 +348,7 @@ ipt_do_table(struct sk_buff *skb,
 	mtpar.hotdrop = &hotdrop;
 	mtpar.in      = tgpar.in  = in;
 	mtpar.out     = tgpar.out = out;
+	mtpar.family  = tgpar.family = NFPROTO_IPV4;
 	tgpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
@@ -579,6 +580,7 @@ cleanup_match(struct ipt_entry_match *m, unsigned int *i)
 
 	par.match     = m->u.kernel.match;
 	par.matchinfo = m->data;
+	par.family    = NFPROTO_IPV4;
 	if (par.match->destroy != NULL)
 		par.match->destroy(&par);
 	module_put(par.match->me);
@@ -616,7 +618,7 @@ check_match(struct ipt_entry_match *m, struct xt_mtchk_param *par,
 	par->match     = m->u.kernel.match;
 	par->matchinfo = m->data;
 
-	ret = xt_check_match(par, NFPROTO_IPV4, m->u.match_size - sizeof(*m),
+	ret = xt_check_match(par, m->u.match_size - sizeof(*m),
 	      ip->proto, ip->invflags & IPT_INV_PROTO);
 	if (ret < 0) {
 		duprintf("ip_tables: check failed for `%s'.\n",
@@ -662,10 +664,11 @@ static int check_target(struct ipt_entry *e, const char *name)
 		.target    = t->u.kernel.target,
 		.targinfo  = t->data,
 		.hook_mask = e->comefrom,
+		.family    = NFPROTO_IPV4,
 	};
 	int ret;
 
-	ret = xt_check_target(&par, NFPROTO_IPV4, t->u.target_size - sizeof(*t),
+	ret = xt_check_target(&par, t->u.target_size - sizeof(*t),
 	      e->ip.proto, e->ip.invflags & IPT_INV_PROTO);
 	if (ret < 0) {
 		duprintf("ip_tables: check failed for `%s'.\n",
@@ -693,6 +696,7 @@ find_check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 	mtpar.table     = name;
 	mtpar.entryinfo = &e->ip;
 	mtpar.hook_mask = e->comefrom;
+	mtpar.family    = NFPROTO_IPV4;
 	ret = IPT_MATCH_ITERATE(e, find_check_match, &mtpar, &j);
 	if (ret != 0)
 		goto cleanup_matches;
@@ -780,6 +784,7 @@ cleanup_entry(struct ipt_entry *e, unsigned int *i)
 
 	par.target   = t->u.kernel.target;
 	par.targinfo = t->data;
+	par.family   = NFPROTO_IPV4;
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
@@ -1659,6 +1664,7 @@ compat_check_entry(struct ipt_entry *e, const char *name,
 	mtpar.table     = name;
 	mtpar.entryinfo = &e->ip;
 	mtpar.hook_mask = e->comefrom;
+	mtpar.family    = NFPROTO_IPV4;
 	ret = IPT_MATCH_ITERATE(e, check_match, &mtpar, &j);
 	if (ret)
 		goto cleanup_matches;

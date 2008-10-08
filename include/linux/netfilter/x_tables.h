@@ -183,6 +183,8 @@ struct xt_counters_info
  * @fragoff:	packet is a fragment, this is the data offset
  * @thoff:	position of transport header relative to skb->data
  * @hotdrop:	drop packet if we had inspection problems
+ * @family:	Actual NFPROTO_* through which the function is invoked
+ * 		(helpful when match->family == NFPROTO_UNSPEC)
  */
 struct xt_match_param {
 	const struct net_device *in, *out;
@@ -191,6 +193,7 @@ struct xt_match_param {
 	int fragoff;
 	unsigned int thoff;
 	bool *hotdrop;
+	u_int8_t family;
 };
 
 /**
@@ -210,12 +213,14 @@ struct xt_mtchk_param {
 	const struct xt_match *match;
 	void *matchinfo;
 	unsigned int hook_mask;
+	u_int8_t family;
 };
 
 /* Match destructor parameters */
 struct xt_mtdtor_param {
 	const struct xt_match *match;
 	void *matchinfo;
+	u_int8_t family;
 };
 
 /**
@@ -232,6 +237,7 @@ struct xt_target_param {
 	unsigned int hooknum;
 	const struct xt_target *target;
 	const void *targinfo;
+	u_int8_t family;
 };
 
 /**
@@ -249,12 +255,14 @@ struct xt_tgchk_param {
 	const struct xt_target *target;
 	void *targinfo;
 	unsigned int hook_mask;
+	u_int8_t family;
 };
 
 /* Target destructor parameters */
 struct xt_tgdtor_param {
 	const struct xt_target *target;
 	void *targinfo;
+	u_int8_t family;
 };
 
 struct xt_match
@@ -393,9 +401,9 @@ extern void xt_unregister_match(struct xt_match *target);
 extern int xt_register_matches(struct xt_match *match, unsigned int n);
 extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
-extern int xt_check_match(struct xt_mtchk_param *, u_int8_t family,
+extern int xt_check_match(struct xt_mtchk_param *,
 			  unsigned int size, u_int8_t proto, bool inv_proto);
-extern int xt_check_target(struct xt_tgchk_param *, u_int8_t family,
+extern int xt_check_target(struct xt_tgchk_param *,
 			   unsigned int size, u_int8_t proto, bool inv_proto);
 
 extern struct xt_table *xt_register_table(struct net *net,

@@ -246,6 +246,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	tgpar.in      = in;
 	tgpar.out     = out;
 	tgpar.hooknum = hook;
+	tgpar.family  = NFPROTO_ARP;
 
 	arp = arp_hdr(skb);
 	do {
@@ -465,10 +466,10 @@ static inline int check_target(struct arpt_entry *e, const char *name)
 		.target    = t->u.kernel.target,
 		.targinfo  = t->data,
 		.hook_mask = e->comefrom,
+		.family    = NFPROTO_ARP,
 	};
 
-	ret = xt_check_target(&par, NFPROTO_ARP,
-	      t->u.target_size - sizeof(*t), 0, false);
+	ret = xt_check_target(&par, t->u.target_size - sizeof(*t), 0, false);
 	if (ret < 0) {
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
@@ -566,6 +567,7 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
 	t = arpt_get_target(e);
 	par.target   = t->u.kernel.target;
 	par.targinfo = t->data;
+	par.family   = NFPROTO_ARP;
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);

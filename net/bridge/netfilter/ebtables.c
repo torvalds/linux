@@ -160,6 +160,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	struct xt_match_param mtpar;
 	struct xt_target_param tgpar;
 
+	mtpar.family  = tgpar.family = NFPROTO_BRIDGE;
 	mtpar.in      = tgpar.in  = in;
 	mtpar.out     = tgpar.out = out;
 	mtpar.hotdrop = &hotdrop;
@@ -351,7 +352,7 @@ ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 
 	par->match     = match;
 	par->matchinfo = m->data;
-	ret = xt_check_match(par, NFPROTO_BRIDGE, m->match_size,
+	ret = xt_check_match(par, m->match_size,
 	      e->ethproto, e->invflags & EBT_IPROTO);
 	if (ret < 0) {
 		module_put(match->me);
@@ -386,7 +387,7 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct xt_tgchk_param *par,
 
 	par->target   = watcher;
 	par->targinfo = w->data;
-	ret = xt_check_target(par, NFPROTO_BRIDGE, w->watcher_size,
+	ret = xt_check_target(par, w->watcher_size,
 	      e->ethproto, e->invflags & EBT_IPROTO);
 	if (ret < 0) {
 		module_put(watcher->me);
@@ -572,6 +573,7 @@ ebt_cleanup_match(struct ebt_entry_match *m, unsigned int *i)
 
 	par.match     = m->u.match;
 	par.matchinfo = m->data;
+	par.family    = NFPROTO_BRIDGE;
 	if (par.match->destroy != NULL)
 		par.match->destroy(&par);
 	module_put(par.match->me);
@@ -588,6 +590,7 @@ ebt_cleanup_watcher(struct ebt_entry_watcher *w, unsigned int *i)
 
 	par.target   = w->u.watcher;
 	par.targinfo = w->data;
+	par.family   = NFPROTO_BRIDGE;
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
@@ -611,6 +614,7 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 
 	par.target   = t->u.target;
 	par.targinfo = t->data;
+	par.family   = NFPROTO_BRIDGE;
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
@@ -673,6 +677,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	mtpar.table     = tgpar.table     = name;
 	mtpar.entryinfo = tgpar.entryinfo = e;
 	mtpar.hook_mask = tgpar.hook_mask = hookmask;
+	mtpar.family    = tgpar.family    = NFPROTO_BRIDGE;
 	ret = EBT_MATCH_ITERATE(e, ebt_check_match, &mtpar, &i);
 	if (ret != 0)
 		goto cleanup_matches;
@@ -715,7 +720,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 
 	tgpar.target   = target;
 	tgpar.targinfo = t->data;
-	ret = xt_check_target(&tgpar, NFPROTO_BRIDGE, t->target_size,
+	ret = xt_check_target(&tgpar, t->target_size,
 	      e->ethproto, e->invflags & EBT_IPROTO);
 	if (ret < 0) {
 		module_put(target->me);
