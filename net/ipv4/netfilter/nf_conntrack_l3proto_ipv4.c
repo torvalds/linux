@@ -278,7 +278,7 @@ static ctl_table ip_ct_sysctl_table[] = {
 	{
 		.ctl_name	= NET_IPV4_NF_CONNTRACK_LOG_INVALID,
 		.procname	= "ip_conntrack_log_invalid",
-		.data		= &nf_ct_log_invalid,
+		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_minmax,

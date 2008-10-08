@@ -181,7 +181,7 @@ icmpv6_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
-		if (LOG_INVALID(IPPROTO_ICMPV6))
+		if (LOG_INVALID(net, IPPROTO_ICMPV6))
 		nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
 			      "nf_ct_icmpv6: short packet ");
 		return -NF_ACCEPT;

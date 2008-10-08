@@ -488,6 +488,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			  const struct tcphdr *tcph,
 			  u_int8_t pf)
 {
+	struct net *net = nf_ct_net(ct);
 	struct ip_ct_tcp_state *sender = &state->seen[dir];
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
@@ -668,7 +669,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		if (sender->flags & IP_CT_TCP_FLAG_BE_LIBERAL ||
 		    nf_ct_tcp_be_liberal)
 			res = true;
-		if (!res && LOG_INVALID(IPPROTO_TCP))
+		if (!res && LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 			"nf_ct_tcp: %s ",
 			before(seq, sender->td_maxend + 1) ?
@@ -761,7 +762,7 @@ static int tcp_error(struct net *net,
 	/* Smaller that minimal TCP header? */
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
-		if (LOG_INVALID(IPPROTO_TCP))
+		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_tcp: short packet ");
 		return -NF_ACCEPT;
@@ -769,7 +770,7 @@ static int tcp_error(struct net *net,
 
 	/* Not whole TCP header or malformed packet */
 	if (th->doff*4 < sizeof(struct tcphdr) || tcplen < th->doff*4) {
-		if (LOG_INVALID(IPPROTO_TCP))
+		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_tcp: truncated/malformed packet ");
 		return -NF_ACCEPT;
@@ -782,7 +783,7 @@ static int tcp_error(struct net *net,
 	/* FIXME: Source route IP option packets --RR */
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_checksum(skb, hooknum, dataoff, IPPROTO_TCP, pf)) {
-		if (LOG_INVALID(IPPROTO_TCP))
+		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: bad TCP checksum ");
 		return -NF_ACCEPT;
@@ -791,7 +792,7 @@ static int tcp_error(struct net *net,
 	/* Check TCP flags. */
 	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR|TH_PUSH));
 	if (!tcp_valid_flags[tcpflags]) {
-		if (LOG_INVALID(IPPROTO_TCP))
+		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: invalid TCP flag combination ");
 		return -NF_ACCEPT;
@@ -808,6 +809,7 @@ static int tcp_packet(struct nf_conn *ct,
 		      u_int8_t pf,
 		      unsigned int hooknum)
 {
+	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_tuple *tuple;
 	enum tcp_conntrack new_state, old_state;
 	enum ip_conntrack_dir dir;
@@ -886,7 +888,7 @@ static int tcp_packet(struct nf_conn *ct,
 			 * thus initiate a clean new session.
 			 */
 			write_unlock_bh(&tcp_lock);
-			if (LOG_INVALID(IPPROTO_TCP))
+			if (LOG_INVALID(net, IPPROTO_TCP))
 				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 					  "nf_ct_tcp: killing out of sync session ");
 			nf_ct_kill(ct);
@@ -899,7 +901,7 @@ static int tcp_packet(struct nf_conn *ct,
 		    segment_seq_plus_len(ntohl(th->seq), skb->len, dataoff, th);
 
 		write_unlock_bh(&tcp_lock);
-		if (LOG_INVALID(IPPROTO_TCP))
+		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: invalid packet ignored ");
 		return NF_ACCEPT;
@@ -908,7 +910,7 @@ static int tcp_packet(struct nf_conn *ct,
 		pr_debug("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 			 dir, get_conntrack_index(th), old_state);
 		write_unlock_bh(&tcp_lock);
-		if (LOG_INVALID(IPPROTO_TCP))
+		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: invalid state ");
 		return -NF_ACCEPT;

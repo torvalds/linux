@@ -365,7 +365,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 	{
 		.ctl_name	= NET_NF_CONNTRACK_LOG_INVALID,
 		.procname	= "nf_conntrack_log_invalid",
-		.data		= &nf_ct_log_invalid,
+		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_minmax,
@@ -403,8 +403,6 @@ static struct ctl_path nf_ct_path[] = {
 	{ }
 };
 
-EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
-
 static int nf_conntrack_standalone_init_sysctl(struct net *net)
 {
 	struct ctl_table *table;
@@ -423,6 +421,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 
 	table[1].data = &net->ct.count;
 	table[3].data = &net->ct.sysctl_checksum;
+	table[4].data = &net->ct.sysctl_log_invalid;
 
 	net->ct.sysctl_header = register_net_sysctl_table(net,
 					nf_net_netfilter_sysctl_path, table);
@@ -473,6 +472,7 @@ static int nf_conntrack_net_init(struct net *net)
 	if (ret < 0)
 		goto out_proc;
 	net->ct.sysctl_checksum = 1;
+	net->ct.sysctl_log_invalid = 0;
 	ret = nf_conntrack_standalone_init_sysctl(net);
 	if (ret < 0)
 		goto out_sysctl;

@@ -101,7 +101,7 @@ static int udp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	/* Header is too small? */
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hdr == NULL) {
-		if (LOG_INVALID(IPPROTO_UDP))
+		if (LOG_INVALID(net, IPPROTO_UDP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udp: short packet ");
 		return -NF_ACCEPT;
@@ -109,7 +109,7 @@ static int udp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 
 	/* Truncated/malformed packets */
 	if (ntohs(hdr->len) > udplen || ntohs(hdr->len) < sizeof(*hdr)) {
-		if (LOG_INVALID(IPPROTO_UDP))
+		if (LOG_INVALID(net, IPPROTO_UDP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_udp: truncated/malformed packet ");
 		return -NF_ACCEPT;
@@ -125,7 +125,7 @@ static int udp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	 * FIXME: Source route IP option packets --RR */
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_checksum(skb, hooknum, dataoff, IPPROTO_UDP, pf)) {
-		if (LOG_INVALID(IPPROTO_UDP))
+		if (LOG_INVALID(net, IPPROTO_UDP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_udp: bad UDP checksum ");
 		return -NF_ACCEPT;

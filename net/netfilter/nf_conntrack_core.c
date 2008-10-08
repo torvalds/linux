@@ -53,7 +53,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_max);
 struct nf_conn nf_conntrack_untracked __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_untracked);
 
-unsigned int nf_ct_log_invalid __read_mostly;
 static struct kmem_cache *nf_conntrack_cachep __read_mostly;
 
 static int nf_conntrack_hash_rnd_initted;

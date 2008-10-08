@@ -418,6 +418,7 @@ static bool dccp_invert_tuple(struct nf_conntrack_tuple *inv,
 static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		     unsigned int dataoff)
 {
+	struct net *net = nf_ct_net(ct);
 	struct dccp_hdr _dh, *dh;
 	const char *msg;
 	u_int8_t state;
@@ -445,7 +446,7 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 
 out_invalid:
-	if (LOG_INVALID(IPPROTO_DCCP))
+	if (LOG_INVALID(net, IPPROTO_DCCP))
 		nf_log_packet(nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL, msg);
 	return false;
 }
@@ -463,6 +464,7 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
 		       u_int8_t pf, unsigned int hooknum)
 {
+	struct net *net = nf_ct_net(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
 	u_int8_t type, old_state, new_state;
@@ -524,13 +526,13 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		ct->proto.dccp.last_pkt = type;
 
 		write_unlock_bh(&dccp_lock);
-		if (LOG_INVALID(IPPROTO_DCCP))
+		if (LOG_INVALID(net, IPPROTO_DCCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_dccp: invalid packet ignored ");
 		return NF_ACCEPT;
 	case CT_DCCP_INVALID:
 		write_unlock_bh(&dccp_lock);
-		if (LOG_INVALID(IPPROTO_DCCP))
+		if (LOG_INVALID(net, IPPROTO_DCCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_dccp: invalid state transition ");
 		return -NF_ACCEPT;
@@ -590,7 +592,7 @@ static int dccp_error(struct net *net, struct sk_buff *skb,
 	return NF_ACCEPT;
 
 out_invalid:
-	if (LOG_INVALID(IPPROTO_DCCP))
+	if (LOG_INVALID(net, IPPROTO_DCCP))
 		nf_log_packet(pf, 0, skb, NULL, NULL, NULL, msg);
 	return -NF_ACCEPT;
 }

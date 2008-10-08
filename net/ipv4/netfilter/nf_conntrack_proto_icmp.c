@@ -181,7 +181,7 @@ icmp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	/* Not enough header? */
 	icmph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_ih), &_ih);
 	if (icmph == NULL) {
-		if (LOG_INVALID(IPPROTO_ICMP))
+		if (LOG_INVALID(net, IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_icmp: short packet ");
 		return -NF_ACCEPT;
@@ -190,7 +190,7 @@ icmp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	/* See ip_conntrack_proto_tcp.c */
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip_checksum(skb, hooknum, dataoff, 0)) {
-		if (LOG_INVALID(IPPROTO_ICMP))
+		if (LOG_INVALID(net, IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_icmp: bad HW ICMP checksum ");
 		return -NF_ACCEPT;
@@ -203,7 +203,7 @@ icmp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	 *		  discarded.
 	 */
 	if (icmph->type > NR_ICMP_TYPES) {
-		if (LOG_INVALID(IPPROTO_ICMP))
+		if (LOG_INVALID(net, IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_icmp: invalid ICMP type ");
 		return -NF_ACCEPT;

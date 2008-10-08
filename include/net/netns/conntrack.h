@@ -18,6 +18,7 @@ struct netns_ct {
 	struct nf_conntrack_ecache *ecache;
 #endif
 	int			sysctl_checksum;
+	unsigned int		sysctl_log_invalid; /* Log invalid packets */
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
 #endif
