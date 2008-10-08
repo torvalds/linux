@@ -420,13 +420,12 @@ static struct of_modalias_table of_modalias_table[] = {
  * @len:	Length of modalias value
  *
  * Based on the value of the compatible property, this routine will determine
- * an appropriate modalias value for a particular device tree node.  Three
- * separate methods are used to derive a modalias value.
+ * an appropriate modalias value for a particular device tree node.  Two
+ * separate methods are attempted to derive a modalias value.
  *
  * First method is to lookup the compatible value in of_modalias_table.
- * Second is to look for a "linux,<modalias>" entry in the compatible list
- * and used that for modalias.  Third is to strip off the manufacturer
- * prefix from the first compatible entry and use the remainder as modalias
+ * Second is to strip off the manufacturer prefix from the first
+ * compatible entry and use the remainder as modalias
  *
  * This routine returns 0 on success
  */
@@ -449,21 +448,7 @@ int of_modalias_node(struct device_node *node, char *modalias, int len)
 	if (!compatible)
 		return -ENODEV;
 
-	/* 2. search for linux,<modalias> entry */
-	p = compatible;
-	while (cplen > 0) {
-		if (!strncmp(p, "linux,", 6)) {
-			p += 6;
-			strlcpy(modalias, p, len);
-			return 0;
-		}
-
-		i = strlen(p) + 1;
-		p += i;
-		cplen -= i;
-	}
-
-	/* 3. take first compatible entry and strip manufacturer */
+	/* 2. take first compatible entry and strip manufacturer */
 	p = strchr(compatible, ',');
 	if (!p)
 		return -ENODEV;
