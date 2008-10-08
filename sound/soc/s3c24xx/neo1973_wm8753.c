@@ -24,6 +24,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 
+#include <asm/mach-types.h>
 #include <asm/hardware/scoop.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
@@ -715,6 +716,12 @@ static int __init neo1973_init(void)
 	int ret;
 
 	DBG("Entered %s\n", __func__);
+
+	if (!machine_is_neo1973_gta01()) {
+		printk(KERN_INFO
+			"Only GTA01 hardware supported by ASoC driver\n");
+		return -ENODEV;
+	}
 
 	neo1973_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!neo1973_snd_device)
