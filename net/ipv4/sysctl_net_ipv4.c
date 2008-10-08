@@ -26,16 +26,13 @@ static int tcp_retr1_max = 255;
 static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
 
-extern seqlock_t sysctl_port_range_lock;
-extern int sysctl_local_port_range[2];
-
 /* Update system visible IP port range */
 static void set_local_port_range(int range[2])
 {
-	write_seqlock(&sysctl_port_range_lock);
-	sysctl_local_port_range[0] = range[0];
-	sysctl_local_port_range[1] = range[1];
-	write_sequnlock(&sysctl_port_range_lock);
+	write_seqlock(&sysctl_local_ports.lock);
+	sysctl_local_ports.range[0] = range[0];
+	sysctl_local_ports.range[1] = range[1];
+	write_sequnlock(&sysctl_local_ports.lock);
 }
 
 /* Validate changes from /proc interface. */
@@ -44,8 +41,7 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 				 size_t *lenp, loff_t *ppos)
 {
 	int ret;
-	int range[2] = { sysctl_local_port_range[0],
-			 sysctl_local_port_range[1] };
+	int range[2];
 	ctl_table tmp = {
 		.data = &range,
 		.maxlen = sizeof(range),
@@ -54,6 +50,7 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 		.extra2 = &ip_local_port_range_max,
 	};
 
+	inet_get_local_port_range(range, range + 1);
 	ret = proc_dointvec_minmax(&tmp, write, filp, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
@@ -73,8 +70,7 @@ static int ipv4_sysctl_local_port_range(ctl_table *table, int __user *name,
 					void __user *newval, size_t newlen)
 {
 	int ret;
-	int range[2] = { sysctl_local_port_range[0],
-			 sysctl_local_port_range[1] };
+	int range[2];
 	ctl_table tmp = {
 		.data = &range,
 		.maxlen = sizeof(range),
@@ -83,6 +79,7 @@ static int ipv4_sysctl_local_port_range(ctl_table *table, int __user *name,
 		.extra2 = &ip_local_port_range_max,
 	};
 
+	inet_get_local_port_range(range, range + 1);
 	ret = sysctl_intvec(&tmp, name, nlen, oldval, oldlenp, newval, newlen);
 	if (ret == 0 && newval && newlen) {
 		if (range[1] < range[0])
@@ -396,8 +393,8 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_LOCAL_PORT_RANGE,
 		.procname	= "ip_local_port_range",
-		.data		= &sysctl_local_port_range,
-		.maxlen		= sizeof(sysctl_local_port_range),
+		.data		= &sysctl_local_ports.range,
+		.maxlen		= sizeof(sysctl_local_ports.range),
 		.mode		= 0644,
 		.proc_handler	= &ipv4_local_port_range,
 		.strategy	= &ipv4_sysctl_local_port_range,

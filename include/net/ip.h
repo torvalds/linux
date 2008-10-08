@@ -178,6 +178,10 @@ extern unsigned long snmp_fold_field(void *mib[], int offt);
 extern int snmp_mib_init(void *ptr[2], size_t mibsize);
 extern void snmp_mib_free(void *ptr[2]);
 
+extern struct local_ports {
+	seqlock_t	lock;
+	int		range[2];
+} sysctl_local_ports;
 extern void inet_get_local_port_range(int *low, int *high);
 
 extern int sysctl_ip_default_ttl;
