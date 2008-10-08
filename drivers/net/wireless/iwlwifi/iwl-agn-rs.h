@@ -284,6 +284,16 @@ static inline u8 num_of_ant(u8 mask)
 		!!((mask) & ANT_C);
 }
 
+static inline u8 first_antenna(u8 mask)
+{
+	if (mask & ANT_A)
+		return ANT_A;
+	if (mask & ANT_B)
+		return ANT_B;
+	return ANT_C;
+}
+
+
 static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 {
 	u8 rate = iwl_rates[rate_index].prev_ieee;

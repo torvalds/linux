@@ -811,10 +811,14 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_5100:
+		priv->hw_params.tx_chains_num = 1;
+		priv->hw_params.rx_chains_num = 2;
+		priv->hw_params.valid_tx_ant = ANT_B;
+		priv->hw_params.valid_rx_ant = ANT_AB;
+		break;
 	case CSR_HW_REV_TYPE_5150:
 		priv->hw_params.tx_chains_num = 1;
 		priv->hw_params.rx_chains_num = 2;
-		/* FIXME: move to ANT_A, ANT_B, ANT_C enum */
 		priv->hw_params.valid_tx_ant = ANT_A;
 		priv->hw_params.valid_rx_ant = ANT_AB;
 		break;

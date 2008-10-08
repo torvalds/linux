@@ -845,7 +845,7 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	struct iwl_link_quality_cmd link_cmd = {
 		.reserved1 = 0,
 	};
-	u16 rate_flags;
+	u32 rate_flags;
 
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
@@ -861,15 +861,16 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
 		if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
 			rate_flags |= RATE_MCS_CCK_MSK;
 
-		/* Use Tx antenna B only */
-		rate_flags |= RATE_MCS_ANT_B_MSK; /*FIXME:RS*/
+		rate_flags |= first_antenna(priv->hw_params.valid_tx_ant) <<
+				RATE_MCS_ANT_POS;
 
 		link_cmd.rs_table[i].rate_n_flags =
 			iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
 		r = iwl4965_get_prev_ieee_rate(r);
 	}
 
-	link_cmd.general_params.single_stream_ant_msk = 2;
+	link_cmd.general_params.single_stream_ant_msk =
+				first_antenna(priv->hw_params.valid_tx_ant);
 	link_cmd.general_params.dual_stream_ant_msk = 3;
 	link_cmd.agg_params.agg_dis_start_th = 3;
 	link_cmd.agg_params.agg_time_limit = cpu_to_le16(4000);
