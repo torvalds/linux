@@ -59,6 +59,8 @@
 #define USB_PRODUCT_LABPRO	0x0001
 #define USB_PRODUCT_LABQUEST	0x0005
 
+#define VST_MAXBUFFER		(64*1024)
+
 static struct usb_device_id id_table[] = {
 	{ USB_DEVICE(USB_VENDOR_OCEANOPTICS, USB_PRODUCT_USB2000)},
 	{ USB_DEVICE(USB_VENDOR_OCEANOPTICS, USB_PRODUCT_HR4000)},
@@ -73,6 +75,7 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 struct vstusb_device {
+	struct kref				kref;
 	struct mutex            lock;
 	struct usb_device       *usb_dev;
 	char                    present;
@@ -83,8 +86,17 @@ struct vstusb_device {
 	int                     wr_pipe;
 	int                     wr_timeout_ms;
 };
+#define to_vst_dev(d) container_of(d, struct vstusb_device, kref)
 
 static struct usb_driver vstusb_driver;
+
+static void vstusb_delete(struct kref *kref)
+{
+	struct vstusb_device *vstdev = to_vst_dev(kref);
+
+	usb_put_dev(vstdev->usb_dev);
+	kfree(vstdev);
+}
 
 static int vstusb_open(struct inode *inode, struct file *file)
 {
@@ -114,6 +126,9 @@ static int vstusb_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 
+	/* increment our usage count */
+	kref_get(&vstdev->kref);
+
 	vstdev->isopen = 1;
 
 	/* save device in the file's private structure */
@@ -126,7 +141,7 @@ static int vstusb_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vstusb_close(struct inode *inode, struct file *file)
+static int vstusb_release(struct inode *inode, struct file *file)
 {
 	struct vstusb_device *vstdev;
 
@@ -138,14 +153,12 @@ static int vstusb_close(struct inode *inode, struct file *file)
 	mutex_lock(&vstdev->lock);
 
 	vstdev->isopen = 0;
-	file->private_data = NULL;
 
-	/* if device is no longer present */
-	if (!vstdev->present) {
-		mutex_unlock(&vstdev->lock);
-		kfree(vstdev);
-	} else
-		mutex_unlock(&vstdev->lock);
+	dev_dbg(&vstdev->usb_dev->dev, "%s: released\n", __func__);
+
+	mutex_unlock(&vstdev->lock);
+
+	kref_put(&vstdev->kref, vstusb_delete);
 
 	return 0;
 }
@@ -268,7 +281,7 @@ static ssize_t vstusb_read(struct file *file, char __user *buffer,
 		return -ENODEV;
 
 	/* verify that we actually want to read some data */
-	if (count == 0)
+	if ((count == 0) || (count > VST_MAXBUFFER))
 		return -EINVAL;
 
 	/* lock this object */
@@ -354,7 +367,7 @@ static ssize_t vstusb_write(struct file *file, const char __user *buffer,
 		return -ENODEV;
 
 	/* verify that we actually have some data to write */
-	if (count == 0)
+	if ((count == 0) || (count > VST_MAXBUFFER))
 		return retval;
 
 	/* lock this object */
@@ -498,7 +511,7 @@ static long vstusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_VSTUSB_SEND_PIPE:
 
-		if (usb_data.count == 0) {
+		if ((usb_data.count == 0) || (usb_data.count > VST_MAXBUFFER)) {
 			mutex_unlock(&vstdev->lock);
 			retval = -EINVAL;
 			goto exit;
@@ -551,7 +564,7 @@ static long vstusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case IOCTL_VSTUSB_RECV_PIPE:
 
-		if (usb_data.count == 0) {
+		if ((usb_data.count == 0) || (usb_data.count > VST_MAXBUFFER)) {
 			mutex_unlock(&vstdev->lock);
 			retval = -EINVAL;
 			goto exit;
@@ -633,7 +646,7 @@ static const struct file_operations vstusb_fops = {
 	.unlocked_ioctl =       vstusb_ioctl,
 	.compat_ioctl =         vstusb_ioctl,
 	.open =                 vstusb_open,
-	.release =              vstusb_close,
+	.release =              vstusb_release,
 };
 
 static struct usb_class_driver usb_vstusb_class = {
@@ -656,6 +669,10 @@ static int vstusb_probe(struct usb_interface *intf,
 	if (vstdev == NULL)
 		return -ENOMEM;
 
+	/* must do usb_get_dev() prior to kref_init() since the kref_put()
+	 * release function will do a usb_put_dev() */
+	usb_get_dev(dev);
+	kref_init(&vstdev->kref);
 	mutex_init(&vstdev->lock);
 
 	i = dev->descriptor.bcdDevice;
@@ -676,7 +693,7 @@ static int vstusb_probe(struct usb_interface *intf,
 			"%s: Not able to get a minor for this device.\n",
 			__func__);
 		usb_set_intfdata(intf, NULL);
-		kfree(vstdev);
+		kref_put(&vstdev->kref, vstusb_delete);
 		return retval;
 	}
 
@@ -704,14 +721,11 @@ static void vstusb_disconnect(struct usb_interface *intf)
 
 		usb_kill_anchored_urbs(&vstdev->submitted);
 
-		/* if the device is not opened, then we clean up right now */
-		if (!vstdev->isopen) {
-			mutex_unlock(&vstdev->lock);
-			kfree(vstdev);
-		} else
-			mutex_unlock(&vstdev->lock);
+		mutex_unlock(&vstdev->lock);
 
+		kref_put(&vstdev->kref, vstusb_delete);
 	}
+
 }
 
 static int vstusb_suspend(struct usb_interface *intf, pm_message_t message)
