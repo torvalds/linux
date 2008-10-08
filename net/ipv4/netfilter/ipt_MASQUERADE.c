@@ -119,9 +119,7 @@ static int masq_device_event(struct notifier_block *this,
 			     void *ptr)
 {
 	const struct net_device *dev = ptr;
-
-	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
+	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_DOWN) {
 		/* Device was downed.  Search entire table for
@@ -129,7 +127,7 @@ static int masq_device_event(struct notifier_block *this,
 		   and forget them. */
 		NF_CT_ASSERT(dev->ifindex != 0);
 
-		nf_ct_iterate_cleanup(&init_net, device_cmp,
+		nf_ct_iterate_cleanup(net, device_cmp,
 				      (void *)(long)dev->ifindex);
 	}
 
