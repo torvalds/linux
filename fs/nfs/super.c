@@ -717,17 +717,21 @@ static void nfs_parse_ipv4_address(char *string, size_t str_len,
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static void nfs_parse_ipv6_scope_id(const char *string, const size_t str_len,
-				    const char *delim,
-				    struct sockaddr_in6 *sin6)
+static int nfs_parse_ipv6_scope_id(const char *string, const size_t str_len,
+				   const char *delim,
+				   struct sockaddr_in6 *sin6)
 {
 	char *p;
 	size_t len;
 
-	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
-		return ;
+	if ((string + str_len) == delim)
+		return 1;
+
 	if (*delim != IPV6_SCOPE_DELIMITER)
-		return;
+		return 0;
+
+	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
+		return 0;
 
 	len = (string + str_len) - delim - 1;
 	p = kstrndup(delim + 1, len, GFP_KERNEL);
@@ -740,14 +744,20 @@ static void nfs_parse_ipv6_scope_id(const char *string, const size_t str_len,
 			scope_id = dev->ifindex;
 			dev_put(dev);
 		} else {
-			/* scope_id is set to zero on error */
-			strict_strtoul(p, 10, &scope_id);
+			if (strict_strtoul(p, 10, &scope_id) == 0) {
+				kfree(p);
+				return 0;
+			}
 		}
 
 		kfree(p);
+
 		sin6->sin6_scope_id = scope_id;
 		dfprintk(MOUNT, "NFS: IPv6 scope ID = %lu\n", scope_id);
+		return 1;
 	}
+
+	return 0;
 }
 
 static void nfs_parse_ipv6_address(char *string, size_t str_len,
@@ -763,9 +773,11 @@ static void nfs_parse_ipv6_address(char *string, size_t str_len,
 
 		sin6->sin6_family = AF_INET6;
 		*addr_len = sizeof(*sin6);
-		if (in6_pton(string, str_len, addr, IPV6_SCOPE_DELIMITER, &delim)) {
-			nfs_parse_ipv6_scope_id(string, str_len, delim, sin6);
-			return;
+		if (in6_pton(string, str_len, addr,
+					IPV6_SCOPE_DELIMITER, &delim) != 0) {
+			if (nfs_parse_ipv6_scope_id(string, str_len,
+							delim, sin6) != 0)
+				return;
 		}
 	}
 
