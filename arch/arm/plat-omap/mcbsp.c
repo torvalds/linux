@@ -804,7 +804,7 @@ EXPORT_SYMBOL(omap_mcbsp_set_spi_mode);
  * McBSP1 and McBSP3 are directly mapped on 1610 and 1510.
  * 730 has only 2 McBSP, and both of them are MPU peripherals.
  */
-static int __init omap_mcbsp_probe(struct platform_device *pdev)
+static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 {
 	struct omap_mcbsp_platform_data *pdata = pdev->dev.platform_data;
 	int id = pdev->id - 1;
@@ -868,7 +868,7 @@ exit:
 	return ret;
 }
 
-static int omap_mcbsp_remove(struct platform_device *pdev)
+static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
 
@@ -894,7 +894,7 @@ static int omap_mcbsp_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_mcbsp_driver = {
 	.probe		= omap_mcbsp_probe,
-	.remove		= omap_mcbsp_remove,
+	.remove		= __devexit_p(omap_mcbsp_remove),
 	.driver		= {
 		.name	= "omap-mcbsp",
 	},
