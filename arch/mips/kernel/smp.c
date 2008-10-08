@@ -121,6 +121,8 @@ asmlinkage __cpuinit void start_secondary(void)
 	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
+	notify_cpu_starting(cpu);
+
 	mp_ops->smp_finish();
 	set_cpu_sibling_map(cpu);
 

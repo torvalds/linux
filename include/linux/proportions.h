@@ -104,8 +104,8 @@ struct prop_local_single {
 	 * snapshot of the last seen global state
 	 * and a lock protecting this state
 	 */
-	int shift;
 	unsigned long period;
+	int shift;
 	spinlock_t lock;		/* protect the snapshot state */
 };
 

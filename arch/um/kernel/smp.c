@@ -85,6 +85,7 @@ static int idle_proc(void *cpup)
 	while (!cpu_isset(cpu, smp_commenced_mask))
 		cpu_relax();
 
+	notify_cpu_starting(cpu);
 	cpu_set(cpu, cpu_online_map);
 	default_idle();
 	return 0;

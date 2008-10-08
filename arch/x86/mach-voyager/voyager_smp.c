@@ -448,6 +448,8 @@ static void __init start_secondary(void *unused)
 
 	VDEBUG(("VOYAGER SMP: CPU%d, stack at about %p\n", cpuid, &cpuid));
 
+	notify_cpu_starting(cpuid);
+
 	/* enable interrupts */
 	local_irq_enable();
 

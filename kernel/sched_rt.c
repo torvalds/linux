@@ -102,12 +102,12 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se);
 
 static void sched_rt_rq_enqueue(struct rt_rq *rt_rq)
 {
+	struct task_struct *curr = rq_of_rt_rq(rt_rq)->curr;
 	struct sched_rt_entity *rt_se = rt_rq->rt_se;
 
-	if (rt_se && !on_rt_rq(rt_se) && rt_rq->rt_nr_running) {
-		struct task_struct *curr = rq_of_rt_rq(rt_rq)->curr;
-
-		enqueue_rt_entity(rt_se);
+	if (rt_rq->rt_nr_running) {
+		if (rt_se && !on_rt_rq(rt_se))
+			enqueue_rt_entity(rt_se);
 		if (rt_rq->highest_prio < curr->prio)
 			resched_task(curr);
 	}
@@ -231,6 +231,9 @@ static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
 #endif /* CONFIG_RT_GROUP_SCHED */
 
 #ifdef CONFIG_SMP
+/*
+ * We ran out of runtime, see if we can borrow some from our neighbours.
+ */
 static int do_balance_runtime(struct rt_rq *rt_rq)
 {
 	struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
@@ -250,9 +253,18 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 			continue;
 
 		spin_lock(&iter->rt_runtime_lock);
+		/*
+		 * Either all rqs have inf runtime and there's nothing to steal
+		 * or __disable_runtime() below sets a specific rq to inf to
+		 * indicate its been disabled and disalow stealing.
+		 */
 		if (iter->rt_runtime == RUNTIME_INF)
 			goto next;
 
+		/*
+		 * From runqueues with spare time, take 1/n part of their
+		 * spare time, but no more than our period.
+		 */
 		diff = iter->rt_runtime - iter->rt_time;
 		if (diff > 0) {
 			diff = div_u64((u64)diff, weight);
@@ -274,6 +286,9 @@ next:
 	return more;
 }
 
+/*
+ * Ensure this RQ takes back all the runtime it lend to its neighbours.
+ */
 static void __disable_runtime(struct rq *rq)
 {
 	struct root_domain *rd = rq->rd;
@@ -289,17 +304,33 @@ static void __disable_runtime(struct rq *rq)
 
 		spin_lock(&rt_b->rt_runtime_lock);
 		spin_lock(&rt_rq->rt_runtime_lock);
+		/*
+		 * Either we're all inf and nobody needs to borrow, or we're
+		 * already disabled and thus have nothing to do, or we have
+		 * exactly the right amount of runtime to take out.
+		 */
 		if (rt_rq->rt_runtime == RUNTIME_INF ||
 				rt_rq->rt_runtime == rt_b->rt_runtime)
 			goto balanced;
 		spin_unlock(&rt_rq->rt_runtime_lock);
 
+		/*
+		 * Calculate the difference between what we started out with
+		 * and what we current have, that's the amount of runtime
+		 * we lend and now have to reclaim.
+		 */
 		want = rt_b->rt_runtime - rt_rq->rt_runtime;
 
+		/*
+		 * Greedy reclaim, take back as much as we can.
+		 */
 		for_each_cpu_mask(i, rd->span) {
 			struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
 			s64 diff;
 
+			/*
+			 * Can't reclaim from ourselves or disabled runqueues.
+			 */
 			if (iter == rt_rq || iter->rt_runtime == RUNTIME_INF)
 				continue;
 
@@ -319,8 +350,16 @@ static void __disable_runtime(struct rq *rq)
 		}
 
 		spin_lock(&rt_rq->rt_runtime_lock);
+		/*
+		 * We cannot be left wanting - that would mean some runtime
+		 * leaked out of the system.
+		 */
 		BUG_ON(want);
 balanced:
+		/*
+		 * Disable all the borrow logic by pretending we have inf
+		 * runtime - in which case borrowing doesn't make sense.
+		 */
 		rt_rq->rt_runtime = RUNTIME_INF;
 		spin_unlock(&rt_rq->rt_runtime_lock);
 		spin_unlock(&rt_b->rt_runtime_lock);
@@ -343,6 +382,9 @@ static void __enable_runtime(struct rq *rq)
 	if (unlikely(!scheduler_running))
 		return;
 
+	/*
+	 * Reset each runqueue's bandwidth settings
+	 */
 	for_each_leaf_rt_rq(rt_rq, rq) {
 		struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
 
@@ -389,7 +431,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 	int i, idle = 1;
 	cpumask_t span;
 
-	if (rt_b->rt_runtime == RUNTIME_INF)
+	if (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF)
 		return 1;
 
 	span = sched_rt_period_mask();
@@ -486,6 +528,9 @@ static void update_curr_rt(struct rq *rq)
 	curr->se.sum_exec_runtime += delta_exec;
 	curr->se.exec_start = rq->clock;
 	cpuacct_charge(curr, delta_exec);
+
+	if (!rt_bandwidth_enabled())
+		return;
 
 	for_each_sched_rt_entity(rt_se) {
 		rt_rq = rt_rq_of_se(rt_se);
@@ -784,7 +829,7 @@ static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p)
+static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p, int sync)
 {
 	if (p->prio < rq->curr->prio) {
 		resched_task(rq->curr);

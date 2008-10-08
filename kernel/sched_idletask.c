@@ -14,7 +14,7 @@ static int select_task_rq_idle(struct task_struct *p, int sync)
 /*
  * Idle tasks are unconditionally rescheduled:
  */
-static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p)
+static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int sync)
 {
 	resched_task(rq->idle);
 }
@@ -76,7 +76,7 @@ static void switched_to_idle(struct rq *rq, struct task_struct *p,
 	if (running)
 		resched_task(rq->curr);
 	else
-		check_preempt_curr(rq, p);
+		check_preempt_curr(rq, p, 0);
 }
 
 static void prio_changed_idle(struct rq *rq, struct task_struct *p,
@@ -93,7 +93,7 @@ static void prio_changed_idle(struct rq *rq, struct task_struct *p,
 		if (p->prio > oldprio)
 			resched_task(rq->curr);
 	} else
-		check_preempt_curr(rq, p);
+		check_preempt_curr(rq, p, 0);
 }
 
 /*
