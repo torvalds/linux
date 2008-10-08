@@ -317,6 +317,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	 * If we got here, it is most likely that someone was trying to use a
 	 * custom exception handler, and it is not actually installed properly
 	 */
+	case VEC_EXCPT02:
 	case VEC_EXCPT04 ... VEC_EXCPT15:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
@@ -968,7 +969,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 		if (!((unsigned long)addr & 0xF))
 			printk("\n" KERN_NOTICE "0x%p: ", addr);
 
-		if (get_instruction(&val, addr)) {
+		if (!get_instruction(&val, addr)) {
 				val = 0;
 				sprintf(buf, "????");
 		} else
