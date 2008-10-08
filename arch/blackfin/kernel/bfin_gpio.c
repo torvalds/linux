@@ -231,7 +231,7 @@ inline int check_gpio(unsigned gpio)
 }
 #endif
 
-void gpio_error(unsigned gpio)
+static void gpio_error(unsigned gpio)
 {
 	printk(KERN_ERR "bfin-gpio: GPIO %d wasn't requested!\n", gpio);
 }
