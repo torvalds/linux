@@ -212,6 +212,12 @@ struct xt_mtchk_param {
 	unsigned int hook_mask;
 };
 
+/* Match destructor parameters */
+struct xt_mtdtor_param {
+	const struct xt_match *match;
+	void *matchinfo;
+};
+
 struct xt_match
 {
 	struct list_head list;
@@ -230,7 +236,7 @@ struct xt_match
 	bool (*checkentry)(const struct xt_mtchk_param *);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(const struct xt_match *match, void *matchinfo);
+	void (*destroy)(const struct xt_mtdtor_param *);
 
 	/* Called when userspace align differs from kernel space one */
 	void (*compat_from_user)(void *dst, void *src);

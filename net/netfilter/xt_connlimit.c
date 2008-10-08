@@ -246,16 +246,15 @@ static bool connlimit_mt_check(const struct xt_mtchk_param *par)
 	return true;
 }
 
-static void
-connlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	const struct xt_connlimit_info *info = matchinfo;
+	const struct xt_connlimit_info *info = par->matchinfo;
 	struct xt_connlimit_conn *conn;
 	struct xt_connlimit_conn *tmp;
 	struct list_head *hash = info->data->iphash;
 	unsigned int i;
 
-	nf_ct_l3proto_module_put(match->family);
+	nf_ct_l3proto_module_put(par->match->family);
 
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i) {
 		list_for_each_entry_safe(conn, tmp, &hash[i], list) {

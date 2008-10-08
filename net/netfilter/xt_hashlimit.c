@@ -748,17 +748,16 @@ static bool hashlimit_mt_check(const struct xt_mtchk_param *par)
 }
 
 static void
-hashlimit_mt_destroy_v0(const struct xt_match *match, void *matchinfo)
+hashlimit_mt_destroy_v0(const struct xt_mtdtor_param *par)
 {
-	const struct xt_hashlimit_info *r = matchinfo;
+	const struct xt_hashlimit_info *r = par->matchinfo;
 
 	htable_put(r->hinfo);
 }
 
-static void
-hashlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void hashlimit_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	const struct xt_hashlimit_mtinfo1 *info = matchinfo;
+	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 
 	htable_put(info->hinfo);
 }

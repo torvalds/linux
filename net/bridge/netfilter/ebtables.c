@@ -558,12 +558,16 @@ ebt_get_udc_positions(struct ebt_entry *e, struct ebt_table_info *newinfo,
 static inline int
 ebt_cleanup_match(struct ebt_entry_match *m, unsigned int *i)
 {
+	struct xt_mtdtor_param par;
+
 	if (i && (*i)-- == 0)
 		return 1;
-	if (m->u.match->destroy)
-		m->u.match->destroy(m->u.match, m->data);
-	module_put(m->u.match->me);
 
+	par.match     = m->u.match;
+	par.matchinfo = m->data;
+	if (par.match->destroy != NULL)
+		par.match->destroy(&par);
+	module_put(par.match->me);
 	return 0;
 }
 
@@ -609,7 +613,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	unsigned int i, j, hook = 0, hookmask = 0;
 	size_t gap;
 	int ret;
-	struct xt_mtchk_param par;
+	struct xt_mtchk_param mtpar;
 
 	/* don't mess with the struct ebt_entries */
 	if (e->bitmask == 0)
@@ -651,10 +655,10 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	}
 	i = 0;
 
-	par.table     = name;
-	par.entryinfo = e;
-	par.hook_mask = hookmask;
-	ret = EBT_MATCH_ITERATE(e, ebt_check_match, &par, &i);
+	mtpar.table     = name;
+	mtpar.entryinfo = e;
+	mtpar.hook_mask = hookmask;
+	ret = EBT_MATCH_ITERATE(e, ebt_check_match, &mtpar, &i);
 	if (ret != 0)
 		goto cleanup_matches;
 	j = 0;

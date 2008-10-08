@@ -70,9 +70,9 @@ static bool string_mt_check(const struct xt_mtchk_param *par)
 	return true;
 }
 
-static void string_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void string_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
+	textsearch_destroy(STRING_TEXT_PRIV(par->matchinfo)->config);
 }
 
 static struct xt_match xt_string_mt_reg[] __read_mostly = {

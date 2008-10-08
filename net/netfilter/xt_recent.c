@@ -349,9 +349,9 @@ out:
 	return ret;
 }
 
-static void recent_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	const struct xt_recent_mtinfo *info = matchinfo;
+	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 
 	mutex_lock(&recent_mutex);

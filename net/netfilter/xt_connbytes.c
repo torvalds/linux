@@ -115,9 +115,9 @@ static bool connbytes_mt_check(const struct xt_mtchk_param *par)
 	return true;
 }
 
-static void connbytes_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void connbytes_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(match->family);
+	nf_ct_l3proto_module_put(par->match->family);
 }
 
 static struct xt_match connbytes_mt_reg[] __read_mostly = {
