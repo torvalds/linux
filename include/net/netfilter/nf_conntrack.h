@@ -287,7 +287,6 @@ static inline int nf_ct_is_untracked(const struct sk_buff *skb)
 
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
-extern int nf_conntrack_checksum;
 extern int nf_conntrack_max;
 
 #define NF_CT_STAT_INC(net, count)	\
