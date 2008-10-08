@@ -57,19 +57,6 @@ config IP_NF_IPTABLES
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The matches.
-config IP_NF_MATCH_RECENT
-	tristate '"recent" match support'
-	depends on IP_NF_IPTABLES
-	depends on NETFILTER_ADVANCED
-	help
-	  This match is used for creating one or many lists of recently
-	  used addresses and then matching against that/those list(s).
-
-	  Short options are available by using 'iptables -m recent -h'
-	  Official Website: <http://snowman.net/projects/ipt_recent/>
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_ECN
 	tristate '"ecn" match support'
 	depends on IP_NF_IPTABLES

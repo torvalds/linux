@@ -732,6 +732,17 @@ config NETFILTER_XT_MATCH_REALM
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_MATCH_RECENT
+	tristate '"recent" match support'
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
+	---help---
+	This match is used for creating one or many lists of recently
+	used addresses and then matching against that/those list(s).
+
+	Short options are available by using 'iptables -m recent -h'
+	Official Website: <http://snowman.net/projects/ipt_recent/>
+
 config NETFILTER_XT_MATCH_SCTP
 	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
 	depends on NETFILTER_XTABLES && EXPERIMENTAL

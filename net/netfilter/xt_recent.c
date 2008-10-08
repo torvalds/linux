@@ -27,11 +27,12 @@
 #include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>
-#include <linux/netfilter_ipv4/ipt_recent.h>
+#include <linux/netfilter/xt_recent.h>
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("Xtables: \"recently-seen\" host matching for IPv4");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("ipt_recent");
 
 static unsigned int ip_list_tot = 100;
 static unsigned int ip_pkt_list_tot = 20;
@@ -64,7 +65,7 @@ struct recent_entry {
 
 struct recent_table {
 	struct list_head	list;
-	char			name[IPT_RECENT_NAME_LEN];
+	char			name[XT_RECENT_NAME_LEN];
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*proc;
 #endif
@@ -175,14 +176,14 @@ recent_mt(const struct sk_buff *skb, const struct net_device *in,
           const void *matchinfo, int offset, unsigned int protoff,
           bool *hotdrop)
 {
-	const struct ipt_recent_info *info = matchinfo;
+	const struct xt_recent_mtinfo *info = matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
 	__be32 addr;
 	u_int8_t ttl;
 	bool ret = info->invert;
 
-	if (info->side == IPT_RECENT_DEST)
+	if (info->side == XT_RECENT_DEST)
 		addr = ip_hdr(skb)->daddr;
 	else
 		addr = ip_hdr(skb)->saddr;
@@ -195,9 +196,9 @@ recent_mt(const struct sk_buff *skb, const struct net_device *in,
 	spin_lock_bh(&recent_lock);
 	t = recent_table_lookup(info->name);
 	e = recent_entry_lookup(t, addr,
-				info->check_set & IPT_RECENT_TTL ? ttl : 0);
+				info->check_set & XT_RECENT_TTL ? ttl : 0);
 	if (e == NULL) {
-		if (!(info->check_set & IPT_RECENT_SET))
+		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
 		e = recent_entry_init(t, addr, ttl);
 		if (e == NULL)
@@ -206,12 +207,12 @@ recent_mt(const struct sk_buff *skb, const struct net_device *in,
 		goto out;
 	}
 
-	if (info->check_set & IPT_RECENT_SET)
+	if (info->check_set & XT_RECENT_SET)
 		ret = !ret;
-	else if (info->check_set & IPT_RECENT_REMOVE) {
+	else if (info->check_set & XT_RECENT_REMOVE) {
 		recent_entry_remove(t, e);
 		ret = !ret;
-	} else if (info->check_set & (IPT_RECENT_CHECK | IPT_RECENT_UPDATE)) {
+	} else if (info->check_set & (XT_RECENT_CHECK | XT_RECENT_UPDATE)) {
 		unsigned long time = jiffies - info->seconds * HZ;
 		unsigned int i, hits = 0;
 
@@ -225,8 +226,8 @@ recent_mt(const struct sk_buff *skb, const struct net_device *in,
 		}
 	}
 
-	if (info->check_set & IPT_RECENT_SET ||
-	    (info->check_set & IPT_RECENT_UPDATE && ret)) {
+	if (info->check_set & XT_RECENT_SET ||
+	    (info->check_set & XT_RECENT_UPDATE && ret)) {
 		recent_entry_update(t, e);
 		e->ttl = ttl;
 	}
@@ -240,22 +241,22 @@ recent_mt_check(const char *tablename, const void *ip,
                 const struct xt_match *match, void *matchinfo,
                 unsigned int hook_mask)
 {
-	const struct ipt_recent_info *info = matchinfo;
+	const struct xt_recent_mtinfo *info = matchinfo;
 	struct recent_table *t;
 	unsigned i;
 	bool ret = false;
 
 	if (hweight8(info->check_set &
-		     (IPT_RECENT_SET | IPT_RECENT_REMOVE |
-		      IPT_RECENT_CHECK | IPT_RECENT_UPDATE)) != 1)
+		     (XT_RECENT_SET | XT_RECENT_REMOVE |
+		      XT_RECENT_CHECK | XT_RECENT_UPDATE)) != 1)
 		return false;
-	if ((info->check_set & (IPT_RECENT_SET | IPT_RECENT_REMOVE)) &&
+	if ((info->check_set & (XT_RECENT_SET | XT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count))
 		return false;
 	if (info->hit_count > ip_pkt_list_tot)
 		return false;
 	if (info->name[0] == '\0' ||
-	    strnlen(info->name, IPT_RECENT_NAME_LEN) == IPT_RECENT_NAME_LEN)
+	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
 		return false;
 
 	mutex_lock(&recent_mutex);
@@ -296,7 +297,7 @@ out:
 
 static void recent_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
-	const struct ipt_recent_info *info = matchinfo;
+	const struct xt_recent_mtinfo *info = matchinfo;
 	struct recent_table *t;
 
 	mutex_lock(&recent_mutex);
@@ -461,7 +462,7 @@ static struct xt_match recent_mt_reg __read_mostly = {
 	.name		= "recent",
 	.family		= AF_INET,
 	.match		= recent_mt,
-	.matchsize	= sizeof(struct ipt_recent_info),
+	.matchsize	= sizeof(struct xt_recent_mtinfo),
 	.checkentry	= recent_mt_check,
 	.destroy	= recent_mt_destroy,
 	.me		= THIS_MODULE,

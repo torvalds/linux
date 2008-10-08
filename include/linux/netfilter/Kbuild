@@ -32,6 +32,7 @@ header-y += xt_owner.h
 header-y += xt_pkttype.h
 header-y += xt_rateest.h
 header-y += xt_realm.h
+header-y += xt_recent.h
 header-y += xt_sctp.h
 header-y += xt_state.h
 header-y += xt_statistic.h
