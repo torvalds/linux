@@ -653,11 +653,17 @@ int marker_probe_register(const char *name, const char *format,
 	entry = get_marker(name);
 	if (!entry) {
 		entry = add_marker(name, format);
-		if (IS_ERR(entry)) {
+		if (IS_ERR(entry))
 			ret = PTR_ERR(entry);
-			goto end;
-		}
+	} else if (format) {
+		if (!entry->format)
+			ret = marker_set_format(&entry, format);
+		else if (strcmp(entry->format, format))
+			ret = -EPERM;
 	}
+	if (ret)
+		goto end;
+
 	/*
 	 * If we detect that a call_rcu is pending for this marker,
 	 * make sure it's executed now.
