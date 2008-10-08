@@ -31,6 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/hrtimer.h>
 #include <linux/uaccess.h>
+#include <linux/intel-iommu.h>
 
 #include <asm/pgtable.h>
 #include <asm/gcc_intrin.h>
@@ -186,6 +187,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
+		break;
+	case KVM_CAP_IOMMU:
+		r = intel_iommu_found();
 		break;
 	default:
 		r = 0;
@@ -773,6 +777,7 @@ static void kvm_init_vm(struct kvm *kvm)
 	 */
 	kvm_build_io_pmt(kvm);
 
+	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
 }
 
 struct  kvm *kvm_arch_create_vm(void)
@@ -1336,6 +1341,10 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
+	kvm_iommu_unmap_guest(kvm);
+#ifdef  KVM_CAP_DEVICE_ASSIGNMENT
+	kvm_free_all_assigned_devices(kvm);
+#endif
 	kfree(kvm->arch.vioapic);
 	kvm_release_vm_pages(kvm);
 	kvm_free_physmem(kvm);
