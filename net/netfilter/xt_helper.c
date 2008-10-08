@@ -58,9 +58,9 @@ static bool helper_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_helper_info *info = par->matchinfo;
 
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->match->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 	info->name[29] = '\0';
@@ -69,38 +69,28 @@ static bool helper_mt_check(const struct xt_mtchk_param *par)
 
 static void helper_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->match->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
-static struct xt_match helper_mt_reg[] __read_mostly = {
-	{
-		.name		= "helper",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= helper_mt_check,
-		.match		= helper_mt,
-		.destroy	= helper_mt_destroy,
-		.matchsize	= sizeof(struct xt_helper_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "helper",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= helper_mt_check,
-		.match		= helper_mt,
-		.destroy	= helper_mt_destroy,
-		.matchsize	= sizeof(struct xt_helper_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_match helper_mt_reg __read_mostly = {
+	.name       = "helper",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = helper_mt_check,
+	.match      = helper_mt,
+	.destroy    = helper_mt_destroy,
+	.matchsize  = sizeof(struct xt_helper_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init helper_mt_init(void)
 {
-	return xt_register_matches(helper_mt_reg, ARRAY_SIZE(helper_mt_reg));
+	return xt_register_match(&helper_mt_reg);
 }
 
 static void __exit helper_mt_exit(void)
 {
-	xt_unregister_matches(helper_mt_reg, ARRAY_SIZE(helper_mt_reg));
+	xt_unregister_match(&helper_mt_reg);
 }
 
 module_init(helper_mt_init);

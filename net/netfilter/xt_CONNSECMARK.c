@@ -106,9 +106,9 @@ static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 		return false;
 	}
 
-	if (nf_ct_l3proto_try_module_get(par->target->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->target->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 	return true;
@@ -116,40 +116,28 @@ static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 
 static void connsecmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->target->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
-static struct xt_target connsecmark_tg_reg[] __read_mostly = {
-	{
-		.name		= "CONNSECMARK",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= connsecmark_tg_check,
-		.destroy	= connsecmark_tg_destroy,
-		.target		= connsecmark_tg,
-		.targetsize	= sizeof(struct xt_connsecmark_target_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "CONNSECMARK",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= connsecmark_tg_check,
-		.destroy	= connsecmark_tg_destroy,
-		.target		= connsecmark_tg,
-		.targetsize	= sizeof(struct xt_connsecmark_target_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_target connsecmark_tg_reg __read_mostly = {
+	.name       = "CONNSECMARK",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = connsecmark_tg_check,
+	.destroy    = connsecmark_tg_destroy,
+	.target     = connsecmark_tg,
+	.targetsize = sizeof(struct xt_connsecmark_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init connsecmark_tg_init(void)
 {
-	return xt_register_targets(connsecmark_tg_reg,
-	       ARRAY_SIZE(connsecmark_tg_reg));
+	return xt_register_target(&connsecmark_tg_reg);
 }
 
 static void __exit connsecmark_tg_exit(void)
 {
-	xt_unregister_targets(connsecmark_tg_reg,
-	                      ARRAY_SIZE(connsecmark_tg_reg));
+	xt_unregister_target(&connsecmark_tg_reg);
 }
 
 module_init(connsecmark_tg_init);

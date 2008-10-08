@@ -31,7 +31,7 @@ nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	li.u.ulog.group	     = info->group;
 	li.u.ulog.qthreshold = info->threshold;
 
-	nf_log_packet(par->target->family, par->hooknum, skb, par->in,
+	nf_log_packet(par->family, par->hooknum, skb, par->in,
 	              par->out, &li, "%s", info->prefix);
 	return XT_CONTINUE;
 }
@@ -47,33 +47,24 @@ static bool nflog_tg_check(const struct xt_tgchk_param *par)
 	return true;
 }
 
-static struct xt_target nflog_tg_reg[] __read_mostly = {
-	{
-		.name		= "NFLOG",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= nflog_tg_check,
-		.target		= nflog_tg,
-		.targetsize	= sizeof(struct xt_nflog_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "NFLOG",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= nflog_tg_check,
-		.target		= nflog_tg,
-		.targetsize	= sizeof(struct xt_nflog_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_target nflog_tg_reg __read_mostly = {
+	.name       = "NFLOG",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = nflog_tg_check,
+	.target     = nflog_tg,
+	.targetsize = sizeof(struct xt_nflog_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init nflog_tg_init(void)
 {
-	return xt_register_targets(nflog_tg_reg, ARRAY_SIZE(nflog_tg_reg));
+	return xt_register_target(&nflog_tg_reg);
 }
 
 static void __exit nflog_tg_exit(void)
 {
-	xt_unregister_targets(nflog_tg_reg, ARRAY_SIZE(nflog_tg_reg));
+	xt_unregister_target(&nflog_tg_reg);
 }
 
 module_init(nflog_tg_init);

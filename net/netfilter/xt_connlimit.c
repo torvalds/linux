@@ -192,10 +192,10 @@ connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (ct != NULL)
 		tuple_ptr = &ct->tuplehash[0].tuple;
 	else if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-				    par->match->family, &tuple))
+				    par->family, &tuple))
 		goto hotdrop;
 
-	if (par->match->family == NFPROTO_IPV6) {
+	if (par->family == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		memcpy(&addr.ip6, &iph->saddr, sizeof(iph->saddr));
 	} else {
@@ -226,16 +226,16 @@ static bool connlimit_mt_check(const struct xt_mtchk_param *par)
 	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
 
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "cannot load conntrack support for "
-		       "address family %u\n", par->match->family);
+		       "address family %u\n", par->family);
 		return false;
 	}
 
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
-		nf_ct_l3proto_module_put(par->match->family);
+		nf_ct_l3proto_module_put(par->family);
 		return false;
 	}
 
@@ -254,7 +254,7 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	struct list_head *hash = info->data->iphash;
 	unsigned int i;
 
-	nf_ct_l3proto_module_put(par->match->family);
+	nf_ct_l3proto_module_put(par->family);
 
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i) {
 		list_for_each_entry_safe(conn, tmp, &hash[i], list) {
@@ -266,41 +266,30 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	kfree(info->data);
 }
 
-static struct xt_match connlimit_mt_reg[] __read_mostly = {
-	{
-		.name       = "connlimit",
-		.family     = NFPROTO_IPV4,
-		.checkentry = connlimit_mt_check,
-		.match      = connlimit_mt,
-		.matchsize  = sizeof(struct xt_connlimit_info),
-		.destroy    = connlimit_mt_destroy,
-		.me         = THIS_MODULE,
-	},
-	{
-		.name       = "connlimit",
-		.family     = NFPROTO_IPV6,
-		.checkentry = connlimit_mt_check,
-		.match      = connlimit_mt,
-		.matchsize  = sizeof(struct xt_connlimit_info),
-		.destroy    = connlimit_mt_destroy,
-		.me         = THIS_MODULE,
-	},
+static struct xt_match connlimit_mt_reg __read_mostly = {
+	.name       = "connlimit",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = connlimit_mt_check,
+	.match      = connlimit_mt,
+	.matchsize  = sizeof(struct xt_connlimit_info),
+	.destroy    = connlimit_mt_destroy,
+	.me         = THIS_MODULE,
 };
 
 static int __init connlimit_mt_init(void)
 {
-	return xt_register_matches(connlimit_mt_reg,
-	       ARRAY_SIZE(connlimit_mt_reg));
+	return xt_register_match(&connlimit_mt_reg);
 }
 
 static void __exit connlimit_mt_exit(void)
 {
-	xt_unregister_matches(connlimit_mt_reg, ARRAY_SIZE(connlimit_mt_reg));
+	xt_unregister_match(&connlimit_mt_reg);
 }
 
 module_init(connlimit_mt_init);
 module_exit(connlimit_mt_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: Number of connections matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connlimit");

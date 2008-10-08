@@ -238,22 +238,22 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGSRC)
-		if (conntrack_mt_origsrc(ct, info, par->match->family) ^
+		if (conntrack_mt_origsrc(ct, info, par->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_ORIGSRC))
 			return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGDST)
-		if (conntrack_mt_origdst(ct, info, par->match->family) ^
+		if (conntrack_mt_origdst(ct, info, par->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_ORIGDST))
 			return false;
 
 	if (info->match_flags & XT_CONNTRACK_REPLSRC)
-		if (conntrack_mt_replsrc(ct, info, par->match->family) ^
+		if (conntrack_mt_replsrc(ct, info, par->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_REPLSRC))
 			return false;
 
 	if (info->match_flags & XT_CONNTRACK_REPLDST)
-		if (conntrack_mt_repldst(ct, info, par->match->family) ^
+		if (conntrack_mt_repldst(ct, info, par->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_REPLDST))
 			return false;
 
@@ -280,9 +280,9 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 static bool conntrack_mt_check(const struct xt_mtchk_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->match->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 	return true;
@@ -290,7 +290,7 @@ static bool conntrack_mt_check(const struct xt_mtchk_param *par)
 
 static void conntrack_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->match->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
 #ifdef CONFIG_COMPAT
@@ -361,17 +361,7 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 	{
 		.name       = "conntrack",
 		.revision   = 1,
-		.family     = NFPROTO_IPV4,
-		.matchsize  = sizeof(struct xt_conntrack_mtinfo1),
-		.match      = conntrack_mt,
-		.checkentry = conntrack_mt_check,
-		.destroy    = conntrack_mt_destroy,
-		.me         = THIS_MODULE,
-	},
-	{
-		.name       = "conntrack",
-		.revision   = 1,
-		.family     = NFPROTO_IPV6,
+		.family     = NFPROTO_UNSPEC,
 		.matchsize  = sizeof(struct xt_conntrack_mtinfo1),
 		.match      = conntrack_mt,
 		.checkentry = conntrack_mt_check,

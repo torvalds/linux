@@ -69,9 +69,9 @@ static bool connmark_mt_check_v0(const struct xt_mtchk_param *par)
 		printk(KERN_WARNING "connmark: only support 32bit mark\n");
 		return false;
 	}
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->match->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 	return true;
@@ -79,9 +79,9 @@ static bool connmark_mt_check_v0(const struct xt_mtchk_param *par)
 
 static bool connmark_mt_check(const struct xt_mtchk_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "cannot load conntrack support for "
-		       "proto=%u\n", par->match->family);
+		       "proto=%u\n", par->family);
 		return false;
 	}
 	return true;
@@ -89,7 +89,7 @@ static bool connmark_mt_check(const struct xt_mtchk_param *par)
 
 static void connmark_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->match->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
 #ifdef CONFIG_COMPAT
@@ -127,22 +127,7 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 	{
 		.name		= "connmark",
 		.revision	= 0,
-		.family		= NFPROTO_IPV4,
-		.checkentry	= connmark_mt_check_v0,
-		.match		= connmark_mt_v0,
-		.destroy	= connmark_mt_destroy,
-		.matchsize	= sizeof(struct xt_connmark_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_connmark_info),
-		.compat_from_user = connmark_mt_compat_from_user_v0,
-		.compat_to_user	= connmark_mt_compat_to_user_v0,
-#endif
-		.me		= THIS_MODULE
-	},
-	{
-		.name		= "connmark",
-		.revision	= 0,
-		.family		= NFPROTO_IPV6,
+		.family		= NFPROTO_UNSPEC,
 		.checkentry	= connmark_mt_check_v0,
 		.match		= connmark_mt_v0,
 		.destroy	= connmark_mt_destroy,
@@ -157,17 +142,7 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 	{
 		.name           = "connmark",
 		.revision       = 1,
-		.family         = NFPROTO_IPV4,
-		.checkentry     = connmark_mt_check,
-		.match          = connmark_mt,
-		.matchsize      = sizeof(struct xt_connmark_mtinfo1),
-		.destroy        = connmark_mt_destroy,
-		.me             = THIS_MODULE,
-	},
-	{
-		.name           = "connmark",
-		.revision       = 1,
-		.family         = NFPROTO_IPV6,
+		.family         = NFPROTO_UNSPEC,
 		.checkentry     = connmark_mt_check,
 		.match          = connmark_mt,
 		.matchsize      = sizeof(struct xt_connmark_mtinfo1),

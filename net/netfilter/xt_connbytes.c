@@ -106,9 +106,9 @@ static bool connbytes_mt_check(const struct xt_mtchk_param *par)
 	    sinfo->direction != XT_CONNBYTES_DIR_BOTH)
 		return false;
 
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->match->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 
@@ -117,39 +117,28 @@ static bool connbytes_mt_check(const struct xt_mtchk_param *par)
 
 static void connbytes_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->match->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
-static struct xt_match connbytes_mt_reg[] __read_mostly = {
-	{
-		.name		= "connbytes",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= connbytes_mt_check,
-		.match		= connbytes_mt,
-		.destroy	= connbytes_mt_destroy,
-		.matchsize	= sizeof(struct xt_connbytes_info),
-		.me		= THIS_MODULE
-	},
-	{
-		.name		= "connbytes",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= connbytes_mt_check,
-		.match		= connbytes_mt,
-		.destroy	= connbytes_mt_destroy,
-		.matchsize	= sizeof(struct xt_connbytes_info),
-		.me		= THIS_MODULE
-	},
+static struct xt_match connbytes_mt_reg __read_mostly = {
+	.name       = "connbytes",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = connbytes_mt_check,
+	.match      = connbytes_mt,
+	.destroy    = connbytes_mt_destroy,
+	.matchsize  = sizeof(struct xt_connbytes_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init connbytes_mt_init(void)
 {
-	return xt_register_matches(connbytes_mt_reg,
-	       ARRAY_SIZE(connbytes_mt_reg));
+	return xt_register_match(&connbytes_mt_reg);
 }
 
 static void __exit connbytes_mt_exit(void)
 {
-	xt_unregister_matches(connbytes_mt_reg, ARRAY_SIZE(connbytes_mt_reg));
+	xt_unregister_match(&connbytes_mt_reg);
 }
 
 module_init(connbytes_mt_init);
