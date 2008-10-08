@@ -1012,14 +1012,14 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	}
 #endif
 
-	buff->csum = csum_partial((char *)t1, sizeof(*t1), 0);
+	buff->csum = csum_partial((char *)t1, tot_len, 0);
 
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&fl.fl6_src, &ipv6_hdr(skb)->daddr);
 
 	t1->check = csum_ipv6_magic(&fl.fl6_src, &fl.fl6_dst,
-				    sizeof(*t1), IPPROTO_TCP,
+				    tot_len, IPPROTO_TCP,
 				    buff->csum);
 
 	fl.proto = IPPROTO_TCP;
