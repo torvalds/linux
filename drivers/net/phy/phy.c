@@ -729,6 +729,12 @@ static void phy_change(struct work_struct *work)
 	if (err)
 		goto irq_enable_err;
 
+	/* Stop timer and run the state queue now.  The work function for
+	 * state_queue will start the timer up again.
+	 */
+	del_timer(&phydev->phy_timer);
+	schedule_work(&phydev->state_queue);
+
 	return;
 
 irq_enable_err:
