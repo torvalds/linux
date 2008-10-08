@@ -45,6 +45,7 @@ static inline int qdisc_qlen(struct Qdisc *q)
 static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
 	q->gso_skb = skb;
+	q->qstats.requeues++;
 	__netif_schedule(q);
 
 	return 0;
