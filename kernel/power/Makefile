@@ -9,5 +9,6 @@ obj-$(CONFIG_PM_TEST_SUSPEND)	+= suspend_test.o
 obj-$(CONFIG_HIBERNATION)	+= hibernate.o snapshot.o swap.o user.o \
 				   block_io.o
 obj-$(CONFIG_WAKELOCK)		+= wakelock.o
+obj-$(CONFIG_EARLYSUSPEND)	+= earlysuspend.o
 
 obj-$(CONFIG_MAGIC_SYSRQ)	+= poweroff.o

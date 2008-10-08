@@ -21,6 +21,9 @@ config SUSPEND_FREEZER
 config HAS_WAKELOCK
 	bool
 
+config HAS_EARLYSUSPEND
+	bool
+
 config WAKELOCK
 	bool "Wake lock"
 	depends on PM && RTC_CLASS
@@ -36,6 +39,15 @@ config WAKELOCK_STAT
 	default y
 	---help---
 	  Report wake lock stats in /proc/wakelocks
+
+config EARLYSUSPEND
+	bool "Early suspend"
+	depends on WAKELOCK
+	default y
+	select HAS_EARLYSUSPEND
+	---help---
+	  Call early suspend handlers when the user requested sleep state
+	  changes.
 
 config HIBERNATE_CALLBACKS
 	bool
