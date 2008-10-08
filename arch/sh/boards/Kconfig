@@ -162,6 +162,7 @@ config SH_SH7785LCR_29BIT_PHYSMAPS
 config SH_MIGOR
 	bool "Migo-R"
 	depends on CPU_SUBTYPE_SH7722
+	select GENERIC_GPIO
 	help
 	  Select Migo-R if configuring for the SH7722 Migo-R platform
           by Renesas System Solutions Asia Pte. Ltd.
