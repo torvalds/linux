@@ -323,7 +323,8 @@ EXPORT_SYMBOL_GPL(xt_find_revision);
 
 int xt_check_match(const struct xt_match *match, unsigned short family,
 		   unsigned int size, const char *table, unsigned int hook_mask,
-		   unsigned short proto, int inv_proto)
+		   unsigned short proto, int inv_proto, const void *entry,
+		   void *matchinfo)
 {
 	if (XT_ALIGN(match->matchsize) != size &&
 	    match->matchsize != -1) {
@@ -351,6 +352,9 @@ int xt_check_match(const struct xt_match *match, unsigned short family,
 		       xt_prefix[family], match->name, match->proto);
 		return -EINVAL;
 	}
+	if (match->checkentry != NULL &&
+	    !match->checkentry(table, entry, match, matchinfo, hook_mask))
+		return -EINVAL;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_check_match);
@@ -469,7 +473,8 @@ EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
 
 int xt_check_target(const struct xt_target *target, unsigned short family,
 		    unsigned int size, const char *table, unsigned int hook_mask,
-		    unsigned short proto, int inv_proto)
+		    unsigned short proto, int inv_proto, const void *entry,
+		    void *targinfo)
 {
 	if (XT_ALIGN(target->targetsize) != size) {
 		printk("%s_tables: %s target: invalid size %Zu != %u\n",
@@ -493,6 +498,9 @@ int xt_check_target(const struct xt_target *target, unsigned short family,
 		       xt_prefix[family], target->name, target->proto);
 		return -EINVAL;
 	}
+	if (target->checkentry != NULL &&
+	    !target->checkentry(table, entry, target, targinfo, hook_mask))
+		return -EINVAL;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_check_target);

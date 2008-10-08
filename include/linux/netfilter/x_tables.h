@@ -330,10 +330,12 @@ extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
 extern int xt_check_match(const struct xt_match *match, unsigned short family,
 			  unsigned int size, const char *table, unsigned int hook,
-			  unsigned short proto, int inv_proto);
+			  unsigned short proto, int inv_proto,
+			  const void *entry, void *matchinfo);
 extern int xt_check_target(const struct xt_target *target, unsigned short family,
 			   unsigned int size, const char *table, unsigned int hook,
-			   unsigned short proto, int inv_proto);
+			   unsigned short proto, int inv_proto,
+			   const void *entry, void *targinfo);
 
 extern struct xt_table *xt_register_table(struct net *net,
 					  struct xt_table *table,

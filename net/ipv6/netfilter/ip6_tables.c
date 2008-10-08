@@ -642,17 +642,14 @@ static int check_match(struct ip6t_entry_match *m, const char *name,
 	match = m->u.kernel.match;
 	ret = xt_check_match(match, AF_INET6, m->u.match_size - sizeof(*m),
 			     name, hookmask, ipv6->proto,
-			     ipv6->invflags & IP6T_INV_PROTO);
-	if (!ret && m->u.kernel.match->checkentry
-	    && !m->u.kernel.match->checkentry(name, ipv6, match, m->data,
-					      hookmask)) {
+			     ipv6->invflags & IP6T_INV_PROTO, ipv6, m->data);
+	if (ret < 0) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
-		ret = -EINVAL;
+		return ret;
 	}
-	if (!ret)
-		(*i)++;
-	return ret;
+	++*i;
+	return 0;
 }
 
 static int
@@ -694,15 +691,13 @@ static int check_target(struct ip6t_entry *e, const char *name)
 	target = t->u.kernel.target;
 	ret = xt_check_target(target, AF_INET6, t->u.target_size - sizeof(*t),
 			      name, e->comefrom, e->ipv6.proto,
-			      e->ipv6.invflags & IP6T_INV_PROTO);
-	if (!ret && t->u.kernel.target->checkentry
-	    && !t->u.kernel.target->checkentry(name, e, target, t->data,
-					       e->comefrom)) {
+			      e->ipv6.invflags & IP6T_INV_PROTO, e, t->data);
+	if (ret < 0) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
-		ret = -EINVAL;
+		return ret;
 	}
-	return ret;
+	return 0;
 }
 
 static int

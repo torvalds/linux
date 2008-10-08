@@ -51,20 +51,12 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 	t->u.kernel.target = target;
 
 	ret = xt_check_target(target, AF_INET, t->u.target_size - sizeof(*t),
-			      table, hook, 0, 0);
-	if (ret) {
+			      table, hook, 0, 0, NULL, t->data);
+	if (ret < 0) {
 		module_put(t->u.kernel.target->me);
 		return ret;
 	}
-	if (t->u.kernel.target->checkentry
-	    && !t->u.kernel.target->checkentry(table, NULL,
-					       t->u.kernel.target, t->data,
-					       hook)) {
-		module_put(t->u.kernel.target->me);
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return 0;
 }
 
 static void ipt_destroy_target(struct ipt_entry_target *t)

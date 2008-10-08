@@ -340,15 +340,11 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 	m->u.match = match;
 
 	ret = xt_check_match(match, NFPROTO_BRIDGE, m->match_size,
-	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO);
+	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO,
+	      e, m->data);
 	if (ret < 0) {
 		module_put(match->me);
 		return ret;
-	} else if (match->checkentry != NULL &&
-	    !match->checkentry(name, e, NULL, m->data, hookmask)) {
-		module_put(match->me);
-		BUGPRINT("match->check failed\n");
-		return -EINVAL;
 	}
 
 	(*cnt)++;
@@ -377,15 +373,11 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 	w->u.watcher = watcher;
 
 	ret = xt_check_target(watcher, NFPROTO_BRIDGE, w->watcher_size,
-	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO);
+	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO,
+	      e, w->data);
 	if (ret < 0) {
 		module_put(watcher->me);
 		return ret;
-	} else if (watcher->checkentry != NULL &&
-	    !watcher->checkentry(name, e, NULL, w->data, hookmask)) {
-		module_put(watcher->me);
-		BUGPRINT("watcher->check failed\n");
-		return -EINVAL;
 	}
 
 	(*cnt)++;
@@ -692,14 +684,10 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	}
 
 	ret = xt_check_target(target, NFPROTO_BRIDGE, t->target_size,
-	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO);
+	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO,
+	      e, t->data);
 	if (ret < 0) {
 		module_put(target->me);
-		goto cleanup_watchers;
-	} else if (t->u.target->checkentry &&
-	    !t->u.target->checkentry(name, e, NULL, t->data, hookmask)) {
-		module_put(t->u.target->me);
-		ret = -EINVAL;
 		goto cleanup_watchers;
 	}
 	(*cnt)++;
