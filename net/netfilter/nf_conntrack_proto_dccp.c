@@ -461,7 +461,7 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       int pf, unsigned int hooknum)
+		       u_int8_t pf, unsigned int hooknum)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
@@ -546,7 +546,7 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 }
 
 static int dccp_error(struct sk_buff *skb, unsigned int dataoff,
-		      enum ip_conntrack_info *ctinfo, int pf,
+		      enum ip_conntrack_info *ctinfo, u_int8_t pf,
 		      unsigned int hooknum)
 {
 	struct dccp_hdr _dh, *dh;

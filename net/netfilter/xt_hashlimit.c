@@ -80,7 +80,7 @@ struct dsthash_ent {
 struct xt_hashlimit_htable {
 	struct hlist_node node;		/* global list of all htables */
 	atomic_t use;
-	int family;
+	u_int8_t family;
 
 	struct hashlimit_cfg1 cfg;	/* config */
 
@@ -185,7 +185,7 @@ dsthash_free(struct xt_hashlimit_htable *ht, struct dsthash_ent *ent)
 }
 static void htable_gc(unsigned long htlong);
 
-static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
+static int htable_create_v0(struct xt_hashlimit_info *minfo, u_int8_t family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	unsigned int size;
@@ -258,8 +258,7 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
 	return 0;
 }
 
-static int htable_create(struct xt_hashlimit_mtinfo1 *minfo,
-                         unsigned int family)
+static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	unsigned int size;
@@ -378,7 +377,7 @@ static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 }
 
 static struct xt_hashlimit_htable *htable_find_get(const char *name,
-						   int family)
+						   u_int8_t family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	struct hlist_node *pos;
@@ -901,7 +900,7 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 	spin_unlock_bh(&htable->lock);
 }
 
-static int dl_seq_real_show(struct dsthash_ent *ent, int family,
+static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 				   struct seq_file *s)
 {
 	/* recalculate to show accurate numbers */

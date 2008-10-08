@@ -60,7 +60,7 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg)
 }
 EXPORT_SYMBOL(nf_unregister_sockopt);
 
-static struct nf_sockopt_ops *nf_sockopt_find(struct sock *sk, int pf,
+static struct nf_sockopt_ops *nf_sockopt_find(struct sock *sk, u_int8_t pf,
 		int val, int get)
 {
 	struct nf_sockopt_ops *ops;
@@ -96,7 +96,7 @@ out:
 }
 
 /* Call get/setsockopt() */
-static int nf_sockopt(struct sock *sk, int pf, int val,
+static int nf_sockopt(struct sock *sk, u_int8_t pf, int val,
 		      char __user *opt, int *len, int get)
 {
 	struct nf_sockopt_ops *ops;
@@ -115,21 +115,22 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 	return ret;
 }
 
-int nf_setsockopt(struct sock *sk, int pf, int val, char __user *opt,
+int nf_setsockopt(struct sock *sk, u_int8_t pf, int val, char __user *opt,
 		  int len)
 {
 	return nf_sockopt(sk, pf, val, opt, &len, 0);
 }
 EXPORT_SYMBOL(nf_setsockopt);
 
-int nf_getsockopt(struct sock *sk, int pf, int val, char __user *opt, int *len)
+int nf_getsockopt(struct sock *sk, u_int8_t pf, int val, char __user *opt,
+		  int *len)
 {
 	return nf_sockopt(sk, pf, val, opt, len, 1);
 }
 EXPORT_SYMBOL(nf_getsockopt);
 
 #ifdef CONFIG_COMPAT
-static int compat_nf_sockopt(struct sock *sk, int pf, int val,
+static int compat_nf_sockopt(struct sock *sk, u_int8_t pf, int val,
 			     char __user *opt, int *len, int get)
 {
 	struct nf_sockopt_ops *ops;
@@ -155,14 +156,14 @@ static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 	return ret;
 }
 
-int compat_nf_setsockopt(struct sock *sk, int pf,
+int compat_nf_setsockopt(struct sock *sk, u_int8_t pf,
 		int val, char __user *opt, int len)
 {
 	return compat_nf_sockopt(sk, pf, val, opt, &len, 0);
 }
 EXPORT_SYMBOL(compat_nf_setsockopt);
 
-int compat_nf_getsockopt(struct sock *sk, int pf,
+int compat_nf_getsockopt(struct sock *sk, u_int8_t pf,
 		int val, char __user *opt, int *len)
 {
 	return compat_nf_sockopt(sk, pf, val, opt, len, 1);

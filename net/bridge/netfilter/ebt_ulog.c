@@ -223,7 +223,7 @@ alloc_failure:
 }
 
 /* this function is registered with the netfilter core */
-static void ebt_log_packet(unsigned int pf, unsigned int hooknum,
+static void ebt_log_packet(u_int8_t pf, unsigned int hooknum,
    const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const struct nf_loginfo *li,
    const char *prefix)

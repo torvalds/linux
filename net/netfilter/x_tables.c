@@ -68,7 +68,8 @@ static const char *const xt_prefix[NPROTO] = {
 int
 xt_register_target(struct xt_target *target)
 {
-	int ret, af = target->family;
+	u_int8_t af = target->family;
+	int ret;
 
 	ret = mutex_lock_interruptible(&xt[af].mutex);
 	if (ret != 0)
@@ -82,7 +83,7 @@ EXPORT_SYMBOL(xt_register_target);
 void
 xt_unregister_target(struct xt_target *target)
 {
-	int af = target->family;
+	u_int8_t af = target->family;
 
 	mutex_lock(&xt[af].mutex);
 	list_del(&target->list);
@@ -123,7 +124,8 @@ EXPORT_SYMBOL(xt_unregister_targets);
 int
 xt_register_match(struct xt_match *match)
 {
-	int ret, af = match->family;
+	u_int8_t af = match->family;
+	int ret;
 
 	ret = mutex_lock_interruptible(&xt[af].mutex);
 	if (ret != 0)
@@ -139,7 +141,7 @@ EXPORT_SYMBOL(xt_register_match);
 void
 xt_unregister_match(struct xt_match *match)
 {
-	int af =  match->family;
+	u_int8_t af = match->family;
 
 	mutex_lock(&xt[af].mutex);
 	list_del(&match->list);
@@ -185,7 +187,7 @@ EXPORT_SYMBOL(xt_unregister_matches);
  */
 
 /* Find match, grabs ref.  Returns ERR_PTR() on error. */
-struct xt_match *xt_find_match(int af, const char *name, u8 revision)
+struct xt_match *xt_find_match(u8 af, const char *name, u8 revision)
 {
 	struct xt_match *m;
 	int err = 0;
@@ -210,7 +212,7 @@ struct xt_match *xt_find_match(int af, const char *name, u8 revision)
 EXPORT_SYMBOL(xt_find_match);
 
 /* Find target, grabs ref.  Returns ERR_PTR() on error. */
-struct xt_target *xt_find_target(int af, const char *name, u8 revision)
+struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 {
 	struct xt_target *t;
 	int err = 0;
@@ -234,7 +236,7 @@ struct xt_target *xt_find_target(int af, const char *name, u8 revision)
 }
 EXPORT_SYMBOL(xt_find_target);
 
-struct xt_target *xt_request_find_target(int af, const char *name, u8 revision)
+struct xt_target *xt_request_find_target(u8 af, const char *name, u8 revision)
 {
 	struct xt_target *target;
 
@@ -246,7 +248,7 @@ struct xt_target *xt_request_find_target(int af, const char *name, u8 revision)
 }
 EXPORT_SYMBOL_GPL(xt_request_find_target);
 
-static int match_revfn(int af, const char *name, u8 revision, int *bestp)
+static int match_revfn(u8 af, const char *name, u8 revision, int *bestp)
 {
 	const struct xt_match *m;
 	int have_rev = 0;
@@ -262,7 +264,7 @@ static int match_revfn(int af, const char *name, u8 revision, int *bestp)
 	return have_rev;
 }
 
-static int target_revfn(int af, const char *name, u8 revision, int *bestp)
+static int target_revfn(u8 af, const char *name, u8 revision, int *bestp)
 {
 	const struct xt_target *t;
 	int have_rev = 0;
@@ -279,7 +281,7 @@ static int target_revfn(int af, const char *name, u8 revision, int *bestp)
 }
 
 /* Returns true or false (if no such extension at all) */
-int xt_find_revision(int af, const char *name, u8 revision, int target,
+int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 		     int *err)
 {
 	int have_rev, best = -1;
@@ -337,7 +339,7 @@ int xt_check_match(const struct xt_match *match, unsigned short family,
 EXPORT_SYMBOL_GPL(xt_check_match);
 
 #ifdef CONFIG_COMPAT
-int xt_compat_add_offset(int af, unsigned int offset, short delta)
+int xt_compat_add_offset(u_int8_t af, unsigned int offset, short delta)
 {
 	struct compat_delta *tmp;
 
@@ -359,7 +361,7 @@ int xt_compat_add_offset(int af, unsigned int offset, short delta)
 }
 EXPORT_SYMBOL_GPL(xt_compat_add_offset);
 
-void xt_compat_flush_offsets(int af)
+void xt_compat_flush_offsets(u_int8_t af)
 {
 	struct compat_delta *tmp, *next;
 
@@ -373,7 +375,7 @@ void xt_compat_flush_offsets(int af)
 }
 EXPORT_SYMBOL_GPL(xt_compat_flush_offsets);
 
-short xt_compat_calc_jump(int af, unsigned int offset)
+short xt_compat_calc_jump(u_int8_t af, unsigned int offset)
 {
 	struct compat_delta *tmp;
 	short delta;
@@ -590,7 +592,8 @@ void xt_free_table_info(struct xt_table_info *info)
 EXPORT_SYMBOL(xt_free_table_info);
 
 /* Find table by name, grabs mutex & ref.  Returns ERR_PTR() on error. */
-struct xt_table *xt_find_table_lock(struct net *net, int af, const char *name)
+struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
+				    const char *name)
 {
 	struct xt_table *t;
 
@@ -612,13 +615,13 @@ void xt_table_unlock(struct xt_table *table)
 EXPORT_SYMBOL_GPL(xt_table_unlock);
 
 #ifdef CONFIG_COMPAT
-void xt_compat_lock(int af)
+void xt_compat_lock(u_int8_t af)
 {
 	mutex_lock(&xt[af].compat_mutex);
 }
 EXPORT_SYMBOL_GPL(xt_compat_lock);
 
-void xt_compat_unlock(int af)
+void xt_compat_unlock(u_int8_t af)
 {
 	mutex_unlock(&xt[af].compat_mutex);
 }
@@ -722,13 +725,13 @@ EXPORT_SYMBOL_GPL(xt_unregister_table);
 #ifdef CONFIG_PROC_FS
 struct xt_names_priv {
 	struct seq_net_private p;
-	int af;
+	u_int8_t af;
 };
 static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct xt_names_priv *priv = seq->private;
 	struct net *net = seq_file_net(seq);
-	int af = priv->af;
+	u_int8_t af = priv->af;
 
 	mutex_lock(&xt[af].mutex);
 	return seq_list_start(&net->xt.tables[af], *pos);
@@ -738,7 +741,7 @@ static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct xt_names_priv *priv = seq->private;
 	struct net *net = seq_file_net(seq);
-	int af = priv->af;
+	u_int8_t af = priv->af;
 
 	return seq_list_next(v, &net->xt.tables[af], pos);
 }
@@ -746,7 +749,7 @@ static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static void xt_table_seq_stop(struct seq_file *seq, void *v)
 {
 	struct xt_names_priv *priv = seq->private;
-	int af = priv->af;
+	u_int8_t af = priv->af;
 
 	mutex_unlock(&xt[af].mutex);
 }
@@ -922,7 +925,7 @@ static const struct file_operations xt_target_ops = {
 
 #endif /* CONFIG_PROC_FS */
 
-int xt_proto_init(struct net *net, int af)
+int xt_proto_init(struct net *net, u_int8_t af)
 {
 #ifdef CONFIG_PROC_FS
 	char buf[XT_FUNCTION_MAXNAMELEN];
@@ -974,7 +977,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(xt_proto_init);
 
-void xt_proto_fini(struct net *net, int af)
+void xt_proto_fini(struct net *net, u_int8_t af)
 {
 #ifdef CONFIG_PROC_FS
 	char buf[XT_FUNCTION_MAXNAMELEN];

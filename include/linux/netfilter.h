@@ -92,8 +92,8 @@ struct nf_hook_ops
 	/* User fills in from here down. */
 	nf_hookfn *hook;
 	struct module *owner;
-	int pf;
-	int hooknum;
+	u_int8_t pf;
+	unsigned int hooknum;
 	/* Hooks are ordered in ascending priority. */
 	int priority;
 };
@@ -102,7 +102,7 @@ struct nf_sockopt_ops
 {
 	struct list_head list;
 
-	int pf;
+	u_int8_t pf;
 
 	/* Non-inclusive ranges: use 0/0/NULL to never get called. */
 	int set_optmin;
@@ -140,7 +140,7 @@ extern struct ctl_path nf_net_ipv4_netfilter_sysctl_path[];
 
 extern struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS];
 
-int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
+int nf_hook_slow(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 		 struct net_device *indev, struct net_device *outdev,
 		 int (*okfn)(struct sk_buff *), int thresh);
 
@@ -151,7 +151,7 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
  *	okfn must be invoked by the caller in this case.  Any other return
  *	value indicates the packet has been consumed by the hook.
  */
-static inline int nf_hook_thresh(int pf, unsigned int hook,
+static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct sk_buff *skb,
 				 struct net_device *indev,
 				 struct net_device *outdev,
@@ -167,7 +167,7 @@ static inline int nf_hook_thresh(int pf, unsigned int hook,
 	return nf_hook_slow(pf, hook, skb, indev, outdev, okfn, thresh);
 }
 
-static inline int nf_hook(int pf, unsigned int hook, struct sk_buff *skb,
+static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sk_buff *))
 {
@@ -212,14 +212,14 @@ __ret;})
 	NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, INT_MIN)
 
 /* Call setsockopt() */
-int nf_setsockopt(struct sock *sk, int pf, int optval, char __user *opt, 
+int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int len);
-int nf_getsockopt(struct sock *sk, int pf, int optval, char __user *opt,
+int nf_getsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int *len);
 
-int compat_nf_setsockopt(struct sock *sk, int pf, int optval,
+int compat_nf_setsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, int len);
-int compat_nf_getsockopt(struct sock *sk, int pf, int optval,
+int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, int *len);
 
 /* Call this before modifying an existing packet: ensures it is
@@ -292,7 +292,7 @@ extern void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
 extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
 
 static inline void
-nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family)
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
 #ifdef CONFIG_NF_NAT_NEEDED
 	void (*decodefn)(struct sk_buff *, struct flowi *);
@@ -315,7 +315,7 @@ extern struct proc_dir_entry *proc_net_netfilter;
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
 #define NF_HOOK_COND(pf, hook, skb, indev, outdev, okfn, cond) (okfn)(skb)
-static inline int nf_hook_thresh(int pf, unsigned int hook,
+static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct sk_buff *skb,
 				 struct net_device *indev,
 				 struct net_device *outdev,
@@ -324,7 +324,7 @@ static inline int nf_hook_thresh(int pf, unsigned int hook,
 {
 	return okfn(skb);
 }
-static inline int nf_hook(int pf, unsigned int hook, struct sk_buff *skb,
+static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sk_buff *))
 {
@@ -332,7 +332,9 @@ static inline int nf_hook(int pf, unsigned int hook, struct sk_buff *skb,
 }
 struct flowi;
 static inline void
-nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family) {}
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
+{
+}
 #endif /*CONFIG_NETFILTER*/
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)

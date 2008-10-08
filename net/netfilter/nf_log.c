@@ -20,7 +20,7 @@ static DEFINE_MUTEX(nf_log_mutex);
 
 /* return EBUSY if somebody else is registered, EEXIST if the same logger
  * is registred, 0 on success. */
-int nf_log_register(int pf, const struct nf_logger *logger)
+int nf_log_register(u_int8_t pf, const struct nf_logger *logger)
 {
 	int ret;
 
@@ -45,7 +45,7 @@ int nf_log_register(int pf, const struct nf_logger *logger)
 }
 EXPORT_SYMBOL(nf_log_register);
 
-void nf_log_unregister_pf(int pf)
+void nf_log_unregister_pf(u_int8_t pf)
 {
 	if (pf >= NPROTO)
 		return;
@@ -73,7 +73,7 @@ void nf_log_unregister(const struct nf_logger *logger)
 }
 EXPORT_SYMBOL(nf_log_unregister);
 
-void nf_log_packet(int pf,
+void nf_log_packet(u_int8_t pf,
 		   unsigned int hooknum,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,

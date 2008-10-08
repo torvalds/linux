@@ -287,7 +287,7 @@ static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       int pf,
+		       u_int8_t pf,
 		       unsigned int hooknum)
 {
 	enum sctp_conntrack new_state, old_state;

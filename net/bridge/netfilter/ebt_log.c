@@ -84,7 +84,7 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 
 #define myNIPQUAD(a) a[0], a[1], a[2], a[3]
 static void
-ebt_log_packet(unsigned int pf, unsigned int hooknum,
+ebt_log_packet(u_int8_t pf, unsigned int hooknum,
    const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const struct nf_loginfo *loginfo,
    const char *prefix)

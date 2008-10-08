@@ -709,7 +709,8 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 /* If the calling party is on the same side of the forward-to party,
  * we don't need to track the second call */
 static int callforward_do_filter(const union nf_inet_addr *src,
-                                 const union nf_inet_addr *dst, int family)
+				 const union nf_inet_addr *dst,
+				 u_int8_t family)
 {
 	const struct nf_afinfo *afinfo;
 	struct flowi fl1, fl2;

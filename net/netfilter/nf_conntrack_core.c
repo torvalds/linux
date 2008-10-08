@@ -665,7 +665,7 @@ resolve_normal_ct(struct sk_buff *skb,
 }
 
 unsigned int
-nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff *skb)
+nf_conntrack_in(u_int8_t pf, unsigned int hooknum, struct sk_buff *skb)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -683,7 +683,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff *skb)
 	}
 
 	/* rcu_read_lock()ed by nf_hook_slow */
-	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
+	l3proto = __nf_ct_l3proto_find(pf);
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb),
 				   &dataoff, &protonum);
 	if (ret <= 0) {
@@ -693,7 +693,7 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff *skb)
 		return -ret;
 	}
 
-	l4proto = __nf_ct_l4proto_find((u_int16_t)pf, protonum);
+	l4proto = __nf_ct_l4proto_find(pf, protonum);
 
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter

@@ -39,7 +39,7 @@ struct nf_conntrack_l4proto
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
-		      int pf,
+		      u_int8_t pf,
 		      unsigned int hooknum);
 
 	/* Called when a new connection for this protocol found;
@@ -52,7 +52,7 @@ struct nf_conntrack_l4proto
 
 	int (*error)(struct sk_buff *skb, unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
-		     int pf, unsigned int hooknum);
+		     u_int8_t pf, unsigned int hooknum);
 
 	/* Print out the per-protocol part of the tuple. Return like seq_* */
 	int (*print_tuple)(struct seq_file *s,

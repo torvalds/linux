@@ -82,7 +82,7 @@ static inline bool already_closed(const struct nf_conn *conn)
 static inline unsigned int
 same_source_net(const union nf_inet_addr *addr,
 		const union nf_inet_addr *mask,
-		const union nf_inet_addr *u3, unsigned int family)
+		const union nf_inet_addr *u3, u_int8_t family)
 {
 	if (family == AF_INET) {
 		return (addr->ip & mask->ip) == (u3->ip & mask->ip);

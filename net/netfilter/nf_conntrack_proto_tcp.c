@@ -486,7 +486,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
 			  const struct tcphdr *tcph,
-			  int pf)
+			  u_int8_t pf)
 {
 	struct ip_ct_tcp_state *sender = &state->seen[dir];
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
@@ -749,7 +749,7 @@ static const u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG) + 1] =
 static int tcp_error(struct sk_buff *skb,
 		     unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
-		     int pf,
+		     u_int8_t pf,
 		     unsigned int hooknum)
 {
 	const struct tcphdr *th;
@@ -804,7 +804,7 @@ static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
-		      int pf,
+		      u_int8_t pf,
 		      unsigned int hooknum)
 {
 	struct nf_conntrack_tuple *tuple;

@@ -292,7 +292,7 @@ struct xt_table
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
-	int af;		/* address/protocol family */
+	u_int8_t af;		/* address/protocol family */
 };
 
 #include <linux/netfilter_ipv4.h>
@@ -346,19 +346,19 @@ extern struct xt_table_info *xt_replace_table(struct xt_table *table,
 					      struct xt_table_info *newinfo,
 					      int *error);
 
-extern struct xt_match *xt_find_match(int af, const char *name, u8 revision);
-extern struct xt_target *xt_find_target(int af, const char *name, u8 revision);
-extern struct xt_target *xt_request_find_target(int af, const char *name, 
+extern struct xt_match *xt_find_match(u8 af, const char *name, u8 revision);
+extern struct xt_target *xt_find_target(u8 af, const char *name, u8 revision);
+extern struct xt_target *xt_request_find_target(u8 af, const char *name,
 						u8 revision);
-extern int xt_find_revision(int af, const char *name, u8 revision, int target,
-			    int *err);
+extern int xt_find_revision(u8 af, const char *name, u8 revision,
+			    int target, int *err);
 
-extern struct xt_table *xt_find_table_lock(struct net *net, int af,
+extern struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 					   const char *name);
 extern void xt_table_unlock(struct xt_table *t);
 
-extern int xt_proto_init(struct net *net, int af);
-extern void xt_proto_fini(struct net *net, int af);
+extern int xt_proto_init(struct net *net, u_int8_t af);
+extern void xt_proto_fini(struct net *net, u_int8_t af);
 
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
@@ -423,12 +423,12 @@ struct compat_xt_counters_info
 #define COMPAT_XT_ALIGN(s) (((s) + (__alignof__(struct compat_xt_counters)-1)) \
 		& ~(__alignof__(struct compat_xt_counters)-1))
 
-extern void xt_compat_lock(int af);
-extern void xt_compat_unlock(int af);
+extern void xt_compat_lock(u_int8_t af);
+extern void xt_compat_unlock(u_int8_t af);
 
-extern int xt_compat_add_offset(int af, unsigned int offset, short delta);
-extern void xt_compat_flush_offsets(int af);
-extern short xt_compat_calc_jump(int af, unsigned int offset);
+extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, short delta);
+extern void xt_compat_flush_offsets(u_int8_t af);
+extern short xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
 extern int xt_compat_match_offset(const struct xt_match *match);
 extern int xt_compat_match_from_user(struct xt_entry_match *m,

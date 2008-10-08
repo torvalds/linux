@@ -292,7 +292,7 @@ ulog_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static void ipt_logfn(unsigned int pf,
+static void ipt_logfn(u_int8_t pf,
 		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,

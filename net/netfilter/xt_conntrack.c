@@ -133,7 +133,7 @@ conntrack_addrcmp(const union nf_inet_addr *kaddr,
 static inline bool
 conntrack_mt_origsrc(const struct nf_conn *ct,
                      const struct xt_conntrack_mtinfo1 *info,
-                     unsigned int family)
+		     u_int8_t family)
 {
 	return conntrack_addrcmp(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3,
 	       &info->origsrc_addr, &info->origsrc_mask, family);
@@ -142,7 +142,7 @@ conntrack_mt_origsrc(const struct nf_conn *ct,
 static inline bool
 conntrack_mt_origdst(const struct nf_conn *ct,
                      const struct xt_conntrack_mtinfo1 *info,
-                     unsigned int family)
+		     u_int8_t family)
 {
 	return conntrack_addrcmp(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3,
 	       &info->origdst_addr, &info->origdst_mask, family);
@@ -151,7 +151,7 @@ conntrack_mt_origdst(const struct nf_conn *ct,
 static inline bool
 conntrack_mt_replsrc(const struct nf_conn *ct,
                      const struct xt_conntrack_mtinfo1 *info,
-                     unsigned int family)
+		     u_int8_t family)
 {
 	return conntrack_addrcmp(&ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3,
 	       &info->replsrc_addr, &info->replsrc_mask, family);
@@ -160,7 +160,7 @@ conntrack_mt_replsrc(const struct nf_conn *ct,
 static inline bool
 conntrack_mt_repldst(const struct nf_conn *ct,
                      const struct xt_conntrack_mtinfo1 *info,
-                     unsigned int family)
+		     u_int8_t family)
 {
 	return conntrack_addrcmp(&ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3,
 	       &info->repldst_addr, &info->repldst_mask, family);

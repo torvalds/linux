@@ -65,7 +65,7 @@ static int udplite_packet(struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
-			  int pf,
+			  u_int8_t pf,
 			  unsigned int hooknum)
 {
 	/* If we've seen traffic both ways, this is some kind of UDP
@@ -91,7 +91,7 @@ static bool udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 			 enum ip_conntrack_info *ctinfo,
-			 int pf,
+			 u_int8_t pf,
 			 unsigned int hooknum)
 {
 	unsigned int udplen = skb->len - dataoff;

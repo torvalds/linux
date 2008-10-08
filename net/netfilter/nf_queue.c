@@ -22,7 +22,7 @@ static DEFINE_MUTEX(queue_handler_mutex);
 
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
-int nf_register_queue_handler(int pf, const struct nf_queue_handler *qh)
+int nf_register_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 {
 	int ret;
 
@@ -45,7 +45,7 @@ int nf_register_queue_handler(int pf, const struct nf_queue_handler *qh)
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-int nf_unregister_queue_handler(int pf, const struct nf_queue_handler *qh)
+int nf_unregister_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 {
 	if (pf >= NPROTO)
 		return -EINVAL;
@@ -67,7 +67,7 @@ EXPORT_SYMBOL(nf_unregister_queue_handler);
 
 void nf_unregister_queue_handlers(const struct nf_queue_handler *qh)
 {
-	int pf;
+	u_int8_t pf;
 
 	mutex_lock(&queue_handler_mutex);
 	for (pf = 0; pf < NPROTO; pf++)  {
@@ -107,7 +107,7 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
  */
 static int __nf_queue(struct sk_buff *skb,
 		      struct list_head *elem,
-		      int pf, unsigned int hook,
+		      u_int8_t pf, unsigned int hook,
 		      struct net_device *indev,
 		      struct net_device *outdev,
 		      int (*okfn)(struct sk_buff *),
@@ -191,7 +191,7 @@ err:
 
 int nf_queue(struct sk_buff *skb,
 	     struct list_head *elem,
-	     int pf, unsigned int hook,
+	     u_int8_t pf, unsigned int hook,
 	     struct net_device *indev,
 	     struct net_device *outdev,
 	     int (*okfn)(struct sk_buff *),

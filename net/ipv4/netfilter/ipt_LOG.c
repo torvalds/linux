@@ -375,7 +375,7 @@ static struct nf_loginfo default_loginfo = {
 };
 
 static void
-ipt_log_packet(unsigned int pf,
+ipt_log_packet(u_int8_t pf,
 	       unsigned int hooknum,
 	       const struct sk_buff *skb,
 	       const struct net_device *in,

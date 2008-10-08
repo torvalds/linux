@@ -81,7 +81,7 @@ static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       int pf,
+		       u_int8_t pf,
 		       unsigned int hooknum)
 {
 	/* Try to delete connection immediately after all replies:
@@ -173,7 +173,7 @@ icmpv6_error_message(struct sk_buff *skb,
 
 static int
 icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
-	     enum ip_conntrack_info *ctinfo, int pf, unsigned int hooknum)
+	     enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
 {
 	const struct icmp6hdr *icmp6h;
 	struct icmp6hdr _ih;
