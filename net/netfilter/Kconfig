@@ -340,6 +340,18 @@ config NETFILTER_XT_TARGET_CONNMARK
 	  <file:Documentation/kbuild/modules.txt>.  The module will be called
 	  ipt_CONNMARK.ko.  If unsure, say `N'.
 
+config NETFILTER_XT_TARGET_CONNSECMARK
+	tristate '"CONNSECMARK" target support'
+	depends on NETFILTER_XTABLES && NF_CONNTRACK && NF_CONNTRACK_SECMARK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  The CONNSECMARK target copies security markings from packets
+	  to connections, and restores security markings from connections
+	  to packets (if the packets are not already marked).  This would
+	  normally be used in conjunction with the SECMARK target.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_TARGET_DSCP
 	tristate '"DSCP" and "TOS" target support'
 	depends on NETFILTER_XTABLES
@@ -371,18 +383,6 @@ config NETFILTER_XT_TARGET_MARK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NETFILTER_XT_TARGET_NFQUEUE
-	tristate '"NFQUEUE" target Support'
-	depends on NETFILTER_XTABLES
-	depends on NETFILTER_ADVANCED
-	help
-	  This target replaced the old obsolete QUEUE target.
-
-	  As opposed to QUEUE, it supports 65535 different queues,
-	  not just one.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config NETFILTER_XT_TARGET_NFLOG
 	tristate '"NFLOG" target support'
 	depends on NETFILTER_XTABLES
@@ -392,6 +392,18 @@ config NETFILTER_XT_TARGET_NFLOG
 	  messages through the netfilter logging API, which can use
 	  either the old LOG target, the old ULOG target or nfnetlink_log
 	  as backend.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_NFQUEUE
+	tristate '"NFQUEUE" target Support'
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
+	help
+	  This target replaced the old obsolete QUEUE target.
+
+	  As opposed to QUEUE, it supports 65535 different queues,
+	  not just one.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -456,18 +468,6 @@ config NETFILTER_XT_TARGET_SECMARK
 	help
 	  The SECMARK target allows security marking of network
 	  packets, for use with security subsystems.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config NETFILTER_XT_TARGET_CONNSECMARK
-	tristate '"CONNSECMARK" target support'
-	depends on NETFILTER_XTABLES && NF_CONNTRACK && NF_CONNTRACK_SECMARK
-	default m if NETFILTER_ADVANCED=n
-	help
-	  The CONNSECMARK target copies security markings from packets
-	  to connections, and restores security markings from connections
-	  to packets (if the packets are not already marked).  This would
-	  normally be used in conjunction with the SECMARK target.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -607,6 +607,21 @@ config NETFILTER_XT_MATCH_ESP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_HASHLIMIT
+	tristate '"hashlimit" match support'
+	depends on NETFILTER_XTABLES && (IP6_NF_IPTABLES || IP6_NF_IPTABLES=n)
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `hashlimit' match.
+
+	  As opposed to `limit', this match dynamically creates a hash table
+	  of limit buckets, based on your selection of source/destination
+	  addresses and/or ports.
+
+	  It enables you to express policies like `10kpps for any given
+	  destination address' or `500pps from any given source address'
+	  with a single rule.
+
 config NETFILTER_XT_MATCH_HELPER
 	tristate '"helper" match support'
 	depends on NETFILTER_XTABLES
@@ -671,6 +686,17 @@ config NETFILTER_XT_MATCH_MARK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_MULTIPORT
+	tristate '"multiport" Multiple port match support'
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
+	help
+	  Multiport matching allows you to match TCP or UDP packets based on
+	  a series of source or destination ports: normally a rule can only
+	  match a single range of ports.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_OWNER
 	tristate '"owner" match support'
 	depends on NETFILTER_XTABLES
@@ -688,17 +714,6 @@ config NETFILTER_XT_MATCH_POLICY
 	  Policy matching allows you to match packets based on the
 	  IPsec policy that was used during decapsulation/will
 	  be used during encapsulation.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config NETFILTER_XT_MATCH_MULTIPORT
-	tristate '"multiport" Multiple port match support'
-	depends on NETFILTER_XTABLES
-	depends on NETFILTER_ADVANCED
-	help
-	  Multiport matching allows you to match TCP or UDP packets based on
-	  a series of source or destination ports: normally a rule can only
-	  match a single range of ports.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -883,21 +898,6 @@ config NETFILTER_XT_MATCH_U32
 	  lengths.
 
 	  Details and examples are in the kernel module source.
-
-config NETFILTER_XT_MATCH_HASHLIMIT
-	tristate '"hashlimit" match support'
-	depends on NETFILTER_XTABLES && (IP6_NF_IPTABLES || IP6_NF_IPTABLES=n)
-	depends on NETFILTER_ADVANCED
-	help
-	  This option adds a `hashlimit' match.
-
-	  As opposed to `limit', this match dynamically creates a hash table
-	  of limit buckets, based on your selection of source/destination
-	  addresses and/or ports.
-
-	  It enables you to express policies like `10kpps for any given
-	  destination address' or `500pps from any given source address'
-	  with a single rule.
 
 endmenu
 

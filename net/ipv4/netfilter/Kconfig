@@ -62,15 +62,16 @@ config IP_NF_IPTABLES
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The matches.
-config IP_NF_MATCH_ECN
-	tristate '"ecn" match support'
+config IP_NF_MATCH_ADDRTYPE
+	tristate '"addrtype" address type match support'
 	depends on IP_NF_IPTABLES
 	depends on NETFILTER_ADVANCED
 	help
-	  This option adds a `ECN' match, which allows you to match against
-	  the IPv4 and TCP header ECN fields.
+	  This option allows you to match what routing thinks of an address,
+	  eg. UNICAST, LOCAL, BROADCAST, ...
 
-	  To compile it as a module, choose M here.  If unsure, say N.
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config IP_NF_MATCH_AH
 	tristate '"ah" match support'
@@ -79,6 +80,16 @@ config IP_NF_MATCH_AH
 	help
 	  This match extension allows you to match a range of SPIs
 	  inside AH header of IPSec packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP_NF_MATCH_ECN
+	tristate '"ecn" match support'
+	depends on IP_NF_IPTABLES
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `ECN' match, which allows you to match against
+	  the IPv4 and TCP header ECN fields.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -91,17 +102,6 @@ config IP_NF_MATCH_TTL
 	  to match packets by their TTL value.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_ADDRTYPE
-	tristate '"addrtype" address type match support'
-	depends on IP_NF_IPTABLES
-	depends on NETFILTER_ADVANCED
-	help
-	  This option allows you to match what routing thinks of an address,
-	  eg. UNICAST, LOCAL, BROADCAST, ...
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 # `filter', generic and specific targets
 config IP_NF_FILTER
@@ -186,6 +186,17 @@ config IP_NF_TARGET_MASQUERADE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_NF_TARGET_NETMAP
+	tristate "NETMAP target support"
+	depends on NF_NAT
+	depends on NETFILTER_ADVANCED
+	help
+	  NETMAP is an implementation of static 1:1 NAT mapping of network
+	  addresses. It maps the network address part, while keeping the host
+	  address part intact.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
 	depends on NF_NAT
@@ -195,17 +206,6 @@ config IP_NF_TARGET_REDIRECT
 	  mapped onto the incoming interface's address, causing the packets to
 	  come to the local machine instead of passing through.  This is
 	  useful for transparent proxies.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_NETMAP
-	tristate "NETMAP target support"
-	depends on NF_NAT
-	depends on NETFILTER_ADVANCED
-	help
-	  NETMAP is an implementation of static 1:1 NAT mapping of network
-	  addresses. It maps the network address part, while keeping the host
-	  address part intact.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -300,6 +300,19 @@ config IP_NF_MANGLE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_NF_TARGET_CLUSTERIP
+	tristate "CLUSTERIP target support (EXPERIMENTAL)"
+	depends on IP_NF_MANGLE && EXPERIMENTAL
+	depends on NF_CONNTRACK_IPV4
+	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_MARK
+	help
+	  The CLUSTERIP target allows you to build load-balancing clusters of
+	  network servers without having a dedicated load-balancing
+	  router/server/switch.
+	
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_NF_TARGET_ECN
 	tristate "ECN target support"
 	depends on IP_NF_MANGLE
@@ -328,19 +341,6 @@ config IP_NF_TARGET_TTL
 	  arbitrary values.  This is EXTREMELY DANGEROUS since you can easily
 	  create immortal packets that loop forever on the network.
 
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_CLUSTERIP
-	tristate "CLUSTERIP target support (EXPERIMENTAL)"
-	depends on IP_NF_MANGLE && EXPERIMENTAL
-	depends on NF_CONNTRACK_IPV4
-	depends on NETFILTER_ADVANCED
-	select NF_CONNTRACK_MARK
-	help
-	  The CLUSTERIP target allows you to build load-balancing clusters of
-	  network servers without having a dedicated load-balancing
-	  router/server/switch.
-	
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # raw + specific targets
