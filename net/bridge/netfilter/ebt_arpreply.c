@@ -73,8 +73,6 @@ ebt_arpreply_tg_check(const char *tablename, const void *entry,
 	    e->invflags & EBT_IPROTO)
 		return false;
 	CLEAR_BASE_CHAIN_BIT;
-	if (strcmp(tablename, "nat") || hookmask & ~(1 << NF_BR_PRE_ROUTING))
-		return false;
 	return true;
 }
 
@@ -82,6 +80,8 @@ static struct xt_target ebt_arpreply_tg_reg __read_mostly = {
 	.name		= "arpreply",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
+	.table		= "nat",
+	.hooks		= (1 << NF_BR_NUMHOOKS) | (1 << NF_BR_PRE_ROUTING),
 	.target		= ebt_arpreply_tg,
 	.checkentry	= ebt_arpreply_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_arpreply_info)),

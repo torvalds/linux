@@ -56,10 +56,6 @@ ebt_snat_tg_check(const char *tablename, const void *e,
 	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return false;
 	CLEAR_BASE_CHAIN_BIT;
-	if (strcmp(tablename, "nat"))
-		return false;
-	if (hookmask & ~(1 << NF_BR_POST_ROUTING))
-		return false;
 
 	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
 		return false;
@@ -73,6 +69,8 @@ static struct xt_target ebt_snat_tg_reg __read_mostly = {
 	.name		= "snat",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
+	.table		= "nat",
+	.hooks		= (1 << NF_BR_NUMHOOKS) | (1 << NF_BR_POST_ROUTING),
 	.target		= ebt_snat_tg,
 	.checkentry	= ebt_snat_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_nat_info)),

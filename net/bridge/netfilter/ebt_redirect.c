@@ -56,6 +56,8 @@ static struct xt_target ebt_redirect_tg_reg __read_mostly = {
 	.name		= "redirect",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
+	.hooks		= (1 << NF_BR_NUMHOOKS) | (1 << NF_BR_PRE_ROUTING) |
+			  (1 << NF_BR_BROUTING),
 	.target		= ebt_redirect_tg,
 	.checkentry	= ebt_redirect_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_redirect_info)),
