@@ -699,7 +699,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	} else if (t->u.target->checkentry &&
 	    !t->u.target->checkentry(name, e, NULL, t->data, hookmask)) {
 		module_put(t->u.target->me);
-		ret = -EFAULT;
+		ret = -EINVAL;
 		goto cleanup_watchers;
 	}
 	(*cnt)++;
