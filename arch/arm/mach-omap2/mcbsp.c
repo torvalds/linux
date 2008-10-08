@@ -28,7 +28,7 @@ struct mcbsp_internal_clk {
 	int n_childs;
 };
 
-#if defined(CONFIG_ARCH_OMAP24XX)
+#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
 static void omap_mcbsp_clk_init(struct mcbsp_internal_clk *mclk)
 {
 	const char *clk_names[] = { "mcbsp_ick", "mcbsp_fck" };
@@ -85,6 +85,30 @@ static struct mcbsp_internal_clk omap_mcbsp_clks[] = {
 		.clk = {
 			.name 		= "mcbsp_clk",
 			.id		= 2,
+			.enable		= omap_mcbsp_clk_enable,
+			.disable	= omap_mcbsp_clk_disable,
+		},
+	},
+	{
+		.clk = {
+			.name		= "mcbsp_clk",
+			.id		= 3,
+			.enable		= omap_mcbsp_clk_enable,
+			.disable	= omap_mcbsp_clk_disable,
+		},
+	},
+	{
+		.clk = {
+			.name		= "mcbsp_clk",
+			.id		= 4,
+			.enable		= omap_mcbsp_clk_enable,
+			.disable	= omap_mcbsp_clk_disable,
+		},
+	},
+	{
+		.clk = {
+			.name		= "mcbsp_clk",
+			.id		= 5,
 			.enable		= omap_mcbsp_clk_enable,
 			.disable	= omap_mcbsp_clk_disable,
 		},
@@ -168,6 +192,33 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.ops		= &omap2_mcbsp_ops,
 		.clk_name	= "mcbsp_clk",
 	},
+	{
+		.phys_base	= OMAP34XX_MCBSP3_BASE,
+		.dma_rx_sync	= OMAP24XX_DMA_MCBSP3_RX,
+		.dma_tx_sync	= OMAP24XX_DMA_MCBSP3_TX,
+		.rx_irq		= INT_24XX_MCBSP3_IRQ_RX,
+		.tx_irq		= INT_24XX_MCBSP3_IRQ_TX,
+		.ops		= &omap2_mcbsp_ops,
+		.clk_name	= "mcbsp_clk",
+	},
+	{
+		.phys_base	= OMAP34XX_MCBSP4_BASE,
+		.dma_rx_sync	= OMAP24XX_DMA_MCBSP4_RX,
+		.dma_tx_sync	= OMAP24XX_DMA_MCBSP4_TX,
+		.rx_irq		= INT_24XX_MCBSP4_IRQ_RX,
+		.tx_irq		= INT_24XX_MCBSP4_IRQ_TX,
+		.ops		= &omap2_mcbsp_ops,
+		.clk_name	= "mcbsp_clk",
+	},
+	{
+		.phys_base	= OMAP34XX_MCBSP5_BASE,
+		.dma_rx_sync	= OMAP24XX_DMA_MCBSP5_RX,
+		.dma_tx_sync	= OMAP24XX_DMA_MCBSP5_TX,
+		.rx_irq		= INT_24XX_MCBSP5_IRQ_RX,
+		.tx_irq		= INT_24XX_MCBSP5_IRQ_TX,
+		.ops		= &omap2_mcbsp_ops,
+		.clk_name	= "mcbsp_clk",
+	},
 };
 #define OMAP34XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap34xx_mcbsp_pdata)
 #else
@@ -198,6 +249,9 @@ static int __init omap2_mcbsp_init(void)
 	if (cpu_is_omap24xx())
 		omap_mcbsp_register_board_cfg(omap24xx_mcbsp_pdata,
 						OMAP24XX_MCBSP_PDATA_SZ);
+	if (cpu_is_omap34xx())
+		omap_mcbsp_register_board_cfg(omap34xx_mcbsp_pdata,
+						OMAP34XX_MCBSP_PDATA_SZ);
 
 	return omap_mcbsp_init();
 }

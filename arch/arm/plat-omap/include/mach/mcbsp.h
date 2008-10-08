@@ -46,6 +46,9 @@
 
 #define OMAP34XX_MCBSP1_BASE	0x48074000
 #define OMAP34XX_MCBSP2_BASE	0x49022000
+#define OMAP34XX_MCBSP3_BASE	0x49024000
+#define OMAP34XX_MCBSP4_BASE	0x49026000
+#define OMAP34XX_MCBSP5_BASE	0x48096000
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP730)
 
@@ -267,6 +270,8 @@ typedef enum {
 	OMAP_MCBSP1 = 0,
 	OMAP_MCBSP2,
 	OMAP_MCBSP3,
+	OMAP_MCBSP4,
+	OMAP_MCBSP5
 } omap_mcbsp_id;
 
 typedef int __bitwise omap_mcbsp_io_type_t;
