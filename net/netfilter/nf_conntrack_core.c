@@ -703,11 +703,13 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
-	if (l4proto->error != NULL &&
-	    (ret = l4proto->error(skb, dataoff, &ctinfo, pf, hooknum)) <= 0) {
-		NF_CT_STAT_INC_ATOMIC(error);
-		NF_CT_STAT_INC_ATOMIC(invalid);
-		return -ret;
+	if (l4proto->error != NULL) {
+		ret = l4proto->error(net, skb, dataoff, &ctinfo, pf, hooknum);
+		if (ret <= 0) {
+			NF_CT_STAT_INC_ATOMIC(error);
+			NF_CT_STAT_INC_ATOMIC(invalid);
+			return -ret;
+		}
 	}
 
 	ct = resolve_normal_ct(net, skb, dataoff, pf, protonum,

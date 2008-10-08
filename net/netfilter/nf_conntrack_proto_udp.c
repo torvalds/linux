@@ -89,7 +89,7 @@ static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
-static int udp_error(struct sk_buff *skb, unsigned int dataoff,
+static int udp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
 		     u_int8_t pf,
 		     unsigned int hooknum)

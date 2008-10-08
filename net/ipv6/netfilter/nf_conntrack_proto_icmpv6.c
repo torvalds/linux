@@ -122,7 +122,8 @@ static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
 }
 
 static int
-icmpv6_error_message(struct sk_buff *skb,
+icmpv6_error_message(struct net *net,
+		     struct sk_buff *skb,
 		     unsigned int icmp6off,
 		     enum ip_conntrack_info *ctinfo,
 		     unsigned int hooknum)
@@ -156,7 +157,7 @@ icmpv6_error_message(struct sk_buff *skb,
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(&init_net, &intuple);
+	h = nf_conntrack_find_get(net, &intuple);
 	if (!h) {
 		pr_debug("icmpv6_error: no match\n");
 		return -NF_ACCEPT;
@@ -172,7 +173,7 @@ icmpv6_error_message(struct sk_buff *skb,
 }
 
 static int
-icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
+icmpv6_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	     enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
 {
 	const struct icmp6hdr *icmp6h;
@@ -197,7 +198,7 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 	if (icmp6h->icmp6_type >= 128)
 		return NF_ACCEPT;
 
-	return icmpv6_error_message(skb, dataoff, ctinfo, hooknum);
+	return icmpv6_error_message(net, skb, dataoff, ctinfo, hooknum);
 }
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)

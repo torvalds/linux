@@ -50,7 +50,7 @@ struct nf_conntrack_l4proto
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
 
-	int (*error)(struct sk_buff *skb, unsigned int dataoff,
+	int (*error)(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
 		     u_int8_t pf, unsigned int hooknum);
 
