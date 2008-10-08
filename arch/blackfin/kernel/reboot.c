@@ -34,15 +34,15 @@ void bfin_reset(void)
 		bfin_write_SWRST(0x7);
 
 		/* Due to the way reset is handled in the hardware, we need
-		 * to delay for 7 SCLKS.  The only reliable way to do this is
-		 * to calculate the CCLK/SCLK ratio and multiply 7.  For now,
+		 * to delay for 10 SCLKS.  The only reliable way to do this is
+		 * to calculate the CCLK/SCLK ratio and multiply 10.  For now,
 		 * we'll assume worse case which is a 1:15 ratio.
 		 */
 		asm(
 			"LSETUP (1f, 1f) LC0 = %0\n"
 			"1: nop;"
 			:
-			: "a" (15 * 7)
+			: "a" (15 * 10)
 			: "LC0", "LB0", "LT0"
 		);
 
