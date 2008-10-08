@@ -496,6 +496,8 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	ret = spufs_context_open(dget(dentry), mntget(mnt));
 	if (ret < 0) {
 		WARN_ON(spufs_rmdir(inode, dentry));
+		if (affinity)
+			mutex_unlock(&gang->aff_mutex);
 		mutex_unlock(&inode->i_mutex);
 		spu_forget(SPUFS_I(dentry->d_inode)->i_ctx);
 		goto out;
