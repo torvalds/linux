@@ -94,11 +94,8 @@ struct sctp_tsnmap {
 	 * every SACK.  Store up to SCTP_MAX_DUP_TSNS worth of
 	 * information.
 	 */
-	__be32 dup_tsns[SCTP_MAX_DUP_TSNS];
 	__u16 num_dup_tsns;
-
-	/* Record gap ack block information here.  */
-	struct sctp_gap_ack_block gabs[SCTP_MAX_GABS];
+	__be32 dup_tsns[SCTP_MAX_DUP_TSNS];
 };
 
 struct sctp_tsnmap_iter {
@@ -151,16 +148,11 @@ static inline __be32 *sctp_tsnmap_get_dups(struct sctp_tsnmap *map)
 }
 
 /* How many gap ack blocks do we have recorded? */
-__u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map);
+__u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map,
+			   struct sctp_gap_ack_block *gabs);
 
 /* Refresh the count on pending data. */
 __u16 sctp_tsnmap_pending(struct sctp_tsnmap *map);
-
-/* Return pointer to gap ack blocks as needed by SACK. */
-static inline struct sctp_gap_ack_block *sctp_tsnmap_get_gabs(struct sctp_tsnmap *map)
-{
-	return map->gabs;
-}
 
 /* Is there a gap in the TSN map?  */
 static inline int sctp_tsnmap_has_gap(const struct sctp_tsnmap *map)

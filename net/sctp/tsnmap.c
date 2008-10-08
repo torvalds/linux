@@ -335,10 +335,11 @@ void sctp_tsnmap_renege(struct sctp_tsnmap *map, __u32 tsn)
 }
 
 /* How many gap ack blocks do we have recorded? */
-__u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map)
+__u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map,
+			   struct sctp_gap_ack_block *gabs)
 {
 	struct sctp_tsnmap_iter iter;
-	int gabs = 0;
+	int ngaps = 0;
 
 	/* Refresh the gap ack information. */
 	if (sctp_tsnmap_has_gap(map)) {
@@ -348,14 +349,14 @@ __u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map)
 						&start,
 						&end)) {
 
-			map->gabs[gabs].start = htons(start);
-			map->gabs[gabs].end = htons(end);
-			gabs++;
-			if (gabs >= SCTP_MAX_GABS)
+			gabs[ngaps].start = htons(start);
+			gabs[ngaps].end = htons(end);
+			ngaps++;
+			if (ngaps >= SCTP_MAX_GABS)
 				break;
 		}
 	}
-	return gabs;
+	return ngaps;
 }
 
 static int sctp_tsnmap_grow(struct sctp_tsnmap *map, u16 gap)
