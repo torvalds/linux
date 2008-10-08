@@ -298,8 +298,8 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 
 	d_instantiate(dentry, inode);
 	dget(dentry);
-	dir->i_nlink++;
-	dentry->d_inode->i_nlink++;
+	inc_nlink(dir);
+	inc_nlink(dentry->d_inode);
 	goto out;
 
 out_free_ctx:
@@ -538,8 +538,8 @@ spufs_mkgang(struct inode *dir, struct dentry *dentry, int mode)
 	inode->i_fop = &simple_dir_operations;
 
 	d_instantiate(dentry, inode);
-	dir->i_nlink++;
-	dentry->d_inode->i_nlink++;
+	inc_nlink(dir);
+	inc_nlink(dentry->d_inode);
 	return ret;
 
 out_iput:
