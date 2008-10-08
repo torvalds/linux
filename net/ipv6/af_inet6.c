@@ -795,15 +795,6 @@ static void ipv6_packet_cleanup(void)
 	dev_remove_pack(&ipv6_packet_type);
 }
 
-static int __init init_ipv6_mibs(void)
-{
-	return 0;
-}
-
-static void cleanup_ipv6_mibs(void)
-{
-}
-
 static int __net_init ipv6_init_mibs(struct net *net)
 {
 	if (snmp_mib_init((void **)net->mib.udp_stats_in6,
@@ -934,11 +925,6 @@ static int __init inet6_init(void)
 	err = sock_register(&inet6_family_ops);
 	if (err)
 		goto out_sock_register_fail;
-
-	/* Initialise ipv6 mibs */
-	err = init_ipv6_mibs();
-	if (err)
-		goto out_unregister_sock;
 
 #ifdef CONFIG_SYSCTL
 	err = ipv6_static_sysctl_register();
@@ -1073,8 +1059,6 @@ register_pernet_fail:
 	ipv6_static_sysctl_unregister();
 static_sysctl_fail:
 #endif
-	cleanup_ipv6_mibs();
-out_unregister_sock:
 	sock_unregister(PF_INET6);
 	rtnl_unregister_all(PF_INET6);
 out_sock_register_fail:
@@ -1131,7 +1115,6 @@ static void __exit inet6_exit(void)
 #ifdef CONFIG_SYSCTL
 	ipv6_static_sysctl_unregister();
 #endif
-	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
 	proto_unregister(&udplitev6_prot);
 	proto_unregister(&udpv6_prot);
