@@ -16,8 +16,10 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
 #include <linux/smc911x.h>
+#include <linux/gpio.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
+#include <asm/sh7203.h>
 
 static struct smc911x_platdata smc911x_info = {
 	.flags		= SMC911X_USE_16BIT,
@@ -122,6 +124,15 @@ static struct platform_device *rsk7203_devices[] __initdata = {
 
 static int __init rsk7203_devices_setup(void)
 {
+	/* Select pins for SCIF0 */
+	gpio_request(GPIO_FN_TXD0, NULL);
+	gpio_request(GPIO_FN_RXD0, NULL);
+
+	/* Lit LED0 */
+	gpio_request(GPIO_PE10, NULL);
+	gpio_direction_output(GPIO_PE10, 0);
+	gpio_export(GPIO_PE10, 0);
+
 	set_mtd_partitions();
 	return platform_add_devices(rsk7203_devices,
 				    ARRAY_SIZE(rsk7203_devices));
