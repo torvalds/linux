@@ -183,6 +183,37 @@ static struct platform_device bf54x_kpad_device = {
 };
 #endif
 
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#include <asm/bfin_rotary.h>
+
+static struct bfin_rotary_platform_data bfin_rotary_data = {
+	/*.rotary_up_key     = KEY_UP,*/
+	/*.rotary_down_key   = KEY_DOWN,*/
+	.rotary_rel_code   = REL_WHEEL,
+	.rotary_button_key = KEY_ENTER,
+	.debounce	   = 10,	/* 0..17 */
+	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
+};
+
+static struct resource bfin_rotary_resources[] = {
+	{
+		.start = IRQ_CNT,
+		.end = IRQ_CNT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_rotary_device = {
+	.name		= "bfin-rotary",
+	.id		= -1,
+	.num_resources 	= ARRAY_SIZE(bfin_rotary_resources),
+	.resource 	= bfin_rotary_resources,
+	.dev		= {
+		.platform_data = &bfin_rotary_data,
+	},
+};
+#endif
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 static struct platform_device rtc_device = {
 	.name = "rtc-bfin",
@@ -815,6 +846,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_KEYBOARD_BFIN) || defined(CONFIG_KEYBOARD_BFIN_MODULE)
 	&bf54x_kpad_device,
+#endif
+
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+	&bfin_rotary_device,
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)

@@ -853,6 +853,38 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#include <linux/input.h>
+#include <asm/bfin_rotary.h>
+
+static struct bfin_rotary_platform_data bfin_rotary_data = {
+	/*.rotary_up_key     = KEY_UP,*/
+	/*.rotary_down_key   = KEY_DOWN,*/
+	.rotary_rel_code   = REL_WHEEL,
+	.rotary_button_key = KEY_ENTER,
+	.debounce	   = 10,	/* 0..17 */
+	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
+};
+
+static struct resource bfin_rotary_resources[] = {
+	{
+		.start = IRQ_CNT,
+		.end = IRQ_CNT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_rotary_device = {
+	.name		= "bfin-rotary",
+	.id		= -1,
+	.num_resources 	= ARRAY_SIZE(bfin_rotary_resources),
+	.resource 	= bfin_rotary_resources,
+	.dev		= {
+		.platform_data = &bfin_rotary_data,
+	},
+};
+#endif
+
 static struct resource bfin_gpios_resources = {
 	.start = 0,
 	.end   = MAX_BLACKFIN_GPIOS - 1,
@@ -967,6 +999,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
+#endif
+
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+	&bfin_rotary_device,
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
