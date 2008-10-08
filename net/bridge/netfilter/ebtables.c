@@ -56,9 +56,6 @@
 
 static DEFINE_MUTEX(ebt_mutex);
 static LIST_HEAD(ebt_tables);
-static LIST_HEAD(ebt_targets);
-static LIST_HEAD(ebt_matches);
-static LIST_HEAD(ebt_watchers);
 
 static struct xt_target ebt_standard_target = {
 	.name       = "standard",
@@ -320,24 +317,6 @@ static inline struct ebt_table *
 find_table_lock(const char *name, int *error, struct mutex *mutex)
 {
 	return find_inlist_lock(&ebt_tables, name, "ebtable_", error, mutex);
-}
-
-static inline struct ebt_match *
-find_match_lock(const char *name, int *error, struct mutex *mutex)
-{
-	return find_inlist_lock(&ebt_matches, name, "ebt_", error, mutex);
-}
-
-static inline struct ebt_watcher *
-find_watcher_lock(const char *name, int *error, struct mutex *mutex)
-{
-	return find_inlist_lock(&ebt_watchers, name, "ebt_", error, mutex);
-}
-
-static inline struct ebt_target *
-find_target_lock(const char *name, int *error, struct mutex *mutex)
-{
-	return find_inlist_lock(&ebt_targets, name, "ebt_", error, mutex);
 }
 
 static inline int
@@ -1103,87 +1082,6 @@ free_newinfo:
 	return ret;
 }
 
-int ebt_register_target(struct ebt_target *target)
-{
-	struct ebt_target *t;
-	int ret;
-
-	ret = mutex_lock_interruptible(&ebt_mutex);
-	if (ret != 0)
-		return ret;
-	list_for_each_entry(t, &ebt_targets, list) {
-		if (strcmp(t->name, target->name) == 0) {
-			mutex_unlock(&ebt_mutex);
-			return -EEXIST;
-		}
-	}
-	list_add(&target->list, &ebt_targets);
-	mutex_unlock(&ebt_mutex);
-
-	return 0;
-}
-
-void ebt_unregister_target(struct ebt_target *target)
-{
-	mutex_lock(&ebt_mutex);
-	list_del(&target->list);
-	mutex_unlock(&ebt_mutex);
-}
-
-int ebt_register_match(struct ebt_match *match)
-{
-	struct ebt_match *m;
-	int ret;
-
-	ret = mutex_lock_interruptible(&ebt_mutex);
-	if (ret != 0)
-		return ret;
-	list_for_each_entry(m, &ebt_matches, list) {
-		if (strcmp(m->name, match->name) == 0) {
-			mutex_unlock(&ebt_mutex);
-			return -EEXIST;
-		}
-	}
-	list_add(&match->list, &ebt_matches);
-	mutex_unlock(&ebt_mutex);
-
-	return 0;
-}
-
-void ebt_unregister_match(struct ebt_match *match)
-{
-	mutex_lock(&ebt_mutex);
-	list_del(&match->list);
-	mutex_unlock(&ebt_mutex);
-}
-
-int ebt_register_watcher(struct ebt_watcher *watcher)
-{
-	struct ebt_watcher *w;
-	int ret;
-
-	ret = mutex_lock_interruptible(&ebt_mutex);
-	if (ret != 0)
-		return ret;
-	list_for_each_entry(w, &ebt_watchers, list) {
-		if (strcmp(w->name, watcher->name) == 0) {
-			mutex_unlock(&ebt_mutex);
-			return -EEXIST;
-		}
-	}
-	list_add(&watcher->list, &ebt_watchers);
-	mutex_unlock(&ebt_mutex);
-
-	return 0;
-}
-
-void ebt_unregister_watcher(struct ebt_watcher *watcher)
-{
-	mutex_lock(&ebt_mutex);
-	list_del(&watcher->list);
-	mutex_unlock(&ebt_mutex);
-}
-
 int ebt_register_table(struct ebt_table *table)
 {
 	struct ebt_table_info *newinfo;
@@ -1575,12 +1473,6 @@ static void __exit ebtables_fini(void)
 
 EXPORT_SYMBOL(ebt_register_table);
 EXPORT_SYMBOL(ebt_unregister_table);
-EXPORT_SYMBOL(ebt_register_match);
-EXPORT_SYMBOL(ebt_unregister_match);
-EXPORT_SYMBOL(ebt_register_watcher);
-EXPORT_SYMBOL(ebt_unregister_watcher);
-EXPORT_SYMBOL(ebt_register_target);
-EXPORT_SYMBOL(ebt_unregister_target);
 EXPORT_SYMBOL(ebt_do_table);
 module_init(ebtables_init);
 module_exit(ebtables_fini);

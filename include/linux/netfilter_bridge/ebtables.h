@@ -302,12 +302,6 @@ struct ebt_table
 		     ~(__alignof__(struct ebt_replace)-1))
 extern int ebt_register_table(struct ebt_table *table);
 extern void ebt_unregister_table(struct ebt_table *table);
-extern int ebt_register_match(struct ebt_match *match);
-extern void ebt_unregister_match(struct ebt_match *match);
-extern int ebt_register_watcher(struct ebt_watcher *watcher);
-extern void ebt_unregister_watcher(struct ebt_watcher *watcher);
-extern int ebt_register_target(struct ebt_target *target);
-extern void ebt_unregister_target(struct ebt_target *target);
 extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
    struct ebt_table *table);
