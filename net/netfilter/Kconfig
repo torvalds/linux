@@ -858,3 +858,5 @@ config NETFILTER_XT_MATCH_U32
 endif # NETFILTER_XTABLES
 
 endmenu
+
+source "net/netfilter/ipvs/Kconfig"
