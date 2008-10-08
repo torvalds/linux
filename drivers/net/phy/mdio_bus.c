@@ -43,9 +43,33 @@
  */
 struct mii_bus *mdiobus_alloc(void)
 {
-	return kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	struct mii_bus *bus;
+
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	if (bus != NULL)
+		bus->state = MDIOBUS_ALLOCATED;
+
+	return bus;
 }
 EXPORT_SYMBOL(mdiobus_alloc);
+
+/**
+ * mdiobus_release - mii_bus device release callback
+ *
+ * Description: called when the last reference to an mii_bus is
+ * dropped, to free the underlying memory.
+ */
+static void mdiobus_release(struct device *d)
+{
+	struct mii_bus *bus = to_mii_bus(d);
+	BUG_ON(bus->state != MDIOBUS_RELEASED);
+	kfree(bus);
+}
+
+static struct class mdio_bus_class = {
+	.name		= "mdio_bus",
+	.dev_release	= mdiobus_release,
+};
 
 /**
  * mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
@@ -65,6 +89,22 @@ int mdiobus_register(struct mii_bus *bus)
 			NULL == bus->read ||
 			NULL == bus->write)
 		return -EINVAL;
+
+	BUG_ON(bus->state != MDIOBUS_ALLOCATED &&
+	       bus->state != MDIOBUS_UNREGISTERED);
+
+	bus->dev.parent = bus->parent;
+	bus->dev.class = &mdio_bus_class;
+	bus->dev.groups = NULL;
+	memcpy(bus->dev.bus_id, bus->id, MII_BUS_ID_SIZE);
+
+	err = device_register(&bus->dev);
+	if (err) {
+		printk(KERN_ERR "mii_bus %s failed to register\n", bus->id);
+		return -EINVAL;
+	}
+
+	bus->state = MDIOBUS_REGISTERED;
 
 	mutex_init(&bus->mdio_lock);
 
@@ -92,6 +132,10 @@ void mdiobus_unregister(struct mii_bus *bus)
 {
 	int i;
 
+	BUG_ON(bus->state != MDIOBUS_REGISTERED);
+	bus->state = MDIOBUS_UNREGISTERED;
+
+	device_unregister(&bus->dev);
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		if (bus->phy_map[i])
 			device_unregister(&bus->phy_map[i]->dev);
@@ -103,11 +147,24 @@ EXPORT_SYMBOL(mdiobus_unregister);
  * mdiobus_free - free a struct mii_bus
  * @bus: mii_bus to free
  *
- * This function frees the mii_bus.
+ * This function releases the reference to the underlying device
+ * object in the mii_bus.  If this is the last reference, the mii_bus
+ * will be freed.
  */
 void mdiobus_free(struct mii_bus *bus)
 {
-	kfree(bus);
+	/*
+	 * For compatibility with error handling in drivers.
+	 */
+	if (bus->state == MDIOBUS_ALLOCATED) {
+		kfree(bus);
+		return;
+	}
+
+	BUG_ON(bus->state != MDIOBUS_UNREGISTERED);
+	bus->state = MDIOBUS_RELEASED;
+
+	put_device(&bus->dev);
 }
 EXPORT_SYMBOL(mdiobus_free);
 
@@ -205,10 +262,20 @@ EXPORT_SYMBOL(mdio_bus_type);
 
 int __init mdio_bus_init(void)
 {
-	return bus_register(&mdio_bus_type);
+	int ret;
+
+	ret = class_register(&mdio_bus_class);
+	if (!ret) {
+		ret = bus_register(&mdio_bus_type);
+		if (ret)
+			class_unregister(&mdio_bus_class);
+	}
+
+	return ret;
 }
 
 void mdio_bus_exit(void)
 {
+	class_unregister(&mdio_bus_class);
 	bus_unregister(&mdio_bus_type);
 }

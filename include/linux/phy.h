@@ -100,6 +100,13 @@ struct mii_bus {
 	struct mutex mdio_lock;
 
 	struct device *parent;
+	enum {
+		MDIOBUS_ALLOCATED = 1,
+		MDIOBUS_REGISTERED,
+		MDIOBUS_UNREGISTERED,
+		MDIOBUS_RELEASED,
+	} state;
+	struct device dev;
 
 	/* list of all PHYs on bus */
 	struct phy_device *phy_map[PHY_MAX_ADDR];
@@ -113,6 +120,7 @@ struct mii_bus {
 	 */
 	int *irq;
 };
+#define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 
 #define PHY_INTERRUPT_DISABLED	0x0
 #define PHY_INTERRUPT_ENABLED	0x80000000
