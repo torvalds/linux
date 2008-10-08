@@ -13,11 +13,9 @@
 #include <linux/netfilter_bridge/ebt_802_3.h>
 
 static bool
-ebt_802_3_mt(const struct sk_buff *skb, const struct net_device *in,
-	     const struct net_device *out, const struct xt_match *match,
-	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
+ebt_802_3_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ebt_802_3_info *info = data;
+	const struct ebt_802_3_info *info = par->matchinfo;
 	const struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);
 	__be16 type = hdr->llc.ui.ctrl & IS_UI ? hdr->llc.ui.type : hdr->llc.ni.type;
 

@@ -117,23 +117,21 @@ match_packet(const struct sk_buff *skb,
 }
 
 static bool
-sctp_mt(const struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, const struct xt_match *match,
-        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+sctp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_sctp_info *info = matchinfo;
+	const struct xt_sctp_info *info = par->matchinfo;
 	const sctp_sctphdr_t *sh;
 	sctp_sctphdr_t _sh;
 
-	if (offset) {
+	if (par->fragoff != 0) {
 		duprintf("Dropping non-first fragment.. FIXME\n");
 		return false;
 	}
 
-	sh = skb_header_pointer(skb, protoff, sizeof(_sh), &_sh);
+	sh = skb_header_pointer(skb, par->thoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 	duprintf("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
@@ -144,8 +142,8 @@ sctp_mt(const struct sk_buff *skb, const struct net_device *in,
 		&& SCCHECK(ntohs(sh->dest) >= info->dpts[0]
 			&& ntohs(sh->dest) <= info->dpts[1],
 			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
-		&& SCCHECK(match_packet(skb, protoff + sizeof (sctp_sctphdr_t),
-					info, hotdrop),
+		&& SCCHECK(match_packet(skb, par->thoff + sizeof(sctp_sctphdr_t),
+					info, par->hotdrop),
 			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
 

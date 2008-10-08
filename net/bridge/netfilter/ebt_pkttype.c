@@ -13,12 +13,9 @@
 #include <linux/netfilter_bridge/ebt_pkttype.h>
 
 static bool
-ebt_pkttype_mt(const struct sk_buff *skb, const struct net_device *in,
-	       const struct net_device *out, const struct xt_match *match,
-	       const void *data, int offset, unsigned int protoff,
-	       bool *hotdrop)
+ebt_pkttype_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ebt_pkttype_info *info = data;
+	const struct ebt_pkttype_info *info = par->matchinfo;
 
 	return (skb->pkt_type == info->pkt_type) ^ info->invert;
 }

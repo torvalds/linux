@@ -128,11 +128,9 @@ static int get_ip_src(const struct sk_buff *skb, __be32 *addr)
 }
 
 static bool
-ebt_among_mt(const struct sk_buff *skb, const struct net_device *in,
-	     const struct net_device *out, const struct xt_match *match,
-	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
+ebt_among_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ebt_among_info *info = data;
+	const struct ebt_among_info *info = par->matchinfo;
 	const char *dmac, *smac;
 	const struct ebt_mac_wormhash *wh_dst, *wh_src;
 	__be32 dip = 0, sip = 0;

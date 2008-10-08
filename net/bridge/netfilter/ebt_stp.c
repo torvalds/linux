@@ -120,11 +120,9 @@ static bool ebt_filter_config(const struct ebt_stp_info *info,
 }
 
 static bool
-ebt_stp_mt(const struct sk_buff *skb, const struct net_device *in,
-	   const struct net_device *out, const struct xt_match *match,
-	   const void *data, int offset, unsigned int protoff, bool *hotdrop)
+ebt_stp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ebt_stp_info *info = data;
+	const struct ebt_stp_info *info = par->matchinfo;
 	const struct stp_header *sp;
 	struct stp_header _stph;
 	const uint8_t header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};

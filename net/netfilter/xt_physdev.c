@@ -21,14 +21,11 @@ MODULE_ALIAS("ipt_physdev");
 MODULE_ALIAS("ip6t_physdev");
 
 static bool
-physdev_mt(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protoff,
-           bool *hotdrop)
+physdev_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	int i;
 	static const char nulldevname[IFNAMSIZ];
-	const struct xt_physdev_info *info = matchinfo;
+	const struct xt_physdev_info *info = par->matchinfo;
 	bool ret;
 	const char *indev, *outdev;
 	const struct nf_bridge_info *nf_bridge;

@@ -67,12 +67,9 @@ static inline bool match_tcp(const struct sk_buff *skb,
 	return true;
 }
 
-static bool
-ecn_mt(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool ecn_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ipt_ecn_info *info = matchinfo;
+	const struct ipt_ecn_info *info = par->matchinfo;
 
 	if (info->operation & IPT_ECN_OP_MATCH_IP)
 		if (!match_ip(skb, info))
@@ -81,7 +78,7 @@ ecn_mt(const struct sk_buff *skb, const struct net_device *in,
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR)) {
 		if (ip_hdr(skb)->protocol != IPPROTO_TCP)
 			return false;
-		if (!match_tcp(skb, info, hotdrop))
+		if (!match_tcp(skb, info, par->hotdrop))
 			return false;
 	}
 

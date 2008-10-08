@@ -173,6 +173,26 @@ struct xt_counters_info
 
 #include <linux/netdevice.h>
 
+/**
+ * struct xt_match_param - parameters for match extensions' match functions
+ *
+ * @in:		input netdevice
+ * @out:	output netdevice
+ * @match:	struct xt_match through which this function was invoked
+ * @matchinfo:	per-match data
+ * @fragoff:	packet is a fragment, this is the data offset
+ * @thoff:	position of transport header relative to skb->data
+ * @hotdrop:	drop packet if we had inspection problems
+ */
+struct xt_match_param {
+	const struct net_device *in, *out;
+	const struct xt_match *match;
+	const void *matchinfo;
+	int fragoff;
+	unsigned int thoff;
+	bool *hotdrop;
+};
+
 struct xt_match
 {
 	struct list_head list;
@@ -185,13 +205,7 @@ struct xt_match
 	   non-linear skb, using skb_header_pointer and
 	   skb_ip_make_writable. */
 	bool (*match)(const struct sk_buff *skb,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const struct xt_match *match,
-		      const void *matchinfo,
-		      int offset,
-		      unsigned int protoff,
-		      bool *hotdrop);
+		      const struct xt_match_param *);
 
 	/* Called when user tries to insert an entry of this type. */
 	/* Should return true or false. */

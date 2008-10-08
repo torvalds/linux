@@ -23,22 +23,17 @@ MODULE_ALIAS("ipt_mark");
 MODULE_ALIAS("ip6t_mark");
 
 static bool
-mark_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protoff,
-           bool *hotdrop)
+mark_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_mark_info *info = matchinfo;
+	const struct xt_mark_info *info = par->matchinfo;
 
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
 static bool
-mark_mt(const struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, const struct xt_match *match,
-        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+mark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_mark_mtinfo1 *info = matchinfo;
+	const struct xt_mark_mtinfo1 *info = par->matchinfo;
 
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }

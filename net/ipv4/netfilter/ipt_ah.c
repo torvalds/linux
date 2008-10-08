@@ -36,27 +36,23 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 	return r;
 }
 
-static bool
-ah_mt(const struct sk_buff *skb, const struct net_device *in,
-      const struct net_device *out, const struct xt_match *match,
-      const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool ah_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	struct ip_auth_hdr _ahdr;
 	const struct ip_auth_hdr *ah;
-	const struct ipt_ah *ahinfo = matchinfo;
+	const struct ipt_ah *ahinfo = par->matchinfo;
 
 	/* Must not be a fragment. */
-	if (offset)
+	if (par->fragoff != 0)
 		return false;
 
-	ah = skb_header_pointer(skb, protoff,
-				sizeof(_ahdr), &_ahdr);
+	ah = skb_header_pointer(skb, par->thoff, sizeof(_ahdr), &_ahdr);
 	if (ah == NULL) {
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
 		duprintf("Dropping evil AH tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return 0;
 	}
 

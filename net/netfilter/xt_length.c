@@ -21,24 +21,18 @@ MODULE_ALIAS("ipt_length");
 MODULE_ALIAS("ip6t_length");
 
 static bool
-length_mt(const struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, const struct xt_match *match,
-          const void *matchinfo, int offset, unsigned int protoff,
-          bool *hotdrop)
+length_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_length_info *info = matchinfo;
+	const struct xt_length_info *info = par->matchinfo;
 	u_int16_t pktlen = ntohs(ip_hdr(skb)->tot_len);
 
 	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }
 
 static bool
-length_mt6(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protoff,
-           bool *hotdrop)
+length_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_length_info *info = matchinfo;
+	const struct xt_length_info *info = par->matchinfo;
 	const u_int16_t pktlen = ntohs(ipv6_hdr(skb)->payload_len) +
 				 sizeof(struct ipv6hdr);
 

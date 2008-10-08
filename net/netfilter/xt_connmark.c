@@ -34,12 +34,9 @@ MODULE_ALIAS("ipt_connmark");
 MODULE_ALIAS("ip6t_connmark");
 
 static bool
-connmark_mt(const struct sk_buff *skb, const struct net_device *in,
-            const struct net_device *out, const struct xt_match *match,
-            const void *matchinfo, int offset, unsigned int protoff,
-            bool *hotdrop)
+connmark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_connmark_mtinfo1 *info = matchinfo;
+	const struct xt_connmark_mtinfo1 *info = par->matchinfo;
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 
@@ -51,12 +48,9 @@ connmark_mt(const struct sk_buff *skb, const struct net_device *in,
 }
 
 static bool
-connmark_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-               const struct net_device *out, const struct xt_match *match,
-               const void *matchinfo, int offset, unsigned int protoff,
-               bool *hotdrop)
+connmark_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_connmark_info *info = matchinfo;
+	const struct xt_connmark_info *info = par->matchinfo;
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 

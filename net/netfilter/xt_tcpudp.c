@@ -68,25 +68,22 @@ tcp_find_option(u_int8_t option,
 	return invert;
 }
 
-static bool
-tcp_mt(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool tcp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
-	const struct xt_tcp *tcpinfo = matchinfo;
+	const struct xt_tcp *tcpinfo = par->matchinfo;
 
-	if (offset) {
+	if (par->fragoff != 0) {
 		/* To quote Alan:
 
 		   Don't allow a fragment of TCP 8 bytes in. Nobody normal
 		   causes this. Its a cracker trying to break in by doing a
 		   flag overwrite to pass the direction checks.
 		*/
-		if (offset == 1) {
+		if (par->fragoff == 1) {
 			duprintf("Dropping evil TCP offset=1 frag.\n");
-			*hotdrop = true;
+			*par->hotdrop = true;
 		}
 		/* Must not be a fragment. */
 		return false;
@@ -94,12 +91,12 @@ tcp_mt(const struct sk_buff *skb, const struct net_device *in,
 
 #define FWINVTCP(bool, invflg) ((bool) ^ !!(tcpinfo->invflags & (invflg)))
 
-	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, par->thoff, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil TCP offset=0 tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 
@@ -117,13 +114,13 @@ tcp_mt(const struct sk_buff *skb, const struct net_device *in,
 		return false;
 	if (tcpinfo->option) {
 		if (th->doff * 4 < sizeof(_tcph)) {
-			*hotdrop = true;
+			*par->hotdrop = true;
 			return false;
 		}
-		if (!tcp_find_option(tcpinfo->option, skb, protoff,
+		if (!tcp_find_option(tcpinfo->option, skb, par->thoff,
 				     th->doff*4 - sizeof(_tcph),
 				     tcpinfo->invflags & XT_TCP_INV_OPTION,
-				     hotdrop))
+				     par->hotdrop))
 			return false;
 	}
 	return true;
@@ -141,25 +138,22 @@ tcp_mt_check(const char *tablename, const void *info,
 	return !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
 }
 
-static bool
-udp_mt(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool udp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct udphdr *uh;
 	struct udphdr _udph;
-	const struct xt_udp *udpinfo = matchinfo;
+	const struct xt_udp *udpinfo = par->matchinfo;
 
 	/* Must not be a fragment. */
-	if (offset)
+	if (par->fragoff != 0)
 		return false;
 
-	uh = skb_header_pointer(skb, protoff, sizeof(_udph), &_udph);
+	uh = skb_header_pointer(skb, par->thoff, sizeof(_udph), &_udph);
 	if (uh == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		duprintf("Dropping evil UDP tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 

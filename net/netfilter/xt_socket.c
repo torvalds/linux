@@ -86,14 +86,7 @@ extract_icmp_fields(const struct sk_buff *skb,
 
 
 static bool
-socket_mt(const struct sk_buff *skb,
-	  const struct net_device *in,
-	  const struct net_device *out,
-	  const struct xt_match *match,
-	  const void *matchinfo,
-	  int offset,
-	  unsigned int protoff,
-	  bool *hotdrop)
+socket_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct udphdr _hdr, *hp = NULL;
@@ -146,7 +139,7 @@ socket_mt(const struct sk_buff *skb,
 #endif
 
 	sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), protocol,
-				   saddr, daddr, sport, dport, in, false);
+				   saddr, daddr, sport, dport, par->in, false);
 	if (sk != NULL) {
 		bool wildcard = (inet_sk(sk)->rcv_saddr == 0);
 

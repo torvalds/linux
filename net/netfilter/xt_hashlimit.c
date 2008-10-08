@@ -563,19 +563,16 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 }
 
 static bool
-hashlimit_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-                const struct net_device *out, const struct xt_match *match,
-                const void *matchinfo, int offset, unsigned int protoff,
-                bool *hotdrop)
+hashlimit_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct xt_hashlimit_info *r =
-		((const struct xt_hashlimit_info *)matchinfo)->u.master;
+		((const struct xt_hashlimit_info *)par->matchinfo)->u.master;
 	struct xt_hashlimit_htable *hinfo = r->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 
-	if (hashlimit_init_dst(hinfo, &dst, skb, protoff) < 0)
+	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
 		goto hotdrop;
 
 	spin_lock_bh(&hinfo->lock);
@@ -613,23 +610,20 @@ hashlimit_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 	return false;
 
 hotdrop:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 
 static bool
-hashlimit_mt(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+hashlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_hashlimit_mtinfo1 *info = matchinfo;
+	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 	struct xt_hashlimit_htable *hinfo = info->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 
-	if (hashlimit_init_dst(hinfo, &dst, skb, protoff) < 0)
+	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
 		goto hotdrop;
 
 	spin_lock_bh(&hinfo->lock);
@@ -666,7 +660,7 @@ hashlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 	return info->cfg.mode & XT_HASHLIMIT_INVERT;
 
  hotdrop:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 

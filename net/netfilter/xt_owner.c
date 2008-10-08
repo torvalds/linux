@@ -21,12 +21,9 @@
 #include <linux/netfilter_ipv6/ip6t_owner.h>
 
 static bool
-owner_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-            const struct net_device *out, const struct xt_match *match,
-            const void *matchinfo, int offset, unsigned int protoff,
-            bool *hotdrop)
+owner_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ipt_owner_info *info = matchinfo;
+	const struct ipt_owner_info *info = par->matchinfo;
 	const struct file *filp;
 
 	if (skb->sk == NULL || skb->sk->sk_socket == NULL)
@@ -50,12 +47,9 @@ owner_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 }
 
 static bool
-owner_mt6_v0(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+owner_mt6_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ip6t_owner_info *info = matchinfo;
+	const struct ip6t_owner_info *info = par->matchinfo;
 	const struct file *filp;
 
 	if (skb->sk == NULL || skb->sk->sk_socket == NULL)
@@ -79,12 +73,9 @@ owner_mt6_v0(const struct sk_buff *skb, const struct net_device *in,
 }
 
 static bool
-owner_mt(const struct sk_buff *skb, const struct net_device *in,
-         const struct net_device *out, const struct xt_match *match,
-         const void *matchinfo, int offset, unsigned int protoff,
-         bool *hotdrop)
+owner_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_owner_match_info *info = matchinfo;
+	const struct xt_owner_match_info *info = par->matchinfo;
 	const struct file *filp;
 
 	if (skb->sk == NULL || skb->sk->sk_socket == NULL)

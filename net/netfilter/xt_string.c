@@ -22,18 +22,15 @@ MODULE_ALIAS("ipt_string");
 MODULE_ALIAS("ip6t_string");
 
 static bool
-string_mt(const struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, const struct xt_match *match,
-          const void *matchinfo, int offset, unsigned int protoff,
-          bool *hotdrop)
+string_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_string_info *conf = matchinfo;
+	const struct xt_string_info *conf = par->matchinfo;
 	struct ts_state state;
 	int invert;
 
 	memset(&state, 0, sizeof(struct ts_state));
 
-	invert = (match->revision == 0 ? conf->u.v0.invert :
+	invert = (par->match->revision == 0 ? conf->u.v0.invert :
 				    conf->u.v1.flags & XT_STRING_FLAG_INVERT);
 
 	return (skb_find_text((struct sk_buff *)skb, conf->from_offset,

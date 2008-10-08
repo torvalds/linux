@@ -74,11 +74,11 @@ static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
 }
 
 static inline int ebt_do_match (struct ebt_entry_match *m,
-   const struct sk_buff *skb, const struct net_device *in,
-   const struct net_device *out, bool *hotdrop)
+   const struct sk_buff *skb, struct xt_match_param *par)
 {
-	return m->u.match->match(skb, in, out, m->u.match,
-	       m->data, 0, 0, hotdrop);
+	par->match     = m->u.match;
+	par->matchinfo = m->data;
+	return m->u.match->match(skb, par);
 }
 
 static inline int ebt_dev_check(char *entry, const struct net_device *device)
@@ -155,6 +155,11 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	char *base;
 	struct ebt_table_info *private;
 	bool hotdrop = false;
+	struct xt_match_param mtpar;
+
+	mtpar.in      = in;
+	mtpar.out     = out;
+	mtpar.hotdrop = &hotdrop;
 
 	read_lock_bh(&table->lock);
 	private = table->private;
@@ -175,8 +180,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 		if (ebt_basic_match(point, eth_hdr(skb), in, out))
 			goto letscontinue;
 
-		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb,
-		    in, out, &hotdrop) != 0)
+		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, &mtpar) != 0)
 			goto letscontinue;
 		if (hotdrop) {
 			read_unlock_bh(&table->lock);

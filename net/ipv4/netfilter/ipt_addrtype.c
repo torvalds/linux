@@ -30,12 +30,9 @@ static inline bool match_type(const struct net_device *dev, __be32 addr,
 }
 
 static bool
-addrtype_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-	       const struct net_device *out, const struct xt_match *match,
-	       const void *matchinfo, int offset, unsigned int protoff,
-	       bool *hotdrop)
+addrtype_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ipt_addrtype_info *info = matchinfo;
+	const struct ipt_addrtype_info *info = par->matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
 	bool ret = true;
 
@@ -50,20 +47,17 @@ addrtype_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 }
 
 static bool
-addrtype_mt_v1(const struct sk_buff *skb, const struct net_device *in,
-	       const struct net_device *out, const struct xt_match *match,
-	       const void *matchinfo, int offset, unsigned int protoff,
-	       bool *hotdrop)
+addrtype_mt_v1(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ipt_addrtype_info_v1 *info = matchinfo;
+	const struct ipt_addrtype_info_v1 *info = par->matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
 	const struct net_device *dev = NULL;
 	bool ret = true;
 
 	if (info->flags & IPT_ADDRTYPE_LIMIT_IFACE_IN)
-		dev = in;
+		dev = par->in;
 	else if (info->flags & IPT_ADDRTYPE_LIMIT_IFACE_OUT)
-		dev = out;
+		dev = par->out;
 
 	if (info->source)
 		ret &= match_type(dev, iph->saddr, info->source) ^

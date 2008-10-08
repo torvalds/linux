@@ -31,11 +31,9 @@ static DEFINE_SPINLOCK(limit_lock);
 #define CREDITS_PER_JIFFY POW2_BELOW32(MAX_CPJ)
 
 static bool
-ebt_limit_mt(const struct sk_buff *skb, const struct net_device *in,
-	     const struct net_device *out, const struct xt_match *match,
-	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
+ebt_limit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	struct ebt_limit_info *info = (void *)data;
+	struct ebt_limit_info *info = (void *)par->matchinfo;
 	unsigned long now = jiffies;
 
 	spin_lock_bh(&limit_lock);

@@ -42,26 +42,23 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 	return r;
 }
 
-static bool
-esp_mt(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool esp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct ip_esp_hdr *eh;
 	struct ip_esp_hdr _esp;
-	const struct xt_esp *espinfo = matchinfo;
+	const struct xt_esp *espinfo = par->matchinfo;
 
 	/* Must not be a fragment. */
-	if (offset)
+	if (par->fragoff != 0)
 		return false;
 
-	eh = skb_header_pointer(skb, protoff, sizeof(_esp), &_esp);
+	eh = skb_header_pointer(skb, par->thoff, sizeof(_esp), &_esp);
 	if (eh == NULL) {
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
 		duprintf("Dropping evil ESP tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 

@@ -95,25 +95,22 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 }
 
 static bool
-multiport_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-                const struct net_device *out, const struct xt_match *match,
-                const void *matchinfo, int offset, unsigned int protoff,
-                bool *hotdrop)
+multiport_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const __be16 *pptr;
 	__be16 _ports[2];
-	const struct xt_multiport *multiinfo = matchinfo;
+	const struct xt_multiport *multiinfo = par->matchinfo;
 
-	if (offset)
+	if (par->fragoff != 0)
 		return false;
 
-	pptr = skb_header_pointer(skb, protoff, sizeof(_ports), _ports);
+	pptr = skb_header_pointer(skb, par->thoff, sizeof(_ports), _ports);
 	if (pptr == NULL) {
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
 		duprintf("xt_multiport: Dropping evil offset=0 tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 
@@ -122,25 +119,22 @@ multiport_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 }
 
 static bool
-multiport_mt(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+multiport_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const __be16 *pptr;
 	__be16 _ports[2];
-	const struct xt_multiport_v1 *multiinfo = matchinfo;
+	const struct xt_multiport_v1 *multiinfo = par->matchinfo;
 
-	if (offset)
+	if (par->fragoff != 0)
 		return false;
 
-	pptr = skb_header_pointer(skb, protoff, sizeof(_ports), _ports);
+	pptr = skb_header_pointer(skb, par->thoff, sizeof(_ports), _ports);
 	if (pptr == NULL) {
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
 		duprintf("xt_multiport: Dropping evil offset=0 tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 

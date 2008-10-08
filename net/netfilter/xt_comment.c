@@ -16,10 +16,7 @@ MODULE_ALIAS("ipt_comment");
 MODULE_ALIAS("ip6t_comment");
 
 static bool
-comment_mt(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protooff,
-           bool *hotdrop)
+comment_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	/* We always match */
 	return true;

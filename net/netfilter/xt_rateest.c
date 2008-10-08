@@ -14,16 +14,10 @@
 #include <net/netfilter/xt_rateest.h>
 
 
-static bool xt_rateest_mt(const struct sk_buff *skb,
-			  const struct net_device *in,
-			  const struct net_device *out,
-			  const struct xt_match *match,
-			  const void *matchinfo,
-			  int offset,
-			  unsigned int protoff,
-			  bool *hotdrop)
+static bool
+xt_rateest_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_rateest_match_info *info = matchinfo;
+	const struct xt_rateest_match_info *info = par->matchinfo;
 	struct gnet_stats_rate_est *r;
 	u_int32_t bps1, bps2, pps1, pps2;
 	bool ret = true;

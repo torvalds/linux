@@ -25,11 +25,9 @@ struct tcpudphdr {
 };
 
 static bool
-ebt_ip_mt(const struct sk_buff *skb, const struct net_device *in,
-	  const struct net_device *out, const struct xt_match *match,
-	  const void *data, int offset, unsigned int protoff, bool *hotdrop)
+ebt_ip_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ebt_ip_info *info = data;
+	const struct ebt_ip_info *info = par->matchinfo;
 	const struct iphdr *ih;
 	struct iphdr _iph;
 	const struct tcpudphdr *pptr;

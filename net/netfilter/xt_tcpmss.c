@@ -25,12 +25,9 @@ MODULE_ALIAS("ipt_tcpmss");
 MODULE_ALIAS("ip6t_tcpmss");
 
 static bool
-tcpmss_mt(const struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, const struct xt_match *match,
-          const void *matchinfo, int offset, unsigned int protoff,
-          bool *hotdrop)
+tcpmss_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_tcpmss_match_info *info = matchinfo;
+	const struct xt_tcpmss_match_info *info = par->matchinfo;
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
@@ -39,7 +36,7 @@ tcpmss_mt(const struct sk_buff *skb, const struct net_device *in,
 	unsigned int i, optlen;
 
 	/* If we don't have the whole header, drop packet. */
-	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, par->thoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		goto dropit;
 
@@ -52,7 +49,7 @@ tcpmss_mt(const struct sk_buff *skb, const struct net_device *in,
 		goto out;
 
 	/* Truncated options. */
-	op = skb_header_pointer(skb, protoff + sizeof(*th), optlen, _opt);
+	op = skb_header_pointer(skb, par->thoff + sizeof(*th), optlen, _opt);
 	if (op == NULL)
 		goto dropit;
 
@@ -76,7 +73,7 @@ out:
 	return info->invert;
 
 dropit:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 

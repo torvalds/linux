@@ -178,12 +178,9 @@ static int count_them(struct xt_connlimit_data *data,
 }
 
 static bool
-connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_connlimit_info *info = matchinfo;
+	const struct xt_connlimit_info *info = par->matchinfo;
 	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
 	const struct nf_conntrack_tuple *tuple_ptr = &tuple;
@@ -195,10 +192,10 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 	if (ct != NULL)
 		tuple_ptr = &ct->tuplehash[0].tuple;
 	else if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-				    match->family, &tuple))
+				    par->match->family, &tuple))
 		goto hotdrop;
 
-	if (match->family == NFPROTO_IPV6) {
+	if (par->match->family == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		memcpy(&addr.ip6, &iph->saddr, sizeof(iph->saddr));
 	} else {
@@ -208,19 +205,19 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 
 	spin_lock_bh(&info->data->lock);
 	connections = count_them(info->data, tuple_ptr, &addr,
-	                         &info->mask, match);
+	                         &info->mask, par->match);
 	spin_unlock_bh(&info->data->lock);
 
 	if (connections < 0) {
 		/* kmalloc failed, drop it entirely */
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 
 	return (connections > info->limit) ^ info->inverse;
 
  hotdrop:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 

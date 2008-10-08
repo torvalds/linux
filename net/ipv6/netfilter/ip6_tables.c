@@ -215,17 +215,14 @@ ip6t_error(struct sk_buff *skb,
 
 /* Performance critical - called for every packet */
 static inline bool
-do_match(struct ip6t_entry_match *m,
-	      const struct sk_buff *skb,
-	      const struct net_device *in,
-	      const struct net_device *out,
-	      int offset,
-	      unsigned int protoff,
-	      bool *hotdrop)
+do_match(struct ip6t_entry_match *m, const struct sk_buff *skb,
+	 struct xt_match_param *par)
 {
+	par->match     = m->u.kernel.match;
+	par->matchinfo = m->data;
+
 	/* Stop iteration if it doesn't match */
-	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
-				      offset, protoff, hotdrop))
+	if (!m->u.kernel.match->match(skb, par))
 		return true;
 	else
 		return false;
@@ -355,8 +352,6 @@ ip6t_do_table(struct sk_buff *skb,
 	      struct xt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
-	int offset = 0;
-	unsigned int protoff = 0;
 	bool hotdrop = false;
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
 	unsigned int verdict = NF_DROP;
@@ -364,6 +359,7 @@ ip6t_do_table(struct sk_buff *skb,
 	void *table_base;
 	struct ip6t_entry *e, *back;
 	struct xt_table_info *private;
+	struct xt_match_param mtpar;
 
 	/* Initialization */
 	indev = in ? in->name : nulldevname;
@@ -374,6 +370,9 @@ ip6t_do_table(struct sk_buff *skb,
 	 * things we don't know, ie. tcp syn flag or ports).  If the
 	 * rule is also a fragment-specific rule, non-fragments won't
 	 * match it. */
+	mtpar.hotdrop = &hotdrop;
+	mtpar.in      = in;
+	mtpar.out     = out;
 
 	read_lock_bh(&table->lock);
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
@@ -388,12 +387,10 @@ ip6t_do_table(struct sk_buff *skb,
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
 		if (ip6_packet_match(skb, indev, outdev, &e->ipv6,
-			&protoff, &offset, &hotdrop)) {
+			&mtpar.thoff, &mtpar.fragoff, &hotdrop)) {
 			struct ip6t_entry_target *t;
 
-			if (IP6T_MATCH_ITERATE(e, do_match,
-					       skb, in, out,
-					       offset, protoff, &hotdrop) != 0)
+			if (IP6T_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
 				goto no_match;
 
 			ADD_COUNTER(e->counters,
@@ -2141,30 +2138,23 @@ icmp6_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 }
 
 static bool
-icmp6_match(const struct sk_buff *skb,
-	   const struct net_device *in,
-	   const struct net_device *out,
-	   const struct xt_match *match,
-	   const void *matchinfo,
-	   int offset,
-	   unsigned int protoff,
-	   bool *hotdrop)
+icmp6_match(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct icmp6hdr *ic;
 	struct icmp6hdr _icmph;
-	const struct ip6t_icmp *icmpinfo = matchinfo;
+	const struct ip6t_icmp *icmpinfo = par->matchinfo;
 
 	/* Must not be a fragment. */
-	if (offset)
+	if (par->fragoff != 0)
 		return false;
 
-	ic = skb_header_pointer(skb, protoff, sizeof(_icmph), &_icmph);
+	ic = skb_header_pointer(skb, par->thoff, sizeof(_icmph), &_icmph);
 	if (ic == NULL) {
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
 		duprintf("Dropping evil ICMP tinygram.\n");
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 

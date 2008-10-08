@@ -25,12 +25,9 @@ MODULE_ALIAS("ipt_conntrack");
 MODULE_ALIAS("ip6t_conntrack");
 
 static bool
-conntrack_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-                const struct net_device *out, const struct xt_match *match,
-                const void *matchinfo, int offset, unsigned int protoff,
-                bool *hotdrop)
+conntrack_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_conntrack_info *sinfo = matchinfo;
+	const struct xt_conntrack_info *sinfo = par->matchinfo;
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
@@ -205,12 +202,9 @@ ct_proto_port_check(const struct xt_conntrack_mtinfo1 *info,
 }
 
 static bool
-conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+conntrack_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_conntrack_mtinfo1 *info = matchinfo;
+	const struct xt_conntrack_mtinfo1 *info = par->matchinfo;
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 	unsigned int statebit;
@@ -244,22 +238,22 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 		return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGSRC)
-		if (conntrack_mt_origsrc(ct, info, match->family) ^
+		if (conntrack_mt_origsrc(ct, info, par->match->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_ORIGSRC))
 			return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGDST)
-		if (conntrack_mt_origdst(ct, info, match->family) ^
+		if (conntrack_mt_origdst(ct, info, par->match->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_ORIGDST))
 			return false;
 
 	if (info->match_flags & XT_CONNTRACK_REPLSRC)
-		if (conntrack_mt_replsrc(ct, info, match->family) ^
+		if (conntrack_mt_replsrc(ct, info, par->match->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_REPLSRC))
 			return false;
 
 	if (info->match_flags & XT_CONNTRACK_REPLDST)
-		if (conntrack_mt_repldst(ct, info, match->family) ^
+		if (conntrack_mt_repldst(ct, info, par->match->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_REPLDST))
 			return false;
 
