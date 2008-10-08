@@ -148,8 +148,6 @@ DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
 	_DEVINC(icmpv6msg, , idev, field +256); })
 #define ICMP6MSGOUT_INC_STATS_BH(net, idev, field) ({ (void)(net); \
 	_DEVINC(icmpv6msg, _BH, idev, field +256); })
-#define ICMP6MSGIN_INC_STATS(idev, field) \
-	 _DEVINC(icmpv6msg, , idev, field)
 #define ICMP6MSGIN_INC_STATS_BH(idev, field) \
 	_DEVINC(icmpv6msg, _BH, idev, field)
 
