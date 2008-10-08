@@ -33,6 +33,8 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/i8042.h>
+#include <linux/rfkill.h>
+#include <linux/workqueue.h>
 #include <linux/debugfs.h>
 
 #include <acpi/acpi_drivers.h>
@@ -156,6 +158,9 @@ struct acer_debug {
 	struct dentry *devices;
 	u32 wmid_devices;
 };
+
+static struct rfkill *wireless_rfkill;
+static struct rfkill *bluetooth_rfkill;
 
 /* Each low-level interface must define at least some of the following */
 struct wmi_interface {
@@ -933,6 +938,125 @@ static void acer_backlight_exit(void)
 }
 
 /*
+ * Rfkill devices
+ */
+static struct workqueue_struct *rfkill_workqueue;
+
+static void acer_rfkill_update(struct work_struct *ignored);
+static DECLARE_DELAYED_WORK(acer_rfkill_work, acer_rfkill_update);
+static void acer_rfkill_update(struct work_struct *ignored)
+{
+	u32 state;
+	acpi_status status;
+
+	status = get_u32(&state, ACER_CAP_WIRELESS);
+	if (ACPI_SUCCESS(status))
+		rfkill_force_state(wireless_rfkill, state ?
+			RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED);
+
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		status = get_u32(&state, ACER_CAP_BLUETOOTH);
+		if (ACPI_SUCCESS(status))
+			rfkill_force_state(bluetooth_rfkill, state ?
+				RFKILL_STATE_UNBLOCKED :
+				RFKILL_STATE_SOFT_BLOCKED);
+	}
+
+	queue_delayed_work(rfkill_workqueue, &acer_rfkill_work,
+		round_jiffies_relative(HZ));
+}
+
+static int acer_rfkill_set(void *data, enum rfkill_state state)
+{
+	acpi_status status;
+	u32 *cap = data;
+	status = set_u32((u32) (state == RFKILL_STATE_UNBLOCKED), *cap);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+	return 0;
+}
+
+static struct rfkill * acer_rfkill_register(struct device *dev,
+enum rfkill_type type, char *name, u32 cap)
+{
+	int err;
+	u32 state;
+	u32 *data;
+	struct rfkill *rfkill_dev;
+
+	rfkill_dev = rfkill_allocate(dev, type);
+	if (!rfkill_dev)
+		return ERR_PTR(-ENOMEM);
+	rfkill_dev->name = name;
+	get_u32(&state, cap);
+	rfkill_dev->state = state ? RFKILL_STATE_UNBLOCKED :
+		RFKILL_STATE_SOFT_BLOCKED;
+	data = kzalloc(sizeof(u32), GFP_KERNEL);
+	if (!data) {
+		rfkill_free(rfkill_dev);
+		return ERR_PTR(-ENOMEM);
+	}
+	*data = cap;
+	rfkill_dev->data = data;
+	rfkill_dev->toggle_radio = acer_rfkill_set;
+	rfkill_dev->user_claim_unsupported = 1;
+
+	err = rfkill_register(rfkill_dev);
+	if (err) {
+		kfree(rfkill_dev->data);
+		rfkill_free(rfkill_dev);
+		return ERR_PTR(err);
+	}
+	return rfkill_dev;
+}
+
+static int acer_rfkill_init(struct device *dev)
+{
+	wireless_rfkill = acer_rfkill_register(dev, RFKILL_TYPE_WLAN,
+		"acer-wireless", ACER_CAP_WIRELESS);
+	if (IS_ERR(wireless_rfkill))
+		return PTR_ERR(wireless_rfkill);
+
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		bluetooth_rfkill = acer_rfkill_register(dev,
+			RFKILL_TYPE_BLUETOOTH, "acer-bluetooth",
+			ACER_CAP_BLUETOOTH);
+		if (IS_ERR(bluetooth_rfkill)) {
+			kfree(wireless_rfkill->data);
+			rfkill_unregister(wireless_rfkill);
+			return PTR_ERR(bluetooth_rfkill);
+		}
+	}
+
+	rfkill_workqueue = create_singlethread_workqueue("rfkill_workqueue");
+	if (!rfkill_workqueue) {
+		if (has_cap(ACER_CAP_BLUETOOTH)) {
+			kfree(bluetooth_rfkill->data);
+			rfkill_unregister(bluetooth_rfkill);
+		}
+		kfree(wireless_rfkill->data);
+		rfkill_unregister(wireless_rfkill);
+		return -ENOMEM;
+	}
+	queue_delayed_work(rfkill_workqueue, &acer_rfkill_work, HZ);
+
+	return 0;
+}
+
+static void acer_rfkill_exit(void)
+{
+	cancel_delayed_work_sync(&acer_rfkill_work);
+	destroy_workqueue(rfkill_workqueue);
+	kfree(wireless_rfkill->data);
+	rfkill_unregister(wireless_rfkill);
+	if (has_cap(ACER_CAP_BLUETOOTH)) {
+		kfree(wireless_rfkill->data);
+		rfkill_unregister(bluetooth_rfkill);
+	}
+	return;
+}
+
+/*
  * Read/ write bool sysfs macro
  */
 #define show_set_bool(value, cap) \
@@ -1026,7 +1150,9 @@ static int __devinit acer_platform_probe(struct platform_device *device)
 			goto error_brightness;
 	}
 
-	return 0;
+	err = acer_rfkill_init(&device->dev);
+
+	return err;
 
 error_brightness:
 	acer_led_exit();
@@ -1040,6 +1166,8 @@ static int acer_platform_remove(struct platform_device *device)
 		acer_led_exit();
 	if (has_cap(ACER_CAP_BRIGHTNESS))
 		acer_backlight_exit();
+
+	acer_rfkill_exit();
 	return 0;
 }
 
