@@ -44,10 +44,6 @@
 DEFINE_SPINLOCK(nf_conntrack_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 
-/* nf_conntrack_standalone needs this */
-atomic_t nf_conntrack_count = ATOMIC_INIT(0);
-EXPORT_SYMBOL_GPL(nf_conntrack_count);
-
 unsigned int nf_conntrack_htable_size __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 
@@ -477,13 +473,13 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 	}
 
 	/* We don't want any race condition at early drop stage */
-	atomic_inc(&nf_conntrack_count);
+	atomic_inc(&net->ct.count);
 
 	if (nf_conntrack_max &&
-	    unlikely(atomic_read(&nf_conntrack_count) > nf_conntrack_max)) {
+	    unlikely(atomic_read(&net->ct.count) > nf_conntrack_max)) {
 		unsigned int hash = hash_conntrack(orig);
 		if (!early_drop(hash)) {
-			atomic_dec(&nf_conntrack_count);
+			atomic_dec(&net->ct.count);
 			if (net_ratelimit())
 				printk(KERN_WARNING
 				       "nf_conntrack: table full, dropping"
@@ -495,7 +491,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 	ct = kmem_cache_zalloc(nf_conntrack_cachep, gfp);
 	if (ct == NULL) {
 		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
-		atomic_dec(&nf_conntrack_count);
+		atomic_dec(&net->ct.count);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -516,10 +512,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 static void nf_conntrack_free_rcu(struct rcu_head *head)
 {
 	struct nf_conn *ct = container_of(head, struct nf_conn, rcu);
+	struct net *net = nf_ct_net(ct);
 
 	nf_ct_ext_free(ct);
 	kmem_cache_free(nf_conntrack_cachep, ct);
-	atomic_dec(&nf_conntrack_count);
+	atomic_dec(&net->ct.count);
 }
 
 void nf_conntrack_free(struct nf_conn *ct)
@@ -1024,7 +1021,7 @@ void nf_conntrack_cleanup(struct net *net)
 	nf_ct_event_cache_flush();
  i_see_dead_people:
 	nf_conntrack_flush();
-	if (atomic_read(&nf_conntrack_count) != 0) {
+	if (atomic_read(&net->ct.count) != 0) {
 		schedule();
 		goto i_see_dead_people;
 	}
@@ -1148,6 +1145,7 @@ int nf_conntrack_init(struct net *net)
 		 * entries. */
 		max_factor = 4;
 	}
+	atomic_set(&net->ct.count, 0);
 	nf_conntrack_hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size,
 						  &nf_conntrack_vmalloc);
 	if (!nf_conntrack_hash) {
