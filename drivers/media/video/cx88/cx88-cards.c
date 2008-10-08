@@ -1822,6 +1822,18 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_PROF_7300] = {
+		.name           = "PROF 7300 DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2211,6 +2223,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x8920,
 		.subdevice = 0x8888,
 		.card      = CX88_BOARD_TBS_8920,
+	}, {
+		.subvendor = 0xB033,
+		.subdevice = 0x3033,
+		.card      = CX88_BOARD_PROF_7300,
 	},
 };
 
@@ -2817,18 +2833,9 @@ static void cx88_card_setup(struct cx88_core *core)
 	}
 	case  CX88_BOARD_TEVII_S420:
 	case  CX88_BOARD_TEVII_S460:
-		cx_write(MO_SRST_IO, 0);
-		msleep(100);
-		cx_write(MO_SRST_IO, 1);
-		msleep(100);
-		break;
 	case  CX88_BOARD_OMICOM_SS4_PCI:
-		cx_write(MO_SRST_IO, 0);
-		msleep(100);
-		cx_write(MO_SRST_IO, 1);
-		msleep(100);
-		break;
 	case  CX88_BOARD_TBS_8920:
+	case  CX88_BOARD_PROF_7300:
 		cx_write(MO_SRST_IO, 0);
 		msleep(100);
 		cx_write(MO_SRST_IO, 1);
