@@ -308,7 +308,7 @@ __fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 	}
 }
 
-void __init generate_cpl_tables(void)
+void __init generate_cplb_tables(void)
 {
 
 	u16 i, j, process;

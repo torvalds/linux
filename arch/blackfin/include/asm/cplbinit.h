@@ -90,6 +90,6 @@ extern u_long dpdt_swapcount_table[];
 extern unsigned long reserved_mem_dcache_on;
 extern unsigned long reserved_mem_icache_on;
 
-extern void generate_cpl_tables(void);
+extern void generate_cplb_tables(void);
 
 #endif

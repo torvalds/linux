@@ -78,10 +78,10 @@ static struct change_member *change_point[2*BFIN_MEMMAP_MAX] __initdata;
 static struct bfin_memmap_entry *overlap_list[BFIN_MEMMAP_MAX] __initdata;
 static struct bfin_memmap_entry new_map[BFIN_MEMMAP_MAX] __initdata;
 
-void __init bf53x_cache_init(void)
+void __init bfin_cache_init(void)
 {
 #if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
-	generate_cpl_tables();
+	generate_cplb_tables();
 #endif
 
 #ifdef CONFIG_BFIN_ICACHE
@@ -101,7 +101,7 @@ void __init bf53x_cache_init(void)
 #endif
 }
 
-void __init bf53x_relocate_l1_mem(void)
+void __init bfin_relocate_l1_mem(void)
 {
 	unsigned long l1_code_length;
 	unsigned long l1_data_a_length;
@@ -860,7 +860,7 @@ void __init setup_arch(char **cmdline_p)
 		!= SAFE_USER_INSTRUCTION - FIXED_CODE_START);
 
 	init_exception_vectors();
-	bf53x_cache_init();
+	bfin_cache_init();
 }
 
 static int __init topology_init(void)

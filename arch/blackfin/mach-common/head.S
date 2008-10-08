@@ -141,7 +141,7 @@ ENTRY(__start)
 #endif
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
-	call _bf53x_relocate_l1_mem;
+	call _bfin_relocate_l1_mem;
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
 #endif

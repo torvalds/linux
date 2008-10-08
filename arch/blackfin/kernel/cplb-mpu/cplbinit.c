@@ -36,7 +36,7 @@ struct cplb_entry dcplb_tbl[MAX_CPLBS];
 int first_switched_icplb, first_switched_dcplb;
 int first_mask_dcplb;
 
-void __init generate_cpl_tables(void)
+void __init generate_cplb_tables(void)
 {
 	int i_d, i_i;
 	unsigned long addr;
