@@ -669,7 +669,7 @@ static void s2255_fillbuff(struct s2255_dev *dev, struct s2255_buffer *buf,
 		(unsigned long)vbuf, pos);
 	/* tell v4l buffer was filled */
 
-	buf->vb.field_count++;
+	buf->vb.field_count = dev->frame_count[chn] * 2;
 	do_gettimeofday(&ts);
 	buf->vb.ts = ts;
 	buf->vb.state = VIDEOBUF_DONE;
@@ -1268,6 +1268,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	dev->last_frame[chn] = -1;
 	dev->bad_payload[chn] = 0;
 	dev->cur_frame[chn] = 0;
+	dev->frame_count[chn] = 0;
 	for (j = 0; j < SYS_FRAMES; j++) {
 		dev->buffer[chn].frame[j].ulState = 0;
 		dev->buffer[chn].frame[j].cur_size = 0;

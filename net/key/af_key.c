@@ -73,22 +73,18 @@ static int pfkey_can_dump(struct sock *sk)
 	return 0;
 }
 
-static int pfkey_do_dump(struct pfkey_sock *pfk)
+static void pfkey_terminate_dump(struct pfkey_sock *pfk)
 {
-	int rc;
-
-	rc = pfk->dump.dump(pfk);
-	if (rc == -ENOBUFS)
-		return 0;
-
-	pfk->dump.done(pfk);
-	pfk->dump.dump = NULL;
-	pfk->dump.done = NULL;
-	return rc;
+	if (pfk->dump.dump) {
+		pfk->dump.done(pfk);
+		pfk->dump.dump = NULL;
+		pfk->dump.done = NULL;
+	}
 }
 
 static void pfkey_sock_destruct(struct sock *sk)
 {
+	pfkey_terminate_dump(pfkey_sk(sk));
 	skb_queue_purge(&sk->sk_receive_queue);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
@@ -308,6 +304,18 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 		kfree_skb(skb2);
 	kfree_skb(skb);
 	return err;
+}
+
+static int pfkey_do_dump(struct pfkey_sock *pfk)
+{
+	int rc;
+
+	rc = pfk->dump.dump(pfk);
+	if (rc == -ENOBUFS)
+		return 0;
+
+	pfkey_terminate_dump(pfk);
+	return rc;
 }
 
 static inline void pfkey_hdr_dup(struct sadb_msg *new, struct sadb_msg *orig)

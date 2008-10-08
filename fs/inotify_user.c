@@ -323,7 +323,7 @@ out:
 }
 
 /*
- * remove_kevent - cleans up and ultimately frees the given kevent
+ * remove_kevent - cleans up the given kevent
  *
  * Caller must hold dev->ev_mutex.
  */
@@ -334,7 +334,13 @@ static void remove_kevent(struct inotify_device *dev,
 
 	dev->event_count--;
 	dev->queue_size -= sizeof(struct inotify_event) + kevent->event.len;
+}
 
+/*
+ * free_kevent - frees the given kevent.
+ */
+static void free_kevent(struct inotify_kernel_event *kevent)
+{
 	kfree(kevent->name);
 	kmem_cache_free(event_cachep, kevent);
 }
@@ -350,6 +356,7 @@ static void inotify_dev_event_dequeue(struct inotify_device *dev)
 		struct inotify_kernel_event *kevent;
 		kevent = inotify_dev_get_event(dev);
 		remove_kevent(dev, kevent);
+		free_kevent(kevent);
 	}
 }
 
@@ -433,17 +440,15 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	dev = file->private_data;
 
 	while (1) {
-		int events;
 
 		prepare_to_wait(&dev->wq, &wait, TASK_INTERRUPTIBLE);
 
 		mutex_lock(&dev->ev_mutex);
-		events = !list_empty(&dev->events);
-		mutex_unlock(&dev->ev_mutex);
-		if (events) {
+		if (!list_empty(&dev->events)) {
 			ret = 0;
 			break;
 		}
+		mutex_unlock(&dev->ev_mutex);
 
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
@@ -462,7 +467,6 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev->ev_mutex);
 	while (1) {
 		struct inotify_kernel_event *kevent;
 
@@ -481,6 +485,13 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 			}
 			break;
 		}
+		remove_kevent(dev, kevent);
+
+		/*
+		 * Must perform the copy_to_user outside the mutex in order
+		 * to avoid a lock order reversal with mmap_sem.
+		 */
+		mutex_unlock(&dev->ev_mutex);
 
 		if (copy_to_user(buf, &kevent->event, event_size)) {
 			ret = -EFAULT;
@@ -498,7 +509,9 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 			count -= kevent->event.len;
 		}
 
-		remove_kevent(dev, kevent);
+		free_kevent(kevent);
+
+		mutex_lock(&dev->ev_mutex);
 	}
 	mutex_unlock(&dev->ev_mutex);
 

@@ -455,12 +455,7 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 		return NOTIFY_DONE;
 
 	case DIE_NMI_IPI:
-		if (atomic_read(&kgdb_active) != -1) {
-			/* KGDB CPU roundup */
-			kgdb_nmicallback(raw_smp_processor_id(), regs);
-			was_in_debug_nmi[raw_smp_processor_id()] = 1;
-			touch_nmi_watchdog();
-		}
+		/* Just ignore, we will handle the roundup on DIE_NMI. */
 		return NOTIFY_DONE;
 
 	case DIE_NMIUNKNOWN:
