@@ -40,7 +40,6 @@
 #include <linux/irq.h>
 #include <asm/trace.h>
 #include <asm/fixed_code.h>
-#include <asm/dma.h>
 
 #ifdef CONFIG_KGDB
 # include <linux/kgdb.h>
@@ -632,7 +631,7 @@ bool get_instruction(unsigned short *val, unsigned short *address)
 
 #if L1_CODE_LENGTH != 0
 	if (addr >= L1_CODE_START && (addr + 2) <= (L1_CODE_START + L1_CODE_LENGTH)) {
-		dma_memcpy(val, address, 2);
+		isram_memcpy(val, address, 2);
 		return true;
 	}
 #endif

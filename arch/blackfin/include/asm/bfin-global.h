@@ -92,6 +92,8 @@ extern int sram_free(const void*);
 extern void *sram_alloc_with_lsl(size_t, unsigned long);
 extern int sram_free_with_lsl(const void*);
 
+extern void *isram_memcpy(void *dest, const void *src, size_t n);
+
 extern const char bfin_board_name[];
 
 extern unsigned long bfin_sic_iwr[];

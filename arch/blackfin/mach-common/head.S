@@ -68,6 +68,16 @@ ENTRY(__start)
 	M2 = r0;
 	M3 = r0;
 
+	/*
+	 * Clear ITEST_COMMAND and DTEST_COMMAND registers,
+	 * Leaving these as non-zero can confuse the emulator
+	 */
+	p0.L = LO(DTEST_COMMAND);
+	p0.H = HI(DTEST_COMMAND);
+	[p0] = R0;
+	[p0 + (ITEST_COMMAND - DTEST_COMMAND)] = R0;
+	CSYNC;
+
 	trace_buffer_init(p0,r0);
 	P0 = R1;
 	R0 = R1;
