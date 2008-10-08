@@ -203,6 +203,9 @@ SECTIONS
 		*(.rela*)
 	}
 
+	/* Fake ELF header containing RPA note; for addnote */
+	.fakeelf : AT(ADDR(.fakeelf) - LOAD_OFFSET) { *(.fakeelf) }
+
 	/* freed after init ends here */
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;

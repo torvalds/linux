@@ -732,7 +732,7 @@ static struct fake_elf {
 			u32	ignore_me;
 		} rpadesc;
 	} rpanote;
-} fake_elf = {
+} fake_elf __section(.fakeelf) = {
 	.elfhdr = {
 		.e_ident = { 0x7f, 'E', 'L', 'F',
 			     ELFCLASS32, ELFDATA2MSB, EV_CURRENT },
@@ -774,13 +774,13 @@ static struct fake_elf {
 		.type = 0x12759999,
 		.name = "IBM,RPA-Client-Config",
 		.rpadesc = {
-			.lpar_affinity = 0,
-			.min_rmo_size = 64,	/* in megabytes */
+			.lpar_affinity = 1,
+			.min_rmo_size = 128,	/* in megabytes */
 			.min_rmo_percent = 0,
-			.max_pft_size = 48,	/* 2^48 bytes max PFT size */
+			.max_pft_size = 46,	/* 2^46 bytes max PFT size */
 			.splpar = 1,
 			.min_load = ~0U,
-			.new_mem_def = 0
+			.new_mem_def = 1
 		}
 	}
 };
