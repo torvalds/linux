@@ -312,7 +312,6 @@ static struct i2c_adapter mpc_ops = {
 	.name = "MPC adapter",
 	.id = I2C_HW_MPC107,
 	.algo = &mpc_algo,
-	.class = I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.timeout = 1,
 };
 
