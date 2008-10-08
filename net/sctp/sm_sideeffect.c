@@ -1152,7 +1152,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_REPORT_TSN:
 			/* Record the arrival of a TSN.  */
-			sctp_tsnmap_mark(&asoc->peer.tsn_map, cmd->obj.u32);
+			error = sctp_tsnmap_mark(&asoc->peer.tsn_map,
+						 cmd->obj.u32);
 			break;
 
 		case SCTP_CMD_REPORT_FWDTSN:

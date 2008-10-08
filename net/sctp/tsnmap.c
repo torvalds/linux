@@ -43,35 +43,42 @@
  */
 
 #include <linux/types.h>
+#include <linux/bitmap.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
 static void sctp_tsnmap_update(struct sctp_tsnmap *map);
-static void sctp_tsnmap_find_gap_ack(__u8 *map, __u16 off,
-				     __u16 len, __u16 base,
-				     int *started, __u16 *start,
-				     int *ended, __u16 *end);
+static void sctp_tsnmap_find_gap_ack(unsigned long *map, __u16 off,
+				     __u16 len, __u16 *start, __u16 *end);
+static int sctp_tsnmap_grow(struct sctp_tsnmap *map, u16 gap);
 
 /* Initialize a block of memory as a tsnmap.  */
 struct sctp_tsnmap *sctp_tsnmap_init(struct sctp_tsnmap *map, __u16 len,
-				     __u32 initial_tsn)
+				     __u32 initial_tsn, gfp_t gfp)
 {
-	map->tsn_map = map->raw_map;
-	map->overflow_map = map->tsn_map + len;
-	map->len = len;
+	if (!map->tsn_map) {
+		map->tsn_map = kzalloc(len>>3, gfp);
+		if (map->tsn_map == NULL)
+			return NULL;
 
-	/* Clear out a TSN ack status.  */
-	memset(map->tsn_map, 0x00, map->len + map->len);
+		map->len = len;
+	} else {
+		bitmap_zero(map->tsn_map, map->len);
+	}
 
 	/* Keep track of TSNs represented by tsn_map.  */
 	map->base_tsn = initial_tsn;
-	map->overflow_tsn = initial_tsn + map->len;
 	map->cumulative_tsn_ack_point = initial_tsn - 1;
 	map->max_tsn_seen = map->cumulative_tsn_ack_point;
-	map->malloced = 0;
 	map->num_dup_tsns = 0;
 
 	return map;
+}
+
+void sctp_tsnmap_free(struct sctp_tsnmap *map)
+{
+	map->len = 0;
+	kfree(map->tsn_map);
 }
 
 /* Test the tracking state of this TSN.
@@ -82,66 +89,69 @@ struct sctp_tsnmap *sctp_tsnmap_init(struct sctp_tsnmap *map, __u16 len,
  */
 int sctp_tsnmap_check(const struct sctp_tsnmap *map, __u32 tsn)
 {
-	__s32 gap;
-	int dup;
+	u32 gap;
+
+	/* Check to see if this is an old TSN */
+	if (TSN_lte(tsn, map->cumulative_tsn_ack_point))
+		return 1;
+
+	/* Verify that we can hold this TSN and that it will not
+	 * overlfow our map
+	 */
+	if (!TSN_lt(tsn, map->base_tsn + SCTP_TSN_MAP_SIZE))
+		return -1;
 
 	/* Calculate the index into the mapping arrays.  */
 	gap = tsn - map->base_tsn;
 
-	/* Verify that we can hold this TSN.  */
-	if (gap >= (/* base */ map->len + /* overflow */ map->len)) {
-		dup = -1;
-		goto out;
-	}
-
-	/* Honk if we've already seen this TSN.
-	 * We have three cases:
-	 *	1. The TSN is ancient or belongs to a previous tsn_map.
-	 *	2. The TSN is already marked in the tsn_map.
-	 *	3. The TSN is already marked in the tsn_map_overflow.
-	 */
-	if (gap < 0 ||
-	    (gap < map->len && map->tsn_map[gap]) ||
-	    (gap >= map->len && map->overflow_map[gap - map->len]))
-		dup = 1;
+	/* Check to see if TSN has already been recorded.  */
+	if (gap < map->len && test_bit(gap, map->tsn_map))
+		return 1;
 	else
-		dup = 0;
-
-out:
-	return dup;
+		return 0;
 }
 
 
 /* Mark this TSN as seen.  */
-void sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn)
+int sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn)
 {
-	__s32 gap;
+	u16 gap;
 
-	/* Vacuously mark any TSN which precedes the map base or
-	 * exceeds the end of the map.
-	 */
 	if (TSN_lt(tsn, map->base_tsn))
-		return;
-	if (!TSN_lt(tsn, map->base_tsn + map->len + map->len))
-		return;
+		return 0;
 
-	/* Bump the max.  */
-	if (TSN_lt(map->max_tsn_seen, tsn))
-		map->max_tsn_seen = tsn;
-
-	/* Assert: TSN is in range.  */
 	gap = tsn - map->base_tsn;
 
-	/* Mark the TSN as received.  */
-	if (gap < map->len)
-		map->tsn_map[gap]++;
-	else
-		map->overflow_map[gap - map->len]++;
+	if (gap >= map->len && !sctp_tsnmap_grow(map, gap))
+		return -ENOMEM;
 
-	/* Go fixup any internal TSN mapping variables including
-	 * cumulative_tsn_ack_point.
-	 */
-	sctp_tsnmap_update(map);
+	if (!sctp_tsnmap_has_gap(map) && gap == 0) {
+		/* In this case the map has no gaps and the tsn we are
+		 * recording is the next expected tsn.  We don't touch
+		 * the map but simply bump the values.
+		 */
+		map->max_tsn_seen++;
+		map->cumulative_tsn_ack_point++;
+		map->base_tsn++;
+	} else {
+		/* Either we already have a gap, or about to record a gap, so
+		 * have work to do.
+		 *
+		 * Bump the max.
+		 */
+		if (TSN_lt(map->max_tsn_seen, tsn))
+			map->max_tsn_seen = tsn;
+
+		/* Mark the TSN as received.  */
+		set_bit(gap, map->tsn_map);
+
+		/* Go fixup any internal TSN mapping variables including
+		 * cumulative_tsn_ack_point.
+		 */
+		sctp_tsnmap_update(map);
+	}
+
+	return 0;
 }
 
 
@@ -160,66 +170,34 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 					 struct sctp_tsnmap_iter *iter,
 					 __u16 *start, __u16 *end)
 {
-	int started, ended;
-	__u16 start_, end_, offset;
-
-	/* We haven't found a gap yet.  */
-	started = ended = 0;
+	int ended = 0;
+	__u16 start_ = 0, end_ = 0, offset;
 
 	/* If there are no more gap acks possible, get out fast.  */
 	if (TSN_lte(map->max_tsn_seen, iter->start))
 		return 0;
 
-	/* Search the first mapping array.  */
-	if (iter->start - map->base_tsn < map->len) {
+	offset = iter->start - map->base_tsn;
+	sctp_tsnmap_find_gap_ack(map->tsn_map, offset, map->len,
+				 &start_, &end_);
 
-		offset = iter->start - map->base_tsn;
-		sctp_tsnmap_find_gap_ack(map->tsn_map, offset, map->len, 0,
-					 &started, &start_, &ended, &end_);
-	}
-
-	/* Do we need to check the overflow map? */
-	if (!ended) {
-		/* Fix up where we'd like to start searching in the
-		 * overflow map.
-		 */
-		if (iter->start - map->base_tsn < map->len)
-			offset = 0;
-		else
-			offset = iter->start - map->base_tsn - map->len;
-
-		/* Search the overflow map.  */
-		sctp_tsnmap_find_gap_ack(map->overflow_map,
-					 offset,
-					 map->len,
-					 map->len,
-					 &started, &start_,
-					 &ended, &end_);
-	}
-
-	/* The Gap Ack Block happens to end at the end of the
-	 * overflow map.
-	 */
-	if (started && !ended) {
-		ended++;
-		end_ = map->len + map->len - 1;
-	}
+	/* The Gap Ack Block happens to end at the end of the map. */
+	if (start_ && !end_)
+		end_ = map->len - 1;
 
 	/* If we found a Gap Ack Block, return the start and end and
 	 * bump the iterator forward.
 	 */
-	if (ended) {
+	if (end_) {
 		/* Fix up the start and end based on the
-		 * Cumulative TSN Ack offset into the map.
+		 * Cumulative TSN Ack which is always 1 behind base.
 		 */
-		int gap = map->cumulative_tsn_ack_point -
-			map->base_tsn;
-
-		*start = start_ - gap;
-		*end = end_ - gap;
+		*start = start_ + 1;
+		*end = end_ + 1;
 
 		/* Move the iterator forward.  */
 		iter->start = map->cumulative_tsn_ack_point + *end + 1;
+		ended = 1;
 	}
 
 	return ended;
@@ -228,35 +206,33 @@ SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 /* Mark this and any lower TSN as seen.  */
 void sctp_tsnmap_skip(struct sctp_tsnmap *map, __u32 tsn)
 {
-	__s32 gap;
+	u32 gap;
 
-	/* Vacuously mark any TSN which precedes the map base or
-	 * exceeds the end of the map.
-	 */
 	if (TSN_lt(tsn, map->base_tsn))
 		return;
-	if (!TSN_lt(tsn, map->base_tsn + map->len + map->len))
+	if (!TSN_lt(tsn, map->base_tsn + SCTP_TSN_MAP_SIZE))
 		return;
 
 	/* Bump the max.  */
 	if (TSN_lt(map->max_tsn_seen, tsn))
 		map->max_tsn_seen = tsn;
 
-	/* Assert: TSN is in range.  */
 	gap = tsn - map->base_tsn + 1;
 
-	/* Mark the TSNs as received.  */
-	if (gap <= map->len)
-		memset(map->tsn_map, 0x01, gap);
-	else {
-		memset(map->tsn_map, 0x01, map->len);
-		memset(map->overflow_map, 0x01, (gap - map->len));
+	map->base_tsn += gap;
+	map->cumulative_tsn_ack_point += gap;
+	if (gap >= map->len) {
+		/* If our gap is larger then the map size, just
+		 * zero out the map.
+		 */
+		bitmap_zero(map->tsn_map, map->len);
+	} else {
+		/* If the gap is smaller then the map size,
+		 * shift the map by 'gap' bits and update further.
+		 */
+		bitmap_shift_right(map->tsn_map, map->tsn_map, gap, map->len);
+		sctp_tsnmap_update(map);
 	}
-
-	/* Go fixup any internal TSN mapping variables including
-	 * cumulative_tsn_ack_point.
-	 */
-	sctp_tsnmap_update(map);
 }
 
 /********************************************************************
@@ -268,27 +244,19 @@ void sctp_tsnmap_skip(struct sctp_tsnmap *map, __u32 tsn)
  */
 static void sctp_tsnmap_update(struct sctp_tsnmap *map)
 {
-	__u32 ctsn;
+	u16 len;
+	unsigned long zero_bit;
 
-	ctsn = map->cumulative_tsn_ack_point;
-	do {
-		ctsn++;
-		if (ctsn == map->overflow_tsn) {
-			/* Now tsn_map must have been all '1's,
-			 * so we swap the map and check the overflow table
-			 */
-			__u8 *tmp = map->tsn_map;
-			memset(tmp, 0, map->len);
-			map->tsn_map = map->overflow_map;
-			map->overflow_map = tmp;
 
-			/* Update the tsn_map boundaries.  */
-			map->base_tsn += map->len;
-			map->overflow_tsn += map->len;
-		}
-	} while (map->tsn_map[ctsn - map->base_tsn]);
+	len = map->max_tsn_seen - map->cumulative_tsn_ack_point;
+	zero_bit = find_first_zero_bit(map->tsn_map, len);
+	if (!zero_bit)
+		return;		/* The first 0-bit is bit 0.  nothing to do */
 
-	map->cumulative_tsn_ack_point = ctsn - 1; /* Back up one. */
+	map->base_tsn += zero_bit;
+	map->cumulative_tsn_ack_point += zero_bit;
+
+	bitmap_shift_right(map->tsn_map, map->tsn_map, zero_bit, map->len);
 }
 
 /* How many data chunks  are we missing from our peer?
@@ -299,29 +267,17 @@ __u16 sctp_tsnmap_pending(struct sctp_tsnmap *map)
 	__u32 max_tsn = map->max_tsn_seen;
 	__u32 base_tsn = map->base_tsn;
 	__u16 pending_data;
-	__s32 gap, start, end, i;
+	u32 gap, i;
 
 	pending_data = max_tsn - cum_tsn;
 	gap = max_tsn - base_tsn;
 
-	if (gap <= 0 || gap >= (map->len + map->len))
+	if (gap == 0 || gap >= map->len)
 		goto out;
 
-	start = ((cum_tsn >= base_tsn) ? (cum_tsn - base_tsn + 1) : 0);
-	end = ((gap > map->len ) ? map->len : gap + 1);
-
-	for (i = start; i < end; i++) {
-		if (map->tsn_map[i])
+	for (i = 0; i < gap+1; i++) {
+		if (test_bit(i, map->tsn_map))
 			pending_data--;
-	}
-
-	if (gap >= map->len) {
-		start = 0;
-		end = gap - map->len + 1;
-		for (i = start; i < end; i++) {
-			if (map->overflow_map[i])
-				pending_data--;
-		}
 	}
 
 out:
@@ -334,10 +290,8 @@ out:
  * The flags "started" and "ended" tell is if we found the beginning
  * or (respectively) the end of a Gap Ack Block.
  */
-static void sctp_tsnmap_find_gap_ack(__u8 *map, __u16 off,
-				     __u16 len, __u16 base,
-				     int *started, __u16 *start,
-				     int *ended, __u16 *end)
+static void sctp_tsnmap_find_gap_ack(unsigned long *map, __u16 off,
+				     __u16 len, __u16 *start, __u16 *end)
 {
 	int i = off;
 
@@ -348,49 +302,36 @@ static void sctp_tsnmap_find_gap_ack(__u8 *map, __u16 off,
 	/* Also, stop looking past the maximum TSN seen. */
 
 	/* Look for the start. */
-	if (!(*started)) {
-		for (; i < len; i++) {
-			if (map[i]) {
-				(*started)++;
-				*start = base + i;
-				break;
-			}
-		}
-	}
+	i = find_next_bit(map, len, off);
+	if (i < len)
+		*start = i;
 
 	/* Look for the end.  */
-	if (*started) {
+	if (*start) {
 		/* We have found the start, let's find the
 		 * end.  If we find the end, break out.
 		 */
-		for (; i < len; i++) {
-			if (!map[i]) {
-				(*ended)++;
-				*end = base + i - 1;
-				break;
-			}
-		}
+		i = find_next_zero_bit(map, len, i);
+		if (i < len)
+			*end = i - 1;
 	}
 }
 
 /* Renege that we have seen a TSN.  */
 void sctp_tsnmap_renege(struct sctp_tsnmap *map, __u32 tsn)
 {
-	__s32 gap;
+	u32 gap;
 
 	if (TSN_lt(tsn, map->base_tsn))
 		return;
-	if (!TSN_lt(tsn, map->base_tsn + map->len + map->len))
+	/* Assert: TSN is in range.  */
+	if (!TSN_lt(tsn, map->base_tsn + map->len))
 		return;
 
-	/* Assert: TSN is in range.  */
 	gap = tsn - map->base_tsn;
 
 	/* Pretend we never saw the TSN.  */
-	if (gap < map->len)
-		map->tsn_map[gap] = 0;
-	else
-		map->overflow_map[gap - map->len] = 0;
+	clear_bit(gap, map->tsn_map);
 }
 
 /* How many gap ack blocks do we have recorded? */
@@ -415,4 +356,28 @@ __u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map)
 		}
 	}
 	return gabs;
+}
+
+static int sctp_tsnmap_grow(struct sctp_tsnmap *map, u16 gap)
+{
+	unsigned long *new;
+	unsigned long inc;
+	u16  len;
+
+	if (gap >= SCTP_TSN_MAP_SIZE)
+		return 0;
+
+	inc = ALIGN((gap - map->len),BITS_PER_LONG) + SCTP_TSN_MAP_INCREMENT;
+	len = min_t(u16, map->len + inc, SCTP_TSN_MAP_SIZE);
+
+	new = kzalloc(len>>3, GFP_ATOMIC);
+	if (!new)
+		return 0;
+
+	bitmap_copy(new, map->tsn_map, map->max_tsn_seen - map->base_tsn);
+	kfree(map->tsn_map);
+	map->tsn_map = new;
+	map->len = len;
+
+	return 1;
 }

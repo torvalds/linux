@@ -1545,7 +1545,6 @@ struct sctp_association {
 		 * in tsn_map--we get it by calling sctp_tsnmap_get_ctsn().
 		 */
 		struct sctp_tsnmap tsn_map;
-		__u8 _map[sctp_tsnmap_storage_size(SCTP_TSN_MAP_SIZE)];
 
 		/* Ack State   : This flag indicates if the next received
 		 *             : packet is to be responded to with a

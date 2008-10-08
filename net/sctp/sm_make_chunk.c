@@ -2288,8 +2288,9 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	}
 
 	/* Set up the TSN tracking pieces.  */
-	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_SIZE,
-			 asoc->peer.i.initial_tsn);
+	if (!sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
+				asoc->peer.i.initial_tsn, gfp))
+		goto clean_up;
 
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
 	 *
