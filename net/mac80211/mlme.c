@@ -568,15 +568,27 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	}
 }
 
-static u32 ieee80211_handle_protect_preamb(struct ieee80211_sub_if_data *sdata,
-					   bool use_protection,
-					   bool use_short_preamble)
+static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
+					   u16 capab, bool erp_valid, u8 erp)
 {
 	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 #endif
 	u32 changed = 0;
+	bool use_protection;
+	bool use_short_preamble;
+	bool use_short_slot;
+
+	if (erp_valid) {
+		use_protection = (erp & WLAN_ERP_USE_PROTECTION) != 0;
+		use_short_preamble = (erp & WLAN_ERP_BARKER_PREAMBLE) == 0;
+	} else {
+		use_protection = false;
+		use_short_preamble = !!(capab & WLAN_CAPABILITY_SHORT_PREAMBLE);
+	}
+
+	use_short_slot = !!(capab & WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
 	if (use_protection != bss_conf->use_cts_prot) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -605,30 +617,18 @@ static u32 ieee80211_handle_protect_preamb(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_ERP_PREAMBLE;
 	}
 
-	return changed;
-}
-
-static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
-				   u8 erp_value)
-{
-	bool use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
-	bool use_short_preamble = (erp_value & WLAN_ERP_BARKER_PREAMBLE) == 0;
-
-	return ieee80211_handle_protect_preamb(sdata,
-			use_protection, use_short_preamble);
-}
-
-static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
-					   struct ieee80211_bss *bss)
-{
-	u32 changed = 0;
-
-	if (bss->has_erp_value)
-		changed |= ieee80211_handle_erp_ie(sdata, bss->erp_value);
-	else {
-		u16 capab = bss->capability;
-		changed |= ieee80211_handle_protect_preamb(sdata, false,
-				(capab & WLAN_CAPABILITY_SHORT_PREAMBLE) != 0);
+	if (use_short_slot != bss_conf->use_short_slot) {
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: switched to %s slot"
+			       " (BSSID=%s)\n",
+			       sdata->dev->name,
+			       use_short_slot ? "short" : "long",
+			       ifsta->bssid);
+		}
+#endif
+		bss_conf->use_short_slot = use_short_slot;
+		changed |= BSS_CHANGED_ERP_SLOT;
 	}
 
 	return changed;
@@ -721,7 +721,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		sdata->bss_conf.timestamp = bss->timestamp;
 		sdata->bss_conf.dtim_period = bss->dtim_period;
 
-		changed |= ieee80211_handle_bss_capability(sdata, bss);
+		changed |= ieee80211_handle_bss_capability(sdata,
+			bss->capability, bss->has_erp_value, bss->erp_value);
 
 		ieee80211_rx_bss_put(local, bss);
 	}
@@ -1657,6 +1658,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_conf *conf = &local->hw.conf;
 	u32 changed = 0;
+	bool erp_valid;
+	u8 erp_value = 0;
 
 	/* Process beacon from the current BSS */
 	baselen = (u8 *) mgmt->u.beacon.variable - (u8 *) mgmt;
@@ -1678,13 +1681,16 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
 				 elems.wmm_param_len);
 
-	if (elems.erp_info && elems.erp_info_len >= 1)
-		changed |= ieee80211_handle_erp_ie(sdata, elems.erp_info[0]);
-	else {
-		u16 capab = le16_to_cpu(mgmt->u.beacon.capab_info);
-		changed |= ieee80211_handle_protect_preamb(sdata, false,
-				(capab & WLAN_CAPABILITY_SHORT_PREAMBLE) != 0);
+
+	if (elems.erp_info && elems.erp_info_len >= 1) {
+		erp_valid = true;
+		erp_value = elems.erp_info[0];
+	} else {
+		erp_valid = false;
 	}
+	changed |= ieee80211_handle_bss_capability(sdata,
+			le16_to_cpu(mgmt->u.beacon.capab_info),
+			erp_valid, erp_value);
 
 	if (elems.ht_cap_elem && elems.ht_info_elem &&
 	    elems.wmm_param && conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {

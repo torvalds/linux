@@ -346,9 +346,12 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
 {
-	sdata->bss_conf.use_cts_prot = 0;
-	sdata->bss_conf.use_short_preamble = 0;
-	return BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_ERP_PREAMBLE;
+	sdata->bss_conf.use_cts_prot = false;
+	sdata->bss_conf.use_short_preamble = false;
+	sdata->bss_conf.use_short_slot = false;
+	return BSS_CHANGED_ERP_CTS_PROT |
+	       BSS_CHANGED_ERP_PREAMBLE |
+	       BSS_CHANGED_ERP_SLOT;
 }
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
