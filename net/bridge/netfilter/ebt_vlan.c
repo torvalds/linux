@@ -87,7 +87,7 @@ ebt_filter_vlan(const struct sk_buff *skb,
 	return EBT_MATCH;
 }
 
-static int
+static bool
 ebt_check_vlan(const char *tablename,
 	       unsigned int hooknr,
 	       const struct ebt_entry *e, void *data, unsigned int datalen)
@@ -99,7 +99,7 @@ ebt_check_vlan(const char *tablename,
 		DEBUG_MSG
 		    ("passed entry proto %2.4X is not 802.1Q (8100)\n",
 		     (unsigned short) ntohs(e->ethproto));
-		return -EINVAL;
+		return false;
 	}
 
 	/* Check for bitmask range
@@ -107,14 +107,14 @@ ebt_check_vlan(const char *tablename,
 	if (info->bitmask & ~EBT_VLAN_MASK) {
 		DEBUG_MSG("bitmask %2X is out of mask (%2X)\n",
 			  info->bitmask, EBT_VLAN_MASK);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Check for inversion flags range */
 	if (info->invflags & ~EBT_VLAN_MASK) {
 		DEBUG_MSG("inversion flags %2X is out of mask (%2X)\n",
 			  info->invflags, EBT_VLAN_MASK);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Reserved VLAN ID (VID) values
@@ -129,7 +129,7 @@ ebt_check_vlan(const char *tablename,
 				DEBUG_MSG
 				    ("id %d is out of range (1-4096)\n",
 				     info->id);
-				return -EINVAL;
+				return false;
 			}
 			/* Note: This is valid VLAN-tagged frame point.
 			 * Any value of user_priority are acceptable,
@@ -144,7 +144,7 @@ ebt_check_vlan(const char *tablename,
 		if ((unsigned char) info->prio > 7) {
 			DEBUG_MSG("prio %d is out of range (0-7)\n",
 			     info->prio);
-			return -EINVAL;
+			return false;
 		}
 	}
 	/* Check for encapsulated proto range - it is possible to be
@@ -155,11 +155,11 @@ ebt_check_vlan(const char *tablename,
 			DEBUG_MSG
 			    ("encap frame length %d is less than minimal\n",
 			     ntohs(info->encap));
-			return -EINVAL;
+			return false;
 		}
 	}
 
-	return 0;
+	return true;
 }
 
 static struct ebt_match filter_vlan __read_mostly = {

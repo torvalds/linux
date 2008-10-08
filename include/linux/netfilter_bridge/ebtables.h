@@ -211,8 +211,7 @@ struct ebt_match
 	int (*match)(const struct sk_buff *skb, const struct net_device *in,
 	   const struct net_device *out, const void *matchdata,
 	   unsigned int datalen);
-	/* 0 == let it in */
-	int (*check)(const char *tablename, unsigned int hookmask,
+	bool (*check)(const char *tablename, unsigned int hookmask,
 	   const struct ebt_entry *e, void *matchdata, unsigned int datalen);
 	void (*destroy)(void *matchdata, unsigned int datalen);
 	unsigned int matchsize;
@@ -226,8 +225,7 @@ struct ebt_watcher
 	void (*watcher)(const struct sk_buff *skb, unsigned int hooknr,
 	   const struct net_device *in, const struct net_device *out,
 	   const void *watcherdata, unsigned int datalen);
-	/* 0 == let it in */
-	int (*check)(const char *tablename, unsigned int hookmask,
+	bool (*check)(const char *tablename, unsigned int hookmask,
 	   const struct ebt_entry *e, void *watcherdata, unsigned int datalen);
 	void (*destroy)(void *watcherdata, unsigned int datalen);
 	unsigned int targetsize;
@@ -242,8 +240,7 @@ struct ebt_target
 	int (*target)(struct sk_buff *skb, unsigned int hooknr,
 	   const struct net_device *in, const struct net_device *out,
 	   const void *targetdata, unsigned int datalen);
-	/* 0 == let it in */
-	int (*check)(const char *tablename, unsigned int hookmask,
+	bool (*check)(const char *tablename, unsigned int hookmask,
 	   const struct ebt_entry *e, void *targetdata, unsigned int datalen);
 	void (*destroy)(void *targetdata, unsigned int datalen);
 	unsigned int targetsize;

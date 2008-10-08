@@ -100,7 +100,7 @@ static int ebt_filter_arp(const struct sk_buff *skb, const struct net_device *in
 	return EBT_MATCH;
 }
 
-static int ebt_arp_check(const char *tablename, unsigned int hookmask,
+static bool ebt_arp_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_arp_info *info = data;
@@ -108,10 +108,10 @@ static int ebt_arp_check(const char *tablename, unsigned int hookmask,
 	if ((e->ethproto != htons(ETH_P_ARP) &&
 	   e->ethproto != htons(ETH_P_RARP)) ||
 	   e->invflags & EBT_IPROTO)
-		return -EINVAL;
+		return false;
 	if (info->bitmask & ~EBT_ARP_MASK || info->invflags & ~EBT_ARP_MASK)
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 static struct ebt_match filter_arp __read_mostly = {

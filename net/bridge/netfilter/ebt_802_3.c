@@ -37,15 +37,15 @@ static int ebt_filter_802_3(const struct sk_buff *skb, const struct net_device *
 }
 
 static struct ebt_match filter_802_3;
-static int ebt_802_3_check(const char *tablename, unsigned int hookmask,
+static bool ebt_802_3_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_802_3_info *info = data;
 
 	if (info->bitmask & ~EBT_802_3_MASK || info->invflags & ~EBT_802_3_MASK)
-		return -EINVAL;
+		return false;
 
-	return 0;
+	return true;
 }
 
 static struct ebt_match filter_802_3 __read_mostly = {

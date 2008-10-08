@@ -37,7 +37,7 @@ static int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
+static bool ebt_target_mark_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_mark_t_info *info = data;
@@ -45,15 +45,15 @@ static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
 
 	tmp = info->target | ~EBT_VERDICT_BITS;
 	if (BASE_CHAIN && tmp == EBT_RETURN)
-		return -EINVAL;
+		return false;
 	CLEAR_BASE_CHAIN_BIT;
 	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
-		return -EINVAL;
+		return false;
 	tmp = info->target & ~EBT_VERDICT_BITS;
 	if (tmp != MARK_SET_VALUE && tmp != MARK_OR_VALUE &&
 	    tmp != MARK_AND_VALUE && tmp != MARK_XOR_VALUE)
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 static struct ebt_target mark_target __read_mostly = {

@@ -27,21 +27,21 @@ static int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
 	return info->target;
 }
 
-static int ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
+static bool ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_nat_info *info = data;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
-		return -EINVAL;
+		return false;
 	CLEAR_BASE_CHAIN_BIT;
 	if ( (strcmp(tablename, "nat") ||
 	   (hookmask & ~((1 << NF_BR_PRE_ROUTING) | (1 << NF_BR_LOCAL_OUT)))) &&
 	   (strcmp(tablename, "broute") || hookmask & ~(1 << NF_BR_BROUTING)) )
-		return -EINVAL;
+		return false;
 	if (INVALID_TARGET)
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 static struct ebt_target dnat __read_mostly = {

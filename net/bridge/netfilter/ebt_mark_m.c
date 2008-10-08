@@ -23,18 +23,18 @@ static int ebt_filter_mark(const struct sk_buff *skb,
 	return !(((skb->mark & info->mask) == info->mark) ^ info->invert);
 }
 
-static int ebt_mark_check(const char *tablename, unsigned int hookmask,
+static bool ebt_mark_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_mark_m_info *info = data;
 
 	if (info->bitmask & ~EBT_MARK_MASK)
-		return -EINVAL;
+		return false;
 	if ((info->bitmask & EBT_MARK_OR) && (info->bitmask & EBT_MARK_AND))
-		return -EINVAL;
+		return false;
 	if (!info->bitmask)
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 static struct ebt_match filter_mark __read_mostly = {

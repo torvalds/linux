@@ -58,20 +58,20 @@ static int ebt_target_reply(struct sk_buff *skb, unsigned int hooknr,
 	return info->target;
 }
 
-static int ebt_target_reply_check(const char *tablename, unsigned int hookmask,
+static bool ebt_target_reply_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_arpreply_info *info = data;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
-		return -EINVAL;
+		return false;
 	if (e->ethproto != htons(ETH_P_ARP) ||
 	    e->invflags & EBT_IPROTO)
-		return -EINVAL;
+		return false;
 	CLEAR_BASE_CHAIN_BIT;
 	if (strcmp(tablename, "nat") || hookmask & ~(1 << NF_BR_PRE_ROUTING))
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 static struct ebt_target reply_target __read_mostly = {

@@ -36,17 +36,17 @@ static void ebt_nflog(const struct sk_buff *skb,
 	nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li, "%s", info->prefix);
 }
 
-static int ebt_nflog_check(const char *tablename,
-			   unsigned int hookmask,
-			   const struct ebt_entry *e,
-			   void *data, unsigned int datalen)
+static bool ebt_nflog_check(const char *tablename,
+			    unsigned int hookmask,
+			    const struct ebt_entry *e,
+			    void *data, unsigned int datalen)
 {
 	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
 
 	if (info->flags & ~EBT_NFLOG_MASK)
-		return -EINVAL;
+		return false;
 	info->prefix[EBT_NFLOG_PREFIX_SIZE - 1] = '\0';
-	return 0;
+	return true;
 }
 
 static struct ebt_watcher nflog __read_mostly = {

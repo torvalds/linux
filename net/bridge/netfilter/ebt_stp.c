@@ -153,7 +153,7 @@ static int ebt_filter_stp(const struct sk_buff *skb, const struct net_device *in
 	return EBT_MATCH;
 }
 
-static int ebt_stp_check(const char *tablename, unsigned int hookmask,
+static bool ebt_stp_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_stp_info *info = data;
@@ -162,13 +162,13 @@ static int ebt_stp_check(const char *tablename, unsigned int hookmask,
 
 	if (info->bitmask & ~EBT_STP_MASK || info->invflags & ~EBT_STP_MASK ||
 	    !(info->bitmask & EBT_STP_MASK))
-		return -EINVAL;
+		return false;
 	/* Make sure the match only receives stp frames */
 	if (compare_ether_addr(e->destmac, bridge_ula) ||
 	    compare_ether_addr(e->destmsk, msk) || !(e->bitmask & EBT_DESTMAC))
-		return -EINVAL;
+		return false;
 
-	return 0;
+	return true;
 }
 
 static struct ebt_match filter_stp __read_mostly = {

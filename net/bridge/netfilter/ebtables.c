@@ -365,7 +365,7 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		return -EINVAL;
 	}
 	if (match->check &&
-	   match->check(name, hookmask, e, m->data, m->match_size) != 0) {
+	    !match->check(name, hookmask, e, m->data, m->match_size)) {
 		BUGPRINT("match->check failed\n");
 		module_put(match->me);
 		return -EINVAL;
@@ -403,7 +403,7 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 		return -EINVAL;
 	}
 	if (watcher->check &&
-	   watcher->check(name, hookmask, e, w->data, w->watcher_size) != 0) {
+	    !watcher->check(name, hookmask, e, w->data, w->watcher_size)) {
 		BUGPRINT("watcher->check failed\n");
 		module_put(watcher->me);
 		return -EINVAL;
@@ -716,7 +716,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 		ret = -EINVAL;
 		goto cleanup_watchers;
 	} else if (t->u.target->check &&
-	    t->u.target->check(name, hookmask, e, t->data, t->target_size) != 0) {
+	    !t->u.target->check(name, hookmask, e, t->data, t->target_size)) {
 		module_put(t->u.target->me);
 		ret = -EFAULT;
 		goto cleanup_watchers;

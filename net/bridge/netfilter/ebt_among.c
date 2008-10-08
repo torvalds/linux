@@ -177,9 +177,10 @@ static int ebt_filter_among(const struct sk_buff *skb,
 	return EBT_MATCH;
 }
 
-static int ebt_among_check(const char *tablename, unsigned int hookmask,
-			   const struct ebt_entry *e, void *data,
-			   unsigned int datalen)
+static bool
+ebt_among_check(const char *tablename, unsigned int hookmask,
+		const struct ebt_entry *e, void *data,
+		unsigned int datalen)
 {
 	const struct ebt_among_info *info = data;
 	int expected_length = sizeof(struct ebt_among_info);
@@ -197,19 +198,19 @@ static int ebt_among_check(const char *tablename, unsigned int hookmask,
 		       "against expected %d, rounded to %Zd\n",
 		       datalen, expected_length,
 		       EBT_ALIGN(expected_length));
-		return -EINVAL;
+		return false;
 	}
 	if (wh_dst && (err = ebt_mac_wormhash_check_integrity(wh_dst))) {
 		printk(KERN_WARNING
 		       "ebtables: among: dst integrity fail: %x\n", -err);
-		return -EINVAL;
+		return false;
 	}
 	if (wh_src && (err = ebt_mac_wormhash_check_integrity(wh_src))) {
 		printk(KERN_WARNING
 		       "ebtables: among: src integrity fail: %x\n", -err);
-		return -EINVAL;
+		return false;
 	}
-	return 0;
+	return true;
 }
 
 static struct ebt_match filter_among __read_mostly = {

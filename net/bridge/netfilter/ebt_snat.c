@@ -43,7 +43,7 @@ out:
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static int ebt_target_snat_check(const char *tablename, unsigned int hookmask,
+static bool ebt_target_snat_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_nat_info *info = data;
@@ -51,19 +51,19 @@ static int ebt_target_snat_check(const char *tablename, unsigned int hookmask,
 
 	tmp = info->target | ~EBT_VERDICT_BITS;
 	if (BASE_CHAIN && tmp == EBT_RETURN)
-		return -EINVAL;
+		return false;
 	CLEAR_BASE_CHAIN_BIT;
 	if (strcmp(tablename, "nat"))
-		return -EINVAL;
+		return false;
 	if (hookmask & ~(1 << NF_BR_POST_ROUTING))
-		return -EINVAL;
+		return false;
 
 	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
-		return -EINVAL;
+		return false;
 	tmp = info->target | EBT_VERDICT_BITS;
 	if ((tmp & ~NAT_ARP_BIT) != ~NAT_ARP_BIT)
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 static struct ebt_target snat __read_mostly = {

@@ -23,15 +23,15 @@ static int ebt_filter_pkttype(const struct sk_buff *skb,
 	return (skb->pkt_type != info->pkt_type) ^ info->invert;
 }
 
-static int ebt_pkttype_check(const char *tablename, unsigned int hookmask,
+static bool ebt_pkttype_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_pkttype_info *info = data;
 
 	if (info->invert != 0 && info->invert != 1)
-		return -EINVAL;
+		return false;
 	/* Allow any pkt_type value */
-	return 0;
+	return true;
 }
 
 static struct ebt_match filter_pkttype __read_mostly = {

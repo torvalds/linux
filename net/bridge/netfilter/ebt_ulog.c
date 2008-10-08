@@ -255,14 +255,13 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
 	ebt_ulog_packet(hooknr, skb, in, out, uloginfo, NULL);
 }
 
-
-static int ebt_ulog_check(const char *tablename, unsigned int hookmask,
+static bool ebt_ulog_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	struct ebt_ulog_info *uloginfo = data;
 
 	if (uloginfo->nlgroup > 31)
-		return -EINVAL;
+		return false;
 
 	uloginfo->prefix[EBT_ULOG_PREFIX_LEN - 1] = '\0';
 
@@ -288,12 +287,13 @@ static const struct nf_logger ebt_ulog_logger = {
 
 static int __init ebt_ulog_init(void)
 {
-	int i, ret = 0;
+	bool ret = true;
+	int i;
 
 	if (nlbufsiz >= 128*1024) {
 		printk(KERN_NOTICE "ebt_ulog: Netlink buffer has to be <= 128kB,"
 		       " please try a smaller nlbufsiz parameter.\n");
-		return -EINVAL;
+		return false;
 	}
 
 	/* initialize ulog_buffers */
@@ -305,12 +305,15 @@ static int __init ebt_ulog_init(void)
 	ebtulognl = netlink_kernel_create(&init_net, NETLINK_NFLOG,
 					  EBT_ULOG_MAXNLGROUPS, NULL, NULL,
 					  THIS_MODULE);
-	if (!ebtulognl)
-		ret = -ENOMEM;
-	else if ((ret = ebt_register_watcher(&ulog)))
+	if (!ebtulognl) {
+		printk(KERN_WARNING KBUILD_MODNAME ": out of memory trying to "
+		       "call netlink_kernel_create\n");
+		ret = false;
+	} else if (ebt_register_watcher(&ulog) != 0) {
 		netlink_kernel_release(ebtulognl);
+	}
 
-	if (ret == 0)
+	if (ret)
 		nf_log_register(NFPROTO_BRIDGE, &ebt_ulog_logger);
 
 	return ret;

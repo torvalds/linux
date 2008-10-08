@@ -65,7 +65,7 @@ user2credits(u_int32_t user)
 	return (user * HZ * CREDITS_PER_JIFFY) / EBT_LIMIT_SCALE;
 }
 
-static int ebt_limit_check(const char *tablename, unsigned int hookmask,
+static bool ebt_limit_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	struct ebt_limit_info *info = data;
@@ -75,7 +75,7 @@ static int ebt_limit_check(const char *tablename, unsigned int hookmask,
 	    user2credits(info->avg * info->burst) < user2credits(info->avg)) {
 		printk("Overflow in ebt_limit, try lower: %u/%u\n",
 			info->avg, info->burst);
-		return -EINVAL;
+		return false;
 	}
 
 	/* User avg in seconds * EBT_LIMIT_SCALE: convert to jiffies * 128. */
@@ -83,7 +83,7 @@ static int ebt_limit_check(const char *tablename, unsigned int hookmask,
 	info->credit = user2credits(info->avg * info->burst);
 	info->credit_cap = user2credits(info->avg * info->burst);
 	info->cost = user2credits(info->avg);
-	return 0;
+	return true;
 }
 
 static struct ebt_match ebt_limit_reg __read_mostly = {
