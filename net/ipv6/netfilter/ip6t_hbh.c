@@ -42,14 +42,11 @@ MODULE_ALIAS("ip6t_dst");
  */
 
 static bool
-hbh_mt6(const struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, const struct xt_match *match,
-        const void *matchinfo, int offset, unsigned int protoff,
-        bool *hotdrop)
+hbh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	struct ipv6_opt_hdr _optsh;
 	const struct ipv6_opt_hdr *oh;
-	const struct ip6t_opts *optinfo = matchinfo;
+	const struct ip6t_opts *optinfo = par->matchinfo;
 	unsigned int temp;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
@@ -61,16 +58,16 @@ hbh_mt6(const struct sk_buff *skb, const struct net_device *in,
 	unsigned int optlen;
 	int err;
 
-	err = ipv6_find_hdr(skb, &ptr, match->data, NULL);
+	err = ipv6_find_hdr(skb, &ptr, par->match->data, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*hotdrop = true;
+			*par->hotdrop = true;
 		return false;
 	}
 
 	oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
 	if (oh == NULL) {
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 
@@ -163,13 +160,9 @@ hbh_mt6(const struct sk_buff *skb, const struct net_device *in,
 	return false;
 }
 
-/* Called when user tries to insert an entry of this type. */
-static bool
-hbh_mt6_check(const char *tablename, const void *entry,
-              const struct xt_match *match, void *matchinfo,
-              unsigned int hook_mask)
+static bool hbh_mt6_check(const struct xt_mtchk_param *par)
 {
-	const struct ip6t_opts *optsinfo = matchinfo;
+	const struct ip6t_opts *optsinfo = par->matchinfo;
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
 		pr_debug("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
@@ -187,7 +180,7 @@ hbh_mt6_check(const char *tablename, const void *entry,
 static struct xt_match hbh_mt6_reg[] __read_mostly = {
 	{
 		.name		= "hbh",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= hbh_mt6,
 		.matchsize	= sizeof(struct ip6t_opts),
 		.checkentry	= hbh_mt6_check,
@@ -196,7 +189,7 @@ static struct xt_match hbh_mt6_reg[] __read_mostly = {
 	},
 	{
 		.name		= "dst",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= hbh_mt6,
 		.matchsize	= sizeof(struct ip6t_opts),
 		.checkentry	= hbh_mt6_check,

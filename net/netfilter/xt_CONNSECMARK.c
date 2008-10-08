@@ -43,7 +43,7 @@ static void secmark_save(const struct sk_buff *skb)
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct && !ct->secmark) {
 			ct->secmark = skb->secmark;
-			nf_conntrack_event_cache(IPCT_SECMARK, skb);
+			nf_conntrack_event_cache(IPCT_SECMARK, ct);
 		}
 	}
 }
@@ -65,11 +65,9 @@ static void secmark_restore(struct sk_buff *skb)
 }
 
 static unsigned int
-connsecmark_tg(struct sk_buff *skb, const struct net_device *in,
-               const struct net_device *out, unsigned int hooknum,
-               const struct xt_target *target, const void *targinfo)
+connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_connsecmark_target_info *info = targinfo;
+	const struct xt_connsecmark_target_info *info = par->targinfo;
 
 	switch (info->mode) {
 	case CONNSECMARK_SAVE:
@@ -87,16 +85,14 @@ connsecmark_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static bool
-connsecmark_tg_check(const char *tablename, const void *entry,
-                     const struct xt_target *target, void *targinfo,
-                     unsigned int hook_mask)
+static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_connsecmark_target_info *info = targinfo;
+	const struct xt_connsecmark_target_info *info = par->targinfo;
 
-	if (strcmp(tablename, "mangle") && strcmp(tablename, "security")) {
+	if (strcmp(par->table, "mangle") != 0 &&
+	    strcmp(par->table, "security") != 0) {
 		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", tablename);
+		       "or \'security\' tables, not \'%s\'.\n", par->table);
 		return false;
 	}
 
@@ -110,51 +106,38 @@ connsecmark_tg_check(const char *tablename, const void *entry,
 		return false;
 	}
 
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", target->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 	return true;
 }
 
-static void
-connsecmark_tg_destroy(const struct xt_target *target, void *targinfo)
+static void connsecmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	nf_ct_l3proto_module_put(target->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
-static struct xt_target connsecmark_tg_reg[] __read_mostly = {
-	{
-		.name		= "CONNSECMARK",
-		.family		= AF_INET,
-		.checkentry	= connsecmark_tg_check,
-		.destroy	= connsecmark_tg_destroy,
-		.target		= connsecmark_tg,
-		.targetsize	= sizeof(struct xt_connsecmark_target_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "CONNSECMARK",
-		.family		= AF_INET6,
-		.checkentry	= connsecmark_tg_check,
-		.destroy	= connsecmark_tg_destroy,
-		.target		= connsecmark_tg,
-		.targetsize	= sizeof(struct xt_connsecmark_target_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_target connsecmark_tg_reg __read_mostly = {
+	.name       = "CONNSECMARK",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = connsecmark_tg_check,
+	.destroy    = connsecmark_tg_destroy,
+	.target     = connsecmark_tg,
+	.targetsize = sizeof(struct xt_connsecmark_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init connsecmark_tg_init(void)
 {
-	return xt_register_targets(connsecmark_tg_reg,
-	       ARRAY_SIZE(connsecmark_tg_reg));
+	return xt_register_target(&connsecmark_tg_reg);
 }
 
 static void __exit connsecmark_tg_exit(void)
 {
-	xt_unregister_targets(connsecmark_tg_reg,
-	                      ARRAY_SIZE(connsecmark_tg_reg));
+	xt_unregister_target(&connsecmark_tg_reg);
 }
 
 module_init(connsecmark_tg_init);

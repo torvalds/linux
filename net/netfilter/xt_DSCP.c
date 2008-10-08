@@ -29,11 +29,9 @@ MODULE_ALIAS("ipt_TOS");
 MODULE_ALIAS("ip6t_TOS");
 
 static unsigned int
-dscp_tg(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+dscp_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_DSCP_info *dinfo = targinfo;
+	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
@@ -48,11 +46,9 @@ dscp_tg(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-dscp_tg6(struct sk_buff *skb, const struct net_device *in,
-         const struct net_device *out, unsigned int hooknum,
-         const struct xt_target *target, const void *targinfo)
+dscp_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_DSCP_info *dinfo = targinfo;
+	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
@@ -65,26 +61,21 @@ dscp_tg6(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static bool
-dscp_tg_check(const char *tablename, const void *e_void,
-              const struct xt_target *target, void *targinfo,
-              unsigned int hook_mask)
+static bool dscp_tg_check(const struct xt_tgchk_param *par)
 {
-	const u_int8_t dscp = ((struct xt_DSCP_info *)targinfo)->dscp;
+	const struct xt_DSCP_info *info = par->targinfo;
 
-	if (dscp > XT_DSCP_MAX) {
-		printk(KERN_WARNING "DSCP: dscp %x out of range\n", dscp);
+	if (info->dscp > XT_DSCP_MAX) {
+		printk(KERN_WARNING "DSCP: dscp %x out of range\n", info->dscp);
 		return false;
 	}
 	return true;
 }
 
 static unsigned int
-tos_tg_v0(struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, unsigned int hooknum,
-          const struct xt_target *target, const void *targinfo)
+tos_tg_v0(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ipt_tos_target_info *info = targinfo;
+	const struct ipt_tos_target_info *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
 	u_int8_t oldtos;
 
@@ -101,12 +92,10 @@ tos_tg_v0(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static bool
-tos_tg_check_v0(const char *tablename, const void *e_void,
-                const struct xt_target *target, void *targinfo,
-                unsigned int hook_mask)
+static bool tos_tg_check_v0(const struct xt_tgchk_param *par)
 {
-	const u_int8_t tos = ((struct ipt_tos_target_info *)targinfo)->tos;
+	const struct ipt_tos_target_info *info = par->targinfo;
+	const uint8_t tos = info->tos;
 
 	if (tos != IPTOS_LOWDELAY && tos != IPTOS_THROUGHPUT &&
 	    tos != IPTOS_RELIABILITY && tos != IPTOS_MINCOST &&
@@ -119,11 +108,9 @@ tos_tg_check_v0(const char *tablename, const void *e_void,
 }
 
 static unsigned int
-tos_tg(struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, unsigned int hooknum,
-       const struct xt_target *target, const void *targinfo)
+tos_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_tos_target_info *info = targinfo;
+	const struct xt_tos_target_info *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
 	u_int8_t orig, nv;
 
@@ -141,11 +128,9 @@ tos_tg(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-tos_tg6(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+tos_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_tos_target_info *info = targinfo;
+	const struct xt_tos_target_info *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	u_int8_t orig, nv;
 
@@ -165,7 +150,7 @@ tos_tg6(struct sk_buff *skb, const struct net_device *in,
 static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "DSCP",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= dscp_tg_check,
 		.target		= dscp_tg,
 		.targetsize	= sizeof(struct xt_DSCP_info),
@@ -174,7 +159,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "DSCP",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= dscp_tg_check,
 		.target		= dscp_tg6,
 		.targetsize	= sizeof(struct xt_DSCP_info),
@@ -184,7 +169,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "TOS",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.table		= "mangle",
 		.target		= tos_tg_v0,
 		.targetsize	= sizeof(struct ipt_tos_target_info),
@@ -194,7 +179,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "TOS",
 		.revision	= 1,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.table		= "mangle",
 		.target		= tos_tg,
 		.targetsize	= sizeof(struct xt_tos_target_info),
@@ -203,7 +188,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "TOS",
 		.revision	= 1,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.table		= "mangle",
 		.target		= tos_tg6,
 		.targetsize	= sizeof(struct xt_tos_target_info),

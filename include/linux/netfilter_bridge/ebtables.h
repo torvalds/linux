@@ -31,6 +31,9 @@
  * The 4 lsb are more than enough to store the verdict. */
 #define EBT_VERDICT_BITS 0x0000000F
 
+struct xt_match;
+struct xt_target;
+
 struct ebt_counter
 {
 	uint64_t pcnt;
@@ -121,7 +124,7 @@ struct ebt_entry_match
 {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
-		struct ebt_match *match;
+		struct xt_match *match;
 	} u;
 	/* size of data */
 	unsigned int match_size;
@@ -132,7 +135,7 @@ struct ebt_entry_watcher
 {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
-		struct ebt_watcher *watcher;
+		struct xt_target *watcher;
 	} u;
 	/* size of data */
 	unsigned int watcher_size;
@@ -143,7 +146,7 @@ struct ebt_entry_target
 {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
-		struct ebt_target *target;
+		struct xt_target *target;
 	} u;
 	/* size of data */
 	unsigned int target_size;
@@ -207,14 +210,17 @@ struct ebt_match
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	/* 0 == it matches */
-	int (*match)(const struct sk_buff *skb, const struct net_device *in,
-	   const struct net_device *out, const void *matchdata,
-	   unsigned int datalen);
-	/* 0 == let it in */
-	int (*check)(const char *tablename, unsigned int hookmask,
-	   const struct ebt_entry *e, void *matchdata, unsigned int datalen);
-	void (*destroy)(void *matchdata, unsigned int datalen);
+	bool (*match)(const struct sk_buff *skb, const struct net_device *in,
+		const struct net_device *out, const struct xt_match *match,
+		const void *matchinfo, int offset, unsigned int protoff,
+		bool *hotdrop);
+	bool (*checkentry)(const char *table, const void *entry,
+		const struct xt_match *match, void *matchinfo,
+		unsigned int hook_mask);
+	void (*destroy)(const struct xt_match *match, void *matchinfo);
+	unsigned int matchsize;
+	u_int8_t revision;
+	u_int8_t family;
 	struct module *me;
 };
 
@@ -222,13 +228,17 @@ struct ebt_watcher
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	void (*watcher)(const struct sk_buff *skb, unsigned int hooknr,
-	   const struct net_device *in, const struct net_device *out,
-	   const void *watcherdata, unsigned int datalen);
-	/* 0 == let it in */
-	int (*check)(const char *tablename, unsigned int hookmask,
-	   const struct ebt_entry *e, void *watcherdata, unsigned int datalen);
-	void (*destroy)(void *watcherdata, unsigned int datalen);
+	unsigned int (*target)(struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		unsigned int hook_num, const struct xt_target *target,
+		const void *targinfo);
+	bool (*checkentry)(const char *table, const void *entry,
+		const struct xt_target *target, void *targinfo,
+		unsigned int hook_mask);
+	void (*destroy)(const struct xt_target *target, void *targinfo);
+	unsigned int targetsize;
+	u_int8_t revision;
+	u_int8_t family;
 	struct module *me;
 };
 
@@ -236,14 +246,18 @@ struct ebt_target
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	/* returns one of the standard verdicts */
-	int (*target)(struct sk_buff *skb, unsigned int hooknr,
-	   const struct net_device *in, const struct net_device *out,
-	   const void *targetdata, unsigned int datalen);
-	/* 0 == let it in */
-	int (*check)(const char *tablename, unsigned int hookmask,
-	   const struct ebt_entry *e, void *targetdata, unsigned int datalen);
-	void (*destroy)(void *targetdata, unsigned int datalen);
+	/* returns one of the standard EBT_* verdicts */
+	unsigned int (*target)(struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		unsigned int hook_num, const struct xt_target *target,
+		const void *targinfo);
+	bool (*checkentry)(const char *table, const void *entry,
+		const struct xt_target *target, void *targinfo,
+		unsigned int hook_mask);
+	void (*destroy)(const struct xt_target *target, void *targinfo);
+	unsigned int targetsize;
+	u_int8_t revision;
+	u_int8_t family;
 	struct module *me;
 };
 
@@ -288,12 +302,6 @@ struct ebt_table
 		     ~(__alignof__(struct ebt_replace)-1))
 extern int ebt_register_table(struct ebt_table *table);
 extern void ebt_unregister_table(struct ebt_table *table);
-extern int ebt_register_match(struct ebt_match *match);
-extern void ebt_unregister_match(struct ebt_match *match);
-extern int ebt_register_watcher(struct ebt_watcher *watcher);
-extern void ebt_unregister_watcher(struct ebt_watcher *watcher);
-extern int ebt_register_target(struct ebt_target *target);
-extern void ebt_unregister_target(struct ebt_target *target);
 extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
    struct ebt_table *table);
@@ -302,9 +310,9 @@ extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
 #define FWINV(bool,invflg) ((bool) ^ !!(info->invflags & invflg))
 /* True if the hook mask denotes that the rule is in a base chain,
  * used in the check() functions */
-#define BASE_CHAIN (hookmask & (1 << NF_BR_NUMHOOKS))
+#define BASE_CHAIN (par->hook_mask & (1 << NF_BR_NUMHOOKS))
 /* Clear the bit in the hook mask that tells if the rule is on a base chain */
-#define CLEAR_BASE_CHAIN_BIT (hookmask &= ~(1 << NF_BR_NUMHOOKS))
+#define CLEAR_BASE_CHAIN_BIT (par->hook_mask &= ~(1 << NF_BR_NUMHOOKS))
 /* True if the target is not a standard target */
 #define INVALID_TARGET (info->target < -NUM_STANDARD_TARGETS || info->target >= 0)
 

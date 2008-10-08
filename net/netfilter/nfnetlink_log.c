@@ -359,7 +359,7 @@ static inline int
 __build_packet_message(struct nfulnl_instance *inst,
 			const struct sk_buff *skb,
 			unsigned int data_len,
-			unsigned int pf,
+			u_int8_t pf,
 			unsigned int hooknum,
 			const struct net_device *indev,
 			const struct net_device *outdev,
@@ -534,7 +534,7 @@ static struct nf_loginfo default_loginfo = {
 
 /* log handler for internal netfilter logging api */
 static void
-nfulnl_log_packet(unsigned int pf,
+nfulnl_log_packet(u_int8_t pf,
 		  unsigned int hooknum,
 		  const struct sk_buff *skb,
 		  const struct net_device *in,

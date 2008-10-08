@@ -73,7 +73,7 @@ ipt_local_in_hook(unsigned int hook,
 		  int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_local_in_net(in, out)->ipv4.iptable_security);
+			    dev_net(in)->ipv4.iptable_security);
 }
 
 static unsigned int
@@ -84,7 +84,7 @@ ipt_forward_hook(unsigned int hook,
 		 int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_forward_net(in, out)->ipv4.iptable_security);
+			    dev_net(in)->ipv4.iptable_security);
 }
 
 static unsigned int
@@ -103,7 +103,7 @@ ipt_local_out_hook(unsigned int hook,
 		return NF_ACCEPT;
 	}
 	return ipt_do_table(skb, hook, in, out,
-			    nf_local_out_net(in, out)->ipv4.iptable_security);
+			    dev_net(out)->ipv4.iptable_security);
 }
 
 static struct nf_hook_ops ipt_ops[] __read_mostly = {

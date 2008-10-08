@@ -71,14 +71,9 @@ void xt_rateest_put(struct xt_rateest *est)
 EXPORT_SYMBOL_GPL(xt_rateest_put);
 
 static unsigned int
-xt_rateest_tg(struct sk_buff *skb,
-	      const struct net_device *in,
-	      const struct net_device *out,
-	      unsigned int hooknum,
-	      const struct xt_target *target,
-	      const void *targinfo)
+xt_rateest_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_rateest_target_info *info = targinfo;
+	const struct xt_rateest_target_info *info = par->targinfo;
 	struct gnet_stats_basic *stats = &info->est->bstats;
 
 	spin_lock_bh(&info->est->lock);
@@ -89,14 +84,9 @@ xt_rateest_tg(struct sk_buff *skb,
 	return XT_CONTINUE;
 }
 
-static bool
-xt_rateest_tg_checkentry(const char *tablename,
-			 const void *entry,
-			 const struct xt_target *target,
-			 void *targinfo,
-			 unsigned int hook_mask)
+static bool xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 {
-	struct xt_rateest_target_info *info = targinfo;
+	struct xt_rateest_target_info *info = par->targinfo;
 	struct xt_rateest *est;
 	struct {
 		struct nlattr		opt;
@@ -149,33 +139,22 @@ err1:
 	return false;
 }
 
-static void xt_rateest_tg_destroy(const struct xt_target *target,
-				  void *targinfo)
+static void xt_rateest_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	struct xt_rateest_target_info *info = targinfo;
+	struct xt_rateest_target_info *info = par->targinfo;
 
 	xt_rateest_put(info->est);
 }
 
-static struct xt_target xt_rateest_target[] __read_mostly = {
-	{
-		.family		= AF_INET,
-		.name		= "RATEEST",
-		.target		= xt_rateest_tg,
-		.checkentry	= xt_rateest_tg_checkentry,
-		.destroy	= xt_rateest_tg_destroy,
-		.targetsize	= sizeof(struct xt_rateest_target_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.family		= AF_INET6,
-		.name		= "RATEEST",
-		.target		= xt_rateest_tg,
-		.checkentry	= xt_rateest_tg_checkentry,
-		.destroy	= xt_rateest_tg_destroy,
-		.targetsize	= sizeof(struct xt_rateest_target_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_target xt_rateest_tg_reg __read_mostly = {
+	.name       = "RATEEST",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.target     = xt_rateest_tg,
+	.checkentry = xt_rateest_tg_checkentry,
+	.destroy    = xt_rateest_tg_destroy,
+	.targetsize = sizeof(struct xt_rateest_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init xt_rateest_tg_init(void)
@@ -186,13 +165,12 @@ static int __init xt_rateest_tg_init(void)
 		INIT_HLIST_HEAD(&rateest_hash[i]);
 
 	get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
-	return xt_register_targets(xt_rateest_target,
-				   ARRAY_SIZE(xt_rateest_target));
+	return xt_register_target(&xt_rateest_tg_reg);
 }
 
 static void __exit xt_rateest_tg_fini(void)
 {
-	xt_unregister_targets(xt_rateest_target, ARRAY_SIZE(xt_rateest_target));
+	xt_unregister_target(&xt_rateest_tg_reg);
 }
 
 

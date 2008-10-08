@@ -22,19 +22,17 @@
 #define NF_CT_ACCT_DEFAULT 0
 #endif
 
-int nf_ct_acct __read_mostly = NF_CT_ACCT_DEFAULT;
-EXPORT_SYMBOL_GPL(nf_ct_acct);
+static int nf_ct_acct __read_mostly = NF_CT_ACCT_DEFAULT;
 
 module_param_named(acct, nf_ct_acct, bool, 0644);
 MODULE_PARM_DESC(acct, "Enable connection tracking flow accounting.");
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table_header *acct_sysctl_header;
 static struct ctl_table acct_sysctl_table[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nf_conntrack_acct",
-		.data		= &nf_ct_acct,
+		.data		= &init_net.ct.sysctl_acct,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -64,41 +62,87 @@ static struct nf_ct_ext_type acct_extend __read_mostly = {
 	.id	= NF_CT_EXT_ACCT,
 };
 
-int nf_conntrack_acct_init(void)
-{
-	int ret;
-
-#ifdef CONFIG_NF_CT_ACCT
-	printk(KERN_WARNING "CONFIG_NF_CT_ACCT is deprecated and will be removed soon. Plase use\n");
-	printk(KERN_WARNING "nf_conntrack.acct=1 kernel paramater, acct=1 nf_conntrack module option or\n");
-	printk(KERN_WARNING "sysctl net.netfilter.nf_conntrack_acct=1 to enable it.\n");
-#endif
-
-	ret = nf_ct_extend_register(&acct_extend);
-	if (ret < 0) {
-		printk(KERN_ERR "nf_conntrack_acct: Unable to register extension\n");
-		return ret;
-	}
-
 #ifdef CONFIG_SYSCTL
-	acct_sysctl_header = register_sysctl_paths(nf_net_netfilter_sysctl_path,
-				acct_sysctl_table);
+static int nf_conntrack_acct_init_sysctl(struct net *net)
+{
+	struct ctl_table *table;
 
-	if (!acct_sysctl_header) {
-		nf_ct_extend_unregister(&acct_extend);
+	table = kmemdup(acct_sysctl_table, sizeof(acct_sysctl_table),
+			GFP_KERNEL);
+	if (!table)
+		goto out;
 
+	table[0].data = &net->ct.sysctl_acct;
+
+	net->ct.acct_sysctl_header = register_net_sysctl_table(net,
+			nf_net_netfilter_sysctl_path, table);
+	if (!net->ct.acct_sysctl_header) {
 		printk(KERN_ERR "nf_conntrack_acct: can't register to sysctl.\n");
-		return -ENOMEM;
+		goto out_register;
 	}
-#endif
+	return 0;
 
+out_register:
+	kfree(table);
+out:
+	return -ENOMEM;
+}
+
+static void nf_conntrack_acct_fini_sysctl(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = net->ct.acct_sysctl_header->ctl_table_arg;
+	unregister_net_sysctl_table(net->ct.acct_sysctl_header);
+	kfree(table);
+}
+#else
+static int nf_conntrack_acct_init_sysctl(struct net *net)
+{
 	return 0;
 }
 
-void nf_conntrack_acct_fini(void)
+static void nf_conntrack_acct_fini_sysctl(struct net *net)
 {
-#ifdef CONFIG_SYSCTL
-	unregister_sysctl_table(acct_sysctl_header);
+}
 #endif
-	nf_ct_extend_unregister(&acct_extend);
+
+int nf_conntrack_acct_init(struct net *net)
+{
+	int ret;
+
+	net->ct.sysctl_acct = nf_ct_acct;
+
+	if (net_eq(net, &init_net)) {
+#ifdef CONFIG_NF_CT_ACCT
+		printk(KERN_WARNING "CONFIG_NF_CT_ACCT is deprecated and will be removed soon. Plase use\n");
+		printk(KERN_WARNING "nf_conntrack.acct=1 kernel paramater, acct=1 nf_conntrack module option or\n");
+		printk(KERN_WARNING "sysctl net.netfilter.nf_conntrack_acct=1 to enable it.\n");
+#endif
+
+		ret = nf_ct_extend_register(&acct_extend);
+		if (ret < 0) {
+			printk(KERN_ERR "nf_conntrack_acct: Unable to register extension\n");
+			goto out_extend_register;
+		}
+	}
+
+	ret = nf_conntrack_acct_init_sysctl(net);
+	if (ret < 0)
+		goto out_sysctl;
+
+	return 0;
+
+out_sysctl:
+	if (net_eq(net, &init_net))
+		nf_ct_extend_unregister(&acct_extend);
+out_extend_register:
+	return ret;
+}
+
+void nf_conntrack_acct_fini(struct net *net)
+{
+	nf_conntrack_acct_fini_sysctl(net);
+	if (net_eq(net, &init_net))
+		nf_ct_extend_unregister(&acct_extend);
 }

@@ -123,7 +123,9 @@ struct nf_conn
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
-
+#ifdef CONFIG_NET_NS
+	struct net *ct_net;
+#endif
 	struct rcu_head rcu;
 };
 
@@ -146,6 +148,17 @@ static inline u_int8_t nf_ct_protonum(const struct nf_conn *ct)
 
 /* get master conntrack via master expectation */
 #define master_ct(conntr) (conntr->master)
+
+extern struct net init_net;
+
+static inline struct net *nf_ct_net(const struct nf_conn *ct)
+{
+#ifdef CONFIG_NET_NS
+	return ct->ct_net;
+#else
+	return &init_net;
+#endif
+}
 
 /* Alter reply tuple (maybe alter helper). */
 extern void
@@ -182,11 +195,11 @@ extern void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced,
 				 unsigned int size);
 
 extern struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(const struct nf_conntrack_tuple *tuple);
+__nf_conntrack_find(struct net *net, const struct nf_conntrack_tuple *tuple);
 
 extern void nf_conntrack_hash_insert(struct nf_conn *ct);
 
-extern void nf_conntrack_flush(void);
+extern void nf_conntrack_flush(struct net *net);
 
 extern bool nf_ct_get_tuplepr(const struct sk_buff *skb,
 			      unsigned int nhoff, u_int16_t l3num,
@@ -248,10 +261,11 @@ extern struct nf_conn nf_conntrack_untracked;
 
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 extern void
-nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data), void *data);
+nf_ct_iterate_cleanup(struct net *net, int (*iter)(struct nf_conn *i, void *data), void *data);
 extern void nf_conntrack_free(struct nf_conn *ct);
 extern struct nf_conn *
-nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
+nf_conntrack_alloc(struct net *net,
+		   const struct nf_conntrack_tuple *orig,
 		   const struct nf_conntrack_tuple *repl,
 		   gfp_t gfp);
 
@@ -273,16 +287,14 @@ static inline int nf_ct_is_untracked(const struct sk_buff *skb)
 
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
-extern int nf_conntrack_checksum;
-extern atomic_t nf_conntrack_count;
 extern int nf_conntrack_max;
 
-DECLARE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
-#define NF_CT_STAT_INC(count) (__get_cpu_var(nf_conntrack_stat).count++)
-#define NF_CT_STAT_INC_ATOMIC(count)			\
+#define NF_CT_STAT_INC(net, count)	\
+	(per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++)
+#define NF_CT_STAT_INC_ATOMIC(net, count)		\
 do {							\
 	local_bh_disable();				\
-	__get_cpu_var(nf_conntrack_stat).count++;	\
+	per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++;	\
 	local_bh_enable();				\
 } while (0)
 

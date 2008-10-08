@@ -22,6 +22,7 @@
 #include <linux/if_vlan.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_vlan.h>
 
@@ -37,15 +38,12 @@ MODULE_LICENSE("GPL");
 
 #define DEBUG_MSG(args...) if (debug) printk (KERN_DEBUG "ebt_vlan: " args)
 #define GET_BITMASK(_BIT_MASK_) info->bitmask & _BIT_MASK_
-#define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return EBT_NOMATCH;}
+#define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return false; }
 
-static int
-ebt_filter_vlan(const struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		const void *data, unsigned int datalen)
+static bool
+ebt_vlan_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ebt_vlan_info *info = data;
+	const struct ebt_vlan_info *info = par->matchinfo;
 	const struct vlan_hdr *fp;
 	struct vlan_hdr _frame;
 
@@ -57,7 +55,7 @@ ebt_filter_vlan(const struct sk_buff *skb,
 
 	fp = skb_header_pointer(skb, 0, sizeof(_frame), &_frame);
 	if (fp == NULL)
-		return EBT_NOMATCH;
+		return false;
 
 	/* Tag Control Information (TCI) consists of the following elements:
 	 * - User_priority. The user_priority field is three bits in length,
@@ -83,30 +81,20 @@ ebt_filter_vlan(const struct sk_buff *skb,
 	if (GET_BITMASK(EBT_VLAN_ENCAP))
 		EXIT_ON_MISMATCH(encap, EBT_VLAN_ENCAP);
 
-	return EBT_MATCH;
+	return true;
 }
 
-static int
-ebt_check_vlan(const char *tablename,
-	       unsigned int hooknr,
-	       const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 {
-	struct ebt_vlan_info *info = data;
-
-	/* Parameters buffer overflow check */
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_vlan_info))) {
-		DEBUG_MSG
-		    ("passed size %d is not eq to ebt_vlan_info (%Zd)\n",
-		     datalen, sizeof(struct ebt_vlan_info));
-		return -EINVAL;
-	}
+	struct ebt_vlan_info *info = par->matchinfo;
+	const struct ebt_entry *e = par->entryinfo;
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {
 		DEBUG_MSG
 		    ("passed entry proto %2.4X is not 802.1Q (8100)\n",
 		     (unsigned short) ntohs(e->ethproto));
-		return -EINVAL;
+		return false;
 	}
 
 	/* Check for bitmask range
@@ -114,14 +102,14 @@ ebt_check_vlan(const char *tablename,
 	if (info->bitmask & ~EBT_VLAN_MASK) {
 		DEBUG_MSG("bitmask %2X is out of mask (%2X)\n",
 			  info->bitmask, EBT_VLAN_MASK);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Check for inversion flags range */
 	if (info->invflags & ~EBT_VLAN_MASK) {
 		DEBUG_MSG("inversion flags %2X is out of mask (%2X)\n",
 			  info->invflags, EBT_VLAN_MASK);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Reserved VLAN ID (VID) values
@@ -136,7 +124,7 @@ ebt_check_vlan(const char *tablename,
 				DEBUG_MSG
 				    ("id %d is out of range (1-4096)\n",
 				     info->id);
-				return -EINVAL;
+				return false;
 			}
 			/* Note: This is valid VLAN-tagged frame point.
 			 * Any value of user_priority are acceptable,
@@ -151,7 +139,7 @@ ebt_check_vlan(const char *tablename,
 		if ((unsigned char) info->prio > 7) {
 			DEBUG_MSG("prio %d is out of range (0-7)\n",
 			     info->prio);
-			return -EINVAL;
+			return false;
 		}
 	}
 	/* Check for encapsulated proto range - it is possible to be
@@ -162,17 +150,20 @@ ebt_check_vlan(const char *tablename,
 			DEBUG_MSG
 			    ("encap frame length %d is less than minimal\n",
 			     ntohs(info->encap));
-			return -EINVAL;
+			return false;
 		}
 	}
 
-	return 0;
+	return true;
 }
 
-static struct ebt_match filter_vlan __read_mostly = {
-	.name		= EBT_VLAN_MATCH,
-	.match		= ebt_filter_vlan,
-	.check		= ebt_check_vlan,
+static struct xt_match ebt_vlan_mt_reg __read_mostly = {
+	.name		= "vlan",
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
+	.match		= ebt_vlan_mt,
+	.checkentry	= ebt_vlan_mt_check,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_vlan_info)),
 	.me		= THIS_MODULE,
 };
 
@@ -181,12 +172,12 @@ static int __init ebt_vlan_init(void)
 	DEBUG_MSG("ebtables 802.1Q extension module v"
 		  MODULE_VERS "\n");
 	DEBUG_MSG("module debug=%d\n", !!debug);
-	return ebt_register_match(&filter_vlan);
+	return xt_register_match(&ebt_vlan_mt_reg);
 }
 
 static void __exit ebt_vlan_fini(void)
 {
-	ebt_unregister_match(&filter_vlan);
+	xt_unregister_match(&ebt_vlan_mt_reg);
 }
 
 module_init(ebt_vlan_init);

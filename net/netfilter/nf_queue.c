@@ -16,17 +16,17 @@
  * long term mutex.  The handler must provide an an outfn() to accept packets
  * for queueing and must reinject all packets it receives, no matter what.
  */
-static const struct nf_queue_handler *queue_handler[NPROTO];
+static const struct nf_queue_handler *queue_handler[NFPROTO_NUMPROTO] __read_mostly;
 
 static DEFINE_MUTEX(queue_handler_mutex);
 
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
-int nf_register_queue_handler(int pf, const struct nf_queue_handler *qh)
+int nf_register_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 {
 	int ret;
 
-	if (pf >= NPROTO)
+	if (pf >= ARRAY_SIZE(queue_handler))
 		return -EINVAL;
 
 	mutex_lock(&queue_handler_mutex);
@@ -45,9 +45,9 @@ int nf_register_queue_handler(int pf, const struct nf_queue_handler *qh)
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-int nf_unregister_queue_handler(int pf, const struct nf_queue_handler *qh)
+int nf_unregister_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 {
-	if (pf >= NPROTO)
+	if (pf >= ARRAY_SIZE(queue_handler))
 		return -EINVAL;
 
 	mutex_lock(&queue_handler_mutex);
@@ -67,10 +67,10 @@ EXPORT_SYMBOL(nf_unregister_queue_handler);
 
 void nf_unregister_queue_handlers(const struct nf_queue_handler *qh)
 {
-	int pf;
+	u_int8_t pf;
 
 	mutex_lock(&queue_handler_mutex);
-	for (pf = 0; pf < NPROTO; pf++)  {
+	for (pf = 0; pf < ARRAY_SIZE(queue_handler); pf++)  {
 		if (queue_handler[pf] == qh)
 			rcu_assign_pointer(queue_handler[pf], NULL);
 	}
@@ -107,7 +107,7 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
  */
 static int __nf_queue(struct sk_buff *skb,
 		      struct list_head *elem,
-		      int pf, unsigned int hook,
+		      u_int8_t pf, unsigned int hook,
 		      struct net_device *indev,
 		      struct net_device *outdev,
 		      int (*okfn)(struct sk_buff *),
@@ -191,7 +191,7 @@ err:
 
 int nf_queue(struct sk_buff *skb,
 	     struct list_head *elem,
-	     int pf, unsigned int hook,
+	     u_int8_t pf, unsigned int hook,
 	     struct net_device *indev,
 	     struct net_device *outdev,
 	     int (*okfn)(struct sk_buff *),
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(nf_reinject);
 #ifdef CONFIG_PROC_FS
 static void *seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (*pos >= NPROTO)
+	if (*pos >= ARRAY_SIZE(queue_handler))
 		return NULL;
 
 	return pos;
@@ -295,7 +295,7 @@ static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	(*pos)++;
 
-	if (*pos >= NPROTO)
+	if (*pos >= ARRAY_SIZE(queue_handler))
 		return NULL;
 
 	return pos;

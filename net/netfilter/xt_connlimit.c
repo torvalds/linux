@@ -82,9 +82,9 @@ static inline bool already_closed(const struct nf_conn *conn)
 static inline unsigned int
 same_source_net(const union nf_inet_addr *addr,
 		const union nf_inet_addr *mask,
-		const union nf_inet_addr *u3, unsigned int family)
+		const union nf_inet_addr *u3, u_int8_t family)
 {
-	if (family == AF_INET) {
+	if (family == NFPROTO_IPV4) {
 		return (addr->ip & mask->ip) == (u3->ip & mask->ip);
 	} else {
 		union nf_inet_addr lh, rh;
@@ -114,7 +114,7 @@ static int count_them(struct xt_connlimit_data *data,
 	int matches = 0;
 
 
-	if (match->family == AF_INET6)
+	if (match->family == NFPROTO_IPV6)
 		hash = &data->iphash[connlimit_iphash6(addr, mask)];
 	else
 		hash = &data->iphash[connlimit_iphash(addr->ip & mask->ip)];
@@ -123,7 +123,7 @@ static int count_them(struct xt_connlimit_data *data,
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, tmp, hash, list) {
-		found    = __nf_conntrack_find(&conn->tuple);
+		found    = __nf_conntrack_find(&init_net, &conn->tuple);
 		found_ct = NULL;
 
 		if (found != NULL)
@@ -178,12 +178,9 @@ static int count_them(struct xt_connlimit_data *data,
 }
 
 static bool
-connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_connlimit_info *info = matchinfo;
+	const struct xt_connlimit_info *info = par->matchinfo;
 	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
 	const struct nf_conntrack_tuple *tuple_ptr = &tuple;
@@ -195,10 +192,10 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 	if (ct != NULL)
 		tuple_ptr = &ct->tuplehash[0].tuple;
 	else if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-				    match->family, &tuple))
+				    par->family, &tuple))
 		goto hotdrop;
 
-	if (match->family == AF_INET6) {
+	if (par->family == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		memcpy(&addr.ip6, &iph->saddr, sizeof(iph->saddr));
 	} else {
@@ -208,40 +205,37 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 
 	spin_lock_bh(&info->data->lock);
 	connections = count_them(info->data, tuple_ptr, &addr,
-	                         &info->mask, match);
+	                         &info->mask, par->match);
 	spin_unlock_bh(&info->data->lock);
 
 	if (connections < 0) {
 		/* kmalloc failed, drop it entirely */
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 
 	return (connections > info->limit) ^ info->inverse;
 
  hotdrop:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 
-static bool
-connlimit_mt_check(const char *tablename, const void *ip,
-                   const struct xt_match *match, void *matchinfo,
-                   unsigned int hook_mask)
+static bool connlimit_mt_check(const struct xt_mtchk_param *par)
 {
-	struct xt_connlimit_info *info = matchinfo;
+	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
 
-	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "cannot load conntrack support for "
-		       "address family %u\n", match->family);
+		       "address family %u\n", par->family);
 		return false;
 	}
 
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
-		nf_ct_l3proto_module_put(match->family);
+		nf_ct_l3proto_module_put(par->family);
 		return false;
 	}
 
@@ -252,16 +246,15 @@ connlimit_mt_check(const char *tablename, const void *ip,
 	return true;
 }
 
-static void
-connlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	const struct xt_connlimit_info *info = matchinfo;
+	const struct xt_connlimit_info *info = par->matchinfo;
 	struct xt_connlimit_conn *conn;
 	struct xt_connlimit_conn *tmp;
 	struct list_head *hash = info->data->iphash;
 	unsigned int i;
 
-	nf_ct_l3proto_module_put(match->family);
+	nf_ct_l3proto_module_put(par->family);
 
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i) {
 		list_for_each_entry_safe(conn, tmp, &hash[i], list) {
@@ -273,41 +266,30 @@ connlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
 	kfree(info->data);
 }
 
-static struct xt_match connlimit_mt_reg[] __read_mostly = {
-	{
-		.name       = "connlimit",
-		.family     = AF_INET,
-		.checkentry = connlimit_mt_check,
-		.match      = connlimit_mt,
-		.matchsize  = sizeof(struct xt_connlimit_info),
-		.destroy    = connlimit_mt_destroy,
-		.me         = THIS_MODULE,
-	},
-	{
-		.name       = "connlimit",
-		.family     = AF_INET6,
-		.checkentry = connlimit_mt_check,
-		.match      = connlimit_mt,
-		.matchsize  = sizeof(struct xt_connlimit_info),
-		.destroy    = connlimit_mt_destroy,
-		.me         = THIS_MODULE,
-	},
+static struct xt_match connlimit_mt_reg __read_mostly = {
+	.name       = "connlimit",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = connlimit_mt_check,
+	.match      = connlimit_mt,
+	.matchsize  = sizeof(struct xt_connlimit_info),
+	.destroy    = connlimit_mt_destroy,
+	.me         = THIS_MODULE,
 };
 
 static int __init connlimit_mt_init(void)
 {
-	return xt_register_matches(connlimit_mt_reg,
-	       ARRAY_SIZE(connlimit_mt_reg));
+	return xt_register_match(&connlimit_mt_reg);
 }
 
 static void __exit connlimit_mt_exit(void)
 {
-	xt_unregister_matches(connlimit_mt_reg, ARRAY_SIZE(connlimit_mt_reg));
+	xt_unregister_match(&connlimit_mt_reg);
 }
 
 module_init(connlimit_mt_init);
 module_exit(connlimit_mt_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: Number of connections matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connlimit");

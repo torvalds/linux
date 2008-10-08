@@ -16,40 +16,29 @@ MODULE_ALIAS("ipt_comment");
 MODULE_ALIAS("ip6t_comment");
 
 static bool
-comment_mt(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protooff,
-           bool *hotdrop)
+comment_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	/* We always match */
 	return true;
 }
 
-static struct xt_match comment_mt_reg[] __read_mostly = {
-	{
-		.name		= "comment",
-		.family		= AF_INET,
-		.match		= comment_mt,
-		.matchsize	= sizeof(struct xt_comment_info),
-		.me		= THIS_MODULE
-	},
-	{
-		.name		= "comment",
-		.family		= AF_INET6,
-		.match		= comment_mt,
-		.matchsize	= sizeof(struct xt_comment_info),
-		.me		= THIS_MODULE
-	},
+static struct xt_match comment_mt_reg __read_mostly = {
+	.name      = "comment",
+	.revision  = 0,
+	.family    = NFPROTO_UNSPEC,
+	.match     = comment_mt,
+	.matchsize = sizeof(struct xt_comment_info),
+	.me        = THIS_MODULE,
 };
 
 static int __init comment_mt_init(void)
 {
-	return xt_register_matches(comment_mt_reg, ARRAY_SIZE(comment_mt_reg));
+	return xt_register_match(&comment_mt_reg);
 }
 
 static void __exit comment_mt_exit(void)
 {
-	xt_unregister_matches(comment_mt_reg, ARRAY_SIZE(comment_mt_reg));
+	xt_unregister_match(&comment_mt_reg);
 }
 
 module_init(comment_mt_init);

@@ -13,9 +13,7 @@ MODULE_ALIAS("ipt_NOTRACK");
 MODULE_ALIAS("ip6t_NOTRACK");
 
 static unsigned int
-notrack_tg(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+notrack_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	/* Previously seen (loopback)? Ignore. */
 	if (skb->nfct != NULL)
@@ -32,31 +30,23 @@ notrack_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static struct xt_target notrack_tg_reg[] __read_mostly = {
-	{
-		.name		= "NOTRACK",
-		.family		= AF_INET,
-		.target		= notrack_tg,
-		.table		= "raw",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "NOTRACK",
-		.family		= AF_INET6,
-		.target		= notrack_tg,
-		.table		= "raw",
-		.me		= THIS_MODULE,
-	},
+static struct xt_target notrack_tg_reg __read_mostly = {
+	.name     = "NOTRACK",
+	.revision = 0,
+	.family   = NFPROTO_UNSPEC,
+	.target   = notrack_tg,
+	.table    = "raw",
+	.me       = THIS_MODULE,
 };
 
 static int __init notrack_tg_init(void)
 {
-	return xt_register_targets(notrack_tg_reg, ARRAY_SIZE(notrack_tg_reg));
+	return xt_register_target(&notrack_tg_reg);
 }
 
 static void __exit notrack_tg_exit(void)
 {
-	xt_unregister_targets(notrack_tg_reg, ARRAY_SIZE(notrack_tg_reg));
+	xt_unregister_target(&notrack_tg_reg);
 }
 
 module_init(notrack_tg_init);

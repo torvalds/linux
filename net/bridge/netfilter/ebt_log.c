@@ -8,10 +8,6 @@
  *  April, 2002
  *
  */
-
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_log.h>
-#include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/in.h>
@@ -21,22 +17,23 @@
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
 #include <linux/in6.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_log.h>
+#include <linux/netfilter.h>
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
-static int ebt_log_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool ebt_log_tg_check(const struct xt_tgchk_param *par)
 {
-	struct ebt_log_info *info = data;
+	struct ebt_log_info *info = par->targinfo;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_log_info)))
-		return -EINVAL;
 	if (info->bitmask & ~EBT_LOG_MASK)
-		return -EINVAL;
+		return false;
 	if (info->loglevel >= 8)
-		return -EINVAL;
+		return false;
 	info->prefix[EBT_LOG_PREFIX_SIZE - 1] = '\0';
-	return 0;
+	return true;
 }
 
 struct tcpudphdr
@@ -84,7 +81,7 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 
 #define myNIPQUAD(a) a[0], a[1], a[2], a[3]
 static void
-ebt_log_packet(unsigned int pf, unsigned int hooknum,
+ebt_log_packet(u_int8_t pf, unsigned int hooknum,
    const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const struct nf_loginfo *loginfo,
    const char *prefix)
@@ -194,11 +191,10 @@ out:
 
 }
 
-static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_log_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ebt_log_info *info = data;
+	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
 
 	li.type = NF_LOG_TYPE_LOG;
@@ -206,18 +202,21 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 	li.u.log.logflags = info->bitmask;
 
 	if (info->bitmask & EBT_LOG_NFLOG)
-		nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
-			      "%s", info->prefix);
+		nf_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
+		              par->out, &li, "%s", info->prefix);
 	else
-		ebt_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
-			       info->prefix);
+		ebt_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
+		               par->out, &li, info->prefix);
+	return EBT_CONTINUE;
 }
 
-static struct ebt_watcher log =
-{
-	.name		= EBT_LOG_WATCHER,
-	.watcher	= ebt_log,
-	.check		= ebt_log_check,
+static struct xt_target ebt_log_tg_reg __read_mostly = {
+	.name		= "log",
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
+	.target		= ebt_log_tg,
+	.checkentry	= ebt_log_tg_check,
+	.targetsize	= XT_ALIGN(sizeof(struct ebt_log_info)),
 	.me		= THIS_MODULE,
 };
 
@@ -231,17 +230,17 @@ static int __init ebt_log_init(void)
 {
 	int ret;
 
-	ret = ebt_register_watcher(&log);
+	ret = xt_register_target(&ebt_log_tg_reg);
 	if (ret < 0)
 		return ret;
-	nf_log_register(PF_BRIDGE, &ebt_log_logger);
+	nf_log_register(NFPROTO_BRIDGE, &ebt_log_logger);
 	return 0;
 }
 
 static void __exit ebt_log_fini(void)
 {
 	nf_log_unregister(&ebt_log_logger);
-	ebt_unregister_watcher(&log);
+	xt_unregister_target(&ebt_log_tg_reg);
 }
 
 module_init(ebt_log_init);

@@ -23,32 +23,24 @@ MODULE_ALIAS("ipt_mark");
 MODULE_ALIAS("ip6t_mark");
 
 static bool
-mark_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protoff,
-           bool *hotdrop)
+mark_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_mark_info *info = matchinfo;
+	const struct xt_mark_info *info = par->matchinfo;
 
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
 static bool
-mark_mt(const struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, const struct xt_match *match,
-        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+mark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_mark_mtinfo1 *info = matchinfo;
+	const struct xt_mark_mtinfo1 *info = par->matchinfo;
 
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
-static bool
-mark_mt_check_v0(const char *tablename, const void *entry,
-                 const struct xt_match *match, void *matchinfo,
-                 unsigned int hook_mask)
+static bool mark_mt_check_v0(const struct xt_mtchk_param *par)
 {
-	const struct xt_mark_info *minfo = matchinfo;
+	const struct xt_mark_info *minfo = par->matchinfo;
 
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");
@@ -92,21 +84,7 @@ static struct xt_match mark_mt_reg[] __read_mostly = {
 	{
 		.name		= "mark",
 		.revision	= 0,
-		.family		= AF_INET,
-		.checkentry	= mark_mt_check_v0,
-		.match		= mark_mt_v0,
-		.matchsize	= sizeof(struct xt_mark_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_mark_info),
-		.compat_from_user = mark_mt_compat_from_user_v0,
-		.compat_to_user	= mark_mt_compat_to_user_v0,
-#endif
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "mark",
-		.revision	= 0,
-		.family		= AF_INET6,
+		.family		= NFPROTO_UNSPEC,
 		.checkentry	= mark_mt_check_v0,
 		.match		= mark_mt_v0,
 		.matchsize	= sizeof(struct xt_mark_info),
@@ -120,15 +98,7 @@ static struct xt_match mark_mt_reg[] __read_mostly = {
 	{
 		.name           = "mark",
 		.revision       = 1,
-		.family         = AF_INET,
-		.match          = mark_mt,
-		.matchsize      = sizeof(struct xt_mark_mtinfo1),
-		.me             = THIS_MODULE,
-	},
-	{
-		.name           = "mark",
-		.revision       = 1,
-		.family         = AF_INET6,
+		.family         = NFPROTO_UNSPEC,
 		.match          = mark_mt,
 		.matchsize      = sizeof(struct xt_mark_mtinfo1),
 		.me             = THIS_MODULE,

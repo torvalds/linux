@@ -153,11 +153,9 @@ static void localtime_3(struct xtm *r, time_t time)
 }
 
 static bool
-time_mt(const struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, const struct xt_match *match,
-        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+time_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_time_info *info = matchinfo;
+	const struct xt_time_info *info = par->matchinfo;
 	unsigned int packet_time;
 	struct xtm current_time;
 	s64 stamp;
@@ -220,12 +218,9 @@ time_mt(const struct sk_buff *skb, const struct net_device *in,
 	return true;
 }
 
-static bool
-time_mt_check(const char *tablename, const void *ip,
-              const struct xt_match *match, void *matchinfo,
-              unsigned int hook_mask)
+static bool time_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_time_info *info = matchinfo;
+	const struct xt_time_info *info = par->matchinfo;
 
 	if (info->daytime_start > XT_TIME_MAX_DAYTIME ||
 	    info->daytime_stop > XT_TIME_MAX_DAYTIME) {
@@ -237,33 +232,23 @@ time_mt_check(const char *tablename, const void *ip,
 	return true;
 }
 
-static struct xt_match time_mt_reg[] __read_mostly = {
-	{
-		.name       = "time",
-		.family     = AF_INET,
-		.match      = time_mt,
-		.matchsize  = sizeof(struct xt_time_info),
-		.checkentry = time_mt_check,
-		.me         = THIS_MODULE,
-	},
-	{
-		.name       = "time",
-		.family     = AF_INET6,
-		.match      = time_mt,
-		.matchsize  = sizeof(struct xt_time_info),
-		.checkentry = time_mt_check,
-		.me         = THIS_MODULE,
-	},
+static struct xt_match xt_time_mt_reg __read_mostly = {
+	.name       = "time",
+	.family     = NFPROTO_UNSPEC,
+	.match      = time_mt,
+	.checkentry = time_mt_check,
+	.matchsize  = sizeof(struct xt_time_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init time_mt_init(void)
 {
-	return xt_register_matches(time_mt_reg, ARRAY_SIZE(time_mt_reg));
+	return xt_register_match(&xt_time_mt_reg);
 }
 
 static void __exit time_mt_exit(void)
 {
-	xt_unregister_matches(time_mt_reg, ARRAY_SIZE(time_mt_reg));
+	xt_unregister_match(&xt_time_mt_reg);
 }
 
 module_init(time_mt_init);

@@ -250,6 +250,9 @@ What (Why):
 	- xt_mark match revision 0
 	  (superseded by xt_mark match revision 1)
 
+	- xt_recent: the old ipt_recent proc dir
+	  (superseded by /proc/net/xt_recent)
+
 When:	January 2009 or Linux 2.7.0, whichever comes first
 Why:	Superseded by newer revisions or modules
 Who:	Jan Engelhardt <jengelh@computergmbh.de>

@@ -19,12 +19,10 @@ MODULE_DESCRIPTION("Xtables: IPv6 Hop Limit field modification target");
 MODULE_LICENSE("GPL");
 
 static unsigned int
-hl_tg6(struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, unsigned int hooknum,
-       const struct xt_target *target, const void *targinfo)
+hl_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct ipv6hdr *ip6h;
-	const struct ip6t_HL_info *info = targinfo;
+	const struct ip6t_HL_info *info = par->targinfo;
 	int new_hl;
 
 	if (!skb_make_writable(skb, skb->len))
@@ -56,12 +54,9 @@ hl_tg6(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static bool
-hl_tg6_check(const char *tablename, const void *entry,
-             const struct xt_target *target, void *targinfo,
-             unsigned int hook_mask)
+static bool hl_tg6_check(const struct xt_tgchk_param *par)
 {
-	const struct ip6t_HL_info *info = targinfo;
+	const struct ip6t_HL_info *info = par->targinfo;
 
 	if (info->mode > IP6T_HL_MAXMODE) {
 		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n",
@@ -78,7 +73,7 @@ hl_tg6_check(const char *tablename, const void *entry,
 
 static struct xt_target hl_tg6_reg __read_mostly = {
 	.name 		= "HL",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.target		= hl_tg6,
 	.targetsize	= sizeof(struct ip6t_HL_info),
 	.table		= "mangle",

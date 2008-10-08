@@ -1,27 +1,21 @@
 #ifndef _IPT_RECENT_H
 #define _IPT_RECENT_H
 
-#define RECENT_NAME	"ipt_recent"
-#define RECENT_VER	"v0.3.1"
+#include <linux/netfilter/xt_recent.h>
 
-#define IPT_RECENT_CHECK  1
-#define IPT_RECENT_SET    2
-#define IPT_RECENT_UPDATE 4
-#define IPT_RECENT_REMOVE 8
-#define IPT_RECENT_TTL   16
+#define ipt_recent_info xt_recent_mtinfo
 
-#define IPT_RECENT_SOURCE 0
-#define IPT_RECENT_DEST   1
+enum {
+	IPT_RECENT_CHECK    = XT_RECENT_CHECK,
+	IPT_RECENT_SET      = XT_RECENT_SET,
+	IPT_RECENT_UPDATE   = XT_RECENT_UPDATE,
+	IPT_RECENT_REMOVE   = XT_RECENT_REMOVE,
+	IPT_RECENT_TTL      = XT_RECENT_TTL,
 
-#define IPT_RECENT_NAME_LEN 200
+	IPT_RECENT_SOURCE   = XT_RECENT_SOURCE,
+	IPT_RECENT_DEST     = XT_RECENT_DEST,
 
-struct ipt_recent_info {
-	u_int32_t   seconds;
-	u_int32_t   hit_count;
-	u_int8_t    check_set;
-	u_int8_t    invert;
-	char        name[IPT_RECENT_NAME_LEN];
-	u_int8_t    side;
+	IPT_RECENT_NAME_LEN = XT_RECENT_NAME_LEN,
 };
 
 #endif /*_IPT_RECENT_H*/

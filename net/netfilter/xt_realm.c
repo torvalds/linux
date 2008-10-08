@@ -22,12 +22,9 @@ MODULE_DESCRIPTION("Xtables: Routing realm match");
 MODULE_ALIAS("ipt_realm");
 
 static bool
-realm_mt(const struct sk_buff *skb, const struct net_device *in,
-         const struct net_device *out, const struct xt_match *match,
-         const void *matchinfo, int offset, unsigned int protoff,
-         bool *hotdrop)
+realm_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_realm_info *info = matchinfo;
+	const struct xt_realm_info *info = par->matchinfo;
 	const struct dst_entry *dst = skb->dst;
 
 	return (info->id == (dst->tclassid & info->mask)) ^ info->invert;
@@ -39,7 +36,7 @@ static struct xt_match realm_mt_reg __read_mostly = {
 	.matchsize	= sizeof(struct xt_realm_info),
 	.hooks		= (1 << NF_INET_POST_ROUTING) | (1 << NF_INET_FORWARD) |
 			  (1 << NF_INET_LOCAL_OUT) | (1 << NF_INET_LOCAL_IN),
-	.family		= AF_INET,
+	.family		= NFPROTO_UNSPEC,
 	.me		= THIS_MODULE
 };
 

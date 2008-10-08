@@ -5,13 +5,11 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/net.h>
-#include <linux/netdevice.h>
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/wait.h>
 #include <linux/list.h>
-#include <net/net_namespace.h>
 #endif
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -50,6 +48,16 @@ enum nf_inet_hooks {
 	NF_INET_LOCAL_OUT,
 	NF_INET_POST_ROUTING,
 	NF_INET_NUMHOOKS
+};
+
+enum {
+	NFPROTO_UNSPEC =  0,
+	NFPROTO_IPV4   =  2,
+	NFPROTO_ARP    =  3,
+	NFPROTO_BRIDGE =  7,
+	NFPROTO_IPV6   = 10,
+	NFPROTO_DECNET = 12,
+	NFPROTO_NUMPROTO,
 };
 
 union nf_inet_addr {
@@ -92,8 +100,8 @@ struct nf_hook_ops
 	/* User fills in from here down. */
 	nf_hookfn *hook;
 	struct module *owner;
-	int pf;
-	int hooknum;
+	u_int8_t pf;
+	unsigned int hooknum;
 	/* Hooks are ordered in ascending priority. */
 	int priority;
 };
@@ -102,7 +110,7 @@ struct nf_sockopt_ops
 {
 	struct list_head list;
 
-	int pf;
+	u_int8_t pf;
 
 	/* Non-inclusive ranges: use 0/0/NULL to never get called. */
 	int set_optmin;
@@ -138,9 +146,9 @@ extern struct ctl_path nf_net_netfilter_sysctl_path[];
 extern struct ctl_path nf_net_ipv4_netfilter_sysctl_path[];
 #endif /* CONFIG_SYSCTL */
 
-extern struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS];
+extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
-int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
+int nf_hook_slow(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 		 struct net_device *indev, struct net_device *outdev,
 		 int (*okfn)(struct sk_buff *), int thresh);
 
@@ -151,7 +159,7 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
  *	okfn must be invoked by the caller in this case.  Any other return
  *	value indicates the packet has been consumed by the hook.
  */
-static inline int nf_hook_thresh(int pf, unsigned int hook,
+static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct sk_buff *skb,
 				 struct net_device *indev,
 				 struct net_device *outdev,
@@ -167,7 +175,7 @@ static inline int nf_hook_thresh(int pf, unsigned int hook,
 	return nf_hook_slow(pf, hook, skb, indev, outdev, okfn, thresh);
 }
 
-static inline int nf_hook(int pf, unsigned int hook, struct sk_buff *skb,
+static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sk_buff *))
 {
@@ -212,14 +220,14 @@ __ret;})
 	NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, INT_MIN)
 
 /* Call setsockopt() */
-int nf_setsockopt(struct sock *sk, int pf, int optval, char __user *opt, 
+int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int len);
-int nf_getsockopt(struct sock *sk, int pf, int optval, char __user *opt,
+int nf_getsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int *len);
 
-int compat_nf_setsockopt(struct sock *sk, int pf, int optval,
+int compat_nf_setsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, int len);
-int compat_nf_getsockopt(struct sock *sk, int pf, int optval,
+int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, int *len);
 
 /* Call this before modifying an existing packet: ensures it is
@@ -247,7 +255,7 @@ struct nf_afinfo {
 	int		route_key_size;
 };
 
-extern const struct nf_afinfo *nf_afinfo[NPROTO];
+extern const struct nf_afinfo *nf_afinfo[NFPROTO_NUMPROTO];
 static inline const struct nf_afinfo *nf_get_afinfo(unsigned short family)
 {
 	return rcu_dereference(nf_afinfo[family]);
@@ -292,7 +300,7 @@ extern void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
 extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
 
 static inline void
-nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family)
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
 #ifdef CONFIG_NF_NAT_NEEDED
 	void (*decodefn)(struct sk_buff *, struct flowi *);
@@ -315,7 +323,7 @@ extern struct proc_dir_entry *proc_net_netfilter;
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
 #define NF_HOOK_COND(pf, hook, skb, indev, outdev, okfn, cond) (okfn)(skb)
-static inline int nf_hook_thresh(int pf, unsigned int hook,
+static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct sk_buff *skb,
 				 struct net_device *indev,
 				 struct net_device *outdev,
@@ -324,7 +332,7 @@ static inline int nf_hook_thresh(int pf, unsigned int hook,
 {
 	return okfn(skb);
 }
-static inline int nf_hook(int pf, unsigned int hook, struct sk_buff *skb,
+static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sk_buff *))
 {
@@ -332,7 +340,9 @@ static inline int nf_hook(int pf, unsigned int hook, struct sk_buff *skb,
 }
 struct flowi;
 static inline void
-nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family) {}
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
+{
+}
 #endif /*CONFIG_NETFILTER*/
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
@@ -342,57 +352,6 @@ extern void (*nf_ct_destroy)(struct nf_conntrack *);
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif
-
-static inline struct net *nf_pre_routing_net(const struct net_device *in,
-					     const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return in->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_local_in_net(const struct net_device *in,
-					  const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return in->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_forward_net(const struct net_device *in,
-					 const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	BUG_ON(in->nd_net != out->nd_net);
-	return in->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_local_out_net(const struct net_device *in,
-					   const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return out->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_post_routing_net(const struct net_device *in,
-					      const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return out->nd_net;
-#else
-	return &init_net;
-#endif
-}
 
 #endif /*__KERNEL__*/
 #endif /*__LINUX_NETFILTER_H*/
