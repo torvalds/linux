@@ -81,7 +81,7 @@ ipt_pre_routing_hook(unsigned int hook,
 		     int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_pre_routing_net(in, out)->ipv4.iptable_mangle);
+			    dev_net(in)->ipv4.iptable_mangle);
 }
 
 static unsigned int
@@ -92,7 +92,7 @@ ipt_post_routing_hook(unsigned int hook,
 		      int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_post_routing_net(in, out)->ipv4.iptable_mangle);
+			    dev_net(out)->ipv4.iptable_mangle);
 }
 
 static unsigned int
@@ -103,7 +103,7 @@ ipt_local_in_hook(unsigned int hook,
 		  int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_local_in_net(in, out)->ipv4.iptable_mangle);
+			    dev_net(in)->ipv4.iptable_mangle);
 }
 
 static unsigned int
@@ -114,7 +114,7 @@ ipt_forward_hook(unsigned int hook,
 	 int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_forward_net(in, out)->ipv4.iptable_mangle);
+			    dev_net(in)->ipv4.iptable_mangle);
 }
 
 static unsigned int
@@ -147,7 +147,7 @@ ipt_local_hook(unsigned int hook,
 	tos = iph->tos;
 
 	ret = ipt_do_table(skb, hook, in, out,
-			   nf_local_out_net(in, out)->ipv4.iptable_mangle);
+			   dev_net(out)->ipv4.iptable_mangle);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);

@@ -53,7 +53,7 @@ ipt_hook(unsigned int hook,
 	 int (*okfn)(struct sk_buff *))
 {
 	return ipt_do_table(skb, hook, in, out,
-			    nf_pre_routing_net(in, out)->ipv4.iptable_raw);
+			    dev_net(in)->ipv4.iptable_raw);
 }
 
 static unsigned int
@@ -72,7 +72,7 @@ ipt_local_hook(unsigned int hook,
 		return NF_ACCEPT;
 	}
 	return ipt_do_table(skb, hook, in, out,
-			    nf_local_out_net(in, out)->ipv4.iptable_raw);
+			    dev_net(out)->ipv4.iptable_raw);
 }
 
 /* 'raw' is the very first table. */

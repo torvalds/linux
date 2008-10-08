@@ -5,13 +5,11 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/net.h>
-#include <linux/netdevice.h>
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/wait.h>
 #include <linux/list.h>
-#include <net/net_namespace.h>
 #endif
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -354,57 +352,6 @@ extern void (*nf_ct_destroy)(struct nf_conntrack *);
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif
-
-static inline struct net *nf_pre_routing_net(const struct net_device *in,
-					     const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return in->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_local_in_net(const struct net_device *in,
-					  const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return in->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_forward_net(const struct net_device *in,
-					 const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	BUG_ON(in->nd_net != out->nd_net);
-	return in->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_local_out_net(const struct net_device *in,
-					   const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return out->nd_net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline struct net *nf_post_routing_net(const struct net_device *in,
-					      const struct net_device *out)
-{
-#ifdef CONFIG_NET_NS
-	return out->nd_net;
-#else
-	return &init_net;
-#endif
-}
 
 #endif /*__KERNEL__*/
 #endif /*__LINUX_NETFILTER_H*/
