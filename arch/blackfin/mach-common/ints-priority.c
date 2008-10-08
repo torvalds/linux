@@ -243,12 +243,14 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 #endif
 
 static struct irq_chip bfin_core_irqchip = {
+	.name = "CORE",
 	.ack = bfin_ack_noop,
 	.mask = bfin_core_mask_irq,
 	.unmask = bfin_core_unmask_irq,
 };
 
 static struct irq_chip bfin_internal_irqchip = {
+	.name = "INTN",
 	.ack = bfin_ack_noop,
 	.mask = bfin_internal_mask_irq,
 	.unmask = bfin_internal_unmask_irq,
@@ -278,6 +280,7 @@ static void bfin_generic_error_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip bfin_generic_error_irqchip = {
+	.name = "ERROR",
 	.ack = bfin_ack_noop,
 	.mask_ack = bfin_generic_error_mask_irq,
 	.mask = bfin_generic_error_mask_irq,
@@ -495,6 +498,7 @@ int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
 #endif
 
 static struct irq_chip bfin_gpio_irqchip = {
+	.name = "GPIO",
 	.ack = bfin_gpio_ack_irq,
 	.mask = bfin_gpio_mask_irq,
 	.mask_ack = bfin_gpio_mask_ack_irq,
@@ -884,6 +888,7 @@ void bfin_pm_restore(void)
 #endif
 
 static struct irq_chip bfin_gpio_irqchip = {
+	.name = "GPIO",
 	.ack = bfin_gpio_ack_irq,
 	.mask = bfin_gpio_mask_irq,
 	.mask_ack = bfin_gpio_mask_ack_irq,
