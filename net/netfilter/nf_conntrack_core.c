@@ -1039,7 +1039,7 @@ void nf_conntrack_cleanup(struct net *net)
 	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
 			     nf_conntrack_htable_size);
 
-	nf_conntrack_acct_fini();
+	nf_conntrack_acct_fini(net);
 	nf_conntrack_expect_fini(net);
 	free_percpu(net->ct.stat);
 	nf_conntrack_helper_fini();
@@ -1191,7 +1191,7 @@ int nf_conntrack_init(struct net *net)
 	if (ret < 0)
 		goto out_fini_expect;
 
-	ret = nf_conntrack_acct_init();
+	ret = nf_conntrack_acct_init(net);
 	if (ret < 0)
 		goto out_fini_helper;
 
