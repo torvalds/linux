@@ -189,7 +189,7 @@ static void ip6_evictor(struct net *net, struct inet6_dev *idev)
 
 	evicted = inet_frag_evictor(&net->ipv6.frags, &ip6_frags);
 	if (evicted)
-		IP6_ADD_STATS_BH(idev, IPSTATS_MIB_REASMFAILS, evicted);
+		IP6_ADD_STATS_BH(net, idev, IPSTATS_MIB_REASMFAILS, evicted);
 }
 
 static void ip6_frag_expire(unsigned long data)
