@@ -629,6 +629,15 @@ config CPLB_SWITCH_TAB_L1
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
+config APP_STACK_L1
+	bool "Support locating application stack in L1 Scratch Memory"
+	default y
+	help
+	  If enabled the application stack can be located in L1
+	  scratch memory (less latency).
+
+	  Currently only works with FLAT binaries.
+
 comment "Speed Optimizations"
 config BFIN_INS_LOWOVERHEAD
 	bool "ins[bwl] low overhead, higher interrupt latency"
