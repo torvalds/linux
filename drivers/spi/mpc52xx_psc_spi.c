@@ -108,13 +108,13 @@ static void mpc52xx_psc_spi_activate_cs(struct spi_device *spi)
 	 * Because psc->ccr is defined as 16bit register instead of 32bit
 	 * just set the lower byte of BitClkDiv
 	 */
-	ccr = in_be16(&psc->ccr);
+	ccr = in_be16((u16 __iomem *)&psc->ccr);
 	ccr &= 0xFF00;
 	if (cs->speed_hz)
 		ccr |= (MCLK / cs->speed_hz - 1) & 0xFF;
 	else /* by default SPI Clk 1MHz */
 		ccr |= (MCLK / 1000000 - 1) & 0xFF;
-	out_be16(&psc->ccr, ccr);
+	out_be16((u16 __iomem *)&psc->ccr, ccr);
 	mps->bits_per_word = cs->bits_per_word;
 
 	if (mps->activate_cs)
@@ -347,7 +347,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	/* Configure 8bit codec mode as a SPI master and use EOF flags */
 	/* SICR_SIM_CODEC8|SICR_GENCLK|SICR_SPI|SICR_MSTR|SICR_USEEOF */
 	out_be32(&psc->sicr, 0x0180C800);
-	out_be16(&psc->ccr, 0x070F); /* by default SPI Clk 1MHz */
+	out_be16((u16 __iomem *)&psc->ccr, 0x070F); /* default SPI Clk 1MHz */
 
 	/* Set 2ms DTL delay */
 	out_8(&psc->ctur, 0x00);
