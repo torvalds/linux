@@ -141,7 +141,7 @@ static struct xt_match iprange_mt_reg[] __read_mostly = {
 	{
 		.name      = "iprange",
 		.revision  = 0,
-		.family    = AF_INET,
+		.family    = NFPROTO_IPV4,
 		.match     = iprange_mt_v0,
 		.matchsize = sizeof(struct ipt_iprange_info),
 		.me        = THIS_MODULE,
@@ -149,7 +149,7 @@ static struct xt_match iprange_mt_reg[] __read_mostly = {
 	{
 		.name      = "iprange",
 		.revision  = 1,
-		.family    = AF_INET,
+		.family    = NFPROTO_IPV4,
 		.match     = iprange_mt4,
 		.matchsize = sizeof(struct xt_iprange_mtinfo),
 		.me        = THIS_MODULE,
@@ -157,7 +157,7 @@ static struct xt_match iprange_mt_reg[] __read_mostly = {
 	{
 		.name      = "iprange",
 		.revision  = 1,
-		.family    = AF_INET6,
+		.family    = NFPROTO_IPV6,
 		.match     = iprange_mt6,
 		.matchsize = sizeof(struct xt_iprange_mtinfo),
 		.me        = THIS_MODULE,

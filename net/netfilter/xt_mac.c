@@ -42,7 +42,7 @@ mac_mt(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match mac_mt_reg[] __read_mostly = {
 	{
 		.name		= "mac",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= mac_mt,
 		.matchsize	= sizeof(struct xt_mac_info),
 		.hooks		= (1 << NF_INET_PRE_ROUTING) |
@@ -52,7 +52,7 @@ static struct xt_match mac_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "mac",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= mac_mt,
 		.matchsize	= sizeof(struct xt_mac_info),
 		.hooks		= (1 << NF_INET_PRE_ROUTING) |

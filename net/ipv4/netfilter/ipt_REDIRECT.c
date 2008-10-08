@@ -92,7 +92,7 @@ redirect_tg(struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_target redirect_tg_reg __read_mostly = {
 	.name		= "REDIRECT",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= redirect_tg,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",

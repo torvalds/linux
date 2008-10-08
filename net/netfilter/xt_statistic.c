@@ -69,7 +69,7 @@ statistic_mt_check(const char *tablename, const void *entry,
 static struct xt_match statistic_mt_reg[] __read_mostly = {
 	{
 		.name		= "statistic",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= statistic_mt_check,
 		.match		= statistic_mt,
 		.matchsize	= sizeof(struct xt_statistic_info),
@@ -77,7 +77,7 @@ static struct xt_match statistic_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "statistic",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= statistic_mt_check,
 		.match		= statistic_mt,
 		.matchsize	= sizeof(struct xt_statistic_info),

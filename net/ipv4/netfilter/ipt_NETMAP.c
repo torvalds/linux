@@ -75,7 +75,7 @@ netmap_tg(struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_target netmap_tg_reg __read_mostly = {
 	.name 		= "NETMAP",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target 	= netmap_tg,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",

@@ -84,7 +84,7 @@ same_source_net(const union nf_inet_addr *addr,
 		const union nf_inet_addr *mask,
 		const union nf_inet_addr *u3, u_int8_t family)
 {
-	if (family == AF_INET) {
+	if (family == NFPROTO_IPV4) {
 		return (addr->ip & mask->ip) == (u3->ip & mask->ip);
 	} else {
 		union nf_inet_addr lh, rh;
@@ -114,7 +114,7 @@ static int count_them(struct xt_connlimit_data *data,
 	int matches = 0;
 
 
-	if (match->family == AF_INET6)
+	if (match->family == NFPROTO_IPV6)
 		hash = &data->iphash[connlimit_iphash6(addr, mask)];
 	else
 		hash = &data->iphash[connlimit_iphash(addr->ip & mask->ip)];
@@ -198,7 +198,7 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 				    match->family, &tuple))
 		goto hotdrop;
 
-	if (match->family == AF_INET6) {
+	if (match->family == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		memcpy(&addr.ip6, &iph->saddr, sizeof(iph->saddr));
 	} else {
@@ -276,7 +276,7 @@ connlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
 static struct xt_match connlimit_mt_reg[] __read_mostly = {
 	{
 		.name       = "connlimit",
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.checkentry = connlimit_mt_check,
 		.match      = connlimit_mt,
 		.matchsize  = sizeof(struct xt_connlimit_info),
@@ -285,7 +285,7 @@ static struct xt_match connlimit_mt_reg[] __read_mostly = {
 	},
 	{
 		.name       = "connlimit",
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.checkentry = connlimit_mt_check,
 		.match      = connlimit_mt,
 		.matchsize  = sizeof(struct xt_connlimit_info),

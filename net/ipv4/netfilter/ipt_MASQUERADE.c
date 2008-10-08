@@ -153,7 +153,7 @@ static struct notifier_block masq_inet_notifier = {
 
 static struct xt_target masquerade_tg_reg __read_mostly = {
 	.name		= "MASQUERADE",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= masquerade_tg,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",

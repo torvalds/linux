@@ -106,7 +106,7 @@ tcpoptstrip_tg6(struct sk_buff *skb, const struct net_device *in,
 static struct xt_target tcpoptstrip_tg_reg[] __read_mostly = {
 	{
 		.name       = "TCPOPTSTRIP",
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.table      = "mangle",
 		.proto      = IPPROTO_TCP,
 		.target     = tcpoptstrip_tg4,
@@ -116,7 +116,7 @@ static struct xt_target tcpoptstrip_tg_reg[] __read_mostly = {
 #if defined(CONFIG_IP6_NF_MANGLE) || defined(CONFIG_IP6_NF_MANGLE_MODULE)
 	{
 		.name       = "TCPOPTSTRIP",
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.table      = "mangle",
 		.proto      = IPPROTO_TCP,
 		.target     = tcpoptstrip_tg6,

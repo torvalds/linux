@@ -83,7 +83,7 @@ dropit:
 static struct xt_match tcpmss_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcpmss",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= tcpmss_mt,
 		.matchsize	= sizeof(struct xt_tcpmss_match_info),
 		.proto		= IPPROTO_TCP,
@@ -91,7 +91,7 @@ static struct xt_match tcpmss_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "tcpmss",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= tcpmss_mt,
 		.matchsize	= sizeof(struct xt_tcpmss_match_info),
 		.proto		= IPPROTO_TCP,

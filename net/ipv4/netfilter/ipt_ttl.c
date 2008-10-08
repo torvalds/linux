@@ -46,7 +46,7 @@ ttl_mt(const struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_match ttl_mt_reg __read_mostly = {
 	.name		= "ttl",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.match		= ttl_mt,
 	.matchsize	= sizeof(struct ipt_ttl_info),
 	.me		= THIS_MODULE,

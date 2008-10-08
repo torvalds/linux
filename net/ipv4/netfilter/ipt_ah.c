@@ -83,7 +83,7 @@ ah_mt_check(const char *tablename, const void *ip_void,
 
 static struct xt_match ah_mt_reg __read_mostly = {
 	.name		= "ah",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.match		= ah_mt,
 	.matchsize	= sizeof(struct ipt_ah),
 	.proto		= IPPROTO_AH,

@@ -165,7 +165,7 @@ tos_tg6(struct sk_buff *skb, const struct net_device *in,
 static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "DSCP",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= dscp_tg_check,
 		.target		= dscp_tg,
 		.targetsize	= sizeof(struct xt_DSCP_info),
@@ -174,7 +174,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "DSCP",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= dscp_tg_check,
 		.target		= dscp_tg6,
 		.targetsize	= sizeof(struct xt_DSCP_info),
@@ -184,7 +184,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "TOS",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.table		= "mangle",
 		.target		= tos_tg_v0,
 		.targetsize	= sizeof(struct ipt_tos_target_info),
@@ -194,7 +194,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "TOS",
 		.revision	= 1,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.table		= "mangle",
 		.target		= tos_tg,
 		.targetsize	= sizeof(struct xt_tos_target_info),
@@ -203,7 +203,7 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "TOS",
 		.revision	= 1,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.table		= "mangle",
 		.target		= tos_tg6,
 		.targetsize	= sizeof(struct xt_tos_target_info),

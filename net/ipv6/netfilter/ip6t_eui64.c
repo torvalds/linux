@@ -60,7 +60,7 @@ eui64_mt6(const struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_match eui64_mt6_reg __read_mostly = {
 	.name		= "eui64",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= eui64_mt6,
 	.matchsize	= sizeof(int),
 	.hooks		= (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN) |

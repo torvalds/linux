@@ -445,7 +445,7 @@ struct compat_ipt_clusterip_tgt_info
 
 static struct xt_target clusterip_tg_reg __read_mostly = {
 	.name		= "CLUSTERIP",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= clusterip_tg,
 	.checkentry	= clusterip_tg_check,
 	.destroy	= clusterip_tg_destroy,
@@ -546,7 +546,7 @@ arp_mangle(unsigned int hook,
 
 static struct nf_hook_ops cip_arp_ops __read_mostly = {
 	.hook = arp_mangle,
-	.pf = NF_ARP,
+	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_OUT,
 	.priority = -1
 };

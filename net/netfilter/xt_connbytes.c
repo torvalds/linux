@@ -130,7 +130,7 @@ connbytes_mt_destroy(const struct xt_match *match, void *matchinfo)
 static struct xt_match connbytes_mt_reg[] __read_mostly = {
 	{
 		.name		= "connbytes",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= connbytes_mt_check,
 		.match		= connbytes_mt,
 		.destroy	= connbytes_mt_destroy,
@@ -139,7 +139,7 @@ static struct xt_match connbytes_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "connbytes",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= connbytes_mt_check,
 		.match		= connbytes_mt,
 		.destroy	= connbytes_mt_destroy,

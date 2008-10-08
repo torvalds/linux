@@ -110,7 +110,7 @@ ah_mt6_check(const char *tablename, const void *entry,
 
 static struct xt_match ah_mt6_reg __read_mostly = {
 	.name		= "ah",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= ah_mt6,
 	.matchsize	= sizeof(struct ip6t_ah),
 	.checkentry	= ah_mt6_check,

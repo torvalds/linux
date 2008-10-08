@@ -102,14 +102,14 @@ u32_mt(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match u32_mt_reg[] __read_mostly = {
 	{
 		.name       = "u32",
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.match      = u32_mt,
 		.matchsize  = sizeof(struct xt_u32),
 		.me         = THIS_MODULE,
 	},
 	{
 		.name       = "u32",
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.match      = u32_mt,
 		.matchsize  = sizeof(struct xt_u32),
 		.me         = THIS_MODULE,

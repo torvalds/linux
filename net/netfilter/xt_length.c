@@ -48,14 +48,14 @@ length_mt6(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match length_mt_reg[] __read_mostly = {
 	{
 		.name		= "length",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= length_mt,
 		.matchsize	= sizeof(struct xt_length_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "length",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= length_mt6,
 		.matchsize	= sizeof(struct xt_length_info),
 		.me		= THIS_MODULE,

@@ -139,7 +139,7 @@ static void xt_rateest_mt_destroy(const struct xt_match *match,
 
 static struct xt_match xt_rateest_match[] __read_mostly = {
 	{
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.name		= "rateest",
 		.match		= xt_rateest_mt,
 		.checkentry	= xt_rateest_mt_checkentry,
@@ -148,7 +148,7 @@ static struct xt_match xt_rateest_match[] __read_mostly = {
 		.me		= THIS_MODULE,
 	},
 	{
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.name		= "rateest",
 		.match		= xt_rateest_mt,
 		.checkentry	= xt_rateest_mt_checkentry,

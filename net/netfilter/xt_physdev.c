@@ -121,7 +121,7 @@ physdev_mt_check(const char *tablename, const void *ip,
 static struct xt_match physdev_mt_reg[] __read_mostly = {
 	{
 		.name		= "physdev",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= physdev_mt_check,
 		.match		= physdev_mt,
 		.matchsize	= sizeof(struct xt_physdev_info),
@@ -129,7 +129,7 @@ static struct xt_match physdev_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "physdev",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= physdev_mt_check,
 		.match		= physdev_mt,
 		.matchsize	= sizeof(struct xt_physdev_info),

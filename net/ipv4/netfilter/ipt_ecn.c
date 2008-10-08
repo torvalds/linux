@@ -114,7 +114,7 @@ ecn_mt_check(const char *tablename, const void *ip_void,
 
 static struct xt_match ecn_mt_reg __read_mostly = {
 	.name		= "ecn",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.match		= ecn_mt,
 	.matchsize	= sizeof(struct ipt_ecn_info),
 	.checkentry	= ecn_mt_check,

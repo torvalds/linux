@@ -216,7 +216,7 @@ multiport_mt6_check(const char *tablename, const void *info,
 static struct xt_match multiport_mt_reg[] __read_mostly = {
 	{
 		.name		= "multiport",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.revision	= 0,
 		.checkentry	= multiport_mt_check_v0,
 		.match		= multiport_mt_v0,
@@ -225,7 +225,7 @@ static struct xt_match multiport_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "multiport",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.revision	= 1,
 		.checkentry	= multiport_mt_check,
 		.match		= multiport_mt,
@@ -234,7 +234,7 @@ static struct xt_match multiport_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "multiport",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.revision	= 0,
 		.checkentry	= multiport_mt6_check_v0,
 		.match		= multiport_mt_v0,
@@ -243,7 +243,7 @@ static struct xt_match multiport_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "multiport",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.revision	= 1,
 		.checkentry	= multiport_mt6_check,
 		.match		= multiport_mt,

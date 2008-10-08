@@ -201,7 +201,7 @@ reject_tg_check(const char *tablename, const void *e_void,
 
 static struct xt_target reject_tg_reg __read_mostly = {
 	.name		= "REJECT",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= reject_tg,
 	.targetsize	= sizeof(struct ipt_reject_info),
 	.table		= "filter",

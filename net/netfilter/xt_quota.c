@@ -57,7 +57,7 @@ quota_mt_check(const char *tablename, const void *entry,
 static struct xt_match quota_mt_reg[] __read_mostly = {
 	{
 		.name		= "quota",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= quota_mt_check,
 		.match		= quota_mt,
 		.matchsize	= sizeof(struct xt_quota_info),
@@ -65,7 +65,7 @@ static struct xt_match quota_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "quota",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= quota_mt_check,
 		.match		= quota_mt,
 		.matchsize	= sizeof(struct xt_quota_info),

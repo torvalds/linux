@@ -170,7 +170,7 @@ static int limit_mt_compat_to_user(void __user *dst, void *src)
 static struct xt_match limit_mt_reg[] __read_mostly = {
 	{
 		.name		= "limit",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= limit_mt_check,
 		.match		= limit_mt,
 		.matchsize	= sizeof(struct xt_rateinfo),
@@ -183,7 +183,7 @@ static struct xt_match limit_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "limit",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= limit_mt_check,
 		.match		= limit_mt,
 		.matchsize	= sizeof(struct xt_rateinfo),

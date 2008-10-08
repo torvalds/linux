@@ -127,7 +127,7 @@ frag_mt6_check(const char *tablename, const void *ip,
 
 static struct xt_match frag_mt6_reg __read_mostly = {
 	.name		= "frag",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= frag_mt6,
 	.matchsize	= sizeof(struct ip6t_frag),
 	.checkentry	= frag_mt6_check,

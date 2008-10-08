@@ -153,7 +153,7 @@ static struct xt_match owner_mt_reg[] __read_mostly = {
 	{
 		.name       = "owner",
 		.revision   = 0,
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.match      = owner_mt_v0,
 		.matchsize  = sizeof(struct ipt_owner_info),
 		.checkentry = owner_mt_check_v0,
@@ -164,7 +164,7 @@ static struct xt_match owner_mt_reg[] __read_mostly = {
 	{
 		.name       = "owner",
 		.revision   = 0,
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.match      = owner_mt6_v0,
 		.matchsize  = sizeof(struct ip6t_owner_info),
 		.checkentry = owner_mt6_check_v0,
@@ -175,7 +175,7 @@ static struct xt_match owner_mt_reg[] __read_mostly = {
 	{
 		.name       = "owner",
 		.revision   = 1,
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.match      = owner_mt,
 		.matchsize  = sizeof(struct xt_owner_match_info),
 		.hooks      = (1 << NF_INET_LOCAL_OUT) |
@@ -185,7 +185,7 @@ static struct xt_match owner_mt_reg[] __read_mostly = {
 	{
 		.name       = "owner",
 		.revision   = 1,
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.match      = owner_mt,
 		.matchsize  = sizeof(struct xt_owner_match_info),
 		.hooks      = (1 << NF_INET_LOCAL_OUT) |

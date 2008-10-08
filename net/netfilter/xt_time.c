@@ -240,7 +240,7 @@ time_mt_check(const char *tablename, const void *ip,
 static struct xt_match time_mt_reg[] __read_mostly = {
 	{
 		.name       = "time",
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.match      = time_mt,
 		.matchsize  = sizeof(struct xt_time_info),
 		.checkentry = time_mt_check,
@@ -248,7 +248,7 @@ static struct xt_match time_mt_reg[] __read_mostly = {
 	},
 	{
 		.name       = "time",
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.match      = time_mt,
 		.matchsize  = sizeof(struct xt_time_info),
 		.checkentry = time_mt_check,

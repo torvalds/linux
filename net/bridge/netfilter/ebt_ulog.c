@@ -310,7 +310,7 @@ static int __init ebt_ulog_init(void)
 		netlink_kernel_release(ebtulognl);
 
 	if (ret == 0)
-		nf_log_register(PF_BRIDGE, &ebt_ulog_logger);
+		nf_log_register(NFPROTO_BRIDGE, &ebt_ulog_logger);
 
 	return ret;
 }

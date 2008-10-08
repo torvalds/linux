@@ -35,14 +35,14 @@ notrack_tg(struct sk_buff *skb, const struct net_device *in,
 static struct xt_target notrack_tg_reg[] __read_mostly = {
 	{
 		.name		= "NOTRACK",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.target		= notrack_tg,
 		.table		= "raw",
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "NOTRACK",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.target		= notrack_tg,
 		.table		= "raw",
 		.me		= THIS_MODULE,

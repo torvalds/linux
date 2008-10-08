@@ -161,7 +161,7 @@ static int mark_tg_compat_to_user_v1(void __user *dst, void *src)
 static struct xt_target mark_tg_reg[] __read_mostly = {
 	{
 		.name		= "MARK",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.revision	= 0,
 		.checkentry	= mark_tg_check_v0,
 		.target		= mark_tg_v0,
@@ -176,7 +176,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "MARK",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.revision	= 1,
 		.checkentry	= mark_tg_check_v1,
 		.target		= mark_tg_v1,
@@ -191,7 +191,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "MARK",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.revision	= 0,
 		.checkentry	= mark_tg_check_v0,
 		.target		= mark_tg_v0,
@@ -206,7 +206,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "MARK",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.revision	= 1,
 		.checkentry	= mark_tg_check_v1,
 		.target		= mark_tg_v1,
@@ -222,7 +222,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	{
 		.name           = "MARK",
 		.revision       = 2,
-		.family         = AF_INET,
+		.family         = NFPROTO_IPV4,
 		.target         = mark_tg,
 		.targetsize     = sizeof(struct xt_mark_tginfo2),
 		.me             = THIS_MODULE,
@@ -230,7 +230,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	{
 		.name           = "MARK",
 		.revision       = 2,
-		.family         = AF_INET6,
+		.family         = NFPROTO_IPV6,
 		.target         = mark_tg,
 		.targetsize     = sizeof(struct xt_mark_tginfo2),
 		.me             = THIS_MODULE,

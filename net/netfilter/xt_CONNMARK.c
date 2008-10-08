@@ -197,7 +197,7 @@ static struct xt_target connmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "CONNMARK",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= connmark_tg_check_v0,
 		.destroy	= connmark_tg_destroy,
 		.target		= connmark_tg_v0,
@@ -212,7 +212,7 @@ static struct xt_target connmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "CONNMARK",
 		.revision	= 0,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= connmark_tg_check_v0,
 		.destroy	= connmark_tg_destroy,
 		.target		= connmark_tg_v0,
@@ -227,7 +227,7 @@ static struct xt_target connmark_tg_reg[] __read_mostly = {
 	{
 		.name           = "CONNMARK",
 		.revision       = 1,
-		.family         = AF_INET,
+		.family         = NFPROTO_IPV4,
 		.checkentry     = connmark_tg_check,
 		.target         = connmark_tg,
 		.targetsize     = sizeof(struct xt_connmark_tginfo1),
@@ -237,7 +237,7 @@ static struct xt_target connmark_tg_reg[] __read_mostly = {
 	{
 		.name           = "CONNMARK",
 		.revision       = 1,
-		.family         = AF_INET6,
+		.family         = NFPROTO_IPV6,
 		.checkentry     = connmark_tg_check,
 		.target         = connmark_tg,
 		.targetsize     = sizeof(struct xt_connmark_tginfo1),

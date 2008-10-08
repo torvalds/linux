@@ -80,7 +80,7 @@ static bool tos_mt(const struct sk_buff *skb, const struct net_device *in,
 {
 	const struct xt_tos_match_info *info = matchinfo;
 
-	if (match->family == AF_INET)
+	if (match->family == NFPROTO_IPV4)
 		return ((ip_hdr(skb)->tos & info->tos_mask) ==
 		       info->tos_value) ^ !!info->invert;
 	else
@@ -91,7 +91,7 @@ static bool tos_mt(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match dscp_mt_reg[] __read_mostly = {
 	{
 		.name		= "dscp",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= dscp_mt_check,
 		.match		= dscp_mt,
 		.matchsize	= sizeof(struct xt_dscp_info),
@@ -99,7 +99,7 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "dscp",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= dscp_mt_check,
 		.match		= dscp_mt6,
 		.matchsize	= sizeof(struct xt_dscp_info),
@@ -108,7 +108,7 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 	{
 		.name		= "tos",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= tos_mt_v0,
 		.matchsize	= sizeof(struct ipt_tos_info),
 		.me		= THIS_MODULE,
@@ -116,7 +116,7 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 	{
 		.name		= "tos",
 		.revision	= 1,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= tos_mt,
 		.matchsize	= sizeof(struct xt_tos_match_info),
 		.me		= THIS_MODULE,
@@ -124,7 +124,7 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 	{
 		.name		= "tos",
 		.revision	= 1,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= tos_mt,
 		.matchsize	= sizeof(struct xt_tos_match_info),
 		.me		= THIS_MODULE,

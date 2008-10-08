@@ -186,7 +186,7 @@ udp_mt_check(const char *tablename, const void *info,
 static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcp",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= tcp_mt_check,
 		.match		= tcp_mt,
 		.matchsize	= sizeof(struct xt_tcp),
@@ -195,7 +195,7 @@ static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "tcp",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= tcp_mt_check,
 		.match		= tcp_mt,
 		.matchsize	= sizeof(struct xt_tcp),
@@ -204,7 +204,7 @@ static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "udp",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= udp_mt_check,
 		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
@@ -213,7 +213,7 @@ static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "udp",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= udp_mt_check,
 		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
@@ -222,7 +222,7 @@ static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "udplite",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= udp_mt_check,
 		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
@@ -231,7 +231,7 @@ static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "udplite",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= udp_mt_check,
 		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),

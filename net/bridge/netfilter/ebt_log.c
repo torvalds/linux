@@ -206,10 +206,10 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 	li.u.log.logflags = info->bitmask;
 
 	if (info->bitmask & EBT_LOG_NFLOG)
-		nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
+		nf_log_packet(NFPROTO_BRIDGE, hooknr, skb, in, out, &li,
 			      "%s", info->prefix);
 	else
-		ebt_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
+		ebt_log_packet(NFPROTO_BRIDGE, hooknr, skb, in, out, &li,
 			       info->prefix);
 }
 
@@ -234,7 +234,7 @@ static int __init ebt_log_init(void)
 	ret = ebt_register_watcher(&log);
 	if (ret < 0)
 		return ret;
-	nf_log_register(PF_BRIDGE, &ebt_log_logger);
+	nf_log_register(NFPROTO_BRIDGE, &ebt_log_logger);
 	return 0;
 }
 

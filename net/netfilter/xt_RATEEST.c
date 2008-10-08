@@ -159,7 +159,7 @@ static void xt_rateest_tg_destroy(const struct xt_target *target,
 
 static struct xt_target xt_rateest_target[] __read_mostly = {
 	{
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.name		= "RATEEST",
 		.target		= xt_rateest_tg,
 		.checkentry	= xt_rateest_tg_checkentry,
@@ -168,7 +168,7 @@ static struct xt_target xt_rateest_target[] __read_mostly = {
 		.me		= THIS_MODULE,
 	},
 	{
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.name		= "RATEEST",
 		.target		= xt_rateest_tg,
 		.checkentry	= xt_rateest_tg_checkentry,

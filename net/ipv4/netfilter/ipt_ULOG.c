@@ -374,7 +374,7 @@ static int ulog_tg_compat_to_user(void __user *dst, void *src)
 
 static struct xt_target ulog_tg_reg __read_mostly = {
 	.name		= "ULOG",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= ulog_tg,
 	.targetsize	= sizeof(struct ipt_ulog_info),
 	.checkentry	= ulog_tg_check,
@@ -419,7 +419,7 @@ static int __init ulog_tg_init(void)
 		return ret;
 	}
 	if (nflog)
-		nf_log_register(PF_INET, &ipt_ulog_logger);
+		nf_log_register(NFPROTO_IPV4, &ipt_ulog_logger);
 
 	return 0;
 }

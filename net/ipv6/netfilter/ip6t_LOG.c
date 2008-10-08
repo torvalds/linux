@@ -449,7 +449,8 @@ log_tg6(struct sk_buff *skb, const struct net_device *in,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	ip6t_log_packet(PF_INET6, hooknum, skb, in, out, &li, loginfo->prefix);
+	ip6t_log_packet(NFPROTO_IPV6, hooknum, skb, in, out,
+			&li, loginfo->prefix);
 	return XT_CONTINUE;
 }
 
@@ -475,7 +476,7 @@ log_tg6_check(const char *tablename, const void *entry,
 
 static struct xt_target log_tg6_reg __read_mostly = {
 	.name 		= "LOG",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.target 	= log_tg6,
 	.targetsize	= sizeof(struct ip6t_log_info),
 	.checkentry	= log_tg6_check,
@@ -495,7 +496,7 @@ static int __init log_tg6_init(void)
 	ret = xt_register_target(&log_tg6_reg);
 	if (ret < 0)
 		return ret;
-	nf_log_register(PF_INET6, &ip6t_logger);
+	nf_log_register(NFPROTO_IPV6, &ip6t_logger);
 	return 0;
 }
 

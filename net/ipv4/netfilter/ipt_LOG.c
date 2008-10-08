@@ -437,7 +437,7 @@ log_tg(struct sk_buff *skb, const struct net_device *in,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	ipt_log_packet(PF_INET, hooknum, skb, in, out, &li,
+	ipt_log_packet(NFPROTO_IPV4, hooknum, skb, in, out, &li,
 		       loginfo->prefix);
 	return XT_CONTINUE;
 }
@@ -463,7 +463,7 @@ log_tg_check(const char *tablename, const void *e,
 
 static struct xt_target log_tg_reg __read_mostly = {
 	.name		= "LOG",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= log_tg,
 	.targetsize	= sizeof(struct ipt_log_info),
 	.checkentry	= log_tg_check,
@@ -483,7 +483,7 @@ static int __init log_tg_init(void)
 	ret = xt_register_target(&log_tg_reg);
 	if (ret < 0)
 		return ret;
-	nf_log_register(PF_INET, &ipt_log_logger);
+	nf_log_register(NFPROTO_IPV4, &ipt_log_logger);
 	return 0;
 }
 

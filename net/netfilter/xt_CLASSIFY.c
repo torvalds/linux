@@ -39,7 +39,7 @@ classify_tg(struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_target classify_tg_reg[] __read_mostly = {
 	{
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.name 		= "CLASSIFY",
 		.target 	= classify_tg,
 		.targetsize	= sizeof(struct xt_classify_target_info),
@@ -51,7 +51,7 @@ static struct xt_target classify_tg_reg[] __read_mostly = {
 	},
 	{
 		.name 		= "CLASSIFY",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.target 	= classify_tg,
 		.targetsize	= sizeof(struct xt_classify_target_info),
 		.table		= "mangle",

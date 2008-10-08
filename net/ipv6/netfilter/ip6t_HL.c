@@ -78,7 +78,7 @@ hl_tg6_check(const char *tablename, const void *entry,
 
 static struct xt_target hl_tg6_reg __read_mostly = {
 	.name 		= "HL",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.target		= hl_tg6,
 	.targetsize	= sizeof(struct ip6t_HL_info),
 	.table		= "mangle",

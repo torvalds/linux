@@ -124,7 +124,7 @@ ecn_tg_check(const char *tablename, const void *e_void,
 
 static struct xt_target ecn_tg_reg __read_mostly = {
 	.name		= "ECN",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target		= ecn_tg,
 	.targetsize	= sizeof(struct ipt_ECN_info),
 	.table		= "mangle",

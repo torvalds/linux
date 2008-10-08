@@ -84,7 +84,7 @@ mh_mt6_check(const char *tablename, const void *entry,
 
 static struct xt_match mh_mt6_reg __read_mostly = {
 	.name		= "mh",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.checkentry	= mh_mt6_check,
 	.match		= mh_mt6,
 	.matchsize	= sizeof(struct ip6t_mh),

@@ -85,7 +85,7 @@ static struct xt_match string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= string_mt_check,
 		.match 		= string_mt,
 		.destroy 	= string_mt_destroy,
@@ -95,7 +95,7 @@ static struct xt_match string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.revision	= 1,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= string_mt_check,
 		.match 		= string_mt,
 		.destroy 	= string_mt_destroy,
@@ -105,7 +105,7 @@ static struct xt_match string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.revision	= 0,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= string_mt_check,
 		.match 		= string_mt,
 		.destroy 	= string_mt_destroy,
@@ -115,7 +115,7 @@ static struct xt_match string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.revision	= 1,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= string_mt_check,
 		.match 		= string_mt,
 		.destroy 	= string_mt_destroy,

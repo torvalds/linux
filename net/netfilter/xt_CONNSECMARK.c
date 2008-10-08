@@ -127,7 +127,7 @@ connsecmark_tg_destroy(const struct xt_target *target, void *targinfo)
 static struct xt_target connsecmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "CONNSECMARK",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= connsecmark_tg_check,
 		.destroy	= connsecmark_tg_destroy,
 		.target		= connsecmark_tg,
@@ -136,7 +136,7 @@ static struct xt_target connsecmark_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "CONNSECMARK",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= connsecmark_tg_check,
 		.destroy	= connsecmark_tg_destroy,
 		.target		= connsecmark_tg,

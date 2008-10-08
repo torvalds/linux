@@ -237,7 +237,7 @@ reject_tg6_check(const char *tablename, const void *entry,
 
 static struct xt_target reject_tg6_reg __read_mostly = {
 	.name		= "REJECT",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.target		= reject_tg6,
 	.targetsize	= sizeof(struct ip6t_reject_info),
 	.table		= "filter",

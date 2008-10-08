@@ -88,7 +88,7 @@ esp_mt_check(const char *tablename, const void *ip_void,
 static struct xt_match esp_mt_reg[] __read_mostly = {
 	{
 		.name		= "esp",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= esp_mt_check,
 		.match		= esp_mt,
 		.matchsize	= sizeof(struct xt_esp),
@@ -97,7 +97,7 @@ static struct xt_match esp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "esp",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= esp_mt_check,
 		.match		= esp_mt,
 		.matchsize	= sizeof(struct xt_esp),

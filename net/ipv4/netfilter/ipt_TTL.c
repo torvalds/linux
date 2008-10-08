@@ -80,7 +80,7 @@ ttl_tg_check(const char *tablename, const void *e,
 
 static struct xt_target ttl_tg_reg __read_mostly = {
 	.name 		= "TTL",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.target 	= ttl_tg,
 	.targetsize	= sizeof(struct ipt_TTL_info),
 	.table		= "mangle",

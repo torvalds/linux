@@ -169,7 +169,7 @@ sctp_mt_check(const char *tablename, const void *inf,
 static struct xt_match sctp_mt_reg[] __read_mostly = {
 	{
 		.name		= "sctp",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= sctp_mt_check,
 		.match		= sctp_mt,
 		.matchsize	= sizeof(struct xt_sctp_info),
@@ -178,7 +178,7 @@ static struct xt_match sctp_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "sctp",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= sctp_mt_check,
 		.match		= sctp_mt,
 		.matchsize	= sizeof(struct xt_sctp_info),

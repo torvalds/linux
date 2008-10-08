@@ -28,14 +28,14 @@ comment_mt(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match comment_mt_reg[] __read_mostly = {
 	{
 		.name		= "comment",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= comment_mt,
 		.matchsize	= sizeof(struct xt_comment_info),
 		.me		= THIS_MODULE
 	},
 	{
 		.name		= "comment",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= comment_mt,
 		.matchsize	= sizeof(struct xt_comment_info),
 		.me		= THIS_MODULE

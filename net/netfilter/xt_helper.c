@@ -81,7 +81,7 @@ static void helper_mt_destroy(const struct xt_match *match, void *matchinfo)
 static struct xt_match helper_mt_reg[] __read_mostly = {
 	{
 		.name		= "helper",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= helper_mt_check,
 		.match		= helper_mt,
 		.destroy	= helper_mt_destroy,
@@ -90,7 +90,7 @@ static struct xt_match helper_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "helper",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= helper_mt_check,
 		.match		= helper_mt,
 		.destroy	= helper_mt_destroy,

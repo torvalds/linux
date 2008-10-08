@@ -214,7 +214,7 @@ rt_mt6_check(const char *tablename, const void *entry,
 
 static struct xt_match rt_mt6_reg __read_mostly = {
 	.name		= "rt",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= rt_mt6,
 	.matchsize	= sizeof(struct ip6t_rt),
 	.checkentry	= rt_mt6_check,

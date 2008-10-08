@@ -121,9 +121,9 @@ conntrack_addrcmp(const union nf_inet_addr *kaddr,
                   const union nf_inet_addr *uaddr,
                   const union nf_inet_addr *umask, unsigned int l3proto)
 {
-	if (l3proto == AF_INET)
+	if (l3proto == NFPROTO_IPV4)
 		return ((kaddr->ip ^ uaddr->ip) & umask->ip) == 0;
-	else if (l3proto == AF_INET6)
+	else if (l3proto == NFPROTO_IPV6)
 		return ipv6_masked_addr_cmp(&kaddr->in6, &umask->in6,
 		       &uaddr->in6) == 0;
 	else
@@ -356,7 +356,7 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 	{
 		.name       = "conntrack",
 		.revision   = 0,
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.match      = conntrack_mt_v0,
 		.checkentry = conntrack_mt_check,
 		.destroy    = conntrack_mt_destroy,
@@ -371,7 +371,7 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 	{
 		.name       = "conntrack",
 		.revision   = 1,
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.matchsize  = sizeof(struct xt_conntrack_mtinfo1),
 		.match      = conntrack_mt,
 		.checkentry = conntrack_mt_check,
@@ -381,7 +381,7 @@ static struct xt_match conntrack_mt_reg[] __read_mostly = {
 	{
 		.name       = "conntrack",
 		.revision   = 1,
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.matchsize  = sizeof(struct xt_conntrack_mtinfo1),
 		.match      = conntrack_mt,
 		.checkentry = conntrack_mt_check,

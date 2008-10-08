@@ -51,7 +51,7 @@ hl_mt6(const struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_match hl_mt6_reg __read_mostly = {
 	.name		= "hl",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= hl_mt6,
 	.matchsize	= sizeof(struct ip6t_hl_info),
 	.me		= THIS_MODULE,

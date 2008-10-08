@@ -128,7 +128,7 @@ static void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
 static struct xt_target secmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "SECMARK",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= secmark_tg_check,
 		.destroy	= secmark_tg_destroy,
 		.target		= secmark_tg,
@@ -137,7 +137,7 @@ static struct xt_target secmark_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "SECMARK",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= secmark_tg_check,
 		.destroy	= secmark_tg_destroy,
 		.target		= secmark_tg,

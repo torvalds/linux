@@ -138,7 +138,7 @@ ipv6header_mt6_check(const char *tablename, const void *ip,
 
 static struct xt_match ipv6header_mt6_reg __read_mostly = {
 	.name		= "ipv6header",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= ipv6header_mt6,
 	.matchsize	= sizeof(struct ip6t_ipv6header_info),
 	.checkentry	= ipv6header_mt6_check,

@@ -26,9 +26,9 @@ xt_addr_cmp(const union nf_inet_addr *a1, const union nf_inet_addr *m,
 	    const union nf_inet_addr *a2, unsigned short family)
 {
 	switch (family) {
-	case AF_INET:
+	case NFPROTO_IPV4:
 		return ((a1->ip ^ a2->ip) & m->ip) == 0;
-	case AF_INET6:
+	case NFPROTO_IPV6:
 		return ipv6_masked_addr_cmp(&a1->in6, &m->in6, &a2->in6) == 0;
 	}
 	return false;
@@ -165,7 +165,7 @@ policy_mt_check(const char *tablename, const void *ip_void,
 static struct xt_match policy_mt_reg[] __read_mostly = {
 	{
 		.name		= "policy",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry 	= policy_mt_check,
 		.match		= policy_mt,
 		.matchsize	= sizeof(struct xt_policy_info),
@@ -173,7 +173,7 @@ static struct xt_match policy_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "policy",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= policy_mt_check,
 		.match		= policy_mt,
 		.matchsize	= sizeof(struct xt_policy_info),

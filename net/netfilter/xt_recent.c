@@ -124,7 +124,7 @@ recent_entry_lookup(const struct recent_table *table,
 	struct recent_entry *e;
 	unsigned int h;
 
-	if (family == AF_INET)
+	if (family == NFPROTO_IPV4)
 		h = recent_entry_hash4(addrp);
 	else
 		h = recent_entry_hash6(addrp);
@@ -165,7 +165,7 @@ recent_entry_init(struct recent_table *t, const union nf_inet_addr *addr,
 	e->nstamps   = 1;
 	e->index     = 1;
 	e->family    = family;
-	if (family == AF_INET)
+	if (family == NFPROTO_IPV4)
 		list_add_tail(&e->list, &t->iphash[recent_entry_hash4(addr)]);
 	else
 		list_add_tail(&e->list, &t->iphash[recent_entry_hash6(addr)]);
@@ -216,7 +216,7 @@ recent_mt(const struct sk_buff *skb, const struct net_device *in,
 	u_int8_t ttl;
 	bool ret = info->invert;
 
-	if (match->family == AF_INET) {
+	if (match->family == NFPROTO_IPV4) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (info->side == XT_RECENT_DEST)
@@ -429,7 +429,7 @@ static int recent_seq_show(struct seq_file *seq, void *v)
 	unsigned int i;
 
 	i = (e->index - 1) % ip_pkt_list_tot;
-	if (e->family == AF_INET)
+	if (e->family == NFPROTO_IPV4)
 		seq_printf(seq, "src=" NIPQUAD_FMT " ttl: %u last_seen: %lu "
 			   "oldest_pkt: %u", NIPQUAD(e->addr.ip), e->ttl,
 			   e->stamps[i], e->index);
@@ -519,10 +519,11 @@ static ssize_t recent_old_proc_write(struct file *file,
 	addr = in_aton(c);
 
 	spin_lock_bh(&recent_lock);
-	e = recent_entry_lookup(t, (const void *)&addr, PF_INET, 0);
+	e = recent_entry_lookup(t, (const void *)&addr, NFPROTO_IPV4, 0);
 	if (e == NULL) {
 		if (add)
-			recent_entry_init(t, (const void *)&addr, PF_INET, 0);
+			recent_entry_init(t, (const void *)&addr,
+					  NFPROTO_IPV4, 0);
 	} else {
 		if (add)
 			recent_entry_update(t, e);
@@ -585,10 +586,10 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	++c;
 	--size;
 	if (strnchr(c, size, ':') != NULL) {
-		family = AF_INET6;
+		family = NFPROTO_IPV6;
 		succ   = in6_pton(c, size, (void *)&addr, '\n', NULL);
 	} else {
-		family = AF_INET;
+		family = NFPROTO_IPV4;
 		succ   = in4_pton(c, size, (void *)&addr, '\n', NULL);
 	}
 
@@ -628,7 +629,7 @@ static struct xt_match recent_mt_reg[] __read_mostly = {
 	{
 		.name       = "recent",
 		.revision   = 0,
-		.family     = AF_INET,
+		.family     = NFPROTO_IPV4,
 		.match      = recent_mt,
 		.matchsize  = sizeof(struct xt_recent_mtinfo),
 		.checkentry = recent_mt_check,
@@ -638,7 +639,7 @@ static struct xt_match recent_mt_reg[] __read_mostly = {
 	{
 		.name       = "recent",
 		.revision   = 0,
-		.family     = AF_INET6,
+		.family     = NFPROTO_IPV6,
 		.match      = recent_mt,
 		.matchsize  = sizeof(struct xt_recent_mtinfo),
 		.checkentry = recent_mt_check,

@@ -36,14 +36,14 @@ nfqueue_tg(struct sk_buff *skb, const struct net_device *in,
 static struct xt_target nfqueue_tg_reg[] __read_mostly = {
 	{
 		.name		= "NFQUEUE",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.target		= nfqueue_tg,
 		.targetsize	= sizeof(struct xt_NFQ_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "NFQUEUE",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.target		= nfqueue_tg,
 		.targetsize	= sizeof(struct xt_NFQ_info),
 		.me		= THIS_MODULE,

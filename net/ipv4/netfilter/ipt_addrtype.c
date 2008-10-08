@@ -108,14 +108,14 @@ addrtype_mt_checkentry_v1(const char *tablename, const void *ip_void,
 static struct xt_match addrtype_mt_reg[] __read_mostly = {
 	{
 		.name		= "addrtype",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= addrtype_mt_v0,
 		.matchsize	= sizeof(struct ipt_addrtype_info),
 		.me		= THIS_MODULE
 	},
 	{
 		.name		= "addrtype",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.revision	= 1,
 		.match		= addrtype_mt_v1,
 		.checkentry	= addrtype_mt_checkentry_v1,

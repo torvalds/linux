@@ -33,10 +33,10 @@ pkttype_mt(const struct sk_buff *skb, const struct net_device *in,
 
 	if (skb->pkt_type != PACKET_LOOPBACK)
 		type = skb->pkt_type;
-	else if (match->family == AF_INET &&
+	else if (match->family == NFPROTO_IPV4 &&
 	    ipv4_is_multicast(ip_hdr(skb)->daddr))
 		type = PACKET_MULTICAST;
-	else if (match->family == AF_INET6 &&
+	else if (match->family == NFPROTO_IPV6 &&
 	    ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
 		type = PACKET_MULTICAST;
 	else
@@ -48,14 +48,14 @@ pkttype_mt(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match pkttype_mt_reg[] __read_mostly = {
 	{
 		.name		= "pkttype",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= pkttype_mt,
 		.matchsize	= sizeof(struct xt_pkttype_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "pkttype",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= pkttype_mt,
 		.matchsize	= sizeof(struct xt_pkttype_info),
 		.me		= THIS_MODULE,

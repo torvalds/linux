@@ -22,14 +22,14 @@ trace_tg(struct sk_buff *skb, const struct net_device *in,
 static struct xt_target trace_tg_reg[] __read_mostly = {
 	{
 		.name		= "TRACE",
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.target		= trace_tg,
 		.table		= "raw",
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "TRACE",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.target		= trace_tg,
 		.table		= "raw",
 		.me		= THIS_MODULE,

@@ -140,7 +140,7 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 	{
 		.name		= "connmark",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.checkentry	= connmark_mt_check_v0,
 		.match		= connmark_mt_v0,
 		.destroy	= connmark_mt_destroy,
@@ -155,7 +155,7 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 	{
 		.name		= "connmark",
 		.revision	= 0,
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.checkentry	= connmark_mt_check_v0,
 		.match		= connmark_mt_v0,
 		.destroy	= connmark_mt_destroy,
@@ -170,7 +170,7 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 	{
 		.name           = "connmark",
 		.revision       = 1,
-		.family         = AF_INET,
+		.family         = NFPROTO_IPV4,
 		.checkentry     = connmark_mt_check,
 		.match          = connmark_mt,
 		.matchsize      = sizeof(struct xt_connmark_mtinfo1),
@@ -180,7 +180,7 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 	{
 		.name           = "connmark",
 		.revision       = 1,
-		.family         = AF_INET6,
+		.family         = NFPROTO_IPV6,
 		.checkentry     = connmark_mt_check,
 		.match          = connmark_mt,
 		.matchsize      = sizeof(struct xt_connmark_mtinfo1),
