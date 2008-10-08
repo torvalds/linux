@@ -67,7 +67,7 @@ config IP6_NF_MATCH_RT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_OPTS
-	tristate '"hopbyhop" and "dst" opts header match support'
+	tristate '"hbh" hop-by-hop and "dst" opts header match support'
 	depends on IP6_NF_IPTABLES
 	depends on NETFILTER_ADVANCED
 	help
