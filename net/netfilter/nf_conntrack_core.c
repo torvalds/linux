@@ -562,7 +562,7 @@ init_conntrack(struct net *net,
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
 
 	spin_lock_bh(&nf_conntrack_lock);
-	exp = nf_ct_find_expectation(tuple);
+	exp = nf_ct_find_expectation(net, tuple);
 	if (exp) {
 		pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
 			 ct, exp);
@@ -1038,7 +1038,7 @@ void nf_conntrack_cleanup(struct net *net)
 			     nf_conntrack_htable_size);
 
 	nf_conntrack_acct_fini();
-	nf_conntrack_expect_fini();
+	nf_conntrack_expect_fini(net);
 	nf_conntrack_helper_fini();
 	nf_conntrack_proto_fini();
 }
@@ -1173,7 +1173,7 @@ int nf_conntrack_init(struct net *net)
 	if (ret < 0)
 		goto err_free_conntrack_slab;
 
-	ret = nf_conntrack_expect_init();
+	ret = nf_conntrack_expect_init(net);
 	if (ret < 0)
 		goto out_fini_proto;
 
@@ -1203,7 +1203,7 @@ int nf_conntrack_init(struct net *net)
 out_fini_helper:
 	nf_conntrack_helper_fini();
 out_fini_expect:
-	nf_conntrack_expect_fini();
+	nf_conntrack_expect_fini(net);
 out_fini_proto:
 	nf_conntrack_proto_fini();
 err_free_conntrack_slab:

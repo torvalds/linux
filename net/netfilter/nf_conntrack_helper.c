@@ -145,7 +145,7 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	/* Get rid of expectations */
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
 		hlist_for_each_entry_safe(exp, n, next,
-					  &nf_ct_expect_hash[i], hnode) {
+					  &init_net.ct.expect_hash[i], hnode) {
 			struct nf_conn_help *help = nfct_help(exp->master);
 			if ((help->helper == me || exp->helper == me) &&
 			    del_timer(&exp->timeout)) {

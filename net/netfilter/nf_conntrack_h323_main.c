@@ -1219,7 +1219,7 @@ static struct nf_conntrack_expect *find_expect(struct nf_conn *ct,
 	tuple.dst.u.tcp.port = port;
 	tuple.dst.protonum = IPPROTO_TCP;
 
-	exp = __nf_ct_expect_find(&tuple);
+	exp = __nf_ct_expect_find(&init_net, &tuple);
 	if (exp && exp->master == ct)
 		return exp;
 	return NULL;
