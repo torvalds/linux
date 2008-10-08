@@ -122,7 +122,7 @@ static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
 
 	new_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!new_bus)
-		goto out_free_priv;
+		goto out_free_bitbang;
 
 	new_bus->name = "GPIO Bitbanged MII",
 
@@ -155,9 +155,9 @@ out_free_irqs:
 	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(new_bus->irq);
 out_free_bus:
-	kfree(new_bus);
-out_free_priv:
 	free_mdio_bitbang(new_bus);
+out_free_bitbang:
+	kfree(bitbang);
 out:
 	return ret;
 }
@@ -168,11 +168,10 @@ static int mdio_ofgpio_remove(struct of_device *ofdev)
 	struct mdio_gpio_info *bitbang = bus->priv;
 
 	mdiobus_unregister(bus);
+	kfree(bus->irq);
 	free_mdio_bitbang(bus);
 	dev_set_drvdata(&ofdev->dev, NULL);
-	kfree(bus->irq);
 	kfree(bitbang);
-	kfree(bus);
 
 	return 0;
 }

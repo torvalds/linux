@@ -218,9 +218,9 @@ out_free_irqs:
 out_unmap_regs:
 	iounmap(bitbang->dir);
 out_free_bus:
-	kfree(new_bus);
-out_free_priv:
 	free_mdio_bitbang(new_bus);
+out_free_priv:
+	kfree(bitbang);
 out:
 	return ret;
 }
@@ -231,12 +231,11 @@ static int fs_enet_mdio_remove(struct of_device *ofdev)
 	struct bb_info *bitbang = bus->priv;
 
 	mdiobus_unregister(bus);
-	free_mdio_bitbang(bus);
 	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(bus->irq);
+	free_mdio_bitbang(bus);
 	iounmap(bitbang->dir);
 	kfree(bitbang);
-	kfree(bus);
 
 	return 0;
 }

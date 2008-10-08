@@ -36,6 +36,18 @@
 #include <asm/uaccess.h>
 
 /**
+ * mdiobus_alloc - allocate a mii_bus structure
+ *
+ * Description: called by a bus driver to allocate an mii_bus
+ * structure to fill in.
+ */
+struct mii_bus *mdiobus_alloc(void)
+{
+	return kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+}
+EXPORT_SYMBOL(mdiobus_alloc);
+
+/**
  * mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
  * @bus: target mii_bus
  *
@@ -86,6 +98,18 @@ void mdiobus_unregister(struct mii_bus *bus)
 	}
 }
 EXPORT_SYMBOL(mdiobus_unregister);
+
+/**
+ * mdiobus_free - free a struct mii_bus
+ * @bus: mii_bus to free
+ *
+ * This function frees the mii_bus.
+ */
+void mdiobus_free(struct mii_bus *bus)
+{
+	kfree(bus);
+}
+EXPORT_SYMBOL(mdiobus_free);
 
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 {

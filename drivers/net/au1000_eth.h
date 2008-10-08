@@ -106,7 +106,7 @@ struct au1000_private {
 	int old_duplex;
 
 	struct phy_device *phy_dev;
-	struct mii_bus mii_bus;
+	struct mii_bus *mii_bus;
 
 	/* These variables are just for quick access to certain regs addresses. */
 	volatile mac_reg_t *mac;  /* mac registers                      */

@@ -24,7 +24,7 @@
 
 struct fixed_mdio_bus {
 	int irqs[PHY_MAX_ADDR];
-	struct mii_bus mii_bus;
+	struct mii_bus *mii_bus;
 	struct list_head phys;
 };
 
@@ -213,19 +213,27 @@ static int __init fixed_mdio_bus_init(void)
 		goto err_pdev;
 	}
 
-	snprintf(fmb->mii_bus.id, MII_BUS_ID_SIZE, "0");
-	fmb->mii_bus.name = "Fixed MDIO Bus";
-	fmb->mii_bus.parent = &pdev->dev;
-	fmb->mii_bus.read = &fixed_mdio_read;
-	fmb->mii_bus.write = &fixed_mdio_write;
-	fmb->mii_bus.irq = fmb->irqs;
-
-	ret = mdiobus_register(&fmb->mii_bus);
-	if (ret)
+	fmb->mii_bus = mdiobus_alloc();
+	if (fmb->mii_bus == NULL) {
+		ret = -ENOMEM;
 		goto err_mdiobus_reg;
+	}
+
+	snprintf(fmb->mii_bus->id, MII_BUS_ID_SIZE, "0");
+	fmb->mii_bus->name = "Fixed MDIO Bus";
+	fmb->mii_bus->parent = &pdev->dev;
+	fmb->mii_bus->read = &fixed_mdio_read;
+	fmb->mii_bus->write = &fixed_mdio_write;
+	fmb->mii_bus->irq = fmb->irqs;
+
+	ret = mdiobus_register(fmb->mii_bus);
+	if (ret)
+		goto err_mdiobus_alloc;
 
 	return 0;
 
+err_mdiobus_alloc:
+	mdiobus_free(fmb->mii_bus);
 err_mdiobus_reg:
 	platform_device_unregister(pdev);
 err_pdev:
@@ -238,7 +246,8 @@ static void __exit fixed_mdio_bus_exit(void)
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp, *tmp;
 
-	mdiobus_unregister(&fmb->mii_bus);
+	mdiobus_unregister(fmb->mii_bus);
+	mdiobus_free(fmb->mii_bus);
 	platform_device_unregister(pdev);
 
 	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {

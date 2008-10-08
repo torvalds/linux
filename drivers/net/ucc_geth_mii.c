@@ -141,8 +141,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 	struct resource res;
 	int k, err = 0;
 
-	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
-
+	new_bus = mdiobus_alloc();
 	if (NULL == new_bus)
 		return -ENOMEM;
 
@@ -235,7 +234,7 @@ bus_register_fail:
 ioremap_fail:
 	kfree(new_bus->irq);
 reg_map_fail:
-	kfree(new_bus);
+	mdiobus_free(new_bus);
 
 	return err;
 }
@@ -251,7 +250,7 @@ static int uec_mdio_remove(struct of_device *ofdev)
 
 	iounmap((void __iomem *)bus->priv);
 	bus->priv = NULL;
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }

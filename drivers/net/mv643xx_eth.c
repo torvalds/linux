@@ -250,7 +250,7 @@ struct mv643xx_eth_shared_private {
 	/*
 	 * Provides access to local SMI interface.
 	 */
-	struct mii_bus smi_bus;
+	struct mii_bus *smi_bus;
 
 	/*
 	 * If we have access to the error interrupt pin (which is
@@ -2363,15 +2363,19 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	 * Set up and register SMI bus.
 	 */
 	if (pd == NULL || pd->shared_smi == NULL) {
-		msp->smi_bus.priv = msp;
-		msp->smi_bus.name = "mv643xx_eth smi";
-		msp->smi_bus.read = smi_bus_read;
-		msp->smi_bus.write = smi_bus_write,
-		snprintf(msp->smi_bus.id, MII_BUS_ID_SIZE, "%d", pdev->id);
-		msp->smi_bus.parent = &pdev->dev;
-		msp->smi_bus.phy_mask = 0xffffffff;
-		if (mdiobus_register(&msp->smi_bus) < 0)
+		msp->smi_bus = mdiobus_alloc();
+		if (msp->smi_bus == NULL)
 			goto out_unmap;
+
+		msp->smi_bus->priv = msp;
+		msp->smi_bus->name = "mv643xx_eth smi";
+		msp->smi_bus->read = smi_bus_read;
+		msp->smi_bus->write = smi_bus_write,
+		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%d", pdev->id);
+		msp->smi_bus->parent = &pdev->dev;
+		msp->smi_bus->phy_mask = 0xffffffff;
+		if (mdiobus_register(msp->smi_bus) < 0)
+			goto out_free_mii_bus;
 		msp->smi = msp;
 	} else {
 		msp->smi = platform_get_drvdata(pd->shared_smi);
@@ -2411,6 +2415,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 	return 0;
 
+out_free_mii_bus:
+	mdiobus_free(msp->smi_bus);
 out_unmap:
 	iounmap(msp->base);
 out_free:
@@ -2424,8 +2430,10 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 
-	if (pd == NULL || pd->shared_smi == NULL)
-		mdiobus_unregister(&msp->smi_bus);
+	if (pd == NULL || pd->shared_smi == NULL) {
+		mdiobus_free(msp->smi_bus);
+		mdiobus_unregister(msp->smi_bus);
+	}
 	if (msp->err_interrupt != NO_IRQ)
 		free_irq(msp->err_interrupt, msp);
 	iounmap(msp->base);
@@ -2493,7 +2501,7 @@ static void set_params(struct mv643xx_eth_private *mp,
 static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 				   int phy_addr)
 {
-	struct mii_bus *bus = &mp->shared->smi->smi_bus;
+	struct mii_bus *bus = mp->shared->smi->smi_bus;
 	struct phy_device *phydev;
 	int start;
 	int num;

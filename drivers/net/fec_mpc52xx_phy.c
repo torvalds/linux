@@ -83,7 +83,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 	int err;
 	int i;
 
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = mdiobus_alloc();
 	if (bus == NULL)
 		return -ENOMEM;
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -150,7 +150,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 			irq_dispose_mapping(bus->irq[i]);
 	kfree(bus->irq);
 	kfree(priv);
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return err;
 }
@@ -171,7 +171,7 @@ static int mpc52xx_fec_mdio_remove(struct of_device *of)
 			irq_dispose_mapping(bus->irq[i]);
 	kfree(priv);
 	kfree(bus->irq);
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }

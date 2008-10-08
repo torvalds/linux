@@ -1166,7 +1166,7 @@ out_free_irq:
 	kfree(mdp->mii_bus->irq);
 
 out_free_bus:
-	kfree(mdp->mii_bus);
+	free_mdio_bitbang(mdp->mii_bus);
 
 out_free_bitbang:
 	kfree(bitbang);

@@ -398,7 +398,7 @@ static int mii_probe(struct net_device *dev)
 
 	/* search for connect PHY device */
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *const tmp_phydev = lp->mii_bus.phy_map[i];
+		struct phy_device *const tmp_phydev = lp->mii_bus->phy_map[i];
 
 		if (!tmp_phydev)
 			continue; /* no PHY here... */
@@ -1058,17 +1058,21 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	setup_mac_addr(ndev->dev_addr);
 
 	/* MDIO bus initial */
-	lp->mii_bus.priv = ndev;
-	lp->mii_bus.read = mdiobus_read;
-	lp->mii_bus.write = mdiobus_write;
-	lp->mii_bus.reset = mdiobus_reset;
-	lp->mii_bus.name = "bfin_mac_mdio";
-	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "0");
-	lp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		lp->mii_bus.irq[i] = PHY_POLL;
+	lp->mii_bus = mdiobus_alloc();
+	if (lp->mii_bus == NULL)
+		goto out_err_mdiobus_alloc;
 
-	rc = mdiobus_register(&lp->mii_bus);
+	lp->mii_bus->priv = ndev;
+	lp->mii_bus->read = mdiobus_read;
+	lp->mii_bus->write = mdiobus_write;
+	lp->mii_bus->reset = mdiobus_reset;
+	lp->mii_bus->name = "bfin_mac_mdio";
+	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "0");
+	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	for (i = 0; i < PHY_MAX_ADDR; ++i)
+		lp->mii_bus->irq[i] = PHY_POLL;
+
+	rc = mdiobus_register(lp->mii_bus);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
 		goto out_err_mdiobus_register;
@@ -1121,8 +1125,10 @@ out_err_reg_ndev:
 	free_irq(IRQ_MAC_RX, ndev);
 out_err_request_irq:
 out_err_mii_probe:
-	mdiobus_unregister(&lp->mii_bus);
+	mdiobus_unregister(lp->mii_bus);
 out_err_mdiobus_register:
+	mdiobus_free(lp->mii_bus);
+out_err_mdiobus_alloc:
 	peripheral_free_list(pin_req);
 out_err_setup_pin_mux:
 out_err_probe_mac:
@@ -1139,7 +1145,8 @@ static int __devexit bfin_mac_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	mdiobus_unregister(&lp->mii_bus);
+	mdiobus_unregister(lp->mii_bus);
+	mdiobus_free(lp->mii_bus);
 
 	unregister_netdev(ndev);
 

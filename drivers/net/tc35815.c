@@ -424,7 +424,7 @@ struct tc35815_local {
 	 */
 	spinlock_t lock;
 
-	struct mii_bus mii_bus;
+	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
 	int duplex;
 	int speed;
@@ -704,13 +704,13 @@ static int tc_mii_probe(struct net_device *dev)
 
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (lp->mii_bus.phy_map[phy_addr]) {
+		if (lp->mii_bus->phy_map[phy_addr]) {
 			if (phydev) {
 				printk(KERN_ERR "%s: multiple PHYs found\n",
 				       dev->name);
 				return -EINVAL;
 			}
-			phydev = lp->mii_bus.phy_map[phy_addr];
+			phydev = lp->mii_bus->phy_map[phy_addr];
 			break;
 		}
 	}
@@ -762,23 +762,29 @@ static int tc_mii_init(struct net_device *dev)
 	int err;
 	int i;
 
-	lp->mii_bus.name = "tc35815_mii_bus";
-	lp->mii_bus.read = tc_mdio_read;
-	lp->mii_bus.write = tc_mdio_write;
-	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "%x",
-		 (lp->pci_dev->bus->number << 8) | lp->pci_dev->devfn);
-	lp->mii_bus.priv = dev;
-	lp->mii_bus.parent = &lp->pci_dev->dev;
-	lp->mii_bus.irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!lp->mii_bus.irq) {
+	lp->mii_bus = mdiobus_alloc();
+	if (lp->mii_bus == NULL) {
 		err = -ENOMEM;
 		goto err_out;
 	}
 
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		lp->mii_bus.irq[i] = PHY_POLL;
+	lp->mii_bus->name = "tc35815_mii_bus";
+	lp->mii_bus->read = tc_mdio_read;
+	lp->mii_bus->write = tc_mdio_write;
+	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%x",
+		 (lp->pci_dev->bus->number << 8) | lp->pci_dev->devfn);
+	lp->mii_bus->priv = dev;
+	lp->mii_bus->parent = &lp->pci_dev->dev;
+	lp->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	if (!lp->mii_bus->irq) {
+		err = -ENOMEM;
+		goto err_out_free_mii_bus;
+	}
 
-	err = mdiobus_register(&lp->mii_bus);
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		lp->mii_bus->irq[i] = PHY_POLL;
+
+	err = mdiobus_register(lp->mii_bus);
 	if (err)
 		goto err_out_free_mdio_irq;
 	err = tc_mii_probe(dev);
@@ -787,9 +793,11 @@ static int tc_mii_init(struct net_device *dev)
 	return 0;
 
 err_out_unregister_bus:
-	mdiobus_unregister(&lp->mii_bus);
+	mdiobus_unregister(lp->mii_bus);
 err_out_free_mdio_irq:
-	kfree(lp->mii_bus.irq);
+	kfree(lp->mii_bus->irq);
+err_out_free_mii_bus;
+	mdiobus_free(lp->mii_bus);
 err_out:
 	return err;
 }
@@ -961,8 +969,9 @@ static void __devexit tc35815_remove_one(struct pci_dev *pdev)
 	struct tc35815_local *lp = netdev_priv(dev);
 
 	phy_disconnect(lp->phy_dev);
-	mdiobus_unregister(&lp->mii_bus);
-	kfree(lp->mii_bus.irq);
+	mdiobus_unregister(lp->mii_bus);
+	kfree(lp->mii_bus->irq);
+	mdiobus_free(lp->mii_bus);
 	unregister_netdev(dev);
 	free_netdev(dev);
 	pci_set_drvdata(pdev, NULL);

@@ -384,7 +384,7 @@ struct macb {
 
 	unsigned int		rx_pending, tx_pending;
 
-	struct mii_bus		mii_bus;
+	struct mii_bus		*mii_bus;
 	struct phy_device	*phy_dev;
 	unsigned int 		link;
 	unsigned int 		speed;

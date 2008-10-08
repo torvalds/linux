@@ -290,7 +290,7 @@ static int mii_probe (struct net_device *dev)
 
 	if(aup->mac_id == 0) { /* get PHY0 */
 # if defined(AU1XXX_PHY0_ADDR)
-		phydev = au_macs[AU1XXX_PHY0_BUSID]->mii_bus.phy_map[AU1XXX_PHY0_ADDR];
+		phydev = au_macs[AU1XXX_PHY0_BUSID]->mii_bus->phy_map[AU1XXX_PHY0_ADDR];
 # else
 		printk (KERN_INFO DRV_NAME ":%s: using PHY-less setup\n",
 			dev->name);
@@ -298,7 +298,7 @@ static int mii_probe (struct net_device *dev)
 # endif /* defined(AU1XXX_PHY0_ADDR) */
 	} else if (aup->mac_id == 1) { /* get PHY1 */
 # if defined(AU1XXX_PHY1_ADDR)
-		phydev = au_macs[AU1XXX_PHY1_BUSID]->mii_bus.phy_map[AU1XXX_PHY1_ADDR];
+		phydev = au_macs[AU1XXX_PHY1_BUSID]->mii_bus->phy_map[AU1XXX_PHY1_ADDR];
 # else
 		printk (KERN_INFO DRV_NAME ":%s: using PHY-less setup\n",
 			dev->name);
@@ -311,8 +311,8 @@ static int mii_probe (struct net_device *dev)
 
 	/* find the first (lowest address) PHY on the current MAC's MII bus */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++)
-		if (aup->mii_bus.phy_map[phy_addr]) {
-			phydev = aup->mii_bus.phy_map[phy_addr];
+		if (aup->mii_bus->phy_map[phy_addr]) {
+			phydev = aup->mii_bus->phy_map[phy_addr];
 # if !defined(AU1XXX_PHY_SEARCH_HIGHEST_ADDR)
 			break; /* break out with first one found */
 # endif
@@ -331,7 +331,7 @@ static int mii_probe (struct net_device *dev)
 		 * the MAC0 MII bus */
 		for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
 			struct phy_device *const tmp_phydev =
-				au_macs[0]->mii_bus.phy_map[phy_addr];
+				au_macs[0]->mii_bus->phy_map[phy_addr];
 
 			if (!tmp_phydev)
 				continue; /* no PHY here... */
@@ -698,28 +698,32 @@ static struct net_device * au1000_probe(int port_num)
 	*aup->enable = 0;
 	aup->mac_enabled = 0;
 
-	aup->mii_bus.priv = dev;
-	aup->mii_bus.read = mdiobus_read;
-	aup->mii_bus.write = mdiobus_write;
-	aup->mii_bus.reset = mdiobus_reset;
-	aup->mii_bus.name = "au1000_eth_mii";
-	snprintf(aup->mii_bus.id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
-	aup->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	aup->mii_bus = mdiobus_alloc();
+	if (aup->mii_bus == NULL)
+		goto err_out;
+
+	aup->mii_bus->priv = dev;
+	aup->mii_bus->read = mdiobus_read;
+	aup->mii_bus->write = mdiobus_write;
+	aup->mii_bus->reset = mdiobus_reset;
+	aup->mii_bus->name = "au1000_eth_mii";
+	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
+	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	for(i = 0; i < PHY_MAX_ADDR; ++i)
-		aup->mii_bus.irq[i] = PHY_POLL;
+		aup->mii_bus->irq[i] = PHY_POLL;
 
 	/* if known, set corresponding PHY IRQs */
 #if defined(AU1XXX_PHY_STATIC_CONFIG)
 # if defined(AU1XXX_PHY0_IRQ)
 	if (AU1XXX_PHY0_BUSID == aup->mac_id)
-		aup->mii_bus.irq[AU1XXX_PHY0_ADDR] = AU1XXX_PHY0_IRQ;
+		aup->mii_bus->irq[AU1XXX_PHY0_ADDR] = AU1XXX_PHY0_IRQ;
 # endif
 # if defined(AU1XXX_PHY1_IRQ)
 	if (AU1XXX_PHY1_BUSID == aup->mac_id)
-		aup->mii_bus.irq[AU1XXX_PHY1_ADDR] = AU1XXX_PHY1_IRQ;
+		aup->mii_bus->irq[AU1XXX_PHY1_ADDR] = AU1XXX_PHY1_IRQ;
 # endif
 #endif
-	mdiobus_register(&aup->mii_bus);
+	mdiobus_register(aup->mii_bus);
 
 	if (mii_probe(dev) != 0) {
 		goto err_out;
@@ -775,6 +779,11 @@ static struct net_device * au1000_probe(int port_num)
 	return dev;
 
 err_out:
+	if (aup->mii_bus != NULL) {
+		mdiobus_unregister(aup->mii_bus);
+		mdiobus_free(aup->mii_bus);
+	}
+
 	/* here we should have a valid dev plus aup-> register addresses
 	 * so we can reset the mac properly.*/
 	reset_mac(dev);
@@ -1005,6 +1014,8 @@ static void __exit au1000_cleanup_module(void)
 		if (dev) {
 			aup = (struct au1000_private *) dev->priv;
 			unregister_netdev(dev);
+			mdiobus_unregister(aup->mii_bus);
+			mdiobus_free(aup->mii_bus);
 			for (j = 0; j < NUM_RX_DMA; j++)
 				if (aup->rx_db_inuse[j])
 					ReleaseDB(aup, aup->rx_db_inuse[j]);

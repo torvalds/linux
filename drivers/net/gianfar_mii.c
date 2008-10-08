@@ -164,8 +164,7 @@ static int gfar_mdio_probe(struct device *dev)
 	if (NULL == dev)
 		return -EINVAL;
 
-	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
-
+	new_bus = mdiobus_alloc();
 	if (NULL == new_bus)
 		return -ENOMEM;
 
@@ -242,7 +241,7 @@ static int gfar_mdio_probe(struct device *dev)
 bus_register_fail:
 	iounmap(regs);
 reg_map_fail:
-	kfree(new_bus);
+	mdiobus_free(new_bus);
 
 	return err;
 }
@@ -258,7 +257,7 @@ static int gfar_mdio_remove(struct device *dev)
 
 	iounmap((void __iomem *)bus->priv);
 	bus->priv = NULL;
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }

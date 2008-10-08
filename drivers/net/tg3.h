@@ -2556,7 +2556,7 @@ struct tg3 {
 	int				msi_cap;
 	int				pcix_cap;
 
-	struct mii_bus			mdio_bus;
+	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
 
 	/* PHY info */

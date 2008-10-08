@@ -256,7 +256,7 @@ struct sbmac_softc {
 	struct net_device	*sbm_dev;	/* pointer to linux device */
 	struct napi_struct	napi;
 	struct phy_device	*phy_dev;	/* the associated PHY device */
-	struct mii_bus		mii_bus;	/* the MII bus */
+	struct mii_bus		*mii_bus;	/* the MII bus */
 	int			phy_irq[PHY_MAX_ADDR];
 	spinlock_t		sbm_lock;	/* spin lock */
 	int			sbm_devflags;	/* current device flags */
@@ -2348,10 +2348,17 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	/* This is needed for PASS2 for Rx H/W checksum feature */
 	sbmac_set_iphdr_offset(sc);
 
+	sc->mii_bus = mdiobus_alloc();
+	if (sc->mii_bus == NULL) {
+		sbmac_uninitctx(sc);
+		return -ENOMEM;
+	}
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR "%s.%d: unable to register netdev\n",
 		       sbmac_string, idx);
+		mdiobus_free(sc->mii_bus);
 		sbmac_uninitctx(sc);
 		return err;
 	}
@@ -2369,17 +2376,17 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	pr_info("%s: SiByte Ethernet at 0x%08Lx, address: %s\n",
 	       dev->name, base, print_mac(mac, eaddr));
 
-	sc->mii_bus.name = sbmac_mdio_string;
-	snprintf(sc->mii_bus.id, MII_BUS_ID_SIZE, "%x", idx);
-	sc->mii_bus.priv = sc;
-	sc->mii_bus.read = sbmac_mii_read;
-	sc->mii_bus.write = sbmac_mii_write;
-	sc->mii_bus.irq = sc->phy_irq;
+	sc->mii_bus->name = sbmac_mdio_string;
+	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%x", idx);
+	sc->mii_bus->priv = sc;
+	sc->mii_bus->read = sbmac_mii_read;
+	sc->mii_bus->write = sbmac_mii_write;
+	sc->mii_bus->irq = sc->phy_irq;
 	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		sc->mii_bus.irq[i] = SBMAC_PHY_INT;
+		sc->mii_bus->irq[i] = SBMAC_PHY_INT;
 
-	sc->mii_bus.parent = &pldev->dev;
-	dev_set_drvdata(&pldev->dev, &sc->mii_bus);
+	sc->mii_bus->parent = &pldev->dev;
+	dev_set_drvdata(&pldev->dev, sc->mii_bus);
 
 	return 0;
 }
@@ -2410,7 +2417,7 @@ static int sbmac_open(struct net_device *dev)
 	/*
 	 * Probe PHY address
 	 */
-	err = mdiobus_register(&sc->mii_bus);
+	err = mdiobus_register(sc->mii_bus);
 	if (err) {
 		printk(KERN_ERR "%s: unable to register MDIO bus\n",
 		       dev->name);
@@ -2447,7 +2454,7 @@ static int sbmac_open(struct net_device *dev)
 	return 0;
 
 out_unregister:
-	mdiobus_unregister(&sc->mii_bus);
+	mdiobus_unregister(sc->mii_bus);
 
 out_unirq:
 	free_irq(dev->irq, dev);
@@ -2463,7 +2470,7 @@ static int sbmac_mii_probe(struct net_device *dev)
 	int i;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		phy_dev = sc->mii_bus.phy_map[i];
+		phy_dev = sc->mii_bus->phy_map[i];
 		if (phy_dev)
 			break;
 	}
@@ -2641,7 +2648,7 @@ static int sbmac_close(struct net_device *dev)
 	phy_disconnect(sc->phy_dev);
 	sc->phy_dev = NULL;
 
-	mdiobus_unregister(&sc->mii_bus);
+	mdiobus_unregister(sc->mii_bus);
 
 	free_irq(dev->irq, dev);
 
@@ -2750,6 +2757,7 @@ static int __exit sbmac_remove(struct platform_device *pldev)
 
 	unregister_netdev(dev);
 	sbmac_uninitctx(sc);
+	mdiobus_free(sc->mii_bus);
 	iounmap(sc->sbm_base);
 	free_netdev(dev);
 

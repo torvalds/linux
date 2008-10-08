@@ -128,7 +128,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	struct fec_info *fec;
 	int ret = -ENOMEM, i;
 
-	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	new_bus = mdiobus_alloc();
 	if (!new_bus)
 		goto out;
 
@@ -190,7 +190,7 @@ out_res:
 out_fec:
 	kfree(fec);
 out_mii:
-	kfree(new_bus);
+	mdiobus_free(new_bus);
 out:
 	return ret;
 }
@@ -205,7 +205,7 @@ static int fs_enet_mdio_remove(struct of_device *ofdev)
 	kfree(bus->irq);
 	iounmap(fec->fecp);
 	kfree(fec);
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }
