@@ -277,7 +277,7 @@ static int ipv6_destopt_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
 				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+		IP6_INC_STATS_BH(dev_net(skb->dst->dev), ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		kfree_skb(skb);
 		return -1;
@@ -301,7 +301,8 @@ static int ipv6_destopt_rcv(struct sk_buff *skb)
 		return 1;
 	}
 
-	IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_INHDRERRORS);
+	IP6_INC_STATS_BH(dev_net(dst->dev),
+			 ip6_dst_idev(dst), IPSTATS_MIB_INHDRERRORS);
 	dst_release(dst);
 	return -1;
 }
@@ -319,7 +320,8 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	int n, i;
 	struct ipv6_rt_hdr *hdr;
 	struct rt0_hdr *rthdr;
-	int accept_source_route = dev_net(skb->dev)->ipv6.devconf_all->accept_source_route;
+	struct net *net = dev_net(skb->dev);
+	int accept_source_route = net->ipv6.devconf_all->accept_source_route;
 
 	idev = in6_dev_get(skb->dev);
 	if (idev) {
@@ -331,7 +333,7 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
 				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+		IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		kfree_skb(skb);
 		return -1;
@@ -341,7 +343,7 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ||
 	    skb->pkt_type != PACKET_HOST) {
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+		IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INADDRERRORS);
 		kfree_skb(skb);
 		return -1;
@@ -356,7 +358,7 @@ looped_back:
 			 * processed by own
 			 */
 			if (!addr) {
-				IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+				IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 						 IPSTATS_MIB_INADDRERRORS);
 				kfree_skb(skb);
 				return -1;
@@ -382,7 +384,7 @@ looped_back:
 			goto unknown_rh;
 		/* Silently discard invalid RTH type 2 */
 		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
-			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+			IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INHDRERRORS);
 			kfree_skb(skb);
 			return -1;
@@ -401,7 +403,7 @@ looped_back:
 	n = hdr->hdrlen >> 1;
 
 	if (hdr->segments_left > n) {
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+		IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 				  ((&hdr->segments_left) -
@@ -415,7 +417,7 @@ looped_back:
 	if (skb_cloned(skb)) {
 		/* the copy is a forwarded packet */
 		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+			IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_OUTDISCARDS);
 			kfree_skb(skb);
 			return -1;
@@ -438,13 +440,13 @@ looped_back:
 		if (xfrm6_input_addr(skb, (xfrm_address_t *)addr,
 				     (xfrm_address_t *)&ipv6_hdr(skb)->saddr,
 				     IPPROTO_ROUTING) < 0) {
-			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+			IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INADDRERRORS);
 			kfree_skb(skb);
 			return -1;
 		}
 		if (!ipv6_chk_home_addr(dev_net(skb->dst->dev), addr)) {
-			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+			IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INADDRERRORS);
 			kfree_skb(skb);
 			return -1;
@@ -456,7 +458,7 @@ looped_back:
 	}
 
 	if (ipv6_addr_is_multicast(addr)) {
-		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+		IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INADDRERRORS);
 		kfree_skb(skb);
 		return -1;
@@ -476,7 +478,7 @@ looped_back:
 
 	if (skb->dst->dev->flags&IFF_LOOPBACK) {
 		if (ipv6_hdr(skb)->hop_limit <= 1) {
-			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
+			IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INHDRERRORS);
 			icmpv6_send(skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT,
 				    0, skb->dev);
@@ -492,7 +494,7 @@ looped_back:
 	return -1;
 
 unknown_rh:
-	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
+	IP6_INC_STATS_BH(net, ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
 	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 			  (&hdr->type) - skb_network_header(skb));
 	return -1;
@@ -579,29 +581,33 @@ static int ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
 {
 	const unsigned char *nh = skb_network_header(skb);
 	u32 pkt_len;
+	struct net *net = dev_net(skb->dst->dev);
 
 	if (nh[optoff + 1] != 4 || (optoff & 3) != 2) {
 		LIMIT_NETDEBUG(KERN_DEBUG "ipv6_hop_jumbo: wrong jumbo opt length/alignment %d\n",
 			       nh[optoff+1]);
-		IP6_INC_STATS_BH(ipv6_skb_idev(skb),
+		IP6_INC_STATS_BH(net, ipv6_skb_idev(skb),
 				 IPSTATS_MIB_INHDRERRORS);
 		goto drop;
 	}
 
 	pkt_len = ntohl(*(__be32 *)(nh + optoff + 2));
 	if (pkt_len <= IPV6_MAXPLEN) {
-		IP6_INC_STATS_BH(ipv6_skb_idev(skb), IPSTATS_MIB_INHDRERRORS);
+		IP6_INC_STATS_BH(net, ipv6_skb_idev(skb),
+				 IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, optoff+2);
 		return 0;
 	}
 	if (ipv6_hdr(skb)->payload_len) {
-		IP6_INC_STATS_BH(ipv6_skb_idev(skb), IPSTATS_MIB_INHDRERRORS);
+		IP6_INC_STATS_BH(net, ipv6_skb_idev(skb),
+				 IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, optoff);
 		return 0;
 	}
 
 	if (pkt_len > skb->len - sizeof(struct ipv6hdr)) {
-		IP6_INC_STATS_BH(ipv6_skb_idev(skb), IPSTATS_MIB_INTRUNCATEDPKTS);
+		IP6_INC_STATS_BH(net, ipv6_skb_idev(skb),
+				 IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
 	}
 

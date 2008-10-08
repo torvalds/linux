@@ -103,7 +103,8 @@ static int ip6_output_finish(struct sk_buff *skb)
 	else if (dst->neighbour)
 		return dst->neighbour->output(skb);
 
-	IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
+	IP6_INC_STATS_BH(dev_net(dst->dev),
+			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 	kfree_skb(skb);
 	return -EINVAL;
 
@@ -458,7 +459,8 @@ int ip6_forward(struct sk_buff *skb)
 		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT,
 			    0, skb->dev);
-		IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_INHDRERRORS);
+		IP6_INC_STATS_BH(net,
+				 ip6_dst_idev(dst), IPSTATS_MIB_INHDRERRORS);
 
 		kfree_skb(skb);
 		return -ETIMEDOUT;
@@ -527,8 +529,10 @@ int ip6_forward(struct sk_buff *skb)
 		/* Again, force OUTPUT device used as source address */
 		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, dst_mtu(dst), skb->dev);
-		IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_INTOOBIGERRORS);
-		IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_FRAGFAILS);
+		IP6_INC_STATS_BH(net,
+				 ip6_dst_idev(dst), IPSTATS_MIB_INTOOBIGERRORS);
+		IP6_INC_STATS_BH(net,
+				 ip6_dst_idev(dst), IPSTATS_MIB_FRAGFAILS);
 		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
@@ -544,12 +548,12 @@ int ip6_forward(struct sk_buff *skb)
 
 	hdr->hop_limit--;
 
-	IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP6_INC_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
 	return NF_HOOK(PF_INET6, NF_INET_FORWARD, skb, skb->dev, dst->dev,
 		       ip6_forward_finish);
 
 error:
-	IP6_INC_STATS_BH(ip6_dst_idev(dst), IPSTATS_MIB_INADDRERRORS);
+	IP6_INC_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_INADDRERRORS);
 drop:
 	kfree_skb(skb);
 	return -EINVAL;
@@ -991,7 +995,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 
 out_err_release:
 	if (err == -ENETUNREACH)
-		IP6_INC_STATS_BH(NULL, IPSTATS_MIB_OUTNOROUTES);
+		IP6_INC_STATS_BH(net, NULL, IPSTATS_MIB_OUTNOROUTES);
 	dst_release(*dst);
 	*dst = NULL;
 	return err;
