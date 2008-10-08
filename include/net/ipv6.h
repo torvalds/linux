@@ -113,23 +113,20 @@ extern struct ctl_path net_ipv6_ctl_path[];
 #define _DEVINC(net, statname, modifier, idev, field)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
-	(void)(net);							\
 	if (likely(_idev != NULL))					\
 		SNMP_INC_STATS##modifier((_idev)->stats.statname, (field)); \
-	SNMP_INC_STATS##modifier(statname##_statistics, (field));	\
+	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
 })
 
 #define _DEVADD(net, statname, modifier, idev, field, val)		\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
-	(void)(net);							\
 	if (likely(_idev != NULL))					\
 		SNMP_ADD_STATS##modifier((_idev)->stats.statname, (field), (val)); \
-	SNMP_ADD_STATS##modifier(statname##_statistics, (field), (val));\
+	SNMP_ADD_STATS##modifier((net)->mib.statname##_statistics, (field), (val));\
 })
 
 /* MIBs */
-DECLARE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
 
 #define IP6_INC_STATS(net, idev,field)		\
 		_DEVINC(net, ipv6, , idev, field)
@@ -137,9 +134,6 @@ DECLARE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
 		_DEVINC(net, ipv6, _BH, idev, field)
 #define IP6_ADD_STATS_BH(net, idev,field,val)	\
 		_DEVADD(net, ipv6, _BH, idev, field, val)
-
-DECLARE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics);
-DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
 
 #define ICMP6_INC_STATS(net, idev, field)	\
 		_DEVINC(net, icmpv6, , idev, field)
