@@ -8,12 +8,12 @@
  *  August, 2003
  *
  */
-
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_arpreply.h>
 #include <linux/if_arp.h>
 #include <net/arp.h>
 #include <linux/module.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_arpreply.h>
 
 static int ebt_target_reply(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
@@ -63,8 +63,6 @@ static int ebt_target_reply_check(const char *tablename, unsigned int hookmask,
 {
 	const struct ebt_arpreply_info *info = data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_arpreply_info)))
-		return -EINVAL;
 	if (BASE_CHAIN && info->target == EBT_RETURN)
 		return -EINVAL;
 	if (e->ethproto != htons(ETH_P_ARP) ||
@@ -80,6 +78,7 @@ static struct ebt_target reply_target __read_mostly = {
 	.name		= EBT_ARPREPLY_TARGET,
 	.target		= ebt_target_reply,
 	.check		= ebt_target_reply_check,
+	.targetsize	= XT_ALIGN(sizeof(struct ebt_arpreply_info)),
 	.me		= THIS_MODULE,
 };
 

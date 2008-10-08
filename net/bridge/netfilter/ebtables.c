@@ -19,6 +19,7 @@
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
@@ -59,8 +60,9 @@ static LIST_HEAD(ebt_targets);
 static LIST_HEAD(ebt_matches);
 static LIST_HEAD(ebt_watchers);
 
-static struct ebt_target ebt_standard_target =
-{ {NULL, NULL}, EBT_STANDARD_TARGET, NULL, NULL, NULL, NULL};
+static struct ebt_target ebt_standard_target = {
+	.name = "standard",
+};
 
 static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
    const struct sk_buff *skb, unsigned int hooknr, const struct net_device *in,
@@ -350,6 +352,18 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		return -ENOENT;
 	}
 	mutex_unlock(&ebt_mutex);
+	if (XT_ALIGN(match->matchsize) != m->match_size &&
+	    match->matchsize != -1) {
+		/*
+		 * ebt_among is exempt from centralized matchsize checking
+		 * because it uses a dynamic-size data set.
+		 */
+		printk(KERN_WARNING "ebtables: %s match: "
+		       "invalid size %Zu != %u\n",
+		       match->name, XT_ALIGN(match->matchsize), m->match_size);
+		module_put(match->me);
+		return -EINVAL;
+	}
 	if (match->check &&
 	   match->check(name, hookmask, e, m->data, m->match_size) != 0) {
 		BUGPRINT("match->check failed\n");
@@ -380,6 +394,14 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 		return -ENOENT;
 	}
 	mutex_unlock(&ebt_mutex);
+	if (XT_ALIGN(watcher->targetsize) != w->watcher_size) {
+		printk(KERN_WARNING "ebtables: %s watcher: "
+		       "invalid size %Zu != %u\n",
+		       watcher->name, XT_ALIGN(watcher->targetsize),
+		       w->watcher_size);
+		module_put(watcher->me);
+		return -EINVAL;
+	}
 	if (watcher->check &&
 	   watcher->check(name, hookmask, e, w->data, w->watcher_size) != 0) {
 		BUGPRINT("watcher->check failed\n");
@@ -681,9 +703,20 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 			ret = -EFAULT;
 			goto cleanup_watchers;
 		}
-	} else if (t->target_size > gap - sizeof(struct ebt_entry_target) ||
-	   (t->u.target->check &&
-	   t->u.target->check(name, hookmask, e, t->data, t->target_size) != 0)){
+	} else if (t->target_size > gap - sizeof(struct ebt_entry_target)) {
+		module_put(t->u.target->me);
+		ret = -EFAULT;
+		goto cleanup_watchers;
+	} else if (XT_ALIGN(target->targetsize) != t->target_size) {
+		printk(KERN_WARNING "ebtables: %s target: "
+		       "invalid size %Zu != %u\n",
+		       target->name, XT_ALIGN(target->targetsize),
+		       t->target_size);
+		module_put(t->u.target->me);
+		ret = -EINVAL;
+		goto cleanup_watchers;
+	} else if (t->u.target->check &&
+	    t->u.target->check(name, hookmask, e, t->data, t->target_size) != 0) {
 		module_put(t->u.target->me);
 		ret = -EFAULT;
 		goto cleanup_watchers;

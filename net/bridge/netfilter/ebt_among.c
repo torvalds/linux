@@ -216,6 +216,7 @@ static struct ebt_match filter_among __read_mostly = {
 	.name		= EBT_AMONG_MATCH,
 	.match		= ebt_filter_among,
 	.check		= ebt_among_check,
+	.matchsize	= -1, /* special case */
 	.me		= THIS_MODULE,
 };
 

@@ -7,10 +7,10 @@
  * May 2003
  *
  */
-
+#include <linux/module.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_802_3.h>
-#include <linux/module.h>
 
 static int ebt_filter_802_3(const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const void *data, unsigned int datalen)
@@ -42,8 +42,6 @@ static int ebt_802_3_check(const char *tablename, unsigned int hookmask,
 {
 	const struct ebt_802_3_info *info = data;
 
-	if (datalen < sizeof(struct ebt_802_3_info))
-		return -EINVAL;
 	if (info->bitmask & ~EBT_802_3_MASK || info->invflags & ~EBT_802_3_MASK)
 		return -EINVAL;
 
@@ -54,6 +52,7 @@ static struct ebt_match filter_802_3 __read_mostly = {
 	.name		= EBT_802_3_MATCH,
 	.match		= ebt_filter_802_3,
 	.check		= ebt_802_3_check,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_802_3_info)),
 	.me		= THIS_MODULE,
 };
 

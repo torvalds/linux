@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_nflog.h>
 #include <net/netfilter/nf_log.h>
@@ -42,8 +43,6 @@ static int ebt_nflog_check(const char *tablename,
 {
 	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_nflog_info)))
-		return -EINVAL;
 	if (info->flags & ~EBT_NFLOG_MASK)
 		return -EINVAL;
 	info->prefix[EBT_NFLOG_PREFIX_SIZE - 1] = '\0';
@@ -54,6 +53,7 @@ static struct ebt_watcher nflog __read_mostly = {
 	.name = EBT_NFLOG_WATCHER,
 	.watcher = ebt_nflog,
 	.check = ebt_nflog_check,
+	.targetsize = XT_ALIGN(sizeof(struct ebt_nflog_info)),
 	.me = THIS_MODULE,
 };
 

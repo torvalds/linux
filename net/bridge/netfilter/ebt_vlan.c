@@ -22,6 +22,7 @@
 #include <linux/if_vlan.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_vlan.h>
 
@@ -92,14 +93,6 @@ ebt_check_vlan(const char *tablename,
 	       const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	struct ebt_vlan_info *info = data;
-
-	/* Parameters buffer overflow check */
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_vlan_info))) {
-		DEBUG_MSG
-		    ("passed size %d is not eq to ebt_vlan_info (%Zd)\n",
-		     datalen, sizeof(struct ebt_vlan_info));
-		return -EINVAL;
-	}
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {
@@ -173,6 +166,7 @@ static struct ebt_match filter_vlan __read_mostly = {
 	.name		= EBT_VLAN_MATCH,
 	.match		= ebt_filter_vlan,
 	.check		= ebt_check_vlan,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_vlan_info)),
 	.me		= THIS_MODULE,
 };
 

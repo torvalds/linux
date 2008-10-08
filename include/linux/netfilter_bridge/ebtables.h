@@ -215,6 +215,7 @@ struct ebt_match
 	int (*check)(const char *tablename, unsigned int hookmask,
 	   const struct ebt_entry *e, void *matchdata, unsigned int datalen);
 	void (*destroy)(void *matchdata, unsigned int datalen);
+	unsigned int matchsize;
 	struct module *me;
 };
 
@@ -229,6 +230,7 @@ struct ebt_watcher
 	int (*check)(const char *tablename, unsigned int hookmask,
 	   const struct ebt_entry *e, void *watcherdata, unsigned int datalen);
 	void (*destroy)(void *watcherdata, unsigned int datalen);
+	unsigned int targetsize;
 	struct module *me;
 };
 
@@ -244,6 +246,7 @@ struct ebt_target
 	int (*check)(const char *tablename, unsigned int hookmask,
 	   const struct ebt_entry *e, void *targetdata, unsigned int datalen);
 	void (*destroy)(void *targetdata, unsigned int datalen);
+	unsigned int targetsize;
 	struct module *me;
 };
 

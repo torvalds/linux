@@ -7,11 +7,11 @@
  *
  *  July, 2003
  */
-
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_stp.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_stp.h>
 
 #define BPDU_TYPE_CONFIG 0
 #define BPDU_TYPE_TCN 0x80
@@ -157,14 +157,11 @@ static int ebt_stp_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
 	const struct ebt_stp_info *info = data;
-	const unsigned int len = EBT_ALIGN(sizeof(struct ebt_stp_info));
 	const uint8_t bridge_ula[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
 	const uint8_t msk[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	if (info->bitmask & ~EBT_STP_MASK || info->invflags & ~EBT_STP_MASK ||
 	    !(info->bitmask & EBT_STP_MASK))
-		return -EINVAL;
-	if (datalen != len)
 		return -EINVAL;
 	/* Make sure the match only receives stp frames */
 	if (compare_ether_addr(e->destmac, bridge_ula) ||
@@ -178,6 +175,7 @@ static struct ebt_match filter_stp __read_mostly = {
 	.name		= EBT_STP_MATCH,
 	.match		= ebt_filter_stp,
 	.check		= ebt_stp_check,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_stp_info)),
 	.me		= THIS_MODULE,
 };
 

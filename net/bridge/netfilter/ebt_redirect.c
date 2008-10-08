@@ -7,13 +7,13 @@
  *  April, 2002
  *
  */
-
-#include <linux/netfilter.h>
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_redirect.h>
 #include <linux/module.h>
 #include <net/sock.h>
 #include "../br_private.h"
+#include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_redirect.h>
 
 static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
@@ -38,8 +38,6 @@ static int ebt_target_redirect_check(const char *tablename, unsigned int hookmas
 {
 	const struct ebt_redirect_info *info = data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_redirect_info)))
-		return -EINVAL;
 	if (BASE_CHAIN && info->target == EBT_RETURN)
 		return -EINVAL;
 	CLEAR_BASE_CHAIN_BIT;
@@ -55,6 +53,7 @@ static struct ebt_target redirect_target __read_mostly = {
 	.name		= EBT_REDIRECT_TARGET,
 	.target		= ebt_target_redirect,
 	.check		= ebt_target_redirect_check,
+	.targetsize	= XT_ALIGN(sizeof(struct ebt_redirect_info)),
 	.me		= THIS_MODULE,
 };
 

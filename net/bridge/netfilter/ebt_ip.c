@@ -11,13 +11,13 @@
  *    Innominate Security Technologies AG <mhopf@innominate.com>
  *    September, 2002
  */
-
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_ip.h>
 #include <linux/ip.h>
 #include <net/ip.h>
 #include <linux/in.h>
 #include <linux/module.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_ip.h>
 
 struct tcpudphdr {
 	__be16 src;
@@ -83,8 +83,6 @@ static int ebt_ip_check(const char *tablename, unsigned int hookmask,
 {
 	const struct ebt_ip_info *info = data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_ip_info)))
-		return -EINVAL;
 	if (e->ethproto != htons(ETH_P_IP) ||
 	   e->invflags & EBT_IPROTO)
 		return -EINVAL;
@@ -111,6 +109,7 @@ static struct ebt_match filter_ip __read_mostly = {
 	.name		= EBT_IP_MATCH,
 	.match		= ebt_filter_ip,
 	.check		= ebt_ip_check,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_ip_info)),
 	.me		= THIS_MODULE,
 };
 

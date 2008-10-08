@@ -10,13 +10,12 @@
  *  September, 2003
  *
  */
-
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_limit.h>
 #include <linux/module.h>
-
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_limit.h>
 
 static DEFINE_SPINLOCK(limit_lock);
 
@@ -71,9 +70,6 @@ static int ebt_limit_check(const char *tablename, unsigned int hookmask,
 {
 	struct ebt_limit_info *info = data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_limit_info)))
-		return -EINVAL;
-
 	/* Check for overflow. */
 	if (info->burst == 0 ||
 	    user2credits(info->avg * info->burst) < user2credits(info->avg)) {
@@ -94,6 +90,7 @@ static struct ebt_match ebt_limit_reg __read_mostly = {
 	.name		= EBT_LIMIT_MATCH,
 	.match		= ebt_limit_match,
 	.check		= ebt_limit_check,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_limit_info)),
 	.me		= THIS_MODULE,
 };
 

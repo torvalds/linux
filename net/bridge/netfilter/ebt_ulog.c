@@ -36,6 +36,7 @@
 #include <linux/timer.h>
 #include <linux/netlink.h>
 #include <linux/netdevice.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_ulog.h>
 #include <net/netfilter/nf_log.h>
@@ -260,8 +261,7 @@ static int ebt_ulog_check(const char *tablename, unsigned int hookmask,
 {
 	struct ebt_ulog_info *uloginfo = data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_ulog_info)) ||
-	    uloginfo->nlgroup > 31)
+	if (uloginfo->nlgroup > 31)
 		return -EINVAL;
 
 	uloginfo->prefix[EBT_ULOG_PREFIX_LEN - 1] = '\0';
@@ -276,6 +276,7 @@ static struct ebt_watcher ulog __read_mostly = {
 	.name		= EBT_ULOG_WATCHER,
 	.watcher	= ebt_ulog,
 	.check		= ebt_ulog_check,
+	.targetsize	= XT_ALIGN(sizeof(struct ebt_ulog_info)),
 	.me		= THIS_MODULE,
 };
 

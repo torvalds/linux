@@ -8,12 +8,12 @@
  *  April, 2002
  *
  */
-
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_arp.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/module.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_arp.h>
 
 static int ebt_filter_arp(const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const void *data, unsigned int datalen)
@@ -105,8 +105,6 @@ static int ebt_arp_check(const char *tablename, unsigned int hookmask,
 {
 	const struct ebt_arp_info *info = data;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_arp_info)))
-		return -EINVAL;
 	if ((e->ethproto != htons(ETH_P_ARP) &&
 	   e->ethproto != htons(ETH_P_RARP)) ||
 	   e->invflags & EBT_IPROTO)
@@ -120,6 +118,7 @@ static struct ebt_match filter_arp __read_mostly = {
 	.name		= EBT_ARP_MATCH,
 	.match		= ebt_filter_arp,
 	.check		= ebt_arp_check,
+	.matchsize	= XT_ALIGN(sizeof(struct ebt_arp_info)),
 	.me		= THIS_MODULE,
 };
 

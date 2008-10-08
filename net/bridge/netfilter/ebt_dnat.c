@@ -7,12 +7,12 @@
  *  June, 2002
  *
  */
-
-#include <linux/netfilter.h>
-#include <linux/netfilter_bridge/ebtables.h>
-#include <linux/netfilter_bridge/ebt_nat.h>
 #include <linux/module.h>
 #include <net/sock.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter_bridge/ebt_nat.h>
 
 static int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
@@ -39,8 +39,6 @@ static int ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
 	   (hookmask & ~((1 << NF_BR_PRE_ROUTING) | (1 << NF_BR_LOCAL_OUT)))) &&
 	   (strcmp(tablename, "broute") || hookmask & ~(1 << NF_BR_BROUTING)) )
 		return -EINVAL;
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_nat_info)))
-		return -EINVAL;
 	if (INVALID_TARGET)
 		return -EINVAL;
 	return 0;
@@ -50,6 +48,7 @@ static struct ebt_target dnat __read_mostly = {
 	.name		= EBT_DNAT_TARGET,
 	.target		= ebt_target_dnat,
 	.check		= ebt_target_dnat_check,
+	.targetsize	= XT_ALIGN(sizeof(struct ebt_nat_info)),
 	.me		= THIS_MODULE,
 };
 
