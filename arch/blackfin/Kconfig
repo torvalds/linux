@@ -375,14 +375,6 @@ config SCLK_DIV
 	  This can be between 1 and 15
 	  System Clock = (PLL frequency) / (this setting)
 
-config MAX_MEM_SIZE
-	int "Max SDRAM Memory Size in MBytes"
-	depends on !MPU
-	default 512
-	help
-	  This is the max memory size that the kernel will create CPLB
-	  tables for.  Your system will not be able to handle any more.
-
 choice
 	prompt "DDR SDRAM Chip Type"
 	depends on BFIN_KERNEL_CLOCK
@@ -395,6 +387,14 @@ config MEM_MT46V32M16_6T
 config MEM_MT46V32M16_5B
 	bool "MT46V32M16_5B"
 endchoice
+
+config MAX_MEM_SIZE
+	int "Max SDRAM Memory Size in MBytes"
+	depends on !MPU
+	default 512
+	help
+	  This is the max memory size that the kernel will create CPLB
+	  tables for.  Your system will not be able to handle any more.
 
 #
 # Max & Min Speeds for various Chips
@@ -461,8 +461,6 @@ config CYCLES_CLOCKSOURCE
 	  writing the registers will most likely crash the kernel.
 
 source kernel/time/Kconfig
-
-comment "Memory Setup"
 
 comment "Misc"
 
