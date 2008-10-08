@@ -611,7 +611,8 @@ init_conntrack(struct net *net,
 
 /* On success, returns conntrack ptr, sets skb->nfct and ctinfo */
 static inline struct nf_conn *
-resolve_normal_ct(struct sk_buff *skb,
+resolve_normal_ct(struct net *net,
+		  struct sk_buff *skb,
 		  unsigned int dataoff,
 		  u_int16_t l3num,
 		  u_int8_t protonum,
@@ -632,10 +633,9 @@ resolve_normal_ct(struct sk_buff *skb,
 	}
 
 	/* look for tuple match */
-	h = nf_conntrack_find_get(&init_net, &tuple);
+	h = nf_conntrack_find_get(net, &tuple);
 	if (!h) {
-		h = init_conntrack(&init_net, &tuple, l3proto, l4proto, skb,
-				   dataoff);
+		h = init_conntrack(net, &tuple, l3proto, l4proto, skb, dataoff);
 		if (!h)
 			return NULL;
 		if (IS_ERR(h))
@@ -669,7 +669,8 @@ resolve_normal_ct(struct sk_buff *skb,
 }
 
 unsigned int
-nf_conntrack_in(u_int8_t pf, unsigned int hooknum, struct sk_buff *skb)
+nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
+		struct sk_buff *skb)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -709,8 +710,8 @@ nf_conntrack_in(u_int8_t pf, unsigned int hooknum, struct sk_buff *skb)
 		return -ret;
 	}
 
-	ct = resolve_normal_ct(skb, dataoff, pf, protonum, l3proto, l4proto,
-			       &set_reply, &ctinfo);
+	ct = resolve_normal_ct(net, skb, dataoff, pf, protonum,
+			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
 		/* Not valid part of a connection */
 		NF_CT_STAT_INC_ATOMIC(invalid);
