@@ -1272,7 +1272,7 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 			continue;
 		pci_unmap_single(vptr->pdev, rd_info->skb_dma, vptr->rx.buf_sz,
 				 PCI_DMA_FROMDEVICE);
-		rd_info->skb_dma = (dma_addr_t) NULL;
+		rd_info->skb_dma = 0;
 
 		dev_kfree_skb(rd_info->skb);
 		rd_info->skb = NULL;
@@ -1333,7 +1333,7 @@ static void velocity_free_td_ring_entry(struct velocity_info *vptr,
 			if (td_info->skb_dma[i]) {
 				pci_unmap_single(vptr->pdev, td_info->skb_dma[i],
 					td_info->skb->len, PCI_DMA_TODEVICE);
-				td_info->skb_dma[i] = (dma_addr_t) NULL;
+				td_info->skb_dma[i] = 0;
 			}
 		}
 		dev_kfree_skb(td_info->skb);
