@@ -89,8 +89,8 @@ ebt_limit_mt_check(const char *table, const void *e,
 	return true;
 }
 
-static struct ebt_match ebt_limit_reg __read_mostly = {
-	.name		= EBT_LIMIT_MATCH,
+static struct xt_match ebt_limit_mt_reg __read_mostly = {
+	.name		= "limit",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_limit_mt,
@@ -101,12 +101,12 @@ static struct ebt_match ebt_limit_reg __read_mostly = {
 
 static int __init ebt_limit_init(void)
 {
-	return ebt_register_match(&ebt_limit_reg);
+	return xt_register_match(&ebt_limit_mt_reg);
 }
 
 static void __exit ebt_limit_fini(void)
 {
-	ebt_unregister_match(&ebt_limit_reg);
+	xt_unregister_match(&ebt_limit_mt_reg);
 }
 
 module_init(ebt_limit_init);

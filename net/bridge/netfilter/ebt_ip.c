@@ -109,8 +109,8 @@ ebt_ip_mt_check(const char *table, const void *entry,
 	return true;
 }
 
-static struct ebt_match filter_ip __read_mostly = {
-	.name		= EBT_IP_MATCH,
+static struct xt_match ebt_ip_mt_reg __read_mostly = {
+	.name		= "ip",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_ip_mt,
@@ -121,12 +121,12 @@ static struct ebt_match filter_ip __read_mostly = {
 
 static int __init ebt_ip_init(void)
 {
-	return ebt_register_match(&filter_ip);
+	return xt_register_match(&ebt_ip_mt_reg);
 }
 
 static void __exit ebt_ip_fini(void)
 {
-	ebt_unregister_match(&filter_ip);
+	xt_unregister_match(&ebt_ip_mt_reg);
 }
 
 module_init(ebt_ip_init);

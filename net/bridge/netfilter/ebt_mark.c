@@ -59,8 +59,8 @@ ebt_mark_tg_check(const char *table, const void *e,
 	return true;
 }
 
-static struct ebt_target mark_target __read_mostly = {
-	.name		= EBT_MARK_TARGET,
+static struct xt_target ebt_mark_tg_reg __read_mostly = {
+	.name		= "mark",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_mark_tg,
@@ -71,12 +71,12 @@ static struct ebt_target mark_target __read_mostly = {
 
 static int __init ebt_mark_init(void)
 {
-	return ebt_register_target(&mark_target);
+	return xt_register_target(&ebt_mark_tg_reg);
 }
 
 static void __exit ebt_mark_fini(void)
 {
-	ebt_unregister_target(&mark_target);
+	xt_unregister_target(&ebt_mark_tg_reg);
 }
 
 module_init(ebt_mark_init);

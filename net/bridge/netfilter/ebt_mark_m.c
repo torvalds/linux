@@ -40,8 +40,8 @@ ebt_mark_mt_check(const char *table, const void *e,
 	return true;
 }
 
-static struct ebt_match filter_mark __read_mostly = {
-	.name		= EBT_MARK_MATCH,
+static struct xt_match ebt_mark_mt_reg __read_mostly = {
+	.name		= "mark_m",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_mark_mt,
@@ -52,12 +52,12 @@ static struct ebt_match filter_mark __read_mostly = {
 
 static int __init ebt_mark_m_init(void)
 {
-	return ebt_register_match(&filter_mark);
+	return xt_register_match(&ebt_mark_mt_reg);
 }
 
 static void __exit ebt_mark_m_fini(void)
 {
-	ebt_unregister_match(&filter_mark);
+	xt_unregister_match(&ebt_mark_mt_reg);
 }
 
 module_init(ebt_mark_m_init);

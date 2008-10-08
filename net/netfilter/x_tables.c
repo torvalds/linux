@@ -30,7 +30,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("[ip,ip6,arp]_tables backend module");
+MODULE_DESCRIPTION("{ip,ip6,arp,eb}_tables backend module");
 
 #define SMP_ALIGN(x) (((x) + SMP_CACHE_BYTES-1) & ~(SMP_CACHE_BYTES-1))
 
@@ -325,7 +325,12 @@ int xt_check_match(const struct xt_match *match, unsigned short family,
 		   unsigned int size, const char *table, unsigned int hook_mask,
 		   unsigned short proto, int inv_proto)
 {
-	if (XT_ALIGN(match->matchsize) != size) {
+	if (XT_ALIGN(match->matchsize) != size &&
+	    match->matchsize != -1) {
+		/*
+		 * ebt_among is exempt from centralized matchsize checking
+		 * because it uses a dynamic-size data set.
+		 */
 		printk("%s_tables: %s match: invalid size %Zu != %u\n",
 		       xt_prefix[family], match->name,
 		       XT_ALIGN(match->matchsize), size);

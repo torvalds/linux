@@ -124,7 +124,7 @@ struct ebt_entry_match
 {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
-		struct ebt_match *match;
+		struct xt_match *match;
 	} u;
 	/* size of data */
 	unsigned int match_size;
@@ -135,7 +135,7 @@ struct ebt_entry_watcher
 {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
-		struct ebt_watcher *watcher;
+		struct xt_target *watcher;
 	} u;
 	/* size of data */
 	unsigned int watcher_size;
@@ -146,7 +146,7 @@ struct ebt_entry_target
 {
 	union {
 		char name[EBT_FUNCTION_MAXNAMELEN];
-		struct ebt_target *target;
+		struct xt_target *target;
 	} u;
 	/* size of data */
 	unsigned int target_size;

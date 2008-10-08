@@ -121,9 +121,8 @@ ebt_ip6_mt_check(const char *table, const void *entry,
 	return true;
 }
 
-static struct ebt_match filter_ip6 =
-{
-	.name		= EBT_IP6_MATCH,
+static struct xt_match ebt_ip6_mt_reg __read_mostly = {
+	.name		= "ip6",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_ip6_mt,
@@ -134,12 +133,12 @@ static struct ebt_match filter_ip6 =
 
 static int __init ebt_ip6_init(void)
 {
-	return ebt_register_match(&filter_ip6);
+	return xt_register_match(&ebt_ip6_mt_reg);
 }
 
 static void __exit ebt_ip6_fini(void)
 {
-	ebt_unregister_match(&filter_ip6);
+	xt_unregister_match(&ebt_ip6_mt_reg);
 }
 
 module_init(ebt_ip6_init);

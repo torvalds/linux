@@ -215,9 +215,8 @@ ebt_log_tg(struct sk_buff *skb, const struct net_device *in,
 	return EBT_CONTINUE;
 }
 
-static struct ebt_watcher log =
-{
-	.name		= EBT_LOG_WATCHER,
+static struct xt_target ebt_log_tg_reg __read_mostly = {
+	.name		= "log",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_log_tg,
@@ -236,7 +235,7 @@ static int __init ebt_log_init(void)
 {
 	int ret;
 
-	ret = ebt_register_watcher(&log);
+	ret = xt_register_target(&ebt_log_tg_reg);
 	if (ret < 0)
 		return ret;
 	nf_log_register(NFPROTO_BRIDGE, &ebt_log_logger);
@@ -246,7 +245,7 @@ static int __init ebt_log_init(void)
 static void __exit ebt_log_fini(void)
 {
 	nf_log_unregister(&ebt_log_logger);
-	ebt_unregister_watcher(&log);
+	xt_unregister_target(&ebt_log_tg_reg);
 }
 
 module_init(ebt_log_init);

@@ -36,8 +36,8 @@ ebt_pkttype_mt_check(const char *table, const void *e,
 	return true;
 }
 
-static struct ebt_match filter_pkttype __read_mostly = {
-	.name		= EBT_PKTTYPE_MATCH,
+static struct xt_match ebt_pkttype_mt_reg __read_mostly = {
+	.name		= "pkttype",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_pkttype_mt,
@@ -48,12 +48,12 @@ static struct ebt_match filter_pkttype __read_mostly = {
 
 static int __init ebt_pkttype_init(void)
 {
-	return ebt_register_match(&filter_pkttype);
+	return xt_register_match(&ebt_pkttype_mt_reg);
 }
 
 static void __exit ebt_pkttype_fini(void)
 {
-	ebt_unregister_match(&filter_pkttype);
+	xt_unregister_match(&ebt_pkttype_mt_reg);
 }
 
 module_init(ebt_pkttype_init);

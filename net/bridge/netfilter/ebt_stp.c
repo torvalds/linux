@@ -176,8 +176,8 @@ ebt_stp_mt_check(const char *table, const void *entry,
 	return true;
 }
 
-static struct ebt_match filter_stp __read_mostly = {
-	.name		= EBT_STP_MATCH,
+static struct xt_match ebt_stp_mt_reg __read_mostly = {
+	.name		= "stp",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_stp_mt,
@@ -188,12 +188,12 @@ static struct ebt_match filter_stp __read_mostly = {
 
 static int __init ebt_stp_init(void)
 {
-	return ebt_register_match(&filter_stp);
+	return xt_register_match(&ebt_stp_mt_reg);
 }
 
 static void __exit ebt_stp_fini(void)
 {
-	ebt_unregister_match(&filter_stp);
+	xt_unregister_match(&ebt_stp_mt_reg);
 }
 
 module_init(ebt_stp_init);

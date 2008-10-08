@@ -69,8 +69,8 @@ ebt_snat_tg_check(const char *tablename, const void *e,
 	return true;
 }
 
-static struct ebt_target snat __read_mostly = {
-	.name		= EBT_SNAT_TARGET,
+static struct xt_target ebt_snat_tg_reg __read_mostly = {
+	.name		= "snat",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_snat_tg,
@@ -81,12 +81,12 @@ static struct ebt_target snat __read_mostly = {
 
 static int __init ebt_snat_init(void)
 {
-	return ebt_register_target(&snat);
+	return xt_register_target(&ebt_snat_tg_reg);
 }
 
 static void __exit ebt_snat_fini(void)
 {
-	ebt_unregister_target(&snat);
+	xt_unregister_target(&ebt_snat_tg_reg);
 }
 
 module_init(ebt_snat_init);

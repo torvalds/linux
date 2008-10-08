@@ -162,8 +162,8 @@ ebt_vlan_mt_check(const char *table, const void *entry,
 	return true;
 }
 
-static struct ebt_match filter_vlan __read_mostly = {
-	.name		= EBT_VLAN_MATCH,
+static struct xt_match ebt_vlan_mt_reg __read_mostly = {
+	.name		= "vlan",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_vlan_mt,
@@ -177,12 +177,12 @@ static int __init ebt_vlan_init(void)
 	DEBUG_MSG("ebtables 802.1Q extension module v"
 		  MODULE_VERS "\n");
 	DEBUG_MSG("module debug=%d\n", !!debug);
-	return ebt_register_match(&filter_vlan);
+	return xt_register_match(&ebt_vlan_mt_reg);
 }
 
 static void __exit ebt_vlan_fini(void)
 {
-	ebt_unregister_match(&filter_vlan);
+	xt_unregister_match(&ebt_vlan_mt_reg);
 }
 
 module_init(ebt_vlan_init);

@@ -47,8 +47,8 @@ ebt_dnat_tg_check(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct ebt_target dnat __read_mostly = {
-	.name		= EBT_DNAT_TARGET,
+static struct xt_target ebt_dnat_tg_reg __read_mostly = {
+	.name		= "dnat",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_dnat_tg,
@@ -59,12 +59,12 @@ static struct ebt_target dnat __read_mostly = {
 
 static int __init ebt_dnat_init(void)
 {
-	return ebt_register_target(&dnat);
+	return xt_register_target(&ebt_dnat_tg_reg);
 }
 
 static void __exit ebt_dnat_fini(void)
 {
-	ebt_unregister_target(&dnat);
+	xt_unregister_target(&ebt_dnat_tg_reg);
 }
 
 module_init(ebt_dnat_init);

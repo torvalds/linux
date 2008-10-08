@@ -60,17 +60,18 @@ static LIST_HEAD(ebt_targets);
 static LIST_HEAD(ebt_matches);
 static LIST_HEAD(ebt_watchers);
 
-static struct ebt_target ebt_standard_target = {
+static struct xt_target ebt_standard_target = {
 	.name       = "standard",
 	.revision   = 0,
 	.family     = NFPROTO_BRIDGE,
+	.targetsize = sizeof(int),
 };
 
 static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
    struct sk_buff *skb, unsigned int hooknr, const struct net_device *in,
    const struct net_device *out)
 {
-	w->u.watcher->target(skb, in, out, hooknr, NULL, w->data);
+	w->u.watcher->target(skb, in, out, hooknr, w->u.watcher, w->data);
 	/* watchers don't give a verdict */
 	return 0;
 }
@@ -79,7 +80,7 @@ static inline int ebt_do_match (struct ebt_entry_match *m,
    const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out)
 {
-	return m->u.match->match(skb, in, out, NULL, m->data, 0, 0, NULL);
+	return m->u.match->match(skb, in, out, m->u.match, m->data, 0, 0, NULL);
 }
 
 static inline int ebt_dev_check(char *entry, const struct net_device *device)
@@ -194,7 +195,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 			verdict = ((struct ebt_standard_target *)t)->verdict;
 		else
 			verdict = t->u.target->target(skb, in, out, hook,
-				  NULL, t->data);
+				  t->u.target, t->data);
 		if (verdict == EBT_ACCEPT) {
 			read_unlock_bh(&table->lock);
 			return NF_ACCEPT;
@@ -336,104 +337,73 @@ static inline int
 ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
    const char *name, unsigned int hookmask, unsigned int *cnt)
 {
-	struct ebt_match *match;
+	struct xt_match *match;
 	size_t left = ((char *)e + e->watchers_offset) - (char *)m;
 	int ret;
 
 	if (left < sizeof(struct ebt_entry_match) ||
 	    left - sizeof(struct ebt_entry_match) < m->match_size)
 		return -EINVAL;
-	match = find_match_lock(m->u.name, &ret, &ebt_mutex);
-	if (!match)
-		return ret;
-	m->u.match = match;
-	if (!try_module_get(match->me)) {
-		mutex_unlock(&ebt_mutex);
+
+	match = try_then_request_module(xt_find_match(NFPROTO_BRIDGE,
+		m->u.name, 0), "ebt_%s", m->u.name);
+	if (IS_ERR(match))
+		return PTR_ERR(match);
+	if (match == NULL)
 		return -ENOENT;
-	}
-	mutex_unlock(&ebt_mutex);
-	if (match->family != NFPROTO_BRIDGE) {
-		printk(KERN_WARNING "ebtables: %s match: not for ebtables?\n",
-		       match->name);
-		goto out;
-	}
-	if (match->revision != 0) {
-		printk(KERN_WARNING "ebtables: %s match: ebtables is not "
-		       "supporting revisions at this time\n",
-		       match->name);
-		goto out;
-	}
-	if (XT_ALIGN(match->matchsize) != m->match_size &&
-	    match->matchsize != -1) {
-		/*
-		 * ebt_among is exempt from centralized matchsize checking
-		 * because it uses a dynamic-size data set.
-		 */
-		printk(KERN_WARNING "ebtables: %s match: "
-		       "invalid size %Zu != %u\n",
-		       match->name, XT_ALIGN(match->matchsize), m->match_size);
-		goto out;
-	}
-	if (match->checkentry &&
+	m->u.match = match;
+
+	ret = xt_check_match(match, NFPROTO_BRIDGE, m->match_size,
+	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO);
+	if (ret < 0) {
+		module_put(match->me);
+		return ret;
+	} else if (match->checkentry != NULL &&
 	    !match->checkentry(name, e, NULL, m->data, hookmask)) {
+		module_put(match->me);
 		BUGPRINT("match->check failed\n");
-		goto out;
+		return -EINVAL;
 	}
+
 	(*cnt)++;
 	return 0;
- out:
-	module_put(match->me);
-	return -EINVAL;
 }
 
 static inline int
 ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
    const char *name, unsigned int hookmask, unsigned int *cnt)
 {
-	struct ebt_watcher *watcher;
+	struct xt_target *watcher;
 	size_t left = ((char *)e + e->target_offset) - (char *)w;
 	int ret;
 
 	if (left < sizeof(struct ebt_entry_watcher) ||
 	   left - sizeof(struct ebt_entry_watcher) < w->watcher_size)
 		return -EINVAL;
-	watcher = find_watcher_lock(w->u.name, &ret, &ebt_mutex);
-	if (!watcher)
-		return ret;
-	w->u.watcher = watcher;
-	if (!try_module_get(watcher->me)) {
-		mutex_unlock(&ebt_mutex);
+
+	watcher = try_then_request_module(
+		  xt_find_target(NFPROTO_BRIDGE, w->u.name, 0),
+		  "ebt_%s", w->u.name);
+	if (IS_ERR(watcher))
+		return PTR_ERR(watcher);
+	if (watcher == NULL)
 		return -ENOENT;
-	}
-	mutex_unlock(&ebt_mutex);
-	if (watcher->family != NFPROTO_BRIDGE) {
-		printk(KERN_WARNING "ebtables: %s watcher: not for ebtables?\n",
-		       watcher->name);
-		goto out;
-	}
-	if (watcher->revision != 0) {
-		printk(KERN_WARNING "ebtables: %s watcher: ebtables is not "
-		       "supporting revisions at this time\n",
-		       watcher->name);
-		goto out;
-	}
-	if (XT_ALIGN(watcher->targetsize) != w->watcher_size) {
-		printk(KERN_WARNING "ebtables: %s watcher: "
-		       "invalid size %Zu != %u\n",
-		       watcher->name, XT_ALIGN(watcher->targetsize),
-		       w->watcher_size);
-		goto out;
-	}
-	if (watcher->checkentry &&
+	w->u.watcher = watcher;
+
+	ret = xt_check_target(watcher, NFPROTO_BRIDGE, w->watcher_size,
+	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO);
+	if (ret < 0) {
+		module_put(watcher->me);
+		return ret;
+	} else if (watcher->checkentry != NULL &&
 	    !watcher->checkentry(name, e, NULL, w->data, hookmask)) {
+		module_put(watcher->me);
 		BUGPRINT("watcher->check failed\n");
-		goto out;
+		return -EINVAL;
 	}
+
 	(*cnt)++;
 	return 0;
- out:
-	module_put(watcher->me);
-	return -EINVAL;
 }
 
 static int ebt_verify_pointers(struct ebt_replace *repl,
@@ -607,7 +577,7 @@ ebt_cleanup_match(struct ebt_entry_match *m, unsigned int *i)
 	if (i && (*i)-- == 0)
 		return 1;
 	if (m->u.match->destroy)
-		m->u.match->destroy(NULL, m->data);
+		m->u.match->destroy(m->u.match, m->data);
 	module_put(m->u.match->me);
 
 	return 0;
@@ -619,7 +589,7 @@ ebt_cleanup_watcher(struct ebt_entry_watcher *w, unsigned int *i)
 	if (i && (*i)-- == 0)
 		return 1;
 	if (w->u.watcher->destroy)
-		w->u.watcher->destroy(NULL, w->data);
+		w->u.watcher->destroy(w->u.watcher, w->data);
 	module_put(w->u.watcher->me);
 
 	return 0;
@@ -639,7 +609,7 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 	EBT_MATCH_ITERATE(e, ebt_cleanup_match, NULL);
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
 	if (t->u.target->destroy)
-		t->u.target->destroy(NULL, t->data);
+		t->u.target->destroy(t->u.target, t->data);
 	module_put(t->u.target->me);
 
 	return 0;
@@ -651,7 +621,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
    struct ebt_cl_stack *cl_s, unsigned int udc_cnt)
 {
 	struct ebt_entry_target *t;
-	struct ebt_target *target;
+	struct xt_target *target;
 	unsigned int i, j, hook = 0, hookmask = 0;
 	size_t gap;
 	int ret;
@@ -704,27 +674,15 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 		goto cleanup_watchers;
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
 	gap = e->next_offset - e->target_offset;
-	target = find_target_lock(t->u.name, &ret, &ebt_mutex);
-	if (!target)
-		goto cleanup_watchers;
-	if (!try_module_get(target->me)) {
-		mutex_unlock(&ebt_mutex);
-		ret = -ENOENT;
-		goto cleanup_watchers;
-	}
-	mutex_unlock(&ebt_mutex);
 
-	if (target->family != NFPROTO_BRIDGE) {
-		printk(KERN_WARNING "ebtables: %s target: not for ebtables?\n",
-		       target->name);
-		ret = -EINVAL;
+	target = try_then_request_module(
+		 xt_find_target(NFPROTO_BRIDGE, t->u.name, 0),
+		 "ebt_%s", t->u.name);
+	if (IS_ERR(target)) {
+		ret = PTR_ERR(target);
 		goto cleanup_watchers;
-	}
-	if (target->revision != 0) {
-		printk(KERN_WARNING "ebtables: %s target: ebtables is not "
-		       "supporting revisions at this time\n",
-		       target->name);
-		ret = -EINVAL;
+	} else if (target == NULL) {
+		ret = -ENOENT;
 		goto cleanup_watchers;
 	}
 
@@ -745,13 +703,12 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 		module_put(t->u.target->me);
 		ret = -EFAULT;
 		goto cleanup_watchers;
-	} else if (XT_ALIGN(target->targetsize) != t->target_size) {
-		printk(KERN_WARNING "ebtables: %s target: "
-		       "invalid size %Zu != %u\n",
-		       target->name, XT_ALIGN(target->targetsize),
-		       t->target_size);
-		module_put(t->u.target->me);
-		ret = -EINVAL;
+	}
+
+	ret = xt_check_target(target, NFPROTO_BRIDGE, t->target_size,
+	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO);
+	if (ret < 0) {
+		module_put(target->me);
 		goto cleanup_watchers;
 	} else if (t->u.target->checkentry &&
 	    !t->u.target->checkentry(name, e, NULL, t->data, hookmask)) {
@@ -1589,11 +1546,14 @@ static int __init ebtables_init(void)
 {
 	int ret;
 
-	mutex_lock(&ebt_mutex);
-	list_add(&ebt_standard_target.list, &ebt_targets);
-	mutex_unlock(&ebt_mutex);
-	if ((ret = nf_register_sockopt(&ebt_sockopts)) < 0)
+	ret = xt_register_target(&ebt_standard_target);
+	if (ret < 0)
 		return ret;
+	ret = nf_register_sockopt(&ebt_sockopts);
+	if (ret < 0) {
+		xt_unregister_target(&ebt_standard_target);
+		return ret;
+	}
 
 	printk(KERN_INFO "Ebtables v2.0 registered\n");
 	return 0;
@@ -1602,6 +1562,7 @@ static int __init ebtables_init(void)
 static void __exit ebtables_fini(void)
 {
 	nf_unregister_sockopt(&ebt_sockopts);
+	xt_unregister_target(&ebt_standard_target);
 	printk(KERN_INFO "Ebtables v2.0 unregistered\n");
 }
 

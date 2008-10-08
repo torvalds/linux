@@ -78,8 +78,8 @@ ebt_arpreply_tg_check(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct ebt_target reply_target __read_mostly = {
-	.name		= EBT_ARPREPLY_TARGET,
+static struct xt_target ebt_arpreply_tg_reg __read_mostly = {
+	.name		= "arpreply",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_arpreply_tg,
@@ -90,12 +90,12 @@ static struct ebt_target reply_target __read_mostly = {
 
 static int __init ebt_arpreply_init(void)
 {
-	return ebt_register_target(&reply_target);
+	return xt_register_target(&ebt_arpreply_tg_reg);
 }
 
 static void __exit ebt_arpreply_fini(void)
 {
-	ebt_unregister_target(&reply_target);
+	xt_unregister_target(&ebt_arpreply_tg_reg);
 }
 
 module_init(ebt_arpreply_init);

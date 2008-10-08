@@ -49,24 +49,24 @@ ebt_nflog_tg_check(const char *table, const void *e,
 	return true;
 }
 
-static struct ebt_watcher nflog __read_mostly = {
-	.name = EBT_NFLOG_WATCHER,
-	.revision = 0,
-	.family = NFPROTO_BRIDGE,
-	.target = ebt_nflog_tg,
+static struct xt_target ebt_nflog_tg_reg __read_mostly = {
+	.name       = "nflog",
+	.revision   = 0,
+	.family     = NFPROTO_BRIDGE,
+	.target     = ebt_nflog_tg,
 	.checkentry = ebt_nflog_tg_check,
 	.targetsize = XT_ALIGN(sizeof(struct ebt_nflog_info)),
-	.me = THIS_MODULE,
+	.me         = THIS_MODULE,
 };
 
 static int __init ebt_nflog_init(void)
 {
-	return ebt_register_watcher(&nflog);
+	return xt_register_target(&ebt_nflog_tg_reg);
 }
 
 static void __exit ebt_nflog_fini(void)
 {
-	ebt_unregister_watcher(&nflog);
+	xt_unregister_target(&ebt_nflog_tg_reg);
 }
 
 module_init(ebt_nflog_init);

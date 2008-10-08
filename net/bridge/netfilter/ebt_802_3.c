@@ -51,8 +51,8 @@ ebt_802_3_mt_check(const char *table, const void *entry,
 	return true;
 }
 
-static struct ebt_match filter_802_3 __read_mostly = {
-	.name		= EBT_802_3_MATCH,
+static struct xt_match ebt_802_3_mt_reg __read_mostly = {
+	.name		= "802_3",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_802_3_mt,
@@ -63,12 +63,12 @@ static struct ebt_match filter_802_3 __read_mostly = {
 
 static int __init ebt_802_3_init(void)
 {
-	return ebt_register_match(&filter_802_3);
+	return xt_register_match(&ebt_802_3_mt_reg);
 }
 
 static void __exit ebt_802_3_fini(void)
 {
-	ebt_unregister_match(&filter_802_3);
+	xt_unregister_match(&ebt_802_3_mt_reg);
 }
 
 module_init(ebt_802_3_init);

@@ -275,8 +275,8 @@ ebt_ulog_tg_check(const char *table, const void *entry,
 	return 0;
 }
 
-static struct ebt_watcher ulog __read_mostly = {
-	.name		= EBT_ULOG_WATCHER,
+static struct xt_target ebt_ulog_tg_reg __read_mostly = {
+	.name		= "ulog",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_ulog_tg,
@@ -286,7 +286,7 @@ static struct ebt_watcher ulog __read_mostly = {
 };
 
 static const struct nf_logger ebt_ulog_logger = {
-	.name		= EBT_ULOG_WATCHER,
+	.name		= "ulog",
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
 };
@@ -315,7 +315,7 @@ static int __init ebt_ulog_init(void)
 		printk(KERN_WARNING KBUILD_MODNAME ": out of memory trying to "
 		       "call netlink_kernel_create\n");
 		ret = false;
-	} else if (ebt_register_watcher(&ulog) != 0) {
+	} else if (xt_register_target(&ebt_ulog_tg_reg) != 0) {
 		netlink_kernel_release(ebtulognl);
 	}
 
@@ -331,7 +331,7 @@ static void __exit ebt_ulog_fini(void)
 	int i;
 
 	nf_log_unregister(&ebt_ulog_logger);
-	ebt_unregister_watcher(&ulog);
+	xt_unregister_target(&ebt_ulog_tg_reg);
 	for (i = 0; i < EBT_ULOG_MAXNLGROUPS; i++) {
 		ub = &ulog_buffers[i];
 		if (timer_pending(&ub->timer))
