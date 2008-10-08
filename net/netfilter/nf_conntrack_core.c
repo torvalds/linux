@@ -1010,17 +1010,15 @@ void nf_conntrack_flush(struct net *net)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_flush);
 
-/* Mishearing the voices in his head, our hero wonders how he's
-   supposed to kill the mall. */
-void nf_conntrack_cleanup(struct net *net)
+static void nf_conntrack_cleanup_init_net(void)
 {
-	rcu_assign_pointer(ip_ct_attach, NULL);
+	nf_conntrack_helper_fini();
+	nf_conntrack_proto_fini();
+	kmem_cache_destroy(nf_conntrack_cachep);
+}
 
-	/* This makes sure all current packets have passed through
-	   netfilter framework.  Roll on, two-stage module
-	   delete... */
-	synchronize_net();
-
+static void nf_conntrack_cleanup_net(struct net *net)
+{
 	nf_ct_event_cache_flush(net);
 	nf_conntrack_ecache_fini(net);
  i_see_dead_people:
@@ -1033,17 +1031,31 @@ void nf_conntrack_cleanup(struct net *net)
 	while (atomic_read(&nf_conntrack_untracked.ct_general.use) > 1)
 		schedule();
 
-	rcu_assign_pointer(nf_ct_destroy, NULL);
-
-	kmem_cache_destroy(nf_conntrack_cachep);
 	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
 			     nf_conntrack_htable_size);
-
 	nf_conntrack_acct_fini(net);
 	nf_conntrack_expect_fini(net);
 	free_percpu(net->ct.stat);
-	nf_conntrack_helper_fini();
-	nf_conntrack_proto_fini();
+}
+
+/* Mishearing the voices in his head, our hero wonders how he's
+   supposed to kill the mall. */
+void nf_conntrack_cleanup(struct net *net)
+{
+	if (net_eq(net, &init_net))
+		rcu_assign_pointer(ip_ct_attach, NULL);
+
+	/* This makes sure all current packets have passed through
+	   netfilter framework.  Roll on, two-stage module
+	   delete... */
+	synchronize_net();
+
+	nf_conntrack_cleanup_net(net);
+
+	if (net_eq(net, &init_net)) {
+		rcu_assign_pointer(nf_ct_destroy, NULL);
+		nf_conntrack_cleanup_init_net();
+	}
 }
 
 struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced)
@@ -1128,7 +1140,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
 module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
 		  &nf_conntrack_htable_size, 0600);
 
-int nf_conntrack_init(struct net *net)
+static int nf_conntrack_init_init_net(void)
 {
 	int max_factor = 8;
 	int ret;
@@ -1150,21 +1162,6 @@ int nf_conntrack_init(struct net *net)
 		 * entries. */
 		max_factor = 4;
 	}
-	atomic_set(&net->ct.count, 0);
-	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
-	if (!net->ct.stat)
-		goto err_stat;
-	ret = nf_conntrack_ecache_init(net);
-	if (ret < 0)
-		goto err_ecache;
-	net->ct.hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size,
-						  &net->ct.hash_vmalloc);
-	if (!net->ct.hash) {
-		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
-		goto err_hash;
-	}
-	INIT_HLIST_HEAD(&net->ct.unconfirmed);
-
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
 	printk("nf_conntrack version %s (%u buckets, %d max)\n",
@@ -1176,28 +1173,55 @@ int nf_conntrack_init(struct net *net)
 						0, 0, NULL);
 	if (!nf_conntrack_cachep) {
 		printk(KERN_ERR "Unable to create nf_conn slab cache\n");
-		goto err_free_hash;
+		ret = -ENOMEM;
+		goto err_cache;
 	}
 
 	ret = nf_conntrack_proto_init();
 	if (ret < 0)
-		goto err_free_conntrack_slab;
-
-	ret = nf_conntrack_expect_init(net);
-	if (ret < 0)
-		goto out_fini_proto;
+		goto err_proto;
 
 	ret = nf_conntrack_helper_init();
 	if (ret < 0)
-		goto out_fini_expect;
+		goto err_helper;
 
+	return 0;
+
+err_helper:
+	nf_conntrack_proto_fini();
+err_proto:
+	kmem_cache_destroy(nf_conntrack_cachep);
+err_cache:
+	return ret;
+}
+
+static int nf_conntrack_init_net(struct net *net)
+{
+	int ret;
+
+	atomic_set(&net->ct.count, 0);
+	INIT_HLIST_HEAD(&net->ct.unconfirmed);
+	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
+	if (!net->ct.stat) {
+		ret = -ENOMEM;
+		goto err_stat;
+	}
+	ret = nf_conntrack_ecache_init(net);
+	if (ret < 0)
+		goto err_ecache;
+	net->ct.hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size,
+						  &net->ct.hash_vmalloc);
+	if (!net->ct.hash) {
+		ret = -ENOMEM;
+		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
+		goto err_hash;
+	}
+	ret = nf_conntrack_expect_init(net);
+	if (ret < 0)
+		goto err_expect;
 	ret = nf_conntrack_acct_init(net);
 	if (ret < 0)
-		goto out_fini_helper;
-
-	/* For use by REJECT target */
-	rcu_assign_pointer(ip_ct_attach, nf_conntrack_attach);
-	rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
+		goto err_acct;
 
 	/* Set up fake conntrack:
 	    - to never be deleted, not in any hashes */
@@ -1208,17 +1232,11 @@ int nf_conntrack_init(struct net *net)
 	/*  - and look it like as a confirmed connection */
 	set_bit(IPS_CONFIRMED_BIT, &nf_conntrack_untracked.status);
 
-	return ret;
+	return 0;
 
-out_fini_helper:
-	nf_conntrack_helper_fini();
-out_fini_expect:
+err_acct:
 	nf_conntrack_expect_fini(net);
-out_fini_proto:
-	nf_conntrack_proto_fini();
-err_free_conntrack_slab:
-	kmem_cache_destroy(nf_conntrack_cachep);
-err_free_hash:
+err_expect:
 	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
 			     nf_conntrack_htable_size);
 err_hash:
@@ -1226,5 +1244,32 @@ err_hash:
 err_ecache:
 	free_percpu(net->ct.stat);
 err_stat:
-	return -ENOMEM;
+	return ret;
+}
+
+int nf_conntrack_init(struct net *net)
+{
+	int ret;
+
+	if (net_eq(net, &init_net)) {
+		ret = nf_conntrack_init_init_net();
+		if (ret < 0)
+			goto out_init_net;
+	}
+	ret = nf_conntrack_init_net(net);
+	if (ret < 0)
+		goto out_net;
+
+	if (net_eq(net, &init_net)) {
+		/* For use by REJECT target */
+		rcu_assign_pointer(ip_ct_attach, nf_conntrack_attach);
+		rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
+	}
+	return 0;
+
+out_net:
+	if (net_eq(net, &init_net))
+		nf_conntrack_cleanup_init_net();
+out_init_net:
+	return ret;
 }
