@@ -636,23 +636,22 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 
 #define MAX_UCODE_BEACON_INTERVAL	4096
 
-static __le16 iwl4965_adjust_beacon_interval(u16 beacon_val)
+static u16 iwl_adjust_beacon_interval(u16 beacon_val)
 {
 	u16 new_val = 0;
 	u16 beacon_factor = 0;
 
-	beacon_factor =
-	    (beacon_val + MAX_UCODE_BEACON_INTERVAL)
-		/ MAX_UCODE_BEACON_INTERVAL;
+	beacon_factor = (beacon_val + MAX_UCODE_BEACON_INTERVAL)
+					/ MAX_UCODE_BEACON_INTERVAL;
 	new_val = beacon_val / beacon_factor;
 
-	return cpu_to_le16(new_val);
+	return new_val;
 }
 
-static void iwl4965_setup_rxon_timing(struct iwl_priv *priv)
+static void iwl_setup_rxon_timing(struct iwl_priv *priv)
 {
-	u64 interval_tm_unit;
-	u64 tsf, result;
+	u64 tsf;
+	s32 interval_tm, rem;
 	unsigned long flags;
 	struct ieee80211_conf *conf = NULL;
 	u16 beacon_int = 0;
@@ -660,49 +659,32 @@ static void iwl4965_setup_rxon_timing(struct iwl_priv *priv)
 	conf = ieee80211_get_hw_conf(priv->hw);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->rxon_timing.timestamp.dw[1] = cpu_to_le32(priv->timestamp >> 32);
-	priv->rxon_timing.timestamp.dw[0] =
-				cpu_to_le32(priv->timestamp & 0xFFFFFFFF);
-
+	priv->rxon_timing.timestamp = cpu_to_le64(priv->timestamp);
 	priv->rxon_timing.listen_interval = cpu_to_le16(conf->listen_interval);
 
-	tsf = priv->timestamp;
-
-	beacon_int = priv->beacon_int;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
-		if (beacon_int == 0) {
-			priv->rxon_timing.beacon_interval = cpu_to_le16(100);
-			priv->rxon_timing.beacon_init_val = cpu_to_le32(102400);
-		} else {
-			priv->rxon_timing.beacon_interval =
-				cpu_to_le16(beacon_int);
-			priv->rxon_timing.beacon_interval =
-			    iwl4965_adjust_beacon_interval(
-				le16_to_cpu(priv->rxon_timing.beacon_interval));
-		}
-
+		beacon_int = iwl_adjust_beacon_interval(priv->beacon_int);
 		priv->rxon_timing.atim_window = 0;
 	} else {
-		priv->rxon_timing.beacon_interval =
-			iwl4965_adjust_beacon_interval(conf->beacon_int);
+		beacon_int = iwl_adjust_beacon_interval(conf->beacon_int);
+
 		/* TODO: we need to get atim_window from upper stack
 		 * for now we set to 0 */
 		priv->rxon_timing.atim_window = 0;
 	}
 
-	interval_tm_unit =
-		(le16_to_cpu(priv->rxon_timing.beacon_interval) * 1024);
-	result = do_div(tsf, interval_tm_unit);
-	priv->rxon_timing.beacon_init_val =
-	    cpu_to_le32((u32) ((u64) interval_tm_unit - result));
+	priv->rxon_timing.beacon_interval = cpu_to_le16(beacon_int);
 
-	IWL_DEBUG_ASSOC
-	    ("beacon interval %d beacon timer %d beacon tim %d\n",
-		le16_to_cpu(priv->rxon_timing.beacon_interval),
-		le32_to_cpu(priv->rxon_timing.beacon_init_val),
-		le16_to_cpu(priv->rxon_timing.atim_window));
+	tsf = priv->timestamp; /* tsf is modifed by do_div: copy it */
+	interval_tm = beacon_int * 1024;
+	rem = do_div(tsf, interval_tm);
+	priv->rxon_timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	IWL_DEBUG_ASSOC("beacon interval %d beacon timer %d beacon tim %d\n",
+			le16_to_cpu(priv->rxon_timing.beacon_interval),
+			le32_to_cpu(priv->rxon_timing.beacon_init_val),
+			le16_to_cpu(priv->rxon_timing.atim_window));
 }
 
 static void iwl_set_flags_for_band(struct iwl_priv *priv,
@@ -2488,8 +2470,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwl4965_commit_rxon(priv);
 
-	memset(&priv->rxon_timing, 0, sizeof(struct iwl4965_rxon_time_cmd));
-	iwl4965_setup_rxon_timing(priv);
+	iwl_setup_rxon_timing(priv);
 	ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 			      sizeof(priv->rxon_timing), &priv->rxon_timing);
 	if (ret)
@@ -2879,15 +2860,14 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 		return;
 
 	/* The following should be done only at AP bring up */
-	if (!(iwl_is_associated(priv))) {
+	if (!iwl_is_associated(priv)) {
 
 		/* RXON - unassoc (to set timing command) */
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
 
 		/* RXON Timing */
-		memset(&priv->rxon_timing, 0, sizeof(struct iwl4965_rxon_time_cmd));
-		iwl4965_setup_rxon_timing(priv);
+		iwl_setup_rxon_timing(priv);
 		ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 				sizeof(priv->rxon_timing), &priv->rxon_timing);
 		if (ret)

@@ -275,7 +275,6 @@ struct iwl_cmd {
 		u16 val16;
 		u32 val32;
 		struct iwl4965_bt_cmd bt;
-		struct iwl4965_rxon_time_cmd rxon_time;
 		struct iwl_powertable_cmd powertable;
 		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
@@ -851,7 +850,7 @@ struct iwl_priv {
 	u8 ucode_write_complete;	/* the image write is complete */
 
 
-	struct iwl4965_rxon_time_cmd rxon_timing;
+	struct iwl_rxon_time_cmd rxon_timing;
 
 	/* We declare this const so it can only be
 	 * changed via explicit cast within the
