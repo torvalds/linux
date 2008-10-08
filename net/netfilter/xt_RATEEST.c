@@ -157,25 +157,15 @@ static void xt_rateest_tg_destroy(const struct xt_target *target,
 	xt_rateest_put(info->est);
 }
 
-static struct xt_target xt_rateest_target[] __read_mostly = {
-	{
-		.family		= NFPROTO_IPV4,
-		.name		= "RATEEST",
-		.target		= xt_rateest_tg,
-		.checkentry	= xt_rateest_tg_checkentry,
-		.destroy	= xt_rateest_tg_destroy,
-		.targetsize	= sizeof(struct xt_rateest_target_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.family		= NFPROTO_IPV6,
-		.name		= "RATEEST",
-		.target		= xt_rateest_tg,
-		.checkentry	= xt_rateest_tg_checkentry,
-		.destroy	= xt_rateest_tg_destroy,
-		.targetsize	= sizeof(struct xt_rateest_target_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_target xt_rateest_tg_reg __read_mostly = {
+	.name       = "RATEEST",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.target     = xt_rateest_tg,
+	.checkentry = xt_rateest_tg_checkentry,
+	.destroy    = xt_rateest_tg_destroy,
+	.targetsize = sizeof(struct xt_rateest_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init xt_rateest_tg_init(void)
@@ -186,13 +176,12 @@ static int __init xt_rateest_tg_init(void)
 		INIT_HLIST_HEAD(&rateest_hash[i]);
 
 	get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
-	return xt_register_targets(xt_rateest_target,
-				   ARRAY_SIZE(xt_rateest_target));
+	return xt_register_target(&xt_rateest_tg_reg);
 }
 
 static void __exit xt_rateest_tg_fini(void)
 {
-	xt_unregister_targets(xt_rateest_target, ARRAY_SIZE(xt_rateest_target));
+	xt_unregister_target(&xt_rateest_tg_reg);
 }
 
 

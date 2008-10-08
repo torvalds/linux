@@ -37,40 +37,26 @@ classify_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static struct xt_target classify_tg_reg[] __read_mostly = {
-	{
-		.family		= NFPROTO_IPV4,
-		.name 		= "CLASSIFY",
-		.target 	= classify_tg,
-		.targetsize	= sizeof(struct xt_classify_target_info),
-		.table		= "mangle",
-		.hooks		= (1 << NF_INET_LOCAL_OUT) |
-				  (1 << NF_INET_FORWARD) |
-				  (1 << NF_INET_POST_ROUTING),
-		.me 		= THIS_MODULE,
-	},
-	{
-		.name 		= "CLASSIFY",
-		.family		= NFPROTO_IPV6,
-		.target 	= classify_tg,
-		.targetsize	= sizeof(struct xt_classify_target_info),
-		.table		= "mangle",
-		.hooks		= (1 << NF_INET_LOCAL_OUT) |
-				  (1 << NF_INET_FORWARD) |
-				  (1 << NF_INET_POST_ROUTING),
-		.me 		= THIS_MODULE,
-	},
+static struct xt_target classify_tg_reg __read_mostly = {
+	.name       = "CLASSIFY",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.table      = "mangle",
+	.hooks      = (1 << NF_INET_LOCAL_OUT) | (1 << NF_INET_FORWARD) |
+		      (1 << NF_INET_POST_ROUTING),
+	.target     = classify_tg,
+	.targetsize = sizeof(struct xt_classify_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init classify_tg_init(void)
 {
-	return xt_register_targets(classify_tg_reg,
-	       ARRAY_SIZE(classify_tg_reg));
+	return xt_register_target(&classify_tg_reg);
 }
 
 static void __exit classify_tg_exit(void)
 {
-	xt_unregister_targets(classify_tg_reg, ARRAY_SIZE(classify_tg_reg));
+	xt_unregister_target(&classify_tg_reg);
 }
 
 module_init(classify_tg_init);

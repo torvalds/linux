@@ -92,21 +92,7 @@ static struct xt_match mark_mt_reg[] __read_mostly = {
 	{
 		.name		= "mark",
 		.revision	= 0,
-		.family		= NFPROTO_IPV4,
-		.checkentry	= mark_mt_check_v0,
-		.match		= mark_mt_v0,
-		.matchsize	= sizeof(struct xt_mark_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_mark_info),
-		.compat_from_user = mark_mt_compat_from_user_v0,
-		.compat_to_user	= mark_mt_compat_to_user_v0,
-#endif
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "mark",
-		.revision	= 0,
-		.family		= NFPROTO_IPV6,
+		.family		= NFPROTO_UNSPEC,
 		.checkentry	= mark_mt_check_v0,
 		.match		= mark_mt_v0,
 		.matchsize	= sizeof(struct xt_mark_info),
@@ -120,15 +106,7 @@ static struct xt_match mark_mt_reg[] __read_mostly = {
 	{
 		.name           = "mark",
 		.revision       = 1,
-		.family         = NFPROTO_IPV4,
-		.match          = mark_mt,
-		.matchsize      = sizeof(struct xt_mark_mtinfo1),
-		.me             = THIS_MODULE,
-	},
-	{
-		.name           = "mark",
-		.revision       = 1,
-		.family         = NFPROTO_IPV6,
+		.family         = NFPROTO_UNSPEC,
 		.match          = mark_mt,
 		.matchsize      = sizeof(struct xt_mark_mtinfo1),
 		.me             = THIS_MODULE,

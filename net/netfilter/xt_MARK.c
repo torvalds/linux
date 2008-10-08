@@ -222,15 +222,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	{
 		.name           = "MARK",
 		.revision       = 2,
-		.family         = NFPROTO_IPV4,
-		.target         = mark_tg,
-		.targetsize     = sizeof(struct xt_mark_tginfo2),
-		.me             = THIS_MODULE,
-	},
-	{
-		.name           = "MARK",
-		.revision       = 2,
-		.family         = NFPROTO_IPV6,
+		.family         = NFPROTO_UNSPEC,
 		.target         = mark_tg,
 		.targetsize     = sizeof(struct xt_mark_tginfo2),
 		.me             = THIS_MODULE,

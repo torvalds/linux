@@ -125,35 +125,25 @@ static void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
 	}
 }
 
-static struct xt_target secmark_tg_reg[] __read_mostly = {
-	{
-		.name		= "SECMARK",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= secmark_tg_check,
-		.destroy	= secmark_tg_destroy,
-		.target		= secmark_tg,
-		.targetsize	= sizeof(struct xt_secmark_target_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "SECMARK",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= secmark_tg_check,
-		.destroy	= secmark_tg_destroy,
-		.target		= secmark_tg,
-		.targetsize	= sizeof(struct xt_secmark_target_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_target secmark_tg_reg __read_mostly = {
+	.name       = "SECMARK",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = secmark_tg_check,
+	.destroy    = secmark_tg_destroy,
+	.target     = secmark_tg,
+	.targetsize = sizeof(struct xt_secmark_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init secmark_tg_init(void)
 {
-	return xt_register_targets(secmark_tg_reg, ARRAY_SIZE(secmark_tg_reg));
+	return xt_register_target(&secmark_tg_reg);
 }
 
 static void __exit secmark_tg_exit(void)
 {
-	xt_unregister_targets(secmark_tg_reg, ARRAY_SIZE(secmark_tg_reg));
+	xt_unregister_target(&secmark_tg_reg);
 }
 
 module_init(secmark_tg_init);

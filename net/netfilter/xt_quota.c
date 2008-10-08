@@ -54,33 +54,24 @@ quota_mt_check(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct xt_match quota_mt_reg[] __read_mostly = {
-	{
-		.name		= "quota",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= quota_mt_check,
-		.match		= quota_mt,
-		.matchsize	= sizeof(struct xt_quota_info),
-		.me		= THIS_MODULE
-	},
-	{
-		.name		= "quota",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= quota_mt_check,
-		.match		= quota_mt,
-		.matchsize	= sizeof(struct xt_quota_info),
-		.me		= THIS_MODULE
-	},
+static struct xt_match quota_mt_reg __read_mostly = {
+	.name       = "quota",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.match      = quota_mt,
+	.checkentry = quota_mt_check,
+	.matchsize  = sizeof(struct xt_quota_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init quota_mt_init(void)
 {
-	return xt_register_matches(quota_mt_reg, ARRAY_SIZE(quota_mt_reg));
+	return xt_register_match(&quota_mt_reg);
 }
 
 static void __exit quota_mt_exit(void)
 {
-	xt_unregister_matches(quota_mt_reg, ARRAY_SIZE(quota_mt_reg));
+	xt_unregister_match(&quota_mt_reg);
 }
 
 module_init(quota_mt_init);

@@ -19,31 +19,23 @@ trace_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static struct xt_target trace_tg_reg[] __read_mostly = {
-	{
-		.name		= "TRACE",
-		.family		= NFPROTO_IPV4,
-		.target		= trace_tg,
-		.table		= "raw",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "TRACE",
-		.family		= NFPROTO_IPV6,
-		.target		= trace_tg,
-		.table		= "raw",
-		.me		= THIS_MODULE,
-	},
+static struct xt_target trace_tg_reg __read_mostly = {
+	.name       = "TRACE",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.table      = "raw",
+	.target     = trace_tg,
+	.me         = THIS_MODULE,
 };
 
 static int __init trace_tg_init(void)
 {
-	return xt_register_targets(trace_tg_reg, ARRAY_SIZE(trace_tg_reg));
+	return xt_register_target(&trace_tg_reg);
 }
 
 static void __exit trace_tg_exit(void)
 {
-	xt_unregister_targets(trace_tg_reg, ARRAY_SIZE(trace_tg_reg));
+	xt_unregister_target(&trace_tg_reg);
 }
 
 module_init(trace_tg_init);

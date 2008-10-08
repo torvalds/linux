@@ -137,36 +137,25 @@ static void xt_rateest_mt_destroy(const struct xt_match *match,
 		xt_rateest_put(info->est2);
 }
 
-static struct xt_match xt_rateest_match[] __read_mostly = {
-	{
-		.family		= NFPROTO_IPV4,
-		.name		= "rateest",
-		.match		= xt_rateest_mt,
-		.checkentry	= xt_rateest_mt_checkentry,
-		.destroy	= xt_rateest_mt_destroy,
-		.matchsize	= sizeof(struct xt_rateest_match_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.family		= NFPROTO_IPV6,
-		.name		= "rateest",
-		.match		= xt_rateest_mt,
-		.checkentry	= xt_rateest_mt_checkentry,
-		.destroy	= xt_rateest_mt_destroy,
-		.matchsize	= sizeof(struct xt_rateest_match_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_match xt_rateest_mt_reg __read_mostly = {
+	.name       = "rateest",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.match      = xt_rateest_mt,
+	.checkentry = xt_rateest_mt_checkentry,
+	.destroy    = xt_rateest_mt_destroy,
+	.matchsize  = sizeof(struct xt_rateest_match_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init xt_rateest_mt_init(void)
 {
-	return xt_register_matches(xt_rateest_match,
-				   ARRAY_SIZE(xt_rateest_match));
+	return xt_register_match(&xt_rateest_mt_reg);
 }
 
 static void __exit xt_rateest_mt_fini(void)
 {
-	xt_unregister_matches(xt_rateest_match, ARRAY_SIZE(xt_rateest_match));
+	xt_unregister_match(&xt_rateest_mt_reg);
 }
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

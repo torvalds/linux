@@ -81,11 +81,11 @@ static void string_mt_destroy(const struct xt_match *match, void *matchinfo)
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }
 
-static struct xt_match string_mt_reg[] __read_mostly = {
+static struct xt_match xt_string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.revision	= 0,
-		.family		= NFPROTO_IPV4,
+		.family		= NFPROTO_UNSPEC,
 		.checkentry	= string_mt_check,
 		.match 		= string_mt,
 		.destroy 	= string_mt_destroy,
@@ -95,27 +95,7 @@ static struct xt_match string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.revision	= 1,
-		.family		= NFPROTO_IPV4,
-		.checkentry	= string_mt_check,
-		.match 		= string_mt,
-		.destroy 	= string_mt_destroy,
-		.matchsize	= sizeof(struct xt_string_info),
-		.me 		= THIS_MODULE
-	},
-	{
-		.name 		= "string",
-		.revision	= 0,
-		.family		= NFPROTO_IPV6,
-		.checkentry	= string_mt_check,
-		.match 		= string_mt,
-		.destroy 	= string_mt_destroy,
-		.matchsize	= sizeof(struct xt_string_info),
-		.me 		= THIS_MODULE
-	},
-	{
-		.name 		= "string",
-		.revision	= 1,
-		.family		= NFPROTO_IPV6,
+		.family		= NFPROTO_UNSPEC,
 		.checkentry	= string_mt_check,
 		.match 		= string_mt,
 		.destroy 	= string_mt_destroy,
@@ -126,12 +106,13 @@ static struct xt_match string_mt_reg[] __read_mostly = {
 
 static int __init string_mt_init(void)
 {
-	return xt_register_matches(string_mt_reg, ARRAY_SIZE(string_mt_reg));
+	return xt_register_matches(xt_string_mt_reg,
+				   ARRAY_SIZE(xt_string_mt_reg));
 }
 
 static void __exit string_mt_exit(void)
 {
-	xt_unregister_matches(string_mt_reg, ARRAY_SIZE(string_mt_reg));
+	xt_unregister_matches(xt_string_mt_reg, ARRAY_SIZE(xt_string_mt_reg));
 }
 
 module_init(string_mt_init);

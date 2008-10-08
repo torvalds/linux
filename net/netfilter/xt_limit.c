@@ -167,43 +167,29 @@ static int limit_mt_compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_match limit_mt_reg[] __read_mostly = {
-	{
-		.name		= "limit",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= limit_mt_check,
-		.match		= limit_mt,
-		.matchsize	= sizeof(struct xt_rateinfo),
+static struct xt_match limit_mt_reg __read_mostly = {
+	.name             = "limit",
+	.revision         = 0,
+	.family           = NFPROTO_UNSPEC,
+	.match            = limit_mt,
+	.checkentry       = limit_mt_check,
+	.matchsize        = sizeof(struct xt_rateinfo),
 #ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_rateinfo),
-		.compat_from_user = limit_mt_compat_from_user,
-		.compat_to_user	= limit_mt_compat_to_user,
+	.compatsize       = sizeof(struct compat_xt_rateinfo),
+	.compat_from_user = limit_mt_compat_from_user,
+	.compat_to_user   = limit_mt_compat_to_user,
 #endif
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "limit",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= limit_mt_check,
-		.match		= limit_mt,
-		.matchsize	= sizeof(struct xt_rateinfo),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_rateinfo),
-		.compat_from_user = limit_mt_compat_from_user,
-		.compat_to_user	= limit_mt_compat_to_user,
-#endif
-		.me		= THIS_MODULE,
-	},
+	.me               = THIS_MODULE,
 };
 
 static int __init limit_mt_init(void)
 {
-	return xt_register_matches(limit_mt_reg, ARRAY_SIZE(limit_mt_reg));
+	return xt_register_match(&limit_mt_reg);
 }
 
 static void __exit limit_mt_exit(void)
 {
-	xt_unregister_matches(limit_mt_reg, ARRAY_SIZE(limit_mt_reg));
+	xt_unregister_match(&limit_mt_reg);
 }
 
 module_init(limit_mt_init);
