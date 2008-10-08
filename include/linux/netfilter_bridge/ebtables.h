@@ -221,7 +221,7 @@ struct ebt_watcher
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	void (*watcher)(const struct sk_buff *skb, unsigned int hooknr,
+	unsigned int (*watcher)(const struct sk_buff *skb, unsigned int hooknr,
 	   const struct net_device *in, const struct net_device *out,
 	   const void *watcherdata, unsigned int datalen);
 	bool (*check)(const char *tablename, unsigned int hookmask,
@@ -235,8 +235,8 @@ struct ebt_target
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	/* returns one of the standard verdicts */
-	int (*target)(struct sk_buff *skb, unsigned int hooknr,
+	/* returns one of the standard EBT_* verdicts */
+	unsigned int (*target)(struct sk_buff *skb, unsigned int hooknr,
 	   const struct net_device *in, const struct net_device *out,
 	   const void *targetdata, unsigned int datalen);
 	bool (*check)(const char *tablename, unsigned int hookmask,

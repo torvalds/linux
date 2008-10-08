@@ -19,11 +19,11 @@
 #include <linux/netfilter_bridge/ebt_nflog.h>
 #include <net/netfilter/nf_log.h>
 
-static void ebt_nflog(const struct sk_buff *skb,
-		      unsigned int hooknr,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const void *data, unsigned int datalen)
+static unsigned int ebt_nflog(const struct sk_buff *skb,
+			      unsigned int hooknr,
+			      const struct net_device *in,
+			      const struct net_device *out,
+			      const void *data, unsigned int datalen)
 {
 	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
 	struct nf_loginfo li;
@@ -34,6 +34,7 @@ static void ebt_nflog(const struct sk_buff *skb,
 	li.u.ulog.qthreshold = info->threshold;
 
 	nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li, "%s", info->prefix);
+	return EBT_CONTINUE;
 }
 
 static bool ebt_nflog_check(const char *tablename,

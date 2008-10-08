@@ -192,7 +192,7 @@ out:
 
 }
 
-static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
+static unsigned int ebt_log(const struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
@@ -209,6 +209,7 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 	else
 		ebt_log_packet(NFPROTO_BRIDGE, hooknr, skb, in, out, &li,
 			       info->prefix);
+	return EBT_CONTINUE;
 }
 
 static struct ebt_watcher log =
