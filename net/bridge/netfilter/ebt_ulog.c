@@ -246,9 +246,10 @@ static void ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 	ebt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
-static unsigned int ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_ulog_tg(struct sk_buff *skb, const struct net_device *in,
+	    const struct net_device *out, unsigned int hooknr,
+	    const struct xt_target *target, const void *data)
 {
 	const struct ebt_ulog_info *uloginfo = data;
 
@@ -256,8 +257,10 @@ static unsigned int ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
 	return EBT_CONTINUE;
 }
 
-static bool ebt_ulog_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_ulog_tg_check(const char *table, const void *entry,
+		  const struct xt_target *target, void *data,
+		  unsigned int hookmask)
 {
 	struct ebt_ulog_info *uloginfo = data;
 
@@ -276,8 +279,8 @@ static struct ebt_watcher ulog __read_mostly = {
 	.name		= EBT_ULOG_WATCHER,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.watcher	= ebt_ulog,
-	.check		= ebt_ulog_check,
+	.target		= ebt_ulog_tg,
+	.checkentry	= ebt_ulog_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_ulog_info)),
 	.me		= THIS_MODULE,
 };

@@ -27,10 +27,10 @@ struct tcpudphdr {
 	__be16 dst;
 };
 
-static bool ebt_filter_ip6(const struct sk_buff *skb,
-   const struct net_device *in,
-   const struct net_device *out, const void *data,
-   unsigned int datalen)
+static bool
+ebt_ip6_mt(const struct sk_buff *skb, const struct net_device *in,
+	   const struct net_device *out, const struct xt_match *match,
+	   const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_ip6_info *info = (struct ebt_ip6_info *)data;
 	const struct ipv6hdr *ih6;
@@ -92,9 +92,12 @@ static bool ebt_filter_ip6(const struct sk_buff *skb,
 	return true;
 }
 
-static bool ebt_ip6_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_ip6_mt_check(const char *table, const void *entry,
+		 const struct xt_match *match, void *data,
+		 unsigned int hook_mask)
 {
+	const struct ebt_entry *e = entry;
 	struct ebt_ip6_info *info = (struct ebt_ip6_info *)data;
 
 	if (e->ethproto != htons(ETH_P_IPV6) || e->invflags & EBT_IPROTO)
@@ -123,8 +126,8 @@ static struct ebt_match filter_ip6 =
 	.name		= EBT_IP6_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_ip6,
-	.check		= ebt_ip6_check,
+	.match		= ebt_ip6_mt,
+	.checkentry	= ebt_ip6_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_ip6_info)),
 	.me		= THIS_MODULE,
 };

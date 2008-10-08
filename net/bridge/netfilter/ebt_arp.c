@@ -15,9 +15,10 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_arp.h>
 
-static bool ebt_filter_arp(const struct sk_buff *skb,
-   const struct net_device *in,
-   const struct net_device *out, const void *data, unsigned int datalen)
+static bool
+ebt_arp_mt(const struct sk_buff *skb, const struct net_device *in,
+	   const struct net_device *out, const struct xt_match *match,
+	   const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_arp_info *info = data;
 	const struct arphdr *ah;
@@ -101,10 +102,13 @@ static bool ebt_filter_arp(const struct sk_buff *skb,
 	return true;
 }
 
-static bool ebt_arp_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_arp_mt_check(const char *table, const void *entry,
+		 const struct xt_match *match, void *data,
+		 unsigned int hook_mask)
 {
 	const struct ebt_arp_info *info = data;
+	const struct ebt_entry *e = entry;
 
 	if ((e->ethproto != htons(ETH_P_ARP) &&
 	   e->ethproto != htons(ETH_P_RARP)) ||
@@ -119,8 +123,8 @@ static struct ebt_match filter_arp __read_mostly = {
 	.name		= EBT_ARP_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_arp,
-	.check		= ebt_arp_check,
+	.match		= ebt_arp_mt,
+	.checkentry	= ebt_arp_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_arp_info)),
 	.me		= THIS_MODULE,
 };

@@ -67,11 +67,10 @@ static struct ebt_target ebt_standard_target = {
 };
 
 static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
-   const struct sk_buff *skb, unsigned int hooknr, const struct net_device *in,
+   struct sk_buff *skb, unsigned int hooknr, const struct net_device *in,
    const struct net_device *out)
 {
-	w->u.watcher->watcher(skb, hooknr, in, out, w->data,
-	   w->watcher_size);
+	w->u.watcher->target(skb, in, out, hooknr, NULL, w->data);
 	/* watchers don't give a verdict */
 	return 0;
 }
@@ -80,8 +79,7 @@ static inline int ebt_do_match (struct ebt_entry_match *m,
    const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out)
 {
-	return m->u.match->match(skb, in, out, m->data,
-	   m->match_size);
+	return m->u.match->match(skb, in, out, NULL, m->data, 0, 0, NULL);
 }
 
 static inline int ebt_dev_check(char *entry, const struct net_device *device)
@@ -195,8 +193,8 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 		if (!t->u.target->target)
 			verdict = ((struct ebt_standard_target *)t)->verdict;
 		else
-			verdict = t->u.target->target(skb, hook,
-			   in, out, t->data, t->target_size);
+			verdict = t->u.target->target(skb, in, out, hook,
+				  NULL, t->data);
 		if (verdict == EBT_ACCEPT) {
 			read_unlock_bh(&table->lock);
 			return NF_ACCEPT;
@@ -376,8 +374,8 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		       match->name, XT_ALIGN(match->matchsize), m->match_size);
 		goto out;
 	}
-	if (match->check &&
-	    !match->check(name, hookmask, e, m->data, m->match_size)) {
+	if (match->checkentry &&
+	    !match->checkentry(name, e, NULL, m->data, hookmask)) {
 		BUGPRINT("match->check failed\n");
 		goto out;
 	}
@@ -426,8 +424,8 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 		       w->watcher_size);
 		goto out;
 	}
-	if (watcher->check &&
-	    !watcher->check(name, hookmask, e, w->data, w->watcher_size)) {
+	if (watcher->checkentry &&
+	    !watcher->checkentry(name, e, NULL, w->data, hookmask)) {
 		BUGPRINT("watcher->check failed\n");
 		goto out;
 	}
@@ -609,7 +607,7 @@ ebt_cleanup_match(struct ebt_entry_match *m, unsigned int *i)
 	if (i && (*i)-- == 0)
 		return 1;
 	if (m->u.match->destroy)
-		m->u.match->destroy(m->data, m->match_size);
+		m->u.match->destroy(NULL, m->data);
 	module_put(m->u.match->me);
 
 	return 0;
@@ -621,7 +619,7 @@ ebt_cleanup_watcher(struct ebt_entry_watcher *w, unsigned int *i)
 	if (i && (*i)-- == 0)
 		return 1;
 	if (w->u.watcher->destroy)
-		w->u.watcher->destroy(w->data, w->watcher_size);
+		w->u.watcher->destroy(NULL, w->data);
 	module_put(w->u.watcher->me);
 
 	return 0;
@@ -641,7 +639,7 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 	EBT_MATCH_ITERATE(e, ebt_cleanup_match, NULL);
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
 	if (t->u.target->destroy)
-		t->u.target->destroy(t->data, t->target_size);
+		t->u.target->destroy(NULL, t->data);
 	module_put(t->u.target->me);
 
 	return 0;
@@ -755,8 +753,8 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 		module_put(t->u.target->me);
 		ret = -EINVAL;
 		goto cleanup_watchers;
-	} else if (t->u.target->check &&
-	    !t->u.target->check(name, hookmask, e, t->data, t->target_size)) {
+	} else if (t->u.target->checkentry &&
+	    !t->u.target->checkentry(name, e, NULL, t->data, hookmask)) {
 		module_put(t->u.target->me);
 		ret = -EFAULT;
 		goto cleanup_watchers;

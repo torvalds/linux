@@ -127,10 +127,10 @@ static int get_ip_src(const struct sk_buff *skb, __be32 *addr)
 	return 0;
 }
 
-static bool ebt_filter_among(const struct sk_buff *skb,
-			     const struct net_device *in,
-			     const struct net_device *out, const void *data,
-			     unsigned int datalen)
+static bool
+ebt_among_mt(const struct sk_buff *skb, const struct net_device *in,
+	     const struct net_device *out, const struct xt_match *match,
+	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_among_info *info = data;
 	const char *dmac, *smac;
@@ -174,9 +174,9 @@ static bool ebt_filter_among(const struct sk_buff *skb,
 }
 
 static bool
-ebt_among_check(const char *tablename, unsigned int hookmask,
-		const struct ebt_entry *e, void *data,
-		unsigned int datalen)
+ebt_among_mt_check(const char *table, const void *entry,
+		   const struct xt_match *match, void *data,
+		   unsigned int hook_mask)
 {
 	const struct ebt_entry_match *em =
 		container_of(data, const struct ebt_entry_match, data);
@@ -215,8 +215,8 @@ static struct ebt_match filter_among __read_mostly = {
 	.name		= EBT_AMONG_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_among,
-	.check		= ebt_among_check,
+	.match		= ebt_among_mt,
+	.checkentry	= ebt_among_mt_check,
 	.matchsize	= -1, /* special case */
 	.me		= THIS_MODULE,
 };

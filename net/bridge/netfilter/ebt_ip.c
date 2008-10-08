@@ -24,10 +24,10 @@ struct tcpudphdr {
 	__be16 dst;
 };
 
-static bool ebt_filter_ip(const struct sk_buff *skb,
-   const struct net_device *in,
-   const struct net_device *out, const void *data,
-   unsigned int datalen)
+static bool
+ebt_ip_mt(const struct sk_buff *skb, const struct net_device *in,
+	  const struct net_device *out, const struct xt_match *match,
+	  const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_ip_info *info = data;
 	const struct iphdr *ih;
@@ -79,10 +79,13 @@ static bool ebt_filter_ip(const struct sk_buff *skb,
 	return true;
 }
 
-static bool ebt_ip_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_ip_mt_check(const char *table, const void *entry,
+		const struct xt_match *match, void *data,
+		unsigned int hook_mask)
 {
 	const struct ebt_ip_info *info = data;
+	const struct ebt_entry *e = entry;
 
 	if (e->ethproto != htons(ETH_P_IP) ||
 	   e->invflags & EBT_IPROTO)
@@ -110,8 +113,8 @@ static struct ebt_match filter_ip __read_mostly = {
 	.name		= EBT_IP_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_ip,
-	.check		= ebt_ip_check,
+	.match		= ebt_ip_mt,
+	.checkentry	= ebt_ip_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_ip_info)),
 	.me		= THIS_MODULE,
 };

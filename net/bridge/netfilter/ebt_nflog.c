@@ -19,11 +19,10 @@
 #include <linux/netfilter_bridge/ebt_nflog.h>
 #include <net/netfilter/nf_log.h>
 
-static unsigned int ebt_nflog(const struct sk_buff *skb,
-			      unsigned int hooknr,
-			      const struct net_device *in,
-			      const struct net_device *out,
-			      const void *data, unsigned int datalen)
+static unsigned int
+ebt_nflog_tg(struct sk_buff *skb, const struct net_device *in,
+	     const struct net_device *out, unsigned int hooknr,
+	     const struct xt_target *target, const void *data)
 {
 	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
 	struct nf_loginfo li;
@@ -37,10 +36,10 @@ static unsigned int ebt_nflog(const struct sk_buff *skb,
 	return EBT_CONTINUE;
 }
 
-static bool ebt_nflog_check(const char *tablename,
-			    unsigned int hookmask,
-			    const struct ebt_entry *e,
-			    void *data, unsigned int datalen)
+static bool
+ebt_nflog_tg_check(const char *table, const void *e,
+		   const struct xt_target *target, void *data,
+		   unsigned int hookmask)
 {
 	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
 
@@ -54,8 +53,8 @@ static struct ebt_watcher nflog __read_mostly = {
 	.name = EBT_NFLOG_WATCHER,
 	.revision = 0,
 	.family = NFPROTO_BRIDGE,
-	.watcher = ebt_nflog,
-	.check = ebt_nflog_check,
+	.target = ebt_nflog_tg,
+	.checkentry = ebt_nflog_tg_check,
 	.targetsize = XT_ALIGN(sizeof(struct ebt_nflog_info)),
 	.me = THIS_MODULE,
 };

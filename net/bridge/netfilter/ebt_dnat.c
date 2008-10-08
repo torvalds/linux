@@ -14,9 +14,10 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_nat.h>
 
-static unsigned int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_dnat_tg(struct sk_buff *skb, const struct net_device *in,
+	    const struct net_device *out, unsigned int hook_nr,
+	    const struct xt_target *target, const void *data)
 {
 	const struct ebt_nat_info *info = data;
 
@@ -27,8 +28,10 @@ static unsigned int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
 	return info->target;
 }
 
-static bool ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_dnat_tg_check(const char *tablename, const void *entry,
+		  const struct xt_target *target, void *data,
+		  unsigned int hookmask)
 {
 	const struct ebt_nat_info *info = data;
 
@@ -48,8 +51,8 @@ static struct ebt_target dnat __read_mostly = {
 	.name		= EBT_DNAT_TARGET,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.target		= ebt_target_dnat,
-	.check		= ebt_target_dnat_check,
+	.target		= ebt_dnat_tg,
+	.checkentry	= ebt_dnat_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_nat_info)),
 	.me		= THIS_MODULE,
 };

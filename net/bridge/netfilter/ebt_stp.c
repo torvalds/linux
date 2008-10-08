@@ -119,9 +119,10 @@ static bool ebt_filter_config(const struct ebt_stp_info *info,
 	return true;
 }
 
-static bool ebt_filter_stp(const struct sk_buff *skb,
-   const struct net_device *in,
-   const struct net_device *out, const void *data, unsigned int datalen)
+static bool
+ebt_stp_mt(const struct sk_buff *skb, const struct net_device *in,
+	   const struct net_device *out, const struct xt_match *match,
+	   const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_stp_info *info = data;
 	const struct stp_header *sp;
@@ -154,12 +155,15 @@ static bool ebt_filter_stp(const struct sk_buff *skb,
 	return true;
 }
 
-static bool ebt_stp_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_stp_mt_check(const char *table, const void *entry,
+		 const struct xt_match *match, void *data,
+		 unsigned int hook_mask)
 {
 	const struct ebt_stp_info *info = data;
 	const uint8_t bridge_ula[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
 	const uint8_t msk[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const struct ebt_entry *e = entry;
 
 	if (info->bitmask & ~EBT_STP_MASK || info->invflags & ~EBT_STP_MASK ||
 	    !(info->bitmask & EBT_STP_MASK))
@@ -176,8 +180,8 @@ static struct ebt_match filter_stp __read_mostly = {
 	.name		= EBT_STP_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_stp,
-	.check		= ebt_stp_check,
+	.match		= ebt_stp_mt,
+	.checkentry	= ebt_stp_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_stp_info)),
 	.me		= THIS_MODULE,
 };

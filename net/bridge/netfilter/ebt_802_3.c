@@ -12,9 +12,10 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_802_3.h>
 
-static bool ebt_filter_802_3(const struct sk_buff *skb,
-   const struct net_device *in,
-   const struct net_device *out, const void *data, unsigned int datalen)
+static bool
+ebt_802_3_mt(const struct sk_buff *skb, const struct net_device *in,
+	     const struct net_device *out, const struct xt_match *match,
+	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_802_3_info *info = data;
 	const struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);
@@ -37,9 +38,10 @@ static bool ebt_filter_802_3(const struct sk_buff *skb,
 	return true;
 }
 
-static struct ebt_match filter_802_3;
-static bool ebt_802_3_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_802_3_mt_check(const char *table, const void *entry,
+		   const struct xt_match *match, void *data,
+		   unsigned int hook_mask)
 {
 	const struct ebt_802_3_info *info = data;
 
@@ -53,8 +55,8 @@ static struct ebt_match filter_802_3 __read_mostly = {
 	.name		= EBT_802_3_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_802_3,
-	.check		= ebt_802_3_check,
+	.match		= ebt_802_3_mt,
+	.checkentry	= ebt_802_3_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_802_3_info)),
 	.me		= THIS_MODULE,
 };

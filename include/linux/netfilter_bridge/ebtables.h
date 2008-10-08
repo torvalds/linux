@@ -31,6 +31,9 @@
  * The 4 lsb are more than enough to store the verdict. */
 #define EBT_VERDICT_BITS 0x0000000F
 
+struct xt_match;
+struct xt_target;
+
 struct ebt_counter
 {
 	uint64_t pcnt;
@@ -208,11 +211,13 @@ struct ebt_match
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
 	bool (*match)(const struct sk_buff *skb, const struct net_device *in,
-	   const struct net_device *out, const void *matchdata,
-	   unsigned int datalen);
-	bool (*check)(const char *tablename, unsigned int hookmask,
-	   const struct ebt_entry *e, void *matchdata, unsigned int datalen);
-	void (*destroy)(void *matchdata, unsigned int datalen);
+		const struct net_device *out, const struct xt_match *match,
+		const void *matchinfo, int offset, unsigned int protoff,
+		bool *hotdrop);
+	bool (*checkentry)(const char *table, const void *entry,
+		const struct xt_match *match, void *matchinfo,
+		unsigned int hook_mask);
+	void (*destroy)(const struct xt_match *match, void *matchinfo);
 	unsigned int matchsize;
 	u_int8_t revision;
 	u_int8_t family;
@@ -223,12 +228,14 @@ struct ebt_watcher
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	unsigned int (*watcher)(const struct sk_buff *skb, unsigned int hooknr,
-	   const struct net_device *in, const struct net_device *out,
-	   const void *watcherdata, unsigned int datalen);
-	bool (*check)(const char *tablename, unsigned int hookmask,
-	   const struct ebt_entry *e, void *watcherdata, unsigned int datalen);
-	void (*destroy)(void *watcherdata, unsigned int datalen);
+	unsigned int (*target)(struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		unsigned int hook_num, const struct xt_target *target,
+		const void *targinfo);
+	bool (*checkentry)(const char *table, const void *entry,
+		const struct xt_target *target, void *targinfo,
+		unsigned int hook_mask);
+	void (*destroy)(const struct xt_target *target, void *targinfo);
 	unsigned int targetsize;
 	u_int8_t revision;
 	u_int8_t family;
@@ -240,12 +247,14 @@ struct ebt_target
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
 	/* returns one of the standard EBT_* verdicts */
-	unsigned int (*target)(struct sk_buff *skb, unsigned int hooknr,
-	   const struct net_device *in, const struct net_device *out,
-	   const void *targetdata, unsigned int datalen);
-	bool (*check)(const char *tablename, unsigned int hookmask,
-	   const struct ebt_entry *e, void *targetdata, unsigned int datalen);
-	void (*destroy)(void *targetdata, unsigned int datalen);
+	unsigned int (*target)(struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		unsigned int hook_num, const struct xt_target *target,
+		const void *targinfo);
+	bool (*checkentry)(const char *table, const void *entry,
+		const struct xt_target *target, void *targinfo,
+		unsigned int hook_mask);
+	void (*destroy)(const struct xt_target *target, void *targinfo);
 	unsigned int targetsize;
 	u_int8_t revision;
 	u_int8_t family;

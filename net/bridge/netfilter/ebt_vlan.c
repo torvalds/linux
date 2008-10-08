@@ -41,10 +41,9 @@ MODULE_LICENSE("GPL");
 #define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return false; }
 
 static bool
-ebt_filter_vlan(const struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		const void *data, unsigned int datalen)
+ebt_vlan_mt(const struct sk_buff *skb, const struct net_device *in,
+	    const struct net_device *out, const struct xt_match *match,
+	    const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ebt_vlan_info *info = data;
 	const struct vlan_hdr *fp;
@@ -88,11 +87,12 @@ ebt_filter_vlan(const struct sk_buff *skb,
 }
 
 static bool
-ebt_check_vlan(const char *tablename,
-	       unsigned int hooknr,
-	       const struct ebt_entry *e, void *data, unsigned int datalen)
+ebt_vlan_mt_check(const char *table, const void *entry,
+		  const struct xt_match *match, void *data,
+		  unsigned int hook_mask)
 {
 	struct ebt_vlan_info *info = data;
+	const struct ebt_entry *e = entry;
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {
@@ -166,8 +166,8 @@ static struct ebt_match filter_vlan __read_mostly = {
 	.name		= EBT_VLAN_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_filter_vlan,
-	.check		= ebt_check_vlan,
+	.match		= ebt_vlan_mt,
+	.checkentry	= ebt_vlan_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_vlan_info)),
 	.me		= THIS_MODULE,
 };

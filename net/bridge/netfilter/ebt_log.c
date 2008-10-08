@@ -24,8 +24,10 @@
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
-static bool ebt_log_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_log_tg_check(const char *table, const void *entry,
+		 const struct xt_target *target, void *data,
+		 unsigned int hook_mask)
 {
 	struct ebt_log_info *info = data;
 
@@ -192,9 +194,10 @@ out:
 
 }
 
-static unsigned int ebt_log(const struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_log_tg(struct sk_buff *skb, const struct net_device *in,
+	   const struct net_device *out, unsigned int hooknr,
+	   const struct xt_target *target, const void *data)
 {
 	const struct ebt_log_info *info = data;
 	struct nf_loginfo li;
@@ -217,8 +220,8 @@ static struct ebt_watcher log =
 	.name		= EBT_LOG_WATCHER,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.watcher	= ebt_log,
-	.check		= ebt_log_check,
+	.target		= ebt_log_tg,
+	.checkentry	= ebt_log_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_log_info)),
 	.me		= THIS_MODULE,
 };

@@ -18,9 +18,10 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_mark_t.h>
 
-static unsigned int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_mark_tg(struct sk_buff *skb, const struct net_device *in,
+	    const struct net_device *out, unsigned int hook_nr,
+	    const struct xt_target *target, const void *data)
 {
 	const struct ebt_mark_t_info *info = data;
 	int action = info->target & -16;
@@ -37,8 +38,10 @@ static unsigned int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static bool ebt_target_mark_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_mark_tg_check(const char *table, const void *e,
+		  const struct xt_target *target, void *data,
+		  unsigned int hookmask)
 {
 	const struct ebt_mark_t_info *info = data;
 	int tmp;
@@ -60,8 +63,8 @@ static struct ebt_target mark_target __read_mostly = {
 	.name		= EBT_MARK_TARGET,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.target		= ebt_target_mark,
-	.check		= ebt_target_mark_check,
+	.target		= ebt_mark_tg,
+	.checkentry	= ebt_mark_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_mark_t_info)),
 	.me		= THIS_MODULE,
 };

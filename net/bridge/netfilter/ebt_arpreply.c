@@ -15,9 +15,10 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_arpreply.h>
 
-static unsigned int ebt_target_reply(struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_arpreply_tg(struct sk_buff *skb, const struct net_device *in,
+		const struct net_device *out, unsigned int hook_nr,
+		const struct xt_target *target, const void *data)
 {
 	struct ebt_arpreply_info *info = (void *)data;
 	const __be32 *siptr, *diptr;
@@ -58,10 +59,13 @@ static unsigned int ebt_target_reply(struct sk_buff *skb, unsigned int hooknr,
 	return info->target;
 }
 
-static bool ebt_target_reply_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_arpreply_tg_check(const char *tablename, const void *entry,
+		      const struct xt_target *target, void *data,
+		      unsigned int hookmask)
 {
 	const struct ebt_arpreply_info *info = data;
+	const struct ebt_entry *e = entry;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
 		return false;
@@ -78,8 +82,8 @@ static struct ebt_target reply_target __read_mostly = {
 	.name		= EBT_ARPREPLY_TARGET,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.target		= ebt_target_reply,
-	.check		= ebt_target_reply_check,
+	.target		= ebt_arpreply_tg,
+	.checkentry	= ebt_arpreply_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_arpreply_info)),
 	.me		= THIS_MODULE,
 };

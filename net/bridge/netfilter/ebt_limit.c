@@ -30,9 +30,10 @@ static DEFINE_SPINLOCK(limit_lock);
 
 #define CREDITS_PER_JIFFY POW2_BELOW32(MAX_CPJ)
 
-static bool ebt_limit_match(const struct sk_buff *skb,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static bool
+ebt_limit_mt(const struct sk_buff *skb, const struct net_device *in,
+	     const struct net_device *out, const struct xt_match *match,
+	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct ebt_limit_info *info = (struct ebt_limit_info *)data;
 	unsigned long now = jiffies;
@@ -65,8 +66,10 @@ user2credits(u_int32_t user)
 	return (user * HZ * CREDITS_PER_JIFFY) / EBT_LIMIT_SCALE;
 }
 
-static bool ebt_limit_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_limit_mt_check(const char *table, const void *e,
+		   const struct xt_match *match, void *data,
+		   unsigned int hook_mask)
 {
 	struct ebt_limit_info *info = data;
 
@@ -90,8 +93,8 @@ static struct ebt_match ebt_limit_reg __read_mostly = {
 	.name		= EBT_LIMIT_MATCH,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.match		= ebt_limit_match,
-	.check		= ebt_limit_check,
+	.match		= ebt_limit_mt,
+	.checkentry	= ebt_limit_mt_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_limit_info)),
 	.me		= THIS_MODULE,
 };

@@ -15,10 +15,10 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_redirect.h>
 
-static unsigned int ebt_target_redirect(struct sk_buff *skb,
-   unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static unsigned int
+ebt_redirect_tg(struct sk_buff *skb, const struct net_device *in,
+		const struct net_device *out, unsigned int hooknr,
+		const struct xt_target *target, const void *data)
 {
 	const struct ebt_redirect_info *info = data;
 
@@ -34,8 +34,10 @@ static unsigned int ebt_target_redirect(struct sk_buff *skb,
 	return info->target;
 }
 
-static bool ebt_target_redirect_check(const char *tablename, unsigned int hookmask,
-   const struct ebt_entry *e, void *data, unsigned int datalen)
+static bool
+ebt_redirect_tg_check(const char *tablename, const void *e,
+		      const struct xt_target *target, void *data,
+		      unsigned int hookmask)
 {
 	const struct ebt_redirect_info *info = data;
 
@@ -54,8 +56,8 @@ static struct ebt_target redirect_target __read_mostly = {
 	.name		= EBT_REDIRECT_TARGET,
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
-	.target		= ebt_target_redirect,
-	.check		= ebt_target_redirect_check,
+	.target		= ebt_redirect_tg,
+	.checkentry	= ebt_redirect_tg_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_redirect_info)),
 	.me		= THIS_MODULE,
 };
