@@ -336,14 +336,12 @@ trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 }
 
 #define HEX_CHARS 17
-static const char hex2asc[] = "0123456789abcdef";
 
 static int
 trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 {
 	unsigned char hex[HEX_CHARS];
 	unsigned char *data = mem;
-	unsigned char byte;
 	int i, j;
 
 	BUG_ON(len >= HEX_CHARS);
@@ -353,10 +351,8 @@ trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 #else
 	for (i = len-1, j = 0; i >= 0; i--) {
 #endif
-		byte = data[i];
-
-		hex[j++] = hex2asc[byte & 0x0f];
-		hex[j++] = hex2asc[byte >> 4];
+		hex[j++] = hex_asc_hi(data[i]);
+		hex[j++] = hex_asc_lo(data[i]);
 	}
 	hex[j++] = ' ';
 
