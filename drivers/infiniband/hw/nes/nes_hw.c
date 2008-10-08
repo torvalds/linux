@@ -2008,7 +2008,7 @@ static void process_critical_error(struct nes_device *nesdev)
 			0x01010000 | (debug_error & 0x0000ffff));
 	if (crit_err_count++ > 10)
 		nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS1, 1 << 0x17);
-	error_module = (u16) (debug_error & 0x0F00) >> 8;
+	error_module = (u16) (debug_error & 0x1F00) >> 8;
 	if (++nesdev->nesadapter->crit_error_count[error_module-1] >=
 			nes_max_critical_error_count) {
 		printk(KERN_ERR PFX "Masking off critical error for module "
