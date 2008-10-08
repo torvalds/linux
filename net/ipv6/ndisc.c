@@ -522,7 +522,7 @@ static void __ndisc_send(struct net_device *dev,
 		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, type);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
+		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
 	}
 
 	if (likely(idev != NULL))
@@ -1586,7 +1586,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, NDISC_REDIRECT);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
+		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
 	}
 
 	if (likely(idev != NULL))

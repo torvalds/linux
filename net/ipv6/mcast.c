@@ -1840,7 +1840,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 out:
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, type);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
+		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
 		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
 		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
