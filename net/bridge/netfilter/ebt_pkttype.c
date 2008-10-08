@@ -12,7 +12,7 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_pkttype.h>
 
-static int ebt_filter_pkttype(const struct sk_buff *skb,
+static bool ebt_filter_pkttype(const struct sk_buff *skb,
    const struct net_device *in,
    const struct net_device *out,
    const void *data,
@@ -20,7 +20,7 @@ static int ebt_filter_pkttype(const struct sk_buff *skb,
 {
 	const struct ebt_pkttype_info *info = data;
 
-	return (skb->pkt_type != info->pkt_type) ^ info->invert;
+	return (skb->pkt_type == info->pkt_type) ^ info->invert;
 }
 
 static bool ebt_pkttype_check(const char *tablename, unsigned int hookmask,

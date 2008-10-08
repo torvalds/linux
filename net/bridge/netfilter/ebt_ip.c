@@ -24,7 +24,8 @@ struct tcpudphdr {
 	__be16 dst;
 };
 
-static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,
+static bool ebt_filter_ip(const struct sk_buff *skb,
+   const struct net_device *in,
    const struct net_device *out, const void *data,
    unsigned int datalen)
 {
@@ -36,46 +37,46 @@ static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,
 
 	ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
 	if (ih == NULL)
-		return EBT_NOMATCH;
+		return false;
 	if (info->bitmask & EBT_IP_TOS &&
 	   FWINV(info->tos != ih->tos, EBT_IP_TOS))
-		return EBT_NOMATCH;
+		return false;
 	if (info->bitmask & EBT_IP_SOURCE &&
 	   FWINV((ih->saddr & info->smsk) !=
 	   info->saddr, EBT_IP_SOURCE))
-		return EBT_NOMATCH;
+		return false;
 	if ((info->bitmask & EBT_IP_DEST) &&
 	   FWINV((ih->daddr & info->dmsk) !=
 	   info->daddr, EBT_IP_DEST))
-		return EBT_NOMATCH;
+		return false;
 	if (info->bitmask & EBT_IP_PROTO) {
 		if (FWINV(info->protocol != ih->protocol, EBT_IP_PROTO))
-			return EBT_NOMATCH;
+			return false;
 		if (!(info->bitmask & EBT_IP_DPORT) &&
 		    !(info->bitmask & EBT_IP_SPORT))
-			return EBT_MATCH;
+			return true;
 		if (ntohs(ih->frag_off) & IP_OFFSET)
-			return EBT_NOMATCH;
+			return false;
 		pptr = skb_header_pointer(skb, ih->ihl*4,
 					  sizeof(_ports), &_ports);
 		if (pptr == NULL)
-			return EBT_NOMATCH;
+			return false;
 		if (info->bitmask & EBT_IP_DPORT) {
 			u32 dst = ntohs(pptr->dst);
 			if (FWINV(dst < info->dport[0] ||
 				  dst > info->dport[1],
 				  EBT_IP_DPORT))
-			return EBT_NOMATCH;
+			return false;
 		}
 		if (info->bitmask & EBT_IP_SPORT) {
 			u32 src = ntohs(pptr->src);
 			if (FWINV(src < info->sport[0] ||
 				  src > info->sport[1],
 				  EBT_IP_SPORT))
-			return EBT_NOMATCH;
+			return false;
 		}
 	}
-	return EBT_MATCH;
+	return true;
 }
 
 static bool ebt_ip_check(const char *tablename, unsigned int hookmask,

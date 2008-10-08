@@ -207,8 +207,7 @@ struct ebt_match
 {
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
-	/* 0 == it matches */
-	int (*match)(const struct sk_buff *skb, const struct net_device *in,
+	bool (*match)(const struct sk_buff *skb, const struct net_device *in,
 	   const struct net_device *out, const void *matchdata,
 	   unsigned int datalen);
 	bool (*check)(const char *tablename, unsigned int hookmask,

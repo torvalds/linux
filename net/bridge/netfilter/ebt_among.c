@@ -14,8 +14,8 @@
 #include <linux/if_arp.h>
 #include <linux/module.h>
 
-static int ebt_mac_wormhash_contains(const struct ebt_mac_wormhash *wh,
-				     const char *mac, __be32 ip)
+static bool ebt_mac_wormhash_contains(const struct ebt_mac_wormhash *wh,
+				      const char *mac, __be32 ip)
 {
 	/* You may be puzzled as to how this code works.
 	 * Some tricks were used, refer to
@@ -33,23 +33,19 @@ static int ebt_mac_wormhash_contains(const struct ebt_mac_wormhash *wh,
 	if (ip) {
 		for (i = start; i < limit; i++) {
 			p = &wh->pool[i];
-			if (cmp[1] == p->cmp[1] && cmp[0] == p->cmp[0]) {
-				if (p->ip == 0 || p->ip == ip) {
-					return 1;
-				}
-			}
+			if (cmp[1] == p->cmp[1] && cmp[0] == p->cmp[0])
+				if (p->ip == 0 || p->ip == ip)
+					return true;
 		}
 	} else {
 		for (i = start; i < limit; i++) {
 			p = &wh->pool[i];
-			if (cmp[1] == p->cmp[1] && cmp[0] == p->cmp[0]) {
-				if (p->ip == 0) {
-					return 1;
-				}
-			}
+			if (cmp[1] == p->cmp[1] && cmp[0] == p->cmp[0])
+				if (p->ip == 0)
+					return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 static int ebt_mac_wormhash_check_integrity(const struct ebt_mac_wormhash
@@ -131,10 +127,10 @@ static int get_ip_src(const struct sk_buff *skb, __be32 *addr)
 	return 0;
 }
 
-static int ebt_filter_among(const struct sk_buff *skb,
-			    const struct net_device *in,
-			    const struct net_device *out, const void *data,
-			    unsigned int datalen)
+static bool ebt_filter_among(const struct sk_buff *skb,
+			     const struct net_device *in,
+			     const struct net_device *out, const void *data,
+			     unsigned int datalen)
 {
 	const struct ebt_among_info *info = data;
 	const char *dmac, *smac;
@@ -147,34 +143,34 @@ static int ebt_filter_among(const struct sk_buff *skb,
 	if (wh_src) {
 		smac = eth_hdr(skb)->h_source;
 		if (get_ip_src(skb, &sip))
-			return EBT_NOMATCH;
+			return false;
 		if (!(info->bitmask & EBT_AMONG_SRC_NEG)) {
 			/* we match only if it contains */
 			if (!ebt_mac_wormhash_contains(wh_src, smac, sip))
-				return EBT_NOMATCH;
+				return false;
 		} else {
 			/* we match only if it DOES NOT contain */
 			if (ebt_mac_wormhash_contains(wh_src, smac, sip))
-				return EBT_NOMATCH;
+				return false;
 		}
 	}
 
 	if (wh_dst) {
 		dmac = eth_hdr(skb)->h_dest;
 		if (get_ip_dst(skb, &dip))
-			return EBT_NOMATCH;
+			return false;
 		if (!(info->bitmask & EBT_AMONG_DST_NEG)) {
 			/* we match only if it contains */
 			if (!ebt_mac_wormhash_contains(wh_dst, dmac, dip))
-				return EBT_NOMATCH;
+				return false;
 		} else {
 			/* we match only if it DOES NOT contain */
 			if (ebt_mac_wormhash_contains(wh_dst, dmac, dip))
-				return EBT_NOMATCH;
+				return false;
 		}
 	}
 
-	return EBT_MATCH;
+	return true;
 }
 
 static bool

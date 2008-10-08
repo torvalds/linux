@@ -38,9 +38,9 @@ MODULE_LICENSE("GPL");
 
 #define DEBUG_MSG(args...) if (debug) printk (KERN_DEBUG "ebt_vlan: " args)
 #define GET_BITMASK(_BIT_MASK_) info->bitmask & _BIT_MASK_
-#define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return EBT_NOMATCH;}
+#define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return false; }
 
-static int
+static bool
 ebt_filter_vlan(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
@@ -58,7 +58,7 @@ ebt_filter_vlan(const struct sk_buff *skb,
 
 	fp = skb_header_pointer(skb, 0, sizeof(_frame), &_frame);
 	if (fp == NULL)
-		return EBT_NOMATCH;
+		return false;
 
 	/* Tag Control Information (TCI) consists of the following elements:
 	 * - User_priority. The user_priority field is three bits in length,
@@ -84,7 +84,7 @@ ebt_filter_vlan(const struct sk_buff *skb,
 	if (GET_BITMASK(EBT_VLAN_ENCAP))
 		EXIT_ON_MISMATCH(encap, EBT_VLAN_ENCAP);
 
-	return EBT_MATCH;
+	return true;
 }
 
 static bool

@@ -30,7 +30,7 @@ static DEFINE_SPINLOCK(limit_lock);
 
 #define CREDITS_PER_JIFFY POW2_BELOW32(MAX_CPJ)
 
-static int ebt_limit_match(const struct sk_buff *skb,
+static bool ebt_limit_match(const struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
@@ -46,11 +46,11 @@ static int ebt_limit_match(const struct sk_buff *skb,
 		/* We're not limited. */
 		info->credit -= info->cost;
 		spin_unlock_bh(&limit_lock);
-		return EBT_MATCH;
+		return true;
 	}
 
 	spin_unlock_bh(&limit_lock);
-	return EBT_NOMATCH;
+	return false;
 }
 
 /* Precision saver. */

@@ -12,7 +12,8 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_802_3.h>
 
-static int ebt_filter_802_3(const struct sk_buff *skb, const struct net_device *in,
+static bool ebt_filter_802_3(const struct sk_buff *skb,
+   const struct net_device *in,
    const struct net_device *out, const void *data, unsigned int datalen)
 {
 	const struct ebt_802_3_info *info = data;
@@ -21,19 +22,19 @@ static int ebt_filter_802_3(const struct sk_buff *skb, const struct net_device *
 
 	if (info->bitmask & EBT_802_3_SAP) {
 		if (FWINV(info->sap != hdr->llc.ui.ssap, EBT_802_3_SAP))
-				return EBT_NOMATCH;
+			return false;
 		if (FWINV(info->sap != hdr->llc.ui.dsap, EBT_802_3_SAP))
-				return EBT_NOMATCH;
+			return false;
 	}
 
 	if (info->bitmask & EBT_802_3_TYPE) {
 		if (!(hdr->llc.ui.dsap == CHECK_TYPE && hdr->llc.ui.ssap == CHECK_TYPE))
-			return EBT_NOMATCH;
+			return false;
 		if (FWINV(info->type != type, EBT_802_3_TYPE))
-			return EBT_NOMATCH;
+			return false;
 	}
 
-	return EBT_MATCH;
+	return true;
 }
 
 static struct ebt_match filter_802_3;

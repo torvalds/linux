@@ -12,15 +12,15 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_mark_m.h>
 
-static int ebt_filter_mark(const struct sk_buff *skb,
+static bool ebt_filter_mark(const struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out, const void *data,
    unsigned int datalen)
 {
 	const struct ebt_mark_m_info *info = data;
 
 	if (info->bitmask & EBT_MARK_OR)
-		return !(!!(skb->mark & info->mask) ^ info->invert);
-	return !(((skb->mark & info->mask) == info->mark) ^ info->invert);
+		return !!(skb->mark & info->mask) ^ info->invert;
+	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
 static bool ebt_mark_check(const char *tablename, unsigned int hookmask,
