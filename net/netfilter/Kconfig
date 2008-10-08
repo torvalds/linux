@@ -287,6 +287,21 @@ config NF_CT_NETLINK
 	help
 	  This option enables support for a netlink-based userspace interface
 
+# transparent proxy support
+config NETFILTER_TPROXY
+	tristate "Transparent proxying support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on IP_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables transparent proxying support, that is,
+	  support for handling non-locally bound IPv4 TCP and UDP sockets.
+	  For it to work you will have to configure certain iptables rules
+	  and use policy routing. For more information on how to set it up
+	  see Documentation/networking/tproxy.txt.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
 	default m if NETFILTER_ADVANCED=n
