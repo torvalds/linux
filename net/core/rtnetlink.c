@@ -73,7 +73,7 @@ void __rtnl_unlock(void)
 
 void rtnl_unlock(void)
 {
-	mutex_unlock(&rtnl_mutex);
+	/* This fellow will unlock it for us. */
 	netdev_run_todo();
 }
 

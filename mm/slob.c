@@ -515,7 +515,7 @@ size_t ksize(const void *block)
 
 	sp = (struct slob_page *)virt_to_page(block);
 	if (slob_page(sp))
-		return ((slob_t *)block - 1)->units + SLOB_UNIT;
+		return (((slob_t *)block - 1)->units - 1) * SLOB_UNIT;
 	else
 		return sp->page.private;
 }

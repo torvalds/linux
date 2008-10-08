@@ -7,6 +7,7 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/prefetch.h>
+#include <linux/lockdep.h>
 #include <asm/page.h>
 
 /*

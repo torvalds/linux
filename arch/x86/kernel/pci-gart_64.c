@@ -626,7 +626,6 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	struct pci_dev *dev;
 	void *gatt;
 	int i, error;
-	unsigned long start_pfn, end_pfn;
 
 	printk(KERN_INFO "PCI-DMA: Disabling AGP.\n");
 	aper_size = aper_base = info->aper_size = 0;
@@ -672,12 +671,6 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	printk(KERN_INFO "PCI-DMA: aperture base @ %x size %u KB\n",
 	       aper_base, aper_size>>10);
 
-	/* need to map that range */
-	end_pfn = (aper_base>>PAGE_SHIFT) + (aper_size>>PAGE_SHIFT);
-	if (end_pfn > max_low_pfn_mapped) {
-		start_pfn = (aper_base>>PAGE_SHIFT);
-		init_memory_mapping(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
-	}
 	return 0;
 
  nommu:
@@ -727,7 +720,8 @@ void __init gart_iommu_init(void)
 {
 	struct agp_kern_info info;
 	unsigned long iommu_start;
-	unsigned long aper_size;
+	unsigned long aper_base, aper_size;
+	unsigned long start_pfn, end_pfn;
 	unsigned long scratch;
 	long i;
 
@@ -765,8 +759,16 @@ void __init gart_iommu_init(void)
 		return;
 	}
 
+	/* need to map that range */
+	aper_size = info.aper_size << 20;
+	aper_base = info.aper_base;
+	end_pfn = (aper_base>>PAGE_SHIFT) + (aper_size>>PAGE_SHIFT);
+	if (end_pfn > max_low_pfn_mapped) {
+		start_pfn = (aper_base>>PAGE_SHIFT);
+		init_memory_mapping(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
+	}
+
 	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
-	aper_size = info.aper_size * 1024 * 1024;
 	iommu_size = check_iommu_size(info.aper_base, aper_size);
 	iommu_pages = iommu_size >> PAGE_SHIFT;
 

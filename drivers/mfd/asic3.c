@@ -312,7 +312,6 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 	struct asic3 *asic = platform_get_drvdata(pdev);
 	unsigned long clksel = 0;
 	unsigned int irq, irq_base;
-	int map_size;
 	int ret;
 
 	ret = platform_get_irq(pdev, 0);
@@ -534,6 +533,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	struct asic3 *asic;
 	struct resource *mem;
 	unsigned long clksel;
+	int map_size;
 	int ret = 0;
 
 	asic = kzalloc(sizeof(struct asic3), GFP_KERNEL);

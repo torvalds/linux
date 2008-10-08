@@ -225,7 +225,7 @@ static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
 	reg_w_val(gspca_dev->dev, 0x8802, (mode | 0x01));
 	do {
 		reg_r(gspca_dev, 0x8803, 1);
-		if (!gspca_dev->usb_buf)
+		if (!gspca_dev->usb_buf[0])
 			break;
 	} while (--retry);
 	if (retry == 0)

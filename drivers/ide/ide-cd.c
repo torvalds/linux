@@ -1661,7 +1661,9 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 		cdi->mask &= ~CDC_PLAY_AUDIO;
 
 	mechtype = buf[8 + 6] >> 5;
-	if (mechtype == mechtype_caddy || mechtype == mechtype_popup)
+	if (mechtype == mechtype_caddy ||
+	    mechtype == mechtype_popup ||
+	    (drive->atapi_flags & IDE_AFLAG_NO_AUTOCLOSE))
 		cdi->mask |= CDC_CLOSE_TRAY;
 
 	if (cdi->sanyo_slot > 0) {
@@ -1859,6 +1861,8 @@ static const struct cd_list_entry ide_cd_quirks_list[] = {
 	{ "MATSHITADVD-ROM SR-8176", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
 	{ "MATSHITADVD-ROM SR-8174", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
 	{ "Optiarc DVD RW AD-5200A", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
+	{ "Optiarc DVD RW AD-7200A", NULL,   IDE_AFLAG_PLAY_AUDIO_OK	     },
+	{ "Optiarc DVD RW AD-7543A", NULL,   IDE_AFLAG_NO_AUTOCLOSE	     },
 	{ NULL, NULL, 0 }
 };
 

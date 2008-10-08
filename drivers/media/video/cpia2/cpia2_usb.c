@@ -632,7 +632,7 @@ int cpia2_usb_transfer_cmd(struct camera_data *cam,
 static int submit_urbs(struct camera_data *cam)
 {
 	struct urb *urb;
-	int fx, err, i;
+	int fx, err, i, j;
 
 	for(i=0; i<NUM_SBUF; ++i) {
 		if (cam->sbuf[i].data)
@@ -657,6 +657,9 @@ static int submit_urbs(struct camera_data *cam)
 		}
 		urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (!urb) {
+			ERR("%s: usb_alloc_urb error!\n", __func__);
+			for (j = 0; j < i; j++)
+				usb_free_urb(cam->sbuf[j].urb);
 			return -ENOMEM;
 		}
 

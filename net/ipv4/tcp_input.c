@@ -4957,7 +4957,8 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					goto no_ack;
 			}
 
-			__tcp_ack_snd_check(sk, 0);
+			if (!copied_early || tp->rcv_nxt != tp->rcv_wup)
+				__tcp_ack_snd_check(sk, 0);
 no_ack:
 #ifdef CONFIG_NET_DMA
 			if (copied_early)

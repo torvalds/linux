@@ -58,7 +58,7 @@ const struct inode_operations ramfs_file_inode_operations = {
  * size 0 on the assumption that it's going to be used for an mmap of shared
  * memory
  */
-static int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 {
 	struct pagevec lru_pvec;
 	unsigned long npages, xpages, loop, limit;

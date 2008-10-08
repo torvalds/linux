@@ -54,14 +54,18 @@ extern void r4k_wait(void);
  * interrupt is requested" restriction in the MIPS32/MIPS64 architecture makes
  * using this version a gamble.
  */
-static void r4k_wait_irqoff(void)
+void r4k_wait_irqoff(void)
 {
 	local_irq_disable();
 	if (!need_resched())
-		__asm__("	.set	mips3		\n"
+		__asm__("	.set	push		\n"
+			"	.set	mips3		\n"
 			"	wait			\n"
-			"	.set	mips0		\n");
+			"	.set	pop		\n");
 	local_irq_enable();
+	__asm__(" 	.globl __pastwait	\n"
+		"__pastwait:			\n");
+	return;
 }
 
 /*

@@ -59,7 +59,7 @@ struct s5h1420_state {
 	 * it does not support repeated-start, workaround: write addr-1
 	 * and then read
 	 */
-	u8 shadow[255];
+	u8 shadow[256];
 };
 
 static u32 s5h1420_getsymbolrate(struct s5h1420_state* state);
@@ -94,8 +94,11 @@ static u8 s5h1420_readreg(struct s5h1420_state *state, u8 reg)
 		if (ret != 3)
 			return ret;
 	} else {
-		ret = i2c_transfer(state->i2c, &msg[1], 2);
-		if (ret != 2)
+		ret = i2c_transfer(state->i2c, &msg[1], 1);
+		if (ret != 1)
+			return ret;
+		ret = i2c_transfer(state->i2c, &msg[2], 1);
+		if (ret != 1)
 			return ret;
 	}
 
@@ -823,7 +826,7 @@ static int s5h1420_init (struct dvb_frontend* fe)
 	struct s5h1420_state* state = fe->demodulator_priv;
 
 	/* disable power down and do reset */
-	state->CON_1_val = 0x10;
+	state->CON_1_val = state->config->serial_mpeg << 4;
 	s5h1420_writereg(state, 0x02, state->CON_1_val);
 	msleep(10);
 	s5h1420_reset(state);

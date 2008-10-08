@@ -1605,6 +1605,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 */
 	{
 	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP nx6115 laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6115"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
 	 .ident = "HP NX6125 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1617,6 +1625,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP 6715b laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq 6715b"),
 		     },
 	 },
 	{}

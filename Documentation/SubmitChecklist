@@ -67,6 +67,8 @@ kernel patches.
 
 19: All new userspace interfaces are documented in Documentation/ABI/.
     See Documentation/ABI/README for more information.
+    Patches that change userspace interfaces should be CCed to
+    linux-api@vger.kernel.org.
 
 20: Check that it all passes `make headers_check'.
 
