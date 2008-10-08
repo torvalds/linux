@@ -318,7 +318,6 @@ config NETFILTER_XT_TARGET_CLASSIFY
 
 config NETFILTER_XT_TARGET_CONNMARK
 	tristate  '"CONNMARK" target support'
-	depends on IP_NF_MANGLE || IP6_NF_MANGLE
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_MARK
