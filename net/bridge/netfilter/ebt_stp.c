@@ -174,6 +174,8 @@ static bool ebt_stp_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match filter_stp __read_mostly = {
 	.name		= EBT_STP_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_stp,
 	.check		= ebt_stp_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_stp_info)),

@@ -215,6 +215,8 @@ static unsigned int ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 static struct ebt_watcher log =
 {
 	.name		= EBT_LOG_WATCHER,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.watcher	= ebt_log,
 	.check		= ebt_log_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_log_info)),

@@ -274,6 +274,8 @@ static bool ebt_ulog_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_watcher ulog __read_mostly = {
 	.name		= EBT_ULOG_WATCHER,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.watcher	= ebt_ulog,
 	.check		= ebt_ulog_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_ulog_info)),

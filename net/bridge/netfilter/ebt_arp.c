@@ -117,6 +117,8 @@ static bool ebt_arp_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match filter_arp __read_mostly = {
 	.name		= EBT_ARP_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_arp,
 	.check		= ebt_arp_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_arp_info)),

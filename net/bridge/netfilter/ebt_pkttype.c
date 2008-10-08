@@ -36,6 +36,8 @@ static bool ebt_pkttype_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match filter_pkttype __read_mostly = {
 	.name		= EBT_PKTTYPE_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_pkttype,
 	.check		= ebt_pkttype_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_pkttype_info)),

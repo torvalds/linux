@@ -51,6 +51,8 @@ static bool ebt_802_3_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match filter_802_3 __read_mostly = {
 	.name		= EBT_802_3_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_802_3,
 	.check		= ebt_802_3_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_802_3_info)),

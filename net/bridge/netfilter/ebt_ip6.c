@@ -121,6 +121,8 @@ static bool ebt_ip6_check(const char *tablename, unsigned int hookmask,
 static struct ebt_match filter_ip6 =
 {
 	.name		= EBT_IP6_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_ip6,
 	.check		= ebt_ip6_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_ip6_info)),

@@ -108,6 +108,8 @@ static bool ebt_ip_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match filter_ip __read_mostly = {
 	.name		= EBT_IP_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_ip,
 	.check		= ebt_ip_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_ip_info)),

@@ -214,6 +214,8 @@ struct ebt_match
 	   const struct ebt_entry *e, void *matchdata, unsigned int datalen);
 	void (*destroy)(void *matchdata, unsigned int datalen);
 	unsigned int matchsize;
+	u_int8_t revision;
+	u_int8_t family;
 	struct module *me;
 };
 
@@ -228,6 +230,8 @@ struct ebt_watcher
 	   const struct ebt_entry *e, void *watcherdata, unsigned int datalen);
 	void (*destroy)(void *watcherdata, unsigned int datalen);
 	unsigned int targetsize;
+	u_int8_t revision;
+	u_int8_t family;
 	struct module *me;
 };
 
@@ -243,6 +247,8 @@ struct ebt_target
 	   const struct ebt_entry *e, void *targetdata, unsigned int datalen);
 	void (*destroy)(void *targetdata, unsigned int datalen);
 	unsigned int targetsize;
+	u_int8_t revision;
+	u_int8_t family;
 	struct module *me;
 };
 

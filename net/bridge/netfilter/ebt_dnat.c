@@ -46,6 +46,8 @@ static bool ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_target dnat __read_mostly = {
 	.name		= EBT_DNAT_TARGET,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_target_dnat,
 	.check		= ebt_target_dnat_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_nat_info)),

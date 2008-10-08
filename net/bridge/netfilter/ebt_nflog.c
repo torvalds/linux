@@ -52,6 +52,8 @@ static bool ebt_nflog_check(const char *tablename,
 
 static struct ebt_watcher nflog __read_mostly = {
 	.name = EBT_NFLOG_WATCHER,
+	.revision = 0,
+	.family = NFPROTO_BRIDGE,
 	.watcher = ebt_nflog,
 	.check = ebt_nflog_check,
 	.targetsize = XT_ALIGN(sizeof(struct ebt_nflog_info)),

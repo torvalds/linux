@@ -76,6 +76,8 @@ static bool ebt_target_reply_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_target reply_target __read_mostly = {
 	.name		= EBT_ARPREPLY_TARGET,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_target_reply,
 	.check		= ebt_target_reply_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_arpreply_info)),

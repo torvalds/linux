@@ -58,6 +58,8 @@ static bool ebt_target_mark_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_target mark_target __read_mostly = {
 	.name		= EBT_MARK_TARGET,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_target_mark,
 	.check		= ebt_target_mark_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_mark_t_info)),

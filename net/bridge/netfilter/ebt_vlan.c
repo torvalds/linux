@@ -164,6 +164,8 @@ ebt_check_vlan(const char *tablename,
 
 static struct ebt_match filter_vlan __read_mostly = {
 	.name		= EBT_VLAN_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_vlan,
 	.check		= ebt_check_vlan,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_vlan_info)),

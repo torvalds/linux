@@ -39,6 +39,8 @@ static bool ebt_mark_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match filter_mark __read_mostly = {
 	.name		= EBT_MARK_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_filter_mark,
 	.check		= ebt_mark_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_mark_m_info)),

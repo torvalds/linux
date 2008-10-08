@@ -88,6 +88,8 @@ static bool ebt_limit_check(const char *tablename, unsigned int hookmask,
 
 static struct ebt_match ebt_limit_reg __read_mostly = {
 	.name		= EBT_LIMIT_MATCH,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_limit_match,
 	.check		= ebt_limit_check,
 	.matchsize	= XT_ALIGN(sizeof(struct ebt_limit_info)),

@@ -61,7 +61,9 @@ static LIST_HEAD(ebt_matches);
 static LIST_HEAD(ebt_watchers);
 
 static struct ebt_target ebt_standard_target = {
-	.name = "standard",
+	.name       = "standard",
+	.revision   = 0,
+	.family     = NFPROTO_BRIDGE,
 };
 
 static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
@@ -352,6 +354,17 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		return -ENOENT;
 	}
 	mutex_unlock(&ebt_mutex);
+	if (match->family != NFPROTO_BRIDGE) {
+		printk(KERN_WARNING "ebtables: %s match: not for ebtables?\n",
+		       match->name);
+		goto out;
+	}
+	if (match->revision != 0) {
+		printk(KERN_WARNING "ebtables: %s match: ebtables is not "
+		       "supporting revisions at this time\n",
+		       match->name);
+		goto out;
+	}
 	if (XT_ALIGN(match->matchsize) != m->match_size &&
 	    match->matchsize != -1) {
 		/*
@@ -361,17 +374,18 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		printk(KERN_WARNING "ebtables: %s match: "
 		       "invalid size %Zu != %u\n",
 		       match->name, XT_ALIGN(match->matchsize), m->match_size);
-		module_put(match->me);
-		return -EINVAL;
+		goto out;
 	}
 	if (match->check &&
 	    !match->check(name, hookmask, e, m->data, m->match_size)) {
 		BUGPRINT("match->check failed\n");
-		module_put(match->me);
-		return -EINVAL;
+		goto out;
 	}
 	(*cnt)++;
 	return 0;
+ out:
+	module_put(match->me);
+	return -EINVAL;
 }
 
 static inline int
@@ -394,22 +408,34 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 		return -ENOENT;
 	}
 	mutex_unlock(&ebt_mutex);
+	if (watcher->family != NFPROTO_BRIDGE) {
+		printk(KERN_WARNING "ebtables: %s watcher: not for ebtables?\n",
+		       watcher->name);
+		goto out;
+	}
+	if (watcher->revision != 0) {
+		printk(KERN_WARNING "ebtables: %s watcher: ebtables is not "
+		       "supporting revisions at this time\n",
+		       watcher->name);
+		goto out;
+	}
 	if (XT_ALIGN(watcher->targetsize) != w->watcher_size) {
 		printk(KERN_WARNING "ebtables: %s watcher: "
 		       "invalid size %Zu != %u\n",
 		       watcher->name, XT_ALIGN(watcher->targetsize),
 		       w->watcher_size);
-		module_put(watcher->me);
-		return -EINVAL;
+		goto out;
 	}
 	if (watcher->check &&
 	    !watcher->check(name, hookmask, e, w->data, w->watcher_size)) {
 		BUGPRINT("watcher->check failed\n");
-		module_put(watcher->me);
-		return -EINVAL;
+		goto out;
 	}
 	(*cnt)++;
 	return 0;
+ out:
+	module_put(watcher->me);
+	return -EINVAL;
 }
 
 static int ebt_verify_pointers(struct ebt_replace *repl,
@@ -689,6 +715,20 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 		goto cleanup_watchers;
 	}
 	mutex_unlock(&ebt_mutex);
+
+	if (target->family != NFPROTO_BRIDGE) {
+		printk(KERN_WARNING "ebtables: %s target: not for ebtables?\n",
+		       target->name);
+		ret = -EINVAL;
+		goto cleanup_watchers;
+	}
+	if (target->revision != 0) {
+		printk(KERN_WARNING "ebtables: %s target: ebtables is not "
+		       "supporting revisions at this time\n",
+		       target->name);
+		ret = -EINVAL;
+		goto cleanup_watchers;
+	}
 
 	t->u.target = target;
 	if (t->u.target == &ebt_standard_target) {

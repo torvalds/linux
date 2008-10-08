@@ -52,6 +52,8 @@ static bool ebt_target_redirect_check(const char *tablename, unsigned int hookma
 
 static struct ebt_target redirect_target __read_mostly = {
 	.name		= EBT_REDIRECT_TARGET,
+	.revision	= 0,
+	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_target_redirect,
 	.check		= ebt_target_redirect_check,
 	.targetsize	= XT_ALIGN(sizeof(struct ebt_redirect_info)),
