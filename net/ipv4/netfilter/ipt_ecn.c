@@ -85,13 +85,10 @@ static bool ecn_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool
-ecn_mt_check(const char *tablename, const void *ip_void,
-             const struct xt_match *match, void *matchinfo,
-             unsigned int hook_mask)
+static bool ecn_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct ipt_ecn_info *info = matchinfo;
-	const struct ipt_ip *ip = ip_void;
+	const struct ipt_ecn_info *info = par->matchinfo;
+	const struct ipt_ip *ip = par->entryinfo;
 
 	if (info->operation & IPT_ECN_OP_MATCH_MASK)
 		return false;

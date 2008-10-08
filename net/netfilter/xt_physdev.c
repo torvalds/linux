@@ -91,12 +91,9 @@ match_outdev:
 	return ret ^ !(info->invert & XT_PHYSDEV_OP_OUT);
 }
 
-static bool
-physdev_mt_check(const char *tablename, const void *ip,
-                 const struct xt_match *match, void *matchinfo,
-                 unsigned int hook_mask)
+static bool physdev_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_physdev_info *info = matchinfo;
+	const struct xt_physdev_info *info = par->matchinfo;
 
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
@@ -104,12 +101,12 @@ physdev_mt_check(const char *tablename, const void *ip,
 	if (info->bitmask & XT_PHYSDEV_OP_OUT &&
 	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
 	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
-	    hook_mask & ((1 << NF_INET_LOCAL_OUT) | (1 << NF_INET_FORWARD) |
-			 (1 << NF_INET_POST_ROUTING))) {
+	    par->hook_mask & ((1 << NF_INET_LOCAL_OUT) |
+	    (1 << NF_INET_FORWARD) | (1 << NF_INET_POST_ROUTING))) {
 		printk(KERN_WARNING "physdev match: using --physdev-out in the "
 		       "OUTPUT, FORWARD and POSTROUTING chains for non-bridged "
 		       "traffic is not supported anymore.\n");
-		if (hook_mask & (1 << NF_INET_LOCAL_OUT))
+		if (par->hook_mask & (1 << NF_INET_LOCAL_OUT))
 			return false;
 	}
 	return true;

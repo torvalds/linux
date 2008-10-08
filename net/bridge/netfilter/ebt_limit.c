@@ -64,12 +64,9 @@ user2credits(u_int32_t user)
 	return (user * HZ * CREDITS_PER_JIFFY) / EBT_LIMIT_SCALE;
 }
 
-static bool
-ebt_limit_mt_check(const char *table, const void *e,
-		   const struct xt_match *match, void *data,
-		   unsigned int hook_mask)
+static bool ebt_limit_mt_check(const struct xt_mtchk_param *par)
 {
-	struct ebt_limit_info *info = data;
+	struct ebt_limit_info *info = par->matchinfo;
 
 	/* Check for overflow. */
 	if (info->burst == 0 ||

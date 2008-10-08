@@ -66,13 +66,9 @@ static bool esp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			 !!(espinfo->invflags & XT_ESP_INV_SPI));
 }
 
-/* Called when user tries to insert an entry of this type. */
-static bool
-esp_mt_check(const char *tablename, const void *ip_void,
-             const struct xt_match *match, void *matchinfo,
-             unsigned int hook_mask)
+static bool esp_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_esp *espinfo = matchinfo;
+	const struct xt_esp *espinfo = par->matchinfo;
 
 	if (espinfo->invflags & ~XT_ESP_INV_MASK) {
 		duprintf("xt_esp: unknown flags %X\n", espinfo->invflags);

@@ -38,12 +38,9 @@ mark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
-static bool
-mark_mt_check_v0(const char *tablename, const void *entry,
-                 const struct xt_match *match, void *matchinfo,
-                 unsigned int hook_mask)
+static bool mark_mt_check_v0(const struct xt_mtchk_param *par)
 {
-	const struct xt_mark_info *minfo = matchinfo;
+	const struct xt_mark_info *minfo = par->matchinfo;
 
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");

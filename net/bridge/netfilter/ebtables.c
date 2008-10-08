@@ -324,9 +324,10 @@ find_table_lock(const char *name, int *error, struct mutex *mutex)
 }
 
 static inline int
-ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
-   const char *name, unsigned int hookmask, unsigned int *cnt)
+ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
+		unsigned int *cnt)
 {
+	const struct ebt_entry *e = par->entryinfo;
 	struct xt_match *match;
 	size_t left = ((char *)e + e->watchers_offset) - (char *)m;
 	int ret;
@@ -343,9 +344,10 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		return -ENOENT;
 	m->u.match = match;
 
-	ret = xt_check_match(match, NFPROTO_BRIDGE, m->match_size,
-	      name, hookmask, e->ethproto, e->invflags & EBT_IPROTO,
-	      e, m->data);
+	par->match     = match;
+	par->matchinfo = m->data;
+	ret = xt_check_match(par, NFPROTO_BRIDGE, m->match_size,
+	      e->ethproto, e->invflags & EBT_IPROTO);
 	if (ret < 0) {
 		module_put(match->me);
 		return ret;
@@ -607,6 +609,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	unsigned int i, j, hook = 0, hookmask = 0;
 	size_t gap;
 	int ret;
+	struct xt_mtchk_param par;
 
 	/* don't mess with the struct ebt_entries */
 	if (e->bitmask == 0)
@@ -647,7 +650,11 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 			hookmask = cl_s[i - 1].hookmask;
 	}
 	i = 0;
-	ret = EBT_MATCH_ITERATE(e, ebt_check_match, e, name, hookmask, &i);
+
+	par.table     = name;
+	par.entryinfo = e;
+	par.hook_mask = hookmask;
+	ret = EBT_MATCH_ITERATE(e, ebt_check_match, &par, &i);
 	if (ret != 0)
 		goto cleanup_matches;
 	j = 0;

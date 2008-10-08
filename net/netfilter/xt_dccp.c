@@ -121,12 +121,9 @@ dccp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			   XT_DCCP_OPTION, info->flags, info->invflags);
 }
 
-static bool
-dccp_mt_check(const char *tablename, const void *inf,
-              const struct xt_match *match, void *matchinfo,
-              unsigned int hook_mask)
+static bool dccp_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_dccp_info *info = matchinfo;
+	const struct xt_dccp_info *info = par->matchinfo;
 
 	return !(info->flags & ~XT_DCCP_VALID_FLAGS)
 		&& !(info->invflags & ~XT_DCCP_VALID_FLAGS)

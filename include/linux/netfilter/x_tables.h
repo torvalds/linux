@@ -193,6 +193,25 @@ struct xt_match_param {
 	bool *hotdrop;
 };
 
+/**
+ * struct xt_mtchk_param - parameters for match extensions'
+ * checkentry functions
+ *
+ * @table:	table the rule is tried to be inserted into
+ * @entryinfo:	the family-specific rule data
+ * 		(struct ipt_ip, ip6t_ip, ebt_entry)
+ * @match:	struct xt_match through which this function was invoked
+ * @matchinfo:	per-match data
+ * @hook_mask:	via which hooks the new rule is reachable
+ */
+struct xt_mtchk_param {
+	const char *table;
+	const void *entryinfo;
+	const struct xt_match *match;
+	void *matchinfo;
+	unsigned int hook_mask;
+};
+
 struct xt_match
 {
 	struct list_head list;
@@ -208,12 +227,7 @@ struct xt_match
 		      const struct xt_match_param *);
 
 	/* Called when user tries to insert an entry of this type. */
-	/* Should return true or false. */
-	bool (*checkentry)(const char *tablename,
-			   const void *ip,
-			   const struct xt_match *match,
-			   void *matchinfo,
-			   unsigned int hook_mask);
+	bool (*checkentry)(const struct xt_mtchk_param *);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_match *match, void *matchinfo);
@@ -342,10 +356,8 @@ extern void xt_unregister_match(struct xt_match *target);
 extern int xt_register_matches(struct xt_match *match, unsigned int n);
 extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
-extern int xt_check_match(const struct xt_match *match, unsigned short family,
-			  unsigned int size, const char *table, unsigned int hook,
-			  unsigned short proto, int inv_proto,
-			  const void *entry, void *matchinfo);
+extern int xt_check_match(struct xt_mtchk_param *, u_int8_t family,
+			  unsigned int size, u_int8_t proto, bool inv_proto);
 extern int xt_check_target(const struct xt_target *target, unsigned short family,
 			   unsigned int size, const char *table, unsigned int hook,
 			   unsigned short proto, int inv_proto,

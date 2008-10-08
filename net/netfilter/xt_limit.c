@@ -92,12 +92,9 @@ user2credits(u_int32_t user)
 	return (user * HZ * CREDITS_PER_JIFFY) / XT_LIMIT_SCALE;
 }
 
-static bool
-limit_mt_check(const char *tablename, const void *inf,
-               const struct xt_match *match, void *matchinfo,
-               unsigned int hook_mask)
+static bool limit_mt_check(const struct xt_mtchk_param *par)
 {
-	struct xt_rateinfo *r = matchinfo;
+	struct xt_rateinfo *r = par->matchinfo;
 
 	/* Check for overflow. */
 	if (r->burst == 0

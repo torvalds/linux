@@ -49,12 +49,9 @@ statistic_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ret;
 }
 
-static bool
-statistic_mt_check(const char *tablename, const void *entry,
-                   const struct xt_match *match, void *matchinfo,
-                   unsigned int hook_mask)
+static bool statistic_mt_check(const struct xt_mtchk_param *par)
 {
-	struct xt_statistic_info *info = matchinfo;
+	struct xt_statistic_info *info = par->matchinfo;
 
 	if (info->mode > XT_STATISTIC_MODE_MAX ||
 	    info->flags & ~XT_STATISTIC_MASK)

@@ -100,13 +100,10 @@ ebt_arp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool
-ebt_arp_mt_check(const char *table, const void *entry,
-		 const struct xt_match *match, void *data,
-		 unsigned int hook_mask)
+static bool ebt_arp_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct ebt_arp_info *info = data;
-	const struct ebt_entry *e = entry;
+	const struct ebt_arp_info *info = par->matchinfo;
+	const struct ebt_entry *e = par->entryinfo;
 
 	if ((e->ethproto != htons(ETH_P_ARP) &&
 	   e->ethproto != htons(ETH_P_RARP)) ||

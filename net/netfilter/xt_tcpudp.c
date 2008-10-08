@@ -126,13 +126,9 @@ static bool tcp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-/* Called when user tries to insert an entry of this type. */
-static bool
-tcp_mt_check(const char *tablename, const void *info,
-             const struct xt_match *match, void *matchinfo,
-             unsigned int hook_mask)
+static bool tcp_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_tcp *tcpinfo = matchinfo;
+	const struct xt_tcp *tcpinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
 	return !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
@@ -165,13 +161,9 @@ static bool udp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			      !!(udpinfo->invflags & XT_UDP_INV_DSTPT));
 }
 
-/* Called when user tries to insert an entry of this type. */
-static bool
-udp_mt_check(const char *tablename, const void *info,
-             const struct xt_match *match, void *matchinfo,
-             unsigned int hook_mask)
+static bool udp_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_udp *udpinfo = matchinfo;
+	const struct xt_udp *udpinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
 	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);

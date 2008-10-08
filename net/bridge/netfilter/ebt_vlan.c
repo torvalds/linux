@@ -84,13 +84,10 @@ ebt_vlan_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool
-ebt_vlan_mt_check(const char *table, const void *entry,
-		  const struct xt_match *match, void *data,
-		  unsigned int hook_mask)
+static bool ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 {
-	struct ebt_vlan_info *info = data;
-	const struct ebt_entry *e = entry;
+	struct ebt_vlan_info *info = par->matchinfo;
+	const struct ebt_entry *e = par->entryinfo;
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {

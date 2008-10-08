@@ -61,13 +61,9 @@ static bool ah_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			 !!(ahinfo->invflags & IPT_AH_INV_SPI));
 }
 
-/* Called when user tries to insert an entry of this type. */
-static bool
-ah_mt_check(const char *tablename, const void *ip_void,
-            const struct xt_match *match, void *matchinfo,
-            unsigned int hook_mask)
+static bool ah_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct ipt_ah *ahinfo = matchinfo;
+	const struct ipt_ah *ahinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
 	if (ahinfo->invflags & ~IPT_AH_INV_MASK) {

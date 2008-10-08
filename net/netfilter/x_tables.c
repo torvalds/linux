@@ -321,39 +321,39 @@ int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 }
 EXPORT_SYMBOL_GPL(xt_find_revision);
 
-int xt_check_match(const struct xt_match *match, unsigned short family,
-		   unsigned int size, const char *table, unsigned int hook_mask,
-		   unsigned short proto, int inv_proto, const void *entry,
-		   void *matchinfo)
+int xt_check_match(struct xt_mtchk_param *par, u_int8_t family,
+		   unsigned int size, u_int8_t proto, bool inv_proto)
 {
-	if (XT_ALIGN(match->matchsize) != size &&
-	    match->matchsize != -1) {
+	if (XT_ALIGN(par->match->matchsize) != size &&
+	    par->match->matchsize != -1) {
 		/*
 		 * ebt_among is exempt from centralized matchsize checking
 		 * because it uses a dynamic-size data set.
 		 */
 		printk("%s_tables: %s match: invalid size %Zu != %u\n",
-		       xt_prefix[family], match->name,
-		       XT_ALIGN(match->matchsize), size);
+		       xt_prefix[family], par->match->name,
+		       XT_ALIGN(par->match->matchsize), size);
 		return -EINVAL;
 	}
-	if (match->table && strcmp(match->table, table)) {
+	if (par->match->table != NULL &&
+	    strcmp(par->match->table, par->table) != 0) {
 		printk("%s_tables: %s match: only valid in %s table, not %s\n",
-		       xt_prefix[family], match->name, match->table, table);
+		       xt_prefix[family], par->match->name,
+		       par->match->table, par->table);
 		return -EINVAL;
 	}
-	if (match->hooks && (hook_mask & ~match->hooks) != 0) {
+	if (par->match->hooks && (par->hook_mask & ~par->match->hooks) != 0) {
 		printk("%s_tables: %s match: bad hook_mask %#x/%#x\n",
-		       xt_prefix[family], match->name, hook_mask, match->hooks);
+		       xt_prefix[family], par->match->name,
+		       par->hook_mask, par->match->hooks);
 		return -EINVAL;
 	}
-	if (match->proto && (match->proto != proto || inv_proto)) {
+	if (par->match->proto && (par->match->proto != proto || inv_proto)) {
 		printk("%s_tables: %s match: only valid for protocol %u\n",
-		       xt_prefix[family], match->name, match->proto);
+		       xt_prefix[family], par->match->name, par->match->proto);
 		return -EINVAL;
 	}
-	if (match->checkentry != NULL &&
-	    !match->checkentry(table, entry, match, matchinfo, hook_mask))
+	if (par->match->checkentry != NULL && !par->match->checkentry(par))
 		return -EINVAL;
 	return 0;
 }

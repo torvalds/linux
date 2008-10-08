@@ -107,12 +107,9 @@ owner_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool
-owner_mt_check_v0(const char *tablename, const void *ip,
-                  const struct xt_match *match, void *matchinfo,
-                  unsigned int hook_mask)
+static bool owner_mt_check_v0(const struct xt_mtchk_param *par)
 {
-	const struct ipt_owner_info *info = matchinfo;
+	const struct ipt_owner_info *info = par->matchinfo;
 
 	if (info->match & (IPT_OWNER_PID | IPT_OWNER_SID | IPT_OWNER_COMM)) {
 		printk(KERN_WARNING KBUILD_MODNAME
@@ -124,12 +121,9 @@ owner_mt_check_v0(const char *tablename, const void *ip,
 	return true;
 }
 
-static bool
-owner_mt6_check_v0(const char *tablename, const void *ip,
-                   const struct xt_match *match, void *matchinfo,
-                   unsigned int hook_mask)
+static bool owner_mt6_check_v0(const struct xt_mtchk_param *par)
 {
-	const struct ip6t_owner_info *info = matchinfo;
+	const struct ip6t_owner_info *info = par->matchinfo;
 
 	if (info->match & (IP6T_OWNER_PID | IP6T_OWNER_SID)) {
 		printk(KERN_WARNING KBUILD_MODNAME

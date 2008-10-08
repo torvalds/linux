@@ -43,15 +43,12 @@ dscp_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	return (dscp == info->dscp) ^ !!info->invert;
 }
 
-static bool
-dscp_mt_check(const char *tablename, const void *info,
-              const struct xt_match *match, void *matchinfo,
-              unsigned int hook_mask)
+static bool dscp_mt_check(const struct xt_mtchk_param *par)
 {
-	const u_int8_t dscp = ((struct xt_dscp_info *)matchinfo)->dscp;
+	const struct xt_dscp_info *info = par->matchinfo;
 
-	if (dscp > XT_DSCP_MAX) {
-		printk(KERN_ERR "xt_dscp: dscp %x out of range\n", dscp);
+	if (info->dscp > XT_DSCP_MAX) {
+		printk(KERN_ERR "xt_dscp: dscp %x out of range\n", info->dscp);
 		return false;
 	}
 

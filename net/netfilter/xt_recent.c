@@ -280,12 +280,9 @@ out:
 	return ret;
 }
 
-static bool
-recent_mt_check(const char *tablename, const void *ip,
-                const struct xt_match *match, void *matchinfo,
-                unsigned int hook_mask)
+static bool recent_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_recent_mtinfo *info = matchinfo;
+	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 	unsigned i;
 	bool ret = false;

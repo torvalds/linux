@@ -171,14 +171,11 @@ ebt_among_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool
-ebt_among_mt_check(const char *table, const void *entry,
-		   const struct xt_match *match, void *data,
-		   unsigned int hook_mask)
+static bool ebt_among_mt_check(const struct xt_mtchk_param *par)
 {
+	const struct ebt_among_info *info = par->matchinfo;
 	const struct ebt_entry_match *em =
-		container_of(data, const struct ebt_entry_match, data);
-	const struct ebt_among_info *info = data;
+		container_of(par->matchinfo, const struct ebt_entry_match, data);
 	int expected_length = sizeof(struct ebt_among_info);
 	const struct ebt_mac_wormhash *wh_dst, *wh_src;
 	int err;
