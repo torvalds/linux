@@ -33,7 +33,7 @@ static struct
 	struct ipt_replace repl;
 	struct ipt_standard entries[3];
 	struct ipt_error term;
-} nat_initial_table __initdata = {
+} nat_initial_table __net_initdata = {
 	.repl = {
 		.name = "nat",
 		.valid_hooks = NAT_VALID_HOOKS,
@@ -58,14 +58,13 @@ static struct
 	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
-static struct xt_table __nat_table = {
+static struct xt_table nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.lock		= __RW_LOCK_UNLOCKED(__nat_table.lock),
 	.me		= THIS_MODULE,
 	.af		= AF_INET,
 };
-static struct xt_table *nat_table;
 
 /* Source NAT */
 static unsigned int ipt_snat_target(struct sk_buff *skb,
@@ -194,9 +193,10 @@ int nf_nat_rule_find(struct sk_buff *skb,
 		     const struct net_device *out,
 		     struct nf_conn *ct)
 {
+	struct net *net = nf_ct_net(ct);
 	int ret;
 
-	ret = ipt_do_table(skb, hooknum, in, out, nat_table);
+	ret = ipt_do_table(skb, hooknum, in, out, net->ipv4.nat_table);
 
 	if (ret == NF_ACCEPT) {
 		if (!nf_nat_initialized(ct, HOOK2MANIP(hooknum)))
@@ -226,14 +226,32 @@ static struct xt_target ipt_dnat_reg __read_mostly = {
 	.family		= AF_INET,
 };
 
+static int __net_init nf_nat_rule_net_init(struct net *net)
+{
+	net->ipv4.nat_table = ipt_register_table(net, &nat_table,
+						 &nat_initial_table.repl);
+	if (IS_ERR(net->ipv4.nat_table))
+		return PTR_ERR(net->ipv4.nat_table);
+	return 0;
+}
+
+static void __net_exit nf_nat_rule_net_exit(struct net *net)
+{
+	ipt_unregister_table(net->ipv4.nat_table);
+}
+
+static struct pernet_operations nf_nat_rule_net_ops = {
+	.init = nf_nat_rule_net_init,
+	.exit = nf_nat_rule_net_exit,
+};
+
 int __init nf_nat_rule_init(void)
 {
 	int ret;
 
-	nat_table = ipt_register_table(&init_net, &__nat_table,
-				       &nat_initial_table.repl);
-	if (IS_ERR(nat_table))
-		return PTR_ERR(nat_table);
+	ret = register_pernet_subsys(&nf_nat_rule_net_ops);
+	if (ret != 0)
+		goto out;
 	ret = xt_register_target(&ipt_snat_reg);
 	if (ret != 0)
 		goto unregister_table;
@@ -247,8 +265,8 @@ int __init nf_nat_rule_init(void)
  unregister_snat:
 	xt_unregister_target(&ipt_snat_reg);
  unregister_table:
-	ipt_unregister_table(nat_table);
-
+	unregister_pernet_subsys(&nf_nat_rule_net_ops);
+ out:
 	return ret;
 }
 
@@ -256,5 +274,5 @@ void nf_nat_rule_cleanup(void)
 {
 	xt_unregister_target(&ipt_dnat_reg);
 	xt_unregister_target(&ipt_snat_reg);
-	ipt_unregister_table(nat_table);
+	unregister_pernet_subsys(&nf_nat_rule_net_ops);
 }
