@@ -52,7 +52,8 @@ EXPORT_SYMBOL(mtd_size);
 #endif
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-unsigned int __initdata *__retx;
+void __initdata *init_retx, *init_saved_retx, *init_saved_seqstat,
+	*init_saved_icplb_fault_addr, *init_saved_dcplb_fault_addr;
 
 /* boot memmap, for parsing "memmap=" */
 #define BFIN_MEMMAP_MAX		128 /* number of entries in bfin_memmap */
@@ -782,16 +783,25 @@ void __init setup_arch(char **cmdline_p)
 
 	_bfin_swrst = bfin_read_SWRST();
 
-	/* If we double fault, reset the system - otherwise we hang forever */
-	bfin_write_SWRST(DOUBLE_FAULT);
+#ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
+	bfin_write_SWRST(_bfin_swrst & ~DOUBLE_FAULT);
+#endif
+#ifdef CONFIG_DEBUG_DOUBLEFAULT_RESET
+	bfin_write_SWRST(_bfin_swrst | DOUBLE_FAULT);
+#endif
 
-	if (_bfin_swrst & RESET_DOUBLE)
-		/*
-		 * don't decode the address, since you don't know if this
-		 * kernel's symbol map is the same as the crashing kernel
-		 */
-		printk(KERN_INFO "Recovering from Double Fault event at %pF\n", __retx);
-	else if (_bfin_swrst & RESET_WDOG)
+	if (_bfin_swrst & RESET_DOUBLE) {
+		printk(KERN_EMERG "Recovering from DOUBLE FAULT event\n");
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+		/* We assume the crashing kernel, and the current symbol table match */
+		printk(KERN_EMERG " While handling exception (EXCAUSE = 0x%x) at %pF\n",
+			(int)init_saved_seqstat & SEQSTAT_EXCAUSE, init_saved_retx);
+		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n", init_saved_dcplb_fault_addr);
+		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n", init_saved_icplb_fault_addr);
+#endif
+		printk(KERN_NOTICE " The instruction at %pF caused a double exception\n",
+			init_retx);
+	} else if (_bfin_swrst & RESET_WDOG)
 		printk(KERN_INFO "Recovering from Watchdog event\n");
 	else if (_bfin_swrst & RESET_SOFTWARE)
 		printk(KERN_NOTICE "Reset caused by Software reset\n");

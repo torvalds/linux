@@ -68,7 +68,15 @@ void __init trap_init(void)
 	CSYNC();
 }
 
-unsigned long saved_icplb_fault_addr, saved_dcplb_fault_addr;
+/*
+ * Used to save the RETX, SEQSTAT, I/D CPLB FAULT ADDR
+ * values across the transition from exception to IRQ5.
+ * We put these in L1, so they are going to be in a valid
+ * location during exception context
+ */
+__attribute__((l1_data))
+unsigned long saved_retx, saved_seqstat,
+	saved_icplb_fault_addr, saved_dcplb_fault_addr;
 
 static void decode_address(char *buf, unsigned long address)
 {
@@ -186,9 +194,27 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 	console_verbose();
 	oops_in_progress = 1;
 	printk(KERN_EMERG "\n" KERN_EMERG "Double Fault\n");
-	dump_bfin_process(fp);
-	dump_bfin_mem(fp);
-	show_regs(fp);
+#ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
+	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) == VEC_UNCOV) {
+		char buf[150];
+		decode_address(buf, saved_retx);
+		printk(KERN_EMERG "While handling exception (EXCAUSE = 0x%x) at %s:\n",
+			(int)saved_seqstat & SEQSTAT_EXCAUSE, buf);
+		decode_address(buf, saved_dcplb_fault_addr);
+		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %s\n", buf);
+		decode_address(buf, saved_icplb_fault_addr);
+		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %s\n", buf);
+
+		decode_address(buf, fp->retx);
+		printk(KERN_NOTICE "The instruction at %s caused a double exception\n",
+			buf);
+	} else
+#endif
+	{
+		dump_bfin_process(fp);
+		dump_bfin_mem(fp);
+		show_regs(fp);
+	}
 	panic("Double Fault - unrecoverable event\n");
 
 }

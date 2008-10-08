@@ -90,11 +90,45 @@ ENTRY(__start)
 	[p0] = R0;
 	SSYNC;
 
-	/* Save RETX, in case of doublefault */
-	p0.l = ___retx;
-	p0.h = ___retx;
+	/* in case of double faults, save a few things */
+	p0.l = _init_retx;
+	p0.h = _init_retx;
 	R0 = RETX;
 	[P0] = R0;
+
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	/* Only save these if we are storing them,
+	 * This happens here, since L1 gets clobbered
+	 * below
+	 */
+	p0.l = _saved_retx;
+	p0.h = _saved_retx;
+	p1.l = _init_saved_retx;
+	p1.h = _init_saved_retx;
+	r0 = [p0];
+	[p1] = r0;
+
+	p0.l = _saved_dcplb_fault_addr;
+	p0.h = _saved_dcplb_fault_addr;
+	p1.l = _init_saved_dcplb_fault_addr;
+	p1.h = _init_saved_dcplb_fault_addr;
+	r0 = [p0];
+	[p1] = r0;
+
+	p0.l = _saved_icplb_fault_addr;
+	p0.h = _saved_icplb_fault_addr;
+	p1.l = _init_saved_icplb_fault_addr;
+	p1.h = _init_saved_icplb_fault_addr;
+	r0 = [p0];
+	[p1] = r0;
+
+	p0.l = _saved_seqstat;
+	p0.h = _saved_seqstat;
+	p1.l = _init_saved_seqstat;
+	p1.h = _init_saved_seqstat;
+	r0 = [p0];
+	[p1] = r0;
+#endif
 
 	/* Initialize stack pointer */
 	sp.l = lo(INITIAL_STACK);

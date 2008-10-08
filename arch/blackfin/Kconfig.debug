@@ -22,6 +22,44 @@ config DEBUG_HWERR
 	  hardware error interrupts and need to know where they are coming
 	  from.
 
+config DEBUG_DOUBLEFAULT
+	bool "Debug Double Faults"
+	default n
+	help
+	  If an exception is caused while executing code within the exception
+	  handler, the NMI handler, the reset vector, or in emulator mode,
+	  a double fault occurs. On the Blackfin, this is a unrecoverable
+	  event. You have two options:
+	  - RESET exactly when double fault occurs. The excepting
+	    instruction address is stored in RETX, where the next kernel
+	    boot will print it out.
+	  - Print debug message. This is much more error prone, although
+	    easier to handle. It is error prone since:
+	    - The excepting instruction is not committed.
+	    - All writebacks from the instruction are prevented.
+	    - The generated exception is not taken.
+	    - The EXCAUSE field is updated with an unrecoverable event
+	    The only way to check this is to see if EXCAUSE contains the
+	    unrecoverable event value at every exception return. By selecting
+	    this option, you are skipping over the faulting instruction, and 
+	    hoping things stay together enough to print out a debug message.
+
+	  This does add a little kernel code, but is the only method to debug
+	  double faults - if unsure say "Y"
+
+choice
+	prompt "Double Fault Failure Method"
+	default DEBUG_DOUBLEFAULT_PRINT
+	depends on DEBUG_DOUBLEFAULT
+
+config DEBUG_DOUBLEFAULT_PRINT
+	bool "Print"
+
+config DEBUG_DOUBLEFAULT_RESET
+	bool "Reset"
+
+endchoice
+
 config DEBUG_ICACHE_CHECK
 	bool "Check Instruction cache coherency"
 	depends on DEBUG_KERNEL

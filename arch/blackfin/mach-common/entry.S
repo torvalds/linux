@@ -129,6 +129,18 @@ ENTRY(_ex_icplb_miss)
 #else
 	call __cplb_hdr;
 #endif
+
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	/* While we were processing this, did we double fault? */
+	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
+	r6.l = lo(SEQSTAT_EXCAUSE);
+	r6.h = hi(SEQSTAT_EXCAUSE);
+	r7 = r7 & r6;
+	r6 = 0x25;
+	CC = R7 == R6;
+	if CC JUMP _double_fault;
+#endif
+
 	DEBUG_HWTRACE_RESTORE(p5, r7)
 	RESTORE_ALL_SYS
 	SP = EX_SCRATCH_REG;
@@ -136,11 +148,8 @@ ENTRY(_ex_icplb_miss)
 ENDPROC(_ex_icplb_miss)
 
 ENTRY(_ex_syscall)
-	(R7:6,P5:4) = [sp++];
-	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
-	sp = EX_SCRATCH_REG;
-	rtx
+	jump.s _bfin_return_from_exception;
 ENDPROC(_ex_syscall)
 
 ENTRY(_ex_soft_bp)
@@ -250,6 +259,29 @@ ENTRY(_bfin_return_from_exception)
 	R7=LC1;
 	LC1=R7;
 #endif
+
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	/* While we were processing the current exception,
+	 * did we cause another, and double fault?
+	 */
+	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
+	r6.l = lo(SEQSTAT_EXCAUSE);
+	r6.h = hi(SEQSTAT_EXCAUSE);
+	r7 = r7 & r6;
+	r6 = 0x25;
+	CC = R7 == R6;
+	if CC JUMP _double_fault;
+
+	/* Did we cause a HW error? */
+	p5.l = lo(ILAT);
+	p5.h = hi(ILAT);
+	r6 = [p5];
+	r7 = 0x20;		/* Did I just cause anther HW error? */
+	r7 = r7 & r1;
+	CC = R7 == R6;
+	if CC JUMP _double_fault;
+#endif
+
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	sp = EX_SCRATCH_REG;
@@ -292,6 +324,14 @@ ENTRY(_ex_trap_c)
 	[p4] = p5;
 	csync;
 
+#ifndef CONFIG_DEBUG_DOUBLEFAULT
+	/*
+	 * Save these registers, as they are only valid in exception context
+	 *  (where we are now - as soon as we defer to IRQ5, they can change)
+	 * DCPLB_STATUS and ICPLB_STATUS are also only valid in EVT3,
+	 * but they are not very interesting, so don't save them
+	 */
+
 	p4.l = lo(DCPLB_FAULT_ADDR);
 	p4.h = hi(DCPLB_FAULT_ADDR);
 	r7 = [p4];
@@ -304,12 +344,11 @@ ENTRY(_ex_trap_c)
 	p5.l = _saved_icplb_fault_addr;
 	[p5] = r7;
 
-	p4.l = _excpt_saved_stuff;
-	p4.h = _excpt_saved_stuff;
-
 	r6 = retx;
+	p4.l = _saved_retx;
+	p4.h = _saved_retx;
 	[p4] = r6;
-
+#endif
 	r6 = SYSCFG;
 	[p4 + 4] = r6;
 	BITCLR(r6, 0);
@@ -327,59 +366,56 @@ ENTRY(_ex_trap_c)
 	r6 = 0x3f;
 	sti r6;
 
-	(R7:6,P5:4) = [sp++];
-	ASTAT = [sp++];
-	SP = EX_SCRATCH_REG;
 	raise 5;
-	rtx;
+	jump.s _bfin_return_from_exception;
 ENDPROC(_ex_trap_c)
 
 /* We just realized we got an exception, while we were processing a different
  * exception. This is a unrecoverable event, so crash
  */
 ENTRY(_double_fault)
-        /* Turn caches & protection off, to ensure we don't get any more
-         * double exceptions
-         */
+	/* Turn caches & protection off, to ensure we don't get any more
+	 * double exceptions
+	 */
 
-        P4.L = LO(IMEM_CONTROL);
-        P4.H = HI(IMEM_CONTROL);
+	P4.L = LO(IMEM_CONTROL);
+	P4.H = HI(IMEM_CONTROL);
 
-        R5 = [P4];              /* Control Register*/
-        BITCLR(R5,ENICPLB_P);
-        SSYNC;          /* SSYNC required before writing to IMEM_CONTROL. */
-        .align 8;
-        [P4] = R5;
-        SSYNC;
+	R5 = [P4];              /* Control Register*/
+	BITCLR(R5,ENICPLB_P);
+	SSYNC;          /* SSYNC required before writing to IMEM_CONTROL. */
+	.align 8;
+	[P4] = R5;
+	SSYNC;
 
-        P4.L = LO(DMEM_CONTROL);
-        P4.H = HI(DMEM_CONTROL);
-        R5 = [P4];
-        BITCLR(R5,ENDCPLB_P);
-        SSYNC;          /* SSYNC required before writing to DMEM_CONTROL. */
-        .align 8;
-        [P4] = R5;
-        SSYNC;
+	P4.L = LO(DMEM_CONTROL);
+	P4.H = HI(DMEM_CONTROL);
+	R5 = [P4];
+	BITCLR(R5,ENDCPLB_P);
+	SSYNC;          /* SSYNC required before writing to DMEM_CONTROL. */
+	.align 8;
+	[P4] = R5;
+	SSYNC;
 
-        /* Fix up the stack */
-        (R7:6,P5:4) = [sp++];
-        ASTAT = [sp++];
-        SP = EX_SCRATCH_REG;
+	/* Fix up the stack */
+	(R7:6,P5:4) = [sp++];
+	ASTAT = [sp++];
+	SP = EX_SCRATCH_REG;
 
-        /* We should be out of the exception stack, and back down into
-         * kernel or user space stack
-         */
-        SAVE_ALL_SYS
+	/* We should be out of the exception stack, and back down into
+	 * kernel or user space stack
+	 */
+	SAVE_ALL_SYS
 
 	/* The dumping functions expect the return address in the RETI
 	 * slot.  */
 	r6 = retx;
 	[sp + PT_PC] = r6;
 
-        r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
-        SP += -12;
-        call _double_fault_c;
-        SP += 12;
+	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
+	SP += -12;
+	call _double_fault_c;
+	SP += 12;
 .L_double_fault_panic:
         JUMP .L_double_fault_panic
 
@@ -388,8 +424,8 @@ ENDPROC(_double_fault)
 ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS
 
-	p4.l = _excpt_saved_stuff;
-	p4.h = _excpt_saved_stuff;
+	p4.l = _saved_retx;
+	p4.h = _saved_retx;
 	r6 = [p4];
 	[sp + PT_PC] = r6;
 
@@ -420,6 +456,17 @@ ENTRY(_exception_to_level5)
 	call _trap_c;
 	SP += 12;
 
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	/* Grab ILAT */
+	p2.l = lo(ILAT);
+	p2.h = hi(ILAT);
+	r0 = [p2];
+	r1 = 0x20;  /* Did I just cause anther HW error? */
+	r0 = r0 & r1;
+	CC = R0 == R1;
+	if CC JUMP _double_fault;
+#endif
+
 	call _ret_from_exception;
 	RESTORE_ALL_SYS
 	rti;
@@ -436,7 +483,39 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6,P5:4);
+
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	/*
+	 * Save these registers, as they are only valid in exception context
+	 * (where we are now - as soon as we defer to IRQ5, they can change)
+	 * DCPLB_STATUS and ICPLB_STATUS are also only valid in EVT3,
+	 * but they are not very interesting, so don't save them
+	 */
+
+	p4.l = lo(DCPLB_FAULT_ADDR);
+	p4.h = hi(DCPLB_FAULT_ADDR);
+	r7 = [p4];
+	p5.h = _saved_dcplb_fault_addr;
+	p5.l = _saved_dcplb_fault_addr;
+	[p5] = r7;
+
+	r7 = [p4 + (ICPLB_FAULT_ADDR - DCPLB_FAULT_ADDR)];
+	p5.h = _saved_icplb_fault_addr;
+	p5.l = _saved_icplb_fault_addr;
+	[p5] = r7;
+
+	p4.l = _saved_retx;
+	p4.h = _saved_retx;
+	r6 = retx;
+	[p4] = r6;
+
 	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
+	p4.l = _saved_seqstat;
+	p4.h = _saved_seqstat;
+	[p4] = r7;
+#else
+	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
+#endif
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
 	r7 = r7 & r6;
@@ -1432,15 +1511,7 @@ ENTRY(_sys_call_table)
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr
-
-	/*
-	 * Used to save the real RETX, IMASK and SYSCFG when temporarily
-	 * storing safe values across the transition from exception to IRQ5.
-	 */
-_excpt_saved_stuff:
-	.long 0;
-	.long 0;
-	.long 0;
+END(_sys_call_table)
 
 _exception_stack:
 	.rept 1024
