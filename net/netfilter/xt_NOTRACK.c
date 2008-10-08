@@ -30,31 +30,23 @@ notrack_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static struct xt_target notrack_tg_reg[] __read_mostly = {
-	{
-		.name		= "NOTRACK",
-		.family		= NFPROTO_IPV4,
-		.target		= notrack_tg,
-		.table		= "raw",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "NOTRACK",
-		.family		= NFPROTO_IPV6,
-		.target		= notrack_tg,
-		.table		= "raw",
-		.me		= THIS_MODULE,
-	},
+static struct xt_target notrack_tg_reg __read_mostly = {
+	.name     = "NOTRACK",
+	.revision = 0,
+	.family   = NFPROTO_UNSPEC,
+	.target   = notrack_tg,
+	.table    = "raw",
+	.me       = THIS_MODULE,
 };
 
 static int __init notrack_tg_init(void)
 {
-	return xt_register_targets(notrack_tg_reg, ARRAY_SIZE(notrack_tg_reg));
+	return xt_register_target(&notrack_tg_reg);
 }
 
 static void __exit notrack_tg_exit(void)
 {
-	xt_unregister_targets(notrack_tg_reg, ARRAY_SIZE(notrack_tg_reg));
+	xt_unregister_target(&notrack_tg_reg);
 }
 
 module_init(notrack_tg_init);

@@ -36,37 +36,25 @@ static bool mac_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		^ info->invert);
 }
 
-static struct xt_match mac_mt_reg[] __read_mostly = {
-	{
-		.name		= "mac",
-		.family		= NFPROTO_IPV4,
-		.match		= mac_mt,
-		.matchsize	= sizeof(struct xt_mac_info),
-		.hooks		= (1 << NF_INET_PRE_ROUTING) |
-				  (1 << NF_INET_LOCAL_IN) |
-				  (1 << NF_INET_FORWARD),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "mac",
-		.family		= NFPROTO_IPV6,
-		.match		= mac_mt,
-		.matchsize	= sizeof(struct xt_mac_info),
-		.hooks		= (1 << NF_INET_PRE_ROUTING) |
-				  (1 << NF_INET_LOCAL_IN) |
-				  (1 << NF_INET_FORWARD),
-		.me		= THIS_MODULE,
-	},
+static struct xt_match mac_mt_reg __read_mostly = {
+	.name      = "mac",
+	.revision  = 0,
+	.family    = NFPROTO_UNSPEC,
+	.match     = mac_mt,
+	.matchsize = sizeof(struct xt_mac_info),
+	.hooks     = (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN) |
+	             (1 << NF_INET_FORWARD),
+	.me        = THIS_MODULE,
 };
 
 static int __init mac_mt_init(void)
 {
-	return xt_register_matches(mac_mt_reg, ARRAY_SIZE(mac_mt_reg));
+	return xt_register_match(&mac_mt_reg);
 }
 
 static void __exit mac_mt_exit(void)
 {
-	xt_unregister_matches(mac_mt_reg, ARRAY_SIZE(mac_mt_reg));
+	xt_unregister_match(&mac_mt_reg);
 }
 
 module_init(mac_mt_init);

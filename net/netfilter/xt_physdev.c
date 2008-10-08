@@ -112,33 +112,24 @@ static bool physdev_mt_check(const struct xt_mtchk_param *par)
 	return true;
 }
 
-static struct xt_match physdev_mt_reg[] __read_mostly = {
-	{
-		.name		= "physdev",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= physdev_mt_check,
-		.match		= physdev_mt,
-		.matchsize	= sizeof(struct xt_physdev_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "physdev",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= physdev_mt_check,
-		.match		= physdev_mt,
-		.matchsize	= sizeof(struct xt_physdev_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_match physdev_mt_reg __read_mostly = {
+	.name       = "physdev",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = physdev_mt_check,
+	.match      = physdev_mt,
+	.matchsize  = sizeof(struct xt_physdev_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init physdev_mt_init(void)
 {
-	return xt_register_matches(physdev_mt_reg, ARRAY_SIZE(physdev_mt_reg));
+	return xt_register_match(&physdev_mt_reg);
 }
 
 static void __exit physdev_mt_exit(void)
 {
-	xt_unregister_matches(physdev_mt_reg, ARRAY_SIZE(physdev_mt_reg));
+	xt_unregister_match(&physdev_mt_reg);
 }
 
 module_init(physdev_mt_init);

@@ -149,7 +149,7 @@ static int mark_tg_compat_to_user_v1(void __user *dst, void *src)
 static struct xt_target mark_tg_reg[] __read_mostly = {
 	{
 		.name		= "MARK",
-		.family		= NFPROTO_IPV4,
+		.family		= NFPROTO_UNSPEC,
 		.revision	= 0,
 		.checkentry	= mark_tg_check_v0,
 		.target		= mark_tg_v0,
@@ -164,37 +164,7 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 	},
 	{
 		.name		= "MARK",
-		.family		= NFPROTO_IPV4,
-		.revision	= 1,
-		.checkentry	= mark_tg_check_v1,
-		.target		= mark_tg_v1,
-		.targetsize	= sizeof(struct xt_mark_target_info_v1),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
-		.compat_from_user = mark_tg_compat_from_user_v1,
-		.compat_to_user	= mark_tg_compat_to_user_v1,
-#endif
-		.table		= "mangle",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "MARK",
-		.family		= NFPROTO_IPV6,
-		.revision	= 0,
-		.checkentry	= mark_tg_check_v0,
-		.target		= mark_tg_v0,
-		.targetsize	= sizeof(struct xt_mark_target_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_mark_target_info),
-		.compat_from_user = mark_tg_compat_from_user_v0,
-		.compat_to_user	= mark_tg_compat_to_user_v0,
-#endif
-		.table		= "mangle",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "MARK",
-		.family		= NFPROTO_IPV6,
+		.family		= NFPROTO_UNSPEC,
 		.revision	= 1,
 		.checkentry	= mark_tg_check_v1,
 		.target		= mark_tg_v1,
