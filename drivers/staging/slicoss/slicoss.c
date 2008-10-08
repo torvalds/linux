@@ -520,6 +520,7 @@ err_out_free_mmio_region:
 	release_mem_region(mmio_start, mmio_len);
 
 err_out_exit_slic_probe:
+	pci_release_regions(pcidev);
 	DBG_ERROR("%s EXIT jiffies[%lx] cpu %d\n", __func__, jiffies,
 		  smp_processor_id());
 
@@ -649,6 +650,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	}
 	DBG_MSG("slicoss: %s deallocate device\n", __func__);
 	kfree(dev);
+	pci_release_regions(pcidev);
 	DBG_MSG("slicoss: %s EXIT\n", __func__);
 }
 
