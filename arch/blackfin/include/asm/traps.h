@@ -59,6 +59,9 @@
 	level "   or a 16-bit register is accessed with a 32-bit instruction.\n"
 #define HWC_x3(level) \
 	"External Memory Addressing Error\n"
+#define EXC_0x04(level) \
+	"Unimplmented exception occured\n" \
+	level " - Maybe you forgot to install a custom exception handler?\n"
 #define HWC_x12(level) \
 	"Performance Monitor Overflow\n"
 #define HWC_x18(level) \
@@ -84,7 +87,7 @@
 	level "   a particular processor implementation.\n"
 #define EXC_0x22(level) \
 	"Illegal instruction combination\n" \
-	level " - See section for multi-issue rules in the ADSP-BF53x Blackfin\n" \
+	level " - See section for multi-issue rules in the Blackfin\n" \
 	level "   Processor Instruction Set Reference.\n"
 #define EXC_0x23(level) \
 	"Data access CPLB protection violation\n" \

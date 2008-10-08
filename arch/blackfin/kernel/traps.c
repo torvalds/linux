@@ -301,18 +301,28 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		printk(KERN_NOTICE EXC_0x03(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
-	/* 0x04 - User Defined, Caught by default */
-	/* 0x05 - User Defined, Caught by default */
-	/* 0x06 - User Defined, Caught by default */
-	/* 0x07 - User Defined, Caught by default */
-	/* 0x08 - User Defined, Caught by default */
-	/* 0x09 - User Defined, Caught by default */
-	/* 0x0A - User Defined, Caught by default */
-	/* 0x0B - User Defined, Caught by default */
-	/* 0x0C - User Defined, Caught by default */
-	/* 0x0D - User Defined, Caught by default */
-	/* 0x0E - User Defined, Caught by default */
-	/* 0x0F - User Defined, Caught by default */
+	/* 0x04 - User Defined */
+	/* 0x05 - User Defined */
+	/* 0x06 - User Defined */
+	/* 0x07 - User Defined */
+	/* 0x08 - User Defined */
+	/* 0x09 - User Defined */
+	/* 0x0A - User Defined */
+	/* 0x0B - User Defined */
+	/* 0x0C - User Defined */
+	/* 0x0D - User Defined */
+	/* 0x0E - User Defined */
+	/* 0x0F - User Defined */
+	/*
+	 * If we got here, it is most likely that someone was trying to use a
+	 * custom exception handler, and it is not actually installed properly
+	 */
+	case VEC_EXCPT04 ... VEC_EXCPT15:
+		info.si_code = ILL_ILLPARAOP;
+		sig = SIGILL;
+		printk(KERN_NOTICE EXC_0x04(KERN_NOTICE));
+		CHK_DEBUGGER_TRAP_MAYBE();
+		break;
 	/* 0x10 HW Single step, handled here */
 	case VEC_STEP:
 		info.si_code = TRAP_STEP;
@@ -507,9 +517,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		}
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
+	/*
+	 * We should be handling all known exception types above,
+	 * if we get here we hit a reserved one, so panic
+	 */
 	default:
-		info.si_code = TRAP_ILLTRAP;
-		sig = SIGTRAP;
+		oops_in_progress = 1;
+		info.si_code = ILL_ILLPARAOP;
+		sig = SIGILL;
 		printk(KERN_EMERG "Caught Unhandled Exception, code = %08lx\n",
 			(fp->seqstat & SEQSTAT_EXCAUSE));
 		CHK_DEBUGGER_TRAP_MAYBE();
