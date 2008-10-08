@@ -234,8 +234,16 @@ int omap_mcbsp_request(unsigned int id)
 	mcbsp->free = 0;
 	spin_unlock(&mcbsp->lock);
 
+	/*
+	 * Make sure that transmitter, receiver and sample-rate generator are
+	 * not running before activating IRQs.
+	 */
+	OMAP_MCBSP_WRITE(mcbsp->io_base, SPCR1, 0);
+	OMAP_MCBSP_WRITE(mcbsp->io_base, SPCR2, 0);
+
 	if (mcbsp->io_type == OMAP_MCBSP_IRQ_IO) {
 		/* We need to get IRQs here */
+		init_completion(&mcbsp->tx_irq_completion);
 		err = request_irq(mcbsp->tx_irq, omap_mcbsp_tx_irq_handler,
 					0, "McBSP", (void *)mcbsp);
 		if (err != 0) {
@@ -245,8 +253,7 @@ int omap_mcbsp_request(unsigned int id)
 			return err;
 		}
 
-		init_completion(&mcbsp->tx_irq_completion);
-
+		init_completion(&mcbsp->rx_irq_completion);
 		err = request_irq(mcbsp->rx_irq, omap_mcbsp_rx_irq_handler,
 					0, "McBSP", (void *)mcbsp);
 		if (err != 0) {
@@ -256,8 +263,6 @@ int omap_mcbsp_request(unsigned int id)
 			free_irq(mcbsp->tx_irq, (void *)mcbsp);
 			return err;
 		}
-
-		init_completion(&mcbsp->rx_irq_completion);
 	}
 
 	return 0;
