@@ -364,6 +364,14 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
 
+static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	/* May not call generic set_irq_handler() due to spinlock
+	   recursion. */
+	desc->handle_irq = handle;
+}
+
 #if !defined(CONFIG_BF54x)
 
 static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
@@ -476,9 +484,9 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	SSYNC();
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		set_irq_handler(irq, handle_edge_irq);
+		bfin_set_irq_handler(irq, handle_edge_irq);
 	else
-		set_irq_handler(irq, handle_level_irq);
+		bfin_set_irq_handler(irq, handle_level_irq);
 
 	return 0;
 }
@@ -808,10 +816,10 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
 		pint[bank]->edge_set = pintbit;
-		set_irq_handler(irq, handle_edge_irq);
+		bfin_set_irq_handler(irq, handle_edge_irq);
 	} else {
 		pint[bank]->edge_clear = pintbit;
-		set_irq_handler(irq, handle_level_irq);
+		bfin_set_irq_handler(irq, handle_level_irq);
 	}
 
 	SSYNC();
