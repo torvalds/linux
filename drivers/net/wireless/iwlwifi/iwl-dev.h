@@ -527,6 +527,7 @@ struct iwl_sensitivity_ranges {
  * @sw_crypto: 0 for hw, 1 for sw
  * @max_xxx_size: for ucode uses
  * @ct_kill_threshold: temperature threshold
+ * @calib_init_cfg: setup initial claibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  * @first_ampdu_q: first HW queue available for ampdu
  */
@@ -548,6 +549,7 @@ struct iwl_hw_params {
 	u32 max_data_size;
 	u32 max_bsm_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */
+	u32 calib_init_cfg;
 	const struct iwl_sensitivity_ranges *sens;
 	u8 first_ampdu_q;
 };
@@ -765,7 +767,7 @@ enum {
 
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
-#define IWL_CALIB_MAX  3
+#define IWL_CALIB_MAX  4
 
 struct iwl_priv {
 

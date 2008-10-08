@@ -98,6 +98,11 @@ enum {
 	COEX_MEDIUM_NOTIFICATION = 0x5b,
 	COEX_EVENT_CMD = 0x5c,
 
+	/* Calibration */
+	CALIBRATION_CFG_CMD = 0x65,
+	CALIBRATION_RES_NOTIFICATION = 0x66,
+	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
+
 	/* 802.11h related */
 	RADAR_NOTIFICATION = 0x70,	/* not used */
 	REPLY_QUIET_CMD = 0x71,		/* not used */
@@ -2879,23 +2884,9 @@ enum {
 	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD = 19,
 };
 
-enum {
-	CALIBRATION_CFG_CMD = 0x65,
-	CALIBRATION_RES_NOTIFICATION = 0x66,
-	CALIBRATION_COMPLETE_NOTIFICATION = 0x67
-};
-
-struct iwl_cal_crystal_freq_cmd {
+struct iwl_cal_xtal_freq {
 	u8 cap_pin1;
 	u8 cap_pin2;
-} __attribute__ ((packed));
-
-struct iwl5000_calibration {
-	u8 op_code;
-	u8 first_group;
-	u8 num_groups;
-	u8 all_data_valid;
-	struct iwl_cal_crystal_freq_cmd data;
 } __attribute__ ((packed));
 
 #define IWL_CALIB_INIT_CFG_ALL	__constant_cpu_to_le32(0xffffffff)
@@ -2925,6 +2916,11 @@ struct iwl5000_calib_hdr {
 	u8 first_group;
 	u8 groups_num;
 	u8 data_valid;
+} __attribute__ ((packed));
+
+struct iwl5000_calib_cmd {
+	struct iwl5000_calib_hdr hdr;
+	u8 data[0];
 } __attribute__ ((packed));
 
 struct iwl5000_calibration_chain_noise_reset_cmd {
@@ -3039,7 +3035,6 @@ struct iwl_rx_packet {
 		struct iwl_notif_statistics stats;
 		struct iwl_compressed_ba_resp compressed_ba;
 		struct iwl4965_missed_beacon_notif missed_beacon;
-		struct iwl5000_calibration calib;
 		__le32 status;
 		u8 raw[0];
 	} u;

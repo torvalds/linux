@@ -429,20 +429,19 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 /*
  *  Calibration
  */
-static int iwl5000_send_Xtal_calib(struct iwl_priv *priv)
+static int iwl5000_set_Xtal_calib(struct iwl_priv *priv)
 {
+	u8 data[sizeof(struct iwl5000_calib_hdr) +
+		sizeof(struct iwl_cal_xtal_freq)];
+	struct iwl5000_calib_cmd *cmd = (struct iwl5000_calib_cmd *)data;
+	struct iwl_cal_xtal_freq *xtal = (struct iwl_cal_xtal_freq *)cmd->data;
 	u16 *xtal_calib = (u16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
 
-	struct iwl5000_calibration cal_cmd = {
-		.op_code = IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD,
-		.data = {
-			(u8)xtal_calib[0],
-			(u8)xtal_calib[1],
-		}
-	};
-
-	return iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-				sizeof(cal_cmd), &cal_cmd);
+	cmd->hdr.op_code = IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
+	xtal->cap_pin1 = (u8)xtal_calib[0];
+	xtal->cap_pin2 = (u8)xtal_calib[1];
+	return iwl_calib_set(&priv->calib_results[IWL5000_CALIB_XTAL],
+			     data, sizeof(data));
 }
 
 static int iwl5000_send_calib_cfg(struct iwl_priv *priv)
@@ -784,10 +783,8 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 
 	iwl5000_send_wimax_coex(priv);
 
-	iwl5000_send_Xtal_calib(priv);
-
-	if (priv->ucode_type == UCODE_RT)
-		iwl_send_calib_results(priv);
+	iwl5000_set_Xtal_calib(priv);
+	iwl_send_calib_results(priv);
 
 	return 0;
 }
@@ -843,6 +840,23 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 				CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
 		break;
 	}
+
+	/* Set initial calibration set */
+	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_5100:
+	case CSR_HW_REV_TYPE_5300:
+	case CSR_HW_REV_TYPE_5350:
+		priv->hw_params.calib_init_cfg =
+			BIT(IWL5000_CALIB_XTAL)		|
+			BIT(IWL5000_CALIB_LO)		|
+			BIT(IWL5000_CALIB_TX_IQ) 	|
+			BIT(IWL5000_CALIB_TX_IQ_PERD);
+		break;
+	case CSR_HW_REV_TYPE_5150:
+		priv->hw_params.calib_init_cfg = 0;
+		break;
+	}
+
 
 	return 0;
 }

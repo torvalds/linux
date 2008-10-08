@@ -132,6 +132,7 @@ struct iwl5000_shared {
 /* calibrations defined for 5000 */
 /* defines the order in which results should be sent to the runtime uCode */
 enum iwl5000_calib {
+	IWL5000_CALIB_XTAL,
 	IWL5000_CALIB_LO,
 	IWL5000_CALIB_TX_IQ,
 	IWL5000_CALIB_TX_IQ_PERD,
