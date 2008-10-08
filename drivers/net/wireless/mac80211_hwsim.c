@@ -63,13 +63,13 @@ struct hwsim_sta_priv {
 static inline void hwsim_check_sta_magic(struct ieee80211_sta *sta)
 {
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
-	WARN_ON(sp->magic != HWSIM_VIF_MAGIC);
+	WARN_ON(sp->magic != HWSIM_STA_MAGIC);
 }
 
 static inline void hwsim_set_sta_magic(struct ieee80211_sta *sta)
 {
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
-	sp->magic = HWSIM_VIF_MAGIC;
+	sp->magic = HWSIM_STA_MAGIC;
 }
 
 static inline void hwsim_clear_sta_magic(struct ieee80211_sta *sta)
