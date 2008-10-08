@@ -12,6 +12,7 @@ struct netns_ct {
 	struct hlist_head	*hash;
 	struct hlist_head	*expect_hash;
 	struct hlist_head	unconfirmed;
+	struct ip_conntrack_stat *stat;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	struct nf_conntrack_ecache *ecache;
 #endif

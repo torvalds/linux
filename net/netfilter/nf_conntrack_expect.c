@@ -53,7 +53,7 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	master_help->expecting[exp->class]--;
 	nf_ct_expect_put(exp);
 
-	NF_CT_STAT_INC(expect_delete);
+	NF_CT_STAT_INC(net, expect_delete);
 }
 EXPORT_SYMBOL_GPL(nf_ct_unlink_expect);
 
@@ -326,7 +326,7 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	add_timer(&exp->timeout);
 
 	atomic_inc(&exp->use);
-	NF_CT_STAT_INC(expect_create);
+	NF_CT_STAT_INC(net, expect_create);
 }
 
 /* Race with expectations being used means we could have none to find; OK. */

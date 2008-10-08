@@ -294,7 +294,7 @@ static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 		if (!cpu_possible(cpu))
 			continue;
 		*pos = cpu+1;
-		return &per_cpu(nf_conntrack_stat, cpu);
+		return per_cpu_ptr(init_net.ct.stat, cpu);
 	}
 
 	return NULL;
@@ -308,7 +308,7 @@ static void *ct_cpu_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		if (!cpu_possible(cpu))
 			continue;
 		*pos = cpu+1;
-		return &per_cpu(nf_conntrack_stat, cpu);
+		return per_cpu_ptr(init_net.ct.stat, cpu);
 	}
 
 	return NULL;
