@@ -174,15 +174,13 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 }
 
 static unsigned int
-tcpmss_tg4(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	__be16 newlen;
 	int ret;
 
-	ret = tcpmss_mangle_packet(skb, targinfo,
+	ret = tcpmss_mangle_packet(skb, par->targinfo,
 				   tcpmss_reverse_mtu(skb, PF_INET),
 				   iph->ihl * 4,
 				   sizeof(*iph) + sizeof(struct tcphdr));
@@ -199,9 +197,7 @@ tcpmss_tg4(struct sk_buff *skb, const struct net_device *in,
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static unsigned int
-tcpmss_tg6(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+tcpmss_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	u8 nexthdr;
@@ -212,7 +208,7 @@ tcpmss_tg6(struct sk_buff *skb, const struct net_device *in,
 	tcphoff = ipv6_skip_exthdr(skb, sizeof(*ipv6h), &nexthdr);
 	if (tcphoff < 0)
 		return NF_DROP;
-	ret = tcpmss_mangle_packet(skb, targinfo,
+	ret = tcpmss_mangle_packet(skb, par->targinfo,
 				   tcpmss_reverse_mtu(skb, PF_INET6),
 				   tcphoff,
 				   sizeof(*ipv6h) + sizeof(struct tcphdr));

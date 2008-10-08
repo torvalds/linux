@@ -15,11 +15,9 @@
 #include <linux/netfilter_bridge/ebt_nat.h>
 
 static unsigned int
-ebt_dnat_tg(struct sk_buff *skb, const struct net_device *in,
-	    const struct net_device *out, unsigned int hook_nr,
-	    const struct xt_target *target, const void *data)
+ebt_dnat_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ebt_nat_info *info = data;
+	const struct ebt_nat_info *info = par->targinfo;
 
 	if (!skb_make_writable(skb, 0))
 		return EBT_DROP;

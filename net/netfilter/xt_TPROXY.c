@@ -25,15 +25,10 @@
 #include <net/netfilter/nf_tproxy_core.h>
 
 static unsigned int
-tproxy_tg(struct sk_buff *skb,
-	  const struct net_device *in,
-	  const struct net_device *out,
-	  unsigned int hooknum,
-	  const struct xt_target *target,
-	  const void *targinfo)
+tproxy_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	const struct xt_tproxy_target_info *tgi = targinfo;
+	const struct xt_tproxy_target_info *tgi = par->targinfo;
 	struct udphdr _hdr, *hp;
 	struct sock *sk;
 
@@ -44,7 +39,7 @@ tproxy_tg(struct sk_buff *skb,
 	sk = nf_tproxy_get_sock_v4(dev_net(skb->dev), iph->protocol,
 				   iph->saddr, tgi->laddr ? tgi->laddr : iph->daddr,
 				   hp->source, tgi->lport ? tgi->lport : hp->dest,
-				   in, true);
+				   par->in, true);
 
 	/* NOTE: assign_sock consumes our sk reference */
 	if (sk && nf_tproxy_assign_sock(skb, sk)) {

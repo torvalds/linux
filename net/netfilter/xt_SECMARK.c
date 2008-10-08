@@ -29,12 +29,10 @@ MODULE_ALIAS("ip6t_SECMARK");
 static u8 mode;
 
 static unsigned int
-secmark_tg(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+secmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	u32 secmark = 0;
-	const struct xt_secmark_target_info *info = targinfo;
+	const struct xt_secmark_target_info *info = par->targinfo;
 
 	BUG_ON(info->mode != mode);
 

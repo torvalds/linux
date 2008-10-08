@@ -426,18 +426,16 @@ ipt_log_packet(u_int8_t pf,
 }
 
 static unsigned int
-log_tg(struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, unsigned int hooknum,
-       const struct xt_target *target, const void *targinfo)
+log_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ipt_log_info *loginfo = targinfo;
+	const struct ipt_log_info *loginfo = par->targinfo;
 	struct nf_loginfo li;
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	ipt_log_packet(NFPROTO_IPV4, hooknum, skb, in, out, &li,
+	ipt_log_packet(NFPROTO_IPV4, par->hooknum, skb, par->in, par->out, &li,
 		       loginfo->prefix);
 	return XT_CONTINUE;
 }

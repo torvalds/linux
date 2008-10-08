@@ -188,6 +188,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 {
 	int ret = 0, result = 0;
 	struct tcf_ipt *ipt = a->priv;
+	struct xt_target_param par;
 
 	if (skb_cloned(skb)) {
 		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
@@ -203,10 +204,13 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 	/* yes, we have to worry about both in and out dev
 	 worry later - danger - this API seems to have changed
 	 from earlier kernels */
-	ret = ipt->tcfi_t->u.kernel.target->target(skb, skb->dev, NULL,
-						   ipt->tcfi_hook,
-						   ipt->tcfi_t->u.kernel.target,
-						   ipt->tcfi_t->data);
+	par.in       = skb->dev;
+	par.out      = NULL;
+	par.hooknum  = ipt->tcfi_hook;
+	par.target   = ipt->tcfi_t->u.kernel.target;
+	par.targinfo = ipt->tcfi_t->data;
+	ret = par.target->target(skb, &par);
+
 	switch (ret) {
 	case NF_ACCEPT:
 		result = TC_ACT_OK;

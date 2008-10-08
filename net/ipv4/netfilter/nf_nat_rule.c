@@ -67,25 +67,21 @@ static struct xt_table nat_table = {
 };
 
 /* Source NAT */
-static unsigned int ipt_snat_target(struct sk_buff *skb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    unsigned int hooknum,
-				    const struct xt_target *target,
-				    const void *targinfo)
+static unsigned int
+ipt_snat_target(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
-	const struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
-	NF_CT_ASSERT(hooknum == NF_INET_POST_ROUTING);
+	NF_CT_ASSERT(par->hooknum == NF_INET_POST_ROUTING);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
 	/* Connection must be valid and new. */
 	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
 			    ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
-	NF_CT_ASSERT(out);
+	NF_CT_ASSERT(par->out != NULL);
 
 	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_SRC);
 }
@@ -109,28 +105,24 @@ static void warn_if_extra_mangle(struct net *net, __be32 dstip, __be32 srcip)
 	ip_rt_put(rt);
 }
 
-static unsigned int ipt_dnat_target(struct sk_buff *skb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    unsigned int hooknum,
-				    const struct xt_target *target,
-				    const void *targinfo)
+static unsigned int
+ipt_dnat_target(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
-	const struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
-	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
-		     hooknum == NF_INET_LOCAL_OUT);
+	NF_CT_ASSERT(par->hooknum == NF_INET_PRE_ROUTING ||
+		     par->hooknum == NF_INET_LOCAL_OUT);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
 	/* Connection must be valid and new. */
 	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
 
-	if (hooknum == NF_INET_LOCAL_OUT &&
+	if (par->hooknum == NF_INET_LOCAL_OUT &&
 	    mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)
-		warn_if_extra_mangle(dev_net(out), ip_hdr(skb)->daddr,
+		warn_if_extra_mangle(dev_net(par->out), ip_hdr(skb)->daddr,
 				     mr->range[0].min_ip);
 
 	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_DST);

@@ -247,13 +247,10 @@ static void ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 }
 
 static unsigned int
-ebt_ulog_tg(struct sk_buff *skb, const struct net_device *in,
-	    const struct net_device *out, unsigned int hooknr,
-	    const struct xt_target *target, const void *data)
+ebt_ulog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ebt_ulog_info *uloginfo = data;
-
-	ebt_ulog_packet(hooknr, skb, in, out, uloginfo, NULL);
+	ebt_ulog_packet(par->hooknum, skb, par->in, par->out,
+	                par->targinfo, NULL);
 	return EBT_CONTINUE;
 }
 

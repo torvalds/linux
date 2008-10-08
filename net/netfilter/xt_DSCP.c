@@ -29,11 +29,9 @@ MODULE_ALIAS("ipt_TOS");
 MODULE_ALIAS("ip6t_TOS");
 
 static unsigned int
-dscp_tg(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+dscp_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_DSCP_info *dinfo = targinfo;
+	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
@@ -48,11 +46,9 @@ dscp_tg(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-dscp_tg6(struct sk_buff *skb, const struct net_device *in,
-         const struct net_device *out, unsigned int hooknum,
-         const struct xt_target *target, const void *targinfo)
+dscp_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_DSCP_info *dinfo = targinfo;
+	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
@@ -80,11 +76,9 @@ dscp_tg_check(const char *tablename, const void *e_void,
 }
 
 static unsigned int
-tos_tg_v0(struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, unsigned int hooknum,
-          const struct xt_target *target, const void *targinfo)
+tos_tg_v0(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ipt_tos_target_info *info = targinfo;
+	const struct ipt_tos_target_info *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
 	u_int8_t oldtos;
 
@@ -119,11 +113,9 @@ tos_tg_check_v0(const char *tablename, const void *e_void,
 }
 
 static unsigned int
-tos_tg(struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, unsigned int hooknum,
-       const struct xt_target *target, const void *targinfo)
+tos_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_tos_target_info *info = targinfo;
+	const struct xt_tos_target_info *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
 	u_int8_t orig, nv;
 
@@ -141,11 +133,9 @@ tos_tg(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-tos_tg6(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+tos_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_tos_target_info *info = targinfo;
+	const struct xt_tos_target_info *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	u_int8_t orig, nv;
 

@@ -136,11 +136,9 @@ static inline void send_unreach(struct sk_buff *skb_in, int code)
 }
 
 static unsigned int
-reject_tg(struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, unsigned int hooknum,
-          const struct xt_target *target, const void *targinfo)
+reject_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ipt_reject_info *reject = targinfo;
+	const struct ipt_reject_info *reject = par->targinfo;
 
 	/* WARNING: This code causes reentry within iptables.
 	   This means that the iptables jump stack is now crap.  We
@@ -168,7 +166,7 @@ reject_tg(struct sk_buff *skb, const struct net_device *in,
 		send_unreach(skb, ICMP_PKT_FILTERED);
 		break;
 	case IPT_TCP_RESET:
-		send_reset(skb, hooknum);
+		send_reset(skb, par->hooknum);
 	case IPT_ICMP_ECHOREPLY:
 		/* Doesn't happen. */
 		break;

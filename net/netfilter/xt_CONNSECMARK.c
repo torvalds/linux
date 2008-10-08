@@ -65,11 +65,9 @@ static void secmark_restore(struct sk_buff *skb)
 }
 
 static unsigned int
-connsecmark_tg(struct sk_buff *skb, const struct net_device *in,
-               const struct net_device *out, unsigned int hooknum,
-               const struct xt_target *target, const void *targinfo)
+connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_connsecmark_target_info *info = targinfo;
+	const struct xt_connsecmark_target_info *info = par->targinfo;
 
 	switch (info->mode) {
 	case CONNSECMARK_SAVE:

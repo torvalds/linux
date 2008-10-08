@@ -36,11 +36,9 @@ MODULE_ALIAS("ip6t_CONNMARK");
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 static unsigned int
-connmark_tg_v0(struct sk_buff *skb, const struct net_device *in,
-               const struct net_device *out, unsigned int hooknum,
-               const struct xt_target *target, const void *targinfo)
+connmark_tg_v0(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_connmark_target_info *markinfo = targinfo;
+	const struct xt_connmark_target_info *markinfo = par->targinfo;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	u_int32_t diff;
@@ -77,11 +75,9 @@ connmark_tg_v0(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-connmark_tg(struct sk_buff *skb, const struct net_device *in,
-            const struct net_device *out, unsigned int hooknum,
-            const struct xt_target *target, const void *targinfo)
+connmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_connmark_tginfo1 *info = targinfo;
+	const struct xt_connmark_tginfo1 *info = par->targinfo;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 	u_int32_t newmark;

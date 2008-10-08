@@ -71,14 +71,9 @@ void xt_rateest_put(struct xt_rateest *est)
 EXPORT_SYMBOL_GPL(xt_rateest_put);
 
 static unsigned int
-xt_rateest_tg(struct sk_buff *skb,
-	      const struct net_device *in,
-	      const struct net_device *out,
-	      unsigned int hooknum,
-	      const struct xt_target *target,
-	      const void *targinfo)
+xt_rateest_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_rateest_target_info *info = targinfo;
+	const struct xt_rateest_target_info *info = par->targinfo;
 	struct gnet_stats_basic *stats = &info->est->bstats;
 
 	spin_lock_bh(&info->est->lock);

@@ -25,22 +25,18 @@ MODULE_ALIAS("ipt_MARK");
 MODULE_ALIAS("ip6t_MARK");
 
 static unsigned int
-mark_tg_v0(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+mark_tg_v0(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_mark_target_info *markinfo = targinfo;
+	const struct xt_mark_target_info *markinfo = par->targinfo;
 
 	skb->mark = markinfo->mark;
 	return XT_CONTINUE;
 }
 
 static unsigned int
-mark_tg_v1(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+mark_tg_v1(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_mark_target_info_v1 *markinfo = targinfo;
+	const struct xt_mark_target_info_v1 *markinfo = par->targinfo;
 	int mark = 0;
 
 	switch (markinfo->mode) {
@@ -62,11 +58,9 @@ mark_tg_v1(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-mark_tg(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_mark_tginfo2 *info = targinfo;
+	const struct xt_mark_tginfo2 *info = par->targinfo;
 
 	skb->mark = (skb->mark & ~info->mask) ^ info->mark;
 	return XT_CONTINUE;

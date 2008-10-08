@@ -20,12 +20,10 @@ MODULE_DESCRIPTION("Xtables: IPv4 TTL field modification target");
 MODULE_LICENSE("GPL");
 
 static unsigned int
-ttl_tg(struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, unsigned int hooknum,
-       const struct xt_target *target, const void *targinfo)
+ttl_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct iphdr *iph;
-	const struct ipt_TTL_info *info = targinfo;
+	const struct ipt_TTL_info *info = par->targinfo;
 	int new_ttl;
 
 	if (!skb_make_writable(skb, skb->len))

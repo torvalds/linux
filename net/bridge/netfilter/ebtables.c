@@ -64,11 +64,13 @@ static struct xt_target ebt_standard_target = {
 	.targetsize = sizeof(int),
 };
 
-static inline int ebt_do_watcher (struct ebt_entry_watcher *w,
-   struct sk_buff *skb, unsigned int hooknr, const struct net_device *in,
-   const struct net_device *out)
+static inline int
+ebt_do_watcher(const struct ebt_entry_watcher *w, struct sk_buff *skb,
+	       struct xt_target_param *par)
 {
-	w->u.watcher->target(skb, in, out, hooknr, w->u.watcher, w->data);
+	par->target   = w->u.watcher;
+	par->targinfo = w->data;
+	w->u.watcher->target(skb, par);
 	/* watchers don't give a verdict */
 	return 0;
 }
@@ -156,10 +158,12 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	struct ebt_table_info *private;
 	bool hotdrop = false;
 	struct xt_match_param mtpar;
+	struct xt_target_param tgpar;
 
-	mtpar.in      = in;
-	mtpar.out     = out;
+	mtpar.in      = tgpar.in  = in;
+	mtpar.out     = tgpar.out = out;
 	mtpar.hotdrop = &hotdrop;
+	tgpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
 	private = table->private;
@@ -193,17 +197,18 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 
 		/* these should only watch: not modify, nor tell us
 		   what to do with the packet */
-		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, hook, in,
-		   out);
+		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, &tgpar);
 
 		t = (struct ebt_entry_target *)
 		   (((char *)point) + point->target_offset);
 		/* standard target */
 		if (!t->u.target->target)
 			verdict = ((struct ebt_standard_target *)t)->verdict;
-		else
-			verdict = t->u.target->target(skb, in, out, hook,
-				  t->u.target, t->data);
+		else {
+			tgpar.target   = t->u.target;
+			tgpar.targinfo = t->data;
+			verdict = t->u.target->target(skb, &tgpar);
+		}
 		if (verdict == EBT_ACCEPT) {
 			read_unlock_bh(&table->lock);
 			return NF_ACCEPT;

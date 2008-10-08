@@ -218,6 +218,22 @@ struct xt_mtdtor_param {
 	void *matchinfo;
 };
 
+/**
+ * struct xt_target_param - parameters for target extensions' target functions
+ *
+ * @hooknum:	hook through which this target was invoked
+ * @target:	struct xt_target through which this function was invoked
+ * @targinfo:	per-target data
+ *
+ * Other fields see above.
+ */
+struct xt_target_param {
+	const struct net_device *in, *out;
+	unsigned int hooknum;
+	const struct xt_target *target;
+	const void *targinfo;
+};
+
 struct xt_match
 {
 	struct list_head list;
@@ -269,11 +285,7 @@ struct xt_target
 	   must now handle non-linear skbs, using skb_copy_bits and
 	   skb_ip_make_writable. */
 	unsigned int (*target)(struct sk_buff *skb,
-			       const struct net_device *in,
-			       const struct net_device *out,
-			       unsigned int hooknum,
-			       const struct xt_target *target,
-			       const void *targinfo);
+			       const struct xt_target_param *);
 
 	/* Called when user tries to insert an entry of this type:
            hook_mask is a bitmask of hooks from which it can be

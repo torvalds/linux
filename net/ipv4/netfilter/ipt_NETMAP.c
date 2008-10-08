@@ -41,24 +41,23 @@ netmap_tg_check(const char *tablename, const void *e,
 }
 
 static unsigned int
-netmap_tg(struct sk_buff *skb, const struct net_device *in,
-          const struct net_device *out, unsigned int hooknum,
-          const struct xt_target *target, const void *targinfo)
+netmap_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	__be32 new_ip, netmask;
-	const struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 	struct nf_nat_range newrange;
 
-	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING
-		     || hooknum == NF_INET_POST_ROUTING
-		     || hooknum == NF_INET_LOCAL_OUT);
+	NF_CT_ASSERT(par->hooknum == NF_INET_PRE_ROUTING ||
+		     par->hooknum == NF_INET_POST_ROUTING ||
+		     par->hooknum == NF_INET_LOCAL_OUT);
 	ct = nf_ct_get(skb, &ctinfo);
 
 	netmask = ~(mr->range[0].min_ip ^ mr->range[0].max_ip);
 
-	if (hooknum == NF_INET_PRE_ROUTING || hooknum == NF_INET_LOCAL_OUT)
+	if (par->hooknum == NF_INET_PRE_ROUTING ||
+	    par->hooknum == NF_INET_LOCAL_OUT)
 		new_ip = ip_hdr(skb)->daddr & ~netmask;
 	else
 		new_ip = ip_hdr(skb)->saddr & ~netmask;
@@ -70,7 +69,7 @@ netmap_tg(struct sk_buff *skb, const struct net_device *in,
 		  mr->range[0].min, mr->range[0].max });
 
 	/* Hand modified range to generic setup. */
-	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(hooknum));
+	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(par->hooknum));
 }
 
 static struct xt_target netmap_tg_reg __read_mostly = {

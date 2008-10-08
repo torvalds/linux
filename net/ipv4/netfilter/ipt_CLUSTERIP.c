@@ -281,11 +281,9 @@ clusterip_responsible(const struct clusterip_config *config, u_int32_t hash)
  ***********************************************************************/
 
 static unsigned int
-clusterip_tg(struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, unsigned int hooknum,
-             const struct xt_target *target, const void *targinfo)
+clusterip_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
+	const struct ipt_clusterip_tgt_info *cipinfo = par->targinfo;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	u_int32_t hash;

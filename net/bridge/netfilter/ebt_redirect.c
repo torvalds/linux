@@ -16,20 +16,18 @@
 #include <linux/netfilter_bridge/ebt_redirect.h>
 
 static unsigned int
-ebt_redirect_tg(struct sk_buff *skb, const struct net_device *in,
-		const struct net_device *out, unsigned int hooknr,
-		const struct xt_target *target, const void *data)
+ebt_redirect_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct ebt_redirect_info *info = data;
+	const struct ebt_redirect_info *info = par->targinfo;
 
 	if (!skb_make_writable(skb, 0))
 		return EBT_DROP;
 
-	if (hooknr != NF_BR_BROUTING)
+	if (par->hooknum != NF_BR_BROUTING)
 		memcpy(eth_hdr(skb)->h_dest,
-		       in->br_port->br->dev->dev_addr, ETH_ALEN);
+		       par->in->br_port->br->dev->dev_addr, ETH_ALEN);
 	else
-		memcpy(eth_hdr(skb)->h_dest, in->dev_addr, ETH_ALEN);
+		memcpy(eth_hdr(skb)->h_dest, par->in->dev_addr, ETH_ALEN);
 	skb->pkt_type = PACKET_HOST;
 	return info->target;
 }

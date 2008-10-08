@@ -27,11 +27,9 @@ MODULE_ALIAS("ipt_CLASSIFY");
 MODULE_ALIAS("ip6t_CLASSIFY");
 
 static unsigned int
-classify_tg(struct sk_buff *skb, const struct net_device *in,
-            const struct net_device *out, unsigned int hooknum,
-            const struct xt_target *target, const void *targinfo)
+classify_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	const struct xt_classify_target_info *clinfo = targinfo;
+	const struct xt_classify_target_info *clinfo = par->targinfo;
 
 	skb->priority = clinfo->priority;
 	return XT_CONTINUE;

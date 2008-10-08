@@ -200,15 +200,11 @@ ip6_checkentry(const struct ip6t_ip6 *ipv6)
 }
 
 static unsigned int
-ip6t_error(struct sk_buff *skb,
-	  const struct net_device *in,
-	  const struct net_device *out,
-	  unsigned int hooknum,
-	  const struct xt_target *target,
-	  const void *targinfo)
+ip6t_error(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	if (net_ratelimit())
-		printk("ip6_tables: error: `%s'\n", (char *)targinfo);
+		printk("ip6_tables: error: `%s'\n",
+		       (const char *)par->targinfo);
 
 	return NF_DROP;
 }
@@ -360,6 +356,7 @@ ip6t_do_table(struct sk_buff *skb,
 	struct ip6t_entry *e, *back;
 	struct xt_table_info *private;
 	struct xt_match_param mtpar;
+	struct xt_target_param tgpar;
 
 	/* Initialization */
 	indev = in ? in->name : nulldevname;
@@ -371,8 +368,9 @@ ip6t_do_table(struct sk_buff *skb,
 	 * rule is also a fragment-specific rule, non-fragments won't
 	 * match it. */
 	mtpar.hotdrop = &hotdrop;
-	mtpar.in      = in;
-	mtpar.out     = out;
+	mtpar.in      = tgpar.in  = in;
+	mtpar.out     = tgpar.out = out;
+	tgpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
@@ -438,15 +436,15 @@ ip6t_do_table(struct sk_buff *skb,
 			} else {
 				/* Targets which reenter must return
 				   abs. verdicts */
+				tgpar.target   = t->u.kernel.target;
+				tgpar.targinfo = t->data;
+
 #ifdef CONFIG_NETFILTER_DEBUG
 				((struct ip6t_entry *)table_base)->comefrom
 					= 0xeeeeeeec;
 #endif
 				verdict = t->u.kernel.target->target(skb,
-								     in, out,
-								     hook,
-								     t->u.kernel.target,
-								     t->data);
+								     &tgpar);
 
 #ifdef CONFIG_NETFILTER_DEBUG
 				if (((struct ip6t_entry *)table_base)->comefrom

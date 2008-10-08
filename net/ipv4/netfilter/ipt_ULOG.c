@@ -281,14 +281,10 @@ alloc_failure:
 }
 
 static unsigned int
-ulog_tg(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+ulog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
-
-	ipt_ulog_packet(hooknum, skb, in, out, loginfo, NULL);
-
+	ipt_ulog_packet(par->hooknum, skb, par->in, par->out,
+	                par->targinfo, NULL);
 	return XT_CONTINUE;
 }
 

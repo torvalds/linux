@@ -19,12 +19,10 @@ MODULE_DESCRIPTION("Xtables: IPv6 Hop Limit field modification target");
 MODULE_LICENSE("GPL");
 
 static unsigned int
-hl_tg6(struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, unsigned int hooknum,
-       const struct xt_target *target, const void *targinfo)
+hl_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct ipv6hdr *ip6h;
-	const struct ip6t_HL_info *info = targinfo;
+	const struct ip6t_HL_info *info = par->targinfo;
 	int new_hl;
 
 	if (!skb_make_writable(skb, skb->len))

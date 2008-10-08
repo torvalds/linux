@@ -50,9 +50,7 @@ masquerade_tg_check(const char *tablename, const void *e,
 }
 
 static unsigned int
-masquerade_tg(struct sk_buff *skb, const struct net_device *in,
-              const struct net_device *out, unsigned int hooknum,
-              const struct xt_target *target, const void *targinfo)
+masquerade_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	struct nf_conn *ct;
 	struct nf_conn_nat *nat;
@@ -62,7 +60,7 @@ masquerade_tg(struct sk_buff *skb, const struct net_device *in,
 	const struct rtable *rt;
 	__be32 newsrc;
 
-	NF_CT_ASSERT(hooknum == NF_INET_POST_ROUTING);
+	NF_CT_ASSERT(par->hooknum == NF_INET_POST_ROUTING);
 
 	ct = nf_ct_get(skb, &ctinfo);
 	nat = nfct_nat(ct);
@@ -76,16 +74,16 @@ masquerade_tg(struct sk_buff *skb, const struct net_device *in,
 	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip == 0)
 		return NF_ACCEPT;
 
-	mr = targinfo;
+	mr = par->targinfo;
 	rt = skb->rtable;
-	newsrc = inet_select_addr(out, rt->rt_gateway, RT_SCOPE_UNIVERSE);
+	newsrc = inet_select_addr(par->out, rt->rt_gateway, RT_SCOPE_UNIVERSE);
 	if (!newsrc) {
-		printk("MASQUERADE: %s ate my IP address\n", out->name);
+		printk("MASQUERADE: %s ate my IP address\n", par->out->name);
 		return NF_DROP;
 	}
 
 	write_lock_bh(&masq_lock);
-	nat->masq_index = out->ifindex;
+	nat->masq_index = par->out->ifindex;
 	write_unlock_bh(&masq_lock);
 
 	/* Transfer from original range. */

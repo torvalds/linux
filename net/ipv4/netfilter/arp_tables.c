@@ -200,15 +200,12 @@ static inline int arp_checkentry(const struct arpt_arp *arp)
 	return 1;
 }
 
-static unsigned int arpt_error(struct sk_buff *skb,
-			       const struct net_device *in,
-			       const struct net_device *out,
-			       unsigned int hooknum,
-			       const struct xt_target *target,
-			       const void *targinfo)
+static unsigned int
+arpt_error(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	if (net_ratelimit())
-		printk("arp_tables: error: '%s'\n", (char *)targinfo);
+		printk("arp_tables: error: '%s'\n",
+		       (const char *)par->targinfo);
 
 	return NF_DROP;
 }
@@ -232,6 +229,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	const char *indev, *outdev;
 	void *table_base;
 	const struct xt_table_info *private;
+	struct xt_target_param tgpar;
 
 	if (!pskb_may_pull(skb, arp_hdr_len(skb->dev)))
 		return NF_DROP;
@@ -244,6 +242,10 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	table_base = (void *)private->entries[smp_processor_id()];
 	e = get_entry(table_base, private->hook_entry[hook]);
 	back = get_entry(table_base, private->underflow[hook]);
+
+	tgpar.in      = in;
+	tgpar.out     = out;
+	tgpar.hooknum = hook;
 
 	arp = arp_hdr(skb);
 	do {
@@ -290,11 +292,10 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 				/* Targets which reenter must return
 				 * abs. verdicts
 				 */
+				tgpar.target   = t->u.kernel.target;
+				tgpar.targinfo = t->data;
 				verdict = t->u.kernel.target->target(skb,
-								     in, out,
-								     hook,
-								     t->u.kernel.target,
-								     t->data);
+								     &tgpar);
 
 				/* Target might have changed stuff. */
 				arp = arp_hdr(skb);
