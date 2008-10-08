@@ -672,7 +672,7 @@ struct nfs4_rename_res {
 	struct nfs_fattr *		new_fattr;
 };
 
-#define NFS4_SETCLIENTID_NAMELEN	(128)
+#define NFS4_SETCLIENTID_NAMELEN	(127)
 struct nfs4_setclientid {
 	const nfs4_verifier *		sc_verifier;
 	unsigned int			sc_name_len;
