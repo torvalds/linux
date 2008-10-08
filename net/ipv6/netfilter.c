@@ -33,7 +33,8 @@ int ip6_route_me_harder(struct sk_buff *skb)
 #endif
 
 	if (dst->error) {
-		IP6_INC_STATS(ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
+		IP6_INC_STATS(&init_net, ip6_dst_idev(dst),
+			      IPSTATS_MIB_OUTNOROUTES);
 		LIMIT_NETDEBUG(KERN_DEBUG "ip6_route_me_harder: No more route.\n");
 		dst_release(dst);
 		return -EINVAL;

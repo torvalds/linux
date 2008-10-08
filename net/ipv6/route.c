@@ -1833,16 +1833,19 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 static int ip6_pkt_drop(struct sk_buff *skb, int code, int ipstats_mib_noroutes)
 {
 	int type;
+	struct dst_entry *dst = skb->dst;
 	switch (ipstats_mib_noroutes) {
 	case IPSTATS_MIB_INNOROUTES:
 		type = ipv6_addr_type(&ipv6_hdr(skb)->daddr);
 		if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED) {
-			IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INADDRERRORS);
+			IP6_INC_STATS(dev_net(dst->dev), ip6_dst_idev(dst),
+				      IPSTATS_MIB_INADDRERRORS);
 			break;
 		}
 		/* FALLTHROUGH */
 	case IPSTATS_MIB_OUTNOROUTES:
-		IP6_INC_STATS(ip6_dst_idev(skb->dst), ipstats_mib_noroutes);
+		IP6_INC_STATS(dev_net(dst->dev), ip6_dst_idev(dst),
+			      ipstats_mib_noroutes);
 		break;
 	}
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, code, 0, skb->dev);

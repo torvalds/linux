@@ -1446,7 +1446,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	int err;
 	struct flowi fl;
 
-	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
+	IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTREQUESTS);
 	payload_len = (skb->tail - skb->network_header) - sizeof(*pip6);
 	mldlen = skb->tail - skb->transport_header;
 	pip6->payload_len = htons(payload_len);
@@ -1771,7 +1771,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	struct flowi fl;
 
 	rcu_read_lock();
-	IP6_INC_STATS(__in6_dev_get(dev),
+	IP6_INC_STATS(net, __in6_dev_get(dev),
 		      IPSTATS_MIB_OUTREQUESTS);
 	rcu_read_unlock();
 	if (type == ICMPV6_MGM_REDUCTION)
@@ -1787,7 +1787,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	if (skb == NULL) {
 		rcu_read_lock();
-		IP6_INC_STATS(__in6_dev_get(dev),
+		IP6_INC_STATS(net, __in6_dev_get(dev),
 			      IPSTATS_MIB_OUTDISCARDS);
 		rcu_read_unlock();
 		return;
@@ -1841,9 +1841,9 @@ out:
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, type);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS(idev, IPSTATS_MIB_OUTMCASTPKTS);
+		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
-		IP6_INC_STATS(idev, IPSTATS_MIB_OUTDISCARDS);
+		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);

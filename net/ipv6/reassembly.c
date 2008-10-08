@@ -433,7 +433,8 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	return -1;
 
 err:
-	IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_REASMFAILS);
+	IP6_INC_STATS(dev_net(skb->dst->dev), ip6_dst_idev(skb->dst),
+		      IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
 	return -1;
 }
@@ -573,7 +574,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
-	struct net *net;
+	struct net *net = dev_net(skb->dst->dev);
 
 	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_REASMREQDS);
 
@@ -597,7 +598,6 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		return 1;
 	}
 
-	net = dev_net(skb->dev);
 	if (atomic_read(&net->ipv6.frags.mem) > net->ipv6.frags.high_thresh)
 		ip6_evictor(net, ip6_dst_idev(skb->dst));
 
@@ -619,7 +619,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	return -1;
 
 fail_hdr:
-	IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
+	IP6_INC_STATS(net, ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
 	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb_network_header_len(skb));
 	return -1;
 }

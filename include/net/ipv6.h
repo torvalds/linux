@@ -129,7 +129,8 @@ extern struct ctl_path net_ipv6_ctl_path[];
 /* MIBs */
 DECLARE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
 
-#define IP6_INC_STATS(idev,field)	_DEVINC(ipv6, , idev, field)
+#define IP6_INC_STATS(net, idev,field)	({ (void)(net); \
+		_DEVINC(ipv6, , idev, field); })
 #define IP6_INC_STATS_BH(idev,field)	_DEVINC(ipv6, _BH, idev, field)
 #define IP6_ADD_STATS_BH(idev,field,val) _DEVADD(ipv6, _BH, idev, field, val)
 
