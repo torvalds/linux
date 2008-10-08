@@ -1103,6 +1103,11 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
 		return 0;
 
+	if (!sync && sched_feat(SYNC_WAKEUPS) &&
+	    curr->se.avg_overlap < sysctl_sched_migration_cost &&
+	    p->se.avg_overlap < sysctl_sched_migration_cost)
+		sync = 1;
+
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
 	 * effect of the currently running task from the load
@@ -1127,11 +1132,8 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	 * a reasonable amount of time then attract this newly
 	 * woken task:
 	 */
-	if (sync && balanced) {
-		if (curr->se.avg_overlap < sysctl_sched_migration_cost &&
-		    p->se.avg_overlap < sysctl_sched_migration_cost)
-			return 1;
-	}
+	if (sync && balanced)
+		return 1;
 
 	schedstat_inc(p, se.nr_wakeups_affine_attempts);
 	tl_per_task = cpu_avg_load_per_task(this_cpu);
@@ -1268,9 +1270,9 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
 
-	if (sched_feat(WAKEUP_OVERLAP) && sync &&
-			se->avg_overlap < sysctl_sched_migration_cost &&
-			pse->avg_overlap < sysctl_sched_migration_cost) {
+	if (sched_feat(WAKEUP_OVERLAP) && (sync ||
+			(se->avg_overlap < sysctl_sched_migration_cost &&
+			 pse->avg_overlap < sysctl_sched_migration_cost))) {
 		resched_task(curr);
 		return;
 	}
