@@ -54,7 +54,6 @@ struct nf_conn nf_conntrack_untracked __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_untracked);
 
 unsigned int nf_ct_log_invalid __read_mostly;
-HLIST_HEAD(unconfirmed);
 static struct kmem_cache *nf_conntrack_cachep __read_mostly;
 
 DEFINE_PER_CPU(struct ip_conntrack_stat, nf_conntrack_stat);
@@ -596,7 +595,8 @@ init_conntrack(struct net *net,
 	}
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
-	hlist_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode, &unconfirmed);
+	hlist_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode,
+		       &net->ct.unconfirmed);
 
 	spin_unlock_bh(&nf_conntrack_lock);
 
@@ -957,7 +957,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 				goto found;
 		}
 	}
-	hlist_for_each_entry(h, n, &unconfirmed, hnode) {
+	hlist_for_each_entry(h, n, &net->ct.unconfirmed, hnode) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (iter(ct, data))
 			set_bit(IPS_DYING_BIT, &ct->status);
@@ -1154,6 +1154,7 @@ int nf_conntrack_init(struct net *net)
 		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
 		goto err_out;
 	}
+	INIT_HLIST_HEAD(&net->ct.unconfirmed);
 
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
