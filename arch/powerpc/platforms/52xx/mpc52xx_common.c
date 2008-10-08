@@ -90,7 +90,7 @@ mpc5200_setup_xlb_arbiter(void)
 	of_node_put(np);
 	if (!xlb) {
 		printk(KERN_ERR __FILE__ ": "
-			"Error mapping XLB in mpc52xx_setup_cpu().  "
+			"Error mapping XLB in mpc52xx_setup_cpu(). "
 			"Expect some abnormal behavior\n");
 		return;
 	}
@@ -216,7 +216,8 @@ mpc52xx_restart(char *cmd)
 		out_be32(&mpc52xx_wdt->count, 0x000000ff);
 		out_be32(&mpc52xx_wdt->mode, 0x00009004);
 	} else
-		printk("mpc52xx_restart: Can't access wdt. "
+		printk(KERN_ERR __FILE__ ": "
+			"mpc52xx_restart: Can't access wdt. "
 			"Restart impossible, system halted.\n");
 
 	while (1);
