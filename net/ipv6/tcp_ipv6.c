@@ -1088,7 +1088,7 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
 				(TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
 		*topt++ = htonl(tcp_time_stamp);
-		*topt = htonl(ts);
+		*topt++ = htonl(ts);
 	}
 
 #ifdef CONFIG_TCP_MD5SIG
