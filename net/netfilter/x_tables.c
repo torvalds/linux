@@ -58,10 +58,12 @@ static struct xt_af *xt;
 #define duprintf(format, args...)
 #endif
 
-static const char *const xt_prefix[NPROTO] = {
-	[AF_INET]	= "ip",
-	[AF_INET6]	= "ip6",
-	[NF_ARP]	= "arp",
+static const char *const xt_prefix[NFPROTO_NUMPROTO] = {
+	[NFPROTO_UNSPEC] = "x",
+	[NFPROTO_IPV4]   = "ip",
+	[NFPROTO_ARP]    = "arp",
+	[NFPROTO_BRIDGE] = "eb",
+	[NFPROTO_IPV6]   = "ip6",
 };
 
 /* Registration hooks for targets. */
@@ -932,7 +934,7 @@ int xt_proto_init(struct net *net, u_int8_t af)
 	struct proc_dir_entry *proc;
 #endif
 
-	if (af >= NPROTO)
+	if (af >= ARRAY_SIZE(xt_prefix))
 		return -EINVAL;
 
 
@@ -1001,7 +1003,7 @@ static int __net_init xt_net_init(struct net *net)
 {
 	int i;
 
-	for (i = 0; i < NPROTO; i++)
+	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		INIT_LIST_HEAD(&net->xt.tables[i]);
 	return 0;
 }
@@ -1014,11 +1016,11 @@ static int __init xt_init(void)
 {
 	int i, rv;
 
-	xt = kmalloc(sizeof(struct xt_af) * NPROTO, GFP_KERNEL);
+	xt = kmalloc(sizeof(struct xt_af) * NFPROTO_NUMPROTO, GFP_KERNEL);
 	if (!xt)
 		return -ENOMEM;
 
-	for (i = 0; i < NPROTO; i++) {
+	for (i = 0; i < NFPROTO_NUMPROTO; i++) {
 		mutex_init(&xt[i].mutex);
 #ifdef CONFIG_COMPAT
 		mutex_init(&xt[i].compat_mutex);
