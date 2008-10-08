@@ -5,10 +5,15 @@
 menu "IP: Netfilter Configuration"
 	depends on INET && NETFILTER
 
+config NF_DEFRAG_IPV4
+	tristate
+	default n
+
 config NF_CONNTRACK_IPV4
 	tristate "IPv4 connection tracking support (required for NAT)"
 	depends on NF_CONNTRACK
 	default m if NETFILTER_ADVANCED=n
+	select NF_DEFRAG_IPV4
 	---help---
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
