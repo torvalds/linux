@@ -123,7 +123,7 @@ static int count_them(struct xt_connlimit_data *data,
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, tmp, hash, list) {
-		found    = __nf_conntrack_find(&conn->tuple);
+		found    = __nf_conntrack_find(&init_net, &conn->tuple);
 		found_ct = NULL;
 
 		if (found != NULL)

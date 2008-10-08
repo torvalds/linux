@@ -51,7 +51,7 @@ static struct hlist_node *ct_get_first(struct seq_file *seq)
 	for (st->bucket = 0;
 	     st->bucket < nf_conntrack_htable_size;
 	     st->bucket++) {
-		n = rcu_dereference(nf_conntrack_hash[st->bucket].first);
+		n = rcu_dereference(init_net.ct.hash[st->bucket].first);
 		if (n)
 			return n;
 	}
@@ -67,7 +67,7 @@ static struct hlist_node *ct_get_next(struct seq_file *seq,
 	while (head == NULL) {
 		if (++st->bucket >= nf_conntrack_htable_size)
 			return NULL;
-		head = rcu_dereference(nf_conntrack_hash[st->bucket].first);
+		head = rcu_dereference(init_net.ct.hash[st->bucket].first);
 	}
 	return head;
 }

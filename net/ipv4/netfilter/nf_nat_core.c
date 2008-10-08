@@ -643,7 +643,7 @@ static int clean_nat(struct nf_conn *i, void *data)
 
 static void __exit nf_nat_cleanup(void)
 {
-	nf_ct_iterate_cleanup(&clean_nat, NULL);
+	nf_ct_iterate_cleanup(&init_net, &clean_nat, NULL);
 	synchronize_rcu();
 	nf_ct_free_hashtable(bysource, nf_nat_vmalloced, nf_nat_htable_size);
 	nf_ct_l3proto_put(l3proto);

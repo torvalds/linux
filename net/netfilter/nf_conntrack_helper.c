@@ -159,7 +159,7 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	hlist_for_each_entry(h, n, &unconfirmed, hnode)
 		unhelp(h, me);
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
-		hlist_for_each_entry(h, n, &nf_conntrack_hash[i], hnode)
+		hlist_for_each_entry(h, n, &init_net.ct.hash[i], hnode)
 			unhelp(h, me);
 	}
 	spin_unlock_bh(&nf_conntrack_lock);

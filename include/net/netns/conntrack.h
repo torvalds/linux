@@ -5,5 +5,7 @@
 
 struct netns_ct {
 	atomic_t		count;
+	struct hlist_head	*hash;
+	int			hash_vmalloc;
 };
 #endif
