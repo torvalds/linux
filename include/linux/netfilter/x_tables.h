@@ -251,6 +251,12 @@ struct xt_tgchk_param {
 	unsigned int hook_mask;
 };
 
+/* Target destructor parameters */
+struct xt_tgdtor_param {
+	const struct xt_target *target;
+	void *targinfo;
+};
+
 struct xt_match
 {
 	struct list_head list;
@@ -311,7 +317,7 @@ struct xt_target
 	bool (*checkentry)(const struct xt_tgchk_param *);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(const struct xt_target *target, void *targinfo);
+	void (*destroy)(const struct xt_tgdtor_param *);
 
 	/* Called when userspace align differs from kernel space one */
 	void (*compat_from_user)(void *dst, void *src);

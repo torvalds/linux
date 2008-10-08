@@ -793,6 +793,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 static int
 cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 {
+	struct xt_tgdtor_param par;
 	struct ip6t_entry_target *t;
 
 	if (i && (*i)-- == 0)
@@ -801,9 +802,12 @@ cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 	/* Cleanup all matches */
 	IP6T_MATCH_ITERATE(e, cleanup_match, NULL);
 	t = ip6t_get_target(e);
-	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->u.kernel.target, t->data);
-	module_put(t->u.kernel.target->me);
+
+	par.target   = t->u.kernel.target;
+	par.targinfo = t->data;
+	if (par.target->destroy != NULL)
+		par.target->destroy(&par);
+	module_put(par.target->me);
 	return 0;
 }
 

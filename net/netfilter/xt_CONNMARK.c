@@ -146,10 +146,9 @@ static bool connmark_tg_check(const struct xt_tgchk_param *par)
 	return true;
 }
 
-static void
-connmark_tg_destroy(const struct xt_target *target, void *targinfo)
+static void connmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	nf_ct_l3proto_module_put(target->family);
+	nf_ct_l3proto_module_put(par->target->family);
 }
 
 #ifdef CONFIG_COMPAT

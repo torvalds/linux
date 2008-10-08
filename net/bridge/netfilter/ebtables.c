@@ -581,18 +581,23 @@ ebt_cleanup_match(struct ebt_entry_match *m, unsigned int *i)
 static inline int
 ebt_cleanup_watcher(struct ebt_entry_watcher *w, unsigned int *i)
 {
+	struct xt_tgdtor_param par;
+
 	if (i && (*i)-- == 0)
 		return 1;
-	if (w->u.watcher->destroy)
-		w->u.watcher->destroy(w->u.watcher, w->data);
-	module_put(w->u.watcher->me);
 
+	par.target   = w->u.watcher;
+	par.targinfo = w->data;
+	if (par.target->destroy != NULL)
+		par.target->destroy(&par);
+	module_put(par.target->me);
 	return 0;
 }
 
 static inline int
 ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 {
+	struct xt_tgdtor_param par;
 	struct ebt_entry_target *t;
 
 	if (e->bitmask == 0)
@@ -603,10 +608,12 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 	EBT_WATCHER_ITERATE(e, ebt_cleanup_watcher, NULL);
 	EBT_MATCH_ITERATE(e, ebt_cleanup_match, NULL);
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
-	if (t->u.target->destroy)
-		t->u.target->destroy(t->u.target, t->data);
-	module_put(t->u.target->me);
 
+	par.target   = t->u.target;
+	par.targinfo = t->data;
+	if (par.target->destroy != NULL)
+		par.target->destroy(&par);
+	module_put(par.target->me);
 	return 0;
 }
 

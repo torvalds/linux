@@ -139,10 +139,9 @@ err1:
 	return false;
 }
 
-static void xt_rateest_tg_destroy(const struct xt_target *target,
-				  void *targinfo)
+static void xt_rateest_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	struct xt_rateest_target_info *info = targinfo;
+	struct xt_rateest_target_info *info = par->targinfo;
 
 	xt_rateest_put(info->est);
 }

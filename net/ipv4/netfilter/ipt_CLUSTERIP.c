@@ -411,9 +411,9 @@ static bool clusterip_tg_check(const struct xt_tgchk_param *par)
 }
 
 /* drop reference count of cluster config when rule is deleted */
-static void clusterip_tg_destroy(const struct xt_target *target, void *targinfo)
+static void clusterip_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
+	const struct ipt_clusterip_tgt_info *cipinfo = par->targinfo;
 
 	/* if no more entries are referencing the config, remove it
 	 * from the list and destroy the proc entry */
@@ -421,7 +421,7 @@ static void clusterip_tg_destroy(const struct xt_target *target, void *targinfo)
 
 	clusterip_config_put(cipinfo->config);
 
-	nf_ct_l3proto_module_put(target->family);
+	nf_ct_l3proto_module_put(par->target->family);
 }
 
 #ifdef CONFIG_COMPAT

@@ -114,10 +114,9 @@ static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 	return true;
 }
 
-static void
-connsecmark_tg_destroy(const struct xt_target *target, void *targinfo)
+static void connsecmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	nf_ct_l3proto_module_put(target->family);
+	nf_ct_l3proto_module_put(par->target->family);
 }
 
 static struct xt_target connsecmark_tg_reg[] __read_mostly = {

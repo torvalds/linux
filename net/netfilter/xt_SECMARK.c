@@ -113,7 +113,7 @@ static bool secmark_tg_check(const struct xt_tgchk_param *par)
 	return true;
 }
 
-static void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
+static void secmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
 	switch (mode) {
 	case SECMARK_MODE_SEL:

@@ -67,9 +67,13 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 
 static void ipt_destroy_target(struct ipt_entry_target *t)
 {
-	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->u.kernel.target, t->data);
-	module_put(t->u.kernel.target->me);
+	struct xt_tgdtor_param par = {
+		.target   = t->u.kernel.target,
+		.targinfo = t->data,
+	};
+	if (par.target->destroy != NULL)
+		par.target->destroy(&par);
+	module_put(par.target->me);
 }
 
 static int tcf_ipt_release(struct tcf_ipt *ipt, int bind)
