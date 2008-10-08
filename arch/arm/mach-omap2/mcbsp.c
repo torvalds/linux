@@ -28,7 +28,7 @@ struct mcbsp_internal_clk {
 	int n_childs;
 };
 
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP24XX)
 static void omap_mcbsp_clk_init(struct mcbsp_internal_clk *mclk)
 {
 	const char *clk_names[] = { "mcbsp_ick", "mcbsp_fck" };
@@ -117,18 +117,8 @@ static void omap2_mcbsp_request(unsigned int id)
 		omap2_mcbsp2_mux_setup();
 }
 
-static int omap2_mcbsp_check(unsigned int id)
-{
-	if (id > OMAP_MAX_MCBSP_COUNT - 1) {
-		printk(KERN_ERR "OMAP-McBSP: McBSP%d doesn't exist\n", id + 1);
-		return -ENODEV;
-	}
-	return 0;
-}
-
 static struct omap_mcbsp_ops omap2_mcbsp_ops = {
 	.request	= omap2_mcbsp_request,
-	.check		= omap2_mcbsp_check,
 };
 
 #ifdef CONFIG_ARCH_OMAP24XX
@@ -185,7 +175,7 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 #define OMAP34XX_MCBSP_PDATA_SZ		0
 #endif
 
-int __init omap2_mcbsp_init(void)
+static int __init omap2_mcbsp_init(void)
 {
 	int i;
 
@@ -196,12 +186,18 @@ int __init omap2_mcbsp_init(void)
 	}
 
 	if (cpu_is_omap24xx())
+		omap_mcbsp_count = OMAP24XX_MCBSP_PDATA_SZ;
+	if (cpu_is_omap34xx())
+		omap_mcbsp_count = OMAP34XX_MCBSP_PDATA_SZ;
+
+	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
+								GFP_KERNEL);
+	if (!mcbsp_ptr)
+		return -ENOMEM;
+
+	if (cpu_is_omap24xx())
 		omap_mcbsp_register_board_cfg(omap24xx_mcbsp_pdata,
 						OMAP24XX_MCBSP_PDATA_SZ);
-
-	if (cpu_is_omap34xx())
-		omap_mcbsp_register_board_cfg(omap34xx_mcbsp_pdata,
-						OMAP34XX_MCBSP_PDATA_SZ);
 
 	return omap_mcbsp_init();
 }

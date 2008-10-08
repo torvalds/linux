@@ -103,30 +103,6 @@ static inline void omap_mcbsp_clk_init(struct mcbsp_internal_clk *mclk)
 { }
 #endif
 
-static int omap1_mcbsp_check(unsigned int id)
-{
-	/* REVISIT: Check correctly for number of registered McBSPs */
-	if (cpu_is_omap730()) {
-		if (id > OMAP_MAX_MCBSP_COUNT - 2) {
-		       printk(KERN_ERR "OMAP-McBSP: McBSP%d doesn't exist\n",
-				id + 1);
-		       return -ENODEV;
-		}
-		return 0;
-	}
-
-	if (cpu_is_omap15xx() || cpu_is_omap16xx()) {
-		if (id > OMAP_MAX_MCBSP_COUNT - 1) {
-			printk(KERN_ERR "OMAP-McBSP: McBSP%d doesn't exist\n",
-				id + 1);
-			return -ENODEV;
-		}
-		return 0;
-	}
-
-	return -ENODEV;
-}
-
 static void omap1_mcbsp_request(unsigned int id)
 {
 	/*
@@ -151,7 +127,6 @@ static void omap1_mcbsp_free(unsigned int id)
 }
 
 static struct omap_mcbsp_ops omap1_mcbsp_ops = {
-	.check		= omap1_mcbsp_check,
 	.request	= omap1_mcbsp_request,
 	.free		= omap1_mcbsp_free,
 };
@@ -261,6 +236,18 @@ int __init omap1_mcbsp_init(void)
 			clk_register(&omap_mcbsp_clks[i].clk);
 		}
 	}
+
+	if (cpu_is_omap730())
+		omap_mcbsp_count = OMAP730_MCBSP_PDATA_SZ;
+	if (cpu_is_omap15xx())
+		omap_mcbsp_count = OMAP15XX_MCBSP_PDATA_SZ;
+	if (cpu_is_omap16xx())
+		omap_mcbsp_count = OMAP16XX_MCBSP_PDATA_SZ;
+
+	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
+								GFP_KERNEL);
+	if (!mcbsp_ptr)
+		return -ENOMEM;
 
 	if (cpu_is_omap730())
 		omap_mcbsp_register_board_cfg(omap730_mcbsp_pdata,
