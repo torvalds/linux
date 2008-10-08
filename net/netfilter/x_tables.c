@@ -342,7 +342,7 @@ int xt_check_match(const struct xt_match *match, unsigned short family,
 		return -EINVAL;
 	}
 	if (match->hooks && (hook_mask & ~match->hooks) != 0) {
-		printk("%s_tables: %s match: bad hook_mask %u/%u\n",
+		printk("%s_tables: %s match: bad hook_mask %#x/%#x\n",
 		       xt_prefix[family], match->name, hook_mask, match->hooks);
 		return -EINVAL;
 	}
@@ -483,7 +483,7 @@ int xt_check_target(const struct xt_target *target, unsigned short family,
 		return -EINVAL;
 	}
 	if (target->hooks && (hook_mask & ~target->hooks) != 0) {
-		printk("%s_tables: %s target: bad hook_mask %u/%u\n",
+		printk("%s_tables: %s target: bad hook_mask %#x/%#x\n",
 		       xt_prefix[family], target->name, hook_mask,
 		       target->hooks);
 		return -EINVAL;
