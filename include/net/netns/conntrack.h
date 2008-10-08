@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <asm/atomic.h>
 
+struct ctl_table_header;
 struct nf_conntrack_ecache;
 
 struct netns_ct {
@@ -15,6 +16,9 @@ struct netns_ct {
 	struct ip_conntrack_stat *stat;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	struct nf_conntrack_ecache *ecache;
+#endif
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header	*sysctl_header;
 #endif
 	int			hash_vmalloc;
 	int			expect_vmalloc;
