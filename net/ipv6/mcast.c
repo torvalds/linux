@@ -1474,7 +1474,7 @@ static void mld_sendpack(struct sk_buff *skb)
 		      dst_output);
 out:
 	if (!err) {
-		ICMP6MSGOUT_INC_STATS_BH(idev, ICMPV6_MLD2_REPORT);
+		ICMP6MSGOUT_INC_STATS_BH(net, idev, ICMPV6_MLD2_REPORT);
 		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTMSGS);
 		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
