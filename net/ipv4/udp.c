@@ -155,55 +155,23 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	write_lock_bh(&udp_hash_lock);
 
 	if (!snum) {
-		int i, low, high, remaining;
-		unsigned rover, best, best_size_so_far;
+		int low, high, remaining;
+		unsigned rand;
+		unsigned short first;
 
 		inet_get_local_port_range(&low, &high);
 		remaining = (high - low) + 1;
 
-		best_size_so_far = UINT_MAX;
-		best = rover = net_random() % remaining + low;
-
-		/* 1st pass: look for empty (or shortest) hash chain */
-		for (i = 0; i < UDP_HTABLE_SIZE; i++) {
-			int size = 0;
-
-			head = &udptable[udp_hashfn(net, rover)];
-			if (hlist_empty(head))
-				goto gotit;
-
-			sk_for_each(sk2, node, head) {
-				if (++size >= best_size_so_far)
-					goto next;
-			}
-			best_size_so_far = size;
-			best = rover;
-		next:
-			/* fold back if end of range */
-			if (++rover > high)
-				rover = low + ((rover - low)
-					       & (UDP_HTABLE_SIZE - 1));
-
-
+		rand = net_random();
+		snum = first = rand % remaining + low;
+		rand |= 1;
+		while (__udp_lib_lport_inuse(net, snum, udptable)) {
+			do {
+				snum = snum + rand;
+			} while (snum < low || snum > high);
+			if (snum == first)
+				goto fail;
 		}
-
-		/* 2nd pass: find hole in shortest hash chain */
-		rover = best;
-		for (i = 0; i < (1 << 16) / UDP_HTABLE_SIZE; i++) {
-			if (! __udp_lib_lport_inuse(net, rover, udptable))
-				goto gotit;
-			rover += UDP_HTABLE_SIZE;
-			if (rover > high)
-				rover = low + ((rover - low)
-					       & (UDP_HTABLE_SIZE - 1));
-		}
-
-
-		/* All ports in use! */
-		goto fail;
-
-gotit:
-		snum = rover;
 	} else {
 		head = &udptable[udp_hashfn(net, snum)];
 
