@@ -535,68 +535,6 @@ EXPORT_SYMBOL(twl4030_i2c_read_u8);
 
 /*----------------------------------------------------------------------*/
 
-/*
- * do_twl4030_module_irq() is the desc->handle method for each of the twl4030
- * module interrupts that doesn't chain to another irq_chip (GPIO, power, etc).
- * It executes in kernel thread context.  On entry, cpu interrupts are disabled.
- */
-static void do_twl4030_module_irq(unsigned int irq, irq_desc_t *desc)
-{
-	struct irqaction *action;
-	const unsigned int cpu = smp_processor_id();
-
-	/*
-	 * Earlier this was desc->triggered = 1;
-	 */
-	desc->status |= IRQ_LEVEL;
-
-	/*
-	 * The desc->handle method would normally call the desc->chip->ack
-	 * method here, but we won't bother since our ack method is NULL.
-	 */
-
-	if (!desc->depth) {
-		kstat_cpu(cpu).irqs[irq]++;
-
-		action = desc->action;
-		if (action) {
-			int ret;
-			int status = 0;
-			int retval = 0;
-
-			local_irq_enable();
-
-			do {
-				/* Call the ISR with cpu interrupts enabled */
-				ret = action->handler(irq, action->dev_id);
-				if (ret == IRQ_HANDLED)
-					status |= action->flags;
-				retval |= ret;
-				action = action->next;
-			} while (action);
-
-			if (status & IRQF_SAMPLE_RANDOM)
-				add_interrupt_randomness(irq);
-
-			local_irq_disable();
-
-			if (retval != IRQ_HANDLED)
-				printk(KERN_ERR "ISR for TWL4030 module"
-					" irq %d can't handle interrupt\n",
-					irq);
-
-			/*
-			 * Here is where we should call the unmask method, but
-			 * again we won't bother since it is NULL.
-			 */
-		} else
-			printk(KERN_CRIT "TWL4030 module irq %d has no ISR"
-					" but can't be masked!\n", irq);
-	} else
-		printk(KERN_CRIT "TWL4030 module irq %d is disabled but can't"
-				" be masked!\n", irq);
-}
-
 static unsigned twl4030_irq_base;
 
 static struct completion irq_event;
@@ -611,7 +549,6 @@ static int twl4030_irq_thread(void *data)
 	static unsigned i2c_errors;
 	const static unsigned max_i2c_errors = 100;
 
-	daemonize("twl4030-irq");
 	current->flags |= PF_NOFREEZE;
 
 	while (!kthread_should_stop()) {
@@ -691,8 +628,7 @@ static struct task_struct * __init start_twl4030_irq_thread(long irq)
 	struct task_struct *thread;
 
 	init_completion(&irq_event);
-	thread = kthread_run(twl4030_irq_thread, (void *)irq,
-			     "twl4030 irq %ld", irq);
+	thread = kthread_run(twl4030_irq_thread, (void *)irq, "twl4030-irq");
 	if (!thread)
 		pr_err("%s: could not create twl4030 irq %ld thread!\n",
 		       DRIVER_NAME, irq);
@@ -1126,7 +1062,7 @@ static void twl_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	/* install an irq handler for each of the PIH modules */
 	for (i = irq_base; i < irq_end; i++) {
 		set_irq_chip_and_handler(i, &twl4030_irq_chip,
-				do_twl4030_module_irq);
+				handle_simple_irq);
 		activate_irq(i);
 	}
 
