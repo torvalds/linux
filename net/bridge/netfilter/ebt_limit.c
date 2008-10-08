@@ -35,7 +35,7 @@ ebt_limit_mt(const struct sk_buff *skb, const struct net_device *in,
 	     const struct net_device *out, const struct xt_match *match,
 	     const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
-	struct ebt_limit_info *info = (struct ebt_limit_info *)data;
+	struct ebt_limit_info *info = (void *)data;
 	unsigned long now = jiffies;
 
 	spin_lock_bh(&limit_lock);

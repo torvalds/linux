@@ -24,7 +24,7 @@ ebt_nflog_tg(struct sk_buff *skb, const struct net_device *in,
 	     const struct net_device *out, unsigned int hooknr,
 	     const struct xt_target *target, const void *data)
 {
-	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
+	const struct ebt_nflog_info *info = data;
 	struct nf_loginfo li;
 
 	li.type = NF_LOG_TYPE_ULOG;
@@ -41,7 +41,7 @@ ebt_nflog_tg_check(const char *table, const void *e,
 		   const struct xt_target *target, void *data,
 		   unsigned int hookmask)
 {
-	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
+	struct ebt_nflog_info *info = data;
 
 	if (info->flags & ~EBT_NFLOG_MASK)
 		return false;

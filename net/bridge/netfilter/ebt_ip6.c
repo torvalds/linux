@@ -32,7 +32,7 @@ ebt_ip6_mt(const struct sk_buff *skb, const struct net_device *in,
 	   const struct net_device *out, const struct xt_match *match,
 	   const void *data, int offset, unsigned int protoff, bool *hotdrop)
 {
-	const struct ebt_ip6_info *info = (struct ebt_ip6_info *)data;
+	const struct ebt_ip6_info *info = data;
 	const struct ipv6hdr *ih6;
 	struct ipv6hdr _ip6h;
 	const struct tcpudphdr *pptr;
@@ -98,7 +98,7 @@ ebt_ip6_mt_check(const char *table, const void *entry,
 		 unsigned int hook_mask)
 {
 	const struct ebt_entry *e = entry;
-	struct ebt_ip6_info *info = (struct ebt_ip6_info *)data;
+	struct ebt_ip6_info *info = data;
 
 	if (e->ethproto != htons(ETH_P_IPV6) || e->invflags & EBT_IPROTO)
 		return false;
