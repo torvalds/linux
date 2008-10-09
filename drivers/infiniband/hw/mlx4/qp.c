@@ -1058,6 +1058,9 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	else
 		sqd_event = 0;
 
+	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+		context->rlkey |= (1 << 4);
+
 	/*
 	 * Before passing a kernel QP to the HW, make sure that the
 	 * ownership bits of the send queue are set and the SQ
