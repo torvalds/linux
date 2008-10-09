@@ -1025,8 +1025,19 @@ void show_regs(struct pt_regs *fp)
 	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
 	printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
 		(long)fp->seqstat, fp->ipend, fp->syscfg);
-	printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
-		(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14);
+	if ((fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR) {
+		printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
+			(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14);
+#ifdef EBIU_ERRMST
+		/* If the error was from the EBIU, print it out */
+		if (bfin_read_EBIU_ERRMST() & CORE_ERROR) {
+			printk(KERN_NOTICE "  EBIU Error Reason  : 0x%04x\n",
+				bfin_read_EBIU_ERRMST());
+			printk(KERN_NOTICE "  EBIU Error Address : 0x%08x\n",
+				bfin_read_EBIU_ERRADD());
+		}
+#endif
+	}
 	printk(KERN_NOTICE "  EXCAUSE   : 0x%lx\n",
 		fp->seqstat & SEQSTAT_EXCAUSE);
 	for (i = 6; i <= 15 ; i++) {
