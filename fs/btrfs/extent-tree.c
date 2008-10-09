@@ -1151,6 +1151,14 @@ int btrfs_cache_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		ret = btrfs_add_leaf_ref(root, ref, shared);
+		if (ret == -EEXIST && shared) {
+			struct btrfs_leaf_ref *old;
+			old = btrfs_lookup_leaf_ref(root, ref->bytenr);
+			BUG_ON(!old);
+			btrfs_remove_leaf_ref(root, old);
+			btrfs_free_leaf_ref(root, old);
+			ret = btrfs_add_leaf_ref(root, ref, shared);
+		}
 		WARN_ON(ret);
 		btrfs_free_leaf_ref(root, ref);
 	}

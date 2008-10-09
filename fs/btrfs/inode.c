@@ -48,6 +48,7 @@
 #include "xattr.h"
 #include "compat.h"
 #include "tree-log.h"
+#include "ref-cache.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -1416,6 +1417,9 @@ static noinline int drop_csum_leaves(struct btrfs_trans_handle *trans,
 	int nritems;
 	struct btrfs_key found_key;
 	struct btrfs_key other_key;
+	struct btrfs_leaf_ref *ref;
+	u64 leaf_gen;
+	u64 leaf_start;
 
 	path->lowest_level = 1;
 	key.objectid = inode->i_ino;
@@ -1509,15 +1513,31 @@ next_node:
 	if (other_key.objectid != inode->i_ino || other_key.type != key.type)
 		goto out;
 
+	leaf_start = btrfs_node_blockptr(path->nodes[1], path->slots[1]);
+	leaf_gen = btrfs_node_ptr_generation(path->nodes[1], path->slots[1]);
 	/*
 	 * it is safe to delete this leaf, it contains only
 	 * csum items from this inode at an offset >= new_size
 	 */
-	ret = btrfs_del_leaf(trans, root, path,
-			     btrfs_node_blockptr(path->nodes[1],
-						 path->slots[1]));
+	ret = btrfs_del_leaf(trans, root, path, leaf_start);
 	BUG_ON(ret);
 
+	if (root->ref_cows && leaf_gen < trans->transid) {
+		ref = btrfs_alloc_leaf_ref(root, 0);
+		if (ref) {
+			ref->root_gen = root->root_key.offset;
+			ref->bytenr = leaf_start;
+			ref->owner = 0;
+			ref->generation = leaf_gen;
+			ref->nritems = 0;
+
+			ret = btrfs_add_leaf_ref(root, ref, 0);
+			WARN_ON(ret);
+			btrfs_free_leaf_ref(root, ref);
+		} else {
+			WARN_ON(1);
+		}
+	}
 next_key:
 	btrfs_release_path(root, path);
 
