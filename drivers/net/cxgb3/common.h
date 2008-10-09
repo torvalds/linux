@@ -358,6 +358,7 @@ struct qset_params {		/* SGE queue set parameters */
 	unsigned int jumbo_size;	/* # of entries in jumbo free list */
 	unsigned int txq_size[SGE_TXQ_PER_SET];	/* Tx queue sizes */
 	unsigned int cong_thres;	/* FL congestion threshold */
+	unsigned int vector;		/* Interrupt (line or vector) number */
 };
 
 struct sge_params {

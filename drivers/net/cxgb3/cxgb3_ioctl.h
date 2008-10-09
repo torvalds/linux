@@ -92,6 +92,8 @@ struct ch_qset_params {
 	int32_t polling;
 	int32_t lro;
 	int32_t cong_thres;
+	int32_t  vector;
+	int32_t  qnum;
 };
 
 struct ch_pktsched_params {
