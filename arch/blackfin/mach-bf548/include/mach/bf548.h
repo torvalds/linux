@@ -30,8 +30,6 @@
 #ifndef __MACH_BF548_H__
 #define __MACH_BF548_H__
 
-#define SUPPORTED_REVID 0
-
 #define OFFSET_(x) ((x) & 0x0000FFFF)
 
 /*some misc defines*/

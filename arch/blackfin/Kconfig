@@ -166,6 +166,19 @@ config BF561
 
 endchoice
 
+config BF_REV_MIN
+	int
+	default 0 if (BF52x || BF54x)
+	default 2 if (BF537 || BF536 || BF534)
+	default 3 if (BF561 ||BF533 || BF532 || BF531)
+
+config BF_REV_MAX
+	int
+	default 2 if (BF52x || BF54x)
+	default 3 if (BF537 || BF536 || BF534)
+	default 5 if (BF561)
+	default 6 if (BF533 || BF532 || BF531)
+
 choice
 	prompt "Silicon Rev"
 	default BF_REV_0_1 if (BF52x || BF54x)
