@@ -14,5 +14,6 @@
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state);
 void rfkill_epo(void);
 void rfkill_restore_states(void);
+enum rfkill_state rfkill_get_global_state(const enum rfkill_type type);
 
 #endif /* __RFKILL_INPUT_H */

@@ -324,6 +324,19 @@ void rfkill_restore_states(void)
 EXPORT_SYMBOL_GPL(rfkill_restore_states);
 
 /**
+ * rfkill_get_global_state - returns global state for a type
+ * @type: the type to get the global state of
+ *
+ * Returns the current global state for a given wireless
+ * device type.
+ */
+enum rfkill_state rfkill_get_global_state(const enum rfkill_type type)
+{
+	return rfkill_global_states[type].current_state;
+}
+EXPORT_SYMBOL_GPL(rfkill_get_global_state);
+
+/**
  * rfkill_force_state - Force the internal rfkill radio state
  * @rfkill: pointer to the rfkill class to modify.
  * @state: the current radio state the class should be forced to.
@@ -834,6 +847,7 @@ int rfkill_set_default(enum rfkill_type type, enum rfkill_state state)
 
 	if (!test_and_set_bit(type, rfkill_states_lockdflt)) {
 		rfkill_global_states[type].default_state = state;
+		rfkill_global_states[type].current_state = state;
 		error = 0;
 	} else
 		error = -EPERM;
