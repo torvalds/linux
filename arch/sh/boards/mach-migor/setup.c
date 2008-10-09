@@ -37,7 +37,7 @@
  */
 
 static struct smc91x_platdata smc91x_info = {
-	.flags = SMC91X_USE_16BIT,
+	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
 };
 
 static struct resource smc91x_eth_resources[] = {
@@ -463,8 +463,10 @@ static int __init migor_devices_setup(void)
 	gpio_direction_output(GPIO_PTJ5, 1);
 	gpio_export(GPIO_PTJ5, 0);
 
-	/* SMC91C111 */
+	/* SMC91C111 - Enable IRQ0, Setup CS4 for 16-bit fast access */
 	gpio_request(GPIO_FN_IRQ0, NULL);
+	ctrl_outl(0x00003400, BSC_CS4BCR);
+	ctrl_outl(0x00110080, BSC_CS4WCR);
 
 	/* KEYSC */
 	clk_always_enable("mstp214"); /* KEYSC */
