@@ -144,8 +144,8 @@ prototypes:
 	void (*kill_sb) (struct super_block *);
 locking rules:
 		may block	BKL
-get_sb		yes		yes
-kill_sb		yes		yes
+get_sb		yes		no
+kill_sb		yes		no
 
 ->get_sb() returns error or 0 with locked superblock attached to the vfsmount
 (exclusive on ->s_umount).
@@ -409,12 +409,12 @@ ioctl:			yes	(see below)
 unlocked_ioctl:		no	(see below)
 compat_ioctl:		no
 mmap:			no
-open:			maybe	(see below)
+open:			no
 flush:			no
 release:		no
 fsync:			no	(see below)
 aio_fsync:		no
-fasync:			yes	(see below)
+fasync:			no
 lock:			yes
 readv:			no
 writev:			no
@@ -430,13 +430,6 @@ need to acquire and release the appropriate locks in your ->llseek().
 For many filesystems, it is probably safe to acquire the inode
 semaphore.  Note some filesystems (i.e. remote ones) provide no
 protection for i_size so you will need to use the BKL.
-
-->open() locking is in-transit: big lock partially moved into the methods.
-The only exception is ->open() in the instances of file_operations that never
-end up in ->i_fop/->proc_fops, i.e. ones that belong to character devices
-(chrdev_open() takes lock before replacing ->f_op and calling the secondary
-method. As soon as we fix the handling of module reference counters all
-instances of ->open() will be called without the BKL.
 
 Note: ext2_release() was *the* source of contention on fs-intensive
 loads and dropping BKL on ->release() helps to get rid of that (we still

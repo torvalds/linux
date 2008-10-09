@@ -126,11 +126,11 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Bootloader Area",
 		.offset	= 0,
-		.size	= 10 * 1024 * 1024,
+		.size	= 10 * SZ_1M,
 	},
 	{
 		.name	= "User Area",
-		.offset	= 10 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };

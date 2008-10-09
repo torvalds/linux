@@ -719,6 +719,60 @@ static void __init at91_add_device_watchdog(void) {}
 
 
 /* --------------------------------------------------------------------
+ *  PWM
+ * --------------------------------------------------------------------*/
+
+#if defined(CONFIG_ATMEL_PWM)
+static u32 pwm_mask;
+
+static struct resource pwm_resources[] = {
+	[0] = {
+		.start	= AT91CAP9_BASE_PWMC,
+		.end	= AT91CAP9_BASE_PWMC + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91CAP9_ID_PWMC,
+		.end	= AT91CAP9_ID_PWMC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91cap9_pwm0_device = {
+	.name	= "atmel_pwm",
+	.id	= -1,
+	.dev	= {
+		.platform_data		= &pwm_mask,
+	},
+	.resource	= pwm_resources,
+	.num_resources	= ARRAY_SIZE(pwm_resources),
+};
+
+void __init at91_add_device_pwm(u32 mask)
+{
+	if (mask & (1 << AT91_PWM0))
+		at91_set_A_periph(AT91_PIN_PB19, 1);	/* enable PWM0 */
+
+	if (mask & (1 << AT91_PWM1))
+		at91_set_B_periph(AT91_PIN_PB8, 1);	/* enable PWM1 */
+
+	if (mask & (1 << AT91_PWM2))
+		at91_set_B_periph(AT91_PIN_PC29, 1);	/* enable PWM2 */
+
+	if (mask & (1 << AT91_PWM3))
+		at91_set_B_periph(AT91_PIN_PA11, 1);	/* enable PWM3 */
+
+	pwm_mask = mask;
+
+	platform_device_register(&at91cap9_pwm0_device);
+}
+#else
+void __init at91_add_device_pwm(u32 mask) {}
+#endif
+
+
+
+/* --------------------------------------------------------------------
  *  AC97
  * -------------------------------------------------------------------- */
 

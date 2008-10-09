@@ -1,6 +1,8 @@
 /*
  * arch/arm/mach-at91/include/mach/at91sam9261_matrix.h
  *
+ *  Copyright (C) 2007 Atmel Corporation.
+ *
  * Memory Controllers (MATRIX, EBI) - System peripherals registers.
  * Based on AT91SAM9261 datasheet revision D.
  *

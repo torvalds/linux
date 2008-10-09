@@ -1,6 +1,9 @@
 /*
  * arch/arm/mach-at91/include/mach/at91sam9_smc.h
  *
+ * Copyright (C) 2007 Andrew Victor
+ * Copyright (C) 2007 Atmel Corporation.
+ *
  * Static Memory Controllers (SMC) - System peripherals registers.
  * Based on AT91SAM9261 datasheet revision D.
  *

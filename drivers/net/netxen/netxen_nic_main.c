@@ -359,16 +359,6 @@ static void netxen_pcie_strap_init(struct netxen_adapter *adapter)
 	int i, pos;
 	struct pci_dev *pdev;
 
-	pdev = pci_get_device(0x1166, 0x0140, NULL);
-	if (pdev) {
-		pci_dev_put(pdev);
-		adapter->hw_read_wx(adapter,
-			NETXEN_PCIE_REG(PCIE_TGT_SPLIT_CHICKEN), &chicken, 4);
-		chicken |= 0x4000;
-		adapter->hw_write_wx(adapter,
-			NETXEN_PCIE_REG(PCIE_TGT_SPLIT_CHICKEN), &chicken, 4);
-	}
-
 	pdev = adapter->pdev;
 
 	adapter->hw_read_wx(adapter,
