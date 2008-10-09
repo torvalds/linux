@@ -2,6 +2,7 @@ menuconfig NET_DSA
 	bool "Distributed Switch Architecture support"
 	default n
 	depends on EXPERIMENTAL
+	select PHYLIB
 	---help---
 	  This allows you to use hardware switch chips that use
 	  the Distributed Switch Architecture.
