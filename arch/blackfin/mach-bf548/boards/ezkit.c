@@ -462,7 +462,7 @@ static struct mtd_partition ezkit_partitions[] = {
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
-		.size       = 0x1C0000,
+		.size       = 0x400000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "file system(nor)",
@@ -479,7 +479,7 @@ static struct physmap_flash_data ezkit_flash_data = {
 
 static struct resource ezkit_flash_resource = {
 	.start = 0x20000000,
-	.end   = 0x20ffffff,
+	.end   = 0x21ffffff,
 	.flags = IORESOURCE_MEM,
 };
 
