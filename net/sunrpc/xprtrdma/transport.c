@@ -71,6 +71,7 @@ static unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_inline_write_padding;
 static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_FRMR;
+                int xprt_rdma_pad_optimize = 0;
 
 #ifdef RPC_DEBUG
 
@@ -134,6 +135,14 @@ static ctl_table xr_tunables_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &min_memreg,
 		.extra2		= &max_memreg,
+	},
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname	= "rdma_pad_optimize",
+		.data		= &xprt_rdma_pad_optimize,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 	{
 		.ctl_name = 0,

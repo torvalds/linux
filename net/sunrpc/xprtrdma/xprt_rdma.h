@@ -280,6 +280,11 @@ struct rpcrdma_xprt {
 #define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, xprt)
 #define rpcx_to_rdmad(x) (rpcx_to_rdmax(x)->rx_data)
 
+/* Setting this to 0 ensures interoperability with early servers.
+ * Setting this to 1 enhances certain unaligned read/write performance.
+ * Default is 0, see sysctl entry and rpc_rdma.c rpcrdma_convert_iovs() */
+extern int xprt_rdma_pad_optimize;
+
 /*
  * Interface Adapter calls - xprtrdma/verbs.c
  */
