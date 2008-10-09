@@ -382,10 +382,10 @@ void iwl_reset_qos(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_reset_qos);
 
-#define MAX_BIT_RATE_40_MHZ 0x96 /* 150 Mbps */
-#define MAX_BIT_RATE_20_MHZ 0x48 /* 72 Mbps */
+#define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
+#define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
 static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
-			      struct ieee80211_ht_info *ht_info,
+			      struct ieee80211_sta_ht_cap *ht_info,
 			      enum ieee80211_band band)
 {
 	u16 max_bit_rate = 0;
@@ -393,45 +393,46 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 
 	ht_info->cap = 0;
-	memset(ht_info->supp_mcs_set, 0, 16);
+	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
 
-	ht_info->ht_supported = 1;
+	ht_info->ht_supported = true;
 
-	ht_info->cap |= (u16)IEEE80211_HT_CAP_GRN_FLD;
-	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
-	ht_info->cap |= (u16)(IEEE80211_HT_CAP_SM_PS &
+	ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
+	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+	ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
 			     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
 
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 	if (priv->hw_params.fat_channel & BIT(band)) {
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
-		ht_info->supp_mcs_set[4] = 0x01;
+		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
+		ht_info->mcs.rx_mask[4] = 0x01;
 		max_bit_rate = MAX_BIT_RATE_40_MHZ;
 	}
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_MAX_AMSDU;
+		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
 	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
 
-	ht_info->supp_mcs_set[0] = 0xFF;
+	ht_info->mcs.rx_mask[0] = 0xFF;
 	if (rx_chains_num >= 2)
-		ht_info->supp_mcs_set[1] = 0xFF;
+		ht_info->mcs.rx_mask[1] = 0xFF;
 	if (rx_chains_num >= 3)
-		ht_info->supp_mcs_set[2] = 0xFF;
+		ht_info->mcs.rx_mask[2] = 0xFF;
 
 	/* Highest supported Rx data rate */
 	max_bit_rate *= rx_chains_num;
-	ht_info->supp_mcs_set[10] = (u8)(max_bit_rate & 0x00FF);
-	ht_info->supp_mcs_set[11] = (u8)((max_bit_rate & 0xFF00) >> 8);
+	WARN_ON(max_bit_rate & ~IEEE80211_HT_MCS_RX_HIGHEST_MASK);
+	ht_info->mcs.rx_highest = cpu_to_le16(max_bit_rate);
 
 	/* Tx MCS capabilities */
-	ht_info->supp_mcs_set[12] = IEEE80211_HT_CAP_MCS_TX_DEFINED;
+	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	if (tx_chains_num != rx_chains_num) {
-		ht_info->supp_mcs_set[12] |= IEEE80211_HT_CAP_MCS_TX_RX_DIFF;
-		ht_info->supp_mcs_set[12] |= ((tx_chains_num - 1) << 2);
+		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
+		ht_info->mcs.tx_params |= ((tx_chains_num - 1) <<
+				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
 	}
 }
 
@@ -495,7 +496,7 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 	sband->n_bitrates = IWL_RATE_COUNT - IWL_FIRST_OFDM_RATE;
 
 	if (priv->cfg->sku & IWL_SKU_N)
-		iwlcore_init_ht_hw_capab(priv, &sband->ht_info,
+		iwlcore_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_5GHZ);
 
 	sband = &priv->bands[IEEE80211_BAND_2GHZ];
@@ -505,7 +506,7 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 	sband->n_bitrates = IWL_RATE_COUNT;
 
 	if (priv->cfg->sku & IWL_SKU_N)
-		iwlcore_init_ht_hw_capab(priv, &sband->ht_info,
+		iwlcore_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_2GHZ);
 
 	priv->ieee_channels = channels;
@@ -595,8 +596,8 @@ static void iwlcore_free_geos(struct iwl_priv *priv)
 static bool is_single_rx_stream(struct iwl_priv *priv)
 {
 	return !priv->current_ht_config.is_ht ||
-	       ((priv->current_ht_config.supp_mcs_set[1] == 0) &&
-		(priv->current_ht_config.supp_mcs_set[2] == 0));
+	       ((priv->current_ht_config.mcs.rx_mask[1] == 0) &&
+		(priv->current_ht_config.mcs.rx_mask[2] == 0));
 }
 
 static u8 iwl_is_channel_extension(struct iwl_priv *priv,
@@ -609,10 +610,10 @@ static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return 0;
 
-	if (extension_chan_offset == IEEE80211_HT_IE_CHA_SEC_ABOVE)
+	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
 		return !(ch_info->fat_extension_channel &
 					IEEE80211_CHAN_NO_FAT_ABOVE);
-	else if (extension_chan_offset == IEEE80211_HT_IE_CHA_SEC_BELOW)
+	else if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
 		return !(ch_info->fat_extension_channel &
 					IEEE80211_CHAN_NO_FAT_BELOW);
 
@@ -620,18 +621,18 @@ static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 }
 
 u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
-			     struct ieee80211_ht_info *sta_ht_inf)
+			 struct ieee80211_sta_ht_cap *sta_ht_inf)
 {
 	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
 
 	if ((!iwl_ht_conf->is_ht) ||
 	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
-	   (iwl_ht_conf->extension_chan_offset == IEEE80211_HT_IE_CHA_SEC_NONE))
+	   (iwl_ht_conf->extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_NONE))
 		return 0;
 
 	if (sta_ht_inf) {
 		if ((!sta_ht_inf->ht_supported) ||
-		   (!(sta_ht_inf->cap & IEEE80211_HT_CAP_SUP_WIDTH)))
+		   (!(sta_ht_inf->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)))
 			return 0;
 	}
 
@@ -671,13 +672,13 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 
 	/* Note: control channel is opposite of extension channel */
 	switch (ht_info->extension_chan_offset) {
-	case IEEE80211_HT_IE_CHA_SEC_ABOVE:
+	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 		rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
 		break;
-	case IEEE80211_HT_IE_CHA_SEC_BELOW:
+	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 		rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
 		break;
-	case IEEE80211_HT_IE_CHA_SEC_NONE:
+	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
 	default:
 		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
 		break;
@@ -693,9 +694,9 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 			"rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x "
 			"control chan %d\n",
-			ht_info->supp_mcs_set[0],
-			ht_info->supp_mcs_set[1],
-			ht_info->supp_mcs_set[2],
+			ht_info->mcs.rx_mask[0],
+			ht_info->mcs.rx_mask[1],
+			ht_info->mcs.rx_mask[2],
 			le32_to_cpu(rxon->flags), ht_info->ht_protection,
 			ht_info->extension_chan_offset,
 			ht_info->control_channel);

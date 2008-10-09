@@ -1119,7 +1119,7 @@ int ath_rx_aggr_start(struct ath_softc *sc,
 
 	sband = hw->wiphy->bands[hw->conf.channel->band];
 	buffersize = IEEE80211_MIN_AMPDU_BUF <<
-		sband->ht_info.ampdu_factor; /* FIXME */
+		sband->ht_cap.ampdu_factor; /* FIXME */
 
 	rxtid = &an->an_aggr.rx.tid[tid];
 

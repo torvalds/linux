@@ -411,7 +411,7 @@ struct iwl_ht_info {
 	u8 max_amsdu_size;
 	u8 ampdu_factor;
 	u8 mpdu_density;
-	u8 supp_mcs_set[16];
+	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
 	u8 control_channel;
 	u8 extension_chan_offset;
@@ -585,7 +585,7 @@ struct iwl_addsta_cmd;
 extern int iwl_send_add_sta(struct iwl_priv *priv,
 			    struct iwl_addsta_cmd *sta, u8 flags);
 extern u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr,
-			int is_ap, u8 flags, struct ieee80211_ht_info *ht_info);
+			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
 extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
 extern int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 extern const u8 iwl_bcast_addr[ETH_ALEN];

@@ -300,7 +300,7 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	if (ieee80211_is_data(fc) && !txctl->use_minrate) {
 
 		/* Enable HT only for DATA frames and not for EAPOL */
-		txctl->ht = (hw->conf.ht_conf.ht_supported &&
+		txctl->ht = (hw->conf.ht_cap.ht_supported &&
 			    (tx_info->flags & IEEE80211_TX_CTL_AMPDU));
 
 		if (is_multicast_ether_addr(hdr->addr1)) {

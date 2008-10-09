@@ -190,7 +190,7 @@ void iwl_set_rxon_chain(struct iwl_priv *priv);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
 u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
-			 struct ieee80211_ht_info *sta_ht_inf);
+			 struct ieee80211_sta_ht_cap *sta_ht_inf);
 int iwl_hw_nic_init(struct iwl_priv *priv);
 int iwl_setup_mac(struct iwl_priv *priv);
 int iwl_set_hw_params(struct iwl_priv *priv);

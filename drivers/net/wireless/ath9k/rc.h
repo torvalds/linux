@@ -59,7 +59,6 @@ struct ath_softc;
 #define FALSE 0
 
 #define ATH_RATE_MAX	30
-#define MCS_SET_SIZE	128
 
 enum ieee80211_fixed_rate_mode {
 	IEEE80211_FIXED_RATE_NONE  = 0,

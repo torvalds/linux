@@ -147,7 +147,7 @@ static int ieee80211_ioctl_giwname(struct net_device *dev,
 	sband = local->hw.wiphy->bands[IEEE80211_BAND_5GHZ];
 	if (sband) {
 		is_a = 1;
-		is_ht |= sband->ht_info.ht_supported;
+		is_ht |= sband->ht_cap.ht_supported;
 	}
 
 	sband = local->hw.wiphy->bands[IEEE80211_BAND_2GHZ];
@@ -160,7 +160,7 @@ static int ieee80211_ioctl_giwname(struct net_device *dev,
 			if (sband->bitrates[i].bitrate == 60)
 				is_g = 1;
 		}
-		is_ht |= sband->ht_info.ht_supported;
+		is_ht |= sband->ht_cap.ht_supported;
 	}
 
 	strcpy(name, "IEEE 802.11");

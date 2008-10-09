@@ -236,7 +236,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *ies, *ht_add_ie;
+	u8 *pos, *ies, *ht_ie;
 	int i, len, count, rates_len, supp_rates_len;
 	u16 capab;
 	struct ieee80211_bss *bss;
@@ -393,24 +393,25 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 
 	/* wmm support is a must to HT */
 	if (wmm && (ifsta->flags & IEEE80211_STA_WMM_ENABLED) &&
-	    sband->ht_info.ht_supported &&
-	    (ht_add_ie = ieee80211_bss_get_ie(bss, WLAN_EID_HT_EXTRA_INFO))) {
-		struct ieee80211_ht_addt_info *ht_add_info =
-			(struct ieee80211_ht_addt_info *)ht_add_ie;
-		u16 cap = sband->ht_info.cap;
+	    sband->ht_cap.ht_supported &&
+	    (ht_ie = ieee80211_bss_get_ie(bss, WLAN_EID_HT_INFORMATION)) &&
+	    ht_ie[1] >= sizeof(struct ieee80211_ht_info)) {
+		struct ieee80211_ht_info *ht_info =
+			(struct ieee80211_ht_info *)(ht_ie + 2);
+		u16 cap = sband->ht_cap.cap;
 		__le16 tmp;
 		u32 flags = local->hw.conf.channel->flags;
 
-		switch (ht_add_info->ht_param & IEEE80211_HT_IE_CHA_SEC_OFFSET) {
-		case IEEE80211_HT_IE_CHA_SEC_ABOVE:
+		switch (ht_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 			if (flags & IEEE80211_CHAN_NO_FAT_ABOVE) {
-				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH;
+				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				cap &= ~IEEE80211_HT_CAP_SGI_40;
 			}
 			break;
-		case IEEE80211_HT_IE_CHA_SEC_BELOW:
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 			if (flags & IEEE80211_CHAN_NO_FAT_BELOW) {
-				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH;
+				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				cap &= ~IEEE80211_HT_CAP_SGI_40;
 			}
 			break;
@@ -424,9 +425,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		memcpy(pos, &tmp, sizeof(u16));
 		pos += sizeof(u16);
 		/* TODO: needs a define here for << 2 */
-		*pos++ = sband->ht_info.ampdu_factor |
-			 (sband->ht_info.ampdu_density << 2);
-		memcpy(pos, sband->ht_info.supp_mcs_set, 16);
+		*pos++ = sband->ht_cap.ampdu_factor |
+			 (sband->ht_cap.ampdu_density << 2);
+		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
 	}
 
 	kfree(ifsta->assocreq_ies);
@@ -730,7 +731,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
 		changed |= BSS_CHANGED_HT;
 		sdata->bss_conf.assoc_ht = 1;
-		sdata->bss_conf.ht_conf = &conf->ht_conf;
+		sdata->bss_conf.ht_cap = &conf->ht_cap;
 		sdata->bss_conf.ht_bss_conf = &conf->ht_bss_conf;
 	}
 
@@ -850,7 +851,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_HT;
 
 	sdata->bss_conf.assoc_ht = 0;
-	sdata->bss_conf.ht_conf = NULL;
+	sdata->bss_conf.ht_cap = NULL;
 	sdata->bss_conf.ht_bss_conf = NULL;
 
 	ieee80211_led_assoc(local, 0);
@@ -1335,11 +1336,11 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param &&
 	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		struct ieee80211_ht_bss_info bss_info;
-		ieee80211_ht_cap_ie_to_ht_info(
-				elems.ht_cap_elem, &sta->sta.ht_info);
-		ieee80211_ht_addt_info_ie_to_ht_bss_info(
+		ieee80211_ht_cap_ie_to_sta_ht_cap(
+				elems.ht_cap_elem, &sta->sta.ht_cap);
+		ieee80211_ht_info_ie_to_ht_bss_info(
 				elems.ht_info_elem, &bss_info);
-		ieee80211_handle_ht(local, 1, &sta->sta.ht_info, &bss_info);
+		ieee80211_handle_ht(local, &sta->sta.ht_cap, &bss_info);
 	}
 
 	rate_control_rate_init(sta);
@@ -1696,9 +1697,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	    elems.wmm_param && conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
 		struct ieee80211_ht_bss_info bss_info;
 
-		ieee80211_ht_addt_info_ie_to_ht_bss_info(
+		ieee80211_ht_info_ie_to_ht_bss_info(
 				elems.ht_info_elem, &bss_info);
-		changed |= ieee80211_handle_ht(local, 1, &conf->ht_conf,
+		changed |= ieee80211_handle_ht(local, &conf->ht_cap,
 					       &bss_info);
 	}
 

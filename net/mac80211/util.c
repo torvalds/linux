@@ -532,8 +532,8 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			if (elen >= sizeof(struct ieee80211_ht_cap))
 				elems->ht_cap_elem = (void *)pos;
 			break;
-		case WLAN_EID_HT_EXTRA_INFO:
-			if (elen >= sizeof(struct ieee80211_ht_addt_info))
+		case WLAN_EID_HT_INFORMATION:
+			if (elen >= sizeof(struct ieee80211_ht_info))
 				elems->ht_info_elem = (void *)pos;
 			break;
 		case WLAN_EID_MESH_ID:

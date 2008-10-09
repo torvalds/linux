@@ -563,19 +563,18 @@ static int __init init_mac80211_hwsim(void)
 		data->band.n_channels = ARRAY_SIZE(hwsim_channels);
 		data->band.bitrates = data->rates;
 		data->band.n_bitrates = ARRAY_SIZE(hwsim_rates);
-		data->band.ht_info.ht_supported = 1;
-		data->band.ht_info.cap = IEEE80211_HT_CAP_SUP_WIDTH |
+		data->band.ht_cap.ht_supported = true;
+		data->band.ht_cap.cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 			IEEE80211_HT_CAP_GRN_FLD |
 			IEEE80211_HT_CAP_SGI_40 |
 			IEEE80211_HT_CAP_DSSSCCK40;
-		data->band.ht_info.ampdu_factor = 0x3;
-		data->band.ht_info.ampdu_density = 0x6;
-		memset(data->band.ht_info.supp_mcs_set, 0,
-		       sizeof(data->band.ht_info.supp_mcs_set));
-		data->band.ht_info.supp_mcs_set[0] = 0xff;
-		data->band.ht_info.supp_mcs_set[1] = 0xff;
-		data->band.ht_info.supp_mcs_set[12] =
-			IEEE80211_HT_CAP_MCS_TX_DEFINED;
+		data->band.ht_cap.ampdu_factor = 0x3;
+		data->band.ht_cap.ampdu_density = 0x6;
+		memset(&data->band.ht_cap.mcs, 0,
+		       sizeof(data->band.ht_cap.mcs));
+		data->band.ht_cap.mcs.rx_mask[0] = 0xff;
+		data->band.ht_cap.mcs.rx_mask[1] = 0xff;
+		data->band.ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &data->band;
 
 		err = ieee80211_register_hw(hw);

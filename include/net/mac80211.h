@@ -191,7 +191,7 @@ enum ieee80211_bss_change {
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @assoc_ht: association in HT mode
- * @ht_conf: ht capabilities
+ * @ht_cap: ht capabilities
  * @ht_bss_conf: ht extended capabilities
  * @basic_rates: bitmap of basic rates, each bit stands for an
  *	index into the rate table configured by the driver in
@@ -212,7 +212,7 @@ struct ieee80211_bss_conf {
 	u64 basic_rates;
 	/* ht related data */
 	bool assoc_ht;
-	struct ieee80211_ht_info *ht_conf;
+	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_ht_bss_info *ht_bss_conf;
 };
 
@@ -477,7 +477,7 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
  * @antenna_sel_tx: transmit antenna selection, 0: default/diversity,
  *	1/2: antenna 0/1
  * @antenna_sel_rx: receive antenna selection, like @antenna_sel_tx
- * @ht_conf: describes current self configuration of 802.11n HT capabilies
+ * @ht_cap: describes current self configuration of 802.11n HT capabilities
  * @ht_bss_conf: describes current BSS configuration of 802.11n HT parameters
  * @channel: the channel to tune to
  */
@@ -493,7 +493,7 @@ struct ieee80211_conf {
 
 	struct ieee80211_channel *channel;
 
-	struct ieee80211_ht_info ht_conf;
+	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_ht_bss_info ht_bss_conf;
 };
 
@@ -687,7 +687,7 @@ enum set_key_cmd {
  * @addr: MAC address
  * @aid: AID we assigned to the station if we're an AP
  * @supp_rates: Bitmap of supported rates (per band)
- * @ht_info: HT capabilities of this STA
+ * @ht_cap: HT capabilities of this STA
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  */
@@ -695,7 +695,7 @@ struct ieee80211_sta {
 	u64 supp_rates[IEEE80211_NUM_BANDS];
 	u8 addr[ETH_ALEN];
 	u16 aid;
-	struct ieee80211_ht_info ht_info;
+	struct ieee80211_sta_ht_cap ht_cap;
 
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));

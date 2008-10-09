@@ -817,7 +817,7 @@ struct ieee802_11_elems {
 	u8 *wmm_info;
 	u8 *wmm_param;
 	struct ieee80211_ht_cap *ht_cap_elem;
-	struct ieee80211_ht_addt_info *ht_info_elem;
+	struct ieee80211_ht_info *ht_info_elem;
 	u8 *mesh_config;
 	u8 *mesh_id;
 	u8 *peer_link;
@@ -880,9 +880,6 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 int ieee80211_hw_config(struct ieee80211_local *local);
 int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
-u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
-			struct ieee80211_ht_info *req_ht_cap,
-			struct ieee80211_ht_bss_info *req_bss_cap);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);
 void ieee80211_configure_filter(struct ieee80211_local *local);
@@ -963,11 +960,14 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* HT */
-int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
-				   struct ieee80211_ht_info *ht_info);
-int ieee80211_ht_addt_info_ie_to_ht_bss_info(
-			struct ieee80211_ht_addt_info *ht_add_info_ie,
+void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_ht_cap *ht_cap_ie,
+				       struct ieee80211_sta_ht_cap *ht_cap);
+void ieee80211_ht_info_ie_to_ht_bss_info(
+			struct ieee80211_ht_info *ht_add_info_ie,
 			struct ieee80211_ht_bss_info *bss_info);
+u32 ieee80211_handle_ht(struct ieee80211_local *local,
+			struct ieee80211_sta_ht_cap *req_ht_cap,
+			struct ieee80211_ht_bss_info *req_bss_cap);
 void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
 
 void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,

@@ -685,28 +685,88 @@ struct ieee80211_bar {
 #define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
 #define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
 
+
+#define IEEE80211_HT_MCS_MASK_LEN		10
+
+/**
+ * struct ieee80211_mcs_info - MCS information
+ * @rx_mask: RX mask
+ * @rx_highest: highest supported RX rate
+ * @tx_params: TX parameters
+ */
+struct ieee80211_mcs_info {
+	u8 rx_mask[IEEE80211_HT_MCS_MASK_LEN];
+	__le16 rx_highest;
+	u8 tx_params;
+	u8 reserved[3];
+} __attribute__((packed));
+
+/* 802.11n HT capability MSC set */
+#define IEEE80211_HT_MCS_RX_HIGHEST_MASK	0x3ff
+#define IEEE80211_HT_MCS_TX_DEFINED		0x01
+#define IEEE80211_HT_MCS_TX_RX_DIFF		0x02
+/* value 0 == 1 stream etc */
+#define IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK	0x0C
+#define IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT	2
+#define		IEEE80211_HT_MCS_TX_MAX_STREAMS	4
+#define IEEE80211_HT_MCS_TX_UNEQUAL_MODULATION	0x10
+
+/*
+ * 802.11n D5.0 20.3.5 / 20.6 says:
+ * - indices 0 to 7 and 32 are single spatial stream
+ * - 8 to 31 are multiple spatial streams using equal modulation
+ *   [8..15 for two streams, 16..23 for three and 24..31 for four]
+ * - remainder are multiple spatial streams using unequal modulation
+ */
+#define IEEE80211_HT_MCS_UNEQUAL_MODULATION_START 33
+#define IEEE80211_HT_MCS_UNEQUAL_MODULATION_START_BYTE \
+	(IEEE80211_HT_MCS_UNEQUAL_MODULATION_START / 8)
+
 /**
  * struct ieee80211_ht_cap - HT capabilities
  *
- * This structure refers to "HT capabilities element" as
- * described in 802.11n draft section 7.3.2.52
+ * This structure is the "HT capabilities element" as
+ * described in 802.11n D5.0 7.3.2.57
  */
 struct ieee80211_ht_cap {
 	__le16 cap_info;
 	u8 ampdu_params_info;
-	u8 supp_mcs_set[16];
+
+	/* 16 bytes MCS information */
+	struct ieee80211_mcs_info mcs;
+
 	__le16 extended_ht_cap_info;
 	__le32 tx_BF_cap_info;
 	u8 antenna_selection_info;
 } __attribute__ ((packed));
 
+/* 802.11n HT capabilities masks (for cap_info) */
+#define IEEE80211_HT_CAP_LDPC_CODING		0x0001
+#define IEEE80211_HT_CAP_SUP_WIDTH_20_40	0x0002
+#define IEEE80211_HT_CAP_SM_PS			0x000C
+#define IEEE80211_HT_CAP_GRN_FLD		0x0010
+#define IEEE80211_HT_CAP_SGI_20			0x0020
+#define IEEE80211_HT_CAP_SGI_40			0x0040
+#define IEEE80211_HT_CAP_TX_STBC		0x0080
+#define IEEE80211_HT_CAP_RX_STBC		0x0300
+#define IEEE80211_HT_CAP_DELAY_BA		0x0400
+#define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
+#define IEEE80211_HT_CAP_DSSSCCK40		0x1000
+#define IEEE80211_HT_CAP_PSMP_SUPPORT		0x2000
+#define IEEE80211_HT_CAP_40MHZ_INTOLERANT	0x4000
+#define IEEE80211_HT_CAP_LSIG_TXOP_PROT		0x8000
+
+/* 802.11n HT capability AMPDU settings (for ampdu_params_info) */
+#define IEEE80211_HT_AMPDU_PARM_FACTOR		0x03
+#define IEEE80211_HT_AMPDU_PARM_DENSITY		0x1C
+
 /**
- * struct ieee80211_ht_cap - HT additional information
+ * struct ieee80211_ht_info - HT information
  *
- * This structure refers to "HT information element" as
- * described in 802.11n draft section 7.3.2.53
+ * This structure is the "HT information element" as
+ * described in 802.11n D5.0 7.3.2.58
  */
-struct ieee80211_ht_addt_info {
+struct ieee80211_ht_info {
 	u8 control_chan;
 	u8 ht_param;
 	__le16 operation_mode;
@@ -714,36 +774,33 @@ struct ieee80211_ht_addt_info {
 	u8 basic_set[16];
 } __attribute__ ((packed));
 
-/* 802.11n HT capabilities masks */
-#define IEEE80211_HT_CAP_SUP_WIDTH		0x0002
-#define IEEE80211_HT_CAP_SM_PS			0x000C
-#define IEEE80211_HT_CAP_GRN_FLD		0x0010
-#define IEEE80211_HT_CAP_SGI_20			0x0020
-#define IEEE80211_HT_CAP_SGI_40			0x0040
-#define IEEE80211_HT_CAP_DELAY_BA		0x0400
-#define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
-#define IEEE80211_HT_CAP_DSSSCCK40		0x1000
-/* 802.11n HT capability AMPDU settings */
-#define IEEE80211_HT_CAP_AMPDU_FACTOR		0x03
-#define IEEE80211_HT_CAP_AMPDU_DENSITY		0x1C
-/* 802.11n HT capability MSC set */
-#define IEEE80211_SUPP_MCS_SET_UEQM		4
-#define IEEE80211_HT_CAP_MAX_STREAMS		4
-#define IEEE80211_SUPP_MCS_SET_LEN		10
-/* maximum streams the spec allows */
-#define IEEE80211_HT_CAP_MCS_TX_DEFINED		0x01
-#define IEEE80211_HT_CAP_MCS_TX_RX_DIFF		0x02
-#define IEEE80211_HT_CAP_MCS_TX_STREAMS		0x0C
-#define IEEE80211_HT_CAP_MCS_TX_UEQM		0x10
-/* 802.11n HT IE masks */
-#define IEEE80211_HT_IE_CHA_SEC_OFFSET		0x03
-#define IEEE80211_HT_IE_CHA_SEC_NONE	 	0x00
-#define IEEE80211_HT_IE_CHA_SEC_ABOVE 		0x01
-#define IEEE80211_HT_IE_CHA_SEC_BELOW 		0x03
-#define IEEE80211_HT_IE_CHA_WIDTH		0x04
-#define IEEE80211_HT_IE_HT_PROTECTION		0x0003
-#define IEEE80211_HT_IE_NON_GF_STA_PRSNT	0x0004
-#define IEEE80211_HT_IE_NON_HT_STA_PRSNT	0x0010
+/* for ht_param */
+#define IEEE80211_HT_PARAM_CHA_SEC_OFFSET		0x03
+#define		IEEE80211_HT_PARAM_CHA_SEC_NONE		0x00
+#define		IEEE80211_HT_PARAM_CHA_SEC_ABOVE	0x01
+#define		IEEE80211_HT_PARAM_CHA_SEC_BELOW	0x03
+#define IEEE80211_HT_PARAM_CHAN_WIDTH_ANY		0x04
+#define IEEE80211_HT_PARAM_RIFS_MODE			0x08
+#define IEEE80211_HT_PARAM_SPSMP_SUPPORT		0x10
+#define IEEE80211_HT_PARAM_SERV_INTERVAL_GRAN		0xE0
+
+/* for operation_mode */
+#define IEEE80211_HT_OP_MODE_PROTECTION			0x0003
+#define		IEEE80211_HT_OP_MODE_PROTECTION_NONE		0
+#define		IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER	1
+#define		IEEE80211_HT_OP_MODE_PROTECTION_20MHZ		2
+#define		IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED	3
+#define IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT		0x0004
+#define IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT		0x0010
+
+/* for stbc_param */
+#define IEEE80211_HT_STBC_PARAM_DUAL_BEACON		0x0040
+#define IEEE80211_HT_STBC_PARAM_DUAL_CTS_PROT		0x0080
+#define IEEE80211_HT_STBC_PARAM_STBC_BEACON		0x0100
+#define IEEE80211_HT_STBC_PARAM_LSIG_TXOP_FULLPROT	0x0200
+#define IEEE80211_HT_STBC_PARAM_PCO_ACTIVE		0x0400
+#define IEEE80211_HT_STBC_PARAM_PCO_PHASE		0x0800
+
 
 /* block-ack parameters */
 #define IEEE80211_ADDBA_PARAM_POLICY_MASK 0x0002
@@ -949,7 +1006,7 @@ enum ieee80211_eid {
 	WLAN_EID_EXT_SUPP_RATES = 50,
 	/* 802.11n */
 	WLAN_EID_HT_CAPABILITY = 45,
-	WLAN_EID_HT_EXTRA_INFO = 61,
+	WLAN_EID_HT_INFORMATION = 61,
 	/* 802.11i */
 	WLAN_EID_RSN = 48,
 	WLAN_EID_WPA = 221,

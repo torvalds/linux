@@ -61,24 +61,24 @@ static u32 ath_get_extchanmode(struct ath_softc *sc,
 
 	switch (chan->band) {
 	case IEEE80211_BAND_2GHZ:
-		if ((ext_chan_offset == IEEE80211_HT_IE_CHA_SEC_NONE) &&
+		if ((ext_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_NONE) &&
 		    (tx_chan_width == ATH9K_HT_MACMODE_20))
 			chanmode = CHANNEL_G_HT20;
-		if ((ext_chan_offset == IEEE80211_HT_IE_CHA_SEC_ABOVE) &&
+		if ((ext_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE) &&
 		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
 			chanmode = CHANNEL_G_HT40PLUS;
-		if ((ext_chan_offset == IEEE80211_HT_IE_CHA_SEC_BELOW) &&
+		if ((ext_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW) &&
 		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
 			chanmode = CHANNEL_G_HT40MINUS;
 		break;
 	case IEEE80211_BAND_5GHZ:
-		if ((ext_chan_offset == IEEE80211_HT_IE_CHA_SEC_NONE) &&
+		if ((ext_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_NONE) &&
 		    (tx_chan_width == ATH9K_HT_MACMODE_20))
 			chanmode = CHANNEL_A_HT20;
-		if ((ext_chan_offset == IEEE80211_HT_IE_CHA_SEC_ABOVE) &&
+		if ((ext_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE) &&
 		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
 			chanmode = CHANNEL_A_HT40PLUS;
-		if ((ext_chan_offset == IEEE80211_HT_IE_CHA_SEC_BELOW) &&
+		if ((ext_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW) &&
 		    (tx_chan_width == ATH9K_HT_MACMODE_2040))
 			chanmode = CHANNEL_A_HT40MINUS;
 		break;
@@ -215,24 +215,24 @@ static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 	ath_key_reset(sc, key->keyidx, freeslot);
 }
 
-static void setup_ht_cap(struct ieee80211_ht_info *ht_info)
+static void setup_ht_cap(struct ieee80211_sta_ht_cap *ht_info)
 {
 #define	ATH9K_HT_CAP_MAXRXAMPDU_65536 0x3	/* 2 ^ 16 */
 #define	ATH9K_HT_CAP_MPDUDENSITY_8 0x6		/* 8 usec */
 
-	ht_info->ht_supported = 1;
-	ht_info->cap = (u16)IEEE80211_HT_CAP_SUP_WIDTH
-			|(u16)IEEE80211_HT_CAP_SM_PS
-			|(u16)IEEE80211_HT_CAP_SGI_40
-			|(u16)IEEE80211_HT_CAP_DSSSCCK40;
+	ht_info->ht_supported = true;
+	ht_info->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+		       IEEE80211_HT_CAP_SM_PS |
+		       IEEE80211_HT_CAP_SGI_40 |
+		       IEEE80211_HT_CAP_DSSSCCK40;
 
 	ht_info->ampdu_factor = ATH9K_HT_CAP_MAXRXAMPDU_65536;
 	ht_info->ampdu_density = ATH9K_HT_CAP_MPDUDENSITY_8;
-	/* setup supported mcs set */
-	memset(ht_info->supp_mcs_set, 0, 16);
-	ht_info->supp_mcs_set[0] = 0xff;
-	ht_info->supp_mcs_set[1] = 0xff;
-	ht_info->supp_mcs_set[12] = IEEE80211_HT_CAP_MCS_TX_DEFINED;
+	/* set up supported mcs set */
+	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
+	ht_info->mcs.rx_mask[0] = 0xff;
+	ht_info->mcs.rx_mask[1] = 0xff;
+	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
 static int ath_rate2idx(struct ath_softc *sc, int rate)
@@ -328,31 +328,28 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 static void ath9k_ht_conf(struct ath_softc *sc,
 			  struct ieee80211_bss_conf *bss_conf)
 {
-#define IEEE80211_HT_CAP_40MHZ_INTOLERANT BIT(14)
 	struct ath_ht_info *ht_info = &sc->sc_ht_info;
 
 	if (bss_conf->assoc_ht) {
 		ht_info->ext_chan_offset =
 			bss_conf->ht_bss_conf->bss_cap &
-				IEEE80211_HT_IE_CHA_SEC_OFFSET;
+				IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
 
-		if (!(bss_conf->ht_conf->cap &
+		if (!(bss_conf->ht_cap->cap &
 			IEEE80211_HT_CAP_40MHZ_INTOLERANT) &&
 			    (bss_conf->ht_bss_conf->bss_cap &
-				IEEE80211_HT_IE_CHA_WIDTH))
+				IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
 			ht_info->tx_chan_width = ATH9K_HT_MACMODE_2040;
 		else
 			ht_info->tx_chan_width = ATH9K_HT_MACMODE_20;
 
 		ath9k_hw_set11nmac2040(sc->sc_ah, ht_info->tx_chan_width);
 		ht_info->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
-					bss_conf->ht_conf->ampdu_factor);
+					bss_conf->ht_cap->ampdu_factor);
 		ht_info->mpdudensity =
-			parse_mpdudensity(bss_conf->ht_conf->ampdu_density);
+			parse_mpdudensity(bss_conf->ht_cap->ampdu_density);
 
 	}
-
-#undef IEEE80211_HT_CAP_40MHZ_INTOLERANT
 }
 
 static void ath9k_bss_assoc_info(struct ath_softc *sc,
@@ -411,7 +408,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 			return;
 		}
 
-		if (hw->conf.ht_conf.ht_supported)
+		if (hw->conf.ht_cap.ht_supported)
 			sc->sc_ah->ah_channels[pos].chanmode =
 				ath_get_extchanmode(sc, curchan);
 		else
@@ -534,7 +531,7 @@ int _ath_rx_indicate(struct ath_softc *sc,
 
 	if (an) {
 		ath_rx_input(sc, an,
-			     hw->conf.ht_conf.ht_supported,
+			     hw->conf.ht_cap.ht_supported,
 			     skb, status, &st);
 	}
 	if (!an || (st != ATH_RX_CONSUMED))
@@ -943,7 +940,7 @@ static int ath_attach(u16 devid,
 
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 		/* Setup HT capabilities for 2.4Ghz*/
-		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_info);
+		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&sc->sbands[IEEE80211_BAND_2GHZ];
@@ -958,7 +955,7 @@ static int ath_attach(u16 devid,
 
 		if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 			/* Setup HT capabilities for 5Ghz*/
-			setup_ht_cap(&sc->sbands[IEEE80211_BAND_5GHZ].ht_info);
+			setup_ht_cap(&sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
@@ -1254,7 +1251,7 @@ static int ath9k_config(struct ieee80211_hw *hw,
 		(curchan->band == IEEE80211_BAND_2GHZ) ?
 		CHANNEL_G : CHANNEL_A;
 
-	if (sc->sc_curaid && hw->conf.ht_conf.ht_supported)
+	if (sc->sc_curaid && hw->conf.ht_cap.ht_supported)
 		sc->sc_ah->ah_channels[pos].chanmode =
 			ath_get_extchanmode(sc, curchan);
 

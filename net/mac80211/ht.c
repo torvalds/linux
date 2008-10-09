@@ -20,37 +20,33 @@
 #include "sta_info.h"
 #include "wme.h"
 
-int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
-				   struct ieee80211_ht_info *ht_info)
+void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_ht_cap *ht_cap_ie,
+				       struct ieee80211_sta_ht_cap *ht_cap)
 {
 
-	if (ht_info == NULL)
-		return -EINVAL;
+	BUG_ON(!ht_cap);
 
-	memset(ht_info, 0, sizeof(*ht_info));
+	memset(ht_cap, 0, sizeof(*ht_cap));
 
 	if (ht_cap_ie) {
 		u8 ampdu_info = ht_cap_ie->ampdu_params_info;
 
-		ht_info->ht_supported = 1;
-		ht_info->cap = le16_to_cpu(ht_cap_ie->cap_info);
-		ht_info->ampdu_factor =
-			ampdu_info & IEEE80211_HT_CAP_AMPDU_FACTOR;
-		ht_info->ampdu_density =
-			(ampdu_info & IEEE80211_HT_CAP_AMPDU_DENSITY) >> 2;
-		memcpy(ht_info->supp_mcs_set, ht_cap_ie->supp_mcs_set, 16);
+		ht_cap->ht_supported = true;
+		ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info);
+		ht_cap->ampdu_factor =
+			ampdu_info & IEEE80211_HT_AMPDU_PARM_FACTOR;
+		ht_cap->ampdu_density =
+			(ampdu_info & IEEE80211_HT_AMPDU_PARM_DENSITY) >> 2;
+		memcpy(&ht_cap->mcs, &ht_cap_ie->mcs, sizeof(ht_cap->mcs));
 	} else
-		ht_info->ht_supported = 0;
-
-	return 0;
+		ht_cap->ht_supported = false;
 }
 
-int ieee80211_ht_addt_info_ie_to_ht_bss_info(
-			struct ieee80211_ht_addt_info *ht_add_info_ie,
+void ieee80211_ht_info_ie_to_ht_bss_info(
+			struct ieee80211_ht_info *ht_add_info_ie,
 			struct ieee80211_ht_bss_info *bss_info)
 {
-	if (bss_info == NULL)
-		return -EINVAL;
+	BUG_ON(!bss_info);
 
 	memset(bss_info, 0, sizeof(*bss_info));
 
@@ -62,8 +58,119 @@ int ieee80211_ht_addt_info_ie_to_ht_bss_info(
 		bss_info->bss_cap = ht_add_info_ie->ht_param;
 		bss_info->bss_op_mode = (u8)(op_mode & 0xff);
 	}
+}
 
-	return 0;
+/*
+ * ieee80211_handle_ht should be called only after the operating band
+ * has been determined as ht configuration depends on the hw's
+ * HT abilities for a specific band.
+ */
+u32 ieee80211_handle_ht(struct ieee80211_local *local,
+			struct ieee80211_sta_ht_cap *req_ht_cap,
+			struct ieee80211_ht_bss_info *req_bss_cap)
+{
+	struct ieee80211_conf *conf = &local->hw.conf;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_sta_ht_cap ht_cap;
+	struct ieee80211_ht_bss_info ht_bss_conf;
+	u32 changed = 0;
+	int i;
+	u8 max_tx_streams;
+	u8 tx_mcs_set_cap;
+	bool enable_ht = true;
+
+	sband = local->hw.wiphy->bands[conf->channel->band];
+
+	memset(&ht_cap, 0, sizeof(ht_cap));
+	memset(&ht_bss_conf, 0, sizeof(struct ieee80211_ht_bss_info));
+
+	/* HT is not supported */
+	if (!sband->ht_cap.ht_supported)
+		enable_ht = false;
+
+	/* disable HT */
+	if (!enable_ht) {
+		if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE)
+			changed |= BSS_CHANGED_HT;
+		conf->flags &= ~IEEE80211_CONF_SUPPORT_HT_MODE;
+		conf->ht_cap.ht_supported = false;
+		return changed;
+	}
+
+
+	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE))
+		changed |= BSS_CHANGED_HT;
+
+	conf->flags |= IEEE80211_CONF_SUPPORT_HT_MODE;
+	ht_cap.ht_supported = true;
+
+	ht_cap.cap = req_ht_cap->cap & sband->ht_cap.cap;
+	ht_cap.cap &= ~IEEE80211_HT_CAP_SM_PS;
+	ht_cap.cap |= sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS;
+
+	ht_bss_conf.primary_channel = req_bss_cap->primary_channel;
+	ht_bss_conf.bss_cap = req_bss_cap->bss_cap;
+	ht_bss_conf.bss_op_mode = req_bss_cap->bss_op_mode;
+
+	ht_cap.ampdu_factor = req_ht_cap->ampdu_factor;
+	ht_cap.ampdu_density = req_ht_cap->ampdu_density;
+
+	/* own MCS TX capabilities */
+	tx_mcs_set_cap = sband->ht_cap.mcs.tx_params;
+
+	/*
+	 * configure supported Tx MCS according to requested MCS
+	 * (based in most cases on Rx capabilities of peer) and self
+	 * Tx MCS capabilities (as defined by low level driver HW
+	 * Tx capabilities)
+	 */
+
+	/* can we TX with MCS rates? */
+	if (!(tx_mcs_set_cap & IEEE80211_HT_MCS_TX_DEFINED))
+		goto check_changed;
+
+	/* Counting from 0, therefore +1 */
+	if (tx_mcs_set_cap & IEEE80211_HT_MCS_TX_RX_DIFF)
+		max_tx_streams =
+			((tx_mcs_set_cap & IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
+				>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT) + 1;
+	else
+		max_tx_streams = IEEE80211_HT_MCS_TX_MAX_STREAMS;
+
+	/*
+	 * 802.11n D5.0 20.3.5 / 20.6 says:
+	 * - indices 0 to 7 and 32 are single spatial stream
+	 * - 8 to 31 are multiple spatial streams using equal modulation
+	 *   [8..15 for two streams, 16..23 for three and 24..31 for four]
+	 * - remainder are multiple spatial streams using unequal modulation
+	 */
+	for (i = 0; i < max_tx_streams; i++)
+		ht_cap.mcs.rx_mask[i] =
+			sband->ht_cap.mcs.rx_mask[i] &
+					req_ht_cap->mcs.rx_mask[i];
+
+	if (tx_mcs_set_cap & IEEE80211_HT_MCS_TX_UNEQUAL_MODULATION)
+		for (i = IEEE80211_HT_MCS_UNEQUAL_MODULATION_START_BYTE;
+		     i < IEEE80211_HT_MCS_MASK_LEN; i++)
+			ht_cap.mcs.rx_mask[i] =
+				sband->ht_cap.mcs.rx_mask[i] &
+					req_ht_cap->mcs.rx_mask[i];
+
+	/* handle MCS rate 32 too */
+	if (sband->ht_cap.mcs.rx_mask[32/8] &
+	    req_ht_cap->mcs.rx_mask[32/8] & 1)
+		ht_cap.mcs.rx_mask[32/8] |= 1;
+
+ check_changed:
+	/* if bss configuration changed store the new one */
+	if (memcmp(&conf->ht_cap, &ht_cap, sizeof(ht_cap)) ||
+	    memcmp(&conf->ht_bss_conf, &ht_bss_conf, sizeof(ht_bss_conf))) {
+		changed |= BSS_CHANGED_HT;
+		memcpy(&conf->ht_cap, &ht_cap, sizeof(ht_cap));
+		memcpy(&conf->ht_bss_conf, &ht_bss_conf, sizeof(ht_bss_conf));
+	}
+
+	return changed;
 }
 
 static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
@@ -794,7 +901,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	 * check if configuration can support the BA policy
 	 * and if buffer size does not exceeds max value */
 	if (((ba_policy != 1)
-		&& (!(conf->ht_conf.cap & IEEE80211_HT_CAP_DELAY_BA)))
+		&& (!(conf->ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA)))
 		|| (buf_size > IEEE80211_MAX_AMPDU_BUF)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -812,7 +919,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 		sband = local->hw.wiphy->bands[conf->channel->band];
 		buf_size = IEEE80211_MIN_AMPDU_BUF;
-		buf_size = buf_size << sband->ht_info.ampdu_factor;
+		buf_size = buf_size << sband->ht_cap.ampdu_factor;
 	}
 
 

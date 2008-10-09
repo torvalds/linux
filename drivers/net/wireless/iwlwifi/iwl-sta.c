@@ -181,7 +181,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
-				   struct ieee80211_ht_info *sta_ht_inf)
+				   struct ieee80211_sta_ht_cap *sta_ht_inf)
 {
 	__le32 sta_flags;
 	u8 mimo_ps_mode;
@@ -229,7 +229,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
  * iwl_add_station_flags - Add station to tables in driver and device
  */
 u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
-			 u8 flags, struct ieee80211_ht_info *ht_info)
+			 u8 flags, struct ieee80211_sta_ht_cap *ht_info)
 {
 	int i;
 	int sta_id = IWL_INVALID_STATION;
@@ -894,7 +894,7 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 
 	/* Add station to device's station table */
 	struct ieee80211_conf *conf = &priv->hw->conf;
-	struct ieee80211_ht_info *cur_ht_config = &conf->ht_conf;
+	struct ieee80211_sta_ht_cap *cur_ht_config = &conf->ht_cap;
 
 	if ((is_ap) &&
 	    (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&

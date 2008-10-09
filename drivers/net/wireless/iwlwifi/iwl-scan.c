@@ -550,7 +550,7 @@ static void iwl_ht_cap_to_ie(const struct ieee80211_supported_band *sband,
 {
 	struct ieee80211_ht_cap *ht_cap;
 
-	if (!sband || !sband->ht_info.ht_supported)
+	if (!sband || !sband->ht_cap.ht_supported)
 		return;
 
 	if (*left < sizeof(struct ieee80211_ht_cap))
@@ -559,12 +559,12 @@ static void iwl_ht_cap_to_ie(const struct ieee80211_supported_band *sband,
 	*pos++ = sizeof(struct ieee80211_ht_cap);
 	ht_cap = (struct ieee80211_ht_cap *) pos;
 
-	ht_cap->cap_info = cpu_to_le16(sband->ht_info.cap);
-	memcpy(ht_cap->supp_mcs_set, sband->ht_info.supp_mcs_set, 16);
+	ht_cap->cap_info = cpu_to_le16(sband->ht_cap.cap);
+	memcpy(&ht_cap->mcs, &sband->ht_cap.mcs, 16);
 	ht_cap->ampdu_params_info =
-		(sband->ht_info.ampdu_factor & IEEE80211_HT_CAP_AMPDU_FACTOR) |
-		((sband->ht_info.ampdu_density << 2) &
-			IEEE80211_HT_CAP_AMPDU_DENSITY);
+		(sband->ht_cap.ampdu_factor & IEEE80211_HT_AMPDU_PARM_FACTOR) |
+		((sband->ht_cap.ampdu_density << 2) &
+			IEEE80211_HT_AMPDU_PARM_DENSITY);
 	*left -= sizeof(struct ieee80211_ht_cap);
 }
 
