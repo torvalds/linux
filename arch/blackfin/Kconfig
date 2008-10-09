@@ -168,10 +168,9 @@ endchoice
 
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_1 if BF527
-	default BF_REV_0_2 if BF537
-	default BF_REV_0_3 if BF533
-	default BF_REV_0_0 if BF549
+	default BF_REV_0_1 if (BF52x || BF54x)
+	default BF_REV_0_2 if (BF534 || BF536 || BF537)
+	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF561)
 
 config BF_REV_0_0
 	bool "0.0"
