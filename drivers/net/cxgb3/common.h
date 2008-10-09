@@ -547,7 +547,19 @@ enum {
 /* PHY interrupt types */
 enum {
 	cphy_cause_link_change = 1,
-	cphy_cause_fifo_error = 2
+	cphy_cause_fifo_error = 2,
+	cphy_cause_module_change = 4,
+};
+
+/* PHY module types */
+enum {
+	phy_modtype_none,
+	phy_modtype_sr,
+	phy_modtype_lr,
+	phy_modtype_lrm,
+	phy_modtype_twinax,
+	phy_modtype_twinax_long,
+	phy_modtype_unknown
 };
 
 /* PHY operations */
@@ -572,7 +584,9 @@ struct cphy_ops {
 
 /* A PHY instance */
 struct cphy {
-	int addr;			/* PHY address */
+	u8 addr;			/* PHY address */
+	u8 modtype;			/* PHY module type */
+	short priv;			/* scratch pad */
 	unsigned int caps;		/* PHY capabilities */
 	struct adapter *adapter;	/* associated adapter */
 	const char *desc;		/* PHY description */
@@ -793,6 +807,8 @@ int t3_vsc8211_phy_prep(struct cphy *phy, struct adapter *adapter,
 int t3_ael1002_phy_prep(struct cphy *phy, struct adapter *adapter,
 			int phy_addr, const struct mdio_ops *mdio_ops);
 int t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *mdio_ops);
+int t3_ael2005_phy_prep(struct cphy *phy, struct adapter *adapter,
 			int phy_addr, const struct mdio_ops *mdio_ops);
 int t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 		       const struct mdio_ops *mdio_ops);

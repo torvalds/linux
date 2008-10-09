@@ -511,7 +511,7 @@ static const struct port_type_info port_types[] = {
 	{ t3_vsc8211_phy_prep },
 	{ NULL},
 	{ t3_xaui_direct_phy_prep },
-	{ NULL },
+	{ t3_ael2005_phy_prep },
 	{ t3_qt2045_phy_prep },
 	{ t3_ael1006_phy_prep },
 	{ NULL },
@@ -1728,6 +1728,8 @@ int t3_phy_intr_handler(struct adapter *adapter)
 				t3_link_changed(adapter, i);
 			if (phy_cause & cphy_cause_fifo_error)
 				p->phy.fifo_errors++;
+			if (phy_cause & cphy_cause_module_change)
+				t3_os_phymod_changed(adapter, i);
 		}
 	}
 

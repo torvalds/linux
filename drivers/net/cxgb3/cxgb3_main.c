@@ -208,6 +208,31 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 	}
 }
 
+/**
+ *	t3_os_phymod_changed - handle PHY module changes
+ *	@phy: the PHY reporting the module change
+ *	@mod_type: new module type
+ *
+ *	This is the OS-dependent handler for PHY module changes.  It is
+ *	invoked when a PHY module is removed or inserted for any OS-specific
+ *	processing.
+ */
+void t3_os_phymod_changed(struct adapter *adap, int port_id)
+{
+	static const char *mod_str[] = {
+		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unknown"
+	};
+
+	const struct net_device *dev = adap->port[port_id];
+	const struct port_info *pi = netdev_priv(dev);
+
+	if (pi->phy.modtype == phy_modtype_none)
+		printk(KERN_INFO "%s: PHY module unplugged\n", dev->name);
+	else
+		printk(KERN_INFO "%s: %s PHY module inserted\n", dev->name,
+		       mod_str[pi->phy.modtype]);
+}
+
 static void cxgb_set_rxmode(struct net_device *dev)
 {
 	struct t3_rx_mode rm;
