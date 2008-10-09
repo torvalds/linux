@@ -950,6 +950,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	struct net *net = dev_net(skb->dst->dev);
 	struct sock *ctl_sk = net->ipv6.tcp_sk;
 	unsigned int tot_len = sizeof(struct tcphdr);
+	__be32 *topt;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
 #endif
@@ -999,14 +1000,13 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 				    + skb->len - (th->doff<<2));
 	}
 
+	topt = (__be32 *)(t1 + 1);
+
 #ifdef CONFIG_TCP_MD5SIG
 	if (key) {
-		__be32 *opt = (__be32*)(t1 + 1);
-		opt[0] = htonl((TCPOPT_NOP << 24) |
-			       (TCPOPT_NOP << 16) |
-			       (TCPOPT_MD5SIG << 8) |
-			       TCPOLEN_MD5SIG);
-		tcp_v6_md5_hash_hdr((__u8 *)&opt[1], key,
+		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+				(TCPOPT_MD5SIG << 8) | TCPOLEN_MD5SIG);
+		tcp_v6_md5_hash_hdr((__u8 *)topt, key,
 				    &ipv6_hdr(skb)->saddr,
 				    &ipv6_hdr(skb)->daddr, t1);
 	}
