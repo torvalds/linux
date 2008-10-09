@@ -381,37 +381,49 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	return err;
 }
 
-struct snd_soc_dai omap_mcbsp_dai[NUM_LINKS] = {
-{
-	.name = "omap-mcbsp-dai",
-	.id = 0,
-	.type = SND_SOC_DAI_I2S,
-	.playback = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = OMAP_MCBSP_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-	.capture = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = OMAP_MCBSP_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-	.ops = {
-		.startup = omap_mcbsp_dai_startup,
-		.shutdown = omap_mcbsp_dai_shutdown,
-		.trigger = omap_mcbsp_dai_trigger,
-		.hw_params = omap_mcbsp_dai_hw_params,
-	},
-	.dai_ops = {
-		.set_fmt = omap_mcbsp_dai_set_dai_fmt,
-		.set_clkdiv = omap_mcbsp_dai_set_clkdiv,
-		.set_sysclk = omap_mcbsp_dai_set_dai_sysclk,
-	},
-	.private_data = &mcbsp_data[0].bus_id,
-},
+#define OMAP_MCBSP_DAI_BUILDER(link_id)				\
+{								\
+	.name = "omap-mcbsp-dai-(link_id)",			\
+	.id = (link_id),					\
+	.type = SND_SOC_DAI_I2S,				\
+	.playback = {						\
+		.channels_min = 2,				\
+		.channels_max = 2,				\
+		.rates = OMAP_MCBSP_RATES,			\
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
+	},							\
+	.capture = {						\
+		.channels_min = 2,				\
+		.channels_max = 2,				\
+		.rates = OMAP_MCBSP_RATES,			\
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
+	},							\
+	.ops = {						\
+		.startup = omap_mcbsp_dai_startup,		\
+		.shutdown = omap_mcbsp_dai_shutdown,		\
+		.trigger = omap_mcbsp_dai_trigger,		\
+		.hw_params = omap_mcbsp_dai_hw_params,		\
+	},							\
+	.dai_ops = {						\
+		.set_fmt = omap_mcbsp_dai_set_dai_fmt,		\
+		.set_clkdiv = omap_mcbsp_dai_set_clkdiv,	\
+		.set_sysclk = omap_mcbsp_dai_set_dai_sysclk,	\
+	},							\
+	.private_data = &mcbsp_data[(link_id)].bus_id,		\
+}
+
+struct snd_soc_dai omap_mcbsp_dai[] = {
+	OMAP_MCBSP_DAI_BUILDER(0),
+	OMAP_MCBSP_DAI_BUILDER(1),
+#if NUM_LINKS >= 3
+	OMAP_MCBSP_DAI_BUILDER(2),
+#endif
+#if NUM_LINKS == 5
+	OMAP_MCBSP_DAI_BUILDER(3),
+	OMAP_MCBSP_DAI_BUILDER(4),
+#endif
 };
+
 EXPORT_SYMBOL_GPL(omap_mcbsp_dai);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");
