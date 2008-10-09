@@ -759,6 +759,7 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		tp->features |= RTL_FEATURE_WOL;
 	else
 		tp->features &= ~RTL_FEATURE_WOL;
+	device_set_wakeup_enable(&tp->pci_dev->dev, wol->wolopts);
 
 	spin_unlock_irq(&tp->lock);
 
@@ -2017,6 +2018,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	rtl8169_init_phy(dev, tp);
+	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
 
 out:
 	return rc;
