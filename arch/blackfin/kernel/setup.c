@@ -1000,7 +1000,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"cpu family\t: 0x%x\n"
 		"model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
 		"stepping\t: %d\n",
-		0,
+		*(unsigned int *)v,
 		vendor,
 		(bfin_read_CHIPID() & CHIPID_FAMILY),
 		cpu, cclk/1000000, sclk/1000000,
@@ -1048,7 +1048,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if ((bfin_read_DMEM_CONTROL() & (ENDCPLB | DMC_ENABLE)) != (ENDCPLB | DMC_ENABLE))
 		dcache_size = 0;
 
-	if ((bfin_read_IMEM_CONTROL() & (IMC | ENICPLB)) == (IMC | ENICPLB))
+	if ((bfin_read_IMEM_CONTROL() & (IMC | ENICPLB)) != (IMC | ENICPLB))
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
@@ -1137,12 +1137,18 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < NR_CPUS ? ((void *)0x12345678) : NULL;
+	if (*pos == 0)
+		*pos = first_cpu(cpu_online_map);
+	if (*pos >= num_online_cpus())
+		return NULL;
+
+	return pos;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	++*pos;
+	*pos = next_cpu(*pos, cpu_online_map);
+
 	return c_start(m, pos);
 }
 
