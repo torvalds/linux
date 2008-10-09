@@ -335,7 +335,8 @@ trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 	return len;
 }
 
-#define HEX_CHARS 17
+#define MAX_MEMHEX_BYTES	8
+#define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)
 
 static int
 trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
@@ -343,8 +344,6 @@ trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 	unsigned char hex[HEX_CHARS];
 	unsigned char *data = mem;
 	int i, j;
-
-	BUG_ON(len >= HEX_CHARS);
 
 #ifdef __BIG_ENDIAN
 	for (i = 0, j = 0; i < len; i++) {
@@ -1668,6 +1667,7 @@ do {							\
 
 #define SEQ_PUT_HEX_FIELD_RET(s, x)			\
 do {							\
+	BUILD_BUG_ON(sizeof(x) > MAX_MEMHEX_BYTES);	\
 	if (!trace_seq_putmem_hex(s, &(x), sizeof(x)))	\
 		return 0;				\
 } while (0)
