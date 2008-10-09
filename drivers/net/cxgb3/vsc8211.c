@@ -221,8 +221,9 @@ static struct cphy_ops vsc8211_ops = {
 	.power_down = vsc8211_power_down,
 };
 
-void t3_vsc8211_phy_prep(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *mdio_ops)
+int t3_vsc8211_phy_prep(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	cphy_init(phy, adapter, phy_addr, &vsc8211_ops, mdio_ops);
+	return 0;
 }

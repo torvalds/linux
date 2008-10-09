@@ -3626,8 +3626,11 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 			++j;
 
 		p->port_type = &port_types[adapter->params.vpd.port_type[j]];
-		p->port_type->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
-				       ai->mdio_ops);
+		ret = p->port_type->phy_prep(&p->phy, adapter,
+					     ai->phy_base_addr + j,
+					     ai->mdio_ops);
+		if (ret)
+			return ret;
 		mac_prep(&p->mac, adapter, j);
 		++j;
 
@@ -3674,9 +3677,11 @@ int t3_replay_prep_adapter(struct adapter *adapter)
 		while (!adapter->params.vpd.port_type[j])
 			++j;
 
-		p->port_type->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
-					ai->mdio_ops);
-
+		ret = p->port_type->phy_prep(&p->phy, adapter,
+					     ai->phy_base_addr + j,
+					     ai->mdio_ops);
+		if (ret)
+			return ret;
 		p->phy.ops->power_down(&p->phy, 1);
 		++j;
 	}

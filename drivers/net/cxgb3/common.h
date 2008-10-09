@@ -203,8 +203,8 @@ struct adapter_info {
 };
 
 struct port_type_info {
-	void (*phy_prep)(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *ops);
+	int (*phy_prep)(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *ops);
 	unsigned int caps;
 	const char *desc;
 };
@@ -776,14 +776,14 @@ int t3_sge_read_rspq(struct adapter *adapter, unsigned int id, u32 data[4]);
 int t3_sge_cqcntxt_op(struct adapter *adapter, unsigned int id, unsigned int op,
 		      unsigned int credits);
 
-void t3_vsc8211_phy_prep(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *mdio_ops);
-void t3_ael1002_phy_prep(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *mdio_ops);
-void t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *mdio_ops);
-void t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
-			const struct mdio_ops *mdio_ops);
-void t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
-			     int phy_addr, const struct mdio_ops *mdio_ops);
+int t3_vsc8211_phy_prep(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *mdio_ops);
+int t3_ael1002_phy_prep(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *mdio_ops);
+int t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *mdio_ops);
+int t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
+		       const struct mdio_ops *mdio_ops);
+int t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
+			    int phy_addr, const struct mdio_ops *mdio_ops);
 #endif				/* __CHELSIO_COMMON_H */

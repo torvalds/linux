@@ -119,11 +119,12 @@ static struct cphy_ops ael1002_ops = {
 	.power_down = ael1002_power_down,
 };
 
-void t3_ael1002_phy_prep(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *mdio_ops)
+int t3_ael1002_phy_prep(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops);
 	ael100x_txon(phy);
+	return 0;
 }
 
 static int ael1006_reset(struct cphy *phy, int wait)
@@ -174,11 +175,12 @@ static struct cphy_ops ael1006_ops = {
 	.power_down = ael1006_power_down,
 };
 
-void t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
-			 int phy_addr, const struct mdio_ops *mdio_ops)
+int t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
+			     int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	cphy_init(phy, adapter, phy_addr, &ael1006_ops, mdio_ops);
 	ael100x_txon(phy);
+	return 0;
 }
 
 static struct cphy_ops qt2045_ops = {
@@ -191,8 +193,8 @@ static struct cphy_ops qt2045_ops = {
 	.power_down = ael1006_power_down,
 };
 
-void t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter,
-			int phy_addr, const struct mdio_ops *mdio_ops)
+int t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter,
+		       int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	unsigned int stat;
 
@@ -205,6 +207,7 @@ void t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter,
 	if (!phy_addr && !mdio_read(phy, MDIO_DEV_PMA_PMD, MII_BMSR, &stat) &&
 	    stat == 0xffff)
 		phy->addr = 1;
+	return 0;
 }
 
 static int xaui_direct_reset(struct cphy *phy, int wait)
@@ -250,8 +253,9 @@ static struct cphy_ops xaui_direct_ops = {
 	.power_down = xaui_direct_power_down,
 };
 
-void t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
-			     int phy_addr, const struct mdio_ops *mdio_ops)
+int t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
+			    int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops);
+	return 0;
 }
