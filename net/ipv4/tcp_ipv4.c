@@ -583,8 +583,8 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 		rep.th.doff = arg.iov[0].iov_len / 4;
 
 		tcp_v4_md5_hash_hdr((__u8 *) &rep.opt[1],
-				     key, ip_hdr(skb)->daddr,
-				     ip_hdr(skb)->saddr, &rep.th);
+				     key, ip_hdr(skb)->saddr,
+				     ip_hdr(skb)->daddr, &rep.th);
 	}
 #endif
 	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,

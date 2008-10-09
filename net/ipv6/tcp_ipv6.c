@@ -1007,8 +1007,8 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 			       (TCPOPT_MD5SIG << 8) |
 			       TCPOLEN_MD5SIG);
 		tcp_v6_md5_hash_hdr((__u8 *)&opt[1], key,
-				    &ipv6_hdr(skb)->daddr,
-				    &ipv6_hdr(skb)->saddr, t1);
+				    &ipv6_hdr(skb)->saddr,
+				    &ipv6_hdr(skb)->daddr, t1);
 	}
 #endif
 
