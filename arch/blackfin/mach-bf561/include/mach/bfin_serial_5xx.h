@@ -83,7 +83,7 @@ struct bfin_serial_port {
 	unsigned int		rx_dma_channel;
 	struct work_struct	tx_dma_workqueue;
 #else
-# if ANOMALY_05000230
+# if ANOMALY_05000363
 	unsigned int anomaly_threshold;
 # endif
 #endif
