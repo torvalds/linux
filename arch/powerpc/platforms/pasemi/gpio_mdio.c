@@ -230,7 +230,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	if (!priv)
 		goto out;
 
-	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	new_bus = mdiobus_alloc();
 
 	if (!new_bus)
 		goto out_free_priv;
@@ -306,7 +306,7 @@ static int gpio_mdio_remove(struct of_device *dev)
 
 	kfree(bus->priv);
 	bus->priv = NULL;
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }
