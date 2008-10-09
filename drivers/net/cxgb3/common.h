@@ -522,7 +522,20 @@ enum {
 	MDIO_DEV_PMA_PMD = 1,
 	MDIO_DEV_WIS = 2,
 	MDIO_DEV_PCS = 3,
-	MDIO_DEV_XGXS = 4
+	MDIO_DEV_XGXS = 4,
+	MDIO_DEV_ANEG = 7,
+	MDIO_DEV_VEND1 = 30,
+	MDIO_DEV_VEND2 = 31
+};
+
+/* LASI control and status registers */
+enum {
+	RX_ALARM_CTRL = 0x9000,
+	TX_ALARM_CTRL = 0x9001,
+	LASI_CTRL = 0x9002,
+	RX_ALARM_STAT = 0x9003,
+	TX_ALARM_STAT = 0x9004,
+	LASI_STAT = 0x9005
 };
 
 /* PHY loopback direction */
@@ -665,6 +678,10 @@ int t3_mdio_change_bits(struct cphy *phy, int mmd, int reg, unsigned int clear,
 int t3_phy_reset(struct cphy *phy, int mmd, int wait);
 int t3_phy_advertise(struct cphy *phy, unsigned int advert);
 int t3_set_phy_speed_duplex(struct cphy *phy, int speed, int duplex);
+int t3_phy_lasi_intr_enable(struct cphy *phy);
+int t3_phy_lasi_intr_disable(struct cphy *phy);
+int t3_phy_lasi_intr_clear(struct cphy *phy);
+int t3_phy_lasi_intr_handler(struct cphy *phy);
 
 void t3_intr_enable(struct adapter *adapter);
 void t3_intr_disable(struct adapter *adapter);

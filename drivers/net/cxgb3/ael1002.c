@@ -39,9 +39,6 @@ enum {
 	AEL1002_PWR_DOWN_LO = 0xc012,
 	AEL1002_XFI_EQL = 0xc015,
 	AEL1002_LB_EN = 0xc017,
-
-	LASI_CTRL = 0x9002,
-	LASI_STAT = 0x9005
 };
 
 static void ael100x_txon(struct cphy *phy)
@@ -134,33 +131,6 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	return t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
 }
 
-static int ael1006_intr_enable(struct cphy *phy)
-{
-	return mdio_write(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, 1);
-}
-
-static int ael1006_intr_disable(struct cphy *phy)
-{
-	return mdio_write(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, 0);
-}
-
-static int ael1006_intr_clear(struct cphy *phy)
-{
-	u32 val;
-
-	return mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_STAT, &val);
-}
-
-static int ael1006_intr_handler(struct cphy *phy)
-{
-	unsigned int status;
-	int err = mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_STAT, &status);
-
-	if (err)
-		return err;
-	return (status & 1) ? cphy_cause_link_change : 0;
-}
-
 static int ael1006_power_down(struct cphy *phy, int enable)
 {
 	return t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR,
@@ -169,10 +139,10 @@ static int ael1006_power_down(struct cphy *phy, int enable)
 
 static struct cphy_ops ael1006_ops = {
 	.reset = ael1006_reset,
-	.intr_enable = ael1006_intr_enable,
-	.intr_disable = ael1006_intr_disable,
-	.intr_clear = ael1006_intr_clear,
-	.intr_handler = ael1006_intr_handler,
+	.intr_enable = t3_phy_lasi_intr_enable,
+	.intr_disable = t3_phy_lasi_intr_disable,
+	.intr_clear = t3_phy_lasi_intr_clear,
+	.intr_handler = t3_phy_lasi_intr_handler,
 	.get_link_status = ael100x_get_link_status,
 	.power_down = ael1006_power_down,
 };
@@ -189,10 +159,10 @@ int t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
 
 static struct cphy_ops qt2045_ops = {
 	.reset = ael1006_reset,
-	.intr_enable = ael1006_intr_enable,
-	.intr_disable = ael1006_intr_disable,
-	.intr_clear = ael1006_intr_clear,
-	.intr_handler = ael1006_intr_handler,
+	.intr_enable = t3_phy_lasi_intr_enable,
+	.intr_disable = t3_phy_lasi_intr_disable,
+	.intr_clear = t3_phy_lasi_intr_clear,
+	.intr_handler = t3_phy_lasi_intr_handler,
 	.get_link_status = ael100x_get_link_status,
 	.power_down = ael1006_power_down,
 };
