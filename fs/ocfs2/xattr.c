@@ -148,21 +148,13 @@ static inline struct xattr_handler *ocfs2_xattr_handler(int name_index)
 }
 
 static u32 ocfs2_xattr_name_hash(struct inode *inode,
-				 char *prefix,
-				 int prefix_len,
-				 char *name,
+				 const char *name,
 				 int name_len)
 {
 	/* Get hash value of uuid from super block */
 	u32 hash = OCFS2_SB(inode->i_sb)->uuid_hash;
 	int i;
 
-	/* hash extended attribute prefix */
-	for (i = 0; i < prefix_len; i++) {
-		hash = (hash << OCFS2_HASH_SHIFT) ^
-		       (hash >> (8*sizeof(hash) - OCFS2_HASH_SHIFT)) ^
-		       *prefix++;
-	}
 	/* hash extended attribute name */
 	for (i = 0; i < name_len; i++) {
 		hash = (hash << OCFS2_HASH_SHIFT) ^
@@ -183,14 +175,9 @@ static void ocfs2_xattr_hash_entry(struct inode *inode,
 				   struct ocfs2_xattr_entry *entry)
 {
 	u32 hash = 0;
-	struct xattr_handler *handler =
-			ocfs2_xattr_handler(ocfs2_xattr_get_type(entry));
-	char *prefix = handler->prefix;
 	char *name = (char *)header + le16_to_cpu(entry->xe_name_offset);
-	int prefix_len = strlen(handler->prefix);
 
-	hash = ocfs2_xattr_name_hash(inode, prefix, prefix_len, name,
-				     entry->xe_name_len);
+	hash = ocfs2_xattr_name_hash(inode, name, entry->xe_name_len);
 	entry->xe_name_hash = cpu_to_le32(hash);
 
 	return;
@@ -2093,18 +2080,6 @@ cleanup:
 	return ret;
 }
 
-static inline u32 ocfs2_xattr_hash_by_name(struct inode *inode,
-					   int name_index,
-					   const char *suffix_name)
-{
-	struct xattr_handler *handler = ocfs2_xattr_handler(name_index);
-	char *prefix = handler->prefix;
-	int prefix_len = strlen(handler->prefix);
-
-	return ocfs2_xattr_name_hash(inode, prefix, prefix_len,
-				     (char *)suffix_name, strlen(suffix_name));
-}
-
 /*
  * Find the xattr extent rec which may contains name_hash.
  * e_cpos will be the first name hash of the xattr rec.
@@ -2395,7 +2370,7 @@ static int ocfs2_xattr_index_block_find(struct inode *inode,
 	struct ocfs2_extent_list *el = &xb_root->xt_list;
 	u64 p_blkno = 0;
 	u32 first_hash, num_clusters = 0;
-	u32 name_hash = ocfs2_xattr_hash_by_name(inode, name_index, name);
+	u32 name_hash = ocfs2_xattr_name_hash(inode, name, strlen(name));
 
 	if (le16_to_cpu(el->l_next_free_rec) == 0)
 		return -ENODATA;
@@ -4435,8 +4410,8 @@ static int ocfs2_xattr_set_in_bucket(struct inode *inode,
 	size_t value_len;
 	char *val = (char *)xi->value;
 	struct ocfs2_xattr_entry *xe = xs->here;
-	u32 name_hash = ocfs2_xattr_hash_by_name(inode,
-						 xi->name_index, xi->name);
+	u32 name_hash = ocfs2_xattr_name_hash(inode, xi->name,
+					      strlen(xi->name));
 
 	if (!xs->not_found && !ocfs2_xattr_is_local(xe)) {
 		/*
