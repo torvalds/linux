@@ -962,6 +962,13 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		pr_unimpl(vcpu, "unimplemented perfctr wrmsr: 0x%x data 0x%llx\n", msr_index, data);
 
 		break;
+	case MSR_IA32_CR_PAT:
+		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
+			vmcs_write64(GUEST_IA32_PAT, data);
+			vcpu->arch.pat = data;
+			break;
+		}
+		/* Otherwise falls through to kvm_set_msr_common */
 	default:
 		vmx_load_host_state(vmx);
 		msr = find_msr_entry(vmx, msr_index);
@@ -1181,12 +1188,13 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 #ifdef CONFIG_X86_64
 	min |= VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #endif
-	opt = 0;
+	opt = VM_EXIT_SAVE_IA32_PAT | VM_EXIT_LOAD_IA32_PAT;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_EXIT_CTLS,
 				&_vmexit_control) < 0)
 		return -EIO;
 
-	min = opt = 0;
+	min = 0;
+	opt = VM_ENTRY_LOAD_IA32_PAT;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_ENTRY_CTLS,
 				&_vmentry_control) < 0)
 		return -EIO;
@@ -2092,8 +2100,9 @@ static void vmx_disable_intercept_for_msr(struct page *msr_bitmap, u32 msr)
  */
 static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
-	u32 host_sysenter_cs;
+	u32 host_sysenter_cs, msr_low, msr_high;
 	u32 junk;
+	u64 host_pat;
 	unsigned long a;
 	struct descriptor_table dt;
 	int i;
@@ -2180,6 +2189,20 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(HOST_IA32_SYSENTER_ESP, a);   /* 22.2.3 */
 	rdmsrl(MSR_IA32_SYSENTER_EIP, a);
 	vmcs_writel(HOST_IA32_SYSENTER_EIP, a);   /* 22.2.3 */
+
+	if (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_PAT) {
+		rdmsr(MSR_IA32_CR_PAT, msr_low, msr_high);
+		host_pat = msr_low | ((u64) msr_high << 32);
+		vmcs_write64(HOST_IA32_PAT, host_pat);
+	}
+	if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
+		rdmsr(MSR_IA32_CR_PAT, msr_low, msr_high);
+		host_pat = msr_low | ((u64) msr_high << 32);
+		/* Write the default value follow host pat */
+		vmcs_write64(GUEST_IA32_PAT, host_pat);
+		/* Keep arch.pat sync with GUEST_IA32_PAT */
+		vmx->vcpu.arch.pat = host_pat;
+	}
 
 	for (i = 0; i < NR_VMX_MSR; ++i) {
 		u32 index = vmx_msr_index[i];
