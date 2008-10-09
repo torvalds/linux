@@ -1603,10 +1603,10 @@ out:
 }
 
 int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
-						ext4_fsblk_t nblocks)
+						s64 nblocks)
 {
 	s64 free_blocks, dirty_blocks;
-	ext4_fsblk_t root_blocks = 0;
+	s64 root_blocks = 0;
 	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
 	struct percpu_counter *dbc = &sbi->s_dirtyblocks_counter;
 
@@ -1631,7 +1631,7 @@ int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
 	/* Check whether we have space after
 	 * accounting for current dirty blocks
 	 */
-	if (free_blocks < ((s64)(root_blocks + nblocks) + dirty_blocks))
+	if (free_blocks < ((root_blocks + nblocks) + dirty_blocks))
 		/* we don't have free space */
 		return -ENOSPC;
 
@@ -1650,10 +1650,10 @@ int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
  * On success, return nblocks
  */
 ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
-						ext4_fsblk_t nblocks)
+						s64 nblocks)
 {
-	ext4_fsblk_t free_blocks, dirty_blocks;
-	ext4_fsblk_t root_blocks = 0;
+	s64 free_blocks, dirty_blocks;
+	s64 root_blocks = 0;
 	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
 	struct percpu_counter *dbc = &sbi->s_dirtyblocks_counter;
 
@@ -1667,14 +1667,15 @@ ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
 
 	if (free_blocks - (nblocks + root_blocks + dirty_blocks) <
 						EXT4_FREEBLOCKS_WATERMARK) {
-		free_blocks  = percpu_counter_sum_positive(fbc);
-		dirty_blocks = percpu_counter_sum_positive(dbc);
+		free_blocks  = percpu_counter_sum(fbc);
+		dirty_blocks = percpu_counter_sum(dbc);
 	}
 	if (free_blocks <= (root_blocks + dirty_blocks))
 		/* we don't have free space */
 		return 0;
+
 	if (free_blocks - (root_blocks + dirty_blocks) < nblocks)
-		return free_blocks - root_blocks;
+		return free_blocks - (root_blocks + dirty_blocks);
 	return nblocks;
 }
 
