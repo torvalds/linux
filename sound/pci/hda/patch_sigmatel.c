@@ -3643,7 +3643,12 @@ static int stac92xx_init(struct hda_codec *codec)
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = cfg->input_pins[i];
 		if (nid) {
-			unsigned int pinctl = AC_PINCTL_IN_EN;
+			unsigned int pinctl = snd_hda_codec_read(codec, nid,
+				0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			/* if PINCTL already set then skip */
+			if (pinctl & AC_PINCAP_IN)
+				continue;
+			pinctl = AC_PINCTL_IN_EN;
 			if (i == AUTO_PIN_MIC || i == AUTO_PIN_FRONT_MIC)
 				pinctl |= stac92xx_get_vref(codec, nid);
 			stac92xx_auto_set_pinctl(codec, nid, pinctl);
@@ -4413,12 +4418,13 @@ again:
 	switch (spec->board_config) {
 	case STAC_HP_M4:
 		spec->num_dmics = 0;
-		spec->num_smuxes = 1;
+		spec->num_smuxes = 0;
 		spec->num_dmuxes = 0;
 
 		/* enable internal microphone */
-		snd_hda_codec_write_cache(codec, 0x0e, 0,
-			AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80);
+		stac92xx_set_config_reg(codec, 0x0e, 0x01813040);
+		stac92xx_auto_set_pinctl(codec, 0x0e,
+			AC_PINCTL_IN_EN | AC_PINCTL_VREF_80);
 		break;
 	default:
 		spec->num_dmics = STAC92HD71BXX_NUM_DMICS;
