@@ -428,7 +428,7 @@ config CPU_32v6K
 # ARMv7
 config CPU_V7
 	bool "Support ARM V7 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP3
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7

@@ -44,3 +44,7 @@ config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
 	depends on ARCH_OMAP2 && ARCH_OMAP24XX
 
+config MACH_OMAP3_BEAGLE
+	bool "OMAP3 BEAGLE board"
+	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+

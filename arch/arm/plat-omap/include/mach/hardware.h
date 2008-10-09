@@ -322,6 +322,10 @@
 #include "board-2430sdp.h"
 #endif
 
+#ifdef CONFIG_MACH_OMAP3_BEAGLE
+#include "board-omap3beagle.h"
+#endif
+
 #ifdef CONFIG_MACH_OMAP_APOLLON
 #include "board-apollon.h"
 #endif
