@@ -31,6 +31,9 @@ enum rfkill_input_master_mode {
 	RFKILL_INPUT_MASTER_MAX,	/* marker */
 };
 
+/* Delay (in ms) between consecutive switch ops */
+#define RFKILL_OPS_DELAY 200
+
 static enum rfkill_input_master_mode rfkill_master_switch_mode =
 					RFKILL_INPUT_MASTER_UNBLOCKALL;
 module_param_named(master_switch_mode, rfkill_master_switch_mode, uint, 0);
@@ -51,7 +54,7 @@ enum rfkill_global_sched_op {
  */
 
 struct rfkill_task {
-	struct work_struct work;
+	struct delayed_work dwork;
 
 	/* ensures that task is serialized */
 	struct mutex mutex;
@@ -75,6 +78,9 @@ struct rfkill_task {
 
 	bool global_op_pending;
 	enum rfkill_global_sched_op op;
+
+	/* last time it was scheduled */
+	unsigned long last_scheduled;
 };
 
 static void __rfkill_handle_global_op(enum rfkill_global_sched_op op)
@@ -138,8 +144,8 @@ static void __rfkill_handle_normal_op(const enum rfkill_type type,
 
 static void rfkill_task_handler(struct work_struct *work)
 {
-	struct rfkill_task *task =
-			container_of(work, struct rfkill_task, work);
+	struct rfkill_task *task = container_of(work,
+					struct rfkill_task, dwork.work);
 	bool doit = true;
 
 	mutex_lock(&task->mutex);
@@ -194,11 +200,26 @@ static void rfkill_task_handler(struct work_struct *work)
 }
 
 static struct rfkill_task rfkill_task = {
-	.work = __WORK_INITIALIZER(rfkill_task.work,
+	.dwork = __DELAYED_WORK_INITIALIZER(rfkill_task.dwork,
 				rfkill_task_handler),
 	.mutex = __MUTEX_INITIALIZER(rfkill_task.mutex),
 	.lock = __SPIN_LOCK_UNLOCKED(rfkill_task.lock),
 };
+
+static unsigned long rfkill_ratelimit(const unsigned long last)
+{
+	const unsigned long delay = msecs_to_jiffies(RFKILL_OPS_DELAY);
+	return (time_after(jiffies, last + delay)) ? 0 : delay;
+}
+
+static void rfkill_schedule_ratelimited(void)
+{
+	if (!delayed_work_pending(&rfkill_task.dwork)) {
+		schedule_delayed_work(&rfkill_task.dwork,
+				rfkill_ratelimit(rfkill_task.last_scheduled));
+		rfkill_task.last_scheduled = jiffies;
+	}
+}
 
 static void rfkill_schedule_global_op(enum rfkill_global_sched_op op)
 {
@@ -207,7 +228,13 @@ static void rfkill_schedule_global_op(enum rfkill_global_sched_op op)
 	spin_lock_irqsave(&rfkill_task.lock, flags);
 	rfkill_task.op = op;
 	rfkill_task.global_op_pending = true;
-	schedule_work(&rfkill_task.work);
+	if (op == RFKILL_GLOBAL_OP_EPO && !rfkill_is_epo_lock_active()) {
+		/* bypass the limiter for EPO */
+		cancel_delayed_work(&rfkill_task.dwork);
+		schedule_delayed_work(&rfkill_task.dwork, 0);
+		rfkill_task.last_scheduled = jiffies;
+	} else
+		rfkill_schedule_ratelimited();
 	spin_unlock_irqrestore(&rfkill_task.lock, flags);
 }
 
@@ -231,7 +258,7 @@ static void rfkill_schedule_set(enum rfkill_type type,
 			set_bit(type,  rfkill_task.sw_newstate);
 		else
 			clear_bit(type, rfkill_task.sw_newstate);
-		schedule_work(&rfkill_task.work);
+		rfkill_schedule_ratelimited();
 	}
 	spin_unlock_irqrestore(&rfkill_task.lock, flags);
 }
@@ -248,7 +275,7 @@ static void rfkill_schedule_toggle(enum rfkill_type type)
 	if (!rfkill_task.global_op_pending) {
 		set_bit(type, rfkill_task.sw_pending);
 		change_bit(type, rfkill_task.sw_togglestate);
-		schedule_work(&rfkill_task.work);
+		rfkill_schedule_ratelimited();
 	}
 	spin_unlock_irqrestore(&rfkill_task.lock, flags);
 }
@@ -412,13 +439,19 @@ static int __init rfkill_handler_init(void)
 	if (rfkill_master_switch_mode >= RFKILL_INPUT_MASTER_MAX)
 		return -EINVAL;
 
+	/*
+	 * The penalty to not doing this is a possible RFKILL_OPS_DELAY delay
+	 * at the first use.  Acceptable, but if we can avoid it, why not?
+	 */
+	rfkill_task.last_scheduled =
+			jiffies - msecs_to_jiffies(RFKILL_OPS_DELAY) - 1;
 	return input_register_handler(&rfkill_handler);
 }
 
 static void __exit rfkill_handler_exit(void)
 {
 	input_unregister_handler(&rfkill_handler);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&rfkill_task.dwork);
 	rfkill_remove_epo_lock();
 }
 
