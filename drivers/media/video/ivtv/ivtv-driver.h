@@ -506,6 +506,8 @@ struct yuv_playback_info
 	struct v4l2_rect main_rect;
 	u32 v4l2_src_w;
 	u32 v4l2_src_h;
+
+	u8 running; /* Have any frames been displayed */
 };
 
 #define IVTV_VBI_FRAMES 32

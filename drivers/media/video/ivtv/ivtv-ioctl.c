@@ -644,8 +644,6 @@ static int ivtv_s_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 		itv->dma_data_req_size =
 			1080 * ((yi->v4l2_src_h + 31) & ~31);
 
-	/* Force update of yuv registers */
-	yi->yuv_forced_update = 1;
 	return 0;
 }
 
