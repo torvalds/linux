@@ -38,6 +38,7 @@
 #define NUM_CONTROL_ALLOC	32
 #define STAC_PWR_EVENT		0x20
 #define STAC_HP_EVENT		0x30
+#define STAC_VREF_EVENT		0x40
 
 enum {
 	STAC_REF,
@@ -3854,13 +3855,22 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	struct sigmatel_spec *spec = codec->spec;
 	int idx = res >> 26 & 0x0f;
 
-	switch ((res >> 26) & 0x30) {
+	switch ((res >> 26) & 0x70) {
 	case STAC_HP_EVENT:
 		stac92xx_hp_detect(codec, res);
 		/* fallthru */
 	case STAC_PWR_EVENT:
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, idx);
+		break;
+	case STAC_VREF_EVENT: {
+		int data = snd_hda_codec_read(codec, codec->afg, 0,
+			AC_VERB_GET_GPIO_DATA, 0);
+		/* toggle VREF state based on GPIOx status */
+		snd_hda_codec_write(codec, codec->afg, 0, 0x7e0,
+			!!(data & (1 << idx)));
+		break;
+		}
 	}
 }
 
@@ -4360,6 +4370,17 @@ again:
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
+		switch (codec->subsystem_id) {
+		case 0x103c361a:
+			/* Enable VREF power saving on GPIO1 detect */
+			snd_hda_codec_write(codec, codec->afg, 0,
+				AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
+			snd_hda_codec_write_cache(codec, codec->afg, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE,
+					(AC_USRSP_EN | STAC_VREF_EVENT | 0x01));
+			spec->gpio_mask |= 0x02;
+			break;
+		}
 		if ((codec->revision_id & 0xf) == 0 ||
 				(codec->revision_id & 0xf) == 1) {
 #ifdef SND_HDA_NEEDS_RESUME
