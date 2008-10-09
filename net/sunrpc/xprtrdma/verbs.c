@@ -705,30 +705,13 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_remote_cma.private_data_len = 0;
 
 	/* Client offers RDMA Read but does not initiate */
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_BOUNCEBUFFERS:
-		ep->rep_remote_cma.responder_resources = 0;
-		break;
-	case RPCRDMA_MTHCAFMR:
-	case RPCRDMA_REGISTER:
-	case RPCRDMA_FRMR:
-		ep->rep_remote_cma.responder_resources = cdata->max_requests *
-				(RPCRDMA_MAX_DATA_SEGS / 8);
-		break;
-	case RPCRDMA_MEMWINDOWS:
-	case RPCRDMA_MEMWINDOWS_ASYNC:
-#if RPCRDMA_PERSISTENT_REGISTRATION
-	case RPCRDMA_ALLPHYSICAL:
-#endif
-		ep->rep_remote_cma.responder_resources = cdata->max_requests *
-				(RPCRDMA_MAX_DATA_SEGS / 2);
-		break;
-	default:
-		break;
-	}
-	if (ep->rep_remote_cma.responder_resources > devattr.max_qp_rd_atom)
-		ep->rep_remote_cma.responder_resources = devattr.max_qp_rd_atom;
 	ep->rep_remote_cma.initiator_depth = 0;
+	if (ia->ri_memreg_strategy == RPCRDMA_BOUNCEBUFFERS)
+		ep->rep_remote_cma.responder_resources = 0;
+	else if (devattr.max_qp_rd_atom > 32)	/* arbitrary but <= 255 */
+		ep->rep_remote_cma.responder_resources = 32;
+	else
+		ep->rep_remote_cma.responder_resources = devattr.max_qp_rd_atom;
 
 	ep->rep_remote_cma.retry_count = 7;
 	ep->rep_remote_cma.flow_control = 0;
@@ -858,14 +841,6 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 	}
 }
 
-	/* Theoretically a client initiator_depth > 0 is not needed,
-	 * but many peers fail to complete the connection unless they
-	 * == responder_resources! */
-	if (ep->rep_remote_cma.initiator_depth !=
-				ep->rep_remote_cma.responder_resources)
-		ep->rep_remote_cma.initiator_depth =
-			ep->rep_remote_cma.responder_resources;
-
 	ep->rep_connected = 0;
 
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
@@ -894,14 +869,16 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 	if (ep->rep_connected <= 0) {
 		/* Sometimes, the only way to reliably connect to remote
 		 * CMs is to use same nonzero values for ORD and IRD. */
-		ep->rep_remote_cma.initiator_depth =
-					ep->rep_remote_cma.responder_resources;
-		if (ep->rep_remote_cma.initiator_depth == 0)
-			++ep->rep_remote_cma.initiator_depth;
-		if (ep->rep_remote_cma.responder_resources == 0)
-			++ep->rep_remote_cma.responder_resources;
-		if (retry_count++ == 0)
+		if (retry_count++ <= RDMA_CONNECT_RETRY_MAX + 1 &&
+		    (ep->rep_remote_cma.responder_resources == 0 ||
+		     ep->rep_remote_cma.initiator_depth !=
+				ep->rep_remote_cma.responder_resources)) {
+			if (ep->rep_remote_cma.responder_resources == 0)
+				ep->rep_remote_cma.responder_resources = 1;
+			ep->rep_remote_cma.initiator_depth =
+				ep->rep_remote_cma.responder_resources;
 			goto retry;
+		}
 		rc = ep->rep_connected;
 	} else {
 		dprintk("RPC:       %s: connected\n", __func__);
