@@ -5073,6 +5073,21 @@ bnx2_init_nic(struct bnx2 *bp, int reset_phy)
 }
 
 static int
+bnx2_shutdown_chip(struct bnx2 *bp)
+{
+	u32 reset_code;
+
+	if (bp->flags & BNX2_FLAG_NO_WOL)
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
+	else if (bp->wol)
+		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
+	else
+		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
+
+	return bnx2_reset_chip(bp, reset_code);
+}
+
+static int
 bnx2_test_registers(struct bnx2 *bp)
 {
 	int ret;
@@ -6095,20 +6110,13 @@ static int
 bnx2_close(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
-	u32 reset_code;
 
 	cancel_work_sync(&bp->reset_task);
 
 	bnx2_disable_int_sync(bp);
 	bnx2_napi_disable(bp);
 	del_timer_sync(&bp->timer);
-	if (bp->flags & BNX2_FLAG_NO_WOL)
-		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
-	else if (bp->wol)
-		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
-	else
-		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
-	bnx2_reset_chip(bp, reset_code);
+	bnx2_shutdown_chip(bp);
 	bnx2_free_irq(bp);
 	bnx2_free_skbs(bp);
 	bnx2_free_mem(bp);
@@ -7777,7 +7785,6 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = netdev_priv(dev);
-	u32 reset_code;
 
 	/* PCI register 4 needs to be saved whether netif_running() or not.
 	 * MSI address and data need to be saved if using MSI and
@@ -7791,13 +7798,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	bnx2_netif_stop(bp);
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
-	if (bp->flags & BNX2_FLAG_NO_WOL)
-		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
-	else if (bp->wol)
-		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
-	else
-		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
-	bnx2_reset_chip(bp, reset_code);
+	bnx2_shutdown_chip(bp);
 	bnx2_free_skbs(bp);
 	bnx2_set_power_state(bp, pci_choose_state(pdev, state));
 	return 0;
