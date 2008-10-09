@@ -863,6 +863,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	char *p;
 	size_t len;
 	int i, rc;
+	struct rpcrdma_mw *r;
 
 	buf->rb_max_requests = cdata->max_requests;
 	spin_lock_init(&buf->rb_lock);
@@ -873,7 +874,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 *   2.  arrays of struct rpcrdma_req to fill in pointers
 	 *   3.  array of struct rpcrdma_rep for replies
 	 *   4.  padding, if any
-	 *   5.  mw's, if any
+	 *   5.  mw's or fmr's, if any
 	 * Send/recv buffers in req/rep need to be registered
 	 */
 
@@ -927,15 +928,13 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 * and also reduce unbind-to-bind collision.
 	 */
 	INIT_LIST_HEAD(&buf->rb_mws);
+	r = (struct rpcrdma_mw *)p;
 	switch (ia->ri_memreg_strategy) {
 	case RPCRDMA_MTHCAFMR:
-		{
-		struct rpcrdma_mw *r = (struct rpcrdma_mw *)p;
-		struct ib_fmr_attr fa = {
-			RPCRDMA_MAX_DATA_SEGS, 1, PAGE_SHIFT
-		};
 		/* TBD we are perhaps overallocating here */
 		for (i = (buf->rb_max_requests+1) * RPCRDMA_MAX_SEGS; i; i--) {
+			static struct ib_fmr_attr fa =
+				{ RPCRDMA_MAX_DATA_SEGS, 1, PAGE_SHIFT };
 			r->r.fmr = ib_alloc_fmr(ia->ri_pd,
 				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ,
 				&fa);
@@ -948,12 +947,9 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 			list_add(&r->mw_list, &buf->rb_mws);
 			++r;
 		}
-		}
 		break;
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
-		{
-		struct rpcrdma_mw *r = (struct rpcrdma_mw *)p;
 		/* Allocate one extra request's worth, for full cycling */
 		for (i = (buf->rb_max_requests+1) * RPCRDMA_MAX_SEGS; i; i--) {
 			r->r.mw = ib_alloc_mw(ia->ri_pd);
@@ -965,7 +961,6 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 			}
 			list_add(&r->mw_list, &buf->rb_mws);
 			++r;
-		}
 		}
 		break;
 	default:
@@ -1046,6 +1041,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
 	int rc, i;
 	struct rpcrdma_ia *ia = rdmab_to_ia(buf);
+	struct rpcrdma_mw *r;
 
 	/* clean up in reverse order from create
 	 *   1.  recv mr memory (mr free, then kfree)
@@ -1065,7 +1061,6 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 		}
 		if (buf->rb_send_bufs && buf->rb_send_bufs[i]) {
 			while (!list_empty(&buf->rb_mws)) {
-				struct rpcrdma_mw *r;
 				r = list_entry(buf->rb_mws.next,
 					struct rpcrdma_mw, mw_list);
 				list_del(&r->mw_list);
@@ -1115,6 +1110,8 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 {
 	struct rpcrdma_req *req;
 	unsigned long flags;
+	int i;
+	struct rpcrdma_mw *r;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	if (buffers->rb_send_index == buffers->rb_max_requests) {
@@ -1135,9 +1132,8 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	}
 	buffers->rb_send_bufs[buffers->rb_send_index++] = NULL;
 	if (!list_empty(&buffers->rb_mws)) {
-		int i = RPCRDMA_MAX_SEGS - 1;
+		i = RPCRDMA_MAX_SEGS - 1;
 		do {
-			struct rpcrdma_mw *r;
 			r = list_entry(buffers->rb_mws.next,
 					struct rpcrdma_mw, mw_list);
 			list_del(&r->mw_list);
@@ -1329,15 +1325,202 @@ rpcrdma_unmap_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg)
 				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
 }
 
+static int
+rpcrdma_register_fmr_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
+	int len, pageoff, i, rc;
+
+	pageoff = offset_in_page(seg1->mr_offset);
+	seg1->mr_offset -= pageoff;	/* start of page */
+	seg1->mr_len += pageoff;
+	len = -pageoff;
+	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
+		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	for (i = 0; i < *nsegs;) {
+		rpcrdma_map_one(ia, seg, writing);
+		physaddrs[i] = seg->mr_dma;
+		len += seg->mr_len;
+		++seg;
+		++i;
+		/* Check for holes */
+		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
+		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
+			break;
+	}
+	rc = ib_map_phys_fmr(seg1->mr_chunk.rl_mw->r.fmr,
+				physaddrs, i, seg1->mr_dma);
+	if (rc) {
+		dprintk("RPC:       %s: failed ib_map_phys_fmr "
+			"%u@0x%llx+%i (%d)... status %i\n", __func__,
+			len, (unsigned long long)seg1->mr_dma,
+			pageoff, i, rc);
+		while (i--)
+			rpcrdma_unmap_one(ia, --seg);
+	} else {
+		seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.fmr->rkey;
+		seg1->mr_base = seg1->mr_dma + pageoff;
+		seg1->mr_nsegs = i;
+		seg1->mr_len = len;
+	}
+	*nsegs = i;
+	return rc;
+}
+
+static int
+rpcrdma_deregister_fmr_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	LIST_HEAD(l);
+	int rc;
+
+	list_add(&seg1->mr_chunk.rl_mw->r.fmr->list, &l);
+	rc = ib_unmap_fmr(&l);
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_unmap_fmr,"
+			" status %i\n", __func__, rc);
+	return rc;
+}
+
+static int
+rpcrdma_register_memwin_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia,
+			struct rpcrdma_xprt *r_xprt)
+{
+	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
+				  IB_ACCESS_REMOTE_READ);
+	struct ib_mw_bind param;
+	int rc;
+
+	*nsegs = 1;
+	rpcrdma_map_one(ia, seg, writing);
+	param.mr = ia->ri_bind_mem;
+	param.wr_id = 0ULL;	/* no send cookie */
+	param.addr = seg->mr_dma;
+	param.length = seg->mr_len;
+	param.send_flags = 0;
+	param.mw_access_flags = mem_priv;
+
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+	rc = ib_bind_mw(ia->ri_id->qp, seg->mr_chunk.rl_mw->r.mw, &param);
+	if (rc) {
+		dprintk("RPC:       %s: failed ib_bind_mw "
+			"%u@0x%llx status %i\n",
+			__func__, seg->mr_len,
+			(unsigned long long)seg->mr_dma, rc);
+		rpcrdma_unmap_one(ia, seg);
+	} else {
+		seg->mr_rkey = seg->mr_chunk.rl_mw->r.mw->rkey;
+		seg->mr_base = param.addr;
+		seg->mr_nsegs = 1;
+	}
+	return rc;
+}
+
+static int
+rpcrdma_deregister_memwin_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia,
+			struct rpcrdma_xprt *r_xprt, void **r)
+{
+	struct ib_mw_bind param;
+	LIST_HEAD(l);
+	int rc;
+
+	BUG_ON(seg->mr_nsegs != 1);
+	param.mr = ia->ri_bind_mem;
+	param.addr = 0ULL;	/* unbind */
+	param.length = 0;
+	param.mw_access_flags = 0;
+	if (*r) {
+		param.wr_id = (u64) (unsigned long) *r;
+		param.send_flags = IB_SEND_SIGNALED;
+		INIT_CQCOUNT(&r_xprt->rx_ep);
+	} else {
+		param.wr_id = 0ULL;
+		param.send_flags = 0;
+		DECR_CQCOUNT(&r_xprt->rx_ep);
+	}
+	rc = ib_bind_mw(ia->ri_id->qp, seg->mr_chunk.rl_mw->r.mw, &param);
+	rpcrdma_unmap_one(ia, seg);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_(un)bind_mw,"
+			" status %i\n", __func__, rc);
+	else
+		*r = NULL;	/* will upcall on completion */
+	return rc;
+}
+
+static int
+rpcrdma_register_default_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia)
+{
+	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
+				  IB_ACCESS_REMOTE_READ);
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_phys_buf ipb[RPCRDMA_MAX_DATA_SEGS];
+	int len, i, rc = 0;
+
+	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
+		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	for (len = 0, i = 0; i < *nsegs;) {
+		rpcrdma_map_one(ia, seg, writing);
+		ipb[i].addr = seg->mr_dma;
+		ipb[i].size = seg->mr_len;
+		len += seg->mr_len;
+		++seg;
+		++i;
+		/* Check for holes */
+		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
+		    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
+			break;
+	}
+	seg1->mr_base = seg1->mr_dma;
+	seg1->mr_chunk.rl_mr = ib_reg_phys_mr(ia->ri_pd,
+				ipb, i, mem_priv, &seg1->mr_base);
+	if (IS_ERR(seg1->mr_chunk.rl_mr)) {
+		rc = PTR_ERR(seg1->mr_chunk.rl_mr);
+		dprintk("RPC:       %s: failed ib_reg_phys_mr "
+			"%u@0x%llx (%d)... status %i\n",
+			__func__, len,
+			(unsigned long long)seg1->mr_dma, i, rc);
+		while (i--)
+			rpcrdma_unmap_one(ia, --seg);
+	} else {
+		seg1->mr_rkey = seg1->mr_chunk.rl_mr->rkey;
+		seg1->mr_nsegs = i;
+		seg1->mr_len = len;
+	}
+	*nsegs = i;
+	return rc;
+}
+
+static int
+rpcrdma_deregister_default_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	int rc;
+
+	rc = ib_dereg_mr(seg1->mr_chunk.rl_mr);
+	seg1->mr_chunk.rl_mr = NULL;
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_dereg_mr,"
+			" status %i\n", __func__, rc);
+	return rc;
+}
+
 int
 rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 			int nsegs, int writing, struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int mem_priv = (writing ? IB_ACCESS_REMOTE_WRITE :
-				  IB_ACCESS_REMOTE_READ);
-	struct rpcrdma_mr_seg *seg1 = seg;
-	int i;
 	int rc = 0;
 
 	switch (ia->ri_memreg_strategy) {
@@ -1352,114 +1535,20 @@ rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 		break;
 #endif
 
-	/* Registration using fast memory registration */
+	/* Registration using fmr memory registration */
 	case RPCRDMA_MTHCAFMR:
-		{
-		u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
-		int len, pageoff = offset_in_page(seg->mr_offset);
-		seg1->mr_offset -= pageoff;	/* start of page */
-		seg1->mr_len += pageoff;
-		len = -pageoff;
-		if (nsegs > RPCRDMA_MAX_DATA_SEGS)
-			nsegs = RPCRDMA_MAX_DATA_SEGS;
-		for (i = 0; i < nsegs;) {
-			rpcrdma_map_one(ia, seg, writing);
-			physaddrs[i] = seg->mr_dma;
-			len += seg->mr_len;
-			++seg;
-			++i;
-			/* Check for holes */
-			if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
-			    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
-				break;
-		}
-		nsegs = i;
-		rc = ib_map_phys_fmr(seg1->mr_chunk.rl_mw->r.fmr,
-					physaddrs, nsegs, seg1->mr_dma);
-		if (rc) {
-			dprintk("RPC:       %s: failed ib_map_phys_fmr "
-				"%u@0x%llx+%i (%d)... status %i\n", __func__,
-				len, (unsigned long long)seg1->mr_dma,
-				pageoff, nsegs, rc);
-			while (nsegs--)
-				rpcrdma_unmap_one(ia, --seg);
-		} else {
-			seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.fmr->rkey;
-			seg1->mr_base = seg1->mr_dma + pageoff;
-			seg1->mr_nsegs = nsegs;
-			seg1->mr_len = len;
-		}
-		}
+		rc = rpcrdma_register_fmr_external(seg, &nsegs, writing, ia);
 		break;
 
 	/* Registration using memory windows */
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
-		{
-		struct ib_mw_bind param;
-		rpcrdma_map_one(ia, seg, writing);
-		param.mr = ia->ri_bind_mem;
-		param.wr_id = 0ULL;	/* no send cookie */
-		param.addr = seg->mr_dma;
-		param.length = seg->mr_len;
-		param.send_flags = 0;
-		param.mw_access_flags = mem_priv;
-
-		DECR_CQCOUNT(&r_xprt->rx_ep);
-		rc = ib_bind_mw(ia->ri_id->qp,
-					seg->mr_chunk.rl_mw->r.mw, &param);
-		if (rc) {
-			dprintk("RPC:       %s: failed ib_bind_mw "
-				"%u@0x%llx status %i\n",
-				__func__, seg->mr_len,
-				(unsigned long long)seg->mr_dma, rc);
-			rpcrdma_unmap_one(ia, seg);
-		} else {
-			seg->mr_rkey = seg->mr_chunk.rl_mw->r.mw->rkey;
-			seg->mr_base = param.addr;
-			seg->mr_nsegs = 1;
-			nsegs = 1;
-		}
-		}
+		rc = rpcrdma_register_memwin_external(seg, &nsegs, writing, ia, r_xprt);
 		break;
 
 	/* Default registration each time */
 	default:
-		{
-		struct ib_phys_buf ipb[RPCRDMA_MAX_DATA_SEGS];
-		int len = 0;
-		if (nsegs > RPCRDMA_MAX_DATA_SEGS)
-			nsegs = RPCRDMA_MAX_DATA_SEGS;
-		for (i = 0; i < nsegs;) {
-			rpcrdma_map_one(ia, seg, writing);
-			ipb[i].addr = seg->mr_dma;
-			ipb[i].size = seg->mr_len;
-			len += seg->mr_len;
-			++seg;
-			++i;
-			/* Check for holes */
-			if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
-			    offset_in_page((seg-1)->mr_offset+(seg-1)->mr_len))
-				break;
-		}
-		nsegs = i;
-		seg1->mr_base = seg1->mr_dma;
-		seg1->mr_chunk.rl_mr = ib_reg_phys_mr(ia->ri_pd,
-					ipb, nsegs, mem_priv, &seg1->mr_base);
-		if (IS_ERR(seg1->mr_chunk.rl_mr)) {
-			rc = PTR_ERR(seg1->mr_chunk.rl_mr);
-			dprintk("RPC:       %s: failed ib_reg_phys_mr "
-				"%u@0x%llx (%d)... status %i\n",
-				__func__, len,
-				(unsigned long long)seg1->mr_dma, nsegs, rc);
-			while (nsegs--)
-				rpcrdma_unmap_one(ia, --seg);
-		} else {
-			seg1->mr_rkey = seg1->mr_chunk.rl_mr->rkey;
-			seg1->mr_nsegs = nsegs;
-			seg1->mr_len = len;
-		}
-		}
+		rc = rpcrdma_register_default_external(seg, &nsegs, writing, ia);
 		break;
 	}
 	if (rc)
@@ -1473,7 +1562,6 @@ rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
 		struct rpcrdma_xprt *r_xprt, void *r)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_mr_seg *seg1 = seg;
 	int nsegs = seg->mr_nsegs, rc;
 
 	switch (ia->ri_memreg_strategy) {
@@ -1487,55 +1575,16 @@ rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
 #endif
 
 	case RPCRDMA_MTHCAFMR:
-		{
-		LIST_HEAD(l);
-		list_add(&seg->mr_chunk.rl_mw->r.fmr->list, &l);
-		rc = ib_unmap_fmr(&l);
-		while (seg1->mr_nsegs--)
-			rpcrdma_unmap_one(ia, seg++);
-		}
-		if (rc)
-			dprintk("RPC:       %s: failed ib_unmap_fmr,"
-				" status %i\n", __func__, rc);
+		rc = rpcrdma_deregister_fmr_external(seg, ia);
 		break;
 
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
-		{
-		struct ib_mw_bind param;
-		BUG_ON(nsegs != 1);
-		param.mr = ia->ri_bind_mem;
-		param.addr = 0ULL;	/* unbind */
-		param.length = 0;
-		param.mw_access_flags = 0;
-		if (r) {
-			param.wr_id = (u64) (unsigned long) r;
-			param.send_flags = IB_SEND_SIGNALED;
-			INIT_CQCOUNT(&r_xprt->rx_ep);
-		} else {
-			param.wr_id = 0ULL;
-			param.send_flags = 0;
-			DECR_CQCOUNT(&r_xprt->rx_ep);
-		}
-		rc = ib_bind_mw(ia->ri_id->qp,
-				seg->mr_chunk.rl_mw->r.mw, &param);
-		rpcrdma_unmap_one(ia, seg);
-		}
-		if (rc)
-			dprintk("RPC:       %s: failed ib_(un)bind_mw,"
-				" status %i\n", __func__, rc);
-		else
-			r = NULL;	/* will upcall on completion */
+		rc = rpcrdma_deregister_memwin_external(seg, ia, r_xprt, &r);
 		break;
 
 	default:
-		rc = ib_dereg_mr(seg1->mr_chunk.rl_mr);
-		seg1->mr_chunk.rl_mr = NULL;
-		while (seg1->mr_nsegs--)
-			rpcrdma_unmap_one(ia, seg++);
-		if (rc)
-			dprintk("RPC:       %s: failed ib_dereg_mr,"
-				" status %i\n", __func__, rc);
+		rc = rpcrdma_deregister_default_external(seg, ia);
 		break;
 	}
 	if (r) {
