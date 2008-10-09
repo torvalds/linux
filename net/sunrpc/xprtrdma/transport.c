@@ -784,7 +784,7 @@ static void __exit xprt_rdma_cleanup(void)
 {
 	int rc;
 
-	dprintk("RPCRDMA Module Removed, deregister RPC RDMA transport\n");
+	dprintk(KERN_INFO "RPCRDMA Module Removed, deregister RPC RDMA transport\n");
 #ifdef RPC_DEBUG
 	if (sunrpc_table_header) {
 		unregister_sysctl_table(sunrpc_table_header);

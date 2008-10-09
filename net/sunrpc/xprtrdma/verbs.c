@@ -344,6 +344,27 @@ connected:
 		break;
 	}
 
+#ifdef RPC_DEBUG
+	if (connstate == 1) {
+		int ird = attr.max_dest_rd_atomic;
+		int tird = ep->rep_remote_cma.responder_resources;
+		printk(KERN_INFO "rpcrdma: connection to %u.%u.%u.%u:%u "
+			"on %s, memreg %d slots %d ird %d%s\n",
+			NIPQUAD(addr->sin_addr.s_addr),
+			ntohs(addr->sin_port),
+			ia->ri_id->device->name,
+			ia->ri_memreg_strategy,
+			xprt->rx_buf.rb_max_requests,
+			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
+	} else if (connstate < 0) {
+		printk(KERN_INFO "rpcrdma: connection to %u.%u.%u.%u:%u "
+			"closed (%d)\n",
+			NIPQUAD(addr->sin_addr.s_addr),
+			ntohs(addr->sin_port),
+			connstate);
+	}
+#endif
+
 	return 0;
 }
 
