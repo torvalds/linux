@@ -311,8 +311,7 @@ static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irq_desc *desc)
 		   
 	for (i = 0; i <= 7; i++) {
 		if (status & (1<<i)) {
-			desc = irq_desc + i + IRQ_IXP2000_GPIO0;
-			desc_handle_irq(i + IRQ_IXP2000_GPIO0, desc);
+			generic_handle_irq(i + IRQ_IXP2000_GPIO0);
 		}
 	}
 }
@@ -404,8 +403,7 @@ static void ixp2000_err_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	for(i = 31; i >= 0; i--) {
 		if(status & (1 << i)) {
-			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
-			desc_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc);
+			generic_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i);
 		}
 	}
 }

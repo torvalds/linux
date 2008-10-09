@@ -33,8 +33,6 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned int irr;
 
 	while (1) {
-		struct irq_desc *d;
-
 		/*
 		 * Acknowledge the parent IRQ.
 		 */
@@ -67,21 +65,18 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 			desc->chip->ack(irq);
 
 			if (irr & IRR_ETHERNET) {
-				d = irq_desc + IRQ_NEPONSET_SMC9196;
-				desc_handle_irq(IRQ_NEPONSET_SMC9196, d);
+				generic_handle_irq(IRQ_NEPONSET_SMC9196);
 			}
 
 			if (irr & IRR_USAR) {
-				d = irq_desc + IRQ_NEPONSET_USAR;
-				desc_handle_irq(IRQ_NEPONSET_USAR, d);
+				generic_handle_irq(IRQ_NEPONSET_USAR);
 			}
 
 			desc->chip->unmask(irq);
 		}
 
 		if (irr & IRR_SA1111) {
-			d = irq_desc + IRQ_NEPONSET_SA1111;
-			desc_handle_irq(IRQ_NEPONSET_SA1111, d);
+			generic_handle_irq(IRQ_NEPONSET_SA1111);
 		}
 	}
 }

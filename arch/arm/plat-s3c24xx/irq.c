@@ -468,7 +468,6 @@ static void s3c_irq_demux_adc(unsigned int irq,
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = 9;
-	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -482,12 +481,10 @@ static void s3c_irq_demux_adc(unsigned int irq,
 
 	if (subsrc != 0) {
 		if (subsrc & 1) {
-			mydesc = irq_desc + IRQ_TC;
-			desc_handle_irq(IRQ_TC, mydesc);
+			generic_handle_irq(IRQ_TC);
 		}
 		if (subsrc & 2) {
-			mydesc = irq_desc + IRQ_ADC;
-			desc_handle_irq(IRQ_ADC, mydesc);
+			generic_handle_irq(IRQ_ADC);
 		}
 	}
 }
@@ -496,7 +493,6 @@ static void s3c_irq_demux_uart(unsigned int start)
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = start - IRQ_S3CUART_RX0;
-	struct irq_desc *desc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -512,20 +508,14 @@ static void s3c_irq_demux_uart(unsigned int start)
 	subsrc &= 7;
 
 	if (subsrc != 0) {
-		desc = irq_desc + start;
-
 		if (subsrc & 1)
-			desc_handle_irq(start, desc);
-
-		desc++;
+			generic_handle_irq(start);
 
 		if (subsrc & 2)
-			desc_handle_irq(start+1, desc);
-
-		desc++;
+			generic_handle_irq(start+1);
 
 		if (subsrc & 4)
-			desc_handle_irq(start+2, desc);
+			generic_handle_irq(start+2);
 	}
 }
 
@@ -572,7 +562,7 @@ s3c_irq_demux_extint8(unsigned int irq,
 		eintpnd &= ~(1<<irq);
 
 		irq += (IRQ_EINT4 - 4);
-		desc_handle_irq(irq, irq_desc + irq);
+		generic_handle_irq(irq);
 	}
 
 }
@@ -595,7 +585,7 @@ s3c_irq_demux_extint4t7(unsigned int irq,
 
 		irq += (IRQ_EINT4 - 4);
 
-		desc_handle_irq(irq, irq_desc + irq);
+		generic_handle_irq(irq);
 	}
 }
 

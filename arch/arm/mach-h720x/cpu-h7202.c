@@ -120,12 +120,10 @@ h7202_timerx_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 
 	mask >>= 1;
 	irq = IRQ_TIMER1;
-	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1)
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		irq++;
-		desc++;
 		mask >>= 1;
 	}
 }

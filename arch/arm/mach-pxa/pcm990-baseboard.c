@@ -262,8 +262,7 @@ static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
 					GPIO_bit(PCM990_CTRL_INT_IRQ_GPIO);
 		if (likely(pending)) {
 			irq = PCM027_IRQ(0) + __ffs(pending);
-			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		pending = (~PCM990_INTSETCLR) & pcm990_irq_enabled;
 	} while (pending);

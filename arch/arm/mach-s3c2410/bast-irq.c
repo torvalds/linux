@@ -130,8 +130,7 @@ bast_irq_pc104_demux(unsigned int irq,
 		for (i = 0; stat != 0; i++, stat >>= 1) {
 			if (stat & 1) {
 				irqno = bast_pc104_irqs[i];
-				desc = irq_desc + irqno;
-				desc_handle_irq(irqno, desc);
+				generic_handle_irq(irqno);
 			}
 		}
 	}

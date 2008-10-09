@@ -182,14 +182,12 @@ static void
 imx_gpio_handler(unsigned int mask, unsigned int irq,
                  struct irq_desc *desc)
 {
-	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1) {
 			DEBUG_IRQ("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		irq++;
-		desc++;
 		mask >>= 1;
 	}
 }

@@ -192,8 +192,7 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 	for (i = 0; i < 8; i++) {
 		if (status & (1 << i)) {
 			int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_A(0)) + i;
-			desc = irq_desc + gpio_irq;
-			desc_handle_irq(gpio_irq, desc);
+			generic_handle_irq(gpio_irq);
 		}
 	}
 
@@ -202,7 +201,7 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (status & (1 << i)) {
 			int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_B(0)) + i;
 			desc = irq_desc + gpio_irq;
-			desc_handle_irq(gpio_irq, desc);
+			generic_handle_irq(gpio_irq);
 		}
 	}
 }
@@ -217,7 +216,7 @@ static void ep93xx_gpio_f_irq_handler(unsigned int irq, struct irq_desc *desc)
 	int port_f_idx = ((irq + 1) & 7) ^ 4; /* {19..22,47..50} -> {0..7} */
 	int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_F(0)) + port_f_idx;
 
-	desc_handle_irq(gpio_irq, irq_desc + gpio_irq);
+	generic_handle_irq(gpio_irq);
 }
 
 static void ep93xx_gpio_irq_ack(unsigned int irq)

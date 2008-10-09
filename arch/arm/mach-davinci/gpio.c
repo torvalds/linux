@@ -201,7 +201,6 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->chip->ack(irq);
 	while (1) {
 		u32		status;
-		struct irq_desc	*gpio;
 		int		n;
 		int		res;
 
@@ -215,12 +214,10 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 
 		/* now demux them to the right lowlevel handler */
 		n = (int)get_irq_data(irq);
-		gpio = &irq_desc[n];
 		while (status) {
 			res = ffs(status);
 			n += res;
-			gpio += res;
-			desc_handle_irq(n - 1, gpio - 1);
+			generic_handle_irq(n - 1);
 			status >>= res;
 		}
 	}

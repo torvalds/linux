@@ -94,8 +94,7 @@ isa_irq_handler(unsigned int irq, struct irq_desc *desc)
 		return;
 	}
 
-	desc = irq_desc + isa_irq;
-	desc_handle_irq(isa_irq, desc);
+	generic_handle_irq(isa_irq);
 }
 
 static struct irqaction irq_cascade = {

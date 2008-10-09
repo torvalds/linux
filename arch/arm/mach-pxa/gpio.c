@@ -275,7 +275,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			loop = 1;
 
 			n = PXA_GPIO_IRQ_BASE + bit;
-			desc_handle_irq(n, irq_desc + n);
+			generic_handle_irq(n);
 
 			bit = find_next_bit(gedr, GEDR_BITS, bit + 1);
 		}

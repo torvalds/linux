@@ -21,6 +21,7 @@
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/irq.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>

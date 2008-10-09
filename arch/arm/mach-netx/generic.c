@@ -77,15 +77,12 @@ netx_hif_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 	stat = ((readl(NETX_DPMAS_INT_EN) &
 		readl(NETX_DPMAS_INT_STAT)) >> 24) & 0x1f;
 
-	desc = irq_desc + NETX_IRQ_HIF_CHAINED(0);
-
 	while (stat) {
 		if (stat & 1) {
 			DEBUG_IRQ("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		irq++;
-		desc++;
 		stat >>= 1;
 	}
 }
