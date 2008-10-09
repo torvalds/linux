@@ -175,6 +175,13 @@ static inline int is_user_addr_valid(struct task_struct *child,
 	return -EIO;
 }
 
+void ptrace_enable(struct task_struct *child)
+{
+	unsigned long tmp;
+	tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
+	put_reg(child, PT_SYSCFG, tmp);
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -347,29 +354,22 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
-	case PTRACE_CONT:
-		{		/* restart after signal. */
-			long tmp;
+	case PTRACE_CONT:	/* restart after signal. */
+		pr_debug("ptrace: syscall/cont\n");
 
-			pr_debug("ptrace: syscall/cont\n");
-
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			if (request == PTRACE_SYSCALL)
-				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			else
-				clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-			child->exit_code = data;
-			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
-			put_reg(child, PT_SYSCFG, tmp);
-			pr_debug("ptrace: before wake_up_process\n");
-			wake_up_process(child);
-			ret = 0;
+		ret = -EIO;
+		if (!valid_signal(data))
 			break;
-		}
+		if (request == PTRACE_SYSCALL)
+			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		else
+			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		child->exit_code = data;
+		ptrace_disable(child);
+		pr_debug("ptrace: before wake_up_process\n");
+		wake_up_process(child);
+		ret = 0;
+		break;
 
 	/*
 	 * make the child exit.  Best I can do is send it a sigkill.
@@ -377,38 +377,25 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	 * exit.
 	 */
 	case PTRACE_KILL:
-		{
-			long tmp;
-			ret = 0;
-			if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-				break;
-			child->exit_code = SIGKILL;
-			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
-			put_reg(child, PT_SYSCFG, tmp);
-			wake_up_process(child);
+		ret = 0;
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
-		}
+		child->exit_code = SIGKILL;
+		ptrace_disable(child);
+		wake_up_process(child);
+		break;
 
-	case PTRACE_SINGLESTEP:
-		{		/* set the trap flag. */
-			long tmp;
-
-			pr_debug("ptrace: single step\n");
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
-			put_reg(child, PT_SYSCFG, tmp);
-
-			child->exit_code = data;
-			/* give it a chance to run. */
-			wake_up_process(child);
-			ret = 0;
+	case PTRACE_SINGLESTEP:	/* set the trap flag. */
+		pr_debug("ptrace: single step\n");
+		ret = -EIO;
+		if (!valid_signal(data))
 			break;
-		}
+		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		ptrace_enable(child);
+		child->exit_code = data;
+		wake_up_process(child);
+		ret = 0;
+		break;
 
 	case PTRACE_GETREGS:
 		/* Get all gp regs from the child. */
