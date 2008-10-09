@@ -1,7 +1,7 @@
 /*
  * arch/arm/plat-omap/include/mach/board-h4.h
  *
- * Hardware definitions for TI OMAP1610 H4 board.
+ * Hardware definitions for TI OMAP2420 H4 board.
  *
  * Initial creation by Dirk Behme <dirk.behme@de.bosch.com>
  *
@@ -28,6 +28,9 @@
 
 #ifndef __ASM_ARCH_OMAP_H4_H
 #define __ASM_ARCH_OMAP_H4_H
+
+/* MMC Prototypes */
+extern void h4_mmc_init(void);
 
 /* Placeholder for H4 specific defines */
 #define OMAP24XX_ETHR_GPIO_IRQ		92

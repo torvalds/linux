@@ -45,6 +45,8 @@ struct omap_mmc_conf {
 	unsigned cover:1;
 	/* 4 wire signaling is optional, and is only used for SD/SDIO */
 	unsigned wire4:1;
+	/* use the internal clock */
+	unsigned internal_clock:1;
 	s16 power_pin;
 	s16 switch_pin;
 	s16 wp_pin;

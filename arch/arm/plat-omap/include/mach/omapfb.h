@@ -62,6 +62,7 @@
 #define OMAPFB_CAPS_WINDOW_PIXEL_DOUBLE	0x00010000
 #define OMAPFB_CAPS_WINDOW_SCALE	0x00020000
 #define OMAPFB_CAPS_WINDOW_OVERLAY	0x00040000
+#define OMAPFB_CAPS_WINDOW_ROTATE	0x00080000
 #define OMAPFB_CAPS_SET_BACKLIGHT	0x01000000
 
 /* Values from DSP must map to lower 16-bits */
@@ -305,6 +306,7 @@ struct lcd_ctrl {
 					   int screen_width,
 					   int pos_x, int pos_y, int width,
 					   int height, int color_mode);
+	int		(*set_rotate)	  (int angle);
 	int		(*setup_mem)	  (int plane, size_t size,
 					   int mem_type, unsigned long *paddr);
 	int		(*mmap)		  (struct fb_info *info,
@@ -374,6 +376,7 @@ extern struct lcd_ctrl omap1_lcd_ctrl;
 extern struct lcd_ctrl omap2_disp_ctrl;
 #endif
 
+extern void omapfb_reserve_sdram(void);
 extern void omapfb_register_panel(struct lcd_panel *panel);
 extern void omapfb_write_first_pixel(struct omapfb_device *fbdev, u16 pixval);
 extern void omapfb_notify_clients(struct omapfb_device *fbdev,

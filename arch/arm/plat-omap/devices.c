@@ -20,15 +20,15 @@
 #include <asm/mach/map.h>
 
 #include <mach/tc.h>
+#include <mach/control.h>
 #include <mach/board.h>
 #include <mach/mux.h>
 #include <mach/gpio.h>
 #include <mach/menelaus.h>
 #include <mach/mcbsp.h>
+#include <mach/dsp_common.h>
 
 #if	defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
-
-#include "../plat-omap/dsp/dsp_common.h"
 
 static struct dsp_platform_data dsp_pdata = {
 	.kdev_list = LIST_HEAD_INIT(dsp_pdata.kdev_list),
@@ -75,7 +75,7 @@ int dsp_kfunc_device_register(struct dsp_kfunc_device *kdev)
 {
 	static DEFINE_MUTEX(dsp_pdata_lock);
 
-	mutex_init(&kdev->lock);
+	spin_lock_init(&kdev->lock);
 
 	mutex_lock(&dsp_pdata_lock);
 	list_add_tail(&kdev->entry, &dsp_pdata.kdev_list);
@@ -479,10 +479,6 @@ static inline void omap_init_rng(void) {}
  */
 static int __init omap_init_devices(void)
 {
-/*
- * Need to enable relevant once for 2430 SDP
- */
-#ifndef CONFIG_MACH_OMAP_2430SDP
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
@@ -492,7 +488,6 @@ static int __init omap_init_devices(void)
 	omap_init_uwire();
 	omap_init_wdt();
 	omap_init_rng();
-#endif
 	return 0;
 }
 arch_initcall(omap_init_devices);
