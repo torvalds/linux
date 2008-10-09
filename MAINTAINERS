@@ -610,6 +610,11 @@ P:	Philipp Zabel
 M:	philipp.zabel@gmail.com
 S:	Maintained
 
+ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
+P:	Michael Petchkovsky
+M:	mkpetch@internode.on.net
+S:	Maintained
+
 ARM/TOSA MACHINE SUPPORT
 P:	Dmitry Baryshkov
 M:	dbaryshkov@gmail.com
