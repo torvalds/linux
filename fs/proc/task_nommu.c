@@ -110,11 +110,6 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 static int show_map(struct seq_file *m, void *_vml)
 {
 	struct vm_list_struct *vml = _vml;
-	struct proc_maps_private *priv = m->private;
-	struct task_struct *task = priv->task;
-
-	if (maps_protect && !ptrace_may_access(task, PTRACE_MODE_READ))
-		return -EACCES;
 
 	return nommu_vma_show(m, vml->vma);
 }

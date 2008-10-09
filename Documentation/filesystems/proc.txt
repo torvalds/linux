@@ -1332,13 +1332,6 @@ determine whether or not they are still functioning properly.
 Because the NMI watchdog shares registers with oprofile, by disabling the NMI
 watchdog, oprofile may have more registers to utilize.
 
-maps_protect
-------------
-
-Enables/Disables the protection of the per-process proc entries "maps" and
-"smaps".  When enabled, the contents of these files are visible only to
-readers that are allowed to ptrace() the given process.
-
 msgmni
 ------
 

@@ -148,9 +148,6 @@ static unsigned int pid_entry_count_dirs(const struct pid_entry *entries,
 	return count;
 }
 
-int maps_protect;
-EXPORT_SYMBOL(maps_protect);
-
 static struct fs_struct *get_fs_struct(struct task_struct *task)
 {
 	struct fs_struct *fs;
