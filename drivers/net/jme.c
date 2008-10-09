@@ -1593,6 +1593,7 @@ err_out:
 	return rc;
 }
 
+#ifdef CONFIG_PM
 static void
 jme_set_100m_half(struct jme_adapter *jme)
 {
@@ -1625,6 +1626,7 @@ jme_wait_link(struct jme_adapter *jme)
 		phylink = jme_linkstat_from_phy(jme);
 	}
 }
+#endif
 
 static inline void
 jme_phy_off(struct jme_adapter *jme)
@@ -2912,6 +2914,7 @@ jme_remove_one(struct pci_dev *pdev)
 
 }
 
+#ifdef CONFIG_PM
 static int
 jme_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -2991,6 +2994,7 @@ jme_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static struct pci_device_id jme_pci_tbl[] = {
 	{ PCI_VDEVICE(JMICRON, PCI_DEVICE_ID_JMICRON_JMC250) },
