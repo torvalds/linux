@@ -1463,7 +1463,7 @@ jme_intr(int irq, void *dev_id)
 	/*
 	 * Check if it's really an interrupt for us
 	 */
-	if (unlikely(intrstat == 0))
+	if (unlikely((intrstat & INTR_ENABLE) == 0))
 		return IRQ_NONE;
 
 	/*
