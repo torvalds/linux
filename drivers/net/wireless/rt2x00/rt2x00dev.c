@@ -1245,7 +1245,7 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reconfigure device.
 	 */
-	retval = rt2x00mac_config(rt2x00dev->hw, &rt2x00dev->hw->conf);
+	retval = rt2x00mac_config(rt2x00dev->hw, ~0);
 	if (retval)
 		goto exit;
 

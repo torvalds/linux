@@ -656,7 +656,7 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 				      union iwreq_data *data, char *extra)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	bool need_reconfig = 0;
+	u32 reconf_flags = 0;
 	int new_power_level;
 
 	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
@@ -680,17 +680,17 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 
 	if (local->hw.conf.power_level != new_power_level) {
 		local->hw.conf.power_level = new_power_level;
-		need_reconfig = 1;
+		reconf_flags |= IEEE80211_CONF_CHANGE_POWER;
 	}
 
 	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
 		local->hw.conf.radio_enabled = !(data->txpower.disabled);
-		need_reconfig = 1;
+		reconf_flags |= IEEE80211_CONF_CHANGE_RADIO_ENABLED;
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
-	if (need_reconfig)
-		ieee80211_hw_config(local);
+	if (reconf_flags)
+		ieee80211_hw_config(local, reconf_flags);
 
 	return 0;
 }
@@ -976,7 +976,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 
 	if (wrq->disabled) {
 		conf->flags &= ~IEEE80211_CONF_PS;
-		return ieee80211_hw_config(local);
+		return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
 	switch (wrq->flags & IW_POWER_MODE) {
@@ -989,7 +989,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	return ieee80211_hw_config(local);
+	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 }
 
 static int ieee80211_ioctl_giwpower(struct net_device *dev,

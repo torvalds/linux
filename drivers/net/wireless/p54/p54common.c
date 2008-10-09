@@ -1192,10 +1192,11 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 	p54_set_filter(dev, 0, NULL);
 }
 
-static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
+static int p54_config(struct ieee80211_hw *dev, u32 changed)
 {
 	int ret;
 	struct p54_common *priv = dev->priv;
+	struct ieee80211_conf *conf = &dev->conf;
 
 	mutex_lock(&priv->conf_mutex);
 	priv->rx_antenna = 2; /* automatic */

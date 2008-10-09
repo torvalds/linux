@@ -219,8 +219,7 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		struct ieee80211_if_init_conf *conf);
 static void ath5k_remove_interface(struct ieee80211_hw *hw,
 		struct ieee80211_if_init_conf *conf);
-static int ath5k_config(struct ieee80211_hw *hw,
-		struct ieee80211_conf *conf);
+static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
 static int ath5k_config_interface(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif,
 		struct ieee80211_if_conf *conf);
@@ -2780,10 +2779,10 @@ end:
  * TODO: Phy disable/diversity etc
  */
 static int
-ath5k_config(struct ieee80211_hw *hw,
-			struct ieee80211_conf *conf)
+ath5k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath5k_softc *sc = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
 
 	sc->bintval = conf->beacon_int;
 	sc->power_level = conf->power_level;

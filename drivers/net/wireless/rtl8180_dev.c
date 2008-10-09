@@ -692,9 +692,10 @@ static void rtl8180_remove_interface(struct ieee80211_hw *dev,
 	priv->vif = NULL;
 }
 
-static int rtl8180_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
+static int rtl8180_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct rtl8180_priv *priv = dev->priv;
+	struct ieee80211_conf *conf = &dev->conf;
 
 	priv->rf->set_chan(dev, conf);
 

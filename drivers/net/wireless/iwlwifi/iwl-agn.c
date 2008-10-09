@@ -2734,10 +2734,11 @@ static int iwl4965_mac_add_interface(struct ieee80211_hw *hw,
  * be set inappropriately and the driver currently sets the hardware up to
  * use it whenever needed.
  */
-static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+static int iwl4965_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct iwl_priv *priv = hw->priv;
 	const struct iwl_channel_info *ch_info;
+	struct ieee80211_conf *conf = &hw->conf;
 	unsigned long flags;
 	int ret = 0;
 	u16 channel;

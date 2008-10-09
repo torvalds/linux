@@ -743,9 +743,11 @@ static void zd_op_remove_interface(struct ieee80211_hw *hw,
 	zd_write_mac_addr(&mac->chip, NULL);
 }
 
-static int zd_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+static int zd_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
+	struct ieee80211_conf *conf = &hw->conf;
+
 	return zd_chip_set_channel(&mac->chip, conf->channel->hw_value);
 }
 

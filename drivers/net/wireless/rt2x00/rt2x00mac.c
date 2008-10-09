@@ -335,9 +335,10 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 
-int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
 	int radio_on;
 	int status;
 

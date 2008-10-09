@@ -3320,11 +3320,12 @@ init_failure:
 	return err;
 }
 
-static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
 	struct b43_phy *phy;
+	struct ieee80211_conf *conf = &hw->conf;
 	unsigned long flags;
 	int antenna;
 	int err = 0;

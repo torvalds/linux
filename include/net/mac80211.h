@@ -464,12 +464,32 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
 #define IEEE80211_CONF_SHORT_SLOT_TIME (__IEEE80211_CONF_SHORT_SLOT_TIME())
 
 /**
+ * enum ieee80211_conf_changed - denotes which configuration changed
+ *
+ * @IEEE80211_CONF_CHANGE_RADIO_ENABLED: the value of radio_enabled changed
+ * @IEEE80211_CONF_CHANGE_BEACON_INTERVAL: the beacon interval changed
+ * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
+ * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
+ * @IEEE80211_CONF_CHANGE_PS: the PS flag changed
+ * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
+ * @IEEE80211_CONF_CHANGE_CHANNEL: the channel changed
+ */
+enum ieee80211_conf_changed {
+	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
+	IEEE80211_CONF_CHANGE_BEACON_INTERVAL	= BIT(1),
+	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
+	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
+	IEEE80211_CONF_CHANGE_PS		= BIT(4),
+	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
+	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
+};
+
+/**
  * struct ieee80211_conf - configuration of the device
  *
  * This struct indicates how the driver shall configure the hardware.
  *
  * @radio_enabled: when zero, driver is required to switch off the radio.
- *	TODO make a flag
  * @beacon_int: beacon interval (TODO make interface config)
  * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
@@ -479,12 +499,12 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
  * @channel: the channel to tune to
  */
 struct ieee80211_conf {
-	int radio_enabled;
-
 	int beacon_int;
-	u16 listen_interval;
 	u32 flags;
 	int power_level;
+
+	u16 listen_interval;
+	bool radio_enabled;
 
 	struct ieee80211_channel *channel;
 
@@ -1214,7 +1234,7 @@ struct ieee80211_ops {
 			     struct ieee80211_if_init_conf *conf);
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
-	int (*config)(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
+	int (*config)(struct ieee80211_hw *hw, u32 changed);
 	int (*config_interface)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_if_conf *conf);

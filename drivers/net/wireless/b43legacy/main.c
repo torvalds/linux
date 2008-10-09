@@ -2557,11 +2557,12 @@ init_failure:
 }
 
 static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
-				   struct ieee80211_conf *conf)
+				   u32 changed)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev;
 	struct b43legacy_phy *phy;
+	struct ieee80211_conf *conf = &hw->conf;
 	unsigned long flags;
 	unsigned int new_phymode = 0xFFFF;
 	int antenna_tx;

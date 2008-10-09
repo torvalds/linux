@@ -448,12 +448,17 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	if (local->hw_scanning) {
 		local->hw_scanning = false;
-		ieee80211_hw_config(local);
+		/*
+		 * Somebody might have requested channel change during scan
+		 * that we won't have acted upon, try now. ieee80211_hw_config
+		 * will set the flag based on actual changes.
+		 */
+		ieee80211_hw_config(local, 0);
 		goto done;
 	}
 
 	local->sw_scanning = false;
-	ieee80211_hw_config(local);
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
 	netif_tx_lock_bh(local->mdev);
 	netif_addr_lock(local->mdev);
@@ -540,7 +545,8 @@ void ieee80211_scan_work(struct work_struct *work)
 
 		if (!skip) {
 			local->scan_channel = chan;
-			if (ieee80211_hw_config(local))
+			if (ieee80211_hw_config(local,
+						IEEE80211_CONF_CHANGE_CHANNEL))
 				skip = 1;
 		}
 

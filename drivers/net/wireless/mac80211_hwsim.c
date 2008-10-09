@@ -359,10 +359,10 @@ static void mac80211_hwsim_beacon(unsigned long arg)
 }
 
 
-static int mac80211_hwsim_config(struct ieee80211_hw *hw,
-				 struct ieee80211_conf *conf)
+static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
 
 	printk(KERN_DEBUG "%s:%s (freq=%d radio_enabled=%d beacon_int=%d)\n",
 	       wiphy_name(hw->wiphy), __func__,

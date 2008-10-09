@@ -6415,7 +6415,7 @@ static void iwl3945_bg_abort_scan(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-static int iwl3945_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
+static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed);
 
 static void iwl3945_bg_scan_completed(struct work_struct *work)
 {
@@ -6428,7 +6428,7 @@ static void iwl3945_bg_scan_completed(struct work_struct *work)
 		return;
 
 	if (test_bit(STATUS_CONF_PENDING, &priv->status))
-		iwl3945_mac_config(priv->hw, ieee80211_get_hw_conf(priv->hw));
+		iwl3945_mac_config(priv->hw, 0);
 
 	ieee80211_scan_completed(priv->hw);
 
@@ -6616,10 +6616,11 @@ static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
  * be set inappropriately and the driver currently sets the hardware up to
  * use it whenever needed.
  */
-static int iwl3945_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct iwl3945_priv *priv = hw->priv;
 	const struct iwl3945_channel_info *ch_info;
+	struct ieee80211_conf *conf = &hw->conf;
 	unsigned long flags;
 	int ret = 0;
 

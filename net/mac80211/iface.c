@@ -65,7 +65,7 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_if_init_conf conf;
 	u32 changed = 0;
 	int res;
-	bool need_hw_reconfig = 0;
+	u32 hw_reconf_flags = 0;
 	u8 null_addr[ETH_ALEN] = {0};
 
 	/* fail early if user set an invalid address */
@@ -152,7 +152,8 @@ static int ieee80211_open(struct net_device *dev)
 			res = local->ops->start(local_to_hw(local));
 		if (res)
 			goto err_del_bss;
-		need_hw_reconfig = 1;
+		/* we're brought up, everything changes */
+		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
@@ -198,8 +199,10 @@ static int ieee80211_open(struct net_device *dev)
 
 		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
-		if (local->monitors == 1)
+		if (local->monitors == 1) {
 			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
+			hw_reconf_flags |= IEEE80211_CONF_CHANGE_RADIOTAP;
+		}
 
 		if (sdata->u.mntr_flags & MONITOR_FLAG_FCSFAIL)
 			local->fif_fcsfail++;
@@ -279,8 +282,8 @@ static int ieee80211_open(struct net_device *dev)
 		atomic_inc(&local->iff_promiscs);
 
 	local->open_count++;
-	if (need_hw_reconfig) {
-		ieee80211_hw_config(local);
+	if (hw_reconf_flags) {
+		ieee80211_hw_config(local, hw_reconf_flags);
 		/*
 		 * set default queue parameters so drivers don't
 		 * need to initialise the hardware if the hardware
@@ -322,6 +325,7 @@ static int ieee80211_stop(struct net_device *dev)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
+	u32 hw_reconf_flags = 0;
 
 	/*
 	 * Stop TX on this interface first.
@@ -405,8 +409,10 @@ static int ieee80211_stop(struct net_device *dev)
 		}
 
 		local->monitors--;
-		if (local->monitors == 0)
+		if (local->monitors == 0) {
 			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
+			hw_reconf_flags |= IEEE80211_CONF_CHANGE_RADIOTAP;
+		}
 
 		if (sdata->u.mntr_flags & MONITOR_FLAG_FCSFAIL)
 			local->fif_fcsfail--;
@@ -504,7 +510,14 @@ static int ieee80211_stop(struct net_device *dev)
 
 		tasklet_disable(&local->tx_pending_tasklet);
 		tasklet_disable(&local->tasklet);
+
+		/* no reconfiguring after stop! */
+		hw_reconf_flags = 0;
 	}
+
+	/* do after stop to avoid reconfiguring when we stop anyway */
+	if (hw_reconf_flags)
+		ieee80211_hw_config(local, hw_reconf_flags);
 
 	return 0;
 }

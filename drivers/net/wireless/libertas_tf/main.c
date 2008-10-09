@@ -354,9 +354,11 @@ static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
 	priv->vif = NULL;
 }
 
-static int lbtf_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
+static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct lbtf_private *priv = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
 	if (conf->channel->center_freq != priv->cur_freq) {
 		priv->cur_freq = conf->channel->center_freq;
 		lbtf_set_channel(priv, conf->channel->hw_value);

@@ -1230,11 +1230,11 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 			__func__, error);
 }
 
-static int ath9k_config(struct ieee80211_hw *hw,
-			struct ieee80211_conf *conf)
+static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ieee80211_conf *conf = &hw->conf;
 	int pos;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Set channel: %d MHz\n",

@@ -394,7 +394,8 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (params->interval) {
 		sdata->local->hw.conf.beacon_int = params->interval;
-		ieee80211_hw_config(sdata->local);
+		ieee80211_hw_config(sdata->local,
+				    IEEE80211_CONF_CHANGE_BEACON_INTERVAL);
 		/*
 		 * We updated some parameter so if below bails out
 		 * it's not an error.
