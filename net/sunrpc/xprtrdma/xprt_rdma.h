@@ -51,6 +51,9 @@
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
 
+#define RDMA_RESOLVE_TIMEOUT	(5000)	/* 5 seconds */
+#define RDMA_CONNECT_RETRY_MAX	(2)	/* retries if no listener backlog */
+
 /*
  * Interface Adapter -- one per transport instance
  */

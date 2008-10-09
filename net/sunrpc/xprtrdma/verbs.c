@@ -284,6 +284,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
+		ia->ri_async_rc = 0;
 		complete(&ia->ri_done);
 		break;
 	case RDMA_CM_EVENT_ADDR_ERROR:
@@ -363,26 +364,28 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 		return id;
 	}
 
-	ia->ri_async_rc = 0;
+	ia->ri_async_rc = -ETIMEDOUT;
 	rc = rdma_resolve_addr(id, NULL, addr, RDMA_RESOLVE_TIMEOUT);
 	if (rc) {
 		dprintk("RPC:       %s: rdma_resolve_addr() failed %i\n",
 			__func__, rc);
 		goto out;
 	}
-	wait_for_completion(&ia->ri_done);
+	wait_for_completion_interruptible_timeout(&ia->ri_done,
+				msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1);
 	rc = ia->ri_async_rc;
 	if (rc)
 		goto out;
 
-	ia->ri_async_rc = 0;
+	ia->ri_async_rc = -ETIMEDOUT;
 	rc = rdma_resolve_route(id, RDMA_RESOLVE_TIMEOUT);
 	if (rc) {
 		dprintk("RPC:       %s: rdma_resolve_route() failed %i\n",
 			__func__, rc);
 		goto out;
 	}
-	wait_for_completion(&ia->ri_done);
+	wait_for_completion_interruptible_timeout(&ia->ri_done,
+				msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1);
 	rc = ia->ri_async_rc;
 	if (rc)
 		goto out;
