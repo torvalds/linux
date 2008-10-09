@@ -353,7 +353,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 		 * split it.
 		 */
 		struct bio_pair *bp;
-		bp = bio_split(bio, bio_split_pool,
+		bp = bio_split(bio,
 			       ((tmp_dev->offset + tmp_dev->size)<<1) - bio->bi_sector);
 		if (linear_make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);

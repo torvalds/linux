@@ -30,7 +30,7 @@
 
 static struct kmem_cache *bio_slab __read_mostly;
 
-mempool_t *bio_split_pool __read_mostly;
+static mempool_t *bio_split_pool __read_mostly;
 
 /*
  * if you change this list, also change bvec_alloc or things will
@@ -1256,9 +1256,9 @@ static void bio_pair_end_2(struct bio *bi, int err)
  * split a bio - only worry about a bio with a single page
  * in it's iovec
  */
-struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
+struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 {
-	struct bio_pair *bp = mempool_alloc(pool, GFP_NOIO);
+	struct bio_pair *bp = mempool_alloc(bio_split_pool, GFP_NOIO);
 
 	if (!bp)
 		return bp;
@@ -1292,7 +1292,7 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	bp->bio2.bi_end_io = bio_pair_end_2;
 
 	bp->bio1.bi_private = bi;
-	bp->bio2.bi_private = pool;
+	bp->bio2.bi_private = bio_split_pool;
 
 	if (bio_integrity(bi))
 		bio_integrity_split(bi, bp, first_sectors);
@@ -1455,7 +1455,6 @@ EXPORT_SYMBOL(bio_map_kern);
 EXPORT_SYMBOL(bio_copy_kern);
 EXPORT_SYMBOL(bio_pair_release);
 EXPORT_SYMBOL(bio_split);
-EXPORT_SYMBOL(bio_split_pool);
 EXPORT_SYMBOL(bio_copy_user);
 EXPORT_SYMBOL(bio_uncopy_user);
 EXPORT_SYMBOL(bioset_create);
