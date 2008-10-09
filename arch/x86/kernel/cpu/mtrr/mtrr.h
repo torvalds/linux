@@ -11,8 +11,9 @@
 #define MTRRphysBase_MSR(reg) (0x200 + 2 * (reg))
 #define MTRRphysMask_MSR(reg) (0x200 + 2 * (reg) + 1)
 
-#define NUM_FIXED_RANGES 88
-#define MAX_VAR_RANGES 256
+#define MTRR_NUM_FIXED_RANGES 88
+#define MTRR_MAX_VAR_RANGES 256
+
 #define MTRRfix64K_00000_MSR 0x250
 #define MTRRfix16K_80000_MSR 0x258
 #define MTRRfix16K_A0000_MSR 0x259
@@ -33,7 +34,7 @@
    an 8 bit field: */
 typedef u8 mtrr_type;
 
-extern unsigned int mtrr_usage_table[MAX_VAR_RANGES];
+extern unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 
 struct mtrr_ops {
 	u32	vendor;
