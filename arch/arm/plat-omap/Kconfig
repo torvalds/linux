@@ -15,6 +15,9 @@ config ARCH_OMAP1
 config ARCH_OMAP2
 	bool "TI OMAP2"
 
+config ARCH_OMAP3
+	bool "TI OMAP3"
+
 endchoice
 
 comment "OMAP Feature Selections"
@@ -112,13 +115,13 @@ config OMAP_MPU_TIMER
 
 config OMAP_32K_TIMER
 	bool "Use 32KHz timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX
+	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX
 	help
 	  Select this option if you want to enable the OMAP 32KHz timer.
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
 	  support for no tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
-	  currently only available for OMAP16XX and 24XX.
+	  currently only available for OMAP16XX, 24XX and 34XX.
 
 endchoice
 
@@ -133,7 +136,7 @@ config OMAP_32K_TIMER_HZ
 
 config OMAP_DM_TIMER
 	bool "Use dual-mode timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX
+	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX
 	help
 	 Select this option if you want to use OMAP Dual-Mode timers.
 
