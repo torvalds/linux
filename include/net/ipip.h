@@ -37,7 +37,7 @@ struct ip_tunnel_prl_entry
 
 #define IPTUNNEL_XMIT() do {						\
 	int err;							\
-	int pkt_len = skb->len;						\
+	int pkt_len = skb->len - skb_transport_offset(skb);		\
 									\
 	skb->ip_summed = CHECKSUM_NONE;					\
 	ip_select_ident(iph, &rt->u.dst, NULL);				\
