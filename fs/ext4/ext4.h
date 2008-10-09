@@ -983,6 +983,8 @@ extern ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 					unsigned long *count, int *errp);
 extern ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp);
+extern int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
+						ext4_fsblk_t nblocks);
 extern ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
 						ext4_fsblk_t nblocks);
 extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
@@ -1206,6 +1208,17 @@ do {								\
 	if ((errno))						\
 		__ext4_std_error((sb), __func__, (errno));	\
 } while (0)
+
+#ifdef CONFIG_SMP
+/* Each CPU can accumulate FBC_BATCH blocks in their local
+ * counters. So we need to make sure we have free blocks more
+ * than FBC_BATCH  * nr_cpu_ids. Also add a window of 4 times.
+ */
+#define EXT4_FREEBLOCKS_WATERMARK (4 * (FBC_BATCH * nr_cpu_ids))
+#else
+#define EXT4_FREEBLOCKS_WATERMARK 0
+#endif
+
 
 /*
  * Inodes and files operations

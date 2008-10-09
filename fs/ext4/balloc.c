@@ -1602,6 +1602,32 @@ out:
 	return ret;
 }
 
+int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
+						ext4_fsblk_t nblocks)
+{
+	s64 free_blocks;
+	ext4_fsblk_t root_blocks = 0;
+	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
+
+	free_blocks = percpu_counter_read(fbc);
+
+	if (!capable(CAP_SYS_RESOURCE) &&
+		sbi->s_resuid != current->fsuid &&
+		(sbi->s_resgid == 0 || !in_group_p(sbi->s_resgid)))
+		root_blocks = ext4_r_blocks_count(sbi->s_es);
+
+	if (free_blocks - (nblocks + root_blocks) < EXT4_FREEBLOCKS_WATERMARK)
+		free_blocks = percpu_counter_sum(&sbi->s_freeblocks_counter);
+
+	if (free_blocks < (root_blocks + nblocks))
+		/* we don't have free space */
+		return -ENOSPC;
+
+	/* reduce fs free blocks counter */
+	percpu_counter_sub(fbc, nblocks);
+	return 0;
+}
+
 /**
  * ext4_has_free_blocks()
  * @sbi:	in-core super block structure.
@@ -1623,18 +1649,17 @@ ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
 		sbi->s_resuid != current->fsuid &&
 		(sbi->s_resgid == 0 || !in_group_p(sbi->s_resgid)))
 		root_blocks = ext4_r_blocks_count(sbi->s_es);
-#ifdef CONFIG_SMP
-	if (free_blocks - root_blocks < FBC_BATCH)
-		free_blocks =
-			percpu_counter_sum(&sbi->s_freeblocks_counter);
-#endif
+
+	if (free_blocks - (nblocks + root_blocks) < EXT4_FREEBLOCKS_WATERMARK)
+		free_blocks = percpu_counter_sum_positive(&sbi->s_freeblocks_counter);
+
 	if (free_blocks <= root_blocks)
 		/* we don't have free space */
 		return 0;
 	if (free_blocks - root_blocks < nblocks)
 		return free_blocks - root_blocks;
 	return nblocks;
- }
+}
 
 
 /**
@@ -1713,14 +1738,11 @@ ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 		/*
 		 * With delalloc we already reserved the blocks
 		 */
-		*count = ext4_has_free_blocks(sbi, *count);
+		if (ext4_claim_free_blocks(sbi, *count)) {
+			*errp = -ENOSPC;
+			return 0;	/*return with ENOSPC error */
+		}
 	}
-	if (*count == 0) {
-		*errp = -ENOSPC;
-		return 0;	/*return with ENOSPC error */
-	}
-	num = *count;
-
 	/*
 	 * Check quota for allocation of this block.
 	 */
@@ -1915,9 +1937,13 @@ allocated:
 	le16_add_cpu(&gdp->bg_free_blocks_count, -num);
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group_no, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group_no));
-	if (!EXT4_I(inode)->i_delalloc_reserved_flag)
-		percpu_counter_sub(&sbi->s_freeblocks_counter, num);
-
+	if (!EXT4_I(inode)->i_delalloc_reserved_flag && (*count != num)) {
+		/*
+		 * we allocated less blocks than we
+		 * claimed. Add the difference back.
+		 */
+		percpu_counter_add(&sbi->s_freeblocks_counter, *count - num);
+	}
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, group_no);
 		spin_lock(sb_bgl_lock(sbi, flex_group));

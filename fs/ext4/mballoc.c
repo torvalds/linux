@@ -2975,9 +2975,15 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	 * at write_begin() time for delayed allocation
 	 * do not double accounting
 	 */
-	if (!(ac->ac_flags & EXT4_MB_DELALLOC_RESERVED))
-		percpu_counter_sub(&sbi->s_freeblocks_counter,
-					ac->ac_b_ex.fe_len);
+	if (!(ac->ac_flags & EXT4_MB_DELALLOC_RESERVED) &&
+			ac->ac_o_ex.fe_len != ac->ac_b_ex.fe_len) {
+		/*
+		 * we allocated less blocks than we calimed
+		 * Add the difference back
+		 */
+		percpu_counter_add(&sbi->s_freeblocks_counter,
+				ac->ac_o_ex.fe_len - ac->ac_b_ex.fe_len);
+	}
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi,
@@ -4389,14 +4395,11 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		/*
 		 * With delalloc we already reserved the blocks
 		 */
-		ar->len = ext4_has_free_blocks(sbi, ar->len);
+		if (ext4_claim_free_blocks(sbi, ar->len)) {
+			*errp = -ENOSPC;
+			return 0;
+		}
 	}
-
-	if (ar->len == 0) {
-		*errp = -ENOSPC;
-		return 0;
-	}
-
 	while (ar->len && DQUOT_ALLOC_BLOCK(ar->inode, ar->len)) {
 		ar->flags |= EXT4_MB_HINT_NOPREALLOC;
 		ar->len--;
