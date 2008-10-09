@@ -14,14 +14,14 @@ Description
 
 This driver implements support for the Analog Devices ADT7473 chip family.
 
-The LM85 uses the 2-wire interface compatible with the SMBUS 2.0
+The ADT7473 uses the 2-wire interface compatible with the SMBUS 2.0
 specification. Using an analog to digital converter it measures three (3)
-temperatures and two (2) voltages. It has three (3) 16-bit counters for
+temperatures and two (2) voltages. It has four (4) 16-bit counters for
 measuring fan speed. There are three (3) PWM outputs that can be used
 to control fan speed.
 
 A sophisticated control system for the PWM outputs is designed into the
-LM85 that allows fan speed to be adjusted automatically based on any of the
+ADT7473 that allows fan speed to be adjusted automatically based on any of the
 three temperature sensors. Each PWM output is individually adjustable and
 programmable. Once configured, the ADT7473 will adjust the PWM outputs in
 response to the measured temperatures without further host intervention.
@@ -46,14 +46,6 @@ from the raw value to get the temperature value.
 The Analog Devices datasheet is very detailed and describes a procedure for
 determining an optimal configuration for the automatic PWM control.
 
-Hardware Configurations
------------------------
-
-The ADT7473 chips have an optional SMBALERT output that can be used to
-signal the chipset in case a limit is exceeded or the temperature sensors
-fail. Individual sensor interrupts can be masked so they won't trigger
-SMBALERT. The SMBALERT output if configured replaces the PWM2 function.
-
 Configuration Notes
 -------------------
 
@@ -61,8 +53,8 @@ Besides standard interfaces driver adds the following:
 
 * PWM Control
 
-* pwm#_auto_point1_pwm and pwm#_auto_point1_temp and
-* pwm#_auto_point2_pwm and pwm#_auto_point2_temp -
+* pwm#_auto_point1_pwm and temp#_auto_point1_temp and
+* pwm#_auto_point2_pwm and temp#_auto_point2_temp -
 
 point1: Set the pwm speed at a lower temperature bound.
 point2: Set the pwm speed at a higher temperature bound.
