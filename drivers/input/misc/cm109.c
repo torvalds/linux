@@ -36,8 +36,6 @@
 #include <linux/rwsem.h>
 #include <linux/usb/input.h>
 
-#define CM109_DEBUG 0
-
 #define DRIVER_VERSION "20080805"
 #define DRIVER_AUTHOR  "Alfred E. Heggestad"
 #define DRIVER_DESC    "CM109 phone driver"
@@ -311,7 +309,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 	const int status = urb->status;
 	int error;
 
-	dev_dbg(&urb->dev->dev, "### URB IRQ: [0x%02x 0x%02x 0x%02x 0x%02x] keybit=0x%02x",
+	dev_dbg(&urb->dev->dev, "### URB IRQ: [0x%02x 0x%02x 0x%02x 0x%02x] keybit=0x%02x\n",
 	     dev->irq_data->byte[0],
 	     dev->irq_data->byte[1],
 	     dev->irq_data->byte[2],
@@ -381,7 +379,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 	const int status = urb->status;
 	int error;
 
-	dev_dbg(&urb->dev->dev, "### URB CTL: [0x%02x 0x%02x 0x%02x 0x%02x]",
+	dev_dbg(&urb->dev->dev, "### URB CTL: [0x%02x 0x%02x 0x%02x 0x%02x]\n",
 	     dev->ctl_data->byte[0],
 	     dev->ctl_data->byte[1],
 	     dev->ctl_data->byte[2],
@@ -546,7 +544,7 @@ static int cm109_input_ev(struct input_dev *idev, unsigned int type,
 	struct cm109_dev *dev = input_get_drvdata(idev);
 
 	dev_dbg(&dev->udev->dev,
-		"input_ev: type=%u code=%u value=%d", type, code, value);
+		"input_ev: type=%u code=%u value=%d\n", type, code, value);
 
 	if (type != EV_SND)
 		return -EINVAL;
@@ -760,7 +758,7 @@ static int cm109_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct cm109_dev *dev = usb_get_intfdata(intf);
 
-	dev_info(&intf->dev, "cm109: usb_suspend (event=%d)", message.event);
+	dev_info(&intf->dev, "cm109: usb_suspend (event=%d)\n", message.event);
 
 	mutex_lock(&dev->pm_mutex);
 	cm109_stop_traffic(dev);
@@ -773,7 +771,7 @@ static int cm109_usb_resume(struct usb_interface *intf)
 {
 	struct cm109_dev *dev = usb_get_intfdata(intf);
 
-	dev_info(&intf->dev, "cm109: usb_resume");
+	dev_info(&intf->dev, "cm109: usb_resume\n");
 
 	mutex_lock(&dev->pm_mutex);
 	cm109_restore_state(dev);
@@ -833,18 +831,18 @@ static int __init cm109_select_keymap(void)
 	if (!strcasecmp(phone, "kip1000")) {
 		keymap = keymap_kip1000;
 		printk(KERN_INFO KBUILD_MODNAME ": "
-			"Keymap for Komunikate KIP1000 phone loaded");
+			"Keymap for Komunikate KIP1000 phone loaded\n");
 	} else if (!strcasecmp(phone, "gtalk")) {
 		keymap = keymap_gtalk;
 		printk(KERN_INFO KBUILD_MODNAME ": "
-			"Keymap for Genius G-talk phone loaded");
+			"Keymap for Genius G-talk phone loaded\n");
 	} else if (!strcasecmp(phone, "usbph01")) {
 		keymap = keymap_usbph01;
 		printk(KERN_INFO KBUILD_MODNAME ": "
-			"Keymap for Allied-Telesis Corega USBPH01 phone loaded");
+			"Keymap for Allied-Telesis Corega USBPH01 phone loaded\n");
 	} else {
 		printk(KERN_ERR KBUILD_MODNAME ": "
-			"Unsupported phone: %s", phone);
+			"Unsupported phone: %s\n", phone);
 		return -EINVAL;
 	}
 
@@ -864,7 +862,7 @@ static int __init cm109_init(void)
 		return err;
 
 	printk(KERN_INFO KBUILD_MODNAME ": "
-		DRIVER_DESC ": " DRIVER_VERSION " (C) " DRIVER_AUTHOR);
+		DRIVER_DESC ": " DRIVER_VERSION " (C) " DRIVER_AUTHOR "\n");
 
 	return 0;
 }
