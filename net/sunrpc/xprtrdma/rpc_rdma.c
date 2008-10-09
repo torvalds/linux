@@ -512,8 +512,8 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (hdrlen == 0)
 		return -1;
 
-	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd\n"
-		"                   headerp 0x%p base 0x%p lkey 0x%x\n",
+	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd"
+		" headerp 0x%p base 0x%p lkey 0x%x\n",
 		__func__, transfertypes[wtype], hdrlen, rpclen, padlen,
 		headerp, base, req->rl_iov.lkey);
 
