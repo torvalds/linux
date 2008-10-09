@@ -411,7 +411,7 @@ struct btrfs_inode_item {
 	/* transid that last touched this inode */
 	__le64 transid;
 	__le64 size;
-	__le64 nblocks;
+	__le64 nbytes;
 	__le64 block_group;
 	__le32 nlink;
 	__le32 uid;
@@ -1017,7 +1017,7 @@ BTRFS_SETGET_FUNCS(inode_ref_index, struct btrfs_inode_ref, index, 64);
 BTRFS_SETGET_FUNCS(inode_generation, struct btrfs_inode_item, generation, 64);
 BTRFS_SETGET_FUNCS(inode_transid, struct btrfs_inode_item, transid, 64);
 BTRFS_SETGET_FUNCS(inode_size, struct btrfs_inode_item, size, 64);
-BTRFS_SETGET_FUNCS(inode_nblocks, struct btrfs_inode_item, nblocks, 64);
+BTRFS_SETGET_FUNCS(inode_nbytes, struct btrfs_inode_item, nbytes, 64);
 BTRFS_SETGET_FUNCS(inode_block_group, struct btrfs_inode_item, block_group, 64);
 BTRFS_SETGET_FUNCS(inode_nlink, struct btrfs_inode_item, nlink, 32);
 BTRFS_SETGET_FUNCS(inode_uid, struct btrfs_inode_item, uid, 32);
@@ -1813,15 +1813,6 @@ void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
 
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio);
-
-static inline void dec_i_blocks(struct inode *inode, u64 dec)
-{
-	dec = dec >> 9;
-	if (dec <= inode->i_blocks)
-		inode->i_blocks -= dec;
-	else
-		inode->i_blocks = 0;
-}
 
 unsigned long btrfs_force_ra(struct address_space *mapping,
 			      struct file_ra_state *ra, struct file *file,

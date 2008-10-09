@@ -99,7 +99,7 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	inode_item->generation = cpu_to_le64(1);
 	inode_item->size = cpu_to_le64(3);
 	inode_item->nlink = cpu_to_le32(1);
-	inode_item->nblocks = cpu_to_le64(1);
+	inode_item->nbytes = cpu_to_le64(root->leafsize);
 	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
 
 	btrfs_set_root_bytenr(&root_item, leaf->start);
@@ -671,7 +671,7 @@ out:
 	btrfs_release_path(root, path);
 	if (ret == 0) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		inode->i_blocks = src->i_blocks;
+		inode_set_bytes(inode, inode_get_bytes(src));
 		btrfs_i_size_write(inode, src->i_size);
 		BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
 		ret = btrfs_update_inode(trans, root, inode);

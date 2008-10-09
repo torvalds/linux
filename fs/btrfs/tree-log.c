@@ -113,7 +113,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	inode_item->generation = cpu_to_le64(1);
 	inode_item->size = cpu_to_le64(3);
 	inode_item->nlink = cpu_to_le32(1);
-	inode_item->nblocks = cpu_to_le64(1);
+	inode_item->nbytes = cpu_to_le64(root->leafsize);
 	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
 
 	btrfs_set_root_bytenr(&root_item, leaf->start);
@@ -598,8 +598,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	ret = overwrite_item(trans, root, path, eb, slot, key);
 	BUG_ON(ret);
 
-	/* btrfs_drop_extents changes i_blocks, update it here */
-	inode->i_blocks += (extent_end - start) >> 9;
+	/* btrfs_drop_extents changes i_bytes & i_blocks, update it here */
+	inode_add_bytes(inode, extent_end - start);
 	btrfs_update_inode(trans, root, inode);
 out:
 	if (inode)

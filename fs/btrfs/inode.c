@@ -652,7 +652,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	BUG_ON(ret);
 	btrfs_release_path(root, path);
 
-	inode->i_blocks += ordered_extent->len >> 9;
+	inode_add_bytes(inode, ordered_extent->len);
 	unlock_extent(io_tree, ordered_extent->file_offset,
 		    ordered_extent->file_offset + ordered_extent->len - 1,
 		    GFP_NOFS);
@@ -1104,7 +1104,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	inode->i_ctime.tv_sec = btrfs_timespec_sec(leaf, tspec);
 	inode->i_ctime.tv_nsec = btrfs_timespec_nsec(leaf, tspec);
 
-	inode->i_blocks = btrfs_inode_nblocks(leaf, inode_item);
+	inode_set_bytes(inode, btrfs_inode_nbytes(leaf, inode_item));
 	BTRFS_I(inode)->generation = btrfs_inode_generation(leaf, inode_item);
 	inode->i_generation = BTRFS_I(inode)->generation;
 	inode->i_rdev = 0;
@@ -1184,7 +1184,7 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_timespec_nsec(leaf, btrfs_inode_ctime(item),
 				inode->i_ctime.tv_nsec);
 
-	btrfs_set_inode_nblocks(leaf, item, inode->i_blocks);
+	btrfs_set_inode_nbytes(leaf, item, inode_get_bytes(inode));
 	btrfs_set_inode_generation(leaf, item, BTRFS_I(inode)->generation);
 	btrfs_set_inode_transid(leaf, item, trans->transid);
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
@@ -1679,7 +1679,7 @@ search_again:
 				num_dec = (orig_num_bytes -
 					   extent_num_bytes);
 				if (root->ref_cows && extent_start != 0)
-					dec_i_blocks(inode, num_dec);
+					inode_sub_bytes(inode, num_dec);
 				btrfs_mark_buffer_dirty(leaf);
 			} else {
 				extent_num_bytes =
@@ -1690,7 +1690,7 @@ search_again:
 				if (extent_start != 0) {
 					found_extent = 1;
 					if (root->ref_cows)
-						dec_i_blocks(inode, num_dec);
+						inode_sub_bytes(inode, num_dec);
 				}
 				root_gen = btrfs_header_generation(leaf);
 				root_owner = btrfs_header_owner(leaf);
@@ -1700,8 +1700,8 @@ search_again:
 				u32 size = new_size - found_key.offset;
 
 				if (root->ref_cows) {
-					dec_i_blocks(inode, item_end + 1 -
-						    found_key.offset - size);
+					inode_sub_bytes(inode, item_end + 1 -
+							new_size);
 				}
 				size =
 				    btrfs_file_extent_calc_inline_size(size);
@@ -1709,8 +1709,8 @@ search_again:
 							  size, 1);
 				BUG_ON(ret);
 			} else if (root->ref_cows) {
-				dec_i_blocks(inode, item_end + 1 -
-					     found_key.offset);
+				inode_sub_bytes(inode, item_end + 1 -
+						found_key.offset);
 			}
 		}
 delete:
@@ -2514,7 +2514,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	inode->i_gid = current->fsgid;
 	inode->i_mode = mode;
 	inode->i_ino = objectid;
-	inode->i_blocks = 0;
+	inode_set_bytes(inode, 0);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				  struct btrfs_inode_item);
@@ -3557,7 +3557,8 @@ static int btrfs_getattr(struct vfsmount *mnt,
 	struct inode *inode = dentry->d_inode;
 	generic_fillattr(inode, stat);
 	stat->blksize = PAGE_CACHE_SIZE;
-	stat->blocks = inode->i_blocks + (BTRFS_I(inode)->delalloc_bytes >> 9);
+	stat->blocks = (inode_get_bytes(inode) +
+			BTRFS_I(inode)->delalloc_bytes) >> 9;
 	return 0;
 }
 

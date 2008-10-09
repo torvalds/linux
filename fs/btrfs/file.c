@@ -193,7 +193,7 @@ static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 			leaf = path->nodes[0];
 			ei = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_file_extent_item);
-			inode->i_blocks += (offset + size - found_end) >> 9;
+			inode_add_bytes(inode, offset + size - found_end);
 		}
 		if (found_end < offset) {
 			ptr = btrfs_file_extent_inline_start(ei) + found_size;
@@ -203,7 +203,7 @@ static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 insert:
 		btrfs_release_path(root, path);
 		datasize = offset + size - key.offset;
-		inode->i_blocks += datasize >> 9;
+		inode_add_bytes(inode, datasize);
 		datasize = btrfs_file_extent_calc_inline_size(datasize);
 		ret = btrfs_insert_empty_item(trans, root, path, &key,
 					      datasize);
@@ -713,7 +713,8 @@ next_slot:
 								      extent);
 				if (btrfs_file_extent_disk_bytenr(leaf,
 								  extent)) {
-					dec_i_blocks(inode, old_num - new_num);
+					inode_sub_bytes(inode, old_num -
+							new_num);
 				}
 				btrfs_set_file_extent_num_bytes(leaf, extent,
 								new_num);
@@ -724,14 +725,17 @@ next_slot:
 				u32 new_size;
 				new_size = btrfs_file_extent_calc_inline_size(
 						   inline_limit - key.offset);
-				dec_i_blocks(inode, (extent_end - key.offset) -
-					(inline_limit - key.offset));
+				inode_sub_bytes(inode, extent_end -
+						inline_limit);
 				btrfs_truncate_item(trans, root, path,
 						    new_size, 1);
 			}
 		}
 		/* delete the entire extent */
 		if (!keep) {
+			if (found_inline)
+				inode_sub_bytes(inode, extent_end -
+						key.offset);
 			ret = btrfs_del_item(trans, root, path);
 			/* TODO update progress marker and return */
 			BUG_ON(ret);
@@ -743,8 +747,7 @@ next_slot:
 			u32 new_size;
 			new_size = btrfs_file_extent_calc_inline_size(
 						   extent_end - end);
-			dec_i_blocks(inode, (extent_end - key.offset) -
-					(extent_end - end));
+			inode_sub_bytes(inode, end - key.offset);
 			ret = btrfs_truncate_item(trans, root, path,
 						  new_size, 0);
 			BUG_ON(ret);
@@ -791,9 +794,7 @@ next_slot:
 			}
 			btrfs_release_path(root, path);
 			if (disk_bytenr != 0) {
-				inode->i_blocks +=
-				      btrfs_file_extent_num_bytes(leaf,
-								  extent) >> 9;
+				inode_add_bytes(inode, extent_end - end);
 			}
 		}
 
@@ -801,7 +802,8 @@ next_slot:
 			u64 disk_bytenr = le64_to_cpu(old.disk_bytenr);
 
 			if (disk_bytenr != 0) {
-				dec_i_blocks(inode, le64_to_cpu(old.num_bytes));
+				inode_sub_bytes(inode,
+						le64_to_cpu(old.num_bytes));
 				ret = btrfs_free_extent(trans, root,
 						disk_bytenr,
 						le64_to_cpu(old.disk_num_bytes),

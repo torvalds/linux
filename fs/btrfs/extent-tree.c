@@ -3930,7 +3930,7 @@ next:
 				BUG_ON(ret);
 				btrfs_release_path(root, path);
 
-				inode->i_blocks += extent_len >> 9;
+				inode_add_bytes(inode, extent_len);
 
 				ext_offset = 0;
 				num_bytes -= extent_len;
