@@ -143,7 +143,7 @@ ENTRY(_evt_ivhw)
 	fp = 0;
 #endif
 
-#if ANOMALY_05000283
+#if ANOMALY_05000283 || ANOMALY_05000315
 	cc = r7 == r7;
 	p5.h = HI(CHIPID);
 	p5.l = LO(CHIPID);
