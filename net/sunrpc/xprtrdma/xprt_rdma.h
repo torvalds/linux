@@ -58,6 +58,8 @@ struct rpcrdma_ia {
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
 	struct ib_mr		*ri_bind_mem;
+	u32			ri_dma_lkey;
+	int			ri_have_dma_lkey;
 	struct completion	ri_done;
 	int			ri_async_rc;
 	enum rpcrdma_memreg	ri_memreg_strategy;
@@ -156,6 +158,10 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 			union {
 				struct ib_mw	*mw;
 				struct ib_fmr	*fmr;
+				struct {
+					struct ib_fast_reg_page_list *fr_pgl;
+					struct ib_mr *fr_mr;
+				} frmr;
 			} r;
 			struct list_head mw_list;
 		} *rl_mw;
@@ -198,7 +204,7 @@ struct rpcrdma_buffer {
 	atomic_t	rb_credits;	/* most recent server credits */
 	unsigned long	rb_cwndscale;	/* cached framework rpc_cwndscale */
 	int		rb_max_requests;/* client max requests */
-	struct list_head rb_mws;	/* optional memory windows/fmrs */
+	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
 	int		rb_send_index;
 	struct rpcrdma_req	**rb_send_bufs;
 	int		rb_recv_index;
