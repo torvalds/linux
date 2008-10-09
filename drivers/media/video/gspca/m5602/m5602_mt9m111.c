@@ -69,7 +69,7 @@ sensor_found:
 
 int mt9m111_init(struct sd *sd)
 {
-	int i, err;
+	int i, err = 0;
 
 	/* Init the sensor */
 	for (i = 0; i < ARRAY_SIZE(init_mt9m111); i++) {

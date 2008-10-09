@@ -466,7 +466,9 @@ static const unsigned char power_down_ov9650[][3] =
 
 /* Vertically and horizontally flips the image if matched, needed for machines
    where the sensor is mounted upside down */
-static const struct dmi_system_id ov9650_flip_dmi_table[] = {
+static
+    const
+	struct dmi_system_id ov9650_flip_dmi_table[] = {
 	{
 		.ident = "ASUS A6VC",
 		.matches = {

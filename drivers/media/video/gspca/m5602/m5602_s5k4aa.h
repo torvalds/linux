@@ -339,7 +339,9 @@ static const unsigned char init_s5k4aa[][4] =
 	{SENSOR, S5K4AA_GAIN_2, 0xa0, 0x00}
 };
 
-static const struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
+static
+    const
+	struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
 	{
 		.ident = "Fujitsu-Siemens Amilo Xa 2528",
 		.matches = {
