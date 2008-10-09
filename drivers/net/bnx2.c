@@ -3248,6 +3248,9 @@ bnx2_set_rx_mode(struct net_device *dev)
 	struct dev_addr_list *uc_ptr;
 	int i;
 
+	if (!netif_running(dev))
+		return;
+
 	spin_lock_bh(&bp->phy_lock);
 
 	rx_mode = bp->rx_mode & ~(BNX2_EMAC_RX_MODE_PROMISCUOUS |
@@ -5521,6 +5524,9 @@ bnx2_test_link(struct bnx2 *bp)
 {
 	u32 bmsr;
 
+	if (!netif_running(bp->dev))
+		return -ENODEV;
+
 	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP) {
 		if (bp->link_up)
 			return 0;
@@ -6485,6 +6491,9 @@ bnx2_nway_reset(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	u32 bmcr;
 
+	if (!netif_running(dev))
+		return -EAGAIN;
+
 	if (!(bp->autoneg & AUTONEG_SPEED)) {
 		return -EINVAL;
 	}
@@ -6540,6 +6549,9 @@ bnx2_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
+	if (!netif_running(dev))
+		return -EAGAIN;
+
 	/* parameters already validated in ethtool_get_eeprom */
 
 	rc = bnx2_nvram_read(bp, eeprom->offset, eebuf, eeprom->len);
@@ -6553,6 +6565,9 @@ bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
+
+	if (!netif_running(dev))
+		return -EAGAIN;
 
 	/* parameters already validated in ethtool_set_eeprom */
 
@@ -6718,11 +6733,11 @@ bnx2_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 		bp->autoneg &= ~AUTONEG_FLOW_CTRL;
 	}
 
-	spin_lock_bh(&bp->phy_lock);
-
-	bnx2_setup_phy(bp, bp->phy_port);
-
-	spin_unlock_bh(&bp->phy_lock);
+	if (netif_running(dev)) {
+		spin_lock_bh(&bp->phy_lock);
+		bnx2_setup_phy(bp, bp->phy_port);
+		spin_unlock_bh(&bp->phy_lock);
+	}
 
 	return 0;
 }
@@ -6913,6 +6928,8 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
+	bnx2_set_power_state(bp, PCI_D0);
+
 	memset(buf, 0, sizeof(u64) * BNX2_NUM_TESTS);
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
 		int i;
@@ -6932,9 +6949,8 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 		if ((buf[2] = bnx2_test_loopback(bp)) != 0)
 			etest->flags |= ETH_TEST_FL_FAILED;
 
-		if (!netif_running(bp->dev)) {
-			bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
-		}
+		if (!netif_running(bp->dev))
+			bnx2_shutdown_chip(bp);
 		else {
 			bnx2_init_nic(bp, 1);
 			bnx2_netif_start(bp);
@@ -6962,6 +6978,8 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 		etest->flags |= ETH_TEST_FL_FAILED;
 
 	}
+	if (!netif_running(bp->dev))
+		bnx2_set_power_state(bp, PCI_D3hot);
 }
 
 static void
@@ -7027,6 +7045,8 @@ bnx2_phys_id(struct net_device *dev, u32 data)
 	int i;
 	u32 save;
 
+	bnx2_set_power_state(bp, PCI_D0);
+
 	if (data == 0)
 		data = 2;
 
@@ -7051,6 +7071,10 @@ bnx2_phys_id(struct net_device *dev, u32 data)
 	}
 	REG_WR(bp, BNX2_EMAC_LED, 0);
 	REG_WR(bp, BNX2_MISC_CFG, save);
+
+	if (!netif_running(dev))
+		bnx2_set_power_state(bp, PCI_D3hot);
+
 	return 0;
 }
 
