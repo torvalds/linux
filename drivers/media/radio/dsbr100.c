@@ -360,11 +360,15 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
-			if (dsbr100_stop(radio)==-1)
+			if (dsbr100_stop(radio) == -1) {
 				warn("Radio did not respond properly");
+				return -EBUSY;
+			}
 		} else {
-			if (dsbr100_start(radio)==-1)
+			if (dsbr100_start(radio) == -1) {
 				warn("Radio did not respond properly");
+				return -EBUSY;
+			}
 		}
 		return 0;
 	}
