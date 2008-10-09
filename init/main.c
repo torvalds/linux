@@ -721,8 +721,8 @@ int do_one_initcall(initcall_t fn)
 	if (initcall_debug) {
 		it.rettime = ktime_get();
 		delta = ktime_sub(it.rettime, it.calltime);
-		it.duration = (unsigned long long) delta.tv64 >> 20;
-		printk("initcall %pF returned %d after %Ld msecs\n", fn,
+		it.duration = (unsigned long long) delta.tv64 >> 10;
+		printk("initcall %pF returned %d after %Ld usecs\n", fn,
 			it.result, it.duration);
 		trace_boot(&it, fn);
 	}

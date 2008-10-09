@@ -215,9 +215,9 @@ ftrace_init_module(unsigned long *start, unsigned long *end) { }
 
 struct boot_trace {
 	pid_t			caller;
-	char 			func[KSYM_NAME_LEN];
+	char			func[KSYM_NAME_LEN];
 	int			result;
-	unsigned long long	duration;
+	unsigned long long	duration;		/* usecs */
 	ktime_t			calltime;
 	ktime_t			rettime;
 };
