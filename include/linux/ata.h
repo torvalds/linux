@@ -745,7 +745,7 @@ static inline int ata_ok(u8 status)
 static inline int lba_28_ok(u64 block, u32 n_block)
 {
 	/* check the ending block number */
-	return ((block + n_block - 1) < ((u64)1 << 28)) && (n_block <= 256);
+	return ((block + n_block) < ((u64)1 << 28)) && (n_block <= 256);
 }
 
 static inline int lba_48_ok(u64 block, u32 n_block)

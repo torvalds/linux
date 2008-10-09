@@ -524,6 +524,7 @@ config ARCH_DAVINCI
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select ZONE_DMA
 	help

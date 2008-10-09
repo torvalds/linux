@@ -56,7 +56,7 @@ static struct platform_device pcm037_flash = {
 };
 
 static struct imxuart_platform_data uart_pdata = {
-	.flags = 0,
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static struct platform_device *devices[] __initdata = {

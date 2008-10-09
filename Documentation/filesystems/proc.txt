@@ -2413,6 +2413,8 @@ The following 4 memory types are supported:
   - (bit 1) anonymous shared memory
   - (bit 2) file-backed private memory
   - (bit 3) file-backed shared memory
+  - (bit 4) ELF header pages in file-backed private memory areas (it is
+            effective only if the bit 2 is cleared)
 
   Note that MMIO pages such as frame buffer are never dumped and vDSO pages
   are always dumped regardless of the bitmask status.

@@ -744,16 +744,16 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	 * the second will just error out since we do not pass in
 	 * IRQF_SHARED.
 	 */
-	err = request_irq(op->irqs[1], psycho_ue_intr, 0,
+	err = request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED,
 			  "PSYCHO_UE", pbm);
-	err = request_irq(op->irqs[2], psycho_ce_intr, 0,
+	err = request_irq(op->irqs[2], psycho_ce_intr, IRQF_SHARED,
 			  "PSYCHO_CE", pbm);
 
 	/* This one, however, ought not to fail.  We can just warn
 	 * about it since the system can still operate properly even
 	 * if this fails.
 	 */
-	err = request_irq(op->irqs[0], psycho_pcierr_intr, 0,
+	err = request_irq(op->irqs[0], psycho_pcierr_intr, IRQF_SHARED,
 			  "PSYCHO_PCIERR", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Could not register PCIERR, "

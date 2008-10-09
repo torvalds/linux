@@ -369,6 +369,20 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	int hdrlen, padsize;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	/*
+	 * As a temporary workaround, assign seq# here; this will likely need
+	 * to be cleaned up to work better with Beacon transmission and virtual
+	 * BSSes.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			sc->seq_no += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(sc->seq_no);
+	}
 
 	/* Add the padding after the header if this is not already done */
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
