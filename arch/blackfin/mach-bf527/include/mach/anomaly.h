@@ -37,6 +37,8 @@
 #define ANOMALY_05000342 (1)
 /* USB Calibration Value Is Not Initialized */
 #define ANOMALY_05000346 (1)
+/* USB Calibration Value to use */
+#define ANOMALY_05000346_value 0xE510
 /* Preboot Routine Incorrectly Alters Reset Value of USB Register */
 #define ANOMALY_05000347 (1)
 /* Security Features Are Not Functional */

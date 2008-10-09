@@ -61,6 +61,8 @@
 #define ANOMALY_05000344 (__SILICON_REVISION__ < 1)
 /* USB Calibration Value Is Not Intialized */
 #define ANOMALY_05000346 (__SILICON_REVISION__ < 1)
+/* USB Calibration Value to use */
+#define ANOMALY_05000346_value 0x5411
 /* Boot ROM Kernel Incorrectly Alters Reset Value of USB Register */
 #define ANOMALY_05000347 (__SILICON_REVISION__ < 1)
 /* Data Lost when Core Reads SDH Data FIFO */
