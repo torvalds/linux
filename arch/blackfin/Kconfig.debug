@@ -184,6 +184,7 @@ config DEBUG_BFIN_NO_KERN_HWTRACE
 config EARLY_PRINTK
 	bool "Early printk" 
 	default n
+	select SERIAL_CORE_CONSOLE
 	help
 	  This option enables special console drivers which allow the kernel
 	  to print messages very early in the bootup process.
