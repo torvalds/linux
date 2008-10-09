@@ -240,6 +240,7 @@ struct adapter {
 	unsigned int check_task_cnt;
 	struct delayed_work adap_check_task;
 	struct work_struct ext_intr_handler_task;
+	struct work_struct fatal_error_handler_task;
 
 	struct dentry *debugfs_root;
 

@@ -351,7 +351,8 @@ static void free_rx_bufs(struct pci_dev *pdev, struct sge_fl *q)
 		pci_unmap_single(pdev, pci_unmap_addr(d, dma_addr),
 				 q->buf_size, PCI_DMA_FROMDEVICE);
 		if (q->use_pages) {
-			put_page(d->pg_chunk.page);
+			if (d->pg_chunk.page)
+				put_page(d->pg_chunk.page);
 			d->pg_chunk.page = NULL;
 		} else {
 			kfree_skb(d->skb);
@@ -583,7 +584,7 @@ static void t3_reset_qset(struct sge_qset *q)
 	memset(q->fl, 0, sizeof(struct sge_fl) * SGE_RXQ_PER_SET);
 	memset(q->txq, 0, sizeof(struct sge_txq) * SGE_TXQ_PER_SET);
 	q->txq_stopped = 0;
-	memset(&q->tx_reclaim_timer, 0, sizeof(q->tx_reclaim_timer));
+	q->tx_reclaim_timer.function = NULL; /* for t3_stop_sge_timers() */
 	kfree(q->lro_frag_tbl);
 	q->lro_nfrags = q->lro_frag_len = 0;
 }
@@ -2840,9 +2841,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	struct net_lro_mgr *lro_mgr = &q->lro_mgr;
 
 	init_qset_cntxt(q, id);
-	init_timer(&q->tx_reclaim_timer);
-	q->tx_reclaim_timer.data = (unsigned long)q;
-	q->tx_reclaim_timer.function = sge_timer_cb;
+	setup_timer(&q->tx_reclaim_timer, sge_timer_cb, (unsigned long)q);
 
 	q->fl[0].desc = alloc_ring(adapter->pdev, p->fl_size,
 				   sizeof(struct rx_desc),

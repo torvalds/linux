@@ -892,6 +892,13 @@ static int cxgb_up(struct adapter *adap)
 				goto out;
 		}
 
+		/*
+		 * Clear interrupts now to catch errors if t3_init_hw fails.
+		 * We clear them again later as initialization may trigger
+		 * conditions that can interrupt.
+		 */
+		t3_intr_clear(adap);
+
 		err = t3_init_hw(adap, 0);
 		if (err)
 			goto out;
@@ -1101,9 +1108,9 @@ static int cxgb_close(struct net_device *dev)
 	netif_carrier_off(dev);
 	t3_mac_disable(&pi->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 
-	spin_lock(&adapter->work_lock);	/* sync with update task */
+	spin_lock_irq(&adapter->work_lock);	/* sync with update task */
 	clear_bit(pi->port_id, &adapter->open_device_map);
-	spin_unlock(&adapter->work_lock);
+	spin_unlock_irq(&adapter->work_lock);
 
 	if (!(adapter->open_device_map & PORT_MASK))
 		cancel_rearming_delayed_workqueue(cxgb3_wq,
@@ -2356,10 +2363,10 @@ static void t3_adap_check_task(struct work_struct *work)
 		check_t3b2_mac(adapter);
 
 	/* Schedule the next check update if any port is active. */
-	spin_lock(&adapter->work_lock);
+	spin_lock_irq(&adapter->work_lock);
 	if (adapter->open_device_map & PORT_MASK)
 		schedule_chk_task(adapter);
-	spin_unlock(&adapter->work_lock);
+	spin_unlock_irq(&adapter->work_lock);
 }
 
 /*
@@ -2404,6 +2411,96 @@ void t3_os_ext_intr_handler(struct adapter *adapter)
 	spin_unlock(&adapter->work_lock);
 }
 
+static int t3_adapter_error(struct adapter *adapter, int reset)
+{
+	int i, ret = 0;
+
+	/* Stop all ports */
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+
+		if (netif_running(netdev))
+			cxgb_close(netdev);
+	}
+
+	if (is_offload(adapter) &&
+	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
+		offload_close(&adapter->tdev);
+
+	/* Stop SGE timers */
+	t3_stop_sge_timers(adapter);
+
+	adapter->flags &= ~FULL_INIT_DONE;
+
+	if (reset)
+		ret = t3_reset_adapter(adapter);
+
+	pci_disable_device(adapter->pdev);
+
+	return ret;
+}
+
+static int t3_reenable_adapter(struct adapter *adapter)
+{
+	if (pci_enable_device(adapter->pdev)) {
+		dev_err(&adapter->pdev->dev,
+			"Cannot re-enable PCI device after reset.\n");
+		goto err;
+	}
+	pci_set_master(adapter->pdev);
+	pci_restore_state(adapter->pdev);
+
+	/* Free sge resources */
+	t3_free_sge_resources(adapter);
+
+	if (t3_replay_prep_adapter(adapter))
+		goto err;
+
+	return 0;
+err:
+	return -1;
+}
+
+static void t3_resume_ports(struct adapter *adapter)
+{
+	int i;
+
+	/* Restart the ports */
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+
+		if (netif_running(netdev)) {
+			if (cxgb_open(netdev)) {
+				dev_err(&adapter->pdev->dev,
+					"can't bring device back up"
+					" after reset\n");
+				continue;
+			}
+		}
+	}
+}
+
+/*
+ * processes a fatal error.
+ * Bring the ports down, reset the chip, bring the ports back up.
+ */
+static void fatal_error_task(struct work_struct *work)
+{
+	struct adapter *adapter = container_of(work, struct adapter,
+					       fatal_error_handler_task);
+	int err = 0;
+
+	rtnl_lock();
+	err = t3_adapter_error(adapter, 1);
+	if (!err)
+		err = t3_reenable_adapter(adapter);
+	if (!err)
+		t3_resume_ports(adapter);
+
+	CH_ALERT(adapter, "adapter reset %s\n", err ? "failed" : "succeeded");
+	rtnl_unlock();
+}
+
 void t3_fatal_err(struct adapter *adapter)
 {
 	unsigned int fw_status[4];
@@ -2414,7 +2511,11 @@ void t3_fatal_err(struct adapter *adapter)
 		t3_write_reg(adapter, A_XGM_RX_CTRL, 0);
 		t3_write_reg(adapter, XGM_REG(A_XGM_TX_CTRL, 1), 0);
 		t3_write_reg(adapter, XGM_REG(A_XGM_RX_CTRL, 1), 0);
+
+		spin_lock(&adapter->work_lock);
 		t3_intr_disable(adapter);
+		queue_work(cxgb3_wq, &adapter->fatal_error_handler_task);
+		spin_unlock(&adapter->work_lock);
 	}
 	CH_ALERT(adapter, "encountered fatal error, operation suspended\n");
 	if (!t3_cim_ctl_blk_read(adapter, 0xa0, 4, fw_status))
@@ -2436,26 +2537,9 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 					     pci_channel_state_t state)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
-	int i;
+	int ret;
 
-	/* Stop all ports */
-	for_each_port(adapter, i) {
-		struct net_device *netdev = adapter->port[i];
-
-		if (netif_running(netdev))
-			cxgb_close(netdev);
-	}
-
-	if (is_offload(adapter) &&
-	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
-		offload_close(&adapter->tdev);
-
-	/* Stop SGE timers */
-	t3_stop_sge_timers(adapter);
-
-	adapter->flags &= ~FULL_INIT_DONE;
-
-	pci_disable_device(pdev);
+	ret = t3_adapter_error(adapter, 0);
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
@@ -2471,22 +2555,9 @@ static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
-	if (pci_enable_device(pdev)) {
-		dev_err(&pdev->dev,
-			"Cannot re-enable PCI device after reset.\n");
-		goto err;
-	}
-	pci_set_master(pdev);
-	pci_restore_state(pdev);
+	if (!t3_reenable_adapter(adapter))
+		return PCI_ERS_RESULT_RECOVERED;
 
-	/* Free sge resources */
-	t3_free_sge_resources(adapter);
-
-	if (t3_replay_prep_adapter(adapter))
-		goto err;
-
-	return PCI_ERS_RESULT_RECOVERED;
-err:
 	return PCI_ERS_RESULT_DISCONNECT;
 }
 
@@ -2500,22 +2571,8 @@ err:
 static void t3_io_resume(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
-	int i;
 
-	/* Restart the ports */
-	for_each_port(adapter, i) {
-		struct net_device *netdev = adapter->port[i];
-
-		if (netif_running(netdev)) {
-			if (cxgb_open(netdev)) {
-				dev_err(&pdev->dev,
-					"can't bring device back up"
-					" after reset\n");
-				continue;
-			}
-			netif_device_attach(netdev);
-		}
-	}
+	t3_resume_ports(adapter);
 }
 
 static struct pci_error_handlers t3_err_handler = {
@@ -2664,6 +2721,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&adapter->adapter_list);
 	INIT_WORK(&adapter->ext_intr_handler_task, ext_intr_task);
+	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 
 	for (i = 0; i < ai->nports; ++i) {

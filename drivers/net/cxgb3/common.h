@@ -698,6 +698,7 @@ int t3_check_fw_version(struct adapter *adapter, int *must_load);
 int t3_init_hw(struct adapter *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, struct adapter *adapter, int index);
 void early_hw_init(struct adapter *adapter, const struct adapter_info *ai);
+int t3_reset_adapter(struct adapter *adapter);
 int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		    int reset);
 int t3_replay_prep_adapter(struct adapter *adapter);

@@ -1221,7 +1221,7 @@ struct intr_info {
 	unsigned int mask;	/* bits to check in interrupt status */
 	const char *msg;	/* message to print or NULL */
 	short stat_idx;		/* stat counter to increment or -1 */
-	unsigned short fatal:1;	/* whether the condition reported is fatal */
+	unsigned short fatal;	/* whether the condition reported is fatal */
 };
 
 /**
@@ -3488,7 +3488,7 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
  * Older PCIe cards lose their config space during reset, PCI-X
  * ones don't.
  */
-static int t3_reset_adapter(struct adapter *adapter)
+int t3_reset_adapter(struct adapter *adapter)
 {
 	int i, save_and_restore_pcie =
 	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);
