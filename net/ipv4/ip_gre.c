@@ -119,6 +119,7 @@
 
 static int ipgre_tunnel_init(struct net_device *dev);
 static void ipgre_tunnel_setup(struct net_device *dev);
+static int ipgre_tunnel_bind_dev(struct net_device *dev);
 
 /* Fallback tunnel: no source, no destination, no key, no options */
 
@@ -288,6 +289,8 @@ static struct ip_tunnel * ipgre_tunnel_locate(struct net *net,
 	dev->init = ipgre_tunnel_init;
 	nt = netdev_priv(dev);
 	nt->parms = *parms;
+
+	dev->mtu = ipgre_tunnel_bind_dev(dev);
 
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
@@ -773,7 +776,7 @@ tx_error:
 	return 0;
 }
 
-static void ipgre_tunnel_bind_dev(struct net_device *dev)
+static int ipgre_tunnel_bind_dev(struct net_device *dev)
 {
 	struct net_device *tdev = NULL;
 	struct ip_tunnel *tunnel;
@@ -821,9 +824,14 @@ static void ipgre_tunnel_bind_dev(struct net_device *dev)
 			addend += 4;
 	}
 	dev->needed_headroom = addend + hlen;
-	dev->mtu = mtu - dev->hard_header_len - addend;
+	mtu -= dev->hard_header_len - addend;
+
+	if (mtu < 68)
+		mtu = 68;
+
 	tunnel->hlen = addend;
 
+	return mtu;
 }
 
 static int
@@ -917,7 +925,7 @@ ipgre_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 				t->parms.iph.frag_off = p.iph.frag_off;
 				if (t->parms.link != p.link) {
 					t->parms.link = p.link;
-					ipgre_tunnel_bind_dev(dev);
+					dev->mtu = ipgre_tunnel_bind_dev(dev);
 					netdev_state_change(dev);
 				}
 			}
@@ -1107,8 +1115,6 @@ static int ipgre_tunnel_init(struct net_device *dev)
 
 	memcpy(dev->dev_addr, &tunnel->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
-
-	ipgre_tunnel_bind_dev(dev);
 
 	if (iph->daddr) {
 #ifdef CONFIG_NET_IPGRE_BROADCAST
