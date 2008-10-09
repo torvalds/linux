@@ -35,6 +35,7 @@
 #include <linux/mount.h>
 #include <linux/writeback.h>
 #include <linux/falloc.h>
+#include <linux/quotaops.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -57,6 +58,7 @@
 #include "super.h"
 #include "xattr.h"
 #include "acl.h"
+#include "quota.h"
 
 #include "buffer_head_io.h"
 
@@ -534,6 +536,7 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	enum ocfs2_alloc_restarted why;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_extent_tree et;
+	int did_quota = 0;
 
 	mlog_entry("(clusters_to_add = %u)\n", clusters_to_add);
 
@@ -577,6 +580,13 @@ restart_all:
 	}
 
 restarted_transaction:
+	if (vfs_dq_alloc_space_nodirty(inode, ocfs2_clusters_to_bytes(osb->sb,
+	    clusters_to_add))) {
+		status = -EDQUOT;
+		goto leave;
+	}
+	did_quota = 1;
+
 	/* reserve a write to the file entry early on - that we if we
 	 * run out of credits in the allocation path, we can still
 	 * update i_size. */
@@ -614,6 +624,10 @@ restarted_transaction:
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	clusters_to_add -= (OCFS2_I(inode)->ip_clusters - prev_clusters);
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	/* Release unused quota reservation */
+	vfs_dq_free_space(inode,
+			ocfs2_clusters_to_bytes(osb->sb, clusters_to_add));
+	did_quota = 0;
 
 	if (why != RESTART_NONE && clusters_to_add) {
 		if (why == RESTART_META) {
@@ -646,6 +660,9 @@ restarted_transaction:
 	     OCFS2_I(inode)->ip_clusters, (long long)i_size_read(inode));
 
 leave:
+	if (status < 0 && did_quota)
+		vfs_dq_free_space(inode,
+			ocfs2_clusters_to_bytes(osb->sb, clusters_to_add));
 	if (handle) {
 		ocfs2_commit_trans(osb, handle);
 		handle = NULL;
@@ -877,6 +894,9 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	struct buffer_head *bh = NULL;
 	handle_t *handle = NULL;
+	int locked[MAXQUOTAS] = {0, 0};
+	int credits, qtype;
+	struct ocfs2_mem_dqinfo *oinfo;
 
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 	           dentry->d_name.len, dentry->d_name.name);
@@ -947,11 +967,47 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
-	if (IS_ERR(handle)) {
-		status = PTR_ERR(handle);
-		mlog_errno(status);
-		goto bail_unlock;
+	if ((attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
+	    (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
+		credits = OCFS2_INODE_UPDATE_CREDITS;
+		if (attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid
+		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
+		    OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
+			oinfo = sb_dqinfo(sb, USRQUOTA)->dqi_priv;
+			status = ocfs2_lock_global_qf(oinfo, 1);
+			if (status < 0)
+				goto bail_unlock;
+			credits += ocfs2_calc_qinit_credits(sb, USRQUOTA) +
+				ocfs2_calc_qdel_credits(sb, USRQUOTA);
+			locked[USRQUOTA] = 1;
+		}
+		if (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid
+		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
+		    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
+			oinfo = sb_dqinfo(sb, GRPQUOTA)->dqi_priv;
+			status = ocfs2_lock_global_qf(oinfo, 1);
+			if (status < 0)
+				goto bail_unlock;
+			credits += ocfs2_calc_qinit_credits(sb, GRPQUOTA) +
+				   ocfs2_calc_qdel_credits(sb, GRPQUOTA);
+			locked[GRPQUOTA] = 1;
+		}
+		handle = ocfs2_start_trans(osb, credits);
+		if (IS_ERR(handle)) {
+			status = PTR_ERR(handle);
+			mlog_errno(status);
+			goto bail_unlock;
+		}
+		status = vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
+		if (status < 0)
+			goto bail_commit;
+	} else {
+		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+		if (IS_ERR(handle)) {
+			status = PTR_ERR(handle);
+			mlog_errno(status);
+			goto bail_unlock;
+		}
 	}
 
 	/*
@@ -974,6 +1030,12 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 bail_commit:
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
+	for (qtype = 0; qtype < MAXQUOTAS; qtype++) {
+		if (!locked[qtype])
+			continue;
+		oinfo = sb_dqinfo(sb, qtype)->dqi_priv;
+		ocfs2_unlock_global_qf(oinfo, 1);
+	}
 	ocfs2_inode_unlock(inode, 1);
 bail_unlock_rw:
 	if (size_change)

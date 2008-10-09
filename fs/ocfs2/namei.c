@@ -40,6 +40,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
+#include <linux/quotaops.h>
 
 #define MLOG_MASK_PREFIX ML_NAMEI
 #include <cluster/masklog.h>
@@ -212,6 +213,7 @@ static struct inode *ocfs2_get_init_inode(struct inode *dir, int mode)
 	} else
 		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
+	vfs_dq_init(inode);
 	return inode;
 }
 
@@ -236,6 +238,7 @@ static int ocfs2_mknod(struct inode *dir,
 	struct ocfs2_security_xattr_info si = {
 		.enable = 1,
 	};
+	int did_quota_inode = 0;
 
 	mlog_entry("(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry, mode,
 		   (unsigned long)dev, dentry->d_name.len,
@@ -323,13 +326,23 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_MKNOD_CREDITS + xattr_credits);
+	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb) +
+				   xattr_credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
 		mlog_errno(status);
 		goto leave;
 	}
+
+	/* We don't use standard VFS wrapper because we don't want vfs_dq_init
+	 * to be called. */
+	if (sb_any_quota_active(osb->sb) &&
+	    osb->sb->dq_op->alloc_inode(inode, 1) == NO_QUOTA) {
+		status = -EDQUOT;
+		goto leave;
+	}
+	did_quota_inode = 1;
 
 	/* do the real work now. */
 	status = ocfs2_mknod_locked(osb, dir, inode, dentry, dev,
@@ -399,6 +412,8 @@ static int ocfs2_mknod(struct inode *dir,
 	d_instantiate(dentry, inode);
 	status = 0;
 leave:
+	if (status < 0 && did_quota_inode)
+		vfs_dq_free_inode(inode);
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
 
@@ -641,7 +656,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto out_unlock_inode;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_LINK_CREDITS);
+	handle = ocfs2_start_trans(osb, ocfs2_link_credits(osb->sb));
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		handle = NULL;
@@ -828,7 +843,7 @@ static int ocfs2_unlink(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_UNLINK_CREDITS);
+	handle = ocfs2_start_trans(osb, ocfs2_unlink_credits(osb->sb));
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -1234,7 +1249,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_RENAME_CREDITS);
+	handle = ocfs2_start_trans(osb, ocfs2_rename_credits(osb->sb));
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -1555,6 +1570,7 @@ static int ocfs2_symlink(struct inode *dir,
 	struct ocfs2_security_xattr_info si = {
 		.enable = 1,
 	};
+	int did_quota = 0, did_quota_inode = 0;
 
 	mlog_entry("(0x%p, 0x%p, symname='%s' actual='%.*s')\n", dir,
 		   dentry, symname, dentry->d_name.len, dentry->d_name.name);
@@ -1648,6 +1664,15 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
+	/* We don't use standard VFS wrapper because we don't want vfs_dq_init
+	 * to be called. */
+	if (sb_any_quota_active(osb->sb) &&
+	    osb->sb->dq_op->alloc_inode(inode, 1) == NO_QUOTA) {
+		status = -EDQUOT;
+		goto bail;
+	}
+	did_quota_inode = 1;
+
 	status = ocfs2_mknod_locked(osb, dir, inode, dentry,
 				    0, &new_fe_bh, parent_fe_bh, handle,
 				    inode_ac);
@@ -1663,6 +1688,12 @@ static int ocfs2_symlink(struct inode *dir,
 		u32 offset = 0;
 
 		inode->i_op = &ocfs2_symlink_inode_operations;
+		if (vfs_dq_alloc_space_nodirty(inode,
+		    ocfs2_clusters_to_bytes(osb->sb, 1))) {
+			status = -EDQUOT;
+			goto bail;
+		}
+		did_quota = 1;
 		status = ocfs2_add_inode_data(osb, inode, &offset, 1, 0,
 					      new_fe_bh,
 					      handle, data_ac, NULL,
@@ -1728,6 +1759,11 @@ static int ocfs2_symlink(struct inode *dir,
 	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 bail:
+	if (status < 0 && did_quota)
+		vfs_dq_free_space_nodirty(inode,
+					ocfs2_clusters_to_bytes(osb->sb, 1));
+	if (status < 0 && did_quota_inode)
+		vfs_dq_free_inode(inode);
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
 

@@ -1665,7 +1665,8 @@ static int ocfs2_remove_value_outside(struct inode*inode,
 
 	ocfs2_init_dealloc_ctxt(&ctxt.dealloc);
 
-	ctxt.handle = ocfs2_start_trans(osb, OCFS2_REMOVE_EXTENT_CREDITS);
+	ctxt.handle = ocfs2_start_trans(osb,
+					ocfs2_remove_extent_credits(osb->sb));
 	if (IS_ERR(ctxt.handle)) {
 		ret = PTR_ERR(ctxt.handle);
 		mlog_errno(ret);
@@ -2233,7 +2234,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 	 */
 	if (!xi->value) {
 		if (!ocfs2_xattr_is_local(xe))
-			credits += OCFS2_REMOVE_EXTENT_CREDITS;
+			credits += ocfs2_remove_extent_credits(inode->i_sb);
 
 		goto out;
 	}
@@ -2250,7 +2251,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 		 */
 		if (ocfs2_xattr_can_be_in_inode(inode, xi, xis)) {
 			clusters_add += new_clusters;
-			credits += OCFS2_REMOVE_EXTENT_CREDITS +
+			credits += ocfs2_remove_extent_credits(inode->i_sb) +
 				    OCFS2_INODE_UPDATE_CREDITS;
 			if (!ocfs2_xattr_is_local(xe))
 				credits += ocfs2_calc_extend_credits(
@@ -2275,7 +2276,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 			xv = &def_xv.xv;
 
 		if (old_clusters >= new_clusters) {
-			credits += OCFS2_REMOVE_EXTENT_CREDITS;
+			credits += ocfs2_remove_extent_credits(inode->i_sb);
 			goto out;
 		} else {
 			meta_add += ocfs2_extend_meta_needed(&xv->xr_list);
@@ -4750,7 +4751,7 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_REMOVE_EXTENT_CREDITS);
+	handle = ocfs2_start_trans(osb, ocfs2_remove_extent_credits(osb->sb));
 	if (IS_ERR(handle)) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -5109,7 +5110,8 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 
 	ocfs2_init_dealloc_ctxt(&ctxt.dealloc);
 
-	ctxt.handle = ocfs2_start_trans(osb, OCFS2_REMOVE_EXTENT_CREDITS);
+	ctxt.handle = ocfs2_start_trans(osb,
+					ocfs2_remove_extent_credits(osb->sb));
 	if (IS_ERR(ctxt.handle)) {
 		ret = PTR_ERR(ctxt.handle);
 		mlog_errno(ret);
