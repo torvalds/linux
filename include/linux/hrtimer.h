@@ -283,6 +283,8 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 	return timer->base->cpu_base->hres_active;
 }
 
+extern void hrtimer_peek_ahead_timers(void);
+
 /*
  * The resolution of the clocks. The resolution value is returned in
  * the clock_getres() system call to give application programmers an
@@ -305,6 +307,7 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
  * is expired in the next softirq when the clock was advanced.
  */
 static inline void clock_was_set(void) { }
+static inline void hrtimer_peek_ahead_timers(void) { }
 
 static inline void hres_timers_resume(void) { }
 
@@ -325,6 +328,10 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_real(void);
+
+
+DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
+
 
 /* Exported timer functions: */
 

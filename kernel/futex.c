@@ -1296,10 +1296,14 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		if (!abs_time)
 			schedule();
 		else {
+			unsigned long slack;
+			slack = current->timer_slack_ns;
+			if (rt_task(current))
+				slack = 0;
 			hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC,
 						HRTIMER_MODE_ABS);
 			hrtimer_init_sleeper(&t, current);
-			hrtimer_set_expires(&t.timer, *abs_time);
+			hrtimer_set_expires_range_ns(&t.timer, *abs_time, slack);
 
 			hrtimer_start_expires(&t.timer, HRTIMER_MODE_ABS);
 			if (!hrtimer_active(&t.timer))

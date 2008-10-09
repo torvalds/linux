@@ -1381,6 +1381,36 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 		raise_softirq(HRTIMER_SOFTIRQ);
 }
 
+/**
+ * hrtimer_peek_ahead_timers -- run soft-expired timers now
+ *
+ * hrtimer_peek_ahead_timers will peek at the timer queue of
+ * the current cpu and check if there are any timers for which
+ * the soft expires time has passed. If any such timers exist,
+ * they are run immediately and then removed from the timer queue.
+ *
+ */
+void hrtimer_peek_ahead_timers(void)
+{
+	unsigned long flags;
+	struct tick_device *td;
+	struct clock_event_device *dev;
+
+	if (hrtimer_hres_active())
+		return;
+
+	local_irq_save(flags);
+	td = &__get_cpu_var(tick_cpu_device);
+	if (!td)
+		goto out;
+	dev = td->evtdev;
+	if (!dev)
+		goto out;
+	hrtimer_interrupt(dev);
+out:
+	local_irq_restore(flags);
+}
+
 static void run_hrtimer_softirq(struct softirq_action *h)
 {
 	run_hrtimer_pending(&__get_cpu_var(hrtimer_bases));
@@ -1563,9 +1593,14 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	struct restart_block *restart;
 	struct hrtimer_sleeper t;
 	int ret = 0;
+	unsigned long slack;
+
+	slack = current->timer_slack_ns;
+	if (rt_task(current))
+		slack = 0;
 
 	hrtimer_init_on_stack(&t.timer, clockid, mode);
-	hrtimer_set_expires(&t.timer, timespec_to_ktime(*rqtp));
+	hrtimer_set_expires_range_ns(&t.timer, timespec_to_ktime(*rqtp), slack);
 	if (do_nanosleep(&t, mode))
 		goto out;
 
