@@ -30,11 +30,15 @@ static unsigned long get_dma_direct_offset(struct device *dev)
 void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				dma_addr_t *dma_handle, gfp_t flag)
 {
+	void *ret;
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	return __dma_alloc_coherent(size, dma_handle, flag);
+	ret = __dma_alloc_coherent(size, dma_handle, flag);
+	if (ret == NULL)
+		return NULL;
+	*dma_handle += get_dma_direct_offset(dev);
+	return ret;
 #else
 	struct page *page;
-	void *ret;
 	int node = dev_to_node(dev);
 
 	/* ignore region specifiers */
