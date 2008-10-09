@@ -168,6 +168,7 @@ static u64 __read_mostly shadow_x_mask;	/* mutual exclusive with nx_mask */
 static u64 __read_mostly shadow_user_mask;
 static u64 __read_mostly shadow_accessed_mask;
 static u64 __read_mostly shadow_dirty_mask;
+static u64 __read_mostly shadow_mt_mask;
 
 void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte)
 {
@@ -183,13 +184,14 @@ void kvm_mmu_set_base_ptes(u64 base_pte)
 EXPORT_SYMBOL_GPL(kvm_mmu_set_base_ptes);
 
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
-		u64 dirty_mask, u64 nx_mask, u64 x_mask)
+		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 mt_mask)
 {
 	shadow_user_mask = user_mask;
 	shadow_accessed_mask = accessed_mask;
 	shadow_dirty_mask = dirty_mask;
 	shadow_nx_mask = nx_mask;
 	shadow_x_mask = x_mask;
+	shadow_mt_mask = mt_mask;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
@@ -1546,6 +1548,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 {
 	u64 spte;
 	int ret = 0;
+	u64 mt_mask = shadow_mt_mask;
+
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see
 	 * whether the guest actually used the pte (in order to detect
@@ -1564,6 +1568,11 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		spte |= shadow_user_mask;
 	if (largepage)
 		spte |= PT_PAGE_SIZE_MASK;
+	if (mt_mask) {
+		mt_mask = get_memory_type(vcpu, gfn) <<
+			  kvm_x86_ops->get_mt_mask_shift();
+		spte |= mt_mask;
+	}
 
 	spte |= (u64)pfn << PAGE_SHIFT;
 

@@ -483,6 +483,7 @@ struct kvm_x86_ops {
 
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
+	int (*get_mt_mask_shift)(void);
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
@@ -496,7 +497,7 @@ int kvm_mmu_setup(struct kvm_vcpu *vcpu);
 void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte);
 void kvm_mmu_set_base_ptes(u64 base_pte);
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
-		u64 dirty_mask, u64 nx_mask, u64 x_mask);
+		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 mt_mask);
 
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot);

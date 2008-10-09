@@ -2615,7 +2615,7 @@ int kvm_arch_init(void *opaque)
 	kvm_mmu_set_nonpresent_ptes(0ull, 0ull);
 	kvm_mmu_set_base_ptes(PT_PRESENT_MASK);
 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
-			PT_DIRTY_MASK, PT64_NX_MASK, 0);
+			PT_DIRTY_MASK, PT64_NX_MASK, 0, 0);
 	return 0;
 
 out:

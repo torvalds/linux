@@ -1912,6 +1912,11 @@ static int get_npt_level(void)
 #endif
 }
 
+static int svm_get_mt_mask_shift(void)
+{
+	return 0;
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -1967,6 +1972,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
+	.get_mt_mask_shift = svm_get_mt_mask_shift,
 };
 
 static int __init svm_init(void)
