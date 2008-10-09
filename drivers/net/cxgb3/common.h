@@ -194,7 +194,7 @@ struct adapter_info {
 	unsigned char nports;	/* # of ports */
 	unsigned char phy_base_addr;	/* MDIO PHY base address */
 	unsigned int gpio_out;	/* GPIO output settings */
-	unsigned int gpio_intr;	/* GPIO IRQ enable mask */
+	unsigned char gpio_intr[MAX_NPORTS]; /* GPIO PHY IRQ pins */
 	unsigned long caps;	/* adapter capabilities */
 	const struct mdio_ops *mdio_ops;	/* MDIO operations */
 	const char *desc;	/* product description */
@@ -517,7 +517,7 @@ enum {
 	MAC_RXFIFO_SIZE = 32768
 };
 
-/* IEEE 802.3ae specified MDIO devices */
+/* IEEE 802.3 specified MDIO devices */
 enum {
 	MDIO_DEV_PMA_PMD = 1,
 	MDIO_DEV_WIS = 2,

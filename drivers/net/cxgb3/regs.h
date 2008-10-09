@@ -573,6 +573,10 @@
 #define V_GPIO10(x) ((x) << S_GPIO10)
 #define F_GPIO10    V_GPIO10(1U)
 
+#define S_GPIO9    9
+#define V_GPIO9(x) ((x) << S_GPIO9)
+#define F_GPIO9    V_GPIO9(1U)
+
 #define S_GPIO7    7
 #define V_GPIO7(x) ((x) << S_GPIO7)
 #define F_GPIO7    V_GPIO7(1U)
