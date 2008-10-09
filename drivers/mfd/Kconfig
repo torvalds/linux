@@ -50,6 +50,15 @@ config HTC_PASIC3
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
 
+config UCB1400_CORE
+	tristate "Philips UCB1400 Core driver"
+	help
+	  This enables support for the Philips UCB1400 core functions.
+	  The UCB1400 is an AC97 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucb1400_core.
+
 config MFD_TMIO
 	bool
 	default n

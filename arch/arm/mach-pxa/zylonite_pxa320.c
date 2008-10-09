@@ -69,6 +69,12 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO39_AC97_BITCLK,
 	GPIO40_AC97_nACRESET,
 
+	/* SSP3 */
+	GPIO89_SSP3_SCLK,
+	GPIO90_SSP3_FRM,
+	GPIO91_SSP3_TXD,
+	GPIO92_SSP3_RXD,
+
 	/* WM9713 IRQ */
 	GPIO15_GPIO,
 
@@ -116,6 +122,10 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO27_MMC2_DAT3,
 	GPIO28_MMC2_CLK,
 	GPIO29_MMC2_CMD,
+
+	/* USB Host */
+	GPIO2_2_USBH_PEN,
+	GPIO3_2_USBH_PWR,
 
 	/* Debug LEDs */
 	GPIO1_2_GPIO | MFP_LPM_DRIVE_HIGH,

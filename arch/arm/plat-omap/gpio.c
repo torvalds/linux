@@ -1050,13 +1050,10 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 		gpio_irq = bank->virtual_irq_start;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
-			struct irq_desc *d;
-
 			if (!(isr & 1))
 				continue;
-			d = irq_desc + gpio_irq;
 
-			desc_handle_irq(gpio_irq, d);
+			generic_handle_irq(gpio_irq);
 		}
 	}
 	/* if bank has any level sensitive GPIO pin interrupt

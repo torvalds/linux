@@ -404,7 +404,6 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		}
 
 		pin = bank->chipbase;
-		gpio = &irq_desc[pin];
 
 		while (isr) {
 			if (isr & 1) {
@@ -417,7 +416,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 					gpio_irq_mask(pin);
 				}
 				else
-					desc_handle_irq(pin, gpio);
+					generic_handle_irq(pin);
 			}
 			pin++;
 			gpio++;

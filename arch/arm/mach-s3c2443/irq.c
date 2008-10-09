@@ -44,7 +44,6 @@ static inline void s3c2443_irq_demux(unsigned int irq, unsigned int len)
 {
 	unsigned int subsrc, submsk;
 	unsigned int end;
-	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -57,13 +56,11 @@ static inline void s3c2443_irq_demux(unsigned int irq, unsigned int len)
 	subsrc  &= (1 << len)-1;
 
 	end = len + irq;
-	mydesc = irq_desc + irq;
 
 	for (; irq < end && subsrc; irq++) {
 		if (subsrc & 1)
-			desc_handle_irq(irq, mydesc);
+			generic_handle_irq(irq);
 
-		mydesc++;
 		subsrc >>= 1;
 	}
 }

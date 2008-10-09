@@ -129,10 +129,8 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	for(i = 0; i < board_irq_count; i++) {
 		if(ex_interrupt & (1 << i))  {
-			struct irq_desc *cpld_desc;
 			int cpld_irq = IXP2000_BOARD_IRQ(0) + i;
-			cpld_desc = irq_desc + cpld_irq;
-			desc_handle_irq(cpld_irq, cpld_desc);
+			generic_handle_irq(cpld_irq);
 		}
 	}
 

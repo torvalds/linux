@@ -46,7 +46,7 @@ void clear_reset_status(unsigned int mask)
  */
 unsigned int get_clk_frequency_khz(int info)
 {
-	if (cpu_is_pxa21x() || cpu_is_pxa25x())
+	if (cpu_is_pxa25x())
 		return pxa25x_get_clk_frequency_khz(info);
 	else if (cpu_is_pxa27x())
 		return pxa27x_get_clk_frequency_khz(info);
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(get_clk_frequency_khz);
  */
 unsigned int get_memclk_frequency_10khz(void)
 {
-	if (cpu_is_pxa21x() || cpu_is_pxa25x())
+	if (cpu_is_pxa25x())
 		return pxa25x_get_memclk_frequency_10khz();
 	else if (cpu_is_pxa27x())
 		return pxa27x_get_memclk_frequency_10khz();
@@ -87,11 +87,6 @@ static struct map_desc standard_io_desc[] __initdata = {
 		.virtual	=  0xf6000000,
 		.pfn		= __phys_to_pfn(0x48000000),
 		.length		= 0x00200000,
-		.type		= MT_DEVICE
-	}, {	/* USB host */
-		.virtual	=  0xf8000000,
-		.pfn		= __phys_to_pfn(0x4c000000),
-		.length		= 0x00100000,
 		.type		= MT_DEVICE
 	}, {	/* Camera */
 		.virtual	=  0xfa000000,

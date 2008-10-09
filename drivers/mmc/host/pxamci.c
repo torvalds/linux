@@ -520,7 +520,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	/*
 	 * Block length register is only 10 bits before PXA27x.
 	 */
-	mmc->max_blk_size = (cpu_is_pxa21x() || cpu_is_pxa25x()) ? 1023 : 2048;
+	mmc->max_blk_size = cpu_is_pxa25x() ? 1023 : 2048;
 
 	/*
 	 * Block count register is 16 bits.
@@ -554,7 +554,7 @@ static int pxamci_probe(struct platform_device *pdev)
 			 MMC_VDD_32_33|MMC_VDD_33_34;
 	mmc->caps = 0;
 	host->cmdat = 0;
-	if (!cpu_is_pxa21x() && !cpu_is_pxa25x()) {
+	if (!cpu_is_pxa25x()) {
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 		host->cmdat |= CMDAT_SDIO_INT_EN;
 		if (cpu_is_pxa300() || cpu_is_pxa310())

@@ -69,30 +69,18 @@
 /*
  * DMA Controller
  */
-
-#define DCSR0		__REG(0x40000000)  /* DMA Control / Status Register for Channel 0 */
-#define DCSR1		__REG(0x40000004)  /* DMA Control / Status Register for Channel 1 */
-#define DCSR2		__REG(0x40000008)  /* DMA Control / Status Register for Channel 2 */
-#define DCSR3		__REG(0x4000000c)  /* DMA Control / Status Register for Channel 3 */
-#define DCSR4		__REG(0x40000010)  /* DMA Control / Status Register for Channel 4 */
-#define DCSR5		__REG(0x40000014)  /* DMA Control / Status Register for Channel 5 */
-#define DCSR6		__REG(0x40000018)  /* DMA Control / Status Register for Channel 6 */
-#define DCSR7		__REG(0x4000001c)  /* DMA Control / Status Register for Channel 7 */
-#define DCSR8		__REG(0x40000020)  /* DMA Control / Status Register for Channel 8 */
-#define DCSR9		__REG(0x40000024)  /* DMA Control / Status Register for Channel 9 */
-#define DCSR10		__REG(0x40000028)  /* DMA Control / Status Register for Channel 10 */
-#define DCSR11		__REG(0x4000002c)  /* DMA Control / Status Register for Channel 11 */
-#define DCSR12		__REG(0x40000030)  /* DMA Control / Status Register for Channel 12 */
-#define DCSR13		__REG(0x40000034)  /* DMA Control / Status Register for Channel 13 */
-#define DCSR14		__REG(0x40000038)  /* DMA Control / Status Register for Channel 14 */
-#define DCSR15		__REG(0x4000003c)  /* DMA Control / Status Register for Channel 15 */
-
 #define DCSR(x)		__REG2(0x40000000, (x) << 2)
 
 #define DCSR_RUN	(1 << 31)	/* Run Bit (read / write) */
 #define DCSR_NODESC	(1 << 30)	/* No-Descriptor Fetch (read / write) */
 #define DCSR_STOPIRQEN	(1 << 29)	/* Stop Interrupt Enable (read / write) */
-#ifdef CONFIG_PXA27x
+#define DCSR_REQPEND	(1 << 8)	/* Request Pending (read-only) */
+#define DCSR_STOPSTATE	(1 << 3)	/* Stop State (read-only) */
+#define DCSR_ENDINTR	(1 << 2)	/* End Interrupt (read / write) */
+#define DCSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write) */
+#define DCSR_BUSERR	(1 << 0)	/* Bus Error Interrupt (read / write) */
+
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define DCSR_EORIRQEN	(1 << 28)       /* End of Receive Interrupt Enable (R/W) */
 #define DCSR_EORJMPEN	(1 << 27)       /* Jump to next descriptor on EOR */
 #define DCSR_EORSTOPEN	(1 << 26)       /* STOP on an EOR */
@@ -101,11 +89,6 @@
 #define DCSR_CMPST	(1 << 10)       /* The Descriptor Compare Status */
 #define DCSR_EORINTR	(1 << 9)        /* The end of Receive */
 #endif
-#define DCSR_REQPEND	(1 << 8)	/* Request Pending (read-only) */
-#define DCSR_STOPSTATE	(1 << 3)	/* Stop State (read-only) */
-#define DCSR_ENDINTR	(1 << 2)	/* End Interrupt (read / write) */
-#define DCSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write) */
-#define DCSR_BUSERR	(1 << 0)	/* Bus Error Interrupt (read / write) */
 
 #define DALGN		__REG(0x400000a0)  /* DMA Alignment Register */
 #define DINT		__REG(0x400000f0)  /* DMA Interrupt Register */
@@ -114,144 +97,8 @@
 			&__REG2(0x40000100, ((n) & 0x3f) << 2) : \
 			&__REG2(0x40001100, ((n) & 0x3f) << 2)))
 
-#define DRCMR0		__REG(0x40000100)  /* Request to Channel Map Register for DREQ 0 */
-#define DRCMR1		__REG(0x40000104)  /* Request to Channel Map Register for DREQ 1 */
-#define DRCMR2		__REG(0x40000108)  /* Request to Channel Map Register for I2S receive Request */
-#define DRCMR3		__REG(0x4000010c)  /* Request to Channel Map Register for I2S transmit Request */
-#define DRCMR4		__REG(0x40000110)  /* Request to Channel Map Register for BTUART receive Request */
-#define DRCMR5		__REG(0x40000114)  /* Request to Channel Map Register for BTUART transmit Request. */
-#define DRCMR6		__REG(0x40000118)  /* Request to Channel Map Register for FFUART receive Request */
-#define DRCMR7		__REG(0x4000011c)  /* Request to Channel Map Register for FFUART transmit Request */
-#define DRCMR8		__REG(0x40000120)  /* Request to Channel Map Register for AC97 microphone Request */
-#define DRCMR9		__REG(0x40000124)  /* Request to Channel Map Register for AC97 modem receive Request */
-#define DRCMR10		__REG(0x40000128)  /* Request to Channel Map Register for AC97 modem transmit Request */
-#define DRCMR11		__REG(0x4000012c)  /* Request to Channel Map Register for AC97 audio receive Request */
-#define DRCMR12		__REG(0x40000130)  /* Request to Channel Map Register for AC97 audio transmit Request */
-#define DRCMR13		__REG(0x40000134)  /* Request to Channel Map Register for SSP receive Request */
-#define DRCMR14		__REG(0x40000138)  /* Request to Channel Map Register for SSP transmit Request */
-#define DRCMR15		__REG(0x4000013c)  /* Request to Channel Map Register for SSP2 receive Request */
-#define DRCMR16		__REG(0x40000140)  /* Request to Channel Map Register for SSP2 transmit Request */
-#define DRCMR17		__REG(0x40000144)  /* Request to Channel Map Register for ICP receive Request */
-#define DRCMR18		__REG(0x40000148)  /* Request to Channel Map Register for ICP transmit Request */
-#define DRCMR19		__REG(0x4000014c)  /* Request to Channel Map Register for STUART receive Request */
-#define DRCMR20		__REG(0x40000150)  /* Request to Channel Map Register for STUART transmit Request */
-#define DRCMR21		__REG(0x40000154)  /* Request to Channel Map Register for MMC receive Request */
-#define DRCMR22		__REG(0x40000158)  /* Request to Channel Map Register for MMC transmit Request */
-#define DRCMR23		__REG(0x4000015c)  /* Reserved */
-#define DRCMR24		__REG(0x40000160)  /* Reserved */
-#define DRCMR25		__REG(0x40000164)  /* Request to Channel Map Register for USB endpoint 1 Request */
-#define DRCMR26		__REG(0x40000168)  /* Request to Channel Map Register for USB endpoint 2 Request */
-#define DRCMR27		__REG(0x4000016C)  /* Request to Channel Map Register for USB endpoint 3 Request */
-#define DRCMR28		__REG(0x40000170)  /* Request to Channel Map Register for USB endpoint 4 Request */
-#define DRCMR29		__REG(0x40000174)  /* Reserved */
-#define DRCMR30		__REG(0x40000178)  /* Request to Channel Map Register for USB endpoint 6 Request */
-#define DRCMR31		__REG(0x4000017C)  /* Request to Channel Map Register for USB endpoint 7 Request */
-#define DRCMR32		__REG(0x40000180)  /* Request to Channel Map Register for USB endpoint 8 Request */
-#define DRCMR33		__REG(0x40000184)  /* Request to Channel Map Register for USB endpoint 9 Request */
-#define DRCMR34		__REG(0x40000188)  /* Reserved */
-#define DRCMR35		__REG(0x4000018C)  /* Request to Channel Map Register for USB endpoint 11 Request */
-#define DRCMR36		__REG(0x40000190)  /* Request to Channel Map Register for USB endpoint 12 Request */
-#define DRCMR37		__REG(0x40000194)  /* Request to Channel Map Register for USB endpoint 13 Request */
-#define DRCMR38		__REG(0x40000198)  /* Request to Channel Map Register for USB endpoint 14 Request */
-#define DRCMR39		__REG(0x4000019C)  /* Reserved */
-#define DRCMR66		__REG(0x40001108)  /* Request to Channel Map Register for SSP3 receive Request */
-#define DRCMR67		__REG(0x4000110C)  /* Request to Channel Map Register for SSP3 transmit Request */
-#define DRCMR68		__REG(0x40001110)  /* Request to Channel Map Register for Camera FIFO 0 Request */
-#define DRCMR69		__REG(0x40001114)  /* Request to Channel Map Register for Camera FIFO 1 Request */
-#define DRCMR70		__REG(0x40001118)  /* Request to Channel Map Register for Camera FIFO 2 Request */
-
-#define DRCMRRXSADR	DRCMR2
-#define DRCMRTXSADR	DRCMR3
-#define DRCMRRXBTRBR	DRCMR4
-#define DRCMRTXBTTHR	DRCMR5
-#define DRCMRRXFFRBR	DRCMR6
-#define DRCMRTXFFTHR	DRCMR7
-#define DRCMRRXMCDR	DRCMR8
-#define DRCMRRXMODR	DRCMR9
-#define DRCMRTXMODR	DRCMR10
-#define DRCMRRXPCDR	DRCMR11
-#define DRCMRTXPCDR	DRCMR12
-#define DRCMRRXSSDR	DRCMR13
-#define DRCMRTXSSDR	DRCMR14
-#define DRCMRRXSS2DR   DRCMR15
-#define DRCMRTXSS2DR   DRCMR16
-#define DRCMRRXICDR	DRCMR17
-#define DRCMRTXICDR	DRCMR18
-#define DRCMRRXSTRBR	DRCMR19
-#define DRCMRTXSTTHR	DRCMR20
-#define DRCMRRXMMC	DRCMR21
-#define DRCMRTXMMC	DRCMR22
-#define DRCMRRXSS3DR   DRCMR66
-#define DRCMRTXSS3DR   DRCMR67
-#define DRCMRUDC(x)	DRCMR((x) + 24)
-
 #define DRCMR_MAPVLD	(1 << 7)	/* Map Valid (read / write) */
 #define DRCMR_CHLNUM	0x1f		/* mask for Channel Number (read / write) */
-
-#define DDADR0		__REG(0x40000200)  /* DMA Descriptor Address Register Channel 0 */
-#define DSADR0		__REG(0x40000204)  /* DMA Source Address Register Channel 0 */
-#define DTADR0		__REG(0x40000208)  /* DMA Target Address Register Channel 0 */
-#define DCMD0		__REG(0x4000020c)  /* DMA Command Address Register Channel 0 */
-#define DDADR1		__REG(0x40000210)  /* DMA Descriptor Address Register Channel 1 */
-#define DSADR1		__REG(0x40000214)  /* DMA Source Address Register Channel 1 */
-#define DTADR1		__REG(0x40000218)  /* DMA Target Address Register Channel 1 */
-#define DCMD1		__REG(0x4000021c)  /* DMA Command Address Register Channel 1 */
-#define DDADR2		__REG(0x40000220)  /* DMA Descriptor Address Register Channel 2 */
-#define DSADR2		__REG(0x40000224)  /* DMA Source Address Register Channel 2 */
-#define DTADR2		__REG(0x40000228)  /* DMA Target Address Register Channel 2 */
-#define DCMD2		__REG(0x4000022c)  /* DMA Command Address Register Channel 2 */
-#define DDADR3		__REG(0x40000230)  /* DMA Descriptor Address Register Channel 3 */
-#define DSADR3		__REG(0x40000234)  /* DMA Source Address Register Channel 3 */
-#define DTADR3		__REG(0x40000238)  /* DMA Target Address Register Channel 3 */
-#define DCMD3		__REG(0x4000023c)  /* DMA Command Address Register Channel 3 */
-#define DDADR4		__REG(0x40000240)  /* DMA Descriptor Address Register Channel 4 */
-#define DSADR4		__REG(0x40000244)  /* DMA Source Address Register Channel 4 */
-#define DTADR4		__REG(0x40000248)  /* DMA Target Address Register Channel 4 */
-#define DCMD4		__REG(0x4000024c)  /* DMA Command Address Register Channel 4 */
-#define DDADR5		__REG(0x40000250)  /* DMA Descriptor Address Register Channel 5 */
-#define DSADR5		__REG(0x40000254)  /* DMA Source Address Register Channel 5 */
-#define DTADR5		__REG(0x40000258)  /* DMA Target Address Register Channel 5 */
-#define DCMD5		__REG(0x4000025c)  /* DMA Command Address Register Channel 5 */
-#define DDADR6		__REG(0x40000260)  /* DMA Descriptor Address Register Channel 6 */
-#define DSADR6		__REG(0x40000264)  /* DMA Source Address Register Channel 6 */
-#define DTADR6		__REG(0x40000268)  /* DMA Target Address Register Channel 6 */
-#define DCMD6		__REG(0x4000026c)  /* DMA Command Address Register Channel 6 */
-#define DDADR7		__REG(0x40000270)  /* DMA Descriptor Address Register Channel 7 */
-#define DSADR7		__REG(0x40000274)  /* DMA Source Address Register Channel 7 */
-#define DTADR7		__REG(0x40000278)  /* DMA Target Address Register Channel 7 */
-#define DCMD7		__REG(0x4000027c)  /* DMA Command Address Register Channel 7 */
-#define DDADR8		__REG(0x40000280)  /* DMA Descriptor Address Register Channel 8 */
-#define DSADR8		__REG(0x40000284)  /* DMA Source Address Register Channel 8 */
-#define DTADR8		__REG(0x40000288)  /* DMA Target Address Register Channel 8 */
-#define DCMD8		__REG(0x4000028c)  /* DMA Command Address Register Channel 8 */
-#define DDADR9		__REG(0x40000290)  /* DMA Descriptor Address Register Channel 9 */
-#define DSADR9		__REG(0x40000294)  /* DMA Source Address Register Channel 9 */
-#define DTADR9		__REG(0x40000298)  /* DMA Target Address Register Channel 9 */
-#define DCMD9		__REG(0x4000029c)  /* DMA Command Address Register Channel 9 */
-#define DDADR10		__REG(0x400002a0)  /* DMA Descriptor Address Register Channel 10 */
-#define DSADR10		__REG(0x400002a4)  /* DMA Source Address Register Channel 10 */
-#define DTADR10		__REG(0x400002a8)  /* DMA Target Address Register Channel 10 */
-#define DCMD10		__REG(0x400002ac)  /* DMA Command Address Register Channel 10 */
-#define DDADR11		__REG(0x400002b0)  /* DMA Descriptor Address Register Channel 11 */
-#define DSADR11		__REG(0x400002b4)  /* DMA Source Address Register Channel 11 */
-#define DTADR11		__REG(0x400002b8)  /* DMA Target Address Register Channel 11 */
-#define DCMD11		__REG(0x400002bc)  /* DMA Command Address Register Channel 11 */
-#define DDADR12		__REG(0x400002c0)  /* DMA Descriptor Address Register Channel 12 */
-#define DSADR12		__REG(0x400002c4)  /* DMA Source Address Register Channel 12 */
-#define DTADR12		__REG(0x400002c8)  /* DMA Target Address Register Channel 12 */
-#define DCMD12		__REG(0x400002cc)  /* DMA Command Address Register Channel 12 */
-#define DDADR13		__REG(0x400002d0)  /* DMA Descriptor Address Register Channel 13 */
-#define DSADR13		__REG(0x400002d4)  /* DMA Source Address Register Channel 13 */
-#define DTADR13		__REG(0x400002d8)  /* DMA Target Address Register Channel 13 */
-#define DCMD13		__REG(0x400002dc)  /* DMA Command Address Register Channel 13 */
-#define DDADR14		__REG(0x400002e0)  /* DMA Descriptor Address Register Channel 14 */
-#define DSADR14		__REG(0x400002e4)  /* DMA Source Address Register Channel 14 */
-#define DTADR14		__REG(0x400002e8)  /* DMA Target Address Register Channel 14 */
-#define DCMD14		__REG(0x400002ec)  /* DMA Command Address Register Channel 14 */
-#define DDADR15		__REG(0x400002f0)  /* DMA Descriptor Address Register Channel 15 */
-#define DSADR15		__REG(0x400002f4)  /* DMA Source Address Register Channel 15 */
-#define DTADR15		__REG(0x400002f8)  /* DMA Target Address Register Channel 15 */
-#define DCMD15		__REG(0x400002fc)  /* DMA Command Address Register Channel 15 */
 
 #define DDADR(x)	__REG2(0x40000200, (x) << 4)
 #define DSADR(x)	__REG2(0x40000204, (x) << 4)
@@ -418,90 +265,12 @@
 
 
 /*
- * I2C registers
+ * I2C registers - moved into drivers/i2c/busses/i2c-pxa.c
  */
-
-#define IBMR		__REG(0x40301680)  /* I2C Bus Monitor Register - IBMR */
-#define IDBR		__REG(0x40301688)  /* I2C Data Buffer Register - IDBR */
-#define ICR		__REG(0x40301690)  /* I2C Control Register - ICR */
-#define ISR		__REG(0x40301698)  /* I2C Status Register - ISR */
-#define ISAR		__REG(0x403016A0)  /* I2C Slave Address Register - ISAR */
-
-#define PWRIBMR    __REG(0x40f00180)  /* Power I2C Bus Monitor Register-IBMR */
-#define PWRIDBR    __REG(0x40f00188)  /* Power I2C Data Buffer Register-IDBR */
-#define PWRICR __REG(0x40f00190)  /* Power I2C Control Register - ICR */
-#define PWRISR __REG(0x40f00198)  /* Power I2C Status Register - ISR */
-#define PWRISAR    __REG(0x40f001A0)  /*Power I2C Slave Address Register-ISAR */
-
-#define ICR_START	(1 << 0)	   /* start bit */
-#define ICR_STOP	(1 << 1)	   /* stop bit */
-#define ICR_ACKNAK	(1 << 2)	   /* send ACK(0) or NAK(1) */
-#define ICR_TB		(1 << 3)	   /* transfer byte bit */
-#define ICR_MA		(1 << 4)	   /* master abort */
-#define ICR_SCLE	(1 << 5)	   /* master clock enable */
-#define ICR_IUE		(1 << 6)	   /* unit enable */
-#define ICR_GCD		(1 << 7)	   /* general call disable */
-#define ICR_ITEIE	(1 << 8)	   /* enable tx interrupts */
-#define ICR_IRFIE	(1 << 9)	   /* enable rx interrupts */
-#define ICR_BEIE	(1 << 10)	   /* enable bus error ints */
-#define ICR_SSDIE	(1 << 11)	   /* slave STOP detected int enable */
-#define ICR_ALDIE	(1 << 12)	   /* enable arbitration interrupt */
-#define ICR_SADIE	(1 << 13)	   /* slave address detected int enable */
-#define ICR_UR		(1 << 14)	   /* unit reset */
-
-#define ISR_RWM		(1 << 0)	   /* read/write mode */
-#define ISR_ACKNAK	(1 << 1)	   /* ack/nak status */
-#define ISR_UB		(1 << 2)	   /* unit busy */
-#define ISR_IBB		(1 << 3)	   /* bus busy */
-#define ISR_SSD		(1 << 4)	   /* slave stop detected */
-#define ISR_ALD		(1 << 5)	   /* arbitration loss detected */
-#define ISR_ITE		(1 << 6)	   /* tx buffer empty */
-#define ISR_IRF		(1 << 7)	   /* rx buffer full */
-#define ISR_GCAD	(1 << 8)	   /* general call address detected */
-#define ISR_SAD		(1 << 9)	   /* slave address detected */
-#define ISR_BED		(1 << 10)	   /* bus error no ACK/NAK */
-
 
 /*
- * Serial Audio Controller
+ * Serial Audio Controller - moved into sound/soc/pxa/pxa2xx-i2s.c
  */
-
-#define SACR0		__REG(0x40400000)  /* Global Control Register */
-#define SACR1		__REG(0x40400004)  /* Serial Audio I 2 S/MSB-Justified Control Register */
-#define SASR0		__REG(0x4040000C)  /* Serial Audio I 2 S/MSB-Justified Interface and FIFO Status Register */
-#define SAIMR		__REG(0x40400014)  /* Serial Audio Interrupt Mask Register */
-#define SAICR		__REG(0x40400018)  /* Serial Audio Interrupt Clear Register */
-#define SADIV		__REG(0x40400060)  /* Audio Clock Divider Register. */
-#define SADR		__REG(0x40400080)  /* Serial Audio Data Register (TX and RX FIFO access Register). */
-
-#define SACR0_RFTH(x)	((x) << 12)	/* Rx FIFO Interrupt or DMA Trigger Threshold */
-#define SACR0_TFTH(x)	((x) << 8)	/* Tx FIFO Interrupt or DMA Trigger Threshold */
-#define SACR0_STRF	(1 << 5)	/* FIFO Select for EFWR Special Function */
-#define SACR0_EFWR	(1 << 4)	/* Enable EFWR Function  */
-#define SACR0_RST	(1 << 3)	/* FIFO, i2s Register Reset */
-#define SACR0_BCKD	(1 << 2) 	/* Bit Clock Direction */
-#define SACR0_ENB	(1 << 0)	/* Enable I2S Link */
-#define SACR1_ENLBF	(1 << 5)	/* Enable Loopback */
-#define SACR1_DRPL	(1 << 4) 	/* Disable Replaying Function */
-#define SACR1_DREC	(1 << 3)	/* Disable Recording Function */
-#define SACR1_AMSL	(1 << 0)	/* Specify Alternate Mode */
-
-#define SASR0_I2SOFF	(1 << 7)	/* Controller Status */
-#define SASR0_ROR	(1 << 6)	/* Rx FIFO Overrun */
-#define SASR0_TUR	(1 << 5)	/* Tx FIFO Underrun */
-#define SASR0_RFS	(1 << 4)	/* Rx FIFO Service Request */
-#define SASR0_TFS	(1 << 3)	/* Tx FIFO Service Request */
-#define SASR0_BSY	(1 << 2)	/* I2S Busy */
-#define SASR0_RNE	(1 << 1)	/* Rx FIFO Not Empty */
-#define SASR0_TNF	(1 << 0) 	/* Tx FIFO Not Empty */
-
-#define SAICR_ROR	(1 << 6)	/* Clear Rx FIFO Overrun Interrupt */
-#define SAICR_TUR	(1 << 5)	/* Clear Tx FIFO Underrun Interrupt */
-
-#define SAIMR_ROR	(1 << 6)	/* Enable Rx FIFO Overrun Condition Interrupt */
-#define SAIMR_TUR	(1 << 5)	/* Enable Tx FIFO Underrun Condition Interrupt */
-#define SAIMR_RFS	(1 << 4)	/* Enable Rx FIFO Service Interrupt */
-#define SAIMR_TFS	(1 << 3)	/* Enable Tx FIFO Service Interrupt */
 
 /*
  * AC97 Controller registers
@@ -988,77 +757,6 @@
 #define IMPMSR_PS0_STANDBY_MODE	(0x1 << 0) /*    Standby mode */
 
 #endif
-
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-/*
- * UHC: USB Host Controller (OHCI-like) register definitions
- */
-#define UHC_BASE_PHYS	(0x4C000000)
-#define UHCREV		__REG(0x4C000000) /* UHC HCI Spec Revision */
-#define UHCHCON		__REG(0x4C000004) /* UHC Host Control Register */
-#define UHCCOMS		__REG(0x4C000008) /* UHC Command Status Register */
-#define UHCINTS		__REG(0x4C00000C) /* UHC Interrupt Status Register */
-#define UHCINTE		__REG(0x4C000010) /* UHC Interrupt Enable */
-#define UHCINTD		__REG(0x4C000014) /* UHC Interrupt Disable */
-#define UHCHCCA		__REG(0x4C000018) /* UHC Host Controller Comm. Area */
-#define UHCPCED		__REG(0x4C00001C) /* UHC Period Current Endpt Descr */
-#define UHCCHED		__REG(0x4C000020) /* UHC Control Head Endpt Descr */
-#define UHCCCED		__REG(0x4C000024) /* UHC Control Current Endpt Descr */
-#define UHCBHED		__REG(0x4C000028) /* UHC Bulk Head Endpt Descr */
-#define UHCBCED		__REG(0x4C00002C) /* UHC Bulk Current Endpt Descr */
-#define UHCDHEAD	__REG(0x4C000030) /* UHC Done Head */
-#define UHCFMI		__REG(0x4C000034) /* UHC Frame Interval */
-#define UHCFMR		__REG(0x4C000038) /* UHC Frame Remaining */
-#define UHCFMN		__REG(0x4C00003C) /* UHC Frame Number */
-#define UHCPERS		__REG(0x4C000040) /* UHC Periodic Start */
-#define UHCLS		__REG(0x4C000044) /* UHC Low Speed Threshold */
-
-#define UHCRHDA		__REG(0x4C000048) /* UHC Root Hub Descriptor A */
-#define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
-
-#define UHCRHDB		__REG(0x4C00004C) /* UHC Root Hub Descriptor B */
-#define UHCRHS		__REG(0x4C000050) /* UHC Root Hub Status */
-#define UHCRHPS1	__REG(0x4C000054) /* UHC Root Hub Port 1 Status */
-#define UHCRHPS2	__REG(0x4C000058) /* UHC Root Hub Port 2 Status */
-#define UHCRHPS3	__REG(0x4C00005C) /* UHC Root Hub Port 3 Status */
-
-#define UHCSTAT		__REG(0x4C000060) /* UHC Status Register */
-#define UHCSTAT_UPS3	(1 << 16)	/* USB Power Sense Port3 */
-#define UHCSTAT_SBMAI	(1 << 15)	/* System Bus Master Abort Interrupt*/
-#define UHCSTAT_SBTAI	(1 << 14)	/* System Bus Target Abort Interrupt*/
-#define UHCSTAT_UPRI	(1 << 13)	/* USB Port Resume Interrupt */
-#define UHCSTAT_UPS2	(1 << 12)	/* USB Power Sense Port 2 */
-#define UHCSTAT_UPS1	(1 << 11)	/* USB Power Sense Port 1 */
-#define UHCSTAT_HTA	(1 << 10)	/* HCI Target Abort */
-#define UHCSTAT_HBA	(1 << 8)	/* HCI Buffer Active */
-#define UHCSTAT_RWUE	(1 << 7)	/* HCI Remote Wake Up Event */
-
-#define UHCHR           __REG(0x4C000064) /* UHC Reset Register */
-#define UHCHR_SSEP3	(1 << 11)	/* Sleep Standby Enable for Port3 */
-#define UHCHR_SSEP2	(1 << 10)	/* Sleep Standby Enable for Port2 */
-#define UHCHR_SSEP1	(1 << 9)	/* Sleep Standby Enable for Port1 */
-#define UHCHR_PCPL	(1 << 7)	/* Power control polarity low */
-#define UHCHR_PSPL	(1 << 6)	/* Power sense polarity low */
-#define UHCHR_SSE	(1 << 5)	/* Sleep Standby Enable */
-#define UHCHR_UIT	(1 << 4)	/* USB Interrupt Test */
-#define UHCHR_SSDC	(1 << 3)	/* Simulation Scale Down Clock */
-#define UHCHR_CGR	(1 << 2)	/* Clock Generation Reset */
-#define UHCHR_FHR	(1 << 1)	/* Force Host Controller Reset */
-#define UHCHR_FSBIR	(1 << 0)	/* Force System Bus Iface Reset */
-
-#define UHCHIE          __REG(0x4C000068) /* UHC Interrupt Enable Register*/
-#define UHCHIE_UPS3IE	(1 << 14)	/* Power Sense Port3 IntEn */
-#define UHCHIE_UPRIE	(1 << 13)	/* Port Resume IntEn */
-#define UHCHIE_UPS2IE	(1 << 12)	/* Power Sense Port2 IntEn */
-#define UHCHIE_UPS1IE	(1 << 11)	/* Power Sense Port1 IntEn */
-#define UHCHIE_TAIE	(1 << 10)	/* HCI Interface Transfer Abort
-					   Interrupt Enable*/
-#define UHCHIE_HBAIE	(1 << 8)	/* HCI Buffer Active IntEn */
-#define UHCHIE_RWIE	(1 << 7)	/* Remote Wake-up IntEn */
-
-#define UHCHIT          __REG(0x4C00006C) /* UHC Interrupt Test register */
-
-#endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
 /* PWRMODE register M field values */
 

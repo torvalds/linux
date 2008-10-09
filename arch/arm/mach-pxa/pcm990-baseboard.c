@@ -262,8 +262,7 @@ static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
 					GPIO_bit(PCM990_CTRL_INT_IRQ_GPIO);
 		if (likely(pending)) {
 			irq = PCM027_IRQ(0) + __ffs(pending);
-			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		pending = (~PCM990_INTSETCLR) & pcm990_irq_enabled;
 	} while (pending);
@@ -328,36 +327,10 @@ static struct pxamci_platform_data pcm990_mci_platform_data = {
 	.exit		= pcm990_mci_exit,
 };
 
-/*
- * init OHCI hardware to work with
- *
- * Note: Only USB port 1 (host only) is connected
- *
- * GPIO88 (USBHPWR#1): overcurrent in, overcurrent when low
- * GPIO89 (USBHPEN#1): power-on out, on when low
- */
-static int pcm990_ohci_init(struct device *dev)
-{
-	/*
-	 * disable USB port 2 and 3
-	 * power sense is active low
-	 */
-	UHCHR = ((UHCHR) | UHCHR_PCPL | UHCHR_PSPL | UHCHR_SSEP2 |
-				UHCHR_SSEP3) & ~(UHCHR_SSEP1 | UHCHR_SSE);
-	/*
-	 * wait 10ms after Power on
-	 * overcurrent per port
-	 * power switch per port
-	 */
-	UHCRHDA = (5<<24) | (1<<11) | (1<<8);	/* FIXME: Required? */
-
-	return 0;
-}
-
 static struct pxaohci_platform_data pcm990_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= pcm990_ohci_init,
-	.exit		= NULL,
+	.flags		= ENABLE_PORT1 | POWER_CONTROL_LOW | POWER_SENSE_LOW,
+	.power_on_delay	= 10,
 };
 
 /*

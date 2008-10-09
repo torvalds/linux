@@ -162,7 +162,7 @@ static void orion5x_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 				polarity ^= 1 << pin;
 				writel(polarity, GPIO_IN_POL);
 			}
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 	}
 }

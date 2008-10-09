@@ -19,10 +19,17 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/i2c/pca953x.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
+#include <linux/spi/corgi_lcd.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -37,7 +44,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa27x.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/reset.h>
 #include <mach/i2c.h>
@@ -46,7 +53,7 @@
 #include <mach/ohci.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
-#include <mach/akita.h>
+#include <mach/pxa2xx_spi.h>
 #include <mach/spitz.h>
 #include <mach/sharpsl.h>
 
@@ -56,6 +63,66 @@
 #include "generic.h"
 #include "devices.h"
 #include "sharpsl.h"
+
+static unsigned long spitz_pin_config[] __initdata = {
+	/* Chip Selects */
+	GPIO78_nCS_2,	/* SCOOP #2 */
+	GPIO80_nCS_4,	/* SCOOP #1 */
+
+	/* LCD - 16bpp Active TFT */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO79_PSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO112_MMC_CMD,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+
+	/* GPIOs */
+	GPIO9_GPIO,	/* SPITZ_GPIO_nSD_DETECT */
+	GPIO81_GPIO,	/* SPITZ_GPIO_nSD_WP */
+	GPIO41_GPIO,	/* SPITZ_GPIO_USB_CONNECT */
+	GPIO37_GPIO,	/* SPITZ_GPIO_USB_HOST */
+	GPIO35_GPIO,	/* SPITZ_GPIO_USB_DEVICE */
+	GPIO22_GPIO,	/* SPITZ_GPIO_HSYNC */
+	GPIO94_GPIO,	/* SPITZ_GPIO_CF_CD */
+	GPIO105_GPIO,	/* SPITZ_GPIO_CF_IRQ */
+	GPIO106_GPIO,	/* SPITZ_GPIO_CF2_IRQ */
+
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+};
 
 /*
  * Spitz SCOOP Device #1
@@ -69,10 +136,11 @@ static struct resource spitz_scoop_resources[] = {
 };
 
 static struct scoop_config spitz_scoop_setup = {
-	.io_dir 	= SPITZ_SCP_IO_DIR,
+	.io_dir		= SPITZ_SCP_IO_DIR,
 	.io_out		= SPITZ_SCP_IO_OUT,
-	.suspend_clr = SPITZ_SCP_SUS_CLR,
-	.suspend_set = SPITZ_SCP_SUS_SET,
+	.suspend_clr	= SPITZ_SCP_SUS_CLR,
+	.suspend_set	= SPITZ_SCP_SUS_SET,
+	.gpio_base	= SPITZ_SCP_GPIO_BASE,
 };
 
 struct platform_device spitzscoop_device = {
@@ -97,10 +165,11 @@ static struct resource spitz_scoop2_resources[] = {
 };
 
 static struct scoop_config spitz_scoop2_setup = {
-	.io_dir 	= SPITZ_SCP2_IO_DIR,
+	.io_dir		= SPITZ_SCP2_IO_DIR,
 	.io_out		= SPITZ_SCP2_IO_OUT,
-	.suspend_clr = SPITZ_SCP2_SUS_CLR,
-	.suspend_set = SPITZ_SCP2_SUS_SET,
+	.suspend_clr	= SPITZ_SCP2_SUS_CLR,
+	.suspend_set	= SPITZ_SCP2_SUS_SET,
+	.gpio_base	= SPITZ_SCP2_GPIO_BASE,
 };
 
 struct platform_device spitzscoop2_device = {
@@ -122,7 +191,7 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 	unsigned short cpr = read_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR);
 
 	if (new_cpr & 0x0007) {
-	        set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		gpio_set_value(SPITZ_GPIO_CF_POWER, 1);
 		if (!(cpr & 0x0002) && !(cpr & 0x0004))
 		        mdelay(5);
 		if (device == SPITZ_PWR_CF)
@@ -138,32 +207,11 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 		if (!(cpr & 0x0002) && !(cpr & 0x0004)) {
 			write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, 0x0000);
 		        mdelay(1);
-		        reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+			gpio_set_value(SPITZ_GPIO_CF_POWER, 0);
 		} else {
 		        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
 		}
 	}
-}
-
-static void spitz_pcmcia_init(void)
-{
-	/* Setup default state of GPIO outputs
-	   before we enable them as outputs. */
-	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |	GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO54_nPCE_2);
-	GPSR(GPIO85_nPCE_1) = GPIO_bit(GPIO85_nPCE_1);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-	pxa_gpio_mode(GPIO85_nPCE_1_MD);
-	pxa_gpio_mode(GPIO54_nPCE_2_MD);
-	pxa_gpio_mode(GPIO104_pSKTSEL_MD);
 }
 
 static void spitz_pcmcia_pwr(struct device *scoop, unsigned short cpr, int nr)
@@ -191,70 +239,11 @@ static struct scoop_pcmcia_dev spitz_pcmcia_scoop[] = {
 static struct scoop_pcmcia_config spitz_pcmcia_config = {
 	.devs         = &spitz_pcmcia_scoop[0],
 	.num_devs     = 2,
-	.pcmcia_init  = spitz_pcmcia_init,
 	.power_ctrl   = spitz_pcmcia_pwr,
 };
 
 EXPORT_SYMBOL(spitzscoop_device);
 EXPORT_SYMBOL(spitzscoop2_device);
-
-
-/*
- * Spitz SSP Device
- *
- * Set the parent as the scoop device because a lot of SSP devices
- * also use scoop functions and this makes the power up/down order
- * work correctly.
- */
-struct platform_device spitzssp_device = {
-	.name		= "corgi-ssp",
-	.dev		= {
- 		.parent = &spitzscoop_device.dev,
-	},
-	.id		= -1,
-};
-
-struct corgissp_machinfo spitz_ssp_machinfo = {
-	.port		= 2,
-	.cs_lcdcon	= SPITZ_GPIO_LCDCON_CS,
-	.cs_ads7846	= SPITZ_GPIO_ADS7846_CS,
-	.cs_max1111	= SPITZ_GPIO_MAX1111_CS,
-	.clk_lcdcon	= 520,
-	.clk_ads7846	= 14,
-	.clk_max1111	= 56,
-};
-
-
-/*
- * Spitz Backlight Device
- */
-static void spitz_bl_kick_battery(void)
-{
-	void (*kick_batt)(void);
-
-	kick_batt = symbol_get(sharpsl_battery_kick);
-	if (kick_batt) {
-		kick_batt();
-		symbol_put(sharpsl_battery_kick);
-	}
-}
-
-static struct generic_bl_info spitz_bl_machinfo = {
-	.name = "corgi-bl",
-	.default_intensity = 0x1f,
-	.limit_mask = 0x0b,
-	.max_intensity = 0x2f,
-	.kick_battery = spitz_bl_kick_battery,
-};
-
-static struct platform_device spitzbl_device = {
-	.name		= "generic-bl",
-	.dev		= {
- 		.platform_data	= &spitz_bl_machinfo,
-	},
-	.id		= -1,
-};
-
 
 /*
  * Spitz Keyboard Device
@@ -268,88 +257,151 @@ static struct platform_device spitzkbd_device = {
 /*
  * Spitz LEDs
  */
+static struct gpio_led spitz_gpio_leds[] = {
+	{
+		.name			= "spitz:amber:charge",
+		.default_trigger	= "sharpsl-charge",
+		.gpio			= SPITZ_GPIO_LED_ORANGE,
+	},
+	{
+		.name			= "spitz:green:hddactivity",
+		.default_trigger	= "ide-disk",
+		.gpio			= SPITZ_GPIO_LED_GREEN,
+	},
+};
+
+static struct gpio_led_platform_data spitz_gpio_leds_info = {
+	.leds		= spitz_gpio_leds,
+	.num_leds	= ARRAY_SIZE(spitz_gpio_leds),
+};
+
 static struct platform_device spitzled_device = {
-	.name		= "spitz-led",
+	.name		= "leds-gpio",
 	.id		= -1,
-};
-
-/*
- * Spitz Touch Screen Device
- */
-
-static unsigned long (*get_hsync_invperiod)(struct device *dev);
-
-static void inline sharpsl_wait_sync(int gpio)
-{
-	while((GPLR(gpio) & GPIO_bit(gpio)) == 0);
-	while((GPLR(gpio) & GPIO_bit(gpio)) != 0);
-}
-
-static struct device *spitz_pxafb_dev;
-
-static int is_pxafb_device(struct device * dev, void * data)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-
-	return (strncmp(pdev->name, "pxa2xx-fb", 9) == 0);
-}
-
-static unsigned long spitz_get_hsync_invperiod(void)
-{
-#ifdef CONFIG_FB_PXA
-	if (!spitz_pxafb_dev) {
-		spitz_pxafb_dev = bus_find_device(&platform_bus_type, NULL, NULL, is_pxafb_device);
-		if (!spitz_pxafb_dev)
-			return 0;
-	}
-	if (!get_hsync_invperiod)
-		get_hsync_invperiod = symbol_get(pxafb_get_hsync_time);
-	if (!get_hsync_invperiod)
-#endif
-		return 0;
-
-	return get_hsync_invperiod(spitz_pxafb_dev);
-}
-
-static void spitz_put_hsync(void)
-{
-	put_device(spitz_pxafb_dev);
-	if (get_hsync_invperiod)
-		symbol_put(pxafb_get_hsync_time);
-	spitz_pxafb_dev = NULL;
-	get_hsync_invperiod = NULL;
-}
-
-static void spitz_wait_hsync(void)
-{
-	sharpsl_wait_sync(SPITZ_GPIO_HSYNC);
-}
-
-static struct resource spitzts_resources[] = {
-	[0] = {
-		.start		= SPITZ_IRQ_GPIO_TP_INT,
-		.end		= SPITZ_IRQ_GPIO_TP_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct corgits_machinfo  spitz_ts_machinfo = {
-	.get_hsync_invperiod = spitz_get_hsync_invperiod,
-	.put_hsync           = spitz_put_hsync,
-	.wait_hsync          = spitz_wait_hsync,
-};
-
-static struct platform_device spitzts_device = {
-	.name		= "corgi-ts",
 	.dev		= {
- 		.parent = &spitzssp_device.dev,
-		.platform_data	= &spitz_ts_machinfo,
+		.platform_data = &spitz_gpio_leds_info,
 	},
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(spitzts_resources),
-	.resource	= spitzts_resources,
 };
 
+#if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
+static struct pxa2xx_spi_master spitz_spi_info = {
+	.num_chipselect	= 3,
+};
+
+static struct ads7846_platform_data spitz_ads7846_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.gpio_pendown		= SPITZ_GPIO_TP_INT,
+};
+
+static void spitz_ads7846_cs(u32 command)
+{
+	gpio_set_value(SPITZ_GPIO_ADS7846_CS, !(command == PXA2XX_CS_ASSERT));
+}
+
+static struct pxa2xx_spi_chip spitz_ads7846_chip = {
+	.cs_control		= spitz_ads7846_cs,
+};
+
+static void spitz_bl_kick_battery(void)
+{
+	void (*kick_batt)(void);
+
+	kick_batt = symbol_get(sharpsl_battery_kick);
+	if (kick_batt) {
+		kick_batt();
+		symbol_put(sharpsl_battery_kick);
+	}
+}
+
+static struct corgi_lcd_platform_data spitz_lcdcon_info = {
+	.init_mode		= CORGI_LCD_MODE_VGA,
+	.max_intensity		= 0x2f,
+	.default_intensity	= 0x1f,
+	.limit_mask		= 0x0b,
+	.gpio_backlight_cont	= SPITZ_GPIO_BACKLIGHT_CONT,
+	.gpio_backlight_on	= SPITZ_GPIO_BACKLIGHT_ON,
+	.kick_battery		= spitz_bl_kick_battery,
+};
+
+static void spitz_lcdcon_cs(u32 command)
+{
+	gpio_set_value(SPITZ_GPIO_LCDCON_CS, !(command == PXA2XX_CS_ASSERT));
+}
+
+static struct pxa2xx_spi_chip spitz_lcdcon_chip = {
+	.cs_control	= spitz_lcdcon_cs,
+};
+
+static void spitz_max1111_cs(u32 command)
+{
+	gpio_set_value(SPITZ_GPIO_MAX1111_CS, !(command == PXA2XX_CS_ASSERT));
+}
+
+static struct pxa2xx_spi_chip spitz_max1111_chip = {
+	.cs_control	= spitz_max1111_cs,
+};
+
+static struct spi_board_info spitz_spi_devices[] = {
+	{
+		.modalias	= "ads7846",
+		.max_speed_hz	= 1200000,
+		.bus_num	= 2,
+		.chip_select	= 0,
+		.platform_data	= &spitz_ads7846_info,
+		.controller_data= &spitz_ads7846_chip,
+		.irq		= gpio_to_irq(SPITZ_GPIO_TP_INT),
+	}, {
+		.modalias	= "corgi-lcd",
+		.max_speed_hz	= 50000,
+		.bus_num	= 2,
+		.chip_select	= 1,
+		.platform_data	= &spitz_lcdcon_info,
+		.controller_data= &spitz_lcdcon_chip,
+	}, {
+		.modalias	= "max1111",
+		.max_speed_hz	= 450000,
+		.bus_num	= 2,
+		.chip_select	= 2,
+		.controller_data= &spitz_max1111_chip,
+	},
+};
+
+static void __init spitz_init_spi(void)
+{
+	int err;
+
+	err = gpio_request(SPITZ_GPIO_ADS7846_CS, "ADS7846_CS");
+	if (err)
+		return;
+
+	err = gpio_request(SPITZ_GPIO_LCDCON_CS, "LCDCON_CS");
+	if (err)
+		goto err_free_1;
+
+	err = gpio_request(SPITZ_GPIO_MAX1111_CS, "MAX1111_CS");
+	if (err)
+		goto err_free_2;
+
+	if (machine_is_akita()) {
+		spitz_lcdcon_info.gpio_backlight_cont = AKITA_GPIO_BACKLIGHT_CONT;
+		spitz_lcdcon_info.gpio_backlight_on = AKITA_GPIO_BACKLIGHT_ON;
+	}
+
+	pxa2xx_set_spi_info(2, &spitz_spi_info);
+	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
+	return;
+
+err_free_2:
+	gpio_free(SPITZ_GPIO_LCDCON_CS);
+err_free_1:
+	gpio_free(SPITZ_GPIO_ADS7846_CS);
+}
+#else
+static inline void spitz_init_spi(void) {}
+#endif
 
 /*
  * MMC/SD Device
@@ -364,24 +416,35 @@ static int spitz_mci_init(struct device *dev, irq_handler_t spitz_detect_int, vo
 {
 	int err;
 
-	/* setup GPIO for PXA27x MMC controller	*/
-	pxa_gpio_mode(GPIO32_MMCCLK_MD);
-	pxa_gpio_mode(GPIO112_MMCCMD_MD);
-	pxa_gpio_mode(GPIO92_MMCDAT0_MD);
-	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
-	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
-	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
-	pxa_gpio_mode(SPITZ_GPIO_nSD_DETECT | GPIO_IN);
-	pxa_gpio_mode(SPITZ_GPIO_nSD_WP | GPIO_IN);
+	err = gpio_request(SPITZ_GPIO_nSD_DETECT, "nSD_DETECT");
+	if (err)
+		goto err_out;
+
+	err = gpio_request(SPITZ_GPIO_nSD_WP, "nSD_WP");
+	if (err)
+		goto err_free_1;
+
+	gpio_direction_input(SPITZ_GPIO_nSD_DETECT);
+	gpio_direction_input(SPITZ_GPIO_nSD_WP);
 
 	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			  IRQF_DISABLED | IRQF_TRIGGER_RISING |
+			  IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err)
-		printk(KERN_ERR "spitz_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+	if (err) {
+		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
+				__func__);
+		goto err_free_2;
+	}
+	return 0;
 
+err_free_2:
+	gpio_free(SPITZ_GPIO_nSD_WP);
+err_free_1:
+	gpio_free(SPITZ_GPIO_nSD_DETECT);
+err_out:
 	return err;
 }
 
@@ -397,12 +460,14 @@ static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 
 static int spitz_mci_get_ro(struct device *dev)
 {
-	return GPLR(SPITZ_GPIO_nSD_WP) & GPIO_bit(SPITZ_GPIO_nSD_WP);
+	return gpio_get_value(SPITZ_GPIO_nSD_WP);
 }
 
 static void spitz_mci_exit(struct device *dev, void *data)
 {
 	free_irq(SPITZ_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(SPITZ_GPIO_nSD_WP);
+	gpio_free(SPITZ_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data spitz_mci_platform_data = {
@@ -419,27 +484,24 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
  */
 static int spitz_ohci_init(struct device *dev)
 {
-	/* Only Port 2 is connected */
-	pxa_gpio_mode(SPITZ_GPIO_USB_CONNECT | GPIO_IN);
-	pxa_gpio_mode(SPITZ_GPIO_USB_HOST | GPIO_OUT);
-	pxa_gpio_mode(SPITZ_GPIO_USB_DEVICE | GPIO_IN);
+	int err;
 
-	/* Setup USB Port 2 Output Control Register */
+	err = gpio_request(SPITZ_GPIO_USB_HOST, "USB_HOST");
+	if (err)
+		return err;
+
+	/* Only Port 2 is connected
+	 * Setup USB Port 2 Output Control Register
+	 */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
 
-	GPSR(SPITZ_GPIO_USB_HOST) = GPIO_bit(SPITZ_GPIO_USB_HOST);
-
-	UHCHR = (UHCHR) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	UHCRHDA |= UHCRHDA_NOCP;
-
-	return 0;
+	return gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
 }
 
 static struct pxaohci_platform_data spitz_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	.init		= spitz_ohci_init,
+	.flags		= ENABLE_PORT_ALL | NO_OC_PROTECTION,
 	.power_budget	= 150,
 };
 
@@ -447,43 +509,56 @@ static struct pxaohci_platform_data spitz_ohci_platform_data = {
 /*
  * Irda
  */
+static int spitz_irda_startup(struct device *dev)
+{
+	int rc;
+
+	rc = gpio_request(SPITZ_GPIO_IR_ON, "IrDA on");
+	if (rc)
+		goto err;
+
+	rc = gpio_direction_output(SPITZ_GPIO_IR_ON, 1);
+	if (rc)
+		goto err_dir;
+
+	return 0;
+
+err_dir:
+	gpio_free(SPITZ_GPIO_IR_ON);
+err:
+	return rc;
+}
+
+static void spitz_irda_shutdown(struct device *dev)
+{
+	gpio_free(SPITZ_GPIO_IR_ON);
+}
+
 static void spitz_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF)
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
-	else
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+	gpio_set_value(SPITZ_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 
 #ifdef CONFIG_MACH_AKITA
 static void akita_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF)
-		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
-	else
-		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+	gpio_set_value(AKITA_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 #endif
 
 static struct pxaficp_platform_data spitz_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = spitz_irda_transceiver_mode,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.transceiver_mode	= spitz_irda_transceiver_mode,
+	.startup		= spitz_irda_startup,
+	.shutdown		= spitz_irda_shutdown,
 };
 
 
 /*
  * Spitz PXA Framebuffer
  */
-
-static void spitz_lcd_power(int on, struct fb_var_screeninfo *var)
-{
-	if (on)
-		corgi_lcdtg_hw_init(var->xres);
-	else
-		corgi_lcdtg_suspend();
-}
 
 static struct pxafb_mode_info spitz_pxafb_modes[] = {
 {
@@ -517,18 +592,13 @@ static struct pxafb_mach_info spitz_pxafb_info = {
 	.modes          = &spitz_pxafb_modes[0],
 	.num_modes      = 2,
 	.fixed_modes    = 1,
-	.lccr0          = LCCR0_Color | LCCR0_Sngl | LCCR0_Act | LCCR0_LDDALT | LCCR0_OUC | LCCR0_CMDIM | LCCR0_RDSTM,
-	.lccr3          = LCCR3_PixRsEdg | LCCR3_OutEnH,
-	.pxafb_lcd_power = spitz_lcd_power,
+	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_ALTERNATE_MAPPING,
 };
 
 
 static struct platform_device *devices[] __initdata = {
 	&spitzscoop_device,
-	&spitzssp_device,
 	&spitzkbd_device,
-	&spitzts_device,
-	&spitzbl_device,
 	&spitzled_device,
 };
 
@@ -554,56 +624,25 @@ static void __init common_init(void)
 
 	PMCR = 0x00;
 
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x0158C000;
-	PGSR1 = 0x00FF0080;
-	PGSR2 = 0x0001C004;
-
 	/* Stop 3.6MHz and drive HIGH to PCMCIA and CS */
 	PCFR |= PCFR_OPDE;
 
-	corgi_ssp_set_machinfo(&spitz_ssp_machinfo);
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(spitz_pin_config));
 
-	pxa_gpio_mode(SPITZ_GPIO_HSYNC | GPIO_IN);
+	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
 	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
-	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
 	pxa_set_i2c_info(NULL);
 }
 
 #if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)
-static void spitz_bl_set_intensity(int intensity)
-{
-	if (intensity > 0x10)
-		intensity += 0x10;
-
-	/* Bits 0-4 are accessed via the SSP interface */
-	corgi_ssp_blduty_set(intensity & 0x1f);
-
-	/* Bit 5 is via SCOOP */
-	if (intensity & 0x0020)
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
-	else
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
-
-	if (intensity)
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
-	else
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
-}
-
 static void __init spitz_init(void)
 {
 	platform_scoop_config = &spitz_pcmcia_config;
-
-	spitz_bl_machinfo.set_bl_intensity = spitz_bl_set_intensity;
 
 	common_init();
 
@@ -615,32 +654,17 @@ static void __init spitz_init(void)
 /*
  * Akita IO Expander
  */
-struct platform_device akitaioexp_device = {
-	.name		= "akita-ioexp",
-	.id		= -1,
+static struct pca953x_platform_data akita_ioexp = {
+	.gpio_base		= AKITA_IOEXP_GPIO_BASE,
 };
 
-EXPORT_SYMBOL_GPL(akitaioexp_device);
-
-static void akita_bl_set_intensity(int intensity)
-{
-	if (intensity > 0x10)
-		intensity += 0x10;
-
-	/* Bits 0-4 are accessed via the SSP interface */
-	corgi_ssp_blduty_set(intensity & 0x1f);
-
-	/* Bit 5 is via IO-Expander */
-	if (intensity & 0x0020)
-		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
-	else
-		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
-
-	if (intensity)
-		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
-	else
-		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
-}
+static struct i2c_board_info akita_i2c_board_info[] = {
+	{
+		.type		= "max7310",
+		.addr		= 0x18,
+		.platform_data	= &akita_ioexp,
+	},
+};
 
 static void __init akita_init(void)
 {
@@ -649,11 +673,10 @@ static void __init akita_init(void)
 	/* We just pretend the second element of the array doesn't exist */
 	spitz_pcmcia_config.num_devs = 1;
 	platform_scoop_config = &spitz_pcmcia_config;
-	spitz_bl_machinfo.set_bl_intensity = akita_bl_set_intensity;
 
-	platform_device_register(&akitaioexp_device);
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(akita_i2c_board_info));
 
-	spitzscoop_device.dev.parent = &akitaioexp_device.dev;
 	common_init();
 }
 #endif

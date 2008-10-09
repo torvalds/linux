@@ -104,14 +104,12 @@ h720x_gpio_handler(unsigned int mask, unsigned int irq,
                  struct irq_desc *desc)
 {
 	IRQDBG("%s irq: %d\n", __func__, irq);
-	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1) {
 			IRQDBG("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		irq++;
-		desc++;
 		mask >>= 1;
 	}
 }

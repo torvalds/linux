@@ -979,6 +979,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
 				event.info = info;
+				event.data = &mode;
 				fb_notifier_call_chain(evnt, &event);
 			}
 		}

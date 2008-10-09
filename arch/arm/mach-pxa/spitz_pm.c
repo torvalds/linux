@@ -21,7 +21,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <asm/hardware/scoop.h>
 
 #include <mach/sharpsl.h>
 #include <mach/spitz.h>
@@ -48,44 +47,35 @@ static void spitz_charger_init(void)
 
 static void spitz_measure_temp(int on)
 {
-	if (on)
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_ADC_TEMP_ON);
-	else
-		reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_ADC_TEMP_ON);
+	gpio_set_value(SPITZ_GPIO_ADC_TEMP_ON, on);
 }
 
 static void spitz_charge(int on)
 {
 	if (on) {
 		if (sharpsl_pm.flags & SHARPSL_SUSPENDED) {
-			set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_JK_B);
-			reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CHRG_ON);
+			gpio_set_value(SPITZ_GPIO_JK_B, 1);
+			gpio_set_value(SPITZ_GPIO_CHRG_ON, 0);
 		} else {
-			reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_JK_B);
-			reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CHRG_ON);
+			gpio_set_value(SPITZ_GPIO_JK_B, 0);
+			gpio_set_value(SPITZ_GPIO_CHRG_ON, 0);
 		}
 	} else {
-		reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_JK_B);
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CHRG_ON);
+		gpio_set_value(SPITZ_GPIO_JK_B, 0);
+		gpio_set_value(SPITZ_GPIO_CHRG_ON, 1);
 	}
 }
 
 static void spitz_discharge(int on)
 {
-	if (on)
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_JK_A);
-	else
-		reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_JK_A);
+	gpio_set_value(SPITZ_GPIO_JK_A, on);
 }
 
 /* HACK - For unknown reasons, accurate voltage readings are only made with a load
    on the power bus which the green led on spitz provides */
 static void spitz_discharge1(int on)
 {
-	if (on)
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_LED_GREEN);
-	else
-		reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_LED_GREEN);
+	gpio_set_value(SPITZ_GPIO_LED_GREEN, on);
 }
 
 static void spitz_presuspend(void)

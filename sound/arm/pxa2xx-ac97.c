@@ -215,7 +215,7 @@ static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_out = {
 	.name			= "AC97 PCM out",
 	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMRTXPCDR,
+	.drcmr			= &DRCMR(12),
 	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
@@ -223,7 +223,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_out = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_in = {
 	.name			= "AC97 PCM in",
 	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMRRXPCDR,
+	.drcmr			= &DRCMR(11),
 	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };

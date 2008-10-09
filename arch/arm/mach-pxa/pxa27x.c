@@ -34,6 +34,13 @@
 #include "devices.h"
 #include "clock.h"
 
+void pxa27x_clear_otgph(void)
+{
+	if (cpu_is_pxa27x() && (PSSR & PSSR_OTGPH))
+		PSSR |= PSSR_OTGPH;
+}
+EXPORT_SYMBOL(pxa27x_clear_otgph);
+
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000
 
@@ -183,36 +190,18 @@ static struct clk pxa27x_clks[] = {
  * More ones like CP and general purpose register values are preserved
  * with the stack pointer in sleep.S.
  */
-enum {	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2, SLEEP_SAVE_PGSR3,
-
-	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
-	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
-	SLEEP_SAVE_GAFR2_L, SLEEP_SAVE_GAFR2_U,
-	SLEEP_SAVE_GAFR3_L, SLEEP_SAVE_GAFR3_U,
-
+enum {
 	SLEEP_SAVE_PSTR,
-
 	SLEEP_SAVE_CKEN,
-
 	SLEEP_SAVE_MDREFR,
-	SLEEP_SAVE_PWER, SLEEP_SAVE_PCFR, SLEEP_SAVE_PRER,
-	SLEEP_SAVE_PFER, SLEEP_SAVE_PKWR,
-
+	SLEEP_SAVE_PCFR,
 	SLEEP_SAVE_COUNT
 };
 
 void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 {
-	SAVE(PGSR0); SAVE(PGSR1); SAVE(PGSR2); SAVE(PGSR3);
-
-	SAVE(GAFR0_L); SAVE(GAFR0_U);
-	SAVE(GAFR1_L); SAVE(GAFR1_U);
-	SAVE(GAFR2_L); SAVE(GAFR2_U);
-	SAVE(GAFR3_L); SAVE(GAFR3_U);
-
 	SAVE(MDREFR);
-	SAVE(PWER); SAVE(PCFR); SAVE(PRER);
-	SAVE(PFER); SAVE(PKWR);
+	SAVE(PCFR);
 
 	SAVE(CKEN);
 	SAVE(PSTR);
@@ -220,24 +209,12 @@ void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 
 void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 {
-	/* ensure not to come back here if it wasn't intended */
-	PSPR = 0;
-
-	/* restore registers */
-	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
-	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
-	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
-	RESTORE(GAFR3_L); RESTORE(GAFR3_U);
-	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2); RESTORE(PGSR3);
-
 	RESTORE(MDREFR);
-	RESTORE(PWER); RESTORE(PCFR); RESTORE(PRER);
-	RESTORE(PFER); RESTORE(PKWR);
+	RESTORE(PCFR);
 
 	PSSR = PSSR_RDH | PSSR_PH;
 
 	RESTORE(CKEN);
-
 	RESTORE(PSTR);
 }
 
@@ -259,8 +236,6 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 		pxa_cpu_standby();
 		break;
 	case PM_SUSPEND_MEM:
-		/* set resume return address */
-		PSPR = virt_to_phys(pxa_cpu_resume);
 		pxa27x_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}
@@ -271,12 +246,27 @@ static int pxa27x_cpu_pm_valid(suspend_state_t state)
 	return state == PM_SUSPEND_MEM || state == PM_SUSPEND_STANDBY;
 }
 
+static int pxa27x_cpu_pm_prepare(void)
+{
+	/* set resume return address */
+	PSPR = virt_to_phys(pxa_cpu_resume);
+	return 0;
+}
+
+static void pxa27x_cpu_pm_finish(void)
+{
+	/* ensure not to come back here if it wasn't intended */
+	PSPR = 0;
+}
+
 static struct pxa_cpu_pm_fns pxa27x_cpu_pm_fns = {
 	.save_count	= SLEEP_SAVE_COUNT,
 	.save		= pxa27x_cpu_pm_save,
 	.restore	= pxa27x_cpu_pm_restore,
 	.valid		= pxa27x_cpu_pm_valid,
 	.enter		= pxa27x_cpu_pm_enter,
+	.prepare	= pxa27x_cpu_pm_prepare,
+	.finish		= pxa27x_cpu_pm_finish,
 };
 
 static void __init pxa27x_init_pm(void)
@@ -349,7 +339,7 @@ struct platform_device pxa27x_device_i2c_power = {
 	.num_resources	= ARRAY_SIZE(i2c_power_resources),
 };
 
-void __init pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info)
+void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
 	local_irq_disable();
 	PCFR |= PCFR_PI2CEN;
@@ -375,6 +365,8 @@ static struct platform_device *devices[] __initdata = {
 static struct sys_device pxa27x_sysdev[] = {
 	{
 		.cls	= &pxa_irq_sysclass,
+	}, {
+		.cls	= &pxa2xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
 	},

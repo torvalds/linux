@@ -587,8 +587,7 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 			pending = ecard_default_ops.irqpending(ec);
 
 		if (pending) {
-			struct irq_desc *d = irq_desc + ec->irq;
-			desc_handle_irq(ec->irq, d);
+			generic_handle_irq(ec->irq);
 			called ++;
 		}
 	}
@@ -622,7 +621,6 @@ ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
 		ecard_t *ec = slot_to_ecard(slot);
 
 		if (ec->claimed) {
-			struct irq_desc *d = irq_desc + ec->irq;
 			/*
 			 * this ugly code is so that we can operate a
 			 * prioritorising system:
@@ -635,7 +633,7 @@ ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
 			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
 			 * otherwise you will lose serial data at high speeds!
 			 */
-			desc_handle_irq(ec->irq, d);
+			generic_handle_irq(ec->irq);
 		} else {
 			printk(KERN_WARNING "card%d: interrupt from unclaimed "
 			       "card???\n", slot);

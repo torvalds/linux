@@ -86,13 +86,10 @@ static void a9m9750dev_fpga_demux_handler(unsigned int irq,
 
 	while (stat != 0) {
 		int irqno = fls(stat) - 1;
-		struct irq_desc *fpgadesc;
 
 		stat &= ~(1 << irqno);
 
-		fpgadesc = irq_desc + FPGA_IRQ(irqno);
-
-		desc_handle_irq(FPGA_IRQ(irqno), fpgadesc);
+		generic_handle_irq(FPGA_IRQ(irqno));
 	}
 
 	desc->chip->unmask(irq);
