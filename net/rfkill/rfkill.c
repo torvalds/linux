@@ -581,8 +581,17 @@ static int rfkill_resume(struct device *dev)
 
 		dev->power.power_state.event = PM_EVENT_ON;
 
-		/* restore radio state AND notify everybody */
-		rfkill_toggle_radio(rfkill, rfkill->state, 1);
+		/*
+		 * If we are under EPO, kick transmitter offline,
+		 * otherwise restore to pre-suspend state.
+		 *
+		 * Issue a notification in any case
+		 */
+		rfkill_toggle_radio(rfkill,
+				rfkill_epo_lock_active ?
+					RFKILL_STATE_SOFT_BLOCKED :
+					rfkill->state,
+				1);
 
 		mutex_unlock(&rfkill->mutex);
 	}
