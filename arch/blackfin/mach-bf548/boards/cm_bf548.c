@@ -172,6 +172,7 @@ static struct resource bfin_uart_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
+		.flags = IORESOURCE_MEM,
 	},
 #endif
 };
