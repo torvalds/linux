@@ -1971,7 +1971,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	    sband->bitrates[rsel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
 		info->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 
-	info->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 	info->control.retry_limit = 1;
 
 out:

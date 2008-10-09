@@ -1198,8 +1198,7 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
-	priv->rx_antenna = (conf->antenna_sel_rx == 0) ?
-		2 : conf->antenna_sel_tx - 1;
+	priv->rx_antenna = 2; /* automatic */
 	priv->output_power = conf->power_level << 2;
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);

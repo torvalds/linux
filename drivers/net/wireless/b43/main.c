@@ -1339,25 +1339,6 @@ u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
 	return antenna_nr;
 }
 
-static int b43_antenna_from_ieee80211(struct b43_wldev *dev, u8 antenna)
-{
-	antenna = b43_ieee80211_antenna_sanitize(dev, antenna);
-	switch (antenna) {
-	case 0:		/* default/diversity */
-		return B43_ANTENNA_DEFAULT;
-	case 1:		/* Antenna 0 */
-		return B43_ANTENNA0;
-	case 2:		/* Antenna 1 */
-		return B43_ANTENNA1;
-	case 3:		/* Antenna 2 */
-		return B43_ANTENNA2;
-	case 4:		/* Antenna 3 */
-		return B43_ANTENNA3;
-	default:
-		return B43_ANTENNA_DEFAULT;
-	}
-}
-
 /* Convert a b43 antenna number value to the PHY TX control value. */
 static u16 b43_antenna_to_phyctl(int antenna)
 {
@@ -1399,7 +1380,7 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 				  len, ram_offset, shm_size_offset, rate);
 
 	/* Write the PHY TX control parameters. */
-	antenna = b43_antenna_from_ieee80211(dev, info->antenna_sel_tx);
+	antenna = B43_ANTENNA_DEFAULT;
 	antenna = b43_antenna_to_phyctl(antenna);
 	ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
 	/* We can't send beacons with short preamble. Would get PHY errors. */
@@ -3399,9 +3380,9 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	}
 
 	/* Antennas for RX and management frame TX. */
-	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_tx);
+	antenna = B43_ANTENNA_DEFAULT;
 	b43_mgmtframe_txantenna(dev, antenna);
-	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_rx);
+	antenna = B43_ANTENNA_DEFAULT;
 	if (phy->ops->set_rx_antenna)
 		phy->ops->set_rx_antenna(dev, antenna);
 

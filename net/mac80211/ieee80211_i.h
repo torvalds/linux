@@ -727,8 +727,6 @@ struct ieee80211_local {
 		struct dentry *rcdir;
 		struct dentry *rcname;
 		struct dentry *frequency;
-		struct dentry *antenna_sel_tx;
-		struct dentry *antenna_sel_rx;
 		struct dentry *rts_threshold;
 		struct dentry *fragmentation_threshold;
 		struct dentry *short_retry_limit;

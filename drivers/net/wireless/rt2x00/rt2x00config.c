@@ -199,22 +199,14 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	 * to work with untill the link tuner decides that an antenna
 	 * switch should be performed.
 	 */
-	if (!conf->antenna_sel_rx &&
-	    default_ant->rx != ANTENNA_SW_DIVERSITY &&
+	if (default_ant->rx != ANTENNA_SW_DIVERSITY &&
 	    default_ant->rx != active_ant->rx)
-		flags |= CONFIG_UPDATE_ANTENNA;
-	else if (conf->antenna_sel_rx &&
-		 conf->antenna_sel_rx != active_ant->rx)
 		flags |= CONFIG_UPDATE_ANTENNA;
 	else if (active_ant->rx == ANTENNA_SW_DIVERSITY)
 		flags |= CONFIG_UPDATE_ANTENNA;
 
-	if (!conf->antenna_sel_tx &&
-	    default_ant->tx != ANTENNA_SW_DIVERSITY &&
+	if (default_ant->tx != ANTENNA_SW_DIVERSITY &&
 	    default_ant->tx != active_ant->tx)
-		flags |= CONFIG_UPDATE_ANTENNA;
-	else if (conf->antenna_sel_tx &&
-		 conf->antenna_sel_tx != active_ant->tx)
 		flags |= CONFIG_UPDATE_ANTENNA;
 	else if (active_ant->tx == ANTENNA_SW_DIVERSITY)
 		flags |= CONFIG_UPDATE_ANTENNA;
@@ -252,18 +244,14 @@ config:
 	}
 
 	if (flags & CONFIG_UPDATE_ANTENNA) {
-		if (conf->antenna_sel_rx)
-			libconf.ant.rx = conf->antenna_sel_rx;
-		else if (default_ant->rx != ANTENNA_SW_DIVERSITY)
+		if (default_ant->rx != ANTENNA_SW_DIVERSITY)
 			libconf.ant.rx = default_ant->rx;
 		else if (active_ant->rx == ANTENNA_SW_DIVERSITY)
 			libconf.ant.rx = ANTENNA_B;
 		else
 			libconf.ant.rx = active_ant->rx;
 
-		if (conf->antenna_sel_tx)
-			libconf.ant.tx = conf->antenna_sel_tx;
-		else if (default_ant->tx != ANTENNA_SW_DIVERSITY)
+		if (default_ant->tx != ANTENNA_SW_DIVERSITY)
 			libconf.ant.tx = default_ant->tx;
 		else if (active_ant->tx == ANTENNA_SW_DIVERSITY)
 			libconf.ant.tx = ANTENNA_B;

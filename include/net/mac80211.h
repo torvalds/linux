@@ -324,7 +324,7 @@ struct ieee80211_tx_altrate {
  * @flags: transmit info flags, defined above
  * @band: TBD
  * @tx_rate_idx: TBD
- * @antenna_sel_tx: TBD
+ * @antenna_sel_tx: antenna to use, 0 for automatic diversity
  * @control: union for control data
  * @status: union for status data
  * @driver_data: array of driver_data pointers
@@ -474,9 +474,6 @@ static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
  * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
- * @antenna_sel_tx: transmit antenna selection, 0: default/diversity,
- *	1/2: antenna 0/1
- * @antenna_sel_rx: receive antenna selection, like @antenna_sel_tx
  * @ht_cap: describes current self configuration of 802.11n HT capabilities
  * @ht_bss_conf: describes current BSS configuration of 802.11n HT parameters
  * @channel: the channel to tune to
@@ -488,8 +485,6 @@ struct ieee80211_conf {
 	u16 listen_interval;
 	u32 flags;
 	int power_level;
-	u8 antenna_sel_tx;
-	u8 antenna_sel_rx;
 
 	struct ieee80211_channel *channel;
 

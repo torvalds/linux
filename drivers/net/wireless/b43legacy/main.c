@@ -2556,20 +2556,6 @@ init_failure:
 	return err;
 }
 
-static int b43legacy_antenna_from_ieee80211(u8 antenna)
-{
-	switch (antenna) {
-	case 0: /* default/diversity */
-		return B43legacy_ANTENNA_DEFAULT;
-	case 1: /* Antenna 0 */
-		return B43legacy_ANTENNA0;
-	case 2: /* Antenna 1 */
-		return B43legacy_ANTENNA1;
-	default:
-		return B43legacy_ANTENNA_DEFAULT;
-	}
-}
-
 static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 				   struct ieee80211_conf *conf)
 {
@@ -2583,8 +2569,8 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	int err = 0;
 	u32 savedirqs;
 
-	antenna_tx = b43legacy_antenna_from_ieee80211(conf->antenna_sel_tx);
-	antenna_rx = b43legacy_antenna_from_ieee80211(conf->antenna_sel_rx);
+	antenna_tx = B43legacy_ANTENNA_DEFAULT;
+	antenna_rx = B43legacy_ANTENNA_DEFAULT;
 
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
