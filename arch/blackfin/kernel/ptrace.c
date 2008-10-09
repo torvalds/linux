@@ -46,7 +46,6 @@
 #include <asm/dma.h>
 #include <asm/fixed_code.h>
 
-#define MAX_SHARED_LIBS 3
 #define TEXT_OFFSET 0
 /*
  * does not yet catch signals sent when the child dies.
@@ -192,14 +191,12 @@ void ptrace_disable(struct task_struct *child)
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
-	int add = 0;
 	unsigned long __user *datap = (unsigned long __user *)data;
 
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
 	case PTRACE_PEEKDATA:
 		pr_debug("ptrace: PEEKDATA\n");
-		add = MAX_SHARED_LIBS * 4;	/* space between text and data */
 		/* fall through */
 	case PTRACE_PEEKTEXT:	/* read word at location addr. */
 		{
@@ -207,39 +204,38 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			int copied;
 
 			ret = -EIO;
-			pr_debug("ptrace: PEEKTEXT at addr 0x%08lx + add %d %ld\n", addr, add,
-			         sizeof(data));
-			if (is_user_addr_valid(child, addr + add, sizeof(tmp)) < 0)
+			pr_debug("ptrace: PEEKTEXT at addr 0x%08lx + %ld\n", addr, sizeof(data));
+			if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
 #if L1_CODE_LENGTH != 0
-			if (addr + add >= L1_CODE_START
-			    && addr + add + sizeof(tmp) <= L1_CODE_START + L1_CODE_LENGTH) {
-				safe_dma_memcpy (&tmp, (const void *)(addr + add), sizeof(tmp));
+			if (addr >= L1_CODE_START
+			    && addr + sizeof(tmp) <= L1_CODE_START + L1_CODE_LENGTH) {
+				safe_dma_memcpy (&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
 			} else
 #endif
 #if L1_DATA_A_LENGTH != 0
-			if (addr + add >= L1_DATA_A_START
-			    && addr + add + sizeof(tmp) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
-				memcpy(&tmp, (const void *)(addr + add), sizeof(tmp));
+			if (addr >= L1_DATA_A_START
+			    && addr + sizeof(tmp) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
+				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
 			} else
 #endif
 #if L1_DATA_B_LENGTH != 0
-			if (addr + add >= L1_DATA_B_START
-			    && addr + add + sizeof(tmp) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
-				memcpy(&tmp, (const void *)(addr + add), sizeof(tmp));
+			if (addr >= L1_DATA_B_START
+			    && addr + sizeof(tmp) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
+				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
 			} else
 #endif
-			if (addr + add >= FIXED_CODE_START
-			    && addr + add + sizeof(tmp) <= FIXED_CODE_END) {
-				memcpy(&tmp, (const void *)(addr + add), sizeof(tmp));
+			if (addr >= FIXED_CODE_START
+			    && addr + sizeof(tmp) <= FIXED_CODE_END) {
+				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
 			} else
-				copied = access_process_vm(child, addr + add, &tmp,
+				copied = access_process_vm(child, addr, &tmp,
 							   sizeof(tmp), 0);
 			pr_debug("ptrace: copied size %d [0x%08lx]\n", copied, tmp);
 			if (copied != sizeof(tmp))
@@ -291,39 +287,39 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			int copied;
 
 			ret = -EIO;
-			pr_debug("ptrace: POKETEXT at addr 0x%08lx + add %d %ld bytes %lx\n",
-			         addr, add, sizeof(data), data);
-			if (is_user_addr_valid(child, addr + add, sizeof(data)) < 0)
+			pr_debug("ptrace: POKETEXT at addr 0x%08lx + %ld bytes %lx\n",
+			         addr, sizeof(data), data);
+			if (is_user_addr_valid(child, addr, sizeof(data)) < 0)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
 #if L1_CODE_LENGTH != 0
-			if (addr + add >= L1_CODE_START
-			    && addr + add + sizeof(data) <= L1_CODE_START + L1_CODE_LENGTH) {
-				safe_dma_memcpy ((void *)(addr + add), &data, sizeof(data));
+			if (addr >= L1_CODE_START
+			    && addr + sizeof(data) <= L1_CODE_START + L1_CODE_LENGTH) {
+				safe_dma_memcpy ((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
 			} else
 #endif
 #if L1_DATA_A_LENGTH != 0
-			if (addr + add >= L1_DATA_A_START
-			    && addr + add + sizeof(data) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
-				memcpy((void *)(addr + add), &data, sizeof(data));
+			if (addr >= L1_DATA_A_START
+			    && addr + sizeof(data) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
+				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
 			} else
 #endif
 #if L1_DATA_B_LENGTH != 0
-			if (addr + add >= L1_DATA_B_START
-			    && addr + add + sizeof(data) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
-				memcpy((void *)(addr + add), &data, sizeof(data));
+			if (addr >= L1_DATA_B_START
+			    && addr + sizeof(data) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
+				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
 			} else
 #endif
-			if (addr + add >= FIXED_CODE_START
-			    && addr + add + sizeof(data) <= FIXED_CODE_END) {
-				memcpy((void *)(addr + add), &data, sizeof(data));
+			if (addr >= FIXED_CODE_START
+			    && addr + sizeof(data) <= FIXED_CODE_END) {
+				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
 			} else
-				copied = access_process_vm(child, addr + add, &data,
+				copied = access_process_vm(child, addr, &data,
 							   sizeof(data), 1);
 			pr_debug("ptrace: copied size %d\n", copied);
 			if (copied != sizeof(data))
