@@ -28,6 +28,12 @@ enum { LCDC_CHAN_DISABLED = 0,
 
 enum { LCDC_CLK_BUS, LCDC_CLK_PERIPHERAL, LCDC_CLK_EXTERNAL };
 
+#define LCDC_FLAGS_DWPOL (1 << 0) /* Rising edge dot clock data latch */
+#define LCDC_FLAGS_DIPOL (1 << 1) /* Active low display enable polarity */
+#define LCDC_FLAGS_DAPOL (1 << 2) /* Active low display data polarity */
+#define LCDC_FLAGS_HSCNT (1 << 3) /* Disable HSYNC during VBLANK */
+#define LCDC_FLAGS_DWCNT (1 << 4) /* Disable dotclock during blanking */
+
 struct sh_mobile_lcdc_sys_bus_cfg {
 	unsigned long ldmt2r;
 	unsigned long ldmt3r;
@@ -57,6 +63,7 @@ struct sh_mobile_lcdc_chan_cfg {
 	int bpp;
 	int interface_type; /* selects RGBn or SYSn I/F, see above */
 	int clock_divider;
+	unsigned long flags; /* LCDC_FLAGS_... */
 	struct fb_videomode lcd_cfg;
 	struct sh_mobile_lcdc_lcd_size_cfg lcd_size_cfg;
 	struct sh_mobile_lcdc_board_cfg board_cfg;
