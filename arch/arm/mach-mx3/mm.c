@@ -49,7 +49,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.virtual	= AVIC_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(AVIC_BASE_ADDR),
 		.length		= AVIC_SIZE,
-		.type		= MT_NONSHARED_DEVICE
+		.type		= MT_DEVICE_NONSHARED
 	},
 };
 

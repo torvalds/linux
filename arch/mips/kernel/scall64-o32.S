@@ -529,4 +529,10 @@ sys_call_table:
 	PTR	sys_timerfd_create
 	PTR	sys_timerfd_gettime
 	PTR	sys_timerfd_settime
+	PTR	compat_sys_signalfd4
+	PTR	sys_eventfd2			/* 4325 */
+	PTR	sys_epoll_create1
+	PTR	sys_dup3
+	PTR	sys_pipe2
+	PTR	sys_inotify_init1
 	.size	sys_call_table,.-sys_call_table

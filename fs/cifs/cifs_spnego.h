@@ -23,7 +23,7 @@
 #ifndef _CIFS_SPNEGO_H
 #define _CIFS_SPNEGO_H
 
-#define CIFS_SPNEGO_UPCALL_VERSION 1
+#define CIFS_SPNEGO_UPCALL_VERSION 2
 
 /*
  * The version field should always be set to CIFS_SPNEGO_UPCALL_VERSION.

@@ -60,7 +60,7 @@ extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 #define MT_DEVICE		0
 #define MT_DEVICE_NONSHARED	1
 #define MT_DEVICE_CACHED	2
-#define MT_DEVICE_IXP2000	3
+#define MT_DEVICE_WC		3
 /*
  * types 4 onwards can be found in asm/mach/map.h and are undefined
  * for ioremap
@@ -215,11 +215,13 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define ioremap(cookie,size)		__arm_ioremap(cookie, size, MT_DEVICE)
 #define ioremap_nocache(cookie,size)	__arm_ioremap(cookie, size, MT_DEVICE)
 #define ioremap_cached(cookie,size)	__arm_ioremap(cookie, size, MT_DEVICE_CACHED)
+#define ioremap_wc(cookie,size)		__arm_ioremap(cookie, size, MT_DEVICE_WC)
 #define iounmap(cookie)			__iounmap(cookie)
 #else
 #define ioremap(cookie,size)		__arch_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_nocache(cookie,size)	__arch_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_cached(cookie,size)	__arch_ioremap((cookie), (size), MT_DEVICE_CACHED)
+#define ioremap_wc(cookie,size)		__arch_ioremap((cookie), (size), MT_DEVICE_WC)
 #define iounmap(cookie)			__arch_iounmap(cookie)
 #endif
 

@@ -29,7 +29,7 @@ ENTRY(sha_transform)
 	stmfd	sp!, {r4 - r8, lr}
 
 	@ for (i = 0; i < 16; i++)
-	@         W[i] = be32_to_cpu(in[i]); */
+	@         W[i] = be32_to_cpu(in[i]);
 
 #ifdef __ARMEB__
 	mov	r4, r0

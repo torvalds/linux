@@ -40,6 +40,7 @@
 #include <mach/pxa2xx-gpio.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/reset.h>
+#include <mach/i2c.h>
 #include <mach/irda.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
@@ -574,6 +575,7 @@ static void __init common_init(void)
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
 	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
+	pxa_set_i2c_info(NULL);
 }
 
 #if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)

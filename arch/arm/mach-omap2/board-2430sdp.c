@@ -102,7 +102,7 @@ static struct resource sdp2430_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(OMAP24XX_ETHR_GPIO_IRQ),
 		.end	= OMAP_GPIO_IRQ(OMAP24XX_ETHR_GPIO_IRQ),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 

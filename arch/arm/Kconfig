@@ -843,6 +843,11 @@ config OABI_COMPAT
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say Y.
 
+config ARCH_FLATMEM_HAS_HOLES
+	bool
+	default y
+	depends on FLATMEM
+
 # Discontigmem is deprecated
 config ARCH_DISCONTIGMEM_ENABLE
 	bool

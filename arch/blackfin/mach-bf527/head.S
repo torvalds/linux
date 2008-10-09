@@ -31,8 +31,8 @@
 #include <linux/init.h>
 #include <asm/blackfin.h>
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
-#include <asm/mach-common/clocks.h>
-#include <asm/mach/mem_init.h>
+#include <asm/clocks.h>
+#include <mach/mem_init.h>
 #endif
 
 .section .l1.text
