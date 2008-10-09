@@ -735,6 +735,14 @@ config CACHE_FEROCEON_L2
 	help
 	  This option enables the Feroceon L2 cache controller.
 
+config CACHE_FEROCEON_L2_WRITETHROUGH
+	bool "Force Feroceon L2 cache write through"
+	depends on CACHE_FEROCEON_L2
+	default n
+	help
+	  Say Y here to use the Feroceon L2 cache in writethrough mode.
+	  Unless you specifically require this, say N for writeback mode.
+
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"
 	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176

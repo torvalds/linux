@@ -98,7 +98,6 @@ void __init kirkwood_ehci_init(void)
  * GE00
  ****************************************************************************/
 struct mv643xx_eth_shared_platform_data kirkwood_ge00_shared_data = {
-	.t_clk		= KIRKWOOD_TCLK,
 	.dram		= &kirkwood_mbus_dram_info,
 };
 
@@ -108,6 +107,11 @@ static struct resource kirkwood_ge00_shared_resources[] = {
 		.start	= GE00_PHYS_BASE + 0x2000,
 		.end	= GE00_PHYS_BASE + 0x3fff,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "ge00 err irq",
+		.start	= IRQ_KIRKWOOD_GE00_ERR,
+		.end	= IRQ_KIRKWOOD_GE00_ERR,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -117,7 +121,7 @@ static struct platform_device kirkwood_ge00_shared = {
 	.dev		= {
 		.platform_data	= &kirkwood_ge00_shared_data,
 	},
-	.num_resources	= 1,
+	.num_resources	= ARRAY_SIZE(kirkwood_ge00_shared_resources),
 	.resource	= kirkwood_ge00_shared_resources,
 };
 
@@ -201,7 +205,6 @@ void __init kirkwood_sata_init(struct mv_sata_platform_data *sata_data)
  * SPI
  ****************************************************************************/
 static struct orion_spi_info kirkwood_spi_plat_data = {
-	.tclk		= KIRKWOOD_TCLK,
 };
 
 static struct resource kirkwood_spi_resources[] = {
@@ -239,7 +242,7 @@ static struct plat_serial8250_port kirkwood_uart0_data[] = {
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= KIRKWOOD_TCLK,
+		.uartclk	= 0,
 	}, {
 	},
 };
@@ -283,7 +286,7 @@ static struct plat_serial8250_port kirkwood_uart1_data[] = {
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= KIRKWOOD_TCLK,
+		.uartclk	= 0,
 	}, {
 	},
 };
@@ -525,9 +528,23 @@ void __init kirkwood_xor1_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+int kirkwood_tclk;
+
+int __init kirkwood_find_tclk(void)
+{
+	u32 dev, rev;
+
+	kirkwood_pcie_id(&dev, &rev);
+	if (dev == MV88F6281_DEV_ID && rev == MV88F6281_REV_A0)
+		return 200000000;
+
+	return 166666667;
+}
+
 static void kirkwood_timer_init(void)
 {
-	orion_time_init(IRQ_KIRKWOOD_BRIDGE, KIRKWOOD_TCLK);
+	kirkwood_tclk = kirkwood_find_tclk();
+	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
 
 struct sys_timer kirkwood_timer = {
@@ -538,33 +555,62 @@ struct sys_timer kirkwood_timer = {
 /*****************************************************************************
  * General
  ****************************************************************************/
+/*
+ * Identify device ID and revision.
+ */
 static char * __init kirkwood_id(void)
 {
-	switch (readl(DEVICE_ID) & 0x3) {
-	case 0:
-		return "88F6180";
-	case 1:
-		return "88F6192";
-	case 2:
-		return "88F6281";
-	}
+	u32 dev, rev;
 
-	return "unknown 88F6000 variant";
+	kirkwood_pcie_id(&dev, &rev);
+
+	if (dev == MV88F6281_DEV_ID) {
+		if (rev == MV88F6281_REV_Z0)
+			return "MV88F6281-Z0";
+		else if (rev == MV88F6281_REV_A0)
+			return "MV88F6281-A0";
+		else
+			return "MV88F6281-Rev-Unsupported";
+	} else if (dev == MV88F6192_DEV_ID) {
+		if (rev == MV88F6192_REV_Z0)
+			return "MV88F6192-Z0";
+		else if (rev == MV88F6192_REV_A0)
+			return "MV88F6192-A0";
+		else
+			return "MV88F6192-Rev-Unsupported";
+	} else if (dev == MV88F6180_DEV_ID) {
+		if (rev == MV88F6180_REV_A0)
+			return "MV88F6180-Rev-A0";
+		else
+			return "MV88F6180-Rev-Unsupported";
+	} else {
+		return "Device-Unknown";
+	}
 }
 
-static int __init is_l2_writethrough(void)
+static void __init kirkwood_l2_init(void)
 {
-	return !!(readl(L2_CONFIG_REG) & L2_WRITETHROUGH);
+#ifdef CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH
+	writel(readl(L2_CONFIG_REG) | L2_WRITETHROUGH, L2_CONFIG_REG);
+	feroceon_l2_init(1);
+#else
+	writel(readl(L2_CONFIG_REG) & ~L2_WRITETHROUGH, L2_CONFIG_REG);
+	feroceon_l2_init(0);
+#endif
 }
 
 void __init kirkwood_init(void)
 {
 	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
-		kirkwood_id(), KIRKWOOD_TCLK);
+		kirkwood_id(), kirkwood_tclk);
+	kirkwood_ge00_shared_data.t_clk = kirkwood_tclk;
+	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
+	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
+	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;
 
 	kirkwood_setup_cpu_mbus();
 
 #ifdef CONFIG_CACHE_FEROCEON_L2
-	feroceon_l2_init(is_l2_writethrough());
+	kirkwood_l2_init();
 #endif
 }

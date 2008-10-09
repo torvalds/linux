@@ -293,7 +293,7 @@ static void kurobox_pro_power_off(void)
 	const unsigned char shutdownwait[]	= {0x00, 0x0c};
 	const unsigned char poweroff[]		= {0x00, 0x06};
 	/* 38400 baud divisor */
-	const unsigned divisor = ((ORION5X_TCLK + (8 * 38400)) / (16 * 38400));
+	const unsigned divisor = ((orion5x_tclk + (8 * 38400)) / (16 * 38400));
 
 	pr_info("%s: triggering power-off...\n", __func__);
 

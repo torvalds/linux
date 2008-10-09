@@ -48,11 +48,12 @@ static inline void l2_clean_mva_range(unsigned long start, unsigned long end)
 	 * L2 is PIPT and range operations only do a TLB lookup on
 	 * the start address.
 	 */
-	BUG_ON((start ^ end) & ~(PAGE_SIZE - 1));
+	BUG_ON((start ^ end) >> PAGE_SHIFT);
 
 	raw_local_irq_save(flags);
-	__asm__("mcr p15, 1, %0, c15, c9, 4" : : "r" (start));
-	__asm__("mcr p15, 1, %0, c15, c9, 5" : : "r" (end));
+	__asm__("mcr p15, 1, %0, c15, c9, 4\n\t"
+		"mcr p15, 1, %1, c15, c9, 5"
+		: : "r" (start), "r" (end));
 	raw_local_irq_restore(flags);
 }
 
@@ -80,11 +81,12 @@ static inline void l2_inv_mva_range(unsigned long start, unsigned long end)
 	 * L2 is PIPT and range operations only do a TLB lookup on
 	 * the start address.
 	 */
-	BUG_ON((start ^ end) & ~(PAGE_SIZE - 1));
+	BUG_ON((start ^ end) >> PAGE_SHIFT);
 
 	raw_local_irq_save(flags);
-	__asm__("mcr p15, 1, %0, c15, c11, 4" : : "r" (start));
-	__asm__("mcr p15, 1, %0, c15, c11, 5" : : "r" (end));
+	__asm__("mcr p15, 1, %0, c15, c11, 4\n\t"
+		"mcr p15, 1, %1, c15, c11, 5"
+		: : "r" (start), "r" (end));
 	raw_local_irq_restore(flags);
 }
 
@@ -205,7 +207,7 @@ static void feroceon_l2_flush_range(unsigned long start, unsigned long end)
  * time.  These are necessary because the L2 cache can only be enabled
  * or disabled while the L1 Dcache and Icache are both disabled.
  */
-static void __init invalidate_and_disable_dcache(void)
+static int __init flush_and_disable_dcache(void)
 {
 	u32 cr;
 
@@ -217,7 +219,9 @@ static void __init invalidate_and_disable_dcache(void)
 		flush_cache_all();
 		set_cr(cr & ~CR_C);
 		raw_local_irq_restore(flags);
+		return 1;
 	}
+	return 0;
 }
 
 static void __init enable_dcache(void)
@@ -225,18 +229,17 @@ static void __init enable_dcache(void)
 	u32 cr;
 
 	cr = get_cr();
-	if (!(cr & CR_C))
-		set_cr(cr | CR_C);
+	set_cr(cr | CR_C);
 }
 
 static void __init __invalidate_icache(void)
 {
 	int dummy;
 
-	__asm__ __volatile__("mcr p15, 0, %0, c7, c5, 0\n" : "=r" (dummy));
+	__asm__ __volatile__("mcr p15, 0, %0, c7, c5, 0" : "=r" (dummy));
 }
 
-static void __init invalidate_and_disable_icache(void)
+static int __init invalidate_and_disable_icache(void)
 {
 	u32 cr;
 
@@ -244,7 +247,9 @@ static void __init invalidate_and_disable_icache(void)
 	if (cr & CR_I) {
 		set_cr(cr & ~CR_I);
 		__invalidate_icache();
+		return 1;
 	}
+	return 0;
 }
 
 static void __init enable_icache(void)
@@ -252,8 +257,7 @@ static void __init enable_icache(void)
 	u32 cr;
 
 	cr = get_cr();
-	if (!(cr & CR_I))
-		set_cr(cr | CR_I);
+	set_cr(cr | CR_I);
 }
 
 static inline u32 read_extra_features(void)
@@ -291,13 +295,17 @@ static void __init enable_l2(void)
 
 	u = read_extra_features();
 	if (!(u & 0x00400000)) {
+		int i, d;
+
 		printk(KERN_INFO "Feroceon L2: Enabling L2\n");
 
-		invalidate_and_disable_dcache();
-		invalidate_and_disable_icache();
+		d = flush_and_disable_dcache();
+		i = invalidate_and_disable_icache();
 		write_extra_features(u | 0x00400000);
-		enable_icache();
-		enable_dcache();
+		if (i)
+			enable_icache();
+		if (d)
+			enable_dcache();
 	}
 }
 
