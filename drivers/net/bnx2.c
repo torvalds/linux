@@ -6008,7 +6008,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 	if ((mss = skb_shinfo(skb)->gso_size)) {
-		u32 tcp_opt_len, ip_tcp_len;
+		u32 tcp_opt_len;
 		struct iphdr *iph;
 
 		vlan_tag_flags |= TX_BD_FLAGS_SW_LSO;
@@ -6032,21 +6032,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				mss |= (tcp_off & 0xc) << TX_BD_TCP6_OFF2_SHL;
 			}
 		} else {
-			if (skb_header_cloned(skb) &&
-			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-				dev_kfree_skb(skb);
-				return NETDEV_TX_OK;
-			}
-
-			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
-
 			iph = ip_hdr(skb);
-			iph->check = 0;
-			iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
-			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
-								 iph->daddr, 0,
-								 IPPROTO_TCP,
-								 0);
 			if (tcp_opt_len || (iph->ihl > 5)) {
 				vlan_tag_flags |= ((iph->ihl - 5) +
 						   (tcp_opt_len >> 2)) << 8;
