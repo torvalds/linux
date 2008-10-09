@@ -3420,11 +3420,12 @@ void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
 /*
  * create a new subvolume directory/inode (helper for the ioctl).
  */
-int btrfs_create_subvol_root(struct btrfs_root *new_root,
+int btrfs_create_subvol_root(struct btrfs_root *new_root, struct dentry *dentry,
 		struct btrfs_trans_handle *trans, u64 new_dirid,
 		struct btrfs_block_group_cache *block_group)
 {
 	struct inode *inode;
+	int error;
 	u64 index = 0;
 
 	inode = btrfs_new_inode(trans, new_root, NULL, "..", 2, new_dirid,
@@ -3438,7 +3439,12 @@ int btrfs_create_subvol_root(struct btrfs_root *new_root,
 	inode->i_nlink = 1;
 	btrfs_i_size_write(inode, 0);
 
-	return btrfs_update_inode(trans, new_root, inode);
+	error = btrfs_update_inode(trans, new_root, inode);
+	if (error)
+		return error;
+
+	d_instantiate(dentry, inode);
+	return 0;
 }
 
 /* helper function for file defrag and space balancing.  This

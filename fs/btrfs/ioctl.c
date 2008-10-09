@@ -21,6 +21,7 @@
 #include <linux/buffer_head.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
@@ -28,12 +29,15 @@
 #include <linux/string.h>
 #include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
+#include <linux/mount.h>
 #include <linux/mpage.h>
+#include <linux/namei.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
+#include <linux/security.h>
 #include <linux/version.h>
 #include <linux/xattr.h>
 #include <linux/vmalloc.h>
@@ -48,8 +52,9 @@
 
 
 
-static noinline int create_subvol(struct btrfs_root *root, char *name,
-				  int namelen)
+static noinline int create_subvol(struct btrfs_root *root,
+				  struct dentry *dentry,
+				  char *name, int namelen)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
@@ -151,13 +156,10 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	trans = btrfs_start_transaction(new_root, 1);
 	BUG_ON(!trans);
 
-	ret = btrfs_create_subvol_root(new_root, trans, new_dirid,
+	ret = btrfs_create_subvol_root(new_root, dentry, trans, new_dirid,
 				       BTRFS_I(dir)->block_group);
 	if (ret)
 		goto fail;
-
-	/* Invalidate existing dcache entry for new subvolume. */
-	btrfs_invalidate_dcache_root(root, name, namelen);
 
 fail:
 	nr = trans->blocks_used;
@@ -209,6 +211,79 @@ fail_unlock:
 	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
+
+/* copy of may_create in fs/namei.c() */
+static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
+{
+	if (child->d_inode)
+		return -EEXIST;
+	if (IS_DEADDIR(dir))
+		return -ENOENT;
+	return inode_permission(dir, MAY_WRITE | MAY_EXEC);
+}
+
+/*
+ * Create a new subvolume below @parent.  This is largely modeled after
+ * sys_mkdirat and vfs_mkdir, but we only do a single component lookup
+ * inside this filesystem so it's quite a bit simpler.
+ */
+static noinline int btrfs_mksubvol(struct path *parent, char *name,
+				   int mode, int namelen)
+{
+	struct dentry *dentry;
+	int error;
+
+	mutex_lock_nested(&parent->dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+
+	dentry = lookup_one_len(name, parent->dentry, namelen);
+	error = PTR_ERR(dentry);
+	if (IS_ERR(dentry))
+		goto out_unlock;
+
+	error = -EEXIST;
+	if (dentry->d_inode)
+		goto out_dput;
+
+	if (!IS_POSIXACL(parent->dentry->d_inode))
+		mode &= ~current->fs->umask;
+	error = mnt_want_write(parent->mnt);
+	if (error)
+		goto out_dput;
+
+	error = btrfs_may_create(parent->dentry->d_inode, dentry);
+	if (error)
+		goto out_drop_write;
+
+	mode &= (S_IRWXUGO|S_ISVTX);
+	error = security_inode_mkdir(parent->dentry->d_inode, dentry, mode);
+	if (error)
+		goto out_drop_write;
+
+	/*
+	 * Actually perform the low-level subvolume creation after all
+	 * this VFS fuzz.
+	 *
+	 * Eventually we want to pass in an inode under which we create this
+	 * subvolume, but for now all are under the filesystem root.
+	 *
+	 * Also we should pass on the mode eventually to allow creating new
+	 * subvolume with specific mode bits.
+	 */
+	error = create_subvol(BTRFS_I(parent->dentry->d_inode)->root, dentry,
+			      name, namelen);
+	if (error)
+		goto out_drop_write;
+
+	fsnotify_mkdir(parent->dentry->d_inode, dentry);
+out_drop_write:
+	mnt_drop_write(parent->mnt);
+out_dput:
+	dput(dentry);
+out_unlock:
+	mutex_unlock(&parent->dentry->d_inode->i_mutex);
+	return error;
+}
+
 
 int btrfs_defrag_file(struct file *file)
 {
@@ -395,9 +470,10 @@ out:
 	return ret;
 }
 
-static noinline int btrfs_ioctl_snap_create(struct btrfs_root *root,
+static noinline int btrfs_ioctl_snap_create(struct file *file,
 					    void __user *arg)
 {
+	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
 	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_dir_item *di;
 	struct btrfs_path *path;
@@ -444,10 +520,14 @@ static noinline int btrfs_ioctl_snap_create(struct btrfs_root *root,
 		goto out;
 	}
 
-	if (root == root->fs_info->tree_root)
-		ret = create_subvol(root, vol_args->name, namelen);
-	else
+	if (root == root->fs_info->tree_root) {
+		ret = btrfs_mksubvol(&file->f_path, vol_args->name,
+				     file->f_path.dentry->d_inode->i_mode,
+				     namelen);
+	} else {
 		ret = create_snapshot(root, vol_args->name, namelen);
+	}
+
 out:
 	kfree(vol_args);
 	return ret;
@@ -761,7 +841,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 
 	switch (cmd) {
 	case BTRFS_IOC_SNAP_CREATE:
-		return btrfs_ioctl_snap_create(root, (void __user *)arg);
+		return btrfs_ioctl_snap_create(file, (void __user *)arg);
 	case BTRFS_IOC_DEFRAG:
 		return btrfs_ioctl_defrag(file);
 	case BTRFS_IOC_RESIZE:
