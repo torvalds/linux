@@ -83,8 +83,18 @@ void __init generate_cplb_tables(void)
 	dcplb_tbl[i_d].addr = L1_DATA_A_START;
 	dcplb_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
 #endif
+#if L1_CODE_LENGTH > 0
 	icplb_tbl[i_i].addr = L1_CODE_START;
 	icplb_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
+#endif
+
+	/* Cover L2 memory */
+#if L2_LENGTH > 0
+	dcplb_tbl[i_d].addr = L2_START;
+	dcplb_tbl[i_d++].data = L2_DMEMORY | PAGE_SIZE_1MB;
+	icplb_tbl[i_i].addr = L2_START;
+	icplb_tbl[i_i++].data = L2_IMEMORY | PAGE_SIZE_1MB;
+#endif
 
 	first_mask_dcplb = i_d;
 	first_switched_dcplb = i_d + (1 << page_mask_order);

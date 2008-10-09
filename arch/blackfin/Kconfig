@@ -772,6 +772,13 @@ config BFIN_WT
 
 endchoice
 
+config BFIN_L2_CACHEABLE
+	bool "Cache L2 SRAM"
+	depends on (BFIN_DCACHE || BFIN_ICACHE) && (BF54x || BF561)
+	default n
+	help
+	  Select to make L2 SRAM cacheable in L1 data and instruction cache.
+
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"
 	default n
