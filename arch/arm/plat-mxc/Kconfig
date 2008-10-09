@@ -23,4 +23,15 @@ source "arch/arm/mach-mx3/Kconfig"
 
 endmenu
 
+config MXC_IRQ_PRIOR
+	bool "Use IRQ priority"
+	depends on ARCH_MXC
+	help
+	  Select this if you want to use prioritized IRQ handling.
+	  This feature prevents higher priority ISR to be interrupted
+	  by lower priority IRQ even IRQF_DISABLED flag is not set.
+	  This may be useful in embedded applications, where are strong
+	  requirements for timing.
+	  Say N here, unless you have a specialized requirement.
+
 endif

@@ -30,14 +30,7 @@
 #define AVIC_INTENABLEL		(AVIC_BASE + 0x14)	/* int enable reg low */
 #define AVIC_INTTYPEH		(AVIC_BASE + 0x18)	/* int type reg high */
 #define AVIC_INTTYPEL		(AVIC_BASE + 0x1C)	/* int type reg low */
-#define AVIC_NIPRIORITY7	(AVIC_BASE + 0x20)	/* norm int priority lvl7 */
-#define AVIC_NIPRIORITY6	(AVIC_BASE + 0x24)	/* norm int priority lvl6 */
-#define AVIC_NIPRIORITY5	(AVIC_BASE + 0x28)	/* norm int priority lvl5 */
-#define AVIC_NIPRIORITY4	(AVIC_BASE + 0x2C)	/* norm int priority lvl4 */
-#define AVIC_NIPRIORITY3	(AVIC_BASE + 0x30)	/* norm int priority lvl3 */
-#define AVIC_NIPRIORITY2	(AVIC_BASE + 0x34)	/* norm int priority lvl2 */
-#define AVIC_NIPRIORITY1	(AVIC_BASE + 0x38)	/* norm int priority lvl1 */
-#define AVIC_NIPRIORITY0	(AVIC_BASE + 0x3C)	/* norm int priority lvl0 */
+#define AVIC_NIPRIORITY(x)	(AVIC_BASE + (0x20 + 4 * (7 - (x)))) /* int priority */
 #define AVIC_NIVECSR		(AVIC_BASE + 0x40)	/* norm int vector/status */
 #define AVIC_FIVECSR		(AVIC_BASE + 0x44)	/* fast int vector/status */
 #define AVIC_INTSRCH		(AVIC_BASE + 0x48)	/* int source reg high */
@@ -53,6 +46,24 @@
 #define SYSTEM_SREV_REG		IO_ADDRESS(IIM_BASE_ADDR + 0x24)
 #define IIM_PROD_REV_SH		3
 #define IIM_PROD_REV_LEN	5
+
+#ifdef CONFIG_MXC_IRQ_PRIOR
+void imx_irq_set_priority(unsigned char irq, unsigned char prio)
+{
+	unsigned int temp;
+	unsigned int mask = 0x0F << irq % 8 * 4;
+
+	if (irq > 63)
+		return;
+
+	temp = __raw_readl(AVIC_NIPRIORITY(irq / 8));
+	temp &= ~mask;
+	temp |= prio & mask;
+
+	__raw_writel(temp, AVIC_NIPRIORITY(irq / 8));
+}
+EXPORT_SYMBOL(imx_irq_set_priority);
+#endif
 
 /* Disable interrupt number "irq" in the AVIC */
 static void mxc_mask_irq(unsigned int irq)
@@ -101,10 +112,9 @@ void __init mxc_init_irq(void)
 		set_irq_flags(i, IRQF_VALID);
 	}
 
-	/* Set WDOG2's interrupt the highest priority level (bit 28-31) */
-	reg = __raw_readl(AVIC_NIPRIORITY6);
-	reg |= (0xF << 28);
-	__raw_writel(reg, AVIC_NIPRIORITY6);
+	/* Set default priority value (0) for all IRQ's */
+	for (i = 0; i < 8; i++)
+		__raw_writel(0, AVIC_NIPRIORITY(i));
 
 	/* init architectures chained interrupt handler */
 	mxc_register_gpios();
