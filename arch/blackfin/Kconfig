@@ -162,7 +162,7 @@ config BF549
 config BF561
 	bool "BF561"
 	help
-	  Not Supported Yet - Work in progress - BF561 Processor Support.
+	  BF561 Processor Support.
 
 endchoice
 
