@@ -9,7 +9,7 @@
  * Modified:
  *               Copyright 2005 National ICT Australia (NICTA)
  *               Copyright 2004-2006 Analog Devices Inc
- *		 Copyright 2007 HV Sistemas S.L.
+ *		 Copyright 2007,2008 HV Sistemas S.L.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -64,18 +64,18 @@ static struct platform_device rtc_device = {
 static struct resource dm9000_resources[] = {
 	[0] = {
 		.start	= 0x20300000,
-		.end	= 0x20300000 + 1,
+		.end	= 0x20300002,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 0x20300000 + 4,
-		.end	= 0x20300000 + 5,
+		.start	= 0x20300004,
+		.end	= 0x20300006,
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
 		.start	= IRQ_PF10,
 		.end	= IRQ_PF10,
-		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE | IRQF_SHARED | IRQF_TRIGGER_HIGH),
 	},
 };
 
@@ -140,18 +140,22 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader(spi)",
-		.size = 0x00060000,
+		.name = "bootloader (spi)",
+		.size = 0x40000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "linux kernel(spi)",
-		.size = 0x100000,
-		.offset = 0x60000
+		.name = "fpga (spi)",
+		.size =   0x30000,
+		.offset = 0x40000
 	}, {
-		.name = "file system(spi)",
-		.size = 0x6a0000,
-		.offset = 0x00160000,
+		.name = "linux kernel (spi)",
+		.size =   0x150000,
+		.offset =  0x70000
+	}, {
+		.name = "jffs2 root file system (spi)",
+		.size =   0x640000,
+		.offset = 0x1c0000,
 	}
 };
 
@@ -340,7 +344,7 @@ static struct platform_device bfin_sir_device = {
 
 static struct plat_serial8250_port serial8250_platform_data [] = {
 	{
-		.membase = 0x20200000,
+		.membase = (void *)0x20200000,
 		.mapbase = 0x20200000,
 		.irq = IRQ_PF8,
 		.flags = UPF_BOOT_AUTOCONF | UART_CONFIG_TYPE,
@@ -348,7 +352,7 @@ static struct plat_serial8250_port serial8250_platform_data [] = {
 		.regshift = 1,
 		.uartclk = 66666667,
 	}, {
-		.membase = 0x20200010,
+		.membase = (void *)0x20200010,
 		.mapbase = 0x20200010,
 		.irq = IRQ_PF8,
 		.flags = UPF_BOOT_AUTOCONF | UART_CONFIG_TYPE,
