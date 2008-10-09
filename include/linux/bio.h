@@ -123,13 +123,23 @@ struct bio {
 /*
  * bio bi_rw flags
  *
- * bit 0 -- read (not set) or write (set)
+ * bit 0 -- data direction
+ *	If not set, bio is a read from device. If set, it's a write to device.
  * bit 1 -- rw-ahead when set
  * bit 2 -- barrier
+ *	Insert a serialization point in the IO queue, forcing previously
+ *	submitted IO to be completed before this oen is issued.
  * bit 3 -- fail fast, don't want low level driver retries
  * bit 4 -- synchronous I/O hint: the block layer will unplug immediately
+ *	Note that this does NOT indicate that the IO itself is sync, just
+ *	that the block layer will not postpone issue of this IO by plugging.
  * bit 5 -- metadata request
+ *	Used for tracing to differentiate metadata and data IO. May also
+ *	get some preferential treatment in the IO scheduler
  * bit 6 -- discard sectors
+ *	Informs the lower level device that this range of sectors is no longer
+ *	used by the file system and may thus be freed by the device. Used
+ *	for flash based storage.
  */
 #define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
 #define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
