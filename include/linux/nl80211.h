@@ -452,16 +452,28 @@ enum nl80211_mpath_info {
  *	an array of nested frequency attributes
  * @NL80211_BAND_ATTR_RATES: supported bitrates in this band,
  *	an array of nested bitrate attributes
+ * @NL80211_BAND_ATTR_HT_MCS_SET: 16-byte attribute containing the MCS set as
+ *	defined in 802.11n
+ * @NL80211_BAND_ATTR_HT_CAPA: HT capabilities, as in the HT information IE
+ * @NL80211_BAND_ATTR_HT_AMPDU_FACTOR: A-MPDU factor, as in 11n
+ * @NL80211_BAND_ATTR_HT_AMPDU_DENSITY: A-MPDU density, as in 11n
  */
 enum nl80211_band_attr {
 	__NL80211_BAND_ATTR_INVALID,
 	NL80211_BAND_ATTR_FREQS,
 	NL80211_BAND_ATTR_RATES,
 
+	NL80211_BAND_ATTR_HT_MCS_SET,
+	NL80211_BAND_ATTR_HT_CAPA,
+	NL80211_BAND_ATTR_HT_AMPDU_FACTOR,
+	NL80211_BAND_ATTR_HT_AMPDU_DENSITY,
+
 	/* keep last */
 	__NL80211_BAND_ATTR_AFTER_LAST,
 	NL80211_BAND_ATTR_MAX = __NL80211_BAND_ATTR_AFTER_LAST - 1
 };
+
+#define NL80211_BAND_ATTR_HT_CAPA NL80211_BAND_ATTR_HT_CAPA
 
 /**
  * enum nl80211_frequency_attr - frequency attributes

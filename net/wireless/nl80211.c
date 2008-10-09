@@ -157,6 +157,19 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		if (!nl_band)
 			goto nla_put_failure;
 
+		/* add HT info */
+		if (dev->wiphy.bands[band]->ht_cap.ht_supported) {
+			NLA_PUT(msg, NL80211_BAND_ATTR_HT_MCS_SET,
+				sizeof(dev->wiphy.bands[band]->ht_cap.mcs),
+				&dev->wiphy.bands[band]->ht_cap.mcs);
+			NLA_PUT_U16(msg, NL80211_BAND_ATTR_HT_CAPA,
+				dev->wiphy.bands[band]->ht_cap.cap);
+			NLA_PUT_U8(msg, NL80211_BAND_ATTR_HT_AMPDU_FACTOR,
+				dev->wiphy.bands[band]->ht_cap.ampdu_factor);
+			NLA_PUT_U8(msg, NL80211_BAND_ATTR_HT_AMPDU_DENSITY,
+				dev->wiphy.bands[band]->ht_cap.ampdu_density);
+		}
+
 		/* add frequencies */
 		nl_freqs = nla_nest_start(msg, NL80211_BAND_ATTR_FREQS);
 		if (!nl_freqs)
