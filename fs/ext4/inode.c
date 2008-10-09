@@ -2458,6 +2458,33 @@ out_writepages:
 	return ret;
 }
 
+#define FALL_BACK_TO_NONDELALLOC 1
+static int ext4_nonda_switch(struct super_block *sb)
+{
+	s64 free_blocks, dirty_blocks;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	/*
+	 * switch to non delalloc mode if we are running low
+	 * on free block. The free block accounting via percpu
+	 * counters can get slightly wrong with FBC_BATCH getting
+	 * accumulated on each CPU without updating global counters
+	 * Delalloc need an accurate free block accounting. So switch
+	 * to non delalloc when we are near to error range.
+	 */
+	free_blocks  = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
+	dirty_blocks = percpu_counter_read_positive(&sbi->s_dirtyblocks_counter);
+	if (2 * free_blocks < 3 * dirty_blocks ||
+		free_blocks < (dirty_blocks + EXT4_FREEBLOCKS_WATERMARK)) {
+		/*
+		 * free block count is less that 150% of dirty blocks
+		 * or free blocks is less that watermark
+		 */
+		return 1;
+	}
+	return 0;
+}
+
 static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
@@ -2472,6 +2499,13 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	index = pos >> PAGE_CACHE_SHIFT;
 	from = pos & (PAGE_CACHE_SIZE - 1);
 	to = from + len;
+
+	if (ext4_nonda_switch(inode->i_sb)) {
+		*fsdata = (void *)FALL_BACK_TO_NONDELALLOC;
+		return ext4_write_begin(file, mapping, pos,
+					len, flags, pagep, fsdata);
+	}
+	*fsdata = (void *)0;
 retry:
 	/*
 	 * With delayed allocation, we don't log the i_disksize update
@@ -2540,6 +2574,19 @@ static int ext4_da_write_end(struct file *file,
 	handle_t *handle = ext4_journal_current_handle();
 	loff_t new_i_size;
 	unsigned long start, end;
+	int write_mode = (int)(unsigned long)fsdata;
+
+	if (write_mode == FALL_BACK_TO_NONDELALLOC) {
+		if (ext4_should_order_data(inode)) {
+			return ext4_ordered_write_end(file, mapping, pos,
+					len, copied, page, fsdata);
+		} else if (ext4_should_writeback_data(inode)) {
+			return ext4_writeback_write_end(file, mapping, pos,
+					len, copied, page, fsdata);
+		} else {
+			BUG();
+		}
+	}
 
 	start = pos & (PAGE_CACHE_SIZE - 1);
 	end = start + copied - 1;
@@ -4877,6 +4924,7 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	loff_t size;
 	unsigned long len;
 	int ret = -EINVAL;
+	void *fsdata;
 	struct file *file = vma->vm_file;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct address_space *mapping = inode->i_mapping;
@@ -4915,11 +4963,11 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	 * on the same page though
 	 */
 	ret = mapping->a_ops->write_begin(file, mapping, page_offset(page),
-			len, AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
+			len, AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
 	if (ret < 0)
 		goto out_unlock;
 	ret = mapping->a_ops->write_end(file, mapping, page_offset(page),
-			len, len, page, NULL);
+			len, len, page, fsdata);
 	if (ret < 0)
 		goto out_unlock;
 	ret = 0;
