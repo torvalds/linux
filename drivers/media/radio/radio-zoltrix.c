@@ -123,8 +123,11 @@ static int zol_setfreq(struct zol_device *dev, unsigned long freq)
 	unsigned int stereo = dev->stereo;
 	int i;
 
-	if (freq == 0)
-		return 1;
+	if (freq == 0) {
+		printk(KERN_WARNING "zoltrix: received zero freq. Failed to set.\n");
+		return -EINVAL;
+	}
+
 	m = (freq / 160 - 8800) * 2;
 	f = (unsigned long long) m + 0x4d1c;
 
@@ -279,7 +282,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	struct zol_device *zol = video_drvdata(file);
 
 	zol->curfreq = f->frequency;
-	zol_setfreq(zol, zol->curfreq);
+	if (zol_setfreq(zol, zol->curfreq) != 0) {
+		printk(KERN_WARNING "zoltrix: Set frequency failed.\n");
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -343,7 +349,10 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		return 0;
 	}
 	zol->stereo = 1;
-	zol_setfreq(zol, zol->curfreq);
+	if (zol_setfreq(zol, zol->curfreq) != 0) {
+		printk(KERN_WARNING "zoltrix: Set frequency failed.\n");
+		return -EINVAL;
+	}
 #if 0
 /* FIXME: Implement stereo/mono switch on V4L2 */
 			if (v->mode & VIDEO_SOUND_STEREO) {
