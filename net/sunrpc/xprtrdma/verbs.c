@@ -338,10 +338,8 @@ connected:
 		wake_up_all(&ep->rep_connect_wait);
 		break;
 	default:
-		ia->ri_async_rc = -EINVAL;
-		dprintk("RPC:       %s: unexpected CM event %X\n",
+		dprintk("RPC:       %s: unexpected CM event %d\n",
 			__func__, event->event);
-		complete(&ia->ri_done);
 		break;
 	}
 
@@ -354,6 +352,8 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 {
 	struct rdma_cm_id *id;
 	int rc;
+
+	init_completion(&ia->ri_done);
 
 	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP);
 	if (IS_ERR(id)) {
@@ -426,8 +426,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	int rc, mem_priv;
 	struct ib_device_attr devattr;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
-
-	init_completion(&ia->ri_done);
 
 	ia->ri_id = rpcrdma_create_id(xprt, ia, addr);
 	if (IS_ERR(ia->ri_id)) {
@@ -815,6 +813,7 @@ retry:
 			goto out;
 		}
 		/* END TEMP */
+		rdma_destroy_qp(ia->ri_id);
 		rdma_destroy_id(ia->ri_id);
 		ia->ri_id = id;
 	}
