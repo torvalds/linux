@@ -122,7 +122,9 @@ static struct cphy_ops ael1002_ops = {
 int t3_ael1002_phy_prep(struct cphy *phy, struct adapter *adapter,
 			int phy_addr, const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
+		   "10GBASE-R");
 	ael100x_txon(phy);
 	return 0;
 }
@@ -178,7 +180,9 @@ static struct cphy_ops ael1006_ops = {
 int t3_ael1006_phy_prep(struct cphy *phy, struct adapter *adapter,
 			     int phy_addr, const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &ael1006_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &ael1006_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
+		   "10GBASE-SR");
 	ael100x_txon(phy);
 	return 0;
 }
@@ -198,7 +202,9 @@ int t3_qt2045_phy_prep(struct cphy *phy, struct adapter *adapter,
 {
 	unsigned int stat;
 
-	cphy_init(phy, adapter, phy_addr, &qt2045_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &qt2045_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_TP,
+		  "10GBASE-CX4");
 
 	/*
 	 * Some cards where the PHY is supposed to be at address 0 actually
@@ -256,6 +262,8 @@ static struct cphy_ops xaui_direct_ops = {
 int t3_xaui_direct_phy_prep(struct cphy *phy, struct adapter *adapter,
 			    int phy_addr, const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_TP,
+		  "10GBASE-CX4");
 	return 0;
 }

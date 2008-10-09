@@ -193,20 +193,11 @@ struct mdio_ops {
 struct adapter_info {
 	unsigned char nports;	/* # of ports */
 	unsigned char phy_base_addr;	/* MDIO PHY base address */
-	unsigned char mdien;
-	unsigned char mdiinv;
 	unsigned int gpio_out;	/* GPIO output settings */
 	unsigned int gpio_intr;	/* GPIO IRQ enable mask */
 	unsigned long caps;	/* adapter capabilities */
 	const struct mdio_ops *mdio_ops;	/* MDIO operations */
 	const char *desc;	/* product description */
-};
-
-struct port_type_info {
-	int (*phy_prep)(struct cphy *phy, struct adapter *adapter,
-			int phy_addr, const struct mdio_ops *ops);
-	unsigned int caps;
-	const char *desc;
 };
 
 struct mc5_stats {
@@ -548,7 +539,6 @@ enum {
 
 /* PHY operations */
 struct cphy_ops {
-	void (*destroy)(struct cphy *phy);
 	int (*reset)(struct cphy *phy, int wait);
 
 	int (*intr_enable)(struct cphy *phy);
@@ -569,8 +559,10 @@ struct cphy_ops {
 
 /* A PHY instance */
 struct cphy {
-	int addr;		/* PHY address */
+	int addr;			/* PHY address */
+	unsigned int caps;		/* PHY capabilities */
 	struct adapter *adapter;	/* associated adapter */
+	const char *desc;		/* PHY description */
 	unsigned long fifo_errors;	/* FIFO over/under-flows */
 	const struct cphy_ops *ops;	/* PHY operations */
 	int (*mdio_read)(struct adapter *adapter, int phy_addr, int mmd_addr,
@@ -595,10 +587,13 @@ static inline int mdio_write(struct cphy *phy, int mmd, int reg,
 /* Convenience initializer */
 static inline void cphy_init(struct cphy *phy, struct adapter *adapter,
 			     int phy_addr, struct cphy_ops *phy_ops,
-			     const struct mdio_ops *mdio_ops)
+			     const struct mdio_ops *mdio_ops,
+			      unsigned int caps, const char *desc)
 {
-	phy->adapter = adapter;
 	phy->addr = phy_addr;
+	phy->caps = caps;
+	phy->adapter = adapter;
+	phy->desc = desc;
 	phy->ops = phy_ops;
 	if (mdio_ops) {
 		phy->mdio_read = mdio_ops->read;

@@ -194,21 +194,18 @@ int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
 static void mi1_init(struct adapter *adap, const struct adapter_info *ai)
 {
 	u32 clkdiv = adap->params.vpd.cclk / (2 * adap->params.vpd.mdc) - 1;
-	u32 val = F_PREEN | V_MDIINV(ai->mdiinv) | V_MDIEN(ai->mdien) |
-	    V_CLKDIV(clkdiv);
+	u32 val = F_PREEN | V_CLKDIV(clkdiv);
 
-	if (!(ai->caps & SUPPORTED_10000baseT_Full))
-		val |= V_ST(1);
 	t3_write_reg(adap, A_MI1_CFG, val);
 }
 
-#define MDIO_ATTEMPTS 10
+#define MDIO_ATTEMPTS 20
 
 /*
- * MI1 read/write operations for direct-addressed PHYs.
+ * MI1 read/write operations for clause 22 PHYs.
  */
-static int mi1_read(struct adapter *adapter, int phy_addr, int mmd_addr,
-		    int reg_addr, unsigned int *valp)
+static int t3_mi1_read(struct adapter *adapter, int phy_addr, int mmd_addr,
+		       int reg_addr, unsigned int *valp)
 {
 	int ret;
 	u32 addr = V_REGADDR(reg_addr) | V_PHYADDR(phy_addr);
@@ -217,16 +214,17 @@ static int mi1_read(struct adapter *adapter, int phy_addr, int mmd_addr,
 		return -EINVAL;
 
 	mutex_lock(&adapter->mdio_lock);
+	t3_set_reg_field(adapter, A_MI1_CFG, V_ST(M_ST), V_ST(1));
 	t3_write_reg(adapter, A_MI1_ADDR, addr);
 	t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(2));
-	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 20);
+	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 10);
 	if (!ret)
 		*valp = t3_read_reg(adapter, A_MI1_DATA);
 	mutex_unlock(&adapter->mdio_lock);
 	return ret;
 }
 
-static int mi1_write(struct adapter *adapter, int phy_addr, int mmd_addr,
+static int t3_mi1_write(struct adapter *adapter, int phy_addr, int mmd_addr,
 		     int reg_addr, unsigned int val)
 {
 	int ret;
@@ -236,18 +234,36 @@ static int mi1_write(struct adapter *adapter, int phy_addr, int mmd_addr,
 		return -EINVAL;
 
 	mutex_lock(&adapter->mdio_lock);
+	t3_set_reg_field(adapter, A_MI1_CFG, V_ST(M_ST), V_ST(1));
 	t3_write_reg(adapter, A_MI1_ADDR, addr);
 	t3_write_reg(adapter, A_MI1_DATA, val);
 	t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(1));
-	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 20);
+	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 10);
 	mutex_unlock(&adapter->mdio_lock);
 	return ret;
 }
 
 static const struct mdio_ops mi1_mdio_ops = {
-	mi1_read,
-	mi1_write
+	t3_mi1_read,
+	t3_mi1_write
 };
+
+/*
+ * Performs the address cycle for clause 45 PHYs.
+ * Must be called with the MDIO_LOCK held.
+ */
+static int mi1_wr_addr(struct adapter *adapter, int phy_addr, int mmd_addr,
+		       int reg_addr)
+{
+	u32 addr = V_REGADDR(mmd_addr) | V_PHYADDR(phy_addr);
+
+	t3_set_reg_field(adapter, A_MI1_CFG, V_ST(M_ST), 0);
+	t3_write_reg(adapter, A_MI1_ADDR, addr);
+	t3_write_reg(adapter, A_MI1_DATA, reg_addr);
+	t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(0));
+	return t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0,
+			       MDIO_ATTEMPTS, 10);
+}
 
 /*
  * MI1 read/write operations for indirect-addressed PHYs.
@@ -256,17 +272,13 @@ static int mi1_ext_read(struct adapter *adapter, int phy_addr, int mmd_addr,
 			int reg_addr, unsigned int *valp)
 {
 	int ret;
-	u32 addr = V_REGADDR(mmd_addr) | V_PHYADDR(phy_addr);
 
 	mutex_lock(&adapter->mdio_lock);
-	t3_write_reg(adapter, A_MI1_ADDR, addr);
-	t3_write_reg(adapter, A_MI1_DATA, reg_addr);
-	t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(0));
-	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 20);
+	ret = mi1_wr_addr(adapter, phy_addr, mmd_addr, reg_addr);
 	if (!ret) {
 		t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(3));
 		ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0,
-				      MDIO_ATTEMPTS, 20);
+				      MDIO_ATTEMPTS, 10);
 		if (!ret)
 			*valp = t3_read_reg(adapter, A_MI1_DATA);
 	}
@@ -278,18 +290,14 @@ static int mi1_ext_write(struct adapter *adapter, int phy_addr, int mmd_addr,
 			 int reg_addr, unsigned int val)
 {
 	int ret;
-	u32 addr = V_REGADDR(mmd_addr) | V_PHYADDR(phy_addr);
 
 	mutex_lock(&adapter->mdio_lock);
-	t3_write_reg(adapter, A_MI1_ADDR, addr);
-	t3_write_reg(adapter, A_MI1_DATA, reg_addr);
-	t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(0));
-	ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0, MDIO_ATTEMPTS, 20);
+	ret = mi1_wr_addr(adapter, phy_addr, mmd_addr, reg_addr);
 	if (!ret) {
 		t3_write_reg(adapter, A_MI1_DATA, val);
 		t3_write_reg(adapter, A_MI1_OP, V_MDI_OP(1));
 		ret = t3_wait_op_done(adapter, A_MI1_OP, F_BUSY, 0,
-				      MDIO_ATTEMPTS, 20);
+				      MDIO_ATTEMPTS, 10);
 	}
 	mutex_unlock(&adapter->mdio_lock);
 	return ret;
@@ -435,22 +443,22 @@ int t3_set_phy_speed_duplex(struct cphy *phy, int speed, int duplex)
 }
 
 static const struct adapter_info t3_adap_info[] = {
-	{2, 0, 0, 0,
+	{2, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, F_GPIO3 | F_GPIO5,
 	 0,
 	 &mi1_mdio_ops, "Chelsio PE9000"},
-	{2, 0, 0, 0,
+	{2, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, F_GPIO3 | F_GPIO5,
 	 0,
 	 &mi1_mdio_ops, "Chelsio T302"},
-	{1, 0, 0, 0,
+	{1, 0,
 	 F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | F_GPIO10_OEN |
 	 F_GPIO11_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 0, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T310"},
-	{2, 0, 0, 0,
+	{2, 0,
 	 F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO5_OEN | F_GPIO6_OEN |
 	 F_GPIO7_OEN | F_GPIO10_OEN | F_GPIO11_OEN | F_GPIO1_OUT_VAL |
 	 F_GPIO5_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL, 0,
@@ -467,28 +475,22 @@ const struct adapter_info *t3_get_adapter_info(unsigned int id)
 	return id < ARRAY_SIZE(t3_adap_info) ? &t3_adap_info[id] : NULL;
 }
 
-#define CAPS_1G (SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full | \
-		 SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_MII)
-#define CAPS_10G (SUPPORTED_10000baseT_Full | SUPPORTED_AUI)
-
-static const struct port_type_info port_types[] = {
-	{NULL},
-	{t3_ael1002_phy_prep, CAPS_10G | SUPPORTED_FIBRE,
-	 "10GBASE-XR"},
-	{t3_vsc8211_phy_prep, CAPS_1G | SUPPORTED_TP | SUPPORTED_IRQ,
-	 "10/100/1000BASE-T"},
-	{NULL, CAPS_1G | SUPPORTED_TP | SUPPORTED_IRQ,
-	 "10/100/1000BASE-T"},
-	{t3_xaui_direct_phy_prep, CAPS_10G | SUPPORTED_TP, "10GBASE-CX4"},
-	{NULL, CAPS_10G, "10GBASE-KX4"},
-	{t3_qt2045_phy_prep, CAPS_10G | SUPPORTED_TP, "10GBASE-CX4"},
-	{t3_ael1006_phy_prep, CAPS_10G | SUPPORTED_FIBRE,
-	 "10GBASE-SR"},
-	{NULL, CAPS_10G | SUPPORTED_TP, "10GBASE-CX4"},
+struct port_type_info {
+	int (*phy_prep)(struct cphy *phy, struct adapter *adapter,
+			int phy_addr, const struct mdio_ops *ops);
 };
 
-#undef CAPS_1G
-#undef CAPS_10G
+static const struct port_type_info port_types[] = {
+	{ NULL },
+	{ t3_ael1002_phy_prep },
+	{ t3_vsc8211_phy_prep },
+	{ NULL},
+	{ t3_xaui_direct_phy_prep },
+	{ NULL },
+	{ t3_qt2045_phy_prep },
+	{ t3_ael1006_phy_prep },
+	{ NULL },
+};
 
 #define VPD_ENTRY(name, len) \
 	u8 name##_kword[2]; u8 name##_len; u8 name##_data[len]
@@ -1691,7 +1693,7 @@ int t3_phy_intr_handler(struct adapter *adapter)
 		mask = gpi - (gpi & (gpi - 1));
 		gpi -= mask;
 
-		if (!(p->port_type->caps & SUPPORTED_IRQ))
+		if (!(p->phy.caps & SUPPORTED_IRQ))
 			continue;
 
 		if (cause & mask) {
@@ -3556,7 +3558,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		    int reset)
 {
 	int ret;
-	unsigned int i, j = 0;
+	unsigned int i, j = -1;
 
 	get_pci_mode(adapter, &adapter->params.pci);
 
@@ -3620,19 +3622,18 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 
 	for_each_port(adapter, i) {
 		u8 hw_addr[6];
+		const struct port_type_info *pti;
 		struct port_info *p = adap2pinfo(adapter, i);
 
-		while (!adapter->params.vpd.port_type[j])
-			++j;
+		while (!adapter->params.vpd.port_type[++j])
+			;
 
-		p->port_type = &port_types[adapter->params.vpd.port_type[j]];
-		ret = p->port_type->phy_prep(&p->phy, adapter,
-					     ai->phy_base_addr + j,
-					     ai->mdio_ops);
+		pti = &port_types[adapter->params.vpd.port_type[j]];
+		ret = pti->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
+				    ai->mdio_ops);
 		if (ret)
 			return ret;
 		mac_prep(&p->mac, adapter, j);
-		++j;
 
 		/*
 		 * The VPD EEPROM stores the base Ethernet address for the
@@ -3646,9 +3647,9 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		       ETH_ALEN);
 		memcpy(adapter->port[i]->perm_addr, hw_addr,
 		       ETH_ALEN);
-		init_link_config(&p->link_config, p->port_type->caps);
+		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);
-		if (!(p->port_type->caps & SUPPORTED_IRQ))
+		if (!(p->phy.caps & SUPPORTED_IRQ))
 			adapter->params.linkpoll_period = 10;
 	}
 
@@ -3664,7 +3665,7 @@ void t3_led_ready(struct adapter *adapter)
 int t3_replay_prep_adapter(struct adapter *adapter)
 {
 	const struct adapter_info *ai = adapter->params.info;
-	unsigned int i, j = 0;
+	unsigned int i, j = -1;
 	int ret;
 
 	early_hw_init(adapter, ai);
@@ -3673,17 +3674,17 @@ int t3_replay_prep_adapter(struct adapter *adapter)
 		return ret;
 
 	for_each_port(adapter, i) {
+		const struct port_type_info *pti;
 		struct port_info *p = adap2pinfo(adapter, i);
-		while (!adapter->params.vpd.port_type[j])
-			++j;
 
-		ret = p->port_type->phy_prep(&p->phy, adapter,
-					     ai->phy_base_addr + j,
-					     ai->mdio_ops);
+		while (!adapter->params.vpd.port_type[++j])
+			;
+
+		pti = &port_types[adapter->params.vpd.port_type[j]];
+		ret = pti->phy_prep(&p->phy, adapter, p->phy.addr, NULL);
 		if (ret)
 			return ret;
 		p->phy.ops->power_down(&p->phy, 1);
-		++j;
 	}
 
 return 0;

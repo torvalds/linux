@@ -224,6 +224,9 @@ static struct cphy_ops vsc8211_ops = {
 int t3_vsc8211_phy_prep(struct cphy *phy, struct adapter *adapter,
 			int phy_addr, const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &vsc8211_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &vsc8211_ops, mdio_ops,
+		  SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full |
+		  SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_MII |
+		  SUPPORTED_TP | SUPPORTED_IRQ, "10/100/1000BASE-T");
 	return 0;
 }

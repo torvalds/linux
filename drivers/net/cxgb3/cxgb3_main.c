@@ -2368,7 +2368,7 @@ static void check_link_status(struct adapter *adapter)
 		struct net_device *dev = adapter->port[i];
 		struct port_info *p = netdev_priv(dev);
 
-		if (!(p->port_type->caps & SUPPORTED_IRQ) && netif_running(dev))
+		if (!(p->phy.caps & SUPPORTED_IRQ) && netif_running(dev))
 			t3_link_changed(adapter, i);
 	}
 }
@@ -2731,7 +2731,7 @@ static void __devinit print_port_info(struct adapter *adap,
 		if (!test_bit(i, &adap->registered_device_map))
 			continue;
 		printk(KERN_INFO "%s: %s %s %sNIC (rev %d) %s%s\n",
-		       dev->name, ai->desc, pi->port_type->desc,
+		       dev->name, ai->desc, pi->phy.desc,
 		       is_offload(adap) ? "R" : "", adap->params.rev, buf,
 		       (adap->flags & USING_MSIX) ? " MSI-X" :
 		       (adap->flags & USING_MSI) ? " MSI" : "");
