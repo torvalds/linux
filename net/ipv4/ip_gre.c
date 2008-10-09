@@ -637,7 +637,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	df = tiph->frag_off;
 	if (df)
-		mtu = dst_mtu(&rt->u.dst) - tunnel->hlen;
+		mtu = dst_mtu(&rt->u.dst) - dev->hard_header_len - tunnel->hlen;
 	else
 		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
 
@@ -785,7 +785,7 @@ static void ipgre_tunnel_bind_dev(struct net_device *dev)
 	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
 
-	/* Guess output device to choose reasonable mtu and hard_header_len */
+	/* Guess output device to choose reasonable mtu and needed_headroom */
 
 	if (iph->daddr) {
 		struct flowi fl = { .oif = tunnel->parms.link,
@@ -806,7 +806,7 @@ static void ipgre_tunnel_bind_dev(struct net_device *dev)
 		tdev = __dev_get_by_index(dev_net(dev), tunnel->parms.link);
 
 	if (tdev) {
-		hlen = tdev->hard_header_len;
+		hlen = tdev->hard_header_len + tdev->needed_headroom;
 		mtu = tdev->mtu;
 	}
 	dev->iflink = tunnel->parms.link;
@@ -820,8 +820,8 @@ static void ipgre_tunnel_bind_dev(struct net_device *dev)
 		if (tunnel->parms.o_flags&GRE_SEQ)
 			addend += 4;
 	}
-	dev->hard_header_len = hlen + addend;
-	dev->mtu = mtu - addend;
+	dev->needed_headroom = addend + hlen;
+	dev->mtu = mtu - dev->hard_header_len - addend;
 	tunnel->hlen = addend;
 
 }
@@ -959,7 +959,8 @@ done:
 static int ipgre_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	if (new_mtu < 68 || new_mtu > 0xFFF8 - tunnel->hlen)
+	if (new_mtu < 68 ||
+	    new_mtu > 0xFFF8 - dev->hard_header_len - tunnel->hlen)
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
@@ -1085,7 +1086,7 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	dev->change_mtu		= ipgre_tunnel_change_mtu;
 
 	dev->type		= ARPHRD_IPGRE;
-	dev->hard_header_len 	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
+	dev->needed_headroom 	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
 	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 4;
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
