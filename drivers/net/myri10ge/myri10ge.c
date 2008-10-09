@@ -2643,8 +2643,6 @@ static int myri10ge_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 flags, odd_flag;
 
 	queue = skb_get_queue_mapping(skb);
-	queue &= (mgp->num_slices - 1);
-
 	ss = &mgp->ss[queue];
 	netdev_queue = netdev_get_tx_queue(mgp->dev, queue);
 	tx = &ss->tx;
