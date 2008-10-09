@@ -488,6 +488,26 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 #endif
 		}
 		break;
+	case RPCRDMA_FRMR:
+		/* Requires both frmr reg and local dma lkey */
+		if ((devattr.device_cap_flags &
+		     (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) !=
+		    (IB_DEVICE_MEM_MGT_EXTENSIONS|IB_DEVICE_LOCAL_DMA_LKEY)) {
+#if RPCRDMA_PERSISTENT_REGISTRATION
+			dprintk("RPC:       %s: FRMR registration "
+				"specified but not supported by adapter, "
+				"using riskier RPCRDMA_ALLPHYSICAL\n",
+				__func__);
+			memreg = RPCRDMA_ALLPHYSICAL;
+#else
+			dprintk("RPC:       %s: FRMR registration "
+				"specified but not supported by adapter, "
+				"using slower RPCRDMA_REGISTER\n",
+				__func__);
+			memreg = RPCRDMA_REGISTER;
+#endif
+		}
+		break;
 	}
 
 	/*
@@ -501,6 +521,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	switch (memreg) {
 	case RPCRDMA_BOUNCEBUFFERS:
 	case RPCRDMA_REGISTER:
+	case RPCRDMA_FRMR:
 		break;
 #if RPCRDMA_PERSISTENT_REGISTRATION
 	case RPCRDMA_ALLPHYSICAL:
@@ -602,6 +623,12 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_attr.srq = NULL;
 	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+		/* Add room for frmr register and invalidate WRs */
+		ep->rep_attr.cap.max_send_wr *= 3;
+		if (ep->rep_attr.cap.max_send_wr > devattr.max_qp_wr)
+			return -EINVAL;
+		break;
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
 		/* Add room for mw_binds+unbinds - overkill! */
@@ -684,6 +711,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 		break;
 	case RPCRDMA_MTHCAFMR:
 	case RPCRDMA_REGISTER:
+	case RPCRDMA_FRMR:
 		ep->rep_remote_cma.responder_resources = cdata->max_requests *
 				(RPCRDMA_MAX_DATA_SEGS / 8);
 		break;
@@ -935,7 +963,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 *   2.  arrays of struct rpcrdma_req to fill in pointers
 	 *   3.  array of struct rpcrdma_rep for replies
 	 *   4.  padding, if any
-	 *   5.  mw's or fmr's, if any
+	 *   5.  mw's, fmr's or frmr's, if any
 	 * Send/recv buffers in req/rep need to be registered
 	 */
 
@@ -943,6 +971,10 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 		(sizeof(struct rpcrdma_req *) + sizeof(struct rpcrdma_rep *));
 	len += cdata->padding;
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+		len += buf->rb_max_requests * RPCRDMA_MAX_SEGS *
+				sizeof(struct rpcrdma_mw);
+		break;
 	case RPCRDMA_MTHCAFMR:
 		/* TBD we are perhaps overallocating here */
 		len += (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS *
@@ -991,6 +1023,30 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	INIT_LIST_HEAD(&buf->rb_mws);
 	r = (struct rpcrdma_mw *)p;
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
+		for (i = buf->rb_max_requests * RPCRDMA_MAX_SEGS; i; i--) {
+			r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(ia->ri_pd,
+							 RPCRDMA_MAX_SEGS);
+			if (IS_ERR(r->r.frmr.fr_mr)) {
+				rc = PTR_ERR(r->r.frmr.fr_mr);
+				dprintk("RPC:       %s: ib_alloc_fast_reg_mr"
+					" failed %i\n", __func__, rc);
+				goto out;
+			}
+			r->r.frmr.fr_pgl =
+				ib_alloc_fast_reg_page_list(ia->ri_id->device,
+							    RPCRDMA_MAX_SEGS);
+			if (IS_ERR(r->r.frmr.fr_pgl)) {
+				rc = PTR_ERR(r->r.frmr.fr_pgl);
+				dprintk("RPC:       %s: "
+					"ib_alloc_fast_reg_page_list "
+					"failed %i\n", __func__, rc);
+				goto out;
+			}
+			list_add(&r->mw_list, &buf->rb_mws);
+			++r;
+		}
+		break;
 	case RPCRDMA_MTHCAFMR:
 		/* TBD we are perhaps overallocating here */
 		for (i = (buf->rb_max_requests+1) * RPCRDMA_MAX_SEGS; i; i--) {
@@ -1126,6 +1182,15 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 					struct rpcrdma_mw, mw_list);
 				list_del(&r->mw_list);
 				switch (ia->ri_memreg_strategy) {
+				case RPCRDMA_FRMR:
+					rc = ib_dereg_mr(r->r.frmr.fr_mr);
+					if (rc)
+						dprintk("RPC:       %s:"
+							" ib_dereg_mr"
+							" failed %i\n",
+							__func__, rc);
+					ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
+					break;
 				case RPCRDMA_MTHCAFMR:
 					rc = ib_dealloc_fmr(r->r.fmr);
 					if (rc)
@@ -1228,6 +1293,7 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 		req->rl_reply = NULL;
 	}
 	switch (ia->ri_memreg_strategy) {
+	case RPCRDMA_FRMR:
 	case RPCRDMA_MTHCAFMR:
 	case RPCRDMA_MEMWINDOWS_ASYNC:
 	case RPCRDMA_MEMWINDOWS:
@@ -1388,6 +1454,96 @@ rpcrdma_unmap_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg)
 	else
 		ib_dma_unmap_single(ia->ri_id->device,
 				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
+}
+
+static int
+rpcrdma_register_frmr_external(struct rpcrdma_mr_seg *seg,
+			int *nsegs, int writing, struct rpcrdma_ia *ia,
+			struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_send_wr frmr_wr, *bad_wr;
+	u8 key;
+	int len, pageoff;
+	int i, rc;
+
+	pageoff = offset_in_page(seg1->mr_offset);
+	seg1->mr_offset -= pageoff;	/* start of page */
+	seg1->mr_len += pageoff;
+	len = -pageoff;
+	if (*nsegs > RPCRDMA_MAX_DATA_SEGS)
+		*nsegs = RPCRDMA_MAX_DATA_SEGS;
+	for (i = 0; i < *nsegs;) {
+		rpcrdma_map_one(ia, seg, writing);
+		seg1->mr_chunk.rl_mw->r.frmr.fr_pgl->page_list[i] = seg->mr_dma;
+		len += seg->mr_len;
+		++seg;
+		++i;
+		/* Check for holes */
+		if ((i < *nsegs && offset_in_page(seg->mr_offset)) ||
+		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
+			break;
+	}
+	dprintk("RPC:       %s: Using frmr %p to map %d segments\n",
+		__func__, seg1->mr_chunk.rl_mw, i);
+
+	/* Bump the key */
+	key = (u8)(seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey & 0x000000FF);
+	ib_update_fast_reg_key(seg1->mr_chunk.rl_mw->r.frmr.fr_mr, ++key);
+
+	/* Prepare FRMR WR */
+	memset(&frmr_wr, 0, sizeof frmr_wr);
+	frmr_wr.opcode = IB_WR_FAST_REG_MR;
+	frmr_wr.send_flags = 0;			/* unsignaled */
+	frmr_wr.wr.fast_reg.iova_start = (unsigned long)seg1->mr_dma;
+	frmr_wr.wr.fast_reg.page_list = seg1->mr_chunk.rl_mw->r.frmr.fr_pgl;
+	frmr_wr.wr.fast_reg.page_list_len = i;
+	frmr_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
+	frmr_wr.wr.fast_reg.length = i << PAGE_SHIFT;
+	frmr_wr.wr.fast_reg.access_flags = (writing ?
+				IB_ACCESS_REMOTE_WRITE : IB_ACCESS_REMOTE_READ);
+	frmr_wr.wr.fast_reg.rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+
+	rc = ib_post_send(ia->ri_id->qp, &frmr_wr, &bad_wr);
+
+	if (rc) {
+		dprintk("RPC:       %s: failed ib_post_send for register,"
+			" status %i\n", __func__, rc);
+		while (i--)
+			rpcrdma_unmap_one(ia, --seg);
+	} else {
+		seg1->mr_rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+		seg1->mr_base = seg1->mr_dma + pageoff;
+		seg1->mr_nsegs = i;
+		seg1->mr_len = len;
+	}
+	*nsegs = i;
+	return rc;
+}
+
+static int
+rpcrdma_deregister_frmr_external(struct rpcrdma_mr_seg *seg,
+			struct rpcrdma_ia *ia, struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_send_wr invalidate_wr, *bad_wr;
+	int rc;
+
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+
+	memset(&invalidate_wr, 0, sizeof invalidate_wr);
+	invalidate_wr.opcode = IB_WR_LOCAL_INV;
+	invalidate_wr.send_flags = 0;			/* unsignaled */
+	invalidate_wr.ex.invalidate_rkey = seg1->mr_chunk.rl_mw->r.frmr.fr_mr->rkey;
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+
+	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
+	if (rc)
+		dprintk("RPC:       %s: failed ib_post_send for invalidate,"
+			" status %i\n", __func__, rc);
+	return rc;
 }
 
 static int
@@ -1600,6 +1756,11 @@ rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 		break;
 #endif
 
+	/* Registration using frmr registration */
+	case RPCRDMA_FRMR:
+		rc = rpcrdma_register_frmr_external(seg, &nsegs, writing, ia, r_xprt);
+		break;
+
 	/* Registration using fmr memory registration */
 	case RPCRDMA_MTHCAFMR:
 		rc = rpcrdma_register_fmr_external(seg, &nsegs, writing, ia);
@@ -1638,6 +1799,10 @@ rpcrdma_deregister_external(struct rpcrdma_mr_seg *seg,
 		rc = 0;
 		break;
 #endif
+
+	case RPCRDMA_FRMR:
+		rc = rpcrdma_deregister_frmr_external(seg, ia, r_xprt);
+		break;
 
 	case RPCRDMA_MTHCAFMR:
 		rc = rpcrdma_deregister_fmr_external(seg, ia);

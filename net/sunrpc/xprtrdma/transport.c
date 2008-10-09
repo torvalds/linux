@@ -70,11 +70,7 @@ static unsigned int xprt_rdma_slot_table_entries = RPCRDMA_DEF_SLOT_TABLE;
 static unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_inline_write_padding;
-#if !RPCRDMA_PERSISTENT_REGISTRATION
-static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_REGISTER; /* FMR? */
-#else
-static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_ALLPHYSICAL;
-#endif
+static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_FRMR;
 
 #ifdef RPC_DEBUG
 
