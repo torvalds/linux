@@ -89,6 +89,46 @@ static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
 	return 0;
 }
 
+/*
+ * get_active_region_work_fn - A helper function for get_node_active_region
+ *	Returns datax set to the start_pfn and end_pfn if they contain
+ *	the initial value of datax->start_pfn between them
+ * @start_pfn: start page(inclusive) of region to check
+ * @end_pfn: end page(exclusive) of region to check
+ * @datax: comes in with ->start_pfn set to value to search for and
+ *	goes out with active range if it contains it
+ * Returns 1 if search value is in range else 0
+ */
+static int __init get_active_region_work_fn(unsigned long start_pfn,
+					unsigned long end_pfn, void *datax)
+{
+	struct node_active_region *data;
+	data = (struct node_active_region *)datax;
+
+	if (start_pfn <= data->start_pfn && end_pfn > data->start_pfn) {
+		data->start_pfn = start_pfn;
+		data->end_pfn = end_pfn;
+		return 1;
+	}
+	return 0;
+
+}
+
+/*
+ * get_node_active_region - Return active region containing start_pfn
+ * @start_pfn: The page to return the region for.
+ * @node_ar: Returned set to the active region containing start_pfn
+ */
+static void __init get_node_active_region(unsigned long start_pfn,
+		       struct node_active_region *node_ar)
+{
+	int nid = early_pfn_to_nid(start_pfn);
+
+	node_ar->nid = nid;
+	node_ar->start_pfn = start_pfn;
+	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
+}
+
 static void __cpuinit map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
@@ -882,38 +922,50 @@ void __init do_init_bootmem(void)
 				  start_pfn, end_pfn);
 
 		free_bootmem_with_active_regions(nid, end_pfn);
+	}
 
-		/* Mark reserved regions on this node */
-		for (i = 0; i < lmb.reserved.cnt; i++) {
-			unsigned long physbase = lmb.reserved.region[i].base;
-			unsigned long size = lmb.reserved.region[i].size;
-			unsigned long start_paddr = start_pfn << PAGE_SHIFT;
-			unsigned long end_paddr = end_pfn << PAGE_SHIFT;
+	/* Mark reserved regions */
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		unsigned long physbase = lmb.reserved.region[i].base;
+		unsigned long size = lmb.reserved.region[i].size;
+		unsigned long start_pfn = physbase >> PAGE_SHIFT;
+		unsigned long end_pfn = ((physbase + size) >> PAGE_SHIFT);
+		struct node_active_region node_ar;
 
-			if (early_pfn_to_nid(physbase >> PAGE_SHIFT) != nid &&
-			    early_pfn_to_nid((physbase+size-1) >> PAGE_SHIFT) != nid)
-				continue;
+		get_node_active_region(start_pfn, &node_ar);
+		while (start_pfn < end_pfn) {
+			/*
+			 * if reserved region extends past active region
+			 * then trim size to active region
+			 */
+			if (end_pfn > node_ar.end_pfn)
+				size = (node_ar.end_pfn << PAGE_SHIFT)
+					- (start_pfn << PAGE_SHIFT);
+			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase, size,
+				node_ar.nid);
+			reserve_bootmem_node(NODE_DATA(node_ar.nid), physbase,
+						size, BOOTMEM_DEFAULT);
+			/*
+			 * if reserved region is contained in the active region
+			 * then done.
+			 */
+			if (end_pfn <= node_ar.end_pfn)
+				break;
 
-			if (physbase < end_paddr &&
-			    (physbase+size) > start_paddr) {
-				/* overlaps */
-				if (physbase < start_paddr) {
-					size -= start_paddr - physbase;
-					physbase = start_paddr;
-				}
-
-				if (size > end_paddr - physbase)
-					size = end_paddr - physbase;
-
-				dbg("reserve_bootmem %lx %lx\n", physbase,
-				    size);
-				reserve_bootmem_node(NODE_DATA(nid), physbase,
-						     size, BOOTMEM_DEFAULT);
-			}
+			/*
+			 * reserved region extends past the active region
+			 *   get next active region that contains this
+			 *   reserved region
+			 */
+			start_pfn = node_ar.end_pfn;
+			physbase = start_pfn << PAGE_SHIFT;
+			get_node_active_region(start_pfn, &node_ar);
 		}
 
-		sparse_memory_present_with_active_regions(nid);
 	}
+
+	for_each_online_node(nid)
+		sparse_memory_present_with_active_regions(nid);
 }
 
 void __init paging_init(void)
