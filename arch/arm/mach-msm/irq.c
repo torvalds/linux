@@ -19,11 +19,10 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
-
 #include <linux/irq.h>
-#include <mach/hardware.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
+#include <mach/hardware.h>
 
 #include <mach/msm_iomap.h>
 

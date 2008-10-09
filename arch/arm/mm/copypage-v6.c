@@ -16,6 +16,7 @@
 #include <asm/shmparam.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
+#include <asm/cachetype.h>
 
 #include "mm.h"
 

@@ -22,8 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <mach/clock.h>
 

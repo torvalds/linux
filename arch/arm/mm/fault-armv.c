@@ -17,7 +17,9 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 
+#include <asm/bugs.h>
 #include <asm/cacheflush.h>
+#include <asm/cachetype.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 

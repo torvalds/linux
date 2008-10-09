@@ -11,3 +11,4 @@ oprofile-$(CONFIG_CPU_XSCALE)		+= op_model_xscale.o
 oprofile-$(CONFIG_OPROFILE_ARM11_CORE)	+= op_model_arm11_core.o
 oprofile-$(CONFIG_OPROFILE_ARMV6)	+= op_model_v6.o
 oprofile-$(CONFIG_OPROFILE_MPCORE)	+= op_model_mpcore.o
+oprofile-$(CONFIG_OPROFILE_ARMV7)	+= op_model_v7.o

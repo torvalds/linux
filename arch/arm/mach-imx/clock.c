@@ -21,8 +21,8 @@
 #include <linux/list.h>
 #include <linux/math64.h>
 #include <linux/err.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/imx-regs.h>
 
 /*

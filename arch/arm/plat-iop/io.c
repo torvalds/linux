@@ -18,8 +18,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 void * __iomem __iop3xx_ioremap(unsigned long cookie, size_t size,
 	unsigned int mtype)

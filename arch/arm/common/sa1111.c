@@ -25,10 +25,10 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/sizes.h>

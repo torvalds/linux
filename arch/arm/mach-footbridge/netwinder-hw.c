@@ -10,9 +10,9 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/hardware/dec21285.h>
-#include <asm/io.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>

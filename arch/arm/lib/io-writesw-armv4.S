@@ -94,3 +94,4 @@ ENTRY(__raw_writesw)
 3:		movne	ip, r3, lsr #8
 		strneh	ip, [r0]
 		mov	pc, lr
+ENDPROC(__raw_writesw)

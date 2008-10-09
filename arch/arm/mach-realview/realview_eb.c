@@ -23,9 +23,9 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>

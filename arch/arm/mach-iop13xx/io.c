@@ -18,8 +18,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 void * __iomem __iop13xx_io(unsigned long io_addr)
 {

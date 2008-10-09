@@ -230,6 +230,8 @@ ENTRY(__aeabi_uidiv)
 	mov	r0, r0, lsr r2
 	mov	pc, lr
 
+ENDPROC(__udivsi3)
+ENDPROC(__aeabi_uidiv)
 
 ENTRY(__umodsi3)
 
@@ -245,6 +247,7 @@ ENTRY(__umodsi3)
 
 	mov	pc, lr
 
+ENDPROC(__umodsi3)
 
 ENTRY(__divsi3)
 ENTRY(__aeabi_idiv)
@@ -284,6 +287,8 @@ ENTRY(__aeabi_idiv)
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
+ENDPROC(__divsi3)
+ENDPROC(__aeabi_idiv)
 
 ENTRY(__modsi3)
 
@@ -305,6 +310,8 @@ ENTRY(__modsi3)
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
+ENDPROC(__modsi3)
+
 #ifdef CONFIG_AEABI
 
 ENTRY(__aeabi_uidivmod)
@@ -316,6 +323,8 @@ ENTRY(__aeabi_uidivmod)
 	sub	r1, r1, r3
 	mov	pc, lr
 
+ENDPROC(__aeabi_uidivmod)
+
 ENTRY(__aeabi_idivmod)
 
 	stmfd	sp!, {r0, r1, ip, lr}
@@ -324,6 +333,8 @@ ENTRY(__aeabi_idivmod)
 	mul	r3, r0, r2
 	sub	r1, r1, r3
 	mov	pc, lr
+
+ENDPROC(__aeabi_idivmod)
 
 #endif
 

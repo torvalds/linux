@@ -15,6 +15,7 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 
+#include <asm/cputype.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
@@ -26,9 +27,6 @@
 #include "mm.h"
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
-extern void _stext, _etext, __data_start, _end;
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
  * empty_zero_page is a special page that is used for
@@ -568,12 +566,35 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(io_desc + i);
 }
 
+static unsigned long __initdata vmalloc_reserve = SZ_128M;
+
+/*
+ * vmalloc=size forces the vmalloc area to be exactly 'size'
+ * bytes. This can be used to increase (or decrease) the vmalloc
+ * area - the default is 128m.
+ */
+static void __init early_vmalloc(char **arg)
+{
+	vmalloc_reserve = memparse(*arg, arg);
+
+	if (vmalloc_reserve < SZ_16M) {
+		vmalloc_reserve = SZ_16M;
+		printk(KERN_WARNING
+			"vmalloc area too small, limiting to %luMB\n",
+			vmalloc_reserve >> 20);
+	}
+}
+__early_param("vmalloc=", early_vmalloc);
+
+#define VMALLOC_MIN	(void *)(VMALLOC_END - vmalloc_reserve)
+
 static int __init check_membank_valid(struct membank *mb)
 {
 	/*
-	 * Check whether this memory region has non-zero size.
+	 * Check whether this memory region has non-zero size or
+	 * invalid node number.
 	 */
-	if (mb->size == 0)
+	if (mb->size == 0 || mb->node >= MAX_NUMNODES)
 		return 0;
 
 	/*
@@ -607,8 +628,7 @@ static int __init check_membank_valid(struct membank *mb)
 
 static void __init sanity_check_meminfo(struct meminfo *mi)
 {
-	int i;
-	int j;
+	int i, j;
 
 	for (i = 0, j = 0; i < mi->nr_banks; i++) {
 		if (check_membank_valid(&mi->bank[i]))

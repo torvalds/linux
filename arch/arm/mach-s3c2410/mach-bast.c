@@ -22,6 +22,7 @@
 #include <linux/dm9000.h>
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
+#include <linux/io.h>
 
 #include <net/ax88796.h>
 
@@ -34,7 +35,6 @@
 #include <mach/bast-cpld.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

@@ -17,8 +17,8 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/hardware/ssp.h>

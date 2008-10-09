@@ -95,19 +95,19 @@ static int __init badge4_sa1111_init(void)
  *   One-hundred-twenty-seven 32 KiW Main Blocks (8128 Ki b)
  */
 static struct mtd_partition badge4_partitions[] = {
-        {
-                .name           = "BLOB boot loader",
-                .offset         = 0,
-                .size           = 0x0000A000
-        }, {
-                .name           = "params",
-                .offset         = MTDPART_OFS_APPEND,
-                .size           = 0x00006000
-        }, {
-                .name           = "root",
-                .offset         = MTDPART_OFS_APPEND,
-                .size           = MTDPART_SIZ_FULL
-        }
+	{
+		.name	= "BLOB boot loader",
+		.offset	= 0,
+		.size	= 0x0000A000
+	}, {
+		.name	= "params",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 0x00006000
+	}, {
+		.name	= "root",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL
+	}
 };
 
 static struct flash_platform_data badge4_flash_data = {
@@ -126,7 +126,7 @@ static int five_v_on __initdata = 0;
 
 static int __init five_v_on_setup(char *ignore)
 {
-        five_v_on = 1;
+	five_v_on = 1;
 	return 1;
 }
 __setup("five_v_on", five_v_on_setup);
@@ -171,15 +171,15 @@ static int __init badge4_init(void)
 	GPCR  = BADGE4_GPIO_TESTPT_J7;
 	GPDR |= BADGE4_GPIO_TESTPT_J7;
 
- 	/* 5V supply rail. */
- 	GPCR  = BADGE4_GPIO_PCMEN5V;		/* initially off */
-  	GPDR |= BADGE4_GPIO_PCMEN5V;
+	/* 5V supply rail. */
+	GPCR  = BADGE4_GPIO_PCMEN5V;		/* initially off */
+	GPDR |= BADGE4_GPIO_PCMEN5V;
 
 	/* CPLD sdram type inputs; set up by blob */
 	//GPDR |= (BADGE4_GPIO_SDTYP1 | BADGE4_GPIO_SDTYP0);
 	printk(KERN_DEBUG __FILE__ ": SDRAM CPLD typ1=%d typ0=%d\n",
-	       !!(GPLR & BADGE4_GPIO_SDTYP1),
-	       !!(GPLR & BADGE4_GPIO_SDTYP0));
+		!!(GPLR & BADGE4_GPIO_SDTYP1),
+		!!(GPLR & BADGE4_GPIO_SDTYP0));
 
 	/* SA1111 reset pin; set up by blob */
 	//GPSR  = BADGE4_GPIO_SA1111_NRST;
@@ -205,8 +205,8 @@ static int __init badge4_init(void)
 	ret = badge4_sa1111_init();
 	if (ret < 0)
 		printk(KERN_ERR
-		       "%s: SA-1111 initialization failed (%d)\n",
-		       __func__, ret);
+			"%s: SA-1111 initialization failed (%d)\n",
+			__func__, ret);
 
 
 	/* maybe turn on 5v0 from the start */
@@ -254,7 +254,7 @@ EXPORT_SYMBOL(badge4_set_5V);
 
 
 static struct map_desc badge4_io_desc[] __initdata = {
-  	{	/* SRAM  bank 1 */
+	{	/* SRAM  bank 1 */
 		.virtual	= 0xf1000000,
 		.pfn		= __phys_to_pfn(0x08000000),
 		.length		= 0x00100000,

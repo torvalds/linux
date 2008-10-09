@@ -10,7 +10,7 @@
  */
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/mach/irq.h>
 #include <mach/regs-sys-common.h>
 #include <mach/irqs.h>

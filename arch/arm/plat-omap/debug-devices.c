@@ -12,9 +12,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <mach/board.h>
 #include <mach/gpio.h>

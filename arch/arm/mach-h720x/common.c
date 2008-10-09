@@ -18,11 +18,11 @@
 #include <linux/mman.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/dma.h>
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>

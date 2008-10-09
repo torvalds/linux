@@ -12,13 +12,13 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/bitops.h>
 
 #include <mach/gpio.h>
 #include <mach/processor.h>
 #include <mach/processor-ns9360.h>
 #include <asm/bug.h>
 #include <asm/types.h>
-#include <asm/bitops.h>
 
 #include "gpio-ns9360.h"
 

@@ -18,8 +18,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <mach/at91_pio.h>
 #include <mach/gpio.h>

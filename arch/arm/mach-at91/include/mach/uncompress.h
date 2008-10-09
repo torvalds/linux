@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/atmel_serial.h>
 
 #if defined(CONFIG_AT91_EARLY_DBGU)

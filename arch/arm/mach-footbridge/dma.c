@@ -11,9 +11,9 @@
  *			ISA DMA controllers.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
-#include <asm/io.h>
 #include <asm/scatterlist.h>
 
 #include <asm/mach/dma.h>

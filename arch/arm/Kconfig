@@ -148,7 +148,6 @@ config ARCH_MAY_HAVE_PC_FDC
 
 config ZONE_DMA
 	bool
-	default y
 
 config GENERIC_ISA_DMA
 	bool
@@ -176,6 +175,11 @@ config OPROFILE_MPCORE
 	select OPROFILE_ARM11_CORE
 
 config OPROFILE_ARM11_CORE
+	bool
+
+config OPROFILE_ARMV7
+	def_bool y
+	depends on CPU_V7 && !SMP
 	bool
 
 endif
@@ -245,6 +249,7 @@ config ARCH_CLPS7500
 	select TIMER_ACORN
 	select ISA
 	select NO_IOPORT
+	select ARCH_SPARSEMEM_ENABLE
 	help
 	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
 
@@ -306,6 +311,7 @@ config ARCH_IOP13XX
 	select PLAT_IOP
 	select PCI
 	select ARCH_SUPPORTS_MSI
+	select VMSPLIT_1G
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -350,6 +356,7 @@ config ARCH_IXP4XX
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select ZONE_DMA if PCI
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
@@ -464,6 +471,7 @@ config ARCH_RPC
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
 	select NO_IOPORT
+	select ARCH_SPARSEMEM_ENABLE
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -471,9 +479,7 @@ config ARCH_RPC
 config ARCH_SA1100
 	bool "SA1100-based"
 	select ISA
-	select ARCH_DISCONTIGMEM_ENABLE
 	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_SELECT_MEMORY_MODEL
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
@@ -497,6 +503,7 @@ config ARCH_SHARK
 	bool "Shark"
 	select ISA
 	select ISA_DMA
+	select ZONE_DMA
 	select PCI
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
@@ -504,6 +511,8 @@ config ARCH_SHARK
 
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
+	select ARCH_DISCONTIGMEM_ENABLE if !LH7A40X_CONTIGMEM
+	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
 	help
 	  Say Y here for systems based on one of the Sharp LH7A40X
 	  System on a Chip processors.  These CPUs include an ARM922T
@@ -516,6 +525,7 @@ config ARCH_DAVINCI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ZONE_DMA
 	help
 	  Support for TI's DaVinci platform.
 
@@ -734,6 +744,29 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+choice
+	prompt "Memory split"
+	default VMSPLIT_3G
+	help
+	  Select the desired split between kernel and user memory.
+
+	  If you are not absolutely sure what you are doing, leave this
+	  option alone!
+
+	config VMSPLIT_3G
+		bool "3G/1G user/kernel split"
+	config VMSPLIT_2G
+		bool "2G/2G user/kernel split"
+	config VMSPLIT_1G
+		bool "1G/3G user/kernel split"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x40000000 if VMSPLIT_1G
+	default 0x80000000 if VMSPLIT_2G
+	default 0xC0000000
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
@@ -810,20 +843,18 @@ config OABI_COMPAT
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say Y.
 
+# Discontigmem is deprecated
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
-	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
-	help
-	  Say Y to support efficient handling of discontiguous physical memory,
-	  for architectures which are either NUMA (Non-Uniform Memory Access)
-	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa> for more.
 
 config ARCH_SPARSEMEM_ENABLE
 	bool
 
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool ARCH_SPARSEMEM_ENABLE
+
 config ARCH_SELECT_MEMORY_MODEL
-	bool
+	def_bool ARCH_DISCONTIGMEM_ENABLE && ARCH_SPARSEMEM_ENABLE
 
 config NODES_SHIFT
 	int
@@ -1000,9 +1031,9 @@ config ATAGS_PROC
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
+menu "CPU Power Management"
 
-menu "CPU Frequency scaling"
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1042,9 +1073,11 @@ config CPU_FREQ_PXA
 	default y
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
-endmenu
-
 endif
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
 
 menu "Floating point emulation"
 
@@ -1197,6 +1230,8 @@ source "drivers/power/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 
+source "drivers/thermal/Kconfig"
+
 source "drivers/watchdog/Kconfig"
 
 source "drivers/ssb/Kconfig"
@@ -1217,6 +1252,10 @@ source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
 
+source "drivers/memstick/Kconfig"
+
+source "drivers/accessibility/Kconfig"
+
 source "drivers/leds/Kconfig"
 
 source "drivers/rtc/Kconfig"
@@ -1224,6 +1263,8 @@ source "drivers/rtc/Kconfig"
 source "drivers/dma/Kconfig"
 
 source "drivers/dca/Kconfig"
+
+source "drivers/auxdisplay/Kconfig"
 
 source "drivers/regulator/Kconfig"
 

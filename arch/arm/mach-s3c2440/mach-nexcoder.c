@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <linux/mtd/map.h>
 
@@ -30,7 +31,6 @@
 
 #include <asm/setup.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

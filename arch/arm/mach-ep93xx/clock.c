@@ -15,9 +15,9 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/io.h>
 #include <asm/div64.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 struct clk {
 	char		*name;

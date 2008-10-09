@@ -20,11 +20,10 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <asm/mach/time.h>
 #include <mach/msm_iomap.h>
-
-#include <asm/io.h>
 
 #define MSM_DGT_BASE (MSM_GPT_BASE + 0x10)
 #define MSM_DGT_SHIFT (5)

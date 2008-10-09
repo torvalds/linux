@@ -82,7 +82,7 @@
 #include <linux/socket.h>
 #include <linux/net.h>
 #include <linux/ipc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct oldabi_stat64 {
 	unsigned long long st_dev;

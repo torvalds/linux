@@ -8,11 +8,10 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-
+#include <linux/io.h>
 #include <linux/mtd/partitions.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 
@@ -39,8 +38,8 @@
 
 static struct resource smc91x_resources[] = {
 	[0] = {
-		.start	=  PLEB_ETH0_P,
-		.end	=  PLEB_ETH0_P | 0x03ffffff,
+		.start	= PLEB_ETH0_P,
+		.end	= PLEB_ETH0_P | 0x03ffffff,
 		.flags	= IORESOURCE_MEM,
 	},
 #if 0 /* Autoprobe instead, to get rising/falling edge characteristic right */
@@ -87,15 +86,15 @@ static struct resource pleb_flash_resources[] = {
 static struct mtd_partition pleb_partitions[] = {
 	{
 		.name		= "blob",
-		.offset 	= 0,
+		.offset		= 0,
 		.size		= 0x00020000,
 	}, {
 		.name		= "kernel",
-		.offset 	= MTDPART_OFS_APPEND,
+		.offset		= MTDPART_OFS_APPEND,
 		.size		= 0x000e0000,
 	}, {
 		.name		= "rootfs",
-		.offset 	= MTDPART_OFS_APPEND,
+		.offset		= MTDPART_OFS_APPEND,
 		.size		= 0x00300000,
 	}
 };

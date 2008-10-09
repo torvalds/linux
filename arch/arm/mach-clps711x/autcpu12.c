@@ -22,10 +22,10 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/sizes.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

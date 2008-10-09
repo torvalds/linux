@@ -13,42 +13,32 @@
 #ifndef __ASM_ARM_MEMORY_H
 #define __ASM_ARM_MEMORY_H
 
+#include <linux/compiler.h>
+#include <linux/const.h>
+#include <mach/memory.h>
+#include <asm/sizes.h>
+
 /*
  * Allow for constants defined here to be used from assembly code
  * by prepending the UL suffix only with actual C code compilation.
  */
-#ifndef __ASSEMBLY__
-#define UL(x) (x##UL)
-#else
-#define UL(x) (x)
-#endif
-
-#include <linux/compiler.h>
-#include <mach/memory.h>
-#include <asm/sizes.h>
+#define UL(x) _AC(x, UL)
 
 #ifdef CONFIG_MMU
 
-#ifndef TASK_SIZE
 /*
+ * PAGE_OFFSET - the virtual address of the start of the kernel image
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
  */
-#define TASK_SIZE		UL(0xbf000000)
-#define TASK_UNMAPPED_BASE	UL(0x40000000)
-#endif
+#define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
+#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(0x01000000))
+#define TASK_UNMAPPED_BASE	(UL(CONFIG_PAGE_OFFSET) / 3)
 
 /*
  * The maximum size of a 26-bit user space task.
  */
 #define TASK_SIZE_26		UL(0x04000000)
-
-/*
- * Page offset: 3GB
- */
-#ifndef PAGE_OFFSET
-#define PAGE_OFFSET		UL(0xc0000000)
-#endif
 
 /*
  * The module space lives between the addresses given by TASK_SIZE
@@ -147,15 +137,9 @@
 
 #ifndef arch_adjust_zones
 #define arch_adjust_zones(node,size,holes) do { } while (0)
+#elif !defined(CONFIG_ZONE_DMA)
+#error "custom arch_adjust_zones() requires CONFIG_ZONE_DMA"
 #endif
-
-/*
- * Amount of memory reserved for the vmalloc() area, and minimum
- * address for vmalloc mappings.
- */
-extern unsigned long vmalloc_reserve;
-
-#define VMALLOC_MIN		(void *)(VMALLOC_END - vmalloc_reserve)
 
 /*
  * PFNs are used to describe any physical page; this means

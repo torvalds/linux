@@ -13,11 +13,11 @@
 #include <linux/delay.h>
 #include <linux/in6.h>
 #include <linux/syscalls.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <asm/checksum.h>
-#include <asm/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/ftrace.h>
 
 /*

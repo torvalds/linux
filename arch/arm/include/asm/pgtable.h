@@ -320,11 +320,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 #define pmd_page(pmd) virt_to_page(__va(pmd_val(pmd)))
 
 /*
- * Permanent address of a page. We never have highmem, so this is trivial.
- */
-#define pages_to_mb(x)		((x) >> (20 - PAGE_SHIFT))
-
-/*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */

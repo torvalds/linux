@@ -40,14 +40,13 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <mach/gpio.h>
 #include <mach/cpu.h>
-
-#include <asm/io.h>
 
 #define IRQ_BANK(irq) ((irq) >> 5)
 #define IRQ_BIT(irq)  ((irq) & 0x1f)

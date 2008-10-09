@@ -31,8 +31,8 @@
 #include <linux/spinlock.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 
 #define OCPI_BASE		0xfffec320

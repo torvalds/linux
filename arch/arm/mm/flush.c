@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cachetype.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 

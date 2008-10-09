@@ -16,8 +16,8 @@
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
 
 #include "../kernel/stacktrace.h"
 

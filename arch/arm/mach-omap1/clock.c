@@ -17,8 +17,8 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/mach-types.h>
 
 #include <mach/cpu.h>

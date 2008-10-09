@@ -26,10 +26,10 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/timer.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <asm/mach/irq.h>
 

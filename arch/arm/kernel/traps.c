@@ -19,15 +19,13 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
-#include <asm/io.h>
 
 #include "ptrace.h"
 #include "signal.h"
@@ -69,7 +67,8 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
  */
 static int verify_stack(unsigned long sp)
 {
-	if (sp < PAGE_OFFSET || (sp > (unsigned long)high_memory && high_memory != 0))
+	if (sp < PAGE_OFFSET ||
+	    (sp > (unsigned long)high_memory && high_memory != NULL))
 		return -EFAULT;
 
 	return 0;
@@ -327,17 +326,6 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	} else {
 		get_user(instr, (u32 __user *)pc);
 	}
-
-#ifdef CONFIG_KPROBES
-	/*
-	 * It is possible to have recursive kprobes, so we can't call
-	 * the kprobe trap handler with the undef_lock held.
-	 */
-	if (instr == KPROBE_BREAKPOINT_INSTRUCTION && !user_mode(regs)) {
-		kprobe_trap_handler(regs, instr);
-		return;
-	}
-#endif
 
 	if (call_undef_hook(regs, instr) == 0)
 		return;

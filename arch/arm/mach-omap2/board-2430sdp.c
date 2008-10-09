@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -33,8 +34,6 @@
 #include <mach/board.h>
 #include <mach/common.h>
 #include <mach/gpmc.h>
-
-#include <asm/io.h>
 
 
 #define	SDP2430_FLASH_CS	0

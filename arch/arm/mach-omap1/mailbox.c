@@ -13,9 +13,9 @@
 #include <linux/resource.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <mach/mailbox.h>
 #include <mach/irqs.h>
-#include <asm/io.h>
 
 #define MAILBOX_ARM2DSP1		0x00
 #define MAILBOX_ARM2DSP1b		0x04

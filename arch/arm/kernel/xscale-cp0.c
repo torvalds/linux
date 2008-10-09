@@ -14,8 +14,8 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <asm/thread_notify.h>
-#include <asm/io.h>
 
 static inline void dsp_save_state(u32 *state)
 {

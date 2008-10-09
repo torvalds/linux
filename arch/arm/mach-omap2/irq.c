@@ -13,10 +13,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #define INTC_REVISION	0x0000
 #define INTC_SYSCONFIG	0x0010

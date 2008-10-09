@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
-
+#include <linux/io.h>
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
 
@@ -32,7 +32,6 @@
 #include <mach/anubis-cpld.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

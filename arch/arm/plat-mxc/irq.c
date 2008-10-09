@@ -18,7 +18,7 @@
  */
 
 #include <linux/irq.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <mach/common.h>
 
 #define AVIC_BASE		IO_ADDRESS(AVIC_BASE_ADDR)

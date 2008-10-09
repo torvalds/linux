@@ -13,8 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <asm/gpio.h>
-#include <asm/io.h>
 #include <mach/orion5x.h>
 #include <plat/irq.h>
 #include "common.h"

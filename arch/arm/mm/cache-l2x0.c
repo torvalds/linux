@@ -18,9 +18,9 @@
  */
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #define CACHE_LINE_SIZE		32

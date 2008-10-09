@@ -27,8 +27,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <mach/hardware.h>

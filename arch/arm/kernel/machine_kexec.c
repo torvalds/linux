@@ -6,10 +6,10 @@
 #include <linux/kexec.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
+#include <linux/io.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
-#include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
 

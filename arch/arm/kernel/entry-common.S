@@ -77,6 +77,7 @@ no_work_pending:
 	mov	r0, r0
 	add	sp, sp, #S_FRAME_SIZE - S_PC
 	movs	pc, lr				@ return & move spsr_svc into cpsr
+ENDPROC(ret_to_user)
 
 /*
  * This is how we return from a fork.
@@ -92,7 +93,7 @@ ENTRY(ret_from_fork)
 	mov	r0, #1				@ trace exit [IP = 1]
 	bl	syscall_trace
 	b	ret_slow_syscall
-	
+ENDPROC(ret_from_fork)
 
 	.equ NR_syscalls,0
 #define CALL(x) .equ NR_syscalls,NR_syscalls+1
@@ -269,6 +270,7 @@ ENTRY(vector_swi)
 	eor	r0, scno, #__NR_SYSCALL_BASE	@ put OS number back
 	bcs	arm_syscall	
 	b	sys_ni_syscall			@ not private func
+ENDPROC(vector_swi)
 
 	/*
 	 * This is the really slow path.  We're going to be doing
@@ -326,7 +328,6 @@ ENTRY(sys_call_table)
  */
 @ r0 = syscall number
 @ r8 = syscall table
-		.type	sys_syscall, #function
 sys_syscall:
 		bic	scno, r0, #__NR_OABI_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
@@ -338,53 +339,65 @@ sys_syscall:
 		movlo	r3, r4
 		ldrlo	pc, [tbl, scno, lsl #2]
 		b	sys_ni_syscall
+ENDPROC(sys_syscall)
 
 sys_fork_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_fork
+ENDPROC(sys_fork_wrapper)
 
 sys_vfork_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_vfork
+ENDPROC(sys_vfork_wrapper)
 
 sys_execve_wrapper:
 		add	r3, sp, #S_OFF
 		b	sys_execve
+ENDPROC(sys_execve_wrapper)
 
 sys_clone_wrapper:
 		add	ip, sp, #S_OFF
 		str	ip, [sp, #4]
 		b	sys_clone
+ENDPROC(sys_clone_wrapper)
 
 sys_sigsuspend_wrapper:
 		add	r3, sp, #S_OFF
 		b	sys_sigsuspend
+ENDPROC(sys_sigsuspend_wrapper)
 
 sys_rt_sigsuspend_wrapper:
 		add	r2, sp, #S_OFF
 		b	sys_rt_sigsuspend
+ENDPROC(sys_rt_sigsuspend_wrapper)
 
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_sigreturn
+ENDPROC(sys_sigreturn_wrapper)
 
 sys_rt_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_rt_sigreturn
+ENDPROC(sys_rt_sigreturn_wrapper)
 
 sys_sigaltstack_wrapper:
 		ldr	r2, [sp, #S_OFF + S_SP]
 		b	do_sigaltstack
+ENDPROC(sys_sigaltstack_wrapper)
 
 sys_statfs64_wrapper:
 		teq	r1, #88
 		moveq	r1, #84
 		b	sys_statfs64
+ENDPROC(sys_statfs64_wrapper)
 
 sys_fstatfs64_wrapper:
 		teq	r1, #88
 		moveq	r1, #84
 		b	sys_fstatfs64
+ENDPROC(sys_fstatfs64_wrapper)
 
 /*
  * Note: off_4k (r5) is always units of 4K.  If we can't do the requested
@@ -402,11 +415,14 @@ sys_mmap2:
 		str	r5, [sp, #4]
 		b	do_mmap2
 #endif
+ENDPROC(sys_mmap2)
 
 ENTRY(pabort_ifar)
 		mrc	p15, 0, r0, cr6, cr0, 2
 ENTRY(pabort_noifar)
 		mov	pc, lr
+ENDPROC(pabort_ifar)
+ENDPROC(pabort_noifar)
 
 #ifdef CONFIG_OABI_COMPAT
 
@@ -417,26 +433,31 @@ ENTRY(pabort_noifar)
 sys_oabi_pread64:
 		stmia	sp, {r3, r4}
 		b	sys_pread64
+ENDPROC(sys_oabi_pread64)
 
 sys_oabi_pwrite64:
 		stmia	sp, {r3, r4}
 		b	sys_pwrite64
+ENDPROC(sys_oabi_pwrite64)
 
 sys_oabi_truncate64:
 		mov	r3, r2
 		mov	r2, r1
 		b	sys_truncate64
+ENDPROC(sys_oabi_truncate64)
 
 sys_oabi_ftruncate64:
 		mov	r3, r2
 		mov	r2, r1
 		b	sys_ftruncate64
+ENDPROC(sys_oabi_ftruncate64)
 
 sys_oabi_readahead:
 		str	r3, [sp]
 		mov	r3, r2
 		mov	r2, r1
 		b	sys_readahead
+ENDPROC(sys_oabi_readahead)
 
 /*
  * Let's declare a second syscall table for old ABI binaries

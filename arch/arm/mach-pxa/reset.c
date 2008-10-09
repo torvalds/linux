@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/proc-fns.h>
 
 #include <mach/pxa-regs.h>
