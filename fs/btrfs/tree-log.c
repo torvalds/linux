@@ -460,8 +460,7 @@ insert:
 						ins.objectid, ins.offset,
 						path->nodes[0]->start,
 						root->root_key.objectid,
-						trans->transid,
-						key->objectid, key->offset);
+						trans->transid, key->objectid);
 			} else {
 				/*
 				 * insert the extent pointer in the extent
@@ -471,7 +470,7 @@ insert:
 						path->nodes[0]->start,
 						root->root_key.objectid,
 						trans->transid, key->objectid,
-						key->offset, &ins);
+						&ins);
 				BUG_ON(ret);
 			}
 		}
@@ -2534,8 +2533,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 						   dst_path->nodes[0]->start,
 						   BTRFS_TREE_LOG_OBJECTID,
 						   trans->transid,
-						   ins_keys[i].objectid,
-						   ins_keys[i].offset);
+						   ins_keys[i].objectid);
 					BUG_ON(ret);
 				}
 			}

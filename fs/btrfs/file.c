@@ -788,8 +788,7 @@ next_slot:
 						le64_to_cpu(old.disk_num_bytes),
 						leaf->start,
 						root->root_key.objectid,
-						trans->transid,
-						ins.objectid, ins.offset);
+						trans->transid, ins.objectid);
 				BUG_ON(ret);
 			}
 			btrfs_release_path(root, path);
@@ -808,8 +807,7 @@ next_slot:
 						disk_bytenr,
 						le64_to_cpu(old.disk_num_bytes),
 						leaf_start, root_owner,
-						root_gen, key.objectid,
-						key.offset, 0);
+						root_gen, key.objectid, 0);
 				BUG_ON(ret);
 				*hint_byte = disk_bytenr;
 			}

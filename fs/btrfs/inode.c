@@ -647,8 +647,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
 	ret = btrfs_alloc_reserved_extent(trans, root, leaf->start,
 					  root->root_key.objectid,
-					  trans->transid, inode->i_ino,
-					  ordered_extent->file_offset, &ins);
+					  trans->transid, inode->i_ino, &ins);
 	BUG_ON(ret);
 	btrfs_release_path(root, path);
 
@@ -1734,8 +1733,7 @@ delete:
 			ret = btrfs_free_extent(trans, root, extent_start,
 						extent_num_bytes,
 						leaf->start, root_owner,
-						root_gen, inode->i_ino,
-						found_key.offset, 0);
+						root_gen, inode->i_ino, 0);
 			BUG_ON(ret);
 		}
 next:

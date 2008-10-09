@@ -254,8 +254,7 @@ int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_alloc_reserved_extent(trans, root, parent_start,
 						  root->root_key.objectid,
-						  trans->transid, level, 0,
-						  &ins);
+						  trans->transid, level, &ins);
 		BUG_ON(ret);
 		cow = btrfs_init_new_buffer(trans, root, prealloc_dest,
 					    buf->len);
@@ -333,7 +332,7 @@ int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 					  buf->len, buf->start,
 					  root->root_key.objectid,
 					  btrfs_header_generation(buf),
-					  0, 0, 1);
+					  level, 1);
 		}
 		free_extent_buffer(buf);
 		add_root_to_dirty_list(root);
@@ -347,7 +346,7 @@ int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		WARN_ON(btrfs_header_generation(parent) != trans->transid);
 		btrfs_free_extent(trans, root, buf->start, buf->len,
 				  parent_start, btrfs_header_owner(parent),
-				  btrfs_header_generation(parent), 0, 0, 1);
+				  btrfs_header_generation(parent), level, 1);
 	}
 	if (unlock_orig)
 		btrfs_tree_unlock(buf);
@@ -927,7 +926,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		ret = btrfs_update_extent_ref(trans, root, child->start,
 					      mid->start, child->start,
 					      root->root_key.objectid,
-					      trans->transid, level - 1, 0);
+					      trans->transid, level - 1);
 		BUG_ON(ret);
 
 		add_root_to_dirty_list(root);
@@ -940,7 +939,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		free_extent_buffer(mid);
 		ret = btrfs_free_extent(trans, root, mid->start, mid->len,
 					mid->start, root->root_key.objectid,
-					btrfs_header_generation(mid), 0, 0, 1);
+					btrfs_header_generation(mid),
+					level, 1);
 		/* once for the root ptr */
 		free_extent_buffer(mid);
 		return ret;
@@ -1006,7 +1006,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			wret = btrfs_free_extent(trans, root, bytenr,
 						 blocksize, parent->start,
 						 btrfs_header_owner(parent),
-						 generation, 0, 0, 1);
+						 generation, level, 1);
 			if (wret)
 				ret = wret;
 		} else {
@@ -1055,7 +1055,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		wret = btrfs_free_extent(trans, root, bytenr, blocksize,
 					 parent->start,
 					 btrfs_header_owner(parent),
-					 root_gen, 0, 0, 1);
+					 root_gen, level, 1);
 		if (wret)
 			ret = wret;
 	} else {
@@ -1691,13 +1691,13 @@ next_level:
 					blocksize, parent->start,
 					btrfs_header_owner(parent),
 					btrfs_header_generation(parent),
-					level - 1, 0);
+					level - 1);
 		BUG_ON(ret);
 		ret = btrfs_free_extent(trans, root, bytenr,
 					blocksize, parent->start,
 					btrfs_header_owner(parent),
 					btrfs_header_generation(parent),
-					level - 1, 0, 1);
+					level - 1, 1);
 		BUG_ON(ret);
 
 		if (generation == trans->transid) {
@@ -1973,7 +1973,7 @@ static int noinline insert_new_root(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_extent_ref(trans, root, lower->start,
 				      lower->start, c->start,
 				      root->root_key.objectid,
-				      trans->transid, level - 1, 0);
+				      trans->transid, level - 1);
 	BUG_ON(ret);
 
 	/* the super has an extra ref to root->node */
@@ -3213,7 +3213,7 @@ noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
 				btrfs_level_size(root, 0),
 				path->nodes[1]->start,
 				btrfs_header_owner(path->nodes[1]),
-				root_gen, 0, 0, 1);
+				root_gen, 0, 1);
 	return ret;
 }
 /*

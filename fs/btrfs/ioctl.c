@@ -658,7 +658,7 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 						     ds, dl, leaf->start,
 						     root->root_key.objectid,
 						     trans->transid,
-						     inode->i_ino, key.offset);
+						     inode->i_ino);
 					BUG_ON(ret);
 				}
 			}
