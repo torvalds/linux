@@ -147,6 +147,7 @@ static void __init reserve_crashkernel(void)
 {
 	unsigned long long free_mem;
 	unsigned long long crash_size, crash_base;
+	void *vp;
 	int ret;
 
 	free_mem = ((unsigned long long)max_low_pfn - min_low_pfn) << PAGE_SHIFT;
@@ -155,12 +156,14 @@ static void __init reserve_crashkernel(void)
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size) {
 		if (crash_base <= 0) {
-			printk(KERN_INFO "crashkernel reservation failed - "
-					"you have to specify a base address\n");
-			return;
-		}
-
-		if (reserve_bootmem(crash_base, crash_size,
+			vp = alloc_bootmem_nopanic(crash_size); 
+			if (!vp) {
+				printk(KERN_INFO "crashkernel allocation "
+				       "failed\n");
+				return;
+			}
+			crash_base = __pa(vp);
+		} else if (reserve_bootmem(crash_base, crash_size,
 					BOOTMEM_EXCLUSIVE) < 0) {
 			printk(KERN_INFO "crashkernel reservation failed - "
 					"memory is in use\n");
