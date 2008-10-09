@@ -59,12 +59,7 @@ static struct omap_mcbsp_data mcbsp_data[NUM_LINKS];
  * Stream DMA parameters. DMA request line and port address are set runtime
  * since they are different between OMAP1 and later OMAPs
  */
-static struct omap_pcm_dma_data omap_mcbsp_dai_dma_params[NUM_LINKS][2] = {
-{
-	{ .name		= "I2S PCM Stereo out", },
-	{ .name		= "I2S PCM Stereo in", },
-},
-};
+static struct omap_pcm_dma_data omap_mcbsp_dai_dma_params[NUM_LINKS][2];
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
 static const int omap1_dma_reqs[][2] = {
@@ -222,6 +217,8 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		return -ENODEV;
 	}
+	omap_mcbsp_dai_dma_params[id][substream->stream].name =
+		substream->stream ? "Audio Capture" : "Audio Playback";
 	omap_mcbsp_dai_dma_params[id][substream->stream].dma_req = dma;
 	omap_mcbsp_dai_dma_params[id][substream->stream].port_addr = port;
 	cpu_dai->dma_data = &omap_mcbsp_dai_dma_params[id][substream->stream];
