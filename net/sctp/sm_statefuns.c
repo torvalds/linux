@@ -4188,11 +4188,10 @@ static sctp_disposition_t sctp_sf_abort_violation(
 		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
 	}
 
-discard:
-	sctp_sf_pdiscard(ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
-
 	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 
+discard:
+	sctp_sf_pdiscard(ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
 	return SCTP_DISPOSITION_ABORT;
 
 nomem_pkt:
@@ -4265,12 +4264,10 @@ static sctp_disposition_t sctp_sf_violation_paramlen(
 	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
 			SCTP_PERR(SCTP_ERROR_PROTO_VIOLATION));
 	SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
+	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 
 discard:
 	sctp_sf_pdiscard(ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
-
-	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
-
 	return SCTP_DISPOSITION_ABORT;
 nomem:
 	return SCTP_DISPOSITION_NOMEM;
