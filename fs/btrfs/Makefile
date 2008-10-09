@@ -1,7 +1,7 @@
 ifneq ($(KERNELRELEASE),)
 # kbuild part of makefile
 
-obj-m  := btrfs.o
+obj-$(CONFIG_BTRFS_FS) := btrfs.o
 btrfs-y := super.o ctree.o extent-tree.o print-tree.o root-tree.o dir-item.o \
 	   file-item.o inode-item.o inode-map.o disk-io.o \
 	   transaction.o inode.o file.o tree-defrag.o \
@@ -14,7 +14,7 @@ else
 
 KERNELDIR := /lib/modules/`uname -r`/build
 all:
-	$(MAKE) -C $(KERNELDIR) M=`pwd` modules
+	$(MAKE) -C $(KERNELDIR) M=`pwd` CONFIG_BTRFS_FS=m modules
 
 modules_install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
