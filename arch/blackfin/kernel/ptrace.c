@@ -280,7 +280,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKEDATA:
-		printk(KERN_NOTICE "ptrace: PTRACE_PEEKDATA\n");
+		pr_debug("ptrace: PTRACE_PEEKDATA\n");
 		/* fall through */
 	case PTRACE_POKETEXT:	/* write the word at location addr. */
 		{
@@ -351,7 +351,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		{		/* restart after signal. */
 			long tmp;
 
-			pr_debug("ptrace_cont\n");
+			pr_debug("ptrace: syscall/cont\n");
 
 			ret = -EIO;
 			if (!valid_signal(data))
@@ -365,7 +365,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			/* make sure the single step bit is not set. */
 			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
 			put_reg(child, PT_SYSCFG, tmp);
-			pr_debug("before wake_up_process\n");
+			pr_debug("ptrace: before wake_up_process\n");
 			wake_up_process(child);
 			ret = 0;
 			break;
@@ -394,7 +394,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		{		/* set the trap flag. */
 			long tmp;
 
-			pr_debug("single step\n");
+			pr_debug("ptrace: single step\n");
 			ret = -EIO;
 			if (!valid_signal(data))
 				break;
@@ -411,21 +411,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 
 	case PTRACE_GETREGS:
-		{
-
-			/* Get all gp regs from the child. */
-			ret = ptrace_getregs(child, datap);
-			break;
-		}
+		/* Get all gp regs from the child. */
+		ret = ptrace_getregs(child, datap);
+		break;
 
 	case PTRACE_SETREGS:
-		{
-			printk(KERN_NOTICE
-			       "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
-			/* Set all gp regs in the child. */
-			ret = 0;
-			break;
-		}
+		printk(KERN_WARNING "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
+		/* Set all gp regs in the child. */
+		ret = 0;
+		break;
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
@@ -436,7 +431,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 asmlinkage void syscall_trace(void)
 {
-
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 
