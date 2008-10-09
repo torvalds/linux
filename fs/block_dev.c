@@ -879,9 +879,7 @@ static void flush_disk(struct block_device *bdev)
 }
 
 /**
- * check_disk_size_change - checks for disk size change and adjusts
- *                          bdev size.
- *
+ * check_disk_size_change - checks for disk size change and adjusts bdev size.
  * @disk: struct gendisk to check
  * @bdev: struct bdev to adjust.
  *
@@ -908,9 +906,7 @@ void check_disk_size_change(struct gendisk *disk, struct block_device *bdev)
 EXPORT_SYMBOL(check_disk_size_change);
 
 /**
- * revalidate_disk - wrapper for lower-level driver's revalidate_disk
- *                   call-back
- *
+ * revalidate_disk - wrapper for lower-level driver's revalidate_disk call-back
  * @disk: struct gendisk to be revalidated
  *
  * This routine is a wrapper for lower-level driver's revalidate_disk
@@ -1266,10 +1262,9 @@ EXPORT_SYMBOL(ioctl_by_bdev);
 
 /**
  * lookup_bdev  - lookup a struct block_device by name
+ * @pathname:	special file representing the block device
  *
- * @path:	special file representing the block device
- *
- * Get a reference to the blockdevice at @path in the current
+ * Get a reference to the blockdevice at @pathname in the current
  * namespace if possible and return it.  Return ERR_PTR(error)
  * otherwise.
  */
