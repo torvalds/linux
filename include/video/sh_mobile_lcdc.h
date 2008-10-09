@@ -64,7 +64,6 @@ struct sh_mobile_lcdc_chan_cfg {
 };
 
 struct sh_mobile_lcdc_info {
-	unsigned long lddckr;
 	int clock_source;
 	struct sh_mobile_lcdc_chan_cfg ch[2];
 };
