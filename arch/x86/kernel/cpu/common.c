@@ -406,7 +406,7 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 
 	if (!printed) {
 		printed++;
-		printk(KERN_ERR "CPU: Vendor unknown, using generic init.\n");
+		printk(KERN_ERR "CPU: vendor_id '%s' unknown, using generic init.\n", v);
 		printk(KERN_ERR "CPU: Your system may be unstable.\n");
 	}
 
