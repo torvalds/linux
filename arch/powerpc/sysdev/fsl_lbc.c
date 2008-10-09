@@ -11,14 +11,19 @@
  * (at your option) any later version.
  */
 
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/compiler.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+#include <linux/io.h>
 #include <linux/of.h>
+#include <asm/prom.h>
 #include <asm/fsl_lbc.h>
 
-spinlock_t fsl_lbc_lock = __SPIN_LOCK_UNLOCKED(fsl_lbc_lock);
-
-struct fsl_lbc_regs __iomem *fsl_lbc_regs;
-EXPORT_SYMBOL(fsl_lbc_regs);
+static spinlock_t fsl_lbc_lock = __SPIN_LOCK_UNLOCKED(fsl_lbc_lock);
+static struct fsl_lbc_regs __iomem *fsl_lbc_regs;
 
 static char __initdata *compat_lbc[] = {
 	"fsl,pq2-localbus",
@@ -127,3 +132,43 @@ int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm)
 	return 0;
 }
 EXPORT_SYMBOL(fsl_upm_find);
+
+/**
+ * fsl_upm_run_pattern - actually run an UPM pattern
+ * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
+ * @io_base:	remapped pointer to where memory access should happen
+ * @mar:	MAR register content during pattern execution
+ *
+ * This function triggers dummy write to the memory specified by the io_base,
+ * thus UPM pattern actually executed. Note that mar usage depends on the
+ * pre-programmed AMX bits in the UPM RAM.
+ */
+int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base, u32 mar)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fsl_lbc_lock, flags);
+
+	out_be32(&fsl_lbc_regs->mar, mar << (32 - upm->width));
+
+	switch (upm->width) {
+	case 8:
+		out_8(io_base, 0x0);
+		break;
+	case 16:
+		out_be16(io_base, 0x0);
+		break;
+	case 32:
+		out_be32(io_base, 0x0);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	spin_unlock_irqrestore(&fsl_lbc_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(fsl_upm_run_pattern);
