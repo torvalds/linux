@@ -565,6 +565,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	return 0;
 out2:
 	rdma_destroy_id(ia->ri_id);
+	ia->ri_id = NULL;
 out1:
 	return rc;
 }
@@ -585,15 +586,17 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
 			__func__, rc);
 	}
-	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id) && ia->ri_id->qp)
-		rdma_destroy_qp(ia->ri_id);
+	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
+		if (ia->ri_id->qp)
+			rdma_destroy_qp(ia->ri_id);
+		rdma_destroy_id(ia->ri_id);
+		ia->ri_id = NULL;
+	}
 	if (ia->ri_pd != NULL && !IS_ERR(ia->ri_pd)) {
 		rc = ib_dealloc_pd(ia->ri_pd);
 		dprintk("RPC:       %s: ib_dealloc_pd returned %i\n",
 			__func__, rc);
 	}
-	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id))
-		rdma_destroy_id(ia->ri_id);
 }
 
 /*
@@ -751,19 +754,14 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 		if (rc)
 			dprintk("RPC:       %s: rpcrdma_ep_disconnect"
 				" returned %i\n", __func__, rc);
+		rdma_destroy_qp(ia->ri_id);
+		ia->ri_id->qp = NULL;
 	}
-
-	ep->rep_func = NULL;
 
 	/* padding - could be done in rpcrdma_buffer_destroy... */
 	if (ep->rep_pad_mr) {
 		rpcrdma_deregister_internal(ia, ep->rep_pad_mr, &ep->rep_pad);
 		ep->rep_pad_mr = NULL;
-	}
-
-	if (ia->ri_id->qp) {
-		rdma_destroy_qp(ia->ri_id);
-		ia->ri_id->qp = NULL;
 	}
 
 	rpcrdma_clean_cq(ep->rep_cq);
