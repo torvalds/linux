@@ -933,10 +933,10 @@ static int nfs_inode_attrs_need_update(const struct inode *inode, const struct n
 {
 	const struct nfs_inode *nfsi = NFS_I(inode);
 
-	return nfs_ctime_need_update(inode, fattr) ||
-			nfs_size_need_update(inode, fattr) ||
-			time_after(fattr->time_start, nfsi->last_updated) ||
-			time_after(nfsi->last_updated, jiffies);
+	return time_after(fattr->time_start, nfsi->last_updated) ||
+		nfs_ctime_need_update(inode, fattr) ||
+		nfs_size_need_update(inode, fattr) ||
+		time_after(nfsi->last_updated, jiffies);
 }
 
 static int nfs_refresh_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
@@ -1167,11 +1167,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 				nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
 			nfsi->attrtimeo_timestamp = now;
 		}
-		/*
-		 * Avoid jiffy wraparound issues with nfsi->last_updated
-		 */
-		if (!time_in_range(nfsi->last_updated, nfsi->read_cache_jiffies, now))
-			nfsi->last_updated = nfsi->read_cache_jiffies;
 	}
 	invalid &= ~NFS_INO_INVALID_ATTR;
 	/* Don't invalidate the data if we were to blame */
