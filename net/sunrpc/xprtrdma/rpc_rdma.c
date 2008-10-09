@@ -699,7 +699,7 @@ rpcrdma_conn_func(struct rpcrdma_ep *ep)
 			xprt_wake_pending_tasks(xprt, 0);
 	} else {
 		if (xprt_test_and_clear_connected(xprt))
-			xprt_wake_pending_tasks(xprt, ep->rep_connected);
+			xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	}
 	spin_unlock_bh(&xprt->transport_lock);
 }
