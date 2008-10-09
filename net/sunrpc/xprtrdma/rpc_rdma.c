@@ -681,6 +681,8 @@ rpcrdma_conn_func(struct rpcrdma_ep *ep)
 	struct rpc_xprt *xprt = ep->rep_xprt;
 
 	spin_lock_bh(&xprt->transport_lock);
+	if (++xprt->connect_cookie == 0)	/* maintain a reserved value */
+		++xprt->connect_cookie;
 	if (ep->rep_connected > 0) {
 		if (!xprt_test_and_set_connected(xprt))
 			xprt_wake_pending_tasks(xprt, 0);

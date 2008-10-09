@@ -587,6 +587,7 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 	}
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 out:
+	req->rl_connect_cookie = 0;	/* our reserved value */
 	return req->rl_xdr_buf;
 
 outfail:
@@ -690,13 +691,20 @@ xprt_rdma_send_request(struct rpc_task *task)
 		req->rl_reply->rr_xprt = xprt;
 	}
 
-	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req)) {
-		xprt_disconnect_done(xprt);
-		return -ENOTCONN;	/* implies disconnect */
-	}
+	/* Must suppress retransmit to maintain credits */
+	if (req->rl_connect_cookie == xprt->connect_cookie)
+		goto drop_connection;
+	req->rl_connect_cookie = xprt->connect_cookie;
+
+	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
+		goto drop_connection;
 
 	rqst->rq_bytes_sent = 0;
 	return 0;
+
+drop_connection:
+	xprt_disconnect_done(xprt);
+	return -ENOTCONN;	/* implies disconnect */
 }
 
 static void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
