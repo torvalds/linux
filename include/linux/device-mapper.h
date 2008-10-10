@@ -13,7 +13,6 @@
 
 struct dm_target;
 struct dm_table;
-struct dm_dev;
 struct mapped_device;
 struct bio_vec;
 
@@ -83,6 +82,12 @@ void dm_error(const char *message);
  * Combine device limits.
  */
 void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev);
+
+struct dm_dev {
+	struct block_device *bdev;
+	int mode;
+	char name[16];
+};
 
 /*
  * Constructors should call these functions to ensure destination devices

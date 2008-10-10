@@ -25,13 +25,10 @@
 /*
  * List of devices that a metadevice uses and should open/close.
  */
-struct dm_dev {
+struct dm_dev_internal {
 	struct list_head list;
-
 	atomic_t count;
-	int mode;
-	struct block_device *bdev;
-	char name[16];
+	struct dm_dev dm_dev;
 };
 
 struct dm_table;
