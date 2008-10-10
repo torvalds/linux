@@ -157,7 +157,7 @@ int smk_access(char *subject_label, char *object_label, int request)
  *
  * This function checks the current subject label/object label pair
  * in the access rule list and returns 0 if the access is permitted,
- * non zero otherwise. It allows that current my have the capability
+ * non zero otherwise. It allows that current may have the capability
  * to override the rules.
  */
 int smk_curacc(char *obj_label, u32 mode)
@@ -167,6 +167,14 @@ int smk_curacc(char *obj_label, u32 mode)
 	rc = smk_access(current->security, obj_label, mode);
 	if (rc == 0)
 		return 0;
+
+	/*
+	 * Return if a specific label has been designated as the
+	 * only one that gets privilege and current does not
+	 * have that label.
+	 */
+	if (smack_onlycap != NULL && smack_onlycap != current->security)
+		return rc;
 
 	if (capable(CAP_MAC_OVERRIDE))
 		return 0;

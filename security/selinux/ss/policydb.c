@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/audit.h>
 #include "security.h"
 
 #include "policydb.h"
@@ -116,7 +117,12 @@ static struct policydb_compat_info policydb_compat[] = {
 		.version	= POLICYDB_VERSION_PERMISSIVE,
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
-	}
+	},
+	{
+		.version	= POLICYDB_VERSION_BOUNDARY,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	},
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -254,7 +260,9 @@ static int role_index(void *key, void *datum, void *datap)
 
 	role = datum;
 	p = datap;
-	if (!role->value || role->value > p->p_roles.nprim)
+	if (!role->value
+	    || role->value > p->p_roles.nprim
+	    || role->bounds > p->p_roles.nprim)
 		return -EINVAL;
 	p->p_role_val_to_name[role->value - 1] = key;
 	p->role_val_to_struct[role->value - 1] = role;
@@ -270,9 +278,12 @@ static int type_index(void *key, void *datum, void *datap)
 	p = datap;
 
 	if (typdatum->primary) {
-		if (!typdatum->value || typdatum->value > p->p_types.nprim)
+		if (!typdatum->value
+		    || typdatum->value > p->p_types.nprim
+		    || typdatum->bounds > p->p_types.nprim)
 			return -EINVAL;
 		p->p_type_val_to_name[typdatum->value - 1] = key;
+		p->type_val_to_struct[typdatum->value - 1] = typdatum;
 	}
 
 	return 0;
@@ -285,7 +296,9 @@ static int user_index(void *key, void *datum, void *datap)
 
 	usrdatum = datum;
 	p = datap;
-	if (!usrdatum->value || usrdatum->value > p->p_users.nprim)
+	if (!usrdatum->value
+	    || usrdatum->value > p->p_users.nprim
+	    || usrdatum->bounds > p->p_users.nprim)
 		return -EINVAL;
 	p->p_user_val_to_name[usrdatum->value - 1] = key;
 	p->user_val_to_struct[usrdatum->value - 1] = usrdatum;
@@ -434,6 +447,14 @@ static int policydb_index_others(struct policydb *p)
 		kmalloc(p->p_users.nprim * sizeof(*(p->user_val_to_struct)),
 			GFP_KERNEL);
 	if (!p->user_val_to_struct) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	p->type_val_to_struct =
+		kmalloc(p->p_types.nprim * sizeof(*(p->type_val_to_struct)),
+			GFP_KERNEL);
+	if (!p->type_val_to_struct) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -625,6 +646,7 @@ void policydb_destroy(struct policydb *p)
 	kfree(p->class_val_to_struct);
 	kfree(p->role_val_to_struct);
 	kfree(p->user_val_to_struct);
+	kfree(p->type_val_to_struct);
 
 	avtab_destroy(&p->te_avtab);
 
@@ -932,7 +954,7 @@ static int perm_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = hashtab_insert(h, key, perdatum);
 	if (rc)
@@ -979,7 +1001,7 @@ static int common_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	for (i = 0; i < nel; i++) {
 		rc = perm_read(p, comdatum->permissions.table, fp);
@@ -1117,7 +1139,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	if (len2) {
 		cladatum->comkey = kmalloc(len2 + 1, GFP_KERNEL);
@@ -1128,7 +1150,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 		rc = next_entry(cladatum->comkey, fp, len2);
 		if (rc < 0)
 			goto bad;
-		cladatum->comkey[len2] = 0;
+		cladatum->comkey[len2] = '\0';
 
 		cladatum->comdatum = hashtab_search(p->p_commons.table,
 						    cladatum->comkey);
@@ -1176,8 +1198,8 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 {
 	char *key = NULL;
 	struct role_datum *role;
-	int rc;
-	__le32 buf[2];
+	int rc, to_read = 2;
+	__le32 buf[3];
 	u32 len;
 
 	role = kzalloc(sizeof(*role), GFP_KERNEL);
@@ -1186,12 +1208,17 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 		goto out;
 	}
 
-	rc = next_entry(buf, fp, sizeof buf);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		to_read = 3;
+
+	rc = next_entry(buf, fp, sizeof(buf[0]) * to_read);
 	if (rc < 0)
 		goto bad;
 
 	len = le32_to_cpu(buf[0]);
 	role->value = le32_to_cpu(buf[1]);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		role->bounds = le32_to_cpu(buf[2]);
 
 	key = kmalloc(len + 1, GFP_KERNEL);
 	if (!key) {
@@ -1201,7 +1228,7 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = ebitmap_read(&role->dominates, fp);
 	if (rc)
@@ -1236,8 +1263,8 @@ static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 {
 	char *key = NULL;
 	struct type_datum *typdatum;
-	int rc;
-	__le32 buf[3];
+	int rc, to_read = 3;
+	__le32 buf[4];
 	u32 len;
 
 	typdatum = kzalloc(sizeof(*typdatum), GFP_KERNEL);
@@ -1246,13 +1273,27 @@ static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 		return rc;
 	}
 
-	rc = next_entry(buf, fp, sizeof buf);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		to_read = 4;
+
+	rc = next_entry(buf, fp, sizeof(buf[0]) * to_read);
 	if (rc < 0)
 		goto bad;
 
 	len = le32_to_cpu(buf[0]);
 	typdatum->value = le32_to_cpu(buf[1]);
-	typdatum->primary = le32_to_cpu(buf[2]);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY) {
+		u32 prop = le32_to_cpu(buf[2]);
+
+		if (prop & TYPEDATUM_PROPERTY_PRIMARY)
+			typdatum->primary = 1;
+		if (prop & TYPEDATUM_PROPERTY_ATTRIBUTE)
+			typdatum->attribute = 1;
+
+		typdatum->bounds = le32_to_cpu(buf[3]);
+	} else {
+		typdatum->primary = le32_to_cpu(buf[2]);
+	}
 
 	key = kmalloc(len + 1, GFP_KERNEL);
 	if (!key) {
@@ -1262,7 +1303,7 @@ static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = hashtab_insert(h, key, typdatum);
 	if (rc)
@@ -1309,8 +1350,8 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 {
 	char *key = NULL;
 	struct user_datum *usrdatum;
-	int rc;
-	__le32 buf[2];
+	int rc, to_read = 2;
+	__le32 buf[3];
 	u32 len;
 
 	usrdatum = kzalloc(sizeof(*usrdatum), GFP_KERNEL);
@@ -1319,12 +1360,17 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 		goto out;
 	}
 
-	rc = next_entry(buf, fp, sizeof buf);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		to_read = 3;
+
+	rc = next_entry(buf, fp, sizeof(buf[0]) * to_read);
 	if (rc < 0)
 		goto bad;
 
 	len = le32_to_cpu(buf[0]);
 	usrdatum->value = le32_to_cpu(buf[1]);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		usrdatum->bounds = le32_to_cpu(buf[2]);
 
 	key = kmalloc(len + 1, GFP_KERNEL);
 	if (!key) {
@@ -1334,7 +1380,7 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = ebitmap_read(&usrdatum->roles, fp);
 	if (rc)
@@ -1388,7 +1434,7 @@ static int sens_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	levdatum->level = kmalloc(sizeof(struct mls_level), GFP_ATOMIC);
 	if (!levdatum->level) {
@@ -1440,7 +1486,7 @@ static int cat_read(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto bad;
-	key[len] = 0;
+	key[len] = '\0';
 
 	rc = hashtab_insert(h, key, catdatum);
 	if (rc)
@@ -1464,6 +1510,133 @@ static int (*read_f[SYM_NUM]) (struct policydb *p, struct hashtab *h, void *fp) 
 	sens_read,
 	cat_read,
 };
+
+static int user_bounds_sanity_check(void *key, void *datum, void *datap)
+{
+	struct user_datum *upper, *user;
+	struct policydb *p = datap;
+	int depth = 0;
+
+	upper = user = datum;
+	while (upper->bounds) {
+		struct ebitmap_node *node;
+		unsigned long bit;
+
+		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
+			printk(KERN_ERR "SELinux: user %s: "
+			       "too deep or looped boundary",
+			       (char *) key);
+			return -EINVAL;
+		}
+
+		upper = p->user_val_to_struct[upper->bounds - 1];
+		ebitmap_for_each_positive_bit(&user->roles, node, bit) {
+			if (ebitmap_get_bit(&upper->roles, bit))
+				continue;
+
+			printk(KERN_ERR
+			       "SELinux: boundary violated policy: "
+			       "user=%s role=%s bounds=%s\n",
+			       p->p_user_val_to_name[user->value - 1],
+			       p->p_role_val_to_name[bit],
+			       p->p_user_val_to_name[upper->value - 1]);
+
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int role_bounds_sanity_check(void *key, void *datum, void *datap)
+{
+	struct role_datum *upper, *role;
+	struct policydb *p = datap;
+	int depth = 0;
+
+	upper = role = datum;
+	while (upper->bounds) {
+		struct ebitmap_node *node;
+		unsigned long bit;
+
+		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
+			printk(KERN_ERR "SELinux: role %s: "
+			       "too deep or looped bounds\n",
+			       (char *) key);
+			return -EINVAL;
+		}
+
+		upper = p->role_val_to_struct[upper->bounds - 1];
+		ebitmap_for_each_positive_bit(&role->types, node, bit) {
+			if (ebitmap_get_bit(&upper->types, bit))
+				continue;
+
+			printk(KERN_ERR
+			       "SELinux: boundary violated policy: "
+			       "role=%s type=%s bounds=%s\n",
+			       p->p_role_val_to_name[role->value - 1],
+			       p->p_type_val_to_name[bit],
+			       p->p_role_val_to_name[upper->value - 1]);
+
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int type_bounds_sanity_check(void *key, void *datum, void *datap)
+{
+	struct type_datum *upper, *type;
+	struct policydb *p = datap;
+	int depth = 0;
+
+	upper = type = datum;
+	while (upper->bounds) {
+		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
+			printk(KERN_ERR "SELinux: type %s: "
+			       "too deep or looped boundary\n",
+			       (char *) key);
+			return -EINVAL;
+		}
+
+		upper = p->type_val_to_struct[upper->bounds - 1];
+		if (upper->attribute) {
+			printk(KERN_ERR "SELinux: type %s: "
+			       "bounded by attribute %s",
+			       (char *) key,
+			       p->p_type_val_to_name[upper->value - 1]);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int policydb_bounds_sanity_check(struct policydb *p)
+{
+	int rc;
+
+	if (p->policyvers < POLICYDB_VERSION_BOUNDARY)
+		return 0;
+
+	rc = hashtab_map(p->p_users.table,
+			 user_bounds_sanity_check, p);
+	if (rc)
+		return rc;
+
+	rc = hashtab_map(p->p_roles.table,
+			 role_bounds_sanity_check, p);
+	if (rc)
+		return rc;
+
+	rc = hashtab_map(p->p_types.table,
+			 type_bounds_sanity_check, p);
+	if (rc)
+		return rc;
+
+	return 0;
+}
 
 extern int ss_initialized;
 
@@ -1523,7 +1696,7 @@ int policydb_read(struct policydb *p, void *fp)
 		kfree(policydb_str);
 		goto bad;
 	}
-	policydb_str[len] = 0;
+	policydb_str[len] = '\0';
 	if (strcmp(policydb_str, POLICYDB_STRING)) {
 		printk(KERN_ERR "SELinux:  policydb string %s does not match "
 		       "my string %s\n", policydb_str, POLICYDB_STRING);
@@ -1960,6 +2133,10 @@ int policydb_read(struct policydb *p, void *fp)
 		if (ebitmap_set_bit(&p->type_attr_map[i], i, 1))
 				goto bad;
 	}
+
+	rc = policydb_bounds_sanity_check(p);
+	if (rc)
+		goto bad;
 
 	rc = 0;
 out:

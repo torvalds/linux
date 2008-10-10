@@ -39,6 +39,7 @@ enum smk_inos {
 	SMK_DIRECT	= 6,	/* CIPSO level indicating direct label */
 	SMK_AMBIENT	= 7,	/* internet ambient label */
 	SMK_NLTYPE	= 8,	/* label scheme to use by default */
+	SMK_ONLYCAP	= 9,	/* the only "capable" label */
 };
 
 /*
@@ -67,6 +68,16 @@ int smack_net_nltype = NETLBL_NLTYPE_CIPSOV4;
  * It can be reset via smackfs/direct
  */
 int smack_cipso_direct = SMACK_CIPSO_DIRECT_DEFAULT;
+
+/*
+ * Unless a process is running with this label even
+ * having CAP_MAC_OVERRIDE isn't enough to grant
+ * privilege to violate MAC policy. If no label is
+ * designated (the NULL case) capabilities apply to
+ * everyone. It is expected that the hat (^) label
+ * will be used if any label is used.
+ */
+char *smack_onlycap;
 
 static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 struct smk_list_entry *smack_list;
@@ -787,6 +798,85 @@ static const struct file_operations smk_ambient_ops = {
 	.write		= smk_write_ambient,
 };
 
+/**
+ * smk_read_onlycap - read() for /smack/onlycap
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @cn: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_onlycap(struct file *filp, char __user *buf,
+				size_t cn, loff_t *ppos)
+{
+	char *smack = "";
+	ssize_t rc = -EINVAL;
+	int asize;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (smack_onlycap != NULL)
+		smack = smack_onlycap;
+
+	asize = strlen(smack) + 1;
+
+	if (cn >= asize)
+		rc = simple_read_from_buffer(buf, cn, ppos, smack, asize);
+
+	return rc;
+}
+
+/**
+ * smk_write_onlycap - write() for /smack/onlycap
+ * @filp: file pointer, not actually used
+ * @buf: where to get the data from
+ * @count: bytes sent
+ * @ppos: where to start
+ *
+ * Returns number of bytes written or error code, as appropriate
+ */
+static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	char in[SMK_LABELLEN];
+	char *sp = current->security;
+
+	if (!capable(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	/*
+	 * This can be done using smk_access() but is done
+	 * explicitly for clarity. The smk_access() implementation
+	 * would use smk_access(smack_onlycap, MAY_WRITE)
+	 */
+	if (smack_onlycap != NULL && smack_onlycap != sp)
+		return -EPERM;
+
+	if (count >= SMK_LABELLEN)
+		return -EINVAL;
+
+	if (copy_from_user(in, buf, count) != 0)
+		return -EFAULT;
+
+	/*
+	 * Should the null string be passed in unset the onlycap value.
+	 * This seems like something to be careful with as usually
+	 * smk_import only expects to return NULL for errors. It
+	 * is usually the case that a nullstring or "\n" would be
+	 * bad to pass to smk_import but in fact this is useful here.
+	 */
+	smack_onlycap = smk_import(in, count);
+
+	return count;
+}
+
+static const struct file_operations smk_onlycap_ops = {
+	.read		= smk_read_onlycap,
+	.write		= smk_write_onlycap,
+};
+
 struct option_names {
 	int	o_number;
 	char	*o_name;
@@ -919,6 +1009,8 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 			{"ambient", &smk_ambient_ops, S_IRUGO|S_IWUSR},
 		[SMK_NLTYPE]	=
 			{"nltype", &smk_nltype_ops, S_IRUGO|S_IWUSR},
+		[SMK_ONLYCAP]	=
+			{"onlycap", &smk_onlycap_ops, S_IRUGO|S_IWUSR},
 		/* last one */ {""}
 	};
 

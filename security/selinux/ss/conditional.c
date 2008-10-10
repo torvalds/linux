@@ -29,7 +29,7 @@ static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
 	int s[COND_EXPR_MAXDEPTH];
 	int sp = -1;
 
-	for (cur = expr; cur != NULL; cur = cur->next) {
+	for (cur = expr; cur; cur = cur->next) {
 		switch (cur->expr_type) {
 		case COND_BOOL:
 			if (sp == (COND_EXPR_MAXDEPTH - 1))
@@ -97,14 +97,14 @@ int evaluate_cond_node(struct policydb *p, struct cond_node *node)
 		if (new_state == -1)
 			printk(KERN_ERR "SELinux: expression result was undefined - disabling all rules.\n");
 		/* turn the rules on or off */
-		for (cur = node->true_list; cur != NULL; cur = cur->next) {
+		for (cur = node->true_list; cur; cur = cur->next) {
 			if (new_state <= 0)
 				cur->node->key.specified &= ~AVTAB_ENABLED;
 			else
 				cur->node->key.specified |= AVTAB_ENABLED;
 		}
 
-		for (cur = node->false_list; cur != NULL; cur = cur->next) {
+		for (cur = node->false_list; cur; cur = cur->next) {
 			/* -1 or 1 */
 			if (new_state)
 				cur->node->key.specified &= ~AVTAB_ENABLED;
@@ -128,7 +128,7 @@ int cond_policydb_init(struct policydb *p)
 static void cond_av_list_destroy(struct cond_av_list *list)
 {
 	struct cond_av_list *cur, *next;
-	for (cur = list; cur != NULL; cur = next) {
+	for (cur = list; cur; cur = next) {
 		next = cur->next;
 		/* the avtab_ptr_t node is destroy by the avtab */
 		kfree(cur);
@@ -139,7 +139,7 @@ static void cond_node_destroy(struct cond_node *node)
 {
 	struct cond_expr *cur_expr, *next_expr;
 
-	for (cur_expr = node->expr; cur_expr != NULL; cur_expr = next_expr) {
+	for (cur_expr = node->expr; cur_expr; cur_expr = next_expr) {
 		next_expr = cur_expr->next;
 		kfree(cur_expr);
 	}
@@ -155,7 +155,7 @@ static void cond_list_destroy(struct cond_node *list)
 	if (list == NULL)
 		return;
 
-	for (cur = list; cur != NULL; cur = next) {
+	for (cur = list; cur; cur = next) {
 		next = cur->next;
 		cond_node_destroy(cur);
 	}
@@ -239,7 +239,7 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 	rc = next_entry(key, fp, len);
 	if (rc < 0)
 		goto err;
-	key[len] = 0;
+	key[len] = '\0';
 	if (hashtab_insert(h, key, booldatum))
 		goto err;
 
@@ -291,7 +291,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 					goto err;
 				}
 				found = 0;
-				for (cur = other; cur != NULL; cur = cur->next) {
+				for (cur = other; cur; cur = cur->next) {
 					if (cur->node == node_ptr) {
 						found = 1;
 						break;
@@ -485,7 +485,7 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key, struct av_decisi
 	if (!ctab || !key || !avd)
 		return;
 
-	for (node = avtab_search_node(ctab, key); node != NULL;
+	for (node = avtab_search_node(ctab, key); node;
 				node = avtab_search_node_next(node, key->specified)) {
 		if ((u16)(AVTAB_ALLOWED|AVTAB_ENABLED) ==
 		    (node->key.specified & (AVTAB_ALLOWED|AVTAB_ENABLED)))

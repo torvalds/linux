@@ -6,9 +6,6 @@ config SECURITY_SELINUX
 	help
 	  This selects NSA Security-Enhanced Linux (SELinux).
 	  You will also need a policy configuration and a labeled filesystem.
-	  You can obtain the policy compiler (checkpolicy), the utility for
-	  labeling filesystems (setfiles), and an example policy configuration
-	  from <http://www.nsa.gov/selinux/>.
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_SELINUX_BOOTPARAM

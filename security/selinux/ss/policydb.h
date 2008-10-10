@@ -61,6 +61,7 @@ struct class_datum {
 /* Role attributes */
 struct role_datum {
 	u32 value;			/* internal role value */
+	u32 bounds;			/* boundary of role */
 	struct ebitmap dominates;	/* set of roles dominated by this role */
 	struct ebitmap types;		/* set of authorized types for role */
 };
@@ -81,12 +82,15 @@ struct role_allow {
 /* Type attributes */
 struct type_datum {
 	u32 value;		/* internal type value */
+	u32 bounds;		/* boundary of type */
 	unsigned char primary;	/* primary name? */
+	unsigned char attribute;/* attribute ?*/
 };
 
 /* User attributes */
 struct user_datum {
 	u32 value;			/* internal user value */
+	u32 bounds;			/* bounds of user */
 	struct ebitmap roles;		/* set of authorized roles for user */
 	struct mls_range range;		/* MLS range (min - max) for user */
 	struct mls_level dfltlevel;	/* default login MLS level for user */
@@ -209,6 +213,7 @@ struct policydb {
 	struct class_datum **class_val_to_struct;
 	struct role_datum **role_val_to_struct;
 	struct user_datum **user_val_to_struct;
+	struct type_datum **type_val_to_struct;
 
 	/* type enforcement access vectors and transitions */
 	struct avtab te_avtab;
