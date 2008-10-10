@@ -45,8 +45,6 @@ struct imxmci_host {
 	struct resource		*res;
 	int			irq;
 	imx_dmach_t		dma;
-	unsigned int		clkrt;
-	unsigned int		cmdat;
 	volatile unsigned int	imask;
 	unsigned int		power_mode;
 	unsigned int		present;
