@@ -27,6 +27,20 @@
 #define VNIC_PADDR_TARGET	0x0000000000000000ULL
 #endif
 
+#ifndef readq
+static inline u64 readq(void __iomem *reg)
+{
+	return (((u64)readl(reg + 0x4UL) << 32) |
+		(u64)readl(reg));
+}
+
+static inline void writeq(u64 val, void __iomem *reg)
+{
+	writel(val & 0xffffffff, reg);
+	writel(val >> 32, reg + 0x4UL);
+}
+#endif
+
 enum vnic_dev_intr_mode {
 	VNIC_DEV_INTR_MODE_UNKNOWN,
 	VNIC_DEV_INTR_MODE_INTX,
