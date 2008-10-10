@@ -1030,19 +1030,20 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
 	mdb_free = EXT4_I(inode)->i_reserved_meta_blocks - mdb;
 
-	/* Account for allocated meta_blocks */
-	mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
+	if (mdb_free) {
+		/* Account for allocated meta_blocks */
+		mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
 
-	/* update fs free blocks counter for truncate case */
-	percpu_counter_add(&sbi->s_freeblocks_counter, mdb_free);
+		/* update fs dirty blocks counter */
+		percpu_counter_sub(&sbi->s_dirtyblocks_counter, mdb_free);
+		EXT4_I(inode)->i_allocated_meta_blocks = 0;
+		EXT4_I(inode)->i_reserved_meta_blocks = mdb;
+	}
 
 	/* update per-inode reservations */
 	BUG_ON(used  > EXT4_I(inode)->i_reserved_data_blocks);
 	EXT4_I(inode)->i_reserved_data_blocks -= used;
 
-	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
-	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
-	EXT4_I(inode)->i_allocated_meta_blocks = 0;
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 }
 
@@ -1588,8 +1589,8 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 
 	release = to_free + mdb_free;
 
-	/* update fs free blocks counter for truncate case */
-	percpu_counter_add(&sbi->s_freeblocks_counter, release);
+	/* update fs dirty blocks counter for truncate case */
+	percpu_counter_sub(&sbi->s_dirtyblocks_counter, release);
 
 	/* update per-inode reservations */
 	BUG_ON(to_free > EXT4_I(inode)->i_reserved_data_blocks);
@@ -2471,7 +2472,6 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	index = pos >> PAGE_CACHE_SHIFT;
 	from = pos & (PAGE_CACHE_SIZE - 1);
 	to = from + len;
-
 retry:
 	/*
 	 * With delayed allocation, we don't log the i_disksize update

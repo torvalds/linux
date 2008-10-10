@@ -2880,7 +2880,7 @@ void exit_ext4_mballoc(void)
  */
 static noinline_for_stack int
 ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
-				handle_t *handle)
+				handle_t *handle, unsigned long reserv_blks)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct ext4_super_block *es;
@@ -2969,21 +2969,16 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	le16_add_cpu(&gdp->bg_free_blocks_count, -ac->ac_b_ex.fe_len);
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, ac->ac_b_ex.fe_group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, ac->ac_b_ex.fe_group));
-
+	percpu_counter_sub(&sbi->s_freeblocks_counter, ac->ac_b_ex.fe_len);
 	/*
-	 * free blocks account has already be reduced/reserved
-	 * at write_begin() time for delayed allocation
-	 * do not double accounting
+	 * Now reduce the dirty block count also. Should not go negative
 	 */
-	if (!(ac->ac_flags & EXT4_MB_DELALLOC_RESERVED) &&
-			ac->ac_o_ex.fe_len != ac->ac_b_ex.fe_len) {
-		/*
-		 * we allocated less blocks than we calimed
-		 * Add the difference back
-		 */
-		percpu_counter_add(&sbi->s_freeblocks_counter,
-				ac->ac_o_ex.fe_len - ac->ac_b_ex.fe_len);
-	}
+	if (!(ac->ac_flags & EXT4_MB_DELALLOC_RESERVED))
+		/* release all the reserved blocks if non delalloc */
+		percpu_counter_sub(&sbi->s_dirtyblocks_counter, reserv_blks);
+	else
+		percpu_counter_sub(&sbi->s_dirtyblocks_counter,
+						ac->ac_b_ex.fe_len);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi,
@@ -4376,12 +4371,13 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 				 struct ext4_allocation_request *ar, int *errp)
 {
+	int freed;
 	struct ext4_allocation_context *ac = NULL;
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	ext4_fsblk_t block = 0;
-	int freed;
-	int inquota;
+	unsigned long inquota;
+	unsigned long reserv_blks = 0;
 
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
@@ -4404,6 +4400,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 			*errp = -ENOSPC;
 			return 0;
 		}
+		reserv_blks = ar->len;
 	}
 	while (ar->len && DQUOT_ALLOC_BLOCK(ar->inode, ar->len)) {
 		ar->flags |= EXT4_MB_HINT_NOPREALLOC;
@@ -4450,7 +4447,7 @@ repeat:
 	}
 
 	if (likely(ac->ac_status == AC_STATUS_FOUND)) {
-		*errp = ext4_mb_mark_diskspace_used(ac, handle);
+		*errp = ext4_mb_mark_diskspace_used(ac, handle, reserv_blks);
 		if (*errp ==  -EAGAIN) {
 			ac->ac_b_ex.fe_group = 0;
 			ac->ac_b_ex.fe_start = 0;
