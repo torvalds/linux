@@ -47,6 +47,7 @@
 #include <linux/blkpg.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/string_helpers.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>
@@ -1433,27 +1434,21 @@ got_data:
 		 */
 		sector_size = 512;
 	}
-	{
-		/*
-		 * The msdos fs needs to know the hardware sector size
-		 * So I have created this table. See ll_rw_blk.c
-		 * Jacques Gelinas (Jacques@solucorp.qc.ca)
-		 */
-		int hard_sector = sector_size;
-		sector_t sz = (sdkp->capacity/2) * (hard_sector/256);
-		struct request_queue *queue = sdp->request_queue;
-		sector_t mb = sz;
+	blk_queue_hardsect_size(sdp->request_queue, sector_size);
 
-		blk_queue_hardsect_size(queue, hard_sector);
-		/* avoid 64-bit division on 32-bit platforms */
-		sector_div(sz, 625);
-		mb -= sz - 974;
-		sector_div(mb, 1950);
+	{
+		char cap_str_2[10], cap_str_10[10];
+		u64 sz = sdkp->capacity << ffz(~sector_size);
+
+		string_get_size(sz, STRING_UNITS_2, cap_str_2,
+				sizeof(cap_str_2));
+		string_get_size(sz, STRING_UNITS_10, cap_str_10,
+				sizeof(cap_str_10));
 
 		sd_printk(KERN_NOTICE, sdkp,
-			  "%llu %d-byte hardware sectors (%llu MB)\n",
+			  "%llu %d-byte hardware sectors: (%s/%s)\n",
 			  (unsigned long long)sdkp->capacity,
-			  hard_sector, (unsigned long long)mb);
+			  sector_size, cap_str_10, cap_str_2);
 	}
 
 	/* Rescale capacity to 512-byte units */

@@ -12,16 +12,14 @@
 #include "zfcp_def.h"
 
 /* zfcp_aux.c */
-extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *,
-					      fcp_lun_t);
-extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *,
-					       wwn_t);
+extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, u64);
+extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, u64);
 extern int zfcp_adapter_enqueue(struct ccw_device *);
 extern void zfcp_adapter_dequeue(struct zfcp_adapter *);
-extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, wwn_t, u32,
+extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern void zfcp_port_dequeue(struct zfcp_port *);
-extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, fcp_lun_t);
+extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
 extern void zfcp_unit_dequeue(struct zfcp_unit *);
 extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
@@ -29,6 +27,7 @@ extern int zfcp_sg_setup_table(struct scatterlist *, int);
 
 /* zfcp_ccw.c */
 extern int zfcp_ccw_register(void);
+extern struct zfcp_adapter *zfcp_get_adapter_by_busid(char *);
 
 /* zfcp_cfdc.c */
 extern struct miscdevice zfcp_cfdc_misc;
@@ -50,6 +49,8 @@ extern void zfcp_hba_dbf_event_fsf_unsol(const char *, struct zfcp_adapter *,
 					 struct fsf_status_read_buffer *);
 extern void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *, unsigned int, int,
 				    int);
+extern void zfcp_hba_dbf_event_berr(struct zfcp_adapter *,
+				    struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_els_request(struct zfcp_fsf_req *);
@@ -91,17 +92,21 @@ extern void zfcp_erp_port_access_denied(struct zfcp_port *, u8, void *);
 extern void zfcp_erp_unit_access_denied(struct zfcp_unit *, u8, void *);
 extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, u8, void *);
 extern void zfcp_erp_timeout_handler(unsigned long);
+extern void zfcp_erp_port_strategy_open_lookup(struct work_struct *);
 
 /* zfcp_fc.c */
 extern int zfcp_scan_ports(struct zfcp_adapter *);
 extern void _zfcp_scan_ports_later(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
-extern int zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *);
+extern int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_test_link(struct zfcp_port *);
+extern void zfcp_fc_nameserver_init(struct zfcp_adapter *);
 
 /* zfcp_fsf.c */
 extern int zfcp_fsf_open_port(struct zfcp_erp_action *);
+extern int zfcp_fsf_open_wka_port(struct zfcp_wka_port *);
+extern int zfcp_fsf_close_wka_port(struct zfcp_wka_port *);
 extern int zfcp_fsf_close_port(struct zfcp_erp_action *);
 extern int zfcp_fsf_close_physical_port(struct zfcp_erp_action *);
 extern int zfcp_fsf_open_unit(struct zfcp_erp_action *);
@@ -135,10 +140,8 @@ extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long,
 extern int zfcp_qdio_allocate(struct zfcp_adapter *);
 extern void zfcp_qdio_free(struct zfcp_adapter *);
 extern int zfcp_qdio_send(struct zfcp_fsf_req *);
-extern volatile struct qdio_buffer_element *zfcp_qdio_sbale_req(
-						struct zfcp_fsf_req *);
-extern volatile struct qdio_buffer_element *zfcp_qdio_sbale_curr(
-						struct zfcp_fsf_req *);
+extern struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_fsf_req *);
+extern struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_fsf_req *);
 extern int zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *, unsigned long,
 				   struct scatterlist *, int);
 extern int zfcp_qdio_open(struct zfcp_adapter *);
@@ -148,14 +151,12 @@ extern void zfcp_qdio_close(struct zfcp_adapter *);
 extern struct zfcp_data zfcp_data;
 extern int zfcp_adapter_scsi_register(struct zfcp_adapter *);
 extern void zfcp_adapter_scsi_unregister(struct zfcp_adapter *);
-extern void zfcp_set_fcp_dl(struct fcp_cmnd_iu *, fcp_dl_t);
 extern char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *);
 extern struct fc_function_template zfcp_transport_functions;
 
 /* zfcp_sysfs.c */
 extern struct attribute_group zfcp_sysfs_unit_attrs;
 extern struct attribute_group zfcp_sysfs_adapter_attrs;
-extern struct attribute_group zfcp_sysfs_ns_port_attrs;
 extern struct attribute_group zfcp_sysfs_port_attrs;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];

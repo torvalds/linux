@@ -39,29 +39,6 @@
 
 /********************* GENERAL DEFINES *********************************/
 
-/**
- * zfcp_sg_to_address - determine kernel address from struct scatterlist
- * @list: struct scatterlist
- * Return: kernel address
- */
-static inline void *
-zfcp_sg_to_address(struct scatterlist *list)
-{
-	return sg_virt(list);
-}
-
-/**
- * zfcp_address_to_sg - set up struct scatterlist from kernel address
- * @address: kernel address
- * @list: struct scatterlist
- * @size: buffer size
- */
-static inline void
-zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
-{
-	sg_set_buf(list, address, size);
-}
-
 #define REQUEST_LIST_SIZE 128
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
@@ -101,11 +78,6 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
-typedef unsigned long long wwn_t;
-typedef unsigned long long fcp_lun_t;
-/* data length field may be at variable position in FCP-2 FCP_CMND IU */
-typedef unsigned int       fcp_dl_t;
-
 /* timeout for name-server lookup (in seconds) */
 #define ZFCP_NS_GID_PN_TIMEOUT		10
 
@@ -129,7 +101,7 @@ typedef unsigned int       fcp_dl_t;
 
 /* FCP(-2) FCP_CMND IU */
 struct fcp_cmnd_iu {
-	fcp_lun_t fcp_lun;	   /* FCP logical unit number */
+	u64 fcp_lun;	   /* FCP logical unit number */
 	u8  crn;	           /* command reference number */
 	u8  reserved0:5;	   /* reserved */
 	u8  task_attribute:3;	   /* task attribute */
@@ -204,7 +176,7 @@ struct fcp_rscn_element {
 struct fcp_logo {
         u32 command;
         u32 nport_did;
-        wwn_t nport_wwpn;
+	u64 nport_wwpn;
 } __attribute__((packed));
 
 /*
@@ -218,13 +190,6 @@ struct fcp_logo {
 #define ZFCP_LS_RSCN			0x61
 #define ZFCP_LS_RNID			0x78
 
-struct zfcp_ls_rjt_par {
-	u8 action;
- 	u8 reason_code;
- 	u8 reason_expl;
- 	u8 vendor_unique;
-} __attribute__ ((packed));
-
 struct zfcp_ls_adisc {
 	u8		code;
 	u8		field[3];
@@ -233,20 +198,6 @@ struct zfcp_ls_adisc {
 	u64		wwnn;
 	u32		nport_id;
 } __attribute__ ((packed));
-
-struct zfcp_ls_adisc_acc {
-	u8		code;
-	u8		field[3];
-	u32		hard_nport_id;
-	u64		wwpn;
-	u64		wwnn;
-	u32		nport_id;
-} __attribute__ ((packed));
-
-struct zfcp_rc_entry {
-	u8 code;
-	const char *description;
-};
 
 /*
  * FC-GS-2 stuff
@@ -281,9 +232,7 @@ struct zfcp_rc_entry {
 #define ZFCP_STATUS_COMMON_RUNNING		0x40000000
 #define ZFCP_STATUS_COMMON_ERP_FAILED		0x20000000
 #define ZFCP_STATUS_COMMON_UNBLOCKED		0x10000000
-#define ZFCP_STATUS_COMMON_OPENING              0x08000000
 #define ZFCP_STATUS_COMMON_OPEN                 0x04000000
-#define ZFCP_STATUS_COMMON_CLOSING              0x02000000
 #define ZFCP_STATUS_COMMON_ERP_INUSE		0x01000000
 #define ZFCP_STATUS_COMMON_ACCESS_DENIED	0x00800000
 #define ZFCP_STATUS_COMMON_ACCESS_BOXED		0x00400000
@@ -291,16 +240,15 @@ struct zfcp_rc_entry {
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
-#define ZFCP_STATUS_ADAPTER_REGISTERED		0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
 #define ZFCP_STATUS_ADAPTER_ERP_THREAD_UP	0x00000020
 #define ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL	0x00000080
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
-#define ZFCP_STATUS_ADAPTER_XPORT_OK		0x00000800
 
 /* FC-PH/FC-GS well-known address identifiers for generic services */
+#define ZFCP_DID_WKA				0xFFFFF0
 #define ZFCP_DID_MANAGEMENT_SERVICE		0xFFFFFA
 #define ZFCP_DID_TIME_SERVICE			0xFFFFFB
 #define ZFCP_DID_DIRECTORY_SERVICE		0xFFFFFC
@@ -312,29 +260,27 @@ struct zfcp_rc_entry {
 #define ZFCP_STATUS_PORT_DID_DID		0x00000002
 #define ZFCP_STATUS_PORT_PHYS_CLOSING		0x00000004
 #define ZFCP_STATUS_PORT_NO_WWPN		0x00000008
-#define ZFCP_STATUS_PORT_NO_SCSI_ID		0x00000010
 #define ZFCP_STATUS_PORT_INVALID_WWPN		0x00000020
 
-/* for ports with well known addresses */
-#define ZFCP_STATUS_PORT_WKA \
-		(ZFCP_STATUS_PORT_NO_WWPN | \
-		 ZFCP_STATUS_PORT_NO_SCSI_ID)
+/* well known address (WKA) port status*/
+enum zfcp_wka_status {
+	ZFCP_WKA_PORT_OFFLINE,
+	ZFCP_WKA_PORT_CLOSING,
+	ZFCP_WKA_PORT_OPENING,
+	ZFCP_WKA_PORT_ONLINE,
+};
 
 /* logical unit status */
-#define ZFCP_STATUS_UNIT_TEMPORARY		0x00000002
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
 #define ZFCP_STATUS_UNIT_READONLY		0x00000008
 #define ZFCP_STATUS_UNIT_REGISTERED		0x00000010
 #define ZFCP_STATUS_UNIT_SCSI_WORK_PENDING	0x00000020
 
 /* FSF request status (this does not have a common part) */
-#define ZFCP_STATUS_FSFREQ_NOT_INIT		0x00000000
-#define ZFCP_STATUS_FSFREQ_POOL  		0x00000001
 #define ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT	0x00000002
 #define ZFCP_STATUS_FSFREQ_COMPLETED		0x00000004
 #define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
 #define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
-#define ZFCP_STATUS_FSFREQ_ABORTING		0x00000020
 #define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED	0x00000040
 #define ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED       0x00000080
 #define ZFCP_STATUS_FSFREQ_ABORTED              0x00000100
@@ -379,7 +325,7 @@ struct ct_hdr {
  * a port name is required */
 struct ct_iu_gid_pn_req {
 	struct ct_hdr header;
-	wwn_t wwpn;
+	u64 wwpn;
 } __attribute__ ((packed));
 
 /* FS_ACC IU and data unit for GID_PN nameserver request */
@@ -388,11 +334,9 @@ struct ct_iu_gid_pn_resp {
 	u32 d_id;
 } __attribute__ ((packed));
 
-typedef void (*zfcp_send_ct_handler_t)(unsigned long);
-
 /**
  * struct zfcp_send_ct - used to pass parameters to function zfcp_fsf_send_ct
- * @port: port where the request is sent to
+ * @wka_port: port where the request is sent to
  * @req: scatter-gather list for request
  * @resp: scatter-gather list for response
  * @req_count: number of elements in request scatter-gather list
@@ -404,12 +348,12 @@ typedef void (*zfcp_send_ct_handler_t)(unsigned long);
  * @status: used to pass error status to calling function
  */
 struct zfcp_send_ct {
-	struct zfcp_port *port;
+	struct zfcp_wka_port *wka_port;
 	struct scatterlist *req;
 	struct scatterlist *resp;
 	unsigned int req_count;
 	unsigned int resp_count;
-	zfcp_send_ct_handler_t handler;
+	void (*handler)(unsigned long);
 	unsigned long handler_data;
 	int timeout;
 	struct completion *completion;
@@ -425,8 +369,6 @@ struct zfcp_gid_pn_data {
 	struct ct_iu_gid_pn_resp ct_iu_resp;
         struct zfcp_port *port;
 };
-
-typedef void (*zfcp_send_els_handler_t)(unsigned long);
 
 /**
  * struct zfcp_send_els - used to pass parameters to function zfcp_fsf_send_els
@@ -451,22 +393,28 @@ struct zfcp_send_els {
 	struct scatterlist *resp;
 	unsigned int req_count;
 	unsigned int resp_count;
-	zfcp_send_els_handler_t handler;
+	void (*handler)(unsigned long);
 	unsigned long handler_data;
 	struct completion *completion;
 	int ls_code;
 	int status;
 };
 
+struct zfcp_wka_port {
+	struct zfcp_adapter	*adapter;
+	wait_queue_head_t	completion_wq;
+	enum zfcp_wka_status	status;
+	atomic_t		refcount;
+	u32			d_id;
+	u32			handle;
+	struct mutex		mutex;
+	struct delayed_work	work;
+};
+
 struct zfcp_qdio_queue {
-	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q]; /* SBALs */
-	u8		   first;	      /* index of next free bfr
-						 in queue (free_count>0) */
-	atomic_t           count;	      /* number of free buffers
-						 in queue */
-	spinlock_t	   lock;	      /* lock for operations on queue */
-	int                pci_batch;	      /* SBALs since PCI indication
-						 was last set */
+	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
+	u8		   first;	/* index of next free bfr in queue */
+	atomic_t           count;	/* number of free buffers in queue */
 };
 
 struct zfcp_erp_action {
@@ -475,7 +423,7 @@ struct zfcp_erp_action {
 	struct zfcp_adapter *adapter; /* device which should be recovered */
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
-	volatile u32 status;	      /* recovery status */
+	u32		status;	      /* recovery status */
 	u32 step;	              /* active step of this erp action */
 	struct zfcp_fsf_req *fsf_req; /* fsf request currently pending
 					 for this action */
@@ -506,8 +454,8 @@ struct zfcp_adapter {
 	atomic_t                refcount;          /* reference count */
 	wait_queue_head_t	remove_wq;         /* can be used to wait for
 						      refcount drop to zero */
-	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
-	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
+	u64			peer_wwnn;	   /* P2P peer WWNN */
+	u64			peer_wwpn;	   /* P2P peer WWPN */
 	u32			peer_d_id;	   /* P2P peer D_ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u32			hydra_version;	   /* Hydra version */
@@ -518,13 +466,13 @@ struct zfcp_adapter {
 	u16			timer_ticks;       /* time int for a tick */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	struct list_head	port_list_head;	   /* remote port list */
-	struct list_head        port_remove_lh;    /* head of ports to be
-						      removed */
-	u32			ports;	           /* number of remote ports */
 	unsigned long		req_no;		   /* unique FSF req number */
 	struct list_head	*req_list;	   /* list of pending reqs */
 	spinlock_t		req_list_lock;	   /* request list lock */
 	struct zfcp_qdio_queue	req_q;		   /* request queue */
+	spinlock_t		req_q_lock;	   /* for operations on queue */
+	int			req_q_pci_batch;   /* SBALs since PCI indication
+						      was last set */
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	wait_queue_head_t	request_wq;	   /* can be used to wait for
 						      more avaliable SBALs */
@@ -548,7 +496,7 @@ struct zfcp_adapter {
 						      actions */
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
-	struct zfcp_port	*nameserver_port;  /* adapter's nameserver */
+	struct zfcp_wka_port	nsp;		   /* adapter's nameserver */
 	debug_info_t		*rec_dbf;
 	debug_info_t		*hba_dbf;
 	debug_info_t		*san_dbf;          /* debug feature areas */
@@ -563,11 +511,11 @@ struct zfcp_adapter {
 	struct zfcp_scsi_dbf_record	scsi_dbf_buf;
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
-	struct device           generic_services;  /* directory for WKA ports */
 	struct fc_host_statistics *fc_stats;
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
 	struct work_struct	scan_work;
+	atomic_t		qdio_outb_full;	   /* queue full incidents */
 };
 
 struct zfcp_port {
@@ -579,18 +527,16 @@ struct zfcp_port {
 						  refcount drop to zero */
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
 	struct list_head       unit_list_head; /* head of logical unit list */
-	struct list_head       unit_remove_lh; /* head of luns to be removed
-						  list */
-	u32		       units;	       /* # of logical units in list */
 	atomic_t	       status;	       /* status of this remote port */
-	wwn_t		       wwnn;	       /* WWNN if known */
-	wwn_t		       wwpn;	       /* WWPN */
+	u64		       wwnn;	       /* WWNN if known */
+	u64		       wwpn;	       /* WWPN */
 	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;
 	u32                    maxframe_size;
 	u32                    supported_classes;
+	struct work_struct     gid_pn_work;
 };
 
 struct zfcp_unit {
@@ -601,8 +547,7 @@ struct zfcp_unit {
 						  refcount drop to zero */
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */
-	unsigned int	       scsi_lun;       /* own SCSI LUN */
-	fcp_lun_t	       fcp_lun;	       /* own FCP_LUN */
+	u64		       fcp_lun;	       /* own FCP_LUN */
 	u32		       handle;	       /* handle assigned by FSF */
         struct scsi_device     *device;        /* scsi device struct pointer */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
@@ -625,7 +570,7 @@ struct zfcp_fsf_req {
 	u8			sbal_response;	/* SBAL used in interrupt */
 	wait_queue_head_t      completion_wq;  /* can be used by a routine
 						  to wait for completion */
-	volatile u32	       status;	       /* status of this request */
+	u32			status;	       /* status of this request */
 	u32		       fsf_command;    /* FSF Command copy */
 	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
 	u32		       seq_no;         /* Sequence number of request */
@@ -644,11 +589,7 @@ struct zfcp_fsf_req {
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
 	struct scsi_transport_template *scsi_transport_template;
-        atomic_t                status;             /* Module status flags */
 	struct list_head	adapter_list_head;  /* head of adapter list */
-	struct list_head	adapter_remove_lh;  /* head of adapters to be
-						       removed */
-	u32			adapters;	    /* # of adapters in list */
 	rwlock_t                config_lock;        /* serialises changes
 						       to adapter/port/unit
 						       lists */
@@ -656,11 +597,12 @@ struct zfcp_data {
 						       changes */
 	atomic_t		loglevel;            /* current loglevel */
 	char                    init_busid[BUS_ID_SIZE];
-	wwn_t                   init_wwpn;
-	fcp_lun_t               init_fcp_lun;
-	struct kmem_cache		*fsf_req_qtcb_cache;
-	struct kmem_cache		*sr_buffer_cache;
-	struct kmem_cache		*gid_pn_cache;
+	u64			init_wwpn;
+	u64			init_fcp_lun;
+	struct kmem_cache	*fsf_req_qtcb_cache;
+	struct kmem_cache	*sr_buffer_cache;
+	struct kmem_cache	*gid_pn_cache;
+	struct workqueue_struct	*work_queue;
 };
 
 /* struct used by memory pools for fsf_requests */
@@ -677,14 +619,7 @@ struct zfcp_fsf_req_qtcb {
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
 
-#ifndef atomic_test_mask
-#define atomic_test_mask(mask, target) \
-           ((atomic_read(target) & mask) == mask)
-#endif
-
 #define zfcp_get_busid_by_adapter(adapter) (adapter->ccw_device->dev.bus_id)
-#define zfcp_get_busid_by_port(port) (zfcp_get_busid_by_adapter(port->adapter))
-#define zfcp_get_busid_by_unit(unit) (zfcp_get_busid_by_port(unit->port))
 
 /*
  * Helper functions for request ID management.
@@ -745,12 +680,6 @@ zfcp_unit_put(struct zfcp_unit *unit)
 }
 
 static inline void
-zfcp_unit_wait(struct zfcp_unit *unit)
-{
-	wait_event(unit->remove_wq, atomic_read(&unit->refcount) == 0);
-}
-
-static inline void
 zfcp_port_get(struct zfcp_port *port)
 {
 	atomic_inc(&port->refcount);
@@ -764,12 +693,6 @@ zfcp_port_put(struct zfcp_port *port)
 }
 
 static inline void
-zfcp_port_wait(struct zfcp_port *port)
-{
-	wait_event(port->remove_wq, atomic_read(&port->refcount) == 0);
-}
-
-static inline void
 zfcp_adapter_get(struct zfcp_adapter *adapter)
 {
 	atomic_inc(&adapter->refcount);
@@ -780,12 +703,6 @@ zfcp_adapter_put(struct zfcp_adapter *adapter)
 {
 	if (atomic_dec_return(&adapter->refcount) == 0)
 		wake_up(&adapter->remove_wq);
-}
-
-static inline void
-zfcp_adapter_wait(struct zfcp_adapter *adapter)
-{
-	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
 }
 
 #endif /* ZFCP_DEF_H */

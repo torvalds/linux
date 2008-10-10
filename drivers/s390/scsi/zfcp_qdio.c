@@ -28,7 +28,7 @@ static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 	return 0;
 }
 
-static volatile struct qdio_buffer_element *
+static struct qdio_buffer_element *
 zfcp_qdio_sbale(struct zfcp_qdio_queue *q, int sbal_idx, int sbale_idx)
 {
 	return &q->sbal[sbal_idx]->element[sbale_idx];
@@ -57,7 +57,7 @@ void zfcp_qdio_free(struct zfcp_adapter *adapter)
 
 static void zfcp_qdio_handler_error(struct zfcp_adapter *adapter, u8 id)
 {
-	dev_warn(&adapter->ccw_device->dev, "QDIO problem occurred.\n");
+	dev_warn(&adapter->ccw_device->dev, "A QDIO problem occurred\n");
 
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
@@ -145,7 +145,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) parm;
 	struct zfcp_qdio_queue *queue = &adapter->resp_q;
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int sbal_idx, sbale_idx, sbal_no;
 
 	if (unlikely(qdio_err)) {
@@ -174,8 +174,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 
 		if (unlikely(!(sbale->flags & SBAL_FLAGS_LAST_ENTRY)))
 			dev_warn(&adapter->ccw_device->dev,
-				 "Protocol violation by adapter. "
-				 "Continuing operations.\n");
+				 "A QDIO protocol error occurred, "
+				 "operations continue\n");
 	}
 
 	/*
@@ -190,8 +190,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
  * @fsf_req: pointer to struct fsf_req
  * Returns: pointer to qdio_buffer_element (SBALE) structure
  */
-volatile struct qdio_buffer_element *
-zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
+struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
 {
 	return zfcp_qdio_sbale(&req->adapter->req_q, req->sbal_last, 0);
 }
@@ -201,8 +200,7 @@ zfcp_qdio_sbale_req(struct zfcp_fsf_req *req)
  * @fsf_req: pointer to struct fsf_req
  * Returns: pointer to qdio_buffer_element (SBALE) structure
  */
-volatile struct qdio_buffer_element *
-zfcp_qdio_sbale_curr(struct zfcp_fsf_req *req)
+struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_fsf_req *req)
 {
 	return zfcp_qdio_sbale(&req->adapter->req_q, req->sbal_last,
 			       req->sbale_curr);
@@ -216,10 +214,10 @@ static void zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
 					% QDIO_MAX_BUFFERS_PER_Q;
 }
 
-static volatile struct qdio_buffer_element *
+static struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 
 	/* set last entry flag in current SBALE of current SBAL */
 	sbale = zfcp_qdio_sbale_curr(fsf_req);
@@ -250,7 +248,7 @@ zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 	return sbale;
 }
 
-static volatile struct qdio_buffer_element *
+static struct qdio_buffer_element *
 zfcp_qdio_sbale_next(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 {
 	if (fsf_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
@@ -273,7 +271,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 				unsigned int sbtype, void *start_addr,
 				unsigned int total_length)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	unsigned long remaining, length;
 	void *addr;
 
@@ -282,6 +280,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 	     addr += length, remaining -= length) {
 		sbale = zfcp_qdio_sbale_next(fsf_req, sbtype);
 		if (!sbale) {
+			atomic_inc(&fsf_req->adapter->qdio_outb_full);
 			zfcp_qdio_undo_sbals(fsf_req);
 			return -EINVAL;
 		}
@@ -307,7 +306,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_fsf_req *fsf_req,
 int zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 			    struct scatterlist *sg, int max_sbals)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int retval, bytes = 0;
 
 	/* figure out last allowed SBAL */
@@ -344,10 +343,10 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	int first = fsf_req->sbal_first;
 	int count = fsf_req->sbal_number;
 	int retval, pci, pci_batch;
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 
 	/* acknowledgements for transferred buffers */
-	pci_batch = req_q->pci_batch + count;
+	pci_batch = adapter->req_q_pci_batch + count;
 	if (unlikely(pci_batch >= ZFCP_QDIO_PCI_INTERVAL)) {
 		pci_batch %= ZFCP_QDIO_PCI_INTERVAL;
 		pci = first + count - (pci_batch + 1);
@@ -367,7 +366,7 @@ int zfcp_qdio_send(struct zfcp_fsf_req *fsf_req)
 	atomic_sub(count, &req_q->count);
 	req_q->first += count;
 	req_q->first %= QDIO_MAX_BUFFERS_PER_Q;
-	req_q->pci_batch = pci_batch;
+	adapter->req_q_pci_batch = pci_batch;
 	return 0;
 }
 
@@ -418,14 +417,14 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 	struct zfcp_qdio_queue *req_q;
 	int first, count;
 
-	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status))
+	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return;
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
 	req_q = &adapter->req_q;
-	spin_lock_bh(&req_q->lock);
+	spin_lock_bh(&adapter->req_q_lock);
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	spin_unlock_bh(&req_q->lock);
+	spin_unlock_bh(&adapter->req_q_lock);
 
 	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
 
@@ -438,7 +437,7 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 	}
 	req_q->first = 0;
 	atomic_set(&req_q->count, 0);
-	req_q->pci_batch = 0;
+	adapter->req_q_pci_batch = 0;
 	adapter->resp_q.first = 0;
 	atomic_set(&adapter->resp_q.count, 0);
 }
@@ -450,23 +449,17 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
  */
 int zfcp_qdio_open(struct zfcp_adapter *adapter)
 {
-	volatile struct qdio_buffer_element *sbale;
+	struct qdio_buffer_element *sbale;
 	int cc;
 
-	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status))
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
 		return -EIO;
 
-	if (qdio_establish(&adapter->qdio_init_data)) {
-		dev_err(&adapter->ccw_device->dev,
-			 "Establish of QDIO queues failed.\n");
-		return -EIO;
-	}
+	if (qdio_establish(&adapter->qdio_init_data))
+		goto failed_establish;
 
-	if (qdio_activate(adapter->ccw_device)) {
-		dev_err(&adapter->ccw_device->dev,
-			 "Activate of QDIO queues failed.\n");
+	if (qdio_activate(adapter->ccw_device))
 		goto failed_qdio;
-	}
 
 	for (cc = 0; cc < QDIO_MAX_BUFFERS_PER_Q; cc++) {
 		sbale = &(adapter->resp_q.sbal[cc]->element[0]);
@@ -476,20 +469,20 @@ int zfcp_qdio_open(struct zfcp_adapter *adapter)
 	}
 
 	if (do_QDIO(adapter->ccw_device, QDIO_FLAG_SYNC_INPUT, 0, 0,
-		     QDIO_MAX_BUFFERS_PER_Q)) {
-		dev_err(&adapter->ccw_device->dev,
-			 "Init of QDIO response queue failed.\n");
+		     QDIO_MAX_BUFFERS_PER_Q))
 		goto failed_qdio;
-	}
 
 	/* set index of first avalable SBALS / number of available SBALS */
 	adapter->req_q.first = 0;
 	atomic_set(&adapter->req_q.count, QDIO_MAX_BUFFERS_PER_Q);
-	adapter->req_q.pci_batch = 0;
+	adapter->req_q_pci_batch = 0;
 
 	return 0;
 
 failed_qdio:
 	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
+failed_establish:
+	dev_err(&adapter->ccw_device->dev,
+		"Setting up the QDIO connection to the FCP adapter failed\n");
 	return -EIO;
 }

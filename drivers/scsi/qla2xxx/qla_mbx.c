@@ -233,7 +233,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 			DEBUG2_3_11(printk("%s(%ld): timeout schedule "
 			    "isp_abort_needed.\n", __func__, ha->host_no));
 			qla_printk(KERN_WARNING, ha,
-			    "Mailbox command timeout occured. Scheduling ISP "
+			    "Mailbox command timeout occurred. Scheduling ISP "
 			    "abort.\n");
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			qla2xxx_wake_dpc(ha);
@@ -244,7 +244,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 			DEBUG2_3_11(printk("%s(%ld): timeout calling "
 			    "abort_isp\n", __func__, ha->host_no));
 			qla_printk(KERN_WARNING, ha,
-			    "Mailbox command timeout occured. Issuing ISP "
+			    "Mailbox command timeout occurred. Issuing ISP "
 			    "abort.\n");
 
 			set_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
@@ -1995,7 +1995,7 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map)
 	char *pmap;
 	dma_addr_t pmap_dma;
 
-	pmap = dma_pool_alloc(ha->s_dma_pool, GFP_ATOMIC, &pmap_dma);
+	pmap = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pmap_dma);
 	if (pmap  == NULL) {
 		DEBUG2_3_11(printk("%s(%ld): **** Mem Alloc Failed ****",
 		    __func__, ha->host_no));

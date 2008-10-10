@@ -225,8 +225,6 @@ static struct request *get_rdac_req(struct scsi_device *sdev,
 		return NULL;
 	}
 
-	memset(rq->cmd, 0, BLK_MAX_CDB);
-
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->cmd_flags |= REQ_FAILFAST | REQ_NOMERGE;
 	rq->retries = RDAC_RETRIES;
@@ -590,6 +588,8 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"STK", "OPENstorage D280"},
 	{"SUN", "CSM200_R"},
 	{"SUN", "LCSM100_F"},
+	{"DELL", "MD3000"},
+	{"DELL", "MD3000i"},
 	{NULL, NULL},
 };
 

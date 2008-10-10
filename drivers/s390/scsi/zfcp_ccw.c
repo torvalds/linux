@@ -25,7 +25,8 @@ static int zfcp_ccw_probe(struct ccw_device *ccw_device)
 	down(&zfcp_data.config_sema);
 	if (zfcp_adapter_enqueue(ccw_device)) {
 		dev_err(&ccw_device->dev,
-			"Setup of data structures failed.\n");
+			"Setting up data structures for the "
+			"FCP adapter failed\n");
 		retval = -EINVAL;
 	}
 	up(&zfcp_data.config_sema);
@@ -46,6 +47,8 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port, *p;
 	struct zfcp_unit *unit, *u;
+	LIST_HEAD(unit_remove_lh);
+	LIST_HEAD(port_remove_lh);
 
 	ccw_device_set_offline(ccw_device);
 	down(&zfcp_data.config_sema);
@@ -54,26 +57,26 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	write_lock_irq(&zfcp_data.config_lock);
 	list_for_each_entry_safe(port, p, &adapter->port_list_head, list) {
 		list_for_each_entry_safe(unit, u, &port->unit_list_head, list) {
-			list_move(&unit->list, &port->unit_remove_lh);
+			list_move(&unit->list, &unit_remove_lh);
 			atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE,
 					&unit->status);
 		}
-		list_move(&port->list, &adapter->port_remove_lh);
+		list_move(&port->list, &port_remove_lh);
 		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	}
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 	write_unlock_irq(&zfcp_data.config_lock);
 
-	list_for_each_entry_safe(port, p, &adapter->port_remove_lh, list) {
-		list_for_each_entry_safe(unit, u, &port->unit_remove_lh, list) {
-			if (atomic_test_mask(ZFCP_STATUS_UNIT_REGISTERED,
-				&unit->status))
+	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
+		list_for_each_entry_safe(unit, u, &unit_remove_lh, list) {
+			if (atomic_read(&unit->status) &
+			    ZFCP_STATUS_UNIT_REGISTERED)
 				scsi_remove_device(unit->device);
 			zfcp_unit_dequeue(unit);
 		}
 		zfcp_port_dequeue(port);
 	}
-	zfcp_adapter_wait(adapter);
+	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
 	zfcp_adapter_dequeue(adapter);
 
 	up(&zfcp_data.config_sema);
@@ -156,15 +159,18 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 
 	switch (event) {
 	case CIO_GONE:
-		dev_warn(&adapter->ccw_device->dev, "device gone\n");
+		dev_warn(&adapter->ccw_device->dev,
+			 "The FCP device has been detached\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 87, NULL);
 		break;
 	case CIO_NO_PATH:
-		dev_warn(&adapter->ccw_device->dev, "no path\n");
+		dev_warn(&adapter->ccw_device->dev,
+			 "The CHPID for the FCP device is offline\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, 88, NULL);
 		break;
 	case CIO_OPER:
-		dev_info(&adapter->ccw_device->dev, "operational again\n");
+		dev_info(&adapter->ccw_device->dev,
+			 "The FCP device is operational again\n");
 		zfcp_erp_modify_adapter_status(adapter, 11, NULL,
 					       ZFCP_STATUS_COMMON_RUNNING,
 					       ZFCP_SET);
@@ -219,4 +225,21 @@ static struct ccw_driver zfcp_ccw_driver = {
 int __init zfcp_ccw_register(void)
 {
 	return ccw_driver_register(&zfcp_ccw_driver);
+}
+
+/**
+ * zfcp_get_adapter_by_busid - find zfcp_adapter struct
+ * @busid: bus id string of zfcp adapter to find
+ */
+struct zfcp_adapter *zfcp_get_adapter_by_busid(char *busid)
+{
+	struct ccw_device *ccw_device;
+	struct zfcp_adapter *adapter = NULL;
+
+	ccw_device = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (ccw_device) {
+		adapter = dev_get_drvdata(&ccw_device->dev);
+		put_device(&ccw_device->dev);
+	}
+	return adapter;
 }

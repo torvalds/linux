@@ -318,6 +318,26 @@ void zfcp_hba_dbf_event_qdio(struct zfcp_adapter *adapter,
 	spin_unlock_irqrestore(&adapter->hba_dbf_lock, flags);
 }
 
+/**
+ * zfcp_hba_dbf_event_berr - trace event for bit error threshold
+ * @adapter: adapter affected by this QDIO related event
+ * @req: fsf request
+ */
+void zfcp_hba_dbf_event_berr(struct zfcp_adapter *adapter,
+			     struct zfcp_fsf_req *req)
+{
+	struct zfcp_hba_dbf_record *r = &adapter->hba_dbf_buf;
+	struct fsf_status_read_buffer *sr_buf = req->data;
+	struct fsf_bit_error_payload *err = &sr_buf->payload.bit_error;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->hba_dbf_lock, flags);
+	memset(r, 0, sizeof(*r));
+	strncpy(r->tag, "berr", ZFCP_DBF_TAG_SIZE);
+	memcpy(&r->u.berr, err, sizeof(struct fsf_bit_error_payload));
+	debug_event(adapter->hba_dbf, 0, r, sizeof(*r));
+	spin_unlock_irqrestore(&adapter->hba_dbf_lock, flags);
+}
 static void zfcp_hba_dbf_view_response(char **p,
 				       struct zfcp_hba_dbf_record_response *r)
 {
@@ -399,6 +419,30 @@ static void zfcp_hba_dbf_view_qdio(char **p, struct zfcp_hba_dbf_record_qdio *r)
 	zfcp_dbf_out(p, "sbal_count", "0x%02x", r->sbal_count);
 }
 
+static void zfcp_hba_dbf_view_berr(char **p, struct fsf_bit_error_payload *r)
+{
+	zfcp_dbf_out(p, "link_failures", "%d", r->link_failure_error_count);
+	zfcp_dbf_out(p, "loss_of_sync_err", "%d", r->loss_of_sync_error_count);
+	zfcp_dbf_out(p, "loss_of_sig_err", "%d", r->loss_of_signal_error_count);
+	zfcp_dbf_out(p, "prim_seq_err", "%d",
+		     r->primitive_sequence_error_count);
+	zfcp_dbf_out(p, "inval_trans_word_err", "%d",
+		     r->invalid_transmission_word_error_count);
+	zfcp_dbf_out(p, "CRC_errors", "%d", r->crc_error_count);
+	zfcp_dbf_out(p, "prim_seq_event_to", "%d",
+		     r->primitive_sequence_event_timeout_count);
+	zfcp_dbf_out(p, "elast_buf_overrun_err", "%d",
+		     r->elastic_buffer_overrun_error_count);
+	zfcp_dbf_out(p, "adv_rec_buf2buf_cred", "%d",
+		     r->advertised_receive_b2b_credit);
+	zfcp_dbf_out(p, "curr_rec_buf2buf_cred", "%d",
+		     r->current_receive_b2b_credit);
+	zfcp_dbf_out(p, "adv_trans_buf2buf_cred", "%d",
+		     r->advertised_transmit_b2b_credit);
+	zfcp_dbf_out(p, "curr_trans_buf2buf_cred", "%d",
+		     r->current_transmit_b2b_credit);
+}
+
 static int zfcp_hba_dbf_view_format(debug_info_t *id, struct debug_view *view,
 				    char *out_buf, const char *in_buf)
 {
@@ -418,6 +462,8 @@ static int zfcp_hba_dbf_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_hba_dbf_view_status(&p, &r->u.status);
 	else if (strncmp(r->tag, "qdio", ZFCP_DBF_TAG_SIZE) == 0)
 		zfcp_hba_dbf_view_qdio(&p, &r->u.qdio);
+	else if (strncmp(r->tag, "berr", ZFCP_DBF_TAG_SIZE) == 0)
+		zfcp_hba_dbf_view_berr(&p, &r->u.berr);
 
 	p += sprintf(p, "\n");
 	return p - out_buf;
@@ -519,14 +565,14 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[75]	= "physical port recovery escalation after failed port "
 		  "recovery",
 	[76]	= "port recovery escalation after failed unit recovery",
-	[77]	= "recovery opening nameserver port",
+	[77]	= "",
 	[78]	= "duplicate request id",
 	[79]	= "link down",
 	[80]	= "exclusive read-only unit access unsupported",
 	[81]	= "shared read-write unit access unsupported",
 	[82]	= "incoming rscn",
 	[83]	= "incoming wwpn",
-	[84]	= "",
+	[84]	= "wka port handle not valid close port",
 	[85]	= "online",
 	[86]	= "offline",
 	[87]	= "ccw device gone",
@@ -570,7 +616,7 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[125]	= "need newer zfcp",
 	[126]	= "need newer microcode",
 	[127]	= "arbitrated loop not supported",
-	[128]	= "unknown topology",
+	[128]	= "",
 	[129]	= "qtcb size mismatch",
 	[130]	= "unknown fsf status ecd",
 	[131]	= "fcp request too big",
@@ -829,9 +875,9 @@ void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
 void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_port *port = ct->port;
-	struct zfcp_adapter *adapter = port->adapter;
-	struct ct_hdr *hdr = zfcp_sg_to_address(ct->req);
+	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_adapter *adapter = wka_port->adapter;
+	struct ct_hdr *hdr = sg_virt(ct->req);
 	struct zfcp_san_dbf_record *r = &adapter->san_dbf_buf;
 	struct zfcp_san_dbf_record_ct_request *oct = &r->u.ct_req;
 	unsigned long flags;
@@ -842,7 +888,7 @@ void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 	r->fsf_reqid = (unsigned long)fsf_req;
 	r->fsf_seqno = fsf_req->seq_no;
 	r->s_id = fc_host_port_id(adapter->scsi_host);
-	r->d_id = port->d_id;
+	r->d_id = wka_port->d_id;
 	oct->cmd_req_code = hdr->cmd_rsp_code;
 	oct->revision = hdr->revision;
 	oct->gs_type = hdr->gs_type;
@@ -863,9 +909,9 @@ void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_port *port = ct->port;
-	struct zfcp_adapter *adapter = port->adapter;
-	struct ct_hdr *hdr = zfcp_sg_to_address(ct->resp);
+	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_adapter *adapter = wka_port->adapter;
+	struct ct_hdr *hdr = sg_virt(ct->resp);
 	struct zfcp_san_dbf_record *r = &adapter->san_dbf_buf;
 	struct zfcp_san_dbf_record_ct_response *rct = &r->u.ct_resp;
 	unsigned long flags;
@@ -875,7 +921,7 @@ void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 	strncpy(r->tag, "rctc", ZFCP_DBF_TAG_SIZE);
 	r->fsf_reqid = (unsigned long)fsf_req;
 	r->fsf_seqno = fsf_req->seq_no;
-	r->s_id = port->d_id;
+	r->s_id = wka_port->d_id;
 	r->d_id = fc_host_port_id(adapter->scsi_host);
 	rct->cmd_rsp_code = hdr->cmd_rsp_code;
 	rct->revision = hdr->revision;
@@ -922,8 +968,8 @@ void zfcp_san_dbf_event_els_request(struct zfcp_fsf_req *fsf_req)
 
 	zfcp_san_dbf_event_els("oels", 2, fsf_req,
 			       fc_host_port_id(els->adapter->scsi_host),
-			       els->d_id, *(u8 *) zfcp_sg_to_address(els->req),
-			       zfcp_sg_to_address(els->req), els->req->length);
+			       els->d_id, *(u8 *) sg_virt(els->req),
+			       sg_virt(els->req), els->req->length);
 }
 
 /**
@@ -936,8 +982,7 @@ void zfcp_san_dbf_event_els_response(struct zfcp_fsf_req *fsf_req)
 
 	zfcp_san_dbf_event_els("rels", 2, fsf_req, els->d_id,
 			       fc_host_port_id(els->adapter->scsi_host),
-			       *(u8 *)zfcp_sg_to_address(els->req),
-			       zfcp_sg_to_address(els->resp),
+			       *(u8 *)sg_virt(els->req), sg_virt(els->resp),
 			       els->resp->length);
 }
 
