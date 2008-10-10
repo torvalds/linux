@@ -74,6 +74,7 @@ static inline void nf_ct_event_cache_flush(struct net *net) {}
 static inline int nf_conntrack_ecache_init(struct net *net)
 {
 	return 0;
+}
 
 static inline void nf_conntrack_ecache_fini(struct net *net)
 {
