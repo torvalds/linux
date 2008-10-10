@@ -482,6 +482,13 @@ void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct io_restrictions *rs = &ti->limits;
+	char b[BDEVNAME_SIZE];
+
+	if (unlikely(!q)) {
+		DMWARN("%s: Cannot set limits for nonexistent device %s",
+		       dm_device_name(ti->table->md), bdevname(bdev, b));
+		return;
+	}
 
 	/*
 	 * Combine the device limits low.
@@ -950,7 +957,14 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 
 	list_for_each_entry(dd, devices, list) {
 		struct request_queue *q = bdev_get_queue(dd->dm_dev.bdev);
-		r |= bdi_congested(&q->backing_dev_info, bdi_bits);
+		char b[BDEVNAME_SIZE];
+
+		if (likely(q))
+			r |= bdi_congested(&q->backing_dev_info, bdi_bits);
+		else
+			DMWARN_LIMIT("%s: any_congested: nonexistent device %s",
+				     dm_device_name(t->md),
+				     bdevname(dd->dm_dev.bdev, b));
 	}
 
 	return r;
@@ -963,8 +977,14 @@ void dm_table_unplug_all(struct dm_table *t)
 
 	list_for_each_entry(dd, devices, list) {
 		struct request_queue *q = bdev_get_queue(dd->dm_dev.bdev);
+		char b[BDEVNAME_SIZE];
 
-		blk_unplug(q);
+		if (likely(q))
+			blk_unplug(q);
+		else
+			DMWARN_LIMIT("%s: Cannot unplug nonexistent device %s",
+				     dm_device_name(t->md),
+				     bdevname(dd->dm_dev.bdev, b));
 	}
 }
 
