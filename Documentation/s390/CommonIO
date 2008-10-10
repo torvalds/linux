@@ -104,8 +104,7 @@ debugfs entries
     handling).
 
   - /sys/kernel/debug/s390dbf/cio_msg/sprintf
-    Various debug messages from the common I/O-layer, including messages
-    printed when cio_msg=yes.
+    Various debug messages from the common I/O-layer.
 
   - /sys/kernel/debug/s390dbf/cio_trace/hex_ascii
     Logs the calling of functions in the common I/O-layer and, if applicable, 
