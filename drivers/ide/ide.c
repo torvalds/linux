@@ -558,6 +558,28 @@ out:
 	return rc;
 }
 
+static int ide_get_nice_ioctl(ide_drive_t *drive, unsigned long arg)
+{
+	return put_user((drive->dsc_overlap << IDE_NICE_DSC_OVERLAP) |
+			(drive->nice1 << IDE_NICE_1), (long __user *)arg);
+}
+
+static int ide_set_nice_ioctl(ide_drive_t *drive, unsigned long arg)
+{
+	if (arg != (arg & ((1 << IDE_NICE_DSC_OVERLAP) | (1 << IDE_NICE_1))))
+		return -EPERM;
+
+	if (((arg >> IDE_NICE_DSC_OVERLAP) & 1) &&
+	    (drive->media == ide_disk || drive->media == ide_floppy ||
+	     drive->scsi))
+		return -EPERM;
+
+	drive->dsc_overlap = (arg >> IDE_NICE_DSC_OVERLAP) & 1;
+	drive->nice1 = (arg >> IDE_NICE_1) & 1;
+
+	return 0;
+}
+
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
 			unsigned int cmd, unsigned long arg)
 {
@@ -583,9 +605,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 				return -EINVAL;
 			return ide_get_identity_ioctl(drive, cmd, arg);
 		case HDIO_GET_NICE:
-			return put_user(drive->dsc_overlap	<<	IDE_NICE_DSC_OVERLAP	|
-					drive->nice1 << IDE_NICE_1,
-					(long __user *) arg);
+			return ide_get_nice_ioctl(drive, arg);
 #ifdef CONFIG_IDE_TASK_IOCTL
 		case HDIO_DRIVE_TASKFILE:
 		        if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
@@ -608,17 +628,9 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 				return -EACCES;
 			return ide_task_ioctl(drive, cmd, arg);
 		case HDIO_SET_NICE:
-			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
-			if (arg != (arg & ((1 << IDE_NICE_DSC_OVERLAP) | (1 << IDE_NICE_1))))
-				return -EPERM;
-			if (((arg >> IDE_NICE_DSC_OVERLAP) & 1) &&
-			    (drive->media == ide_disk ||
-			     drive->media == ide_floppy ||
-			     drive->scsi))
-				return -EPERM;
-			drive->dsc_overlap = (arg >> IDE_NICE_DSC_OVERLAP) & 1;
-			drive->nice1 = (arg >> IDE_NICE_1) & 1;
-			return 0;
+			if (!capable(CAP_SYS_ADMIN))
+				return -EACCES;
+			return ide_set_nice_ioctl(drive, arg);
 		case HDIO_DRIVE_RESET:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
