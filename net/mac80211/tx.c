@@ -600,8 +600,18 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	if (ieee80211_hdrlen(hdr->frame_control) < 24)
 		return TX_CONTINUE;
 
+	/*
+	 * Anything but QoS data that has a sequence number field
+	 * (is long enough) gets a sequence number from the global
+	 * counter.
+	 */
 	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+		/* driver should assign sequence number */
 		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
+		/* for pure STA mode without beacons, we can do it */
+		hdr->seq_ctrl = cpu_to_le16(tx->sdata->sequence_number);
+		tx->sdata->sequence_number += 0x10;
+		tx->sdata->sequence_number &= IEEE80211_SCTL_SEQ;
 		return TX_CONTINUE;
 	}
 

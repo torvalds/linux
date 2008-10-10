@@ -438,6 +438,8 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS];
 	struct ieee80211_key *default_key;
 
+	u16 sequence_number;
+
 	/* BSS configuration for this interface. */
 	struct ieee80211_bss_conf bss_conf;
 

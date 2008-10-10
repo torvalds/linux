@@ -100,7 +100,6 @@ struct rtl8187_priv {
 	struct usb_device *udev;
 	u32 rx_conf;
 	u16 txpwr_base;
-	u16 seqno;
 	u8 asic_rev;
 	u8 is_rtl8187b;
 	enum {
