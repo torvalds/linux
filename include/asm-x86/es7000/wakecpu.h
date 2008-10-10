@@ -1,7 +1,7 @@
-#ifndef ASM_X86__MACH_ES7000__MACH_WAKECPU_H
-#define ASM_X86__MACH_ES7000__MACH_WAKECPU_H
+#ifndef __ASM_ES7000_WAKECPU_H
+#define __ASM_ES7000_WAKECPU_H
 
-/* 
+/*
  * This file copes with machines that wakeup secondary CPUs by the
  * INIT, INIT, STARTUP sequence.
  */
@@ -56,4 +56,4 @@ static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
  #define inquire_remote_apic(apicid) {}
 #endif
 
-#endif /* ASM_X86__MACH_ES7000__MACH_WAKECPU_H */
+#endif /* __ASM_MACH_WAKECPU_H */

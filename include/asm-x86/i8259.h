@@ -57,4 +57,7 @@ static inline void outb_pic(unsigned char value, unsigned int port)
 
 extern struct irq_chip i8259A_chip;
 
+extern void mask_8259A(void);
+extern void unmask_8259A(void);
+
 #endif /* ASM_X86__I8259_H */

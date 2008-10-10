@@ -1,7 +1,7 @@
 /*
  * Written by: Garry Forsgren, Unisys Corporation
  *             Natalie Protasevich, Unisys Corporation
- * This file contains the code to configure and interface 
+ * This file contains the code to configure and interface
  * with Unisys ES7000 series hardware system manager.
  *
  * Copyright (c) 2003 Unisys Corporation.  All Rights Reserved.
@@ -18,7 +18,7 @@
  * with this program; if not, write the Free Software Foundation, Inc., 59
  * Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * Contact information: Unisys Corporation, Township Line & Union Meeting 
+ * Contact information: Unisys Corporation, Township Line & Union Meeting
  * Roads-A, Unisys Way, Blue Bell, Pennsylvania, 19424, or:
  *
  * http://www.unisys.com
@@ -41,7 +41,7 @@
 #define	MIP_VALID		0x0100000000000000ULL
 #define	MIP_PORT(VALUE)	((VALUE >> 32) & 0xffff)
 
-#define	MIP_RD_LO(VALUE)	(VALUE & 0xffffffff)   
+#define	MIP_RD_LO(VALUE)	(VALUE & 0xffffffff)
 
 struct mip_reg_info {
 	unsigned long long mip_info;
@@ -51,11 +51,11 @@ struct mip_reg_info {
 };
 
 struct part_info {
-	unsigned char type;   
+	unsigned char type;
 	unsigned char length;
 	unsigned char part_id;
 	unsigned char apic_mode;
-	unsigned long snum;    
+	unsigned long snum;
 	char ptype[16];
 	char sname[64];
 	char pname[64];
@@ -68,11 +68,11 @@ struct psai {
 };
 
 struct es7000_mem_info {
-	unsigned char type;   
+	unsigned char type;
 	unsigned char length;
 	unsigned char resv[6];
-	unsigned long long  start; 
-	unsigned long long  size; 
+	unsigned long long  start;
+	unsigned long long  size;
 };
 
 struct es7000_oem_table {
@@ -106,7 +106,7 @@ struct mip_reg {
 };
 
 #define	MIP_SW_APIC		0x1020b
-#define	MIP_FUNC(VALUE) 	(VALUE & 0xff)
+#define	MIP_FUNC(VALUE)		(VALUE & 0xff)
 
 extern int parse_unisys_oem (char *oemptr);
 extern void setup_unisys(void);
