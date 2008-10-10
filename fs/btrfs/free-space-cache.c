@@ -90,8 +90,8 @@ static struct btrfs_free_space *tree_search_offset(struct rb_root *root,
 				ret = entry;
 			n = n->rb_left;
 		} else if (offset > entry->offset) {
-			if (contains &&
-			    (entry->offset + entry->bytes - 1) >= offset) {
+			if ((entry->offset + entry->bytes - 1) >= offset &&
+			    bytes <= entry->bytes) {
 				ret = entry;
 				break;
 			}
