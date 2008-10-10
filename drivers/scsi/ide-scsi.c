@@ -130,50 +130,6 @@ static inline idescsi_scsi_t *drive_to_idescsi(ide_drive_t *ide_drive)
 	return scsihost_to_idescsi(ide_drive->driver_data);
 }
 
-/*
- *	PIO data transfer routine using the scatter gather table.
- */
-static void ide_scsi_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
-				unsigned int bcount, int write)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	xfer_func_t *xf = write ? tp_ops->output_data : tp_ops->input_data;
-	struct scatterlist *sg = pc->sg;
-	char *buf;
-	int count;
-
-	while (bcount) {
-		count = min(sg->length - pc->b_count, bcount);
-		if (PageHighMem(sg_page(sg))) {
-			unsigned long flags;
-
-			local_irq_save(flags);
-			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
-			xf(drive, NULL, buf + pc->b_count, count);
-			kunmap_atomic(buf - sg->offset, KM_IRQ0);
-			local_irq_restore(flags);
-		} else {
-			buf = sg_virt(sg);
-			xf(drive, NULL, buf + pc->b_count, count);
-		}
-		bcount -= count; pc->b_count += count;
-		if (pc->b_count == sg->length) {
-			if (!--pc->sg_cnt)
-				break;
-			pc->sg = sg = sg_next(sg);
-			pc->b_count = 0;
-		}
-	}
-
-	if (bcount) {
-		printk(KERN_ERR "%s: scatter gather table too small, %s\n",
-				drive->name, write ? "padding with zeros"
-						   : "discarding data");
-		ide_pad_transfer(drive, write, bcount);
-	}
-}
-
 static void ide_scsi_hex_dump(u8 *data, int len)
 {
 	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1, data, len, 0);
@@ -343,7 +299,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 
 	return ide_pc_intr(drive, pc, idescsi_pc_intr, get_timeout(pc),
 			   idescsi_expiry, NULL, NULL, NULL,
-			   ide_scsi_io_buffers);
+			   ide_io_buffers);
 }
 
 static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)

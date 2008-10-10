@@ -693,13 +693,15 @@ static void ide_tape_handle_dsc(ide_drive_t *drive)
 	idetape_postpone_request(drive);
 }
 
-static void ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				unsigned int bcount, int write)
 {
 	if (write)
 		idetape_output_buffers(drive, pc, bcount);
 	else
 		idetape_input_buffers(drive, pc, bcount);
+
+	return bcount;
 }
 
 /*

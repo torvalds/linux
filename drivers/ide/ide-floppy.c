@@ -208,51 +208,6 @@ static int idefloppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	return 0;
 }
 
-static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
-				  unsigned int bcount, int direction)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	xfer_func_t *xf = direction ? tp_ops->output_data : tp_ops->input_data;
-	struct scatterlist *sg = pc->sg;
-	char *buf;
-	int count, done = 0;
-
-	while (bcount) {
-		count = min(sg->length - pc->b_count, bcount);
-		if (PageHighMem(sg_page(sg))) {
-			unsigned long flags;
-
-			local_irq_save(flags);
-			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
-			xf(drive, NULL, buf + pc->b_count, count);
-			kunmap_atomic(buf - sg->offset, KM_IRQ0);
-			local_irq_restore(flags);
-		} else {
-			buf = sg_virt(sg);
-			xf(drive, NULL, buf + pc->b_count, count);
-		}
-		bcount -= count;
-		pc->b_count += count;
-		done += count;
-
-		if (pc->b_count == sg->length) {
-			if (!--pc->sg_cnt)
-				break;
-			pc->sg = sg = sg_next(sg);
-			pc->b_count = 0;
-		}
-	}
-
-	idefloppy_end_request(drive, 1, done >> 9);
-
-	if (bcount) {
-		printk(KERN_ERR "%s: leftover data in %s, bcount == %d\n",
-				drive->name, __func__, bcount);
-		ide_pad_transfer(drive, direction, bcount);
-	}
-}
-
 static void idefloppy_update_buffers(ide_drive_t *drive,
 				struct ide_atapi_pc *pc)
 {
@@ -356,7 +311,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 
 	return ide_pc_intr(drive, floppy->pc, idefloppy_pc_intr,
 			   IDEFLOPPY_WAIT_CMD, NULL, idefloppy_update_buffers,
-			   idefloppy_retry_pc, NULL, ide_floppy_io_buffers);
+			   idefloppy_retry_pc, NULL, ide_io_buffers);
 }
 
 /*

@@ -61,12 +61,62 @@ int ide_check_atapi_device(ide_drive_t *drive, const char *s)
 }
 EXPORT_SYMBOL_GPL(ide_check_atapi_device);
 
+/* PIO data transfer routine using the scatter gather table. */
+int ide_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+		    unsigned int bcount, int write)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+	xfer_func_t *xf = write ? tp_ops->output_data : tp_ops->input_data;
+	struct scatterlist *sg = pc->sg;
+	char *buf;
+	int count, done = 0;
+
+	while (bcount) {
+		count = min(sg->length - pc->b_count, bcount);
+
+		if (PageHighMem(sg_page(sg))) {
+			unsigned long flags;
+
+			local_irq_save(flags);
+			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
+			xf(drive, NULL, buf + pc->b_count, count);
+			kunmap_atomic(buf - sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
+		} else {
+			buf = sg_virt(sg);
+			xf(drive, NULL, buf + pc->b_count, count);
+		}
+
+		bcount -= count;
+		pc->b_count += count;
+		done += count;
+
+		if (pc->b_count == sg->length) {
+			if (!--pc->sg_cnt)
+				break;
+			pc->sg = sg = sg_next(sg);
+			pc->b_count = 0;
+		}
+	}
+
+	if (bcount) {
+		printk(KERN_ERR "%s: %d leftover bytes, %s\n", drive->name,
+			bcount, write ? "padding with zeros"
+				      : "discarding data");
+		ide_pad_transfer(drive, write, bcount);
+	}
+
+	return done;
+}
+EXPORT_SYMBOL_GPL(ide_io_buffers);
+
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
 	void (*retry_pc)(ide_drive_t *), void (*dsc_handle)(ide_drive_t *),
-	void (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
+	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->hwgroup->rq;
@@ -219,9 +269,14 @@ cmd_finished:
 
 	if ((drive->media == ide_floppy && !scsi && !pc->buf) ||
 	    (drive->media == ide_tape && !scsi && pc->bh) ||
-	    (scsi && pc->sg))
-		io_buffers(drive, pc, bcount, !!(pc->flags & PC_FLAG_WRITING));
-	else
+	    (scsi && pc->sg)) {
+		int done = io_buffers(drive, pc, bcount,
+				  !!(pc->flags & PC_FLAG_WRITING));
+
+		/* FIXME: don't do partial completions */
+		if (drive->media == ide_floppy && !scsi)
+			ide_end_request(drive, 1, done >> 9);
+	} else
 		xferfunc(drive, NULL, pc->cur_pos, bcount);
 
 	/* Update the current position */
