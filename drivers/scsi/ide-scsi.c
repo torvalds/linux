@@ -139,29 +139,29 @@ static void ide_scsi_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xf = write ? tp_ops->output_data : tp_ops->input_data;
+	struct scatterlist *sg = pc->sg;
 	char *buf;
 	int count;
 
 	while (bcount) {
-		count = min(pc->sg->length - pc->b_count, bcount);
-		if (PageHighMem(sg_page(pc->sg))) {
+		count = min(sg->length - pc->b_count, bcount);
+		if (PageHighMem(sg_page(sg))) {
 			unsigned long flags;
 
 			local_irq_save(flags);
-			buf = kmap_atomic(sg_page(pc->sg), KM_IRQ0) +
-					  pc->sg->offset;
+			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
 			xf(drive, NULL, buf + pc->b_count, count);
-			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
+			kunmap_atomic(buf - sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
-			buf = sg_virt(pc->sg);
+			buf = sg_virt(sg);
 			xf(drive, NULL, buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
-		if (pc->b_count == pc->sg->length) {
+		if (pc->b_count == sg->length) {
 			if (!--pc->sg_cnt)
 				break;
-			pc->sg = sg_next(pc->sg);
+			pc->sg = sg = sg_next(sg);
 			pc->b_count = 0;
 		}
 	}
