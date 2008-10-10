@@ -957,7 +957,8 @@ out_err:
 	return rc;
 }
 
-void selinux_write_opts(struct seq_file *m, struct security_mnt_opts *opts)
+static void selinux_write_opts(struct seq_file *m,
+			       struct security_mnt_opts *opts)
 {
 	int i;
 	char *prefix;
@@ -1290,7 +1291,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
-		if (sbsec->proc) {
+		if (sbsec->proc && !S_ISLNK(inode->i_mode)) {
 			struct proc_inode *proci = PROC_I(inode);
 			if (proci->pde) {
 				isec->sclass = inode_mode_to_security_class(inode->i_mode);
@@ -3548,38 +3549,44 @@ out:
 #endif /* IPV6 */
 
 static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
-			     char **addrp, int src, u8 *proto)
+			     char **_addrp, int src, u8 *proto)
 {
-	int ret = 0;
+	char *addrp;
+	int ret;
 
 	switch (ad->u.net.family) {
 	case PF_INET:
 		ret = selinux_parse_skb_ipv4(skb, ad, proto);
-		if (ret || !addrp)
-			break;
-		*addrp = (char *)(src ? &ad->u.net.v4info.saddr :
-					&ad->u.net.v4info.daddr);
-		break;
+		if (ret)
+			goto parse_error;
+		addrp = (char *)(src ? &ad->u.net.v4info.saddr :
+				       &ad->u.net.v4info.daddr);
+		goto okay;
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6:
 		ret = selinux_parse_skb_ipv6(skb, ad, proto);
-		if (ret || !addrp)
-			break;
-		*addrp = (char *)(src ? &ad->u.net.v6info.saddr :
-					&ad->u.net.v6info.daddr);
-		break;
+		if (ret)
+			goto parse_error;
+		addrp = (char *)(src ? &ad->u.net.v6info.saddr :
+				       &ad->u.net.v6info.daddr);
+		goto okay;
 #endif	/* IPV6 */
 	default:
-		break;
+		addrp = NULL;
+		goto okay;
 	}
 
-	if (unlikely(ret))
-		printk(KERN_WARNING
-		       "SELinux: failure in selinux_parse_skb(),"
-		       " unable to parse packet\n");
-
+parse_error:
+	printk(KERN_WARNING
+	       "SELinux: failure in selinux_parse_skb(),"
+	       " unable to parse packet\n");
 	return ret;
+
+okay:
+	if (_addrp)
+		*_addrp = addrp;
+	return 0;
 }
 
 /**
@@ -5219,8 +5226,12 @@ static int selinux_setprocattr(struct task_struct *p,
 
 		if (sid == 0)
 			return -EINVAL;
-
-		/* Only allow single threaded processes to change context */
+		/*
+		 * SELinux allows to change context in the following case only.
+		 *  - Single threaded processes.
+		 *  - Multi threaded processes intend to change its context into
+		 *    more restricted domain (defined by TYPEBOUNDS statement).
+		 */
 		if (atomic_read(&p->mm->mm_users) != 1) {
 			struct task_struct *g, *t;
 			struct mm_struct *mm = p->mm;
@@ -5228,11 +5239,16 @@ static int selinux_setprocattr(struct task_struct *p,
 			do_each_thread(g, t) {
 				if (t->mm == mm && t != p) {
 					read_unlock(&tasklist_lock);
-					return -EPERM;
+					error = security_bounded_transition(tsec->sid, sid);
+					if (!error)
+						goto boundary_ok;
+
+					return error;
 				}
 			} while_each_thread(g, t);
 			read_unlock(&tasklist_lock);
 		}
+boundary_ok:
 
 		/* Check permissions for the transition. */
 		error = avc_has_perm(tsec->sid, sid, SECCLASS_PROCESS,

@@ -178,6 +178,7 @@ u32 smack_to_secid(const char *);
 extern int smack_cipso_direct;
 extern int smack_net_nltype;
 extern char *smack_net_ambient;
+extern char *smack_onlycap;
 
 extern struct smack_known *smack_known;
 extern struct smack_known smack_known_floor;

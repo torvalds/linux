@@ -28,7 +28,7 @@ struct cond_expr {
 #define COND_XOR	5 /* bool ^ bool */
 #define COND_EQ		6 /* bool == bool */
 #define COND_NEQ	7 /* bool != bool */
-#define COND_LAST	8
+#define COND_LAST	COND_NEQ
 	__u32 expr_type;
 	__u32 bool;
 	struct cond_expr *next;

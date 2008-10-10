@@ -51,6 +51,14 @@ config SECURITY
 
 	  If you are unsure how to answer this question, answer N.
 
+config SECURITYFS
+	bool "Enable the securityfs filesystem"
+	help
+	  This will build the securityfs filesystem.  It is currently used by
+	  the TPM bios character driver.  It is not used by SELinux or SMACK.
+
+	  If you are unsure how to answer this question, answer N.
+
 config SECURITY_NETWORK
 	bool "Socket and Networking Security Hooks"
 	depends on SECURITY

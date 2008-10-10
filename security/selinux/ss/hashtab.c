@@ -81,7 +81,7 @@ void *hashtab_search(struct hashtab *h, const void *key)
 
 	hvalue = h->hash_value(h, key);
 	cur = h->htable[hvalue];
-	while (cur != NULL && h->keycmp(h, key, cur->key) > 0)
+	while (cur && h->keycmp(h, key, cur->key) > 0)
 		cur = cur->next;
 
 	if (cur == NULL || (h->keycmp(h, key, cur->key) != 0))
@@ -100,7 +100,7 @@ void hashtab_destroy(struct hashtab *h)
 
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			temp = cur;
 			cur = cur->next;
 			kfree(temp);
@@ -127,7 +127,7 @@ int hashtab_map(struct hashtab *h,
 
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			ret = apply(cur->key, cur->datum, args);
 			if (ret)
 				return ret;
