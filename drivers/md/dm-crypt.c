@@ -674,6 +674,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
 		crypt_free_buffer_pages(cc, clone);
 		bio_put(clone);
 		io->error = -EIO;
+		crypt_dec_pending(io);
 		return;
 	}
 
@@ -724,10 +725,8 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 			/* processed, no running async crypto  */
 			crypt_inc_pending(io);
 			kcryptd_crypt_write_io_submit(io, r, 0);
-			if (unlikely(r < 0)) {
-				crypt_dec_pending(io);
+			if (unlikely(r < 0))
 				break;
-			}
 		} else
 			crypt_inc_pending(io);
 
