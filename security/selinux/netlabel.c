@@ -108,6 +108,24 @@ void selinux_netlbl_cache_invalidate(void)
 }
 
 /**
+ * selinux_netlbl_err - Handle a NetLabel packet error
+ * @skb: the packet
+ * @error: the error code
+ * @gateway: true if host is acting as a gateway, false otherwise
+ *
+ * Description:
+ * When a packet is dropped due to a call to avc_has_perm() pass the error
+ * code to the NetLabel subsystem so any protocol specific processing can be
+ * done.  This is safe to call even if you are unsure if NetLabel labeling is
+ * present on the packet, NetLabel is smart enough to only act when it should.
+ *
+ */
+void selinux_netlbl_err(struct sk_buff *skb, int error, int gateway)
+{
+	netlbl_skbuff_err(skb, error, gateway);
+}
+
+/**
  * selinux_netlbl_sk_security_reset - Reset the NetLabel fields
  * @ssec: the sk_security_struct
  * @family: the socket family
@@ -289,7 +307,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 		return 0;
 
 	if (nlbl_sid != SECINITSID_UNLABELED)
-		netlbl_skbuff_err(skb, rc);
+		netlbl_skbuff_err(skb, rc, 0);
 	return rc;
 }
 

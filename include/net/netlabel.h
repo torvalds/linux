@@ -382,7 +382,7 @@ int netlbl_sock_getattr(struct sock *sk,
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr);
-void netlbl_skbuff_err(struct sk_buff *skb, int error);
+void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway);
 
 /*
  * LSM label mapping cache operations
@@ -454,7 +454,9 @@ static inline int netlbl_skbuff_getattr(const struct sk_buff *skb,
 {
 	return -ENOSYS;
 }
-static inline void netlbl_skbuff_err(struct sk_buff *skb, int error)
+static inline void netlbl_skbuff_err(struct sk_buff *skb,
+				     int error,
+				     int gateway)
 {
 	return;
 }

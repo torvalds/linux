@@ -39,6 +39,8 @@
 #ifdef CONFIG_NETLABEL
 void selinux_netlbl_cache_invalidate(void);
 
+void selinux_netlbl_err(struct sk_buff *skb, int error, int gateway);
+
 void selinux_netlbl_sk_security_reset(struct sk_security_struct *ssec,
 				      int family);
 
@@ -59,6 +61,13 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 				     int optname);
 #else
 static inline void selinux_netlbl_cache_invalidate(void)
+{
+	return;
+}
+
+static inline void selinux_netlbl_err(struct sk_buff *skb,
+				      int error,
+				      int gateway)
 {
 	return;
 }

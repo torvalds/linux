@@ -490,6 +490,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
  * netlbl_skbuff_err - Handle a LSM error on a sk_buff
  * @skb: the packet
  * @error: the error code
+ * @gateway: true if host is acting as a gateway, false otherwise
  *
  * Description:
  * Deal with a LSM problem when handling the packet in @skb, typically this is
@@ -497,10 +498,10 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
  * according to the packet's labeling protocol.
  *
  */
-void netlbl_skbuff_err(struct sk_buff *skb, int error)
+void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway)
 {
 	if (CIPSO_V4_OPTEXIST(skb))
-		cipso_v4_error(skb, error, 0);
+		cipso_v4_error(skb, error, gateway);
 }
 
 /**
