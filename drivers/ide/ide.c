@@ -565,8 +565,9 @@ static const struct ide_ioctl_devset ide_ioctl_settings[] = {
 { 0 }
 };
 
-int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
-			unsigned int cmd, unsigned long arg)
+int generic_ide_ioctl(ide_drive_t *drive, struct file *file,
+		      struct block_device *bdev,
+		      unsigned int cmd, unsigned long arg)
 {
 	int err;
 
@@ -575,57 +576,49 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		return err;
 
 	switch (cmd) {
-		case HDIO_OBSOLETE_IDENTITY:
-		case HDIO_GET_IDENTITY:
-			if (bdev != bdev->bd_contains)
-				return -EINVAL;
-			return ide_get_identity_ioctl(drive, cmd, arg);
-		case HDIO_GET_NICE:
-			return ide_get_nice_ioctl(drive, arg);
-#ifdef CONFIG_IDE_TASK_IOCTL
-		case HDIO_DRIVE_TASKFILE:
-		        if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-				return -EACCES;
-			switch(drive->media) {
-				case ide_disk:
-					return ide_taskfile_ioctl(drive, cmd, arg);
-				default:
-					return -ENOMSG;
-			}
-#endif /* CONFIG_IDE_TASK_IOCTL */
-
-		case HDIO_DRIVE_CMD:
-			if (!capable(CAP_SYS_RAWIO))
-				return -EACCES;
-			return ide_cmd_ioctl(drive, cmd, arg);
-
-		case HDIO_DRIVE_TASK:
-			if (!capable(CAP_SYS_RAWIO))
-				return -EACCES;
-			return ide_task_ioctl(drive, cmd, arg);
-		case HDIO_SET_NICE:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EACCES;
-			return ide_set_nice_ioctl(drive, arg);
-		case HDIO_DRIVE_RESET:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EACCES;
-
-			return generic_drive_reset(drive);
-
-		case HDIO_GET_BUSSTATE:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EACCES;
-			if (put_user(BUSSTATE_ON, (long __user *)arg))
-				return -EFAULT;
-			return 0;
-
-		case HDIO_SET_BUSSTATE:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EACCES;
-			return -EOPNOTSUPP;
-		default:
+	case HDIO_OBSOLETE_IDENTITY:
+	case HDIO_GET_IDENTITY:
+		if (bdev != bdev->bd_contains)
 			return -EINVAL;
+		return ide_get_identity_ioctl(drive, cmd, arg);
+	case HDIO_GET_NICE:
+		return ide_get_nice_ioctl(drive, arg);
+	case HDIO_SET_NICE:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		return ide_set_nice_ioctl(drive, arg);
+#ifdef CONFIG_IDE_TASK_IOCTL
+	case HDIO_DRIVE_TASKFILE:
+		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+			return -EACCES;
+		if (drive->media == ide_disk)
+			return ide_taskfile_ioctl(drive, cmd, arg);
+		return -ENOMSG;
+#endif
+	case HDIO_DRIVE_CMD:
+		if (!capable(CAP_SYS_RAWIO))
+			return -EACCES;
+		return ide_cmd_ioctl(drive, cmd, arg);
+	case HDIO_DRIVE_TASK:
+		if (!capable(CAP_SYS_RAWIO))
+			return -EACCES;
+		return ide_task_ioctl(drive, cmd, arg);
+	case HDIO_DRIVE_RESET:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		return generic_drive_reset(drive);
+	case HDIO_GET_BUSSTATE:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		if (put_user(BUSSTATE_ON, (long __user *)arg))
+			return -EFAULT;
+		return 0;
+	case HDIO_SET_BUSSTATE:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
 	}
 }
 EXPORT_SYMBOL(generic_ide_ioctl);
