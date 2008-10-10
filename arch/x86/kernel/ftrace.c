@@ -132,7 +132,9 @@ int __init ftrace_dyn_arch_init(void *data)
 		".section .text, \"ax\"\n"
 		"ftrace_test_jmp:"
 		"jmp ftrace_test_p6nop\n"
-		".byte 0x00,0x00,0x00\n"  /* 2 byte jmp + 3 bytes */
+		"nop\n"
+		"nop\n"
+		"nop\n"  /* 2 byte jmp + 3 bytes */
 		"ftrace_test_p6nop:"
 		P6_NOP5
 		"jmp 1f\n"
@@ -161,7 +163,7 @@ int __init ftrace_dyn_arch_init(void *data)
 		ftrace_nop = (unsigned long *)ftrace_test_nop5;
 		break;
 	case 2:
-		pr_info("ftrace: converting mcount calls to jmp 1f\n");
+		pr_info("ftrace: converting mcount calls to jmp . + 5\n");
 		ftrace_nop = (unsigned long *)ftrace_test_jmp;
 		break;
 	}
