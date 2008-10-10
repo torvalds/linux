@@ -842,7 +842,9 @@ static int recover(struct mirror_set *ms, struct region *reg)
 	}
 
 	/* hand to kcopyd */
-	set_bit(DM_KCOPYD_IGNORE_ERROR, &flags);
+	if (!errors_handled(ms))
+		set_bit(DM_KCOPYD_IGNORE_ERROR, &flags);
+
 	r = dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
 			   flags, recovery_complete, reg);
 
