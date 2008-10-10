@@ -1136,8 +1136,7 @@ static int ide_disk_probe(ide_drive_t *drive)
 	/* strstr("foo", "") is non-NULL */
 	if (!strstr("ide-disk", drive->driver_req))
 		goto failed;
-	if (!drive->present)
-		goto failed;
+
 	if (drive->media != ide_disk)
 		goto failed;
 
