@@ -912,7 +912,6 @@ enum {
 struct ide_driver_s {
 	const char			*version;
 	u8				media;
-	unsigned supports_dsc_overlap	: 1;
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);

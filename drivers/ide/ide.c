@@ -562,7 +562,6 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	ide_driver_t *drv;
 	int err = 0, (*getfunc)(ide_drive_t *), (*setfunc)(ide_drive_t *, int);
 
 	switch (cmd) {
@@ -612,12 +611,12 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 			if (arg != (arg & ((1 << IDE_NICE_DSC_OVERLAP) | (1 << IDE_NICE_1))))
 				return -EPERM;
-			drive->dsc_overlap = (arg >> IDE_NICE_DSC_OVERLAP) & 1;
-			drv = *(ide_driver_t **)bdev->bd_disk->private_data;
-			if (drive->dsc_overlap && !drv->supports_dsc_overlap) {
-				drive->dsc_overlap = 0;
+			if (((arg >> IDE_NICE_DSC_OVERLAP) & 1) &&
+			    (drive->media == ide_disk ||
+			     drive->media == ide_floppy ||
+			     drive->scsi))
 				return -EPERM;
-			}
+			drive->dsc_overlap = (arg >> IDE_NICE_DSC_OVERLAP) & 1;
 			drive->nice1 = (arg >> IDE_NICE_1) & 1;
 			return 0;
 		case HDIO_DRIVE_RESET:
