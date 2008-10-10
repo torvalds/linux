@@ -574,6 +574,15 @@ static inline int ata_id_has_lba48(const u16 *id)
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 10);
 }
 
+static inline int ata_id_lba48_enabled(const u16 *id)
+{
+	if (ata_id_has_lba48(id) == 0)
+		return 0;
+	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
+		return 0;
+	return id[ATA_ID_CFS_ENABLE_2] & (1 << 10);
+}
+
 static inline int ata_id_hpa_enabled(const u16 *id)
 {
 	/* Yes children, word 83 valid bits cover word 82 data */

@@ -384,16 +384,6 @@ static unsigned long long sectors_to_MB(unsigned long long n)
 }
 
 /*
- * The same here.
- */
-static inline int idedisk_supports_lba48(const u16 *id)
-{
-	return (id[ATA_ID_COMMAND_SET_2] & 0x0400) &&
-	       (id[ATA_ID_CFS_ENABLE_2] & 0x0400) &&
-	       ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
-}
-
-/*
  * Some disks report total number of sectors instead of
  * maximum sector address.  We list them here.
  */
@@ -407,7 +397,7 @@ static const struct drive_list_entry hpa_list[] = {
 static void idedisk_check_hpa(ide_drive_t *drive)
 {
 	unsigned long long capacity, set_max;
-	int lba48 = idedisk_supports_lba48(drive->id);
+	int lba48 = ata_id_lba48_enabled(drive->id);
 
 	capacity = drive->capacity64;
 
@@ -450,7 +440,7 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 	 */
 	int hpa = ata_id_hpa_enabled(id);
 
-	if (idedisk_supports_lba48(id)) {
+	if (ata_id_lba48_enabled(id)) {
 		/* drive speaks 48-bit LBA */
 		drive->select.b.lba = 1;
 		drive->capacity64 = ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
@@ -754,9 +744,11 @@ static int set_lba_addressing(ide_drive_t *drive, int arg)
 	if (drive->hwif->host_flags & IDE_HFLAG_NO_LBA48)
 		return 0;
 
-	if (!idedisk_supports_lba48(drive->id))
+	if (ata_id_lba48_enabled(drive->id) == 0)
 		return -EIO;
+
 	drive->addressing = arg;
+
 	return 0;
 }
 
@@ -853,8 +845,7 @@ static void idedisk_setup(ide_drive_t *drive)
 	capacity = idedisk_capacity(drive);
 
 	if (!drive->forced_geom) {
-
-		if (idedisk_supports_lba48(drive->id)) {
+		if (ata_id_lba48_enabled(drive->id)) {
 			/* compatibility */
 			drive->bios_sect = 63;
 			drive->bios_head = 255;
