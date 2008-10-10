@@ -654,7 +654,7 @@ static u8 hpt3xx_udma_filter(ide_drive_t *drive)
 	case HPT372A:
 	case HPT372N:
 	case HPT374 :
-		if (ide_dev_is_sata(drive->id))
+		if (ata_id_is_sata(drive->id))
 			mask &= ~0x0e;
 		/* Fall thru */
 	default:
@@ -674,7 +674,7 @@ static u8 hpt3xx_mdma_filter(ide_drive_t *drive)
 	case HPT372A:
 	case HPT372N:
 	case HPT374 :
-		if (ide_dev_is_sata(drive->id))
+		if (ata_id_is_sata(drive->id))
 			return 0x00;
 		/* Fall thru */
 	default:
