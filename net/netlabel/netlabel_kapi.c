@@ -163,6 +163,9 @@ cfg_cipsov4_add_map_return:
 		case CIPSO_V4_MAP_PASS:
 			type_str = "pass";
 			break;
+		case CIPSO_V4_MAP_LOCAL:
+			type_str = "local";
+			break;
 		default:
 			type_str = "(unknown)";
 		}

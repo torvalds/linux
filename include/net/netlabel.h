@@ -72,7 +72,8 @@ struct cipso_v4_doi;
 /* NetLabel NETLINK protocol version
  *  1: initial version
  *  2: added static labels for unlabeled connections
- *  3: network selectors added to the NetLabel/LSM domain mapping
+ *  3: network selectors added to the NetLabel/LSM domain mapping and the
+ *     CIPSO_V4_MAP_LOCAL CIPSO mapping was added
  */
 #define NETLBL_PROTO_VERSION            3
 

@@ -365,6 +365,43 @@ add_pass_failure:
 }
 
 /**
+ * netlbl_cipsov4_add_local - Adds a CIPSO V4 DOI definition
+ * @info: the Generic NETLINK info block
+ *
+ * Description:
+ * Create a new CIPSO_V4_MAP_LOCAL DOI definition based on the given ADD
+ * message and add it to the CIPSO V4 engine.  Return zero on success and
+ * non-zero on error.
+ *
+ */
+static int netlbl_cipsov4_add_local(struct genl_info *info)
+{
+	int ret_val;
+	struct cipso_v4_doi *doi_def = NULL;
+
+	if (!info->attrs[NLBL_CIPSOV4_A_TAGLST])
+		return -EINVAL;
+
+	doi_def = kmalloc(sizeof(*doi_def), GFP_KERNEL);
+	if (doi_def == NULL)
+		return -ENOMEM;
+	doi_def->type = CIPSO_V4_MAP_LOCAL;
+
+	ret_val = netlbl_cipsov4_add_common(info, doi_def);
+	if (ret_val != 0)
+		goto add_local_failure;
+
+	ret_val = cipso_v4_doi_add(doi_def);
+	if (ret_val != 0)
+		goto add_local_failure;
+	return 0;
+
+add_local_failure:
+	cipso_v4_doi_free(doi_def);
+	return ret_val;
+}
+
+/**
  * netlbl_cipsov4_add - Handle an ADD message
  * @skb: the NETLINK buffer
  * @info: the Generic NETLINK info block
@@ -400,6 +437,10 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 	case CIPSO_V4_MAP_PASS:
 		type_str = "pass";
 		ret_val = netlbl_cipsov4_add_pass(info);
+		break;
+	case CIPSO_V4_MAP_LOCAL:
+		type_str = "local";
+		ret_val = netlbl_cipsov4_add_local(info);
 		break;
 	}
 	if (ret_val == 0)
