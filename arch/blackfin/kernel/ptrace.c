@@ -160,6 +160,10 @@ static inline int is_user_addr_valid(struct task_struct *child,
 	struct vm_list_struct *vml;
 	struct sram_list_struct *sraml;
 
+	/* overflow */
+	if (start + len < start)
+		return -EIO;
+
 	for (vml = child->mm->context.vmlist; vml; vml = vml->next)
 		if (start >= vml->vma->vm_start && start + len < vml->vma->vm_end)
 			return 0;
