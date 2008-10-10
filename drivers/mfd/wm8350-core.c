@@ -388,7 +388,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(wm8350_create_cache);
 
-int wm8350_device_init(struct wm8350 *wm8350)
+int wm8350_device_init(struct wm8350 *wm8350,
+		       struct wm8350_platform_data *pdata)
 {
 	int ret = -EINVAL;
 	u16 id1, id2, mask, mode;
@@ -437,6 +438,15 @@ int wm8350_device_init(struct wm8350 *wm8350)
 	if (ret < 0) {
 		printk(KERN_ERR "wm8350: failed to create register cache\n");
 		return ret;
+	}
+
+	if (pdata->init) {
+		ret = pdata->init(wm8350);
+		if (ret != 0) {
+			dev_err(wm8350->dev, "Platform init() failed: %d\n",
+				ret);
+			goto err;
+		}
 	}
 
 	return 0;

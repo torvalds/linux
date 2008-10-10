@@ -564,10 +564,22 @@ struct wm8350 {
 	u16 *reg_cache;
 };
 
+/**
+ * Data to be supplied by the platform to initialise the WM8350.
+ *
+ * @init: Function called during driver initialisation.  Should be
+ *        used by the platform to configure GPIO functions and similar.
+ */
+struct wm8350_platform_data {
+	int (*init)(struct wm8350 *wm8350);
+};
+
+
 /*
  * WM8350 device initialisation and exit.
  */
-int wm8350_device_init(struct wm8350 *wm8350);
+int wm8350_device_init(struct wm8350 *wm8350,
+		       struct wm8350_platform_data *pdata);
 void wm8350_device_exit(struct wm8350 *wm8350);
 
 /*
