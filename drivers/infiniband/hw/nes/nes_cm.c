@@ -2029,7 +2029,6 @@ static int mini_cm_close(struct nes_cm_core *cm_core, struct nes_cm_node *cm_nod
 		ret = rem_ref_cm_node(cm_core, cm_node);
 		break;
 	}
-	cm_node->cm_id = NULL;
 	return ret;
 }
 
