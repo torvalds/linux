@@ -89,7 +89,6 @@ struct raw3215_info {
 	int count;		      /* number of bytes in output buffer */
 	int written;		      /* number of bytes in write requests */
 	struct tty_struct *tty;	      /* pointer to tty structure if present */
-	struct tasklet_struct tasklet;
 	struct raw3215_req *queued_read; /* pointer to queued read requests */
 	struct raw3215_req *queued_write;/* pointer to queued write requests */
 	wait_queue_head_t empty_wait; /* wait queue for flushing */
@@ -342,21 +341,14 @@ raw3215_try_io(struct raw3215_info *raw)
 }
 
 /*
- * The bottom half handler routine for 3215 devices. It tries to start
- * the next IO and wakes up processes waiting on the tty.
+ * Try to start the next IO and wake up processes waiting on the tty.
  */
-static void
-raw3215_tasklet(void *data)
+static void raw3215_next_io(struct raw3215_info *raw)
 {
-	struct raw3215_info *raw;
 	struct tty_struct *tty;
-	unsigned long flags;
 
-	raw = (struct raw3215_info *) data;
-	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_mk_write_req(raw);
 	raw3215_try_io(raw);
-	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 	tty = raw->tty;
 	if (tty != NULL &&
 	    RAW3215_BUFFER_SIZE - raw->count >= RAW3215_MIN_SPACE) {
@@ -381,7 +373,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	cstat = irb->scsw.cmd.cstat;
 	dstat = irb->scsw.cmd.dstat;
 	if (cstat != 0)
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 	if (dstat & 0x01) { /* we got a unit exception */
 		dstat &= ~0x01;	 /* we can ignore it */
 	}
@@ -391,7 +383,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			break;
 		/* Attention interrupt, someone hit the enter key */
 		raw3215_mk_read_req(raw);
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 		break;
 	case 0x08:
 	case 0x0C:
@@ -449,7 +441,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		    raw->queued_read == NULL) {
 			wake_up_interruptible(&raw->empty_wait);
 		}
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 		break;
 	default:
 		/* Strange interrupt, I'll do my best to clean up */
@@ -461,7 +453,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			raw->flags &= ~RAW3215_WORKING;
 			raw3215_free_req(req);
 		}
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 	}
 	return;
 }
@@ -675,9 +667,6 @@ raw3215_probe (struct ccw_device *cdev)
 		kfree(raw);
 		return -ENOMEM;
 	}
-	tasklet_init(&raw->tasklet,
-		     (void (*)(unsigned long)) raw3215_tasklet,
-		     (unsigned long) raw);
 	init_waitqueue_head(&raw->empty_wait);
 
 	cdev->dev.driver_data = raw;
@@ -863,9 +852,6 @@ con3215_init(void)
 	cdev->handler = raw3215_irq;
 
 	raw->flags |= RAW3215_FIXED;
-	tasklet_init(&raw->tasklet,
-		     (void (*)(unsigned long)) raw3215_tasklet,
-		     (unsigned long) raw);
 	init_waitqueue_head(&raw->empty_wait);
 
 	/* Request the console irq */
