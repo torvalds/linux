@@ -30,8 +30,7 @@ again:
 	return index;
 }
 
-static inline void set_bit_area(unsigned long *map, unsigned long i,
-				int len)
+void iommu_area_reserve(unsigned long *map, unsigned long i, int len)
 {
 	unsigned long end = i + len;
 	while (i < end) {
@@ -64,7 +63,7 @@ again:
 			start = index + 1;
 			goto again;
 		}
-		set_bit_area(map, index, nr);
+		iommu_area_reserve(map, index, nr);
 	}
 	return index;
 }

@@ -48,6 +48,11 @@ static inline int is_device_dma_capable(struct device *dev)
 	return dev->dma_mask != NULL && *dev->dma_mask != DMA_MASK_NONE;
 }
 
+static inline int is_buffer_dma_capable(u64 mask, dma_addr_t addr, size_t size)
+{
+	return addr + size <= mask;
+}
+
 #ifdef CONFIG_HAS_DMA
 #include <asm/dma-mapping.h>
 #else
@@ -57,6 +62,13 @@ static inline int is_device_dma_capable(struct device *dev)
 /* Backwards compat, remove in 2.7.x */
 #define dma_sync_single		dma_sync_single_for_cpu
 #define dma_sync_sg		dma_sync_sg_for_cpu
+
+static inline u64 dma_get_mask(struct device *dev)
+{
+	if (dev && dev->dma_mask && *dev->dma_mask)
+		return *dev->dma_mask;
+	return DMA_32BIT_MASK;
+}
 
 extern u64 dma_get_required_mask(struct device *dev);
 

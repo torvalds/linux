@@ -9,12 +9,12 @@
 #include <linux/scatterlist.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
+#include <asm-generic/dma-coherent.h>
 
 extern dma_addr_t bad_dma_address;
 extern int iommu_merge;
-extern struct device fallback_dev;
+extern struct device x86_dma_fallback_dev;
 extern int panic_on_overflow;
-extern int force_iommu;
 
 struct dma_mapping_ops {
 	int             (*mapping_error)(struct device *dev,
@@ -24,9 +24,6 @@ struct dma_mapping_ops {
 	void            (*free_coherent)(struct device *dev, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
 	dma_addr_t      (*map_single)(struct device *hwdev, phys_addr_t ptr,
-				size_t size, int direction);
-	/* like map_single, but doesn't check the device mask */
-	dma_addr_t      (*map_simple)(struct device *hwdev, phys_addr_t ptr,
 				size_t size, int direction);
 	void            (*unmap_single)(struct device *dev, dma_addr_t addr,
 				size_t size, int direction);
@@ -68,7 +65,7 @@ static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
 		return dma_ops;
 	else
 		return dev->archdata.dma_ops;
-#endif
+#endif /* ASM_X86__DMA_MAPPING_H */
 }
 
 /* Make sure we keep the same behaviour */
@@ -87,16 +84,13 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
-
-void *dma_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t flag);
-
-void dma_free_coherent(struct device *dev, size_t size,
-			 void *vaddr, dma_addr_t dma_handle);
-
+#define dma_is_consistent(d, h)	(1)
 
 extern int dma_supported(struct device *hwdev, u64 mask);
 extern int dma_set_mask(struct device *dev, u64 mask);
+
+extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+					dma_addr_t *dma_addr, gfp_t flag);
 
 static inline dma_addr_t
 dma_map_single(struct device *hwdev, void *ptr, size_t size,
@@ -247,7 +241,68 @@ static inline int dma_get_cache_alignment(void)
 	return boot_cpu_data.x86_clflush_size;
 }
 
-#define dma_is_consistent(d, h)	(1)
+static inline unsigned long dma_alloc_coherent_mask(struct device *dev,
+						    gfp_t gfp)
+{
+	unsigned long dma_mask = 0;
 
-#include <asm-generic/dma-coherent.h>
-#endif /* ASM_X86__DMA_MAPPING_H */
+	dma_mask = dev->coherent_dma_mask;
+	if (!dma_mask)
+		dma_mask = (gfp & GFP_DMA) ? DMA_24BIT_MASK : DMA_32BIT_MASK;
+
+	return dma_mask;
+}
+
+static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
+{
+#ifdef CONFIG_X86_64
+	unsigned long dma_mask = dma_alloc_coherent_mask(dev, gfp);
+
+	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA))
+		gfp |= GFP_DMA32;
+#endif
+       return gfp;
+}
+
+static inline void *
+dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp)
+{
+	struct dma_mapping_ops *ops = get_dma_ops(dev);
+	void *memory;
+
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+
+	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
+		return memory;
+
+	if (!dev) {
+		dev = &x86_dma_fallback_dev;
+		gfp |= GFP_DMA;
+	}
+
+	if (!is_device_dma_capable(dev))
+		return NULL;
+
+	if (!ops->alloc_coherent)
+		return NULL;
+
+	return ops->alloc_coherent(dev, size, dma_handle,
+				   dma_alloc_coherent_gfp_flags(dev, gfp));
+}
+
+static inline void dma_free_coherent(struct device *dev, size_t size,
+				     void *vaddr, dma_addr_t bus)
+{
+	struct dma_mapping_ops *ops = get_dma_ops(dev);
+
+	WARN_ON(irqs_disabled());       /* for portability */
+
+	if (dma_release_from_coherent(dev, get_order(size), vaddr))
+		return;
+
+	if (ops->free_coherent)
+		ops->free_coherent(dev, size, vaddr, bus);
+}
+
+#endif

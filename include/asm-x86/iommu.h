@@ -6,6 +6,7 @@ extern void no_iommu_init(void);
 extern struct dma_mapping_ops nommu_dma_ops;
 extern int force_iommu, no_iommu;
 extern int iommu_detected;
+extern int dmar_disabled;
 
 extern unsigned long iommu_num_pages(unsigned long addr, unsigned long len);
 

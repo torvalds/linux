@@ -424,16 +424,6 @@ static inline int fls(int x)
 
 #undef ADDR
 
-static inline void set_bit_string(unsigned long *bitmap,
-		unsigned long i, int len)
-{
-	unsigned long end = i + len;
-	while (i < end) {
-		__set_bit(i, bitmap);
-		i++;
-	}
-}
-
 #ifdef __KERNEL__
 
 #include <asm-generic/bitops/sched.h>

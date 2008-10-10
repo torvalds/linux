@@ -27,8 +27,8 @@
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 #include <asm/atomic.h>
-#include <asm/io.h>
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>
@@ -80,7 +80,7 @@ AGPEXTERN int agp_memory_reserved;
 AGPEXTERN __u32 *agp_gatt_table;
 
 static unsigned long next_bit;  /* protected by iommu_bitmap_lock */
-static int need_flush;		/* global flush state. set for each gart wrap */
+static bool need_flush;		/* global flush state. set for each gart wrap */
 
 static unsigned long alloc_iommu(struct device *dev, int size,
 				 unsigned long align_mask)
@@ -98,7 +98,7 @@ static unsigned long alloc_iommu(struct device *dev, int size,
 	offset = iommu_area_alloc(iommu_gart_bitmap, iommu_pages, next_bit,
 				  size, base_index, boundary_size, align_mask);
 	if (offset == -1) {
-		need_flush = 1;
+		need_flush = true;
 		offset = iommu_area_alloc(iommu_gart_bitmap, iommu_pages, 0,
 					  size, base_index, boundary_size,
 					  align_mask);
@@ -107,11 +107,11 @@ static unsigned long alloc_iommu(struct device *dev, int size,
 		next_bit = offset+size;
 		if (next_bit >= iommu_pages) {
 			next_bit = 0;
-			need_flush = 1;
+			need_flush = true;
 		}
 	}
 	if (iommu_fullflush)
-		need_flush = 1;
+		need_flush = true;
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
 
 	return offset;
@@ -136,7 +136,7 @@ static void flush_gart(void)
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
 	if (need_flush) {
 		k8_flush_garts();
-		need_flush = 0;
+		need_flush = false;
 	}
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
 }
@@ -175,7 +175,8 @@ static void dump_leak(void)
 	       iommu_leak_pages);
 	for (i = 0; i < iommu_leak_pages; i += 2) {
 		printk(KERN_DEBUG "%lu: ", iommu_pages-i);
-		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i], 0);
+		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i],
+				0);
 		printk(KERN_CONT "%c", (i+1)%2 == 0 ? '\n' : ' ');
 	}
 	printk(KERN_DEBUG "\n");
@@ -214,24 +215,14 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 static inline int
 need_iommu(struct device *dev, unsigned long addr, size_t size)
 {
-	u64 mask = *dev->dma_mask;
-	int high = addr + size > mask;
-	int mmu = high;
-
-	if (force_iommu)
-		mmu = 1;
-
-	return mmu;
+	return force_iommu ||
+		!is_buffer_dma_capable(*dev->dma_mask, addr, size);
 }
 
 static inline int
 nonforced_iommu(struct device *dev, unsigned long addr, size_t size)
 {
-	u64 mask = *dev->dma_mask;
-	int high = addr + size > mask;
-	int mmu = high;
-
-	return mmu;
+	return !is_buffer_dma_capable(*dev->dma_mask, addr, size);
 }
 
 /* Map a single continuous physical area into the IOMMU.
@@ -261,20 +252,6 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 	return iommu_bus_base + iommu_page*PAGE_SIZE + (phys_mem & ~PAGE_MASK);
 }
 
-static dma_addr_t
-gart_map_simple(struct device *dev, phys_addr_t paddr, size_t size, int dir)
-{
-	dma_addr_t map;
-	unsigned long align_mask;
-
-	align_mask = (1UL << get_order(size)) - 1;
-	map = dma_map_area(dev, paddr, size, dir, align_mask);
-
-	flush_gart();
-
-	return map;
-}
-
 /* Map a single area into the IOMMU */
 static dma_addr_t
 gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
@@ -282,7 +259,7 @@ gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 	unsigned long bus;
 
 	if (!dev)
-		dev = &fallback_dev;
+		dev = &x86_dma_fallback_dev;
 
 	if (!need_iommu(dev, paddr, size))
 		return paddr;
@@ -434,7 +411,7 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 		return 0;
 
 	if (!dev)
-		dev = &fallback_dev;
+		dev = &x86_dma_fallback_dev;
 
 	out = 0;
 	start = 0;
@@ -504,6 +481,46 @@ error:
 	for_each_sg(sg, s, nents, i)
 		s->dma_address = bad_dma_address;
 	return 0;
+}
+
+/* allocate and map a coherent mapping */
+static void *
+gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
+		    gfp_t flag)
+{
+	dma_addr_t paddr;
+	unsigned long align_mask;
+	struct page *page;
+
+	if (force_iommu && !(flag & GFP_DMA)) {
+		flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+		page = alloc_pages(flag | __GFP_ZERO, get_order(size));
+		if (!page)
+			return NULL;
+
+		align_mask = (1UL << get_order(size)) - 1;
+		paddr = dma_map_area(dev, page_to_phys(page), size,
+				     DMA_BIDIRECTIONAL, align_mask);
+
+		flush_gart();
+		if (paddr != bad_dma_address) {
+			*dma_addr = paddr;
+			return page_address(page);
+		}
+		__free_pages(page, get_order(size));
+	} else
+		return dma_generic_alloc_coherent(dev, size, dma_addr, flag);
+
+	return NULL;
+}
+
+/* free a coherent mapping */
+static void
+gart_free_coherent(struct device *dev, size_t size, void *vaddr,
+		   dma_addr_t dma_addr)
+{
+	gart_unmap_single(dev, dma_addr, size, DMA_BIDIRECTIONAL);
+	free_pages((unsigned long)vaddr, get_order(size));
 }
 
 static int no_agp;
@@ -656,13 +673,13 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	info->aper_size = aper_size >> 20;
 
 	gatt_size = (aper_size >> PAGE_SHIFT) * sizeof(u32);
-	gatt = (void *)__get_free_pages(GFP_KERNEL, get_order(gatt_size));
+	gatt = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(gatt_size));
 	if (!gatt)
 		panic("Cannot allocate GATT table");
 	if (set_memory_uc((unsigned long)gatt, gatt_size >> PAGE_SHIFT))
 		panic("Could not set GART PTEs to uncacheable pages");
 
-	memset(gatt, 0, gatt_size);
 	agp_gatt_table = gatt;
 
 	enable_gart_translations();
@@ -671,7 +688,8 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	if (!error)
 		error = sysdev_register(&device_gart);
 	if (error)
-		panic("Could not register gart_sysdev -- would corrupt data on next suspend");
+		panic("Could not register gart_sysdev -- "
+		      "would corrupt data on next suspend");
 
 	flush_gart();
 
@@ -687,20 +705,13 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	return -1;
 }
 
-extern int agp_amd64_init(void);
-
 static struct dma_mapping_ops gart_dma_ops = {
 	.map_single			= gart_map_single,
-	.map_simple			= gart_map_simple,
 	.unmap_single			= gart_unmap_single,
-	.sync_single_for_cpu		= NULL,
-	.sync_single_for_device		= NULL,
-	.sync_single_range_for_cpu	= NULL,
-	.sync_single_range_for_device	= NULL,
-	.sync_sg_for_cpu		= NULL,
-	.sync_sg_for_device		= NULL,
 	.map_sg				= gart_map_sg,
 	.unmap_sg			= gart_unmap_sg,
+	.alloc_coherent			= gart_alloc_coherent,
+	.free_coherent			= gart_free_coherent,
 };
 
 void gart_iommu_shutdown(void)
@@ -760,8 +771,8 @@ void __init gart_iommu_init(void)
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		if (max_pfn > MAX_DMA32_PFN) {
 			printk(KERN_WARNING "More than 4GB of memory "
-			       	          "but GART IOMMU not available.\n"
-			       KERN_WARNING "falling back to iommu=soft.\n");
+			       "but GART IOMMU not available.\n");
+			printk(KERN_WARNING "falling back to iommu=soft.\n");
 		}
 		return;
 	}
@@ -779,19 +790,16 @@ void __init gart_iommu_init(void)
 	iommu_size = check_iommu_size(info.aper_base, aper_size);
 	iommu_pages = iommu_size >> PAGE_SHIFT;
 
-	iommu_gart_bitmap = (void *) __get_free_pages(GFP_KERNEL,
+	iommu_gart_bitmap = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
 						      get_order(iommu_pages/8));
 	if (!iommu_gart_bitmap)
 		panic("Cannot allocate iommu bitmap\n");
-	memset(iommu_gart_bitmap, 0, iommu_pages/8);
 
 #ifdef CONFIG_IOMMU_LEAK
 	if (leak_trace) {
-		iommu_leak_tab = (void *)__get_free_pages(GFP_KERNEL,
+		iommu_leak_tab = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
 				  get_order(iommu_pages*sizeof(void *)));
-		if (iommu_leak_tab)
-			memset(iommu_leak_tab, 0, iommu_pages * 8);
-		else
+		if (!iommu_leak_tab)
 			printk(KERN_DEBUG
 			       "PCI-DMA: Cannot allocate leak trace area\n");
 	}
@@ -801,7 +809,7 @@ void __init gart_iommu_init(void)
 	 * Out of IOMMU space handling.
 	 * Reserve some invalid pages at the beginning of the GART.
 	 */
-	set_bit_string(iommu_gart_bitmap, 0, EMERGENCY_PAGES);
+	iommu_area_reserve(iommu_gart_bitmap, 0, EMERGENCY_PAGES);
 
 	agp_memory_reserved = iommu_size;
 	printk(KERN_INFO
@@ -859,7 +867,8 @@ void __init gart_parse_options(char *p)
 	if (!strncmp(p, "leak", 4)) {
 		leak_trace = 1;
 		p += 4;
-		if (*p == '=') ++p;
+		if (*p == '=')
+			++p;
 		if (isdigit(*p) && get_option(&p, &arg))
 			iommu_leak_pages = arg;
 	}
