@@ -101,6 +101,15 @@ module_param (blinkenlights, bool, S_IRUGO);
 MODULE_PARM_DESC (blinkenlights, "true to cycle leds on hubs");
 
 /*
+ * Device SATA8000 FW1.0 from DATAST0R Technology Corp requires about
+ * 10 seconds to send reply for the initial 64-byte descriptor request.
+ */
+/* define initial 64-byte descriptor request timeout in milliseconds */
+static int initial_descriptor_timeout = USB_CTRL_GET_TIMEOUT;
+module_param(initial_descriptor_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(initial_descriptor_timeout, "initial 64-byte descriptor request timeout in milliseconds (default 5000 - 5.0 seconds)");
+
+/*
  * As of 2.6.10 we introduce a new USB device initialization scheme which
  * closely resembles the way Windows works.  Hopefully it will be compatible
  * with a wider range of devices than the old scheme.  However some previously
@@ -2538,7 +2547,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
 					USB_DT_DEVICE << 8, 0,
 					buf, GET_DESCRIPTOR_BUFSIZE,
-					USB_CTRL_GET_TIMEOUT);
+					initial_descriptor_timeout);
 				switch (buf->bMaxPacketSize0) {
 				case 8: case 16: case 32: case 64: case 255:
 					if (buf->bDescriptorType ==
