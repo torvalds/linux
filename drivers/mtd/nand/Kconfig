@@ -157,13 +157,6 @@ config MTD_NAND_S3C2410_HWECC
 	  incorrect ECC generation, and if using these, the default of
 	  software ECC is preferable.
 
-config MTD_NAND_NDFC
-	tristate "NDFC NanD Flash Controller"
-	depends on 4xx && !PPC_MERGE
-	select MTD_NAND_ECC_SMC
-	help
-	 NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
-
 config MTD_NAND_S3C2410_CLKSTOP
 	bool "S3C2410 NAND IDLE clock stop"
 	depends on MTD_NAND_S3C2410
