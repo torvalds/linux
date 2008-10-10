@@ -765,9 +765,7 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
  *	start_request	-	start of I/O and command issuing for IDE
  *
  *	start_request() initiates handling of a new I/O request. It
- *	accepts commands and I/O (read/write) requests. It also does
- *	the final remapping for weird stuff like EZDrive. Once 
- *	device mapper can work sector level the EZDrive stuff can go away
+ *	accepts commands and I/O (read/write) requests.
  *
  *	FIXME: this function needs a rename
  */
@@ -775,7 +773,6 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
-	sector_t block;
 
 	BUG_ON(!blk_rq_started(rq));
 
@@ -789,16 +786,6 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		rq->cmd_flags |= REQ_FAILED;
 		goto kill_rq;
 	}
-
-	block    = rq->sector;
-	if (blk_fs_request(rq) &&
-	    (drive->media == ide_disk || drive->media == ide_floppy)) {
-		block += drive->sect0;
-	}
-	/* Yecch - this will shift the entire interval,
-	   possibly killing some innocent following sector */
-	if (block == 0 && drive->remap_0_to_1 == 1)
-		block = 1;  /* redirect MBR access to EZ-Drive partn table */
 
 	if (blk_pm_request(rq))
 		ide_check_pm_state(drive, rq);
@@ -844,7 +831,8 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			return ide_special_rq(drive, rq);
 
 		drv = *(ide_driver_t **)rq->rq_disk->private_data;
-		return drv->do_request(drive, rq, block);
+
+		return drv->do_request(drive, rq, rq->sector);
 	}
 	return do_special(drive);
 kill_rq:

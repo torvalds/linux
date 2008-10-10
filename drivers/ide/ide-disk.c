@@ -472,7 +472,7 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 
 static sector_t idedisk_capacity(ide_drive_t *drive)
 {
-	return drive->capacity64 - drive->sect0;
+	return drive->capacity64;
 }
 
 #ifdef CONFIG_IDE_PROC_FS
