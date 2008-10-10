@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/delay.h>
 #include <linux/init.h>

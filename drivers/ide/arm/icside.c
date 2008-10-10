@@ -10,7 +10,6 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/errno.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>

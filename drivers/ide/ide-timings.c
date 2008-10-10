@@ -22,7 +22,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/module.h>
 

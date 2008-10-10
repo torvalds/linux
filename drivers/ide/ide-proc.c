@@ -23,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/ctype.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
 

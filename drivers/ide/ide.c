@@ -56,6 +56,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
+#include <linux/hdreg.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 

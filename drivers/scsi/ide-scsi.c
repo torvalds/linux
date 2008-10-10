@@ -40,7 +40,6 @@
 #include <linux/ioport.h>
 #include <linux/blkdev.h>
 #include <linux/errno.h>
-#include <linux/hdreg.h>
 #include <linux/slab.h>
 #include <linux/ide.h>
 #include <linux/scatterlist.h>

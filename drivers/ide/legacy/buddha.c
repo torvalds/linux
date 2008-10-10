@@ -20,7 +20,6 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
-#include <linux/hdreg.h>
 #include <linux/zorro.h>
 #include <linux/ide.h>
 #include <linux/init.h>

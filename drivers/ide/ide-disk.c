@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/leds.h>
 #include <linux/ide.h>
+#include <linux/hdreg.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
