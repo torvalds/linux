@@ -323,4 +323,14 @@
 #define WM8350_GP1_LVL                          0x0002
 #define WM8350_GP0_LVL                          0x0001
 
+struct wm8350;
+
+int wm8350_gpio_config(struct wm8350 *wm8350, int gpio, int dir, int func,
+		       int pol, int pull, int invert, int debounce);
+
+/*
+ * GPIO Interrupts
+ */
+#define WM8350_IRQ_GPIO(x)                      (50 + x)
+
 #endif
