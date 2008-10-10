@@ -719,16 +719,15 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 		remaining -= clone->bi_size;
 
+		crypt_inc_pending(io);
 		r = crypt_convert(cc, &io->ctx);
 
 		if (atomic_dec_and_test(&io->ctx.pending)) {
 			/* processed, no running async crypto  */
-			crypt_inc_pending(io);
 			kcryptd_crypt_write_io_submit(io, r, 0);
 			if (unlikely(r < 0))
 				break;
-		} else
-			crypt_inc_pending(io);
+		}
 
 		/* out of memory -> run queues */
 		if (unlikely(remaining)) {
