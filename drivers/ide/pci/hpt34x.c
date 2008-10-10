@@ -78,7 +78,7 @@ static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 #define	HPT34X_PCI_INIT_REG		0x80
 
-static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev)
+static unsigned int init_chipset_hpt34x(struct pci_dev *dev)
 {
 	int i = 0;
 	unsigned long hpt34xIoBase = pci_resource_start(dev, 4);
@@ -171,6 +171,8 @@ static struct pci_driver driver = {
 	.id_table	= hpt34x_pci_tbl,
 	.probe		= hpt34x_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init hpt34x_ide_init(void)

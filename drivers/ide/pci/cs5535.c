@@ -193,10 +193,12 @@ static const struct pci_device_id cs5535_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, cs5535_pci_tbl);
 
 static struct pci_driver driver = {
-	.name       = "CS5535_IDE",
-	.id_table   = cs5535_pci_tbl,
-	.probe      = cs5535_init_one,
-	.remove     = ide_pci_remove,
+	.name		= "CS5535_IDE",
+	.id_table	= cs5535_pci_tbl,
+	.probe		= cs5535_init_one,
+	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cs5535_ide_init(void)

@@ -226,7 +226,7 @@ static void pdcnew_reset(ide_drive_t *drive)
  * read_counter - Read the byte count registers
  * @dma_base: for the port address
  */
-static long __devinit read_counter(u32 dma_base)
+static long read_counter(u32 dma_base)
 {
 	u32  pri_dma_base = dma_base, sec_dma_base = dma_base + 0x08;
 	u8   cnt0, cnt1, cnt2, cnt3;
@@ -266,7 +266,7 @@ static long __devinit read_counter(u32 dma_base)
  * @dma_base: for the port address
  * E.g. 16949000 on 33 MHz PCI bus, i.e. half of the PCI clock.
  */
-static long __devinit detect_pll_input_clock(unsigned long dma_base)
+static long detect_pll_input_clock(unsigned long dma_base)
 {
 	struct timeval start_time, end_time;
 	long start_count, end_count;
@@ -309,7 +309,7 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 }
 
 #ifdef CONFIG_PPC_PMAC
-static void __devinit apple_kiwi_init(struct pci_dev *pdev)
+static void apple_kiwi_init(struct pci_dev *pdev)
 {
 	struct device_node *np = pci_device_to_OF_node(pdev);
 	u8 conf;
@@ -325,7 +325,7 @@ static void __devinit apple_kiwi_init(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PPC_PMAC */
 
-static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev)
+static unsigned int init_chipset_pdcnew(struct pci_dev *dev)
 {
 	const char *name = DRV_NAME;
 	unsigned long dma_base = pci_resource_start(dev, 4);
@@ -566,6 +566,8 @@ static struct pci_driver driver = {
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
 	.remove		= __devexit_p(pdc202new_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init pdc202new_ide_init(void)

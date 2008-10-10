@@ -943,7 +943,7 @@ static void hpt3xxn_rw_disk(ide_drive_t *drive, struct request *rq)
  *	Perform a calibration cycle on the DPLL.
  *	Returns 1 if this succeeds
  */
-static int __devinit hpt37x_calibrate_dpll(struct pci_dev *dev, u16 f_low, u16 f_high)
+static int hpt37x_calibrate_dpll(struct pci_dev *dev, u16 f_low, u16 f_high)
 {
 	u32 dpll = (f_high << 16) | f_low | 0x100;
 	u8  scr2;
@@ -971,7 +971,7 @@ static int __devinit hpt37x_calibrate_dpll(struct pci_dev *dev, u16 f_low, u16 f
 	return 1;
 }
 
-static void __devinit hpt3xx_disable_fast_irq(struct pci_dev *dev, u8 mcr_addr)
+static void hpt3xx_disable_fast_irq(struct pci_dev *dev, u8 mcr_addr)
 {
 	struct ide_host *host	= pci_get_drvdata(dev);
 	struct hpt_info *info	= host->host_priv + (&dev->dev == host->dev[1]);
@@ -1001,7 +1001,7 @@ static void __devinit hpt3xx_disable_fast_irq(struct pci_dev *dev, u8 mcr_addr)
 		pci_write_config_byte(dev, mcr_addr + 1, new_mcr);
 }
 
-static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev)
+static unsigned int init_chipset_hpt366(struct pci_dev *dev)
 {
 	unsigned long io_base	= pci_resource_start(dev, 4);
 	struct hpt_info *info	= hpt3xx_get_info(&dev->dev);
@@ -1627,6 +1627,8 @@ static struct pci_driver driver = {
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
 	.remove		= __devexit_p(hpt366_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init hpt366_ide_init(void)

@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
+#include <linux/pm.h>
 #ifdef CONFIG_BLK_DEV_IDEACPI
 #include <acpi/acpi.h>
 #endif
@@ -639,6 +640,7 @@ struct ide_host {
 	ide_hwif_t	*ports[MAX_HWIFS];
 	unsigned int	n_ports;
 	struct device	*dev[2];
+	unsigned int	(*init_chipset)(struct pci_dev *);
 	unsigned long	host_flags;
 	void		*host_priv;
 };
@@ -1263,6 +1265,14 @@ int ide_pci_init_one(struct pci_dev *, const struct ide_port_info *, void *);
 int ide_pci_init_two(struct pci_dev *, struct pci_dev *,
 		     const struct ide_port_info *, void *);
 void ide_pci_remove(struct pci_dev *);
+
+#ifdef CONFIG_PM
+int ide_pci_suspend(struct pci_dev *, pm_message_t);
+int ide_pci_resume(struct pci_dev *);
+#else
+#define ide_pci_suspend NULL
+#define ide_pci_resume NULL
+#endif
 
 void ide_map_sg(ide_drive_t *, struct request *);
 void ide_init_sg_cmd(ide_drive_t *, struct request *);

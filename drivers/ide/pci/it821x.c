@@ -586,7 +586,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	hwif->mwdma_mask = ATA_MWDMA2;
 }
 
-static void __devinit it8212_disable_raid(struct pci_dev *dev)
+static void it8212_disable_raid(struct pci_dev *dev)
 {
 	/* Reset local CPU, and set BIOS not ready */
 	pci_write_config_byte(dev, 0x5E, 0x01);
@@ -603,7 +603,7 @@ static void __devinit it8212_disable_raid(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
 }
 
-static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev)
+static unsigned int init_chipset_it821x(struct pci_dev *dev)
 {
 	u8 conf;
 	static char *mode[2] = { "pass through", "smart" };
@@ -685,6 +685,8 @@ static struct pci_driver driver = {
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
 	.remove		= __devexit_p(it821x_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init it821x_ide_init(void)

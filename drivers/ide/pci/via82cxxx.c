@@ -215,7 +215,7 @@ static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 /*
  * Check and handle 80-wire cable presence
  */
-static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
+static void via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 {
 	int i;
 
@@ -267,7 +267,7 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
  *	and initialize its drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev)
+static unsigned int init_chipset_via82cxxx(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
@@ -492,6 +492,8 @@ static struct pci_driver driver = {
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
 	.remove		= __devexit_p(via_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init via_ide_init(void)
