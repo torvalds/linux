@@ -261,7 +261,7 @@ static int chsc_examine_irb(struct chsc_request *request)
 {
 	int backed_up;
 
-	if (!scsw_stctl(&request->irb.scsw) & SCSW_STCTL_STATUS_PEND)
+	if (!(scsw_stctl(&request->irb.scsw) & SCSW_STCTL_STATUS_PEND))
 		return -EIO;
 	backed_up = scsw_cstat(&request->irb.scsw) & SCHN_STAT_CHAIN_CHECK;
 	request->irb.scsw.cmd.cstat &= ~SCHN_STAT_CHAIN_CHECK;
