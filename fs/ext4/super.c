@@ -574,7 +574,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_acl = EXT4_ACL_NOT_CACHED;
 	ei->i_default_acl = EXT4_ACL_NOT_CACHED;
 #endif
-	ei->i_block_alloc_info = NULL;
 	ei->vfs_inode.i_version = 1;
 	ei->vfs_inode.i_data.writeback_index = 0;
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
@@ -633,7 +632,6 @@ static void destroy_inodecache(void)
 
 static void ext4_clear_inode(struct inode *inode)
 {
-	struct ext4_block_alloc_info *rsv = EXT4_I(inode)->i_block_alloc_info;
 #ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
 	if (EXT4_I(inode)->i_acl &&
 			EXT4_I(inode)->i_acl != EXT4_ACL_NOT_CACHED) {
@@ -646,10 +644,7 @@ static void ext4_clear_inode(struct inode *inode)
 		EXT4_I(inode)->i_default_acl = EXT4_ACL_NOT_CACHED;
 	}
 #endif
-	ext4_discard_reservation(inode);
-	EXT4_I(inode)->i_block_alloc_info = NULL;
-	if (unlikely(rsv))
-		kfree(rsv);
+	ext4_discard_preallocations(inode);
 	jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
 				       &EXT4_I(inode)->jinode);
 }
@@ -760,8 +755,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nobh");
 	if (!test_opt(sb, EXTENTS))
 		seq_puts(seq, ",noextents");
-	if (!test_opt(sb, MBALLOC))
-		seq_puts(seq, ",nomballoc");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
 	if (!test_opt(sb, DELALLOC))
@@ -1372,12 +1365,6 @@ set_qf_format:
 			break;
 		case Opt_nodelalloc:
 			clear_opt(sbi->s_mount_opt, DELALLOC);
-			break;
-		case Opt_mballoc:
-			set_opt(sbi->s_mount_opt, MBALLOC);
-			break;
-		case Opt_nomballoc:
-			clear_opt(sbi->s_mount_opt, MBALLOC);
 			break;
 		case Opt_stripe:
 			if (match_int(&args[0], &option))
@@ -2040,11 +2027,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		ext4_warning(sb, __func__,
 			"extents feature not enabled on this filesystem, "
 			"use tune2fs.\n");
-	/*
-	 * turn on mballoc code by default in ext4 filesystem
-	 * Use -o nomballoc to turn it off
-	 */
-	set_opt(sbi->s_mount_opt, MBALLOC);
 
 	/*
 	 * enable delayed allocation by default
@@ -2301,19 +2283,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount3;
 	}
 
-	/* per fileystem reservation list head & lock */
-	spin_lock_init(&sbi->s_rsv_window_lock);
-	sbi->s_rsv_window_root = RB_ROOT;
-	/* Add a single, static dummy reservation to the start of the
-	 * reservation window list --- it gives us a placeholder for
-	 * append-at-start-of-list which makes the allocation logic
-	 * _much_ simpler. */
-	sbi->s_rsv_window_head.rsv_start = EXT4_RESERVE_WINDOW_NOT_ALLOCATED;
-	sbi->s_rsv_window_head.rsv_end = EXT4_RESERVE_WINDOW_NOT_ALLOCATED;
-	sbi->s_rsv_window_head.rsv_alloc_hit = 0;
-	sbi->s_rsv_window_head.rsv_goal_size = 0;
-	ext4_rsv_window_add(sb, &sbi->s_rsv_window_head);
-
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
 
 	/*
@@ -2510,7 +2479,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_INFO "EXT4-fs: delayed allocation enabled\n");
 
 	ext4_ext_init(sb);
-	ext4_mb_init(sb, needs_recovery);
+	err = ext4_mb_init(sb, needs_recovery);
+	if (err) {
+		printk(KERN_ERR "EXT4-fs: failed to initalize mballoc (%d)\n",
+		       err);
+		goto failed_mount4;
+	}
 
 	lock_kernel();
 	return 0;

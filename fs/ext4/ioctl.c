@@ -23,7 +23,6 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned int flags;
-	unsigned short rsv_window_size;
 
 	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
 
@@ -190,49 +189,6 @@ setversion_out:
 			return ret;
 		}
 #endif
-	case EXT4_IOC_GETRSVSZ:
-		if (test_opt(inode->i_sb, RESERVATION)
-			&& S_ISREG(inode->i_mode)
-			&& ei->i_block_alloc_info) {
-			rsv_window_size = ei->i_block_alloc_info->rsv_window_node.rsv_goal_size;
-			return put_user(rsv_window_size, (int __user *)arg);
-		}
-		return -ENOTTY;
-	case EXT4_IOC_SETRSVSZ: {
-		int err;
-
-		if (!test_opt(inode->i_sb, RESERVATION) || !S_ISREG(inode->i_mode))
-			return -ENOTTY;
-
-		if (!is_owner_or_cap(inode))
-			return -EACCES;
-
-		if (get_user(rsv_window_size, (int __user *)arg))
-			return -EFAULT;
-
-		err = mnt_want_write(filp->f_path.mnt);
-		if (err)
-			return err;
-
-		if (rsv_window_size > EXT4_MAX_RESERVE_BLOCKS)
-			rsv_window_size = EXT4_MAX_RESERVE_BLOCKS;
-
-		/*
-		 * need to allocate reservation structure for this inode
-		 * before set the window size
-		 */
-		down_write(&ei->i_data_sem);
-		if (!ei->i_block_alloc_info)
-			ext4_init_block_alloc_info(inode);
-
-		if (ei->i_block_alloc_info){
-			struct ext4_reserve_window_node *rsv = &ei->i_block_alloc_info->rsv_window_node;
-			rsv->rsv_goal_size = rsv_window_size;
-		}
-		up_write(&ei->i_data_sem);
-		mnt_drop_write(filp->f_path.mnt);
-		return 0;
-	}
 	case EXT4_IOC_GROUP_EXTEND: {
 		ext4_fsblk_t n_blocks_count;
 		struct super_block *sb = inode->i_sb;

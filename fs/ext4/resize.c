@@ -870,11 +870,10 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 * We can allocate memory for mb_alloc based on the new group
 	 * descriptor
 	 */
-	if (test_opt(sb, MBALLOC)) {
-		err = ext4_mb_add_more_groupinfo(sb, input->group, gdp);
-		if (err)
-			goto exit_journal;
-	}
+	err = ext4_mb_add_more_groupinfo(sb, input->group, gdp);
+	if (err)
+		goto exit_journal;
+
 	/*
 	 * Make the new blocks and inodes valid next.  We do this before
 	 * increasing the group count so that once the group is enabled,
@@ -1086,8 +1085,15 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	/*
 	 * Mark mballoc pages as not up to date so that they will be updated
 	 * next time they are loaded by ext4_mb_load_buddy.
+	 *
+	 * XXX Bad, Bad, BAD!!!  We should not be overloading the
+	 * Uptodate flag, particularly on thte bitmap bh, as way of
+	 * hinting to ext4_mb_load_buddy() that it needs to be
+	 * overloaded.  A user could take a LVM snapshot, then do an
+	 * on-line fsck, and clear the uptodate flag, and this would
+	 * not be a bug in userspace, but a bug in the kernel.  FIXME!!!
 	 */
-	if (test_opt(sb, MBALLOC)) {
+	{
 		struct ext4_sb_info *sbi = EXT4_SB(sb);
 		struct inode *inode = sbi->s_buddy_cache;
 		int blocks_per_page;

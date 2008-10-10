@@ -2697,11 +2697,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		goto out2;
 	}
 	/*
-	 * Okay, we need to do block allocation.  Lazily initialize the block
-	 * allocation info here if necessary.
+	 * Okay, we need to do block allocation.
 	 */
-	if (S_ISREG(inode->i_mode) && (!EXT4_I(inode)->i_block_alloc_info))
-		ext4_init_block_alloc_info(inode);
 
 	/* find neighbour allocated blocks */
 	ar.lleft = iblock;
@@ -2761,7 +2758,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		/* free data blocks we just allocated */
 		/* not a good idea to call discard here directly,
 		 * but otherwise we'd need to call it every free() */
-		ext4_mb_discard_inode_preallocations(inode);
+		ext4_discard_preallocations(inode);
 		ext4_free_blocks(handle, inode, ext_pblock(&newex),
 					ext4_ext_get_actual_len(&newex), 0);
 		goto out2;
@@ -2825,7 +2822,7 @@ void ext4_ext_truncate(struct inode *inode)
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_ext_invalidate_cache(inode);
 
-	ext4_discard_reservation(inode);
+	ext4_discard_preallocations(inode);
 
 	/*
 	 * TODO: optimization is possible here.

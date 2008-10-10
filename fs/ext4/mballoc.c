@@ -534,9 +534,6 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 	void *buddy;
 	void *buddy2;
 
-	if (!test_opt(sb, MBALLOC))
-		return 0;
-
 	{
 		static int mb_check_counter;
 		if (mb_check_counter++ % 100 != 0)
@@ -2487,19 +2484,14 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	unsigned max;
 	int ret;
 
-	if (!test_opt(sb, MBALLOC))
-		return 0;
-
 	i = (sb->s_blocksize_bits + 2) * sizeof(unsigned short);
 
 	sbi->s_mb_offsets = kmalloc(i, GFP_KERNEL);
 	if (sbi->s_mb_offsets == NULL) {
-		clear_opt(sbi->s_mount_opt, MBALLOC);
 		return -ENOMEM;
 	}
 	sbi->s_mb_maxs = kmalloc(i, GFP_KERNEL);
 	if (sbi->s_mb_maxs == NULL) {
-		clear_opt(sbi->s_mount_opt, MBALLOC);
 		kfree(sbi->s_mb_maxs);
 		return -ENOMEM;
 	}
@@ -2522,7 +2514,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	/* init file for buddy data */
 	ret = ext4_mb_init_backend(sb);
 	if (ret != 0) {
-		clear_opt(sbi->s_mount_opt, MBALLOC);
 		kfree(sbi->s_mb_offsets);
 		kfree(sbi->s_mb_maxs);
 		return ret;
@@ -2544,7 +2535,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 
 	sbi->s_locality_groups = alloc_percpu(struct ext4_locality_group);
 	if (sbi->s_locality_groups == NULL) {
-		clear_opt(sbi->s_mount_opt, MBALLOC);
 		kfree(sbi->s_mb_offsets);
 		kfree(sbi->s_mb_maxs);
 		return -ENOMEM;
@@ -2589,9 +2579,6 @@ int ext4_mb_release(struct super_block *sb)
 	int num_meta_group_infos;
 	struct ext4_group_info *grinfo;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-
-	if (!test_opt(sb, MBALLOC))
-		return 0;
 
 	/* release freed, non-committed blocks */
 	spin_lock(&sbi->s_md_lock);
@@ -3805,7 +3792,7 @@ out:
  *
  * FIXME!! Make sure it is valid at all the call sites
  */
-void ext4_mb_discard_inode_preallocations(struct inode *inode)
+void ext4_discard_preallocations(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -3817,7 +3804,7 @@ void ext4_mb_discard_inode_preallocations(struct inode *inode)
 	struct ext4_buddy e4b;
 	int err;
 
-	if (!test_opt(sb, MBALLOC) || !S_ISREG(inode->i_mode)) {
+	if (!S_ISREG(inode->i_mode)) {
 		/*BUG_ON(!list_empty(&ei->i_prealloc_list));*/
 		return;
 	}
@@ -4300,11 +4287,6 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
 
-	if (!test_opt(sb, MBALLOC)) {
-		block = ext4_old_new_blocks(handle, ar->inode, ar->goal,
-					    &(ar->len), errp);
-		return block;
-	}
 	if (!EXT4_I(ar->inode)->i_delalloc_reserved_flag) {
 		/*
 		 * With delalloc we already reserved the blocks

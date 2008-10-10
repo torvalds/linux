@@ -817,7 +817,6 @@ got:
 		ei->i_flags &= ~EXT4_DIRSYNC_FL;
 	ei->i_file_acl = 0;
 	ei->i_dtime = 0;
-	ei->i_block_alloc_info = NULL;
 	ei->i_block_group = group;
 
 	ext4_set_inode_flags(inode);

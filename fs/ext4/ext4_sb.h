@@ -67,7 +67,6 @@ struct ext4_sb_info {
 	/* root of the per fs reservation window tree */
 	spinlock_t s_rsv_window_lock;
 	struct rb_root s_rsv_window_root;
-	struct ext4_reserve_window_node s_rsv_window_head;
 
 	/* Journaling */
 	struct inode *s_journal_inode;

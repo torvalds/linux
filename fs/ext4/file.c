@@ -38,7 +38,7 @@ static int ext4_release_file(struct inode *inode, struct file *filp)
 			(atomic_read(&inode->i_writecount) == 1))
 	{
 		down_write(&EXT4_I(inode)->i_data_sem);
-		ext4_discard_reservation(inode);
+		ext4_discard_preallocations(inode);
 		up_write(&EXT4_I(inode)->i_data_sem);
 	}
 	if (is_dx(inode) && filp->private_data)

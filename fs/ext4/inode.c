@@ -486,18 +486,9 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 static ext4_fsblk_t ext4_find_goal(struct inode *inode, ext4_lblk_t block,
 		Indirect *partial)
 {
-	struct ext4_block_alloc_info *block_i;
-
-	block_i =  EXT4_I(inode)->i_block_alloc_info;
-
 	/*
-	 * try the heuristic for sequential allocation,
-	 * failing that at least try to get decent locality.
+	 * XXX need to get goal block from mballoc's data structures
 	 */
-	if (block_i && (block == block_i->last_alloc_logical_block + 1)
-		&& (block_i->last_alloc_physical_block != 0)) {
-		return block_i->last_alloc_physical_block + 1;
-	}
 
 	return ext4_find_near(inode, partial);
 }
@@ -757,10 +748,8 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 {
 	int i;
 	int err = 0;
-	struct ext4_block_alloc_info *block_i;
 	ext4_fsblk_t current_block;
 
-	block_i = EXT4_I(inode)->i_block_alloc_info;
 	/*
 	 * If we're splicing into a [td]indirect block (as opposed to the
 	 * inode) then we need to get write access to the [td]indirect block
@@ -784,17 +773,6 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 		current_block = le32_to_cpu(where->key) + 1;
 		for (i = 1; i < blks; i++)
 			*(where->p + i) = cpu_to_le32(current_block++);
-	}
-
-	/*
-	 * update the most recently allocated logical & physical block
-	 * in i_block_alloc_info, to assist find the proper goal block for next
-	 * allocation
-	 */
-	if (block_i) {
-		block_i->last_alloc_logical_block = block + blks - 1;
-		block_i->last_alloc_physical_block =
-				le32_to_cpu(where[num].key) + blks - 1;
 	}
 
 	/* We are done with atomic stuff, now do the rest of housekeeping */
@@ -914,12 +892,8 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 		goto cleanup;
 
 	/*
-	 * Okay, we need to do block allocation.  Lazily initialize the block
-	 * allocation info here if necessary
+	 * Okay, we need to do block allocation.
 	*/
-	if (S_ISREG(inode->i_mode) && (!ei->i_block_alloc_info))
-		ext4_init_block_alloc_info(inode);
-
 	goal = ext4_find_goal(inode, iblock, partial);
 
 	/* the number of blocks need to allocate for [d,t]indirect blocks */
@@ -3738,7 +3712,7 @@ void ext4_truncate(struct inode *inode)
 	 */
 	down_write(&ei->i_data_sem);
 
-	ext4_discard_reservation(inode);
+	ext4_discard_preallocations(inode);
 
 	/*
 	 * The orphan list entry will now protect us from any crash which
@@ -4071,7 +4045,6 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	ei->i_acl = EXT4_ACL_NOT_CACHED;
 	ei->i_default_acl = EXT4_ACL_NOT_CACHED;
 #endif
-	ei->i_block_alloc_info = NULL;
 
 	ret = __ext4_get_inode_loc(inode, &iloc, 0);
 	if (ret < 0)
