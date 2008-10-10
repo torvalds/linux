@@ -93,7 +93,7 @@ extern void __cpu_die(unsigned int cpu);
 
 #else
 /* for UP */
-#define hard_smp_processor_id()		0
+#define hard_smp_processor_id()		get_hard_smp_processor_id(0)
 #define smp_setup_cpu_maps()
 
 #endif /* CONFIG_SMP */
@@ -122,6 +122,7 @@ static inline int get_hard_smp_processor_id(int cpu)
 
 static inline void set_hard_smp_processor_id(int cpu, int phys)
 {
+	boot_cpuid_phys = phys;
 }
 #endif /* !CONFIG_SMP */
 #endif /* !CONFIG_PPC64 */
