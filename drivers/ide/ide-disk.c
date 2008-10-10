@@ -386,17 +386,6 @@ static unsigned long long sectors_to_MB(unsigned long long n)
 }
 
 /*
- * Bits 10 of command_set_1 and cfs_enable_1 must be equal,
- * so on non-buggy drives we need test only one.
- * However, we should also check whether these fields are valid.
- */
-static inline int idedisk_supports_hpa(const u16 *id)
-{
-	return (id[ATA_ID_COMMAND_SET_1] & 0x0400) &&
-	       (id[ATA_ID_CFS_ENABLE_1] & 0x0400);
-}
-
-/*
  * The same here.
  */
 static inline int idedisk_supports_lba48(const u16 *id)
@@ -461,7 +450,7 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 	 * If this drive supports the Host Protected Area feature set,
 	 * then we may need to change our opinion about the drive's capacity.
 	 */
-	int hpa = idedisk_supports_hpa(id);
+	int hpa = ata_id_hpa_enabled(id);
 
 	if (idedisk_supports_lba48(id)) {
 		/* drive speaks 48-bit LBA */
@@ -939,7 +928,7 @@ static int ide_disk_probe(ide_drive_t *drive);
  */
 static void ide_disk_resume(ide_drive_t *drive)
 {
-	if (idedisk_supports_hpa(drive->id))
+	if (ata_id_hpa_enabled(drive->id))
 		init_idedisk_capacity(drive);
 }
 
