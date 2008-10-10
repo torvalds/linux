@@ -6,6 +6,8 @@
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
+ * EMC Symmetrix ioctl Copyright EMC Corporation, 2008
+ * Author.........: Nigel Hislop <hislop_nigel@emc.com>
  *
  */
 
@@ -2083,6 +2085,103 @@ dasd_eckd_set_attrib(struct dasd_device *device, void __user *argp)
 	return 0;
 }
 
+/*
+ * Issue syscall I/O to EMC Symmetrix array.
+ * CCWs are PSF and RSSD
+ */
+static int dasd_symm_io(struct dasd_device *device, void __user *argp)
+{
+	struct dasd_symmio_parms usrparm;
+	char *psf_data, *rssd_result;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	/* Copy parms from caller */
+	rc = -EFAULT;
+	if (copy_from_user(&usrparm, argp, sizeof(usrparm)))
+		goto out;
+#ifndef CONFIG_64BIT
+	/* Make sure pointers are sane even on 31 bit. */
+	if ((usrparm.psf_data >> 32) != 0 || (usrparm.rssd_result >> 32) != 0) {
+		rc = -EINVAL;
+		goto out;
+	}
+#endif
+	/* alloc I/O data area */
+	psf_data = kzalloc(usrparm.psf_data_len, GFP_KERNEL | GFP_DMA);
+	rssd_result = kzalloc(usrparm.rssd_result_len, GFP_KERNEL | GFP_DMA);
+	if (!psf_data || !rssd_result) {
+		rc = -ENOMEM;
+		goto out_free;
+	}
+
+	/* get syscall header from user space */
+	rc = -EFAULT;
+	if (copy_from_user(psf_data,
+			   (void __user *)(unsigned long) usrparm.psf_data,
+			   usrparm.psf_data_len))
+		goto out_free;
+
+	/* sanity check on syscall header */
+	if (psf_data[0] != 0x17 && psf_data[1] != 0xce) {
+		rc = -EINVAL;
+		goto out_free;
+	}
+
+	/* setup CCWs for PSF + RSSD */
+	cqr = dasd_smalloc_request("ECKD", 2 , 0, device);
+	if (IS_ERR(cqr)) {
+		DEV_MESSAGE(KERN_WARNING, device, "%s",
+			"Could not allocate initialization request");
+		rc = PTR_ERR(cqr);
+		goto out_free;
+	}
+
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->retries = 3;
+	cqr->expires = 10 * HZ;
+	cqr->buildclk = get_clock();
+	cqr->status = DASD_CQR_FILLED;
+
+	/* Build the ccws */
+	ccw = cqr->cpaddr;
+
+	/* PSF ccw */
+	ccw->cmd_code = DASD_ECKD_CCW_PSF;
+	ccw->count = usrparm.psf_data_len;
+	ccw->flags |= CCW_FLAG_CC;
+	ccw->cda = (__u32)(addr_t) psf_data;
+
+	ccw++;
+
+	/* RSSD ccw  */
+	ccw->cmd_code = DASD_ECKD_CCW_RSSD;
+	ccw->count = usrparm.rssd_result_len;
+	ccw->flags = CCW_FLAG_SLI ;
+	ccw->cda = (__u32)(addr_t) rssd_result;
+
+	rc = dasd_sleep_on(cqr);
+	if (rc)
+		goto out_sfree;
+
+	rc = -EFAULT;
+	if (copy_to_user((void __user *)(unsigned long) usrparm.rssd_result,
+			   rssd_result, usrparm.rssd_result_len))
+		goto out_sfree;
+	rc = 0;
+
+out_sfree:
+	dasd_sfree_request(cqr, cqr->memdev);
+out_free:
+	kfree(rssd_result);
+	kfree(psf_data);
+out:
+	DBF_DEV_EVENT(DBF_WARNING, device, "Symmetrix ioctl: rc=%d", rc);
+	return rc;
+}
+
 static int
 dasd_eckd_ioctl(struct dasd_block *block, unsigned int cmd, void __user *argp)
 {
@@ -2101,6 +2200,8 @@ dasd_eckd_ioctl(struct dasd_block *block, unsigned int cmd, void __user *argp)
 		return dasd_eckd_reserve(device);
 	case BIODASDSLCK:
 		return dasd_eckd_steal_lock(device);
+	case BIODASDSYMMIO:
+		return dasd_symm_io(device, argp);
 	default:
 		return -ENOIOCTLCMD;
 	}
