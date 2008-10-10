@@ -30,6 +30,7 @@ struct pgpath {
 	struct list_head list;
 
 	struct priority_group *pg;	/* Owning PG */
+	unsigned is_active;		/* Path status */
 	unsigned fail_count;		/* Cumulative failure count */
 
 	struct dm_path path;
@@ -123,7 +124,7 @@ static struct pgpath *alloc_pgpath(void)
 	struct pgpath *pgpath = kzalloc(sizeof(*pgpath), GFP_KERNEL);
 
 	if (pgpath)
-		pgpath->path.is_active = 1;
+		pgpath->is_active = 1;
 
 	return pgpath;
 }
@@ -854,13 +855,13 @@ static int fail_path(struct pgpath *pgpath)
 
 	spin_lock_irqsave(&m->lock, flags);
 
-	if (!pgpath->path.is_active)
+	if (!pgpath->is_active)
 		goto out;
 
 	DMWARN("Failing path %s.", pgpath->path.dev->name);
 
 	pgpath->pg->ps.type->fail_path(&pgpath->pg->ps, &pgpath->path);
-	pgpath->path.is_active = 0;
+	pgpath->is_active = 0;
 	pgpath->fail_count++;
 
 	m->nr_valid_paths--;
@@ -890,7 +891,7 @@ static int reinstate_path(struct pgpath *pgpath)
 
 	spin_lock_irqsave(&m->lock, flags);
 
-	if (pgpath->path.is_active)
+	if (pgpath->is_active)
 		goto out;
 
 	if (!pgpath->pg->ps.type->reinstate_path) {
@@ -904,7 +905,7 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (r)
 		goto out;
 
-	pgpath->path.is_active = 1;
+	pgpath->is_active = 1;
 
 	m->current_pgpath = NULL;
 	if (!m->nr_valid_paths++ && m->queue_size)
@@ -1292,7 +1293,7 @@ static int multipath_status(struct dm_target *ti, status_type_t type,
 
 			list_for_each_entry(p, &pg->pgpaths, list) {
 				DMEMIT("%s %s %u ", p->path.dev->name,
-				       p->path.is_active ? "A" : "F",
+				       p->is_active ? "A" : "F",
 				       p->fail_count);
 				if (pg->ps.type->status)
 					sz += pg->ps.type->status(&pg->ps,
