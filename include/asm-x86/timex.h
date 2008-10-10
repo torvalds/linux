@@ -1,6 +1,6 @@
 /* x86 architecture timex specifications */
-#ifndef _ASM_X86_TIMEX_H
-#define _ASM_X86_TIMEX_H
+#ifndef ASM_X86__TIMEX_H
+#define ASM_X86__TIMEX_H
 
 #include <asm/processor.h>
 #include <asm/tsc.h>
@@ -16,4 +16,4 @@
 
 #define ARCH_HAS_READ_CURRENT_TIMER
 
-#endif
+#endif /* ASM_X86__TIMEX_H */

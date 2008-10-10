@@ -3,8 +3,8 @@
  *  Split out from apm.c by Osamu Tomita <tomita@cinet.co.jp>
  */
 
-#ifndef _ASM_APM_H
-#define _ASM_APM_H
+#ifndef ASM_X86__MACH_DEFAULT__APM_H
+#define ASM_X86__MACH_DEFAULT__APM_H
 
 #ifdef APM_ZERO_SEGS
 #	define APM_DO_ZERO_SEGS \
@@ -70,4 +70,4 @@ static inline u8 apm_bios_call_simple_asm(u32 func, u32 ebx_in,
 	return error;
 }
 
-#endif /* _ASM_APM_H */
+#endif /* ASM_X86__MACH_DEFAULT__APM_H */

@@ -45,18 +45,7 @@ static void r39xx_wait(void)
 	local_irq_enable();
 }
 
-/*
- * There is a race when WAIT instruction executed with interrupt
- * enabled.
- * But it is implementation-dependent wheter the pipelie restarts when
- * a non-enabled interrupt is requested.
- */
-static void r4k_wait(void)
-{
-	__asm__("	.set	mips3			\n"
-		"	wait				\n"
-		"	.set	mips0			\n");
-}
+extern void r4k_wait(void);
 
 /*
  * This variant is preferable as it allows testing need_resched and going to
@@ -65,14 +54,18 @@ static void r4k_wait(void)
  * interrupt is requested" restriction in the MIPS32/MIPS64 architecture makes
  * using this version a gamble.
  */
-static void r4k_wait_irqoff(void)
+void r4k_wait_irqoff(void)
 {
 	local_irq_disable();
 	if (!need_resched())
-		__asm__("	.set	mips3		\n"
+		__asm__("	.set	push		\n"
+			"	.set	mips3		\n"
 			"	wait			\n"
-			"	.set	mips0		\n");
+			"	.set	pop		\n");
 	local_irq_enable();
+	__asm__(" 	.globl __pastwait	\n"
+		"__pastwait:			\n");
+	return;
 }
 
 /*
@@ -128,7 +121,7 @@ static int __init wait_disable(char *s)
 
 __setup("nowait", wait_disable);
 
-static inline void check_wait(void)
+void __init check_wait(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
@@ -242,7 +235,6 @@ static inline void check_errata(void)
 
 void __init check_bugs32(void)
 {
-	check_wait();
 	check_errata();
 }
 

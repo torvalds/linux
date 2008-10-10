@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_CACHEFLUSH_H
-#define _ASM_X86_CACHEFLUSH_H
+#ifndef ASM_X86__CACHEFLUSH_H
+#define ASM_X86__CACHEFLUSH_H
 
 /* Keep includes the same across arches.  */
 #include <linux/mm.h>
@@ -115,4 +115,4 @@ static inline int rodata_test(void)
 }
 #endif
 
-#endif
+#endif /* ASM_X86__CACHEFLUSH_H */

@@ -469,10 +469,10 @@ static bool sata_fsl_qc_fill_rtf(struct ata_queued_cmd *qc)
 	return true;
 }
 
-static int sata_fsl_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
-			       u32 val)
+static int sata_fsl_scr_write(struct ata_link *link,
+			      unsigned int sc_reg_in, u32 val)
 {
-	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
+	struct sata_fsl_host_priv *host_priv = link->ap->host->private_data;
 	void __iomem *ssr_base = host_priv->ssr_base;
 	unsigned int sc_reg;
 
@@ -493,10 +493,10 @@ static int sata_fsl_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 	return 0;
 }
 
-static int sata_fsl_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
-			u32 *val)
+static int sata_fsl_scr_read(struct ata_link *link,
+			     unsigned int sc_reg_in, u32 *val)
 {
-	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
+	struct sata_fsl_host_priv *host_priv = link->ap->host->private_data;
 	void __iomem *ssr_base = host_priv->ssr_base;
 	unsigned int sc_reg;
 
@@ -645,12 +645,12 @@ static int sata_fsl_port_start(struct ata_port *ap)
 	 * Workaround for 8315DS board 3gbps link-up issue,
 	 * currently limit SATA port to GEN1 speed
 	 */
-	sata_fsl_scr_read(ap, SCR_CONTROL, &temp);
+	sata_fsl_scr_read(&ap->link, SCR_CONTROL, &temp);
 	temp &= ~(0xF << 4);
 	temp |= (0x1 << 4);
-	sata_fsl_scr_write(ap, SCR_CONTROL, temp);
+	sata_fsl_scr_write(&ap->link, SCR_CONTROL, temp);
 
-	sata_fsl_scr_read(ap, SCR_CONTROL, &temp);
+	sata_fsl_scr_read(&ap->link, SCR_CONTROL, &temp);
 	dev_printk(KERN_WARNING, dev, "scr_control, speed limited to %x\n",
 			temp);
 #endif
@@ -868,7 +868,7 @@ issue_srst:
 			ioread32(CQ + hcr_base),
 			ioread32(CA + hcr_base), ioread32(CC + hcr_base));
 
-		sata_fsl_scr_read(ap, SCR_ERROR, &Serror);
+		sata_fsl_scr_read(&ap->link, SCR_ERROR, &Serror);
 
 		DPRINTK("HStatus = 0x%x\n", ioread32(hcr_base + HSTATUS));
 		DPRINTK("HControl = 0x%x\n", ioread32(hcr_base + HCONTROL));
@@ -972,9 +972,9 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 	 * Handle & Clear SError
 	 */
 
-	sata_fsl_scr_read(ap, SCR_ERROR, &SError);
+	sata_fsl_scr_read(&ap->link, SCR_ERROR, &SError);
 	if (unlikely(SError & 0xFFFF0000)) {
-		sata_fsl_scr_write(ap, SCR_ERROR, SError);
+		sata_fsl_scr_write(&ap->link, SCR_ERROR, SError);
 	}
 
 	DPRINTK("error_intr,hStat=0x%x,CE=0x%x,DE =0x%x,SErr=0x%x\n",
@@ -1091,7 +1091,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 
 	hstatus = ioread32(hcr_base + HSTATUS);
 
-	sata_fsl_scr_read(ap, SCR_ERROR, &SError);
+	sata_fsl_scr_read(&ap->link, SCR_ERROR, &SError);
 
 	if (unlikely(SError & 0xFFFF0000)) {
 		DPRINTK("serror @host_intr : 0x%x\n", SError);

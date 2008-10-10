@@ -420,8 +420,10 @@ tioca_dma_mapped(struct pci_dev *pdev, u64 paddr, size_t req_size)
 		entry = find_next_zero_bit(map, mapsize, last_entry);
 	}
 
-	if (entry > mapsize)
+	if (entry > mapsize) {
+		kfree(ca_dmamap);
 		goto map_return;
+	}
 
 	for (i = 0; i < entries; i++)
 		set_bit(entry + i, map);

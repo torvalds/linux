@@ -190,12 +190,12 @@ EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 static void __init platform_detect(void)
 {
 	size_t propsize;
-	u32 rev;
+	__be32 rev;
 
 	if (ofw("getprop", 4, 1, NULL, "board-revision-int", &rev, 4,
 			&propsize) || propsize != 4) {
 		printk(KERN_ERR "ofw: getprop call failed!\n");
-		rev = 0;
+		rev = cpu_to_be32(0);
 	}
 	olpc_platform_info.boardrev = be32_to_cpu(rev);
 }
@@ -203,7 +203,7 @@ static void __init platform_detect(void)
 static void __init platform_detect(void)
 {
 	/* stopgap until OFW support is added to the kernel */
-	olpc_platform_info.boardrev = be32_to_cpu(0xc2);
+	olpc_platform_info.boardrev = 0xc2;
 }
 #endif
 

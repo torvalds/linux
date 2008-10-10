@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TERMBITS_H
-#define _ASM_X86_TERMBITS_H
+#ifndef ASM_X86__TERMBITS_H
+#define ASM_X86__TERMBITS_H
 
 #include <linux/posix_types.h>
 
@@ -195,4 +195,4 @@ struct ktermios {
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 
-#endif /* _ASM_X86_TERMBITS_H */
+#endif /* ASM_X86__TERMBITS_H */

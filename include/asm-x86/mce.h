@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_MCE_H
-#define _ASM_X86_MCE_H
+#ifndef ASM_X86__MCE_H
+#define ASM_X86__MCE_H
 
 #ifdef __x86_64__
 
@@ -127,4 +127,4 @@ extern void restart_mce(void);
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__MCE_H */

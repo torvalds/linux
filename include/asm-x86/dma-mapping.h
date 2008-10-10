@@ -1,5 +1,5 @@
-#ifndef _ASM_DMA_MAPPING_H_
-#define _ASM_DMA_MAPPING_H_
+#ifndef ASM_X86__DMA_MAPPING_H
+#define ASM_X86__DMA_MAPPING_H
 
 /*
  * IOMMU interface. See Documentation/DMA-mapping.txt and DMA-API.txt for
@@ -250,4 +250,4 @@ static inline int dma_get_cache_alignment(void)
 #define dma_is_consistent(d, h)	(1)
 
 #include <asm-generic/dma-coherent.h>
-#endif
+#endif /* ASM_X86__DMA_MAPPING_H */

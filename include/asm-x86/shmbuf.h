@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SHMBUF_H
-#define _ASM_X86_SHMBUF_H
+#ifndef ASM_X86__SHMBUF_H
+#define ASM_X86__SHMBUF_H
 
 /*
  * The shmid64_ds structure for x86 architecture.
@@ -48,4 +48,4 @@ struct shminfo64 {
 	unsigned long	__unused4;
 };
 
-#endif /* _ASM_X86_SHMBUF_H */
+#endif /* ASM_X86__SHMBUF_H */

@@ -2737,6 +2737,7 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 		if (ctx == NULL)
 			goto netlbl_secattr_to_sid_return;
 
+		context_init(&ctx_new);
 		ctx_new.user = ctx->user;
 		ctx_new.role = ctx->role;
 		ctx_new.type = ctx->type;
@@ -2745,13 +2746,9 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 			if (ebitmap_netlbl_import(&ctx_new.range.level[0].cat,
 						  secattr->attr.mls.cat) != 0)
 				goto netlbl_secattr_to_sid_return;
-			ctx_new.range.level[1].cat.highbit =
-				ctx_new.range.level[0].cat.highbit;
-			ctx_new.range.level[1].cat.node =
-				ctx_new.range.level[0].cat.node;
-		} else {
-			ebitmap_init(&ctx_new.range.level[0].cat);
-			ebitmap_init(&ctx_new.range.level[1].cat);
+			memcpy(&ctx_new.range.level[1].cat,
+			       &ctx_new.range.level[0].cat,
+			       sizeof(ctx_new.range.level[0].cat));
 		}
 		if (mls_context_isvalid(&policydb, &ctx_new) != 1)
 			goto netlbl_secattr_to_sid_return_cleanup;

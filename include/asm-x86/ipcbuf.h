@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_IPCBUF_H
-#define _ASM_X86_IPCBUF_H
+#ifndef ASM_X86__IPCBUF_H
+#define ASM_X86__IPCBUF_H
 
 /*
  * The ipc64_perm structure for x86 architecture.
@@ -25,4 +25,4 @@ struct ipc64_perm {
 	unsigned long		__unused2;
 };
 
-#endif /* _ASM_X86_IPCBUF_H */
+#endif /* ASM_X86__IPCBUF_H */

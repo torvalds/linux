@@ -524,7 +524,6 @@ static int iucv_enable(void)
 	get_online_cpus();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
-	preempt_enable();
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
 		goto out_path;
@@ -547,7 +546,9 @@ out:
  */
 static void iucv_disable(void)
 {
+	get_online_cpus();
 	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
+	put_online_cpus();
 	kfree(iucv_path_table);
 }
 

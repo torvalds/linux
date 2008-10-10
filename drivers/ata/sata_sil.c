@@ -115,8 +115,8 @@ static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int sil_pci_device_resume(struct pci_dev *pdev);
 #endif
 static void sil_dev_config(struct ata_device *dev);
-static int sil_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int sil_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int sil_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
+static int sil_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
@@ -317,9 +317,9 @@ static inline void __iomem *sil_scr_addr(struct ata_port *ap,
 	return NULL;
 }
 
-static int sil_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static int sil_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 {
-	void __iomem *mmio = sil_scr_addr(ap, sc_reg);
+	void __iomem *mmio = sil_scr_addr(link->ap, sc_reg);
 
 	if (mmio) {
 		*val = readl(mmio);
@@ -328,9 +328,9 @@ static int sil_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 	return -EINVAL;
 }
 
-static int sil_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int sil_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 {
-	void __iomem *mmio = sil_scr_addr(ap, sc_reg);
+	void __iomem *mmio = sil_scr_addr(link->ap, sc_reg);
 
 	if (mmio) {
 		writel(val, mmio);
@@ -352,8 +352,8 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		 * controllers continue to assert IRQ as long as
 		 * SError bits are pending.  Clear SError immediately.
 		 */
-		sil_scr_read(ap, SCR_ERROR, &serror);
-		sil_scr_write(ap, SCR_ERROR, serror);
+		sil_scr_read(&ap->link, SCR_ERROR, &serror);
+		sil_scr_write(&ap->link, SCR_ERROR, serror);
 
 		/* Sometimes spurious interrupts occur, double check
 		 * it's PHYRDY CHG.

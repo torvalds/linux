@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_KMAP_TYPES_H
-#define _ASM_X86_KMAP_TYPES_H
+#ifndef ASM_X86__KMAP_TYPES_H
+#define ASM_X86__KMAP_TYPES_H
 
 #if defined(CONFIG_X86_32) && defined(CONFIG_DEBUG_HIGHMEM)
 # define D(n) __KM_FENCE_##n ,
@@ -26,4 +26,4 @@ D(13)	KM_TYPE_NR
 
 #undef D
 
-#endif
+#endif /* ASM_X86__KMAP_TYPES_H */

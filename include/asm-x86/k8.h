@@ -1,5 +1,5 @@
-#ifndef _ASM_K8_H
-#define _ASM_K8_H 1
+#ifndef ASM_X86__K8_H
+#define ASM_X86__K8_H
 
 #include <linux/pci.h>
 
@@ -12,4 +12,4 @@ extern int cache_k8_northbridges(void);
 extern void k8_flush_garts(void);
 extern int k8_scan_nodes(unsigned long start, unsigned long end);
 
-#endif
+#endif /* ASM_X86__K8_H */

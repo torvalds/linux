@@ -1,5 +1,5 @@
-#ifndef __ASM_MPSPEC_DEF_H
-#define __ASM_MPSPEC_DEF_H
+#ifndef ASM_X86__MPSPEC_DEF_H
+#define ASM_X86__MPSPEC_DEF_H
 
 /*
  * Structure definitions for SMP machines following the
@@ -177,4 +177,4 @@ enum mp_bustype {
 	MP_BUS_PCI,
 	MP_BUS_MCA,
 };
-#endif
+#endif /* ASM_X86__MPSPEC_DEF_H */

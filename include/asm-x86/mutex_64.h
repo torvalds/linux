@@ -6,8 +6,8 @@
  *
  *  Copyright (C) 2004, 2005, 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  */
-#ifndef _ASM_MUTEX_H
-#define _ASM_MUTEX_H
+#ifndef ASM_X86__MUTEX_64_H
+#define ASM_X86__MUTEX_64_H
 
 /**
  * __mutex_fastpath_lock - decrement and call function if negative
@@ -97,4 +97,4 @@ static inline int __mutex_fastpath_trylock(atomic_t *count,
 		return 0;
 }
 
-#endif
+#endif /* ASM_X86__MUTEX_64_H */

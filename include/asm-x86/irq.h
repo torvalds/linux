@@ -1,5 +1,5 @@
-#ifndef _ASM_IRQ_H
-#define _ASM_IRQ_H
+#ifndef ASM_X86__IRQ_H
+#define ASM_X86__IRQ_H
 /*
  *	(C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
  *
@@ -47,4 +47,4 @@ extern void native_init_IRQ(void);
 /* Interrupt vector management */
 extern DECLARE_BITMAP(used_vectors, NR_VECTORS);
 
-#endif /* _ASM_IRQ_H */
+#endif /* ASM_X86__IRQ_H */

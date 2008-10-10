@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PARAM_H
-#define _ASM_X86_PARAM_H
+#ifndef ASM_X86__PARAM_H
+#define ASM_X86__PARAM_H
 
 #ifdef __KERNEL__
 # define HZ		CONFIG_HZ	/* Internal kernel timer frequency */
@@ -19,4 +19,4 @@
 
 #define MAXHOSTNAMELEN	64	/* max length of hostname */
 
-#endif /* _ASM_X86_PARAM_H */
+#endif /* ASM_X86__PARAM_H */

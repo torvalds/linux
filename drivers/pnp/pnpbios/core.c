@@ -571,7 +571,7 @@ static int __init pnpbios_init(void)
 	return 0;
 }
 
-subsys_initcall(pnpbios_init);
+fs_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {

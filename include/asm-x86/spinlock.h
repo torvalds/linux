@@ -1,5 +1,5 @@
-#ifndef _X86_SPINLOCK_H_
-#define _X86_SPINLOCK_H_
+#ifndef ASM_X86__SPINLOCK_H
+#define ASM_X86__SPINLOCK_H
 
 #include <asm/atomic.h>
 #include <asm/rwlock.h>
@@ -97,7 +97,7 @@ static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 		     "jne 1f\n\t"
 		     "movw %w0,%w1\n\t"
 		     "incb %h1\n\t"
-		     "lock ; cmpxchgw %w1,%2\n\t"
+		     LOCK_PREFIX "cmpxchgw %w1,%2\n\t"
 		     "1:"
 		     "sete %b1\n\t"
 		     "movzbl %b1,%0\n\t"
@@ -135,7 +135,7 @@ static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 	int inc = 0x00010000;
 	int tmp;
 
-	asm volatile("lock ; xaddl %0, %1\n"
+	asm volatile(LOCK_PREFIX "xaddl %0, %1\n"
 		     "movzwl %w0, %2\n\t"
 		     "shrl $16, %0\n\t"
 		     "1:\t"
@@ -162,7 +162,7 @@ static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 		     "cmpl %0,%1\n\t"
 		     "jne 1f\n\t"
 		     "addl $0x00010000, %1\n\t"
-		     "lock ; cmpxchgl %1,%2\n\t"
+		     LOCK_PREFIX "cmpxchgl %1,%2\n\t"
 		     "1:"
 		     "sete %b1\n\t"
 		     "movzbl %b1,%0\n\t"
@@ -366,4 +366,4 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 #define _raw_read_relax(lock)	cpu_relax()
 #define _raw_write_relax(lock)	cpu_relax()
 
-#endif
+#endif /* ASM_X86__SPINLOCK_H */

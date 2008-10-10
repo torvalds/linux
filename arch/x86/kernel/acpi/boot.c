@@ -58,7 +58,6 @@ EXPORT_SYMBOL(acpi_disabled);
 #ifdef	CONFIG_X86_64
 
 #include <asm/proto.h>
-#include <asm/genapic.h>
 
 #else				/* X86 */
 
@@ -96,8 +95,6 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 #ifndef __HAVE_ARCH_CMPXCHG
 #warning ACPI uses CMPXCHG, i486 and later hardware
 #endif
-
-static int acpi_mcfg_64bit_base_addr __initdata = FALSE;
 
 /* --------------------------------------------------------------------------
                               Boot-time Configuration
@@ -159,6 +156,8 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
 struct acpi_mcfg_allocation *pci_mmcfg_config;
 int pci_mmcfg_config_num;
+
+static int acpi_mcfg_64bit_base_addr __initdata = FALSE;
 
 static int __init acpi_mcfg_oem_check(struct acpi_table_mcfg *mcfg)
 {
@@ -1605,6 +1604,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 */
 	{
 	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP nx6115 laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6115"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
 	 .ident = "HP NX6125 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1617,6 +1624,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP 6715b laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq 6715b"),
 		     },
 	 },
 	{}

@@ -1,0 +1,4 @@
+00-INDEX
+	- this file
+mtrr.txt
+	- how to use x86 Memory Type Range Registers to increase performance

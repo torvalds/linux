@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_APIC_H
-#define _ASM_X86_APIC_H
+#ifndef ASM_X86__APIC_H
+#define ASM_X86__APIC_H
 
 #include <linux/pm.h>
 #include <linux/delay.h>
@@ -54,6 +54,11 @@ extern int disable_apic;
 #endif
 
 extern int is_vsmp_box(void);
+extern void xapic_wait_icr_idle(void);
+extern u32 safe_xapic_wait_icr_idle(void);
+extern u64 xapic_icr_read(void);
+extern void xapic_icr_write(u32, u32);
+extern int setup_profiling_timer(unsigned int);
 
 static inline void native_apic_write(unsigned long reg, u32 v)
 {
@@ -76,9 +81,7 @@ extern int get_physical_broadcast(void);
 static inline void ack_APIC_irq(void)
 {
 	/*
-	 * ack_APIC_irq() actually gets compiled as a single instruction:
-	 * - a single rmw on Pentium/82489DX
-	 * - a single write on P6+ cores (CONFIG_X86_GOOD_APIC)
+	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
 	 */
 
@@ -128,4 +131,4 @@ static inline void init_apic_mappings(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 
-#endif /* __ASM_APIC_H */
+#endif /* ASM_X86__APIC_H */

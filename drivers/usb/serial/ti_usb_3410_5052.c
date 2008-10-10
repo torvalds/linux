@@ -1744,7 +1744,7 @@ static int ti_download_firmware(struct ti_device *tdev, int type)
 	if (buffer) {
 		memcpy(buffer, fw_p->data, fw_p->size);
 		memset(buffer + fw_p->size, 0xff, buffer_size - fw_p->size);
-		ti_do_download(dev, pipe, buffer, fw_p->size);
+		status = ti_do_download(dev, pipe, buffer, fw_p->size);
 		kfree(buffer);
 	}
 	release_firmware(fw_p);

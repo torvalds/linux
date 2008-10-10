@@ -238,7 +238,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		case FPC_EIR: {	/* implementation / version register */
 			unsigned int flags;
 #ifdef CONFIG_MIPS_MT_SMTC
-			unsigned int irqflags;
+			unsigned long irqflags;
 			unsigned int mtflags;
 #endif /* CONFIG_MIPS_MT_SMTC */
 

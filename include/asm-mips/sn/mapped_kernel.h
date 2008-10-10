@@ -5,6 +5,8 @@
 #ifndef __ASM_SN_MAPPED_KERNEL_H
 #define __ASM_SN_MAPPED_KERNEL_H
 
+#include <linux/mmzone.h>
+
 /*
  * Note on how mapped kernels work: the text and data section is
  * compiled at cksseg segment (LOADADDR = 0xc001c000), and the
@@ -29,10 +31,8 @@
 #define MAPPED_ADDR_RO_TO_PHYS(x)	(x - REP_BASE)
 #define MAPPED_ADDR_RW_TO_PHYS(x)	(x - REP_BASE - 16777216)
 
-#define MAPPED_KERN_RO_PHYSBASE(n) \
-			(PLAT_NODE_DATA(n)->kern_vars.kv_ro_baseaddr)
-#define MAPPED_KERN_RW_PHYSBASE(n) \
-			(PLAT_NODE_DATA(n)->kern_vars.kv_rw_baseaddr)
+#define MAPPED_KERN_RO_PHYSBASE(n) (hub_data(n)->kern_vars.kv_ro_baseaddr)
+#define MAPPED_KERN_RW_PHYSBASE(n) (hub_data(n)->kern_vars.kv_rw_baseaddr)
 
 #define MAPPED_KERN_RO_TO_PHYS(x) \
 				((unsigned long)MAPPED_ADDR_RO_TO_PHYS(x) | \

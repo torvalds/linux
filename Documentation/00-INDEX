@@ -251,8 +251,6 @@ mono.txt
 	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
 moxa-smartio
 	- file with info on installing/using Moxa multiport serial driver.
-mtrr.txt
-	- how to use PPro Memory Type Range Registers to increase performance.
 mutex-design.txt
 	- info on the generic mutex subsystem.
 namespaces/

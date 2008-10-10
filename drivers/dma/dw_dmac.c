@@ -364,7 +364,7 @@ static void dw_dma_tasklet(unsigned long data)
 	int i;
 
 	status_block = dma_readl(dw, RAW.BLOCK);
-	status_xfer = dma_readl(dw, RAW.BLOCK);
+	status_xfer = dma_readl(dw, RAW.XFER);
 	status_err = dma_readl(dw, RAW.ERROR);
 
 	dev_vdbg(dw->dma.dev, "tasklet: status_block=%x status_err=%x\n",

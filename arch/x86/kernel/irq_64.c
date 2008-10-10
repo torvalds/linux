@@ -129,7 +129,7 @@ skip:
 		seq_printf(p, "CAL: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", cpu_pda(j)->irq_call_count);
-		seq_printf(p, "  function call interrupts\n");
+		seq_printf(p, "  Function call interrupts\n");
 		seq_printf(p, "TLB: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", cpu_pda(j)->irq_tlb_count);
