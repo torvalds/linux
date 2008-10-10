@@ -411,7 +411,7 @@ static __init void parse_cmdline_early(char *cmdline_p)
  *  [_rambase, _ramstart]:		kernel image
  *  [memory_start, memory_end]:		dynamic memory managed by kernel
  *  [memory_end, _ramend]:		reserved memory
- *  	[meory_mtd_start(memory_end),
+ *  	[memory_mtd_start(memory_end),
  *  		memory_mtd_start + mtd_size]:	rootfs (if any)
  *	[_ramend - DMA_UNCACHED_REGION,
  *		_ramend]:			uncached DMA region
