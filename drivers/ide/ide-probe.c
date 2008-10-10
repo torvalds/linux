@@ -89,16 +89,14 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 	u8 max_multsect = id[ATA_ID_MAX_MULTSECT] & 0xff;
 
 	if (max_multsect) {
-#ifdef CONFIG_IDEDISK_MULTI_MODE
 		if ((max_multsect / 2) > 1)
 			id[ATA_ID_MULTSECT] = max_multsect | 0x100;
 		else
 			id[ATA_ID_MULTSECT] &= ~0x1ff;
 
 		drive->mult_req = id[ATA_ID_MULTSECT] & 0xff;
-#endif
-		if ((id[ATA_ID_MULTSECT] & 0x100) &&
-		    (id[ATA_ID_MULTSECT] & 0xff))
+
+		if (drive->mult_req)
 			drive->special.b.set_multmode = 1;
 	}
 }

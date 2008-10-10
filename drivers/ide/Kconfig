@@ -131,29 +131,6 @@ config BLK_DEV_IDEDISK
 
 	  If unsure, say Y.
 
-config IDEDISK_MULTI_MODE
-	bool "Use multiple sector mode for Programmed Input/Output by default"
-	help
-	  This setting is irrelevant for most IDE disks, with direct memory
-	  access, to which multiple sector mode does not apply. Multiple sector
-	  mode is a feature of most modern IDE hard drives, permitting the
-	  transfer of multiple sectors per Programmed Input/Output interrupt,
-	  rather than the usual one sector per interrupt. When this feature is
-	  enabled, it can reduce operating system overhead for disk Programmed
-	  Input/Output. On some systems, it also can increase the data
-	  throughput of Programmed Input/Output. Some drives, however, seemed
-	  to run slower with multiple sector mode enabled. Some drives claimed
-	  to support multiple sector mode, but lost data at some settings.
-	  Under rare circumstances, such failures could result in massive
-	  filesystem corruption.
-
-	  If you get the following error, try to say Y here:
-
-	  hda: set_multmode: status=0x51 { DriveReady SeekComplete Error }
-	  hda: set_multmode: error=0x04 { DriveStatusError }
-
-	  If in doubt, say N.
-
 config BLK_DEV_IDECS
 	tristate "PCMCIA IDE support"
 	depends on PCMCIA
