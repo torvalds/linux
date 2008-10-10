@@ -213,6 +213,8 @@ source "drivers/hwmon/Kconfig"
 
 source "drivers/usb/Kconfig"
 
+source "drivers/uwb/Kconfig"
+
 endmenu
 
 source "fs/Kconfig"

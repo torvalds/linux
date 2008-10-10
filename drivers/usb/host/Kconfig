@@ -305,3 +305,31 @@ config SUPERH_ON_CHIP_R8A66597
 	help
 	   This driver enables support for the on-chip R8A66597 in the
 	   SH7366 and SH7723 processors.
+
+config USB_WHCI_HCD
+	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on PCI && USB
+	select USB_WUSB
+	select UWB_WHCI
+	help
+	  A driver for PCI-based Wireless USB Host Controllers that are
+	  compliant with the WHCI specification.
+
+	  To compile this driver a module, choose M here: the module
+	  will be called "whci-hcd".
+
+config USB_HWA_HCD
+	tristate "Host Wire Adapter (HWA) driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on USB
+	select USB_WUSB
+	select UWB_HWA
+	help
+	  This driver enables you to connect Wireless USB devices to
+	  your system using a Host Wire Adaptor USB dongle. This is an
+	  UWB Radio Controller and WUSB Host Controller connected to
+	  your machine via USB (specified in WUSB1.0).
+
+	  To compile this driver a module, choose M here: the module
+	  will be called "hwa-hc".
