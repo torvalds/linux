@@ -30,9 +30,6 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/leds.h>
-
-#define _IDE_DISK
-
 #include <linux/ide.h>
 
 #include <asm/byteorder.h>
