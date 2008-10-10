@@ -1004,9 +1004,9 @@ int tpm_release(struct inode *inode, struct file *file)
 {
 	struct tpm_chip *chip = file->private_data;
 
+	del_singleshot_timer_sync(&chip->user_read_timer);
 	flush_scheduled_work();
 	file->private_data = NULL;
-	del_singleshot_timer_sync(&chip->user_read_timer);
 	atomic_set(&chip->data_pending, 0);
 	kfree(chip->data_buffer);
 	clear_bit(0, &chip->is_open);
