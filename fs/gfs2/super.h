@@ -12,11 +12,6 @@
 
 #include "incore.h"
 
-void gfs2_tune_init(struct gfs2_tune *gt);
-
-int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent);
-int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent);
-int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector);
 void gfs2_lm_unmount(struct gfs2_sbd *sdp);
 
 static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
@@ -40,7 +35,6 @@ int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 			      struct gfs2_inode **ipp);
 
 int gfs2_make_fs_rw(struct gfs2_sbd *sdp);
-int gfs2_make_fs_ro(struct gfs2_sbd *sdp);
 
 int gfs2_statfs_init(struct gfs2_sbd *sdp);
 void gfs2_statfs_change(struct gfs2_sbd *sdp,

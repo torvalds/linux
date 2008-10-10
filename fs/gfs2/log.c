@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/bio.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -584,7 +585,6 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	memset(bh->b_data, 0, bh->b_size);
 	set_buffer_uptodate(bh);
 	clear_buffer_dirty(bh);
-	unlock_buffer(bh);
 
 	gfs2_ail1_empty(sdp, 0);
 	tail = current_tail(sdp);
@@ -601,8 +601,23 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	hash = gfs2_disk_hash(bh->b_data, sizeof(struct gfs2_log_header));
 	lh->lh_hash = cpu_to_be32(hash);
 
-	set_buffer_dirty(bh);
-	if (sync_dirty_buffer(bh))
+	bh->b_end_io = end_buffer_write_sync;
+	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
+		goto skip_barrier;
+	get_bh(bh);
+	submit_bh(WRITE_BARRIER | (1 << BIO_RW_META), bh);
+	wait_on_buffer(bh);
+	if (buffer_eopnotsupp(bh)) {
+		clear_buffer_eopnotsupp(bh);
+		set_buffer_uptodate(bh);
+		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
+		lock_buffer(bh);
+skip_barrier:
+		get_bh(bh);
+		submit_bh(WRITE_SYNC | (1 << BIO_RW_META), bh);
+		wait_on_buffer(bh);
+	}
+	if (!buffer_uptodate(bh))
 		gfs2_io_error_bh(sdp, bh);
 	brelse(bh);
 
