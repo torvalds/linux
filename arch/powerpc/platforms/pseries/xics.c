@@ -498,26 +498,23 @@ static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	WARN_ON(cpu_is_offline(cpu));
 
+	mb();	/* order mmio clearing qirr */
 	while (xics_ipi_message[cpu].value) {
 		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION,
 				       &xics_ipi_message[cpu].value)) {
-			mb();
 			smp_message_recv(PPC_MSG_CALL_FUNCTION);
 		}
 		if (test_and_clear_bit(PPC_MSG_RESCHEDULE,
 				       &xics_ipi_message[cpu].value)) {
-			mb();
 			smp_message_recv(PPC_MSG_RESCHEDULE);
 		}
 		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE,
 				       &xics_ipi_message[cpu].value)) {
-			mb();
 			smp_message_recv(PPC_MSG_CALL_FUNC_SINGLE);
 		}
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
 				       &xics_ipi_message[cpu].value)) {
-			mb();
 			smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
 		}
 #endif
