@@ -206,7 +206,6 @@ long sys32_gettimeofday(struct compat_timeval __user *tv,
 			struct timezone __user *tz);
 long sys32_settimeofday(struct compat_timeval __user *tv,
 			struct timezone __user *tz);
-long sys32_pause(void);
 long sys32_pread64(unsigned int fd, char __user *ubuf, size_t count,
 		   u32 poshi, u32 poslo);
 long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
