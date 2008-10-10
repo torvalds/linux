@@ -333,7 +333,6 @@ static void crypt_convert_init(struct crypt_config *cc,
 	ctx->idx_out = bio_out ? bio_out->bi_idx : 0;
 	ctx->sector = sector + cc->iv_offset;
 	init_completion(&ctx->restart);
-	atomic_set(&ctx->pending, 1);
 }
 
 static int crypt_convert_block(struct crypt_config *cc,
@@ -407,6 +406,8 @@ static int crypt_convert(struct crypt_config *cc,
 			 struct convert_context *ctx)
 {
 	int r;
+
+	atomic_set(&ctx->pending, 1);
 
 	while(ctx->idx_in < ctx->bio_in->bi_vcnt &&
 	      ctx->idx_out < ctx->bio_out->bi_vcnt) {
@@ -694,6 +695,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *clone;
+	int crypt_finished;
 	unsigned remaining = io->base_bio->bi_size;
 	int r;
 
@@ -721,19 +723,23 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 		crypt_inc_pending(io);
 		r = crypt_convert(cc, &io->ctx);
+		crypt_finished = atomic_dec_and_test(&io->ctx.pending);
 
-		if (atomic_dec_and_test(&io->ctx.pending)) {
-			/* processed, no running async crypto  */
+		/* Encryption was already finished, submit io now */
+		if (crypt_finished) {
 			kcryptd_crypt_write_io_submit(io, r, 0);
+
+			/*
+			 * If there was an error, do not try next fragments.
+			 * For async, error is processed in async handler.
+			 */
 			if (unlikely(r < 0))
 				break;
 		}
 
 		/* out of memory -> run queues */
 		if (unlikely(remaining)) {
-			/* wait for async crypto then reinitialize pending */
 			wait_event(cc->writeq, !atomic_read(&io->ctx.pending));
-			atomic_set(&io->ctx.pending, 1);
 			congestion_wait(WRITE, HZ/100);
 		}
 	}
