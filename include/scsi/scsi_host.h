@@ -43,13 +43,6 @@ struct blk_queue_tags;
 #define DISABLE_CLUSTERING 0
 #define ENABLE_CLUSTERING 1
 
-enum scsi_eh_timer_return {
-	EH_NOT_HANDLED,
-	EH_HANDLED,
-	EH_RESET_TIMER,
-};
-
-
 struct scsi_host_template {
 	struct module *module;
 	const char *name;
@@ -347,7 +340,7 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
+	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
 
 	/*
 	 * Name of proc directory

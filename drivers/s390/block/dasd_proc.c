@@ -76,7 +76,8 @@ dasd_devices_show(struct seq_file *m, void *v)
 	/* Print kdev. */
 	if (block->gdp)
 		seq_printf(m, " at (%3d:%6d)",
-			   block->gdp->major, block->gdp->first_minor);
+			   MAJOR(disk_devt(block->gdp)),
+			   MINOR(disk_devt(block->gdp)));
 	else
 		seq_printf(m, "  at (???:??????)");
 	/* Print device name. */

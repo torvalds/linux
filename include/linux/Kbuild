@@ -180,6 +180,7 @@ unifdef-y += audit.h
 unifdef-y += auto_fs.h
 unifdef-y += auxvec.h
 unifdef-y += binfmts.h
+unifdef-y += blktrace_api.h
 unifdef-y += capability.h
 unifdef-y += capi.h
 unifdef-y += cciss_ioctl.h

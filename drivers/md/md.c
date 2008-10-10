@@ -1464,10 +1464,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	if ((err = kobject_add(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
 		goto fail;
 
-	if (rdev->bdev->bd_part)
-		ko = &rdev->bdev->bd_part->dev.kobj;
-	else
-		ko = &rdev->bdev->bd_disk->dev.kobj;
+	ko = &part_to_dev(rdev->bdev->bd_part)->kobj;
 	if ((err = sysfs_create_link(&rdev->kobj, ko, "block"))) {
 		kobject_del(&rdev->kobj);
 		goto fail;
@@ -3470,8 +3467,8 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	disk->queue = mddev->queue;
 	add_disk(disk);
 	mddev->gendisk = disk;
-	error = kobject_init_and_add(&mddev->kobj, &md_ktype, &disk->dev.kobj,
-				     "%s", "md");
+	error = kobject_init_and_add(&mddev->kobj, &md_ktype,
+				     &disk_to_dev(disk)->kobj, "%s", "md");
 	mutex_unlock(&disks_mutex);
 	if (error)
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
@@ -3761,7 +3758,7 @@ static int do_md_run(mddev_t * mddev)
 	sysfs_notify(&mddev->kobj, NULL, "array_state");
 	sysfs_notify(&mddev->kobj, NULL, "sync_action");
 	sysfs_notify(&mddev->kobj, NULL, "degraded");
-	kobject_uevent(&mddev->gendisk->dev.kobj, KOBJ_CHANGE);
+	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 	return 0;
 }
 
@@ -5549,8 +5546,8 @@ static int is_mddev_idle(mddev_t *mddev)
 	rcu_read_lock();
 	rdev_for_each_rcu(rdev, mddev) {
 		struct gendisk *disk = rdev->bdev->bd_contains->bd_disk;
-		curr_events = disk_stat_read(disk, sectors[0]) + 
-				disk_stat_read(disk, sectors[1]) - 
+		curr_events = part_stat_read(&disk->part0, sectors[0]) +
+				part_stat_read(&disk->part0, sectors[1]) -
 				atomic_read(&disk->sync_io);
 		/* sync IO will cause sync_io to increase before the disk_stats
 		 * as sync_io is counted when a request starts, and

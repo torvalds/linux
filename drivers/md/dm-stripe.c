@@ -284,8 +284,8 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 
 	memset(major_minor, 0, sizeof(major_minor));
 	sprintf(major_minor, "%d:%d",
-		bio->bi_bdev->bd_disk->major,
-		bio->bi_bdev->bd_disk->first_minor);
+		MAJOR(disk_devt(bio->bi_bdev->bd_disk)),
+		MINOR(disk_devt(bio->bi_bdev->bd_disk)));
 
 	/*
 	 * Test to see which stripe drive triggered the event

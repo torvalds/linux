@@ -645,7 +645,7 @@ aoecmd_sleepwork(struct work_struct *work)
 		unsigned long flags;
 		u64 ssize;
 
-		ssize = d->gd->capacity;
+		ssize = get_capacity(d->gd);
 		bd = bdget_disk(d->gd, 0);
 
 		if (bd) {
@@ -707,7 +707,7 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 	if (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
 		return;
 	if (d->gd != NULL) {
-		d->gd->capacity = ssize;
+		set_capacity(d->gd, ssize);
 		d->flags |= DEVFL_NEWSIZE;
 	} else
 		d->flags |= DEVFL_GDALLOC;
@@ -756,12 +756,17 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 	unsigned long n_sect = bio->bi_size >> 9;
 	const int rw = bio_data_dir(bio);
 	struct hd_struct *part;
+	int cpu;
 
-	part = get_part(disk, sector);
-	all_stat_inc(disk, part, ios[rw], sector);
-	all_stat_add(disk, part, ticks[rw], duration, sector);
-	all_stat_add(disk, part, sectors[rw], n_sect, sector);
-	all_stat_add(disk, part, io_ticks, duration, sector);
+	cpu = part_stat_lock();
+	part = disk_map_sector_rcu(disk, sector);
+
+	part_stat_inc(cpu, part, ios[rw]);
+	part_stat_add(cpu, part, ticks[rw], duration);
+	part_stat_add(cpu, part, sectors[rw], n_sect);
+	part_stat_add(cpu, part, io_ticks, duration);
+
+	part_stat_unlock();
 }
 
 void

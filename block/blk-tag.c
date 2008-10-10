@@ -29,7 +29,7 @@ EXPORT_SYMBOL(blk_queue_find_tag);
  * __blk_free_tags - release a given set of tag maintenance info
  * @bqt:	the tag map to free
  *
- * Tries to free the specified @bqt@.  Returns true if it was
+ * Tries to free the specified @bqt.  Returns true if it was
  * actually freed and false if there are still references using it
  */
 static int __blk_free_tags(struct blk_queue_tag *bqt)
@@ -78,7 +78,7 @@ void __blk_queue_free_tags(struct request_queue *q)
  * blk_free_tags - release a given set of tag maintenance info
  * @bqt:	the tag map to free
  *
- * For externally managed @bqt@ frees the map.  Callers of this
+ * For externally managed @bqt frees the map.  Callers of this
  * function must guarantee to have released all the queues that
  * might have been using this tag map.
  */
@@ -94,7 +94,7 @@ EXPORT_SYMBOL(blk_free_tags);
  * @q:  the request queue for the device
  *
  *  Notes:
- *	This is used to disabled tagged queuing to a device, yet leave
+ *	This is used to disable tagged queuing to a device, yet leave
  *	queue in function.
  **/
 void blk_queue_free_tags(struct request_queue *q)
@@ -271,7 +271,7 @@ EXPORT_SYMBOL(blk_queue_resize_tags);
  * @rq: the request that has completed
  *
  *  Description:
- *    Typically called when end_that_request_first() returns 0, meaning
+ *    Typically called when end_that_request_first() returns %0, meaning
  *    all transfers have been done for a request. It's important to call
  *    this function before end_that_request_last(), as that will put the
  *    request back on the free list thus corrupting the internal tag list.
@@ -337,6 +337,7 @@ EXPORT_SYMBOL(blk_queue_end_tag);
 int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
+	unsigned max_depth, offset;
 	int tag;
 
 	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
@@ -350,10 +351,19 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	/*
 	 * Protect against shared tag maps, as we may not have exclusive
 	 * access to the tag map.
+	 *
+	 * We reserve a few tags just for sync IO, since we don't want
+	 * to starve sync IO on behalf of flooding async IO.
 	 */
+	max_depth = bqt->max_depth;
+	if (rq_is_sync(rq))
+		offset = 0;
+	else
+		offset = max_depth >> 2;
+
 	do {
-		tag = find_first_zero_bit(bqt->tag_map, bqt->max_depth);
-		if (tag >= bqt->max_depth)
+		tag = find_next_zero_bit(bqt->tag_map, max_depth, offset);
+		if (tag >= max_depth)
 			return 1;
 
 	} while (test_and_set_bit_lock(tag, bqt->tag_map));

@@ -1085,6 +1085,10 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		blk_queue_dma_drain(q, atapi_drain_needed, buf, ATAPI_MAX_DRAIN);
 	} else {
+		if (ata_id_is_ssd(dev->id))
+			queue_flag_set_unlocked(QUEUE_FLAG_NONROT,
+						sdev->request_queue);
+
 		/* ATA devices must be sector aligned */
 		blk_queue_update_dma_alignment(sdev->request_queue,
 					       ATA_SECT_SIZE - 1);

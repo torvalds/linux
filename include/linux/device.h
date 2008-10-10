@@ -199,6 +199,11 @@ struct class {
 	struct class_private *p;
 };
 
+struct class_dev_iter {
+	struct klist_iter		ki;
+	const struct device_type	*type;
+};
+
 extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
 extern int __must_check __class_register(struct class *class,
@@ -212,6 +217,13 @@ extern void class_unregister(struct class *class);
 	static struct lock_class_key __key;	\
 	__class_register(class, &__key);	\
 })
+
+extern void class_dev_iter_init(struct class_dev_iter *iter,
+				struct class *class,
+				struct device *start,
+				const struct device_type *type);
+extern struct device *class_dev_iter_next(struct class_dev_iter *iter);
+extern void class_dev_iter_exit(struct class_dev_iter *iter);
 
 extern int class_for_each_device(struct class *class, struct device *start,
 				 void *data,
@@ -396,7 +408,7 @@ struct device {
 	spinlock_t		devres_lock;
 	struct list_head	devres_head;
 
-	struct list_head	node;
+	struct klist_node	knode_class;
 	struct class		*class;
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 	struct attribute_group	**groups;	/* optional groups */

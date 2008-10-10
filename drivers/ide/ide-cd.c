@@ -1113,7 +1113,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 
 	if (write) {
 		/* disk has become write protected */
-		if (cd->disk->policy) {
+		if (get_disk_ro(cd->disk)) {
 			cdrom_end_request(drive, 0);
 			return ide_stopped;
 		}

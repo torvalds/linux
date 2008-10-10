@@ -1476,12 +1476,12 @@ static void iscsi_start_tx(struct iscsi_conn *conn)
 		scsi_queue_work(conn->session->host, &conn->xmitwork);
 }
 
-static enum scsi_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
+static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	struct iscsi_conn *conn;
-	enum scsi_eh_timer_return rc = EH_NOT_HANDLED;
+	enum blk_eh_timer_return rc = BLK_EH_NOT_HANDLED;
 
 	cls_session = starget_to_session(scsi_target(scmd->device));
 	session = cls_session->dd_data;
@@ -1494,14 +1494,14 @@ static enum scsi_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 		 * We are probably in the middle of iscsi recovery so let
 		 * that complete and handle the error.
 		 */
-		rc = EH_RESET_TIMER;
+		rc = BLK_EH_RESET_TIMER;
 		goto done;
 	}
 
 	conn = session->leadconn;
 	if (!conn) {
 		/* In the middle of shuting down */
-		rc = EH_RESET_TIMER;
+		rc = BLK_EH_RESET_TIMER;
 		goto done;
 	}
 
@@ -1513,20 +1513,21 @@ static enum scsi_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 	 */
 	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ) +
 			    (conn->ping_timeout * HZ), jiffies))
-		rc = EH_RESET_TIMER;
+		rc = BLK_EH_RESET_TIMER;
 	/*
 	 * if we are about to check the transport then give the command
 	 * more time
 	 */
 	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ),
 			   jiffies))
-		rc = EH_RESET_TIMER;
+		rc = BLK_EH_RESET_TIMER;
 	/* if in the middle of checking the transport then give us more time */
 	if (conn->ping_task)
-		rc = EH_RESET_TIMER;
+		rc = BLK_EH_RESET_TIMER;
 done:
 	spin_unlock(&session->lock);
-	debug_scsi("return %s\n", rc == EH_RESET_TIMER ? "timer reset" : "nh");
+	debug_scsi("return %s\n", rc == BLK_EH_RESET_TIMER ?
+					"timer reset" : "nh");
 	return rc;
 }
 

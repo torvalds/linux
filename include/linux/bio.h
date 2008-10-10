@@ -26,20 +26,7 @@
 
 #ifdef CONFIG_BLOCK
 
-/* Platforms may set this to teach the BIO layer about IOMMU hardware. */
 #include <asm/io.h>
-
-#if defined(BIO_VMERGE_MAX_SIZE) && defined(BIO_VMERGE_BOUNDARY)
-#define BIOVEC_VIRT_START_SIZE(x) (bvec_to_phys(x) & (BIO_VMERGE_BOUNDARY - 1))
-#define BIOVEC_VIRT_OVERSIZE(x)	((x) > BIO_VMERGE_MAX_SIZE)
-#else
-#define BIOVEC_VIRT_START_SIZE(x)	0
-#define BIOVEC_VIRT_OVERSIZE(x)		0
-#endif
-
-#ifndef BIO_VMERGE_BOUNDARY
-#define BIO_VMERGE_BOUNDARY	0
-#endif
 
 #define BIO_DEBUG
 
@@ -88,24 +75,13 @@ struct bio {
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
 	 */
-	unsigned short		bi_phys_segments;
-
-	/* Number of segments after physical and DMA remapping
-	 * hardware coalescing is performed.
-	 */
-	unsigned short		bi_hw_segments;
+	unsigned int		bi_phys_segments;
 
 	unsigned int		bi_size;	/* residual I/O count */
 
-	/*
-	 * To keep track of the max hw size, we account for the
-	 * sizes of the first and last virtually mergeable segments
-	 * in this bio
-	 */
-	unsigned int		bi_hw_front_size;
-	unsigned int		bi_hw_back_size;
-
 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
+
+	unsigned int		bi_comp_cpu;	/* completion CPU */
 
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
@@ -126,11 +102,14 @@ struct bio {
 #define BIO_UPTODATE	0	/* ok after I/O completion */
 #define BIO_RW_BLOCK	1	/* RW_AHEAD set, and read/write would block */
 #define BIO_EOF		2	/* out-out-bounds error */
-#define BIO_SEG_VALID	3	/* nr_hw_seg valid */
+#define BIO_SEG_VALID	3	/* bi_phys_segments valid */
 #define BIO_CLONED	4	/* doesn't own data */
 #define BIO_BOUNCED	5	/* bio is a bounce bio */
 #define BIO_USER_MAPPED 6	/* contains user pages */
 #define BIO_EOPNOTSUPP	7	/* not supported */
+#define BIO_CPU_AFFINE	8	/* complete bio on same CPU as submitted */
+#define BIO_NULL_MAPPED 9	/* contains invalid user pages */
+#define BIO_FS_INTEGRITY 10	/* fs owns integrity data, not block layer */
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
 /*
@@ -144,18 +123,31 @@ struct bio {
 /*
  * bio bi_rw flags
  *
- * bit 0 -- read (not set) or write (set)
+ * bit 0 -- data direction
+ *	If not set, bio is a read from device. If set, it's a write to device.
  * bit 1 -- rw-ahead when set
  * bit 2 -- barrier
+ *	Insert a serialization point in the IO queue, forcing previously
+ *	submitted IO to be completed before this oen is issued.
  * bit 3 -- fail fast, don't want low level driver retries
  * bit 4 -- synchronous I/O hint: the block layer will unplug immediately
+ *	Note that this does NOT indicate that the IO itself is sync, just
+ *	that the block layer will not postpone issue of this IO by plugging.
+ * bit 5 -- metadata request
+ *	Used for tracing to differentiate metadata and data IO. May also
+ *	get some preferential treatment in the IO scheduler
+ * bit 6 -- discard sectors
+ *	Informs the lower level device that this range of sectors is no longer
+ *	used by the file system and may thus be freed by the device. Used
+ *	for flash based storage.
  */
-#define BIO_RW		0
-#define BIO_RW_AHEAD	1
+#define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
+#define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
 #define BIO_RW_BARRIER	2
 #define BIO_RW_FAILFAST	3
 #define BIO_RW_SYNC	4
 #define BIO_RW_META	5
+#define BIO_RW_DISCARD	6
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -185,14 +177,15 @@ struct bio {
 #define bio_failfast(bio)	((bio)->bi_rw & (1 << BIO_RW_FAILFAST))
 #define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
 #define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
-#define bio_empty_barrier(bio)	(bio_barrier(bio) && !(bio)->bi_size)
+#define bio_discard(bio)	((bio)->bi_rw & (1 << BIO_RW_DISCARD))
+#define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
 
 static inline unsigned int bio_cur_sectors(struct bio *bio)
 {
 	if (bio->bi_vcnt)
 		return bio_iovec(bio)->bv_len >> 9;
-
-	return 0;
+	else /* dataless requests such as discard */
+		return bio->bi_size >> 9;
 }
 
 static inline void *bio_data(struct bio *bio)
@@ -236,8 +229,6 @@ static inline void *bio_data(struct bio *bio)
 	((bvec_to_phys((vec1)) + (vec1)->bv_len) == bvec_to_phys((vec2)))
 #endif
 
-#define BIOVEC_VIRT_MERGEABLE(vec1, vec2)	\
-	((((bvec_to_phys((vec1)) + (vec1)->bv_len) | bvec_to_phys((vec2))) & (BIO_VMERGE_BOUNDARY - 1)) == 0)
 #define __BIO_SEG_BOUNDARY(addr1, addr2, mask) \
 	(((addr1) | (mask)) == (((addr2) - 1) | (mask)))
 #define BIOVEC_SEG_BOUNDARY(q, b1, b2) \
@@ -319,15 +310,14 @@ struct bio_pair {
 	atomic_t			cnt;
 	int				error;
 };
-extern struct bio_pair *bio_split(struct bio *bi, mempool_t *pool,
-				  int first_sectors);
-extern mempool_t *bio_split_pool;
+extern struct bio_pair *bio_split(struct bio *bi, int first_sectors);
 extern void bio_pair_release(struct bio_pair *dbio);
 
 extern struct bio_set *bioset_create(int, int);
 extern void bioset_free(struct bio_set *);
 
 extern struct bio *bio_alloc(gfp_t, int);
+extern struct bio *bio_kmalloc(gfp_t, int);
 extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
 extern void bio_put(struct bio *);
 extern void bio_free(struct bio *, struct bio_set *);
@@ -335,7 +325,6 @@ extern void bio_free(struct bio *, struct bio_set *);
 extern void bio_endio(struct bio *, int);
 struct request_queue;
 extern int bio_phys_segments(struct request_queue *, struct bio *);
-extern int bio_hw_segments(struct request_queue *, struct bio *);
 
 extern void __bio_clone(struct bio *, struct bio *);
 extern struct bio *bio_clone(struct bio *, gfp_t);
@@ -346,12 +335,14 @@ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
 extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 			   unsigned int, unsigned int);
 extern int bio_get_nr_vecs(struct block_device *);
+extern sector_t bio_sector_offset(struct bio *, unsigned short, unsigned int);
 extern struct bio *bio_map_user(struct request_queue *, struct block_device *,
-				unsigned long, unsigned int, int);
+				unsigned long, unsigned int, int, gfp_t);
 struct sg_iovec;
+struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
 				    struct block_device *,
-				    struct sg_iovec *, int, int);
+				    struct sg_iovec *, int, int, gfp_t);
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
 				gfp_t);
@@ -359,13 +350,23 @@ extern struct bio *bio_copy_kern(struct request_queue *, void *, unsigned int,
 				 gfp_t, int);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
-extern struct bio *bio_copy_user(struct request_queue *, unsigned long, unsigned int, int);
-extern struct bio *bio_copy_user_iov(struct request_queue *, struct sg_iovec *,
-				     int, int);
+extern struct bio *bio_copy_user(struct request_queue *, struct rq_map_data *,
+				 unsigned long, unsigned int, int, gfp_t);
+extern struct bio *bio_copy_user_iov(struct request_queue *,
+				     struct rq_map_data *, struct sg_iovec *,
+				     int, int, gfp_t);
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
 extern struct bio_vec *bvec_alloc_bs(gfp_t, int, unsigned long *, struct bio_set *);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
+
+/*
+ * Allow queuer to specify a completion CPU for this bio
+ */
+static inline void bio_set_completion_cpu(struct bio *bio, unsigned int cpu)
+{
+	bio->bi_comp_cpu = cpu;
+}
 
 /*
  * bio_set is used to allow other portions of the IO system to
@@ -445,6 +446,14 @@ static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
 	__bio_kmap_irq((bio), (bio)->bi_idx, (flags))
 #define bio_kunmap_irq(buf,flags)	__bio_kunmap_irq(buf, flags)
 
+/*
+ * Check whether this bio carries any data or not. A NULL bio is allowed.
+ */
+static inline int bio_has_data(struct bio *bio)
+{
+	return bio && bio->bi_io_vec != NULL;
+}
+
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
 #define bip_vec_idx(bip, idx)	(&(bip->bip_vec[(idx)]))
@@ -458,14 +467,7 @@ static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
 #define bip_for_each_vec(bvl, bip, i)					\
 	__bip_for_each_vec(bvl, bip, i, (bip)->bip_idx)
 
-static inline int bio_integrity(struct bio *bio)
-{
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-	return bio->bi_integrity != NULL;
-#else
-	return 0;
-#endif
-}
+#define bio_integrity(bio) (bio->bi_integrity != NULL)
 
 extern struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *, gfp_t, unsigned int, struct bio_set *);
 extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);

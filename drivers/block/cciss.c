@@ -3460,8 +3460,8 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	       hba[i]->intr[SIMPLE_MODE_INT], dac ? "" : " not");
 
 	hba[i]->cmd_pool_bits =
-	    kmalloc(((hba[i]->nr_cmds + BITS_PER_LONG -
-		      1) / BITS_PER_LONG) * sizeof(unsigned long), GFP_KERNEL);
+	    kmalloc(DIV_ROUND_UP(hba[i]->nr_cmds, BITS_PER_LONG)
+			* sizeof(unsigned long), GFP_KERNEL);
 	hba[i]->cmd_pool = (CommandList_struct *)
 	    pci_alloc_consistent(hba[i]->pdev,
 		    hba[i]->nr_cmds * sizeof(CommandList_struct),
@@ -3493,8 +3493,8 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	/* command and error info recs zeroed out before
 	   they are used */
 	memset(hba[i]->cmd_pool_bits, 0,
-	       ((hba[i]->nr_cmds + BITS_PER_LONG -
-		 1) / BITS_PER_LONG) * sizeof(unsigned long));
+	       DIV_ROUND_UP(hba[i]->nr_cmds, BITS_PER_LONG)
+			* sizeof(unsigned long));
 
 	hba[i]->num_luns = 0;
 	hba[i]->highest_lun = -1;

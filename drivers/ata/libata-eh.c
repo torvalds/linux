@@ -33,6 +33,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -459,29 +460,29 @@ static void ata_eh_clear_action(struct ata_link *link, struct ata_device *dev,
  *	RETURNS:
  *	EH_HANDLED or EH_NOT_HANDLED
  */
-enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
+enum blk_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct ata_port *ap = ata_shost_to_port(host);
 	unsigned long flags;
 	struct ata_queued_cmd *qc;
-	enum scsi_eh_timer_return ret;
+	enum blk_eh_timer_return ret;
 
 	DPRINTK("ENTER\n");
 
 	if (ap->ops->error_handler) {
-		ret = EH_NOT_HANDLED;
+		ret = BLK_EH_NOT_HANDLED;
 		goto out;
 	}
 
-	ret = EH_HANDLED;
+	ret = BLK_EH_HANDLED;
 	spin_lock_irqsave(ap->lock, flags);
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc) {
 		WARN_ON(qc->scsicmd != cmd);
 		qc->flags |= ATA_QCFLAG_EH_SCHEDULED;
 		qc->err_mask |= AC_ERR_TIMEOUT;
-		ret = EH_NOT_HANDLED;
+		ret = BLK_EH_NOT_HANDLED;
 	}
 	spin_unlock_irqrestore(ap->lock, flags);
 
@@ -833,7 +834,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 	 * Note that ATA_QCFLAG_FAILED is unconditionally set after
 	 * this function completes.
 	 */
-	scsi_req_abort_cmd(qc->scsicmd);
+	blk_abort_request(qc->scsicmd->request);
 }
 
 /**

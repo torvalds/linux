@@ -673,43 +673,43 @@ out:
 	return;
 }
 
-enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
+enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
 	struct sas_task *task = TO_SAS_TASK(cmd);
 	unsigned long flags;
 
 	if (!task) {
-		cmd->timeout_per_command /= 2;
+		cmd->request->timeout /= 2;
 		SAS_DPRINTK("command 0x%p, task 0x%p, gone: %s\n",
-			    cmd, task, (cmd->timeout_per_command ?
-			    "EH_RESET_TIMER" : "EH_NOT_HANDLED"));
-		if (!cmd->timeout_per_command)
-			return EH_NOT_HANDLED;
-		return EH_RESET_TIMER;
+			    cmd, task, (cmd->request->timeout ?
+			    "BLK_EH_RESET_TIMER" : "BLK_EH_NOT_HANDLED"));
+		if (!cmd->request->timeout)
+			return BLK_EH_NOT_HANDLED;
+		return BLK_EH_RESET_TIMER;
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	BUG_ON(task->task_state_flags & SAS_TASK_STATE_ABORTED);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_HANDLED\n",
-			    cmd, task);
-		return EH_HANDLED;
+		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: "
+			    "BLK_EH_HANDLED\n", cmd, task);
+		return BLK_EH_HANDLED;
 	}
 	if (!(task->task_state_flags & SAS_TASK_AT_INITIATOR)) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		SAS_DPRINTK("command 0x%p, task 0x%p, not at initiator: "
-			    "EH_RESET_TIMER\n",
+			    "BLK_EH_RESET_TIMER\n",
 			    cmd, task);
-		return EH_RESET_TIMER;
+		return BLK_EH_RESET_TIMER;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_NOT_HANDLED\n",
+	SAS_DPRINTK("command 0x%p, task 0x%p, timed out: BLK_EH_NOT_HANDLED\n",
 		    cmd, task);
 
-	return EH_NOT_HANDLED;
+	return BLK_EH_NOT_HANDLED;
 }
 
 int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
@@ -1039,7 +1039,7 @@ void sas_task_abort(struct sas_task *task)
 		return;
 	}
 
-	scsi_req_abort_cmd(sc);
+	blk_abort_request(sc->request);
 	scsi_schedule_eh(sc->device->host);
 }
 

@@ -12,11 +12,12 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 {
 	struct block_device *bdevp;
 	struct gendisk *disk;
+	struct hd_struct *part;
 	struct blkpg_ioctl_arg a;
 	struct blkpg_partition p;
+	struct disk_part_iter piter;
 	long long start, length;
-	int part;
-	int i;
+	int partno;
 	int err;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -28,8 +29,8 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	disk = bdev->bd_disk;
 	if (bdev != bdev->bd_contains)
 		return -EINVAL;
-	part = p.pno;
-	if (part <= 0 || part >= disk->minors)
+	partno = p.pno;
+	if (partno <= 0)
 		return -EINVAL;
 	switch (a.op) {
 		case BLKPG_ADD_PARTITION:
@@ -43,36 +44,37 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 				    || pstart < 0 || plength < 0)
 					return -EINVAL;
 			}
-			/* partition number in use? */
-			mutex_lock(&bdev->bd_mutex);
-			if (disk->part[part - 1]) {
-				mutex_unlock(&bdev->bd_mutex);
-				return -EBUSY;
-			}
-			/* overlap? */
-			for (i = 0; i < disk->minors - 1; i++) {
-				struct hd_struct *s = disk->part[i];
 
-				if (!s)
-					continue;
-				if (!(start+length <= s->start_sect ||
-				      start >= s->start_sect + s->nr_sects)) {
+			mutex_lock(&bdev->bd_mutex);
+
+			/* overlap? */
+			disk_part_iter_init(&piter, disk,
+					    DISK_PITER_INCL_EMPTY);
+			while ((part = disk_part_iter_next(&piter))) {
+				if (!(start + length <= part->start_sect ||
+				      start >= part->start_sect + part->nr_sects)) {
+					disk_part_iter_exit(&piter);
 					mutex_unlock(&bdev->bd_mutex);
 					return -EBUSY;
 				}
 			}
+			disk_part_iter_exit(&piter);
+
 			/* all seems OK */
-			err = add_partition(disk, part, start, length, ADDPART_FLAG_NONE);
+			err = add_partition(disk, partno, start, length,
+					    ADDPART_FLAG_NONE);
 			mutex_unlock(&bdev->bd_mutex);
 			return err;
 		case BLKPG_DEL_PARTITION:
-			if (!disk->part[part-1])
+			part = disk_get_part(disk, partno);
+			if (!part)
 				return -ENXIO;
-			if (disk->part[part - 1]->nr_sects == 0)
-				return -ENXIO;
-			bdevp = bdget_disk(disk, part);
+
+			bdevp = bdget(part_devt(part));
+			disk_put_part(part);
 			if (!bdevp)
 				return -ENOMEM;
+
 			mutex_lock(&bdevp->bd_mutex);
 			if (bdevp->bd_openers) {
 				mutex_unlock(&bdevp->bd_mutex);
@@ -84,7 +86,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			invalidate_bdev(bdevp);
 
 			mutex_lock_nested(&bdev->bd_mutex, 1);
-			delete_partition(disk, part);
+			delete_partition(disk, partno);
 			mutex_unlock(&bdev->bd_mutex);
 			mutex_unlock(&bdevp->bd_mutex);
 			bdput(bdevp);
@@ -100,7 +102,7 @@ static int blkdev_reread_part(struct block_device *bdev)
 	struct gendisk *disk = bdev->bd_disk;
 	int res;
 
-	if (disk->minors == 1 || bdev != bdev->bd_contains)
+	if (!disk_partitionable(disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -109,6 +111,69 @@ static int blkdev_reread_part(struct block_device *bdev)
 	res = rescan_partitions(disk, bdev);
 	mutex_unlock(&bdev->bd_mutex);
 	return res;
+}
+
+static void blk_ioc_discard_endio(struct bio *bio, int err)
+{
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+	}
+	complete(bio->bi_private);
+}
+
+static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
+			     uint64_t len)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+	int ret = 0;
+
+	if (start & 511)
+		return -EINVAL;
+	if (len & 511)
+		return -EINVAL;
+	start >>= 9;
+	len >>= 9;
+
+	if (start + len > (bdev->bd_inode->i_size >> 9))
+		return -EINVAL;
+
+	if (!q->prepare_discard_fn)
+		return -EOPNOTSUPP;
+
+	while (len && !ret) {
+		DECLARE_COMPLETION_ONSTACK(wait);
+		struct bio *bio;
+
+		bio = bio_alloc(GFP_KERNEL, 0);
+		if (!bio)
+			return -ENOMEM;
+
+		bio->bi_end_io = blk_ioc_discard_endio;
+		bio->bi_bdev = bdev;
+		bio->bi_private = &wait;
+		bio->bi_sector = start;
+
+		if (len > q->max_hw_sectors) {
+			bio->bi_size = q->max_hw_sectors << 9;
+			len -= q->max_hw_sectors;
+			start += q->max_hw_sectors;
+		} else {
+			bio->bi_size = len << 9;
+			len = 0;
+		}
+		submit_bio(DISCARD_NOBARRIER, bio);
+
+		wait_for_completion(&wait);
+
+		if (bio_flagged(bio, BIO_EOPNOTSUPP))
+			ret = -EOPNOTSUPP;
+		else if (!bio_flagged(bio, BIO_UPTODATE))
+			ret = -EIO;
+		bio_put(bio);
+	}
+	return ret;
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)
@@ -258,6 +323,19 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		set_device_ro(bdev, n);
 		unlock_kernel();
 		return 0;
+
+	case BLKDISCARD: {
+		uint64_t range[2];
+
+		if (!(file->f_mode & FMODE_WRITE))
+			return -EBADF;
+
+		if (copy_from_user(range, (void __user *)arg, sizeof(range)))
+			return -EFAULT;
+
+		return blk_ioctl_discard(bdev, range[0], range[1]);
+	}
+
 	case HDIO_GETGEO: {
 		struct hd_geometry geo;
 

@@ -41,6 +41,12 @@
 #include <asm/io.h>
 #include <asm/div64.h>
 
+#if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
+#define IDE_DISK_MINORS		(1 << PARTN_BITS)
+#else
+#define IDE_DISK_MINORS		0
+#endif
+
 struct ide_disk_obj {
 	ide_drive_t	*drive;
 	ide_driver_t	*driver;
@@ -1151,8 +1157,7 @@ static int ide_disk_probe(ide_drive_t *drive)
 	if (!idkp)
 		goto failed;
 
-	g = alloc_disk_node(1 << PARTN_BITS,
-			hwif_to_node(drive->hwif));
+	g = alloc_disk_node(IDE_DISK_MINORS, hwif_to_node(drive->hwif));
 	if (!g)
 		goto out_free_idkp;
 
@@ -1178,9 +1183,11 @@ static int ide_disk_probe(ide_drive_t *drive)
 	} else
 		drive->attach = 1;
 
-	g->minors = 1 << PARTN_BITS;
+	g->minors = IDE_DISK_MINORS;
 	g->driverfs_dev = &drive->gendev;
-	g->flags = drive->removable ? GENHD_FL_REMOVABLE : 0;
+	g->flags |= GENHD_FL_EXT_DEVT;
+	if (drive->removable)
+		g->flags |= GENHD_FL_REMOVABLE;
 	set_capacity(g, idedisk_capacity(drive));
 	g->fops = &idedisk_ops;
 	add_disk(g);

@@ -916,7 +916,7 @@ typedef struct {
         gdth_cmd_str *internal_cmd_str;         /* crier for internal messages*/
         dma_addr_t sense_paddr;                 /* sense dma-addr */
         unchar priority;
-        int timeout;
+	int timeout_count;			/* # of timeout calls */
         volatile int wait_for_completion;
         ushort status;
         ulong32 info;

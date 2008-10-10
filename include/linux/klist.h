@@ -38,7 +38,7 @@ extern void klist_init(struct klist *k, void (*get)(struct klist_node *),
 		       void (*put)(struct klist_node *));
 
 struct klist_node {
-	struct klist		*n_klist;
+	void			*n_klist;	/* never access directly */
 	struct list_head	n_node;
 	struct kref		n_ref;
 	struct completion	n_removed;
@@ -57,7 +57,6 @@ extern int klist_node_attached(struct klist_node *n);
 
 struct klist_iter {
 	struct klist		*i_klist;
-	struct list_head	*i_head;
 	struct klist_node	*i_cur;
 };
 

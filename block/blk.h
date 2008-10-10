@@ -17,6 +17,42 @@ void __blk_queue_free_tags(struct request_queue *q);
 
 void blk_unplug_work(struct work_struct *work);
 void blk_unplug_timeout(unsigned long data);
+void blk_rq_timed_out_timer(unsigned long data);
+void blk_delete_timer(struct request *);
+void blk_add_timer(struct request *);
+
+/*
+ * Internal atomic flags for request handling
+ */
+enum rq_atomic_flags {
+	REQ_ATOM_COMPLETE = 0,
+};
+
+/*
+ * EH timer and IO completion will both attempt to 'grab' the request, make
+ * sure that only one of them suceeds
+ */
+static inline int blk_mark_rq_complete(struct request *rq)
+{
+	return test_and_set_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+}
+
+static inline void blk_clear_rq_complete(struct request *rq)
+{
+	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+}
+
+#ifdef CONFIG_FAIL_IO_TIMEOUT
+int blk_should_fake_timeout(struct request_queue *);
+ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
+ssize_t part_timeout_store(struct device *, struct device_attribute *,
+				const char *, size_t);
+#else
+static inline int blk_should_fake_timeout(struct request_queue *q)
+{
+	return 0;
+}
+#endif
 
 struct io_context *current_io_context(gfp_t gfp_flags, int node);
 
@@ -58,5 +94,17 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 		bip_for_each_vec(bvl, _iter.bio->bi_integrity, _iter.i)
 
 #endif /* BLK_DEV_INTEGRITY */
+
+static inline int blk_cpu_to_group(int cpu)
+{
+#ifdef CONFIG_SCHED_MC
+	cpumask_t mask = cpu_coregroup_map(cpu);
+	return first_cpu(mask);
+#elif defined(CONFIG_SCHED_SMT)
+	return first_cpu(per_cpu(cpu_sibling_map, cpu));
+#else
+	return cpu;
+#endif
+}
 
 #endif

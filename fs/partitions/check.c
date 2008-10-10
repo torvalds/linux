@@ -120,22 +120,21 @@ static int (*check_part[])(struct parsed_partitions *, struct block_device *) = 
  * a pointer to that same buffer (for convenience).
  */
 
-char *disk_name(struct gendisk *hd, int part, char *buf)
+char *disk_name(struct gendisk *hd, int partno, char *buf)
 {
-	if (!part)
+	if (!partno)
 		snprintf(buf, BDEVNAME_SIZE, "%s", hd->disk_name);
 	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
-		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, part);
+		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partno);
 	else
-		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, part);
+		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partno);
 
 	return buf;
 }
 
 const char *bdevname(struct block_device *bdev, char *buf)
 {
-	int part = MINOR(bdev->bd_dev) - bdev->bd_disk->first_minor;
-	return disk_name(bdev->bd_disk, part, buf);
+	return disk_name(bdev->bd_disk, bdev->bd_part->partno, buf);
 }
 
 EXPORT_SYMBOL(bdevname);
@@ -169,7 +168,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	if (isdigit(state->name[strlen(state->name)-1]))
 		sprintf(state->name, "p");
 
-	state->limit = hd->minors;
+	state->limit = disk_max_parts(hd);
 	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
@@ -204,21 +203,22 @@ static ssize_t part_start_show(struct device *dev,
 	return sprintf(buf, "%llu\n",(unsigned long long)p->start_sect);
 }
 
-static ssize_t part_size_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+ssize_t part_size_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%llu\n",(unsigned long long)p->nr_sects);
 }
 
-static ssize_t part_stat_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+ssize_t part_stat_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	int cpu;
 
-	preempt_disable();
-	part_round_stats(p);
-	preempt_enable();
+	cpu = part_stat_lock();
+	part_round_stats(cpu, p);
+	part_stat_unlock();
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
@@ -238,17 +238,17 @@ static ssize_t part_stat_show(struct device *dev,
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST
-static ssize_t part_fail_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+ssize_t part_fail_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 
 	return sprintf(buf, "%d\n", p->make_it_fail);
 }
 
-static ssize_t part_fail_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+ssize_t part_fail_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	int i;
@@ -300,40 +300,34 @@ struct device_type part_type = {
 	.release	= part_release,
 };
 
-static inline void partition_sysfs_add_subdir(struct hd_struct *p)
+static void delete_partition_rcu_cb(struct rcu_head *head)
 {
-	struct kobject *k;
+	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
 
-	k = kobject_get(&p->dev.kobj);
-	p->holder_dir = kobject_create_and_add("holders", k);
-	kobject_put(k);
+	part->start_sect = 0;
+	part->nr_sects = 0;
+	part_stat_set_all(part, 0);
+	put_device(part_to_dev(part));
 }
 
-static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
+void delete_partition(struct gendisk *disk, int partno)
 {
-	struct kobject *k;
+	struct disk_part_tbl *ptbl = disk->part_tbl;
+	struct hd_struct *part;
 
-	k = kobject_get(&disk->dev.kobj);
-	disk->holder_dir = kobject_create_and_add("holders", k);
-	disk->slave_dir = kobject_create_and_add("slaves", k);
-	kobject_put(k);
-}
-
-void delete_partition(struct gendisk *disk, int part)
-{
-	struct hd_struct *p = disk->part[part-1];
-
-	if (!p)
+	if (partno >= ptbl->len)
 		return;
-	if (!p->nr_sects)
+
+	part = ptbl->part[partno];
+	if (!part)
 		return;
-	disk->part[part-1] = NULL;
-	p->start_sect = 0;
-	p->nr_sects = 0;
-	part_stat_set_all(p, 0);
-	kobject_put(p->holder_dir);
-	device_del(&p->dev);
-	put_device(&p->dev);
+
+	blk_free_devt(part_devt(part));
+	rcu_assign_pointer(ptbl->part[partno], NULL);
+	kobject_put(part->holder_dir);
+	device_del(part_to_dev(part));
+
+	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -344,10 +338,24 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
-int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, int flags)
+int add_partition(struct gendisk *disk, int partno,
+		  sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
+	dev_t devt = MKDEV(0, 0);
+	struct device *ddev = disk_to_dev(disk);
+	struct device *pdev;
+	struct disk_part_tbl *ptbl;
+	const char *dname;
 	int err;
+
+	err = disk_expand_part_tbl(disk, partno);
+	if (err)
+		return err;
+	ptbl = disk->part_tbl;
+
+	if (ptbl->part[partno])
+		return -EBUSY;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
@@ -355,91 +363,107 @@ int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, 
 
 	if (!init_part_stats(p)) {
 		err = -ENOMEM;
-		goto out0;
+		goto out_free;
 	}
+	pdev = part_to_dev(p);
+
 	p->start_sect = start;
 	p->nr_sects = len;
-	p->partno = part;
-	p->policy = disk->policy;
+	p->partno = partno;
+	p->policy = get_disk_ro(disk);
 
-	if (isdigit(disk->dev.bus_id[strlen(disk->dev.bus_id)-1]))
-		snprintf(p->dev.bus_id, BUS_ID_SIZE,
-		"%sp%d", disk->dev.bus_id, part);
+	dname = dev_name(ddev);
+	if (isdigit(dname[strlen(dname) - 1]))
+		snprintf(pdev->bus_id, BUS_ID_SIZE, "%sp%d", dname, partno);
 	else
-		snprintf(p->dev.bus_id, BUS_ID_SIZE,
-			 "%s%d", disk->dev.bus_id, part);
+		snprintf(pdev->bus_id, BUS_ID_SIZE, "%s%d", dname, partno);
 
-	device_initialize(&p->dev);
-	p->dev.devt = MKDEV(disk->major, disk->first_minor + part);
-	p->dev.class = &block_class;
-	p->dev.type = &part_type;
-	p->dev.parent = &disk->dev;
-	disk->part[part-1] = p;
+	device_initialize(pdev);
+	pdev->class = &block_class;
+	pdev->type = &part_type;
+	pdev->parent = ddev;
+
+	err = blk_alloc_devt(p, &devt);
+	if (err)
+		goto out_free;
+	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
-	p->dev.uevent_suppress = 1;
-	err = device_add(&p->dev);
+	pdev->uevent_suppress = 1;
+	err = device_add(pdev);
 	if (err)
-		goto out1;
-	partition_sysfs_add_subdir(p);
-	p->dev.uevent_suppress = 0;
+		goto out_put;
+
+	err = -ENOMEM;
+	p->holder_dir = kobject_create_and_add("holders", &pdev->kobj);
+	if (!p->holder_dir)
+		goto out_del;
+
+	pdev->uevent_suppress = 0;
 	if (flags & ADDPART_FLAG_WHOLEDISK) {
-		err = device_create_file(&p->dev, &dev_attr_whole_disk);
+		err = device_create_file(pdev, &dev_attr_whole_disk);
 		if (err)
-			goto out2;
+			goto out_del;
 	}
 
+	/* everything is up and running, commence */
+	INIT_RCU_HEAD(&p->rcu_head);
+	rcu_assign_pointer(ptbl->part[partno], p);
+
 	/* suppress uevent if the disk supresses it */
-	if (!disk->dev.uevent_suppress)
-		kobject_uevent(&p->dev.kobj, KOBJ_ADD);
+	if (!ddev->uevent_suppress)
+		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
 	return 0;
 
-out2:
-	device_del(&p->dev);
-out1:
-	put_device(&p->dev);
-	free_part_stats(p);
-out0:
+out_free:
 	kfree(p);
+	return err;
+out_del:
+	kobject_put(p->holder_dir);
+	device_del(pdev);
+out_put:
+	put_device(pdev);
+	blk_free_devt(devt);
 	return err;
 }
 
 /* Not exported, helper to add_disk(). */
 void register_disk(struct gendisk *disk)
 {
+	struct device *ddev = disk_to_dev(disk);
 	struct block_device *bdev;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 	char *s;
-	int i;
-	struct hd_struct *p;
 	int err;
 
-	disk->dev.parent = disk->driverfs_dev;
-	disk->dev.devt = MKDEV(disk->major, disk->first_minor);
+	ddev->parent = disk->driverfs_dev;
 
-	strlcpy(disk->dev.bus_id, disk->disk_name, BUS_ID_SIZE);
+	strlcpy(ddev->bus_id, disk->disk_name, BUS_ID_SIZE);
 	/* ewww... some of these buggers have / in the name... */
-	s = strchr(disk->dev.bus_id, '/');
+	s = strchr(ddev->bus_id, '/');
 	if (s)
 		*s = '!';
 
 	/* delay uevents, until we scanned partition table */
-	disk->dev.uevent_suppress = 1;
+	ddev->uevent_suppress = 1;
 
-	if (device_add(&disk->dev))
+	if (device_add(ddev))
 		return;
 #ifndef CONFIG_SYSFS_DEPRECATED
-	err = sysfs_create_link(block_depr, &disk->dev.kobj,
-				kobject_name(&disk->dev.kobj));
+	err = sysfs_create_link(block_depr, &ddev->kobj,
+				kobject_name(&ddev->kobj));
 	if (err) {
-		device_del(&disk->dev);
+		device_del(ddev);
 		return;
 	}
 #endif
-	disk_sysfs_add_subdirs(disk);
+	disk->part0.holder_dir = kobject_create_and_add("holders", &ddev->kobj);
+	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
 	/* No minors to use for partitions */
-	if (disk->minors == 1)
+	if (!disk_partitionable(disk))
 		goto exit;
 
 	/* No such device (e.g., media were just removed) */
@@ -458,41 +482,57 @@ void register_disk(struct gendisk *disk)
 
 exit:
 	/* announce disk after possible partitions are created */
-	disk->dev.uevent_suppress = 0;
-	kobject_uevent(&disk->dev.kobj, KOBJ_ADD);
+	ddev->uevent_suppress = 0;
+	kobject_uevent(&ddev->kobj, KOBJ_ADD);
 
 	/* announce possible partitions */
-	for (i = 1; i < disk->minors; i++) {
-		p = disk->part[i-1];
-		if (!p || !p->nr_sects)
-			continue;
-		kobject_uevent(&p->dev.kobj, KOBJ_ADD);
-	}
+	disk_part_iter_init(&piter, disk, 0);
+	while ((part = disk_part_iter_next(&piter)))
+		kobject_uevent(&part_to_dev(part)->kobj, KOBJ_ADD);
+	disk_part_iter_exit(&piter);
 }
 
 int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 {
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 	struct parsed_partitions *state;
-	int p, res;
+	int p, highest, res;
 
 	if (bdev->bd_part_count)
 		return -EBUSY;
 	res = invalidate_partition(disk, 0);
 	if (res)
 		return res;
-	bdev->bd_invalidated = 0;
-	for (p = 1; p < disk->minors; p++)
-		delete_partition(disk, p);
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
+	while ((part = disk_part_iter_next(&piter)))
+		delete_partition(disk, part->partno);
+	disk_part_iter_exit(&piter);
+
 	if (disk->fops->revalidate_disk)
 		disk->fops->revalidate_disk(disk);
+	check_disk_size_change(disk, bdev);
+	bdev->bd_invalidated = 0;
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
 	if (IS_ERR(state))	/* I/O error reading the partition table */
 		return -EIO;
 
 	/* tell userspace that the media / partition table may have changed */
-	kobject_uevent(&disk->dev.kobj, KOBJ_CHANGE);
+	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
 
+	/* Detect the highest partition number and preallocate
+	 * disk->part_tbl.  This is an optimization and not strictly
+	 * necessary.
+	 */
+	for (p = 1, highest = 0; p < state->limit; p++)
+		if (state->parts[p].size)
+			highest = p;
+
+	disk_expand_part_tbl(disk, highest);
+
+	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;
@@ -541,25 +581,31 @@ EXPORT_SYMBOL(read_dev_sector);
 
 void del_gendisk(struct gendisk *disk)
 {
-	int p;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 
 	/* invalidate stuff */
-	for (p = disk->minors - 1; p > 0; p--) {
-		invalidate_partition(disk, p);
-		delete_partition(disk, p);
+	disk_part_iter_init(&piter, disk,
+			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
+	while ((part = disk_part_iter_next(&piter))) {
+		invalidate_partition(disk, part->partno);
+		delete_partition(disk, part->partno);
 	}
+	disk_part_iter_exit(&piter);
+
 	invalidate_partition(disk, 0);
-	disk->capacity = 0;
+	blk_free_devt(disk_to_dev(disk)->devt);
+	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 	unlink_gendisk(disk);
-	disk_stat_set_all(disk, 0);
-	disk->stamp = 0;
+	part_stat_set_all(&disk->part0, 0);
+	disk->part0.stamp = 0;
 
-	kobject_put(disk->holder_dir);
+	kobject_put(disk->part0.holder_dir);
 	kobject_put(disk->slave_dir);
 	disk->driverfs_dev = NULL;
 #ifndef CONFIG_SYSFS_DEPRECATED
-	sysfs_remove_link(block_depr, disk->dev.bus_id);
+	sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
 #endif
-	device_del(&disk->dev);
+	device_del(disk_to_dev(disk));
 }

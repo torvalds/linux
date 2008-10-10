@@ -423,8 +423,15 @@ static struct floppy_raw_cmd *raw_cmd, default_raw_cmd;
  * 1581's logical side 0 is on physical side 1, whereas the Sharp's logical
  * side 0 is on physical side 0 (but with the misnamed sector IDs).
  * 'stretch' should probably be renamed to something more general, like
- * 'options'.  Other parameters should be self-explanatory (see also
- * setfdprm(8)).
+ * 'options'.
+ *
+ * Bits 2 through 9 of 'stretch' tell the number of the first sector.
+ * The LSB (bit 2) is flipped. For most disks, the first sector
+ * is 1 (represented by 0x00<<2).  For some CP/M and music sampler
+ * disks (such as Ensoniq EPS 16plus) it is 0 (represented as 0x01<<2).
+ * For Amstrad CPC disks it is 0xC1 (represented as 0xC0<<2).
+ *
+ * Other parameters should be self-explanatory (see also setfdprm(8)).
  */
 /*
 	    Size
@@ -1355,20 +1362,20 @@ static void fdc_specify(void)
 	}
 
 	/* Convert step rate from microseconds to milliseconds and 4 bits */
-	srt = 16 - (DP->srt * scale_dtr / 1000 + NOMINAL_DTR - 1) / NOMINAL_DTR;
+	srt = 16 - DIV_ROUND_UP(DP->srt * scale_dtr / 1000, NOMINAL_DTR);
 	if (slow_floppy) {
 		srt = srt / 4;
 	}
 	SUPBOUND(srt, 0xf);
 	INFBOUND(srt, 0);
 
-	hlt = (DP->hlt * scale_dtr / 2 + NOMINAL_DTR - 1) / NOMINAL_DTR;
+	hlt = DIV_ROUND_UP(DP->hlt * scale_dtr / 2, NOMINAL_DTR);
 	if (hlt < 0x01)
 		hlt = 0x01;
 	else if (hlt > 0x7f)
 		hlt = hlt_max_code;
 
-	hut = (DP->hut * scale_dtr / 16 + NOMINAL_DTR - 1) / NOMINAL_DTR;
+	hut = DIV_ROUND_UP(DP->hut * scale_dtr / 16, NOMINAL_DTR);
 	if (hut < 0x1)
 		hut = 0x1;
 	else if (hut > 0xf)
@@ -2236,9 +2243,9 @@ static void setup_format_params(int track)
 			}
 		}
 	}
-	if (_floppy->stretch & FD_ZEROBASED) {
+	if (_floppy->stretch & FD_SECTBASEMASK) {
 		for (count = 0; count < F_SECT_PER_TRACK; count++)
-			here[count].sect--;
+			here[count].sect += FD_SECTBASE(_floppy) - 1;
 	}
 }
 
@@ -2385,7 +2392,7 @@ static void rw_interrupt(void)
 
 #ifdef FLOPPY_SANITY_CHECK
 	if (nr_sectors / ssize >
-	    (in_sector_offset + current_count_sectors + ssize - 1) / ssize) {
+	    DIV_ROUND_UP(in_sector_offset + current_count_sectors, ssize)) {
 		DPRINT("long rw: %x instead of %lx\n",
 		       nr_sectors, current_count_sectors);
 		printk("rs=%d s=%d\n", R_SECTOR, SECTOR);
@@ -2649,7 +2656,7 @@ static int make_raw_rw_request(void)
 	}
 	HEAD = fsector_t / _floppy->sect;
 
-	if (((_floppy->stretch & (FD_SWAPSIDES | FD_ZEROBASED)) ||
+	if (((_floppy->stretch & (FD_SWAPSIDES | FD_SECTBASEMASK)) ||
 	     TESTF(FD_NEED_TWADDLE)) && fsector_t < _floppy->sect)
 		max_sector = _floppy->sect;
 
@@ -2679,7 +2686,7 @@ static int make_raw_rw_request(void)
 	CODE2SIZE;
 	SECT_PER_TRACK = _floppy->sect << 2 >> SIZECODE;
 	SECTOR = ((fsector_t % _floppy->sect) << 2 >> SIZECODE) +
-	    ((_floppy->stretch & FD_ZEROBASED) ? 0 : 1);
+	    FD_SECTBASE(_floppy);
 
 	/* tracksize describes the size which can be filled up with sectors
 	 * of size ssize.
@@ -3311,7 +3318,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 	    g->head <= 0 ||
 	    g->track <= 0 || g->track > UDP->tracks >> STRETCH(g) ||
 	    /* check if reserved bits are set */
-	    (g->stretch & ~(FD_STRETCH | FD_SWAPSIDES | FD_ZEROBASED)) != 0)
+	    (g->stretch & ~(FD_STRETCH | FD_SWAPSIDES | FD_SECTBASEMASK)) != 0)
 		return -EINVAL;
 	if (type) {
 		if (!capable(CAP_SYS_ADMIN))
@@ -3356,7 +3363,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 		if (DRS->maxblock > user_params[drive].sect ||
 		    DRS->maxtrack ||
 		    ((user_params[drive].sect ^ oldStretch) &
-		     (FD_SWAPSIDES | FD_ZEROBASED)))
+		     (FD_SWAPSIDES | FD_SECTBASEMASK)))
 			invalidate_drive(bdev);
 		else
 			process_fd_request();
