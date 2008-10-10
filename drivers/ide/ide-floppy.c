@@ -75,13 +75,6 @@
  */
 #define IDEFLOPPY_PC_BUFFER_SIZE	256
 
-/*
- * In various places in the driver, we need to allocate storage for packet
- * commands, which will remain valid while we leave the driver to wait for
- * an interrupt or a timeout event.
- */
-#define IDEFLOPPY_PC_STACK		(10 + IDEFLOPPY_MAX_PC_RETRIES)
-
 /* format capacities descriptor codes */
 #define CAPACITY_INVALID	0x00
 #define CAPACITY_UNFORMATTED	0x01
@@ -104,11 +97,10 @@ typedef struct ide_floppy_obj {
 	struct ide_atapi_pc *pc;
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;
-	/* Packet command stack */
-	struct ide_atapi_pc pc_stack[IDEFLOPPY_PC_STACK];
-	/* Next free packet command storage space */
-	int pc_stack_index;
+	/* used for blk_{fs,pc}_request() requests */
+	struct ide_atapi_pc queued_pc;
 
+	struct ide_atapi_pc request_sense_pc;
 	struct request request_sense_rq;
 
 	/* Last error information */
@@ -296,15 +288,6 @@ static void idefloppy_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_do_drive_cmd(drive, rq);
 }
 
-static struct ide_atapi_pc *idefloppy_next_pc_storage(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	if (floppy->pc_stack_index == IDEFLOPPY_PC_STACK)
-		floppy->pc_stack_index = 0;
-	return (&floppy->pc_stack[floppy->pc_stack_index++]);
-}
-
 static void ide_floppy_callback(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
@@ -365,10 +348,9 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 {
 	struct ide_floppy_obj *floppy = drive->driver_data;
 	struct request *rq = &floppy->request_sense_rq;
-	struct ide_atapi_pc *pc;
+	struct ide_atapi_pc *pc = &floppy->request_sense_pc;
 
 	(void)ide_read_error(drive);
-	pc = idefloppy_next_pc_storage(drive);
 	idefloppy_create_request_sense_cmd(pc);
 	idefloppy_queue_pc_head(drive, pc, rq);
 }
@@ -629,12 +611,12 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 			idefloppy_end_request(drive, 0, 0);
 			return ide_stopped;
 		}
-		pc = idefloppy_next_pc_storage(drive);
+		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(floppy, pc, rq, block);
 	} else if (blk_special_request(rq)) {
 		pc = (struct ide_atapi_pc *) rq->buffer;
 	} else if (blk_pc_request(rq)) {
-		pc = idefloppy_next_pc_storage(drive);
+		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
 	} else {
 		blk_dump_rq_flags(rq,
@@ -1010,7 +992,7 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	u8 gcw[2];
 
 	*((u16 *)&gcw) = id[ATA_ID_CONFIG];
-	floppy->pc = floppy->pc_stack;
+
 	drive->pc_callback = ide_floppy_callback;
 
 	if (((gcw[0] & 0x60) >> 5) == 1)

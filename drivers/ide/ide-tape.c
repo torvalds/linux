@@ -56,8 +56,6 @@ enum {
 	DBG_CHRDEV =		(1 << 2),
 	/* all remaining procedures */
 	DBG_PROCS =		(1 << 3),
-	/* buffer alloc info (pc_stack) */
-	DBG_PC_STACK =	(1 << 4),
 };
 
 /* define to see debug info */
@@ -87,13 +85,6 @@ enum {
  * bytes. This is used for several packet commands (Not for READ/WRITE commands)
  */
 #define IDETAPE_PC_BUFFER_SIZE		256
-
-/*
- * In various places in the driver, we need to allocate storage for packet
- * commands, which will remain valid while we leave the driver to wait for
- * an interrupt or a timeout event.
- */
-#define IDETAPE_PC_STACK		(10 + IDETAPE_MAX_PC_RETRIES)
 
 /*
  * Some drives (for example, Seagate STT3401A Travan) require a very long
@@ -208,13 +199,6 @@ typedef struct ide_tape_obj {
 	struct kref	kref;
 
 	/*
-	 *	Since a typical character device operation requires more
-	 *	than one packet command, we provide here enough memory
-	 *	for the maximum of interconnected packet commands.
-	 *	The packet commands are stored in the circular array pc_stack.
-	 *	pc_stack_index points to the last used entry, and warps around
-	 *	to the start when we get to the last array entry.
-	 *
 	 *	pc points to the current processed packet command.
 	 *
 	 *	failed_pc points to the last failed packet command, or contains
@@ -226,11 +210,10 @@ typedef struct ide_tape_obj {
 	struct ide_atapi_pc *pc;
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;
-	/* Packet command stack */
-	struct ide_atapi_pc pc_stack[IDETAPE_PC_STACK];
-	/* Next free packet command storage space */
-	int pc_stack_index;
+	/* used by REQ_IDETAPE_{READ,WRITE} requests */
+	struct ide_atapi_pc queued_pc;
 
+	struct ide_atapi_pc request_sense_pc;
 	struct request request_sense_rq;
 
 	/*
@@ -449,23 +432,6 @@ static void idetape_update_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc)
 		bcount -= count;
 	}
 	pc->bh = bh;
-}
-
-/*
- *	idetape_next_pc_storage returns a pointer to a place in which we can
- *	safely store a packet command, even though we intend to leave the
- *	driver. A storage space for a maximum of IDETAPE_PC_STACK packet
- *	commands is allocated at initialization time.
- */
-static struct ide_atapi_pc *idetape_next_pc_storage(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	debug_log(DBG_PC_STACK, "pc_stack_index=%d\n", tape->pc_stack_index);
-
-	if (tape->pc_stack_index == IDETAPE_PC_STACK)
-		tape->pc_stack_index = 0;
-	return (&tape->pc_stack[tape->pc_stack_index++]);
 }
 
 /*
@@ -693,10 +659,9 @@ static void idetape_retry_pc(ide_drive_t *drive)
 {
 	struct ide_tape_obj *tape = drive->driver_data;
 	struct request *rq = &tape->request_sense_rq;
-	struct ide_atapi_pc *pc;
+	struct ide_atapi_pc *pc = &tape->request_sense_pc;
 
 	(void)ide_read_error(drive);
-	pc = idetape_next_pc_storage(drive);
 	idetape_create_request_sense_cmd(pc);
 	set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
 	idetape_queue_pc_head(drive, pc, rq);
@@ -1006,12 +971,12 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		return ide_stopped;
 	}
 	if (rq->cmd[13] & REQ_IDETAPE_READ) {
-		pc = idetape_next_pc_storage(drive);
+		pc = &tape->queued_pc;
 		ide_tape_create_rw_cmd(tape, pc, rq, READ_6);
 		goto out;
 	}
 	if (rq->cmd[13] & REQ_IDETAPE_WRITE) {
-		pc = idetape_next_pc_storage(drive);
+		pc = &tape->queued_pc;
 		ide_tape_create_rw_cmd(tape, pc, rq, WRITE_6);
 		goto out;
 	}
@@ -2412,7 +2377,6 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	tape->name[1] = 't';
 	tape->name[2] = '0' + minor;
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
-	tape->pc = tape->pc_stack;
 
 	*((u16 *)&gcw) = drive->id[ATA_ID_CONFIG];
 
