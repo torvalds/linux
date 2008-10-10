@@ -930,8 +930,6 @@ static void acer_backlight_exit(void)
 /*
  * Rfkill devices
  */
-static struct workqueue_struct *rfkill_workqueue;
-
 static void acer_rfkill_update(struct work_struct *ignored);
 static DECLARE_DELAYED_WORK(acer_rfkill_work, acer_rfkill_update);
 static void acer_rfkill_update(struct work_struct *ignored)
@@ -952,8 +950,7 @@ static void acer_rfkill_update(struct work_struct *ignored)
 				RFKILL_STATE_SOFT_BLOCKED);
 	}
 
-	queue_delayed_work(rfkill_workqueue, &acer_rfkill_work,
-		round_jiffies_relative(HZ));
+	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
 }
 
 static int acer_rfkill_set(void *data, enum rfkill_state state)
@@ -1018,17 +1015,7 @@ static int acer_rfkill_init(struct device *dev)
 		}
 	}
 
-	rfkill_workqueue = create_singlethread_workqueue("rfkill_workqueue");
-	if (!rfkill_workqueue) {
-		if (has_cap(ACER_CAP_BLUETOOTH)) {
-			kfree(bluetooth_rfkill->data);
-			rfkill_unregister(bluetooth_rfkill);
-		}
-		kfree(wireless_rfkill->data);
-		rfkill_unregister(wireless_rfkill);
-		return -ENOMEM;
-	}
-	queue_delayed_work(rfkill_workqueue, &acer_rfkill_work, HZ);
+	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
 
 	return 0;
 }
@@ -1036,7 +1023,6 @@ static int acer_rfkill_init(struct device *dev)
 static void acer_rfkill_exit(void)
 {
 	cancel_delayed_work_sync(&acer_rfkill_work);
-	destroy_workqueue(rfkill_workqueue);
 	kfree(wireless_rfkill->data);
 	rfkill_unregister(wireless_rfkill);
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
