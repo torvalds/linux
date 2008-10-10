@@ -897,8 +897,6 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_address = ioremap(addr.minimum, addr.address_length);
 
 		if (hpet_is_known(hdp)) {
-			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
-				__func__, hdp->hd_phys_address);
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -914,8 +912,6 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 						HPET_RANGE_SIZE);
 
 		if (hpet_is_known(hdp)) {
-			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
-				__func__, hdp->hd_phys_address);
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
