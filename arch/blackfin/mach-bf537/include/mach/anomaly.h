@@ -158,6 +158,8 @@
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000323 (0)
+#define ANOMALY_05000353 (1)
 #define ANOMALY_05000363 (0)
+#define ANOMALY_05000386 (1)
 
 #endif
