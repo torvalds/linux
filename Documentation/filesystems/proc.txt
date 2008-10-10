@@ -956,6 +956,9 @@ Table 1-10: Files in /proc/fs/ext4/<devname>
                  files are packed closely together.  Each large file
                  will have its blocks allocated out of its own unique
                  preallocation pool.
+inode_readahead  Tuning parameter which controls the maximum number of
+                 inode table blocks that ext4's inode table readahead
+                 algorithm will pre-read into the buffer cache
 ..............................................................................
 
 

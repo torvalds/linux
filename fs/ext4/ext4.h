@@ -790,6 +790,8 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define	EXT4_DEF_RESUID		0
 #define	EXT4_DEF_RESGID		0
 
+#define EXT4_DEF_INODE_READAHEAD_BLKS	32
+
 /*
  * Default mount options
  */

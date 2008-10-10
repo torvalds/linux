@@ -3833,41 +3833,6 @@ out_stop:
 	ext4_journal_stop(handle);
 }
 
-static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
-		unsigned long ino, struct ext4_iloc *iloc)
-{
-	ext4_group_t block_group;
-	unsigned long offset;
-	ext4_fsblk_t block;
-	struct ext4_group_desc *gdp;
-
-	if (!ext4_valid_inum(sb, ino)) {
-		/*
-		 * This error is already checked for in namei.c unless we are
-		 * looking at an NFS filehandle, in which case no error
-		 * report is needed
-		 */
-		return 0;
-	}
-
-	block_group = (ino - 1) / EXT4_INODES_PER_GROUP(sb);
-	gdp = ext4_get_group_desc(sb, block_group, NULL);
-	if (!gdp)
-		return 0;
-
-	/*
-	 * Figure out the offset within the block group inode table
-	 */
-	offset = ((ino - 1) % EXT4_INODES_PER_GROUP(sb)) *
-		EXT4_INODE_SIZE(sb);
-	block = ext4_inode_table(sb, gdp) +
-		(offset >> EXT4_BLOCK_SIZE_BITS(sb));
-
-	iloc->block_group = block_group;
-	iloc->offset = offset & (EXT4_BLOCK_SIZE(sb) - 1);
-	return block;
-}
-
 /*
  * ext4_get_inode_loc returns with an extra refcount against the inode's
  * underlying buffer_head on success. If 'in_mem' is true, we have all
@@ -3877,19 +3842,35 @@ static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
 static int __ext4_get_inode_loc(struct inode *inode,
 				struct ext4_iloc *iloc, int in_mem)
 {
-	ext4_fsblk_t block;
-	struct buffer_head *bh;
+	struct ext4_group_desc	*gdp;
+	struct buffer_head	*bh;
+	struct super_block	*sb = inode->i_sb;
+	ext4_fsblk_t		block;
+	int			inodes_per_block, inode_offset;
 
-	block = ext4_get_inode_block(inode->i_sb, inode->i_ino, iloc);
-	if (!block)
+	iloc->bh = 0;
+	if (!ext4_valid_inum(sb, inode->i_ino))
 		return -EIO;
 
-	bh = sb_getblk(inode->i_sb, block);
+	iloc->block_group = (inode->i_ino - 1) / EXT4_INODES_PER_GROUP(sb);
+	gdp = ext4_get_group_desc(sb, iloc->block_group, NULL);
+	if (!gdp)
+		return -EIO;
+
+	/*
+	 * Figure out the offset within the block group inode table
+	 */
+	inodes_per_block = (EXT4_BLOCK_SIZE(sb) / EXT4_INODE_SIZE(sb));
+	inode_offset = ((inode->i_ino - 1) %
+			EXT4_INODES_PER_GROUP(sb));
+	block = ext4_inode_table(sb, gdp) + (inode_offset / inodes_per_block);
+	iloc->offset = (inode_offset % inodes_per_block) * EXT4_INODE_SIZE(sb);
+
+	bh = sb_getblk(sb, block);
 	if (!bh) {
-		ext4_error (inode->i_sb, "ext4_get_inode_loc",
-				"unable to read inode block - "
-				"inode=%lu, block=%llu",
-				 inode->i_ino, block);
+		ext4_error(sb, "ext4_get_inode_loc", "unable to read "
+			   "inode block - inode=%lu, block=%llu",
+			   inode->i_ino, block);
 		return -EIO;
 	}
 	if (!buffer_uptodate(bh)) {
@@ -3917,28 +3898,12 @@ static int __ext4_get_inode_loc(struct inode *inode,
 		 */
 		if (in_mem) {
 			struct buffer_head *bitmap_bh;
-			struct ext4_group_desc *desc;
-			int inodes_per_buffer;
-			int inode_offset, i;
-			ext4_group_t block_group;
-			int start;
+			int i, start;
 
-			block_group = (inode->i_ino - 1) /
-					EXT4_INODES_PER_GROUP(inode->i_sb);
-			inodes_per_buffer = bh->b_size /
-				EXT4_INODE_SIZE(inode->i_sb);
-			inode_offset = ((inode->i_ino - 1) %
-					EXT4_INODES_PER_GROUP(inode->i_sb));
-			start = inode_offset & ~(inodes_per_buffer - 1);
+			start = inode_offset & ~(inodes_per_block - 1);
 
 			/* Is the inode bitmap in cache? */
-			desc = ext4_get_group_desc(inode->i_sb,
-						block_group, NULL);
-			if (!desc)
-				goto make_io;
-
-			bitmap_bh = sb_getblk(inode->i_sb,
-				ext4_inode_bitmap(inode->i_sb, desc));
+			bitmap_bh = sb_getblk(sb, ext4_inode_bitmap(sb, gdp));
 			if (!bitmap_bh)
 				goto make_io;
 
@@ -3951,14 +3916,14 @@ static int __ext4_get_inode_loc(struct inode *inode,
 				brelse(bitmap_bh);
 				goto make_io;
 			}
-			for (i = start; i < start + inodes_per_buffer; i++) {
+			for (i = start; i < start + inodes_per_block; i++) {
 				if (i == inode_offset)
 					continue;
 				if (ext4_test_bit(i, bitmap_bh->b_data))
 					break;
 			}
 			brelse(bitmap_bh);
-			if (i == start + inodes_per_buffer) {
+			if (i == start + inodes_per_block) {
 				/* all other inodes are free, so skip I/O */
 				memset(bh->b_data, 0, bh->b_size);
 				set_buffer_uptodate(bh);
@@ -3969,6 +3934,36 @@ static int __ext4_get_inode_loc(struct inode *inode,
 
 make_io:
 		/*
+		 * If we need to do any I/O, try to pre-readahead extra
+		 * blocks from the inode table.
+		 */
+		if (EXT4_SB(sb)->s_inode_readahead_blks) {
+			ext4_fsblk_t b, end, table;
+			unsigned num;
+
+			table = ext4_inode_table(sb, gdp);
+			/* Make sure s_inode_readahead_blks is a power of 2 */
+			while (EXT4_SB(sb)->s_inode_readahead_blks &
+			       (EXT4_SB(sb)->s_inode_readahead_blks-1))
+				EXT4_SB(sb)->s_inode_readahead_blks = 
+				   (EXT4_SB(sb)->s_inode_readahead_blks &
+				    (EXT4_SB(sb)->s_inode_readahead_blks-1));
+			b = block & ~(EXT4_SB(sb)->s_inode_readahead_blks-1);
+			if (table > b)
+				b = table;
+			end = b + EXT4_SB(sb)->s_inode_readahead_blks;
+			num = EXT4_INODES_PER_GROUP(sb);
+			if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				       EXT4_FEATURE_RO_COMPAT_GDT_CSUM))
+				num -= le16_to_cpu(gdp->bg_itable_unused);
+			table += num / inodes_per_block;
+			if (end > table)
+				end = table;
+			while (b <= end)
+				sb_breadahead(sb, b++);
+		}
+
+		/*
 		 * There are other valid inodes in the buffer, this inode
 		 * has in-inode xattrs, or we don't have this inode in memory.
 		 * Read the block from disk.
@@ -3978,10 +3973,9 @@ make_io:
 		submit_bh(READ_META, bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
-			ext4_error(inode->i_sb, "ext4_get_inode_loc",
-					"unable to read inode block - "
-					"inode=%lu, block=%llu",
-					inode->i_ino, block);
+			ext4_error(sb, __func__,
+				   "unable to read inode block - inode=%lu, "
+				   "block=%llu", inode->i_ino, block);
 			brelse(bh);
 			return -EIO;
 		}

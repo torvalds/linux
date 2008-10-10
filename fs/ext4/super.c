@@ -515,8 +515,10 @@ static void ext4_put_super(struct super_block *sb)
 		mark_buffer_dirty(sbi->s_sbh);
 		ext4_commit_super(sb, es, 1);
 	}
-	if (sbi->s_proc)
+	if (sbi->s_proc) {
+		remove_proc_entry("inode_readahead_blks", sbi->s_proc);
 		remove_proc_entry(sb->s_id, ext4_proc_root);
+	}
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -779,6 +781,10 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	else if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)
 		seq_puts(seq, ",data=writeback");
 
+	if (sbi->s_inode_readahead_blks != EXT4_DEF_INODE_READAHEAD_BLKS)
+		seq_printf(seq, ",inode_readahead_blks=%u",
+			   sbi->s_inode_readahead_blks);
+
 	ext4_show_quota_options(seq, sb);
 	return 0;
 }
@@ -913,6 +919,7 @@ enum {
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
 	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
 	Opt_mballoc, Opt_nomballoc, Opt_stripe, Opt_delalloc, Opt_nodelalloc,
+	Opt_inode_readahead_blks
 };
 
 static match_table_t tokens = {
@@ -973,6 +980,7 @@ static match_table_t tokens = {
 	{Opt_resize, "resize"},
 	{Opt_delalloc, "delalloc"},
 	{Opt_nodelalloc, "nodelalloc"},
+	{Opt_inode_readahead_blks, "inode_readahead_blks=%u"},
 	{Opt_err, NULL},
 };
 
@@ -1380,6 +1388,13 @@ set_qf_format:
 			break;
 		case Opt_delalloc:
 			set_opt(sbi->s_mount_opt, DELALLOC);
+			break;
+		case Opt_inode_readahead_blks:
+			if (match_int(&args[0], &option))
+				return 0;
+			if (option < 0 || option > (1 << 30))
+				return 0;
+			sbi->s_inode_readahead_blks = option;
 			break;
 		default:
 			printk(KERN_ERR
@@ -1938,6 +1953,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_mount_opt = 0;
 	sbi->s_resuid = EXT4_DEF_RESUID;
 	sbi->s_resgid = EXT4_DEF_RESGID;
+	sbi->s_inode_readahead_blks = EXT4_DEF_INODE_READAHEAD_BLKS;
 	sbi->s_sb_block = sb_block;
 
 	unlock_kernel();
@@ -2234,6 +2250,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
 
+	if (sbi->s_proc)
+		proc_create_data("inode_readahead_blks", 0644, sbi->s_proc,
+				 &ext4_ui_proc_fops,
+				 &sbi->s_inode_readahead_blks);
+
 	bgl_lock_init(&sbi->s_blockgroup_lock);
 
 	for (i = 0; i < db_count; i++) {
@@ -2513,8 +2534,10 @@ failed_mount2:
 		brelse(sbi->s_group_desc[i]);
 	kfree(sbi->s_group_desc);
 failed_mount:
-	if (sbi->s_proc)
+	if (sbi->s_proc) {
+		remove_proc_entry("inode_readahead_blks", sbi->s_proc);
 		remove_proc_entry(sb->s_id, ext4_proc_root);
+	}
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
