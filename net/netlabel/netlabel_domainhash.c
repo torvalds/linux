@@ -115,13 +115,13 @@ static u32 netlbl_domhsh_hash(const char *key)
 static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain)
 {
 	u32 bkt;
+	struct list_head *bkt_list;
 	struct netlbl_dom_map *iter;
 
 	if (domain != NULL) {
 		bkt = netlbl_domhsh_hash(domain);
-		list_for_each_entry_rcu(iter,
-				     &rcu_dereference(netlbl_domhsh)->tbl[bkt],
-				     list)
+		bkt_list = &rcu_dereference(netlbl_domhsh)->tbl[bkt];
+		list_for_each_entry_rcu(iter, bkt_list, list)
 			if (iter->valid && strcmp(iter->domain, domain) == 0)
 				return iter;
 	}
@@ -410,6 +410,7 @@ int netlbl_domhsh_walk(u32 *skip_bkt,
 {
 	int ret_val = -ENOENT;
 	u32 iter_bkt;
+	struct list_head *iter_list;
 	struct netlbl_dom_map *iter_entry;
 	u32 chain_cnt = 0;
 
@@ -417,9 +418,8 @@ int netlbl_domhsh_walk(u32 *skip_bkt,
 	for (iter_bkt = *skip_bkt;
 	     iter_bkt < rcu_dereference(netlbl_domhsh)->size;
 	     iter_bkt++, chain_cnt = 0) {
-		list_for_each_entry_rcu(iter_entry,
-				&rcu_dereference(netlbl_domhsh)->tbl[iter_bkt],
-				list)
+		iter_list = &rcu_dereference(netlbl_domhsh)->tbl[iter_bkt];
+		list_for_each_entry_rcu(iter_entry, iter_list, list)
 			if (iter_entry->valid) {
 				if (chain_cnt++ < *skip_chain)
 					continue;

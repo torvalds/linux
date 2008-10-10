@@ -491,7 +491,7 @@ list_start:
 	doi_def = cipso_v4_doi_getdef(doi);
 	if (doi_def == NULL) {
 		ret_val = -EINVAL;
-		goto list_failure;
+		goto list_failure_lock;
 	}
 
 	ret_val = nla_put_u32(ans_skb, NLBL_CIPSOV4_A_MTYPE, doi_def->type);
@@ -655,7 +655,7 @@ static int netlbl_cipsov4_listall(struct sk_buff *skb,
 				  struct netlink_callback *cb)
 {
 	struct netlbl_cipsov4_doiwalk_arg cb_arg;
-	int doi_skip = cb->args[0];
+	u32 doi_skip = cb->args[0];
 
 	cb_arg.nl_cb = cb;
 	cb_arg.skb = skb;

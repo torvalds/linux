@@ -381,12 +381,12 @@ static struct netlbl_unlhsh_addr6 *netlbl_unlhsh_search_addr6(
 static struct netlbl_unlhsh_iface *netlbl_unlhsh_search_iface(int ifindex)
 {
 	u32 bkt;
+	struct list_head *bkt_list;
 	struct netlbl_unlhsh_iface *iter;
 
 	bkt = netlbl_unlhsh_hash(ifindex);
-	list_for_each_entry_rcu(iter,
-				&rcu_dereference(netlbl_unlhsh)->tbl[bkt],
-				list)
+	bkt_list = &rcu_dereference(netlbl_unlhsh)->tbl[bkt];
+	list_for_each_entry_rcu(iter, bkt_list, list)
 		if (iter->valid && iter->ifindex == ifindex)
 			return iter;
 
@@ -1427,6 +1427,7 @@ static int netlbl_unlabel_staticlist(struct sk_buff *skb,
 	struct netlbl_unlhsh_iface *iface;
 	struct netlbl_unlhsh_addr4 *addr4;
 	struct netlbl_unlhsh_addr6 *addr6;
+	struct list_head *iter_list;
 
 	cb_arg.nl_cb = cb;
 	cb_arg.skb = skb;
@@ -1436,9 +1437,8 @@ static int netlbl_unlabel_staticlist(struct sk_buff *skb,
 	for (iter_bkt = skip_bkt;
 	     iter_bkt < rcu_dereference(netlbl_unlhsh)->size;
 	     iter_bkt++, iter_chain = 0, iter_addr4 = 0, iter_addr6 = 0) {
-		list_for_each_entry_rcu(iface,
-			        &rcu_dereference(netlbl_unlhsh)->tbl[iter_bkt],
-				list) {
+		iter_list = &rcu_dereference(netlbl_unlhsh)->tbl[iter_bkt];
+		list_for_each_entry_rcu(iface, iter_list, list) {
 			if (!iface->valid ||
 			    iter_chain++ < skip_chain)
 				continue;
