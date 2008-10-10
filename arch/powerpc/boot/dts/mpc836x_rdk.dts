@@ -387,6 +387,18 @@
 			device-width = <1>;
 		};
 
+		upm@1,0 {
+			compatible = "fsl,upm-nand";
+			reg = <1 0 1>;
+			fsl,upm-addr-offset = <16>;
+			fsl,upm-cmd-offset = <8>;
+			gpios = <&qe_pio_e 18 0>;
+
+			flash {
+				compatible = "stm,nand512-a";
+			};
+		};
+
 		display@2,0 {
 			device_type = "display";
 			compatible = "fujitsu,MB86277", "fujitsu,mint";
