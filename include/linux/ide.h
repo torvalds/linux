@@ -1382,11 +1382,6 @@ const char *ide_xfer_verbose(u8 mode);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
 
-static inline int ide_dev_has_iordy(u16 *id)
-{
-	return ((id[ATA_ID_FIELD_VALID] & 2) && ata_id_has_iordy(id)) ? 1 : 0;
-}
-
 static inline int ide_dev_is_sata(u16 *id)
 {
 	/*
