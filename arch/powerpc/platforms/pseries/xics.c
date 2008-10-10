@@ -606,13 +606,13 @@ static void xics_update_irq_servers(void)
 		if (ireg[j] == hcpuid) {
 			default_server = hcpuid;
 			default_distrib_server = ireg[j+1];
-
-			isize = of_get_property(np,
-					"ibm,interrupt-server#-size", NULL);
-			if (isize)
-				interrupt_server_size = *isize;
 		}
 	}
+
+	/* get the bit size of server numbers */
+	isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
+	if (isize)
+		interrupt_server_size = *isize;
 
 	of_node_put(np);
 }
@@ -620,7 +620,6 @@ static void xics_update_irq_servers(void)
 static void __init xics_map_one_cpu(int hw_id, unsigned long addr,
 				     unsigned long size)
 {
-#ifdef CONFIG_SMP
 	int i;
 
 	/* This may look gross but it's good enough for now, we don't quite
@@ -634,11 +633,6 @@ static void __init xics_map_one_cpu(int hw_id, unsigned long addr,
 			return;
 		}
 	}
-#else
-	if (hw_id != 0)
-		return;
-	xics_per_cpu[0] = ioremap(addr, size);
-#endif /* CONFIG_SMP */
 }
 
 static void __init xics_init_one_node(struct device_node *np,
@@ -700,8 +694,10 @@ void __init xics_init_IRQ(void)
 
 	for_each_node_by_type(np, "PowerPC-External-Interrupt-Presentation") {
 		found = 1;
-		if (firmware_has_feature(FW_FEATURE_LPAR))
+		if (firmware_has_feature(FW_FEATURE_LPAR)) {
+			of_node_put(np);
 			break;
+			}
 		xics_init_one_node(np, &indx);
 	}
 	if (found == 0)
