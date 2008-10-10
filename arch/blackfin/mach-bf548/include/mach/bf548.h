@@ -106,20 +106,23 @@
 
 #if defined(CONFIG_BF542)
 # define CPU   "BF542"
-# define CPUID 0x027c8000
+# define CPUID 0x27de
 #elif defined(CONFIG_BF544)
-# define CPU "BF544"
-# define CPUID 0x027c8000
+# define CPU   "BF544"
+# define CPUID 0x27de
 #elif defined(CONFIG_BF547)
-# define CPU "BF547"
+# define CPU   "BF547"
+# define CPUID 0x27de
 #elif defined(CONFIG_BF548)
-# define CPU "BF548"
-# define CPUID 0x027c6000
+# define CPU   "BF548"
+# define CPUID 0x27de
 #elif defined(CONFIG_BF549)
-# define CPU "BF549"
-#else
-# define CPU "UNKNOWN"
-# define CPUID 0x0
+# define CPU   "BF549"
+# define CPUID 0x27de
+#endif
+
+#ifndef CPU
+#error Unknown CPU type - This kernel doesn't seem to be configured properly
 #endif
 
 #endif	/* __MACH_BF48_H__  */

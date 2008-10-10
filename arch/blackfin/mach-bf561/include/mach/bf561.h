@@ -211,11 +211,11 @@
 
 #ifdef CONFIG_BF561
 #define CPU "BF561"
-#define CPUID 0x027bb000
+#define CPUID 0x27bb
 #endif
+
 #ifndef CPU
-#define CPU "UNKNOWN"
-#define CPUID 0x0
+#error Unknown CPU type - This kernel doesn't seem to be configured properly
 #endif
 
 #endif				/* __MACH_BF561_H__  */

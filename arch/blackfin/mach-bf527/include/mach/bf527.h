@@ -110,16 +110,31 @@
 
 #ifdef CONFIG_BF527
 #define CPU "BF527"
+#define CPUID 0x27e4
+#endif
+#ifdef CONFIG_BF526
+#define CPU "BF526"
+#define CPUID 0x27e4
 #endif
 #ifdef CONFIG_BF525
 #define CPU "BF525"
+#define CPUID 0x27e4
+#endif
+#ifdef CONFIG_BF524
+#define CPU "BF524"
+#define CPUID 0x27e4
+#endif
+#ifdef CONFIG_BF523
+#define CPU "BF523"
+#define CPUID 0x27e4
 #endif
 #ifdef CONFIG_BF522
 #define CPU "BF522"
+#define CPUID 0x27e4
 #endif
+
 #ifndef CPU
-#define	CPU "UNKNOWN"
-#define CPUID 0x0
+#error Unknown CPU type - This kernel doesn't seem to be configured properly
 #endif
 
 #endif				/* __MACH_BF527_H__  */

@@ -121,19 +121,19 @@
 
 #ifdef CONFIG_BF537
 #define CPU "BF537"
-#define CPUID 0x027c8000
+#define CPUID 0x27c8
 #endif
 #ifdef CONFIG_BF536
 #define CPU "BF536"
-#define CPUID 0x027c8000
+#define CPUID 0x27c8
 #endif
 #ifdef CONFIG_BF534
 #define CPU "BF534"
-#define CPUID 0x027c6000
+#define CPUID 0x27c6
 #endif
+
 #ifndef CPU
-#define	CPU "UNKNOWN"
-#define CPUID 0x0
+#error Unknown CPU type - This kernel doesn't seem to be configured properly
 #endif
 
 #endif				/* __MACH_BF537_H__  */

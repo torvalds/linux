@@ -141,19 +141,19 @@
 
 #ifdef CONFIG_BF533
 #define CPU "BF533"
-#define CPUID 0x027a5000
+#define CPUID 0x27a5
 #endif
 #ifdef CONFIG_BF532
 #define CPU "BF532"
-#define CPUID 0x0275A000
+#define CPUID 0x275A
 #endif
 #ifdef CONFIG_BF531
 #define CPU "BF531"
-#define CPUID 0x027a5000
+#define CPUID 0x27a5
 #endif
+
 #ifndef CPU
-#define	CPU "UNKNOWN"
-#define CPUID 0x0
+#error Unknown CPU type - This kernel doesn't seem to be configured properly
 #endif
 
 #endif				/* __MACH_BF533_H__  */

@@ -813,17 +813,23 @@ void __init setup_arch(char **cmdline_p)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev none\n", CPU);
 	else
 		printk(KERN_INFO "Compiled for ADSP-%s Rev 0.%d\n", CPU, bfin_compiled_revid());
-	if (bfin_revid() != bfin_compiled_revid()) {
-		if (bfin_compiled_revid() == -1)
-			printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
-			       bfin_revid());
-		else if (bfin_compiled_revid() != 0xffff)
-			printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
-			       bfin_compiled_revid(), bfin_revid());
+
+	if (unlikely(CPUID != bfin_cpuid()))
+		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
+			CPU, bfin_cpuid(), bfin_revid());
+	else {
+		if (bfin_revid() != bfin_compiled_revid()) {
+			if (bfin_compiled_revid() == -1)
+				printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
+				       bfin_revid());
+			else if (bfin_compiled_revid() != 0xffff)
+				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
+				       bfin_compiled_revid(), bfin_revid());
+		}
+		if (bfin_revid() <= CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
+			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
+			       CPU, bfin_revid());
 	}
-	if (bfin_revid() <= CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
-		printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
-		       CPU, bfin_revid());
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
@@ -997,13 +1003,18 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "processor\t: %d\n"
-		"vendor_id\t: %s\n"
-		"cpu family\t: 0x%x\n"
-		"model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
-		"stepping\t: %d\n",
+		"vendor_id\t: %s\n",
 		*(unsigned int *)v,
-		vendor,
-		(bfin_read_CHIPID() & CHIPID_FAMILY),
+		vendor);
+
+	if (CPUID == bfin_cpuid())
+		seq_printf(m, "cpu family\t: 0x%04x\n", CPUID);
+	else
+		seq_printf(m, "cpu family\t: Compiled for:0x%04x, running on:0x%04x\n",
+			CPUID, bfin_cpuid());
+
+	seq_printf(m, "model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
+		"stepping\t: %d\n",
 		cpu, cclk/1000000, sclk/1000000,
 #ifdef CONFIG_MPU
 		"mpu on",
