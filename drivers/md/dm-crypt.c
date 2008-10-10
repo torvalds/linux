@@ -517,6 +517,22 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 	}
 }
 
+static struct dm_crypt_io *crypt_io_alloc(struct dm_target *ti,
+					  struct bio *bio, sector_t sector)
+{
+	struct crypt_config *cc = ti->private;
+	struct dm_crypt_io *io;
+
+	io = mempool_alloc(cc->io_pool, GFP_NOIO);
+	io->target = ti;
+	io->base_bio = bio;
+	io->sector = sector;
+	io->error = 0;
+	atomic_set(&io->pending, 0);
+
+	return io;
+}
+
 static void crypt_inc_pending(struct dm_crypt_io *io)
 {
 	atomic_inc(&io->pending);
@@ -1113,15 +1129,9 @@ static void crypt_dtr(struct dm_target *ti)
 static int crypt_map(struct dm_target *ti, struct bio *bio,
 		     union map_info *map_context)
 {
-	struct crypt_config *cc = ti->private;
 	struct dm_crypt_io *io;
 
-	io = mempool_alloc(cc->io_pool, GFP_NOIO);
-	io->target = ti;
-	io->base_bio = bio;
-	io->sector = bio->bi_sector - ti->begin;
-	io->error = 0;
-	atomic_set(&io->pending, 0);
+	io = crypt_io_alloc(ti, bio, bio->bi_sector - ti->begin);
 
 	if (bio_data_dir(io->base_bio) == READ)
 		kcryptd_queue_io(io);
