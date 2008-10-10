@@ -13,7 +13,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1665,48 +1665,27 @@ void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 }
 
 /**
- * cipso_v4_sock_setattr - Add a CIPSO option to a socket
- * @sk: the socket
+ * cipso_v4_genopt - Generate a CIPSO option
+ * @buf: the option buffer
+ * @buf_len: the size of opt_buf
  * @doi_def: the CIPSO DOI to use
- * @secattr: the specific security attributes of the socket
+ * @secattr: the security attributes
  *
  * Description:
- * Set the CIPSO option on the given socket using the DOI definition and
- * security attributes passed to the function.  This function requires
- * exclusive access to @sk, which means it either needs to be in the
- * process of being created or locked.  Returns zero on success and negative
- * values on failure.
+ * Generate a CIPSO option using the DOI definition and security attributes
+ * passed to the function.  Returns the length of the option on success and
+ * negative values on failure.
  *
  */
-int cipso_v4_sock_setattr(struct sock *sk,
-			  const struct cipso_v4_doi *doi_def,
-			  const struct netlbl_lsm_secattr *secattr)
+static int cipso_v4_genopt(unsigned char *buf, u32 buf_len,
+			   const struct cipso_v4_doi *doi_def,
+			   const struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -EPERM;
+	int ret_val;
 	u32 iter;
-	unsigned char *buf;
-	u32 buf_len = 0;
-	u32 opt_len;
-	struct ip_options *opt = NULL;
-	struct inet_sock *sk_inet;
-	struct inet_connection_sock *sk_conn;
 
-	/* In the case of sock_create_lite(), the sock->sk field is not
-	 * defined yet but it is not a problem as the only users of these
-	 * "lite" PF_INET sockets are functions which do an accept() call
-	 * afterwards so we will label the socket as part of the accept(). */
-	if (sk == NULL)
-		return 0;
-
-	/* We allocate the maximum CIPSO option size here so we are probably
-	 * being a little wasteful, but it makes our life _much_ easier later
-	 * on and after all we are only talking about 40 bytes. */
-	buf_len = CIPSO_V4_OPT_LEN_MAX;
-	buf = kmalloc(buf_len, GFP_ATOMIC);
-	if (buf == NULL) {
-		ret_val = -ENOMEM;
-		goto socket_setattr_failure;
-	}
+	if (buf_len <= CIPSO_V4_HDR_LEN)
+		return -ENOSPC;
 
 	/* XXX - This code assumes only one tag per CIPSO option which isn't
 	 * really a good assumption to make but since we only support the MAC
@@ -1734,8 +1713,7 @@ int cipso_v4_sock_setattr(struct sock *sk,
 						   buf_len - CIPSO_V4_HDR_LEN);
 			break;
 		default:
-			ret_val = -EPERM;
-			goto socket_setattr_failure;
+			return -EPERM;
 		}
 
 		iter++;
@@ -1743,9 +1721,58 @@ int cipso_v4_sock_setattr(struct sock *sk,
 		 iter < CIPSO_V4_TAG_MAXCNT &&
 		 doi_def->tags[iter] != CIPSO_V4_TAG_INVALID);
 	if (ret_val < 0)
-		goto socket_setattr_failure;
+		return ret_val;
 	cipso_v4_gentag_hdr(doi_def, buf, ret_val);
-	buf_len = CIPSO_V4_HDR_LEN + ret_val;
+	return CIPSO_V4_HDR_LEN + ret_val;
+}
+
+/**
+ * cipso_v4_sock_setattr - Add a CIPSO option to a socket
+ * @sk: the socket
+ * @doi_def: the CIPSO DOI to use
+ * @secattr: the specific security attributes of the socket
+ *
+ * Description:
+ * Set the CIPSO option on the given socket using the DOI definition and
+ * security attributes passed to the function.  This function requires
+ * exclusive access to @sk, which means it either needs to be in the
+ * process of being created or locked.  Returns zero on success and negative
+ * values on failure.
+ *
+ */
+int cipso_v4_sock_setattr(struct sock *sk,
+			  const struct cipso_v4_doi *doi_def,
+			  const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -EPERM;
+	unsigned char *buf = NULL;
+	u32 buf_len;
+	u32 opt_len;
+	struct ip_options *opt = NULL;
+	struct inet_sock *sk_inet;
+	struct inet_connection_sock *sk_conn;
+
+	/* In the case of sock_create_lite(), the sock->sk field is not
+	 * defined yet but it is not a problem as the only users of these
+	 * "lite" PF_INET sockets are functions which do an accept() call
+	 * afterwards so we will label the socket as part of the accept(). */
+	if (sk == NULL)
+		return 0;
+
+	/* We allocate the maximum CIPSO option size here so we are probably
+	 * being a little wasteful, but it makes our life _much_ easier later
+	 * on and after all we are only talking about 40 bytes. */
+	buf_len = CIPSO_V4_OPT_LEN_MAX;
+	buf = kmalloc(buf_len, GFP_ATOMIC);
+	if (buf == NULL) {
+		ret_val = -ENOMEM;
+		goto socket_setattr_failure;
+	}
+
+	ret_val = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	if (ret_val < 0)
+		goto socket_setattr_failure;
+	buf_len = ret_val;
 
 	/* We can't use ip_options_get() directly because it makes a call to
 	 * ip_options_get_alloc() which allocates memory with GFP_KERNEL and
@@ -1851,6 +1878,123 @@ int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 
 	return cipso_v4_getattr(opt->__data + opt->cipso - sizeof(struct iphdr),
 				secattr);
+}
+
+/**
+ * cipso_v4_skbuff_setattr - Set the CIPSO option on a packet
+ * @skb: the packet
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Set the CIPSO option on the given packet based on the security attributes.
+ * Returns a pointer to the IP header on success and NULL on failure.
+ *
+ */
+int cipso_v4_skbuff_setattr(struct sk_buff *skb,
+			    const struct cipso_v4_doi *doi_def,
+			    const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	struct iphdr *iph;
+	struct ip_options *opt = &IPCB(skb)->opt;
+	unsigned char buf[CIPSO_V4_OPT_LEN_MAX];
+	u32 buf_len = CIPSO_V4_OPT_LEN_MAX;
+	u32 opt_len;
+	int len_delta;
+
+	buf_len = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	if (buf_len < 0)
+		return buf_len;
+	opt_len = (buf_len + 3) & ~3;
+
+	/* we overwrite any existing options to ensure that we have enough
+	 * room for the CIPSO option, the reason is that we _need_ to guarantee
+	 * that the security label is applied to the packet - we do the same
+	 * thing when using the socket options and it hasn't caused a problem,
+	 * if we need to we can always revisit this choice later */
+
+	len_delta = opt_len - opt->optlen;
+	/* if we don't ensure enough headroom we could panic on the skb_push()
+	 * call below so make sure we have enough, we are also "mangling" the
+	 * packet so we should probably do a copy-on-write call anyway */
+	ret_val = skb_cow(skb, skb_headroom(skb) + len_delta);
+	if (ret_val < 0)
+		return ret_val;
+
+	if (len_delta > 0) {
+		/* we assume that the header + opt->optlen have already been
+		 * "pushed" in ip_options_build() or similar */
+		iph = ip_hdr(skb);
+		skb_push(skb, len_delta);
+		memmove((char *)iph - len_delta, iph, iph->ihl << 2);
+		skb_reset_network_header(skb);
+		iph = ip_hdr(skb);
+	} else if (len_delta < 0) {
+		iph = ip_hdr(skb);
+		memset(iph + 1, IPOPT_NOP, opt->optlen);
+	} else
+		iph = ip_hdr(skb);
+
+	if (opt->optlen > 0)
+		memset(opt, 0, sizeof(*opt));
+	opt->optlen = opt_len;
+	opt->cipso = sizeof(struct iphdr);
+	opt->is_changed = 1;
+
+	/* we have to do the following because we are being called from a
+	 * netfilter hook which means the packet already has had the header
+	 * fields populated and the checksum calculated - yes this means we
+	 * are doing more work than needed but we do it to keep the core
+	 * stack clean and tidy */
+	memcpy(iph + 1, buf, buf_len);
+	if (opt_len > buf_len)
+		memset((char *)(iph + 1) + buf_len, 0, opt_len - buf_len);
+	if (len_delta != 0) {
+		iph->ihl = 5 + (opt_len >> 2);
+		iph->tot_len = htons(skb->len);
+	}
+	ip_send_check(iph);
+
+	return 0;
+}
+
+/**
+ * cipso_v4_skbuff_delattr - Delete any CIPSO options from a packet
+ * @skb: the packet
+ *
+ * Description:
+ * Removes any and all CIPSO options from the given packet.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+int cipso_v4_skbuff_delattr(struct sk_buff *skb)
+{
+	int ret_val;
+	struct iphdr *iph;
+	struct ip_options *opt = &IPCB(skb)->opt;
+	unsigned char *cipso_ptr;
+
+	if (opt->cipso == 0)
+		return 0;
+
+	/* since we are changing the packet we should make a copy */
+	ret_val = skb_cow(skb, skb_headroom(skb));
+	if (ret_val < 0)
+		return ret_val;
+
+	/* the easiest thing to do is just replace the cipso option with noop
+	 * options since we don't change the size of the packet, although we
+	 * still need to recalculate the checksum */
+
+	iph = ip_hdr(skb);
+	cipso_ptr = (unsigned char *)iph + opt->cipso;
+	memset(cipso_ptr, IPOPT_NOOP, cipso_ptr[1]);
+	opt->cipso = 0;
+	opt->is_changed = 1;
+
+	ip_send_check(iph);
+
+	return 0;
 }
 
 /**

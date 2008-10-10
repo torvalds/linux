@@ -208,6 +208,10 @@ int cipso_v4_sock_setattr(struct sock *sk,
 			  const struct cipso_v4_doi *doi_def,
 			  const struct netlbl_lsm_secattr *secattr);
 int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr);
+int cipso_v4_skbuff_setattr(struct sk_buff *skb,
+			    const struct cipso_v4_doi *doi_def,
+			    const struct netlbl_lsm_secattr *secattr);
+int cipso_v4_skbuff_delattr(struct sk_buff *skb);
 int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 			    struct netlbl_lsm_secattr *secattr);
 int cipso_v4_validate(unsigned char **option);
@@ -228,6 +232,18 @@ static inline int cipso_v4_sock_setattr(struct sock *sk,
 
 static inline int cipso_v4_sock_getattr(struct sock *sk,
 					struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+
+static inline int cipso_v4_skbuff_setattr(struct sk_buff *skb,
+				      const struct cipso_v4_doi *doi_def,
+				      const struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+
+static inline int cipso_v4_skbuff_delattr(struct sk_buff *skb)
 {
 	return -ENOSYS;
 }

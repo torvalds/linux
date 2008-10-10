@@ -382,6 +382,9 @@ int netlbl_sock_setattr(struct sock *sk,
 			const struct netlbl_lsm_secattr *secattr);
 int netlbl_sock_getattr(struct sock *sk,
 			struct netlbl_lsm_secattr *secattr);
+int netlbl_skbuff_setattr(struct sk_buff *skb,
+			  u16 family,
+			  const struct netlbl_lsm_secattr *secattr);
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr);
@@ -448,6 +451,12 @@ static inline int netlbl_sock_setattr(struct sock *sk,
 }
 static inline int netlbl_sock_getattr(struct sock *sk,
 				      struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_skbuff_setattr(struct sk_buff *skb,
+				      u16 family,
+				      const struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }

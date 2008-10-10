@@ -473,6 +473,66 @@ int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 }
 
 /**
+ * netlbl_skbuff_setattr - Label a packet using the correct protocol
+ * @skb: the packet
+ * @family: protocol family
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Attach the correct label to the given packet using the security attributes
+ * specified in @secattr.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_skbuff_setattr(struct sk_buff *skb,
+			  u16 family,
+			  const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	struct iphdr *hdr4;
+	struct netlbl_domaddr4_map *af4_entry;
+
+	rcu_read_lock();
+	switch (family) {
+	case AF_INET:
+		hdr4 = ip_hdr(skb);
+		af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						       hdr4->daddr);
+		if (af4_entry == NULL) {
+			ret_val = -ENOENT;
+			goto skbuff_setattr_return;
+		}
+		switch (af4_entry->type) {
+		case NETLBL_NLTYPE_CIPSOV4:
+			ret_val = cipso_v4_skbuff_setattr(skb,
+						   af4_entry->type_def.cipsov4,
+						   secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			ret_val = cipso_v4_skbuff_delattr(skb);
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		/* since we don't support any IPv6 labeling protocols right
+		 * now we can optimize everything away until we do */
+		ret_val = 0;
+		break;
+#endif /* IPv6 */
+	default:
+		ret_val = 0;
+	}
+
+skbuff_setattr_return:
+	rcu_read_unlock();
+	return ret_val;
+}
+
+/**
  * netlbl_skbuff_getattr - Determine the security attributes of a packet
  * @skb: the packet
  * @family: protocol family

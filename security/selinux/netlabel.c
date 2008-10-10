@@ -9,7 +9,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2007
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2007, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 #include <linux/rcupdate.h>
 #include <net/sock.h>
 #include <net/netlabel.h>
+#include <net/inet_sock.h>
+#include <net/inet_connection_sock.h>
 
 #include "objsec.h"
 #include "security.h"
@@ -77,6 +79,8 @@ static int selinux_netlbl_sock_setsid(struct sock *sk)
 	int rc;
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct netlbl_lsm_secattr secattr;
+	struct inet_sock *sk_inet;
+	struct inet_connection_sock *sk_conn;
 
 	if (sksec->nlbl_state != NLBL_REQUIRE)
 		return 0;
@@ -87,8 +91,29 @@ static int selinux_netlbl_sock_setsid(struct sock *sk)
 	if (rc != 0)
 		goto sock_setsid_return;
 	rc = netlbl_sock_setattr(sk, &secattr);
-	if (rc == 0)
+	switch (rc) {
+	case 0:
 		sksec->nlbl_state = NLBL_LABELED;
+		break;
+	case -EDESTADDRREQ:
+		/* we are going to possibly end up labeling the individual
+		 * packets later which is problematic for stream sockets
+		 * because of the additional IP header size, our solution is to
+		 * allow for the maximum IP header length (40 bytes for IPv4,
+		 * we don't have to worry about IPv6 yet) just in case */
+		sk_inet = inet_sk(sk);
+		if (sk_inet->is_icsk) {
+			sk_conn = inet_csk(sk);
+			if (sk_inet->opt)
+				sk_conn->icsk_ext_hdr_len -=
+							   sk_inet->opt->optlen;
+			sk_conn->icsk_ext_hdr_len += 40;
+			sk_conn->icsk_sync_mss(sk, sk_conn->icsk_pmtu_cookie);
+		}
+		sksec->nlbl_state = NLBL_REQSKB;
+		rc = 0;
+		break;
+	}
 
 sock_setsid_return:
 	netlbl_secattr_destroy(&secattr);
@@ -179,6 +204,45 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 	*type = secattr.type;
 	netlbl_secattr_destroy(&secattr);
 
+	return rc;
+}
+
+/**
+ * selinux_netlbl_skbuff_setsid - Set the NetLabel on a packet given a sid
+ * @skb: the packet
+ * @family: protocol family
+ * @sid: the SID
+ *
+ * Description
+ * Call the NetLabel mechanism to set the label of a packet using @sid.
+ * Returns zero on auccess, negative values on failure.
+ *
+ */
+int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
+				 u16 family,
+				 u32 sid)
+{
+	int rc;
+	struct netlbl_lsm_secattr secattr;
+	struct sock *sk;
+
+	/* if this is a locally generated packet check to see if it is already
+	 * being labeled by it's parent socket, if it is just exit */
+	sk = skb->sk;
+	if (sk != NULL) {
+		struct sk_security_struct *sksec = sk->sk_security;
+		if (sksec->nlbl_state != NLBL_REQSKB)
+			return 0;
+	}
+
+	netlbl_secattr_init(&secattr);
+	rc = security_netlbl_sid_to_secattr(sid, &secattr);
+	if (rc != 0)
+		goto skbuff_setsid_return;
+	rc = netlbl_skbuff_setattr(skb, family, &secattr);
+
+skbuff_setsid_return:
+	netlbl_secattr_destroy(&secattr);
 	return rc;
 }
 

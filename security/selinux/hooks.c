@@ -4407,13 +4407,15 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb, int ifindex,
 	u32 peer_sid;
 	struct avc_audit_data ad;
 	u8 secmark_active;
+	u8 netlbl_active;
 	u8 peerlbl_active;
 
 	if (!selinux_policycap_netpeer)
 		return NF_ACCEPT;
 
 	secmark_active = selinux_secmark_enabled();
-	peerlbl_active = netlbl_enabled() || selinux_xfrm_enabled();
+	netlbl_active = netlbl_enabled();
+	peerlbl_active = netlbl_active || selinux_xfrm_enabled();
 	if (!secmark_active && !peerlbl_active)
 		return NF_ACCEPT;
 
@@ -4440,6 +4442,14 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb, int ifindex,
 				 SECCLASS_PACKET, PACKET__FORWARD_IN, &ad))
 			return NF_DROP;
 
+	if (netlbl_active)
+		/* we do this in the FORWARD path and not the POST_ROUTING
+		 * path because we want to make sure we apply the necessary
+		 * labeling before IPsec is applied so we can leverage AH
+		 * protection */
+		if (selinux_netlbl_skbuff_setsid(skb, family, peer_sid) != 0)
+			return NF_DROP;
+
 	return NF_ACCEPT;
 }
 
@@ -4462,6 +4472,37 @@ static unsigned int selinux_ipv6_forward(unsigned int hooknum,
 	return selinux_ip_forward(skb, in->ifindex, PF_INET6);
 }
 #endif	/* IPV6 */
+
+static unsigned int selinux_ip_output(struct sk_buff *skb,
+				      u16 family)
+{
+	u32 sid;
+
+	if (!netlbl_enabled())
+		return NF_ACCEPT;
+
+	/* we do this in the LOCAL_OUT path and not the POST_ROUTING path
+	 * because we want to make sure we apply the necessary labeling
+	 * before IPsec is applied so we can leverage AH protection */
+	if (skb->sk) {
+		struct sk_security_struct *sksec = skb->sk->sk_security;
+		sid = sksec->sid;
+	} else
+		sid = SECINITSID_KERNEL;
+	if (selinux_netlbl_skbuff_setsid(skb, family, sid) != 0)
+		return NF_DROP;
+
+	return NF_ACCEPT;
+}
+
+static unsigned int selinux_ipv4_output(unsigned int hooknum,
+					struct sk_buff *skb,
+					const struct net_device *in,
+					const struct net_device *out,
+					int (*okfn)(struct sk_buff *))
+{
+	return selinux_ip_output(skb, PF_INET);
+}
 
 static int selinux_ip_postroute_iptables_compat(struct sock *sk,
 						int ifindex,
@@ -5699,6 +5740,13 @@ static struct nf_hook_ops selinux_ipv4_ops[] = {
 		.owner =	THIS_MODULE,
 		.pf =		PF_INET,
 		.hooknum =	NF_INET_FORWARD,
+		.priority =	NF_IP_PRI_SELINUX_FIRST,
+	},
+	{
+		.hook =		selinux_ipv4_output,
+		.owner =	THIS_MODULE,
+		.pf =		PF_INET,
+		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP_PRI_SELINUX_FIRST,
 	}
 };

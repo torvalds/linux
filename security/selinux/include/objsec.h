@@ -117,6 +117,7 @@ struct sk_security_struct {
 		NLBL_UNSET = 0,
 		NLBL_REQUIRE,
 		NLBL_LABELED,
+		NLBL_REQSKB,
 	} nlbl_state;
 #endif
 };
