@@ -92,3 +92,16 @@ out:
 	local_irq_restore(flags);
 	preempt_enable();
 }
+
+/*
+ * Simple udelay variant. To be used on startup and reboot
+ * when the interrupt handler isn't working.
+ */
+void udelay_simple(unsigned long usecs)
+{
+	u64 end;
+
+	end = get_clock() + ((u64) usecs << 12);
+	while (get_clock() < end)
+		cpu_relax();
+}

@@ -859,19 +859,6 @@ __disable_subchannel_easy(struct subchannel_id schid, struct schib *schib)
 	return -EBUSY; /* uhm... */
 }
 
-/* we can't use the normal udelay here, since it enables external interrupts */
-
-static void udelay_reset(unsigned long usecs)
-{
-	uint64_t start_cc, end_cc;
-
-	asm volatile ("STCK %0" : "=m" (start_cc));
-	do {
-		cpu_relax();
-		asm volatile ("STCK %0" : "=m" (end_cc));
-	} while (((end_cc - start_cc)/4096) < usecs);
-}
-
 static int
 __clear_io_subchannel_easy(struct subchannel_id schid)
 {
@@ -887,7 +874,7 @@ __clear_io_subchannel_easy(struct subchannel_id schid)
 			if (schid_equal(&ti.schid, &schid))
 				return 0;
 		}
-		udelay_reset(100);
+		udelay_simple(100);
 	}
 	return -EBUSY;
 }
@@ -895,7 +882,7 @@ __clear_io_subchannel_easy(struct subchannel_id schid)
 static void __clear_chsc_subchannel_easy(void)
 {
 	/* It seems we can only wait for a bit here :/ */
-	udelay_reset(100);
+	udelay_simple(100);
 }
 
 static int pgm_check_occured;
