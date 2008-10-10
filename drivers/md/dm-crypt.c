@@ -517,6 +517,11 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 	}
 }
 
+static void crypt_inc_pending(struct dm_crypt_io *io)
+{
+	atomic_inc(&io->pending);
+}
+
 /*
  * One of the bios was finished. Check for completion of
  * the whole request and correctly clean up the buffer.
@@ -591,7 +596,7 @@ static void kcryptd_io_read(struct dm_crypt_io *io)
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
 
-	atomic_inc(&io->pending);
+	crypt_inc_pending(io);
 
 	/*
 	 * The block layer might modify the bvec array, so always
@@ -665,7 +670,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
 	if (async)
 		kcryptd_queue_io(io);
 	else {
-		atomic_inc(&io->pending);
+		crypt_inc_pending(io);
 		generic_make_request(clone);
 	}
 }
@@ -701,7 +706,7 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 			if (unlikely(r < 0))
 				return;
 		} else
-			atomic_inc(&io->pending);
+			crypt_inc_pending(io);
 
 		/* out of memory -> run queues */
 		if (unlikely(remaining)) {
@@ -720,7 +725,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	/*
 	 * Prevent io from disappearing until this function completes.
 	 */
-	atomic_inc(&io->pending);
+	crypt_inc_pending(io);
 
 	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
 	kcryptd_crypt_write_convert_loop(io);
@@ -741,7 +746,7 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	struct crypt_config *cc = io->target->private;
 	int r = 0;
 
-	atomic_inc(&io->pending);
+	crypt_inc_pending(io);
 
 	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
 			   io->sector);
