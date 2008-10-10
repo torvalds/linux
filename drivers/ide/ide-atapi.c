@@ -139,6 +139,29 @@ void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
 }
 EXPORT_SYMBOL_GPL(ide_queue_pc_head);
 
+/*
+ * Add a special packet command request to the tail of the request queue,
+ * and wait for it to be serviced.
+ */
+int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
+		      struct ide_atapi_pc *pc)
+{
+	struct request *rq;
+	int error;
+
+	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->buffer = (char *)pc;
+	memcpy(rq->cmd, pc->c, 12);
+	if (drive->media == ide_tape)
+		rq->cmd[13] = REQ_IDETAPE_PC1;
+	error = blk_execute_rq(drive->queue, disk, rq, 0);
+	blk_put_request(rq);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(ide_queue_pc_tail);
+
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,

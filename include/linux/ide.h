@@ -1136,6 +1136,7 @@ enum {
 
 void ide_queue_pc_head(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *,
 		       struct request *);
+int ide_queue_pc_tail(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *);
 
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
