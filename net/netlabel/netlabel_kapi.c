@@ -82,7 +82,7 @@ int netlbl_cfg_unlbl_add_map(const char *domain,
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
-		goto cfg_unlbl_add_map_failure;
+		return -ENOMEM;
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
@@ -100,49 +100,6 @@ cfg_unlbl_add_map_failure:
 	if (entry != NULL)
 		kfree(entry->domain);
 	kfree(entry);
-	return ret_val;
-}
-
-/**
- * netlbl_cfg_cipsov4_add - Add a new CIPSOv4 DOI definition
- * @doi_def: the DOI definition
- * @audit_info: NetLabel audit information
- *
- * Description:
- * Add a new CIPSOv4 DOI definition to the NetLabel subsystem.  Returns zero on
- * success, negative values on failure.
- *
- */
-int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
-			   struct netlbl_audit *audit_info)
-{
-	int ret_val;
-	const char *type_str;
-	struct audit_buffer *audit_buf;
-
-	ret_val = cipso_v4_doi_add(doi_def);
-
-	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
-					      audit_info);
-	if (audit_buf != NULL) {
-		switch (doi_def->type) {
-		case CIPSO_V4_MAP_STD:
-			type_str = "std";
-			break;
-		case CIPSO_V4_MAP_PASS:
-			type_str = "pass";
-			break;
-		default:
-			type_str = "(unknown)";
-		}
-		audit_log_format(audit_buf,
-				 " cipso_doi=%u cipso_type=%s res=%u",
-				 doi_def->doi,
-				 type_str,
-				 ret_val == 0 ? 1 : 0);
-		audit_log_end(audit_buf);
-	}
-
 	return ret_val;
 }
 
@@ -165,10 +122,12 @@ int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 {
 	int ret_val = -ENOMEM;
 	struct netlbl_dom_map *entry;
+	const char *type_str;
+	struct audit_buffer *audit_buf;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
-		goto cfg_cipsov4_add_map_failure;
+		return -ENOMEM;
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
@@ -182,7 +141,7 @@ int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 	 * domain mapping for it. */
 
 	rcu_read_lock();
-	ret_val = netlbl_cfg_cipsov4_add(doi_def, audit_info);
+	ret_val = cipso_v4_doi_add(doi_def);
 	if (ret_val != 0)
 		goto cfg_cipsov4_add_map_failure_unlock;
 	ret_val = netlbl_domhsh_add(entry, audit_info);
@@ -196,26 +155,29 @@ cfg_cipsov4_add_map_failure_remove_doi:
 	cipso_v4_doi_remove(doi_def->doi, audit_info, netlbl_cipsov4_doi_free);
 cfg_cipsov4_add_map_failure_unlock:
 	rcu_read_unlock();
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
+					      audit_info);
+	if (audit_buf != NULL) {
+		switch (doi_def->type) {
+		case CIPSO_V4_MAP_STD:
+			type_str = "std";
+			break;
+		case CIPSO_V4_MAP_PASS:
+			type_str = "pass";
+			break;
+		default:
+			type_str = "(unknown)";
+		}
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u cipso_type=%s res=%u",
+				 doi_def->doi, type_str, ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 cfg_cipsov4_add_map_failure:
 	if (entry != NULL)
 		kfree(entry->domain);
 	kfree(entry);
 	return ret_val;
-}
-
-/**
- * netlbl_cfg_cipsov4_del - Removean existing CIPSOv4 DOI definition
- * @doi: the CIPSO DOI value
- * @audit_info: NetLabel audit information
- *
- * Description:
- * Removes an existing CIPSOv4 DOI definition from the NetLabel subsystem.
- * Returns zero on success, negative values on failure.
- *
- */
-int netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info)
-{
-	return cipso_v4_doi_remove(doi, audit_info, netlbl_cipsov4_doi_free);
 }
 
 /*

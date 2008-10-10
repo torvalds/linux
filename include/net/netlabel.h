@@ -352,12 +352,9 @@ static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info);
 int netlbl_cfg_unlbl_add_map(const char *domain,
 			     struct netlbl_audit *audit_info);
-int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
-			   struct netlbl_audit *audit_info);
 int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 			       const char *domain,
 			       struct netlbl_audit *audit_info);
-int netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info);
 
 /*
  * LSM security attribute operations
@@ -404,19 +401,9 @@ static inline int netlbl_cfg_unlbl_add_map(const char *domain,
 {
 	return -ENOSYS;
 }
-static inline int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
-					 struct netlbl_audit *audit_info)
-{
-	return -ENOSYS;
-}
 static inline int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 					     const char *domain,
 					     struct netlbl_audit *audit_info)
-{
-	return -ENOSYS;
-}
-static inline int netlbl_cfg_cipsov4_del(u32 doi,
-					 struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
 }
