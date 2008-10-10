@@ -58,6 +58,15 @@
 # define CHK_DEBUGGER_TRAP_MAYBE() do { } while (0)
 #endif
 
+
+#ifdef CONFIG_VERBOSE_DEBUG
+#define verbose_printk(fmt, arg...) \
+	printk(fmt, ##arg)
+#else
+#define verbose_printk(fmt, arg...) \
+	({ if (0) printk(fmt, ##arg); 0; })
+#endif
+
 /* Initiate the event table handler */
 void __init trap_init(void)
 {
@@ -78,6 +87,7 @@ unsigned long saved_retx, saved_seqstat,
 
 static void decode_address(char *buf, unsigned long address)
 {
+#ifdef CONFIG_DEBUG_VERBOSE
 	struct vm_list_struct *vml;
 	struct task_struct *p;
 	struct mm_struct *mm;
@@ -185,12 +195,16 @@ static void decode_address(char *buf, unsigned long address)
 
 done:
 	write_unlock_irqrestore(&tasklist_lock, flags);
+#else
+	sprintf(buf, " ");
+#endif
 }
 
 asmlinkage void double_fault_c(struct pt_regs *fp)
 {
 	console_verbose();
 	oops_in_progress = 1;
+#ifdef CONFIG_DEBUG_VERBOSE
 	printk(KERN_EMERG "\n" KERN_EMERG "Double Fault\n");
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) == VEC_UNCOV) {
@@ -213,6 +227,7 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 		dump_bfin_mem(fp);
 		show_regs(fp);
 	}
+#endif
 	panic("Double Fault - unrecoverable event\n");
 
 }
@@ -288,7 +303,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_EXCPT03:
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
-		printk(KERN_NOTICE EXC_0x03(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x03(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x02 - KGDB initial connection and break signal trap */
@@ -317,7 +332,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_EXCPT04 ... VEC_EXCPT15:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x04(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x04(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x10 HW Single step, handled here */
@@ -334,7 +349,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
-		printk(KERN_NOTICE EXC_0x11(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x11(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x12 - Reserved, Caught by default */
@@ -356,35 +371,35 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x21(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x21(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x22 - Illegal Instruction Combination, handled here */
 	case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x22(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x22(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x23 - Data CPLB protection violation, handled here */
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x23(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x23(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x24(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x24(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x25 - Unrecoverable Event, handled here */
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x25(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x25(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr,
@@ -392,7 +407,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_CPLB_M:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x26(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x26(KERN_NOTICE));
 		break;
 	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
 	case VEC_CPLB_MHIT:
@@ -400,10 +415,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGSEGV;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		if (saved_dcplb_fault_addr < FIXED_CODE_START)
-			printk(KERN_NOTICE "NULL pointer access\n");
+			verbose_printk(KERN_NOTICE "NULL pointer access\n");
 		else
 #endif
-			printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
+			verbose_printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x28 - Emulation Watchpoint, handled here */
@@ -422,7 +437,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_ISTRU_VL:      /* ADSP-BF535 only (MH) */
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
-		printk(KERN_NOTICE "BF535: VEC_ISTRU_VL\n");
+		verbose_printk(KERN_NOTICE "BF535: VEC_ISTRU_VL\n");
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 #else
@@ -432,21 +447,21 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x2A(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x2A(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2B - Instruction CPLB protection violation, handled here */
 	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x2B(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x2B(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
 	case VEC_CPLB_I_M:
 		info.si_code = ILL_CPLB_MISS;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x2C(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x2C(KERN_NOTICE));
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
 	case VEC_CPLB_I_MHIT:
@@ -454,17 +469,17 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGSEGV;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		if (saved_icplb_fault_addr < FIXED_CODE_START)
-			printk(KERN_NOTICE "Jump to NULL address\n");
+			verbose_printk(KERN_NOTICE "Jump to NULL address\n");
 		else
 #endif
-			printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
+			verbose_printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2E - Illegal use of Supervisor Resource, handled here */
 	case VEC_ILL_RES:
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x2E(KERN_NOTICE));
+		verbose_printk(KERN_NOTICE EXC_0x2E(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2F - Reserved, Caught by default */
@@ -492,17 +507,17 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):
 			info.si_code = BUS_ADRALN;
 			sig = SIGBUS;
-			printk(KERN_NOTICE HWC_x2(KERN_NOTICE));
+			verbose_printk(KERN_NOTICE HWC_x2(KERN_NOTICE));
 			break;
 		/* External Memory Addressing Error */
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
-			printk(KERN_NOTICE HWC_x3(KERN_NOTICE));
+			verbose_printk(KERN_NOTICE HWC_x3(KERN_NOTICE));
 			break;
 		/* Performance Monitor Overflow */
 		case (SEQSTAT_HWERRCAUSE_PERF_FLOW):
-			printk(KERN_NOTICE HWC_x12(KERN_NOTICE));
+			verbose_printk(KERN_NOTICE HWC_x12(KERN_NOTICE));
 			break;
 		/* RAISE 5 instruction */
 		case (SEQSTAT_HWERRCAUSE_RAISE_5):
@@ -522,7 +537,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		oops_in_progress = 1;
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		printk(KERN_EMERG "Caught Unhandled Exception, code = %08lx\n",
+		verbose_printk(KERN_EMERG "Caught Unhandled Exception, code = %08lx\n",
 			(fp->seqstat & SEQSTAT_EXCAUSE));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
@@ -531,7 +546,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	BUG_ON(sig == 0);
 
 	if (sig != SIGTRAP) {
-		unsigned long *stack;
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
@@ -539,7 +553,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		/* Print out the trace buffer if it makes sense */
 #ifndef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
 		if (trapnr == VEC_CPLB_I_M || trapnr == VEC_CPLB_M)
-			printk(KERN_NOTICE "No trace since you do not have "
+			verbose_printk(KERN_NOTICE "No trace since you do not have "
 				"CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE enabled\n"
 				KERN_NOTICE "\n");
 		else
@@ -548,20 +562,22 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 		if (oops_in_progress) {
 			/* Dump the current kernel stack */
-			printk(KERN_NOTICE "\n" KERN_NOTICE "Kernel Stack\n");
+			verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "Kernel Stack\n");
 			show_stack(current, NULL);
-
 			print_modules();
 #ifndef CONFIG_ACCESS_CHECK
-			printk(KERN_EMERG "Please turn on "
+			verbose_printk(KERN_EMERG "Please turn on "
 			       "CONFIG_ACCESS_CHECK\n");
 #endif
 			panic("Kernel exception");
 		} else {
+#ifdef CONFIG_VERBOSE_DEBUG
+			unsigned long *stack;
 			/* Dump the user space stack */
 			stack = (unsigned long *)rdusp();
-			printk(KERN_NOTICE "Userspace Stack\n");
+			verbose_printk(KERN_NOTICE "Userspace Stack\n");
 			show_stack(NULL, stack);
+#endif
 		}
 	}
 
@@ -582,7 +598,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
  * Similar to get_user, do some address checking, then dereference
  * Return true on sucess, false on bad address
  */
-bool get_instruction(unsigned short *val, unsigned short *address)
+static bool get_instruction(unsigned short *val, unsigned short *address)
 {
 
 	unsigned long addr;
@@ -643,45 +659,48 @@ bool get_instruction(unsigned short *val, unsigned short *address)
  * These are the normal instructions which cause change of flow, which
  * would be at the source of the trace buffer
  */
-void decode_instruction(unsigned short *address)
+#ifdef CONFIG_DEBUG_VERBOSE
+static void decode_instruction(unsigned short *address)
 {
 	unsigned short opcode;
 
 	if (get_instruction(&opcode, address)) {
 		if (opcode == 0x0010)
-			printk("RTS");
+			verbose_printk("RTS");
 		else if (opcode == 0x0011)
-			printk("RTI");
+			verbose_printk("RTI");
 		else if (opcode == 0x0012)
-			printk("RTX");
+			verbose_printk("RTX");
 		else if (opcode >= 0x0050 && opcode <= 0x0057)
-			printk("JUMP (P%i)", opcode & 7);
+			verbose_printk("JUMP (P%i)", opcode & 7);
 		else if (opcode >= 0x0060 && opcode <= 0x0067)
-			printk("CALL (P%i)", opcode & 7);
+			verbose_printk("CALL (P%i)", opcode & 7);
 		else if (opcode >= 0x0070 && opcode <= 0x0077)
-			printk("CALL (PC+P%i)", opcode & 7);
+			verbose_printk("CALL (PC+P%i)", opcode & 7);
 		else if (opcode >= 0x0080 && opcode <= 0x0087)
-			printk("JUMP (PC+P%i)", opcode & 7);
+			verbose_printk("JUMP (PC+P%i)", opcode & 7);
 		else if ((opcode >= 0x1000 && opcode <= 0x13FF) || (opcode >= 0x1800 && opcode <= 0x1BFF))
-			printk("IF !CC JUMP");
+			verbose_printk("IF !CC JUMP");
 		else if ((opcode >= 0x1400 && opcode <= 0x17ff) || (opcode >= 0x1c00 && opcode <= 0x1fff))
-			printk("IF CC JUMP");
+			verbose_printk("IF CC JUMP");
 		else if (opcode >= 0x2000 && opcode <= 0x2fff)
-			printk("JUMP.S");
+			verbose_printk("JUMP.S");
 		else if (opcode >= 0xe080 && opcode <= 0xe0ff)
-			printk("LSETUP");
+			verbose_printk("LSETUP");
 		else if (opcode >= 0xe200 && opcode <= 0xe2ff)
-			printk("JUMP.L");
+			verbose_printk("JUMP.L");
 		else if (opcode >= 0xe300 && opcode <= 0xe3ff)
-			printk("CALL pcrel");
+			verbose_printk("CALL pcrel");
 		else
-			printk("0x%04x", opcode);
+			verbose_printk("0x%04x", opcode);
 	}
 
 }
+#endif
 
 void dump_bfin_trace_buffer(void)
 {
+#ifdef CONFIG_DEBUG_VERBOSE
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int tflags, i = 0;
 	char buf[150];
@@ -737,6 +756,7 @@ void dump_bfin_trace_buffer(void)
 
 	trace_buffer_restore(tflags);
 #endif
+#endif
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
@@ -744,7 +764,7 @@ EXPORT_SYMBOL(dump_bfin_trace_buffer);
  * Checks to see if the address pointed to is either a
  * 16-bit CALL instruction, or a 32-bit CALL instruction
  */
-bool is_bfin_call(unsigned short *addr)
+static bool is_bfin_call(unsigned short *addr)
 {
 	unsigned short opcode = 0, *ins_addr;
 	ins_addr = (unsigned short *)addr;
@@ -766,8 +786,10 @@ bool is_bfin_call(unsigned short *addr)
 	return false;
 
 }
+
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
+#ifdef CONFIG_PRINTK
 	unsigned int *addr, *endstack, *fp = 0, *frame;
 	unsigned short *ins_addr;
 	char buf[150];
@@ -792,8 +814,10 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	} else
 		endstack = (unsigned int *)PAGE_ALIGN((unsigned int)stack);
 
+	printk(KERN_NOTICE "Stack info:\n");
 	decode_address(buf, (unsigned int)stack);
-	printk(KERN_NOTICE "Stack info:\n" KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
+	printk(KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
+
 	addr = (unsigned int *)((unsigned int)stack & ~0x3F);
 
 	/* First thing is to look for a frame pointer */
@@ -884,7 +908,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		if (!j)
 			printk("\n");
 	}
-
+#endif
 }
 
 void dump_stack(void)
@@ -902,38 +926,39 @@ EXPORT_SYMBOL(dump_stack);
 
 void dump_bfin_process(struct pt_regs *fp)
 {
+#ifdef CONFIG_DEBUG_VERBOSE
 	/* We should be able to look at fp->ipend, but we don't push it on the
 	 * stack all the time, so do this until we fix that */
 	unsigned int context = bfin_read_IPEND();
 
 	if (oops_in_progress)
-		printk(KERN_EMERG "Kernel OOPS in progress\n");
+		verbose_printk(KERN_EMERG "Kernel OOPS in progress\n");
 
 	if (context & 0x0020 && (fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR)
-		printk(KERN_NOTICE "HW Error context\n");
+		verbose_printk(KERN_NOTICE "HW Error context\n");
 	else if (context & 0x0020)
-		printk(KERN_NOTICE "Deferred Exception context\n");
+		verbose_printk(KERN_NOTICE "Deferred Exception context\n");
 	else if (context & 0x3FC0)
-		printk(KERN_NOTICE "Interrupt context\n");
+		verbose_printk(KERN_NOTICE "Interrupt context\n");
 	else if (context & 0x4000)
-		printk(KERN_NOTICE "Deferred Interrupt context\n");
+		verbose_printk(KERN_NOTICE "Deferred Interrupt context\n");
 	else if (context & 0x8000)
-		printk(KERN_NOTICE "Kernel process context\n");
+		verbose_printk(KERN_NOTICE "Kernel process context\n");
 
 	/* Because we are crashing, and pointers could be bad, we check things
 	 * pretty closely before we use them
 	 */
 	if ((unsigned long)current >= FIXED_CODE_START &&
 	    !((unsigned long)current & 0x3) && current->pid) {
-		printk(KERN_NOTICE "CURRENT PROCESS:\n");
+		verbose_printk(KERN_NOTICE "CURRENT PROCESS:\n");
 		if (current->comm >= (char *)FIXED_CODE_START)
-			printk(KERN_NOTICE "COMM=%s PID=%d\n",
+			verbose_printk(KERN_NOTICE "COMM=%s PID=%d\n",
 				current->comm, current->pid);
 		else
-			printk(KERN_NOTICE "COMM= invalid\n");
+			verbose_printk(KERN_NOTICE "COMM= invalid\n");
 
 		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
-			printk(KERN_NOTICE  "TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
+			verbose_printk(KERN_NOTICE  "TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
 				KERN_NOTICE " BSS = 0x%p-0x%p  USER-STACK = 0x%p\n"
 				KERN_NOTICE "\n",
 				(void *)current->mm->start_code,
@@ -944,26 +969,28 @@ void dump_bfin_process(struct pt_regs *fp)
 				(void *)current->mm->brk,
 				(void *)current->mm->start_stack);
 		else
-			printk(KERN_NOTICE "invalid mm\n");
+			verbose_printk(KERN_NOTICE "invalid mm\n");
 	} else
-		printk(KERN_NOTICE "\n" KERN_NOTICE
+		verbose_printk(KERN_NOTICE "\n" KERN_NOTICE
 		     "No Valid process in current context\n");
+#endif
 }
 
 void dump_bfin_mem(struct pt_regs *fp)
 {
+#ifdef CONFIG_DEBUG_VERBOSE
 	unsigned short *addr, *erraddr, val = 0, err = 0;
 	char sti = 0, buf[6];
 
 	erraddr = (void *)fp->pc;
 
-	printk(KERN_NOTICE "return address: [0x%p]; contents of:", erraddr);
+	verbose_printk(KERN_NOTICE "return address: [0x%p]; contents of:", erraddr);
 
 	for (addr = (unsigned short *)((unsigned long)erraddr & ~0xF) - 0x10;
 	     addr < (unsigned short *)((unsigned long)erraddr & ~0xF) + 0x10;
 	     addr++) {
 		if (!((unsigned long)addr & 0xF))
-			printk("\n" KERN_NOTICE "0x%p: ", addr);
+			verbose_printk("\n" KERN_NOTICE "0x%p: ", addr);
 
 		if (!get_instruction(&val, addr)) {
 				val = 0;
@@ -972,10 +999,10 @@ void dump_bfin_mem(struct pt_regs *fp)
 			sprintf(buf, "%04x", val);
 
 		if (addr == erraddr) {
-			printk("[%s]", buf);
+			verbose_printk("[%s]", buf);
 			err = val;
 		} else
-			printk(" %s ", buf);
+			verbose_printk(" %s ", buf);
 
 		/* Do any previous instructions turn on interrupts? */
 		if (addr <= erraddr &&				/* in the past */
@@ -984,14 +1011,14 @@ void dump_bfin_mem(struct pt_regs *fp)
 			sti = 1;
 	}
 
-	printk("\n");
+	verbose_printk("\n");
 
 	/* Hardware error interrupts can be deferred */
 	if (unlikely(sti && (fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR &&
 	    oops_in_progress)){
-		printk(KERN_NOTICE "Looks like this was a deferred error - sorry\n");
+		verbose_printk(KERN_NOTICE "Looks like this was a deferred error - sorry\n");
 #ifndef CONFIG_DEBUG_HWERR
-		printk(KERN_NOTICE "The remaining message may be meaningless\n"
+		verbose_printk(KERN_NOTICE "The remaining message may be meaningless\n"
 			KERN_NOTICE "You should enable CONFIG_DEBUG_HWERR to get a"
 			 " better idea where it came from\n");
 #else
@@ -1005,45 +1032,47 @@ void dump_bfin_mem(struct pt_regs *fp)
 			/* And the last RETI points to the current userspace context */
 			if ((fp + 1)->pc >= current->mm->start_code &&
 			    (fp + 1)->pc <= current->mm->end_code) {
-				printk(KERN_NOTICE "It might be better to look around here : \n");
-				printk(KERN_NOTICE "-------------------------------------------\n");
+				verbose_printk(KERN_NOTICE "It might be better to look around here : \n");
+				verbose_printk(KERN_NOTICE "-------------------------------------------\n");
 				show_regs(fp + 1);
-				printk(KERN_NOTICE "-------------------------------------------\n");
+				verbose_printk(KERN_NOTICE "-------------------------------------------\n");
 			}
 		}
 #endif
 	}
+#endif
 }
 
 void show_regs(struct pt_regs *fp)
 {
+#ifdef CONFIG_DEBUG_VERBOSE
 	char buf [150];
 	struct irqaction *action;
 	unsigned int i;
 	unsigned long flags;
 
-	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
-	printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
+	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
+	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
 		(long)fp->seqstat, fp->ipend, fp->syscfg);
 	if ((fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR) {
-		printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
+		verbose_printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
 			(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14);
 #ifdef EBIU_ERRMST
 		/* If the error was from the EBIU, print it out */
 		if (bfin_read_EBIU_ERRMST() & CORE_ERROR) {
-			printk(KERN_NOTICE "  EBIU Error Reason  : 0x%04x\n",
+			verbose_printk(KERN_NOTICE "  EBIU Error Reason  : 0x%04x\n",
 				bfin_read_EBIU_ERRMST());
-			printk(KERN_NOTICE "  EBIU Error Address : 0x%08x\n",
+			verbose_printk(KERN_NOTICE "  EBIU Error Address : 0x%08x\n",
 				bfin_read_EBIU_ERRADD());
 		}
 #endif
 	}
-	printk(KERN_NOTICE "  EXCAUSE   : 0x%lx\n",
+	verbose_printk(KERN_NOTICE "  EXCAUSE   : 0x%lx\n",
 		fp->seqstat & SEQSTAT_EXCAUSE);
 	for (i = 6; i <= 15 ; i++) {
 		if (fp->ipend & (1 << i)) {
 			decode_address(buf, bfin_read32(EVT0 + 4*i));
-			printk(KERN_NOTICE "  physical IVG%i asserted : %s\n", i, buf);
+			verbose_printk(KERN_NOTICE "  physical IVG%i asserted : %s\n", i, buf);
 		}
 	}
 
@@ -1056,64 +1085,65 @@ void show_regs(struct pt_regs *fp)
 				goto unlock;
 
 			decode_address(buf, (unsigned int)action->handler);
-			printk(KERN_NOTICE "  logical irq %3d mapped  : %s", i, buf);
+			verbose_printk(KERN_NOTICE "  logical irq %3d mapped  : %s", i, buf);
 			for (action = action->next; action; action = action->next) {
 				decode_address(buf, (unsigned int)action->handler);
-				printk(", %s", buf);
+				verbose_printk(", %s", buf);
 			}
-			printk("\n");
+			verbose_printk("\n");
 unlock:
 			spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 		}
 	}
 
 	decode_address(buf, fp->rete);
-	printk(KERN_NOTICE " RETE: %s\n", buf);
+	verbose_printk(KERN_NOTICE " RETE: %s\n", buf);
 	decode_address(buf, fp->retn);
-	printk(KERN_NOTICE " RETN: %s\n", buf);
+	verbose_printk(KERN_NOTICE " RETN: %s\n", buf);
 	decode_address(buf, fp->retx);
-	printk(KERN_NOTICE " RETX: %s\n", buf);
+	verbose_printk(KERN_NOTICE " RETX: %s\n", buf);
 	decode_address(buf, fp->rets);
-	printk(KERN_NOTICE " RETS: %s\n", buf);
+	verbose_printk(KERN_NOTICE " RETS: %s\n", buf);
 	decode_address(buf, fp->pc);
-	printk(KERN_NOTICE " PC  : %s\n", buf);
+	verbose_printk(KERN_NOTICE " PC  : %s\n", buf);
 
 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) &&
 	    (((long)fp->seqstat & SEQSTAT_EXCAUSE) != VEC_HWERR)) {
 		decode_address(buf, saved_dcplb_fault_addr);
-		printk(KERN_NOTICE "DCPLB_FAULT_ADDR: %s\n", buf);
+		verbose_printk(KERN_NOTICE "DCPLB_FAULT_ADDR: %s\n", buf);
 		decode_address(buf, saved_icplb_fault_addr);
-		printk(KERN_NOTICE "ICPLB_FAULT_ADDR: %s\n", buf);
+		verbose_printk(KERN_NOTICE "ICPLB_FAULT_ADDR: %s\n", buf);
 	}
 
-	printk(KERN_NOTICE "\n" KERN_NOTICE "PROCESSOR STATE:\n");
-	printk(KERN_NOTICE " R0 : %08lx    R1 : %08lx    R2 : %08lx    R3 : %08lx\n",
+	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "PROCESSOR STATE:\n");
+	verbose_printk(KERN_NOTICE " R0 : %08lx    R1 : %08lx    R2 : %08lx    R3 : %08lx\n",
 		fp->r0, fp->r1, fp->r2, fp->r3);
-	printk(KERN_NOTICE " R4 : %08lx    R5 : %08lx    R6 : %08lx    R7 : %08lx\n",
+	verbose_printk(KERN_NOTICE " R4 : %08lx    R5 : %08lx    R6 : %08lx    R7 : %08lx\n",
 		fp->r4, fp->r5, fp->r6, fp->r7);
-	printk(KERN_NOTICE " P0 : %08lx    P1 : %08lx    P2 : %08lx    P3 : %08lx\n",
+	verbose_printk(KERN_NOTICE " P0 : %08lx    P1 : %08lx    P2 : %08lx    P3 : %08lx\n",
 		fp->p0, fp->p1, fp->p2, fp->p3);
-	printk(KERN_NOTICE " P4 : %08lx    P5 : %08lx    FP : %08lx    SP : %08lx\n",
+	verbose_printk(KERN_NOTICE " P4 : %08lx    P5 : %08lx    FP : %08lx    SP : %08lx\n",
 		fp->p4, fp->p5, fp->fp, (long)fp);
-	printk(KERN_NOTICE " LB0: %08lx    LT0: %08lx    LC0: %08lx\n",
+	verbose_printk(KERN_NOTICE " LB0: %08lx    LT0: %08lx    LC0: %08lx\n",
 		fp->lb0, fp->lt0, fp->lc0);
-	printk(KERN_NOTICE " LB1: %08lx    LT1: %08lx    LC1: %08lx\n",
+	verbose_printk(KERN_NOTICE " LB1: %08lx    LT1: %08lx    LC1: %08lx\n",
 		fp->lb1, fp->lt1, fp->lc1);
-	printk(KERN_NOTICE " B0 : %08lx    L0 : %08lx    M0 : %08lx    I0 : %08lx\n",
+	verbose_printk(KERN_NOTICE " B0 : %08lx    L0 : %08lx    M0 : %08lx    I0 : %08lx\n",
 		fp->b0, fp->l0, fp->m0, fp->i0);
-	printk(KERN_NOTICE " B1 : %08lx    L1 : %08lx    M1 : %08lx    I1 : %08lx\n",
+	verbose_printk(KERN_NOTICE " B1 : %08lx    L1 : %08lx    M1 : %08lx    I1 : %08lx\n",
 		fp->b1, fp->l1, fp->m1, fp->i1);
-	printk(KERN_NOTICE " B2 : %08lx    L2 : %08lx    M2 : %08lx    I2 : %08lx\n",
+	verbose_printk(KERN_NOTICE " B2 : %08lx    L2 : %08lx    M2 : %08lx    I2 : %08lx\n",
 		fp->b2, fp->l2, fp->m2, fp->i2);
-	printk(KERN_NOTICE " B3 : %08lx    L3 : %08lx    M3 : %08lx    I3 : %08lx\n",
+	verbose_printk(KERN_NOTICE " B3 : %08lx    L3 : %08lx    M3 : %08lx    I3 : %08lx\n",
 		fp->b3, fp->l3, fp->m3, fp->i3);
-	printk(KERN_NOTICE "A0.w: %08lx   A0.x: %08lx   A1.w: %08lx   A1.x: %08lx\n",
+	verbose_printk(KERN_NOTICE "A0.w: %08lx   A0.x: %08lx   A1.w: %08lx   A1.x: %08lx\n",
 		fp->a0w, fp->a0x, fp->a1w, fp->a1x);
 
-	printk(KERN_NOTICE "USP : %08lx  ASTAT: %08lx\n",
+	verbose_printk(KERN_NOTICE "USP : %08lx  ASTAT: %08lx\n",
 		rdusp(), fp->astat);
 
-	printk(KERN_NOTICE "\n");
+	verbose_printk(KERN_NOTICE "\n");
+#endif
 }
 
 #ifdef CONFIG_SYS_BFIN_SPINLOCK_L1
