@@ -52,9 +52,9 @@ SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 
 #define BASED(name) name-system_call(%r13)
@@ -310,6 +310,8 @@ sysc_work:
 	jo	sysc_reschedule
 	tm	__TI_flags+7(%r9),_TIF_SIGPENDING
 	jnz	sysc_sigpending
+	tm	__TI_flags+7(%r9),_TIF_NOTIFY_RESUME
+	jnz	sysc_notify_resume
 	tm	__TI_flags+7(%r9),_TIF_RESTART_SVC
 	jo	sysc_restart
 	tm	__TI_flags+7(%r9),_TIF_SINGLE_STEP
@@ -345,6 +347,14 @@ sysc_sigpending:
 	j	sysc_work_loop
 
 #
+# _TIF_NOTIFY_RESUME is set, call do_notify_resume
+#
+sysc_notify_resume:
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
+	larl	%r14,sysc_work_loop
+	jg	do_notify_resume	# call do_notify_resume
+
+#
 # _TIF_RESTART_SVC is set, set up registers and restart svc
 #
 sysc_restart:
@@ -367,20 +377,19 @@ sysc_singlestep:
 	jg	do_single_step		# branch to do_sigtrap
 
 #
-# call syscall_trace before and after system call
-# special linkage: %r12 contains the return address for trace_svc
+# call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
+# and after the system call
 #
 sysc_tracesys:
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	la	%r3,0
 	srl	%r7,2
 	stg	%r7,SP_R2(%r15)
-	brasl	%r14,syscall_trace
+	brasl	%r14,do_syscall_trace_enter
 	lghi	%r0,NR_syscalls
-	clg	%r0,SP_R2(%r15)
+	clgr	%r0,%r2
 	jnh	sysc_tracenogo
-	lg	%r7,SP_R2(%r15)		# strace might have changed the
-	sll	%r7,2			# system call
+	slag	%r7,%r2,2		# *4
 	lgf	%r8,0(%r7,%r10)
 sysc_tracego:
 	lmg	%r3,%r6,SP_R3(%r15)
@@ -391,9 +400,8 @@ sysc_tracenogo:
 	tm	__TI_flags+7(%r9),(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
 	jz	sysc_return
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	la	%r3,1
 	larl	%r14,sysc_return	# return point is sysc_return
-	jg	syscall_trace
+	jg	do_syscall_trace_exit
 
 #
 # a new process exits the kernel with ret_from_fork
@@ -672,6 +680,8 @@ io_work_loop:
 	jo	io_reschedule
 	tm	__TI_flags+7(%r9),_TIF_SIGPENDING
 	jnz	io_sigpending
+	tm	__TI_flags+7(%r9),_TIF_NOTIFY_RESUME
+	jnz	io_notify_resume
 	j	io_restore
 io_work_done:
 
@@ -708,6 +718,18 @@ io_sigpending:
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	brasl	%r14,do_signal		# call do_signal
+	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
+	TRACE_IRQS_OFF
+	j	io_work_loop
+
+#
+# _TIF_NOTIFY_RESUME or is set, call do_notify_resume
+#
+io_notify_resume:
+	TRACE_IRQS_ON
+	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
+	brasl	%r14,do_notify_resume	# call do_notify_resume
 	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
 	TRACE_IRQS_OFF
 	j	io_work_loop

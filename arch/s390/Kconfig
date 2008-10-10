@@ -74,6 +74,7 @@ config S390
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_KVM if 64BIT
+	select HAVE_ARCH_TRACEHOOK
 
 source "init/Kconfig"
 
