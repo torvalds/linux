@@ -73,25 +73,19 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-#if defined(CONFIG_BF54x)
+	/* enable self refresh via SRREQ */
 	P2.H = hi(EBIU_RSTCTL);
 	P2.L = lo(EBIU_RSTCTL);
 	R0 = [P2];
 	BITSET (R0, 3);
-#else
-	P2.H = hi(EBIU_SDGCTL);
-	P2.L = lo(EBIU_SDGCTL);
-	R0 = [P2];
-	BITSET (R0, 24);
-#endif
 	[P2] = R0;
 	SSYNC;
-#if defined(CONFIG_BF54x)
+
+	/* wait for SRACK bit to be set */
 .LSRR_MODE:
 	R0 = [P2];
 	CC = BITTST(R0, 4);
 	if !CC JUMP .LSRR_MODE;
-#endif
 
 	r0 = CONFIG_VCO_MULT & 63;       /* Load the VCO multiplier         */
 	r0 = r0 << 9;                    /* Shift it over,                  */
@@ -123,7 +117,7 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-#if defined(CONFIG_BF54x)
+	/* disable self refresh by clearing SRREQ */
 	P2.H = hi(EBIU_RSTCTL);
 	P2.L = lo(EBIU_RSTCTL);
 	R0 = [P2];
@@ -155,41 +149,6 @@ ENTRY(_start_dma_code)
 	r0.h = hi(mem_DDRCTL2);
 	[p0] = r0;
 	ssync;
-#else
-	p0.l = lo(EBIU_SDRRC);
-	p0.h = hi(EBIU_SDRRC);
-	r0 = mem_SDRRC;
-	w[p0] = r0.l;
-	ssync;
-
-	p0.l = LO(EBIU_SDBCTL);
-	p0.h = HI(EBIU_SDBCTL);     /* SDRAM Memory Bank Control Register */
-	r0 = mem_SDBCTL;
-	w[p0] = r0.l;
-	ssync;
-
-	P2.H = hi(EBIU_SDGCTL);
-	P2.L = lo(EBIU_SDGCTL);
-	R0 = [P2];
-	BITCLR (R0, 24);
-	p0.h = hi(EBIU_SDSTAT);
-	p0.l = lo(EBIU_SDSTAT);
-	r2.l = w[p0];
-	cc = bittst(r2,3);
-	if !cc jump .Lskip;
-	NOP;
-	BITSET (R0, 23);
-.Lskip:
-	[P2] = R0;
-	SSYNC;
-
-	R0.L = lo(mem_SDGCTL);
-	R0.H = hi(mem_SDGCTL);
-	R1 = [p2];
-	R1 = R1 | R0;
-	[P2] = R1;
-	SSYNC;
-#endif
 
 	RTS;
 ENDPROC(_start_dma_code)
