@@ -804,9 +804,8 @@ rpcrdma_ep_connect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	struct rdma_cm_id *id;
 	int rc = 0;
 	int retry_count = 0;
-	int reconnect = (ep->rep_connected != 0);
 
-	if (reconnect) {
+	if (ep->rep_connected != 0) {
 		struct rpcrdma_xprt *xprt;
 retry:
 		rc = rpcrdma_ep_disconnect(ep, ia);
@@ -870,9 +869,6 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 				__func__, rc);
 		goto out;
 	}
-
-	if (reconnect)
-		return 0;
 
 	wait_event_interruptible(ep->rep_connect_wait, ep->rep_connected != 0);
 
