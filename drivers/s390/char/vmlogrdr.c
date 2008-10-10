@@ -751,7 +751,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 	priv->class_device = device_create_drvdata(vmlogrdr_class, dev,
 						   MKDEV(vmlogrdr_major,
 							 priv->minor_num),
-						   priv, "%s", dev->bus_id);
+						   priv, "%s", dev_name(dev));
 	if (IS_ERR(priv->class_device)) {
 		ret = PTR_ERR(priv->class_device);
 		priv->class_device=NULL;

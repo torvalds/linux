@@ -270,7 +270,7 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 	}
 
 	snprintf (gdev->dev.bus_id, BUS_ID_SIZE, "%s",
-			gdev->cdev[0]->dev.bus_id);
+			dev_name(&gdev->cdev[0]->dev));
 
 	rc = device_add(&gdev->dev);
 	if (rc)

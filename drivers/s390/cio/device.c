@@ -1101,7 +1101,7 @@ static void io_subchannel_irq(struct subchannel *sch)
 	cdev = sch_get_cdev(sch);
 
 	CIO_TRACE_EVENT(3, "IRQ");
-	CIO_TRACE_EVENT(3, sch->dev.bus_id);
+	CIO_TRACE_EVENT(3, dev_name(&sch->dev));
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
 }
@@ -1707,7 +1707,7 @@ __ccwdev_check_busid(struct device *dev, void *id)
 
 	bus_id = id;
 
-	return (strncmp(bus_id, dev->bus_id, BUS_ID_SIZE) == 0);
+	return (strncmp(bus_id, dev_name(dev), BUS_ID_SIZE) == 0);
 }
 
 

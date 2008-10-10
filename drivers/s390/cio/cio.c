@@ -153,7 +153,7 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 	CIO_MSG_EVENT(2, "cio_start: 'not oper' status for "
 		      "subchannel 0.%x.%04x!\n", sch->schid.ssid,
 		      sch->schid.sch_no);
-	sprintf(dbf_text, "no%s", sch->dev.bus_id);
+	sprintf(dbf_text, "no%s", dev_name(&sch->dev));
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, &sch->schib, sizeof (struct schib));
 
@@ -171,7 +171,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	union orb *orb;
 
 	CIO_TRACE_EVENT(4, "stIO");
-	CIO_TRACE_EVENT(4, sch->dev.bus_id);
+	CIO_TRACE_EVENT(4, dev_name(&sch->dev));
 
 	orb = &to_io_private(sch)->orb;
 	memset(orb, 0, sizeof(union orb));
@@ -232,7 +232,7 @@ cio_resume (struct subchannel *sch)
 	int ccode;
 
 	CIO_TRACE_EVENT (4, "resIO");
-	CIO_TRACE_EVENT (4, sch->dev.bus_id);
+	CIO_TRACE_EVENT(4, dev_name(&sch->dev));
 
 	ccode = rsch (sch->schid);
 
@@ -269,7 +269,7 @@ cio_halt(struct subchannel *sch)
 		return -ENODEV;
 
 	CIO_TRACE_EVENT (2, "haltIO");
-	CIO_TRACE_EVENT (2, sch->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 
 	/*
 	 * Issue "Halt subchannel" and process condition code
@@ -304,7 +304,7 @@ cio_clear(struct subchannel *sch)
 		return -ENODEV;
 
 	CIO_TRACE_EVENT (2, "clearIO");
-	CIO_TRACE_EVENT (2, sch->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 
 	/*
 	 * Issue "Clear subchannel" and process condition code
@@ -340,7 +340,7 @@ cio_cancel (struct subchannel *sch)
 		return -ENODEV;
 
 	CIO_TRACE_EVENT (2, "cancelIO");
-	CIO_TRACE_EVENT (2, sch->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 
 	ccode = xsch (sch->schid);
 
@@ -404,7 +404,7 @@ int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 	int ret;
 
 	CIO_TRACE_EVENT (2, "ensch");
-	CIO_TRACE_EVENT (2, sch->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 
 	if (sch_is_pseudo_sch(sch))
 		return -EINVAL;
@@ -454,7 +454,7 @@ int cio_disable_subchannel(struct subchannel *sch)
 	int ret;
 
 	CIO_TRACE_EVENT (2, "dissch");
-	CIO_TRACE_EVENT (2, sch->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 
 	if (sch_is_pseudo_sch(sch))
 		return 0;

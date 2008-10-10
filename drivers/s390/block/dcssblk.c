@@ -91,7 +91,7 @@ static struct rw_semaphore dcssblk_devices_sem;
 static void
 dcssblk_release_segment(struct device *dev)
 {
-	PRINT_DEBUG("segment release fn called for %s\n", dev->bus_id);
+	PRINT_DEBUG("segment release fn called for %s\n", dev_name(dev));
 	kfree(container_of(dev, struct dcssblk_dev_info, dev));
 	module_put(THIS_MODULE);
 }
@@ -602,7 +602,8 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		case SEG_TYPE_SC:
 			/* cannot write to these segments */
 			if (bio_data_dir(bio) == WRITE) {
-				PRINT_WARN("rejecting write to ro segment %s\n", dev_info->dev.bus_id);
+				PRINT_WARN("rejecting write to ro segment %s\n",
+					   dev_name(&dev_info->dev));
 				goto fail;
 			}
 		}

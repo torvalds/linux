@@ -84,7 +84,7 @@ dasd_eckd_probe (struct ccw_device *cdev)
 	if (ret) {
 		printk(KERN_WARNING
 		       "dasd_eckd_probe: could not set ccw-device options "
-		       "for %s\n", cdev->dev.bus_id);
+		       "for %s\n", dev_name(&cdev->dev));
 		return ret;
 	}
 	ret = dasd_generic_probe(cdev, &dasd_eckd_discipline);
@@ -2145,13 +2145,13 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 	/* dump the sense data */
 	len = sprintf(page,  KERN_ERR PRINTK_HEADER
 		      " I/O status report for device %s:\n",
-		      device->cdev->dev.bus_id);
+		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
 		       irb->scsw.cmd.cstat, irb->scsw.cmd.dstat);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
-		       device->cdev->dev.bus_id,
+		       dev_name(&device->cdev->dev),
 		       (void *) (addr_t) irb->scsw.cmd.cpa);
 	if (irb->esw.esw0.erw.cons) {
 		for (sl = 0; sl < 4; sl++) {

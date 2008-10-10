@@ -886,11 +886,11 @@ static int ur_set_online(struct ccw_device *cdev)
 		goto fail_free_cdev;
 	if (urd->cdev->id.cu_type == READER_PUNCH_DEVTYPE) {
 		if (urd->class == DEV_CLASS_UR_I)
-			sprintf(node_id, "vmrdr-%s", cdev->dev.bus_id);
+			sprintf(node_id, "vmrdr-%s", dev_name(&cdev->dev));
 		if (urd->class == DEV_CLASS_UR_O)
-			sprintf(node_id, "vmpun-%s", cdev->dev.bus_id);
+			sprintf(node_id, "vmpun-%s", dev_name(&cdev->dev));
 	} else if (urd->cdev->id.cu_type == PRINTER_DEVTYPE) {
-		sprintf(node_id, "vmprt-%s", cdev->dev.bus_id);
+		sprintf(node_id, "vmprt-%s", dev_name(&cdev->dev));
 	} else {
 		rc = -EOPNOTSUPP;
 		goto fail_free_cdev;

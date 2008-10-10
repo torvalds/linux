@@ -277,18 +277,18 @@ static long ctcm_check_irb_error(struct ccw_device *cdev, struct irb *irb)
 
 	CTCM_DBF_TEXT_(ERROR, CTC_DBF_WARN,
 			"irb error %ld on device %s\n",
-				PTR_ERR(irb), cdev->dev.bus_id);
+				PTR_ERR(irb), dev_name(&cdev->dev));
 
 	switch (PTR_ERR(irb)) {
 	case -EIO:
-		ctcm_pr_warn("i/o-error on device %s\n", cdev->dev.bus_id);
+		ctcm_pr_warn("i/o-error on device %s\n", dev_name(&cdev->dev));
 		break;
 	case -ETIMEDOUT:
-		ctcm_pr_warn("timeout on device %s\n", cdev->dev.bus_id);
+		ctcm_pr_warn("timeout on device %s\n", dev_name(&cdev->dev));
 		break;
 	default:
 		ctcm_pr_warn("unknown error %ld on device %s\n",
-				PTR_ERR(irb), cdev->dev.bus_id);
+				PTR_ERR(irb), dev_name(&cdev->dev));
 	}
 	return PTR_ERR(irb);
 }
@@ -1182,7 +1182,7 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 	int dstat;
 
 	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
-		"Enter %s(%s)", CTCM_FUNTAIL, &cdev->dev.bus_id);
+		"Enter %s(%s)", CTCM_FUNTAIL, dev_name(&cdev->dev));
 
 	if (ctcm_check_irb_error(cdev, irb))
 		return;
@@ -1208,14 +1208,14 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 		ch = priv->channel[WRITE];
 	else {
 		ctcm_pr_err("ctcm: Can't determine channel for interrupt, "
-			   "device %s\n", cdev->dev.bus_id);
+			   "device %s\n", dev_name(&cdev->dev));
 		return;
 	}
 
 	dev = ch->netdev;
 	if (dev == NULL) {
 		ctcm_pr_crit("ctcm: %s dev=NULL bus_id=%s, ch=0x%p\n",
-				__func__, cdev->dev.bus_id, ch);
+				__func__, dev_name(&cdev->dev), ch);
 		return;
 	}
 
@@ -1329,7 +1329,7 @@ static int add_channel(struct ccw_device *cdev, enum channel_types type,
 
 	CTCM_DBF_TEXT_(SETUP, CTC_DBF_INFO,
 		"%s(%s), type %d, proto %d",
-			__func__, cdev->dev.bus_id,	type, priv->protocol);
+			__func__, dev_name(&cdev->dev),	type, priv->protocol);
 
 	ch = kzalloc(sizeof(struct channel), GFP_KERNEL);
 	if (ch == NULL)
@@ -1358,7 +1358,7 @@ static int add_channel(struct ccw_device *cdev, enum channel_types type,
 					goto nomem_return;
 
 	ch->cdev = cdev;
-	snprintf(ch->id, CTCM_ID_SIZE, "ch-%s", cdev->dev.bus_id);
+	snprintf(ch->id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev->dev));
 	ch->type = type;
 
 	/**
