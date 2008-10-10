@@ -84,7 +84,8 @@ static unsigned int debug;
 #define PDEBUG(level, fmt, args...) \
 	do { \
 	if (debug >= level)	\
-		info("[%s:%d] " fmt, __func__, __LINE__ , ## args);	\
+		printk(KERN_INFO KBUILD_MODNAME " [%s:%d] \n" fmt,	\
+			__func__, __LINE__ , ## args);	\
 	} while (0)
 
 
@@ -1552,7 +1553,8 @@ static int __init usb_stv680_init (void)
 	}
 	PDEBUG (0, "STV(i): usb camera driver version %s registering", DRIVER_VERSION);
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 }
 

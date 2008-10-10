@@ -1080,7 +1080,8 @@ static struct usbvideo_cb qcm_driver = {
 
 static int __init qcm_init(void)
 {
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return usbvideo_register(
 		&cams,

@@ -510,7 +510,8 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 static int __init dsbr100_init(void)
 {
 	int retval = usb_register(&usb_dsbr100_driver);
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return retval;
 }
 
