@@ -574,6 +574,19 @@ static inline int ata_id_has_flush_ext(const u16 *id)
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 13);
 }
 
+static inline int ata_id_flush_ext_enabled(const u16 *id)
+{
+	if (ata_id_has_flush_ext(id) == 0)
+		return 0;
+	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
+		return 0;
+	/*
+	 * some Maxtor disks have bit 13 defined incorrectly
+	 * so check bit 10 too
+	 */
+	return (id[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400;
+}
+
 static inline int ata_id_has_lba48(const u16 *id)
 {
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)

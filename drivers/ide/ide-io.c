@@ -188,7 +188,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 			ide_complete_power_step(drive, rq, 0, 0);
 			return ide_stopped;
 		}
-		if (ide_id_has_flush_cache_ext(drive->id))
+		if (ata_id_flush_ext_enabled(drive->id))
 			args->tf.command = ATA_CMD_FLUSH_EXT;
 		else
 			args->tf.command = ATA_CMD_FLUSH;

@@ -576,7 +576,7 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	BUG_ON(task == NULL);
 
 	memset(task, 0, sizeof(*task));
-	if (ide_id_has_flush_cache_ext(drive->id) &&
+	if (ata_id_flush_ext_enabled(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
 		task->tf.command = ATA_CMD_FLUSH_EXT;
 	else
@@ -653,7 +653,7 @@ static void update_ordered(ide_drive_t *drive)
 		capacity = idedisk_capacity(drive);
 		barrier = ata_id_flush_enabled(id) && !drive->noflush &&
 			(drive->addressing == 0 || capacity <= (1ULL << 28) ||
-			 ide_id_has_flush_cache_ext(id));
+			 ata_id_flush_ext_enabled(id));
 
 		printk(KERN_INFO "%s: cache flushes %ssupported\n",
 		       drive->name, barrier ? "" : "not ");
@@ -699,7 +699,7 @@ static int do_idedisk_flushcache(ide_drive_t *drive)
 	ide_task_t args;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	if (ide_id_has_flush_cache_ext(drive->id))
+	if (ata_id_flush_ext_enabled(drive->id))
 		args.tf.command = ATA_CMD_FLUSH_EXT;
 	else
 		args.tf.command = ATA_CMD_FLUSH;
