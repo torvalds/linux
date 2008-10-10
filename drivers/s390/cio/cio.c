@@ -114,6 +114,7 @@ cio_tpi(void)
 	struct tpi_info *tpi_info;
 	struct subchannel *sch;
 	struct irb *irb;
+	int irq_context;
 
 	tpi_info = (struct tpi_info *) __LC_SUBCHANNEL_ID;
 	if (tpi (NULL) != 1)
@@ -126,7 +127,9 @@ cio_tpi(void)
 	sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
 	if (!sch)
 		return 1;
-	local_bh_disable();
+	irq_context = in_interrupt();
+	if (!irq_context)
+		local_bh_disable();
 	irq_enter ();
 	spin_lock(sch->lock);
 	memcpy(&sch->schib.scsw, &irb->scsw, sizeof(union scsw));
@@ -134,7 +137,8 @@ cio_tpi(void)
 		sch->driver->irq(sch);
 	spin_unlock(sch->lock);
 	irq_exit ();
-	_local_bh_enable();
+	if (!irq_context)
+		_local_bh_enable();
 	return 1;
 }
 
