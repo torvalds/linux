@@ -14,6 +14,53 @@
 #define debug_log(fmt, args...) do {} while (0)
 #endif
 
+/*
+ * Check whether we can support a device,
+ * based on the ATAPI IDENTIFY command results.
+ */
+int ide_check_atapi_device(ide_drive_t *drive, const char *s)
+{
+	u16 *id = drive->id;
+	u8 gcw[2], protocol, device_type, removable, drq_type, packet_size;
+
+	*((u16 *)&gcw) = id[ATA_ID_CONFIG];
+
+	protocol    = (gcw[1] & 0xC0) >> 6;
+	device_type =  gcw[1] & 0x1F;
+	removable   = (gcw[0] & 0x80) >> 7;
+	drq_type    = (gcw[0] & 0x60) >> 5;
+	packet_size =  gcw[0] & 0x03;
+
+#ifdef CONFIG_PPC
+	/* kludge for Apple PowerBook internal zip */
+	if (drive->media == ide_floppy && device_type == 5 &&
+	    !strstr((char *)&id[ATA_ID_PROD], "CD-ROM") &&
+	    strstr((char *)&id[ATA_ID_PROD], "ZIP"))
+		device_type = 0;
+#endif
+
+	if (protocol != 2)
+		printk(KERN_ERR "%s: %s: protocol (0x%02x) is not ATAPI\n",
+			s, drive->name, protocol);
+	else if ((drive->media == ide_floppy && device_type != 0) ||
+		 (drive->media == ide_tape && device_type != 1))
+		printk(KERN_ERR "%s: %s: invalid device type (0x%02x)\n",
+			s, drive->name, device_type);
+	else if (removable == 0)
+		printk(KERN_ERR "%s: %s: the removable flag is not set\n",
+			s, drive->name);
+	else if (drive->media == ide_floppy && drq_type == 3)
+		printk(KERN_ERR "%s: %s: sorry, DRQ type (0x%02x) not "
+			"supported\n", s, drive->name, drq_type);
+	else if (packet_size != 0)
+		printk(KERN_ERR "%s: %s: packet size (0x%02x) is not 12 "
+			"bytes\n", s, drive->name, packet_size);
+	else
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_check_atapi_device);
+
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,

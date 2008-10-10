@@ -15,6 +15,8 @@
  * Documentation/ide/ChangeLog.ide-floppy.1996-2002
  */
 
+#define DRV_NAME "ide-floppy"
+
 #define IDEFLOPPY_VERSION "1.00"
 
 #include <linux/module.h>
@@ -962,50 +964,6 @@ static sector_t idefloppy_capacity(ide_drive_t *drive)
 	return capacity;
 }
 
-/*
- * Check whether we can support a drive, based on the ATAPI IDENTIFY command
- * results.
- */
-static int idefloppy_identify_device(ide_drive_t *drive, u16 *id)
-{
-	u8 gcw[2];
-	u8 device_type, protocol, removable, drq_type, packet_size;
-
-	*((u16 *)&gcw) = id[ATA_ID_CONFIG];
-
-	device_type =  gcw[1] & 0x1F;
-	removable   = (gcw[0] & 0x80) >> 7;
-	protocol    = (gcw[1] & 0xC0) >> 6;
-	drq_type    = (gcw[0] & 0x60) >> 5;
-	packet_size =  gcw[0] & 0x03;
-
-#ifdef CONFIG_PPC
-	/* kludge for Apple PowerBook internal zip */
-	if (device_type == 5 &&
-	    !strstr((char *)&id[ATA_ID_PROD], "CD-ROM") &&
-	    strstr((char *)&id[ATA_ID_PROD], "ZIP"))
-		device_type = 0;
-#endif
-
-	if (protocol != 2)
-		printk(KERN_ERR "ide-floppy: Protocol (0x%02x) is not ATAPI\n",
-			protocol);
-	else if (device_type != 0)
-		printk(KERN_ERR "ide-floppy: Device type (0x%02x) is not set "
-				"to floppy\n", device_type);
-	else if (!removable)
-		printk(KERN_ERR "ide-floppy: The removable flag is not set\n");
-	else if (drq_type == 3)
-		printk(KERN_ERR "ide-floppy: Sorry, DRQ type (0x%02x) not "
-				"supported\n", drq_type);
-	else if (packet_size != 0)
-		printk(KERN_ERR "ide-floppy: Packet size (0x%02x) is not 12 "
-				"bytes\n", packet_size);
-	else
-		return 1;
-	return 0;
-}
-
 #ifdef CONFIG_IDE_PROC_FS
 ide_devset_rw(bios_cyl,  0, 1023, bios_cyl);
 ide_devset_rw(bios_head, 0,  255, bios_head);
@@ -1407,7 +1365,7 @@ static int ide_floppy_probe(ide_drive_t *drive)
 	if (drive->media != ide_floppy)
 		goto failed;
 
-	if (!idefloppy_identify_device(drive, drive->id)) {
+	if (!ide_check_atapi_device(drive, DRV_NAME)) {
 		printk(KERN_ERR "ide-floppy: %s: not supported by this version"
 				" of ide-floppy\n", drive->name);
 		goto failed;
