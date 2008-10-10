@@ -76,7 +76,7 @@ static int is_device_present(acpi_handle handle)
 {
 	acpi_handle temp;
 	acpi_status status;
-	unsigned long sta;
+	unsigned long long sta;
 
 
 	status = acpi_get_handle(handle, "_STA", &temp);

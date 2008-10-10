@@ -76,10 +76,10 @@ static struct acpi_pci_driver acpi_pci_slot_driver = {
 };
 
 static int
-check_slot(acpi_handle handle, unsigned long *sun)
+check_slot(acpi_handle handle, unsigned long long *sun)
 {
 	int device = -1;
-	unsigned long adr, sta;
+	unsigned long long adr, sta;
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
@@ -132,7 +132,7 @@ static acpi_status
 register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int device;
-	unsigned long sun;
+	unsigned long long sun;
 	char name[SLOT_NAME_SIZE];
 	struct acpi_pci_slot *slot;
 	struct pci_slot *pci_slot;
@@ -182,7 +182,7 @@ static acpi_status
 walk_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int device, function;
-	unsigned long adr;
+	unsigned long long adr;
 	acpi_status status;
 	acpi_handle dummy_handle;
 	acpi_walk_callback user_function;
@@ -239,7 +239,7 @@ static int
 walk_root_bridge(acpi_handle handle, acpi_walk_callback user_function)
 {
 	int seg, bus;
-	unsigned long tmp;
+	unsigned long long tmp;
 	acpi_status status;
 	acpi_handle dummy_handle;
 	struct pci_bus *pci_bus;

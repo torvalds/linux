@@ -57,7 +57,7 @@ static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
 {
 	struct acpi_device *device = cdev->devdata;
 	acpi_handle handle = device->handle;
-	unsigned long value;
+	unsigned long long value;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
@@ -90,7 +90,7 @@ static int memory_get_cur_bandwidth(struct thermal_cooling_device *cdev,
 {
 	struct acpi_device *device = cdev->devdata;
 	acpi_handle handle = device->handle;
-	unsigned long value;
+	unsigned long long value;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
@@ -115,7 +115,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status;
-	int temp;
+	unsigned long long temp;
 	unsigned long max_state;
 
 	if (memory_get_int_max_bandwidth(cdev, &max_state))
@@ -131,7 +131,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 
 	status =
 	    acpi_evaluate_integer(handle, MEMORY_SET_BANDWIDTH, &arg_list,
-				  (unsigned long *)&temp);
+				  &temp);
 
 	printk(KERN_INFO
 	       "Bandwidth value was %d: status is %d\n", state, status);
@@ -252,7 +252,8 @@ static DEFINE_MUTEX(intel_menlow_attr_lock);
  * @auxtype : AUX0/AUX1
  * @buf: syfs buffer
  */
-static int sensor_get_auxtrip(acpi_handle handle, int index, int *value)
+static int sensor_get_auxtrip(acpi_handle handle, int index,
+							unsigned long long *value)
 {
 	acpi_status status;
 
@@ -260,7 +261,7 @@ static int sensor_get_auxtrip(acpi_handle handle, int index, int *value)
 		return -EINVAL;
 
 	status = acpi_evaluate_integer(handle, index ? GET_AUX1 : GET_AUX0,
-				       NULL, (unsigned long *)value);
+				       NULL, value);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -282,13 +283,13 @@ static int sensor_set_auxtrip(acpi_handle handle, int index, int value)
 	struct acpi_object_list args = {
 		1, &arg
 	};
-	int temp;
+	unsigned long long temp;
 
 	if (index != 0 && index != 1)
 		return -EINVAL;
 
 	status = acpi_evaluate_integer(handle, index ? GET_AUX0 : GET_AUX1,
-				       NULL, (unsigned long *)&temp);
+				       NULL, &temp);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 	if ((index && value < temp) || (!index && value > temp))
@@ -296,7 +297,7 @@ static int sensor_set_auxtrip(acpi_handle handle, int index, int value)
 
 	arg.integer.value = value;
 	status = acpi_evaluate_integer(handle, index ? SET_AUX1 : SET_AUX0,
-				       &args, (unsigned long *)&temp);
+				       &args, &temp);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -312,7 +313,7 @@ static ssize_t aux0_show(struct device *dev,
 			 struct device_attribute *dev_attr, char *buf)
 {
 	struct intel_menlow_attribute *attr = to_intel_menlow_attr(dev_attr);
-	int value;
+	unsigned long long value;
 	int result;
 
 	result = sensor_get_auxtrip(attr->handle, 0, &value);
@@ -324,7 +325,7 @@ static ssize_t aux1_show(struct device *dev,
 			 struct device_attribute *dev_attr, char *buf)
 {
 	struct intel_menlow_attribute *attr = to_intel_menlow_attr(dev_attr);
-	int value;
+	unsigned long long value;
 	int result;
 
 	result = sensor_get_auxtrip(attr->handle, 1, &value);
@@ -376,7 +377,7 @@ static ssize_t bios_enabled_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	acpi_status status;
-	unsigned long bios_enabled;
+	unsigned long long bios_enabled;
 
 	status = acpi_evaluate_integer(NULL, BIOS_ENABLED, NULL, &bios_enabled);
 	if (ACPI_FAILURE(status))
@@ -492,7 +493,7 @@ static int __init intel_menlow_module_init(void)
 {
 	int result = -ENODEV;
 	acpi_status status;
-	unsigned long enable;
+	unsigned long long enable;
 
 	if (acpi_disabled)
 		return result;

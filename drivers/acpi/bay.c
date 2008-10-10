@@ -90,7 +90,7 @@ static int is_ejectable(acpi_handle handle)
  */
 static int bay_present(struct bay *bay)
 {
-	unsigned long sta;
+	unsigned long long sta;
 	acpi_status status;
 
 	if (bay) {

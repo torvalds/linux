@@ -85,7 +85,7 @@ struct acpi_ac {
 	struct power_supply charger;
 #endif
 	struct acpi_device * device;
-	unsigned long state;
+	unsigned long long state;
 };
 
 #define to_acpi_ac(x) container_of(x, struct acpi_ac, charger);

@@ -131,7 +131,7 @@ acpi_power_get_context(acpi_handle handle,
 static int acpi_power_get_state(struct acpi_power_resource *resource, int *state)
 {
 	acpi_status status = AE_OK;
-	unsigned long sta = 0;
+	unsigned long long sta = 0;
 
 
 	if (!resource || !state)

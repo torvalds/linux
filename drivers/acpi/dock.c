@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(is_dock_device);
  */
 static int dock_present(struct dock_station *ds)
 {
-	unsigned long sta;
+	unsigned long long sta;
 	acpi_status status;
 
 	if (ds) {
@@ -727,13 +727,13 @@ static DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);
 static ssize_t show_dock_uid(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	unsigned long lbuf;
+	unsigned long long lbuf;
 	acpi_status status = acpi_evaluate_integer(dock_station->handle,
 					"_UID", NULL, &lbuf);
 	if (ACPI_FAILURE(status))
 	    return 0;
 
-	return snprintf(buf, PAGE_SIZE, "%lx\n", lbuf);
+	return snprintf(buf, PAGE_SIZE, "%llx\n", lbuf);
 }
 static DEVICE_ATTR(uid, S_IRUGO, show_dock_uid, NULL);
 

@@ -180,7 +180,7 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 	int wait = 0;
 	unsigned long flags;
 	acpi_handle handle, tmphandle;
-	unsigned long sta;
+	unsigned long long sta;
 	acpi_status status;
 
 	if (dev) {

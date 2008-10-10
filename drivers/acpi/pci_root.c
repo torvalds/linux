@@ -190,7 +190,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	struct acpi_pci_root *root = NULL;
 	struct acpi_pci_root *tmp;
 	acpi_status status = AE_OK;
-	unsigned long value = 0;
+	unsigned long long value = 0;
 	acpi_handle handle = NULL;
 	struct acpi_device *child;
 

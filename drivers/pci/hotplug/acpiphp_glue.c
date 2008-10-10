@@ -180,7 +180,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	struct acpiphp_func *newfunc;
 	acpi_handle tmp;
 	acpi_status status = AE_OK;
-	unsigned long adr, sun;
+	unsigned long long adr, sun;
 	int device, function, retval;
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
@@ -528,7 +528,7 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
 	acpi_handle dummy_handle;
-	unsigned long tmp;
+	unsigned long long tmp;
 	int device, function;
 	struct pci_dev *dev;
 	struct pci_bus *pci_bus = context;
@@ -573,7 +573,7 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 static int add_bridge(acpi_handle handle)
 {
 	acpi_status status;
-	unsigned long tmp;
+	unsigned long long tmp;
 	int seg, bus;
 	acpi_handle dummy_handle;
 	struct pci_bus *pci_bus;
@@ -767,7 +767,7 @@ static int get_gsi_base(acpi_handle handle, u32 *gsi_base)
 {
 	acpi_status status;
 	int result = -1;
-	unsigned long gsb;
+	unsigned long long gsb;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
 	void *table;
@@ -808,7 +808,7 @@ static acpi_status
 ioapic_add(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
-	unsigned long sta;
+	unsigned long long sta;
 	acpi_handle tmp;
 	struct pci_dev *pdev;
 	u32 gsi_base;
@@ -872,7 +872,7 @@ static acpi_status
 ioapic_remove(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
-	unsigned long sta;
+	unsigned long long sta;
 	acpi_handle tmp;
 	u32 gsi_base;
 	struct acpiphp_ioapic *pos, *n, *ioapic = NULL;
@@ -1264,7 +1264,7 @@ static int disable_device(struct acpiphp_slot *slot)
 static unsigned int get_slot_status(struct acpiphp_slot *slot)
 {
 	acpi_status status;
-	unsigned long sta = 0;
+	unsigned long long sta = 0;
 	u32 dvid;
 	struct list_head *l;
 	struct acpiphp_func *func;

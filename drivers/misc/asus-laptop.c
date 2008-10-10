@@ -280,7 +280,7 @@ static int write_acpi_int(acpi_handle handle, const char *method, int val,
 
 static int read_wireless_status(int mask)
 {
-	ulong status;
+	unsigned long long status;
 	acpi_status rv = AE_OK;
 
 	if (!wireless_status_handle)
@@ -297,7 +297,7 @@ static int read_wireless_status(int mask)
 
 static int read_gps_status(void)
 {
-	ulong status;
+	unsigned long long status;
 	acpi_status rv = AE_OK;
 
 	rv = acpi_evaluate_integer(gps_status_handle, NULL, NULL, &status);
@@ -404,7 +404,7 @@ static void lcd_blank(int blank)
 
 static int read_brightness(struct backlight_device *bd)
 {
-	ulong value;
+	unsigned long long value;
 	acpi_status rv = AE_OK;
 
 	rv = acpi_evaluate_integer(brightness_get_handle, NULL, NULL, &value);
@@ -455,7 +455,7 @@ static ssize_t show_infos(struct device *dev,
 			  struct device_attribute *attr, char *page)
 {
 	int len = 0;
-	ulong temp;
+	unsigned long long temp;
 	char buf[16];		//enough for all info
 	acpi_status rv = AE_OK;
 
@@ -603,7 +603,7 @@ static void set_display(int value)
 
 static int read_display(void)
 {
-	ulong value = 0;
+	unsigned long long value = 0;
 	acpi_status rv = AE_OK;
 
 	/* In most of the case, we know how to set the display, but sometime
@@ -849,7 +849,7 @@ static int asus_hotk_get_info(void)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *model = NULL;
-	ulong bsts_result, hwrs_result;
+	unsigned long long bsts_result, hwrs_result;
 	char *string = NULL;
 	acpi_status status;
 

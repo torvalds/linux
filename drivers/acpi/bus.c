@@ -77,7 +77,7 @@ EXPORT_SYMBOL(acpi_bus_get_device);
 int acpi_bus_get_status(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
-	unsigned long sta = 0;
+	unsigned long long sta = 0;
 
 
 	if (!device)
@@ -155,7 +155,7 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 	int result = 0;
 	acpi_status status = 0;
 	struct acpi_device *device = NULL;
-	unsigned long psc = 0;
+	unsigned long long psc = 0;
 
 
 	result = acpi_bus_get_device(handle, &device);
