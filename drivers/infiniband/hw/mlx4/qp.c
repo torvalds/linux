@@ -451,6 +451,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata, int sqpn, struct mlx4_ib_qp *qp)
 {
+	int qpn;
 	int err;
 
 	mutex_init(&qp->mutex);
@@ -545,9 +546,17 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		}
 	}
 
-	err = mlx4_qp_alloc(dev->dev, sqpn, &qp->mqp);
+	if (sqpn) {
+		qpn = sqpn;
+	} else {
+		err = mlx4_qp_reserve_range(dev->dev, 1, 1, &qpn);
+		if (err)
+			goto err_wrid;
+	}
+
+	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp);
 	if (err)
-		goto err_wrid;
+		goto err_qpn;
 
 	/*
 	 * Hardware wants QPN written in big-endian order (after
@@ -559,6 +568,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	qp->mqp.event = mlx4_ib_qp_event;
 
 	return 0;
+
+err_qpn:
+	if (!sqpn)
+		mlx4_qp_release_range(dev->dev, qpn, 1);
 
 err_wrid:
 	if (pd->uobject) {
@@ -655,6 +668,10 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	mlx4_ib_unlock_cqs(send_cq, recv_cq);
 
 	mlx4_qp_free(dev->dev, &qp->mqp);
+
+	if (!is_sqp(dev, qp))
+		mlx4_qp_release_range(dev->dev, qp->mqp.qpn, 1);
+
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
 	if (is_user) {

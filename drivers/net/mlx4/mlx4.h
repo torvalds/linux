@@ -288,6 +288,8 @@ static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
 
 u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap);
 void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj);
+u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align);
+void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt);
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask, u32 reserved);
 void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap);
 

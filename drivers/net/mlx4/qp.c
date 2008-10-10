@@ -147,19 +147,42 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_modify);
 
-int mlx4_qp_alloc(struct mlx4_dev *dev, int sqpn, struct mlx4_qp *qp)
+int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_qp_table *qp_table = &priv->qp_table;
+	int qpn;
+
+	qpn = mlx4_bitmap_alloc_range(&qp_table->bitmap, cnt, align);
+	if (qpn == -1)
+		return -ENOMEM;
+
+	*base = qpn;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_qp_reserve_range);
+
+void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_qp_table *qp_table = &priv->qp_table;
+	if (base_qpn < dev->caps.sqp_start + 8)
+		return;
+
+	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
+}
+EXPORT_SYMBOL_GPL(mlx4_qp_release_range);
+
+int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 	int err;
 
-	if (sqpn)
-		qp->qpn = sqpn;
-	else {
-		qp->qpn = mlx4_bitmap_alloc(&qp_table->bitmap);
-		if (qp->qpn == -1)
-			return -ENOMEM;
-	}
+	if (!qpn)
+		return -EINVAL;
+
+	qp->qpn = qpn;
 
 	err = mlx4_table_get(dev, &qp_table->qp_table, qp->qpn);
 	if (err)
@@ -208,9 +231,6 @@ err_put_qp:
 	mlx4_table_put(dev, &qp_table->qp_table, qp->qpn);
 
 err_out:
-	if (!sqpn)
-		mlx4_bitmap_free(&qp_table->bitmap, qp->qpn);
-
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_alloc);
@@ -239,9 +259,6 @@ void mlx4_qp_free(struct mlx4_dev *dev, struct mlx4_qp *qp)
 	mlx4_table_put(dev, &qp_table->altc_table, qp->qpn);
 	mlx4_table_put(dev, &qp_table->auxc_table, qp->qpn);
 	mlx4_table_put(dev, &qp_table->qp_table, qp->qpn);
-
-	if (qp->qpn >= dev->caps.sqp_start + 8)
-		mlx4_bitmap_free(&qp_table->bitmap, qp->qpn);
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_free);
 
