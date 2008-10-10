@@ -693,7 +693,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	}
 	local_irq_save(flags);
 	SELECT_MASK(drive, 0);
-	id = kmalloc(SECTOR_WORDS*4, GFP_ATOMIC);
+	id = kmalloc(SECTOR_SIZE, GFP_ATOMIC);
 	if (!id) {
 		local_irq_restore(flags);
 		return 0;

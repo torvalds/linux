@@ -539,13 +539,14 @@ static int proc_idedisk_read_smart(char *page, char **start, off_t off,
 
 	if (get_smart_data(drive, page, sub_cmd) == 0) {
 		unsigned short *val = (unsigned short *) page;
-		char *out = ((char *)val) + (SECTOR_WORDS * 4);
+		char *out = (char *)val + SECTOR_SIZE;
+
 		page = out;
 		do {
 			out += sprintf(out, "%04x%c", le16_to_cpu(*val),
 				       (++i & 7) ? ' ' : '\n');
 			val += 1;
-		} while (i < (SECTOR_WORDS * 2));
+		} while (i < SECTOR_SIZE / 2);
 		len = out - page;
 	}
 

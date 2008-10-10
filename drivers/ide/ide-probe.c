@@ -561,7 +561,7 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	 *	Also note that 0 everywhere means "can't do X"
 	 */
  
-	drive->id = kzalloc(SECTOR_WORDS *4, GFP_KERNEL);
+	drive->id = kzalloc(SECTOR_SIZE, GFP_KERNEL);
 	drive->id_read = 0;
 	if(drive->id == NULL)
 	{

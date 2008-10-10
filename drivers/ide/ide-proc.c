@@ -100,13 +100,14 @@ static int proc_ide_read_identify
 
 		err = taskfile_lib_get_identify(drive, page);
 		if (!err) {
-			char *out = ((char *)page) + (SECTOR_WORDS * 4);
+			char *out = (char *)page + SECTOR_SIZE;
+
 			page = out;
 			do {
 				out += sprintf(out, "%04x%c",
 					le16_to_cpup(val), (++i & 7) ? ' ' : '\n');
 				val += 1;
-			} while (i < (SECTOR_WORDS * 2));
+			} while (i < SECTOR_SIZE / 2);
 			len = out - page;
 		}
 	}
