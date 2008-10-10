@@ -1501,12 +1501,27 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 		return;
 	}
 
-	/* just report other unsolicited interrupts */
-	DEV_MESSAGE(KERN_DEBUG, device, "%s",
-		    "unsolicited interrupt received");
-	device->discipline->dump_sense(device, NULL, irb);
-	dasd_schedule_device_bh(device);
+	if ((irb->scsw.cmd.cc == 1) &&
+	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
+	    (irb->scsw.cmd.actl & SCSW_ACTL_START_PEND) &&
+	    (irb->scsw.cmd.stctl & SCSW_STCTL_STATUS_PEND)) {
+		/* fake irb do nothing, they are handled elsewhere */
+		dasd_schedule_device_bh(device);
+		return;
+	}
 
+	if (!(irb->esw.esw0.erw.cons)) {
+		/* just report other unsolicited interrupts */
+		DEV_MESSAGE(KERN_ERR, device, "%s",
+			    "unsolicited interrupt received");
+	} else {
+		DEV_MESSAGE(KERN_ERR, device, "%s",
+			    "unsolicited interrupt received "
+			    "(sense available)");
+		device->discipline->dump_sense(device, NULL, irb);
+	}
+
+	dasd_schedule_device_bh(device);
 	return;
 };
 
