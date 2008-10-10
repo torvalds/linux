@@ -356,21 +356,25 @@ enum {
 	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
 	/* Requires BH algorithm for packets */
 	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
+	/* Write protect */
+	IDE_AFLAG_WP			= (1 << 21),
+	/* Supports format progress report */
+	IDE_AFLAG_SRFP			= (1 << 22),
 
 	/* ide-tape */
-	IDE_AFLAG_IGNORE_DSC		= (1 << 21),
+	IDE_AFLAG_IGNORE_DSC		= (1 << 23),
 	/* 0 When the tape position is unknown */
-	IDE_AFLAG_ADDRESS_VALID		= (1 <<	22),
+	IDE_AFLAG_ADDRESS_VALID		= (1 <<	24),
 	/* Device already opened */
-	IDE_AFLAG_BUSY			= (1 << 23),
+	IDE_AFLAG_BUSY			= (1 << 25),
 	/* Attempt to auto-detect the current user block size */
-	IDE_AFLAG_DETECT_BS		= (1 << 24),
+	IDE_AFLAG_DETECT_BS		= (1 << 26),
 	/* Currently on a filemark */
-	IDE_AFLAG_FILEMARK		= (1 << 25),
+	IDE_AFLAG_FILEMARK		= (1 << 27),
 	/* 0 = no tape is loaded, so we don't rewind after ejecting */
-	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 26),
+	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 28),
 
-	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 27),
+	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 29),
 };
 
 struct ide_drive_s {

@@ -110,10 +110,6 @@ typedef struct ide_floppy_obj {
 	u8 cap_desc[8];
 	/* Copy of the flexible disk page */
 	u8 flexible_disk_page[32];
-	/* Write protect */
-	int wp;
-	/* Supports format progress report */
-	int srfp;
 } idefloppy_floppy_t;
 
 #define IDEFLOPPY_TICKS_DELAY	HZ/20	/* default delay for ZIP 100 (50ms) */
@@ -574,8 +570,14 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 				" parameters\n");
 		return 1;
 	}
-	floppy->wp = !!(pc.buf[3] & 0x80);
-	set_disk_ro(disk, floppy->wp);
+
+	if (pc.buf[3] & 0x80)
+		drive->atapi_flags |= IDE_AFLAG_WP;
+	else
+		drive->atapi_flags &= ~IDE_AFLAG_WP;
+
+	set_disk_ro(disk, !!(drive->atapi_flags & IDE_AFLAG_WP));
+
 	page = &pc.buf[8];
 
 	transfer_rate = be16_to_cpup((__be16 *)&pc.buf[8 + 2]);
@@ -614,7 +616,7 @@ static int idefloppy_get_sfrp_bit(ide_drive_t *drive)
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct ide_atapi_pc pc;
 
-	floppy->srfp = 0;
+	drive->atapi_flags &= ~IDE_AFLAG_SRFP;
 
 	idefloppy_create_mode_sense_cmd(&pc, IDEFLOPPY_CAPABILITIES_PAGE);
 	pc.flags |= PC_FLAG_SUPPRESS_ERROR;
@@ -622,7 +624,9 @@ static int idefloppy_get_sfrp_bit(ide_drive_t *drive)
 	if (ide_queue_pc_tail(drive, floppy->disk, &pc))
 		return 1;
 
-	floppy->srfp = pc.buf[8 + 2] & 0x40;
+	if (pc.buf[8 + 2] & 0x40)
+		drive->atapi_flags |= IDE_AFLAG_SRFP;
+
 	return 0;
 }
 
@@ -820,7 +824,7 @@ static int ide_floppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 	struct ide_atapi_pc pc;
 	int progress_indication = 0x10000;
 
-	if (floppy->srfp) {
+	if (drive->atapi_flags & IDE_AFLAG_SRFP) {
 		idefloppy_create_request_sense_cmd(&pc);
 		if (ide_queue_pc_tail(drive, floppy->disk, &pc))
 			return -EIO;
@@ -1044,7 +1048,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 			goto out_put_floppy;
 		}
 
-		if (floppy->wp && (filp->f_mode & 2)) {
+		if ((drive->atapi_flags & IDE_AFLAG_WP) && (filp->f_mode & 2)) {
 			ret = -EROFS;
 			goto out_put_floppy;
 		}
