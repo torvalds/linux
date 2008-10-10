@@ -73,7 +73,6 @@
 #define L4_24XX_VIRT	0xd8000000
 #define L4_24XX_SIZE	SZ_1M		/* 1MB of 128MB used, want 1MB sect */
 
-#ifdef CONFIG_ARCH_OMAP2430
 #define L4_WK_243X_PHYS		L4_WK_243X_BASE		/* 0x49000000 */
 #define L4_WK_243X_VIRT		0xd9000000
 #define L4_WK_243X_SIZE		SZ_1M
@@ -86,8 +85,6 @@
 #define OMAP243X_SMS_PHYS	OMAP243X_SMS_BASE
 #define OMAP243X_SMS_VIRT	0xFC000000
 #define OMAP243X_SMS_SIZE	SZ_1M
-
-#endif
 
 #define IO_OFFSET		0x90000000
 #define __IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */

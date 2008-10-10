@@ -220,6 +220,11 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG5, 24, 27, page_burst_access);
 
+	if (cpu_is_omap34xx()) {
+		GPMC_SET_ONE(GPMC_CS_CONFIG6, 16, 19, wr_data_mux_bus);
+		GPMC_SET_ONE(GPMC_CS_CONFIG6, 24, 28, wr_access);
+	}
+
 	/* caller is expected to have initialized CONFIG1 to cover
 	 * at least sync vs async
 	 */

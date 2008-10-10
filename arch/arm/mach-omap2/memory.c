@@ -102,6 +102,17 @@ u32 omap2_reprogram_sdrc(u32 level, u32 force)
 	return prev;
 }
 
+#if !defined(CONFIG_ARCH_OMAP2)
+void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
+				u32 base_cs, u32 force_unlock)
+{
+}
+void omap2_sram_reprogram_sdrc(u32 perf_level, u32 dll_val,
+				      u32 mem_type)
+{
+}
+#endif
+
 void omap2_init_memory_params(u32 force_lock_to_unlock_mode)
 {
 	unsigned long dll_cnt;
@@ -165,6 +176,9 @@ void __init omap2_set_globals_memory(struct omap_globals *omap2_globals)
 void __init omap2_init_memory(void)
 {
 	u32 l;
+
+	if (!cpu_is_omap2420())
+		return;
 
 	l = sms_read_reg(SMS_SYSCONFIG);
 	l &= ~(0x3 << 3);
