@@ -1084,15 +1084,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 			scsi_print_sense("sd", SCpnt);
 			good_bytes = sd_completed_bytes(SCpnt);
 		}
-		if (!scsi_device_protection(SCpnt->device) &&
-		    SCpnt->device->use_10_for_rw &&
-		    (SCpnt->cmnd[0] == READ_10 ||
-		     SCpnt->cmnd[0] == WRITE_10))
-			SCpnt->device->use_10_for_rw = 0;
-		if (SCpnt->device->use_10_for_ms &&
-		    (SCpnt->cmnd[0] == MODE_SENSE_10 ||
-		     SCpnt->cmnd[0] == MODE_SELECT_10))
-			SCpnt->device->use_10_for_ms = 0;
 		break;
 	default:
 		break;
