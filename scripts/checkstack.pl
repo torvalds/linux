@@ -81,7 +81,10 @@ my (@stack, $re, $dre, $x, $xs);
 		$re = qr/.*st[dw]u.*r1,-($x{1,8})\(r1\)/o;
 	} elsif ($arch =~ /^s390x?$/) {
 		#   11160:       a7 fb ff 60             aghi   %r15,-160
-		$re = qr/.*ag?hi.*\%r15,-(([0-9]{2}|[3-9])[0-9]{2})/o;
+		# or
+		#  100092:	 e3 f0 ff c8 ff 71	 lay	 %r15,-56(%r15)
+		$re = qr/.*(?:lay|ag?hi).*\%r15,-(([0-9]{2}|[3-9])[0-9]{2})
+		      (?:\(\%r15\))?$/ox;
 	} elsif ($arch =~ /^sh64$/) {
 		#XXX: we only check for the immediate case presently,
 		#     though we will want to check for the movi/sub
