@@ -68,7 +68,7 @@ config SND_SOC_TLV320AIC23
 	depends on I2C
 
 config SND_SOC_TLV320AIC26
-	tristate
+	tristate "TI TLV320AIC26 Codec support"
 	depends on SPI
 
 config SND_SOC_TLV320AIC3X
