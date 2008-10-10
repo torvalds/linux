@@ -1214,32 +1214,6 @@ static void idetape_create_locate_cmd(ide_drive_t *drive,
 	pc->flags |= PC_FLAG_WAIT_FOR_DSC;
 }
 
-static int idetape_create_prevent_cmd(ide_drive_t *drive,
-		struct ide_atapi_pc *pc, int prevent)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	/* device supports locking according to capabilities page */
-	if (!(tape->caps[6] & 0x01))
-		return 0;
-
-	ide_init_pc(pc);
-	pc->c[0] = ALLOW_MEDIUM_REMOVAL;
-	pc->c[4] = prevent;
-	return 1;
-}
-
-static int ide_tape_set_media_lock(ide_drive_t *drive, int on)
-{
-	struct ide_tape_obj *tape = drive->driver_data;
-	struct ide_atapi_pc pc;
-
-	if (!idetape_create_prevent_cmd(drive, &pc, on))
-		return 0;
-
-	return ide_queue_pc_tail(drive, tape->disk, &pc);
-}
-
 static void __ide_tape_discard_merge_buffer(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
@@ -1872,7 +1846,7 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 		 * attempting to eject.
 		 */
 		if (tape->door_locked) {
-			if (!ide_tape_set_media_lock(drive, 0))
+			if (!ide_set_media_lock(drive, disk, 0))
 				tape->door_locked = DOOR_UNLOCKED;
 		}
 		ide_tape_discard_merge_buffer(drive, 0);
@@ -1917,13 +1891,13 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 	case MTFSR:
 	case MTBSR:
 	case MTLOCK:
-		retval = ide_tape_set_media_lock(drive, 1);
+		retval = ide_set_media_lock(drive, disk, 1);
 		if (retval)
 			return retval;
 		tape->door_locked = DOOR_EXPLICITLY_LOCKED;
 		return 0;
 	case MTUNLOCK:
-		retval = ide_tape_set_media_lock(drive, 0);
+		retval = ide_set_media_lock(drive, disk, 0);
 		if (retval)
 			return retval;
 		tape->door_locked = DOOR_UNLOCKED;
@@ -2087,7 +2061,7 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 
 	/* Lock the tape drive door so user can't eject. */
 	if (tape->chrdev_dir == IDETAPE_DIR_NONE) {
-		if (!ide_tape_set_media_lock(drive, 1)) {
+		if (!ide_set_media_lock(drive, tape->disk, 1)) {
 			if (tape->door_locked != DOOR_EXPLICITLY_LOCKED)
 				tape->door_locked = DOOR_LOCKED;
 		}
@@ -2140,7 +2114,7 @@ static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 		(void) idetape_rewind_tape(drive);
 	if (tape->chrdev_dir == IDETAPE_DIR_NONE) {
 		if (tape->door_locked == DOOR_LOCKED) {
-			if (!ide_tape_set_media_lock(drive, 0))
+			if (!ide_set_media_lock(drive, tape->disk, 0))
 				tape->door_locked = DOOR_UNLOCKED;
 		}
 	}
@@ -2218,6 +2192,11 @@ static void idetape_get_mode_sense_results(ide_drive_t *drive)
 	}
 
 	memcpy(&tape->caps, caps, 20);
+
+	/* device lacks locking support according to capabilities page */
+	if ((caps[6] & 1) == 0)
+		drive->atapi_flags |= IDE_AFLAG_NO_DOORLOCK;
+
 	if (caps[7] & 0x02)
 		tape->blk_size = 512;
 	else if (caps[7] & 0x04)

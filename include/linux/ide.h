@@ -317,10 +317,10 @@ struct ide_acpi_hwif_link;
 enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
 	IDE_AFLAG_MEDIA_CHANGED		= (1 << 1),
-
-	/* ide-cd */
 	/* Drive cannot lock the door. */
 	IDE_AFLAG_NO_DOORLOCK		= (1 << 2),
+
+	/* ide-cd */
 	/* Drive cannot eject the disc. */
 	IDE_AFLAG_NO_EJECT		= (1 << 3),
 	/* Drive is a pre ATAPI 1.2 drive. */
@@ -1141,6 +1141,8 @@ enum {
 void ide_queue_pc_head(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *,
 		       struct request *);
 int ide_queue_pc_tail(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *);
+
+int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,

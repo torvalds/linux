@@ -325,15 +325,6 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 			    IDEFLOPPY_WAIT_CMD, NULL);
 }
 
-static void idefloppy_create_prevent_cmd(struct ide_atapi_pc *pc, int prevent)
-{
-	debug_log("creating prevent removal command, prevent = %d\n", prevent);
-
-	ide_init_pc(pc);
-	pc->c[0] = GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL;
-	pc->c[4] = prevent;
-}
-
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
 {
 	ide_init_pc(pc);
@@ -712,6 +703,8 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	if (strncmp((char *)&id[ATA_ID_PROD], "IOMEGA Clik!", 11) == 0) {
 		blk_queue_max_sectors(drive->queue, 64);
 		drive->atapi_flags |= IDE_AFLAG_CLIK_DRIVE;
+		/* IOMEGA Clik! drives do not support lock/unlock commands */
+		drive->atapi_flags |= IDE_AFLAG_NO_DOORLOCK;
 	}
 
 	(void) ide_floppy_get_capacity(drive);
@@ -782,18 +775,6 @@ static ide_driver_t idefloppy_driver = {
 #endif
 };
 
-static void ide_floppy_set_media_lock(ide_drive_t *drive, int on)
-{
-	struct ide_floppy_obj *floppy = drive->driver_data;
-	struct ide_atapi_pc pc;
-
-	/* IOMEGA Clik! drives do not support lock/unlock commands */
-	if ((drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE) == 0) {
-		idefloppy_create_prevent_cmd(&pc, on);
-		(void)ide_queue_pc_tail(drive, floppy->disk, &pc);
-	}
-}
-
 static int idefloppy_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
@@ -842,7 +823,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		}
 
 		drive->atapi_flags |= IDE_AFLAG_MEDIA_CHANGED;
-		ide_floppy_set_media_lock(drive, 1);
+		ide_set_media_lock(drive, disk, 1);
 		check_disk_change(inode->i_bdev);
 	} else if (drive->atapi_flags & IDE_AFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
@@ -865,7 +846,7 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 	debug_log("Reached %s\n", __func__);
 
 	if (floppy->openers == 1) {
-		ide_floppy_set_media_lock(drive, 0);
+		ide_set_media_lock(drive, disk, 0);
 		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 	}
 
@@ -891,16 +872,17 @@ static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			       unsigned long arg, unsigned int cmd)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct gendisk *disk = floppy->disk;
 	int prevent = (arg && cmd != CDROMEJECT) ? 1 : 0;
 
 	if (floppy->openers > 1)
 		return -EBUSY;
 
-	ide_floppy_set_media_lock(drive, prevent);
+	ide_set_media_lock(drive, disk, prevent);
 
 	if (cmd == CDROMEJECT) {
 		idefloppy_create_start_stop_cmd(pc, 2);
-		(void)ide_queue_pc_tail(drive, floppy->disk, pc);
+		(void)ide_queue_pc_tail(drive, disk, pc);
 	}
 
 	return 0;

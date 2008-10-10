@@ -162,6 +162,21 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 }
 EXPORT_SYMBOL_GPL(ide_queue_pc_tail);
 
+int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
+{
+	struct ide_atapi_pc pc;
+
+	if (drive->atapi_flags & IDE_AFLAG_NO_DOORLOCK)
+		return 0;
+
+	ide_init_pc(&pc);
+	pc.c[0] = ALLOW_MEDIUM_REMOVAL;
+	pc.c[4] = on;
+
+	return ide_queue_pc_tail(drive, disk, &pc);
+}
+EXPORT_SYMBOL_GPL(ide_set_media_lock);
+
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
