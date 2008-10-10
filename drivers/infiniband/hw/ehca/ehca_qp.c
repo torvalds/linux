@@ -502,6 +502,12 @@ static struct ehca_qp *internal_create_qp(
 	if (init_attr->srq) {
 		my_srq = container_of(init_attr->srq, struct ehca_qp, ib_srq);
 
+		if (qp_type == IB_QPT_UC) {
+			ehca_err(pd->device, "UC with SRQ not supported");
+			atomic_dec(&shca->num_qps);
+			return ERR_PTR(-EINVAL);
+		}
+
 		has_srq = 1;
 		parms.ext_type = EQPT_SRQBASE;
 		parms.srq_qpn = my_srq->real_qp_num;
