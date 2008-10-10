@@ -272,7 +272,6 @@ static struct ib_qp *c2_create_qp(struct ib_pd *pd,
 		pr_debug("%s: Invalid QP type: %d\n", __func__,
 			init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
-		break;
 	}
 
 	if (err) {

@@ -70,26 +70,30 @@ int interrupt_mod_interval = 0;
 
 /* Interoperability */
 int mpa_version = 1;
-module_param(mpa_version, int, 0);
+module_param(mpa_version, int, 0644);
 MODULE_PARM_DESC(mpa_version, "MPA version to be used int MPA Req/Resp (0 or 1)");
 
 /* Interoperability */
 int disable_mpa_crc = 0;
-module_param(disable_mpa_crc, int, 0);
+module_param(disable_mpa_crc, int, 0644);
 MODULE_PARM_DESC(disable_mpa_crc, "Disable checking of MPA CRC");
 
 unsigned int send_first = 0;
-module_param(send_first, int, 0);
+module_param(send_first, int, 0644);
 MODULE_PARM_DESC(send_first, "Send RDMA Message First on Active Connection");
 
 
 unsigned int nes_drv_opt = 0;
-module_param(nes_drv_opt, int, 0);
+module_param(nes_drv_opt, int, 0644);
 MODULE_PARM_DESC(nes_drv_opt, "Driver option parameters");
 
 unsigned int nes_debug_level = 0;
 module_param_named(debug_level, nes_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug output level");
+
+unsigned int wqm_quanta = 0x10000;
+module_param(wqm_quanta, int, 0644);
+MODULE_PARM_DESC(wqm_quanta, "WQM quanta");
 
 LIST_HEAD(nes_adapter_list);
 static LIST_HEAD(nes_dev_list);
@@ -557,12 +561,32 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 		goto bail5;
 	}
 	nesdev->nesadapter->et_rx_coalesce_usecs_irq = interrupt_mod_interval;
+	nesdev->nesadapter->wqm_quanta = wqm_quanta;
 
 	/* nesdev->base_doorbell_index =
 			nesdev->nesadapter->pd_config_base[PCI_FUNC(nesdev->pcidev->devfn)]; */
 	nesdev->base_doorbell_index = 1;
 	nesdev->doorbell_start = nesdev->nesadapter->doorbell_start;
-	nesdev->mac_index = PCI_FUNC(nesdev->pcidev->devfn) % nesdev->nesadapter->port_count;
+	if (nesdev->nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G) {
+		switch (PCI_FUNC(nesdev->pcidev->devfn) %
+			nesdev->nesadapter->port_count) {
+		case 1:
+			nesdev->mac_index = 2;
+			break;
+		case 2:
+			nesdev->mac_index = 1;
+			break;
+		case 3:
+			nesdev->mac_index = 3;
+			break;
+		case 0:
+		default:
+			nesdev->mac_index = 0;
+		}
+	} else {
+		nesdev->mac_index = PCI_FUNC(nesdev->pcidev->devfn) %
+						nesdev->nesadapter->port_count;
+	}
 
 	tasklet_init(&nesdev->dpc_tasklet, nes_dpc, (unsigned long)nesdev);
 
@@ -581,7 +605,7 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nesdev->int_req = (0x101 << PCI_FUNC(nesdev->pcidev->devfn)) |
 			(1 << (PCI_FUNC(nesdev->pcidev->devfn)+16));
 	if (PCI_FUNC(nesdev->pcidev->devfn) < 4) {
-		nesdev->int_req |= (1 << (PCI_FUNC(nesdev->pcidev->devfn)+24));
+		nesdev->int_req |= (1 << (PCI_FUNC(nesdev->mac_index)+24));
 	}
 
 	/* TODO: This really should be the first driver to load, not function 0 */
@@ -772,14 +796,14 @@ static ssize_t nes_show_adapter(struct device_driver *ddp, char *buf)
 
 	list_for_each_entry(nesdev, &nes_dev_list, list) {
 		if (i == ee_flsh_adapter) {
-			devfn      = nesdev->nesadapter->devfn;
-			bus_number = nesdev->nesadapter->bus_number;
+			devfn = nesdev->pcidev->devfn;
+			bus_number = nesdev->pcidev->bus->number;
 			break;
 		}
 		i++;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%x:%x", bus_number, devfn);
+	return snprintf(buf, PAGE_SIZE, "%x:%x\n", bus_number, devfn);
 }
 
 static ssize_t nes_store_adapter(struct device_driver *ddp,
@@ -1050,6 +1074,55 @@ static ssize_t nes_store_idx_data(struct device_driver *ddp,
 	return strnlen(buf, count);
 }
 
+
+/**
+ * nes_show_wqm_quanta
+ */
+static ssize_t nes_show_wqm_quanta(struct device_driver *ddp, char *buf)
+{
+	u32 wqm_quanta_value = 0xdead;
+	u32 i = 0;
+	struct nes_device *nesdev;
+
+	list_for_each_entry(nesdev, &nes_dev_list, list) {
+		if (i == ee_flsh_adapter) {
+			wqm_quanta_value = nesdev->nesadapter->wqm_quanta;
+			break;
+		}
+		i++;
+	}
+
+	return  snprintf(buf, PAGE_SIZE, "0x%X\n", wqm_quanta);
+}
+
+
+/**
+ * nes_store_wqm_quanta
+ */
+static ssize_t nes_store_wqm_quanta(struct device_driver *ddp,
+					const char *buf, size_t count)
+{
+	unsigned long wqm_quanta_value;
+	u32 wqm_config1;
+	u32 i = 0;
+	struct nes_device *nesdev;
+
+	strict_strtoul(buf, 0, &wqm_quanta_value);
+	list_for_each_entry(nesdev, &nes_dev_list, list) {
+		if (i == ee_flsh_adapter) {
+			nesdev->nesadapter->wqm_quanta = wqm_quanta_value;
+			wqm_config1 = nes_read_indexed(nesdev,
+						NES_IDX_WQM_CONFIG1);
+			nes_write_indexed(nesdev, NES_IDX_WQM_CONFIG1,
+					((wqm_quanta_value << 1) |
+					(wqm_config1 & 0x00000001)));
+			break;
+		}
+		i++;
+	}
+	return strnlen(buf, count);
+}
+
 static DRIVER_ATTR(adapter, S_IRUSR | S_IWUSR,
 		   nes_show_adapter, nes_store_adapter);
 static DRIVER_ATTR(eeprom_cmd, S_IRUSR | S_IWUSR,
@@ -1068,6 +1141,8 @@ static DRIVER_ATTR(idx_addr, S_IRUSR | S_IWUSR,
 		   nes_show_idx_addr, nes_store_idx_addr);
 static DRIVER_ATTR(idx_data, S_IRUSR | S_IWUSR,
 		   nes_show_idx_data, nes_store_idx_data);
+static DRIVER_ATTR(wqm_quanta, S_IRUSR | S_IWUSR,
+		   nes_show_wqm_quanta, nes_store_wqm_quanta);
 
 static int nes_create_driver_sysfs(struct pci_driver *drv)
 {
@@ -1081,6 +1156,7 @@ static int nes_create_driver_sysfs(struct pci_driver *drv)
 	error |= driver_create_file(&drv->driver, &driver_attr_nonidx_data);
 	error |= driver_create_file(&drv->driver, &driver_attr_idx_addr);
 	error |= driver_create_file(&drv->driver, &driver_attr_idx_data);
+	error |= driver_create_file(&drv->driver, &driver_attr_wqm_quanta);
 	return error;
 }
 
@@ -1095,6 +1171,7 @@ static void nes_remove_driver_sysfs(struct pci_driver *drv)
 	driver_remove_file(&drv->driver, &driver_attr_nonidx_data);
 	driver_remove_file(&drv->driver, &driver_attr_idx_addr);
 	driver_remove_file(&drv->driver, &driver_attr_idx_data);
+	driver_remove_file(&drv->driver, &driver_attr_wqm_quanta);
 }
 
 /**

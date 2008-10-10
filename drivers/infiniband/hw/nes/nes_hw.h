@@ -156,6 +156,7 @@ enum indexed_regs {
 	NES_IDX_ENDNODE0_NSTAT_TX_OCTETS_HI = 0x7004,
 	NES_IDX_ENDNODE0_NSTAT_TX_FRAMES_LO = 0x7008,
 	NES_IDX_ENDNODE0_NSTAT_TX_FRAMES_HI = 0x700c,
+	NES_IDX_WQM_CONFIG1 = 0x5004,
 	NES_IDX_CM_CONFIG = 0x5100,
 	NES_IDX_NIC_LOGPORT_TO_PHYPORT = 0x6000,
 	NES_IDX_NIC_PHYPORT_TO_USW = 0x6008,
@@ -967,6 +968,7 @@ struct nes_arp_entry {
 #define DEFAULT_JUMBO_NES_QL_TARGET 40
 #define DEFAULT_JUMBO_NES_QL_HIGH   128
 #define NES_NIC_CQ_DOWNWARD_TREND   16
+#define NES_PFT_SIZE		    48
 
 struct nes_hw_tune_timer {
     /* u16 cq_count; */
@@ -1079,6 +1081,7 @@ struct nes_adapter {
 	u32 et_rx_max_coalesced_frames_high;
 	u32 et_rate_sample_interval;
 	u32 timer_int_limit;
+	u32 wqm_quanta;
 
 	/* Adapter base MAC address */
 	u32 mac_addr_low;
@@ -1094,12 +1097,14 @@ struct nes_adapter {
 	u16 pd_config_base[4];
 
 	u16 link_interrupt_count[4];
+	u8 crit_error_count[32];
 
 	/* the phy index for each port */
 	u8  phy_index[4];
 	u8  mac_sw_state[4];
 	u8  mac_link_down[4];
 	u8  phy_type[4];
+	u8  log_port;
 
 	/* PCI information */
 	unsigned int  devfn;
@@ -1113,6 +1118,7 @@ struct nes_adapter {
 	u8            virtwq;
 	u8            et_use_adaptive_rx_coalesce;
 	u8            adapter_fcn_count;
+	u8 pft_mcast_map[NES_PFT_SIZE];
 };
 
 struct nes_pbl {

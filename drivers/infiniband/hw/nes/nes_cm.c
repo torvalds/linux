@@ -52,7 +52,7 @@
 #include <linux/random.h>
 #include <linux/list.h>
 #include <linux/threads.h>
-
+#include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
@@ -1019,23 +1019,43 @@ static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 
 
 /**
- * nes_addr_send_arp
+ * nes_addr_resolve_neigh
  */
-static void nes_addr_send_arp(u32 dst_ip)
+static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
 {
 	struct rtable *rt;
 	struct flowi fl;
+	struct neighbour *neigh;
+	int rc = -1;
+	DECLARE_MAC_BUF(mac);
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
 		printk("%s: ip_route_output_key failed for 0x%08X\n",
 				__func__, dst_ip);
-		return;
+		return rc;
 	}
 
-	neigh_event_send(rt->u.dst.neighbour, NULL);
+	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, nesvnic->netdev);
+	if (neigh) {
+		if (neigh->nud_state & NUD_VALID) {
+			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
+				  " is %s, Gateway is 0x%08X \n", dst_ip,
+				  print_mac(mac, neigh->ha), ntohl(rt->rt_gateway));
+			nes_manage_arp_cache(nesvnic->netdev, neigh->ha,
+					     dst_ip, NES_ARP_ADD);
+			rc = nes_arp_table(nesvnic->nesdev, dst_ip, NULL,
+					   NES_ARP_RESOLVE);
+		}
+		neigh_release(neigh);
+	}
+
+	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID)))
+		neigh_event_send(rt->u.dst.neighbour, NULL);
+
 	ip_rt_put(rt);
+	return rc;
 }
 
 
@@ -1108,9 +1128,11 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	/* get the mac addr for the remote node */
 	arpindex = nes_arp_table(nesdev, cm_node->rem_addr, NULL, NES_ARP_RESOLVE);
 	if (arpindex < 0) {
-		kfree(cm_node);
-		nes_addr_send_arp(cm_info->rem_addr);
-		return NULL;
+		arpindex = nes_addr_resolve_neigh(nesvnic, cm_info->rem_addr);
+		if (arpindex < 0) {
+			kfree(cm_node);
+			return NULL;
+		}
 	}
 
 	/* copy the mac addr to node context */
@@ -1826,7 +1848,7 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 /**
  * mini_cm_connect - make a connection node with params
  */
-struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
+static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 	struct nes_vnic *nesvnic, u16 private_data_len,
 	void *private_data, struct nes_cm_info *cm_info)
 {
@@ -2007,7 +2029,6 @@ static int mini_cm_close(struct nes_cm_core *cm_core, struct nes_cm_node *cm_nod
 		ret = rem_ref_cm_node(cm_core, cm_node);
 		break;
 	}
-	cm_node->cm_id = NULL;
 	return ret;
 }
 
