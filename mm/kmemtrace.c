@@ -307,29 +307,29 @@ early_param("kmemtrace.subbufs", kmemtrace_set_subbufs);
 
 void kmemtrace_init(void)
 {
-	if (!kmemtrace_enabled)
-		return;
-
 	if (!kmemtrace_n_subbufs)
 		kmemtrace_n_subbufs = KMEMTRACE_DEF_N_SUBBUFS;
 
 	kmemtrace_chan = relay_open(NULL, NULL, KMEMTRACE_SUBBUF_SIZE,
 				    kmemtrace_n_subbufs, &relay_callbacks,
 				    NULL);
-	if (unlikely(!kmemtrace_chan)) {
+	if (!kmemtrace_chan) {
 		printk(KERN_ERR "kmemtrace: could not open relay channel.\n");
 		return;
 	}
 
-	if (unlikely(kmemtrace_start_probes()))
-		goto probe_fail;
+	if (!kmemtrace_enabled) {
+		printk(KERN_INFO "kmemtrace: disabled. Pass "
+			"kemtrace.enable=yes as kernel parameter for "
+			"boot-time tracing.");
+		return;
+	}
+	if (kmemtrace_start_probes()) {
+		printk(KERN_ERR "kmemtrace: could not register marker probes!\n");
+		kmemtrace_cleanup();
+		return;
+	}
 
-	printk(KERN_INFO "kmemtrace: early init successful.\n");
-
-	return;
-
-probe_fail:
-	printk(KERN_ERR "kmemtrace: could not register marker probes!\n");
-	kmemtrace_cleanup();
+	printk(KERN_INFO "kmemtrace: enabled.\n");
 }
 
