@@ -257,6 +257,7 @@ static void __cpuinit smp_callin(void)
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
+	notify_cpu_starting(cpuid);
 	/*
 	 * Get our bogomips.
 	 *
