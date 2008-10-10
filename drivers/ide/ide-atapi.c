@@ -41,7 +41,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive) ||
-		    (drive->media == ide_tape && !scsi && (stat & ERR_STAT))) {
+		    (drive->media == ide_tape && !scsi && (stat & ATA_ERR))) {
 			if (drive->media == ide_floppy && !scsi)
 				printk(KERN_ERR "%s: DMA %s error\n",
 					drive->name, rq_data_dir(pc->rq)
@@ -56,7 +56,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	}
 
 	/* No more interrupts */
-	if ((stat & DRQ_STAT) == 0) {
+	if ((stat & ATA_DRQ) == 0) {
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  pc->xferred);
 
@@ -65,10 +65,10 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		local_irq_enable_in_hardirq();
 
 		if (drive->media == ide_tape && !scsi &&
-		    (stat & ERR_STAT) && rq->cmd[0] == REQUEST_SENSE)
-			stat &= ~ERR_STAT;
+		    (stat & ATA_ERR) && rq->cmd[0] == REQUEST_SENSE)
+			stat &= ~ATA_ERR;
 
-		if ((stat & ERR_STAT) || (pc->flags & PC_FLAG_DMA_ERROR)) {
+		if ((stat & ATA_ERR) || (pc->flags & PC_FLAG_DMA_ERROR)) {
 			/* Error detected */
 			debug_log("%s: I/O error\n", drive->name);
 
@@ -95,7 +95,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 cmd_finished:
 		pc->error = 0;
 		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) &&
-		    (stat & SEEK_STAT) == 0) {
+		    (stat & ATA_DSC) == 0) {
 			dsc_handle(drive);
 			return ide_stopped;
 		}
@@ -117,17 +117,18 @@ cmd_finished:
 	/* Get the number of bytes to transfer on this interrupt. */
 	ide_read_bcount_and_ireason(drive, &bcount, &ireason);
 
-	if (ireason & CD) {
+	if (ireason & ATAPI_COD) {
 		printk(KERN_ERR "%s: CoD != 0 in %s\n", drive->name, __func__);
 		return ide_do_reset(drive);
 	}
 
-	if (((ireason & IO) == IO) == !!(pc->flags & PC_FLAG_WRITING)) {
+	if (((ireason & ATAPI_IO) == ATAPI_IO) ==
+		!!(pc->flags & PC_FLAG_WRITING)) {
 		/* Hopefully, we will never get here */
 		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
 				"to %s!\n", drive->name,
-				(ireason & IO) ? "Write" : "Read",
-				(ireason & IO) ? "Read" : "Write");
+				(ireason & ATAPI_IO) ? "Write" : "Read",
+				(ireason & ATAPI_IO) ? "Read" : "Write");
 		return ide_do_reset(drive);
 	}
 
@@ -205,7 +206,8 @@ static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 {
 	int retries = 100;
 
-	while (retries-- && ((ireason & CD) == 0 || (ireason & IO))) {
+	while (retries-- && ((ireason & ATAPI_COD) == 0 ||
+		(ireason & ATAPI_IO))) {
 		printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 				"a packet command, retrying\n", drive->name);
 		udelay(100);
@@ -214,8 +216,8 @@ static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 			printk(KERN_ERR "%s: (IO,CoD != (0,1) while issuing "
 					"a packet command, ignoring\n",
 					drive->name);
-			ireason |= CD;
-			ireason &= ~IO;
+			ireason |= ATAPI_COD;
+			ireason &= ~ATAPI_IO;
 		}
 	}
 
@@ -231,7 +233,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_startstop_t startstop;
 	u8 ireason;
 
-	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
+	if (ide_wait_stat(&startstop, drive, ATA_DRQ, ATA_BUSY, WAIT_READY)) {
 		printk(KERN_ERR "%s: Strange, packet command initiated yet "
 				"DRQ isn't asserted\n", drive->name);
 		return startstop;
@@ -241,7 +243,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	if (drive->media == ide_tape && !drive->scsi)
 		ireason = ide_wait_ireason(drive, ireason);
 
-	if ((ireason & CD) == 0 || (ireason & IO)) {
+	if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
 		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
 				"a packet command\n", drive->name);
 		return ide_do_reset(drive);

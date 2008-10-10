@@ -136,7 +136,7 @@ static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 	local_irq_enable_in_hardirq();
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (OK_STAT(stat, READY_STAT, BAD_STAT))
+	if (OK_STAT(stat, ATA_DRDY, BAD_STAT))
 		drive->mult_count = drive->mult_req;
 	else {
 		drive->mult_req = drive->mult_count = 0;
@@ -159,15 +159,15 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 
 	while (1) {
 		stat = hwif->tp_ops->read_status(hwif);
-		if ((stat & BUSY_STAT) == 0 || retries-- == 0)
+		if ((stat & ATA_BUSY) == 0 || retries-- == 0)
 			break;
 		udelay(10);
 	};
 
-	if (OK_STAT(stat, READY_STAT, BAD_STAT))
+	if (OK_STAT(stat, ATA_DRDY, BAD_STAT))
 		return ide_stopped;
 
-	if (stat & (ERR_STAT|DRQ_STAT))
+	if (stat & (ATA_ERR | ATA_DRQ))
 		return ide_error(drive, "set_geometry_intr", stat);
 
 	ide_set_handler(drive, &set_geometry_intr, WAIT_WORSTCASE, NULL);
@@ -185,7 +185,7 @@ static ide_startstop_t recal_intr(ide_drive_t *drive)
 	local_irq_enable_in_hardirq();
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
+	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT))
 		return ide_error(drive, "recal_intr", stat);
 	return ide_stopped;
 }
@@ -202,7 +202,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	local_irq_enable_in_hardirq();
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
+	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT))
 		return ide_error(drive, "task_no_data_intr", stat);
 		/* calls ide_end_drive_cmd */
 
@@ -225,13 +225,13 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	for (retries = 0; retries < 1000; retries++) {
 		stat = hwif->tp_ops->read_status(hwif);
 
-		if (stat & BUSY_STAT)
+		if (stat & ATA_BUSY)
 			udelay(10);
 		else
 			break;
 	}
 
-	if (stat & BUSY_STAT)
+	if (stat & ATA_BUSY)
 		printk(KERN_ERR "%s: drive still BUSY!\n", drive->name);
 
 	return stat;
@@ -390,7 +390,7 @@ void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq, u8 stat)
 {
 	/* Command all done? */
-	if (OK_STAT(stat, READY_STAT, BUSY_STAT)) {
+	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY)) {
 		task_end_request(drive, rq, stat);
 		return ide_stopped;
 	}
@@ -410,11 +410,11 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	/* Error? */
-	if (stat & ERR_STAT)
+	if (stat & ATA_ERR)
 		return task_error(drive, rq, __func__, stat);
 
 	/* Didn't want any data? Odd. */
-	if (!(stat & DRQ_STAT))
+	if ((stat & ATA_DRQ) == 0)
 		return task_in_unexpected(drive, rq, stat);
 
 	ide_pio_datablock(drive, rq, 0);
@@ -447,7 +447,7 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 		return task_error(drive, rq, __func__, stat);
 
 	/* Deal with unexpected ATA data phase. */
-	if (((stat & DRQ_STAT) == 0) ^ !hwif->nleft)
+	if (((stat & ATA_DRQ) == 0) ^ !hwif->nleft)
 		return task_error(drive, rq, __func__, stat);
 
 	if (!hwif->nleft) {
@@ -466,7 +466,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
-	if (ide_wait_stat(&startstop, drive, DRQ_STAT,
+	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
 				drive->name,

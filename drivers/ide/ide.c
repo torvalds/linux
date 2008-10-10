@@ -119,7 +119,7 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		drive->media			= ide_disk;
 		drive->select.all		= (unit<<4)|0xa0;
 		drive->hwif			= hwif;
-		drive->ready_stat		= READY_STAT;
+		drive->ready_stat		= ATA_DRDY;
 		drive->bad_wstat		= BAD_W_STAT;
 		drive->special.b.recalibrate	= 1;
 		drive->special.b.set_geometry	= 1;
@@ -884,7 +884,7 @@ MODULE_PARM_DESC(noprobe, "skip probing for a device");
 static unsigned int ide_nowerr;
 
 module_param_call(nowerr, ide_set_dev_param_mask, NULL, &ide_nowerr, 0);
-MODULE_PARM_DESC(nowerr, "ignore the WRERR_STAT bit for a device");
+MODULE_PARM_DESC(nowerr, "ignore the ATA_DF bit for a device");
 
 static unsigned int ide_cdroms;
 
@@ -949,7 +949,7 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 		drive->noprobe = 1;
 	}
 	if (ide_nowerr & (1 << i)) {
-		printk(KERN_INFO "ide: ignoring the WRERR_STAT bit for %s\n",
+		printk(KERN_INFO "ide: ignoring the ATA_DF bit for %s\n",
 				 drive->name);
 		drive->bad_wstat = BAD_R_STAT;
 	}
@@ -970,7 +970,7 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 				 drive->cyl, drive->head, drive->sect);
 		drive->present = 1;
 		drive->media = ide_disk;
-		drive->ready_stat = READY_STAT;
+		drive->ready_stat = ATA_DRDY;
 	}
 }
 

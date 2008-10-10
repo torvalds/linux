@@ -436,7 +436,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			ide_dump_status_no_sense(drive, "media error (blank)",
 						 stat);
 			do_end_request = 1;
-		} else if ((err & ~ABRT_ERR) != 0) {
+		} else if ((err & ~ATA_ABORTED) != 0) {
 			/* go to the default handler for other errors */
 			ide_error(drive, "cdrom_decode_status", stat);
 			return 1;
@@ -457,7 +457,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		 * If we got a CHECK_CONDITION status, queue
 		 * a request sense command.
 		 */
-		if (stat & ERR_STAT)
+		if (stat & ATA_ERR)
 			cdrom_queue_request_sense(drive, NULL, NULL);
 	} else {
 		blk_dump_rq_flags(rq, "ide-cd: bad rq");
@@ -468,7 +468,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	return 1;
 
 end_request:
-	if (stat & ERR_STAT) {
+	if (stat & ATA_ERR) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&ide_lock, flags);
@@ -574,7 +574,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 		 */
 
 		/* check for errors */
-		if (cdrom_decode_status(drive, DRQ_STAT, NULL))
+		if (cdrom_decode_status(drive, ATA_DRQ, NULL))
 			return ide_stopped;
 
 		/* ok, next interrupt will be DMA interrupt */
@@ -582,8 +582,8 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 			drive->waiting_for_dma = 1;
 	} else {
 		/* otherwise, we must wait for DRQ to get set */
-		if (ide_wait_stat(&startstop, drive, DRQ_STAT,
-				BUSY_STAT, WAIT_READY))
+		if (ide_wait_stat(&startstop, drive, ATA_DRQ,
+				  ATA_BUSY, WAIT_READY))
 			return startstop;
 	}
 
@@ -938,7 +938,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		thislen = len;
 
 	/* If DRQ is clear, the command has completed. */
-	if ((stat & DRQ_STAT) == 0) {
+	if ((stat & ATA_DRQ) == 0) {
 		if (blk_fs_request(rq)) {
 			/*
 			 * If we're not done reading/writing, complain.
@@ -1206,7 +1206,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 			unsigned long elapsed = jiffies - info->start_seek;
 			int stat = hwif->tp_ops->read_status(hwif);
 
-			if ((stat & SEEK_STAT) != SEEK_STAT) {
+			if ((stat & ATA_DSC) != ATA_DSC) {
 				if (elapsed < IDECD_SEEK_TIMEOUT) {
 					ide_stall_queue(drive,
 							IDECD_SEEK_TIMER);

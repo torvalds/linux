@@ -340,16 +340,16 @@ static void ide_dump_sector(ide_drive_t *drive)
 static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
 {
 	printk("{ ");
-	if (err & ABRT_ERR)	printk("DriveStatusError ");
-	if (err & ICRC_ERR)
-		printk((err & ABRT_ERR) ? "BadCRC " : "BadSector ");
-	if (err & ECC_ERR)	printk("UncorrectableError ");
-	if (err & ID_ERR)	printk("SectorIdNotFound ");
-	if (err & TRK0_ERR)	printk("TrackZeroNotFound ");
-	if (err & MARK_ERR)	printk("AddrMarkNotFound ");
+	if (err & ATA_ABORTED)	printk("DriveStatusError ");
+	if (err & ATA_ICRC)
+		printk((err & ATA_ABORTED) ? "BadCRC " : "BadSector ");
+	if (err & ATA_UNC)	printk("UncorrectableError ");
+	if (err & ATA_IDNF)	printk("SectorIdNotFound ");
+	if (err & ATA_TRK0NF)	printk("TrackZeroNotFound ");
+	if (err & ATA_AMNF)	printk("AddrMarkNotFound ");
 	printk("}");
-	if ((err & (BBD_ERR | ABRT_ERR)) == BBD_ERR ||
-	    (err & (ECC_ERR|ID_ERR|MARK_ERR))) {
+	if ((err & (ATA_BBK | ATA_ABORTED)) == ATA_BBK ||
+	    (err & (ATA_UNC | ATA_IDNF | ATA_AMNF))) {
 		ide_dump_sector(drive);
 		if (HWGROUP(drive) && HWGROUP(drive)->rq)
 			printk(", sector=%llu",
@@ -361,12 +361,12 @@ static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
 static void ide_dump_atapi_error(ide_drive_t *drive, u8 err)
 {
 	printk("{ ");
-	if (err & ILI_ERR)	printk("IllegalLengthIndication ");
-	if (err & EOM_ERR)	printk("EndOfMedia ");
-	if (err & ABRT_ERR)	printk("AbortedCommand ");
-	if (err & MCR_ERR)	printk("MediaChangeRequested ");
-	if (err & LFS_ERR)	printk("LastFailedSense=0x%02x ",
-				       (err & LFS_ERR) >> 4);
+	if (err & ATAPI_ILI)	printk("IllegalLengthIndication ");
+	if (err & ATAPI_EOM)	printk("EndOfMedia ");
+	if (err & ATA_ABORTED)	printk("AbortedCommand ");
+	if (err & ATA_MCR)	printk("MediaChangeRequested ");
+	if (err & ATAPI_LFS)	printk("LastFailedSense=0x%02x ",
+				       (err & ATAPI_LFS) >> 4);
 	printk("}\n");
 }
 
@@ -388,19 +388,19 @@ u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 
 	local_irq_save(flags);
 	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
-	if (stat & BUSY_STAT)
+	if (stat & ATA_BUSY)
 		printk("Busy ");
 	else {
-		if (stat & READY_STAT)	printk("DriveReady ");
-		if (stat & WRERR_STAT)	printk("DeviceFault ");
-		if (stat & SEEK_STAT)	printk("SeekComplete ");
-		if (stat & DRQ_STAT)	printk("DataRequest ");
-		if (stat & ECC_STAT)	printk("CorrectedError ");
-		if (stat & INDEX_STAT)	printk("Index ");
-		if (stat & ERR_STAT)	printk("Error ");
+		if (stat & ATA_DRDY)	printk("DriveReady ");
+		if (stat & ATA_DF)	printk("DeviceFault ");
+		if (stat & ATA_DSC)	printk("SeekComplete ");
+		if (stat & ATA_DRQ)	printk("DataRequest ");
+		if (stat & ATA_CORR)	printk("CorrectedError ");
+		if (stat & ATA_IDX)	printk("Index ");
+		if (stat & ATA_ERR)	printk("Error ");
 	}
 	printk("}\n");
-	if ((stat & (BUSY_STAT|ERR_STAT)) == ERR_STAT) {
+	if ((stat & (ATA_BUSY | ATA_ERR)) == ATA_ERR) {
 		err = ide_read_error(drive);
 		printk("%s: %s: error=0x%02x ", drive->name, msg, err);
 		if (drive->media == ide_disk)

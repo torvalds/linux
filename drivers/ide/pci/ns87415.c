@@ -274,9 +274,9 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		do {
 			udelay(50);
 			stat = hwif->tp_ops->read_status(hwif);
-                	if (stat == 0xff)
-                        	break;
-        	} while ((stat & BUSY_STAT) && --timeout);
+			if (stat == 0xff)
+				break;
+		} while ((stat & ATA_BUSY) && --timeout);
 #endif
 	}
 

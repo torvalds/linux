@@ -400,7 +400,7 @@ static int scc_dma_end(ide_drive_t *drive)
 	/* errata A308 workaround: Step5 (check data loss) */
 	/* We don't check non ide_disk because it is limited to UDMA4 */
 	if (!(in_be32((void __iomem *)hwif->io_ports.ctl_addr)
-	      & ERR_STAT) &&
+	      & ATA_ERR) &&
 	    drive->media == ide_disk && drive->current_speed > XFER_UDMA_4) {
 		reg = in_be32((void __iomem *)intsts_port);
 		if (!(reg & INTSTS_ACTEINT)) {
@@ -504,7 +504,7 @@ static int scc_dma_test_irq(ide_drive_t *drive)
 
 	/* SCC errata A252,A308 workaround: Step4 */
 	if ((in_be32((void __iomem *)hwif->io_ports.ctl_addr)
-	     & ERR_STAT) &&
+	     & ATA_ERR) &&
 	    (int_stat & INTSTS_INTRQ))
 		return 1;
 

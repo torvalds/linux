@@ -106,7 +106,7 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 	dma_stat = hwif->dma_ops->dma_end(drive);
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (OK_STAT(stat,DRIVE_READY,drive->bad_wstat|DRQ_STAT)) {
+	if (OK_STAT(stat, DRIVE_READY, drive->bad_wstat | ATA_DRQ)) {
 		if (!dma_stat) {
 			struct request *rq = HWGROUP(drive)->rq;
 

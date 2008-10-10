@@ -473,7 +473,7 @@ int drive_is_ready (ide_drive_t *drive)
 		/* Note: this may clear a pending IRQ!! */
 		stat = hwif->tp_ops->read_status(hwif);
 
-	if (stat & BUSY_STAT)
+	if (stat & ATA_BUSY)
 		/* drive busy:  definitely not interrupting */
 		return 0;
 
@@ -505,10 +505,10 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 	udelay(1);	/* spec allows drive 400ns to assert "BUSY" */
 	stat = tp_ops->read_status(hwif);
 
-	if (stat & BUSY_STAT) {
+	if (stat & ATA_BUSY) {
 		local_irq_set(flags);
 		timeout += jiffies;
-		while ((stat = tp_ops->read_status(hwif)) & BUSY_STAT) {
+		while ((stat = tp_ops->read_status(hwif)) & ATA_BUSY) {
 			if (time_after(jiffies, timeout)) {
 				/*
 				 * One last read after the timeout in case
@@ -516,7 +516,7 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 				 * progress during the timeout..
 				 */
 				stat = tp_ops->read_status(hwif);
-				if (!(stat & BUSY_STAT))
+				if ((stat & ATA_BUSY) == 0)
 					break;
 
 				local_irq_restore(flags);
@@ -685,12 +685,12 @@ int ide_driveid_update(ide_drive_t *drive)
 
 		msleep(50);	/* give drive a breather */
 		stat = tp_ops->read_altstatus(hwif);
-	} while (stat & BUSY_STAT);
+	} while (stat & ATA_BUSY);
 
-	msleep(50);	/* wait for IRQ and DRQ_STAT */
+	msleep(50);	/* wait for IRQ and ATA_DRQ */
 	stat = tp_ops->read_status(hwif);
 
-	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
+	if (!OK_STAT(stat, ATA_DRQ, BAD_R_STAT)) {
 		SELECT_MASK(drive, 0);
 		printk("%s: CHECK for good STATUS\n", drive->name);
 		return 0;
@@ -776,7 +776,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 		tp_ops->set_irq(hwif, 1);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,
-				BUSY_STAT|DRQ_STAT|ERR_STAT,
+				ATA_BUSY | ATA_DRQ | ATA_ERR,
 				WAIT_CMD, &stat);
 
 	SELECT_MASK(drive, 0);
@@ -923,7 +923,7 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	udelay (10);
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (OK_STAT(stat, 0, BUSY_STAT))
+	if (OK_STAT(stat, 0, ATA_BUSY))
 		printk("%s: ATAPI reset complete\n", drive->name);
 	else {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
@@ -969,7 +969,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 
 	tmp = hwif->tp_ops->read_status(hwif);
 
-	if (!OK_STAT(tmp, 0, BUSY_STAT)) {
+	if (!OK_STAT(tmp, 0, ATA_BUSY)) {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
 			ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
@@ -1183,7 +1183,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		 */
 		mdelay(1);
 		stat = hwif->tp_ops->read_status(hwif);
-		if ((stat & BUSY_STAT) == 0)
+		if ((stat & ATA_BUSY) == 0)
 			return 0;
 		/*
 		 * Assume a value of 0xff means nothing is connected to

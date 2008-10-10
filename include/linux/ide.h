@@ -87,12 +87,13 @@ struct ide_io_ports {
 };
 
 #define OK_STAT(stat,good,bad)	(((stat)&((good)|(bad)))==(good))
-#define BAD_R_STAT		(BUSY_STAT   | ERR_STAT)
-#define BAD_W_STAT		(BAD_R_STAT  | WRERR_STAT)
-#define BAD_STAT		(BAD_R_STAT  | DRQ_STAT)
-#define DRIVE_READY		(READY_STAT  | SEEK_STAT)
 
-#define BAD_CRC			(ABRT_ERR    | ICRC_ERR)
+#define BAD_R_STAT	(ATA_BUSY | ATA_ERR)
+#define BAD_W_STAT	(BAD_R_STAT | ATA_DF)
+#define BAD_STAT	(BAD_R_STAT | ATA_DRQ)
+#define DRIVE_READY	(ATA_DRDY | ATA_DSC)
+
+#define BAD_CRC		(ATA_ABORTED | ATA_ICRC)
 
 #define SATA_NR_PORTS		(3)	/* 16 possible ?? */
 
@@ -438,8 +439,8 @@ struct ide_drive_s {
 	u8	mult_req;	/* requested multiple sector setting */
 	u8	tune_req;	/* requested drive tuning setting */
 	u8	io_32bit;	/* 0=16-bit, 1=32-bit, 2/3=32bit+sync */
-	u8	bad_wstat;	/* used for ignoring WRERR_STAT */
-	u8	nowerr;		/* used for ignoring WRERR_STAT */
+	u8	bad_wstat;	/* used for ignoring ATA_DF */
+	u8	nowerr;		/* used for ignoring ATA_DF */
 	u8	sect0;		/* offset of first sector for DM6:DDO */
 	u8	head;		/* "real" number of heads */
 	u8	sect;		/* "real" sectors per track */

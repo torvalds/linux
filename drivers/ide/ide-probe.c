@@ -264,7 +264,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	if (io_ports->ctl_addr) {
 		a = tp_ops->read_altstatus(hwif);
 		s = tp_ops->read_status(hwif);
-		if ((a ^ s) & ~INDEX_STAT)
+		if ((a ^ s) & ~ATA_IDX)
 			/* ancient Seagate drives, broken interfaces */
 			printk(KERN_INFO "%s: probing with STATUS(0x%02x) "
 					 "instead of ALTSTATUS(0x%02x)\n",
@@ -301,13 +301,13 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 		msleep(50);
 		s = use_altstatus ? tp_ops->read_altstatus(hwif)
 				  : tp_ops->read_status(hwif);
-	} while (s & BUSY_STAT);
+	} while (s & ATA_BUSY);
 
-	/* wait for IRQ and DRQ_STAT */
+	/* wait for IRQ and ATA_DRQ */
 	msleep(50);
 	s = tp_ops->read_status(hwif);
 
-	if (OK_STAT(s, DRQ_STAT, BAD_R_STAT)) {
+	if (OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
 		unsigned long flags;
 
 		/* local CPU only; some systems need this */
@@ -391,7 +391,7 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 	do {
 		msleep(50);
 		stat = hwif->tp_ops->read_status(hwif);
-		if ((stat & BUSY_STAT) == 0)
+		if ((stat & ATA_BUSY) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
 
@@ -460,7 +460,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
-			/* allow BUSY_STAT to assert & clear */
+			/* allow ATA_BUSY to assert & clear */
 			msleep(50);
 		}
 		/* no i/f present: mmm.. this should be a 4 -ml */
@@ -469,7 +469,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 
 	stat = tp_ops->read_status(hwif);
 
-	if (OK_STAT(stat, READY_STAT, BUSY_STAT) ||
+	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY) ||
 	    drive->present || cmd == ATA_CMD_ID_ATAPI) {
 		/* send cmd and wait */
 		if ((rc = try_to_identify(drive, cmd))) {
@@ -479,7 +479,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 
 		stat = tp_ops->read_status(hwif);
 
-		if (stat == (BUSY_STAT | READY_STAT))
+		if (stat == (ATA_BUSY | ATA_DRDY))
 			return 4;
 
 		if (rc == 1 && cmd == ATA_CMD_ID_ATAPI) {

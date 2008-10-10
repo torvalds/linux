@@ -945,7 +945,7 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 		stat = hwif->tp_ops->read_status(hwif);
 		local_irq_restore(flags);
 
-		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;
+		progress_indication = ((stat & ATA_DSC) == 0) ? 0 : 0x10000;
 	}
 	if (put_user(progress_indication, arg))
 		return (-EFAULT);
