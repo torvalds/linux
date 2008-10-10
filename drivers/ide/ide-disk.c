@@ -889,7 +889,7 @@ static void idedisk_setup(ide_drive_t *drive)
 			 drive->bios_cyl, drive->bios_head, drive->bios_sect);
 
 	/* write cache enabled? */
-	if ((id[ATA_ID_CSFO] & 1) || (id[ATA_ID_CFS_ENABLE_1] & (1 << 5)))
+	if ((id[ATA_ID_CSFO] & 1) || ata_id_wcache_enabled(id))
 		drive->wcache = 1;
 
 	write_cache(drive, 1);
