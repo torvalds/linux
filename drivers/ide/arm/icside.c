@@ -265,8 +265,8 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 	 * If we're going to be doing MW_DMA_1 or MW_DMA_2, we should
 	 * take care to note the values in the ID...
 	 */
-	if (use_dma_info && drive->id->eide_dma_time > cycle_time)
-		cycle_time = drive->id->eide_dma_time;
+	if (use_dma_info && drive->id[ATA_ID_EIDE_DMA_TIME] > cycle_time)
+		cycle_time = drive->id[ATA_ID_EIDE_DMA_TIME];
 
 	drive->drive_data = cycle_time;
 

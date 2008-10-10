@@ -380,7 +380,11 @@ struct ide_drive_s {
 	struct request		*rq;	/* current request */
 	struct ide_drive_s 	*next;	/* circular list of hwgroup drives */
 	void		*driver_data;	/* extra driver data */
-	struct hd_driveid	*id;	/* drive model identification info */
+	union {
+		/* identification info */
+		struct hd_driveid	*driveid;
+		u16			*id;
+	};
 #ifdef CONFIG_IDE_PROC_FS
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
 	struct ide_settings_s *settings;/* /proc/ide/ drive settings */
@@ -920,7 +924,7 @@ ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
 
-extern void ide_fix_driveid(struct hd_driveid *);
+void ide_fix_driveid(u16 *);
 
 extern void ide_fixstring(u8 *, const int, const int);
 
@@ -1240,7 +1244,7 @@ struct drive_list_entry {
 	const char *id_firmware;
 };
 
-int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
+int ide_in_drive_list(u16 *, const struct drive_list_entry *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 int __ide_dma_bad_drive(ide_drive_t *);
@@ -1347,12 +1351,13 @@ const char *ide_xfer_verbose(u8 mode);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
 
-static inline int ide_dev_has_iordy(struct hd_driveid *id)
+static inline int ide_dev_has_iordy(u16 *id)
 {
-	return ((id->field_valid & 2) && (id->capability & 8)) ? 1 : 0;
+	return ((id[ATA_ID_FIELD_VALID] & 2) &&
+		(((struct hd_driveid *)id)->capability & 8)) ? 1 : 0;
 }
 
-static inline int ide_dev_is_sata(struct hd_driveid *id)
+static inline int ide_dev_is_sata(u16 *id)
 {
 	/*
 	 * See if word 93 is 0 AND drive is at least ATA-5 compatible
@@ -1360,7 +1365,7 @@ static inline int ide_dev_is_sata(struct hd_driveid *id)
 	 * this trick allows us to filter out the reserved values of
 	 * 0x0000 and 0xffff along with the earlier ATA revisions...
 	 */
-	if (id->hw_config == 0 && (short)id->major_rev_num >= 0x0020)
+	if (id[ATA_ID_HW_CONFIG] == 0 && (short)id[ATA_ID_MAJOR_VER] >= 0x0020)
 		return 1;
 	return 0;
 }
@@ -1437,11 +1442,11 @@ extern struct bus_type ide_bus_type;
 extern struct class *ide_port_class;
 
 /* check if CACHE FLUSH (EXT) command is supported (bits defined in ATA-6) */
-#define ide_id_has_flush_cache(id)	((id)->cfs_enable_2 & 0x3000)
+#define ide_id_has_flush_cache(id)	((id)[ATA_ID_CFS_ENABLE_2] & 0x3000)
 
 /* some Maxtor disks have bit 13 defined incorrectly so check bit 10 too */
 #define ide_id_has_flush_cache_ext(id)	\
-	(((id)->cfs_enable_2 & 0x2400) == 0x2400)
+	(((id)[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400)
 
 static inline void ide_dump_identify(u8 *id)
 {

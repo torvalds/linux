@@ -328,7 +328,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	if (!drive->id || !(drive->id->capability & 1))
+	if ((drive->driveid->capability & 1) == 0)
 		goto out;
 
 	if (hwif->dma_ops == NULL)
@@ -710,21 +710,21 @@ static ssize_t model_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", drive->id->model);
+	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_PROD]);
 }
 
 static ssize_t firmware_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", drive->id->fw_rev);
+	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_FW_REV]);
 }
 
 static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", drive->id->serial_no);
+	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_SERNO]);
 }
 
 static struct device_attribute ide_dev_attrs[] = {

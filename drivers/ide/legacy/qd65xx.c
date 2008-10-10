@@ -151,12 +151,14 @@ static int qd_find_disk_type (ide_drive_t *drive,
 		int *active_time, int *recovery_time)
 {
 	struct qd65xx_timing_s *p;
-	char model[40];
+	char *m = (char *)&drive->id[ATA_ID_PROD];
+	char model[ATA_ID_PROD_LEN];
 
-	if (!*drive->id->model) return 0;
+	if (*m == 0)
+		return 0;
 
-	strncpy(model,drive->id->model,40);
-	ide_fixstring(model,40,1); /* byte-swap */
+	strncpy(model, m, ATA_ID_PROD_LEN);
+	ide_fixstring(model, ATA_ID_PROD_LEN, 1); /* byte-swap */
 
 	for (p = qd65xx_timing ; p->offset != -1 ; p++) {
 		if (!strncmp(p->model, model+p->offset, 4)) {
@@ -185,20 +187,20 @@ static void qd_set_timing (ide_drive_t *drive, u8 timing)
 
 static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
+	u16 *id = drive->id;
 	int active_time   = 175;
 	int recovery_time = 415; /* worst case values from the dos driver */
 
 	/*
 	 * FIXME: use "pio" value
 	 */
-	if (drive->id && !qd_find_disk_type(drive, &active_time, &recovery_time)
-		&& drive->id->tPIO && (drive->id->field_valid & 0x02)
-		&& drive->id->eide_pio >= 240) {
-
+	if (!qd_find_disk_type(drive, &active_time, &recovery_time) &&
+	    drive->driveid->tPIO && (id[ATA_ID_FIELD_VALID] & 2) &&
+	    id[ATA_ID_EIDE_PIO] >= 240) {
 		printk(KERN_INFO "%s: PIO mode%d\n", drive->name,
-				drive->id->tPIO);
+				drive->driveid->tPIO);
 		active_time = 110;
-		recovery_time = drive->id->eide_pio - 120;
+		recovery_time = drive->id[ATA_ID_EIDE_PIO] - 120;
 	}
 
 	qd_set_timing(drive, qd6500_compute_timing(HWIF(drive), active_time, recovery_time));

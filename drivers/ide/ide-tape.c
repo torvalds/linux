@@ -2311,7 +2311,7 @@ static int idetape_identify_device(ide_drive_t *drive)
 	if (drive->id_read == 0)
 		return 1;
 
-	*((unsigned short *) &gcw) = drive->id->config;
+	*((u16 *)&gcw) = drive->id[ATA_ID_CONFIG];
 
 	protocol	=   (gcw[1] & 0xC0) >> 6;
 	device_type	=    gcw[1] & 0x1F;
@@ -2463,7 +2463,7 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 		drive->dsc_overlap = 0;
 	}
 	/* Seagate Travan drives do not support DSC overlap. */
-	if (strstr(drive->id->model, "Seagate STT3401"))
+	if (strstr((char *)&drive->id[ATA_ID_PROD], "Seagate STT3401"))
 		drive->dsc_overlap = 0;
 	tape->minor = minor;
 	tape->name[0] = 'h';
@@ -2471,7 +2471,8 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	tape->name[2] = '0' + minor;
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
 	tape->pc = tape->pc_stack;
-	*((unsigned short *) &gcw) = drive->id->config;
+
+	*((u16 *)&gcw) = drive->id[ATA_ID_CONFIG];
 
 	/* Command packet DRQ type */
 	if (((gcw[0] & 0x60) >> 5) == 1)

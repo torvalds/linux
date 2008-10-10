@@ -561,11 +561,10 @@ static int proc_ide_read_dmodel
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	ide_drive_t	*drive = (ide_drive_t *) data;
-	struct hd_driveid *id = drive->id;
+	char		*m = (char *)&drive->id[ATA_ID_PROD];
 	int		len;
 
-	len = sprintf(page, "%.40s\n",
-		(id && id->model[0]) ? (char *)id->model : "(none)");
+	len = sprintf(page, "%.40s\n", m[0] ? m : "(none)");
 	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
 }
 

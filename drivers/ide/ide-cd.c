@@ -1866,14 +1866,14 @@ static const struct cd_list_entry ide_cd_quirks_list[] = {
 	{ NULL, NULL, 0 }
 };
 
-static unsigned int ide_cd_flags(struct hd_driveid *id)
+static unsigned int ide_cd_flags(u16 *id)
 {
 	const struct cd_list_entry *cle = ide_cd_quirks_list;
 
 	while (cle->id_model) {
-		if (strcmp(cle->id_model, id->model) == 0 &&
+		if (strcmp(cle->id_model, (char *)&id[ATA_ID_PROD]) == 0 &&
 		    (cle->id_firmware == NULL ||
-		     strstr(id->fw_rev, cle->id_firmware)))
+		     strstr((char *)&id[ATA_ID_FW_REV], cle->id_firmware)))
 			return cle->cd_flags;
 		cle++;
 	}
@@ -1885,7 +1885,8 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
+	char *fw_rev = (char *)&id[ATA_ID_FW_REV];
 	int nslots;
 
 	blk_queue_prep_rq(drive->queue, ide_cdrom_prep_fn);
@@ -1900,15 +1901,15 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	drive->atapi_flags = IDE_AFLAG_MEDIA_CHANGED | IDE_AFLAG_NO_EJECT |
 		       ide_cd_flags(id);
 
-	if ((id->config & 0x0060) == 0x20)
+	if ((id[ATA_ID_CONFIG] & 0x0060) == 0x20)
 		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 
 	if ((drive->atapi_flags & IDE_AFLAG_VERTOS_300_SSD) &&
-	    id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
+	    fw_rev[4] == '1' && fw_rev[6] <= '2')
 		drive->atapi_flags |= (IDE_AFLAG_TOCTRACKS_AS_BCD |
 				     IDE_AFLAG_TOCADDR_AS_BCD);
 	else if ((drive->atapi_flags & IDE_AFLAG_VERTOS_600_ESD) &&
-		 id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
+		 fw_rev[4] == '1' && fw_rev[6] <= '2')
 		drive->atapi_flags |= IDE_AFLAG_TOCTRACKS_AS_BCD;
 	else if (drive->atapi_flags & IDE_AFLAG_SANYO_3CD)
 		/* 3 => use CD in slot 0 */

@@ -288,7 +288,7 @@ EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 static int config_drive_for_dma (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 
 	if (drive->media != ide_disk) {
 		if (hwif->host_flags & IDE_HFLAG_NO_ATAPI_DMA)
@@ -299,16 +299,17 @@ static int config_drive_for_dma (ide_drive_t *drive)
 	 * Enable DMA on any drive that has
 	 * UltraDMA (mode 0/1/2/3/4/5/6) enabled
 	 */
-	if ((id->field_valid & 4) && ((id->dma_ultra >> 8) & 0x7f))
+	if ((id[ATA_ID_FIELD_VALID] & 4) &&
+	    ((id[ATA_ID_UDMA_MODES] >> 8) & 0x7f))
 		return 1;
 
 	/*
 	 * Enable DMA on any drive that has mode2 DMA
 	 * (multi or single) enabled
 	 */
-	if (id->field_valid & 2)	/* regular DMA */
-		if ((id->dma_mword & 0x404) == 0x404 ||
-		    (id->dma_1word & 0x404) == 0x404)
+	if (id[ATA_ID_FIELD_VALID] & 2)	/* regular DMA */
+		if ((id[ATA_ID_MWDMA_MODES] & 0x404) == 0x404 ||
+		    (id[ATA_ID_SWDMA_MODES] & 0x404) == 0x404)
 			return 1;
 
 	/* Consult the list of known "good" drives */
@@ -591,12 +592,12 @@ static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }
 
 int __ide_dma_bad_drive (ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 
 	int blacklist = ide_in_drive_list(id, drive_blacklist);
 	if (blacklist) {
 		printk(KERN_WARNING "%s: Disabling (U)DMA for %s (blacklisted)\n",
-				    drive->name, id->model);
+				    drive->name, (char *)&id[ATA_ID_PROD]);
 		return blacklist;
 	}
 	return 0;
@@ -612,21 +613,21 @@ static const u8 xfer_mode_bases[] = {
 
 static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 	unsigned int mask = 0;
 
 	switch(base) {
 	case XFER_UDMA_0:
-		if ((id->field_valid & 4) == 0)
+		if ((id[ATA_ID_FIELD_VALID] & 4) == 0)
 			break;
 
 		if (port_ops && port_ops->udma_filter)
 			mask = port_ops->udma_filter(drive);
 		else
 			mask = hwif->ultra_mask;
-		mask &= id->dma_ultra;
+		mask &= id[ATA_ID_UDMA_MODES];
 
 		/*
 		 * avoid false cable warning from eighty_ninty_three()
@@ -637,19 +638,19 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		}
 		break;
 	case XFER_MW_DMA_0:
-		if ((id->field_valid & 2) == 0)
+		if ((id[ATA_ID_FIELD_VALID] & 2) == 0)
 			break;
 		if (port_ops && port_ops->mdma_filter)
 			mask = port_ops->mdma_filter(drive);
 		else
 			mask = hwif->mwdma_mask;
-		mask &= id->dma_mword;
+		mask &= id[ATA_ID_MWDMA_MODES];
 		break;
 	case XFER_SW_DMA_0:
-		if (id->field_valid & 2) {
-			mask = id->dma_1word & hwif->swdma_mask;
-		} else if (id->tDMA) {
-			u8 mode = id->tDMA;
+		if (id[ATA_ID_FIELD_VALID] & 2) {
+			mask = id[ATA_ID_SWDMA_MODES] & hwif->swdma_mask;
+		} else if (drive->driveid->tDMA) {
+			u8 mode = drive->driveid->tDMA;
 
 			/*
 			 * if the mode is valid convert it to the mask
@@ -706,7 +707,8 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 		/*
 		 * is this correct?
 		 */
-		if (ide_dma_good_drive(drive) && drive->id->eide_dma_time < 150)
+		if (ide_dma_good_drive(drive) &&
+		    drive->id[ATA_ID_EIDE_DMA_TIME] < 150)
 			mode = XFER_MW_DMA_1;
 	}
 
@@ -725,7 +727,7 @@ static int ide_tune_dma(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 speed;
 
-	if (drive->nodma || (drive->id->capability & 1) == 0)
+	if (drive->nodma || (drive->driveid->capability & 1) == 0)
 		return 0;
 
 	/* consult the list of known "bad" drives */
@@ -767,13 +769,15 @@ static int ide_dma_check(ide_drive_t *drive)
 
 int ide_id_dma_bug(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 
-	if (id->field_valid & 4) {
-		if ((id->dma_ultra >> 8) && (id->dma_mword >> 8))
+	if (id[ATA_ID_FIELD_VALID] & 4) {
+		if ((id[ATA_ID_UDMA_MODES] >> 8) &&
+		    (id[ATA_ID_MWDMA_MODES] >> 8))
 			goto err_out;
-	} else if (id->field_valid & 2) {
-		if ((id->dma_mword >> 8) && (id->dma_1word >> 8))
+	} else if (id[ATA_ID_FIELD_VALID] & 2) {
+		if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
+		    (id[ATA_ID_SWDMA_MODES] >> 8))
 			goto err_out;
 	}
 	return 0;

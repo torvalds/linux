@@ -400,11 +400,11 @@ const struct ide_tp_ops default_tp_ops = {
 	.output_data		= ide_output_data,
 };
 
-void ide_fix_driveid(struct hd_driveid *driveid)
+void ide_fix_driveid(u16 *id)
 {
 #ifndef __LITTLE_ENDIAN
 # ifdef __BIG_ENDIAN
-	u16 *id = (u16 *)driveid;
+	struct hd_driveid *driveid = (struct hd_driveid *)id;
 	int i;
 
 	for (i = 0; i < 256; i++) {
@@ -593,18 +593,18 @@ EXPORT_SYMBOL(ide_wait_stat);
 /**
  *	ide_in_drive_list	-	look for drive in black/white list
  *	@id: drive identifier
- *	@drive_table: list to inspect
+ *	@table: list to inspect
  *
  *	Look for a drive in the blacklist and the whitelist tables
  *	Returns 1 if the drive is found in the table.
  */
 
-int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *drive_table)
+int ide_in_drive_list(u16 *id, const struct drive_list_entry *table)
 {
-	for ( ; drive_table->id_model; drive_table++)
-		if ((!strcmp(drive_table->id_model, id->model)) &&
-		    (!drive_table->id_firmware ||
-		     strstr(id->fw_rev, drive_table->id_firmware)))
+	for ( ; table->id_model; table++)
+		if ((!strcmp(table->id_model, (char *)&id[ATA_ID_PROD])) &&
+		    (!table->id_firmware ||
+		     strstr((char *)&id[ATA_ID_FW_REV], table->id_firmware)))
 			return 1;
 	return 0;
 }
@@ -635,7 +635,7 @@ static const struct drive_list_entry ivb_list[] = {
 u8 eighty_ninty_three (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 	int ivb = ide_in_drive_list(id, ivb_list);
 
 	if (hwif->cbl == ATA_CBL_PATA40_SHORT)
@@ -657,7 +657,8 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	 * - force bit13 (80c cable present) check also for !ivb devices
 	 *   (unless the slave device is pre-ATA3)
 	 */
-	if ((id->hw_config & 0x4000) || (ivb && (id->hw_config & 0x2000)))
+	if ((id[ATA_ID_HW_CONFIG] & 0x4000) ||
+	    (ivb && (id[ATA_ID_HW_CONFIG] & 0x2000)))
 		return 1;
 
 no_80w:
@@ -678,7 +679,7 @@ int ide_driveid_update(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	struct hd_driveid *id;
+	u16 *id;
 	unsigned long timeout, flags;
 	u8 stat;
 
@@ -722,16 +723,16 @@ int ide_driveid_update(ide_drive_t *drive)
 	local_irq_enable();
 	local_irq_restore(flags);
 	ide_fix_driveid(id);
-	if (id) {
-		drive->id->dma_ultra = id->dma_ultra;
-		drive->id->dma_mword = id->dma_mword;
-		drive->id->dma_1word = id->dma_1word;
-		/* anything more ? */
-		kfree(id);
 
-		if (drive->using_dma && ide_id_dma_bug(drive))
-			ide_dma_off(drive);
-	}
+	drive->id[ATA_ID_UDMA_MODES]  = id[ATA_ID_UDMA_MODES];
+	drive->id[ATA_ID_MWDMA_MODES] = id[ATA_ID_MWDMA_MODES];
+	drive->id[ATA_ID_SWDMA_MODES] = id[ATA_ID_SWDMA_MODES];
+	/* anything more ? */
+
+	kfree(id);
+
+	if (drive->using_dma && ide_id_dma_bug(drive))
+		ide_dma_off(drive);
 
 	return 1;
 }
@@ -740,6 +741,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+	u16 *id = drive->id, i;
 	int error = 0;
 	u8 stat;
 	ide_task_t task;
@@ -750,7 +752,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 #endif
 
 	/* Skip setting PIO flow-control modes on pre-EIDE drives */
-	if ((speed & 0xf8) == XFER_PIO_0 && !(drive->id->capability & 0x08))
+	if ((speed & 0xf8) == XFER_PIO_0 && !(drive->driveid->capability & 8))
 		goto skip;
 
 	/*
@@ -802,9 +804,9 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 		return error;
 	}
 
-	drive->id->dma_ultra &= ~0xFF00;
-	drive->id->dma_mword &= ~0x0F00;
-	drive->id->dma_1word &= ~0x0F00;
+	id[ATA_ID_UDMA_MODES]  &= ~0xFF00;
+	id[ATA_ID_MWDMA_MODES] &= ~0x0F00;
+	id[ATA_ID_SWDMA_MODES] &= ~0x0F00;
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
@@ -814,23 +816,17 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 		ide_dma_off_quietly(drive);
 #endif
 
-	switch(speed) {
-		case XFER_UDMA_7:   drive->id->dma_ultra |= 0x8080; break;
-		case XFER_UDMA_6:   drive->id->dma_ultra |= 0x4040; break;
-		case XFER_UDMA_5:   drive->id->dma_ultra |= 0x2020; break;
-		case XFER_UDMA_4:   drive->id->dma_ultra |= 0x1010; break;
-		case XFER_UDMA_3:   drive->id->dma_ultra |= 0x0808; break;
-		case XFER_UDMA_2:   drive->id->dma_ultra |= 0x0404; break;
-		case XFER_UDMA_1:   drive->id->dma_ultra |= 0x0202; break;
-		case XFER_UDMA_0:   drive->id->dma_ultra |= 0x0101; break;
-		case XFER_MW_DMA_2: drive->id->dma_mword |= 0x0404; break;
-		case XFER_MW_DMA_1: drive->id->dma_mword |= 0x0202; break;
-		case XFER_MW_DMA_0: drive->id->dma_mword |= 0x0101; break;
-		case XFER_SW_DMA_2: drive->id->dma_1word |= 0x0404; break;
-		case XFER_SW_DMA_1: drive->id->dma_1word |= 0x0202; break;
-		case XFER_SW_DMA_0: drive->id->dma_1word |= 0x0101; break;
-		default: break;
+	if (speed >= XFER_UDMA_0) {
+		i = 1 << (speed - XFER_UDMA_0);
+		id[ATA_ID_UDMA_MODES] |= (i << 8 | i);
+	} else if (speed >= XFER_MW_DMA_0) {
+		i = 1 << (speed - XFER_MW_DMA_0);
+		id[ATA_ID_MWDMA_MODES] |= (i << 8 | i);
+	} else if (speed >= XFER_SW_DMA_0) {
+		i = 1 << (speed - XFER_SW_DMA_0);
+		id[ATA_ID_SWDMA_MODES] |= (i << 8 | i);
 	}
+
 	if (!drive->init_speed)
 		drive->init_speed = speed;
 	drive->current_speed = speed;
@@ -1035,7 +1031,7 @@ out:
 
 static void ide_disk_pre_reset(ide_drive_t *drive)
 {
-	int legacy = (drive->id->cfs_enable_2 & 0x0400) ? 0 : 1;
+	int legacy = (drive->id[ATA_ID_CFS_ENABLE_2] & 0x0400) ? 0 : 1;
 
 	drive->special.all = 0;
 	drive->special.b.set_geometry = legacy;

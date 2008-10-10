@@ -203,10 +203,10 @@ static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 
 static void pdcnew_quirkproc(ide_drive_t *drive)
 {
-	const char **list, *model = drive->id->model;
+	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
 
 	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(model, *list) != NULL) {
+		if (strstr(m, *list) != NULL) {
 			drive->quirk_list = 2;
 			return;
 		}

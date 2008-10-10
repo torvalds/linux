@@ -50,44 +50,44 @@
  
 static void generic_id(ide_drive_t *drive)
 {
-	drive->id->cyls = drive->cyl;
-	drive->id->heads = drive->head;
-	drive->id->sectors = drive->sect;
-	drive->id->cur_cyls = drive->cyl;
-	drive->id->cur_heads = drive->head;
-	drive->id->cur_sectors = drive->sect;
+	u16 *id = drive->id;
+
+	id[ATA_ID_CUR_CYLS]	= id[ATA_ID_CYLS]	= drive->cyl;
+	id[ATA_ID_CUR_HEADS]	= id[ATA_ID_HEADS]	= drive->head;
+	id[ATA_ID_CUR_SECTORS]	= id[ATA_ID_SECTORS]	= drive->sect;
 }
 
 static void ide_disk_init_chs(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 
 	/* Extract geometry if we did not already have one for the drive */
 	if (!drive->cyl || !drive->head || !drive->sect) {
-		drive->cyl  = drive->bios_cyl  = id->cyls;
-		drive->head = drive->bios_head = id->heads;
-		drive->sect = drive->bios_sect = id->sectors;
+		drive->cyl  = drive->bios_cyl  = id[ATA_ID_CYLS];
+		drive->head = drive->bios_head = id[ATA_ID_HEADS];
+		drive->sect = drive->bios_sect = id[ATA_ID_SECTORS];
 	}
 
 	/* Handle logical geometry translation by the drive */
-	if ((id->field_valid & 1) && id->cur_cyls &&
-	    id->cur_heads && (id->cur_heads <= 16) && id->cur_sectors) {
-		drive->cyl  = id->cur_cyls;
-		drive->head = id->cur_heads;
-		drive->sect = id->cur_sectors;
+	if ((id[ATA_ID_FIELD_VALID] & 1) && id[ATA_ID_CUR_CYLS] &&
+	    id[ATA_ID_CUR_HEADS] && id[ATA_ID_CUR_HEADS] <= 16 &&
+	    id[ATA_ID_CUR_SECTORS]) {
+		drive->cyl  = id[ATA_ID_CUR_CYLS];
+		drive->head = id[ATA_ID_CUR_HEADS];
+		drive->sect = id[ATA_ID_CUR_SECTORS];
 	}
 
 	/* Use physical geometry if what we have still makes no sense */
-	if (drive->head > 16 && id->heads && id->heads <= 16) {
-		drive->cyl  = id->cyls;
-		drive->head = id->heads;
-		drive->sect = id->sectors;
+	if (drive->head > 16 && id[ATA_ID_HEADS] && id[ATA_ID_HEADS] <= 16) {
+		drive->cyl  = id[ATA_ID_CYLS];
+		drive->head = id[ATA_ID_HEADS];
+		drive->sect = id[ATA_ID_SECTORS];
 	}
 }
 
 static void ide_disk_init_mult_count(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
+	struct hd_driveid *id = drive->driveid;
 
 	if (id->max_multsect) {
 #ifdef CONFIG_IDEDISK_MULTI_MODE
@@ -118,10 +118,10 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 static inline void do_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	u16 *id = drive->id;
+	char *m = (char *)&id[ATA_ID_PROD];
 	int bswap = 1;
-	struct hd_driveid *id;
 
-	id = drive->id;
 	/* read 512 bytes of id info */
 	hwif->tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
 
@@ -138,23 +138,24 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 *  WIN_PIDENTIFY *usually* returns little-endian info.
 	 */
 	if (cmd == WIN_PIDENTIFY) {
-		if ((id->model[0] == 'N' && id->model[1] == 'E') /* NEC */
-		 || (id->model[0] == 'F' && id->model[1] == 'X') /* Mitsumi */
-		 || (id->model[0] == 'P' && id->model[1] == 'i'))/* Pioneer */
+		if ((m[0] == 'N' && m[1] == 'E') ||  /* NEC */
+		    (m[0] == 'F' && m[1] == 'X') ||  /* Mitsumi */
+		    (m[0] == 'P' && m[1] == 'i'))    /* Pioneer */
 			/* Vertos drives may still be weird */
-			bswap ^= 1;	
+			bswap ^= 1;
 	}
-	ide_fixstring(id->model,     sizeof(id->model),     bswap);
-	ide_fixstring(id->fw_rev,    sizeof(id->fw_rev),    bswap);
-	ide_fixstring(id->serial_no, sizeof(id->serial_no), bswap);
+
+	ide_fixstring(m, ATA_ID_PROD_LEN, bswap);
+	ide_fixstring((char *)&id[ATA_ID_FW_REV], ATA_ID_FW_REV_LEN, bswap);
+	ide_fixstring((char *)&id[ATA_ID_SERNO], ATA_ID_SERNO_LEN, bswap);
 
 	/* we depend on this a lot! */
-	id->model[sizeof(id->model)-1] = '\0';
+	m[ATA_ID_PROD_LEN - 1] = '\0';
 
-	if (strstr(id->model, "E X A B Y T E N E S T"))
+	if (strstr(m, "E X A B Y T E N E S T"))
 		goto err_misc;
 
-	printk(KERN_INFO "%s: %s, ", drive->name, id->model);
+	printk(KERN_INFO "%s: %s, ", drive->name, m);
 
 	drive->present = 1;
 	drive->dead = 0;
@@ -163,15 +164,15 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 * Check for an ATAPI device
 	 */
 	if (cmd == WIN_PIDENTIFY) {
-		u8 type = (id->config >> 8) & 0x1f;
+		u8 type = (id[ATA_ID_CONFIG] >> 8) & 0x1f;
 
 		printk(KERN_CONT "ATAPI ");
 		switch (type) {
 			case ide_floppy:
-				if (!strstr(id->model, "CD-ROM")) {
-					if (!strstr(id->model, "oppy") &&
-					    !strstr(id->model, "poyp") &&
-					    !strstr(id->model, "ZIP"))
+				if (!strstr(m, "CD-ROM")) {
+					if (!strstr(m, "oppy") &&
+					    !strstr(m, "poyp") &&
+					    !strstr(m, "ZIP"))
 						printk(KERN_CONT "cdrom or floppy?, assuming ");
 					if (drive->media != ide_cdrom) {
 						printk(KERN_CONT "FLOPPY");
@@ -185,8 +186,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 				drive->removable = 1;
 #ifdef CONFIG_PPC
 				/* kludge for Apple PowerBook internal zip */
-				if (!strstr(id->model, "CD-ROM") &&
-				    strstr(id->model, "ZIP")) {
+				if (!strstr(m, "CD-ROM") && strstr(m, "ZIP")) {
 					printk(KERN_CONT "FLOPPY");
 					type = ide_floppy;
 					break;
@@ -220,14 +220,13 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 * 0x848a = CompactFlash device
 	 * These are *not* removable in Linux definition of the term
 	 */
-
-	if ((id->config != 0x848a) && (id->config & (1<<7)))
+	if (id[ATA_ID_CONFIG] != 0x848a && (id[ATA_ID_CONFIG] & (1 << 7)))
 		drive->removable = 1;
 
 	drive->media = ide_disk;
 
 	printk(KERN_CONT "%s DISK drive\n",
-		(id->config == 0x848a) ? "CFA" : "ATA");
+		(id[ATA_ID_CONFIG] == 0x848a) ? "CFA" : "ATA");
 
 	return;
 
@@ -525,7 +524,8 @@ static void enable_nest (ide_drive_t *drive)
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u8 stat;
 
-	printk(KERN_INFO "%s: enabling %s -- ", hwif->name, drive->id->model);
+	printk(KERN_INFO "%s: enabling %s -- ",
+		hwif->name, (char *)&drive->id[ATA_ID_PROD]);
 
 	SELECT_DRIVE(drive);
 	msleep(50);
@@ -566,6 +566,8 @@ static void enable_nest (ide_drive_t *drive)
  
 static inline u8 probe_for_drive (ide_drive_t *drive)
 {
+	char *m;
+
 	/*
 	 *	In order to keep things simple we have an id
 	 *	block for all drives at all times. If the device
@@ -582,8 +584,10 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 		printk(KERN_ERR "ide: out of memory for id data.\n");
 		return 0;
 	}
-	strcpy(drive->id->model, "UNKNOWN");
-	
+
+	m = (char *)&drive->id[ATA_ID_PROD];
+	strcpy(m, "UNKNOWN");
+
 	/* skip probing? */
 	if (!drive->noprobe)
 	{
@@ -595,7 +599,8 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 		if (!drive->present)
 			/* drive not found */
 			return 0;
-		if (strstr(drive->id->model, "E X A B Y T E N E S T"))
+
+		if (strstr(m, "E X A B Y T E N E S T"))
 			enable_nest(drive);
 	
 		/* identification failed? */
@@ -739,36 +744,38 @@ out:
 
 /**
  *	ide_undecoded_slave	-	look for bad CF adapters
- *	@drive1: drive
+ *	@dev1: slave device
  *
  *	Analyse the drives on the interface and attempt to decide if we
  *	have the same drive viewed twice. This occurs with crap CF adapters
  *	and PCMCIA sometimes.
  */
 
-void ide_undecoded_slave(ide_drive_t *drive1)
+void ide_undecoded_slave(ide_drive_t *dev1)
 {
-	ide_drive_t *drive0 = &drive1->hwif->drives[0];
+	ide_drive_t *dev0 = &dev1->hwif->drives[0];
 
-	if ((drive1->dn & 1) == 0 || drive0->present == 0)
+	if ((dev1->dn & 1) == 0 || dev0->present == 0)
 		return;
 
 	/* If the models don't match they are not the same product */
-	if (strcmp(drive0->id->model, drive1->id->model))
+	if (strcmp((char *)&dev0->id[ATA_ID_PROD],
+		   (char *)&dev1->id[ATA_ID_PROD]))
 		return;
 
 	/* Serial numbers do not match */
-	if (strncmp(drive0->id->serial_no, drive1->id->serial_no, 20))
+	if (strncmp((char *)&dev0->id[ATA_ID_SERNO],
+		    (char *)&dev1->id[ATA_ID_SERNO], ATA_ID_SERNO_LEN))
 		return;
 
 	/* No serial number, thankfully very rare for CF */
-	if (drive0->id->serial_no[0] == 0)
+	if (*(char *)&dev0->id[ATA_ID_SERNO] == 0)
 		return;
 
 	/* Appears to be an IDE flash adapter with decode bugs */
 	printk(KERN_WARNING "ide-probe: ignoring undecoded slave\n");
 
-	drive1->present = 0;
+	dev1->present = 0;
 }
 
 EXPORT_SYMBOL_GPL(ide_undecoded_slave);
@@ -852,7 +859,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
 			drive->no_io_32bit = 1;
 		else
-			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
+			drive->no_io_32bit = drive->id[ATA_ID_DWORD_IO] ? 1 : 0;
 	}
 }
 

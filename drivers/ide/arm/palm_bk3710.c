@@ -213,7 +213,8 @@ static void palm_bk3710_set_dma_mode(ide_drive_t *drive, u8 xferspeed)
 		palm_bk3710_setudmamode(base, is_slave,
 					xferspeed - XFER_UDMA_0);
 	} else {
-		palm_bk3710_setdmamode(base, is_slave, drive->id->eide_dma_min,
+		palm_bk3710_setdmamode(base, is_slave,
+				       drive->id[ATA_ID_EIDE_DMA_MIN],
 				       xferspeed);
 	}
 }

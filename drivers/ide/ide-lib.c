@@ -90,29 +90,31 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 
 u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 {
-	int pio_mode;
-	struct hd_driveid* id = drive->id;
-	int overridden  = 0;
+	u16 *id = drive->id;
+	int pio_mode = -1, overridden = 0;
 
 	if (mode_wanted != 255)
 		return min_t(u8, mode_wanted, max_mode);
 
-	if ((drive->hwif->host_flags & IDE_HFLAG_PIO_NO_BLACKLIST) == 0 &&
-	    (pio_mode = ide_scan_pio_blacklist(id->model)) != -1) {
+	if ((drive->hwif->host_flags & IDE_HFLAG_PIO_NO_BLACKLIST) == 0)
+		pio_mode = ide_scan_pio_blacklist((char *)&id[ATA_ID_PROD]);
+
+	if (pio_mode != -1) {
 		printk(KERN_INFO "%s: is on PIO blacklist\n", drive->name);
 	} else {
-		pio_mode = id->tPIO;
+		pio_mode = drive->driveid->tPIO;
 		if (pio_mode > 2) {	/* 2 is maximum allowed tPIO value */
 			pio_mode = 2;
 			overridden = 1;
 		}
-		if (id->field_valid & 2) {	  /* drive implements ATA2? */
-			if (id->capability & 8) { /* IORDY supported? */
-				if (id->eide_pio_modes & 7) {
+
+		if (id[ATA_ID_FIELD_VALID] & 2) {	      /* ATA2? */
+			if (drive->driveid->capability & 8) { /* IORDY sup? */
+				if (id[ATA_ID_PIO_MODES] & 7) {
 					overridden = 0;
-					if (id->eide_pio_modes & 4)
+					if (id[ATA_ID_PIO_MODES] & 4)
 						pio_mode = 5;
-					else if (id->eide_pio_modes & 2)
+					else if (id[ATA_ID_PIO_MODES] & 2)
 						pio_mode = 4;
 					else
 						pio_mode = 3;

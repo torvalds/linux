@@ -78,15 +78,15 @@ EXPORT_SYMBOL_GPL(ide_timing_find_mode);
 
 u16 ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	u16 cycle = 0;
 
-	if (id->field_valid & 2) {
-		if (id->capability & 8)
-			cycle = id->eide_pio_iordy;
+	if (id[ATA_ID_FIELD_VALID] & 2) {
+		if (drive->driveid->capability & 8)
+			cycle = id[ATA_ID_EIDE_PIO_IORDY];
 		else
-			cycle = id->eide_pio;
+			cycle = id[ATA_ID_EIDE_PIO];
 
 		/* conservative "downgrade" for all pre-ATA2 drives */
 		if (pio < 3 && cycle < t->cycle)
@@ -138,7 +138,7 @@ EXPORT_SYMBOL_GPL(ide_timing_merge);
 int ide_timing_compute(ide_drive_t *drive, u8 speed,
 		       struct ide_timing *t, int T, int UT)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 	struct ide_timing *s, p;
 
 	/*
@@ -157,16 +157,15 @@ int ide_timing_compute(ide_drive_t *drive, u8 speed,
 	 * If the drive is an EIDE drive, it can tell us it needs extended
 	 * PIO/MWDMA cycle timing.
 	 */
-	if (id && id->field_valid & 2) {	/* EIDE drive */
-
+	if (id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE drive */
 		memset(&p, 0, sizeof(p));
 
 		if (speed <= XFER_PIO_2)
-			p.cycle = p.cyc8b = id->eide_pio;
+			p.cycle = p.cyc8b = id[ATA_ID_EIDE_PIO];
 		else if (speed <= XFER_PIO_5)
-			p.cycle = p.cyc8b = id->eide_pio_iordy;
+			p.cycle = p.cyc8b = id[ATA_ID_EIDE_PIO_IORDY];
 		else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2)
-			p.cycle = id->eide_dma_min;
+			p.cycle = id[ATA_ID_EIDE_DMA_MIN];
 
 		ide_timing_merge(&p, t, t, IDE_TIMING_CYCLE | IDE_TIMING_CYC8B);
 	}

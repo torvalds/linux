@@ -584,7 +584,7 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
  * This function executes the _STM ACPI method for the target channel.
  *
  * _STM requires Identify Drive data, which has to passed as an argument.
- * Unfortunately hd_driveid is a mangled version which we can't readily
+ * Unfortunately drive->id is a mangled version which we can't readily
  * use; hence we'll get the information afresh.
  */
 void ide_acpi_push_timing(ide_hwif_t *hwif)
@@ -614,10 +614,10 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 	in_params[0].buffer.length = sizeof(struct GTM_buffer);
 	in_params[0].buffer.pointer = (u8 *)&hwif->acpidata->gtm;
 	in_params[1].type = ACPI_TYPE_BUFFER;
-	in_params[1].buffer.length = sizeof(struct hd_driveid);
+	in_params[1].buffer.length = sizeof(ATA_ID_WORDS * 2);
 	in_params[1].buffer.pointer = (u8 *)&master->idbuff;
 	in_params[2].type = ACPI_TYPE_BUFFER;
-	in_params[2].buffer.length = sizeof(struct hd_driveid);
+	in_params[2].buffer.length = sizeof(ATA_ID_WORDS * 2);
 	in_params[2].buffer.pointer = (u8 *)&slave->idbuff;
 	/* Output buffer: _STM has no output */
 
