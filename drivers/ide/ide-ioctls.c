@@ -6,11 +6,11 @@
 #include <linux/ide.h>
 
 static const struct ide_ioctl_devset ide_ioctl_settings[] = {
-{ HDIO_GET_32BIT,	 HDIO_SET_32BIT,	get_io_32bit,  set_io_32bit  },
-{ HDIO_GET_KEEPSETTINGS, HDIO_SET_KEEPSETTINGS,	get_ksettings, set_ksettings },
-{ HDIO_GET_UNMASKINTR,	 HDIO_SET_UNMASKINTR,	get_unmaskirq, set_unmaskirq },
-{ HDIO_GET_DMA,		 HDIO_SET_DMA,		get_using_dma, set_using_dma },
-{ -1,			 HDIO_SET_PIO_MODE,	NULL,	       set_pio_mode  },
+{ HDIO_GET_32BIT,	 HDIO_SET_32BIT,	&ide_devset_io_32bit  },
+{ HDIO_GET_KEEPSETTINGS, HDIO_SET_KEEPSETTINGS,	&ide_devset_keepsettings },
+{ HDIO_GET_UNMASKINTR,	 HDIO_SET_UNMASKINTR,	&ide_devset_unmaskirq },
+{ HDIO_GET_DMA,		 HDIO_SET_DMA,		&ide_devset_using_dma },
+{ -1,			 HDIO_SET_PIO_MODE,	&ide_devset_pio_mode  },
 { 0 }
 };
 
@@ -18,13 +18,14 @@ int ide_setting_ioctl(ide_drive_t *drive, struct block_device *bdev,
 		      unsigned int cmd, unsigned long arg,
 		      const struct ide_ioctl_devset *s)
 {
+	const struct ide_devset *ds;
 	unsigned long flags;
 	int err = -EOPNOTSUPP;
 
-	for (; s->get_ioctl; s++) {
-		if (s->get && s->get_ioctl == cmd)
+	for (; (ds = s->setting); s++) {
+		if (ds->get && s->get_ioctl == cmd)
 			goto read_val;
-		else if (s->set && s->set_ioctl == cmd)
+		else if (ds->set && s->set_ioctl == cmd)
 			goto set_val;
 	}
 
@@ -33,7 +34,7 @@ int ide_setting_ioctl(ide_drive_t *drive, struct block_device *bdev,
 read_val:
 	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);
-	err = s->get(drive);
+	err = ds->get(drive);
 	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 	return err >= 0 ? put_user(err, (long __user *)arg) : err;
@@ -46,7 +47,7 @@ set_val:
 			err = -EACCES;
 		else {
 			mutex_lock(&ide_setting_mtx);
-			err = s->set(drive, arg);
+			err = ide_devset_execute(drive, ds, arg);
 			mutex_unlock(&ide_setting_mtx);
 		}
 	}

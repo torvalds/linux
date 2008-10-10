@@ -629,9 +629,9 @@ static sector_t idefloppy_capacity(ide_drive_t *drive)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-ide_devset_rw(bios_cyl,  0, 1023, bios_cyl);
-ide_devset_rw(bios_head, 0,  255, bios_head);
-ide_devset_rw(bios_sect, 0,   63, bios_sect);
+ide_devset_rw_field(bios_cyl, bios_cyl);
+ide_devset_rw_field(bios_head, bios_head);
+ide_devset_rw_field(bios_sect, bios_sect);
 
 static int get_ticks(ide_drive_t *drive)
 {
@@ -646,14 +646,14 @@ static int set_ticks(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-IDE_DEVSET(ticks, S_RW, 0, 255, get_ticks, set_ticks);
+IDE_DEVSET(ticks, DS_SYNC, get_ticks, set_ticks);
 
-static const struct ide_devset *idefloppy_settings[] = {
-	&ide_devset_bios_cyl,
-	&ide_devset_bios_head,
-	&ide_devset_bios_sect,
-	&ide_devset_ticks,
-	NULL
+static const struct ide_proc_devset idefloppy_settings[] = {
+	IDE_PROC_DEVSET(bios_cyl,  0, 1023),
+	IDE_PROC_DEVSET(bios_head, 0,  255),
+	IDE_PROC_DEVSET(bios_sect, 0,   63),
+	IDE_PROC_DEVSET(ticks,	   0,  255),
+	{ 0 },
 };
 #endif
 

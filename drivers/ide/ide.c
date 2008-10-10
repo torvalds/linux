@@ -250,42 +250,9 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 
 DEFINE_MUTEX(ide_setting_mtx);
 
-/**
- *	ide_spin_wait_hwgroup	-	wait for group
- *	@drive: drive in the group
- *
- *	Wait for an IDE device group to go non busy and then return
- *	holding the ide_lock which guards the hwgroup->busy status
- *	and right to use it.
- */
-
-int ide_spin_wait_hwgroup (ide_drive_t *drive)
-{
-	ide_hwgroup_t *hwgroup = HWGROUP(drive);
-	unsigned long timeout = jiffies + (3 * HZ);
-
-	spin_lock_irq(&ide_lock);
-
-	while (hwgroup->busy) {
-		unsigned long lflags;
-		spin_unlock_irq(&ide_lock);
-		local_irq_set(lflags);
-		if (time_after(jiffies, timeout)) {
-			local_irq_restore(lflags);
-			printk(KERN_ERR "%s: channel busy\n", drive->name);
-			return -EBUSY;
-		}
-		local_irq_restore(lflags);
-		spin_lock_irq(&ide_lock);
-	}
-	return 0;
-}
-
-EXPORT_SYMBOL(ide_spin_wait_hwgroup);
-
 ide_devset_get(io_32bit, io_32bit);
 
-int set_io_32bit(ide_drive_t *drive, int arg)
+static int set_io_32bit(ide_drive_t *drive, int arg)
 {
 	if (drive->no_io_32bit)
 		return -EPERM;
@@ -293,37 +260,28 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1 + (SUPPORT_VLB_SYNC << 1))
 		return -EINVAL;
 
-	if (ide_spin_wait_hwgroup(drive))
-		return -EBUSY;
-
 	drive->io_32bit = arg;
-
-	spin_unlock_irq(&ide_lock);
 
 	return 0;
 }
 
 ide_devset_get(ksettings, keep_settings);
 
-int set_ksettings(ide_drive_t *drive, int arg)
+static int set_ksettings(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	if (ide_spin_wait_hwgroup(drive))
-		return -EBUSY;
 	drive->keep_settings = arg;
-	spin_unlock_irq(&ide_lock);
 
 	return 0;
 }
 
 ide_devset_get(using_dma, using_dma);
 
-int set_using_dma(ide_drive_t *drive, int arg)
+static int set_using_dma(ide_drive_t *drive, int arg)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	ide_hwif_t *hwif = drive->hwif;
 	int err = -EPERM;
 
 	if (arg < 0 || arg > 1)
@@ -332,17 +290,8 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (ata_id_has_dma(drive->id) == 0)
 		goto out;
 
-	if (hwif->dma_ops == NULL)
+	if (drive->hwif->dma_ops == NULL)
 		goto out;
-
-	err = -EBUSY;
-	if (ide_spin_wait_hwgroup(drive))
-		goto out;
-	/*
-	 * set ->busy flag, unlock and let it ride
-	 */
-	hwif->hwgroup->busy = 1;
-	spin_unlock_irq(&ide_lock);
 
 	err = 0;
 
@@ -352,12 +301,6 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	} else
 		ide_dma_off(drive);
 
-	/*
-	 * lock, clear ->busy flag and unlock before leaving
-	 */
-	spin_lock_irq(&ide_lock);
-	hwif->hwgroup->busy = 0;
-	spin_unlock_irq(&ide_lock);
 out:
 	return err;
 #else
@@ -368,7 +311,7 @@ out:
 #endif
 }
 
-int set_pio_mode(ide_drive_t *drive, int arg)
+static int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	struct request *rq;
 	ide_hwif_t *hwif = drive->hwif;
@@ -398,7 +341,7 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 
 ide_devset_get(unmaskirq, unmask);
 
-int set_unmaskirq(ide_drive_t *drive, int arg)
+static int set_unmaskirq(ide_drive_t *drive, int arg)
 {
 	if (drive->no_unmask)
 		return -EPERM;
@@ -406,13 +349,19 @@ int set_unmaskirq(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	if (ide_spin_wait_hwgroup(drive))
-		return -EBUSY;
 	drive->unmask = arg;
-	spin_unlock_irq(&ide_lock);
 
 	return 0;
 }
+
+#define ide_gen_devset_rw(_name, _func) \
+__IDE_DEVSET(_name, DS_SYNC, get_##_func, set_##_func)
+
+ide_gen_devset_rw(io_32bit, io_32bit);
+ide_gen_devset_rw(keepsettings, ksettings);
+ide_gen_devset_rw(unmaskirq, unmaskirq);
+ide_gen_devset_rw(using_dma, using_dma);
+__IDE_DEVSET(pio_mode, 0, NULL, set_pio_mode);
 
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {

@@ -161,6 +161,7 @@ enum {
  * Values should be in the range of 0x20 to 0x3f.
  */
 #define REQ_DRIVE_RESET		0x20
+#define REQ_DEVSET_EXEC		0x21
 
 /*
  * Check for an interrupt and acknowledge the interrupt status
@@ -405,7 +406,7 @@ struct ide_drive_s {
 	u16			*id;	/* identification info */
 #ifdef CONFIG_IDE_PROC_FS
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
-	const struct ide_devset **settings; /* /proc/ide/ drive settings */
+	const struct ide_proc_devset *settings; /* /proc/ide/ drive settings */
 #endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
 
@@ -707,28 +708,61 @@ typedef struct ide_driver_s ide_driver_t;
 
 extern struct mutex ide_setting_mtx;
 
-int get_io_32bit(ide_drive_t *);
-int set_io_32bit(ide_drive_t *, int);
-int get_ksettings(ide_drive_t *);
-int set_ksettings(ide_drive_t *, int);
-int set_pio_mode(ide_drive_t *, int);
-int get_unmaskirq(ide_drive_t *);
-int set_unmaskirq(ide_drive_t *, int);
-int get_using_dma(ide_drive_t *);
-int set_using_dma(ide_drive_t *, int);
+/*
+ * configurable drive settings
+ */
+
+#define DS_SYNC	(1 << 0)
+
+struct ide_devset {
+	int		(*get)(ide_drive_t *);
+	int		(*set)(ide_drive_t *, int);
+	unsigned int	flags;
+};
+
+#define __DEVSET(_flags, _get, _set) { \
+	.flags	= _flags, \
+	.get	= _get,	\
+	.set	= _set,	\
+}
 
 #define ide_devset_get(name, field) \
-int get_##name(ide_drive_t *drive) \
+static int get_##name(ide_drive_t *drive) \
 { \
 	return drive->field; \
 }
 
 #define ide_devset_set(name, field) \
-int set_##name(ide_drive_t *drive, int arg) \
+static int set_##name(ide_drive_t *drive, int arg) \
 { \
 	drive->field = arg; \
 	return 0; \
 }
+
+#define __IDE_DEVSET(_name, _flags, _get, _set) \
+const struct ide_devset ide_devset_##_name = \
+	__DEVSET(_flags, _get, _set)
+
+#define IDE_DEVSET(_name, _flags, _get, _set) \
+static __IDE_DEVSET(_name, _flags, _get, _set)
+
+#define ide_devset_rw(_name, _func) \
+IDE_DEVSET(_name, 0, get_##_func, set_##_func)
+
+#define ide_devset_w(_name, _func) \
+IDE_DEVSET(_name, 0, NULL, set_##_func)
+
+#define ide_devset_rw_sync(_name, _func) \
+IDE_DEVSET(_name, DS_SYNC, get_##_func, set_##_func)
+
+#define ide_decl_devset(_name) \
+extern const struct ide_devset ide_devset_##_name
+
+ide_decl_devset(io_32bit);
+ide_decl_devset(keepsettings);
+ide_decl_devset(pio_mode);
+ide_decl_devset(unmaskirq);
+ide_decl_devset(using_dma);
 
 /* ATAPI packet command flags */
 enum {
@@ -797,60 +831,34 @@ struct ide_atapi_pc {
 
 #ifdef CONFIG_IDE_PROC_FS
 /*
- * configurable drive settings
- */
-
-#define S_READ		(1 << 0)
-#define S_WRITE		(1 << 1)
-#define S_RW		(S_READ | S_WRITE)
-#define S_NOLOCK	(1 << 2)
-
-struct ide_devset {
-	const char	*name;
-	unsigned int	flags;
-	int		min, max;
-	int		(*get)(ide_drive_t *);
-	int		(*set)(ide_drive_t *, int);
-	int		(*mulf)(ide_drive_t *);
-	int		(*divf)(ide_drive_t *);
-};
-
-#define __DEVSET(_name, _flags, _min, _max, _get, _set, _mulf, _divf) { \
-	.name	= __stringify(_name), \
-	.flags	= _flags, \
-	.min	= _min, \
-	.max	= _max, \
-	.get	= _get, \
-	.set	= _set, \
-	.mulf	= _mulf, \
-	.divf	= _divf, \
-}
-
-#define __IDE_DEVSET(_name, _flags, _min, _max, _get, _set, _mulf, _divf) \
-static const struct ide_devset ide_devset_##_name = \
-	__DEVSET(_name, _flags, _min, _max, _get, _set, _mulf, _divf)
-
-#define IDE_DEVSET(_name, _flags, _min, _max, _get, _set) \
-__IDE_DEVSET(_name, _flags, _min, _max, _get, _set, NULL, NULL)
-
-#define ide_devset_rw_nolock(_name, _min, _max, _func) \
-IDE_DEVSET(_name, S_RW | S_NOLOCK, _min, _max, get_##_func, set_##_func)
-
-#define ide_devset_w_nolock(_name, _min, _max, _func) \
-IDE_DEVSET(_name, S_WRITE | S_NOLOCK, _min, _max, NULL, set_##_func)
-
-#define ide_devset_rw(_name, _min, _max, _field) \
-static ide_devset_get(_name, _field); \
-static ide_devset_set(_name, _field); \
-IDE_DEVSET(_name, S_RW, _min, _max, get_##_name, set_##_name)
-
-#define ide_devset_r(_name, _min, _max, _field) \
-ide_devset_get(_name, _field) \
-IDE_DEVSET(_name, S_READ, _min, _max, get_##_name, NULL)
-
-/*
  * /proc/ide interface
  */
+
+#define ide_devset_rw_field(_name, _field) \
+ide_devset_get(_name, _field); \
+ide_devset_set(_name, _field); \
+IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name)
+
+struct ide_proc_devset {
+	const char		*name;
+	const struct ide_devset	*setting;
+	int			min, max;
+	int			(*mulf)(ide_drive_t *);
+	int			(*divf)(ide_drive_t *);
+};
+
+#define __IDE_PROC_DEVSET(_name, _min, _max, _mulf, _divf) { \
+	.name = __stringify(_name), \
+	.setting = &ide_devset_##_name, \
+	.min = _min, \
+	.max = _max, \
+	.mulf = _mulf, \
+	.divf = _divf, \
+}
+
+#define IDE_PROC_DEVSET(_name, _min, _max) \
+__IDE_PROC_DEVSET(_name, _min, _max, NULL, NULL)
+
 typedef struct {
 	const char	*name;
 	mode_t		mode;
@@ -948,8 +956,8 @@ struct ide_driver_s {
 	void		(*resume)(ide_drive_t *);
 	void		(*shutdown)(ide_drive_t *);
 #ifdef CONFIG_IDE_PROC_FS
-	ide_proc_entry_t	*proc;
-	const struct ide_devset	**settings;
+	ide_proc_entry_t		*proc;
+	const struct ide_proc_devset	*settings;
 #endif
 };
 
@@ -961,9 +969,7 @@ void ide_device_put(ide_drive_t *);
 struct ide_ioctl_devset {
 	unsigned int	get_ioctl;
 	unsigned int	set_ioctl;
-
-	int		(*get)(ide_drive_t *);
-	int		(*set)(ide_drive_t *, int);
+	const struct ide_devset *setting;
 };
 
 int ide_setting_ioctl(ide_drive_t *, struct block_device *, unsigned int,
@@ -1001,6 +1007,9 @@ int ide_busy_sleep(ide_hwif_t *, unsigned long, int);
 int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 extern ide_startstop_t ide_do_reset (ide_drive_t *);
+
+extern int ide_devset_execute(ide_drive_t *drive,
+			      const struct ide_devset *setting, int arg);
 
 extern void ide_do_drive_cmd(ide_drive_t *, struct request *);
 
@@ -1191,7 +1200,6 @@ extern int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout);
 
 extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
-extern int ide_spin_wait_hwgroup(ide_drive_t *);
 extern void ide_timer_expiry(unsigned long);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
 extern void do_ide_request(struct request_queue *);

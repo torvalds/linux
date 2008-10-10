@@ -1809,11 +1809,11 @@ static ide_proc_entry_t idecd_proc[] = {
 	{ NULL, 0, NULL, NULL }
 };
 
-ide_devset_rw(dsc_overlap, 0, 1, dsc_overlap);
+ide_devset_rw_field(dsc_overlap, dsc_overlap);
 
-static const struct ide_devset *idecd_settings[] = {
-	&ide_devset_dsc_overlap,
-	NULL
+static const struct ide_proc_devset idecd_settings[] = {
+	IDE_PROC_DEVSET(dsc_overlap, 0, 1),
+	{ 0 },
 };
 #endif
 

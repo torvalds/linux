@@ -400,25 +400,25 @@ static int set_##name(ide_drive_t *drive, int arg) \
 	return 0; \
 }
 
-#define ide_scsi_devset_rw(_name, _min, _max, _field) \
+#define ide_scsi_devset_rw_field(_name, _field) \
 ide_scsi_devset_get(_name, _field); \
 ide_scsi_devset_set(_name, _field); \
-IDE_DEVSET(_name, S_RW, _min, _max, get_##_name, set_##_name)
+IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name);
 
-ide_devset_rw(bios_cyl,		0, 1023, bios_cyl);
-ide_devset_rw(bios_head,	0,  255, bios_head);
-ide_devset_rw(bios_sect,	0,   63, bios_sect);
+ide_devset_rw_field(bios_cyl, bios_cyl);
+ide_devset_rw_field(bios_head, bios_head);
+ide_devset_rw_field(bios_sect, bios_sect);
 
-ide_scsi_devset_rw(transform,	0,    3, transform);
-ide_scsi_devset_rw(log,		0,    1, log);
+ide_scsi_devset_rw_field(transform, transform);
+ide_scsi_devset_rw_field(log, log);
 
-static const struct ide_devset *idescsi_settings[] = {
-	&ide_devset_bios_cyl,
-	&ide_devset_bios_head,
-	&ide_devset_bios_sect,
-	&ide_devset_log,
-	&ide_devset_transform,
-	NULL
+static const struct ide_proc_devset idescsi_settings[] = {
+	IDE_PROC_DEVSET(bios_cyl,  0, 1023),
+	IDE_PROC_DEVSET(bios_head, 0,  255),
+	IDE_PROC_DEVSET(bios_sect, 0,	63),
+	IDE_PROC_DEVSET(log,	   0,	 1),
+	IDE_PROC_DEVSET(transform, 0,	 3),
+	{ 0 },
 };
 #endif
 

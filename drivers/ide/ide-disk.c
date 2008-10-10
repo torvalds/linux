@@ -575,11 +575,8 @@ static int set_nowerr(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	if (ide_spin_wait_hwgroup(drive))
-		return -EBUSY;
 	drive->nowerr = arg;
 	drive->bad_wstat = arg ? BAD_R_STAT : BAD_W_STAT;
-	spin_unlock_irq(&ide_lock);
 	return 0;
 }
 
@@ -702,33 +699,34 @@ static int set_addressing(ide_drive_t *drive, int arg)
 	return 0;
 }
 
+ide_devset_rw(acoustic, acoustic);
+ide_devset_rw(address, addressing);
+ide_devset_rw(multcount, multcount);
+ide_devset_rw(wcache, wcache);
+
+ide_devset_rw_sync(nowerr, nowerr);
+
 #ifdef CONFIG_IDE_PROC_FS
-ide_devset_rw_nolock(acoustic,	0, 254, acoustic);
-ide_devset_rw_nolock(address,	0,   2, addressing);
-ide_devset_rw_nolock(multcount,	0,  16, multcount);
-ide_devset_rw_nolock(nowerr,	0,   1, nowerr);
-ide_devset_rw_nolock(wcache,	0,   1, wcache);
+ide_devset_rw_field(bios_cyl, bios_cyl);
+ide_devset_rw_field(bios_head, bios_head);
+ide_devset_rw_field(bios_sect, bios_sect);
+ide_devset_rw_field(failures, failures);
+ide_devset_rw_field(lun, lun);
+ide_devset_rw_field(max_failures, max_failures);
 
-ide_devset_rw(bios_cyl,		0, 65535, bios_cyl);
-ide_devset_rw(bios_head,	0,   255, bios_head);
-ide_devset_rw(bios_sect,	0,    63, bios_sect);
-ide_devset_rw(failures,		0, 65535, failures);
-ide_devset_rw(lun,		0,     7, lun);
-ide_devset_rw(max_failures,	0, 65535, max_failures);
-
-static const struct ide_devset *idedisk_settings[] = {
-	&ide_devset_acoustic,
-	&ide_devset_address,
-	&ide_devset_bios_cyl,
-	&ide_devset_bios_head,
-	&ide_devset_bios_sect,
-	&ide_devset_failures,
-	&ide_devset_lun,
-	&ide_devset_max_failures,
-	&ide_devset_multcount,
-	&ide_devset_nowerr,
-	&ide_devset_wcache,
-	NULL
+static const struct ide_proc_devset idedisk_settings[] = {
+	IDE_PROC_DEVSET(acoustic,	0,   254),
+	IDE_PROC_DEVSET(address,	0,     2),
+	IDE_PROC_DEVSET(bios_cyl,	0, 65535),
+	IDE_PROC_DEVSET(bios_head,	0,   255),
+	IDE_PROC_DEVSET(bios_sect,	0,    63),
+	IDE_PROC_DEVSET(failures,	0, 65535),
+	IDE_PROC_DEVSET(lun,		0,     7),
+	IDE_PROC_DEVSET(max_failures,	0, 65535),
+	IDE_PROC_DEVSET(multcount,	0,    16),
+	IDE_PROC_DEVSET(nowerr,		0,     1),
+	IDE_PROC_DEVSET(wcache,		0,     1),
+	{ 0 },
 };
 #endif
 
@@ -1001,11 +999,11 @@ static int idedisk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static const struct ide_ioctl_devset ide_disk_ioctl_settings[] = {
-{ HDIO_GET_ADDRESS,	HDIO_SET_ADDRESS,   get_addressing, set_addressing },
-{ HDIO_GET_MULTCOUNT,	HDIO_SET_MULTCOUNT, get_multcount,  set_multcount  },
-{ HDIO_GET_NOWERR,	HDIO_SET_NOWERR,    get_nowerr,	    set_nowerr	   },
-{ HDIO_GET_WCACHE,	HDIO_SET_WCACHE,    get_wcache,	    set_wcache	   },
-{ HDIO_GET_ACOUSTIC,	HDIO_SET_ACOUSTIC,  get_acoustic,   set_acoustic   },
+{ HDIO_GET_ADDRESS,	HDIO_SET_ADDRESS,   &ide_devset_address   },
+{ HDIO_GET_MULTCOUNT,	HDIO_SET_MULTCOUNT, &ide_devset_multcount },
+{ HDIO_GET_NOWERR,	HDIO_SET_NOWERR,    &ide_devset_nowerr	  },
+{ HDIO_GET_WCACHE,	HDIO_SET_WCACHE,    &ide_devset_wcache	  },
+{ HDIO_GET_ACOUSTIC,	HDIO_SET_ACOUSTIC,  &ide_devset_acoustic  },
 { 0 }
 };
 

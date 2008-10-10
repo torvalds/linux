@@ -124,15 +124,16 @@ static int proc_ide_read_identify
  *	setting semaphore
  */
 
-static const struct ide_devset *ide_find_setting(const struct ide_devset **st,
-						 char *name)
+static
+const struct ide_proc_devset *ide_find_setting(const struct ide_proc_devset *st,
+					       char *name)
 {
-	while (*st) {
-		if (strcmp((*st)->name, name) == 0)
+	while (st->name) {
+		if (strcmp(st->name, name) == 0)
 			break;
 		st++;
 	}
-	return *st;
+	return st->name ? st : NULL;
 }
 
 /**
@@ -149,15 +150,16 @@ static const struct ide_devset *ide_find_setting(const struct ide_devset **st,
  */
 
 static int ide_read_setting(ide_drive_t *drive,
-			    const struct ide_devset *setting)
+			    const struct ide_proc_devset *setting)
 {
+	const struct ide_devset *ds = setting->setting;
 	int val = -EINVAL;
 
-	if ((setting->flags & S_READ)) {
+	if (ds->get) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&ide_lock, flags);
-		val = setting->get(drive);
+		val = ds->get(drive);
 		spin_unlock_irqrestore(&ide_lock, flags);
 	}
 
@@ -183,24 +185,21 @@ static int ide_read_setting(ide_drive_t *drive,
  */
 
 static int ide_write_setting(ide_drive_t *drive,
-			     const struct ide_devset *setting, int val)
+			     const struct ide_proc_devset *setting, int val)
 {
+	const struct ide_devset *ds = setting->setting;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	if (setting->set && (setting->flags & S_NOLOCK))
-		return setting->set(drive, val);
-	if (!(setting->flags & S_WRITE))
+	if (!ds->set)
 		return -EPERM;
-	if (val < setting->min || val > setting->max)
+	if ((ds->flags & DS_SYNC)
+	    && (val < setting->min || val > setting->max))
 		return -EINVAL;
-	if (ide_spin_wait_hwgroup(drive))
-		return -EBUSY;
-	setting->set(drive, val);
-	spin_unlock_irq(&ide_lock);
-	return 0;
+	return ide_devset_execute(drive, ds, val);
 }
 
-static ide_devset_get(xfer_rate, current_speed);
+ide_devset_get(xfer_rate, current_speed);
 
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
@@ -226,29 +225,22 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 	return err;
 }
 
-ide_devset_rw_nolock(current_speed, 0, 70, xfer_rate);
-ide_devset_rw_nolock(io_32bit, 0, 1 + (SUPPORT_VLB_SYNC << 1), io_32bit);
-ide_devset_rw_nolock(keepsettings, 0, 1, ksettings);
-ide_devset_rw_nolock(unmaskirq, 0, 1, unmaskirq);
-ide_devset_rw_nolock(using_dma, 0, 1, using_dma);
+ide_devset_rw(current_speed, xfer_rate);
+ide_devset_rw_field(init_speed, init_speed);
+ide_devset_rw_field(nice1, nice1);
+ide_devset_rw_field(number, dn);
 
-ide_devset_w_nolock(pio_mode, 0, 255, pio_mode);
-
-ide_devset_rw(init_speed, 0, 70, init_speed);
-ide_devset_rw(nice1, 0, 1, nice1);
-ide_devset_rw(number, 0, 3, dn);
-
-static const struct ide_devset *ide_generic_settings[] = {
-	&ide_devset_current_speed,
-	&ide_devset_init_speed,
-	&ide_devset_io_32bit,
-	&ide_devset_keepsettings,
-	&ide_devset_nice1,
-	&ide_devset_number,
-	&ide_devset_pio_mode,
-	&ide_devset_unmaskirq,
-	&ide_devset_using_dma,
-	NULL
+static const struct ide_proc_devset ide_generic_settings[] = {
+	IDE_PROC_DEVSET(current_speed, 0, 70),
+	IDE_PROC_DEVSET(init_speed, 0, 70),
+	IDE_PROC_DEVSET(io_32bit,  0, 1 + (SUPPORT_VLB_SYNC << 1)),
+	IDE_PROC_DEVSET(keepsettings, 0, 1),
+	IDE_PROC_DEVSET(nice1, 0, 1),
+	IDE_PROC_DEVSET(number, 0, 3),
+	IDE_PROC_DEVSET(pio_mode, 0, 255),
+	IDE_PROC_DEVSET(unmaskirq, 0, 1),
+	IDE_PROC_DEVSET(using_dma, 0, 1),
+	{ 0 },
 };
 
 static void proc_ide_settings_warn(void)
@@ -266,7 +258,8 @@ static void proc_ide_settings_warn(void)
 static int proc_ide_read_settings
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
-	const struct ide_devset *setting, **g, **d;
+	const struct ide_proc_devset *setting, *g, *d;
+	const struct ide_devset *ds;
 	ide_drive_t	*drive = (ide_drive_t *) data;
 	char		*out = page;
 	int		len, rc, mul_factor, div_factor;
@@ -278,17 +271,17 @@ static int proc_ide_read_settings
 	d = drive->settings;
 	out += sprintf(out, "name\t\t\tvalue\t\tmin\t\tmax\t\tmode\n");
 	out += sprintf(out, "----\t\t\t-----\t\t---\t\t---\t\t----\n");
-	while (*g || (d && *d)) {
+	while (g->name || (d && d->name)) {
 		/* read settings in the alphabetical order */
-		if (*g && d && *d) {
-			if (strcmp((*d)->name, (*g)->name) < 0)
-				setting = *d++;
+		if (g->name && d && d->name) {
+			if (strcmp(d->name, g->name) < 0)
+				setting = d++;
 			else
-				setting = *g++;
-		} else if (d && *d) {
-			setting = *d++;
+				setting = g++;
+		} else if (d && d->name) {
+			setting = d++;
 		} else
-			setting = *g++;
+			setting = g++;
 		mul_factor = setting->mulf ? setting->mulf(drive) : 1;
 		div_factor = setting->divf ? setting->divf(drive) : 1;
 		out += sprintf(out, "%-24s", setting->name);
@@ -298,9 +291,10 @@ static int proc_ide_read_settings
 		else
 			out += sprintf(out, "%-16s", "write-only");
 		out += sprintf(out, "%-16d%-16d", (setting->min * mul_factor + div_factor - 1) / div_factor, setting->max * mul_factor / div_factor);
-		if (setting->flags & S_READ)
+		ds = setting->setting;
+		if (ds->get)
 			out += sprintf(out, "r");
-		if (setting->flags & S_WRITE)
+		if (ds->set)
 			out += sprintf(out, "w");
 		out += sprintf(out, "\n");
 	}
@@ -319,7 +313,7 @@ static int proc_ide_write_settings(struct file *file, const char __user *buffer,
 	int		for_real = 0, mul_factor, div_factor;
 	unsigned long	n;
 
-	const struct ide_devset *setting;
+	const struct ide_proc_devset *setting;
 	char *buf, *s;
 
 	if (!capable(CAP_SYS_ADMIN))

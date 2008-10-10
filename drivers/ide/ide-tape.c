@@ -2188,40 +2188,40 @@ static int set_##name(ide_drive_t *drive, int arg) \
 	return 0; \
 }
 
-#define ide_tape_devset_rw(_name, _min, _max, _field, _mulf, _divf) \
+#define ide_tape_devset_rw_field(_name, _field) \
 ide_tape_devset_get(_name, _field) \
 ide_tape_devset_set(_name, _field) \
-__IDE_DEVSET(_name, S_RW, _min, _max, get_##_name, set_##_name, _mulf, _divf)
+IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name)
 
-#define ide_tape_devset_r(_name, _min, _max, _field, _mulf, _divf) \
+#define ide_tape_devset_r_field(_name, _field) \
 ide_tape_devset_get(_name, _field) \
-__IDE_DEVSET(_name, S_READ, _min, _max, get_##_name, NULL, _mulf, _divf)
+IDE_DEVSET(_name, 0, get_##_name, NULL)
 
 static int mulf_tdsc(ide_drive_t *drive)	{ return 1000; }
 static int divf_tdsc(ide_drive_t *drive)	{ return   HZ; }
 static int divf_buffer(ide_drive_t *drive)	{ return    2; }
 static int divf_buffer_size(ide_drive_t *drive)	{ return 1024; }
 
-ide_devset_rw(dsc_overlap,	0,	1, dsc_overlap);
+ide_devset_rw_field(dsc_overlap, dsc_overlap);
 
-ide_tape_devset_rw(debug_mask,	0, 0xffff, debug_mask,  NULL, NULL);
-ide_tape_devset_rw(tdsc, IDETAPE_DSC_RW_MIN, IDETAPE_DSC_RW_MAX,
-		   best_dsc_rw_freq, mulf_tdsc, divf_tdsc);
+ide_tape_devset_rw_field(debug_mask, debug_mask);
+ide_tape_devset_rw_field(tdsc, best_dsc_rw_freq);
 
-ide_tape_devset_r(avg_speed,	0, 0xffff, avg_speed,   NULL, NULL);
-ide_tape_devset_r(speed,	0, 0xffff, caps[14],    NULL, NULL);
-ide_tape_devset_r(buffer,	0, 0xffff, caps[16],    NULL, divf_buffer);
-ide_tape_devset_r(buffer_size,	0, 0xffff, buffer_size, NULL, divf_buffer_size);
+ide_tape_devset_r_field(avg_speed, avg_speed);
+ide_tape_devset_r_field(speed, caps[14]);
+ide_tape_devset_r_field(buffer, caps[16]);
+ide_tape_devset_r_field(buffer_size, buffer_size);
 
-static const struct ide_devset *idetape_settings[] = {
-	&ide_devset_avg_speed,
-	&ide_devset_buffer,
-	&ide_devset_buffer_size,
-	&ide_devset_debug_mask,
-	&ide_devset_dsc_overlap,
-	&ide_devset_speed,
-	&ide_devset_tdsc,
-	NULL
+static const struct ide_proc_devset idetape_settings[] = {
+	__IDE_PROC_DEVSET(avg_speed,	0, 0xffff, NULL, NULL),
+	__IDE_PROC_DEVSET(buffer,	0, 0xffff, NULL, divf_buffer),
+	__IDE_PROC_DEVSET(buffer_size,	0, 0xffff, NULL, divf_buffer_size),
+	__IDE_PROC_DEVSET(debug_mask,	0, 0xffff, NULL, NULL),
+	__IDE_PROC_DEVSET(dsc_overlap,	0,      1, NULL, NULL),
+	__IDE_PROC_DEVSET(speed,	0, 0xffff, NULL, NULL),
+	__IDE_PROC_DEVSET(tdsc,		IDETAPE_DSC_RW_MIN, IDETAPE_DSC_RW_MAX,
+					mulf_tdsc, divf_tdsc),
+	{ 0 },
 };
 #endif
 
