@@ -20,7 +20,7 @@
  * the core reset.
  */
 __attribute__((l1_text))
-void bfin_reset(void)
+static void bfin_reset(void)
 {
 	/* Wait for completion of "system" events such as cache line
 	 * line fills so that we avoid infinite stalls later on as
