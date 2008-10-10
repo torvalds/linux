@@ -2514,6 +2514,7 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 		tape->best_dsc_rw_freq * 1000 / HZ,
 		drive->using_dma ? ", DMA":"");
 
+	ide_proc_register_driver(drive, tape->driver);
 	idetape_add_settings(drive);
 }
 
@@ -2668,8 +2669,6 @@ static int ide_tape_probe(ide_drive_t *drive)
 		goto out_free_tape;
 
 	ide_init_disk(g, drive);
-
-	ide_proc_register_driver(drive, &idetape_driver);
 
 	kref_init(&tape->kref);
 

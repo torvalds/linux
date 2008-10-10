@@ -1924,6 +1924,8 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 		cd->devinfo.handle = NULL;
 		return 1;
 	}
+
+	ide_proc_register_driver(drive, cd->driver);
 	ide_cdrom_add_settings(drive);
 	return 0;
 }
@@ -2134,8 +2136,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	ide_proc_register_driver(drive, &ide_cdrom_driver);
-
 	kref_init(&info->kref);
 
 	info->drive = drive;
@@ -2150,7 +2150,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 	g->driverfs_dev = &drive->gendev;
 	g->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE;
 	if (ide_cdrom_setup(drive)) {
-		ide_proc_unregister_driver(drive, &ide_cdrom_driver);
 		ide_cd_release(&info->kref);
 		goto failed;
 	}

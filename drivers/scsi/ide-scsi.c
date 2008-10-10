@@ -460,6 +460,7 @@ static void idescsi_setup (ide_drive_t *drive, idescsi_scsi_t *scsi)
 
 	drive->pc_callback = ide_scsi_callback;
 
+	ide_proc_register_driver(drive, scsi->driver);
 	idescsi_add_settings(drive);
 }
 
@@ -851,7 +852,6 @@ static int ide_scsi_probe(ide_drive_t *drive)
 	idescsi->host = host;
 	idescsi->disk = g;
 	g->private_data = &idescsi->driver;
-	ide_proc_register_driver(drive, &idescsi_driver);
 	err = 0;
 	idescsi_setup(drive, idescsi);
 	g->fops = &idescsi_ops;

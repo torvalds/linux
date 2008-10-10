@@ -782,11 +782,13 @@ static inline void idedisk_add_settings(ide_drive_t *drive) { ; }
 
 static void idedisk_setup(ide_drive_t *drive)
 {
+	struct ide_disk_obj *idkp = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
 	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
 	unsigned long long capacity;
 
+	ide_proc_register_driver(drive, idkp->driver);
 	idedisk_add_settings(drive);
 
 	if (drive->id_read == 0)
@@ -1150,8 +1152,6 @@ static int ide_disk_probe(ide_drive_t *drive)
 		goto out_free_idkp;
 
 	ide_init_disk(g, drive);
-
-	ide_proc_register_driver(drive, &idedisk_driver);
 
 	kref_init(&idkp->kref);
 
