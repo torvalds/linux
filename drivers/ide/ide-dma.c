@@ -649,8 +649,8 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 	case XFER_SW_DMA_0:
 		if (id[ATA_ID_FIELD_VALID] & 2) {
 			mask = id[ATA_ID_SWDMA_MODES] & hwif->swdma_mask;
-		} else if (drive->driveid->tDMA) {
-			u8 mode = drive->driveid->tDMA;
+		} else if (id[ATA_ID_OLD_DMA_MODES] >> 8) {
+			u8 mode = id[ATA_ID_OLD_DMA_MODES] >> 8;
 
 			/*
 			 * if the mode is valid convert it to the mask
@@ -727,7 +727,7 @@ static int ide_tune_dma(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 speed;
 
-	if (drive->nodma || (drive->driveid->capability & 1) == 0)
+	if (drive->nodma || ata_id_has_dma(drive->id) == 0)
 		return 0;
 
 	/* consult the list of known "bad" drives */

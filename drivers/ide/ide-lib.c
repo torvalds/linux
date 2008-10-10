@@ -102,14 +102,14 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 	if (pio_mode != -1) {
 		printk(KERN_INFO "%s: is on PIO blacklist\n", drive->name);
 	} else {
-		pio_mode = drive->driveid->tPIO;
+		pio_mode = id[ATA_ID_OLD_PIO_MODES] >> 8;
 		if (pio_mode > 2) {	/* 2 is maximum allowed tPIO value */
 			pio_mode = 2;
 			overridden = 1;
 		}
 
 		if (id[ATA_ID_FIELD_VALID] & 2) {	      /* ATA2? */
-			if (drive->driveid->capability & 8) { /* IORDY sup? */
+			if (ata_id_has_iordy(id)) {
 				if (id[ATA_ID_PIO_MODES] & 7) {
 					overridden = 0;
 					if (id[ATA_ID_PIO_MODES] & 4)

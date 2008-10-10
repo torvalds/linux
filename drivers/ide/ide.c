@@ -328,7 +328,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	if ((drive->driveid->capability & 1) == 0)
+	if (ata_id_has_dma(drive->id) == 0)
 		goto out;
 
 	if (hwif->dma_ops == NULL)
@@ -502,12 +502,60 @@ static int generic_drive_reset(ide_drive_t *drive)
 	return ret;
 }
 
+static inline void ide_id_to_hd_driveid(u16 *id)
+{
+#ifdef __BIG_ENDIAN
+	/* accessed in struct hd_driveid as 8-bit values */
+	id[ATA_ID_MAX_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MAX_MULTSECT]);
+	id[ATA_ID_CAPABILITY]	 = __cpu_to_le16(id[ATA_ID_CAPABILITY]);
+	id[ATA_ID_OLD_PIO_MODES] = __cpu_to_le16(id[ATA_ID_OLD_PIO_MODES]);
+	id[ATA_ID_OLD_DMA_MODES] = __cpu_to_le16(id[ATA_ID_OLD_DMA_MODES]);
+	id[ATA_ID_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MULTSECT]);
+
+	/* as 32-bit values */
+	*(u32 *)&id[ATA_ID_LBA_CAPACITY] = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
+	*(u32 *)&id[ATA_ID_SPG]		 = ata_id_u32(id, ATA_ID_SPG);
+
+	/* as 64-bit value */
+	*(u64 *)&id[ATA_ID_LBA_CAPACITY_2] =
+		ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
+#endif
+}
+
+static int ide_get_identity_ioctl(ide_drive_t *drive, unsigned int cmd,
+				  unsigned long arg)
+{
+	u16 *id = NULL;
+	int size = (cmd == HDIO_GET_IDENTITY) ? (ATA_ID_WORDS * 2) : 142;
+	int rc = 0;
+
+	if (drive->id_read == 0) {
+		rc = -ENOMSG;
+		goto out;
+	}
+
+	id = kmalloc(size, GFP_KERNEL);
+	if (id == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	memcpy(id, drive->id, size);
+	ide_id_to_hd_driveid(id);
+
+	if (copy_to_user((void __user *)arg, id, size))
+		rc = -EFAULT;
+
+	kfree(id);
+out:
+	return rc;
+}
+
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
 			unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 	ide_driver_t *drv;
-	void __user *p = (void __user *)arg;
 	int err = 0, (*setfunc)(ide_drive_t *, int);
 	u8 *val;
 
@@ -528,12 +576,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		case HDIO_GET_IDENTITY:
 			if (bdev != bdev->bd_contains)
 				return -EINVAL;
-			if (drive->id_read == 0)
-				return -ENOMSG;
-			if (copy_to_user(p, drive->id, (cmd == HDIO_GET_IDENTITY) ? sizeof(*drive->id) : 142))
-				return -EFAULT;
-			return 0;
-
+			return ide_get_identity_ioctl(drive, cmd, arg);
 		case HDIO_GET_NICE:
 			return put_user(drive->dsc_overlap	<<	IDE_NICE_DSC_OVERLAP	|
 					drive->atapi_overlap	<<	IDE_NICE_ATAPI_OVERLAP	|

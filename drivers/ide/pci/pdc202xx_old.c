@@ -86,7 +86,7 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 		 * Prefetch_EN / IORDY_EN / PA[3:0] bits of register A
 		 */
 		AP &= ~0x3f;
-		if (drive->driveid->capability & 4)
+		if (ata_id_iordy_disable(drive->id))
 			AP |= 0x20;	/* set IORDY_EN bit */
 		if (drive->media == ide_disk)
 			AP |= 0x10;	/* set Prefetch_EN bit */

@@ -195,10 +195,10 @@ static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	 * FIXME: use "pio" value
 	 */
 	if (!qd_find_disk_type(drive, &active_time, &recovery_time) &&
-	    drive->driveid->tPIO && (id[ATA_ID_FIELD_VALID] & 2) &&
+	    (id[ATA_ID_OLD_PIO_MODES] & 0xff) && (id[ATA_ID_FIELD_VALID] & 2) &&
 	    id[ATA_ID_EIDE_PIO] >= 240) {
 		printk(KERN_INFO "%s: PIO mode%d\n", drive->name,
-				drive->driveid->tPIO);
+			id[ATA_ID_OLD_PIO_MODES] & 0xff);
 		active_time = 110;
 		recovery_time = drive->id[ATA_ID_EIDE_PIO] - 120;
 	}

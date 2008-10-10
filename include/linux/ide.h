@@ -380,11 +380,7 @@ struct ide_drive_s {
 	struct request		*rq;	/* current request */
 	struct ide_drive_s 	*next;	/* circular list of hwgroup drives */
 	void		*driver_data;	/* extra driver data */
-	union {
-		/* identification info */
-		struct hd_driveid	*driveid;
-		u16			*id;
-	};
+	u16			*id;	/* identification info */
 #ifdef CONFIG_IDE_PROC_FS
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
 	struct ide_settings_s *settings;/* /proc/ide/ drive settings */
@@ -1353,8 +1349,7 @@ extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
 
 static inline int ide_dev_has_iordy(u16 *id)
 {
-	return ((id[ATA_ID_FIELD_VALID] & 2) &&
-		(((struct hd_driveid *)id)->capability & 8)) ? 1 : 0;
+	return ((id[ATA_ID_FIELD_VALID] & 2) && ata_id_has_iordy(id)) ? 1 : 0;
 }
 
 static inline int ide_dev_is_sata(u16 *id)

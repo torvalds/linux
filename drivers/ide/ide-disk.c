@@ -101,12 +101,13 @@ static void ide_disk_put(struct ide_disk_obj *idkp)
  */
 static int lba_capacity_is_ok(u16 *id)
 {
-	struct hd_driveid *driveid = (struct hd_driveid *)id;
 	unsigned long lba_sects, chs_sects, head, tail;
 
 	/* No non-LBA info .. so valid! */
 	if (id[ATA_ID_CYLS] == 0)
 		return 1;
+
+	lba_sects = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
 
 	/*
 	 * The ATA spec tells large drives to return
@@ -118,10 +119,9 @@ static int lba_capacity_is_ok(u16 *id)
 	     (id[ATA_ID_CYLS] == 4092 && id[ATA_ID_CUR_CYLS] == 16383)) &&
 	    id[ATA_ID_SECTORS] == 63 &&
 	    (id[ATA_ID_HEADS] == 15 || id[ATA_ID_HEADS] == 16) &&
-	    (driveid->lba_capacity >= 16383 * 63 * id[ATA_ID_HEADS]))
+	    (lba_sects >= 16383 * 63 * id[ATA_ID_HEADS]))
 		return 1;
 
-	lba_sects = driveid->lba_capacity;
 	chs_sects = id[ATA_ID_CYLS] * id[ATA_ID_HEADS] * id[ATA_ID_SECTORS];
 
 	/* perform a rough sanity check on lba_sects:  within 10% is OK */
@@ -133,7 +133,7 @@ static int lba_capacity_is_ok(u16 *id)
 	tail = (lba_sects & 0xffff);
 	lba_sects = (head | (tail << 16));
 	if ((lba_sects - chs_sects) < chs_sects/10) {
-		driveid->lba_capacity = lba_sects;
+		*(__le32 *)&id[ATA_ID_LBA_CAPACITY] = __cpu_to_le32(lba_sects);
 		return 1;	/* lba_capacity is (now) good */
 	}
 
@@ -403,7 +403,7 @@ static inline int idedisk_supports_lba48(const u16 *id)
 {
 	return (id[ATA_ID_COMMAND_SET_2] & 0x0400) &&
 	       (id[ATA_ID_CFS_ENABLE_2] & 0x0400) &&
-	       ((struct hd_driveid *)id)->lba_capacity_2;
+	       ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
 }
 
 /*
@@ -456,7 +456,6 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 
 static void init_idedisk_capacity(ide_drive_t *drive)
 {
-	struct hd_driveid *driveid = drive->driveid;
 	u16 *id = drive->id;
 	/*
 	 * If this drive supports the Host Protected Area feature set,
@@ -467,13 +466,13 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 	if (idedisk_supports_lba48(id)) {
 		/* drive speaks 48-bit LBA */
 		drive->select.b.lba = 1;
-		drive->capacity64 = driveid->lba_capacity_2;
+		drive->capacity64 = ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
 		if (hpa)
 			idedisk_check_hpa(drive);
-	} else if ((driveid->capability & 2) && lba_capacity_is_ok(id)) {
+	} else if (ata_id_has_lba(id) && lba_capacity_is_ok(id)) {
 		/* drive speaks 28-bit LBA */
 		drive->select.b.lba = 1;
-		drive->capacity64 = driveid->lba_capacity;
+		drive->capacity64 = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
 		if (hpa)
 			idedisk_check_hpa(drive);
 	} else {
@@ -622,7 +621,7 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	struct request *rq;
 	int error;
 
-	if (arg < 0 || arg > drive->driveid->max_multsect)
+	if (arg < 0 || arg > (drive->id[ATA_ID_MAX_MULTSECT] & 0xff))
 		return -EINVAL;
 
 	if (drive->special.b.set_multmode)
@@ -775,8 +774,8 @@ static void idedisk_add_settings(ide_drive_t *drive)
 	ide_add_setting(drive, "address", SETTING_RW, TYPE_BYTE, 0, 2, 1, 1,
 			&drive->addressing, set_lba_addressing);
 	ide_add_setting(drive, "multcount", SETTING_RW, TYPE_BYTE, 0,
-			drive->driveid->max_multsect, 1, 1, &drive->mult_count,
-			set_multcount);
+			drive->id[ATA_ID_MAX_MULTSECT] & 0xff, 1, 1,
+			&drive->mult_count, set_multcount);
 	ide_add_setting(drive, "nowerr", SETTING_RW, TYPE_BYTE, 0, 1, 1, 1,
 			&drive->nowerr, set_nowerr);
 	ide_add_setting(drive, "lun", SETTING_RW, TYPE_INT, 0, 7, 1, 1,

@@ -83,7 +83,7 @@ u16 ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
 	u16 cycle = 0;
 
 	if (id[ATA_ID_FIELD_VALID] & 2) {
-		if (drive->driveid->capability & 8)
+		if (ata_id_has_iordy(drive->id))
 			cycle = id[ATA_ID_EIDE_PIO_IORDY];
 		else
 			cycle = id[ATA_ID_EIDE_PIO];

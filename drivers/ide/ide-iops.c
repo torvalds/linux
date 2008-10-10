@@ -404,26 +404,10 @@ void ide_fix_driveid(u16 *id)
 {
 #ifndef __LITTLE_ENDIAN
 # ifdef __BIG_ENDIAN
-	struct hd_driveid *driveid = (struct hd_driveid *)id;
 	int i;
 
-	for (i = 0; i < 256; i++) {
-		/*  these words are accessed as two 8-bit values */
-		if (i == 47 || i == 49 || i == 51 || i == 52 || i == 59)
-			continue;
-		if (i == 60 || i == 61)	/* ->lba_capacity is 32-bit */
-			continue;
-		if (i == 98 || i == 99)	/* ->spg is 32-bit */
-			continue;
-		if (i > 99 && i < 104)	/* ->lba_capacity_2 is 64-bit */
-			continue;
-
+	for (i = 0; i < 256; i++)
 		id[i] = __le16_to_cpu(id[i]);
-	}
-
-	driveid->lba_capacity	= __le32_to_cpu(driveid->lba_capacity);
-	driveid->spg		= __le32_to_cpu(driveid->spg);
-	driveid->lba_capacity_2	= __le64_to_cpu(driveid->lba_capacity_2);
 # else
 #  error "Please fix <asm/byteorder.h>"
 # endif
@@ -752,7 +736,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 #endif
 
 	/* Skip setting PIO flow-control modes on pre-EIDE drives */
-	if ((speed & 0xf8) == XFER_PIO_0 && !(drive->driveid->capability & 8))
+	if ((speed & 0xf8) == XFER_PIO_0 && ata_id_has_iordy(drive->id) == 0)
 		goto skip;
 
 	/*

@@ -470,7 +470,7 @@ static void it821x_quirkproc(ide_drive_t *drive)
 			/* In raid mode the ident block is slightly buggy
 			   We need to set the bits so that the IDE layer knows
 			   LBA28. LBA48 and DMA ar valid */
-			drive->driveid->capability |= 3;      /* LBA28, DMA */
+			id[ATA_ID_CAPABILITY]    |= (3 << 8); /* LBA28, DMA */
 			id[ATA_ID_COMMAND_SET_2] |= 0x0400;   /* LBA48 valid */
 			id[ATA_ID_CFS_ENABLE_2]  |= 0x0400;   /* LBA48 on */
 			/* Reporting logic */
@@ -504,7 +504,7 @@ static void it821x_quirkproc(ide_drive_t *drive)
 		 * IDE core that DMA is supported (it821x hardware
 		 * takes care of DMA mode programming).
 		 */
-		if (drive->driveid->capability & 1) {
+		if (ata_id_has_dma(id)) {
 			id[ATA_ID_MWDMA_MODES] |= 0x0101;
 			drive->current_speed = XFER_MW_DMA_0;
 		}

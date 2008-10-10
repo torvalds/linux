@@ -111,7 +111,7 @@ static u8 sc1200_udma_filter(ide_drive_t *drive)
 	if (mate->present == 0)
 		goto out;
 
-	if ((mate->driveid->capability & 1) && __ide_dma_bad_drive(mate) == 0) {
+	if (ata_id_has_dma(mateid) && __ide_dma_bad_drive(mate) == 0) {
 		if ((mateid[ATA_ID_FIELD_VALID] & 4) &&
 		    (mateid[ATA_ID_UDMA_MODES] & 7))
 			goto out;
