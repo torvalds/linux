@@ -562,7 +562,6 @@ typedef struct hwif_s {
 	u8 major;	/* our major number */
 	u8 index;	/* 0 for ide0; 1 for ide1; ... */
 	u8 channel;	/* for dual-port chips: 0=primary, 1=secondary */
-	u8 bus_state;	/* power state of the IDE bus */
 
 	u32 host_flags;
 

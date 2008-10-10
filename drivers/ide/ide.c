@@ -96,8 +96,6 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 	hwif->name[2]	= 'e';
 	hwif->name[3]	= '0' + index;
 
-	hwif->bus_state	= BUSSTATE_ON;
-
 	init_completion(&hwif->gendev_rel_comp);
 
 	hwif->tp_ops = &default_tp_ops;
@@ -620,7 +618,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
-			if (put_user(HWIF(drive)->bus_state, (long __user *)arg))
+			if (put_user(BUSSTATE_ON, (long __user *)arg))
 				return -EFAULT;
 			return 0;
 
