@@ -689,13 +689,6 @@ static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
 	pc->req_xfer = 20;
 }
 
-static void idetape_init_rq(struct request *rq, u8 cmd)
-{
-	blk_rq_init(NULL, rq);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd[13] = cmd;
-}
-
 /*
  * Generate a new packet command request in front of the request queue, before
  * the current request, so that it will be processed immediately, on the next
@@ -716,11 +709,13 @@ static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 {
 	struct ide_tape_obj *tape = drive->driver_data;
 
-	idetape_init_rq(rq, REQ_IDETAPE_PC1);
+	blk_rq_init(NULL, rq);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->buffer = (char *) pc;
 	rq->rq_disk = tape->disk;
 	memcpy(rq->cmd, pc->c, 12);
+	rq->cmd[13] = REQ_IDETAPE_PC1;
 	ide_do_drive_cmd(drive, rq);
 }
 
