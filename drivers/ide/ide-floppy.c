@@ -61,10 +61,6 @@
 #define debug_log(fmt, args...) do {} while (0)
 #endif
 
-
-/* Some drives require a longer irq timeout. */
-#define IDEFLOPPY_WAIT_CMD		(5 * WAIT_CMD)
-
 /*
  * After each failed packet command we issue a request sense command and retry
  * the packet command IDEFLOPPY_MAX_PC_RETRIES times.
@@ -226,7 +222,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 	idefloppy_floppy_t *floppy = drive->driver_data;
 
 	return ide_pc_intr(drive, floppy->pc, idefloppy_pc_intr,
-			   IDEFLOPPY_WAIT_CMD, NULL, idefloppy_update_buffers,
+			   WAIT_FLOPPY_CMD, NULL, idefloppy_update_buffers,
 			   idefloppy_retry_pc, NULL, ide_io_buffers);
 }
 
@@ -244,9 +240,8 @@ static int idefloppy_transfer_pc(ide_drive_t *drive)
 	drive->hwif->tp_ops->output_data(drive, NULL, floppy->pc->c, 12);
 
 	/* Timeout for the packet command */
-	return IDEFLOPPY_WAIT_CMD;
+	return WAIT_FLOPPY_CMD;
 }
-
 
 /*
  * Called as an interrupt (or directly). When the device says it's ready for a
@@ -272,7 +267,7 @@ static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 		timeout = floppy->ticks;
 		expiry = &idefloppy_transfer_pc;
 	} else {
-		timeout = IDEFLOPPY_WAIT_CMD;
+		timeout = WAIT_FLOPPY_CMD;
 		expiry = NULL;
 	}
 
@@ -322,7 +317,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	pc->retries++;
 
 	return ide_issue_pc(drive, pc, idefloppy_start_pc_transfer,
-			    IDEFLOPPY_WAIT_CMD, NULL);
+			    WAIT_FLOPPY_CMD, NULL);
 }
 
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)

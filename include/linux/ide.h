@@ -133,12 +133,28 @@ struct ide_io_ports {
 /*
  * Timeouts for various operations:
  */
-#define WAIT_DRQ	(HZ/10)		/* 100msec - spec allows up to 20ms */
-#define WAIT_READY	(5*HZ)		/* 5sec - some laptops are very slow */
-#define WAIT_PIDENTIFY	(10*HZ)	/* 10sec  - should be less than 3ms (?), if all ATAPI CD is closed at boot */
-#define WAIT_WORSTCASE	(30*HZ)	/* 30sec  - worst case when spinning up */
-#define WAIT_CMD	(10*HZ)	/* 10sec  - maximum wait for an IRQ to happen */
-#define WAIT_MIN_SLEEP	(2*HZ/100)	/* 20msec - minimum sleep time */
+enum {
+	/* spec allows up to 20ms */
+	WAIT_DRQ	= HZ / 10,	/* 100ms */
+	/* some laptops are very slow */
+	WAIT_READY	= 5 * HZ,	/* 5s */
+	/* should be less than 3ms (?), if all ATAPI CD is closed at boot */
+	WAIT_PIDENTIFY	= 10 * HZ,	/* 10s */
+	/* worst case when spinning up */
+	WAIT_WORSTCASE	= 30 * HZ,	/* 30s */
+	/* maximum wait for an IRQ to happen */
+	WAIT_CMD	= 10 * HZ,	/* 10s */
+	/* Some drives require a longer IRQ timeout. */
+	WAIT_FLOPPY_CMD	= 50 * HZ,	/* 50s */
+	/*
+	 * Some drives (for example, Seagate STT3401A Travan) require a very
+	 * long timeout, because they don't return an interrupt or clear their
+	 * BSY bit until after the command completes (even retension commands).
+	 */
+	WAIT_TAPE_CMD	= 900 * HZ,	/* 900s */
+	/* minimum sleep time */
+	WAIT_MIN_SLEEP	= HZ / 50,	/* 20ms */
+};
 
 /*
  * Op codes for special requests to be handled by ide_special_rq().

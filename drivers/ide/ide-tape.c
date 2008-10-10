@@ -81,13 +81,6 @@ enum {
 #define IDETAPE_MAX_PC_RETRIES		3
 
 /*
- * Some drives (for example, Seagate STT3401A Travan) require a very long
- * timeout, because they don't return an interrupt or clear their busy bit
- * until after the command completes (even retension commands).
- */
-#define IDETAPE_WAIT_CMD		(900*HZ)
-
-/*
  * The following parameter is used to select the point in the internal tape fifo
  * in which we will start to refill the buffer. Decreasing the following
  * parameter will improve the system's latency and interactive response, while
@@ -663,7 +656,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 
-	return ide_pc_intr(drive, tape->pc, idetape_pc_intr, IDETAPE_WAIT_CMD,
+	return ide_pc_intr(drive, tape->pc, idetape_pc_intr, WAIT_TAPE_CMD,
 			   NULL, idetape_update_buffers, idetape_retry_pc,
 			   ide_tape_handle_dsc, ide_tape_io_buffers);
 }
@@ -709,7 +702,7 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 	idetape_tape_t *tape = drive->driver_data;
 
 	return ide_transfer_pc(drive, tape->pc, idetape_pc_intr,
-			       IDETAPE_WAIT_CMD, NULL);
+			       WAIT_TAPE_CMD, NULL);
 }
 
 static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
@@ -758,7 +751,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 	pc->retries++;
 
 	return ide_issue_pc(drive, pc, idetape_transfer_pc,
-			    IDETAPE_WAIT_CMD, NULL);
+			    WAIT_TAPE_CMD, NULL);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */
