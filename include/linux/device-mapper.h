@@ -238,6 +238,11 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 int dm_table_complete(struct dm_table *t);
 
 /*
+ * Unplug all devices in a table.
+ */
+void dm_table_unplug_all(struct dm_table *t);
+
+/*
  * Table reference counting.
  */
 struct dm_table *dm_get_table(struct mapped_device *md);
