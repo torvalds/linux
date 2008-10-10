@@ -738,7 +738,7 @@ static int idefloppy_get_sfrp_bit(ide_drive_t *drive)
 		return 1;
 
 	floppy->srfp = pc.buf[8 + 2] & 0x40;
-	return (0);
+	return 0;
 }
 
 /*
@@ -866,16 +866,17 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 	int __user *argp;
 
 	if (get_user(u_array_size, arg))
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (u_array_size <= 0)
-		return (-EINVAL);
+		return -EINVAL;
 
 	idefloppy_create_read_capacity_cmd(&pc);
 	if (idefloppy_queue_pc_tail(drive, &pc)) {
 		printk(KERN_ERR "ide-floppy: Can't get floppy parameters\n");
-		return (-EIO);
+		return -EIO;
 	}
+
 	header_len = pc.buf[3];
 	desc_cnt = header_len / 8; /* capacity descriptor of 8 bytes */
 
@@ -897,19 +898,22 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
 		if (put_user(blocks, argp))
-			return(-EFAULT);
+			return -EFAULT;
+
 		++argp;
 
 		if (put_user(length, argp))
-			return (-EFAULT);
+			return -EFAULT;
+
 		++argp;
 
 		++u_index;
 	}
 
 	if (put_user(u_index, arg))
-		return (-EFAULT);
-	return (0);
+		return -EFAULT;
+
+	return 0;
 }
 
 /*
@@ -931,7 +935,7 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 	if (floppy->srfp) {
 		idefloppy_create_request_sense_cmd(&pc);
 		if (idefloppy_queue_pc_tail(drive, &pc))
-			return (-EIO);
+			return -EIO;
 
 		if (floppy->sense_key == 2 &&
 		    floppy->asc == 4 &&
@@ -950,10 +954,11 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 
 		progress_indication = ((stat & ATA_DSC) == 0) ? 0 : 0x10000;
 	}
-	if (put_user(progress_indication, arg))
-		return (-EFAULT);
 
-	return (0);
+	if (put_user(progress_indication, arg))
+		return -EFAULT;
+
+	return 0;
 }
 
 static sector_t idefloppy_capacity(ide_drive_t *drive)
