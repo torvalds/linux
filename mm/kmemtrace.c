@@ -19,11 +19,9 @@ static struct rchan *kmemtrace_chan;
 static u32 kmemtrace_buf_overruns;
 
 static unsigned int kmemtrace_n_subbufs;
-#ifdef CONFIG_KMEMTRACE_DEFAULT_ENABLED
-static unsigned int kmemtrace_enabled = 1;
-#else
-static unsigned int kmemtrace_enabled = 0;
-#endif
+
+/* disabled by default */
+static unsigned int kmemtrace_enabled;
 
 /*
  * The sequence number is used for reordering kmemtrace packets

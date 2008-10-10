@@ -823,14 +823,6 @@ config KMEMTRACE
 
 	  If unsure, say N.
 
-config KMEMTRACE_DEFAULT_ENABLED
-	bool "Enabled by default at boot"
-	depends on KMEMTRACE
-	help
-	  Say Y here to enable kmemtrace at boot-time by default. Whatever
-	  the choice, the behavior can be overridden by a kernel parameter,
-	  as described in documentation.
-
 menuconfig BUILD_DOCSRC
 	bool "Build targets in Documentation/ tree"
 	depends on HEADERS_CHECK
