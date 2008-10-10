@@ -184,7 +184,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		if (drive->media != ide_disk)
 			break;
 		/* Not supported? Switch to next step now. */
-		if (!drive->wcache || !ide_id_has_flush_cache(drive->id)) {
+		if (!drive->wcache || ata_id_flush_enabled(drive->id) == 0) {
 			ide_complete_power_step(drive, rq, 0, 0);
 			return ide_stopped;
 		}

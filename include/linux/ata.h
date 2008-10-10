@@ -558,6 +558,15 @@ static inline int ata_id_has_flush(const u16 *id)
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 12);
 }
 
+static inline int ata_id_flush_enabled(const u16 *id)
+{
+	if (ata_id_has_flush(id) == 0)
+		return 0;
+	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
+		return 0;
+	return id[ATA_ID_CFS_ENABLE_2] & (1 << 12);
+}
+
 static inline int ata_id_has_flush_ext(const u16 *id)
 {
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)

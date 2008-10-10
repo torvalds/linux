@@ -651,7 +651,7 @@ static void update_ordered(ide_drive_t *drive)
 		 * not available so we don't need to recheck that.
 		 */
 		capacity = idedisk_capacity(drive);
-		barrier = ide_id_has_flush_cache(id) && !drive->noflush &&
+		barrier = ata_id_flush_enabled(id) && !drive->noflush &&
 			(drive->addressing == 0 || capacity <= (1ULL << 28) ||
 			 ide_id_has_flush_cache_ext(id));
 
@@ -678,7 +678,7 @@ static int set_wcache(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	if (ide_id_has_flush_cache(drive->id)) {
+	if (ata_id_flush_enabled(drive->id)) {
 		memset(&args, 0, sizeof(ide_task_t));
 		args.tf.feature = arg ?
 			SETFEATURES_WC_ON : SETFEATURES_WC_OFF;
@@ -886,7 +886,7 @@ static void idedisk_setup(ide_drive_t *drive)
 
 static void ide_cacheflush_p(ide_drive_t *drive)
 {
-	if (!drive->wcache || !ide_id_has_flush_cache(drive->id))
+	if (!drive->wcache || ata_id_flush_enabled(drive->id) == 0)
 		return;
 
 	if (do_idedisk_flushcache(drive))
