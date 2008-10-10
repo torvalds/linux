@@ -267,6 +267,11 @@ void dm_table_event(struct dm_table *t);
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *t);
 
+/*
+ * A wrapper around vmalloc.
+ */
+void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
+
 /*-----------------------------------------------------------------
  * Macros.
  *---------------------------------------------------------------*/
