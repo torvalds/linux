@@ -16,13 +16,13 @@
  */
 
 #include <crypto/internal/skcipher.h>
+#include <crypto/rng.h>
 #include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -163,16 +163,21 @@ static int eseqiv_givencrypt_first(struct skcipher_givcrypt_request *req)
 {
 	struct crypto_ablkcipher *geniv = skcipher_givcrypt_reqtfm(req);
 	struct eseqiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
+	int err = 0;
 
 	spin_lock_bh(&ctx->lock);
 	if (crypto_ablkcipher_crt(geniv)->givencrypt != eseqiv_givencrypt_first)
 		goto unlock;
 
 	crypto_ablkcipher_crt(geniv)->givencrypt = eseqiv_givencrypt;
-	get_random_bytes(ctx->salt, crypto_ablkcipher_ivsize(geniv));
+	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
+				   crypto_ablkcipher_ivsize(geniv));
 
 unlock:
 	spin_unlock_bh(&ctx->lock);
+
+	if (err)
+		return err;
 
 	return eseqiv_givencrypt(req);
 }
@@ -216,9 +221,13 @@ static struct crypto_instance *eseqiv_alloc(struct rtattr **tb)
 	struct crypto_instance *inst;
 	int err;
 
+	err = crypto_get_default_rng();
+	if (err)
+		return ERR_PTR(err);
+
 	inst = skcipher_geniv_alloc(&eseqiv_tmpl, tb, 0, 0);
 	if (IS_ERR(inst))
-		goto out;
+		goto put_rng;
 
 	err = -EINVAL;
 	if (inst->alg.cra_ablkcipher.ivsize != inst->alg.cra_blocksize)
@@ -238,22 +247,36 @@ out:
 free_inst:
 	skcipher_geniv_free(inst);
 	inst = ERR_PTR(err);
+put_rng:
+	crypto_put_default_rng();
 	goto out;
+}
+
+static void eseqiv_free(struct crypto_instance *inst)
+{
+	skcipher_geniv_free(inst);
+	crypto_put_default_rng();
 }
 
 static struct crypto_template eseqiv_tmpl = {
 	.name = "eseqiv",
 	.alloc = eseqiv_alloc,
-	.free = skcipher_geniv_free,
+	.free = eseqiv_free,
 	.module = THIS_MODULE,
 };
 
-int __init eseqiv_module_init(void)
+static int __init eseqiv_module_init(void)
 {
 	return crypto_register_template(&eseqiv_tmpl);
 }
 
-void __exit eseqiv_module_exit(void)
+static void __exit eseqiv_module_exit(void)
 {
 	crypto_unregister_template(&eseqiv_tmpl);
 }
+
+module_init(eseqiv_module_init);
+module_exit(eseqiv_module_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Encrypted Sequence Number IV Generator");

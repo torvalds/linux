@@ -21,15 +21,15 @@
 
 #include "internal.h"
 
+static void crypto_remove_final(struct list_head *list);
+
 static LIST_HEAD(crypto_template_list);
 
 void crypto_larval_error(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 
-	down_read(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name, type, mask);
-	up_read(&crypto_alg_sem);
+	alg = crypto_alg_lookup(name, type, mask);
 
 	if (alg) {
 		if (crypto_is_larval(alg)) {
@@ -128,23 +128,97 @@ static void crypto_remove_spawns(struct list_head *spawns,
 	}
 }
 
-static int __crypto_register_alg(struct crypto_alg *alg,
-				 struct list_head *list)
+static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 {
 	struct crypto_alg *q;
+	struct crypto_larval *larval;
 	int ret = -EAGAIN;
 
 	if (crypto_is_dead(alg))
-		goto out;
+		goto err;
 
 	INIT_LIST_HEAD(&alg->cra_users);
+
+	/* No cheating! */
+	alg->cra_flags &= ~CRYPTO_ALG_TESTED;
 
 	ret = -EEXIST;
 
 	atomic_set(&alg->cra_refcnt, 1);
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		if (q == alg)
-			goto out;
+			goto err;
+
+		if (crypto_is_larval(q)) {
+			if (!strcmp(alg->cra_driver_name, q->cra_driver_name))
+				goto err;
+			continue;
+		}
+
+		if (!strcmp(q->cra_driver_name, alg->cra_name) ||
+		    !strcmp(q->cra_name, alg->cra_driver_name))
+			goto err;
+	}
+
+	larval = crypto_larval_alloc(alg->cra_name,
+				     alg->cra_flags | CRYPTO_ALG_TESTED, 0);
+	if (IS_ERR(larval))
+		goto out;
+
+	ret = -ENOENT;
+	larval->adult = crypto_mod_get(alg);
+	if (!larval->adult)
+		goto free_larval;
+
+	atomic_set(&larval->alg.cra_refcnt, 1);
+	memcpy(larval->alg.cra_driver_name, alg->cra_driver_name,
+	       CRYPTO_MAX_ALG_NAME);
+	larval->alg.cra_priority = alg->cra_priority;
+
+	list_add(&alg->cra_list, &crypto_alg_list);
+	list_add(&larval->alg.cra_list, &crypto_alg_list);
+
+out:	
+	return larval;
+
+free_larval:
+	kfree(larval);
+err:
+	larval = ERR_PTR(ret);
+	goto out;
+}
+
+void crypto_alg_tested(const char *name, int err)
+{
+	struct crypto_larval *test;
+	struct crypto_alg *alg;
+	struct crypto_alg *q;
+	LIST_HEAD(list);
+
+	down_write(&crypto_alg_sem);
+	list_for_each_entry(q, &crypto_alg_list, cra_list) {
+		if (!crypto_is_larval(q))
+			continue;
+
+		test = (struct crypto_larval *)q;
+
+		if (!strcmp(q->cra_driver_name, name))
+			goto found;
+	}
+
+	printk(KERN_ERR "alg: Unexpected test result for %s: %d\n", name, err);
+	goto unlock;
+
+found:
+	alg = test->adult;
+	if (err || list_empty(&alg->cra_list))
+		goto complete;
+
+	alg->cra_flags |= CRYPTO_ALG_TESTED;
+
+	list_for_each_entry(q, &crypto_alg_list, cra_list) {
+		if (q == alg)
+			continue;
 
 		if (crypto_is_moribund(q))
 			continue;
@@ -180,17 +254,18 @@ static int __crypto_register_alg(struct crypto_alg *alg,
 		    q->cra_priority > alg->cra_priority)
 			continue;
 
-		crypto_remove_spawns(&q->cra_users, list, alg->cra_flags);
+		crypto_remove_spawns(&q->cra_users, &list, alg->cra_flags);
 	}
-	
-	list_add(&alg->cra_list, &crypto_alg_list);
 
-	crypto_notify(CRYPTO_MSG_ALG_REGISTER, alg);
-	ret = 0;
+complete:
+	complete_all(&test->completion);
 
-out:	
-	return ret;
+unlock:
+	up_write(&crypto_alg_sem);
+
+	crypto_remove_final(&list);
 }
+EXPORT_SYMBOL_GPL(crypto_alg_tested);
 
 static void crypto_remove_final(struct list_head *list)
 {
@@ -203,9 +278,27 @@ static void crypto_remove_final(struct list_head *list)
 	}
 }
 
+static void crypto_wait_for_test(struct crypto_larval *larval)
+{
+	int err;
+
+	err = crypto_probing_notify(CRYPTO_MSG_ALG_REGISTER, larval->adult);
+	if (err != NOTIFY_STOP) {
+		if (WARN_ON(err != NOTIFY_DONE))
+			goto out;
+		crypto_alg_tested(larval->alg.cra_driver_name, 0);
+	}
+
+	err = wait_for_completion_interruptible(&larval->completion);
+	WARN_ON(err);
+
+out:
+	crypto_larval_kill(&larval->alg);
+}
+
 int crypto_register_alg(struct crypto_alg *alg)
 {
-	LIST_HEAD(list);
+	struct crypto_larval *larval;
 	int err;
 
 	err = crypto_check_alg(alg);
@@ -213,11 +306,14 @@ int crypto_register_alg(struct crypto_alg *alg)
 		return err;
 
 	down_write(&crypto_alg_sem);
-	err = __crypto_register_alg(alg, &list);
+	larval = __crypto_register_alg(alg);
 	up_write(&crypto_alg_sem);
 
-	crypto_remove_final(&list);
-	return err;
+	if (IS_ERR(larval))
+		return PTR_ERR(larval);
+
+	crypto_wait_for_test(larval);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_register_alg);
 
@@ -335,8 +431,8 @@ EXPORT_SYMBOL_GPL(crypto_lookup_template);
 int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst)
 {
-	LIST_HEAD(list);
-	int err = -EINVAL;
+	struct crypto_larval *larval;
+	int err;
 
 	err = crypto_check_alg(&inst->alg);
 	if (err)
@@ -346,8 +442,8 @@ int crypto_register_instance(struct crypto_template *tmpl,
 
 	down_write(&crypto_alg_sem);
 
-	err = __crypto_register_alg(&inst->alg, &list);
-	if (err)
+	larval = __crypto_register_alg(&inst->alg);
+	if (IS_ERR(larval))
 		goto unlock;
 
 	hlist_add_head(&inst->list, &tmpl->instances);
@@ -356,7 +452,12 @@ int crypto_register_instance(struct crypto_template *tmpl,
 unlock:
 	up_write(&crypto_alg_sem);
 
-	crypto_remove_final(&list);
+	err = PTR_ERR(larval);
+	if (IS_ERR(larval))
+		goto err;
+
+	crypto_wait_for_test(larval);
+	err = 0;
 
 err:
 	return err;

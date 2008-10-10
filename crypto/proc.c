@@ -19,7 +19,52 @@
 #include <linux/rwsem.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/sysctl.h>
 #include "internal.h"
+
+#ifdef CONFIG_CRYPTO_FIPS
+static struct ctl_table crypto_sysctl_table[] = {
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "fips_enabled",
+		.data           = &fips_enabled,
+		.maxlen         = sizeof(int),
+		.mode           = 0444,
+		.proc_handler   = &proc_dointvec
+	},
+	{
+		.ctl_name = 0,
+	},
+};
+
+static struct ctl_table crypto_dir_table[] = {
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "crypto",
+		.mode           = 0555,
+		.child          = crypto_sysctl_table
+	},
+	{
+		.ctl_name = 0,
+	},
+};
+
+static struct ctl_table_header *crypto_sysctls;
+
+static void crypto_proc_fips_init(void)
+{
+	crypto_sysctls = register_sysctl_table(crypto_dir_table);
+}
+
+static void crypto_proc_fips_exit(void)
+{
+	if (crypto_sysctls)
+		unregister_sysctl_table(crypto_sysctls);
+}
+#else
+#define crypto_proc_fips_init()
+#define crypto_proc_fips_exit()
+#endif
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
@@ -46,8 +91,11 @@ static int c_show(struct seq_file *m, void *p)
 	seq_printf(m, "module       : %s\n", module_name(alg->cra_module));
 	seq_printf(m, "priority     : %d\n", alg->cra_priority);
 	seq_printf(m, "refcnt       : %d\n", atomic_read(&alg->cra_refcnt));
+	seq_printf(m, "selftest     : %s\n",
+		   (alg->cra_flags & CRYPTO_ALG_TESTED) ?
+		   "passed" : "unknown");
 	
-	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
+	switch (alg->cra_flags & (CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_LARVAL)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
 		seq_printf(m, "type         : cipher\n");
 		seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
@@ -67,7 +115,10 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "type         : compression\n");
 		break;
 	default:
-		if (alg->cra_type && alg->cra_type->show)
+		if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
+			seq_printf(m, "type         : larval\n");
+			seq_printf(m, "flags        : 0x%x\n", alg->cra_flags);
+		} else if (alg->cra_type && alg->cra_type->show)
 			alg->cra_type->show(m, alg);
 		else
 			seq_printf(m, "type         : unknown\n");
@@ -100,9 +151,11 @@ static const struct file_operations proc_crypto_ops = {
 void __init crypto_init_proc(void)
 {
 	proc_create("crypto", 0, NULL, &proc_crypto_ops);
+	crypto_proc_fips_init();
 }
 
 void __exit crypto_exit_proc(void)
 {
+	crypto_proc_fips_exit();
 	remove_proc_entry("crypto", NULL);
 }

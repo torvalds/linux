@@ -21,6 +21,14 @@ if CRYPTO
 
 comment "Crypto core or helper"
 
+config CRYPTO_FIPS
+	bool "FIPS 200 compliance"
+	help
+	  This options enables the fips boot option which is
+	  required if you want to system to operate in a FIPS 200
+	  certification.  You should say no unless you know what
+	  this is.
+
 config CRYPTO_ALGAPI
 	tristate
 	help
@@ -33,14 +41,21 @@ config CRYPTO_AEAD
 config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI
+	select CRYPTO_RNG
 
 config CRYPTO_HASH
 	tristate
 	select CRYPTO_ALGAPI
 
+config CRYPTO_RNG
+	tristate
+	select CRYPTO_ALGAPI
+
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
-	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	select CRYPTO_HASH
+	select CRYPTO_BLKCIPHER
 	help
 	  Create default cryptographic template instantiations such as
 	  cbc(aes).
@@ -85,9 +100,7 @@ config CRYPTO_AUTHENC
 config CRYPTO_TEST
 	tristate "Testing module"
 	depends on m
-	select CRYPTO_ALGAPI
-	select CRYPTO_AEAD
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	help
 	  Quick & dirty crypto test module.
 
@@ -113,6 +126,7 @@ config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_RNG
 	help
 	  This IV generator generates an IV based on a sequence number by
 	  xoring it with a salt.  This algorithm is mainly useful for CTR
@@ -219,7 +233,19 @@ config CRYPTO_CRC32C
 	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
 	  by iSCSI for header and data digests and by others.
 	  See Castagnoli93.  This implementation uses lib/libcrc32c.
-          Module will be crc32c.
+	  Module will be crc32c.
+
+config CRYPTO_CRC32C_INTEL
+	tristate "CRC32c INTEL hardware acceleration"
+	depends on X86
+	select CRYPTO_HASH
+	help
+	  In Intel processor with SSE4.2 supported, the processor will
+	  support CRC32C implementation using hardware accelerated CRC32
+	  instruction. This option will create 'crc32c-intel' module,
+	  which will enable any routine to use the CRC32 instruction to
+	  gain performance compared with software implementation.
+	  Module will be crc32c-intel.
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
@@ -243,55 +269,58 @@ config CRYPTO_MICHAEL_MIC
 	  of the algorithm.
 
 config CRYPTO_RMD128
-  tristate "RIPEMD-128 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-128 (ISO/IEC 10118-3:2004).
+	tristate "RIPEMD-128 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-128 (ISO/IEC 10118-3:2004).
 
-    RIPEMD-128 is a 128-bit cryptographic hash function. It should only
-    to be used as a secure replacement for RIPEMD. For other use cases
-    RIPEMD-160 should be used.
+	  RIPEMD-128 is a 128-bit cryptographic hash function. It should only
+	  to be used as a secure replacement for RIPEMD. For other use cases
+	  RIPEMD-160 should be used.
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD160
-  tristate "RIPEMD-160 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-160 (ISO/IEC 10118-3:2004).
+	tristate "RIPEMD-160 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-160 (ISO/IEC 10118-3:2004).
 
-    RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
-    to be used as a secure replacement for the 128-bit hash functions
-    MD4, MD5 and it's predecessor RIPEMD (not to be confused with RIPEMD-128).
+	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
+	  to be used as a secure replacement for the 128-bit hash functions
+	  MD4, MD5 and it's predecessor RIPEMD
+	  (not to be confused with RIPEMD-128).
 
-    It's speed is comparable to SHA1 and there are no known attacks against
-    RIPEMD-160.
+	  It's speed is comparable to SHA1 and there are no known attacks
+	  against RIPEMD-160.
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD256
-  tristate "RIPEMD-256 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-256 is an optional extension of RIPEMD-128 with a 256 bit hash.
-    It is intended for applications that require longer hash-results, without
-    needing a larger security level (than RIPEMD-128).
+	tristate "RIPEMD-256 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
+	  256 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-128).
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_RMD320
-  tristate "RIPEMD-320 digest algorithm"
-  select CRYPTO_ALGAPI
-  help
-    RIPEMD-320 is an optional extension of RIPEMD-160 with a 320 bit hash.
-    It is intended for applications that require longer hash-results, without
-    needing a larger security level (than RIPEMD-160).
+	tristate "RIPEMD-320 digest algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  RIPEMD-320 is an optional extension of RIPEMD-160 with a
+	  320 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-160).
 
-    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
@@ -308,8 +337,8 @@ config CRYPTO_SHA256
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
 
-          This code also includes SHA-224, a 224 bit hash with 112 bits
-          of security against collision attacks.
+	  This code also includes SHA-224, a 224 bit hash with 112 bits
+	  of security against collision attacks.
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
@@ -665,6 +694,18 @@ config CRYPTO_LZO
 	select LZO_DECOMPRESS
 	help
 	  This is the LZO algorithm.
+
+comment "Random Number Generation"
+
+config CRYPTO_ANSI_CPRNG
+	tristate "Pseudo Random Number Generation for Cryptographic modules"
+	select CRYPTO_AES
+	select CRYPTO_RNG
+	select CRYPTO_FIPS
+	help
+	  This option enables the generic pseudo random number generator
+	  for cryptographic modules.  Uses the Algorithm specified in
+	  ANSI X9.31 A.2.4
 
 source "drivers/crypto/Kconfig"
 
