@@ -111,6 +111,14 @@ int ide_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 }
 EXPORT_SYMBOL_GPL(ide_io_buffers);
 
+void ide_init_pc(struct ide_atapi_pc *pc)
+{
+	memset(pc, 0, sizeof(*pc));
+	pc->buf = pc->pc_buf;
+	pc->buf_size = IDE_PC_BUFFER_SIZE;
+}
+EXPORT_SYMBOL_GPL(ide_init_pc);
+
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,

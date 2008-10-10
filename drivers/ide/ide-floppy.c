@@ -69,12 +69,6 @@
  */
 #define IDEFLOPPY_MAX_PC_RETRIES	3
 
-/*
- * With each packet command, we allocate a buffer of IDEFLOPPY_PC_BUFFER_SIZE
- * bytes.
- */
-#define IDEFLOPPY_PC_BUFFER_SIZE	256
-
 /* format capacities descriptor codes */
 #define CAPACITY_INVALID	0x00
 #define CAPACITY_UNFORMATTED	0x01
@@ -274,16 +268,9 @@ static void ide_floppy_callback(ide_drive_t *drive)
 	idefloppy_end_request(drive, uptodate, 0);
 }
 
-static void idefloppy_init_pc(struct ide_atapi_pc *pc)
-{
-	memset(pc, 0, sizeof(*pc));
-	pc->buf = pc->pc_buf;
-	pc->buf_size = IDEFLOPPY_PC_BUFFER_SIZE;
-}
-
 static void idefloppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
 {
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = GPCMD_REQUEST_SENSE;
 	pc->c[4] = 255;
 	pc->req_xfer = 18;
@@ -413,14 +400,14 @@ static void idefloppy_create_prevent_cmd(struct ide_atapi_pc *pc, int prevent)
 {
 	debug_log("creating prevent removal command, prevent = %d\n", prevent);
 
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL;
 	pc->c[4] = prevent;
 }
 
 static void idefloppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
 {
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = GPCMD_READ_FORMAT_CAPACITIES;
 	pc->c[7] = 255;
 	pc->c[8] = 255;
@@ -430,7 +417,7 @@ static void idefloppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
 static void idefloppy_create_format_unit_cmd(struct ide_atapi_pc *pc, int b,
 		int l, int flags)
 {
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = GPCMD_FORMAT_UNIT;
 	pc->c[1] = 0x17;
 
@@ -454,7 +441,7 @@ static void idefloppy_create_mode_sense_cmd(struct ide_atapi_pc *pc,
 {
 	u16 length = 8; /* sizeof(Mode Parameter Header) = 8 Bytes */
 
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = GPCMD_MODE_SENSE_10;
 	pc->c[1] = 0;
 	pc->c[2] = page_code;
@@ -476,7 +463,7 @@ static void idefloppy_create_mode_sense_cmd(struct ide_atapi_pc *pc,
 
 static void idefloppy_create_start_stop_cmd(struct ide_atapi_pc *pc, int start)
 {
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = GPCMD_START_STOP_UNIT;
 	pc->c[4] = start;
 }
@@ -492,7 +479,7 @@ static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 	debug_log("create_rw10_cmd: block == %d, blocks == %d\n",
 		block, blocks);
 
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	pc->c[0] = cmd == READ ? GPCMD_READ_10 : GPCMD_WRITE_10;
 	put_unaligned(cpu_to_be16(blocks), (unsigned short *)&pc->c[7]);
 	put_unaligned(cpu_to_be32(block), (unsigned int *) &pc->c[2]);
@@ -511,7 +498,7 @@ static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
 		struct ide_atapi_pc *pc, struct request *rq)
 {
-	idefloppy_init_pc(pc);
+	ide_init_pc(pc);
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
 	pc->rq = rq;
 	pc->b_count = 0;
@@ -1071,7 +1058,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 		/* Just in case */
 
-		idefloppy_init_pc(&pc);
+		ide_init_pc(&pc);
 		pc.c[0] = GPCMD_TEST_UNIT_READY;
 
 		if (idefloppy_queue_pc_tail(drive, &pc)) {

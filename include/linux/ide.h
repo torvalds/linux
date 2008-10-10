@@ -724,6 +724,12 @@ enum {
 	PC_FLAG_TIMEDOUT		= (1 << 7),
 };
 
+/*
+ * With each packet command, we allocate a buffer of IDE_PC_BUFFER_SIZE bytes.
+ * This is used for several packet commands (not for READ/WRITE commands).
+ */
+#define IDE_PC_BUFFER_SIZE	256
+
 struct ide_atapi_pc {
 	/* actual packet bytes */
 	u8 c[12];
@@ -753,7 +759,7 @@ struct ide_atapi_pc {
 	 * those are more or less driver-specific and some of them are subject
 	 * to change/removal later.
 	 */
-	u8 pc_buf[256];
+	u8 pc_buf[IDE_PC_BUFFER_SIZE];
 
 	/* idetape only */
 	struct idetape_bh *bh;
@@ -1112,6 +1118,8 @@ extern int drive_is_ready(ide_drive_t *);
 void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
 int ide_check_atapi_device(ide_drive_t *, const char *);
+
+void ide_init_pc(struct ide_atapi_pc *);
 
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
