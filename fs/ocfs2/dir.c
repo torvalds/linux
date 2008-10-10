@@ -302,14 +302,13 @@ restart:
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
 			goto next;
-		wait_on_buffer(bh);
-		if (!buffer_uptodate(bh)) {
-			/* read error, skip block & hope for the best */
+		if (ocfs2_read_block(dir, block, &bh)) {
+			/* read error, skip block & hope for the best.
+			 * ocfs2_read_block() has released the bh. */
 			ocfs2_error(dir->i_sb, "reading directory %llu, "
 				    "offset %lu\n",
 				    (unsigned long long)OCFS2_I(dir)->ip_blkno,
 				    block);
-			brelse(bh);
 			goto next;
 		}
 		i = ocfs2_search_dirblock(bh, dir, name, namelen,
