@@ -4207,10 +4207,12 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 	u32 peer_secid = SECSID_NULL;
 	u16 family;
 
-	if (sock)
+	if (skb && skb->protocol == htons(ETH_P_IP))
+		family = PF_INET;
+	else if (skb && skb->protocol == htons(ETH_P_IPV6))
+		family = PF_INET6;
+	else if (sock)
 		family = sock->sk->sk_family;
-	else if (skb && skb->sk)
-		family = skb->sk->sk_family;
 	else
 		goto out;
 
@@ -4277,10 +4279,15 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 	int err;
+	u16 family = sk->sk_family;
 	u32 newsid;
 	u32 peersid;
 
-	err = selinux_skb_peerlbl_sid(skb, sk->sk_family, &peersid);
+	/* handle mapped IPv4 packets arriving via IPv6 sockets */
+	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
+		family = PF_INET;
+
+	err = selinux_skb_peerlbl_sid(skb, family, &peersid);
 	if (err)
 		return err;
 	if (peersid == SECSID_NULL) {
@@ -4318,9 +4325,14 @@ static void selinux_inet_csk_clone(struct sock *newsk,
 static void selinux_inet_conn_established(struct sock *sk,
 				struct sk_buff *skb)
 {
+	u16 family = sk->sk_family;
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	selinux_skb_peerlbl_sid(skb, sk->sk_family, &sksec->peer_sid);
+	/* handle mapped IPv4 packets arriving via IPv6 sockets */
+	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
+		family = PF_INET;
+
+	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
