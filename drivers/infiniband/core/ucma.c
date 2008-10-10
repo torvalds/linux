@@ -904,8 +904,8 @@ static ssize_t ucma_join_multicast(struct ucma_file *file,
 
 	mutex_lock(&file->mut);
 	mc = ucma_alloc_multicast(ctx);
-	if (IS_ERR(mc)) {
-		ret = PTR_ERR(mc);
+	if (!mc) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
