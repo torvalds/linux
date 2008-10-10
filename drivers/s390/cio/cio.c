@@ -571,8 +571,10 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	}
 	mutex_init(&sch->reg_mutex);
 	/* Set a name for the subchannel */
-	snprintf (sch->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x", schid.ssid,
-		  schid.sch_no);
+	if (cio_is_console(schid))
+		sch->dev.init_name = cio_get_console_sch_name(schid);
+	else
+		dev_set_name(&sch->dev, "0.%x.%04x", schid.ssid, schid.sch_no);
 
 	/*
 	 * The first subchannel that is not-operational (ccode==3)
@@ -677,6 +679,7 @@ do_IRQ (struct pt_regs *regs)
 
 #ifdef CONFIG_CCW_CONSOLE
 static struct subchannel console_subchannel;
+static char console_sch_name[10] = "0.x.xxxx";
 static struct io_subchannel_private console_priv;
 static int console_subchannel_in_use;
 
@@ -825,6 +828,12 @@ cio_get_console_subchannel(void)
 	if (!console_subchannel_in_use)
 		return NULL;
 	return &console_subchannel;
+}
+
+const char *cio_get_console_sch_name(struct subchannel_id schid)
+{
+	snprintf(console_sch_name, 10, "0.%x.%04x", schid.ssid, schid.sch_no);
+	return (const char *)console_sch_name;
 }
 
 #endif
