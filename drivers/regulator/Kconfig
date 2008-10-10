@@ -56,6 +56,14 @@ config REGULATOR_BQ24022
 	  charging select between 100 mA and 500 mA charging current
 	  limit.
 
+config REGULATOR_WM8350
+	tristate "Wolfson Microelectroncis WM8350 AudioPlus PMIC"
+	depends on MFD_WM8350
+	select REGULATOR
+	help
+	  This driver provides support for the voltage and current regulators
+          of the WM8350 AudioPlus PMIC.
+
 config REGULATOR_WM8400
 	tristate "Wolfson Microelectroncis WM8400 AudioPlus PMIC"
 	depends on MFD_WM8400
@@ -63,4 +71,5 @@ config REGULATOR_WM8400
 	help
 	  This driver provides support for the voltage regulators of the
 	  WM8400 AudioPlus PMIC.
+
 endmenu

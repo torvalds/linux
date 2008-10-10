@@ -696,4 +696,46 @@
 
 #define NUM_WM8350_REGULATORS			12
 
+struct wm8350;
+struct platform_device;
+struct regulator_init_data;
+
+struct wm8350_pmic {
+	/* ISINK to DCDC mapping */
+	int isink_A_dcdc;
+	int isink_B_dcdc;
+
+	/* hibernate configs */
+	u16 dcdc1_hib_mode;
+	u16 dcdc3_hib_mode;
+	u16 dcdc4_hib_mode;
+	u16 dcdc6_hib_mode;
+
+	/* regulator devices */
+	struct platform_device *pdev[NUM_WM8350_REGULATORS];
+};
+
+int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
+			      struct regulator_init_data *initdata);
+
+/*
+ * Additional DCDC control not supported via regulator API
+ */
+int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
+			 u16 stop, u16 fault);
+int wm8350_dcdc25_set_mode(struct wm8350 *wm8350, int dcdc, u16 mode,
+			   u16 ilim, u16 ramp, u16 feedback);
+
+/*
+ * Additional LDO control not supported via regulator API
+ */
+int wm8350_ldo_set_slot(struct wm8350 *wm8350, int ldo, u16 start, u16 stop);
+
+/*
+ * Additional ISINK control not supported via regulator API
+ */
+int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
+			   u16 trigger, u16 duration, u16 on_ramp,
+			   u16 off_ramp, u16 drive);
+
 #endif

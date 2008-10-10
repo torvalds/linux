@@ -17,6 +17,8 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
+#include <linux/mfd/wm8350/pmic.h>
+
 /*
  * Register values.
  */
@@ -570,6 +572,9 @@ struct wm8350 {
 	struct mutex irq_mutex; /* IRQ table mutex */
 	struct wm8350_irq irq[WM8350_NUM_IRQ];
 	int chip_irq;
+
+	/* Client devices */
+	struct wm8350_pmic pmic;
 };
 
 /**

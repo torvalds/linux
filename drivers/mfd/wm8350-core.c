@@ -1218,6 +1218,12 @@ EXPORT_SYMBOL_GPL(wm8350_device_init);
 
 void wm8350_device_exit(struct wm8350 *wm8350)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.pdev); i++)
+		if (wm8350->pmic.pdev[i] != NULL)
+			platform_device_unregister(wm8350->pmic.pdev[i]);
+
 	free_irq(wm8350->chip_irq, wm8350);
 	flush_work(&wm8350->irq_work);
 	kfree(wm8350->reg_cache);
