@@ -656,10 +656,6 @@ interrupt_base:
 
 	bne	2f			/* Bail if permission mismach */
 
-#ifdef CONFIG_PTE_64BIT
-	lwz	r13,0(r12)
-#endif
-
 	/* Jump to common TLB load point */
 	b	finish_tlb_load
 
