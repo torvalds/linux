@@ -1133,23 +1133,33 @@ int tpm_pm_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_pm_resume);
 
+/* In case vendor provided release function, call it too.*/
+
+void tpm_dev_vendor_release(struct tpm_chip *chip)
+{
+	if (chip->vendor.release)
+		chip->vendor.release(chip->dev);
+
+	clear_bit(chip->dev_num, dev_mask);
+	kfree(chip->vendor.miscdev.name);
+}
+EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
+
+
 /*
  * Once all references to platform device are down to 0,
  * release all allocated structures.
- * In case vendor provided release function, call it too.
  */
 static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	if (chip->vendor.release)
-		chip->vendor.release(dev);
-	chip->release(dev);
+	tpm_dev_vendor_release(chip);
 
-	clear_bit(chip->dev_num, dev_mask);
-	kfree(chip->vendor.miscdev.name);
+	chip->release(dev);
 	kfree(chip);
 }
+EXPORT_SYMBOL_GPL(tpm_dev_release);
 
 /*
  * Called from tpm_<specific>.c probe function only for devices 
