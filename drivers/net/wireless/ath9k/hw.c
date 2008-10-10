@@ -5892,8 +5892,10 @@ bool ath9k_hw_reset(struct ath_hal *ah,
 		goto bad;
 	}
 
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
-		return false;
+	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
+		ecode = -EIO;
+		goto bad;
+	}
 
 	if (curchan)
 		ath9k_hw_getnf(ah, curchan);
