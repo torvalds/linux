@@ -971,6 +971,36 @@ static int __devinit hpt37x_calibrate_dpll(struct pci_dev *dev, u16 f_low, u16 f
 	return 1;
 }
 
+static void __devinit hpt3xx_disable_fast_irq(struct pci_dev *dev, u8 mcr_addr)
+{
+	struct ide_host *host	= pci_get_drvdata(dev);
+	struct hpt_info *info	= host->host_priv + (&dev->dev == host->dev[1]);
+	u8  chip_type		= info->chip_type;
+	u8  new_mcr, old_mcr	= 0;
+
+	/*
+	 * Disable the "fast interrupt" prediction.  Don't hold off
+	 * on interrupts. (== 0x01 despite what the docs say)
+	 */
+	pci_read_config_byte(dev, mcr_addr + 1, &old_mcr);
+
+	if (chip_type >= HPT374)
+		new_mcr = old_mcr & ~0x07;
+	else if (chip_type >= HPT370) {
+		new_mcr = old_mcr;
+		new_mcr &= ~0x02;
+#ifdef HPT_DELAY_INTERRUPT
+		new_mcr &= ~0x01;
+#else
+		new_mcr |=  0x01;
+#endif
+	} else					/* HPT366 and HPT368  */
+		new_mcr = old_mcr & ~0x80;
+
+	if (new_mcr != old_mcr)
+		pci_write_config_byte(dev, mcr_addr + 1, new_mcr);
+}
+
 static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev)
 {
 	unsigned long io_base	= pci_resource_start(dev, 4);
@@ -1208,8 +1238,10 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev)
 	 * NOTE: This register is only writeable via I/O space.
 	 */
 	if (chip_type == HPT371N && clock == ATA_CLOCK_66MHZ)
-
 		outb(inb(io_base + 0x9c) | 0x04, io_base + 0x9c);
+
+	hpt3xx_disable_fast_irq(dev, 0x50);
+	hpt3xx_disable_fast_irq(dev, 0x54);
 
 	return dev->irq;
 }
@@ -1264,7 +1296,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
 	int serialize		= HPT_SERIALIZE_IO;
 	u8  chip_type		= info->chip_type;
-	u8  new_mcr, old_mcr	= 0;
 
 	/* Cache the channel's MISC. control registers' offset */
 	hwif->select_data	= hwif->channel ? 0x54 : 0x50;
@@ -1287,29 +1318,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	/* Serialize access to this device if needed */
 	if (serialize && hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
-
-	/*
-	 * Disable the "fast interrupt" prediction.  Don't hold off
-	 * on interrupts. (== 0x01 despite what the docs say)
-	 */
-	pci_read_config_byte(dev, hwif->select_data + 1, &old_mcr);
-
-	if (info->chip_type >= HPT374)
-		new_mcr = old_mcr & ~0x07;
-	else if (info->chip_type >= HPT370) {
-		new_mcr = old_mcr;
-		new_mcr &= ~0x02;
-
-#ifdef HPT_DELAY_INTERRUPT
-		new_mcr &= ~0x01;
-#else
-		new_mcr |=  0x01;
-#endif
-	} else					/* HPT366 and HPT368  */
-		new_mcr = old_mcr & ~0x80;
-
-	if (new_mcr != old_mcr)
-		pci_write_config_byte(dev, hwif->select_data + 1, new_mcr);
 }
 
 static int __devinit init_dma_hpt366(ide_hwif_t *hwif,
