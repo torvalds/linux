@@ -56,8 +56,8 @@ enum {
 	DBG_CHRDEV =		(1 << 2),
 	/* all remaining procedures */
 	DBG_PROCS =		(1 << 3),
-	/* buffer alloc info (pc_stack & rq_stack) */
-	DBG_PCRQ_STACK =	(1 << 4),
+	/* buffer alloc info (pc_stack) */
+	DBG_PC_STACK =	(1 << 4),
 };
 
 /* define to see debug info */
@@ -89,9 +89,9 @@ enum {
 #define IDETAPE_PC_BUFFER_SIZE		256
 
 /*
- *	In various places in the driver, we need to allocate storage
- *	for packet commands and requests, which will remain valid while
- *	we leave the driver to wait for an interrupt or a timeout event.
+ * In various places in the driver, we need to allocate storage for packet
+ * commands, which will remain valid while we leave the driver to wait for
+ * an interrupt or a timeout event.
  */
 #define IDETAPE_PC_STACK		(10 + IDETAPE_MAX_PC_RETRIES)
 
@@ -230,9 +230,8 @@ typedef struct ide_tape_obj {
 	struct ide_atapi_pc pc_stack[IDETAPE_PC_STACK];
 	/* Next free packet command storage space */
 	int pc_stack_index;
-	struct request rq_stack[IDETAPE_PC_STACK];
-	/* We implement a circular array */
-	int rq_stack_index;
+
+	struct request request_sense_rq;
 
 	/*
 	 * DSC polling variables.
@@ -462,35 +461,11 @@ static struct ide_atapi_pc *idetape_next_pc_storage(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 
-	debug_log(DBG_PCRQ_STACK, "pc_stack_index=%d\n", tape->pc_stack_index);
+	debug_log(DBG_PC_STACK, "pc_stack_index=%d\n", tape->pc_stack_index);
 
 	if (tape->pc_stack_index == IDETAPE_PC_STACK)
 		tape->pc_stack_index = 0;
 	return (&tape->pc_stack[tape->pc_stack_index++]);
-}
-
-/*
- *	idetape_next_rq_storage is used along with idetape_next_pc_storage.
- *	Since we queue packet commands in the request queue, we need to
- *	allocate a request, along with the allocation of a packet command.
- */
-
-/**************************************************************
- *                                                            *
- *  This should get fixed to use kmalloc(.., GFP_ATOMIC)      *
- *  followed later on by kfree().   -ml                       *
- *                                                            *
- **************************************************************/
-
-static struct request *idetape_next_rq_storage(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	debug_log(DBG_PCRQ_STACK, "rq_stack_index=%d\n", tape->rq_stack_index);
-
-	if (tape->rq_stack_index == IDETAPE_PC_STACK)
-		tape->rq_stack_index = 0;
-	return (&tape->rq_stack[tape->rq_stack_index++]);
 }
 
 /*
@@ -692,17 +667,7 @@ static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
 /*
  * Generate a new packet command request in front of the request queue, before
  * the current request, so that it will be processed immediately, on the next
- * pass through the driver. The function below is called from the request
- * handling part of the driver (the "bottom" part). Safe storage for the request
- * should be allocated with ide_tape_next_{pc,rq}_storage() prior to that.
- *
- * Memory for those requests is pre-allocated at initialization time, and is
- * limited to IDETAPE_PC_STACK requests. We assume that we have enough space for
- * the maximum possible number of inter-dependent packet commands.
- *
- * The higher level of the driver - The ioctl handler and the character device
- * handling functions should queue request to the lower level part and wait for
- * their completion using idetape_queue_pc_tail or idetape_queue_rw_tail.
+ * pass through the driver.
  */
 static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				  struct request *rq)
@@ -726,12 +691,12 @@ static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
  */
 static void idetape_retry_pc(ide_drive_t *drive)
 {
+	struct ide_tape_obj *tape = drive->driver_data;
+	struct request *rq = &tape->request_sense_rq;
 	struct ide_atapi_pc *pc;
-	struct request *rq;
 
 	(void)ide_read_error(drive);
 	pc = idetape_next_pc_storage(drive);
-	rq = idetape_next_rq_storage(drive);
 	idetape_create_request_sense_cmd(pc);
 	set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
 	idetape_queue_pc_head(drive, pc, rq);
@@ -1247,16 +1212,7 @@ static void idetape_create_test_unit_ready_cmd(struct ide_atapi_pc *pc)
 
 /*
  * We add a special packet command request to the tail of the request queue, and
- * wait for it to be serviced. This is not to be called from within the request
- * handling part of the driver! We allocate here data on the stack and it is
- * valid until the request is finished. This is not the case for the bottom part
- * of the driver, where we are always leaving the functions to wait for an
- * interrupt or a timer event.
- *
- * From the bottom part of the driver, we should allocate safe memory using
- * idetape_next_pc_storage() and ide_tape_next_rq_storage(), and add the request
- * to the request list without waiting for it to be serviced! In that case, we
- * usually use idetape_queue_pc_head().
+ * wait for it to be serviced.
  */
 static int idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
 {

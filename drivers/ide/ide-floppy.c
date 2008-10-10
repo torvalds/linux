@@ -77,8 +77,8 @@
 
 /*
  * In various places in the driver, we need to allocate storage for packet
- * commands and requests, which will remain valid while	we leave the driver to
- * wait for an interrupt or a timeout event.
+ * commands, which will remain valid while we leave the driver to wait for
+ * an interrupt or a timeout event.
  */
 #define IDEFLOPPY_PC_STACK		(10 + IDEFLOPPY_MAX_PC_RETRIES)
 
@@ -108,9 +108,8 @@ typedef struct ide_floppy_obj {
 	struct ide_atapi_pc pc_stack[IDEFLOPPY_PC_STACK];
 	/* Next free packet command storage space */
 	int pc_stack_index;
-	struct request rq_stack[IDEFLOPPY_PC_STACK];
-	/* We implement a circular array */
-	int rq_stack_index;
+
+	struct request request_sense_rq;
 
 	/* Last error information */
 	u8 sense_key, asc, ascq;
@@ -306,15 +305,6 @@ static struct ide_atapi_pc *idefloppy_next_pc_storage(ide_drive_t *drive)
 	return (&floppy->pc_stack[floppy->pc_stack_index++]);
 }
 
-static struct request *idefloppy_next_rq_storage(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	if (floppy->rq_stack_index == IDEFLOPPY_PC_STACK)
-		floppy->rq_stack_index = 0;
-	return (&floppy->rq_stack[floppy->rq_stack_index++]);
-}
-
 static void ide_floppy_callback(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
@@ -373,12 +363,12 @@ static void idefloppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
  */
 static void idefloppy_retry_pc(ide_drive_t *drive)
 {
+	struct ide_floppy_obj *floppy = drive->driver_data;
+	struct request *rq = &floppy->request_sense_rq;
 	struct ide_atapi_pc *pc;
-	struct request *rq;
 
 	(void)ide_read_error(drive);
 	pc = idefloppy_next_pc_storage(drive);
-	rq = idefloppy_next_rq_storage(drive);
 	idefloppy_create_request_sense_cmd(pc);
 	idefloppy_queue_pc_head(drive, pc, rq);
 }
