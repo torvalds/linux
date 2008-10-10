@@ -3794,6 +3794,7 @@ out:
 
 static int selinux_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen)
 {
+	struct sock *sk = sock->sk;
 	struct inode_security_struct *isec;
 	int err;
 
@@ -3807,7 +3808,6 @@ static int selinux_socket_connect(struct socket *sock, struct sockaddr *address,
 	isec = SOCK_INODE(sock)->i_security;
 	if (isec->sclass == SECCLASS_TCP_SOCKET ||
 	    isec->sclass == SECCLASS_DCCP_SOCKET) {
-		struct sock *sk = sock->sk;
 		struct avc_audit_data ad;
 		struct sockaddr_in *addr4 = NULL;
 		struct sockaddr_in6 *addr6 = NULL;
@@ -3840,6 +3840,8 @@ static int selinux_socket_connect(struct socket *sock, struct sockaddr *address,
 		if (err)
 			goto out;
 	}
+
+	err = selinux_netlbl_socket_connect(sk, address);
 
 out:
 	return err;
@@ -4290,8 +4292,6 @@ static void selinux_sock_graft(struct sock *sk, struct socket *parent)
 	    sk->sk_family == PF_UNIX)
 		isec->sid = sksec->sid;
 	sksec->sclass = isec->sclass;
-
-	selinux_netlbl_sock_graft(sk, parent);
 }
 
 static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
@@ -4342,8 +4342,7 @@ static void selinux_inet_csk_clone(struct sock *newsk,
 	selinux_netlbl_sk_security_reset(newsksec, req->rsk_ops->family);
 }
 
-static void selinux_inet_conn_established(struct sock *sk,
-				struct sk_buff *skb)
+static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 {
 	u16 family = sk->sk_family;
 	struct sk_security_struct *sksec = sk->sk_security;
@@ -4353,6 +4352,8 @@ static void selinux_inet_conn_established(struct sock *sk,
 		family = PF_INET;
 
 	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
+
+	selinux_netlbl_inet_conn_established(sk, family);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,

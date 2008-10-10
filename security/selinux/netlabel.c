@@ -29,10 +29,12 @@
 
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <net/sock.h>
 #include <net/netlabel.h>
-#include <net/inet_sock.h>
-#include <net/inet_connection_sock.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
 
 #include "objsec.h"
 #include "security.h"
@@ -79,8 +81,6 @@ static int selinux_netlbl_sock_setsid(struct sock *sk)
 	int rc;
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct netlbl_lsm_secattr secattr;
-	struct inet_sock *sk_inet;
-	struct inet_connection_sock *sk_conn;
 
 	if (sksec->nlbl_state != NLBL_REQUIRE)
 		return 0;
@@ -96,20 +96,6 @@ static int selinux_netlbl_sock_setsid(struct sock *sk)
 		sksec->nlbl_state = NLBL_LABELED;
 		break;
 	case -EDESTADDRREQ:
-		/* we are going to possibly end up labeling the individual
-		 * packets later which is problematic for stream sockets
-		 * because of the additional IP header size, our solution is to
-		 * allow for the maximum IP header length (40 bytes for IPv4,
-		 * we don't have to worry about IPv6 yet) just in case */
-		sk_inet = inet_sk(sk);
-		if (sk_inet->is_icsk) {
-			sk_conn = inet_csk(sk);
-			if (sk_inet->opt)
-				sk_conn->icsk_ext_hdr_len -=
-							   sk_inet->opt->optlen;
-			sk_conn->icsk_ext_hdr_len += 40;
-			sk_conn->icsk_sync_mss(sk, sk_conn->icsk_pmtu_cookie);
-		}
 		sksec->nlbl_state = NLBL_REQSKB;
 		rc = 0;
 		break;
@@ -247,21 +233,77 @@ skbuff_setsid_return:
 }
 
 /**
- * selinux_netlbl_sock_graft - Netlabel the new socket
+ * selinux_netlbl_inet_conn_established - Netlabel the newly accepted connection
  * @sk: the new connection
- * @sock: the new socket
  *
  * Description:
- * The connection represented by @sk is being grafted onto @sock so set the
- * socket's NetLabel to match the SID of @sk.
+ * A new connection has been established on @sk so make sure it is labeled
+ * correctly with the NetLabel susbsystem.
  *
  */
-void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
+void selinux_netlbl_inet_conn_established(struct sock *sk, u16 family)
 {
-	/* Try to set the NetLabel on the socket to save time later, if we fail
-	 * here we will pick up the pieces in later calls to
-	 * selinux_netlbl_inode_permission(). */
-	selinux_netlbl_sock_setsid(sk);
+	int rc;
+	struct sk_security_struct *sksec = sk->sk_security;
+	struct netlbl_lsm_secattr secattr;
+	struct inet_sock *sk_inet = inet_sk(sk);
+	struct sockaddr_in addr;
+
+	if (sksec->nlbl_state != NLBL_REQUIRE)
+		return;
+
+	netlbl_secattr_init(&secattr);
+	if (security_netlbl_sid_to_secattr(sksec->sid, &secattr) != 0)
+		goto inet_conn_established_return;
+
+	rc = netlbl_sock_setattr(sk, &secattr);
+	switch (rc) {
+	case 0:
+		sksec->nlbl_state = NLBL_LABELED;
+		break;
+	case -EDESTADDRREQ:
+		/* no PF_INET6 support yet because we don't support any IPv6
+		 * labeling protocols */
+		if (family != PF_INET) {
+			sksec->nlbl_state = NLBL_UNSET;
+			goto inet_conn_established_return;
+		}
+
+		addr.sin_family = family;
+		addr.sin_addr.s_addr = sk_inet->daddr;
+		if (netlbl_conn_setattr(sk, (struct sockaddr *)&addr,
+					&secattr) != 0) {
+			/* we failed to label the connected socket (could be
+			 * for a variety of reasons, the actual "why" isn't
+			 * important here) so we have to go to our backup plan,
+			 * labeling the packets individually in the netfilter
+			 * local output hook.  this is okay but we need to
+			 * adjust the MSS of the connection to take into
+			 * account any labeling overhead, since we don't know
+			 * the exact overhead at this point we'll use the worst
+			 * case value which is 40 bytes for IPv4 */
+			struct inet_connection_sock *sk_conn = inet_csk(sk);
+			sk_conn->icsk_ext_hdr_len += 40 -
+				      (sk_inet->opt ? sk_inet->opt->optlen : 0);
+			sk_conn->icsk_sync_mss(sk, sk_conn->icsk_pmtu_cookie);
+
+			sksec->nlbl_state = NLBL_REQSKB;
+		} else
+			sksec->nlbl_state = NLBL_CONNLABELED;
+		break;
+	default:
+		/* note that we are failing to label the socket which could be
+		 * a bad thing since it means traffic could leave the system
+		 * without the desired labeling, however, all is not lost as
+		 * we have a check in selinux_netlbl_inode_permission() to
+		 * pick up the pieces that we might drop here because we can't
+		 * return an error code */
+		break;
+	}
+
+inet_conn_established_return:
+	netlbl_secattr_destroy(&secattr);
+	return;
 }
 
 /**
@@ -398,7 +440,8 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 	struct netlbl_lsm_secattr secattr;
 
 	if (level == IPPROTO_IP && optname == IP_OPTIONS &&
-	    sksec->nlbl_state == NLBL_LABELED) {
+	    (sksec->nlbl_state == NLBL_LABELED ||
+	     sksec->nlbl_state == NLBL_CONNLABELED)) {
 		netlbl_secattr_init(&secattr);
 		lock_sock(sk);
 		rc = netlbl_sock_getattr(sk, &secattr);
@@ -408,5 +451,53 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 		netlbl_secattr_destroy(&secattr);
 	}
 
+	return rc;
+}
+
+/**
+ * selinux_netlbl_socket_connect - Label a client-side socket on connect
+ * @sk: the socket to label
+ * @addr: the destination address
+ *
+ * Description:
+ * Attempt to label a connected socket with NetLabel using the given address.
+ * Returns zero values on success, negative values on failure.
+ *
+ */
+int selinux_netlbl_socket_connect(struct sock *sk, struct sockaddr *addr)
+{
+	int rc;
+	struct sk_security_struct *sksec = sk->sk_security;
+	struct netlbl_lsm_secattr secattr;
+
+	if (sksec->nlbl_state != NLBL_REQSKB &&
+	    sksec->nlbl_state != NLBL_CONNLABELED)
+		return 0;
+
+	netlbl_secattr_init(&secattr);
+	local_bh_disable();
+	bh_lock_sock_nested(sk);
+
+	/* connected sockets are allowed to disconnect when the address family
+	 * is set to AF_UNSPEC, if that is what is happening we want to reset
+	 * the socket */
+	if (addr->sa_family == AF_UNSPEC) {
+		netlbl_sock_delattr(sk);
+		sksec->nlbl_state = NLBL_REQSKB;
+		rc = 0;
+		goto socket_connect_return;
+	}
+	rc = security_netlbl_sid_to_secattr(sksec->sid, &secattr);
+	if (rc != 0)
+		goto socket_connect_return;
+	rc = netlbl_conn_setattr(sk, addr, &secattr);
+	if (rc != 0)
+		goto socket_connect_return;
+	sksec->nlbl_state = NLBL_CONNLABELED;
+
+socket_connect_return:
+	bh_unlock_sock(sk);
+	local_bh_enable();
+	netlbl_secattr_destroy(&secattr);
 	return rc;
 }

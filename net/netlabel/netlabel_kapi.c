@@ -10,7 +10,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -456,6 +456,20 @@ socket_setattr_return:
 }
 
 /**
+ * netlbl_sock_delattr - Delete all the NetLabel labels on a socket
+ * @sk: the socket
+ *
+ * Description:
+ * Remove all the NetLabel labeling from @sk.  The caller is responsible for
+ * ensuring that @sk is locked.
+ *
+ */
+void netlbl_sock_delattr(struct sock *sk)
+{
+	cipso_v4_sock_delattr(sk);
+}
+
+/**
  * netlbl_sock_getattr - Determine the security attributes of a sock
  * @sk: the sock
  * @secattr: the security attributes
@@ -470,6 +484,68 @@ socket_setattr_return:
 int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 {
 	return cipso_v4_sock_getattr(sk, secattr);
+}
+
+/**
+ * netlbl_conn_setattr - Label a connected socket using the correct protocol
+ * @sk: the socket to label
+ * @addr: the destination address
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Attach the correct label to the given connected socket using the security
+ * attributes specified in @secattr.  The caller is responsible for ensuring
+ * that @sk is locked.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_conn_setattr(struct sock *sk,
+			struct sockaddr *addr,
+			const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	struct sockaddr_in *addr4;
+	struct netlbl_domaddr4_map *af4_entry;
+
+	rcu_read_lock();
+	switch (addr->sa_family) {
+	case AF_INET:
+		addr4 = (struct sockaddr_in *)addr;
+		af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						       addr4->sin_addr.s_addr);
+		if (af4_entry == NULL) {
+			ret_val = -ENOENT;
+			goto conn_setattr_return;
+		}
+		switch (af4_entry->type) {
+		case NETLBL_NLTYPE_CIPSOV4:
+			ret_val = cipso_v4_sock_setattr(sk,
+						   af4_entry->type_def.cipsov4,
+						   secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			cipso_v4_sock_delattr(sk);
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		/* since we don't support any IPv6 labeling protocols right
+		 * now we can optimize everything away until we do */
+		ret_val = 0;
+		break;
+#endif /* IPv6 */
+	default:
+		ret_val = 0;
+	}
+
+conn_setattr_return:
+	rcu_read_unlock();
+	return ret_val;
 }
 
 /**
