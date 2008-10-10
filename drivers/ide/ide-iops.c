@@ -666,7 +666,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u16 *id;
-	unsigned long timeout, flags;
+	unsigned long flags;
 	u8 stat;
 
 	/*
@@ -678,16 +678,11 @@ int ide_driveid_update(ide_drive_t *drive)
 	tp_ops->set_irq(hwif, 0);
 	msleep(50);
 	tp_ops->exec_command(hwif, ATA_CMD_ID_ATA);
-	timeout = jiffies + WAIT_WORSTCASE;
-	do {
-		if (time_after(jiffies, timeout)) {
-			SELECT_MASK(drive, 0);
-			return 0;	/* drive timed-out */
-		}
 
-		msleep(50);	/* give drive a breather */
-		stat = tp_ops->read_altstatus(hwif);
-	} while (stat & ATA_BUSY);
+	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, 1)) {
+		SELECT_MASK(drive, 0);
+		return 0;
+	}
 
 	msleep(50);	/* wait for IRQ and ATA_DRQ */
 	stat = tp_ops->read_status(hwif);

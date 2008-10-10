@@ -291,17 +291,9 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	tp_ops->exec_command(hwif, cmd);
 
 	timeout = ((cmd == ATA_CMD_ID_ATA) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
-	timeout += jiffies;
-	do {
-		if (time_after(jiffies, timeout)) {
-			/* drive timed-out */
-			return 1;
-		}
-		/* give drive a breather */
-		msleep(50);
-		s = use_altstatus ? tp_ops->read_altstatus(hwif)
-				  : tp_ops->read_status(hwif);
-	} while (s & ATA_BUSY);
+
+	if (ide_busy_sleep(hwif, timeout, use_altstatus))
+		return 1;
 
 	/* wait for IRQ and ATA_DRQ */
 	msleep(50);
@@ -383,19 +375,21 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	return retval;
 }
 
-static int ide_busy_sleep(ide_hwif_t *hwif)
+int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
 {
-	unsigned long timeout = jiffies + WAIT_WORSTCASE;
 	u8 stat;
 
+	timeout += jiffies;
+
 	do {
-		msleep(50);
-		stat = hwif->tp_ops->read_status(hwif);
+		msleep(50);	/* give drive a breather */
+		stat = altstatus ? hwif->tp_ops->read_altstatus(hwif)
+				 : hwif->tp_ops->read_status(hwif);
 		if ((stat & ATA_BUSY) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
 
-	return 1;
+	return 1;	/* drive timed-out */
 }
 
 static u8 ide_read_device(ide_drive_t *drive)
@@ -489,7 +483,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			SELECT_DRIVE(drive);
 			msleep(50);
 			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
-			(void)ide_busy_sleep(hwif);
+			(void)ide_busy_sleep(hwif, WAIT_WORSTCASE, 0);
 			rc = try_to_identify(drive, cmd);
 		}
 
@@ -529,7 +523,7 @@ static void enable_nest (ide_drive_t *drive)
 	msleep(50);
 	tp_ops->exec_command(hwif, ATA_EXABYTE_ENABLE_NEST);
 
-	if (ide_busy_sleep(hwif)) {
+	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, 0)) {
 		printk(KERN_CONT "failed (timeout)\n");
 		return;
 	}
