@@ -116,7 +116,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	ide_hwif_t *hwif = HWIF(drive);
 	u16 *id = drive->id;
 	char *m = (char *)&id[ATA_ID_PROD];
-	int bswap = 1;
+	int bswap = 1, is_cfa;
 
 	/* read 512 bytes of id info */
 	hwif->tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
@@ -212,17 +212,15 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 * Not an ATAPI device: looks like a "regular" hard disk
 	 */
 
-	/*
-	 * 0x848a = CompactFlash device
-	 * These are *not* removable in Linux definition of the term
-	 */
-	if (id[ATA_ID_CONFIG] != 0x848a && (id[ATA_ID_CONFIG] & (1 << 7)))
+	is_cfa = ata_id_is_cfa(id);
+
+	/* CF devices are *not* removable in Linux definition of the term */
+	if (is_cfa == 0 && (id[ATA_ID_CONFIG] & (1 << 7)))
 		drive->removable = 1;
 
 	drive->media = ide_disk;
 
-	printk(KERN_CONT "%s DISK drive\n",
-		(id[ATA_ID_CONFIG] == 0x848a) ? "CFA" : "ATA");
+	printk(KERN_CONT "%s DISK drive\n", is_cfa ? "CFA" : "ATA");
 
 	return;
 
