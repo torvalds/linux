@@ -254,11 +254,6 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 	if (error)
 		goto out_drop_write;
 
-	mode &= (S_IRWXUGO|S_ISVTX);
-	error = security_inode_mkdir(parent->dentry->d_inode, dentry, mode);
-	if (error)
-		goto out_drop_write;
-
 	/*
 	 * Actually perform the low-level subvolume creation after all
 	 * this VFS fuzz.
