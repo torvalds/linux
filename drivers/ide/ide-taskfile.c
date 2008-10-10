@@ -44,9 +44,9 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 	memset(&args, 0, sizeof(ide_task_t));
 	args.tf.nsect = 0x01;
 	if (drive->media == ide_disk)
-		args.tf.command = WIN_IDENTIFY;
+		args.tf.command = ATA_CMD_ID_ATA;
 	else
-		args.tf.command = WIN_PIDENTIFY;
+		args.tf.command = ATA_CMD_ID_ATAPI;
 	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args.data_phase	= TASKFILE_IN;
 	return ide_raw_taskfile(drive, &args, buf, 1);
@@ -99,12 +99,17 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	case TASKFILE_NO_DATA:
 		if (handler == NULL)
 			handler = task_no_data_intr;
-		/* WIN_{SPECIFY,RESTORE,SETMULT} use custom handlers */
 		if (task->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) {
 			switch (tf->command) {
-			case WIN_SPECIFY: handler = set_geometry_intr;	break;
-			case WIN_RESTORE: handler = recal_intr;		break;
-			case WIN_SETMULT: handler = set_multmode_intr;	break;
+			case ATA_CMD_INIT_DEV_PARAMS:
+				handler = set_geometry_intr;
+				break;
+			case ATA_CMD_RESTORE:
+				handler = recal_intr;
+				break;
+			case ATA_CMD_SET_MULTI:
+				handler = set_multmode_intr;
+				break;
 			}
 		}
 		ide_execute_command(drive, tf->command, handler,
@@ -121,7 +126,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 EXPORT_SYMBOL_GPL(do_rw_taskfile);
 
 /*
- * set_multmode_intr() is invoked on completion of a WIN_SETMULT cmd.
+ * set_multmode_intr() is invoked on completion of a ATA_CMD_SET_MULTI cmd.
  */
 static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 {
@@ -142,7 +147,7 @@ static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 }
 
 /*
- * set_geometry_intr() is invoked on completion of a WIN_SPECIFY cmd.
+ * set_geometry_intr() is invoked on completion of a ATA_CMD_INIT_DEV_PARAMS cmd.
  */
 static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 {
@@ -170,7 +175,7 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 }
 
 /*
- * recal_intr() is invoked on completion of a WIN_RESTORE (recalibrate) cmd.
+ * recal_intr() is invoked on completion of a ATA_CMD_RESTORE (recalibrate) cmd.
  */
 static ide_startstop_t recal_intr(ide_drive_t *drive)
 {
@@ -747,7 +752,7 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	memset(&tfargs, 0, sizeof(ide_task_t));
 	tf->feature = args[2];
-	if (args[0] == WIN_SMART) {
+	if (args[0] == ATA_CMD_SMART) {
 		tf->nsect = args[3];
 		tf->lbal  = args[1];
 		tf->lbam  = 0x4f;
@@ -769,7 +774,7 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			return -ENOMEM;
 	}
 
-	if (tf->command == WIN_SETFEATURES &&
+	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER &&
 	    tf->nsect >= XFER_SW_DMA_0 &&
 	    (id[ATA_ID_UDMA_MODES] ||

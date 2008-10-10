@@ -246,7 +246,7 @@ idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 
 	if (hwif->tp_ops->read_status(hwif) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		hwif->tp_ops->exec_command(hwif, WIN_IDLEIMMEDIATE);
+		hwif->tp_ops->exec_command(hwif, ATA_CMD_IDLEIMMEDIATE);
 
 	rq->errors++;
 

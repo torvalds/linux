@@ -418,7 +418,7 @@ void ide_fix_driveid(u16 *id)
  * ide_fixstring() cleans up and (optionally) byte-swaps a text string,
  * removing leading/trailing blanks and compressing internal blanks.
  * It is primarily used to tidy up the model name/number fields as
- * returned by the WIN_[P]IDENTIFY commands.
+ * returned by the ATA_CMD_ID_ATA[PI] commands.
  */
 
 void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
@@ -675,7 +675,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	SELECT_MASK(drive, 1);
 	tp_ops->set_irq(hwif, 0);
 	msleep(50);
-	tp_ops->exec_command(hwif, WIN_IDENTIFY);
+	tp_ops->exec_command(hwif, ATA_CMD_ID_ATA);
 	timeout = jiffies + WAIT_WORSTCASE;
 	do {
 		if (time_after(jiffies, timeout)) {
@@ -770,7 +770,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
 	tp_ops->tf_load(drive, &task);
 
-	tp_ops->exec_command(hwif, WIN_SETFEATURES);
+	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 
 	if (drive->quirk_list == 2)
 		tp_ops->set_irq(hwif, 1);
@@ -890,7 +890,7 @@ void ide_execute_pkt_cmd(ide_drive_t *drive)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ide_lock, flags);
-	hwif->tp_ops->exec_command(hwif, WIN_PACKETCMD);
+	hwif->tp_ops->exec_command(hwif, ATA_CMD_PACKET);
 	ndelay(400);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
@@ -1100,7 +1100,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		pre_reset(drive);
 		SELECT_DRIVE(drive);
 		udelay (20);
-		tp_ops->exec_command(hwif, WIN_SRST);
+		tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 		ndelay(400);
 		hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwgroup->polling = 1;

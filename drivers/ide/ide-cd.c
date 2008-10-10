@@ -541,7 +541,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 			drive->waiting_for_dma = 0;
 
 		/* packet command */
-		ide_execute_command(drive, WIN_PACKETCMD, handler,
+		ide_execute_command(drive, ATA_CMD_PACKET, handler,
 				    ATAPI_WAIT_PC, cdrom_timer_expiry);
 		return ide_started;
 	} else {

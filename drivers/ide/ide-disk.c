@@ -141,18 +141,18 @@ static int lba_capacity_is_ok(u16 *id)
 }
 
 static const u8 ide_rw_cmds[] = {
-	WIN_MULTREAD,
-	WIN_MULTWRITE,
-	WIN_MULTREAD_EXT,
-	WIN_MULTWRITE_EXT,
-	WIN_READ,
-	WIN_WRITE,
-	WIN_READ_EXT,
-	WIN_WRITE_EXT,
-	WIN_READDMA,
-	WIN_WRITEDMA,
-	WIN_READDMA_EXT,
-	WIN_WRITEDMA_EXT,
+	ATA_CMD_READ_MULTI,
+	ATA_CMD_WRITE_MULTI,
+	ATA_CMD_READ_MULTI_EXT,
+	ATA_CMD_WRITE_MULTI_EXT,
+	ATA_CMD_PIO_READ,
+	ATA_CMD_PIO_WRITE,
+	ATA_CMD_PIO_READ_EXT,
+	ATA_CMD_PIO_WRITE_EXT,
+	ATA_CMD_READ,
+	ATA_CMD_WRITE,
+	ATA_CMD_READ_EXT,
+	ATA_CMD_WRITE_EXT,
 };
 
 static const u8 ide_data_phases[] = {
@@ -323,9 +323,9 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
 	if (lba48)
-		tf->command = WIN_READ_NATIVE_MAX_EXT;
+		tf->command = ATA_CMD_READ_NATIVE_MAX_EXT;
 	else
-		tf->command = WIN_READ_NATIVE_MAX;
+		tf->command = ATA_CMD_READ_NATIVE_MAX;
 	tf->device  = ATA_LBA;
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	if (lba48)
@@ -360,10 +360,10 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 		tf->hob_lbal = (addr_req >>= 8) & 0xff;
 		tf->hob_lbam = (addr_req >>= 8) & 0xff;
 		tf->hob_lbah = (addr_req >>= 8) & 0xff;
-		tf->command  = WIN_SET_MAX_EXT;
+		tf->command  = ATA_CMD_SET_MAX_EXT;
 	} else {
 		tf->device   = (addr_req >>= 8) & 0x0f;
-		tf->command  = WIN_SET_MAX;
+		tf->command  = ATA_CMD_SET_MAX;
 	}
 	tf->device |= ATA_LBA;
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
@@ -482,10 +482,10 @@ static int smart_enable(ide_drive_t *drive)
 	struct ide_taskfile *tf = &args.tf;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	tf->feature = SMART_ENABLE;
-	tf->lbam    = SMART_LCYL_PASS;
-	tf->lbah    = SMART_HCYL_PASS;
-	tf->command = WIN_SMART;
+	tf->feature = ATA_SMART_ENABLE;
+	tf->lbam    = ATA_SMART_LBAM_PASS;
+	tf->lbah    = ATA_SMART_LBAH_PASS;
+	tf->command = ATA_CMD_SMART;
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	return ide_no_data_taskfile(drive, &args);
 }
@@ -498,9 +498,9 @@ static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 	memset(&args, 0, sizeof(ide_task_t));
 	tf->feature = sub_cmd;
 	tf->nsect   = 0x01;
-	tf->lbam    = SMART_LCYL_PASS;
-	tf->lbah    = SMART_HCYL_PASS;
-	tf->command = WIN_SMART;
+	tf->lbam    = ATA_SMART_LBAM_PASS;
+	tf->lbah    = ATA_SMART_LBAH_PASS;
+	tf->command = ATA_CMD_SMART;
 	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args.data_phase	= TASKFILE_IN;
 	(void) smart_enable(drive);
@@ -558,14 +558,14 @@ static int proc_idedisk_read_sv
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	return proc_idedisk_read_smart(page, start, off, count, eof, data,
-				       SMART_READ_VALUES);
+				       ATA_SMART_READ_VALUES);
 }
 
 static int proc_idedisk_read_st
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	return proc_idedisk_read_smart(page, start, off, count, eof, data,
-				       SMART_READ_THRESHOLDS);
+				       ATA_SMART_READ_THRESHOLDS);
 }
 
 static ide_proc_entry_t idedisk_proc[] = {
@@ -589,9 +589,9 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	memset(task, 0, sizeof(*task));
 	if (ide_id_has_flush_cache_ext(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
-		task->tf.command = WIN_FLUSH_CACHE_EXT;
+		task->tf.command = ATA_CMD_FLUSH_EXT;
 	else
-		task->tf.command = WIN_FLUSH_CACHE;
+		task->tf.command = ATA_CMD_FLUSH;
 	task->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
 			   IDE_TFLAG_DYN;
 	task->data_phase = TASKFILE_NO_DATA;
@@ -686,8 +686,8 @@ static int write_cache(ide_drive_t *drive, int arg)
 	if (ide_id_has_flush_cache(drive->id)) {
 		memset(&args, 0, sizeof(ide_task_t));
 		args.tf.feature = arg ?
-			SETFEATURES_EN_WCACHE : SETFEATURES_DIS_WCACHE;
-		args.tf.command = WIN_SETFEATURES;
+			SETFEATURES_WC_ON : SETFEATURES_WC_OFF;
+		args.tf.command = ATA_CMD_SET_FEATURES;
 		args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 		err = ide_no_data_taskfile(drive, &args);
 		if (err == 0)
@@ -705,9 +705,9 @@ static int do_idedisk_flushcache(ide_drive_t *drive)
 
 	memset(&args, 0, sizeof(ide_task_t));
 	if (ide_id_has_flush_cache_ext(drive->id))
-		args.tf.command = WIN_FLUSH_CACHE_EXT;
+		args.tf.command = ATA_CMD_FLUSH_EXT;
 	else
-		args.tf.command = WIN_FLUSH_CACHE;
+		args.tf.command = ATA_CMD_FLUSH;
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	return ide_no_data_taskfile(drive, &args);
 }
@@ -720,9 +720,9 @@ static int set_acoustic(ide_drive_t *drive, int arg)
 		return -EINVAL;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tf.feature = arg ? SETFEATURES_EN_AAM : SETFEATURES_DIS_AAM;
+	args.tf.feature = arg ? SETFEATURES_AAM_ON : SETFEATURES_AAM_OFF;
 	args.tf.nsect   = arg;
-	args.tf.command = WIN_SETFEATURES;
+	args.tf.command = ATA_CMD_SET_FEATURES;
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	ide_no_data_taskfile(drive, &args);
 	drive->acoustic = arg;
@@ -985,7 +985,7 @@ static int idedisk_set_doorlock(ide_drive_t *drive, int on)
 	ide_task_t task;
 
 	memset(&task, 0, sizeof(task));
-	task.tf.command = on ? WIN_DOORLOCK : WIN_DOORUNLOCK;
+	task.tf.command = on ? ATA_CMD_MEDIA_LOCK : ATA_CMD_MEDIA_UNLOCK;
 	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
 	return ide_no_data_taskfile(drive, &task);

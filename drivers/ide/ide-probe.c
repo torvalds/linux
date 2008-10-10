@@ -132,10 +132,10 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	ide_fix_driveid(id);
 
 	/*
-	 *  WIN_IDENTIFY returns little-endian info,
-	 *  WIN_PIDENTIFY *usually* returns little-endian info.
+	 *  ATA_CMD_ID_ATA returns little-endian info,
+	 *  ATA_CMD_ID_ATAPI *usually* returns little-endian info.
 	 */
-	if (cmd == WIN_PIDENTIFY) {
+	if (cmd == ATA_CMD_ID_ATAPI) {
 		if ((m[0] == 'N' && m[1] == 'E') ||  /* NEC */
 		    (m[0] == 'F' && m[1] == 'X') ||  /* Mitsumi */
 		    (m[0] == 'P' && m[1] == 'i'))    /* Pioneer */
@@ -161,7 +161,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	/*
 	 * Check for an ATAPI device
 	 */
-	if (cmd == WIN_PIDENTIFY) {
+	if (cmd == ATA_CMD_ID_ATAPI) {
 		u8 type = (id[ATA_ID_CONFIG] >> 8) & 0x1f;
 
 		printk(KERN_CONT "ATAPI ");
@@ -277,7 +277,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* set features register for atapi
 	 * identify command to be sure of reply
 	 */
-	if (cmd == WIN_PIDENTIFY) {
+	if (cmd == ATA_CMD_ID_ATAPI) {
 		ide_task_t task;
 
 		memset(&task, 0, sizeof(task));
@@ -290,7 +290,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* ask drive for ID */
 	tp_ops->exec_command(hwif, cmd);
 
-	timeout = ((cmd == WIN_IDENTIFY) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
+	timeout = ((cmd == ATA_CMD_ID_ATA) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 	timeout += jiffies;
 	do {
 		if (time_after(jiffies, timeout)) {
@@ -440,13 +440,13 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 
 	if (drive->present) {
 		/* avoid waiting for inappropriate probes */
-		if ((drive->media != ide_disk) && (cmd == WIN_IDENTIFY))
+		if (drive->media != ide_disk && cmd == ATA_CMD_ID_ATA)
 			return 4;
 	}
 #ifdef DEBUG
 	printk(KERN_INFO "probing for %s: present=%d, media=%d, probetype=%s\n",
 		drive->name, drive->present, drive->media,
-		(cmd == WIN_IDENTIFY) ? "ATA" : "ATAPI");
+		(cmd == ATA_CMD_ID_ATA) ? "ATA" : "ATAPI");
 #endif
 
 	/* needed for some systems
@@ -470,7 +470,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	stat = tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, READY_STAT, BUSY_STAT) ||
-	    drive->present || cmd == WIN_PIDENTIFY) {
+	    drive->present || cmd == ATA_CMD_ID_ATAPI) {
 		/* send cmd and wait */
 		if ((rc = try_to_identify(drive, cmd))) {
 			/* failed: try again */
@@ -482,13 +482,13 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		if (stat == (BUSY_STAT | READY_STAT))
 			return 4;
 
-		if (rc == 1 && cmd == WIN_PIDENTIFY) {
+		if (rc == 1 && cmd == ATA_CMD_ID_ATAPI) {
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
 			SELECT_DRIVE(drive);
 			msleep(50);
-			tp_ops->exec_command(hwif, WIN_SRST);
+			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 			(void)ide_busy_sleep(hwif);
 			rc = try_to_identify(drive, cmd);
 		}
@@ -527,7 +527,7 @@ static void enable_nest (ide_drive_t *drive)
 
 	SELECT_DRIVE(drive);
 	msleep(50);
-	tp_ops->exec_command(hwif, EXABYTE_ENABLE_NEST);
+	tp_ops->exec_command(hwif, ATA_EXABYTE_ENABLE_NEST);
 
 	if (ide_busy_sleep(hwif)) {
 		printk(KERN_CONT "failed (timeout)\n");
@@ -544,10 +544,9 @@ static void enable_nest (ide_drive_t *drive)
 		printk(KERN_CONT "success\n");
 
 	/* if !(success||timed-out) */
-	if (do_probe(drive, WIN_IDENTIFY) >= 2) {
+	if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
 		/* look for ATAPI device */
-		(void) do_probe(drive, WIN_PIDENTIFY);
-	}
+		(void)do_probe(drive, ATA_CMD_ID_ATAPI);
 }
 
 /**
@@ -590,10 +589,9 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	if (!drive->noprobe)
 	{
 		/* if !(success||timed-out) */
-		if (do_probe(drive, WIN_IDENTIFY) >= 2) {
+		if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
 			/* look for ATAPI device */
-			(void) do_probe(drive, WIN_PIDENTIFY);
-		}
+			(void)do_probe(drive, ATA_CMD_ID_ATAPI);
 		if (!drive->present)
 			/* drive not found */
 			return 0;
