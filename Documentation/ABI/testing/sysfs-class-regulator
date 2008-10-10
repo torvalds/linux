@@ -157,6 +157,19 @@ Description:
 		platform code.
 
 
+What:		/sys/class/regulator/.../name
+Date:		October 2008
+KernelVersion:	2.6.28
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Each regulator directory will contain a field called
+		name. This holds a string identifying the regulator for
+		display purposes.
+
+		NOTE: this will be empty if no suitable name is provided
+		by platform or regulator drivers.
+
+
 What:		/sys/class/regulator/.../num_users
 Date:		April 2008
 KernelVersion:	2.6.26

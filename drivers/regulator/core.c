@@ -241,6 +241,22 @@ static ssize_t regulator_uA_show(struct device *dev,
 	return sprintf(buf, "%d\n", _regulator_get_current_limit(rdev));
 }
 
+static ssize_t regulator_name_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct regulator_dev *rdev = dev_get_drvdata(dev);
+	const char *name;
+
+	if (rdev->constraints->name)
+		name = rdev->constraints->name;
+	else if (rdev->desc->name)
+		name = rdev->desc->name;
+	else
+		name = "";
+
+	return sprintf(buf, "%s\n", name);
+}
+
 static ssize_t regulator_opmode_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -473,7 +489,9 @@ static ssize_t regulator_suspend_standby_state_show(struct device *dev,
 	else
 		return sprintf(buf, "disabled\n");
 }
+
 static struct device_attribute regulator_dev_attrs[] = {
+	__ATTR(name, 0444, regulator_name_show, NULL),
 	__ATTR(microvolts, 0444, regulator_uV_show, NULL),
 	__ATTR(microamps, 0444, regulator_uA_show, NULL),
 	__ATTR(opmode, 0444, regulator_opmode_show, NULL),
