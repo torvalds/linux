@@ -1130,6 +1130,32 @@ out:
 }
 EXPORT_SYMBOL_GPL(wm8350_create_cache);
 
+/*
+ * Register a client device.  This is non-fatal since there is no need to
+ * fail the entire device init due to a single platform device failing.
+ */
+static void wm8350_client_dev_register(struct wm8350 *wm8350,
+				       const char *name,
+				       struct platform_device **pdev)
+{
+	int ret;
+
+	*pdev = platform_device_alloc(name, -1);
+	if (pdev == NULL) {
+		dev_err(wm8350->dev, "Failed to allocate %s\n", name);
+		return;
+	}
+
+	(*pdev)->dev.parent = wm8350->dev;
+	platform_set_drvdata(*pdev, wm8350);
+	ret = platform_device_add(*pdev);
+	if (ret != 0) {
+		dev_err(wm8350->dev, "Failed to register %s: %d\n", name, ret);
+		platform_device_put(*pdev);
+		*pdev = NULL;
+	}
+}
+
 int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		       struct wm8350_platform_data *pdata)
 {
