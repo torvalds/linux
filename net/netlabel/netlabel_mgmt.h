@@ -45,6 +45,16 @@
  *     NLBL_MGMT_A_DOMAIN
  *     NLBL_MGMT_A_PROTOCOL
  *
+ *   If IPv4 is specified the following attributes are required:
+ *
+ *     NLBL_MGMT_A_IPV4ADDR
+ *     NLBL_MGMT_A_IPV4MASK
+ *
+ *   If IPv6 is specified the following attributes are required:
+ *
+ *     NLBL_MGMT_A_IPV6ADDR
+ *     NLBL_MGMT_A_IPV6MASK
+ *
  *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
  *
  *     NLBL_MGMT_A_CV4DOI
@@ -68,13 +78,24 @@
  *   Required attributes:
  *
  *     NLBL_MGMT_A_DOMAIN
+ *
+ *   If the IP address selectors are not used the following attribute is
+ *   required:
+ *
  *     NLBL_MGMT_A_PROTOCOL
  *
- *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
+ *   If the IP address selectors are used then the following attritbute is
+ *   required:
+ *
+ *     NLBL_MGMT_A_SELECTORLIST
+ *
+ *   If the mapping is using the NETLBL_NLTYPE_CIPSOV4 type then the following
+ *   attributes are required:
  *
  *     NLBL_MGMT_A_CV4DOI
  *
- *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required.
+ *   If the mapping is using the NETLBL_NLTYPE_UNLABELED type no other
+ *   attributes are required.
  *
  * o ADDDEF:
  *   Sent by an application to set the default domain mapping for the NetLabel
@@ -100,15 +121,23 @@
  *   application there is no payload.  On success the kernel should send a
  *   response using the following format.
  *
- *   Required attributes:
+ *   If the IP address selectors are not used the following attribute is
+ *   required:
  *
  *     NLBL_MGMT_A_PROTOCOL
  *
- *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
+ *   If the IP address selectors are used then the following attritbute is
+ *   required:
+ *
+ *     NLBL_MGMT_A_SELECTORLIST
+ *
+ *   If the mapping is using the NETLBL_NLTYPE_CIPSOV4 type then the following
+ *   attributes are required:
  *
  *     NLBL_MGMT_A_CV4DOI
  *
- *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required.
+ *   If the mapping is using the NETLBL_NLTYPE_UNLABELED type no other
+ *   attributes are required.
  *
  * o PROTOCOLS:
  *   Sent by an application to request a list of configured NetLabel protocols
@@ -162,6 +191,26 @@ enum {
 	NLBL_MGMT_A_CV4DOI,
 	/* (NLA_U32)
 	 * the CIPSOv4 DOI value */
+	NLBL_MGMT_A_IPV6ADDR,
+	/* (NLA_BINARY, struct in6_addr)
+	 * an IPv6 address */
+	NLBL_MGMT_A_IPV6MASK,
+	/* (NLA_BINARY, struct in6_addr)
+	 * an IPv6 address mask */
+	NLBL_MGMT_A_IPV4ADDR,
+	/* (NLA_BINARY, struct in_addr)
+	 * an IPv4 address */
+	NLBL_MGMT_A_IPV4MASK,
+	/* (NLA_BINARY, struct in_addr)
+	 * and IPv4 address mask */
+	NLBL_MGMT_A_ADDRSELECTOR,
+	/* (NLA_NESTED)
+	 * an IP address selector, must contain an address, mask, and protocol
+	 * attribute plus any protocol specific attributes */
+	NLBL_MGMT_A_SELECTORLIST,
+	/* (NLA_NESTED)
+	 * the selector list, there must be at least one
+	 * NLBL_MGMT_A_ADDRSELECTOR attribute */
 	__NLBL_MGMT_A_MAX,
 };
 #define NLBL_MGMT_A_MAX (__NLBL_MGMT_A_MAX - 1)

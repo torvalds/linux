@@ -39,6 +39,7 @@
 #include <linux/ipv6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <linux/audit.h>
 
 #include "netlabel_addrlist.h"
 
@@ -69,6 +70,32 @@ struct netlbl_af4list *netlbl_af4list_search(__be32 addr,
 	return NULL;
 }
 
+/**
+ * netlbl_af4list_search_exact - Search for an exact IPv4 address entry
+ * @addr: IPv4 address
+ * @mask: IPv4 address mask
+ * @head: the list head
+ *
+ * Description:
+ * Searches the IPv4 address list given by @head.  If an exact match if found
+ * it is returned, otherwise NULL is returned.  The caller is responsible for
+ * calling the rcu_read_[un]lock() functions.
+ *
+ */
+struct netlbl_af4list *netlbl_af4list_search_exact(__be32 addr,
+						   __be32 mask,
+						   struct list_head *head)
+{
+	struct netlbl_af4list *iter;
+
+	list_for_each_entry_rcu(iter, head, list)
+		if (iter->valid && iter->addr == addr && iter->mask == mask)
+			return iter;
+
+	return NULL;
+}
+
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /**
  * netlbl_af6list_search - Search for a matching IPv6 address entry
@@ -89,6 +116,33 @@ struct netlbl_af6list *netlbl_af6list_search(const struct in6_addr *addr,
 	list_for_each_entry_rcu(iter, head, list)
 		if (iter->valid &&
 		    ipv6_masked_addr_cmp(&iter->addr, &iter->mask, addr) == 0)
+			return iter;
+
+	return NULL;
+}
+
+/**
+ * netlbl_af6list_search_exact - Search for an exact IPv6 address entry
+ * @addr: IPv6 address
+ * @mask: IPv6 address mask
+ * @head: the list head
+ *
+ * Description:
+ * Searches the IPv6 address list given by @head.  If an exact match if found
+ * it is returned, otherwise NULL is returned.  The caller is responsible for
+ * calling the rcu_read_[un]lock() functions.
+ *
+ */
+struct netlbl_af6list *netlbl_af6list_search_exact(const struct in6_addr *addr,
+						   const struct in6_addr *mask,
+						   struct list_head *head)
+{
+	struct netlbl_af6list *iter;
+
+	list_for_each_entry_rcu(iter, head, list)
+		if (iter->valid &&
+		    ipv6_addr_equal(&iter->addr, addr) &&
+		    ipv6_addr_equal(&iter->mask, mask))
 			return iter;
 
 	return NULL;
@@ -254,5 +308,81 @@ struct netlbl_af6list *netlbl_af6list_remove(const struct in6_addr *addr,
 	}
 
 	return NULL;
+}
+#endif /* IPv6 */
+
+/*
+ * Audit Helper Functions
+ */
+
+/**
+ * netlbl_af4list_audit_addr - Audit an IPv4 address
+ * @audit_buf: audit buffer
+ * @src: true if source address, false if destination
+ * @dev: network interface
+ * @addr: IP address
+ * @mask: IP address mask
+ *
+ * Description:
+ * Write the IPv4 address and address mask, if necessary, to @audit_buf.
+ *
+ */
+void netlbl_af4list_audit_addr(struct audit_buffer *audit_buf,
+					int src, const char *dev,
+					__be32 addr, __be32 mask)
+{
+	u32 mask_val = ntohl(mask);
+	char *dir = (src ? "src" : "dst");
+
+	if (dev != NULL)
+		audit_log_format(audit_buf, " netif=%s", dev);
+	audit_log_format(audit_buf, " %s=" NIPQUAD_FMT, dir, NIPQUAD(addr));
+	if (mask_val != 0xffffffff) {
+		u32 mask_len = 0;
+		while (mask_val > 0) {
+			mask_val <<= 1;
+			mask_len++;
+		}
+		audit_log_format(audit_buf, " %s_prefixlen=%d", dir, mask_len);
+	}
+}
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+/**
+ * netlbl_af6list_audit_addr - Audit an IPv6 address
+ * @audit_buf: audit buffer
+ * @src: true if source address, false if destination
+ * @dev: network interface
+ * @addr: IP address
+ * @mask: IP address mask
+ *
+ * Description:
+ * Write the IPv6 address and address mask, if necessary, to @audit_buf.
+ *
+ */
+void netlbl_af6list_audit_addr(struct audit_buffer *audit_buf,
+				 int src,
+				 const char *dev,
+				 const struct in6_addr *addr,
+				 const struct in6_addr *mask)
+{
+	char *dir = (src ? "src" : "dst");
+
+	if (dev != NULL)
+		audit_log_format(audit_buf, " netif=%s", dev);
+	audit_log_format(audit_buf, " %s=" NIP6_FMT, dir, NIP6(*addr));
+	if (ntohl(mask->s6_addr32[3]) != 0xffffffff) {
+		u32 mask_len = 0;
+		u32 mask_val;
+		int iter = -1;
+		while (ntohl(mask->s6_addr32[++iter]) == 0xffffffff)
+			mask_len += 32;
+		mask_val = ntohl(mask->s6_addr32[iter]);
+		while (mask_val > 0) {
+			mask_val <<= 1;
+			mask_len++;
+		}
+		audit_log_format(audit_buf, " %s_prefixlen=%d", dir, mask_len);
+	}
 }
 #endif /* IPv6 */

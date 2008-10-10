@@ -419,7 +419,9 @@ int netlbl_enabled(void)
  * Attach the correct label to the given socket using the security attributes
  * specified in @secattr.  This function requires exclusive access to @sk,
  * which means it either needs to be in the process of being created or locked.
- * Returns zero on success, negative values on failure.
+ * Returns zero on success, -EDESTADDRREQ if the domain is configured to use
+ * network address selectors (can't blindly label the socket), and negative
+ * values on all other failures.
  *
  */
 int netlbl_sock_setattr(struct sock *sk,
@@ -433,6 +435,9 @@ int netlbl_sock_setattr(struct sock *sk,
 	if (dom_entry == NULL)
 		goto socket_setattr_return;
 	switch (dom_entry->type) {
+	case NETLBL_NLTYPE_ADDRSELECT:
+		ret_val = -EDESTADDRREQ;
+		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		ret_val = cipso_v4_sock_setattr(sk,
 						dom_entry->type_def.cipsov4,

@@ -9,7 +9,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,8 +72,9 @@ struct cipso_v4_doi;
 /* NetLabel NETLINK protocol version
  *  1: initial version
  *  2: added static labels for unlabeled connections
+ *  3: network selectors added to the NetLabel/LSM domain mapping
  */
-#define NETLBL_PROTO_VERSION            2
+#define NETLBL_PROTO_VERSION            3
 
 /* NetLabel NETLINK types/families */
 #define NETLBL_NLTYPE_NONE              0
@@ -87,6 +88,8 @@ struct cipso_v4_doi;
 #define NETLBL_NLTYPE_CIPSOV6_NAME      "NLBL_CIPSOv6"
 #define NETLBL_NLTYPE_UNLABELED         5
 #define NETLBL_NLTYPE_UNLABELED_NAME    "NLBL_UNLBL"
+#define NETLBL_NLTYPE_ADDRSELECT        6
+#define NETLBL_NLTYPE_ADDRSELECT_NAME   "NLBL_ADRSEL"
 
 /*
  * NetLabel - Kernel API for accessing the network packet label mappings.

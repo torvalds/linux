@@ -146,76 +146,6 @@ static const struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1
 };
 
 /*
- * Audit Helper Functions
- */
-
-/**
- * netlbl_unlabel_audit_addr4 - Audit an IPv4 address
- * @audit_buf: audit buffer
- * @dev: network interface
- * @addr: IP address
- * @mask: IP address mask
- *
- * Description:
- * Write the IPv4 address and address mask, if necessary, to @audit_buf.
- *
- */
-static void netlbl_unlabel_audit_addr4(struct audit_buffer *audit_buf,
-				     const char *dev,
-				     __be32 addr, __be32 mask)
-{
-	u32 mask_val = ntohl(mask);
-
-	if (dev != NULL)
-		audit_log_format(audit_buf, " netif=%s", dev);
-	audit_log_format(audit_buf, " src=" NIPQUAD_FMT, NIPQUAD(addr));
-	if (mask_val != 0xffffffff) {
-		u32 mask_len = 0;
-		while (mask_val > 0) {
-			mask_val <<= 1;
-			mask_len++;
-		}
-		audit_log_format(audit_buf, " src_prefixlen=%d", mask_len);
-	}
-}
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-/**
- * netlbl_unlabel_audit_addr6 - Audit an IPv6 address
- * @audit_buf: audit buffer
- * @dev: network interface
- * @addr: IP address
- * @mask: IP address mask
- *
- * Description:
- * Write the IPv6 address and address mask, if necessary, to @audit_buf.
- *
- */
-static void netlbl_unlabel_audit_addr6(struct audit_buffer *audit_buf,
-				     const char *dev,
-				     const struct in6_addr *addr,
-				     const struct in6_addr *mask)
-{
-	if (dev != NULL)
-		audit_log_format(audit_buf, " netif=%s", dev);
-	audit_log_format(audit_buf, " src=" NIP6_FMT, NIP6(*addr));
-	if (ntohl(mask->s6_addr32[3]) != 0xffffffff) {
-		u32 mask_len = 0;
-		u32 mask_val;
-		int iter = -1;
-		while (ntohl(mask->s6_addr32[++iter]) == 0xffffffff)
-			mask_len += 32;
-		mask_val = ntohl(mask->s6_addr32[iter]);
-		while (mask_val > 0) {
-			mask_val <<= 1;
-			mask_len++;
-		}
-		audit_log_format(audit_buf, " src_prefixlen=%d", mask_len);
-	}
-}
-#endif /* IPv6 */
-
-/*
  * Unlabeled Connection Hash Table Functions
  */
 
@@ -571,10 +501,10 @@ static int netlbl_unlhsh_add(struct net *net,
 		mask4 = (struct in_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr4(iface, addr4, mask4, secid);
 		if (audit_buf != NULL)
-			netlbl_unlabel_audit_addr4(audit_buf,
-						   dev_name,
-						   addr4->s_addr,
-						   mask4->s_addr);
+			netlbl_af4list_audit_addr(audit_buf, 1,
+						  dev_name,
+						  addr4->s_addr,
+						  mask4->s_addr);
 		break;
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -585,9 +515,9 @@ static int netlbl_unlhsh_add(struct net *net,
 		mask6 = (struct in6_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr6(iface, addr6, mask6, secid);
 		if (audit_buf != NULL)
-			netlbl_unlabel_audit_addr6(audit_buf,
-						   dev_name,
-						   addr6, mask6);
+			netlbl_af6list_audit_addr(audit_buf, 1,
+						  dev_name,
+						  addr6, mask6);
 		break;
 	}
 #endif /* IPv6 */
@@ -652,9 +582,9 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 					      audit_info);
 	if (audit_buf != NULL) {
 		dev = dev_get_by_index(net, iface->ifindex);
-		netlbl_unlabel_audit_addr4(audit_buf,
-					   (dev != NULL ? dev->name : NULL),
-					   addr->s_addr, mask->s_addr);
+		netlbl_af4list_audit_addr(audit_buf, 1,
+					  (dev != NULL ? dev->name : NULL),
+					  addr->s_addr, mask->s_addr);
 		if (dev != NULL)
 			dev_put(dev);
 		if (entry && security_secid_to_secctx(entry->secid,
@@ -712,9 +642,9 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 					      audit_info);
 	if (audit_buf != NULL) {
 		dev = dev_get_by_index(net, iface->ifindex);
-		netlbl_unlabel_audit_addr6(audit_buf,
-					   (dev != NULL ? dev->name : NULL),
-					   addr, mask);
+		netlbl_af6list_audit_addr(audit_buf, 1,
+					  (dev != NULL ? dev->name : NULL),
+					  addr, mask);
 		if (dev != NULL)
 			dev_put(dev);
 		if (entry && security_secid_to_secctx(entry->secid,
