@@ -964,16 +964,16 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		return -EINVAL;
 
 	if (params->use_cts_prot >= 0) {
-		sdata->bss_conf.use_cts_prot = params->use_cts_prot;
+		sdata->vif.bss_conf.use_cts_prot = params->use_cts_prot;
 		changed |= BSS_CHANGED_ERP_CTS_PROT;
 	}
 	if (params->use_short_preamble >= 0) {
-		sdata->bss_conf.use_short_preamble =
+		sdata->vif.bss_conf.use_short_preamble =
 			params->use_short_preamble;
 		changed |= BSS_CHANGED_ERP_PREAMBLE;
 	}
 	if (params->use_short_slot_time >= 0) {
-		sdata->bss_conf.use_short_slot =
+		sdata->vif.bss_conf.use_short_slot =
 			params->use_short_slot_time;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}

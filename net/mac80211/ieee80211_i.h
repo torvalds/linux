@@ -440,9 +440,6 @@ struct ieee80211_sub_if_data {
 
 	u16 sequence_number;
 
-	/* BSS configuration for this interface. */
-	struct ieee80211_bss_conf bss_conf;
-
 	/*
 	 * AP this belongs to: self in AP mode and
 	 * corresponding AP in VLAN mode, NULL for

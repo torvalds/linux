@@ -116,7 +116,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 		if (r->bitrate > txrate->bitrate)
 			break;
 
-		if (tx->sdata->bss_conf.basic_rates & BIT(i))
+		if (tx->sdata->vif.bss_conf.basic_rates & BIT(i))
 			rate = r->bitrate;
 
 		switch (sband->band) {
@@ -150,7 +150,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 	 * to closest integer */
 
 	dur = ieee80211_frame_duration(local, 10, rate, erp,
-				tx->sdata->bss_conf.use_short_preamble);
+				tx->sdata->vif.bss_conf.use_short_preamble);
 
 	if (next_frag_len) {
 		/* Frame is fragmented: duration increases with time needed to
@@ -159,7 +159,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 		/* next fragment */
 		dur += ieee80211_frame_duration(local, next_frag_len,
 				txrate->bitrate, erp,
-				tx->sdata->bss_conf.use_short_preamble);
+				tx->sdata->vif.bss_conf.use_short_preamble);
 	}
 
 	return cpu_to_le16(dur);
@@ -463,7 +463,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	} else
 		info->control.retries[0].rate_idx = -1;
 
-	if (tx->sdata->bss_conf.use_cts_prot &&
+	if (tx->sdata->vif.bss_conf.use_cts_prot &&
 	    (tx->flags & IEEE80211_TX_FRAGMENTED) && (rsel.nonerp_idx >= 0)) {
 		tx->last_frag_rate_idx = tx->rate_idx;
 		if (rsel.probe_idx >= 0)
@@ -529,7 +529,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	if ((tx->sdata->flags & IEEE80211_SDATA_OPERATING_GMODE) &&
 	    (sband->bitrates[tx->rate_idx].flags & IEEE80211_RATE_ERP_G) &&
 	    (tx->flags & IEEE80211_TX_UNICAST) &&
-	    tx->sdata->bss_conf.use_cts_prot &&
+	    tx->sdata->vif.bss_conf.use_cts_prot &&
 	    !(info->flags & IEEE80211_TX_CTL_USE_RTS_CTS))
 		info->flags |= IEEE80211_TX_CTL_USE_CTS_PROTECT;
 
@@ -538,7 +538,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	 * available on the network at the current point in time. */
 	if (ieee80211_is_data(hdr->frame_control) &&
 	    (sband->bitrates[tx->rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE) &&
-	    tx->sdata->bss_conf.use_short_preamble &&
+	    tx->sdata->vif.bss_conf.use_short_preamble &&
 	    (!tx->sta || test_sta_flags(tx->sta, WLAN_STA_SHORT_PREAMBLE))) {
 		info->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 	}
@@ -558,7 +558,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 		for (idx = 0; idx < sband->n_bitrates; idx++) {
 			if (sband->bitrates[idx].bitrate > rate->bitrate)
 				continue;
-			if (tx->sdata->bss_conf.basic_rates & BIT(idx) &&
+			if (tx->sdata->vif.bss_conf.basic_rates & BIT(idx) &&
 			    (baserate < 0 ||
 			     (sband->bitrates[baserate].bitrate
 			      < sband->bitrates[idx].bitrate)))
@@ -1977,7 +1977,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
 	info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
-	if (sdata->bss_conf.use_short_preamble &&
+	if (sdata->vif.bss_conf.use_short_preamble &&
 	    sband->bitrates[rsel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
 		info->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 

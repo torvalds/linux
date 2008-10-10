@@ -572,7 +572,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 					   u16 capab, bool erp_valid, u8 erp)
 {
-	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 #endif
@@ -718,9 +718,9 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 				   ifsta->ssid, ifsta->ssid_len);
 	if (bss) {
 		/* set timing information */
-		sdata->bss_conf.beacon_int = bss->beacon_int;
-		sdata->bss_conf.timestamp = bss->timestamp;
-		sdata->bss_conf.dtim_period = bss->dtim_period;
+		sdata->vif.bss_conf.beacon_int = bss->beacon_int;
+		sdata->vif.bss_conf.timestamp = bss->timestamp;
+		sdata->vif.bss_conf.dtim_period = bss->dtim_period;
 
 		changed |= ieee80211_handle_bss_capability(sdata,
 			bss->capability, bss->has_erp_value, bss->erp_value);
@@ -730,9 +730,9 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
 		changed |= BSS_CHANGED_HT;
-		sdata->bss_conf.assoc_ht = 1;
-		sdata->bss_conf.ht_cap = &conf->ht_cap;
-		sdata->bss_conf.ht_bss_conf = &conf->ht_bss_conf;
+		sdata->vif.bss_conf.assoc_ht = 1;
+		sdata->vif.bss_conf.ht_cap = &conf->ht_cap;
+		sdata->vif.bss_conf.ht_bss_conf = &conf->ht_bss_conf;
 	}
 
 	ifsta->flags |= IEEE80211_STA_PREV_BSSID_SET;
@@ -742,7 +742,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ifsta->last_probe = jiffies;
 	ieee80211_led_assoc(local, 1);
 
-	sdata->bss_conf.assoc = 1;
+	sdata->vif.bss_conf.assoc = 1;
 	/*
 	 * For now just always ask the driver to update the basic rateset
 	 * when we have associated, we aren't checking whether it actually
@@ -847,15 +847,15 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
 	changed |= ieee80211_reset_erp_info(sdata);
 
-	if (sdata->bss_conf.assoc_ht)
+	if (sdata->vif.bss_conf.assoc_ht)
 		changed |= BSS_CHANGED_HT;
 
-	sdata->bss_conf.assoc_ht = 0;
-	sdata->bss_conf.ht_cap = NULL;
-	sdata->bss_conf.ht_bss_conf = NULL;
+	sdata->vif.bss_conf.assoc_ht = 0;
+	sdata->vif.bss_conf.ht_cap = NULL;
+	sdata->vif.bss_conf.ht_bss_conf = NULL;
 
 	ieee80211_led_assoc(local, 0);
-	sdata->bss_conf.assoc = 0;
+	sdata->vif.bss_conf.assoc = 0;
 
 	ieee80211_sta_send_apinfo(sdata, ifsta);
 
@@ -1182,7 +1182,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	u64 rates, basic_rates;
 	u16 capab_info, status_code, aid;
 	struct ieee802_11_elems elems;
-	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	u8 *pos;
 	int i, j;
 	bool have_higher_than_11mbit = false;
@@ -1324,7 +1324,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
-	sdata->bss_conf.basic_rates = basic_rates;
+	sdata->vif.bss_conf.basic_rates = basic_rates;
 
 	/* cf. IEEE 802.11 9.2.12 */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
