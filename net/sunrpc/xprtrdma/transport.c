@@ -463,6 +463,8 @@ xprt_rdma_close(struct rpc_xprt *xprt)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	dprintk("RPC:       %s: closing\n", __func__);
+	if (r_xprt->rx_ep.rep_connected > 0)
+		xprt->reestablish_timeout = 0;
 	xprt_disconnect_done(xprt);
 	(void) rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 }
@@ -490,6 +492,11 @@ xprt_rdma_connect(struct rpc_task *task)
 			/* Reconnect */
 			schedule_delayed_work(&r_xprt->rdma_connect,
 				xprt->reestablish_timeout);
+			xprt->reestablish_timeout <<= 1;
+			if (xprt->reestablish_timeout > (30 * HZ))
+				xprt->reestablish_timeout = (30 * HZ);
+			else if (xprt->reestablish_timeout < (5 * HZ))
+				xprt->reestablish_timeout = (5 * HZ);
 		} else {
 			schedule_delayed_work(&r_xprt->rdma_connect, 0);
 			if (!RPC_IS_ASYNC(task))
