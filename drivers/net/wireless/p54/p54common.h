@@ -19,7 +19,6 @@ struct bootrec {
 	__le32 code;
 	__le32 len;
 	u32 data[10];
-	__le16 rx_mtu;
 } __attribute__((packed));
 
 struct bootrec_exp_if {
@@ -39,6 +38,8 @@ struct bootrec_desc {
 	u8 tailroom;
 	u8 unimportant[6];
 	u8 rates[16];
+	u8 padding2[4];
+	__le16 rx_mtu;
 } __attribute__((packed));
 
 #define BR_CODE_MIN			0x80000000

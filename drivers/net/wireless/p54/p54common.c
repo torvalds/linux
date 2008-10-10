@@ -183,7 +183,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			priv->headroom = desc->headroom;
 			priv->tailroom = desc->tailroom;
 			if (le32_to_cpu(bootrec->len) == 11)
-				priv->rx_mtu = le16_to_cpu(bootrec->rx_mtu);
+				priv->rx_mtu = le16_to_cpu(desc->rx_mtu);
 			else
 				priv->rx_mtu = (size_t)
 					0x620 - priv->tx_hdr_len;
