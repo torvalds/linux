@@ -757,25 +757,21 @@ void xics_teardown_cpu(void)
 
 void xics_kexec_teardown_cpu(int secondary)
 {
-	unsigned int ipi;
-	struct irq_desc *desc;
-
 	xics_teardown_cpu();
 
 	/*
-	 * we need to EOI the IPI
+	 * we take the ipi irq but and never return so we
+	 * need to EOI the IPI, but want to leave our priority 0
 	 *
-	 * probably need to check all the other interrupts too
+	 * should we check all the other interrupts too?
 	 * should we be flagging idle loop instead?
 	 * or creating some task to be scheduled?
 	 */
 
-	ipi = irq_find_mapping(xics_host, XICS_IPI);
-	if (ipi == XICS_IRQ_SPURIOUS)
-		return;
-	desc = get_irq_desc(ipi);
-	if (desc->chip && desc->chip->eoi)
-		desc->chip->eoi(ipi);
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		lpar_xirr_info_set((0x00 << 24) | XICS_IPI);
+	else
+		direct_xirr_info_set((0x00 << 24) | XICS_IPI);
 
 	/*
 	 * Some machines need to have at least one cpu in the GIQ,
