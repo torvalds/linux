@@ -298,8 +298,8 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 
 	d_instantiate(dentry, inode);
 	dget(dentry);
-	dir->i_nlink++;
-	dentry->d_inode->i_nlink++;
+	inc_nlink(dir);
+	inc_nlink(dentry->d_inode);
 	goto out;
 
 out_free_ctx:
@@ -496,6 +496,8 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	ret = spufs_context_open(dget(dentry), mntget(mnt));
 	if (ret < 0) {
 		WARN_ON(spufs_rmdir(inode, dentry));
+		if (affinity)
+			mutex_unlock(&gang->aff_mutex);
 		mutex_unlock(&inode->i_mutex);
 		spu_forget(SPUFS_I(dentry->d_inode)->i_ctx);
 		goto out;
@@ -538,8 +540,8 @@ spufs_mkgang(struct inode *dir, struct dentry *dentry, int mode)
 	inode->i_fop = &simple_dir_operations;
 
 	d_instantiate(dentry, inode);
-	dir->i_nlink++;
-	dentry->d_inode->i_nlink++;
+	inc_nlink(dir);
+	inc_nlink(dentry->d_inode);
 	return ret;
 
 out_iput:
@@ -755,6 +757,7 @@ spufs_create_root(struct super_block *sb, void *data)
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	SPUFS_I(inode)->i_ctx = NULL;
+	inc_nlink(inode);
 
 	ret = -EINVAL;
 	if (!spufs_parse_options(sb, data, inode))
