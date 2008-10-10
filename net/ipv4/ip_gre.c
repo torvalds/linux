@@ -1368,10 +1368,10 @@ static void ipgre_netlink_parms(struct nlattr *data[],
 		parms->o_key = nla_get_be32(data[IFLA_GRE_OKEY]);
 
 	if (data[IFLA_GRE_LOCAL])
-		memcpy(&parms->iph.saddr, nla_data(data[IFLA_GRE_LOCAL]), 4);
+		parms->iph.saddr = nla_get_be32(data[IFLA_GRE_LOCAL]);
 
 	if (data[IFLA_GRE_REMOTE])
-		memcpy(&parms->iph.daddr, nla_data(data[IFLA_GRE_REMOTE]), 4);
+		parms->iph.daddr = nla_get_be32(data[IFLA_GRE_REMOTE]);
 
 	if (data[IFLA_GRE_TTL])
 		parms->iph.ttl = nla_get_u8(data[IFLA_GRE_TTL]);
@@ -1541,8 +1541,8 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	NLA_PUT_BE16(skb, IFLA_GRE_OFLAGS, p->o_flags);
 	NLA_PUT_BE32(skb, IFLA_GRE_IKEY, p->i_key);
 	NLA_PUT_BE32(skb, IFLA_GRE_OKEY, p->o_key);
-	NLA_PUT(skb, IFLA_GRE_LOCAL, 4, &p->iph.saddr);
-	NLA_PUT(skb, IFLA_GRE_REMOTE, 4, &p->iph.daddr);
+	NLA_PUT_BE32(skb, IFLA_GRE_LOCAL, p->iph.saddr);
+	NLA_PUT_BE32(skb, IFLA_GRE_REMOTE, p->iph.daddr);
 	NLA_PUT_U8(skb, IFLA_GRE_TTL, p->iph.ttl);
 	NLA_PUT_U8(skb, IFLA_GRE_TOS, p->iph.tos);
 	NLA_PUT_U8(skb, IFLA_GRE_PMTUDISC, !!(p->iph.frag_off & htons(IP_DF)));
@@ -1559,8 +1559,8 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_OFLAGS]	= { .type = NLA_U16 },
 	[IFLA_GRE_IKEY]		= { .type = NLA_U32 },
 	[IFLA_GRE_OKEY]		= { .type = NLA_U32 },
-	[IFLA_GRE_LOCAL]	= { .len = 4 },
-	[IFLA_GRE_REMOTE]	= { .len = 4 },
+	[IFLA_GRE_LOCAL]	= { .len = FIELD_SIZEOF(struct iphdr, saddr) },
+	[IFLA_GRE_REMOTE]	= { .len = FIELD_SIZEOF(struct iphdr, daddr) },
 	[IFLA_GRE_TTL]		= { .type = NLA_U8 },
 	[IFLA_GRE_TOS]		= { .type = NLA_U8 },
 	[IFLA_GRE_PMTUDISC]	= { .type = NLA_U8 },
@@ -1643,5 +1643,5 @@ static void __exit ipgre_fini(void)
 module_init(ipgre_init);
 module_exit(ipgre_fini);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("rtnl-link-gre");
-MODULE_ALIAS("rtnl-link-gretap");
+MODULE_ALIAS_RTNL_LINK("gre");
+MODULE_ALIAS_RTNL_LINK("gretap");
