@@ -32,7 +32,7 @@ config BLK_DEV_MD
 
 config MD_AUTODETECT
 	bool "Autodetect RAID arrays during kernel boot"
-	depends on BLK_DEV_MD
+	depends on BLK_DEV_MD=y
 	default y
 	---help---
 	  If you say Y here, then the kernel will try to autodetect raid
