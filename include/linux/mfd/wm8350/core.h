@@ -530,6 +530,8 @@
 #define WM8350_REV_F				0x5
 #define WM8350_REV_G				0x6
 
+#define WM8350_NUM_IRQ				63
+
 struct wm8350_reg_access {
 	u16 readable;		/* Mask of readable bits */
 	u16 writable;		/* Mask of writable bits */
@@ -562,6 +564,12 @@ struct wm8350 {
 	int (*write_dev)(struct wm8350 *wm8350, char reg, int size,
 			 void *src);
 	u16 *reg_cache;
+
+	/* Interrupt handling */
+	struct work_struct irq_work;
+	struct mutex irq_mutex; /* IRQ table mutex */
+	struct wm8350_irq irq[WM8350_NUM_IRQ];
+	int chip_irq;
 };
 
 /**
@@ -578,7 +586,7 @@ struct wm8350_platform_data {
 /*
  * WM8350 device initialisation and exit.
  */
-int wm8350_device_init(struct wm8350 *wm8350,
+int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		       struct wm8350_platform_data *pdata);
 void wm8350_device_exit(struct wm8350 *wm8350);
 
@@ -593,5 +601,16 @@ int wm8350_reg_lock(struct wm8350 *wm8350);
 int wm8350_reg_unlock(struct wm8350 *wm8350);
 int wm8350_block_read(struct wm8350 *wm8350, int reg, int size, u16 *dest);
 int wm8350_block_write(struct wm8350 *wm8350, int reg, int size, u16 *src);
+
+/*
+ * WM8350 internal interrupts
+ */
+int wm8350_register_irq(struct wm8350 *wm8350, int irq,
+			void (*handler) (struct wm8350 *, int, void *),
+			void *data);
+int wm8350_free_irq(struct wm8350 *wm8350, int irq);
+int wm8350_mask_irq(struct wm8350 *wm8350, int irq);
+int wm8350_unmask_irq(struct wm8350 *wm8350, int irq);
+
 
 #endif

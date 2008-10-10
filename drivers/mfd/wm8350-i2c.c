@@ -65,7 +65,7 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 	wm8350->read_dev = wm8350_i2c_read_device;
 	wm8350->write_dev = wm8350_i2c_write_device;
 
-	ret = wm8350_device_init(wm8350, i2c->dev.platform_data);
+	ret = wm8350_device_init(wm8350, i2c->irq, i2c->dev.platform_data);
 	if (ret < 0)
 		goto err;
 
