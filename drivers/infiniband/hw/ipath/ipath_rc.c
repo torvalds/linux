@@ -675,7 +675,8 @@ static void send_rc_ack(struct ipath_qp *qp)
 	hdr.lrh[0] = cpu_to_be16(lrh0);
 	hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
-	hdr.lrh[3] = cpu_to_be16(dd->ipath_lid);
+	hdr.lrh[3] = cpu_to_be16(dd->ipath_lid |
+				 qp->remote_ah_attr.src_path_bits);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPATH_PSN_MASK);

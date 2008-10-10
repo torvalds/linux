@@ -3748,6 +3748,7 @@ error1:
 		cm_remove_port_fs(port);
 	}
 	device_unregister(cm_dev->device);
+	kfree(cm_dev);
 }
 
 static void cm_remove_one(struct ib_device *ib_device)
@@ -3776,6 +3777,7 @@ static void cm_remove_one(struct ib_device *ib_device)
 		cm_remove_port_fs(port);
 	}
 	device_unregister(cm_dev->device);
+	kfree(cm_dev);
 }
 
 static int __init ib_cm_init(void)

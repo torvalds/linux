@@ -618,7 +618,8 @@ void ipath_make_ruc_header(struct ipath_ibdev *dev, struct ipath_qp *qp,
 	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);
 	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	qp->s_hdr.lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(dev->dd->ipath_lid);
+	qp->s_hdr.lrh[3] = cpu_to_be16(dev->dd->ipath_lid |
+				       qp->remote_ah_attr.src_path_bits);
 	bth0 |= ipath_get_pkey(dev->dd, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	ohdr->bth[0] = cpu_to_be32(bth0 | (1 << 22));

@@ -276,6 +276,9 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	for (i = 0; i < QP_HASHTAB_LEN; i++)
 		INIT_HLIST_HEAD(&my_cq->qp_hashtab[i]);
 
+	INIT_LIST_HEAD(&my_cq->sqp_err_list);
+	INIT_LIST_HEAD(&my_cq->rqp_err_list);
+
 	if (context) {
 		struct ipz_queue *ipz_queue = &my_cq->ipz_queue;
 		struct ehca_create_cq_resp resp;

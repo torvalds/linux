@@ -149,18 +149,10 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 		((pci_resource_len(dev->pdev, 0) - 1) &
 		 dev->catas_err.addr);
 
-	if (!request_mem_region(addr, dev->catas_err.size * 4,
-				DRV_NAME)) {
-		mthca_warn(dev, "couldn't request catastrophic error region "
-			   "at 0x%lx/0x%x\n", addr, dev->catas_err.size * 4);
-		return;
-	}
-
 	dev->catas_err.map = ioremap(addr, dev->catas_err.size * 4);
 	if (!dev->catas_err.map) {
 		mthca_warn(dev, "couldn't map catastrophic error region "
 			   "at 0x%lx/0x%x\n", addr, dev->catas_err.size * 4);
-		release_mem_region(addr, dev->catas_err.size * 4);
 		return;
 	}
 
@@ -175,13 +167,8 @@ void mthca_stop_catas_poll(struct mthca_dev *dev)
 {
 	del_timer_sync(&dev->catas_err.timer);
 
-	if (dev->catas_err.map) {
+	if (dev->catas_err.map)
 		iounmap(dev->catas_err.map);
-		release_mem_region(pci_resource_start(dev->pdev, 0) +
-				   ((pci_resource_len(dev->pdev, 0) - 1) &
-				    dev->catas_err.addr),
-				   dev->catas_err.size * 4);
-	}
 
 	spin_lock_irq(&catas_lock);
 	list_del(&dev->catas_err.list);

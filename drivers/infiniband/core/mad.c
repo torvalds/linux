@@ -1697,9 +1697,8 @@ static inline int rcv_has_same_gid(struct ib_mad_agent_private *mad_agent_priv,
 	u8 port_num = mad_agent_priv->agent.port_num;
 	u8 lmc;
 
-	send_resp = ((struct ib_mad *)(wr->send_buf.mad))->
-		     mad_hdr.method & IB_MGMT_METHOD_RESP;
-	rcv_resp = rwc->recv_buf.mad->mad_hdr.method & IB_MGMT_METHOD_RESP;
+	send_resp = ib_response_mad((struct ib_mad *)wr->send_buf.mad);
+	rcv_resp = ib_response_mad(rwc->recv_buf.mad);
 
 	if (send_resp == rcv_resp)
 		/* both requests, or both responses. GIDs different */
