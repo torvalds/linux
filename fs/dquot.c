@@ -211,8 +211,6 @@ static struct hlist_head *dquot_hash;
 
 struct dqstats dqstats;
 
-static void dqput(struct dquot *dquot);
-
 static inline unsigned int
 hashfn(const struct super_block *sb, unsigned int id, int type)
 {
@@ -568,7 +566,7 @@ static struct shrinker dqcache_shrinker = {
  * NOTE: If you change this function please check whether dqput_blocks() works right...
  * MUST be called with either dqptr_sem or dqonoff_mutex held
  */
-static void dqput(struct dquot *dquot)
+void dqput(struct dquot *dquot)
 {
 	int ret;
 
@@ -662,10 +660,28 @@ static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 }
 
 /*
+ * Check whether dquot is in memory.
+ * MUST be called with either dqptr_sem or dqonoff_mutex held
+ */
+int dquot_is_cached(struct super_block *sb, unsigned int id, int type)
+{
+	unsigned int hashent = hashfn(sb, id, type);
+	int ret = 0;
+
+        if (!sb_has_quota_active(sb, type))
+		return 0;
+	spin_lock(&dq_list_lock);
+	if (find_dquot(hashent, sb, id, type) != NODQUOT)
+		ret = 1;
+	spin_unlock(&dq_list_lock);
+	return ret;
+}
+
+/*
  * Get reference to dquot
  * MUST be called with either dqptr_sem or dqonoff_mutex held
  */
-static struct dquot *dqget(struct super_block *sb, unsigned int id, int type)
+struct dquot *dqget(struct super_block *sb, unsigned int id, int type)
 {
 	unsigned int hashent = hashfn(sb, id, type);
 	struct dquot *dquot, *empty = NODQUOT;
@@ -1184,17 +1200,23 @@ out_err:
  * 	Release all quotas referenced by inode
  *	Transaction must be started at an entry
  */
-int dquot_drop(struct inode *inode)
+int dquot_drop_locked(struct inode *inode)
 {
 	int cnt;
 
-	down_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (inode->i_dquot[cnt] != NODQUOT) {
 			dqput(inode->i_dquot[cnt]);
 			inode->i_dquot[cnt] = NODQUOT;
 		}
 	}
+	return 0;
+}
+
+int dquot_drop(struct inode *inode)
+{
+	down_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
+	dquot_drop_locked(inode);
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	return 0;
 }
@@ -2308,7 +2330,11 @@ EXPORT_SYMBOL(dquot_release);
 EXPORT_SYMBOL(dquot_mark_dquot_dirty);
 EXPORT_SYMBOL(dquot_initialize);
 EXPORT_SYMBOL(dquot_drop);
+EXPORT_SYMBOL(dquot_drop_locked);
 EXPORT_SYMBOL(vfs_dq_drop);
+EXPORT_SYMBOL(dqget);
+EXPORT_SYMBOL(dqput);
+EXPORT_SYMBOL(dquot_is_cached);
 EXPORT_SYMBOL(dquot_alloc_space);
 EXPORT_SYMBOL(dquot_alloc_inode);
 EXPORT_SYMBOL(dquot_free_space);
