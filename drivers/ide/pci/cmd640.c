@@ -374,6 +374,21 @@ static void cmd640_dump_regs(void)
 }
 #endif
 
+static void __set_prefetch_mode(ide_drive_t *drive, int mode)
+{
+	if (mode) {	/* want prefetch on? */
+#if CMD640_PREFETCH_MASKS
+		drive->no_unmask = 1;
+		drive->unmask = 0;
+#endif
+		drive->no_io_32bit = 0;
+	} else {
+		drive->no_unmask = 0;
+		drive->no_io_32bit = 1;
+		drive->io_32bit = 0;
+	}
+}
+
 #ifndef CONFIG_BLK_DEV_CMD640_ENHANCED
 /*
  * Check whether prefetch is on for a drive,
@@ -383,19 +398,10 @@ static void __init check_prefetch(ide_drive_t *drive, unsigned int index)
 {
 	u8 b = get_cmd640_reg(prefetch_regs[index]);
 
-	if (b & prefetch_masks[index]) {	/* is prefetch off? */
-		drive->no_unmask = 0;
-		drive->no_io_32bit = 1;
-		drive->io_32bit = 0;
-	} else {
-#if CMD640_PREFETCH_MASKS
-		drive->no_unmask = 1;
-		drive->unmask = 0;
-#endif
-		drive->no_io_32bit = 0;
-	}
+	__set_prefetch_mode(drive, (b & prefetch_masks[index]) ? 0 : 1);
 }
 #else
+
 /*
  * Sets prefetch mode for a drive.
  */
@@ -407,19 +413,11 @@ static void set_prefetch_mode(ide_drive_t *drive, unsigned int index, int mode)
 
 	spin_lock_irqsave(&cmd640_lock, flags);
 	b = __get_cmd640_reg(reg);
-	if (mode) {	/* want prefetch on? */
-#if CMD640_PREFETCH_MASKS
-		drive->no_unmask = 1;
-		drive->unmask = 0;
-#endif
-		drive->no_io_32bit = 0;
+	__set_prefetch_mode(drive, mode);
+	if (mode)
 		b &= ~prefetch_masks[index];	/* enable prefetch */
-	} else {
-		drive->no_unmask = 0;
-		drive->no_io_32bit = 1;
-		drive->io_32bit = 0;
+	else
 		b |= prefetch_masks[index];	/* disable prefetch */
-	}
 	__put_cmd640_reg(reg, b);
 	spin_unlock_irqrestore(&cmd640_lock, flags);
 }
