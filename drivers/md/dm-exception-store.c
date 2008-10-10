@@ -209,6 +209,14 @@ static int chunk_io(struct pstore *ps, uint32_t chunk, int rw, int metadata)
 }
 
 /*
+ * Convert a metadata area index to a chunk index.
+ */
+static chunk_t area_location(struct pstore *ps, chunk_t area)
+{
+	return 1 + ((ps->exceptions_per_area + 1) * area);
+}
+
+/*
  * Read or write a metadata area.  Remembering to skip the first
  * chunk which holds the header.
  */
@@ -217,8 +225,7 @@ static int area_io(struct pstore *ps, uint32_t area, int rw)
 	int r;
 	uint32_t chunk;
 
-	/* convert a metadata area index to a chunk index */
-	chunk = 1 + ((ps->exceptions_per_area + 1) * area);
+	chunk = area_location(ps, area);
 
 	r = chunk_io(ps, chunk, rw, 0);
 	if (r)
