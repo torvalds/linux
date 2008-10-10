@@ -773,7 +773,6 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_floppy_obj *floppy;
 	ide_drive_t *drive;
-	struct ide_atapi_pc pc;
 	int ret = 0;
 
 	debug_log("Reached %s\n", __func__);
@@ -790,10 +789,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
 		/* Just in case */
 
-		ide_init_pc(&pc);
-		pc.c[0] = GPCMD_TEST_UNIT_READY;
-
-		if (ide_queue_pc_tail(drive, disk, &pc))
+		if (ide_do_test_unit_ready(drive, disk))
 			ide_do_start_stop(drive, disk, 1);
 
 		if (ide_floppy_get_capacity(drive)

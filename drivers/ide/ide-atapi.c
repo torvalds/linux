@@ -162,6 +162,17 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 }
 EXPORT_SYMBOL_GPL(ide_queue_pc_tail);
 
+int ide_do_test_unit_ready(ide_drive_t *drive, struct gendisk *disk)
+{
+	struct ide_atapi_pc pc;
+
+	ide_init_pc(&pc);
+	pc.c[0] = TEST_UNIT_READY;
+
+	return ide_queue_pc_tail(drive, disk, &pc);
+}
+EXPORT_SYMBOL_GPL(ide_do_test_unit_ready);
+
 int ide_do_start_stop(ide_drive_t *drive, struct gendisk *disk, int start)
 {
 	struct ide_atapi_pc pc;
