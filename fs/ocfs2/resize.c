@@ -332,8 +332,8 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	lgd_blkno = ocfs2_which_cluster_group(main_bm_inode,
 					      first_new_cluster - 1);
 
-	ret = ocfs2_read_block(osb, lgd_blkno, &group_bh, OCFS2_BH_CACHED,
-			       main_bm_inode);
+	ret = ocfs2_read_block(main_bm_inode, lgd_blkno, &group_bh,
+			       OCFS2_BH_CACHED);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_unlock;

@@ -84,11 +84,10 @@ static char *ocfs2_fast_symlink_getlink(struct inode *inode,
 
 	mlog_entry_void();
 
-	status = ocfs2_read_block(OCFS2_SB(inode->i_sb),
+	status = ocfs2_read_block(inode,
 				  OCFS2_I(inode)->ip_blkno,
 				  bh,
-				  OCFS2_BH_CACHED,
-				  inode);
+				  OCFS2_BH_CACHED);
 	if (status < 0) {
 		mlog_errno(status);
 		link = ERR_PTR(status);

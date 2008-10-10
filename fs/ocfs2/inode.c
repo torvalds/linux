@@ -461,8 +461,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	}
 
 	if (can_lock)
-		status = ocfs2_read_block(osb, args->fi_blkno, &bh, 0,
-					  inode);
+		status = ocfs2_read_block(inode, args->fi_blkno, &bh, 0);
 	else
 		status = ocfs2_read_blocks_sync(osb, args->fi_blkno, 1, &bh);
 	if (status < 0) {
@@ -1166,8 +1165,7 @@ struct buffer_head *ocfs2_bread(struct inode *inode,
 		goto fail;
 	}
 
-	tmperr = ocfs2_read_block(OCFS2_SB(inode->i_sb), p_blkno, &bh,
-				  readflags, inode);
+	tmperr = ocfs2_read_block(inode, p_blkno, &bh, readflags);
 	if (tmperr < 0)
 		goto fail;
 

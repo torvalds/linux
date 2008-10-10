@@ -1752,10 +1752,9 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 
 	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
 
-	status = ocfs2_read_block(osb,
+	status = ocfs2_read_block(orphan_dir_inode,
 				  OCFS2_I(orphan_dir_inode)->ip_blkno,
-				  &orphan_dir_bh, OCFS2_BH_CACHED,
-				  orphan_dir_inode);
+				  &orphan_dir_bh, OCFS2_BH_CACHED);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;

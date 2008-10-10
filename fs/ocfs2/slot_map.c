@@ -150,8 +150,7 @@ int ocfs2_refresh_slot_info(struct ocfs2_super *osb)
 	 * be !NULL.  Thus, ocfs2_read_blocks() will ignore blocknr.  If
 	 * this is not true, the read of -1 (UINT64_MAX) will fail.
 	 */
-	ret = ocfs2_read_blocks(osb, -1, si->si_blocks, si->si_bh, 0,
-				si->si_inode);
+	ret = ocfs2_read_blocks(si->si_inode, -1, si->si_blocks, si->si_bh, 0);
 	if (ret == 0) {
 		spin_lock(&osb->osb_lock);
 		ocfs2_update_slot_info(si);
@@ -404,7 +403,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 		     (unsigned long long)blkno);
 
 		bh = NULL;  /* Acquire a fresh bh */
-		status = ocfs2_read_block(osb, blkno, &bh, 0, si->si_inode);
+		status = ocfs2_read_block(si->si_inode, blkno, &bh, 0);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;

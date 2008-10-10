@@ -170,22 +170,20 @@ bail:
 	return status;
 }
 
-int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
-		      struct buffer_head *bhs[], int flags,
-		      struct inode *inode)
+int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
+		      struct buffer_head *bhs[], int flags)
 {
 	int status = 0;
-	struct super_block *sb;
 	int i, ignore_cache = 0;
 	struct buffer_head *bh;
 
-	mlog_entry("(block=(%llu), nr=(%d), flags=%d, inode=%p)\n",
-		   (unsigned long long)block, nr, flags, inode);
+	mlog_entry("(inode=%p, block=(%llu), nr=(%d), flags=%d)\n",
+		   inode, (unsigned long long)block, nr, flags);
 
-	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
-	       (!inode || !(flags & OCFS2_BH_CACHED)));
+	BUG_ON(!inode);
+	BUG_ON((flags & OCFS2_BH_READAHEAD) && !(flags & OCFS2_BH_CACHED));
 
-	if (osb == NULL || osb->sb == NULL || bhs == NULL) {
+	if (bhs == NULL) {
 		status = -EINVAL;
 		mlog_errno(status);
 		goto bail;
@@ -204,19 +202,12 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		goto bail;
 	}
 
-	sb = osb->sb;
-
-	if (flags & OCFS2_BH_CACHED && !inode)
-		flags &= ~OCFS2_BH_CACHED;
-
-	if (inode)
-		mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
+	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
 	for (i = 0 ; i < nr ; i++) {
 		if (bhs[i] == NULL) {
-			bhs[i] = sb_getblk(sb, block++);
+			bhs[i] = sb_getblk(inode->i_sb, block++);
 			if (bhs[i] == NULL) {
-				if (inode)
-					mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+				mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 				status = -EIO;
 				mlog_errno(status);
 				goto bail;
@@ -347,11 +338,9 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		/* Always set the buffer in the cache, even if it was
 		 * a forced read, or read-ahead which hasn't yet
 		 * completed. */
-		if (inode)
-			ocfs2_set_buffer_uptodate(inode, bh);
+		ocfs2_set_buffer_uptodate(inode, bh);
 	}
-	if (inode)
-		mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
 	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n", 
 	     (unsigned long long)block, nr,

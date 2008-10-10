@@ -1172,8 +1172,8 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 	struct ocfs2_group_desc *gd;
 	struct inode *alloc_inode = ac->ac_inode;
 
-	ret = ocfs2_read_block(OCFS2_SB(alloc_inode->i_sb), gd_blkno,
-			       &group_bh, OCFS2_BH_CACHED, alloc_inode);
+	ret = ocfs2_read_block(alloc_inode, gd_blkno,
+			       &group_bh, OCFS2_BH_CACHED);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
@@ -1242,9 +1242,9 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	     bits_wanted, chain,
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno);
 
-	status = ocfs2_read_block(OCFS2_SB(alloc_inode->i_sb),
+	status = ocfs2_read_block(alloc_inode,
 				  le64_to_cpu(cl->cl_recs[chain].c_blkno),
-				  &group_bh, OCFS2_BH_CACHED, alloc_inode);
+				  &group_bh, OCFS2_BH_CACHED);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1272,9 +1272,9 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		next_group = le64_to_cpu(bg->bg_next_group);
 		prev_group_bh = group_bh;
 		group_bh = NULL;
-		status = ocfs2_read_block(OCFS2_SB(alloc_inode->i_sb),
+		status = ocfs2_read_block(alloc_inode,
 					  next_group, &group_bh,
-					  OCFS2_BH_CACHED, alloc_inode);
+					  OCFS2_BH_CACHED);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -1777,7 +1777,6 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 {
 	int status = 0;
 	u32 tmp_used;
-	struct ocfs2_super *osb = OCFS2_SB(alloc_inode->i_sb);
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) alloc_bh->b_data;
 	struct ocfs2_chain_list *cl = &fe->id2.i_chain;
 	struct buffer_head *group_bh = NULL;
@@ -1796,8 +1795,8 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno, count,
 	     (unsigned long long)bg_blkno, start_bit);
 
-	status = ocfs2_read_block(osb, bg_blkno, &group_bh, OCFS2_BH_CACHED,
-				  alloc_inode);
+	status = ocfs2_read_block(alloc_inode, bg_blkno, &group_bh,
+				  OCFS2_BH_CACHED);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

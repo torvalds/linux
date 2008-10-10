@@ -1134,7 +1134,7 @@ static int ocfs2_read_journal_inode(struct ocfs2_super *osb,
 	}
 	SET_INODE_JOURNAL(inode);
 
-	status = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno, bh, 0, inode);
+	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, bh, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
