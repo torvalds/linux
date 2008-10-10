@@ -932,7 +932,19 @@ struct ide_driver_s {
 int ide_device_get(ide_drive_t *);
 void ide_device_put(ide_drive_t *);
 
-int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
+struct ide_ioctl_devset {
+	unsigned int	get_ioctl;
+	unsigned int	set_ioctl;
+
+	int		(*get)(ide_drive_t *);
+	int		(*set)(ide_drive_t *, int);
+};
+
+int ide_setting_ioctl(ide_drive_t *, struct block_device *, unsigned int,
+		      unsigned long, const struct ide_ioctl_devset *);
+
+int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *,
+		      unsigned, unsigned long);
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;

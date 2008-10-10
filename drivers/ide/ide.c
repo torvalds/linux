@@ -250,8 +250,6 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 
 DEFINE_MUTEX(ide_setting_mtx);
 
-EXPORT_SYMBOL_GPL(ide_setting_mtx);
-
 /**
  *	ide_spin_wait_hwgroup	-	wait for group
  *	@drive: drive in the group
@@ -558,23 +556,23 @@ static int ide_set_nice_ioctl(ide_drive_t *drive, unsigned long arg)
 	return 0;
 }
 
+static const struct ide_ioctl_devset ide_ioctl_settings[] = {
+{ HDIO_GET_32BIT,	 HDIO_SET_32BIT,	get_io_32bit,  set_io_32bit  },
+{ HDIO_GET_KEEPSETTINGS, HDIO_SET_KEEPSETTINGS,	get_ksettings, set_ksettings },
+{ HDIO_GET_UNMASKINTR,	 HDIO_SET_UNMASKINTR,	get_unmaskirq, set_unmaskirq },
+{ HDIO_GET_DMA,		 HDIO_SET_DMA,		get_using_dma, set_using_dma },
+{ -1,			 HDIO_SET_PIO_MODE,	NULL,	       set_pio_mode  },
+{ 0 }
+};
+
 int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device *bdev,
 			unsigned int cmd, unsigned long arg)
 {
-	unsigned long flags;
-	int err = 0, (*getfunc)(ide_drive_t *), (*setfunc)(ide_drive_t *, int);
+	int err;
 
-	switch (cmd) {
-	case HDIO_GET_32BIT:	    getfunc = get_io_32bit;	 goto read_val;
-	case HDIO_GET_KEEPSETTINGS: getfunc = get_ksettings;	 goto read_val;
-	case HDIO_GET_UNMASKINTR:   getfunc = get_unmaskirq;	 goto read_val;
-	case HDIO_GET_DMA:	    getfunc = get_using_dma;	 goto read_val;
-	case HDIO_SET_32BIT:	    setfunc = set_io_32bit;	 goto set_val;
-	case HDIO_SET_KEEPSETTINGS: setfunc = set_ksettings;	 goto set_val;
-	case HDIO_SET_PIO_MODE:	    setfunc = set_pio_mode;	 goto set_val;
-	case HDIO_SET_UNMASKINTR:   setfunc = set_unmaskirq;	 goto set_val;
-	case HDIO_SET_DMA:	    setfunc = set_using_dma;	 goto set_val;
-	}
+	err = ide_setting_ioctl(drive, bdev, cmd, arg, ide_ioctl_settings);
+	if (err != -EOPNOTSUPP)
+		return err;
 
 	switch (cmd) {
 		case HDIO_OBSOLETE_IDENTITY:
@@ -629,11 +627,29 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		default:
 			return -EINVAL;
 	}
+}
+EXPORT_SYMBOL(generic_ide_ioctl);
+
+int ide_setting_ioctl(ide_drive_t *drive, struct block_device *bdev,
+		      unsigned int cmd, unsigned long arg,
+		      const struct ide_ioctl_devset *s)
+{
+	unsigned long flags;
+	int err = -EOPNOTSUPP;
+
+	for (; s->get_ioctl; s++) {
+		if (s->get && s->get_ioctl == cmd)
+			goto read_val;
+		else if (s->set && s->set_ioctl == cmd)
+			goto set_val;
+	}
+
+	return err;
 
 read_val:
 	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);
-	err = getfunc(drive);
+	err = s->get(drive);
 	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 	return err >= 0 ? put_user(err, (long __user *)arg) : err;
@@ -646,14 +662,13 @@ set_val:
 			err = -EACCES;
 		else {
 			mutex_lock(&ide_setting_mtx);
-			err = setfunc(drive, arg);
+			err = s->set(drive, arg);
 			mutex_unlock(&ide_setting_mtx);
 		}
 	}
 	return err;
 }
-
-EXPORT_SYMBOL(generic_ide_ioctl);
+EXPORT_SYMBOL_GPL(ide_setting_ioctl);
 
 /**
  * ide_device_get	-	get an additional reference to a ide_drive_t
