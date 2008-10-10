@@ -15,21 +15,18 @@
 #include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <linux/signal.h>
 #include <linux/init.h>
-#include <linux/gfp.h>
 #include <linux/radix-tree.h>
 #include <linux/cpu.h>
+#include <linux/of.h>
 
 #include <asm/firmware.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/rtas.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
-#include <asm/i8259.h>
 
 #include "xics.h"
 #include "plpar_wrappers.h"
