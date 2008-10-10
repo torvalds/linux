@@ -95,6 +95,25 @@ config MFD_WM8400
 	  the device, additional drivers must be enabled in order to use
 	  the functionality of the device.
 
+config MFD_WM8350
+	tristate
+
+config MFD_WM8350_CONFIG_MODE_0
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_CONFIG_MODE_1
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_CONFIG_MODE_2
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_CONFIG_MODE_3
+	bool
+	depends on MFD_WM8350
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"

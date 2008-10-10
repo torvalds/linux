@@ -13,6 +13,8 @@ obj-$(CONFIG_MFD_TC6387XB)	+= tc6387xb.o
 obj-$(CONFIG_MFD_TC6393XB)	+= tc6393xb.o
 
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
+wm8350-objs			:= wm8350-core.o wm8350-regmap.o
+obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
 
 obj-$(CONFIG_MFD_CORE)		+= mfd-core.o
 
