@@ -283,8 +283,8 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;
 
-	snprintf(unit->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx",
-		 (unsigned long long) fcp_lun);
+	dev_set_name(&unit->sysfs_device, "0x%016llx",
+		     (unsigned long long) fcp_lun);
 	unit->sysfs_device.parent = &port->sysfs_device;
 	unit->sysfs_device.release = zfcp_sysfs_unit_release;
 	dev_set_drvdata(&unit->sysfs_device, unit);
@@ -610,8 +610,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set(&port->refcount, 0);
 
-	snprintf(port->sysfs_device.bus_id, BUS_ID_SIZE, "0x%016llx",
-		 (unsigned long long) wwpn);
+	dev_set_name(&port->sysfs_device, "0x%016llx", wwpn);
 	port->sysfs_device.parent = &adapter->ccw_device->dev;
 
 	port->sysfs_device.release = zfcp_sysfs_port_release;

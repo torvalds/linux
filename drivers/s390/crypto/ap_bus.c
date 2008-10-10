@@ -892,8 +892,8 @@ static void ap_scan_bus(struct work_struct *unused)
 
 		ap_dev->device.bus = &ap_bus_type;
 		ap_dev->device.parent = ap_root_device;
-		snprintf(ap_dev->device.bus_id, BUS_ID_SIZE, "card%02x",
-			 AP_QID_DEVICE(ap_dev->qid));
+		dev_set_name(&ap_dev->device, "card%02x",
+			     AP_QID_DEVICE(ap_dev->qid));
 		ap_dev->device.release = ap_device_release;
 		rc = device_register(&ap_dev->device);
 		if (rc) {

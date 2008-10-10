@@ -343,7 +343,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	}
 
 	strcpy(dev_info->segment_name, local_buf);
-	strlcpy(dev_info->dev.bus_id, local_buf, BUS_ID_SIZE);
+	dev_set_name(&dev_info->dev, local_buf);
 	dev_info->dev.release = dcssblk_release_segment;
 	INIT_LIST_HEAD(&dev_info->lh);
 
