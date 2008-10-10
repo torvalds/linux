@@ -39,6 +39,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/blkpg.h>
+#include <linux/ata.h>
 #include <linux/hdreg.h>
 
 #define REALLY_SLOW_IO
@@ -370,7 +371,7 @@ repeat:
 		struct hd_i_struct *disk = &hd_info[i];
 		disk->special_op = disk->recalibrate = 1;
 		hd_out(disk, disk->sect, disk->sect, disk->head-1,
-			disk->cyl, WIN_SPECIFY, &reset_hd);
+			disk->cyl, ATA_CMD_INIT_DEV_PARAMS, &reset_hd);
 		if (reset)
 			goto repeat;
 	} else
@@ -558,7 +559,7 @@ static int do_special_op(struct hd_i_struct *disk, struct request *req)
 {
 	if (disk->recalibrate) {
 		disk->recalibrate = 0;
-		hd_out(disk, disk->sect, 0, 0, 0, WIN_RESTORE, &recal_intr);
+		hd_out(disk, disk->sect, 0, 0, 0, ATA_CMD_RESTORE, &recal_intr);
 		return reset;
 	}
 	if (disk->head > 16) {
@@ -631,13 +632,13 @@ repeat:
 	if (blk_fs_request(req)) {
 		switch (rq_data_dir(req)) {
 		case READ:
-			hd_out(disk, nsect, sec, head, cyl, WIN_READ,
+			hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_READ,
 				&read_intr);
 			if (reset)
 				goto repeat;
 			break;
 		case WRITE:
-			hd_out(disk, nsect, sec, head, cyl, WIN_WRITE,
+			hd_out(disk, nsect, sec, head, cyl, ATA_CMD_PIO_WRITE,
 				&write_intr);
 			if (reset)
 				goto repeat;
