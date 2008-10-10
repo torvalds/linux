@@ -1450,10 +1450,10 @@ static inline int hwif_to_node(ide_hwif_t *hwif)
 	return hwif->dev ? dev_to_node(hwif->dev) : -1;
 }
 
-static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
+static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_drive_t *peer = &drive->hwif->drives[(drive->dn ^ 1) & 1];
 
-	return &hwif->drives[(drive->dn ^ 1) & 1];
+	return peer->present ? peer : NULL;
 }
 #endif /* _IDE_H */

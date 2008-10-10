@@ -104,11 +104,11 @@ static void sc1200_tunepio(ide_drive_t *drive, u8 pio)
 static u8 sc1200_udma_filter(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_drive_t *mate = &hwif->drives[(drive->dn & 1) ^ 1];
+	ide_drive_t *mate = ide_get_pair_dev(drive);
 	u16 *mateid = mate->id;
 	u8 mask = hwif->ultra_mask;
 
-	if (mate->present == 0)
+	if (mate == NULL)
 		goto out;
 
 	if (ata_id_has_dma(mateid) && __ide_dma_bad_drive(mate) == 0) {

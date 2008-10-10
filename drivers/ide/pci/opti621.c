@@ -137,7 +137,7 @@ static u8 read_reg(int reg)
 static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_drive_t *pair = ide_get_paired_drive(drive);
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	unsigned long flags;
 	u8 tim, misc, addr_pio = pio, clk;
 
@@ -153,7 +153,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	drive->drive_data = XFER_PIO_0 + pio;
 
-	if (pair->present) {
+	if (pair) {
 		if (pair->drive_data && pair->drive_data < drive->drive_data)
 			addr_pio = pair->drive_data - XFER_PIO_0;
 	}

@@ -180,7 +180,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	val32 |= (t2i << (dev ? 8 : 0));
 	writel(val32, base + BK3710_DATRCVR);
 
-	if (mate && mate->present) {
+	if (mate) {
 		u8 mode2 = ide_get_best_pio_mode(mate, 255, 4);
 
 		if (mode2 < mode)
@@ -230,7 +230,7 @@ static void palm_bk3710_set_pio_mode(ide_drive_t *drive, u8 pio)
 	 * Obtain the drive PIO data for tuning the Palm Chip registers
 	 */
 	cycle_time = ide_pio_cycle_time(drive, pio);
-	mate = ide_get_paired_drive(drive);
+	mate = ide_get_pair_dev(drive);
 	palm_bk3710_setpiomode(base, mate, is_slave, cycle_time, pio);
 }
 
