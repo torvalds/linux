@@ -782,6 +782,56 @@ static inline int atapi_id_dmadir(const u16 *dev_id)
 	return ata_id_major_version(dev_id) >= 7 && (dev_id[62] & 0x8000);
 }
 
+/*
+ * ata_id_is_lba_capacity_ok() performs a sanity check on
+ * the claimed LBA capacity value for the device.
+ *
+ * Returns 1 if LBA capacity looks sensible, 0 otherwise.
+ *
+ * It is called only once for each device.
+ */
+static inline int ata_id_is_lba_capacity_ok(u16 *id)
+{
+	unsigned long lba_sects, chs_sects, head, tail;
+
+	/* No non-LBA info .. so valid! */
+	if (id[ATA_ID_CYLS] == 0)
+		return 1;
+
+	lba_sects = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
+
+	/*
+	 * The ATA spec tells large drives to return
+	 * C/H/S = 16383/16/63 independent of their size.
+	 * Some drives can be jumpered to use 15 heads instead of 16.
+	 * Some drives can be jumpered to use 4092 cyls instead of 16383.
+	 */
+	if ((id[ATA_ID_CYLS] == 16383 ||
+	     (id[ATA_ID_CYLS] == 4092 && id[ATA_ID_CUR_CYLS] == 16383)) &&
+	    id[ATA_ID_SECTORS] == 63 &&
+	    (id[ATA_ID_HEADS] == 15 || id[ATA_ID_HEADS] == 16) &&
+	    (lba_sects >= 16383 * 63 * id[ATA_ID_HEADS]))
+		return 1;
+
+	chs_sects = id[ATA_ID_CYLS] * id[ATA_ID_HEADS] * id[ATA_ID_SECTORS];
+
+	/* perform a rough sanity check on lba_sects: within 10% is OK */
+	if (lba_sects - chs_sects < chs_sects/10)
+		return 1;
+
+	/* some drives have the word order reversed */
+	head = (lba_sects >> 16) & 0xffff;
+	tail = lba_sects & 0xffff;
+	lba_sects = head | (tail << 16);
+
+	if (lba_sects - chs_sects < chs_sects/10) {
+		*(__le32 *)&id[ATA_ID_LBA_CAPACITY] = __cpu_to_le32(lba_sects);
+		return 1;	/* LBA capacity is (now) good */
+	}
+
+	return 0;	/* LBA capacity value may be bad */
+}
+
 static inline void ata_id_to_hd_driveid(u16 *id)
 {
 #ifdef __BIG_ENDIAN

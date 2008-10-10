@@ -88,56 +88,6 @@ static void ide_disk_put(struct ide_disk_obj *idkp)
 	mutex_unlock(&idedisk_ref_mutex);
 }
 
-/*
- * lba_capacity_is_ok() performs a sanity check on the claimed "lba_capacity"
- * value for this drive (from its reported identification information).
- *
- * Returns:	1 if lba_capacity looks sensible
- *		0 otherwise
- *
- * It is called only once for each drive.
- */
-static int lba_capacity_is_ok(u16 *id)
-{
-	unsigned long lba_sects, chs_sects, head, tail;
-
-	/* No non-LBA info .. so valid! */
-	if (id[ATA_ID_CYLS] == 0)
-		return 1;
-
-	lba_sects = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
-
-	/*
-	 * The ATA spec tells large drives to return
-	 * C/H/S = 16383/16/63 independent of their size.
-	 * Some drives can be jumpered to use 15 heads instead of 16.
-	 * Some drives can be jumpered to use 4092 cyls instead of 16383.
-	 */
-	if ((id[ATA_ID_CYLS] == 16383 ||
-	     (id[ATA_ID_CYLS] == 4092 && id[ATA_ID_CUR_CYLS] == 16383)) &&
-	    id[ATA_ID_SECTORS] == 63 &&
-	    (id[ATA_ID_HEADS] == 15 || id[ATA_ID_HEADS] == 16) &&
-	    (lba_sects >= 16383 * 63 * id[ATA_ID_HEADS]))
-		return 1;
-
-	chs_sects = id[ATA_ID_CYLS] * id[ATA_ID_HEADS] * id[ATA_ID_SECTORS];
-
-	/* perform a rough sanity check on lba_sects:  within 10% is OK */
-	if ((lba_sects - chs_sects) < chs_sects/10)
-		return 1;
-
-	/* some drives have the word order reversed */
-	head = ((lba_sects >> 16) & 0xffff);
-	tail = (lba_sects & 0xffff);
-	lba_sects = (head | (tail << 16));
-	if ((lba_sects - chs_sects) < chs_sects/10) {
-		*(__le32 *)&id[ATA_ID_LBA_CAPACITY] = __cpu_to_le32(lba_sects);
-		return 1;	/* lba_capacity is (now) good */
-	}
-
-	return 0;	/* lba_capacity value may be bad */
-}
-
 static const u8 ide_rw_cmds[] = {
 	ATA_CMD_READ_MULTI,
 	ATA_CMD_WRITE_MULTI,
@@ -446,7 +396,7 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 		drive->capacity64 = ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
 		if (hpa)
 			idedisk_check_hpa(drive);
-	} else if (ata_id_has_lba(id) && lba_capacity_is_ok(id)) {
+	} else if (ata_id_has_lba(id) && ata_id_is_lba_capacity_ok(id)) {
 		/* drive speaks 28-bit LBA */
 		drive->select.b.lba = 1;
 		drive->capacity64 = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
