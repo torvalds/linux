@@ -88,7 +88,7 @@ static struct buffer_head *ocfs2_bread(struct inode *inode,
 	struct buffer_head *bh = NULL;
 	int tmperr;
 	u64 p_blkno;
-	int readflags = OCFS2_BH_CACHED;
+	int readflags = 0;
 
 	if (reada)
 		readflags |= OCFS2_BH_READAHEAD;

@@ -181,7 +181,8 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 		   inode, (unsigned long long)block, nr, flags);
 
 	BUG_ON(!inode);
-	BUG_ON((flags & OCFS2_BH_READAHEAD) && !(flags & OCFS2_BH_CACHED));
+	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
+	       (flags & OCFS2_BH_IGNORE_CACHE));
 
 	if (bhs == NULL) {
 		status = -EINVAL;
@@ -214,7 +215,7 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 			}
 		}
 		bh = bhs[i];
-		ignore_cache = 0;
+		ignore_cache = (flags & OCFS2_BH_IGNORE_CACHE);
 
 		/* There are three read-ahead cases here which we need to
 		 * be concerned with. All three assume a buffer has
@@ -240,26 +241,27 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 		 *    before our is-it-in-flight check.
 		 */
 
-		if (flags & OCFS2_BH_CACHED &&
-		    !ocfs2_buffer_uptodate(inode, bh)) {
+		if (!ignore_cache && !ocfs2_buffer_uptodate(inode, bh)) {
 			mlog(ML_UPTODATE,
 			     "bh (%llu), inode %llu not uptodate\n",
 			     (unsigned long long)bh->b_blocknr,
 			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+			/* We're using ignore_cache here to say
+			 * "go to disk" */
 			ignore_cache = 1;
 		}
 
 		/* XXX: Can we ever get this and *not* have the cached
 		 * flag set? */
 		if (buffer_jbd(bh)) {
-			if (!(flags & OCFS2_BH_CACHED) || ignore_cache)
+			if (ignore_cache)
 				mlog(ML_BH_IO, "trying to sync read a jbd "
 					       "managed bh (blocknr = %llu)\n",
 				     (unsigned long long)bh->b_blocknr);
 			continue;
 		}
 
-		if (!(flags & OCFS2_BH_CACHED) || ignore_cache) {
+		if (ignore_cache) {
 			if (buffer_dirty(bh)) {
 				/* This should probably be a BUG, or
 				 * at least return an error. */
@@ -294,7 +296,7 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 			 * previously read-ahead buffer may have
 			 * completed I/O while we were waiting for the
 			 * buffer lock. */
-			if ((flags & OCFS2_BH_CACHED)
+			if (!(flags & OCFS2_BH_IGNORE_CACHE)
 			    && !(flags & OCFS2_BH_READAHEAD)
 			    && ocfs2_buffer_uptodate(inode, bh)) {
 				unlock_buffer(bh);
@@ -344,7 +346,8 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 
 	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n", 
 	     (unsigned long long)block, nr,
-	     (!(flags & OCFS2_BH_CACHED) || ignore_cache) ? "no" : "yes", flags);
+	     ((flags & OCFS2_BH_IGNORE_CACHE) || ignore_cache) ? "no" : "yes",
+	     flags);
 
 bail:
 

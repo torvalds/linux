@@ -249,7 +249,7 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 	}
 
 	status = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1,
-				   &alloc_bh, 0);
+				   &alloc_bh, OCFS2_BH_IGNORE_CACHE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -460,7 +460,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 	mutex_lock(&inode->i_mutex);
 
 	status = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1,
-				   &alloc_bh, 0);
+				   &alloc_bh, OCFS2_BH_IGNORE_CACHE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

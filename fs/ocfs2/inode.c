@@ -461,7 +461,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	}
 
 	if (can_lock)
-		status = ocfs2_read_blocks(inode, args->fi_blkno, 1, &bh, 0);
+		status = ocfs2_read_blocks(inode, args->fi_blkno, 1, &bh,
+					   OCFS2_BH_IGNORE_CACHE);
 	else
 		status = ocfs2_read_blocks_sync(osb, args->fi_blkno, 1, &bh);
 	if (status < 0) {
