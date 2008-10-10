@@ -36,6 +36,7 @@
 #include <linux/hdreg.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 
 #include <scsi/scsi_ioctl.h>
 
@@ -226,29 +227,36 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				  unsigned int bcount, int direction)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = pc->rq;
-	struct req_iterator iter;
-	struct bio_vec *bvec;
-	unsigned long flags;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+	xfer_func_t *xf = direction ? tp_ops->output_data : tp_ops->input_data;
+	struct scatterlist *sg = pc->sg;
+	char *buf;
 	int count, done = 0;
-	char *data;
 
-	rq_for_each_segment(bvec, rq, iter) {
-		if (!bcount)
-			break;
+	while (bcount) {
+		count = min(sg->length - pc->b_count, bcount);
+		if (PageHighMem(sg_page(sg))) {
+			unsigned long flags;
 
-		count = min(bvec->bv_len, bcount);
-
-		data = bvec_kmap_irq(bvec, &flags);
-		if (direction)
-			hwif->tp_ops->output_data(drive, NULL, data, count);
-		else
-			hwif->tp_ops->input_data(drive, NULL, data, count);
-		bvec_kunmap_irq(data, &flags);
-
+			local_irq_save(flags);
+			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
+			xf(drive, NULL, buf + pc->b_count, count);
+			kunmap_atomic(buf - sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
+		} else {
+			buf = sg_virt(sg);
+			xf(drive, NULL, buf + pc->b_count, count);
+		}
 		bcount -= count;
 		pc->b_count += count;
 		done += count;
+
+		if (pc->b_count == sg->length) {
+			if (!--pc->sg_cnt)
+				break;
+			pc->sg = sg = sg_next(sg);
+			pc->b_count = 0;
+		}
 	}
 
 	idefloppy_end_request(drive, 1, done >> 9);
@@ -571,7 +579,7 @@ static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 	memcpy(rq->cmd, pc->c, 12);
 
 	pc->rq = rq;
-	pc->b_count = cmd == READ ? 0 : rq->bio->bi_size;
+	pc->b_count = 0;
 	if (rq->cmd_flags & REQ_RW)
 		pc->flags |= PC_FLAG_WRITING;
 	pc->buf = NULL;
@@ -585,7 +593,7 @@ static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
 	idefloppy_init_pc(pc);
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
 	pc->rq = rq;
-	pc->b_count = rq->data_len;
+	pc->b_count = 0;
 	if (rq->data_len && rq_data_dir(rq) == WRITE)
 		pc->flags |= PC_FLAG_WRITING;
 	pc->buf = rq->data;
@@ -602,15 +610,17 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		struct request *rq, sector_t block_s)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
+	ide_hwif_t *hwif = drive->hwif;
 	struct ide_atapi_pc *pc;
 	unsigned long block = (unsigned long)block_s;
 
-	debug_log("dev: %s, cmd_type: %x, errors: %d\n",
-			rq->rq_disk ? rq->rq_disk->disk_name : "?",
-			rq->cmd_type, rq->errors);
-	debug_log("sector: %ld, nr_sectors: %ld, "
-			"current_nr_sectors: %d\n", (long)rq->sector,
-			rq->nr_sectors, rq->current_nr_sectors);
+	debug_log("%s: dev: %s, cmd: 0x%x, cmd_type: %x, errors: %d\n",
+		  __func__, rq->rq_disk ? rq->rq_disk->disk_name : "?",
+		  rq->cmd[0], rq->cmd_type, rq->errors);
+
+	debug_log("%s: sector: %ld, nr_sectors: %ld, current_nr_sectors: %d\n",
+		  __func__, (long)rq->sector, rq->nr_sectors,
+		  rq->current_nr_sectors);
 
 	if (rq->errors >= ERROR_MAX) {
 		if (floppy->failed_pc)
@@ -642,6 +652,12 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		idefloppy_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
+
+	ide_init_sg_cmd(drive, rq);
+	ide_map_sg(drive, rq);
+
+	pc->sg = hwif->sg_table;
+	pc->sg_cnt = hwif->sg_nents;
 
 	pc->rq = rq;
 
