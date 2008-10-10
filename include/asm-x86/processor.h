@@ -1,5 +1,5 @@
-#ifndef __ASM_X86_PROCESSOR_H
-#define __ASM_X86_PROCESSOR_H
+#ifndef ASM_X86__PROCESSOR_H
+#define ASM_X86__PROCESSOR_H
 
 #include <asm/processor-flags.h>
 
@@ -20,6 +20,7 @@ struct mm_struct;
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
+#include <asm/ds.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -140,6 +141,8 @@ DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define current_cpu_data	boot_cpu_data
 #endif
 
+extern const struct seq_operations cpuinfo_op;
+
 static inline int hlt_works(int cpu)
 {
 #ifdef CONFIG_X86_32
@@ -152,6 +155,8 @@ static inline int hlt_works(int cpu)
 #define cache_line_size()	(boot_cpu_data.x86_cache_alignment)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
+
+extern struct pt_regs *idle_regs(struct pt_regs *);
 
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
@@ -411,9 +416,14 @@ struct thread_struct {
 	unsigned		io_bitmap_max;
 /* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
 	unsigned long	debugctlmsr;
-/* Debug Store - if not 0 points to a DS Save Area configuration;
- *               goes into MSR_IA32_DS_AREA */
-	unsigned long	ds_area_msr;
+#ifdef CONFIG_X86_DS
+/* Debug Store context; see include/asm-x86/ds.h; goes into MSR_IA32_DS_AREA */
+	struct ds_context	*ds_ctx;
+#endif /* CONFIG_X86_DS */
+#ifdef CONFIG_X86_PTRACE_BTS
+/* the signal to send on a bts buffer overflow */
+	unsigned int	bts_ovfl_signal;
+#endif /* CONFIG_X86_PTRACE_BTS */
 };
 
 static inline unsigned long native_get_debugreg(int regno)
@@ -943,4 +953,4 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
-#endif
+#endif /* ASM_X86__PROCESSOR_H */

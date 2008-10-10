@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_DELAY_H
-#define _ASM_X86_DELAY_H
+#ifndef ASM_X86__DELAY_H
+#define ASM_X86__DELAY_H
 
 /*
  * Copyright (C) 1993 Linus Torvalds
@@ -28,4 +28,4 @@ extern void __delay(unsigned long loops);
 
 void use_tsc_delay(void);
 
-#endif /* _ASM_X86_DELAY_H */
+#endif /* ASM_X86__DELAY_H */

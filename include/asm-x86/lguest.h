@@ -1,5 +1,5 @@
-#ifndef _X86_LGUEST_H
-#define _X86_LGUEST_H
+#ifndef ASM_X86__LGUEST_H
+#define ASM_X86__LGUEST_H
 
 #define GDT_ENTRY_LGUEST_CS	10
 #define GDT_ENTRY_LGUEST_DS	11
@@ -91,4 +91,4 @@ static inline void lguest_set_ts(void)
 
 #endif /* __ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__LGUEST_H */

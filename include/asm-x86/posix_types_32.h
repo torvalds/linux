@@ -1,5 +1,5 @@
-#ifndef __ARCH_I386_POSIX_TYPES_H
-#define __ARCH_I386_POSIX_TYPES_H
+#ifndef ASM_X86__POSIX_TYPES_32_H
+#define ASM_X86__POSIX_TYPES_32_H
 
 /*
  * This file is generally used by user-level software, so you need to
@@ -82,4 +82,4 @@ do {								\
 
 #endif /* defined(__KERNEL__) */
 
-#endif
+#endif /* ASM_X86__POSIX_TYPES_32_H */

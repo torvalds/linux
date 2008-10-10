@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_APIC_H
-#define __ASM_MACH_APIC_H
+#ifndef ASM_X86__MACH_BIGSMP__MACH_APIC_H
+#define ASM_X86__MACH_BIGSMP__MACH_APIC_H
 
 #define xapic_phys_to_log_apicid(cpu) (per_cpu(x86_bios_cpu_apicid, cpu))
 #define esr_disable (1)
@@ -141,4 +141,4 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-#endif /* __ASM_MACH_APIC_H */
+#endif /* ASM_X86__MACH_BIGSMP__MACH_APIC_H */

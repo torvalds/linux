@@ -1,5 +1,5 @@
-#ifndef __ARCH_I386_ATOMIC__
-#define __ARCH_I386_ATOMIC__
+#ifndef ASM_X86__ATOMIC_32_H
+#define ASM_X86__ATOMIC_32_H
 
 #include <linux/compiler.h>
 #include <asm/processor.h>
@@ -256,4 +256,4 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 #define smp_mb__after_atomic_inc()	barrier()
 
 #include <asm-generic/atomic.h>
-#endif
+#endif /* ASM_X86__ATOMIC_32_H */

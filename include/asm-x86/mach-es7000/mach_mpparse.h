@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_MPPARSE_H
-#define __ASM_MACH_MPPARSE_H
+#ifndef ASM_X86__MACH_ES7000__MACH_MPPARSE_H
+#define ASM_X86__MACH_ES7000__MACH_MPPARSE_H
 
 #include <linux/acpi.h>
 
@@ -26,4 +26,4 @@ static inline int es7000_check_dsdt(void)
 }
 #endif
 
-#endif /* __ASM_MACH_MPPARSE_H */
+#endif /* ASM_X86__MACH_ES7000__MACH_MPPARSE_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_VDSO_H
-#define _ASM_X86_VDSO_H	1
+#ifndef ASM_X86__VDSO_H
+#define ASM_X86__VDSO_H
 
 #ifdef CONFIG_X86_64
 extern const char VDSO64_PRELINK[];
@@ -44,4 +44,4 @@ extern const char vdso32_int80_start, vdso32_int80_end;
 extern const char vdso32_syscall_start, vdso32_syscall_end;
 extern const char vdso32_sysenter_start, vdso32_sysenter_end;
 
-#endif	/* asm-x86/vdso.h */
+#endif /* ASM_X86__VDSO_H */

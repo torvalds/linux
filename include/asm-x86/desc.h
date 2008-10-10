@@ -1,5 +1,5 @@
-#ifndef _ASM_DESC_H_
-#define _ASM_DESC_H_
+#ifndef ASM_X86__DESC_H
+#define ASM_X86__DESC_H
 
 #ifndef __ASSEMBLY__
 #include <asm/desc_defs.h>
@@ -397,4 +397,4 @@ static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
 
 #endif /* __ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__DESC_H */

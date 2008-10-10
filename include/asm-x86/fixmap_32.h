@@ -10,8 +10,8 @@
  * Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  */
 
-#ifndef _ASM_FIXMAP_32_H
-#define _ASM_FIXMAP_32_H
+#ifndef ASM_X86__FIXMAP_32_H
+#define ASM_X86__FIXMAP_32_H
 
 
 /* used by vmalloc.c, vsyscall.lds.S.
@@ -120,4 +120,4 @@ extern void reserve_top_address(unsigned long reserve);
 #define FIXADDR_BOOT_START	(FIXADDR_TOP - __FIXADDR_BOOT_SIZE)
 
 #endif /* !__ASSEMBLY__ */
-#endif
+#endif /* ASM_X86__FIXMAP_32_H */

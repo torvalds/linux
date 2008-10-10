@@ -63,10 +63,8 @@ static inline void pgd_list_del(pgd_t *pgd)
 #define UNSHARED_PTRS_PER_PGD				\
 	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
 
-static void pgd_ctor(void *p)
+static void pgd_ctor(pgd_t *pgd)
 {
-	pgd_t *pgd = p;
-
 	/* If the pgd points to a shared pagetable level (either the
 	   ptes in non-PAE, or shared PMD in PAE), then just copy the
 	   references from swapper_pg_dir. */
@@ -87,7 +85,7 @@ static void pgd_ctor(void *p)
 		pgd_list_add(pgd);
 }
 
-static void pgd_dtor(void *pgd)
+static void pgd_dtor(pgd_t *pgd)
 {
 	unsigned long flags; /* can be called from interrupt context */
 

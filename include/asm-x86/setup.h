@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SETUP_H
-#define _ASM_X86_SETUP_H
+#ifndef ASM_X86__SETUP_H
+#define ASM_X86__SETUP_H
 
 #define COMMAND_LINE_SIZE 2048
 
@@ -41,6 +41,7 @@ struct x86_quirks {
 };
 
 extern struct x86_quirks *x86_quirks;
+extern unsigned long saved_video_mode;
 
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
@@ -100,4 +101,4 @@ void __init x86_64_start_reservations(char *real_mode_data);
 #endif /* __ASSEMBLY__ */
 #endif  /*  __KERNEL__  */
 
-#endif /* _ASM_X86_SETUP_H */
+#endif /* ASM_X86__SETUP_H */

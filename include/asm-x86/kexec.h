@@ -1,5 +1,5 @@
-#ifndef _KEXEC_H
-#define _KEXEC_H
+#ifndef ASM_X86__KEXEC_H
+#define ASM_X86__KEXEC_H
 
 #ifdef CONFIG_X86_32
 # define PA_CONTROL_PAGE	0
@@ -172,4 +172,4 @@ relocate_kernel(unsigned long indirection_page,
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _KEXEC_H */
+#endif /* ASM_X86__KEXEC_H */

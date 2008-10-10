@@ -7,8 +7,8 @@
  * x86-64 work by Andi Kleen 2002
  */
 
-#ifndef _ASM_X86_I387_H
-#define _ASM_X86_I387_H
+#ifndef ASM_X86__I387_H
+#define ASM_X86__I387_H
 
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
@@ -25,6 +25,7 @@ extern void mxcsr_feature_mask_init(void);
 extern int init_fpu(struct task_struct *child);
 extern asmlinkage void math_state_restore(void);
 extern void init_thread_xstate(void);
+extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
 
 extern user_regset_active_fn fpregs_active, xfpregs_active;
 extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get;
@@ -336,4 +337,4 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-#endif	/* _ASM_X86_I387_H */
+#endif /* ASM_X86__I387_H */

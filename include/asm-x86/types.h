@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TYPES_H
-#define _ASM_X86_TYPES_H
+#ifndef ASM_X86__TYPES_H
+#define ASM_X86__TYPES_H
 
 #include <asm-generic/int-ll64.h>
 
@@ -33,4 +33,4 @@ typedef u32 dma_addr_t;
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__TYPES_H */

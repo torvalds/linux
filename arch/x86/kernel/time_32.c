@@ -36,6 +36,7 @@
 #include <asm/arch_hooks.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
+#include <asm/timer.h>
 
 #include "do_timer.h"
 

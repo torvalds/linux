@@ -1,5 +1,5 @@
-#ifndef _I386_PGTABLE_3LEVEL_H
-#define _I386_PGTABLE_3LEVEL_H
+#ifndef ASM_X86__PGTABLE_3LEVEL_H
+#define ASM_X86__PGTABLE_3LEVEL_H
 
 /*
  * Intel Physical Address Extension (PAE) Mode - three-level page
@@ -151,16 +151,9 @@ static inline int pte_same(pte_t a, pte_t b)
 	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;
 }
 
-#define pte_page(x)	pfn_to_page(pte_pfn(x))
-
 static inline int pte_none(pte_t pte)
 {
 	return !pte.pte_low && !pte.pte_high;
-}
-
-static inline unsigned long pte_pfn(pte_t pte)
-{
-	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 /*
@@ -179,4 +172,4 @@ static inline unsigned long pte_pfn(pte_t pte)
 #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
 #define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
 
-#endif /* _I386_PGTABLE_3LEVEL_H */
+#endif /* ASM_X86__PGTABLE_3LEVEL_H */

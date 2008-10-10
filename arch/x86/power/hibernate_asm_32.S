@@ -1,5 +1,3 @@
-.text
-
 /*
  * This may not use any stack, nor any variable that is not "NoSave":
  *
@@ -12,17 +10,18 @@
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
+#include <asm/processor-flags.h>
 
-	.text
+.text
 
 ENTRY(swsusp_arch_suspend)
-
 	movl %esp, saved_context_esp
 	movl %ebx, saved_context_ebx
 	movl %ebp, saved_context_ebp
 	movl %esi, saved_context_esi
 	movl %edi, saved_context_edi
-	pushfl ; popl saved_context_eflags
+	pushfl
+	popl saved_context_eflags
 
 	call swsusp_save
 	ret
@@ -59,7 +58,7 @@ done:
 	movl	mmu_cr4_features, %ecx
 	jecxz	1f	# cr4 Pentium and higher, skip if zero
 	movl	%ecx, %edx
-	andl	$~(1<<7), %edx;  # PGE
+	andl	$~(X86_CR4_PGE), %edx
 	movl	%edx, %cr4;  # turn off PGE
 1:
 	movl	%cr3, %eax;  # flush TLB
@@ -74,7 +73,8 @@ done:
 	movl saved_context_esi, %esi
 	movl saved_context_edi, %edi
 
-	pushl saved_context_eflags ; popfl
+	pushl saved_context_eflags
+	popfl
 
 	xorl	%eax, %eax
 

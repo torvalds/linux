@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PGTABLE_H
-#define _ASM_X86_PGTABLE_H
+#ifndef ASM_X86__PGTABLE_H
+#define ASM_X86__PGTABLE_H
 
 #define FIRST_USER_ADDRESS	0
 
@@ -186,6 +186,13 @@ static inline int pte_special(pte_t pte)
 	return pte_val(pte) & _PAGE_SPECIAL;
 }
 
+static inline unsigned long pte_pfn(pte_t pte)
+{
+	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
+}
+
+#define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+
 static inline int pmd_large(pmd_t pte)
 {
 	return (pmd_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
@@ -312,6 +319,8 @@ extern void native_pagetable_setup_done(pgd_t *base);
 static inline void native_pagetable_setup_start(pgd_t *base) {}
 static inline void native_pagetable_setup_done(pgd_t *base) {}
 #endif
+
+extern int arch_report_meminfo(char *page);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -521,4 +530,4 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */
 
-#endif	/* _ASM_X86_PGTABLE_H */
+#endif /* ASM_X86__PGTABLE_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_FB_H
-#define _ASM_X86_FB_H
+#ifndef ASM_X86__FB_H
+#define ASM_X86__FB_H
 
 #include <linux/fb.h>
 #include <linux/fs.h>
@@ -18,4 +18,4 @@ extern int fb_is_primary_device(struct fb_info *info);
 static inline int fb_is_primary_device(struct fb_info *info) { return 0; }
 #endif
 
-#endif /* _ASM_X86_FB_H */
+#endif /* ASM_X86__FB_H */

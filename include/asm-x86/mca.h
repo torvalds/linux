@@ -1,8 +1,8 @@
 /* -*- mode: c; c-basic-offset: 8 -*- */
 
 /* Platform specific MCA defines */
-#ifndef _ASM_MCA_H
-#define _ASM_MCA_H
+#ifndef ASM_X86__MCA_H
+#define ASM_X86__MCA_H
 
 /* Maximal number of MCA slots - actually, some machines have less, but
  * they all have sufficient number of POS registers to cover 8.
@@ -40,4 +40,4 @@
  */
 #define MCA_NUMADAPTERS (MCA_MAX_SLOT_NR+3)
 
-#endif
+#endif /* ASM_X86__MCA_H */

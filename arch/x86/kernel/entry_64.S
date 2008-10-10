@@ -275,9 +275,9 @@ ENTRY(native_usergs_sysret64)
 ENTRY(ret_from_fork)
 	CFI_DEFAULT_STACK
 	push kernel_eflags(%rip)
-	CFI_ADJUST_CFA_OFFSET 4
+	CFI_ADJUST_CFA_OFFSET 8
 	popf				# reset kernel eflags
-	CFI_ADJUST_CFA_OFFSET -4
+	CFI_ADJUST_CFA_OFFSET -8
 	call schedule_tail
 	GET_THREAD_INFO(%rcx)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),TI_flags(%rcx)

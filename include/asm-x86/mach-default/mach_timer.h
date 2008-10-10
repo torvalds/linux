@@ -10,8 +10,8 @@
  * directly because of the awkward 8-bit access mechanism of the 82C54
  * device.
  */
-#ifndef _MACH_TIMER_H
-#define _MACH_TIMER_H
+#ifndef ASM_X86__MACH_DEFAULT__MACH_TIMER_H
+#define ASM_X86__MACH_DEFAULT__MACH_TIMER_H
 
 #define CALIBRATE_TIME_MSEC 30 /* 30 msecs */
 #define CALIBRATE_LATCH	\
@@ -45,4 +45,4 @@ static inline void mach_countup(unsigned long *count_p)
 	*count_p = count;
 }
 
-#endif /* !_MACH_TIMER_H */
+#endif /* ASM_X86__MACH_DEFAULT__MACH_TIMER_H */

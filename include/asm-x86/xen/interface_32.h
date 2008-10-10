@@ -6,8 +6,8 @@
  * Copyright (c) 2004, K A Fraser
  */
 
-#ifndef __ASM_X86_XEN_INTERFACE_32_H
-#define __ASM_X86_XEN_INTERFACE_32_H
+#ifndef ASM_X86__XEN__INTERFACE_32_H
+#define ASM_X86__XEN__INTERFACE_32_H
 
 
 /*
@@ -94,4 +94,4 @@ typedef struct xen_callback xen_callback_t;
 #define xen_pfn_to_cr3(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
 #define xen_cr3_to_pfn(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
 
-#endif	/* __ASM_X86_XEN_INTERFACE_32_H */
+#endif /* ASM_X86__XEN__INTERFACE_32_H */
