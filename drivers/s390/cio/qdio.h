@@ -203,6 +203,9 @@ struct qdio_output_q {
 	/* PCIs are enabled for the queue */
 	int pci_out_enabled;
 
+	/* IQDIO: output multiple buffers (enhanced SIGA) */
+	int use_enh_siga;
+
 	/* timer to check for more outbound work */
 	struct timer_list timer;
 };

@@ -299,7 +299,13 @@ struct qdio_ssqd_desc {
 	u8 mbccnt;
 	u16 qdioac2;
 	u64 sch_token;
-	u64:64;
+	u8 mro;
+	u8 mri;
+	u8:8;
+	u8 sbalic;
+	u16:16;
+	u8:8;
+	u8 mmwc;
 } __attribute__ ((packed));
 
 /* params are: ccw_device, qdio_error, queue_number,
