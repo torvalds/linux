@@ -1356,7 +1356,7 @@ static void __init stp_reset(void)
 
 	stp_page = alloc_bootmem_pages(PAGE_SIZE);
 	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000);
-	if (rc == 1)
+	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
 		printk(KERN_WARNING "Running on non STP capable machine.\n");
