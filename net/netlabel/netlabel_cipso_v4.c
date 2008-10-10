@@ -43,12 +43,19 @@
 #include "netlabel_user.h"
 #include "netlabel_cipso_v4.h"
 #include "netlabel_mgmt.h"
+#include "netlabel_domainhash.h"
 
 /* Argument struct for cipso_v4_doi_walk() */
 struct netlbl_cipsov4_doiwalk_arg {
 	struct netlink_callback *nl_cb;
 	struct sk_buff *skb;
 	u32 seq;
+};
+
+/* Argument struct for netlbl_domhsh_walk() */
+struct netlbl_domhsh_walk_arg {
+	struct netlbl_audit *audit_info;
+	u32 doi;
 };
 
 /* NetLabel Generic NETLINK CIPSOv4 family */
@@ -79,32 +86,6 @@ static const struct nla_policy netlbl_cipsov4_genl_policy[NLBL_CIPSOV4_A_MAX + 1
 /*
  * Helper Functions
  */
-
-/**
- * netlbl_cipsov4_doi_free - Frees a CIPSO V4 DOI definition
- * @entry: the entry's RCU field
- *
- * Description:
- * This function is designed to be used as a callback to the call_rcu()
- * function so that the memory allocated to the DOI definition can be released
- * safely.
- *
- */
-void netlbl_cipsov4_doi_free(struct rcu_head *entry)
-{
-	struct cipso_v4_doi *ptr;
-
-	ptr = container_of(entry, struct cipso_v4_doi, rcu);
-	switch (ptr->type) {
-	case CIPSO_V4_MAP_STD:
-		kfree(ptr->map.std->lvl.cipso);
-		kfree(ptr->map.std->lvl.local);
-		kfree(ptr->map.std->cat.cipso);
-		kfree(ptr->map.std->cat.local);
-		break;
-	}
-	kfree(ptr);
-}
 
 /**
  * netlbl_cipsov4_add_common - Parse the common sections of a ADD message
@@ -342,7 +323,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 
 add_std_failure:
 	if (doi_def)
-		netlbl_cipsov4_doi_free(&doi_def->rcu);
+		cipso_v4_doi_free(doi_def);
 	return ret_val;
 }
 
@@ -379,7 +360,7 @@ static int netlbl_cipsov4_add_pass(struct genl_info *info)
 	return 0;
 
 add_pass_failure:
-	netlbl_cipsov4_doi_free(&doi_def->rcu);
+	cipso_v4_doi_free(doi_def);
 	return ret_val;
 }
 
@@ -668,6 +649,29 @@ static int netlbl_cipsov4_listall(struct sk_buff *skb,
 }
 
 /**
+ * netlbl_cipsov4_remove_cb - netlbl_cipsov4_remove() callback for REMOVE
+ * @entry: LSM domain mapping entry
+ * @arg: the netlbl_domhsh_walk_arg structure
+ *
+ * Description:
+ * This function is intended for use by netlbl_cipsov4_remove() as the callback
+ * for the netlbl_domhsh_walk() function; it removes LSM domain map entries
+ * which are associated with the CIPSO DOI specified in @arg.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+static int netlbl_cipsov4_remove_cb(struct netlbl_dom_map *entry, void *arg)
+{
+	struct netlbl_domhsh_walk_arg *cb_arg = arg;
+
+	if (entry->type == NETLBL_NLTYPE_CIPSOV4 &&
+	    entry->type_def.cipsov4->doi == cb_arg->doi)
+		return netlbl_domhsh_remove_entry(entry, cb_arg->audit_info);
+
+	return 0;
+}
+
+/**
  * netlbl_cipsov4_remove - Handle a REMOVE message
  * @skb: the NETLINK buffer
  * @info: the Generic NETLINK info block
@@ -681,8 +685,11 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 {
 	int ret_val = -EINVAL;
 	u32 doi = 0;
+	struct netlbl_domhsh_walk_arg cb_arg;
 	struct audit_buffer *audit_buf;
 	struct netlbl_audit audit_info;
+	u32 skip_bkt = 0;
+	u32 skip_chain = 0;
 
 	if (!info->attrs[NLBL_CIPSOV4_A_DOI])
 		return -EINVAL;
@@ -690,11 +697,15 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 	doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
-	ret_val = cipso_v4_doi_remove(doi,
-				      &audit_info,
-				      netlbl_cipsov4_doi_free);
-	if (ret_val == 0)
-		atomic_dec(&netlabel_mgmt_protocount);
+	cb_arg.doi = doi;
+	cb_arg.audit_info = &audit_info;
+	ret_val = netlbl_domhsh_walk(&skip_bkt, &skip_chain,
+				     netlbl_cipsov4_remove_cb, &cb_arg);
+	if (ret_val == 0 || ret_val == -ENOENT) {
+		ret_val = cipso_v4_doi_remove(doi, &audit_info);
+		if (ret_val == 0)
+			atomic_dec(&netlabel_mgmt_protocount);
+	}
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
 					      &audit_info);

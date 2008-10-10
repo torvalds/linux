@@ -343,9 +343,11 @@ static void smk_cipso_doi(void)
 		doip->tags[rc] = CIPSO_V4_TAG_INVALID;
 
 	rc = netlbl_cfg_cipsov4_add_map(doip, NULL, &audit_info);
-	if (rc != 0)
+	if (rc != 0) {
 		printk(KERN_WARNING "%s:%d add rc = %d\n",
 		       __func__, __LINE__, rc);
+		kfree(doip);
+	}
 }
 
 /**

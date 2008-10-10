@@ -122,18 +122,12 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 			goto add_failure;
 
 		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CV4DOI]);
-		/* We should be holding a rcu_read_lock() here while we hold
-		 * the result but since the entry will always be deleted when
-		 * the CIPSO DOI is deleted we aren't going to keep the
-		 * lock. */
-		rcu_read_lock();
 		entry->type_def.cipsov4 = cipso_v4_doi_getdef(tmp_val);
-		if (entry->type_def.cipsov4 == NULL) {
-			rcu_read_unlock();
+		if (entry->type_def.cipsov4 == NULL)
 			goto add_failure;
-		}
 		ret_val = netlbl_domhsh_add(entry, &audit_info);
-		rcu_read_unlock();
+		if (ret_val != 0)
+			cipso_v4_doi_putdef(entry->type_def.cipsov4);
 		break;
 	default:
 		goto add_failure;
@@ -294,18 +288,12 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 			goto adddef_failure;
 
 		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CV4DOI]);
-		/* We should be holding a rcu_read_lock() here while we hold
-		 * the result but since the entry will always be deleted when
-		 * the CIPSO DOI is deleted we aren't going to keep the
-		 * lock. */
-		rcu_read_lock();
 		entry->type_def.cipsov4 = cipso_v4_doi_getdef(tmp_val);
-		if (entry->type_def.cipsov4 == NULL) {
-			rcu_read_unlock();
+		if (entry->type_def.cipsov4 == NULL)
 			goto adddef_failure;
-		}
 		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
-		rcu_read_unlock();
+		if (ret_val != 0)
+			cipso_v4_doi_putdef(entry->type_def.cipsov4);
 		break;
 	default:
 		goto adddef_failure;

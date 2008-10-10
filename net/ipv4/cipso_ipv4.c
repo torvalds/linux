@@ -47,17 +47,7 @@
 #include <asm/bug.h>
 #include <asm/unaligned.h>
 
-struct cipso_v4_domhsh_entry {
-	char *domain;
-	u32 valid;
-	struct list_head list;
-	struct rcu_head rcu;
-};
-
 /* List of available DOI definitions */
-/* XXX - Updates should be minimal so having a single lock for the
- * cipso_v4_doi_list and the cipso_v4_doi_list->dom_list should be
- * okay. */
 /* XXX - This currently assumes a minimal number of different DOIs in use,
  * if in practice there are a lot of different DOIs this list should
  * probably be turned into a hash table or something similar so we
@@ -191,25 +181,6 @@ static void cipso_v4_bitmap_setbit(unsigned char *bitmap,
 		bitmap[byte_spot] |= bitmask;
 	else
 		bitmap[byte_spot] &= ~bitmask;
-}
-
-/**
- * cipso_v4_doi_domhsh_free - Frees a domain list entry
- * @entry: the entry's RCU field
- *
- * Description:
- * This function is designed to be used as a callback to the call_rcu()
- * function so that the memory allocated to a domain list entry can be released
- * safely.
- *
- */
-static void cipso_v4_doi_domhsh_free(struct rcu_head *entry)
-{
-	struct cipso_v4_domhsh_entry *ptr;
-
-	ptr = container_of(entry, struct cipso_v4_domhsh_entry, rcu);
-	kfree(ptr->domain);
-	kfree(ptr);
 }
 
 /**
@@ -457,7 +428,7 @@ static struct cipso_v4_doi *cipso_v4_doi_search(u32 doi)
 	struct cipso_v4_doi *iter;
 
 	list_for_each_entry_rcu(iter, &cipso_v4_doi_list, list)
-		if (iter->doi == doi && iter->valid)
+		if (iter->doi == doi && atomic_read(&iter->refcount))
 			return iter;
 	return NULL;
 }
@@ -501,9 +472,8 @@ int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 		}
 	}
 
-	doi_def->valid = 1;
+	atomic_set(&doi_def->refcount, 1);
 	INIT_RCU_HEAD(&doi_def->rcu);
-	INIT_LIST_HEAD(&doi_def->dom_list);
 
 	spin_lock(&cipso_v4_doi_list_lock);
 	if (cipso_v4_doi_search(doi_def->doi) != NULL)
@@ -519,59 +489,129 @@ doi_add_failure:
 }
 
 /**
- * cipso_v4_doi_remove - Remove an existing DOI from the CIPSO protocol engine
- * @doi: the DOI value
- * @audit_secid: the LSM secid to use in the audit message
- * @callback: the DOI cleanup/free callback
+ * cipso_v4_doi_free - Frees a DOI definition
+ * @entry: the entry's RCU field
  *
  * Description:
- * Removes a DOI definition from the CIPSO engine, @callback is called to
- * free any memory.  The NetLabel routines will be called to release their own
- * LSM domain mappings as well as our own domain list.  Returns zero on
- * success and negative values on failure.
+ * This function frees all of the memory associated with a DOI definition.
  *
  */
-int cipso_v4_doi_remove(u32 doi,
-			struct netlbl_audit *audit_info,
-			void (*callback) (struct rcu_head * head))
+void cipso_v4_doi_free(struct cipso_v4_doi *doi_def)
 {
-	struct cipso_v4_doi *doi_def;
-	struct cipso_v4_domhsh_entry *dom_iter;
+	if (doi_def == NULL)
+		return;
 
-	spin_lock(&cipso_v4_doi_list_lock);
-	doi_def = cipso_v4_doi_search(doi);
-	if (doi_def != NULL) {
-		doi_def->valid = 0;
-		list_del_rcu(&doi_def->list);
-		spin_unlock(&cipso_v4_doi_list_lock);
-		rcu_read_lock();
-		list_for_each_entry_rcu(dom_iter, &doi_def->dom_list, list)
-			if (dom_iter->valid)
-				netlbl_cfg_map_del(dom_iter->domain,
-						   audit_info);
-		rcu_read_unlock();
-		cipso_v4_cache_invalidate();
-		call_rcu(&doi_def->rcu, callback);
-		return 0;
+	switch (doi_def->type) {
+	case CIPSO_V4_MAP_STD:
+		kfree(doi_def->map.std->lvl.cipso);
+		kfree(doi_def->map.std->lvl.local);
+		kfree(doi_def->map.std->cat.cipso);
+		kfree(doi_def->map.std->cat.local);
+		break;
 	}
-	spin_unlock(&cipso_v4_doi_list_lock);
-
-	return -ENOENT;
+	kfree(doi_def);
 }
 
 /**
- * cipso_v4_doi_getdef - Returns a pointer to a valid DOI definition
+ * cipso_v4_doi_free_rcu - Frees a DOI definition via the RCU pointer
+ * @entry: the entry's RCU field
+ *
+ * Description:
+ * This function is designed to be used as a callback to the call_rcu()
+ * function so that the memory allocated to the DOI definition can be released
+ * safely.
+ *
+ */
+static void cipso_v4_doi_free_rcu(struct rcu_head *entry)
+{
+	struct cipso_v4_doi *doi_def;
+
+	doi_def = container_of(entry, struct cipso_v4_doi, rcu);
+	cipso_v4_doi_free(doi_def);
+}
+
+/**
+ * cipso_v4_doi_remove - Remove an existing DOI from the CIPSO protocol engine
+ * @doi: the DOI value
+ * @audit_secid: the LSM secid to use in the audit message
+ *
+ * Description:
+ * Removes a DOI definition from the CIPSO engine.  The NetLabel routines will
+ * be called to release their own LSM domain mappings as well as our own
+ * domain list.  Returns zero on success and negative values on failure.
+ *
+ */
+int cipso_v4_doi_remove(u32 doi, struct netlbl_audit *audit_info)
+{
+	struct cipso_v4_doi *doi_def;
+
+	spin_lock(&cipso_v4_doi_list_lock);
+	doi_def = cipso_v4_doi_search(doi);
+	if (doi_def == NULL) {
+		spin_unlock(&cipso_v4_doi_list_lock);
+		return -ENOENT;
+	}
+	if (!atomic_dec_and_test(&doi_def->refcount)) {
+		spin_unlock(&cipso_v4_doi_list_lock);
+		return -EBUSY;
+	}
+	list_del_rcu(&doi_def->list);
+	spin_unlock(&cipso_v4_doi_list_lock);
+
+	cipso_v4_cache_invalidate();
+	call_rcu(&doi_def->rcu, cipso_v4_doi_free_rcu);
+
+	return 0;
+}
+
+/**
+ * cipso_v4_doi_getdef - Returns a reference to a valid DOI definition
  * @doi: the DOI value
  *
  * Description:
  * Searches for a valid DOI definition and if one is found it is returned to
  * the caller.  Otherwise NULL is returned.  The caller must ensure that
- * rcu_read_lock() is held while accessing the returned definition.
+ * rcu_read_lock() is held while accessing the returned definition and the DOI
+ * definition reference count is decremented when the caller is done.
  *
  */
 struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi)
 {
-	return cipso_v4_doi_search(doi);
+	struct cipso_v4_doi *doi_def;
+
+	rcu_read_lock();
+	doi_def = cipso_v4_doi_search(doi);
+	if (doi_def == NULL)
+		goto doi_getdef_return;
+	if (!atomic_inc_not_zero(&doi_def->refcount))
+		doi_def = NULL;
+
+doi_getdef_return:
+	rcu_read_unlock();
+	return doi_def;
+}
+
+/**
+ * cipso_v4_doi_putdef - Releases a reference for the given DOI definition
+ * @doi_def: the DOI definition
+ *
+ * Description:
+ * Releases a DOI definition reference obtained from cipso_v4_doi_getdef().
+ *
+ */
+void cipso_v4_doi_putdef(struct cipso_v4_doi *doi_def)
+{
+	if (doi_def == NULL)
+		return;
+
+	if (!atomic_dec_and_test(&doi_def->refcount))
+		return;
+	spin_lock(&cipso_v4_doi_list_lock);
+	list_del_rcu(&doi_def->list);
+	spin_unlock(&cipso_v4_doi_list_lock);
+
+	cipso_v4_cache_invalidate();
+	call_rcu(&doi_def->rcu, cipso_v4_doi_free_rcu);
 }
 
 /**
@@ -597,7 +637,7 @@ int cipso_v4_doi_walk(u32 *skip_cnt,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(iter_doi, &cipso_v4_doi_list, list)
-		if (iter_doi->valid) {
+		if (atomic_read(&iter_doi->refcount) > 0) {
 			if (doi_cnt++ < *skip_cnt)
 				continue;
 			ret_val = callback(iter_doi, cb_arg);
@@ -611,85 +651,6 @@ doi_walk_return:
 	rcu_read_unlock();
 	*skip_cnt = doi_cnt;
 	return ret_val;
-}
-
-/**
- * cipso_v4_doi_domhsh_add - Adds a domain entry to a DOI definition
- * @doi_def: the DOI definition
- * @domain: the domain to add
- *
- * Description:
- * Adds the @domain to the DOI specified by @doi_def, this function
- * should only be called by external functions (i.e. NetLabel).  This function
- * does allocate memory.  Returns zero on success, negative values on failure.
- *
- */
-int cipso_v4_doi_domhsh_add(struct cipso_v4_doi *doi_def, const char *domain)
-{
-	struct cipso_v4_domhsh_entry *iter;
-	struct cipso_v4_domhsh_entry *new_dom;
-
-	new_dom = kzalloc(sizeof(*new_dom), GFP_KERNEL);
-	if (new_dom == NULL)
-		return -ENOMEM;
-	if (domain) {
-		new_dom->domain = kstrdup(domain, GFP_KERNEL);
-		if (new_dom->domain == NULL) {
-			kfree(new_dom);
-			return -ENOMEM;
-		}
-	}
-	new_dom->valid = 1;
-	INIT_RCU_HEAD(&new_dom->rcu);
-
-	spin_lock(&cipso_v4_doi_list_lock);
-	list_for_each_entry(iter, &doi_def->dom_list, list)
-		if (iter->valid &&
-		    ((domain != NULL && iter->domain != NULL &&
-		      strcmp(iter->domain, domain) == 0) ||
-		     (domain == NULL && iter->domain == NULL))) {
-			spin_unlock(&cipso_v4_doi_list_lock);
-			kfree(new_dom->domain);
-			kfree(new_dom);
-			return -EEXIST;
-		}
-	list_add_tail_rcu(&new_dom->list, &doi_def->dom_list);
-	spin_unlock(&cipso_v4_doi_list_lock);
-
-	return 0;
-}
-
-/**
- * cipso_v4_doi_domhsh_remove - Removes a domain entry from a DOI definition
- * @doi_def: the DOI definition
- * @domain: the domain to remove
- *
- * Description:
- * Removes the @domain from the DOI specified by @doi_def, this function
- * should only be called by external functions (i.e. NetLabel).   Returns zero
- * on success and negative values on error.
- *
- */
-int cipso_v4_doi_domhsh_remove(struct cipso_v4_doi *doi_def,
-			       const char *domain)
-{
-	struct cipso_v4_domhsh_entry *iter;
-
-	spin_lock(&cipso_v4_doi_list_lock);
-	list_for_each_entry(iter, &doi_def->dom_list, list)
-		if (iter->valid &&
-		    ((domain != NULL && iter->domain != NULL &&
-		      strcmp(iter->domain, domain) == 0) ||
-		     (domain == NULL && iter->domain == NULL))) {
-			iter->valid = 0;
-			list_del_rcu(&iter->list);
-			spin_unlock(&cipso_v4_doi_list_lock);
-			call_rcu(&iter->rcu, cipso_v4_doi_domhsh_free);
-			return 0;
-		}
-	spin_unlock(&cipso_v4_doi_list_lock);
-
-	return -ENOENT;
 }
 
 /*

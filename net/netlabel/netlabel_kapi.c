@@ -121,9 +121,14 @@ int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 			       struct netlbl_audit *audit_info)
 {
 	int ret_val = -ENOMEM;
+	u32 doi;
+	u32 doi_type;
 	struct netlbl_dom_map *entry;
 	const char *type_str;
 	struct audit_buffer *audit_buf;
+
+	doi = doi_def->doi;
+	doi_type = doi_def->type;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
@@ -133,32 +138,25 @@ int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 		if (entry->domain == NULL)
 			goto cfg_cipsov4_add_map_failure;
 	}
-	entry->type = NETLBL_NLTYPE_CIPSOV4;
-	entry->type_def.cipsov4 = doi_def;
 
-	/* Grab a RCU read lock here so nothing happens to the doi_def variable
-	 * between adding it to the CIPSOv4 protocol engine and adding a
-	 * domain mapping for it. */
-
-	rcu_read_lock();
 	ret_val = cipso_v4_doi_add(doi_def);
 	if (ret_val != 0)
-		goto cfg_cipsov4_add_map_failure_unlock;
+		goto cfg_cipsov4_add_map_failure_remove_doi;
+	entry->type = NETLBL_NLTYPE_CIPSOV4;
+	entry->type_def.cipsov4 = cipso_v4_doi_getdef(doi);
+	if (entry->type_def.cipsov4 == NULL) {
+		ret_val = -ENOENT;
+		goto cfg_cipsov4_add_map_failure_remove_doi;
+	}
 	ret_val = netlbl_domhsh_add(entry, audit_info);
 	if (ret_val != 0)
-		goto cfg_cipsov4_add_map_failure_remove_doi;
-	rcu_read_unlock();
+		goto cfg_cipsov4_add_map_failure_release_doi;
 
-	return 0;
-
-cfg_cipsov4_add_map_failure_remove_doi:
-	cipso_v4_doi_remove(doi_def->doi, audit_info, netlbl_cipsov4_doi_free);
-cfg_cipsov4_add_map_failure_unlock:
-	rcu_read_unlock();
+cfg_cipsov4_add_map_return:
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
 					      audit_info);
 	if (audit_buf != NULL) {
-		switch (doi_def->type) {
+		switch (doi_type) {
 		case CIPSO_V4_MAP_STD:
 			type_str = "std";
 			break;
@@ -170,14 +168,21 @@ cfg_cipsov4_add_map_failure_unlock:
 		}
 		audit_log_format(audit_buf,
 				 " cipso_doi=%u cipso_type=%s res=%u",
-				 doi_def->doi, type_str, ret_val == 0 ? 1 : 0);
+				 doi, type_str, ret_val == 0 ? 1 : 0);
 		audit_log_end(audit_buf);
 	}
+
+	return ret_val;
+
+cfg_cipsov4_add_map_failure_release_doi:
+	cipso_v4_doi_putdef(doi_def);
+cfg_cipsov4_add_map_failure_remove_doi:
+	cipso_v4_doi_remove(doi, audit_info);
 cfg_cipsov4_add_map_failure:
 	if (entry != NULL)
 		kfree(entry->domain);
 	kfree(entry);
-	return ret_val;
+	goto cfg_cipsov4_add_map_return;
 }
 
 /*

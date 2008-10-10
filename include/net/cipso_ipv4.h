@@ -40,6 +40,7 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <net/netlabel.h>
+#include <asm/atomic.h>
 
 /* known doi values */
 #define CIPSO_V4_DOI_UNKNOWN          0x00000000
@@ -79,10 +80,9 @@ struct cipso_v4_doi {
 	} map;
 	u8 tags[CIPSO_V4_TAG_MAXCNT];
 
-	u32 valid;
+	atomic_t refcount;
 	struct list_head list;
 	struct rcu_head rcu;
-	struct list_head dom_list;
 };
 
 /* Standard CIPSO mapping table */
@@ -128,25 +128,26 @@ extern int cipso_v4_rbm_strictvalid;
 
 #ifdef CONFIG_NETLABEL
 int cipso_v4_doi_add(struct cipso_v4_doi *doi_def);
-int cipso_v4_doi_remove(u32 doi,
-			struct netlbl_audit *audit_info,
-			void (*callback) (struct rcu_head * head));
+void cipso_v4_doi_free(struct cipso_v4_doi *doi_def);
+int cipso_v4_doi_remove(u32 doi, struct netlbl_audit *audit_info);
 struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi);
+void cipso_v4_doi_putdef(struct cipso_v4_doi *doi_def);
 int cipso_v4_doi_walk(u32 *skip_cnt,
 		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
 	             void *cb_arg);
-int cipso_v4_doi_domhsh_add(struct cipso_v4_doi *doi_def, const char *domain);
-int cipso_v4_doi_domhsh_remove(struct cipso_v4_doi *doi_def,
-			       const char *domain);
 #else
 static inline int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 {
 	return -ENOSYS;
 }
 
+static inline void cipso_v4_doi_free(struct cipso_v4_doi *doi_def)
+{
+	return;
+}
+
 static inline int cipso_v4_doi_remove(u32 doi,
-				    struct netlbl_audit *audit_info,
-				    void (*callback) (struct rcu_head * head))
+				      struct netlbl_audit *audit_info)
 {
 	return 0;
 }

@@ -217,20 +217,6 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	u32 bkt;
 	struct audit_buffer *audit_buf;
 
-	switch (entry->type) {
-	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = 0;
-		break;
-	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = cipso_v4_doi_domhsh_add(entry->type_def.cipsov4,
-						  entry->domain);
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (ret_val != 0)
-		return ret_val;
-
 	entry->valid = 1;
 	INIT_RCU_HEAD(&entry->rcu);
 
@@ -271,16 +257,6 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	}
 	rcu_read_unlock();
 
-	if (ret_val != 0) {
-		switch (entry->type) {
-		case NETLBL_NLTYPE_CIPSOV4:
-			if (cipso_v4_doi_domhsh_remove(entry->type_def.cipsov4,
-						       entry->domain) != 0)
-				BUG();
-			break;
-		}
-	}
-
 	return ret_val;
 }
 
@@ -302,6 +278,59 @@ int netlbl_domhsh_add_default(struct netlbl_dom_map *entry,
 }
 
 /**
+ * netlbl_domhsh_remove_entry - Removes a given entry from the domain table
+ * @entry: the entry to remove
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes an entry from the domain hash table and handles any updates to the
+ * lower level protocol handler (i.e. CIPSO).  Caller is responsible for
+ * ensuring that the RCU read lock is held.  Returns zero on success, negative
+ * on failure.
+ *
+ */
+int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
+			       struct netlbl_audit *audit_info)
+{
+	int ret_val = 0;
+	struct audit_buffer *audit_buf;
+
+	if (entry == NULL)
+		return -ENOENT;
+
+	spin_lock(&netlbl_domhsh_lock);
+	if (entry->valid) {
+		entry->valid = 0;
+		if (entry != rcu_dereference(netlbl_domhsh_def))
+			list_del_rcu(&entry->list);
+		else
+			rcu_assign_pointer(netlbl_domhsh_def, NULL);
+	} else
+		ret_val = -ENOENT;
+	spin_unlock(&netlbl_domhsh_lock);
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
+	if (audit_buf != NULL) {
+		audit_log_format(audit_buf,
+				 " nlbl_domain=%s res=%u",
+				 entry->domain ? entry->domain : "(default)",
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
+
+	if (ret_val == 0) {
+		switch (entry->type) {
+		case NETLBL_NLTYPE_CIPSOV4:
+			cipso_v4_doi_putdef(entry->type_def.cipsov4);
+			break;
+		}
+		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
+	}
+
+	return ret_val;
+}
+
+/**
  * netlbl_domhsh_remove - Removes an entry from the domain hash table
  * @domain: the domain to remove
  * @audit_info: NetLabel audit information
@@ -314,47 +343,17 @@ int netlbl_domhsh_add_default(struct netlbl_dom_map *entry,
  */
 int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOENT;
+	int ret_val;
 	struct netlbl_dom_map *entry;
-	struct audit_buffer *audit_buf;
 
 	rcu_read_lock();
 	if (domain)
 		entry = netlbl_domhsh_search(domain);
 	else
 		entry = netlbl_domhsh_search_def(domain);
-	if (entry == NULL)
-		goto remove_return;
-	switch (entry->type) {
-	case NETLBL_NLTYPE_CIPSOV4:
-		cipso_v4_doi_domhsh_remove(entry->type_def.cipsov4,
-					   entry->domain);
-		break;
-	}
-	spin_lock(&netlbl_domhsh_lock);
-	if (entry->valid) {
-		entry->valid = 0;
-		if (entry != rcu_dereference(netlbl_domhsh_def))
-			list_del_rcu(&entry->list);
-		else
-			rcu_assign_pointer(netlbl_domhsh_def, NULL);
-		ret_val = 0;
-	}
-	spin_unlock(&netlbl_domhsh_lock);
-
-	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
-	if (audit_buf != NULL) {
-		audit_log_format(audit_buf,
-				 " nlbl_domain=%s res=%u",
-				 entry->domain ? entry->domain : "(default)",
-				 ret_val == 0 ? 1 : 0);
-		audit_log_end(audit_buf);
-	}
-
-remove_return:
+	ret_val = netlbl_domhsh_remove_entry(entry, audit_info);
 	rcu_read_unlock();
-	if (ret_val == 0)
-		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
+
 	return ret_val;
 }
 
