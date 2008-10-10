@@ -962,7 +962,7 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 	char dbf_text[15];
 
 	QDIO_DBF_TEXT2(1, trace, "ick2");
-	sprintf(dbf_text, "%s", cdev->dev.bus_id);
+	sprintf(dbf_text, "%s", dev_name(&cdev->dev));
 	QDIO_DBF_TEXT2(1, trace, dbf_text);
 	QDIO_DBF_HEX2(0, trace, &intparm, sizeof(int));
 	QDIO_DBF_HEX2(0, trace, &dstat, sizeof(int));
