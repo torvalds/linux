@@ -760,8 +760,7 @@ static void idedisk_add_settings(ide_drive_t *drive)
 			&drive->bios_sect, NULL);
 	ide_add_setting(drive, "address", SETTING_RW, TYPE_BYTE, 0, 2, 1, 1,
 			&drive->addressing, set_lba_addressing);
-	ide_add_setting(drive, "multcount", SETTING_RW, TYPE_BYTE, 0,
-			drive->id[ATA_ID_MAX_MULTSECT] & 0xff, 1, 1,
+	ide_add_setting(drive, "multcount", SETTING_RW, TYPE_BYTE, 0, 16, 1, 1,
 			&drive->mult_count, set_multcount);
 	ide_add_setting(drive, "nowerr", SETTING_RW, TYPE_BYTE, 0, 1, 1, 1,
 			&drive->nowerr, set_nowerr);

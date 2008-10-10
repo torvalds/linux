@@ -305,7 +305,7 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-static int set_ksettings(ide_drive_t *drive, int arg)
+int set_ksettings(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
@@ -394,7 +394,7 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-static int set_unmaskirq(ide_drive_t *drive, int arg)
+int set_unmaskirq(ide_drive_t *drive, int arg)
 {
 	if (drive->no_unmask)
 		return -EPERM;

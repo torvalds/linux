@@ -688,7 +688,9 @@ typedef struct ide_driver_s ide_driver_t;
 extern struct mutex ide_setting_mtx;
 
 int set_io_32bit(ide_drive_t *, int);
+int set_ksettings(ide_drive_t *, int);
 int set_pio_mode(ide_drive_t *, int);
+int set_unmaskirq(ide_drive_t *, int);
 int set_using_dma(ide_drive_t *, int);
 
 /* ATAPI packet command flags */
