@@ -1370,7 +1370,7 @@ static void __init xen_reserve_top(void)
 	if (HYPERVISOR_xen_version(XENVER_platform_parameters, &pp) == 0)
 		top = pp.virt_start;
 
-	reserve_top_address(-top + 2 * PAGE_SIZE);
+	reserve_top_address(-top);
 #endif	/* CONFIG_X86_32 */
 }
 
