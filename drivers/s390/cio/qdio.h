@@ -16,6 +16,14 @@
 #define QDIO_BUSY_BIT_GIVE_UP		2000000	/* 2 seconds = eternity */
 #define QDIO_INPUT_THRESHOLD		500	/* 500 microseconds */
 
+/*
+ * if an asynchronous HiperSockets queue runs full, the 10 seconds timer wait
+ * till next initiative to give transmitted skbs back to the stack is too long.
+ * Therefore polling is started in case of multicast queue is filled more
+ * than 50 percent.
+ */
+#define QDIO_IQDIO_POLL_LVL		65	/* HS multicast queue */
+
 enum qdio_irq_states {
 	QDIO_IRQ_STATE_INACTIVE,
 	QDIO_IRQ_STATE_ESTABLISHED,

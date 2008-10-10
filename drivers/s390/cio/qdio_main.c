@@ -851,6 +851,12 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 	if (queue_type(q) == QDIO_IQDIO_QFMT && !multicast_outbound(q))
 		return;
 
+	if ((queue_type(q) == QDIO_IQDIO_QFMT) &&
+	    (atomic_read(&q->nr_buf_used)) > QDIO_IQDIO_POLL_LVL) {
+		tasklet_schedule(&q->tasklet);
+		return;
+	}
+
 	if (q->u.out.pci_out_enabled)
 		return;
 
