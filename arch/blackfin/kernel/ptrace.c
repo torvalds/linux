@@ -161,15 +161,15 @@ static inline int is_user_addr_valid(struct task_struct *child,
 	struct sram_list_struct *sraml;
 
 	for (vml = child->mm->context.vmlist; vml; vml = vml->next)
-		if (start >= vml->vma->vm_start && start + len <= vml->vma->vm_end)
+		if (start >= vml->vma->vm_start && start + len < vml->vma->vm_end)
 			return 0;
 
 	for (sraml = child->mm->context.sram_list; sraml; sraml = sraml->next)
 		if (start >= (unsigned long)sraml->addr
-		    && start + len <= (unsigned long)sraml->addr + sraml->length)
+		    && start + len < (unsigned long)sraml->addr + sraml->length)
 			return 0;
 
-	if (start >= FIXED_CODE_START && start + len <= FIXED_CODE_END)
+	if (start >= FIXED_CODE_START && start + len < FIXED_CODE_END)
 		return 0;
 
 	return -EIO;
@@ -216,34 +216,30 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
-#if L1_CODE_LENGTH != 0
-			if (addr >= L1_CODE_START
+			if (L1_CODE_LENGTH != 0 && addr >= L1_CODE_START
 			    && addr + sizeof(tmp) <= L1_CODE_START + L1_CODE_LENGTH) {
 				safe_dma_memcpy (&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
-			} else
-#endif
-#if L1_DATA_A_LENGTH != 0
-			if (addr >= L1_DATA_A_START
+
+			} else if (L1_DATA_A_LENGTH != 0 && addr >= L1_DATA_A_START
 			    && addr + sizeof(tmp) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
 				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
-			} else
-#endif
-#if L1_DATA_B_LENGTH != 0
-			if (addr >= L1_DATA_B_START
+
+			} else if (L1_DATA_B_LENGTH != 0 && addr >= L1_DATA_B_START
 			    && addr + sizeof(tmp) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
 				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
-			} else
-#endif
-			if (addr >= FIXED_CODE_START
+
+			} else if (addr >= FIXED_CODE_START
 			    && addr + sizeof(tmp) <= FIXED_CODE_END) {
 				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
+
 			} else
 				copied = access_process_vm(child, addr, &tmp,
 							   sizeof(tmp), 0);
+
 			pr_debug("ptrace: copied size %d [0x%08lx]\n", copied, tmp);
 			if (copied != sizeof(tmp))
 				break;
@@ -300,34 +296,30 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
-#if L1_CODE_LENGTH != 0
-			if (addr >= L1_CODE_START
+			if (L1_CODE_LENGTH != 0 && addr >= L1_CODE_START
 			    && addr + sizeof(data) <= L1_CODE_START + L1_CODE_LENGTH) {
 				safe_dma_memcpy ((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
-			} else
-#endif
-#if L1_DATA_A_LENGTH != 0
-			if (addr >= L1_DATA_A_START
+
+			} else if (L1_DATA_A_LENGTH != 0 && addr >= L1_DATA_A_START
 			    && addr + sizeof(data) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
 				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
-			} else
-#endif
-#if L1_DATA_B_LENGTH != 0
-			if (addr >= L1_DATA_B_START
+
+			} else if (L1_DATA_B_LENGTH != 0 && addr >= L1_DATA_B_START
 			    && addr + sizeof(data) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
 				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
-			} else
-#endif
-			if (addr >= FIXED_CODE_START
+
+			} else if (addr >= FIXED_CODE_START
 			    && addr + sizeof(data) <= FIXED_CODE_END) {
 				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
+
 			} else
 				copied = access_process_vm(child, addr, &data,
 							   sizeof(data), 1);
+
 			pr_debug("ptrace: copied size %d\n", copied);
 			if (copied != sizeof(data))
 				break;
