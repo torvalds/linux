@@ -978,20 +978,19 @@ int tpm_open(struct inode *inode, struct file *file)
 		goto err_out;
 	}
 
-	if (chip->num_opens) {
+	if (test_and_set_bit(0, &chip->is_open)) {
 		dev_dbg(chip->dev, "Another process owns this TPM\n");
 		rc = -EBUSY;
 		goto err_out;
 	}
 
-	chip->num_opens++;
 	get_device(chip->dev);
 
 	spin_unlock(&driver_lock);
 
 	chip->data_buffer = kmalloc(TPM_BUFSIZE * sizeof(u8), GFP_KERNEL);
 	if (chip->data_buffer == NULL) {
-		chip->num_opens--;
+		clear_bit(0, &chip->is_open);
 		put_device(chip->dev);
 		return -ENOMEM;
 	}
@@ -1016,7 +1015,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	del_singleshot_timer_sync(&chip->user_read_timer);
 	atomic_set(&chip->data_pending, 0);
-	chip->num_opens--;
+	clear_bit(0, &chip->is_open);
 	put_device(chip->dev);
 	kfree(chip->data_buffer);
 	spin_unlock(&driver_lock);
