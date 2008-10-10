@@ -1133,56 +1133,6 @@ void ocfs2_drop_inode(struct inode *inode)
 }
 
 /*
- * TODO: this should probably be merged into ocfs2_get_block
- *
- * However, you now need to pay attention to the cont_prepare_write()
- * stuff in ocfs2_get_block (that is, ocfs2_get_block pretty much
- * expects never to extend).
- */
-struct buffer_head *ocfs2_bread(struct inode *inode,
-				int block, int *err, int reada)
-{
-	struct buffer_head *bh = NULL;
-	int tmperr;
-	u64 p_blkno;
-	int readflags = OCFS2_BH_CACHED;
-
-	if (reada)
-		readflags |= OCFS2_BH_READAHEAD;
-
-	if (((u64)block << inode->i_sb->s_blocksize_bits) >=
-	    i_size_read(inode)) {
-		BUG_ON(!reada);
-		return NULL;
-	}
-
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-	tmperr = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL,
-					     NULL);
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
-	if (tmperr < 0) {
-		mlog_errno(tmperr);
-		goto fail;
-	}
-
-	tmperr = ocfs2_read_blocks(inode, p_blkno, 1, &bh, readflags);
-	if (tmperr < 0)
-		goto fail;
-
-	tmperr = 0;
-
-	*err = 0;
-	return bh;
-
-fail:
-	brelse(bh);
-	bh = NULL;
-
-	*err = -EIO;
-	return NULL;
-}
-
-/*
  * This is called from our getattr.
  */
 int ocfs2_inode_revalidate(struct dentry *dentry)

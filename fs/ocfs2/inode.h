@@ -117,8 +117,6 @@ extern struct kmem_cache *ocfs2_inode_cache;
 
 extern const struct address_space_operations ocfs2_aops;
 
-struct buffer_head *ocfs2_bread(struct inode *inode, int block,
-				int *err, int reada);
 void ocfs2_clear_inode(struct inode *inode);
 void ocfs2_delete_inode(struct inode *inode);
 void ocfs2_drop_inode(struct inode *inode);
