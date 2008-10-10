@@ -46,6 +46,8 @@ int ocfs2_read_blocks(struct ocfs2_super          *osb,
 		      struct buffer_head  *bhs[],
 		      int                  flags,
 		      struct inode        *inode);
+int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
+			   unsigned int nr, struct buffer_head *bhs[]);
 
 int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 				struct buffer_head *bh);

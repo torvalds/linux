@@ -460,8 +460,11 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 		}
 	}
 
-	status = ocfs2_read_block(osb, args->fi_blkno, &bh, 0,
-				  can_lock ? inode : NULL);
+	if (can_lock)
+		status = ocfs2_read_block(osb, args->fi_blkno, &bh, 0,
+					  inode);
+	else
+		status = ocfs2_read_blocks_sync(osb, args->fi_blkno, 1, &bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

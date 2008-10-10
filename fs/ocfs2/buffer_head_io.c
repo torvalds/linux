@@ -66,7 +66,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 	/* remove from dirty list before I/O. */
 	clear_buffer_dirty(bh);
 
-	get_bh(bh); /* for end_buffer_write_sync() */                   
+	get_bh(bh); /* for end_buffer_write_sync() */
 	bh->b_end_io = end_buffer_write_sync;
 	submit_bh(WRITE, bh);
 
@@ -86,6 +86,88 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 out:
 	mlog_exit(ret);
 	return ret;
+}
+
+int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
+			   unsigned int nr, struct buffer_head *bhs[])
+{
+	int status = 0;
+	unsigned int i;
+	struct buffer_head *bh;
+
+	if (!nr) {
+		mlog(ML_BH_IO, "No buffers will be read!\n");
+		goto bail;
+	}
+
+	for (i = 0 ; i < nr ; i++) {
+		if (bhs[i] == NULL) {
+			bhs[i] = sb_getblk(osb->sb, block++);
+			if (bhs[i] == NULL) {
+				status = -EIO;
+				mlog_errno(status);
+				goto bail;
+			}
+		}
+		bh = bhs[i];
+
+		if (buffer_jbd(bh)) {
+			mlog(ML_ERROR,
+			     "trying to sync read a jbd "
+			     "managed bh (blocknr = %llu), skipping\n",
+			     (unsigned long long)bh->b_blocknr);
+			continue;
+		}
+
+		if (buffer_dirty(bh)) {
+			/* This should probably be a BUG, or
+			 * at least return an error. */
+			mlog(ML_ERROR,
+			     "trying to sync read a dirty "
+			     "buffer! (blocknr = %llu), skipping\n",
+			     (unsigned long long)bh->b_blocknr);
+			continue;
+		}
+
+		lock_buffer(bh);
+		if (buffer_jbd(bh)) {
+			mlog(ML_ERROR,
+			     "block %llu had the JBD bit set "
+			     "while I was in lock_buffer!",
+			     (unsigned long long)bh->b_blocknr);
+			BUG();
+		}
+
+		clear_buffer_uptodate(bh);
+		get_bh(bh); /* for end_buffer_read_sync() */
+		bh->b_end_io = end_buffer_read_sync;
+		submit_bh(READ, bh);
+	}
+
+	for (i = nr; i > 0; i--) {
+		bh = bhs[i - 1];
+
+		if (buffer_jbd(bh)) {
+			mlog(ML_ERROR,
+			     "the journal got the buffer while it was "
+			     "locked for io! (blocknr = %llu)\n",
+			     (unsigned long long)bh->b_blocknr);
+			BUG();
+		}
+
+		wait_on_buffer(bh);
+		if (!buffer_uptodate(bh)) {
+			/* Status won't be cleared from here on out,
+			 * so we can safely record this and loop back
+			 * to cleanup the other buffers. */
+			status = -EIO;
+			put_bh(bh);
+			bhs[i - 1] = NULL;
+		}
+	}
+
+bail:
+	return status;
 }
 
 int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
