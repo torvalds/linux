@@ -457,9 +457,11 @@ static void dm_crypt_bio_destructor(struct bio *bio)
 /*
  * Generate a new unfragmented bio with the given size
  * This should never violate the device limitations
- * May return a smaller bio when running out of pages
+ * May return a smaller bio when running out of pages, indicated by
+ * *out_of_pages set to 1.
  */
-static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
+static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size,
+				      unsigned *out_of_pages)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *clone;
@@ -473,11 +475,14 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 		return NULL;
 
 	clone_init(io, clone);
+	*out_of_pages = 0;
 
 	for (i = 0; i < nr_iovecs; i++) {
 		page = mempool_alloc(cc->page_pool, gfp_mask);
-		if (!page)
+		if (!page) {
+			*out_of_pages = 1;
 			break;
+		}
 
 		/*
 		 * if additional pages cannot be allocated without waiting,
@@ -696,6 +701,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	struct crypt_config *cc = io->target->private;
 	struct bio *clone;
 	int crypt_finished;
+	unsigned out_of_pages = 0;
 	unsigned remaining = io->base_bio->bi_size;
 	int r;
 
@@ -710,7 +716,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	 * so repeat the whole process until all the data can be handled.
 	 */
 	while (remaining) {
-		clone = crypt_alloc_buffer(io, remaining);
+		clone = crypt_alloc_buffer(io, remaining, &out_of_pages);
 		if (unlikely(!clone)) {
 			io->error = -ENOMEM;
 			break;
@@ -737,11 +743,15 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 				break;
 		}
 
-		/* out of memory -> run queues */
-		if (unlikely(remaining)) {
-			wait_event(cc->writeq, !atomic_read(&io->ctx.pending));
+		/*
+		 * Out of memory -> run queues
+		 * But don't wait if split was due to the io size restriction
+		 */
+		if (unlikely(out_of_pages))
 			congestion_wait(WRITE, HZ/100);
-		}
+
+		if (unlikely(remaining))
+			wait_event(cc->writeq, !atomic_read(&io->ctx.pending));
 	}
 
 	crypt_dec_pending(io);
