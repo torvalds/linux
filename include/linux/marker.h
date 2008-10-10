@@ -13,7 +13,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/rcupdate.h>
 
 struct module;
 struct marker;
@@ -166,9 +165,6 @@ extern void *marker_get_private_data(const char *name, marker_probe_func *probe,
  * unregistration and the end of module exit to make sure there is no caller
  * executing a probe when it is freed.
  */
-static inline void marker_synchronize_unregister(void)
-{
-	synchronize_sched();
-}
+#define marker_synchronize_unregister() synchronize_sched()
 
 #endif
