@@ -1036,9 +1036,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcphdr *th = tcp_hdr(skb);
 	u32 seq = 0, ack_seq = 0;
-#ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key *key;
-#endif
+	struct tcp_md5sig_key *key = NULL;
 
 	if (th->rst)
 		return;
@@ -1049,8 +1047,6 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_TCP_MD5SIG
 	if (sk)
 		key = tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->daddr);
-	else
-		key = NULL;
 #endif
 
 	if (th->ack)
