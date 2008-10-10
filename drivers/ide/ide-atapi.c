@@ -162,6 +162,21 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 }
 EXPORT_SYMBOL_GPL(ide_queue_pc_tail);
 
+int ide_do_start_stop(ide_drive_t *drive, struct gendisk *disk, int start)
+{
+	struct ide_atapi_pc pc;
+
+	ide_init_pc(&pc);
+	pc.c[0] = START_STOP;
+	pc.c[4] = start;
+
+	if (drive->media == ide_tape)
+		pc.flags |= PC_FLAG_WAIT_FOR_DSC;
+
+	return ide_queue_pc_tail(drive, disk, &pc);
+}
+EXPORT_SYMBOL_GPL(ide_do_start_stop);
+
 int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
 {
 	struct ide_atapi_pc pc;

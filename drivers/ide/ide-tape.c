@@ -1125,15 +1125,6 @@ static void idetape_create_test_unit_ready_cmd(struct ide_atapi_pc *pc)
 	pc->c[0] = TEST_UNIT_READY;
 }
 
-static void idetape_create_load_unload_cmd(ide_drive_t *drive,
-		struct ide_atapi_pc *pc, int cmd)
-{
-	ide_init_pc(pc);
-	pc->c[0] = START_STOP;
-	pc->c[4] = cmd;
-	pc->flags |= PC_FLAG_WAIT_FOR_DSC;
-}
-
 static int idetape_wait_ready(ide_drive_t *drive, unsigned long timeout)
 {
 	idetape_tape_t *tape = drive->driver_data;
@@ -1153,9 +1144,7 @@ static int idetape_wait_ready(ide_drive_t *drive, unsigned long timeout)
 			/* no media */
 			if (load_attempted)
 				return -ENOMEDIUM;
-			idetape_create_load_unload_cmd(drive, &pc,
-							IDETAPE_LU_LOAD_MASK);
-			ide_queue_pc_tail(drive, disk, &pc);
+			ide_do_start_stop(drive, disk, IDETAPE_LU_LOAD_MASK);
 			load_attempted = 1;
 		/* not about to be ready */
 		} else if (!(tape->sense_key == 2 && tape->asc == 4 &&
@@ -1836,9 +1825,7 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 		return 0;
 	case MTLOAD:
 		ide_tape_discard_merge_buffer(drive, 0);
-		idetape_create_load_unload_cmd(drive, &pc,
-					       IDETAPE_LU_LOAD_MASK);
-		return ide_queue_pc_tail(drive, disk, &pc);
+		return ide_do_start_stop(drive, disk, IDETAPE_LU_LOAD_MASK);
 	case MTUNLOAD:
 	case MTOFFL:
 		/*
@@ -1850,9 +1837,7 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 				tape->door_locked = DOOR_UNLOCKED;
 		}
 		ide_tape_discard_merge_buffer(drive, 0);
-		idetape_create_load_unload_cmd(drive, &pc,
-					      !IDETAPE_LU_LOAD_MASK);
-		retval = ide_queue_pc_tail(drive, disk, &pc);
+		retval = ide_do_start_stop(drive, disk, !IDETAPE_LU_LOAD_MASK);
 		if (!retval)
 			clear_bit(IDE_AFLAG_MEDIUM_PRESENT, &drive->atapi_flags);
 		return retval;
@@ -1861,9 +1846,8 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 		return idetape_flush_tape_buffers(drive);
 	case MTRETEN:
 		ide_tape_discard_merge_buffer(drive, 0);
-		idetape_create_load_unload_cmd(drive, &pc,
+		return ide_do_start_stop(drive, disk,
 			IDETAPE_LU_RETENSION_MASK | IDETAPE_LU_LOAD_MASK);
-		return ide_queue_pc_tail(drive, disk, &pc);
 	case MTEOM:
 		idetape_create_space_cmd(&pc, 0, IDETAPE_SPACE_TO_EOD);
 		return ide_queue_pc_tail(drive, disk, &pc);

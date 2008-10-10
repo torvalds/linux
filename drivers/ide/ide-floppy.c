@@ -359,13 +359,6 @@ void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *pc, u8 page_code)
 	pc->req_xfer = length;
 }
 
-static void idefloppy_create_start_stop_cmd(struct ide_atapi_pc *pc, int start)
-{
-	ide_init_pc(pc);
-	pc->c[0] = GPCMD_START_STOP_UNIT;
-	pc->c[4] = start;
-}
-
 static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
 				    struct ide_atapi_pc *pc, struct request *rq,
 				    unsigned long sector)
@@ -800,10 +793,8 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		ide_init_pc(&pc);
 		pc.c[0] = GPCMD_TEST_UNIT_READY;
 
-		if (ide_queue_pc_tail(drive, disk, &pc)) {
-			idefloppy_create_start_stop_cmd(&pc, 1);
-			(void)ide_queue_pc_tail(drive, disk, &pc);
-		}
+		if (ide_queue_pc_tail(drive, disk, &pc))
+			ide_do_start_stop(drive, disk, 1);
 
 		if (ide_floppy_get_capacity(drive)
 		   && (filp->f_flags & O_NDELAY) == 0
@@ -880,10 +871,8 @@ static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 	ide_set_media_lock(drive, disk, prevent);
 
-	if (cmd == CDROMEJECT) {
-		idefloppy_create_start_stop_cmd(pc, 2);
-		(void)ide_queue_pc_tail(drive, disk, pc);
-	}
+	if (cmd == CDROMEJECT)
+		ide_do_start_stop(drive, disk, 2);
 
 	return 0;
 }
