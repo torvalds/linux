@@ -332,32 +332,61 @@ static void xics_eoi_lpar(unsigned int virq)
 	lpar_xirr_info_set((0xff << 24) | irq);
 }
 
-static inline unsigned int xics_remap_irq(unsigned int vec)
+static inline unsigned int xics_xirr_vector(unsigned int xirr)
 {
-	unsigned int irq;
+	/*
+	 * The top byte is the old cppr, to be restored on EOI.
+	 * The remaining 24 bits are the vector.
+	 */
+	return xirr & 0x00ffffff;
+}
 
-	vec &= 0x00ffffff;
-
-	if (vec == XICS_IRQ_SPURIOUS)
-		return NO_IRQ;
-	irq = irq_radix_revmap_lookup(xics_host, vec);
-	if (likely(irq != NO_IRQ))
-		return irq;
-
-	printk(KERN_ERR "Interrupt %u (real) is invalid,"
-	       " disabling it.\n", vec);
+static void xics_mask_unknown_vec(unsigned int vec)
+{
+	printk(KERN_ERR "Interrupt %u (real) is invalid, disabling it.\n", vec);
 	xics_mask_real_irq(vec);
-	return NO_IRQ;
 }
 
 static unsigned int xics_get_irq_direct(void)
 {
-	return xics_remap_irq(direct_xirr_info_get());
+	unsigned int xirr = direct_xirr_info_get();
+	unsigned int vec = xics_xirr_vector(xirr);
+	unsigned int irq;
+
+	if (vec == XICS_IRQ_SPURIOUS)
+		return NO_IRQ;
+
+	irq = irq_radix_revmap_lookup(xics_host, vec);
+	if (likely(irq != NO_IRQ))
+		return irq;
+
+	/* We don't have a linux mapping, so have rtas mask it. */
+	xics_mask_unknown_vec(vec);
+
+	/* We might learn about it later, so EOI it */
+	direct_xirr_info_set(xirr);
+	return NO_IRQ;
 }
 
 static unsigned int xics_get_irq_lpar(void)
 {
-	return xics_remap_irq(lpar_xirr_info_get());
+	unsigned int xirr = lpar_xirr_info_get();
+	unsigned int vec = xics_xirr_vector(xirr);
+	unsigned int irq;
+
+	if (vec == XICS_IRQ_SPURIOUS)
+		return NO_IRQ;
+
+	irq = irq_radix_revmap_lookup(xics_host, vec);
+	if (likely(irq != NO_IRQ))
+		return irq;
+
+	/* We don't have a linux mapping, so have RTAS mask it. */
+	xics_mask_unknown_vec(vec);
+
+	/* We might learn about it later, so EOI it */
+	lpar_xirr_info_set(xirr);
+	return NO_IRQ;
 }
 
 #ifdef CONFIG_SMP
