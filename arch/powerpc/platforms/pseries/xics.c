@@ -71,11 +71,6 @@ static unsigned int interrupt_server_size = 8;
 
 static struct irq_host *xics_host;
 
-/*
- * XICS only has a single IPI, so encode the messages per CPU
- */
-struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
-
 /* RTAS service tokens */
 static int ibm_get_xive;
 static int ibm_set_xive;
@@ -201,6 +196,15 @@ static void xics_update_irq_servers(void)
 }
 
 #ifdef CONFIG_SMP
+/*
+ * XICS only has a single IPI, so encode the messages per CPU
+ */
+struct xics_ipi_struct {
+        unsigned long value;
+	} ____cacheline_aligned;
+
+static struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
+
 static int get_irq_server(unsigned int virq, unsigned int strict_check)
 {
 	int server;
@@ -387,7 +391,6 @@ static unsigned int xics_get_irq_lpar(void)
 }
 
 #ifdef CONFIG_SMP
-
 static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	WARN_ON(cpu_is_offline(cpu));
@@ -419,6 +422,33 @@ static irqreturn_t xics_ipi_dispatch(int cpu)
 	return IRQ_HANDLED;
 }
 
+static inline void smp_xics_do_message(int cpu, int msg)
+{
+	set_bit(msg, &xics_ipi_message[cpu].value);
+	mb();
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		lpar_qirr_info(cpu, IPI_PRIORITY);
+	else
+		direct_qirr_info(cpu, IPI_PRIORITY);
+}
+
+void smp_xics_message_pass(int target, int msg)
+{
+	unsigned int i;
+
+	if (target < NR_CPUS) {
+		smp_xics_do_message(target, msg);
+	} else {
+		for_each_online_cpu(i) {
+			if (target == MSG_ALL_BUT_SELF
+			    && i == smp_processor_id())
+				continue;
+			smp_xics_do_message(i, msg);
+		}
+	}
+}
+
+
 static irqreturn_t xics_ipi_action_direct(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
@@ -436,15 +466,6 @@ static irqreturn_t xics_ipi_action_lpar(int irq, void *dev_id)
 
 	return xics_ipi_dispatch(cpu);
 }
-
-void xics_cause_IPI(int cpu)
-{
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		lpar_qirr_info(cpu, IPI_PRIORITY);
-	else
-		direct_qirr_info(cpu, IPI_PRIORITY);
-}
-
 #endif /* CONFIG_SMP */
 
 static void xics_set_cpu_priority(unsigned char cppr)
@@ -697,7 +718,7 @@ void __init xics_init_IRQ(void)
 
 
 #ifdef CONFIG_SMP
-void xics_request_IPIs(void)
+static void xics_request_ipi(void)
 {
 	unsigned int ipi;
 	int rc;
@@ -718,6 +739,14 @@ void xics_request_IPIs(void)
 				"IPI", NULL);
 	BUG_ON(rc);
 }
+
+int __init smp_xics_probe(void)
+{
+	xics_request_ipi();
+
+	return cpus_weight(cpu_possible_map);
+}
+
 #endif /* CONFIG_SMP */
 
 void xics_teardown_cpu(void)
