@@ -43,6 +43,7 @@ struct imxmci_host {
 	struct mmc_host		*mmc;
 	spinlock_t		lock;
 	struct resource		*res;
+	void __iomem		*base;
 	int			irq;
 	imx_dmach_t		dma;
 	volatile unsigned int	imask;
@@ -98,14 +99,22 @@ struct imxmci_host {
 static void imxmci_stop_clock(struct imxmci_host *host)
 {
 	int i = 0;
-	MMC_STR_STP_CLK &= ~STR_STP_CLK_START_CLK;
-	while (i < 0x1000) {
-		if (!(i & 0x7f))
-			MMC_STR_STP_CLK |= STR_STP_CLK_STOP_CLK;
+	u16 reg;
 
-		if (!(MMC_STATUS & STATUS_CARD_BUS_CLK_RUN)) {
+	reg = readw(host->base + MMC_REG_STR_STP_CLK);
+	writew(reg & ~STR_STP_CLK_START_CLK, host->base + MMC_REG_STR_STP_CLK);
+	while (i < 0x1000) {
+		if (!(i & 0x7f)) {
+			reg = readw(host->base + MMC_REG_STR_STP_CLK);
+			writew(reg | STR_STP_CLK_STOP_CLK,
+					host->base + MMC_REG_STR_STP_CLK);
+		}
+
+		reg = readw(host->base + MMC_REG_STATUS);
+		if (!(reg & STATUS_CARD_BUS_CLK_RUN)) {
 			/* Check twice before cut */
-			if (!(MMC_STATUS & STATUS_CARD_BUS_CLK_RUN))
+			reg = readw(host->base + MMC_REG_STATUS);
+			if (!(reg & STATUS_CARD_BUS_CLK_RUN))
 				return;
 		}
 
@@ -119,8 +128,10 @@ static int imxmci_start_clock(struct imxmci_host *host)
 	unsigned int trials = 0;
 	unsigned int delay_limit = 128;
 	unsigned long flags;
+	u16 reg;
 
-	MMC_STR_STP_CLK &= ~STR_STP_CLK_STOP_CLK;
+	reg = readw(host->base + MMC_REG_STR_STP_CLK);
+	writew(reg & ~STR_STP_CLK_STOP_CLK, host->base + MMC_REG_STR_STP_CLK);
 
 	clear_bit(IMXMCI_PEND_STARTED_b, &host->pending_events);
 
@@ -129,15 +140,18 @@ static int imxmci_start_clock(struct imxmci_host *host)
 	 * then 6 delay loops, but during card detection (low clockrate)
 	 * it takes up to 5000 delay loops and sometimes fails for the first time
 	 */
-	MMC_STR_STP_CLK |= STR_STP_CLK_START_CLK;
+	reg = readw(host->base + MMC_REG_STR_STP_CLK);
+	writew(reg | STR_STP_CLK_START_CLK, host->base + MMC_REG_STR_STP_CLK);
 
 	do {
 		unsigned int delay = delay_limit;
 
 		while (delay--) {
-			if (MMC_STATUS & STATUS_CARD_BUS_CLK_RUN)
+			reg = readw(host->base + MMC_REG_STATUS);
+			if (reg & STATUS_CARD_BUS_CLK_RUN)
 				/* Check twice before cut */
-				if (MMC_STATUS & STATUS_CARD_BUS_CLK_RUN)
+				reg = readw(host->base + MMC_REG_STATUS);
+				if (reg & STATUS_CARD_BUS_CLK_RUN)
 					return 0;
 
 			if (test_bit(IMXMCI_PEND_STARTED_b, &host->pending_events))
@@ -151,8 +165,11 @@ static int imxmci_start_clock(struct imxmci_host *host)
 		 * IRQ or schedule delays this function execution and the clocks has
 		 * been already stopped by other means (response processing, SDHC HW)
 		 */
-		if (!test_bit(IMXMCI_PEND_STARTED_b, &host->pending_events))
-			MMC_STR_STP_CLK |= STR_STP_CLK_START_CLK;
+		if (!test_bit(IMXMCI_PEND_STARTED_b, &host->pending_events)) {
+			reg = readw(host->base + MMC_REG_STR_STP_CLK);
+			writew(reg | STR_STP_CLK_START_CLK,
+					host->base + MMC_REG_STR_STP_CLK);
+		}
 		local_irq_restore(flags);
 
 	} while (++trials < 256);
@@ -162,23 +179,20 @@ static int imxmci_start_clock(struct imxmci_host *host)
 	return -1;
 }
 
-static void imxmci_softreset(void)
+static void imxmci_softreset(struct imxmci_host *host)
 {
-	/* reset sequence */
-	MMC_STR_STP_CLK = 0x8;
-	MMC_STR_STP_CLK = 0xD;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
-	MMC_STR_STP_CLK = 0x5;
+	int i;
 
-	MMC_RES_TO = 0xff;
-	MMC_BLK_LEN = 512;
-	MMC_NOB = 1;
+	/* reset sequence */
+	writew(0x08, host->base + MMC_REG_STR_STP_CLK);
+	writew(0x0D, host->base + MMC_REG_STR_STP_CLK);
+
+	for (i = 0; i < 8; i++)
+		writew(0x05, host->base + MMC_REG_STR_STP_CLK);
+
+	writew(0xff, host->base + MMC_REG_RES_TO);
+	writew(512, host->base + MMC_REG_BLK_LEN);
+	writew(1, host->base + MMC_REG_NOB);
 }
 
 static int imxmci_busy_wait_for_status(struct imxmci_host *host,
@@ -195,7 +209,7 @@ static int imxmci_busy_wait_for_status(struct imxmci_host *host,
 			return -1;
 		}
 		udelay(2);
-		*pstat |= MMC_STATUS;
+		*pstat |= readw(host->base + MMC_REG_STATUS);
 	}
 	if (!loops)
 		return 0;
@@ -220,8 +234,8 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 	host->data = data;
 	data->bytes_xfered = 0;
 
-	MMC_NOB = nob;
-	MMC_BLK_LEN = blksz;
+	writew(nob, host->base + MMC_REG_NOB);
+	writew(blksz, host->base + MMC_REG_BLK_LEN);
 
 	/*
 	 * DMA cannot be used for small block sizes, we have to use CPU driven transfers otherwise.
@@ -237,8 +251,8 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 			host->dma_dir = DMA_FROM_DEVICE;
 
 			/* Hack to enable read SCR */
-			MMC_NOB = 1;
-			MMC_BLK_LEN = 512;
+			writew(1, host->base + MMC_REG_NOB);
+			writew(512, host->base + MMC_REG_BLK_LEN);
 		} else {
 			host->dma_dir = DMA_TO_DEVICE;
 		}
@@ -259,7 +273,8 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 					     data->sg_len,  host->dma_dir);
 
 		imx_dma_setup_sg(host->dma, data->sg, data->sg_len, datasz,
-				 host->res->start + MMC_BUFFER_ACCESS_OFS, DMA_MODE_READ);
+				 host->res->start + MMC_REG_BUFFER_ACCESS,
+				 DMA_MODE_READ);
 
 		/*imx_dma_setup_mem2dev_ccr(host->dma, DMA_MODE_READ, IMX_DMA_WIDTH_16, CCR_REN);*/
 		CCR(host->dma) = CCR_DMOD_LINEAR | CCR_DSIZ_32 | CCR_SMOD_FIFO | CCR_SSIZ_16 | CCR_REN;
@@ -270,7 +285,8 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 					     data->sg_len,  host->dma_dir);
 
 		imx_dma_setup_sg(host->dma, data->sg, data->sg_len, datasz,
-				 host->res->start + MMC_BUFFER_ACCESS_OFS, DMA_MODE_WRITE);
+				 host->res->start + MMC_REG_BUFFER_ACCESS,
+				 DMA_MODE_WRITE);
 
 		/*imx_dma_setup_mem2dev_ccr(host->dma, DMA_MODE_WRITE, IMX_DMA_WIDTH_16, CCR_REN);*/
 		CCR(host->dma) = CCR_SMOD_LINEAR | CCR_SSIZ_32 | CCR_DMOD_FIFO | CCR_DSIZ_16 | CCR_REN;
@@ -341,10 +357,10 @@ static void imxmci_start_cmd(struct imxmci_host *host, struct mmc_command *cmd, 
 	if (host->actual_bus_width == MMC_BUS_WIDTH_4)
 		cmdat |= CMD_DAT_CONT_BUS_WIDTH_4;
 
-	MMC_CMD = cmd->opcode;
-	MMC_ARGH = cmd->arg >> 16;
-	MMC_ARGL = cmd->arg & 0xffff;
-	MMC_CMD_DAT_CONT = cmdat;
+	writew(cmd->opcode, host->base + MMC_REG_CMD);
+	writew(cmd->arg >> 16, host->base + MMC_REG_ARGH);
+	writew(cmd->arg & 0xffff, host->base + MMC_REG_ARGL);
+	writew(cmdat, host->base + MMC_REG_CMD_DAT_CONT);
 
 	atomic_set(&host->stuck_timeout, 0);
 	set_bit(IMXMCI_PEND_WAIT_RESP_b, &host->pending_events);
@@ -363,7 +379,7 @@ static void imxmci_start_cmd(struct imxmci_host *host, struct mmc_command *cmd, 
 
 	spin_lock_irqsave(&host->lock, flags);
 	host->imask = imask;
-	MMC_INT_MASK = host->imask;
+	writew(host->imask, host->base + MMC_REG_INT_MASK);
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	dev_dbg(mmc_dev(host->mmc), "CMD%02d (0x%02x) mask set to 0x%04x\n",
@@ -382,7 +398,7 @@ static void imxmci_finish_request(struct imxmci_host *host, struct mmc_request *
 				  IMXMCI_PEND_DMA_DATA_m | IMXMCI_PEND_CPU_DATA_m);
 
 	host->imask = IMXMCI_INT_MASK_DEFAULT;
-	MMC_INT_MASK = host->imask;
+	writew(host->imask, host->base + MMC_REG_INT_MASK);
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
@@ -448,14 +464,14 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
 			for (i = 0; i < 4; i++) {
-				u32 d = MMC_RES_FIFO & 0xffff;
-				u32 e = MMC_RES_FIFO & 0xffff;
-				cmd->resp[i] = d << 16 | e;
+				a = readw(host->base + MMC_REG_RES_FIFO);
+				b = readw(host->base + MMC_REG_RES_FIFO);
+				cmd->resp[i] = a << 16 | b;
 			}
 		} else {
-			a = MMC_RES_FIFO & 0xffff;
-			b = MMC_RES_FIFO & 0xffff;
-			c = MMC_RES_FIFO & 0xffff;
+			a = readw(host->base + MMC_REG_RES_FIFO);
+			b = readw(host->base + MMC_REG_RES_FIFO);
+			c = readw(host->base + MMC_REG_RES_FIFO);
 			cmd->resp[0] = a << 24 | b << 8 | c >> 8;
 		}
 	}
@@ -468,7 +484,7 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 
 			/* Wait for FIFO to be empty before starting DMA write */
 
-			stat = MMC_STATUS;
+			stat = readw(host->base + MMC_REG_STATUS);
 			if (imxmci_busy_wait_for_status(host, &stat,
 							STATUS_APPL_BUFF_FE,
 							40, "imxmci_cmd_done DMA WR") < 0) {
@@ -558,7 +574,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 
 			for (i = burst_len; i >= 2 ; i -= 2) {
 				u16 data;
-				data = MMC_BUFFER_ACCESS;
+				data = readw(host->base + MMC_REG_BUFFER_ACCESS);
 				udelay(10);	/* required for clocks < 8MHz*/
 				if (host->data_cnt+2 <= host->dma_size) {
 					*(host->data_ptr++) = data;
@@ -569,7 +585,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 				host->data_cnt += 2;
 			}
 
-			stat = MMC_STATUS;
+			stat = readw(host->base + MMC_REG_STATUS);
 
 			dev_dbg(mmc_dev(host->mmc), "imxmci_cpu_driven_data read %d burst %d STATUS = 0x%x\n",
 				host->data_cnt, burst_len, stat);
@@ -603,9 +619,9 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 			}
 
 			for (i = burst_len; i > 0 ; i -= 2)
-				MMC_BUFFER_ACCESS = *(host->data_ptr++);
+				writew(*(host->data_ptr++), host->base + MMC_REG_BUFFER_ACCESS);
 
-			stat = MMC_STATUS;
+			stat = readw(host->base + MMC_REG_STATUS);
 
 			dev_dbg(mmc_dev(host->mmc), "imxmci_cpu_driven_data write burst %d STATUS = 0x%x\n",
 				burst_len, stat);
@@ -620,7 +636,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 static void imxmci_dma_irq(int dma, void *devid)
 {
 	struct imxmci_host *host = devid;
-	uint32_t stat = MMC_STATUS;
+	u32 stat = readw(host->base + MMC_REG_STATUS);
 
 	atomic_set(&host->stuck_timeout, 0);
 	host->status_reg = stat;
@@ -631,10 +647,11 @@ static void imxmci_dma_irq(int dma, void *devid)
 static irqreturn_t imxmci_irq(int irq, void *devid)
 {
 	struct imxmci_host *host = devid;
-	uint32_t stat = MMC_STATUS;
+	u32 stat = readw(host->base + MMC_REG_STATUS);
 	int handled = 1;
 
-	MMC_INT_MASK = host->imask | INT_MASK_SDIO | INT_MASK_AUTO_CARD_DETECT;
+	writew(host->imask | INT_MASK_SDIO | INT_MASK_AUTO_CARD_DETECT,
+			host->base + MMC_REG_INT_MASK);
 
 	atomic_set(&host->stuck_timeout, 0);
 	host->status_reg = stat;
@@ -655,7 +672,7 @@ static void imxmci_tasklet_fnc(unsigned long data)
 	if (atomic_read(&host->stuck_timeout) > 4) {
 		char *what;
 		timeout = 1;
-		stat = MMC_STATUS;
+		stat = readw(host->base + MMC_REG_STATUS);
 		host->status_reg = stat;
 		if (test_bit(IMXMCI_PEND_WAIT_RESP_b, &host->pending_events))
 			if (test_bit(IMXMCI_PEND_DMA_DATA_b, &host->pending_events))
@@ -671,12 +688,20 @@ static void imxmci_tasklet_fnc(unsigned long data)
 			else
 				what = "???";
 
-		dev_err(mmc_dev(host->mmc), "%s TIMEOUT, hardware stucked STATUS = 0x%04x IMASK = 0x%04x\n",
-			what, stat, MMC_INT_MASK);
-		dev_err(mmc_dev(host->mmc), "CMD_DAT_CONT = 0x%04x, MMC_BLK_LEN = 0x%04x, MMC_NOB = 0x%04x, DMA_CCR = 0x%08x\n",
-			MMC_CMD_DAT_CONT, MMC_BLK_LEN, MMC_NOB, CCR(host->dma));
+		dev_err(mmc_dev(host->mmc),
+			"%s TIMEOUT, hardware stucked STATUS = 0x%04x IMASK = 0x%04x\n",
+			what, stat,
+			readw(host->base + MMC_REG_INT_MASK));
+		dev_err(mmc_dev(host->mmc),
+			"CMD_DAT_CONT = 0x%04x, MMC_BLK_LEN = 0x%04x, MMC_NOB = 0x%04x, DMA_CCR = 0x%08x\n",
+			readw(host->base + MMC_REG_CMD_DAT_CONT),
+			readw(host->base + MMC_REG_BLK_LEN),
+			readw(host->base + MMC_REG_NOB),
+			CCR(host->dma));
 		dev_err(mmc_dev(host->mmc), "CMD%d, prevCMD%d, bus %d-bit, dma_size = 0x%x\n",
-			host->cmd?host->cmd->opcode:0, host->prev_cmd_code, 1 << host->actual_bus_width, host->dma_size);
+			host->cmd ? host->cmd->opcode : 0,
+			host->prev_cmd_code,
+			1 << host->actual_bus_width, host->dma_size);
 	}
 
 	if (!host->present || timeout)
@@ -686,7 +711,7 @@ static void imxmci_tasklet_fnc(unsigned long data)
 	if (test_bit(IMXMCI_PEND_IRQ_b, &host->pending_events) || timeout) {
 		clear_bit(IMXMCI_PEND_IRQ_b, &host->pending_events);
 
-		stat = MMC_STATUS;
+		stat = readw(host->base + MMC_REG_STATUS);
 		/*
 		 * This is not required in theory, but there is chance to miss some flag
 		 * which clears automatically by mask write, FreeScale original code keeps
@@ -711,7 +736,7 @@ static void imxmci_tasklet_fnc(unsigned long data)
 		}
 
 		if (test_bit(IMXMCI_PEND_CPU_DATA_b, &host->pending_events)) {
-			stat |= MMC_STATUS;
+			stat |= readw(host->base + MMC_REG_STATUS);
 			if (imxmci_cpu_driven_data(host, &stat)) {
 				if (test_and_clear_bit(IMXMCI_PEND_WAIT_RESP_b, &host->pending_events))
 					imxmci_cmd_done(host, stat);
@@ -725,7 +750,7 @@ static void imxmci_tasklet_fnc(unsigned long data)
 	if (test_bit(IMXMCI_PEND_DMA_END_b, &host->pending_events) &&
 	    !test_bit(IMXMCI_PEND_WAIT_RESP_b, &host->pending_events)) {
 
-		stat = MMC_STATUS;
+		stat = readw(host->base + MMC_REG_STATUS);
 		/* Same as above */
 		stat |= host->status_reg;
 
@@ -813,6 +838,7 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (ios->clock) {
 		unsigned int clk;
+		u16 reg;
 
 		/* The prescaler is 5 for PERCLK2 equal to 96MHz
 		 * then 96MHz / 5 = 19.2 MHz
@@ -844,17 +870,22 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				break;
 		}
 
-		MMC_STR_STP_CLK |= STR_STP_CLK_ENABLE; /* enable controller */
+		/* enable controller */
+		reg = readw(host->base + MMC_REG_STR_STP_CLK);
+		writew(reg | STR_STP_CLK_ENABLE,
+				host->base + MMC_REG_STR_STP_CLK);
 
 		imxmci_stop_clock(host);
-		MMC_CLK_RATE = (prescaler << 3) | clk;
+		writew((prescaler << 3) | clk, host->base + MMC_REG_CLK_RATE);
 		/*
 		 * Under my understanding, clock should not be started there, because it would
 		 * initiate SDHC sequencer and send last or random command into card
 		 */
 		/* imxmci_start_clock(host); */
 
-		dev_dbg(mmc_dev(host->mmc), "MMC_CLK_RATE: 0x%08x\n", MMC_CLK_RATE);
+		dev_dbg(mmc_dev(host->mmc),
+			"MMC_CLK_RATE: 0x%08x\n",
+			readw(host->base + MMC_REG_CLK_RATE));
 	} else {
 		imxmci_stop_clock(host);
 	}
@@ -913,6 +944,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	struct imxmci_host *host = NULL;
 	struct resource *r;
 	int ret = 0, irq;
+	u16 rev_no;
 
 	printk(KERN_INFO "i.MX mmc driver\n");
 
@@ -921,7 +953,8 @@ static int imxmci_probe(struct platform_device *pdev)
 	if (!r || irq < 0)
 		return -ENXIO;
 
-	if (!request_mem_region(r->start, 0x100, pdev->name))
+	r = request_mem_region(r->start, resource_size(r), pdev->name);
+	if (!r)
 		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct imxmci_host), &pdev->dev);
@@ -945,6 +978,12 @@ static int imxmci_probe(struct platform_device *pdev)
 	mmc->max_blk_count = 65535;
 
 	host = mmc_priv(mmc);
+	host->base = ioremap(r->start, resource_size(r));
+	if (!host->base) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	host->mmc = mmc;
 	host->dma_allocated = 0;
 	host->pdata = pdev->dev.platform_data;
@@ -972,18 +1011,20 @@ static int imxmci_probe(struct platform_device *pdev)
 	imx_gpio_mode(PB12_PF_SD_CLK);
 	imx_gpio_mode(PB13_PF_SD_CMD);
 
-	imxmci_softreset();
+	imxmci_softreset(host);
 
-	if (MMC_REV_NO != 0x390) {
+	rev_no = readw(host->base + MMC_REG_REV_NO);
+	if (rev_no != 0x390) {
 		dev_err(mmc_dev(host->mmc), "wrong rev.no. 0x%08x. aborting.\n",
-			MMC_REV_NO);
+			readw(host->base + MMC_REG_REV_NO));
 		goto out;
 	}
 
-	MMC_READ_TO = 0x2db4; /* recommended in data sheet */
+	/* recommended in data sheet */
+	writew(0x2db4, host->base + MMC_REG_READ_TO);
 
 	host->imask = IMXMCI_INT_MASK_DEFAULT;
-	MMC_INT_MASK = host->imask;
+	writew(host->imask, host->base + MMC_REG_INT_MASK);
 
 	host->dma = imx_dma_request_by_prio(DRIVER_NAME, DMA_PRIO_LOW);
 	if(host->dma < 0) {
@@ -1029,10 +1070,12 @@ out:
 			clk_disable(host->clk);
 			clk_put(host->clk);
 		}
+		if (host->base)
+			iounmap(host->base);
 	}
 	if (mmc)
 		mmc_free_host(mmc);
-	release_mem_region(r->start, 0x100);
+	release_mem_region(r->start, resource_size(r));
 	return ret;
 }
 
@@ -1051,6 +1094,7 @@ static int imxmci_remove(struct platform_device *pdev)
 		mmc_remove_host(mmc);
 
 		free_irq(host->irq, host);
+		iounmap(host->base);
 		if (host->dma_allocated) {
 			imx_dma_free(host->dma);
 			host->dma_allocated = 0;
@@ -1061,7 +1105,7 @@ static int imxmci_remove(struct platform_device *pdev)
 		clk_disable(host->clk);
 		clk_put(host->clk);
 
-		release_mem_region(host->res->start, 0x100);
+		release_mem_region(host->res->start, resource_size(host->res));
 
 		mmc_free_host(mmc);
 	}
