@@ -51,6 +51,7 @@ struct rfkill_gsw_state {
 
 static struct rfkill_gsw_state rfkill_global_states[RFKILL_TYPE_MAX];
 static unsigned long rfkill_states_lockdflt[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
+static bool rfkill_epo_lock_active;
 
 static BLOCKING_NOTIFIER_HEAD(rfkill_notifier_list);
 
@@ -264,11 +265,14 @@ static void __rfkill_switch_all(const enum rfkill_type type,
  *
  * Acquires rfkill_global_mutex and calls __rfkill_switch_all(@type, @state).
  * Please refer to __rfkill_switch_all() for details.
+ *
+ * Does nothing if the EPO lock is active.
  */
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 {
 	mutex_lock(&rfkill_global_mutex);
-	__rfkill_switch_all(type, state);
+	if (!rfkill_epo_lock_active)
+		__rfkill_switch_all(type, state);
 	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL(rfkill_switch_all);
@@ -289,6 +293,7 @@ void rfkill_epo(void)
 
 	mutex_lock(&rfkill_global_mutex);
 
+	rfkill_epo_lock_active = true;
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		mutex_lock(&rfkill->mutex);
 		rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
@@ -317,11 +322,41 @@ void rfkill_restore_states(void)
 
 	mutex_lock(&rfkill_global_mutex);
 
+	rfkill_epo_lock_active = false;
 	for (i = 0; i < RFKILL_TYPE_MAX; i++)
 		__rfkill_switch_all(i, rfkill_global_states[i].default_state);
 	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL_GPL(rfkill_restore_states);
+
+/**
+ * rfkill_remove_epo_lock - unlock state changes
+ *
+ * Used by rfkill-input manually unlock state changes, when
+ * the EPO switch is deactivated.
+ */
+void rfkill_remove_epo_lock(void)
+{
+	mutex_lock(&rfkill_global_mutex);
+	rfkill_epo_lock_active = false;
+	mutex_unlock(&rfkill_global_mutex);
+}
+EXPORT_SYMBOL_GPL(rfkill_remove_epo_lock);
+
+/**
+ * rfkill_is_epo_lock_active - returns true EPO is active
+ *
+ * Returns 0 (false) if there is NOT an active EPO contidion,
+ * and 1 (true) if there is an active EPO contition, which
+ * locks all radios in one of the BLOCKED states.
+ *
+ * Can be called in atomic context.
+ */
+bool rfkill_is_epo_lock_active(void)
+{
+	return rfkill_epo_lock_active;
+}
+EXPORT_SYMBOL_GPL(rfkill_is_epo_lock_active);
 
 /**
  * rfkill_get_global_state - returns global state for a type
@@ -447,7 +482,12 @@ static ssize_t rfkill_state_store(struct device *dev,
 	error = mutex_lock_killable(&rfkill->mutex);
 	if (error)
 		return error;
-	error = rfkill_toggle_radio(rfkill, state, 0);
+
+	if (!rfkill_epo_lock_active)
+		error = rfkill_toggle_radio(rfkill, state, 0);
+	else
+		error = -EPERM;
+
 	mutex_unlock(&rfkill->mutex);
 
 	return error ? error : count;
@@ -491,7 +531,7 @@ static ssize_t rfkill_claim_store(struct device *dev,
 		return error;
 
 	if (rfkill->user_claim != claim) {
-		if (!claim) {
+		if (!claim && !rfkill_epo_lock_active) {
 			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill,
 					rfkill_global_states[rfkill->type].current_state,
