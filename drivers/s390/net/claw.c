@@ -2880,7 +2880,8 @@ claw_new_device(struct ccwgroup_device *cgdev)
 	int ret;
 	struct ccw_dev_id dev_id;
 
-	printk(KERN_INFO "claw: add for %s\n",cgdev->cdev[READ]->dev.bus_id);
+	printk(KERN_INFO "claw: add for %s\n",
+	       dev_name(&cgdev->cdev[READ]->dev));
 	CLAW_DBF_TEXT(2, setup, "new_dev");
 	privptr = cgdev->dev.driver_data;
 	cgdev->cdev[READ]->dev.driver_data = privptr;
@@ -2904,14 +2905,16 @@ claw_new_device(struct ccwgroup_device *cgdev)
 	if (ret != 0) {
 		printk(KERN_WARNING
 			"claw: ccw_device_set_online %s READ failed "
-			"with ret = %d\n",cgdev->cdev[READ]->dev.bus_id,ret);
+		       "with ret = %d\n", dev_name(&cgdev->cdev[READ]->dev),
+		       ret);
 		goto out;
 	}
 	ret = ccw_device_set_online(cgdev->cdev[WRITE]);
 	if (ret != 0) {
 		printk(KERN_WARNING
 			"claw: ccw_device_set_online %s WRITE failed "
-			"with ret = %d\n",cgdev->cdev[WRITE]->dev.bus_id, ret);
+		       "with ret = %d\n", dev_name(&cgdev->cdev[WRITE]->dev)
+		       ret);
 		goto out;
 	}
 	dev = alloc_netdev(0,"claw%d",claw_init_netdevice);
@@ -2987,7 +2990,7 @@ claw_shutdown_device(struct ccwgroup_device *cgdev)
 	struct net_device *ndev;
 	int	ret;
 
-	CLAW_DBF_TEXT_(2, setup, "%s", cgdev->dev.bus_id);
+	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cgdev->dev));
 	priv = cgdev->dev.driver_data;
 	if (!priv)
 		return -ENODEV;
@@ -3017,7 +3020,7 @@ claw_remove_device(struct ccwgroup_device *cgdev)
 	struct claw_privbk *priv;
 
 	BUG_ON(!cgdev);
-	CLAW_DBF_TEXT_(2, setup, "%s", cgdev->dev.bus_id);
+	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cgdev->dev));
 	priv = cgdev->dev.driver_data;
 	BUG_ON(!priv);
 	printk(KERN_INFO "claw: %s() called %s will be removed.\n",

@@ -1526,7 +1526,7 @@ void ccw_device_set_notoper(struct ccw_device *cdev)
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 
 	CIO_TRACE_EVENT(2, "notoper");
-	CIO_TRACE_EVENT(2, sch->dev.bus_id);
+	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 	ccw_device_set_timeout(cdev, 0);
 	cio_disable_subchannel(sch);
 	cdev->private->state = DEV_STATE_NOT_OPER;

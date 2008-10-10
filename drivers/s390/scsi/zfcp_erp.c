@@ -1376,7 +1376,7 @@ static int zfcp_erp_thread(void *data)
 	struct zfcp_erp_action *act;
 	unsigned long flags;
 
-	daemonize("zfcperp%s", adapter->ccw_device->dev.bus_id);
+	daemonize("zfcperp%s", dev_name(&adapter->ccw_device->dev));
 	/* Block all signals */
 	siginitsetinv(&current->blocked, 0);
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
