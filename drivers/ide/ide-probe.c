@@ -89,20 +89,19 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
 
-	drive->mult_count = 0;
 	if (id->max_multsect) {
 #ifdef CONFIG_IDEDISK_MULTI_MODE
-		id->multsect = ((id->max_multsect/2) > 1) ? id->max_multsect : 0;
-		id->multsect_valid = id->multsect ? 1 : 0;
-		drive->mult_req = id->multsect_valid ? id->max_multsect : 0;
-		drive->special.b.set_multmode = drive->mult_req ? 1 : 0;
-#else	/* original, pre IDE-NFG, per request of AC */
-		drive->mult_req = 0;
-		if (drive->mult_req > id->max_multsect)
-			drive->mult_req = id->max_multsect;
-		if (drive->mult_req || ((id->multsect_valid & 1) && id->multsect))
-			drive->special.b.set_multmode = 1;
+		if ((id->max_multsect / 2) > 1) {
+			id->multsect = id->max_multsect;
+			id->multsect_valid = 1;
+		} else {
+			id->multsect = 0;
+			id->multsect_valid = 0;
+		}
+		drive->mult_req = id->multsect;
 #endif
+		if ((id->multsect_valid & 1) && id->multsect)
+			drive->special.b.set_multmode = 1;
 	}
 }
 
