@@ -563,12 +563,12 @@ static struct pgpath *parse_path(struct arg_set *as, struct path_selector *ps,
 	/* we need at least a path arg */
 	if (as->argc < 1) {
 		ti->error = "no device given";
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	p = alloc_pgpath();
 	if (!p)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	r = dm_get_device(ti, shift(as), ti->begin, ti->len,
 			  dm_table_get_mode(ti->table), &p->path.dev);
@@ -596,7 +596,7 @@ static struct pgpath *parse_path(struct arg_set *as, struct path_selector *ps,
 
  bad:
 	free_pgpath(p);
-	return NULL;
+	return ERR_PTR(r);
 }
 
 static struct priority_group *parse_priority_group(struct arg_set *as,
@@ -614,14 +614,14 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 
 	if (as->argc < 2) {
 		as->argc = 0;
-		ti->error = "not enough priority group aruments";
-		return NULL;
+		ti->error = "not enough priority group arguments";
+		return ERR_PTR(-EINVAL);
 	}
 
 	pg = alloc_priority_group();
 	if (!pg) {
 		ti->error = "couldn't allocate priority group";
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	pg->m = m;
 
@@ -654,8 +654,10 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 		path_args.argv = as->argv;
 
 		pgpath = parse_path(&path_args, &pg->ps, ti);
-		if (!pgpath)
+		if (IS_ERR(pgpath)) {
+			r = PTR_ERR(pgpath);
 			goto bad;
+		}
 
 		pgpath->pg = pg;
 		list_add_tail(&pgpath->list, &pg->pgpaths);
@@ -666,7 +668,7 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 
  bad:
 	free_priority_group(pg, ti);
-	return NULL;
+	return ERR_PTR(r);
 }
 
 static int parse_hw_handler(struct arg_set *as, struct multipath *m)
@@ -785,8 +787,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 		struct priority_group *pg;
 
 		pg = parse_priority_group(&as, m);
-		if (!pg) {
-			r = -EINVAL;
+		if (IS_ERR(pg)) {
+			r = PTR_ERR(pg);
 			goto bad;
 		}
 
