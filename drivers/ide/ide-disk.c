@@ -599,6 +599,8 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	rq->special = task;
 }
 
+ide_devset_get(multcount, mult_count);
+
 /*
  * This is tightly woven into the driver->do_special can not touch.
  * DON'T do it again until a total personality rewrite is committed.
@@ -624,6 +626,8 @@ static int set_multcount(ide_drive_t *drive, int arg)
 
 	return (drive->mult_count == arg) ? 0 : -EIO;
 }
+
+ide_devset_get(nowerr, nowerr);
 
 static int set_nowerr(ide_drive_t *drive, int arg)
 {
@@ -673,7 +677,9 @@ static void update_ordered(ide_drive_t *drive)
 	blk_queue_ordered(drive->queue, ordered, prep_fn);
 }
 
-static int write_cache(ide_drive_t *drive, int arg)
+ide_devset_get(wcache, wcache);
+
+static int set_wcache(ide_drive_t *drive, int arg)
 {
 	ide_task_t args;
 	int err = 1;
@@ -710,6 +716,8 @@ static int do_idedisk_flushcache(ide_drive_t *drive)
 	return ide_no_data_taskfile(drive, &args);
 }
 
+ide_devset_get(acoustic, acoustic);
+
 static int set_acoustic(ide_drive_t *drive, int arg)
 {
 	ide_task_t args;
@@ -726,6 +734,8 @@ static int set_acoustic(ide_drive_t *drive, int arg)
 	drive->acoustic = arg;
 	return 0;
 }
+
+ide_devset_get(lba_addressing, addressing);
 
 /*
  * drive->addressing:
@@ -750,33 +760,33 @@ static int set_lba_addressing(ide_drive_t *drive, int arg)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-static void idedisk_add_settings(ide_drive_t *drive)
-{
-	ide_add_setting(drive, "bios_cyl", SETTING_RW, TYPE_INT, 0, 65535, 1, 1,
-			&drive->bios_cyl, NULL);
-	ide_add_setting(drive, "bios_head", SETTING_RW, TYPE_BYTE, 0, 255, 1, 1,
-			&drive->bios_head, NULL);
-	ide_add_setting(drive, "bios_sect", SETTING_RW, TYPE_BYTE, 0, 63, 1, 1,
-			&drive->bios_sect, NULL);
-	ide_add_setting(drive, "address", SETTING_RW, TYPE_BYTE, 0, 2, 1, 1,
-			&drive->addressing, set_lba_addressing);
-	ide_add_setting(drive, "multcount", SETTING_RW, TYPE_BYTE, 0, 16, 1, 1,
-			&drive->mult_count, set_multcount);
-	ide_add_setting(drive, "nowerr", SETTING_RW, TYPE_BYTE, 0, 1, 1, 1,
-			&drive->nowerr, set_nowerr);
-	ide_add_setting(drive, "lun", SETTING_RW, TYPE_INT, 0, 7, 1, 1,
-			&drive->lun, NULL);
-	ide_add_setting(drive, "wcache", SETTING_RW, TYPE_BYTE, 0, 1, 1, 1,
-			&drive->wcache, write_cache);
-	ide_add_setting(drive, "acoustic", SETTING_RW, TYPE_BYTE, 0, 254, 1, 1,
-			&drive->acoustic, set_acoustic);
-	ide_add_setting(drive, "failures", SETTING_RW, TYPE_INT, 0, 65535, 1, 1,
-			&drive->failures, NULL);
-	ide_add_setting(drive, "max_failures", SETTING_RW, TYPE_INT, 0, 65535,
-			1, 1, &drive->max_failures, NULL);
-}
-#else
-static inline void idedisk_add_settings(ide_drive_t *drive) { ; }
+ide_devset_rw_nolock(acoustic,	0, 254, acoustic);
+ide_devset_rw_nolock(address,	0,   2, lba_addressing);
+ide_devset_rw_nolock(multcount,	0,  16, multcount);
+ide_devset_rw_nolock(nowerr,	0,   1, nowerr);
+ide_devset_rw_nolock(wcache,	0,   1, wcache);
+
+ide_devset_rw(bios_cyl,		0, 65535, bios_cyl);
+ide_devset_rw(bios_head,	0,   255, bios_head);
+ide_devset_rw(bios_sect,	0,    63, bios_sect);
+ide_devset_rw(failures,		0, 65535, failures);
+ide_devset_rw(lun,		0,     7, lun);
+ide_devset_rw(max_failures,	0, 65535, max_failures);
+
+static const struct ide_devset *idedisk_settings[] = {
+	&ide_devset_acoustic,
+	&ide_devset_address,
+	&ide_devset_bios_cyl,
+	&ide_devset_bios_head,
+	&ide_devset_bios_sect,
+	&ide_devset_failures,
+	&ide_devset_lun,
+	&ide_devset_max_failures,
+	&ide_devset_multcount,
+	&ide_devset_nowerr,
+	&ide_devset_wcache,
+	NULL
+};
 #endif
 
 static void idedisk_setup(ide_drive_t *drive)
@@ -788,7 +798,6 @@ static void idedisk_setup(ide_drive_t *drive)
 	unsigned long long capacity;
 
 	ide_proc_register_driver(drive, idkp->driver);
-	idedisk_add_settings(drive);
 
 	if (drive->id_read == 0)
 		return;
@@ -880,7 +889,7 @@ static void idedisk_setup(ide_drive_t *drive)
 	if ((id[ATA_ID_CSFO] & 1) || ata_id_wcache_enabled(id))
 		drive->wcache = 1;
 
-	write_cache(drive, 1);
+	set_wcache(drive, 1);
 }
 
 static void ide_cacheflush_p(ide_drive_t *drive)
@@ -976,6 +985,7 @@ static ide_driver_t idedisk_driver = {
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idedisk_proc,
+	.settings		= idedisk_settings,
 #endif
 };
 
@@ -1056,19 +1066,18 @@ static int idedisk_ioctl(struct inode *inode, struct file *file,
 	struct block_device *bdev = inode->i_bdev;
 	struct ide_disk_obj *idkp = ide_disk_g(bdev->bd_disk);
 	ide_drive_t *drive = idkp->drive;
-	int err, (*setfunc)(ide_drive_t *, int);
-	u8 *val;
+	int err, (*getfunc)(ide_drive_t *), (*setfunc)(ide_drive_t *, int);
 
 	switch (cmd) {
-	case HDIO_GET_ADDRESS:	 val = &drive->addressing;	goto read_val;
-	case HDIO_GET_MULTCOUNT: val = &drive->mult_count;	goto read_val;
-	case HDIO_GET_NOWERR:	 val = &drive->nowerr;		goto read_val;
-	case HDIO_GET_WCACHE:	 val = &drive->wcache;		goto read_val;
-	case HDIO_GET_ACOUSTIC:	 val = &drive->acoustic;	goto read_val;
+	case HDIO_GET_ADDRESS:	 getfunc = get_lba_addressing;	goto read_val;
+	case HDIO_GET_MULTCOUNT: getfunc = get_multcount;	goto read_val;
+	case HDIO_GET_NOWERR:	 getfunc = get_nowerr;		goto read_val;
+	case HDIO_GET_WCACHE:	 getfunc = get_wcache;		goto read_val;
+	case HDIO_GET_ACOUSTIC:	 getfunc = get_acoustic;	goto read_val;
 	case HDIO_SET_ADDRESS:	 setfunc = set_lba_addressing;	goto set_val;
 	case HDIO_SET_MULTCOUNT: setfunc = set_multcount;	goto set_val;
 	case HDIO_SET_NOWERR:	 setfunc = set_nowerr;		goto set_val;
-	case HDIO_SET_WCACHE:	 setfunc = write_cache;		goto set_val;
+	case HDIO_SET_WCACHE:	 setfunc = set_wcache;		goto set_val;
 	case HDIO_SET_ACOUSTIC:	 setfunc = set_acoustic;	goto set_val;
 	}
 
@@ -1077,7 +1086,7 @@ static int idedisk_ioctl(struct inode *inode, struct file *file,
 read_val:
 	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);
-	err = *val;
+	err = getfunc(drive);
 	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 	return err >= 0 ? put_user(err, (long __user *)arg) : err;

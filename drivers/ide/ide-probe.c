@@ -1332,8 +1332,6 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		if (!drive->present)
 			continue;
 
-		ide_add_generic_settings(drive);
-
 		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
 		dev->parent = &hwif->gendev;
 		dev->bus = &ide_bus_type;

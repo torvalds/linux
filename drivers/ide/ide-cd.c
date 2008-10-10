@@ -1809,13 +1809,12 @@ static ide_proc_entry_t idecd_proc[] = {
 	{ NULL, 0, NULL, NULL }
 };
 
-static void ide_cdrom_add_settings(ide_drive_t *drive)
-{
-	ide_add_setting(drive, "dsc_overlap", SETTING_RW, TYPE_BYTE, 0, 1, 1, 1,
-			&drive->dsc_overlap, NULL);
-}
-#else
-static inline void ide_cdrom_add_settings(ide_drive_t *drive) { ; }
+ide_devset_rw(dsc_overlap, 0, 1, dsc_overlap);
+
+static const struct ide_devset *idecd_settings[] = {
+	&ide_devset_dsc_overlap,
+	NULL
+};
 #endif
 
 static const struct cd_list_entry ide_cd_quirks_list[] = {
@@ -1926,7 +1925,6 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	}
 
 	ide_proc_register_driver(drive, cd->driver);
-	ide_cdrom_add_settings(drive);
 	return 0;
 }
 
@@ -1977,6 +1975,7 @@ static ide_driver_t ide_cdrom_driver = {
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idecd_proc,
+	.settings		= idecd_settings,
 #endif
 };
 

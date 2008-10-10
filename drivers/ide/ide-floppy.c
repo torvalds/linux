@@ -1007,21 +1007,32 @@ static int idefloppy_identify_device(ide_drive_t *drive, u16 *id)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-static void idefloppy_add_settings(ide_drive_t *drive)
+ide_devset_rw(bios_cyl,  0, 1023, bios_cyl);
+ide_devset_rw(bios_head, 0,  255, bios_head);
+ide_devset_rw(bios_sect, 0,   63, bios_sect);
+
+static int get_ticks(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	ide_add_setting(drive, "bios_cyl", SETTING_RW, TYPE_INT, 0, 1023, 1, 1,
-			&drive->bios_cyl, NULL);
-	ide_add_setting(drive, "bios_head", SETTING_RW, TYPE_BYTE, 0, 255, 1, 1,
-			&drive->bios_head, NULL);
-	ide_add_setting(drive, "bios_sect", SETTING_RW,	TYPE_BYTE, 0,  63, 1, 1,
-			&drive->bios_sect, NULL);
-	ide_add_setting(drive, "ticks",	   SETTING_RW, TYPE_BYTE, 0, 255, 1, 1,
-			&floppy->ticks,	 NULL);
+	return floppy->ticks;
 }
-#else
-static inline void idefloppy_add_settings(ide_drive_t *drive) { ; }
+
+static int set_ticks(ide_drive_t *drive, int arg)
+{
+	idefloppy_floppy_t *floppy = drive->driver_data;
+	floppy->ticks = arg;
+	return 0;
+}
+
+IDE_DEVSET(ticks, S_RW, 0, 255, get_ticks, set_ticks);
+
+static const struct ide_devset *idefloppy_settings[] = {
+	&ide_devset_bios_cyl,
+	&ide_devset_bios_head,
+	&ide_devset_bios_sect,
+	&ide_devset_ticks,
+	NULL
+};
 #endif
 
 static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
@@ -1063,7 +1074,6 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	(void) ide_floppy_get_capacity(drive);
 
 	ide_proc_register_driver(drive, floppy->driver);
-	idefloppy_add_settings(drive);
 }
 
 static void ide_floppy_remove(ide_drive_t *drive)
@@ -1126,6 +1136,7 @@ static ide_driver_t idefloppy_driver = {
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idefloppy_proc,
+	.settings		= idefloppy_settings,
 #endif
 };
 

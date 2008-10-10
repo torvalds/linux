@@ -287,6 +287,8 @@ int ide_spin_wait_hwgroup (ide_drive_t *drive)
 
 EXPORT_SYMBOL(ide_spin_wait_hwgroup);
 
+ide_devset_get(io_32bit, io_32bit);
+
 int set_io_32bit(ide_drive_t *drive, int arg)
 {
 	if (drive->no_io_32bit)
@@ -305,6 +307,8 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 	return 0;
 }
 
+ide_devset_get(ksettings, keep_settings);
+
 int set_ksettings(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
@@ -317,6 +321,8 @@ int set_ksettings(ide_drive_t *drive, int arg)
 
 	return 0;
 }
+
+ide_devset_get(using_dma, using_dma);
 
 int set_using_dma(ide_drive_t *drive, int arg)
 {
@@ -393,6 +399,8 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 
 	return 0;
 }
+
+ide_devset_get(unmaskirq, unmask);
 
 int set_unmaskirq(ide_drive_t *drive, int arg)
 {
@@ -555,14 +563,13 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 {
 	unsigned long flags;
 	ide_driver_t *drv;
-	int err = 0, (*setfunc)(ide_drive_t *, int);
-	u8 *val;
+	int err = 0, (*getfunc)(ide_drive_t *), (*setfunc)(ide_drive_t *, int);
 
 	switch (cmd) {
-	case HDIO_GET_32BIT:	    val = &drive->io_32bit;	 goto read_val;
-	case HDIO_GET_KEEPSETTINGS: val = &drive->keep_settings; goto read_val;
-	case HDIO_GET_UNMASKINTR:   val = &drive->unmask;	 goto read_val;
-	case HDIO_GET_DMA:	    val = &drive->using_dma;	 goto read_val;
+	case HDIO_GET_32BIT:	    getfunc = get_io_32bit;	 goto read_val;
+	case HDIO_GET_KEEPSETTINGS: getfunc = get_ksettings;	 goto read_val;
+	case HDIO_GET_UNMASKINTR:   getfunc = get_unmaskirq;	 goto read_val;
+	case HDIO_GET_DMA:	    getfunc = get_using_dma;	 goto read_val;
 	case HDIO_SET_32BIT:	    setfunc = set_io_32bit;	 goto set_val;
 	case HDIO_SET_KEEPSETTINGS: setfunc = set_ksettings;	 goto set_val;
 	case HDIO_SET_PIO_MODE:	    setfunc = set_pio_mode;	 goto set_val;
@@ -638,7 +645,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 read_val:
 	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);
-	err = *val;
+	err = getfunc(drive);
 	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 	return err >= 0 ? put_user(err, (long __user *)arg) : err;

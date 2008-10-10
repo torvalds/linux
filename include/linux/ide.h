@@ -304,8 +304,8 @@ typedef enum {
 	ide_started,	/* a drive operation was started, handler was set */
 } ide_startstop_t;
 
+struct ide_devset;
 struct ide_driver_s;
-struct ide_settings_s;
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 struct ide_acpi_drive_link;
@@ -384,7 +384,7 @@ struct ide_drive_s {
 	u16			*id;	/* identification info */
 #ifdef CONFIG_IDE_PROC_FS
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
-	struct ide_settings_s *settings;/* /proc/ide/ drive settings */
+	const struct ide_devset **settings; /* /proc/ide/ drive settings */
 #endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
 
@@ -396,16 +396,16 @@ struct ide_drive_s {
 	special_t	special;	/* special action flags */
 	select_t	select;		/* basic drive/head select reg value */
 
-	u8	keep_settings;		/* restore settings after drive reset */
-	u8	using_dma;		/* disk is using dma for read/write */
 	u8	retry_pio;		/* retrying dma capable host in pio */
 	u8	state;			/* retry state */
 	u8	waiting_for_dma;	/* dma currently in progress */
-	u8	unmask;			/* okay to unmask other irqs */
-	u8	noflush;		/* don't attempt flushes */
-	u8	dsc_overlap;		/* DSC overlap */
-	u8	nice1;			/* give potential excess bandwidth */
 
+	unsigned keep_settings	: 1;	/* restore settings after drive reset */
+	unsigned using_dma	: 1;	/* disk is using dma for read/write */
+	unsigned unmask		: 1;	/* okay to unmask other irqs */
+	unsigned noflush	: 1;	/* don't attempt flushes */
+	unsigned dsc_overlap	: 1;	/* DSC overlap */
+	unsigned nice1		: 1;	/* give potential excess bandwidth */
 	unsigned present	: 1;	/* drive is physically present */
 	unsigned dead		: 1;	/* device ejected hint */
 	unsigned id_read	: 1;	/* 1=id read from disk 0 = synthetic */
@@ -423,14 +423,15 @@ struct ide_drive_s {
 	unsigned sleeping	: 1;	/* 1=sleeping & sleep field valid */
 	unsigned post_reset	: 1;
 	unsigned udma33_warned	: 1;
+	unsigned addressing	: 2;	/* 0=28-bit, 1=48-bit, 2=48-bit doing 28-bit */
+	unsigned wcache		: 1;	/* status of write cache */
+	unsigned nowerr		: 1;	/* used for ignoring ATA_DF */
 
-	u8	addressing;	/* 0=28-bit, 1=48-bit, 2=48-bit doing 28-bit */
         u8	quirk_list;	/* considered quirky, set for a specific host */
         u8	init_speed;	/* transfer rate set at boot */
         u8	current_speed;	/* current transfer rate set */
 	u8	desired_speed;	/* desired transfer rate set */
         u8	dn;		/* now wide spread use */
-        u8	wcache;		/* status of write cache */
 	u8	acoustic;	/* acoustic management */
 	u8	media;		/* disk, cdrom, tape, floppy, ... */
 	u8	ready_stat;	/* min status value for drive ready */
@@ -439,7 +440,6 @@ struct ide_drive_s {
 	u8	tune_req;	/* requested drive tuning setting */
 	u8	io_32bit;	/* 0=16-bit, 1=32-bit, 2/3=32bit+sync */
 	u8	bad_wstat;	/* used for ignoring ATA_DF */
-	u8	nowerr;		/* used for ignoring ATA_DF */
 	u8	head;		/* "real" number of heads */
 	u8	sect;		/* "real" sectors per track */
 	u8	bios_head;	/* BIOS/fdisk/LILO number of heads */
@@ -687,11 +687,28 @@ typedef struct ide_driver_s ide_driver_t;
 
 extern struct mutex ide_setting_mtx;
 
+int get_io_32bit(ide_drive_t *);
 int set_io_32bit(ide_drive_t *, int);
+int get_ksettings(ide_drive_t *);
 int set_ksettings(ide_drive_t *, int);
 int set_pio_mode(ide_drive_t *, int);
+int get_unmaskirq(ide_drive_t *);
 int set_unmaskirq(ide_drive_t *, int);
+int get_using_dma(ide_drive_t *);
 int set_using_dma(ide_drive_t *, int);
+
+#define ide_devset_get(name, field) \
+int get_##name(ide_drive_t *drive) \
+{ \
+	return drive->field; \
+}
+
+#define ide_devset_set(name, field) \
+int set_##name(ide_drive_t *drive, int arg) \
+{ \
+	drive->field = arg; \
+	return 0; \
+}
 
 /* ATAPI packet command flags */
 enum {
@@ -757,30 +774,53 @@ struct ide_atapi_pc {
  * configurable drive settings
  */
 
-#define TYPE_INT	0
-#define TYPE_BYTE	1
-#define TYPE_SHORT	2
+#define S_READ		(1 << 0)
+#define S_WRITE		(1 << 1)
+#define S_RW		(S_READ | S_WRITE)
+#define S_NOLOCK	(1 << 2)
 
-#define SETTING_READ	(1 << 0)
-#define SETTING_WRITE	(1 << 1)
-#define SETTING_RW	(SETTING_READ | SETTING_WRITE)
+struct ide_devset {
+	const char	*name;
+	unsigned int	flags;
+	int		min, max;
+	int		(*get)(ide_drive_t *);
+	int		(*set)(ide_drive_t *, int);
+	int		(*mulf)(ide_drive_t *);
+	int		(*divf)(ide_drive_t *);
+};
 
-typedef int (ide_procset_t)(ide_drive_t *, int);
-typedef struct ide_settings_s {
-	char			*name;
-	int			rw;
-	int			data_type;
-	int			min;
-	int			max;
-	int			mul_factor;
-	int			div_factor;
-	void			*data;
-	ide_procset_t		*set;
-	int			auto_remove;
-	struct ide_settings_s	*next;
-} ide_settings_t;
+#define __DEVSET(_name, _flags, _min, _max, _get, _set, _mulf, _divf) { \
+	.name	= __stringify(_name), \
+	.flags	= _flags, \
+	.min	= _min, \
+	.max	= _max, \
+	.get	= _get, \
+	.set	= _set, \
+	.mulf	= _mulf, \
+	.divf	= _divf, \
+}
 
-int ide_add_setting(ide_drive_t *, const char *, int, int, int, int, int, int, void *, ide_procset_t *set);
+#define __IDE_DEVSET(_name, _flags, _min, _max, _get, _set, _mulf, _divf) \
+static const struct ide_devset ide_devset_##_name = \
+	__DEVSET(_name, _flags, _min, _max, _get, _set, _mulf, _divf)
+
+#define IDE_DEVSET(_name, _flags, _min, _max, _get, _set) \
+__IDE_DEVSET(_name, _flags, _min, _max, _get, _set, NULL, NULL)
+
+#define ide_devset_rw_nolock(_name, _min, _max, _func) \
+IDE_DEVSET(_name, S_RW | S_NOLOCK, _min, _max, get_##_func, set_##_func)
+
+#define ide_devset_w_nolock(_name, _min, _max, _func) \
+IDE_DEVSET(_name, S_WRITE | S_NOLOCK, _min, _max, NULL, set_##_func)
+
+#define ide_devset_rw(_name, _min, _max, _field) \
+static ide_devset_get(_name, _field); \
+static ide_devset_set(_name, _field); \
+IDE_DEVSET(_name, S_RW, _min, _max, get_##_name, set_##_name)
+
+#define ide_devset_r(_name, _min, _max, _field) \
+ide_devset_get(_name, _field) \
+IDE_DEVSET(_name, S_READ, _min, _max, get_##_name, NULL)
 
 /*
  * /proc/ide interface
@@ -800,8 +840,6 @@ void ide_proc_unregister_device(ide_drive_t *);
 void ide_proc_unregister_port(ide_hwif_t *);
 void ide_proc_register_driver(ide_drive_t *, ide_driver_t *);
 void ide_proc_unregister_driver(ide_drive_t *, ide_driver_t *);
-
-void ide_add_generic_settings(ide_drive_t *);
 
 read_proc_t proc_ide_read_capacity;
 read_proc_t proc_ide_read_geometry;
@@ -830,7 +868,6 @@ static inline void ide_proc_unregister_device(ide_drive_t *drive) { ; }
 static inline void ide_proc_unregister_port(ide_hwif_t *hwif) { ; }
 static inline void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
 static inline void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
-static inline void ide_add_generic_settings(ide_drive_t *drive) { ; }
 #define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
@@ -887,6 +924,7 @@ struct ide_driver_s {
 	void		(*shutdown)(ide_drive_t *);
 #ifdef CONFIG_IDE_PROC_FS
 	ide_proc_entry_t	*proc;
+	const struct ide_devset	**settings;
 #endif
 };
 

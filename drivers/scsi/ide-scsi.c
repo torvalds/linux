@@ -429,21 +429,41 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-static void idescsi_add_settings(ide_drive_t *drive)
-{
-	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-
-/*
- *			drive	setting name	read/write	data type	min	max	mul_factor	div_factor	data pointer		set function
- */
-	ide_add_setting(drive,	"bios_cyl",	SETTING_RW,	TYPE_INT,	0,	1023,	1,		1,		&drive->bios_cyl,	NULL);
-	ide_add_setting(drive,	"bios_head",	SETTING_RW,	TYPE_BYTE,	0,	255,	1,		1,		&drive->bios_head,	NULL);
-	ide_add_setting(drive,	"bios_sect",	SETTING_RW,	TYPE_BYTE,	0,	63,	1,		1,		&drive->bios_sect,	NULL);
-	ide_add_setting(drive,	"transform",	SETTING_RW,	TYPE_INT,	0,	3,	1,		1,		&scsi->transform,	NULL);
-	ide_add_setting(drive,	"log",		SETTING_RW,	TYPE_INT,	0,	1,	1,		1,		&scsi->log,		NULL);
+#define ide_scsi_devset_get(name, field) \
+static int get_##name(ide_drive_t *drive) \
+{ \
+	idescsi_scsi_t *scsi = drive_to_idescsi(drive); \
+	return scsi->field; \
 }
-#else
-static inline void idescsi_add_settings(ide_drive_t *drive) { ; }
+
+#define ide_scsi_devset_set(name, field) \
+static int set_##name(ide_drive_t *drive, int arg) \
+{ \
+	idescsi_scsi_t *scsi = drive_to_idescsi(drive); \
+	scsi->field = arg; \
+	return 0; \
+}
+
+#define ide_scsi_devset_rw(_name, _min, _max, _field) \
+ide_scsi_devset_get(_name, _field); \
+ide_scsi_devset_set(_name, _field); \
+IDE_DEVSET(_name, S_RW, _min, _max, get_##_name, set_##_name)
+
+ide_devset_rw(bios_cyl,		0, 1023, bios_cyl);
+ide_devset_rw(bios_head,	0,  255, bios_head);
+ide_devset_rw(bios_sect,	0,   63, bios_sect);
+
+ide_scsi_devset_rw(transform,	0,    3, transform);
+ide_scsi_devset_rw(log,		0,    1, log);
+
+static const struct ide_devset *idescsi_settings[] = {
+	&ide_devset_bios_cyl,
+	&ide_devset_bios_head,
+	&ide_devset_bios_sect,
+	&ide_devset_log,
+	&ide_devset_transform,
+	NULL
+};
 #endif
 
 /*
@@ -461,7 +481,6 @@ static void idescsi_setup (ide_drive_t *drive, idescsi_scsi_t *scsi)
 	drive->pc_callback = ide_scsi_callback;
 
 	ide_proc_register_driver(drive, scsi->driver);
-	idescsi_add_settings(drive);
 }
 
 static void ide_scsi_remove(ide_drive_t *drive)
@@ -509,6 +528,7 @@ static ide_driver_t idescsi_driver = {
 	.error                  = idescsi_atapi_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idescsi_proc,
+	.settings		= idescsi_settings,
 #endif
 };
 

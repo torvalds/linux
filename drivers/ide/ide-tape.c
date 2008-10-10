@@ -2410,28 +2410,56 @@ static void idetape_get_mode_sense_results(ide_drive_t *drive)
 }
 
 #ifdef CONFIG_IDE_PROC_FS
-static void idetape_add_settings(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	ide_add_setting(drive, "buffer", SETTING_READ, TYPE_SHORT, 0, 0xffff,
-			1, 2, (u16 *)&tape->caps[16], NULL);
-	ide_add_setting(drive, "speed", SETTING_READ, TYPE_SHORT, 0, 0xffff,
-			1, 1, (u16 *)&tape->caps[14], NULL);
-	ide_add_setting(drive, "buffer_size", SETTING_READ, TYPE_INT, 0, 0xffff,
-			1, 1024, &tape->buffer_size, NULL);
-	ide_add_setting(drive, "tdsc", SETTING_RW, TYPE_INT, IDETAPE_DSC_RW_MIN,
-			IDETAPE_DSC_RW_MAX, 1000, HZ, &tape->best_dsc_rw_freq,
-			NULL);
-	ide_add_setting(drive, "dsc_overlap", SETTING_RW, TYPE_BYTE, 0, 1, 1,
-			1, &drive->dsc_overlap, NULL);
-	ide_add_setting(drive, "avg_speed", SETTING_READ, TYPE_INT, 0, 0xffff,
-			1, 1, &tape->avg_speed, NULL);
-	ide_add_setting(drive, "debug_mask", SETTING_RW, TYPE_INT, 0, 0xffff, 1,
-			1, &tape->debug_mask, NULL);
+#define ide_tape_devset_get(name, field) \
+static int get_##name(ide_drive_t *drive) \
+{ \
+	idetape_tape_t *tape = drive->driver_data; \
+	return tape->field; \
 }
-#else
-static inline void idetape_add_settings(ide_drive_t *drive) { ; }
+
+#define ide_tape_devset_set(name, field) \
+static int set_##name(ide_drive_t *drive, int arg) \
+{ \
+	idetape_tape_t *tape = drive->driver_data; \
+	tape->field = arg; \
+	return 0; \
+}
+
+#define ide_tape_devset_rw(_name, _min, _max, _field, _mulf, _divf) \
+ide_tape_devset_get(_name, _field) \
+ide_tape_devset_set(_name, _field) \
+__IDE_DEVSET(_name, S_RW, _min, _max, get_##_name, set_##_name, _mulf, _divf)
+
+#define ide_tape_devset_r(_name, _min, _max, _field, _mulf, _divf) \
+ide_tape_devset_get(_name, _field) \
+__IDE_DEVSET(_name, S_READ, _min, _max, get_##_name, NULL, _mulf, _divf)
+
+static int mulf_tdsc(ide_drive_t *drive)	{ return 1000; }
+static int divf_tdsc(ide_drive_t *drive)	{ return   HZ; }
+static int divf_buffer(ide_drive_t *drive)	{ return    2; }
+static int divf_buffer_size(ide_drive_t *drive)	{ return 1024; }
+
+ide_devset_rw(dsc_overlap,	0,	1, dsc_overlap);
+
+ide_tape_devset_rw(debug_mask,	0, 0xffff, debug_mask,  NULL, NULL);
+ide_tape_devset_rw(tdsc, IDETAPE_DSC_RW_MIN, IDETAPE_DSC_RW_MAX,
+		   best_dsc_rw_freq, mulf_tdsc, divf_tdsc);
+
+ide_tape_devset_r(avg_speed,	0, 0xffff, avg_speed,   NULL, NULL);
+ide_tape_devset_r(speed,	0, 0xffff, caps[14],    NULL, NULL);
+ide_tape_devset_r(buffer,	0, 0xffff, caps[16],    NULL, divf_buffer);
+ide_tape_devset_r(buffer_size,	0, 0xffff, buffer_size, NULL, divf_buffer_size);
+
+static const struct ide_devset *idetape_settings[] = {
+	&ide_devset_avg_speed,
+	&ide_devset_buffer,
+	&ide_devset_buffer_size,
+	&ide_devset_debug_mask,
+	&ide_devset_dsc_overlap,
+	&ide_devset_speed,
+	&ide_devset_tdsc,
+	NULL
+};
 #endif
 
 /*
@@ -2515,7 +2543,6 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 		drive->using_dma ? ", DMA":"");
 
 	ide_proc_register_driver(drive, tape->driver);
-	idetape_add_settings(drive);
 }
 
 static void ide_tape_remove(ide_drive_t *drive)
@@ -2586,6 +2613,7 @@ static ide_driver_t idetape_driver = {
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idetape_proc,
+	.settings		= idetape_settings,
 #endif
 };
 
