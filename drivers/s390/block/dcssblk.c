@@ -31,7 +31,6 @@
 #define PRINT_WARN(x...)  printk(KERN_WARNING DCSSBLK_NAME " warning: " x)
 #define PRINT_ERR(x...)	  printk(KERN_ERR DCSSBLK_NAME " error: " x)
 
-
 static int dcssblk_open(struct inode *inode, struct file *filp);
 static int dcssblk_release(struct inode *inode, struct file *filp);
 static int dcssblk_make_request(struct request_queue *q, struct bio *bio);
@@ -48,26 +47,6 @@ static struct block_device_operations dcssblk_devops = {
 	.direct_access 	= dcssblk_direct_access,
 };
 
-static ssize_t dcssblk_add_store(struct device * dev, struct device_attribute *attr, const char * buf,
-				  size_t count);
-static ssize_t dcssblk_remove_store(struct device * dev, struct device_attribute *attr, const char * buf,
-				  size_t count);
-static ssize_t dcssblk_save_store(struct device * dev, struct device_attribute *attr, const char * buf,
-				  size_t count);
-static ssize_t dcssblk_save_show(struct device *dev, struct device_attribute *attr, char *buf);
-static ssize_t dcssblk_shared_store(struct device * dev, struct device_attribute *attr, const char * buf,
-				  size_t count);
-static ssize_t dcssblk_shared_show(struct device *dev, struct device_attribute *attr, char *buf);
-
-static DEVICE_ATTR(add, S_IWUSR, NULL, dcssblk_add_store);
-static DEVICE_ATTR(remove, S_IWUSR, NULL, dcssblk_remove_store);
-static DEVICE_ATTR(save, S_IWUSR | S_IRUGO, dcssblk_save_show,
-		   dcssblk_save_store);
-static DEVICE_ATTR(shared, S_IWUSR | S_IRUGO, dcssblk_shared_show,
-		   dcssblk_shared_store);
-
-static struct device *dcssblk_root_dev;
-
 struct dcssblk_dev_info {
 	struct list_head lh;
 	struct device dev;
@@ -80,7 +59,41 @@ struct dcssblk_dev_info {
 	unsigned char save_pending;
 	unsigned char is_shared;
 	struct request_queue *dcssblk_queue;
+	int num_of_segments;
+	struct list_head seg_list;
 };
+
+struct segment_info {
+	struct list_head lh;
+	char segment_name[BUS_ID_SIZE];
+	unsigned long start;
+	unsigned long end;
+	int segment_type;
+};
+
+static ssize_t dcssblk_add_store(struct device * dev, struct device_attribute *attr, const char * buf,
+				  size_t count);
+static ssize_t dcssblk_remove_store(struct device * dev, struct device_attribute *attr, const char * buf,
+				  size_t count);
+static ssize_t dcssblk_save_store(struct device * dev, struct device_attribute *attr, const char * buf,
+				  size_t count);
+static ssize_t dcssblk_save_show(struct device *dev, struct device_attribute *attr, char *buf);
+static ssize_t dcssblk_shared_store(struct device * dev, struct device_attribute *attr, const char * buf,
+				  size_t count);
+static ssize_t dcssblk_shared_show(struct device *dev, struct device_attribute *attr, char *buf);
+static ssize_t dcssblk_seglist_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf);
+
+static DEVICE_ATTR(add, S_IWUSR, NULL, dcssblk_add_store);
+static DEVICE_ATTR(remove, S_IWUSR, NULL, dcssblk_remove_store);
+static DEVICE_ATTR(save, S_IWUSR | S_IRUSR, dcssblk_save_show,
+		   dcssblk_save_store);
+static DEVICE_ATTR(shared, S_IWUSR | S_IRUSR, dcssblk_shared_show,
+		   dcssblk_shared_store);
+static DEVICE_ATTR(seglist, S_IRUSR, dcssblk_seglist_show, NULL);
+
+static struct device *dcssblk_root_dev;
 
 static LIST_HEAD(dcssblk_devices);
 static struct rw_semaphore dcssblk_devices_sem;
@@ -91,8 +104,15 @@ static struct rw_semaphore dcssblk_devices_sem;
 static void
 dcssblk_release_segment(struct device *dev)
 {
-	PRINT_DEBUG("segment release fn called for %s\n", dev_name(dev));
-	kfree(container_of(dev, struct dcssblk_dev_info, dev));
+	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry, *temp;
+
+	dev_info = container_of(dev, struct dcssblk_dev_info, dev);
+	list_for_each_entry_safe(entry, temp, &dev_info->seg_list, lh) {
+		list_del(&entry->lh);
+		kfree(entry);
+	}
+	kfree(dev_info);
 	module_put(THIS_MODULE);
 }
 
@@ -142,6 +162,169 @@ dcssblk_get_device_by_name(char *name)
 	return NULL;
 }
 
+/*
+ * get the struct segment_info from seg_list
+ * for the given name.
+ * down_read(&dcssblk_devices_sem) must be held.
+ */
+static struct segment_info *
+dcssblk_get_segment_by_name(char *name)
+{
+	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry;
+
+	list_for_each_entry(dev_info, &dcssblk_devices, lh) {
+		list_for_each_entry(entry, &dev_info->seg_list, lh) {
+			if (!strcmp(name, entry->segment_name))
+				return entry;
+		}
+	}
+	return NULL;
+}
+
+/*
+ * get the highest address of the multi-segment block.
+ */
+static unsigned long
+dcssblk_find_highest_addr(struct dcssblk_dev_info *dev_info)
+{
+	unsigned long highest_addr;
+	struct segment_info *entry;
+
+	highest_addr = 0;
+	list_for_each_entry(entry, &dev_info->seg_list, lh) {
+		if (highest_addr < entry->end)
+			highest_addr = entry->end;
+	}
+	return highest_addr;
+}
+
+/*
+ * get the lowest address of the multi-segment block.
+ */
+static unsigned long
+dcssblk_find_lowest_addr(struct dcssblk_dev_info *dev_info)
+{
+	int set_first;
+	unsigned long lowest_addr;
+	struct segment_info *entry;
+
+	set_first = 0;
+	lowest_addr = 0;
+	list_for_each_entry(entry, &dev_info->seg_list, lh) {
+		if (set_first == 0) {
+			lowest_addr = entry->start;
+			set_first = 1;
+		} else {
+			if (lowest_addr > entry->start)
+				lowest_addr = entry->start;
+		}
+	}
+	return lowest_addr;
+}
+
+/*
+ * Check continuity of segments.
+ */
+static int
+dcssblk_is_continuous(struct dcssblk_dev_info *dev_info)
+{
+	int i, j, rc;
+	struct segment_info *sort_list, *entry, temp;
+
+	if (dev_info->num_of_segments <= 1)
+		return 0;
+
+	sort_list = kzalloc(
+			sizeof(struct segment_info) * dev_info->num_of_segments,
+			GFP_KERNEL);
+	if (sort_list == NULL)
+		return -ENOMEM;
+	i = 0;
+	list_for_each_entry(entry, &dev_info->seg_list, lh) {
+		memcpy(&sort_list[i], entry, sizeof(struct segment_info));
+		i++;
+	}
+
+	/* sort segments */
+	for (i = 0; i < dev_info->num_of_segments; i++)
+		for (j = 0; j < dev_info->num_of_segments; j++)
+			if (sort_list[j].start > sort_list[i].start) {
+				memcpy(&temp, &sort_list[i],
+					sizeof(struct segment_info));
+				memcpy(&sort_list[i], &sort_list[j],
+					sizeof(struct segment_info));
+				memcpy(&sort_list[j], &temp,
+					sizeof(struct segment_info));
+			}
+
+	/* check continuity */
+	for (i = 0; i < dev_info->num_of_segments - 1; i++) {
+		if ((sort_list[i].end + 1) != sort_list[i+1].start) {
+			PRINT_ERR("Segment %s is not contiguous with "
+				"segment %s\n",
+				sort_list[i].segment_name,
+				sort_list[i+1].segment_name);
+			rc = -EINVAL;
+			goto out;
+		}
+		/* EN and EW are allowed in a block device */
+		if (sort_list[i].segment_type != sort_list[i+1].segment_type) {
+			if (!(sort_list[i].segment_type & SEGMENT_EXCLUSIVE) ||
+				(sort_list[i].segment_type == SEG_TYPE_ER) ||
+				!(sort_list[i+1].segment_type &
+				SEGMENT_EXCLUSIVE) ||
+				(sort_list[i+1].segment_type == SEG_TYPE_ER)) {
+				PRINT_ERR("Segment %s has different type from "
+					"segment %s\n",
+					sort_list[i].segment_name,
+					sort_list[i+1].segment_name);
+				rc = -EINVAL;
+				goto out;
+			}
+		}
+	}
+	rc = 0;
+out:
+	kfree(sort_list);
+	return rc;
+}
+
+/*
+ * Load a segment
+ */
+static int
+dcssblk_load_segment(char *name, struct segment_info **seg_info)
+{
+	int rc;
+
+	/* already loaded? */
+	down_read(&dcssblk_devices_sem);
+	*seg_info = dcssblk_get_segment_by_name(name);
+	up_read(&dcssblk_devices_sem);
+	if (*seg_info != NULL)
+		return -EEXIST;
+
+	/* get a struct segment_info */
+	*seg_info = kzalloc(sizeof(struct segment_info), GFP_KERNEL);
+	if (*seg_info == NULL)
+		return -ENOMEM;
+
+	strcpy((*seg_info)->segment_name, name);
+
+	/* load the segment */
+	rc = segment_load(name, SEGMENT_SHARED,
+			&(*seg_info)->start, &(*seg_info)->end);
+	if (rc < 0) {
+		segment_warning(rc, (*seg_info)->segment_name);
+		kfree(*seg_info);
+	} else {
+		INIT_LIST_HEAD(&(*seg_info)->lh);
+		(*seg_info)->segment_type = rc;
+	}
+	return rc;
+}
+
 static void dcssblk_unregister_callback(struct device *dev)
 {
 	device_unregister(dev);
@@ -165,6 +348,7 @@ static ssize_t
 dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const char *inbuf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry, *temp;
 	int rc;
 
 	if ((count > 1) && (inbuf[1] != '\n') && (inbuf[1] != '\0'))
@@ -172,46 +356,46 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 	down_write(&dcssblk_devices_sem);
 	dev_info = container_of(dev, struct dcssblk_dev_info, dev);
 	if (atomic_read(&dev_info->use_count)) {
-		PRINT_ERR("share: segment %s is busy!\n",
-			  dev_info->segment_name);
 		rc = -EBUSY;
 		goto out;
 	}
 	if (inbuf[0] == '1') {
-		// reload segment in shared mode
-		rc = segment_modify_shared(dev_info->segment_name,
-					   SEGMENT_SHARED);
-		if (rc < 0) {
-			BUG_ON(rc == -EINVAL);
-			if (rc != -EAGAIN)
-				goto removeseg;
-		} else {
-			dev_info->is_shared = 1;
-			switch (dev_info->segment_type) {
-				case SEG_TYPE_SR:
-				case SEG_TYPE_ER:
-				case SEG_TYPE_SC:
-					set_disk_ro(dev_info->gd,1);
+		/* reload segments in shared mode */
+		list_for_each_entry(entry, &dev_info->seg_list, lh) {
+			rc = segment_modify_shared(entry->segment_name,
+						SEGMENT_SHARED);
+			if (rc < 0) {
+				BUG_ON(rc == -EINVAL);
+				if (rc != -EAGAIN)
+					goto removeseg;
 			}
 		}
+		dev_info->is_shared = 1;
+		switch (dev_info->segment_type) {
+		case SEG_TYPE_SR:
+		case SEG_TYPE_ER:
+		case SEG_TYPE_SC:
+			set_disk_ro(dev_info->gd, 1);
+		}
 	} else if (inbuf[0] == '0') {
-		// reload segment in exclusive mode
+		/* reload segments in exclusive mode */
 		if (dev_info->segment_type == SEG_TYPE_SC) {
 			PRINT_ERR("Segment type SC (%s) cannot be loaded in "
-				  "non-shared mode\n", dev_info->segment_name);
+				"non-shared mode\n", dev_info->segment_name);
 			rc = -EINVAL;
 			goto out;
 		}
-		rc = segment_modify_shared(dev_info->segment_name,
-					   SEGMENT_EXCLUSIVE);
-		if (rc < 0) {
-			BUG_ON(rc == -EINVAL);
-			if (rc != -EAGAIN)
-				goto removeseg;
-		} else {
-			dev_info->is_shared = 0;
-			set_disk_ro(dev_info->gd, 0);
+		list_for_each_entry(entry, &dev_info->seg_list, lh) {
+			rc = segment_modify_shared(entry->segment_name,
+						   SEGMENT_EXCLUSIVE);
+			if (rc < 0) {
+				BUG_ON(rc == -EINVAL);
+				if (rc != -EAGAIN)
+					goto removeseg;
+			}
 		}
+		dev_info->is_shared = 0;
+		set_disk_ro(dev_info->gd, 0);
 	} else {
 		rc = -EINVAL;
 		goto out;
@@ -220,8 +404,14 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 	goto out;
 
 removeseg:
-	PRINT_ERR("Could not reload segment %s, removing it now!\n",
-			dev_info->segment_name);
+	PRINT_ERR("Could not reload segment(s) of the device %s, removing "
+		"segment(s) now!\n",
+		dev_info->segment_name);
+	temp = entry;
+	list_for_each_entry(entry, &dev_info->seg_list, lh) {
+		if (entry != temp)
+			segment_unload(entry->segment_name);
+	}
 	list_del(&dev_info->lh);
 
 	del_gendisk(dev_info->gd);
@@ -254,6 +444,7 @@ static ssize_t
 dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char *inbuf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry;
 
 	if ((count > 1) && (inbuf[1] != '\n') && (inbuf[1] != '\0'))
 		return -EINVAL;
@@ -263,14 +454,16 @@ dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char
 	if (inbuf[0] == '1') {
 		if (atomic_read(&dev_info->use_count) == 0) {
 			// device is idle => we save immediately
-			PRINT_INFO("Saving segment %s\n",
+			PRINT_INFO("Saving segment(s) of the device %s\n",
 				   dev_info->segment_name);
-			segment_save(dev_info->segment_name);
+			list_for_each_entry(entry, &dev_info->seg_list, lh) {
+				segment_save(entry->segment_name);
+			}
 		}  else {
 			// device is busy => we save it when it becomes
 			// idle in dcssblk_release
-			PRINT_INFO("Segment %s is currently busy, it will "
-				   "be saved when it becomes idle...\n",
+			PRINT_INFO("Device %s is currently busy, segment(s) "
+				   "will be saved when it becomes idle...\n",
 				   dev_info->segment_name);
 			dev_info->save_pending = 1;
 		}
@@ -279,7 +472,8 @@ dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char
 			// device is busy & the user wants to undo his save
 			// request
 			dev_info->save_pending = 0;
-			PRINT_INFO("Pending save for segment %s deactivated\n",
+			PRINT_INFO("Pending save for segment(s) of the device "
+					"%s deactivated\n",
 					dev_info->segment_name);
 		}
 	} else {
@@ -291,66 +485,123 @@ dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char
 }
 
 /*
+ * device attribute for showing all segments in a device
+ */
+static ssize_t
+dcssblk_seglist_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int i;
+
+	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry;
+
+	down_read(&dcssblk_devices_sem);
+	dev_info = container_of(dev, struct dcssblk_dev_info, dev);
+	i = 0;
+	buf[0] = '\0';
+	list_for_each_entry(entry, &dev_info->seg_list, lh) {
+		strcpy(&buf[i], entry->segment_name);
+		i += strlen(entry->segment_name);
+		buf[i] = '\n';
+		i++;
+	}
+	up_read(&dcssblk_devices_sem);
+	return i;
+}
+
+/*
  * device attribute for adding devices
  */
 static ssize_t
 dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	int rc, i;
+	int rc, i, j, num_of_segments;
 	struct dcssblk_dev_info *dev_info;
+	struct segment_info *seg_info, *temp;
 	char *local_buf;
 	unsigned long seg_byte_size;
 
 	dev_info = NULL;
+	seg_info = NULL;
 	if (dev != dcssblk_root_dev) {
 		rc = -EINVAL;
 		goto out_nobuf;
 	}
+	if ((count < 1) || (buf[0] == '\0') || (buf[0] == '\n')) {
+		rc = -ENAMETOOLONG;
+		goto out_nobuf;
+	}
+
 	local_buf = kmalloc(count + 1, GFP_KERNEL);
 	if (local_buf == NULL) {
 		rc = -ENOMEM;
 		goto out_nobuf;
 	}
+
 	/*
 	 * parse input
 	 */
+	num_of_segments = 0;
 	for (i = 0; ((buf[i] != '\0') && (buf[i] != '\n') && i < count); i++) {
-		local_buf[i] = toupper(buf[i]);
-	}
-	local_buf[i] = '\0';
-	if ((i == 0) || (i > 8)) {
-		rc = -ENAMETOOLONG;
-		goto out;
-	}
-	/*
-	 * already loaded?
-	 */
-	down_read(&dcssblk_devices_sem);
-	dev_info = dcssblk_get_device_by_name(local_buf);
-	up_read(&dcssblk_devices_sem);
-	if (dev_info != NULL) {
-		PRINT_WARN("Segment %s already loaded!\n", local_buf);
-		rc = -EEXIST;
-		goto out;
-	}
-	/*
-	 * get a struct dcssblk_dev_info
-	 */
-	dev_info = kzalloc(sizeof(struct dcssblk_dev_info), GFP_KERNEL);
-	if (dev_info == NULL) {
-		rc = -ENOMEM;
-		goto out;
+		for (j = i; (buf[j] != ':') &&
+			(buf[j] != '\0') &&
+			(buf[j] != '\n') &&
+			j < count; j++) {
+			local_buf[j-i] = toupper(buf[j]);
+		}
+		local_buf[j-i] = '\0';
+		if (((j - i) == 0) || ((j - i) > 8)) {
+			rc = -ENAMETOOLONG;
+			goto seg_list_del;
+		}
+
+		rc = dcssblk_load_segment(local_buf, &seg_info);
+		if (rc < 0)
+			goto seg_list_del;
+		/*
+		 * get a struct dcssblk_dev_info
+		 */
+		if (num_of_segments == 0) {
+			dev_info = kzalloc(sizeof(struct dcssblk_dev_info),
+					GFP_KERNEL);
+			if (dev_info == NULL) {
+				rc = -ENOMEM;
+				goto out;
+			}
+			strcpy(dev_info->segment_name, local_buf);
+			dev_info->segment_type = seg_info->segment_type;
+			INIT_LIST_HEAD(&dev_info->seg_list);
+		}
+		list_add_tail(&seg_info->lh, &dev_info->seg_list);
+		num_of_segments++;
+		i = j;
+
+		if ((buf[j] == '\0') || (buf[j] == '\n'))
+			break;
 	}
 
-	strcpy(dev_info->segment_name, local_buf);
-	dev_set_name(&dev_info->dev, local_buf);
+	/* no trailing colon at the end of the input */
+	if ((i > 0) && (buf[i-1] == ':')) {
+		rc = -ENAMETOOLONG;
+		goto seg_list_del;
+	}
+	strlcpy(local_buf, buf, i + 1);
+	dev_info->num_of_segments = num_of_segments;
+	rc = dcssblk_is_continuous(dev_info);
+	if (rc < 0)
+		goto seg_list_del;
+
+	dev_info->start = dcssblk_find_lowest_addr(dev_info);
+	dev_info->end = dcssblk_find_highest_addr(dev_info);
+
+	dev_set_name(&dev_info->dev, dev_info->segment_name);
 	dev_info->dev.release = dcssblk_release_segment;
 	INIT_LIST_HEAD(&dev_info->lh);
-
 	dev_info->gd = alloc_disk(DCSSBLK_MINORS_PER_DISK);
 	if (dev_info->gd == NULL) {
 		rc = -ENOMEM;
-		goto free_dev_info;
+		goto seg_list_del;
 	}
 	dev_info->gd->major = dcssblk_major;
 	dev_info->gd->fops = &dcssblk_devops;
@@ -360,65 +611,52 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->gd->driverfs_dev = &dev_info->dev;
 	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
 	blk_queue_hardsect_size(dev_info->dcssblk_queue, 4096);
-	/*
-	 * load the segment
-	 */
-	rc = segment_load(local_buf, SEGMENT_SHARED,
-				&dev_info->start, &dev_info->end);
-	if (rc < 0) {
-		segment_warning(rc, dev_info->segment_name);
-		goto dealloc_gendisk;
-	}
+
 	seg_byte_size = (dev_info->end - dev_info->start + 1);
 	set_capacity(dev_info->gd, seg_byte_size >> 9); // size in sectors
-	PRINT_INFO("Loaded segment %s, size = %lu Byte, "
+	PRINT_INFO("Loaded segment(s) %s, size = %lu Byte, "
 		   "capacity = %lu (512 Byte) sectors\n", local_buf,
 		   seg_byte_size, seg_byte_size >> 9);
 
-	dev_info->segment_type = rc;
 	dev_info->save_pending = 0;
 	dev_info->is_shared = 1;
 	dev_info->dev.parent = dcssblk_root_dev;
 
 	/*
-	 * get minor, add to list
+	 *get minor, add to list
 	 */
 	down_write(&dcssblk_devices_sem);
-	if (dcssblk_get_device_by_name(local_buf)) {
-		up_write(&dcssblk_devices_sem);
+	if (dcssblk_get_segment_by_name(local_buf)) {
 		rc = -EEXIST;
-		goto unload_seg;
+		goto release_gd;
 	}
 	rc = dcssblk_assign_free_minor(dev_info);
-	if (rc) {
-		up_write(&dcssblk_devices_sem);
-		PRINT_ERR("No free minor number available! "
-			  "Unloading segment...\n");
-		goto unload_seg;
-	}
+	if (rc)
+		goto release_gd;
 	sprintf(dev_info->gd->disk_name, "dcssblk%d",
 		MINOR(disk_devt(dev_info->gd)));
 	list_add_tail(&dev_info->lh, &dcssblk_devices);
 
 	if (!try_module_get(THIS_MODULE)) {
 		rc = -ENODEV;
-		goto list_del;
+		goto dev_list_del;
 	}
 	/*
 	 * register the device
 	 */
 	rc = device_register(&dev_info->dev);
 	if (rc) {
-		PRINT_ERR("Segment %s could not be registered RC=%d\n",
-				local_buf, rc);
 		module_put(THIS_MODULE);
-		goto list_del;
+		goto dev_list_del;
 	}
 	get_device(&dev_info->dev);
 	rc = device_create_file(&dev_info->dev, &dev_attr_shared);
 	if (rc)
 		goto unregister_dev;
 	rc = device_create_file(&dev_info->dev, &dev_attr_save);
+	if (rc)
+		goto unregister_dev;
+	rc = device_create_file(&dev_info->dev, &dev_attr_seglist);
 	if (rc)
 		goto unregister_dev;
 
@@ -434,7 +672,6 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 			set_disk_ro(dev_info->gd,0);
 			break;
 	}
-	PRINT_DEBUG("Segment %s loaded successfully\n", local_buf);
 	up_write(&dcssblk_devices_sem);
 	rc = count;
 	goto out;
@@ -445,20 +682,27 @@ unregister_dev:
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
 	device_unregister(&dev_info->dev);
-	segment_unload(dev_info->segment_name);
+	list_for_each_entry(seg_info, &dev_info->seg_list, lh) {
+		segment_unload(seg_info->segment_name);
+	}
 	put_device(&dev_info->dev);
 	up_write(&dcssblk_devices_sem);
 	goto out;
-list_del:
+dev_list_del:
 	list_del(&dev_info->lh);
-	up_write(&dcssblk_devices_sem);
-unload_seg:
-	segment_unload(local_buf);
-dealloc_gendisk:
+release_gd:
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
-free_dev_info:
+	up_write(&dcssblk_devices_sem);
+seg_list_del:
+	if (dev_info == NULL)
+		goto out;
+	list_for_each_entry_safe(seg_info, temp, &dev_info->seg_list, lh) {
+		list_del(&seg_info->lh);
+		segment_unload(seg_info->segment_name);
+		kfree(seg_info);
+	}
 	kfree(dev_info);
 out:
 	kfree(local_buf);
@@ -473,6 +717,7 @@ static ssize_t
 dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry;
 	int rc, i;
 	char *local_buf;
 
@@ -499,26 +744,28 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	dev_info = dcssblk_get_device_by_name(local_buf);
 	if (dev_info == NULL) {
 		up_write(&dcssblk_devices_sem);
-		PRINT_WARN("Segment %s is not loaded!\n", local_buf);
+		PRINT_WARN("Device %s is not loaded!\n", local_buf);
 		rc = -ENODEV;
 		goto out_buf;
 	}
 	if (atomic_read(&dev_info->use_count) != 0) {
 		up_write(&dcssblk_devices_sem);
-		PRINT_WARN("Segment %s is in use!\n", local_buf);
+		PRINT_WARN("Device %s is in use!\n", local_buf);
 		rc = -EBUSY;
 		goto out_buf;
 	}
-	list_del(&dev_info->lh);
 
+	list_del(&dev_info->lh);
 	del_gendisk(dev_info->gd);
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
 	device_unregister(&dev_info->dev);
-	segment_unload(dev_info->segment_name);
-	PRINT_DEBUG("Segment %s unloaded successfully\n",
-			dev_info->segment_name);
+
+	/* unload all related segments */
+	list_for_each_entry(entry, &dev_info->seg_list, lh)
+		segment_unload(entry->segment_name);
+
 	put_device(&dev_info->dev);
 	up_write(&dcssblk_devices_sem);
 
@@ -550,6 +797,7 @@ static int
 dcssblk_release(struct inode *inode, struct file *filp)
 {
 	struct dcssblk_dev_info *dev_info;
+	struct segment_info *entry;
 	int rc;
 
 	dev_info = inode->i_bdev->bd_disk->private_data;
@@ -560,9 +808,11 @@ dcssblk_release(struct inode *inode, struct file *filp)
 	down_write(&dcssblk_devices_sem);
 	if (atomic_dec_and_test(&dev_info->use_count)
 	    && (dev_info->save_pending)) {
-		PRINT_INFO("Segment %s became idle and is being saved now\n",
+		PRINT_INFO("Device %s became idle and is being saved now\n",
 			    dev_info->segment_name);
-		segment_save(dev_info->segment_name);
+		list_for_each_entry(entry, &dev_info->seg_list, lh) {
+			segment_save(entry->segment_name);
+		}
 		dev_info->save_pending = 0;
 	}
 	up_write(&dcssblk_devices_sem);
@@ -602,7 +852,7 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		case SEG_TYPE_SC:
 			/* cannot write to these segments */
 			if (bio_data_dir(bio) == WRITE) {
-				PRINT_WARN("rejecting write to ro segment %s\n",
+				PRINT_WARN("rejecting write to ro device %s\n",
 					   dev_name(&dev_info->dev));
 				goto fail;
 			}
@@ -658,7 +908,7 @@ static void
 dcssblk_check_params(void)
 {
 	int rc, i, j, k;
-	char buf[9];
+	char buf[DCSSBLK_PARM_LEN + 1];
 	struct dcssblk_dev_info *dev_info;
 
 	for (i = 0; (i < DCSSBLK_PARM_LEN) && (dcssblk_segments[i] != '\0');
@@ -666,15 +916,16 @@ dcssblk_check_params(void)
 		for (j = i; (dcssblk_segments[j] != ',')  &&
 			    (dcssblk_segments[j] != '\0') &&
 			    (dcssblk_segments[j] != '(')  &&
-			    (j - i) < 8; j++)
+			    (j < DCSSBLK_PARM_LEN); j++)
 		{
 			buf[j-i] = dcssblk_segments[j];
 		}
 		buf[j-i] = '\0';
 		rc = dcssblk_add_store(dcssblk_root_dev, NULL, buf, j-i);
 		if ((rc >= 0) && (dcssblk_segments[j] == '(')) {
-			for (k = 0; buf[k] != '\0'; k++)
+			for (k = 0; (buf[k] != ':') && (buf[k] != '\0'); k++)
 				buf[k] = toupper(buf[k]);
+			buf[k] = '\0';
 			if (!strncmp(&dcssblk_segments[j], "(local)", 7)) {
 				down_read(&dcssblk_devices_sem);
 				dev_info = dcssblk_get_device_by_name(buf);
@@ -741,10 +992,12 @@ module_exit(dcssblk_exit);
 
 module_param_string(segments, dcssblk_segments, DCSSBLK_PARM_LEN, 0444);
 MODULE_PARM_DESC(segments, "Name of DCSS segment(s) to be loaded, "
-		 "comma-separated list, each name max. 8 chars.\n"
-		 "Adding \"(local)\" to segment name equals echoing 0 to "
-		 "/sys/devices/dcssblk/<segment name>/shared after loading "
-		 "the segment - \n"
-		 "e.g. segments=\"mydcss1,mydcss2,mydcss3(local)\"");
+		 "comma-separated list, names in each set separated "
+		 "by commas are separated by colons, each set contains "
+		 "names of contiguous segments and each name max. 8 chars.\n"
+		 "Adding \"(local)\" to the end of each set equals echoing 0 "
+		 "to /sys/devices/dcssblk/<device name>/shared after loading "
+		 "the contiguous segments - \n"
+		 "e.g. segments=\"mydcss1,mydcss2:mydcss3,mydcss4(local)\"");
 
 MODULE_LICENSE("GPL");
