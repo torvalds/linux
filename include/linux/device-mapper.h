@@ -13,7 +13,6 @@
 
 struct dm_target;
 struct dm_table;
-struct dm_dev;
 struct mapped_device;
 struct bio_vec;
 
@@ -83,6 +82,12 @@ void dm_error(const char *message);
  * Combine device limits.
  */
 void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev);
+
+struct dm_dev {
+	struct block_device *bdev;
+	int mode;
+	char name[16];
+};
 
 /*
  * Constructors should call these functions to ensure destination devices
@@ -202,6 +207,7 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
 int dm_noflush_suspending(struct dm_target *ti);
+union map_info *dm_get_mapinfo(struct bio *bio);
 
 /*
  * Geometry functions.
@@ -232,6 +238,11 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 int dm_table_complete(struct dm_table *t);
 
 /*
+ * Unplug all devices in a table.
+ */
+void dm_table_unplug_all(struct dm_table *t);
+
+/*
  * Table reference counting.
  */
 struct dm_table *dm_get_table(struct mapped_device *md);
@@ -255,6 +266,11 @@ void dm_table_event(struct dm_table *t);
  * The device must be suspended before calling this method.
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *t);
+
+/*
+ * A wrapper around vmalloc.
+ */
+void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 
 /*-----------------------------------------------------------------
  * Macros.

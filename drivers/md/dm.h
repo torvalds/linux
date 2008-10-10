@@ -25,13 +25,10 @@
 /*
  * List of devices that a metadevice uses and should open/close.
  */
-struct dm_dev {
+struct dm_dev_internal {
 	struct list_head list;
-
 	atomic_t count;
-	int mode;
-	struct block_device *bdev;
-	char name[16];
+	struct dm_dev dm_dev;
 };
 
 struct dm_table;
@@ -49,7 +46,6 @@ void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);
 int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
-void dm_table_unplug_all(struct dm_table *t);
 
 /*
  * To check the return value from dm_table_find_target().
@@ -93,8 +89,6 @@ void dm_linear_exit(void);
 int dm_stripe_init(void);
 void dm_stripe_exit(void);
 
-void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
-union map_info *dm_get_mapinfo(struct bio *bio);
 int dm_open_count(struct mapped_device *md);
 int dm_lock_for_deletion(struct mapped_device *md);
 
