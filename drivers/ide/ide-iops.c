@@ -423,14 +423,16 @@ void ide_fix_driveid(u16 *id)
 
 void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 {
-	u8 *p = s, *end = &s[bytecount & ~1]; /* bytecount must be even */
+	u8 *p, *end = &s[bytecount & ~1]; /* bytecount must be even */
 
 	if (byteswap) {
 		/* convert from big-endian to host byte order */
-		for (p = end ; p != s;)
-			be16_to_cpus((u16 *)(p -= 2));
+		for (p = s ; p != end ; p += 2)
+			be16_to_cpus((u16 *) p);
 	}
+
 	/* strip leading blanks */
+	p = s;
 	while (s != end && *s == ' ')
 		++s;
 	/* compress internal blanks and strip trailing blanks */
