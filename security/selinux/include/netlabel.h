@@ -41,6 +41,7 @@ void selinux_netlbl_cache_invalidate(void);
 
 void selinux_netlbl_err(struct sk_buff *skb, int error, int gateway);
 
+void selinux_netlbl_sk_security_free(struct sk_security_struct *ssec);
 void selinux_netlbl_sk_security_reset(struct sk_security_struct *ssec,
 				      int family);
 
@@ -73,6 +74,12 @@ static inline void selinux_netlbl_cache_invalidate(void)
 static inline void selinux_netlbl_err(struct sk_buff *skb,
 				      int error,
 				      int gateway)
+{
+	return;
+}
+
+static inline void selinux_netlbl_sk_security_free(
+					       struct sk_security_struct *ssec)
 {
 	return;
 }
