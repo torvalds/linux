@@ -35,6 +35,9 @@
 extern struct console *bfin_earlyserial_init(unsigned int port,
 						unsigned int cflag);
 #endif
+#ifdef CONFIG_BFIN_JTAG_COMM
+extern struct console *bfin_jc_early_init(void);
+#endif
 
 static struct console *early_console;
 
@@ -142,6 +145,15 @@ int __init setup_early_printk(char *buf)
 		early_console = earlyserial_init(buf);
 	}
 #endif
+
+#ifdef CONFIG_BFIN_JTAG_COMM
+	/* Check for Blackfin JTAG */
+	if (!strncmp(buf, "jtag", 4)) {
+		buf += 4;
+		early_console = bfin_jc_early_init();
+	}
+#endif
+
 #ifdef CONFIG_FB
 		/* TODO: add framebuffer console support */
 #endif
