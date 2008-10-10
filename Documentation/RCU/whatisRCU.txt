@@ -786,8 +786,6 @@ RCU pointer/list traversal:
 	list_for_each_entry_rcu
 	hlist_for_each_entry_rcu
 
-	list_for_each_rcu		(to be deprecated in favor of
-					 list_for_each_entry_rcu)
 	list_for_each_continue_rcu	(to be deprecated in favor of new
 					 list_for_each_entry_continue_rcu)
 

@@ -47,6 +47,7 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
+#include <linux/time.h>
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
@@ -60,12 +61,14 @@ EXPORT_SYMBOL_GPL(rcu_lock_map);
 static struct rcu_ctrlblk rcu_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
+	.pending = -300,
 	.lock = __SPIN_LOCK_UNLOCKED(&rcu_ctrlblk.lock),
 	.cpumask = CPU_MASK_NONE,
 };
 static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
+	.pending = -300,
 	.lock = __SPIN_LOCK_UNLOCKED(&rcu_bh_ctrlblk.lock),
 	.cpumask = CPU_MASK_NONE,
 };
@@ -83,7 +86,10 @@ static void force_quiescent_state(struct rcu_data *rdp,
 {
 	int cpu;
 	cpumask_t cpumask;
+	unsigned long flags;
+
 	set_need_resched();
+	spin_lock_irqsave(&rcp->lock, flags);
 	if (unlikely(!rcp->signaled)) {
 		rcp->signaled = 1;
 		/*
@@ -109,6 +115,7 @@ static void force_quiescent_state(struct rcu_data *rdp,
 		for_each_cpu_mask_nr(cpu, cpumask)
 			smp_send_reschedule(cpu);
 	}
+	spin_unlock_irqrestore(&rcp->lock, flags);
 }
 #else
 static inline void force_quiescent_state(struct rcu_data *rdp,
@@ -117,6 +124,126 @@ static inline void force_quiescent_state(struct rcu_data *rdp,
 	set_need_resched();
 }
 #endif
+
+static void __call_rcu(struct rcu_head *head, struct rcu_ctrlblk *rcp,
+		struct rcu_data *rdp)
+{
+	long batch;
+
+	head->next = NULL;
+	smp_mb(); /* Read of rcu->cur must happen after any change by caller. */
+
+	/*
+	 * Determine the batch number of this callback.
+	 *
+	 * Using ACCESS_ONCE to avoid the following error when gcc eliminates
+	 * local variable "batch" and emits codes like this:
+	 *	1) rdp->batch = rcp->cur + 1 # gets old value
+	 *	......
+	 *	2)rcu_batch_after(rcp->cur + 1, rdp->batch) # gets new value
+	 * then [*nxttail[0], *nxttail[1]) may contain callbacks
+	 * that batch# = rdp->batch, see the comment of struct rcu_data.
+	 */
+	batch = ACCESS_ONCE(rcp->cur) + 1;
+
+	if (rdp->nxtlist && rcu_batch_after(batch, rdp->batch)) {
+		/* process callbacks */
+		rdp->nxttail[0] = rdp->nxttail[1];
+		rdp->nxttail[1] = rdp->nxttail[2];
+		if (rcu_batch_after(batch - 1, rdp->batch))
+			rdp->nxttail[0] = rdp->nxttail[2];
+	}
+
+	rdp->batch = batch;
+	*rdp->nxttail[2] = head;
+	rdp->nxttail[2] = &head->next;
+
+	if (unlikely(++rdp->qlen > qhimark)) {
+		rdp->blimit = INT_MAX;
+		force_quiescent_state(rdp, &rcu_ctrlblk);
+	}
+}
+
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+
+static void record_gp_stall_check_time(struct rcu_ctrlblk *rcp)
+{
+	rcp->gp_start = jiffies;
+	rcp->jiffies_stall = jiffies + RCU_SECONDS_TILL_STALL_CHECK;
+}
+
+static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	int cpu;
+	long delta;
+	unsigned long flags;
+
+	/* Only let one CPU complain about others per time interval. */
+
+	spin_lock_irqsave(&rcp->lock, flags);
+	delta = jiffies - rcp->jiffies_stall;
+	if (delta < 2 || rcp->cur != rcp->completed) {
+		spin_unlock_irqrestore(&rcp->lock, flags);
+		return;
+	}
+	rcp->jiffies_stall = jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
+	spin_unlock_irqrestore(&rcp->lock, flags);
+
+	/* OK, time to rat on our buddy... */
+
+	printk(KERN_ERR "RCU detected CPU stalls:");
+	for_each_possible_cpu(cpu) {
+		if (cpu_isset(cpu, rcp->cpumask))
+			printk(" %d", cpu);
+	}
+	printk(" (detected by %d, t=%ld jiffies)\n",
+	       smp_processor_id(), (long)(jiffies - rcp->gp_start));
+}
+
+static void print_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	unsigned long flags;
+
+	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu jiffies)\n",
+			smp_processor_id(), jiffies,
+			jiffies - rcp->gp_start);
+	dump_stack();
+	spin_lock_irqsave(&rcp->lock, flags);
+	if ((long)(jiffies - rcp->jiffies_stall) >= 0)
+		rcp->jiffies_stall =
+			jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
+	spin_unlock_irqrestore(&rcp->lock, flags);
+	set_need_resched();  /* kick ourselves to get things going. */
+}
+
+static void check_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	long delta;
+
+	delta = jiffies - rcp->jiffies_stall;
+	if (cpu_isset(smp_processor_id(), rcp->cpumask) && delta >= 0) {
+
+		/* We haven't checked in, so go dump stack. */
+		print_cpu_stall(rcp);
+
+	} else if (rcp->cur != rcp->completed && delta >= 2) {
+
+		/* They had two seconds to dump stack, so complain. */
+		print_other_cpu_stall(rcp);
+	}
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
+static void record_gp_stall_check_time(struct rcu_ctrlblk *rcp)
+{
+}
+
+static inline void check_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 /**
  * call_rcu - Queue an RCU callback for invocation after a grace period.
@@ -133,18 +260,10 @@ void call_rcu(struct rcu_head *head,
 				void (*func)(struct rcu_head *rcu))
 {
 	unsigned long flags;
-	struct rcu_data *rdp;
 
 	head->func = func;
-	head->next = NULL;
 	local_irq_save(flags);
-	rdp = &__get_cpu_var(rcu_data);
-	*rdp->nxttail = head;
-	rdp->nxttail = &head->next;
-	if (unlikely(++rdp->qlen > qhimark)) {
-		rdp->blimit = INT_MAX;
-		force_quiescent_state(rdp, &rcu_ctrlblk);
-	}
+	__call_rcu(head, &rcu_ctrlblk, &__get_cpu_var(rcu_data));
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
@@ -169,20 +288,10 @@ void call_rcu_bh(struct rcu_head *head,
 				void (*func)(struct rcu_head *rcu))
 {
 	unsigned long flags;
-	struct rcu_data *rdp;
 
 	head->func = func;
-	head->next = NULL;
 	local_irq_save(flags);
-	rdp = &__get_cpu_var(rcu_bh_data);
-	*rdp->nxttail = head;
-	rdp->nxttail = &head->next;
-
-	if (unlikely(++rdp->qlen > qhimark)) {
-		rdp->blimit = INT_MAX;
-		force_quiescent_state(rdp, &rcu_bh_ctrlblk);
-	}
-
+	__call_rcu(head, &rcu_bh_ctrlblk, &__get_cpu_var(rcu_bh_data));
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(call_rcu_bh);
@@ -211,12 +320,6 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed_bh);
 static inline void raise_rcu_softirq(void)
 {
 	raise_softirq(RCU_SOFTIRQ);
-	/*
-	 * The smp_mb() here is required to ensure that this cpu's
-	 * __rcu_process_callbacks() reads the most recently updated
-	 * value of rcu->cur.
-	 */
-	smp_mb();
 }
 
 /*
@@ -225,6 +328,7 @@ static inline void raise_rcu_softirq(void)
  */
 static void rcu_do_batch(struct rcu_data *rdp)
 {
+	unsigned long flags;
 	struct rcu_head *next, *list;
 	int count = 0;
 
@@ -239,9 +343,9 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	}
 	rdp->donelist = list;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	rdp->qlen -= count;
-	local_irq_enable();
+	local_irq_restore(flags);
 	if (rdp->blimit == INT_MAX && rdp->qlen <= qlowmark)
 		rdp->blimit = blimit;
 
@@ -269,6 +373,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
  *   rcu_check_quiescent_state calls rcu_start_batch(0) to start the next grace
  *   period (if necessary).
  */
+
 /*
  * Register a new batch of callbacks, and start it up if there is currently no
  * active batch and the batch to be registered has not already occurred.
@@ -276,15 +381,10 @@ static void rcu_do_batch(struct rcu_data *rdp)
  */
 static void rcu_start_batch(struct rcu_ctrlblk *rcp)
 {
-	if (rcp->next_pending &&
+	if (rcp->cur != rcp->pending &&
 			rcp->completed == rcp->cur) {
-		rcp->next_pending = 0;
-		/*
-		 * next_pending == 0 must be visible in
-		 * __rcu_process_callbacks() before it can see new value of cur.
-		 */
-		smp_wmb();
 		rcp->cur++;
+		record_gp_stall_check_time(rcp);
 
 		/*
 		 * Accessing nohz_cpu_mask before incrementing rcp->cur needs a
@@ -322,6 +422,8 @@ static void cpu_quiet(int cpu, struct rcu_ctrlblk *rcp)
 static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 					struct rcu_data *rdp)
 {
+	unsigned long flags;
+
 	if (rdp->quiescbatch != rcp->cur) {
 		/* start new grace period: */
 		rdp->qs_pending = 1;
@@ -345,7 +447,7 @@ static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 		return;
 	rdp->qs_pending = 0;
 
-	spin_lock(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	/*
 	 * rdp->quiescbatch/rcp->cur and the cpu bitmap can come out of sync
 	 * during cpu startup. Ignore the quiescent state.
@@ -353,7 +455,7 @@ static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 	if (likely(rdp->quiescbatch == rcp->cur))
 		cpu_quiet(rdp->cpu, rcp);
 
-	spin_unlock(&rcp->lock);
+	spin_unlock_irqrestore(&rcp->lock, flags);
 }
 
 
@@ -364,33 +466,38 @@ static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
  * which is dead and hence not processing interrupts.
  */
 static void rcu_move_batch(struct rcu_data *this_rdp, struct rcu_head *list,
-				struct rcu_head **tail)
+				struct rcu_head **tail, long batch)
 {
-	local_irq_disable();
-	*this_rdp->nxttail = list;
-	if (list)
-		this_rdp->nxttail = tail;
-	local_irq_enable();
+	unsigned long flags;
+
+	if (list) {
+		local_irq_save(flags);
+		this_rdp->batch = batch;
+		*this_rdp->nxttail[2] = list;
+		this_rdp->nxttail[2] = tail;
+		local_irq_restore(flags);
+	}
 }
 
 static void __rcu_offline_cpu(struct rcu_data *this_rdp,
 				struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
-	/* if the cpu going offline owns the grace period
+	unsigned long flags;
+
+	/*
+	 * if the cpu going offline owns the grace period
 	 * we can block indefinitely waiting for it, so flush
 	 * it here
 	 */
-	spin_lock_bh(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	if (rcp->cur != rcp->completed)
 		cpu_quiet(rdp->cpu, rcp);
-	spin_unlock_bh(&rcp->lock);
-	rcu_move_batch(this_rdp, rdp->donelist, rdp->donetail);
-	rcu_move_batch(this_rdp, rdp->curlist, rdp->curtail);
-	rcu_move_batch(this_rdp, rdp->nxtlist, rdp->nxttail);
+	rcu_move_batch(this_rdp, rdp->donelist, rdp->donetail, rcp->cur + 1);
+	rcu_move_batch(this_rdp, rdp->nxtlist, rdp->nxttail[2], rcp->cur + 1);
+	spin_unlock(&rcp->lock);
 
-	local_irq_disable();
 	this_rdp->qlen += rdp->qlen;
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 static void rcu_offline_cpu(int cpu)
@@ -420,38 +527,52 @@ static void rcu_offline_cpu(int cpu)
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 					struct rcu_data *rdp)
 {
-	if (rdp->curlist && !rcu_batch_before(rcp->completed, rdp->batch)) {
-		*rdp->donetail = rdp->curlist;
-		rdp->donetail = rdp->curtail;
-		rdp->curlist = NULL;
-		rdp->curtail = &rdp->curlist;
-	}
+	unsigned long flags;
+	long completed_snap;
 
-	if (rdp->nxtlist && !rdp->curlist) {
-		local_irq_disable();
-		rdp->curlist = rdp->nxtlist;
-		rdp->curtail = rdp->nxttail;
-		rdp->nxtlist = NULL;
-		rdp->nxttail = &rdp->nxtlist;
-		local_irq_enable();
+	if (rdp->nxtlist) {
+		local_irq_save(flags);
+		completed_snap = ACCESS_ONCE(rcp->completed);
 
 		/*
-		 * start the next batch of callbacks
+		 * move the other grace-period-completed entries to
+		 * [rdp->nxtlist, *rdp->nxttail[0]) temporarily
 		 */
+		if (!rcu_batch_before(completed_snap, rdp->batch))
+			rdp->nxttail[0] = rdp->nxttail[1] = rdp->nxttail[2];
+		else if (!rcu_batch_before(completed_snap, rdp->batch - 1))
+			rdp->nxttail[0] = rdp->nxttail[1];
 
-		/* determine batch number */
-		rdp->batch = rcp->cur + 1;
-		/* see the comment and corresponding wmb() in
-		 * the rcu_start_batch()
+		/*
+		 * the grace period for entries in
+		 * [rdp->nxtlist, *rdp->nxttail[0]) has completed and
+		 * move these entries to donelist
 		 */
-		smp_rmb();
+		if (rdp->nxttail[0] != &rdp->nxtlist) {
+			*rdp->donetail = rdp->nxtlist;
+			rdp->donetail = rdp->nxttail[0];
+			rdp->nxtlist = *rdp->nxttail[0];
+			*rdp->donetail = NULL;
 
-		if (!rcp->next_pending) {
+			if (rdp->nxttail[1] == rdp->nxttail[0])
+				rdp->nxttail[1] = &rdp->nxtlist;
+			if (rdp->nxttail[2] == rdp->nxttail[0])
+				rdp->nxttail[2] = &rdp->nxtlist;
+			rdp->nxttail[0] = &rdp->nxtlist;
+		}
+
+		local_irq_restore(flags);
+
+		if (rcu_batch_after(rdp->batch, rcp->pending)) {
+			unsigned long flags2;
+
 			/* and start it/schedule start if it's a new batch */
-			spin_lock(&rcp->lock);
-			rcp->next_pending = 1;
-			rcu_start_batch(rcp);
-			spin_unlock(&rcp->lock);
+			spin_lock_irqsave(&rcp->lock, flags2);
+			if (rcu_batch_after(rdp->batch, rcp->pending)) {
+				rcp->pending = rdp->batch;
+				rcu_start_batch(rcp);
+			}
+			spin_unlock_irqrestore(&rcp->lock, flags2);
 		}
 	}
 
@@ -462,21 +583,53 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 
 static void rcu_process_callbacks(struct softirq_action *unused)
 {
+	/*
+	 * Memory references from any prior RCU read-side critical sections
+	 * executed by the interrupted code must be see before any RCU
+	 * grace-period manupulations below.
+	 */
+
+	smp_mb(); /* See above block comment. */
+
 	__rcu_process_callbacks(&rcu_ctrlblk, &__get_cpu_var(rcu_data));
 	__rcu_process_callbacks(&rcu_bh_ctrlblk, &__get_cpu_var(rcu_bh_data));
+
+	/*
+	 * Memory references from any later RCU read-side critical sections
+	 * executed by the interrupted code must be see after any RCU
+	 * grace-period manupulations above.
+	 */
+
+	smp_mb(); /* See above block comment. */
 }
 
 static int __rcu_pending(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
-	/* This cpu has pending rcu entries and the grace period
-	 * for them has completed.
-	 */
-	if (rdp->curlist && !rcu_batch_before(rcp->completed, rdp->batch))
-		return 1;
+	/* Check for CPU stalls, if enabled. */
+	check_cpu_stall(rcp);
 
-	/* This cpu has no pending entries, but there are new entries */
-	if (!rdp->curlist && rdp->nxtlist)
-		return 1;
+	if (rdp->nxtlist) {
+		long completed_snap = ACCESS_ONCE(rcp->completed);
+
+		/*
+		 * This cpu has pending rcu entries and the grace period
+		 * for them has completed.
+		 */
+		if (!rcu_batch_before(completed_snap, rdp->batch))
+			return 1;
+		if (!rcu_batch_before(completed_snap, rdp->batch - 1) &&
+				rdp->nxttail[0] != rdp->nxttail[1])
+			return 1;
+		if (rdp->nxttail[0] != &rdp->nxtlist)
+			return 1;
+
+		/*
+		 * This cpu has pending rcu entries and the new batch
+		 * for then hasn't been started nor scheduled start
+		 */
+		if (rcu_batch_after(rdp->batch, rcp->pending))
+			return 1;
+	}
 
 	/* This cpu has finished callbacks to invoke */
 	if (rdp->donelist)
@@ -512,9 +665,15 @@ int rcu_needs_cpu(int cpu)
 	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
 	struct rcu_data *rdp_bh = &per_cpu(rcu_bh_data, cpu);
 
-	return (!!rdp->curlist || !!rdp_bh->curlist || rcu_pending(cpu));
+	return !!rdp->nxtlist || !!rdp_bh->nxtlist || rcu_pending(cpu);
 }
 
+/*
+ * Top-level function driving RCU grace-period detection, normally
+ * invoked from the scheduler-clock interrupt.  This function simply
+ * increments counters that are read only from softirq by this same
+ * CPU, so there are no memory barriers required.
+ */
 void rcu_check_callbacks(int cpu, int user)
 {
 	if (user ||
@@ -558,14 +717,17 @@ void rcu_check_callbacks(int cpu, int user)
 static void rcu_init_percpu_data(int cpu, struct rcu_ctrlblk *rcp,
 						struct rcu_data *rdp)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rcp->lock, flags);
 	memset(rdp, 0, sizeof(*rdp));
-	rdp->curtail = &rdp->curlist;
-	rdp->nxttail = &rdp->nxtlist;
+	rdp->nxttail[0] = rdp->nxttail[1] = rdp->nxttail[2] = &rdp->nxtlist;
 	rdp->donetail = &rdp->donelist;
 	rdp->quiescbatch = rcp->completed;
 	rdp->qs_pending = 0;
 	rdp->cpu = cpu;
 	rdp->blimit = blimit;
+	spin_unlock_irqrestore(&rcp->lock, flags);
 }
 
 static void __cpuinit rcu_online_cpu(int cpu)
@@ -610,6 +772,9 @@ static struct notifier_block __cpuinitdata rcu_nb = {
  */
 void __init __rcu_init(void)
 {
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 	rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE,
 			(void *)(long)smp_processor_id());
 	/* Register notifier for non-boot CPUs */
