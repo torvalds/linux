@@ -212,25 +212,6 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 		idefloppy_end_request(drive, 1, 0);
 }
 
-/*
- * Generate a new packet command request in front of the request queue, before
- * the current request so that it will be processed immediately, on the next
- * pass through the driver.
- */
-static void idefloppy_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
-		struct request *rq)
-{
-	struct ide_floppy_obj *floppy = drive->driver_data;
-
-	blk_rq_init(NULL, rq);
-	rq->buffer = (char *) pc;
-	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd_flags |= REQ_PREEMPT;
-	rq->rq_disk = floppy->disk;
-	memcpy(rq->cmd, pc->c, 12);
-	ide_do_drive_cmd(drive, rq);
-}
-
 static void ide_floppy_callback(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
@@ -288,7 +269,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 
 	(void)ide_read_error(drive);
 	idefloppy_create_request_sense_cmd(pc);
-	idefloppy_queue_pc_head(drive, pc, rq);
+	ide_queue_pc_head(drive, floppy->disk, pc, rq);
 }
 
 /* The usual interrupt handler called during a packet command. */

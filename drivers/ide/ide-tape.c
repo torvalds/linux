@@ -159,20 +159,6 @@ struct idetape_bh {
 #define IDETAPE_LU_RETENSION_MASK	2
 #define IDETAPE_LU_EOT_MASK		4
 
-/*
- * Special requests for our block device strategy routine.
- *
- * In order to service a character device command, we add special requests to
- * the tail of our block device request queue and wait for their completion.
- */
-
-enum {
-	REQ_IDETAPE_PC1		= (1 << 0), /* packet command (first stage) */
-	REQ_IDETAPE_PC2		= (1 << 1), /* packet command (second stage) */
-	REQ_IDETAPE_READ	= (1 << 2),
-	REQ_IDETAPE_WRITE	= (1 << 3),
-};
-
 /* Error codes returned in rq->errors to the higher part of the driver. */
 #define IDETAPE_ERROR_GENERAL		101
 #define IDETAPE_ERROR_FILEMARK		102
@@ -613,26 +599,6 @@ static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
 }
 
 /*
- * Generate a new packet command request in front of the request queue, before
- * the current request, so that it will be processed immediately, on the next
- * pass through the driver.
- */
-static void idetape_queue_pc_head(ide_drive_t *drive, struct ide_atapi_pc *pc,
-				  struct request *rq)
-{
-	struct ide_tape_obj *tape = drive->driver_data;
-
-	blk_rq_init(NULL, rq);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd_flags |= REQ_PREEMPT;
-	rq->buffer = (char *) pc;
-	rq->rq_disk = tape->disk;
-	memcpy(rq->cmd, pc->c, 12);
-	rq->cmd[13] = REQ_IDETAPE_PC1;
-	ide_do_drive_cmd(drive, rq);
-}
-
-/*
  *	idetape_retry_pc is called when an error was detected during the
  *	last packet command. We queue a request sense packet command in
  *	the head of the request list.
@@ -646,7 +612,7 @@ static void idetape_retry_pc(ide_drive_t *drive)
 	(void)ide_read_error(drive);
 	idetape_create_request_sense_cmd(pc);
 	set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
-	idetape_queue_pc_head(drive, pc, rq);
+	ide_queue_pc_head(drive, tape->disk, pc, rq);
 }
 
 /*

@@ -119,6 +119,26 @@ void ide_init_pc(struct ide_atapi_pc *pc)
 }
 EXPORT_SYMBOL_GPL(ide_init_pc);
 
+/*
+ * Generate a new packet command request in front of the request queue, before
+ * the current request, so that it will be processed immediately, on the next
+ * pass through the driver.
+ */
+void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
+		       struct ide_atapi_pc *pc, struct request *rq)
+{
+	blk_rq_init(NULL, rq);
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_flags |= REQ_PREEMPT;
+	rq->buffer = (char *)pc;
+	rq->rq_disk = disk;
+	memcpy(rq->cmd, pc->c, 12);
+	if (drive->media == ide_tape)
+		rq->cmd[13] = REQ_IDETAPE_PC1;
+	ide_do_drive_cmd(drive, rq);
+}
+EXPORT_SYMBOL_GPL(ide_queue_pc_head);
+
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
