@@ -556,11 +556,11 @@ static void xics_request_ipi(void)
 	 */
 	set_irq_handler(ipi, handle_percpu_irq);
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		rc = request_irq(ipi, xics_ipi_action_lpar, IRQF_DISABLED,
-				"IPI", NULL);
+		rc = request_irq(ipi, xics_ipi_action_lpar,
+				IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL);
 	else
-		rc = request_irq(ipi, xics_ipi_action_direct, IRQF_DISABLED,
-				"IPI", NULL);
+		rc = request_irq(ipi, xics_ipi_action_direct,
+				IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL);
 	BUG_ON(rc);
 }
 
