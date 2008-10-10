@@ -69,9 +69,7 @@ static void ide_disk_init_chs(ide_drive_t *drive)
 	}
 
 	/* Handle logical geometry translation by the drive */
-	if ((id[ATA_ID_FIELD_VALID] & 1) && id[ATA_ID_CUR_CYLS] &&
-	    id[ATA_ID_CUR_HEADS] && id[ATA_ID_CUR_HEADS] <= 16 &&
-	    id[ATA_ID_CUR_SECTORS]) {
+	if (ata_id_current_chs_valid(id)) {
 		drive->cyl  = id[ATA_ID_CUR_CYLS];
 		drive->head = id[ATA_ID_CUR_HEADS];
 		drive->sect = id[ATA_ID_CUR_SECTORS];
