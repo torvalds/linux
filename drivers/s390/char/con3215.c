@@ -21,6 +21,7 @@
 #include <linux/console.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/reboot.h>
 
 #include <linux/slab.h>
 #include <linux/bootmem.h>
@@ -775,11 +776,11 @@ static struct tty_driver *con3215_device(struct console *c, int *index)
 }
 
 /*
- * panic() calls console_unblank before the system enters a
- * disabled, endless loop.
+ * panic() calls con3215_flush through a panic_notifier
+ * before the system enters a disabled, endless loop.
  */
 static void
-con3215_unblank(void)
+con3215_flush(void)
 {
 	struct raw3215_info *raw;
 	unsigned long flags;
@@ -790,6 +791,23 @@ con3215_unblank(void)
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }
 
+static int con3215_notify(struct notifier_block *self,
+			  unsigned long event, void *data)
+{
+	con3215_flush();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block on_panic_nb = {
+	.notifier_call = con3215_notify,
+	.priority = 0,
+};
+
+static struct notifier_block on_reboot_nb = {
+	.notifier_call = con3215_notify,
+	.priority = 0,
+};
+
 /*
  *  The console structure for the 3215 console
  */
@@ -797,7 +815,6 @@ static struct console con3215 = {
 	.name	 = "ttyS",
 	.write	 = con3215_write,
 	.device	 = con3215_device,
-	.unblank = con3215_unblank,
 	.flags	 = CON_PRINTBUFFER,
 };
 
@@ -859,6 +876,8 @@ con3215_init(void)
 		raw3215[0] = NULL;
 		return -ENODEV;
 	}
+	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	register_reboot_notifier(&on_reboot_nb);
 	register_console(&con3215);
 	return 0;
 }

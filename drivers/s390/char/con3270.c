@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/reboot.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -528,11 +529,11 @@ con3270_wait_write(struct con3270 *cp)
 }
 
 /*
- * panic() calls console_unblank before the system enters a
- * disabled, endless loop.
+ * panic() calls con3270_flush through a panic_notifier
+ * before the system enters a disabled, endless loop.
  */
 static void
-con3270_unblank(void)
+con3270_flush(void)
 {
 	struct con3270 *cp;
 	unsigned long flags;
@@ -554,6 +555,23 @@ con3270_unblank(void)
 	spin_unlock_irqrestore(&cp->view.lock, flags);
 }
 
+static int con3270_notify(struct notifier_block *self,
+			  unsigned long event, void *data)
+{
+	con3270_flush();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block on_panic_nb = {
+	.notifier_call = con3270_notify,
+	.priority = 0,
+};
+
+static struct notifier_block on_reboot_nb = {
+	.notifier_call = con3270_notify,
+	.priority = 0,
+};
+
 /*
  *  The console structure for the 3270 console
  */
@@ -561,7 +579,6 @@ static struct console con3270 = {
 	.name	 = "tty3270",
 	.write	 = con3270_write,
 	.device	 = con3270_device,
-	.unblank = con3270_unblank,
 	.flags	 = CON_PRINTBUFFER,
 };
 
@@ -623,6 +640,8 @@ con3270_init(void)
 	condev->cline->len = 0;
 	con3270_create_status(condev);
 	condev->input = alloc_string(&condev->freemem, 80);
+	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	register_reboot_notifier(&on_reboot_nb);
 	register_console(&con3270);
 	return 0;
 }
