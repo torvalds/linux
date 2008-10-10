@@ -542,11 +542,6 @@ static void enable_nest (ide_drive_t *drive)
 		printk(KERN_CONT "failed (status = 0x%02x)\n", stat);
 	else
 		printk(KERN_CONT "success\n");
-
-	/* if !(success||timed-out) */
-	if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
-		/* look for ATAPI device */
-		(void)do_probe(drive, ATA_CMD_ID_ATAPI);
 }
 
 /**
@@ -586,19 +581,22 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	strcpy(m, "UNKNOWN");
 
 	/* skip probing? */
-	if (!drive->noprobe)
-	{
+	if (!drive->noprobe) {
+retry:
 		/* if !(success||timed-out) */
 		if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
 			/* look for ATAPI device */
 			(void)do_probe(drive, ATA_CMD_ID_ATAPI);
+
 		if (!drive->present)
 			/* drive not found */
 			return 0;
 
-		if (strstr(m, "E X A B Y T E N E S T"))
+		if (strstr(m, "E X A B Y T E N E S T")) {
 			enable_nest(drive);
-	
+			goto retry;
+		}
+
 		/* identification failed? */
 		if (!drive->id_read) {
 			if (drive->media == ide_disk) {
