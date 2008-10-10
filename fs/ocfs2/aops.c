@@ -68,8 +68,7 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno,
-				  &bh, OCFS2_BH_CACHED);
+	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -263,8 +262,7 @@ static int ocfs2_readpage_inline(struct inode *inode, struct page *page)
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
 
-	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &di_bh,
-			       OCFS2_BH_CACHED);
+	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;

@@ -188,8 +188,7 @@ static struct buffer_head *ocfs2_find_entry_id(const char *name,
 	struct ocfs2_dinode *di;
 	struct ocfs2_inline_data *data;
 
-	ret = ocfs2_read_block(dir, OCFS2_I(dir)->ip_blkno, &di_bh,
-			       OCFS2_BH_CACHED);
+	ret = ocfs2_read_block(dir, OCFS2_I(dir)->ip_blkno, &di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -417,8 +416,7 @@ static inline int ocfs2_delete_entry_id(handle_t *handle,
 	struct ocfs2_dinode *di;
 	struct ocfs2_inline_data *data;
 
-	ret = ocfs2_read_block(dir, OCFS2_I(dir)->ip_blkno,
-			       &di_bh, OCFS2_BH_CACHED);
+	ret = ocfs2_read_block(dir, OCFS2_I(dir)->ip_blkno, &di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -596,8 +594,7 @@ static int ocfs2_dir_foreach_blk_id(struct inode *inode,
 	struct ocfs2_inline_data *data;
 	struct ocfs2_dir_entry *de;
 
-	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno,
-			       &di_bh, OCFS2_BH_CACHED);
+	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &di_bh);
 	if (ret) {
 		mlog(ML_ERROR, "Unable to read inode block for dir %llu\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno);

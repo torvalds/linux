@@ -403,7 +403,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 		     (unsigned long long)blkno);
 
 		bh = NULL;  /* Acquire a fresh bh */
-		status = ocfs2_read_block(si->si_inode, blkno, &bh, 0);
+		status = ocfs2_read_blocks(si->si_inode, blkno, 1, &bh, 0);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;

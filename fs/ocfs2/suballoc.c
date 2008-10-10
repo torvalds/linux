@@ -1172,8 +1172,7 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 	struct ocfs2_group_desc *gd;
 	struct inode *alloc_inode = ac->ac_inode;
 
-	ret = ocfs2_read_block(alloc_inode, gd_blkno,
-			       &group_bh, OCFS2_BH_CACHED);
+	ret = ocfs2_read_block(alloc_inode, gd_blkno, &group_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
@@ -1244,7 +1243,7 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 
 	status = ocfs2_read_block(alloc_inode,
 				  le64_to_cpu(cl->cl_recs[chain].c_blkno),
-				  &group_bh, OCFS2_BH_CACHED);
+				  &group_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1273,8 +1272,7 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		prev_group_bh = group_bh;
 		group_bh = NULL;
 		status = ocfs2_read_block(alloc_inode,
-					  next_group, &group_bh,
-					  OCFS2_BH_CACHED);
+					  next_group, &group_bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -1795,8 +1793,7 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno, count,
 	     (unsigned long long)bg_blkno, start_bit);
 
-	status = ocfs2_read_block(alloc_inode, bg_blkno, &group_bh,
-				  OCFS2_BH_CACHED);
+	status = ocfs2_read_block(alloc_inode, bg_blkno, &group_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

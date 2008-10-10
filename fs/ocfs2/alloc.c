@@ -706,7 +706,7 @@ int ocfs2_num_free_extents(struct ocfs2_super *osb,
 
 	if (last_eb_blk) {
 		retval = ocfs2_read_block(inode, last_eb_blk,
-					  &eb_bh, OCFS2_BH_CACHED);
+					  &eb_bh);
 		if (retval < 0) {
 			mlog_errno(retval);
 			goto bail;
@@ -1176,7 +1176,7 @@ static int ocfs2_find_branch_target(struct ocfs2_super *osb,
 		brelse(bh);
 		bh = NULL;
 
-		status = ocfs2_read_block(inode, blkno, &bh, OCFS2_BH_CACHED);
+		status = ocfs2_read_block(inode, blkno, &bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -1540,7 +1540,7 @@ static int __ocfs2_find_path(struct inode *inode,
 
 		brelse(bh);
 		bh = NULL;
-		ret = ocfs2_read_block(inode, blkno, &bh, OCFS2_BH_CACHED);
+		ret = ocfs2_read_block(inode, blkno, &bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -4294,9 +4294,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 		 * ocfs2_figure_insert_type() and ocfs2_add_branch()
 		 * may want it later.
 		 */
-		ret = ocfs2_read_block(inode,
-				       ocfs2_et_get_last_eb_blk(et), &bh,
-				       OCFS2_BH_CACHED);
+		ret = ocfs2_read_block(inode, ocfs2_et_get_last_eb_blk(et), &bh);
 		if (ret) {
 			mlog_exit(ret);
 			goto out;
@@ -4762,9 +4760,8 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 	if (path->p_tree_depth) {
 		struct ocfs2_extent_block *eb;
 
-		ret = ocfs2_read_block(inode,
-				       ocfs2_et_get_last_eb_blk(et),
-				       &last_eb_bh, OCFS2_BH_CACHED);
+		ret = ocfs2_read_block(inode, ocfs2_et_get_last_eb_blk(et),
+				       &last_eb_bh);
 		if (ret) {
 			mlog_exit(ret);
 			goto out;
@@ -4921,9 +4918,8 @@ static int ocfs2_split_tree(struct inode *inode, struct ocfs2_extent_tree *et,
 
 	depth = path->p_tree_depth;
 	if (depth > 0) {
-		ret = ocfs2_read_block(inode,
-				       ocfs2_et_get_last_eb_blk(et),
-				       &last_eb_bh, OCFS2_BH_CACHED);
+		ret = ocfs2_read_block(inode, ocfs2_et_get_last_eb_blk(et),
+				       &last_eb_bh);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -5590,8 +5586,7 @@ static int ocfs2_get_truncate_log_info(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &bh,
-				  OCFS2_BH_CACHED);
+	status = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &bh);
 	if (status < 0) {
 		iput(inode);
 		mlog_errno(status);
@@ -6990,7 +6985,7 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 
 	if (fe->id2.i_list.l_tree_depth) {
 		status = ocfs2_read_block(inode, le64_to_cpu(fe->i_last_eb_blk),
-					  &last_eb_bh, OCFS2_BH_CACHED);
+					  &last_eb_bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
