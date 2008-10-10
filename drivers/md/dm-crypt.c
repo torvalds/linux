@@ -691,12 +691,18 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
 	}
 }
 
-static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
+static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *clone;
 	unsigned remaining = io->base_bio->bi_size;
 	int r;
+
+	/*
+	 * Prevent io from disappearing until this function completes.
+	 */
+	crypt_inc_pending(io);
+	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -706,7 +712,7 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 		clone = crypt_alloc_buffer(io, remaining);
 		if (unlikely(!clone)) {
 			io->error = -ENOMEM;
-			return;
+			break;
 		}
 
 		io->ctx.bio_out = clone;
@@ -720,7 +726,7 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 			/* processed, no running async crypto  */
 			kcryptd_crypt_write_io_submit(io, r, 0);
 			if (unlikely(r < 0))
-				return;
+				break;
 		} else
 			crypt_inc_pending(io);
 
@@ -732,19 +738,6 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 			congestion_wait(WRITE, HZ/100);
 		}
 	}
-}
-
-static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
-{
-	struct crypt_config *cc = io->target->private;
-
-	/*
-	 * Prevent io from disappearing until this function completes.
-	 */
-	crypt_inc_pending(io);
-
-	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
-	kcryptd_crypt_write_convert_loop(io);
 
 	crypt_dec_pending(io);
 }
