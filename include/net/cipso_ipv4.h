@@ -45,7 +45,7 @@
 /* known doi values */
 #define CIPSO_V4_DOI_UNKNOWN          0x00000000
 
-/* tag types */
+/* standard tag types */
 #define CIPSO_V4_TAG_INVALID          0
 #define CIPSO_V4_TAG_RBITMAP          1
 #define CIPSO_V4_TAG_ENUM             2
@@ -53,10 +53,14 @@
 #define CIPSO_V4_TAG_PBITMAP          6
 #define CIPSO_V4_TAG_FREEFORM         7
 
+/* non-standard tag types (tags > 127) */
+#define CIPSO_V4_TAG_LOCAL            128
+
 /* doi mapping types */
 #define CIPSO_V4_MAP_UNKNOWN          0
-#define CIPSO_V4_MAP_STD              1
+#define CIPSO_V4_MAP_TRANS            1
 #define CIPSO_V4_MAP_PASS             2
+#define CIPSO_V4_MAP_LOCAL            3
 
 /* limits */
 #define CIPSO_V4_MAX_REM_LVLS         255
@@ -215,7 +219,7 @@ int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 int cipso_v4_skbuff_delattr(struct sk_buff *skb);
 int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 			    struct netlbl_lsm_secattr *secattr);
-int cipso_v4_validate(unsigned char **option);
+int cipso_v4_validate(const struct sk_buff *skb, unsigned char **option);
 #else
 static inline void cipso_v4_error(struct sk_buff *skb,
 				  int error,
@@ -259,7 +263,8 @@ static inline int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
 	return -ENOSYS;
 }
 
-static inline int cipso_v4_validate(unsigned char **option)
+static inline int cipso_v4_validate(const struct sk_buff *skb,
+				    unsigned char **option)
 {
 	return -ENOSYS;
 }

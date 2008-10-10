@@ -109,6 +109,19 @@ int cipso_v4_rbm_strictvalid = 1;
  * be omitted. */
 #define CIPSO_V4_TAG_RNG_CAT_MAX      8
 
+/* Base length of the local tag (non-standard tag).
+ *  Tag definition (may change between kernel versions)
+ *
+ * 0          8          16         24         32
+ * +----------+----------+----------+----------+
+ * | 10000000 | 00000110 | 32-bit secid value  |
+ * +----------+----------+----------+----------+
+ * | in (host byte order)|
+ * +----------+----------+
+ *
+ */
+#define CIPSO_V4_TAG_LOC_BLEN         6
+
 /*
  * Helper Functions
  */
@@ -467,6 +480,10 @@ int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
 			if (doi_def->type != CIPSO_V4_MAP_PASS)
 				return -EINVAL;
 			break;
+		case CIPSO_V4_TAG_LOCAL:
+			if (doi_def->type != CIPSO_V4_MAP_LOCAL)
+				return -EINVAL;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -502,7 +519,7 @@ void cipso_v4_doi_free(struct cipso_v4_doi *doi_def)
 		return;
 
 	switch (doi_def->type) {
-	case CIPSO_V4_MAP_STD:
+	case CIPSO_V4_MAP_TRANS:
 		kfree(doi_def->map.std->lvl.cipso);
 		kfree(doi_def->map.std->lvl.local);
 		kfree(doi_def->map.std->cat.cipso);
@@ -673,7 +690,7 @@ static int cipso_v4_map_lvl_valid(const struct cipso_v4_doi *doi_def, u8 level)
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
 		return 0;
-	case CIPSO_V4_MAP_STD:
+	case CIPSO_V4_MAP_TRANS:
 		if (doi_def->map.std->lvl.cipso[level] < CIPSO_V4_INV_LVL)
 			return 0;
 		break;
@@ -702,7 +719,7 @@ static int cipso_v4_map_lvl_hton(const struct cipso_v4_doi *doi_def,
 	case CIPSO_V4_MAP_PASS:
 		*net_lvl = host_lvl;
 		return 0;
-	case CIPSO_V4_MAP_STD:
+	case CIPSO_V4_MAP_TRANS:
 		if (host_lvl < doi_def->map.std->lvl.local_size &&
 		    doi_def->map.std->lvl.local[host_lvl] < CIPSO_V4_INV_LVL) {
 			*net_lvl = doi_def->map.std->lvl.local[host_lvl];
@@ -736,7 +753,7 @@ static int cipso_v4_map_lvl_ntoh(const struct cipso_v4_doi *doi_def,
 	case CIPSO_V4_MAP_PASS:
 		*host_lvl = net_lvl;
 		return 0;
-	case CIPSO_V4_MAP_STD:
+	case CIPSO_V4_MAP_TRANS:
 		map_tbl = doi_def->map.std;
 		if (net_lvl < map_tbl->lvl.cipso_size &&
 		    map_tbl->lvl.cipso[net_lvl] < CIPSO_V4_INV_LVL) {
@@ -773,7 +790,7 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
 		return 0;
-	case CIPSO_V4_MAP_STD:
+	case CIPSO_V4_MAP_TRANS:
 		cipso_cat_size = doi_def->map.std->cat.cipso_size;
 		cipso_array = doi_def->map.std->cat.cipso;
 		for (;;) {
@@ -821,7 +838,7 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 	u32 host_cat_size = 0;
 	u32 *host_cat_array = NULL;
 
-	if (doi_def->type == CIPSO_V4_MAP_STD) {
+	if (doi_def->type == CIPSO_V4_MAP_TRANS) {
 		host_cat_size = doi_def->map.std->cat.local_size;
 		host_cat_array = doi_def->map.std->cat.local;
 	}
@@ -836,7 +853,7 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 		case CIPSO_V4_MAP_PASS:
 			net_spot = host_spot;
 			break;
-		case CIPSO_V4_MAP_STD:
+		case CIPSO_V4_MAP_TRANS:
 			if (host_spot >= host_cat_size)
 				return -EPERM;
 			net_spot = host_cat_array[host_spot];
@@ -882,7 +899,7 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 	u32 net_cat_size = 0;
 	u32 *net_cat_array = NULL;
 
-	if (doi_def->type == CIPSO_V4_MAP_STD) {
+	if (doi_def->type == CIPSO_V4_MAP_TRANS) {
 		net_cat_size = doi_def->map.std->cat.cipso_size;
 		net_cat_array = doi_def->map.std->cat.cipso;
 	}
@@ -902,7 +919,7 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 		case CIPSO_V4_MAP_PASS:
 			host_spot = net_spot;
 			break;
-		case CIPSO_V4_MAP_STD:
+		case CIPSO_V4_MAP_TRANS:
 			if (net_spot >= net_cat_size)
 				return -EPERM;
 			host_spot = net_cat_array[net_spot];
@@ -1238,7 +1255,7 @@ static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 	} else
 		tag_len = 4;
 
-	buffer[0] = 0x01;
+	buffer[0] = CIPSO_V4_TAG_RBITMAP;
 	buffer[1] = tag_len;
 	buffer[3] = level;
 
@@ -1334,7 +1351,7 @@ static int cipso_v4_gentag_enum(const struct cipso_v4_doi *doi_def,
 	} else
 		tag_len = 4;
 
-	buffer[0] = 0x02;
+	buffer[0] = CIPSO_V4_TAG_ENUM;
 	buffer[1] = tag_len;
 	buffer[3] = level;
 
@@ -1430,7 +1447,7 @@ static int cipso_v4_gentag_rng(const struct cipso_v4_doi *doi_def,
 	} else
 		tag_len = 4;
 
-	buffer[0] = 0x05;
+	buffer[0] = CIPSO_V4_TAG_RANGE;
 	buffer[1] = tag_len;
 	buffer[3] = level;
 
@@ -1484,6 +1501,54 @@ static int cipso_v4_parsetag_rng(const struct cipso_v4_doi *doi_def,
 }
 
 /**
+ * cipso_v4_gentag_loc - Generate a CIPSO local tag (non-standard)
+ * @doi_def: the DOI definition
+ * @secattr: the security attributes
+ * @buffer: the option buffer
+ * @buffer_len: length of buffer in bytes
+ *
+ * Description:
+ * Generate a CIPSO option using the local tag.  Returns the size of the tag
+ * on success, negative values on failure.
+ *
+ */
+static int cipso_v4_gentag_loc(const struct cipso_v4_doi *doi_def,
+			       const struct netlbl_lsm_secattr *secattr,
+			       unsigned char *buffer,
+			       u32 buffer_len)
+{
+	if (!(secattr->flags & NETLBL_SECATTR_SECID))
+		return -EPERM;
+
+	buffer[0] = CIPSO_V4_TAG_LOCAL;
+	buffer[1] = CIPSO_V4_TAG_LOC_BLEN;
+	*(u32 *)&buffer[2] = secattr->attr.secid;
+
+	return CIPSO_V4_TAG_LOC_BLEN;
+}
+
+/**
+ * cipso_v4_parsetag_loc - Parse a CIPSO local tag
+ * @doi_def: the DOI definition
+ * @tag: the CIPSO tag
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Parse a CIPSO local tag and return the security attributes in @secattr.
+ * Return zero on success, negatives values on failure.
+ *
+ */
+static int cipso_v4_parsetag_loc(const struct cipso_v4_doi *doi_def,
+				 const unsigned char *tag,
+				 struct netlbl_lsm_secattr *secattr)
+{
+	secattr->attr.secid = *(u32 *)&tag[2];
+	secattr->flags |= NETLBL_SECATTR_SECID;
+
+	return 0;
+}
+
+/**
  * cipso_v4_validate - Validate a CIPSO option
  * @option: the start of the option, on error it is set to point to the error
  *
@@ -1502,7 +1567,7 @@ static int cipso_v4_parsetag_rng(const struct cipso_v4_doi *doi_def,
  *   that is unrecognized."
  *
  */
-int cipso_v4_validate(unsigned char **option)
+int cipso_v4_validate(const struct sk_buff *skb, unsigned char **option)
 {
 	unsigned char *opt = *option;
 	unsigned char *tag;
@@ -1527,7 +1592,7 @@ int cipso_v4_validate(unsigned char **option)
 		goto validate_return_locked;
 	}
 
-	opt_iter = 6;
+	opt_iter = CIPSO_V4_HDR_LEN;
 	tag = opt + opt_iter;
 	while (opt_iter < opt_len) {
 		for (tag_iter = 0; doi_def->tags[tag_iter] != tag[0];)
@@ -1545,7 +1610,7 @@ int cipso_v4_validate(unsigned char **option)
 
 		switch (tag[0]) {
 		case CIPSO_V4_TAG_RBITMAP:
-			if (tag_len < 4) {
+			if (tag_len < CIPSO_V4_TAG_RBM_BLEN) {
 				err_offset = opt_iter + 1;
 				goto validate_return_locked;
 			}
@@ -1563,7 +1628,7 @@ int cipso_v4_validate(unsigned char **option)
 					err_offset = opt_iter + 3;
 					goto validate_return_locked;
 				}
-				if (tag_len > 4 &&
+				if (tag_len > CIPSO_V4_TAG_RBM_BLEN &&
 				    cipso_v4_map_cat_rbm_valid(doi_def,
 							    &tag[4],
 							    tag_len - 4) < 0) {
@@ -1573,7 +1638,7 @@ int cipso_v4_validate(unsigned char **option)
 			}
 			break;
 		case CIPSO_V4_TAG_ENUM:
-			if (tag_len < 4) {
+			if (tag_len < CIPSO_V4_TAG_ENUM_BLEN) {
 				err_offset = opt_iter + 1;
 				goto validate_return_locked;
 			}
@@ -1583,7 +1648,7 @@ int cipso_v4_validate(unsigned char **option)
 				err_offset = opt_iter + 3;
 				goto validate_return_locked;
 			}
-			if (tag_len > 4 &&
+			if (tag_len > CIPSO_V4_TAG_ENUM_BLEN &&
 			    cipso_v4_map_cat_enum_valid(doi_def,
 							&tag[4],
 							tag_len - 4) < 0) {
@@ -1592,7 +1657,7 @@ int cipso_v4_validate(unsigned char **option)
 			}
 			break;
 		case CIPSO_V4_TAG_RANGE:
-			if (tag_len < 4) {
+			if (tag_len < CIPSO_V4_TAG_RNG_BLEN) {
 				err_offset = opt_iter + 1;
 				goto validate_return_locked;
 			}
@@ -1602,11 +1667,24 @@ int cipso_v4_validate(unsigned char **option)
 				err_offset = opt_iter + 3;
 				goto validate_return_locked;
 			}
-			if (tag_len > 4 &&
+			if (tag_len > CIPSO_V4_TAG_RNG_BLEN &&
 			    cipso_v4_map_cat_rng_valid(doi_def,
 						       &tag[4],
 						       tag_len - 4) < 0) {
 				err_offset = opt_iter + 4;
+				goto validate_return_locked;
+			}
+			break;
+		case CIPSO_V4_TAG_LOCAL:
+			/* This is a non-standard tag that we only allow for
+			 * local connections, so if the incoming interface is
+			 * not the loopback device drop the packet. */
+			if (!(skb->dev->flags & IFF_LOOPBACK)) {
+				err_offset = opt_iter;
+				goto validate_return_locked;
+			}
+			if (tag_len != CIPSO_V4_TAG_LOC_BLEN) {
+				err_offset = opt_iter + 1;
 				goto validate_return_locked;
 			}
 			break;
@@ -1708,6 +1786,12 @@ static int cipso_v4_genopt(unsigned char *buf, u32 buf_len,
 			break;
 		case CIPSO_V4_TAG_RANGE:
 			ret_val = cipso_v4_gentag_rng(doi_def,
+						   secattr,
+						   &buf[CIPSO_V4_HDR_LEN],
+						   buf_len - CIPSO_V4_HDR_LEN);
+			break;
+		case CIPSO_V4_TAG_LOCAL:
+			ret_val = cipso_v4_gentag_loc(doi_def,
 						   secattr,
 						   &buf[CIPSO_V4_HDR_LEN],
 						   buf_len - CIPSO_V4_HDR_LEN);
@@ -1920,6 +2004,9 @@ static int cipso_v4_getattr(const unsigned char *cipso,
 		break;
 	case CIPSO_V4_TAG_RANGE:
 		ret_val = cipso_v4_parsetag_rng(doi_def, &cipso[6], secattr);
+		break;
+	case CIPSO_V4_TAG_LOCAL:
+		ret_val = cipso_v4_parsetag_loc(doi_def, &cipso[6], secattr);
 		break;
 	}
 	if (ret_val == 0)

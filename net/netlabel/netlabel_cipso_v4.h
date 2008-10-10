@@ -45,7 +45,7 @@
  *     NLBL_CIPSOV4_A_MTYPE
  *     NLBL_CIPSOV4_A_TAGLST
  *
- *   If using CIPSO_V4_MAP_STD the following attributes are required:
+ *   If using CIPSO_V4_MAP_TRANS the following attributes are required:
  *
  *     NLBL_CIPSOV4_A_MLSLVLLST
  *     NLBL_CIPSOV4_A_MLSCATLST
@@ -76,7 +76,7 @@
  *     NLBL_CIPSOV4_A_MTYPE
  *     NLBL_CIPSOV4_A_TAGLST
  *
- *   If using CIPSO_V4_MAP_STD the following attributes are required:
+ *   If using CIPSO_V4_MAP_TRANS the following attributes are required:
  *
  *     NLBL_CIPSOV4_A_MLSLVLLST
  *     NLBL_CIPSOV4_A_MLSCATLST

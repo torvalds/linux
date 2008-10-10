@@ -157,8 +157,8 @@ cfg_cipsov4_add_map_return:
 					      audit_info);
 	if (audit_buf != NULL) {
 		switch (doi_type) {
-		case CIPSO_V4_MAP_STD:
-			type_str = "std";
+		case CIPSO_V4_MAP_TRANS:
+			type_str = "trans";
 			break;
 		case CIPSO_V4_MAP_PASS:
 			type_str = "pass";

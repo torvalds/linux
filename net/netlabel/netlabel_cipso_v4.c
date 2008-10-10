@@ -132,9 +132,9 @@ static int netlbl_cipsov4_add_common(struct genl_info *info,
  * @info: the Generic NETLINK info block
  *
  * Description:
- * Create a new CIPSO_V4_MAP_STD DOI definition based on the given ADD message
- * and add it to the CIPSO V4 engine.  Return zero on success and non-zero on
- * error.
+ * Create a new CIPSO_V4_MAP_TRANS DOI definition based on the given ADD
+ * message and add it to the CIPSO V4 engine.  Return zero on success and
+ * non-zero on error.
  *
  */
 static int netlbl_cipsov4_add_std(struct genl_info *info)
@@ -164,7 +164,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 		ret_val = -ENOMEM;
 		goto add_std_failure;
 	}
-	doi_def->type = CIPSO_V4_MAP_STD;
+	doi_def->type = CIPSO_V4_MAP_TRANS;
 
 	ret_val = netlbl_cipsov4_add_common(info, doi_def);
 	if (ret_val != 0)
@@ -393,8 +393,8 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 
 	type = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_MTYPE]);
 	switch (type) {
-	case CIPSO_V4_MAP_STD:
-		type_str = "std";
+	case CIPSO_V4_MAP_TRANS:
+		type_str = "trans";
 		ret_val = netlbl_cipsov4_add_std(info);
 		break;
 	case CIPSO_V4_MAP_PASS:
@@ -497,7 +497,7 @@ list_start:
 	nla_nest_end(ans_skb, nla_a);
 
 	switch (doi_def->type) {
-	case CIPSO_V4_MAP_STD:
+	case CIPSO_V4_MAP_TRANS:
 		nla_a = nla_nest_start(ans_skb, NLBL_CIPSOV4_A_MLSLVLLST);
 		if (nla_a == NULL) {
 			ret_val = -ENOMEM;
