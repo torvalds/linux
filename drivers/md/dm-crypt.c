@@ -685,10 +685,8 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
 
 	if (async)
 		kcryptd_queue_io(io);
-	else {
-		crypt_inc_pending(io);
+	else
 		generic_make_request(clone);
-	}
 }
 
 static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
@@ -724,9 +722,12 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 		if (atomic_dec_and_test(&io->ctx.pending)) {
 			/* processed, no running async crypto  */
+			crypt_inc_pending(io);
 			kcryptd_crypt_write_io_submit(io, r, 0);
-			if (unlikely(r < 0))
+			if (unlikely(r < 0)) {
+				crypt_dec_pending(io);
 				break;
+			}
 		} else
 			crypt_inc_pending(io);
 
