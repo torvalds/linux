@@ -108,12 +108,12 @@ struct pstore {
 	 * Used to keep track of which metadata area the data in
 	 * 'chunk' refers to.
 	 */
-	uint32_t current_area;
+	chunk_t current_area;
 
 	/*
 	 * The next free chunk for an exception.
 	 */
-	uint32_t next_free;
+	chunk_t next_free;
 
 	/*
 	 * The index of next free exception in the current
@@ -175,7 +175,7 @@ static void do_metadata(struct work_struct *work)
 /*
  * Read or write a chunk aligned and sized block of data from a device.
  */
-static int chunk_io(struct pstore *ps, uint32_t chunk, int rw, int metadata)
+static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
 {
 	struct dm_io_region where = {
 		.bdev = ps->snap->cow->bdev,
@@ -220,10 +220,10 @@ static chunk_t area_location(struct pstore *ps, chunk_t area)
  * Read or write a metadata area.  Remembering to skip the first
  * chunk which holds the header.
  */
-static int area_io(struct pstore *ps, uint32_t area, int rw)
+static int area_io(struct pstore *ps, chunk_t area, int rw)
 {
 	int r;
-	uint32_t chunk;
+	chunk_t chunk;
 
 	chunk = area_location(ps, area);
 
@@ -235,7 +235,7 @@ static int area_io(struct pstore *ps, uint32_t area, int rw)
 	return 0;
 }
 
-static int zero_area(struct pstore *ps, uint32_t area)
+static int zero_area(struct pstore *ps, chunk_t area)
 {
 	memset(ps->area, 0, ps->snap->chunk_size << SECTOR_SHIFT);
 	return area_io(ps, area, WRITE);
@@ -411,7 +411,7 @@ static int insert_exceptions(struct pstore *ps, int *full)
 
 static int read_exceptions(struct pstore *ps)
 {
-	uint32_t area;
+	chunk_t area;
 	int r, full = 1;
 
 	/*
@@ -524,6 +524,7 @@ static int persistent_prepare(struct exception_store *store,
 {
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
+	chunk_t next_free;
 	sector_t size = get_dev_size(store->snap->cow->bdev);
 
 	/* Is there enough room ? */
@@ -537,7 +538,8 @@ static int persistent_prepare(struct exception_store *store,
 	 * into account the location of the metadata chunks.
 	 */
 	stride = (ps->exceptions_per_area + 1);
-	if ((++ps->next_free % stride) == 1)
+	next_free = ++ps->next_free;
+	if (sector_div(next_free, stride) == 1)
 		ps->next_free++;
 
 	atomic_inc(&ps->pending_count);
