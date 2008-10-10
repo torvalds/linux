@@ -26,6 +26,16 @@ config WAKELOCK
 	bool
 	default y
 
+config USER_WAKELOCK
+	bool "Userspace wake locks"
+	depends on PM_SLEEP
+	default y
+	---help---
+	  User-space wake lock api. Write "lockname" or "lockname timeout"
+	  to /sys/power/wake_lock lock and if needed create a wake lock.
+	  Write "lockname" to /sys/power/wake_unlock to unlock a user wake
+	  lock.
+
 config HIBERNATE_CALLBACKS
 	bool
 
