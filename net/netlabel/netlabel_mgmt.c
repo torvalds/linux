@@ -10,7 +10,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +32,13 @@
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <asm/atomic.h>
@@ -71,6 +75,301 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 };
 
 /*
+ * Helper Functions
+ */
+
+/**
+ * netlbl_mgmt_add - Handle an ADD message
+ * @info: the Generic NETLINK info block
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Helper function for the ADD and ADDDEF messages to add the domain mappings
+ * from the message to the hash table.  See netlabel.h for a description of the
+ * message format.  Returns zero on success, negative values on failure.
+ *
+ */
+static int netlbl_mgmt_add_common(struct genl_info *info,
+				  struct netlbl_audit *audit_info)
+{
+	int ret_val = -EINVAL;
+	struct netlbl_dom_map *entry = NULL;
+	struct netlbl_domaddr_map *addrmap = NULL;
+	struct cipso_v4_doi *cipsov4 = NULL;
+	u32 tmp_val;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (entry == NULL) {
+		ret_val = -ENOMEM;
+		goto add_failure;
+	}
+	entry->type = nla_get_u32(info->attrs[NLBL_MGMT_A_PROTOCOL]);
+	if (info->attrs[NLBL_MGMT_A_DOMAIN]) {
+		size_t tmp_size = nla_len(info->attrs[NLBL_MGMT_A_DOMAIN]);
+		entry->domain = kmalloc(tmp_size, GFP_KERNEL);
+		if (entry->domain == NULL) {
+			ret_val = -ENOMEM;
+			goto add_failure;
+		}
+		nla_strlcpy(entry->domain,
+			    info->attrs[NLBL_MGMT_A_DOMAIN], tmp_size);
+	}
+
+	/* NOTE: internally we allow/use a entry->type value of
+	 *       NETLBL_NLTYPE_ADDRSELECT but we don't currently allow users
+	 *       to pass that as a protocol value because we need to know the
+	 *       "real" protocol */
+
+	switch (entry->type) {
+	case NETLBL_NLTYPE_UNLABELED:
+		break;
+	case NETLBL_NLTYPE_CIPSOV4:
+		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
+			goto add_failure;
+
+		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CV4DOI]);
+		cipsov4 = cipso_v4_doi_getdef(tmp_val);
+		if (cipsov4 == NULL)
+			goto add_failure;
+		entry->type_def.cipsov4 = cipsov4;
+		break;
+	default:
+		goto add_failure;
+	}
+
+	if (info->attrs[NLBL_MGMT_A_IPV4ADDR]) {
+		struct in_addr *addr;
+		struct in_addr *mask;
+		struct netlbl_domaddr4_map *map;
+
+		addrmap = kzalloc(sizeof(*addrmap), GFP_KERNEL);
+		if (addrmap == NULL) {
+			ret_val = -ENOMEM;
+			goto add_failure;
+		}
+		INIT_LIST_HEAD(&addrmap->list4);
+		INIT_LIST_HEAD(&addrmap->list6);
+
+		if (nla_len(info->attrs[NLBL_MGMT_A_IPV4ADDR]) !=
+		    sizeof(struct in_addr)) {
+			ret_val = -EINVAL;
+			goto add_failure;
+		}
+		if (nla_len(info->attrs[NLBL_MGMT_A_IPV4MASK]) !=
+		    sizeof(struct in_addr)) {
+			ret_val = -EINVAL;
+			goto add_failure;
+		}
+		addr = nla_data(info->attrs[NLBL_MGMT_A_IPV4ADDR]);
+		mask = nla_data(info->attrs[NLBL_MGMT_A_IPV4MASK]);
+
+		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		if (map == NULL) {
+			ret_val = -ENOMEM;
+			goto add_failure;
+		}
+		map->list.addr = addr->s_addr & mask->s_addr;
+		map->list.mask = mask->s_addr;
+		map->list.valid = 1;
+		map->type = entry->type;
+		if (cipsov4)
+			map->type_def.cipsov4 = cipsov4;
+
+		ret_val = netlbl_af4list_add(&map->list, &addrmap->list4);
+		if (ret_val != 0) {
+			kfree(map);
+			goto add_failure;
+		}
+
+		entry->type = NETLBL_NLTYPE_ADDRSELECT;
+		entry->type_def.addrsel = addrmap;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	} else if (info->attrs[NLBL_MGMT_A_IPV6ADDR]) {
+		struct in6_addr *addr;
+		struct in6_addr *mask;
+		struct netlbl_domaddr6_map *map;
+
+		addrmap = kzalloc(sizeof(*addrmap), GFP_KERNEL);
+		if (addrmap == NULL) {
+			ret_val = -ENOMEM;
+			goto add_failure;
+		}
+		INIT_LIST_HEAD(&addrmap->list4);
+		INIT_LIST_HEAD(&addrmap->list6);
+
+		if (nla_len(info->attrs[NLBL_MGMT_A_IPV6ADDR]) !=
+		    sizeof(struct in6_addr)) {
+			ret_val = -EINVAL;
+			goto add_failure;
+		}
+		if (nla_len(info->attrs[NLBL_MGMT_A_IPV6MASK]) !=
+		    sizeof(struct in6_addr)) {
+			ret_val = -EINVAL;
+			goto add_failure;
+		}
+		addr = nla_data(info->attrs[NLBL_MGMT_A_IPV6ADDR]);
+		mask = nla_data(info->attrs[NLBL_MGMT_A_IPV6MASK]);
+
+		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		if (map == NULL) {
+			ret_val = -ENOMEM;
+			goto add_failure;
+		}
+		ipv6_addr_copy(&map->list.addr, addr);
+		map->list.addr.s6_addr32[0] &= mask->s6_addr32[0];
+		map->list.addr.s6_addr32[1] &= mask->s6_addr32[1];
+		map->list.addr.s6_addr32[2] &= mask->s6_addr32[2];
+		map->list.addr.s6_addr32[3] &= mask->s6_addr32[3];
+		ipv6_addr_copy(&map->list.mask, mask);
+		map->list.valid = 1;
+		map->type = entry->type;
+
+		ret_val = netlbl_af6list_add(&map->list, &addrmap->list6);
+		if (ret_val != 0) {
+			kfree(map);
+			goto add_failure;
+		}
+
+		entry->type = NETLBL_NLTYPE_ADDRSELECT;
+		entry->type_def.addrsel = addrmap;
+#endif /* IPv6 */
+	}
+
+	ret_val = netlbl_domhsh_add(entry, audit_info);
+	if (ret_val != 0)
+		goto add_failure;
+
+	return 0;
+
+add_failure:
+	if (cipsov4)
+		cipso_v4_doi_putdef(cipsov4);
+	if (entry)
+		kfree(entry->domain);
+	kfree(addrmap);
+	kfree(entry);
+	return ret_val;
+}
+
+/**
+ * netlbl_mgmt_listentry - List a NetLabel/LSM domain map entry
+ * @skb: the NETLINK buffer
+ * @entry: the map entry
+ *
+ * Description:
+ * This function is a helper function used by the LISTALL and LISTDEF command
+ * handlers.  The caller is responsibile for ensuring that the RCU read lock
+ * is held.  Returns zero on success, negative values on failure.
+ *
+ */
+static int netlbl_mgmt_listentry(struct sk_buff *skb,
+				 struct netlbl_dom_map *entry)
+{
+	int ret_val;
+	struct nlattr *nla_a;
+	struct nlattr *nla_b;
+	struct netlbl_af4list *iter4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct netlbl_af6list *iter6;
+#endif
+
+	if (entry->domain != NULL) {
+		ret_val = nla_put_string(skb,
+					 NLBL_MGMT_A_DOMAIN, entry->domain);
+		if (ret_val != 0)
+			return ret_val;
+	}
+
+	switch (entry->type) {
+	case NETLBL_NLTYPE_ADDRSELECT:
+		nla_a = nla_nest_start(skb, NLBL_MGMT_A_SELECTORLIST);
+		if (nla_a == NULL)
+			return -ENOMEM;
+
+		netlbl_af4list_foreach_rcu(iter4,
+					   &entry->type_def.addrsel->list4) {
+			struct netlbl_domaddr4_map *map4;
+			struct in_addr addr_struct;
+
+			nla_b = nla_nest_start(skb, NLBL_MGMT_A_ADDRSELECTOR);
+			if (nla_b == NULL)
+				return -ENOMEM;
+
+			addr_struct.s_addr = iter4->addr;
+			ret_val = nla_put(skb, NLBL_MGMT_A_IPV4ADDR,
+					  sizeof(struct in_addr),
+					  &addr_struct);
+			if (ret_val != 0)
+				return ret_val;
+			addr_struct.s_addr = iter4->mask;
+			ret_val = nla_put(skb, NLBL_MGMT_A_IPV4MASK,
+					  sizeof(struct in_addr),
+					  &addr_struct);
+			if (ret_val != 0)
+				return ret_val;
+			map4 = netlbl_domhsh_addr4_entry(iter4);
+			ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+					      map4->type);
+			if (ret_val != 0)
+				return ret_val;
+			switch (map4->type) {
+			case NETLBL_NLTYPE_CIPSOV4:
+				ret_val = nla_put_u32(skb, NLBL_MGMT_A_CV4DOI,
+						  map4->type_def.cipsov4->doi);
+				if (ret_val != 0)
+					return ret_val;
+				break;
+			}
+
+			nla_nest_end(skb, nla_b);
+		}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		netlbl_af6list_foreach_rcu(iter6,
+					   &entry->type_def.addrsel->list6) {
+			struct netlbl_domaddr6_map *map6;
+
+			nla_b = nla_nest_start(skb, NLBL_MGMT_A_ADDRSELECTOR);
+			if (nla_b == NULL)
+				return -ENOMEM;
+
+			ret_val = nla_put(skb, NLBL_MGMT_A_IPV6ADDR,
+					  sizeof(struct in6_addr),
+					  &iter6->addr);
+			if (ret_val != 0)
+				return ret_val;
+			ret_val = nla_put(skb, NLBL_MGMT_A_IPV6MASK,
+					  sizeof(struct in6_addr),
+					  &iter6->mask);
+			if (ret_val != 0)
+				return ret_val;
+			map6 = netlbl_domhsh_addr6_entry(iter6);
+			ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+					      map6->type);
+			if (ret_val != 0)
+				return ret_val;
+
+			nla_nest_end(skb, nla_b);
+		}
+#endif /* IPv6 */
+
+		nla_nest_end(skb, nla_a);
+		break;
+	case NETLBL_NLTYPE_UNLABELED:
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL, entry->type);
+		break;
+	case NETLBL_NLTYPE_CIPSOV4:
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL, entry->type);
+		if (ret_val != 0)
+			return ret_val;
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_CV4DOI,
+				      entry->type_def.cipsov4->doi);
+		break;
+	}
+
+	return ret_val;
+}
+
+/*
  * NetLabel Command Handlers
  */
 
@@ -87,67 +386,23 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
  */
 static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -EINVAL;
-	struct netlbl_dom_map *entry = NULL;
-	size_t tmp_size;
-	u32 tmp_val;
 	struct netlbl_audit audit_info;
 
-	if (!info->attrs[NLBL_MGMT_A_DOMAIN] ||
-	    !info->attrs[NLBL_MGMT_A_PROTOCOL])
-		goto add_failure;
+	if ((!info->attrs[NLBL_MGMT_A_DOMAIN]) ||
+	    (!info->attrs[NLBL_MGMT_A_PROTOCOL]) ||
+	    (info->attrs[NLBL_MGMT_A_IPV4ADDR] &&
+	     info->attrs[NLBL_MGMT_A_IPV6ADDR]) ||
+	    (info->attrs[NLBL_MGMT_A_IPV4MASK] &&
+	     info->attrs[NLBL_MGMT_A_IPV6MASK]) ||
+	    ((info->attrs[NLBL_MGMT_A_IPV4ADDR] != NULL) ^
+	     (info->attrs[NLBL_MGMT_A_IPV4MASK] != NULL)) ||
+	    ((info->attrs[NLBL_MGMT_A_IPV6ADDR] != NULL) ^
+	     (info->attrs[NLBL_MGMT_A_IPV6MASK] != NULL)))
+		return -EINVAL;
 
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (entry == NULL) {
-		ret_val = -ENOMEM;
-		goto add_failure;
-	}
-	tmp_size = nla_len(info->attrs[NLBL_MGMT_A_DOMAIN]);
-	entry->domain = kmalloc(tmp_size, GFP_KERNEL);
-	if (entry->domain == NULL) {
-		ret_val = -ENOMEM;
-		goto add_failure;
-	}
-	entry->type = nla_get_u32(info->attrs[NLBL_MGMT_A_PROTOCOL]);
-	nla_strlcpy(entry->domain, info->attrs[NLBL_MGMT_A_DOMAIN], tmp_size);
-
-	switch (entry->type) {
-	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add(entry, &audit_info);
-		break;
-	case NETLBL_NLTYPE_CIPSOV4:
-		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
-			goto add_failure;
-
-		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CV4DOI]);
-		/* We should be holding a rcu_read_lock() here while we hold
-		 * the result but since the entry will always be deleted when
-		 * the CIPSO DOI is deleted we aren't going to keep the
-		 * lock. */
-		rcu_read_lock();
-		entry->type_def.cipsov4 = cipso_v4_doi_getdef(tmp_val);
-		if (entry->type_def.cipsov4 == NULL) {
-			rcu_read_unlock();
-			goto add_failure;
-		}
-		ret_val = netlbl_domhsh_add(entry, &audit_info);
-		rcu_read_unlock();
-		break;
-	default:
-		goto add_failure;
-	}
-	if (ret_val != 0)
-		goto add_failure;
-
-	return 0;
-
-add_failure:
-	if (entry)
-		kfree(entry->domain);
-	kfree(entry);
-	return ret_val;
+	return netlbl_mgmt_add_common(info, &audit_info);
 }
 
 /**
@@ -198,23 +453,9 @@ static int netlbl_mgmt_listall_cb(struct netlbl_dom_map *entry, void *arg)
 	if (data == NULL)
 		goto listall_cb_failure;
 
-	ret_val = nla_put_string(cb_arg->skb,
-				 NLBL_MGMT_A_DOMAIN,
-				 entry->domain);
+	ret_val = netlbl_mgmt_listentry(cb_arg->skb, entry);
 	if (ret_val != 0)
 		goto listall_cb_failure;
-	ret_val = nla_put_u32(cb_arg->skb, NLBL_MGMT_A_PROTOCOL, entry->type);
-	if (ret_val != 0)
-		goto listall_cb_failure;
-	switch (entry->type) {
-	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = nla_put_u32(cb_arg->skb,
-				      NLBL_MGMT_A_CV4DOI,
-				      entry->type_def.cipsov4->doi);
-		if (ret_val != 0)
-			goto listall_cb_failure;
-		break;
-	}
 
 	cb_arg->seq++;
 	return genlmsg_end(cb_arg->skb, data);
@@ -268,56 +509,22 @@ static int netlbl_mgmt_listall(struct sk_buff *skb,
  */
 static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -EINVAL;
-	struct netlbl_dom_map *entry = NULL;
-	u32 tmp_val;
 	struct netlbl_audit audit_info;
 
-	if (!info->attrs[NLBL_MGMT_A_PROTOCOL])
-		goto adddef_failure;
+	if ((!info->attrs[NLBL_MGMT_A_PROTOCOL]) ||
+	    (info->attrs[NLBL_MGMT_A_IPV4ADDR] &&
+	     info->attrs[NLBL_MGMT_A_IPV6ADDR]) ||
+	    (info->attrs[NLBL_MGMT_A_IPV4MASK] &&
+	     info->attrs[NLBL_MGMT_A_IPV6MASK]) ||
+	    ((info->attrs[NLBL_MGMT_A_IPV4ADDR] != NULL) ^
+	     (info->attrs[NLBL_MGMT_A_IPV4MASK] != NULL)) ||
+	    ((info->attrs[NLBL_MGMT_A_IPV6ADDR] != NULL) ^
+	     (info->attrs[NLBL_MGMT_A_IPV6MASK] != NULL)))
+		return -EINVAL;
 
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (entry == NULL) {
-		ret_val = -ENOMEM;
-		goto adddef_failure;
-	}
-	entry->type = nla_get_u32(info->attrs[NLBL_MGMT_A_PROTOCOL]);
-
-	switch (entry->type) {
-	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
-		break;
-	case NETLBL_NLTYPE_CIPSOV4:
-		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
-			goto adddef_failure;
-
-		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CV4DOI]);
-		/* We should be holding a rcu_read_lock() here while we hold
-		 * the result but since the entry will always be deleted when
-		 * the CIPSO DOI is deleted we aren't going to keep the
-		 * lock. */
-		rcu_read_lock();
-		entry->type_def.cipsov4 = cipso_v4_doi_getdef(tmp_val);
-		if (entry->type_def.cipsov4 == NULL) {
-			rcu_read_unlock();
-			goto adddef_failure;
-		}
-		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
-		rcu_read_unlock();
-		break;
-	default:
-		goto adddef_failure;
-	}
-	if (ret_val != 0)
-		goto adddef_failure;
-
-	return 0;
-
-adddef_failure:
-	kfree(entry);
-	return ret_val;
+	return netlbl_mgmt_add_common(info, &audit_info);
 }
 
 /**
@@ -371,19 +578,10 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 		ret_val = -ENOENT;
 		goto listdef_failure_lock;
 	}
-	ret_val = nla_put_u32(ans_skb, NLBL_MGMT_A_PROTOCOL, entry->type);
-	if (ret_val != 0)
-		goto listdef_failure_lock;
-	switch (entry->type) {
-	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = nla_put_u32(ans_skb,
-				      NLBL_MGMT_A_CV4DOI,
-				      entry->type_def.cipsov4->doi);
-		if (ret_val != 0)
-			goto listdef_failure_lock;
-		break;
-	}
+	ret_val = netlbl_mgmt_listentry(ans_skb, entry);
 	rcu_read_unlock();
+	if (ret_val != 0)
+		goto listdef_failure;
 
 	genlmsg_end(ans_skb, data);
 	return genlmsg_reply(ans_skb, info);
