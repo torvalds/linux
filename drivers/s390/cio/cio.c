@@ -901,7 +901,7 @@ static void cio_reset_pgm_check_handler(void)
 	pgm_check_occured = 1;
 }
 
-static int stsch_reset(struct subchannel_id schid, volatile struct schib *addr)
+static int stsch_reset(struct subchannel_id schid, struct schib *addr)
 {
 	int rc;
 
