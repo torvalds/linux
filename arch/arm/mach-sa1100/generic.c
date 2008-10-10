@@ -18,9 +18,9 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>	/* just for sched_clock() - funny that */
 #include <linux/platform_device.h>
+#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
-#include <asm/cnt32_to_63.h>
 #include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>

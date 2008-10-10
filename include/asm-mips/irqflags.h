@@ -38,14 +38,24 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm");
 
+extern void smtc_ipi_replay(void);
+
 static inline void raw_local_irq_enable(void)
 {
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 * SMTC kernel needs to do a software replay of queued
+	 * IPIs, at the cost of call overhead on each local_irq_enable()
+	 */
+	smtc_ipi_replay();
+#endif
 	__asm__ __volatile__(
 		"raw_local_irq_enable"
 		: /* no outputs */
 		: /* no inputs */
 		: "memory");
 }
+
 
 /*
  * For cli() we have to insert nops to make sure that the new value
@@ -185,21 +195,31 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-extern void smtc_ipi_replay(void);
 
 static inline void raw_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
-#ifdef CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY
+#ifdef CONFIG_MIPS_MT_SMTC
 	/*
-	 * CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY does prompt replay of deferred
+	 * SMTC kernel needs to do a software replay of queued
 	 * IPIs, at the cost of branch and call overhead on each
 	 * local_irq_restore()
 	 */
 	if (unlikely(!(flags & 0x0400)))
 		smtc_ipi_replay();
 #endif
+
+	__asm__ __volatile__(
+		"raw_local_irq_restore\t%0"
+		: "=r" (__tmp1)
+		: "0" (flags)
+		: "memory");
+}
+
+static inline void __raw_local_irq_restore(unsigned long flags)
+{
+	unsigned long __tmp1;
 
 	__asm__ __volatile__(
 		"raw_local_irq_restore\t%0"

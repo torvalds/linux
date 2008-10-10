@@ -834,7 +834,7 @@ static int __init enable_mtrr_cleanup_setup(char *str)
 		enable_mtrr_cleanup = 1;
 	return 0;
 }
-early_param("enble_mtrr_cleanup", enable_mtrr_cleanup_setup);
+early_param("enable_mtrr_cleanup", enable_mtrr_cleanup_setup);
 
 struct var_mtrr_state {
 	unsigned long	range_startk;

@@ -422,6 +422,12 @@ done:
 	return err;
 }
 
+static int rtc_dev_fasync(int fd, struct file *file, int on)
+{
+	struct rtc_device *rtc = file->private_data;
+	return fasync_helper(fd, file, on, &rtc->async_queue);
+}
+
 static int rtc_dev_release(struct inode *inode, struct file *file)
 {
 	struct rtc_device *rtc = file->private_data;
@@ -434,14 +440,11 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 	if (rtc->ops->release)
 		rtc->ops->release(rtc->dev.parent);
 
+	if (file->f_flags & FASYNC)
+		rtc_dev_fasync(-1, file, 0);
+
 	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
 	return 0;
-}
-
-static int rtc_dev_fasync(int fd, struct file *file, int on)
-{
-	struct rtc_device *rtc = file->private_data;
-	return fasync_helper(fd, file, on, &rtc->async_queue);
 }
 
 static const struct file_operations rtc_dev_fops = {

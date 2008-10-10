@@ -134,7 +134,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "16-bit RGB BE",
 		ZFMT(-1,
-		     V4L2_PIX_FMT_RGB565, V4L2_COLORSPACE_SRGB),
+		     V4L2_PIX_FMT_RGB565X, V4L2_COLORSPACE_SRGB),
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
@@ -2737,7 +2737,8 @@ zoran_do_ioctl (struct inode *inode,
 				    fh->v4l_settings.format->fourcc;
 				fmt->fmt.pix.colorspace =
 				    fh->v4l_settings.format->colorspace;
-				fmt->fmt.pix.bytesperline = 0;
+				fmt->fmt.pix.bytesperline =
+				    fh->v4l_settings.bytesperline;
 				if (BUZ_MAX_HEIGHT <
 				    (fh->v4l_settings.height * 2))
 					fmt->fmt.pix.field =
@@ -2833,13 +2834,6 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.pixelformat,
 				(char *) &printformat);
 
-			if (fmt->fmt.pix.bytesperline > 0) {
-				dprintk(5,
-					KERN_ERR "%s: bpl not supported\n",
-					ZR_DEVNAME(zr));
-				return -EINVAL;
-			}
-
 			/* we can be requested to do JPEG/raw playback/capture */
 			if (!
 			    (fmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE ||
@@ -2923,6 +2917,7 @@ zoran_do_ioctl (struct inode *inode,
 				fh->jpg_buffers.buffer_size =
 				    zoran_v4l2_calc_bufsize(&fh->
 							    jpg_settings);
+				fmt->fmt.pix.bytesperline = 0;
 				fmt->fmt.pix.sizeimage =
 				    fh->jpg_buffers.buffer_size;
 
@@ -2979,6 +2974,8 @@ zoran_do_ioctl (struct inode *inode,
 
 				/* tell the user the
 				 * results/missing stuff */
+				fmt->fmt.pix.bytesperline =
+					fh->v4l_settings.bytesperline;
 				fmt->fmt.pix.sizeimage =
 					fh->v4l_settings.height *
 					fh->v4l_settings.bytesperline;

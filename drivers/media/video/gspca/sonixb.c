@@ -232,7 +232,7 @@ static struct ctrl sd_ctrls[] = {
 static struct v4l2_pix_format vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 5 / 4,
+		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
@@ -264,7 +264,7 @@ static struct v4l2_pix_format sif_mode[] = {
 		.priv = 1 | MODE_REDUCED_SIF},
 	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 176 * 144 * 5 / 4,
+		.sizeimage = 176 * 144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_RAW},
 	{176, 144, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,

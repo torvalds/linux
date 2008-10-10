@@ -114,8 +114,10 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
 
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 {
-	unsigned long pfn;
+	unsigned long pfn, flags;
 	struct page *page;
+	struct zone *zone;
+	int ret;
 
 	pfn = start_pfn;
 	/*
@@ -131,7 +133,9 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	if (pfn < end_pfn)
 		return -EBUSY;
 	/* Check all pages are free or Marked as ISOLATED */
-	if (__test_page_isolated_in_pageblock(start_pfn, end_pfn))
-		return 0;
-	return -EBUSY;
+	zone = page_zone(pfn_to_page(pfn));
+	spin_lock_irqsave(&zone->lock, flags);
+	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn);
+	spin_unlock_irqrestore(&zone->lock, flags);
+	return ret ? 0 : -EBUSY;
 }

@@ -750,6 +750,7 @@
 
 #define PAPOUCH_VID			0x5050	/* Vendor ID */
 #define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
+#define PAPOUCH_QUIDO4x4_PID		0x0900	/* Quido 4/4 Module */
 
 /*
  * ACG Identification Technologies GmbH products (http://www.acg.de/).
@@ -837,6 +838,10 @@
 
 /* Rig Expert Ukraine devices */
 #define FTDI_REU_TINY_PID		0xED22	/* RigExpert Tiny */
+
+/* Domintell products  http://www.domintell.com */
+#define FTDI_DOMINTELL_DGQG_PID	0xEF50	/* Master */
+#define FTDI_DOMINTELL_DUSB_PID	0xEF51	/* DUSB01 module */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

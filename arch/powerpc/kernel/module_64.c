@@ -21,9 +21,7 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
-#include <linux/uaccess.h>
 #include <asm/module.h>
-#include <asm/sections.h>
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
 #include <linux/sort.h>
@@ -42,13 +40,6 @@
 #else
 #define DEBUGP(fmt , ...)
 #endif
-
-/* There's actually a third entry here, but it's unused */
-struct ppc64_opd_entry
-{
-	unsigned long funcaddr;
-	unsigned long r2;
-};
 
 /* Like PPC32, we need little trampolines to do > 24-bit jumps (into
    the kernel itself).  But on PPC64, these need to be used for every
@@ -451,14 +442,4 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	}
 
 	return 0;
-}
-
-void *dereference_function_descriptor(void *ptr)
-{
-	struct ppc64_opd_entry *desc = ptr;
-	void *p;
-
-	if (!probe_kernel_address(&desc->funcaddr, p))
-		ptr = p;
-	return ptr;
 }
