@@ -332,11 +332,7 @@ int lapic_get_maxlvt(void)
  */
 
 /* Clock divisor */
-#ifdef CONFG_X86_64
-#define APIC_DIVISOR 1
-#else
 #define APIC_DIVISOR 16
-#endif
 
 /*
  * This function sets up the local APIC timer, with a timeout of
@@ -592,10 +588,10 @@ static int __init calibrate_APIC_clock(void)
 	global_clock_event->event_handler = lapic_cal_handler;
 
 	/*
-	 * Setup the APIC counter to 1e9. There is no way the lapic
+	 * Setup the APIC counter to maximum. There is no way the lapic
 	 * can underflow in the 100ms detection time frame
 	 */
-	__setup_APIC_LVTT(1000000000, 0, 0);
+	__setup_APIC_LVTT(0xffffffff, 0, 0);
 
 	/* Let the interrupts run */
 	local_irq_enable();
