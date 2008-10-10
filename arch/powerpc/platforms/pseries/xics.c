@@ -87,7 +87,7 @@ static inline unsigned int direct_xirr_info_get(void)
 	return in_be32(&xics_per_cpu[cpu]->xirr.word);
 }
 
-static inline void direct_xirr_info_set(int value)
+static inline void direct_xirr_info_set(unsigned int value)
 {
 	int cpu = smp_processor_id();
 
@@ -120,15 +120,14 @@ static inline unsigned int lpar_xirr_info_get(void)
 	return (unsigned int)return_value;
 }
 
-static inline void lpar_xirr_info_set(int value)
+static inline void lpar_xirr_info_set(unsigned int value)
 {
 	unsigned long lpar_rc;
-	unsigned long val64 = value & 0xffffffff;
 
-	lpar_rc = plpar_eoi(val64);
+	lpar_rc = plpar_eoi(value);
 	if (lpar_rc != H_SUCCESS)
-		panic("bad return code EOI - rc = %ld, value=%lx\n", lpar_rc,
-		      val64);
+		panic("bad return code EOI - rc = %ld, value=%x\n", lpar_rc,
+		      value);
 }
 
 static inline void lpar_cppr_info(u8 value)
