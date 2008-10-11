@@ -314,13 +314,6 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct cx23885_i2c *i2c_bus = NULL;
 	struct videobuf_dvb_frontend *fe0;
 
-	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
-
-	if (videobuf_dvb_alloc_frontend(dev, &port->frontends, 1) == NULL) {
-		printk(KERN_ERR "%s() failed to alloc\n", __func__);
-		return -ENOMEM;
-	}
-
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
 	if (!fe0)
@@ -560,26 +553,46 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 	struct videobuf_dvb_frontend *fe0;
 	struct cx23885_dev *dev = port->dev;
-	int err;
+	int err, i;
 
-	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
-	if (!fe0)
-		err = -EINVAL;
+	/* Here we need to allocate the correct number of frontends,
+	 * as reflected in the cards struct. The reality is that currrently
+	 * no cx23885 boards support this - yet. But, if we don't modify this
+	 * code then the second frontend would never be allocated (later)
+	 * and fail with error before the attach in dvb_register().
+	 * Without these changes we risk an OOPS later. The changes here
+	 * are for safety, and should provide a good foundation for the
+	 * future addition of any multi-frontend cx23885 based boards.
+	 */
+	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
+		port->num_frontends);
 
-	dprintk(1, "%s\n", __func__);
-	dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
-		dev->board,
-		dev->name,
-		dev->pci_bus,
-		dev->pci_slot);
+	for (i = 1; i <= port->num_frontends; i++) {
+		if (videobuf_dvb_alloc_frontend(dev, &port->frontends, i) == NULL) {
+			printk(KERN_ERR "%s() failed to alloc\n", __func__);
+			return -ENOMEM;
+		}
 
-	err = -ENODEV;
+		fe0 = videobuf_dvb_get_frontend(&port->frontends, i);
+		if (!fe0)
+			err = -EINVAL;
 
-	/* dvb stuff */
-	printk("%s: cx23885 based dvb card\n", dev->name);
-	videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops, &dev->pci->dev, &port->slock,
+		dprintk(1, "%s\n", __func__);
+		dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
+			dev->board,
+			dev->name,
+			dev->pci_bus,
+			dev->pci_slot);
+
+		err = -ENODEV;
+
+		/* dvb stuff */
+		/* We have to init the queue for each frontend on a port. */
+		printk("%s: cx23885 based dvb card\n", dev->name);
+		videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops, &dev->pci->dev, &port->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
 			    sizeof(struct cx23885_buffer), port);
+	}
 	err = dvb_register(port);
 	if (err != 0)
 		printk("%s() dvb_register failed err = %d\n", __func__, err);
@@ -591,8 +604,14 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 {
 	struct videobuf_dvb_frontend *fe0;
 
+	/* FIXME: in an error condition where the we have
+	 * an expected number of frontends (attach problem)
+	 * then this might not clean up correctly, if 1
+	 * is invalid.
+	 * This comment only applies to future boards IF they
+	 * implement MFE support.
+	 */
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
-	/* dvb */
 	if(fe0->dvb.frontend)
 		videobuf_dvb_unregister_bus(&port->frontends);
 
