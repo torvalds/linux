@@ -1014,6 +1014,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			(only serial suported for now)
 			Format: <serial_device>[,baud]
 
+	kmac=		[MIPS] korina ethernet MAC address.
+			Configure the RouterBoard 532 series on-chip
+			Ethernet adapter MAC address.
+
 	l2cr=		[PPC]
 
 	l3cr=		[PPC]
