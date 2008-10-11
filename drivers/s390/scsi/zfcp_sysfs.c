@@ -381,7 +381,7 @@ static ssize_t zfcp_sysfs_scsi_##_name##_show(struct device *dev,	\
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_scsi_##_name##_show, NULL);
 
 ZFCP_DEFINE_SCSI_ATTR(hba_id, "%s\n",
-	unit->port->adapter->ccw_device->dev.bus_id);
+		      dev_name(&unit->port->adapter->ccw_device->dev));
 ZFCP_DEFINE_SCSI_ATTR(wwpn, "0x%016llx\n",
 		      (unsigned long long) unit->port->wwpn);
 ZFCP_DEFINE_SCSI_ATTR(fcp_lun, "0x%016llx\n",

@@ -67,7 +67,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 		return 0;
 	}
 	/* Print device number. */
-	seq_printf(m, "%s", device->cdev->dev.bus_id);
+	seq_printf(m, "%s", dev_name(&device->cdev->dev));
 	/* Print discipline string. */
 	if (device != NULL && device->discipline != NULL)
 		seq_printf(m, "(%s)", device->discipline->name);
