@@ -388,7 +388,8 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	bss = ieee80211_bss_info_update(sdata->local, rx_status,
 					mgmt, skb->len, &elems,
 					freq, beacon);
-	ieee80211_rx_bss_put(sdata->local, bss);
+	if (bss)
+		ieee80211_rx_bss_put(sdata->local, bss);
 
 	dev_kfree_skb(skb);
 	return RX_QUEUED;
