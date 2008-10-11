@@ -436,7 +436,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			ide_dump_status_no_sense(drive, "media error (blank)",
 						 stat);
 			do_end_request = 1;
-		} else if ((err & ~ABRT_ERR) != 0) {
+		} else if ((err & ~ATA_ABORTED) != 0) {
 			/* go to the default handler for other errors */
 			ide_error(drive, "cdrom_decode_status", stat);
 			return 1;
@@ -457,7 +457,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		 * If we got a CHECK_CONDITION status, queue
 		 * a request sense command.
 		 */
-		if (stat & ERR_STAT)
+		if (stat & ATA_ERR)
 			cdrom_queue_request_sense(drive, NULL, NULL);
 	} else {
 		blk_dump_rq_flags(rq, "ide-cd: bad rq");
@@ -468,7 +468,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	return 1;
 
 end_request:
-	if (stat & ERR_STAT) {
+	if (stat & ATA_ERR) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&ide_lock, flags);
@@ -541,7 +541,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 			drive->waiting_for_dma = 0;
 
 		/* packet command */
-		ide_execute_command(drive, WIN_PACKETCMD, handler,
+		ide_execute_command(drive, ATA_CMD_PACKET, handler,
 				    ATAPI_WAIT_PC, cdrom_timer_expiry);
 		return ide_started;
 	} else {
@@ -574,7 +574,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 		 */
 
 		/* check for errors */
-		if (cdrom_decode_status(drive, DRQ_STAT, NULL))
+		if (cdrom_decode_status(drive, ATA_DRQ, NULL))
 			return ide_stopped;
 
 		/* ok, next interrupt will be DMA interrupt */
@@ -582,8 +582,8 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 			drive->waiting_for_dma = 1;
 	} else {
 		/* otherwise, we must wait for DRQ to get set */
-		if (ide_wait_stat(&startstop, drive, DRQ_STAT,
-				BUSY_STAT, WAIT_READY))
+		if (ide_wait_stat(&startstop, drive, ATA_DRQ,
+				  ATA_BUSY, WAIT_READY))
 			return startstop;
 	}
 
@@ -938,7 +938,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		thislen = len;
 
 	/* If DRQ is clear, the command has completed. */
-	if ((stat & DRQ_STAT) == 0) {
+	if ((stat & ATA_DRQ) == 0) {
 		if (blk_fs_request(rq)) {
 			/*
 			 * If we're not done reading/writing, complain.
@@ -1164,13 +1164,12 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 	if (rq->bio || ((rq->cmd_type == REQ_TYPE_ATA_PC) && rq->data_len)) {
 		struct request_queue *q = drive->queue;
 		unsigned int alignment;
-		unsigned long addr;
-		unsigned long stack_mask = ~(THREAD_SIZE - 1);
+		char *buf;
 
 		if (rq->bio)
-			addr = (unsigned long)bio_data(rq->bio);
+			buf = bio_data(rq->bio);
 		else
-			addr = (unsigned long)rq->data;
+			buf = rq->data;
 
 		info->dma = drive->using_dma;
 
@@ -1181,11 +1180,8 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		 * separate masks.
 		 */
 		alignment = queue_dma_alignment(q) | q->dma_pad_mask;
-		if (addr & alignment || rq->data_len & alignment)
-			info->dma = 0;
-
-		if (!((addr & stack_mask) ^
-		      ((unsigned long)current->stack & stack_mask)))
+		if ((unsigned long)buf & alignment || rq->data_len & alignment
+		    || object_is_on_stack(buf))
 			info->dma = 0;
 	}
 }
@@ -1206,7 +1202,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 			unsigned long elapsed = jiffies - info->start_seek;
 			int stat = hwif->tp_ops->read_status(hwif);
 
-			if ((stat & SEEK_STAT) != SEEK_STAT) {
+			if ((stat & ATA_DSC) != ATA_DSC) {
 				if (elapsed < IDECD_SEEK_TIMEOUT) {
 					ide_stall_queue(drive,
 							IDECD_SEEK_TIMER);
@@ -1813,13 +1809,12 @@ static ide_proc_entry_t idecd_proc[] = {
 	{ NULL, 0, NULL, NULL }
 };
 
-static void ide_cdrom_add_settings(ide_drive_t *drive)
-{
-	ide_add_setting(drive, "dsc_overlap", SETTING_RW, TYPE_BYTE, 0, 1, 1, 1,
-			&drive->dsc_overlap, NULL);
-}
-#else
-static inline void ide_cdrom_add_settings(ide_drive_t *drive) { ; }
+ide_devset_rw_field(dsc_overlap, dsc_overlap);
+
+static const struct ide_proc_devset idecd_settings[] = {
+	IDE_PROC_DEVSET(dsc_overlap, 0, 1),
+	{ 0 },
+};
 #endif
 
 static const struct cd_list_entry ide_cd_quirks_list[] = {
@@ -1866,14 +1861,14 @@ static const struct cd_list_entry ide_cd_quirks_list[] = {
 	{ NULL, NULL, 0 }
 };
 
-static unsigned int ide_cd_flags(struct hd_driveid *id)
+static unsigned int ide_cd_flags(u16 *id)
 {
 	const struct cd_list_entry *cle = ide_cd_quirks_list;
 
 	while (cle->id_model) {
-		if (strcmp(cle->id_model, id->model) == 0 &&
+		if (strcmp(cle->id_model, (char *)&id[ATA_ID_PROD]) == 0 &&
 		    (cle->id_firmware == NULL ||
-		     strstr(id->fw_rev, cle->id_firmware)))
+		     strstr((char *)&id[ATA_ID_FW_REV], cle->id_firmware)))
 			return cle->cd_flags;
 		cle++;
 	}
@@ -1885,7 +1880,8 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
+	char *fw_rev = (char *)&id[ATA_ID_FW_REV];
 	int nslots;
 
 	blk_queue_prep_rq(drive->queue, ide_cdrom_prep_fn);
@@ -1900,15 +1896,15 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	drive->atapi_flags = IDE_AFLAG_MEDIA_CHANGED | IDE_AFLAG_NO_EJECT |
 		       ide_cd_flags(id);
 
-	if ((id->config & 0x0060) == 0x20)
+	if ((id[ATA_ID_CONFIG] & 0x0060) == 0x20)
 		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 
 	if ((drive->atapi_flags & IDE_AFLAG_VERTOS_300_SSD) &&
-	    id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
+	    fw_rev[4] == '1' && fw_rev[6] <= '2')
 		drive->atapi_flags |= (IDE_AFLAG_TOCTRACKS_AS_BCD |
 				     IDE_AFLAG_TOCADDR_AS_BCD);
 	else if ((drive->atapi_flags & IDE_AFLAG_VERTOS_600_ESD) &&
-		 id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
+		 fw_rev[4] == '1' && fw_rev[6] <= '2')
 		drive->atapi_flags |= IDE_AFLAG_TOCTRACKS_AS_BCD;
 	else if (drive->atapi_flags & IDE_AFLAG_SANYO_3CD)
 		/* 3 => use CD in slot 0 */
@@ -1927,7 +1923,8 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 		cd->devinfo.handle = NULL;
 		return 1;
 	}
-	ide_cdrom_add_settings(drive);
+
+	ide_proc_register_driver(drive, cd->driver);
 	return 0;
 }
 
@@ -1972,12 +1969,12 @@ static ide_driver_t ide_cdrom_driver = {
 	.remove			= ide_cd_remove,
 	.version		= IDECD_VERSION,
 	.media			= ide_cdrom,
-	.supports_dsc_overlap	= 1,
 	.do_request		= ide_cd_do_request,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc			= idecd_proc,
+	.settings		= idecd_settings,
 #endif
 };
 
@@ -2112,10 +2109,10 @@ static int ide_cd_probe(ide_drive_t *drive)
 
 	if (!strstr("ide-cdrom", drive->driver_req))
 		goto failed;
-	if (!drive->present)
-		goto failed;
+
 	if (drive->media != ide_cdrom && drive->media != ide_optical)
 		goto failed;
+
 	/* skip drives that we were told to ignore */
 	if (ignore != NULL) {
 		if (strstr(ignore, drive->name)) {
@@ -2137,8 +2134,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	ide_proc_register_driver(drive, &ide_cdrom_driver);
-
 	kref_init(&info->kref);
 
 	info->drive = drive;
@@ -2153,7 +2148,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 	g->driverfs_dev = &drive->gendev;
 	g->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE;
 	if (ide_cdrom_setup(drive)) {
-		ide_proc_unregister_driver(drive, &ide_cdrom_driver);
 		ide_cd_release(&info->kref);
 		goto failed;
 	}
