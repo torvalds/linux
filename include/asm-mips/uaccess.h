@@ -224,7 +224,7 @@ do {									\
 
 #define __get_user_nocheck(x, ptr, size)				\
 ({									\
-	long __gu_err;							\
+	int __gu_err;							\
 									\
 	__get_user_common((x), size, ptr);				\
 	__gu_err;							\
@@ -232,7 +232,7 @@ do {									\
 
 #define __get_user_check(x, ptr, size)					\
 ({									\
-	long __gu_err = -EFAULT;					\
+	int __gu_err = -EFAULT;						\
 	const __typeof__(*(ptr)) __user * __gu_ptr = (ptr);		\
 									\
 	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size)))		\
@@ -304,7 +304,7 @@ do {									\
 #define __put_user_nocheck(x, ptr, size)				\
 ({									\
 	__typeof__(*(ptr)) __pu_val;					\
-	long __pu_err = 0;						\
+	int __pu_err = 0;						\
 									\
 	__pu_val = (x);							\
 	switch (size) {							\
@@ -321,7 +321,7 @@ do {									\
 ({									\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
 	__typeof__(*(ptr)) __pu_val = (x);				\
-	long __pu_err = -EFAULT;					\
+	int __pu_err = -EFAULT;						\
 									\
 	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
 		switch (size) {						\
