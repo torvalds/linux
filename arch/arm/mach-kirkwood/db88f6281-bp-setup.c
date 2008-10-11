@@ -44,7 +44,6 @@ static void __init db88f6281_init(void)
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&db88f6281_sata_data);
 	kirkwood_uart0_init();
-	kirkwood_uart1_init();
 }
 
 static int __init db88f6281_pci_init(void)

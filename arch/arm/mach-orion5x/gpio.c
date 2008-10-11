@@ -15,8 +15,8 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
 #include <asm/gpio.h>
-#include <asm/io.h>
 #include <mach/orion5x.h>
 #include "common.h"
 

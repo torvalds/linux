@@ -24,14 +24,13 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-
 #include <linux/io.h>
 #include <linux/cpufreq.h>
+#include <linux/bitops.h>
 
 #include <mach/clock.h>
 #include <mach/sram.h>
 #include <asm/div64.h>
-#include <asm/bitops.h>
 
 #include "memory.h"
 #include "clock.h"

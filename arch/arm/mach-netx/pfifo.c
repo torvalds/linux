@@ -20,8 +20,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <mach/netx-regs.h>
 #include <mach/pfifo.h>

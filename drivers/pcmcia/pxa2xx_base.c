@@ -30,6 +30,7 @@
 #include <asm/system.h>
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
+#include <asm/mach-types.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -166,18 +167,32 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 }
 #endif
 
+static void pxa2xx_configure_sockets(struct device *dev)
+{
+	struct pcmcia_low_level *ops = dev->platform_data;
+
+	/*
+	 * We have at least one socket, so set MECR:CIT
+	 * (Card Is There)
+	 */
+	MECR |= MECR_CIT;
+
+	/* Set MECR:NOS (Number Of Sockets) */
+	if (ops->nr > 1 || machine_is_viper())
+		MECR |= MECR_NOS;
+	else
+		MECR &= ~MECR_NOS;
+}
+
 int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 {
 	int ret;
 	struct pcmcia_low_level *ops;
-	int first, nr;
 
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
 	ops = (struct pcmcia_low_level *)dev->platform_data;
-	first = ops->first;
-	nr = ops->nr;
 
 	/* Provide our PXA2xx specific timing routines. */
 	ops->set_timing  = pxa2xx_pcmcia_set_timing;
@@ -185,21 +200,10 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
 #endif
 
-	ret = soc_common_drv_pcmcia_probe(dev, ops, first, nr);
+	ret = soc_common_drv_pcmcia_probe(dev, ops, ops->first, ops->nr);
 
-	if (ret == 0) {
-		/*
-		 * We have at least one socket, so set MECR:CIT
-		 * (Card Is There)
-		 */
-		MECR |= MECR_CIT;
-
-		/* Set MECR:NOS (Number Of Sockets) */
-		if (nr > 1)
-			MECR |= MECR_NOS;
-		else
-			MECR &= ~MECR_NOS;
-	}
+	if (!ret)
+		pxa2xx_configure_sockets(dev);
 
 	return ret;
 }
@@ -223,11 +227,7 @@ static int pxa2xx_drv_pcmcia_suspend(struct platform_device *dev, pm_message_t s
 
 static int pxa2xx_drv_pcmcia_resume(struct platform_device *dev)
 {
-	struct pcmcia_low_level *ops = dev->dev.platform_data;
-	int nr = ops ? ops->nr : 0;
-
-	MECR = nr > 1 ? MECR_CIT | MECR_NOS : (nr > 0 ? MECR_CIT : 0);
-
+	pxa2xx_configure_sockets(&dev->dev);
 	return pcmcia_socket_dev_resume(&dev->dev);
 }
 

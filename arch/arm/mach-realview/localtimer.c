@@ -17,11 +17,11 @@
 #include <linux/percpu.h>
 #include <linux/clockchips.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 
 #include <asm/hardware/arm_twd.h>
 #include <asm/hardware/gic.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 
 static DEFINE_PER_CPU(struct clock_event_device, local_clockevent);

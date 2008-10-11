@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/serial_reg.h>
 #include "tsx09-common.h"
+#include "common.h"
 
 /*****************************************************************************
  * QNAP TS-x09 specific power off method via UART1-attached PIC
@@ -26,7 +27,7 @@
 void qnap_tsx09_power_off(void)
 {
 	/* 19200 baud divisor */
-	const unsigned divisor = ((ORION5X_TCLK + (8 * 19200)) / (16 * 19200));
+	const unsigned divisor = ((orion5x_tclk + (8 * 19200)) / (16 * 19200));
 
 	pr_info("%s: triggering power-off...\n", __func__);
 
