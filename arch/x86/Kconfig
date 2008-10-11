@@ -554,6 +554,7 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 config AMD_IOMMU
 	bool "AMD IOMMU support"
 	select SWIOTLB
+	select PCI_MSI
 	depends on X86_64 && PCI && ACPI
 	help
 	  With this option you can enable support for AMD IOMMU hardware in
