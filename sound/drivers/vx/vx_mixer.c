@@ -34,7 +34,8 @@ static void vx_write_codec_reg(struct vx_core *chip, int codec, unsigned int dat
 {
 	unsigned long flags;
 
-	snd_assert(chip->ops->write_codec, return);
+	if (snd_BUG_ON(!chip->ops->write_codec))
+		return;
 
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return;

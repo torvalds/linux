@@ -337,6 +337,7 @@ static struct snd_soc_machine snd_soc_machine_spitz = {
 
 /* spitz audio private data */
 static struct wm8750_setup_data spitz_wm8750_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 

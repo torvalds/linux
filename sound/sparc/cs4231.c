@@ -1560,7 +1560,8 @@ static int __init snd_cs4231_mixer(struct snd_card *card)
 	struct snd_cs4231 *chip = card->private_data;
 	int err, idx;
 
-	snd_assert(chip != NULL && chip->pcm != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip || !chip->pcm))
+		return -EINVAL;
 
 	strcpy(card->mixername, chip->pcm->name);
 
