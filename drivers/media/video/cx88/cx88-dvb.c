@@ -608,7 +608,10 @@ static int dvb_register(struct cx8802_dev *dev)
 	if (!fe0)
 		return -EINVAL;
 
-	/* init frontend */
+	/* multi-frontend gate control is undefined or defaults to fe0 */
+	dev->frontends.gate = 0;
+
+	/* init frontend(s) */
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		fe0->dvb.frontend = dvb_attach(cx22702_attach,
@@ -665,6 +668,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		/* DVB-T init */
 		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
 		if (fe1) {
+			dev->frontends.gate = 2;
 			fe1->dvb.frontend = dvb_attach(cx22702_attach,
 				&hauppauge_hvr_config,
 				&dev->core->i2c_adap);
@@ -1008,6 +1012,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		/* DVB-T Init */
 		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
 		if (fe1) {
+			dev->frontends.gate = 2;
 			fe1->dvb.frontend = dvb_attach(cx22702_attach,
 				&hauppauge_hvr_config,
 				&dev->core->i2c_adap);

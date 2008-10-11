@@ -36,6 +36,7 @@ struct videobuf_dvb_frontends {
 	struct dvb_adapter adapter;
 	int active_fe_id; /* Indicates which frontend in the felist is in use */
 	struct videobuf_dvb_frontend frontend;
+	int gate; /* Frontend with gate control 0=!MFE,1=fe0,2=fe1 etc */
 };
 
 int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
