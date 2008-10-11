@@ -271,7 +271,8 @@ static __ref void unmap_low_page(void *adr)
 }
 
 static unsigned long __meminit
-phys_pte_init(pte_t *pte_page, unsigned long addr, unsigned long end)
+phys_pte_init(pte_t *pte_page, unsigned long addr, unsigned long end,
+	      pgprot_t prot)
 {
 	unsigned pages = 0;
 	unsigned long last_map_addr = end;
@@ -289,36 +290,43 @@ phys_pte_init(pte_t *pte_page, unsigned long addr, unsigned long end)
 			break;
 		}
 
+		/*
+		 * We will re-use the existing mapping.
+		 * Xen for example has some special requirements, like mapping
+		 * pagetable pages as RO. So assume someone who pre-setup
+		 * these mappings are more intelligent.
+		 */
 		if (pte_val(*pte))
 			continue;
 
 		if (0)
 			printk("   pte=%p addr=%lx pte=%016lx\n",
 			       pte, addr, pfn_pte(addr >> PAGE_SHIFT, PAGE_KERNEL).pte);
-		set_pte(pte, pfn_pte(addr >> PAGE_SHIFT, PAGE_KERNEL));
-		last_map_addr = (addr & PAGE_MASK) + PAGE_SIZE;
 		pages++;
+		set_pte(pte, pfn_pte(addr >> PAGE_SHIFT, prot));
+		last_map_addr = (addr & PAGE_MASK) + PAGE_SIZE;
 	}
+
 	update_page_count(PG_LEVEL_4K, pages);
 
 	return last_map_addr;
 }
 
 static unsigned long __meminit
-phys_pte_update(pmd_t *pmd, unsigned long address, unsigned long end)
+phys_pte_update(pmd_t *pmd, unsigned long address, unsigned long end,
+		pgprot_t prot)
 {
 	pte_t *pte = (pte_t *)pmd_page_vaddr(*pmd);
 
-	return phys_pte_init(pte, address, end);
+	return phys_pte_init(pte, address, end, prot);
 }
 
 static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
-			 unsigned long page_size_mask)
+	      unsigned long page_size_mask, pgprot_t prot)
 {
 	unsigned long pages = 0;
 	unsigned long last_map_addr = end;
-	unsigned long start = address;
 
 	int i = pmd_index(address);
 
@@ -326,6 +334,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 		unsigned long pte_phys;
 		pmd_t *pmd = pmd_page + pmd_index(address);
 		pte_t *pte;
+		pgprot_t new_prot = prot;
 
 		if (address >= end) {
 			if (!after_bootmem) {
@@ -339,27 +348,40 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 			if (!pmd_large(*pmd)) {
 				spin_lock(&init_mm.page_table_lock);
 				last_map_addr = phys_pte_update(pmd, address,
-								end);
+								end, prot);
 				spin_unlock(&init_mm.page_table_lock);
+				continue;
 			}
-			/* Count entries we're using from level2_ident_pgt */
-			if (start == 0)
-				pages++;
-			continue;
+			/*
+			 * If we are ok with PG_LEVEL_2M mapping, then we will
+			 * use the existing mapping,
+			 *
+			 * Otherwise, we will split the large page mapping but
+			 * use the same existing protection bits except for
+			 * large page, so that we don't violate Intel's TLB
+			 * Application note (317080) which says, while changing
+			 * the page sizes, new and old translations should
+			 * not differ with respect to page frame and
+			 * attributes.
+			 */
+			if (page_size_mask & (1 << PG_LEVEL_2M))
+				continue;
+			new_prot = pte_pgprot(pte_clrhuge(*(pte_t *)pmd));
 		}
 
 		if (page_size_mask & (1<<PG_LEVEL_2M)) {
 			pages++;
 			spin_lock(&init_mm.page_table_lock);
 			set_pte((pte_t *)pmd,
-				pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
+				pfn_pte(address >> PAGE_SHIFT,
+					__pgprot(pgprot_val(prot) | _PAGE_PSE)));
 			spin_unlock(&init_mm.page_table_lock);
 			last_map_addr = (address & PMD_MASK) + PMD_SIZE;
 			continue;
 		}
 
 		pte = alloc_low_page(&pte_phys);
-		last_map_addr = phys_pte_init(pte, address, end);
+		last_map_addr = phys_pte_init(pte, address, end, new_prot);
 		unmap_low_page(pte);
 
 		spin_lock(&init_mm.page_table_lock);
@@ -372,12 +394,12 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 
 static unsigned long __meminit
 phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end,
-			 unsigned long page_size_mask)
+		unsigned long page_size_mask, pgprot_t prot)
 {
 	pmd_t *pmd = pmd_offset(pud, 0);
 	unsigned long last_map_addr;
 
-	last_map_addr = phys_pmd_init(pmd, address, end, page_size_mask);
+	last_map_addr = phys_pmd_init(pmd, address, end, page_size_mask, prot);
 	__flush_tlb_all();
 	return last_map_addr;
 }
@@ -394,6 +416,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 		unsigned long pmd_phys;
 		pud_t *pud = pud_page + pud_index(addr);
 		pmd_t *pmd;
+		pgprot_t prot = PAGE_KERNEL;
 
 		if (addr >= end)
 			break;
@@ -405,10 +428,26 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 		}
 
 		if (pud_val(*pud)) {
-			if (!pud_large(*pud))
+			if (!pud_large(*pud)) {
 				last_map_addr = phys_pmd_update(pud, addr, end,
-							 page_size_mask);
-			continue;
+							 page_size_mask, prot);
+				continue;
+			}
+			/*
+			 * If we are ok with PG_LEVEL_1G mapping, then we will
+			 * use the existing mapping.
+			 *
+			 * Otherwise, we will split the gbpage mapping but use
+			 * the same existing protection  bits except for large
+			 * page, so that we don't violate Intel's TLB
+			 * Application note (317080) which says, while changing
+			 * the page sizes, new and old translations should
+			 * not differ with respect to page frame and
+			 * attributes.
+			 */
+			if (page_size_mask & (1 << PG_LEVEL_1G))
+				continue;
+			prot = pte_pgprot(pte_clrhuge(*(pte_t *)pud));
 		}
 
 		if (page_size_mask & (1<<PG_LEVEL_1G)) {
@@ -422,7 +461,8 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 		}
 
 		pmd = alloc_low_page(&pmd_phys);
-		last_map_addr = phys_pmd_init(pmd, addr, end, page_size_mask);
+		last_map_addr = phys_pmd_init(pmd, addr, end, page_size_mask,
+					      prot);
 		unmap_low_page(pmd);
 
 		spin_lock(&init_mm.page_table_lock);
@@ -430,6 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 		spin_unlock(&init_mm.page_table_lock);
 	}
 	__flush_tlb_all();
+
 	update_page_count(PG_LEVEL_1G, pages);
 
 	return last_map_addr;
@@ -446,13 +487,14 @@ phys_pud_update(pgd_t *pgd, unsigned long addr, unsigned long end,
 	return phys_pud_init(pud, addr, end, page_size_mask);
 }
 
-static void __init find_early_table_space(unsigned long end)
+static void __init find_early_table_space(unsigned long end, int use_pse,
+					  int use_gbpages)
 {
 	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	tables = roundup(puds * sizeof(pud_t), PAGE_SIZE);
-	if (direct_gbpages) {
+	if (use_gbpages) {
 		unsigned long extra;
 		extra = end - ((end>>PUD_SHIFT) << PUD_SHIFT);
 		pmds = (extra + PMD_SIZE - 1) >> PMD_SHIFT;
@@ -460,7 +502,7 @@ static void __init find_early_table_space(unsigned long end)
 		pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables += roundup(pmds * sizeof(pmd_t), PAGE_SIZE);
 
-	if (cpu_has_pse) {
+	if (use_pse) {
 		unsigned long extra;
 		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
 		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -528,6 +570,7 @@ static unsigned long __init kernel_physical_mapping_init(unsigned long start,
 		pgd_populate(&init_mm, pgd, __va(pud_phys));
 		spin_unlock(&init_mm.page_table_lock);
 	}
+	__flush_tlb_all();
 
 	return last_map_addr;
 }
@@ -571,6 +614,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	struct map_range mr[NR_RANGE_MR];
 	int nr_range, i;
+	int use_pse, use_gbpages;
 
 	printk(KERN_INFO "init_memory_mapping\n");
 
@@ -584,9 +628,21 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	if (!after_bootmem)
 		init_gbpages();
 
-	if (direct_gbpages)
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
+	 * This will simplify cpa(), which otherwise needs to support splitting
+	 * large pages into small in interrupt context, etc.
+	 */
+	use_pse = use_gbpages = 0;
+#else
+	use_pse = cpu_has_pse;
+	use_gbpages = direct_gbpages;
+#endif
+
+	if (use_gbpages)
 		page_size_mask |= 1 << PG_LEVEL_1G;
-	if (cpu_has_pse)
+	if (use_pse)
 		page_size_mask |= 1 << PG_LEVEL_2M;
 
 	memset(mr, 0, sizeof(mr));
@@ -647,7 +703,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 			 (mr[i].page_size_mask & (1<<PG_LEVEL_2M))?"2M":"4k"));
 
 	if (!after_bootmem)
-		find_early_table_space(end);
+		find_early_table_space(end, use_pse, use_gbpages);
 
 	for (i = 0; i < nr_range; i++)
 		last_map_addr = kernel_physical_mapping_init(
@@ -806,8 +862,6 @@ void __init mem_init(void)
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
-
-	cpa_init();
 }
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
