@@ -1581,9 +1581,9 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO] = {
 		.name           = "DViCO FusionHDTV DVB-T PRO",
-		.tuner_type     = TUNER_ABSENT, /* XXX: Has XC3028 */
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
 		.radio_type     = UNSET,
-		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
@@ -2671,7 +2671,7 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 			core->i2c_algo.udelay = 16;
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
-		ctl->scode_table = XC3028_FE_ZARLINK456;
+		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case CX88_BOARD_KWORLD_ATSC_120:
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
