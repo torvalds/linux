@@ -1395,11 +1395,15 @@ void hrtimer_peek_ahead_timers(void)
 	unsigned long flags;
 	struct tick_device *td;
 	struct clock_event_device *dev;
-
+	struct hrtimer_cpu_base *cpu_base;
 	if (hrtimer_hres_active())
 		return;
 
 	local_irq_save(flags);
+	cpu_base = &__get_cpu_var(hrtimer_bases);
+	if (!cpu_base->hres_active)
+		goto out;
+
 	td = &__get_cpu_var(tick_cpu_device);
 	if (!td)
 		goto out;
