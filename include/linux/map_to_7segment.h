@@ -1,6 +1,4 @@
 /*
- * drivers/usb/input/map_to_7segment.h
- *
  * Copyright (c) 2005 Henk Vergonet <Henk.Vergonet@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +34,7 @@
  * Usage:
  *
  *   Register a map variable, and fill it with a character set:
- * 	static SEG7_DEFAULT_MAP(map_seg7);
+ *	static SEG7_DEFAULT_MAP(map_seg7);
  *
  *
  *   Then use for conversion:

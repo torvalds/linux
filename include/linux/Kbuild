@@ -106,6 +106,7 @@ header-y += keyctl.h
 header-y += limits.h
 header-y += magic.h
 header-y += major.h
+header-y += map_to_7segment.h
 header-y += matroxfb.h
 header-y += meye.h
 header-y += minix_fs.h
