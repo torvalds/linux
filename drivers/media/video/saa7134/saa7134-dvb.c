@@ -951,6 +951,18 @@ static int dvb_init(struct saa7134_dev *dev)
 	int attach_xc3028 = 0;
 	struct videobuf_dvb_frontend *fe0;
 
+	/* FIXME: add support for multi-frontend */
+	mutex_init(&dev->frontends.lock);
+	INIT_LIST_HEAD(&dev->frontends.frontend.felist);
+	dev->frontends.active_fe_id = 0;
+
+	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
+
+	if (videobuf_dvb_alloc_frontend(dev, &dev->frontends, 1) == NULL) {
+		printk(KERN_ERR "%s() failed to alloc\n", __func__);
+		return -ENOMEM;
+	}
+
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)

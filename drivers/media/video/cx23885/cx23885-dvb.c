@@ -314,6 +314,19 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct cx23885_i2c *i2c_bus = NULL;
 	struct videobuf_dvb_frontend *fe0;
 
+	/* FIXME: add support for multi-frontend */
+	mutex_init(&port->frontends.lock);
+	INIT_LIST_HEAD(&port->frontends.frontend.felist);
+	port->frontends.active_fe_id = 0;
+
+	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
+
+	if (videobuf_dvb_alloc_frontend(dev, &port->frontends, 1) == NULL) {
+		printk(KERN_ERR "%s() failed to alloc\n", __func__);
+		return -ENOMEM;
+	}
+
+	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
