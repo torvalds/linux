@@ -366,7 +366,9 @@ enum {
 	/* Currently on a filemark */
 	IDE_AFLAG_FILEMARK		= (1 << 25),
 	/* 0 = no tape is loaded, so we don't rewind after ejecting */
-	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 26)
+	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 26),
+
+	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 27),
 };
 
 struct ide_drive_s {

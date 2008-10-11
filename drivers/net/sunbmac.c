@@ -1263,7 +1263,7 @@ static int __devexit bigmac_sbus_remove(struct of_device *op)
 
 	qec_op = to_of_device(parent);
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	of_iounmap(&qec_op->resource[0], bp->gregs, GLOB_REG_SIZE);
 	of_iounmap(&op->resource[0], bp->creg, CREG_REG_SIZE);

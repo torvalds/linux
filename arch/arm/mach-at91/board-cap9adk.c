@@ -214,7 +214,7 @@ static struct physmap_flash_data cap9adk_nor_data = {
 };
 
 #define NOR_BASE	AT91_CHIPSELECT_0
-#define NOR_SIZE	0x800000
+#define NOR_SIZE	SZ_8M
 
 static struct resource nor_flash_resources[] = {
 	{

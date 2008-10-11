@@ -88,7 +88,7 @@ static int iwl_is_empty_essid(const char *essid, int essid_len)
 
 
 
-const char *iwl_escape_essid(const char *essid, u8 essid_len)
+static const char *iwl_escape_essid(const char *essid, u8 essid_len)
 {
 	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
 	const char *s = essid;
@@ -111,7 +111,6 @@ const char *iwl_escape_essid(const char *essid, u8 essid_len)
 	*d = '\0';
 	return escaped;
 }
-EXPORT_SYMBOL(iwl_escape_essid);
 
 /**
  * iwl_scan_cancel - Cancel any currently executing HW scan
@@ -464,11 +463,6 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 
 int iwl_scan_initiate(struct iwl_priv *priv)
 {
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
-		IWL_ERROR("APs don't scan.\n");
-		return 0;
-	}
-
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_SCAN("Aborting scan due to not ready.\n");
 		return -EIO;
@@ -480,8 +474,7 @@ int iwl_scan_initiate(struct iwl_priv *priv)
 	}
 
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN("Scan request while abort pending.  "
-			       "Queuing.\n");
+		IWL_DEBUG_SCAN("Scan request while abort pending\n");
 		return -EAGAIN;
 	}
 
@@ -710,7 +703,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	u16 cmd_len;
 	enum ieee80211_band band;
 	u8 n_probes = 2;
-	u8 rx_chain = 0x7; /* bitmap: ABC chains */
+	u8 rx_chain = priv->hw_params.valid_rx_ant;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -850,7 +843,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
-		 * MIMO is not used here, but value is required */
+		 */
 		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
 			rx_chain = 0x6;
 	} else {
@@ -858,6 +851,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
+	/* MIMO is not used here, but value is required */
 	scan->rx_chain = RXON_RX_CHAIN_DRIVER_FORCE_MSK |
 				cpu_to_le16((0x7 << RXON_RX_CHAIN_VALID_POS) |
 				(rx_chain << RXON_RX_CHAIN_FORCE_SEL_POS) |
@@ -869,7 +863,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR)
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR)
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
@@ -922,10 +916,29 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
+static void iwl_bg_scan_completed(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+	    container_of(work, struct iwl_priv, scan_completed);
+
+	IWL_DEBUG_SCAN("SCAN complete scan\n");
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	ieee80211_scan_completed(priv->hw);
+
+	/* Since setting the TXPOWER may have been deferred while
+	 * performing the scan, fire one off */
+	mutex_lock(&priv->mutex);
+	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	mutex_unlock(&priv->mutex);
+}
+
+
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 {
-	/*  FIXME: move here when resolved PENDING
-	 *  INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed); */
+	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	INIT_WORK(&priv->request_scan, iwl_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);

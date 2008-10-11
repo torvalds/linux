@@ -36,6 +36,7 @@ SECTIONS
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		*(.text.*)
 		*(.fixup)
 		*(.gnu.warning)
 	} :text = 0

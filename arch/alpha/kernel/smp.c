@@ -149,6 +149,9 @@ smp_callin(void)
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 
+	/* inform the notifiers about the new cpu */
+	notify_cpu_starting(cpuid);
+
 	/* Must have completely accurate bogos.  */
 	local_irq_enable();
 

@@ -16,9 +16,9 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <mach/psc.h>
 #include "clock.h"

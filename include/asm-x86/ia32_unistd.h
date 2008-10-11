@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_64_IA32_UNISTD_H_
-#define _ASM_X86_64_IA32_UNISTD_H_
+#ifndef ASM_X86__IA32_UNISTD_H
+#define ASM_X86__IA32_UNISTD_H
 
 /*
  * This file contains the system call numbers of the ia32 port,
@@ -15,4 +15,4 @@
 #define __NR_ia32_sigreturn	119
 #define __NR_ia32_rt_sigreturn	173
 
-#endif /* _ASM_X86_64_IA32_UNISTD_H_ */
+#endif /* ASM_X86__IA32_UNISTD_H */

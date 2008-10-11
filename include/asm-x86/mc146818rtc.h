@@ -1,8 +1,8 @@
 /*
  * Machine dependent access functions for RTC registers.
  */
-#ifndef _ASM_MC146818RTC_H
-#define _ASM_MC146818RTC_H
+#ifndef ASM_X86__MC146818RTC_H
+#define ASM_X86__MC146818RTC_H
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -101,4 +101,4 @@ extern unsigned long mach_get_cmos_time(void);
 
 #define RTC_IRQ 8
 
-#endif /* _ASM_MC146818RTC_H */
+#endif /* ASM_X86__MC146818RTC_H */

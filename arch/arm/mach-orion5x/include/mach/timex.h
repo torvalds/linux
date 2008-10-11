@@ -9,5 +9,3 @@
  */
 
 #define CLOCK_TICK_RATE		(100 * HZ)
-
-#define ORION5X_TCLK		166666667

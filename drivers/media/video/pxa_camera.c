@@ -1025,9 +1025,9 @@ static int pxa_camera_resume(struct soc_camera_device *icd)
 	struct pxa_camera_dev *pcdev = ici->priv;
 	int i = 0, ret = 0;
 
-	DRCMR68 = pcdev->dma_chans[0] | DRCMR_MAPVLD;
-	DRCMR69 = pcdev->dma_chans[1] | DRCMR_MAPVLD;
-	DRCMR70 = pcdev->dma_chans[2] | DRCMR_MAPVLD;
+	DRCMR(68) = pcdev->dma_chans[0] | DRCMR_MAPVLD;
+	DRCMR(69) = pcdev->dma_chans[1] | DRCMR_MAPVLD;
+	DRCMR(70) = pcdev->dma_chans[2] | DRCMR_MAPVLD;
 
 	CICR0 = pcdev->save_cicr[i++] & ~CICR0_ENB;
 	CICR1 = pcdev->save_cicr[i++];
@@ -1171,9 +1171,9 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	}
 	dev_dbg(pcdev->dev, "got DMA channel (V) %d\n", pcdev->dma_chans[2]);
 
-	DRCMR68 = pcdev->dma_chans[0] | DRCMR_MAPVLD;
-	DRCMR69 = pcdev->dma_chans[1] | DRCMR_MAPVLD;
-	DRCMR70 = pcdev->dma_chans[2] | DRCMR_MAPVLD;
+	DRCMR(68) = pcdev->dma_chans[0] | DRCMR_MAPVLD;
+	DRCMR(69) = pcdev->dma_chans[1] | DRCMR_MAPVLD;
+	DRCMR(70) = pcdev->dma_chans[2] | DRCMR_MAPVLD;
 
 	/* request irq */
 	err = request_irq(pcdev->irq, pxa_camera_irq, 0, PXA_CAM_DRV_NAME,

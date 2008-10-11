@@ -1106,7 +1106,7 @@ static int __devexit myri_sbus_remove(struct of_device *op)
 	struct myri_eth *mp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = mp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	free_irq(net_dev->irq, net_dev);
 

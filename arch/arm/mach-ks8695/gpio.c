@@ -23,8 +23,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/irq.h>
 
@@ -72,7 +72,7 @@ int __init_or_module ks8695_gpio_interrupt(unsigned int pin, unsigned int type)
 
 	/* set pin as input */
 	x = __raw_readl(KS8695_GPIO_VA + KS8695_IOPM);
-	x &= ~IOPM_(pin);
+	x &= ~IOPM(pin);
 	__raw_writel(x, KS8695_GPIO_VA + KS8695_IOPM);
 
 	local_irq_restore(flags);
@@ -108,7 +108,7 @@ int __init_or_module gpio_direction_input(unsigned int pin)
 
 	/* set pin as input */
 	x = __raw_readl(KS8695_GPIO_VA + KS8695_IOPM);
-	x &= ~IOPM_(pin);
+	x &= ~IOPM(pin);
 	__raw_writel(x, KS8695_GPIO_VA + KS8695_IOPM);
 
 	local_irq_restore(flags);
@@ -136,14 +136,14 @@ int __init_or_module gpio_direction_output(unsigned int pin, unsigned int state)
 	/* set line state */
 	x = __raw_readl(KS8695_GPIO_VA + KS8695_IOPD);
 	if (state)
-		x |= (1 << pin);
+		x |= IOPD(pin);
 	else
-		x &= ~(1 << pin);
+		x &= ~IOPD(pin);
 	__raw_writel(x, KS8695_GPIO_VA + KS8695_IOPD);
 
 	/* set pin as output */
 	x = __raw_readl(KS8695_GPIO_VA + KS8695_IOPM);
-	x |= IOPM_(pin);
+	x |= IOPM(pin);
 	__raw_writel(x, KS8695_GPIO_VA + KS8695_IOPM);
 
 	local_irq_restore(flags);
@@ -168,9 +168,9 @@ void gpio_set_value(unsigned int pin, unsigned int state)
 	/* set output line state */
 	x = __raw_readl(KS8695_GPIO_VA + KS8695_IOPD);
 	if (state)
-		x |= (1 << pin);
+		x |= IOPD(pin);
 	else
-		x &= ~(1 << pin);
+		x &= ~IOPD(pin);
 	__raw_writel(x, KS8695_GPIO_VA + KS8695_IOPD);
 
 	local_irq_restore(flags);
@@ -189,7 +189,7 @@ int gpio_get_value(unsigned int pin)
 		return -EINVAL;
 
 	x = __raw_readl(KS8695_GPIO_VA + KS8695_IOPD);
-	return (x & (1 << pin)) != 0;
+	return (x & IOPD(pin)) != 0;
 }
 EXPORT_SYMBOL(gpio_get_value);
 
@@ -240,7 +240,7 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 	for (i = KS8695_GPIO_0; i <= KS8695_GPIO_15 ; i++) {
 		seq_printf(s, "%i:\t", i);
 
-		seq_printf(s, "%s\t", (mode & IOPM_(i)) ? "Output" : "Input");
+		seq_printf(s, "%s\t", (mode & IOPM(i)) ? "Output" : "Input");
 
 		if (i <= KS8695_GPIO_3) {
 			if (ctrl & enable[i]) {
@@ -273,7 +273,7 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 
 		seq_printf(s, "\t");
 
-		seq_printf(s, "%i\n", (data & IOPD_(i)) ? 1 : 0);
+		seq_printf(s, "%i\n", (data & IOPD(i)) ? 1 : 0);
 	}
 	return 0;
 }
