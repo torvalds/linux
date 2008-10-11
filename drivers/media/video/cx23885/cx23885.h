@@ -262,6 +262,9 @@ struct cx23885_tsport {
 	u32                        src_sel_val;
 	u32                        vld_misc_val;
 	u32                        hw_sop_ctrl_val;
+
+	/* Allow a single tsport to have multiple frontends */
+	u32                        num_frontends;
 };
 
 struct cx23885_dev {

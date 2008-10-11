@@ -647,6 +647,13 @@ static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *p
 	INIT_LIST_HEAD(&port->frontends.frontend.felist);
 	port->frontends.active_fe_id = 0;
 
+	/* This should be hardcoded allow a single frontend
+	 * attachment to this tsport, keeping the -dvb.c
+	 * code clean and safe.
+	 */
+	if(!port->num_frontends)
+		port->num_frontends = 1;
+
 	switch(portno) {
 	case 1:
 		port->reg_gpcnt          = VID_B_GPCNT;
