@@ -105,14 +105,16 @@ static void usb_kbd_irq(struct urb *urb)
 			if (usb_kbd_keycode[kbd->old[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
-				info("Unknown key (scancode %#x) released.", kbd->old[i]);
+				dev_info(&urb->dev->dev,
+						"Unknown key (scancode %#x) released.\n", kbd->old[i]);
 		}
 
 		if (kbd->new[i] > 3 && memscan(kbd->old + 2, kbd->new[i], 6) == kbd->old + 8) {
 			if (usb_kbd_keycode[kbd->new[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
-				info("Unknown key (scancode %#x) pressed.", kbd->new[i]);
+				dev_info(&urb->dev->dev,
+						"Unknown key (scancode %#x) released.\n", kbd->new[i]);
 		}
 	}
 
@@ -352,7 +354,8 @@ static int __init usb_kbd_init(void)
 {
 	int result = usb_register(&usb_kbd_driver);
 	if (result == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+				DRIVER_DESC "\n");
 	return result;
 }
 

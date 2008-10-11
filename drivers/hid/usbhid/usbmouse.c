@@ -245,7 +245,8 @@ static int __init usb_mouse_init(void)
 {
 	int retval = usb_register(&usb_mouse_driver);
 	if (retval == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+				DRIVER_DESC "\n");
 	return retval;
 }
 
