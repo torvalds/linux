@@ -92,7 +92,7 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 	if (!elem)
 		return -EINVAL;
 
-	entry = kzalloc(sizeof(struct dsp_element_entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(struct dsp_element_entry), GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 
@@ -253,7 +253,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 	if (!len)
 		return 0;
 
-	dup = kmalloc(len + 1, GFP_KERNEL);
+	dup = kmalloc(len + 1, GFP_ATOMIC);
 	if (!dup)
 		return 0;
 	strcpy(dup, cfg);
@@ -270,7 +270,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 				elem = entry->elem;
 
 				pipeline_entry = kmalloc(sizeof(struct
-					dsp_pipeline_entry), GFP_KERNEL);
+					dsp_pipeline_entry), GFP_ATOMIC);
 				if (!pipeline_entry) {
 					printk(KERN_ERR "%s: failed to add "
 					    "entry to pipeline: %s (out of "

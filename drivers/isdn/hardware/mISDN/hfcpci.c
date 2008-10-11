@@ -2333,10 +2333,10 @@ HFC_init(void)
 		poll = HFCPCI_BTRANS_THRESHOLD;
 
 	if (poll != HFCPCI_BTRANS_THRESHOLD) {
-		tics = poll * HZ / 8000;
+		tics = (poll * HZ) / 8000;
 		if (tics < 1)
 			tics = 1;
-		poll = tics * 8000 / HZ;
+		poll = (tics * 8000) / HZ;
 		if (poll > 256 || poll < 8) {
 			printk(KERN_ERR "%s: Wrong poll value %d not in range "
 				"of 8..256.\n", __func__, poll);

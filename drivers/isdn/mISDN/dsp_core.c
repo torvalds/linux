@@ -1141,7 +1141,7 @@ static int dsp_init(void)
 	} else {
 		poll = 8;
 		while (poll <= MAX_POLL) {
-			tics = poll * HZ / 8000;
+			tics = (poll * HZ) / 8000;
 			if (tics * 8000 == poll * HZ) {
 				dsp_tics = tics;
 				dsp_poll = poll;
