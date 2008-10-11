@@ -252,7 +252,7 @@ static int acpi_pcc_write_sset(struct pcc_acpi *pcc, int func, int val)
 
 static inline int acpi_pcc_get_sqty(struct acpi_device *device)
 {
-	unsigned long s;
+	unsigned long long s;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE("acpi_pcc_get_sqty");
@@ -500,7 +500,7 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 	struct input_dev *hotk_input_dev = pcc->input_dev;
 	int rc;
 	int key_code, hkey_num;
-	unsigned long result;
+	unsigned long long result;
 
 	ACPI_FUNCTION_TRACE("acpi_pcc_generate_keyinput");
 
@@ -645,7 +645,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	pcc->device = device;
 	pcc->handle = device->handle;
 	pcc->num_sifr = num_sifr;
-	acpi_driver_data(device) = pcc;
+	device->driver_data = pcc;
 	strcpy(acpi_device_name(device), ACPI_PCC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCC_CLASS);
 
