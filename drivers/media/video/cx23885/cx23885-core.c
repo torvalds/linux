@@ -643,6 +643,10 @@ static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *p
 	port->mpegq.timeout.data = (unsigned long)port;
 	init_timer(&port->mpegq.timeout);
 
+	mutex_init(&port->frontends.lock);
+	INIT_LIST_HEAD(&port->frontends.frontend.felist);
+	port->frontends.active_fe_id = 0;
+
 	switch(portno) {
 	case 1:
 		port->reg_gpcnt          = VID_B_GPCNT;
