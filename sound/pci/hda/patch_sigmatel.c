@@ -1114,11 +1114,11 @@ static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 	HDA_CODEC_MUTE("PC Beep Switch", 0x17, 0x2, HDA_INPUT),
 	*/
 
-	HDA_CODEC_MUTE("Import0 Mux Capture Switch", 0x17, 0x3, HDA_INPUT),
-	HDA_CODEC_VOLUME("Import0 Mux Capture Volume", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("Import0 Mux Capture Switch", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Import0 Mux Capture Volume", 0x17, 0x0, HDA_INPUT),
 
-	HDA_CODEC_MUTE("Import1 Mux Capture Switch", 0x17, 0x3, HDA_INPUT),
-	HDA_CODEC_VOLUME("Import1 Mux Capture Volume", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("Import1 Mux Capture Switch", 0x17, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Import1 Mux Capture Volume", 0x17, 0x1, HDA_INPUT),
 
 	HDA_CODEC_MUTE("DAC0 Capture Switch", 0x17, 0x3, HDA_INPUT),
 	HDA_CODEC_VOLUME("DAC0 Capture Volume", 0x17, 0x3, HDA_INPUT),
