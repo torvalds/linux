@@ -684,6 +684,8 @@ start_journal_io:
 		printk(KERN_WARNING
 			"JBD2: Detected IO errors while flushing file data "
 		       "on %s\n", journal->j_devname);
+		if (journal->j_flags & JBD2_ABORT_ON_SYNCDATA_ERR)
+			jbd2_journal_abort(journal, err);
 		err = 0;
 	}
 
