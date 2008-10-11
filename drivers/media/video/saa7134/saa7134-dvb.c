@@ -537,7 +537,8 @@ static int configure_tda827x_fe(struct saa7134_dev *dev,
 {
 	struct videobuf_dvb_frontend *fe0;
 
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 0);
+	/* Get the first frontend */
+	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 
 	fe0->dvb.frontend = dvb_attach(tda10046_attach, cdec_conf, &dev->i2c_adap);
 	if (fe0->dvb.frontend) {
@@ -951,7 +952,7 @@ static int dvb_init(struct saa7134_dev *dev)
 	struct videobuf_dvb_frontend *fe0;
 
 	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 0);
+	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
 
@@ -1070,7 +1071,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					 &tda827x_cfg_0) < 0)
 			goto dettach_frontend;
 		break;
-	case SAA7134_BOARD_FLYDVB_TRIO: // XXXXXX multifrontend
+	case SAA7134_BOARD_FLYDVB_TRIO:
 		if (!use_frontend) {	/* terrestrial */
 			if (configure_tda827x_fe(dev, &lifeview_trio_config,
 						 &tda827x_cfg_0) < 0)

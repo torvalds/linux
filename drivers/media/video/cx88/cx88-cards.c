@@ -3004,7 +3004,6 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		cx88_card_list(core, pci);
 	}
 
-	memset(&core->board, 0, sizeof(core->board));
 	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
 
 	if (!core->board.num_frontends)

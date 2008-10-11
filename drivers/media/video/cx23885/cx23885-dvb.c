@@ -314,7 +314,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct cx23885_i2c *i2c_bus = NULL;
 	struct videobuf_dvb_frontend *fe0;
 
-	fe0 = videobuf_dvb_get_frontend(&port->frontends, 0);
+	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
 
@@ -336,7 +336,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		i2c_bus = &dev->i2c_bus[0];
-		switch (alt_tuner) { // XXXXXX multifrontend?
+		switch (alt_tuner) {
 		case 1:
 			fe0->dvb.frontend =
 				dvb_attach(s5h1409_attach,
@@ -554,7 +554,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 	struct cx23885_dev *dev = port->dev;
 	int err;
 
-	fe0 = videobuf_dvb_get_frontend(&port->frontends, 0);
+	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
 	if (!fe0)
 		err = -EINVAL;
 
@@ -583,7 +583,7 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 {
 	struct videobuf_dvb_frontend *fe0;
 
-	fe0 = videobuf_dvb_get_frontend(&port->frontends, 0);
+	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
 	/* dvb */
 	if(fe0->dvb.frontend)
 		videobuf_dvb_unregister_bus(&port->frontends);

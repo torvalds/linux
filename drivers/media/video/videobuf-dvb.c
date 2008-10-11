@@ -229,7 +229,6 @@ int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_
 	dvb->dmxdev.filternum    = 256;
 	dvb->dmxdev.demux        = &dvb->demux.dmx;
 	dvb->dmxdev.capabilities = 0;
-	//result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	result = dvb_dmxdev_init(&dvb->dmxdev, adapter);
 
 	if (result < 0) {
@@ -277,7 +276,7 @@ fail_dmx:
 	dvb_unregister_frontend(dvb->frontend);
 fail_frontend:
 	dvb_frontend_detach(dvb->frontend);
-	dvb_unregister_adapter(&dvb->adapter);
+	dvb_unregister_adapter(adapter);
 
 	return result;
 }

@@ -124,7 +124,6 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 		return -EINVAL;
 	}
 
-
 	drv = cx8802_get_driver(dev, CX88_MPEG_DVB);
 	if (drv) {
 		if (acquire){
@@ -502,7 +501,7 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		.ctrl      = &ctl,
 	};
 
-/* Get the first frontend */
+	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 	if (!fe0)
 		return -EINVAL;
@@ -1136,35 +1135,7 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 		udelay(1000);
 		break;
 
-	case CX88_BOARD_HAUPPAUGE_HVR3000: /* ? */
-		if(core->dvbdev->frontends.active_fe_id == 1) {
-			/* DVB-S/S2 Enabled */
-
-			/* Toggle reset on cx22702 leaving i2c active */
-			cx_write(MO_GP0_IO, core->board.input[0].gpio0);
-			udelay(1000);
-			cx_clear(MO_GP0_IO, 0x00000080);
-			udelay(50);
-			cx_set(MO_GP0_IO, 0x00000080); /* cx22702 out of reset */
-			cx_set(MO_GP0_IO, 0x00000004); /* tri-state the cx22702 pins */
-			udelay(1000);
-
-			cx_write(MO_SRST_IO, 1); /* Take the cx24116/cx24123 out of reset */
-			core->dvbdev->ts_gen_cntrl = 0x02; /* Parallel IO */
-		} else
-		if (core->dvbdev->frontends.active_fe_id == 2) {
-			/* DVB-T Enabled */
-
-			/* Put the cx24116/cx24123 into reset */
-			cx_write(MO_SRST_IO, 0);
-
-			/* cx22702 out of reset and enable it */
-			cx_set(MO_GP0_IO,   0x00000080);
-			cx_clear(MO_GP0_IO, 0x00000004);
-			core->dvbdev->ts_gen_cntrl = 0x0c; /* Serial IO */
-			udelay(1000);
-		}
-		break;
+	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 		if(core->dvbdev->frontends.active_fe_id == 1) {
 			/* DVB-S/S2 Enabled */
@@ -1225,7 +1196,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = drv->core->dvbdev;
-	int err,i;
+	int err, i;
 	struct videobuf_dvb_frontend *fe;
 
 	dprintk( 1, "%s\n", __func__);
@@ -1267,8 +1238,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	if (err != 0)
 		printk(KERN_ERR "%s/2: dvb_register failed (err = %d)\n",
 		       core->name, err);
-
- fail_core:
+fail_core:
 	return err;
 }
 
