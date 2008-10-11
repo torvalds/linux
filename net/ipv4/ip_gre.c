@@ -1345,7 +1345,7 @@ out:
 static void ipgre_netlink_parms(struct nlattr *data[],
 				struct ip_tunnel_parm *parms)
 {
-	memset(parms, 0, sizeof(parms));
+	memset(parms, 0, sizeof(*parms));
 
 	parms->iph.protocol = IPPROTO_GRE;
 
