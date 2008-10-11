@@ -1277,18 +1277,22 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.audio_chip     = V4L2_IDENT_WM8775,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x84bf,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x84bf,
+			.audioroute = 2,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x84bf,
+			.audioroute = 2,
 		}},
 		.mpeg           = CX88_MPEG_DVB,
 		.num_frontends	= 2,
@@ -1717,6 +1721,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.audio_chip     = V4L2_IDENT_WM8775,
 		/*
 		 * GPIO0 (WINTV2000)
 		 *
@@ -1751,14 +1756,17 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xc4bf,
+			.audioroute = 1,
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0xc4bf,
+			.audioroute = 2,
 		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0xc4bf,
+			.audioroute = 2,
 		} },
 		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB,
