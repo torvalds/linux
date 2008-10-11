@@ -120,6 +120,12 @@ struct pt_watch_regs {
 
 struct task_struct;
 
+extern int ptrace_getregs(struct task_struct *child, __s64 __user *data);
+extern int ptrace_setregs(struct task_struct *child, __s64 __user *data);
+
+extern int ptrace_getfpregs(struct task_struct *child, __u32 __user *data);
+extern int ptrace_setfpregs(struct task_struct *child, __u32 __user *data);
+
 extern int ptrace_get_watch_regs(struct task_struct *child,
 	struct pt_watch_regs __user *addr);
 extern int ptrace_set_watch_regs(struct task_struct *child,

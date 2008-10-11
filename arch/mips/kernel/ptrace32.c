@@ -37,12 +37,6 @@
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 
-int ptrace_getregs(struct task_struct *child, __s64 __user *data);
-int ptrace_setregs(struct task_struct *child, __s64 __user *data);
-
-int ptrace_getfpregs(struct task_struct *child, __u32 __user *data);
-int ptrace_setfpregs(struct task_struct *child, __u32 __user *data);
-
 /*
  * Tracing a 32-bit process with a 64-bit strace and vice versa will not
  * work.  I don't know how to fix this.
