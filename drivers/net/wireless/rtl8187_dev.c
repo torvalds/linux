@@ -175,7 +175,6 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	unsigned int ep;
 	void *buf;
 	struct urb *urb;
