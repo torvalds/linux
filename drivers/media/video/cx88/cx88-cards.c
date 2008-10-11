@@ -1270,7 +1270,6 @@ static const struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR3000] = {
-		/* FIXME: Add dvb & radio support */
 		.name           = "Hauppauge WinTV-HVR3000 TriMode Analog/DVB-S/DVB-T",
 		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
 		.radio_type     = UNSET,
@@ -1294,6 +1293,11 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x84bf,
 			.audioroute = 2,
 		}},
+		/* FIXME Radio tunes but only noise is heard */
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0	= 0x84bf,
+		},
 		.mpeg           = CX88_MPEG_DVB,
 		.num_frontends	= 2,
 	},
@@ -1735,7 +1739,7 @@ static const struct cx88_board cx88_boards[] = {
 		 * BIT  VALUE   FUNCTION GP{x}_IO
 		 * 0    1       I:?
 		 * 1    1       I:?
-		 * 2    1       O:DVB-T DEMOD ENABLE LOW/ANALOG DEMOD ENABLE HIGH
+		 * 2    1       O:MPEG PORT 0=DVB-T 1=DVB-S
 		 * 3    1       I:?
 		 * 4    1       I:?
 		 * 5    1       I:?
@@ -1768,7 +1772,11 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio0  = 0xc4bf,
 			.audioroute = 2,
 		} },
-		/* fixme: Add radio support */
+		/* FIXME Radio tunes but only noise is heard */
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0	= 0xc4bf,
+		},
 		.mpeg           = CX88_MPEG_DVB,
 		.num_frontends	= 2,
 	},
