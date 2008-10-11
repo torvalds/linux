@@ -2664,9 +2664,12 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
-	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
 		/* Init GPIO */
 		cx_write(MO_GP0_IO, core->board.input[0].gpio0);
+		udelay(1000);
+		cx_clear(MO_GP0_IO, 0x00000080);
+		udelay(50);
+		cx_set(MO_GP0_IO, 0x00000080); /* 702 out of reset */
 		udelay(1000);
 		break;
 	}
