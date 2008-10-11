@@ -59,6 +59,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	struct ipv6hdr *hdr;
 	u32 		pkt_len;
 	struct inet6_dev *idev;
+	struct net *net = dev_net(skb->dev);
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		kfree_skb(skb);
@@ -69,11 +70,11 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	idev = __in6_dev_get(skb->dev);
 
-	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INRECEIVES);
+	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INRECEIVES);
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL ||
 	    !idev || unlikely(idev->cnf.disable_ipv6)) {
-		IP6_INC_STATS_BH(idev, IPSTATS_MIB_INDISCARDS);
+		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDISCARDS);
 		rcu_read_unlock();
 		goto out;
 	}
@@ -118,11 +119,12 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	/* pkt_len may be zero if Jumbo payload option is present */
 	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
 		if (pkt_len + sizeof(struct ipv6hdr) > skb->len) {
-			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INTRUNCATEDPKTS);
+			IP6_INC_STATS_BH(net,
+					 idev, IPSTATS_MIB_INTRUNCATEDPKTS);
 			goto drop;
 		}
 		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr))) {
-			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
+			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
 			goto drop;
 		}
 		hdr = ipv6_hdr(skb);
@@ -130,7 +132,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	if (hdr->nexthdr == NEXTHDR_HOP) {
 		if (ipv6_parse_hopopts(skb) < 0) {
-			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
+			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
 			rcu_read_unlock();
 			return 0;
 		}
@@ -141,7 +143,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	return NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, dev, NULL,
 		       ip6_rcv_finish);
 err:
-	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
+	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
 drop:
 	rcu_read_unlock();
 	kfree_skb(skb);
@@ -161,6 +163,7 @@ static int ip6_input_finish(struct sk_buff *skb)
 	int nexthdr, raw;
 	u8 hash;
 	struct inet6_dev *idev;
+	struct net *net = dev_net(skb->dst->dev);
 
 	/*
 	 *	Parse extension headers
@@ -205,24 +208,25 @@ resubmit:
 		if (ret > 0)
 			goto resubmit;
 		else if (ret == 0)
-			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INDELIVERS);
+			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDELIVERS);
 	} else {
 		if (!raw) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-				IP6_INC_STATS_BH(idev, IPSTATS_MIB_INUNKNOWNPROTOS);
+				IP6_INC_STATS_BH(net, idev,
+						 IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
 					    ICMPV6_UNK_NEXTHDR, nhoff,
 					    skb->dev);
 			}
 		} else
-			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INDELIVERS);
+			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDELIVERS);
 		kfree_skb(skb);
 	}
 	rcu_read_unlock();
 	return 0;
 
 discard:
-	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INDISCARDS);
+	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDISCARDS);
 	rcu_read_unlock();
 	kfree_skb(skb);
 	return 0;
@@ -240,7 +244,8 @@ int ip6_mc_input(struct sk_buff *skb)
 	struct ipv6hdr *hdr;
 	int deliver;
 
-	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INMCASTPKTS);
+	IP6_INC_STATS_BH(dev_net(skb->dst->dev),
+			 ip6_dst_idev(skb->dst), IPSTATS_MIB_INMCASTPKTS);
 
 	hdr = ipv6_hdr(skb);
 	deliver = ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);

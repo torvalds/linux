@@ -446,6 +446,8 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define SMC_CAN_USE_32BIT	1
 #define SMC_NOWAIT		1
 
+#define SMC_IO_SHIFT		(lp->io_shift)
+
 #define SMC_inb(a, r)		readb((a) + (r))
 #define SMC_inw(a, r)		readw((a) + (r))
 #define SMC_inl(a, r)		readl((a) + (r))

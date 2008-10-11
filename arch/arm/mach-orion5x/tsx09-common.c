@@ -48,7 +48,7 @@ void qnap_tsx09_power_off(void)
  ****************************************************************************/
 
 struct mv643xx_eth_platform_data qnap_tsx09_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 static int __init qnap_tsx09_parse_hex_nibble(char n)

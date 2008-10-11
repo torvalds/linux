@@ -193,7 +193,6 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 {
 	const struct ieee80211_hdr *wlhdr;
 	int use_encryption = !!info->control.hw_key;
-	u16 fctl;
 	u8 rate;
 	struct ieee80211_rate *rate_fb;
 	int rate_ofdm;
@@ -204,7 +203,6 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	struct ieee80211_rate *tx_rate;
 
 	wlhdr = (const struct ieee80211_hdr *)fragment_data;
-	fctl = le16_to_cpu(wlhdr->frame_control);
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
@@ -212,7 +210,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 	rate = tx_rate->hw_value;
 	rate_ofdm = b43legacy_is_ofdm_rate(rate);
-	rate_fb = ieee80211_get_alt_retry_rate(dev->wl->hw, info) ? : tx_rate;
+	rate_fb = ieee80211_get_alt_retry_rate(dev->wl->hw, info, 0) ? : tx_rate;
 	rate_fb_ofdm = b43legacy_is_ofdm_rate(rate_fb->hw_value);
 
 	txhdr->mac_frame_ctl = wlhdr->frame_control;
@@ -245,7 +243,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 		if (key->enabled) {
 			/* Hardware appends ICV. */
-			plcp_fragment_len += info->control.icv_len;
+			plcp_fragment_len += info->control.hw_key->icv_len;
 
 			key_idx = b43legacy_kidx_to_fw(dev, key_idx);
 			mac_ctl |= (key_idx << B43legacy_TX4_MAC_KEYIDX_SHIFT) &
@@ -253,8 +251,8 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			mac_ctl |= (key->algorithm <<
 				   B43legacy_TX4_MAC_KEYALG_SHIFT) &
 				   B43legacy_TX4_MAC_KEYALG;
-			wlhdr_len = ieee80211_get_hdrlen(fctl);
-			iv_len = min((size_t)info->control.iv_len,
+			wlhdr_len = ieee80211_hdrlen(wlhdr->frame_control);
+			iv_len = min((size_t)info->control.hw_key->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *)wlhdr) + wlhdr_len, iv_len);
 		} else {
@@ -626,7 +624,7 @@ void b43legacy_handle_hwtxstatus(struct b43legacy_wldev *dev,
 	tmp = hw->count;
 	status.frame_count = (tmp >> 4);
 	status.rts_count = (tmp & 0x0F);
-	tmp = hw->flags;
+	tmp = hw->flags << 1;
 	status.supp_reason = ((tmp & 0x1C) >> 2);
 	status.pm_indicated = !!(tmp & 0x80);
 	status.intermediate = !!(tmp & 0x40);

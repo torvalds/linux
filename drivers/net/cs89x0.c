@@ -1397,9 +1397,7 @@ net_open(struct net_device *dev)
 release_dma:
 #if ALLOW_DMA
 		free_dma(dev->dma);
-#endif
 release_irq:
-#if ALLOW_DMA
 		release_dma_buff(lp);
 #endif
                 writereg(dev, PP_LineCTL, readreg(dev, PP_LineCTL) & ~(SERIAL_TX_ON | SERIAL_RX_ON));
