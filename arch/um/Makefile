@@ -18,10 +18,6 @@ core-y			+= $(ARCH_DIR)/kernel/		\
 			   $(ARCH_DIR)/drivers/		\
 			   $(ARCH_DIR)/os-$(OS)/
 
-# These are cleaned up during mrproper. Please DO NOT fix it again, this is
-# the Correct Thing(tm) to do!
-ARCH_SYMLINKS = $(ARCH_DIR)/include/shared/uml-config.h
-
 MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
 
 include $(srctree)/$(ARCH_DIR)/Makefile-skas
@@ -29,7 +25,7 @@ include $(srctree)/$(ARCH_DIR)/Makefile-skas
 ARCH_INCLUDE	:= -I$(srctree)/$(ARCH_DIR)/include/shared
 ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/sys-$(SUBARCH)/shared
 ifneq ($(KBUILD_SRC),)
-ARCH_INCLUDE	+= -I$(ARCH_DIR)/include/shared # for three generated files
+ARCH_INCLUDE	+= -I$(ARCH_DIR)/include/shared # for two generated files
 endif
 KBUILD_CPPFLAGS += -I$(srctree)/$(ARCH_DIR)/sys-$(SUBARCH)
 
@@ -89,7 +85,7 @@ endef
 
 KBUILD_KCONFIG := arch/um/Kconfig.$(HEADER_ARCH)
 
-archprepare: $(ARCH_SYMLINKS) $(ARCH_DIR)/include/shared/user_constants.h
+archprepare: $(ARCH_DIR)/include/shared/user_constants.h
 prepare: $(ARCH_DIR)/include/shared/kern_constants.h
 
 LINK-$(CONFIG_LD_SCRIPT_STATIC) += -static
@@ -122,11 +118,9 @@ endef
 
 # When cleaning we don't include .config, so we don't include
 # TT or skas makefiles and don't clean skas_ptregs.h.
-CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/shared/uml-config.h \
+CLEAN_FILES += linux x.i gmon.out \
 	$(ARCH_DIR)/include/shared/user_constants.h \
 	$(ARCH_DIR)/include/shared/kern_constants.h
-
-MRPROPER_FILES += $(ARCH_SYMLINKS)
 
 archclean:
 	@find . \( -name '*.bb' -o -name '*.bbg' -o -name '*.da' \
@@ -137,12 +131,6 @@ $(objtree)/$(ARCH_DIR)/include/shared:
 	$(Q)mkdir -p $@
 
 # Generated files
-define filechk_umlconfig
-	sed 's/ CONFIG/ UML_CONFIG/'
-endef
-
-$(ARCH_DIR)/include/shared/uml-config.h : include/linux/autoconf.h
-	$(call filechk,umlconfig)
 
 $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.s: FORCE
 	$(Q)$(MAKE) $(build)=$(ARCH_DIR)/sys-$(SUBARCH) $@

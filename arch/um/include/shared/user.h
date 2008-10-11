@@ -6,7 +6,7 @@
 #ifndef __USER_H__
 #define __USER_H__
 
-#include "uml-config.h"
+#include "kern_constants.h"
 
 /*
  * The usual definition - copied here because the kernel provides its own,
