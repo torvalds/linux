@@ -488,8 +488,9 @@ static void handle_dock(struct dock_station *ds, int dock)
 	arg.integer.value = dock;
 	status = acpi_evaluate_object(ds->handle, "_DCK", &arg_list, &buffer);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
-		printk(KERN_ERR PREFIX "%s - failed to execute _DCK\n",
-			 (char *)name_buffer.pointer);
+		ACPI_EXCEPTION((AE_INFO, status, "%s - failed to execute"
+			" _DCK\n", (char *)name_buffer.pointer));
+
 	kfree(buffer.pointer);
 	kfree(name_buffer.pointer);
 }
