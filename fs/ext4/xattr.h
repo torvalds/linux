@@ -63,7 +63,7 @@ struct ext4_xattr_entry {
 		EXT4_I(inode)->i_extra_isize))
 #define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
 
-# ifdef CONFIG_EXT4DEV_FS_XATTR
+# ifdef CONFIG_EXT4_FS_XATTR
 
 extern struct xattr_handler ext4_xattr_user_handler;
 extern struct xattr_handler ext4_xattr_trusted_handler;
@@ -88,7 +88,7 @@ extern void exit_ext4_xattr(void);
 
 extern struct xattr_handler *ext4_xattr_handlers[];
 
-# else  /* CONFIG_EXT4DEV_FS_XATTR */
+# else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
 ext4_xattr_get(struct inode *inode, int name_index, const char *name,
@@ -141,9 +141,9 @@ ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 
 #define ext4_xattr_handlers	NULL
 
-# endif  /* CONFIG_EXT4DEV_FS_XATTR */
+# endif  /* CONFIG_EXT4_FS_XATTR */
 
-#ifdef CONFIG_EXT4DEV_FS_SECURITY
+#ifdef CONFIG_EXT4_FS_SECURITY
 extern int ext4_init_security(handle_t *handle, struct inode *inode,
 				struct inode *dir);
 #else

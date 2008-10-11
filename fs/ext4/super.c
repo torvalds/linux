@@ -569,7 +569,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(ext4_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
-#ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
 	ei->i_acl = EXT4_ACL_NOT_CACHED;
 	ei->i_default_acl = EXT4_ACL_NOT_CACHED;
 #endif
@@ -605,7 +605,7 @@ static void init_once(void *foo)
 	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
 
 	INIT_LIST_HEAD(&ei->i_orphan);
-#ifdef CONFIG_EXT4DEV_FS_XATTR
+#ifdef CONFIG_EXT4_FS_XATTR
 	init_rwsem(&ei->xattr_sem);
 #endif
 	init_rwsem(&ei->i_data_sem);
@@ -631,7 +631,7 @@ static void destroy_inodecache(void)
 
 static void ext4_clear_inode(struct inode *inode)
 {
-#ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
 	if (EXT4_I(inode)->i_acl &&
 			EXT4_I(inode)->i_acl != EXT4_ACL_NOT_CACHED) {
 		posix_acl_release(EXT4_I(inode)->i_acl);
@@ -720,7 +720,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",debug");
 	if (test_opt(sb, OLDALLOC))
 		seq_puts(seq, ",oldalloc");
-#ifdef CONFIG_EXT4DEV_FS_XATTR
+#ifdef CONFIG_EXT4_FS_XATTR
 	if (test_opt(sb, XATTR_USER) &&
 		!(def_mount_opts & EXT4_DEFM_XATTR_USER))
 		seq_puts(seq, ",user_xattr");
@@ -729,7 +729,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nouser_xattr");
 	}
 #endif
-#ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
 	if (test_opt(sb, POSIX_ACL) && !(def_mount_opts & EXT4_DEFM_ACL))
 		seq_puts(seq, ",acl");
 	if (!test_opt(sb, POSIX_ACL) && (def_mount_opts & EXT4_DEFM_ACL))
@@ -1078,7 +1078,7 @@ static int parse_options(char *options, struct super_block *sb,
 		case Opt_orlov:
 			clear_opt(sbi->s_mount_opt, OLDALLOC);
 			break;
-#ifdef CONFIG_EXT4DEV_FS_XATTR
+#ifdef CONFIG_EXT4_FS_XATTR
 		case Opt_user_xattr:
 			set_opt(sbi->s_mount_opt, XATTR_USER);
 			break;
@@ -1092,7 +1092,7 @@ static int parse_options(char *options, struct super_block *sb,
 			       "not supported\n");
 			break;
 #endif
-#ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
 		case Opt_acl:
 			set_opt(sbi->s_mount_opt, POSIX_ACL);
 			break;
@@ -1987,11 +1987,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		set_opt(sbi->s_mount_opt, GRPID);
 	if (def_mount_opts & EXT4_DEFM_UID16)
 		set_opt(sbi->s_mount_opt, NO_UID32);
-#ifdef CONFIG_EXT4DEV_FS_XATTR
+#ifdef CONFIG_EXT4_FS_XATTR
 	if (def_mount_opts & EXT4_DEFM_XATTR_USER)
 		set_opt(sbi->s_mount_opt, XATTR_USER);
 #endif
-#ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
 	if (def_mount_opts & EXT4_DEFM_ACL)
 		set_opt(sbi->s_mount_opt, POSIX_ACL);
 #endif
@@ -2048,16 +2048,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_WARNING
 		       "EXT4-fs warning: feature flags set on rev 0 fs, "
 		       "running e2fsck is recommended\n");
-
-	/*
-	 * Since ext4 is still considered development code, we require
-	 * that the TEST_FILESYS flag in s->flags be set.
-	 */
-	if (!(le32_to_cpu(es->s_flags) & EXT2_FLAGS_TEST_FILESYS)) {
-		printk(KERN_WARNING "EXT4-fs: %s: not marked "
-		       "OK to use with test code.\n", sb->s_id);
-		goto failed_mount;
-	}
 
 	/*
 	 * Check feature flags regardless of the revision level, since we
@@ -3580,13 +3570,34 @@ const struct file_operations ext4_ui_proc_fops = {
 };
 #endif
 
-static struct file_system_type ext4dev_fs_type = {
+static struct file_system_type ext4_fs_type = {
 	.owner		= THIS_MODULE,
-	.name		= "ext4dev",
+	.name		= "ext4",
 	.get_sb		= ext4_get_sb,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+
+#ifdef CONFIG_EXT4DEV_COMPAT
+static int ext4dev_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+{
+	printk(KERN_WARNING "EXT4-fs: Update your userspace programs "
+	       "to mount using ext4\n");
+	printk(KERN_WARNING "EXT4-fs: ext4dev backwards compatibility "
+	       "will go away by 2.6.31\n");
+	return get_sb_bdev(fs_type, flags, dev_name, data, ext4_fill_super, mnt);
+}
+
+static struct file_system_type ext4dev_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "ext4dev",
+	.get_sb		= ext4dev_get_sb,
+	.kill_sb	= kill_block_super,
+	.fs_flags	= FS_REQUIRES_DEV,
+};
+MODULE_ALIAS("ext4dev");
+#endif
 
 static int __init init_ext4_fs(void)
 {
@@ -3603,9 +3614,16 @@ static int __init init_ext4_fs(void)
 	err = init_inodecache();
 	if (err)
 		goto out1;
-	err = register_filesystem(&ext4dev_fs_type);
+	err = register_filesystem(&ext4_fs_type);
 	if (err)
 		goto out;
+#ifdef CONFIG_EXT4DEV_COMPAT
+	err = register_filesystem(&ext4dev_fs_type);
+	if (err) {
+		unregister_filesystem(&ext4_fs_type);
+		goto out;
+	}
+#endif
 	return 0;
 out:
 	destroy_inodecache();
@@ -3618,7 +3636,10 @@ out2:
 
 static void __exit exit_ext4_fs(void)
 {
+	unregister_filesystem(&ext4_fs_type);
+#ifdef CONFIG_EXT4DEV_COMPAT
 	unregister_filesystem(&ext4dev_fs_type);
+#endif
 	destroy_inodecache();
 	exit_ext4_xattr();
 	exit_ext4_mballoc();

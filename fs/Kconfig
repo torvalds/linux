@@ -136,37 +136,51 @@ config EXT3_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
-config EXT4DEV_FS
-	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+config EXT4_FS
+	tristate "The Extended 4 (ext4) filesystem"
 	select JBD2
 	select CRC16
 	help
-	  Ext4dev is a predecessor filesystem of the next generation
-	  extended fs ext4, based on ext3 filesystem code. It will be
-	  renamed ext4 fs later, once ext4dev is mature and stabilized.
+	  This is the next generation of the ext3 filesystem.
 
 	  Unlike the change from ext2 filesystem to ext3 filesystem,
-	  the on-disk format of ext4dev is not the same as ext3 any more:
-	  it is based on extent maps and it supports 48-bit physical block
-	  numbers. These combined on-disk format changes will allow
-	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
-	  a hard limit that ext3 cannot overcome without changing the
-	  on-disk format.
+	  the on-disk format of ext4 is not forwards compatible with
+	  ext3; it is based on extent maps and it supports 48-bit
+	  physical block numbers.  The ext4 filesystem also supports delayed
+	  allocation, persistent preallocation, high resolution time stamps,
+	  and a number of other features to improve performance and speed
+	  up fsck time.  For more information, please see the web pages at
+	  http://ext4.wiki.kernel.org.
 
-	  Other than extent maps and 48-bit block numbers, ext4dev also is
-	  likely to have other new features such as persistent preallocation,
-	  high resolution time stamps, and larger file support etc.  These
-	  features will be added to ext4dev gradually.
+	  The ext4 filesystem will support mounting an ext3
+	  filesystem; while there will be some performance gains from
+	  the delayed allocation and inode table readahead, the best
+	  performance gains will require enabling ext4 features in the
+	  filesystem, or formating a new filesystem as an ext4
+	  filesystem initially.
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called ext4dev.
 
 	  If unsure, say N.
 
-config EXT4DEV_FS_XATTR
-	bool "Ext4dev extended attributes"
-	depends on EXT4DEV_FS
+config EXT4DEV_COMPAT
+	bool "Enable ext4dev compatibility"
+	depends on EXT4_FS
+	help
+	  Starting with 2.6.28, the name of the ext4 filesystem was
+	  renamed from ext4dev to ext4.  Unfortunately there are some
+	  lagecy userspace programs (such as klibc's fstype) have
+	  "ext4dev" hardcoded.  
+
+	  To enable backwards compatibility so that systems that are
+	  still expecting to mount ext4 filesystems using ext4dev,
+	  chose Y here.   This feature will go away by 2.6.31, so
+	  please arrange to get your userspace programs fixed!
+
+config EXT4_FS_XATTR
+	bool "Ext4 extended attributes"
+	depends on EXT4_FS
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -175,11 +189,11 @@ config EXT4DEV_FS_XATTR
 
 	  If unsure, say N.
 
-	  You need this for POSIX ACL support on ext4dev/ext4.
+	  You need this for POSIX ACL support on ext4.
 
-config EXT4DEV_FS_POSIX_ACL
-	bool "Ext4dev POSIX Access Control Lists"
-	depends on EXT4DEV_FS_XATTR
+config EXT4_FS_POSIX_ACL
+	bool "Ext4 POSIX Access Control Lists"
+	depends on EXT4_FS_XATTR
 	select FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -190,14 +204,14 @@ config EXT4DEV_FS_POSIX_ACL
 
 	  If you don't know what Access Control Lists are, say N
 
-config EXT4DEV_FS_SECURITY
-	bool "Ext4dev Security Labels"
-	depends on EXT4DEV_FS_XATTR
+config EXT4_FS_SECURITY
+	bool "Ext4 Security Labels"
+	depends on EXT4_FS_XATTR
 	help
 	  Security labels support alternative access control models
 	  implemented by security modules like SELinux.  This option
 	  enables an extended attribute handler for file security
-	  labels in the ext4dev/ext4 filesystem.
+	  labels in the ext4 filesystem.
 
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
@@ -240,22 +254,22 @@ config JBD2
 	help
 	  This is a generic journaling layer for block devices that support
 	  both 32-bit and 64-bit block numbers.  It is currently used by
-	  the ext4dev/ext4 filesystem, but it could also be used to add
+	  the ext4 filesystem, but it could also be used to add
 	  journal support to other file systems or block devices such
 	  as RAID or LVM.
 
-	  If you are using ext4dev/ext4, you need to say Y here. If you are not
-	  using ext4dev/ext4 then you will probably want to say N.
+	  If you are using ext4, you need to say Y here. If you are not
+	  using ext4 then you will probably want to say N.
 
 	  To compile this device as a module, choose M here. The module will be
-	  called jbd2.  If you are compiling ext4dev/ext4 into the kernel,
+	  called jbd2.  If you are compiling ext4 into the kernel,
 	  you cannot compile this code as a module.
 
 config JBD2_DEBUG
-	bool "JBD2 (ext4dev/ext4) debugging support"
+	bool "JBD2 (ext4) debugging support"
 	depends on JBD2 && DEBUG_FS
 	help
-	  If you are using the ext4dev/ext4 journaled file system (or
+	  If you are using the ext4 journaled file system (or
 	  potentially any other filesystem/device using JBD2), this option
 	  allows you to enable debugging output while the system is running,
 	  in order to help track down any problems you are having.
@@ -270,9 +284,9 @@ config JBD2_DEBUG
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)
 	tristate
-	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4DEV_FS_XATTR
-	default y if EXT2_FS=y || EXT3_FS=y || EXT4DEV_FS=y
-	default m if EXT2_FS=m || EXT3_FS=m || EXT4DEV_FS=m
+	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
+	default y if EXT2_FS=y || EXT3_FS=y || EXT4_FS=y
+	default m if EXT2_FS=m || EXT3_FS=m || EXT4_FS=m
 
 config REISERFS_FS
 	tristate "Reiserfs support"
