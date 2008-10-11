@@ -213,7 +213,8 @@ static void hid_irq_in(struct urb *urb)
 		hid_io_error(hid);
 		return;
 	default:		/* error */
-		warn("input irq status %d received", urb->status);
+		dev_warn(&urb->dev->dev, "input irq status %d  "
+				"received\n", urb->status);
 	}
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -327,7 +328,8 @@ static void hid_irq_out(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:		/* error */
-		warn("output irq status %d received", urb->status);
+		dev_warn(&urb->dev->dev, "output irq status %d "
+				"received\n", urb->status);
 	}
 
 	spin_lock_irqsave(&usbhid->outlock, flags);
@@ -380,7 +382,8 @@ static void hid_ctrl(struct urb *urb)
 	case -EPIPE:		/* report not available */
 		break;
 	default:		/* error */
-		warn("ctrl urb status %d received", urb->status);
+		dev_warn(&urb->dev->dev, "ctrl urb status %d "
+				"received\n", urb->status);
 	}
 
 	if (unplug)
@@ -418,7 +421,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 
 		if ((head = (usbhid->outhead + 1) & (HID_OUTPUT_FIFO_SIZE - 1)) == usbhid->outtail) {
 			spin_unlock_irqrestore(&usbhid->outlock, flags);
-			warn("output queue full");
+			dev_warn(&hid->dev, "output queue full\n");
 			return;
 		}
 
@@ -444,7 +447,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 
 	if ((head = (usbhid->ctrlhead + 1) & (HID_CONTROL_FIFO_SIZE - 1)) == usbhid->ctrltail) {
 		spin_unlock_irqrestore(&usbhid->ctrllock, flags);
-		warn("control queue full");
+		dev_warn(&hid->dev, "control queue full\n");
 		return;
 	}
 
@@ -482,7 +485,7 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 		return -1;
 
 	if ((offset = hidinput_find_field(hid, type, code, &field)) == -1) {
-		warn("event field not found");
+		dev_warn(&dev->dev, "event field not found\n");
 		return -1;
 	}
 
@@ -585,7 +588,7 @@ void usbhid_init_reports(struct hid_device *hid)
 	}
 
 	if (err)
-		warn("timeout initializing reports");
+		dev_warn(&hid->dev, "timeout initializing reports\n");
 }
 
 /*

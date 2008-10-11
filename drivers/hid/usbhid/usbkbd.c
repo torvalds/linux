@@ -161,7 +161,8 @@ static void usb_kbd_led(struct urb *urb)
 	struct usb_kbd *kbd = urb->context;
 
 	if (urb->status)
-		warn("led urb status %d received", urb->status);
+		dev_warn(&urb->dev->dev, "led urb status %d received\n",
+			 urb->status);
 
 	if (*(kbd->leds) == kbd->newleds)
 		return;
