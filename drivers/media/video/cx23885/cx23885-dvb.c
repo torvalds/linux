@@ -556,7 +556,7 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* register everything */
 	return videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
-				     &dev->pci->dev, adapter_nr);
+		&dev->pci->dev, adapter_nr, 0);
 
 }
 

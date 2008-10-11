@@ -594,14 +594,9 @@ static struct stv0288_config tevii_tuner_earda_config = {
 
 static int dvb_register(struct cx8802_dev *dev)
 {
-	//struct cx88_core *core = dev->core;
-
-	///* init struct videobuf_dvb */
-	//fe->dvb.name = core->name;
-	//dev->ts_gen_cntrl = 0x0c;
-
 	struct cx88_core *core = dev->core;
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
+	int mfe_shared = 0; /* bus not shared by default */
 
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
@@ -669,6 +664,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
 		if (fe1) {
 			dev->frontends.gate = 2;
+			mfe_shared = 1;
 			fe1->dvb.frontend = dvb_attach(cx22702_attach,
 				&hauppauge_hvr_config,
 				&dev->core->i2c_adap);
@@ -1013,6 +1009,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
 		if (fe1) {
 			dev->frontends.gate = 2;
+			mfe_shared = 1;
 			fe1->dvb.frontend = dvb_attach(cx22702_attach,
 				&hauppauge_hvr_config,
 				&dev->core->i2c_adap);
@@ -1110,7 +1107,7 @@ static int dvb_register(struct cx8802_dev *dev)
 
 	/* register everything */
 	return videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
-		&dev->pci->dev, adapter_nr);
+		&dev->pci->dev, adapter_nr, mfe_shared);
 
 frontend_detach:
 	if (fe0->dvb.frontend) {

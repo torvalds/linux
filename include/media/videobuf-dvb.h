@@ -43,7 +43,8 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 			  struct module *module,
 			  void *adapter_priv,
 			  struct device *device,
-			  short *adapter_nr);   //NEW
+			  short *adapter_nr,
+			  int mfe_shared);
 
 void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f);
 
@@ -52,7 +53,8 @@ int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *f,
 			  void *adapter_priv,
 			  struct device *device,
 			  char *adapter_name,
-			  short *adapter_nr);   //NEW
+			  short *adapter_nr,
+			  int mfe_shared);
 
 int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_dvb *dvb);
 

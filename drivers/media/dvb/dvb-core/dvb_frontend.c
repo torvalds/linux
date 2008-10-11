@@ -47,6 +47,7 @@ static int dvb_shutdown_timeout;
 static int dvb_force_auto_inversion;
 static int dvb_override_tune_delay;
 static int dvb_powerdown_on_sleep = 1;
+static int dvb_mfe_wait_time = 5;
 
 module_param_named(frontend_debug, dvb_frontend_debug, int, 0644);
 MODULE_PARM_DESC(frontend_debug, "Turn on/off frontend core debugging (default:off).");
@@ -58,6 +59,8 @@ module_param(dvb_override_tune_delay, int, 0644);
 MODULE_PARM_DESC(dvb_override_tune_delay, "0: normal (default), >0 => delay in milliseconds to wait for lock after a tune attempt");
 module_param(dvb_powerdown_on_sleep, int, 0644);
 MODULE_PARM_DESC(dvb_powerdown_on_sleep, "0: do not power down, 1: turn LNB voltage off on sleep (default)");
+module_param(dvb_mfe_wait_time, int, 0644);
+MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open() for multi-frontend to become available (default:5 seconds)");
 
 #define dprintk if (dvb_frontend_debug) printk
 
@@ -1706,13 +1709,46 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_adapter *adapter = fe->dvb;
+	struct dvb_device *mfedev;
+	struct dvb_frontend *mfe;
+	struct dvb_frontend_private *mfepriv;
+	int mferetry;
 	int ret;
 
 	dprintk ("%s\n", __func__);
 
+	if (adapter->mfe_shared) {
+		mutex_lock (&adapter->mfe_lock);
+		if (adapter->mfe_dvbdev != dvbdev) {
+			if (adapter->mfe_dvbdev) {
+				mfedev = adapter->mfe_dvbdev;
+				mfe = mfedev->priv;
+				mfepriv = mfe->frontend_priv;
+				mutex_unlock (&adapter->mfe_lock);
+				mferetry = (dvb_mfe_wait_time << 1);
+				while (mferetry-- && (mfedev->users != -1 || mfepriv->thread != NULL)) {
+					if(msleep_interruptible(500)) {
+						if(signal_pending(current))
+							return -EINTR;
+					}
+				}
+				mutex_lock (&adapter->mfe_lock);
+				mfedev = adapter->mfe_dvbdev;
+				mfe = mfedev->priv;
+				mfepriv = mfe->frontend_priv;
+				if (mfedev->users != -1 || mfepriv->thread != NULL) {
+					ret = -EBUSY;
+					goto err0;
+				}
+			}
+			adapter->mfe_dvbdev = dvbdev;
+		}
+	}
+
 	if (dvbdev->users == -1 && fe->ops.ts_bus_ctrl) {
 		if ((ret = fe->ops.ts_bus_ctrl(fe, 1)) < 0)
-			return ret;
+			goto err0;
 	}
 
 	if ((ret = dvb_generic_open (inode, file)) < 0)
@@ -1732,6 +1768,8 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 		fepriv->events.eventr = fepriv->events.eventw = 0;
 	}
 
+	if (adapter->mfe_shared)
+		mutex_unlock (&adapter->mfe_lock);
 	return ret;
 
 err2:
@@ -1739,6 +1777,9 @@ err2:
 err1:
 	if (dvbdev->users == -1 && fe->ops.ts_bus_ctrl)
 		fe->ops.ts_bus_ctrl(fe, 0);
+err0:
+	if (adapter->mfe_shared)
+		mutex_unlock (&adapter->mfe_lock);
 	return ret;
 }
 

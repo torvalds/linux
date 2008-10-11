@@ -140,7 +140,8 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 			  struct module *module,
 			  void *adapter_priv,
 			  struct device *device,
-			  short *adapter_nr) //NEW
+			  short *adapter_nr,
+			  int mfe_shared)
 {
 	struct list_head *list, *q;
 	struct videobuf_dvb_frontend *fe;
@@ -153,7 +154,7 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 	}
 
 	/* Bring up the adapter */
-	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device, fe->dvb.name, adapter_nr); //NEW
+	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device, fe->dvb.name, adapter_nr, mfe_shared);
 	if (res < 0) {
 		printk(KERN_WARNING "videobuf_dvb_register_adapter failed (errno = %d)\n", res);
 		goto err;
@@ -181,7 +182,8 @@ int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 			  void *adapter_priv,
 			  struct device *device,
 			  char *adapter_name,
-			  short *adapter_nr) //NEW
+			  short *adapter_nr,
+			  int mfe_shared)
 {
 	int result;
 
@@ -194,6 +196,7 @@ int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 		       adapter_name, result);
 	}
 	fe->adapter.priv = adapter_priv;
+	fe->adapter.mfe_shared = mfe_shared;
 
 	return result;
 }
