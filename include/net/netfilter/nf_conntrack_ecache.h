@@ -63,7 +63,7 @@ extern void nf_conntrack_ecache_fini(struct net *net);
 #else /* CONFIG_NF_CONNTRACK_EVENTS */
 
 static inline void nf_conntrack_event_cache(enum ip_conntrack_events event,
-					    const struct sk_buff *skb) {}
+					    struct nf_conn *ct) {}
 static inline void nf_conntrack_event(enum ip_conntrack_events event,
 				      struct nf_conn *ct) {}
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct) {}
