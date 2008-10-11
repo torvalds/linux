@@ -212,8 +212,9 @@ static int dvb_frontend_get_event(struct dvb_frontend *fe,
 
 static void dvb_frontend_init(struct dvb_frontend *fe)
 {
-	dprintk ("DVB: initialising frontend %i (%s)...\n",
+	dprintk ("DVB: initialising adapter %i frontend %i (%s)...\n",
 		 fe->dvb->num,
+		 fe->id,
 		 fe->ops.info.name);
 
 	if (fe->ops.init)
@@ -686,7 +687,7 @@ static int dvb_frontend_start(struct dvb_frontend *fe)
 	mb();
 
 	fe_thread = kthread_run(dvb_frontend_thread, fe,
-		"kdvb-fe-%i", fe->dvb->num);
+		"kdvb-ad-%i-fe-%i", fe->dvb->num,fe->id);
 	if (IS_ERR(fe_thread)) {
 		ret = PTR_ERR(fe_thread);
 		printk("dvb_frontend_start: failed to start kthread (%d)\n", ret);
@@ -710,8 +711,8 @@ static void dvb_frontend_get_frequeny_limits(struct dvb_frontend *fe,
 		*freq_max = min(fe->ops.info.frequency_max, fe->ops.tuner_ops.info.frequency_max);
 
 	if (*freq_min == 0 || *freq_max == 0)
-		printk(KERN_WARNING "DVB: frontend %u frequency limits undefined - fix the driver\n",
-		       fe->dvb->num);
+		printk(KERN_WARNING "DVB: adapter %i frontend %u frequency limits undefined - fix the driver\n",
+		       fe->dvb->num,fe->id);
 }
 
 static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
@@ -724,8 +725,8 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 	dvb_frontend_get_frequeny_limits(fe, &freq_min, &freq_max);
 	if ((freq_min && parms->frequency < freq_min) ||
 	    (freq_max && parms->frequency > freq_max)) {
-		printk(KERN_WARNING "DVB: frontend %u frequency %u out of range (%u..%u)\n",
-		       fe->dvb->num, parms->frequency, freq_min, freq_max);
+		printk(KERN_WARNING "DVB: adapter %i frontend %i frequency %u out of range (%u..%u)\n",
+		       fe->dvb->num, fe->id, parms->frequency, freq_min, freq_max);
 		return -EINVAL;
 	}
 
@@ -735,8 +736,8 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 		     parms->u.qpsk.symbol_rate < fe->ops.info.symbol_rate_min) ||
 		    (fe->ops.info.symbol_rate_max &&
 		     parms->u.qpsk.symbol_rate > fe->ops.info.symbol_rate_max)) {
-			printk(KERN_WARNING "DVB: frontend %u symbol rate %u out of range (%u..%u)\n",
-			       fe->dvb->num, parms->u.qpsk.symbol_rate,
+			printk(KERN_WARNING "DVB: adapter %i frontend %i symbol rate %u out of range (%u..%u)\n",
+			       fe->dvb->num, fe->id, parms->u.qpsk.symbol_rate,
 			       fe->ops.info.symbol_rate_min, fe->ops.info.symbol_rate_max);
 			return -EINVAL;
 		}
@@ -746,8 +747,8 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 		     parms->u.qam.symbol_rate < fe->ops.info.symbol_rate_min) ||
 		    (fe->ops.info.symbol_rate_max &&
 		     parms->u.qam.symbol_rate > fe->ops.info.symbol_rate_max)) {
-			printk(KERN_WARNING "DVB: frontend %u symbol rate %u out of range (%u..%u)\n",
-			       fe->dvb->num, parms->u.qam.symbol_rate,
+			printk(KERN_WARNING "DVB: adapter %i frontend %i symbol rate %u out of range (%u..%u)\n",
+			       fe->dvb->num, fe->id, parms->u.qam.symbol_rate,
 			       fe->ops.info.symbol_rate_min, fe->ops.info.symbol_rate_max);
 			return -EINVAL;
 		}
@@ -1807,8 +1808,9 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	fe->dvb = dvb;
 	fepriv->inversion = INVERSION_OFF;
 
-	printk ("DVB: registering frontend %i (%s)...\n",
+	printk ("DVB: registering adapter %i frontend %i (%s)...\n",
 		fe->dvb->num,
+		fe->id,
 		fe->ops.info.name);
 
 	dvb_register_device (fe->dvb, &fepriv->dvbdev, &dvbdev_template,

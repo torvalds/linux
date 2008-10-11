@@ -495,6 +495,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
 		ir_dprintk("biphase decoded: %x\n", ircode);
+//TODO Darron has other code here
 		if ((ircode & 0xfffff000) != 0x3000)
 			break;
 		ir_input_keydown(ir->input, &ir->ir, ircode & 0x3f, ircode);

@@ -312,48 +312,53 @@ static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_i2c *i2c_bus = NULL;
+	struct videobuf_dvb_frontend *fe0;
+
+	fe0 = videobuf_dvb_get_frontend(&port->frontends, 0);
+	if (!fe0)
+		return -EINVAL;
 
 	/* init struct videobuf_dvb */
-	port->dvb.name = dev->name;
+	fe0->dvb.name = dev->name;
 
 	/* init frontend */
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		i2c_bus = &dev->i2c_bus[0];
-		port->dvb.frontend = dvb_attach(s5h1409_attach,
+		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_generic_config,
 						&i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL) {
-			dvb_attach(mt2131_attach, port->dvb.frontend,
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(mt2131_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		i2c_bus = &dev->i2c_bus[0];
-		switch (alt_tuner) {
+		switch (alt_tuner) { // XXXXXX multifrontend?
 		case 1:
-			port->dvb.frontend =
+			fe0->dvb.frontend =
 				dvb_attach(s5h1409_attach,
 					   &hauppauge_ezqam_config,
 					   &i2c_bus->i2c_adap);
-			if (port->dvb.frontend != NULL) {
-				dvb_attach(tda829x_attach, port->dvb.frontend,
+			if (fe0->dvb.frontend != NULL) {
+				dvb_attach(tda829x_attach, fe0->dvb.frontend,
 					   &dev->i2c_bus[1].i2c_adap, 0x42,
 					   &tda829x_no_probe);
-				dvb_attach(tda18271_attach, port->dvb.frontend,
+				dvb_attach(tda18271_attach, fe0->dvb.frontend,
 					   0x60, &dev->i2c_bus[1].i2c_adap,
 					   &hauppauge_tda18271_config);
 			}
 			break;
 		case 0:
 		default:
-			port->dvb.frontend =
+			fe0->dvb.frontend =
 				dvb_attach(s5h1409_attach,
 					   &hauppauge_generic_config,
 					   &i2c_bus->i2c_adap);
-			if (port->dvb.frontend != NULL)
-				dvb_attach(mt2131_attach, port->dvb.frontend,
+			if (fe0->dvb.frontend != NULL)
+				dvb_attach(mt2131_attach, fe0->dvb.frontend,
 					   &i2c_bus->i2c_adap,
 					   &hauppauge_generic_tunerconfig, 0);
 			break;
@@ -361,42 +366,42 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 		i2c_bus = &dev->i2c_bus[0];
-		port->dvb.frontend = dvb_attach(s5h1409_attach,
+		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_hvr1800lp_config,
 						&i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL) {
-			dvb_attach(mt2131_attach, port->dvb.frontend,
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(mt2131_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
 		}
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
 		i2c_bus = &dev->i2c_bus[0];
-		port->dvb.frontend = dvb_attach(lgdt330x_attach,
+		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 						&fusionhdtv_5_express,
 						&i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL) {
-			dvb_attach(simple_tuner_attach, port->dvb.frontend,
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap, 0x61,
 				   TUNER_LG_TDVS_H06XF);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
 		i2c_bus = &dev->i2c_bus[1];
-		port->dvb.frontend = dvb_attach(s5h1409_attach,
+		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_hvr1500q_config,
 						&dev->i2c_bus[0].i2c_adap);
-		if (port->dvb.frontend != NULL)
-			dvb_attach(xc5000_attach, port->dvb.frontend,
+		if (fe0->dvb.frontend != NULL)
+			dvb_attach(xc5000_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_hvr1500q_tunerconfig);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 		i2c_bus = &dev->i2c_bus[1];
-		port->dvb.frontend = dvb_attach(s5h1409_attach,
+		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_hvr1500_config,
 						&dev->i2c_bus[0].i2c_adap);
-		if (port->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend != NULL) {
 			struct dvb_frontend *fe;
 			struct xc2028_config cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
@@ -409,7 +414,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			};
 
 			fe = dvb_attach(xc2028_attach,
-					port->dvb.frontend, &cfg);
+					fe0->dvb.frontend, &cfg);
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
@@ -417,24 +422,24 @@ static int dvb_register(struct cx23885_tsport *port)
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
 		i2c_bus = &dev->i2c_bus[0];
-		port->dvb.frontend = dvb_attach(tda10048_attach,
+		fe0->dvb.frontend = dvb_attach(tda10048_attach,
 			&hauppauge_hvr1200_config,
 			&i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL) {
-			dvb_attach(tda829x_attach, port->dvb.frontend,
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				&dev->i2c_bus[1].i2c_adap, 0x42,
 				&tda829x_no_probe);
-			dvb_attach(tda18271_attach, port->dvb.frontend,
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				0x60, &dev->i2c_bus[1].i2c_adap,
 				&hauppauge_hvr1200_tuner_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 		i2c_bus = &dev->i2c_bus[0];
-		port->dvb.frontend = dvb_attach(dib7000p_attach,
+		fe0->dvb.frontend = dvb_attach(dib7000p_attach,
 			&i2c_bus->i2c_adap,
 			0x12, &hauppauge_hvr1400_dib7000_config);
-		if (port->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend != NULL) {
 			struct dvb_frontend *fe;
 			struct xc2028_config cfg = {
 				.i2c_adap  = &dev->i2c_bus[1].i2c_adap,
@@ -449,7 +454,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			};
 
 			fe = dvb_attach(xc2028_attach,
-					port->dvb.frontend, &cfg);
+					fe0->dvb.frontend, &cfg);
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
@@ -457,25 +462,25 @@ static int dvb_register(struct cx23885_tsport *port)
 	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
 		i2c_bus = &dev->i2c_bus[port->nr - 1];
 
-		port->dvb.frontend = dvb_attach(s5h1409_attach,
+		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 						&dvico_s5h1409_config,
 						&i2c_bus->i2c_adap);
-		if (port->dvb.frontend == NULL)
-			port->dvb.frontend = dvb_attach(s5h1411_attach,
+		if (fe0->dvb.frontend == NULL)
+			fe0->dvb.frontend = dvb_attach(s5h1411_attach,
 							&dvico_s5h1411_config,
 							&i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL)
-			dvb_attach(xc5000_attach, port->dvb.frontend,
+		if (fe0->dvb.frontend != NULL)
+			dvb_attach(xc5000_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &dvico_xc5000_tunerconfig);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP: {
 		i2c_bus = &dev->i2c_bus[port->nr - 1];
 
-		port->dvb.frontend = dvb_attach(zl10353_attach,
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_xc3028,
 					       &i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend != NULL) {
 			struct dvb_frontend      *fe;
 			struct xc2028_config	  cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
@@ -487,7 +492,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.demod       = XC3028_FE_ZARLINK456,
 			};
 
-			fe = dvb_attach(xc2028_attach, port->dvb.frontend,
+			fe = dvb_attach(xc2028_attach, fe0->dvb.frontend,
 					&cfg);
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
@@ -497,10 +502,10 @@ static int dvb_register(struct cx23885_tsport *port)
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 		i2c_bus = &dev->i2c_bus[0];
 
-		port->dvb.frontend = dvb_attach(zl10353_attach,
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 			&dvico_fusionhdtv_xc3028,
 			&i2c_bus->i2c_adap);
-		if (port->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend != NULL) {
 			struct dvb_frontend      *fe;
 			struct xc2028_config	  cfg = {
 				.i2c_adap  = &dev->i2c_bus[1].i2c_adap,
@@ -512,7 +517,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.demod       = XC3028_FE_ZARLINK456,
 			};
 
-			fe = dvb_attach(xc2028_attach, port->dvb.frontend,
+			fe = dvb_attach(xc2028_attach, fe0->dvb.frontend,
 				&cfg);
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
@@ -523,28 +528,35 @@ static int dvb_register(struct cx23885_tsport *port)
 		       dev->name);
 		break;
 	}
-	if (NULL == port->dvb.frontend) {
+	if (NULL == fe0->dvb.frontend) {
 		printk("%s: frontend initialization failed\n", dev->name);
 		return -1;
 	}
 	/* define general-purpose callback pointer */
-	port->dvb.frontend->callback = cx23885_tuner_callback;
+	fe0->dvb.frontend->callback = cx23885_tuner_callback;
 
 	/* Put the analog decoder in standby to keep it quiet */
 	cx23885_call_i2c_clients(i2c_bus, TUNER_SET_STANDBY, NULL);
 
-	if (port->dvb.frontend->ops.analog_ops.standby)
-		port->dvb.frontend->ops.analog_ops.standby(port->dvb.frontend);
+	if (fe0->dvb.frontend->ops.analog_ops.standby)
+		fe0->dvb.frontend->ops.analog_ops.standby(fe0->dvb.frontend);
 
 	/* register everything */
-	return videobuf_dvb_register(&port->dvb, THIS_MODULE, port,
+	return videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
 				     &dev->pci->dev, adapter_nr);
+
 }
 
 int cx23885_dvb_register(struct cx23885_tsport *port)
 {
+
+	struct videobuf_dvb_frontend *fe0;
 	struct cx23885_dev *dev = port->dev;
 	int err;
+
+	fe0 = videobuf_dvb_get_frontend(&port->frontends, 0);
+	if (!fe0)
+		err = -EINVAL;
 
 	dprintk(1, "%s\n", __func__);
 	dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
@@ -557,7 +569,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 	/* dvb stuff */
 	printk("%s: cx23885 based dvb card\n", dev->name);
-	videobuf_queue_sg_init(&port->dvb.dvbq, &dvb_qops, &dev->pci->dev, &port->slock,
+	videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops, &dev->pci->dev, &port->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
 			    sizeof(struct cx23885_buffer), port);
 	err = dvb_register(port);
@@ -569,9 +581,12 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 int cx23885_dvb_unregister(struct cx23885_tsport *port)
 {
+	struct videobuf_dvb_frontend *fe0;
+
+	fe0 = videobuf_dvb_get_frontend(&port->frontends, 0);
 	/* dvb */
-	if(port->dvb.frontend)
-		videobuf_dvb_unregister(&port->dvb);
+	if(fe0->dvb.frontend)
+		videobuf_dvb_unregister_bus(&port->frontends);
 
 	return 0;
 }

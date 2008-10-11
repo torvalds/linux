@@ -225,7 +225,7 @@ struct cx23885_tsport {
 	int                        nr;
 	int                        sram_chno;
 
-	struct videobuf_dvb        dvb;
+	struct videobuf_dvb_frontends frontends;
 
 	/* dma queues */
 	struct cx23885_dmaqueue    mpegq;

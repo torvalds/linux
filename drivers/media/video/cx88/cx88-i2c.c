@@ -116,18 +116,23 @@ static int detach_inform(struct i2c_client *client)
 
 void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 {
+	struct videobuf_dvb_frontend *fe0 = NULL;
 	if (0 != core->i2c_rc)
 		return;
 
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
-	if ( (core->dvbdev) && (core->dvbdev->dvb.frontend) ) {
-		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
-			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
+	if (core->dvbdev) {
+		/* Get the first frontend and assume that all I2C is routed through it */
+		/* TODO: Get _THIS_FE_ then find the right i2c_gate_ctrl for it */
+		fe0 = videobuf_dvb_get_frontend(&core->dvbdev->frontends, 1);
+
+		if (fe0 && fe0->dvb.frontend && fe0->dvb.frontend->ops.i2c_gate_ctrl)
+			fe0->dvb.frontend->ops.i2c_gate_ctrl(fe0->dvb.frontend, 1);
 
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
 
-		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
-			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
+		if (fe0 && fe0->dvb.frontend && fe0->dvb.frontend->ops.i2c_gate_ctrl)
+			fe0->dvb.frontend->ops.i2c_gate_ctrl(fe0->dvb.frontend, 0);
 	} else
 #endif
 		i2c_clients_command(&core->i2c_adap, cmd, arg);

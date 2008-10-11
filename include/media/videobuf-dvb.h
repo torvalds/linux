@@ -24,12 +24,42 @@ struct videobuf_dvb {
 	struct dvb_net             net;
 };
 
-int videobuf_dvb_register(struct videobuf_dvb *dvb,
+struct videobuf_dvb_frontend {
+	void *dev;
+	struct list_head felist;
+	int id;
+	struct videobuf_dvb dvb;
+};
+
+struct videobuf_dvb_frontends {
+	struct mutex lock;
+	struct dvb_adapter adapter;
+	int active_fe_id; /* Indicates which frontend in the felist is in use */
+	struct videobuf_dvb_frontend frontend;
+};
+
+int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 			  struct module *module,
 			  void *adapter_priv,
 			  struct device *device,
-			  short *adapter_nr);
-void videobuf_dvb_unregister(struct videobuf_dvb *dvb);
+			  short *adapter_nr);   //NEW
+
+void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f);
+
+int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *f,
+			  struct module *module,
+			  void *adapter_priv,
+			  struct device *device,
+			  char *adapter_name,
+			  short *adapter_nr);   //NEW
+
+int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_dvb *dvb);
+
+struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(void *private, struct videobuf_dvb_frontends *f, int id);
+
+struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id);
+int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_frontend *p);
+
 
 /*
  * Local variables:

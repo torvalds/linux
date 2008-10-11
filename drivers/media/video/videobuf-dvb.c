@@ -135,29 +135,75 @@ static int videobuf_dvb_stop_feed(struct dvb_demux_feed *feed)
 }
 
 /* ------------------------------------------------------------------ */
-
-int videobuf_dvb_register(struct videobuf_dvb *dvb,
+/* Register a single adapter and one or more frontends */
+int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 			  struct module *module,
 			  void *adapter_priv,
 			  struct device *device,
-			  short *adapter_nr)
+			  short *adapter_nr) //NEW
+{
+	struct list_head *list, *q;
+	struct videobuf_dvb_frontend *fe;
+	int res = -EINVAL;
+
+	fe = videobuf_dvb_get_frontend(f, 1);
+	if (!fe) {
+		printk(KERN_WARNING "Unable to register the adapter which has no frontends\n");
+		goto err;
+	}
+
+	/* Bring up the adapter */
+	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device, fe->dvb.name, adapter_nr); //NEW
+	if (res < 0) {
+		printk(KERN_WARNING "videobuf_dvb_register_adapter failed (errno = %d)\n", res);
+		goto err;
+	}
+
+	/* Attach all of the frontends to the adapter */
+	mutex_lock(&f->lock);
+	list_for_each_safe(list, q, &f->frontend.felist) {
+		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
+
+		res = videobuf_dvb_register_frontend(&f->adapter, &fe->dvb);
+		if (res < 0) {
+			printk(KERN_WARNING "%s: videobuf_dvb_register_frontend failed (errno = %d)\n",
+				fe->dvb.name, res);
+		}
+	}
+	mutex_unlock(&f->lock);
+
+err:
+	return res;
+}
+
+int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
+			  struct module *module,
+			  void *adapter_priv,
+			  struct device *device,
+			  char *adapter_name,
+			  short *adapter_nr) //NEW
 {
 	int result;
 
-	mutex_init(&dvb->lock);
+	mutex_init(&fe->lock);
 
 	/* register adapter */
-	result = dvb_register_adapter(&dvb->adapter, dvb->name, module, device,
-				      adapter_nr);
+	result = dvb_register_adapter(&fe->adapter, adapter_name, module, device, adapter_nr);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_register_adapter failed (errno = %d)\n",
-		       dvb->name, result);
-		goto fail_adapter;
+		       adapter_name, result);
 	}
-	dvb->adapter.priv = adapter_priv;
+	fe->adapter.priv = adapter_priv;
+
+	return result;
+}
+
+int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_dvb *dvb)
+{
+	int result;
 
 	/* register frontend */
-	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
+	result = dvb_register_frontend(adapter, dvb->frontend);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_register_frontend failed (errno = %d)\n",
 		       dvb->name, result);
@@ -183,7 +229,9 @@ int videobuf_dvb_register(struct videobuf_dvb *dvb,
 	dvb->dmxdev.filternum    = 256;
 	dvb->dmxdev.demux        = &dvb->demux.dmx;
 	dvb->dmxdev.capabilities = 0;
-	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
+	//result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
+	result = dvb_dmxdev_init(&dvb->dmxdev, adapter);
+
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_dmxdev_init failed (errno = %d)\n",
 		       dvb->name, result);
@@ -214,7 +262,7 @@ int videobuf_dvb_register(struct videobuf_dvb *dvb,
 	}
 
 	/* register network adapter */
-	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
+	dvb_net_init(adapter, &dvb->net, &dvb->demux.dmx);
 	return 0;
 
 fail_fe_conn:
@@ -230,24 +278,101 @@ fail_dmx:
 fail_frontend:
 	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
-fail_adapter:
+
 	return result;
 }
 
-void videobuf_dvb_unregister(struct videobuf_dvb *dvb)
+void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f)
 {
-	dvb_net_release(&dvb->net);
-	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
-	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
-	dvb_dmxdev_release(&dvb->dmxdev);
-	dvb_dmx_release(&dvb->demux);
-	dvb_unregister_frontend(dvb->frontend);
-	dvb_frontend_detach(dvb->frontend);
-	dvb_unregister_adapter(&dvb->adapter);
+	struct list_head *list, *q;
+	struct videobuf_dvb_frontend *fe;
+
+	mutex_lock(&f->lock);
+	list_for_each_safe(list, q, &f->frontend.felist) {
+		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
+
+		dvb_net_release(&fe->dvb.net);
+		fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_mem);
+		fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_hw);
+		dvb_dmxdev_release(&fe->dvb.dmxdev);
+		dvb_dmx_release(&fe->dvb.demux);
+		dvb_unregister_frontend(fe->dvb.frontend);
+		dvb_frontend_detach(fe->dvb.frontend);
+
+		list_del(list);
+		kfree(fe);
+	}
+	mutex_unlock(&f->lock);
+
+	dvb_unregister_adapter(&f->adapter);
 }
 
-EXPORT_SYMBOL(videobuf_dvb_register);
-EXPORT_SYMBOL(videobuf_dvb_unregister);
+struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id)
+{
+	struct list_head *list, *q;
+	struct videobuf_dvb_frontend *fe, *ret = NULL;
+
+	mutex_lock(&f->lock);
+
+	list_for_each_safe(list, q, &f->frontend.felist) {
+		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
+		if (fe->id == id) {
+			ret = fe;
+			break;
+		}
+	}
+
+	mutex_unlock(&f->lock);
+
+	return ret;
+}
+
+int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_frontend *p)
+{
+	struct list_head *list, *q;
+	struct videobuf_dvb_frontend *fe = NULL;
+	int ret = 0;
+
+	mutex_lock(&f->lock);
+
+	list_for_each_safe(list, q, &f->frontend.felist) {
+		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
+		if (fe->dvb.frontend == p) {
+			ret = fe->id;
+			break;
+		}
+	}
+
+	mutex_unlock(&f->lock);
+
+	return ret;
+}
+
+struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(void *private, struct videobuf_dvb_frontends *f, int id)
+{
+	struct videobuf_dvb_frontend *fe;
+
+	fe = kzalloc(sizeof(struct videobuf_dvb_frontend),GFP_KERNEL);
+	if (fe == NULL)
+		goto fail_alloc;
+
+	fe->dev = private;
+	fe->id = id;
+	mutex_init(&fe->dvb.lock);
+
+	mutex_lock(&f->lock);
+	list_add_tail(&fe->felist,&f->frontend.felist);
+	mutex_unlock(&f->lock);
+
+fail_alloc:
+	return fe;
+}
+
+EXPORT_SYMBOL(videobuf_dvb_register_bus);
+EXPORT_SYMBOL(videobuf_dvb_unregister_bus);
+EXPORT_SYMBOL(videobuf_dvb_alloc_frontend);
+EXPORT_SYMBOL(videobuf_dvb_get_frontend);
+EXPORT_SYMBOL(videobuf_dvb_find_frontend);
 
 /* ------------------------------------------------------------------ */
 /*
