@@ -9,6 +9,7 @@
  */
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -193,7 +194,7 @@ static int __init atngw100_init(void)
 	 * PB28/EXTINT3 doesn't; it should be SMBALERT# (for PMBus),
 	 * but it's not available off-board.
 	 */
-	at32_select_periph(GPIO_PIN_PB(28), 0, AT32_GPIOF_PULLUP);
+	at32_select_periph(GPIO_PIOB_BASE, 1 << 28, 0, AT32_GPIOF_PULLUP);
 	at32_select_gpio(i2c_gpio_data.sda_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	at32_select_gpio(i2c_gpio_data.scl_pin,
@@ -207,6 +208,15 @@ postcore_initcall(atngw100_init);
 
 static int __init atngw100_arch_init(void)
 {
+	/* PB30 is the otherwise unused jumper on the mainboard, with an
+	 * external pullup; the jumper grounds it.  Use it however you
+	 * like, including letting U-Boot or Linux tweak boot sequences.
+	 */
+	at32_select_gpio(GPIO_PIN_PB(30), 0);
+	gpio_request(GPIO_PIN_PB(30), "j15");
+	gpio_direction_input(GPIO_PIN_PB(30));
+	gpio_export(GPIO_PIN_PB(30), false);
+
 	/* set_irq_type() after the arch_initcall for EIC has run, and
 	 * before the I2C subsystem could try using this IRQ.
 	 */
