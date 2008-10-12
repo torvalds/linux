@@ -25,7 +25,7 @@
 #include <acpi/acpi_bus.h>
 #endif
 
-static int __init flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 1;
 }
