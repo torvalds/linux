@@ -16,8 +16,8 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach/pci.h>

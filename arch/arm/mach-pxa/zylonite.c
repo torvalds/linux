@@ -29,6 +29,7 @@
 #include <mach/pxafb.h>
 #include <mach/zylonite.h>
 #include <mach/mmc.h>
+#include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa3xx_nand.h>
 
@@ -423,6 +424,21 @@ static void __init zylonite_init_nand(void)
 static inline void zylonite_init_nand(void) {}
 #endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
 
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static struct pxaohci_platform_data zylonite_ohci_info = {
+	.port_mode	= PMM_PERPORT_MODE,
+	.flags		= ENABLE_PORT1 | ENABLE_PORT2 |
+			  POWER_CONTROL_LOW | POWER_SENSE_LOW,
+};
+
+static void __init zylonite_init_ohci(void)
+{
+	pxa_set_ohci_info(&zylonite_ohci_info);
+}
+#else
+static inline void zylonite_init_ohci(void) {}
+#endif /* CONFIG_USB_OHCI_HCD || CONFIG_USB_OHCI_HCD_MODULE */
+
 static void __init zylonite_init(void)
 {
 	/* board-processor specific initialization */
@@ -443,6 +459,7 @@ static void __init zylonite_init(void)
 	zylonite_init_keypad();
 	zylonite_init_nand();
 	zylonite_init_leds();
+	zylonite_init_ohci();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")

@@ -130,6 +130,7 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 					     const char *error)
 {
 	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX |
+				  EMAC_FTR_460EX_PHY_CLK_FIX |
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
@@ -351,9 +352,23 @@ static int emac_reset(struct emac_instance *dev)
 		emac_tx_disable(dev);
 	}
 
+#ifdef CONFIG_PPC_DCR_NATIVE
+	/* Enable internal clock source */
+	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_ETH_CFG,
+			    0, SDR0_ETH_CFG_ECS << dev->cell_index);
+#endif
+
 	out_be32(&p->mr0, EMAC_MR0_SRST);
 	while ((in_be32(&p->mr0) & EMAC_MR0_SRST) && n)
 		--n;
+
+#ifdef CONFIG_PPC_DCR_NATIVE
+	 /* Enable external clock source */
+	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_ETH_CFG,
+			    SDR0_ETH_CFG_ECS << dev->cell_index, 0);
+#endif
 
 	if (n) {
 		dev->reset_failed = 0;
@@ -2559,6 +2574,9 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	/* Check EMAC version */
 	if (of_device_is_compatible(np, "ibm,emac4sync")) {
 		dev->features |= (EMAC_FTR_EMAC4 | EMAC_FTR_EMAC4SYNC);
+		if (of_device_is_compatible(np, "ibm,emac-460ex") ||
+		    of_device_is_compatible(np, "ibm,emac-460gt"))
+			dev->features |= EMAC_FTR_460EX_PHY_CLK_FIX;
 	} else if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
 		if (of_device_is_compatible(np, "ibm,emac-440gx"))

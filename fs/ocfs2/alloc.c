@@ -990,15 +990,6 @@ out:
 }
 
 /*
- * This is only valid for leaf nodes, which are the only ones that can
- * have empty extents anyway.
- */
-static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
-{
-	return !rec->e_leaf_clusters;
-}
-
-/*
  * This function will discard the rightmost extent record.
  */
 static void ocfs2_shift_records_right(struct ocfs2_extent_list *el)

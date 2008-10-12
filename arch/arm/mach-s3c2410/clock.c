@@ -31,11 +31,11 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <asm/plat-s3c/regs-serial.h>
 #include <mach/regs-clock.h>

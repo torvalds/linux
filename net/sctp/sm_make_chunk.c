@@ -702,12 +702,14 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 	__u32 ctsn;
 	__u16 num_gabs, num_dup_tsns;
 	struct sctp_tsnmap *map = (struct sctp_tsnmap *)&asoc->peer.tsn_map;
+	struct sctp_gap_ack_block gabs[SCTP_MAX_GABS];
 
+	memset(gabs, 0, sizeof(gabs));
 	ctsn = sctp_tsnmap_get_ctsn(map);
 	SCTP_DEBUG_PRINTK("sackCTSNAck sent:  0x%x.\n", ctsn);
 
 	/* How much room is needed in the chunk? */
-	num_gabs = sctp_tsnmap_num_gabs(map);
+	num_gabs = sctp_tsnmap_num_gabs(map, gabs);
 	num_dup_tsns = sctp_tsnmap_num_dups(map);
 
 	/* Initialize the SACK header.  */
@@ -763,7 +765,7 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 	/* Add the gap ack block information.   */
 	if (num_gabs)
 		sctp_addto_chunk(retval, sizeof(__u32) * num_gabs,
-				 sctp_tsnmap_get_gabs(map));
+				 gabs);
 
 	/* Add the duplicate TSN information.  */
 	if (num_dup_tsns)
@@ -1211,7 +1213,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 	 */
 	retval->tsn_missing_report = 0;
 	retval->tsn_gap_acked = 0;
-	retval->fast_retransmit = 0;
+	retval->fast_retransmit = SCTP_CAN_FRTX;
 
 	/* If this is a fragmented message, track all fragments
 	 * of the message (for SEND_FAILED).
@@ -2288,8 +2290,9 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	}
 
 	/* Set up the TSN tracking pieces.  */
-	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_SIZE,
-			 asoc->peer.i.initial_tsn);
+	if (!sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
+				asoc->peer.i.initial_tsn, gfp))
+		goto clean_up;
 
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
 	 *
@@ -2467,7 +2470,7 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
-		asoc->peer.adaptation_ind = param.aind->adaptation_ind;
+		asoc->peer.adaptation_ind = ntohl(param.aind->adaptation_ind);
 		break;
 
 	case SCTP_PARAM_SET_PRIMARY:

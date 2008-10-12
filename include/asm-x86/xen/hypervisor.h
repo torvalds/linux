@@ -30,8 +30,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __HYPERVISOR_H__
-#define __HYPERVISOR_H__
+#ifndef ASM_X86__XEN__HYPERVISOR_H
+#define ASM_X86__XEN__HYPERVISOR_H
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -69,4 +69,4 @@ u64 jiffies_to_st(unsigned long jiffies);
 
 #define is_running_on_xen()	(xen_start_info ? 1 : 0)
 
-#endif /* __HYPERVISOR_H__ */
+#endif /* ASM_X86__XEN__HYPERVISOR_H */

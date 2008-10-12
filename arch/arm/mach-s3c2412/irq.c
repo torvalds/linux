@@ -24,10 +24,10 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
@@ -123,10 +123,10 @@ static void s3c2412_irq_demux_cfsdi(unsigned int irq, struct irq_desc *desc)
 	subsrc  &= ~submsk;
 
 	if (subsrc & INTBIT(IRQ_S3C2412_SDI))
-		desc_handle_irq(IRQ_S3C2412_SDI, irq_desc + IRQ_S3C2412_SDI);
+		generic_handle_irq(IRQ_S3C2412_SDI);
 
 	if (subsrc & INTBIT(IRQ_S3C2412_CF))
-		desc_handle_irq(IRQ_S3C2412_CF, irq_desc + IRQ_S3C2412_CF);
+		generic_handle_irq(IRQ_S3C2412_CF);
 }
 
 #define INTMSK_CFSDI	(1UL << (IRQ_S3C2412_CFSDI - IRQ_EINT0))

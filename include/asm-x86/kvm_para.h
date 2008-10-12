@@ -1,5 +1,5 @@
-#ifndef __X86_KVM_PARA_H
-#define __X86_KVM_PARA_H
+#ifndef ASM_X86__KVM_PARA_H
+#define ASM_X86__KVM_PARA_H
 
 /* This CPUID returns the signature 'KVMKVMKVM' in ebx, ecx, and edx.  It
  * should be used to determine that a VM is running under KVM.
@@ -144,4 +144,4 @@ static inline unsigned int kvm_arch_para_features(void)
 
 #endif
 
-#endif
+#endif /* ASM_X86__KVM_PARA_H */

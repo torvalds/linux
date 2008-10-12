@@ -25,8 +25,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <linux/spinlock.h>
 #include <mach/mux.h>
 

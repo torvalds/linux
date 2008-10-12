@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TLBFLUSH_H
-#define _ASM_X86_TLBFLUSH_H
+#ifndef ASM_X86__TLBFLUSH_H
+#define ASM_X86__TLBFLUSH_H
 
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -165,4 +165,4 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 	flush_tlb_all();
 }
 
-#endif /* _ASM_X86_TLBFLUSH_H */
+#endif /* ASM_X86__TLBFLUSH_H */

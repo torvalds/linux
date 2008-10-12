@@ -6,7 +6,12 @@
 obj-y				+= clock.o devices.o generic.o irq.o dma.o \
 				   time.o gpio.o reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
-obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
+
+ifeq ($(CONFIG_CPU_FREQ),y)
+obj-$(CONFIG_PXA25x)		+= cpufreq-pxa2xx.o
+obj-$(CONFIG_PXA27x)		+= cpufreq-pxa2xx.o
+obj-$(CONFIG_PXA3xx)		+= cpufreq-pxa3xx.o
+endif
 
 # Generic drivers that other drivers may depend upon
 obj-$(CONFIG_PXA_SSP)		+= ssp.o
@@ -22,27 +27,33 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # Specific board support
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
+obj-$(CONFIG_MACH_AM200EPD)	+= am200epd.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
+obj-$(CONFIG_MACH_MP900C)	+= mp900.o
 obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
 obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
 obj-$(CONFIG_MACH_COLIBRI)	+= colibri.o
-obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o corgi_ssp.o corgi_lcd.o sharpsl_pm.o corgi_pm.o
-obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o corgi_ssp.o corgi_lcd.o sharpsl_pm.o spitz_pm.o
-obj-$(CONFIG_MACH_AKITA)	+= akita-ioexp.o
-obj-$(CONFIG_MACH_POODLE)	+= poodle.o corgi_ssp.o
+obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o sharpsl_pm.o corgi_pm.o
+obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o sharpsl_pm.o spitz_pm.o
+obj-$(CONFIG_MACH_POODLE)	+= poodle.o
 obj-$(CONFIG_MACH_PCM027)	+= pcm027.o
 obj-$(CONFIG_MACH_PCM990_BASEBOARD)	+= pcm990-baseboard.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_MAGICIAN)	+= magician.o
-obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o eseries_udc.o
-obj-$(CONFIG_MACH_E740)		+= e740_lcd.o
-obj-$(CONFIG_MACH_E750)		+= e750_lcd.o
-obj-$(CONFIG_MACH_E400)		+= e400_lcd.o
-obj-$(CONFIG_MACH_E800)		+= e800_lcd.o
+obj-$(CONFIG_MACH_MIOA701)	+= mioa701.o mioa701_bootresume.o
+obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o
+obj-$(CONFIG_MACH_E330)		+= e330.o
+obj-$(CONFIG_MACH_E350)		+= e350.o
+obj-$(CONFIG_MACH_E740)		+= e740.o
+obj-$(CONFIG_MACH_E750)		+= e750.o
+obj-$(CONFIG_MACH_E400)		+= e400.o
+obj-$(CONFIG_MACH_E800)		+= e800.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
+obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o
+obj-$(CONFIG_ARCH_VIPER)	+= viper.o
 
 ifeq ($(CONFIG_MACH_ZYLONITE),y)
   obj-y				+= zylonite.o
@@ -53,7 +64,8 @@ obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
 obj-$(CONFIG_MACH_SAAR)		+= saar.o
 
-obj-$(CONFIG_MACH_ARMCORE)      += cm-x270.o
+obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o cm-x255.o cm-x270.o
+obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
 
 # Support for blinky lights
@@ -61,12 +73,11 @@ led-y := leds.o
 led-$(CONFIG_ARCH_LUBBOCK)	+= leds-lubbock.o
 led-$(CONFIG_MACH_MAINSTONE)	+= leds-mainstone.o
 led-$(CONFIG_ARCH_PXA_IDP)	+= leds-idp.o
-led-$(CONFIG_MACH_TRIZEPS4)	+= leds-trizeps4.o
 
 obj-$(CONFIG_LEDS)		+= $(led-y)
 
 ifeq ($(CONFIG_PCI),y)
-obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
+obj-$(CONFIG_MACH_ARMCORE) += cm-x2xx-pci.o
 endif
 
 obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o

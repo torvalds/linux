@@ -16,9 +16,9 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/hardware/uengine.h>
-#include <asm/io.h>
 
 #if defined(CONFIG_ARCH_IXP2000)
 #define IXP_UENGINE_CSR_VIRT_BASE	IXP2000_UENGINE_CSR_VIRT_BASE

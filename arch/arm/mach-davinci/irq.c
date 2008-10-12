@@ -22,9 +22,9 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach/irq.h>
 
 #define IRQ_BIT(irq)		((irq) & 0x1f)

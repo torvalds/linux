@@ -168,13 +168,12 @@ SECTIONS
 	*(.con_initcall.init)
   }
   __con_initcall_end = .;
-  . = ALIGN(16);
-  __x86cpuvendor_start = .;
-  .x86cpuvendor.init : AT(ADDR(.x86cpuvendor.init) - LOAD_OFFSET) {
-	*(.x86cpuvendor.init)
+  __x86_cpu_dev_start = .;
+  .x86_cpu_dev.init : AT(ADDR(.x86_cpu_dev.init) - LOAD_OFFSET) {
+	*(.x86_cpu_dev.init)
   }
-  __x86cpuvendor_end = .;
   SECURITY_INIT
+  __x86_cpu_dev_end = .;
 
   . = ALIGN(8);
   .parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {

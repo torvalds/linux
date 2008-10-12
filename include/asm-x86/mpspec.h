@@ -1,15 +1,16 @@
-#ifndef _AM_X86_MPSPEC_H
-#define _AM_X86_MPSPEC_H
+#ifndef ASM_X86__MPSPEC_H
+#define ASM_X86__MPSPEC_H
 
 #include <linux/init.h>
 
 #include <asm/mpspec_def.h>
 
+extern int apic_version[MAX_APICS];
+
 #ifdef CONFIG_X86_32
 #include <mach_mpspec.h>
 
 extern unsigned int def_to_bigsmp;
-extern int apic_version[MAX_APICS];
 extern u8 apicid_2_node[];
 extern int pic_mode;
 
@@ -141,4 +142,4 @@ static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 
 extern physid_mask_t phys_cpu_present_map;
 
-#endif
+#endif /* ASM_X86__MPSPEC_H */

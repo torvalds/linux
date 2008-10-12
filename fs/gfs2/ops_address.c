@@ -512,8 +512,8 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	int error;
 
 	unlock_page(page);
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	error = gfs2_glock_nq_atime(&gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	error = gfs2_glock_nq(&gh);
 	if (unlikely(error))
 		goto out;
 	error = AOP_TRUNCATED_PAGE;
@@ -594,8 +594,8 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	struct gfs2_holder gh;
 	int ret;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	ret = gfs2_glock_nq_atime(&gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	ret = gfs2_glock_nq(&gh);
 	if (unlikely(ret))
 		goto out_uninit;
 	if (!gfs2_is_stuffed(ip))
@@ -636,8 +636,8 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	unsigned to = from + len;
 	struct page *page;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME, &ip->i_gh);
-	error = gfs2_glock_nq_atime(&ip->i_gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
+	error = gfs2_glock_nq(&ip->i_gh);
 	if (unlikely(error))
 		goto out_uninit;
 
@@ -975,7 +975,7 @@ static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
 	if (gfs2_is_stuffed(ip))
 		return 0;
 
-	if (offset > i_size_read(&ip->i_inode))
+	if (offset >= i_size_read(&ip->i_inode))
 		return 0;
 	return 1;
 }
@@ -1000,8 +1000,8 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	 * unfortunately have the option of only flushing a range like
 	 * the VFS does.
 	 */
-	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, GL_ATIME, &gh);
-	rv = gfs2_glock_nq_atime(&gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, 0, &gh);
+	rv = gfs2_glock_nq(&gh);
 	if (rv)
 		return rv;
 	rv = gfs2_ok_for_dio(ip, rw, offset);

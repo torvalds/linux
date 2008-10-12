@@ -83,6 +83,25 @@ int page_is_ram(unsigned long pagenr)
 	return 0;
 }
 
+int pagerange_is_ram(unsigned long start, unsigned long end)
+{
+	int ram_page = 0, not_rampage = 0;
+	unsigned long page_nr;
+
+	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
+	     ++page_nr) {
+		if (page_is_ram(page_nr))
+			ram_page = 1;
+		else
+			not_rampage = 1;
+
+		if (ram_page == not_rampage)
+			return -1;
+	}
+
+	return ram_page;
+}
+
 /*
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.
@@ -421,7 +440,7 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
 	return;
 }
 
-int __initdata early_ioremap_debug;
+static int __initdata early_ioremap_debug;
 
 static int __init early_ioremap_debug_setup(char *str)
 {
@@ -547,7 +566,7 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 }
 
 
-int __initdata early_ioremap_nested;
+static int __initdata early_ioremap_nested;
 
 static int __init check_early_ioremap_leak(void)
 {
