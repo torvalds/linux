@@ -113,6 +113,27 @@ asmlinkage int sys_sigaltstack(unsigned long bx)
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
 
+#define COPY(x)			{		\
+	err |= __get_user(regs->x, &sc->x);	\
+}
+
+#define COPY_SEG(seg)		{			\
+		unsigned short tmp;			\
+		err |= __get_user(tmp, &sc->seg);	\
+		regs->seg = tmp;			\
+}
+
+#define COPY_SEG_STRICT(seg)	{			\
+		unsigned short tmp;			\
+		err |= __get_user(tmp, &sc->seg);	\
+		regs->seg = tmp | 3;			\
+}
+
+#define GET_SEG(seg)		{			\
+		unsigned short tmp;			\
+		err |= __get_user(tmp, &sc->seg);	\
+		loadsegment(seg, tmp);			\
+}
 
 /*
  * Do a signal return; undo the signal stack.
@@ -121,27 +142,12 @@ static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 		   unsigned long *pax)
 {
+	void __user *buf;
+	unsigned int tmpflags;
 	unsigned int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-#define COPY(x)		err |= __get_user(regs->x, &sc->x)
-
-#define COPY_SEG(seg)							\
-	{ unsigned short tmp;						\
-	  err |= __get_user(tmp, &sc->seg);				\
-	  regs->seg = tmp; }
-
-#define COPY_SEG_STRICT(seg)						\
-	{ unsigned short tmp;						\
-	  err |= __get_user(tmp, &sc->seg);				\
-	  regs->seg = tmp|3; }
-
-#define GET_SEG(seg)							\
-	{ unsigned short tmp;						\
-	  err |= __get_user(tmp, &sc->seg);				\
-	  loadsegment(seg, tmp); }
 
 	GET_SEG(gs);
 	COPY_SEG(fs);
@@ -152,21 +158,12 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	COPY_SEG_STRICT(cs);
 	COPY_SEG_STRICT(ss);
 
-	{
-		unsigned int tmpflags;
+	err |= __get_user(tmpflags, &sc->flags);
+	regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
+	regs->orig_ax = -1;		/* disable syscall checks */
 
-		err |= __get_user(tmpflags, &sc->flags);
-		regs->flags = (regs->flags & ~FIX_EFLAGS) |
-						(tmpflags & FIX_EFLAGS);
-		regs->orig_ax = -1;		/* disable syscall checks */
-	}
-
-	{
-		void __user *buf;
-
-		err |= __get_user(buf, &sc->fpstate);
-		err |= restore_i387_xstate(buf);
-	}
+	err |= __get_user(buf, &sc->fpstate);
+	err |= restore_i387_xstate(buf);
 
 	err |= __get_user(*pax, &sc->ax);
 	return err;
@@ -482,24 +479,34 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 /*
  * OK, we're invoking a handler:
  */
+static int signr_convert(int sig)
+{
+	struct thread_info *info = current_thread_info();
+
+	if (info->exec_domain && info->exec_domain->signal_invmap && sig < 32)
+		return info->exec_domain->signal_invmap[sig];
+	return sig;
+}
+
+#define is_ia32	1
+#define ia32_setup_frame	__setup_frame
+#define ia32_setup_rt_frame	__setup_rt_frame
+
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
 {
+	int usig = signr_convert(sig);
 	int ret;
-	int usig;
-
-	usig = current_thread_info()->exec_domain
-		&& current_thread_info()->exec_domain->signal_invmap
-		&& sig < 32
-		? current_thread_info()->exec_domain->signal_invmap[sig]
-		: sig;
 
 	/* Set up the stack frame */
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = __setup_rt_frame(usig, ka, info, set, regs);
-	else
-		ret = __setup_frame(usig, ka, set, regs);
+	if (is_ia32) {
+		if (ka->sa.sa_flags & SA_SIGINFO)
+			ret = ia32_setup_rt_frame(usig, ka, info, set, regs);
+		else
+			ret = ia32_setup_frame(usig, ka, set, regs);
+	} else
+		ret = __setup_rt_frame(sig, ka, info, set, regs);
 
 	if (ret) {
 		force_sigsegv(sig, current);
@@ -549,6 +556,15 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * This has nothing to do with segment registers,
+	 * despite the name.  This magic affects uaccess.h
+	 * macros' behavior.  Reset it to the normal setting.
+	 */
+	set_fs(USER_DS);
+#endif
 
 	/*
 	 * Clear the direction flag as per the ABI for function entry.
@@ -663,6 +679,12 @@ static void do_signal(struct pt_regs *regs)
 void
 do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 {
+#if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
+	/* notify userspace of pending MCEs */
+	if (thread_info_flags & _TIF_MCE_NOTIFY)
+		mce_notify_user();
+#endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
+
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
@@ -672,7 +694,9 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 		tracehook_notify_resume(regs);
 	}
 
+#ifdef CONFIG_X86_32
 	clear_thread_flag(TIF_IRET);
+#endif /* CONFIG_X86_32 */
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
