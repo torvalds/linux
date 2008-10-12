@@ -2,8 +2,7 @@
  * soc-dapm.c  --  ALSA SoC Dynamic Audio Power Management
  *
  * Copyright 2005 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -1541,6 +1540,6 @@ void snd_soc_dapm_free(struct snd_soc_device *socdev)
 EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
 /* Module information */
-MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
+MODULE_AUTHOR("Liam Girdwood, lrg@slimlogic.co.uk");
 MODULE_DESCRIPTION("Dynamic Audio Power Management core for ALSA SoC");
 MODULE_LICENSE("GPL");

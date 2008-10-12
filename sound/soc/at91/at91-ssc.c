@@ -5,7 +5,7 @@
  *         Endrelia Technologies Inc.
  *
  * Based on pxa2xx Platform drivers by
- * Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
