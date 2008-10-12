@@ -128,7 +128,7 @@
 
 
 #ifdef __BLACKFIN_ASM__
-static void __inline__ lms_adapt_bg(echo_can_state_t *ec, int clean, int shift)
+static void __inline__ lms_adapt_bg(struct echo_can_state *ec, int clean, int shift)
 {
     int i, j;
     int offset1;
@@ -200,7 +200,7 @@ static void __inline__ lms_adapt_bg(echo_can_state_t *ec, int clean, int shift)
 */
 
 #else
-static __inline__ void lms_adapt_bg(echo_can_state_t *ec, int clean, int shift)
+static __inline__ void lms_adapt_bg(struct echo_can_state *ec, int clean, int shift)
 {
     int i;
 
@@ -234,9 +234,9 @@ static __inline__ void lms_adapt_bg(echo_can_state_t *ec, int clean, int shift)
 
 /*- End of function --------------------------------------------------------*/
 
-echo_can_state_t *echo_can_create(int len, int adaption_mode)
+struct echo_can_state *echo_can_create(int len, int adaption_mode)
 {
-    echo_can_state_t *ec;
+    struct echo_can_state *ec;
     int i;
     int j;
 
@@ -292,7 +292,7 @@ echo_can_state_t *echo_can_create(int len, int adaption_mode)
 EXPORT_SYMBOL_GPL(echo_can_create);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_free(echo_can_state_t *ec)
+void echo_can_free(struct echo_can_state *ec)
 {
 	int i;
 
@@ -306,14 +306,14 @@ void echo_can_free(echo_can_state_t *ec)
 EXPORT_SYMBOL_GPL(echo_can_free);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_adaption_mode(echo_can_state_t *ec, int adaption_mode)
+void echo_can_adaption_mode(struct echo_can_state *ec, int adaption_mode)
 {
     ec->adaption_mode = adaption_mode;
 }
 EXPORT_SYMBOL_GPL(echo_can_adaption_mode);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_flush(echo_can_state_t *ec)
+void echo_can_flush(struct echo_can_state *ec)
 {
     int i;
 
@@ -340,7 +340,7 @@ void echo_can_flush(echo_can_state_t *ec)
 EXPORT_SYMBOL_GPL(echo_can_flush);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_snapshot(echo_can_state_t *ec) {
+void echo_can_snapshot(struct echo_can_state *ec) {
     memcpy(ec->snapshot, ec->fir_taps16[0], ec->taps*sizeof(int16_t));
 }
 EXPORT_SYMBOL_GPL(echo_can_snapshot);
@@ -348,7 +348,7 @@ EXPORT_SYMBOL_GPL(echo_can_snapshot);
 
 /* Dual Path Echo Canceller ------------------------------------------------*/
 
-int16_t echo_can_update(echo_can_state_t *ec, int16_t tx, int16_t rx)
+int16_t echo_can_update(struct echo_can_state *ec, int16_t tx, int16_t rx)
 {
     int32_t echo_value;
     int clean_bg;
@@ -613,7 +613,7 @@ EXPORT_SYMBOL_GPL(echo_can_update);
    precision, which noise shapes things, giving very clean DC removal.
 */
 
-int16_t echo_can_hpf_tx(echo_can_state_t *ec, int16_t tx) {
+int16_t echo_can_hpf_tx(struct echo_can_state *ec, int16_t tx) {
     int tmp, tmp1;
 
     if (ec->adaption_mode & ECHO_CAN_USE_TX_HPF) {

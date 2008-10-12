@@ -42,31 +42,31 @@
     G.168 echo canceller descriptor. This defines the working state for a line
     echo canceller.
 */
-typedef struct echo_can_state echo_can_state_t;
+struct echo_can_state;
 
 /*! Create a voice echo canceller context.
     \param len The length of the canceller, in samples.
     \return The new canceller context, or NULL if the canceller could not be created.
 */
-echo_can_state_t *echo_can_create(int len, int adaption_mode);
+struct echo_can_state *echo_can_create(int len, int adaption_mode);
 
 /*! Free a voice echo canceller context.
     \param ec The echo canceller context.
 */
-void echo_can_free(echo_can_state_t *ec);
+void echo_can_free(struct echo_can_state *ec);
 
 /*! Flush (reinitialise) a voice echo canceller context.
     \param ec The echo canceller context.
 */
-void echo_can_flush(echo_can_state_t *ec);
+void echo_can_flush(struct echo_can_state *ec);
 
 /*! Set the adaption mode of a voice echo canceller context.
     \param ec The echo canceller context.
     \param adapt The mode.
 */
-void echo_can_adaption_mode(echo_can_state_t *ec, int adaption_mode);
+void echo_can_adaption_mode(struct echo_can_state *ec, int adaption_mode);
 
-void echo_can_snapshot(echo_can_state_t *ec);
+void echo_can_snapshot(struct echo_can_state *ec);
 
 /*! Process a sample through a voice echo canceller.
     \param ec The echo canceller context.
@@ -74,13 +74,13 @@ void echo_can_snapshot(echo_can_state_t *ec);
     \param rx The received audio sample.
     \return The clean (echo cancelled) received sample.
 */
-int16_t echo_can_update(echo_can_state_t *ec, int16_t tx, int16_t rx);
+int16_t echo_can_update(struct echo_can_state *ec, int16_t tx, int16_t rx);
 
 /*! Process to high pass filter the tx signal.
     \param ec The echo canceller context.
     \param tx The transmitted auio sample.
     \return The HP filtered transmit sample, send this to your D/A.
 */
-int16_t echo_can_hpf_tx(echo_can_state_t *ec, int16_t tx);
+int16_t echo_can_hpf_tx(struct echo_can_state *ec, int16_t tx);
 
 #endif	/* __OSLEC_H */
