@@ -783,6 +783,9 @@ wait_for_iobuf:
 		/* AKPM: bforget here */
 	}
 
+	if (err)
+		jbd2_journal_abort(journal, err);
+
 	jbd_debug(3, "JBD: commit phase 5\n");
 
 	if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
