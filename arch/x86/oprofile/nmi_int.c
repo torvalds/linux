@@ -427,7 +427,7 @@ static int __init ppro_init(char **cpu_type)
 		*cpu_type = "i386/core_2";
 		break;
 	case 26:
-		arch_perfmon_setup_counters();
+		model = &op_arch_perfmon_spec;
 		*cpu_type = "i386/core_i7";
 		break;
 	case 28:
@@ -439,16 +439,6 @@ static int __init ppro_init(char **cpu_type)
 	}
 
 	model = &op_ppro_spec;
-	return 1;
-}
-
-static int __init arch_perfmon_init(char **cpu_type)
-{
-	if (!cpu_has_arch_perfmon)
-		return 0;
-	*cpu_type = "i386/arch_perfmon";
-	model = &op_arch_perfmon_spec;
-	arch_perfmon_setup_counters();
 	return 1;
 }
 
@@ -509,8 +499,15 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 			break;
 		}
 
-		if (!cpu_type && !arch_perfmon_init(&cpu_type))
+		if (cpu_type)
+			break;
+
+		if (!cpu_has_arch_perfmon)
 			return -ENODEV;
+
+		/* use arch perfmon as fallback */
+		cpu_type = "i386/arch_perfmon";
+		model = &op_arch_perfmon_spec;
 		break;
 
 	default:

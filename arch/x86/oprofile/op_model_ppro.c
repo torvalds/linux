@@ -233,7 +233,7 @@ struct op_x86_model_spec const op_ppro_spec = {
  * the specific CPU.
  */
 
-void arch_perfmon_setup_counters(void)
+static void arch_perfmon_setup_counters(void)
 {
 	union cpuid10_eax eax;
 
@@ -253,7 +253,14 @@ void arch_perfmon_setup_counters(void)
 	op_arch_perfmon_spec.num_controls = num_counters;
 }
 
+static int arch_perfmon_init(struct oprofile_operations *ignore)
+{
+	arch_perfmon_setup_counters();
+	return 0;
+}
+
 struct op_x86_model_spec op_arch_perfmon_spec = {
+	.init			= &arch_perfmon_init,
 	/* num_counters/num_controls filled in at runtime */
 	.fill_in_addresses	= &ppro_fill_in_addresses,
 	/* user space does the cpuid check for available events */

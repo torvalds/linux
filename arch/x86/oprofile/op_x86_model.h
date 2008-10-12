@@ -51,6 +51,4 @@ extern struct op_x86_model_spec const op_p4_ht2_spec;
 extern struct op_x86_model_spec const op_amd_spec;
 extern struct op_x86_model_spec op_arch_perfmon_spec;
 
-extern void arch_perfmon_setup_counters(void);
-
 #endif /* OP_X86_MODEL_H */
