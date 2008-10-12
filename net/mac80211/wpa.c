@@ -127,7 +127,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 			return RX_DROP_UNUSABLE;
 
-		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
+		mac80211_ev_michael_mic_failure(rx->sdata, rx->key->conf.keyidx,
 						(void *) skb->data);
 		return RX_DROP_UNUSABLE;
 	}
@@ -151,9 +151,6 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	unsigned int hdrlen;
 	int len, tail;
 	u8 *pos;
-
-	info->control.icv_len = TKIP_ICV_LEN;
-	info->control.iv_len = TKIP_IV_LEN;
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
@@ -256,7 +253,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 
 	res = ieee80211_tkip_decrypt_data(rx->local->wep_rx_tfm,
 					  key, skb->data + hdrlen,
-					  skb->len - hdrlen, rx->sta->addr,
+					  skb->len - hdrlen, rx->sta->sta.addr,
 					  hdr->addr1, hwaccel, rx->queue,
 					  &rx->tkip_iv32,
 					  &rx->tkip_iv16);
@@ -373,9 +370,6 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	int hdrlen, len, tail;
 	u8 *pos, *pn;
 	int i;
-
-	info->control.icv_len = CCMP_MIC_LEN;
-	info->control.iv_len = CCMP_HDR_LEN;
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {

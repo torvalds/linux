@@ -1058,6 +1058,9 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	else
 		sqd_event = 0;
 
+	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+		context->rlkey |= (1 << 4);
+
 	/*
 	 * Before passing a kernel QP to the HW, make sure that the
 	 * ownership bits of the send queue are set and the SQ
@@ -1342,6 +1345,12 @@ static __be32 convert_access(int acc)
 static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 {
 	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(wr->wr.fast_reg.page_list);
+	int i;
+
+	for (i = 0; i < wr->wr.fast_reg.page_list_len; ++i)
+		wr->wr.fast_reg.page_list->page_list[i] =
+			cpu_to_be64(wr->wr.fast_reg.page_list->page_list[i] |
+				    MLX4_MTT_FLAG_PRESENT);
 
 	fseg->flags		= convert_access(wr->wr.fast_reg.access_flags);
 	fseg->mem_key		= cpu_to_be32(wr->wr.fast_reg.rkey);

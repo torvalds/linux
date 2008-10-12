@@ -189,6 +189,14 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define MRVDRV_CMD_UPLD_RDY		0x0008
 #define MRVDRV_CARDEVENT		0x0010
 
+/* Automatic TX control default levels */
+#define POW_ADAPT_DEFAULT_P0 13
+#define POW_ADAPT_DEFAULT_P1 15
+#define POW_ADAPT_DEFAULT_P2 18
+#define TPC_DEFAULT_P0 5
+#define TPC_DEFAULT_P1 10
+#define TPC_DEFAULT_P2 13
+
 /** TxPD status */
 
 /*	Station firmware use TxPD status field to report final Tx transmit
@@ -243,6 +251,9 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 
 #define	CMD_F_HOSTCMD		(1 << 0)
 #define FW_CAPINFO_WPA  	(1 << 0)
+#define FW_CAPINFO_FIRMWARE_UPGRADE	(1 << 13)
+#define FW_CAPINFO_BOOT2_UPGRADE	(1<<14)
+#define FW_CAPINFO_PERSISTENT_CONFIG	(1<<15)
 
 #define KEY_LEN_WPA_AES			16
 #define KEY_LEN_WPA_TKIP		32
@@ -316,7 +327,8 @@ enum PS_STATE {
 enum DNLD_STATE {
 	DNLD_RES_RECEIVED,
 	DNLD_DATA_SENT,
-	DNLD_CMD_SENT
+	DNLD_CMD_SENT,
+	DNLD_BOOTCMD_SENT,
 };
 
 /** LBS_MEDIA_STATE */
@@ -339,27 +351,6 @@ enum mv_ms_type {
 	MVMS_EVENT
 };
 
-/** SNMP_MIB_INDEX_e */
-enum SNMP_MIB_INDEX_e {
-	DESIRED_BSSTYPE_I = 0,
-	OP_RATESET_I,
-	BCNPERIOD_I,
-	DTIMPERIOD_I,
-	ASSOCRSP_TIMEOUT_I,
-	RTSTHRESH_I,
-	SHORT_RETRYLIM_I,
-	LONG_RETRYLIM_I,
-	FRAGTHRESH_I,
-	DOT11D_I,
-	DOT11H_I,
-	MANUFID_I,
-	PRODID_I,
-	MANUF_OUI_I,
-	MANUF_NAME_I,
-	MANUF_PRODNAME_I,
-	MANUF_PRODVER_I,
-};
-
 /** KEY_TYPE_ID */
 enum KEY_TYPE_ID {
 	KEY_TYPE_ID_WEP = 0,
@@ -372,12 +363,6 @@ enum KEY_INFO_WPA {
 	KEY_INFO_WPA_MCAST = 0x01,
 	KEY_INFO_WPA_UNICAST = 0x02,
 	KEY_INFO_WPA_ENABLED = 0x04
-};
-
-/** SNMP_MIB_VALUE_e */
-enum SNMP_MIB_VALUE_e {
-	SNMP_MIB_VALUE_INFRA = 1,
-	SNMP_MIB_VALUE_ADHOC
 };
 
 /* Default values for fwt commands. */

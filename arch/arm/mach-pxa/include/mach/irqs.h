@@ -11,7 +11,14 @@
  */
 
 
-#define PXA_IRQ(x)	(x)
+#ifdef CONFIG_PXA_HAVE_ISA_IRQS
+#define PXA_ISA_IRQ(x)	(x)
+#define PXA_ISA_IRQ_NUM	(16)
+#else
+#define PXA_ISA_IRQ_NUM	(0)
+#endif
+
+#define PXA_IRQ(x)	(PXA_ISA_IRQ_NUM + (x))
 
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define IRQ_SSP3	PXA_IRQ(0)	/* SSP3 service request */
@@ -73,7 +80,7 @@
 #define IRQ_MMC3	PXA_IRQ(55)	/* MMC3 Controller (PXA310) */
 #endif
 
-#define PXA_GPIO_IRQ_BASE	(64)
+#define PXA_GPIO_IRQ_BASE	PXA_IRQ(64)
 #define PXA_GPIO_IRQ_NUM	(128)
 
 #define GPIO_2_x_TO_IRQ(x)	(PXA_GPIO_IRQ_BASE + (x))
@@ -178,13 +185,7 @@
 #define NR_IRQS			(IRQ_S1_BVD1_STSCHG + 1)
 #elif defined(CONFIG_SHARP_LOCOMO)
 #define NR_IRQS			(IRQ_LOCOMO_SPI_TEND + 1)
-#elif defined(CONFIG_ARCH_LUBBOCK) || \
-      defined(CONFIG_MACH_LOGICPD_PXA270) || \
-      defined(CONFIG_MACH_TOSA) || \
-      defined(CONFIG_MACH_MAINSTONE) || \
-      defined(CONFIG_MACH_PCM027) || \
-      defined(CONFIG_ARCH_PXA_ESERIES) || \
-      defined(CONFIG_MACH_MAGICIAN)
+#elif defined(CONFIG_PXA_HAVE_BOARD_IRQS)
 #define NR_IRQS			(IRQ_BOARD_END)
 #elif defined(CONFIG_MACH_ZYLONITE)
 #define NR_IRQS			(IRQ_BOARD_START + 32)

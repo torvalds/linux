@@ -332,8 +332,7 @@ static int __init rtrack2_init(void)
 	rtrack2_radio.priv=&rtrack2_unit;
 
 	spin_lock_init(&lock);
-	if(video_register_device(&rtrack2_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&rtrack2_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 4);
 		return -EINVAL;
 	}

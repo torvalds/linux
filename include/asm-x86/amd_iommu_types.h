@@ -37,6 +37,7 @@
 /* Capability offsets used by the driver */
 #define MMIO_CAP_HDR_OFFSET	0x00
 #define MMIO_RANGE_OFFSET	0x0c
+#define MMIO_MISC_OFFSET	0x10
 
 /* Masks, shifts and macros to parse the device range capability */
 #define MMIO_RANGE_LD_MASK	0xff000000
@@ -48,6 +49,7 @@
 #define MMIO_GET_LD(x)  (((x) & MMIO_RANGE_LD_MASK) >> MMIO_RANGE_LD_SHIFT)
 #define MMIO_GET_FD(x)  (((x) & MMIO_RANGE_FD_MASK) >> MMIO_RANGE_FD_SHIFT)
 #define MMIO_GET_BUS(x) (((x) & MMIO_RANGE_BUS_MASK) >> MMIO_RANGE_BUS_SHIFT)
+#define MMIO_MSI_NUM(x)	((x) & 0x1f)
 
 /* Flag masks for the AMD IOMMU exclusion range */
 #define MMIO_EXCL_ENABLE_MASK 0x01ULL
@@ -68,6 +70,25 @@
 
 /* MMIO status bits */
 #define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
+
+/* event logging constants */
+#define EVENT_ENTRY_SIZE	0x10
+#define EVENT_TYPE_SHIFT	28
+#define EVENT_TYPE_MASK		0xf
+#define EVENT_TYPE_ILL_DEV	0x1
+#define EVENT_TYPE_IO_FAULT	0x2
+#define EVENT_TYPE_DEV_TAB_ERR	0x3
+#define EVENT_TYPE_PAGE_TAB_ERR	0x4
+#define EVENT_TYPE_ILL_CMD	0x5
+#define EVENT_TYPE_CMD_HARD_ERR	0x6
+#define EVENT_TYPE_IOTLB_INV_TO	0x7
+#define EVENT_TYPE_INV_DEV_REQ	0x8
+#define EVENT_DEVID_MASK	0xffff
+#define EVENT_DEVID_SHIFT	0
+#define EVENT_DOMID_MASK	0xffff
+#define EVENT_DOMID_SHIFT	0
+#define EVENT_FLAGS_MASK	0xfff
+#define EVENT_FLAGS_SHIFT	0x10
 
 /* feature control bits */
 #define CONTROL_IOMMU_EN        0x00ULL
@@ -109,12 +130,18 @@
 #define DEV_ENTRY_NMI_PASS      0xba
 #define DEV_ENTRY_LINT0_PASS    0xbe
 #define DEV_ENTRY_LINT1_PASS    0xbf
+#define DEV_ENTRY_MODE_MASK	0x07
+#define DEV_ENTRY_MODE_SHIFT	0x09
 
 /* constants to configure the command buffer */
 #define CMD_BUFFER_SIZE    8192
 #define CMD_BUFFER_ENTRIES 512
 #define MMIO_CMD_SIZE_SHIFT 56
 #define MMIO_CMD_SIZE_512 (0x9ULL << MMIO_CMD_SIZE_SHIFT)
+
+/* constants for event buffer handling */
+#define EVT_BUFFER_SIZE		8192 /* 512 entries */
+#define EVT_LEN_MASK		(0x9ULL << 56)
 
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
@@ -134,6 +161,7 @@
 #define IOMMU_MAP_SIZE_L3 (1ULL << 39)
 
 #define IOMMU_PTE_P  (1ULL << 0)
+#define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)
 #define IOMMU_PTE_FC (1ULL << 60)
 #define IOMMU_PTE_IR (1ULL << 61)
@@ -158,6 +186,9 @@
 #define IOMMU_CAP_NPCACHE 26
 
 #define MAX_DOMAIN_ID 65536
+
+/* FIXME: move this macro to <linux/pci.h> */
+#define PCI_BUS(x) (((x) >> 8) & 0xff)
 
 /*
  * This structure contains generic data for  IOMMU protection domains
@@ -196,6 +227,15 @@ struct dma_ops_domain {
 	 * just calculate its address in constant time.
 	 */
 	u64 **pte_pages;
+
+	/* This will be set to true when TLB needs to be flushed */
+	bool need_flush;
+
+	/*
+	 * if this is a preallocated domain, keep the device for which it was
+	 * preallocated in this variable
+	 */
+	u16 target_dev;
 };
 
 /*
@@ -208,8 +248,9 @@ struct amd_iommu {
 	/* locks the accesses to the hardware */
 	spinlock_t lock;
 
-	/* device id of this IOMMU */
-	u16 devid;
+	/* Pointer to PCI device of this IOMMU */
+	struct pci_dev *dev;
+
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI
 	 * device function if there are more than one AMD IOMMU capability
@@ -224,6 +265,9 @@ struct amd_iommu {
 
 	/* capabilities of that IOMMU read from ACPI */
 	u32 cap;
+
+	/* pci domain of this IOMMU */
+	u16 pci_seg;
 
 	/* first device this IOMMU handles. read from PCI */
 	u16 first_device;
@@ -240,8 +284,18 @@ struct amd_iommu {
 	/* size of command buffer */
 	u32 cmd_buf_size;
 
+	/* event buffer virtual address */
+	u8 *evt_buf;
+	/* size of event buffer */
+	u32 evt_buf_size;
+	/* MSI number for event interrupt */
+	u16 evt_msi_num;
+
 	/* if one, we need to send a completion wait command */
 	int need_sync;
+
+	/* true if interrupts for this IOMMU are already enabled */
+	bool int_enabled;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
@@ -321,6 +375,12 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
 
 /* will be 1 if device isolation is enabled */
 extern int amd_iommu_isolate;
+
+/*
+ * If true, the addresses will be flushed on unmap time, not when
+ * they are reused
+ */
+extern bool amd_iommu_unmap_flush;
 
 /* takes a PCI device id and prints it out in a readable form */
 static inline void print_devid(u16 devid, int nl)

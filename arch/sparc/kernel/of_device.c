@@ -241,7 +241,7 @@ static int of_bus_sbus_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 	return of_bus_default_map(addr, range, na, ns, pna);
 }
 
-static unsigned int of_bus_sbus_get_flags(const u32 *addr)
+static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
 {
 	return IORESOURCE_MEM;
 }

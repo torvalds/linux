@@ -352,11 +352,12 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 				continue;
 			r_size = r->end - r->start + 1;
 			/* For bridges size != alignment */
-			align = (i < PCI_BRIDGE_RESOURCES) ? r_size : r->start;
+			align = resource_alignment(r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
-				dev_warn(&dev->dev, "BAR %d too large: "
+				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
 				       "%#016llx-%#016llx\n", i,
+				       (unsigned long long)align,
 				       (unsigned long long)r->start,
 				       (unsigned long long)r->end);
 				r->flags = 0;
@@ -539,7 +540,11 @@ static void pci_bus_dump_res(struct pci_bus *bus)
                 if (!res)
                         continue;
 
-		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n", bus->number, i, (res->flags & IORESOURCE_IO)? "io port":"mmio", res->start, res->end);
+		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n",
+			bus->number, i,
+			(res->flags & IORESOURCE_IO) ? "io port" : "mmio",
+			(unsigned long long) res->start,
+			(unsigned long long) res->end);
         }
 }
 

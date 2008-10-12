@@ -126,6 +126,7 @@ header-y += pci_regs.h
 header-y += pfkeyv2.h
 header-y += pg.h
 header-y += phantom.h
+header-y += phonet.h
 header-y += pkt_cls.h
 header-y += pkt_sched.h
 header-y += posix_types.h
@@ -167,7 +168,8 @@ unifdef-y += acct.h
 unifdef-y += adb.h
 unifdef-y += adfs_fs.h
 unifdef-y += agpgart.h
-ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
+      		  $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
 unifdef-y += a.out.h
 endif
 unifdef-y += apm_bios.h
@@ -179,6 +181,7 @@ unifdef-y += audit.h
 unifdef-y += auto_fs.h
 unifdef-y += auxvec.h
 unifdef-y += binfmts.h
+unifdef-y += blktrace_api.h
 unifdef-y += capability.h
 unifdef-y += capi.h
 unifdef-y += cciss_ioctl.h
@@ -231,6 +234,7 @@ unifdef-y += if_fddi.h
 unifdef-y += if_frad.h
 unifdef-y += if_ltalk.h
 unifdef-y += if_link.h
+unifdef-y += if_phonet.h
 unifdef-y += if_pppol2tp.h
 unifdef-y += if_pppox.h
 unifdef-y += if_tr.h
@@ -258,7 +262,8 @@ unifdef-y += kd.h
 unifdef-y += kernelcapi.h
 unifdef-y += kernel.h
 unifdef-y += keyboard.h
-ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
+      		  $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
 unifdef-y += kvm.h
 endif
 unifdef-y += llc.h

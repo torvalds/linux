@@ -4,7 +4,7 @@
  *
  *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
- *    (c) 2008 Steven Toth <stoth@hauppauge.com>
+ *    (c) 2008 Steven Toth <stoth@linuxtv.org>
  *      - CX23885/7/8 support
  *
  *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),

@@ -20,6 +20,7 @@ struct mm_struct;
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
+#include <asm/ds.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -75,9 +76,9 @@ struct cpuinfo_x86 {
 	int			 x86_tlbsize;
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
+#endif
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
-#endif
 	/* Max extended CPUID function supported: */
 	__u32			extended_cpuid_level;
 	/* Maximum supported CPUID level, -1=no CPUID: */
@@ -166,11 +167,7 @@ extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
 
 extern void detect_extended_topology(struct cpuinfo_x86 *c);
-#if defined(CONFIG_X86_HT) || defined(CONFIG_X86_64)
 extern void detect_ht(struct cpuinfo_x86 *c);
-#else
-static inline void detect_ht(struct cpuinfo_x86 *c) {}
-#endif
 
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 				unsigned int *ecx, unsigned int *edx)
@@ -434,9 +431,14 @@ struct thread_struct {
 	unsigned		io_bitmap_max;
 /* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
 	unsigned long	debugctlmsr;
-/* Debug Store - if not 0 points to a DS Save Area configuration;
- *               goes into MSR_IA32_DS_AREA */
-	unsigned long	ds_area_msr;
+#ifdef CONFIG_X86_DS
+/* Debug Store context; see include/asm-x86/ds.h; goes into MSR_IA32_DS_AREA */
+	struct ds_context	*ds_ctx;
+#endif /* CONFIG_X86_DS */
+#ifdef CONFIG_X86_PTRACE_BTS
+/* the signal to send on a bts buffer overflow */
+	unsigned int	bts_ovfl_signal;
+#endif /* CONFIG_X86_PTRACE_BTS */
 };
 
 static inline unsigned long native_get_debugreg(int regno)

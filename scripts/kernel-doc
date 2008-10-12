@@ -781,6 +781,7 @@ sub output_struct_xml(%) {
     print " <refsect1>\n";
     print "  <title>Members</title>\n";
 
+    if ($#{$args{'parameterlist'}} >= 0) {
     print "  <variablelist>\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
       ($parameter =~ /^#/) && next;
@@ -798,6 +799,9 @@ sub output_struct_xml(%) {
       print "    </varlistentry>\n";
     }
     print "  </variablelist>\n";
+    } else {
+	print " <para>\n  None\n </para>\n";
+    }
     print " </refsect1>\n";
 
     output_section_xml(@_);

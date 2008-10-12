@@ -113,7 +113,8 @@ ccwgroup_release (struct device *dev)
 
 	for (i = 0; i < gdev->count; i++) {
 		if (gdev->cdev[i]) {
-			dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
+			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
+				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 			put_device(&gdev->cdev[i]->dev);
 		}
 	}
@@ -268,8 +269,7 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 		goto error;
 	}
 
-	snprintf (gdev->dev.bus_id, BUS_ID_SIZE, "%s",
-			gdev->cdev[0]->dev.bus_id);
+	dev_set_name(&gdev->dev, "%s", dev_name(&gdev->cdev[0]->dev));
 
 	rc = device_add(&gdev->dev);
 	if (rc)
@@ -296,6 +296,7 @@ error:
 			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
 				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 			put_device(&gdev->cdev[i]->dev);
+			gdev->cdev[i] = NULL;
 		}
 	mutex_unlock(&gdev->reg_mutex);
 	put_device(&gdev->dev);

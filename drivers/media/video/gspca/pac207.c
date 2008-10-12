@@ -56,12 +56,6 @@ MODULE_LICENSE("GPL");
 #define PAC207_GAIN_KNEE		20
 
 #define PAC207_AUTOGAIN_DEADZONE	30
-/* We calculating the autogain at the end of the transfer of a frame, at this
-   moment a frame with the old settings is being transmitted, and a frame is
-   being captured with the old settings. So if we adjust the autogain we must
-   ignore atleast the 2 next frames for the new settings to come into effect
-   before doing any other adjustments */
-#define PAC207_AUTOGAIN_IGNORE_FRAMES	3
 
 /* specific webcam descriptor */
 struct sd {
@@ -131,7 +125,8 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step	= 1,
-		.default_value = 1,
+#define AUTOGAIN_DEF 1
+		.default_value = AUTOGAIN_DEF,
 		.flags = 0,
 	    },
 	    .set = sd_setautogain,
@@ -180,9 +175,6 @@ static const __u8 pac207_sensor_init[][8] = {
 
 			/* 48 reg_72 Rate Control end BalSize_4a =0x36 */
 static const __u8 PacReg72[] = { 0x00, 0x00, 0x36, 0x00 };
-
-static const unsigned char pac207_sof_marker[5] =
-		{ 0xff, 0xff, 0x00, 0xff, 0x96 };
 
 static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
@@ -259,6 +251,25 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return -ENODEV;
 	}
 
+	PDEBUG(D_PROBE,
+		"Pixart PAC207BCA Image Processor and Control Chip detected"
+		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+
+	cam = &gspca_dev->cam;
+	cam->epaddr = 0x05;
+	cam->cam_mode = sif_mode;
+	cam->nmodes = ARRAY_SIZE(sif_mode);
+	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
+	sd->exposure = PAC207_EXPOSURE_DEFAULT;
+	sd->gain = PAC207_GAIN_DEFAULT;
+	sd->autogain = AUTOGAIN_DEF;
+
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
 	pac207_write_reg(gspca_dev, 0x41, 0x00);
 				/* Bit_0=Image Format,
 				 * Bit_1=LED,
@@ -266,28 +277,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
 	pac207_write_reg(gspca_dev, 0x11, 0x30); /* Analog Bias */
 
-	PDEBUG(D_PROBE,
-		"Pixart PAC207BCA Image Processor and Control Chip detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
-
-	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
-	cam->epaddr = 0x05;
-	cam->cam_mode = sif_mode;
-	cam->nmodes = ARRAY_SIZE(sif_mode);
-	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
-	sd->exposure = PAC207_EXPOSURE_DEFAULT;
-	sd->gain = PAC207_GAIN_DEFAULT;
-
-	return 0;
-}
-
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->autogain = 1;
 	return 0;
 }
 
@@ -343,14 +332,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
 }
 
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-}
+/* Include pac common sof detection functions */
+#include "pac_common.h"
 
 static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 {
@@ -365,33 +348,7 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
 			100 + sd->brightness / 2, PAC207_AUTOGAIN_DEADZONE,
 			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
-		sd->autogain_ignore_frames = PAC207_AUTOGAIN_IGNORE_FRAMES;
-}
-
-static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
-					unsigned char *m, int len)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-
-	/* Search for the SOF marker (fixed part) in the header */
-	for (i = 0; i < len; i++) {
-		if (m[i] == pac207_sof_marker[sd->sof_read]) {
-			sd->sof_read++;
-			if (sd->sof_read == sizeof(pac207_sof_marker)) {
-				PDEBUG(D_STREAM,
-					"SOF found, bytes to analyze: %u."
-					" Frame starts at byte #%u",
-					len, i + 1);
-				sd->sof_read = 0;
-				return m + i + 1;
-			}
-		} else {
-			sd->sof_read = 0;
-		}
-	}
-
-	return NULL;
+		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -402,14 +359,14 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac207_find_sof(gspca_dev, data, len);
+	sof = pac_find_sof(gspca_dev, data, len);
 	if (sof) {
 		int n;
 
 		/* finish decoding current frame */
 		n = sof - data;
-		if (n > sizeof pac207_sof_marker)
-			n -= sizeof pac207_sof_marker;
+		if (n > sizeof pac_sof_marker)
+			n -= sizeof pac_sof_marker;
 		else
 			n = 0;
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
@@ -537,7 +494,7 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 		sd->gain = PAC207_GAIN_DEFAULT;
 		if (gspca_dev->streaming) {
 			sd->autogain_ignore_frames =
-				PAC207_AUTOGAIN_IGNORE_FRAMES;
+				PAC_AUTOGAIN_IGNORE_FRAMES;
 			setexposure(gspca_dev);
 			setgain(gspca_dev);
 		}
@@ -560,11 +517,9 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.dq_callback = pac207_do_auto_gain,
 	.pkt_scan = sd_pkt_scan,
 };
@@ -597,6 +552,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

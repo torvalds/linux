@@ -787,8 +787,7 @@ static int init_cqcam(struct parport *port)
 
 	parport_release(qcam->pdev);
 
-	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
-	{
+	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		printk(KERN_ERR "Unable to register Colour QuickCam on %s\n",
 		       qcam->pport->name);
 		parport_unregister_device(qcam->pdev);

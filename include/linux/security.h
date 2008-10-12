@@ -1560,11 +1560,6 @@ struct security_operations {
 extern int security_init(void);
 extern int security_module_enable(struct security_operations *ops);
 extern int register_security(struct security_operations *ops);
-extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
-					     struct dentry *parent, void *data,
-					     const struct file_operations *fops);
-extern struct dentry *securityfs_create_dir(const char *name, struct dentry *parent);
-extern void securityfs_remove(struct dentry *dentry);
 
 /* Security operations */
 int security_ptrace_may_access(struct task_struct *child, unsigned int mode);
@@ -2424,25 +2419,6 @@ static inline int security_netlink_recv(struct sk_buff *skb, int cap)
 	return cap_netlink_recv(skb, cap);
 }
 
-static inline struct dentry *securityfs_create_dir(const char *name,
-					struct dentry *parent)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline struct dentry *securityfs_create_file(const char *name,
-						mode_t mode,
-						struct dentry *parent,
-						void *data,
-						const struct file_operations *fops)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline void securityfs_remove(struct dentry *dentry)
-{
-}
-
 static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
 	return -EOPNOTSUPP;
@@ -2805,6 +2781,36 @@ static inline void security_audit_rule_free(void *lsmrule)
 
 #endif /* CONFIG_SECURITY */
 #endif /* CONFIG_AUDIT */
+
+#ifdef CONFIG_SECURITYFS
+
+extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
+					     struct dentry *parent, void *data,
+					     const struct file_operations *fops);
+extern struct dentry *securityfs_create_dir(const char *name, struct dentry *parent);
+extern void securityfs_remove(struct dentry *dentry);
+
+#else /* CONFIG_SECURITYFS */
+
+static inline struct dentry *securityfs_create_dir(const char *name,
+						   struct dentry *parent)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *securityfs_create_file(const char *name,
+						    mode_t mode,
+						    struct dentry *parent,
+						    void *data,
+						    const struct file_operations *fops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void securityfs_remove(struct dentry *dentry)
+{}
+
+#endif
 
 #endif /* ! __LINUX_SECURITY_H */
 

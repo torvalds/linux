@@ -1397,7 +1397,7 @@ static int se401_probe(struct usb_interface *intf,
 	mutex_init(&se401->lock);
 	wmb();
 
-	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		kfree(se401);
 		err("video_register_device failed");
 		return -EIO;

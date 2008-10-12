@@ -156,28 +156,28 @@ static void set_freq(__u16 io, __u32 freq)
 {
 	unsigned long int si;
 	int bl;
-	int data = FREQ2BITS(freq);
+	int val = FREQ2BITS(freq);
 
 	/* TEA5757 shift register bits (see pdf) */
 
-	outbit(0,io); // 24  search
-	outbit(1,io); // 23  search up/down
+	outbit(0, io); /* 24  search */
+	outbit(1, io); /* 23  search up/down */
 
-	outbit(0,io); // 22  stereo/mono
+	outbit(0, io); /* 22  stereo/mono */
 
-	outbit(0,io); // 21  band
-	outbit(0,io); // 20  band (only 00=FM works I think)
+	outbit(0, io); /* 21  band */
+	outbit(0, io); /* 20  band (only 00=FM works I think) */
 
-	outbit(0,io); // 19  port ?
-	outbit(0,io); // 18  port ?
+	outbit(0, io); /* 19  port ? */
+	outbit(0, io); /* 18  port ? */
 
-	outbit(0,io); // 17  search level
-	outbit(0,io); // 16  search level
+	outbit(0, io); /* 17  search level */
+	outbit(0, io); /* 16  search level */
 
 	si = 0x8000;
-	for (bl = 1; bl <= 16 ; bl++) {
-		outbit(data & si,io);
-		si >>=1;
+	for (bl = 1; bl <= 16; bl++) {
+		outbit(val & si, io);
+		si >>= 1;
 	}
 
 	dprintk(1, "Radio freq set to %d.%02d MHz\n",
@@ -410,7 +410,7 @@ static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_d
 	mutex_init(&radio_unit.lock);
 	maxiradio_radio.priv = &radio_unit;
 
-	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr)==-1) {
+	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		printk("radio-maxiradio: can't register device!");
 		goto err_out_free_region;
 	}

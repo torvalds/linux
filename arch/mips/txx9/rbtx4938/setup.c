@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/reboot.h>
 #include <asm/io.h>
@@ -110,6 +111,7 @@ static void __init rbtx4938_pci_setup(void)
 #define	SEEPROM2_CS	0	/* IOC */
 #define	SEEPROM3_CS	1	/* IOC */
 #define	SRTC_CS	2	/* IOC */
+#define SPI_BUSNO	0
 
 static int __init rbtx4938_ethaddr_init(void)
 {
@@ -119,7 +121,7 @@ static int __init rbtx4938_ethaddr_init(void)
 	int i;
 
 	/* 0-3: "MAC\0", 4-9:eth0, 10-15:eth1, 16:sum */
-	if (spi_eeprom_read(SEEPROM1_CS, 0, dat, sizeof(dat))) {
+	if (spi_eeprom_read(SPI_BUSNO, SEEPROM1_CS, 0, dat, sizeof(dat))) {
 		printk(KERN_ERR "seeprom: read error.\n");
 		return -ENODEV;
 	} else {
@@ -173,21 +175,28 @@ static void __init rbtx4938_mem_setup(void)
 #endif
 
 #ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_PIO58_61
-	printk(KERN_INFO "PIOSEL: disabling both ata and nand selection\n");
+	pr_info("PIOSEL: disabling both ATA and NAND selection\n");
 	txx9_clear64(&tx4938_ccfgptr->pcfg,
 		     TX4938_PCFG_NDF_SEL | TX4938_PCFG_ATA_SEL);
 #endif
 
 #ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_NAND
-	printk(KERN_INFO "PIOSEL: enabling nand selection\n");
+	pr_info("PIOSEL: enabling NAND selection\n");
 	txx9_set64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_NDF_SEL);
 	txx9_clear64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_ATA_SEL);
 #endif
 
 #ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_ATA
-	printk(KERN_INFO "PIOSEL: enabling ata selection\n");
+	pr_info("PIOSEL: enabling ATA selection\n");
 	txx9_set64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_ATA_SEL);
 	txx9_clear64(&tx4938_ccfgptr->pcfg, TX4938_PCFG_NDF_SEL);
+#endif
+
+#ifdef CONFIG_TOSHIBA_RBTX4938_MPLEX_KEEP
+	pcfg = ____raw_readq(&tx4938_ccfgptr->pcfg);
+	pr_info("PIOSEL: NAND %s, ATA %s\n",
+		(pcfg & TX4938_PCFG_NDF_SEL) ? "enabled" : "disabled",
+		(pcfg & TX4938_PCFG_ATA_SEL) ? "enabled" : "disabled");
 #endif
 
 	rbtx4938_spi_setup();
@@ -279,9 +288,9 @@ static int __init rbtx4938_spi_init(void)
 		.mode = SPI_MODE_1 | SPI_CS_HIGH,
 	};
 	spi_register_board_info(&srtc_info, 1);
-	spi_eeprom_register(SEEPROM1_CS);
-	spi_eeprom_register(16 + SEEPROM2_CS);
-	spi_eeprom_register(16 + SEEPROM3_CS);
+	spi_eeprom_register(SPI_BUSNO, SEEPROM1_CS, 128);
+	spi_eeprom_register(SPI_BUSNO, 16 + SEEPROM2_CS, 128);
+	spi_eeprom_register(SPI_BUSNO, 16 + SEEPROM3_CS, 128);
 	gpio_request(16 + SRTC_CS, "rtc-rs5c348");
 	gpio_direction_output(16 + SRTC_CS, 0);
 	gpio_request(SEEPROM1_CS, "seeprom1");
@@ -290,8 +299,44 @@ static int __init rbtx4938_spi_init(void)
 	gpio_direction_output(16 + SEEPROM2_CS, 1);
 	gpio_request(16 + SEEPROM3_CS, "seeprom3");
 	gpio_direction_output(16 + SEEPROM3_CS, 1);
-	tx4938_spi_init(0);
+	tx4938_spi_init(SPI_BUSNO);
 	return 0;
+}
+
+static void __init rbtx4938_mtd_init(void)
+{
+	struct physmap_flash_data pdata = {
+		.width = 4,
+	};
+
+	switch (readb(rbtx4938_bdipsw_addr) & 7) {
+	case 0:
+		/* Boot */
+		txx9_physmap_flash_init(0, 0x1fc00000, 0x400000, &pdata);
+		/* System */
+		txx9_physmap_flash_init(1, 0x1e000000, 0x1000000, &pdata);
+		break;
+	case 1:
+		/* System */
+		txx9_physmap_flash_init(0, 0x1f000000, 0x1000000, &pdata);
+		/* Boot */
+		txx9_physmap_flash_init(1, 0x1ec00000, 0x400000, &pdata);
+		break;
+	case 2:
+		/* Ext */
+		txx9_physmap_flash_init(0, 0x1f000000, 0x1000000, &pdata);
+		/* System */
+		txx9_physmap_flash_init(1, 0x1e000000, 0x1000000, &pdata);
+		/* Boot */
+		txx9_physmap_flash_init(2, 0x1dc00000, 0x400000, &pdata);
+		break;
+	case 3:
+		/* Boot */
+		txx9_physmap_flash_init(1, 0x1bc00000, 0x400000, &pdata);
+		/* System */
+		txx9_physmap_flash_init(2, 0x1a000000, 0x1000000, &pdata);
+		break;
+	}
 }
 
 static void __init rbtx4938_arch_init(void)
@@ -306,6 +351,8 @@ static void __init rbtx4938_device_init(void)
 	rbtx4938_ethaddr_init();
 	rbtx4938_ne_init();
 	tx4938_wdt_init();
+	rbtx4938_mtd_init();
+	txx9_iocled_init(RBTX4938_LED_ADDR - IO_BASE, -1, 8, 1, "green", NULL);
 }
 
 struct txx9_board_vec rbtx4938_vec __initdata = {

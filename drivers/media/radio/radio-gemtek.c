@@ -612,8 +612,7 @@ static int __init gemtek_init(void)
 
 	gemtek_radio.priv = &gemtek_unit;
 
-	if (video_register_device(&gemtek_radio, VFL_TYPE_RADIO,
-		radio_nr) == -1) {
+	if (video_register_device(&gemtek_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 1);
 		return -EBUSY;
 	}

@@ -425,7 +425,7 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 	}
 	*devradio = vdev_template;
 
-	if ( video_register_device( devradio, VFL_TYPE_RADIO , nr_radio) == -1 ) {
+	if (video_register_device(devradio, VFL_TYPE_RADIO, nr_radio) < 0) {
 		kfree( devradio );
 		goto err_video;
 	}

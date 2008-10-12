@@ -25,6 +25,7 @@
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -36,7 +37,6 @@
 #include <mach/vr1000-cpld.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

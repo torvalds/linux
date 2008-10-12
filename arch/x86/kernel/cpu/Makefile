@@ -3,15 +3,13 @@
 #
 
 obj-y			:= intel_cacheinfo.o addon_cpuid_features.o
-obj-y			+= proc.o capflags.o powerflags.o
+obj-y			+= proc.o capflags.o powerflags.o common.o
 
-obj-$(CONFIG_X86_32)	+= common.o bugs.o cmpxchg.o
-obj-$(CONFIG_X86_64)	+= common_64.o bugs_64.o
+obj-$(CONFIG_X86_32)	+= bugs.o cmpxchg.o
+obj-$(CONFIG_X86_64)	+= bugs_64.o
 
-obj-$(CONFIG_CPU_SUP_INTEL_32)		+= intel.o
-obj-$(CONFIG_CPU_SUP_INTEL_64)		+= intel_64.o
-obj-$(CONFIG_CPU_SUP_AMD_32)		+= amd.o
-obj-$(CONFIG_CPU_SUP_AMD_64)		+= amd_64.o
+obj-$(CONFIG_CPU_SUP_INTEL)		+= intel.o
+obj-$(CONFIG_CPU_SUP_AMD)		+= amd.o
 obj-$(CONFIG_CPU_SUP_CYRIX_32)		+= cyrix.o
 obj-$(CONFIG_CPU_SUP_CENTAUR_32)	+= centaur.o
 obj-$(CONFIG_CPU_SUP_CENTAUR_64)	+= centaur_64.o

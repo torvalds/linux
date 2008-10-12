@@ -112,9 +112,9 @@ static void __exit_signal(struct task_struct *tsk)
 		 * We won't ever get here for the group leader, since it
 		 * will have been the last reference on the signal_struct.
 		 */
-		sig->utime = cputime_add(sig->utime, tsk->utime);
-		sig->stime = cputime_add(sig->stime, tsk->stime);
-		sig->gtime = cputime_add(sig->gtime, tsk->gtime);
+		sig->utime = cputime_add(sig->utime, task_utime(tsk));
+		sig->stime = cputime_add(sig->stime, task_stime(tsk));
+		sig->gtime = cputime_add(sig->gtime, task_gtime(tsk));
 		sig->min_flt += tsk->min_flt;
 		sig->maj_flt += tsk->maj_flt;
 		sig->nvcsw += tsk->nvcsw;
@@ -583,8 +583,6 @@ mm_need_new_owner(struct mm_struct *mm, struct task_struct *p)
 	 * If there are other users of the mm and the owner (us) is exiting
 	 * we need to find a new owner to take on the responsibility.
 	 */
-	if (!mm)
-		return 0;
 	if (atomic_read(&mm->mm_users) <= 1)
 		return 0;
 	if (mm->owner != p)
@@ -627,6 +625,16 @@ retry:
 	} while_each_thread(g, c);
 
 	read_unlock(&tasklist_lock);
+	/*
+	 * We found no owner yet mm_users > 1: this implies that we are
+	 * most likely racing with swapoff (try_to_unuse()) or /proc or
+	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL,
+	 * so that subsystems can understand the callback and take action.
+	 */
+	down_write(&mm->mmap_sem);
+	cgroup_mm_owner_callbacks(mm->owner, NULL);
+	mm->owner = NULL;
+	up_write(&mm->mmap_sem);
 	return;
 
 assign_new_owner:

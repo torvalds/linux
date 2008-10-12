@@ -79,7 +79,7 @@ static int icmp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       int pf,
+		       u_int8_t pf,
 		       unsigned int hooknum)
 {
 	/* Try to delete connection immediately after all replies:
@@ -91,7 +91,7 @@ static int icmp_packet(struct nf_conn *ct,
 			nf_ct_kill_acct(ct, ctinfo, skb);
 	} else {
 		atomic_inc(&ct->proto.icmp.count);
-		nf_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, skb);
+		nf_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, ct);
 		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_icmp_timeout);
 	}
 
@@ -123,7 +123,7 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
-icmp_error_message(struct sk_buff *skb,
+icmp_error_message(struct net *net, struct sk_buff *skb,
 		 enum ip_conntrack_info *ctinfo,
 		 unsigned int hooknum)
 {
@@ -155,7 +155,7 @@ icmp_error_message(struct sk_buff *skb,
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(&innertuple);
+	h = nf_conntrack_find_get(net, &innertuple);
 	if (!h) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
@@ -172,8 +172,8 @@ icmp_error_message(struct sk_buff *skb,
 
 /* Small and modified version of icmp_rcv */
 static int
-icmp_error(struct sk_buff *skb, unsigned int dataoff,
-	   enum ip_conntrack_info *ctinfo, int pf, unsigned int hooknum)
+icmp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
+	   enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
 {
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
@@ -181,16 +181,16 @@ icmp_error(struct sk_buff *skb, unsigned int dataoff,
 	/* Not enough header? */
 	icmph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_ih), &_ih);
 	if (icmph == NULL) {
-		if (LOG_INVALID(IPPROTO_ICMP))
+		if (LOG_INVALID(net, IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_icmp: short packet ");
 		return -NF_ACCEPT;
 	}
 
 	/* See ip_conntrack_proto_tcp.c */
-	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip_checksum(skb, hooknum, dataoff, 0)) {
-		if (LOG_INVALID(IPPROTO_ICMP))
+		if (LOG_INVALID(net, IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_icmp: bad HW ICMP checksum ");
 		return -NF_ACCEPT;
@@ -203,7 +203,7 @@ icmp_error(struct sk_buff *skb, unsigned int dataoff,
 	 *		  discarded.
 	 */
 	if (icmph->type > NR_ICMP_TYPES) {
-		if (LOG_INVALID(IPPROTO_ICMP))
+		if (LOG_INVALID(net, IPPROTO_ICMP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_icmp: invalid ICMP type ");
 		return -NF_ACCEPT;
@@ -217,7 +217,7 @@ icmp_error(struct sk_buff *skb, unsigned int dataoff,
 	    && icmph->type != ICMP_REDIRECT)
 		return NF_ACCEPT;
 
-	return icmp_error_message(skb, ctinfo, hooknum);
+	return icmp_error_message(net, skb, ctinfo, hooknum);
 }
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)

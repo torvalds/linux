@@ -137,7 +137,8 @@ static int flexcop_send_diseqc_msg(struct dvb_frontend* fe, int len, u8 *msg, un
 			flexcop_diseqc_send_byte(fe, 0xff);
 		else {
 			flexcop_set_tone(fe, SEC_TONE_ON);
-			udelay(12500);
+			mdelay(12);
+			udelay(500);
 			flexcop_set_tone(fe, SEC_TONE_OFF);
 		}
 		msleep(20);
@@ -490,6 +491,7 @@ static struct s5h1420_config skystar2_rev2_7_s5h1420_config = {
 	.demod_address = 0x53,
 	.invert = 1,
 	.repeated_start_workaround = 1,
+	.serial_mpeg = 1,
 };
 
 static struct itd1000_config skystar2_rev2_7_itd1000_config = {

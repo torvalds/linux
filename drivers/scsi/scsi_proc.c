@@ -259,8 +259,8 @@ static int scsi_add_single_device(uint host, uint channel, uint id, uint lun)
 	int error = -ENXIO;
 
 	shost = scsi_host_lookup(host);
-	if (IS_ERR(shost))
-		return PTR_ERR(shost);
+	if (!shost)
+		return error;
 
 	if (shost->transportt->user_scan)
 		error = shost->transportt->user_scan(shost, channel, id, lun);
@@ -287,8 +287,8 @@ static int scsi_remove_single_device(uint host, uint channel, uint id, uint lun)
 	int error = -ENXIO;
 
 	shost = scsi_host_lookup(host);
-	if (IS_ERR(shost))
-		return PTR_ERR(shost);
+	if (!shost)
+		return error;
 	sdev = scsi_device_lookup(shost, channel, id, lun);
 	if (sdev) {
 		scsi_remove_device(sdev);

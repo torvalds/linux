@@ -2309,7 +2309,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	/* If an address other than INADDR_ANY is specified, and
 	 * no transport is found, then the request is invalid.
 	 */
-	if (!sctp_is_any(( union sctp_addr *)&params.spp_address)) {
+	if (!sctp_is_any(sk, ( union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans)
@@ -4062,7 +4062,7 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 	/* If an address other than INADDR_ANY is specified, and
 	 * no transport is found, then the request is invalid.
 	 */
-	if (!sctp_is_any(( union sctp_addr *)&params.spp_address)) {
+	if (!sctp_is_any(sk, ( union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans) {
@@ -4414,7 +4414,7 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a)) {
+		if (sctp_is_any(sk, &addr->a)) {
 			rcu_read_lock();
 			list_for_each_entry_rcu(addr,
 						&sctp_local_addr_list, list) {
@@ -4602,7 +4602,7 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a)) {
+		if (sctp_is_any(sk, &addr->a)) {
 			cnt = sctp_copy_laddrs_old(sk, bp->port,
 						   getaddrs.addr_num,
 						   addrs, &bytes_copied);
@@ -4695,7 +4695,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a)) {
+		if (sctp_is_any(sk, &addr->a)) {
 			cnt = sctp_copy_laddrs(sk, bp->port, addrs,
 						space_left, &bytes_copied);
 			if (cnt < 0) {

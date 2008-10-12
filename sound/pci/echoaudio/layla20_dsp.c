@@ -42,7 +42,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	DE_INIT(("init_hw() - Layla20\n"));
-	snd_assert((subdevice_id & 0xfff0) == LAYLA20, return -ENODEV);
+	if (snd_BUG_ON((subdevice_id & 0xfff0) != LAYLA20))
+		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
 		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
@@ -155,7 +156,8 @@ static int load_asic(struct echoaudio *chip)
 
 static int set_sample_rate(struct echoaudio *chip, u32 rate)
 {
-	snd_assert(rate >= 8000 && rate <= 50000, return -EINVAL);
+	if (snd_BUG_ON(rate < 8000 || rate > 50000))
+		return -EINVAL;
 
 	/* Only set the clock for internal mode. Do not return failure,
 	   simply treat it as a non-event. */
@@ -252,7 +254,8 @@ static int set_output_clock(struct echoaudio *chip, u16 clock)
 /* Set input bus gain (one unit is 0.5dB !) */
 static int set_input_gain(struct echoaudio *chip, u16 input, int gain)
 {
-	snd_assert(input < num_busses_in(chip), return -EINVAL);
+	if (snd_BUG_ON(input >= num_busses_in(chip)))
+		return -EINVAL;
 
 	if (wait_handshake(chip))
 		return -EIO;

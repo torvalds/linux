@@ -207,7 +207,7 @@ struct rt_sigframe
 	{ unsigned int cur;						\
 	  unsigned short pre;						\
 	  err |= __get_user(pre, &sc->seg);				\
-	  asm volatile("movl %%" #seg ",%0" : "=r" (cur));		\
+	  savesegment(seg, cur);					\
 	  pre |= mask;							\
 	  if (pre != cur) loadsegment(seg, pre); }
 
@@ -236,7 +236,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	 */
 	err |= __get_user(gs, &sc->gs);
 	gs |= 3;
-	asm("movl %%gs,%0" : "=r" (oldgs));
+	savesegment(gs, oldgs);
 	if (gs != oldgs)
 		load_gs_index(gs);
 
@@ -342,14 +342,13 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 {
 	int tmp, err = 0;
 
-	tmp = 0;
-	__asm__("movl %%gs,%0" : "=r"(tmp): "0"(tmp));
+	savesegment(gs, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->gs);
-	__asm__("movl %%fs,%0" : "=r"(tmp): "0"(tmp));
+	savesegment(fs, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->fs);
-	__asm__("movl %%ds,%0" : "=r"(tmp): "0"(tmp));
+	savesegment(ds, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->ds);
-	__asm__("movl %%es,%0" : "=r"(tmp): "0"(tmp));
+	savesegment(es, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->es);
 
 	err |= __put_user((u32)regs->di, &sc->di);
@@ -491,8 +490,8 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->dx = 0;
 	regs->cx = 0;
 
-	asm volatile("movl %0,%%ds" :: "r" (__USER32_DS));
-	asm volatile("movl %0,%%es" :: "r" (__USER32_DS));
+	loadsegment(ds, __USER32_DS);
+	loadsegment(es, __USER32_DS);
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
@@ -588,8 +587,8 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->dx = (unsigned long) &frame->info;
 	regs->cx = (unsigned long) &frame->uc;
 
-	asm volatile("movl %0,%%ds" :: "r" (__USER32_DS));
-	asm volatile("movl %0,%%es" :: "r" (__USER32_DS));
+	loadsegment(ds, __USER32_DS);
+	loadsegment(es, __USER32_DS);
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;

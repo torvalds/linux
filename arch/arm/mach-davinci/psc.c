@@ -21,8 +21,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
@@ -69,9 +69,6 @@ static void davinci_psc_mux(unsigned int id)
 void davinci_psc_config(unsigned int domain, unsigned int id, char enable)
 {
 	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl, mdstat_mask;
-
-	if (id < 0)
-		return;
 
 	mdctl = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + MDCTL + 4 * id);
 	if (enable)

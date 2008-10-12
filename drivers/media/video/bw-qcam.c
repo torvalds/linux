@@ -946,8 +946,7 @@ static int init_bwqcam(struct parport *port)
 
 	printk(KERN_INFO "Connectix Quickcam on %s\n", qcam->pport->name);
 
-	if(video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
-	{
+	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		parport_unregister_device(qcam->pdev);
 		kfree(qcam);
 		return -ENODEV;

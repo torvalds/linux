@@ -418,7 +418,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	mutex_lock(&rmidi->open_mutex);
 	while (1) {
 		subdevice = -1;
-		down_read(&card->controls_rwsem);
+		read_lock(&card->ctl_files_rwlock);
 		list_for_each_entry(kctl, &card->ctl_files, list) {
 			if (kctl->pid == current->pid) {
 				subdevice = kctl->prefer_rawmidi_subdevice;
@@ -426,7 +426,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 					break;
 			}
 		}
-		up_read(&card->controls_rwsem);
+		read_unlock(&card->ctl_files_rwlock);
 		err = snd_rawmidi_kernel_open(rmidi->card, rmidi->device,
 					      subdevice, fflags, rawmidi_file);
 		if (err >= 0)
@@ -470,8 +470,8 @@ int snd_rawmidi_kernel_release(struct snd_rawmidi_file * rfile)
 	struct snd_rawmidi_substream *substream;
 	struct snd_rawmidi_runtime *runtime;
 
-	snd_assert(rfile != NULL, return -ENXIO);
-	snd_assert(rfile->input != NULL || rfile->output != NULL, return -ENXIO);
+	if (snd_BUG_ON(!rfile))
+		return -ENXIO;
 	rmidi = rfile->rmidi;
 	mutex_lock(&rmidi->open_mutex);
 	if (rfile->input != NULL) {
@@ -1100,7 +1100,7 @@ int snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int count)
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&runtime->lock, flags);
-	snd_assert(runtime->avail + count <= runtime->buffer_size, );
+	snd_BUG_ON(runtime->avail + count > runtime->buffer_size);
 	runtime->hw_ptr += count;
 	runtime->hw_ptr %= runtime->buffer_size;
 	runtime->avail += count;
@@ -1141,8 +1141,10 @@ static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
 	long count1, result;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 
-	snd_assert(kernelbuf != NULL || userbuf != NULL, return -EINVAL);
-	snd_assert(runtime->buffer != NULL, return -EINVAL);
+	if (snd_BUG_ON(!kernelbuf && !userbuf))
+		return -EINVAL;
+	if (snd_BUG_ON(!runtime->buffer))
+		return -EINVAL;
 
 	result = 0;
 	spin_lock_irqsave(&runtime->lock, flags);
@@ -1420,9 +1422,10 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 		.dev_disconnect = snd_rawmidi_dev_disconnect,
 	};
 
-	snd_assert(rrawmidi != NULL, return -EINVAL);
-	*rrawmidi = NULL;
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
+	if (rrawmidi)
+		*rrawmidi = NULL;
 	rmidi = kzalloc(sizeof(*rmidi), GFP_KERNEL);
 	if (rmidi == NULL) {
 		snd_printk(KERN_ERR "rawmidi: cannot allocate\n");
@@ -1455,7 +1458,8 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 		snd_rawmidi_free(rmidi);
 		return err;
 	}
-	*rrawmidi = rmidi;
+	if (rrawmidi)
+		*rrawmidi = rmidi;
 	return 0;
 }
 
@@ -1472,7 +1476,8 @@ static void snd_rawmidi_free_substreams(struct snd_rawmidi_str *stream)
 
 static int snd_rawmidi_free(struct snd_rawmidi *rmidi)
 {
-	snd_assert(rmidi != NULL, return -ENXIO);	
+	if (!rmidi)
+		return 0;
 
 	snd_info_free_entry(rmidi->proc_entry);
 	rmidi->proc_entry = NULL;

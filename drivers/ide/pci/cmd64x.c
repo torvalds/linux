@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -332,7 +331,7 @@ static int cmd646_1_dma_end(ide_drive_t *drive)
 	return (dma_stat & 7) != 4;
 }
 
-static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev)
+static unsigned int init_chipset_cmd64x(struct pci_dev *dev)
 {
 	u8 mrdmode = 0;
 
@@ -511,6 +510,8 @@ static struct pci_driver driver = {
 	.id_table	= cmd64x_pci_tbl,
 	.probe		= cmd64x_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cmd64x_ide_init(void)

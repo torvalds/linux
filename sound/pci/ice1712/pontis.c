@@ -43,7 +43,8 @@
 /* WM8776 registers */
 #define WM_HP_ATTEN_L		0x00	/* headphone left attenuation */
 #define WM_HP_ATTEN_R		0x01	/* headphone left attenuation */
-#define WM_HP_MASTER		0x02	/* headphone master (both channels), override LLR */
+#define WM_HP_MASTER		0x02	/* headphone master (both channels) */
+					/* override LLR */
 #define WM_DAC_ATTEN_L		0x03	/* digital left attenuation */
 #define WM_DAC_ATTEN_R		0x04
 #define WM_DAC_MASTER		0x05
@@ -740,7 +741,7 @@ static int __devinit pontis_init(struct snd_ice1712 *ice)
 		WM_DAC_ATTEN_L,	0x0100,	/* DAC 0dB */
 		WM_DAC_ATTEN_R,	0x0000,	/* DAC 0dB */
 		WM_DAC_ATTEN_R,	0x0100,	/* DAC 0dB */
-		// WM_DAC_MASTER,	0x0100,	/* DAC master muted */
+		/* WM_DAC_MASTER,	0x0100, */	/* DAC master muted */
 		WM_PHASE_SWAP,	0x0000,	/* phase normal */
 		WM_DAC_CTRL2,	0x0000,	/* no deemphasis, no ZFLG */
 		WM_ADC_ATTEN_L,	0x0000,	/* ADC muted */
