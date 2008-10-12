@@ -36,7 +36,6 @@
 #include <media/cx2341x.h>
 
 #include "cx23885.h"
-#include "media/cx2341x.h"
 
 #define CX23885_FIRM_IMAGE_SIZE 376836
 #define CX23885_FIRM_IMAGE_NAME "v4l-cx23885-enc.fw"
