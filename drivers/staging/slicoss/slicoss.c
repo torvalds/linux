@@ -596,6 +596,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	uint mmio_len = 0;
 	struct adapter *adapter = (struct adapter *) netdev_priv(dev);
 	struct sliccard *card;
+	struct mcast_address *mcaddr, *mlist;
 
 	ASSERT(adapter);
 	DBG_MSG("slicoss: %s ENTER dev[%p] adapter[%p]\n", __func__, dev,
@@ -615,6 +616,13 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	DBG_MSG("slicoss: %s iounmap dev->base_addr[%x]\n", __func__,
 		(uint) dev->base_addr);
 	iounmap((void __iomem *)dev->base_addr);
+	/* free multicast addresses */
+	mlist = adapter->mcastaddrs;
+	while (mlist) {
+		mcaddr = mlist;
+		mlist = mlist->next;
+		kfree(mcaddr);
+	}
 	ASSERT(adapter->card);
 	card = adapter->card;
 	ASSERT(card->adapters_allocated);
