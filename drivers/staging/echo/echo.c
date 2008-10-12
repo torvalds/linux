@@ -127,7 +127,7 @@
 /* adapting coeffs using the traditional stochastic descent (N)LMS algorithm */
 
 
-#ifdef __BLACKFIN_ASM__
+#ifdef __bfin__
 static void __inline__ lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
     int i, j;

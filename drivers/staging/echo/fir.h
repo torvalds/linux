@@ -116,7 +116,7 @@ static __inline__ const int16_t *fir16_create(fir16_state_t *fir,
 	fir->taps = taps;
 	fir->curr_pos = taps - 1;
 	fir->coeffs = coeffs;
-#if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__BLACKFIN_ASM__)
+#if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__bfin__)
 	if ((fir->history = malloc(2*taps*sizeof(int16_t))))
 		memset(fir->history, 0, 2*taps*sizeof(int16_t));
 #else
@@ -129,7 +129,7 @@ static __inline__ const int16_t *fir16_create(fir16_state_t *fir,
 
 static __inline__ void fir16_flush(fir16_state_t *fir)
 {
-#if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__BLACKFIN_ASM__)
+#if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__bfin__)
     memset(fir->history, 0, 2*fir->taps*sizeof(int16_t));
 #else
     memset(fir->history, 0, fir->taps*sizeof(int16_t));
@@ -143,7 +143,7 @@ static __inline__ void fir16_free(fir16_state_t *fir)
 }
 /*- End of function --------------------------------------------------------*/
 
-#ifdef __BLACKFIN_ASM__
+#ifdef __bfin__
 static inline int32_t dot_asm(short *x, short *y, int len)
 {
    int dot;
@@ -242,7 +242,7 @@ static __inline__ int16_t fir16(fir16_state_t *fir, int16_t sample)
     psrldq_i2r(4, xmm0);
     paddd_r2r(xmm0, xmm4);
     movd_r2m(xmm4, y);
-#elif defined(__BLACKFIN_ASM__)
+#elif defined(__bfin__)
     fir->history[fir->curr_pos] = sample;
     fir->history[fir->curr_pos + fir->taps] = sample;
     y = dot_asm((int16_t*)fir->coeffs, &fir->history[fir->curr_pos], fir->taps);
