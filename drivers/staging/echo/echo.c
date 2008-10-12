@@ -289,6 +289,7 @@ echo_can_state_t *echo_can_create(int len, int adaption_mode)
 
     return  ec;
 }
+EXPORT_SYMBOL_GPL(echo_can_create);
 /*- End of function --------------------------------------------------------*/
 
 void echo_can_free(echo_can_state_t *ec)
@@ -302,12 +303,14 @@ void echo_can_free(echo_can_state_t *ec)
 	kfree(ec->snapshot);
 	kfree(ec);
 }
+EXPORT_SYMBOL_GPL(echo_can_free);
 /*- End of function --------------------------------------------------------*/
 
 void echo_can_adaption_mode(echo_can_state_t *ec, int adaption_mode)
 {
     ec->adaption_mode = adaption_mode;
 }
+EXPORT_SYMBOL_GPL(echo_can_adaption_mode);
 /*- End of function --------------------------------------------------------*/
 
 void echo_can_flush(echo_can_state_t *ec)
@@ -334,11 +337,13 @@ void echo_can_flush(echo_can_state_t *ec)
     ec->curr_pos = ec->taps - 1;
     ec->Pstates = 0;
 }
+EXPORT_SYMBOL_GPL(echo_can_flush);
 /*- End of function --------------------------------------------------------*/
 
 void echo_can_snapshot(echo_can_state_t *ec) {
     memcpy(ec->snapshot, ec->fir_taps16[0], ec->taps*sizeof(int16_t));
 }
+EXPORT_SYMBOL_GPL(echo_can_snapshot);
 /*- End of function --------------------------------------------------------*/
 
 /* Dual Path Echo Canceller ------------------------------------------------*/
@@ -584,7 +589,7 @@ int16_t echo_can_update(echo_can_state_t *ec, int16_t tx, int16_t rx)
 
     return (int16_t) ec->clean_nlp << 1;
 }
-
+EXPORT_SYMBOL_GPL(echo_can_update);
 /*- End of function --------------------------------------------------------*/
 
 /* This function is seperated from the echo canceller is it is usually called
@@ -630,3 +635,9 @@ int16_t echo_can_hpf_tx(echo_can_state_t *ec, int16_t tx) {
 
     return tx;
 }
+EXPORT_SYMBOL_GPL(echo_can_hpf_tx);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("David Rowe");
+MODULE_DESCRIPTION("Open Source Line Echo Canceller");
+MODULE_VERSION("0.3.0");
