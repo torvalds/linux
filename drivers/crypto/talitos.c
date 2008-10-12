@@ -127,7 +127,6 @@ struct talitos_private {
 
 	/* request callback tasklet */
 	struct tasklet_struct done_task;
-	struct tasklet_struct error_task;
 
 	/* list of registered algorithms */
 	struct list_head alg_list;
@@ -469,16 +468,13 @@ static void report_eu_error(struct device *dev, int ch, struct talitos_desc *des
 /*
  * recover from error interrupts
  */
-static void talitos_error(unsigned long data)
+static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 {
 	struct device *dev = (struct device *)data;
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 	int ch, error, reset_dev = 0, reset_ch = 0;
-	u32 isr, isr_lo, v, v_lo;
-
-	isr = in_be32(priv->reg + TALITOS_ISR);
-	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);
+	u32 v, v_lo;
 
 	for (ch = 0; ch < priv->num_channels; ch++) {
 		/* skip channels without errors */
@@ -566,7 +562,7 @@ static irqreturn_t talitos_interrupt(int irq, void *data)
 	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);
 
 	if (unlikely((isr & ~TALITOS_ISR_CHDONE) || isr_lo))
-		talitos_error((unsigned long)data);
+		talitos_error((unsigned long)data, isr, isr_lo);
 	else
 		if (likely(isr & TALITOS_ISR_CHDONE))
 			tasklet_schedule(&priv->done_task);
@@ -1391,7 +1387,6 @@ static int talitos_remove(struct of_device *ofdev)
 	}
 
 	tasklet_kill(&priv->done_task);
-	tasklet_kill(&priv->error_task);
 
 	iounmap(priv->reg);
 
@@ -1454,7 +1449,6 @@ static int talitos_probe(struct of_device *ofdev,
 	INIT_LIST_HEAD(&priv->alg_list);
 
 	tasklet_init(&priv->done_task, talitos_done, (unsigned long)dev);
-	tasklet_init(&priv->error_task, talitos_error, (unsigned long)dev);
 
 	priv->irq = irq_of_parse_and_map(np, 0);
 
