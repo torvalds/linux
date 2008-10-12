@@ -177,10 +177,10 @@ convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
 
 #ifdef CONFIG_X86_32
 extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
-			 int error_code);
-#else
-void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
+			 int error_code, int si_code);
 #endif
+
+void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 
 extern long syscall_trace_enter(struct pt_regs *);
 extern void syscall_trace_leave(struct pt_regs *);

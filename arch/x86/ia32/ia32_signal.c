@@ -351,31 +351,28 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	savesegment(es, tmp);
 	err |= __put_user(tmp, (unsigned int __user *)&sc->es);
 
-	err |= __put_user((u32)regs->di, &sc->di);
-	err |= __put_user((u32)regs->si, &sc->si);
-	err |= __put_user((u32)regs->bp, &sc->bp);
-	err |= __put_user((u32)regs->sp, &sc->sp);
-	err |= __put_user((u32)regs->bx, &sc->bx);
-	err |= __put_user((u32)regs->dx, &sc->dx);
-	err |= __put_user((u32)regs->cx, &sc->cx);
-	err |= __put_user((u32)regs->ax, &sc->ax);
-	err |= __put_user((u32)regs->cs, &sc->cs);
-	err |= __put_user((u32)regs->ss, &sc->ss);
+	err |= __put_user(regs->di, &sc->di);
+	err |= __put_user(regs->si, &sc->si);
+	err |= __put_user(regs->bp, &sc->bp);
+	err |= __put_user(regs->sp, &sc->sp);
+	err |= __put_user(regs->bx, &sc->bx);
+	err |= __put_user(regs->dx, &sc->dx);
+	err |= __put_user(regs->cx, &sc->cx);
+	err |= __put_user(regs->ax, &sc->ax);
+	err |= __put_user(regs->cs, &sc->cs);
+	err |= __put_user(regs->ss, &sc->ss);
 	err |= __put_user(current->thread.trap_no, &sc->trapno);
 	err |= __put_user(current->thread.error_code, &sc->err);
-	err |= __put_user((u32)regs->ip, &sc->ip);
-	err |= __put_user((u32)regs->flags, &sc->flags);
-	err |= __put_user((u32)regs->sp, &sc->sp_at_signal);
+	err |= __put_user(regs->ip, &sc->ip);
+	err |= __put_user(regs->flags, &sc->flags);
+	err |= __put_user(regs->sp, &sc->sp_at_signal);
 
 	tmp = save_i387_xstate_ia32(fpstate);
 	if (tmp < 0)
 		err = -EFAULT;
-	else {
-		clear_used_math();
-		stts();
+	else
 		err |= __put_user(ptr_to_compat(tmp ? fpstate : NULL),
 					&sc->fpstate);
-	}
 
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
@@ -444,21 +441,18 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
-	err |= __put_user(sig, &frame->sig);
-	if (err)
-		goto give_sigsegv;
+	if (__put_user(sig, &frame->sig))
+		return -EFAULT;
 
-	err |= ia32_setup_sigcontext(&frame->sc, fpstate, regs, set->sig[0]);
-	if (err)
-		goto give_sigsegv;
+	if (ia32_setup_sigcontext(&frame->sc, fpstate, regs, set->sig[0]))
+		return -EFAULT;
 
 	if (_COMPAT_NSIG_WORDS > 1) {
-		err |= __copy_to_user(frame->extramask, &set->sig[1],
-				      sizeof(frame->extramask));
-		if (err)
-			goto give_sigsegv;
+		if (__copy_to_user(frame->extramask, &set->sig[1],
+				   sizeof(frame->extramask)))
+			return -EFAULT;
 	}
 
 	if (ka->sa.sa_flags & SA_RESTORER) {
@@ -479,7 +473,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	 */
 	err |= __copy_to_user(frame->retcode, &code, 8);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->sp = (unsigned long) frame;
@@ -502,10 +496,6 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 #endif
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -533,14 +523,14 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err |= __put_user(sig, &frame->sig);
 	err |= __put_user(ptr_to_compat(&frame->info), &frame->pinfo);
 	err |= __put_user(ptr_to_compat(&frame->uc), &frame->puc);
 	err |= copy_siginfo_to_user32(&frame->info, info);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Create the ucontext.  */
 	if (cpu_has_xsave)
@@ -556,7 +546,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 				     regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
@@ -571,7 +561,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 */
 	err |= __copy_to_user(frame->retcode, &code, 8);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->sp = (unsigned long) frame;
@@ -599,8 +589,4 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 #endif
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }

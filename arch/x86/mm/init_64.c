@@ -31,6 +31,7 @@
 #include <linux/nmi.h>
 
 #include <asm/processor.h>
+#include <asm/bios_ebda.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -880,6 +881,8 @@ static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel,
 void __init mem_init(void)
 {
 	long codesize, reservedpages, datasize, initsize;
+
+	start_periodic_check_for_corruption();
 
 	pci_iommu_alloc();
 

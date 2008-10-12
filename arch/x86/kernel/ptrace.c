@@ -40,7 +40,9 @@ enum x86_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
 	REGSET_XFP,
+	REGSET_IOPERM64 = REGSET_XFP,
 	REGSET_TLS,
+	REGSET_IOPERM32,
 };
 
 /*
@@ -553,6 +555,29 @@ static int ptrace_set_debugreg(struct task_struct *child,
 	}
 
 	return 0;
+}
+
+/*
+ * These access the current or another (stopped) task's io permission
+ * bitmap for debugging or core dump.
+ */
+static int ioperm_active(struct task_struct *target,
+			 const struct user_regset *regset)
+{
+	return target->thread.io_bitmap_max / regset->size;
+}
+
+static int ioperm_get(struct task_struct *target,
+		      const struct user_regset *regset,
+		      unsigned int pos, unsigned int count,
+		      void *kbuf, void __user *ubuf)
+{
+	if (!target->thread.io_bitmap_ptr)
+		return -ENXIO;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   target->thread.io_bitmap_ptr,
+				   0, IO_BITMAP_BYTES);
 }
 
 #ifdef CONFIG_X86_PTRACE_BTS
@@ -1385,6 +1410,12 @@ static const struct user_regset x86_64_regsets[] = {
 		.size = sizeof(long), .align = sizeof(long),
 		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
 	},
+	[REGSET_IOPERM64] = {
+		.core_note_type = NT_386_IOPERM,
+		.n = IO_BITMAP_LONGS,
+		.size = sizeof(long), .align = sizeof(long),
+		.active = ioperm_active, .get = ioperm_get
+	},
 };
 
 static const struct user_regset_view user_x86_64_view = {
@@ -1431,6 +1462,12 @@ static const struct user_regset x86_32_regsets[] = {
 		.active = regset_tls_active,
 		.get = regset_tls_get, .set = regset_tls_set
 	},
+	[REGSET_IOPERM32] = {
+		.core_note_type = NT_386_IOPERM,
+		.n = IO_BITMAP_BYTES / sizeof(u32),
+		.size = sizeof(u32), .align = sizeof(u32),
+		.active = ioperm_active, .get = ioperm_get
+	},
 };
 
 static const struct user_regset_view user_x86_32_view = {
@@ -1452,7 +1489,8 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
-void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
+void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
+					 int error_code, int si_code)
 {
 	struct siginfo info;
 
@@ -1461,7 +1499,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = SIGTRAP;
-	info.si_code = TRAP_BRKPT;
+	info.si_code = si_code;
 
 	/* User-mode ip? */
 	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->ip : NULL;
@@ -1548,5 +1586,5 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 	 */
 	if (test_thread_flag(TIF_SINGLESTEP) &&
 	    tracehook_consider_fatal_signal(current, SIGTRAP, SIG_DFL))
-		send_sigtrap(current, regs, 0);
+		send_sigtrap(current, regs, 0, TRAP_BRKPT);
 }
