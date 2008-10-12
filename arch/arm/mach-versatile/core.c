@@ -28,8 +28,8 @@
 #include <linux/amba/clcd.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/cnt32_to_63.h>
 
-#include <asm/cnt32_to_63.h>
 #include <asm/system.h>
 #include <mach/hardware.h>
 #include <asm/io.h>

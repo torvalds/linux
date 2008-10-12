@@ -21,7 +21,7 @@ config MFD_SM501
 
 config MFD_SM501_GPIO
 	bool "Export GPIO via GPIO layer"
-	depends on MFD_SM501 && HAVE_GPIO_LIB
+	depends on MFD_SM501 && GPIOLIB
 	 ---help---
 	 This option uses the gpio library layer to export the 64 GPIO
 	 lines on the SM501. The platform data is used to supply the
@@ -29,7 +29,7 @@ config MFD_SM501_GPIO
 
 config MFD_ASIC3
 	bool "Support for Compaq ASIC3"
-	depends on GENERIC_HARDIRQS && HAVE_GPIO_LIB && ARM
+	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
 	 ---help---
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)

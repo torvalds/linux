@@ -451,8 +451,10 @@ p9_put_data(struct cbuf *bufp, const char *data, int count,
 		   unsigned char **pdata)
 {
 	*pdata = buf_alloc(bufp, count);
+	if (*pdata == NULL)
+		return -ENOMEM;
 	memmove(*pdata, data, count);
-	return count;
+	return 0;
 }
 
 static int
@@ -460,6 +462,8 @@ p9_put_user_data(struct cbuf *bufp, const char __user *data, int count,
 		   unsigned char **pdata)
 {
 	*pdata = buf_alloc(bufp, count);
+	if (*pdata == NULL)
+		return -ENOMEM;
 	return copy_from_user(*pdata, data, count);
 }
 

@@ -621,6 +621,13 @@ static struct snd_kcontrol_new snd_pmac_screamer_mixers_imac[] __initdata = {
 	AWACS_SWITCH("CD Capture Switch", 0, SHIFT_MUX_CD, 0),
 };
 
+static struct snd_kcontrol_new snd_pmac_screamer_mixers_g4agp[] __initdata = {
+	AWACS_VOLUME("Line out Playback Volume", 2, 6, 1),
+	AWACS_VOLUME("Master Playback Volume", 5, 6, 1),
+	AWACS_SWITCH("CD Capture Switch", 0, SHIFT_MUX_CD, 0),
+	AWACS_SWITCH("Line Capture Switch", 0, SHIFT_MUX_MIC, 0),
+};
+
 static struct snd_kcontrol_new snd_pmac_awacs_mixers_pmac7500[] __initdata = {
 	AWACS_VOLUME("Line out Playback Volume", 2, 6, 1),
 	AWACS_SWITCH("CD Capture Switch", 0, SHIFT_MUX_CD, 0),
@@ -688,7 +695,10 @@ static struct snd_kcontrol_new snd_pmac_awacs_speaker_vol[] __initdata = {
 static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw __initdata =
 AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_SPKMUTE, 1);
 
-static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw_imac __initdata =
+static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw_imac1 __initdata =
+AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_PAROUT1, 1);
+
+static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw_imac2 __initdata =
 AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_PAROUT1, 0);
 
 
@@ -765,11 +775,12 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 
 #define IS_PM7500 (machine_is_compatible("AAPL,7500"))
 #define IS_BEIGE (machine_is_compatible("AAPL,Gossamer"))
-#define IS_IMAC (machine_is_compatible("PowerMac2,1") \
-		|| machine_is_compatible("PowerMac2,2") \
+#define IS_IMAC1 (machine_is_compatible("PowerMac2,1"))
+#define IS_IMAC2 (machine_is_compatible("PowerMac2,2") \
 		|| machine_is_compatible("PowerMac4,1"))
+#define IS_G4AGP (machine_is_compatible("PowerMac3,1"))
 
-static int imac;
+static int imac1, imac2;
 
 #ifdef PMAC_SUPPORT_AUTOMUTE
 /*
@@ -815,13 +826,18 @@ static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_notify)
 		{
 			int reg = chip->awacs_reg[1]
 				| (MASK_HDMUTE | MASK_SPKMUTE);
-			if (imac) {
+			if (imac1) {
+				reg &= ~MASK_SPKMUTE;
+				reg |= MASK_PAROUT1;
+			} else if (imac2) {
 				reg &= ~MASK_SPKMUTE;
 				reg &= ~MASK_PAROUT1;
 			}
 			if (snd_pmac_awacs_detect_headphone(chip))
 				reg &= ~MASK_HDMUTE;
-			else if (imac)
+			else if (imac1)
+				reg &= ~MASK_PAROUT1;
+			else if (imac2)
 				reg |= MASK_PAROUT1;
 			else
 				reg &= ~MASK_SPKMUTE;
@@ -850,9 +866,13 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 {
 	int pm7500 = IS_PM7500;
 	int beige = IS_BEIGE;
+	int g4agp = IS_G4AGP;
+	int imac;
 	int err, vol;
 
-	imac = IS_IMAC;
+	imac1 = IS_IMAC1;
+	imac2 = IS_IMAC2;
+	imac = imac1 || imac2;
 	/* looks like MASK_GAINLINE triggers something, so we set here
 	 * as start-up
 	 */
@@ -939,7 +959,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 				snd_pmac_awacs_mixers);
 	if (err < 0)
 		return err;
-	if (beige)
+	if (beige || g4agp)
 		;
 	else if (chip->model == PMAC_SCREAMER)
 		err = build_mixers(chip, ARRAY_SIZE(snd_pmac_screamer_mixers2),
@@ -961,13 +981,17 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		err = build_mixers(chip,
 				   ARRAY_SIZE(snd_pmac_screamer_mixers_imac),
 				   snd_pmac_screamer_mixers_imac);
+	else if (g4agp)
+		err = build_mixers(chip,
+				   ARRAY_SIZE(snd_pmac_screamer_mixers_g4agp),
+				   snd_pmac_screamer_mixers_g4agp);
 	else
 		err = build_mixers(chip,
 				   ARRAY_SIZE(snd_pmac_awacs_mixers_pmac),
 				   snd_pmac_awacs_mixers_pmac);
 	if (err < 0)
 		return err;
-	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac)
+	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac || g4agp)
 			? &snd_pmac_awacs_master_sw_imac
 			: &snd_pmac_awacs_master_sw, chip);
 	err = snd_ctl_add(chip->card, chip->master_sw_ctl);
@@ -1004,15 +1028,17 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 					snd_pmac_awacs_speaker_vol);
 		if (err < 0)
 			return err;
-		chip->speaker_sw_ctl = snd_ctl_new1(imac
-				? &snd_pmac_awacs_speaker_sw_imac
+		chip->speaker_sw_ctl = snd_ctl_new1(imac1
+				? &snd_pmac_awacs_speaker_sw_imac1
+				: imac2
+				? &snd_pmac_awacs_speaker_sw_imac2
 				: &snd_pmac_awacs_speaker_sw, chip);
 		err = snd_ctl_add(chip->card, chip->speaker_sw_ctl);
 		if (err < 0)
 			return err;
 	}
 
-	if (beige)
+	if (beige || g4agp)
 		err = build_mixers(chip,
 				ARRAY_SIZE(snd_pmac_screamer_mic_boost_beige),
 				snd_pmac_screamer_mic_boost_beige);

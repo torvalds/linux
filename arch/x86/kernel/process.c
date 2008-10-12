@@ -246,6 +246,14 @@ static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
 	return 1;
 }
 
+static cpumask_t c1e_mask = CPU_MASK_NONE;
+static int c1e_detected;
+
+void c1e_remove_cpu(int cpu)
+{
+	cpu_clear(cpu, c1e_mask);
+}
+
 /*
  * C1E aware idle routine. We check for C1E active in the interrupt
  * pending message MSR. If we detect C1E, then we handle it the same
@@ -253,9 +261,6 @@ static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
  */
 static void c1e_idle(void)
 {
-	static cpumask_t c1e_mask = CPU_MASK_NONE;
-	static int c1e_detected;
-
 	if (need_resched())
 		return;
 
@@ -265,8 +270,10 @@ static void c1e_idle(void)
 		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
 		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
 			c1e_detected = 1;
-			mark_tsc_unstable("TSC halt in C1E");
-			printk(KERN_INFO "System has C1E enabled\n");
+			if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+				mark_tsc_unstable("TSC halt in AMD C1E");
+			printk(KERN_INFO "System has AMD C1E enabled\n");
+			set_cpu_cap(&boot_cpu_data, X86_FEATURE_AMDC1E);
 		}
 	}
 

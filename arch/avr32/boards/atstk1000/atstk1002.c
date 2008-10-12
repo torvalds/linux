@@ -264,16 +264,20 @@ void __init setup_board(void)
 
 #ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
 
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+
 /* MMC card detect requires MACB0 *NOT* be used */
 #ifdef CONFIG_BOARD_ATSTK1002_SW6_CUSTOM
-static struct mci_platform_data __initdata mci0_data = {
-	.detect_pin	= GPIO_PIN_PC(14),	/* gpio30/sdcd */
-	.wp_pin		= GPIO_PIN_PC(15),	/* gpio31/sdwp */
-};
-#define MCI_PDATA	&mci0_data
+		.detect_pin	= GPIO_PIN_PC(14), /* gpio30/sdcd */
+		.wp_pin		= GPIO_PIN_PC(15), /* gpio31/sdwp */
 #else
-#define MCI_PDATA	NULL
+		.detect_pin	= -ENODEV,
+		.wp_pin		= -ENODEV,
 #endif	/* SW6 for sd{cd,wp} routing */
+	},
+};
 
 #endif	/* SW2 for MMC signal routing */
 
@@ -326,7 +330,7 @@ static int __init atstk1002_init(void)
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
 #ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
-	at32_add_device_mci(0, MCI_PDATA);
+	at32_add_device_mci(0, &mci0_pdata);
 #endif
 #ifdef CONFIG_BOARD_ATSTK1002_SW5_CUSTOM
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
