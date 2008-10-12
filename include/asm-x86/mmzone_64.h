@@ -7,7 +7,7 @@
 
 #ifdef CONFIG_NUMA
 
-#define VIRTUAL_BUG_ON(x)
+#include <linux/mmdebug.h>
 
 #include <asm/smp.h>
 
@@ -29,7 +29,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 {
 	unsigned nid;
 	VIRTUAL_BUG_ON(!memnodemap);
-	VIRTUAL_BUG_ON((addr >> memnode_shift) >= memnodemapsize);
 	nid = memnodemap[addr >> memnode_shift];
 	VIRTUAL_BUG_ON(nid >= MAX_NUMNODES || !node_data[nid]);
 	return nid;

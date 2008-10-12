@@ -86,30 +86,12 @@ void exit_idle(void)
 	__exit_idle();
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-DECLARE_PER_CPU(int, cpu_state);
-
-#include <linux/nmi.h>
-/* We halt the CPU with physical CPU hotplug */
-static inline void play_dead(void)
-{
-	idle_task_exit();
-	c1e_remove_cpu(raw_smp_processor_id());
-
-	mb();
-	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
-
-	local_irq_disable();
-	/* mask all interrupts, flush any and all caches, and halt */
-	wbinvd_halt();
-}
-#else
+#ifndef CONFIG_SMP
 static inline void play_dead(void)
 {
 	BUG();
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif
 
 /*
  * The idle thread. There's no useful work to be

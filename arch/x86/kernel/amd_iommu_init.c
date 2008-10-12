@@ -723,9 +723,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	init_iommu_from_acpi(iommu, h);
 	init_iommu_devices(iommu);
 
-	pci_enable_device(iommu->dev);
-
-	return 0;
+	return pci_enable_device(iommu->dev);
 }
 
 /*

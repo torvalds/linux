@@ -778,23 +778,45 @@ config X86_REBOOTFIXUPS
 	  Say N otherwise.
 
 config MICROCODE
-	tristate "/dev/cpu/microcode - Intel IA32 CPU microcode support"
+	tristate "/dev/cpu/microcode - microcode support"
 	select FW_LOADER
 	---help---
 	  If you say Y here, you will be able to update the microcode on
-	  Intel processors in the IA32 family, e.g. Pentium Pro, Pentium II,
-	  Pentium III, Pentium 4, Xeon etc.  You will obviously need the
-	  actual microcode binary data itself which is not shipped with the
-	  Linux kernel.
+	  certain Intel and AMD processors. The Intel support is for the
+	  IA32 family, e.g. Pentium Pro, Pentium II, Pentium III,
+	  Pentium 4, Xeon etc. The AMD support is for family 0x10 and
+	  0x11 processors, e.g. Opteron, Phenom and Turion 64 Ultra.
+	  You will obviously need the actual microcode binary data itself
+	  which is not shipped with the Linux kernel.
 
-	  For latest news and information on obtaining all the required
-	  ingredients for this driver, check:
-	  <http://www.urbanmyth.org/microcode/>.
+	  This option selects the general module only, you need to select
+	  at least one vendor specific module as well.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called microcode.
 
-config MICROCODE_OLD_INTERFACE
+config MICROCODE_INTEL
+       bool "Intel microcode patch loading support"
+       depends on MICROCODE
+       default MICROCODE
+       select FW_LOADER
+       --help---
+         This options enables microcode patch loading support for Intel
+         processors.
+
+         For latest news and information on obtaining all the required
+         Intel ingredients for this driver, check:
+         <http://www.urbanmyth.org/microcode/>.
+
+config MICROCODE_AMD
+       bool "AMD microcode patch loading support"
+       depends on MICROCODE
+       select FW_LOADER
+       --help---
+         If you select this option, microcode patch loading support for AMD
+	 processors will be enabled.
+
+   config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
 
@@ -1060,6 +1082,56 @@ config HIGHPTE
 	  For systems with a lot of RAM, this can be wasteful of precious
 	  low memory.  Setting this option will put user-space page table
 	  entries in high memory.
+
+config X86_CHECK_BIOS_CORRUPTION
+        bool "Check for low memory corruption"
+	help
+	 Periodically check for memory corruption in low memory, which
+	 is suspected to be caused by BIOS.  Even when enabled in the
+	 configuration, it is disabled at runtime.  Enable it by
+	 setting "memory_corruption_check=1" on the kernel command
+	 line.  By default it scans the low 64k of memory every 60
+	 seconds; see the memory_corruption_check_size and
+	 memory_corruption_check_period parameters in
+	 Documentation/kernel-parameters.txt to adjust this.
+
+	 When enabled with the default parameters, this option has
+	 almost no overhead, as it reserves a relatively small amount
+	 of memory and scans it infrequently.  It both detects corruption
+	 and prevents it from affecting the running system.
+
+	 It is, however, intended as a diagnostic tool; if repeatable
+	 BIOS-originated corruption always affects the same memory,
+	 you can use memmap= to prevent the kernel from using that
+	 memory.
+
+config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
+        bool "Set the default setting of memory_corruption_check"
+	depends on X86_CHECK_BIOS_CORRUPTION
+	default y
+	help
+	 Set whether the default state of memory_corruption_check is
+	 on or off.
+
+config X86_RESERVE_LOW_64K
+        bool "Reserve low 64K of RAM on AMI/Phoenix BIOSen"
+	default y
+	help
+	 Reserve the first 64K of physical RAM on BIOSes that are known
+	 to potentially corrupt that memory range. A numbers of BIOSes are
+	 known to utilize this area during suspend/resume, so it must not
+	 be used by the kernel.
+
+	 Set this to N if you are absolutely sure that you trust the BIOS
+	 to get all its memory reservations and usages right.
+
+	 If you have doubts about the BIOS (e.g. suspend/resume does not
+	 work or there's kernel crashes after certain hardware hotplug
+	 events) and it's not AMI or Phoenix, then you might want to enable
+	 X86_CHECK_BIOS_CORRUPTION=y to allow the kernel to check typical
+	 corruption patterns.
+
+	 Say Y if unsure.
 
 config MATH_EMULATION
 	bool

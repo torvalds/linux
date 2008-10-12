@@ -31,6 +31,7 @@
 #include <linux/cpumask.h>
 
 #include <asm/asm.h>
+#include <asm/bios_ebda.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -968,6 +969,8 @@ void __init mem_init(void)
 {
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
+
+	start_periodic_check_for_corruption();
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
