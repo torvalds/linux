@@ -2300,6 +2300,11 @@ int orinoco_reinit_firmware(struct net_device *dev)
 	int err;
 
 	err = hermes_init(hw);
+	if (priv->do_fw_download && !err) {
+		err = orinoco_download(priv);
+		if (err)
+			priv->do_fw_download = 0;
+	}
 	if (!err)
 		err = orinoco_allocate_fid(dev);
 
@@ -2923,12 +2928,6 @@ static void orinoco_reset(struct work_struct *work)
 			       "performing hard reset\n", dev->name, err);
 			goto disable;
 		}
-	}
-
-	if (priv->do_fw_download) {
-		err = orinoco_download(priv);
-		if (err)
-			priv->do_fw_download = 0;
 	}
 
 	err = orinoco_reinit_firmware(dev);
