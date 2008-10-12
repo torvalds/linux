@@ -66,6 +66,16 @@ static struct spi_board_info spi1_board_info[] __initdata = { {
 } };
 #endif
 
+#ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -ENODEV,
+		.wp_pin		= -ENODEV,
+	},
+};
+#endif
+
 #ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
 static void __init atstk1003_setup_extdac(void)
 {
@@ -154,7 +164,7 @@ static int __init atstk1003_init(void)
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
 #ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
-	at32_add_device_mci(0, NULL);
+	at32_add_device_mci(0, &mci0_data);
 #endif
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM
