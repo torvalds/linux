@@ -20,8 +20,8 @@
     The postal address is:
       Richard Gooch, c/o ATNF, P. O. Box 76, Epping, N.S.W., 2121, Australia.
 */
-#ifndef _ASM_X86_MTRR_H
-#define _ASM_X86_MTRR_H
+#ifndef ASM_X86__MTRR_H
+#define ASM_X86__MTRR_H
 
 #include <linux/ioctl.h>
 #include <linux/errno.h>
@@ -170,4 +170,4 @@ struct mtrr_gentry32 {
 
 #endif /* __KERNEL__ */
 
-#endif  /*  _ASM_X86_MTRR_H  */
+#endif /* ASM_X86__MTRR_H */

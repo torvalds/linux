@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/termios.h>
 #include <linux/err.h>
+#include <linux/reboot.h>
 
 #include "sclp.h"
 #include "sclp_rw.h"
@@ -172,7 +173,7 @@ sclp_console_device(struct console *c, int *index)
  * will be flushed to the SCLP.
  */
 static void
-sclp_console_unblank(void)
+sclp_console_flush(void)
 {
 	unsigned long flags;
 
@@ -188,6 +189,24 @@ sclp_console_unblank(void)
 	spin_unlock_irqrestore(&sclp_con_lock, flags);
 }
 
+static int
+sclp_console_notify(struct notifier_block *self,
+			  unsigned long event, void *data)
+{
+	sclp_console_flush();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block on_panic_nb = {
+	.notifier_call = sclp_console_notify,
+	.priority = 1,
+};
+
+static struct notifier_block on_reboot_nb = {
+	.notifier_call = sclp_console_notify,
+	.priority = 1,
+};
+
 /*
  * used to register the SCLP console to the kernel and to
  * give printk necessary information
@@ -197,7 +216,6 @@ static struct console sclp_console =
 	.name = sclp_console_name,
 	.write = sclp_console_write,
 	.device = sclp_console_device,
-	.unblank = sclp_console_unblank,
 	.flags = CON_PRINTBUFFER,
 	.index = 0 /* ttyS0 */
 };
@@ -241,6 +259,8 @@ sclp_console_init(void)
 	sclp_con_width_htab = 8;
 
 	/* enable printk-access to this driver */
+	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	register_reboot_notifier(&on_reboot_nb);
 	register_console(&sclp_console);
 	return 0;
 }

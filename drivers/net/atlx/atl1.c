@@ -24,16 +24,12 @@
  * file called COPYING.
  *
  * Contact Information:
- * Xiong Huang <xiong_huang@attansic.com>
- * Attansic Technology Corp. 3F 147, Xianzheng 9th Road, Zhubei,
- * Xinzhu  302, TAIWAN, REPUBLIC OF CHINA
- *
+ * Xiong Huang <xiong.huang@atheros.com>
+ * Jie Yang <jie.yang@atheros.com>
  * Chris Snook <csnook@redhat.com>
  * Jay Cliburn <jcliburn@gmail.com>
  *
- * This version is adapted from the Attansic reference driver for
- * inclusion in the Linux kernel.  It is currently under heavy development.
- * A very incomplete list of things that need to be dealt with:
+ * This version is adapted from the Attansic reference driver.
  *
  * TODO:
  * Add more ethtool functions.
@@ -2109,7 +2105,6 @@ static u16 atl1_tpd_avail(struct atl1_tpd_ring *tpd_ring)
 static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 	struct tx_packet_desc *ptpd)
 {
-	/* spinlock held */
 	u8 hdr_len, ip_off;
 	u32 real_len;
 	int err;
@@ -2196,7 +2191,6 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	struct tx_packet_desc *ptpd)
 {
-	/* spinlock held */
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_buffer *buffer_info;
 	u16 buf_len = skb->len;
@@ -2303,7 +2297,6 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 static void atl1_tx_queue(struct atl1_adapter *adapter, u16 count,
        struct tx_packet_desc *ptpd)
 {
-	/* spinlock held */
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_buffer *buffer_info;
 	struct tx_packet_desc *tpd;
@@ -2361,7 +2354,6 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct tx_packet_desc *ptpd;
 	u16 frag_size;
 	u16 vlan_tag;
-	unsigned long flags;
 	unsigned int nr_frags = 0;
 	unsigned int mss = 0;
 	unsigned int f;
@@ -2399,18 +2391,9 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 	}
 
-	if (!spin_trylock_irqsave(&adapter->lock, flags)) {
-		/* Can't get lock - tell upper layer to requeue */
-		if (netif_msg_tx_queued(adapter))
-			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
-				"tx locked\n");
-		return NETDEV_TX_LOCKED;
-	}
-
 	if (atl1_tpd_avail(&adapter->tpd_ring) < count) {
 		/* not enough descriptors */
 		netif_stop_queue(netdev);
-		spin_unlock_irqrestore(&adapter->lock, flags);
 		if (netif_msg_tx_queued(adapter))
 			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
 				"tx busy\n");
@@ -2432,7 +2415,6 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tso = atl1_tso(adapter, skb, ptpd);
 	if (tso < 0) {
-		spin_unlock_irqrestore(&adapter->lock, flags);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -2440,7 +2422,6 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (!tso) {
 		ret_val = atl1_tx_csum(adapter, skb, ptpd);
 		if (ret_val < 0) {
-			spin_unlock_irqrestore(&adapter->lock, flags);
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
@@ -2449,7 +2430,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	atl1_tx_map(adapter, skb, ptpd);
 	atl1_tx_queue(adapter, count, ptpd);
 	atl1_update_mailbox(adapter);
-	spin_unlock_irqrestore(&adapter->lock, flags);
+	mmiowb();
 	netdev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
@@ -2642,6 +2623,7 @@ static void atl1_down(struct atl1_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
+	netif_stop_queue(netdev);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_config_timer);
 	adapter->phy_timer_pending = false;
@@ -2655,7 +2637,6 @@ static void atl1_down(struct atl1_adapter *adapter)
 	adapter->link_speed = SPEED_0;
 	adapter->link_duplex = -1;
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	atl1_clean_tx_ring(adapter);
 	atl1_clean_rx_ring(adapter);
@@ -2723,6 +2704,8 @@ static int atl1_open(struct net_device *netdev)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	int err;
+
+	netif_carrier_off(netdev);
 
 	/* allocate transmit descriptors */
 	err = atl1_setup_ring_resources(adapter);
@@ -3022,7 +3005,6 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netdev->features = NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SG;
 	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-	netdev->features |= NETIF_F_LLTX;
 
 	/*
 	 * patch for some L1 of old version,

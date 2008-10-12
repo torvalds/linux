@@ -3301,8 +3301,7 @@ static int __init vmx_init(void)
 		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
 			VMX_EPT_WRITABLE_MASK |
 			VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
-		kvm_mmu_set_mask_ptes(0ull, VMX_EPT_FAKE_ACCESSED_MASK,
-				VMX_EPT_FAKE_DIRTY_MASK, 0ull,
+		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
 				VMX_EPT_EXECUTABLE_MASK);
 		kvm_enable_tdp();
 	} else

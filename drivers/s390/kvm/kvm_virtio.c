@@ -24,6 +24,7 @@
 #include <asm/kvm_virtio.h>
 #include <asm/setup.h>
 #include <asm/s390_ext.h>
+#include <asm/s390_rdev.h>
 
 #define VIRTIO_SUBCODE_64 0x0D00
 
@@ -241,10 +242,7 @@ static struct virtio_config_ops kvm_vq_configspace_ops = {
  * The root device for the kvm virtio devices.
  * This makes them appear as /sys/devices/kvm_s390/0,1,2 not /sys/devices/0,1,2.
  */
-static struct device kvm_root = {
-	.parent = NULL,
-	.bus_id = "kvm_s390",
-};
+static struct device *kvm_root;
 
 /*
  * adds a new device and register it with virtio
@@ -261,7 +259,7 @@ static void add_kvm_device(struct kvm_device_desc *d, unsigned int offset)
 		return;
 	}
 
-	kdev->vdev.dev.parent = &kvm_root;
+	kdev->vdev.dev.parent = kvm_root;
 	kdev->vdev.id.device = d->type;
 	kdev->vdev.config = &kvm_vq_configspace_ops;
 	kdev->desc = d;
@@ -317,15 +315,16 @@ static int __init kvm_devices_init(void)
 	if (!MACHINE_IS_KVM)
 		return -ENODEV;
 
-	rc = device_register(&kvm_root);
-	if (rc) {
+	kvm_root = s390_root_dev_register("kvm_s390");
+	if (IS_ERR(kvm_root)) {
+		rc = PTR_ERR(kvm_root);
 		printk(KERN_ERR "Could not register kvm_s390 root device");
 		return rc;
 	}
 
 	rc = vmem_add_mapping(PFN_PHYS(max_pfn), PAGE_SIZE);
 	if (rc) {
-		device_unregister(&kvm_root);
+		s390_root_dev_unregister(kvm_root);
 		return rc;
 	}
 

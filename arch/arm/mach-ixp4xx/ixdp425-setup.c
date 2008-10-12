@@ -20,6 +20,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/delay.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -29,7 +30,6 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <asm/delay.h>
 
 static struct flash_platform_data ixdp425_flash_data = {
 	.map_name	= "cfi_probe",

@@ -24,6 +24,13 @@ config LCD_CLASS_DEVICE
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
 
+config LCD_CORGI
+	tristate "LCD Panel support for SHARP corgi/spitz model"
+	depends on LCD_CLASS_DEVICE && SPI_MASTER && PXA_SHARPSL
+	help
+	  Say y here to support the LCD panels usually found on SHARP
+	  corgi (C7x0) and spitz (Cxx00) models.
+
 config LCD_LTV350QV
 	tristate "Samsung LTV350QV LCD Panel"
 	depends on LCD_CLASS_DEVICE && SPI_MASTER
@@ -43,6 +50,14 @@ config LCD_ILI9320
 	help
 	  If you have a panel based on the ILI9320 controller chip
 	  then say y to include a power driver for it.
+
+config LCD_TDO24M
+	tristate "Toppoly TDO24M LCD Panels support"
+	depends on LCD_CLASS_DEVICE && SPI_MASTER
+	default n
+	help
+	  If you have a Toppoly TDO24M series LCD panel, say y here to
+	  include the support for it.
 
 config LCD_VGG2432A4
 	tristate "VGG2432A4 LCM device support"

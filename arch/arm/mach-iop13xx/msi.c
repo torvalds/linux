@@ -110,8 +110,7 @@ static void iop13xx_msi_handler(unsigned int irq, struct irq_desc *desc)
 		do {
 			j = find_first_bit(&status, 32);
 			(write_imipr[i])(1 << j); /* write back to clear bit */
-			desc = irq_desc + IRQ_IOP13XX_MSI_0 + j + (32*i);
-			desc_handle_irq(IRQ_IOP13XX_MSI_0 + j + (32*i),	desc);
+			generic_handle_irq(IRQ_IOP13XX_MSI_0 + j + (32*i));
 			status = (read_imipr[i])();
 		} while (status);
 	}

@@ -29,8 +29,8 @@
 #define KS8695_LRDLB		(0x14)		/* Receive Descriptor List Base Address */
 #define KS8695_LMAL		(0x18)		/* MAC Station Address Low */
 #define KS8695_LMAH		(0x1c)		/* MAC Station Address High */
-#define KS8695_LMAAL_(n)	(0x80 + ((n)*8))	/* MAC Additional Station Address (0..15) Low */
-#define KS8695_LMAAH_(n)	(0x84 + ((n)*8))	/* MAC Additional Station Address (0..15) High */
+#define KS8695_LMAAL(n)		(0x80 + ((n)*8))	/* MAC Additional Station Address (0..15) Low */
+#define KS8695_LMAAH(n)		(0x84 + ((n)*8))	/* MAC Additional Station Address (0..15) High */
 
 
 /* DMA Transmit Control Register */

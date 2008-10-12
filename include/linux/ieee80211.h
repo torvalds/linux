@@ -471,6 +471,11 @@ struct ieee80211s_hdr {
 	u8 eaddr3[6];
 } __attribute__ ((packed));
 
+/* Mesh flags */
+#define MESH_FLAGS_AE_A4 	0x1
+#define MESH_FLAGS_AE_A5_A6	0x2
+#define MESH_FLAGS_PS_DEEP	0x4
+
 /**
  * struct ieee80211_quiet_ie
  *
@@ -643,6 +648,9 @@ struct ieee80211_mgmt {
 	} u;
 } __attribute__ ((packed));
 
+/* mgmt header + 1 byte category code */
+#define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
+
 
 /* Control frames */
 struct ieee80211_rts {
@@ -708,12 +716,13 @@ struct ieee80211_ht_addt_info {
 
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_SUP_WIDTH		0x0002
-#define IEEE80211_HT_CAP_MIMO_PS		0x000C
+#define IEEE80211_HT_CAP_SM_PS			0x000C
 #define IEEE80211_HT_CAP_GRN_FLD		0x0010
 #define IEEE80211_HT_CAP_SGI_20			0x0020
 #define IEEE80211_HT_CAP_SGI_40			0x0040
 #define IEEE80211_HT_CAP_DELAY_BA		0x0400
 #define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
+#define IEEE80211_HT_CAP_DSSSCCK40		0x1000
 /* 802.11n HT capability AMPDU settings */
 #define IEEE80211_HT_CAP_AMPDU_FACTOR		0x03
 #define IEEE80211_HT_CAP_AMPDU_DENSITY		0x1C
@@ -736,11 +745,26 @@ struct ieee80211_ht_addt_info {
 #define IEEE80211_HT_IE_NON_GF_STA_PRSNT	0x0004
 #define IEEE80211_HT_IE_NON_HT_STA_PRSNT	0x0010
 
-/* MIMO Power Save Modes */
-#define WLAN_HT_CAP_MIMO_PS_STATIC	0
-#define WLAN_HT_CAP_MIMO_PS_DYNAMIC	1
-#define WLAN_HT_CAP_MIMO_PS_INVALID	2
-#define WLAN_HT_CAP_MIMO_PS_DISABLED	3
+/* block-ack parameters */
+#define IEEE80211_ADDBA_PARAM_POLICY_MASK 0x0002
+#define IEEE80211_ADDBA_PARAM_TID_MASK 0x003C
+#define IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK 0xFFA0
+#define IEEE80211_DELBA_PARAM_TID_MASK 0xF000
+#define IEEE80211_DELBA_PARAM_INITIATOR_MASK 0x0800
+
+/*
+ * A-PMDU buffer sizes
+ * According to IEEE802.11n spec size varies from 8K to 64K (in powers of 2)
+ */
+#define IEEE80211_MIN_AMPDU_BUF 0x8
+#define IEEE80211_MAX_AMPDU_BUF 0x40
+
+
+/* Spatial Multiplexing Power Save Modes */
+#define WLAN_HT_CAP_SM_PS_STATIC	0
+#define WLAN_HT_CAP_SM_PS_DYNAMIC	1
+#define WLAN_HT_CAP_SM_PS_INVALID	2
+#define WLAN_HT_CAP_SM_PS_DISABLED	3
 
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0

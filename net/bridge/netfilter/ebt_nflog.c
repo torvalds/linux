@@ -14,17 +14,15 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_nflog.h>
 #include <net/netfilter/nf_log.h>
 
-static void ebt_nflog(const struct sk_buff *skb,
-		      unsigned int hooknr,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const void *data, unsigned int datalen)
+static unsigned int
+ebt_nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
-	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
+	const struct ebt_nflog_info *info = par->targinfo;
 	struct nf_loginfo li;
 
 	li.type = NF_LOG_TYPE_ULOG;
@@ -32,39 +30,39 @@ static void ebt_nflog(const struct sk_buff *skb,
 	li.u.ulog.group = info->group;
 	li.u.ulog.qthreshold = info->threshold;
 
-	nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li, "%s", info->prefix);
+	nf_log_packet(PF_BRIDGE, par->hooknum, skb, par->in, par->out,
+	              &li, "%s", info->prefix);
+	return EBT_CONTINUE;
 }
 
-static int ebt_nflog_check(const char *tablename,
-			   unsigned int hookmask,
-			   const struct ebt_entry *e,
-			   void *data, unsigned int datalen)
+static bool ebt_nflog_tg_check(const struct xt_tgchk_param *par)
 {
-	struct ebt_nflog_info *info = (struct ebt_nflog_info *)data;
+	struct ebt_nflog_info *info = par->targinfo;
 
-	if (datalen != EBT_ALIGN(sizeof(struct ebt_nflog_info)))
-		return -EINVAL;
 	if (info->flags & ~EBT_NFLOG_MASK)
-		return -EINVAL;
+		return false;
 	info->prefix[EBT_NFLOG_PREFIX_SIZE - 1] = '\0';
-	return 0;
+	return true;
 }
 
-static struct ebt_watcher nflog __read_mostly = {
-	.name = EBT_NFLOG_WATCHER,
-	.watcher = ebt_nflog,
-	.check = ebt_nflog_check,
-	.me = THIS_MODULE,
+static struct xt_target ebt_nflog_tg_reg __read_mostly = {
+	.name       = "nflog",
+	.revision   = 0,
+	.family     = NFPROTO_BRIDGE,
+	.target     = ebt_nflog_tg,
+	.checkentry = ebt_nflog_tg_check,
+	.targetsize = XT_ALIGN(sizeof(struct ebt_nflog_info)),
+	.me         = THIS_MODULE,
 };
 
 static int __init ebt_nflog_init(void)
 {
-	return ebt_register_watcher(&nflog);
+	return xt_register_target(&ebt_nflog_tg_reg);
 }
 
 static void __exit ebt_nflog_fini(void)
 {
-	ebt_unregister_watcher(&nflog);
+	xt_unregister_target(&ebt_nflog_tg_reg);
 }
 
 module_init(ebt_nflog_init);

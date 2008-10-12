@@ -57,12 +57,35 @@
 
 static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO15_nCS_1,	/* CS1 - Flash */
+	GPIO78_nCS_2,	/* CS2 - Baseboard FGPA */
 	GPIO79_nCS_3,	/* CS3 - SMC ethernet */
+	GPIO80_nCS_4,	/* CS4 - SA1111 */
 
 	/* SSP data pins */
 	GPIO23_SSP1_SCLK,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
+
+	/* LCD - 16bpp DSTN */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
@@ -132,8 +155,7 @@ static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
 		GEDR(0) = GPIO_bit(0);	/* clear our parent irq */
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
-			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	} while (pending);

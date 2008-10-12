@@ -187,9 +187,11 @@ void snd_seq_cell_free(struct snd_seq_event_cell * cell)
 	unsigned long flags;
 	struct snd_seq_pool *pool;
 
-	snd_assert(cell != NULL, return);
+	if (snd_BUG_ON(!cell))
+		return;
 	pool = cell->pool;
-	snd_assert(pool != NULL, return);
+	if (snd_BUG_ON(!pool))
+		return;
 
 	spin_lock_irqsave(&pool->lock, flags);
 	free_cell(pool, cell);
@@ -378,7 +380,8 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	struct snd_seq_event_cell *cellptr;
 	unsigned long flags;
 
-	snd_assert(pool != NULL, return -EINVAL);
+	if (snd_BUG_ON(!pool))
+		return -EINVAL;
 	if (pool->ptr)			/* should be atomic? */
 		return 0;
 
@@ -414,7 +417,8 @@ int snd_seq_pool_done(struct snd_seq_pool *pool)
 	struct snd_seq_event_cell *ptr;
 	int max_count = 5 * HZ;
 
-	snd_assert(pool != NULL, return -EINVAL);
+	if (snd_BUG_ON(!pool))
+		return -EINVAL;
 
 	/* wait for closing all threads */
 	spin_lock_irqsave(&pool->lock, flags);

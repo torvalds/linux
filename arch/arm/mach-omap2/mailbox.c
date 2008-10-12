@@ -14,9 +14,9 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <mach/mailbox.h>
 #include <mach/irqs.h>
-#include <asm/io.h>
 
 #define MAILBOX_REVISION		0x00
 #define MAILBOX_SYSCONFIG		0x10

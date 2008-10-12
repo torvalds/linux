@@ -18,10 +18,11 @@
  */
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
+#include <asm/cputype.h>
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 
 #define CR_L2	(1 << 26)
 

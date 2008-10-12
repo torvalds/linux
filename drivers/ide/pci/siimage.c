@@ -39,7 +39,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -223,7 +222,9 @@ static u8 sil_pata_udma_filter(ide_drive_t *drive)
 
 static u8 sil_sata_udma_filter(ide_drive_t *drive)
 {
-	return strstr(drive->id->model, "Maxtor") ? ATA_UDMA5 : ATA_UDMA6;
+	char *m = (char *)&drive->id[ATA_ID_PROD];
+
+	return strstr(m, "Maxtor") ? ATA_UDMA5 : ATA_UDMA6;
 }
 
 /**
@@ -243,7 +244,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	ide_drive_t *pair	= ide_get_paired_drive(drive);
+	ide_drive_t *pair	= ide_get_pair_dev(drive);
 	u32 speedt		= 0;
 	u16 speedp		= 0;
 	unsigned long addr	= siimage_seldev(drive, 0x04);
@@ -257,7 +258,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	u8 unit			= drive->select.b.unit;
 
 	/* trim *taskfile* PIO to the slowest of the master/slave */
-	if (pair->present) {
+	if (pair) {
 		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
 
 		if (pair_pio < tf_pio)
@@ -462,7 +463,7 @@ static void sil_sata_pre_reset(ide_drive_t *drive)
  *	to 133 MHz clocking if the system isn't already set up to do it.
  */
 
-static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev)
+static unsigned int init_chipset_siimage(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	void __iomem *ioaddr = host->host_priv;
@@ -616,8 +617,8 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 
 static int is_dev_seagate_sata(ide_drive_t *drive)
 {
-	const char *s	= &drive->id->model[0];
-	unsigned len	= strnlen(s, sizeof(drive->id->model));
+	const char *s	= (const char *)&drive->id[ATA_ID_PROD];
+	unsigned len	= strnlen(s, ATA_ID_PROD_LEN);
 
 	if ((len > 4) && (!memcmp(s, "ST", 2)))
 		if ((!memcmp(s + len - 2, "AS", 2)) ||
@@ -833,6 +834,8 @@ static struct pci_driver driver = {
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
 	.remove		= __devexit_p(siimage_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init siimage_ide_init(void)

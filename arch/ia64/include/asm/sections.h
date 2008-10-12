@@ -6,9 +6,14 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
+#include <linux/elf.h>
+#include <linux/uaccess.h>
 #include <asm-generic/sections.h>
 
 extern char __per_cpu_start[], __per_cpu_end[], __phys_per_cpu_start[];
+#ifdef	CONFIG_SMP
+extern char __cpu0_per_cpu[];
+#endif
 extern char __start___vtop_patchlist[], __end___vtop_patchlist[];
 extern char __start___rse_patchlist[], __end___rse_patchlist[];
 extern char __start___mckinley_e9_bundles[], __end___mckinley_e9_bundles[];
@@ -22,7 +27,16 @@ extern char __start_unwind[], __end_unwind[];
 extern char __start_ivt_text[], __end_ivt_text[];
 
 #undef dereference_function_descriptor
-void *dereference_function_descriptor(void *);
+static inline void *dereference_function_descriptor(void *ptr)
+{
+	struct fdesc *desc = ptr;
+	void *p;
+
+	if (!probe_kernel_address(&desc->ip, p))
+		ptr = p;
+	return ptr;
+}
+
 
 #endif /* _ASM_IA64_SECTIONS_H */
 

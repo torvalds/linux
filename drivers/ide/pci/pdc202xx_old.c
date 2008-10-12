@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/blkdev.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -86,7 +85,7 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 		 * Prefetch_EN / IORDY_EN / PA[3:0] bits of register A
 		 */
 		AP &= ~0x3f;
-		if (drive->id->capability & 4)
+		if (ata_id_iordy_disable(drive->id))
 			AP |= 0x20;	/* set IORDY_EN bit */
 		if (drive->media == ide_disk)
 			AP |= 0x10;	/* set Prefetch_EN bit */
@@ -154,10 +153,10 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 
 static void pdc202xx_quirkproc(ide_drive_t *drive)
 {
-	const char **list, *model = drive->id->model;
+	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
 
 	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(model, *list) != NULL) {
+		if (strstr(m, *list) != NULL) {
 			drive->quirk_list = 2;
 			return;
 		}
@@ -265,7 +264,7 @@ static void pdc202xx_dma_timeout(ide_drive_t *drive)
 	ide_dma_timeout(drive);
 }
 
-static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev)
+static unsigned int init_chipset_pdc202xx(struct pci_dev *dev)
 {
 	unsigned long dmabase = pci_resource_start(dev, 4);
 	u8 udma_speed_flag = 0, primary_mode = 0, secondary_mode = 0;
@@ -432,6 +431,8 @@ static struct pci_driver driver = {
 	.id_table	= pdc202xx_pci_tbl,
 	.probe		= pdc202xx_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init pdc202xx_ide_init(void)

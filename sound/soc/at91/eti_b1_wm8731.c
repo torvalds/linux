@@ -243,6 +243,7 @@ static struct snd_soc_machine snd_soc_machine_eti_b1 = {
 };
 
 static struct wm8731_setup_data eti_b1_wm8731_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1a,
 };
 

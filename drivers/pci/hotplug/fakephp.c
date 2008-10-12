@@ -320,14 +320,14 @@ static int disable_slot(struct hotplug_slot *slot)
 			return -ENODEV;
 		}
 
+		/* remove the device from the pci core */
+		pci_remove_bus_device(dev);
+
 		/* queue work item to blow away this sysfs entry and other
 		 * parts.
 		 */
 		INIT_WORK(&dslot->remove_work, remove_slot_worker);
 		queue_work(dummyphp_wq, &dslot->remove_work);
-
-		/* blow away this sysfs entry and other parts. */
-		remove_slot(dslot);
 
 		pci_dev_put(dev);
 	}
