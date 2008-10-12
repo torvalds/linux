@@ -31,6 +31,7 @@
 #include <linux/nmi.h>
 
 #include <asm/processor.h>
+#include <asm/bios_ebda.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
