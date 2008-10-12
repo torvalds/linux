@@ -21,6 +21,7 @@
 #include <linux/input.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -40,8 +41,6 @@
 #include <mach/menelaus.h>
 #include <mach/dma.h>
 #include <mach/gpmc.h>
-
-#include <asm/io.h>
 
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1

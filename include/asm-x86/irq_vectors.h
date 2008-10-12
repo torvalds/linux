@@ -1,5 +1,5 @@
-#ifndef _ASM_IRQ_VECTORS_H
-#define _ASM_IRQ_VECTORS_H
+#ifndef ASM_X86__IRQ_VECTORS_H
+#define ASM_X86__IRQ_VECTORS_H
 
 #include <linux/threads.h>
 
@@ -179,4 +179,4 @@
 #define VIC_CPU_BOOT_ERRATA_CPI		(VIC_CPI_LEVEL0 + 8)
 
 
-#endif /* _ASM_IRQ_VECTORS_H */
+#endif /* ASM_X86__IRQ_VECTORS_H */

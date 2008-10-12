@@ -27,7 +27,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/elf.h>
+#include <asm/hwcap.h>
 #include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
@@ -345,38 +345,38 @@ ENTRY(cpu_xsc3_switch_mm)
  * cpu_xsc3_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
- *
  */
+cpu_xsc3_mt_table:
+	.long	0x00						@ L_PTE_MT_UNCACHED
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_BUFFERABLE
+	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
+	.long	0x00						@ unused
+	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (not present?)
+	.long	0x00						@ unused
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
+	.long	0x00						@ unused
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
+	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+
 	.align	5
 ENTRY(cpu_xsc3_set_pte_ext)
-	str	r1, [r0], #-2048		@ linux version
+	xscale_set_pte_ext_prologue
 
-	bic	r2, r1, #0xff0			@ keep C, B bits
-	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
 	tst	r1, #L_PTE_SHARED		@ shared?
-	orrne	r2, r2, #0x200
+	and	r1, r1, #L_PTE_MT_MASK
+	adr	ip, cpu_xsc3_mt_table
+	ldr	ip, [ip, r1]
+	orrne	r2, r2, #PTE_EXT_COHERENT	@ interlock: mask in coherent bit
+	bic	r2, r2, #0x0c			@ clear old C,B bits
+	orr	r2, r2, ip
 
-	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
-
-	tst	r3, #L_PTE_USER			@ user?
-	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
-
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ write and dirty?
-	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
-						@ combined with user -> user r/w
-
-	@ If it's cacheable, it needs to be in L2 also.
-	eor	ip, r1, #L_PTE_CACHEABLE
-	tst	ip, #L_PTE_CACHEABLE
-	orreq	r2, r2, #PTE_EXT_TEX(0x5)
-
-	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
-	movne	r2, #0				@ no -> fault
-
-	str	r2, [r0]			@ hardware version
-	mov	ip, #0
-	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
-	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
+	xscale_set_pte_ext_epilogue
 	mov	pc, lr
 
 	.ltorg

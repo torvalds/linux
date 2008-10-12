@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PAGE_32_H
-#define _ASM_X86_PAGE_32_H
+#ifndef ASM_X86__PAGE_32_H
+#define ASM_X86__PAGE_32_H
 
 /*
  * This handles the memory map.
@@ -89,13 +89,11 @@ extern int nx_enabled;
 extern unsigned int __VMALLOC_RESERVE;
 extern int sysctl_legacy_va_layout;
 
-#define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
-#define MAXMEM			(-__PAGE_OFFSET - __VMALLOC_RESERVE)
-
 extern void find_low_pfn_range(void);
 extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);
 extern void initmem_init(unsigned long, unsigned long);
+extern void free_initmem(void);
 extern void setup_bootmem_allocator(void);
 
 
@@ -126,4 +124,4 @@ static inline void copy_page(void *to, void *from)
 #endif	/* CONFIG_X86_3DNOW */
 #endif	/* !__ASSEMBLY__ */
 
-#endif /* _ASM_X86_PAGE_32_H */
+#endif /* ASM_X86__PAGE_32_H */

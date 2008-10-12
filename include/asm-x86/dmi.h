@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_DMI_H
-#define _ASM_X86_DMI_H
+#ifndef ASM_X86__DMI_H
+#define ASM_X86__DMI_H
 
 #include <asm/io.h>
 
@@ -23,4 +23,4 @@ static inline void *dmi_alloc(unsigned len)
 #define dmi_ioremap early_ioremap
 #define dmi_iounmap early_iounmap
 
-#endif
+#endif /* ASM_X86__DMI_H */

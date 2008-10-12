@@ -30,8 +30,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __HYPERVISOR_H__
-#define __HYPERVISOR_H__
+#ifndef ASM_X86__XEN__HYPERVISOR_H
+#define ASM_X86__XEN__HYPERVISOR_H
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -79,4 +79,4 @@ extern enum xen_domain_type xen_domain_type;
 #define xen_initial_domain()	(xen_pv_domain() && xen_start_info->flags & SIF_INITDOMAIN)
 #define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
 
-#endif /* __HYPERVISOR_H__ */
+#endif /* ASM_X86__XEN__HYPERVISOR_H */

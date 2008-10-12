@@ -16,10 +16,10 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
 #include <mach/dma.h>
-#include <asm/io.h>
 
 #include <asm/plat-s3c24xx/dma.h>
 #include <asm/plat-s3c24xx/cpu.h>

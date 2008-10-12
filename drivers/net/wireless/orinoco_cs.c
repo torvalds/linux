@@ -109,7 +109,8 @@ orinoco_cs_probe(struct pcmcia_device *link)
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 
-	dev = alloc_orinocodev(sizeof(*card), orinoco_cs_hard_reset);
+	dev = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
+			       orinoco_cs_hard_reset, NULL);
 	if (! dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
@@ -120,7 +121,7 @@ orinoco_cs_probe(struct pcmcia_device *link)
 	link->priv = dev;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = orinoco_interrupt;
 	link->irq.Instance = dev; 

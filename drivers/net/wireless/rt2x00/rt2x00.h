@@ -44,7 +44,7 @@
 /*
  * Module information.
  */
-#define DRV_VERSION	"2.1.8"
+#define DRV_VERSION	"2.2.1"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
 /*
@@ -53,11 +53,11 @@
  */
 #define DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, __args...)	\
 	printk(__kernlvl "%s -> %s: %s - " __msg,			\
-	       wiphy_name((__dev)->hw->wiphy), __FUNCTION__, __lvl, ##__args)
+	       wiphy_name((__dev)->hw->wiphy), __func__, __lvl, ##__args)
 
 #define DEBUG_PRINTK_PROBE(__kernlvl, __lvl, __msg, __args...)	\
 	printk(__kernlvl "%s -> %s: %s - " __msg,		\
-	       KBUILD_MODNAME, __FUNCTION__, __lvl, ##__args)
+	       KBUILD_MODNAME, __func__, __lvl, ##__args)
 
 #ifdef CONFIG_RT2X00_DEBUG
 #define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
@@ -141,6 +141,17 @@ struct rf_channel {
 	u32 rf2;
 	u32 rf3;
 	u32 rf4;
+};
+
+/*
+ * Channel information structure
+ */
+struct channel_info {
+	unsigned int flags;
+#define GEOGRAPHY_ALLOWED	0x00000001
+
+	short tx_power1;
+	short tx_power2;
 };
 
 /*
@@ -394,10 +405,7 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
  * @num_channels: Number of supported channels. This is used as array size
  *	for @tx_power_a, @tx_power_bg and @channels.
  * @channels: Device/chipset specific channel values (See &struct rf_channel).
- * @tx_power_a: TX power values for all 5.2GHz channels (may be NULL).
- * @tx_power_bg: TX power values for all 2.4GHz channels (may be NULL).
- * @tx_power_default: Default TX power value to use when either
- *	@tx_power_a or @tx_power_bg is missing.
+ * @channels_info: Additional information for channels (See &struct channel_info).
  */
 struct hw_mode_spec {
 	unsigned int supported_bands;
@@ -410,10 +418,7 @@ struct hw_mode_spec {
 
 	unsigned int num_channels;
 	const struct rf_channel *channels;
-
-	const u8 *tx_power_a;
-	const u8 *tx_power_bg;
-	u8 tx_power_default;
+	const struct channel_info *channels_info;
 };
 
 /*
@@ -425,7 +430,9 @@ struct hw_mode_spec {
  */
 struct rt2x00lib_conf {
 	struct ieee80211_conf *conf;
+
 	struct rf_channel rf;
+	struct channel_info channel;
 
 	struct antenna_setup ant;
 
@@ -452,6 +459,23 @@ struct rt2x00lib_erp {
 };
 
 /*
+ * Configuration structure for hardware encryption.
+ */
+struct rt2x00lib_crypto {
+	enum cipher cipher;
+
+	enum set_key_cmd cmd;
+	const u8 *address;
+
+	u32 bssidx;
+	u32 aid;
+
+	u8 key[16];
+	u8 tx_mic[8];
+	u8 rx_mic[8];
+};
+
+/*
  * Configuration structure wrapper around the
  * rt2x00 interface configuration handler.
  */
@@ -459,7 +483,7 @@ struct rt2x00intf_conf {
 	/*
 	 * Interface type
 	 */
-	enum ieee80211_if_types type;
+	enum nl80211_iftype type;
 
 	/*
 	 * TSF sync value, this is dependant on the operation type.
@@ -547,6 +571,12 @@ struct rt2x00lib_ops {
 	/*
 	 * Configuration handlers.
 	 */
+	int (*config_shared_key) (struct rt2x00_dev *rt2x00dev,
+				  struct rt2x00lib_crypto *crypto,
+				  struct ieee80211_key_conf *key);
+	int (*config_pairwise_key) (struct rt2x00_dev *rt2x00dev,
+				    struct rt2x00lib_crypto *crypto,
+				    struct ieee80211_key_conf *key);
 	void (*config_filter) (struct rt2x00_dev *rt2x00dev,
 			       const unsigned int filter_flags);
 	void (*config_intf) (struct rt2x00_dev *rt2x00dev,
@@ -599,17 +629,16 @@ enum rt2x00_flags {
 	/*
 	 * Device state flags
 	 */
-	DEVICE_PRESENT,
-	DEVICE_REGISTERED_HW,
-	DEVICE_INITIALIZED,
-	DEVICE_STARTED,
-	DEVICE_STARTED_SUSPEND,
-	DEVICE_ENABLED_RADIO,
-	DEVICE_DISABLED_RADIO_HW,
-	DEVICE_DIRTY_CONFIG,
+	DEVICE_STATE_PRESENT,
+	DEVICE_STATE_REGISTERED_HW,
+	DEVICE_STATE_INITIALIZED,
+	DEVICE_STATE_STARTED,
+	DEVICE_STATE_STARTED_SUSPEND,
+	DEVICE_STATE_ENABLED_RADIO,
+	DEVICE_STATE_DISABLED_RADIO_HW,
 
 	/*
-	 * Driver features
+	 * Driver requirements
 	 */
 	DRIVER_REQUIRE_FIRMWARE,
 	DRIVER_REQUIRE_BEACON_GUARD,
@@ -618,9 +647,14 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_DMA,
 
 	/*
-	 * Driver configuration
+	 * Driver features
 	 */
 	CONFIG_SUPPORT_HW_BUTTON,
+	CONFIG_SUPPORT_HW_CRYPTO,
+
+	/*
+	 * Driver configuration
+	 */
 	CONFIG_FRAME_TYPE,
 	CONFIG_RF_SEQUENCE,
 	CONFIG_EXTERNAL_LNA_A,
@@ -767,6 +801,11 @@ struct rt2x00_dev {
 	 * rt2x00_rf_read() and rt2x00_rf_write().
 	 */
 	u32 *rf;
+
+	/*
+	 * LNA gain
+	 */
+	short lna_gain;
 
 	/*
 	 * USB Max frame size (for rt2500usb & rt73usb).
@@ -966,6 +1005,13 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
 				int mc_count, struct dev_addr_list *mc_list);
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		      const u8 *local_address, const u8 *address,
+		      struct ieee80211_key_conf *key);
+#else
+#define rt2x00mac_set_key	NULL
+#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,

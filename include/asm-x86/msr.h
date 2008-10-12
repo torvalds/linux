@@ -1,5 +1,5 @@
-#ifndef __ASM_X86_MSR_H_
-#define __ASM_X86_MSR_H_
+#ifndef ASM_X86__MSR_H
+#define ASM_X86__MSR_H
 
 #include <asm/msr-index.h>
 
@@ -60,6 +60,22 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 		     _ASM_EXTABLE(2b, 3b)
 		     : [err] "=r" (*err), EAX_EDX_RET(val, low, high)
 		     : "c" (msr), [fault] "i" (-EFAULT));
+	return EAX_EDX_VAL(val, low, high);
+}
+
+static inline unsigned long long native_read_msr_amd_safe(unsigned int msr,
+						      int *err)
+{
+	DECLARE_ARGS(val, low, high);
+
+	asm volatile("2: rdmsr ; xor %0,%0\n"
+		     "1:\n\t"
+		     ".section .fixup,\"ax\"\n\t"
+		     "3:  mov %3,%0 ; jmp 1b\n\t"
+		     ".previous\n\t"
+		     _ASM_EXTABLE(2b, 3b)
+		     : "=r" (*err), EAX_EDX_RET(val, low, high)
+		     : "c" (msr), "D" (0x9c5a203a), "i" (-EFAULT));
 	return EAX_EDX_VAL(val, low, high);
 }
 
@@ -158,6 +174,13 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	*p = native_read_msr_safe(msr, &err);
 	return err;
 }
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = native_read_msr_amd_safe(msr, &err);
+	return err;
+}
 
 #define rdtscl(low)						\
 	((low) = (u32)native_read_tsc())
@@ -221,4 +244,4 @@ static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 #endif /* __KERNEL__ */
 
 
-#endif
+#endif /* ASM_X86__MSR_H */

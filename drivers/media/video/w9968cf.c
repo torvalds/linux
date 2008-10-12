@@ -911,7 +911,6 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 
 	for (i = 0; i < W9968CF_URBS; i++) {
 		urb = usb_alloc_urb(W9968CF_ISO_PACKETS, GFP_KERNEL);
-		cam->urb[i] = urb;
 		if (!urb) {
 			for (j = 0; j < i; j++)
 				usb_free_urb(cam->urb[j]);
@@ -919,6 +918,7 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 			return -ENOMEM;
 		}
 
+		cam->urb[i] = urb;
 		urb->dev = udev;
 		urb->context = (void*)cam;
 		urb->pipe = usb_rcvisocpipe(udev, 1);

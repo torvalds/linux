@@ -38,7 +38,7 @@
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/initval.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 
@@ -76,7 +76,7 @@ struct snd_card_azt2320 {
 	int dev_no;
 	struct pnp_dev *dev;
 	struct pnp_dev *devmpu;
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 };
 
 static struct pnp_card_device_id snd_azt2320_pnpids[] = {
@@ -181,7 +181,7 @@ static int __devinit snd_card_azt2320_probe(int dev,
 	int error;
 	struct snd_card *card;
 	struct snd_card_azt2320 *acard;
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
@@ -200,11 +200,11 @@ static int __devinit snd_card_azt2320_probe(int dev,
 		return error;
 	}
 
-	if ((error = snd_cs4231_create(card, wss_port[dev], -1,
-				       irq[dev],
-				       dma1[dev],
-				       dma2[dev],
-				       CS4231_HW_DETECT, 0, &chip)) < 0) {
+	error = snd_wss_create(card, wss_port[dev], -1,
+			       irq[dev],
+			       dma1[dev], dma2[dev],
+			       WSS_HW_DETECT, 0, &chip);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
@@ -214,15 +214,18 @@ static int __devinit snd_card_azt2320_probe(int dev,
 	sprintf(card->longname, "%s, WSS at 0x%lx, irq %i, dma %i&%i",
 		card->shortname, chip->port, irq[dev], dma1[dev], dma2[dev]);
 
-	if ((error = snd_cs4231_pcm(chip, 0, NULL)) < 0) {
+	error = snd_wss_pcm(chip, 0, NULL);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
-	if ((error = snd_cs4231_mixer(chip)) < 0) {
+	error = snd_wss_mixer(chip);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
-	if ((error = snd_cs4231_timer(chip, 0, NULL)) < 0) {
+	error = snd_wss_timer(chip, 0, NULL);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
@@ -293,7 +296,7 @@ static int snd_azt2320_pnp_suspend(struct pnp_card_link *pcard, pm_message_t sta
 {
 	struct snd_card *card = pnp_get_card_drvdata(pcard);
 	struct snd_card_azt2320 *acard = card->private_data;
-	struct snd_cs4231 *chip = acard->chip;
+	struct snd_wss *chip = acard->chip;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->suspend(chip);
@@ -304,7 +307,7 @@ static int snd_azt2320_pnp_resume(struct pnp_card_link *pcard)
 {
 	struct snd_card *card = pnp_get_card_drvdata(pcard);
 	struct snd_card_azt2320 *acard = card->private_data;
-	struct snd_cs4231 *chip = acard->chip;
+	struct snd_wss *chip = acard->chip;
 
 	chip->resume(chip);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);

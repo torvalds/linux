@@ -1,5 +1,5 @@
-#ifndef ASM_PCI_DIRECT_H
-#define ASM_PCI_DIRECT_H 1
+#ifndef ASM_X86__PCI_DIRECT_H
+#define ASM_X86__PCI_DIRECT_H
 
 #include <linux/types.h>
 
@@ -18,4 +18,4 @@ extern int early_pci_allowed(void);
 extern unsigned int pci_early_dump_regs;
 extern void early_dump_pci_device(u8 bus, u8 slot, u8 func);
 extern void early_dump_pci_devices(void);
-#endif
+#endif /* ASM_X86__PCI_DIRECT_H */

@@ -253,7 +253,6 @@ static void pci_handler(unsigned int irq, struct irq_desc *desc)
 {
 	u32 pci_interrupt;
 	unsigned int irqno;
-	struct irq_desc *int_desc;
 
 	pci_interrupt = *IXP23XX_PCI_XSCALE_INT_STATUS;
 
@@ -268,8 +267,7 @@ static void pci_handler(unsigned int irq, struct irq_desc *desc)
 		BUG();
 	}
 
-	int_desc = irq_desc + irqno;
-	desc_handle_irq(irqno, int_desc);
+	generic_handle_irq(irqno);
 
 	desc->chip->unmask(irq);
 }

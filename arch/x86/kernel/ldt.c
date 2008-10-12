@@ -18,6 +18,7 @@
 #include <asm/ldt.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
+#include <asm/syscalls.h>
 
 #ifdef CONFIG_SMP
 static void flush_ldt(void *current_mm)

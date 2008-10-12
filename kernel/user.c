@@ -169,7 +169,7 @@ static ssize_t cpu_rt_runtime_show(struct kobject *kobj,
 {
 	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
 
-	return sprintf(buf, "%lu\n", sched_group_rt_runtime(up->tg));
+	return sprintf(buf, "%ld\n", sched_group_rt_runtime(up->tg));
 }
 
 static ssize_t cpu_rt_runtime_store(struct kobject *kobj,
@@ -180,7 +180,7 @@ static ssize_t cpu_rt_runtime_store(struct kobject *kobj,
 	unsigned long rt_runtime;
 	int rc;
 
-	sscanf(buf, "%lu", &rt_runtime);
+	sscanf(buf, "%ld", &rt_runtime);
 
 	rc = sched_group_set_rt_runtime(up->tg, rt_runtime);
 

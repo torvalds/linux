@@ -19,10 +19,10 @@
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/hardware/arm_timer.h>
 #include <mach/cm.h>
 #include <asm/system.h>

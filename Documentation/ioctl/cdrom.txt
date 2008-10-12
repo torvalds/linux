@@ -271,14 +271,14 @@ CDROMCLOSETRAY			pendant of CDROMEJECT
 
 	usage:
 
-	  ioctl(fd, CDROMEJECT, 0);
+	  ioctl(fd, CDROMCLOSETRAY, 0);
 
 	inputs:		none
 
 	outputs:	none
 
 	error returns:
-	  ENOSYS	cd drive not capable of ejecting
+	  ENOSYS	cd drive not capable of closing the tray
 	  EBUSY		other processes are accessing drive, or door is locked
 
 	notes:
