@@ -14,12 +14,13 @@ endif
 
 ifdef CONFIG_FTRACE
 # Do not trace early boot code
-CFLAGS_REMOVE_cputable.o = -pg
-CFLAGS_REMOVE_prom_init.o = -pg
+CFLAGS_REMOVE_cputable.o = -pg -mno-sched-epilog
+CFLAGS_REMOVE_prom_init.o = -pg -mno-sched-epilog
+CFLAGS_REMOVE_btext.o = -pg -mno-sched-epilog
 
 ifdef CONFIG_DYNAMIC_FTRACE
 # dynamic ftrace setup.
-CFLAGS_REMOVE_ftrace.o = -pg
+CFLAGS_REMOVE_ftrace.o = -pg -mno-sched-epilog
 endif
 
 endif

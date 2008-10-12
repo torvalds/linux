@@ -267,6 +267,11 @@ int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
 
 /* ---------------------------------------------------------- */
+/* bttv-cards.c                                               */
+
+extern int no_overlay;
+
+/* ---------------------------------------------------------- */
 /* bttv-driver.c                                              */
 
 /* insmod options */

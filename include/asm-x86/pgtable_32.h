@@ -31,6 +31,7 @@ static inline void pgtable_cache_init(void) { }
 static inline void check_pgt_cache(void) { }
 void paging_init(void);
 
+extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
 
 /*
  * The Linux x86 paging architecture is 'compile-time dual-mode', it
@@ -56,8 +57,7 @@ void paging_init(void);
  * area for the same reason. ;)
  */
 #define VMALLOC_OFFSET	(8 * 1024 * 1024)
-#define VMALLOC_START	(((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) \
-			 & ~(VMALLOC_OFFSET - 1))
+#define VMALLOC_START	((unsigned long)high_memory + VMALLOC_OFFSET)
 #ifdef CONFIG_X86_PAE
 #define LAST_PKMAP 512
 #else
@@ -72,6 +72,8 @@ void paging_init(void);
 #else
 # define VMALLOC_END	(FIXADDR_START - 2 * PAGE_SIZE)
 #endif
+
+#define MAXMEM	(VMALLOC_END - PAGE_OFFSET - __VMALLOC_RESERVE)
 
 /*
  * Define this if things work differently on an i386 and an i486:

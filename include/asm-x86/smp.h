@@ -34,6 +34,9 @@ extern cpumask_t cpu_initialized;
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
+#ifdef CONFIG_X86_32
+DECLARE_PER_CPU(int, cpu_number);
+#endif
 
 DECLARE_EARLY_PER_CPU(u16, x86_cpu_to_apicid);
 DECLARE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid);
@@ -142,7 +145,6 @@ extern unsigned disabled_cpus __cpuinitdata;
  * from the initial startup. We map APIC_BASE very early in page_setup(),
  * so this is correct in the x86 case.
  */
-DECLARE_PER_CPU(int, cpu_number);
 #define raw_smp_processor_id() (x86_read_percpu(cpu_number))
 extern int safe_smp_processor_id(void);
 

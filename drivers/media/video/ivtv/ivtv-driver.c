@@ -688,7 +688,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	itv->irq_work_queues = create_workqueue(itv->name);
+	itv->irq_work_queues = create_singlethread_workqueue(itv->name);
 	if (itv->irq_work_queues == NULL) {
 		IVTV_ERR("Could not create ivtv workqueue\n");
 		return -1;

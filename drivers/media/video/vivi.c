@@ -1021,13 +1021,13 @@ static int vivi_release(void)
 		dev = list_entry(list, struct vivi_dev, vivi_devlist);
 
 		if (-1 != dev->vfd->minor) {
+			printk(KERN_INFO "%s: unregistering /dev/video%d\n",
+				VIVI_MODULE_NAME, dev->vfd->minor);
 			video_unregister_device(dev->vfd);
-			printk(KERN_INFO "%s: /dev/video%d unregistered.\n",
-				VIVI_MODULE_NAME, dev->vfd->minor);
 		} else {
-			video_device_release(dev->vfd);
-			printk(KERN_INFO "%s: /dev/video%d released.\n",
+			printk(KERN_INFO "%s: releasing /dev/video%d\n",
 				VIVI_MODULE_NAME, dev->vfd->minor);
+			video_device_release(dev->vfd);
 		}
 
 		kfree(dev);
@@ -1104,18 +1104,28 @@ static struct video_device vivi_template = {
 	Initialization and module stuff
    ------------------------------------------------------------------*/
 
+/* This routine allocates from 1 to n_devs virtual drivers.
+
+   The real maximum number of virtual drivers will depend on how many drivers
+   will succeed. This is limited to the maximum number of devices that
+   videodev supports. Since there are 64 minors for video grabbers, this is
+   currently the theoretical maximum limit. However, a further limit does
+   exist at videodev that forbids any driver to register more than 32 video
+   grabbers.
+ */
 static int __init vivi_init(void)
 {
 	int ret = -ENOMEM, i;
 	struct vivi_dev *dev;
 	struct video_device *vfd;
 
+	if (n_devs <= 0)
+		n_devs = 1;
+
 	for (i = 0; i < n_devs; i++) {
 		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-		if (NULL == dev)
+		if (!dev)
 			break;
-
-		list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
 		/* init video dma queues */
 		INIT_LIST_HEAD(&dev->vidq.active);
@@ -1126,14 +1136,27 @@ static int __init vivi_init(void)
 		mutex_init(&dev->mutex);
 
 		vfd = video_device_alloc();
-		if (NULL == vfd)
+		if (!vfd) {
+			kfree(dev);
 			break;
+		}
 
 		*vfd = vivi_template;
 
 		ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
-		if (ret < 0)
+		if (ret < 0) {
+			video_device_release(vfd);
+			kfree(dev);
+
+			/* If some registers succeeded, keep driver */
+			if (i)
+				ret = 0;
+
 			break;
+		}
+
+		/* Now that everything is fine, let's add it to device list */
+		list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
 		snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
 			 vivi_template.name, vfd->minor);
@@ -1149,11 +1172,16 @@ static int __init vivi_init(void)
 	if (ret < 0) {
 		vivi_release();
 		printk(KERN_INFO "Error %d while loading vivi driver\n", ret);
-	} else
+	} else {
 		printk(KERN_INFO "Video Technology Magazine Virtual Video "
 			"Capture Board ver %u.%u.%u successfully loaded.\n",
 			(VIVI_VERSION >> 16) & 0xFF, (VIVI_VERSION >> 8) & 0xFF,
 			VIVI_VERSION & 0xFF);
+
+		/* n_devs will reflect the actual number of allocated devices */
+		n_devs = i;
+	}
+
 	return ret;
 }
 
@@ -1169,10 +1197,10 @@ MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
 MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
 
-module_param(video_nr, int, 0);
+module_param(video_nr, uint, 0444);
 MODULE_PARM_DESC(video_nr, "video iminor start number");
 
-module_param(n_devs, int, 0);
+module_param(n_devs, uint, 0444);
 MODULE_PARM_DESC(n_devs, "number of video devices to create");
 
 module_param_named(debug, vivi_template.debug, int, 0444);

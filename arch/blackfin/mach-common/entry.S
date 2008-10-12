@@ -43,7 +43,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/trace.h>
 
-#include <asm/mach-common/context.S>
+#include <asm/context.S>
 
 #if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
 # define EX_SCRATCH_REG RETN

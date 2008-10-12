@@ -93,10 +93,10 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 	int err;
 	struct snd_sf_callback sf_cb;
 
-	snd_assert(emu->hw != NULL, return -EINVAL);
-	snd_assert(emu->max_voices > 0, return -EINVAL);
-	snd_assert(card != NULL, return -EINVAL);
-	snd_assert(name != NULL, return -EINVAL);
+	if (snd_BUG_ON(!emu->hw || emu->max_voices <= 0))
+		return -EINVAL;
+	if (snd_BUG_ON(!card || !name))
+		return -EINVAL;
 
 	emu->card = card;
 	emu->name = kstrdup(name, GFP_KERNEL);

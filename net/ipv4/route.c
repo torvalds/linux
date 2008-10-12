@@ -282,6 +282,8 @@ static struct rtable *rt_cache_get_first(struct seq_file *seq)
 	struct rtable *r = NULL;
 
 	for (st->bucket = rt_hash_mask; st->bucket >= 0; --st->bucket) {
+		if (!rt_hash_table[st->bucket].chain)
+			continue;
 		rcu_read_lock_bh();
 		r = rcu_dereference(rt_hash_table[st->bucket].chain);
 		while (r) {
@@ -299,11 +301,14 @@ static struct rtable *__rt_cache_get_next(struct seq_file *seq,
 					  struct rtable *r)
 {
 	struct rt_cache_iter_state *st = seq->private;
+
 	r = r->u.dst.rt_next;
 	while (!r) {
 		rcu_read_unlock_bh();
-		if (--st->bucket < 0)
-			break;
+		do {
+			if (--st->bucket < 0)
+				return NULL;
+		} while (!rt_hash_table[st->bucket].chain);
 		rcu_read_lock_bh();
 		r = rt_hash_table[st->bucket].chain;
 	}
@@ -2356,11 +2361,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		    ipv4_is_zeronet(oldflp->fl4_src))
 			goto out;
 
-		/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
-		dev_out = ip_dev_find(net, oldflp->fl4_src);
-		if (dev_out == NULL)
-			goto out;
-
 		/* I removed check for oif == dev_out->oif here.
 		   It was wrong for two reasons:
 		   1. ip_dev_find(net, saddr) can return wrong iface, if saddr
@@ -2372,6 +2372,11 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		if (oldflp->oif == 0
 		    && (ipv4_is_multicast(oldflp->fl4_dst) ||
 			oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
+			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
+			dev_out = ip_dev_find(net, oldflp->fl4_src);
+			if (dev_out == NULL)
+				goto out;
+
 			/* Special hack: user can direct multicasts
 			   and limited broadcast via necessary interface
 			   without fiddling with IP_MULTICAST_IF or IP_PKTINFO.
@@ -2390,9 +2395,15 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			fl.oif = dev_out->ifindex;
 			goto make_route;
 		}
-		if (dev_out)
+
+		if (!(oldflp->flags & FLOWI_FLAG_ANYSRC)) {
+			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
+			dev_out = ip_dev_find(net, oldflp->fl4_src);
+			if (dev_out == NULL)
+				goto out;
 			dev_put(dev_out);
-		dev_out = NULL;
+			dev_out = NULL;
+		}
 	}
 
 
@@ -2840,7 +2851,9 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 	if (s_h < 0)
 		s_h = 0;
 	s_idx = idx = cb->args[1];
-	for (h = s_h; h <= rt_hash_mask; h++) {
+	for (h = s_h; h <= rt_hash_mask; h++, s_idx = 0) {
+		if (!rt_hash_table[h].chain)
+			continue;
 		rcu_read_lock_bh();
 		for (rt = rcu_dereference(rt_hash_table[h].chain), idx = 0; rt;
 		     rt = rcu_dereference(rt->u.dst.rt_next), idx++) {
@@ -2859,7 +2872,6 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 			dst_release(xchg(&skb->dst, NULL));
 		}
 		rcu_read_unlock_bh();
-		s_idx = 0;
 	}
 
 done:
@@ -3116,13 +3128,22 @@ static ctl_table ipv4_route_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static __net_initdata struct ctl_path ipv4_route_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
-	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE, },
-	{ },
+static struct ctl_table empty[1];
+
+static struct ctl_table ipv4_skeleton[] =
+{
+	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE,
+	  .mode = 0555, .child = ipv4_route_table},
+	{ .procname = "neigh", .ctl_name = NET_IPV4_NEIGH,
+	  .mode = 0555, .child = empty},
+	{ }
 };
 
+static __net_initdata struct ctl_path ipv4_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ },
+};
 
 static struct ctl_table ipv4_route_flush_table[] = {
 	{
@@ -3134,6 +3155,13 @@ static struct ctl_table ipv4_route_flush_table[] = {
 		.strategy	= &ipv4_sysctl_rtcache_flush_strategy,
 	},
 	{ .ctl_name = 0 },
+};
+
+static __net_initdata struct ctl_path ipv4_route_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE, },
+	{ },
 };
 
 static __net_init int sysctl_route_net_init(struct net *net)
@@ -3287,7 +3315,7 @@ int __init ip_rt_init(void)
  */
 void __init ip_static_sysctl_init(void)
 {
-	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
+	register_sysctl_paths(ipv4_path, ipv4_skeleton);
 }
 #endif
 

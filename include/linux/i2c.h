@@ -97,7 +97,19 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,
 
 /**
  * struct i2c_driver - represent an I2C device driver
+ * @id: Unique driver ID (optional)
  * @class: What kind of i2c device we instantiate (for detect)
+ * @attach_adapter: Callback for bus addition (for legacy drivers)
+ * @detach_adapter: Callback for bus removal (for legacy drivers)
+ * @detach_client: Callback for device removal (for legacy drivers)
+ * @probe: Callback for device binding (new-style drivers)
+ * @remove: Callback for device unbinding (new-style drivers)
+ * @shutdown: Callback for device shutdown
+ * @suspend: Callback for device suspend
+ * @resume: Callback for device resume
+ * @command: Callback for bus-wide signaling (optional)
+ * @driver: Device driver model driver
+ * @id_table: List of I2C devices supported by this driver
  * @detect: Callback for device detection
  * @address_data: The I2C addresses to probe, ignore or force (for detect)
  * @clients: List of detected clients we created (for i2c-core use only)

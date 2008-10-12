@@ -31,7 +31,7 @@
 
 void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00_intf *intf,
-			   enum ieee80211_if_types type,
+			   enum nl80211_iftype type,
 			   u8 *mac, u8 *bssid)
 {
 	struct rt2x00intf_conf conf;
@@ -40,11 +40,11 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	conf.type = type;
 
 	switch (type) {
-	case IEEE80211_IF_TYPE_IBSS:
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
 		conf.sync = TSF_SYNC_BEACON;
 		break;
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		conf.sync = TSF_SYNC_INFRA;
 		break;
 	default:
@@ -121,7 +121,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * Antenna setup changes require the RX to be disabled,
 	 * else the changes will be ignored by the device.
 	 */
-	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
 
 	/*
@@ -136,7 +136,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
 	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
 
-	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
 }
 
@@ -245,6 +245,10 @@ config:
 		memcpy(&libconf.rf,
 		       &rt2x00dev->spec.channels[conf->channel->hw_value],
 		       sizeof(libconf.rf));
+
+		memcpy(&libconf.channel,
+		       &rt2x00dev->spec.channels_info[conf->channel->hw_value],
+		       sizeof(libconf.channel));
 	}
 
 	if (flags & CONFIG_UPDATE_ANTENNA) {

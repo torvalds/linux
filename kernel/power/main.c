@@ -21,6 +21,7 @@
 #include <linux/freezer.h>
 #include <linux/vmstat.h>
 #include <linux/syscalls.h>
+#include <linux/ftrace.h>
 
 #include "power.h"
 
@@ -310,7 +311,7 @@ static int suspend_enter(suspend_state_t state)
  */
 int suspend_devices_and_enter(suspend_state_t state)
 {
-	int error;
+	int error, ftrace_save;
 
 	if (!suspend_ops)
 		return -ENOSYS;
@@ -321,6 +322,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 			goto Close;
 	}
 	suspend_console();
+	ftrace_save = __ftrace_enabled_save();
 	suspend_test_start();
 	error = device_suspend(PMSG_SUSPEND);
 	if (error) {
@@ -352,6 +354,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	device_resume(PMSG_RESUME);
 	suspend_test_finish("resume devices");
+	__ftrace_enabled_restore(ftrace_save);
 	resume_console();
  Close:
 	if (suspend_ops->end)

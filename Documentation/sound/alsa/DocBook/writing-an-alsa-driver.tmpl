@@ -6135,44 +6135,58 @@ struct _snd_pcm_runtime {
       </para>
     </section>
 
-    <section id="useful-functions-snd-assert">
-      <title><function>snd_assert()</function></title>
-      <para>
-        <function>snd_assert()</function> macro is similar with the
-      normal <function>assert()</function> macro. For example,  
-
-        <informalexample>
-          <programlisting>
-<![CDATA[
-  snd_assert(pointer != NULL, return -EINVAL);
-]]>
-          </programlisting>
-        </informalexample>
-      </para>
-
-      <para>
-        The first argument is the expression to evaluate, and the
-      second argument is the action if it fails. When
-      <constant>CONFIG_SND_DEBUG</constant>, is set, it will show an
-      error message such as <computeroutput>BUG? (xxx)</computeroutput>
-      together with stack trace.
-      </para>
-      <para>
-	 When no debug flag is set, this macro is ignored. 
-      </para>
-    </section>
-
     <section id="useful-functions-snd-bug">
       <title><function>snd_BUG()</function></title>
       <para>
         It shows the <computeroutput>BUG?</computeroutput> message and
-      stack trace as well as <function>snd_assert</function> at the point.
+      stack trace as well as <function>snd_BUG_ON</function> at the point.
       It's useful to show that a fatal error happens there. 
       </para>
       <para>
 	 When no debug flag is set, this macro is ignored. 
       </para>
     </section>
+
+    <section id="useful-functions-snd-bug-on">
+      <title><function>snd_BUG_ON()</function></title>
+      <para>
+        <function>snd_BUG_ON()</function> macro is similar with
+	<function>WARN_ON()</function> macro. For example,  
+
+        <informalexample>
+          <programlisting>
+<![CDATA[
+  snd_BUG_ON(!pointer);
+]]>
+          </programlisting>
+        </informalexample>
+
+	or it can be used as the condition,
+        <informalexample>
+          <programlisting>
+<![CDATA[
+  if (snd_BUG_ON(non_zero_is_bug))
+          return -EINVAL;
+]]>
+          </programlisting>
+        </informalexample>
+
+      </para>
+
+      <para>
+        The macro takes an conditional expression to evaluate.
+	When <constant>CONFIG_SND_DEBUG</constant>, is set, the
+	expression is actually evaluated. If it's non-zero, it shows
+	the warning message such as
+	<computeroutput>BUG? (xxx)</computeroutput>
+	normally followed by stack trace.  It returns the evaluated
+	value.
+	When no <constant>CONFIG_SND_DEBUG</constant> is set, this
+	macro always returns zero.
+      </para>
+
+    </section>
+
   </chapter>
 
 

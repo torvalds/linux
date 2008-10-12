@@ -42,22 +42,22 @@
 typedef void (*net_ev_handler) (void *usr_handle);
 
 /**
- * struct node_subscr - "node down" subscription entry
+ * struct tipc_node_subscr - "node down" subscription entry
  * @node: ptr to node structure of interest (or NULL, if none)
  * @handle_node_down: routine to invoke when node fails
  * @usr_handle: argument to pass to routine when node fails
  * @nodesub_list: adjacent entries in list of subscriptions for the node
  */
 
-struct node_subscr {
-	struct node *node;
+struct tipc_node_subscr {
+	struct tipc_node *node;
 	net_ev_handler handle_node_down;
 	void *usr_handle;
 	struct list_head nodesub_list;
 };
 
-void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr,
+void tipc_nodesub_subscribe(struct tipc_node_subscr *node_sub, u32 addr,
 			    void *usr_handle, net_ev_handler handle_down);
-void tipc_nodesub_unsubscribe(struct node_subscr *node_sub);
+void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub);
 
 #endif

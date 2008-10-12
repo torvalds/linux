@@ -320,12 +320,12 @@ struct kvm_trace_rec {
 		struct {
 			__u64 cycle_u64;
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
-		} cycle;
+		} __attribute__((packed)) cycle;
 		struct {
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
 		} nocycle;
 	} u;
-} __attribute__((packed));
+};
 
 #define KVMIO 0xAE
 

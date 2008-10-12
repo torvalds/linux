@@ -200,9 +200,12 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 	}
 }
 
-int kprobe_trap_handler(struct pt_regs *regs, unsigned int instr)
+static int __kprobes kprobe_trap_handler(struct pt_regs *regs, unsigned int instr)
 {
+	unsigned long flags;
+	local_irq_save(flags);
 	kprobe_handler(regs);
+	local_irq_restore(flags);
 	return 0;
 }
 

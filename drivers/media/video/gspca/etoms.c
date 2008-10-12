@@ -81,6 +81,7 @@ static struct ctrl sd_ctrls[] = {
 	 .set = sd_setcontrast,
 	 .get = sd_getcontrast,
 	 },
+#define COLOR_IDX 2
 	{
 	 {
 	  .id = V4L2_CID_SATURATION,
@@ -234,7 +235,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 
 #ifdef GSPCA_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+	if (len > USB_BUF_SZ) {
 		err("reg_r: buffer overflow");
 		return;
 	}
@@ -272,7 +273,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 
 #ifdef GSPCA_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+	if (len > USB_BUF_SZ) {
 		err("reg_w: buffer overflow");
 		return;
 	}
@@ -665,6 +666,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		gspca_dev->ctrl_dis = (1 << COLOR_IDX);
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
@@ -674,8 +676,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -707,14 +709,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	et_video(gspca_dev, 0);		/* video off */
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 }
 
 static __u8 Et_getgainG(struct gspca_dev *gspca_dev)
@@ -893,21 +887,19 @@ static struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */
 static __devinitdata struct usb_device_id device_table[] = {
-#ifndef CONFIG_USB_ET61X251
 	{USB_DEVICE(0x102c, 0x6151), .driver_info = SENSOR_PAS106},
-#endif
+#if !defined CONFIG_USB_ET61X251 && !defined CONFIG_USB_ET61X251_MODULE
 	{USB_DEVICE(0x102c, 0x6251), .driver_info = SENSOR_TAS5130CXX},
+#endif
 	{}
 };
 
@@ -926,6 +918,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

@@ -146,8 +146,10 @@ static struct hw_pci kurobox_pro_pci __initdata = {
 
 static int __init kurobox_pro_pci_init(void)
 {
-	if (machine_is_kurobox_pro())
+	if (machine_is_kurobox_pro()) {
+		orion5x_pci_disable();
 		pci_common_init(&kurobox_pro_pci);
+	}
 
 	return 0;
 }
@@ -159,7 +161,7 @@ subsys_initcall(kurobox_pro_pci_init);
  ****************************************************************************/
 
 static struct mv643xx_eth_platform_data kurobox_pro_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 /*****************************************************************************
@@ -291,7 +293,7 @@ static void kurobox_pro_power_off(void)
 	const unsigned char shutdownwait[]	= {0x00, 0x0c};
 	const unsigned char poweroff[]		= {0x00, 0x06};
 	/* 38400 baud divisor */
-	const unsigned divisor = ((ORION5X_TCLK + (8 * 38400)) / (16 * 38400));
+	const unsigned divisor = ((orion5x_tclk + (8 * 38400)) / (16 * 38400));
 
 	pr_info("%s: triggering power-off...\n", __func__);
 

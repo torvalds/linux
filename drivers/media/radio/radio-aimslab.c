@@ -426,8 +426,7 @@ static int __init rtrack_init(void)
 
 	rtrack_radio.priv=&rtrack_unit;
 
-	if(video_register_device(&rtrack_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&rtrack_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 2);
 		return -EINVAL;
 	}

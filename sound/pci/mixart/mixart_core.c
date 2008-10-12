@@ -56,8 +56,10 @@ static int retrieve_msg_frame(struct mixart_mgr *mgr, u32 *msg_frame)
 	if (tailptr == headptr)
 		return 0; /* no message posted */
 
-	snd_assert( tailptr >= MSG_OUTBOUND_POST_STACK, return 0); /* error */
-	snd_assert( tailptr < (MSG_OUTBOUND_POST_STACK+MSG_BOUND_STACK_SIZE), return 0); /* error */
+	if (tailptr < MSG_OUTBOUND_POST_STACK)
+		return 0; /* error */
+	if (tailptr >= MSG_OUTBOUND_POST_STACK + MSG_BOUND_STACK_SIZE)
+		return 0; /* error */
 
 	*msg_frame = readl_be(MIXART_MEM(mgr, tailptr));
 
@@ -149,7 +151,8 @@ static int send_msg( struct mixart_mgr *mgr,
 	u32 msg_frame_address;
 	int err, i;
 
-	snd_assert(msg->size % 4 == 0, return -EINVAL);
+	if (snd_BUG_ON(msg->size % 4))
+		return -EINVAL;
 
 	err = 0;
 
@@ -289,9 +292,12 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 	wait_queue_t wait;
 	long timeout;
 
-	snd_assert(notif_event != 0, return -EINVAL);
-	snd_assert((notif_event & MSG_TYPE_MASK) == MSG_TYPE_NOTIFY, return -EINVAL);
-	snd_assert((notif_event & MSG_CANCEL_NOTIFY_MASK) == 0, return -EINVAL);
+	if (snd_BUG_ON(!notif_event))
+		return -EINVAL;
+	if (snd_BUG_ON((notif_event & MSG_TYPE_MASK) != MSG_TYPE_NOTIFY))
+		return -EINVAL;
+	if (snd_BUG_ON(notif_event & MSG_CANCEL_NOTIFY_MASK))
+		return -EINVAL;
 
 	mutex_lock(&mgr->msg_mutex);
 

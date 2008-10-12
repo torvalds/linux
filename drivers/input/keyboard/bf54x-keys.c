@@ -43,7 +43,7 @@
 #include <linux/input.h>
 
 #include <asm/portmux.h>
-#include <asm/mach/bf54x_keys.h>
+#include <mach/bf54x_keys.h>
 
 #define DRV_NAME	"bf54x-keys"
 #define TIME_SCALE	100	/* 100 ns */

@@ -16,6 +16,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
+#include <linux/marker.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -126,8 +127,7 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	JBUFFER_TRACE(descriptor, "submit commit block");
 	lock_buffer(bh);
-	get_bh(bh);
-	set_buffer_dirty(bh);
+	clear_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
 	bh->b_end_io = journal_end_buffer_io_sync;
 
@@ -147,12 +147,9 @@ static int journal_submit_commit_record(journal_t *journal,
 	 * to remember if we sent a barrier request
 	 */
 	if (ret == -EOPNOTSUPP && barrier_done) {
-		char b[BDEVNAME_SIZE];
-
 		printk(KERN_WARNING
-			"JBD: barrier-based sync failed on %s - "
-			"disabling barriers\n",
-			bdevname(journal->j_dev, b));
+		       "JBD: barrier-based sync failed on %s - "
+		       "disabling barriers\n", journal->j_devname);
 		spin_lock(&journal->j_state_lock);
 		journal->j_flags &= ~JBD2_BARRIER;
 		spin_unlock(&journal->j_state_lock);
@@ -160,7 +157,7 @@ static int journal_submit_commit_record(journal_t *journal,
 		/* And try again, without the barrier */
 		lock_buffer(bh);
 		set_buffer_uptodate(bh);
-		set_buffer_dirty(bh);
+		clear_buffer_dirty(bh);
 		ret = submit_bh(WRITE, bh);
 	}
 	*cbh = bh;
@@ -371,6 +368,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	commit_transaction = journal->j_running_transaction;
 	J_ASSERT(commit_transaction->t_state == T_RUNNING);
 
+	trace_mark(jbd2_start_commit, "dev %s transaction %d",
+		   journal->j_devname, commit_transaction->t_tid);
 	jbd_debug(1, "JBD: starting commit of transaction %d\n",
 			commit_transaction->t_tid);
 
@@ -681,11 +680,9 @@ start_journal_io:
 	 */
 	err = journal_finish_inode_data_buffers(journal, commit_transaction);
 	if (err) {
-		char b[BDEVNAME_SIZE];
-
 		printk(KERN_WARNING
 			"JBD2: Detected IO errors while flushing file data "
-			"on %s\n", bdevname(journal->j_fs_dev, b));
+		       "on %s\n", journal->j_devname);
 		err = 0;
 	}
 
@@ -990,6 +987,9 @@ restart_loop:
 	}
 	spin_unlock(&journal->j_list_lock);
 
+	trace_mark(jbd2_end_commit, "dev %s transaction %d head %d",
+		   journal->j_devname, commit_transaction->t_tid,
+		   journal->j_tail_sequence);
 	jbd_debug(1, "JBD: commit %d complete, head %d\n",
 		  journal->j_commit_sequence, journal->j_tail_sequence);
 

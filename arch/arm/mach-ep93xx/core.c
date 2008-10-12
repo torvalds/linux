@@ -32,6 +32,7 @@
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/io.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -41,7 +42,6 @@
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
-#include <asm/io.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -157,7 +157,7 @@ static unsigned char gpio_int_type2[3];
 static const u8 int_type1_register_offset[3]	= { 0x90, 0xac, 0x4c };
 static const u8 int_type2_register_offset[3]	= { 0x94, 0xb0, 0x50 };
 static const u8 eoi_register_offset[3]		= { 0x98, 0xb4, 0x54 };
-static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x5c };
+static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x58 };
 
 void ep93xx_gpio_update_int_params(unsigned port)
 {
@@ -192,8 +192,7 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 	for (i = 0; i < 8; i++) {
 		if (status & (1 << i)) {
 			int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_A(0)) + i;
-			desc = irq_desc + gpio_irq;
-			desc_handle_irq(gpio_irq, desc);
+			generic_handle_irq(gpio_irq);
 		}
 	}
 
@@ -202,7 +201,7 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (status & (1 << i)) {
 			int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_B(0)) + i;
 			desc = irq_desc + gpio_irq;
-			desc_handle_irq(gpio_irq, desc);
+			generic_handle_irq(gpio_irq);
 		}
 	}
 }
@@ -217,7 +216,7 @@ static void ep93xx_gpio_f_irq_handler(unsigned int irq, struct irq_desc *desc)
 	int port_f_idx = ((irq + 1) & 7) ^ 4; /* {19..22,47..50} -> {0..7} */
 	int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_F(0)) + port_f_idx;
 
-	desc_handle_irq(gpio_irq, irq_desc + gpio_irq);
+	generic_handle_irq(gpio_irq);
 }
 
 static void ep93xx_gpio_irq_ack(unsigned int irq)
@@ -460,6 +459,41 @@ static struct platform_device ep93xx_ohci_device = {
 	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
 	.resource	= ep93xx_ohci_resources,
 };
+
+static struct ep93xx_eth_data ep93xx_eth_data;
+
+static struct resource ep93xx_eth_resource[] = {
+	{
+		.start	= EP93XX_ETHERNET_PHYS_BASE,
+		.end	= EP93XX_ETHERNET_PHYS_BASE + 0xffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_EP93XX_ETHERNET,
+		.end	= IRQ_EP93XX_ETHERNET,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device ep93xx_eth_device = {
+	.name		= "ep93xx-eth",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ep93xx_eth_data,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_eth_resource),
+	.resource	= ep93xx_eth_resource,
+};
+
+void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
+{
+	if (copy_addr) {
+		memcpy(data->dev_addr,
+			(void *)(EP93XX_ETHERNET_BASE + 0x50), 6);
+	}
+
+	ep93xx_eth_data = *data;
+	platform_device_register(&ep93xx_eth_device);
+}
 
 extern void ep93xx_gpio_init(void);
 

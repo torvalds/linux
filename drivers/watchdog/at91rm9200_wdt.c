@@ -241,7 +241,7 @@ static int at91wdt_resume(struct platform_device *pdev)
 {
 	if (at91wdt_busy)
 		at91_wdt_start();
-		return 0;
+	return 0;
 }
 
 #else

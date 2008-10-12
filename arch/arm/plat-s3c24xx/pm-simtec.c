@@ -20,12 +20,12 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>

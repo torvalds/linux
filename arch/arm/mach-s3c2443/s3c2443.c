@@ -20,13 +20,13 @@
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #include <mach/regs-s3c2443-clock.h>

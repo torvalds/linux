@@ -9,7 +9,7 @@
 #include <asm/time.h>
 #include <linux/ioport.h>
 
-#include <asm/mach-rc32434/rc32434.h>
+#include <asm/mach-rc32434/rb.h>
 #include <asm/mach-rc32434/pci.h>
 
 struct pci_reg __iomem *pci_reg;
@@ -27,7 +27,7 @@ static struct resource pci0_res[] = {
 static void rb_machine_restart(char *command)
 {
 	/* just jump to the reset vector */
-	writel(0x80000001, (void *)KSEG1ADDR(RC32434_REG_BASE + RC32434_RST));
+	writel(0x80000001, IDT434_REG_BASE + RST);
 	((void (*)(void)) KSEG1ADDR(0x1FC00000u))();
 }
 

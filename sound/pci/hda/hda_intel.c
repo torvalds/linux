@@ -222,9 +222,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define RIRB_INT_OVERRUN	0x04
 #define RIRB_INT_MASK		0x05
 
-/* STATESTS int mask: SD2,SD1,SD0 */
-#define AZX_MAX_CODECS		3
-#define STATESTS_INT_MASK	0x07
+/* STATESTS int mask: S3,SD2,SD1,SD0 */
+#define AZX_MAX_CODECS		4
+#define STATESTS_INT_MASK	0x0f
 
 /* SD_CTL bits */
 #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
@@ -286,6 +286,11 @@ enum {
 #define INTEL_SCH_HDA_DEVC      0x78
 #define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
 
+/* Define IN stream 0 FIFO size offset in VIA controller */
+#define VIA_IN_STREAM0_FIFO_SIZE_OFFSET	0x90
+/* Define VIA HD Audio Device ID*/
+#define VIA_HDAC_DEVICE_ID		0x3288
+
 
 /*
  */
@@ -317,6 +322,12 @@ struct azx_dev {
 	unsigned int running :1;
 	unsigned int irq_pending :1;
 	unsigned int irq_ignore :1;
+	/*
+	 * For VIA:
+	 *  A flag to ensure DMA position is 0
+	 *  when link position is not greater than FIFO size
+	 */
+	unsigned int insufficient :1;
 };
 
 /* CORB/RIRB */
@@ -379,6 +390,7 @@ struct azx {
 	unsigned int polling_mode :1;
 	unsigned int msi :1;
 	unsigned int irq_pending_warned :1;
+	unsigned int via_dmapos_patch :1; /* enable DMA-position fix for VIA */
 
 	/* for debugging */
 	unsigned int last_cmd;	/* last issued command (to sync) */
@@ -398,6 +410,7 @@ enum {
 	AZX_DRIVER_ULI,
 	AZX_DRIVER_NVIDIA,
 	AZX_DRIVER_TERA,
+	AZX_NUM_DRIVERS, /* keep this as last entry */
 };
 
 static char *driver_short_names[] __devinitdata = {
@@ -818,6 +831,11 @@ static void azx_int_clear(struct azx *chip)
 /* start a stream */
 static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 {
+	/*
+	 * Before stream start, initialize parameter
+	 */
+	azx_dev->insufficient = 1;
+
 	/* enable SIE */
 	azx_writeb(chip, INTCTL,
 		   azx_readb(chip, INTCTL) | (1 << azx_dev->index));
@@ -998,7 +1016,6 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 		      struct azx_dev *azx_dev, u32 **bdlp,
 		      int ofs, int size, int with_ioc)
 {
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 	u32 *bdl = *bdlp;
 
 	while (size > 0) {
@@ -1008,14 +1025,12 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 		if (azx_dev->frags >= AZX_MAX_BDL_ENTRIES)
 			return -EINVAL;
 
-		addr = snd_pcm_sgbuf_get_addr(sgbuf, ofs);
+		addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 		/* program the address field of the BDL entry */
 		bdl[0] = cpu_to_le32((u32)addr);
 		bdl[1] = cpu_to_le32(upper_32_bits(addr));
 		/* program the size field of the BDL entry */
-		chunk = PAGE_SIZE - (ofs % PAGE_SIZE);
-		if (size < chunk)
-			chunk = size;
+		chunk = snd_pcm_sgbuf_get_chunk_size(substream, ofs, size);
 		bdl[2] = cpu_to_le32(chunk);
 		/* program the IOC to enable interrupt
 		 * only when the whole fragment is processed
@@ -1151,7 +1166,8 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 
 	/* enable the position buffer */
 	if (chip->position_fix == POS_FIX_POSBUF ||
-	    chip->position_fix == POS_FIX_AUTO) {
+	    chip->position_fix == POS_FIX_AUTO ||
+	    chip->via_dmapos_patch) {
 		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
 				(u32)chip->posbuf.addr | ICH6_DPLBASE_ENABLE);
@@ -1169,16 +1185,18 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
  * Codec initialization
  */
 
-static unsigned int azx_max_codecs[] __devinitdata = {
-	[AZX_DRIVER_ICH] = 4,		/* Some ICH9 boards use SD3 */
-	[AZX_DRIVER_SCH] = 3,
-	[AZX_DRIVER_ATI] = 4,
-	[AZX_DRIVER_ATIHDMI] = 4,
-	[AZX_DRIVER_VIA] = 3,		/* FIXME: correct? */
-	[AZX_DRIVER_SIS] = 3,		/* FIXME: correct? */
-	[AZX_DRIVER_ULI] = 3,		/* FIXME: correct? */
-	[AZX_DRIVER_NVIDIA] = 3,	/* FIXME: correct? */
+/* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
+static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 	[AZX_DRIVER_TERA] = 1,
+};
+
+/* number of slots to probe as default
+ * this can be different from azx_max_codecs[] -- e.g. some boards
+ * report wrongly the non-existing 4th slot availability
+ */
+static unsigned int azx_default_codecs[AZX_NUM_DRIVERS] __devinitdata = {
+	[AZX_DRIVER_ICH] = 3,
+	[AZX_DRIVER_ATI] = 3,
 };
 
 static int __devinit azx_codec_create(struct azx *chip, const char *model,
@@ -1186,6 +1204,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, audio_codecs, err;
+	int def_slots, max_slots;
 
 	memset(&bus_temp, 0, sizeof(bus_temp));
 	bus_temp.private_data = chip;
@@ -1201,8 +1220,17 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	if (err < 0)
 		return err;
 
+	if (chip->driver_type == AZX_DRIVER_NVIDIA)
+		chip->bus->needs_damn_long_delay = 1;
+
 	codecs = audio_codecs = 0;
-	for (c = 0; c < AZX_MAX_CODECS; c++) {
+	max_slots = azx_max_codecs[chip->driver_type];
+	if (!max_slots)
+		max_slots = AZX_MAX_CODECS;
+	def_slots = azx_default_codecs[chip->driver_type];
+	if (!def_slots)
+		def_slots = max_slots;
+	for (c = 0; c < def_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 			struct hda_codec *codec;
 			err = snd_hda_codec_new(chip->bus, c, &codec);
@@ -1215,7 +1243,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	}
 	if (!audio_codecs) {
 		/* probe additional slots if no codec is found */
-		for (; c < azx_max_codecs[chip->driver_type]; c++) {
+		for (; c < max_slots; c++) {
 			if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 				err = snd_hda_codec_new(chip->bus, c, NULL);
 				if (err < 0)
@@ -1507,13 +1535,71 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
+/* get the current DMA position with correction on VIA chips */
+static unsigned int azx_via_get_position(struct azx *chip,
+					 struct azx_dev *azx_dev)
+{
+	unsigned int link_pos, mini_pos, bound_pos;
+	unsigned int mod_link_pos, mod_dma_pos, mod_mini_pos;
+	unsigned int fifo_size;
+
+	link_pos = azx_sd_readl(azx_dev, SD_LPIB);
+	if (azx_dev->index >= 4) {
+		/* Playback, no problem using link position */
+		return link_pos;
+	}
+
+	/* Capture */
+	/* For new chipset,
+	 * use mod to get the DMA position just like old chipset
+	 */
+	mod_dma_pos = le32_to_cpu(*azx_dev->posbuf);
+	mod_dma_pos %= azx_dev->period_bytes;
+
+	/* azx_dev->fifo_size can't get FIFO size of in stream.
+	 * Get from base address + offset.
+	 */
+	fifo_size = readw(chip->remap_addr + VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
+
+	if (azx_dev->insufficient) {
+		/* Link position never gather than FIFO size */
+		if (link_pos <= fifo_size)
+			return 0;
+
+		azx_dev->insufficient = 0;
+	}
+
+	if (link_pos <= fifo_size)
+		mini_pos = azx_dev->bufsize + link_pos - fifo_size;
+	else
+		mini_pos = link_pos - fifo_size;
+
+	/* Find nearest previous boudary */
+	mod_mini_pos = mini_pos % azx_dev->period_bytes;
+	mod_link_pos = link_pos % azx_dev->period_bytes;
+	if (mod_link_pos >= fifo_size)
+		bound_pos = link_pos - mod_link_pos;
+	else if (mod_dma_pos >= mod_mini_pos)
+		bound_pos = mini_pos - mod_mini_pos;
+	else {
+		bound_pos = mini_pos - mod_mini_pos + azx_dev->period_bytes;
+		if (bound_pos >= azx_dev->bufsize)
+			bound_pos = 0;
+	}
+
+	/* Calculate real DMA position we want */
+	return bound_pos + mod_dma_pos;
+}
+
 static unsigned int azx_get_position(struct azx *chip,
 				     struct azx_dev *azx_dev)
 {
 	unsigned int pos;
 
-	if (chip->position_fix == POS_FIX_POSBUF ||
-	    chip->position_fix == POS_FIX_AUTO) {
+	if (chip->via_dmapos_patch)
+		pos = azx_via_get_position(chip, azx_dev);
+	else if (chip->position_fix == POS_FIX_POSBUF ||
+		 chip->position_fix == POS_FIX_AUTO) {
 		/* use the position buffer */
 		pos = le32_to_cpu(*azx_dev->posbuf);
 	} else {
@@ -1559,6 +1645,8 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 			chip->position_fix = POS_FIX_POSBUF;
 	}
 
+	if (!bdl_pos_adj[chip->dev_index])
+		return 1; /* no delayed ack */
 	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
 		return 0; /* NG - it's below the period boundary */
 	return 1; /* OK, it's fine */
@@ -1646,7 +1734,8 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 	if (!cpcm->stream[0].substreams && !cpcm->stream[1].substreams)
 		return 0;
 
-	snd_assert(cpcm->name, return -EINVAL);
+	if (snd_BUG_ON(!cpcm->name))
+		return -EINVAL;
 
 	err = snd_pcm_new(chip->card, cpcm->name, cpcm->device,
 			  cpcm->stream[0].substreams,
@@ -1670,7 +1759,7 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &azx_pcm_ops);
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      1024 * 64, 1024 * 1024);
+					      1024 * 64, 32 * 1024 * 1024);
 	chip->pcm[cpcm->device] = pcm;
 	return 0;
 }
@@ -1945,6 +2034,15 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 static int __devinit check_position_fix(struct azx *chip, int fix)
 {
 	const struct snd_pci_quirk *q;
+
+	/* Check VIA HD Audio Controller exist */
+	if (chip->pci->vendor == PCI_VENDOR_ID_VIA &&
+	    chip->pci->device == VIA_HDAC_DEVICE_ID) {
+		chip->via_dmapos_patch = 1;
+		/* Use link position directly, avoid any transfer problem. */
+		return POS_FIX_LPIB;
+	}
+	chip->via_dmapos_patch = 0;
 
 	if (fix == POS_FIX_AUTO) {
 		q = snd_pci_quirk_lookup(chip->pci, position_fix_list);

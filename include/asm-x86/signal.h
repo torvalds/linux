@@ -140,6 +140,9 @@ struct sigaction {
 struct k_sigaction {
 	struct sigaction sa;
 };
+
+extern void do_notify_resume(struct pt_regs *, void *, __u32);
+
 # else /* __KERNEL__ */
 /* Here we must cater to libcs that poke about in kernel headers.  */
 

@@ -46,6 +46,8 @@ static inline int native_set_wallclock(unsigned long nowtime)
 
 #endif
 
+extern void time_init(void);
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else /* !CONFIG_PARAVIRT */

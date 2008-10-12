@@ -67,7 +67,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 		return 0;
 	}
 	/* Print device number. */
-	seq_printf(m, "%s", device->cdev->dev.bus_id);
+	seq_printf(m, "%s", dev_name(&device->cdev->dev));
 	/* Print discipline string. */
 	if (device != NULL && device->discipline != NULL)
 		seq_printf(m, "(%s)", device->discipline->name);
@@ -76,7 +76,8 @@ dasd_devices_show(struct seq_file *m, void *v)
 	/* Print kdev. */
 	if (block->gdp)
 		seq_printf(m, " at (%3d:%6d)",
-			   block->gdp->major, block->gdp->first_minor);
+			   MAJOR(disk_devt(block->gdp)),
+			   MINOR(disk_devt(block->gdp)));
 	else
 		seq_printf(m, "  at (???:??????)");
 	/* Print device name. */

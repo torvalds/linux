@@ -28,7 +28,7 @@
 #endif
 
 #include <asm/gpio.h>
-#include <asm/mach/bfin_serial_5xx.h>
+#include <mach/bfin_serial_5xx.h>
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
 #include <linux/dma-mapping.h>

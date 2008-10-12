@@ -405,8 +405,7 @@ static int __init terratec_init(void)
 
 	spin_lock_init(&lock);
 
-	if(video_register_device(&terratec_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&terratec_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io,2);
 		return -EINVAL;
 	}

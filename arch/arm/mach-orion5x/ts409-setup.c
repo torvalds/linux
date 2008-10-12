@@ -278,6 +278,10 @@ static void __init qnap_ts409_init(void)
 	/*
 	 * Configure peripherals.
 	 */
+	orion5x_setup_dev_boot_win(QNAP_TS409_NOR_BOOT_BASE,
+				   QNAP_TS409_NOR_BOOT_SIZE);
+	platform_device_register(&qnap_ts409_nor_flash);
+
 	orion5x_ehci0_init();
 	qnap_tsx09_find_mac_addr(QNAP_TS409_NOR_BOOT_BASE +
 				 qnap_ts409_partitions[5].offset,
@@ -285,10 +289,7 @@ static void __init qnap_ts409_init(void)
 	orion5x_eth_init(&qnap_tsx09_eth_data);
 	orion5x_i2c_init();
 	orion5x_uart0_init();
-
-	orion5x_setup_dev_boot_win(QNAP_TS409_NOR_BOOT_BASE,
-				   QNAP_TS409_NOR_BOOT_SIZE);
-	platform_device_register(&qnap_ts409_nor_flash);
+	orion5x_uart1_init();
 
 	platform_device_register(&qnap_ts409_button_device);
 

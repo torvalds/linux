@@ -161,6 +161,16 @@ static int fsg_led_probe(struct platform_device *pdev)
 {
 	int ret;
 
+	/* Map the LED chip select address space */
+	latch_address = (unsigned short *) ioremap(IXP4XX_EXP_BUS_BASE(2), 512);
+	if (!latch_address) {
+		ret = -ENOMEM;
+		goto failremap;
+	}
+
+	latch_value = 0xffff;
+	*latch_address = latch_value;
+
 	ret = led_classdev_register(&pdev->dev, &fsg_wlan_led);
 	if (ret < 0)
 		goto failwlan;
@@ -185,20 +195,8 @@ static int fsg_led_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto failring;
 
-	/* Map the LED chip select address space */
-	latch_address = (unsigned short *) ioremap(IXP4XX_EXP_BUS_BASE(2), 512);
-	if (!latch_address) {
-		ret = -ENOMEM;
-		goto failremap;
-	}
-
-	latch_value = 0xffff;
-	*latch_address = latch_value;
-
 	return ret;
 
- failremap:
-	led_classdev_unregister(&fsg_ring_led);
  failring:
 	led_classdev_unregister(&fsg_sync_led);
  failsync:
@@ -210,20 +208,22 @@ static int fsg_led_probe(struct platform_device *pdev)
  failwan:
 	led_classdev_unregister(&fsg_wlan_led);
  failwlan:
+	iounmap(latch_address);
+ failremap:
 
 	return ret;
 }
 
 static int fsg_led_remove(struct platform_device *pdev)
 {
-	iounmap(latch_address);
-
 	led_classdev_unregister(&fsg_wlan_led);
 	led_classdev_unregister(&fsg_wan_led);
 	led_classdev_unregister(&fsg_sata_led);
 	led_classdev_unregister(&fsg_usb_led);
 	led_classdev_unregister(&fsg_sync_led);
 	led_classdev_unregister(&fsg_ring_led);
+
+	iounmap(latch_address);
 
 	return 0;
 }

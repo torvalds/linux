@@ -54,6 +54,11 @@ extern int disable_apic;
 #endif
 
 extern int is_vsmp_box(void);
+extern void xapic_wait_icr_idle(void);
+extern u32 safe_xapic_wait_icr_idle(void);
+extern u64 xapic_icr_read(void);
+extern void xapic_icr_write(u32, u32);
+extern int setup_profiling_timer(unsigned int);
 
 static inline void native_apic_mem_write(u32 reg, u32 v)
 {
@@ -129,9 +134,7 @@ static inline void ack_x2APIC_irq(void)
 static inline void ack_APIC_irq(void)
 {
 	/*
-	 * ack_APIC_irq() actually gets compiled as a single instruction:
-	 * - a single rmw on Pentium/82489DX
-	 * - a single write on P6+ cores (CONFIG_X86_GOOD_APIC)
+	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
 	 */
 

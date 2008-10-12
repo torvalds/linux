@@ -400,27 +400,31 @@ static void drm_locked_tasklet_func(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	unsigned long irqflags;
-
+	void (*tasklet_func)(struct drm_device *);
+	
 	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+	tasklet_func = dev->locked_tasklet_func;
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
 
-	if (!dev->locked_tasklet_func ||
+	if (!tasklet_func ||
 	    !drm_lock_take(&dev->lock,
 			   DRM_KERNEL_CONTEXT)) {
-		spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
 		return;
 	}
 
 	dev->lock.lock_time = jiffies;
 	atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
 
-	dev->locked_tasklet_func(dev);
+	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+	tasklet_func = dev->locked_tasklet_func;
+	dev->locked_tasklet_func = NULL;
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+	
+	if (tasklet_func != NULL)
+		tasklet_func(dev);
 
 	drm_lock_free(&dev->lock,
 		      DRM_KERNEL_CONTEXT);
-
-	dev->locked_tasklet_func = NULL;
-
-	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
 }
 
 /**

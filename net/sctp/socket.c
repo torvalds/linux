@@ -2309,7 +2309,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	/* If an address other than INADDR_ANY is specified, and
 	 * no transport is found, then the request is invalid.
 	 */
-	if (!sctp_is_any(( union sctp_addr *)&params.spp_address)) {
+	if (!sctp_is_any(sk, ( union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans)
@@ -3086,6 +3086,7 @@ static int sctp_setsockopt_hmac_ident(struct sock *sk,
 				    int optlen)
 {
 	struct sctp_hmacalgo *hmacs;
+	u32 idents;
 	int err;
 
 	if (!sctp_auth_enable)
@@ -3103,8 +3104,9 @@ static int sctp_setsockopt_hmac_ident(struct sock *sk,
 		goto out;
 	}
 
-	if (hmacs->shmac_num_idents == 0 ||
-	    hmacs->shmac_num_idents > SCTP_AUTH_NUM_HMACS) {
+	idents = hmacs->shmac_num_idents;
+	if (idents == 0 || idents > SCTP_AUTH_NUM_HMACS ||
+	    (idents * sizeof(u16)) > (optlen - sizeof(struct sctp_hmacalgo))) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -3141,6 +3143,11 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 
 	if (copy_from_user(authkey, optval, optlen)) {
 		ret = -EFAULT;
+		goto out;
+	}
+
+	if (authkey->sca_keylength > optlen - sizeof(struct sctp_authkey)) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -4055,7 +4062,7 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 	/* If an address other than INADDR_ANY is specified, and
 	 * no transport is found, then the request is invalid.
 	 */
-	if (!sctp_is_any(( union sctp_addr *)&params.spp_address)) {
+	if (!sctp_is_any(sk, ( union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans) {
@@ -4407,7 +4414,7 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a)) {
+		if (sctp_is_any(sk, &addr->a)) {
 			rcu_read_lock();
 			list_for_each_entry_rcu(addr,
 						&sctp_local_addr_list, list) {
@@ -4595,7 +4602,7 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a)) {
+		if (sctp_is_any(sk, &addr->a)) {
 			cnt = sctp_copy_laddrs_old(sk, bp->port,
 						   getaddrs.addr_num,
 						   addrs, &bytes_copied);
@@ -4688,7 +4695,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	if (sctp_list_single_entry(&bp->address_list)) {
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
-		if (sctp_is_any(&addr->a)) {
+		if (sctp_is_any(sk, &addr->a)) {
 			cnt = sctp_copy_laddrs(sk, bp->port, addrs,
 						space_left, &bytes_copied);
 			if (cnt < 0) {

@@ -18,15 +18,8 @@
 #ifndef _LINUX_NET_H
 #define _LINUX_NET_H
 
-#include <linux/wait.h>
 #include <linux/socket.h>
-#include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
 #include <asm/socket.h>
-
-struct poll_table_struct;
-struct pipe_inode_info;
-struct inode;
-struct net;
 
 #define NPROTO		AF_MAX
 
@@ -62,6 +55,13 @@ typedef enum {
 #ifdef __KERNEL__
 #include <linux/stringify.h>
 #include <linux/random.h>
+#include <linux/wait.h>
+#include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
+
+struct poll_table_struct;
+struct pipe_inode_info;
+struct inode;
+struct net;
 
 #define SOCK_ASYNC_NOSPACE	0
 #define SOCK_ASYNC_WAITDATA	1

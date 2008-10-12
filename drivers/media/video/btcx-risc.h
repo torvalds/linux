@@ -23,7 +23,7 @@ int btcx_screen_clips(int swidth, int sheight, struct v4l2_rect *win,
 int btcx_align(struct v4l2_rect *win, struct v4l2_clip *clips,
 	       unsigned int n, int mask);
 void btcx_sort_clips(struct v4l2_clip *clips, unsigned int nclips);
-void btcx_calc_skips(int line, int width, unsigned int *maxy,
+void btcx_calc_skips(int line, int width, int *maxy,
 		     struct btcx_skiplist *skips, unsigned int *nskips,
 		     const struct v4l2_clip *clips, unsigned int nclips);
 

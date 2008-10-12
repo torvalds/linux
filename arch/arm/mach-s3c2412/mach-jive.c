@@ -395,7 +395,7 @@ static void jive_lcd_spi_chipselect(struct s3c2410_spigpio_info *spi, int cs)
 }
 
 static struct s3c2410_spigpio_info jive_lcd_spi = {
-	.bus_num	= 0,
+	.bus_num	= 1,
 	.pin_clk	= S3C2410_GPG8,
 	.pin_mosi	= S3C2410_GPB8,
 	.chip_select	= jive_lcd_spi_chipselect,

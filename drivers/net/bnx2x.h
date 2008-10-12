@@ -151,6 +151,8 @@ struct sw_rx_page {
 #define PAGES_PER_SGE_SHIFT		0
 #define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
 
+#define BCM_RX_ETH_PAYLOAD_ALIGN	64
+
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES		2
 #define RX_SGE_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_sge))
@@ -271,7 +273,7 @@ struct bnx2x_fastpath {
 			 (fp->tx_pkt_prod != fp->tx_pkt_cons))
 
 #define BNX2X_HAS_RX_WORK(fp) \
-			(fp->rx_comp_cons != le16_to_cpu(*fp->rx_cons_sb))
+			(fp->rx_comp_cons != rx_cons_sb)
 
 #define BNX2X_HAS_WORK(fp)	(BNX2X_HAS_RX_WORK(fp) || BNX2X_HAS_TX_WORK(fp))
 
@@ -750,8 +752,7 @@ struct bnx2x {
 
 	u32			rx_csum;
 	u32			rx_offset;
-	u32			rx_buf_use_size;	/* useable size */
-	u32			rx_buf_size;		/* with alignment */
+	u32			rx_buf_size;
 #define ETH_OVREHEAD			(ETH_HLEN + 8)	/* 8 for CRC + VLAN */
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500

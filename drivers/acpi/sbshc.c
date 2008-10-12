@@ -107,6 +107,13 @@ static int wait_transaction_complete(struct acpi_smb_hc *hc, int timeout)
 	if (wait_event_timeout(hc->wait, smb_check_done(hc),
 			       msecs_to_jiffies(timeout)))
 		return 0;
+	/*
+	 * After the timeout happens, OS will try to check the status of SMbus.
+	 * If the status is what OS expected, it will be regarded as the bogus
+	 * timeout.
+	 */
+	if (smb_check_done(hc))
+		return 0;
 	else
 		return -ETIME;
 }

@@ -309,6 +309,20 @@ struct scsi_lun {
 };
 
 /*
+ * The Well Known LUNS (SAM-3) in our int representation of a LUN
+ */
+#define SCSI_W_LUN_BASE 0xc100
+#define SCSI_W_LUN_REPORT_LUNS (SCSI_W_LUN_BASE + 1)
+#define SCSI_W_LUN_ACCESS_CONTROL (SCSI_W_LUN_BASE + 2)
+#define SCSI_W_LUN_TARGET_LOG_PAGE (SCSI_W_LUN_BASE + 3)
+
+static inline int scsi_is_wlun(unsigned int lun)
+{
+	return (lun & 0xff00) == SCSI_W_LUN_BASE;
+}
+
+
+/*
  *  MESSAGE CODES
  */
 

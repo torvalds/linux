@@ -52,20 +52,24 @@ endif
 export INIT_Y CORE_Y DRIVERS_Y NET_Y LIBS_Y HEAD_Y kallsyms.o
 
 # Default target
-all: image
+all: zImage
 
 boot := arch/sparc/boot
 
-image tftpboot.img: vmlinux
+image zImage tftpboot.img: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+
+# This is the image used for packaging
+KBUILD_IMAGE := $(boot)/zImage
 
 CLEAN_FILES += arch/$(ARCH)/boot/System.map
 
 # Don't use tabs in echo arguments.
 define archhelp
   echo  '* image        - kernel image ($(boot)/image)'
+  echo  '* zImage       - stripped kernel image ($(boot)/zImage)'
   echo  '  tftpboot.img - image prepared for tftp'
 endef

@@ -52,8 +52,10 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	printk(KERN_WARNING "cio: orb:\n");
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
 		       orb, sizeof(*orb), 0);
-	printk(KERN_WARNING "cio: ccw device bus id: %s\n", cdev->dev.bus_id);
-	printk(KERN_WARNING "cio: subchannel bus id: %s\n", sch->dev.bus_id);
+	printk(KERN_WARNING "cio: ccw device bus id: %s\n",
+	       dev_name(&cdev->dev));
+	printk(KERN_WARNING "cio: subchannel bus id: %s\n",
+	       dev_name(&sch->dev));
 	printk(KERN_WARNING "cio: subchannel lpm: %02x, opm: %02x, "
 	       "vpm: %02x\n", sch->lpm, sch->opm, sch->vpm);
 
@@ -658,6 +660,13 @@ ccw_device_offline(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
+	/* Allow ccw_device_offline while disconnected. */
+	if (cdev->private->state == DEV_STATE_DISCONNECTED ||
+	    cdev->private->state == DEV_STATE_NOT_OPER) {
+		cdev->private->flags.donotify = 0;
+		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
+		return 0;
+	}
 	if (ccw_device_is_orphan(cdev)) {
 		ccw_device_done(cdev, DEV_STATE_OFFLINE);
 		return 0;

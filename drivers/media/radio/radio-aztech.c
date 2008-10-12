@@ -394,8 +394,7 @@ static int __init aztech_init(void)
 	mutex_init(&lock);
 	aztech_radio.priv=&aztech_unit;
 
-	if(video_register_device(&aztech_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&aztech_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io,2);
 		return -EINVAL;
 	}

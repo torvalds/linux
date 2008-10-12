@@ -231,6 +231,7 @@ endmenu
 
 config NUMA
 	bool "NUMA support"
+	depends on SMP
 
 config NODES_SHIFT
 	int
