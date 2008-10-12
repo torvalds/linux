@@ -172,8 +172,8 @@ SECTIONS
   .x86_cpu_dev.init : AT(ADDR(.x86_cpu_dev.init) - LOAD_OFFSET) {
 	*(.x86_cpu_dev.init)
   }
-  SECURITY_INIT
   __x86_cpu_dev_end = .;
+  SECURITY_INIT
 
   . = ALIGN(8);
   .parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {

@@ -1452,7 +1452,8 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
-void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
+void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
+					 int error_code, int si_code)
 {
 	struct siginfo info;
 
@@ -1461,7 +1462,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = SIGTRAP;
-	info.si_code = TRAP_BRKPT;
+	info.si_code = si_code;
 
 	/* User-mode ip? */
 	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->ip : NULL;
@@ -1548,5 +1549,5 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 	 */
 	if (test_thread_flag(TIF_SINGLESTEP) &&
 	    tracehook_consider_fatal_signal(current, SIGTRAP, SIG_DFL))
-		send_sigtrap(current, regs, 0);
+		send_sigtrap(current, regs, 0, TRAP_BRKPT);
 }

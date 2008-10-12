@@ -1,6 +1,8 @@
 #ifndef ASM_X86__TRAPS_H
 #define ASM_X86__TRAPS_H
 
+#include <asm/debugreg.h>
+
 /* Common in X86_32 and X86_64 */
 asmlinkage void divide_error(void);
 asmlinkage void debug(void);
@@ -35,6 +37,16 @@ void do_alignment_check(struct pt_regs *, long);
 void do_invalid_op(struct pt_regs *, long);
 void do_general_protection(struct pt_regs *, long);
 void do_nmi(struct pt_regs *, long);
+
+static inline int get_si_code(unsigned long condition)
+{
+	if (condition & DR_STEP)
+		return TRAP_TRACE;
+	else if (condition & (DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3))
+		return TRAP_HWBKPT;
+	else
+		return TRAP_BRKPT;
+}
 
 extern int panic_on_unrecovered_nmi;
 extern int kstack_depth_to_print;

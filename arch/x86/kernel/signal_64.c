@@ -52,6 +52,16 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
 
+#define COPY(x)			{		\
+	err |= __get_user(regs->x, &sc->x);	\
+}
+
+#define COPY_SEG_STRICT(seg)	{			\
+		unsigned short tmp;			\
+		err |= __get_user(tmp, &sc->seg);	\
+		regs->seg = tmp | 3;			\
+}
+
 /*
  * Do a signal return; undo the signal stack.
  */
@@ -59,12 +69,12 @@ static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 		   unsigned long *pax)
 {
+	void __user *buf;
+	unsigned int tmpflags;
 	unsigned int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-#define COPY(x)		(err |= __get_user(regs->x, &sc->x))
 
 	COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
 	COPY(dx); COPY(cx); COPY(ip);
@@ -80,34 +90,24 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	/* Kernel saves and restores only the CS segment register on signals,
 	 * which is the bare minimum needed to allow mixed 32/64-bit code.
 	 * App's signal handler can save/restore other segments if needed. */
-	{
-		unsigned cs;
-		err |= __get_user(cs, &sc->cs);
-		regs->cs = cs | 3;	/* Force into user mode */
-	}
+	COPY_SEG_STRICT(cs);
 
-	{
-		unsigned int tmpflags;
-		err |= __get_user(tmpflags, &sc->flags);
-		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
-		regs->orig_ax = -1;		/* disable syscall checks */
-	}
+	err |= __get_user(tmpflags, &sc->flags);
+	regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
+	regs->orig_ax = -1;		/* disable syscall checks */
 
-	{
-		struct _fpstate __user *buf;
-		err |= __get_user(buf, &sc->fpstate);
-		err |= restore_i387_xstate(buf);
-	}
+	err |= __get_user(buf, &sc->fpstate);
+	err |= restore_i387_xstate(buf);
 
 	err |= __get_user(*pax, &sc->ax);
 	return err;
 }
 
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+static long do_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
-	sigset_t set;
 	unsigned long ax;
+	sigset_t set;
 
 	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -130,8 +130,13 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	return ax;
 
 badframe:
-	signal_fault(regs, frame, "sigreturn");
+	signal_fault(regs, frame, "rt_sigreturn");
 	return 0;
+}
+
+asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+{
+	return do_rt_sigreturn(regs);
 }
 
 /*
@@ -195,8 +200,8 @@ get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
 	return (void __user *)round_down(sp - size, 64);
 }
 
-static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			   sigset_t *set, struct pt_regs *regs)
+static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			    sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	void __user *fp = NULL;
@@ -209,17 +214,16 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
 
 		if (save_i387_xstate(fp) < 0)
-			err |= -1;
+			return -EFAULT;
 	} else
 		frame = get_stack(ka, regs, sizeof(struct rt_sigframe)) - 8;
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	if (ka->sa.sa_flags & SA_SIGINFO) {
-		err |= copy_siginfo_to_user(&frame->info, info);
-		if (err)
-			goto give_sigsegv;
+		if (copy_siginfo_to_user(&frame->info, info))
+			return -EFAULT;
 	}
 
 	/* Create the ucontext.  */
@@ -247,11 +251,11 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
 	} else {
 		/* could use a vstub here */
-		goto give_sigsegv;
+		return -EFAULT;
 	}
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->di = sig;
@@ -271,15 +275,45 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->cs = __USER_CS;
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 /*
  * OK, we're invoking a handler
  */
+static int signr_convert(int sig)
+{
+	return sig;
+}
+
+#ifdef CONFIG_IA32_EMULATION
+#define is_ia32	test_thread_flag(TIF_IA32)
+#else
+#define is_ia32	0
+#endif
+
+static int
+setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+	       sigset_t *set, struct pt_regs *regs)
+{
+	int usig = signr_convert(sig);
+	int ret;
+
+	/* Set up the stack frame */
+	if (is_ia32) {
+		if (ka->sa.sa_flags & SA_SIGINFO)
+			ret = ia32_setup_rt_frame(usig, ka, info, set, regs);
+		else
+			ret = ia32_setup_frame(usig, ka, set, regs);
+	} else
+		ret = __setup_rt_frame(sig, ka, info, set, regs);
+
+	if (ret) {
+		force_sigsegv(sig, current);
+		return -EFAULT;
+	}
+
+	return ret;
+}
 
 static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
@@ -317,51 +351,48 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	    likely(test_and_clear_thread_flag(TIF_FORCED_TF)))
 		regs->flags &= ~X86_EFLAGS_TF;
 
-#ifdef CONFIG_IA32_EMULATION
-	if (test_thread_flag(TIF_IA32)) {
-		if (ka->sa.sa_flags & SA_SIGINFO)
-			ret = ia32_setup_rt_frame(sig, ka, info, oldset, regs);
-		else
-			ret = ia32_setup_frame(sig, ka, oldset, regs);
-	} else
-#endif
 	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
-	if (ret == 0) {
-		/*
-		 * This has nothing to do with segment registers,
-		 * despite the name.  This magic affects uaccess.h
-		 * macros' behavior.  Reset it to the normal setting.
-		 */
-		set_fs(USER_DS);
+	if (ret)
+		return ret;
 
-		/*
-		 * Clear the direction flag as per the ABI for function entry.
-		 */
-		regs->flags &= ~X86_EFLAGS_DF;
+#ifdef CONFIG_X86_64
+	/*
+	 * This has nothing to do with segment registers,
+	 * despite the name.  This magic affects uaccess.h
+	 * macros' behavior.  Reset it to the normal setting.
+	 */
+	set_fs(USER_DS);
+#endif
 
-		/*
-		 * Clear TF when entering the signal handler, but
-		 * notify any tracer that was single-stepping it.
-		 * The tracer may want to single-step inside the
-		 * handler too.
-		 */
-		regs->flags &= ~X86_EFLAGS_TF;
+	/*
+	 * Clear the direction flag as per the ABI for function entry.
+	 */
+	regs->flags &= ~X86_EFLAGS_DF;
 
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked, sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
+	/*
+	 * Clear TF when entering the signal handler, but
+	 * notify any tracer that was single-stepping it.
+	 * The tracer may want to single-step inside the
+	 * handler too.
+	 */
+	regs->flags &= ~X86_EFLAGS_TF;
 
-		tracehook_signal_handler(sig, info, ka, regs,
-					 test_thread_flag(TIF_SINGLESTEP));
-	}
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&current->blocked, sig);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 
-	return ret;
+	tracehook_signal_handler(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLESTEP));
+
+	return 0;
 }
 
+#define NR_restart_syscall	\
+	test_thread_flag(TIF_IA32) ? __NR_ia32_restart_syscall : __NR_restart_syscall
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
@@ -391,7 +422,8 @@ static void do_signal(struct pt_regs *regs)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		/* Re-enable any watchpoints before delivering the
+		/*
+		 * Re-enable any watchpoints before delivering the
 		 * signal to user space. The processor register will
 		 * have been cleared if the watchpoint triggered
 		 * inside the kernel.
@@ -399,7 +431,7 @@ static void do_signal(struct pt_regs *regs)
 		if (current->thread.debugreg7)
 			set_debugreg(current->thread.debugreg7, 7);
 
-		/* Whee!  Actually deliver the signal.  */
+		/* Whee! Actually deliver the signal.  */
 		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
 			/*
 			 * A signal was successfully delivered; the saved
@@ -422,10 +454,9 @@ static void do_signal(struct pt_regs *regs)
 			regs->ax = regs->orig_ax;
 			regs->ip -= 2;
 			break;
+
 		case -ERESTART_RESTARTBLOCK:
-			regs->ax = test_thread_flag(TIF_IA32) ?
-					__NR_ia32_restart_syscall :
-					__NR_restart_syscall;
+			regs->ax = NR_restart_syscall;
 			regs->ip -= 2;
 			break;
 		}
@@ -441,14 +472,18 @@ static void do_signal(struct pt_regs *regs)
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, void *unused,
-		      __u32 thread_info_flags)
+/*
+ * notification of userspace execution resumption
+ * - triggered by the TIF_WORK_MASK flags
+ */
+void
+do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 {
-#ifdef CONFIG_X86_MCE
+#if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
 	/* notify userspace of pending MCEs */
 	if (thread_info_flags & _TIF_MCE_NOTIFY)
 		mce_notify_user();
-#endif /* CONFIG_X86_MCE */
+#endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
 
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
@@ -458,17 +493,23 @@ void do_notify_resume(struct pt_regs *regs, void *unused,
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
+
+#ifdef CONFIG_X86_32
+	clear_thread_flag(TIF_IRET);
+#endif /* CONFIG_X86_32 */
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 {
 	struct task_struct *me = current;
+
 	if (show_unhandled_signals && printk_ratelimit()) {
-		printk("%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
-	       me->comm, me->pid, where, frame, regs->ip,
-		   regs->sp, regs->orig_ax);
+		printk(KERN_INFO
+		       "%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
+		       me->comm, me->pid, where, frame,
+		       regs->ip, regs->sp, regs->orig_ax);
 		print_vma_addr(" in ", regs->ip);
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 
 	force_sig(SIGSEGV, me);
