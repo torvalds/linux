@@ -431,11 +431,11 @@ extern int icache_44x_need_flush;
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 
-#define PAGE_PROT_BITS	__pgprot(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
-				 _PAGE_WRITETHRU | _PAGE_ENDIAN | \
-				 _PAGE_USER | _PAGE_ACCESSED | \
-				 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | \
-				 _PAGE_EXEC | _PAGE_HWEXEC)
+#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
+			 _PAGE_WRITETHRU | _PAGE_ENDIAN | \
+			 _PAGE_USER | _PAGE_ACCESSED | \
+			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | \
+			 _PAGE_EXEC | _PAGE_HWEXEC)
 /*
  * Note: the _PAGE_COHERENT bit automatically gets set in the hardware
  * PTE if CONFIG_SMP is defined (hash_page does this); there is no need
@@ -570,9 +570,9 @@ static inline pte_t pte_mkyoung(pte_t pte) {
 	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte) {
 	pte_val(pte) |= _PAGE_SPECIAL; return pte; }
-static inline unsigned long pte_pgprot(pte_t pte)
+static inline pgprot_t pte_pgprot(pte_t pte)
 {
-	return __pgprot(pte_val(pte)) & PAGE_PROT_BITS;
+	return __pgprot(pte_val(pte) & PAGE_PROT_BITS);
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
@@ -688,7 +688,8 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
 	: "r" (pte) : "memory");
 #else
-	*ptep = (*ptep & _PAGE_HASHPTE) | (pte & ~_PAGE_HASHPTE);
+	*ptep = __pte((pte_val(*ptep) & _PAGE_HASHPTE)
+		      | (pte_val(pte) & ~_PAGE_HASHPTE));
 #endif
 }
 

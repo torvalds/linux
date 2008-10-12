@@ -541,7 +541,7 @@ static unsigned long __init htab_get_table_size(void)
 void create_section_mapping(unsigned long start, unsigned long end)
 {
 	BUG_ON(htab_bolt_mapping(start, end, __pa(start),
-				 PAGE_KERNEL, mmu_linear_psize,
+				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
 				 mmu_kernel_ssize));
 }
 
@@ -649,7 +649,7 @@ void __init htab_initialize(void)
 		mtspr(SPRN_SDR1, _SDR1);
 	}
 
-	prot = PAGE_KERNEL;
+	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	linear_map_hash_count = lmb_end_of_DRAM() >> PAGE_SHIFT;
