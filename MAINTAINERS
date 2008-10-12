@@ -1391,7 +1391,7 @@ W:	http://www.win.tue.nl/~aeb/linux/zip/zip-1.html
 W:	http://www.win.tue.nl/~aeb/partitions/partition_types-1.html
 S:	Maintained
 
-DISKQUOTA:
+DISKQUOTA
 P:	Jan Kara
 M:	jack@suse.cz
 L:	linux-kernel@vger.kernel.org
@@ -1601,7 +1601,7 @@ EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
 
-EHCA (IBM GX bus InfiniBand adapter) DRIVER:
+EHCA (IBM GX bus InfiniBand adapter) DRIVER
 P:	Hoang-Nam Nguyen
 M:	hnguyen@de.ibm.com
 P:	Christoph Raisch
@@ -1912,7 +1912,7 @@ L:	linux-nvidia@lists.surfsouth.com
 W:	http://drama.obuda.kando.hu/~fero/cgi-bin/hgafb.shtml
 S:	Maintained
 
-HIBERNATION (aka Software Suspend, aka swsusp):
+HIBERNATION (aka Software Suspend, aka swsusp)
 P:	Pavel Machek
 M:	pavel@suse.cz
 P:	Rafael J. Wysocki
@@ -2252,7 +2252,7 @@ M:	pfg@sgi.com
 L:	linux-mips@linux-mips.org
 S:	Maintained
 
-IP MASQUERADING:
+IP MASQUERADING
 P:	Juanjo Ciarlante
 M:	jjciarla@raiz.uncu.edu.ar
 S:	Maintained
@@ -2267,7 +2267,7 @@ M:	jesse@icplus.com.tw
 L:	netdev@vger.kernel.org
 S:	Maintained
 
-IPATH DRIVER:
+IPATH DRIVER
 P:	Ralph Campbell
 M:	infinipath@qlogic.com
 L:	general@lists.openfabrics.org
@@ -3687,7 +3687,7 @@ P:	Jiri Slaby
 M:	jirislaby@gmail.com
 S:	Maintained
 
-SERIAL ATA (SATA) SUBSYSTEM:
+SERIAL ATA (SATA) SUBSYSTEM
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
 L:	linux-ide@vger.kernel.org
@@ -3885,7 +3885,7 @@ L:	alsa-devel@alsa-project.org (subscribers-only)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 
-SPARC (sparc32):
+SPARC (sparc32)
 P:	William L. Irwin
 M:	wli@holomorphy.com
 L:	sparclinux@vger.kernel.org
@@ -3962,7 +3962,7 @@ W:	http://www.linux-sh.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/lethal/sh-2.6.git
 S:	Supported
 
-SUSPEND TO RAM:
+SUSPEND TO RAM
 P:	Len Brown
 M:	len.brown@intel.com
 P:	Pavel Machek
@@ -4016,7 +4016,7 @@ P:	Mark Gross
 M:	mark.gross@intel.com
 S:	Supported
 
-TENSILICA XTENSA PORT (xtensa):
+TENSILICA XTENSA PORT (xtensa)
 P:	Chris Zankel
 M:	chris@zankel.net
 S:	Maintained
@@ -4165,7 +4165,7 @@ M:	dushistov@mail.ru
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-UltraSPARC (sparc64):
+UltraSPARC (sparc64)
 P:	David S. Miller
 M:	davem@davemloft.net
 L:	sparclinux@vger.kernel.org
@@ -4480,7 +4480,7 @@ W:	http://kernel.org/~kzak/util-linux-ng/
 T:	git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
 S:	Maintained
 
-VFAT/FAT/MSDOS FILESYSTEM:
+VFAT/FAT/MSDOS FILESYSTEM
 P:	OGAWA Hirofumi
 M:	hirofumi@mail.parknet.co.jp
 L:	linux-kernel@vger.kernel.org
