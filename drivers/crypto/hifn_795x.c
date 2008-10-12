@@ -2782,6 +2782,11 @@ static int __devinit hifn_init(void)
 	unsigned int freq;
 	int err;
 
+	if (sizeof(dma_addr_t) > 4) {
+		printk(KERN_INFO "HIFN supports only 32-bit addresses.\n");
+		return -EINVAL;
+	}
+
 	if (strncmp(hifn_pll_ref, "ext", 3) &&
 	    strncmp(hifn_pll_ref, "pci", 3)) {
 		printk(KERN_ERR "hifn795x: invalid hifn_pll_ref clock, "
