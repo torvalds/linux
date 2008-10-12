@@ -76,11 +76,7 @@
  * cacheable bit in the pte's of all such pages.
  */
 
-#ifdef CONFIG_SUN4
-#define S4CVAC_BADBITS     0x0001e000
-#else
 #define S4CVAC_BADBITS    0x0000f000
-#endif
 
 /* The following is true if vaddr1 and vaddr2 would cause
  * a 'bad alias'.
@@ -94,10 +90,7 @@
  */
 struct sun4c_vac_props {
 	unsigned int num_bytes;     /* Size of the cache */
-	unsigned int num_lines;     /* Number of cache lines */
 	unsigned int do_hwflushes;  /* Hardware flushing available? */
-	enum { VAC_NONE, VAC_WRITE_THROUGH,
-	    VAC_WRITE_BACK } type;  /* What type of VAC? */
 	unsigned int linesize;      /* Size of each line in bytes */
 	unsigned int log2lsize;     /* log2(linesize) */
 	unsigned int on;            /* VAC is enabled */
