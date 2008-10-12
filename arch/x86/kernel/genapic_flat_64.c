@@ -170,7 +170,7 @@ struct genapic apic_flat =  {
  * We cannot use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */
-static int __init physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 #ifdef CONFIG_ACPI
 	/*
