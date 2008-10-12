@@ -369,7 +369,6 @@ static int __init acpi_rtc_init(void)
 		DBG("RTC unavailable?\n");
 	return 0;
 }
-/* do this between RTC subsys_initcall() and rtc_cmos driver_initcall() */
-fs_initcall(acpi_rtc_init);
+module_init(acpi_rtc_init);
 
 #endif
