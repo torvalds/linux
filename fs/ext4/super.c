@@ -2231,6 +2231,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+#ifdef CONFIG_PROC_FS
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
 
@@ -2238,6 +2239,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		proc_create_data("inode_readahead_blks", 0644, sbi->s_proc,
 				 &ext4_ui_proc_fops,
 				 &sbi->s_inode_readahead_blks);
+#endif
 
 	bgl_lock_init(&sbi->s_blockgroup_lock);
 
