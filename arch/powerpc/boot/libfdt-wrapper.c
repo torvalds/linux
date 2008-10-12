@@ -165,6 +165,7 @@ static unsigned long fdt_wrapper_finalize(void)
 void fdt_init(void *blob)
 {
 	int err;
+	int bufsize;
 
 	dt_ops.finddevice = fdt_wrapper_finddevice;
 	dt_ops.getprop = fdt_wrapper_getprop;
@@ -178,16 +179,15 @@ void fdt_init(void *blob)
 
 	/* Make sure the dt blob is the right version and so forth */
 	fdt = blob;
-	err = fdt_open_into(fdt, fdt, fdt_totalsize(blob));
-	if (err == -FDT_ERR_NOSPACE) {
-		int bufsize = fdt_totalsize(fdt) + 4;
-		buf = malloc(bufsize);
-		err = fdt_open_into(fdt, buf, bufsize);
-	}
+	bufsize = fdt_totalsize(fdt) + 4;
+	buf = malloc(bufsize);
+	if(!buf)
+		fatal("malloc failed. can't relocate the device tree\n\r");
+
+	err = fdt_open_into(fdt, buf, bufsize);
 
 	if (err != 0)
 		fatal("fdt_init(): %s\n\r", fdt_strerror(err));
 
-	if (buf)
-		fdt = buf;
+	fdt = buf;
 }

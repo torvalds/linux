@@ -56,9 +56,19 @@ static struct addr_range prep_kernel(void)
 	if (platform_ops.vmlinux_alloc) {
 		addr = platform_ops.vmlinux_alloc(ei.memsize);
 	} else {
-		if ((unsigned long)_start < ei.memsize)
+		/*
+		 * Check if the kernel image (without bss) would overwrite the
+		 * bootwrapper. The device tree has been moved in fdt_init()
+		 * to an area allocated with malloc() (somewhere past _end).
+		 */
+		if ((unsigned long)_start < ei.loadsize)
 			fatal("Insufficient memory for kernel at address 0!"
-			       " (_start=%p)\n\r", _start);
+			       " (_start=%p, uncomressed size=%08x)\n\r",
+			       _start, ei.loadsize);
+
+		if ((unsigned long)_end < ei.memsize)
+			fatal("The final kernel image would overwrite the "
+					"device tree\n\r");
 	}
 
 	/* Finally, gunzip the kernel */
