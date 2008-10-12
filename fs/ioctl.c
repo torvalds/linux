@@ -226,6 +226,8 @@ static int ioctl_fiemap(struct file *filp, unsigned long arg)
 	return error;
 }
 
+#ifdef CONFIG_BLOCK
+
 #define blk_to_logical(inode, blk) (blk << (inode)->i_blkbits)
 #define logical_to_blk(inode, offset) (offset >> (inode)->i_blkbits);
 
@@ -341,6 +343,8 @@ int generic_block_fiemap(struct inode *inode,
 	return ret;
 }
 EXPORT_SYMBOL(generic_block_fiemap);
+
+#endif  /*  CONFIG_BLOCK  */
 
 static int file_ioctl(struct file *filp, unsigned int cmd,
 		unsigned long arg)
