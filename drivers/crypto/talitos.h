@@ -37,7 +37,8 @@
 #define TALITOS_MCR_LO			0x1038
 #define   TALITOS_MCR_SWR		0x1     /* s/w reset */
 #define TALITOS_IMR			0x1008  /* interrupt mask register */
-#define   TALITOS_IMR_INIT		0x10fff /* enable channel IRQs */
+#define   TALITOS_IMR_INIT		0x100ff /* enable channel IRQs */
+#define   TALITOS_IMR_DONE		0x00055 /* done IRQs */
 #define TALITOS_IMR_LO			0x100C
 #define   TALITOS_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
 #define TALITOS_ISR			0x1010  /* interrupt status register */

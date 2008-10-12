@@ -319,9 +319,11 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 
 		/* descriptors with their done bits set don't get the error */
 		rmb();
-		if ((request->desc->hdr & DESC_HDR_DONE) == DESC_HDR_DONE)
+		if ((request->desc->hdr & DESC_HDR_DONE) == DESC_HDR_DONE) {
 			status = 0;
-		else
+			/* Ack each pkt completed on channel */
+			out_be32(priv->reg + TALITOS_ICR, (1 << (ch * 2)));
+		} else
 			if (!error)
 				break;
 			else
@@ -369,6 +371,11 @@ static void talitos_done(unsigned long data)
 
 	for (ch = 0; ch < priv->num_channels; ch++)
 		flush_channel(dev, ch, 0, 0);
+
+	/* At this point, all completed channels have been processed.
+	 * Unmask done interrupts for channels completed later on.
+	 */
+	setbits32(priv->reg + TALITOS_IMR, TALITOS_IMR_DONE);
 }
 
 /*
@@ -557,15 +564,22 @@ static irqreturn_t talitos_interrupt(int irq, void *data)
 	isr = in_be32(priv->reg + TALITOS_ISR);
 	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);
 
-	/* ack */
-	out_be32(priv->reg + TALITOS_ICR, isr);
-	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);
+	if (unlikely((isr & ~TALITOS_ISR_CHDONE) || isr_lo)) {
+		/*
+		 * Acknowledge error interrupts here.
+		 * Done interrupts are ack'ed as part of done_task.
+		 */
+		out_be32(priv->reg + TALITOS_ICR, isr);
+		out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);
 
-	if (unlikely((isr & ~TALITOS_ISR_CHDONE) || isr_lo))
 		talitos_error((unsigned long)data, isr, isr_lo);
-	else
-		if (likely(isr & TALITOS_ISR_CHDONE))
+	} else
+		if (likely(isr & TALITOS_ISR_CHDONE)) {
+			/* mask further done interrupts. */
+			clrbits32(priv->reg + TALITOS_IMR, TALITOS_IMR_DONE);
+			/* done_task will unmask done interrupts at exit */
 			tasklet_schedule(&priv->done_task);
+		}
 
 	return (isr || isr_lo) ? IRQ_HANDLED : IRQ_NONE;
 }
