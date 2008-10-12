@@ -299,6 +299,7 @@ extern void key_init(void);
 #define key_validate(k)			0
 #define key_serial(k)			0
 #define key_get(k) 			({ NULL; })
+#define key_revoke(k)			do { } while(0)
 #define key_put(k)			do { } while(0)
 #define key_ref_put(k)			do { } while(0)
 #define make_key_ref(k, p)			({ NULL; })
