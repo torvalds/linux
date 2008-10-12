@@ -128,7 +128,7 @@
 
 
 #ifdef __BLACKFIN_ASM__
-static void __inline__ lms_adapt_bg(struct echo_can_state *ec, int clean, int shift)
+static void __inline__ lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
     int i, j;
     int offset1;
@@ -200,7 +200,7 @@ static void __inline__ lms_adapt_bg(struct echo_can_state *ec, int clean, int sh
 */
 
 #else
-static __inline__ void lms_adapt_bg(struct echo_can_state *ec, int clean, int shift)
+static __inline__ void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
     int i;
 
@@ -234,9 +234,9 @@ static __inline__ void lms_adapt_bg(struct echo_can_state *ec, int clean, int sh
 
 /*- End of function --------------------------------------------------------*/
 
-struct echo_can_state *echo_can_create(int len, int adaption_mode)
+struct oslec_state *oslec_create(int len, int adaption_mode)
 {
-    struct echo_can_state *ec;
+    struct oslec_state *ec;
     int i;
     int j;
 
@@ -273,7 +273,7 @@ struct echo_can_state *echo_can_create(int len, int adaption_mode)
     }
 
     ec->cng_level = 1000;
-    echo_can_adaption_mode(ec, adaption_mode);
+    oslec_adaption_mode(ec, adaption_mode);
 
     ec->snapshot = (int16_t*)malloc(ec->taps*sizeof(int16_t));
     memset(ec->snapshot, 0, sizeof(int16_t)*ec->taps);
@@ -289,10 +289,10 @@ struct echo_can_state *echo_can_create(int len, int adaption_mode)
 
     return  ec;
 }
-EXPORT_SYMBOL_GPL(echo_can_create);
+EXPORT_SYMBOL_GPL(oslec_create);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_free(struct echo_can_state *ec)
+void oslec_free(struct oslec_state *ec)
 {
 	int i;
 
@@ -303,17 +303,17 @@ void echo_can_free(struct echo_can_state *ec)
 	kfree(ec->snapshot);
 	kfree(ec);
 }
-EXPORT_SYMBOL_GPL(echo_can_free);
+EXPORT_SYMBOL_GPL(oslec_free);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_adaption_mode(struct echo_can_state *ec, int adaption_mode)
+void oslec_adaption_mode(struct oslec_state *ec, int adaption_mode)
 {
     ec->adaption_mode = adaption_mode;
 }
-EXPORT_SYMBOL_GPL(echo_can_adaption_mode);
+EXPORT_SYMBOL_GPL(oslec_adaption_mode);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_flush(struct echo_can_state *ec)
+void oslec_flush(struct oslec_state *ec)
 {
     int i;
 
@@ -337,18 +337,18 @@ void echo_can_flush(struct echo_can_state *ec)
     ec->curr_pos = ec->taps - 1;
     ec->Pstates = 0;
 }
-EXPORT_SYMBOL_GPL(echo_can_flush);
+EXPORT_SYMBOL_GPL(oslec_flush);
 /*- End of function --------------------------------------------------------*/
 
-void echo_can_snapshot(struct echo_can_state *ec) {
+void oslec_snapshot(struct oslec_state *ec) {
     memcpy(ec->snapshot, ec->fir_taps16[0], ec->taps*sizeof(int16_t));
 }
-EXPORT_SYMBOL_GPL(echo_can_snapshot);
+EXPORT_SYMBOL_GPL(oslec_snapshot);
 /*- End of function --------------------------------------------------------*/
 
 /* Dual Path Echo Canceller ------------------------------------------------*/
 
-int16_t echo_can_update(struct echo_can_state *ec, int16_t tx, int16_t rx)
+int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 {
     int32_t echo_value;
     int clean_bg;
@@ -589,7 +589,7 @@ int16_t echo_can_update(struct echo_can_state *ec, int16_t tx, int16_t rx)
 
     return (int16_t) ec->clean_nlp << 1;
 }
-EXPORT_SYMBOL_GPL(echo_can_update);
+EXPORT_SYMBOL_GPL(oslec_update);
 /*- End of function --------------------------------------------------------*/
 
 /* This function is seperated from the echo canceller is it is usually called
@@ -613,7 +613,7 @@ EXPORT_SYMBOL_GPL(echo_can_update);
    precision, which noise shapes things, giving very clean DC removal.
 */
 
-int16_t echo_can_hpf_tx(struct echo_can_state *ec, int16_t tx) {
+int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx) {
     int tmp, tmp1;
 
     if (ec->adaption_mode & ECHO_CAN_USE_TX_HPF) {
@@ -635,7 +635,7 @@ int16_t echo_can_hpf_tx(struct echo_can_state *ec, int16_t tx) {
 
     return tx;
 }
-EXPORT_SYMBOL_GPL(echo_can_hpf_tx);
+EXPORT_SYMBOL_GPL(oslec_hpf_tx);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Rowe");

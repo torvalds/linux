@@ -42,31 +42,31 @@
     G.168 echo canceller descriptor. This defines the working state for a line
     echo canceller.
 */
-struct echo_can_state;
+struct oslec_state;
 
 /*! Create a voice echo canceller context.
     \param len The length of the canceller, in samples.
     \return The new canceller context, or NULL if the canceller could not be created.
 */
-struct echo_can_state *echo_can_create(int len, int adaption_mode);
+struct oslec_state *oslec_create(int len, int adaption_mode);
 
 /*! Free a voice echo canceller context.
     \param ec The echo canceller context.
 */
-void echo_can_free(struct echo_can_state *ec);
+void oslec_free(struct oslec_state *ec);
 
 /*! Flush (reinitialise) a voice echo canceller context.
     \param ec The echo canceller context.
 */
-void echo_can_flush(struct echo_can_state *ec);
+void oslec_flush(struct oslec_state *ec);
 
 /*! Set the adaption mode of a voice echo canceller context.
     \param ec The echo canceller context.
     \param adapt The mode.
 */
-void echo_can_adaption_mode(struct echo_can_state *ec, int adaption_mode);
+void oslec_adaption_mode(struct oslec_state *ec, int adaption_mode);
 
-void echo_can_snapshot(struct echo_can_state *ec);
+void oslec_snapshot(struct oslec_state *ec);
 
 /*! Process a sample through a voice echo canceller.
     \param ec The echo canceller context.
@@ -74,13 +74,13 @@ void echo_can_snapshot(struct echo_can_state *ec);
     \param rx The received audio sample.
     \return The clean (echo cancelled) received sample.
 */
-int16_t echo_can_update(struct echo_can_state *ec, int16_t tx, int16_t rx);
+int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx);
 
 /*! Process to high pass filter the tx signal.
     \param ec The echo canceller context.
     \param tx The transmitted auio sample.
     \return The HP filtered transmit sample, send this to your D/A.
 */
-int16_t echo_can_hpf_tx(struct echo_can_state *ec, int16_t tx);
+int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx);
 
 #endif	/* __OSLEC_H */
