@@ -52,8 +52,10 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	printk(KERN_WARNING "cio: orb:\n");
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
 		       orb, sizeof(*orb), 0);
-	printk(KERN_WARNING "cio: ccw device bus id: %s\n", cdev->dev.bus_id);
-	printk(KERN_WARNING "cio: subchannel bus id: %s\n", sch->dev.bus_id);
+	printk(KERN_WARNING "cio: ccw device bus id: %s\n",
+	       dev_name(&cdev->dev));
+	printk(KERN_WARNING "cio: subchannel bus id: %s\n",
+	       dev_name(&sch->dev));
 	printk(KERN_WARNING "cio: subchannel lpm: %02x, opm: %02x, "
 	       "vpm: %02x\n", sch->lpm, sch->opm, sch->vpm);
 

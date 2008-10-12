@@ -94,6 +94,8 @@ DECLARE_PER_CPU(int, cpu_state);
 static inline void play_dead(void)
 {
 	idle_task_exit();
+	c1e_remove_cpu(raw_smp_processor_id());
+
 	mb();
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;
@@ -241,6 +243,14 @@ void exit_thread(void)
 		t->io_bitmap_max = 0;
 		put_cpu();
 	}
+#ifdef CONFIG_X86_DS
+	/* Free any DS contexts that have not been properly released. */
+	if (unlikely(t->ds_ctx)) {
+		/* we clear debugctl to make sure DS is not used. */
+		update_debugctlmsr(0);
+		ds_free(t->ds_ctx);
+	}
+#endif /* CONFIG_X86_DS */
 }
 
 void flush_thread(void)
@@ -474,13 +484,27 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 	next = &next_p->thread;
 
 	debugctl = prev->debugctlmsr;
-	if (next->ds_area_msr != prev->ds_area_msr) {
-		/* we clear debugctl to make sure DS
-		 * is not in use when we change it */
-		debugctl = 0;
-		update_debugctlmsr(0);
-		wrmsrl(MSR_IA32_DS_AREA, next->ds_area_msr);
+
+#ifdef CONFIG_X86_DS
+	{
+		unsigned long ds_prev = 0, ds_next = 0;
+
+		if (prev->ds_ctx)
+			ds_prev = (unsigned long)prev->ds_ctx->ds;
+		if (next->ds_ctx)
+			ds_next = (unsigned long)next->ds_ctx->ds;
+
+		if (ds_next != ds_prev) {
+			/*
+			 * We clear debugctl to make sure DS
+			 * is not in use when we change it:
+			 */
+			debugctl = 0;
+			update_debugctlmsr(0);
+			wrmsrl(MSR_IA32_DS_AREA, ds_next);
+		}
 	}
+#endif /* CONFIG_X86_DS */
 
 	if (next->debugctlmsr != debugctl)
 		update_debugctlmsr(next->debugctlmsr);
@@ -518,13 +542,13 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 	}
 
-#ifdef X86_BTS
+#ifdef CONFIG_X86_PTRACE_BTS
 	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
 
 	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
-#endif
+#endif /* CONFIG_X86_PTRACE_BTS */
 }
 
 /*
@@ -730,12 +754,12 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 	stack = (unsigned long)task_stack_page(p);
-	if (p->thread.sp < stack || p->thread.sp > stack+THREAD_SIZE)
+	if (p->thread.sp < stack || p->thread.sp >= stack+THREAD_SIZE)
 		return 0;
 	fp = *(u64 *)(p->thread.sp);
 	do {
 		if (fp < (unsigned long)stack ||
-		    fp > (unsigned long)stack+THREAD_SIZE)
+		    fp >= (unsigned long)stack+THREAD_SIZE)
 			return 0;
 		ip = *(u64 *)(fp+8);
 		if (!in_sched_functions(ip))

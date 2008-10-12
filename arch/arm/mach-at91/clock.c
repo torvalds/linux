@@ -22,8 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <mach/at91_pmc.h>

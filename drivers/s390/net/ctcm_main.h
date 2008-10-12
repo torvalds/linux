@@ -104,7 +104,7 @@
 #define READ			0
 #define WRITE			1
 
-#define CTCM_ID_SIZE		BUS_ID_SIZE+3
+#define CTCM_ID_SIZE		20+3
 
 struct ctcm_profile {
 	unsigned long maxmulti;

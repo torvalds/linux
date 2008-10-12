@@ -22,11 +22,16 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/mtd/physmap.h>
+#include <linux/leds.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
+#include <asm/r4kcache.h>
+#include <asm/sections.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
+#include <asm/txx9tmr.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
 #endif
@@ -67,7 +72,12 @@ unsigned int txx9_master_clock;
 unsigned int txx9_cpu_clock;
 unsigned int txx9_gbus_clock;
 
+#ifdef CONFIG_CPU_TX39XX
+/* don't enable by default - see errata */
+int txx9_ccfg_toeon __initdata;
+#else
 int txx9_ccfg_toeon __initdata = 1;
+#endif
 
 /* Minimum CLK support */
 
@@ -119,39 +129,232 @@ int irq_to_gpio(unsigned irq)
 EXPORT_SYMBOL(irq_to_gpio);
 #endif
 
-extern struct txx9_board_vec jmr3927_vec;
-extern struct txx9_board_vec rbtx4927_vec;
-extern struct txx9_board_vec rbtx4937_vec;
-extern struct txx9_board_vec rbtx4938_vec;
+#define BOARD_VEC(board)	extern struct txx9_board_vec board;
+#include <asm/txx9/boards.h>
+#undef BOARD_VEC
 
 struct txx9_board_vec *txx9_board_vec __initdata;
 static char txx9_system_type[32];
 
-void __init prom_init_cmdline(void)
+static struct txx9_board_vec *board_vecs[] __initdata = {
+#define BOARD_VEC(board)	&board,
+#include <asm/txx9/boards.h>
+#undef BOARD_VEC
+};
+
+static struct txx9_board_vec *__init find_board_byname(const char *name)
+{
+	int i;
+
+	/* search board_vecs table */
+	for (i = 0; i < ARRAY_SIZE(board_vecs); i++) {
+		if (strstr(board_vecs[i]->system, name))
+			return board_vecs[i];
+	}
+	return NULL;
+}
+
+static void __init prom_init_cmdline(void)
 {
 	int argc = (int)fw_arg0;
-	char **argv = (char **)fw_arg1;
+	int *argv32 = (int *)fw_arg1;
 	int i;			/* Always ignore the "-c" at argv[0] */
-#ifdef CONFIG_64BIT
-	char *fixed_argv[32];
-	for (i = 0; i < argc; i++)
-		fixed_argv[i] = (char *)(long)(*((__s32 *)argv + i));
-	argv = fixed_argv;
-#endif
+	char builtin[CL_SIZE];
 
 	/* ignore all built-in args if any f/w args given */
-	if (argc > 1)
-		*arcs_cmdline = '\0';
+	/*
+	 * But if built-in strings was started with '+', append them
+	 * to command line args.  If built-in was started with '-',
+	 * ignore all f/w args.
+	 */
+	builtin[0] = '\0';
+	if (arcs_cmdline[0] == '+')
+		strcpy(builtin, arcs_cmdline + 1);
+	else if (arcs_cmdline[0] == '-') {
+		strcpy(builtin, arcs_cmdline + 1);
+		argc = 0;
+	} else if (argc <= 1)
+		strcpy(builtin, arcs_cmdline);
+	arcs_cmdline[0] = '\0';
 
 	for (i = 1; i < argc; i++) {
+		char *str = (char *)(long)argv32[i];
 		if (i != 1)
 			strcat(arcs_cmdline, " ");
-		strcat(arcs_cmdline, argv[i]);
+		if (strchr(str, ' ')) {
+			strcat(arcs_cmdline, "\"");
+			strcat(arcs_cmdline, str);
+			strcat(arcs_cmdline, "\"");
+		} else
+			strcat(arcs_cmdline, str);
+	}
+	/* append saved builtin args */
+	if (builtin[0]) {
+		if (arcs_cmdline[0])
+			strcat(arcs_cmdline, " ");
+		strcat(arcs_cmdline, builtin);
 	}
 }
 
-void __init prom_init(void)
+static int txx9_ic_disable __initdata;
+static int txx9_dc_disable __initdata;
+
+#if defined(CONFIG_CPU_TX49XX)
+/* flush all cache on very early stage (before 4k_cache_init) */
+static void __init early_flush_dcache(void)
 {
+	unsigned int conf = read_c0_config();
+	unsigned int dc_size = 1 << (12 + ((conf & CONF_DC) >> 6));
+	unsigned int linesz = 32;
+	unsigned long addr, end;
+
+	end = INDEX_BASE + dc_size / 4;
+	/* 4way, waybit=0 */
+	for (addr = INDEX_BASE; addr < end; addr += linesz) {
+		cache_op(Index_Writeback_Inv_D, addr | 0);
+		cache_op(Index_Writeback_Inv_D, addr | 1);
+		cache_op(Index_Writeback_Inv_D, addr | 2);
+		cache_op(Index_Writeback_Inv_D, addr | 3);
+	}
+}
+
+static void __init txx9_cache_fixup(void)
+{
+	unsigned int conf;
+
+	conf = read_c0_config();
+	/* flush and disable */
+	if (txx9_ic_disable) {
+		conf |= TX49_CONF_IC;
+		write_c0_config(conf);
+	}
+	if (txx9_dc_disable) {
+		early_flush_dcache();
+		conf |= TX49_CONF_DC;
+		write_c0_config(conf);
+	}
+
+	/* enable cache */
+	conf = read_c0_config();
+	if (!txx9_ic_disable)
+		conf &= ~TX49_CONF_IC;
+	if (!txx9_dc_disable)
+		conf &= ~TX49_CONF_DC;
+	write_c0_config(conf);
+
+	if (conf & TX49_CONF_IC)
+		pr_info("TX49XX I-Cache disabled.\n");
+	if (conf & TX49_CONF_DC)
+		pr_info("TX49XX D-Cache disabled.\n");
+}
+#elif defined(CONFIG_CPU_TX39XX)
+/* flush all cache on very early stage (before tx39_cache_init) */
+static void __init early_flush_dcache(void)
+{
+	unsigned int conf = read_c0_config();
+	unsigned int dc_size = 1 << (10 + ((conf & TX39_CONF_DCS_MASK) >>
+					   TX39_CONF_DCS_SHIFT));
+	unsigned int linesz = 16;
+	unsigned long addr, end;
+
+	end = INDEX_BASE + dc_size / 2;
+	/* 2way, waybit=0 */
+	for (addr = INDEX_BASE; addr < end; addr += linesz) {
+		cache_op(Index_Writeback_Inv_D, addr | 0);
+		cache_op(Index_Writeback_Inv_D, addr | 1);
+	}
+}
+
+static void __init txx9_cache_fixup(void)
+{
+	unsigned int conf;
+
+	conf = read_c0_config();
+	/* flush and disable */
+	if (txx9_ic_disable) {
+		conf &= ~TX39_CONF_ICE;
+		write_c0_config(conf);
+	}
+	if (txx9_dc_disable) {
+		early_flush_dcache();
+		conf &= ~TX39_CONF_DCE;
+		write_c0_config(conf);
+	}
+
+	/* enable cache */
+	conf = read_c0_config();
+	if (!txx9_ic_disable)
+		conf |= TX39_CONF_ICE;
+	if (!txx9_dc_disable)
+		conf |= TX39_CONF_DCE;
+	write_c0_config(conf);
+
+	if (!(conf & TX39_CONF_ICE))
+		pr_info("TX39XX I-Cache disabled.\n");
+	if (!(conf & TX39_CONF_DCE))
+		pr_info("TX39XX D-Cache disabled.\n");
+}
+#else
+static inline void txx9_cache_fixup(void)
+{
+}
+#endif
+
+static void __init preprocess_cmdline(void)
+{
+	char cmdline[CL_SIZE];
+	char *s;
+
+	strcpy(cmdline, arcs_cmdline);
+	s = cmdline;
+	arcs_cmdline[0] = '\0';
+	while (s && *s) {
+		char *str = strsep(&s, " ");
+		if (strncmp(str, "board=", 6) == 0) {
+			txx9_board_vec = find_board_byname(str + 6);
+			continue;
+		} else if (strncmp(str, "masterclk=", 10) == 0) {
+			unsigned long val;
+			if (strict_strtoul(str + 10, 10, &val) == 0)
+				txx9_master_clock = val;
+			continue;
+		} else if (strcmp(str, "icdisable") == 0) {
+			txx9_ic_disable = 1;
+			continue;
+		} else if (strcmp(str, "dcdisable") == 0) {
+			txx9_dc_disable = 1;
+			continue;
+		} else if (strcmp(str, "toeoff") == 0) {
+			txx9_ccfg_toeon = 0;
+			continue;
+		} else if (strcmp(str, "toeon") == 0) {
+			txx9_ccfg_toeon = 1;
+			continue;
+		}
+		if (arcs_cmdline[0])
+			strcat(arcs_cmdline, " ");
+		strcat(arcs_cmdline, str);
+	}
+
+	txx9_cache_fixup();
+}
+
+static void __init select_board(void)
+{
+	const char *envstr;
+
+	/* first, determine by "board=" argument in preprocess_cmdline() */
+	if (txx9_board_vec)
+		return;
+	/* next, determine by "board" envvar */
+	envstr = prom_getenv("board");
+	if (envstr) {
+		txx9_board_vec = find_board_byname(envstr);
+		if (txx9_board_vec)
+			return;
+	}
+
+	/* select "default" board */
 #ifdef CONFIG_CPU_TX39XX
 	txx9_board_vec = &jmr3927_vec;
 #endif
@@ -170,8 +373,20 @@ void __init prom_init(void)
 		txx9_board_vec = &rbtx4938_vec;
 		break;
 #endif
+#ifdef CONFIG_TOSHIBA_RBTX4939
+	case 0x4939:
+		txx9_board_vec = &rbtx4939_vec;
+		break;
+#endif
 	}
 #endif
+}
+
+void __init prom_init(void)
+{
+	prom_init_cmdline();
+	preprocess_cmdline();
+	select_board();
 
 	strcpy(txx9_system_type, txx9_board_vec->system);
 
@@ -180,6 +395,11 @@ void __init prom_init(void)
 
 void __init prom_free_prom_memory(void)
 {
+	unsigned long saddr = PAGE_SIZE;
+	unsigned long eaddr = __pa_symbol(&_text);
+
+	if (saddr < eaddr)
+		free_init_pages("prom memory", saddr, eaddr);
 }
 
 const char *get_system_type(void)
@@ -190,6 +410,21 @@ const char *get_system_type(void)
 char * __init prom_getcmdline(void)
 {
 	return &(arcs_cmdline[0]);
+}
+
+const char *__init prom_getenv(const char *name)
+{
+	const s32 *str = (const s32 *)fw_arg2;
+
+	if (!str)
+		return NULL;
+	/* YAMON style ("name", "value" pairs) */
+	while (str[0] && str[1]) {
+		if (!strcmp((const char *)(unsigned long)str[0], name))
+			return (const char *)(unsigned long)str[1];
+		str += 2;
+	}
+	return NULL;
 }
 
 static void __noreturn txx9_machine_halt(void)
@@ -220,6 +455,20 @@ void __init txx9_wdt_init(unsigned long base)
 		.flags	= IORESOURCE_MEM,
 	};
 	platform_device_register_simple("txx9wdt", -1, &res, 1);
+}
+
+void txx9_wdt_now(unsigned long base)
+{
+	struct txx9_tmr_reg __iomem *tmrptr =
+		ioremap(base, sizeof(struct txx9_tmr_reg));
+	/* disable watch dog timer */
+	__raw_writel(TXx9_TMWTMR_WDIS | TXx9_TMWTMR_TWC, &tmrptr->wtmr);
+	__raw_writel(0, &tmrptr->tcr);
+	/* kick watchdog */
+	__raw_writel(TXx9_TMWTMR_TWIE, &tmrptr->wtmr);
+	__raw_writel(1, &tmrptr->cpra); /* immediate */
+	__raw_writel(TXx9_TMTCR_TCE | TXx9_TMTCR_CCDE | TXx9_TMTCR_TMODE_WDOG,
+		     &tmrptr->tcr);
 }
 
 /* SPI support */
@@ -372,3 +621,153 @@ static unsigned long __swizzle_addr_none(unsigned long port)
 unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_none;
 EXPORT_SYMBOL(__swizzle_addr_b);
 #endif
+
+void __init txx9_physmap_flash_init(int no, unsigned long addr,
+				    unsigned long size,
+				    const struct physmap_flash_data *pdata)
+{
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	struct resource res = {
+		.start = addr,
+		.end = addr + size - 1,
+		.flags = IORESOURCE_MEM,
+	};
+	struct platform_device *pdev;
+#ifdef CONFIG_MTD_PARTITIONS
+	static struct mtd_partition parts[2];
+	struct physmap_flash_data pdata_part;
+
+	/* If this area contained boot area, make separate partition */
+	if (pdata->nr_parts == 0 && !pdata->parts &&
+	    addr < 0x1fc00000 && addr + size > 0x1fc00000 &&
+	    !parts[0].name) {
+		parts[0].name = "boot";
+		parts[0].offset = 0x1fc00000 - addr;
+		parts[0].size = addr + size - 0x1fc00000;
+		parts[1].name = "user";
+		parts[1].offset = 0;
+		parts[1].size = 0x1fc00000 - addr;
+		pdata_part = *pdata;
+		pdata_part.nr_parts = ARRAY_SIZE(parts);
+		pdata_part.parts = parts;
+		pdata = &pdata_part;
+	}
+#endif
+	pdev = platform_device_alloc("physmap-flash", no);
+	if (!pdev ||
+	    platform_device_add_resources(pdev, &res, 1) ||
+	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||
+	    platform_device_add(pdev))
+		platform_device_put(pdev);
+#endif
+}
+
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+static DEFINE_SPINLOCK(txx9_iocled_lock);
+
+#define TXX9_IOCLED_MAXLEDS 8
+
+struct txx9_iocled_data {
+	struct gpio_chip chip;
+	u8 cur_val;
+	void __iomem *mmioaddr;
+	struct gpio_led_platform_data pdata;
+	struct gpio_led leds[TXX9_IOCLED_MAXLEDS];
+	char names[TXX9_IOCLED_MAXLEDS][32];
+};
+
+static int txx9_iocled_get(struct gpio_chip *chip, unsigned int offset)
+{
+	struct txx9_iocled_data *data =
+		container_of(chip, struct txx9_iocled_data, chip);
+	return data->cur_val & (1 << offset);
+}
+
+static void txx9_iocled_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
+{
+	struct txx9_iocled_data *data =
+		container_of(chip, struct txx9_iocled_data, chip);
+	unsigned long flags;
+	spin_lock_irqsave(&txx9_iocled_lock, flags);
+	if (value)
+		data->cur_val |= 1 << offset;
+	else
+		data->cur_val &= ~(1 << offset);
+	writeb(data->cur_val, data->mmioaddr);
+	mmiowb();
+	spin_unlock_irqrestore(&txx9_iocled_lock, flags);
+}
+
+static int txx9_iocled_dir_in(struct gpio_chip *chip, unsigned int offset)
+{
+	return 0;
+}
+
+static int txx9_iocled_dir_out(struct gpio_chip *chip, unsigned int offset,
+			       int value)
+{
+	txx9_iocled_set(chip, offset, value);
+	return 0;
+}
+
+void __init txx9_iocled_init(unsigned long baseaddr,
+			     int basenum, unsigned int num, int lowactive,
+			     const char *color, char **deftriggers)
+{
+	struct txx9_iocled_data *iocled;
+	struct platform_device *pdev;
+	int i;
+	static char *default_triggers[] __initdata = {
+		"heartbeat",
+		"ide-disk",
+		"nand-disk",
+		NULL,
+	};
+
+	if (!deftriggers)
+		deftriggers = default_triggers;
+	iocled = kzalloc(sizeof(*iocled), GFP_KERNEL);
+	if (!iocled)
+		return;
+	iocled->mmioaddr = ioremap(baseaddr, 1);
+	if (!iocled->mmioaddr)
+		return;
+	iocled->chip.get = txx9_iocled_get;
+	iocled->chip.set = txx9_iocled_set;
+	iocled->chip.direction_input = txx9_iocled_dir_in;
+	iocled->chip.direction_output = txx9_iocled_dir_out;
+	iocled->chip.label = "iocled";
+	iocled->chip.base = basenum;
+	iocled->chip.ngpio = num;
+	if (gpiochip_add(&iocled->chip))
+		return;
+	if (basenum < 0)
+		basenum = iocled->chip.base;
+
+	pdev = platform_device_alloc("leds-gpio", basenum);
+	if (!pdev)
+		return;
+	iocled->pdata.num_leds = num;
+	iocled->pdata.leds = iocled->leds;
+	for (i = 0; i < num; i++) {
+		struct gpio_led *led = &iocled->leds[i];
+		snprintf(iocled->names[i], sizeof(iocled->names[i]),
+			 "iocled:%s:%u", color, i);
+		led->name = iocled->names[i];
+		led->gpio = basenum + i;
+		led->active_low = lowactive;
+		if (deftriggers && *deftriggers)
+			led->default_trigger = *deftriggers++;
+	}
+	pdev->dev.platform_data = &iocled->pdata;
+	if (platform_device_add(pdev))
+		platform_device_put(pdev);
+}
+#else /* CONFIG_LEDS_GPIO */
+void __init txx9_iocled_init(unsigned long baseaddr,
+			     int basenum, unsigned int num, int lowactive,
+			     const char *color, char **deftriggers)
+{
+}
+#endif /* CONFIG_LEDS_GPIO */

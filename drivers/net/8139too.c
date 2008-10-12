@@ -309,7 +309,7 @@ enum RTL8139_registers {
 	Cfg9346		= 0x50,
 	Config0		= 0x51,
 	Config1		= 0x52,
-	FlashReg	= 0x54,
+	TimerInt	= 0x54,
 	MediaStatus	= 0x58,
 	Config3		= 0x59,
 	Config4		= 0x5A,	 /* absent on RTL-8139A */
@@ -325,6 +325,7 @@ enum RTL8139_registers {
 	FIFOTMS		= 0x70,	 /* FIFO Control and test. */
 	CSCR		= 0x74,	 /* Chip Status and Configuration Register. */
 	PARA78		= 0x78,
+	FlashReg	= 0xD4,	/* Communication with Flash ROM, four bytes. */
 	PARA7c		= 0x7c,	 /* Magic transceiver parameter register. */
 	Config5		= 0xD8,	 /* absent on RTL-8139A */
 };
@@ -1722,13 +1723,18 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&tp->lock, flags);
+	/*
+	 * Writing to TxStatus triggers a DMA transfer of the data
+	 * copied to tp->tx_buf[entry] above. Use a memory barrier
+	 * to make sure that the device sees the updated data.
+	 */
+	wmb();
 	RTL_W32_F (TxStatus0 + (entry * sizeof (u32)),
 		   tp->tx_flag | max(len, (unsigned int)ETH_ZLEN));
 
 	dev->trans_start = jiffies;
 
 	tp->cur_tx++;
-	wmb();
 
 	if ((tp->cur_tx - NUM_TX_DESC) == tp->dirty_tx)
 		netif_stop_queue (dev);
@@ -2009,9 +2015,9 @@ no_early_rx:
 		/* Malloc up new buffer, compatible with net-2e. */
 		/* Omit the four octet CRC from the length. */
 
-		skb = dev_alloc_skb (pkt_size + 2);
+		skb = netdev_alloc_skb(dev, pkt_size + NET_IP_ALIGN);
 		if (likely(skb)) {
-			skb_reserve (skb, 2);	/* 16 byte align the IP fields. */
+			skb_reserve (skb, NET_IP_ALIGN);	/* 16 byte align the IP fields. */
 #if RX_BUF_IDX == 3
 			wrap_copy(skb, rx_ring, ring_offset+4, pkt_size);
 #else

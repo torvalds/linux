@@ -426,8 +426,6 @@ static u32 atmci_submit_data(struct mmc_host *mmc, struct mmc_data *data)
 	host->sg = NULL;
 	host->data = data;
 
-	mci_writel(host, BLKR, MCI_BCNT(data->blocks)
-			| MCI_BLKLEN(data->blksz));
 	dev_vdbg(&mmc->class_dev, "BLKR=0x%08x\n",
 			MCI_BCNT(data->blocks) | MCI_BLKLEN(data->blksz));
 
@@ -483,6 +481,10 @@ static void atmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		if (data->blocks > 1 && data->blksz & 3)
 			goto fail;
 		atmci_set_timeout(host, data);
+
+		/* Must set block count/size before sending command */
+		mci_writel(host, BLKR, MCI_BCNT(data->blocks)
+				| MCI_BLKLEN(data->blksz));
 	}
 
 	iflags = MCI_CMDRDY;

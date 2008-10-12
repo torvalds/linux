@@ -82,6 +82,8 @@ asmlinkage void __cpuinit start_secondary(void)
 
 	preempt_disable();
 
+	notify_cpu_starting(smp_processor_id());
+
 	local_irq_enable();
 
 	calibrate_delay();

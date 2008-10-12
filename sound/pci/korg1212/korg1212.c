@@ -1281,7 +1281,8 @@ static int snd_korg1212_silence(struct snd_korg1212 *korg1212, int pos, int coun
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_silence pos=%d offset=%d size=%d count=%d\n",
 				   pos, offset, size, count);
-	snd_assert(pos + count <= K1212_MAX_SAMPLES, return -EINVAL);
+	if (snd_BUG_ON(pos + count > K1212_MAX_SAMPLES))
+		return -EINVAL;
 
 	for (i=0; i < count; i++) {
 #if K1212_DEBUG_LEVEL > 0
@@ -1306,7 +1307,8 @@ static int snd_korg1212_copy_to(struct snd_korg1212 *korg1212, void __user *dst,
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_copy_to pos=%d offset=%d size=%d\n",
 				   pos, offset, size);
-	snd_assert(pos + count <= K1212_MAX_SAMPLES, return -EINVAL);
+	if (snd_BUG_ON(pos + count > K1212_MAX_SAMPLES))
+		return -EINVAL;
 
 	for (i=0; i < count; i++) {
 #if K1212_DEBUG_LEVEL > 0
@@ -1336,7 +1338,8 @@ static int snd_korg1212_copy_from(struct snd_korg1212 *korg1212, void __user *sr
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_copy_from pos=%d offset=%d size=%d count=%d\n",
 				   pos, offset, size, count);
 
-	snd_assert(pos + count <= K1212_MAX_SAMPLES, return -EINVAL);
+	if (snd_BUG_ON(pos + count > K1212_MAX_SAMPLES))
+		return -EINVAL;
 
 	for (i=0; i < count; i++) {
 #if K1212_DEBUG_LEVEL > 0

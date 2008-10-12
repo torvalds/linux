@@ -49,7 +49,7 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 
 #define DMA_INT_MASK		(DCSR_ENDINTR | DCSR_STARTINTR | DCSR_BUSERR)
 #define RESET_DMA_CHANNEL	(DCSR_NODESC | DMA_INT_MASK)
-#define IS_DMA_ALIGNED(x)	(((x) & 0x07) == 0)
+#define IS_DMA_ALIGNED(x)	((((u32)(x)) & 0x07) == 0)
 #define MAX_DMA_LEN		8191
 
 /*
@@ -896,7 +896,7 @@ static void pump_transfers(unsigned long data)
 				|| transfer->rx_dma || transfer->tx_dma) {
 			dev_err(&drv_data->pdev->dev,
 				"pump_transfers: mapped transfer length "
-				"of %lu is greater than %d\n",
+				"of %u is greater than %d\n",
 				transfer->len, MAX_DMA_LEN);
 			message->status = -EINVAL;
 			giveback(drv_data);

@@ -29,6 +29,7 @@
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
+#include <linux/string_helpers.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -83,7 +84,7 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
-		int devidx = md->disk->first_minor >> MMC_SHIFT;
+		int devidx = MINOR(disk_devt(md->disk)) >> MMC_SHIFT;
 		__clear_bit(devidx, dev_use);
 
 		put_disk(md->disk);
@@ -532,6 +533,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 	struct mmc_blk_data *md;
 	int err;
 
+	char cap_str[10];
+
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
@@ -546,10 +549,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	printk(KERN_INFO "%s: %s %s %lluKiB %s\n",
+	string_get_size(get_capacity(md->disk) << 9, STRING_UNITS_2,
+			cap_str, sizeof(cap_str));
+	printk(KERN_INFO "%s: %s %s %s %s\n",
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
-		(unsigned long long)(get_capacity(md->disk) >> 1),
-		md->read_only ? "(ro)" : "");
+		cap_str, md->read_only ? "(ro)" : "");
 
 	mmc_set_drvdata(card, md);
 	add_disk(md->disk);

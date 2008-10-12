@@ -528,6 +528,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	.create = p9_virtio_create,
 	.maxsize = PAGE_SIZE*16,
 	.def = 0,
+	.owner = THIS_MODULE,
 };
 
 /* The standard init function */
@@ -545,6 +546,7 @@ static int __init p9_virtio_init(void)
 static void __exit p9_virtio_cleanup(void)
 {
 	unregister_virtio_driver(&p9_virtio_drv);
+	v9fs_unregister_trans(&p9_virtio_trans);
 }
 
 module_init(p9_virtio_init);

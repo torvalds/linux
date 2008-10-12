@@ -163,7 +163,7 @@ static const struct cx18_card cx18_card_h900 = {
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
-		  CX18_AV_AUDIO8, 0 },
+		  CX18_AV_AUDIO5, 0 },
 		{ CX18_CARD_INPUT_LINE_IN1,
 		  CX18_AV_AUDIO_SERIAL1, 0 },
 	},

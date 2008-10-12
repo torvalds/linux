@@ -85,7 +85,8 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 		}
 		frames = runtime->buffer_size - runtime->silence_filled;
 	}
-	snd_assert(frames <= runtime->buffer_size, return);
+	if (snd_BUG_ON(frames > runtime->buffer_size))
+		return;
 	if (frames == 0)
 		return;
 	ofs = runtime->silence_start % runtime->buffer_size;
@@ -96,7 +97,7 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 			if (substream->ops->silence) {
 				int err;
 				err = substream->ops->silence(substream, -1, ofs, transfer);
-				snd_assert(err >= 0, );
+				snd_BUG_ON(err < 0);
 			} else {
 				char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, ofs);
 				snd_pcm_format_set_silence(runtime->format, hwbuf, transfer * runtime->channels);
@@ -108,7 +109,7 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 				for (c = 0; c < channels; ++c) {
 					int err;
 					err = substream->ops->silence(substream, c, ofs, transfer);
-					snd_assert(err >= 0, );
+					snd_BUG_ON(err < 0);
 				}
 			} else {
 				size_t dma_csize = runtime->dma_bytes / channels;
@@ -354,7 +355,7 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
 {
 	u_int64_t n = (u_int64_t) a * b;
 	if (c == 0) {
-		snd_assert(n > 0, );
+		snd_BUG_ON(!n);
 		*r = 0;
 		return UINT_MAX;
 	}
@@ -380,7 +381,8 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v)
 {
 	int changed = 0;
-	snd_assert(!snd_interval_empty(i), return -EINVAL);
+	if (snd_BUG_ON(snd_interval_empty(i)))
+		return -EINVAL;
 	if (i->min < v->min) {
 		i->min = v->min;
 		i->openmin = v->openmin;
@@ -423,7 +425,8 @@ EXPORT_SYMBOL(snd_interval_refine);
 
 static int snd_interval_refine_first(struct snd_interval *i)
 {
-	snd_assert(!snd_interval_empty(i), return -EINVAL);
+	if (snd_BUG_ON(snd_interval_empty(i)))
+		return -EINVAL;
 	if (snd_interval_single(i))
 		return 0;
 	i->max = i->min;
@@ -435,7 +438,8 @@ static int snd_interval_refine_first(struct snd_interval *i)
 
 static int snd_interval_refine_last(struct snd_interval *i)
 {
-	snd_assert(!snd_interval_empty(i), return -EINVAL);
+	if (snd_BUG_ON(snd_interval_empty(i)))
+		return -EINVAL;
 	if (snd_interval_single(i))
 		return 0;
 	i->min = i->max;
@@ -889,7 +893,8 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime, unsigned int cond,
 	c->private = private;
 	k = 0;
 	while (1) {
-		snd_assert(k < ARRAY_SIZE(c->deps), return -EINVAL);
+		if (snd_BUG_ON(k >= ARRAY_SIZE(c->deps)))
+			return -EINVAL;
 		c->deps[k++] = dep;
 		if (dep < 0)
 			break;
@@ -1285,7 +1290,8 @@ int snd_pcm_hw_param_first(struct snd_pcm_substream *pcm,
 		return changed;
 	if (params->rmask) {
 		int err = snd_pcm_hw_refine(pcm, params);
-		snd_assert(err >= 0, return err);
+		if (snd_BUG_ON(err < 0))
+			return err;
 	}
 	return snd_pcm_hw_param_value(params, var, dir);
 }
@@ -1330,7 +1336,8 @@ int snd_pcm_hw_param_last(struct snd_pcm_substream *pcm,
 		return changed;
 	if (params->rmask) {
 		int err = snd_pcm_hw_refine(pcm, params);
-		snd_assert(err >= 0, return err);
+		if (snd_BUG_ON(err < 0))
+			return err;
 	}
 	return snd_pcm_hw_param_value(params, var, dir);
 }
@@ -1368,7 +1375,8 @@ int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 			err = snd_pcm_hw_param_first(pcm, params, *v, NULL);
 		else
 			err = snd_pcm_hw_param_last(pcm, params, *v, NULL);
-		snd_assert(err >= 0, return err);
+		if (snd_BUG_ON(err < 0))
+			return err;
 	}
 	return 0;
 }
@@ -1466,9 +1474,9 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime;
 	unsigned long flags;
 
-	snd_assert(substream != NULL, return);
+	if (PCM_RUNTIME_CHECK(substream))
+		return;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return);
 
 	if (runtime->transfer_ack_begin)
 		runtime->transfer_ack_begin(substream);
@@ -1567,7 +1575,6 @@ static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
 			return err;
 	} else {
 		char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
-		snd_assert(runtime->dma_area, return -EFAULT);
 		if (copy_from_user(hwbuf, buf, frames_to_bytes(runtime, frames)))
 			return -EFAULT;
 	}
@@ -1629,7 +1636,10 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		cont = runtime->buffer_size - runtime->control->appl_ptr % runtime->buffer_size;
 		if (frames > cont)
 			frames = cont;
-		snd_assert(frames != 0, snd_pcm_stream_unlock_irq(substream); return -EINVAL);
+		if (snd_BUG_ON(!frames)) {
+			snd_pcm_stream_unlock_irq(substream);
+			return -EINVAL;
+		}
 		appl_ptr = runtime->control->appl_ptr;
 		appl_ofs = appl_ptr % runtime->buffer_size;
 		snd_pcm_stream_unlock_irq(substream);
@@ -1669,18 +1679,30 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 	return xfer > 0 ? (snd_pcm_sframes_t)xfer : err;
 }
 
+/* sanity-check for read/write methods */
+static int pcm_sanity_check(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime;
+	if (PCM_RUNTIME_CHECK(substream))
+		return -ENXIO;
+	runtime = substream->runtime;
+	if (snd_BUG_ON(!substream->ops->copy && !runtime->dma_area))
+		return -EINVAL;
+	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
+	return 0;
+}
+
 snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream, const void __user *buf, snd_pcm_uframes_t size)
 {
 	struct snd_pcm_runtime *runtime;
 	int nonblock;
+	int err;
 
-	snd_assert(substream != NULL, return -ENXIO);
+	err = pcm_sanity_check(substream);
+	if (err < 0)
+		return err;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -ENXIO);
-	snd_assert(substream->ops->copy != NULL || runtime->dma_area != NULL, return -EINVAL);
-	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		return -EBADFD;
-
 	nonblock = !!(substream->f_flags & O_NONBLOCK);
 
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
@@ -1703,7 +1725,8 @@ static int snd_pcm_lib_writev_transfer(struct snd_pcm_substream *substream,
 	int channels = runtime->channels;
 	int c;
 	if (substream->ops->copy) {
-		snd_assert(substream->ops->silence != NULL, return -EINVAL);
+		if (snd_BUG_ON(!substream->ops->silence))
+			return -EINVAL;
 		for (c = 0; c < channels; ++c, ++bufs) {
 			if (*bufs == NULL) {
 				if ((err = substream->ops->silence(substream, c, hwoff, frames)) < 0)
@@ -1717,7 +1740,6 @@ static int snd_pcm_lib_writev_transfer(struct snd_pcm_substream *substream,
 	} else {
 		/* default transfer behaviour */
 		size_t dma_csize = runtime->dma_bytes / channels;
-		snd_assert(runtime->dma_area, return -EFAULT);
 		for (c = 0; c < channels; ++c, ++bufs) {
 			char *hwbuf = runtime->dma_area + (c * dma_csize) + samples_to_bytes(runtime, hwoff);
 			if (*bufs == NULL) {
@@ -1738,14 +1760,12 @@ snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime;
 	int nonblock;
+	int err;
 
-	snd_assert(substream != NULL, return -ENXIO);
+	err = pcm_sanity_check(substream);
+	if (err < 0)
+		return err;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -ENXIO);
-	snd_assert(substream->ops->copy != NULL || runtime->dma_area != NULL, return -EINVAL);
-	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		return -EBADFD;
-
 	nonblock = !!(substream->f_flags & O_NONBLOCK);
 
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
@@ -1769,7 +1789,6 @@ static int snd_pcm_lib_read_transfer(struct snd_pcm_substream *substream,
 			return err;
 	} else {
 		char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
-		snd_assert(runtime->dma_area, return -EFAULT);
 		if (copy_to_user(buf, hwbuf, frames_to_bytes(runtime, frames)))
 			return -EFAULT;
 	}
@@ -1841,7 +1860,10 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		cont = runtime->buffer_size - runtime->control->appl_ptr % runtime->buffer_size;
 		if (frames > cont)
 			frames = cont;
-		snd_assert(frames != 0, snd_pcm_stream_unlock_irq(substream); return -EINVAL);
+		if (snd_BUG_ON(!frames)) {
+			snd_pcm_stream_unlock_irq(substream);
+			return -EINVAL;
+		}
 		appl_ptr = runtime->control->appl_ptr;
 		appl_ofs = appl_ptr % runtime->buffer_size;
 		snd_pcm_stream_unlock_irq(substream);
@@ -1879,14 +1901,12 @@ snd_pcm_sframes_t snd_pcm_lib_read(struct snd_pcm_substream *substream, void __u
 {
 	struct snd_pcm_runtime *runtime;
 	int nonblock;
+	int err;
 	
-	snd_assert(substream != NULL, return -ENXIO);
+	err = pcm_sanity_check(substream);
+	if (err < 0)
+		return err;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -ENXIO);
-	snd_assert(substream->ops->copy != NULL || runtime->dma_area != NULL, return -EINVAL);
-	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		return -EBADFD;
-
 	nonblock = !!(substream->f_flags & O_NONBLOCK);
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED)
 		return -EINVAL;
@@ -1916,7 +1936,6 @@ static int snd_pcm_lib_readv_transfer(struct snd_pcm_substream *substream,
 		}
 	} else {
 		snd_pcm_uframes_t dma_csize = runtime->dma_bytes / channels;
-		snd_assert(runtime->dma_area, return -EFAULT);
 		for (c = 0; c < channels; ++c, ++bufs) {
 			char *hwbuf;
 			char __user *buf;
@@ -1938,11 +1957,12 @@ snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime;
 	int nonblock;
+	int err;
 
-	snd_assert(substream != NULL, return -ENXIO);
+	err = pcm_sanity_check(substream);
+	if (err < 0)
+		return err;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -ENXIO);
-	snd_assert(substream->ops->copy != NULL || runtime->dma_area != NULL, return -EINVAL);
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 

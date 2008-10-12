@@ -120,14 +120,9 @@ static unsigned long set_apic_id(unsigned int id)
 	return x;
 }
 
-static unsigned int x2apic_read_id(void)
-{
-	return apic_read(APIC_ID);
-}
-
 static unsigned int phys_pkg_id(int index_msb)
 {
-	return x2apic_read_id() >> index_msb;
+	return current_cpu_data.initial_apicid >> index_msb;
 }
 
 static void x2apic_send_IPI_self(int vector)

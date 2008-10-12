@@ -426,17 +426,9 @@ menuconfig PROCESSOR_SELECT
 	  This lets you choose what x86 vendor support code your kernel
 	  will include.
 
-config CPU_SUP_INTEL_32
+config CPU_SUP_INTEL
 	default y
 	bool "Support Intel processors" if PROCESSOR_SELECT
-	depends on !64BIT
-	help
-	  This enables extended support for Intel processors
-
-config CPU_SUP_INTEL_64
-	default y
-	bool "Support Intel processors" if PROCESSOR_SELECT
-	depends on 64BIT
 	help
 	  This enables extended support for Intel processors
 
@@ -447,17 +439,9 @@ config CPU_SUP_CYRIX_32
 	help
 	  This enables extended support for Cyrix processors
 
-config CPU_SUP_AMD_32
+config CPU_SUP_AMD
 	default y
 	bool "Support AMD processors" if PROCESSOR_SELECT
-	depends on !64BIT
-	help
-	  This enables extended support for AMD processors
-
-config CPU_SUP_AMD_64
-	default y
-	bool "Support AMD processors" if PROCESSOR_SELECT
-	depends on 64BIT
 	help
 	  This enables extended support for AMD processors
 
@@ -488,3 +472,21 @@ config CPU_SUP_UMC_32
 	depends on !64BIT
 	help
 	  This enables extended support for UMC processors
+
+config X86_DS
+	bool "Debug Store support"
+	default y
+	help
+	  Add support for Debug Store.
+	  This allows the kernel to provide a memory buffer to the hardware
+	  to store various profiling and tracing events.
+
+config X86_PTRACE_BTS
+	bool "ptrace interface to Branch Trace Store"
+	default y
+	depends on (X86_DS && X86_DEBUGCTLMSR)
+	help
+	  Add a ptrace interface to allow collecting an execution trace
+	  of the traced task.
+	  This collects control flow changes in a (cyclic) buffer and allows
+	  debuggers to fill in the gaps and show an execution trace of the debuggee.
