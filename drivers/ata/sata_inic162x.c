@@ -96,6 +96,7 @@ enum {
 	PORT_SCR		= 0x20,
 
 	/* HOST_CTL bits */
+	HCTL_LEDEN		= (1 << 3),  /* enable LED operation */
 	HCTL_IRQOFF		= (1 << 8),  /* global IRQ off */
 	HCTL_FTHD0		= (1 << 10), /* fifo threshold 0 */
 	HCTL_FTHD1		= (1 << 11), /* fifo threshold 1*/
@@ -268,9 +269,9 @@ static void inic_reset_port(void __iomem *port_base)
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 }
 
-static int inic_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
+static int inic_scr_read(struct ata_link *link, unsigned sc_reg, u32 *val)
 {
-	void __iomem *scr_addr = inic_port_base(ap) + PORT_SCR;
+	void __iomem *scr_addr = inic_port_base(link->ap) + PORT_SCR;
 	void __iomem *addr;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
@@ -285,9 +286,9 @@ static int inic_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
 	return 0;
 }
 
-static int inic_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
+static int inic_scr_write(struct ata_link *link, unsigned sc_reg, u32 val)
 {
-	void __iomem *scr_addr = inic_port_base(ap) + PORT_SCR;
+	void __iomem *scr_addr = inic_port_base(link->ap) + PORT_SCR;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
 		return -EINVAL;
@@ -540,7 +541,7 @@ static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
 	void __iomem *port_base = inic_port_base(ap);
 
 	/* fire up the ADMA engine */
-	writew(HCTL_FTHD0, port_base + HOST_CTL);
+	writew(HCTL_FTHD0 | HCTL_LEDEN, port_base + HOST_CTL);
 	writew(IDMA_CTL_GO, port_base + PORT_IDMA_CTL);
 	writeb(0, port_base + PORT_CPB_PTQFIFO);
 

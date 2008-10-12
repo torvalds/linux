@@ -27,8 +27,10 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/at73c213.h>
 #include <linux/clk.h>
+#include <linux/i2c/at24.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -37,6 +39,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 
@@ -163,11 +166,11 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Partition 1",
 		.offset	= 0,
-		.size	= 256 * 1024,
+		.size	= SZ_256K,
 	},
 	{
 		.name	= "Partition 2",
-		.offset	= 256 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -222,6 +225,73 @@ static struct gpio_led ek_leds[] = {
 	}
 };
 
+/*
+ * I2C devices
+ */
+static struct at24_platform_data at24c512 = {
+	.byte_len	= SZ_512K / 8,
+	.page_size	= 128,
+	.flags		= AT24_FLAG_ADDR16,
+};
+
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("24c512", 0x50),
+		.platform_data = &at24c512,
+	},
+	/* more devices can be added using expansion connectors */
+};
+
+
+/*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
+	{
+		.gpio		= AT91_PIN_PA30,
+		.code		= BTN_3,
+		.desc		= "Button 3",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA31,
+		.code		= BTN_4,
+		.desc		= "Button 4",
+		.active_low	= 1,
+		.wakeup		= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PA30, 1);	/* btn3 */
+	at91_set_deglitch(AT91_PIN_PA30, 1);
+	at91_set_gpio_input(AT91_PIN_PA31, 1);	/* btn4 */
+	at91_set_deglitch(AT91_PIN_PA31, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
+#endif
+
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -239,12 +309,14 @@ static void __init ek_board_init(void)
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* I2C */
-	at91_add_device_i2c(NULL, 0);
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* SSC (to AT73C213) */
 	at73c213_set_clk(&at73c213_data);
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	/* Push Buttons */
+	ek_add_device_buttons();
 }
 
 MACHINE_START(AT91SAM9260EK, "Atmel AT91SAM9260-EK")

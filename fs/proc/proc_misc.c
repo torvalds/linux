@@ -183,6 +183,9 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"SReclaimable: %8lu kB\n"
 		"SUnreclaim:   %8lu kB\n"
 		"PageTables:   %8lu kB\n"
+#ifdef CONFIG_QUICKLIST
+		"Quicklists:   %8lu kB\n"
+#endif
 		"NFS_Unstable: %8lu kB\n"
 		"Bounce:       %8lu kB\n"
 		"WritebackTmp: %8lu kB\n"
@@ -190,8 +193,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"Committed_AS: %8lu kB\n"
 		"VmallocTotal: %8lu kB\n"
 		"VmallocUsed:  %8lu kB\n"
-		"VmallocChunk: %8lu kB\n"
-		"Quicklists:   %8lu kB\n",
+		"VmallocChunk: %8lu kB\n",
 		K(i.totalram),
 		K(i.freeram),
 		K(i.bufferram),
@@ -216,6 +218,9 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
 		K(global_page_state(NR_PAGETABLE)),
+#ifdef CONFIG_QUICKLIST
+		K(quicklist_total_size()),
+#endif
 		K(global_page_state(NR_UNSTABLE_NFS)),
 		K(global_page_state(NR_BOUNCE)),
 		K(global_page_state(NR_WRITEBACK_TEMP)),
@@ -223,8 +228,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(committed),
 		(unsigned long)VMALLOC_TOTAL >> 10,
 		vmi.used >> 10,
-		vmi.largest_chunk >> 10,
-		K(quicklist_total_size())
+		vmi.largest_chunk >> 10
 		);
 
 		len += hugetlb_report_meminfo(page + len);

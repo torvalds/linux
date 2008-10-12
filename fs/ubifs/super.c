@@ -370,8 +370,9 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct ubifs_info *c = dentry->d_sb->s_fs_info;
 	unsigned long long free;
+	__le32 *uuid = (__le32 *)c->uuid;
 
-	free = ubifs_budg_get_free_space(c);
+	free = ubifs_get_free_space(c);
 	dbg_gen("free space %lld bytes (%lld blocks)",
 		free, free >> UBIFS_BLOCK_SHIFT);
 
@@ -386,7 +387,8 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;
 	buf->f_ffree = 0;
 	buf->f_namelen = UBIFS_MAX_NLEN;
-
+	buf->f_fsid.val[0] = le32_to_cpu(uuid[0]) ^ le32_to_cpu(uuid[2]);
+	buf->f_fsid.val[1] = le32_to_cpu(uuid[1]) ^ le32_to_cpu(uuid[3]);
 	return 0;
 }
 
@@ -530,6 +532,12 @@ static int init_constants_early(struct ubifs_info *c)
 	c->dead_wm = ALIGN(MIN_WRITE_SZ, c->min_io_size);
 	c->dark_wm = ALIGN(UBIFS_MAX_NODE_SZ, c->min_io_size);
 
+	/*
+	 * Calculate how many bytes would be wasted at the end of LEB if it was
+	 * fully filled with data nodes of maximum size. This is used in
+	 * calculations when reporting free space.
+	 */
+	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
 	return 0;
 }
 
@@ -647,13 +655,11 @@ static int init_constants_late(struct ubifs_info *c)
 	 * internally because it does not make much sense for UBIFS, but it is
 	 * necessary to report something for the 'statfs()' call.
 	 *
-	 * Subtract the LEB reserved for GC and the LEB which is reserved for
-	 * deletions.
-	 *
-	 * Review 'ubifs_calc_available()' if changing this calculation.
+	 * Subtract the LEB reserved for GC, the LEB which is reserved for
+	 * deletions, and assume only one journal head is available.
 	 */
-	tmp64 = c->main_lebs - 2;
-	tmp64 *= (uint64_t)c->leb_size - c->dark_wm;
+	tmp64 = c->main_lebs - 2 - c->jhead_cnt + 1;
+	tmp64 *= (uint64_t)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
 
@@ -1018,14 +1024,13 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_dereg;
 	}
 
+	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
 	if (!mounted_read_only) {
 		err = alloc_wbufs(c);
 		if (err)
 			goto out_cbuf;
 
 		/* Create background thread */
-		sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num,
-			c->vi.vol_id);
 		c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
 		if (!c->bgt)
 			c->bgt = ERR_PTR(-EINVAL);

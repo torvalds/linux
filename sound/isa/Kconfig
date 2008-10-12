@@ -1,10 +1,6 @@
 # ALSA ISA drivers
 
-config SND_AD1848_LIB
-        tristate
-        select SND_PCM
-
-config SND_CS4231_LIB
+config SND_WSS_LIB
         tristate
         select SND_PCM
 
@@ -55,7 +51,7 @@ config SND_AD1816A
 
 config SND_AD1848
 	tristate "Generic AD1848/CS4248 driver"
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for AD1848 (Analog Devices) or
 	  CS4248 (Cirrus Logic - Crystal Semiconductors) chips.
@@ -86,7 +82,7 @@ config SND_AZT2320
 	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for soundcards based on the
 	  Aztech Systems AZT2320 chip.
@@ -96,7 +92,7 @@ config SND_AZT2320
 
 config SND_CMI8330
 	tristate "C-Media CMI8330"
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	select SND_SB16_DSP
 	help
 	  Say Y here to include support for soundcards based on the
@@ -108,7 +104,7 @@ config SND_CMI8330
 config SND_CS4231
 	tristate "Generic Cirrus Logic CS4231 driver"
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for CS4231 chips from Cirrus
 	  Logic - Crystal Semiconductors.
@@ -120,7 +116,7 @@ config SND_CS4232
 	tristate "Generic Cirrus Logic CS4232 driver"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for CS4232 chips from Cirrus
 	  Logic - Crystal Semiconductors.
@@ -132,7 +128,7 @@ config SND_CS4236
 	tristate "Generic Cirrus Logic CS4236+ driver"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y to include support for CS4235,CS4236,CS4237B,CS4238B,
 	  CS4239 chips from Cirrus Logic - Crystal Semiconductors.
@@ -192,7 +188,7 @@ config SND_ES18XX
 config SND_SC6000
 	tristate "Gallant SC-6000, Audio Excel DSP 16"
 	depends on HAS_IOPORT
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	help
@@ -228,7 +224,7 @@ config SND_GUSEXTREME
 config SND_GUSMAX
 	tristate "Gravis UltraSound MAX"
 	select SND_RAWMIDI
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Gravis UltraSound MAX
 	  soundcards.
@@ -240,7 +236,7 @@ config SND_INTERWAVE
 	tristate "AMD InterWave, Gravis UltraSound PnP"
 	depends on PNP
 	select SND_RAWMIDI
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards (Gravis UltraSound Plug & Play, STB SoundRage32,
@@ -253,7 +249,7 @@ config SND_INTERWAVE_STB
 	tristate "AMD InterWave + TEA6330T (UltraSound 32-Pro)"
 	depends on PNP
 	select SND_RAWMIDI
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards with a TEA6330T bass and treble regulator
@@ -266,7 +262,7 @@ config SND_OPL3SA2
 	tristate "Yamaha OPL3-SA2/SA3"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Yamaha OPL3-SA2 and OPL3-SA3
 	  chips.
@@ -279,7 +275,7 @@ config SND_OPTI92X_AD1848
 	select SND_OPL3_LIB
 	select SND_OPL4_LIB
 	select SND_MPU401_UART
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for soundcards based on Opti
 	  82C92x or OTI-601 chips and using an AD1848 codec.
@@ -292,7 +288,7 @@ config SND_OPTI92X_CS4231
 	select SND_OPL3_LIB
 	select SND_OPL4_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for soundcards based on Opti
 	  82C92x chips and using a CS4231 codec.
@@ -304,7 +300,7 @@ config SND_OPTI93X
 	tristate "OPTi 82C93x"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for soundcards based on Opti
 	  82C93x chips.
@@ -315,7 +311,7 @@ config SND_OPTI93X
 config SND_MIRO
 	tristate "Miro miroSOUND PCM1pro/PCM12/PCM20radio driver"
 	select SND_OPL4_LIB
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	select SND_MPU401_UART
 	select SND_PCM
 	help
@@ -364,7 +360,7 @@ config SND_SBAWE
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"
 	depends on (SND_SB16 || SND_SBAWE) && (BROKEN || !PPC)
-	select FW_LOADER if !SND_SB16_CSP_FIRMWARE_IN_KERNEL
+	select FW_LOADER
 	help
 	  Say Y here to include support for the CSP core.  This special
 	  coprocessor can do variable tasks like various compression and
@@ -372,7 +368,7 @@ config SND_SB16_CSP
 
 config SND_SGALAXY
 	tristate "Aztech Sound Galaxy"
-	select SND_AD1848_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Aztech Sound Galaxy
 	  soundcards.
@@ -384,7 +380,7 @@ config SND_SSCAPE
 	tristate "Ensoniq SoundScape PnP driver"
 	select SND_HWDEP
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Ensoniq SoundScape PnP
 	  soundcards.
@@ -397,7 +393,7 @@ config SND_WAVEFRONT
 	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
-	select SND_CS4231_LIB
+	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Turtle Beach Maui, Tropez
 	  and Tropez+ soundcards based on the Wavefront chip.

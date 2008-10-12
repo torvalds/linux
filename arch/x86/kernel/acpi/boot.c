@@ -252,10 +252,8 @@ static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 		return;
 	}
 
-#ifdef CONFIG_X86_32
 	if (boot_cpu_physical_apicid != -1U)
 		ver = apic_version[boot_cpu_physical_apicid];
-#endif
 
 	generic_processor_info(id, ver);
 }
@@ -775,10 +773,8 @@ static void __init acpi_register_lapic_address(unsigned long address)
 	set_fixmap_nocache(FIX_APIC_BASE, address);
 	if (boot_cpu_physical_apicid == -1U) {
 		boot_cpu_physical_apicid  = read_apic_id();
-#ifdef CONFIG_X86_32
 		apic_version[boot_cpu_physical_apicid] =
 			 GET_APIC_VERSION(apic_read(APIC_LVR));
-#endif
 	}
 }
 
@@ -1606,6 +1602,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 */
 	{
 	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP nx6115 laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6115"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
 	 .ident = "HP NX6125 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1618,6 +1622,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP 6715b laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq 6715b"),
 		     },
 	 },
 	{}

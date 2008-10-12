@@ -17,14 +17,13 @@
 #include <linux/sysdev.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include <asm/mach/irq.h>
-
-#include <asm/io.h>
 
 /*
  * OMAP1510 GPIO registers
@@ -1051,13 +1050,10 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 		gpio_irq = bank->virtual_irq_start;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
-			struct irq_desc *d;
-
 			if (!(isr & 1))
 				continue;
-			d = irq_desc + gpio_irq;
 
-			desc_handle_irq(gpio_irq, d);
+			generic_handle_irq(gpio_irq);
 		}
 	}
 	/* if bank has any level sensitive GPIO pin interrupt
@@ -1488,7 +1484,7 @@ static int __init _omap_gpio_init(void)
 		bank->chip.set = gpio_set;
 		if (bank_is_mpuio(bank)) {
 			bank->chip.label = "mpuio";
-#ifdef CONFIG_ARCH_OMAP1
+#ifdef CONFIG_ARCH_OMAP16XX
 			bank->chip.dev = &omap_mpuio_device.dev;
 #endif
 			bank->chip.base = OMAP_MPUIO(0);

@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -81,17 +80,19 @@ static void cs5530_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static u8 cs5530_udma_filter(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_drive_t *mate = &hwif->drives[(drive->dn & 1) ^ 1];
-	struct hd_driveid *mateid = mate->id;
+	ide_drive_t *mate = ide_get_pair_dev(drive);
+	u16 *mateid = mate->id;
 	u8 mask = hwif->ultra_mask;
 
-	if (mate->present == 0)
+	if (mate == NULL)
 		goto out;
 
-	if ((mateid->capability & 1) && __ide_dma_bad_drive(mate) == 0) {
-		if ((mateid->field_valid & 4) && (mateid->dma_ultra & 7))
+	if (ata_id_has_dma(mateid) && __ide_dma_bad_drive(mate) == 0) {
+		if ((mateid[ATA_ID_FIELD_VALID] & 4) &&
+		    (mateid[ATA_ID_UDMA_MODES] & 7))
 			goto out;
-		if ((mateid->field_valid & 2) && (mateid->dma_mword & 7))
+		if ((mateid[ATA_ID_FIELD_VALID] & 2) &&
+		    (mateid[ATA_ID_MWDMA_MODES] & 7))
 			mask = 0;
 	}
 out:
@@ -133,7 +134,7 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
  *	Initialize the cs5530 bridge for reliable IDE DMA operation.
  */
 
-static unsigned int __devinit init_chipset_cs5530(struct pci_dev *dev)
+static unsigned int init_chipset_cs5530(struct pci_dev *dev)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 
@@ -271,6 +272,8 @@ static struct pci_driver driver = {
 	.id_table	= cs5530_pci_tbl,
 	.probe		= cs5530_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cs5530_ide_init(void)

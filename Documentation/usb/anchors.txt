@@ -42,9 +42,21 @@ This function kills all URBs associated with an anchor. The URBs
 are called in the reverse temporal order they were submitted.
 This way no data can be reordered.
 
+usb_unlink_anchored_urbs()
+--------------------------
+
+This function unlinks all URBs associated with an anchor. The URBs
+are processed in the reverse temporal order they were submitted.
+This is similar to usb_kill_anchored_urbs(), but it will not sleep.
+Therefore no guarantee is made that the URBs have been unlinked when
+the call returns. They may be unlinked later but will be unlinked in
+finite time.
+
 usb_wait_anchor_empty_timeout()
 -------------------------------
 
 This function waits for all URBs associated with an anchor to finish
 or a timeout, whichever comes first. Its return value will tell you
 whether the timeout was reached.
+
+

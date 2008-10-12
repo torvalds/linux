@@ -306,7 +306,8 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 	struct snd_timer *timer = NULL;
 	struct snd_timer_instance *slave, *tmp;
 
-	snd_assert(timeri != NULL, return -ENXIO);
+	if (snd_BUG_ON(!timeri))
+		return -ENXIO;
 
 	/* force to stop the timer */
 	snd_timer_stop(timeri);
@@ -385,8 +386,9 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 		do_posix_clock_monotonic_gettime(&tstamp);
 	else
 		getnstimeofday(&tstamp);
-	snd_assert(event >= SNDRV_TIMER_EVENT_START &&
-		   event <= SNDRV_TIMER_EVENT_PAUSE, return);
+	if (snd_BUG_ON(event < SNDRV_TIMER_EVENT_START ||
+		       event > SNDRV_TIMER_EVENT_PAUSE))
+		return;
 	if (event == SNDRV_TIMER_EVENT_START ||
 	    event == SNDRV_TIMER_EVENT_CONTINUE)
 		resolution = snd_timer_resolution(ti);
@@ -474,7 +476,8 @@ static int _snd_timer_stop(struct snd_timer_instance * timeri,
 	struct snd_timer *timer;
 	unsigned long flags;
 
-	snd_assert(timeri != NULL, return -ENXIO);
+	if (snd_BUG_ON(!timeri))
+		return -ENXIO;
 
 	if (timeri->flags & SNDRV_TIMER_IFLG_SLAVE) {
 		if (!keep_flag) {
@@ -758,9 +761,10 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 		.dev_disconnect = snd_timer_dev_disconnect,
 	};
 
-	snd_assert(tid != NULL, return -EINVAL);
-	snd_assert(rtimer != NULL, return -EINVAL);
-	*rtimer = NULL;
+	if (snd_BUG_ON(!tid))
+		return -EINVAL;
+	if (rtimer)
+		*rtimer = NULL;
 	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
 	if (timer == NULL) {
 		snd_printk(KERN_ERR "timer: cannot allocate\n");
@@ -788,13 +792,15 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 			return err;
 		}
 	}
-	*rtimer = timer;
+	if (rtimer)
+		*rtimer = timer;
 	return 0;
 }
 
 static int snd_timer_free(struct snd_timer *timer)
 {
-	snd_assert(timer != NULL, return -ENXIO);
+	if (!timer)
+		return 0;
 
 	mutex_lock(&register_mutex);
 	if (! list_empty(&timer->open_list_head)) {
@@ -827,8 +833,8 @@ static int snd_timer_dev_register(struct snd_device *dev)
 	struct snd_timer *timer = dev->device_data;
 	struct snd_timer *timer1;
 
-	snd_assert(timer != NULL && timer->hw.start != NULL &&
-		   timer->hw.stop != NULL, return -ENXIO);
+	if (snd_BUG_ON(!timer || !timer->hw.start || !timer->hw.stop))
+		return -ENXIO;
 	if (!(timer->hw.flags & SNDRV_TIMER_HW_SLAVE) &&
 	    !timer->hw.resolution && timer->hw.c_resolution == NULL)
 	    	return -EINVAL;
@@ -879,8 +885,9 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 
 	if (! (timer->hw.flags & SNDRV_TIMER_HW_SLAVE))
 		return;
-	snd_assert(event >= SNDRV_TIMER_EVENT_MSTART &&
-		   event <= SNDRV_TIMER_EVENT_MRESUME, return);
+	if (snd_BUG_ON(event < SNDRV_TIMER_EVENT_MSTART ||
+		       event > SNDRV_TIMER_EVENT_MRESUME))
+		return;
 	spin_lock_irqsave(&timer->lock, flags);
 	if (event == SNDRV_TIMER_EVENT_MSTART ||
 	    event == SNDRV_TIMER_EVENT_MCONTINUE ||

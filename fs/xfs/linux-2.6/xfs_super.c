@@ -1302,9 +1302,29 @@ xfs_fs_remount(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 			break;
 		default:
+			/*
+			 * Logically we would return an error here to prevent
+			 * users from believing they might have changed
+			 * mount options using remount which can't be changed.
+			 *
+			 * But unfortunately mount(8) adds all options from
+			 * mtab and fstab to the mount arguments in some cases
+			 * so we can't blindly reject options, but have to
+			 * check for each specified option if it actually
+			 * differs from the currently set option and only
+			 * reject it if that's the case.
+			 *
+			 * Until that is implemented we return success for
+			 * every remount request, and silently ignore all
+			 * options that we can't actually change.
+			 */
+#if 0
 			printk(KERN_INFO
 	"XFS: mount option \"%s\" not supported for remount\n", p);
 			return -EINVAL;
+#else
+			return 0;
+#endif
 		}
 	}
 

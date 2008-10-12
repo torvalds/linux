@@ -28,11 +28,11 @@
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
+#include <linux/io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <asm/io.h>
 #include <asm/gpio.h>
 
 static struct flash_platform_data nas100d_flash_data = {

@@ -331,7 +331,7 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 
 static int sr_prep_fn(struct request_queue *q, struct request *rq)
 {
-	int block=0, this_count, s_size, timeout = SR_TIMEOUT;
+	int block = 0, this_count, s_size;
 	struct scsi_cd *cd;
 	struct scsi_cmnd *SCpnt;
 	struct scsi_device *sdp = q->queuedata;
@@ -461,7 +461,6 @@ static int sr_prep_fn(struct request_queue *q, struct request *rq)
 	SCpnt->transfersize = cd->device->sector_size;
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = MAX_RETRIES;
-	SCpnt->timeout_per_command = timeout;
 
 	/*
 	 * This indicates that the command is ready from our end to be
@@ -620,6 +619,8 @@ static int sr_probe(struct device *dev)
 	disk->fops = &sr_bdops;
 	disk->flags = GENHD_FL_CD;
 
+	blk_queue_rq_timeout(sdev->request_queue, SR_TIMEOUT);
+
 	cd->device = sdev;
 	cd->disk = disk;
 	cd->driver = &sr_template;
@@ -656,7 +657,6 @@ static int sr_probe(struct device *dev)
 	dev_set_drvdata(dev, cd);
 	disk->flags |= GENHD_FL_REMOVABLE;
 	add_disk(disk);
-	blk_register_filter(disk);
 
 	sdev_printk(KERN_DEBUG, sdev,
 		    "Attached scsi CD-ROM %s\n", cd->cdi.name);
@@ -879,7 +879,7 @@ static void sr_kref_release(struct kref *kref)
 	struct gendisk *disk = cd->disk;
 
 	spin_lock(&sr_index_lock);
-	clear_bit(disk->first_minor, sr_index_bits);
+	clear_bit(MINOR(disk_devt(disk)), sr_index_bits);
 	spin_unlock(&sr_index_lock);
 
 	unregister_cdrom(&cd->cdi);
@@ -895,7 +895,6 @@ static int sr_remove(struct device *dev)
 {
 	struct scsi_cd *cd = dev_get_drvdata(dev);
 
-	blk_unregister_filter(cd->disk);
 	del_gendisk(cd->disk);
 
 	mutex_lock(&sr_ref_mutex);

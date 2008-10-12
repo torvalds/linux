@@ -278,7 +278,7 @@ tapeblock_cleanup_device(struct tape_device *device)
 
 	if (!device->blk_data.disk) {
 		PRINT_ERR("(%s): No gendisk to clean up!\n",
-			device->cdev->dev.bus_id);
+			dev_name(&device->cdev->dev));
 		goto cleanup_queue;
 	}
 

@@ -59,6 +59,12 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 		"{SiS,SI7012},"
 		"{NVidia,nForce Audio},"
 		"{NVidia,nForce2 Audio},"
+		"{NVidia,nForce3 Audio},"
+		"{NVidia,MCP04},"
+		"{NVidia,MCP501},"
+		"{NVidia,CK804},"
+		"{NVidia,CK8},"
+		"{NVidia,CK8S},"
 		"{AMD,AMD768},"
 		"{AMD,AMD8111},"
 	        "{ALI,M5455}}");
@@ -77,7 +83,7 @@ MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel i8x0 soundcard.");
 module_param(ac97_clock, int, 0444);
-MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
+MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = whitelist + auto-detect, 1 = force autodetect).");
 module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 module_param(buggy_semaphore, bool, 0444);
@@ -1957,6 +1963,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x10cf,
+		.subdevice = 0x127d,
+		.name = "Fujitsu Lifebook P7010",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10cf,
 		.subdevice = 0x127e,
 		.name = "Fujitsu Lifebook C1211D",
 		.type = AC97_TUNE_HP_ONLY
@@ -2132,8 +2144,8 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 				snd_intel8x0_codec_read_test(chip, codecs);
 				chip->ac97_sdin[codecs] =
 					igetbyte(chip, ICHREG(SDM)) & ICH_LDI_MASK;
-				snd_assert(chip->ac97_sdin[codecs] < 3,
-					   chip->ac97_sdin[codecs] = 0);
+				if (snd_BUG_ON(chip->ac97_sdin[codecs] >= 3))
+					chip->ac97_sdin[codecs] = 0;
 			} else
 				chip->ac97_sdin[codecs] = i;
 			codecs++;
@@ -2686,6 +2698,28 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	snd_ac97_update_power(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 0);
 }
 
+static struct snd_pci_quirk intel8x0_clock_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x0e11, 0x008a, "AD1885", 41000),
+	SND_PCI_QUIRK(0x1028, 0x00be, "AD1885", 44100),
+	SND_PCI_QUIRK(0x1028, 0x0177, "AD1980", 48000),
+	SND_PCI_QUIRK(0x1043, 0x80f3, "AD1985", 48000),
+	{ }	/* terminator */
+};
+
+static int __devinit intel8x0_in_clock_list(struct intel8x0 *chip)
+{
+	struct pci_dev *pci = chip->pci;
+	const struct snd_pci_quirk *wl;
+
+	wl = snd_pci_quirk_lookup(pci, intel8x0_clock_list);
+	if (!wl)
+		return 0;
+	printk(KERN_INFO "intel8x0: white list rate for %04x:%04x is %i\n",
+	       pci->subsystem_vendor, pci->subsystem_device, wl->value);
+	chip->ac97_bus->clock = wl->value;
+	return 1;
+}
+
 #ifdef CONFIG_PROC_FS
 static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
@@ -3081,8 +3115,14 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		 "%s with %s at irq %i", card->shortname,
 		 snd_ac97_get_short_name(chip->ac97[0]), chip->irq);
 
-	if (! ac97_clock)
-		intel8x0_measure_ac97_clock(chip);
+	if (ac97_clock == 0 || ac97_clock == 1) {
+		if (ac97_clock == 0) {
+			if (intel8x0_in_clock_list(chip) == 0)
+				intel8x0_measure_ac97_clock(chip);
+		} else {
+			intel8x0_measure_ac97_clock(chip);
+		}
+	}
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

@@ -42,10 +42,6 @@ extern unsigned long __bus_to_virt(unsigned long);
 
 #endif
 
-/* Task size and page offset at 3GB */
-#define TASK_SIZE		UL(0xbf000000)
-#define PAGE_OFFSET		UL(0xc0000000)
-
 /*
  * Cache flushing area.
  */
@@ -55,12 +51,6 @@ extern unsigned long __bus_to_virt(unsigned long);
  * Physical DRAM offset.
  */
 #define PHYS_OFFSET		UL(0x00000000)
-
-/*
- * This decides where the kernel will search for a free chunk of vm
- * space during mmap's.
- */
-#define TASK_UNMAPPED_BASE ((TASK_SIZE + 0x01000000) / 3)
 
 #define FLUSH_BASE_PHYS		0x50000000
 

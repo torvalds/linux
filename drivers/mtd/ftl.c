@@ -1005,6 +1005,29 @@ static int ftl_writesect(struct mtd_blktrans_dev *dev,
 	return ftl_write((void *)dev, buf, block, 1);
 }
 
+static int ftl_discardsect(struct mtd_blktrans_dev *dev,
+			   unsigned long sector, unsigned nr_sects)
+{
+	partition_t *part = (void *)dev;
+	uint32_t bsize = 1 << part->header.EraseUnitSize;
+
+	DEBUG(1, "FTL erase sector %ld for %d sectors\n",
+	      sector, nr_sects);
+
+	while (nr_sects) {
+		uint32_t old_addr = part->VirtualBlockMap[sector];
+		if (old_addr != 0xffffffff) {
+			part->VirtualBlockMap[sector] = 0xffffffff;
+			part->EUNInfo[old_addr/bsize].Deleted++;
+			if (set_bam_entry(part, old_addr, 0))
+				return -EIO;
+		}
+		nr_sects--;
+		sector++;
+	}
+
+	return 0;
+}
 /*====================================================================*/
 
 static void ftl_freepart(partition_t *part)
@@ -1069,6 +1092,7 @@ static struct mtd_blktrans_ops ftl_tr = {
 	.blksize 	= SECTOR_SIZE,
 	.readsect	= ftl_readsect,
 	.writesect	= ftl_writesect,
+	.discard	= ftl_discardsect,
 	.getgeo		= ftl_getgeo,
 	.add_mtd	= ftl_add_mtd,
 	.remove_dev	= ftl_remove_dev,

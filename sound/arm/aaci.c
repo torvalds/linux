@@ -999,7 +999,7 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 	card = snd_card_new(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			    THIS_MODULE, sizeof(struct aaci));
 	if (card == NULL)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	card->private_free = aaci_free_card;
 
@@ -1083,8 +1083,8 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 		return ret;
 
 	aaci = aaci_init_card(dev);
-	if (IS_ERR(aaci)) {
-		ret = PTR_ERR(aaci);
+	if (!aaci) {
+		ret = -ENOMEM;
 		goto out;
 	}
 

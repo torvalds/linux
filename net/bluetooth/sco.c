@@ -200,7 +200,7 @@ static int sco_connect(struct sock *sk)
 	else
 		type = SCO_LINK;
 
-	hcon = hci_connect(hdev, type, dst);
+	hcon = hci_connect(hdev, type, dst, HCI_AT_NO_BONDING);
 	if (!hcon)
 		goto done;
 
