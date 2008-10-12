@@ -19,6 +19,7 @@
 #include <linux/spi/spi.h>
 
 #include <asm/setup.h>
+#include <asm/atmel-mci.h>
 
 #include <mach/at32ap700x.h>
 #include <mach/board.h>
