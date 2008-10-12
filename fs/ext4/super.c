@@ -507,7 +507,8 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
-	jbd2_journal_destroy(sbi->s_journal);
+	if (jbd2_journal_destroy(sbi->s_journal) < 0)
+		ext4_abort(sb, __func__, "Couldn't clean up the journal");
 	sbi->s_journal = NULL;
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
@@ -777,6 +778,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",inode_readahead_blks=%u",
 			   sbi->s_inode_readahead_blks);
 
+	if (test_opt(sb, DATA_ERR_ABORT))
+		seq_puts(seq, ",data_err=abort");
+
 	ext4_show_quota_options(seq, sb);
 	return 0;
 }
@@ -906,6 +910,7 @@ enum {
 	Opt_commit, Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
+	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
@@ -952,6 +957,8 @@ static match_table_t tokens = {
 	{Opt_data_journal, "data=journal"},
 	{Opt_data_ordered, "data=ordered"},
 	{Opt_data_writeback, "data=writeback"},
+	{Opt_data_err_abort, "data_err=abort"},
+	{Opt_data_err_ignore, "data_err=ignore"},
 	{Opt_offusrjquota, "usrjquota="},
 	{Opt_usrjquota, "usrjquota=%s"},
 	{Opt_offgrpjquota, "grpjquota="},
@@ -1185,6 +1192,12 @@ static int parse_options(char *options, struct super_block *sb,
 				sbi->s_mount_opt &= ~EXT4_MOUNT_DATA_FLAGS;
 				sbi->s_mount_opt |= data_opt;
 			}
+			break;
+		case Opt_data_err_abort:
+			set_opt(sbi->s_mount_opt, DATA_ERR_ABORT);
+			break;
+		case Opt_data_err_ignore:
+			clear_opt(sbi->s_mount_opt, DATA_ERR_ABORT);
 			break;
 #ifdef CONFIG_QUOTA
 		case Opt_usrjquota:
@@ -2218,6 +2231,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+#ifdef CONFIG_PROC_FS
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
 
@@ -2225,6 +2239,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		proc_create_data("inode_readahead_blks", 0644, sbi->s_proc,
 				 &ext4_ui_proc_fops,
 				 &sbi->s_inode_readahead_blks);
+#endif
 
 	bgl_lock_init(&sbi->s_blockgroup_lock);
 
@@ -2534,6 +2549,10 @@ static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 		journal->j_flags |= JBD2_BARRIER;
 	else
 		journal->j_flags &= ~JBD2_BARRIER;
+	if (test_opt(sb, DATA_ERR_ABORT))
+		journal->j_flags |= JBD2_ABORT_ON_SYNCDATA_ERR;
+	else
+		journal->j_flags &= ~JBD2_ABORT_ON_SYNCDATA_ERR;
 	spin_unlock(&journal->j_state_lock);
 }
 
@@ -2853,7 +2872,9 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	journal_t *journal = EXT4_SB(sb)->s_journal;
 
 	jbd2_journal_lock_updates(journal);
-	jbd2_journal_flush(journal);
+	if (jbd2_journal_flush(journal) < 0)
+		goto out;
+
 	lock_super(sb);
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER) &&
 	    sb->s_flags & MS_RDONLY) {
@@ -2862,6 +2883,8 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 		ext4_commit_super(sb, es, 1);
 	}
 	unlock_super(sb);
+
+out:
 	jbd2_journal_unlock_updates(journal);
 }
 
@@ -2962,7 +2985,13 @@ static void ext4_write_super_lockfs(struct super_block *sb)
 
 		/* Now we set up the journal barrier. */
 		jbd2_journal_lock_updates(journal);
-		jbd2_journal_flush(journal);
+
+		/*
+		 * We don't want to clear needs_recovery flag when we failed
+		 * to flush the journal.
+		 */
+		if (jbd2_journal_flush(journal) < 0)
+			return;
 
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
@@ -3402,8 +3431,12 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		 * otherwise be livelocked...
 		 */
 		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		if (err) {
+			path_put(&nd.path);
+			return err;
+		}
 	}
 
 	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
