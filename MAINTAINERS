@@ -73,6 +73,7 @@ L: Mailing list that is relevant to this area
 W: Web-page with status/info
 T: SCM tree type and location.  Type is one of: git, hg, quilt.
 S: Status, one of the following:
+F: Applicable files and/or directories
 
 	Supported:	Someone is actually paid to look after this.
 	Maintained:	Someone actually looks after it.
@@ -723,7 +724,7 @@ L:	linux-kernel@vger.kernel.org
 W:	http://sourceforge.net/projects/xscaleiop
 S:	Supported
 
-ATA OVER ETHERNET DRIVER
+ATA OVER ETHERNET (AOE) DRIVER
 P:	Ed L. Cashin
 M:	ecashin@coraid.com
 W:	http://www.coraid.com/support/linux
@@ -1376,7 +1377,7 @@ L:	Eng.Linux@digi.com
 W:	http://www.digi.com
 S:	Orphan
 
-DIRECTORY NOTIFICATION
+DIRECTORY NOTIFICATION (DNOTIFY)
 P:	Stephen Rothwell
 M:	sfr@canb.auug.org.au
 L:	linux-kernel@vger.kernel.org
@@ -1396,7 +1397,7 @@ M:	jack@suse.cz
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-DISTRIBUTED LOCK MANAGER
+DISTRIBUTED LOCK MANAGER (DLM)
 P:	Christine Caulfield
 M:	ccaulfie@redhat.com
 P:	David Teigland
@@ -2298,7 +2299,7 @@ L:	netdev@vger.kernel.org
 L:	lvs-devel@vger.kernel.org
 S:	Maintained
 
-IPWIRELES DRIVER
+IPWIRELESS DRIVER
 P:	Jiri Kosina
 M:	jkosina@suse.cz
 P:	David Sterba
@@ -3424,7 +3425,7 @@ M:	paulus@samba.org
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
-RALINK RT2X00 WLAN DRIVER
+RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 L:	linux-wireless@vger.kernel.org
 L:	rt2400-devel@lists.sourceforge.net
@@ -3657,7 +3658,7 @@ M:	saschasommer@freenet.de
 L:	sdricohcs-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
-SECURE DIGITAL HOST CONTROLLER INTERFACE DRIVER
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 P:	Pierre Ossman
 M:	drzeus-sdhci@drzeus.cx
 L:	sdhci-devel@list.drzeus.cx
@@ -4455,7 +4456,7 @@ L:	video4linux-list@redhat.com
 W:	http://royale.zerezo.com/zr364xx/
 S:	Maintained
 
-USER-MODE LINUX
+USER-MODE LINUX (UML)
 P:	Jeff Dike
 M:	jdike@addtoit.com
 L:	user-mode-linux-devel@lists.sourceforge.net
@@ -4502,7 +4503,7 @@ M:	romieu@fr.zoreil.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 
-VIDEO FOR LINUX
+VIDEO FOR LINUX (V4L)
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
 M:	v4l-dvb-maintainer@linuxtv.org
