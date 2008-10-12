@@ -56,6 +56,7 @@
 #define   TALITOS_CCCR_CONT		0x2    /* channel continue */
 #define   TALITOS_CCCR_RESET		0x1    /* channel reset */
 #define TALITOS_CCCR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x110c)
+#define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
 #define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
@@ -103,6 +104,9 @@
 #define TALITOS_AESUISR_LO		0x4034
 #define TALITOS_MDEUISR			0x6030 /* message digest unit */
 #define TALITOS_MDEUISR_LO		0x6034
+#define TALITOS_MDEUICR			0x6038 /* interrupt control */
+#define TALITOS_MDEUICR_LO		0x603c
+#define   TALITOS_MDEUICR_LO_ICE	0x4000 /* integrity check IRQ enable */
 #define TALITOS_AFEUISR			0x8030 /* arc4 unit */
 #define TALITOS_AFEUISR_LO		0x8034
 #define TALITOS_RNGUISR			0xa030 /* random number unit */
@@ -131,6 +135,9 @@
 
 /* written back when done */
 #define DESC_HDR_DONE			__constant_cpu_to_be32(0xff000000)
+#define DESC_HDR_LO_ICCR1_MASK		__constant_cpu_to_be32(0x00180000)
+#define DESC_HDR_LO_ICCR1_PASS		__constant_cpu_to_be32(0x00080000)
+#define DESC_HDR_LO_ICCR1_FAIL		__constant_cpu_to_be32(0x00100000)
 
 /* primary execution unit select */
 #define	DESC_HDR_SEL0_MASK		__constant_cpu_to_be32(0xf0000000)
@@ -169,6 +176,7 @@
 #define	DESC_HDR_SEL1_CRCU		__constant_cpu_to_be32(0x00080000)
 
 /* secondary execution unit mode (MODE1) and derivatives */
+#define	DESC_HDR_MODE1_MDEU_CICV	__constant_cpu_to_be32(0x00004000)
 #define	DESC_HDR_MODE1_MDEU_INIT	__constant_cpu_to_be32(0x00001000)
 #define	DESC_HDR_MODE1_MDEU_HMAC	__constant_cpu_to_be32(0x00000800)
 #define	DESC_HDR_MODE1_MDEU_PAD		__constant_cpu_to_be32(0x00000400)
