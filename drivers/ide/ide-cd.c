@@ -1966,7 +1966,6 @@ static ide_driver_t ide_cdrom_driver = {
 	.probe			= ide_cd_probe,
 	.remove			= ide_cd_remove,
 	.version		= IDECD_VERSION,
-	.media			= ide_cdrom,
 	.do_request		= ide_cd_do_request,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,

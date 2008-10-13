@@ -938,7 +938,6 @@ static ide_driver_t idedisk_driver = {
 	.resume			= ide_disk_resume,
 	.shutdown		= ide_device_shutdown,
 	.version		= IDEDISK_VERSION,
-	.media			= ide_disk,
 	.do_request		= ide_do_rw_disk,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,

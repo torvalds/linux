@@ -437,7 +437,6 @@ static ide_driver_t idescsi_driver = {
 	.probe			= ide_scsi_probe,
 	.remove			= ide_scsi_remove,
 	.version		= IDESCSI_VERSION,
-	.media			= ide_scsi,
 	.do_request		= idescsi_do_request,
 	.end_request		= idescsi_end_request,
 	.error                  = idescsi_atapi_error,
