@@ -387,6 +387,18 @@
 			device-width = <1>;
 		};
 
+		upm@1,0 {
+			compatible = "fsl,upm-nand";
+			reg = <1 0 1>;
+			fsl,upm-addr-offset = <16>;
+			fsl,upm-cmd-offset = <8>;
+			gpios = <&qe_pio_e 18 0>;
+
+			flash {
+				compatible = "stm,nand512-a";
+			};
+		};
+
 		display@2,0 {
 			device_type = "display";
 			compatible = "fujitsu,MB86277", "fujitsu,mint";
@@ -409,7 +421,8 @@
 		#interrupt-cells = <1>;
 		device_type = "pci";
 		compatible = "fsl,mpc8360-pci", "fsl,mpc8349-pci";
-		reg = <0xe0008500 0x100>;
+		reg = <0xe0008500 0x100		/* internal registers */
+		       0xe0008300 0x8>;		/* config space access registers */
 		ranges = <0x02000000 0 0x90000000 0x90000000 0 0x10000000
 			  0x42000000 0 0x80000000 0x80000000 0 0x10000000
 			  0x01000000 0 0xe0300000 0xe0300000 0 0x00100000>;

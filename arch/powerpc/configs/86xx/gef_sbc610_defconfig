@@ -156,7 +156,10 @@ CONFIG_CLASSIC_RCU=y
 #
 # Platform support
 #
-# CONFIG_PPC_MULTIPLATFORM is not set
+CONFIG_PPC_MULTIPLATFORM=y
+CONFIG_CLASSIC32=y
+# CONFIG_PPC_CHRP is not set
+# CONFIG_PPC_PMAC is not set
 # CONFIG_PPC_82xx is not set
 # CONFIG_PPC_83xx is not set
 CONFIG_PPC_86xx=y
