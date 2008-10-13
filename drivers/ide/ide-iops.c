@@ -940,6 +940,25 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	return ide_stopped;
 }
 
+static void ide_reset_report_error(ide_hwif_t *hwif, u8 err)
+{
+	static const char *err_master_vals[] =
+		{ NULL, "passed", "formatter device error",
+		  "sector buffer error", "ECC circuitry error",
+		  "controlling MPU error" };
+
+	u8 err_master = err & 0x7f;
+
+	printk(KERN_ERR "%s: reset: master: ", hwif->name);
+	if (err_master && err_master < 6)
+		printk(KERN_CONT "%s", err_master_vals[err_master]);
+	else
+		printk(KERN_CONT "error (0x%02x?)", err);
+	if (err & 0x80)
+		printk(KERN_CONT "; slave: failed");
+	printk(KERN_CONT "\n");
+}
+
 /*
  * reset_pollfunc() gets invoked to poll the interface for completion every 50ms
  * during an ide reset operation. If the drives have not yet responded,
@@ -975,31 +994,14 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		drive->failures++;
 		err = -EIO;
 	} else  {
-		printk("%s: reset: ", hwif->name);
 		tmp = ide_read_error(drive);
 
 		if (tmp == 1) {
-			printk("success\n");
+			printk(KERN_INFO "%s: reset: success\n", hwif->name);
 			drive->failures = 0;
 		} else {
+			ide_reset_report_error(hwif, tmp);
 			drive->failures++;
-			printk("master: ");
-			switch (tmp & 0x7f) {
-				case 1: printk("passed");
-					break;
-				case 2: printk("formatter device error");
-					break;
-				case 3: printk("sector buffer error");
-					break;
-				case 4: printk("ECC circuitry error");
-					break;
-				case 5: printk("controlling MPU error");
-					break;
-				default:printk("error (0x%02x?)", tmp);
-			}
-			if (tmp & 0x80)
-				printk("; slave: failed");
-			printk("\n");
 			err = -EIO;
 		}
 	}
