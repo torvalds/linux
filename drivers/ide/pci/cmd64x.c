@@ -228,7 +228,7 @@ static int cmd648_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
-	int err			= __ide_dma_end(drive);
+	int err			= ide_dma_end(drive);
 	u8  irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
 						  MRDMODE_INTR_CH0;
 	u8  mrdmode		= inb(base + 1);
@@ -248,7 +248,7 @@ static int cmd64x_dma_end(ide_drive_t *drive)
 	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
 						  CFR_INTR_CH0;
 	u8  irq_stat		= 0;
-	int err			= __ide_dma_end(drive);
+	int err			= ide_dma_end(drive);
 
 	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
 	/* clear the interrupt bit */

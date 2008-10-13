@@ -531,7 +531,7 @@ void ide_dma_start(ide_drive_t *drive)
 EXPORT_SYMBOL_GPL(ide_dma_start);
 
 /* returns 1 on error, 0 otherwise */
-int __ide_dma_end (ide_drive_t *drive)
+int ide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
@@ -566,8 +566,7 @@ int __ide_dma_end (ide_drive_t *drive)
 	wmb();
 	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;
 }
-
-EXPORT_SYMBOL(__ide_dma_end);
+EXPORT_SYMBOL_GPL(ide_dma_end);
 
 /* returns 1 if dma irq issued, 0 otherwise */
 int ide_dma_test_irq(ide_drive_t *drive)
@@ -880,7 +879,7 @@ const struct ide_dma_ops sff_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,

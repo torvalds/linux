@@ -835,7 +835,7 @@ static int hpt370_dma_end(ide_drive_t *drive)
 		if (dma_stat & 0x01)
 			hpt370_irq_timeout(drive);
 	}
-	return __ide_dma_end(drive);
+	return ide_dma_end(drive);
 }
 
 static void hpt370_dma_timeout(ide_drive_t *drive)
@@ -877,7 +877,7 @@ static int hpt374_dma_end(ide_drive_t *drive)
 	pci_read_config_byte(dev, mcr_addr, &mcr);
 	if (bwsr & mask)
 		pci_write_config_byte(dev, mcr_addr, mcr | 0x30);
-	return __ide_dma_end(drive);
+	return ide_dma_end(drive);
 }
 
 /**
@@ -1453,7 +1453,7 @@ static const struct ide_dma_ops hpt36x_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= hpt366_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,

@@ -200,7 +200,7 @@ static int pdc202xx_dma_end(ide_drive_t *drive)
 	}
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_disable_66MHz_clock(drive->hwif);
-	return __ide_dma_end(drive);
+	return ide_dma_end(drive);
 }
 
 static int pdc202xx_dma_test_irq(ide_drive_t *drive)
@@ -333,7 +333,7 @@ static const struct ide_dma_ops pdc20246_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= pdc202xx_dma_test_irq,
 	.dma_lost_irq		= pdc202xx_dma_lost_irq,
 	.dma_timeout		= pdc202xx_dma_timeout,

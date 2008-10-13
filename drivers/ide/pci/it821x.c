@@ -385,7 +385,7 @@ static int it821x_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int ret = __ide_dma_end(drive);
+	int ret = ide_dma_end(drive);
 	u8 unit = drive->dn & 1;
 
 	if(itdev->mwdma[unit] != MWDMA_OFF)

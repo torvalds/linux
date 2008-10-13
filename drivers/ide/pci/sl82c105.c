@@ -207,7 +207,7 @@ static int sl82c105_dma_end(ide_drive_t *drive)
 
 	DBG(("%s(drive:%s)\n", __func__, drive->name));
 
-	ret = __ide_dma_end(drive);
+	ret = ide_dma_end(drive);
 
 	pci_write_config_word(dev, reg, drive->drive_data);
 
