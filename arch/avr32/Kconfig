@@ -123,6 +123,10 @@ config BOARD_ATNGW100
 config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"
 	select CPU_AT32AP7000
+
+config BOARD_MIMC200
+	bool "MIMC200 CPU board"
+	select CPU_AT32AP7000
 endchoice
 
 source "arch/avr32/boards/atstk1000/Kconfig"
