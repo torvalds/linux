@@ -51,7 +51,6 @@
 #include <asm/reboot.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
-#include <linux/spi/ad7877.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -555,6 +554,7 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 #endif
 
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
+#include <linux/spi/ad7877.h>
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -572,6 +572,28 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.acquisition_time 	= 1,
 	.averaging 		= 1,
 	.pen_down_acc_interval 	= 1,
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_AD7879) || defined(CONFIG_TOUCHSCREEN_AD7879_MODULE)
+#include <linux/spi/ad7879.h>
+static struct bfin5xx_spi_chip spi_ad7879_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+
+static const struct ad7879_platform_data bfin_ad7879_ts_info = {
+	.model			= 7879,	/* Model = AD7879 */
+	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */
+	.pressure_max		= 10000,
+	.pressure_min		= 0,
+	.first_conversion_delay = 3,	/* wait 512us before do a first conversion */
+	.acquisition_time 	= 1,	/* 4us acquisition time per sample */
+	.median			= 2,	/* do 8 measurements */
+	.averaging 		= 1,	/* take the average of 4 middle samples */
+	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
+	.gpio_output		= 1,	/* configure AUX/VBAT/GPIO as GPIO output */
+	.gpio_default 		= 1,	/* During initialization set GPIO = HIGH */
 };
 #endif
 
@@ -728,6 +750,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &spi_ad7877_chip_info,
 	},
 #endif
+#if defined(CONFIG_TOUCHSCREEN_AD7879) || defined(CONFIG_TOUCHSCREEN_AD7879_MODULE)
+	{
+		.modalias = "ad7879",
+		.platform_data = &bfin_ad7879_ts_info,
+		.irq = IRQ_PF7,
+		.max_speed_hz = 5000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1,
+		.controller_data = &spi_ad7879_chip_info,
+		.mode = SPI_CPHA | SPI_CPOL,
+	},
+#endif
 #if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
 	{
 		.modalias = "spidev",
@@ -742,7 +776,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "bfin-lq035q1-spi",
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 1,
+		.chip_select = 2,
 		.controller_data = &lq035q1_spi_chip_info,
 		.mode = SPI_CPHA | SPI_CPOL,
 	},
@@ -799,7 +833,7 @@ static struct platform_device bfin_fb_adv7393_device = {
 
 static struct bfin_lq035q1fb_disp_info bfin_lq035q1_data = {
 	.mode = 	LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
-	.use_bl = 	1,
+	.use_bl = 	0,	/* let something else control the LCD Blacklight */
 	.gpio_bl =	GPIO_PF7,
 };
 
