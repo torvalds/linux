@@ -270,7 +270,7 @@ static int grow_buffers(struct stripe_head *sh, int num)
 	return 0;
 }
 
-static void raid5_build_block (struct stripe_head *sh, int i);
+static void raid5_build_block(struct stripe_head *sh, int i);
 
 static void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx, int disks)
 {
@@ -1146,7 +1146,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 	release_stripe(sh);
 }
 
-static void raid5_end_write_request (struct bio *bi, int error)
+static void raid5_end_write_request(struct bio *bi, int error)
 {
  	struct stripe_head *sh = bi->bi_private;
 	raid5_conf_t *conf = sh->raid_conf;
@@ -1178,7 +1178,7 @@ static void raid5_end_write_request (struct bio *bi, int error)
 
 static sector_t compute_blocknr(struct stripe_head *sh, int i);
 	
-static void raid5_build_block (struct stripe_head *sh, int i)
+static void raid5_build_block(struct stripe_head *sh, int i)
 {
 	struct r5dev *dev = &sh->dev[i];
 
@@ -1216,10 +1216,10 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		}
 		set_bit(Faulty, &rdev->flags);
-		printk (KERN_ALERT
-			"raid5: Disk failure on %s, disabling device.\n"
-			"raid5: Operation continuing on %d devices.\n",
-			bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
+		printk(KERN_ALERT
+		       "raid5: Disk failure on %s, disabling device.\n"
+		       "raid5: Operation continuing on %d devices.\n",
+		       bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
 	}
 }
 
@@ -1315,8 +1315,8 @@ static sector_t raid5_compute_sector(sector_t r_sector, unsigned int raid_disks,
 			*dd_idx = (*pd_idx + 2 + *dd_idx) % raid_disks;
 			break;
 		default:
-			printk (KERN_CRIT "raid6: unsupported algorithm %d\n",
-				conf->algorithm);
+			printk(KERN_CRIT "raid6: unsupported algorithm %d\n",
+			       conf->algorithm);
 		}
 		break;
 	}
@@ -1391,8 +1391,8 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i)
 			}
 			break;
 		default:
-			printk (KERN_CRIT "raid6: unsupported algorithm %d\n",
-				conf->algorithm);
+			printk(KERN_CRIT "raid6: unsupported algorithm %d\n",
+			       conf->algorithm);
 		}
 		break;
 	}
@@ -1400,7 +1400,7 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i)
 	chunk_number = stripe * data_disks + i;
 	r_sector = (sector_t)chunk_number * sectors_per_chunk + chunk_offset;
 
-	check = raid5_compute_sector (r_sector, raid_disks, data_disks, &dummy1, &dummy2, conf);
+	check = raid5_compute_sector(r_sector, raid_disks, data_disks, &dummy1, &dummy2, conf);
 	if (check != sh->sector || dummy1 != dd_idx || dummy2 != sh->pd_idx) {
 		printk(KERN_ERR "compute_blocknr: map not correct\n");
 		return 0;
@@ -4284,7 +4284,7 @@ static int stop(mddev_t *mddev)
 }
 
 #ifdef DEBUG
-static void print_sh (struct seq_file *seq, struct stripe_head *sh)
+static void print_sh(struct seq_file *seq, struct stripe_head *sh)
 {
 	int i;
 
@@ -4300,7 +4300,7 @@ static void print_sh (struct seq_file *seq, struct stripe_head *sh)
 	seq_printf(seq, "\n");
 }
 
-static void printall (struct seq_file *seq, raid5_conf_t *conf)
+static void printall(struct seq_file *seq, raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
 	struct hlist_node *hn;
@@ -4318,7 +4318,7 @@ static void printall (struct seq_file *seq, raid5_conf_t *conf)
 }
 #endif
 
-static void status (struct seq_file *seq, mddev_t *mddev)
+static void status(struct seq_file *seq, mddev_t *mddev)
 {
 	raid5_conf_t *conf = (raid5_conf_t *) mddev->private;
 	int i;

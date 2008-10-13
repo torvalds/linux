@@ -55,7 +55,7 @@
 
 
 #ifndef MODULE
-static void autostart_arrays (int part);
+static void autostart_arrays(int part);
 #endif
 
 static LIST_HEAD(pers_list);
@@ -201,7 +201,7 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
 		)
 
 
-static int md_fail_request (struct request_queue *q, struct bio *bio)
+static int md_fail_request(struct request_queue *q, struct bio *bio)
 {
 	bio_io_error(bio);
 	return 0;
@@ -3962,10 +3962,10 @@ static void autorun_array(mddev_t *mddev)
 	}
 	printk("\n");
 
-	err = do_md_run (mddev);
+	err = do_md_run(mddev);
 	if (err) {
 		printk(KERN_WARNING "md: do_md_run() returned %d\n", err);
-		do_md_stop (mddev, 0, 0);
+		do_md_stop(mddev, 0, 0);
 	}
 }
 
@@ -4324,7 +4324,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 
 	if (!(info->state & (1<<MD_DISK_FAULTY))) {
 		int err;
-		rdev = md_import_device (dev, -1, 0);
+		rdev = md_import_device(dev, -1, 0);
 		if (IS_ERR(rdev)) {
 			printk(KERN_WARNING 
 				"md: error, md_import_device() returned %ld\n",
@@ -4406,7 +4406,7 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 		return -EINVAL;
 	}
 
-	rdev = md_import_device (dev, -1, 0);
+	rdev = md_import_device(dev, -1, 0);
 	if (IS_ERR(rdev)) {
 		printk(KERN_WARNING 
 			"md: error, md_import_device() returned %ld\n",
@@ -4925,11 +4925,11 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			goto done_unlock;
 
 		case STOP_ARRAY:
-			err = do_md_stop (mddev, 0, 1);
+			err = do_md_stop(mddev, 0, 1);
 			goto done_unlock;
 
 		case STOP_ARRAY_RO:
-			err = do_md_stop (mddev, 1, 1);
+			err = do_md_stop(mddev, 1, 1);
 			goto done_unlock;
 
 	}
@@ -4978,7 +4978,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			goto done_unlock;
 
 		case RUN_ARRAY:
-			err = do_md_run (mddev);
+			err = do_md_run(mddev);
 			goto done_unlock;
 
 		case SET_BITMAP_FILE:
@@ -5416,11 +5416,11 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, " super non-persistent");
 
 		if (mddev->pers) {
-			mddev->pers->status (seq, mddev);
+			mddev->pers->status(seq, mddev);
 	 		seq_printf(seq, "\n      ");
 			if (mddev->pers->sync_request) {
 				if (mddev->curr_resync > 2) {
-					status_resync (seq, mddev);
+					status_resync(seq, mddev);
 					seq_printf(seq, "\n      ");
 				} else if (mddev->curr_resync == 1 || mddev->curr_resync == 2)
 					seq_printf(seq, "\tresync=DELAYED\n      ");
@@ -6251,7 +6251,7 @@ static int md_notify_reboot(struct notifier_block *this,
 				 * appears to still be in use.  Hence
 				 * the '100'.
 				 */
-				do_md_stop (mddev, 1, 100);
+				do_md_stop(mddev, 1, 100);
 				mddev_unlock(mddev);
 			}
 		/*
@@ -6295,7 +6295,7 @@ static int __init md_init(void)
 	raid_table_header = register_sysctl_table(raid_root_table);
 
 	md_geninit();
-	return (0);
+	return 0;
 }
 
 
