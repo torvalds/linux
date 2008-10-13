@@ -877,22 +877,6 @@ static int rtl8187_config(struct ieee80211_hw *dev, u32 changed)
 	msleep(10);
 	rtl818x_iowrite32(priv, &priv->map->TX_CONF, reg);
 
-	if (!priv->is_rtl8187b) {
-		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
-
-		if (conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME) {
-			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x9);
-			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x14);
-			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x14);
-			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0x73);
-		} else {
-			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x14);
-			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x24);
-			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x24);
-			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0xa5);
-		}
-	}
-
 	rtl818x_iowrite16(priv, &priv->map->ATIM_WND, 2);
 	rtl818x_iowrite16(priv, &priv->map->ATIMTR_INTERVAL, 100);
 	rtl818x_iowrite16(priv, &priv->map->BEACON_INTERVAL, 100);
@@ -925,6 +909,35 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev,
 
 	mutex_unlock(&priv->conf_mutex);
 	return 0;
+}
+
+static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot)
+{
+	if (!priv->is_rtl8187b) {
+		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
+		if (use_short_slot) {
+			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x9);
+			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x14);
+			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x14);
+			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0x73);
+		} else {
+			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x14);
+			rtl818x_iowrite8(priv, &priv->map->DIFS, 0x24);
+			rtl818x_iowrite8(priv, &priv->map->EIFS, 91 - 0x24);
+			rtl818x_iowrite8(priv, &priv->map->CW_VAL, 0xa5);
+		}
+	}
+}
+
+static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *info,
+				     u32 changed)
+{
+	struct rtl8187_priv *priv = dev->priv;
+
+	if (changed & BSS_CHANGED_ERP_SLOT)
+		rtl8187_conf_erp(priv, info->use_short_slot);
 }
 
 static void rtl8187_configure_filter(struct ieee80211_hw *dev,
@@ -967,6 +980,7 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.remove_interface	= rtl8187_remove_interface,
 	.config			= rtl8187_config,
 	.config_interface	= rtl8187_config_interface,
+	.bss_info_changed	= rtl8187_bss_info_changed,
 	.configure_filter	= rtl8187_configure_filter,
 };
 
