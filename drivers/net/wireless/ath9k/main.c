@@ -279,8 +279,15 @@ static void ath9k_rx_prepare(struct ath_softc *sc,
 	rx_status->rate_idx = ath_rate2idx(sc, (status->rateKbps / 100));
 	rx_status->antenna = status->antenna;
 
-	/* XXX Fix me, 64 cannot be the max rssi value, rigure it out */
-	rx_status->qual = status->rssi * 100 / 64;
+	/* at 45 you will be able to use MCS 15 reliably. A more elaborate
+	 * scheme can be used here but it requires tables of SNR/throughput for
+	 * each possible mode used. */
+	rx_status->qual = status->rssi * 100 / 45;
+
+	/* rssi can be more than 45 though, anything above that
+	 * should be considered at 100% */
+	if (rx_status->qual > 100)
+		rx_status->qual = 100;
 
 	if (status->flags & ATH_RX_MIC_ERROR)
 		rx_status->flag |= RX_FLAG_MMIC_ERROR;
