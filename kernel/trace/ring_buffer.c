@@ -130,7 +130,7 @@ struct buffer_page {
 static inline void free_buffer_page(struct buffer_page *bpage)
 {
 	if (bpage->page)
-		__free_page(bpage->page);
+		free_page((unsigned long)bpage->page);
 	kfree(bpage);
 }
 
