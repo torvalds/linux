@@ -35,7 +35,7 @@ int skb_dma_map(struct device *dev, struct sk_buff *skb,
 	return 0;
 
 unwind:
-	while (i-- >= 0) {
+	while (--i >= 0) {
 		skb_frag_t *fp = &sp->frags[i];
 
 		dma_unmap_page(dev, sp->dma_maps[i + 1],

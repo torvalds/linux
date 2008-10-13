@@ -94,8 +94,8 @@ static irqreturn_t au1000_interrupt(int, void *);
 static void au1000_tx_timeout(struct net_device *);
 static void set_rx_mode(struct net_device *);
 static int au1000_ioctl(struct net_device *, struct ifreq *, int);
-static int mdio_read(struct net_device *, int, int);
-static void mdio_write(struct net_device *, int, int, u16);
+static int au1000_mdio_read(struct net_device *, int, int);
+static void au1000_mdio_write(struct net_device *, int, int, u16);
 static void au1000_adjust_link(struct net_device *);
 static void enable_mac(struct net_device *, int);
 
@@ -191,7 +191,7 @@ struct au1000_private *au_macs[NUM_ETH_INTERFACES];
 /*
  * MII operations
  */
-static int mdio_read(struct net_device *dev, int phy_addr, int reg)
+static int au1000_mdio_read(struct net_device *dev, int phy_addr, int reg)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
 	volatile u32 *const mii_control_reg = &aup->mac->mii_control;
@@ -225,7 +225,8 @@ static int mdio_read(struct net_device *dev, int phy_addr, int reg)
 	return (int)*mii_data_reg;
 }
 
-static void mdio_write(struct net_device *dev, int phy_addr, int reg, u16 value)
+static void au1000_mdio_write(struct net_device *dev, int phy_addr,
+			      int reg, u16 value)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
 	volatile u32 *const mii_control_reg = &aup->mac->mii_control;
@@ -249,7 +250,7 @@ static void mdio_write(struct net_device *dev, int phy_addr, int reg, u16 value)
 	*mii_control_reg = mii_control;
 }
 
-static int mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
+static int au1000_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
 	/* WARNING: bus->phy_map[phy_addr].attached_dev == dev does
 	 * _NOT_ hold (e.g. when PHY is accessed through other MAC's MII bus) */
@@ -257,21 +258,21 @@ static int mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 
 	enable_mac(dev, 0); /* make sure the MAC associated with this
 			     * mii_bus is enabled */
-	return mdio_read(dev, phy_addr, regnum);
+	return au1000_mdio_read(dev, phy_addr, regnum);
 }
 
-static int mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
-			 u16 value)
+static int au1000_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
+				u16 value)
 {
 	struct net_device *const dev = bus->priv;
 
 	enable_mac(dev, 0); /* make sure the MAC associated with this
 			     * mii_bus is enabled */
-	mdio_write(dev, phy_addr, regnum, value);
+	au1000_mdio_write(dev, phy_addr, regnum, value);
 	return 0;
 }
 
-static int mdiobus_reset(struct mii_bus *bus)
+static int au1000_mdiobus_reset(struct mii_bus *bus)
 {
 	struct net_device *const dev = bus->priv;
 
@@ -703,9 +704,9 @@ static struct net_device * au1000_probe(int port_num)
 		goto err_out;
 
 	aup->mii_bus->priv = dev;
-	aup->mii_bus->read = mdiobus_read;
-	aup->mii_bus->write = mdiobus_write;
-	aup->mii_bus->reset = mdiobus_reset;
+	aup->mii_bus->read = au1000_mdiobus_read;
+	aup->mii_bus->write = au1000_mdiobus_write;
+	aup->mii_bus->reset = au1000_mdiobus_reset;
 	aup->mii_bus->name = "au1000_eth_mii";
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
 	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
