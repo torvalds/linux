@@ -7,6 +7,14 @@
  * defined; unless noted otherwise, they are optional, and can be
  * filled in with a null pointer.
  *
+ * struct tty_struct * (*lookup)(struct tty_driver *self, int idx)
+ *
+ *	Return the tty device corresponding to idx, NULL if there is not
+ *	one currently in use and an ERR_PTR value on error. Called under
+ *	tty_mutex (for now!)
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
  * int  (*open)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is opened.
@@ -203,6 +211,7 @@ struct tty_struct;
 struct tty_driver;
 
 struct tty_operations {
+	struct tty_struct * (*lookup)(struct tty_driver *driver, int idx);
 	int  (*open)(struct tty_struct * tty, struct file * filp);
 	void (*close)(struct tty_struct * tty, struct file * filp);
 	void (*shutdown)(struct tty_struct *tty);

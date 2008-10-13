@@ -391,6 +391,41 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
+/**
+ *	ptm_unix98_lookup	-	find a pty master
+ *	@driver: ptm driver
+ *	@idx: tty index
+ *
+ *	Look up a pty master device. Called under the tty_mutex for now.
+ *	This provides our locking.
+ */
+
+static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver, int idx)
+{
+	struct tty_struct *tty = devpts_get_tty(idx);
+	if (tty)
+		tty = tty->link;
+	return tty;
+}
+
+/**
+ *	pts_unix98_lookup	-	find a pty slave
+ *	@driver: pts driver
+ *	@idx: tty index
+ *
+ *	Look up a pty master device. Called under the tty_mutex for now.
+ *	This provides our locking.
+ */
+
+static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver, int idx)
+{
+	struct tty_struct *tty = devpts_get_tty(idx);
+	/* Master must be open before slave */
+	if (!tty)
+		return ERR_PTR(-EIO);
+	return tty;
+}
+
 static void pty_shutdown(struct tty_struct *tty)
 {
 	/* We have our own method as we don't use the tty index */
@@ -399,6 +434,7 @@ static void pty_shutdown(struct tty_struct *tty)
 }
 
 static const struct tty_operations ptm_unix98_ops = {
+	.lookup = ptm_unix98_lookup,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -411,6 +447,17 @@ static const struct tty_operations ptm_unix98_ops = {
 	.shutdown = pty_shutdown
 };
 
+static const struct tty_operations pty_unix98_ops = {
+	.lookup = pts_unix98_lookup,
+	.open = pty_open,
+	.close = pty_close,
+	.write = pty_write,
+	.write_room = pty_write_room,
+	.flush_buffer = pty_flush_buffer,
+	.chars_in_buffer = pty_chars_in_buffer,
+	.unthrottle = pty_unthrottle,
+	.set_termios = pty_set_termios,
+};
 
 /**
  *	ptmx_open		-	open a unix 98 pty master
@@ -517,7 +564,7 @@ static void __init unix98_pty_init(void)
 	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
 		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	pts_driver->other = ptm_driver;
-	tty_set_operations(pts_driver, &pty_ops);
+	tty_set_operations(pts_driver, &pty_unix98_ops);
 	
 	if (tty_register_driver(ptm_driver))
 		panic("Couldn't register Unix98 ptm driver");
