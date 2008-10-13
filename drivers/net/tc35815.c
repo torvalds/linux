@@ -796,7 +796,7 @@ err_out_unregister_bus:
 	mdiobus_unregister(lp->mii_bus);
 err_out_free_mdio_irq:
 	kfree(lp->mii_bus->irq);
-err_out_free_mii_bus;
+err_out_free_mii_bus:
 	mdiobus_free(lp->mii_bus);
 err_out:
 	return err;
