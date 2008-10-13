@@ -163,7 +163,7 @@ per_cpu_init (void)
 	 * get_zeroed_page().
 	 */
 	if (first_time) {
-		void *cpu0_data = __phys_per_cpu_start - PERCPU_PAGE_SIZE;
+		void *cpu0_data = __cpu0_per_cpu;
 
 		first_time=0;
 

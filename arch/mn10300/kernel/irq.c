@@ -20,22 +20,8 @@ EXPORT_SYMBOL(__mn10300_irq_enabled_epsw);
 atomic_t irq_err_count;
 
 /*
- * MN10300 INTC controller operations
+ * MN10300 interrupt controller operations
  */
-static void mn10300_cpupic_disable(unsigned int irq)
-{
-	u16 tmp = GxICR(irq);
-	GxICR(irq) = (tmp & GxICR_LEVEL) | GxICR_DETECT;
-	tmp = GxICR(irq);
-}
-
-static void mn10300_cpupic_enable(unsigned int irq)
-{
-	u16 tmp = GxICR(irq);
-	GxICR(irq) = (tmp & GxICR_LEVEL) | GxICR_ENABLE;
-	tmp = GxICR(irq);
-}
-
 static void mn10300_cpupic_ack(unsigned int irq)
 {
 	u16 tmp;
@@ -60,26 +46,54 @@ static void mn10300_cpupic_mask_ack(unsigned int irq)
 static void mn10300_cpupic_unmask(unsigned int irq)
 {
 	u16 tmp = GxICR(irq);
-	GxICR(irq) = (tmp & GxICR_LEVEL) | GxICR_ENABLE | GxICR_DETECT;
-	tmp = GxICR(irq);
-}
-
-static void mn10300_cpupic_end(unsigned int irq)
-{
-	u16 tmp = GxICR(irq);
 	GxICR(irq) = (tmp & GxICR_LEVEL) | GxICR_ENABLE;
 	tmp = GxICR(irq);
 }
 
-static struct irq_chip mn10300_cpu_pic = {
-	.name		= "cpu",
-	.disable	= mn10300_cpupic_disable,
-	.enable		= mn10300_cpupic_enable,
+static void mn10300_cpupic_unmask_clear(unsigned int irq)
+{
+	/* the MN10300 PIC latches its interrupt request bit, even after the
+	 * device has ceased to assert its interrupt line and the interrupt
+	 * channel has been disabled in the PIC, so for level-triggered
+	 * interrupts we need to clear the request bit when we re-enable */
+	u16 tmp = GxICR(irq);
+	GxICR(irq) = (tmp & GxICR_LEVEL) | GxICR_ENABLE | GxICR_DETECT;
+	tmp = GxICR(irq);
+}
+
+/*
+ * MN10300 PIC level-triggered IRQ handling.
+ *
+ * The PIC has no 'ACK' function per se.  It is possible to clear individual
+ * channel latches, but each latch relatches whether or not the channel is
+ * masked, so we need to clear the latch when we unmask the channel.
+ *
+ * Also for this reason, we don't supply an ack() op (it's unused anyway if
+ * mask_ack() is provided), and mask_ack() just masks.
+ */
+static struct irq_chip mn10300_cpu_pic_level = {
+	.name		= "cpu_l",
+	.disable	= mn10300_cpupic_mask,
+	.enable		= mn10300_cpupic_unmask_clear,
+	.ack		= NULL,
+	.mask		= mn10300_cpupic_mask,
+	.mask_ack	= mn10300_cpupic_mask,
+	.unmask		= mn10300_cpupic_unmask_clear,
+};
+
+/*
+ * MN10300 PIC edge-triggered IRQ handling.
+ *
+ * We use the latch clearing function of the PIC as the 'ACK' function.
+ */
+static struct irq_chip mn10300_cpu_pic_edge = {
+	.name		= "cpu_e",
+	.disable	= mn10300_cpupic_mask,
+	.enable		= mn10300_cpupic_unmask,
 	.ack		= mn10300_cpupic_ack,
 	.mask		= mn10300_cpupic_mask,
 	.mask_ack	= mn10300_cpupic_mask_ack,
 	.unmask		= mn10300_cpupic_unmask,
-	.end		= mn10300_cpupic_end,
 };
 
 /*
@@ -114,7 +128,8 @@ void set_intr_level(int irq, u16 level)
  */
 void set_intr_postackable(int irq)
 {
-	set_irq_handler(irq, handle_level_irq);
+	set_irq_chip_and_handler(irq, &mn10300_cpu_pic_level,
+				 handle_level_irq);
 }
 
 /*
@@ -126,8 +141,12 @@ void __init init_IRQ(void)
 
 	for (irq = 0; irq < NR_IRQS; irq++)
 		if (irq_desc[irq].chip == &no_irq_type)
-			set_irq_chip_and_handler(irq, &mn10300_cpu_pic,
-						 handle_edge_irq);
+			/* due to the PIC latching interrupt requests, even
+			 * when the IRQ is disabled, IRQ_PENDING is superfluous
+			 * and we can use handle_level_irq() for edge-triggered
+			 * interrupts */
+			set_irq_chip_and_handler(irq, &mn10300_cpu_pic_edge,
+						 handle_level_irq);
 	unit_init_IRQ();
 }
 

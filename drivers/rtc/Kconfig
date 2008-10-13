@@ -329,7 +329,7 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ALPHA || ARM || M32R || ATARI || PPC || MIPS
+	depends on X86 || ALPHA || ARM || M32R || ATARI || PPC || MIPS || SPARC64
 	default y if X86
 	help
 	  Say "yes" here to get direct support for the real time clock
@@ -406,13 +406,25 @@ config RTC_DRV_M48T86
 	  will be called rtc-m48t86.
 
 config RTC_DRV_M48T59
-	tristate "ST M48T59"
+	tristate "ST M48T59/M48T08/M48T02"
 	help
 	  If you say Y here you will get support for the
-	  ST M48T59 RTC chip.
+	  ST M48T59 RTC chip and compatible ST M48T08 and M48T02.
+
+	  These chips are usually found in Sun SPARC and UltraSPARC
+	  workstations.
 
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
+
+config RTC_DRV_BQ4802
+	tristate "TI BQ4802"
+	help
+	  If you say Y here you will get support for the TI
+	  BQ4802 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-bq4802.
 
 config RTC_DRV_V3020
 	tristate "EM Microelectronic V3020"
@@ -582,5 +594,19 @@ config RTC_DRV_PPC
 	 The PowerPC kernel has machine-specific functions for accessing
 	 the RTC. This exposes that functionality through the generic RTC
 	 class.
+
+config RTC_DRV_SUN4V
+	bool "SUN4V Hypervisor RTC"
+	depends on SPARC64
+	help
+	  If you say Y here you will get support for the Hypervisor
+	  based RTC on SUN4V systems.
+
+config RTC_DRV_STARFIRE
+	bool "Starfire RTC"
+	depends on SPARC64
+	help
+	  If you say Y here you will get support for the RTC found on
+	  Starfire systems.
 
 endif # RTC_CLASS

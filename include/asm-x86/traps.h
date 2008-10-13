@@ -1,5 +1,7 @@
-#ifndef _ASM_X86_TRAPS_H
-#define _ASM_X86_TRAPS_H
+#ifndef ASM_X86__TRAPS_H
+#define ASM_X86__TRAPS_H
+
+#include <asm/debugreg.h>
 
 /* Common in X86_32 and X86_64 */
 asmlinkage void divide_error(void);
@@ -36,6 +38,16 @@ void do_invalid_op(struct pt_regs *, long);
 void do_general_protection(struct pt_regs *, long);
 void do_nmi(struct pt_regs *, long);
 
+static inline int get_si_code(unsigned long condition)
+{
+	if (condition & DR_STEP)
+		return TRAP_TRACE;
+	else if (condition & (DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3))
+		return TRAP_HWBKPT;
+	else
+		return TRAP_BRKPT;
+}
+
 extern int panic_on_unrecovered_nmi;
 extern int kstack_depth_to_print;
 
@@ -51,6 +63,8 @@ void do_spurious_interrupt_bug(struct pt_regs *, long);
 unsigned long patch_espfix_desc(unsigned long, unsigned long);
 asmlinkage void math_emulate(long);
 
+void do_page_fault(struct pt_regs *regs, unsigned long error_code);
+
 #else /* CONFIG_X86_32 */
 
 asmlinkage void double_fault(void);
@@ -62,5 +76,7 @@ asmlinkage void do_coprocessor_error(struct pt_regs *);
 asmlinkage void do_simd_coprocessor_error(struct pt_regs *);
 asmlinkage void do_spurious_interrupt_bug(struct pt_regs *);
 
+asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code);
+
 #endif /* CONFIG_X86_32 */
-#endif /* _ASM_X86_TRAPS_H */
+#endif /* ASM_X86__TRAPS_H */

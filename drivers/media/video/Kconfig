@@ -968,7 +968,7 @@ config VIDEO_PXA27x
 
 config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
-	depends on VIDEO_DEV
+	depends on VIDEO_DEV && HAS_DMA
 	select SOC_CAMERA
 	select VIDEOBUF_DMA_CONTIG
 	---help---

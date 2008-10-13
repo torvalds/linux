@@ -60,27 +60,8 @@ zc0301_attach_sensor(struct zc0301_device* cam, struct zc0301_sensor* sensor);
 
 #define ZC0301_ID_TABLE                                                       \
 static const struct usb_device_id zc0301_id_table[] =  {                      \
-	{ ZC0301_USB_DEVICE(0x041e, 0x4017, 0xff), }, /* ICM105 */            \
-	{ ZC0301_USB_DEVICE(0x041e, 0x401c, 0xff), }, /* PAS106 */            \
-	{ ZC0301_USB_DEVICE(0x041e, 0x401e, 0xff), }, /* HV7131 */            \
-	{ ZC0301_USB_DEVICE(0x041e, 0x401f, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x041e, 0x4022, 0xff), },                         \
-	{ ZC0301_USB_DEVICE(0x041e, 0x4034, 0xff), }, /* PAS106 */            \
-	{ ZC0301_USB_DEVICE(0x041e, 0x4035, 0xff), }, /* PAS106 */            \
-	{ ZC0301_USB_DEVICE(0x041e, 0x4036, 0xff), }, /* HV7131 */            \
-	{ ZC0301_USB_DEVICE(0x041e, 0x403a, 0xff), }, /* HV7131 */            \
-	{ ZC0301_USB_DEVICE(0x0458, 0x7007, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x0458, 0x700c, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x0458, 0x700f, 0xff), }, /* TAS5130 */           \
 	{ ZC0301_USB_DEVICE(0x046d, 0x08ae, 0xff), }, /* PAS202 */            \
-	{ ZC0301_USB_DEVICE(0x055f, 0xd003, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x055f, 0xd004, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x0ac8, 0x0301, 0xff), },                         \
-	{ ZC0301_USB_DEVICE(0x0ac8, 0x301b, 0xff), }, /* PB-0330/HV7131 */    \
 	{ ZC0301_USB_DEVICE(0x0ac8, 0x303b, 0xff), }, /* PB-0330 */           \
-	{ ZC0301_USB_DEVICE(0x10fd, 0x0128, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x10fd, 0x8050, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x10fd, 0x804e, 0xff), }, /* TAS5130 */           \
 	{ }                                                                   \
 };
 

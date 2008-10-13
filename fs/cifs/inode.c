@@ -665,40 +665,201 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 	return inode;
 }
 
-int cifs_unlink(struct inode *inode, struct dentry *direntry)
+static int
+cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
+		    char *full_path, __u32 dosattr)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid;
+	__u32 netpid;
+	bool set_time = false;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	FILE_BASIC_INFO	info_buf;
+
+	if (attrs->ia_valid & ATTR_ATIME) {
+		set_time = true;
+		info_buf.LastAccessTime =
+			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
+	} else
+		info_buf.LastAccessTime = 0;
+
+	if (attrs->ia_valid & ATTR_MTIME) {
+		set_time = true;
+		info_buf.LastWriteTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
+	} else
+		info_buf.LastWriteTime = 0;
+
+	/*
+	 * Samba throws this field away, but windows may actually use it.
+	 * Do not set ctime unless other time stamps are changed explicitly
+	 * (i.e. by utimes()) since we would then have a mix of client and
+	 * server times.
+	 */
+	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
+		cFYI(1, ("CIFS - CTIME changed"));
+		info_buf.ChangeTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
+	} else
+		info_buf.ChangeTime = 0;
+
+	info_buf.CreationTime = 0;	/* don't change */
+	info_buf.Attributes = cpu_to_le32(dosattr);
+
+	/*
+	 * If the file is already open for write, just use that fileid
+	 */
+	open_file = find_writable_file(cifsInode);
+	if (open_file) {
+		netfid = open_file->netfid;
+		netpid = open_file->pid;
+		goto set_via_filehandle;
+	}
+
+	/*
+	 * NT4 apparently returns success on this call, but it doesn't
+	 * really work.
+	 */
+	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
+		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
+				     &info_buf, cifs_sb->local_nls,
+				     cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc == 0) {
+			cifsInode->cifsAttrs = dosattr;
+			goto out;
+		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
+			goto out;
+	}
+
+	cFYI(1, ("calling SetFileInfo since SetPathInfo for "
+		 "times not supported by this server"));
+	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
+			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR, &netfid, &oplock,
+			 NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc != 0) {
+		if (rc == -EIO)
+			rc = -EINVAL;
+		goto out;
+	}
+
+	netpid = current->tgid;
+
+set_via_filehandle:
+	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
+	if (!rc)
+		cifsInode->cifsAttrs = dosattr;
+
+	if (open_file == NULL)
+		CIFSSMBClose(xid, pTcon, netfid);
+	else
+		atomic_dec(&open_file->wrtPending);
+out:
+	return rc;
+}
+
+/*
+ * open the given file (if it isn't already), set the DELETE_ON_CLOSE bit
+ * and rename it to a random name that hopefully won't conflict with
+ * anything else.
+ */
+static int
+cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
+{
+	int oplock = 0;
+	int rc;
+	__u16 netfid;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	__u32 dosattr;
+	FILE_BASIC_INFO *info_buf;
+
+	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+			 DELETE|FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR|CREATE_DELETE_ON_CLOSE,
+			 &netfid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc != 0)
+		goto out;
+
+	/* set ATTR_HIDDEN and clear ATTR_READONLY */
+	cifsInode = CIFS_I(inode);
+	dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+	if (dosattr == 0)
+		dosattr |= ATTR_NORMAL;
+	dosattr |= ATTR_HIDDEN;
+
+	info_buf = kzalloc(sizeof(*info_buf), GFP_KERNEL);
+	if (info_buf == NULL) {
+		rc = -ENOMEM;
+		goto out_close;
+	}
+	info_buf->Attributes = cpu_to_le32(dosattr);
+	rc = CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid, current->tgid);
+	kfree(info_buf);
+	if (rc != 0)
+		goto out_close;
+	cifsInode->cifsAttrs = dosattr;
+
+	/* silly-rename the file */
+	CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	/* set DELETE_ON_CLOSE */
+	rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid, current->tgid);
+
+	/*
+	 * some samba versions return -ENOENT when we try to set the file
+	 * disposition here. Likely a samba bug, but work around it for now
+	 */
+	if (rc == -ENOENT)
+		rc = 0;
+
+out_close:
+	CIFSSMBClose(xid, tcon, netfid);
+out:
+	return rc;
+}
+
+int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
 	int xid;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
-	struct cifsInodeInfo *cifsInode;
-	FILE_BASIC_INFO *pinfo_buf;
+	struct inode *inode = dentry->d_inode;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct super_block *sb = dir->i_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	struct iattr *attrs = NULL;
+	__u32 dosattr = 0, origattr = 0;
 
-	cFYI(1, ("cifs_unlink, inode = 0x%p", inode));
+	cFYI(1, ("cifs_unlink, dir=0x%p, dentry=0x%p", dir, dentry));
 
 	xid = GetXid();
 
-	if (inode)
-		cifs_sb = CIFS_SB(inode->i_sb);
-	else
-		cifs_sb = CIFS_SB(direntry->d_sb);
-	pTcon = cifs_sb->tcon;
-
-	/* Unlink can be called from rename so we can not grab the sem here
-	   since we deadlock otherwise */
-/*	mutex_lock(&direntry->d_sb->s_vfs_rename_mutex);*/
-	full_path = build_path_from_dentry(direntry);
-/*	mutex_unlock(&direntry->d_sb->s_vfs_rename_mutex);*/
+	/* Unlink can be called from rename so we can not take the
+	 * sb->s_vfs_rename_mutex here */
+	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
 	}
 
-	if ((pTcon->ses->capabilities & CAP_UNIX) &&
+	if ((tcon->ses->capabilities & CAP_UNIX) &&
 		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
-			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
-		rc = CIFSPOSIXDelFile(xid, pTcon, full_path,
+			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
+		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
 			SMB_POSIX_UNLINK_FILE_TARGET, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 		cFYI(1, ("posix del rc %d", rc));
@@ -706,125 +867,60 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 			goto psx_del_no_retry;
 	}
 
-	rc = CIFSSMBDelFile(xid, pTcon, full_path, cifs_sb->local_nls,
+retry_std_delete:
+	rc = CIFSSMBDelFile(xid, tcon, full_path, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+
 psx_del_no_retry:
 	if (!rc) {
-		if (direntry->d_inode)
-			drop_nlink(direntry->d_inode);
+		if (inode)
+			drop_nlink(inode);
 	} else if (rc == -ENOENT) {
-		d_drop(direntry);
+		d_drop(dentry);
 	} else if (rc == -ETXTBSY) {
-		int oplock = 0;
-		__u16 netfid;
-
-		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, DELETE,
-				 CREATE_NOT_DIR | CREATE_DELETE_ON_CLOSE,
-				 &netfid, &oplock, NULL, cifs_sb->local_nls,
-				 cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			CIFSSMBRenameOpenFile(xid, pTcon, netfid, NULL,
-					      cifs_sb->local_nls,
-					      cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			CIFSSMBClose(xid, pTcon, netfid);
-			if (direntry->d_inode)
-				drop_nlink(direntry->d_inode);
+		rc = cifs_rename_pending_delete(full_path, inode, xid);
+		if (rc == 0)
+			drop_nlink(inode);
+	} else if (rc == -EACCES && dosattr == 0) {
+		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+		if (attrs == NULL) {
+			rc = -ENOMEM;
+			goto out_reval;
 		}
-	} else if (rc == -EACCES) {
-		/* try only if r/o attribute set in local lookup data? */
-		pinfo_buf = kzalloc(sizeof(FILE_BASIC_INFO), GFP_KERNEL);
-		if (pinfo_buf) {
-			/* ATTRS set to normal clears r/o bit */
-			pinfo_buf->Attributes = cpu_to_le32(ATTR_NORMAL);
-			if (!(pTcon->ses->flags & CIFS_SES_NT4))
-				rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
-						     pinfo_buf,
-						     cifs_sb->local_nls,
-						     cifs_sb->mnt_cifs_flags &
-							CIFS_MOUNT_MAP_SPECIAL_CHR);
-			else
-				rc = -EOPNOTSUPP;
 
-			if (rc == -EOPNOTSUPP) {
-				int oplock = 0;
-				__u16 netfid;
-			/*	rc = CIFSSMBSetAttrLegacy(xid, pTcon,
-							  full_path,
-							  (__u16)ATTR_NORMAL,
-							  cifs_sb->local_nls);
-			   For some strange reason it seems that NT4 eats the
-			   old setattr call without actually setting the
-			   attributes so on to the third attempted workaround
-			   */
+		/* try to reset dos attributes */
+		origattr = cifsInode->cifsAttrs;
+		if (origattr == 0)
+			origattr |= ATTR_NORMAL;
+		dosattr = origattr & ~ATTR_READONLY;
+		if (dosattr == 0)
+			dosattr |= ATTR_NORMAL;
+		dosattr |= ATTR_HIDDEN;
 
-			/* BB could scan to see if we already have it open
-			   and pass in pid of opener to function */
-				rc = CIFSSMBOpen(xid, pTcon, full_path,
-						 FILE_OPEN, SYNCHRONIZE |
-						 FILE_WRITE_ATTRIBUTES, 0,
-						 &netfid, &oplock, NULL,
-						 cifs_sb->local_nls,
-						 cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if (rc == 0) {
-					rc = CIFSSMBSetFileInfo(xid, pTcon,
-								pinfo_buf,
-								netfid,
-								current->tgid);
-					CIFSSMBClose(xid, pTcon, netfid);
-				}
-			}
-			kfree(pinfo_buf);
-		}
-		if (rc == 0) {
-			rc = CIFSSMBDelFile(xid, pTcon, full_path,
-					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (!rc) {
-				if (direntry->d_inode)
-					drop_nlink(direntry->d_inode);
-			} else if (rc == -ETXTBSY) {
-				int oplock = 0;
-				__u16 netfid;
+		rc = cifs_set_file_info(inode, attrs, xid, full_path, dosattr);
+		if (rc != 0)
+			goto out_reval;
 
-				rc = CIFSSMBOpen(xid, pTcon, full_path,
-						 FILE_OPEN, DELETE,
-						 CREATE_NOT_DIR |
-						 CREATE_DELETE_ON_CLOSE,
-						 &netfid, &oplock, NULL,
-						 cifs_sb->local_nls,
-						 cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if (rc == 0) {
-					CIFSSMBRenameOpenFile(xid, pTcon,
-						netfid, NULL,
-						cifs_sb->local_nls,
-						cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-					CIFSSMBClose(xid, pTcon, netfid);
-					if (direntry->d_inode)
-						drop_nlink(direntry->d_inode);
-				}
-			/* BB if rc = -ETXTBUSY goto the rename logic BB */
-			}
-		}
+		goto retry_std_delete;
 	}
-	if (direntry->d_inode) {
-		cifsInode = CIFS_I(direntry->d_inode);
+
+	/* undo the setattr if we errored out and it's needed */
+	if (rc != 0 && dosattr != 0)
+		cifs_set_file_info(inode, attrs, xid, full_path, origattr);
+
+out_reval:
+	if (inode) {
+		cifsInode = CIFS_I(inode);
 		cifsInode->time = 0;	/* will force revalidate to get info
 					   when needed */
-		direntry->d_inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_fs_time(sb);
 	}
-	if (inode) {
-		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
-		cifsInode = CIFS_I(inode);
-		cifsInode->time = 0;	/* force revalidate of dir as well */
-	}
+	dir->i_ctime = dir->i_mtime = current_fs_time(sb);
+	cifsInode = CIFS_I(dir);
+	CIFS_I(dir)->time = 0;	/* force revalidate of dir as well */
 
 	kfree(full_path);
+	kfree(attrs);
 	FreeXid(xid);
 	return rc;
 }
@@ -869,7 +965,7 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 
 int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 {
-	int rc = 0;
+	int rc = 0, tmprc;
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
@@ -931,6 +1027,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				kfree(pInfo);
 				goto mkdir_get_info;
 			}
+
 			/* Is an i_ino of zero legal? */
 			/* Are there sanity checks we can use to ensure that
 			   the server is really filling in that field? */
@@ -1019,12 +1116,20 @@ mkdir_get_info:
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
 			    (mode & S_IWUGO) == 0) {
 				FILE_BASIC_INFO pInfo;
+				struct cifsInodeInfo *cifsInode;
+				u32 dosattrs;
+
 				memset(&pInfo, 0, sizeof(pInfo));
-				pInfo.Attributes = cpu_to_le32(ATTR_READONLY);
-				CIFSSMBSetPathInfo(xid, pTcon, full_path,
-						&pInfo, cifs_sb->local_nls,
+				cifsInode = CIFS_I(newinode);
+				dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
+				pInfo.Attributes = cpu_to_le32(dosattrs);
+				tmprc = CIFSSMBSetPathInfo(xid, pTcon,
+						full_path, &pInfo,
+						cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				if (tmprc == 0)
+					cifsInode->cifsAttrs = dosattrs;
 			}
 			if (direntry->d_inode) {
 				if (cifs_sb->mnt_cifs_flags &
@@ -1096,117 +1201,141 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	return rc;
 }
 
+static int
+cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
+		struct dentry *to_dentry, const char *toPath)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(from_dentry->d_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	__u16 srcfid;
+	int oplock, rc;
+
+	/* try path-based rename first */
+	rc = CIFSSMBRename(xid, pTcon, fromPath, toPath, cifs_sb->local_nls,
+			   cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	/*
+	 * don't bother with rename by filehandle unless file is busy and
+	 * source Note that cross directory moves do not work with
+	 * rename by filehandle to various Windows servers.
+	 */
+	if (rc == 0 || rc != -ETXTBSY)
+		return rc;
+
+	/* open the file to be renamed -- we need DELETE perms */
+	rc = CIFSSMBOpen(xid, pTcon, fromPath, FILE_OPEN, DELETE,
+			 CREATE_NOT_DIR, &srcfid, &oplock, NULL,
+			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc == 0) {
+		rc = CIFSSMBRenameOpenFile(xid, pTcon, srcfid,
+				(const char *) to_dentry->d_name.name,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+		CIFSSMBClose(xid, pTcon, srcfid);
+	}
+
+	return rc;
+}
+
 int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 	struct inode *target_inode, struct dentry *target_direntry)
 {
-	char *fromName;
-	char *toName;
+	char *fromName = NULL;
+	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb_source;
 	struct cifs_sb_info *cifs_sb_target;
 	struct cifsTconInfo *pTcon;
+	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
+	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid;
-	int rc = 0;
-
-	xid = GetXid();
+	int rc;
 
 	cifs_sb_target = CIFS_SB(target_inode->i_sb);
 	cifs_sb_source = CIFS_SB(source_inode->i_sb);
 	pTcon = cifs_sb_source->tcon;
 
+	xid = GetXid();
+
+	/*
+	 * BB: this might be allowed if same server, but different share.
+	 * Consider adding support for this
+	 */
 	if (pTcon != cifs_sb_target->tcon) {
-		FreeXid(xid);
-		return -EXDEV;	/* BB actually could be allowed if same server,
-				   but different share.
-				   Might eventually add support for this */
+		rc = -EXDEV;
+		goto cifs_rename_exit;
 	}
 
-	/* we already  have the rename sem so we do not need to grab it again
-	   here to protect the path integrity */
+	/*
+	 * we already have the rename sem so we do not need to
+	 * grab it again here to protect the path integrity
+	 */
 	fromName = build_path_from_dentry(source_direntry);
-	toName = build_path_from_dentry(target_direntry);
-	if ((fromName == NULL) || (toName == NULL)) {
+	if (fromName == NULL) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
 	}
 
-	rc = CIFSSMBRename(xid, pTcon, fromName, toName,
-			   cifs_sb_source->local_nls,
-			   cifs_sb_source->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc == -EEXIST) {
-		/* check if they are the same file because rename of hardlinked
-		   files is a noop */
-		FILE_UNIX_BASIC_INFO *info_buf_source;
-		FILE_UNIX_BASIC_INFO *info_buf_target;
+	toName = build_path_from_dentry(target_direntry);
+	if (toName == NULL) {
+		rc = -ENOMEM;
+		goto cifs_rename_exit;
+	}
 
-		info_buf_source =
-			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
-		if (info_buf_source != NULL) {
+	rc = cifs_do_rename(xid, source_direntry, fromName,
+			    target_direntry, toName);
+
+	if (rc == -EEXIST) {
+		if (pTcon->unix_ext) {
+			/*
+			 * Are src and dst hardlinks of same inode? We can
+			 * only tell with unix extensions enabled
+			 */
+			info_buf_source =
+				kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
+						GFP_KERNEL);
+			if (info_buf_source == NULL)
+				goto unlink_target;
+
 			info_buf_target = info_buf_source + 1;
-			if (pTcon->unix_ext)
-				rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-					info_buf_source,
-					cifs_sb_source->local_nls,
-					cifs_sb_source->mnt_cifs_flags &
+			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
+						info_buf_source,
+						cifs_sb_source->local_nls,
+						cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			/* else rc is still EEXIST so will fall through to
-			   unlink the target and retry rename */
-			if (rc == 0) {
-				rc = CIFSSMBUnixQPathInfo(xid, pTcon, toName,
-						info_buf_target,
+			if (rc != 0)
+				goto unlink_target;
+
+			rc = CIFSSMBUnixQPathInfo(xid, pTcon,
+						toName, info_buf_target,
 						cifs_sb_target->local_nls,
 						/* remap based on source sb */
 						cifs_sb_source->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-			}
-			if ((rc == 0) &&
-			    (info_buf_source->UniqueId ==
-			     info_buf_target->UniqueId)) {
-			/* do not rename since the files are hardlinked which
-			   is a noop */
-			} else {
-			/* we either can not tell the files are hardlinked
-			   (as with Windows servers) or files are not
-			   hardlinked so delete the target manually before
-			   renaming to follow POSIX rather than Windows
-			   semantics */
-				cifs_unlink(target_inode, target_direntry);
-				rc = CIFSSMBRename(xid, pTcon, fromName,
-						   toName,
-						   cifs_sb_source->local_nls,
-						   cifs_sb_source->mnt_cifs_flags
-						   & CIFS_MOUNT_MAP_SPECIAL_CHR);
-			}
-			kfree(info_buf_source);
-		} /* if we can not get memory just leave rc as EEXIST */
-	}
-
-	if (rc)
-		cFYI(1, ("rename rc %d", rc));
-
-	if ((rc == -EIO) || (rc == -EEXIST)) {
-		int oplock = 0;
-		__u16 netfid;
-
-		/* BB FIXME Is Generic Read correct for rename? */
-		/* if renaming directory - we should not say CREATE_NOT_DIR,
-		   need to test renaming open directory, also GENERIC_READ
-		   might not right be right access to request */
-		rc = CIFSSMBOpen(xid, pTcon, fromName, FILE_OPEN, GENERIC_READ,
-				 CREATE_NOT_DIR, &netfid, &oplock, NULL,
-				 cifs_sb_source->local_nls,
-				 cifs_sb_source->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			rc = CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
-					      cifs_sb_source->local_nls,
-					      cifs_sb_source->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			CIFSSMBClose(xid, pTcon, netfid);
-		}
+
+			if (rc == 0 && (info_buf_source->UniqueId ==
+					info_buf_target->UniqueId))
+				/* same file, POSIX says that this is a noop */
+				goto cifs_rename_exit;
+		} /* else ... BB we could add the same check for Windows by
+		     checking the UniqueId via FILE_INTERNAL_INFO */
+unlink_target:
+		/*
+		 * we either can not tell the files are hardlinked (as with
+		 * Windows servers) or files are not hardlinked. Delete the
+		 * target manually before renaming to follow POSIX rather than
+		 * Windows semantics
+		 */
+		cifs_unlink(target_inode, target_direntry);
+		rc = cifs_do_rename(xid, source_direntry, fromName,
+				    target_direntry, toName);
 	}
 
 cifs_rename_exit:
+	kfree(info_buf_source);
 	kfree(fromName);
 	kfree(toName);
 	FreeXid(xid);
@@ -1503,101 +1632,6 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
 
-	return rc;
-}
-
-static int
-cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
-		    char *full_path, __u32 dosattr)
-{
-	int rc;
-	int oplock = 0;
-	__u16 netfid;
-	__u32 netpid;
-	bool set_time = false;
-	struct cifsFileInfo *open_file;
-	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *pTcon = cifs_sb->tcon;
-	FILE_BASIC_INFO	info_buf;
-
-	if (attrs->ia_valid & ATTR_ATIME) {
-		set_time = true;
-		info_buf.LastAccessTime =
-			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
-	} else
-		info_buf.LastAccessTime = 0;
-
-	if (attrs->ia_valid & ATTR_MTIME) {
-		set_time = true;
-		info_buf.LastWriteTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
-	} else
-		info_buf.LastWriteTime = 0;
-
-	/*
-	 * Samba throws this field away, but windows may actually use it.
-	 * Do not set ctime unless other time stamps are changed explicitly
-	 * (i.e. by utimes()) since we would then have a mix of client and
-	 * server times.
-	 */
-	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
-		cFYI(1, ("CIFS - CTIME changed"));
-		info_buf.ChangeTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
-	} else
-		info_buf.ChangeTime = 0;
-
-	info_buf.CreationTime = 0;	/* don't change */
-	info_buf.Attributes = cpu_to_le32(dosattr);
-
-	/*
-	 * If the file is already open for write, just use that fileid
-	 */
-	open_file = find_writable_file(cifsInode);
-	if (open_file) {
-		netfid = open_file->netfid;
-		netpid = open_file->pid;
-		goto set_via_filehandle;
-	}
-
-	/*
-	 * NT4 apparently returns success on this call, but it doesn't
-	 * really work.
-	 */
-	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
-		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
-				     &info_buf, cifs_sb->local_nls,
-				     cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != -EOPNOTSUPP && rc != -EINVAL)
-			goto out;
-	}
-
-	cFYI(1, ("calling SetFileInfo since SetPathInfo for "
-		 "times not supported by this server"));
-	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
-			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
-			 CREATE_NOT_DIR, &netfid, &oplock,
-			 NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
-
-	if (rc != 0) {
-		if (rc == -EIO)
-			rc = -EINVAL;
-		goto out;
-	}
-
-	netpid = current->tgid;
-
-set_via_filehandle:
-	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
-	if (open_file == NULL)
-		CIFSSMBClose(xid, pTcon, netfid);
-	else
-		atomic_dec(&open_file->wrtPending);
-out:
 	return rc;
 }
 

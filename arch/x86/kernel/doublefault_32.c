@@ -66,6 +66,6 @@ struct tss_struct doublefault_tss __cacheline_aligned = {
 		.ds		= __USER_DS,
 		.fs		= __KERNEL_PERCPU,
 
-		.__cr3		= __pa(swapper_pg_dir)
+		.__cr3		= __phys_addr_const((unsigned long)swapper_pg_dir)
 	}
 };

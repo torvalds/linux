@@ -170,7 +170,7 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 	version = call >> 16; /* hack for backward compatibility */
 	call &= 0xffff;
 
-	if (call <= SEMCTL)
+	if (call <= SEMTIMEDOP)
 		switch (call) {
 		case SEMOP:
 			return sys_semtimedop(first,

@@ -1040,7 +1040,7 @@ static const struct mmc_test_case mmc_test_cases[] = {
 
 };
 
-static struct mutex mmc_test_lock;
+static DEFINE_MUTEX(mmc_test_lock);
 
 static void mmc_test_run(struct mmc_test_card *test, int testcase)
 {
@@ -1170,8 +1170,6 @@ static int mmc_test_probe(struct mmc_card *card)
 
 	if ((card->type != MMC_TYPE_MMC) && (card->type != MMC_TYPE_SD))
 		return -ENODEV;
-
-	mutex_init(&mmc_test_lock);
 
 	ret = device_create_file(&card->dev, &dev_attr_test);
 	if (ret)

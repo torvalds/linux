@@ -111,8 +111,6 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 	case 'D':
 	case 'k':
 	case 'c':
-		kgdb_contthread = NULL;
-
 		/*
 		 * Try to read optional parameter, pc unchanged if no parm.
 		 * If this was a compiled breakpoint, we need to move

@@ -151,7 +151,6 @@ struct p9_mux_poll_task {
  * @trans: reference to transport instance for this connection
  * @tagpool: id accounting for transactions
  * @err: error state
- * @equeue: event wait_q (?)
  * @req_list: accounting for requests which have been sent
  * @unsent_req_list: accounting for requests that haven't been sent
  * @rcall: current response &p9_fcall structure
@@ -178,7 +177,6 @@ struct p9_conn {
 	struct p9_trans *trans;
 	struct p9_idpool *tagpool;
 	int err;
-	wait_queue_head_t equeue;
 	struct list_head req_list;
 	struct list_head unsent_req_list;
 	struct p9_fcall *rcall;
@@ -239,22 +237,6 @@ static int p9_conn_rpcnb(struct p9_conn *m, struct p9_fcall *tc,
 #endif /* P9_NONBLOCK */
 
 static void p9_conn_cancel(struct p9_conn *m, int err);
-
-static int p9_mux_global_init(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(p9_mux_poll_tasks); i++)
-		p9_mux_poll_tasks[i].task = NULL;
-
-	p9_mux_wq = create_workqueue("v9fs");
-	if (!p9_mux_wq) {
-		printk(KERN_WARNING "v9fs: mux: creating workqueue failed\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
 
 static u16 p9_mux_get_tag(struct p9_conn *m)
 {
@@ -409,11 +391,11 @@ static void p9_mux_poll_stop(struct p9_conn *m)
 static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 {
 	int i, n;
-	struct p9_conn *m, *mtmp;
+	struct p9_conn *m;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "transport %p msize %d\n", trans,
 								trans->msize);
-	m = kmalloc(sizeof(struct p9_conn), GFP_KERNEL);
+	m = kzalloc(sizeof(struct p9_conn), GFP_KERNEL);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
@@ -424,25 +406,14 @@ static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 	m->trans = trans;
 	m->tagpool = p9_idpool_create();
 	if (IS_ERR(m->tagpool)) {
-		mtmp = ERR_PTR(-ENOMEM);
 		kfree(m);
-		return mtmp;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	m->err = 0;
-	init_waitqueue_head(&m->equeue);
 	INIT_LIST_HEAD(&m->req_list);
 	INIT_LIST_HEAD(&m->unsent_req_list);
-	m->rcall = NULL;
-	m->rpos = 0;
-	m->rbuf = NULL;
-	m->wpos = m->wsize = 0;
-	m->wbuf = NULL;
 	INIT_WORK(&m->rq, p9_read_work);
 	INIT_WORK(&m->wq, p9_write_work);
-	m->wsched = 0;
-	memset(&m->poll_waddr, 0, sizeof(m->poll_waddr));
-	m->poll_task = NULL;
 	n = p9_mux_poll_start(m);
 	if (n) {
 		kfree(m);
@@ -463,10 +434,8 @@ static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 	for (i = 0; i < ARRAY_SIZE(m->poll_waddr); i++) {
 		if (IS_ERR(m->poll_waddr[i])) {
 			p9_mux_poll_stop(m);
-			mtmp = (void *)m->poll_waddr;	/* the error code */
 			kfree(m);
-			m = mtmp;
-			break;
+			return (void *)m->poll_waddr;	/* the error code */
 		}
 	}
 
@@ -483,18 +452,13 @@ static void p9_conn_destroy(struct p9_conn *m)
 {
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p prev %p next %p\n", m,
 		m->mux_list.prev, m->mux_list.next);
-	p9_conn_cancel(m, -ECONNRESET);
-
-	if (!list_empty(&m->req_list)) {
-		/* wait until all processes waiting on this session exit */
-		P9_DPRINTK(P9_DEBUG_MUX,
-			"mux %p waiting for empty request queue\n", m);
-		wait_event_timeout(m->equeue, (list_empty(&m->req_list)), 5000);
-		P9_DPRINTK(P9_DEBUG_MUX, "mux %p request queue empty: %d\n", m,
-			list_empty(&m->req_list));
-	}
 
 	p9_mux_poll_stop(m);
+	cancel_work_sync(&m->rq);
+	cancel_work_sync(&m->wq);
+
+	p9_conn_cancel(m, -ECONNRESET);
+
 	m->trans = NULL;
 	p9_idpool_destroy(m->tagpool);
 	kfree(m);
@@ -840,8 +804,6 @@ static void p9_read_work(struct work_struct *work)
 					(*req->cb) (req, req->cba);
 				else
 					kfree(req->rcall);
-
-				wake_up(&m->equeue);
 			}
 		} else {
 			if (err >= 0 && rcall->id != P9_RFLUSH)
@@ -908,8 +870,10 @@ static struct p9_req *p9_send_request(struct p9_conn *m,
 	else
 		n = p9_mux_get_tag(m);
 
-	if (n < 0)
+	if (n < 0) {
+		kfree(req);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	p9_set_tag(tc, n);
 
@@ -984,8 +948,6 @@ static void p9_mux_flush_cb(struct p9_req *freq, void *a)
 			(*req->cb) (req, req->cba);
 		else
 			kfree(req->rcall);
-
-		wake_up(&m->equeue);
 	}
 
 	kfree(freq->tcall);
@@ -1191,8 +1153,6 @@ void p9_conn_cancel(struct p9_conn *m, int err)
 		else
 			kfree(req->rcall);
 	}
-
-	wake_up(&m->equeue);
 }
 
 /**
@@ -1370,7 +1330,6 @@ p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
 {
 	int ret, n;
 	struct p9_trans_fd *ts = NULL;
-	mm_segment_t oldfs;
 
 	if (trans && trans->status == Connected)
 		ts = trans->priv;
@@ -1384,24 +1343,17 @@ p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
 	if (!ts->wr->f_op || !ts->wr->f_op->poll)
 		return -EIO;
 
-	oldfs = get_fs();
-	set_fs(get_ds());
-
 	ret = ts->rd->f_op->poll(ts->rd, pt);
 	if (ret < 0)
-		goto end;
+		return ret;
 
 	if (ts->rd != ts->wr) {
 		n = ts->wr->f_op->poll(ts->wr, pt);
-		if (n < 0) {
-			ret = n;
-			goto end;
-		}
+		if (n < 0)
+			return n;
 		ret = (ret & ~POLLOUT) | (n & ~POLLIN);
 	}
 
-end:
-	set_fs(oldfs);
 	return ret;
 }
 
@@ -1629,6 +1581,7 @@ static struct p9_trans_module p9_tcp_trans = {
 	.maxsize = MAX_SOCK_BUF,
 	.def = 1,
 	.create = p9_trans_create_tcp,
+	.owner = THIS_MODULE,
 };
 
 static struct p9_trans_module p9_unix_trans = {
@@ -1636,6 +1589,7 @@ static struct p9_trans_module p9_unix_trans = {
 	.maxsize = MAX_SOCK_BUF,
 	.def = 0,
 	.create = p9_trans_create_unix,
+	.owner = THIS_MODULE,
 };
 
 static struct p9_trans_module p9_fd_trans = {
@@ -1643,14 +1597,20 @@ static struct p9_trans_module p9_fd_trans = {
 	.maxsize = MAX_SOCK_BUF,
 	.def = 0,
 	.create = p9_trans_create_fd,
+	.owner = THIS_MODULE,
 };
 
 int p9_trans_fd_init(void)
 {
-	int ret = p9_mux_global_init();
-	if (ret) {
-		printk(KERN_WARNING "9p: starting mux failed\n");
-		return ret;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(p9_mux_poll_tasks); i++)
+		p9_mux_poll_tasks[i].task = NULL;
+
+	p9_mux_wq = create_workqueue("v9fs");
+	if (!p9_mux_wq) {
+		printk(KERN_WARNING "v9fs: mux: creating workqueue failed\n");
+		return -ENOMEM;
 	}
 
 	v9fs_register_trans(&p9_tcp_trans);
@@ -1659,4 +1619,12 @@ int p9_trans_fd_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(p9_trans_fd_init);
+
+void p9_trans_fd_exit(void)
+{
+	v9fs_unregister_trans(&p9_tcp_trans);
+	v9fs_unregister_trans(&p9_unix_trans);
+	v9fs_unregister_trans(&p9_fd_trans);
+
+	destroy_workqueue(p9_mux_wq);
+}

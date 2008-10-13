@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_STATFS_H
-#define _ASM_X86_STATFS_H
+#ifndef ASM_X86__STATFS_H
+#define ASM_X86__STATFS_H
 
 /*
  * We need compat_statfs64 to be packed, because the i386 ABI won't
@@ -9,4 +9,4 @@
 #define ARCH_PACK_COMPAT_STATFS64 __attribute__((packed,aligned(4)))
 
 #include <asm-generic/statfs.h>
-#endif
+#endif /* ASM_X86__STATFS_H */

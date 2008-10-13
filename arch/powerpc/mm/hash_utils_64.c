@@ -191,12 +191,17 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		unsigned long hash, hpteg;
 		unsigned long vsid = get_kernel_vsid(vaddr, ssize);
 		unsigned long va = hpt_va(vaddr, vsid, ssize);
+		unsigned long tprot = prot;
+
+		/* Make kernel text executable */
+		if (in_kernel_text(vaddr))
+			tprot &= ~HPTE_R_N;
 
 		hash = hpt_hash(va, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
 		BUG_ON(!ppc_md.hpte_insert);
-		ret = ppc_md.hpte_insert(hpteg, va, paddr, prot,
+		ret = ppc_md.hpte_insert(hpteg, va, paddr, tprot,
 					 HPTE_V_BOLTED, psize, ssize);
 
 		if (ret < 0)
@@ -584,7 +589,7 @@ void __init htab_initialize(void)
 {
 	unsigned long table;
 	unsigned long pteg_count;
-	unsigned long prot, tprot;
+	unsigned long prot;
 	unsigned long base = 0, size = 0, limit;
 	int i;
 
@@ -660,10 +665,9 @@ void __init htab_initialize(void)
 	for (i=0; i < lmb.memory.cnt; i++) {
 		base = (unsigned long)__va(lmb.memory.region[i].base);
 		size = lmb.memory.region[i].size;
-		tprot = prot | (in_kernel_text(base) ? _PAGE_EXEC : 0);
 
 		DBG("creating mapping for region: %lx..%lx (prot: %x)\n",
-		    base, size, tprot);
+		    base, size, prot);
 
 #ifdef CONFIG_U3_DART
 		/* Do not map the DART space. Fortunately, it will be aligned
@@ -680,21 +684,21 @@ void __init htab_initialize(void)
 			unsigned long dart_table_end = dart_tablebase + 16 * MB;
 			if (base != dart_tablebase)
 				BUG_ON(htab_bolt_mapping(base, dart_tablebase,
-							__pa(base), tprot,
+							__pa(base), prot,
 							mmu_linear_psize,
 							mmu_kernel_ssize));
 			if ((base + size) > dart_table_end)
 				BUG_ON(htab_bolt_mapping(dart_tablebase+16*MB,
 							base + size,
 							__pa(dart_table_end),
-							 tprot,
+							 prot,
 							 mmu_linear_psize,
 							 mmu_kernel_ssize));
 			continue;
 		}
 #endif /* CONFIG_U3_DART */
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
-				tprot, mmu_linear_psize, mmu_kernel_ssize));
+				prot, mmu_linear_psize, mmu_kernel_ssize));
        }
 
 	/*

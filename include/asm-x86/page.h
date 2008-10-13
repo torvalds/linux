@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PAGE_H
-#define _ASM_X86_PAGE_H
+#ifndef ASM_X86__PAGE_H
+#define ASM_X86__PAGE_H
 
 #include <linux/const.h>
 
@@ -57,6 +57,7 @@ typedef struct { pgdval_t pgd; } pgd_t;
 typedef struct { pgprotval_t pgprot; } pgprot_t;
 
 extern int page_is_ram(unsigned long pagenr);
+extern int pagerange_is_ram(unsigned long start, unsigned long end);
 extern int devmem_is_allowed(unsigned long pagenr);
 extern void map_devmem(unsigned long pfn, unsigned long size,
 		       pgprot_t vma_prot);
@@ -199,4 +200,4 @@ static inline pteval_t native_pte_flags(pte_t pte)
 #define __HAVE_ARCH_GATE_AREA 1
 
 #endif	/* __KERNEL__ */
-#endif	/* _ASM_X86_PAGE_H */
+#endif /* ASM_X86__PAGE_H */

@@ -23,7 +23,7 @@ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 			start = start_##ops##_##x;		\
 			end = end_##ops##_##x;			\
 			goto patch_site
-	switch(type) {
+	switch (type) {
 		PATCH_SITE(pv_irq_ops, irq_disable);
 		PATCH_SITE(pv_irq_ops, irq_enable);
 		PATCH_SITE(pv_irq_ops, restore_fl);

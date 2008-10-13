@@ -711,6 +711,10 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp)
 	u64 *spte;
 	int young = 0;
 
+	/* always return old for EPT */
+	if (!shadow_accessed_mask)
+		return 0;
+
 	spte = rmap_next(kvm, rmapp, NULL);
 	while (spte) {
 		int _young;

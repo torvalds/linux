@@ -10,6 +10,7 @@
 #include "dvb_frontend.h"
 
 #define XC2028_DEFAULT_FIRMWARE "xc3028-v27.fw"
+#define XC3028L_DEFAULT_FIRMWARE "xc3028L-v36.fw"
 
 /*      Dmoduler		IF (kHz) */
 #define	XC3028_FE_DEFAULT	0		/* Don't load SCODE */

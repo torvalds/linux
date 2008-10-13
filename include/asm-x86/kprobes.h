@@ -1,5 +1,5 @@
-#ifndef _ASM_KPROBES_H
-#define _ASM_KPROBES_H
+#ifndef ASM_X86__KPROBES_H
+#define ASM_X86__KPROBES_H
 /*
  *  Kernel Probes (KProbes)
  *
@@ -94,4 +94,4 @@ static inline void restore_interrupts(struct pt_regs *regs)
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
-#endif				/* _ASM_KPROBES_H */
+#endif /* ASM_X86__KPROBES_H */

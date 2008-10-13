@@ -91,3 +91,4 @@ ENTRY(__raw_writesb)
 		strgtb	r3, [r0]
 
 		ldmfd	sp!, {r4, r5, pc}
+ENDPROC(__raw_writesb)

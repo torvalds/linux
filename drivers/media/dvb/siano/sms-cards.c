@@ -4,7 +4,7 @@
  *  Copyright (c) 2008 Michael Krufky <mkrufky@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 3 as
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation;
  *
  *  Software distributed under the License is distributed on an "AS IS"
@@ -39,6 +39,8 @@ struct usb_device_id smsusb_id_table[] = {
 	{ USB_DEVICE(0x2040, 0x1801),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B },
 	{ USB_DEVICE(0x2040, 0x5500),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5510),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ USB_DEVICE(0x2040, 0x5580),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
@@ -87,7 +89,7 @@ static struct sms_board sms_boards[] = {
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-b-dvbt-01.fw",
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
-		.name	= "Hauppauge WinTV-Nova-T-MiniStick",
+		.name	= "Hauppauge WinTV MiniStick",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-01.fw",
 	},

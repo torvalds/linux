@@ -13,10 +13,10 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/smp.h>
+#include <linux/io.h>
 
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 
 #include <mach/board-eb.h>

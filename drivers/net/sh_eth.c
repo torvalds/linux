@@ -1140,7 +1140,7 @@ static int sh_mdio_init(struct net_device *ndev, int id)
 
 	/* Hook up MII support for ethtool */
 	mdp->mii_bus->name = "sh_mii";
-	mdp->mii_bus->dev = &ndev->dev;
+	mdp->mii_bus->parent = &ndev->dev;
 	mdp->mii_bus->id[0] = id;
 
 	/* PHY IRQ */
@@ -1166,7 +1166,7 @@ out_free_irq:
 	kfree(mdp->mii_bus->irq);
 
 out_free_bus:
-	kfree(mdp->mii_bus);
+	free_mdio_bitbang(mdp->mii_bus);
 
 out_free_bitbang:
 	kfree(bitbang);

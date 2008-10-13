@@ -293,20 +293,23 @@ extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 /*
- * Bus number may be in res->flags... somewhere.
- */
-extern void __iomem *sbus_ioremap(struct resource *res, unsigned long offset,
-    unsigned long size, char *name);
-extern void sbus_iounmap(volatile void __iomem *vaddr, unsigned long size);
-
-
-/*
  * At the moment, we do not use CMOS_READ anywhere outside of rtc.c,
  * so rtc_port is static in it. This should not change unless a new
  * hardware pops up.
  */
 #define RTC_PORT(x)   (rtc_port + (x))
 #define RTC_ALWAYS_BCD  0
+
+static inline int sbus_can_dma_64bit(void)
+{
+	return 0; /* actually, sparc_cpu_model==sun4d */
+}
+static inline int sbus_can_burst64(void)
+{
+	return 0; /* actually, sparc_cpu_model==sun4d */
+}
+struct device;
+extern void sbus_set_sbus64(struct device *, int);
 
 #endif
 

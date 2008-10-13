@@ -2054,19 +2054,3 @@
                 	        	/* active display mode)            */
 #define LCCR3_OutEnH	(LCCR3_OEP*0)	/*  Output Enable active High      */
 #define LCCR3_OutEnL	(LCCR3_OEP*1)	/*  Output Enable active Low       */
-
-#ifndef __ASSEMBLY__
-extern unsigned int processor_id;
-#endif
-
-#define CPU_REVISION	(processor_id & 15)
-#define CPU_SA1110_A0	(0)
-#define CPU_SA1110_B0	(4)
-#define CPU_SA1110_B1	(5)
-#define CPU_SA1110_B2	(6)
-#define CPU_SA1110_B4	(8)
-
-#define CPU_SA1100_ID	(0x4401a110)
-#define CPU_SA1100_MASK	(0xfffffff0)
-#define CPU_SA1110_ID	(0x6901b110)
-#define CPU_SA1110_MASK	(0xfffffff0)

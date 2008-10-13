@@ -592,7 +592,7 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	if (ctrl == NULL)
 		return -EINVAL;
 
-	data = kmalloc(8, GFP_KERNEL);
+	data = kmalloc(ctrl->info->size, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 

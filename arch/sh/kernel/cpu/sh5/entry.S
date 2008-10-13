@@ -2,7 +2,7 @@
  * arch/sh/kernel/cpu/sh5/entry.S
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2004 - 2007  Paul Mundt
+ * Copyright (C) 2004 - 2008  Paul Mundt
  * Copyright (C) 2003, 2004  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -923,6 +923,8 @@ ret_from_exception:
 	blink   tr0, ZERO
 
 resume_kernel:
+	CLI()
+
 	pta	restore_all, tr0
 
 	getcon	KCR0, r6
@@ -939,18 +941,10 @@ need_resched:
 	andi	r7, 0xf0, r7
 	bne	r7, ZERO, tr0
 
-	movi	((PREEMPT_ACTIVE >> 16) & 65535), r8
-	shori	(PREEMPT_ACTIVE & 65535), r8
-	st.l	r6, TI_PRE_COUNT, r8
-
-	STI()
-	movi	schedule, r7
+	movi	preempt_schedule_irq, r7
 	ori	r7, 1, r7
 	ptabs	r7, tr1
 	blink	tr1, LINK
-
-	st.l	r6, TI_PRE_COUNT, ZERO
-	CLI()
 
 	pta	need_resched, tr1
 	blink	tr1, ZERO

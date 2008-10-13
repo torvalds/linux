@@ -1,5 +1,5 @@
-#ifndef _ASM_I386_CPU_H_
-#define _ASM_I386_CPU_H_
+#ifndef ASM_X86__CPU_H
+#define ASM_X86__CPU_H
 
 #include <linux/device.h>
 #include <linux/cpu.h>
@@ -17,4 +17,4 @@ extern void arch_unregister_cpu(int);
 #endif
 
 DECLARE_PER_CPU(int, cpu_state);
-#endif /* _ASM_I386_CPU_H_ */
+#endif /* ASM_X86__CPU_H */

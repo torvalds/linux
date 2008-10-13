@@ -244,7 +244,8 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 		  const struct bttv_format *fmt, struct bttv_overlay *ov,
 		  int skip_even, int skip_odd)
 {
-	int dwords,rc,line,maxy,start,end,skip,nskips;
+	int dwords, rc, line, maxy, start, end;
+	unsigned skip, nskips;
 	struct btcx_skiplist *skips;
 	__le32 *rp;
 	u32 ri,ra;

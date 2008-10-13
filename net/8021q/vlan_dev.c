@@ -48,7 +48,7 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 	switch (veth->h_vlan_encapsulated_proto) {
 #ifdef CONFIG_INET
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 
 		/* TODO:  Confirm this will work with VLAN headers... */
 		return arp_find(veth->h_dest, skb);
@@ -607,6 +607,7 @@ static int vlan_dev_init(struct net_device *dev)
 		      (1<<__LINK_STATE_PRESENT);
 
 	dev->features |= real_dev->features & real_dev->vlan_features;
+	dev->gso_max_size = real_dev->gso_max_size;
 
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;

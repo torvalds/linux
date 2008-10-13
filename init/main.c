@@ -708,7 +708,7 @@ int do_one_initcall(initcall_t fn)
 	int result;
 
 	if (initcall_debug) {
-		print_fn_descriptor_symbol("calling  %s\n", fn);
+		printk("calling  %pF\n", fn);
 		t0 = ktime_get();
 	}
 
@@ -718,8 +718,8 @@ int do_one_initcall(initcall_t fn)
 		t1 = ktime_get();
 		delta = ktime_sub(t1, t0);
 
-		print_fn_descriptor_symbol("initcall %s", fn);
-		printk(" returned %d after %Ld msecs\n", result,
+		printk("initcall %pF returned %d after %Ld msecs\n",
+			fn, result,
 			(unsigned long long) delta.tv64 >> 20);
 	}
 
@@ -737,8 +737,7 @@ int do_one_initcall(initcall_t fn)
 		local_irq_enable();
 	}
 	if (msgbuf[0]) {
-		print_fn_descriptor_symbol(KERN_WARNING "initcall %s", fn);
-		printk(" returned with %s\n", msgbuf);
+		printk("initcall %pF returned with %s\n", fn, msgbuf);
 	}
 
 	return result;

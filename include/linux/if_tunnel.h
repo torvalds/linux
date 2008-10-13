@@ -2,6 +2,7 @@
 #define _IF_TUNNEL_H_
 
 #include <linux/types.h>
+#include <linux/ip.h>
 
 #define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
 #define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
@@ -46,5 +47,23 @@ struct ip_tunnel_prl {
 
 /* PRL flags */
 #define	PRL_DEFAULT		0x0001
+
+enum
+{
+	IFLA_GRE_UNSPEC,
+	IFLA_GRE_LINK,
+	IFLA_GRE_IFLAGS,
+	IFLA_GRE_OFLAGS,
+	IFLA_GRE_IKEY,
+	IFLA_GRE_OKEY,
+	IFLA_GRE_LOCAL,
+	IFLA_GRE_REMOTE,
+	IFLA_GRE_TTL,
+	IFLA_GRE_TOS,
+	IFLA_GRE_PMTUDISC,
+	__IFLA_GRE_MAX,
+};
+
+#define IFLA_GRE_MAX	(__IFLA_GRE_MAX - 1)
 
 #endif /* _IF_TUNNEL_H_ */

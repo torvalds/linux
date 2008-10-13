@@ -337,7 +337,7 @@ With scatterlists, you use the resulting mapping like this:
 	int i, count = dma_map_sg(dev, sglist, nents, direction);
 	struct scatterlist *sg;
 
-	for (i = 0, sg = sglist; i < count; i++, sg++) {
+	for_each_sg(sglist, sg, count, i) {
 		hw_address[i] = sg_dma_address(sg);
 		hw_len[i] = sg_dma_len(sg);
 	}

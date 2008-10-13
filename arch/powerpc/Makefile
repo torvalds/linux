@@ -116,6 +116,11 @@ ifeq ($(CONFIG_6xx),y)
 KBUILD_CFLAGS		+= -mcpu=powerpc
 endif
 
+# Work around a gcc code-gen bug with -fno-omit-frame-pointer.
+ifeq ($(CONFIG_FTRACE),y)
+KBUILD_CFLAGS		+= -mno-sched-epilog
+endif
+
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
 cpu-as-$(CONFIG_6xx)		+= -Wa,-maltivec
 cpu-as-$(CONFIG_POWER4)		+= -Wa,-maltivec

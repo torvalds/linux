@@ -118,10 +118,8 @@ extern char modprobe_path[];
 extern int sg_big_buff;
 #endif
 
-#ifdef __sparc__
-extern char reboot_command [];
-extern int stop_a_enabled;
-extern int scons_pwroff;
+#ifdef CONFIG_SPARC
+#include <asm/system.h>
 #endif
 
 #ifdef __hppa__
@@ -159,6 +157,7 @@ static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *
 static struct ctl_table root_table[];
 static struct ctl_table_root sysctl_table_root;
 static struct ctl_table_header root_table_header = {
+	.count = 1,
 	.ctl_table = root_table,
 	.ctl_entry = LIST_HEAD_INIT(sysctl_table_root.default_set.list),
 	.root = &sysctl_table_root,
@@ -414,7 +413,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	{
 		.ctl_name	= KERN_SPARC_REBOOT,
 		.procname	= "reboot-cmd",

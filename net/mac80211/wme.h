@@ -1,5 +1,4 @@
 /*
- * IEEE 802.11 driver (80211.o) - QoS datatypes
  * Copyright 2004, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
  *
@@ -13,8 +12,6 @@
 
 #include <linux/netdevice.h>
 #include "ieee80211_i.h"
-
-#define QOS_CONTROL_LEN 2
 
 #define QOS_CONTROL_ACK_POLICY_NORMAL 0
 #define QOS_CONTROL_ACK_POLICY_NOACK 1

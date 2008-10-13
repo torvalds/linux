@@ -24,6 +24,7 @@
 
 #include "rfkill.h"
 #include "b43.h"
+#include "phy_common.h"
 
 #include <linux/kmod.h>
 
@@ -43,23 +44,6 @@ static bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
 	return 0;
 }
 
-/* Update the rfkill state */
-static void b43_rfkill_update_state(struct b43_wldev *dev)
-{
-	struct b43_rfkill *rfk = &(dev->wl->rfkill);
-
-	if (!dev->radio_hw_enable) {
-		rfk->rfkill->state = RFKILL_STATE_HARD_BLOCKED;
-		return;
-	}
-
-	if (!dev->phy.radio_on)
-		rfk->rfkill->state = RFKILL_STATE_SOFT_BLOCKED;
-	else
-		rfk->rfkill->state = RFKILL_STATE_UNBLOCKED;
-
-}
-
 /* The poll callback for the hardware button. */
 static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 {
@@ -77,7 +61,6 @@ static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 	if (unlikely(enabled != dev->radio_hw_enable)) {
 		dev->radio_hw_enable = enabled;
 		report_change = 1;
-		b43_rfkill_update_state(dev);
 		b43info(wl, "Radio hardware status changed to %s\n",
 			enabled ? "ENABLED" : "DISABLED");
 	}
@@ -114,11 +97,11 @@ static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 			goto out_unlock;
 		}
 		if (!dev->phy.radio_on)
-			b43_radio_turn_on(dev);
+			b43_software_rfkill(dev, state);
 		break;
 	case RFKILL_STATE_SOFT_BLOCKED:
 		if (dev->phy.radio_on)
-			b43_radio_turn_off(dev, 0);
+			b43_software_rfkill(dev, state);
 		break;
 	default:
 		b43warn(wl, "Received unexpected rfkill state %d.\n", state);
@@ -186,6 +169,11 @@ void b43_rfkill_init(struct b43_wldev *dev)
 		b43warn(wl, "Failed to load the rfkill-input module. "
 			"The built-in radio LED will not work.\n");
 #endif /* CONFIG_RFKILL_INPUT */
+
+#if !defined(CONFIG_RFKILL_INPUT) && !defined(CONFIG_RFKILL_INPUT_MODULE)
+	b43warn(wl, "The rfkill-input subsystem is not available. "
+		"The built-in radio LED will not work.\n");
+#endif
 
 	err = input_register_polled_device(rfk->poll_dev);
 	if (err)

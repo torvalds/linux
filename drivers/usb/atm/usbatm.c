@@ -640,14 +640,13 @@ static void usbatm_cancel_send(struct usbatm_data *instance,
 
 	atm_dbg(instance, "%s entered\n", __func__);
 	spin_lock_irq(&instance->sndqueue.lock);
-	for (skb = instance->sndqueue.next, n = skb->next;
-	     skb != (struct sk_buff *)&instance->sndqueue;
-	     skb = n, n = skb->next)
+	skb_queue_walk_safe(&instance->sndqueue, skb, n) {
 		if (UDSL_SKB(skb)->atm.vcc == vcc) {
 			atm_dbg(instance, "%s: popping skb 0x%p\n", __func__, skb);
 			__skb_unlink(skb, &instance->sndqueue);
 			usbatm_pop(vcc, skb);
 		}
+	}
 	spin_unlock_irq(&instance->sndqueue.lock);
 
 	tasklet_disable(&instance->tx_channel.tasklet);

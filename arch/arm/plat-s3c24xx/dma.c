@@ -26,11 +26,11 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 
 #include <asm/mach/dma.h>

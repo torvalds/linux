@@ -787,7 +787,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 			omap_set_dma_dest_params(ep->lch,
 				OMAP_DMA_PORT_TIPB,
 				OMAP_DMA_AMODE_CONSTANT,
-				(unsigned long) io_v2p(UDC_DATA_DMA),
+				UDC_DATA_DMA,
 				0, 0);
 		}
 	} else {
@@ -804,7 +804,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 			omap_set_dma_src_params(ep->lch,
 				OMAP_DMA_PORT_TIPB,
 				OMAP_DMA_AMODE_CONSTANT,
-				(unsigned long) io_v2p(UDC_DATA_DMA),
+				UDC_DATA_DMA,
 				0, 0);
 			/* EMIFF or SDRC */
 			omap_set_dma_dest_burst_mode(ep->lch,

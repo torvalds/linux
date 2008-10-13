@@ -96,7 +96,6 @@ static unsigned int irq_iswitch;
 static unsigned int uv_ratio    = 50;
 static unsigned int full_luma_range;
 static unsigned int coring;
-extern int no_overlay;
 
 /* API features (turn on/off stuff for testing) */
 static unsigned int v4l2        = 1;
@@ -3432,7 +3431,7 @@ static int radio_open(struct inode *inode, struct file *file)
 	dprintk("bttv: open minor=%d\n",minor);
 
 	for (i = 0; i < bttv_num; i++) {
-		if (bttvs[i].radio_dev->minor == minor) {
+		if (bttvs[i].radio_dev && bttvs[i].radio_dev->minor == minor) {
 			btv = &bttvs[i];
 			break;
 		}

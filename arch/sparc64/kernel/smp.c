@@ -80,8 +80,6 @@ void smp_bogo(struct seq_file *m)
 			   i, cpu_data(i).clock_tick);
 }
 
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_lock);
-
 extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
@@ -120,9 +118,9 @@ void __cpuinit smp_callin(void)
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
 
-	spin_lock(&call_lock);
+	ipi_call_lock();
 	cpu_set(cpuid, cpu_online_map);
-	spin_unlock(&call_lock);
+	ipi_call_unlock();
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();
@@ -1305,10 +1303,6 @@ int __cpu_disable(void)
 	c->core_id = 0;
 	c->proc_id = -1;
 
-	spin_lock(&call_lock);
-	cpu_clear(cpu, cpu_online_map);
-	spin_unlock(&call_lock);
-
 	smp_wmb();
 
 	/* Make sure no interrupts point to this cpu.  */
@@ -1317,6 +1311,10 @@ int __cpu_disable(void)
 	local_irq_enable();
 	mdelay(1);
 	local_irq_disable();
+
+	ipi_call_lock();
+	cpu_clear(cpu, cpu_online_map);
+	ipi_call_unlock();
 
 	return 0;
 }

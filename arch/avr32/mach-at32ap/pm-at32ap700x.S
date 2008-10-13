@@ -134,7 +134,7 @@ pm_standby:
 	mov	r11, SDRAMC_LPR_LPCB_SELF_RFR
 	bfins	r10, r11, 0, 2		/* LPCB <- self Refresh */
 	sync	0			/* flush write buffer */
-	st.w	r12[SDRAMC_LPR], r11	/* put SDRAM in self-refresh mode */
+	st.w	r12[SDRAMC_LPR], r10	/* put SDRAM in self-refresh mode */
 	ld.w	r11, r12[SDRAMC_LPR]
 	unmask_interrupts
 	sleep	CPU_SLEEP_FROZEN
