@@ -671,7 +671,8 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		goto bad_area_nosemaphore;
 
 again:
-	/* When running in the kernel we expect faults to occur only to
+	/*
+	 * When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
 	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
 	 * erroneous fault occurring in a code path which already holds mmap_sem
@@ -734,9 +735,6 @@ good_area:
 			goto bad_area;
 	}
 
-#ifdef CONFIG_X86_32
-survive:
-#endif
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -871,12 +869,11 @@ out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (is_global_init(tsk)) {
 		yield();
-#ifdef CONFIG_X86_32
-		down_read(&mm->mmap_sem);
-		goto survive;
-#else
+		/*
+		 * Re-lookup the vma - in theory the vma tree might
+		 * have changed:
+		 */
 		goto again;
-#endif
 	}
 
 	printk("VM: killing process %s\n", tsk->comm);
