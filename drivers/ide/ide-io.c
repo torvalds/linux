@@ -1418,23 +1418,16 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	del_timer(&hwgroup->timer);
 	spin_unlock(&ide_lock);
 
-	/* Some controllers might set DMA INTR no matter DMA or PIO;
-	 * bmdma status might need to be cleared even for
-	 * PIO interrupts to prevent spurious/lost irq.
-	 */
-	if (hwif->ide_dma_clear_irq && !(drive->waiting_for_dma))
-		/* ide_dma_end() needs bmdma status for error checking.
-		 * So, skip clearing bmdma status here and leave it
-		 * to ide_dma_end() if this is dma interrupt.
-		 */
-		hwif->ide_dma_clear_irq(drive);
+	if (hwif->port_ops && hwif->port_ops->clear_irq)
+		hwif->port_ops->clear_irq(drive);
 
 	if (drive->dev_flags & IDE_DFLAG_UNMASK)
 		local_irq_enable_in_hardirq();
+
 	/* service this interrupt, may set handler for next interrupt */
 	startstop = handler(drive);
-	spin_lock_irq(&ide_lock);
 
+	spin_lock_irq(&ide_lock);
 	/*
 	 * Note that handler() may have set things up for another
 	 * interrupt to occur soon, but it cannot happen until
