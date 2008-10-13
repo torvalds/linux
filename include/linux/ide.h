@@ -788,6 +788,12 @@ typedef struct hwif_s {
 	unsigned int	*dmatable_cpu;
 	/* dma physical region descriptor table (dma view) */
 	dma_addr_t	dmatable_dma;
+
+	/* maximum number of PRD table entries */
+	int prd_max_nents;
+	/* PRD entry size in bytes */
+	int prd_ent_size;
+
 	/* Scatter-gather list used to build the above */
 	struct scatterlist *sg_table;
 	int sg_max_nents;		/* Maximum number of entries in it */
@@ -1423,14 +1429,14 @@ int ide_set_dma(ide_drive_t *);
 void ide_check_dma_crc(ide_drive_t *);
 ide_startstop_t ide_dma_intr(ide_drive_t *);
 
+int ide_allocate_dma_engine(ide_hwif_t *);
+void ide_release_dma_engine(ide_hwif_t *);
+
 int ide_build_sglist(ide_drive_t *, struct request *);
 void ide_destroy_dmatable(ide_drive_t *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 extern int ide_build_dmatable(ide_drive_t *, struct request *);
-int ide_allocate_dma_engine(ide_hwif_t *);
-void ide_release_dma_engine(ide_hwif_t *);
-
 void ide_dma_host_set(ide_drive_t *, int);
 extern int ide_dma_setup(ide_drive_t *);
 void ide_dma_exec_cmd(ide_drive_t *, u8);
@@ -1453,11 +1459,8 @@ static inline void ide_dma_on(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 static inline void ide_check_dma_crc(ide_drive_t *drive) { ; }
-#endif /* CONFIG_BLK_DEV_IDEDMA */
-
-#ifndef CONFIG_BLK_DEV_IDEDMA_SFF
 static inline void ide_release_dma_engine(ide_hwif_t *hwif) { ; }
-#endif
+#endif /* CONFIG_BLK_DEV_IDEDMA */
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 extern int ide_acpi_exec_tfs(ide_drive_t *drive);

@@ -844,36 +844,43 @@ void ide_dma_timeout(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_dma_timeout);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 void ide_release_dma_engine(ide_hwif_t *hwif)
 {
 	if (hwif->dmatable_cpu) {
-		struct pci_dev *pdev = to_pci_dev(hwif->dev);
+		int prd_size = hwif->prd_max_nents * hwif->prd_ent_size;
 
-		pci_free_consistent(pdev, PRD_ENTRIES * PRD_BYTES,
-				    hwif->dmatable_cpu, hwif->dmatable_dma);
+		dma_free_coherent(hwif->dev, prd_size,
+				  hwif->dmatable_cpu, hwif->dmatable_dma);
 		hwif->dmatable_cpu = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(ide_release_dma_engine);
 
 int ide_allocate_dma_engine(ide_hwif_t *hwif)
 {
-	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+	int prd_size;
 
-	hwif->dmatable_cpu = pci_alloc_consistent(pdev,
-						  PRD_ENTRIES * PRD_BYTES,
-						  &hwif->dmatable_dma);
+	if (hwif->prd_max_nents == 0)
+		hwif->prd_max_nents = PRD_ENTRIES;
+	if (hwif->prd_ent_size == 0)
+		hwif->prd_ent_size = PRD_BYTES;
 
-	if (hwif->dmatable_cpu)
-		return 0;
+	prd_size = hwif->prd_max_nents * hwif->prd_ent_size;
 
-	printk(KERN_ERR "%s: -- Error, unable to allocate DMA table.\n",
+	hwif->dmatable_cpu = dma_alloc_coherent(hwif->dev, prd_size,
+						&hwif->dmatable_dma,
+						GFP_ATOMIC);
+	if (hwif->dmatable_cpu == NULL) {
+		printk(KERN_ERR "%s: unable to allocate PRD table\n",
 			hwif->name);
+		return -ENOMEM;
+	}
 
-	return 1;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 const struct ide_dma_ops sff_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,

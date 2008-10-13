@@ -427,10 +427,9 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 							     NUM_DESCRIPTORS);
 	auide->rx_desc_head = (void*)au1xxx_dbdma_ring_alloc(auide->rx_chan,
 							     NUM_DESCRIPTORS);
- 
-	hwif->dmatable_cpu = dma_alloc_coherent(hwif->dev,
-						PRD_ENTRIES * PRD_BYTES,        /* 1 Page */
-						&hwif->dmatable_dma, GFP_KERNEL);
+
+	/* FIXME: check return value */
+	(void)ide_allocate_dma_engine(hwif);
 	
 	au1xxx_dbdma_start( auide->tx_chan );
 	au1xxx_dbdma_start( auide->rx_chan );

@@ -227,8 +227,7 @@ void ide_unregister(ide_hwif_t *hwif)
 	kfree(hwif->sg_table);
 	unregister_blkdev(hwif->major, hwif->name);
 
-	if (hwif->dma_base)
-		ide_release_dma_engine(hwif);
+	ide_release_dma_engine(hwif);
 
 	mutex_unlock(&ide_cfg_mtx);
 }

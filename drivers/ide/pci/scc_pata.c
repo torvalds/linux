@@ -821,6 +821,12 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
+static int __devinit scc_init_dma(ide_hwif_t *hwif,
+				  const struct ide_port_info *d)
+{
+	return ide_allocate_dma_engine(hwif);
+}
+
 static u8 scc_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
@@ -885,6 +891,7 @@ static const struct ide_dma_ops scc_dma_ops = {
   {							\
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
+      .init_dma		= scc_init_dma,			\
       .init_hwif	= init_hwif_scc,		\
       .tp_ops		= &scc_tp_ops,		\
       .port_ops		= &scc_port_ops,		\
@@ -922,13 +929,6 @@ static void __devexit scc_remove(struct pci_dev *dev)
 {
 	struct scc_ports *ports = pci_get_drvdata(dev);
 	struct ide_host *host = ports->host;
-	ide_hwif_t *hwif = host->ports[0];
-
-	if (hwif->dmatable_cpu) {
-		pci_free_consistent(dev, PRD_ENTRIES * PRD_BYTES,
-				    hwif->dmatable_cpu, hwif->dmatable_dma);
-		hwif->dmatable_cpu = NULL;
-	}
 
 	ide_host_remove(host);
 
