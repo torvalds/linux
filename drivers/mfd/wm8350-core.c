@@ -1234,6 +1234,15 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0x0);
 
+	wm8350_client_dev_register(wm8350, "wm8350-codec",
+				   &(wm8350->codec.pdev));
+	wm8350_client_dev_register(wm8350, "wm8350-gpio",
+				   &(wm8350->gpio.pdev));
+	wm8350_client_dev_register(wm8350, "wm8350-power",
+				   &(wm8350->power.pdev));
+	wm8350_client_dev_register(wm8350, "wm8350-rtc", &(wm8350->rtc.pdev));
+	wm8350_client_dev_register(wm8350, "wm8350-wdt", &(wm8350->wdt.pdev));
+
 	return 0;
 
 err:
@@ -1247,8 +1256,13 @@ void wm8350_device_exit(struct wm8350 *wm8350)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.pdev); i++)
-		if (wm8350->pmic.pdev[i] != NULL)
-			platform_device_unregister(wm8350->pmic.pdev[i]);
+		platform_device_unregister(wm8350->pmic.pdev[i]);
+
+	platform_device_unregister(wm8350->wdt.pdev);
+	platform_device_unregister(wm8350->rtc.pdev);
+	platform_device_unregister(wm8350->power.pdev);
+	platform_device_unregister(wm8350->gpio.pdev);
+	platform_device_unregister(wm8350->codec.pdev);
 
 	free_irq(wm8350->chip_irq, wm8350);
 	flush_work(&wm8350->irq_work);

@@ -13,6 +13,8 @@
 #ifndef __LINUX_MFD_WM8350_SUPPLY_H_
 #define __LINUX_MFD_WM8350_SUPPLY_H_
 
+#include <linux/platform_device.h>
+
 /*
  * Charger registers
  */
@@ -101,5 +103,9 @@
 #define WM8350_IRQ_EXT_USB_FB			36
 #define WM8350_IRQ_EXT_WALL_FB			37
 #define WM8350_IRQ_EXT_BAT_FB			38
+
+struct wm8350_power {
+	struct platform_device *pdev;
+};
 
 #endif

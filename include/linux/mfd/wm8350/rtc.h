@@ -12,6 +12,8 @@
 #ifndef __LINUX_MFD_WM8350_RTC_H
 #define __LINUX_MFD_WM8350_RTC_H
 
+#include <linux/platform_device.h>
+
 /*
  * Register values.
  */
@@ -256,5 +258,9 @@
 #define WM8350_IRQ_RTC_PER			7
 #define WM8350_IRQ_RTC_SEC			8
 #define WM8350_IRQ_RTC_ALM			9
+
+struct wm8350_rtc {
+	struct platform_device *pdev;
+};
 
 #endif

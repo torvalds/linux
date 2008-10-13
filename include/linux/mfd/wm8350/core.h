@@ -17,7 +17,12 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
+#include <linux/mfd/wm8350/audio.h>
+#include <linux/mfd/wm8350/gpio.h>
 #include <linux/mfd/wm8350/pmic.h>
+#include <linux/mfd/wm8350/rtc.h>
+#include <linux/mfd/wm8350/supply.h>
+#include <linux/mfd/wm8350/wdt.h>
 
 /*
  * Register values.
@@ -574,7 +579,12 @@ struct wm8350 {
 	int chip_irq;
 
 	/* Client devices */
+	struct wm8350_codec codec;
+	struct wm8350_gpio gpio;
 	struct wm8350_pmic pmic;
+	struct wm8350_power power;
+	struct wm8350_rtc rtc;
+	struct wm8350_wdt wdt;
 };
 
 /**

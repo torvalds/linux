@@ -13,6 +13,8 @@
 #ifndef __LINUX_MFD_WM8350_AUDIO_H_
 #define __LINUX_MFD_WM8350_AUDIO_H_
 
+#include <linux/platform_device.h>
+
 #define WM8350_CLOCK_CONTROL_1                  0x28
 #define WM8350_CLOCK_CONTROL_2                  0x29
 #define WM8350_FLL_CONTROL_1                    0x2A
@@ -588,5 +590,9 @@
 #define WM8350_IRQ_CODEC_JCK_DET_R		40
 #define WM8350_IRQ_CODEC_MICSCD			41
 #define WM8350_IRQ_CODEC_MICD			42
+
+struct wm8350_codec {
+	struct platform_device *pdev;
+};
 
 #endif
