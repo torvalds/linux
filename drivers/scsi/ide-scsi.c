@@ -270,12 +270,6 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	return 0;
 }
 
-static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
-{
-	return ide_transfer_pc(drive, ide_scsi_get_timeout(drive->pc),
-			       ide_scsi_expiry);
-}
-
 static inline int idescsi_set_direction(struct ide_atapi_pc *pc)
 {
 	switch (pc->c[0]) {
@@ -321,8 +315,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 	/* Set the current packet command */
 	drive->pc = pc;
 
-	return ide_issue_pc(drive, idescsi_transfer_pc,
-			    ide_scsi_get_timeout(pc), ide_scsi_expiry);
+	return ide_issue_pc(drive, ide_scsi_get_timeout(pc), ide_scsi_expiry);
 }
 
 /*

@@ -468,12 +468,22 @@ static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 	return ireason;
 }
 
-ide_startstop_t ide_transfer_pc(ide_drive_t *drive, unsigned int timeout,
-				ide_expiry_t *expiry)
+static int ide_delayed_transfer_pc(ide_drive_t *drive)
+{
+	/* Send the actual packet */
+	drive->hwif->tp_ops->output_data(drive, NULL, drive->pc->c, 12);
+
+	/* Timeout for the packet command */
+	return WAIT_FLOPPY_CMD;
+}
+
+static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->hwgroup->rq;
+	ide_expiry_t *expiry;
+	unsigned int timeout;
 	ide_startstop_t startstop;
 	u8 ireason;
 
@@ -493,6 +503,25 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, unsigned int timeout,
 		return ide_do_reset(drive);
 	}
 
+	/*
+	 * If necessary schedule the packet transfer to occur 'timeout'
+	 * miliseconds later in ide_delayed_transfer_pc() after the device
+	 * says it's ready for a packet.
+	 */
+	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
+		timeout = drive->pc_delay;
+		expiry = &ide_delayed_transfer_pc;
+	} else {
+		if (drive->scsi) {
+			timeout = ide_scsi_get_timeout(pc);
+			expiry = ide_scsi_expiry;
+		} else {
+			timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+							       : WAIT_TAPE_CMD;
+			expiry = NULL;
+		}
+	}
+
 	/* Set the interrupt routine */
 	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
 
@@ -508,10 +537,8 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, unsigned int timeout,
 
 	return ide_started;
 }
-EXPORT_SYMBOL_GPL(ide_transfer_pc);
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive,
-			     ide_handler_t *handler, unsigned int timeout,
+ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 			     ide_expiry_t *expiry)
 {
 	struct ide_atapi_pc *pc = drive->pc;
@@ -550,12 +577,12 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive,
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
-		ide_execute_command(drive, ATA_CMD_PACKET, handler,
+		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
 				    timeout, NULL);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);
-		return (*handler)(drive);
+		return ide_transfer_pc(drive);
 	}
 }
 EXPORT_SYMBOL_GPL(ide_issue_pc);

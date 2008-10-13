@@ -20,8 +20,7 @@ typedef struct ide_floppy_obj {
 
 	/* Last error information */
 	u8 sense_key, asc, ascq;
-	/* delay this long before sending packet command */
-	u8 ticks;
+
 	int progress_indication;
 
 	/* Device information */

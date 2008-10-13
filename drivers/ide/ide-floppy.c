@@ -73,7 +73,11 @@
 #define CAPACITY_CURRENT	0x02
 #define CAPACITY_NO_CARTRIDGE	0x03
 
-#define IDEFLOPPY_TICKS_DELAY	HZ/20	/* default delay for ZIP 100 (50ms) */
+/*
+ * The following delay solves a problem with ATAPI Zip 100 drive where BSY bit
+ * was apparently being deasserted before the unit was ready to receive data.
+ */
+#define IDEFLOPPY_PC_DELAY	(HZ/20)	/* default delay for ZIP 100 (50ms) */
 
 /* Error code returned in rq->errors to the higher part of the driver. */
 #define	IDEFLOPPY_ERROR_GENERAL		101
@@ -193,51 +197,6 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 	idefloppy_end_request(drive, uptodate, 0);
 }
 
-/*
- * What we have here is a classic case of a top half / bottom half interrupt
- * service routine. In interrupt mode, the device sends an interrupt to signal
- * that it is ready to receive a packet. However, we need to delay about 2-3
- * ticks before issuing the packet or we gets in trouble.
- */
-static int idefloppy_transfer_pc(ide_drive_t *drive)
-{
-	/* Send the actual packet */
-	drive->hwif->tp_ops->output_data(drive, NULL, drive->pc->c, 12);
-
-	/* Timeout for the packet command */
-	return WAIT_FLOPPY_CMD;
-}
-
-/*
- * Called as an interrupt (or directly). When the device says it's ready for a
- * packet, we schedule the packet transfer to occur about 2-3 ticks later in
- * transfer_pc.
- */
-static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	ide_expiry_t *expiry;
-	unsigned int timeout;
-
-	/*
-	 * The following delay solves a problem with ATAPI Zip 100 drives
-	 * where the Busy flag was apparently being deasserted before the
-	 * unit was ready to receive data. This was happening on a
-	 * 1200 MHz Athlon system. 10/26/01 25msec is too short,
-	 * 40 and 50msec work well. ide_pc_intr will not be actually
-	 * used until after the packet is moved in about 50 msec.
-	 */
-	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
-		timeout = floppy->ticks;
-		expiry = &idefloppy_transfer_pc;
-	} else {
-		timeout = WAIT_FLOPPY_CMD;
-		expiry = NULL;
-	}
-
-	return ide_transfer_pc(drive, timeout, expiry);
-}
-
 static void ide_floppy_report_error(idefloppy_floppy_t *floppy,
 				    struct ide_atapi_pc *pc)
 {
@@ -281,8 +240,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, idefloppy_start_pc_transfer,
-			    WAIT_FLOPPY_CMD, NULL);
+	return ide_issue_pc(drive, WAIT_FLOPPY_CMD, NULL);
 }
 
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
@@ -597,21 +555,7 @@ static sector_t idefloppy_capacity(ide_drive_t *drive)
 ide_devset_rw_field(bios_cyl, bios_cyl);
 ide_devset_rw_field(bios_head, bios_head);
 ide_devset_rw_field(bios_sect, bios_sect);
-
-static int get_ticks(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	return floppy->ticks;
-}
-
-static int set_ticks(ide_drive_t *drive, int arg)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	floppy->ticks = arg;
-	return 0;
-}
-
-IDE_DEVSET(ticks, DS_SYNC, get_ticks, set_ticks);
+ide_devset_rw_field(ticks, pc_delay);
 
 static const struct ide_proc_devset idefloppy_settings[] = {
 	IDE_PROC_DEVSET(bios_cyl,  0, 1023),
@@ -647,7 +591,7 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	if (!strncmp((char *)&id[ATA_ID_PROD], "IOMEGA ZIP 100 ATAPI", 20)) {
 		drive->atapi_flags |= IDE_AFLAG_ZIP_DRIVE;
 		/* This value will be visible in the /proc/ide/hdx/settings */
-		floppy->ticks = IDEFLOPPY_TICKS_DELAY;
+		drive->pc_delay = IDEFLOPPY_PC_DELAY;
 		blk_queue_max_sectors(drive->queue, 64);
 	}
 

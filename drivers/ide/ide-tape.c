@@ -654,10 +654,6 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
  * again, the callback function will be called and then we will handle the next
  * request.
  */
-static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
-{
-	return ide_transfer_pc(drive, WAIT_TAPE_CMD, NULL);
-}
 
 static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 		struct ide_atapi_pc *pc)
@@ -705,7 +701,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, idetape_transfer_pc, WAIT_TAPE_CMD, NULL);
+	return ide_issue_pc(drive, WAIT_TAPE_CMD, NULL);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */

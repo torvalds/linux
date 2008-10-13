@@ -531,6 +531,9 @@ struct ide_drive_s {
 	u8	bios_head;	/* BIOS/fdisk/LILO number of heads */
 	u8	bios_sect;	/* BIOS/fdisk/LILO sectors per track */
 
+	/* delay this long before sending packet command */
+	u8 pc_delay;
+
 	unsigned int	bios_cyl;	/* BIOS/fdisk/LILO number of cyls */
 	unsigned int	cyl;		/* "real" number of cyls */
 	unsigned int	drive_data;	/* used by set_pio_mode/selectproc */
@@ -1188,9 +1191,7 @@ static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
 
 int ide_scsi_expiry(ide_drive_t *);
 
-ide_startstop_t ide_transfer_pc(ide_drive_t *, unsigned int, ide_expiry_t *);
-ide_startstop_t ide_issue_pc(ide_drive_t *,
-			     ide_handler_t *, unsigned int, ide_expiry_t *);
+ide_startstop_t ide_issue_pc(ide_drive_t *, unsigned int, ide_expiry_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
