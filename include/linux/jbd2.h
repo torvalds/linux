@@ -850,7 +850,8 @@ struct journal_s
 	 */
 	struct block_device	*j_dev;
 	int			j_blocksize;
-	unsigned long long		j_blk_offset;
+	unsigned long long	j_blk_offset;
+	char			j_devname[BDEVNAME_SIZE+24];
 
 	/*
 	 * Device which holds the client fs.  For internal journal this will be
@@ -966,6 +967,9 @@ struct journal_s
 #define JBD2_FLUSHED	0x008	/* The journal superblock has been flushed */
 #define JBD2_LOADED	0x010	/* The journal superblock has been loaded */
 #define JBD2_BARRIER	0x020	/* Use IDE barriers */
+#define JBD2_ABORT_ON_SYNCDATA_ERR	0x040	/* Abort the journal on file
+						 * data write error in ordered
+						 * mode */
 
 /*
  * Function declarations for the journaling transaction and buffer
@@ -1059,7 +1063,7 @@ extern void	   jbd2_journal_clear_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern int	   jbd2_journal_create     (journal_t *);
 extern int	   jbd2_journal_load       (journal_t *journal);
-extern void	   jbd2_journal_destroy    (journal_t *);
+extern int	   jbd2_journal_destroy    (journal_t *);
 extern int	   jbd2_journal_recover    (journal_t *journal);
 extern int	   jbd2_journal_wipe       (journal_t *, int);
 extern int	   jbd2_journal_skip_recovery	(journal_t *);

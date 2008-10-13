@@ -492,7 +492,7 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 			continue;
 		}
 		sh_symtab = sec_symtab->symtab;
-		sym_strtab = sec->link->strtab;
+		sym_strtab = sec_symtab->link->strtab;
 		for (j = 0; j < sec->shdr.sh_size/sizeof(Elf32_Rel); j++) {
 			Elf32_Rel *rel;
 			Elf32_Sym *sym;

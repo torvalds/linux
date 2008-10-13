@@ -6,8 +6,6 @@
 #ifndef __SPARC64_SPINLOCK_H
 #define __SPARC64_SPINLOCK_H
 
-#include <linux/threads.h>	/* For NR_CPUS */
-
 #ifndef __ASSEMBLY__
 
 /* To get debugging spinlocks which detect and catch

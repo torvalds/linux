@@ -43,23 +43,6 @@ void syscall_trace_exit(struct pt_regs *regs)
 {
 }
 
-void sun4m_nmi(struct pt_regs *regs)
-{
-	unsigned long afsr, afar;
-
-	printk("Aieee: sun4m NMI received!\n");
-	/* XXX HyperSparc hack XXX */
-	__asm__ __volatile__("mov 0x500, %%g1\n\t"
-			     "lda [%%g1] 0x4, %0\n\t"
-			     "mov 0x600, %%g1\n\t"
-			     "lda [%%g1] 0x4, %1\n\t" :
-			     "=r" (afsr), "=r" (afar));
-	printk("afsr=%08lx afar=%08lx\n", afsr, afar);
-	printk("you lose buddy boy...\n");
-	show_regs(regs);
-	prom_halt();
-}
-
 void sun4d_nmi(struct pt_regs *regs)
 {
 	printk("Aieee: sun4d NMI received!\n");

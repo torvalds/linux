@@ -172,11 +172,6 @@ config FB_DEFERRED_IO
 	bool
 	depends on FB
 
-config FB_METRONOME
-	tristate
-	depends on FB
-	depends on FB_DEFERRED_IO
-
 config FB_HECUBA
 	tristate
 	depends on FB
@@ -678,7 +673,6 @@ config FB_VESA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select VIDEO_SELECT
 	help
 	  This is the frame buffer device driver for generic VESA 2.0
 	  compliant graphic cards. The older VESA 1.2 cards are not supported.
@@ -1583,7 +1577,6 @@ config FB_CYBLA
 	tristate "Cyberblade/i1 support"
 	depends on FB && PCI && X86_32 && !64BIT
 	select FB_CFB_IMAGEBLIT
-	select VIDEO_SELECT
 	---help---
 	  This driver is supposed to support the Trident Cyberblade/i1
 	  graphics core integrated in the VIA VT8601A North Bridge,
@@ -1974,19 +1967,6 @@ config FB_XILINX
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
 
-config FB_AM200EPD
-       tristate "AM-200 E-Ink EPD devkit support"
-       depends on FB && ARCH_PXA && MMU
-       select FB_SYS_FILLRECT
-       select FB_SYS_COPYAREA
-       select FB_SYS_IMAGEBLIT
-       select FB_SYS_FOPS
-       select FB_DEFERRED_IO
-       select FB_METRONOME
-       help
-         This enables support for the Metronome display controller used on
-         the E-Ink AM-200 EPD devkit.
-
 config FB_COBALT
 	tristate "Cobalt server LCD frame buffer support"
 	depends on FB && MIPS_COBALT
@@ -2040,6 +2020,19 @@ config XEN_FBDEV_FRONTEND
 	  This driver implements the front-end of the Xen virtual
 	  frame buffer driver.  It communicates with a back-end
 	  in another domain.
+
+config FB_METRONOME
+	tristate "E-Ink Metronome/8track controller support"
+	depends on FB
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
+	help
+	  This driver implements support for the E-Ink Metronome
+	  controller. The pre-release name for this device was 8track
+	  and could also have been called by some vendors as PVI-nnnn.
 
 source "drivers/video/omap/Kconfig"
 

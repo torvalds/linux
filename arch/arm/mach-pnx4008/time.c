@@ -22,10 +22,10 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/leds.h>
 #include <asm/mach/time.h>
 #include <asm/errno.h>

@@ -282,8 +282,8 @@ NESTED(except_vec_vi_handler, 0, sp)
 	and	t0, a0, t1
 #ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
 	mfc0	t2, CP0_TCCONTEXT
-	or	t0, t0, t2
-	mtc0	t0, CP0_TCCONTEXT
+	or	t2, t0, t2
+	mtc0	t2, CP0_TCCONTEXT
 #endif /* CONFIG_MIPS_MT_SMTC_IM_BACKSTOP */
 	xor	t1, t1, t0
 	mtc0	t1, CP0_STATUS
@@ -453,7 +453,11 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER tr tr sti silent			/* #13 */
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
+#ifdef 	CONFIG_HARDWARE_WATCHPOINTS
+	BUILD_HANDLER watch watch sti silent		/* #23 */
+#else
 	BUILD_HANDLER watch watch sti verbose		/* #23 */
+#endif
 	BUILD_HANDLER mcheck mcheck cli verbose		/* #24 */
 	BUILD_HANDLER mt mt sti silent			/* #25 */
 	BUILD_HANDLER dsp dsp sti silent		/* #26 */

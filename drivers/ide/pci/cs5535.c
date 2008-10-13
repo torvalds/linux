@@ -80,12 +80,12 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 
 	/* Set the PIO timings */
 	if (speed < XFER_SW_DMA_0) {
-		ide_drive_t *pair = ide_get_paired_drive(drive);
+		ide_drive_t *pair = ide_get_pair_dev(drive);
 		u8 cmd, pioa;
 
 		cmd = pioa = speed - XFER_PIO_0;
 
-		if (pair->present) {
+		if (pair) {
 			u8 piob = ide_get_best_pio_mode(pair, 255, 4);
 
 			if (piob < cmd)
@@ -193,10 +193,12 @@ static const struct pci_device_id cs5535_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, cs5535_pci_tbl);
 
 static struct pci_driver driver = {
-	.name       = "CS5535_IDE",
-	.id_table   = cs5535_pci_tbl,
-	.probe      = cs5535_init_one,
-	.remove     = ide_pci_remove,
+	.name		= "CS5535_IDE",
+	.id_table	= cs5535_pci_tbl,
+	.probe		= cs5535_init_one,
+	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cs5535_ide_init(void)

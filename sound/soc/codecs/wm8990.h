@@ -827,6 +827,7 @@
 #define WM8990_AINRMUX_PWR_BIT			3
 
 struct wm8990_setup_data {
+	unsigned i2c_bus;
 	unsigned short i2c_address;
 };
 

@@ -225,7 +225,7 @@ do {									\
  */
 int jbd2_journal_recover(journal_t *journal)
 {
-	int			err;
+	int			err, err2;
 	journal_superblock_t *	sb;
 
 	struct recovery_info	info;
@@ -263,7 +263,10 @@ int jbd2_journal_recover(journal_t *journal)
 	journal->j_transaction_sequence = ++info.end_transaction;
 
 	jbd2_journal_clear_revoke(journal);
-	sync_blockdev(journal->j_fs_dev);
+	err2 = sync_blockdev(journal->j_fs_dev);
+	if (!err)
+		err = err2;
+
 	return err;
 }
 

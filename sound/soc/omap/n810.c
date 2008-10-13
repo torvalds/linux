@@ -290,6 +290,7 @@ static struct snd_soc_machine snd_soc_machine_n810 = {
 
 /* Audio private data */
 static struct aic3x_setup_data n810_aic33_setup = {
+	.i2c_bus = 2,
 	.i2c_address = 0x18,
 	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
 	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,

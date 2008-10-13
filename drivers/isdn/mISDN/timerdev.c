@@ -124,18 +124,6 @@ mISDN_read(struct file *filep, char *buf, size_t count, loff_t *off)
 	return ret;
 }
 
-static loff_t
-mISDN_llseek(struct file *filep, loff_t offset, int orig)
-{
-	return -ESPIPE;
-}
-
-static ssize_t
-mISDN_write(struct file *filep, const char *buf, size_t count, loff_t *off)
-{
-	return -EOPNOTSUPP;
-}
-
 static unsigned int
 mISDN_poll(struct file *filep, poll_table *wait)
 {
@@ -157,8 +145,9 @@ mISDN_poll(struct file *filep, poll_table *wait)
 }
 
 static void
-dev_expire_timer(struct mISDNtimer *timer)
+dev_expire_timer(unsigned long data)
 {
+	struct mISDNtimer *timer = (void *)data;
 	u_long			flags;
 
 	spin_lock_irqsave(&timer->dev->lock, flags);
@@ -191,7 +180,7 @@ misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 		spin_unlock_irqrestore(&dev->lock, flags);
 		timer->dev = dev;
 		timer->tl.data = (long)timer;
-		timer->tl.function = (void *) dev_expire_timer;
+		timer->tl.function = dev_expire_timer;
 		init_timer(&timer->tl);
 		timer->tl.expires = jiffies + ((HZ * (u_long)timeout) / 1000);
 		add_timer(&timer->tl);
@@ -211,6 +200,9 @@ misdn_del_timer(struct mISDNtimerdev *dev, int id)
 	list_for_each_entry(timer, &dev->pending, list) {
 		if (timer->id == id) {
 			list_del_init(&timer->list);
+			/* RED-PEN AK: race -- timer can be still running on
+			 * other CPU. Needs reference count I think
+			 */
 			del_timer(&timer->tl);
 			ret = timer->id;
 			kfree(timer);
@@ -268,9 +260,7 @@ mISDN_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 }
 
 static struct file_operations mISDN_fops = {
-	.llseek		= mISDN_llseek,
 	.read		= mISDN_read,
-	.write		= mISDN_write,
 	.poll		= mISDN_poll,
 	.ioctl		= mISDN_ioctl,
 	.open		= mISDN_open,

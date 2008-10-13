@@ -155,7 +155,7 @@ static int qstat_seq_open(struct inode *inode, struct file *filp)
 static void get_queue_name(struct qdio_q *q, struct ccw_device *cdev, char *name)
 {
 	memset(name, 0, sizeof(name));
-	sprintf(name, "%s", cdev->dev.bus_id);
+	sprintf(name, "%s", dev_name(&cdev->dev));
 	if (q->is_input_q)
 		sprintf(name + strlen(name), "_input");
 	else

@@ -35,6 +35,7 @@
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
 #include <asm-generic/sections.h>
+#include <asm/traps.h>
 
 /*
  * Page fault error code bits
@@ -356,8 +357,6 @@ static int is_errata100(struct pt_regs *regs, unsigned long address)
 #endif
 	return 0;
 }
-
-void do_invalid_op(struct pt_regs *, unsigned long);
 
 static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 {
@@ -915,15 +914,15 @@ LIST_HEAD(pgd_list);
 
 void vmalloc_sync_all(void)
 {
-#ifdef CONFIG_X86_32
-	unsigned long start = VMALLOC_START & PGDIR_MASK;
 	unsigned long address;
 
+#ifdef CONFIG_X86_32
 	if (SHARED_KERNEL_PMD)
 		return;
 
-	BUILD_BUG_ON(TASK_SIZE & ~PGDIR_MASK);
-	for (address = start; address >= TASK_SIZE; address += PGDIR_SIZE) {
+	for (address = VMALLOC_START & PMD_MASK;
+	     address >= TASK_SIZE && address < FIXADDR_TOP;
+	     address += PMD_SIZE) {
 		unsigned long flags;
 		struct page *page;
 
@@ -936,10 +935,8 @@ void vmalloc_sync_all(void)
 		spin_unlock_irqrestore(&pgd_lock, flags);
 	}
 #else /* CONFIG_X86_64 */
-	unsigned long start = VMALLOC_START & PGDIR_MASK;
-	unsigned long address;
-
-	for (address = start; address <= VMALLOC_END; address += PGDIR_SIZE) {
+	for (address = VMALLOC_START & PGDIR_MASK; address <= VMALLOC_END;
+	     address += PGDIR_SIZE) {
 		const pgd_t *pgd_ref = pgd_offset_k(address);
 		unsigned long flags;
 		struct page *page;

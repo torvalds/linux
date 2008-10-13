@@ -35,7 +35,7 @@ static struct resource uart0[] = {
 	},
 };
 
-static struct platform_device mxc_uart_device0 = {
+struct platform_device mxc_uart_device0 = {
 	.name = "imx-uart",
 	.id = 0,
 	.resource = uart0,
@@ -54,7 +54,7 @@ static struct resource uart1[] = {
 	},
 };
 
-static struct platform_device mxc_uart_device1 = {
+struct platform_device mxc_uart_device1 = {
 	.name = "imx-uart",
 	.id = 1,
 	.resource = uart1,
@@ -73,7 +73,7 @@ static struct resource uart2[] = {
 	},
 };
 
-static struct platform_device mxc_uart_device2 = {
+struct platform_device mxc_uart_device2 = {
 	.name = "imx-uart",
 	.id = 2,
 	.resource = uart2,
@@ -92,7 +92,7 @@ static struct resource uart3[] = {
 	},
 };
 
-static struct platform_device mxc_uart_device3 = {
+struct platform_device mxc_uart_device3 = {
 	.name = "imx-uart",
 	.id = 3,
 	.resource = uart3,
@@ -111,7 +111,7 @@ static struct resource uart4[] = {
 	},
 };
 
-static struct platform_device mxc_uart_device4 = {
+struct platform_device mxc_uart_device4 = {
 	.name = "imx-uart",
 	.id = 4,
 	.resource = uart4,
@@ -130,48 +130,9 @@ static struct resource uart5[] = {
 	},
 };
 
-static struct platform_device mxc_uart_device5 = {
+struct platform_device mxc_uart_device5 = {
 	.name = "imx-uart",
 	.id = 5,
 	.resource = uart5,
 	.num_resources = ARRAY_SIZE(uart5),
 };
-
-/*
- * Register only those UARTs that physically exists
- */
-int __init imx_init_uart(int uart_no, struct imxuart_platform_data *pdata)
-{
-	switch (uart_no) {
-	case 0:
-		mxc_uart_device0.dev.platform_data = pdata;
-		platform_device_register(&mxc_uart_device0);
-		break;
-	case 1:
-		mxc_uart_device1.dev.platform_data = pdata;
-		platform_device_register(&mxc_uart_device1);
-		break;
-#ifndef CONFIG_MXC_IRDA
-	case 2:
-		mxc_uart_device2.dev.platform_data = pdata;
-		platform_device_register(&mxc_uart_device2);
-		break;
-#endif
-	case 3:
-		mxc_uart_device3.dev.platform_data = pdata;
-		platform_device_register(&mxc_uart_device3);
-		break;
-	case 4:
-		mxc_uart_device4.dev.platform_data = pdata;
-		platform_device_register(&mxc_uart_device4);
-		break;
-	case 5:
-		mxc_uart_device5.dev.platform_data = pdata;
-		platform_device_register(&mxc_uart_device5);
-		break;
-	default:
-		return -ENODEV;
-	}
-
-	return 0;
-}

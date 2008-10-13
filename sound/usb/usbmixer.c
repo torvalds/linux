@@ -59,12 +59,13 @@ static const struct rc_config {
 	u8  offset;
 	u8  length;
 	u8  packet_length;
+	u8  min_packet_length; /* minimum accepted length of the URB result */
 	u8  mute_mixer_id;
 	u32 mute_code;
 } rc_configs[] = {
-	{ USB_ID(0x041e, 0x3000), 0, 1, 2,  18, 0x0013 }, /* Extigy       */
-	{ USB_ID(0x041e, 0x3020), 2, 1, 6,  18, 0x0013 }, /* Audigy 2 NX  */
-	{ USB_ID(0x041e, 0x3040), 2, 2, 6,  2,  0x6e91 }, /* Live! 24-bit */
+	{ USB_ID(0x041e, 0x3000), 0, 1, 2, 1,  18, 0x0013 }, /* Extigy       */
+	{ USB_ID(0x041e, 0x3020), 2, 1, 6, 6,  18, 0x0013 }, /* Audigy 2 NX  */
+	{ USB_ID(0x041e, 0x3040), 2, 2, 6, 6,  2,  0x6e91 }, /* Live! 24-bit */
 };
 
 struct usb_mixer_interface {
@@ -1388,7 +1389,8 @@ static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol, struct snd_ctl
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
 	char **itemlist = (char **)kcontrol->private_value;
 
-	snd_assert(itemlist, return -EINVAL);
+	if (snd_BUG_ON(!itemlist))
+		return -EINVAL;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = cval->max;
@@ -1781,7 +1783,7 @@ static void snd_usb_soundblaster_remote_complete(struct urb *urb)
 	const struct rc_config *rc = mixer->rc_cfg;
 	u32 code;
 
-	if (urb->status < 0 || urb->actual_length < rc->packet_length)
+	if (urb->status < 0 || urb->actual_length < rc->min_packet_length)
 		return;
 
 	code = mixer->rc_buffer[rc->offset];
@@ -2012,7 +2014,8 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
+int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
+			 int ignore_error)
 {
 	static struct snd_device_ops dev_ops = {
 		.dev_free = snd_usb_mixer_dev_free
@@ -2027,9 +2030,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 		return -ENOMEM;
 	mixer->chip = chip;
 	mixer->ctrlif = ctrlif;
-#ifdef IGNORE_CTL_ERROR
-	mixer->ignore_ctl_error = 1;
-#endif
+	mixer->ignore_ctl_error = ignore_error;
 	mixer->id_elems = kcalloc(256, sizeof(*mixer->id_elems), GFP_KERNEL);
 	if (!mixer->id_elems) {
 		kfree(mixer);

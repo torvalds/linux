@@ -59,8 +59,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION	"1.45.21"
-#define DRV_MODULE_RELDATE	"2008/09/03"
+#define DRV_MODULE_VERSION	"1.45.22"
+#define DRV_MODULE_RELDATE	"2008/09/09"
 #define BNX2X_BC_VER		0x040200
 
 /* Time in jiffies before concluding the transmitter is hung */
@@ -649,15 +649,16 @@ static void bnx2x_int_disable(struct bnx2x *bp)
 		BNX2X_ERR("BUG! proper val not read from IGU!\n");
 }
 
-static void bnx2x_int_disable_sync(struct bnx2x *bp)
+static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 {
 	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
 	int i;
 
 	/* disable interrupt handling */
 	atomic_inc(&bp->intr_sem);
-	/* prevent the HW from sending interrupts */
-	bnx2x_int_disable(bp);
+	if (disable_hw)
+		/* prevent the HW from sending interrupts */
+		bnx2x_int_disable(bp);
 
 	/* make sure all ISRs are done */
 	if (msix) {
@@ -6086,9 +6087,9 @@ static void bnx2x_netif_start(struct bnx2x *bp)
 	}
 }
 
-static void bnx2x_netif_stop(struct bnx2x *bp)
+static void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 {
-	bnx2x_int_disable_sync(bp);
+	bnx2x_int_disable_sync(bp, disable_hw);
 	if (netif_running(bp->dev)) {
 		bnx2x_napi_disable(bp);
 		netif_tx_disable(bp->dev);
@@ -6475,7 +6476,7 @@ load_rings_free:
 	for_each_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
 load_int_disable:
-	bnx2x_int_disable_sync(bp);
+	bnx2x_int_disable_sync(bp, 1);
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
 load_error:
@@ -6650,7 +6651,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 	bnx2x_set_storm_rx_mode(bp);
 
-	bnx2x_netif_stop(bp);
+	bnx2x_netif_stop(bp, 1);
 	if (!netif_running(bp->dev))
 		bnx2x_napi_disable(bp);
 	del_timer_sync(&bp->timer);
@@ -8791,7 +8792,7 @@ static int bnx2x_test_loopback(struct bnx2x *bp, u8 link_up)
 	if (!netif_running(bp->dev))
 		return BNX2X_LOOPBACK_FAILED;
 
-	bnx2x_netif_stop(bp);
+	bnx2x_netif_stop(bp, 1);
 
 	if (bnx2x_run_loopback(bp, BNX2X_MAC_LOOPBACK, link_up)) {
 		DP(NETIF_MSG_PROBE, "MAC loopback failed\n");
@@ -10346,6 +10347,74 @@ static int bnx2x_resume(struct pci_dev *pdev)
 	return rc;
 }
 
+static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
+{
+	int i;
+
+	bp->state = BNX2X_STATE_ERROR;
+
+	bp->rx_mode = BNX2X_RX_MODE_NONE;
+
+	bnx2x_netif_stop(bp, 0);
+
+	del_timer_sync(&bp->timer);
+	bp->stats_state = STATS_STATE_DISABLED;
+	DP(BNX2X_MSG_STATS, "stats_state - DISABLED\n");
+
+	/* Release IRQs */
+	bnx2x_free_irq(bp);
+
+	if (CHIP_IS_E1(bp)) {
+		struct mac_configuration_cmd *config =
+						bnx2x_sp(bp, mcast_config);
+
+		for (i = 0; i < config->hdr.length_6b; i++)
+			CAM_INVALIDATE(config->config_table[i]);
+	}
+
+	/* Free SKBs, SGEs, TPA pool and driver internals */
+	bnx2x_free_skbs(bp);
+	for_each_queue(bp, i)
+		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
+	bnx2x_free_mem(bp);
+
+	bp->state = BNX2X_STATE_CLOSED;
+
+	netif_carrier_off(bp->dev);
+
+	return 0;
+}
+
+static void bnx2x_eeh_recover(struct bnx2x *bp)
+{
+	u32 val;
+
+	mutex_init(&bp->port.phy_mutex);
+
+	bp->common.shmem_base = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
+	bp->link_params.shmem_base = bp->common.shmem_base;
+	BNX2X_DEV_INFO("shmem offset is 0x%x\n", bp->common.shmem_base);
+
+	if (!bp->common.shmem_base ||
+	    (bp->common.shmem_base < 0xA0000) ||
+	    (bp->common.shmem_base >= 0xC0000)) {
+		BNX2X_DEV_INFO("MCP not active\n");
+		bp->flags |= NO_MCP_FLAG;
+		return;
+	}
+
+	val = SHMEM_RD(bp, validity_map[BP_PORT(bp)]);
+	if ((val & (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
+		!= (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
+		BNX2X_ERR("BAD MCP validity signature\n");
+
+	if (!BP_NOMCP(bp)) {
+		bp->fw_seq = (SHMEM_RD(bp, func_mb[BP_FUNC(bp)].drv_mb_header)
+			      & DRV_MSG_SEQ_NUMBER_MASK);
+		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
+	}
+}
+
 /**
  * bnx2x_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
@@ -10365,7 +10434,7 @@ static pci_ers_result_t bnx2x_io_error_detected(struct pci_dev *pdev,
 	netif_device_detach(dev);
 
 	if (netif_running(dev))
-		bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+		bnx2x_eeh_nic_unload(bp);
 
 	pci_disable_device(pdev);
 
@@ -10420,8 +10489,10 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 
 	rtnl_lock();
 
+	bnx2x_eeh_recover(bp);
+
 	if (netif_running(dev))
-		bnx2x_nic_load(bp, LOAD_OPEN);
+		bnx2x_nic_load(bp, LOAD_NORMAL);
 
 	netif_device_attach(dev);
 

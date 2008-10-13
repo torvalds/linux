@@ -1,5 +1,5 @@
-#ifndef _ASM_GENAPIC_H
-#define _ASM_GENAPIC_H 1
+#ifndef ASM_X86__GENAPIC_64_H
+#define ASM_X86__GENAPIC_64_H
 
 /*
  * Copyright 2004 James Cleverdon, IBM.
@@ -14,6 +14,7 @@
 
 struct genapic {
 	char *name;
+	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
 	u32 int_delivery_mode;
 	u32 int_dest_mode;
 	int (*apic_id_registered)(void);
@@ -24,17 +25,24 @@ struct genapic {
 	void (*send_IPI_mask)(cpumask_t mask, int vector);
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
+	void (*send_IPI_self)(int vector);
 	/* */
 	unsigned int (*cpu_mask_to_apicid)(cpumask_t cpumask);
 	unsigned int (*phys_pkg_id)(int index_msb);
+	unsigned int (*get_apic_id)(unsigned long x);
+	unsigned long (*set_apic_id)(unsigned int id);
+	unsigned long apic_id_mask;
 };
 
 extern struct genapic *genapic;
 
 extern struct genapic apic_flat;
 extern struct genapic apic_physflat;
+extern struct genapic apic_x2apic_cluster;
+extern struct genapic apic_x2apic_phys;
 extern int acpi_madt_oem_check(char *, char *);
 
+extern void apic_send_IPI_self(int vector);
 enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
 extern enum uv_system_type get_uv_system_type(void);
 extern int is_uv_system(void);
@@ -47,4 +55,4 @@ extern int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip);
 
 extern void setup_apic_routing(void);
 
-#endif
+#endif /* ASM_X86__GENAPIC_64_H */

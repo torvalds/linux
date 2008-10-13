@@ -24,18 +24,26 @@
 
 #ifdef CONFIG_X86_64
 
-unsigned long __phys_addr(unsigned long x)
-{
-	if (x >= __START_KERNEL_map)
-		return x - __START_KERNEL_map + phys_base;
-	return x - PAGE_OFFSET;
-}
-EXPORT_SYMBOL(__phys_addr);
-
 static inline int phys_addr_valid(unsigned long addr)
 {
 	return addr < (1UL << boot_cpu_data.x86_phys_bits);
 }
+
+unsigned long __phys_addr(unsigned long x)
+{
+	if (x >= __START_KERNEL_map) {
+		x -= __START_KERNEL_map;
+		VIRTUAL_BUG_ON(x >= KERNEL_IMAGE_SIZE);
+		x += phys_base;
+	} else {
+		VIRTUAL_BUG_ON(x < PAGE_OFFSET);
+		x -= PAGE_OFFSET;
+		VIRTUAL_BUG_ON(system_state == SYSTEM_BOOTING ? x > MAXMEM :
+					!phys_addr_valid(x));
+	}
+	return x;
+}
+EXPORT_SYMBOL(__phys_addr);
 
 #else
 
@@ -43,6 +51,17 @@ static inline int phys_addr_valid(unsigned long addr)
 {
 	return 1;
 }
+
+#ifdef CONFIG_DEBUG_VIRTUAL
+unsigned long __phys_addr(unsigned long x)
+{
+	/* VMALLOC_* aren't constants; not available at the boot time */
+	VIRTUAL_BUG_ON(x < PAGE_OFFSET || (system_state != SYSTEM_BOOTING &&
+					is_vmalloc_addr((void *)x)));
+	return x - PAGE_OFFSET;
+}
+EXPORT_SYMBOL(__phys_addr);
+#endif
 
 #endif
 
@@ -81,6 +100,25 @@ int page_is_ram(unsigned long pagenr)
 			return 1;
 	}
 	return 0;
+}
+
+int pagerange_is_ram(unsigned long start, unsigned long end)
+{
+	int ram_page = 0, not_rampage = 0;
+	unsigned long page_nr;
+
+	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
+	     ++page_nr) {
+		if (page_is_ram(page_nr))
+			ram_page = 1;
+		else
+			not_rampage = 1;
+
+		if (ram_page == not_rampage)
+			return -1;
+	}
+
+	return ram_page;
 }
 
 /*
@@ -421,7 +459,7 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
 	return;
 }
 
-int __initdata early_ioremap_debug;
+static int __initdata early_ioremap_debug;
 
 static int __init early_ioremap_debug_setup(char *str)
 {
@@ -547,7 +585,7 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 }
 
 
-int __initdata early_ioremap_nested;
+static int __initdata early_ioremap_nested;
 
 static int __init check_early_ioremap_leak(void)
 {
@@ -595,7 +633,7 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 	 */
 	offset = phys_addr & ~PAGE_MASK;
 	phys_addr &= PAGE_MASK;
-	size = PAGE_ALIGN(last_addr) - phys_addr;
+	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 
 	/*
 	 * Mappings have to fit in the FIX_BTMAP area.
