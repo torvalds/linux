@@ -53,7 +53,6 @@
 /*
  *	The following are used to debug the driver.
  */
-#define CY82C693_DEBUG_LOGS	0
 #define CY82C693_DEBUG_INFO	0
 
 /*
@@ -172,17 +171,6 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 	index = hwif->channel ? CY82_INDEX_CHANNEL1 : CY82_INDEX_CHANNEL0;
 
-#if CY82C693_DEBUG_LOGS
-	/* for debug let's show the previous values */
-
-	outb(index, CY82_INDEX_PORT);
-	data = inb(CY82_DATA_PORT);
-
-	printk(KERN_INFO "%s (ch=%d, dev=%d): DMA mode is %d (single=%d)\n",
-		drive->name, HWIF(drive)->channel, drive->select.b.unit,
-		(data&0x3), ((data>>2)&1));
-#endif /* CY82C693_DEBUG_LOGS */
-
 	data = (mode & 3) | (single << 2);
 
 	outb(index, CY82_INDEX_PORT);
@@ -231,45 +219,6 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 			return;
 		}
 	}
-
-#if CY82C693_DEBUG_LOGS
-	/* for debug let's show the register values */
-
-	if (drive->select.b.unit == 0) {
-		/*
-		 * get master drive registers
-		 * address setup control register
-		 * is 32 bit !!!
-		 */
-		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
-		addrCtrl &= 0x0F;
-
-		/* now let's get the remaining registers */
-		pci_read_config_byte(dev, CY82_IDE_MASTER_IOR, &pclk.time_16r);
-		pci_read_config_byte(dev, CY82_IDE_MASTER_IOW, &pclk.time_16w);
-		pci_read_config_byte(dev, CY82_IDE_MASTER_8BIT, &pclk.time_8);
-	} else {
-		/*
-		 * set slave drive registers
-		 * address setup control register
-		 * is 32 bit !!!
-		 */
-		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
-
-		addrCtrl &= 0xF0;
-		addrCtrl >>= 4;
-
-		/* now let's get the remaining registers */
-		pci_read_config_byte(dev, CY82_IDE_SLAVE_IOR, &pclk.time_16r);
-		pci_read_config_byte(dev, CY82_IDE_SLAVE_IOW, &pclk.time_16w);
-		pci_read_config_byte(dev, CY82_IDE_SLAVE_8BIT, &pclk.time_8);
-	}
-
-	printk(KERN_INFO "%s (ch=%d, dev=%d): PIO timing is "
-		"(addr=0x%X, ior=0x%X, iow=0x%X, 8bit=0x%X)\n",
-		drive->name, hwif->channel, drive->select.b.unit,
-		addrCtrl, pclk.time_16r, pclk.time_16w, pclk.time_8);
-#endif /* CY82C693_DEBUG_LOGS */
 
 	/* let's calc the values for this PIO mode */
 	compute_clocks(pio, &pclk);
