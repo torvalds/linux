@@ -525,7 +525,6 @@ void ide_dma_start(ide_drive_t *drive)
 		outb(dma_cmd | 1, hwif->dma_base + ATA_DMA_CMD);
 	}
 
-	hwif->dma = 1;
 	wmb();
 }
 
@@ -564,7 +563,6 @@ int __ide_dma_end (ide_drive_t *drive)
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
-	hwif->dma = 0;
 	wmb();
 	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;
 }

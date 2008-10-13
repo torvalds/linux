@@ -353,7 +353,6 @@ static void scc_dma_start(ide_drive_t *drive)
 
 	/* start DMA */
 	scc_ide_outb(dma_cmd | 1, hwif->dma_base);
-	hwif->dma = 1;
 	wmb();
 }
 
@@ -374,7 +373,6 @@ static int __scc_dma_end(ide_drive_t *drive)
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
-	hwif->dma = 0;
 	wmb();
 	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;
 }

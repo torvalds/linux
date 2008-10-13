@@ -756,8 +756,6 @@ typedef struct hwif_s {
 
 	void		*hwif_data;	/* extra hwif data */
 
-	unsigned dma;
-
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	struct ide_acpi_hwif_link *acpidata;
 #endif
