@@ -540,12 +540,6 @@ p9_pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
 		return;
 	}
 
-	if (!wait_address) {
-		P9_DPRINTK(P9_DEBUG_ERROR, "no wait_address\n");
-		pwait->wait_addr = ERR_PTR(-EIO);
-		return;
-	}
-
 	pwait->conn = m;
 	pwait->wait_addr = wait_address;
 	init_waitqueue_func_entry(&pwait->wait, p9_pollwake);
@@ -561,7 +555,7 @@ p9_pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
 
 static struct p9_conn *p9_conn_create(struct p9_client *client)
 {
-	int i, n;
+	int n;
 	struct p9_conn *m;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "client %p msize %d\n", client, client->msize);
@@ -588,15 +582,6 @@ static struct p9_conn *p9_conn_create(struct p9_client *client)
 	if (n & POLLOUT) {
 		P9_DPRINTK(P9_DEBUG_MUX, "mux %p can write\n", m);
 		set_bit(Wpending, &m->wsched);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(m->poll_wait); i++) {
-		if (IS_ERR(m->poll_wait[i].wait_addr)) {
-			p9_mux_poll_stop(m);
-			kfree(m);
-			/* return the error code */
-			return (void *)m->poll_wait[i].wait_addr;
-		}
 	}
 
 	return m;
