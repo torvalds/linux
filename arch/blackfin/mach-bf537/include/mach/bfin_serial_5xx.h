@@ -78,6 +78,9 @@
 #  define CONFIG_UART1_RTS_PIN -1
 # endif
 #endif
+
+#define BFIN_UART_TX_FIFO_SIZE	2
+
 /*
  * The pin configuration is different from schematic
  */

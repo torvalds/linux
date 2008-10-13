@@ -69,6 +69,8 @@
 # endif
 #endif
 
+#define BFIN_UART_TX_FIFO_SIZE	2
+
 struct bfin_serial_port {
         struct uart_port        port;
         unsigned int            old_status;
