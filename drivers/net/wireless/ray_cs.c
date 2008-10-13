@@ -798,9 +798,9 @@ static void ray_release(struct pcmcia_device *link)
     iounmap(local->amem);
     /* Do bother checking to see if these succeed or not */
     i = pcmcia_release_window(local->amem_handle);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->amem) ret = %x\n",i);
+    if ( i != 0 ) DEBUG(0,"ReleaseWindow(local->amem) ret = %x\n",i);
     i = pcmcia_release_window(local->rmem_handle);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->rmem) ret = %x\n",i);
+    if ( i != 0 ) DEBUG(0,"ReleaseWindow(local->rmem) ret = %x\n",i);
     pcmcia_disable_device(link);
 
     DEBUG(2,"ray_release ending\n");
