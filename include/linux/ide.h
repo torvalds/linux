@@ -509,7 +509,7 @@ struct ide_drive_s {
 	unsigned sleeping	: 1;	/* 1=sleeping & sleep field valid */
 	unsigned post_reset	: 1;
 	unsigned udma33_warned	: 1;
-	unsigned addressing	: 2;	/* 0=28-bit, 1=48-bit, 2=48-bit doing 28-bit */
+	unsigned addressing	: 1;	/* 0=28-bit, 1=48-bit */
 	unsigned wcache		: 1;	/* status of write cache */
 	unsigned nowerr		: 1;	/* used for ignoring ATA_DF */
 
