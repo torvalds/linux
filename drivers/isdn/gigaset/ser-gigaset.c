@@ -645,7 +645,7 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 	case TCGETS:
 	case TCGETA:
 		/* pass through to underlying serial device */
-		rc = n_tty_ioctl(tty, file, cmd, arg);
+		rc = n_tty_ioctl_helper(tty, file, cmd, arg);
 		break;
 
 	case TCFLSH:
@@ -660,7 +660,7 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 			break;
 		}
 		/* flush the serial port's buffer */
-		rc = n_tty_ioctl(tty, file, cmd, arg);
+		rc = n_tty_ioctl_helper(tty, file, cmd, arg);
 		break;
 
 	case FIONREAD:
