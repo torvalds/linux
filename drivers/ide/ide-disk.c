@@ -580,6 +580,19 @@ static int set_nowerr(ide_drive_t *drive, int arg)
 	return 0;
 }
 
+static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf.feature = feature;
+	task.tf.nsect   = nsect;
+	task.tf.command = ATA_CMD_SET_FEATURES;
+	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	return ide_no_data_taskfile(drive, &task);
+}
+
 static void update_ordered(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
@@ -619,19 +632,14 @@ ide_devset_get(wcache, wcache);
 
 static int set_wcache(ide_drive_t *drive, int arg)
 {
-	ide_task_t args;
 	int err = 1;
 
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
 	if (ata_id_flush_enabled(drive->id)) {
-		memset(&args, 0, sizeof(ide_task_t));
-		args.tf.feature = arg ?
-			SETFEATURES_WC_ON : SETFEATURES_WC_OFF;
-		args.tf.command = ATA_CMD_SET_FEATURES;
-		args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-		err = ide_no_data_taskfile(drive, &args);
+		err = ide_do_setfeature(drive,
+			arg ? SETFEATURES_WC_ON : SETFEATURES_WC_OFF, 0);
 		if (err == 0)
 			drive->wcache = arg;
 	}
@@ -658,18 +666,14 @@ ide_devset_get(acoustic, acoustic);
 
 static int set_acoustic(ide_drive_t *drive, int arg)
 {
-	ide_task_t args;
-
 	if (arg < 0 || arg > 254)
 		return -EINVAL;
 
-	memset(&args, 0, sizeof(ide_task_t));
-	args.tf.feature = arg ? SETFEATURES_AAM_ON : SETFEATURES_AAM_OFF;
-	args.tf.nsect   = arg;
-	args.tf.command = ATA_CMD_SET_FEATURES;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	ide_no_data_taskfile(drive, &args);
+	ide_do_setfeature(drive,
+		arg ? SETFEATURES_AAM_ON : SETFEATURES_AAM_OFF, arg);
+
 	drive->acoustic = arg;
+
 	return 0;
 }
 
