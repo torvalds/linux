@@ -455,8 +455,8 @@ struct pci_driver {
 
 /**
  * PCI_VDEVICE - macro used to describe a specific pci device in short form
- * @vend: the vendor name
- * @dev: the 16 bit PCI Device ID
+ * @vendor: the vendor name
+ * @device: the 16 bit PCI Device ID
  *
  * This macro is used to create a struct pci_device_id that matches a
  * specific PCI device.  The subvendor, and subdevice fields will be set
