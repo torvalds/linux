@@ -227,7 +227,58 @@ static void pty_set_termios(struct tty_struct *tty, struct ktermios *old_termios
         tty->termios->c_cflag |= (CS8 | CREAD);
 }
 
+static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct tty_struct *o_tty;
+	int idx = tty->index;
+	int retval;
+
+	o_tty = alloc_tty_struct();
+	if (!o_tty)
+		return -ENOMEM;
+	if (!try_module_get(driver->other->owner)) {
+		/* This cannot in fact currently happen */
+		free_tty_struct(o_tty);
+		return -ENOMEM;
+	}
+	initialize_tty_struct(o_tty, driver->other, idx);
+
+	/* We always use new tty termios data so we can do this
+	   the easy way .. */
+	retval = tty_init_termios(tty);
+	if (retval)
+		goto free_mem_out;
+
+	retval = tty_init_termios(o_tty);
+	if (retval) {
+		tty_free_termios(tty);
+		goto free_mem_out;
+	}
+	
+	/*
+	 * Everything allocated ... set up the o_tty structure.
+	 */
+	driver->other->ttys[idx] = o_tty;
+	tty_driver_kref_get(driver->other);
+	if (driver->subtype == PTY_TYPE_MASTER)
+		o_tty->count++;
+	/* Establish the links in both directions */
+	tty->link   = o_tty;
+	o_tty->link = tty;
+
+	tty_driver_kref_get(driver);
+	tty->count++;
+	driver->ttys[idx] = tty;
+	return 0;
+free_mem_out:
+	module_put(o_tty->driver->owner);
+	free_tty_struct(o_tty);
+	return -ENOMEM;
+}
+
+
 static const struct tty_operations pty_ops = {
+	.install = pty_install,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -332,6 +383,7 @@ static inline void legacy_pty_init(void) { }
 int pty_limit = NR_UNIX98_PTY_DEFAULT;
 static int pty_limit_min = 0;
 static int pty_limit_max = NR_UNIX98_PTY_MAX;
+static int pty_count = 0;
 
 static struct cdev ptmx_cdev;
 
@@ -351,6 +403,7 @@ static struct ctl_table pty_table[] = {
 		.procname	= "nr",
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
+		.data		= &pty_count,
 		.proc_handler	= &proc_dointvec,
 	}, {
 		.ctl_name	= 0
@@ -426,7 +479,7 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver, int idx)
 	return tty;
 }
 
-static void pty_shutdown(struct tty_struct *tty)
+static void pty_unix98_shutdown(struct tty_struct *tty)
 {
 	/* We have our own method as we don't use the tty index */
 	kfree(tty->termios);
@@ -436,19 +489,71 @@ static void pty_shutdown(struct tty_struct *tty)
 /* We have no need to install and remove our tty objects as devpts does all
    the work for us */
 
-static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 {
+	struct tty_struct *o_tty;
+	int idx = tty->index;
+
+	o_tty = alloc_tty_struct();
+	if (!o_tty)
+		return -ENOMEM;
+	if (!try_module_get(driver->other->owner)) {
+		/* This cannot in fact currently happen */
+		free_tty_struct(o_tty);
+		return -ENOMEM;
+	}
+	initialize_tty_struct(o_tty, driver->other, idx);
+
+	tty->termios = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
+	if (tty->termios == NULL)
+		goto free_mem_out;
+	*tty->termios = driver->init_termios;
+	tty->termios_locked = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
+	if (tty->termios_locked == NULL)
+		goto free_mem_out;
+	o_tty->termios = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
+	if (o_tty->termios == NULL)
+		goto free_mem_out;
+	*o_tty->termios = driver->other->init_termios;
+	o_tty->termios_locked = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
+	if (o_tty->termios_locked == NULL)
+		goto free_mem_out;
+
+	tty_driver_kref_get(driver->other);
+	if (driver->subtype == PTY_TYPE_MASTER)
+		o_tty->count++;
+	/* Establish the links in both directions */
+	tty->link   = o_tty;
+	o_tty->link = tty;
+	/*
+	 * All structures have been allocated, so now we install them.
+	 * Failures after this point use release_tty to clean up, so
+	 * there's no need to null out the local pointers.
+	 */
+	tty_driver_kref_get(driver);
+	tty->count++;
+	pty_count++;
 	return 0;
+free_mem_out:
+	kfree(o_tty->termios);
+	module_put(o_tty->driver->owner);
+	free_tty_struct(o_tty);
+	kfree(tty->termios_locked);
+	kfree(tty->termios);
+	free_tty_struct(tty);
+	module_put(driver->owner);
+	return -ENOMEM;
 }
 
-static void pty_remove(struct tty_driver *driver, struct tty_struct *tty)
+static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
+	pty_count--;
 }
 
 static const struct tty_operations ptm_unix98_ops = {
 	.lookup = ptm_unix98_lookup,
-	.install = pty_install,
-	.remove = pty_remove,
+	.install = pty_unix98_install,
+	.remove = pty_unix98_remove,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -458,13 +563,13 @@ static const struct tty_operations ptm_unix98_ops = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.ioctl = pty_unix98_ioctl,
-	.shutdown = pty_shutdown
+	.shutdown = pty_unix98_shutdown
 };
 
 static const struct tty_operations pty_unix98_ops = {
 	.lookup = pts_unix98_lookup,
-	.install = pty_install,
-	.remove = pty_remove,
+	.install = pty_unix98_install,
+	.remove = pty_unix98_remove,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -473,6 +578,7 @@ static const struct tty_operations pty_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
+	.shutdown = pty_unix98_shutdown
 };
 
 /**
@@ -589,10 +695,6 @@ static void __init unix98_pty_init(void)
 	if (tty_register_driver(pts_driver))
 		panic("Couldn't register Unix98 pts driver");
 
-	/* FIXME: WTF */
-#if 0	
-	pty_table[1].data = &ptm_driver->refcount;
-#endif	
 	register_sysctl_table(pty_root_table);	
 
 	/* Now create the /dev/ptmx special device */

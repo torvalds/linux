@@ -136,8 +136,6 @@ LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 DEFINE_MUTEX(tty_mutex);
 EXPORT_SYMBOL(tty_mutex);
 
-static void initialize_tty_struct(struct tty_struct *tty);
-
 static ssize_t tty_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t tty_write(struct file *, const char __user *, size_t, loff_t *);
 ssize_t redirected_tty_write(struct file *, const char __user *,
@@ -166,7 +164,7 @@ static void proc_set_tty(struct task_struct *tsk, struct tty_struct *tty);
  *	Locking: none
  */
 
-static struct tty_struct *alloc_tty_struct(void)
+struct tty_struct *alloc_tty_struct(void)
 {
 	return kzalloc(sizeof(struct tty_struct), GFP_KERNEL);
 }
@@ -180,7 +178,7 @@ static struct tty_struct *alloc_tty_struct(void)
  *	Locking: none. Must be called after tty is definitely unused
  */
 
-static inline void free_tty_struct(struct tty_struct *tty)
+void free_tty_struct(struct tty_struct *tty)
 {
 	kfree(tty->write_buf);
 	tty_buffer_free_all(tty);
@@ -1227,22 +1225,70 @@ struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver, int idx)
 }
 
 /**
+ *	tty_init_termios	-  helper for termios setup
+ *	@tty: the tty to set up
+ *
+ *	Initialise the termios structures for this tty. Thus runs under
+ *	the tty_mutex currently so we can be relaxed about ordering.
+ */
+
+int tty_init_termios(struct tty_struct *tty)
+{
+	struct ktermios *tp, *ltp;
+	int idx = tty->index;
+
+	tp = tty->driver->termios[idx];
+	ltp = tty->driver->termios_locked[idx];
+	if (tp == NULL) {
+		WARN_ON(ltp != NULL);
+		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
+		ltp = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
+		if (tp == NULL || ltp == NULL) {
+			kfree(tp);
+			kfree(ltp);
+			return -ENOMEM;
+		}
+		memcpy(tp, &tty->driver->init_termios,
+						sizeof(struct ktermios));
+		tty->driver->termios[idx] = tp;
+		tty->driver->termios_locked[idx] = ltp;
+	}
+	tty->termios = tp;
+	tty->termios_locked = ltp;
+
+	/* Compatibility until drivers always set this */
+	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
+	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
+	return 0;
+}
+
+/**
  *	tty_driver_install_tty() - install a tty entry in the driver
  *	@driver: the driver for the tty
  *	@tty: the tty
  *
  *	Install a tty object into the driver tables. The tty->index field
- *	will be set by the time this is called.
+ *	will be set by the time this is called. This method is responsible
+ *	for ensuring any need additional structures are allocated and
+ *	configured.
  *
  *	Locking: tty_mutex for now
  */
 static int tty_driver_install_tty(struct tty_driver *driver,
 						struct tty_struct *tty)
 {
+	int idx = tty->index;
+
 	if (driver->ops->install)
 		return driver->ops->install(driver, tty);
-	driver->ttys[tty->index] = tty;
-	return 0;
+
+	if (tty_init_termios(tty) == 0) {
+		tty_driver_kref_get(driver);
+		tty->count++;
+		driver->ttys[idx] = tty;
+		return 0;
+	}
+	return -ENOMEM;
 }
 
 /**
@@ -1327,9 +1373,7 @@ static int tty_reopen(struct tty_struct *tty)
 struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 								int first_ok)
 {
-	struct tty_struct *tty, *o_tty;
-	struct ktermios *tp, **tp_loc, *o_tp, **o_tp_loc;
-	struct ktermios *ltp, **ltp_loc, *o_ltp, **o_ltp_loc;
+	struct tty_struct *tty;
 	int retval;
 
 	/* check whether we're reopening an existing tty */
@@ -1361,118 +1405,17 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	if (!try_module_get(driver->owner))
 		return ERR_PTR(-ENODEV);
 
-	o_tty = NULL;
-	tp = o_tp = NULL;
-	ltp = o_ltp = NULL;
-
 	tty = alloc_tty_struct();
 	if (!tty)
 		goto fail_no_mem;
-	initialize_tty_struct(tty);
-	tty->driver = driver;
-	tty->ops = driver->ops;
-	tty->index = idx;
-	tty_line_name(driver, idx, tty->name);
-
-	if (driver->flags & TTY_DRIVER_DEVPTS_MEM) {
-		tp_loc = &tty->termios;
-		ltp_loc = &tty->termios_locked;
-	} else {
-		tp_loc = &driver->termios[idx];
-		ltp_loc = &driver->termios_locked[idx];
-	}
-
-	if (!*tp_loc) {
-		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
-		if (!tp)
-			goto free_mem_out;
-		*tp = driver->init_termios;
-	}
-
-	if (!*ltp_loc) {
-		ltp = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
-		if (!ltp)
-			goto free_mem_out;
-	}
-
-	if (driver->type == TTY_DRIVER_TYPE_PTY) {
-		o_tty = alloc_tty_struct();
-		if (!o_tty)
-			goto free_mem_out;
-		if (!try_module_get(driver->other->owner)) {
-			/* This cannot in fact currently happen */
-			free_tty_struct(o_tty);
-			o_tty = NULL;
-			goto free_mem_out;
-		}
-		initialize_tty_struct(o_tty);
-		o_tty->driver = driver->other;
-		o_tty->ops = driver->ops;
-		o_tty->index = idx;
-		tty_line_name(driver->other, idx, o_tty->name);
-
-		if (driver->flags & TTY_DRIVER_DEVPTS_MEM) {
-			o_tp_loc = &o_tty->termios;
-			o_ltp_loc = &o_tty->termios_locked;
-		} else {
-			o_tp_loc = &driver->other->termios[idx];
-			o_ltp_loc = &driver->other->termios_locked[idx];
-		}
-
-		if (!*o_tp_loc) {
-			o_tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
-			if (!o_tp)
-				goto free_mem_out;
-			*o_tp = driver->other->init_termios;
-		}
-
-		if (!*o_ltp_loc) {
-			o_ltp = kzalloc(sizeof(struct ktermios), GFP_KERNEL);
-			if (!o_ltp)
-				goto free_mem_out;
-		}
-
-		/*
-		 * Everything allocated ... set up the o_tty structure.
-		 */
-		if (!(driver->other->flags & TTY_DRIVER_DEVPTS_MEM))
-			driver->other->ttys[idx] = o_tty;
-		if (!*o_tp_loc)
-			*o_tp_loc = o_tp;
-		if (!*o_ltp_loc)
-			*o_ltp_loc = o_ltp;
-		o_tty->termios = *o_tp_loc;
-		o_tty->termios_locked = *o_ltp_loc;
-		tty_driver_kref_get(driver->other);
-		if (driver->subtype == PTY_TYPE_MASTER)
-			o_tty->count++;
-
-		/* Establish the links in both directions */
-		tty->link   = o_tty;
-		o_tty->link = tty;
-	}
-
-	/*
-	 * All structures have been allocated, so now we install them.
-	 * Failures after this point use release_tty to clean up, so
-	 * there's no need to null out the local pointers.
-	 */
-
-	if (!*tp_loc)
-		*tp_loc = tp;
-	if (!*ltp_loc)
-		*ltp_loc = ltp;
-	tty->termios = *tp_loc;
-	tty->termios_locked = *ltp_loc;
-	/* Compatibility until drivers always set this */
-	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
-	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
-	tty_driver_kref_get(driver);
-	tty->count++;
+	initialize_tty_struct(tty, driver, idx);
 
 	retval = tty_driver_install_tty(driver, tty);
-	if (retval < 0)
-		goto release_mem_out;
+	if (retval < 0) {
+		free_tty_struct(tty);
+		module_put(driver->owner);
+		return ERR_PTR(retval);
+	}
 
 	/*
 	 * Structures all installed ... call the ldisc open routines.
@@ -1480,21 +1423,10 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	 * to decrement the use counts, as release_tty doesn't care.
 	 */
 
-	retval = tty_ldisc_setup(tty, o_tty);
+	retval = tty_ldisc_setup(tty, tty->link);
 	if (retval)
 		goto release_mem_out;
 	return tty;
-
-	/* Release locally allocated memory ... nothing placed in slots */
-free_mem_out:
-	kfree(o_tp);
-	if (o_tty) {
-		module_put(o_tty->driver->owner);
-		free_tty_struct(o_tty);
-	}
-	kfree(ltp);
-	kfree(tp);
-	free_tty_struct(tty);
 
 fail_no_mem:
 	module_put(driver->owner);
@@ -2852,7 +2784,8 @@ EXPORT_SYMBOL(do_SAK);
  *	Locking: none - tty in question must not be exposed at this point
  */
 
-static void initialize_tty_struct(struct tty_struct *tty)
+void initialize_tty_struct(struct tty_struct *tty,
+		struct tty_driver *driver, int idx)
 {
 	memset(tty, 0, sizeof(struct tty_struct));
 	kref_init(&tty->kref);
@@ -2873,6 +2806,11 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	spin_lock_init(&tty->ctrl_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
 	INIT_WORK(&tty->SAK_work, do_SAK_work);
+
+	tty->driver = driver;
+	tty->ops = driver->ops;
+	tty->index = idx;
+	tty_line_name(driver, idx, tty->name);
 }
 
 /**
