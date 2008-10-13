@@ -132,21 +132,6 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 }
 EXPORT_SYMBOL(ide_end_request);
 
-/*
- * Power Management state machine. This one is rather trivial for now,
- * we should probably add more, like switching back to PIO on suspend
- * to help some BIOSes, re-do the door locking on resume, etc...
- */
-
-enum {
-	ide_pm_flush_cache	= ide_pm_state_start_suspend,
-	idedisk_pm_standby,
-
-	idedisk_pm_restore_pio	= ide_pm_state_start_resume,
-	idedisk_pm_idle,
-	ide_pm_restore_dma,
-};
-
 static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 stat, u8 error)
 {
 	struct request_pm_state *pm = rq->data;
@@ -155,20 +140,20 @@ static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 s
 		return;
 
 	switch (pm->pm_step) {
-	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) complete */
+	case IDE_PM_FLUSH_CACHE:	/* Suspend step 1 (flush cache) */
 		if (pm->pm_state == PM_EVENT_FREEZE)
-			pm->pm_step = ide_pm_state_completed;
+			pm->pm_step = IDE_PM_COMPLETED;
 		else
-			pm->pm_step = idedisk_pm_standby;
+			pm->pm_step = IDE_PM_STANDBY;
 		break;
-	case idedisk_pm_standby:	/* Suspend step 2 (standby) complete */
-		pm->pm_step = ide_pm_state_completed;
+	case IDE_PM_STANDBY:		/* Suspend step 2 (standby) */
+		pm->pm_step = IDE_PM_COMPLETED;
 		break;
-	case idedisk_pm_restore_pio:	/* Resume step 1 complete */
-		pm->pm_step = idedisk_pm_idle;
+	case IDE_PM_RESTORE_PIO:	/* Resume step 1 (restore PIO) */
+		pm->pm_step = IDE_PM_IDLE;
 		break;
-	case idedisk_pm_idle:		/* Resume step 2 (idle) complete */
-		pm->pm_step = ide_pm_restore_dma;
+	case IDE_PM_IDLE:		/* Resume step 2 (idle)*/
+		pm->pm_step = IDE_PM_RESTORE_DMA;
 		break;
 	}
 }
@@ -181,7 +166,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	memset(args, 0, sizeof(*args));
 
 	switch (pm->pm_step) {
-	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) */
+	case IDE_PM_FLUSH_CACHE:	/* Suspend step 1 (flush cache) */
 		if (drive->media != ide_disk)
 			break;
 		/* Not supported? Switch to next step now. */
@@ -195,27 +180,23 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		else
 			args->tf.command = ATA_CMD_FLUSH;
 		goto out_do_tf;
-
-	case idedisk_pm_standby:	/* Suspend step 2 (standby) */
+	case IDE_PM_STANDBY:		/* Suspend step 2 (standby) */
 		args->tf.command = ATA_CMD_STANDBYNOW1;
 		goto out_do_tf;
-
-	case idedisk_pm_restore_pio:	/* Resume step 1 (restore PIO) */
+	case IDE_PM_RESTORE_PIO:	/* Resume step 1 (restore PIO) */
 		ide_set_max_pio(drive);
 		/*
-		 * skip idedisk_pm_idle for ATAPI devices
+		 * skip IDE_PM_IDLE for ATAPI devices
 		 */
 		if (drive->media != ide_disk)
-			pm->pm_step = ide_pm_restore_dma;
+			pm->pm_step = IDE_PM_RESTORE_DMA;
 		else
 			ide_complete_power_step(drive, rq, 0, 0);
 		return ide_stopped;
-
-	case idedisk_pm_idle:		/* Resume step 2 (idle) */
+	case IDE_PM_IDLE:		/* Resume step 2 (idle) */
 		args->tf.command = ATA_CMD_IDLEIMMEDIATE;
 		goto out_do_tf;
-
-	case ide_pm_restore_dma:	/* Resume step 3 (restore DMA) */
+	case IDE_PM_RESTORE_DMA:	/* Resume step 3 (restore DMA) */
 		/*
 		 * Right now, all we do is call ide_set_dma(drive),
 		 * we could be smarter and check for current xfer_speed
@@ -229,7 +210,8 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		ide_set_dma(drive);
 		break;
 	}
-	pm->pm_step = ide_pm_state_completed;
+
+	pm->pm_step = IDE_PM_COMPLETED;
 	return ide_stopped;
 
 out_do_tf:
@@ -345,7 +327,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			drive->name, rq->pm->pm_step, stat, err);
 #endif
 		ide_complete_power_step(drive, rq, stat, err);
-		if (pm->pm_step == ide_pm_state_completed)
+		if (pm->pm_step == IDE_PM_COMPLETED)
 			ide_complete_pm_request(drive, rq);
 		return;
 	}
@@ -778,11 +760,11 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 	struct request_pm_state *pm = rq->data;
 
 	if (blk_pm_suspend_request(rq) &&
-	    pm->pm_step == ide_pm_state_start_suspend)
+	    pm->pm_step == IDE_PM_START_SUSPEND)
 		/* Mark drive blocked when starting the suspend sequence. */
 		drive->dev_flags |= IDE_DFLAG_BLOCKED;
 	else if (blk_pm_resume_request(rq) &&
-		 pm->pm_step == ide_pm_state_start_resume) {
+		 pm->pm_step == IDE_PM_START_RESUME) {
 		/* 
 		 * The first thing we do on wakeup is to wait for BSY bit to
 		 * go away (with a looong timeout) as a drive on this hwif may
@@ -862,7 +844,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 #endif
 			startstop = ide_start_power_step(drive, rq);
 			if (startstop == ide_stopped &&
-			    pm->pm_step == ide_pm_state_completed)
+			    pm->pm_step == IDE_PM_COMPLETED)
 				ide_complete_pm_request(drive, rq);
 			return startstop;
 		} else if (!rq->rq_disk && blk_special_request(rq))

@@ -988,36 +988,34 @@ enum {
 }
 
 /*
- * Power Management step value (rq->pm->pm_step).
+ * Power Management state machine (rq->pm->pm_step).
  *
- * The step value starts at 0 (ide_pm_state_start_suspend) for a
- * suspend operation or 1000 (ide_pm_state_start_resume) for a
- * resume operation.
- *
- * For each step, the core calls the subdriver start_power_step() first.
+ * For each step, the core calls ide_start_power_step() first.
  * This can return:
  *	- ide_stopped :	In this case, the core calls us back again unless
  *			step have been set to ide_power_state_completed.
  *	- ide_started :	In this case, the channel is left busy until an
  *			async event (interrupt) occurs.
- * Typically, start_power_step() will issue a taskfile request with
+ * Typically, ide_start_power_step() will issue a taskfile request with
  * do_rw_taskfile().
  *
- * Upon reception of the interrupt, the core will call complete_power_step()
+ * Upon reception of the interrupt, the core will call ide_complete_power_step()
  * with the error code if any. This routine should update the step value
  * and return. It should not start a new request. The core will call
- * start_power_step for the new step value, unless step have been set to
- * ide_power_state_completed.
- *
- * Subdrivers are expected to define their own additional power
- * steps from 1..999 for suspend and from 1001..1999 for resume,
- * other values are reserved for future use.
+ * ide_start_power_step() for the new step value, unless step have been
+ * set to IDE_PM_COMPLETED.
  */
-
 enum {
-	ide_pm_state_completed		= -1,
-	ide_pm_state_start_suspend	= 0,
-	ide_pm_state_start_resume	= 1000,
+	IDE_PM_START_SUSPEND,
+	IDE_PM_FLUSH_CACHE	= IDE_PM_START_SUSPEND,
+	IDE_PM_STANDBY,
+
+	IDE_PM_START_RESUME,
+	IDE_PM_RESTORE_PIO	= IDE_PM_START_RESUME,
+	IDE_PM_IDLE,
+	IDE_PM_RESTORE_DMA,
+
+	IDE_PM_COMPLETED,
 };
 
 /*

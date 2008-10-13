@@ -388,7 +388,7 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	rq->cmd_type = REQ_TYPE_PM_SUSPEND;
 	rq->special = &args;
 	rq->data = &rqpm;
-	rqpm.pm_step = ide_pm_state_start_suspend;
+	rqpm.pm_step = IDE_PM_START_SUSPEND;
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
@@ -427,7 +427,7 @@ static int generic_ide_resume(struct device *dev)
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->special = &args;
 	rq->data = &rqpm;
-	rqpm.pm_step = ide_pm_state_start_resume;
+	rqpm.pm_step = IDE_PM_START_RESUME;
 	rqpm.pm_state = PM_EVENT_ON;
 
 	err = blk_execute_rq(drive->queue, NULL, rq, 1);
