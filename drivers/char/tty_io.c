@@ -49,7 +49,7 @@
  * implement CONFIG_VT and generalize console device interface.
  *	-- Marko Kohtala <Marko.Kohtala@hut.fi>, March 97
  *
- * Rewrote init_dev and release_dev to eliminate races.
+ * Rewrote tty_init_dev and tty_release_dev to eliminate races.
  *	-- Bill Hawes <whawes@star.net>, June 97
  *
  * Added devfs support.
@@ -135,11 +135,6 @@ LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
    vt.c for deeply disgusting hack reasons */
 DEFINE_MUTEX(tty_mutex);
 EXPORT_SYMBOL(tty_mutex);
-
-#ifdef CONFIG_UNIX98_PTYS
-extern struct tty_driver *ptm_driver;	/* Unix98 pty masters; for /dev/ptmx */
-static int ptmx_open(struct inode *, struct file *);
-#endif
 
 static void initialize_tty_struct(struct tty_struct *tty);
 
@@ -424,20 +419,6 @@ static const struct file_operations tty_fops = {
 	.release	= tty_release,
 	.fasync		= tty_fasync,
 };
-
-#ifdef CONFIG_UNIX98_PTYS
-static const struct file_operations ptmx_fops = {
-	.llseek		= no_llseek,
-	.read		= tty_read,
-	.write		= tty_write,
-	.poll		= tty_poll,
-	.unlocked_ioctl	= tty_ioctl,
-	.compat_ioctl	= tty_compat_ioctl,
-	.open		= ptmx_open,
-	.release	= tty_release,
-	.fasync		= tty_fasync,
-};
-#endif
 
 static const struct file_operations console_fops = {
 	.llseek		= no_llseek,
@@ -1224,7 +1205,7 @@ static void tty_line_name(struct tty_driver *driver, int index, char *p)
 }
 
 /**
- *	init_dev		-	initialise a tty device
+ *	tty_init_dev		-	initialise a tty device
  *	@driver: tty driver we are opening a device on
  *	@idx: device index
  *	@ret_tty: returned tty structure
@@ -1248,7 +1229,7 @@ static void tty_line_name(struct tty_driver *driver, int index, char *p)
  * relaxed for the (most common) case of reopening a tty.
  */
 
-static int init_dev(struct tty_driver *driver, int idx,
+int tty_init_dev(struct tty_driver *driver, int idx,
 	struct tty_struct **ret_tty, int first_ok)
 {
 	struct tty_struct *tty, *o_tty;
@@ -1269,8 +1250,8 @@ static int init_dev(struct tty_driver *driver, int idx,
 			goto end_init;
 		}
 		/*
-		 * It's safe from now on because init_dev() is called with
-		 * tty_mutex held and release_dev() won't change tty->count
+		 * It's safe from now on because tty_init_dev() is called with
+		 * tty_mutex held and tty_release_dev() won't change tty->count
 		 * or tty->flags without having to grab tty_mutex
 		 */
 		if (tty && driver->subtype == PTY_TYPE_MASTER)
@@ -1449,7 +1430,7 @@ fast_track:
 
 	/* FIXME */
 	if (!test_bit(TTY_LDISC, &tty->flags))
-		printk(KERN_ERR "init_dev but no ldisc\n");
+		printk(KERN_ERR "tty_init_dev but no ldisc\n");
 success:
 	*ret_tty = tty;
 
@@ -1476,7 +1457,7 @@ fail_no_mem:
 	/* call the tty release_tty routine to clean out this slot */
 release_mem_out:
 	if (printk_ratelimit())
-		printk(KERN_INFO "init_dev: ldisc open failed, "
+		printk(KERN_INFO "tty_init_dev: ldisc open failed, "
 				 "clearing slot %d\n", idx);
 	release_tty(tty, idx);
 	goto end_init;
@@ -1587,7 +1568,7 @@ static void release_tty(struct tty_struct *tty, int idx)
  * WSH 09/09/97: rewritten to avoid some nasty race conditions that could
  * lead to double frees or releasing memory still in use.
  */
-static void release_dev(struct file *filp)
+void tty_release_dev(struct file *filp)
 {
 	struct tty_struct *tty, *o_tty;
 	int	pty_master, tty_closing, o_tty_closing, do_sleep;
@@ -1597,10 +1578,10 @@ static void release_dev(struct file *filp)
 
 	tty = (struct tty_struct *)filp->private_data;
 	if (tty_paranoia_check(tty, filp->f_path.dentry->d_inode,
-							"release_dev"))
+							"tty_release_dev"))
 		return;
 
-	check_tty_count(tty, "release_dev");
+	check_tty_count(tty, "tty_release_dev");
 
 	tty_fasync(-1, filp, 0);
 
@@ -1612,24 +1593,24 @@ static void release_dev(struct file *filp)
 
 #ifdef TTY_PARANOIA_CHECK
 	if (idx < 0 || idx >= tty->driver->num) {
-		printk(KERN_DEBUG "release_dev: bad idx when trying to "
+		printk(KERN_DEBUG "tty_release_dev: bad idx when trying to "
 				  "free (%s)\n", tty->name);
 		return;
 	}
 	if (!(tty->driver->flags & TTY_DRIVER_DEVPTS_MEM)) {
 		if (tty != tty->driver->ttys[idx]) {
-			printk(KERN_DEBUG "release_dev: driver.table[%d] not tty "
+			printk(KERN_DEBUG "tty_release_dev: driver.table[%d] not tty "
 			       "for (%s)\n", idx, tty->name);
 			return;
 		}
 		if (tty->termios != tty->driver->termios[idx]) {
-			printk(KERN_DEBUG "release_dev: driver.termios[%d] not termios "
+			printk(KERN_DEBUG "tty_release_dev: driver.termios[%d] not termios "
 			       "for (%s)\n",
 			       idx, tty->name);
 			return;
 		}
 		if (tty->termios_locked != tty->driver->termios_locked[idx]) {
-			printk(KERN_DEBUG "release_dev: driver.termios_locked[%d] not "
+			printk(KERN_DEBUG "tty_release_dev: driver.termios_locked[%d] not "
 			       "termios_locked for (%s)\n",
 			       idx, tty->name);
 			return;
@@ -1638,7 +1619,7 @@ static void release_dev(struct file *filp)
 #endif
 
 #ifdef TTY_DEBUG_HANGUP
-	printk(KERN_DEBUG "release_dev of %s (tty count=%d)...",
+	printk(KERN_DEBUG "tty_release_dev of %s (tty count=%d)...",
 	       tty_name(tty, buf), tty->count);
 #endif
 
@@ -1646,26 +1627,26 @@ static void release_dev(struct file *filp)
 	if (tty->driver->other &&
 	     !(tty->driver->flags & TTY_DRIVER_DEVPTS_MEM)) {
 		if (o_tty != tty->driver->other->ttys[idx]) {
-			printk(KERN_DEBUG "release_dev: other->table[%d] "
+			printk(KERN_DEBUG "tty_release_dev: other->table[%d] "
 					  "not o_tty for (%s)\n",
 			       idx, tty->name);
 			return;
 		}
 		if (o_tty->termios != tty->driver->other->termios[idx]) {
-			printk(KERN_DEBUG "release_dev: other->termios[%d] "
+			printk(KERN_DEBUG "tty_release_dev: other->termios[%d] "
 					  "not o_termios for (%s)\n",
 			       idx, tty->name);
 			return;
 		}
 		if (o_tty->termios_locked !=
 		      tty->driver->other->termios_locked[idx]) {
-			printk(KERN_DEBUG "release_dev: other->termios_locked["
+			printk(KERN_DEBUG "tty_release_dev: other->termios_locked["
 					  "%d] not o_termios_locked for (%s)\n",
 			       idx, tty->name);
 			return;
 		}
 		if (o_tty->link != tty) {
-			printk(KERN_DEBUG "release_dev: bad pty pointers\n");
+			printk(KERN_DEBUG "tty_release_dev: bad pty pointers\n");
 			return;
 		}
 	}
@@ -1723,7 +1704,7 @@ static void release_dev(struct file *filp)
 		if (!do_sleep)
 			break;
 
-		printk(KERN_WARNING "release_dev: %s: read/write wait queue "
+		printk(KERN_WARNING "tty_release_dev: %s: read/write wait queue "
 				    "active!\n", tty_name(tty, buf));
 		mutex_unlock(&tty_mutex);
 		schedule();
@@ -1736,14 +1717,14 @@ static void release_dev(struct file *filp)
 	 */
 	if (pty_master) {
 		if (--o_tty->count < 0) {
-			printk(KERN_WARNING "release_dev: bad pty slave count "
+			printk(KERN_WARNING "tty_release_dev: bad pty slave count "
 					    "(%d) for %s\n",
 			       o_tty->count, tty_name(o_tty, buf));
 			o_tty->count = 0;
 		}
 	}
 	if (--tty->count < 0) {
-		printk(KERN_WARNING "release_dev: bad tty->count (%d) for %s\n",
+		printk(KERN_WARNING "tty_release_dev: bad tty->count (%d) for %s\n",
 		       tty->count, tty_name(tty, buf));
 		tty->count = 0;
 	}
@@ -1825,7 +1806,7 @@ static void release_dev(struct file *filp)
  *	The termios state of a pty is reset on first open so that
  *	settings don't persist across reuse.
  *
- *	Locking: tty_mutex protects tty, get_tty_driver and init_dev work.
+ *	Locking: tty_mutex protects tty, get_tty_driver and tty_init_dev work.
  *		 tty->count should protect the rest.
  *		 ->siglock protects ->signal/->sighand
  */
@@ -1889,7 +1870,7 @@ retry_open:
 		return -ENODEV;
 	}
 got_driver:
-	retval = init_dev(driver, index, &tty, 0);
+	retval = tty_init_dev(driver, index, &tty, 0);
 	mutex_unlock(&tty_mutex);
 	if (retval)
 		return retval;
@@ -1920,7 +1901,7 @@ got_driver:
 		printk(KERN_DEBUG "error %d in opening %s...", retval,
 		       tty->name);
 #endif
-		release_dev(filp);
+		tty_release_dev(filp);
 		if (retval != -ERESTARTSYS)
 			return retval;
 		if (signal_pending(current))
@@ -1959,69 +1940,6 @@ static int tty_open(struct inode *inode, struct file *filp)
 
 
 
-#ifdef CONFIG_UNIX98_PTYS
-/**
- *	ptmx_open		-	open a unix 98 pty master
- *	@inode: inode of device file
- *	@filp: file pointer to tty
- *
- *	Allocate a unix98 pty master device from the ptmx driver.
- *
- *	Locking: tty_mutex protects theinit_dev work. tty->count should
- * 		protect the rest.
- *		allocated_ptys_lock handles the list of free pty numbers
- */
-
-static int __ptmx_open(struct inode *inode, struct file *filp)
-{
-	struct tty_struct *tty;
-	int retval;
-	int index;
-
-	nonseekable_open(inode, filp);
-
-	/* find a device that is not in use. */
-	index = devpts_new_index();
-	if (index < 0)
-		return index;
-
-	mutex_lock(&tty_mutex);
-	retval = init_dev(ptm_driver, index, &tty, 1);
-	mutex_unlock(&tty_mutex);
-
-	if (retval)
-		goto out;
-
-	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
-	filp->private_data = tty;
-	file_move(filp, &tty->tty_files);
-
-	retval = devpts_pty_new(tty->link);
-	if (retval)
-		goto out1;
-
-	check_tty_count(tty, "ptmx_open");
-	retval = ptm_driver->ops->open(tty, filp);
-	if (!retval)
-		return 0;
-out1:
-	release_dev(filp);
-	return retval;
-out:
-	devpts_kill_index(index);
-	return retval;
-}
-
-static int ptmx_open(struct inode *inode, struct file *filp)
-{
-	int ret;
-
-	lock_kernel();
-	ret = __ptmx_open(inode, filp);
-	unlock_kernel();
-	return ret;
-}
-#endif
 
 /**
  *	tty_release		-	vfs callback for close
@@ -2032,13 +1950,13 @@ static int ptmx_open(struct inode *inode, struct file *filp)
  *	this tty. There may however be several such references.
  *
  *	Locking:
- *		Takes bkl. See release_dev
+ *		Takes bkl. See tty_release_dev
  */
 
 static int tty_release(struct inode *inode, struct file *filp)
 {
 	lock_kernel();
-	release_dev(filp);
+	tty_release_dev(filp);
 	unlock_kernel();
 	return 0;
 }
@@ -2932,7 +2850,7 @@ int tty_put_char(struct tty_struct *tty, unsigned char ch)
 
 EXPORT_SYMBOL_GPL(tty_put_char);
 
-static struct class *tty_class;
+struct class *tty_class;
 
 /**
  *	tty_register_device - register a tty device
@@ -3197,6 +3115,11 @@ struct tty_struct *get_current_tty(void)
 }
 EXPORT_SYMBOL_GPL(get_current_tty);
 
+void tty_default_fops(struct file_operations *fops)
+{
+	*fops = tty_fops;
+}
+
 /*
  * Initialize the console device. This is called *early*, so
  * we can't necessarily depend on lots of kernel help here.
@@ -3234,12 +3157,6 @@ postcore_initcall(tty_class_init);
 /* 3/2004 jmc: why do these devices exist? */
 
 static struct cdev tty_cdev, console_cdev;
-#ifdef CONFIG_UNIX98_PTYS
-static struct cdev ptmx_cdev;
-#endif
-#ifdef CONFIG_VT
-static struct cdev vc0_cdev;
-#endif
 
 /*
  * Ok, now we can initialize the rest of the tty devices and can count
@@ -3251,32 +3168,18 @@ static int __init tty_init(void)
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
-	device_create_drvdata(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL,
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL,
 			      "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
-	device_create_drvdata(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL,
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL,
 			      "console");
 
-#ifdef CONFIG_UNIX98_PTYS
-	cdev_init(&ptmx_cdev, &ptmx_fops);
-	if (cdev_add(&ptmx_cdev, MKDEV(TTYAUX_MAJOR, 2), 1) ||
-	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
-		panic("Couldn't register /dev/ptmx driver\n");
-	device_create_drvdata(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
-#endif
-
 #ifdef CONFIG_VT
-	cdev_init(&vc0_cdev, &console_fops);
-	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
-	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
-		panic("Couldn't register /dev/tty0 driver\n");
-	device_create_drvdata(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
-
-	vty_init();
+	vty_init(&console_fops);
 #endif
 	return 0;
 }

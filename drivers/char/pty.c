@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
+#include <linux/device.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -332,6 +333,8 @@ int pty_limit = NR_UNIX98_PTY_DEFAULT;
 static int pty_limit_min = 0;
 static int pty_limit_max = NR_UNIX98_PTY_MAX;
 
+static struct cdev ptmx_cdev;
+
 static struct ctl_table pty_table[] = {
 	{
 		.ctl_name	= PTY_MAX,
@@ -408,6 +411,70 @@ static const struct tty_operations ptm_unix98_ops = {
 	.shutdown = pty_shutdown
 };
 
+
+/**
+ *	ptmx_open		-	open a unix 98 pty master
+ *	@inode: inode of device file
+ *	@filp: file pointer to tty
+ *
+ *	Allocate a unix98 pty master device from the ptmx driver.
+ *
+ *	Locking: tty_mutex protects the init_dev work. tty->count should
+ * 		protect the rest.
+ *		allocated_ptys_lock handles the list of free pty numbers
+ */
+
+static int __ptmx_open(struct inode *inode, struct file *filp)
+{
+	struct tty_struct *tty;
+	int retval;
+	int index;
+
+	nonseekable_open(inode, filp);
+
+	/* find a device that is not in use. */
+	index = devpts_new_index();
+	if (index < 0)
+		return index;
+
+	mutex_lock(&tty_mutex);
+	retval = tty_init_dev(ptm_driver, index, &tty, 1);
+	mutex_unlock(&tty_mutex);
+
+	if (retval)
+		goto out;
+
+	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
+	filp->private_data = tty;
+	file_move(filp, &tty->tty_files);
+
+	retval = devpts_pty_new(tty->link);
+	if (retval)
+		goto out1;
+
+	retval = ptm_driver->ops->open(tty, filp);
+	if (!retval)
+		return 0;
+out1:
+	tty_release_dev(filp);
+	return retval;
+out:
+	devpts_kill_index(index);
+	return retval;
+}
+
+static int ptmx_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __ptmx_open(inode, filp);
+	unlock_kernel();
+	return ret;
+}
+
+static struct file_operations ptmx_fops;
+
 static void __init unix98_pty_init(void)
 {
 	ptm_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
@@ -459,7 +526,18 @@ static void __init unix98_pty_init(void)
 
 	pty_table[1].data = &ptm_driver->refcount;
 	register_sysctl_table(pty_root_table);
+
+	/* Now create the /dev/ptmx special device */
+	tty_default_fops(&ptmx_fops);
+	ptmx_fops.open = ptmx_open;
+
+	cdev_init(&ptmx_cdev, &ptmx_fops);
+	if (cdev_add(&ptmx_cdev, MKDEV(TTYAUX_MAJOR, 2), 1) ||
+	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
+		panic("Couldn't register /dev/ptmx driver\n");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
 }
+
 #else
 static inline void unix98_pty_init(void) { }
 #endif

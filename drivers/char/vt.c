@@ -100,10 +100,10 @@
 #include <linux/font.h>
 #include <linux/bitops.h>
 #include <linux/notifier.h>
-
-#include <asm/io.h>
+#include <linux/device.h>
+#include <linux/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -2352,8 +2352,6 @@ rescan_last_byte:
 	FLUSH
 	console_conditional_schedule();
 	release_console_sem();
-
-out:
 	notify_update(vc);
 	return n;
 #undef FLUSH
@@ -2784,13 +2782,6 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 	return ret;
 }
 
-/*
- * We take tty_mutex in here to prevent another thread from coming in via init_dev
- * and taking a ref against the tty while we're in the process of forgetting
- * about it and cleaning things up.
- *
- * This is because vcs_remove_sysfs() can sleep and will drop the BKL.
- */
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
 	/* Nothing to do - we defer to shutdown */
@@ -2932,8 +2923,16 @@ static const struct tty_operations con_ops = {
 	.shutdown = con_shutdown
 };
 
-int __init vty_init(void)
+static struct cdev vc0_cdev;
+
+int __init vty_init(const struct file_operations *console_fops)
 {
+	cdev_init(&vc0_cdev, console_fops);
+	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
+	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
+		panic("Couldn't register /dev/tty0 driver\n");
+	device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+
 	vcs_init();
 
 	console_driver = alloc_tty_driver(MAX_NR_CONSOLES);
@@ -2952,7 +2951,6 @@ int __init vty_init(void)
 	tty_set_operations(console_driver, &con_ops);
 	if (tty_register_driver(console_driver))
 		panic("Couldn't register console driver\n");
-
 	kbd_init();
 	console_map_init();
 #ifdef CONFIG_PROM_CONSOLE
@@ -3446,7 +3444,7 @@ int register_con_driver(const struct consw *csw, int first, int last)
 	if (retval)
 		goto err;
 
-	con_driver->dev = device_create_drvdata(vtconsole_class, NULL,
+	con_driver->dev = device_create(vtconsole_class, NULL,
 						MKDEV(0, con_driver->node),
 						NULL, "vtcon%i",
 						con_driver->node);
@@ -3557,7 +3555,7 @@ static int __init vtconsole_class_init(void)
 		struct con_driver *con = &registered_con_driver[i];
 
 		if (con->con && !con->dev) {
-			con->dev = device_create_drvdata(vtconsole_class, NULL,
+			con->dev = device_create(vtconsole_class, NULL,
 							 MKDEV(0, con->node),
 							 NULL, "vtcon%i",
 							 con->node);

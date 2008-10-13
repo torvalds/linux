@@ -314,6 +314,8 @@ extern int kmsg_redirect;
 extern void console_init(void);
 extern int vcs_init(void);
 
+extern struct class *tty_class;
+
 /**
  *	tty_kref_get		-	get a tty reference
  *	@tty: tty device
@@ -398,6 +400,10 @@ extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
 extern dev_t tty_devnum(struct tty_struct *tty);
 extern void proc_clear_tty(struct task_struct *p);
 extern struct tty_struct *get_current_tty(void);
+extern void tty_default_fops(struct file_operations *fops);
+extern int tty_init_dev(struct tty_driver *driver, int idx,
+			struct tty_struct **ret_tty, int first_ok);
+extern void tty_release_dev(struct file *filp);
 
 extern struct mutex tty_mutex;
 

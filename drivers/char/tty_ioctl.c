@@ -40,6 +40,15 @@
 #define TERMIOS_OLD	8
 
 
+/**
+ *	tty_chars_in_buffer	-	characters pending
+ *	@tty: terminal
+ *
+ *	Return the number of bytes of data in the device private
+ *	output queue. If no private method is supplied there is assumed
+ *	to be no queue on the device.
+ */
+
 int tty_chars_in_buffer(struct tty_struct *tty)
 {
 	if (tty->ops->chars_in_buffer)
@@ -47,25 +56,48 @@ int tty_chars_in_buffer(struct tty_struct *tty)
 	else
 		return 0;
 }
-
 EXPORT_SYMBOL(tty_chars_in_buffer);
 
+/**
+ *	tty_write_room		-	write queue space
+ *	@tty: terminal
+ *
+ *	Return the number of bytes that can be queued to this device
+ *	at the present time. The result should be treated as a guarantee
+ *	and the driver cannot offer a value it later shrinks by more than
+ *	the number of bytes written. If no method is provided 2K is always
+ *	returned and data may be lost as there will be no flow control.
+ */
+ 
 int tty_write_room(struct tty_struct *tty)
 {
 	if (tty->ops->write_room)
 		return tty->ops->write_room(tty);
 	return 2048;
 }
-
 EXPORT_SYMBOL(tty_write_room);
 
+/**
+ *	tty_driver_flush_buffer	-	discard internal buffer
+ *	@tty: terminal
+ *
+ *	Discard the internal output buffer for this device. If no method
+ *	is provided then either the buffer cannot be hardware flushed or
+ *	there is no buffer driver side.
+ */
 void tty_driver_flush_buffer(struct tty_struct *tty)
 {
 	if (tty->ops->flush_buffer)
 		tty->ops->flush_buffer(tty);
 }
-
 EXPORT_SYMBOL(tty_driver_flush_buffer);
+
+/**
+ *	tty_throttle		-	flow control
+ *	@tty: terminal
+ *
+ *	Indicate that a tty should stop transmitting data down the stack.
+ */
 
 void tty_throttle(struct tty_struct *tty)
 {
@@ -75,6 +107,13 @@ void tty_throttle(struct tty_struct *tty)
 		tty->ops->throttle(tty);
 }
 EXPORT_SYMBOL(tty_throttle);
+
+/**
+ *	tty_unthrottle		-	flow control
+ *	@tty: terminal
+ *
+ *	Indicate that a tty may continue transmitting data down the stack.
+ */
 
 void tty_unthrottle(struct tty_struct *tty)
 {
@@ -111,6 +150,11 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 	}
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
+
+
+/*
+ *		Termios Helper Methods
+ */
 
 static void unset_locked_termios(struct ktermios *termios,
 				 struct ktermios *old,
@@ -346,6 +390,16 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 }
 EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
 
+/**
+ *	tty_encode_baud_rate		-	set baud rate of the tty
+ *	@ibaud: input baud rate
+ *	@obad: output baud rate
+ *
+ *	Update the current termios data for the tty with the new speed
+ *	settings. The caller must hold the termios_mutex for the tty in
+ *	question.
+ */
+
 void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud, speed_t obaud)
 {
 	tty_termios_encode_baud_rate(tty->termios, ibaud, obaud);
@@ -430,7 +484,7 @@ EXPORT_SYMBOL(tty_termios_hw_change);
  *	is a bit of layering violation here with n_tty in terms of the
  *	internal knowledge of this function.
  *
- *	Locking: termios_sem
+ *	Locking: termios_mutex
  */
 
 static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
@@ -508,7 +562,7 @@ static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
  *	functions before using change_termios to do the actual changes.
  *
  *	Locking:
- *		Called functions take ldisc and termios_sem locks
+ *		Called functions take ldisc and termios_mutex locks
  */
 
 static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
@@ -715,7 +769,7 @@ static void set_sgflags(struct ktermios *termios, int flags)
  *	Updates a terminal from the legacy BSD style terminal information
  *	structure.
  *
- *	Locking: termios_sem
+ *	Locking: termios_mutex
  */
 
 static int set_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
