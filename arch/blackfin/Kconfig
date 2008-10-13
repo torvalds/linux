@@ -249,7 +249,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP || BFIN526_EZBRD)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -286,13 +286,20 @@ config BOOT_LOAD
 	  memory region is used to capture NULL pointer references as well
 	  as some core kernel functions.
 
+config ROM_BASE
+	hex "Kernel ROM Base"
+	default "0x20040000"
+	range 0x20000000 0x20400000 if !(BF54x || BF561)
+	range 0x20000000 0x30000000 if (BF54x || BF561)
+	help
+
 comment "Clock/PLL Setup"
 
 config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -332,7 +339,7 @@ config VCO_MULT
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
-	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP)
+	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
