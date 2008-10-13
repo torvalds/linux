@@ -92,4 +92,18 @@ extern unsigned long reserved_mem_icache_on;
 
 extern void generate_cplb_tables(void);
 
+static inline int bfin_addr_dcachable(unsigned long addr)
+{
+#ifdef CONFIG_BFIN_DCACHE
+	if (addr < (_ramend - DMA_UNCACHED_REGION))
+		return 1;
+#endif
+
+	if (reserved_mem_dcache_on &&
+		addr >= _ramend && addr < physical_mem_end)
+		return 1;
+
+	return 0;
+}
+
 #endif

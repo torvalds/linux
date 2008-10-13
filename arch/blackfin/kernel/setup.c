@@ -42,6 +42,7 @@ EXPORT_SYMBOL(memory_start);
 EXPORT_SYMBOL(memory_end);
 EXPORT_SYMBOL(physical_mem_end);
 EXPORT_SYMBOL(_ramend);
+EXPORT_SYMBOL(reserved_mem_dcache_on);
 
 #ifdef CONFIG_MTD_UCLINUX
 unsigned long memory_mtd_end, memory_mtd_start, mtd_size;
