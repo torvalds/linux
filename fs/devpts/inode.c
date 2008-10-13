@@ -170,14 +170,6 @@ static struct file_system_type devpts_fs_type = {
  * to the System V naming convention
  */
 
-static struct dentry *get_node(int num)
-{
-	char s[12];
-	struct dentry *root = devpts_root;
-	mutex_lock(&root->d_inode->i_mutex);
-	return lookup_one_len(s, root, sprintf(s, "%d", num));
-}
-
 int devpts_new_index(struct inode *ptmx_inode)
 {
 	int index;
@@ -235,6 +227,7 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	init_special_inode(inode, S_IFCHR|config.mode, device);
 	inode->i_private = tty;
+	tty->driver_data = inode;
 
 	sprintf(s, "%d", number);
 
@@ -262,18 +255,20 @@ struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
 
 void devpts_pty_kill(struct tty_struct *tty)
 {
-	int number = tty->index;
-	struct dentry *dentry = get_node(number);
+	struct inode *inode = tty->driver_data;
+	struct dentry *dentry;
 
-	if (!IS_ERR(dentry)) {
-		struct inode *inode = dentry->d_inode;
-		if (inode) {
-			inode->i_nlink--;
-			d_delete(dentry);
-			dput(dentry);
-		}
+	BUG_ON(inode->i_rdev == MKDEV(TTYAUX_MAJOR, PTMX_MINOR));
+
+	mutex_lock(&devpts_root->d_inode->i_mutex);
+
+	dentry = d_find_alias(inode);
+	if (dentry && !IS_ERR(dentry)) {
+		inode->i_nlink--;
+		d_delete(dentry);
 		dput(dentry);
 	}
+
 	mutex_unlock(&devpts_root->d_inode->i_mutex);
 }
 
