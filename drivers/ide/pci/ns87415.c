@@ -339,7 +339,7 @@ static const struct pci_device_id ns87415_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ns87415_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver ns87415_pci_driver = {
 	.name		= "NS87415_IDE",
 	.id_table	= ns87415_pci_tbl,
 	.probe		= ns87415_init_one,
@@ -350,12 +350,12 @@ static struct pci_driver driver = {
 
 static int __init ns87415_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&ns87415_pci_driver);
 }
 
 static void __exit ns87415_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&ns87415_pci_driver);
 }
 
 module_init(ns87415_ide_init);

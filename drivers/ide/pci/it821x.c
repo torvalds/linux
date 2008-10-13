@@ -676,7 +676,7 @@ static const struct pci_device_id it821x_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, it821x_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver it821x_pci_driver = {
 	.name		= "ITE821x IDE",
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
@@ -687,12 +687,12 @@ static struct pci_driver driver = {
 
 static int __init it821x_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&it821x_pci_driver);
 }
 
 static void __exit it821x_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&it821x_pci_driver);
 }
 
 module_init(it821x_ide_init);

@@ -154,7 +154,7 @@ static const struct pci_device_id slc90e66_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, slc90e66_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver slc90e66_pci_driver = {
 	.name		= "SLC90e66_IDE",
 	.id_table	= slc90e66_pci_tbl,
 	.probe		= slc90e66_init_one,
@@ -165,12 +165,12 @@ static struct pci_driver driver = {
 
 static int __init slc90e66_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&slc90e66_pci_driver);
 }
 
 static void __exit slc90e66_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&slc90e66_pci_driver);
 }
 
 module_init(slc90e66_ide_init);

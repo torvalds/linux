@@ -328,7 +328,7 @@ static const struct pci_device_id sc1200_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sc1200_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver sc1200_pci_driver = {
 	.name		= "SC1200_IDE",
 	.id_table	= sc1200_pci_tbl,
 	.probe		= sc1200_init_one,
@@ -341,12 +341,12 @@ static struct pci_driver driver = {
 
 static int __init sc1200_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&sc1200_pci_driver);
 }
 
 static void __exit sc1200_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&sc1200_pci_driver);
 }
 
 module_init(sc1200_ide_init);

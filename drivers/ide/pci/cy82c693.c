@@ -331,7 +331,7 @@ static const struct pci_device_id cy82c693_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, cy82c693_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver cy82c693_pci_driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
@@ -342,12 +342,12 @@ static struct pci_driver driver = {
 
 static int __init cy82c693_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&cy82c693_pci_driver);
 }
 
 static void __exit cy82c693_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&cy82c693_pci_driver);
 }
 
 module_init(cy82c693_ide_init);

@@ -113,7 +113,7 @@ static const struct pci_device_id triflex_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, triflex_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver triflex_pci_driver = {
 	.name		= "TRIFLEX_IDE",
 	.id_table	= triflex_pci_tbl,
 	.probe		= triflex_init_one,
@@ -124,12 +124,12 @@ static struct pci_driver driver = {
 
 static int __init triflex_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&triflex_pci_driver);
 }
 
 static void __exit triflex_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&triflex_pci_driver);
 }
 
 module_init(triflex_ide_init);

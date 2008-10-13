@@ -350,7 +350,7 @@ static const struct pci_device_id trm290_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, trm290_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver trm290_pci_driver = {
 	.name		= "TRM290_IDE",
 	.id_table	= trm290_pci_tbl,
 	.probe		= trm290_init_one,
@@ -359,12 +359,12 @@ static struct pci_driver driver = {
 
 static int __init trm290_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&trm290_pci_driver);
 }
 
 static void __exit trm290_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&trm290_pci_driver);
 }
 
 module_init(trm290_ide_init);

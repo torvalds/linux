@@ -944,7 +944,7 @@ static const struct pci_device_id scc_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, scc_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver scc_pci_driver = {
 	.name = "SCC IDE",
 	.id_table = scc_pci_tbl,
 	.probe = scc_init_one,
@@ -953,14 +953,14 @@ static struct pci_driver driver = {
 
 static int scc_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&scc_pci_driver);
 }
 
 module_init(scc_ide_init);
 /* -- No exit code?
 static void scc_ide_exit(void)
 {
-	ide_pci_unregister_driver(&driver);
+	ide_pci_unregister_driver(&scc_pci_driver);
 }
 module_exit(scc_ide_exit);
  */

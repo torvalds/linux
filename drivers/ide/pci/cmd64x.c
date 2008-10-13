@@ -505,7 +505,7 @@ static const struct pci_device_id cmd64x_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, cmd64x_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver cmd64x_pci_driver = {
 	.name		= "CMD64x_IDE",
 	.id_table	= cmd64x_pci_tbl,
 	.probe		= cmd64x_init_one,
@@ -516,12 +516,12 @@ static struct pci_driver driver = {
 
 static int __init cmd64x_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&cmd64x_pci_driver);
 }
 
 static void __exit cmd64x_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&cmd64x_pci_driver);
 }
 
 module_init(cmd64x_ide_init);

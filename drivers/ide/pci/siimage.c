@@ -830,7 +830,7 @@ static const struct pci_device_id siimage_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, siimage_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver siimage_pci_driver = {
 	.name		= "SiI_IDE",
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
@@ -841,12 +841,12 @@ static struct pci_driver driver = {
 
 static int __init siimage_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&siimage_pci_driver);
 }
 
 static void __exit siimage_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&siimage_pci_driver);
 }
 
 module_init(siimage_ide_init);

@@ -426,7 +426,7 @@ static const struct pci_device_id pdc202xx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, pdc202xx_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver pdc202xx_pci_driver = {
 	.name		= "Promise_Old_IDE",
 	.id_table	= pdc202xx_pci_tbl,
 	.probe		= pdc202xx_init_one,
@@ -437,12 +437,12 @@ static struct pci_driver driver = {
 
 static int __init pdc202xx_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&pdc202xx_pci_driver);
 }
 
 static void __exit pdc202xx_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&pdc202xx_pci_driver);
 }
 
 module_init(pdc202xx_ide_init);

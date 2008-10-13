@@ -302,7 +302,7 @@ static const struct pci_device_id aec62xx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, aec62xx_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver aec62xx_pci_driver = {
 	.name		= "AEC62xx_IDE",
 	.id_table	= aec62xx_pci_tbl,
 	.probe		= aec62xx_init_one,
@@ -313,12 +313,12 @@ static struct pci_driver driver = {
 
 static int __init aec62xx_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&aec62xx_pci_driver);
 }
 
 static void __exit aec62xx_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&aec62xx_pci_driver);
 }
 
 module_init(aec62xx_ide_init);

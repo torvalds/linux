@@ -1619,7 +1619,7 @@ static const struct pci_device_id hpt366_pci_tbl[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(pci, hpt366_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver hpt366_pci_driver = {
 	.name		= "HPT366_IDE",
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
@@ -1630,12 +1630,12 @@ static struct pci_driver driver = {
 
 static int __init hpt366_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&hpt366_pci_driver);
 }
 
 static void __exit hpt366_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&hpt366_pci_driver);
 }
 
 module_init(hpt366_ide_init);

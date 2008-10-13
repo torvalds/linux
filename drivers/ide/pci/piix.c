@@ -444,7 +444,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver piix_pci_driver = {
 	.name		= "PIIX_IDE",
 	.id_table	= piix_pci_tbl,
 	.probe		= piix_init_one,
@@ -456,12 +456,12 @@ static struct pci_driver driver = {
 static int __init piix_ide_init(void)
 {
 	piix_check_450nx();
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&piix_pci_driver);
 }
 
 static void __exit piix_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&piix_pci_driver);
 }
 
 module_init(piix_ide_init);

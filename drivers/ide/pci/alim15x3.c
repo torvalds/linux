@@ -575,7 +575,7 @@ static const struct pci_device_id alim15x3_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, alim15x3_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver alim15x3_pci_driver = {
 	.name		= "ALI15x3_IDE",
 	.id_table	= alim15x3_pci_tbl,
 	.probe		= alim15x3_init_one,
@@ -586,12 +586,12 @@ static struct pci_driver driver = {
 
 static int __init ali15x3_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&alim15x3_pci_driver);
 }
 
 static void __exit ali15x3_ide_exit(void)
 {
-	return pci_unregister_driver(&driver);
+	return pci_unregister_driver(&alim15x3_pci_driver);
 }
 
 module_init(ali15x3_ide_init);
