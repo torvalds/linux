@@ -849,8 +849,6 @@ static void stl_flushbuffer(struct tty_struct *tty)
 
 	pr_debug("stl_flushbuffer(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -868,8 +866,6 @@ static void stl_waituntilsent(struct tty_struct *tty, int timeout)
 
 	pr_debug("stl_waituntilsent(tty=%p,timeout=%d)\n", tty, timeout);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1036,8 +1032,6 @@ static int stl_putchar(struct tty_struct *tty, unsigned char ch)
 
 	pr_debug("stl_putchar(tty=%p,ch=%x)\n", tty, ch);
 
-	if (tty == NULL)
-		return -EINVAL;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return -EINVAL;
@@ -1073,8 +1067,6 @@ static void stl_flushchars(struct tty_struct *tty)
 
 	pr_debug("stl_flushchars(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1093,8 +1085,6 @@ static int stl_writeroom(struct tty_struct *tty)
 
 	pr_debug("stl_writeroom(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return 0;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return 0;
@@ -1125,8 +1115,6 @@ static int stl_charsinbuffer(struct tty_struct *tty)
 
 	pr_debug("stl_charsinbuffer(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return 0;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return 0;
@@ -1219,8 +1207,6 @@ static int stl_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct stlport	*portp;
 
-	if (tty == NULL)
-		return -ENODEV;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return -ENODEV;
@@ -1236,8 +1222,6 @@ static int stl_tiocmset(struct tty_struct *tty, struct file *file,
 	struct stlport	*portp;
 	int rts = -1, dtr = -1;
 
-	if (tty == NULL)
-		return -ENODEV;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return -ENODEV;
@@ -1266,8 +1250,6 @@ static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd
 	pr_debug("stl_ioctl(tty=%p,file=%p,cmd=%x,arg=%lx)\n", tty, file, cmd,
 			arg);
 
-	if (tty == NULL)
-		return -ENODEV;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return -ENODEV;
@@ -1321,8 +1303,6 @@ static void stl_start(struct tty_struct *tty)
 
 	pr_debug("stl_start(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1338,8 +1318,6 @@ static void stl_settermios(struct tty_struct *tty, struct ktermios *old)
 
 	pr_debug("stl_settermios(tty=%p,old=%p)\n", tty, old);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1373,8 +1351,6 @@ static void stl_throttle(struct tty_struct *tty)
 
 	pr_debug("stl_throttle(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1393,8 +1369,6 @@ static void stl_unthrottle(struct tty_struct *tty)
 
 	pr_debug("stl_unthrottle(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1414,8 +1388,6 @@ static void stl_stop(struct tty_struct *tty)
 
 	pr_debug("stl_stop(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1436,8 +1408,6 @@ static void stl_hangup(struct tty_struct *tty)
 
 	pr_debug("stl_hangup(tty=%p)\n", tty);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
@@ -1470,8 +1440,6 @@ static int stl_breakctl(struct tty_struct *tty, int state)
 
 	pr_debug("stl_breakctl(tty=%p,state=%d)\n", tty, state);
 
-	if (tty == NULL)
-		return -EINVAL;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return -EINVAL;
@@ -1488,8 +1456,6 @@ static void stl_sendxchar(struct tty_struct *tty, char ch)
 
 	pr_debug("stl_sendxchar(tty=%p,ch=%x)\n", tty, ch);
 
-	if (tty == NULL)
-		return;
 	portp = tty->driver_data;
 	if (portp == NULL)
 		return;

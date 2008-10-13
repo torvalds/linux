@@ -616,9 +616,6 @@ static int mxser_set_baud(struct tty_struct *tty, long newspd)
 	int quot = 0, baud;
 	unsigned char cval;
 
-	if (!tty->termios)
-		return -1;
-
 	if (!info->ioaddr)
 		return -1;
 
@@ -688,8 +685,6 @@ static int mxser_change_speed(struct tty_struct *tty,
 	int ret = 0;
 	unsigned char status;
 
-	if (!tty->termios)
-		return ret;
 	cflag = tty->termios->c_cflag;
 	if (!info->ioaddr)
 		return ret;
