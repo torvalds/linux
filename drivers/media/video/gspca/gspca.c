@@ -403,7 +403,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 	unsigned int i;
 
 	PDEBUG(D_STREAM, "kill transfer");
-	for (i = 0; i < MAX_NURBS; ++i) {
+	for (i = 0; i < MAX_NURBS; i++) {
 		urb = gspca_dev->urb[i];
 		if (urb == NULL)
 			break;
