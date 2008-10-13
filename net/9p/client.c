@@ -36,10 +36,6 @@
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
 
-static struct p9_fid *p9_fid_create(struct p9_client *clnt);
-static void p9_fid_destroy(struct p9_fid *fid);
-static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu);
-
 /*
   * Client Option Parsing (code inspired by NFS code)
   *  - a little lazy - parse all client options
@@ -124,6 +120,55 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	return ret;
 }
 
+static struct p9_fid *p9_fid_create(struct p9_client *clnt)
+{
+	int err;
+	struct p9_fid *fid;
+
+	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
+	fid = kmalloc(sizeof(struct p9_fid), GFP_KERNEL);
+	if (!fid)
+		return ERR_PTR(-ENOMEM);
+
+	fid->fid = p9_idpool_get(clnt->fidpool);
+	if (fid->fid < 0) {
+		err = -ENOSPC;
+		goto error;
+	}
+
+	memset(&fid->qid, 0, sizeof(struct p9_qid));
+	fid->mode = -1;
+	fid->rdir_fpos = 0;
+	fid->rdir_pos = 0;
+	fid->rdir_fcall = NULL;
+	fid->uid = current->fsuid;
+	fid->clnt = clnt;
+	fid->aux = NULL;
+
+	spin_lock(&clnt->lock);
+	list_add(&fid->flist, &clnt->fidlist);
+	spin_unlock(&clnt->lock);
+
+	return fid;
+
+error:
+	kfree(fid);
+	return ERR_PTR(err);
+}
+
+static void p9_fid_destroy(struct p9_fid *fid)
+{
+	struct p9_client *clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P, "fid %d\n", fid->fid);
+	clnt = fid->clnt;
+	p9_idpool_put(fid->fid, clnt->fidpool);
+	spin_lock(&clnt->lock);
+	list_del(&fid->flist);
+	spin_unlock(&clnt->lock);
+	kfree(fid->rdir_fcall);
+	kfree(fid);
+}
 
 /**
  * p9_client_rpc - sends 9P request and waits until a response is available.
@@ -815,6 +860,46 @@ int p9_client_readn(struct p9_fid *fid, char *data, u64 offset, u32 count)
 }
 EXPORT_SYMBOL(p9_client_readn);
 
+static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu)
+{
+	int n;
+	char *p;
+	struct p9_stat *ret;
+
+	n = sizeof(struct p9_stat) + st->name.len + st->uid.len + st->gid.len +
+		st->muid.len;
+
+	if (dotu)
+		n += st->extension.len;
+
+	ret = kmalloc(n, GFP_KERNEL);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+
+	memmove(ret, st, sizeof(struct p9_stat));
+	p = ((char *) ret) + sizeof(struct p9_stat);
+	memmove(p, st->name.str, st->name.len);
+	ret->name.str = p;
+	p += st->name.len;
+	memmove(p, st->uid.str, st->uid.len);
+	ret->uid.str = p;
+	p += st->uid.len;
+	memmove(p, st->gid.str, st->gid.len);
+	ret->gid.str = p;
+	p += st->gid.len;
+	memmove(p, st->muid.str, st->muid.len);
+	ret->muid.str = p;
+	p += st->muid.len;
+
+	if (dotu) {
+		memmove(p, st->extension.str, st->extension.len);
+		ret->extension.str = p;
+		p += st->extension.len;
+	}
+
+	return ret;
+}
+
 struct p9_stat *p9_client_stat(struct p9_fid *fid)
 {
 	int err;
@@ -986,93 +1071,3 @@ error:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(p9_client_dirread);
-
-static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu)
-{
-	int n;
-	char *p;
-	struct p9_stat *ret;
-
-	n = sizeof(struct p9_stat) + st->name.len + st->uid.len + st->gid.len +
-		st->muid.len;
-
-	if (dotu)
-		n += st->extension.len;
-
-	ret = kmalloc(n, GFP_KERNEL);
-	if (!ret)
-		return ERR_PTR(-ENOMEM);
-
-	memmove(ret, st, sizeof(struct p9_stat));
-	p = ((char *) ret) + sizeof(struct p9_stat);
-	memmove(p, st->name.str, st->name.len);
-	ret->name.str = p;
-	p += st->name.len;
-	memmove(p, st->uid.str, st->uid.len);
-	ret->uid.str = p;
-	p += st->uid.len;
-	memmove(p, st->gid.str, st->gid.len);
-	ret->gid.str = p;
-	p += st->gid.len;
-	memmove(p, st->muid.str, st->muid.len);
-	ret->muid.str = p;
-	p += st->muid.len;
-
-	if (dotu) {
-		memmove(p, st->extension.str, st->extension.len);
-		ret->extension.str = p;
-		p += st->extension.len;
-	}
-
-	return ret;
-}
-
-static struct p9_fid *p9_fid_create(struct p9_client *clnt)
-{
-	int err;
-	struct p9_fid *fid;
-
-	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
-	fid = kmalloc(sizeof(struct p9_fid), GFP_KERNEL);
-	if (!fid)
-		return ERR_PTR(-ENOMEM);
-
-	fid->fid = p9_idpool_get(clnt->fidpool);
-	if (fid->fid < 0) {
-		err = -ENOSPC;
-		goto error;
-	}
-
-	memset(&fid->qid, 0, sizeof(struct p9_qid));
-	fid->mode = -1;
-	fid->rdir_fpos = 0;
-	fid->rdir_pos = 0;
-	fid->rdir_fcall = NULL;
-	fid->uid = current->fsuid;
-	fid->clnt = clnt;
-	fid->aux = NULL;
-
-	spin_lock(&clnt->lock);
-	list_add(&fid->flist, &clnt->fidlist);
-	spin_unlock(&clnt->lock);
-
-	return fid;
-
-error:
-	kfree(fid);
-	return ERR_PTR(err);
-}
-
-static void p9_fid_destroy(struct p9_fid *fid)
-{
-	struct p9_client *clnt;
-
-	P9_DPRINTK(P9_DEBUG_9P, "fid %d\n", fid->fid);
-	clnt = fid->clnt;
-	p9_idpool_put(fid->fid, clnt->fidpool);
-	spin_lock(&clnt->lock);
-	list_del(&fid->flist);
-	spin_unlock(&clnt->lock);
-	kfree(fid->rdir_fcall);
-	kfree(fid);
-}
