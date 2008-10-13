@@ -37,6 +37,8 @@
 #define PM_PREPWSTST_MPU_V	OMAP34XX_PRM_REGADDR(MPU_MOD, \
 				OMAP3430_PM_PREPWSTST)
 #define PM_PWSTCTRL_MPU_P	OMAP3430_PRM_BASE + MPU_MOD + PM_PWSTCTRL
+#define SRAM_BASE_P		0x40200000
+#define CONTROL_STAT		0x480022F0
 #define SCRATCHPAD_MEM_OFFS	0x310 /* Move this as correct place is
 				       * available */
 #define SCRATCHPAD_BASE_P	(OMAP343X_CTRL_BASE + OMAP343X_CONTROL_MEM_WKUP\
@@ -51,6 +53,40 @@ ENTRY(get_restore_pointer)
         ldmfd   sp!, {pc}     @ restore regs and return
 ENTRY(get_restore_pointer_sz)
         .word   . - get_restore_pointer_sz
+
+/* Function to call rom code to save secure ram context */
+ENTRY(save_secure_ram_context)
+	stmfd	sp!, {r1-r12, lr}	@ save registers on stack
+save_secure_ram_debug:
+	/* b save_secure_ram_debug */	@ enable to debug save code
+	adr	r3, api_params		@ r3 points to parameters
+	str	r0, [r3,#0x4]		@ r0 has sdram address
+	ldr	r12, high_mask
+	and	r3, r3, r12
+	ldr	r12, sram_phy_addr_mask
+	orr	r3, r3, r12
+	mov	r0, #25			@ set service ID for PPA
+	mov	r12, r0			@ copy secure service ID in r12
+	mov	r1, #0			@ set task id for ROM code in r1
+	mov	r2, #7			@ set some flags in r2, r6
+	mov	r6, #0xff
+	mcr	p15, 0, r0, c7, c10, 4	@ data write barrier
+	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
+	.word	0xE1600071		@ call SMI monitor (smi #1)
+	nop
+	nop
+	nop
+	nop
+	ldmfd	sp!, {r1-r12, pc}
+sram_phy_addr_mask:
+	.word	SRAM_BASE_P
+high_mask:
+	.word	0xffff
+api_params:
+	.word	0x4, 0x0, 0x0, 0x1, 0x1
+ENTRY(save_secure_ram_context_sz)
+	.word	. - save_secure_ram_context
+
 /*
  * Forces OMAP into idle state
  *
@@ -107,9 +143,44 @@ restore:
         moveq   r9, #0x3        @ MPU OFF => L1 and L2 lost
 	movne	r9, #0x1	@ Only L1 and L2 lost => avoid L2 invalidation
 	bne	logic_l1_restore
+	ldr	r0, control_stat
+	ldr	r1, [r0]
+	and	r1, #0x700
+	cmp	r1, #0x300
+	beq	l2_inv_gp
+	mov	r0, #40		@ set service ID for PPA
+	mov	r12, r0		@ copy secure Service ID in r12
+	mov	r1, #0		@ set task id for ROM code in r1
+	mov	r2, #4		@ set some flags in r2, r6
+	mov	r6, #0xff
+	adr	r3, l2_inv_api_params	@ r3 points to dummy parameters
+	mcr	p15, 0, r0, c7, c10, 4	@ data write barrier
+	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
+	.word	0xE1600071		@ call SMI monitor (smi #1)
+	/* Write to Aux control register to set some bits */
+	mov	r0, #42		@ set service ID for PPA
+	mov	r12, r0		@ copy secure Service ID in r12
+	mov	r1, #0		@ set task id for ROM code in r1
+	mov	r2, #4		@ set some flags in r2, r6
+	mov	r6, #0xff
+	adr	r3, write_aux_control_params	@ r3 points to parameters
+	mcr	p15, 0, r0, c7, c10, 4	@ data write barrier
+	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
+	.word	0xE1600071		@ call SMI monitor (smi #1)
+
+	b	logic_l1_restore
+l2_inv_api_params:
+	.word   0x1, 0x00
+write_aux_control_params:
+	.word   0x1, 0x72
+l2_inv_gp:
 	/* Execute smi to invalidate L2 cache */
 	mov r12, #0x1                         @ set up to invalide L2
-smi:    .word 0xE1600070                @ Call SMI monitor (smieq)
+smi:    .word 0xE1600070		@ Call SMI monitor (smieq)
+	/* Write to Aux control register to set some bits */
+	mov	r0, #0x72
+	mov	r12, #0x3
+	.word 0xE1600070	@ Call SMI monitor (smieq)
 logic_l1_restore:
 	mov	r1, #0
 	/* Invalidate all instruction caches to PoU
@@ -429,5 +500,7 @@ table_entry:
 	.word	0x00000C02
 cache_pred_disable_mask:
 	.word	0xFFFFE7FB
+control_stat:
+	.word	CONTROL_STAT
 ENTRY(omap34xx_cpu_suspend_sz)
 	.word	. - omap34xx_cpu_suspend

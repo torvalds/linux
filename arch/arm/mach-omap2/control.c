@@ -85,6 +85,8 @@ struct omap3_scratchpad_sdrc_block {
 	u32 block_size;
 };
 
+void *omap3_secure_ram_storage;
+
 /*
  * This is used to store ARM registers in SDRAM before attempting
  * an MPU OFF. The save and restore happens from the SRAM sleep code.
@@ -209,7 +211,11 @@ void omap3_save_scratchpad_contents(void)
 	scratchpad_contents.boot_config_ptr = 0x0;
 	scratchpad_contents.public_restore_ptr =
 			 virt_to_phys(get_restore_pointer());
-	scratchpad_contents.secure_ram_restore_ptr = 0x0;
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		scratchpad_contents.secure_ram_restore_ptr = 0x0;
+	else
+		scratchpad_contents.secure_ram_restore_ptr =
+			(u32) __pa(omap3_secure_ram_storage);
 	scratchpad_contents.sdrc_module_semaphore = 0x0;
 	scratchpad_contents.prcm_block_offset = 0x2C;
 	scratchpad_contents.sdrc_block_offset = 0x64;
