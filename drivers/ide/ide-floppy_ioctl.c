@@ -195,7 +195,7 @@ static int ide_floppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 	int progress_indication = 0x10000;
 
 	if (drive->atapi_flags & IDE_AFLAG_SRFP) {
-		ide_floppy_create_request_sense_cmd(&pc);
+		ide_create_request_sense_cmd(drive, &pc);
 		if (ide_queue_pc_tail(drive, floppy->disk, &pc))
 			return -EIO;
 

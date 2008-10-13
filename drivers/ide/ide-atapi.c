@@ -124,8 +124,8 @@ EXPORT_SYMBOL_GPL(ide_init_pc);
  * the current request, so that it will be processed immediately, on the next
  * pass through the driver.
  */
-void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
-		       struct ide_atapi_pc *pc, struct request *rq)
+static void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
+			      struct ide_atapi_pc *pc, struct request *rq)
 {
 	blk_rq_init(NULL, rq);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
@@ -137,7 +137,6 @@ void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
 		rq->cmd[13] = REQ_IDETAPE_PC1;
 	ide_do_drive_cmd(drive, rq);
 }
-EXPORT_SYMBOL_GPL(ide_queue_pc_head);
 
 /*
  * Add a special packet command request to the tail of the request queue,
@@ -203,6 +202,37 @@ int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
 }
 EXPORT_SYMBOL_GPL(ide_set_media_lock);
 
+void ide_create_request_sense_cmd(ide_drive_t *drive, struct ide_atapi_pc *pc)
+{
+	ide_init_pc(pc);
+	pc->c[0] = REQUEST_SENSE;
+	if (drive->media == ide_floppy) {
+		pc->c[4] = 255;
+		pc->req_xfer = 18;
+	} else {
+		pc->c[4] = 20;
+		pc->req_xfer = 20;
+	}
+}
+EXPORT_SYMBOL_GPL(ide_create_request_sense_cmd);
+
+/*
+ * Called when an error was detected during the last packet command.
+ * We queue a request sense packet command in the head of the request list.
+ */
+void ide_retry_pc(ide_drive_t *drive, struct gendisk *disk)
+{
+	struct request *rq = &drive->request_sense_rq;
+	struct ide_atapi_pc *pc = &drive->request_sense_pc;
+
+	(void)ide_read_error(drive);
+	ide_create_request_sense_cmd(drive, pc);
+	if (drive->media == ide_tape)
+		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
+	ide_queue_pc_head(drive, disk, pc, rq);
+}
+EXPORT_SYMBOL_GPL(ide_retry_pc);
+
 int ide_scsi_expiry(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
@@ -219,7 +249,6 @@ EXPORT_SYMBOL_GPL(ide_scsi_expiry);
 /* TODO: unify the code thus making some arguments go away */
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
-	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
 {
 	struct ide_atapi_pc *pc = drive->pc;
@@ -299,7 +328,7 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
 			debug_log("[cmd %x]: check condition\n", rq->cmd[0]);
 
 			/* Retry operation */
-			retry_pc(drive);
+			ide_retry_pc(drive, rq->rq_disk);
 
 			/* queued, but not started */
 			return ide_stopped;

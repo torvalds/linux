@@ -581,31 +581,6 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 	idetape_end_request(drive, uptodate, 0);
 }
 
-static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
-{
-	ide_init_pc(pc);
-	pc->c[0] = REQUEST_SENSE;
-	pc->c[4] = 20;
-	pc->req_xfer = 20;
-}
-
-/*
- *	idetape_retry_pc is called when an error was detected during the
- *	last packet command. We queue a request sense packet command in
- *	the head of the request list.
- */
-static void idetape_retry_pc(ide_drive_t *drive)
-{
-	struct ide_tape_obj *tape = drive->driver_data;
-	struct request *rq = &drive->request_sense_rq;
-	struct ide_atapi_pc *pc = &drive->request_sense_pc;
-
-	(void)ide_read_error(drive);
-	idetape_create_request_sense_cmd(pc);
-	set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
-	ide_queue_pc_head(drive, tape->disk, pc, rq);
-}
-
 /*
  * Postpone the current request so that ide.c will be able to service requests
  * from another device on the same hwgroup while we are polling for DSC.
@@ -653,7 +628,7 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 {
 	return ide_pc_intr(drive, idetape_pc_intr, idetape_update_buffers,
-			   idetape_retry_pc, ide_tape_io_buffers);
+			   ide_tape_io_buffers);
 }
 
 /*
@@ -789,7 +764,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 				printk(KERN_ERR "ide-tape: %s: I/O error, ",
 						tape->name);
 			/* Retry operation */
-			idetape_retry_pc(drive);
+			ide_retry_pc(drive, tape->disk);
 			return ide_stopped;
 		}
 		pc->error = 0;

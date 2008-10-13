@@ -193,34 +193,11 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 	idefloppy_end_request(drive, uptodate, 0);
 }
 
-void ide_floppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
-{
-	ide_init_pc(pc);
-	pc->c[0] = GPCMD_REQUEST_SENSE;
-	pc->c[4] = 255;
-	pc->req_xfer = 18;
-}
-
-/*
- * Called when an error was detected during the last packet command. We queue a
- * request sense packet command in the head of the request list.
- */
-static void idefloppy_retry_pc(ide_drive_t *drive)
-{
-	struct ide_floppy_obj *floppy = drive->driver_data;
-	struct request *rq = &drive->request_sense_rq;
-	struct ide_atapi_pc *pc = &drive->request_sense_pc;
-
-	(void)ide_read_error(drive);
-	ide_floppy_create_request_sense_cmd(pc);
-	ide_queue_pc_head(drive, floppy->disk, pc, rq);
-}
-
 /* The usual interrupt handler called during a packet command. */
 static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 {
 	return ide_pc_intr(drive, idefloppy_pc_intr, idefloppy_update_buffers,
-			   idefloppy_retry_pc, ide_io_buffers);
+			   ide_io_buffers);
 }
 
 /*

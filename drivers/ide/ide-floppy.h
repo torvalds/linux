@@ -49,7 +49,6 @@ typedef struct ide_floppy_obj {
 /* ide-floppy.c */
 void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *, u8);
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *);
-void ide_floppy_create_request_sense_cmd(struct ide_atapi_pc *);
 
 /* ide-floppy_ioctl.c */
 int ide_floppy_format_ioctl(ide_drive_t *, struct file *, unsigned int,

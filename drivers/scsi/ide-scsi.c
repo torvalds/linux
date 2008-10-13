@@ -275,7 +275,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
  */
 static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 {
-	return ide_pc_intr(drive, idescsi_pc_intr, NULL, NULL, ide_io_buffers);
+	return ide_pc_intr(drive, idescsi_pc_intr, NULL, ide_io_buffers);
 }
 
 static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)

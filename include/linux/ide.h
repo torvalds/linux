@@ -1169,13 +1169,13 @@ enum {
 	REQ_IDETAPE_WRITE	= (1 << 3),
 };
 
-void ide_queue_pc_head(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *,
-		       struct request *);
 int ide_queue_pc_tail(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *);
 
 int ide_do_test_unit_ready(ide_drive_t *, struct gendisk *);
 int ide_do_start_stop(ide_drive_t *, struct gendisk *, int);
 int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
+void ide_create_request_sense_cmd(ide_drive_t *, struct ide_atapi_pc *);
+void ide_retry_pc(ide_drive_t *, struct gendisk *);
 
 static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
 {
@@ -1186,7 +1186,6 @@ int ide_scsi_expiry(ide_drive_t *);
 
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
-	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,
 			   int));
 ide_startstop_t ide_transfer_pc(ide_drive_t *,
