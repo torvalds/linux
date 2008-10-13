@@ -44,6 +44,13 @@
 
 #include "prm.h"
 #include "pm.h"
+#include "sdrc.h"
+
+#define SDRC_POWER_AUTOCOUNT_SHIFT 8
+#define SDRC_POWER_AUTOCOUNT_MASK (0xffff << SDRC_POWER_AUTOCOUNT_SHIFT)
+#define SDRC_POWER_CLKCTRL_SHIFT 4
+#define SDRC_POWER_CLKCTRL_MASK (0x3 << SDRC_POWER_CLKCTRL_SHIFT)
+#define SDRC_SELF_REFRESH_ON_AUTOCOUNT (0x2 << SDRC_POWER_CLKCTRL_SHIFT)
 
 /* Scratchpad offsets */
 #define OMAP343X_TABLE_ADDRESS_OFFSET	   0x31
@@ -297,6 +304,7 @@ static void omap_sram_idle(void)
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
 	int core_prev_state, per_prev_state;
+	u32 sdrc_pwr = 0;
 
 	if (!_omap_sram_idle)
 		return;
@@ -349,12 +357,33 @@ static void omap_sram_idle(void)
 	}
 
 	/*
+	 * Force SDRAM controller to self-refresh mode after timeout on
+	 * autocount. This is needed on ES3.0 to avoid SDRAM controller
+	 * hang-ups.
+	 */
+	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
+	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
+	    core_next_state == PWRDM_POWER_OFF) {
+		sdrc_pwr = sdrc_read_reg(SDRC_POWER);
+		sdrc_write_reg((sdrc_pwr &
+			~(SDRC_POWER_AUTOCOUNT_MASK|SDRC_POWER_CLKCTRL_MASK)) |
+			(1 << SDRC_POWER_AUTOCOUNT_SHIFT) |
+			SDRC_SELF_REFRESH_ON_AUTOCOUNT, SDRC_POWER);
+	}
+
+	/*
 	 * omap3_arm_context is the location where ARM registers
 	 * get saved. The restore path then reads from this
 	 * location and restores them back.
 	 */
 	_omap_sram_idle(omap3_arm_context, save_state);
 	cpu_init();
+
+	/* Restore normal SDRAM settings */
+	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
+	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
+	    core_next_state == PWRDM_POWER_OFF)
+		sdrc_write_reg(sdrc_pwr, SDRC_POWER);
 
 	/* Restore table entry modified during MMU restoration */
 	if (pwrdm_read_prev_pwrst(mpu_pwrdm) == PWRDM_POWER_OFF)
