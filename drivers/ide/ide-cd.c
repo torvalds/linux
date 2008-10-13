@@ -562,22 +562,21 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 						  int xferlen,
 						  ide_handler_t *handler)
 {
-	struct cdrom_info *info = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
 
 	ide_debug_log(IDE_DBG_PC, "Call %s, xferlen: %d\n", __func__, xferlen);
 
 	/* FIXME: for Virtual DMA we must check harder */
-	if (info->dma)
-		info->dma = !hwif->dma_ops->dma_setup(drive);
+	if (drive->dma)
+		drive->dma = !hwif->dma_ops->dma_setup(drive);
 
 	/* set up the controller registers */
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL,
-			   xferlen, info->dma);
+			   xferlen, drive->dma);
 
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
 		/* waiting for CDB interrupt, not DMA yet. */
-		if (info->dma)
+		if (drive->dma)
 			drive->waiting_for_dma = 0;
 
 		/* packet command */
@@ -604,7 +603,6 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 {
 	ide_hwif_t *hwif = drive->hwif;
 	int cmd_len;
-	struct cdrom_info *info = drive->driver_data;
 	ide_startstop_t startstop;
 
 	ide_debug_log(IDE_DBG_PC, "Call %s\n", __func__);
@@ -620,7 +618,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 			return ide_stopped;
 
 		/* ok, next interrupt will be DMA interrupt */
-		if (info->dma)
+		if (drive->dma)
 			drive->waiting_for_dma = 1;
 	} else {
 		/* otherwise, we must wait for DRQ to get set */
@@ -641,7 +639,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 	hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	/* start the DMA if need be */
-	if (info->dma)
+	if (drive->dma)
 		hwif->dma_ops->dma_start(drive);
 
 	return ide_started;
@@ -955,7 +953,6 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct cdrom_info *info = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
@@ -969,9 +966,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		      __func__, rq->cmd[0], write);
 
 	/* check for errors */
-	dma = info->dma;
+	dma = drive->dma;
 	if (dma) {
-		info->dma = 0;
+		drive->dma = 0;
 		dma_error = hwif->dma_ops->dma_end(drive);
 		if (dma_error) {
 			printk(KERN_ERR PFX "%s: DMA %s error\n", drive->name,
@@ -1204,9 +1201,9 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 			cdrom_end_request(drive, 0);
 			return ide_stopped;
 		}
-		cd->dma = 0;
+		drive->dma = 0;
 	} else
-		cd->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
+		drive->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
 	if (write)
 		cd->devinfo.media_written = 1;
@@ -1223,7 +1220,6 @@ static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
 
 static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 {
-	struct cdrom_info *info = drive->driver_data;
 
 	ide_debug_log(IDE_DBG_PC, "Call %s, rq->cmd_type: 0x%x\n", __func__,
 		      rq->cmd_type);
@@ -1233,7 +1229,7 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 	else
 		rq->cmd_flags &= ~REQ_FAILED;
 
-	info->dma = 0;
+	drive->dma = 0;
 
 	/* sg request */
 	if (rq->bio || ((rq->cmd_type == REQ_TYPE_ATA_PC) && rq->data_len)) {
@@ -1246,7 +1242,7 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		else
 			buf = rq->data;
 
-		info->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
+		drive->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
 		/*
 		 * check if dma is safe
@@ -1257,7 +1253,7 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		alignment = queue_dma_alignment(q) | q->dma_pad_mask;
 		if ((unsigned long)buf & alignment || rq->data_len & alignment
 		    || object_is_on_stack(buf))
-			info->dma = 0;
+			drive->dma = 0;
 	}
 }
 
@@ -1298,7 +1294,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 			xferlen = 0;
 			fn = cdrom_start_seek_continuation;
 
-			info->dma = 0;
+			drive->dma = 0;
 			info->start_seek = jiffies;
 
 			ide_cd_prepare_seek_request(drive, rq);
