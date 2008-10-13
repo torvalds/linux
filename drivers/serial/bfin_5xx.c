@@ -42,6 +42,9 @@
 #define BFIN_SERIAL_MAJOR	204
 #define BFIN_SERIAL_MINOR	64
 
+static struct bfin_serial_port bfin_serial_ports[BFIN_UART_NR_PORTS];
+static int nr_active_ports = ARRAY_SIZE(bfin_serial_resource);
+
 /*
  * Setup for console. Argument comes from the menuconfig
  */
@@ -859,7 +862,7 @@ static void __init bfin_serial_init_ports(void)
 		return;
 	first = 0;
 
-	for (i = 0; i < nr_ports; i++) {
+	for (i = 0; i < nr_active_ports; i++) {
 		bfin_serial_ports[i].port.uartclk   = get_sclk();
 		bfin_serial_ports[i].port.ops       = &bfin_serial_pops;
 		bfin_serial_ports[i].port.line      = i;
@@ -961,7 +964,7 @@ bfin_serial_console_setup(struct console *co, char *options)
 	 * if so, search for the first available port that does have
 	 * console support.
 	 */
-	if (co->index == -1 || co->index >= nr_ports)
+	if (co->index == -1 || co->index >= nr_active_ports)
 		co->index = 0;
 	uart = &bfin_serial_ports[co->index];
 
@@ -1072,7 +1075,7 @@ struct console __init *bfin_earlyserial_init(unsigned int port,
 	struct bfin_serial_port *uart;
 	struct ktermios t;
 
-	if (port == -1 || port >= nr_ports)
+	if (port == -1 || port >= nr_active_ports)
 		port = 0;
 	bfin_serial_init_ports();
 	bfin_early_serial_console.index = port;
@@ -1102,7 +1105,7 @@ static int bfin_serial_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
 
-	for (i = 0; i < nr_ports; i++) {
+	for (i = 0; i < nr_active_ports; i++) {
 		if (bfin_serial_ports[i].port.dev != &dev->dev)
 			continue;
 		uart_suspend_port(&bfin_serial_reg, &bfin_serial_ports[i].port);
@@ -1115,7 +1118,7 @@ static int bfin_serial_resume(struct platform_device *dev)
 {
 	int i;
 
-	for (i = 0; i < nr_ports; i++) {
+	for (i = 0; i < nr_active_ports; i++) {
 		if (bfin_serial_ports[i].port.dev != &dev->dev)
 			continue;
 		uart_resume_port(&bfin_serial_reg, &bfin_serial_ports[i].port);
@@ -1134,7 +1137,7 @@ static int bfin_serial_probe(struct platform_device *dev)
 			break;
 
 	if (i < dev->num_resources) {
-		for (i = 0; i < nr_ports; i++, res++) {
+		for (i = 0; i < nr_active_ports; i++, res++) {
 			if (bfin_serial_ports[i].port.mapbase != res->start)
 				continue;
 			bfin_serial_ports[i].port.dev = &dev->dev;
@@ -1149,7 +1152,7 @@ static int bfin_serial_remove(struct platform_device *dev)
 {
 	int i;
 
-	for (i = 0; i < nr_ports; i++) {
+	for (i = 0; i < nr_active_ports; i++) {
 		if (bfin_serial_ports[i].port.dev != &dev->dev)
 			continue;
 		uart_remove_one_port(&bfin_serial_reg, &bfin_serial_ports[i].port);
