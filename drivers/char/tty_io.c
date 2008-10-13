@@ -1482,6 +1482,31 @@ release_mem_out:
 	goto end_init;
 }
 
+void tty_free_termios(struct tty_struct *tty)
+{
+	struct ktermios *tp;
+	int idx = tty->index;
+	/* Kill this flag and push into drivers for locking etc */
+	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
+		/* FIXME: Locking on ->termios array */
+		tp = tty->termios;
+		tty->driver->termios[idx] = NULL;
+		kfree(tp);
+
+		tp = tty->termios_locked;
+		tty->driver->termios_locked[idx] = NULL;
+		kfree(tp);
+	}
+}
+EXPORT_SYMBOL(tty_free_termios);
+
+void tty_shutdown(struct tty_struct *tty)
+{
+	tty->driver->ttys[tty->index] = NULL;
+	tty_free_termios(tty);
+}
+EXPORT_SYMBOL(tty_shutdown);
+
 /**
  *	release_one_tty		-	release tty structure memory
  *	@kref: kref of tty we are obliterating
@@ -1499,27 +1524,11 @@ static void release_one_tty(struct kref *kref)
 {
 	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
 	struct tty_driver *driver = tty->driver;
-	int devpts = tty->driver->flags & TTY_DRIVER_DEVPTS_MEM;
-	struct ktermios *tp;
-	int idx = tty->index;
 
-	if (!devpts)
-		tty->driver->ttys[idx] = NULL;
-
-	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
-		/* FIXME: Locking on ->termios array */
-		tp = tty->termios;
-		if (!devpts)
-			tty->driver->termios[idx] = NULL;
-		kfree(tp);
-
-		tp = tty->termios_locked;
-		if (!devpts)
-			tty->driver->termios_locked[idx] = NULL;
-		kfree(tp);
-	}
-
-
+	if (tty->ops->shutdown)
+		tty->ops->shutdown(tty);
+	else
+		tty_shutdown(tty);
 	tty->magic = 0;
 	/* FIXME: locking on tty->driver->refcount */
 	tty->driver->refcount--;
