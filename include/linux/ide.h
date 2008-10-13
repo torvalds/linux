@@ -1412,6 +1412,7 @@ struct drive_list_entry {
 int ide_in_drive_list(u16 *, const struct drive_list_entry *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
+int ide_dma_good_drive(ide_drive_t *);
 int __ide_dma_bad_drive(ide_drive_t *);
 int ide_id_dma_bug(ide_drive_t *);
 
@@ -1436,6 +1437,7 @@ int ide_build_sglist(ide_drive_t *, struct request *);
 void ide_destroy_dmatable(ide_drive_t *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_SFF
+int config_drive_for_dma(ide_drive_t *);
 extern int ide_build_dmatable(ide_drive_t *, struct request *);
 void ide_dma_host_set(ide_drive_t *, int);
 extern int ide_dma_setup(ide_drive_t *);
@@ -1444,6 +1446,8 @@ extern void ide_dma_start(ide_drive_t *);
 int ide_dma_end(ide_drive_t *);
 int ide_dma_test_irq(ide_drive_t *);
 extern const struct ide_dma_ops sff_dma_ops;
+#else
+static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }
 #endif /* CONFIG_BLK_DEV_IDEDMA_SFF */
 
 void ide_dma_lost_irq(ide_drive_t *);
