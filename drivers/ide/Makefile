@@ -39,6 +39,10 @@ obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
 ide-cd_mod-y += ide-cd.o ide-cd_ioctl.o ide-cd_verbose.o
 ide-floppy_mod-y += ide-floppy.o ide-floppy_ioctl.o
 
+ifeq ($(CONFIG_IDE_PROC_FS), y)
+	ide-floppy_mod-y += ide-floppy_proc.o
+endif
+
 obj-$(CONFIG_BLK_DEV_IDEDISK)		+= ide-disk.o
 obj-$(CONFIG_BLK_DEV_IDECD)		+= ide-cd_mod.o
 obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy_mod.o

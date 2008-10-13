@@ -552,28 +552,13 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	return rc;
 }
 
-static sector_t idefloppy_capacity(ide_drive_t *drive)
+sector_t ide_floppy_capacity(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	unsigned long capacity = floppy->blocks * floppy->bs_factor;
 
 	return capacity;
 }
-
-#ifdef CONFIG_IDE_PROC_FS
-ide_devset_rw_field(bios_cyl, bios_cyl);
-ide_devset_rw_field(bios_head, bios_head);
-ide_devset_rw_field(bios_sect, bios_sect);
-ide_devset_rw_field(ticks, pc_delay);
-
-static const struct ide_proc_devset idefloppy_settings[] = {
-	IDE_PROC_DEVSET(bios_cyl,  0, 1023),
-	IDE_PROC_DEVSET(bios_head, 0,  255),
-	IDE_PROC_DEVSET(bios_sect, 0,   63),
-	IDE_PROC_DEVSET(ticks,	   0,  255),
-	{ 0 },
-};
-#endif
 
 static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 {
@@ -639,24 +624,6 @@ static void idefloppy_cleanup_obj(struct kref *kref)
 	kfree(floppy);
 }
 
-#ifdef CONFIG_IDE_PROC_FS
-static int proc_idefloppy_read_capacity(char *page, char **start, off_t off,
-		int count, int *eof, void *data)
-{
-	ide_drive_t*drive = (ide_drive_t *)data;
-	int len;
-
-	len = sprintf(page, "%llu\n", (long long)idefloppy_capacity(drive));
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
-}
-
-static ide_proc_entry_t idefloppy_proc[] = {
-	{ "capacity",	S_IFREG|S_IRUGO, proc_idefloppy_read_capacity,	NULL },
-	{ "geometry",	S_IFREG|S_IRUGO, proc_ide_read_geometry,	NULL },
-	{ NULL, 0, NULL, NULL }
-};
-#endif	/* CONFIG_IDE_PROC_FS */
-
 static int ide_floppy_probe(ide_drive_t *);
 
 static ide_driver_t idefloppy_driver = {
@@ -672,8 +639,8 @@ static ide_driver_t idefloppy_driver = {
 	.end_request		= idefloppy_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idefloppy_proc,
-	.settings		= idefloppy_settings,
+	.proc			= ide_floppy_proc,
+	.settings		= ide_floppy_settings,
 #endif
 };
 
@@ -784,7 +751,7 @@ static int idefloppy_media_changed(struct gendisk *disk)
 static int idefloppy_revalidate_disk(struct gendisk *disk)
 {
 	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
-	set_capacity(disk, idefloppy_capacity(floppy->drive));
+	set_capacity(disk, ide_floppy_capacity(floppy->drive));
 	return 0;
 }
 
