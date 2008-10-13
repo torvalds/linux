@@ -119,6 +119,8 @@ typedef void (*p9_conn_req_callback)(struct p9_req *req, void *a);
  * @cba: argument to pass to callback
  * @flush: flag to indicate RPC has been flushed
  * @req_list: list link for higher level objects to chain requests
+ * @m: connection this request was issued on
+ * @wqueue: wait queue that client is blocked on for this rpc
  *
  */
 
@@ -132,6 +134,8 @@ struct p9_req {
 	void *cba;
 	int flush;
 	struct list_head req_list;
+	struct p9_conn *m;
+	wait_queue_head_t wqueue;
 };
 
 struct p9_poll_wait {
@@ -184,25 +188,6 @@ struct p9_conn {
 	struct work_struct rq;
 	struct work_struct wq;
 	unsigned long wsched;
-};
-
-/**
- * struct p9_mux_rpc - fd mux rpc accounting structure
- * @m: connection this request was issued on
- * @err: error state
- * @tcall: request &p9_fcall
- * @rcall: response &p9_fcall
- * @wqueue: wait queue that client is blocked on for this rpc
- *
- * Bug: isn't this information duplicated elsewhere like &p9_req
- */
-
-struct p9_mux_rpc {
-	struct p9_conn *m;
-	int err;
-	struct p9_fcall *tcall;
-	struct p9_fcall *rcall;
-	wait_queue_head_t wqueue;
 };
 
 static DEFINE_SPINLOCK(p9_poll_lock);
@@ -844,6 +829,8 @@ static struct p9_req *p9_send_request(struct p9_conn *m,
 #endif
 
 	spin_lock_init(&req->lock);
+	req->m = m;
+	init_waitqueue_head(&req->wqueue);
 	req->tag = n;
 	req->tcall = tc;
 	req->rcall = NULL;
@@ -954,20 +941,14 @@ p9_mux_flush_request(struct p9_conn *m, struct p9_req *req)
 	return 1;
 }
 
-static void
-p9_conn_rpc_cb(struct p9_req *req, void *a)
+static void p9_conn_rpc_cb(struct p9_req *req, void *a)
 {
-	struct p9_mux_rpc *r;
-
-	P9_DPRINTK(P9_DEBUG_MUX, "req %p r %p\n", req, a);
-	r = a;
-	r->rcall = req->rcall;
-	r->err = req->err;
+	P9_DPRINTK(P9_DEBUG_MUX, "req %p arg %p\n", req, a);
 
 	if (req->flush != None && !req->err)
-		r->err = -ERESTARTSYS;
+		req->err = -ERESTARTSYS;
 
-	wake_up(&r->wqueue);
+	wake_up(&req->wqueue);
 }
 
 /**
@@ -987,13 +968,6 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 	int err, sigpending;
 	unsigned long flags;
 	struct p9_req *req;
-	struct p9_mux_rpc r;
-
-	r.err = 0;
-	r.tcall = tc;
-	r.rcall = NULL;
-	r.m = m;
-	init_waitqueue_head(&r.wqueue);
 
 	if (rc)
 		*rc = NULL;
@@ -1004,16 +978,17 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 		clear_thread_flag(TIF_SIGPENDING);
 	}
 
-	req = p9_send_request(m, tc, p9_conn_rpc_cb, &r);
+	req = p9_send_request(m, tc, p9_conn_rpc_cb, NULL);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		P9_DPRINTK(P9_DEBUG_MUX, "error %d\n", err);
 		return err;
 	}
 
-	err = wait_event_interruptible(r.wqueue, r.rcall != NULL || r.err < 0);
-	if (r.err < 0)
-		err = r.err;
+	err = wait_event_interruptible(req->wqueue, req->rcall != NULL ||
+								req->err < 0);
+	if (req->err < 0)
+		err = req->err;
 
 	if (err == -ERESTARTSYS && client->status == Connected
 							&& m->err == 0) {
@@ -1021,10 +996,11 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 			/* wait until we get response of the flush message */
 			do {
 				clear_thread_flag(TIF_SIGPENDING);
-				err = wait_event_interruptible(r.wqueue,
-					r.rcall || r.err);
-			} while (!r.rcall && !r.err && err == -ERESTARTSYS &&
-				client->status == Connected && !m->err);
+				err = wait_event_interruptible(req->wqueue,
+					req->rcall || req->err);
+			} while (!req->rcall && !req->err &&
+					err == -ERESTARTSYS &&
+					client->status == Connected && !m->err);
 
 			err = -ERESTARTSYS;
 		}
@@ -1038,9 +1014,9 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 	}
 
 	if (rc)
-		*rc = r.rcall;
+		*rc = req->rcall;
 	else
-		kfree(r.rcall);
+		kfree(req->rcall);
 
 	p9_mux_free_request(m, req);
 	if (err > 0)
