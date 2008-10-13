@@ -1161,7 +1161,6 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 {
 	int ret = -EINVAL;
 	u16 id1, id2, mask, mode;
-	int i;
 
 	/* get WM8350 revision and config mode */
 	wm8350->read_dev(wm8350, WM8350_RESET_ID, sizeof(id1), &id1);
