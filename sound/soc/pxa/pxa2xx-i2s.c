@@ -3,7 +3,7 @@
  *
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ *         lrg@slimlogic.co.uk
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -405,6 +405,6 @@ module_init(pxa2xx_i2s_init);
 module_exit(pxa2xx_i2s_exit);
 
 /* Module information */
-MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
+MODULE_AUTHOR("Liam Girdwood, lrg@slimlogic.co.uk");
 MODULE_DESCRIPTION("pxa2xx I2S SoC Interface");
 MODULE_LICENSE("GPL");

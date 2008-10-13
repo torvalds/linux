@@ -4,7 +4,7 @@
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
  *
- * Authors: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -281,8 +281,8 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_disable_pin(codec, "LLINEIN");
-	snd_soc_dapm_disable_pin(codec, "RLINEIN");
+	snd_soc_dapm_nc_pin(codec, "LLINEIN");
+	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 
 	/* Add corgi specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8731_corgi_controls); i++) {

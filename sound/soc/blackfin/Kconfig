@@ -17,6 +17,22 @@ config SND_BF5XX_SOC_SSM2602
 	help
 	  Say Y if you want to add support for SoC audio on BF527-EZKIT.
 
+config SND_BF5XX_SOC_AD73311
+	tristate "SoC AD73311 Audio support for Blackfin"
+	depends on SND_BF5XX_I2S
+	select SND_BF5XX_SOC_I2S
+	select SND_SOC_AD73311
+	help
+	  Say Y if you want to add support for AD73311 codec on Blackfin.
+
+config SND_BFIN_AD73311_SE
+	int "PF pin for AD73311L Chip Select"
+	depends on SND_BF5XX_SOC_AD73311
+	default 4
+	help
+	  Enter the GPIO used to control AD73311's SE pin. Acceptable
+	  values are 0 to 7
+
 config SND_BF5XX_AC97
 	tristate "SoC AC97 Audio for the ADI BF5xx chip"
 	depends on BLACKFIN && SND_SOC

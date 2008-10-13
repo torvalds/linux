@@ -30,7 +30,6 @@
 
 #include "wm8990.h"
 
-#define AUDIO_NAME "wm8990"
 #define WM8990_VERSION "0.2"
 
 /* codec private data */

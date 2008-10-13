@@ -123,6 +123,8 @@ struct sport_device {
 	int rx_pos;
 	unsigned int tx_buffer_size;
 	unsigned int rx_buffer_size;
+	int tx_delay_pos;
+	int once;
 #endif
 	void *private_data;
 };
