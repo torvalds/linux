@@ -1376,19 +1376,6 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	struct tty_struct *tty;
 	int retval;
 
-	/* check whether we're reopening an existing tty */
-	tty = tty_driver_lookup_tty(driver, idx);
-
-	if (IS_ERR(tty))
-		return tty;
-
-	if (tty) {
-		retval = tty_reopen(tty);
-		if (retval)
-			return ERR_PTR(retval);
-		return tty;
-	}
-
 	/* Check if pty master is being opened multiple times */
 	if (driver->subtype == PTY_TYPE_MASTER &&
 		(driver->flags & TTY_DRIVER_DEVPTS_MEM) && !first_ok)
@@ -1790,7 +1777,7 @@ void tty_release_dev(struct file *filp)
 
 static int __tty_open(struct inode *inode, struct file *filp)
 {
-	struct tty_struct *tty;
+	struct tty_struct *tty = NULL;
 	int noctty, retval;
 	struct tty_driver *driver;
 	int index;
@@ -1847,7 +1834,21 @@ retry_open:
 		return -ENODEV;
 	}
 got_driver:
-	tty = tty_init_dev(driver, index, 0);
+	if (!tty) {
+		/* check whether we're reopening an existing tty */
+		tty = tty_driver_lookup_tty(driver, index);
+
+		if (IS_ERR(tty))
+			return PTR_ERR(tty);
+	}
+
+	if (tty) {
+		retval = tty_reopen(tty);
+		if (retval)
+			tty = ERR_PTR(retval);
+	} else
+		tty = tty_init_dev(driver, index, 0);
+
 	mutex_unlock(&tty_mutex);
 	tty_driver_kref_put(driver);
 	if (IS_ERR(tty))
