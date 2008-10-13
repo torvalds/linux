@@ -685,8 +685,10 @@ static void smc911x_phy_detect(struct net_device *dev)
 	 * PHY#1 to PHY#31, and then PHY#0 last.
 	 */
 	switch(lp->version) {
-		case 0x115:
-		case 0x117:
+		case CHIP_9115:
+		case CHIP_9117:
+		case CHIP_9215:
+		case CHIP_9217:
 			cfg = SMC_GET_HW_CFG(lp);
 			if (cfg & HW_CFG_EXT_PHY_DET_) {
 				cfg &= ~HW_CFG_PHY_CLK_SEL_;
