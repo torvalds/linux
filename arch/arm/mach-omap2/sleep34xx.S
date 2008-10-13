@@ -34,6 +34,7 @@
 
 #define PM_PREPWSTST_CORE_V	OMAP34XX_PRM_REGADDR(CORE_MOD, \
 				OMAP3430_PM_PREPWSTST)
+#define PM_PREPWSTST_CORE_P	0x48306AE8
 #define PM_PREPWSTST_MPU_V	OMAP34XX_PRM_REGADDR(MPU_MOD, \
 				OMAP3430_PM_PREPWSTST)
 #define PM_PWSTCTRL_MPU_P	OMAP3430_PRM_BASE + MPU_MOD + PM_PWSTCTRL
@@ -44,6 +45,13 @@
 #define SCRATCHPAD_BASE_P	(OMAP343X_CTRL_BASE + OMAP343X_CONTROL_MEM_WKUP\
 						+ SCRATCHPAD_MEM_OFFS)
 #define SDRC_POWER_V		OMAP34XX_SDRC_REGADDR(SDRC_POWER)
+#define SDRC_SYSCONFIG_P	(OMAP343X_SDRC_BASE + SDRC_SYSCONFIG)
+#define SDRC_MR_0_P		(OMAP343X_SDRC_BASE + SDRC_MR_0)
+#define SDRC_EMR2_0_P		(OMAP343X_SDRC_BASE + SDRC_EMR2_0)
+#define SDRC_MANUAL_0_P		(OMAP343X_SDRC_BASE + SDRC_MANUAL_0)
+#define SDRC_MR_1_P		(OMAP343X_SDRC_BASE + SDRC_MR_1)
+#define SDRC_EMR2_1_P		(OMAP343X_SDRC_BASE + SDRC_EMR2_1)
+#define SDRC_MANUAL_1_P		(OMAP343X_SDRC_BASE + SDRC_MANUAL_1)
 
 	.text
 /* Function call to get the restore pointer for resume from OFF */
@@ -52,7 +60,59 @@ ENTRY(get_restore_pointer)
 	adr	r0, restore
         ldmfd   sp!, {pc}     @ restore regs and return
 ENTRY(get_restore_pointer_sz)
-        .word   . - get_restore_pointer_sz
+        .word   . - get_restore_pointer
+
+	.text
+/* Function call to get the restore pointer for for ES3 to resume from OFF */
+ENTRY(get_es3_restore_pointer)
+	stmfd	sp!, {lr}	@ save registers on stack
+	adr	r0, restore_es3
+	ldmfd	sp!, {pc}	@ restore regs and return
+ENTRY(get_es3_restore_pointer_sz)
+	.word	. - get_es3_restore_pointer
+
+ENTRY(es3_sdrc_fix)
+	ldr	r4, sdrc_syscfg		@ get config addr
+	ldr	r5, [r4]		@ get value
+	tst	r5, #0x100		@ is part access blocked
+	it	eq
+	biceq	r5, r5, #0x100		@ clear bit if set
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_mr_0		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_emr2_0		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_manual_0	@ get config addr
+	mov	r5, #0x2		@ autorefresh command
+	str	r5, [r4]		@ kick off refreshes
+	ldr	r4, sdrc_mr_1		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_emr2_1		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_manual_1	@ get config addr
+	mov	r5, #0x2		@ autorefresh command
+	str	r5, [r4]		@ kick off refreshes
+	bx	lr
+sdrc_syscfg:
+	.word	SDRC_SYSCONFIG_P
+sdrc_mr_0:
+	.word	SDRC_MR_0_P
+sdrc_emr2_0:
+	.word	SDRC_EMR2_0_P
+sdrc_manual_0:
+	.word	SDRC_MANUAL_0_P
+sdrc_mr_1:
+	.word	SDRC_MR_1_P
+sdrc_emr2_1:
+	.word	SDRC_EMR2_1_P
+sdrc_manual_1:
+	.word	SDRC_MANUAL_1_P
+ENTRY(es3_sdrc_fix_sz)
+	.word	. - es3_sdrc_fix
 
 /* Function to call rom code to save secure ram context */
 ENTRY(save_secure_ram_context)
@@ -130,6 +190,24 @@ loop:
 	bl i_dll_wait
 
 	ldmfd	sp!, {r0-r12, pc}		@ restore regs and return
+restore_es3:
+	/*b restore_es3*/		@ Enable to debug restore code
+	ldr	r5, pm_prepwstst_core_p
+	ldr	r4, [r5]
+	and	r4, r4, #0x3
+	cmp	r4, #0x0	@ Check if previous power state of CORE is OFF
+	bne	restore
+	adr	r0, es3_sdrc_fix
+	ldr	r1, sram_base
+	ldr	r2, es3_sdrc_fix_sz
+	mov	r2, r2, ror #2
+copy_to_sram:
+	ldmia	r0!, {r3}	@ val = *src
+	stmia	r1!, {r3}	@ *dst = val
+	subs	r2, r2, #0x1	@ num_words--
+	bne	copy_to_sram
+	ldr	r1, sram_base
+	blx	r1
 restore:
 	/* b restore*/  @ Enable to debug restore code
         /* Check what was the reason for mpu reset and store the reason in r9*/
@@ -478,12 +556,16 @@ i_dll_delay:
 	bx	lr
 pm_prepwstst_core:
 	.word	PM_PREPWSTST_CORE_V
+pm_prepwstst_core_p:
+	.word	PM_PREPWSTST_CORE_P
 pm_prepwstst_mpu:
 	.word	PM_PREPWSTST_MPU_V
 pm_pwstctrl_mpu:
 	.word	PM_PWSTCTRL_MPU_P
 scratchpad_base:
 	.word	SCRATCHPAD_BASE_P
+sram_base:
+	.word	SRAM_BASE_P + 0x8000
 sdrc_power:
 	.word SDRC_POWER_V
 clk_stabilize_delay:
