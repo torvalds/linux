@@ -43,12 +43,11 @@
 #include <asm/dma.h>
 
 #ifdef CONFIG_KGDB
-# include <linux/debugger.h>
 # include <linux/kgdb.h>
 
 # define CHK_DEBUGGER_TRAP() \
 	do { \
-		CHK_DEBUGGER(trapnr, sig, info.si_code, fp, ); \
+		kgdb_handle_exception(trapnr, sig, info.si_code, fp); \
 	} while (0)
 # define CHK_DEBUGGER_TRAP_MAYBE() \
 	do { \
@@ -300,7 +299,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
 		printk(KERN_NOTICE EXC_0x03(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x04 - User Defined, Caught by default */
 	/* 0x05 - User Defined, Caught by default */
@@ -329,7 +328,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
 		printk(KERN_NOTICE EXC_0x11(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x12 - Reserved, Caught by default */
 	/* 0x13 - Reserved, Caught by default */
@@ -351,35 +350,35 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
 		printk(KERN_NOTICE EXC_0x21(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x22 - Illegal Instruction Combination, handled here */
 	case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
 		printk(KERN_NOTICE EXC_0x22(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x23 - Data CPLB protection violation, handled here */
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x23(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x24(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x25 - Unrecoverable Event, handled here */
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
 		printk(KERN_NOTICE EXC_0x25(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr,
 		error case is handled here */
@@ -387,7 +386,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x26(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
 	case VEC_CPLB_MHIT:
@@ -399,7 +397,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		else
 #endif
 			printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x28 - Emulation Watchpoint, handled here */
 	case VEC_WATCH:
@@ -418,7 +416,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
 		printk(KERN_NOTICE "BF535: VEC_ISTRU_VL\n");
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 #else
 	/* 0x29 - Reserved, Caught by default */
@@ -428,21 +426,20 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x2A(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2B - Instruction CPLB protection violation, handled here */
 	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x2B(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
 	case VEC_CPLB_I_M:
 		info.si_code = ILL_CPLB_MISS;
 		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x2C(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
 	case VEC_CPLB_I_MHIT:
@@ -454,14 +451,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		else
 #endif
 			printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2E - Illegal use of Supervisor Resource, handled here */
 	case VEC_ILL_RES:
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
 		printk(KERN_NOTICE EXC_0x2E(KERN_NOTICE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	/* 0x2F - Reserved, Caught by default */
 	/* 0x30 - Reserved, Caught by default */
@@ -508,14 +505,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 			printk(KERN_NOTICE HWC_default(KERN_NOTICE));
 			break;
 		}
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	default:
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		printk(KERN_EMERG "Caught Unhandled Exception, code = %08lx\n",
 			(fp->seqstat & SEQSTAT_EXCAUSE));
-		CHK_DEBUGGER_TRAP();
+		CHK_DEBUGGER_TRAP_MAYBE();
 		break;
 	}
 

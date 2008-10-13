@@ -190,8 +190,8 @@ ENTRY(_ex_single_step)
 	if cc jump .Lfind_priority_done;
 	jump.s .Lfind_priority_start;
 .Lfind_priority_done:
-	p4.l = _debugger_step;
-	p4.h = _debugger_step;
+	p4.l = _kgdb_single_step;
+	p4.h = _kgdb_single_step;
 	r6 = [p4];
 	cc = r6 == 0;
 	if cc jump .Ldo_single_step;
@@ -1071,7 +1071,12 @@ ENTRY(_ex_table)
 	 */
 	.long _ex_syscall       /* 0x00 - User Defined - Linux Syscall */
 	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
+#ifdef	CONFIG_KGDB
+	.long _ex_trap_c	/* 0x02 - User Defined - KGDB initial connection
+							 and break signal trap */
+#else
 	.long _ex_replaceable   /* 0x02 - User Defined */
+#endif
 	.long _ex_trap_c        /* 0x03 - User Defined - userspace stack overflow */
 	.long _ex_trap_c        /* 0x04 - User Defined - dump trace buffer */
 	.long _ex_replaceable   /* 0x05 - User Defined */

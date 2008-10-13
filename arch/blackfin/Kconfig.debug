@@ -2,6 +2,9 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config HAVE_ARCH_KGDB
+       def_bool y
+
 config DEBUG_MMRS
 	bool "Generate Blackfin MMR tree"
 	select DEBUG_FS
