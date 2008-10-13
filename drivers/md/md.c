@@ -3520,15 +3520,10 @@ static int do_md_run(mddev_t * mddev)
 			return -EINVAL;
 		}
 		/*
-		 * chunk-size has to be a power of 2 and multiples of PAGE_SIZE
+		 * chunk-size has to be a power of 2
 		 */
 		if ( (1 << ffz(~chunk_size)) != chunk_size) {
 			printk(KERN_ERR "chunk_size of %d not valid\n", chunk_size);
-			return -EINVAL;
-		}
-		if (chunk_size < PAGE_SIZE) {
-			printk(KERN_ERR "too small chunk_size: %d < %ld\n",
-				chunk_size, PAGE_SIZE);
 			return -EINVAL;
 		}
 

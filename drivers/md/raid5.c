@@ -4007,6 +4007,13 @@ static int run(mddev_t *mddev)
 		return -EIO;
 	}
 
+	if (mddev->chunk_size < PAGE_SIZE) {
+		printk(KERN_ERR "md/raid5: chunk_size must be at least "
+		       "PAGE_SIZE but %d < %ld\n",
+		       mddev->chunk_size, PAGE_SIZE);
+		return -EINVAL;
+	}
+
 	if (mddev->reshape_position != MaxSector) {
 		/* Check that we can continue the reshape.
 		 * Currently only disks can change, it must
