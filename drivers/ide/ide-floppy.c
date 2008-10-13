@@ -84,11 +84,6 @@
 
 static DEFINE_MUTEX(idefloppy_ref_mutex);
 
-#define to_ide_floppy(obj) container_of(obj, struct ide_floppy_obj, kref)
-
-#define ide_floppy_g(disk) \
-	container_of((disk)->private_data, struct ide_floppy_obj, driver)
-
 static void idefloppy_cleanup_obj(struct kref *);
 
 static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
@@ -96,7 +91,7 @@ static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
 	struct ide_floppy_obj *floppy = NULL;
 
 	mutex_lock(&idefloppy_ref_mutex);
-	floppy = ide_floppy_g(disk);
+	floppy = ide_drv_g(disk, ide_floppy_obj);
 	if (floppy) {
 		if (ide_device_get(floppy->drive))
 			floppy = NULL;
@@ -625,7 +620,7 @@ static void ide_floppy_remove(ide_drive_t *drive)
 
 static void idefloppy_cleanup_obj(struct kref *kref)
 {
-	struct ide_floppy_obj *floppy = to_ide_floppy(kref);
+	struct ide_floppy_obj *floppy = to_ide_drv(kref, ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 	struct gendisk *g = floppy->disk;
 
@@ -733,7 +728,7 @@ out_put_floppy:
 static int idefloppy_release(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_floppy_obj *floppy = ide_floppy_g(disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 
 	debug_log("Reached %s\n", __func__);
@@ -752,7 +747,8 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 
 static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(bdev->bd_disk,
+						     ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 
 	geo->heads = drive->bios_head;
@@ -783,7 +779,8 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(bdev->bd_disk,
+						     ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 	struct ide_atapi_pc pc;
 	void __user *argp = (void __user *)arg;
@@ -812,7 +809,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 
 static int idefloppy_media_changed(struct gendisk *disk)
 {
-	struct ide_floppy_obj *floppy = ide_floppy_g(disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 	int ret;
 
@@ -828,7 +825,7 @@ static int idefloppy_media_changed(struct gendisk *disk)
 
 static int idefloppy_revalidate_disk(struct gendisk *disk)
 {
-	struct ide_floppy_obj *floppy = ide_floppy_g(disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
 	set_capacity(disk, idefloppy_capacity(floppy->drive));
 	return 0;
 }

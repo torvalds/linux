@@ -570,7 +570,13 @@ struct ide_drive_s {
 
 typedef struct ide_drive_s ide_drive_t;
 
-#define to_ide_device(dev)container_of(dev, ide_drive_t, gendev)
+#define to_ide_device(dev)		container_of(dev, ide_drive_t, gendev)
+
+#define to_ide_drv(obj, cont_type)	\
+	container_of(obj, struct cont_type, kref)
+
+#define ide_drv_g(disk, cont_type)	\
+	container_of((disk)->private_data, struct cont_type, driver)
 
 struct ide_task_s;
 struct ide_port_info;

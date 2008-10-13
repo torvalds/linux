@@ -52,11 +52,6 @@
 
 static DEFINE_MUTEX(idecd_ref_mutex);
 
-#define to_ide_cd(obj) container_of(obj, struct cdrom_info, kref)
-
-#define ide_cd_g(disk) \
-	container_of((disk)->private_data, struct cdrom_info, driver)
-
 static void ide_cd_release(struct kref *);
 
 static struct cdrom_info *ide_cd_get(struct gendisk *disk)
@@ -64,7 +59,7 @@ static struct cdrom_info *ide_cd_get(struct gendisk *disk)
 	struct cdrom_info *cd = NULL;
 
 	mutex_lock(&idecd_ref_mutex);
-	cd = ide_cd_g(disk);
+	cd = ide_drv_g(disk, cdrom_info);
 	if (cd) {
 		if (ide_device_get(cd->drive))
 			cd = NULL;
@@ -1941,7 +1936,7 @@ static void ide_cd_remove(ide_drive_t *drive)
 
 static void ide_cd_release(struct kref *kref)
 {
-	struct cdrom_info *info = to_ide_cd(kref);
+	struct cdrom_info *info = to_ide_drv(kref, cdrom_info);
 	struct cdrom_device_info *devinfo = &info->devinfo;
 	ide_drive_t *drive = info->drive;
 	struct gendisk *g = info->disk;
@@ -1999,7 +1994,7 @@ static int idecd_open(struct inode *inode, struct file *file)
 static int idecd_release(struct inode *inode, struct file *file)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct cdrom_info *info = ide_cd_g(disk);
+	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 
 	cdrom_release(&info->devinfo, file);
 
@@ -2051,7 +2046,7 @@ static int idecd_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct cdrom_info *info = ide_cd_g(bdev->bd_disk);
+	struct cdrom_info *info = ide_drv_g(bdev->bd_disk, cdrom_info);
 	int err;
 
 	switch (cmd) {
@@ -2072,13 +2067,13 @@ static int idecd_ioctl(struct inode *inode, struct file *file,
 
 static int idecd_media_changed(struct gendisk *disk)
 {
-	struct cdrom_info *info = ide_cd_g(disk);
+	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 	return cdrom_media_changed(&info->devinfo);
 }
 
 static int idecd_revalidate_disk(struct gendisk *disk)
 {
-	struct cdrom_info *info = ide_cd_g(disk);
+	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 	struct request_sense sense;
 
 	ide_cd_read_toc(info->drive, &sense);
