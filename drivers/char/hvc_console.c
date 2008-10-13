@@ -161,7 +161,7 @@ static void hvc_console_print(struct console *co, const char *b,
 			}
 		} else {
 			r = cons_ops[index]->put_chars(vtermnos[index], c, i);
-			if (r < 0) {
+			if (r <= 0) {
 				/* throw away chars on error */
 				i = 0;
 			} else if (r > 0) {
@@ -431,7 +431,7 @@ static void hvc_hangup(struct tty_struct *tty)
  * Push buffered characters whether they were just recently buffered or waiting
  * on a blocked hypervisor.  Call this function with hp->lock held.
  */
-static void hvc_push(struct hvc_struct *hp)
+static int hvc_push(struct hvc_struct *hp)
 {
 	int n;
 
@@ -439,7 +439,7 @@ static void hvc_push(struct hvc_struct *hp)
 	if (n <= 0) {
 		if (n == 0) {
 			hp->do_wakeup = 1;
-			return;
+			return 0;
 		}
 		/* throw away output on error; this happens when
 		   there is no session connected to the vterm. */
@@ -450,6 +450,8 @@ static void hvc_push(struct hvc_struct *hp)
 		memmove(hp->outbuf, hp->outbuf + n, hp->n_outbuf);
 	else
 		hp->do_wakeup = 1;
+
+	return n;
 }
 
 static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -538,16 +540,20 @@ int hvc_poll(struct hvc_struct *hp)
 	char buf[N_INBUF] __ALIGNED__;
 	unsigned long flags;
 	int read_total = 0;
+	int written_total = 0;
 
 	spin_lock_irqsave(&hp->lock, flags);
 
 	/* Push pending writes */
 	if (hp->n_outbuf > 0)
-		hvc_push(hp);
+		written_total = hvc_push(hp);
 
 	/* Reschedule us if still some write pending */
-	if (hp->n_outbuf > 0)
+	if (hp->n_outbuf > 0) {
 		poll_mask |= HVC_POLL_WRITE;
+		/* If hvc_push() was not able to write, sleep a few msecs */
+		timeout = (written_total) ? 0 : MIN_TIMEOUT;
+	}
 
 	/* No tty attached, just skip */
 	tty = hp->tty;
@@ -659,10 +665,6 @@ static int khvcd(void *unused)
 			poll_mask |= HVC_POLL_READ;
 		if (hvc_kicked)
 			continue;
-		if (poll_mask & HVC_POLL_WRITE) {
-			yield();
-			continue;
-		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!hvc_kicked) {
 			if (poll_mask == 0)
