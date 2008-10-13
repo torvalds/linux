@@ -34,14 +34,11 @@ static ssize_t led_brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	ssize_t ret = 0;
 
 	/* no lock needed for this */
 	led_update_brightness(led_cdev);
-	sprintf(buf, "%u\n", led_cdev->brightness);
-	ret = strlen(buf) + 1;
 
-	return ret;
+	return sprintf(buf, "%u\n", led_cdev->brightness);
 }
 
 static ssize_t led_brightness_store(struct device *dev,
