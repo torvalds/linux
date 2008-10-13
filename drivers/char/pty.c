@@ -60,7 +60,7 @@ static void pty_close(struct tty_struct * tty, struct file * filp)
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
 #ifdef CONFIG_UNIX98_PTYS
 		if (tty->driver == ptm_driver)
-			devpts_pty_kill(tty->index);
+			devpts_pty_kill(tty->link);
 #endif
 		tty_vhangup(tty->link);
 	}
@@ -453,9 +453,10 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
  *	This provides our locking.
  */
 
-static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver, int idx)
+static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver,
+		struct inode *ptm_inode, int idx)
 {
-	struct tty_struct *tty = devpts_get_tty(idx);
+	struct tty_struct *tty = devpts_get_tty(ptm_inode, idx);
 	if (tty)
 		tty = tty->link;
 	return tty;
@@ -470,9 +471,10 @@ static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver, int idx)
  *	This provides our locking.
  */
 
-static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver, int idx)
+static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
+		struct inode *pts_inode, int idx)
 {
-	struct tty_struct *tty = devpts_get_tty(idx);
+	struct tty_struct *tty = devpts_get_tty(pts_inode, idx);
 	/* Master must be open before slave */
 	if (!tty)
 		return ERR_PTR(-EIO);
@@ -602,7 +604,7 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 	nonseekable_open(inode, filp);
 
 	/* find a device that is not in use. */
-	index = devpts_new_index();
+	index = devpts_new_index(inode);
 	if (index < 0)
 		return index;
 
@@ -619,7 +621,7 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 	filp->private_data = tty;
 	file_move(filp, &tty->tty_files);
 
-	retval = devpts_pty_new(tty->link);
+	retval = devpts_pty_new(inode, tty->link);
 	if (retval)
 		goto out1;
 
@@ -630,7 +632,7 @@ out1:
 	tty_release_dev(filp);
 	return retval;
 out:
-	devpts_kill_index(index);
+	devpts_kill_index(inode, index);
 	return retval;
 }
 

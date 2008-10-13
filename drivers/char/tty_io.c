@@ -1213,12 +1213,13 @@ static void tty_line_name(struct tty_driver *driver, int index, char *p)
  *	be held until the 'fast-open' is also done. Will change once we
  *	have refcounting in the driver and per driver locking
  */
-struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver, int idx)
+struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
+		struct inode *inode, int idx)
 {
 	struct tty_struct *tty;
 
 	if (driver->ops->lookup)
-		return driver->ops->lookup(driver, idx);
+		return driver->ops->lookup(driver, inode, idx);
 
 	tty = driver->ttys[idx];
 	return tty;
@@ -1539,10 +1540,11 @@ void tty_release_dev(struct file *filp)
 	int	devpts;
 	int	idx;
 	char	buf[64];
+	struct 	inode *inode;
 
+	inode = filp->f_path.dentry->d_inode;
 	tty = (struct tty_struct *)filp->private_data;
-	if (tty_paranoia_check(tty, filp->f_path.dentry->d_inode,
-							"tty_release_dev"))
+	if (tty_paranoia_check(tty, inode, "tty_release_dev"))
 		return;
 
 	check_tty_count(tty, "tty_release_dev");
@@ -1751,7 +1753,7 @@ void tty_release_dev(struct file *filp)
 
 	/* Make this pty number available for reallocation */
 	if (devpts)
-		devpts_kill_index(idx);
+		devpts_kill_index(inode, idx);
 }
 
 /**
@@ -1836,7 +1838,7 @@ retry_open:
 got_driver:
 	if (!tty) {
 		/* check whether we're reopening an existing tty */
-		tty = tty_driver_lookup_tty(driver, index);
+		tty = tty_driver_lookup_tty(driver, inode, index);
 
 		if (IS_ERR(tty))
 			return PTR_ERR(tty);

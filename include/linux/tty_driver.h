@@ -225,7 +225,8 @@ struct tty_struct;
 struct tty_driver;
 
 struct tty_operations {
-	struct tty_struct * (*lookup)(struct tty_driver *driver, int idx);
+	struct tty_struct * (*lookup)(struct tty_driver *driver,
+			struct inode *inode, int idx);
 	int  (*install)(struct tty_driver *driver, struct tty_struct *tty);
 	void (*remove)(struct tty_driver *driver, struct tty_struct *tty);
 	int  (*open)(struct tty_struct * tty, struct file * filp);

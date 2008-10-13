@@ -177,7 +177,7 @@ static struct dentry *get_node(int num)
 	return lookup_one_len(s, root, sprintf(s, "%d", num));
 }
 
-int devpts_new_index(void)
+int devpts_new_index(struct inode *ptmx_inode)
 {
 	int index;
 	int ida_ret;
@@ -205,14 +205,14 @@ retry:
 	return index;
 }
 
-void devpts_kill_index(int idx)
+void devpts_kill_index(struct inode *ptmx_inode, int idx)
 {
 	mutex_lock(&allocated_ptys_lock);
 	ida_remove(&allocated_ptys, idx);
 	mutex_unlock(&allocated_ptys_lock);
 }
 
-int devpts_pty_new(struct tty_struct *tty)
+int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 {
 	int number = tty->index; /* tty layer puts index from devpts_new_index() in here */
 	struct tty_driver *driver = tty->driver;
@@ -245,7 +245,7 @@ int devpts_pty_new(struct tty_struct *tty)
 	return 0;
 }
 
-struct tty_struct *devpts_get_tty(int number)
+struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
 {
 	struct dentry *dentry = get_node(number);
 	struct tty_struct *tty;
@@ -262,8 +262,9 @@ struct tty_struct *devpts_get_tty(int number)
 	return tty;
 }
 
-void devpts_pty_kill(int number)
+void devpts_pty_kill(struct tty_struct *tty)
 {
+	int number = tty->index;
 	struct dentry *dentry = get_node(number);
 
 	if (!IS_ERR(dentry)) {
