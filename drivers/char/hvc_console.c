@@ -803,7 +803,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 }
 EXPORT_SYMBOL_GPL(hvc_alloc);
 
-int __devexit hvc_remove(struct hvc_struct *hp)
+int hvc_remove(struct hvc_struct *hp)
 {
 	unsigned long flags;
 	struct tty_struct *tty;
