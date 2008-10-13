@@ -627,8 +627,7 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
  */
 static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 {
-	return ide_pc_intr(drive, idetape_pc_intr, idetape_update_buffers,
-			   ide_tape_io_buffers);
+	return ide_pc_intr(drive, idetape_pc_intr);
 }
 
 /*
@@ -2211,7 +2210,9 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	u8 gcw[2];
 	u16 *ctl = (u16 *)&tape->caps[12];
 
-	drive->pc_callback = ide_tape_callback;
+	drive->pc_callback	 = ide_tape_callback;
+	drive->pc_update_buffers = idetape_update_buffers;
+	drive->pc_io_buffers	 = ide_tape_io_buffers;
 
 	spin_lock_init(&tape->lock);
 	drive->dsc_overlap = 1;

@@ -555,6 +555,10 @@ struct ide_drive_s {
 	/* callback for packet commands */
 	void (*pc_callback)(struct ide_drive_s *, int);
 
+	void (*pc_update_buffers)(struct ide_drive_s *, struct ide_atapi_pc *);
+	int  (*pc_io_buffers)(struct ide_drive_s *, struct ide_atapi_pc *,
+			      unsigned int, int);
+
 	unsigned long atapi_flags;
 
 	struct ide_atapi_pc request_sense_pc;
@@ -1184,10 +1188,7 @@ static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
 
 int ide_scsi_expiry(ide_drive_t *);
 
-ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
-	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
-	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,
-			   int));
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler);
 ide_startstop_t ide_transfer_pc(ide_drive_t *,
 				ide_handler_t *, unsigned int, ide_expiry_t *);
 ide_startstop_t ide_issue_pc(ide_drive_t *,

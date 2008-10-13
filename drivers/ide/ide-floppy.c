@@ -196,8 +196,7 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 /* The usual interrupt handler called during a packet command. */
 static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 {
-	return ide_pc_intr(drive, idefloppy_pc_intr, idefloppy_update_buffers,
-			   ide_io_buffers);
+	return ide_pc_intr(drive, idefloppy_pc_intr);
 }
 
 /*
@@ -636,7 +635,9 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 
 	*((u16 *)&gcw) = id[ATA_ID_CONFIG];
 
-	drive->pc_callback = ide_floppy_callback;
+	drive->pc_callback	 = ide_floppy_callback;
+	drive->pc_update_buffers = idefloppy_update_buffers;
+	drive->pc_io_buffers	 = ide_io_buffers;
 
 	if (((gcw[0] & 0x60) >> 5) == 1)
 		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;

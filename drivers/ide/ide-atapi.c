@@ -246,10 +246,7 @@ int ide_scsi_expiry(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_scsi_expiry);
 
-/* TODO: unify the code thus making some arguments go away */
-ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
-	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
-	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
@@ -290,8 +287,8 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		} else {
 			pc->xferred = pc->req_xfer;
-			if (update_buffers)
-				update_buffers(drive, pc);
+			if (drive->pc_update_buffers)
+				drive->pc_update_buffers(drive, pc);
 		}
 		debug_log("%s: DMA finished\n", drive->name);
 	}
@@ -386,7 +383,8 @@ cmd_finished:
 					temp = 0;
 				if (temp) {
 					if (pc->sg)
-						io_buffers(drive, pc, temp, 0);
+						drive->pc_io_buffers(drive, pc,
+								     temp, 0);
 					else
 						tp_ops->input_data(drive, NULL,
 							pc->cur_pos, temp);
@@ -410,7 +408,7 @@ cmd_finished:
 	if ((drive->media == ide_floppy && !scsi && !pc->buf) ||
 	    (drive->media == ide_tape && !scsi && pc->bh) ||
 	    (scsi && pc->sg)) {
-		int done = io_buffers(drive, pc, bcount,
+		int done = drive->pc_io_buffers(drive, pc, bcount,
 				  !!(pc->flags & PC_FLAG_WRITING));
 
 		/* FIXME: don't do partial completions */
