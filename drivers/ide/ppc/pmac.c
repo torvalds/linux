@@ -966,11 +966,11 @@ static void pmac_ide_init_dev(ide_drive_t *drive)
 	if (pmif->mediabay) {
 #ifdef CONFIG_PMAC_MEDIABAY
 		if (check_media_bay_by_base(pmif->regbase, MB_CD) == 0) {
-			drive->noprobe = 0;
+			drive->dev_flags &= ~IDE_DFLAG_NOPROBE;
 			return;
 		}
 #endif
-		drive->noprobe = 1;
+		drive->dev_flags |= IDE_DFLAG_NOPROBE;
 	}
 }
 

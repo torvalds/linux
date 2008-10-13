@@ -378,13 +378,13 @@ static void __set_prefetch_mode(ide_drive_t *drive, int mode)
 {
 	if (mode) {	/* want prefetch on? */
 #if CMD640_PREFETCH_MASKS
-		drive->no_unmask = 1;
-		drive->unmask = 0;
+		drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
+		drive->dev_flags &= ~IDE_DFLAG_UNMASK;
 #endif
-		drive->no_io_32bit = 0;
+		drive->dev_flags &= ~IDE_DFLAG_NO_IO_32BIT;
 	} else {
-		drive->no_unmask = 0;
-		drive->no_io_32bit = 1;
+		drive->dev_flags &= ~IDE_DFLAG_NO_UNMASK;
+		drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
 		drive->io_32bit = 0;
 	}
 }
@@ -471,7 +471,7 @@ static void program_drive_counts(ide_drive_t *drive, unsigned int index)
 		ide_drive_t *peer = &hwif->drives[!drive->select.b.unit];
 		unsigned int mate = index ^ 1;
 
-		if (peer->present) {
+		if (peer->dev_flags & IDE_DFLAG_PRESENT) {
 			if (setup_count < setup_counts[mate])
 				setup_count = setup_counts[mate];
 			if (active_count < active_counts[mate])
@@ -626,7 +626,7 @@ static void cmd640_init_dev(ide_drive_t *drive)
 	 */
 	check_prefetch(drive, i);
 	printk(KERN_INFO DRV_NAME ": drive%d timings/prefetch(%s) preserved\n",
-				  i, drive->no_io_32bit ? "off" : "on");
+		i, (drive->dev_flags & IDE_DFLAG_NO_IO_32BIT) ? "off" : "on");
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 }
 

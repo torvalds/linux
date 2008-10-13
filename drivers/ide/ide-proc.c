@@ -227,7 +227,7 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 
 ide_devset_rw(current_speed, xfer_rate);
 ide_devset_rw_field(init_speed, init_speed);
-ide_devset_rw_field(nice1, nice1);
+ide_devset_rw_flag(nice1, IDE_DFLAG_NICE1);
 ide_devset_rw_field(number, dn);
 
 static const struct ide_proc_devset ide_generic_settings[] = {
@@ -622,9 +622,7 @@ void ide_proc_port_register_devices(ide_hwif_t *hwif)
 	for (d = 0; d < MAX_DRIVES; d++) {
 		ide_drive_t *drive = &hwif->drives[d];
 
-		if (!drive->present)
-			continue;
-		if (drive->proc)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0 || drive->proc)
 			continue;
 
 		drive->proc = proc_mkdir(drive->name, parent);

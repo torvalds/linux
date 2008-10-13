@@ -741,7 +741,7 @@ static ide_startstop_t cdrom_seek_intr(ide_drive_t *drive)
 
 	if (retry && time_after(jiffies, info->start_seek + IDECD_SEEK_TIMER)) {
 		if (--retry == 0)
-			drive->dsc_overlap = 0;
+			drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
 	}
 	return ide_stopped;
 }
@@ -1129,7 +1129,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 		}
 		cd->dma = 0;
 	} else
-		cd->dma = drive->using_dma;
+		cd->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
 	if (write)
 		cd->devinfo.media_written = 1;
@@ -1166,7 +1166,7 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		else
 			buf = rq->data;
 
-		info->dma = drive->using_dma;
+		info->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
 		/*
 		 * check if dma is safe
@@ -1211,7 +1211,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		if (rq_data_dir(rq) == READ &&
 		    IDE_LARGE_SEEK(info->last_block, block,
 			    IDECD_SEEK_THRESHOLD) &&
-		    drive->dsc_overlap) {
+		    (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP)) {
 			xferlen = 0;
 			fn = cdrom_start_seek_continuation;
 
@@ -1804,7 +1804,7 @@ static ide_proc_entry_t idecd_proc[] = {
 	{ NULL, 0, NULL, NULL }
 };
 
-ide_devset_rw_field(dsc_overlap, dsc_overlap);
+ide_devset_rw_flag(dsc_overlap, IDE_DFLAG_DSC_OVERLAP);
 
 static const struct ide_proc_devset idecd_settings[] = {
 	IDE_PROC_DEVSET(dsc_overlap, 0, 1),
@@ -1910,7 +1910,10 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	/* set correct block size */
 	blk_queue_hardsect_size(drive->queue, CD_FRAMESIZE);
 
-	drive->dsc_overlap = (drive->next != drive);
+	if (drive->next != drive)
+		drive->dev_flags |= IDE_DFLAG_DSC_OVERLAP;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk(KERN_ERR "%s: %s failed to register device with the"
@@ -1944,7 +1947,7 @@ static void ide_cd_release(struct kref *kref)
 	kfree(info->toc);
 	if (devinfo->handle == drive)
 		unregister_cdrom(devinfo);
-	drive->dsc_overlap = 0;
+	drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
 	drive->driver_data = NULL;
 	blk_queue_prep_rq(drive->queue, NULL);
 	g->private_data = NULL;

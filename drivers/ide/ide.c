@@ -138,7 +138,7 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
 
-		if (drive->present) {
+		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			spin_unlock_irq(&ide_lock);
 			device_unregister(&drive->gendev);
 			wait_for_completion(&drive->gendev_rel_comp);
@@ -254,7 +254,7 @@ ide_devset_get(io_32bit, io_32bit);
 
 static int set_io_32bit(ide_drive_t *drive, int arg)
 {
-	if (drive->no_io_32bit)
+	if (drive->dev_flags & IDE_DFLAG_NO_IO_32BIT)
 		return -EPERM;
 
 	if (arg < 0 || arg > 1 + (SUPPORT_VLB_SYNC << 1))
@@ -265,19 +265,22 @@ static int set_io_32bit(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-ide_devset_get(ksettings, keep_settings);
+ide_devset_get_flag(ksettings, IDE_DFLAG_KEEP_SETTINGS);
 
 static int set_ksettings(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	drive->keep_settings = arg;
+	if (arg)
+		drive->dev_flags |= IDE_DFLAG_KEEP_SETTINGS;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_KEEP_SETTINGS;
 
 	return 0;
 }
 
-ide_devset_get(using_dma, using_dma);
+ide_devset_get_flag(using_dma, IDE_DFLAG_USING_DMA);
 
 static int set_using_dma(ide_drive_t *drive, int arg)
 {
@@ -339,17 +342,20 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-ide_devset_get(unmaskirq, unmask);
+ide_devset_get_flag(unmaskirq, IDE_DFLAG_UNMASK);
 
 static int set_unmaskirq(ide_drive_t *drive, int arg)
 {
-	if (drive->no_unmask)
+	if (drive->dev_flags & IDE_DFLAG_NO_UNMASK)
 		return -EPERM;
 
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	drive->unmask = arg;
+	if (arg)
+		drive->dev_flags |= IDE_DFLAG_UNMASK;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_UNMASK;
 
 	return 0;
 }
@@ -713,16 +719,16 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 
 	if (ide_nodma & (1 << i)) {
 		printk(KERN_INFO "ide: disallowing DMA for %s\n", drive->name);
-		drive->nodma = 1;
+		drive->dev_flags |= IDE_DFLAG_NODMA;
 	}
 	if (ide_noflush & (1 << i)) {
 		printk(KERN_INFO "ide: disabling flush requests for %s\n",
 				 drive->name);
-		drive->noflush = 1;
+		drive->dev_flags |= IDE_DFLAG_NOFLUSH;
 	}
 	if (ide_noprobe & (1 << i)) {
 		printk(KERN_INFO "ide: skipping probe for %s\n", drive->name);
-		drive->noprobe = 1;
+		drive->dev_flags |= IDE_DFLAG_NOPROBE;
 	}
 	if (ide_nowerr & (1 << i)) {
 		printk(KERN_INFO "ide: ignoring the ATA_DF bit for %s\n",
@@ -731,7 +737,7 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 	}
 	if (ide_cdroms & (1 << i)) {
 		printk(KERN_INFO "ide: forcing %s as a CD-ROM\n", drive->name);
-		drive->present = 1;
+		drive->dev_flags |= IDE_DFLAG_PRESENT;
 		drive->media = ide_cdrom;
 		/* an ATAPI device ignores DRDY */
 		drive->ready_stat = 0;
@@ -740,11 +746,12 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 		drive->cyl  = drive->bios_cyl  = ide_disks_chs[i].cyl;
 		drive->head = drive->bios_head = ide_disks_chs[i].head;
 		drive->sect = drive->bios_sect = ide_disks_chs[i].sect;
-		drive->forced_geom = 1;
+
 		printk(KERN_INFO "ide: forcing %s as a disk (%d/%d/%d)\n",
 				 drive->name,
 				 drive->cyl, drive->head, drive->sect);
-		drive->present = 1;
+
+		drive->dev_flags |= IDE_DFLAG_FORCED_GEOM | IDE_DFLAG_PRESENT;
 		drive->media = ide_disk;
 		drive->ready_stat = ATA_DRDY;
 	}

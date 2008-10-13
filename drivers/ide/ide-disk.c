@@ -140,9 +140,9 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	unsigned int dma	= drive->using_dma;
 	u16 nsectors		= (u16)rq->nr_sectors;
-	u8 lba48		= (drive->addressing == 1) ? 1 : 0;
+	u8 lba48		= !!(drive->dev_flags & IDE_DFLAG_LBA48);
+	u8 dma			= !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 	ide_task_t		task;
 	struct ide_taskfile	*tf = &task.tf;
 	ide_startstop_t		rc;
@@ -237,7 +237,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 {
 	ide_hwif_t *hwif = HWIF(drive);
 
-	BUG_ON(drive->blocked);
+	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
 
 	if (!blk_fs_request(rq)) {
 		blk_dump_rq_flags(rq, "ide_do_rw_disk - bad command");
@@ -452,7 +452,7 @@ static int proc_idedisk_read_cache
 	char		*out = page;
 	int		len;
 
-	if (drive->id_read)
+	if (drive->dev_flags & IDE_DFLAG_ID_READ)
 		len = sprintf(out, "%i\n", drive->id[ATA_ID_BUF_SIZE] / 2);
 	else
 		len = sprintf(out, "(none)\n");
@@ -568,15 +568,20 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	return (drive->mult_count == arg) ? 0 : -EIO;
 }
 
-ide_devset_get(nowerr, nowerr);
+ide_devset_get_flag(nowerr, IDE_DFLAG_NOWERR);
 
 static int set_nowerr(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	drive->nowerr = arg;
+	if (arg)
+		drive->dev_flags |= IDE_DFLAG_NOWERR;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_NOWERR;
+
 	drive->bad_wstat = arg ? BAD_R_STAT : BAD_W_STAT;
+
 	return 0;
 }
 
@@ -599,7 +604,7 @@ static void update_ordered(ide_drive_t *drive)
 	unsigned ordered = QUEUE_ORDERED_NONE;
 	prepare_flush_fn *prep_fn = NULL;
 
-	if (drive->wcache) {
+	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
 		int barrier;
 		/*
@@ -611,8 +616,10 @@ static void update_ordered(ide_drive_t *drive)
 		 * not available so we don't need to recheck that.
 		 */
 		capacity = idedisk_capacity(drive);
-		barrier = ata_id_flush_enabled(id) && !drive->noflush &&
-			(drive->addressing == 0 || capacity <= (1ULL << 28) ||
+		barrier = ata_id_flush_enabled(id) &&
+			(drive->dev_flags & IDE_DFLAG_NOFLUSH) == 0 &&
+			((drive->dev_flags & IDE_DFLAG_LBA48) == 0 ||
+			 capacity <= (1ULL << 28) ||
 			 ata_id_flush_ext_enabled(id));
 
 		printk(KERN_INFO "%s: cache flushes %ssupported\n",
@@ -628,7 +635,7 @@ static void update_ordered(ide_drive_t *drive)
 	blk_queue_ordered(drive->queue, ordered, prep_fn);
 }
 
-ide_devset_get(wcache, wcache);
+ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);
 
 static int set_wcache(ide_drive_t *drive, int arg)
 {
@@ -640,8 +647,12 @@ static int set_wcache(ide_drive_t *drive, int arg)
 	if (ata_id_flush_enabled(drive->id)) {
 		err = ide_do_setfeature(drive,
 			arg ? SETFEATURES_WC_ON : SETFEATURES_WC_OFF, 0);
-		if (err == 0)
-			drive->wcache = arg;
+		if (err == 0) {
+			if (arg)
+				drive->dev_flags |= IDE_DFLAG_WCACHE;
+			else
+				drive->dev_flags &= ~IDE_DFLAG_WCACHE;
+		}
 	}
 
 	update_ordered(drive);
@@ -677,7 +688,7 @@ static int set_acoustic(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-ide_devset_get(addressing, addressing);
+ide_devset_get_flag(addressing, IDE_DFLAG_LBA48);
 
 /*
  * drive->addressing:
@@ -697,7 +708,10 @@ static int set_addressing(ide_drive_t *drive, int arg)
 	if (arg == 2)
 		arg = 0;
 
-	drive->addressing = arg;
+	if (arg)
+		drive->dev_flags |= IDE_DFLAG_LBA48;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_LBA48;
 
 	return 0;
 }
@@ -743,20 +757,20 @@ static void idedisk_setup(ide_drive_t *drive)
 
 	ide_proc_register_driver(drive, idkp->driver);
 
-	if (drive->id_read == 0)
+	if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0)
 		return;
 
-	if (drive->removable) {
+	if (drive->dev_flags & IDE_DFLAG_REMOVABLE) {
 		/*
 		 * Removable disks (eg. SYQUEST); ignore 'WD' drives
 		 */
 		if (m[0] != 'W' || m[1] != 'D')
-			drive->doorlocking = 1;
+			drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
 	}
 
 	(void)set_addressing(drive, 1);
 
-	if (drive->addressing == 1) {
+	if (drive->dev_flags & IDE_DFLAG_LBA48) {
 		int max_s = 2048;
 
 		if (max_s > hwif->rqsize)
@@ -772,7 +786,8 @@ static void idedisk_setup(ide_drive_t *drive)
 	init_idedisk_capacity(drive);
 
 	/* limit drive capacity to 137GB if LBA48 cannot be used */
-	if (drive->addressing == 0 && drive->capacity64 > 1ULL << 28) {
+	if ((drive->dev_flags & IDE_DFLAG_LBA48) == 0 &&
+	    drive->capacity64 > 1ULL << 28) {
 		printk(KERN_WARNING "%s: cannot use LBA48 - full capacity "
 		       "%llu sectors (%llu MB)\n",
 		       drive->name, (unsigned long long)drive->capacity64,
@@ -780,13 +795,14 @@ static void idedisk_setup(ide_drive_t *drive)
 		drive->capacity64 = 1ULL << 28;
 	}
 
-	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && drive->addressing) {
+	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) &&
+	    (drive->dev_flags & IDE_DFLAG_LBA48)) {
 		if (drive->capacity64 > 1ULL << 28) {
 			printk(KERN_INFO "%s: cannot use LBA48 DMA - PIO mode"
 					 " will be used for accessing sectors "
 					 "> %u\n", drive->name, 1 << 28);
 		} else
-			drive->addressing = 0;
+			drive->dev_flags &= ~IDE_DFLAG_LBA48;
 	}
 
 	/*
@@ -795,7 +811,7 @@ static void idedisk_setup(ide_drive_t *drive)
 	 */
 	capacity = idedisk_capacity(drive);
 
-	if (!drive->forced_geom) {
+	if ((drive->dev_flags & IDE_DFLAG_FORCED_GEOM) == 0) {
 		if (ata_id_lba48_enabled(drive->id)) {
 			/* compatibility */
 			drive->bios_sect = 63;
@@ -830,14 +846,15 @@ static void idedisk_setup(ide_drive_t *drive)
 
 	/* write cache enabled? */
 	if ((id[ATA_ID_CSFO] & 1) || ata_id_wcache_enabled(id))
-		drive->wcache = 1;
+		drive->dev_flags |= IDE_DFLAG_WCACHE;
 
 	set_wcache(drive, 1);
 }
 
 static void ide_cacheflush_p(ide_drive_t *drive)
 {
-	if (!drive->wcache || ata_id_flush_enabled(drive->id) == 0)
+	if (ata_id_flush_enabled(drive->id) == 0 ||
+	    (drive->dev_flags & IDE_DFLAG_WCACHE) == 0)
 		return;
 
 	if (do_idedisk_flushcache(drive))
@@ -956,15 +973,16 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 
 	idkp->openers++;
 
-	if (drive->removable && idkp->openers == 1) {
+	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1) {
 		check_disk_change(inode->i_bdev);
 		/*
 		 * Ignore the return code from door_lock,
 		 * since the open() has already succeeded,
 		 * and the door_lock is irrelevant at this point.
 		 */
-		if (drive->doorlocking && idedisk_set_doorlock(drive, 1))
-			drive->doorlocking = 0;
+		if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) &&
+		    idedisk_set_doorlock(drive, 1))
+			drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
 	}
 	return 0;
 }
@@ -978,9 +996,10 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 	if (idkp->openers == 1)
 		ide_cacheflush_p(drive);
 
-	if (drive->removable && idkp->openers == 1) {
-		if (drive->doorlocking && idedisk_set_doorlock(drive, 0))
-			drive->doorlocking = 0;
+	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1) {
+		if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) &&
+		    idedisk_set_doorlock(drive, 0))
+			drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
 	}
 
 	idkp->openers--;
@@ -1031,12 +1050,13 @@ static int idedisk_media_changed(struct gendisk *disk)
 	ide_drive_t *drive = idkp->drive;
 
 	/* do not scan partitions twice if this is a removable device */
-	if (drive->attach) {
-		drive->attach = 0;
+	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
+		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
 		return 0;
 	}
+
 	/* if removable, always assume it was changed */
-	return drive->removable;
+	return !!(drive->dev_flags & IDE_DFLAG_REMOVABLE);
 }
 
 static int idedisk_revalidate_disk(struct gendisk *disk)
@@ -1094,15 +1114,15 @@ static int ide_disk_probe(ide_drive_t *drive)
 	if ((!drive->head || drive->head > 16) && !drive->select.b.lba) {
 		printk(KERN_ERR "%s: INVALID GEOMETRY: %d PHYSICAL HEADS?\n",
 			drive->name, drive->head);
-		drive->attach = 0;
+		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
 	} else
-		drive->attach = 1;
+		drive->dev_flags |= IDE_DFLAG_ATTACH;
 
 	g->minors = IDE_DISK_MINORS;
 	g->driverfs_dev = &drive->gendev;
 	g->flags |= GENHD_FL_EXT_DEVT;
-	if (drive->removable)
-		g->flags |= GENHD_FL_REMOVABLE;
+	if (drive->dev_flags & IDE_DFLAG_REMOVABLE)
+		g->flags = GENHD_FL_REMOVABLE;
 	set_capacity(g, idedisk_capacity(drive));
 	g->fops = &idedisk_ops;
 	add_disk(g);

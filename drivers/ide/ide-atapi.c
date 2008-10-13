@@ -261,7 +261,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	ide_expiry_t *expiry;
 	unsigned int timeout, temp;
 	u16 bcount;
-	u8 stat, ireason, scsi = drive->scsi, dsc = 0;
+	u8 stat, ireason, scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI), dsc = 0;
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
@@ -494,7 +494,8 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	}
 
 	ireason = ide_read_ireason(drive);
-	if (drive->media == ide_tape && !drive->scsi)
+	if (drive->media == ide_tape &&
+	    (drive->dev_flags & IDE_DFLAG_SCSI) == 0)
 		ireason = ide_wait_ireason(drive, ireason);
 
 	if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
@@ -512,7 +513,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		timeout = drive->pc_delay;
 		expiry = &ide_delayed_transfer_pc;
 	} else {
-		if (drive->scsi) {
+		if (drive->dev_flags & IDE_DFLAG_SCSI) {
 			timeout = ide_scsi_get_timeout(pc);
 			expiry = ide_scsi_expiry;
 		} else {
@@ -544,14 +545,14 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	u16 bcount;
-	u8 dma = 0;
+	u8 dma = 0, scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
 
 	/* We haven't transferred any data yet */
 	pc->xferred = 0;
 	pc->cur_pos = pc->buf;
 
 	/* Request to transfer the entire buffer at once */
-	if (drive->media == ide_tape && !drive->scsi)
+	if (drive->media == ide_tape && scsi == 0)
 		bcount = pc->req_xfer;
 	else
 		bcount = min(pc->req_xfer, 63 * 1024);
@@ -561,19 +562,19 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 		ide_dma_off(drive);
 	}
 
-	if ((pc->flags & PC_FLAG_DMA_OK) && drive->using_dma) {
-		if (drive->scsi)
+	if ((pc->flags & PC_FLAG_DMA_OK) &&
+	    (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
+		if (scsi)
 			hwif->sg_mapped = 1;
 		dma = !hwif->dma_ops->dma_setup(drive);
-		if (drive->scsi)
+		if (scsi)
 			hwif->sg_mapped = 0;
 	}
 
 	if (!dma)
 		pc->flags &= ~PC_FLAG_DMA_OK;
 
-	ide_pktcmd_tf_load(drive, drive->scsi ? 0 : IDE_TFLAG_OUT_DEVICE,
-			   bcount, dma);
+	ide_pktcmd_tf_load(drive, scsi ? 0 : IDE_TFLAG_OUT_DEVICE, bcount, dma);
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {

@@ -331,7 +331,8 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 	if (blk_sense_request(rq) || blk_special_request(rq)) {
 		struct ide_atapi_pc *pc = (struct ide_atapi_pc *)rq->special;
 
-		if (drive->using_dma && !idescsi_map_sg(drive, pc))
+		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) &&
+		    idescsi_map_sg(drive, pc) == 0)
 			pc->flags |= PC_FLAG_DMA_OK;
 
 		return idescsi_issue_pc(drive, pc);
@@ -415,7 +416,7 @@ static void ide_scsi_remove(ide_drive_t *drive)
 
 	ide_scsi_put(scsi);
 
-	drive->scsi = 0;
+	drive->dev_flags &= ~IDE_DFLAG_SCSI;
 }
 
 static int ide_scsi_probe(ide_drive_t *);
@@ -767,7 +768,7 @@ static int ide_scsi_probe(ide_drive_t *drive)
 	    !(host = scsi_host_alloc(&idescsi_template,sizeof(idescsi_scsi_t))))
 		return -ENODEV;
 
-	drive->scsi = 1;
+	drive->dev_flags |= IDE_DFLAG_SCSI;
 
 	g = alloc_disk(1 << PARTN_BITS);
 	if (!g)
@@ -808,7 +809,7 @@ static int ide_scsi_probe(ide_drive_t *drive)
 
 	put_disk(g);
 out_host_put:
-	drive->scsi = 0;
+	drive->dev_flags &= ~IDE_DFLAG_SCSI;
 	scsi_host_put(host);
 	return err;
 }

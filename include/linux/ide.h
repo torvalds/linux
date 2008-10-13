@@ -459,6 +459,55 @@ enum {
 	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 29),
 };
 
+/* device flags */
+enum {
+	/* restore settings after device reset */
+	IDE_DFLAG_KEEP_SETTINGS		= (1 << 0),
+	/* device is using DMA for read/write */
+	IDE_DFLAG_USING_DMA		= (1 << 1),
+	/* okay to unmask other IRQs */
+	IDE_DFLAG_UNMASK		= (1 << 2),
+	/* don't attempt flushes */
+	IDE_DFLAG_NOFLUSH		= (1 << 3),
+	/* DSC overlap */
+	IDE_DFLAG_DSC_OVERLAP		= (1 << 4),
+	/* give potential excess bandwidth */
+	IDE_DFLAG_NICE1			= (1 << 5),
+	/* device is physically present */
+	IDE_DFLAG_PRESENT		= (1 << 6),
+	/* device ejected hint */
+	IDE_DFLAG_DEAD			= (1 << 7),
+	/* id read from device (synthetic if not set) */
+	IDE_DFLAG_ID_READ		= (1 << 8),
+	IDE_DFLAG_NOPROBE		= (1 << 9),
+	/* need to do check_media_change() */
+	IDE_DFLAG_REMOVABLE		= (1 << 10),
+	/* needed for removable devices */
+	IDE_DFLAG_ATTACH		= (1 << 11),
+	IDE_DFLAG_FORCED_GEOM		= (1 << 12),
+	/* disallow setting unmask bit */
+	IDE_DFLAG_NO_UNMASK		= (1 << 13),
+	/* disallow enabling 32-bit I/O */
+	IDE_DFLAG_NO_IO_32BIT		= (1 << 14),
+	/* for removable only: door lock/unlock works */
+	IDE_DFLAG_DOORLOCKING		= (1 << 15),
+	/* disallow DMA */
+	IDE_DFLAG_NODMA			= (1 << 16),
+	/* powermanagment told us not to do anything, so sleep nicely */
+	IDE_DFLAG_BLOCKED		= (1 << 17),
+	/* ide-scsi emulation */
+	IDE_DFLAG_SCSI			= (1 << 18),
+	/* sleeping & sleep field valid */
+	IDE_DFLAG_SLEEPING		= (1 << 19),
+	IDE_DFLAG_POST_RESET		= (1 << 20),
+	IDE_DFLAG_UDMA33_WARNED		= (1 << 21),
+	IDE_DFLAG_LBA48			= (1 << 22),
+	/* status of write cache */
+	IDE_DFLAG_WCACHE		= (1 << 23),
+	/* used for ignoring ATA_DF */
+	IDE_DFLAG_NOWERR		= (1 << 24),
+};
+
 struct ide_drive_s {
 	char		name[4];	/* drive name, such as "hda" */
         char            driver_req[10];	/* requests specific driver */
@@ -475,6 +524,8 @@ struct ide_drive_s {
 #endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
 
+	unsigned long dev_flags;
+
 	unsigned long sleep;		/* sleep until this time */
 	unsigned long service_start;	/* time we started last request */
 	unsigned long service_time;	/* service time of last request */
@@ -486,32 +537,6 @@ struct ide_drive_s {
 	u8	retry_pio;		/* retrying dma capable host in pio */
 	u8	state;			/* retry state */
 	u8	waiting_for_dma;	/* dma currently in progress */
-
-	unsigned keep_settings	: 1;	/* restore settings after drive reset */
-	unsigned using_dma	: 1;	/* disk is using dma for read/write */
-	unsigned unmask		: 1;	/* okay to unmask other irqs */
-	unsigned noflush	: 1;	/* don't attempt flushes */
-	unsigned dsc_overlap	: 1;	/* DSC overlap */
-	unsigned nice1		: 1;	/* give potential excess bandwidth */
-	unsigned present	: 1;	/* drive is physically present */
-	unsigned dead		: 1;	/* device ejected hint */
-	unsigned id_read	: 1;	/* 1=id read from disk 0 = synthetic */
-	unsigned noprobe 	: 1;	/* from:  hdx=noprobe */
-	unsigned removable	: 1;	/* 1 if need to do check_media_change */
-	unsigned attach		: 1;	/* needed for removable devices */
-	unsigned forced_geom	: 1;	/* 1 if hdx=c,h,s was given at boot */
-	unsigned no_unmask	: 1;	/* disallow setting unmask bit */
-	unsigned no_io_32bit	: 1;	/* disallow enabling 32bit I/O */
-	unsigned doorlocking	: 1;	/* for removable only: door lock/unlock works */
-	unsigned nodma		: 1;	/* disallow DMA */
-	unsigned blocked        : 1;	/* 1=powermanagment told us not to do anything, so sleep nicely */
-	unsigned scsi		: 1;	/* 0=default, 1=ide-scsi emulation */
-	unsigned sleeping	: 1;	/* 1=sleeping & sleep field valid */
-	unsigned post_reset	: 1;
-	unsigned udma33_warned	: 1;
-	unsigned addressing	: 1;	/* 0=28-bit, 1=48-bit */
-	unsigned wcache		: 1;	/* status of write cache */
-	unsigned nowerr		: 1;	/* used for ignoring ATA_DF */
 
         u8	quirk_list;	/* considered quirky, set for a specific host */
         u8	init_speed;	/* transfer rate set at boot */
@@ -826,6 +851,22 @@ static int set_##name(ide_drive_t *drive, int arg) \
 	return 0; \
 }
 
+#define ide_devset_get_flag(name, flag) \
+static int get_##name(ide_drive_t *drive) \
+{ \
+	return !!(drive->dev_flags & flag); \
+}
+
+#define ide_devset_set_flag(name, flag) \
+static int set_##name(ide_drive_t *drive, int arg) \
+{ \
+	if (arg) \
+		drive->dev_flags |= flag; \
+	else \
+		drive->dev_flags &= ~flag; \
+	return 0; \
+}
+
 #define __IDE_DEVSET(_name, _flags, _get, _set) \
 const struct ide_devset ide_devset_##_name = \
 	__DEVSET(_flags, _get, _set)
@@ -859,6 +900,11 @@ ide_decl_devset(using_dma);
 #define ide_devset_rw_field(_name, _field) \
 ide_devset_get(_name, _field); \
 ide_devset_set(_name, _field); \
+IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name)
+
+#define ide_devset_rw_flag(_name, _field) \
+ide_devset_get_flag(_name, _field); \
+ide_devset_set_flag(_name, _field); \
 IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name)
 
 struct ide_proc_devset {
@@ -1587,6 +1633,6 @@ static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)
 {
 	ide_drive_t *peer = &drive->hwif->drives[(drive->dn ^ 1) & 1];
 
-	return peer->present ? peer : NULL;
+	return (peer->dev_flags & IDE_DFLAG_PRESENT) ? peer : NULL;
 }
 #endif /* _IDE_H */

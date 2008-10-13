@@ -647,7 +647,7 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 		return 1;
 
 no_80w:
-	if (drive->udma33_warned == 1)
+	if (drive->dev_flags & IDE_DFLAG_UDMA33_WARNED)
 		return 0;
 
 	printk(KERN_WARNING "%s: %s side 80-wire cable detection failed, "
@@ -655,7 +655,7 @@ no_80w:
 			    drive->name,
 			    hwif->cbl == ATA_CBL_PATA80 ? "drive" : "host");
 
-	drive->udma33_warned = 1;
+	drive->dev_flags |= IDE_DFLAG_UDMA33_WARNED;
 
 	return 0;
 }
@@ -711,7 +711,7 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	kfree(id);
 
-	if (drive->using_dma && ide_id_dma_bug(drive))
+	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) && ide_id_dma_bug(drive))
 		ide_dma_off(drive);
 
 	return 1;
@@ -790,7 +790,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (speed >= XFER_SW_DMA_0 && drive->using_dma)
+	if (speed >= XFER_SW_DMA_0 && (drive->dev_flags & IDE_DFLAG_USING_DMA))
 		hwif->dma_ops->dma_host_set(drive, 1);
 	else if (hwif->dma_ops)	/* check if host supports DMA */
 		ide_dma_off_quietly(drive);
@@ -1016,9 +1016,13 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 	drive->special.all = 0;
 	drive->special.b.set_geometry = legacy;
 	drive->special.b.recalibrate  = legacy;
+
 	drive->mult_count = 0;
-	if (!drive->keep_settings && !drive->using_dma)
+
+	if ((drive->dev_flags & IDE_DFLAG_KEEP_SETTINGS) == 0 &&
+	    (drive->dev_flags & IDE_DFLAG_USING_DMA) == 0)
 		drive->mult_req = 0;
+
 	if (drive->mult_req != drive->mult_count)
 		drive->special.b.set_multmode = 1;
 }
@@ -1030,18 +1034,18 @@ static void pre_reset(ide_drive_t *drive)
 	if (drive->media == ide_disk)
 		ide_disk_pre_reset(drive);
 	else
-		drive->post_reset = 1;
+		drive->dev_flags |= IDE_DFLAG_POST_RESET;
 
-	if (drive->using_dma) {
+	if (drive->dev_flags & IDE_DFLAG_USING_DMA) {
 		if (drive->crc_count)
 			ide_check_dma_crc(drive);
 		else
 			ide_dma_off(drive);
 	}
 
-	if (!drive->keep_settings) {
-		if (!drive->using_dma) {
-			drive->unmask = 0;
+	if ((drive->dev_flags & IDE_DFLAG_KEEP_SETTINGS) == 0) {
+		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0) {
+			drive->dev_flags &= ~IDE_DFLAG_UNMASK;
 			drive->io_32bit = 0;
 		}
 		return;

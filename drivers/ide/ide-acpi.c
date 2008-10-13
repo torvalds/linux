@@ -290,7 +290,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	DEBPRINT("ENTER: %s at %s, port#: %d, hard_port#: %d\n",
 		 hwif->name, dev->bus_id, port, hwif->channel);
 
-	if (!drive->present) {
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0) {
 		DEBPRINT("%s drive %d:%d not present\n",
 			 hwif->name, hwif->channel, port);
 		goto out;
@@ -420,8 +420,9 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 
 	DEBPRINT("ENTER: %s, hard_port#: %d\n", drive->name, drive->dn);
 
-	if (!drive->present)
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		goto out;
+
 	if (!gtf_count)		/* shouldn't be here */
 		goto out;
 
@@ -660,7 +661,8 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 		if (!drive->acpidata->obj_handle)
 			drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
 
-		if (drive->acpidata->obj_handle && drive->present) {
+		if (drive->acpidata->obj_handle &&
+		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			acpi_bus_set_power(drive->acpidata->obj_handle,
 				on? ACPI_STATE_D0: ACPI_STATE_D3);
 		}
@@ -720,7 +722,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 
 		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
 		err = taskfile_lib_get_identify(drive, drive->acpidata->idbuff);
@@ -745,7 +747,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		drive = &hwif->drives[i];
 
-		if (drive->present)
+		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			/* Execute ACPI startup code */
 			ide_acpi_exec_tfs(drive);
 	}

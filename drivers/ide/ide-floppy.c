@@ -828,8 +828,8 @@ static int idefloppy_media_changed(struct gendisk *disk)
 	int ret;
 
 	/* do not scan partitions twice if this is a removable device */
-	if (drive->attach) {
-		drive->attach = 0;
+	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
+		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
 		return 0;
 	}
 	ret = !!(drive->atapi_flags & IDE_AFLAG_MEDIA_CHANGED);
@@ -896,12 +896,13 @@ static int ide_floppy_probe(ide_drive_t *drive)
 	drive->debug_mask = debug_mask;
 
 	idefloppy_setup(drive, floppy);
+	drive->dev_flags |= IDE_DFLAG_ATTACH;
 
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;
-	g->flags = drive->removable ? GENHD_FL_REMOVABLE : 0;
+	if (drive->dev_flags & IDE_DFLAG_REMOVABLE)
+		g->flags = GENHD_FL_REMOVABLE;
 	g->fops = &idefloppy_ops;
-	drive->attach = 1;
 	add_disk(g);
 	return 0;
 

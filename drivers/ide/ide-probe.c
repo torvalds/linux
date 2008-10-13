@@ -121,7 +121,8 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	/* read 512 bytes of id info */
 	hwif->tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
 
-	drive->id_read = 1;
+	drive->dev_flags |= IDE_DFLAG_ID_READ;
+
 	local_irq_enable();
 #ifdef DEBUG
 	printk(KERN_INFO "%s: dumping identify data\n", drive->name);
@@ -153,8 +154,8 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 
 	printk(KERN_INFO "%s: %s, ", drive->name, m);
 
-	drive->present = 1;
-	drive->dead = 0;
+	drive->dev_flags |= IDE_DFLAG_PRESENT;
+	drive->dev_flags &= ~IDE_DFLAG_DEAD;
 
 	/*
 	 * Check for an ATAPI device
@@ -172,14 +173,14 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 						printk(KERN_CONT "cdrom or floppy?, assuming ");
 					if (drive->media != ide_cdrom) {
 						printk(KERN_CONT "FLOPPY");
-						drive->removable = 1;
+						drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 						break;
 					}
 				}
 				/* Early cdrom models used zero */
 				type = ide_cdrom;
 			case ide_cdrom:
-				drive->removable = 1;
+				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 #ifdef CONFIG_PPC
 				/* kludge for Apple PowerBook internal zip */
 				if (!strstr(m, "CD-ROM") && strstr(m, "ZIP")) {
@@ -195,7 +196,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 				break;
 			case ide_optical:
 				printk(KERN_CONT "OPTICAL");
-				drive->removable = 1;
+				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 				break;
 			default:
 				printk(KERN_CONT "UNKNOWN (type %d)", type);
@@ -216,7 +217,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 
 	/* CF devices are *not* removable in Linux definition of the term */
 	if (is_cfa == 0 && (id[ATA_ID_CONFIG] & (1 << 7)))
-		drive->removable = 1;
+		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 
 	drive->media = ide_disk;
 
@@ -226,7 +227,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 
 err_misc:
 	kfree(id);
-	drive->present = 0;
+	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	return;
 }
 
@@ -426,16 +427,15 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	ide_hwif_t *hwif = HWIF(drive);
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int rc;
-	u8 stat;
+	u8 present = !!(drive->dev_flags & IDE_DFLAG_PRESENT), stat;
 
-	if (drive->present) {
-		/* avoid waiting for inappropriate probes */
-		if (drive->media != ide_disk && cmd == ATA_CMD_ID_ATA)
-			return 4;
-	}
+	/* avoid waiting for inappropriate probes */
+	if (present && drive->media != ide_disk && cmd == ATA_CMD_ID_ATA)
+		return 4;
+
 #ifdef DEBUG
 	printk(KERN_INFO "probing for %s: present=%d, media=%d, probetype=%s\n",
-		drive->name, drive->present, drive->media,
+		drive->name, present, drive->media,
 		(cmd == ATA_CMD_ID_ATA) ? "ATA" : "ATAPI");
 #endif
 
@@ -446,7 +446,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	SELECT_DRIVE(drive);
 	msleep(50);
 
-	if (ide_read_device(drive) != drive->select.all && !drive->present) {
+	if (ide_read_device(drive) != drive->select.all && present == 0) {
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
@@ -460,7 +460,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	stat = tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY) ||
-	    drive->present || cmd == ATA_CMD_ID_ATAPI) {
+	    present || cmd == ATA_CMD_ID_ATAPI) {
 		/* send cmd and wait */
 		if ((rc = try_to_identify(drive, cmd))) {
 			/* failed: try again */
@@ -542,8 +542,8 @@ static void enable_nest (ide_drive_t *drive)
  *	and presents things to the user as needed.
  *
  *	Returns:	0  no device was found
- *			1  device was found (note: drive->present might
- *			   still be 0)
+ *			1  device was found
+ *			   (note: IDE_DFLAG_PRESENT might still be not set)
  */
  
 static inline u8 probe_for_drive (ide_drive_t *drive)
@@ -559,10 +559,10 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	 *	Also note that 0 everywhere means "can't do X"
 	 */
  
+	drive->dev_flags &= ~IDE_DFLAG_ID_READ;
+
 	drive->id = kzalloc(SECTOR_SIZE, GFP_KERNEL);
-	drive->id_read = 0;
-	if(drive->id == NULL)
-	{
+	if (drive->id == NULL) {
 		printk(KERN_ERR "ide: out of memory for id data.\n");
 		return 0;
 	}
@@ -571,14 +571,14 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	strcpy(m, "UNKNOWN");
 
 	/* skip probing? */
-	if (!drive->noprobe) {
+	if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0) {
 retry:
 		/* if !(success||timed-out) */
 		if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
 			/* look for ATAPI device */
 			(void)do_probe(drive, ATA_CMD_ID_ATAPI);
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			/* drive not found */
 			return 0;
 
@@ -588,7 +588,7 @@ retry:
 		}
 
 		/* identification failed? */
-		if (!drive->id_read) {
+		if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
 			if (drive->media == ide_disk) {
 				printk(KERN_INFO "%s: non-IDE drive, CHS=%d/%d/%d\n",
 					drive->name, drive->cyl,
@@ -598,15 +598,17 @@ retry:
 			} else {
 				/* nuke it */
 				printk(KERN_WARNING "%s: Unknown device on bus refused identification. Ignoring.\n", drive->name);
-				drive->present = 0;
+				drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			}
 		}
 		/* drive was found */
 	}
-	if(!drive->present)
+
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return 0;
+
 	/* The drive wasn't being helpful. Add generic info only */
-	if (drive->id_read == 0) {
+	if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
 		generic_id(drive);
 		return 1;
 	}
@@ -616,7 +618,7 @@ retry:
 		ide_disk_init_mult_count(drive);
 	}
 
-	return drive->present;
+	return !!(drive->dev_flags & IDE_DFLAG_PRESENT);
 }
 
 static void hwif_release_dev(struct device *dev)
@@ -707,7 +709,8 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[unit];
 
 		/* Ignore disks that we will not probe for later. */
-		if (!drive->noprobe || drive->present) {
+		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
+		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			SELECT_DRIVE(drive);
 			hwif->tp_ops->set_irq(hwif, 1);
 			mdelay(2);
@@ -739,7 +742,7 @@ void ide_undecoded_slave(ide_drive_t *dev1)
 {
 	ide_drive_t *dev0 = &dev1->hwif->drives[0];
 
-	if ((dev1->dn & 1) == 0 || dev0->present == 0)
+	if ((dev1->dn & 1) == 0 || (dev0->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return;
 
 	/* If the models don't match they are not the same product */
@@ -759,7 +762,7 @@ void ide_undecoded_slave(ide_drive_t *dev1)
 	/* Appears to be an IDE flash adapter with decode bugs */
 	printk(KERN_WARNING "ide-probe: ignoring undecoded slave\n");
 
-	dev1->present = 0;
+	dev1->dev_flags &= ~IDE_DFLAG_PRESENT;
 }
 
 EXPORT_SYMBOL_GPL(ide_undecoded_slave);
@@ -772,7 +775,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 	BUG_ON(hwif->present);
 
-	if (hwif->drives[0].noprobe && hwif->drives[1].noprobe)
+	if ((hwif->drives[0].dev_flags & IDE_DFLAG_NOPROBE) &&
+	    (hwif->drives[1].dev_flags & IDE_DFLAG_NOPROBE))
 		return -EACCES;
 
 	/*
@@ -796,7 +800,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[unit];
 		drive->dn = (hwif->channel ? 2 : 0) + unit;
 		(void) probe_for_drive(drive);
-		if (drive->present)
+		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
 	}
 
@@ -820,17 +824,19 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (drive->present && port_ops && port_ops->quirkproc)
-			port_ops->quirkproc(drive);
+		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
+			if (port_ops && port_ops->quirkproc)
+				port_ops->quirkproc(drive);
+		}
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (drive->present) {
+		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			ide_set_max_pio(drive);
 
-			drive->nice1 = 1;
+			drive->dev_flags |= IDE_DFLAG_NICE1;
 
 			if (hwif->dma_ops)
 				ide_set_dma(drive);
@@ -840,10 +846,11 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
-			drive->no_io_32bit = 1;
+		if ((hwif->host_flags & IDE_HFLAG_NO_IO_32BIT) ||
+		    drive->id[ATA_ID_DWORD_IO])
+			drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
 		else
-			drive->no_io_32bit = drive->id[ATA_ID_DWORD_IO] ? 1 : 0;
+			drive->dev_flags &= ~IDE_DFLAG_NO_IO_32BIT;
 	}
 }
 
@@ -957,7 +964,7 @@ static void ide_port_setup_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
 		if (ide_init_queue(drive)) {
@@ -1151,12 +1158,13 @@ static struct kobject *ata_probe(dev_t dev, int *part, void *data)
 	ide_hwif_t *hwif = data;
 	int unit = *part >> PARTN_BITS;
 	ide_drive_t *drive = &hwif->drives[unit];
-	if (!drive->present)
+
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return NULL;
 
 	if (drive->media == ide_disk)
 		request_module("ide-disk");
-	if (drive->scsi)
+	if (drive->dev_flags & IDE_DFLAG_SCSI)
 		request_module("ide-scsi");
 	if (drive->media == ide_cdrom || drive->media == ide_optical)
 		request_module("ide-cd");
@@ -1246,7 +1254,7 @@ static void drive_release_dev (struct device *dev)
 	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
 	drive->id = NULL;
-	drive->present = 0;
+	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	/* Messed up locking ... */
 	spin_unlock_irq(&ide_lock);
 	blk_cleanup_queue(drive->queue);
@@ -1325,7 +1333,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		struct device *dev = &drive->gendev;
 		int ret;
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
 		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
@@ -1352,9 +1360,9 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 		if (hwif->host_flags & IDE_HFLAG_IO_32BIT)
 			drive->io_32bit = 1;
 		if (hwif->host_flags & IDE_HFLAG_UNMASK_IRQS)
-			drive->unmask = 1;
+			drive->dev_flags |= IDE_DFLAG_UNMASK;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
-			drive->no_unmask = 1;
+			drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
 
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);

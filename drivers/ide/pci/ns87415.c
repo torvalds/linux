@@ -137,7 +137,7 @@ static void __devinit superio_init_iops(struct hwif_s *hwif)
 static unsigned int ns87415_count = 0, ns87415_control[MAX_HWIFS] = { 0 };
 
 /*
- * This routine either enables/disables (according to drive->present)
+ * This routine either enables/disables (according to IDE_DFLAG_PRESENT)
  * the IRQ associated with the port (HWIF(drive)),
  * and selects either PIO or DMA handshaking for the next I/O operation.
  */
@@ -153,7 +153,11 @@ static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 
 	/* Adjust IRQ enable bit */
 	bit = 1 << (8 + hwif->channel);
-	new = drive->present ? (new & ~bit) : (new | bit);
+
+	if (drive->dev_flags & IDE_DFLAG_PRESENT)
+		new &= ~bit;
+	else
+		new |= bit;
 
 	/* Select PIO or DMA, DMA may only be selected for one drive/channel. */
 	bit   = 1 << (20 + drive->select.b.unit       + (hwif->channel << 1));
@@ -187,7 +191,8 @@ static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 
 static void ns87415_selectproc (ide_drive_t *drive)
 {
-	ns87415_prepare_drive (drive, drive->using_dma);
+	ns87415_prepare_drive(drive,
+			      !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
 static int ns87415_dma_end(ide_drive_t *drive)

@@ -120,7 +120,8 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 	 * Need to enforce prefetch sometimes because otherwise
 	 * it'll hang (hard).
 	 */
-	if (drive->media != ide_disk || !drive->present)
+	if (drive->media != ide_disk ||
+	    (drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		select |= HT_PREFETCH_MODE;
 
 	if (select != current_select || timing != current_timing) {
@@ -249,11 +250,11 @@ static void ht_set_prefetch(ide_drive_t *drive, u8 state)
 	 */
 	if (state) {
 		drive->drive_data |= t;   /* enable prefetch mode */
-		drive->no_unmask = 1;
-		drive->unmask = 0;
+		drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
+		drive->dev_flags &= ~IDE_DFLAG_UNMASK;
 	} else {
 		drive->drive_data &= ~t;  /* disable prefetch mode */
-		drive->no_unmask = 0;
+		drive->dev_flags &= ~IDE_DFLAG_NO_UNMASK;
 	}
 
 	spin_unlock_irqrestore(&ht6560b_lock, flags);

@@ -397,7 +397,7 @@ EXPORT_SYMBOL_GPL(ide_dma_host_set);
 
 void ide_dma_off_quietly(ide_drive_t *drive)
 {
-	drive->using_dma = 0;
+	drive->dev_flags &= ~IDE_DFLAG_USING_DMA;
 	ide_toggle_bounce(drive, 0);
 
 	drive->hwif->dma_ops->dma_host_set(drive, 0);
@@ -430,7 +430,7 @@ EXPORT_SYMBOL(ide_dma_off);
 
 void ide_dma_on(ide_drive_t *drive)
 {
-	drive->using_dma = 1;
+	drive->dev_flags |= IDE_DFLAG_USING_DMA;
 	ide_toggle_bounce(drive, 1);
 
 	drive->hwif->dma_ops->dma_host_set(drive, 1);
@@ -727,7 +727,8 @@ static int ide_tune_dma(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 speed;
 
-	if (drive->nodma || ata_id_has_dma(drive->id) == 0)
+	if (ata_id_has_dma(drive->id) == 0 ||
+	    (drive->dev_flags & IDE_DFLAG_NODMA))
 		return 0;
 
 	/* consult the list of known "bad" drives */
