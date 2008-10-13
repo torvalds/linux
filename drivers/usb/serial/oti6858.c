@@ -224,10 +224,6 @@ struct oti6858_private {
 	struct usb_serial_port *port;   /* USB port with which associated */
 };
 
-#undef dbg
-/* #define dbg(format, arg...) printk(KERN_INFO "%s: " format "\n", __FILE__, ## arg) */
-#define dbg(format, arg...) printk(KERN_INFO "" format "\n", ## arg)
-
 static void setup_line(struct work_struct *work)
 {
 	struct oti6858_private *priv = container_of(work,
