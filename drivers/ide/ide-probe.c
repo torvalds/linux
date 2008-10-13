@@ -1544,8 +1544,7 @@ static void ide_free_port_slot(int idx)
 	mutex_unlock(&ide_cfg_mtx);
 }
 
-struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
-				    hw_regs_t **hws)
+struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 {
 	struct ide_host *host;
 	int i;
@@ -1554,7 +1553,7 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 	if (host == NULL)
 		return NULL;
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		ide_hwif_t *hwif;
 		int idx;
 
@@ -1596,18 +1595,6 @@ struct ide_host *ide_host_alloc_all(const struct ide_port_info *d,
 
 	return host;
 }
-EXPORT_SYMBOL_GPL(ide_host_alloc_all);
-
-struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
-{
-	hw_regs_t *hws_all[MAX_HWIFS];
-	int i;
-
-	for (i = 0; i < MAX_HWIFS; i++)
-		hws_all[i] = (i < 4) ? hws[i] : NULL;
-
-	return ide_host_alloc_all(d, hws_all);
-}
 EXPORT_SYMBOL_GPL(ide_host_alloc);
 
 int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
@@ -1616,7 +1603,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 	ide_hwif_t *hwif, *mate = NULL;
 	int i, j = 0;
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		hwif = host->ports[i];
 
 		if (hwif == NULL) {
@@ -1644,7 +1631,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		ide_port_init_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		hwif = host->ports[i];
 
 		if (hwif == NULL)
@@ -1661,7 +1648,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			ide_port_tune_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		hwif = host->ports[i];
 
 		if (hwif == NULL)
@@ -1685,7 +1672,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			ide_acpi_port_init_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		hwif = host->ports[i];
 
 		if (hwif == NULL)
@@ -1698,7 +1685,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			hwif_register_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		hwif = host->ports[i];
 
 		if (hwif == NULL)
@@ -1743,7 +1730,7 @@ void ide_host_free(struct ide_host *host)
 	ide_hwif_t *hwif;
 	int i;
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		hwif = host->ports[i];
 
 		if (hwif == NULL)
@@ -1761,7 +1748,7 @@ void ide_host_remove(struct ide_host *host)
 {
 	int i;
 
-	for (i = 0; i < MAX_HWIFS; i++) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
 		if (host->ports[i])
 			ide_unregister(host->ports[i]);
 	}
