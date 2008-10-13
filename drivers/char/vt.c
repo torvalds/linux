@@ -2136,26 +2136,8 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	    release_console_sem();
 	    return 0;
 	}
-	release_console_sem();
-
 	orig_buf = buf;
 	orig_count = count;
-
-	/* At this point 'buf' is guaranteed to be a kernel buffer
-	 * and therefore no access to userspace (and therefore sleeping)
-	 * will be needed.  The con_buf_mtx serializes all tty based
-	 * console rendering and vcs write/read operations.  We hold
-	 * the console spinlock during the entire write.
-	 */
-
-	acquire_console_sem();
-
-	vc = tty->driver_data;
-	if (vc == NULL) {
-		printk(KERN_ERR "vt: argh, driver_data _became_ NULL !\n");
-		release_console_sem();
-		goto out;
-	}
 
 	himask = vc->vc_hi_font_mask;
 	charmask = himask ? 0x1ff : 0xff;
