@@ -172,22 +172,15 @@ typedef struct ide_tape_obj {
 	struct kref	kref;
 
 	/*
-	 *	pc points to the current processed packet command.
-	 *
 	 *	failed_pc points to the last failed packet command, or contains
 	 *	NULL if we do not need to retry any packet command. This is
 	 *	required since an additional packet command is needed before the
 	 *	retry, to get detailed information on what went wrong.
 	 */
-	/* Current packet command */
-	struct ide_atapi_pc *pc;
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;
 	/* used by REQ_IDETAPE_{READ,WRITE} requests */
 	struct ide_atapi_pc queued_pc;
-
-	struct ide_atapi_pc request_sense_pc;
-	struct request request_sense_rq;
 
 	/*
 	 * DSC polling variables.
@@ -274,11 +267,6 @@ static DEFINE_MUTEX(idetape_ref_mutex);
 
 static struct class *idetape_sysfs_class;
 
-#define to_ide_tape(obj) container_of(obj, struct ide_tape_obj, kref)
-
-#define ide_tape_g(disk) \
-	container_of((disk)->private_data, struct ide_tape_obj, driver)
-
 static void ide_tape_release(struct kref *);
 
 static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
@@ -286,7 +274,7 @@ static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
 	struct ide_tape_obj *tape = NULL;
 
 	mutex_lock(&idetape_ref_mutex);
-	tape = ide_tape_g(disk);
+	tape = ide_drv_g(disk, ide_tape_obj);
 	if (tape) {
 		if (ide_device_get(tape->drive))
 			tape = NULL;
@@ -312,8 +300,6 @@ static void ide_tape_put(struct ide_tape_obj *tape)
  * state variables are defined in our ide_drive_t structure.
  */
 static struct ide_tape_obj *idetape_devs[MAX_HWIFS * MAX_DRIVES];
-
-#define ide_tape_f(file) ((file)->private_data)
 
 static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
 {
@@ -522,13 +508,18 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	return 0;
 }
 
-static void ide_tape_callback(ide_drive_t *drive)
+static void ide_tape_handle_dsc(ide_drive_t *);
+
+static void ide_tape_callback(ide_drive_t *drive, int dsc)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	struct ide_atapi_pc *pc = tape->pc;
+	struct ide_atapi_pc *pc = drive->pc;
 	int uptodate = pc->error ? 0 : 1;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
+
+	if (dsc)
+		ide_tape_handle_dsc(drive);
 
 	if (tape->failed_pc == pc)
 		tape->failed_pc = NULL;
@@ -558,7 +549,7 @@ static void ide_tape_callback(ide_drive_t *drive)
 		if (pc->error)
 			uptodate = pc->error;
 	} else if (pc->c[0] == READ_POSITION && uptodate) {
-		u8 *readpos = tape->pc->buf;
+		u8 *readpos = pc->buf;
 
 		debug_log(DBG_SENSE, "BOP - %s\n",
 				(readpos[0] & 0x80) ? "Yes" : "No");
@@ -581,31 +572,6 @@ static void ide_tape_callback(ide_drive_t *drive)
 	}
 
 	idetape_end_request(drive, uptodate, 0);
-}
-
-static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
-{
-	ide_init_pc(pc);
-	pc->c[0] = REQUEST_SENSE;
-	pc->c[4] = 20;
-	pc->req_xfer = 20;
-}
-
-/*
- *	idetape_retry_pc is called when an error was detected during the
- *	last packet command. We queue a request sense packet command in
- *	the head of the request list.
- */
-static void idetape_retry_pc(ide_drive_t *drive)
-{
-	struct ide_tape_obj *tape = drive->driver_data;
-	struct request *rq = &tape->request_sense_rq;
-	struct ide_atapi_pc *pc = &tape->request_sense_pc;
-
-	(void)ide_read_error(drive);
-	idetape_create_request_sense_cmd(pc);
-	set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
-	ide_queue_pc_head(drive, tape->disk, pc, rq);
 }
 
 /*
@@ -646,34 +612,18 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 }
 
 /*
- * This is the usual interrupt handler which will be called during a packet
- * command. We will transfer some of the data (as requested by the drive) and
- * will re-point interrupt handler to us. When data transfer is finished, we
- * will act according to the algorithm described before
- * idetape_issue_pc.
- */
-static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	return ide_pc_intr(drive, tape->pc, idetape_pc_intr, WAIT_TAPE_CMD,
-			   NULL, idetape_update_buffers, idetape_retry_pc,
-			   ide_tape_handle_dsc, ide_tape_io_buffers);
-}
-
-/*
  * Packet Command Interface
  *
- * The current Packet Command is available in tape->pc, and will not change
+ * The current Packet Command is available in drive->pc, and will not change
  * until we finish handling it. Each packet command is associated with a
  * callback function that will be called when the command is finished.
  *
  * The handling will be done in three stages:
  *
  * 1. idetape_issue_pc will send the packet command to the drive, and will set
- * the interrupt handler to idetape_pc_intr.
+ * the interrupt handler to ide_pc_intr.
  *
- * 2. On each interrupt, idetape_pc_intr will be called. This step will be
+ * 2. On each interrupt, ide_pc_intr will be called. This step will be
  * repeated until the device signals us that no more interrupts will be issued.
  *
  * 3. ATAPI Tape media access commands have immediate status with a delayed
@@ -697,20 +647,13 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
  * again, the callback function will be called and then we will handle the next
  * request.
  */
-static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	return ide_transfer_pc(drive, tape->pc, idetape_pc_intr,
-			       WAIT_TAPE_CMD, NULL);
-}
 
 static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 		struct ide_atapi_pc *pc)
 {
 	idetape_tape_t *tape = drive->driver_data;
 
-	if (tape->pc->c[0] == REQUEST_SENSE &&
+	if (drive->pc->c[0] == REQUEST_SENSE &&
 	    pc->c[0] == REQUEST_SENSE) {
 		printk(KERN_ERR "ide-tape: possible ide-tape.c bug - "
 			"Two request sense in serial were issued\n");
@@ -718,8 +661,9 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	if (tape->failed_pc == NULL && pc->c[0] != REQUEST_SENSE)
 		tape->failed_pc = pc;
+
 	/* Set the current packet command */
-	tape->pc = pc;
+	drive->pc = pc;
 
 	if (pc->retries > IDETAPE_MAX_PC_RETRIES ||
 		(pc->flags & PC_FLAG_ABORT)) {
@@ -743,15 +687,14 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 			pc->error = IDETAPE_ERROR_GENERAL;
 		}
 		tape->failed_pc = NULL;
-		drive->pc_callback(drive);
+		drive->pc_callback(drive, 0);
 		return ide_stopped;
 	}
 	debug_log(DBG_SENSE, "Retry #%d, cmd = %02X\n", pc->retries, pc->c[0]);
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, pc, idetape_transfer_pc,
-			    WAIT_TAPE_CMD, NULL);
+	return ide_issue_pc(drive, WAIT_TAPE_CMD, NULL);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */
@@ -785,7 +728,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
-	struct ide_atapi_pc *pc = tape->pc;
+	struct ide_atapi_pc *pc = drive->pc;
 	u8 stat;
 
 	stat = hwif->tp_ops->read_status(hwif);
@@ -797,7 +740,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 				printk(KERN_ERR "ide-tape: %s: I/O error, ",
 						tape->name);
 			/* Retry operation */
-			idetape_retry_pc(drive);
+			ide_retry_pc(drive, tape->disk);
 			return ide_stopped;
 		}
 		pc->error = 0;
@@ -805,7 +748,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 		pc->error = IDETAPE_ERROR_GENERAL;
 		tape->failed_pc = NULL;
 	}
-	drive->pc_callback(drive);
+	drive->pc_callback(drive, 0);
 	return ide_stopped;
 }
 
@@ -862,7 +805,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 
 	/* Retry a failed packet command */
-	if (tape->failed_pc && tape->pc->c[0] == REQUEST_SENSE) {
+	if (tape->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
 		pc = tape->failed_pc;
 		goto out;
 	}
@@ -883,12 +826,13 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	 */
 	stat = hwif->tp_ops->read_status(hwif);
 
-	if (!drive->dsc_overlap && !(rq->cmd[13] & REQ_IDETAPE_PC2))
+	if ((drive->dev_flags & IDE_DFLAG_DSC_OVERLAP) == 0 &&
+	    (rq->cmd[13] & REQ_IDETAPE_PC2) == 0)
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
 
-	if (drive->post_reset == 1) {
+	if (drive->dev_flags & IDE_DFLAG_POST_RESET) {
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
-		drive->post_reset = 0;
+		drive->dev_flags &= ~IDE_DFLAG_POST_RESET;
 	}
 
 	if (!test_and_clear_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags) &&
@@ -1411,7 +1355,7 @@ static int idetape_init_read(ide_drive_t *drive)
 		 * No point in issuing this if DSC overlap isn't supported, some
 		 * drives (Seagate STT3401A) will return an error.
 		 */
-		if (drive->dsc_overlap) {
+		if (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP) {
 			bytes_read = idetape_queue_rw_tail(drive,
 							REQ_IDETAPE_READ, 0,
 							tape->merge_bh);
@@ -1592,7 +1536,7 @@ static int idetape_space_over_filemarks(ide_drive_t *drive, short mt_op,
 static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	struct ide_tape_obj *tape = ide_tape_f(file);
+	struct ide_tape_obj *tape = file->private_data;
 	ide_drive_t *drive = tape->drive;
 	ssize_t bytes_read, temp, actually_read = 0, rc;
 	ssize_t ret = 0;
@@ -1654,7 +1598,7 @@ finish:
 static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 				     size_t count, loff_t *ppos)
 {
-	struct ide_tape_obj *tape = ide_tape_f(file);
+	struct ide_tape_obj *tape = file->private_data;
 	ide_drive_t *drive = tape->drive;
 	ssize_t actually_written = 0;
 	ssize_t ret = 0;
@@ -1687,7 +1631,7 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 		 * point in issuing this if DSC overlap isn't supported, some
 		 * drives (Seagate STT3401A) will return an error.
 		 */
-		if (drive->dsc_overlap) {
+		if (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP) {
 			ssize_t retval = idetape_queue_rw_tail(drive,
 							REQ_IDETAPE_WRITE, 0,
 							tape->merge_bh);
@@ -1886,7 +1830,7 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 static int idetape_chrdev_ioctl(struct inode *inode, struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
-	struct ide_tape_obj *tape = ide_tape_f(file);
+	struct ide_tape_obj *tape = file->private_data;
 	ide_drive_t *drive = tape->drive;
 	struct mtop mtop;
 	struct mtget mtget;
@@ -2063,7 +2007,7 @@ static void idetape_write_release(ide_drive_t *drive, unsigned int minor)
 
 static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 {
-	struct ide_tape_obj *tape = ide_tape_f(filp);
+	struct ide_tape_obj *tape = filp->private_data;
 	ide_drive_t *drive = tape->drive;
 	unsigned int minor = iminor(inode);
 
@@ -2202,7 +2146,7 @@ static int divf_tdsc(ide_drive_t *drive)	{ return   HZ; }
 static int divf_buffer(ide_drive_t *drive)	{ return    2; }
 static int divf_buffer_size(ide_drive_t *drive)	{ return 1024; }
 
-ide_devset_rw_field(dsc_overlap, dsc_overlap);
+ide_devset_rw_flag(dsc_overlap, IDE_DFLAG_DSC_OVERLAP);
 
 ide_tape_devset_rw_field(debug_mask, debug_mask);
 ide_tape_devset_rw_field(tdsc, best_dsc_rw_freq);
@@ -2241,32 +2185,31 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	unsigned long t;
 	int speed;
 	int buffer_size;
-	u8 gcw[2];
 	u16 *ctl = (u16 *)&tape->caps[12];
 
-	drive->pc_callback = ide_tape_callback;
+	drive->pc_callback	 = ide_tape_callback;
+	drive->pc_update_buffers = idetape_update_buffers;
+	drive->pc_io_buffers	 = ide_tape_io_buffers;
 
 	spin_lock_init(&tape->lock);
-	drive->dsc_overlap = 1;
+
+	drive->dev_flags |= IDE_DFLAG_DSC_OVERLAP;
+
 	if (drive->hwif->host_flags & IDE_HFLAG_NO_DSC) {
 		printk(KERN_INFO "ide-tape: %s: disabling DSC overlap\n",
 				 tape->name);
-		drive->dsc_overlap = 0;
+		drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
 	}
+
 	/* Seagate Travan drives do not support DSC overlap. */
 	if (strstr((char *)&drive->id[ATA_ID_PROD], "Seagate STT3401"))
-		drive->dsc_overlap = 0;
+		drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
+
 	tape->minor = minor;
 	tape->name[0] = 'h';
 	tape->name[1] = 't';
 	tape->name[2] = '0' + minor;
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
-
-	*((u16 *)&gcw) = drive->id[ATA_ID_CONFIG];
-
-	/* Command packet DRQ type */
-	if (((gcw[0] & 0x60) >> 5) == 1)
-		set_bit(IDE_AFLAG_DRQ_INTERRUPT, &drive->atapi_flags);
 
 	idetape_get_inquiry_results(drive);
 	idetape_get_mode_sense_results(drive);
@@ -2302,7 +2245,7 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 		(*(u16 *)&tape->caps[16] * 512) / tape->buffer_size,
 		tape->buffer_size / 1024,
 		tape->best_dsc_rw_freq * 1000 / HZ,
-		drive->using_dma ? ", DMA":"");
+		(drive->dev_flags & IDE_DFLAG_USING_DMA) ? ", DMA" : "");
 
 	ide_proc_register_driver(drive, tape->driver);
 }
@@ -2320,13 +2263,13 @@ static void ide_tape_remove(ide_drive_t *drive)
 
 static void ide_tape_release(struct kref *kref)
 {
-	struct ide_tape_obj *tape = to_ide_tape(kref);
+	struct ide_tape_obj *tape = to_ide_drv(kref, ide_tape_obj);
 	ide_drive_t *drive = tape->drive;
 	struct gendisk *g = tape->disk;
 
 	BUG_ON(tape->merge_bh_size);
 
-	drive->dsc_overlap = 0;
+	drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
 	drive->driver_data = NULL;
 	device_destroy(idetape_sysfs_class, MKDEV(IDETAPE_MAJOR, tape->minor));
 	device_destroy(idetape_sysfs_class,
@@ -2368,7 +2311,6 @@ static ide_driver_t idetape_driver = {
 	.probe			= ide_tape_probe,
 	.remove			= ide_tape_remove,
 	.version		= IDETAPE_VERSION,
-	.media			= ide_tape,
 	.do_request		= idetape_do_request,
 	.end_request		= idetape_end_request,
 	.error			= __ide_error,
@@ -2403,7 +2345,7 @@ static int idetape_open(struct inode *inode, struct file *filp)
 static int idetape_release(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_tape_obj *tape = ide_tape_g(disk);
+	struct ide_tape_obj *tape = ide_drv_g(disk, ide_tape_obj);
 
 	ide_tape_put(tape);
 
@@ -2414,7 +2356,7 @@ static int idetape_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct ide_tape_obj *tape = ide_tape_g(bdev->bd_disk);
+	struct ide_tape_obj *tape = ide_drv_g(bdev->bd_disk, ide_tape_obj);
 	ide_drive_t *drive = tape->drive;
 	int err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
 	if (err == -EINVAL)
@@ -2441,7 +2383,8 @@ static int ide_tape_probe(ide_drive_t *drive)
 	if (drive->media != ide_tape)
 		goto failed;
 
-	if (drive->id_read == 1 && !ide_check_atapi_device(drive, DRV_NAME)) {
+	if ((drive->dev_flags & IDE_DFLAG_ID_READ) &&
+	    ide_check_atapi_device(drive, DRV_NAME) == 0) {
 		printk(KERN_ERR "ide-tape: %s: not supported by this version of"
 				" the driver\n", drive->name);
 		goto failed;

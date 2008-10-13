@@ -835,7 +835,7 @@ static int hpt370_dma_end(ide_drive_t *drive)
 		if (dma_stat & 0x01)
 			hpt370_irq_timeout(drive);
 	}
-	return __ide_dma_end(drive);
+	return ide_dma_end(drive);
 }
 
 static void hpt370_dma_timeout(ide_drive_t *drive)
@@ -863,9 +863,6 @@ static int hpt374_dma_test_irq(ide_drive_t *drive)
 	if (dma_stat & 4)
 		return 1;
 
-	if (!drive->waiting_for_dma)
-		printk(KERN_WARNING "%s: (%s) called while not waiting\n",
-				drive->name, __func__);
 	return 0;
 }
 
@@ -880,7 +877,7 @@ static int hpt374_dma_end(ide_drive_t *drive)
 	pci_read_config_byte(dev, mcr_addr, &mcr);
 	if (bwsr & mask)
 		pci_write_config_byte(dev, mcr_addr, mcr | 0x30);
-	return __ide_dma_end(drive);
+	return ide_dma_end(drive);
 }
 
 /**
@@ -1456,7 +1453,7 @@ static const struct ide_dma_ops hpt36x_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= hpt366_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
@@ -1622,7 +1619,7 @@ static const struct pci_device_id hpt366_pci_tbl[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(pci, hpt366_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver hpt366_pci_driver = {
 	.name		= "HPT366_IDE",
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
@@ -1633,12 +1630,12 @@ static struct pci_driver driver = {
 
 static int __init hpt366_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&hpt366_pci_driver);
 }
 
 static void __exit hpt366_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&hpt366_pci_driver);
 }
 
 module_init(hpt366_ide_init);

@@ -605,7 +605,7 @@ static const struct pci_device_id sis5513_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sis5513_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver sis5513_pci_driver = {
 	.name		= "SIS_IDE",
 	.id_table	= sis5513_pci_tbl,
 	.probe		= sis5513_init_one,
@@ -616,12 +616,12 @@ static struct pci_driver driver = {
 
 static int __init sis5513_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&sis5513_pci_driver);
 }
 
 static void __exit sis5513_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&sis5513_pci_driver);
 }
 
 module_init(sis5513_ide_init);

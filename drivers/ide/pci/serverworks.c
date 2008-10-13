@@ -153,7 +153,7 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u8 unit			= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 
 	u8 ultra_enable	 = 0, ultra_timing = 0, dma_timing = 0;
 
@@ -443,7 +443,7 @@ static const struct pci_device_id svwks_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, svwks_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver svwks_pci_driver = {
 	.name		= "Serverworks_IDE",
 	.id_table	= svwks_pci_tbl,
 	.probe		= svwks_init_one,
@@ -454,12 +454,12 @@ static struct pci_driver driver = {
 
 static int __init svwks_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&svwks_pci_driver);
 }
 
 static void __exit svwks_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&svwks_pci_driver);
 }
 
 module_init(svwks_ide_init);

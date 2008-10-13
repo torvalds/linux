@@ -16,6 +16,7 @@
  */
 
 #define DRV_NAME "ide-floppy"
+#define PFX DRV_NAME ": "
 
 #define IDEFLOPPY_VERSION "1.00"
 
@@ -48,17 +49,17 @@
 
 #include "ide-floppy.h"
 
-/* define to see debug info */
-#define IDEFLOPPY_DEBUG_LOG		0
+/* module parameters */
+static unsigned long debug_mask;
+module_param(debug_mask, ulong, 0644);
 
-/* #define IDEFLOPPY_DEBUG(fmt, args...) printk(KERN_INFO fmt, ## args) */
-#define IDEFLOPPY_DEBUG(fmt, args...)
+/* define to see debug info */
+#define IDEFLOPPY_DEBUG_LOG	0
 
 #if IDEFLOPPY_DEBUG_LOG
-#define debug_log(fmt, args...) \
-	printk(KERN_INFO "ide-floppy: " fmt, ## args)
+#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, args)
 #else
-#define debug_log(fmt, args...) do {} while (0)
+#define ide_debug_log(lvl, fmt, args...) do {} while (0)
 #endif
 
 /*
@@ -73,17 +74,16 @@
 #define CAPACITY_CURRENT	0x02
 #define CAPACITY_NO_CARTRIDGE	0x03
 
-#define IDEFLOPPY_TICKS_DELAY	HZ/20	/* default delay for ZIP 100 (50ms) */
+/*
+ * The following delay solves a problem with ATAPI Zip 100 drive where BSY bit
+ * was apparently being deasserted before the unit was ready to receive data.
+ */
+#define IDEFLOPPY_PC_DELAY	(HZ/20)	/* default delay for ZIP 100 (50ms) */
 
 /* Error code returned in rq->errors to the higher part of the driver. */
 #define	IDEFLOPPY_ERROR_GENERAL		101
 
 static DEFINE_MUTEX(idefloppy_ref_mutex);
-
-#define to_ide_floppy(obj) container_of(obj, struct ide_floppy_obj, kref)
-
-#define ide_floppy_g(disk) \
-	container_of((disk)->private_data, struct ide_floppy_obj, driver)
 
 static void idefloppy_cleanup_obj(struct kref *);
 
@@ -92,7 +92,7 @@ static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
 	struct ide_floppy_obj *floppy = NULL;
 
 	mutex_lock(&idefloppy_ref_mutex);
-	floppy = ide_floppy_g(disk);
+	floppy = ide_drv_g(disk, ide_floppy_obj);
 	if (floppy) {
 		if (ide_device_get(floppy->drive))
 			floppy = NULL;
@@ -123,13 +123,21 @@ static int idefloppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	struct request *rq = HWGROUP(drive)->rq;
 	int error;
 
-	debug_log("Reached %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
 
 	switch (uptodate) {
-	case 0: error = IDEFLOPPY_ERROR_GENERAL; break;
-	case 1: error = 0; break;
-	default: error = uptodate;
+	case 0:
+		error = IDEFLOPPY_ERROR_GENERAL;
+		break;
+
+	case 1:
+		error = 0;
+		break;
+
+	default:
+		error = uptodate;
 	}
+
 	if (error)
 		floppy->failed_pc = NULL;
 	/* Why does this happen? */
@@ -156,13 +164,13 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 		idefloppy_end_request(drive, 1, 0);
 }
 
-static void ide_floppy_callback(ide_drive_t *drive)
+static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	struct ide_atapi_pc *pc = floppy->pc;
+	struct ide_atapi_pc *pc = drive->pc;
 	int uptodate = pc->error ? 0 : 1;
 
-	debug_log("Reached %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
 
 	if (floppy->failed_pc == pc)
 		floppy->failed_pc = NULL;
@@ -171,7 +179,7 @@ static void ide_floppy_callback(ide_drive_t *drive)
 	    (pc->rq && blk_pc_request(pc->rq)))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
-		u8 *buf = floppy->pc->buf;
+		u8 *buf = pc->buf;
 
 		if (!pc->error) {
 			floppy->sense_key = buf[2] & 0x0F;
@@ -181,97 +189,18 @@ static void ide_floppy_callback(ide_drive_t *drive)
 				(u16)get_unaligned((u16 *)&buf[16]) : 0x10000;
 
 			if (floppy->failed_pc)
-				debug_log("pc = %x, ", floppy->failed_pc->c[0]);
+				ide_debug_log(IDE_DBG_PC, "pc = %x, ",
+					      floppy->failed_pc->c[0]);
 
-			debug_log("sense key = %x, asc = %x, ascq = %x\n",
-				  floppy->sense_key, floppy->asc, floppy->ascq);
+			ide_debug_log(IDE_DBG_SENSE, "sense key = %x, asc = %x,"
+				      "ascq = %x\n", floppy->sense_key,
+				      floppy->asc, floppy->ascq);
 		} else
-			printk(KERN_ERR "Error in REQUEST SENSE itself - "
-					"Aborting request!\n");
+			printk(KERN_ERR PFX "Error in REQUEST SENSE itself - "
+			       "Aborting request!\n");
 	}
 
 	idefloppy_end_request(drive, uptodate, 0);
-}
-
-void ide_floppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
-{
-	ide_init_pc(pc);
-	pc->c[0] = GPCMD_REQUEST_SENSE;
-	pc->c[4] = 255;
-	pc->req_xfer = 18;
-}
-
-/*
- * Called when an error was detected during the last packet command. We queue a
- * request sense packet command in the head of the request list.
- */
-static void idefloppy_retry_pc(ide_drive_t *drive)
-{
-	struct ide_floppy_obj *floppy = drive->driver_data;
-	struct request *rq = &floppy->request_sense_rq;
-	struct ide_atapi_pc *pc = &floppy->request_sense_pc;
-
-	(void)ide_read_error(drive);
-	ide_floppy_create_request_sense_cmd(pc);
-	ide_queue_pc_head(drive, floppy->disk, pc, rq);
-}
-
-/* The usual interrupt handler called during a packet command. */
-static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	return ide_pc_intr(drive, floppy->pc, idefloppy_pc_intr,
-			   WAIT_FLOPPY_CMD, NULL, idefloppy_update_buffers,
-			   idefloppy_retry_pc, NULL, ide_io_buffers);
-}
-
-/*
- * What we have here is a classic case of a top half / bottom half interrupt
- * service routine. In interrupt mode, the device sends an interrupt to signal
- * that it is ready to receive a packet. However, we need to delay about 2-3
- * ticks before issuing the packet or we gets in trouble.
- */
-static int idefloppy_transfer_pc(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	/* Send the actual packet */
-	drive->hwif->tp_ops->output_data(drive, NULL, floppy->pc->c, 12);
-
-	/* Timeout for the packet command */
-	return WAIT_FLOPPY_CMD;
-}
-
-/*
- * Called as an interrupt (or directly). When the device says it's ready for a
- * packet, we schedule the packet transfer to occur about 2-3 ticks later in
- * transfer_pc.
- */
-static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	struct ide_atapi_pc *pc = floppy->pc;
-	ide_expiry_t *expiry;
-	unsigned int timeout;
-
-	/*
-	 * The following delay solves a problem with ATAPI Zip 100 drives
-	 * where the Busy flag was apparently being deasserted before the
-	 * unit was ready to receive data. This was happening on a
-	 * 1200 MHz Athlon system. 10/26/01 25msec is too short,
-	 * 40 and 50msec work well. idefloppy_pc_intr will not be actually
-	 * used until after the packet is moved in about 50 msec.
-	 */
-	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
-		timeout = floppy->ticks;
-		expiry = &idefloppy_transfer_pc;
-	} else {
-		timeout = WAIT_FLOPPY_CMD;
-		expiry = NULL;
-	}
-
-	return ide_transfer_pc(drive, pc, idefloppy_pc_intr, timeout, expiry);
 }
 
 static void ide_floppy_report_error(idefloppy_floppy_t *floppy,
@@ -283,7 +212,7 @@ static void ide_floppy_report_error(idefloppy_floppy_t *floppy,
 	    floppy->ascq      == 0x00)
 		return;
 
-	printk(KERN_ERR "ide-floppy: %s: I/O error, pc = %2x, key = %2x, "
+	printk(KERN_ERR PFX "%s: I/O error, pc = %2x, key = %2x, "
 			"asc = %2x, ascq = %2x\n",
 			floppy->drive->name, pc->c[0], floppy->sense_key,
 			floppy->asc, floppy->ascq);
@@ -298,8 +227,9 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != GPCMD_REQUEST_SENSE)
 		floppy->failed_pc = pc;
+
 	/* Set the current packet command */
-	floppy->pc = pc;
+	drive->pc = pc;
 
 	if (pc->retries > IDEFLOPPY_MAX_PC_RETRIES) {
 		if (!(pc->flags & PC_FLAG_SUPPRESS_ERROR))
@@ -308,16 +238,15 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		pc->error = IDEFLOPPY_ERROR_GENERAL;
 
 		floppy->failed_pc = NULL;
-		drive->pc_callback(drive);
+		drive->pc_callback(drive, 0);
 		return ide_stopped;
 	}
 
-	debug_log("Retry number - %d\n", pc->retries);
+	ide_debug_log(IDE_DBG_FUNC, "%s: Retry #%d\n", __func__, pc->retries);
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, pc, idefloppy_start_pc_transfer,
-			    WAIT_FLOPPY_CMD, NULL);
+	return ide_issue_pc(drive, WAIT_FLOPPY_CMD, NULL);
 }
 
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *pc)
@@ -347,23 +276,23 @@ void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *pc, u8 page_code)
 		length += 32;
 		break;
 	default:
-		printk(KERN_ERR "ide-floppy: unsupported page code "
-				"in create_mode_sense_cmd\n");
+		printk(KERN_ERR PFX "unsupported page code in %s\n", __func__);
 	}
 	put_unaligned(cpu_to_be16(length), (u16 *) &pc->c[7]);
 	pc->req_xfer = length;
 }
 
-static void idefloppy_create_rw_cmd(idefloppy_floppy_t *floppy,
+static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 				    struct ide_atapi_pc *pc, struct request *rq,
 				    unsigned long sector)
 {
+	idefloppy_floppy_t *floppy = drive->driver_data;
 	int block = sector / floppy->bs_factor;
 	int blocks = rq->nr_sectors / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
 
-	debug_log("create_rw10_cmd: block == %d, blocks == %d\n",
-		block, blocks);
+	ide_debug_log(IDE_DBG_FUNC, "%s: block: %d, blocks: %d\n", __func__,
+		      block, blocks);
 
 	ide_init_pc(pc);
 	pc->c[0] = cmd == READ ? GPCMD_READ_10 : GPCMD_WRITE_10;
@@ -408,41 +337,42 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 	struct ide_atapi_pc *pc;
 	unsigned long block = (unsigned long)block_s;
 
-	debug_log("%s: dev: %s, cmd: 0x%x, cmd_type: %x, errors: %d\n",
-		  __func__, rq->rq_disk ? rq->rq_disk->disk_name : "?",
-		  rq->cmd[0], rq->cmd_type, rq->errors);
+	ide_debug_log(IDE_DBG_FUNC, "%s: dev: %s, cmd: 0x%x, cmd_type: %x, "
+		      "errors: %d\n",
+		      __func__, rq->rq_disk ? rq->rq_disk->disk_name : "?",
+		      rq->cmd[0], rq->cmd_type, rq->errors);
 
-	debug_log("%s: sector: %ld, nr_sectors: %ld, current_nr_sectors: %d\n",
-		  __func__, (long)rq->sector, rq->nr_sectors,
-		  rq->current_nr_sectors);
+	ide_debug_log(IDE_DBG_FUNC, "%s: sector: %ld, nr_sectors: %ld, "
+		      "current_nr_sectors: %d\n",
+		      __func__, (long)rq->sector, rq->nr_sectors,
+		      rq->current_nr_sectors);
 
 	if (rq->errors >= ERROR_MAX) {
 		if (floppy->failed_pc)
 			ide_floppy_report_error(floppy, floppy->failed_pc);
 		else
-			printk(KERN_ERR "ide-floppy: %s: I/O error\n",
-				drive->name);
+			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
+
 		idefloppy_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
 	if (blk_fs_request(rq)) {
 		if (((long)rq->sector % floppy->bs_factor) ||
 		    (rq->nr_sectors % floppy->bs_factor)) {
-			printk(KERN_ERR "%s: unsupported r/w request size\n",
-					drive->name);
+			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
+				drive->name);
 			idefloppy_end_request(drive, 0, 0);
 			return ide_stopped;
 		}
 		pc = &floppy->queued_pc;
-		idefloppy_create_rw_cmd(floppy, pc, rq, block);
+		idefloppy_create_rw_cmd(drive, pc, rq, block);
 	} else if (blk_special_request(rq)) {
 		pc = (struct ide_atapi_pc *) rq->buffer;
 	} else if (blk_pc_request(rq)) {
 		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
 	} else {
-		blk_dump_rq_flags(rq,
-			"ide-floppy: unsupported command in queue");
+		blk_dump_rq_flags(rq, PFX "unsupported command in queue");
 		idefloppy_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
@@ -475,8 +405,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 	ide_floppy_create_mode_sense_cmd(&pc, IDEFLOPPY_FLEXIBLE_DISK_PAGE);
 
 	if (ide_queue_pc_tail(drive, disk, &pc)) {
-		printk(KERN_ERR "ide-floppy: Can't get flexible disk page"
-				" parameters\n");
+		printk(KERN_ERR PFX "Can't get flexible disk page params\n");
 		return 1;
 	}
 
@@ -499,7 +428,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 	capacity = cyls * heads * sectors * sector_size;
 
 	if (memcmp(page, &floppy->flexible_disk_page, 32))
-		printk(KERN_INFO "%s: %dkB, %d/%d/%d CHS, %d kBps, "
+		printk(KERN_INFO PFX "%s: %dkB, %d/%d/%d CHS, %d kBps, "
 				"%d sector size, %d rpm\n",
 				drive->name, capacity / 1024, cyls, heads,
 				sectors, transfer_rate / 8, sector_size, rpm);
@@ -511,7 +440,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 	lba_capacity = floppy->blocks * floppy->block_size;
 
 	if (capacity < lba_capacity) {
-		printk(KERN_NOTICE "%s: The disk reports a capacity of %d "
+		printk(KERN_NOTICE PFX "%s: The disk reports a capacity of %d "
 			"bytes, but the drive only handles %d\n",
 			drive->name, lba_capacity, capacity);
 		floppy->blocks = floppy->block_size ?
@@ -541,7 +470,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 
 	ide_floppy_create_read_capacity_cmd(&pc);
 	if (ide_queue_pc_tail(drive, disk, &pc)) {
-		printk(KERN_ERR "ide-floppy: Can't get floppy parameters\n");
+		printk(KERN_ERR PFX "Can't get floppy parameters\n");
 		return 1;
 	}
 	header_len = pc.buf[3];
@@ -554,8 +483,9 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		blocks = be32_to_cpup((__be32 *)&pc.buf[desc_start]);
 		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
 
-		debug_log("Descriptor %d: %dkB, %d blocks, %d sector size\n",
-				i, blocks * length / 1024, blocks, length);
+		ide_debug_log(IDE_DBG_PROBE, "Descriptor %d: %dkB, %d blocks, "
+			      "%d sector size\n",
+			      i, blocks * length / 1024, blocks, length);
 
 		if (i)
 			continue;
@@ -575,23 +505,24 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		case CAPACITY_CURRENT:
 			/* Normal Zip/LS-120 disks */
 			if (memcmp(cap_desc, &floppy->cap_desc, 8))
-				printk(KERN_INFO "%s: %dkB, %d blocks, %d "
-					"sector size\n", drive->name,
-					blocks * length / 1024, blocks, length);
+				printk(KERN_INFO PFX "%s: %dkB, %d blocks, %d "
+				       "sector size\n",
+				       drive->name, blocks * length / 1024,
+				       blocks, length);
 			memcpy(&floppy->cap_desc, cap_desc, 8);
 
 			if (!length || length % 512) {
-				printk(KERN_NOTICE "%s: %d bytes block size "
-					"not supported\n", drive->name, length);
+				printk(KERN_NOTICE PFX "%s: %d bytes block size"
+				       " not supported\n", drive->name, length);
 			} else {
 				floppy->blocks = blocks;
 				floppy->block_size = length;
 				floppy->bs_factor = length / 512;
 				if (floppy->bs_factor != 1)
-					printk(KERN_NOTICE "%s: warning: non "
-						"512 bytes block size not "
-						"fully supported\n",
-						drive->name);
+					printk(KERN_NOTICE PFX "%s: Warning: "
+					       "non 512 bytes block size not "
+					       "fully supported\n",
+					       drive->name);
 				rc = 0;
 			}
 			break;
@@ -600,15 +531,16 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 			 * This is a KERN_ERR so it appears on screen
 			 * for the user to see
 			 */
-			printk(KERN_ERR "%s: No disk in drive\n", drive->name);
+			printk(KERN_ERR PFX "%s: No disk in drive\n",
+			       drive->name);
 			break;
 		case CAPACITY_INVALID:
-			printk(KERN_ERR "%s: Invalid capacity for disk "
+			printk(KERN_ERR PFX "%s: Invalid capacity for disk "
 				"in drive\n", drive->name);
 			break;
 		}
-		debug_log("Descriptor 0 Code: %d\n",
-			  pc.buf[desc_start + 4] & 0x03);
+		ide_debug_log(IDE_DBG_PROBE, "Descriptor 0 Code: %d\n",
+			      pc.buf[desc_start + 4] & 0x03);
 	}
 
 	/* Clik! disk does not support get_flexible_disk_page */
@@ -620,7 +552,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	return rc;
 }
 
-static sector_t idefloppy_capacity(ide_drive_t *drive)
+sector_t ide_floppy_capacity(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	unsigned long capacity = floppy->blocks * floppy->bs_factor;
@@ -628,46 +560,14 @@ static sector_t idefloppy_capacity(ide_drive_t *drive)
 	return capacity;
 }
 
-#ifdef CONFIG_IDE_PROC_FS
-ide_devset_rw_field(bios_cyl, bios_cyl);
-ide_devset_rw_field(bios_head, bios_head);
-ide_devset_rw_field(bios_sect, bios_sect);
-
-static int get_ticks(ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	return floppy->ticks;
-}
-
-static int set_ticks(ide_drive_t *drive, int arg)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	floppy->ticks = arg;
-	return 0;
-}
-
-IDE_DEVSET(ticks, DS_SYNC, get_ticks, set_ticks);
-
-static const struct ide_proc_devset idefloppy_settings[] = {
-	IDE_PROC_DEVSET(bios_cyl,  0, 1023),
-	IDE_PROC_DEVSET(bios_head, 0,  255),
-	IDE_PROC_DEVSET(bios_sect, 0,   63),
-	IDE_PROC_DEVSET(ticks,	   0,  255),
-	{ 0 },
-};
-#endif
-
 static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 {
 	u16 *id = drive->id;
-	u8 gcw[2];
 
-	*((u16 *)&gcw) = id[ATA_ID_CONFIG];
+	drive->pc_callback	 = ide_floppy_callback;
+	drive->pc_update_buffers = idefloppy_update_buffers;
+	drive->pc_io_buffers	 = ide_io_buffers;
 
-	drive->pc_callback = ide_floppy_callback;
-
-	if (((gcw[0] & 0x60) >> 5) == 1)
-		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 	/*
 	 * We used to check revisions here. At this point however I'm giving up.
 	 * Just assume they are all broken, its easier.
@@ -680,7 +580,7 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	if (!strncmp((char *)&id[ATA_ID_PROD], "IOMEGA ZIP 100 ATAPI", 20)) {
 		drive->atapi_flags |= IDE_AFLAG_ZIP_DRIVE;
 		/* This value will be visible in the /proc/ide/hdx/settings */
-		floppy->ticks = IDEFLOPPY_TICKS_DELAY;
+		drive->pc_delay = IDEFLOPPY_PC_DELAY;
 		blk_queue_max_sectors(drive->queue, 64);
 	}
 
@@ -714,7 +614,7 @@ static void ide_floppy_remove(ide_drive_t *drive)
 
 static void idefloppy_cleanup_obj(struct kref *kref)
 {
-	struct ide_floppy_obj *floppy = to_ide_floppy(kref);
+	struct ide_floppy_obj *floppy = to_ide_drv(kref, ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 	struct gendisk *g = floppy->disk;
 
@@ -723,24 +623,6 @@ static void idefloppy_cleanup_obj(struct kref *kref)
 	put_disk(g);
 	kfree(floppy);
 }
-
-#ifdef CONFIG_IDE_PROC_FS
-static int proc_idefloppy_read_capacity(char *page, char **start, off_t off,
-		int count, int *eof, void *data)
-{
-	ide_drive_t*drive = (ide_drive_t *)data;
-	int len;
-
-	len = sprintf(page, "%llu\n", (long long)idefloppy_capacity(drive));
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
-}
-
-static ide_proc_entry_t idefloppy_proc[] = {
-	{ "capacity",	S_IFREG|S_IRUGO, proc_idefloppy_read_capacity,	NULL },
-	{ "geometry",	S_IFREG|S_IRUGO, proc_ide_read_geometry,	NULL },
-	{ NULL, 0, NULL, NULL }
-};
-#endif	/* CONFIG_IDE_PROC_FS */
 
 static int ide_floppy_probe(ide_drive_t *);
 
@@ -753,13 +635,12 @@ static ide_driver_t idefloppy_driver = {
 	.probe			= ide_floppy_probe,
 	.remove			= ide_floppy_remove,
 	.version		= IDEFLOPPY_VERSION,
-	.media			= ide_floppy,
 	.do_request		= idefloppy_do_request,
 	.end_request		= idefloppy_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idefloppy_proc,
-	.settings		= idefloppy_settings,
+	.proc			= ide_floppy_proc,
+	.settings		= ide_floppy_settings,
 #endif
 };
 
@@ -770,13 +651,13 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 	ide_drive_t *drive;
 	int ret = 0;
 
-	debug_log("Reached %s\n", __func__);
-
 	floppy = ide_floppy_get(disk);
 	if (!floppy)
 		return -ENXIO;
 
 	drive = floppy->drive;
+
+	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
 
 	floppy->openers++;
 
@@ -822,10 +703,10 @@ out_put_floppy:
 static int idefloppy_release(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_floppy_obj *floppy = ide_floppy_g(disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 
-	debug_log("Reached %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
 
 	if (floppy->openers == 1) {
 		ide_set_media_lock(drive, disk, 0);
@@ -841,7 +722,8 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 
 static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(bdev->bd_disk,
+						     ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 
 	geo->heads = drive->bios_head;
@@ -850,64 +732,15 @@ static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
-			       unsigned long arg, unsigned int cmd)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	struct gendisk *disk = floppy->disk;
-	int prevent = (arg && cmd != CDROMEJECT) ? 1 : 0;
-
-	if (floppy->openers > 1)
-		return -EBUSY;
-
-	ide_set_media_lock(drive, disk, prevent);
-
-	if (cmd == CDROMEJECT)
-		ide_do_start_stop(drive, disk, 2);
-
-	return 0;
-}
-
-static int idefloppy_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
-{
-	struct block_device *bdev = inode->i_bdev;
-	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
-	ide_drive_t *drive = floppy->drive;
-	struct ide_atapi_pc pc;
-	void __user *argp = (void __user *)arg;
-	int err;
-
-	if (cmd == CDROMEJECT || cmd == CDROM_LOCKDOOR)
-		return ide_floppy_lockdoor(drive, &pc, arg, cmd);
-
-	err = ide_floppy_format_ioctl(drive, file, cmd, argp);
-	if (err != -ENOTTY)
-		return err;
-
-	/*
-	 * skip SCSI_IOCTL_SEND_COMMAND (deprecated)
-	 * and CDROM_SEND_PACKET (legacy) ioctls
-	 */
-	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
-		err = scsi_cmd_ioctl(file, bdev->bd_disk->queue,
-					bdev->bd_disk, cmd, argp);
-
-	if (err == -ENOTTY)
-		err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
-
-	return err;
-}
-
 static int idefloppy_media_changed(struct gendisk *disk)
 {
-	struct ide_floppy_obj *floppy = ide_floppy_g(disk);
+	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
 	ide_drive_t *drive = floppy->drive;
 	int ret;
 
 	/* do not scan partitions twice if this is a removable device */
-	if (drive->attach) {
-		drive->attach = 0;
+	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
+		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
 		return 0;
 	}
 	ret = !!(drive->atapi_flags & IDE_AFLAG_MEDIA_CHANGED);
@@ -917,8 +750,8 @@ static int idefloppy_media_changed(struct gendisk *disk)
 
 static int idefloppy_revalidate_disk(struct gendisk *disk)
 {
-	struct ide_floppy_obj *floppy = ide_floppy_g(disk);
-	set_capacity(disk, idefloppy_capacity(floppy->drive));
+	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
+	set_capacity(disk, ide_floppy_capacity(floppy->drive));
 	return 0;
 }
 
@@ -926,7 +759,7 @@ static struct block_device_operations idefloppy_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idefloppy_open,
 	.release		= idefloppy_release,
-	.ioctl			= idefloppy_ioctl,
+	.ioctl			= ide_floppy_ioctl,
 	.getgeo			= idefloppy_getgeo,
 	.media_changed		= idefloppy_media_changed,
 	.revalidate_disk	= idefloppy_revalidate_disk
@@ -944,14 +777,14 @@ static int ide_floppy_probe(ide_drive_t *drive)
 		goto failed;
 
 	if (!ide_check_atapi_device(drive, DRV_NAME)) {
-		printk(KERN_ERR "ide-floppy: %s: not supported by this version"
-				" of ide-floppy\n", drive->name);
+		printk(KERN_ERR PFX "%s: not supported by this version of "
+		       DRV_NAME "\n", drive->name);
 		goto failed;
 	}
 	floppy = kzalloc(sizeof(idefloppy_floppy_t), GFP_KERNEL);
 	if (!floppy) {
-		printk(KERN_ERR "ide-floppy: %s: Can't allocate a floppy"
-				" structure\n", drive->name);
+		printk(KERN_ERR PFX "%s: Can't allocate a floppy structure\n",
+		       drive->name);
 		goto failed;
 	}
 
@@ -971,13 +804,16 @@ static int ide_floppy_probe(ide_drive_t *drive)
 
 	drive->driver_data = floppy;
 
+	drive->debug_mask = debug_mask;
+
 	idefloppy_setup(drive, floppy);
+	drive->dev_flags |= IDE_DFLAG_ATTACH;
 
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;
-	g->flags = drive->removable ? GENHD_FL_REMOVABLE : 0;
+	if (drive->dev_flags & IDE_DFLAG_REMOVABLE)
+		g->flags = GENHD_FL_REMOVABLE;
 	g->fops = &idefloppy_ops;
-	drive->attach = 1;
 	add_disk(g);
 	return 0;
 
@@ -994,7 +830,7 @@ static void __exit idefloppy_exit(void)
 
 static int __init idefloppy_init(void)
 {
-	printk("ide-floppy driver " IDEFLOPPY_VERSION "\n");
+	printk(KERN_INFO DRV_NAME " driver " IDEFLOPPY_VERSION "\n");
 	return driver_register(&idefloppy_driver.gen_driver);
 }
 

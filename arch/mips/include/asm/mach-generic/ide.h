@@ -19,35 +19,6 @@
 #include <linux/stddef.h>
 #include <asm/processor.h>
 
-static __inline__ int ide_probe_legacy(void)
-{
-#ifdef CONFIG_PCI
-	struct pci_dev *dev;
-	/*
-	 * This can be called on the ide_setup() path, super-early in
-	 * boot.  But the down_read() will enable local interrupts,
-	 * which can cause some machines to crash.  So here we detect
-	 * and flag that situation and bail out early.
-	 */
-	if (no_pci_devices())
-		return 0;
-	dev = pci_get_class(PCI_CLASS_BRIDGE_EISA << 8, NULL);
-	if (dev)
-		goto found;
-	dev = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
-	if (dev)
-		goto found;
-	return 0;
-found:
-	pci_dev_put(dev);
-	return 1;
-#elif defined(CONFIG_EISA) || defined(CONFIG_ISA)
-	return 1;
-#else
-	return 0;
-#endif
-}
-
 /* MIPS port and memory-mapped I/O string operations.  */
 static inline void __ide_flush_prologue(void)
 {

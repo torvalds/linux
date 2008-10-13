@@ -38,13 +38,12 @@ static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	u8 channel_offset = hwif->channel ? 0x74 : 0x70;
-	u16 timing = 0;
 	u32 triflex_timings = 0;
-	u8 unit = (drive->select.b.unit & 0x01);
-	
+	u16 timing = 0;
+	u8 channel_offset = hwif->channel ? 0x74 : 0x70, unit = drive->dn & 1;
+
 	pci_read_config_dword(dev, channel_offset, &triflex_timings);
-	
+
 	switch(speed) {
 		case XFER_MW_DMA_2:
 			timing = 0x0103; 
@@ -114,7 +113,7 @@ static const struct pci_device_id triflex_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, triflex_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver triflex_pci_driver = {
 	.name		= "TRIFLEX_IDE",
 	.id_table	= triflex_pci_tbl,
 	.probe		= triflex_init_one,
@@ -125,12 +124,12 @@ static struct pci_driver driver = {
 
 static int __init triflex_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&triflex_pci_driver);
 }
 
 static void __exit triflex_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&triflex_pci_driver);
 }
 
 module_init(triflex_ide_init);

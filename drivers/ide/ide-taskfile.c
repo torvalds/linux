@@ -53,9 +53,6 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 }
 
 static ide_startstop_t task_no_data_intr(ide_drive_t *);
-static ide_startstop_t set_geometry_intr(ide_drive_t *);
-static ide_startstop_t recal_intr(ide_drive_t *);
-static ide_startstop_t set_multmode_intr(ide_drive_t *);
 static ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
 static ide_startstop_t task_in_intr(ide_drive_t *);
 
@@ -79,6 +76,8 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
 
+	memcpy(&hwif->task, task, sizeof(*task));
+
 	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
 		ide_tf_dump(drive->name, tf);
 		tp_ops->set_irq(hwif, 1);
@@ -99,24 +98,12 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	case TASKFILE_NO_DATA:
 		if (handler == NULL)
 			handler = task_no_data_intr;
-		if (task->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) {
-			switch (tf->command) {
-			case ATA_CMD_INIT_DEV_PARAMS:
-				handler = set_geometry_intr;
-				break;
-			case ATA_CMD_RESTORE:
-				handler = recal_intr;
-				break;
-			case ATA_CMD_SET_MULTI:
-				handler = set_multmode_intr;
-				break;
-			}
-		}
 		ide_execute_command(drive, tf->command, handler,
 				    WAIT_WORSTCASE, NULL);
 		return ide_started;
 	default:
-		if (drive->using_dma == 0 || dma_ops->dma_setup(drive))
+		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
+		    dma_ops->dma_setup(drive))
 			return ide_stopped;
 		dma_ops->dma_exec_cmd(drive, tf->command);
 		dma_ops->dma_start(drive);
@@ -126,33 +113,15 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 EXPORT_SYMBOL_GPL(do_rw_taskfile);
 
 /*
- * set_multmode_intr() is invoked on completion of a ATA_CMD_SET_MULTI cmd.
+ * Handler for commands without a data phase
  */
-static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
+static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 stat;
-
-	local_irq_enable_in_hardirq();
-	stat = hwif->tp_ops->read_status(hwif);
-
-	if (OK_STAT(stat, ATA_DRDY, BAD_STAT))
-		drive->mult_count = drive->mult_req;
-	else {
-		drive->mult_req = drive->mult_count = 0;
-		drive->special.b.recalibrate = 1;
-		(void) ide_dump_status(drive, "set_multmode", stat);
-	}
-	return ide_stopped;
-}
-
-/*
- * set_geometry_intr() is invoked on completion of a ATA_CMD_INIT_DEV_PARAMS cmd.
- */
-static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	int retries = 5;
+	ide_task_t *task = &hwif->task;
+	struct ide_taskfile *tf = &task->tf;
+	int custom = (task->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) ? 1 : 0;
+	int retries = (custom && tf->command == ATA_CMD_INIT_DEV_PARAMS) ? 5 : 1;
 	u8 stat;
 
 	local_irq_enable_in_hardirq();
@@ -164,50 +133,36 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 		udelay(10);
 	};
 
-	if (OK_STAT(stat, ATA_DRDY, BAD_STAT))
-		return ide_stopped;
-
-	if (stat & (ATA_ERR | ATA_DRQ))
-		return ide_error(drive, "set_geometry_intr", stat);
-
-	ide_set_handler(drive, &set_geometry_intr, WAIT_WORSTCASE, NULL);
-	return ide_started;
-}
-
-/*
- * recal_intr() is invoked on completion of a ATA_CMD_RESTORE (recalibrate) cmd.
- */
-static ide_startstop_t recal_intr(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	u8 stat;
-
-	local_irq_enable_in_hardirq();
-	stat = hwif->tp_ops->read_status(hwif);
-
-	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT))
-		return ide_error(drive, "recal_intr", stat);
-	return ide_stopped;
-}
-
-/*
- * Handler for commands without a data phase
- */
-static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	ide_task_t *args = hwif->hwgroup->rq->special;
-	u8 stat;
-
-	local_irq_enable_in_hardirq();
-	stat = hwif->tp_ops->read_status(hwif);
-
-	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT))
+	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT)) {
+		if (custom && tf->command == ATA_CMD_SET_MULTI) {
+			drive->mult_req = drive->mult_count = 0;
+			drive->special.b.recalibrate = 1;
+			(void)ide_dump_status(drive, __func__, stat);
+			return ide_stopped;
+		} else if (custom && tf->command == ATA_CMD_INIT_DEV_PARAMS) {
+			if ((stat & (ATA_ERR | ATA_DRQ)) == 0) {
+				ide_set_handler(drive, &task_no_data_intr,
+						WAIT_WORSTCASE, NULL);
+				return ide_started;
+			}
+		}
 		return ide_error(drive, "task_no_data_intr", stat);
 		/* calls ide_end_drive_cmd */
+	}
 
-	if (args)
+	if (!custom)
 		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
+	else if (tf->command == ATA_CMD_IDLEIMMEDIATE) {
+		hwif->tp_ops->tf_read(drive, task);
+		if (tf->lbal != 0xc4) {
+			printk(KERN_ERR "%s: head unload failed!\n",
+			       drive->name);
+			ide_tf_dump(drive->name, tf);
+		} else
+			drive->dev_flags |= IDE_DFLAG_PARKED;
+		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
+	} else if (tf->command == ATA_CMD_SET_MULTI)
+		drive->mult_count = drive->mult_req;
 
 	return ide_stopped;
 }
@@ -469,13 +424,12 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
-				drive->name,
-				drive->hwif->data_phase ? "MULT" : "",
-				drive->addressing ? "_EXT" : "");
+			drive->name, drive->hwif->data_phase ? "MULT" : "",
+			(drive->dev_flags & IDE_DFLAG_LBA48) ? "_EXT" : "");
 		return startstop;
 	}
 
-	if (!drive->unmask)
+	if ((drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
 		local_irq_disable();
 
 	ide_set_handler(drive, &task_out_intr, WAIT_WORSTCASE, NULL);
@@ -591,7 +545,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	args.tf_flags = IDE_TFLAG_IO_16BIT | IDE_TFLAG_DEVICE |
 			IDE_TFLAG_IN_TF;
-	if (drive->addressing == 1)
+	if (drive->dev_flags & IDE_DFLAG_LBA48)
 		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_IN_HOB);
 
 	if (req_task->out_flags.all) {
@@ -694,7 +648,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	if ((args.tf_flags & IDE_TFLAG_FLAGGED_SET_IN_FLAGS) &&
 	    req_task->in_flags.all == 0) {
 		req_task->in_flags.all = IDE_TASKFILE_STD_IN_FLAGS;
-		if (drive->addressing == 1)
+		if (drive->dev_flags & IDE_DFLAG_LBA48)
 			req_task->in_flags.all |= (IDE_HOB_STD_IN_FLAGS << 8);
 	}
 

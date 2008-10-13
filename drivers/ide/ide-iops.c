@@ -181,7 +181,7 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		tf_outb(tf->lbah, io_ports->lbah_addr);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
-		tf_outb((tf->device & HIHI) | drive->select.all,
+		tf_outb((tf->device & HIHI) | drive->select,
 			 io_ports->device_addr);
 }
 EXPORT_SYMBOL_GPL(ide_tf_load);
@@ -647,7 +647,7 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 		return 1;
 
 no_80w:
-	if (drive->udma33_warned == 1)
+	if (drive->dev_flags & IDE_DFLAG_UDMA33_WARNED)
 		return 0;
 
 	printk(KERN_WARNING "%s: %s side 80-wire cable detection failed, "
@@ -655,7 +655,7 @@ no_80w:
 			    drive->name,
 			    hwif->cbl == ATA_CBL_PATA80 ? "drive" : "host");
 
-	drive->udma33_warned = 1;
+	drive->dev_flags |= IDE_DFLAG_UDMA33_WARNED;
 
 	return 0;
 }
@@ -711,7 +711,7 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	kfree(id);
 
-	if (drive->using_dma && ide_id_dma_bug(drive))
+	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) && ide_id_dma_bug(drive))
 		ide_dma_off(drive);
 
 	return 1;
@@ -790,7 +790,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (speed >= XFER_SW_DMA_0 && drive->using_dma)
+	if (speed >= XFER_SW_DMA_0 && (drive->dev_flags & IDE_DFLAG_USING_DMA))
 		hwif->dma_ops->dma_host_set(drive, 1);
 	else if (hwif->dma_ops)	/* check if host supports DMA */
 		ide_dma_off_quietly(drive);
@@ -940,6 +940,25 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	return ide_stopped;
 }
 
+static void ide_reset_report_error(ide_hwif_t *hwif, u8 err)
+{
+	static const char *err_master_vals[] =
+		{ NULL, "passed", "formatter device error",
+		  "sector buffer error", "ECC circuitry error",
+		  "controlling MPU error" };
+
+	u8 err_master = err & 0x7f;
+
+	printk(KERN_ERR "%s: reset: master: ", hwif->name);
+	if (err_master && err_master < 6)
+		printk(KERN_CONT "%s", err_master_vals[err_master]);
+	else
+		printk(KERN_CONT "error (0x%02x?)", err);
+	if (err & 0x80)
+		printk(KERN_CONT "; slave: failed");
+	printk(KERN_CONT "\n");
+}
+
 /*
  * reset_pollfunc() gets invoked to poll the interface for completion every 50ms
  * during an ide reset operation. If the drives have not yet responded,
@@ -975,31 +994,14 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		drive->failures++;
 		err = -EIO;
 	} else  {
-		printk("%s: reset: ", hwif->name);
 		tmp = ide_read_error(drive);
 
 		if (tmp == 1) {
-			printk("success\n");
+			printk(KERN_INFO "%s: reset: success\n", hwif->name);
 			drive->failures = 0;
 		} else {
+			ide_reset_report_error(hwif, tmp);
 			drive->failures++;
-			printk("master: ");
-			switch (tmp & 0x7f) {
-				case 1: printk("passed");
-					break;
-				case 2: printk("formatter device error");
-					break;
-				case 3: printk("sector buffer error");
-					break;
-				case 4: printk("ECC circuitry error");
-					break;
-				case 5: printk("controlling MPU error");
-					break;
-				default:printk("error (0x%02x?)", tmp);
-			}
-			if (tmp & 0x80)
-				printk("; slave: failed");
-			printk("\n");
 			err = -EIO;
 		}
 	}
@@ -1016,9 +1018,14 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 	drive->special.all = 0;
 	drive->special.b.set_geometry = legacy;
 	drive->special.b.recalibrate  = legacy;
+
 	drive->mult_count = 0;
-	if (!drive->keep_settings && !drive->using_dma)
+	drive->dev_flags &= ~IDE_DFLAG_PARKED;
+
+	if ((drive->dev_flags & IDE_DFLAG_KEEP_SETTINGS) == 0 &&
+	    (drive->dev_flags & IDE_DFLAG_USING_DMA) == 0)
 		drive->mult_req = 0;
+
 	if (drive->mult_req != drive->mult_count)
 		drive->special.b.set_multmode = 1;
 }
@@ -1030,18 +1037,18 @@ static void pre_reset(ide_drive_t *drive)
 	if (drive->media == ide_disk)
 		ide_disk_pre_reset(drive);
 	else
-		drive->post_reset = 1;
+		drive->dev_flags |= IDE_DFLAG_POST_RESET;
 
-	if (drive->using_dma) {
+	if (drive->dev_flags & IDE_DFLAG_USING_DMA) {
 		if (drive->crc_count)
 			ide_check_dma_crc(drive);
 		else
 			ide_dma_off(drive);
 	}
 
-	if (!drive->keep_settings) {
-		if (!drive->using_dma) {
-			drive->unmask = 0;
+	if ((drive->dev_flags & IDE_DFLAG_KEEP_SETTINGS) == 0) {
+		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0) {
+			drive->dev_flags &= ~IDE_DFLAG_UNMASK;
 			drive->io_32bit = 0;
 		}
 		return;
@@ -1073,12 +1080,13 @@ static void pre_reset(ide_drive_t *drive)
 static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 {
 	unsigned int unit;
-	unsigned long flags;
+	unsigned long flags, timeout;
 	ide_hwif_t *hwif;
 	ide_hwgroup_t *hwgroup;
 	struct ide_io_ports *io_ports;
 	const struct ide_tp_ops *tp_ops;
 	const struct ide_port_ops *port_ops;
+	DEFINE_WAIT(wait);
 
 	spin_lock_irqsave(&ide_lock, flags);
 	hwif = HWIF(drive);
@@ -1104,6 +1112,31 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		spin_unlock_irqrestore(&ide_lock, flags);
 		return ide_started;
 	}
+
+	/* We must not disturb devices in the IDE_DFLAG_PARKED state. */
+	do {
+		unsigned long now;
+
+		prepare_to_wait(&ide_park_wq, &wait, TASK_UNINTERRUPTIBLE);
+		timeout = jiffies;
+		for (unit = 0; unit < MAX_DRIVES; unit++) {
+			ide_drive_t *tdrive = &hwif->drives[unit];
+
+			if (tdrive->dev_flags & IDE_DFLAG_PRESENT &&
+			    tdrive->dev_flags & IDE_DFLAG_PARKED &&
+			    time_after(tdrive->sleep, timeout))
+				timeout = tdrive->sleep;
+		}
+
+		now = jiffies;
+		if (time_before_eq(timeout, now))
+			break;
+
+		spin_unlock_irqrestore(&ide_lock, flags);
+		timeout = schedule_timeout_uninterruptible(timeout - now);
+		spin_lock_irqsave(&ide_lock, flags);
+	} while (timeout);
+	finish_wait(&ide_park_wq, &wait);
 
 	/*
 	 * First, reset any device state data we were maintaining
