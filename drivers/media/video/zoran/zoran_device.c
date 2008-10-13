@@ -58,8 +58,6 @@
 		   ZR36057_ISR_GIRQ1 | \
 		   ZR36057_ISR_JPEGRepIRQ )
 
-extern const struct zoran_format zoran_formats[];
-
 static int lml33dpath;		/* default = 0
 				 * 1 will use digital path in capture
 				 * mode instead of analog. It can be
@@ -377,7 +375,7 @@ zr36057_set_vfe (struct zoran              *zr,
 
 	/* horizontal */
 	VidWinWid = video_width;
-	X = (VidWinWid * 64 + tvn->Wa - 1) / tvn->Wa;
+	X = DIV_ROUND_UP(VidWinWid * 64, tvn->Wa);
 	We = (VidWinWid * 64) / X;
 	HorDcm = 64 - X;
 	hcrop1 = 2 * ((tvn->Wa - We) / 4);
@@ -403,7 +401,7 @@ zr36057_set_vfe (struct zoran              *zr,
 	/* Vertical */
 	DispMode = !(video_height > BUZ_MAX_HEIGHT / 2);
 	VidWinHt = DispMode ? video_height : video_height / 2;
-	Y = (VidWinHt * 64 * 2 + tvn->Ha - 1) / tvn->Ha;
+	Y = DIV_ROUND_UP(VidWinHt * 64 * 2, tvn->Ha);
 	He = (VidWinHt * 64) / Y;
 	VerDcm = 64 - Y;
 	vcrop1 = (tvn->Ha / 2 - He) / 2;

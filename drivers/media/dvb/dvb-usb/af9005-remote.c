@@ -25,7 +25,7 @@
  */
 #include "af9005.h"
 /* debug */
-int dvb_usb_af9005_remote_debug;
+static int dvb_usb_af9005_remote_debug;
 module_param_named(debug, dvb_usb_af9005_remote_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		 "enable (1) or disable (0) debug messages."

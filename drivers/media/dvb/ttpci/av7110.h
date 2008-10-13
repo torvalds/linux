@@ -192,6 +192,7 @@ struct av7110 {
 	unsigned char           *grabbing;
 	struct saa7146_pgtable  pt;
 	struct tasklet_struct   vpe_tasklet;
+	bool			full_ts;
 
 	int			fe_synced;
 	struct mutex		pid_mutex;

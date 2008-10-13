@@ -478,7 +478,7 @@ int cpia2_usb_change_streaming_alternate(struct camera_data *cam,
  * set_alternate
  *
  *****************************************************************************/
-int set_alternate(struct camera_data *cam, unsigned int alt)
+static int set_alternate(struct camera_data *cam, unsigned int alt)
 {
 	int ret = 0;
 

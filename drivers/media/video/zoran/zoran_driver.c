@@ -194,12 +194,6 @@ const struct zoran_format zoran_formats[] = {
 // RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
 
 
-extern int v4l_nbufs;
-extern int v4l_bufsize;
-extern int jpg_nbufs;
-extern int jpg_bufsize;
-extern int pass_through;
-
 static int lock_norm;	/* 0 = default 1 = Don't change TV standard (norm) */
 module_param(lock_norm, int, 0644);
 MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");
@@ -1211,6 +1205,7 @@ zoran_open (struct inode *inode,
 	struct zoran_fh *fh;
 	int i, res, first_open = 0, have_module_locks = 0;
 
+	lock_kernel();
 	/* find the device */
 	for (i = 0; i < zoran_num; i++) {
 		if (zoran[i]->video_dev->minor == minor) {
@@ -1321,6 +1316,7 @@ zoran_open (struct inode *inode,
 	file->private_data = fh;
 	fh->zr = zr;
 	zoran_open_init_session(file);
+	unlock_kernel();
 
 	return 0;
 
@@ -1338,6 +1334,7 @@ open_unlock_and_return:
 	if (zr) {
 		/*mutex_unlock(&zr->resource_lock);*/
 	}
+	unlock_kernel();
 
 	return res;
 }
@@ -2920,6 +2917,8 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.bytesperline = 0;
 				fmt->fmt.pix.sizeimage =
 				    fh->jpg_buffers.buffer_size;
+				fmt->fmt.pix.colorspace =
+				    V4L2_COLORSPACE_SMPTE170M;
 
 				/* we hereby abuse this variable to show that
 				 * we're gonna do mjpeg capture */
@@ -2979,6 +2978,8 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.sizeimage =
 					fh->v4l_settings.height *
 					fh->v4l_settings.bytesperline;
+				fmt->fmt.pix.colorspace =
+					fh->v4l_settings.format->colorspace;
 				if (BUZ_MAX_HEIGHT <
 				    (fh->v4l_settings.height * 2))
 					fmt->fmt.pix.field =

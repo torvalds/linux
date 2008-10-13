@@ -22,27 +22,35 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value)
 {
-	u32 x = readl(cx->reg_mem + 0xc40000 + (addr & ~3));
+	u32 reg = 0xc40000 + (addr & ~3);
 	u32 mask = 0xff;
 	int shift = (addr & 3) * 8;
+	u32 x = cx18_read_reg(cx, reg);
 
 	x = (x & ~(mask << shift)) | ((u32)value << shift);
-	writel(x, cx->reg_mem + 0xc40000 + (addr & ~3));
+	cx18_write_reg(cx, x, reg);
 	return 0;
 }
 
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value)
 {
-	writel(value, cx->reg_mem + 0xc40000 + addr);
+	cx18_write_reg(cx, value, 0xc40000 + addr);
+	return 0;
+}
+
+int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value)
+{
+	cx18_write_reg_noretry(cx, value, 0xc40000 + addr);
 	return 0;
 }
 
 u8 cx18_av_read(struct cx18 *cx, u16 addr)
 {
-	u32 x = readl(cx->reg_mem + 0xc40000 + (addr & ~3));
+	u32 x = cx18_read_reg(cx, 0xc40000 + (addr & ~3));
 	int shift = (addr & 3) * 8;
 
 	return (x >> shift) & 0xff;
@@ -50,7 +58,12 @@ u8 cx18_av_read(struct cx18 *cx, u16 addr)
 
 u32 cx18_av_read4(struct cx18 *cx, u16 addr)
 {
-	return readl(cx->reg_mem + 0xc40000 + addr);
+	return cx18_read_reg(cx, 0xc40000 + addr);
+}
+
+u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr)
+{
+	return cx18_read_reg_noretry(cx, 0xc40000 + addr);
 }
 
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned and_mask,
