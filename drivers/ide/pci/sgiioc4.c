@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (C) 2008 MontaVista Software, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -150,7 +151,7 @@ sgiioc4_clearirq(ide_drive_t * drive)
 		int count = 0;
 
 		stat = sgiioc4_read_status(hwif);
-		while ((stat & 0x80) && (count++ < 100)) {
+		while ((stat & ATA_BUSY) && (count++ < 100)) {
 			udelay(1);
 			stat = sgiioc4_read_status(hwif);
 		}
@@ -310,7 +311,7 @@ static u8 sgiioc4_read_status(ide_hwif_t *hwif)
 	u8 reg = (u8) readb((void __iomem *) port);
 
 	if ((port & 0xFFF) == 0x11C) {	/* Status register of IOC4 */
-		if (reg & 0x51) {	/* Not busy...check for interrupt */
+		if (!(reg & ATA_BUSY)) { /* Not busy... check for interrupt */
 			unsigned long other_ir = port - 0x110;
 			unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
 
