@@ -1470,7 +1470,7 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 			pin_mask = ATMEL_LCDC_PRI_24BIT | ATMEL_LCDC_PRI_CONTROL;
 
 		/* LCDC on port C */
-		portc_mask = (pin_mask & 0xfff80000) >> 19;
+		portc_mask = pin_mask & 0xfff80000;
 		select_peripheral(PIOC, portc_mask, PERIPH_A, 0);
 
 		/* LCDC on port D */
