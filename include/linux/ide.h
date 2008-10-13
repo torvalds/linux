@@ -927,6 +927,26 @@ static inline void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *
 #define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
+enum {
+	/* enter/exit functions */
+	IDE_DBG_FUNC =			(1 << 0),
+	/* sense key/asc handling */
+	IDE_DBG_SENSE =			(1 << 1),
+	/* packet commands handling */
+	IDE_DBG_PC =			(1 << 2),
+	/* request handling */
+	IDE_DBG_RQ =			(1 << 3),
+	/* driver probing/setup */
+	IDE_DBG_PROBE =			(1 << 4),
+};
+
+/* DRV_NAME has to be defined in the driver before using the macro below */
+#define __ide_debug_log(lvl, fmt, args...)			\
+{								\
+	if (unlikely(drive->debug_mask & lvl))			\
+		printk(KERN_INFO DRV_NAME ": " fmt, ## args);	\
+}
+
 /*
  * Power Management step value (rq->pm->pm_step).
  *
