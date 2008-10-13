@@ -895,9 +895,7 @@ static void print_warning(struct dquot *dquot, const int warntype)
 	    warntype == QUOTA_NL_BSOFTBELOW || !need_print_warning(dquot))
 		return;
 
-	mutex_lock(&tty_mutex);
 	tty = get_current_tty();
-	mutex_unlock(&tty_mutex);
 	if (!tty)
 		return;
 	tty_write_message(tty, dquot->dq_sb->s_id);

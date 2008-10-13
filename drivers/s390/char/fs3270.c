@@ -431,6 +431,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 		tty = get_current_tty();
 		if (!tty || tty->driver->major != IBM_TTY3270_MAJOR) {
 			tty_kref_put(tty);
+			mutex_unlock(&tty_mutex);
 			rc = -ENODEV;
 			goto out;
 		}
