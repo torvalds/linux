@@ -218,7 +218,6 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 			conf->disks[i-1].size;
 
 	table = conf->hash_table;
-	curr_offset = 0;
 	i = 0;
 	for (curr_offset = 0;
 	     curr_offset < conf->array_sectors / 2;
