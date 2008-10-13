@@ -479,5 +479,8 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
+	/* Table unloaded, remove a reference to the ddb_handle object */
+
+	acpi_ut_remove_reference(ddb_handle);
 	return_ACPI_STATUS(AE_OK);
 }

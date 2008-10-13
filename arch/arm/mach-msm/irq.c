@@ -19,13 +19,12 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
-
 #include <linux/irq.h>
-#include <asm/hardware.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/msm_iomap.h>
+#include <mach/msm_iomap.h>
 
 #define VIC_REG(off) (MSM_VIC_BASE + (off))
 

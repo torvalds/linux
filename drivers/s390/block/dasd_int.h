@@ -126,7 +126,7 @@ do { \
 #define DEV_MESSAGE(d_loglevel,d_device,d_string,d_args...)\
 do { \
 	printk(d_loglevel PRINTK_HEADER " %s: " d_string "\n", \
-	       d_device->cdev->dev.bus_id, d_args); \
+	       dev_name(&d_device->cdev->dev), d_args); \
 	DBF_DEV_EVENT(DBF_ALERT, d_device, d_string, d_args); \
 } while(0)
 
@@ -140,7 +140,7 @@ do { \
 #define DEV_MESSAGE_LOG(d_loglevel,d_device,d_string,d_args...)\
 do { \
 	printk(d_loglevel PRINTK_HEADER " %s: " d_string "\n", \
-	       d_device->cdev->dev.bus_id, d_args); \
+	       dev_name(&d_device->cdev->dev), d_args); \
 } while(0)
 
 #define MESSAGE_LOG(d_loglevel,d_string,d_args...)\
@@ -307,6 +307,7 @@ struct dasd_uid {
 	__u16 ssid;
 	__u8 real_unit_addr;
 	__u8 base_unit_addr;
+	char vduit[33];
 };
 
 /*

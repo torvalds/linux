@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
-
+#include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
@@ -27,18 +27,17 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-lcd.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-lcd.h>
 
-#include <asm/arch/idle.h>
-#include <asm/arch/fb.h>
+#include <mach/idle.h>
+#include <mach/fb.h>
 
 #include <asm/plat-s3c/nand.h>
 

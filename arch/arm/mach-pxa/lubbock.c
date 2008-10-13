@@ -25,12 +25,12 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <asm/arch/pxa2xx_spi.h>
+#include <mach/pxa2xx_spi.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 
@@ -41,27 +41,51 @@
 
 #include <asm/hardware/sa1111.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/lubbock.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/mmc.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/audio.h>
+#include <mach/lubbock.h>
+#include <mach/udc.h>
+#include <mach/irda.h>
+#include <mach/pxafb.h>
+#include <mach/mmc.h>
 
 #include "generic.h"
+#include "clock.h"
 #include "devices.h"
 
 static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO15_nCS_1,	/* CS1 - Flash */
+	GPIO78_nCS_2,	/* CS2 - Baseboard FGPA */
 	GPIO79_nCS_3,	/* CS3 - SMC ethernet */
+	GPIO80_nCS_4,	/* CS4 - SA1111 */
 
 	/* SSP data pins */
 	GPIO23_SSP1_SCLK,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
+
+	/* LCD - 16bpp DSTN */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
@@ -131,8 +155,7 @@ static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
 		GEDR(0) = GPIO_bit(0);	/* clear our parent irq */
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
-			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	} while (pending);
@@ -152,7 +175,7 @@ static void __init lubbock_init_irq(void)
 	}
 
 	set_irq_chained_handler(IRQ_GPIO(0), lubbock_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
+	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
@@ -224,7 +247,7 @@ static struct platform_device sa1111_device = {
  * for the temperature sensors.
  */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
-	.num_chipselect	= 0,
+	.num_chipselect	= 1,
 };
 
 static int lubbock_ads7846_pendown_state(void)
@@ -485,6 +508,7 @@ static void __init lubbock_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(lubbock_pin_config));
 
+	clk_add_alias("SA1111_CLK", NULL, "GPIO11_CLK", NULL);
 	pxa_set_udc_info(&udc_info);
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);

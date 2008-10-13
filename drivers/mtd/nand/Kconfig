@@ -1,5 +1,4 @@
 # drivers/mtd/nand/Kconfig
-# $Id: Kconfig,v 1.35 2005/11/07 11:14:30 gleixner Exp $
 
 menuconfig MTD_NAND
 	tristate "NAND Device Support"
@@ -105,10 +104,23 @@ config MTD_NAND_BF5XX
 
 config MTD_NAND_BF5XX_HWECC
 	bool "BF5XX NAND Hardware ECC"
+	default y
 	depends on MTD_NAND_BF5XX
 	help
 	  Enable the use of the BF5XX's internal ECC generator when
 	  using NAND.
+
+config MTD_NAND_BF5XX_BOOTROM_ECC
+	bool "Use Blackfin BootROM ECC Layout"
+	default n
+	depends on MTD_NAND_BF5XX_HWECC
+	help
+	  If you wish to modify NAND pages and allow the Blackfin on-chip
+	  BootROM to boot from them, say Y here.  This is only necessary
+	  if you are booting U-Boot out of NAND and you wish to update
+	  U-Boot from Linux' userspace.  Otherwise, you should say N here.
+
+	  If unsure, say N.
 
 config MTD_NAND_RTC_FROM4
 	tristate "Renesas Flash ROM 4-slot interface board (FROM_BOARD4)"
@@ -272,22 +284,23 @@ config MTD_NAND_CS553X
 
 	  If you say "m", the module will be called "cs553x_nand.ko".
 
-config MTD_NAND_AT91
-	bool "Support for NAND Flash / SmartMedia on AT91"
-	depends on ARCH_AT91
+config MTD_NAND_ATMEL
+	tristate "Support for NAND Flash / SmartMedia on AT91 and AVR32"
+	depends on ARCH_AT91 || AVR32
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
-	  on Atmel AT91 processors.
+	  on Atmel AT91 and AVR32 processors.
 choice
-	prompt "ECC management for NAND Flash / SmartMedia on AT91"
-	depends on MTD_NAND_AT91
+	prompt "ECC management for NAND Flash / SmartMedia on AT91 / AVR32"
+	depends on MTD_NAND_ATMEL
 
-config MTD_NAND_AT91_ECC_HW
+config MTD_NAND_ATMEL_ECC_HW
 	bool "Hardware ECC"
-	depends on ARCH_AT91SAM9263 || ARCH_AT91SAM9260
+	depends on ARCH_AT91SAM9263 || ARCH_AT91SAM9260 || AVR32
 	help
-	  Uses hardware ECC provided by the at91sam9260/at91sam9263 chip
-	  instead of software ECC.
+	  Use hardware ECC instead of software ECC when the chip
+	  supports it.
+
 	  The hardware ECC controller is capable of single bit error
 	  correction and 2-bit random detection per page.
 
@@ -297,16 +310,16 @@ config MTD_NAND_AT91_ECC_HW
 
 	  If unsure, say Y
 
-config MTD_NAND_AT91_ECC_SOFT
+config MTD_NAND_ATMEL_ECC_SOFT
 	bool "Software ECC"
 	help
-	  Uses software ECC.
+	  Use software ECC.
 
 	  NB : hardware and software ECC schemes are incompatible.
 	  If you switch from one to another, you'll have to erase your
 	  mtd partition.
 
-config MTD_NAND_AT91_ECC_NONE
+config MTD_NAND_ATMEL_ECC_NONE
 	bool "No ECC (testing only, DANGEROUS)"
 	depends on DEBUG_KERNEL
 	help
@@ -337,6 +350,13 @@ config MTD_NAND_PASEMI
 	help
 	  Enables support for NAND Flash interface on PA Semi PWRficient
 	  based boards
+
+config MTD_NAND_TMIO
+	tristate "NAND Flash device on Toshiba Mobile IO Controller"
+	depends on MTD_NAND && MFD_TMIO
+	help
+	  Support for NAND flash connected to a Toshiba Mobile IO
+	  Controller in some PDAs, including the Sharp SL6000x.
 
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"

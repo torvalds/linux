@@ -19,8 +19,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/tosa.h>
+#include <mach/gpio.h>
+#include <mach/tosa.h>
 
 #define KB_ROWMASK(r)		(1 << (r))
 #define SCANCODE(r, c)		(((r)<<4) + (c) + 1)
@@ -59,9 +59,9 @@ struct tosakbd {
 
 
 /* Helper functions for reading the keyboard matrix
- * Note: We should really be using pxa_gpio_mode to alter GPDR but it
- *       requires a function call per GPIO bit which is excessive
- *       when we need to access 12 bits at once, multiple times.
+ * Note: We should really be using the generic gpio functions to alter
+ *       GPDR but it requires a function call per GPIO bit which is
+ *       excessive when we need to access 12 bits at once, multiple times.
  * These functions must be called within local_irq_save()/local_irq_restore()
  * or similar.
  */

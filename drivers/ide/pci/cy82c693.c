@@ -332,7 +332,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 /*
  * this function is called during init and is used to setup the cy82c693 chip
  */
-static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev)
+static unsigned int init_chipset_cy82c693(struct pci_dev *dev)
 {
 	if (PCI_FUNC(dev->devfn) != 1)
 		return 0;
@@ -447,7 +447,9 @@ static struct pci_driver driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
-	.remove		= cy82c693_remove,
+	.remove		= __devexit_p(cy82c693_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cy82c693_ide_init(void)

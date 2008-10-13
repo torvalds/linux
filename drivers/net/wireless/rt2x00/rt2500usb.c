@@ -288,7 +288,7 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT2500USB_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt2500usb_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
@@ -333,7 +333,7 @@ static void rt2500usb_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt2500usb_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2500USB_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -384,7 +384,7 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR20, &reg);
 		rt2x00_set_field16(&reg, TXRX_CSR20_OFFSET, bcn_preload >> 6);
 		rt2x00_set_field16(&reg, TXRX_CSR20_BCN_EXPECT_WINDOW,
-				   2 * (conf->type != IEEE80211_IF_TYPE_STA));
+				   2 * (conf->type != NL80211_IFTYPE_STATION));
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR20, reg);
 
 		/*
@@ -633,6 +633,16 @@ static void rt2500usb_reset_tuner(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->link.vgc_level = value;
 }
 
+/*
+ * NOTE: This function is directly ported from legacy driver, but
+ * despite it being declared it was never called. Although link tuning
+ * sounds like a good idea, and usually works well for the other drivers,
+ * it does _not_ work with rt2500usb. Enabling this function will result
+ * in TX capabilities only until association kicks in. Immediately
+ * after the successful association all TX frames will be kept in the
+ * hardware queue and never transmitted.
+ */
+#if 0
 static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
 	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
@@ -752,6 +762,9 @@ dynamic_cca_tune:
 		rt2x00dev->link.vgc_level = r17;
 	}
 }
+#else
+#define rt2500usb_link_tuner	NULL
+#endif
 
 /*
  * Initialization functions.
@@ -1101,8 +1114,7 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
 			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT,
-			   skb->len - skbdesc->desc_len);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skb->len);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER, CIPHER_NONE);
 	rt2x00_desc_write(txd, 0, word);
 }
@@ -1255,6 +1267,8 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
+	else
+		rxdesc->dev_flags |= RXDONE_SIGNAL_BITRATE;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
@@ -1272,7 +1286,7 @@ static void rt2500usb_beacondone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
 		return;
 
 	/*
@@ -1364,6 +1378,9 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 		EEPROM(rt2x00dev, "BBPtune vgc: 0x%04x\n", word);
+	} else {
+		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R17, &word);
@@ -1372,9 +1389,6 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R17_HIGH, 0x41);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R17, word);
 		EEPROM(rt2x00dev, "BBPtune r17: 0x%04x\n", word);
-	} else {
-		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R24, &word);
@@ -1459,14 +1473,14 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2500USB_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
 	rt2500usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
 	if (value == LED_MODE_TXRX_ACTIVITY)
 		rt2500usb_init_led(rt2x00dev, &rt2x00dev->led_qual,
 				   LED_TYPE_ACTIVITY);
-#endif /* CONFIG_RT2500USB_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
 	 * Check if the BBP tuning should be disabled.
@@ -1640,17 +1654,17 @@ static const struct rf_channel rf_vals_5222[] = {
 	{ 161, 0x00022020, 0x000090be, 0x00000101, 0x00000a07 },
 };
 
-static void rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
+static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
-	u8 *txpower;
+	struct channel_info *info;
+	char *tx_power;
 	unsigned int i;
 
 	/*
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
 	    IEEE80211_HW_RX_INCLUDES_FCS |
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM;
@@ -1663,20 +1677,10 @@ static void rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 						   EEPROM_MAC_ADDR_0));
 
 	/*
-	 * Convert tx_power array in eeprom.
-	 */
-	txpower = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
-	for (i = 0; i < 14; i++)
-		txpower[i] = TXPOWER_FROM_DEV(txpower[i]);
-
-	/*
 	 * Initialize hw_mode information.
 	 */
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
-	spec->tx_power_a = NULL;
-	spec->tx_power_bg = txpower;
-	spec->tx_power_default = DEFAULT_TXPOWER;
 
 	if (rt2x00_rf(&rt2x00dev->chip, RF2522)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2522);
@@ -1698,6 +1702,26 @@ static void rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		spec->num_channels = ARRAY_SIZE(rf_vals_5222);
 		spec->channels = rf_vals_5222;
 	}
+
+	/*
+	 * Create channel information array
+	 */
+	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	spec->channels_info = info;
+
+	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
+	for (i = 0; i < 14; i++)
+		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+
+	if (spec->num_channels > 14) {
+		for (i = 14; i < spec->num_channels; i++)
+			info[i].tx_power1 = DEFAULT_TXPOWER;
+	}
+
+	return 0;
 }
 
 static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
@@ -1718,7 +1742,9 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize hw specifications.
 	 */
-	rt2500usb_probe_hw_mode(rt2x00dev);
+	retval = rt2500usb_probe_hw_mode(rt2x00dev);
+	if (retval)
+		return retval;
 
 	/*
 	 * This device requires the atim queue
@@ -1726,6 +1752,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
+	__set_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

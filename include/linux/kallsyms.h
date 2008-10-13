@@ -108,8 +108,7 @@ static inline void print_fn_descriptor_symbol(const char *fmt, void *addr)
 
 static inline void print_ip_sym(unsigned long ip)
 {
-	printk("[<%p>]", (void *) ip);
-	print_symbol(" %s\n", ip);
+	printk("[<%p>] %pS\n", (void *) ip, (void *) ip);
 }
 
 #endif /*_LINUX_KALLSYMS_H*/

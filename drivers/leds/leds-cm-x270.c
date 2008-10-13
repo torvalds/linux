@@ -18,8 +18,8 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
 
 #define GPIO_RED_LED			(93)
 #define GPIO_GREEN_LED			(94)

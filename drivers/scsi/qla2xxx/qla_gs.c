@@ -1661,6 +1661,12 @@ qla2x00_fdmi_register(scsi_qla_host_t *ha)
 {
 	int rval;
 
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		DEBUG2(printk("scsi(%ld): FDMI unsupported on "
+		    "ISP2100/ISP2200.\n", ha->host_no));
+		return QLA_SUCCESS;
+	}
+
 	rval = qla2x00_mgmt_svr_login(ha);
 	if (rval)
 		return rval;

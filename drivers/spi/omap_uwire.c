@@ -47,12 +47,12 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/mux.h>
-#include <asm/arch/omap730.h>	/* OMAP730_IO_CONF registers */
+#include <mach/mux.h>
+#include <mach/omap730.h>	/* OMAP730_IO_CONF registers */
 
 
 /* FIXME address is now a platform device resource,

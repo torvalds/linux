@@ -217,7 +217,7 @@ Although it is not recommended, you can specify '0' in the soc.model
 field to skip matching SOCs altogether.
 
 The 'model' field is a 16-bit number that matches the actual SOC. The
-'major' and 'minor' fields are the major and minor revision numbrs,
+'major' and 'minor' fields are the major and minor revision numbers,
 respectively, of the SOC.
 
 For example, to match the 8323, revision 1.0:

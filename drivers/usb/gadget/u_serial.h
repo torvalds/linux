@@ -23,8 +23,7 @@
  * style I/O using the USB peripheral endpoints listed here, including
  * hookups to sysfs and /dev for each logical "tty" device.
  *
- * REVISIT need TTY --> USB event flow too, so ACM can report open/close
- * as carrier detect events.  Model after ECM.  There's more ACM state too.
+ * REVISIT at least ACM could support tiocmget() if needed.
  *
  * REVISIT someday, allow multiplexing several TTYs over these endpoints.
  */
@@ -41,7 +40,16 @@ struct gserial {
 
 	/* REVISIT avoid this CDC-ACM support harder ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 9600-8-N-1 etc */
+
+	/* notification callbacks */
+	void (*connect)(struct gserial *p);
+	void (*disconnect)(struct gserial *p);
+	int (*send_break)(struct gserial *p, int duration);
 };
+
+/* utilities to allocate/free request and buffer */
+struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t flags);
+void gs_free_req(struct usb_ep *, struct usb_request *req);
 
 /* port setup/teardown is handled by gadget driver */
 int gserial_setup(struct usb_gadget *g, unsigned n_ports);

@@ -19,7 +19,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/dec21285.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #define BAUD_BASE		(mem_fclk_21285/64)
 

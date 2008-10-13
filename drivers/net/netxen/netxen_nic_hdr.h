@@ -32,8 +32,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
-
 #include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <linux/init.h>
@@ -724,6 +722,13 @@ enum {
 #define XG_LINK_STATE_P3(pcifn,val) \
 	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3_MASK)
 
+#define P3_LINK_SPEED_MHZ	100
+#define P3_LINK_SPEED_MASK	0xff
+#define P3_LINK_SPEED_REG(pcifn)	\
+	(CRB_PF_LINK_SPEED_1 + (((pcifn) / 4) * 4))
+#define P3_LINK_SPEED_VAL(pcifn, reg)	\
+	(((reg) >> (8 * ((pcifn) & 0x3))) & P3_LINK_SPEED_MASK)
+
 #define NETXEN_CAM_RAM_BASE	(NETXEN_CRB_CAM + 0x02000)
 #define NETXEN_CAM_RAM(reg)	(NETXEN_CAM_RAM_BASE + (reg))
 #define NETXEN_FW_VERSION_MAJOR (NETXEN_CAM_RAM(0x150))
@@ -836,9 +841,11 @@ enum {
 
 #define PCIE_SETUP_FUNCTION	(0x12040)
 #define PCIE_SETUP_FUNCTION2	(0x12048)
+#define PCIE_MISCCFG_RC         (0x1206c)
 #define PCIE_TGT_SPLIT_CHICKEN	(0x12080)
 #define PCIE_CHICKEN3		(0x120c8)
 
+#define ISR_INT_STATE_REG       (NETXEN_PCIX_PS_REG(PCIE_MISCCFG_RC))
 #define PCIE_MAX_MASTER_SPLIT	(0x14048)
 
 #define NETXEN_PORT_MODE_NONE		0
@@ -854,6 +861,7 @@ enum {
 #define NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL		(0x14)
 
 #define	ISR_MSI_INT_TRIGGER(FUNC) (NETXEN_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
+#define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)
 
 /*
  * PCI Interrupt Vector Values.

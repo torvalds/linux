@@ -382,14 +382,17 @@ config X86_OOSTORE
 # P6_NOPs are a relatively minor optimization that require a family >=
 # 6 processor, except that it is broken on certain VIA chips.
 # Furthermore, AMD chips prefer a totally different sequence of NOPs
-# (which work on all CPUs).  As a result, disallow these if we're
-# compiling X86_GENERIC but not X86_64 (these NOPs do work on all
-# x86-64 capable chips); the list of processors in the right-hand clause
-# are the cores that benefit from this optimization.
+# (which work on all CPUs).  In addition, it looks like Virtual PC
+# does not understand them.
+#
+# As a result, disallow these if we're not compiling for X86_64 (these
+# NOPs do work on all x86-64 capable chips); the list of processors in
+# the right-hand clause are the cores that benefit from this optimization.
 #
 config X86_P6_NOP
 	def_bool y
-	depends on (X86_64 || !X86_GENERIC) && (M686 || MPENTIUMII || MPENTIUMIII || MPENTIUMM || MCORE2 || MPENTIUM4 || MPSC)
+	depends on X86_64
+	depends on (MCORE2 || MPENTIUM4 || MPSC)
 
 config X86_TSC
 	def_bool y
@@ -415,3 +418,123 @@ config X86_MINIMUM_CPU_FAMILY
 config X86_DEBUGCTLMSR
 	def_bool y
 	depends on !(MK6 || MWINCHIPC6 || MWINCHIP2 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 || M486 || M386)
+
+menuconfig PROCESSOR_SELECT
+	bool "Supported processor vendors" if EMBEDDED
+	help
+	  This lets you choose what x86 vendor support code your kernel
+	  will include.
+
+config CPU_SUP_INTEL
+	default y
+	bool "Support Intel processors" if PROCESSOR_SELECT
+	help
+	  This enables detection, tunings and quirks for Intel processors
+
+	  You need this enabled if you want your kernel to run on an
+	  Intel CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on an Intel
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_CYRIX_32
+	default y
+	bool "Support Cyrix processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables detection, tunings and quirks for Cyrix processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Cyrix CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on a Cyrix
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_AMD
+	default y
+	bool "Support AMD processors" if PROCESSOR_SELECT
+	help
+	  This enables detection, tunings and quirks for AMD processors
+
+	  You need this enabled if you want your kernel to run on an
+	  AMD CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on an AMD
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_CENTAUR_32
+	default y
+	bool "Support Centaur processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables detection, tunings and quirks for Centaur processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Centaur CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on a Centaur
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_CENTAUR_64
+	default y
+	bool "Support Centaur processors" if PROCESSOR_SELECT
+	depends on 64BIT
+	help
+	  This enables detection, tunings and quirks for Centaur processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Centaur CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on a Centaur
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_TRANSMETA_32
+	default y
+	bool "Support Transmeta processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables detection, tunings and quirks for Transmeta processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Transmeta CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on a Transmeta
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_UMC_32
+	default y
+	bool "Support UMC processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables detection, tunings and quirks for UMC processors
+
+	  You need this enabled if you want your kernel to run on a
+	  UMC CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on a UMC
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config X86_DS
+	bool "Debug Store support"
+	default y
+	help
+	  Add support for Debug Store.
+	  This allows the kernel to provide a memory buffer to the hardware
+	  to store various profiling and tracing events.
+
+config X86_PTRACE_BTS
+	bool "ptrace interface to Branch Trace Store"
+	default y
+	depends on (X86_DS && X86_DEBUGCTLMSR)
+	help
+	  Add a ptrace interface to allow collecting an execution trace
+	  of the traced task.
+	  This collects control flow changes in a (cyclic) buffer and allows
+	  debuggers to fill in the gaps and show an execution trace of the debuggee.

@@ -408,11 +408,10 @@ static void xfrm_state_gc_task(struct work_struct *data)
 	struct hlist_head gc_list;
 
 	spin_lock_bh(&xfrm_state_gc_lock);
-	gc_list.first = xfrm_state_gc_list.first;
-	INIT_HLIST_HEAD(&xfrm_state_gc_list);
+	hlist_move_list(&xfrm_state_gc_list, &gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 
-	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, bydst)
+	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, gclist)
 		xfrm_state_gc_destroy(x);
 
 	wake_up(&km_waitq);
@@ -514,7 +513,7 @@ struct xfrm_state *xfrm_state_alloc(void)
 	if (x) {
 		atomic_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
-		INIT_LIST_HEAD(&x->all);
+		INIT_LIST_HEAD(&x->km.all);
 		INIT_HLIST_NODE(&x->bydst);
 		INIT_HLIST_NODE(&x->bysrc);
 		INIT_HLIST_NODE(&x->byspi);
@@ -538,14 +537,10 @@ EXPORT_SYMBOL(xfrm_state_alloc);
 
 void __xfrm_state_destroy(struct xfrm_state *x)
 {
-	BUG_TRAP(x->km.state == XFRM_STATE_DEAD);
-
-	spin_lock_bh(&xfrm_state_lock);
-	list_del(&x->all);
-	spin_unlock_bh(&xfrm_state_lock);
+	WARN_ON(x->km.state != XFRM_STATE_DEAD);
 
 	spin_lock_bh(&xfrm_state_gc_lock);
-	hlist_add_head(&x->bydst, &xfrm_state_gc_list);
+	hlist_add_head(&x->gclist, &xfrm_state_gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 	schedule_work(&xfrm_state_gc_work);
 }
@@ -558,6 +553,7 @@ int __xfrm_state_delete(struct xfrm_state *x)
 	if (x->km.state != XFRM_STATE_DEAD) {
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
+		list_del(&x->km.all);
 		hlist_del(&x->bydst);
 		hlist_del(&x->bysrc);
 		if (x->id.spi)
@@ -780,10 +776,12 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 {
 	unsigned int h;
 	struct hlist_node *entry;
-	struct xfrm_state *x, *x0;
+	struct xfrm_state *x, *x0, *to_put;
 	int acquire_in_progress = 0;
 	int error = 0;
 	struct xfrm_state *best = NULL;
+
+	to_put = NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
 	h = xfrm_dst_hash(daddr, saddr, tmpl->reqid, family);
@@ -833,7 +831,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		if (tmpl->id.spi &&
 		    (x0 = __xfrm_state_lookup(daddr, tmpl->id.spi,
 					      tmpl->id.proto, family)) != NULL) {
-			xfrm_state_put(x0);
+			to_put = x0;
 			error = -EEXIST;
 			goto out;
 		}
@@ -849,13 +847,14 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		error = security_xfrm_state_alloc_acquire(x, pol->security, fl->secid);
 		if (error) {
 			x->km.state = XFRM_STATE_DEAD;
-			xfrm_state_put(x);
+			to_put = x;
 			x = NULL;
 			goto out;
 		}
 
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;
+			list_add(&x->km.all, &xfrm_state_all);
 			hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 			h = xfrm_src_hash(daddr, saddr, family);
 			hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
@@ -870,7 +869,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			xfrm_hash_grow_check(x->bydst.next != NULL);
 		} else {
 			x->km.state = XFRM_STATE_DEAD;
-			xfrm_state_put(x);
+			to_put = x;
 			x = NULL;
 			error = -ESRCH;
 		}
@@ -881,6 +880,8 @@ out:
 	else
 		*err = acquire_in_progress ? -EAGAIN : error;
 	spin_unlock_bh(&xfrm_state_lock);
+	if (to_put)
+		xfrm_state_put(to_put);
 	return x;
 }
 
@@ -922,7 +923,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	x->genid = ++xfrm_state_genid;
 
-	list_add_tail(&x->all, &xfrm_state_all);
+	list_add(&x->km.all, &xfrm_state_all);
 
 	h = xfrm_dst_hash(&x->id.daddr, &x->props.saddr,
 			  x->props.reqid, x->props.family);
@@ -1051,6 +1052,7 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		xfrm_state_hold(x);
 		x->timer.expires = jiffies + sysctl_xfrm_acq_expires*HZ;
 		add_timer(&x->timer);
+		list_add(&x->km.all, &xfrm_state_all);
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
@@ -1067,18 +1069,20 @@ static struct xfrm_state *__xfrm_find_acq_byseq(u32 seq);
 
 int xfrm_state_add(struct xfrm_state *x)
 {
-	struct xfrm_state *x1;
+	struct xfrm_state *x1, *to_put;
 	int family;
 	int err;
 	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
 
 	family = x->props.family;
 
+	to_put = NULL;
+
 	spin_lock_bh(&xfrm_state_lock);
 
 	x1 = __xfrm_state_locate(x, use_spi, family);
 	if (x1) {
-		xfrm_state_put(x1);
+		to_put = x1;
 		x1 = NULL;
 		err = -EEXIST;
 		goto out;
@@ -1088,7 +1092,7 @@ int xfrm_state_add(struct xfrm_state *x)
 		x1 = __xfrm_find_acq_byseq(x->km.seq);
 		if (x1 && ((x1->id.proto != x->id.proto) ||
 		    xfrm_addr_cmp(&x1->id.daddr, &x->id.daddr, family))) {
-			xfrm_state_put(x1);
+			to_put = x1;
 			x1 = NULL;
 		}
 	}
@@ -1109,6 +1113,9 @@ out:
 		xfrm_state_delete(x1);
 		xfrm_state_put(x1);
 	}
+
+	if (to_put)
+		xfrm_state_put(to_put);
 
 	return err;
 }
@@ -1269,9 +1276,11 @@ EXPORT_SYMBOL(xfrm_state_migrate);
 
 int xfrm_state_update(struct xfrm_state *x)
 {
-	struct xfrm_state *x1;
+	struct xfrm_state *x1, *to_put;
 	int err;
 	int use_spi = xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY);
+
+	to_put = NULL;
 
 	spin_lock_bh(&xfrm_state_lock);
 	x1 = __xfrm_state_locate(x, use_spi, x->props.family);
@@ -1281,7 +1290,7 @@ int xfrm_state_update(struct xfrm_state *x)
 		goto out;
 
 	if (xfrm_state_kern(x1)) {
-		xfrm_state_put(x1);
+		to_put = x1;
 		err = -EEXIST;
 		goto out;
 	}
@@ -1294,6 +1303,9 @@ int xfrm_state_update(struct xfrm_state *x)
 
 out:
 	spin_unlock_bh(&xfrm_state_lock);
+
+	if (to_put)
+		xfrm_state_put(to_put);
 
 	if (err)
 		return err;
@@ -1537,46 +1549,61 @@ int xfrm_state_walk(struct xfrm_state_walk *walk,
 		    int (*func)(struct xfrm_state *, int, void*),
 		    void *data)
 {
-	struct xfrm_state *old, *x, *last = NULL;
+	struct xfrm_state *state;
+	struct xfrm_state_walk *x;
 	int err = 0;
 
-	if (walk->state == NULL && walk->count != 0)
+	if (walk->seq != 0 && list_empty(&walk->all))
 		return 0;
 
-	old = x = walk->state;
-	walk->state = NULL;
 	spin_lock_bh(&xfrm_state_lock);
-	if (x == NULL)
-		x = list_first_entry(&xfrm_state_all, struct xfrm_state, all);
+	if (list_empty(&walk->all))
+		x = list_first_entry(&xfrm_state_all, struct xfrm_state_walk, all);
+	else
+		x = list_entry(&walk->all, struct xfrm_state_walk, all);
 	list_for_each_entry_from(x, &xfrm_state_all, all) {
-		if (x->km.state == XFRM_STATE_DEAD)
+		if (x->state == XFRM_STATE_DEAD)
 			continue;
-		if (!xfrm_id_proto_match(x->id.proto, walk->proto))
+		state = container_of(x, struct xfrm_state, km);
+		if (!xfrm_id_proto_match(state->id.proto, walk->proto))
 			continue;
-		if (last) {
-			err = func(last, walk->count, data);
-			if (err) {
-				xfrm_state_hold(last);
-				walk->state = last;
-				goto out;
-			}
+		err = func(state, walk->seq, data);
+		if (err) {
+			list_move_tail(&walk->all, &x->all);
+			goto out;
 		}
-		last = x;
-		walk->count++;
+		walk->seq++;
 	}
-	if (walk->count == 0) {
+	if (walk->seq == 0) {
 		err = -ENOENT;
 		goto out;
 	}
-	if (last)
-		err = func(last, 0, data);
+	list_del_init(&walk->all);
 out:
 	spin_unlock_bh(&xfrm_state_lock);
-	if (old != NULL)
-		xfrm_state_put(old);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_walk);
+
+void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
+{
+	INIT_LIST_HEAD(&walk->all);
+	walk->proto = proto;
+	walk->state = XFRM_STATE_DEAD;
+	walk->seq = 0;
+}
+EXPORT_SYMBOL(xfrm_state_walk_init);
+
+void xfrm_state_walk_done(struct xfrm_state_walk *walk)
+{
+	if (list_empty(&walk->all))
+		return;
+
+	spin_lock_bh(&xfrm_state_lock);
+	list_del(&walk->all);
+	spin_lock_bh(&xfrm_state_lock);
+}
+EXPORT_SYMBOL(xfrm_state_walk_done);
 
 
 void xfrm_replay_notify(struct xfrm_state *x, int event)
@@ -1787,7 +1814,8 @@ EXPORT_SYMBOL(km_policy_expired);
 
 #ifdef CONFIG_XFRM_MIGRATE
 int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-	       struct xfrm_migrate *m, int num_migrate)
+	       struct xfrm_migrate *m, int num_migrate,
+	       struct xfrm_kmaddress *k)
 {
 	int err = -EINVAL;
 	int ret;
@@ -1796,7 +1824,7 @@ int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	read_lock(&xfrm_km_lock);
 	list_for_each_entry(km, &xfrm_km_list, list) {
 		if (km->migrate) {
-			ret = km->migrate(sel, dir, type, m, num_migrate);
+			ret = km->migrate(sel, dir, type, m, num_migrate, k);
 			if (!ret)
 				err = ret;
 		}

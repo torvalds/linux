@@ -150,6 +150,9 @@ static int __init nforce2_s4985_init(void)
 	int i, error;
 	union i2c_smbus_data ioconfig;
 
+	if (!nforce2_smbus)
+		return -ENODEV;
+
 	/* Configure the PCA9556 multiplexer */
 	ioconfig.byte = 0x00; /* All I/O to output mode */
 	error = i2c_smbus_xfer(nforce2_smbus, 0x18, 0, I2C_SMBUS_WRITE, 0x03,
@@ -161,8 +164,6 @@ static int __init nforce2_s4985_init(void)
 	}
 
 	/* Unregister physical bus */
-	if (!nforce2_smbus)
-		return -ENODEV;
 	error = i2c_del_adapter(nforce2_smbus);
 	if (error) {
 		dev_err(&nforce2_smbus->dev, "Physical bus removal failed\n");

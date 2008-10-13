@@ -48,13 +48,12 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 
-#include <asm/io.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
 
 static unsigned long sbc8360_is_open;
-static DEFINE_SPINLOCK(sbc8360_lock);
 static char expect_close;
 
 #define PFX "sbc8360: "
@@ -204,7 +203,8 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Index into timeout table (0-63) (default=27 (60s))");
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 "Watchdog cannot be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Kernel methods.
@@ -231,9 +231,16 @@ static void sbc8360_ping(void)
 	outb(wd_margin, SBC8360_BASETIME);
 }
 
+/* stop watchdog */
+static void sbc8360_stop(void)
+{
+	/* De-activate the watchdog */
+	outb(0, SBC8360_ENABLE);
+}
+
 /* Userspace pings kernel driver, or requests clean close */
-static ssize_t sbc8360_write(struct file *file, const char __user * buf,
-			     size_t count, loff_t * ppos)
+static ssize_t sbc8360_write(struct file *file, const char __user *buf,
+			     size_t count, loff_t *ppos)
 {
 	if (count) {
 		if (!nowayout) {
@@ -257,16 +264,12 @@ static ssize_t sbc8360_write(struct file *file, const char __user * buf,
 
 static int sbc8360_open(struct inode *inode, struct file *file)
 {
-	spin_lock(&sbc8360_lock);
-	if (test_and_set_bit(0, &sbc8360_is_open)) {
-		spin_unlock(&sbc8360_lock);
+	if (test_and_set_bit(0, &sbc8360_is_open))
 		return -EBUSY;
-	}
 	if (nowayout)
 		__module_get(THIS_MODULE);
 
 	/* Activate and ping once to start the countdown */
-	spin_unlock(&sbc8360_lock);
 	sbc8360_activate();
 	sbc8360_ping();
 	return nonseekable_open(inode, file);
@@ -274,16 +277,14 @@ static int sbc8360_open(struct inode *inode, struct file *file)
 
 static int sbc8360_close(struct inode *inode, struct file *file)
 {
-	spin_lock(&sbc8360_lock);
 	if (expect_close == 42)
-		outb(0, SBC8360_ENABLE);
+		sbc8360_stop();
 	else
 		printk(KERN_CRIT PFX
-		       "SBC8360 device closed unexpectedly.  SBC8360 will not stop!\n");
+			"SBC8360 device closed unexpectedly.  SBC8360 will not stop!\n");
 
 	clear_bit(0, &sbc8360_is_open);
 	expect_close = 0;
-	spin_unlock(&sbc8360_lock);
 	return 0;
 }
 
@@ -294,10 +295,9 @@ static int sbc8360_close(struct inode *inode, struct file *file)
 static int sbc8360_notify_sys(struct notifier_block *this, unsigned long code,
 			      void *unused)
 {
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Disable the SBC8360 Watchdog */
-		outb(0, SBC8360_ENABLE);
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		sbc8360_stop();	/* Disable the SBC8360 Watchdog */
+
 	return NOTIFY_DONE;
 }
 
@@ -382,13 +382,13 @@ static int __init sbc8360_init(void)
 
 	return 0;
 
-      out_nomisc:
+out_nomisc:
 	unregister_reboot_notifier(&sbc8360_notifier);
-      out_noreboot:
+out_noreboot:
 	release_region(SBC8360_BASETIME, 1);
-      out_nobasetimereg:
+out_nobasetimereg:
 	release_region(SBC8360_ENABLE, 1);
-      out:
+out:
 	return res;
 }
 

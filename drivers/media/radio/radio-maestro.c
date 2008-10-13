@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #define RADIO_VERSION KERNEL_VERSION(0,0,6)
@@ -354,10 +355,7 @@ static u16 __devinit radio_power_on(struct radio_device *dev)
 	return (ofreq == radio_bits_get(dev));
 }
 
-static struct video_device maestro_radio = {
-	.name           = "Maestro radio",
-	.type           = VID_TYPE_TUNER,
-	.fops           = &maestro_fops,
+static const struct v4l2_ioctl_ops maestro_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -370,6 +368,12 @@ static struct video_device maestro_radio = {
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device maestro_radio = {
+	.name           = "Maestro radio",
+	.fops           = &maestro_fops,
+	.ioctl_ops 	= &maestro_ioctl_ops,
 };
 
 static int __devinit maestro_probe(struct pci_dev *pdev,
@@ -405,8 +409,7 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 	video_set_drvdata(maestro_radio_inst, radio_unit);
 	pci_set_drvdata(pdev, maestro_radio_inst);
 
-	retval = video_register_device(maestro_radio_inst, VFL_TYPE_RADIO,
-		radio_nr);
+	retval = video_register_device(maestro_radio_inst, VFL_TYPE_RADIO, radio_nr);
 	if (retval) {
 		printk(KERN_ERR "can't register video device!\n");
 		goto errfr1;

@@ -153,7 +153,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 
 	/* Check if this configuration has any chance of working */
 	if (tot_bw > target.maxbw) {
-		printk(KERN_ERR PFX "isochronous bandwidth required "
+		dev_err(&td->dev, "isochronous bandwidth required "
 			"by AGP 3.0 devices exceeds that which is supported by "
 			"the AGP 3.0 bridge!\n");
 		ret = -ENODEV;
@@ -188,7 +188,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	/* Exit if the minimal ISOCH_N allocation among the masters is more
 	 * than the target can handle. */
 	if (tot_n > target.n) {
-		printk(KERN_ERR PFX "number of isochronous "
+		dev_err(&td->dev, "number of isochronous "
 			"transactions per period required by AGP 3.0 devices "
 			"exceeds that which is supported by the AGP 3.0 "
 			"bridge!\n");
@@ -229,7 +229,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	/* Exit if the minimal RQ needs of the masters exceeds what the target
 	 * can provide. */
 	if (tot_rq > rq_isoch) {
-		printk(KERN_ERR PFX "number of request queue slots "
+		dev_err(&td->dev, "number of request queue slots "
 			"required by the isochronous bandwidth requested by "
 			"AGP 3.0 devices exceeds the number provided by the "
 			"AGP 3.0 bridge!\n");
@@ -359,8 +359,9 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 			case 0x0001:    /* Unclassified device */
 				/* Don't know what this is, but log it for investigation. */
 				if (mcapndx != 0) {
-					printk (KERN_INFO PFX "Wacky, found unclassified AGP device. %x:%x\n",
-						dev->vendor, dev->device);
+					dev_info(&td->dev, "wacky, found unclassified AGP device %s [%04x/%04x]\n",
+						 pci_name(dev),
+						 dev->vendor, dev->device);
 				}
 				continue;
 
@@ -407,17 +408,18 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 		}
 
 		if (mcapndx == 0) {
-			printk(KERN_ERR PFX "woah!  Non-AGP device "
-				"found on the secondary bus of an AGP 3.5 bridge!\n");
+			dev_err(&td->dev, "woah!  Non-AGP device %s on "
+				"secondary bus of AGP 3.5 bridge!\n",
+				pci_name(dev));
 			ret = -ENODEV;
 			goto free_and_exit;
 		}
 
 		mmajor = (ncapid >> AGP_MAJOR_VERSION_SHIFT) & 0xf;
 		if (mmajor < 3) {
-			printk(KERN_ERR PFX "woah!  AGP 2.0 device "
-				"found on the secondary bus of an AGP 3.5 "
-				"bridge operating with AGP 3.0 electricals!\n");
+			dev_err(&td->dev, "woah!  AGP 2.0 device %s on "
+				"secondary bus of AGP 3.5 bridge operating "
+				"with AGP 3.0 electricals!\n", pci_name(dev));
 			ret = -ENODEV;
 			goto free_and_exit;
 		}
@@ -427,10 +429,10 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 		pci_read_config_dword(dev, cur->capndx+AGPSTAT, &mstatus);
 
 		if (((mstatus >> 3) & 0x1) == 0) {
-			printk(KERN_ERR PFX "woah!  AGP 3.x device "
-				"not operating in AGP 3.x mode found on the "
-				"secondary bus of an AGP 3.5 bridge operating "
-				"with AGP 3.0 electricals!\n");
+			dev_err(&td->dev, "woah!  AGP 3.x device %s not "
+				"operating in AGP 3.x mode on secondary bus "
+				"of AGP 3.5 bridge operating with AGP 3.0 "
+				"electricals!\n", pci_name(dev));
 			ret = -ENODEV;
 			goto free_and_exit;
 		}
@@ -444,9 +446,9 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 	if (isoch) {
 		ret = agp_3_5_isochronous_node_enable(bridge, dev_list, ndevs);
 		if (ret) {
-			printk(KERN_INFO PFX "Something bad happened setting "
-			       "up isochronous xfers.  Falling back to "
-			       "non-isochronous xfer mode.\n");
+			dev_info(&td->dev, "something bad happened setting "
+				 "up isochronous xfers; falling back to "
+				 "non-isochronous xfer mode\n");
 		} else {
 			goto free_and_exit;
 		}
@@ -466,4 +468,3 @@ free_and_exit:
 get_out:
 	return ret;
 }
-

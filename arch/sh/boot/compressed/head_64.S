@@ -14,8 +14,8 @@
  *   Copyright (C) 2002 Stuart Menefy (stuart.menefy@st.com)
  */
 #include <asm/cache.h>
-#include <asm/cpu/mmu_context.h>
-#include <asm/cpu/registers.h>
+#include <cpu/mmu_context.h>
+#include <cpu/registers.h>
 
 /*
  * Fixed TLB entries to identity map the beginning of RAM

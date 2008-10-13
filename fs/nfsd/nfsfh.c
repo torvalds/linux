@@ -51,7 +51,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 		/* make sure parents give x permission to user */
 		int err;
 		parent = dget_parent(tdentry);
-		err = permission(parent->d_inode, MAY_EXEC, NULL);
+		err = inode_permission(parent->d_inode, MAY_EXEC);
 		if (err < 0) {
 			dput(parent);
 			break;

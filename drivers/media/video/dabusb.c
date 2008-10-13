@@ -403,6 +403,7 @@ static int dabusb_fpga_download (pdabusb_t s, const char *fname)
 	ret = request_firmware(&fw, "dabusb/bitstream.bin", &s->usbdev->dev);
 	if (ret) {
 		err("Failed to load \"dabusb/bitstream.bin\": %d\n", ret);
+		kfree(b);
 		return ret;
 	}
 

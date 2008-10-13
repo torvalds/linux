@@ -21,12 +21,11 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
-
-#include <asm/arch/common.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/sram.h>
+#include <mach/common.h>
+#include <mach/clock.h>
+#include <mach/sram.h>
 
 #include "prm.h"
 

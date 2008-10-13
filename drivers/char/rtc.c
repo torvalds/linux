@@ -78,7 +78,6 @@
 #include <linux/wait.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 
 #include <asm/current.h>
@@ -89,12 +88,12 @@
 #endif
 
 #ifdef CONFIG_SPARC32
-#include <linux/pci.h>
-#include <linux/jiffies.h>
-#include <asm/ebus.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <asm/io.h>
 
 static unsigned long rtc_port;
-static int rtc_irq = PCI_IRQ_NONE;
+static int rtc_irq;
 #endif
 
 #ifdef	CONFIG_HPET_RTC_IRQ
@@ -144,6 +143,7 @@ static ssize_t rtc_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos);
 
 static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+static void rtc_get_rtc_time(struct rtc_time *rtc_tm);
 
 #ifdef RTC_IRQ
 static unsigned int rtc_poll(struct file *file, poll_table *wait);
@@ -235,7 +235,7 @@ static inline unsigned char rtc_is_updating(void)
  *	(See ./arch/XXXX/kernel/time.c for the set_rtc_mmss() function.)
  */
 
-irqreturn_t rtc_interrupt(int irq, void *dev_id)
+static irqreturn_t rtc_interrupt(int irq, void *dev_id)
 {
 	/*
 	 *	Can be an alarm interrupt, update complete interrupt,
@@ -973,8 +973,8 @@ static int __init rtc_init(void)
 	char *guess = NULL;
 #endif
 #ifdef CONFIG_SPARC32
-	struct linux_ebus *ebus;
-	struct linux_ebus_device *edev;
+	struct device_node *ebus_dp;
+	struct of_device *op;
 #else
 	void *r;
 #ifdef RTC_IRQ
@@ -983,12 +983,16 @@ static int __init rtc_init(void)
 #endif
 
 #ifdef CONFIG_SPARC32
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (strcmp(edev->prom_node->name, "rtc") == 0) {
-				rtc_port = edev->resource[0].start;
-				rtc_irq = edev->irqs[0];
-				goto found;
+	for_each_node_by_name(ebus_dp, "ebus") {
+		struct device_node *dp;
+		for (dp = ebus_dp; dp; dp = dp->sibling) {
+			if (!strcmp(dp->name, "rtc")) {
+				op = of_find_device_by_node(dp);
+				if (op) {
+					rtc_port = op->resource[0].start;
+					rtc_irq = op->irqs[0];
+					goto found;
+				}
 			}
 		}
 	}
@@ -997,7 +1001,7 @@ static int __init rtc_init(void)
 	return -EIO;
 
 found:
-	if (rtc_irq == PCI_IRQ_NONE) {
+	if (!rtc_irq) {
 		rtc_has_irq = 0;
 		goto no_irq;
 	}
@@ -1303,7 +1307,7 @@ static int rtc_proc_open(struct inode *inode, struct file *file)
 }
 #endif
 
-void rtc_get_rtc_time(struct rtc_time *rtc_tm)
+static void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 {
 	unsigned long uip_watchdog = jiffies, flags;
 	unsigned char ctrl;

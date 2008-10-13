@@ -1155,13 +1155,11 @@ static int iwch_query_port(struct ib_device *ibdev,
 			   u8 port, struct ib_port_attr *props)
 {
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	memset(props, 0, sizeof(struct ib_port_attr));
 	props->max_mtu = IB_MTU_4096;
-	props->lid = 0;
-	props->lmc = 0;
-	props->sm_lid = 0;
-	props->sm_sl = 0;
+	props->active_mtu = IB_MTU_2048;
 	props->state = IB_PORT_ACTIVE;
-	props->phys_state = 0;
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |
 	    IB_PORT_SNMP_TUNNEL_SUP |
@@ -1170,7 +1168,6 @@ static int iwch_query_port(struct ib_device *ibdev,
 	    IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
-	props->qkey_viol_cntr = 0;
 	props->active_width = 2;
 	props->active_speed = 2;
 	props->max_msg_sz = -1;
@@ -1185,28 +1182,6 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 						 ibdev.dev);
 	PDBG("%s dev 0x%p\n", __func__, dev);
 	return sprintf(buf, "%d\n", iwch_dev->rdev.t3cdev_p->type);
-}
-
-static int fw_supports_fastreg(struct iwch_dev *iwch_dev)
-{
-	struct ethtool_drvinfo info;
-	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
-	char *cp, *next;
-	unsigned fw_maj, fw_min;
-
-	rtnl_lock();
-	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
-
-	next = info.fw_version+1;
-	cp = strsep(&next, ".");
-	sscanf(cp, "%i", &fw_maj);
-	cp = strsep(&next, ".");
-	sscanf(cp, "%i", &fw_min);
-
-	PDBG("%s maj %u min %u\n", __func__, fw_maj, fw_min);
-
-	return fw_maj > 6 || (fw_maj == 6 && fw_min > 0);
 }
 
 static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1325,12 +1300,12 @@ int iwch_register_device(struct iwch_dev *dev)
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
-	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
+	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
+				IB_DEVICE_MEM_WINDOW |
+				IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	/* cxgb3 supports STag 0. */
 	dev->ibdev.local_dma_lkey = 0;
-	if (fw_supports_fastreg(dev))
-		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	dev->ibdev.uverbs_cmd_mask =
 	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |

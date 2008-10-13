@@ -22,7 +22,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -621,9 +620,9 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	if (!request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
 	    DRV_NAME)) {
 		printk(KERN_ERR
-			"%s : %s -- ERROR, Addresses "
+			"%s %s: -- ERROR, Addresses "
 			"0x%p to 0x%p ALREADY in use\n",
-		       __func__, DRV_NAME, (void *) cmd_phys_base,
+		       DRV_NAME, pci_name(dev), (void *)cmd_phys_base,
 		       (void *) cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
 		return -ENOMEM;
 	}

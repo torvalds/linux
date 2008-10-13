@@ -78,7 +78,7 @@ spufs_destroy_inode(struct inode *inode)
 }
 
 static void
-spufs_init_once(struct kmem_cache *cachep, void *p)
+spufs_init_once(void *p)
 {
 	struct spufs_inode_info *ei = p;
 

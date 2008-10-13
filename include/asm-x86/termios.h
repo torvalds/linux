@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TERMIOS_H
-#define _ASM_X86_TERMIOS_H
+#ifndef ASM_X86__TERMIOS_H
+#define ASM_X86__TERMIOS_H
 
 #include <asm/termbits.h>
 #include <asm/ioctls.h>
@@ -110,4 +110,4 @@ static inline int kernel_termios_to_user_termios_1(struct termios __user *u,
 
 #endif	/* __KERNEL__ */
 
-#endif /* _ASM_X86_TERMIOS_H */
+#endif /* ASM_X86__TERMIOS_H */

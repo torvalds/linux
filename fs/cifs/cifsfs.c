@@ -175,6 +175,8 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
+	cifs_umount(sb, cifs_sb);
+
 out_mount_failed:
 	if (cifs_sb) {
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -267,7 +269,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int cifs_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int cifs_permission(struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
 
@@ -766,7 +768,7 @@ const struct file_operations cifs_dir_ops = {
 };
 
 static void
-cifs_init_once(struct kmem_cache *cachep, void *inode)
+cifs_init_once(void *inode)
 {
 	struct cifsInodeInfo *cifsi = inode;
 
@@ -930,36 +932,34 @@ static int cifs_oplock_thread(void *dummyarg)
 			schedule_timeout(39*HZ);
 		} else {
 			oplock_item = list_entry(GlobalOplock_Q.next,
-				struct oplock_q_entry, qhead);
-			if (oplock_item) {
-				cFYI(1, ("found oplock item to write out"));
-				pTcon = oplock_item->tcon;
-				inode = oplock_item->pinode;
-				netfid = oplock_item->netfid;
-				spin_unlock(&GlobalMid_Lock);
-				DeleteOplockQEntry(oplock_item);
-				/* can not grab inode sem here since it would
+						struct oplock_q_entry, qhead);
+			cFYI(1, ("found oplock item to write out"));
+			pTcon = oplock_item->tcon;
+			inode = oplock_item->pinode;
+			netfid = oplock_item->netfid;
+			spin_unlock(&GlobalMid_Lock);
+			DeleteOplockQEntry(oplock_item);
+			/* can not grab inode sem here since it would
 				deadlock when oplock received on delete
 				since vfs_unlink holds the i_mutex across
 				the call */
-				/* mutex_lock(&inode->i_mutex);*/
-				if (S_ISREG(inode->i_mode)) {
-					rc =
-					   filemap_fdatawrite(inode->i_mapping);
-					if (CIFS_I(inode)->clientCanCacheRead
-									 == 0) {
-						waitrc = filemap_fdatawait(inode->i_mapping);
-						invalidate_remote_inode(inode);
-					}
-					if (rc == 0)
-						rc = waitrc;
-				} else
-					rc = 0;
-				/* mutex_unlock(&inode->i_mutex);*/
-				if (rc)
-					CIFS_I(inode)->write_behind_rc = rc;
-				cFYI(1, ("Oplock flush inode %p rc %d",
-					inode, rc));
+			/* mutex_lock(&inode->i_mutex);*/
+			if (S_ISREG(inode->i_mode)) {
+				rc = filemap_fdatawrite(inode->i_mapping);
+				if (CIFS_I(inode)->clientCanCacheRead == 0) {
+					waitrc = filemap_fdatawait(
+							      inode->i_mapping);
+					invalidate_remote_inode(inode);
+				}
+				if (rc == 0)
+					rc = waitrc;
+			} else
+				rc = 0;
+			/* mutex_unlock(&inode->i_mutex);*/
+			if (rc)
+				CIFS_I(inode)->write_behind_rc = rc;
+			cFYI(1, ("Oplock flush inode %p rc %d",
+				inode, rc));
 
 				/* releasing stale oplock after recent reconnect
 				of smb session using a now incorrect file
@@ -967,15 +967,13 @@ static int cifs_oplock_thread(void *dummyarg)
 				not bother sending an oplock release if session
 				to server still is disconnected since oplock
 				already released by the server in that case */
-				if (pTcon->tidStatus != CifsNeedReconnect) {
-				    rc = CIFSSMBLock(0, pTcon, netfid,
-					    0 /* len */ , 0 /* offset */, 0,
-					    0, LOCKING_ANDX_OPLOCK_RELEASE,
-					    false /* wait flag */);
-					cFYI(1, ("Oplock release rc = %d", rc));
-				}
-			} else
-				spin_unlock(&GlobalMid_Lock);
+			if (pTcon->tidStatus != CifsNeedReconnect) {
+				rc = CIFSSMBLock(0, pTcon, netfid,
+						0 /* len */ , 0 /* offset */, 0,
+						0, LOCKING_ANDX_OPLOCK_RELEASE,
+						false /* wait flag */);
+				cFYI(1, ("Oplock release rc = %d", rc));
+			}
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(1);  /* yield in case q were corrupt */
 		}
@@ -1001,8 +999,7 @@ static int cifs_dnotify_thread(void *dummyarg)
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses = list_entry(tmp, struct cifsSesInfo,
 				cifsSessionList);
-			if (ses && ses->server &&
-			     atomic_read(&ses->server->inFlight))
+			if (ses->server && atomic_read(&ses->server->inFlight))
 				wake_up_all(&ses->server->response_q);
 		}
 		read_unlock(&GlobalSMBSeslock);

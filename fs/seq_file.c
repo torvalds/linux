@@ -108,9 +108,9 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 			goto Done;
 	}
 	/* we need at least one record in buffer */
+	pos = m->index;
+	p = m->op->start(m, &pos);
 	while (1) {
-		pos = m->index;
-		p = m->op->start(m, &pos);
 		err = PTR_ERR(p);
 		if (!p || IS_ERR(p))
 			break;
@@ -119,6 +119,11 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 			break;
 		if (unlikely(err))
 			m->count = 0;
+		if (unlikely(!m->count)) {
+			p = m->op->next(m, p, &pos);
+			m->index = pos;
+			continue;
+		}
 		if (m->count < m->size)
 			goto Fill;
 		m->op->stop(m, p);
@@ -128,6 +133,8 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 			goto Enomem;
 		m->count = 0;
 		m->version = 0;
+		pos = m->index;
+		p = m->op->start(m, &pos);
 	}
 	m->op->stop(m, p);
 	m->count = 0;
@@ -438,6 +445,20 @@ int seq_dentry(struct seq_file *m, struct dentry *dentry, char *esc)
 				return s - p;
 			}
 		}
+	}
+	m->count = m->size;
+	return -1;
+}
+
+int seq_bitmap(struct seq_file *m, unsigned long *bits, unsigned int nr_bits)
+{
+	size_t len = bitmap_scnprintf_len(nr_bits);
+
+	if (m->count + len < m->size) {
+		bitmap_scnprintf(m->buf + m->count, m->size - m->count,
+				 bits, nr_bits);
+		m->count += len;
+		return 0;
 	}
 	m->count = m->size;
 	return -1;

@@ -59,7 +59,6 @@ xfs_bulkstat_one_iget(
 {
 	xfs_icdinode_t	*dic;	/* dinode core info pointer */
 	xfs_inode_t	*ip;		/* incore inode pointer */
-	bhv_vnode_t	*vp;
 	int		error;
 
 	error = xfs_iget(mp, NULL, ino,
@@ -72,7 +71,6 @@ xfs_bulkstat_one_iget(
 	ASSERT(ip != NULL);
 	ASSERT(ip->i_blkno != (xfs_daddr_t)0);
 
-	vp = XFS_ITOV(ip);
 	dic = &ip->i_d;
 
 	/* xfs_iget returns the following without needing
@@ -85,7 +83,7 @@ xfs_bulkstat_one_iget(
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
-	vn_atime_to_bstime(vp, &buf->bs_atime);
+	vn_atime_to_bstime(VFS_I(ip), &buf->bs_atime);
 	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
 	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
 	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;
@@ -257,7 +255,7 @@ xfs_bulkstat_one(
 		*ubused = error;
 
  out_free:
-	kmem_free(buf, sizeof(*buf));
+	kmem_free(buf);
 	return error;
 }
 
@@ -708,7 +706,7 @@ xfs_bulkstat(
 	/*
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
-	kmem_free(irbuf, irbsize);
+	kmem_free(irbuf);
 	*ubcountp = ubelem;
 	/*
 	 * Found some inodes, return them now and return the error next time.
@@ -914,7 +912,7 @@ xfs_inumbers(
 		}
 		*lastino = XFS_AGINO_TO_INO(mp, agno, agino);
 	}
-	kmem_free(buffer, bcount * sizeof(*buffer));
+	kmem_free(buffer);
 	if (cur)
 		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
 					   XFS_BTREE_NOERROR));

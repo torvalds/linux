@@ -19,18 +19,18 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/flash.h>
-#include <asm/io.h>
 
 #include <asm/setup.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/arch/msm_iomap.h>
+#include <mach/msm_iomap.h>
 
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 struct flash_platform_data msm_nand_data = {
 	.parts		= 0,

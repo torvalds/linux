@@ -10,6 +10,7 @@
  * for more details.
  */
 #include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
@@ -27,21 +28,10 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret, *ret_nocache;
-	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
 	int order = get_order(size);
 
-	if (mem) {
-		int page = bitmap_find_free_region(mem->bitmap, mem->size,
-						     order);
-		if (page >= 0) {
-			*dma_handle = mem->device_base + (page << PAGE_SHIFT);
-			ret = mem->virt_base + (page << PAGE_SHIFT);
-			memset(ret, 0, size);
-			return ret;
-		}
-		if (mem->flags & DMA_MEMORY_EXCLUSIVE)
-			return NULL;
-	}
+	if (dma_alloc_from_coherent(dev, size, dma_handle, &ret))
+		return ret;
 
 	ret = (void *)__get_free_pages(gfp, order);
 	if (!ret)
@@ -71,11 +61,7 @@ void dma_free_coherent(struct device *dev, size_t size,
 	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
 	int order = get_order(size);
 
-	if (mem && vaddr >= mem->virt_base && vaddr < (mem->virt_base + (mem->size << PAGE_SHIFT))) {
-		int page = (vaddr - mem->virt_base) >> PAGE_SHIFT;
-
-		bitmap_release_region(mem->bitmap, page, order);
-	} else {
+	if (!dma_release_from_coherent(dev, order, vaddr)) {
 		WARN_ON(irqs_disabled());	/* for portability */
 		BUG_ON(mem && mem->flags & DMA_MEMORY_EXCLUSIVE);
 		free_pages((unsigned long)phys_to_virt(dma_handle), order);
@@ -83,83 +69,6 @@ void dma_free_coherent(struct device *dev, size_t size,
 	}
 }
 EXPORT_SYMBOL(dma_free_coherent);
-
-int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
-				dma_addr_t device_addr, size_t size, int flags)
-{
-	void __iomem *mem_base = NULL;
-	int pages = size >> PAGE_SHIFT;
-	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
-
-	if ((flags & (DMA_MEMORY_MAP | DMA_MEMORY_IO)) == 0)
-		goto out;
-	if (!size)
-		goto out;
-	if (dev->dma_mem)
-		goto out;
-
-	/* FIXME: this routine just ignores DMA_MEMORY_INCLUDES_CHILDREN */
-
-	mem_base = ioremap_nocache(bus_addr, size);
-	if (!mem_base)
-		goto out;
-
-	dev->dma_mem = kmalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
-	if (!dev->dma_mem)
-		goto out;
-	dev->dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-	if (!dev->dma_mem->bitmap)
-		goto free1_out;
-
-	dev->dma_mem->virt_base = mem_base;
-	dev->dma_mem->device_base = device_addr;
-	dev->dma_mem->size = pages;
-	dev->dma_mem->flags = flags;
-
-	if (flags & DMA_MEMORY_MAP)
-		return DMA_MEMORY_MAP;
-
-	return DMA_MEMORY_IO;
-
- free1_out:
-	kfree(dev->dma_mem);
- out:
-	if (mem_base)
-		iounmap(mem_base);
-	return 0;
-}
-EXPORT_SYMBOL(dma_declare_coherent_memory);
-
-void dma_release_declared_memory(struct device *dev)
-{
-	struct dma_coherent_mem *mem = dev->dma_mem;
-
-	if (!mem)
-		return;
-	dev->dma_mem = NULL;
-	iounmap(mem->virt_base);
-	kfree(mem->bitmap);
-	kfree(mem);
-}
-EXPORT_SYMBOL(dma_release_declared_memory);
-
-void *dma_mark_declared_memory_occupied(struct device *dev,
-					dma_addr_t device_addr, size_t size)
-{
-	struct dma_coherent_mem *mem = dev->dma_mem;
-	int pages = (size + (device_addr & ~PAGE_MASK) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	int pos, err;
-
-	if (!mem)
-		return ERR_PTR(-EINVAL);
-
-	pos = (device_addr - mem->device_base) >> PAGE_SHIFT;
-	err = bitmap_allocate_region(mem->bitmap, pos, get_order(pages));
-	if (err != 0)
-		return ERR_PTR(err);
-	return mem->virt_base + (pos << PAGE_SHIFT);
-}
-EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
 
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction direction)
@@ -185,3 +94,59 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	}
 }
 EXPORT_SYMBOL(dma_cache_sync);
+
+static int __init memchunk_setup(char *str)
+{
+	return 1; /* accept anything that begins with "memchunk." */
+}
+__setup("memchunk.", memchunk_setup);
+
+static void __init memchunk_cmdline_override(char *name, unsigned long *sizep)
+{
+	char *p = boot_command_line;
+	int k = strlen(name);
+
+	while ((p = strstr(p, "memchunk."))) {
+		p += 9; /* strlen("memchunk.") */
+		if (!strncmp(name, p, k) && p[k] == '=') {
+			p += k + 1;
+			*sizep = memparse(p, NULL);
+			pr_info("%s: forcing memory chunk size to 0x%08lx\n",
+				name, *sizep);
+			break;
+		}
+	}
+}
+
+int __init platform_resource_setup_memory(struct platform_device *pdev,
+					  char *name, unsigned long memsize)
+{
+	struct resource *r;
+	dma_addr_t dma_handle;
+	void *buf;
+
+	r = pdev->resource + pdev->num_resources - 1;
+	if (r->flags) {
+		pr_warning("%s: unable to find empty space for resource\n",
+			name);
+		return -EINVAL;
+	}
+
+	memchunk_cmdline_override(name, &memsize);
+	if (!memsize)
+		return 0;
+
+	buf = dma_alloc_coherent(NULL, memsize, &dma_handle, GFP_KERNEL);
+	if (!buf) {
+		pr_warning("%s: unable to allocate memory\n", name);
+		return -ENOMEM;
+	}
+
+	memset(buf, 0, memsize);
+
+	r->flags = IORESOURCE_MEM;
+	r->start = dma_handle;
+	r->end = r->start + memsize - 1;
+	r->name = name;
+	return 0;
+}

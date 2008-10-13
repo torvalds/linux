@@ -111,6 +111,7 @@ static void __init mpc834x_mds_init_IRQ(void)
 static struct of_device_id mpc834x_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
+	{ .compatible = "simple-bus", },
 	{},
 };
 

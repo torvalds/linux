@@ -66,11 +66,28 @@ struct key_type cifs_spnego_key_type = {
 	.describe	= user_describe,
 };
 
-#define MAX_VER_STR_LEN   9 /* length of longest version string e.g.
-				strlen(";ver=0xFF") */
-#define MAX_MECH_STR_LEN 13 /* length of longest security mechanism name, eg
-			       in future could have strlen(";sec=ntlmsspi") */
-#define MAX_IPV6_ADDR_LEN 42 /* eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
+/* length of longest version string e.g.  strlen("ver=0xFF") */
+#define MAX_VER_STR_LEN		8
+
+/* length of longest security mechanism name, eg in future could have
+ * strlen(";sec=ntlmsspi") */
+#define MAX_MECH_STR_LEN	13
+
+/* max possible addr len eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
+#define MAX_IPV6_ADDR_LEN	42
+
+/* strlen of "host=" */
+#define HOST_KEY_LEN		5
+
+/* strlen of ";ip4=" or ";ip6=" */
+#define IP_KEY_LEN		5
+
+/* strlen of ";uid=0x" */
+#define UID_KEY_LEN		7
+
+/* strlen of ";user=" */
+#define USER_KEY_LEN		6
+
 /* get a key struct with a SPNEGO security blob, suitable for session setup */
 struct key *
 cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
@@ -81,11 +98,15 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	struct key *spnego_key;
 	const char *hostname = server->hostname;
 
-	/* BB: come up with better scheme for determining length */
-	/* length of fields (with semicolons): ver=0xyz ipv4= ipaddress host=
-	   hostname sec=mechanism uid=0x uid */
-	desc_len = MAX_VER_STR_LEN + 5 + MAX_IPV6_ADDR_LEN + 1 + 6 +
-		  strlen(hostname) + MAX_MECH_STR_LEN + 8 + (sizeof(uid_t) * 2);
+	/* length of fields (with semicolons): ver=0xyz ip4=ipaddress
+	   host=hostname sec=mechanism uid=0xFF user=username */
+	desc_len = MAX_VER_STR_LEN +
+		   HOST_KEY_LEN + strlen(hostname) +
+		   IP_KEY_LEN + MAX_IPV6_ADDR_LEN +
+		   MAX_MECH_STR_LEN +
+		   UID_KEY_LEN + (sizeof(uid_t) * 2) +
+		   USER_KEY_LEN + strlen(sesInfo->userName) + 1;
+
 	spnego_key = ERR_PTR(-ENOMEM);
 	description = kzalloc(desc_len, GFP_KERNEL);
 	if (description == NULL)
@@ -110,9 +131,11 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 
 	dp = description + strlen(description);
 
-	/* for now, only sec=krb5 is valid */
+	/* for now, only sec=krb5 and sec=mskrb5 are valid */
 	if (server->secType == Kerberos)
 		sprintf(dp, ";sec=krb5");
+	else if (server->secType == MSKerberos)
+		sprintf(dp, ";sec=mskrb5");
 	else
 		goto out;
 

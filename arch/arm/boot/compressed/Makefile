@@ -76,7 +76,7 @@ KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
 
 EXTRA_CFLAGS  := -fpic -fno-builtin
-EXTRA_AFLAGS  :=
+EXTRA_AFLAGS  := -Wa,-march=all
 
 # Supply ZRELADDR, INITRD_PHYS and PARAMS_PHYS to the decompressor via
 # linker symbols.  We only define initrd_phys and params_phys if the
@@ -112,6 +112,3 @@ $(obj)/font.c: $(FONTC)
 
 $(obj)/vmlinux.lds: $(obj)/vmlinux.lds.in arch/arm/boot/Makefile .config
 	@sed "$(SEDFLAGS)" < $< > $@
-
-$(obj)/misc.o: $(obj)/misc.c include/asm/arch/uncompress.h lib/inflate.c
-

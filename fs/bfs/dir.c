@@ -32,16 +32,17 @@ static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 	struct inode *dir = f->f_path.dentry->d_inode;
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
+	struct bfs_sb_info *info = BFS_SB(dir->i_sb);
 	unsigned int offset;
 	int block;
 
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 
 	if (f->f_pos & (BFS_DIRENT_SIZE - 1)) {
 		printf("Bad f_pos=%08lx for %s:%08lx\n",
 					(unsigned long)f->f_pos,
 					dir->i_sb->s_id, dir->i_ino);
-		unlock_kernel();
+		mutex_unlock(&info->bfs_lock);
 		return -EBADF;
 	}
 
@@ -61,7 +62,7 @@ static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 						le16_to_cpu(de->ino),
 						DT_UNKNOWN) < 0) {
 					brelse(bh);
-					unlock_kernel();
+					mutex_unlock(&info->bfs_lock);
 					return 0;
 				}
 			}
@@ -71,7 +72,7 @@ static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 		brelse(bh);
 	}
 
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	return 0;	
 }
 
@@ -95,10 +96,10 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	inode = new_inode(s);
 	if (!inode)
 		return -ENOSPC;
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 	ino = find_first_zero_bit(info->si_imap, info->si_lasti);
 	if (ino > info->si_lasti) {
-		unlock_kernel();
+		mutex_unlock(&info->bfs_lock);
 		iput(inode);
 		return -ENOSPC;
 	}
@@ -124,11 +125,11 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, int mode,
 							inode->i_ino);
 	if (err) {
 		inode_dec_link_count(inode);
+		mutex_unlock(&info->bfs_lock);
 		iput(inode);
-		unlock_kernel();
 		return err;
 	}
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	d_instantiate(dentry, inode);
 	return 0;
 }
@@ -139,22 +140,23 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct inode *inode = NULL;
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
+	struct bfs_sb_info *info = BFS_SB(dir->i_sb);
 
 	if (dentry->d_name.len > BFS_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
 	if (bh) {
 		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
 		brelse(bh);
 		inode = bfs_iget(dir->i_sb, ino);
 		if (IS_ERR(inode)) {
-			unlock_kernel();
+			mutex_unlock(&info->bfs_lock);
 			return ERR_CAST(inode);
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	d_add(dentry, inode);
 	return NULL;
 }
@@ -163,13 +165,14 @@ static int bfs_link(struct dentry *old, struct inode *dir,
 						struct dentry *new)
 {
 	struct inode *inode = old->d_inode;
+	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 	int err;
 
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 	err = bfs_add_entry(dir, new->d_name.name, new->d_name.len,
 							inode->i_ino);
 	if (err) {
-		unlock_kernel();
+		mutex_unlock(&info->bfs_lock);
 		return err;
 	}
 	inc_nlink(inode);
@@ -177,19 +180,19 @@ static int bfs_link(struct dentry *old, struct inode *dir,
 	mark_inode_dirty(inode);
 	atomic_inc(&inode->i_count);
 	d_instantiate(new, inode);
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	return 0;
 }
 
 static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error = -ENOENT;
-	struct inode *inode;
+	struct inode *inode = dentry->d_inode;
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
+	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 
-	inode = dentry->d_inode;
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
 	if (!bh || (le16_to_cpu(de->ino) != inode->i_ino))
 		goto out_brelse;
@@ -210,7 +213,7 @@ static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 
 out_brelse:
 	brelse(bh);
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	return error;
 }
 
@@ -220,6 +223,7 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct inode *old_inode, *new_inode;
 	struct buffer_head *old_bh, *new_bh;
 	struct bfs_dirent *old_de, *new_de;
+	struct bfs_sb_info *info;
 	int error = -ENOENT;
 
 	old_bh = new_bh = NULL;
@@ -227,7 +231,9 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (S_ISDIR(old_inode->i_mode))
 		return -EINVAL;
 
-	lock_kernel();
+	info = BFS_SB(old_inode->i_sb);
+
+	mutex_lock(&info->bfs_lock);
 	old_bh = bfs_find_entry(old_dir, 
 				old_dentry->d_name.name, 
 				old_dentry->d_name.len, &old_de);
@@ -264,7 +270,7 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	error = 0;
 
 end_rename:
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	brelse(old_bh);
 	brelse(new_bh);
 	return error;

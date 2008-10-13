@@ -169,7 +169,7 @@ static int tty_ldisc_get(int disc, struct tty_ldisc *ld)
 	if (disc < N_TTY || disc >= NR_LDISCS)
 		return -EINVAL;
 	err = tty_ldisc_try_get(disc, ld);
-	if (err == -EAGAIN) {
+	if (err < 0) {
 		request_module("tty-ldisc-%d", disc);
 		err = tty_ldisc_try_get(disc, ld);
 	}

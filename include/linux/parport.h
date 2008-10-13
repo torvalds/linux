@@ -560,5 +560,8 @@ extern int parport_device_proc_unregister(struct pardevice *device);
 
 #endif /*  !CONFIG_PARPORT_NOT_PC  */
 
+extern unsigned long parport_default_timeslice;
+extern int parport_default_spintime;
+
 #endif /* __KERNEL__ */
 #endif /* _PARPORT_H_ */

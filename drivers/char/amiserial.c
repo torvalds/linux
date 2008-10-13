@@ -1254,7 +1254,7 @@ static int rs_break(struct tty_struct *tty, int break_state)
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_break"))
-		return;
+		return -EINVAL;
 
 	local_irq_save(flags);
 	if (break_state == -1)

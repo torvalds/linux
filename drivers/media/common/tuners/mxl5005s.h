@@ -2,7 +2,7 @@
     MaxLinear MXL5005S VSB/QAM/DVBT tuner driver
 
     Copyright (C) 2008 MaxLinear
-    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

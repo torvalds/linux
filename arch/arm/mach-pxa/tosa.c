@@ -34,21 +34,23 @@
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/tosa_bt.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/irda.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/udc.h>
+#include <mach/tosa_bt.h>
 
 #include <asm/mach/arch.h>
-#include <asm/arch/tosa.h>
+#include <mach/tosa.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
+#include "clock.h"
 #include "devices.h"
 
 static unsigned long tosa_pin_config[] = {
@@ -520,6 +522,14 @@ static struct gpio_keys_button tosa_gpio_keys[] = {
 		.wakeup	= 1,
 		.active_low = 1,
 	},
+	{
+		.type	= EV_SW,
+		.code	= SW_HEADPHONE_INSERT,
+		.gpio	= TOSA_GPIO_EAR_IN,
+		.desc	= "HeadPhone insert",
+		.active_low = 1,
+		.debounce_interval = 300,
+	},
 };
 
 static struct gpio_keys_platform_data tosa_gpio_keys_platform_data = {
@@ -771,7 +781,7 @@ static void __init tosa_init(void)
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
 
-	init_gpio_reset(TOSA_GPIO_ON_RESET);
+	init_gpio_reset(TOSA_GPIO_ON_RESET, 0);
 
 	pm_power_off = tosa_poweroff;
 	arm_pm_restart = tosa_restart;
@@ -790,6 +800,8 @@ static void __init tosa_init(void)
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
+
+	clk_add_alias("CLK_CK3P6MI", &tc6393xb_device.dev, "GPIO11_CLK", NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

@@ -17,7 +17,8 @@
 #include <linux/mutex.h>
 
 #define SERIAL_TTY_MAJOR	188	/* Nice legal number now */
-#define SERIAL_TTY_MINORS	255	/* loads of devices :) */
+#define SERIAL_TTY_MINORS	254	/* loads of devices :) */
+#define SERIAL_TTY_NO_MINOR	255	/* No minor was assigned */
 
 /* The maximum number of ports one device can grab at once */
 #define MAX_NUM_PORTS		8

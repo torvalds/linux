@@ -52,8 +52,9 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/usb.h>
+#include <mach/dma.h>
+#include <mach/usb.h>
+#include <mach/control.h>
 
 #include "omap_udc.h"
 
@@ -786,7 +787,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 			omap_set_dma_dest_params(ep->lch,
 				OMAP_DMA_PORT_TIPB,
 				OMAP_DMA_AMODE_CONSTANT,
-				(unsigned long) io_v2p(UDC_DATA_DMA),
+				UDC_DATA_DMA,
 				0, 0);
 		}
 	} else {
@@ -803,7 +804,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 			omap_set_dma_src_params(ep->lch,
 				OMAP_DMA_PORT_TIPB,
 				OMAP_DMA_AMODE_CONSTANT,
-				(unsigned long) io_v2p(UDC_DATA_DMA),
+				UDC_DATA_DMA,
 				0, 0);
 			/* EMIFF or SDRC */
 			omap_set_dma_dest_burst_mode(ep->lch,
@@ -2310,10 +2311,10 @@ static int proc_otg_show(struct seq_file *s)
 	u32		trans;
 	char		*ctrl_name;
 
-	tmp = OTG_REV_REG;
+	tmp = omap_readl(OTG_REV);
 	if (cpu_is_omap24xx()) {
 		ctrl_name = "control_devconf";
-		trans = CONTROL_DEVCONF_REG;
+		trans = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
 	} else {
 		ctrl_name = "tranceiver_ctrl";
 		trans = omap_readw(USB_TRANSCEIVER_CTRL);

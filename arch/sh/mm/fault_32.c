@@ -37,16 +37,12 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	int fault;
 	siginfo_t info;
 
-	trace_hardirqs_on();
-	local_irq_enable();
-
 #ifdef CONFIG_SH_KGDB
 	if (kgdb_nofault && kgdb_bus_err_hook)
 		kgdb_bus_err_hook();
 #endif
 
 	tsk = current;
-	mm = tsk->mm;
 	si_code = SEGV_MAPERR;
 
 	if (unlikely(address >= TASK_SIZE)) {
@@ -87,6 +83,14 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 
 		return;
 	}
+
+	/* Only enable interrupts if they were on before the fault */
+	if ((regs->sr & SR_IMASK) != SR_IMASK) {
+		trace_hardirqs_on();
+		local_irq_enable();
+	}
+
+	mm = tsk->mm;
 
 	/*
 	 * If we're in an interrupt or have no user

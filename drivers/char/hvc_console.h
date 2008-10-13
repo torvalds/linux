@@ -6,7 +6,7 @@
  * 	Ryan S. Arnold <rsa@us.ibm.com>
  *
  * hvc_console header information:
- *      moved here from include/asm-powerpc/hvconsole.h
+ *      moved here from arch/powerpc/include/asm/hvconsole.h
  *      and drivers/char/hvc_console.c
  *
  * This program is free software; you can redistribute it and/or modify

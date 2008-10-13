@@ -57,7 +57,7 @@ Similarly to JFFS2, UBIFS supports on-the-flight compression which makes
 it possible to fit quite a lot of data to the flash.
 
 Similarly to JFFS2, UBIFS is tolerant of unclean reboots and power-cuts.
-It does not need stuff like ckfs.ext2. UBIFS automatically replays its
+It does not need stuff like fsck.ext2. UBIFS automatically replays its
 journal and recovers from crashes, ensuring that the on-flash data
 structures are consistent.
 

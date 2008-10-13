@@ -64,7 +64,7 @@
 #define CSR_BASE    (0x000)
 
 #define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000) /* hardware interface config */
-#define CSR_INT_COALESCING      (CSR_BASE+0x004) /* accum ints, 32-usec units */
+#define CSR_INT_COALESCING     (CSR_BASE+0x004) /* accum ints, 32-usec units */
 #define CSR_INT                 (CSR_BASE+0x008) /* host interrupt status/ack */
 #define CSR_INT_MASK            (CSR_BASE+0x00c) /* host interrupt enable */
 #define CSR_FH_INT_STATUS       (CSR_BASE+0x010) /* busmaster int status/ack*/
@@ -104,6 +104,7 @@
  *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
  */
 #define CSR_HW_REV_WA_REG	(CSR_BASE+0x22C)
+#define CSR_DBG_HPET_MEM_REG	(CSR_BASE+0x240)
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
 #define CSR49_HW_IF_CONFIG_REG_BIT_4965_R	(0x00000010)
@@ -118,7 +119,12 @@
 #define CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A    (0x00000000)
 #define CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B    (0x00001000)
 
-#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM     (0x00200000)
+#define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A		(0x00080000)
+#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM		(0x00200000)
+#define CSR_HW_IF_CONFIG_REG_BIT_PCI_OWN_SEM		(0x00400000)
+#define CSR_HW_IF_CONFIG_REG_BIT_ME_OWN			(0x02000000)
+#define CSR_HW_IF_CONFIG_REG_BIT_WAKE_ME		(0x08000000)
+
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */
@@ -236,6 +242,8 @@
 #define CSR39_ANA_PLL_CFG_VAL        (0x01000000)
 #define CSR50_ANA_PLL_CFG_VAL        (0x00880300)
 
+/* HPET MEM debug */
+#define CSR_DBG_HPET_MEM_REG_VAL	(0xFFFF0000)
 /*=== HBUS (Host-side Bus) ===*/
 #define HBUS_BASE	(0x400)
 /*

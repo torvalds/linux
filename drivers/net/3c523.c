@@ -640,10 +640,8 @@ static int init586(struct net_device *dev)
 	cfg_cmd->time_low = 0x00;
 	cfg_cmd->time_high = 0xf2;
 	cfg_cmd->promisc = 0;
-	if (dev->flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+	if (dev->flags & (IFF_ALLMULTI | IFF_PROMISC))
 		cfg_cmd->promisc = 1;
-		dev->flags |= IFF_PROMISC;
-	}
 	cfg_cmd->carr_coll = 0x00;
 
 	p->scb->cbl_offset = make16(cfg_cmd);

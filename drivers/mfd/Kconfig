@@ -21,7 +21,7 @@ config MFD_SM501
 
 config MFD_SM501_GPIO
 	bool "Export GPIO via GPIO layer"
-	depends on MFD_SM501 && HAVE_GPIO_LIB
+	depends on MFD_SM501 && GPIOLIB
 	 ---help---
 	 This option uses the gpio library layer to export the 64 GPIO
 	 lines on the SM501. The platform data is used to supply the
@@ -29,7 +29,7 @@ config MFD_SM501_GPIO
 
 config MFD_ASIC3
 	bool "Support for Compaq ASIC3"
-	depends on GENERIC_HARDIRQS && HAVE_GPIO_LIB && ARM
+	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
 	 ---help---
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
@@ -50,10 +50,40 @@ config HTC_PASIC3
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
 
+config UCB1400_CORE
+	tristate "Philips UCB1400 Core driver"
+	help
+	  This enables support for the Philips UCB1400 core functions.
+	  The UCB1400 is an AC97 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucb1400_core.
+
+config MFD_TMIO
+	bool
+	default n
+
+config MFD_T7L66XB
+	bool "Support Toshiba T7L66XB"
+	depends on ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller T7L66XB
+
+config MFD_TC6387XB
+	bool "Support Toshiba TC6387XB"
+	depends on ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller TC6387XB
+
 config MFD_TC6393XB
 	bool "Support Toshiba TC6393XB"
 	depends on GPIOLIB && ARM
 	select MFD_CORE
+	select MFD_TMIO
 	help
 	  Support for Toshiba Mobile IO Controller TC6393XB
 

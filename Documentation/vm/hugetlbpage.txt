@@ -77,7 +77,7 @@ memory that is preset in system at this time.  System administrators may want
 to put this command in one of the local rc init files.  This will enable the
 kernel to request huge pages early in the boot process (when the possibility
 of getting physical contiguous pages is still very high). In either
-case, adminstrators will want to verify the number of hugepages actually
+case, administrators will want to verify the number of hugepages actually
 allocated by checking the sysctl or meminfo.
 
 /proc/sys/vm/nr_overcommit_hugepages indicates how large the pool of

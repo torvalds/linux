@@ -63,8 +63,9 @@ static LIST_HEAD(serio_list);
 static struct bus_type serio_bus;
 
 static void serio_add_port(struct serio *serio);
-static void serio_reconnect_port(struct serio *serio);
+static int serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
+static void serio_reconnect_chain(struct serio *serio);
 static void serio_attach_driver(struct serio_driver *drv);
 
 static int serio_connect_driver(struct serio *serio, struct serio_driver *drv)
@@ -161,6 +162,7 @@ static void serio_find_driver(struct serio *serio)
 enum serio_event_type {
 	SERIO_RESCAN_PORT,
 	SERIO_RECONNECT_PORT,
+	SERIO_RECONNECT_CHAIN,
 	SERIO_REGISTER_PORT,
 	SERIO_ATTACH_DRIVER,
 };
@@ -313,6 +315,10 @@ static void serio_handle_event(void)
 			case SERIO_RESCAN_PORT:
 				serio_disconnect_port(event->object);
 				serio_find_driver(event->object);
+				break;
+
+			case SERIO_RECONNECT_CHAIN:
+				serio_reconnect_chain(event->object);
 				break;
 
 			case SERIO_ATTACH_DRIVER:
@@ -470,7 +476,7 @@ static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *
 	if (!strncmp(buf, "none", count)) {
 		serio_disconnect_port(serio);
 	} else if (!strncmp(buf, "reconnect", count)) {
-		serio_reconnect_port(serio);
+		serio_reconnect_chain(serio);
 	} else if (!strncmp(buf, "rescan", count)) {
 		serio_disconnect_port(serio);
 		serio_find_driver(serio);
@@ -620,14 +626,30 @@ static void serio_destroy_port(struct serio *serio)
 }
 
 /*
+ * Reconnect serio port (re-initialize attached device).
+ * If reconnect fails (old device is no longer attached or
+ * there was no device to begin with) we do full rescan in
+ * hope of finding a driver for the port.
+ */
+static int serio_reconnect_port(struct serio *serio)
+{
+	int error = serio_reconnect_driver(serio);
+
+	if (error) {
+		serio_disconnect_port(serio);
+		serio_find_driver(serio);
+	}
+
+	return error;
+}
+
+/*
  * Reconnect serio port and all its children (re-initialize attached devices)
  */
-static void serio_reconnect_port(struct serio *serio)
+static void serio_reconnect_chain(struct serio *serio)
 {
 	do {
-		if (serio_reconnect_driver(serio)) {
-			serio_disconnect_port(serio);
-			serio_find_driver(serio);
+		if (serio_reconnect_port(serio)) {
 			/* Ok, old children are now gone, we are done */
 			break;
 		}
@@ -673,7 +695,7 @@ void serio_rescan(struct serio *serio)
 
 void serio_reconnect(struct serio *serio)
 {
-	serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
+	serio_queue_event(serio, NULL, SERIO_RECONNECT_CHAIN);
 }
 
 /*
@@ -927,18 +949,15 @@ static int serio_suspend(struct device *dev, pm_message_t state)
 
 static int serio_resume(struct device *dev)
 {
-	struct serio *serio = to_serio_port(dev);
-
-	if (dev->power.power_state.event != PM_EVENT_ON &&
-	    serio_reconnect_driver(serio)) {
-		/*
-		 * Driver re-probing can take a while, so better let kseriod
-		 * deal with it.
-		 */
-		serio_rescan(serio);
+	/*
+	 * Driver reconnect can take a while, so better let kseriod
+	 * deal with it.
+	 */
+	if (dev->power.power_state.event != PM_EVENT_ON) {
+		dev->power.power_state = PMSG_ON;
+		serio_queue_event(to_serio_port(dev), NULL,
+				  SERIO_RECONNECT_PORT);
 	}
-
-	dev->power.power_state = PMSG_ON;
 
 	return 0;
 }

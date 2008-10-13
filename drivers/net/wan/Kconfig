@@ -25,7 +25,7 @@ if WAN
 # There is no way to detect a comtrol sv11 - force it modular for now.
 config HOSTESS_SV11
 	tristate "Comtrol Hostess SV-11 support"
-	depends on ISA && m && ISA_DMA_API && INET
+	depends on ISA && m && ISA_DMA_API && INET && HDLC
 	help
 	  Driver for Comtrol Hostess SV-11 network card which
 	  operates on low speed synchronous serial links at up to
@@ -37,7 +37,7 @@ config HOSTESS_SV11
 # The COSA/SRP driver has not been tested as non-modular yet.
 config COSA
 	tristate "COSA/SRP sync serial boards support"
-	depends on ISA && m && ISA_DMA_API
+	depends on ISA && m && ISA_DMA_API && HDLC
 	---help---
 	  Driver for COSA and SRP synchronous serial boards.
 
@@ -61,7 +61,7 @@ config COSA
 #
 config LANMEDIA
 	tristate "LanMedia Corp. SSI/V.35, T1/E1, HSSI, T3 boards"
-	depends on PCI && VIRT_TO_BUS
+	depends on PCI && VIRT_TO_BUS && HDLC
 	---help---
 	  Driver for the following Lan Media family of serial boards:
 
@@ -78,9 +78,8 @@ config LANMEDIA
 	  - LMC 5245 board connects directly to a T3 circuit saving the
 	  additional external hardware.
 
-	  To change setting such as syncPPP vs Cisco HDLC or clock source you
-	  will need lmcctl.  It is available at <ftp://ftp.lanmedia.com/>
-	  (broken link).
+	  To change setting such as clock source you will need lmcctl.
+	  It is available at <ftp://ftp.lanmedia.com/> (broken link).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lmc.
@@ -88,7 +87,7 @@ config LANMEDIA
 # There is no way to detect a Sealevel board. Force it modular
 config SEALEVEL_4021
 	tristate "Sealevel Systems 4021 support"
-	depends on ISA && m && ISA_DMA_API && INET
+	depends on ISA && m && ISA_DMA_API && INET && HDLC
 	help
 	  This is a driver for the Sealevel Systems ACB 56 serial I/O adapter.
 
@@ -153,8 +152,6 @@ config HDLC_PPP
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
-
-	  It will be replaced by new PPP implementation in Linux 2.6.26.
 
 	  If unsure, say N.
 

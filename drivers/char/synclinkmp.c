@@ -270,7 +270,6 @@ typedef struct _synclinkmp_info {
 
 	/* SPPP/Cisco HDLC device parts */
 	int netcount;
-	int dosyncppp;
 	spinlock_t netlock;
 
 #if SYNCLINK_GENERIC_HDLC
@@ -469,13 +468,11 @@ static int ttymajor = 0;
  */
 static int debug_level = 0;
 static int maxframe[MAX_DEVICES] = {0,};
-static int dosyncppp[MAX_DEVICES] = {0,};
 
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
-module_param_array(dosyncppp, int, NULL, 0);
 
 static char *driver_name = "SyncLink MultiPort driver";
 static char *driver_version = "$Revision: 4.38 $";
@@ -3752,7 +3749,6 @@ static void add_device(SLMP_INFO *info)
 	if (info->line < MAX_DEVICES) {
 		if (maxframe[info->line])
 			info->max_frame_size = maxframe[info->line];
-		info->dosyncppp = dosyncppp[info->line];
 	}
 
 	synclinkmp_device_count++;

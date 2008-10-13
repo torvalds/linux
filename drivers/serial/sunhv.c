@@ -17,11 +17,11 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/of_device.h>
 
 #include <asm/hypervisor.h>
 #include <asm/spitfire.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/irq.h>
 
 #if defined(CONFIG_MAGIC_SYSRQ)
@@ -616,7 +616,7 @@ static int __devexit hv_remove(struct of_device *dev)
 	return 0;
 }
 
-static struct of_device_id hv_match[] = {
+static const struct of_device_id hv_match[] = {
 	{
 		.name = "console",
 		.compatible = "qcn",

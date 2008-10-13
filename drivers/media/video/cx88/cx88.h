@@ -29,8 +29,8 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/cx2341x.h>
-#include <media/audiochip.h>
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 #include <media/videobuf-dvb.h>
 #endif
@@ -252,7 +252,7 @@ struct cx88_board {
 	struct cx88_input       input[MAX_CX88_INPUT];
 	struct cx88_input       radio;
 	enum cx88_board_type    mpeg;
-	enum audiochip          audio_chip;
+	unsigned int            audio_chip;
 };
 
 struct cx88_subid {

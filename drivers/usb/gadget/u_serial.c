@@ -52,13 +52,16 @@
  * is managed in userspace ... OBEX, PTP, and MTP have been mentioned.
  */
 
+#define PREFIX	"ttyGS"
+
 /*
  * gserial is the lifecycle interface, used by USB functions
  * gs_port is the I/O nexus, used by the tty driver
  * tty_struct links to the tty/filesystem framework
  *
  * gserial <---> gs_port ... links will be null when the USB link is
- * inactive; managed by gserial_{connect,disconnect}().
+ * inactive; managed by gserial_{connect,disconnect}().  each gserial
+ * instance can wrap its own USB control protocol.
  *	gserial->ioport == usb_ep->driver_data ... gs_port
  *	gs_port->port_usb ... gserial
  *
@@ -100,6 +103,8 @@ struct gs_port {
 	wait_queue_head_t	close_wait;	/* wait for last close */
 
 	struct list_head	read_pool;
+	struct list_head	read_queue;
+	unsigned		n_read;
 	struct tasklet_struct	push;
 
 	struct list_head	write_pool;
@@ -177,7 +182,7 @@ static void gs_buf_clear(struct gs_buf *gb)
 /*
  * gs_buf_data_avail
  *
- * Return the number of bytes of data available in the circular
+ * Return the number of bytes of data written into the circular
  * buffer.
  */
 static unsigned gs_buf_data_avail(struct gs_buf *gb)
@@ -278,7 +283,7 @@ gs_buf_get(struct gs_buf *gb, char *buf, unsigned count)
  * Allocate a usb_request and its buffer.  Returns a pointer to the
  * usb_request or NULL if there is an error.
  */
-static struct usb_request *
+struct usb_request *
 gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
 {
 	struct usb_request *req;
@@ -302,7 +307,7 @@ gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
  *
  * Free a usb_request and its buffer.
  */
-static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
+void gs_free_req(struct usb_ep *ep, struct usb_request *req)
 {
 	kfree(req->buf);
 	usb_ep_free_request(ep, req);
@@ -367,11 +372,9 @@ __acquires(&port->port_lock)
 		req->length = len;
 		list_del(&req->list);
 
-#ifdef VERBOSE_DEBUG
-		pr_debug("%s: %s, len=%d, 0x%02x 0x%02x 0x%02x ...\n",
-				__func__, in->name, len, *((u8 *)req->buf),
+		pr_vdebug(PREFIX "%d: tx len=%d, 0x%02x 0x%02x 0x%02x ...\n",
+				port->port_num, len, *((u8 *)req->buf),
 				*((u8 *)req->buf+1), *((u8 *)req->buf+2));
-#endif
 
 		/* Drop lock while we call out of driver; completions
 		 * could be issued while we do so.  Disconnection may
@@ -401,56 +404,6 @@ __acquires(&port->port_lock)
 	return status;
 }
 
-static void gs_rx_push(unsigned long _port)
-{
-	struct gs_port		*port = (void *)_port;
-	struct tty_struct	*tty = port->port_tty;
-
-	/* With low_latency, tty_flip_buffer_push() doesn't put its
-	 * real work through a workqueue, so the ldisc has a better
-	 * chance to keep up with peak USB data rates.
-	 */
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		wake_up_interruptible(&tty->read_wait);
-	}
-}
-
-/*
- * gs_recv_packet
- *
- * Called for each USB packet received.  Reads the packet
- * header and stuffs the data in the appropriate tty buffer.
- * Returns 0 if successful, or a negative error number.
- *
- * Called during USB completion routine, on interrupt time.
- * With port_lock.
- */
-static int gs_recv_packet(struct gs_port *port, char *packet, unsigned size)
-{
-	unsigned		len;
-	struct tty_struct	*tty;
-
-	/* I/O completions can continue for a while after close(), until the
-	 * request queue empties.  Just discard any data we receive, until
-	 * something reopens this TTY ... as if there were no HW flow control.
-	 */
-	tty = port->port_tty;
-	if (tty == NULL) {
-		pr_vdebug("%s: ttyGS%d, after close\n",
-				__func__, port->port_num);
-		return -EIO;
-	}
-
-	len = tty_insert_flip_string(tty, packet, size);
-	if (len > 0)
-		tasklet_schedule(&port->push);
-	if (len < size)
-		pr_debug("%s: ttyGS%d, drop %d bytes\n",
-				__func__, port->port_num, size - len);
-	return 0;
-}
-
 /*
  * Context: caller owns port_lock, and port_usb is set
  */
@@ -469,9 +422,9 @@ __acquires(&port->port_lock)
 		int			status;
 		struct tty_struct	*tty;
 
-		/* no more rx if closed or throttled */
+		/* no more rx if closed */
 		tty = port->port_tty;
-		if (!tty || test_bit(TTY_THROTTLED, &tty->flags))
+		if (!tty)
 			break;
 
 		req = list_entry(pool->next, struct usb_request, list);
@@ -500,36 +453,134 @@ __acquires(&port->port_lock)
 	return started;
 }
 
+/*
+ * RX tasklet takes data out of the RX queue and hands it up to the TTY
+ * layer until it refuses to take any more data (or is throttled back).
+ * Then it issues reads for any further data.
+ *
+ * If the RX queue becomes full enough that no usb_request is queued,
+ * the OUT endpoint may begin NAKing as soon as its FIFO fills up.
+ * So QUEUE_SIZE packets plus however many the FIFO holds (usually two)
+ * can be buffered before the TTY layer's buffers (currently 64 KB).
+ */
+static void gs_rx_push(unsigned long _port)
+{
+	struct gs_port		*port = (void *)_port;
+	struct tty_struct	*tty;
+	struct list_head	*queue = &port->read_queue;
+	bool			disconnect = false;
+	bool			do_push = false;
+
+	/* hand any queued data to the tty */
+	spin_lock_irq(&port->port_lock);
+	tty = port->port_tty;
+	while (!list_empty(queue)) {
+		struct usb_request	*req;
+
+		req = list_first_entry(queue, struct usb_request, list);
+
+		/* discard data if tty was closed */
+		if (!tty)
+			goto recycle;
+
+		/* leave data queued if tty was rx throttled */
+		if (test_bit(TTY_THROTTLED, &tty->flags))
+			break;
+
+		switch (req->status) {
+		case -ESHUTDOWN:
+			disconnect = true;
+			pr_vdebug(PREFIX "%d: shutdown\n", port->port_num);
+			break;
+
+		default:
+			/* presumably a transient fault */
+			pr_warning(PREFIX "%d: unexpected RX status %d\n",
+					port->port_num, req->status);
+			/* FALLTHROUGH */
+		case 0:
+			/* normal completion */
+			break;
+		}
+
+		/* push data to (open) tty */
+		if (req->actual) {
+			char		*packet = req->buf;
+			unsigned	size = req->actual;
+			unsigned	n;
+			int		count;
+
+			/* we may have pushed part of this packet already... */
+			n = port->n_read;
+			if (n) {
+				packet += n;
+				size -= n;
+			}
+
+			count = tty_insert_flip_string(tty, packet, size);
+			if (count)
+				do_push = true;
+			if (count != size) {
+				/* stop pushing; TTY layer can't handle more */
+				port->n_read += count;
+				pr_vdebug(PREFIX "%d: rx block %d/%d\n",
+						port->port_num,
+						count, req->actual);
+				break;
+			}
+			port->n_read = 0;
+		}
+recycle:
+		list_move(&req->list, &port->read_pool);
+	}
+
+	/* Push from tty to ldisc; this is immediate with low_latency, and
+	 * may trigger callbacks to this driver ... so drop the spinlock.
+	 */
+	if (tty && do_push) {
+		spin_unlock_irq(&port->port_lock);
+		tty_flip_buffer_push(tty);
+		wake_up_interruptible(&tty->read_wait);
+		spin_lock_irq(&port->port_lock);
+
+		/* tty may have been closed */
+		tty = port->port_tty;
+	}
+
+
+	/* We want our data queue to become empty ASAP, keeping data
+	 * in the tty and ldisc (not here).  If we couldn't push any
+	 * this time around, there may be trouble unless there's an
+	 * implicit tty_unthrottle() call on its way...
+	 *
+	 * REVISIT we should probably add a timer to keep the tasklet
+	 * from starving ... but it's not clear that case ever happens.
+	 */
+	if (!list_empty(queue) && tty) {
+		if (!test_bit(TTY_THROTTLED, &tty->flags)) {
+			if (do_push)
+				tasklet_schedule(&port->push);
+			else
+				pr_warning(PREFIX "%d: RX not scheduled?\n",
+					port->port_num);
+		}
+	}
+
+	/* If we're still connected, refill the USB RX queue. */
+	if (!disconnect && port->port_usb)
+		gs_start_rx(port);
+
+	spin_unlock_irq(&port->port_lock);
+}
+
 static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	int		status;
 	struct gs_port	*port = ep->driver_data;
 
+	/* Queue all received data until the tty layer is ready for it. */
 	spin_lock(&port->port_lock);
-	list_add(&req->list, &port->read_pool);
-
-	switch (req->status) {
-	case 0:
-		/* normal completion */
-		status = gs_recv_packet(port, req->buf, req->actual);
-		if (status && status != -EIO)
-			pr_debug("%s: %s %s err %d\n",
-				__func__, "recv", ep->name, status);
-		gs_start_rx(port);
-		break;
-
-	case -ESHUTDOWN:
-		/* disconnect */
-		pr_vdebug("%s: %s shutdown\n", __func__, ep->name);
-		break;
-
-	default:
-		/* presumably a transient fault */
-		pr_warning("%s: unexpected %s status %d\n",
-				__func__, ep->name, req->status);
-		gs_start_rx(port);
-		break;
-	}
+	list_add_tail(&req->list, &port->read_queue);
+	tasklet_schedule(&port->push);
 	spin_unlock(&port->port_lock);
 }
 
@@ -625,6 +676,7 @@ static int gs_start_io(struct gs_port *port)
 	}
 
 	/* queue read requests */
+	port->n_read = 0;
 	started = gs_start_rx(port);
 
 	/* unblock any pending writes into our circular buffer */
@@ -633,9 +685,10 @@ static int gs_start_io(struct gs_port *port)
 	} else {
 		gs_free_requests(ep, head);
 		gs_free_requests(port->port_usb->in, &port->write_pool);
+		status = -EIO;
 	}
 
-	return started ? 0 : status;
+	return status;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -736,10 +789,13 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 	/* if connected, start the I/O stream */
 	if (port->port_usb) {
+		struct gserial	*gser = port->port_usb;
+
 		pr_debug("gs_open: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 
-		/* REVISIT for ACM, issue "network connected" event */
+		if (gser->connect)
+			gser->connect(gser);
 	}
 
 	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
@@ -766,6 +822,7 @@ static int gs_writes_finished(struct gs_port *p)
 static void gs_close(struct tty_struct *tty, struct file *file)
 {
 	struct gs_port *port = tty->driver_data;
+	struct gserial	*gser;
 
 	spin_lock_irq(&port->port_lock);
 
@@ -785,31 +842,30 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	port->openclose = true;
 	port->open_count = 0;
 
-	if (port->port_usb)
-		/* REVISIT for ACM, issue "network disconnected" event */;
+	gser = port->port_usb;
+	if (gser && gser->disconnect)
+		gser->disconnect(gser);
 
 	/* wait for circular write buffer to drain, disconnect, or at
 	 * most GS_CLOSE_TIMEOUT seconds; then discard the rest
 	 */
-	if (gs_buf_data_avail(&port->port_write_buf) > 0
-			&& port->port_usb) {
+	if (gs_buf_data_avail(&port->port_write_buf) > 0 && gser) {
 		spin_unlock_irq(&port->port_lock);
 		wait_event_interruptible_timeout(port->drain_wait,
 					gs_writes_finished(port),
 					GS_CLOSE_TIMEOUT * HZ);
 		spin_lock_irq(&port->port_lock);
+		gser = port->port_usb;
 	}
 
 	/* Iff we're disconnected, there can be no I/O in flight so it's
 	 * ok to free the circular buffer; else just scrub it.  And don't
 	 * let the push tasklet fire again until we're re-opened.
 	 */
-	if (port->port_usb == NULL)
+	if (gser == NULL)
 		gs_buf_free(&port->port_write_buf);
 	else
 		gs_buf_clear(&port->port_write_buf);
-
-	tasklet_kill(&port->push);
 
 	tty->driver_data = NULL;
 	port->port_tty = NULL;
@@ -911,15 +967,35 @@ static void gs_unthrottle(struct tty_struct *tty)
 {
 	struct gs_port		*port = tty->driver_data;
 	unsigned long		flags;
-	unsigned		started = 0;
 
 	spin_lock_irqsave(&port->port_lock, flags);
-	if (port->port_usb)
-		started = gs_start_rx(port);
+	if (port->port_usb) {
+		/* Kickstart read queue processing.  We don't do xon/xoff,
+		 * rts/cts, or other handshaking with the host, but if the
+		 * read queue backs up enough we'll be NAKing OUT packets.
+		 */
+		tasklet_schedule(&port->push);
+		pr_vdebug(PREFIX "%d: unthrottle\n", port->port_num);
+	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
+}
 
-	pr_vdebug("gs_unthrottle: ttyGS%d, %d packets\n",
-			port->port_num, started);
+static int gs_break_ctl(struct tty_struct *tty, int duration)
+{
+	struct gs_port	*port = tty->driver_data;
+	int		status = 0;
+	struct gserial	*gser;
+
+	pr_vdebug("gs_break_ctl: ttyGS%d, send break (%d) \n",
+			port->port_num, duration);
+
+	spin_lock_irq(&port->port_lock);
+	gser = port->port_usb;
+	if (gser && gser->send_break)
+		status = gser->send_break(gser, duration);
+	spin_unlock_irq(&port->port_lock);
+
+	return status;
 }
 
 static const struct tty_operations gs_tty_ops = {
@@ -931,6 +1007,7 @@ static const struct tty_operations gs_tty_ops = {
 	.write_room =		gs_write_room,
 	.chars_in_buffer =	gs_chars_in_buffer,
 	.unthrottle =		gs_unthrottle,
+	.break_ctl =		gs_break_ctl,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -953,6 +1030,7 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 	tasklet_init(&port->push, gs_rx_push, (unsigned long) port);
 
 	INIT_LIST_HEAD(&port->read_pool);
+	INIT_LIST_HEAD(&port->read_queue);
 	INIT_LIST_HEAD(&port->write_pool);
 
 	port->port_num = port_num;
@@ -997,7 +1075,7 @@ int __init gserial_setup(struct usb_gadget *g, unsigned count)
 
 	gs_tty_driver->owner = THIS_MODULE;
 	gs_tty_driver->driver_name = "g_serial";
-	gs_tty_driver->name = "ttyGS";
+	gs_tty_driver->name = PREFIX;
 	/* uses dynamically assigned dev_t values */
 
 	gs_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
@@ -1104,6 +1182,8 @@ void gserial_cleanup(void)
 		ports[i].port = NULL;
 		mutex_unlock(&ports[i].lock);
 
+		tasklet_kill(&port->push);
+
 		/* wait for old opens to finish */
 		wait_event(port->close_wait, gs_closed(port));
 
@@ -1175,14 +1255,17 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 
 	/* REVISIT if waiting on "carrier detect", signal. */
 
-	/* REVISIT for ACM, issue "network connection" status notification:
-	 * connected if open_count, else disconnected.
+	/* if it's already open, start I/O ... and notify the serial
+	 * protocol about open/close status (connect/disconnect).
 	 */
-
-	/* if it's already open, start I/O */
 	if (port->open_count) {
 		pr_debug("gserial_connect: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
+		if (gser->connect)
+			gser->connect(gser);
+	} else {
+		if (gser->disconnect)
+			gser->disconnect(gser);
 	}
 
 	spin_unlock_irqrestore(&port->port_lock, flags);
@@ -1241,6 +1324,7 @@ void gserial_disconnect(struct gserial *gser)
 	if (port->open_count == 0 && !port->openclose)
 		gs_buf_free(&port->port_write_buf);
 	gs_free_requests(gser->out, &port->read_pool);
+	gs_free_requests(gser->out, &port->read_queue);
 	gs_free_requests(gser->in, &port->write_pool);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }

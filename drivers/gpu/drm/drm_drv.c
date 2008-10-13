@@ -318,7 +318,7 @@ static void drm_cleanup(struct drm_device * dev)
 		DRM_ERROR("Cannot unload module\n");
 }
 
-int drm_minors_cleanup(int id, void *ptr, void *data)
+static int drm_minors_cleanup(int id, void *ptr, void *data)
 {
 	struct drm_minor *minor = ptr;
 	struct drm_device *dev;

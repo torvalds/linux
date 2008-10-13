@@ -53,7 +53,7 @@ void efi_call_phys_prelog(void)
 	 * directory. If I have PAE, I just need to duplicate one entry in
 	 * page directory.
 	 */
-	cr4 = read_cr4();
+	cr4 = read_cr4_safe();
 
 	if (cr4 & X86_CR4_PAE) {
 		efi_bak_pg_dir_pointer[0].pgd =
@@ -91,7 +91,7 @@ void efi_call_phys_epilog(void)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 
-	cr4 = read_cr4();
+	cr4 = read_cr4_safe();
 
 	if (cr4 & X86_CR4_PAE) {
 		swapper_pg_dir[pgd_index(0)].pgd =

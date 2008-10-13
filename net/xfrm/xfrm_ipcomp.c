@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/percpu.h>
-#include <linux/rtnetlink.h>
 #include <linux/smp.h>
 #include <linux/vmalloc.h>
 #include <net/ip.h>
@@ -251,7 +250,7 @@ static void ipcomp_free_tfms(struct crypto_comp **tfms)
 			break;
 	}
 
-	BUG_TRAP(pos);
+	WARN_ON(!pos);
 
 	if (--pos->users)
 		return;

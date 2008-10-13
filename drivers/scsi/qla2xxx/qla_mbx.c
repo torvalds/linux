@@ -233,7 +233,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 			DEBUG2_3_11(printk("%s(%ld): timeout schedule "
 			    "isp_abort_needed.\n", __func__, ha->host_no));
 			qla_printk(KERN_WARNING, ha,
-			    "Mailbox command timeout occured. Scheduling ISP "
+			    "Mailbox command timeout occurred. Scheduling ISP "
 			    "abort.\n");
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			qla2xxx_wake_dpc(ha);
@@ -244,7 +244,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 			DEBUG2_3_11(printk("%s(%ld): timeout calling "
 			    "abort_isp\n", __func__, ha->host_no));
 			qla_printk(KERN_WARNING, ha,
-			    "Mailbox command timeout occured. Issuing ISP "
+			    "Mailbox command timeout occurred. Issuing ISP "
 			    "abort.\n");
 
 			set_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
@@ -918,6 +918,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *ha, uint16_t *id, uint8_t *al_pa,
 	rval = qla2x00_mailbox_command(ha, mcp);
 	if (mcp->mb[0] == MBS_COMMAND_ERROR)
 		rval = QLA_COMMAND_ERROR;
+	else if (mcp->mb[0] == MBS_INVALID_COMMAND)
+		rval = QLA_INVALID_COMMAND;
 
 	/* Return data. */
 	*id = mcp->mb[1];
@@ -1993,7 +1995,7 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map)
 	char *pmap;
 	dma_addr_t pmap_dma;
 
-	pmap = dma_pool_alloc(ha->s_dma_pool, GFP_ATOMIC, &pmap_dma);
+	pmap = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pmap_dma);
 	if (pmap  == NULL) {
 		DEBUG2_3_11(printk("%s(%ld): **** Mem Alloc Failed ****",
 		    __func__, ha->host_no));
@@ -2161,17 +2163,18 @@ qla24xx_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	struct abort_entry_24xx *abt;
 	dma_addr_t	abt_dma;
 	uint32_t	handle;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
 
 	fcport = sp->fcport;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&pha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
-		if (ha->outstanding_cmds[handle] == sp)
+		if (pha->outstanding_cmds[handle] == sp)
 			break;
 	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 	if (handle == MAX_OUTSTANDING_COMMANDS) {
 		/* Command not found. */
 		return QLA_FUNCTION_FAILED;
@@ -2683,7 +2686,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *ha,
 		set_bit(VP_IDX_ACQUIRED, &vha->vp_flags);
 		set_bit(VP_DPC_NEEDED, &ha->dpc_flags);
 
-		wake_up_process(ha->dpc_thread);
+		qla2xxx_wake_dpc(ha);
 	}
 }
 

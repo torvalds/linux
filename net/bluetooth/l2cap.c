@@ -55,7 +55,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.10"
+#define VERSION "2.11"
 
 static u32 l2cap_feat_mask = 0x0000;
 
@@ -778,6 +778,7 @@ static int l2cap_do_connect(struct sock *sk)
 	struct l2cap_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
+	__u8 auth_type;
 	int err = 0;
 
 	BT_DBG("%s -> %s psm 0x%2.2x", batostr(src), batostr(dst), l2cap_pi(sk)->psm);
@@ -789,7 +790,21 @@ static int l2cap_do_connect(struct sock *sk)
 
 	err = -ENOMEM;
 
-	hcon = hci_connect(hdev, ACL_LINK, dst);
+	if (l2cap_pi(sk)->link_mode & L2CAP_LM_AUTH ||
+			l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT ||
+				l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE) {
+		if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+			auth_type = HCI_AT_NO_BONDING_MITM;
+		else
+			auth_type = HCI_AT_GENERAL_BONDING_MITM;
+	} else {
+		if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+			auth_type = HCI_AT_NO_BONDING;
+		else
+			auth_type = HCI_AT_GENERAL_BONDING;
+	}
+
+	hcon = hci_connect(hdev, ACL_LINK, dst, auth_type);
 	if (!hcon)
 		goto done;
 
@@ -1553,10 +1568,10 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	struct l2cap_conn_req *req = (struct l2cap_conn_req *) data;
 	struct l2cap_conn_rsp rsp;
 	struct sock *sk, *parent;
-	int result, status = 0;
+	int result, status = L2CAP_CS_NO_INFO;
 
 	u16 dcid = 0, scid = __le16_to_cpu(req->scid);
-	__le16 psm  = req->psm;
+	__le16 psm = req->psm;
 
 	BT_DBG("psm 0x%2.2x scid 0x%4.4x", psm, scid);
 
@@ -1565,6 +1580,13 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	if (!parent) {
 		result = L2CAP_CR_BAD_PSM;
 		goto sendresp;
+	}
+
+	/* Check if the ACL is secure enough (if not SDP) */
+	if (psm != cpu_to_le16(0x0001) &&
+				!hci_conn_check_link_mode(conn->hcon)) {
+		result = L2CAP_CR_SEC_BLOCK;
+		goto response;
 	}
 
 	result = L2CAP_CR_NO_MEM;
@@ -2224,7 +2246,7 @@ static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
-			rsp.status = cpu_to_le16(0);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		}
@@ -2296,7 +2318,7 @@ static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
-			rsp.status = cpu_to_le16(0);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		}
@@ -2516,7 +2538,7 @@ EXPORT_SYMBOL(l2cap_load);
 module_init(l2cap_init);
 module_exit(l2cap_exit);
 
-MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth L2CAP ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

@@ -27,8 +27,8 @@
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 
-#include <asm/arch/npe.h>
-#include <asm/arch/qmgr.h>
+#include <mach/npe.h>
+#include <mach/qmgr.h>
 
 #define MAX_KEYLEN 32
 

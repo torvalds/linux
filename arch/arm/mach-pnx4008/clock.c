@@ -20,11 +20,11 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 #include "clock.h"
 
 /*forward declaration*/

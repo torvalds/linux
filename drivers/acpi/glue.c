@@ -165,8 +165,11 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 				"firmware_node");
 		ret = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 				"physical_node");
-		if (acpi_dev->wakeup.flags.valid)
+		if (acpi_dev->wakeup.flags.valid) {
 			device_set_wakeup_capable(dev, true);
+			device_set_wakeup_enable(dev,
+						acpi_dev->wakeup.state.enabled);
+		}
 	}
 
 	return 0;
@@ -366,7 +369,6 @@ static int __init acpi_rtc_init(void)
 		DBG("RTC unavailable?\n");
 	return 0;
 }
-/* do this between RTC subsys_initcall() and rtc_cmos driver_initcall() */
-fs_initcall(acpi_rtc_init);
+module_init(acpi_rtc_init);
 
 #endif

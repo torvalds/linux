@@ -1,6 +1,4 @@
 /*
- * $Id: inftl-user.h,v 1.2 2005/11/07 11:14:56 gleixner Exp $
- *
  * Parts of INFTL headers shared with userspace
  *
  */

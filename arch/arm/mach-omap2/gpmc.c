@@ -15,10 +15,10 @@
 #include <linux/clk.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/arch/gpmc.h>
+#include <mach/gpmc.h>
 
 #undef DEBUG
 

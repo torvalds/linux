@@ -21,9 +21,9 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/lmb.h>
+#include <linux/of_device.h>
 
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/oplib.h>
 #include <asm/irq.h>
 #include <asm/asi.h>
@@ -38,7 +38,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 {
 	struct device_node *np;
 
-	for (np = allnodes; np != 0; np = np->allnext)
+	for (np = allnodes; np; np = np->allnext)
 		if (np->node == handle)
 			break;
 
@@ -58,6 +58,9 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 	return *(int *) prop->value;
 }
 EXPORT_SYMBOL(of_getintprop_default);
+
+DEFINE_MUTEX(of_set_property_mutex);
+EXPORT_SYMBOL(of_set_property_mutex);
 
 int of_set_property(struct device_node *dp, const char *name, void *val, int len)
 {
@@ -82,7 +85,10 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 			void *old_val = prop->value;
 			int ret;
 
+			mutex_lock(&of_set_property_mutex);
 			ret = prom_setprop(dp->node, name, val, len);
+			mutex_unlock(&of_set_property_mutex);
+
 			err = -EINVAL;
 			if (ret >= 0) {
 				prop->value = new_val;
@@ -156,55 +162,11 @@ static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
 		return PSYCHO_IMAP_B_SLOT0 + (slot * 8);
 }
 
-#define PSYCHO_IMAP_SCSI	0x1000UL
-#define PSYCHO_IMAP_ETH		0x1008UL
-#define PSYCHO_IMAP_BPP		0x1010UL
-#define PSYCHO_IMAP_AU_REC	0x1018UL
-#define PSYCHO_IMAP_AU_PLAY	0x1020UL
-#define PSYCHO_IMAP_PFAIL	0x1028UL
-#define PSYCHO_IMAP_KMS		0x1030UL
-#define PSYCHO_IMAP_FLPY	0x1038UL
-#define PSYCHO_IMAP_SHW		0x1040UL
-#define PSYCHO_IMAP_KBD		0x1048UL
-#define PSYCHO_IMAP_MS		0x1050UL
-#define PSYCHO_IMAP_SER		0x1058UL
-#define PSYCHO_IMAP_TIM0	0x1060UL
-#define PSYCHO_IMAP_TIM1	0x1068UL
-#define PSYCHO_IMAP_UE		0x1070UL
-#define PSYCHO_IMAP_CE		0x1078UL
-#define PSYCHO_IMAP_A_ERR	0x1080UL
-#define PSYCHO_IMAP_B_ERR	0x1088UL
-#define PSYCHO_IMAP_PMGMT	0x1090UL
-#define PSYCHO_IMAP_GFX		0x1098UL
-#define PSYCHO_IMAP_EUPA	0x10a0UL
+#define PSYCHO_OBIO_IMAP_BASE	0x1000UL
 
-static unsigned long __psycho_onboard_imap_off[] = {
-/*0x20*/	PSYCHO_IMAP_SCSI,
-/*0x21*/	PSYCHO_IMAP_ETH,
-/*0x22*/	PSYCHO_IMAP_BPP,
-/*0x23*/	PSYCHO_IMAP_AU_REC,
-/*0x24*/	PSYCHO_IMAP_AU_PLAY,
-/*0x25*/	PSYCHO_IMAP_PFAIL,
-/*0x26*/	PSYCHO_IMAP_KMS,
-/*0x27*/	PSYCHO_IMAP_FLPY,
-/*0x28*/	PSYCHO_IMAP_SHW,
-/*0x29*/	PSYCHO_IMAP_KBD,
-/*0x2a*/	PSYCHO_IMAP_MS,
-/*0x2b*/	PSYCHO_IMAP_SER,
-/*0x2c*/	PSYCHO_IMAP_TIM0,
-/*0x2d*/	PSYCHO_IMAP_TIM1,
-/*0x2e*/	PSYCHO_IMAP_UE,
-/*0x2f*/	PSYCHO_IMAP_CE,
-/*0x30*/	PSYCHO_IMAP_A_ERR,
-/*0x31*/	PSYCHO_IMAP_B_ERR,
-/*0x32*/	PSYCHO_IMAP_PMGMT,
-/*0x33*/	PSYCHO_IMAP_GFX,
-/*0x34*/	PSYCHO_IMAP_EUPA,
-};
 #define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define PSYCHO_ONBOARD_IRQ_LAST		0x34
 #define psycho_onboard_imap_offset(__ino) \
-	__psycho_onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
+	(PSYCHO_OBIO_IMAP_BASE + (((__ino) & 0x1f) << 3))
 
 #define PSYCHO_ICLR_A_SLOT0	0x1400UL
 #define PSYCHO_ICLR_SCSI	0x1800UL
@@ -228,10 +190,6 @@ static unsigned int psycho_irq_build(struct device_node *dp,
 		imap_off = psycho_pcislot_imap_offset(ino);
 	} else {
 		/* Onboard device */
-		if (ino > PSYCHO_ONBOARD_IRQ_LAST) {
-			prom_printf("psycho_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
 		imap_off = psycho_onboard_imap_offset(ino);
 	}
 
@@ -318,23 +276,6 @@ static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 
 #define SABRE_IMAP_A_SLOT0	0x0c00UL
 #define SABRE_IMAP_B_SLOT0	0x0c20UL
-#define SABRE_IMAP_SCSI		0x1000UL
-#define SABRE_IMAP_ETH		0x1008UL
-#define SABRE_IMAP_BPP		0x1010UL
-#define SABRE_IMAP_AU_REC	0x1018UL
-#define SABRE_IMAP_AU_PLAY	0x1020UL
-#define SABRE_IMAP_PFAIL	0x1028UL
-#define SABRE_IMAP_KMS		0x1030UL
-#define SABRE_IMAP_FLPY		0x1038UL
-#define SABRE_IMAP_SHW		0x1040UL
-#define SABRE_IMAP_KBD		0x1048UL
-#define SABRE_IMAP_MS		0x1050UL
-#define SABRE_IMAP_SER		0x1058UL
-#define SABRE_IMAP_UE		0x1070UL
-#define SABRE_IMAP_CE		0x1078UL
-#define SABRE_IMAP_PCIERR	0x1080UL
-#define SABRE_IMAP_GFX		0x1098UL
-#define SABRE_IMAP_EUPA		0x10a0UL
 #define SABRE_ICLR_A_SLOT0	0x1400UL
 #define SABRE_ICLR_B_SLOT0	0x1480UL
 #define SABRE_ICLR_SCSI		0x1800UL
@@ -364,33 +305,10 @@ static unsigned long sabre_pcislot_imap_offset(unsigned long ino)
 		return SABRE_IMAP_B_SLOT0 + (slot * 8);
 }
 
-static unsigned long __sabre_onboard_imap_off[] = {
-/*0x20*/	SABRE_IMAP_SCSI,
-/*0x21*/	SABRE_IMAP_ETH,
-/*0x22*/	SABRE_IMAP_BPP,
-/*0x23*/	SABRE_IMAP_AU_REC,
-/*0x24*/	SABRE_IMAP_AU_PLAY,
-/*0x25*/	SABRE_IMAP_PFAIL,
-/*0x26*/	SABRE_IMAP_KMS,
-/*0x27*/	SABRE_IMAP_FLPY,
-/*0x28*/	SABRE_IMAP_SHW,
-/*0x29*/	SABRE_IMAP_KBD,
-/*0x2a*/	SABRE_IMAP_MS,
-/*0x2b*/	SABRE_IMAP_SER,
-/*0x2c*/	0 /* reserved */,
-/*0x2d*/	0 /* reserved */,
-/*0x2e*/	SABRE_IMAP_UE,
-/*0x2f*/	SABRE_IMAP_CE,
-/*0x30*/	SABRE_IMAP_PCIERR,
-/*0x31*/	0 /* reserved */,
-/*0x32*/	0 /* reserved */,
-/*0x33*/	SABRE_IMAP_GFX,
-/*0x34*/	SABRE_IMAP_EUPA,
-};
-#define SABRE_ONBOARD_IRQ_BASE		0x20
-#define SABRE_ONBOARD_IRQ_LAST		0x30
+#define SABRE_OBIO_IMAP_BASE	0x1000UL
+#define SABRE_ONBOARD_IRQ_BASE	0x20
 #define sabre_onboard_imap_offset(__ino) \
-	__sabre_onboard_imap_off[(__ino) - SABRE_ONBOARD_IRQ_BASE]
+	(SABRE_OBIO_IMAP_BASE + (((__ino) & 0x1f) << 3))
 
 #define sabre_iclr_offset(ino)					      \
 	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
@@ -453,10 +371,6 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 		imap_off = sabre_pcislot_imap_offset(ino);
 	} else {
 		/* onboard device */
-		if (ino > SABRE_ONBOARD_IRQ_LAST) {
-			prom_printf("sabre_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
 		imap_off = sabre_onboard_imap_offset(ino);
 	}
 
@@ -1037,22 +951,30 @@ static void __init irq_trans_init(struct device_node *dp)
 		for (i = 0; i < ARRAY_SIZE(pci_irq_trans_table); i++) {
 			struct irq_trans *t = &pci_irq_trans_table[i];
 
-			if (!strcmp(model, t->name))
-				return t->init(dp);
+			if (!strcmp(model, t->name)) {
+				t->init(dp);
+				return;
+			}
 		}
 	}
 #endif
 #ifdef CONFIG_SBUS
 	if (!strcmp(dp->name, "sbus") ||
-	    !strcmp(dp->name, "sbi"))
-		return sbus_irq_trans_init(dp);
+	    !strcmp(dp->name, "sbi")) {
+		sbus_irq_trans_init(dp);
+		return;
+	}
 #endif
 	if (!strcmp(dp->name, "fhc") &&
-	    !strcmp(dp->parent->name, "central"))
-		return central_irq_trans_init(dp);
+	    !strcmp(dp->parent->name, "central")) {
+		central_irq_trans_init(dp);
+		return;
+	}
 	if (!strcmp(dp->name, "virtual-devices") ||
-	    !strcmp(dp->name, "niu"))
-		return sun4v_vdev_irq_trans_init(dp);
+	    !strcmp(dp->name, "niu")) {
+		sun4v_vdev_irq_trans_init(dp);
+		return;
+	}
 }
 
 static int is_root_node(const struct device_node *dp)
@@ -1323,32 +1245,49 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 
 	if (parent != NULL) {
 		if (!strcmp(parent->type, "pci") ||
-		    !strcmp(parent->type, "pciex"))
-			return pci_path_component(dp, tmp_buf);
-		if (!strcmp(parent->type, "sbus"))
-			return sbus_path_component(dp, tmp_buf);
-		if (!strcmp(parent->type, "upa"))
-			return upa_path_component(dp, tmp_buf);
-		if (!strcmp(parent->type, "ebus"))
-			return ebus_path_component(dp, tmp_buf);
+		    !strcmp(parent->type, "pciex")) {
+			pci_path_component(dp, tmp_buf);
+			return;
+		}
+		if (!strcmp(parent->type, "sbus")) {
+			sbus_path_component(dp, tmp_buf);
+			return;
+		}
+		if (!strcmp(parent->type, "upa")) {
+			upa_path_component(dp, tmp_buf);
+			return;
+		}
+		if (!strcmp(parent->type, "ebus")) {
+			ebus_path_component(dp, tmp_buf);
+			return;
+		}
 		if (!strcmp(parent->name, "usb") ||
-		    !strcmp(parent->name, "hub"))
-			return usb_path_component(dp, tmp_buf);
-		if (!strcmp(parent->type, "i2c"))
-			return i2c_path_component(dp, tmp_buf);
-		if (!strcmp(parent->type, "firewire"))
-			return ieee1394_path_component(dp, tmp_buf);
-		if (!strcmp(parent->type, "virtual-devices"))
-			return vdev_path_component(dp, tmp_buf);
-
+		    !strcmp(parent->name, "hub")) {
+			usb_path_component(dp, tmp_buf);
+			return;
+		}
+		if (!strcmp(parent->type, "i2c")) {
+			i2c_path_component(dp, tmp_buf);
+			return;
+		}
+		if (!strcmp(parent->type, "firewire")) {
+			ieee1394_path_component(dp, tmp_buf);
+			return;
+		}
+		if (!strcmp(parent->type, "virtual-devices")) {
+			vdev_path_component(dp, tmp_buf);
+			return;
+		}
 		/* "isa" is handled with platform naming */
 	}
 
 	/* Use platform naming convention.  */
-	if (tlb_type == hypervisor)
-		return sun4v_path_component(dp, tmp_buf);
-	else
-		return sun4u_path_component(dp, tmp_buf);
+	if (tlb_type == hypervisor) {
+		sun4v_path_component(dp, tmp_buf);
+		return;
+	} else {
+		sun4u_path_component(dp, tmp_buf);
+	}
 }
 
 static char * __init build_path_component(struct device_node *dp)

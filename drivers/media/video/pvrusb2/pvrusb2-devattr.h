@@ -48,6 +48,10 @@ struct pvr2_string_table {
 #define PVR2_LED_SCHEME_NONE 0
 #define PVR2_LED_SCHEME_HAUPPAUGE 1
 
+#define PVR2_IR_SCHEME_NONE 0
+#define PVR2_IR_SCHEME_24XXX 1
+#define PVR2_IR_SCHEME_ZILOG 2
+
 /* This describes a particular hardware type (except for the USB device ID
    which must live in a separate structure due to environmental
    constraints).  See the top of pvrusb2-hdw.c for where this is
@@ -126,15 +130,19 @@ struct pvr2_device_desc {
 	   ensure that it is found. */
 	unsigned int flag_has_wm8775:1;
 
-	/* Device has IR hardware that can be faked into looking like a
-	   normal Hauppauge i2c IR receiver.  This is currently very
-	   specific to the 24xxx device, where Hauppauge had replaced their
-	   'standard' I2C IR receiver with a bunch of FPGA logic controlled
-	   directly via the FX2.  Turning this on tells the pvrusb2 driver
-	   to virtualize the presence of the non-existant IR receiver chip and
-	   implement the virtual receiver in terms of appropriate FX2
-	   commands. */
-	unsigned int flag_has_hauppauge_custom_ir:1;
+	/* Indicate any specialized IR scheme that might need to be
+	   supported by this driver.  If not set, then it is assumed that
+	   IR can work without help from the driver (which is frequently
+	   the case).  This is otherwise set to one of
+	   PVR2_IR_SCHEME_xxxx.  For "xxxx", the value "24XXX" indicates a
+	   Hauppauge 24xxx class device which has an FPGA-hosted IR
+	   receiver that can only be reached via FX2 command codes.  In
+	   that case the pvrusb2 driver will emulate the behavior of the
+	   older 29xxx device's IR receiver (a "virtual" I2C chip) in terms
+	   of those command codes.  For the value "ZILOG", we're dealing
+	   with an IR chip that must be taken out of reset via another FX2
+	   command code (which is the case for HVR-1950 devices). */
+	unsigned int ir_scheme:2;
 
 	/* These bits define which kinds of sources the device can handle.
 	   Note: Digital tuner presence is inferred by the

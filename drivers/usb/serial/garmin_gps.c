@@ -38,8 +38,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#include <linux/version.h>
-
 /* the mode to be set when the port ist opened */
 static int initial_mode = 1;
 

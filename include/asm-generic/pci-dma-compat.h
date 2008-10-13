@@ -99,9 +99,9 @@ pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sg,
 }
 
 static inline int
-pci_dma_mapping_error(dma_addr_t dma_addr)
+pci_dma_mapping_error(struct pci_dev *pdev, dma_addr_t dma_addr)
 {
-	return dma_mapping_error(dma_addr);
+	return dma_mapping_error(&pdev->dev, dma_addr);
 }
 
 #endif

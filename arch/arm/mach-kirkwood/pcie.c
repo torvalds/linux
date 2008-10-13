@@ -12,11 +12,17 @@
 #include <linux/pci.h>
 #include <linux/mbus.h>
 #include <asm/mach/pci.h>
-#include <asm/plat-orion/pcie.h>
+#include <plat/pcie.h>
 #include "common.h"
 
 
 #define PCIE_BASE	((void __iomem *)PCIE_VIRT_BASE)
+
+void __init kirkwood_pcie_id(u32 *dev, u32 *rev)
+{
+	*dev = orion_pcie_dev_id(PCIE_BASE);
+	*rev = orion_pcie_rev(PCIE_BASE);
+}
 
 static int pcie_valid_config(int bus, int dev)
 {

@@ -1,5 +1,5 @@
-#ifndef _X86_64_PGTABLE_H
-#define _X86_64_PGTABLE_H
+#ifndef ASM_X86__PGTABLE_64_H
+#define ASM_X86__PGTABLE_64_H
 
 #include <linux/const.h>
 #ifndef __ASSEMBLY__
@@ -151,7 +151,7 @@ static inline void native_pgd_clear(pgd_t *pgd)
 #define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
 #define VMEMMAP_START	 _AC(0xffffe20000000000, UL)
 #define MODULES_VADDR    _AC(0xffffffffa0000000, UL)
-#define MODULES_END      _AC(0xfffffffffff00000, UL)
+#define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
 
 #ifndef __ASSEMBLY__
@@ -175,8 +175,6 @@ static inline int pmd_bad(pmd_t pmd)
 #define pte_present(x)	(pte_val((x)) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 
 #define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
-#define pte_page(x)	pfn_to_page(pte_pfn((x)))
-#define pte_pfn(x)	((pte_val((x)) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
 /*
  * Macro to mark a page protection value as "uncacheable".
@@ -284,4 +282,4 @@ extern void cleanup_highmap(void);
 #define __HAVE_ARCH_PTE_SAME
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _X86_64_PGTABLE_H */
+#endif /* ASM_X86__PGTABLE_64_H */

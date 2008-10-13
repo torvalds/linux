@@ -1374,6 +1374,11 @@ dm9000_probe(struct platform_device *pdev)
 	for (i = 0; i < 6; i += 2)
 		dm9000_read_eeprom(db, i / 2, ndev->dev_addr+i);
 
+	if (!is_valid_ether_addr(ndev->dev_addr) && pdata != NULL) {
+		mac_src = "platform data";
+		memcpy(ndev->dev_addr, pdata->dev_addr, 6);
+	}
+
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		/* try reading from mac */
 		

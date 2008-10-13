@@ -660,7 +660,10 @@ struct ocfs2_dinode {
 		struct {		/* Info for journal system
 					   inodes */
 			__le32 ij_flags;	/* Mounted, version, etc. */
-			__le32 ij_pad;
+			__le32 ij_recovery_generation; /* Incremented when the
+							  journal is recovered
+							  after an unclean
+							  shutdown */
 		} journal1;
 	} id1;				/* Inode type dependant 1 */
 /*C0*/	union {

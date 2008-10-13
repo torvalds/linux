@@ -43,7 +43,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/trace.h>
 
-#include <asm/mach-common/context.S>
+#include <asm/context.S>
 
 #if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
 # define EX_SCRATCH_REG RETN
@@ -158,6 +158,39 @@ ENTRY(_ex_single_step)
 	cc = r7 == r6;
 	if cc jump _bfin_return_from_exception;
 
+#ifdef CONFIG_KGDB
+	/* Don't do single step in hardware exception handler */
+        p5.l = lo(IPEND);
+        p5.h = hi(IPEND);
+	r6 = [p5];
+	cc = bittst(r6, 4);
+	if cc jump _bfin_return_from_exception;
+	cc = bittst(r6, 5);
+	if cc jump _bfin_return_from_exception;
+
+	/* skip single step if current interrupt priority is higher than
+	 * that of the first instruction, from which gdb starts single step */
+	r6 >>= 6;
+	r7 = 10;
+.Lfind_priority_start:
+	cc = bittst(r6, 0);
+	if cc jump .Lfind_priority_done;
+	r6 >>= 1;
+	r7 += -1;
+	cc = r7 == 0;
+	if cc jump .Lfind_priority_done;
+	jump.s .Lfind_priority_start;
+.Lfind_priority_done:
+	p4.l = _debugger_step;
+	p4.h = _debugger_step;
+	r6 = [p4];
+	cc = r6 == 0;
+	if cc jump .Ldo_single_step;
+	r6 += -1;
+	cc = r6 < r7;
+	if cc jump 1f;
+.Ldo_single_step:
+#else
 	/* If we were in user mode, do the single step normally.  */
 	p5.l = lo(IPEND);
 	p5.h = hi(IPEND);
@@ -166,6 +199,7 @@ ENTRY(_ex_single_step)
 	r7 = r7 & r6;
 	cc = r7 == 0;
 	if !cc jump 1f;
+#endif
 
 	/* Single stepping only a single instruction, so clear the trace
 	 * bit here.  */
@@ -1388,6 +1422,12 @@ ENTRY(_sys_call_table)
 	.long _sys_semtimedop
 	.long _sys_timerfd_settime
 	.long _sys_timerfd_gettime
+	.long _sys_signalfd4		/* 360 */
+	.long _sys_eventfd2
+	.long _sys_epoll_create1
+	.long _sys_dup3
+	.long _sys_pipe2
+	.long _sys_inotify_init1	/* 365 */
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

@@ -542,13 +542,14 @@ dummy_queue (struct usb_ep *_ep, struct usb_request *_req,
 		req->req.context = dum;
 		req->req.complete = fifo_complete;
 
+		list_add_tail(&req->queue, &ep->queue);
 		spin_unlock (&dum->lock);
 		_req->actual = _req->length;
 		_req->status = 0;
 		_req->complete (_ep, _req);
 		spin_lock (&dum->lock);
-	}
-	list_add_tail (&req->queue, &ep->queue);
+	}  else
+		list_add_tail(&req->queue, &ep->queue);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	/* real hardware would likely enable transfers here, in case

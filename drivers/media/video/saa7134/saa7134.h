@@ -34,6 +34,7 @@
 #include <asm/io.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
@@ -560,7 +561,7 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
 	struct videobuf_queue      empress_tsq;
-	unsigned int               empress_users;
+	atomic_t 		   empress_users;
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 
@@ -662,8 +663,8 @@ extern unsigned int video_debug;
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
-int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c);
-int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c);
+int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
+int saa7134_g_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
 int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c);
 
 int saa7134_videoport_init(struct saa7134_dev *dev);

@@ -16,9 +16,9 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/leds.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/hardware.h>
-#include <asm/arch/h1940-latch.h>
+#include <mach/regs-gpio.h>
+#include <mach/hardware.h>
+#include <mach/h1940-latch.h>
 
 /*
  * Green led.

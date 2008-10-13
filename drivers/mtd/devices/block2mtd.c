@@ -1,6 +1,4 @@
 /*
- * $Id: block2mtd.c,v 1.30 2005/11/29 14:48:32 gleixner Exp $
- *
  * block2mtd.c - create an mtd from a block device
  *
  * Copyright (C) 2001,2002	Simon Evans <spse@secret.org.uk>
@@ -19,9 +17,6 @@
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
 #include <linux/mount.h>
-
-#define VERSION "$Revision: 1.30 $"
-
 
 #define ERROR(fmt, args...) printk(KERN_ERR "block2mtd: " fmt "\n" , ## args)
 #define INFO(fmt, args...) printk(KERN_INFO "block2mtd: " fmt "\n" , ## args)
@@ -453,7 +448,6 @@ MODULE_PARM_DESC(block2mtd, "Device to use. \"block2mtd=<dev>[,<erasesize>]\"");
 static int __init block2mtd_init(void)
 {
 	int ret = 0;
-	INFO("version " VERSION);
 
 #ifndef MODULE
 	if (strlen(block2mtd_paramline))

@@ -263,6 +263,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	pfn = vcpu->arch.update_pte.pfn;
 	if (is_error_pfn(pfn))
 		return;
+	if (mmu_notifier_retry(vcpu, vcpu->arch.update_pte.mmu_seq))
+		return;
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, largepage, gpte_to_gfn(gpte),
@@ -343,7 +345,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		shadow_addr = __pa(shadow_page->spt);
 		shadow_pte = shadow_addr | PT_PRESENT_MASK | PT_ACCESSED_MASK
 			| PT_WRITABLE_MASK | PT_USER_MASK;
-		*shadow_ent = shadow_pte;
+		set_shadow_pte(shadow_ent, shadow_pte);
 	}
 
 	mmu_set_spte(vcpu, shadow_ent, access, walker->pte_access & access,
@@ -380,6 +382,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	int r;
 	pfn_t pfn;
 	int largepage = 0;
+	unsigned long mmu_seq;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 	kvm_mmu_audit(vcpu, "pre page fault");
@@ -413,6 +416,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 			largepage = 1;
 		}
 	}
+	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	/* implicit mb(), we'll read before PT lock is unlocked */
 	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
 	up_read(&current->mm->mmap_sem);
 
@@ -424,6 +429,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
+	if (mmu_notifier_retry(vcpu, mmu_seq))
+		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
 				  largepage, &write_pt, pfn);
@@ -439,6 +446,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return write_pt;
+
+out_unlock:
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	kvm_release_pfn_clean(pfn);
+	return 0;
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)

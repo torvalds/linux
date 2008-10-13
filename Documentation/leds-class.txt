@@ -59,7 +59,7 @@ Hardware accelerated blink of LEDs
 
 Some LEDs can be programmed to blink without any CPU interaction. To
 support this feature, a LED driver can optionally implement the
-blink_set() function (see <linux/leds.h>). If implemeted, triggers can
+blink_set() function (see <linux/leds.h>). If implemented, triggers can
 attempt to use it before falling back to software timers. The blink_set()
 function should return 0 if the blink setting is supported, or -EINVAL
 otherwise, which means that LED blinking will be handled by software.

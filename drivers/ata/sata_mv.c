@@ -493,10 +493,10 @@ struct mv_hw_ops {
 	void (*reset_bus)(struct ata_host *host, void __iomem *mmio);
 };
 
-static int mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
-static int mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
-static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
-static int mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
+static int mv_scr_read(struct ata_link *link, unsigned int sc_reg_in, u32 *val);
+static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val);
+static int mv5_scr_read(struct ata_link *link, unsigned int sc_reg_in, u32 *val);
+static int mv5_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
 static int mv_qc_defer(struct ata_queued_cmd *qc);
@@ -667,7 +667,8 @@ static const struct pci_device_id mv_pci_tbl[] = {
 	{ PCI_VDEVICE(MARVELL, 0x5041), chip_504x },
 	{ PCI_VDEVICE(MARVELL, 0x5080), chip_5080 },
 	{ PCI_VDEVICE(MARVELL, 0x5081), chip_508x },
-	/* RocketRAID 1740/174x have different identifiers */
+	/* RocketRAID 1720/174x have different identifiers */
+	{ PCI_VDEVICE(TTI, 0x1720), chip_6042 },
 	{ PCI_VDEVICE(TTI, 0x1740), chip_508x },
 	{ PCI_VDEVICE(TTI, 0x1742), chip_508x },
 
@@ -1069,23 +1070,23 @@ static unsigned int mv_scr_offset(unsigned int sc_reg_in)
 	return ofs;
 }
 
-static int mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
+static int mv_scr_read(struct ata_link *link, unsigned int sc_reg_in, u32 *val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU) {
-		*val = readl(mv_ap_base(ap) + ofs);
+		*val = readl(mv_ap_base(link->ap) + ofs);
 		return 0;
 	} else
 		return -EINVAL;
 }
 
-static int mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
+static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU) {
-		writelfl(val, mv_ap_base(ap) + ofs);
+		writelfl(val, mv_ap_base(link->ap) + ofs);
 		return 0;
 	} else
 		return -EINVAL;
@@ -1134,30 +1135,16 @@ static int mv_qc_defer(struct ata_queued_cmd *qc)
 	if (ap->nr_active_links == 0)
 		return 0;
 
-	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
-		/*
-		 * The port is operating in host queuing mode (EDMA).
-		 * It can accomodate a new qc if the qc protocol
-		 * is compatible with the current host queue mode.
-		 */
-		if (pp->pp_flags & MV_PP_FLAG_NCQ_EN) {
-			/*
-			 * The host queue (EDMA) is in NCQ mode.
-			 * If the new qc is also an NCQ command,
-			 * then allow the new qc.
-			 */
-			if (qc->tf.protocol == ATA_PROT_NCQ)
-				return 0;
-		} else {
-			/*
-			 * The host queue (EDMA) is in non-NCQ, DMA mode.
-			 * If the new qc is also a non-NCQ, DMA command,
-			 * then allow the new qc.
-			 */
-			if (qc->tf.protocol == ATA_PROT_DMA)
-				return 0;
-		}
-	}
+	/*
+	 * The port is operating in host queuing mode (EDMA) with NCQ
+	 * enabled, allow multiple NCQ commands.  EDMA also allows
+	 * queueing multiple DMA commands but libata core currently
+	 * doesn't allow it.
+	 */
+	if ((pp->pp_flags & MV_PP_FLAG_EDMA_EN) &&
+	    (pp->pp_flags & MV_PP_FLAG_NCQ_EN) && ata_is_ncq(qc->tf.protocol))
+		return 0;
+
 	return ATA_DEFER_PORT;
 }
 
@@ -2264,11 +2251,11 @@ static unsigned int mv5_scr_offset(unsigned int sc_reg_in)
 	return ofs;
 }
 
-static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
+static int mv5_scr_read(struct ata_link *link, unsigned int sc_reg_in, u32 *val)
 {
-	struct mv_host_priv *hpriv = ap->host->private_data;
+	struct mv_host_priv *hpriv = link->ap->host->private_data;
 	void __iomem *mmio = hpriv->base;
-	void __iomem *addr = mv5_phy_base(mmio, ap->port_no);
+	void __iomem *addr = mv5_phy_base(mmio, link->ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU) {
@@ -2278,11 +2265,11 @@ static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val)
 		return -EINVAL;
 }
 
-static int mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
+static int mv5_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 {
-	struct mv_host_priv *hpriv = ap->host->private_data;
+	struct mv_host_priv *hpriv = link->ap->host->private_data;
 	void __iomem *mmio = hpriv->base;
-	void __iomem *addr = mv5_phy_base(mmio, ap->port_no);
+	void __iomem *addr = mv5_phy_base(mmio, link->ap->port_no);
 	unsigned int ofs = mv5_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU) {
@@ -3036,7 +3023,8 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 	case chip_soc:
 		hpriv->ops = &mv_soc_ops;
-		hp_flags |= MV_HP_FLAG_SOC | MV_HP_ERRATA_60X1C0;
+		hp_flags |= MV_HP_FLAG_SOC | MV_HP_GEN_IIE |
+			MV_HP_ERRATA_60X1C0;
 		break;
 
 	default:

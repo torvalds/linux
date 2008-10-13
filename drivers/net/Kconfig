@@ -510,14 +510,15 @@ config STNIC
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
 	depends on SUPERH && \
-		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712)
+		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7763 || \
+		 CPU_SUBTYPE_SH7619)
 	select CRC32
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
 	help
 	  Renesas SuperH Ethernet device driver.
-	  This driver support SH7710 and SH7712.
+	  This driver support SH7710, SH7712, SH7763 and SH7619.
 
 config SUNLANCE
 	tristate "Sun LANCE support"
@@ -821,14 +822,14 @@ config ULTRA32
 	  will be called smc-ultra32.
 
 config BFIN_MAC
-	tristate "Blackfin 527/536/537 on-chip mac support"
-	depends on NET_ETHERNET && (BF527 || BF537 || BF536)
+	tristate "Blackfin on-chip MAC support"
+	depends on NET_ETHERNET && (BF526 || BF527 || BF536 || BF537)
 	select CRC32
 	select MII
 	select PHYLIB
 	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
 	help
-	  This is the driver for blackfin on-chip mac device. Say Y if you want it
+	  This is the driver for Blackfin on-chip mac device. Say Y if you want it
 	  compiled into the kernel. This driver is also available as a module
 	  ( = code which can be inserted in and removed from the running kernel
 	  whenever you want). The module will be called bfin_mac.
@@ -1171,7 +1172,7 @@ config ETH16I
 
 config NE2000
 	tristate "NE2000/NE1000 support"
-	depends on NET_ISA || (Q40 && m) || M32R || TOSHIBA_RBTX4927 || TOSHIBA_RBTX4938
+	depends on NET_ISA || (Q40 && m) || M32R || MACH_TX49XX
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -1385,7 +1386,8 @@ config FORCEDETH_NAPI
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on NET_PCI && (ISA || MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X)
+	depends on NET_ETHERNET && (ISA || EISA || MACH_IXDP2351 \
+		|| ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1395,6 +1397,11 @@ config CS89x0
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.
+
+config CS89x0_NONISA_IRQ
+	def_bool y
+	depends on CS89x0 != n
+	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
@@ -1812,7 +1819,7 @@ config FEC2
 
 config FEC_MPC52xx
 	tristate "MPC52xx FEC driver"
-	depends on PPC_MERGE && PPC_MPC52xx && PPC_BESTCOMM_FEC
+	depends on PPC_MPC52xx && PPC_BESTCOMM_FEC
 	select CRC32
 	select PHYLIB
 	---help---
@@ -1838,6 +1845,17 @@ config NE_H8300
 	help
 	  Say Y here if you want to use the NE2000 compatible
 	  controller on the Renesas H8/300 processor.
+
+config ATL2
+	tristate "Atheros L2 Fast Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros L2 fast ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl2.
 
 source "drivers/net/fs_enet/Kconfig"
 
@@ -1925,15 +1943,6 @@ config E1000
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000.
-
-config E1000_DISABLE_PACKET_SPLIT
-	bool "Disable Packet Split for PCI express adapters"
-	depends on E1000
-	help
-	  Say Y here if you want to use the legacy receive path for PCI express
-	  hardware.
-
-	  If in doubt, say N.
 
 config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
@@ -2045,6 +2054,7 @@ config R8169
 	tristate "Realtek 8169 gigabit ethernet support"
 	depends on PCI
 	select CRC32
+	select MII
 	---help---
 	  Say Y here if you have a Realtek 8169 PCI Gigabit Ethernet adapter.
 
@@ -2261,7 +2271,7 @@ config UGETH_TX_ON_DEMAND
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
 	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32) || PLAT_ORION
-	select MII
+	select PHYLIB
 	help
 	  This driver supports the gigabit ethernet MACs in the
 	  Marvell Discovery PPC/MIPS chipset family (MV643XX) and
@@ -2280,12 +2290,13 @@ config QLA3XXX
 	  will be called qla3xxx.
 
 config ATL1
-	tristate "Attansic L1 Gigabit Ethernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
+	depends on PCI
 	select CRC32
 	select MII
 	help
-	  This driver supports the Attansic L1 gigabit ethernet adapter.
+	  This driver supports the Atheros/Attansic L1 gigabit ethernet
+	  adapter.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1.
@@ -2300,6 +2311,18 @@ config ATL1E
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1e.
+
+config JME
+	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	---help---
+	  This driver supports the PCI-Express gigabit ethernet adapters
+	  based on JMicron JMC250 chipset.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called jme.
 
 endif # NETDEV_1000
 
@@ -2376,10 +2399,18 @@ config EHEA
 	  To compile the driver as a module, choose M here. The module
 	  will be called ehea.
 
+config ENIC
+	tristate "E, the Cisco 10G Ethernet NIC"
+	depends on PCI && INET
+	select INET_LRO
+	help
+	  This enables the support for the Cisco 10G Ethernet card.
+
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI && INET
 	select INET_LRO
+	select INTEL_IOATDMA
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -2431,6 +2462,7 @@ config MYRI10GE
 	select FW_LOADER
 	select CRC32
 	select INET_LRO
+	select INTEL_IOATDMA
 	---help---
 	  This driver supports Myricom Myri-10G Dual Protocol interface in
 	  Ethernet mode. If the eeprom on your board is not recent enough,
@@ -2494,6 +2526,15 @@ config BNX2X
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
+
+config QLGE
+	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
+	depends on PCI
+	help
+	  This driver supports QLogic ISP8XXX 10Gb Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qlge.
 
 source "drivers/net/sfc/Kconfig"
 

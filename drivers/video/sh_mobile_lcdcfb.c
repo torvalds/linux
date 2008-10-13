@@ -595,6 +595,8 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 		info->fbops = &sh_mobile_lcdc_ops;
 		info->var.xres = info->var.xres_virtual = cfg->lcd_cfg.xres;
 		info->var.yres = info->var.yres_virtual = cfg->lcd_cfg.yres;
+		info->var.width = cfg->lcd_size_cfg.width;
+		info->var.height = cfg->lcd_size_cfg.height;
 		info->var.activate = FB_ACTIVATE_NOW;
 		error = sh_mobile_lcdc_set_bpp(&info->var, cfg->bpp);
 		if (error)

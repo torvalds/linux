@@ -125,7 +125,7 @@ increase of flexibility and the avoidance of duplicated code across
 architectures justifies the slight increase of the binary size.
 
 The conversion of an architecture has no functional impact, but allows to
-utilize the high resolution and dynamic tick functionalites without any change
+utilize the high resolution and dynamic tick functionalities without any change
 to the clock event device and timer interrupt code. After the conversion the
 enabling of high resolution timers and dynamic ticks is simply provided by
 adding the kernel/time/Kconfig file to the architecture specific Kconfig and

@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -57,8 +56,10 @@ static struct pci_dev *isa_dev;
 
 static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 {
+	char *m = (char *)&drive->id[ATA_ID_PROD];
+
 	while (*list)
-		if (!strcmp(*list++, drive->id->model))
+		if (!strcmp(*list++, m))
 			return 1;
 	return 0;
 }
@@ -174,7 +175,7 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_byte(dev, 0x54, ultra_enable);
 }
 
-static unsigned int __devinit init_chipset_svwks(struct pci_dev *dev)
+static unsigned int init_chipset_svwks(struct pci_dev *dev)
 {
 	unsigned int reg;
 	u8 btr;
@@ -272,7 +273,7 @@ static unsigned int __devinit init_chipset_svwks(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit ata66_svwks_svwks(ide_hwif_t *hwif)
+static u8 ata66_svwks_svwks(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }
@@ -284,7 +285,7 @@ static u8 __devinit ata66_svwks_svwks(ide_hwif_t *hwif)
  * Bit 14 clear = primary IDE channel does not have 80-pin cable.
  * Bit 14 set   = primary IDE channel has 80-pin cable.
  */
-static u8 __devinit ata66_svwks_dell(ide_hwif_t *hwif)
+static u8 ata66_svwks_dell(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -303,7 +304,7 @@ static u8 __devinit ata66_svwks_dell(ide_hwif_t *hwif)
  *
  * WARNING: this only works on Alpine hardware!
  */
-static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
+static u8 ata66_svwks_cobalt(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -315,7 +316,7 @@ static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
 	return ATA_CBL_PATA40;
 }
 
-static u8 __devinit svwks_cable_detect(ide_hwif_t *hwif)
+static u8 svwks_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -447,6 +448,8 @@ static struct pci_driver driver = {
 	.id_table	= svwks_pci_tbl,
 	.probe		= svwks_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init svwks_ide_init(void)

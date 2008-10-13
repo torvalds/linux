@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/arch/npe.h>
+#include <mach/npe.h>
 
 #define DEBUG_MSG			0
 #define DEBUG_FW			0

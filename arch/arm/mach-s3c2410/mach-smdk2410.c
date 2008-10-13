@@ -5,7 +5,6 @@
  * Copyright (C) 2004 by FS Forth-Systeme GmbH
  * All rights reserved.
  *
- * $Id: mach-smdk2410.c,v 1.1 2004/05/11 14:15:38 mpietrek Exp $
  * @Author: Jonas Dietsche
  *
  * This program is free software; you can redistribute it and/or
@@ -37,13 +36,13 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

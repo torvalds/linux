@@ -21,7 +21,7 @@
 #ifndef _W9968CF_H_
 #define _W9968CF_H_
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/device.h>

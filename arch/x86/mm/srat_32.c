@@ -178,7 +178,7 @@ void acpi_numa_arch_fixup(void)
  * start of the node, and that the current "end" address is after
  * the previous one.
  */
-static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_chunk)
+static __init int node_read_chunk(int nid, struct node_memory_chunk_s *memory_chunk)
 {
 	/*
 	 * Only add present memory as told by the e820.
@@ -189,10 +189,10 @@ static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_c
 	if (memory_chunk->start_pfn >= max_pfn) {
 		printk(KERN_INFO "Ignoring SRAT pfns: %08lx - %08lx\n",
 			memory_chunk->start_pfn, memory_chunk->end_pfn);
-		return;
+		return -1;
 	}
 	if (memory_chunk->nid != nid)
-		return;
+		return -1;
 
 	if (!node_has_online_mem(nid))
 		node_start_pfn[nid] = memory_chunk->start_pfn;
@@ -202,6 +202,8 @@ static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_c
 
 	if (node_end_pfn[nid] < memory_chunk->end_pfn)
 		node_end_pfn[nid] = memory_chunk->end_pfn;
+
+	return 0;
 }
 
 int __init get_memcfg_from_srat(void)
@@ -259,7 +261,9 @@ int __init get_memcfg_from_srat(void)
 		printk(KERN_DEBUG
 			"chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
 		       j, chunk->nid, chunk->start_pfn, chunk->end_pfn);
-		node_read_chunk(chunk->nid, chunk);
+		if (node_read_chunk(chunk->nid, chunk))
+			continue;
+
 		e820_register_active_regions(chunk->nid, chunk->start_pfn,
 					     min(chunk->end_pfn, max_pfn));
 	}

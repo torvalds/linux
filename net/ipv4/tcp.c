@@ -384,13 +384,17 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	/* Connected? */
 	if ((1 << sk->sk_state) & ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+		int target = sock_rcvlowat(sk, 0, INT_MAX);
+
+		if (tp->urg_seq == tp->copied_seq &&
+		    !sock_flag(sk, SOCK_URGINLINE) &&
+		    tp->urg_data)
+			target--;
+
 		/* Potential race condition. If read of tp below will
 		 * escape above sk->sk_state, we can be illegally awaken
 		 * in SYN_* states. */
-		if ((tp->rcv_nxt != tp->copied_seq) &&
-		    (tp->urg_seq != tp->copied_seq ||
-		     tp->rcv_nxt != tp->copied_seq + 1 ||
-		     sock_flag(sk, SOCK_URGINLINE) || !tp->urg_data))
+		if (tp->rcv_nxt - tp->copied_seq >= target)
 			mask |= POLLIN | POLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
@@ -493,10 +497,8 @@ static inline void skb_entail(struct sock *sk, struct sk_buff *skb)
 static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
 				struct sk_buff *skb)
 {
-	if (flags & MSG_OOB) {
-		tp->urg_mode = 1;
+	if (flags & MSG_OOB)
 		tp->snd_up = tp->write_seq;
-	}
 }
 
 static inline void tcp_push(struct sock *sk, int flags, int mss_now,
@@ -1096,7 +1098,7 @@ void tcp_cleanup_rbuf(struct sock *sk, int copied)
 #if TCP_DEBUG
 	struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
 
-	BUG_TRAP(!skb || before(tp->copied_seq, TCP_SKB_CB(skb)->end_seq));
+	WARN_ON(skb && !before(tp->copied_seq, TCP_SKB_CB(skb)->end_seq));
 #endif
 
 	if (inet_csk_ack_scheduled(sk)) {
@@ -1157,7 +1159,7 @@ static void tcp_prequeue_process(struct sock *sk)
 	 * necessary */
 	local_bh_disable();
 	while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
-		sk->sk_backlog_rcv(sk, skb);
+		sk_backlog_rcv(sk, skb);
 	local_bh_enable();
 
 	/* Clear memory counter. */
@@ -1358,7 +1360,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				goto found_ok_skb;
 			if (tcp_hdr(skb)->fin)
 				goto found_fin_ok;
-			BUG_TRAP(flags & MSG_PEEK);
+			WARN_ON(!(flags & MSG_PEEK));
 			skb = skb->next;
 		} while (skb != (struct sk_buff *)&sk->sk_receive_queue);
 
@@ -1421,8 +1423,8 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 			tp->ucopy.len = len;
 
-			BUG_TRAP(tp->copied_seq == tp->rcv_nxt ||
-				 (flags & (MSG_PEEK | MSG_TRUNC)));
+			WARN_ON(tp->copied_seq != tp->rcv_nxt &&
+				!(flags & (MSG_PEEK | MSG_TRUNC)));
 
 			/* Ugly... If prequeue is not empty, we have to
 			 * process it before releasing socket, otherwise
@@ -1844,7 +1846,7 @@ adjudge_to_death:
 	 */
 	local_bh_disable();
 	bh_lock_sock(sk);
-	BUG_TRAP(!sock_owned_by_user(sk));
+	WARN_ON(sock_owned_by_user(sk));
 
 	/* Have we already been destroyed by a softirq or backlog? */
 	if (state != TCP_CLOSE && sk->sk_state == TCP_CLOSE)
@@ -1973,7 +1975,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
 
-	BUG_TRAP(!inet->num || icsk->icsk_bind_hash);
+	WARN_ON(inet->num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;

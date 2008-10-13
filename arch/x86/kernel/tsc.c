@@ -104,7 +104,7 @@ __setup("notsc", notsc_setup);
 /*
  * Read TSC and the reference counters. Take care of SMI disturbance
  */
-static u64 __init tsc_read_refs(u64 *pm, u64 *hpet)
+static u64 tsc_read_refs(u64 *p, int hpet)
 {
 	u64 t1, t2;
 	int i;
@@ -112,9 +112,9 @@ static u64 __init tsc_read_refs(u64 *pm, u64 *hpet)
 	for (i = 0; i < MAX_RETRIES; i++) {
 		t1 = get_cycles();
 		if (hpet)
-			*hpet = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
+			*p = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
 		else
-			*pm = acpi_pm_read_early();
+			*p = acpi_pm_read_early();
 		t2 = get_cycles();
 		if ((t2 - t1) < SMI_TRESHOLD)
 			return t2;
@@ -122,79 +122,389 @@ static u64 __init tsc_read_refs(u64 *pm, u64 *hpet)
 	return ULLONG_MAX;
 }
 
+/*
+ * Calculate the TSC frequency from HPET reference
+ */
+static unsigned long calc_hpet_ref(u64 deltatsc, u64 hpet1, u64 hpet2)
+{
+	u64 tmp;
+
+	if (hpet2 < hpet1)
+		hpet2 += 0x100000000ULL;
+	hpet2 -= hpet1;
+	tmp = ((u64)hpet2 * hpet_readl(HPET_PERIOD));
+	do_div(tmp, 1000000);
+	do_div(deltatsc, tmp);
+
+	return (unsigned long) deltatsc;
+}
+
+/*
+ * Calculate the TSC frequency from PMTimer reference
+ */
+static unsigned long calc_pmtimer_ref(u64 deltatsc, u64 pm1, u64 pm2)
+{
+	u64 tmp;
+
+	if (!pm1 && !pm2)
+		return ULONG_MAX;
+
+	if (pm2 < pm1)
+		pm2 += (u64)ACPI_PM_OVRRUN;
+	pm2 -= pm1;
+	tmp = pm2 * 1000000000LL;
+	do_div(tmp, PMTMR_TICKS_PER_SEC);
+	do_div(deltatsc, tmp);
+
+	return (unsigned long) deltatsc;
+}
+
+#define CAL_MS		10
+#define CAL_LATCH	(CLOCK_TICK_RATE / (1000 / CAL_MS))
+#define CAL_PIT_LOOPS	1000
+
+#define CAL2_MS		50
+#define CAL2_LATCH	(CLOCK_TICK_RATE / (1000 / CAL2_MS))
+#define CAL2_PIT_LOOPS	5000
+
+
+/*
+ * Try to calibrate the TSC against the Programmable
+ * Interrupt Timer and return the frequency of the TSC
+ * in kHz.
+ *
+ * Return ULONG_MAX on failure to calibrate.
+ */
+static unsigned long pit_calibrate_tsc(u32 latch, unsigned long ms, int loopmin)
+{
+	u64 tsc, t1, t2, delta;
+	unsigned long tscmin, tscmax;
+	int pitcnt;
+
+	/* Set the Gate high, disable speaker */
+	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
+
+	/*
+	 * Setup CTC channel 2* for mode 0, (interrupt on terminal
+	 * count mode), binary count. Set the latch register to 50ms
+	 * (LSB then MSB) to begin countdown.
+	 */
+	outb(0xb0, 0x43);
+	outb(latch & 0xff, 0x42);
+	outb(latch >> 8, 0x42);
+
+	tsc = t1 = t2 = get_cycles();
+
+	pitcnt = 0;
+	tscmax = 0;
+	tscmin = ULONG_MAX;
+	while ((inb(0x61) & 0x20) == 0) {
+		t2 = get_cycles();
+		delta = t2 - tsc;
+		tsc = t2;
+		if ((unsigned long) delta < tscmin)
+			tscmin = (unsigned int) delta;
+		if ((unsigned long) delta > tscmax)
+			tscmax = (unsigned int) delta;
+		pitcnt++;
+	}
+
+	/*
+	 * Sanity checks:
+	 *
+	 * If we were not able to read the PIT more than loopmin
+	 * times, then we have been hit by a massive SMI
+	 *
+	 * If the maximum is 10 times larger than the minimum,
+	 * then we got hit by an SMI as well.
+	 */
+	if (pitcnt < loopmin || tscmax > 10 * tscmin)
+		return ULONG_MAX;
+
+	/* Calculate the PIT value */
+	delta = t2 - t1;
+	do_div(delta, ms);
+	return delta;
+}
+
+/*
+ * This reads the current MSB of the PIT counter, and
+ * checks if we are running on sufficiently fast and
+ * non-virtualized hardware.
+ *
+ * Our expectations are:
+ *
+ *  - the PIT is running at roughly 1.19MHz
+ *
+ *  - each IO is going to take about 1us on real hardware,
+ *    but we allow it to be much faster (by a factor of 10) or
+ *    _slightly_ slower (ie we allow up to a 2us read+counter
+ *    update - anything else implies a unacceptably slow CPU
+ *    or PIT for the fast calibration to work.
+ *
+ *  - with 256 PIT ticks to read the value, we have 214us to
+ *    see the same MSB (and overhead like doing a single TSC
+ *    read per MSB value etc).
+ *
+ *  - We're doing 2 reads per loop (LSB, MSB), and we expect
+ *    them each to take about a microsecond on real hardware.
+ *    So we expect a count value of around 100. But we'll be
+ *    generous, and accept anything over 50.
+ *
+ *  - if the PIT is stuck, and we see *many* more reads, we
+ *    return early (and the next caller of pit_expect_msb()
+ *    then consider it a failure when they don't see the
+ *    next expected value).
+ *
+ * These expectations mean that we know that we have seen the
+ * transition from one expected value to another with a fairly
+ * high accuracy, and we didn't miss any events. We can thus
+ * use the TSC value at the transitions to calculate a pretty
+ * good value for the TSC frequencty.
+ */
+static inline int pit_expect_msb(unsigned char val)
+{
+	int count = 0;
+
+	for (count = 0; count < 50000; count++) {
+		/* Ignore LSB */
+		inb(0x42);
+		if (inb(0x42) != val)
+			break;
+	}
+	return count > 50;
+}
+
+/*
+ * How many MSB values do we want to see? We aim for a
+ * 15ms calibration, which assuming a 2us counter read
+ * error should give us roughly 150 ppm precision for
+ * the calibration.
+ */
+#define QUICK_PIT_MS 15
+#define QUICK_PIT_ITERATIONS (QUICK_PIT_MS * PIT_TICK_RATE / 1000 / 256)
+
+static unsigned long quick_pit_calibrate(void)
+{
+	/* Set the Gate high, disable speaker */
+	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
+
+	/*
+	 * Counter 2, mode 0 (one-shot), binary count
+	 *
+	 * NOTE! Mode 2 decrements by two (and then the
+	 * output is flipped each time, giving the same
+	 * final output frequency as a decrement-by-one),
+	 * so mode 0 is much better when looking at the
+	 * individual counts.
+	 */
+	outb(0xb0, 0x43);
+
+	/* Start at 0xffff */
+	outb(0xff, 0x42);
+	outb(0xff, 0x42);
+
+	if (pit_expect_msb(0xff)) {
+		int i;
+		u64 t1, t2, delta;
+		unsigned char expect = 0xfe;
+
+		t1 = get_cycles();
+		for (i = 0; i < QUICK_PIT_ITERATIONS; i++, expect--) {
+			if (!pit_expect_msb(expect))
+				goto failed;
+		}
+		t2 = get_cycles();
+
+		/*
+		 * Make sure we can rely on the second TSC timestamp:
+		 */
+		if (!pit_expect_msb(expect))
+			goto failed;
+
+		/*
+		 * Ok, if we get here, then we've seen the
+		 * MSB of the PIT decrement QUICK_PIT_ITERATIONS
+		 * times, and each MSB had many hits, so we never
+		 * had any sudden jumps.
+		 *
+		 * As a result, we can depend on there not being
+		 * any odd delays anywhere, and the TSC reads are
+		 * reliable.
+		 *
+		 * kHz = ticks / time-in-seconds / 1000;
+		 * kHz = (t2 - t1) / (QPI * 256 / PIT_TICK_RATE) / 1000
+		 * kHz = ((t2 - t1) * PIT_TICK_RATE) / (QPI * 256 * 1000)
+		 */
+		delta = (t2 - t1)*PIT_TICK_RATE;
+		do_div(delta, QUICK_PIT_ITERATIONS*256*1000);
+		printk("Fast TSC calibration using PIT\n");
+		return delta;
+	}
+failed:
+	return 0;
+}
+
 /**
  * native_calibrate_tsc - calibrate the tsc on boot
  */
 unsigned long native_calibrate_tsc(void)
 {
-	unsigned long flags;
-	u64 tsc1, tsc2, tr1, tr2, delta, pm1, pm2, hpet1, hpet2;
-	int hpet = is_hpet_enabled();
-	unsigned int tsc_khz_val = 0;
+	u64 tsc1, tsc2, delta, ref1, ref2;
+	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
+	unsigned long flags, latch, ms, fast_calibrate;
+	int hpet = is_hpet_enabled(), i, loopmin;
 
 	local_irq_save(flags);
-
-	tsc1 = tsc_read_refs(&pm1, hpet ? &hpet1 : NULL);
-
-	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
-
-	outb(0xb0, 0x43);
-	outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
-	outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	tr1 = get_cycles();
-	while ((inb(0x61) & 0x20) == 0);
-	tr2 = get_cycles();
-
-	tsc2 = tsc_read_refs(&pm2, hpet ? &hpet2 : NULL);
-
+	fast_calibrate = quick_pit_calibrate();
 	local_irq_restore(flags);
+	if (fast_calibrate)
+		return fast_calibrate;
 
 	/*
-	 * Preset the result with the raw and inaccurate PIT
-	 * calibration value
+	 * Run 5 calibration loops to get the lowest frequency value
+	 * (the best estimate). We use two different calibration modes
+	 * here:
+	 *
+	 * 1) PIT loop. We set the PIT Channel 2 to oneshot mode and
+	 * load a timeout of 50ms. We read the time right after we
+	 * started the timer and wait until the PIT count down reaches
+	 * zero. In each wait loop iteration we read the TSC and check
+	 * the delta to the previous read. We keep track of the min
+	 * and max values of that delta. The delta is mostly defined
+	 * by the IO time of the PIT access, so we can detect when a
+	 * SMI/SMM disturbance happend between the two reads. If the
+	 * maximum time is significantly larger than the minimum time,
+	 * then we discard the result and have another try.
+	 *
+	 * 2) Reference counter. If available we use the HPET or the
+	 * PMTIMER as a reference to check the sanity of that value.
+	 * We use separate TSC readouts and check inside of the
+	 * reference read for a SMI/SMM disturbance. We dicard
+	 * disturbed values here as well. We do that around the PIT
+	 * calibration delay loop as we have to wait for a certain
+	 * amount of time anyway.
 	 */
-	delta = (tr2 - tr1);
-	do_div(delta, 50);
-	tsc_khz_val = delta;
 
-	/* hpet or pmtimer available ? */
-	if (!hpet && !pm1 && !pm2) {
-		printk(KERN_INFO "TSC calibrated against PIT\n");
-		goto out;
+	/* Preset PIT loop values */
+	latch = CAL_LATCH;
+	ms = CAL_MS;
+	loopmin = CAL_PIT_LOOPS;
+
+	for (i = 0; i < 3; i++) {
+		unsigned long tsc_pit_khz;
+
+		/*
+		 * Read the start value and the reference count of
+		 * hpet/pmtimer when available. Then do the PIT
+		 * calibration, which will take at least 50ms, and
+		 * read the end value.
+		 */
+		local_irq_save(flags);
+		tsc1 = tsc_read_refs(&ref1, hpet);
+		tsc_pit_khz = pit_calibrate_tsc(latch, ms, loopmin);
+		tsc2 = tsc_read_refs(&ref2, hpet);
+		local_irq_restore(flags);
+
+		/* Pick the lowest PIT TSC calibration so far */
+		tsc_pit_min = min(tsc_pit_min, tsc_pit_khz);
+
+		/* hpet or pmtimer available ? */
+		if (!hpet && !ref1 && !ref2)
+			continue;
+
+		/* Check, whether the sampling was disturbed by an SMI */
+		if (tsc1 == ULLONG_MAX || tsc2 == ULLONG_MAX)
+			continue;
+
+		tsc2 = (tsc2 - tsc1) * 1000000LL;
+		if (hpet)
+			tsc2 = calc_hpet_ref(tsc2, ref1, ref2);
+		else
+			tsc2 = calc_pmtimer_ref(tsc2, ref1, ref2);
+
+		tsc_ref_min = min(tsc_ref_min, (unsigned long) tsc2);
+
+		/* Check the reference deviation */
+		delta = ((u64) tsc_pit_min) * 100;
+		do_div(delta, tsc_ref_min);
+
+		/*
+		 * If both calibration results are inside a 10% window
+		 * then we can be sure, that the calibration
+		 * succeeded. We break out of the loop right away. We
+		 * use the reference value, as it is more precise.
+		 */
+		if (delta >= 90 && delta <= 110) {
+			printk(KERN_INFO
+			       "TSC: PIT calibration matches %s. %d loops\n",
+			       hpet ? "HPET" : "PMTIMER", i + 1);
+			return tsc_ref_min;
+		}
+
+		/*
+		 * Check whether PIT failed more than once. This
+		 * happens in virtualized environments. We need to
+		 * give the virtual PC a slightly longer timeframe for
+		 * the HPET/PMTIMER to make the result precise.
+		 */
+		if (i == 1 && tsc_pit_min == ULONG_MAX) {
+			latch = CAL2_LATCH;
+			ms = CAL2_MS;
+			loopmin = CAL2_PIT_LOOPS;
+		}
 	}
 
-	/* Check, whether the sampling was disturbed by an SMI */
-	if (tsc1 == ULLONG_MAX || tsc2 == ULLONG_MAX) {
-		printk(KERN_WARNING "TSC calibration disturbed by SMI, "
-				"using PIT calibration result\n");
-		goto out;
+	/*
+	 * Now check the results.
+	 */
+	if (tsc_pit_min == ULONG_MAX) {
+		/* PIT gave no useful value */
+		printk(KERN_WARNING "TSC: Unable to calibrate against PIT\n");
+
+		/* We don't have an alternative source, disable TSC */
+		if (!hpet && !ref1 && !ref2) {
+			printk("TSC: No reference (HPET/PMTIMER) available\n");
+			return 0;
+		}
+
+		/* The alternative source failed as well, disable TSC */
+		if (tsc_ref_min == ULONG_MAX) {
+			printk(KERN_WARNING "TSC: HPET/PMTIMER calibration "
+			       "failed.\n");
+			return 0;
+		}
+
+		/* Use the alternative source */
+		printk(KERN_INFO "TSC: using %s reference calibration\n",
+		       hpet ? "HPET" : "PMTIMER");
+
+		return tsc_ref_min;
 	}
 
-	tsc2 = (tsc2 - tsc1) * 1000000LL;
-
-	if (hpet) {
-		printk(KERN_INFO "TSC calibrated against HPET\n");
-		if (hpet2 < hpet1)
-			hpet2 += 0x100000000ULL;
-		hpet2 -= hpet1;
-		tsc1 = ((u64)hpet2 * hpet_readl(HPET_PERIOD));
-		do_div(tsc1, 1000000);
-	} else {
-		printk(KERN_INFO "TSC calibrated against PM_TIMER\n");
-		if (pm2 < pm1)
-			pm2 += (u64)ACPI_PM_OVRRUN;
-		pm2 -= pm1;
-		tsc1 = pm2 * 1000000000LL;
-		do_div(tsc1, PMTMR_TICKS_PER_SEC);
+	/* We don't have an alternative source, use the PIT calibration value */
+	if (!hpet && !ref1 && !ref2) {
+		printk(KERN_INFO "TSC: Using PIT calibration value\n");
+		return tsc_pit_min;
 	}
 
-	do_div(tsc2, tsc1);
-	tsc_khz_val = tsc2;
+	/* The alternative source failed, use the PIT calibration value */
+	if (tsc_ref_min == ULONG_MAX) {
+		printk(KERN_WARNING "TSC: HPET/PMTIMER calibration failed. "
+		       "Using PIT calibration\n");
+		return tsc_pit_min;
+	}
 
-out:
-	return tsc_khz_val;
+	/*
+	 * The calibration values differ too much. In doubt, we use
+	 * the PIT value as we know that there are PMTIMERs around
+	 * running at double speed. At least we let the user know:
+	 */
+	printk(KERN_WARNING "TSC: PIT calibration deviates from %s: %lu %lu.\n",
+	       hpet ? "HPET" : "PMTIMER", tsc_pit_min, tsc_ref_min);
+	printk(KERN_INFO "TSC: Using PIT calibration value\n");
+	return tsc_pit_min;
 }
-
 
 #ifdef CONFIG_X86_32
 /* Only called from the Powernow K7 cpu freq driver */
@@ -314,7 +624,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 			mark_tsc_unstable("cpufreq changes");
 	}
 
-	set_cyc2ns_scale(tsc_khz_ref, freq->cpu);
+	set_cyc2ns_scale(tsc_khz, freq->cpu);
 
 	return 0;
 }
@@ -325,6 +635,10 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
+	if (!cpu_has_tsc)
+		return 0;
+	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		return 0;
 	cpufreq_register_notifier(&time_cpufreq_notifier_block,
 				CPUFREQ_TRANSITION_NOTIFIER);
 	return 0;

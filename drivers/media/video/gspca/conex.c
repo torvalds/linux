@@ -25,9 +25,6 @@
 #define CONEX_CAM 1		/* special JPEG header */
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA USB Conexant Camera Driver");
 MODULE_LICENSE("GPL");
@@ -126,8 +123,8 @@ static void reg_r(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+#ifdef GSPCA_DEBUG
+	if (len > USB_BUF_SZ) {
 		err("reg_r: buffer overflow");
 		return;
 	}
@@ -166,8 +163,8 @@ static void reg_w(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+#ifdef GSPCA_DEBUG
+	if (len > USB_BUF_SZ) {
 		err("reg_w: buffer overflow");
 		return;
 	}
@@ -734,13 +731,13 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	reg_w_val(gspca_dev, 0x0000, 0x00);
 	/* wait for completion */
 	retry = 50;
-	while (retry--) {
+	do {
 		reg_r(gspca_dev, 0x0002, 1);
 							/* 0x07 until 0x00 */
 		if (gspca_dev->usb_buf[0] == 0x00)
 			break;
 		reg_w_val(gspca_dev, 0x0053, 0x00);
-	}
+	} while (--retry);
 	if (retry == 0)
 		PDEBUG(D_ERR, "Damned Errors sending jpeg Table");
 	/* send the qtable now */
@@ -818,7 +815,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
@@ -830,8 +826,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	cx11646_init1(gspca_dev);
 	cx11646_initsize(gspca_dev);
@@ -847,10 +843,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	cx11646_fw(gspca_dev);
 	cx_sensor(gspca_dev);
 	cx11646_jpeg(gspca_dev);
-}
-
-static void sd_stopN(struct gspca_dev *gspca_dev)
-{
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -873,10 +865,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev, 0x0010, 0x00);
 	reg_r(gspca_dev, 0x0033, 1);
 	reg_w_val(gspca_dev, 0x00fc, 0xe0);
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -1002,18 +990,15 @@ static struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
-	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x0572, 0x0041), DVNM("Creative Notebook cx11646")},
+	{USB_DEVICE(0x0572, 0x0041)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1031,6 +1016,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
@@ -1038,7 +1027,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

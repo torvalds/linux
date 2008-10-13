@@ -88,6 +88,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
 	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
 				(__START_KERNEL & PGDIR_MASK)));
+	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
 	/* clear bss before set_intr_gate with early_idt_handler */
 	clear_bss();
@@ -107,11 +108,10 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	}
 	load_idt((const struct desc_ptr *)&idt_descr);
 
-	early_printk("Kernel alive\n");
+	if (console_loglevel == 10)
+		early_printk("Kernel alive\n");
 
 	x86_64_init_pda();
-
-	early_printk("Kernel really alive\n");
 
 	x86_64_start_reservations(real_mode_data);
 }

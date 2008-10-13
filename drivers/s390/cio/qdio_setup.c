@@ -165,7 +165,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 	void **output_sbal_array = qdio_init->output_sbal_addr_array;
 	int i;
 
-	sprintf(dbf_text, "qfqs%4x", qdio_init->cdev->private->schid.sch_no);
+	sprintf(dbf_text, "qset%4x", qdio_init->cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0, setup, dbf_text);
 
 	for_each_input_queue(irq_ptr, q, i) {
@@ -285,7 +285,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 	rc = __get_ssqd_info(irq_ptr);
 	if (rc) {
 		QDIO_DBF_TEXT2(0, setup, "ssqdasig");
-		sprintf(dbf_text, "schno%x", irq_ptr->schid.sch_no);
+		sprintf(dbf_text, "schn%4x", irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(0, setup, dbf_text);
 		sprintf(dbf_text, "rc:%d", rc);
 		QDIO_DBF_TEXT2(0, setup, dbf_text);
@@ -325,7 +325,7 @@ void qdio_release_memory(struct qdio_irq *irq_ptr)
 			kmem_cache_free(qdio_q_cache, q);
 		}
 	}
-	kfree(irq_ptr->qdr);
+	free_page((unsigned long) irq_ptr->qdr);
 	free_page(irq_ptr->chsc_page);
 	free_page((unsigned long) irq_ptr);
 }
@@ -447,51 +447,36 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 {
 	char s[80];
 
-	sprintf(s, "%s ", cdev->dev.bus_id);
-
+	sprintf(s, "qdio: %s ", dev_name(&cdev->dev));
 	switch (irq_ptr->qib.qfmt) {
 	case QDIO_QETH_QFMT:
-		sprintf(s + strlen(s), "OSADE ");
+		sprintf(s + strlen(s), "OSA ");
 		break;
 	case QDIO_ZFCP_QFMT:
 		sprintf(s + strlen(s), "ZFCP ");
 		break;
 	case QDIO_IQDIO_QFMT:
-		sprintf(s + strlen(s), "HiperSockets ");
+		sprintf(s + strlen(s), "HS ");
 		break;
 	}
-	sprintf(s + strlen(s), "using: ");
-
-	if (!is_thinint_irq(irq_ptr))
-		sprintf(s + strlen(s), "no");
-	sprintf(s + strlen(s), "AdapterInterrupts ");
-	if (!(irq_ptr->sch_token != 0))
-		sprintf(s + strlen(s), "no");
-	sprintf(s + strlen(s), "QEBSM ");
-	if (!(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED))
-		sprintf(s + strlen(s), "no");
-	sprintf(s + strlen(s), "OutboundPCI ");
-	if (!css_general_characteristics.aif_tdd)
-		sprintf(s + strlen(s), "no");
-	sprintf(s + strlen(s), "TDD\n");
-	printk(KERN_INFO "qdio: %s", s);
-
-	memset(s, 0, sizeof(s));
-	sprintf(s, "%s SIGA required: ", cdev->dev.bus_id);
-	if (irq_ptr->siga_flag.input)
-		sprintf(s + strlen(s), "Read ");
-	if (irq_ptr->siga_flag.output)
-		sprintf(s + strlen(s), "Write ");
-	if (irq_ptr->siga_flag.sync)
-		sprintf(s + strlen(s), "Sync ");
-	if (!irq_ptr->siga_flag.no_sync_ti)
-		sprintf(s + strlen(s), "SyncAI ");
-	if (!irq_ptr->siga_flag.no_sync_out_ti)
-		sprintf(s + strlen(s), "SyncOutAI ");
-	if (!irq_ptr->siga_flag.no_sync_out_pci)
-		sprintf(s + strlen(s), "SyncOutPCI");
+	sprintf(s + strlen(s), "on SC %x using ", irq_ptr->schid.sch_no);
+	sprintf(s + strlen(s), "AI:%d ", is_thinint_irq(irq_ptr));
+	sprintf(s + strlen(s), "QEBSM:%d ", (irq_ptr->sch_token) ? 1 : 0);
+	sprintf(s + strlen(s), "PCI:%d ",
+		(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED) ? 1 : 0);
+	sprintf(s + strlen(s), "TDD:%d ", css_general_characteristics.aif_tdd);
+	sprintf(s + strlen(s), "SIGA:");
+	sprintf(s + strlen(s), "%s", (irq_ptr->siga_flag.input) ? "R" : " ");
+	sprintf(s + strlen(s), "%s", (irq_ptr->siga_flag.output) ? "W" : " ");
+	sprintf(s + strlen(s), "%s", (irq_ptr->siga_flag.sync) ? "S" : " ");
+	sprintf(s + strlen(s), "%s",
+		(!irq_ptr->siga_flag.no_sync_ti) ? "A" : " ");
+	sprintf(s + strlen(s), "%s",
+		(!irq_ptr->siga_flag.no_sync_out_ti) ? "O" : " ");
+	sprintf(s + strlen(s), "%s",
+		(!irq_ptr->siga_flag.no_sync_out_pci) ? "P" : " ");
 	sprintf(s + strlen(s), "\n");
-	printk(KERN_INFO "qdio: %s", s);
+	printk(KERN_INFO "%s", s);
 }
 
 int __init qdio_setup_init(void)
@@ -515,7 +500,7 @@ int __init qdio_setup_init(void)
 	return 0;
 }
 
-void __exit qdio_setup_exit(void)
+void qdio_setup_exit(void)
 {
 	kmem_cache_destroy(qdio_q_cache);
 }

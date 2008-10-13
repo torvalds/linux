@@ -1155,7 +1155,7 @@ flush_tlbs:
 	lis	r10, 0x40
 1:	addic.	r10, r10, -0x1000
 	tlbie	r10
-	blt	1b
+	bgt	1b
 	sync
 	blr
 

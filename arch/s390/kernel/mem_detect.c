@@ -9,27 +9,6 @@
 #include <asm/sclp.h>
 #include <asm/setup.h>
 
-static int memory_fast_detect(struct mem_chunk *chunk)
-{
-	unsigned long val0 = 0;
-	unsigned long val1 = 0xc;
-	int rc = -EOPNOTSUPP;
-
-	if (ipl_flags & IPL_NSS_VALID)
-		return -EOPNOTSUPP;
-	asm volatile(
-		"	diag	%1,%2,0x260\n"
-		"0:	lhi	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (rc), "+d" (val0), "+d" (val1) : : "cc");
-
-	if (rc || val0 != val1)
-		return -EOPNOTSUPP;
-	chunk->size = val0 + 1;
-	return 0;
-}
-
 static inline int tprot(unsigned long addr)
 {
 	int rc = -EFAULT;
@@ -84,8 +63,6 @@ void detect_memory_layout(struct mem_chunk chunk[])
 	unsigned long flags, cr0;
 
 	memset(chunk, 0, MEMORY_CHUNKS * sizeof(struct mem_chunk));
-	if (memory_fast_detect(&chunk[0]) == 0)
-		return;
 	/* Disable IRQs, DAT and low address protection so tprot does the
 	 * right thing and we don't get scheduled away with low address
 	 * protection disabled.

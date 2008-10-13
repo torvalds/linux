@@ -17,11 +17,10 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
-
-#include <asm/arch/common.h>
-#include <asm/arch/board.h>
+#include <mach/common.h>
+#include <mach/board.h>
 
 static struct clk * uart1_ick = NULL;
 static struct clk * uart1_fck = NULL;

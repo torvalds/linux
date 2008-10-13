@@ -50,6 +50,7 @@ enum led_type {
 struct iwl3945_led {
 	struct iwl3945_priv *priv;
 	struct led_classdev led_dev;
+	char name[32];
 
 	int (*led_on) (struct iwl3945_priv *priv, int led_id);
 	int (*led_off) (struct iwl3945_priv *priv, int led_id);

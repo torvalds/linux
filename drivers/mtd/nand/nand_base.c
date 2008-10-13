@@ -798,6 +798,87 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /**
+ * nand_read_subpage - [REPLACABLE] software ecc based sub-page read function
+ * @mtd:	mtd info structure
+ * @chip:	nand chip info structure
+ * @dataofs	offset of requested data within the page
+ * @readlen	data length
+ * @buf:	buffer to store read data
+ */
+static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip, uint32_t data_offs, uint32_t readlen, uint8_t *bufpoi)
+{
+	int start_step, end_step, num_steps;
+	uint32_t *eccpos = chip->ecc.layout->eccpos;
+	uint8_t *p;
+	int data_col_addr, i, gaps = 0;
+	int datafrag_len, eccfrag_len, aligned_len, aligned_pos;
+	int busw = (chip->options & NAND_BUSWIDTH_16) ? 2 : 1;
+
+	/* Column address wihin the page aligned to ECC size (256bytes). */
+	start_step = data_offs / chip->ecc.size;
+	end_step = (data_offs + readlen - 1) / chip->ecc.size;
+	num_steps = end_step - start_step + 1;
+
+	/* Data size aligned to ECC ecc.size*/
+	datafrag_len = num_steps * chip->ecc.size;
+	eccfrag_len = num_steps * chip->ecc.bytes;
+
+	data_col_addr = start_step * chip->ecc.size;
+	/* If we read not a page aligned data */
+	if (data_col_addr != 0)
+		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, data_col_addr, -1);
+
+	p = bufpoi + data_col_addr;
+	chip->read_buf(mtd, p, datafrag_len);
+
+	/* Calculate  ECC */
+	for (i = 0; i < eccfrag_len ; i += chip->ecc.bytes, p += chip->ecc.size)
+		chip->ecc.calculate(mtd, p, &chip->buffers->ecccalc[i]);
+
+	/* The performance is faster if to position offsets
+	   according to ecc.pos. Let make sure here that
+	   there are no gaps in ecc positions */
+	for (i = 0; i < eccfrag_len - 1; i++) {
+		if (eccpos[i + start_step * chip->ecc.bytes] + 1 !=
+			eccpos[i + start_step * chip->ecc.bytes + 1]) {
+			gaps = 1;
+			break;
+		}
+	}
+	if (gaps) {
+		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, mtd->writesize, -1);
+		chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	} else {
+		/* send the command to read the particular ecc bytes */
+		/* take care about buswidth alignment in read_buf */
+		aligned_pos = eccpos[start_step * chip->ecc.bytes] & ~(busw - 1);
+		aligned_len = eccfrag_len;
+		if (eccpos[start_step * chip->ecc.bytes] & (busw - 1))
+			aligned_len++;
+		if (eccpos[(start_step + num_steps) * chip->ecc.bytes] & (busw - 1))
+			aligned_len++;
+
+		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, mtd->writesize + aligned_pos, -1);
+		chip->read_buf(mtd, &chip->oob_poi[aligned_pos], aligned_len);
+	}
+
+	for (i = 0; i < eccfrag_len; i++)
+		chip->buffers->ecccode[i] = chip->oob_poi[eccpos[i + start_step * chip->ecc.bytes]];
+
+	p = bufpoi + data_col_addr;
+	for (i = 0; i < eccfrag_len ; i += chip->ecc.bytes, p += chip->ecc.size) {
+		int stat;
+
+		stat = chip->ecc.correct(mtd, p, &chip->buffers->ecccode[i], &chip->buffers->ecccalc[i]);
+		if (stat == -1)
+			mtd->ecc_stats.failed++;
+		else
+			mtd->ecc_stats.corrected += stat;
+	}
+	return 0;
+}
+
+/**
  * nand_read_page_hwecc - [REPLACABLE] hardware ecc based page read function
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
@@ -994,6 +1075,8 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			/* Now read the page into the buffer */
 			if (unlikely(ops->mode == MTD_OOB_RAW))
 				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi);
+			else if (!aligned && NAND_SUBPAGE_READ(chip) && !oob)
+				ret = chip->ecc.read_subpage(mtd, chip, col, bytes, bufpoi);
 			else
 				ret = chip->ecc.read_page(mtd, chip, bufpoi);
 			if (ret < 0)
@@ -1001,7 +1084,8 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 			/* Transfer not aligned data */
 			if (!aligned) {
-				chip->pagebuf = realpage;
+				if (!NAND_SUBPAGE_READ(chip) && !oob)
+					chip->pagebuf = realpage;
 				memcpy(buf, chip->buffers->databuf + col, bytes);
 			}
 
@@ -2521,6 +2605,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		chip->ecc.calculate = nand_calculate_ecc;
 		chip->ecc.correct = nand_correct_data;
 		chip->ecc.read_page = nand_read_page_swecc;
+		chip->ecc.read_subpage = nand_read_subpage;
 		chip->ecc.write_page = nand_write_page_swecc;
 		chip->ecc.read_oob = nand_read_oob_std;
 		chip->ecc.write_oob = nand_write_oob_std;

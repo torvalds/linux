@@ -3,8 +3,8 @@
  *
  */
 
-#ifndef _ASM_MMZONE_H_
-#define _ASM_MMZONE_H_
+#ifndef ASM_X86__MMZONE_32_H
+#define ASM_X86__MMZONE_32_H
 
 #include <asm/smp.h>
 
@@ -97,10 +97,16 @@ static inline int pfn_valid(int pfn)
 	reserve_bootmem_node(NODE_DATA(0), (addr), (size), (flags))
 #define alloc_bootmem(x) \
 	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_nopanic(x) \
+	__alloc_bootmem_node_nopanic(NODE_DATA(0), (x), SMP_CACHE_BYTES, \
+				__pa(MAX_DMA_ADDRESS))
 #define alloc_bootmem_low(x) \
 	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, 0)
 #define alloc_bootmem_pages(x) \
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_pages_nopanic(x) \
+	__alloc_bootmem_node_nopanic(NODE_DATA(0), (x), PAGE_SIZE, \
+				__pa(MAX_DMA_ADDRESS))
 #define alloc_bootmem_low_pages(x) \
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
 #define alloc_bootmem_node(pgdat, x)					\
@@ -125,4 +131,4 @@ static inline int pfn_valid(int pfn)
 })
 #endif /* CONFIG_NEED_MULTIPLE_NODES */
 
-#endif /* _ASM_MMZONE_H_ */
+#endif /* ASM_X86__MMZONE_32_H */

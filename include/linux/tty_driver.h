@@ -168,6 +168,18 @@
  *
  *	Optional: If not provided then the write method is called under
  *	the atomic write lock to keep it serialized with the ldisc.
+ *
+ * int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
+ *				unsigned int rows, unsigned int cols);
+ *
+ *	Called when a termios request is issued which changes the
+ *	requested terminal geometry.
+ *
+ *	Optional: the default action is to update the termios structure
+ *	without error. This is usually the correct behaviour. Drivers should
+ *	not force errors here if they are not resizable objects (eg a serial
+ *	line). See tty_do_resize() if you need to wrap the standard method
+ *	in your own logic - the usual case.
  */
 
 #include <linux/fs.h>
@@ -206,6 +218,8 @@ struct tty_operations {
 	int (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int (*tiocmset)(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
+	int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
+				struct winsize *ws);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);
 	int (*poll_get_char)(struct tty_driver *driver, int line);

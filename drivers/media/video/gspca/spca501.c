@@ -23,9 +23,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA501 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -1923,63 +1920,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
 
-	vendor = id->idVendor;
-	product = id->idProduct;
-	switch (vendor) {
-	case 0x0000:		/* Unknow Camera */
-/*		switch (product) { */
-/*		case 0x0000: */
-			sd->subtype = MystFromOriUnknownCamera;
-/*			break; */
-/*		} */
-		break;
-	case 0x040a:		/* Kodak cameras */
-/*		switch (product) { */
-/*		case 0x0002: */
-			sd->subtype = KodakDVC325;
-/*			break; */
-/*		} */
-		break;
-	case 0x0497:		/* Smile International */
-/*		switch (product) { */
-/*		case 0xc001: */
-			sd->subtype = SmileIntlCamera;
-/*			break; */
-/*		} */
-		break;
-	case 0x0506:		/* 3COM cameras */
-/*		switch (product) { */
-/*		case 0x00df: */
-			sd->subtype = ThreeComHomeConnectLite;
-/*			break; */
-/*		} */
-		break;
-	case 0x0733:	/* Rebadged ViewQuest (Intel) and ViewQuest cameras */
-		switch (product) {
-		case 0x0401:
-			sd->subtype = IntelCreateAndShare;
-			break;
-		case 0x0402:
-			sd->subtype = ViewQuestM318B;
-			break;
-		}
-		break;
-	case 0x1776:		/* Arowana */
-/*		switch (product) { */
-/*		case 0x501c: */
-			sd->subtype = Arowana300KCMOSCamera;
-/*			break; */
-/*		} */
-		break;
-	}
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+	sd->subtype = id->driver_info;
 	sd->brightness = sd_ctrls[MY_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[MY_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[MY_COLOR].qctrl.default_value;
@@ -2007,8 +1953,8 @@ error:
 	return -EINVAL;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -2076,11 +2022,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
 {
 	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x05, 0x00);
 }
@@ -2174,24 +2115,22 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x040a, 0x0002), DVNM("Kodak DVC-325")},
-	{USB_DEVICE(0x0497, 0xc001), DVNM("Smile International")},
-	{USB_DEVICE(0x0506, 0x00df), DVNM("3Com HomeConnect Lite")},
-	{USB_DEVICE(0x0733, 0x0401), DVNM("Intel Create and Share")},
-	{USB_DEVICE(0x0733, 0x0402), DVNM("ViewQuest M318B")},
-	{USB_DEVICE(0x1776, 0x501c), DVNM("Arowana 300K CMOS Camera")},
-	{USB_DEVICE(0x0000, 0x0000), DVNM("MystFromOri Unknow Camera")},
+	{USB_DEVICE(0x040a, 0x0002), .driver_info = KodakDVC325},
+	{USB_DEVICE(0x0497, 0xc001), .driver_info = SmileIntlCamera},
+	{USB_DEVICE(0x0506, 0x00df), .driver_info = ThreeComHomeConnectLite},
+	{USB_DEVICE(0x0733, 0x0401), .driver_info = IntelCreateAndShare},
+	{USB_DEVICE(0x0733, 0x0402), .driver_info = ViewQuestM318B},
+	{USB_DEVICE(0x1776, 0x501c), .driver_info = Arowana300KCMOSCamera},
+	{USB_DEVICE(0x0000, 0x0000), .driver_info = MystFromOriUnknownCamera},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -2209,6 +2148,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
@@ -2216,7 +2159,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

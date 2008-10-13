@@ -14,8 +14,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef TC6393XB_H
-#define TC6393XB_H
+#ifndef MFD_TC6393XB_H
+#define MFD_TC6393XB_H
 
 /* Also one should provide the CK3P6MI clock */
 struct tc6393xb_platform_data {
@@ -29,7 +29,7 @@ struct tc6393xb_platform_data {
 	int	(*suspend)(struct platform_device *dev);
 	int	(*resume)(struct platform_device *dev);
 
-	int	irq_base;	/* a base for cascaded irq */
+	int	irq_base;	/* base for subdevice irqs */
 	int	gpio_base;
 
 	struct tmio_nand_data	*nand_data;
@@ -40,9 +40,6 @@ struct tc6393xb_platform_data {
  */
 #define	IRQ_TC6393_NAND		0
 #define	IRQ_TC6393_MMC		1
-#define	IRQ_TC6393_OHCI		2
-#define	IRQ_TC6393_SERIAL	3
-#define	IRQ_TC6393_FB		4
 
 #define	TC6393XB_NR_IRQS	8
 

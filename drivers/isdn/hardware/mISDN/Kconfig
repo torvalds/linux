@@ -1,0 +1,25 @@
+#
+# Hardware for mISDN
+#
+comment "mISDN hardware drivers"
+
+config MISDN_HFCPCI
+	tristate "Support for HFC PCI cards"
+	depends on MISDN
+	depends on PCI
+	help
+	  Enable support for cards with Cologne Chip AG's
+          HFC PCI chip.
+
+config MISDN_HFCMULTI
+	tristate "Support for HFC multiport cards (HFC-4S/8S/E1)"
+	depends on PCI
+	depends on MISDN
+	help
+	  Enable support for cards with Cologne Chip AG's HFC multiport
+	  chip. There are three types of chips that are quite similar,
+	  but the interface is different:
+	   * HFC-4S (4 S/T interfaces on one chip)
+	   * HFC-8S (8 S/T interfaces on one chip)
+	   * HFC-E1 (E1 interface for 2Mbit ISDN)
+

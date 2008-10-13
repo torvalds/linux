@@ -26,12 +26,11 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa27x_keypad.h>
+#include <mach/hardware.h>
+#include <mach/pxa27x_keypad.h>
 
 /*
  * Keypad Controller registers

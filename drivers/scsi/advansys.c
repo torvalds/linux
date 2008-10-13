@@ -2278,7 +2278,7 @@ do { \
 #define ASC_DBG(lvl, format, arg...) {					\
 	if (asc_dbglvl >= (lvl))					\
 		printk(KERN_DEBUG "%s: %s: " format, DRV_NAME,		\
-			__FUNCTION__ , ## arg);				\
+			__func__ , ## arg);				\
 }
 
 #define ASC_DBG_PRT_SCSI_HOST(lvl, s) \

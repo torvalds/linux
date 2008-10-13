@@ -54,16 +54,6 @@ menuconfig IDE
 
 if IDE
 
-config IDE_MAX_HWIFS
-	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH || IA64 || EMBEDDED
-	range 1 10
-	default 4
-	help
-	  This is the maximum number of IDE hardware interfaces that will
-	  be supported by the driver. Make sure it is at least as high as
-	  the number of IDE interfaces in your system.
-
 config BLK_DEV_IDE
 	tristate "Enhanced IDE/MFM/RLL disk/cdrom/tape/floppy support"
 	---help---
@@ -140,29 +130,6 @@ config BLK_DEV_IDEDISK
 	  (the one containing the directory /) is located on the IDE disk.
 
 	  If unsure, say Y.
-
-config IDEDISK_MULTI_MODE
-	bool "Use multiple sector mode for Programmed Input/Output by default"
-	help
-	  This setting is irrelevant for most IDE disks, with direct memory
-	  access, to which multiple sector mode does not apply. Multiple sector
-	  mode is a feature of most modern IDE hard drives, permitting the
-	  transfer of multiple sectors per Programmed Input/Output interrupt,
-	  rather than the usual one sector per interrupt. When this feature is
-	  enabled, it can reduce operating system overhead for disk Programmed
-	  Input/Output. On some systems, it also can increase the data
-	  throughput of Programmed Input/Output. Some drives, however, seemed
-	  to run slower with multiple sector mode enabled. Some drives claimed
-	  to support multiple sector mode, but lost data at some settings.
-	  Under rare circumstances, such failures could result in massive
-	  filesystem corruption.
-
-	  If you get the following error, try to say Y here:
-
-	  hda: set_multmode: status=0x51 { DriveReady SeekComplete Error }
-	  hda: set_multmode: error=0x04 { DriveStatusError }
-
-	  If in doubt, say N.
 
 config BLK_DEV_IDECS
 	tristate "PCMCIA IDE support"
@@ -252,7 +219,7 @@ config BLK_DEV_IDEFLOPPY
 	  module will be called ide-floppy.
 
 config BLK_DEV_IDESCSI
-	tristate "SCSI emulation support"
+	tristate "SCSI emulation support (DEPRECATED)"
 	depends on SCSI
 	select IDE_ATAPI
 	---help---
@@ -264,20 +231,6 @@ config BLK_DEV_IDESCSI
 	  This will provide SCSI host adapter emulation for IDE ATAPI devices,
 	  and will allow you to use a SCSI device driver instead of a native
 	  ATAPI driver.
-
-	  This is useful if you have an ATAPI device for which no native
-	  driver has been written (for example, an ATAPI PD-CD drive);
-	  you can then use this emulation together with an appropriate SCSI
-	  device driver. In order to do this, say Y here and to "SCSI support"
-	  and "SCSI generic support", below. You must then provide the kernel
-	  command line "hdx=ide-scsi" (try "man bootparam" or see the
-	  documentation of your boot loader (lilo or loadlin) about how to
-	  pass options to the kernel at boot time) for devices if you want the
-	  native EIDE sub-drivers to skip over the native support, so that
-	  this SCSI emulation can be used instead.
-
-	  Note that this option does NOT allow you to attach SCSI devices to a
-	  box that doesn't have a SCSI host adapter installed.
 
 	  If both this SCSI emulation and native ATAPI support are compiled
 	  into the kernel, the native support will be used.
@@ -316,6 +269,20 @@ config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
 	depends on ALPHA || X86 || IA64 || M32R || MIPS
 	help
+	  This is the generic IDE driver.  This driver attaches to the
+	  fixed legacy ports (e.g. on PCs 0x1f0/0x170, 0x1e8/0x168 and
+	  so on).  Please note that if this driver is built into the
+	  kernel or loaded before other ATA (IDE or libata) drivers
+	  and the controller is located at legacy ports, this driver
+	  may grab those ports and thus can prevent the controller
+	  specific driver from attaching.
+
+	  Also, currently, IDE generic doesn't allow IRQ sharing
+	  meaning that the IRQs it grabs won't be available to other
+	  controllers sharing those IRQs which usually makes drivers
+	  for those controllers fail.  Generally, it's not a good idea
+	  to load IDE generic driver on modern systems.
+
 	  If unsure, say N.
 
 config BLK_DEV_PLATFORM
@@ -789,10 +756,6 @@ config BLK_DEV_IDEDMA_PMAC
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
-
-config BLK_DEV_IDE_SWARM
-	tristate "IDE for Sibyte evaluation boards"
-	depends on SIBYTE_SB1xxx_SOC
 
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"

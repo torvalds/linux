@@ -31,7 +31,7 @@ xfs_tosspages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	struct address_space *mapping = ip->i_vnode->i_mapping;
+	struct address_space *mapping = VFS_I(ip)->i_mapping;
 
 	if (mapping->nrpages)
 		truncate_inode_pages(mapping, first);
@@ -44,7 +44,7 @@ xfs_flushinval_pages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	struct address_space *mapping = ip->i_vnode->i_mapping;
+	struct address_space *mapping = VFS_I(ip)->i_mapping;
 	int		ret = 0;
 
 	if (mapping->nrpages) {
@@ -64,7 +64,7 @@ xfs_flush_pages(
 	uint64_t	flags,
 	int		fiopt)
 {
-	struct address_space *mapping = ip->i_vnode->i_mapping;
+	struct address_space *mapping = VFS_I(ip)->i_mapping;
 	int		ret = 0;
 	int		ret2;
 

@@ -317,6 +317,10 @@ struct emac_instance {
  * The 405EX and 460EX contain the EMAC4SYNC core
  */
 #define EMAC_FTR_EMAC4SYNC		0x00000200
+/*
+ * Set if we need phy clock workaround for 460ex or 460gt
+ */
+#define EMAC_FTR_460EX_PHY_CLK_FIX	0x00000400
 
 
 /* Right now, we don't quite handle the always/possible masks on the
@@ -341,6 +345,7 @@ enum {
 #ifdef CONFIG_IBM_NEW_EMAC_RGMII
 	    EMAC_FTR_HAS_RGMII	|
 #endif
+	EMAC_FTR_460EX_PHY_CLK_FIX |
 	EMAC_FTR_440EP_PHY_CLK_FIX,
 };
 

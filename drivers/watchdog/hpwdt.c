@@ -39,9 +39,7 @@
 #include <linux/string.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
-#include <asm/dmi.h>
 #include <asm/desc.h>
-#include <asm/kdebug.h>
 
 #define PCI_BIOS32_SD_VALUE		0x5F32335F	/* "_32_" */
 #define CRU_BIOS_SIGNATURE_VALUE	0x55524324
@@ -118,6 +116,7 @@ static unsigned int reload;			/* the computed soft_margin */
 static int nowayout = WATCHDOG_NOWAYOUT;
 static char expect_release;
 static unsigned long hpwdt_is_open;
+static unsigned int allow_kdump;
 
 static void __iomem *pci_mem_addr;		/* the PCI-memory address */
 static unsigned long __iomem *hpwdt_timer_reg;
@@ -223,19 +222,19 @@ static int __devinit cru_detect(unsigned long map_entry,
 
 	if (cmn_regs.u1.ral != 0) {
 		printk(KERN_WARNING
-		       "hpwdt: Call succeeded but with an error: 0x%x\n",
-		       cmn_regs.u1.ral);
+			"hpwdt: Call succeeded but with an error: 0x%x\n",
+			cmn_regs.u1.ral);
 	} else {
 		physical_bios_base = cmn_regs.u2.rebx;
 		physical_bios_offset = cmn_regs.u4.redx;
 		cru_length = cmn_regs.u3.recx;
 		cru_physical_address =
-		    physical_bios_base + physical_bios_offset;
+			physical_bios_base + physical_bios_offset;
 
 		/* If the values look OK, then map it in. */
 		if ((physical_bios_base + physical_bios_offset)) {
 			cru_rom_addr =
-			    ioremap(cru_physical_address, cru_length);
+				ioremap(cru_physical_address, cru_length);
 			if (cru_rom_addr)
 				retval = 0;
 		}
@@ -358,7 +357,6 @@ asm(".text                      \n\t"
     "call       *%r12           \n\t"
     "pushfq                     \n\t"
     "popq        %r12           \n\t"
-    "popfq                      \n\t"
     "movl       %eax, (%r9)     \n\t"
     "movl       %ebx, 4(%r9)    \n\t"
     "movl       %ecx, 8(%r9)    \n\t"
@@ -392,10 +390,10 @@ static void __devinit dmi_find_cru(const struct dmi_header *dm)
 		smbios_cru64_ptr = (struct smbios_cru64_info *) dm;
 		if (smbios_cru64_ptr->signature == CRU_BIOS_SIGNATURE_VALUE) {
 			cru_physical_address =
-			    smbios_cru64_ptr->physical_address +
-			    smbios_cru64_ptr->double_offset;
+				smbios_cru64_ptr->physical_address +
+				smbios_cru64_ptr->double_offset;
 			cru_rom_addr = ioremap(cru_physical_address,
-				    smbios_cru64_ptr->double_length);
+				smbios_cru64_ptr->double_length);
 		}
 	}
 }
@@ -407,40 +405,12 @@ static int __devinit detect_cru_service(void)
 	dmi_walk(dmi_find_cru);
 
 	/* if cru_rom_addr has been set then we found a CRU service */
-	return ((cru_rom_addr != NULL)? 0: -ENODEV);
+	return ((cru_rom_addr != NULL) ? 0 : -ENODEV);
 }
 
 /* ------------------------------------------------------------------------- */
 
 #endif
-
-/*
- *	NMI Handler
- */
-static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
-			    void *data)
-{
-	static unsigned long rom_pl;
-	static int die_nmi_called;
-
-	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)
-		return NOTIFY_OK;
-
-	spin_lock_irqsave(&rom_lock, rom_pl);
-	if (!die_nmi_called)
-		asminline_call(&cmn_regs, cru_rom_addr);
-	die_nmi_called = 1;
-	spin_unlock_irqrestore(&rom_lock, rom_pl);
-	if (cmn_regs.u1.ral == 0) {
-		printk(KERN_WARNING "hpwdt: An NMI occurred, "
-		       "but unable to determine source.\n");
-	} else {
-		panic("An NMI occurred, please see the Integrated "
-			"Management Log for details.\n");
-	}
-
-	return NOTIFY_STOP;
-}
 
 /*
  *	Watchdog operations
@@ -483,6 +453,36 @@ static int hpwdt_change_timer(int new_margin)
 	reload = (soft_margin * 1000) / 128;
 
 	return 0;
+}
+
+/*
+ *	NMI Handler
+ */
+static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
+				void *data)
+{
+	unsigned long rom_pl;
+	static int die_nmi_called;
+
+	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)
+		return NOTIFY_OK;
+
+	spin_lock_irqsave(&rom_lock, rom_pl);
+	if (!die_nmi_called)
+		asminline_call(&cmn_regs, cru_rom_addr);
+	die_nmi_called = 1;
+	spin_unlock_irqrestore(&rom_lock, rom_pl);
+	if (cmn_regs.u1.ral == 0) {
+		printk(KERN_WARNING "hpwdt: An NMI occurred, "
+			"but unable to determine source.\n");
+	} else {
+		if (allow_kdump)
+			hpwdt_stop();
+		panic("An NMI occurred, please see the Integrated "
+			"Management Log for details.\n");
+	}
+
+	return NOTIFY_STOP;
 }
 
 /*
@@ -535,7 +535,7 @@ static ssize_t hpwdt_write(struct file *file, const char __user *data,
 			/* scan to see whether or not we got the magic char. */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;
@@ -627,17 +627,18 @@ static struct notifier_block die_notifier = {
  */
 
 static int __devinit hpwdt_init_one(struct pci_dev *dev,
-				    const struct pci_device_id *ent)
+					const struct pci_device_id *ent)
 {
 	int retval;
 
 	/*
 	 * First let's find out if we are on an iLO2 server. We will
 	 * not run on a legacy ASM box.
+	 * So we only support the G5 ProLiant servers and higher.
 	 */
 	if (dev->subsystem_vendor != PCI_VENDOR_ID_HP) {
 		dev_warn(&dev->dev,
-		       "This server does not have an iLO2 ASIC.\n");
+			"This server does not have an iLO2 ASIC.\n");
 		return -ENODEV;
 	}
 
@@ -671,7 +672,7 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	retval = detect_cru_service();
 	if (retval < 0) {
 		dev_warn(&dev->dev,
-		       "Unable to detect the %d Bit CRU Service.\n",
+			"Unable to detect the %d Bit CRU Service.\n",
 			HPWDT_ARCH);
 		goto error_get_cru;
 	}
@@ -686,7 +687,7 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	retval = register_die_notifier(&die_notifier);
 	if (retval != 0) {
 		dev_warn(&dev->dev,
-		       "Unable to register a die notifier (err=%d).\n",
+			"Unable to register a die notifier (err=%d).\n",
 			retval);
 		goto error_die_notifier;
 	}
@@ -701,8 +702,9 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 
 	printk(KERN_INFO
 		"hp Watchdog Timer Driver: 1.00"
-		", timer margin: %d seconds( nowayout=%d).\n",
-		soft_margin, nowayout);
+		", timer margin: %d seconds (nowayout=%d)"
+		", allow kernel dump: %s (default = 0/OFF).\n",
+		soft_margin, nowayout, (allow_kdump == 0) ? "OFF" : "ON");
 
 	return 0;
 
@@ -756,6 +758,9 @@ MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
+
+module_param(allow_kdump, int, 0);
+MODULE_PARM_DESC(allow_kdump, "Start a kernel dump after NMI occurs");
 
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="

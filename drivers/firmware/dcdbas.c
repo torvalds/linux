@@ -245,7 +245,6 @@ static ssize_t host_control_on_shutdown_store(struct device *dev,
 static int smi_request(struct smi_cmd *smi_cmd)
 {
 	cpumask_t old_mask;
-	cpumask_of_cpu_ptr(new_mask, 0);
 	int ret = 0;
 
 	if (smi_cmd->magic != SMI_CMD_MAGIC) {
@@ -256,7 +255,7 @@ static int smi_request(struct smi_cmd *smi_cmd)
 
 	/* SMI requires CPU 0 */
 	old_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, new_mask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(0));
 	if (smp_processor_id() != 0) {
 		dev_dbg(&dcdbas_pdev->dev, "%s: failed to get CPU 0\n",
 			__func__);

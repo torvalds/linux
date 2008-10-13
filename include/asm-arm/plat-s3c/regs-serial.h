@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/regs-serial.h
+/* arch/arm/mach-s3c2410/include/mach/regs-serial.h
  *
  *  From linux/include/asm-arm/hardware/serial_s3c2410.h
  *

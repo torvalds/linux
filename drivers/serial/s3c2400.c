@@ -17,10 +17,10 @@
 
 #include <asm/irq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 #include "samsung.h"
 

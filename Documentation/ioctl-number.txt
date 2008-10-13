@@ -105,7 +105,6 @@ Code	Seq#	Include File		Comments
 'T'	all	linux/soundcard.h	conflict!
 'T'	all	asm-i386/ioctls.h	conflict!
 'U'	00-EF	linux/drivers/usb/usb.h
-'U'	F0-FF	drivers/usb/auerswald.c
 'V'	all	linux/vt.h
 'W'	00-1F	linux/watchdog.h	conflict!
 'W'	00-1F	linux/wanrouter.h	conflict!

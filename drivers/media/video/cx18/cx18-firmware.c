@@ -86,10 +86,6 @@
 
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
-/* Encoder/decoder firmware sizes */
-#define CX18_FW_CPU_SIZE 		(158332)
-#define CX18_FW_APU_SIZE 		(141200)
-
 #define APU_ROM_SYNC1 0x6D676553 /* "mgeS" */
 #define APU_ROM_SYNC2 0x72646548 /* "rdeH" */
 
@@ -100,35 +96,22 @@ struct cx18_apu_rom_seghdr {
 	u32 size;
 };
 
-static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx, long size)
+static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 {
 	const struct firmware *fw = NULL;
-	int retries = 3;
 	int i, j;
+	unsigned size;
 	u32 __iomem *dst = (u32 __iomem *)mem;
 	const u32 *src;
 
-retry:
-	if (!retries || request_firmware(&fw, fn, &cx->dev->dev)) {
-		CX18_ERR("Unable to open firmware %s (must be %ld bytes)\n",
-				fn, size);
+	if (request_firmware(&fw, fn, &cx->dev->dev)) {
+		CX18_ERR("Unable to open firmware %s\n", fn);
 		CX18_ERR("Did you put the firmware in the hotplug firmware directory?\n");
 		return -ENOMEM;
 	}
 
 	src = (const u32 *)fw->data;
 
-	if (fw->size != size) {
-		/* Due to race conditions in firmware loading (esp. with
-		   udev <0.95) the wrong file was sometimes loaded. So we check
-		   filesizes to see if at least the right-sized file was
-		   loaded. If not, then we retry. */
-		CX18_INFO("retry: file loaded was not %s (expected size %ld, got %zd)\n",
-				fn, size, fw->size);
-		release_firmware(fw);
-		retries--;
-		goto retry;
-	}
 	for (i = 0; i < fw->size; i += 4096) {
 		setup_page(i);
 		for (j = i; j < fw->size && j < i + 4096; j += 4) {
@@ -145,15 +128,16 @@ retry:
 	}
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags))
 		CX18_INFO("loaded %s firmware (%zd bytes)\n", fn, fw->size);
+	size = fw->size;
 	release_firmware(fw);
 	return size;
 }
 
-static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx, long size)
+static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx)
 {
 	const struct firmware *fw = NULL;
-	int retries = 3;
 	int i, j;
+	unsigned size;
 	const u32 *src;
 	struct cx18_apu_rom_seghdr seghdr;
 	const u8 *vers;
@@ -161,10 +145,8 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx, 
 	u32 apu_version = 0;
 	int sz;
 
-retry:
-	if (!retries || request_firmware(&fw, fn, &cx->dev->dev)) {
-		CX18_ERR("unable to open firmware %s (must be %ld bytes)\n",
-				fn, size);
+	if (request_firmware(&fw, fn, &cx->dev->dev)) {
+		CX18_ERR("unable to open firmware %s\n", fn);
 		CX18_ERR("did you put the firmware in the hotplug firmware directory?\n");
 		return -ENOMEM;
 	}
@@ -173,19 +155,8 @@ retry:
 	vers = fw->data + sizeof(seghdr);
 	sz = fw->size;
 
-	if (fw->size != size) {
-		/* Due to race conditions in firmware loading (esp. with
-		   udev <0.95) the wrong file was sometimes loaded. So we check
-		   filesizes to see if at least the right-sized file was
-		   loaded. If not, then we retry. */
-		CX18_INFO("retry: file loaded was not %s (expected size %ld, got %zd)\n",
-			       fn, size, fw->size);
-		release_firmware(fw);
-		retries--;
-		goto retry;
-	}
 	apu_version = (vers[0] << 24) | (vers[4] << 16) | vers[32];
-	while (offset + sizeof(seghdr) < size) {
+	while (offset + sizeof(seghdr) < fw->size) {
 		/* TODO: byteswapping */
 		memcpy(&seghdr, src + offset / 4, sizeof(seghdr));
 		offset += sizeof(seghdr);
@@ -215,6 +186,7 @@ retry:
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags))
 		CX18_INFO("loaded %s firmware V%08x (%zd bytes)\n",
 				fn, apu_version, fw->size);
+	size = fw->size;
 	release_firmware(fw);
 	/* Clear bit0 for APU to start from 0 */
 	write_reg(read_reg(0xc72030) & ~1, 0xc72030);
@@ -340,7 +312,7 @@ int cx18_firmware_init(struct cx18 *cx)
 	/* Only if the processor is not running */
 	if (read_reg(CX18_PROC_SOFT_RESET) & 8) {
 		int sz = load_apu_fw_direct("v4l-cx23418-apu.fw",
-			       cx->enc_mem, cx, CX18_FW_APU_SIZE);
+			       cx->enc_mem, cx);
 
 		write_enc(0xE51FF004, 0);
 		write_enc(0xa00000, 4);  /* todo: not hardcoded */
@@ -348,7 +320,7 @@ int cx18_firmware_init(struct cx18 *cx)
 		cx18_msleep_timeout(500, 0);
 
 		sz = sz <= 0 ? sz : load_cpu_fw_direct("v4l-cx23418-cpu.fw",
-					cx->enc_mem, cx, CX18_FW_CPU_SIZE);
+					cx->enc_mem, cx);
 
 		if (sz > 0) {
 			int retries = 0;

@@ -29,7 +29,6 @@
 #include <linux/spi/spi.h>
 #include <linux/mtd/physmap.h>
 
-#include <asm/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -38,9 +37,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/hardware.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
 
@@ -147,7 +147,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return dk_nand_partition;
 }
 
-static struct at91_nand_data __initdata dk_nand_data = {
+static struct atmel_nand_data __initdata dk_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	.det_pin	= AT91_PIN_PB1,
@@ -157,7 +157,7 @@ static struct at91_nand_data __initdata dk_nand_data = {
 };
 
 #define DK_FLASH_BASE	AT91_CHIPSELECT_0
-#define DK_FLASH_SIZE	0x200000
+#define DK_FLASH_SIZE	SZ_2M
 
 static struct physmap_flash_data dk_flash_data = {
 	.width		= 2,

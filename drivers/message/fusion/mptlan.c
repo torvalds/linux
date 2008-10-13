@@ -610,7 +610,7 @@ mpt_lan_send_turbo(struct net_device *dev, u32 tmsg)
 
 	dioprintk((KERN_INFO MYNAM ": %s/%s: @%s, skb %p sent.\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev),
-			__FUNCTION__, sent));
+			__func__, sent));
 
 	priv->SendCtl[ctx].skb = NULL;
 	pci_unmap_single(mpt_dev->pcidev, priv->SendCtl[ctx].dma,
@@ -676,7 +676,7 @@ mpt_lan_send_reply(struct net_device *dev, LANSendReply_t *pSendRep)
 
 		dioprintk((KERN_INFO MYNAM ": %s/%s: @%s, skb %p sent.\n",
 				IOC_AND_NETDEV_NAMES_s_s(dev),
-				__FUNCTION__, sent));
+				__func__, sent));
 
 		priv->SendCtl[ctx].skb = NULL;
 		pci_unmap_single(mpt_dev->pcidev, priv->SendCtl[ctx].dma,
@@ -715,7 +715,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 	u16 cur_naa = 0x1000;
 
 	dioprintk((KERN_INFO MYNAM ": %s called, skb_addr = %p\n",
-			__FUNCTION__, skb));
+			__func__, skb));
 
 	spin_lock_irqsave(&priv->txfidx_lock, flags);
 	if (priv->mpt_txfidx_tail < 0) {
@@ -723,7 +723,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&priv->txfidx_lock, flags);
 
 		printk (KERN_ERR "%s: no tx context available: %u\n",
-			__FUNCTION__, priv->mpt_txfidx_tail);
+			__func__, priv->mpt_txfidx_tail);
 		return 1;
 	}
 
@@ -733,7 +733,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&priv->txfidx_lock, flags);
 
 		printk (KERN_ERR "%s: Unable to alloc request frame\n",
-			__FUNCTION__);
+			__func__);
 		return 1;
 	}
 
@@ -1208,7 +1208,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 
 	dioprintk((KERN_INFO MYNAM ": %s/%s: @%s, Start_buckets = %u, buckets_out = %u\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev),
-			__FUNCTION__, buckets, curr));
+			__func__, buckets, curr));
 
 	max = (mpt_dev->req_sz - MPT_LAN_RECEIVE_POST_REQUEST_SIZE) /
 			(MPT_LAN_TRANSACTION32_SIZE + sizeof(SGESimple64_t));
@@ -1217,9 +1217,9 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 		mf = mpt_get_msg_frame(LanCtx, mpt_dev);
 		if (mf == NULL) {
 			printk (KERN_ERR "%s: Unable to alloc request frame\n",
-				__FUNCTION__);
+				__func__);
 			dioprintk((KERN_ERR "%s: %u buckets remaining\n",
-				 __FUNCTION__, buckets));
+				 __func__, buckets));
 			goto out;
 		}
 		pRecvReq = (LANReceivePostRequest_t *) mf;
@@ -1244,7 +1244,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 			spin_lock_irqsave(&priv->rxfidx_lock, flags);
 			if (priv->mpt_rxfidx_tail < 0) {
 				printk (KERN_ERR "%s: Can't alloc context\n",
-					__FUNCTION__);
+					__func__);
 				spin_unlock_irqrestore(&priv->rxfidx_lock,
 						       flags);
 				break;
@@ -1267,7 +1267,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 				if (skb == NULL) {
 					printk (KERN_WARNING
 						MYNAM "/%s: Can't alloc skb\n",
-						__FUNCTION__);
+						__func__);
 					priv->mpt_rxfidx[++priv->mpt_rxfidx_tail] = ctx;
 					spin_unlock_irqrestore(&priv->rxfidx_lock, flags);
 					break;
@@ -1305,7 +1305,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 
 		if (pSimple == NULL) {
 /**/			printk (KERN_WARNING MYNAM "/%s: No buckets posted\n",
-/**/				__FUNCTION__);
+/**/				__func__);
 			mpt_free_msg_frame(mpt_dev, mf);
 			goto out;
 		}
@@ -1329,9 +1329,9 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 
 out:
 	dioprintk((KERN_INFO MYNAM "/%s: End_buckets = %u, priv->buckets_out = %u\n",
-		  __FUNCTION__, buckets, atomic_read(&priv->buckets_out)));
+		  __func__, buckets, atomic_read(&priv->buckets_out)));
 	dioprintk((KERN_INFO MYNAM "/%s: Posted %u buckets and received %u back\n",
-	__FUNCTION__, priv->total_posted, priv->total_received));
+	__func__, priv->total_posted, priv->total_received));
 
 	clear_bit(0, &priv->post_buckets_active);
 }

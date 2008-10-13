@@ -97,7 +97,7 @@ config IRQSTACKS
 
 config VIRQ_DEBUG
 	bool "Expose hardware/virtual IRQ mapping via debugfs"
-	depends on DEBUG_FS && PPC_MERGE
+	depends on DEBUG_FS
 	help
 	  This option will show the mapping relationship between hardware irq
 	  numbers and virtual irq numbers. The mapping is exposed via debugfs

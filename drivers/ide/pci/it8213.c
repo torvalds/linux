@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -141,7 +140,7 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static u8 __devinit it8213_cable_detect(ide_hwif_t *hwif)
+static u8 it8213_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 reg42h = 0;
@@ -195,6 +194,8 @@ static struct pci_driver driver = {
 	.id_table	= it8213_pci_tbl,
 	.probe		= it8213_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init it8213_ide_init(void)

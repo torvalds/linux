@@ -360,8 +360,8 @@ TLan_GetSKB( const struct tlan_list_tag *tag)
 {
 	unsigned long addr;
 
-	addr = tag->buffer[8].address;
-	addr |= (tag->buffer[9].address << 16) << 16;
+	addr = tag->buffer[9].address;
+	addr |= (tag->buffer[8].address << 16) << 16;
 	return (struct sk_buff *) addr;
 }
 
@@ -1984,7 +1984,6 @@ static void TLan_ResetLists( struct net_device *dev )
 	TLanList	*list;
 	dma_addr_t	list_phys;
 	struct sk_buff	*skb;
-	void		*t = NULL;
 
 	priv->txHead = 0;
 	priv->txTail = 0;
@@ -2022,7 +2021,8 @@ static void TLan_ResetLists( struct net_device *dev )
 			}
 
 			skb_reserve( skb, NET_IP_ALIGN );
-			list->buffer[0].address = pci_map_single(priv->pciDev, t,
+			list->buffer[0].address = pci_map_single(priv->pciDev,
+								 skb->data,
 								 TLAN_MAX_FRAME_SIZE,
 								 PCI_DMA_FROMDEVICE);
 			TLan_StoreSKB(list, skb);

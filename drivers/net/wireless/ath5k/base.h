@@ -56,7 +56,7 @@
 
 struct ath5k_buf {
 	struct list_head	list;
-	unsigned int		flags;	/* tx descriptor flags */
+	unsigned int		flags;	/* rx descriptor flags */
 	struct ath5k_desc	*desc;	/* virtual addr of desc */
 	dma_addr_t		daddr;	/* physical addr of desc */
 	struct sk_buff		*skb;	/* skbuff for buf */
@@ -111,16 +111,12 @@ struct ath5k_softc {
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
-	struct ieee80211_rate	rates[AR5K_MAX_RATES * IEEE80211_NUM_BANDS];
-	enum ieee80211_if_types	opmode;
+	struct ieee80211_rate	rates[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	u8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	enum nl80211_iftype	opmode;
 	struct ath5k_hw		*ah;		/* Atheros HW */
 
 	struct ieee80211_supported_band		*curband;
-
-	u8			a_rates;
-	u8			b_rates;
-	u8			g_rates;
-	u8			xr_rates;
 
 #ifdef CONFIG_ATH5K_DEBUG
 	struct ath5k_dbg_info	debug;		/* debug info */
@@ -172,6 +168,7 @@ struct ath5k_softc {
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
 	struct ath5k_led	tx_led;		/* tx led */
 
+	spinlock_t		block;		/* protects beacon */
 	struct ath5k_buf	*bbuf;		/* beacon buffer */
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */

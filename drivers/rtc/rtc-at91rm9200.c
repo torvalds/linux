@@ -29,7 +29,7 @@
 #include <linux/completion.h>
 
 #include <asm/uaccess.h>
-#include <asm/arch/at91_rtc.h>
+#include <mach/at91_rtc.h>
 
 
 #define AT91_RTC_FREQ		1

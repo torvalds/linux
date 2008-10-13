@@ -209,7 +209,7 @@ static int tmu_timer_init(void)
 	return 0;
 }
 
-struct sys_timer_ops tmu_timer_ops = {
+static struct sys_timer_ops tmu_timer_ops = {
 	.init		= tmu_timer_init,
 	.start		= tmu_timer_start,
 	.stop		= tmu_timer_stop,

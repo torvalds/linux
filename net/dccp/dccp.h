@@ -164,7 +164,7 @@ static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
 {
 	s64 delta = dccp_delta_seqno(s1, s2);
 
-	BUG_TRAP(delta >= 0);
+	WARN_ON(delta < 0);
 	return (u64)delta <= ndp + 1;
 }
 
@@ -226,10 +226,11 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 
 extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
-extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
+extern int  dccp_retransmit_skb(struct sock *sk);
 
 extern void dccp_send_ack(struct sock *sk);
-extern void dccp_reqsk_send_ack(struct sk_buff *sk, struct request_sock *rsk);
+extern void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+				struct request_sock *rsk);
 
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);

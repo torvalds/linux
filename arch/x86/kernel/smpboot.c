@@ -52,6 +52,7 @@
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
+#include <asm/idle.h>
 #include <asm/smp.h>
 #include <asm/trampoline.h>
 #include <asm/cpu.h>
@@ -88,7 +89,7 @@ static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
 #define get_idle_for_cpu(x)      (per_cpu(idle_thread_array, x))
 #define set_idle_for_cpu(x, p)   (per_cpu(idle_thread_array, x) = (p))
 #else
-struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
+static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define get_idle_for_cpu(x)      (idle_thread_array[(x)])
 #define set_idle_for_cpu(x, p)   (idle_thread_array[(x)] = (p))
 #endif
@@ -123,13 +124,12 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 static atomic_t init_deasserted;
 
-static int boot_cpu_logical_apicid;
 
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
 /* Set if we find a B stepping CPU */
-int __cpuinitdata smp_b_stepping;
+static int __cpuinitdata smp_b_stepping;
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
 
@@ -165,6 +165,8 @@ static void unmap_cpu_to_node(int cpu)
 #endif
 
 #ifdef CONFIG_X86_32
+static int boot_cpu_logical_apicid;
+
 u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly =
 					{ [0 ... NR_CPUS-1] = BAD_APICID };
 
@@ -210,7 +212,7 @@ static void __cpuinit smp_callin(void)
 	/*
 	 * (This works even if the APIC is not enabled.)
 	 */
-	phys_id = GET_APIC_ID(read_apic_id());
+	phys_id = read_apic_id();
 	cpuid = smp_processor_id();
 	if (cpu_isset(cpuid, cpu_callin_map)) {
 		panic("%s: phys CPU#%d, CPU#%d already present??\n", __func__,
@@ -257,6 +259,7 @@ static void __cpuinit smp_callin(void)
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
+	notify_cpu_starting(cpuid);
 	/*
 	 * Get our bogomips.
 	 *
@@ -326,12 +329,16 @@ static void __cpuinit start_secondary(void *unused)
 	 * for which cpus receive the IPI. Holding this
 	 * lock helps us to not include this cpu in a currently in progress
 	 * smp_call_function().
+	 *
+	 * We need to hold vector_lock so there the set of online cpus
+	 * does not change while we are assigning vectors to cpus.  Holding
+	 * this lock ensures we don't half assign or remove an irq from a cpu.
 	 */
 	ipi_call_lock_irq();
-#ifdef CONFIG_X86_IO_APIC
-	setup_vector_irq(smp_processor_id());
-#endif
+	lock_vector_lock();
+	__setup_vector_irq(smp_processor_id());
 	cpu_set(smp_processor_id(), cpu_online_map);
+	unlock_vector_lock();
 	ipi_call_unlock_irq();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
@@ -546,8 +553,7 @@ static inline void __inquire_remote_apic(int apicid)
 			printk(KERN_CONT
 			       "a previous APIC delivery may have failed\n");
 
-		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
-		apic_write(APIC_ICR, APIC_DM_REMRD | regs[i]);
+		apic_icr_write(APIC_DM_REMRD | regs[i], apicid);
 
 		timeout = 0;
 		do {
@@ -579,11 +585,9 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	int maxlvt;
 
 	/* Target chip */
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(logical_apicid));
-
 	/* Boot on the stack */
 	/* Kick the second */
-	apic_write(APIC_ICR, APIC_DM_NMI | APIC_DEST_LOGICAL);
+	apic_icr_write(APIC_DM_NMI | APIC_DEST_LOGICAL, logical_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -636,13 +640,11 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Turn INIT on target chip
 	 */
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
-
 	/*
 	 * Send IPI
 	 */
-	apic_write(APIC_ICR,
-		   APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT);
+	apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
+		       phys_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -652,10 +654,8 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	pr_debug("Deasserting INIT.\n");
 
 	/* Target chip */
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
-
 	/* Send IPI */
-	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
+	apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, phys_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -698,11 +698,10 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		 */
 
 		/* Target chip */
-		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
-
 		/* Boot on the stack */
 		/* Kick the second */
-		apic_write(APIC_ICR, APIC_DM_STARTUP | (start_eip >> 12));
+		apic_icr_write(APIC_DM_STARTUP | (start_eip >> 12),
+			       phys_apicid);
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
@@ -752,6 +751,14 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 }
 
 #ifdef CONFIG_X86_64
+
+/* __ref because it's safe to call free_bootmem when after_bootmem == 0. */
+static void __ref free_bootmem_pda(struct x8664_pda *oldpda)
+{
+	if (!after_bootmem)
+		free_bootmem((unsigned long)oldpda, sizeof(*oldpda));
+}
+
 /*
  * Allocate node local memory for the AP pda.
  *
@@ -780,8 +787,7 @@ int __cpuinit get_local_pda(int cpu)
 
 	if (oldpda) {
 		memcpy(newpda, oldpda, size);
-		if (!after_bootmem)
-			free_bootmem((unsigned long)oldpda, size);
+		free_bootmem_pda(oldpda);
 	}
 
 	newpda->in_bootmem = 0;
@@ -1044,6 +1050,34 @@ static __init void disable_smp(void)
 static int __init smp_sanity_check(unsigned max_cpus)
 {
 	preempt_disable();
+
+#if defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
+	if (def_to_bigsmp && nr_cpu_ids > 8) {
+		unsigned int cpu;
+		unsigned nr;
+
+		printk(KERN_WARNING
+		       "More than 8 CPUs detected - skipping them.\n"
+		       "Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+
+		nr = 0;
+		for_each_present_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_present_map);
+			nr++;
+		}
+
+		nr = 0;
+		for_each_possible_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_possible_map);
+			nr++;
+		}
+
+		nr_cpu_ids = 8;
+	}
+#endif
+
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
 				    "by the BIOS.\n", hard_smp_processor_id());
@@ -1136,9 +1170,16 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	 * Setup boot CPU information
 	 */
 	smp_store_cpu_info(0); /* Final full version of the data */
+#ifdef CONFIG_X86_32
 	boot_cpu_logical_apicid = logical_smp_processor_id();
+#endif
 	current_thread_info()->cpu = 0;  /* needed? */
 	set_cpu_sibling_map(0);
+
+#ifdef CONFIG_X86_64
+	enable_IR_x2apic();
+	setup_apic_routing();
+#endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");
@@ -1147,9 +1188,9 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	preempt_disable();
-	if (GET_APIC_ID(read_apic_id()) != boot_cpu_physical_apicid) {
+	if (read_apic_id() != boot_cpu_physical_apicid) {
 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
-		     GET_APIC_ID(read_apic_id()), boot_cpu_physical_apicid);
+		     read_apic_id(), boot_cpu_physical_apicid);
 		/* Or can we switch back to PIC here? */
 	}
 	preempt_enable();
@@ -1182,6 +1223,9 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	printk(KERN_INFO "CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
 	setup_boot_clock();
+
+	if (is_uv_system())
+		uv_system_init();
 out:
 	preempt_enable();
 }
@@ -1271,16 +1315,13 @@ __init void prefill_possible_map(void)
 	if (!num_processors)
 		num_processors = 1;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	if (additional_cpus == -1) {
 		if (disabled_cpus > 0)
 			additional_cpus = disabled_cpus;
 		else
 			additional_cpus = 0;
 	}
-#else
-	additional_cpus = 0;
-#endif
+
 	possible = num_processors + additional_cpus;
 	if (possible > NR_CPUS)
 		possible = NR_CPUS;
@@ -1304,7 +1345,29 @@ static void __ref remove_cpu_from_maps(int cpu)
 	numa_remove_cpu(cpu);
 }
 
-int __cpu_disable(void)
+void cpu_disable_common(void)
+{
+	int cpu = smp_processor_id();
+	/*
+	 * HACK:
+	 * Allow any queued timer interrupts to get serviced
+	 * This is only a temporary solution until we cleanup
+	 * fixup_irqs as we do for IA64.
+	 */
+	local_irq_enable();
+	mdelay(1);
+
+	local_irq_disable();
+	remove_siblinginfo(cpu);
+
+	/* It's now safe to remove this processor from the online map */
+	lock_vector_lock();
+	remove_cpu_from_maps(cpu);
+	unlock_vector_lock();
+	fixup_irqs(cpu_online_map);
+}
+
+int native_cpu_disable(void)
 {
 	int cpu = smp_processor_id();
 
@@ -1323,25 +1386,11 @@ int __cpu_disable(void)
 		stop_apic_nmi_watchdog(NULL);
 	clear_local_APIC();
 
-	/*
-	 * HACK:
-	 * Allow any queued timer interrupts to get serviced
-	 * This is only a temporary solution until we cleanup
-	 * fixup_irqs as we do for IA64.
-	 */
-	local_irq_enable();
-	mdelay(1);
-
-	local_irq_disable();
-	remove_siblinginfo(cpu);
-
-	/* It's now safe to remove this processor from the online map */
-	remove_cpu_from_maps(cpu);
-	fixup_irqs(cpu_online_map);
+	cpu_disable_common();
 	return 0;
 }
 
-void __cpu_die(unsigned int cpu)
+void native_cpu_die(unsigned int cpu)
 {
 	/* We don't do anything here: idle task is faking death itself. */
 	unsigned int i;
@@ -1358,29 +1407,45 @@ void __cpu_die(unsigned int cpu)
 	}
 	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }
+
+void play_dead_common(void)
+{
+	idle_task_exit();
+	reset_lazy_tlbstate();
+	irq_ctx_exit(raw_smp_processor_id());
+	c1e_remove_cpu(raw_smp_processor_id());
+
+	mb();
+	/* Ack it */
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+
+	/*
+	 * With physical CPU hotplug, we should halt the cpu
+	 */
+	local_irq_disable();
+}
+
+void native_play_dead(void)
+{
+	play_dead_common();
+	wbinvd_halt();
+}
+
 #else /* ... !CONFIG_HOTPLUG_CPU */
-int __cpu_disable(void)
+int native_cpu_disable(void)
 {
 	return -ENOSYS;
 }
 
-void __cpu_die(unsigned int cpu)
+void native_cpu_die(unsigned int cpu)
 {
 	/* We said "no" in __cpu_disable */
 	BUG();
 }
-#endif
 
-/*
- * If the BIOS enumerates physical processors before logical,
- * maxcpus=N at enumeration-time can be used to disable HT.
- */
-static int __init parse_maxcpus(char *arg)
+void native_play_dead(void)
 {
-	extern unsigned int maxcpus;
-
-	if (arg)
-		maxcpus = simple_strtoul(arg, NULL, 0);
-	return 0;
+	BUG();
 }
-early_param("maxcpus", parse_maxcpus);
+
+#endif

@@ -46,9 +46,12 @@
 #include <asm/nmi.h>
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
+#include <asm/setup.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
+
+#define __apicdebuginit(type) static type __init
 
 int (*ioapic_renumber_irq)(int ioapic, int irq);
 atomic_t irq_mis_count;
@@ -57,7 +60,7 @@ atomic_t irq_mis_count;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-static DEFINE_SPINLOCK(vector_lock);
+DEFINE_SPINLOCK(vector_lock);
 
 int timer_through_8259 __initdata;
 
@@ -1209,10 +1212,6 @@ static int assign_irq_vector(int irq)
 	return vector;
 }
 
-void setup_vector_irq(int cpu)
-{
-}
-
 static struct irq_chip ioapic_chip;
 
 #define IOAPIC_AUTO	-1
@@ -1345,7 +1344,8 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic, unsigned int pin,
 	ioapic_write_entry(apic, pin, entry);
 }
 
-void __init print_IO_APIC(void)
+
+__apicdebuginit(void) print_IO_APIC(void)
 {
 	int apic, i;
 	union IO_APIC_reg_00 reg_00;
@@ -1460,9 +1460,7 @@ void __init print_IO_APIC(void)
 	return;
 }
 
-#if 0
-
-static void print_APIC_bitfield(int base)
+__apicdebuginit(void) print_APIC_bitfield(int base)
 {
 	unsigned int v;
 	int i, j;
@@ -1483,9 +1481,10 @@ static void print_APIC_bitfield(int base)
 	}
 }
 
-void /*__init*/ print_local_APIC(void *dummy)
+__apicdebuginit(void) print_local_APIC(void *dummy)
 {
 	unsigned int v, ver, maxlvt;
+	u64 icr;
 
 	if (apic_verbosity == APIC_QUIET)
 		return;
@@ -1494,7 +1493,7 @@ void /*__init*/ print_local_APIC(void *dummy)
 		smp_processor_id(), hard_smp_processor_id());
 	v = apic_read(APIC_ID);
 	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v,
-			GET_APIC_ID(read_apic_id()));
+			GET_APIC_ID(v));
 	v = apic_read(APIC_LVR);
 	printk(KERN_INFO "... APIC VERSION: %08x\n", v);
 	ver = GET_APIC_VERSION(v);
@@ -1536,10 +1535,9 @@ void /*__init*/ print_local_APIC(void *dummy)
 		printk(KERN_DEBUG "... APIC ESR: %08x\n", v);
 	}
 
-	v = apic_read(APIC_ICR);
-	printk(KERN_DEBUG "... APIC ICR: %08x\n", v);
-	v = apic_read(APIC_ICR2);
-	printk(KERN_DEBUG "... APIC ICR2: %08x\n", v);
+	icr = apic_icr_read();
+	printk(KERN_DEBUG "... APIC ICR: %08x\n", icr);
+	printk(KERN_DEBUG "... APIC ICR2: %08x\n", icr >> 32);
 
 	v = apic_read(APIC_LVTT);
 	printk(KERN_DEBUG "... APIC LVTT: %08x\n", v);
@@ -1567,12 +1565,12 @@ void /*__init*/ print_local_APIC(void *dummy)
 	printk("\n");
 }
 
-void print_all_local_APICs(void)
+__apicdebuginit(void) print_all_local_APICs(void)
 {
 	on_each_cpu(print_local_APIC, NULL, 1);
 }
 
-void /*__init*/ print_PIC(void)
+__apicdebuginit(void) print_PIC(void)
 {
 	unsigned int v;
 	unsigned long flags;
@@ -1604,7 +1602,17 @@ void /*__init*/ print_PIC(void)
 	printk(KERN_DEBUG "... PIC ELCR: %04x\n", v);
 }
 
-#endif  /*  0  */
+__apicdebuginit(int) print_all_ICs(void)
+{
+	print_PIC();
+	print_all_local_APICs();
+	print_IO_APIC();
+
+	return 0;
+}
+
+fs_initcall(print_all_ICs);
+
 
 static void __init enable_IO_APIC(void)
 {
@@ -1702,8 +1710,7 @@ void disable_IO_APIC(void)
 		entry.dest_mode       = 0; /* Physical */
 		entry.delivery_mode   = dest_ExtINT; /* ExtInt */
 		entry.vector          = 0;
-		entry.dest.physical.physical_dest =
-					GET_APIC_ID(read_apic_id());
+		entry.dest.physical.physical_dest = read_apic_id();
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -1729,10 +1736,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	unsigned char old_id;
 	unsigned long flags;
 
-#ifdef CONFIG_X86_NUMAQ
-	if (found_numaq)
+	if (x86_quirks->setup_ioapic_ids && x86_quirks->setup_ioapic_ids())
 		return;
-#endif
 
 	/*
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have
@@ -2333,8 +2338,6 @@ void __init setup_IO_APIC(void)
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();
 	check_timer();
-	if (!acpi_ioapic)
-		print_IO_APIC();
 }
 
 /*

@@ -8,7 +8,13 @@
 #include <linux/proc_fs.h>
 
 #define ELFCORE_ADDR_MAX	(-1ULL)
+
+#ifdef CONFIG_PROC_VMCORE
 extern unsigned long long elfcorehdr_addr;
+#else
+static const unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
+#endif
+
 extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 						unsigned long, int);
 extern const struct file_operations proc_vmcore_operations;

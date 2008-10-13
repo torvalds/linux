@@ -204,6 +204,8 @@ struct ocfs2_super
 
 	struct ocfs2_slot_info *slot_info;
 
+	u32 *slot_recovery_generations;
+
 	spinlock_t node_map_lock;
 
 	u64 root_blkno;

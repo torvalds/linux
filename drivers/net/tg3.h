@@ -325,6 +325,8 @@
 #define  MAC_MODE_TDE_ENABLE		 0x00200000
 #define  MAC_MODE_RDE_ENABLE		 0x00400000
 #define  MAC_MODE_FHDE_ENABLE		 0x00800000
+#define  MAC_MODE_APE_RX_EN		 0x08000000
+#define  MAC_MODE_APE_TX_EN		 0x10000000
 #define MAC_STATUS			0x00000404
 #define  MAC_STATUS_PCS_SYNCED		 0x00000001
 #define  MAC_STATUS_SIGNAL_DET		 0x00000002
@@ -1889,6 +1891,7 @@
 #define  APE_EVENT_STATUS_EVENT_PENDING	 0x80000000
 
 /* APE convenience enumerations. */
+#define TG3_APE_LOCK_GRC                1
 #define TG3_APE_LOCK_MEM                4
 
 #define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
@@ -2194,7 +2197,6 @@ struct ring_info {
 
 struct tx_ring_info {
 	struct sk_buff			*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
 	u32				prev_vlan_tag;
 };
 
@@ -2429,7 +2431,10 @@ struct tg3 {
 	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;
 
+	union {
 	unsigned long			phy_crc_errors;
+	unsigned long			last_event_jiffies;
+	};
 
 	u32				rx_offset;
 	u32				tg3_flags;
@@ -2551,7 +2556,7 @@ struct tg3 {
 	int				msi_cap;
 	int				pcix_cap;
 
-	struct mii_bus			mdio_bus;
+	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
 
 	/* PHY info */

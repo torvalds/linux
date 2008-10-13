@@ -168,7 +168,6 @@ __set_personality(u_long personality)
 	current->personality = personality;
 	oep = current_thread_info()->exec_domain;
 	current_thread_info()->exec_domain = ep;
-	set_fs_altroot();
 
 	module_put(oep->module);
 	return 0;

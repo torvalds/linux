@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/numa.h>
 #include <linux/ftrace.h>
+#include <linux/suspend.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -22,6 +23,7 @@
 #include <asm/cpufeature.h>
 #include <asm/desc.h>
 #include <asm/system.h>
+#include <asm/cacheflush.h>
 
 #define PAGE_ALIGNED __attribute__ ((__aligned__(PAGE_SIZE)))
 static u32 kexec_pgd[1024] PAGE_ALIGNED;
@@ -77,7 +79,7 @@ static void load_segments(void)
 /*
  * A architecture hook called to validate the
  * proposed image and prepare the control pages
- * as needed.  The pages for KEXEC_CONTROL_CODE_SIZE
+ * as needed.  The pages for KEXEC_CONTROL_PAGE_SIZE
  * have been allocated, but the segments have yet
  * been copied into the kernel.
  *
@@ -85,10 +87,12 @@ static void load_segments(void)
  * reboot code buffer to allow us to avoid allocations
  * later.
  *
- * Currently nothing.
+ * Make control page executable.
  */
 int machine_kexec_prepare(struct kimage *image)
 {
+	if (nx_enabled)
+		set_pages_x(image->control_code_page, 1);
 	return 0;
 }
 
@@ -98,27 +102,54 @@ int machine_kexec_prepare(struct kimage *image)
  */
 void machine_kexec_cleanup(struct kimage *image)
 {
+	if (nx_enabled)
+		set_pages_nx(image->control_code_page, 1);
 }
 
 /*
  * Do not allocate memory (or fail in any way) in machine_kexec().
  * We are past the point of no return, committed to rebooting now.
  */
-NORET_TYPE void machine_kexec(struct kimage *image)
+void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list[PAGES_NR];
 	void *control_page;
+	int save_ftrace_enabled;
+	asmlinkage unsigned long
+		(*relocate_kernel_ptr)(unsigned long indirection_page,
+				       unsigned long control_page,
+				       unsigned long start_address,
+				       unsigned int has_pae,
+				       unsigned int preserve_context);
 
-	tracer_disable();
+#ifdef CONFIG_KEXEC_JUMP
+	if (kexec_image->preserve_context)
+		save_processor_state();
+#endif
+
+	save_ftrace_enabled = __ftrace_enabled_save();
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
-	control_page = page_address(image->control_code_page);
-	memcpy(control_page, relocate_kernel, PAGE_SIZE);
+	if (image->preserve_context) {
+#ifdef CONFIG_X86_IO_APIC
+		/* We need to put APICs in legacy mode so that we can
+		 * get timer interrupts in second kernel. kexec/kdump
+		 * paths already have calls to disable_IO_APIC() in
+		 * one form or other. kexec jump path also need
+		 * one.
+		 */
+		disable_IO_APIC();
+#endif
+	}
 
+	control_page = page_address(image->control_code_page);
+	memcpy(control_page, relocate_kernel, KEXEC_CONTROL_CODE_MAX_SIZE);
+
+	relocate_kernel_ptr = control_page;
 	page_list[PA_CONTROL_PAGE] = __pa(control_page);
-	page_list[VA_CONTROL_PAGE] = (unsigned long)relocate_kernel;
+	page_list[VA_CONTROL_PAGE] = (unsigned long)control_page;
 	page_list[PA_PGD] = __pa(kexec_pgd);
 	page_list[VA_PGD] = (unsigned long)kexec_pgd;
 #ifdef CONFIG_X86_PAE
@@ -131,6 +162,7 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	page_list[VA_PTE_0] = (unsigned long)kexec_pte0;
 	page_list[PA_PTE_1] = __pa(kexec_pte1);
 	page_list[VA_PTE_1] = (unsigned long)kexec_pte1;
+	page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page) << PAGE_SHIFT);
 
 	/* The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
@@ -149,8 +181,17 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	set_idt(phys_to_virt(0),0);
 
 	/* now call it */
-	relocate_kernel((unsigned long)image->head, (unsigned long)page_list,
-			image->start, cpu_has_pae);
+	image->start = relocate_kernel_ptr((unsigned long)image->head,
+					   (unsigned long)page_list,
+					   image->start, cpu_has_pae,
+					   image->preserve_context);
+
+#ifdef CONFIG_KEXEC_JUMP
+	if (kexec_image->preserve_context)
+		restore_processor_state();
+#endif
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 }
 
 void arch_crash_save_vmcoreinfo(void)

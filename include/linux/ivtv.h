@@ -21,11 +21,7 @@
 #ifndef __LINUX_IVTV_H__
 #define __LINUX_IVTV_H__
 
-#ifdef __KERNEL__
-#include <linux/compiler.h> /* need __user */
-#else
-#define __user
-#endif
+#include <linux/compiler.h>
 #include <linux/types.h>
 
 /* ivtv knows several distinct output modes: MPEG streaming,

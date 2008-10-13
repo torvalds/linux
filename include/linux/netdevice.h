@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 
 #include <net/net_namespace.h>
+#include <net/dsa.h>
 
 struct vlan_group;
 struct ethtool_ops;
@@ -61,9 +62,7 @@ struct wireless_dev;
 #define NET_XMIT_DROP		1	/* skb dropped			*/
 #define NET_XMIT_CN		2	/* congestion notification	*/
 #define NET_XMIT_POLICED	3	/* skb is shot by police	*/
-#define NET_XMIT_BYPASS		4	/* packet does not leave via dequeue;
-					   (TC use only - dev_queue_xmit
-					   returns this as NET_XMIT_SUCCESS) */
+#define NET_XMIT_MASK		0xFFFF	/* qdisc flags in net/sch_generic.h */
 
 /* Backlog congestion levels */
 #define NET_RX_SUCCESS		0   /* keep 'em coming, baby */
@@ -440,6 +439,7 @@ static inline void napi_synchronize(const struct napi_struct *n)
 enum netdev_queue_state_t
 {
 	__QUEUE_STATE_XOFF,
+	__QUEUE_STATE_FROZEN,
 };
 
 struct netdev_queue {
@@ -472,6 +472,8 @@ struct net_device
 	char			name[IFNAMSIZ];
 	/* device name hash chain */
 	struct hlist_node	name_hlist;
+	/* snmp alias */
+	char 			*ifalias;
 
 	/*
 	 *	I/O specific fields
@@ -606,6 +608,9 @@ struct net_device
 
 	/* Protocol specific pointers */
 	
+#ifdef CONFIG_NET_DSA
+	void			*dsa_ptr;	/* dsa specific data */
+#endif
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
 	void			*ip_ptr;	/* IPv4 specific data	*/  
 	void                    *dn_ptr;        /* DECnet specific data */
@@ -636,7 +641,7 @@ struct net_device
 	unsigned int		real_num_tx_queues;
 
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
-
+	spinlock_t		tx_global_lock;
 /*
  * One part is mostly used on xmit path (device)
  */
@@ -795,6 +800,26 @@ void dev_net_set(struct net_device *dev, struct net *net)
 	release_net(dev->nd_net);
 	dev->nd_net = hold_net(net);
 #endif
+}
+
+static inline bool netdev_uses_dsa_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_dsa_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
+}
+
+static inline bool netdev_uses_trailer_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_trailer_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
 }
 
 /**
@@ -1099,6 +1124,11 @@ static inline int netif_queue_stopped(const struct net_device *dev)
 	return netif_tx_queue_stopped(netdev_get_tx_queue(dev, 0));
 }
 
+static inline int netif_tx_queue_frozen(const struct netdev_queue *dev_queue)
+{
+	return test_bit(__QUEUE_STATE_FROZEN, &dev_queue->state);
+}
+
 /**
  *	netif_running - test if up
  *	@dev: network device
@@ -1219,7 +1249,8 @@ extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct net *net, struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
 extern int		dev_change_flags(struct net_device *, unsigned);
-extern int		dev_change_name(struct net_device *, char *);
+extern int		dev_change_name(struct net_device *, const char *);
+extern int		dev_set_alias(struct net_device *, const char *, size_t);
 extern int		dev_change_net_namespace(struct net_device *,
 						 struct net *, const char *);
 extern int		dev_set_mtu(struct net_device *, int);
@@ -1475,41 +1506,12 @@ static inline void __netif_tx_lock_bh(struct netdev_queue *txq)
 	txq->xmit_lock_owner = smp_processor_id();
 }
 
-/**
- *	netif_tx_lock - grab network device transmit lock
- *	@dev: network device
- *	@cpu: cpu number of lock owner
- *
- * Get network device transmit lock
- */
-static inline void netif_tx_lock(struct net_device *dev)
-{
-	int cpu = smp_processor_id();
-	unsigned int i;
-
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		__netif_tx_lock(txq, cpu);
-	}
-}
-
-static inline void netif_tx_lock_bh(struct net_device *dev)
-{
-	local_bh_disable();
-	netif_tx_lock(dev);
-}
-
 static inline int __netif_tx_trylock(struct netdev_queue *txq)
 {
 	int ok = spin_trylock(&txq->_xmit_lock);
 	if (likely(ok))
 		txq->xmit_lock_owner = smp_processor_id();
 	return ok;
-}
-
-static inline int netif_tx_trylock(struct net_device *dev)
-{
-	return __netif_tx_trylock(netdev_get_tx_queue(dev, 0));
 }
 
 static inline void __netif_tx_unlock(struct netdev_queue *txq)
@@ -1524,15 +1526,57 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 	spin_unlock_bh(&txq->_xmit_lock);
 }
 
+/**
+ *	netif_tx_lock - grab network device transmit lock
+ *	@dev: network device
+ *	@cpu: cpu number of lock owner
+ *
+ * Get network device transmit lock
+ */
+static inline void netif_tx_lock(struct net_device *dev)
+{
+	unsigned int i;
+	int cpu;
+
+	spin_lock(&dev->tx_global_lock);
+	cpu = smp_processor_id();
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		/* We are the only thread of execution doing a
+		 * freeze, but we have to grab the _xmit_lock in
+		 * order to synchronize with threads which are in
+		 * the ->hard_start_xmit() handler and already
+		 * checked the frozen bit.
+		 */
+		__netif_tx_lock(txq, cpu);
+		set_bit(__QUEUE_STATE_FROZEN, &txq->state);
+		__netif_tx_unlock(txq);
+	}
+}
+
+static inline void netif_tx_lock_bh(struct net_device *dev)
+{
+	local_bh_disable();
+	netif_tx_lock(dev);
+}
+
 static inline void netif_tx_unlock(struct net_device *dev)
 {
 	unsigned int i;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		__netif_tx_unlock(txq);
-	}
 
+		/* No need to grab the _xmit_lock here.  If the
+		 * queue is not stopped for another reason, we
+		 * force a schedule.
+		 */
+		clear_bit(__QUEUE_STATE_FROZEN, &txq->state);
+		if (!test_bit(__QUEUE_STATE_XOFF, &txq->state))
+			__netif_schedule(txq->qdisc);
+	}
+	spin_unlock(&dev->tx_global_lock);
 }
 
 static inline void netif_tx_unlock_bh(struct net_device *dev)
@@ -1556,13 +1600,18 @@ static inline void netif_tx_unlock_bh(struct net_device *dev)
 static inline void netif_tx_disable(struct net_device *dev)
 {
 	unsigned int i;
+	int cpu;
 
-	netif_tx_lock_bh(dev);
+	local_bh_disable();
+	cpu = smp_processor_id();
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		__netif_tx_lock(txq, cpu);
 		netif_tx_stop_queue(txq);
+		__netif_tx_unlock(txq);
 	}
-	netif_tx_unlock_bh(dev);
+	local_bh_enable();
 }
 
 static inline void netif_addr_lock(struct net_device *dev)
@@ -1645,7 +1694,7 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 extern int netdev_class_create_file(struct class_attribute *class_attr);
 extern void netdev_class_remove_file(struct class_attribute *class_attr);
 
-extern char *netdev_drivername(struct net_device *dev, char *buffer, int len);
+extern char *netdev_drivername(const struct net_device *dev, char *buffer, int len);
 
 extern void linkwatch_run_queue(void);
 

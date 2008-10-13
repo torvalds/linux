@@ -94,7 +94,7 @@ void cpuidle_install_idle_handler(void)
  */
 void cpuidle_uninstall_idle_handler(void)
 {
-	if (enabled_devices && (pm_idle != pm_idle_old)) {
+	if (enabled_devices && pm_idle_old && (pm_idle != pm_idle_old)) {
 		pm_idle = pm_idle_old;
 		cpuidle_kick_cpus();
 	}

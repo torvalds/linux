@@ -21,12 +21,14 @@
 #include <linux/mtd/physmap.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
-#include <asm/arch/common.h>
-#include <asm/hardware.h>
-#include <asm/arch/iomux-mx1-mx2.h>
+#include <mach/common.h>
+#include <mach/hardware.h>
+#include <mach/iomux-mx1-mx2.h>
 #include <asm/mach/time.h>
-#include <asm/arch/imx-uart.h>
-#include <asm/arch/board-pcm038.h>
+#include <mach/imx-uart.h>
+#include <mach/board-pcm038.h>
+
+#include "devices.h"
 
 /*
  * Phytec's phyCORE-i.MX27 comes with 32MiB flash,
@@ -170,11 +172,11 @@ static struct platform_device *platform_devices[] __initdata = {
 
 static void __init pcm038_init(void)
 {
-	int i;
 	gpio_fec_active();
 
-	for (i = 0; i < 3; i++)
-		imx_init_uart(i, &uart_pdata[i]);
+	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
+	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
+	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 

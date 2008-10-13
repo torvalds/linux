@@ -2536,7 +2536,7 @@ module_param(fh, int, 0);
 MODULE_PARM_DESC(fh, "Startup horizontal frequency, 0-999kHz, 1000-INF Hz");
 module_param(fv, int, 0);
 MODULE_PARM_DESC(fv, "Startup vertical frequency, 0-INF Hz\n"
-"You should specify \"fv:max_monitor_vsync,fh:max_monitor_hsync,maxclk:max_monitor_dotclock\"\n");
+"You should specify \"fv:max_monitor_vsync,fh:max_monitor_hsync,maxclk:max_monitor_dotclock\"");
 module_param(grayscale, int, 0);
 MODULE_PARM_DESC(grayscale, "Sets display into grayscale. Works perfectly with paletized videomode (4, 8bpp), some limitations apply to 16, 24 and 32bpp videomodes (default=nograyscale)");
 module_param(cross4MB, int, 0);

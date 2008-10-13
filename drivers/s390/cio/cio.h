@@ -117,11 +117,15 @@ extern int cio_is_console(struct subchannel_id);
 extern struct subchannel *cio_get_console_subchannel(void);
 extern spinlock_t * cio_get_console_lock(void);
 extern void *cio_get_console_priv(void);
+extern const char *cio_get_console_sch_name(struct subchannel_id schid);
+extern const char *cio_get_console_cdev_name(struct subchannel *sch);
 #else
 #define cio_is_console(schid) 0
 #define cio_get_console_subchannel() NULL
 #define cio_get_console_lock() NULL
 #define cio_get_console_priv() NULL
+#define cio_get_console_sch_name(schid) NULL
+#define cio_get_console_cdev_name(sch) NULL
 #endif
 
 #endif

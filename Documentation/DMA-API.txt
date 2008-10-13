@@ -298,10 +298,10 @@ recommended that you never use these unless you really know what the
 cache width is.
 
 int
-dma_mapping_error(dma_addr_t dma_addr)
+dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
 int
-pci_dma_mapping_error(dma_addr_t dma_addr)
+pci_dma_mapping_error(struct pci_dev *hwdev, dma_addr_t dma_addr)
 
 In some circumstances dma_map_single and dma_map_page will fail to create
 a mapping. A driver can check for these errors by testing the returned
@@ -337,7 +337,7 @@ With scatterlists, you use the resulting mapping like this:
 	int i, count = dma_map_sg(dev, sglist, nents, direction);
 	struct scatterlist *sg;
 
-	for (i = 0, sg = sglist; i < count; i++, sg++) {
+	for_each_sg(sglist, sg, count, i) {
 		hw_address[i] = sg_dma_address(sg);
 		hw_len[i] = sg_dma_len(sg);
 	}

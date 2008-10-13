@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -140,7 +139,7 @@ static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	drive->hwif->port_ops->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
-static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev)
+static unsigned int init_chipset_aec62xx(struct pci_dev *dev)
 {
 	/* These are necessary to get AEC6280 Macintosh cards to work */
 	if ((dev->device == PCI_DEVICE_ID_ARTOP_ATP865) ||
@@ -160,7 +159,7 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit atp86x_cable_detect(ide_hwif_t *hwif)
+static u8 atp86x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
@@ -307,7 +306,9 @@ static struct pci_driver driver = {
 	.name		= "AEC62xx_IDE",
 	.id_table	= aec62xx_pci_tbl,
 	.probe		= aec62xx_init_one,
-	.remove		= aec62xx_remove,
+	.remove		= __devexit_p(aec62xx_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init aec62xx_ide_init(void)

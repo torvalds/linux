@@ -524,7 +524,9 @@
 #define FTDI_ELV_WS300PC_PID	0xE0F6	/* PC-Wetterstation (WS 300 PC) */
 #define FTDI_ELV_FHZ1300PC_PID	0xE0E8	/* FHZ 1300 PC */
 #define FTDI_ELV_WS500_PID	0xE0E9	/* PC-Wetterstation (WS 500) */
+#define FTDI_ELV_HS485_PID	0xE0EA	/* USB to RS-485 adapter */
 #define FTDI_ELV_EM1010PC_PID	0xE0EF	/* Engery monitor EM 1010 PC */
+#define FTDI_PHI_FISCO_PID      0xE40B  /* PHI Fisco USB to Serial cable */
 
 /*
  * Definitions for ID TECH (www.idt-net.com) devices
@@ -748,6 +750,7 @@
 
 #define PAPOUCH_VID			0x5050	/* Vendor ID */
 #define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
+#define PAPOUCH_QUIDO4x4_PID		0x0900	/* Quido 4/4 Module */
 
 /*
  * ACG Identification Technologies GmbH products (http://www.acg.de/).
@@ -815,6 +818,11 @@
 #define OLIMEX_VID			0x15BA
 #define OLIMEX_ARM_USB_OCD_PID		0x0003
 
+/* Luminary Micro Stellaris Boards, VID = FTDI_VID */
+/* FTDI 2332C Dual channel device, side A=245 FIFO (JTAG), Side B=RS232 UART */
+#define LMI_LM3S_DEVEL_BOARD_PID	0xbcd8
+#define LMI_LM3S_EVAL_BOARD_PID		0xbcd9
+
 /* www.elsterelectricity.com Elster Unicom III Optical Probe */
 #define FTDI_ELSTER_UNICOM_PID		0xE700 /* Product Id */
 
@@ -830,6 +838,10 @@
 
 /* Rig Expert Ukraine devices */
 #define FTDI_REU_TINY_PID		0xED22	/* RigExpert Tiny */
+
+/* Domintell products  http://www.domintell.com */
+#define FTDI_DOMINTELL_DGQG_PID	0xEF50	/* Master */
+#define FTDI_DOMINTELL_DUSB_PID	0xEF51	/* DUSB01 module */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

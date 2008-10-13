@@ -167,6 +167,26 @@ enum fc_tgtid_binding_type  {
 struct device_attribute dev_attr_vport_##_name = 	\
 	__ATTR(_name,_mode,_show,_store)
 
+/*
+ * fc_vport_identifiers: This set of data contains all elements
+ * to uniquely identify and instantiate a FC virtual port.
+ *
+ * Notes:
+ *   symbolic_name: The driver is to append the symbolic_name string data
+ *      to the symbolic_node_name data that it generates by default.
+ *      the resulting combination should then be registered with the switch.
+ *      It is expected that things like Xen may stuff a VM title into
+ *      this field.
+ */
+#define FC_VPORT_SYMBOLIC_NAMELEN		64
+struct fc_vport_identifiers {
+	u64 node_name;
+	u64 port_name;
+	u32 roles;
+	bool disable;
+	enum fc_port_type vport_type;	/* only FC_PORTTYPE_NPIV allowed */
+	char symbolic_name[FC_VPORT_SYMBOLIC_NAMELEN];
+};
 
 /*
  * FC Virtual Port Attributes
@@ -197,7 +217,6 @@ struct device_attribute dev_attr_vport_##_name = 	\
  * managed by the transport w/o driver interaction.
  */
 
-#define FC_VPORT_SYMBOLIC_NAMELEN		64
 struct fc_vport {
 	/* Fixed Attributes */
 
@@ -732,6 +751,8 @@ void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 	 *   be sure to read the Vendor Type and ID formatting requirements
 	 *   specified in scsi_netlink.h
 	 */
+struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
+		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);
 
 #endif /* SCSI_TRANSPORT_FC_H */

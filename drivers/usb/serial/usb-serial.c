@@ -122,9 +122,6 @@ static void return_serial(struct usb_serial *serial)
 
 	dbg("%s", __func__);
 
-	if (serial == NULL)
-		return;
-
 	for (i = 0; i < serial->num_ports; ++i)
 		serial_table[serial->minor + i] = NULL;
 }
@@ -142,7 +139,8 @@ static void destroy_serial(struct kref *kref)
 	serial->type->shutdown(serial);
 
 	/* return the minor range that this device had */
-	return_serial(serial);
+	if (serial->minor != SERIAL_TTY_NO_MINOR)
+		return_serial(serial);
 
 	for (i = 0; i < serial->num_ports; ++i)
 		serial->port[i]->port.count = 0;
@@ -575,6 +573,7 @@ static struct usb_serial *create_serial(struct usb_device *dev,
 	serial->interface = interface;
 	kref_init(&serial->kref);
 	mutex_init(&serial->disc_mutex);
+	serial->minor = SERIAL_TTY_NO_MINOR;
 
 	return serial;
 }
@@ -734,7 +733,9 @@ int usb_serial_probe(struct usb_interface *interface,
 	    ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
 	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID)) ||
 	    ((le16_to_cpu(dev->descriptor.idVendor) == ALCOR_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID))) {
+	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID)) ||
+	    ((le16_to_cpu(dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_EF81))) {
 		if (interface != dev->actconfig->interface[0]) {
 			/* check out the endpoints of the other interface*/
 			iface_desc = dev->actconfig->interface[0]->cur_altsetting;

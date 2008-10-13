@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
+#include <media/v4l2-ioctl.h>
 #include <asm/io.h>
 #include "bttvp.h"
 

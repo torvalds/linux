@@ -75,7 +75,7 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	for (;;) {
-		if (ARCH_SUN4C_SUN4) {
+		if (ARCH_SUN4C) {
 			static int count = HZ;
 			static unsigned long last_jiffies;
 			static unsigned long last_faults;

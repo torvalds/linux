@@ -329,7 +329,7 @@ static int xennet_open(struct net_device *dev)
 	}
 	spin_unlock_bh(&np->rx_lock);
 
-	xennet_maybe_wake_tx(dev);
+	netif_start_queue(dev);
 
 	return 0;
 }
@@ -1794,10 +1794,10 @@ static struct xenbus_driver netfront = {
 
 static int __init netif_init(void)
 {
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		return -ENODEV;
 
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return 0;
 
 	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");
@@ -1809,7 +1809,7 @@ module_init(netif_init);
 
 static void __exit netif_exit(void)
 {
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return;
 
 	xenbus_unregister_driver(&netfront);

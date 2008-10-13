@@ -14,7 +14,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>
 #include <linux/mnt_namespace.h>

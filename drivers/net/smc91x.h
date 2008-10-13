@@ -43,7 +43,8 @@
 #if defined(CONFIG_ARCH_LUBBOCK) ||\
     defined(CONFIG_MACH_MAINSTONE) ||\
     defined(CONFIG_MACH_ZYLONITE) ||\
-    defined(CONFIG_MACH_LITTLETON)
+    defined(CONFIG_MACH_LITTLETON) ||\
+    defined(CONFIG_ARCH_VIPER)
 
 #include <asm/mach-types.h>
 
@@ -187,7 +188,7 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 
 #elif defined(CONFIG_SA1100_ASSABET)
 
-#include <asm/arch/neponset.h>
+#include <mach/neponset.h>
 
 /* We can only do 8-bit reads and writes in the static memory space. */
 #define SMC_CAN_USE_8BIT	1
@@ -339,7 +340,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
  * IOBARRIER on entry to their ISR.
  */
 
-#include <asm/arch/constants.h>	/* IOBARRIER_VIRT */
+#include <mach/constants.h>	/* IOBARRIER_VIRT */
 
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1
@@ -446,6 +447,8 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define SMC_CAN_USE_32BIT	1
 #define SMC_NOWAIT		1
 
+#define SMC_IO_SHIFT		(lp->io_shift)
+
 #define SMC_inb(a, r)		readb((a) + (r))
 #define SMC_inw(a, r)		readw((a) + (r))
 #define SMC_inl(a, r)		readl((a) + (r))
@@ -525,7 +528,7 @@ struct smc_local {
  */
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 #ifdef SMC_insl
 #undef SMC_insl
@@ -778,14 +781,6 @@ smc_pxa_dma_irq(int dma, void *dummy)
 #define RPC_ANEG	0x0800	// When 1 PHY is in Auto-Negotiate Mode
 #define RPC_LSXA_SHFT	5	// Bits to shift LS2A,LS1A,LS0A to lsb
 #define RPC_LSXB_SHFT	2	// Bits to get LS2B,LS1B,LS0B to lsb
-#define RPC_LED_100_10	(0x00)	// LED = 100Mbps OR's with 10Mbps link detect
-#define RPC_LED_RES	(0x01)	// LED = Reserved
-#define RPC_LED_10	(0x02)	// LED = 10Mbps link detect
-#define RPC_LED_FD	(0x03)	// LED = Full Duplex Mode
-#define RPC_LED_TX_RX	(0x04)	// LED = TX or RX packet occurred
-#define RPC_LED_100	(0x05)	// LED = 100Mbps link dectect
-#define RPC_LED_TX	(0x06)	// LED = TX packet occurred
-#define RPC_LED_RX	(0x07)	// LED = RX packet occurred
 
 #ifndef RPC_LSA_DEFAULT
 #define RPC_LSA_DEFAULT	RPC_LED_100
@@ -794,7 +789,7 @@ smc_pxa_dma_irq(int dma, void *dummy)
 #define RPC_LSB_DEFAULT RPC_LED_FD
 #endif
 
-#define RPC_DEFAULT (RPC_ANEG | (RPC_LSA_DEFAULT << RPC_LSXA_SHFT) | (RPC_LSB_DEFAULT << RPC_LSXB_SHFT) | RPC_SPEED | RPC_DPLX)
+#define RPC_DEFAULT (RPC_ANEG | RPC_SPEED | RPC_DPLX)
 
 
 /* Bank 0 0x0C is reserved */

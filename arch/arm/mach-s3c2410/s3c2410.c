@@ -19,16 +19,16 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-clock.h>
+#include <mach/regs-clock.h>
 #include <asm/plat-s3c/regs-serial.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>

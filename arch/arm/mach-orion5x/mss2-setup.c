@@ -25,7 +25,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -109,7 +109,7 @@ subsys_initcall(mss2_pci_init);
  ****************************************************************************/
 
 static struct mv643xx_eth_platform_data mss2_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 /*****************************************************************************
@@ -239,6 +239,7 @@ static void __init mss2_init(void)
 	orion5x_i2c_init();
 	orion5x_sata_init(&mss2_sata_data);
 	orion5x_uart0_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(MSS2_NOR_BOOT_BASE, MSS2_NOR_BOOT_SIZE);
 	platform_device_register(&mss2_nor_flash);

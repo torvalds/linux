@@ -161,4 +161,13 @@ pid_t pid_vnr(struct pid *pid);
 			}						\
 	} while (0)
 
+#define do_each_pid_thread(pid, type, task)				\
+	do_each_pid_task(pid, type, task) {				\
+		struct task_struct *tg___ = task;			\
+		do {
+
+#define while_each_pid_thread(pid, type, task)				\
+		} while_each_thread(tg___, task);			\
+		task = tg___;						\
+	} while_each_pid_task(pid, type, task)
 #endif /* _LINUX_PID_H */

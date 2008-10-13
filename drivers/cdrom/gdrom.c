@@ -39,8 +39,8 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/delay.h>
-#include <asm/mach/dma.h>
-#include <asm/mach/sysasic.h>
+#include <mach/dma.h>
+#include <mach/sysasic.h>
 
 #define GDROM_DEV_NAME "gdrom"
 #define GD_SESSION_OFFSET 150
@@ -471,6 +471,12 @@ cleanup_sense_final:
 	return err;
 }
 
+static int gdrom_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
+			     void *arg)
+{
+	return -EINVAL;
+}
+
 static struct cdrom_device_ops gdrom_ops = {
 	.open			= gdrom_open,
 	.release		= gdrom_release,
@@ -478,6 +484,7 @@ static struct cdrom_device_ops gdrom_ops = {
 	.media_changed		= gdrom_mediachanged,
 	.get_last_session	= gdrom_get_last_session,
 	.reset			= gdrom_hardreset,
+	.audio_ioctl		= gdrom_audio_ioctl,
 	.capability		= CDC_MULTI_SESSION | CDC_MEDIA_CHANGED |
 				  CDC_RESET | CDC_DRIVE_STATUS | CDC_CD_R,
 	.n_minors		= 1,
@@ -617,14 +624,14 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		ctrl_outb(1, GDROM_DMA_STATUS_REG);
 		wait_event_interruptible_timeout(request_queue,
 			gd.transfer == 0, GDROM_DEFAULT_TIMEOUT);
-		err = gd.transfer;
+		err = gd.transfer ? -EIO : 0;
 		gd.transfer = 0;
 		gd.pending = 0;
 		/* now seek to take the request spinlock
 		* before handling ending the request */
 		spin_lock(&gdrom_lock);
 		list_del_init(&req->queuelist);
-		end_dequeued_request(req, 1 - err);
+		__blk_end_request(req, err, blk_rq_bytes(req));
 	}
 	spin_unlock(&gdrom_lock);
 	kfree(read_command);

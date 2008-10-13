@@ -26,7 +26,7 @@
 #include <asm/cpufeature.h>
 
 #define PFX		"speedstep-centrino: "
-#define MAINTAINER	"cpufreq@lists.linux.org.uk"
+#define MAINTAINER	"cpufreq@vger.kernel.org"
 
 #define dprintk(msg...) \
 	cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "speedstep-centrino", msg)
@@ -324,10 +324,9 @@ static unsigned int get_cur_freq(unsigned int cpu)
 	unsigned l, h;
 	unsigned clock_freq;
 	cpumask_t saved_mask;
-	cpumask_of_cpu_ptr(new_mask, cpu);
 
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, new_mask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (smp_processor_id() != cpu)
 		return 0;
 
@@ -585,15 +584,12 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 * Best effort undo..
 		 */
 
-		if (!cpus_empty(*covered_cpus)) {
-			cpumask_of_cpu_ptr_declare(new_mask);
-
+		if (!cpus_empty(*covered_cpus))
 			for_each_cpu_mask_nr(j, *covered_cpus) {
-				cpumask_of_cpu_ptr_next(new_mask, j);
-				set_cpus_allowed_ptr(current, new_mask);
+				set_cpus_allowed_ptr(current,
+						     &cpumask_of_cpu(j));
 				wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
 			}
-		}
 
 		tmp = freqs.new;
 		freqs.new = freqs.old;

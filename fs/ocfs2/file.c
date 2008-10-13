@@ -1176,7 +1176,7 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
+int ocfs2_permission(struct inode *inode, int mask)
 {
 	int ret;
 
@@ -1766,8 +1766,8 @@ out_inode_unlock:
 out_rw_unlock:
 	ocfs2_rw_unlock(inode, 1);
 
-	mutex_unlock(&inode->i_mutex);
 out:
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 
@@ -2228,6 +2228,7 @@ const struct inode_operations ocfs2_file_iops = {
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
 	.fallocate	= ocfs2_fallocate,
+	.fiemap		= ocfs2_fiemap,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {

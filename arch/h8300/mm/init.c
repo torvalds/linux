@@ -40,9 +40,6 @@
 
 #undef DEBUG
 
-extern void die_if_kernel(char *,struct pt_regs *,long);
-extern void free_initmem(void);
-
 /*
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
@@ -64,33 +61,6 @@ unsigned long empty_zero_page;
 
 extern unsigned long rom_length;
 
-void show_mem(void)
-{
-    unsigned long i;
-    int free = 0, total = 0, reserved = 0, shared = 0;
-    int cached = 0;
-
-    printk("\nMem-info:\n");
-    show_free_areas();
-    i = max_mapnr;
-    while (i-- > 0) {
-	total++;
-	if (PageReserved(mem_map+i))
-	    reserved++;
-	else if (PageSwapCache(mem_map+i))
-	    cached++;
-	else if (!page_count(mem_map+i))
-	    free++;
-	else
-	    shared += page_count(mem_map+i) - 1;
-    }
-    printk("%d pages of RAM\n",total);
-    printk("%d free pages\n",free);
-    printk("%d reserved pages\n",reserved);
-    printk("%d pages shared\n",shared);
-    printk("%d pages swap cached\n",cached);
-}
-
 extern unsigned long memory_start;
 extern unsigned long memory_end;
 
@@ -100,7 +70,7 @@ extern unsigned long memory_end;
  * The parameters are pointers to where to stick the starting and ending
  * addresses of available kernel virtual memory.
  */
-void paging_init(void)
+void __init paging_init(void)
 {
 	/*
 	 * Make sure start_mem is page aligned,  otherwise bootmem and
@@ -149,7 +119,7 @@ void paging_init(void)
 	}
 }
 
-void mem_init(void)
+void __init mem_init(void)
 {
 	int codek = 0, datak = 0, initk = 0;
 	/* DAVIDM look at setup memory map generically with reserved area */
@@ -205,7 +175,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 #endif
 
 void
-free_initmem()
+free_initmem(void)
 {
 #ifdef CONFIG_RAMKERNEL
 	unsigned long addr;

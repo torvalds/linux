@@ -889,6 +889,16 @@ xfs_iomap_write_unwritten(
 	count_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	count_fsb = (xfs_filblks_t)(count_fsb - offset_fsb);
 
+	/*
+	 * Reserve enough blocks in this transaction for two complete extent
+	 * btree splits.  We may be converting the middle part of an unwritten
+	 * extent and in this case we will insert two new extents in the btree
+	 * each of which could cause a full split.
+	 *
+	 * This reservation amount will be used in the first call to
+	 * xfs_bmbt_split() to select an AG with enough space to satisfy the
+	 * rest of the operation.
+	 */
 	resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0) << 1;
 
 	do {

@@ -1403,10 +1403,10 @@ struct ipr_ucode_image_header {
 }
 
 #define ipr_trace ipr_dbg("%s: %s: Line: %d\n",\
-	__FILE__, __FUNCTION__, __LINE__)
+	__FILE__, __func__, __LINE__)
 
-#define ENTER IPR_DBG_CMD(printk(KERN_INFO IPR_NAME": Entering %s\n", __FUNCTION__))
-#define LEAVE IPR_DBG_CMD(printk(KERN_INFO IPR_NAME": Leaving %s\n", __FUNCTION__))
+#define ENTER IPR_DBG_CMD(printk(KERN_INFO IPR_NAME": Entering %s\n", __func__))
+#define LEAVE IPR_DBG_CMD(printk(KERN_INFO IPR_NAME": Leaving %s\n", __func__))
 
 #define ipr_err_separator \
 ipr_err("----------------------------------------------------------\n")

@@ -1003,6 +1003,25 @@ int icmp6_dst_gc(void)
 	return more;
 }
 
+static void icmp6_clean_all(int (*func)(struct rt6_info *rt, void *arg),
+			    void *arg)
+{
+	struct dst_entry *dst, **pprev;
+
+	spin_lock_bh(&icmp6_dst_lock);
+	pprev = &icmp6_dst_gc_list;
+	while ((dst = *pprev) != NULL) {
+		struct rt6_info *rt = (struct rt6_info *) dst;
+		if (func(rt, arg)) {
+			*pprev = dst->next;
+			dst_free(dst);
+		} else {
+			pprev = &dst->next;
+		}
+	}
+	spin_unlock_bh(&icmp6_dst_lock);
+}
+
 static int ip6_dst_gc(struct dst_ops *ops)
 {
 	unsigned long now = jiffies;
@@ -1249,7 +1268,7 @@ install_route:
 
 	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = -1;
-	if (!dst_metric(&rt->u.dst, RTAX_MTU))
+	if (!dst_mtu(&rt->u.dst))
 		rt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(dev);
 	if (!dst_metric(&rt->u.dst, RTAX_ADVMSS))
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(net, dst_mtu(&rt->u.dst));
@@ -1814,16 +1833,19 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 static int ip6_pkt_drop(struct sk_buff *skb, int code, int ipstats_mib_noroutes)
 {
 	int type;
+	struct dst_entry *dst = skb->dst;
 	switch (ipstats_mib_noroutes) {
 	case IPSTATS_MIB_INNOROUTES:
 		type = ipv6_addr_type(&ipv6_hdr(skb)->daddr);
 		if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED) {
-			IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INADDRERRORS);
+			IP6_INC_STATS(dev_net(dst->dev), ip6_dst_idev(dst),
+				      IPSTATS_MIB_INADDRERRORS);
 			break;
 		}
 		/* FALLTHROUGH */
 	case IPSTATS_MIB_OUTNOROUTES:
-		IP6_INC_STATS(ip6_dst_idev(skb->dst), ipstats_mib_noroutes);
+		IP6_INC_STATS(dev_net(dst->dev), ip6_dst_idev(dst),
+			      ipstats_mib_noroutes);
 		break;
 	}
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, code, 0, skb->dev);
@@ -1930,6 +1952,7 @@ void rt6_ifdown(struct net *net, struct net_device *dev)
 	};
 
 	fib6_clean_all(net, fib6_ifdown, 0, &adn);
+	icmp6_clean_all(fib6_ifdown, &adn);
 }
 
 struct rt6_mtu_change_arg
@@ -2106,7 +2129,8 @@ static inline size_t rt6_nlmsg_size(void)
 	       + nla_total_size(sizeof(struct rta_cacheinfo));
 }
 
-static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
+static int rt6_fill_node(struct net *net,
+			 struct sk_buff *skb, struct rt6_info *rt,
 			 struct in6_addr *dst, struct in6_addr *src,
 			 int iif, int type, u32 pid, u32 seq,
 			 int prefix, int nowait, unsigned int flags)
@@ -2187,8 +2211,9 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 #endif
 			NLA_PUT_U32(skb, RTA_IIF, iif);
 	} else if (dst) {
+		struct inet6_dev *idev = ip6_dst_idev(&rt->u.dst);
 		struct in6_addr saddr_buf;
-		if (ipv6_dev_get_saddr(ip6_dst_idev(&rt->u.dst)->dev,
+		if (ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,
 				       dst, 0, &saddr_buf) == 0)
 			NLA_PUT(skb, RTA_PREFSRC, 16, &saddr_buf);
 	}
@@ -2233,7 +2258,8 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 	} else
 		prefix = 0;
 
-	return rt6_fill_node(arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
+	return rt6_fill_node(arg->net,
+		     arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
 		     NETLINK_CB(arg->cb->skb).pid, arg->cb->nlh->nlmsg_seq,
 		     prefix, 0, NLM_F_MULTI);
 }
@@ -2299,7 +2325,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void
 	rt = (struct rt6_info*) ip6_route_output(net, NULL, &fl);
 	skb->dst = &rt->u.dst;
 
-	err = rt6_fill_node(skb, rt, &fl.fl6_dst, &fl.fl6_src, iif,
+	err = rt6_fill_node(net, skb, rt, &fl.fl6_dst, &fl.fl6_src, iif,
 			    RTM_NEWROUTE, NETLINK_CB(in_skb).pid,
 			    nlh->nlmsg_seq, 0, 0, 0);
 	if (err < 0) {
@@ -2326,7 +2352,7 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 	if (skb == NULL)
 		goto errout;
 
-	err = rt6_fill_node(skb, rt, NULL, NULL, 0,
+	err = rt6_fill_node(net, skb, rt, NULL, NULL, 0,
 				event, info->pid, seq, 0, 0, 0);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
@@ -2608,10 +2634,8 @@ static int ip6_route_net_init(struct net *net)
 	net->ipv6.ip6_prohibit_entry = kmemdup(&ip6_prohibit_entry_template,
 					       sizeof(*net->ipv6.ip6_prohibit_entry),
 					       GFP_KERNEL);
-	if (!net->ipv6.ip6_prohibit_entry) {
-		kfree(net->ipv6.ip6_null_entry);
-		goto out;
-	}
+	if (!net->ipv6.ip6_prohibit_entry)
+		goto out_ip6_null_entry;
 	net->ipv6.ip6_prohibit_entry->u.dst.path =
 		(struct dst_entry *)net->ipv6.ip6_prohibit_entry;
 	net->ipv6.ip6_prohibit_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
@@ -2619,15 +2643,21 @@ static int ip6_route_net_init(struct net *net)
 	net->ipv6.ip6_blk_hole_entry = kmemdup(&ip6_blk_hole_entry_template,
 					       sizeof(*net->ipv6.ip6_blk_hole_entry),
 					       GFP_KERNEL);
-	if (!net->ipv6.ip6_blk_hole_entry) {
-		kfree(net->ipv6.ip6_null_entry);
-		kfree(net->ipv6.ip6_prohibit_entry);
-		goto out;
-	}
+	if (!net->ipv6.ip6_blk_hole_entry)
+		goto out_ip6_prohibit_entry;
 	net->ipv6.ip6_blk_hole_entry->u.dst.path =
 		(struct dst_entry *)net->ipv6.ip6_blk_hole_entry;
 	net->ipv6.ip6_blk_hole_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
 #endif
+
+	net->ipv6.sysctl.flush_delay = 0;
+	net->ipv6.sysctl.ip6_rt_max_size = 4096;
+	net->ipv6.sysctl.ip6_rt_gc_min_interval = HZ / 2;
+	net->ipv6.sysctl.ip6_rt_gc_timeout = 60*HZ;
+	net->ipv6.sysctl.ip6_rt_gc_interval = 30*HZ;
+	net->ipv6.sysctl.ip6_rt_gc_elasticity = 9;
+	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
+	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
 
 #ifdef CONFIG_PROC_FS
 	proc_net_fops_create(net, "ipv6_route", 0, &ipv6_route_proc_fops);
@@ -2639,6 +2669,12 @@ static int ip6_route_net_init(struct net *net)
 out:
 	return ret;
 
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+out_ip6_prohibit_entry:
+	kfree(net->ipv6.ip6_prohibit_entry);
+out_ip6_null_entry:
+	kfree(net->ipv6.ip6_null_entry);
+#endif
 out_ip6_dst_ops:
 	release_net(net->ipv6.ip6_dst_ops->dst_net);
 	kfree(net->ipv6.ip6_dst_ops);
@@ -2684,6 +2720,8 @@ int __init ip6_route_init(void)
 	ret = register_pernet_subsys(&ip6_route_net_ops);
 	if (ret)
 		goto out_kmem_cache;
+
+	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops_template.kmem_cachep;
 
 	/* Registering of the loopback is done before this portion of code,
 	 * the loopback reference in rt6_info will not be taken, do it

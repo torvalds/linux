@@ -33,9 +33,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/arch/imxfb.h>
+#include <mach/imxfb.h>
 
 /*
  * Complain if VAR is out of range.

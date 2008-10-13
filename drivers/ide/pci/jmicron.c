@@ -8,7 +8,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -27,7 +26,7 @@ typedef enum {
  *	Returns the cable type.
  */
 
-static u8 __devinit jmicron_cable_detect(ide_hwif_t *hwif)
+static u8 jmicron_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 
@@ -155,6 +154,8 @@ static struct pci_driver driver = {
 	.id_table	= jmicron_pci_tbl,
 	.probe		= jmicron_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init jmicron_ide_init(void)

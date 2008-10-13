@@ -88,7 +88,7 @@ static void propagate_rate(struct clk *clk)
 	}
 }
 
-int __clk_enable(struct clk *clk)
+static int __clk_enable(struct clk *clk)
 {
 	/*
 	 * See if this is the first time we're enabling the clock, some
@@ -111,7 +111,6 @@ int __clk_enable(struct clk *clk)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__clk_enable);
 
 int clk_enable(struct clk *clk)
 {
@@ -131,7 +130,7 @@ static void clk_kref_release(struct kref *kref)
 	/* Nothing to do */
 }
 
-void __clk_disable(struct clk *clk)
+static void __clk_disable(struct clk *clk)
 {
 	int count = kref_put(&clk->kref, clk_kref_release);
 
@@ -143,7 +142,6 @@ void __clk_disable(struct clk *clk)
 			clk->ops->disable(clk);
 	}
 }
-EXPORT_SYMBOL_GPL(__clk_disable);
 
 void clk_disable(struct clk *clk)
 {
@@ -310,15 +308,11 @@ static int show_clocks(char *buf, char **start, off_t off,
 	list_for_each_entry_reverse(clk, &clock_list, node) {
 		unsigned long rate = clk_get_rate(clk);
 
-		/*
-		 * Don't bother listing dummy clocks with no ancestry
-		 * that only support enable and disable ops.
-		 */
-		if (unlikely(!rate && !clk->parent))
-			continue;
-
-		p += sprintf(p, "%-12s\t: %ld.%02ldMHz\n", clk->name,
-			     rate / 1000000, (rate % 1000000) / 10000);
+		p += sprintf(p, "%-12s\t: %ld.%02ldMHz\t%s\n", clk->name,
+			     rate / 1000000, (rate % 1000000) / 10000,
+			     ((clk->flags & CLK_ALWAYS_ENABLED) ||
+			      (atomic_read(&clk->kref.refcount) != 1)) ?
+			     "enabled" : "disabled");
 	}
 
 	return p - buf;

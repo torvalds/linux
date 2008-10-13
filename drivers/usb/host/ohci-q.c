@@ -49,6 +49,9 @@ __acquires(ohci->lock)
 	switch (usb_pipetype (urb->pipe)) {
 	case PIPE_ISOCHRONOUS:
 		ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs--;
+		if (ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs == 0
+				&& quirk_amdiso(ohci))
+			quirk_amd_pll(1);
 		break;
 	case PIPE_INTERRUPT:
 		ohci_to_hcd(ohci)->self.bandwidth_int_reqs--;
@@ -677,6 +680,9 @@ static void td_submit_urb (
 				data + urb->iso_frame_desc [cnt].offset,
 				urb->iso_frame_desc [cnt].length, urb, cnt);
 		}
+		if (ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs == 0
+				&& quirk_amdiso(ohci))
+			quirk_amd_pll(0);
 		periodic = ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs++ == 0
 			&& ohci_to_hcd(ohci)->self.bandwidth_int_reqs == 0;
 		break;

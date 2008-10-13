@@ -2102,8 +2102,6 @@ int usb_port_resume(struct usb_device *udev)
 	}
 
 	clear_bit(port1, hub->busy_bits);
-	if (!hub->hdev->parent && !hub->busy_bits[0])
-		usb_enable_root_hub_irq(hub->hdev->bus);
 
 	status = check_port_resume_type(udev,
 			hub, port1, status, portchange, portstatus);
@@ -2685,35 +2683,17 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 				USB_PORT_STAT_C_ENABLE);
 #endif
 
-	/* Try to use the debounce delay for protection against
-	 * port-enable changes caused, for example, by EMI.
-	 */
-	if (portchange & (USB_PORT_STAT_C_CONNECTION |
-				USB_PORT_STAT_C_ENABLE)) {
-		status = hub_port_debounce(hub, port1);
-		if (status < 0) {
-			if (printk_ratelimit())
-				dev_err (hub_dev, "connect-debounce failed, "
-						"port %d disabled\n", port1);
-			portstatus &= ~USB_PORT_STAT_CONNECTION;
-		} else {
-			portstatus = status;
-		}
-	}
-
 	/* Try to resuscitate an existing device */
 	udev = hdev->children[port1-1];
 	if ((portstatus & USB_PORT_STAT_CONNECTION) && udev &&
 			udev->state != USB_STATE_NOTATTACHED) {
-
 		usb_lock_device(udev);
 		if (portstatus & USB_PORT_STAT_ENABLE) {
 			status = 0;		/* Nothing to do */
-		} else if (!udev->persist_enabled) {
-			status = -ENODEV;	/* Mustn't resuscitate */
 
 #ifdef CONFIG_USB_SUSPEND
-		} else if (udev->state == USB_STATE_SUSPENDED) {
+		} else if (udev->state == USB_STATE_SUSPENDED &&
+				udev->persist_enabled) {
 			/* For a suspended device, treat this as a
 			 * remote wakeup event.
 			 */
@@ -2728,7 +2708,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 #endif
 
 		} else {
-			status = usb_reset_device(udev);
+			status = -ENODEV;	/* Don't resuscitate */
 		}
 		usb_unlock_device(udev);
 
@@ -2743,6 +2723,19 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		usb_disconnect(&hdev->children[port1-1]);
 	clear_bit(port1, hub->change_bits);
 
+	if (portchange & (USB_PORT_STAT_C_CONNECTION |
+				USB_PORT_STAT_C_ENABLE)) {
+		status = hub_port_debounce(hub, port1);
+		if (status < 0) {
+			if (printk_ratelimit())
+				dev_err(hub_dev, "connect-debounce failed, "
+						"port %d disabled\n", port1);
+			portstatus &= ~USB_PORT_STAT_CONNECTION;
+		} else {
+			portstatus = status;
+		}
+	}
+
 	/* Return now if debouncing failed or nothing is connected */
 	if (!(portstatus & USB_PORT_STAT_CONNECTION)) {
 
@@ -2750,7 +2743,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2
 				&& !(portstatus & (1 << USB_PORT_FEAT_POWER)))
 			set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
- 
+
 		if (portstatus & USB_PORT_STAT_ENABLE)
   			goto done;
 		return;
@@ -3081,11 +3074,6 @@ static void hub_events(void)
 			}
 		}
 
-		/* If this is a root hub, tell the HCD it's okay to
-		 * re-enable port-change interrupts now. */
-		if (!hdev->parent && !hub->busy_bits[0])
-			usb_enable_root_hub_irq(hdev->bus);
-
 loop_autopm:
 		/* Allow autosuspend if we're not going to run again */
 		if (list_empty(&hub->event_list))
@@ -3311,8 +3299,6 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 			break;
 	}
 	clear_bit(port1, parent_hub->busy_bits);
-	if (!parent_hdev->parent && !parent_hub->busy_bits[0])
-		usb_enable_root_hub_irq(parent_hdev->bus);
 
 	if (ret < 0)
 		goto re_enumerate;

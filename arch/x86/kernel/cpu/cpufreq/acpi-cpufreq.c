@@ -200,12 +200,10 @@ static void drv_read(struct drv_cmd *cmd)
 static void drv_write(struct drv_cmd *cmd)
 {
 	cpumask_t saved_mask = current->cpus_allowed;
-	cpumask_of_cpu_ptr_declare(cpu_mask);
 	unsigned int i;
 
 	for_each_cpu_mask_nr(i, cmd->mask) {
-		cpumask_of_cpu_ptr_next(cpu_mask, i);
-		set_cpus_allowed_ptr(current, cpu_mask);
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(i));
 		do_drv_write(cmd);
 	}
 
@@ -258,7 +256,8 @@ static u32 get_cur_val(const cpumask_t *mask)
  * Only IA32_APERF/IA32_MPERF ratio is architecturally defined and
  * no meaning should be associated with absolute values of these MSRs.
  */
-static unsigned int get_measured_perf(unsigned int cpu)
+static unsigned int get_measured_perf(struct cpufreq_policy *policy,
+				      unsigned int cpu)
 {
 	union {
 		struct {
@@ -269,12 +268,11 @@ static unsigned int get_measured_perf(unsigned int cpu)
 	} aperf_cur, mperf_cur;
 
 	cpumask_t saved_mask;
-	cpumask_of_cpu_ptr(cpu_mask, cpu);
 	unsigned int perf_percent;
 	unsigned int retval;
 
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, cpu_mask);
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (get_cpu() != cpu) {
 		/* We were not able to run on requested processor */
 		put_cpu();
@@ -329,7 +327,7 @@ static unsigned int get_measured_perf(unsigned int cpu)
 
 #endif
 
-	retval = per_cpu(drv_data, cpu)->max_freq * perf_percent / 100;
+	retval = per_cpu(drv_data, policy->cpu)->max_freq * perf_percent / 100;
 
 	put_cpu();
 	set_cpus_allowed_ptr(current, &saved_mask);
@@ -340,7 +338,6 @@ static unsigned int get_measured_perf(unsigned int cpu)
 
 static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 {
-	cpumask_of_cpu_ptr(cpu_mask, cpu);
 	struct acpi_cpufreq_data *data = per_cpu(drv_data, cpu);
 	unsigned int freq;
 	unsigned int cached_freq;
@@ -353,7 +350,7 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 	}
 
 	cached_freq = data->freq_table[data->acpi_data->state].frequency;
-	freq = extract_freq(get_cur_val(cpu_mask), data);
+	freq = extract_freq(get_cur_val(&cpumask_of_cpu(cpu)), data);
 	if (freq != cached_freq) {
 		/*
 		 * The dreaded BIOS frequency change behind our back.
@@ -789,7 +786,11 @@ static int __init acpi_cpufreq_init(void)
 	if (ret)
 		return ret;
 
-	return cpufreq_register_driver(&acpi_cpufreq_driver);
+	ret = cpufreq_register_driver(&acpi_cpufreq_driver);
+	if (ret)
+		free_percpu(acpi_perf_data);
+
+	return ret;
 }
 
 static void __exit acpi_cpufreq_exit(void)
@@ -799,8 +800,6 @@ static void __exit acpi_cpufreq_exit(void)
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 
 	free_percpu(acpi_perf_data);
-
-	return;
 }
 
 module_param(acpi_pstate_strict, uint, 0644);

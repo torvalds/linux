@@ -26,18 +26,18 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/magician.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/ohci.h>
+#include <mach/magician.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxafb.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/irda.h>
+#include <mach/ohci.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -409,7 +409,7 @@ static struct platform_device backlight = {
  * LEDs
  */
 
-struct gpio_led gpio_leds[] = {
+static struct gpio_led gpio_leds[] = {
 	{
 		.name = "magician::vibra",
 		.default_trigger = "none",
@@ -669,18 +669,10 @@ static struct pxamci_platform_data magician_mci_info = {
  * USB OHCI
  */
 
-static int magician_ohci_init(struct device *dev)
-{
-	UHCHR = (UHCHR | UHCHR_SSEP2 | UHCHR_PCPL | UHCHR_CGR) &
-	    ~(UHCHR_SSEP1 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data magician_ohci_info = {
-	.port_mode    = PMM_PERPORT_MODE,
-	.init         = magician_ohci_init,
-	.power_budget = 0,
+	.port_mode	= PMM_PERPORT_MODE,
+	.flags		= ENABLE_PORT1 | ENABLE_PORT3 | POWER_CONTROL_LOW,
+	.power_budget	= 0,
 };
 
 

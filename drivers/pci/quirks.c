@@ -923,6 +923,19 @@ static void __init quirk_ide_samemode(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
 
+/*
+ * Some ATA devices break if put into D3
+ */
+
+static void __devinit quirk_no_ata_d3(struct pci_dev *pdev)
+{
+	/* Quirk the legacy ATA devices only. The AHCI ones are ok */
+	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE)
+		pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SERVERWORKS, PCI_ANY_ID, quirk_no_ata_d3);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_ATI, PCI_ANY_ID, quirk_no_ata_d3);
+
 /* This was originally an Alpha specific thing, but it really fits here.
  * The i82375 PCI/EISA bridge appears as non-classified. Fix that.
  */
@@ -1743,9 +1756,14 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_c
  */
 static void __devinit quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
 {
-	/*  Only disable the VPD capability for 5706, 5708, and 5709 rev. A */
+	/*
+	 * Only disable the VPD capability for 5706, 5706S, 5708,
+	 * 5708S and 5709 rev. A
+	 */
 	if ((dev->device == PCI_DEVICE_ID_NX2_5706) ||
+	    (dev->device == PCI_DEVICE_ID_NX2_5706S) ||
 	    (dev->device == PCI_DEVICE_ID_NX2_5708) ||
+	    (dev->device == PCI_DEVICE_ID_NX2_5708S) ||
 	    ((dev->device == PCI_DEVICE_ID_NX2_5709) &&
 	     (dev->revision & 0xf0) == 0x0)) {
 		if (dev->vpd)

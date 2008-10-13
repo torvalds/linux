@@ -14,9 +14,9 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/at91x40.h>
-#include <asm/arch/at91_st.h>
-#include <asm/arch/timex.h>
+#include <mach/at91x40.h>
+#include <mach/at91_st.h>
+#include <mach/timex.h>
 #include "generic.h"
 
 /*

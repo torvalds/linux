@@ -104,9 +104,7 @@ out:
 
 static int ipcomp4_init_state(struct xfrm_state *x)
 {
-	int err;
-	struct ipcomp_data *ipcd;
-	struct xfrm_algo_desc *calg_desc;
+	int err = -EINVAL;
 
 	x->props.header_len = 0;
 	switch (x->props.mode) {

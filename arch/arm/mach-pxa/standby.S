@@ -11,10 +11,10 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
 
 		.text
 

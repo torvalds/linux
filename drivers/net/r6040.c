@@ -24,7 +24,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -266,7 +265,7 @@ static void r6040_free_txbufs(struct net_device *dev)
 				le32_to_cpu(lp->tx_insert_ptr->buf),
 				MAX_BUF_SIZE, PCI_DMA_TODEVICE);
 			dev_kfree_skb(lp->tx_insert_ptr->skb_ptr);
-			lp->rx_insert_ptr->skb_ptr = NULL;
+			lp->tx_insert_ptr->skb_ptr = NULL;
 		}
 		lp->tx_insert_ptr = lp->tx_insert_ptr->vndescp;
 	}
@@ -371,7 +370,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	/* Reset internal state machine */
 	iowrite16(2, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
-	udelay(5000);
+	mdelay(5);
 
 	/* MAC Bus Control Register */
 	iowrite16(MBCR_DEFAULT, ioaddr + MBCR);
@@ -807,7 +806,7 @@ static void r6040_mac_address(struct net_device *dev)
 	iowrite16(0x01, ioaddr + MCR1); /* Reset MAC */
 	iowrite16(2, ioaddr + MAC_SM); /* Reset internal state machine */
 	iowrite16(0, ioaddr + MAC_SM);
-	udelay(5000);
+	mdelay(5);
 
 	/* Restore MAC Address */
 	adrp = (u16 *) dev->dev_addr;

@@ -61,7 +61,7 @@
  * This driver is PXA25x only.  Grab the right register definitions.
  */
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa25x-udc.h>
+#include <mach/pxa25x-udc.h>
 #endif
 
 #include <asm/mach/udc_pxa2xx.h>

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_KDEBUG_H
-#define _ASM_X86_KDEBUG_H
+#ifndef ASM_X86__KDEBUG_H
+#define ASM_X86__KDEBUG_H
 
 #include <linux/notifier.h>
 
@@ -35,4 +35,4 @@ extern void show_regs(struct pt_regs *regs);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
 
-#endif
+#endif /* ASM_X86__KDEBUG_H */

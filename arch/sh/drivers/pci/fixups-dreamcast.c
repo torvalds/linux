@@ -26,7 +26,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach/pci.h>
+#include <mach/pci.h>
 
 static void __init gapspci_fixup_resources(struct pci_dev *dev)
 {

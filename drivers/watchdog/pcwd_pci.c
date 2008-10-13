@@ -46,9 +46,8 @@
 #include <linux/pci.h>		/* For pci functions */
 #include <linux/ioport.h>	/* For io-port access */
 #include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
-
-#include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
-#include <asm/io.h>		/* For inb/outb/... */
+#include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
+#include <linux/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
 #define WATCHDOG_VERSION "1.03"
@@ -97,7 +96,7 @@
 #define CMD_GET_CLEAR_RESET_COUNT		0x84
 
 /* Watchdog's Dip Switch heartbeat values */
-static const int heartbeat_tbl [] = {
+static const int heartbeat_tbl[] = {
 	5,	/* OFF-OFF-OFF	=  5 Sec  */
 	10,	/* OFF-OFF-ON	= 10 Sec  */
 	30,	/* OFF-ON-OFF	= 30 Sec  */
@@ -220,11 +219,10 @@ static void pcipcwd_show_card_info(void)
 	int option_switches;
 
 	got_fw_rev = send_command(CMD_GET_FIRMWARE_VERSION, &fw_rev_major, &fw_rev_minor);
-	if (got_fw_rev) {
+	if (got_fw_rev)
 		sprintf(fw_ver_str, "%u.%02u", fw_rev_major, fw_rev_minor);
-	} else {
+	else
 		sprintf(fw_ver_str, "<card no answer>");
-	}
 
 	/* Get switch settings */
 	option_switches = pcipcwd_get_option_switches();
@@ -331,7 +329,7 @@ static int pcipcwd_get_status(int *status)
 {
 	int control_status;
 
-	*status=0;
+	*status = 0;
 	control_status = inb_p(pcipcwd_private.io_addr + 1);
 	if (control_status & WD_PCI_WTRP)
 		*status |= WDIOF_CARDRESET;
@@ -369,8 +367,8 @@ static int pcipcwd_clear_status(void)
 	outb_p((control_status & WD_PCI_R2DS) | WD_PCI_WTRP, pcipcwd_private.io_addr + 1);
 
 	/* clear reset counter */
-	msb=0;
-	reset_counter=0xff;
+	msb = 0;
+	reset_counter = 0xff;
 	send_command(CMD_GET_CLEAR_RESET_COUNT, &msb, &reset_counter);
 
 	if (debug >= DEBUG) {
@@ -442,7 +440,7 @@ static ssize_t pcipcwd_write(struct file *file, const char __user *data,
 			/* scan to see whether or not we got the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if(get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;
@@ -455,8 +453,8 @@ static ssize_t pcipcwd_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static int pcipcwd_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
+						unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -471,92 +469,89 @@ static int pcipcwd_ioctl(struct inode *inode, struct file *file,
 	};
 
 	switch (cmd) {
-		case WDIOC_GETSUPPORT:
-			return copy_to_user(argp, &ident,
-				sizeof (ident)) ? -EFAULT : 0;
+	case WDIOC_GETSUPPORT:
+		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 
-		case WDIOC_GETSTATUS:
-		{
-			int status;
+	case WDIOC_GETSTATUS:
+	{
+		int status;
+		pcipcwd_get_status(&status);
+		return put_user(status, p);
+	}
 
-			pcipcwd_get_status(&status);
+	case WDIOC_GETBOOTSTATUS:
+		return put_user(pcipcwd_private.boot_status, p);
 
-			return put_user(status, p);
+	case WDIOC_GETTEMP:
+	{
+		int temperature;
+
+		if (pcipcwd_get_temperature(&temperature))
+			return -EFAULT;
+
+		return put_user(temperature, p);
+	}
+
+	case WDIOC_SETOPTIONS:
+	{
+		int new_options, retval = -EINVAL;
+
+		if (get_user(new_options, p))
+			return -EFAULT;
+
+		if (new_options & WDIOS_DISABLECARD) {
+			if (pcipcwd_stop())
+				return -EIO;
+			retval = 0;
 		}
 
-		case WDIOC_GETBOOTSTATUS:
-			return put_user(pcipcwd_private.boot_status, p);
-
-		case WDIOC_GETTEMP:
-		{
-			int temperature;
-
-			if (pcipcwd_get_temperature(&temperature))
-				return -EFAULT;
-
-			return put_user(temperature, p);
+		if (new_options & WDIOS_ENABLECARD) {
+			if (pcipcwd_start())
+				return -EIO;
+			retval = 0;
 		}
 
-		case WDIOC_KEEPALIVE:
-			pcipcwd_keepalive();
-			return 0;
-
-		case WDIOC_SETOPTIONS:
-		{
-			int new_options, retval = -EINVAL;
-
-			if (get_user (new_options, p))
-				return -EFAULT;
-
-			if (new_options & WDIOS_DISABLECARD) {
-				if (pcipcwd_stop())
-					return -EIO;
-				retval = 0;
-			}
-
-			if (new_options & WDIOS_ENABLECARD) {
-				if (pcipcwd_start())
-					return -EIO;
-				retval = 0;
-			}
-
-			if (new_options & WDIOS_TEMPPANIC) {
-				temp_panic = 1;
-				retval = 0;
-			}
-
-			return retval;
+		if (new_options & WDIOS_TEMPPANIC) {
+			temp_panic = 1;
+			retval = 0;
 		}
 
-		case WDIOC_SETTIMEOUT:
-		{
-			int new_heartbeat;
+		return retval;
+	}
 
-			if (get_user(new_heartbeat, p))
-				return -EFAULT;
+	case WDIOC_KEEPALIVE:
+		pcipcwd_keepalive();
+		return 0;
 
-			if (pcipcwd_set_heartbeat(new_heartbeat))
-			    return -EINVAL;
+	case WDIOC_SETTIMEOUT:
+	{
+		int new_heartbeat;
 
-			pcipcwd_keepalive();
-			/* Fall */
-		}
+		if (get_user(new_heartbeat, p))
+			return -EFAULT;
 
-		case WDIOC_GETTIMEOUT:
-			return put_user(heartbeat, p);
+		if (pcipcwd_set_heartbeat(new_heartbeat))
+		    return -EINVAL;
 
-		case WDIOC_GETTIMELEFT:
-		{
-			int time_left;
+		pcipcwd_keepalive();
+		/* Fall */
+	}
 
-			if (pcipcwd_get_timeleft(&time_left))
-				return -EFAULT;
+	case WDIOC_GETTIMEOUT:
+		return put_user(heartbeat, p);
 
-			return put_user(time_left, p);
-		}
+	case WDIOC_GETTIMELEFT:
+	{
+		int time_left;
 
-		default:
-			return -ENOTTY;
+		if (pcipcwd_get_timeleft(&time_left))
+			return -EFAULT;
+
+		return put_user(time_left, p);
+	}
+
+	default:
+		return -ENOTTY;
 	}
 }
 
@@ -603,7 +598,7 @@ static ssize_t pcipcwd_temp_read(struct file *file, char __user *data,
 	if (pcipcwd_get_temperature(&temperature))
 		return -EFAULT;
 
-	if (copy_to_user (data, &temperature, 1))
+	if (copy_to_user(data, &temperature, 1))
 		return -EFAULT;
 
 	return 1;
@@ -628,10 +623,8 @@ static int pcipcwd_temp_release(struct inode *inode, struct file *file)
 
 static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
 {
-	if (code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		pcipcwd_stop();
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		pcipcwd_stop();	/* Turn the WDT off */
 
 	return NOTIFY_DONE;
 }
@@ -644,7 +637,7 @@ static const struct file_operations pcipcwd_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	pcipcwd_write,
-	.ioctl =	pcipcwd_ioctl,
+	.unlocked_ioctl = pcipcwd_ioctl,
 	.open =		pcipcwd_open,
 	.release =	pcipcwd_release,
 };

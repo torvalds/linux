@@ -15,6 +15,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
+#include <net/route.h>
 
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
@@ -92,6 +93,9 @@ struct net_bridge
 	struct hlist_head		hash[BR_HASH_SIZE];
 	struct list_head		age_list;
 	unsigned long			feature_mask;
+#ifdef CONFIG_BRIDGE_NETFILTER
+	struct rtable 			fake_rtable;
+#endif
 	unsigned long			flags;
 #define BR_SET_MAC_ADDR		0x00000001
 
@@ -174,9 +178,9 @@ extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);
-extern int br_add_bridge(const char *name);
-extern int br_del_bridge(const char *name);
-extern void br_cleanup_bridges(void);
+extern int br_add_bridge(struct net *net, const char *name);
+extern int br_del_bridge(struct net *net, const char *name);
+extern void br_net_exit(struct net *net);
 extern int br_add_if(struct net_bridge *br,
 	      struct net_device *dev);
 extern int br_del_if(struct net_bridge *br,
@@ -197,9 +201,11 @@ extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __us
 #ifdef CONFIG_BRIDGE_NETFILTER
 extern int br_netfilter_init(void);
 extern void br_netfilter_fini(void);
+extern void br_netfilter_rtable_init(struct net_bridge *);
 #else
 #define br_netfilter_init()	(0)
 #define br_netfilter_fini()	do { } while(0)
+#define br_netfilter_rtable_init(x)
 #endif
 
 /* br_stp.c */

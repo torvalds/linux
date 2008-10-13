@@ -126,9 +126,8 @@ static void isp1760_writel(const unsigned int val, __u32 __iomem *regs)
  * doesn't quite work because some people have to enforce 32-bit access
  */
 static void priv_read_copy(struct isp1760_hcd *priv, u32 *src,
-		__u32 __iomem *dst, u32 offset, u32 len)
+		__u32 __iomem *dst, u32 len)
 {
-	struct usb_hcd *hcd = priv_to_hcd(priv);
 	u32 val;
 	u8 *buff8;
 
@@ -136,11 +135,6 @@ static void priv_read_copy(struct isp1760_hcd *priv, u32 *src,
 		printk(KERN_ERR "ERROR: buffer: %p len: %d\n", src, len);
 		return;
 	}
-	isp1760_writel(offset,  hcd->regs + HC_MEMORY_REG);
-	/* XXX
-	 * 90nsec delay, the spec says something how this could be avoided.
-	 */
-	mdelay(1);
 
 	while (len >= 4) {
 		*src = __raw_readl(dst);
@@ -987,8 +981,20 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			printk(KERN_ERR "qh is 0\n");
 			continue;
 		}
-		priv_read_copy(priv, (u32 *)&ptd, usb_hcd->regs + atl_regs,
-				atl_regs, sizeof(ptd));
+		isp1760_writel(atl_regs + ISP_BANK(0), usb_hcd->regs +
+				HC_MEMORY_REG);
+		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
+				HC_MEMORY_REG);
+		/*
+		 * write bank1 address twice to ensure the 90ns delay (time
+		 * between BANK0 write and the priv_read_copy() call is at
+		 * least 3*t_WHWL + 2*t_w11 = 3*25ns + 2*17ns = 109ns)
+		 */
+		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
+				HC_MEMORY_REG);
+
+		priv_read_copy(priv, (u32 *)&ptd, usb_hcd->regs + atl_regs +
+				ISP_BANK(0), sizeof(ptd));
 
 		dw1 = le32_to_cpu(ptd.dw1);
 		dw2 = le32_to_cpu(ptd.dw2);
@@ -1091,7 +1097,7 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			case IN_PID:
 				priv_read_copy(priv,
 					priv->atl_ints[queue_entry].data_buffer,
-					usb_hcd->regs + payload, payload,
+					usb_hcd->regs + payload + ISP_BANK(1),
 					length);
 
 			case OUT_PID:
@@ -1122,11 +1128,11 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		} else if (usb_pipebulk(urb->pipe) && (length < qtd->length)) {
 			/* short BULK received */
 
-			printk(KERN_ERR "short bulk, %d instead %zu\n", length,
-					qtd->length);
 			if (urb->transfer_flags & URB_SHORT_NOT_OK) {
 				urb->status = -EREMOTEIO;
-				printk(KERN_ERR "not okey\n");
+				isp1760_dbg(priv, "short bulk, %d instead %zu "
+					"with URB_SHORT_NOT_OK flag.\n",
+					length, qtd->length);
 			}
 
 			if (urb->status == -EINPROGRESS)
@@ -1206,8 +1212,20 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 			continue;
 		}
 
-		priv_read_copy(priv, (u32 *)&ptd, usb_hcd->regs + int_regs,
-				int_regs, sizeof(ptd));
+		isp1760_writel(int_regs + ISP_BANK(0), usb_hcd->regs +
+				HC_MEMORY_REG);
+		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
+				HC_MEMORY_REG);
+		/*
+		 * write bank1 address twice to ensure the 90ns delay (time
+		 * between BANK0 write and the priv_read_copy() call is at
+		 * least 3*t_WHWL + 2*t_w11 = 3*25ns + 2*17ns = 92ns)
+		 */
+		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
+				HC_MEMORY_REG);
+
+		priv_read_copy(priv, (u32 *)&ptd, usb_hcd->regs + int_regs +
+				ISP_BANK(0), sizeof(ptd));
 		dw1 = le32_to_cpu(ptd.dw1);
 		dw3 = le32_to_cpu(ptd.dw3);
 		check_int_err_status(le32_to_cpu(ptd.dw4));
@@ -1242,7 +1260,7 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 			case IN_PID:
 				priv_read_copy(priv,
 					priv->int_ints[queue_entry].data_buffer,
-					usb_hcd->regs + payload , payload,
+					usb_hcd->regs + payload + ISP_BANK(1),
 					length);
 			case OUT_PID:
 
@@ -1615,8 +1633,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		return -EPIPE;
 	}
 
-	isp1760_prepare_enqueue(priv, urb, &qtd_list, mem_flags, pe);
-	return 0;
+	return isp1760_prepare_enqueue(priv, urb, &qtd_list, mem_flags, pe);
 }
 
 static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,

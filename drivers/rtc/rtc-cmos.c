@@ -636,7 +636,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	 */
 #if	defined(CONFIG_ATARI)
 	address_space = 64;
-#elif defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#elif defined(__i386__) || defined(__x86_64__) || defined(__arm__) || defined(__sparc__)
 	address_space = 128;
 #else
 #warning Assuming 128 bytes of RTC+NVRAM address space, not 64 bytes.
@@ -699,7 +699,8 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	/* FIXME teach the alarm code how to handle binary mode;
 	 * <asm-generic/rtc.h> doesn't know 12-hour mode either.
 	 */
-	if (!(rtc_control & RTC_24H) || (rtc_control & (RTC_DM_BINARY))) {
+	if (is_valid_irq(rtc_irq) &&
+	    (!(rtc_control & RTC_24H) || (rtc_control & (RTC_DM_BINARY)))) {
 		dev_dbg(dev, "only 24-hr BCD mode supported\n");
 		retval = -ENXIO;
 		goto cleanup1;
@@ -800,7 +801,6 @@ static void __exit cmos_do_remove(struct device *dev)
 static int cmos_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	int		do_wake = device_may_wakeup(dev);
 	unsigned char	tmp;
 
 	/* only the alarm might be a wakeup event source */
@@ -809,7 +809,7 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 	if (tmp & (RTC_PIE|RTC_AIE|RTC_UIE)) {
 		unsigned char	mask;
 
-		if (do_wake)
+		if (device_may_wakeup(dev))
 			mask = RTC_IRQMASK & ~RTC_AIE;
 		else
 			mask = RTC_IRQMASK;
@@ -835,6 +835,17 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 			tmp);
 
 	return 0;
+}
+
+/* We want RTC alarms to wake us from e.g. ACPI G2/S5 "soft off", even
+ * after a detour through G3 "mechanical off", although the ACPI spec
+ * says wakeup should only work from G1/S4 "hibernate".  To most users,
+ * distinctions between S4 and S5 are pointless.  So when the hardware
+ * allows, don't draw that distinction.
+ */
+static inline int cmos_poweroff(struct device *dev)
+{
+	return cmos_suspend(dev, PMSG_HIBERNATE);
 }
 
 static int cmos_resume(struct device *dev)
@@ -884,6 +895,12 @@ static int cmos_resume(struct device *dev)
 #else
 #define	cmos_suspend	NULL
 #define	cmos_resume	NULL
+
+static inline int cmos_poweroff(struct device *dev)
+{
+	return -ENOSYS;
+}
+
 #endif
 
 /*----------------------------------------------------------------*/
@@ -903,10 +920,6 @@ static int cmos_resume(struct device *dev)
 static int __devinit
 cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 {
-	/* REVISIT paranoia argues for a shutdown notifier, since PNP
-	 * drivers can't provide shutdown() methods to disable IRQs.
-	 * Or better yet, fix PNP to allow those methods...
-	 */
 	if (pnp_port_start(pnp,0) == 0x70 && !pnp_irq_valid(pnp,0))
 		/* Some machines contain a PNP entry for the RTC, but
 		 * don't define the IRQ. It should always be safe to
@@ -942,6 +955,13 @@ static int cmos_pnp_resume(struct pnp_dev *pnp)
 #define	cmos_pnp_resume		NULL
 #endif
 
+static void cmos_pnp_shutdown(struct device *pdev)
+{
+	if (system_state == SYSTEM_POWER_OFF && !cmos_poweroff(pdev))
+		return;
+
+	cmos_do_shutdown();
+}
 
 static const struct pnp_device_id rtc_ids[] = {
 	{ .id = "PNP0b00", },
@@ -961,6 +981,10 @@ static struct pnp_driver cmos_pnp_driver = {
 	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
 	.suspend	= cmos_pnp_suspend,
 	.resume		= cmos_pnp_resume,
+	.driver		= {
+		.name	  = (char *)driver_name,
+		.shutdown = cmos_pnp_shutdown,
+	}
 };
 
 #endif	/* CONFIG_PNP */
@@ -986,6 +1010,9 @@ static int __exit cmos_platform_remove(struct platform_device *pdev)
 
 static void cmos_platform_shutdown(struct platform_device *pdev)
 {
+	if (system_state == SYSTEM_POWER_OFF && !cmos_poweroff(&pdev->dev))
+		return;
+
 	cmos_do_shutdown();
 }
 

@@ -22,7 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -39,7 +39,7 @@
  * Ethernet
  ****************************************************************************/
 static struct mv643xx_eth_platform_data mv2120_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 static struct mv_sata_platform_data mv2120_sata_data = {
@@ -203,6 +203,7 @@ static void __init mv2120_init(void)
 	orion5x_i2c_init();
 	orion5x_sata_init(&mv2120_sata_data);
 	orion5x_uart0_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(MV2120_NOR_BOOT_BASE, MV2120_NOR_BOOT_SIZE);
 	platform_device_register(&mv2120_nor_flash);

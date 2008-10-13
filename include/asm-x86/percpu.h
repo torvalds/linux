@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PERCPU_H_
-#define _ASM_X86_PERCPU_H_
+#ifndef ASM_X86__PERCPU_H
+#define ASM_X86__PERCPU_H
 
 #ifdef CONFIG_X86_64
 #include <linux/compiler.h>
@@ -182,7 +182,7 @@ do {							\
 	DEFINE_PER_CPU(_type, _name) = _initvalue;			\
 	__typeof__(_type) _name##_early_map[NR_CPUS] __initdata =	\
 				{ [0 ... NR_CPUS-1] = _initvalue };	\
-	__typeof__(_type) *_name##_early_ptr = _name##_early_map
+	__typeof__(_type) *_name##_early_ptr __refdata = _name##_early_map
 
 #define EXPORT_EARLY_PER_CPU_SYMBOL(_name)			\
 	EXPORT_PER_CPU_SYMBOL(_name)
@@ -215,4 +215,4 @@ do {							\
 
 #endif	/* !CONFIG_SMP */
 
-#endif /* _ASM_X86_PERCPU_H_ */
+#endif /* ASM_X86__PERCPU_H */

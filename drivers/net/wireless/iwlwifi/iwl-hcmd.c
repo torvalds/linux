@@ -28,7 +28,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h" /* FIXME: remove */
@@ -121,8 +120,18 @@ static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 		return 1;
 	}
 
-	IWL_DEBUG_HC("back from %s (0x%08X)\n",
-			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
+#ifdef CONFIG_IWLWIFI_DEBUG
+	switch (cmd->hdr.cmd) {
+	case REPLY_TX_LINK_QUALITY_CMD:
+	case SENSITIVITY_CMD:
+		IWL_DEBUG_HC_DUMP("back from %s (0x%08X)\n",
+				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
+				break;
+	default:
+		IWL_DEBUG_HC("back from %s (0x%08X)\n",
+				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
+	}
+#endif
 
 	/* Let iwl_tx_complete free the response skb */
 	return 1;
@@ -228,7 +237,7 @@ cancel:
 		 * TX cmd queue. Otherwise in case the cmd comes
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source). */
-		qcmd = &priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
+		qcmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
 		qcmd->meta.flags &= ~CMD_WANT_SKB;
 	}
 fail:

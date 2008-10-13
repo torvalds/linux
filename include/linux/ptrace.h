@@ -121,6 +121,74 @@ static inline void ptrace_unlink(struct task_struct *child)
 int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data);
 int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data);
 
+/**
+ * task_ptrace - return %PT_* flags that apply to a task
+ * @task:	pointer to &task_struct in question
+ *
+ * Returns the %PT_* flags that apply to @task.
+ */
+static inline int task_ptrace(struct task_struct *task)
+{
+	return task->ptrace;
+}
+
+/**
+ * ptrace_event - possibly stop for a ptrace event notification
+ * @mask:	%PT_* bit to check in @current->ptrace
+ * @event:	%PTRACE_EVENT_* value to report if @mask is set
+ * @message:	value for %PTRACE_GETEVENTMSG to return
+ *
+ * This checks the @mask bit to see if ptrace wants stops for this event.
+ * If so we stop, reporting @event and @message to the ptrace parent.
+ *
+ * Returns nonzero if we did a ptrace notification, zero if not.
+ *
+ * Called without locks.
+ */
+static inline int ptrace_event(int mask, int event, unsigned long message)
+{
+	if (mask && likely(!(current->ptrace & mask)))
+		return 0;
+	current->ptrace_message = message;
+	ptrace_notify((event << 8) | SIGTRAP);
+	return 1;
+}
+
+/**
+ * ptrace_init_task - initialize ptrace state for a new child
+ * @child:		new child task
+ * @ptrace:		true if child should be ptrace'd by parent's tracer
+ *
+ * This is called immediately after adding @child to its parent's children
+ * list.  @ptrace is false in the normal case, and true to ptrace @child.
+ *
+ * Called with current's siglock and write_lock_irq(&tasklist_lock) held.
+ */
+static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
+{
+	INIT_LIST_HEAD(&child->ptrace_entry);
+	INIT_LIST_HEAD(&child->ptraced);
+	child->parent = child->real_parent;
+	child->ptrace = 0;
+	if (unlikely(ptrace)) {
+		child->ptrace = current->ptrace;
+		ptrace_link(child, current->parent);
+	}
+}
+
+/**
+ * ptrace_release_task - final ptrace-related cleanup of a zombie being reaped
+ * @task:	task in %EXIT_DEAD state
+ *
+ * Called with write_lock(&tasklist_lock) held.
+ */
+static inline void ptrace_release_task(struct task_struct *task)
+{
+	BUG_ON(!list_empty(&task->ptraced));
+	ptrace_unlink(task);
+	BUG_ON(!list_empty(&task->ptrace_entry));
+}
+
 #ifndef force_successful_syscall_return
 /*
  * System call handlers that, upon successful completion, need to return a
@@ -245,6 +313,10 @@ static inline void user_enable_block_step(struct task_struct *task)
  */
 #define arch_ptrace_stop(code, info)		do { } while (0)
 #endif
+
+extern int task_current_syscall(struct task_struct *target, long *callno,
+				unsigned long args[6], unsigned int maxargs,
+				unsigned long *sp, unsigned long *pc);
 
 #endif
 

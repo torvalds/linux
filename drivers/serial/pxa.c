@@ -45,9 +45,9 @@
 #include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 
 struct uart_pxa_port {
@@ -533,6 +533,11 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->ier |= UART_IER_MSI;
 
 	serial_out(up, UART_IER, up->ier);
+
+	if (termios->c_cflag & CRTSCTS)
+		up->mcr |= UART_MCR_AFE;
+	else
+		up->mcr &= ~UART_MCR_AFE;
 
 	serial_out(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
 	serial_out(up, UART_DLL, quot & 0xff);		/* LS of divisor */

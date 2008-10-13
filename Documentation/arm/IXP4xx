@@ -32,7 +32,7 @@ Linux currently supports the following features on the IXP4xx chips:
 - Flash access (MTD/JFFS)
 - I2C through GPIO on IXP42x
 - GPIO for input/output/interrupts 
-  See include/asm-arm/arch-ixp4xx/platform.h for access functions.
+  See arch/arm/mach-ixp4xx/include/mach/platform.h for access functions.
 - Timers (watchdog, OS)
 
 The following components of the chips are not supported by Linux and

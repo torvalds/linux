@@ -1,6 +1,4 @@
 /*
- * $Id: mtd.h,v 1.61 2005/11/07 11:14:54 gleixner Exp $
- *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
  * Released under GPL
@@ -274,7 +272,11 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 			printk(KERN_INFO args);		\
 	} while(0)
 #else /* CONFIG_MTD_DEBUG */
-#define DEBUG(n, args...) do { } while(0)
+#define DEBUG(n, args...)				\
+	do {						\
+		if (0)					\
+			printk(KERN_INFO args);		\
+	} while(0)
 
 #endif /* CONFIG_MTD_DEBUG */
 

@@ -46,6 +46,7 @@
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/errno.h>
 
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
@@ -374,11 +375,7 @@ static const struct file_operations gemtek_pci_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device vdev_template = {
-	.owner         = THIS_MODULE,
-	.name          = "Gemtek PCI Radio",
-	.type          = VID_TYPE_TUNER,
-	.fops          = &gemtek_pci_fops,
+static const struct v4l2_ioctl_ops gemtek_pci_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -391,6 +388,12 @@ static struct video_device vdev_template = {
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device vdev_template = {
+	.name          = "Gemtek PCI Radio",
+	.fops          = &gemtek_pci_fops,
+	.ioctl_ops     = &gemtek_pci_ioctl_ops,
 };
 
 static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci_device_id *pci_id )
@@ -422,7 +425,7 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 	}
 	*devradio = vdev_template;
 
-	if ( video_register_device( devradio, VFL_TYPE_RADIO , nr_radio) == -1 ) {
+	if (video_register_device(devradio, VFL_TYPE_RADIO, nr_radio) < 0) {
 		kfree( devradio );
 		goto err_video;
 	}

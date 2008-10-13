@@ -27,7 +27,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <asm/arch/omapfb.h>
+#include <mach/omapfb.h>
 
 #include "dispc.h"
 

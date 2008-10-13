@@ -1,6 +1,4 @@
 /*
- * $Id: blktrans.h,v 1.6 2005/11/07 11:14:54 gleixner Exp $
- *
  * (C) 2003 David Woodhouse <dwmw2@infradead.org>
  *
  * Interface to Linux block layer for MTD 'translation layers'.
@@ -43,6 +41,8 @@ struct mtd_blktrans_ops {
 		    unsigned long block, char *buffer);
 	int (*writesect)(struct mtd_blktrans_dev *dev,
 		     unsigned long block, char *buffer);
+	int (*discard)(struct mtd_blktrans_dev *dev,
+		       unsigned long block, unsigned nr_blocks);
 
 	/* Block layer ioctls */
 	int (*getgeo)(struct mtd_blktrans_dev *dev, struct hd_geometry *geo);

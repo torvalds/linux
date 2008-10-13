@@ -197,7 +197,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	args.new = BREAKPOINT_INSTRUCTION;
 
 	kcb->kprobe_status = KPROBE_SWAP_INST;
-	stop_machine_run(swap_instruction, &args, NR_CPUS);
+	stop_machine(swap_instruction, &args, NULL);
 	kcb->kprobe_status = status;
 }
 
@@ -212,7 +212,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	args.new = p->opcode;
 
 	kcb->kprobe_status = KPROBE_SWAP_INST;
-	stop_machine_run(swap_instruction, &args, NR_CPUS);
+	stop_machine(swap_instruction, &args, NULL);
 	kcb->kprobe_status = status;
 }
 
@@ -331,7 +331,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		 * No kprobe at this address. The fault has not been
 		 * caused by a kprobe breakpoint. The race of breakpoint
 		 * vs. kprobe remove does not exist because on s390 we
-		 * use stop_machine_run to arm/disarm the breakpoints.
+		 * use stop_machine to arm/disarm the breakpoints.
 		 */
 		goto no_kprobe;
 

@@ -40,31 +40,7 @@
 
 static int fc_queue_work(struct Scsi_Host *, struct work_struct *);
 static void fc_vport_sched_delete(struct work_struct *work);
-
-/*
- * This is a temporary carrier for creating a vport. It will eventually
- * be replaced  by a real message definition for sgio or netlink.
- *
- * fc_vport_identifiers: This set of data contains all elements
- * to uniquely identify and instantiate a FC virtual port.
- *
- * Notes:
- *   symbolic_name: The driver is to append the symbolic_name string data
- *      to the symbolic_node_name data that it generates by default.
- *      the resulting combination should then be registered with the switch.
- *      It is expected that things like Xen may stuff a VM title into
- *      this field.
- */
-struct fc_vport_identifiers {
-	u64 node_name;
-	u64 port_name;
-	u32 roles;
-	bool disable;
-	enum fc_port_type vport_type;	/* only FC_PORTTYPE_NPIV allowed */
-	char symbolic_name[FC_VPORT_SYMBOLIC_NAMELEN];
-};
-
-static int fc_vport_create(struct Scsi_Host *shost, int channel,
+static int fc_vport_setup(struct Scsi_Host *shost, int channel,
 	struct device *pdev, struct fc_vport_identifiers  *ids,
 	struct fc_vport **vport);
 
@@ -571,7 +547,7 @@ send_fail:
 	name = get_fc_host_event_code_name(event_code);
 	printk(KERN_WARNING
 		"%s: Dropped Event : host %d %s data 0x%08x - err %d\n",
-		__FUNCTION__, shost->host_no,
+		__func__, shost->host_no,
 		(name) ? name : "<unknown>", event_data, err);
 	return;
 }
@@ -644,7 +620,7 @@ send_vendor_fail_skb:
 send_vendor_fail:
 	printk(KERN_WARNING
 		"%s: Dropped Event : host %d vendor_unique - err %d\n",
-		__FUNCTION__, shost->host_no, err);
+		__func__, shost->host_no, err);
 	return;
 }
 EXPORT_SYMBOL(fc_host_post_vendor_event);
@@ -1760,7 +1736,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	vid.disable = false;		/* always enabled */
 
 	/* we only allow support on Channel 0 !!! */
-	stat = fc_vport_create(shost, 0, &shost->shost_gendev, &vid, &vport);
+	stat = fc_vport_setup(shost, 0, &shost->shost_gendev, &vid, &vport);
 	return stat ? stat : count;
 }
 static FC_DEVICE_ATTR(host, vport_create, S_IWUSR, NULL,
@@ -1950,15 +1926,15 @@ static int fc_vport_match(struct attribute_container *cont,
  * Notes:
  *	This routine assumes no locks are held on entry.
  */
-static enum scsi_eh_timer_return
+static enum blk_eh_timer_return
 fc_timed_out(struct scsi_cmnd *scmd)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(scmd->device));
 
 	if (rport->port_state == FC_PORTSTATE_BLOCKED)
-		return EH_RESET_TIMER;
+		return BLK_EH_RESET_TIMER;
 
-	return EH_NOT_HANDLED;
+	return BLK_EH_NOT_HANDLED;
 }
 
 /*
@@ -2464,7 +2440,7 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	size = (sizeof(struct fc_rport) + fci->f->dd_fcrport_size);
 	rport = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!rport)) {
-		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
+		printk(KERN_ERR "%s: allocation failure\n", __func__);
 		return NULL;
 	}
 
@@ -3103,7 +3079,7 @@ fc_scsi_scan_rport(struct work_struct *work)
 
 
 /**
- * fc_vport_create - allocates and creates a FC virtual port.
+ * fc_vport_setup - allocates and creates a FC virtual port.
  * @shost:	scsi host the virtual port is connected to.
  * @channel:	Channel on shost port connected to.
  * @pdev:	parent device for vport
@@ -3118,7 +3094,7 @@ fc_scsi_scan_rport(struct work_struct *work)
  *	This routine assumes no locks are held on entry.
  */
 static int
-fc_vport_create(struct Scsi_Host *shost, int channel, struct device *pdev,
+fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	struct fc_vport_identifiers  *ids, struct fc_vport **ret_vport)
 {
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
@@ -3137,7 +3113,7 @@ fc_vport_create(struct Scsi_Host *shost, int channel, struct device *pdev,
 	size = (sizeof(struct fc_vport) + fci->f->dd_fcvport_size);
 	vport = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!vport)) {
-		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
+		printk(KERN_ERR "%s: allocation failure\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -3201,7 +3177,7 @@ fc_vport_create(struct Scsi_Host *shost, int channel, struct device *pdev,
 			printk(KERN_ERR
 				"%s: Cannot create vport symlinks for "
 				"%s, err=%d\n",
-				__FUNCTION__, dev->bus_id, error);
+				__func__, dev->bus_id, error);
 	}
 	spin_lock_irqsave(shost->host_lock, flags);
 	vport->flags &= ~FC_VPORT_CREATING;
@@ -3231,6 +3207,28 @@ delete_vport:
 	return error;
 }
 
+/**
+ * fc_vport_create - Admin App or LLDD requests creation of a vport
+ * @shost:	scsi host the virtual port is connected to.
+ * @channel:	channel on shost port connected to.
+ * @ids:	The world wide names, FC4 port roles, etc for
+ *              the virtual port.
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ */
+struct fc_vport *
+fc_vport_create(struct Scsi_Host *shost, int channel,
+	struct fc_vport_identifiers *ids)
+{
+	int stat;
+	struct fc_vport *vport;
+
+	stat = fc_vport_setup(shost, channel, &shost->shost_gendev,
+		 ids, &vport);
+	return stat ? NULL : vport;
+}
+EXPORT_SYMBOL(fc_vport_create);
 
 /**
  * fc_vport_terminate - Admin App or LLDD requests termination of a vport
@@ -3314,7 +3312,7 @@ fc_vport_sched_delete(struct work_struct *work)
 	if (stat)
 		dev_printk(KERN_ERR, vport->dev.parent,
 			"%s: %s could not be deleted created via "
-			"shost%d channel %d - error %d\n", __FUNCTION__,
+			"shost%d channel %d - error %d\n", __func__,
 			vport->dev.bus_id, vport->shost->host_no,
 			vport->channel, stat);
 }

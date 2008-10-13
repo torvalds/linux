@@ -24,9 +24,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/VC032X USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -72,6 +69,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
+#define LIGHTFREQ_IDX 1
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -90,13 +88,13 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format vc0321_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 2,
+	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
-		.bytesperline = 640 * 2,
+	{640, 480, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
@@ -1419,30 +1417,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 	int sensor;
-	__u16 product;
-
-	product = id->idProduct;
-	sd->bridge = BRIDGE_VC0321;
-	switch (id->idVendor) {
-	case 0x0ac8:		/* Vimicro z-star */
-		switch (product) {
-		case 0x0323:
-			sd->bridge = BRIDGE_VC0323;
-			break;
-		}
-		break;
-	case 0x17ef:		/* Lenovo */
-/*		switch (product) { */
-/*		case 0x4802:	 * Lenovo MI1310_SOC */
-			sd->bridge = BRIDGE_VC0323;
-/*			break; */
-/*		} */
-		break;
-	}
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x02;
+	sd->bridge = id->driver_info;
 	if (sd->bridge == BRIDGE_VC0321) {
 		cam->cam_mode = vc0321_mode;
 		cam->nmodes = ARRAY_SIZE(vc0321_mode);
@@ -1486,6 +1464,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->qindex = 7;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->lightfreq = FREQ_DEF;
+	if (sd->sensor != SENSOR_OV7670)
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(gspca_dev, 0x8a, 0, 3);
@@ -1497,8 +1477,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
 }
@@ -1660,19 +1640,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x89, 0xffff, 0xffff);
 }
 
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-/*	struct usb_device *dev = gspca_dev->dev;
-	__u8 buffread;
-
-	reg_w(dev, 0x89, 0xffff, 0xffff);
-	reg_w(dev, 0xa0, 0x01, 0xb301);
-	reg_w(dev, 0xa0, 0x09, 0xb303);
-	reg_w(dev, 0x89, 0xffff, 0xffff);
-*/
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1761,26 +1728,24 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x046d, 0x0892), DVNM("Logitech Orbicam")},
-	{USB_DEVICE(0x046d, 0x0896), DVNM("Logitech Orbicam")},
-	{USB_DEVICE(0x0ac8, 0x0321), DVNM("Vimicro generic vc0321")},
-	{USB_DEVICE(0x0ac8, 0x0323), DVNM("Vimicro Vc0323")},
-	{USB_DEVICE(0x0ac8, 0x0328), DVNM("A4Tech PK-130MG")},
-	{USB_DEVICE(0x0ac8, 0xc001), DVNM("Sony embedded vimicro")},
-	{USB_DEVICE(0x0ac8, 0xc002), DVNM("Sony embedded vimicro")},
-	{USB_DEVICE(0x17ef, 0x4802), DVNM("Lenovo Vc0323+MI1310_SOC")},
+	{USB_DEVICE(0x046d, 0x0892), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x046d, 0x0896), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0x0321), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0x0323), .driver_info = BRIDGE_VC0323},
+	{USB_DEVICE(0x0ac8, 0x0328), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0xc001), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x0ac8, 0xc002), .driver_info = BRIDGE_VC0321},
+	{USB_DEVICE(0x17ef, 0x4802), .driver_info = BRIDGE_VC0323},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1798,6 +1763,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
@@ -1805,7 +1774,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

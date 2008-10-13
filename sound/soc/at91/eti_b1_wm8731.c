@@ -22,7 +22,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/timer.h>
@@ -33,8 +32,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/gpio.h>
+#include <mach/hardware.h>
+#include <mach/gpio.h>
 
 #include "../codecs/wm8731.h"
 #include "at91-pcm.h"
@@ -244,6 +243,7 @@ static struct snd_soc_machine snd_soc_machine_eti_b1 = {
 };
 
 static struct wm8731_setup_data eti_b1_wm8731_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1a,
 };
 

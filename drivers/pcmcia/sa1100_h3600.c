@@ -11,10 +11,10 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/arch/h3600.h>
+#include <mach/h3600.h>
 
 #include "sa1100_generic.h"
 

@@ -95,10 +95,11 @@ static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 static void nfs_async_unlink_release(void *calldata)
 {
 	struct nfs_unlinkdata	*data = calldata;
+	struct super_block *sb = data->dir->i_sb;
 
 	nfs_dec_sillycount(data->dir);
-	nfs_sb_deactive(NFS_SERVER(data->dir));
 	nfs_free_unlinkdata(data);
+	nfs_sb_deactive(NFS_SB(sb));
 }
 
 static const struct rpc_call_ops nfs_unlink_ops = {

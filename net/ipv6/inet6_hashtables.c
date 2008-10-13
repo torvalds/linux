@@ -28,7 +28,7 @@ void __inet6_hash(struct sock *sk)
 	struct hlist_head *list;
 	rwlock_t *lock;
 
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 
 	if (sk->sk_state == TCP_LISTEN) {
 		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
@@ -202,7 +202,7 @@ unique:
 	 * in hash table socket with a funny identity. */
 	inet->num = lport;
 	inet->sport = htons(lport);
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
 	sk->sk_hash = hash;
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);

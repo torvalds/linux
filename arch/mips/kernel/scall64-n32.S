@@ -219,7 +219,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_getrusage
 	PTR	compat_sys_sysinfo
 	PTR	compat_sys_times
-	PTR	sys32_ptrace
+	PTR	compat_sys_ptrace
 	PTR	sys_getuid			/* 6100 */
 	PTR	sys_syslog
 	PTR	sys_getgid
@@ -407,4 +407,10 @@ EXPORT(sysn32_call_table)
 	PTR	sys_timerfd_create
 	PTR	sys_timerfd_gettime		/* 5285 */
 	PTR	sys_timerfd_settime
+	PTR	sys_signalfd4
+	PTR	sys_eventfd2
+	PTR	sys_epoll_create1
+	PTR	sys_dup3			/* 5290 */
+	PTR	sys_pipe2
+	PTR	sys_inotify_init1
 	.size	sysn32_call_table,.-sysn32_call_table

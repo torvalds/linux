@@ -350,9 +350,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 		if (dev) {
 			printk(KERN_INFO DRV_NAME ": %s: Removing slave %s\n",
 				bond->dev->name, dev->name);
-			if (bond->setup_by_slave)
-				res = bond_release_and_destroy(bond->dev, dev);
-			else
 				res = bond_release(bond->dev, dev);
 			if (res) {
 				ret = res;

@@ -233,11 +233,9 @@ static u8 fan_to_reg(long rpm, int div)
 static u8 div_to_reg(int nr, long val)
 {
 	int i;
-	int max;
 
-	/* first three fan's divisor max out at 8, rest max out at 128 */
-	max = (nr < 3) ? 8 : 128;
-	val = SENSORS_LIMIT(val, 1, max) >> 1;
+	/* fan divisors max out at 128 */
+	val = SENSORS_LIMIT(val, 1, 128) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -530,6 +528,7 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute *attr,
 	unsigned long min;
 	u8 tmp_fan_div;
 	u8 fan_div_reg;
+	u8 vbat_reg;
 	int indx = 0;
 	u8 keep_mask = 0;
 	u8 new_shift = 0;
@@ -580,6 +579,16 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute *attr,
 
 	w83791d_write(client, W83791D_REG_FAN_DIV[indx],
 				fan_div_reg | tmp_fan_div);
+
+	/* Bit 2 of fans 0-2 is stored in the vbat register (bits 5-7) */
+	if (nr < 3) {
+		keep_mask = ~(1 << (nr + 5));
+		vbat_reg = w83791d_read(client, W83791D_REG_VBAT)
+				& keep_mask;
+		tmp_fan_div = (data->fan_div[nr] << (3 + nr)) & ~keep_mask;
+		w83791d_write(client, W83791D_REG_VBAT,
+				vbat_reg | tmp_fan_div);
+	}
 
 	/* Restore fan_min */
 	data->fan_min[nr] = fan_to_reg(min, DIV_FROM_REG(data->fan_div[nr]));
@@ -1046,9 +1055,10 @@ static int w83791d_probe(struct i2c_client *client,
 {
 	struct w83791d_data *data;
 	struct device *dev = &client->dev;
-	int i, val1, err;
+	int i, err;
 
 #ifdef DEBUG
+	int val1;
 	val1 = w83791d_read(client, W83791D_REG_DID_VID4);
 	dev_dbg(dev, "Device ID version: %d.%d (0x%02x)\n",
 			(val1 >> 5) & 0x07, (val1 >> 1) & 0x0f, val1);
@@ -1182,6 +1192,7 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 	struct w83791d_data *data = i2c_get_clientdata(client);
 	int i, j;
 	u8 reg_array_tmp[3];
+	u8 vbat_reg;
 
 	mutex_lock(&data->update_lock);
 
@@ -1218,6 +1229,12 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 		data->fan_div[2] = (reg_array_tmp[1] >> 6) & 0x03;
 		data->fan_div[3] = reg_array_tmp[2] & 0x07;
 		data->fan_div[4] = (reg_array_tmp[2] >> 4) & 0x07;
+
+		/* The fan divisor for fans 0-2 get bit 2 from
+		   bits 5-7 respectively of vbat register */
+		vbat_reg = w83791d_read(client, W83791D_REG_VBAT);
+		for (i = 0; i < 3; i++)
+			data->fan_div[i] |= (vbat_reg >> (3 + i)) & 0x04;
 
 		/* Update the first temperature sensor */
 		for (i = 0; i < 3; i++) {

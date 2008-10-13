@@ -253,12 +253,14 @@ void start_critical_timings(void)
 	if (preempt_trace() || irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
+EXPORT_SYMBOL_GPL(start_critical_timings);
 
 void stop_critical_timings(void)
 {
 	if (preempt_trace() || irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
+EXPORT_SYMBOL_GPL(stop_critical_timings);
 
 #ifdef CONFIG_IRQSOFF_TRACER
 #ifdef CONFIG_PROVE_LOCKING
@@ -337,12 +339,14 @@ EXPORT_SYMBOL(trace_hardirqs_off_caller);
 #ifdef CONFIG_PREEMPT_TRACER
 void trace_preempt_on(unsigned long a0, unsigned long a1)
 {
-	stop_critical_timing(a0, a1);
+	if (preempt_trace())
+		stop_critical_timing(a0, a1);
 }
 
 void trace_preempt_off(unsigned long a0, unsigned long a1)
 {
-	start_critical_timing(a0, a1);
+	if (preempt_trace())
+		start_critical_timing(a0, a1);
 }
 #endif /* CONFIG_PREEMPT_TRACER */
 

@@ -54,14 +54,57 @@
 #define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
 #define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
 #define EM2800_BOARD_VGEAR_POCKETTV             15
-#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
+#define EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950	16
 #define EM2880_BOARD_PINNACLE_PCTV_HD_PRO	17
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2	18
 #define EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA  19
+#define EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600   20
+#define EM2800_BOARD_GRABBEEX_USB2800           21
+#define EM2750_BOARD_UNKNOWN			  22
+#define EM2750_BOARD_DLCW_130			  23
+#define EM2820_BOARD_DLINK_USB_TV		  24
+#define EM2820_BOARD_GADMEI_UTV310		  25
+#define EM2820_BOARD_HERCULES_SMART_TV_USB2	  26
+#define EM2820_BOARD_PINNACLE_USB_2_FM1216ME	  27
+#define EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE 28
+#define EM2820_BOARD_PINNACLE_DVC_100		  29
+#define EM2820_BOARD_VIDEOLOGY_20K14XUSB	  30
+#define EM2821_BOARD_USBGEAR_VD204		  31
+#define EM2821_BOARD_SUPERCOMP_USB_2		  32
+#define EM2821_BOARD_PROLINK_PLAYTV_USB2	  33
+#define EM2860_BOARD_TERRATEC_HYBRID_XS		  34
+#define EM2860_BOARD_TYPHOON_DVD_MAKER		  35
+#define EM2860_BOARD_NETGMBH_CAM		  36
+#define EM2860_BOARD_GADMEI_UTV330		  37
+#define EM2861_BOARD_YAKUMO_MOVIE_MIXER		  38
+#define EM2861_BOARD_KWORLD_PVRTV_300U		  39
+#define EM2861_BOARD_PLEXTOR_PX_TV100U		  40
+#define EM2870_BOARD_KWORLD_350U		  41
+#define EM2870_BOARD_KWORLD_355U		  42
+#define EM2870_BOARD_TERRATEC_XS		  43
+#define EM2870_BOARD_TERRATEC_XS_MT2060		  44
+#define EM2870_BOARD_PINNACLE_PCTV_DVB		  45
+#define EM2870_BOARD_COMPRO_VIDEOMATE		  46
+#define EM2880_BOARD_KWORLD_DVB_305U		  47
+#define EM2880_BOARD_KWORLD_DVB_310U		  48
+#define EM2880_BOARD_MSI_DIGIVOX_AD		  49
+#define EM2880_BOARD_MSI_DIGIVOX_AD_II		  50
+#define EM2880_BOARD_TERRATEC_HYBRID_XS_FR	  51
+#define EM2881_BOARD_DNT_DA2_HYBRID		  52
+#define EM2881_BOARD_PINNACLE_HYBRID_PRO	  53
+#define EM2882_BOARD_KWORLD_VS_DVBT		  54
+#define EM2882_BOARD_TERRATEC_HYBRID_XS		  55
+#define EM2882_BOARD_PINNACLE_HYBRID_PRO	  56
+#define EM2883_BOARD_KWORLD_HYBRID_A316		  57
+#define EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU	  58
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
 #define EM28XX_DEF_BUF 8
+
+/* Params for validated field */
+#define EM28XX_BOARD_NOT_VALIDATED 1
+#define EM28XX_BOARD_VALIDATED	   0
 
 /* maximum number of em28xx boards */
 #define EM28XX_MAXBOARDS 4 /*FIXME: should be bigger */
@@ -251,6 +294,7 @@ struct em28xx_board {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
+	unsigned int valid:1;
 
 	enum em28xx_decoder decoder;
 
@@ -331,6 +375,7 @@ struct em28xx {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
+	unsigned int valid:1;		/* report for validated boards */
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
@@ -360,7 +405,7 @@ struct em28xx {
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
-	unsigned int ctl_ainput;	/* slected audio input */
+	unsigned int ctl_ainput;/* selected audio input */
 	int mute;
 	int volume;
 	/* frame properties */

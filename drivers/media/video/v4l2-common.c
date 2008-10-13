@@ -64,7 +64,7 @@
 #include <linux/kmod.h>
 #endif
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 MODULE_AUTHOR("Bill Dirks, Justin Schoeman, Gerd Knorr");
 MODULE_DESCRIPTION("misc helper functions for v4l2 device drivers");

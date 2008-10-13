@@ -37,7 +37,6 @@
 #include <linux/rtc.h>
 #include <linux/proc_fs.h>
 #include <linux/efi.h>
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 
 #include <asm/system.h>

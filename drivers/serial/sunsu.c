@@ -35,11 +35,11 @@
 #include <linux/serial_reg.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 
 #if defined(CONFIG_SERIAL_SUNSU_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -1506,7 +1506,7 @@ static int __devexit su_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id su_match[] = {
+static const struct of_device_id su_match[] = {
 	{
 		.name = "su",
 	},

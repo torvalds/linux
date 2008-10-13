@@ -67,8 +67,8 @@ struct ac97_codec_id {
 };
 
 static const struct ac97_codec_id snd_ac97_codec_id_vendors[] = {
-{ 0x414b4d00, 0xffffff00, "Asahi Kasei",	NULL,	NULL },
 { 0x41445300, 0xffffff00, "Analog Devices",	NULL,	NULL },
+{ 0x414b4d00, 0xffffff00, "Asahi Kasei",	NULL,	NULL },
 { 0x414c4300, 0xffffff00, "Realtek",		NULL,	NULL },
 { 0x414c4700, 0xffffff00, "Realtek",		NULL,	NULL },
 { 0x434d4900, 0xffffff00, "C-Media Electronics", NULL,	NULL },
@@ -94,11 +94,6 @@ static const struct ac97_codec_id snd_ac97_codec_id_vendors[] = {
 };
 
 static const struct ac97_codec_id snd_ac97_codec_ids[] = {
-{ 0x414b4d00, 0xffffffff, "AK4540",		NULL,		NULL },
-{ 0x414b4d01, 0xffffffff, "AK4542",		NULL,		NULL },
-{ 0x414b4d02, 0xffffffff, "AK4543",		NULL,		NULL },
-{ 0x414b4d06, 0xffffffff, "AK4544A",		NULL,		NULL },
-{ 0x414b4d07, 0xffffffff, "AK4545",		NULL,		NULL },
 { 0x41445303, 0xffffffff, "AD1819",		patch_ad1819,	NULL },
 { 0x41445340, 0xffffffff, "AD1881",		patch_ad1881,	NULL },
 { 0x41445348, 0xffffffff, "AD1881A",		patch_ad1881,	NULL },
@@ -112,20 +107,25 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x41445374, 0xffffffff, "AD1981B",		patch_ad1981b,	NULL },
 { 0x41445375, 0xffffffff, "AD1985",		patch_ad1985,	NULL },
 { 0x41445378, 0xffffffff, "AD1986",		patch_ad1986,	NULL },
+{ 0x414b4d00, 0xffffffff, "AK4540",		NULL,		NULL },
+{ 0x414b4d01, 0xffffffff, "AK4542",		NULL,		NULL },
+{ 0x414b4d02, 0xffffffff, "AK4543",		NULL,		NULL },
+{ 0x414b4d06, 0xffffffff, "AK4544A",		NULL,		NULL },
+{ 0x414b4d07, 0xffffffff, "AK4545",		NULL,		NULL },
 { 0x414c4300, 0xffffff00, "ALC100,100P", 	NULL,		NULL },
 { 0x414c4710, 0xfffffff0, "ALC200,200P",	NULL,		NULL },
 { 0x414c4721, 0xffffffff, "ALC650D",		NULL,	NULL }, /* already patched */
 { 0x414c4722, 0xffffffff, "ALC650E",		NULL,	NULL }, /* already patched */
 { 0x414c4723, 0xffffffff, "ALC650F",		NULL,	NULL }, /* already patched */
 { 0x414c4720, 0xfffffff0, "ALC650",		patch_alc650,	NULL },
-{ 0x414c4760, 0xfffffff0, "ALC655",		patch_alc655,	NULL },
-{ 0x414c4781, 0xffffffff, "ALC658D",		NULL,	NULL }, /* already patched */
-{ 0x414c4780, 0xfffffff0, "ALC658",		patch_alc655,	NULL },
-{ 0x414c4790, 0xfffffff0, "ALC850",		patch_alc850,	NULL },
 { 0x414c4730, 0xffffffff, "ALC101",		NULL,		NULL },
 { 0x414c4740, 0xfffffff0, "ALC202",		NULL,		NULL },
 { 0x414c4750, 0xfffffff0, "ALC250",		NULL,		NULL },
-{ 0x414c4770, 0xfffffff0, "ALC203",		NULL,		NULL },
+{ 0x414c4760, 0xfffffff0, "ALC655",		patch_alc655,	NULL },
+{ 0x414c4770, 0xfffffff0, "ALC203",		patch_alc203,	NULL },
+{ 0x414c4781, 0xffffffff, "ALC658D",		NULL,	NULL }, /* already patched */
+{ 0x414c4780, 0xfffffff0, "ALC658",		patch_alc655,	NULL },
+{ 0x414c4790, 0xfffffff0, "ALC850",		patch_alc850,	NULL },
 { 0x434d4941, 0xffffffff, "CMI9738",		patch_cm9738,	NULL },
 { 0x434d4961, 0xffffffff, "CMI9739",		patch_cm9739,	NULL },
 { 0x434d4969, 0xffffffff, "CMI9780",		patch_cm9780,	NULL },
@@ -161,15 +161,16 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x50534304, 0xffffffff, "UCB1400",		patch_ucb1400,	NULL },
 { 0x53494c20, 0xffffffe0, "Si3036,8",		mpatch_si3036,	mpatch_si3036, AC97_MODEM_PATCH },
 { 0x54524102, 0xffffffff, "TR28022",		NULL,		NULL },
+{ 0x54524103, 0xffffffff, "TR28023",		NULL,		NULL },
 { 0x54524106, 0xffffffff, "TR28026",		NULL,		NULL },
 { 0x54524108, 0xffffffff, "TR28028",		patch_tritech_tr28028,	NULL }, // added by xin jin [07/09/99]
 { 0x54524123, 0xffffffff, "TR28602",		NULL,		NULL }, // only guess --jk [TR28023 = eMicro EM28023 (new CT1297)]
 { 0x54584e20, 0xffffffff, "TLC320AD9xC",	NULL,		NULL },
 { 0x56494161, 0xffffffff, "VIA1612A",		NULL,		NULL }, // modified ICE1232 with S/PDIF
 { 0x56494170, 0xffffffff, "VIA1617A",		patch_vt1617a,	NULL }, // modified VT1616 with S/PDIF
-{ 0x56494182, 0xffffffff, "VIA1618",		NULL,		NULL },
+{ 0x56494182, 0xffffffff, "VIA1618",		patch_vt1618,   NULL },
 { 0x57454301, 0xffffffff, "W83971D",		NULL,		NULL },
-{ 0x574d4c00, 0xffffffff, "WM9701A",		NULL,		NULL },
+{ 0x574d4c00, 0xffffffff, "WM9701,WM9701A",	NULL,		NULL },
 { 0x574d4C03, 0xffffffff, "WM9703,WM9707,WM9708,WM9717", patch_wolfson03, NULL},
 { 0x574d4C04, 0xffffffff, "WM9704M,WM9704Q",	patch_wolfson04, NULL},
 { 0x574d4C05, 0xffffffff, "WM9705,WM9710",	patch_wolfson05, NULL},
@@ -1889,8 +1890,8 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 		.dev_free =	snd_ac97_bus_dev_free,
 	};
 
-	snd_assert(card != NULL, return -EINVAL);
-	snd_assert(rbus != NULL, return -EINVAL);
+	if (snd_BUG_ON(!card))
+		return -EINVAL;
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
 		return -ENOMEM;
@@ -1905,7 +1906,8 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 		snd_ac97_bus_free(bus);
 		return err;
 	}
-	*rbus = bus;
+	if (rbus)
+		*rbus = bus;
 	return 0;
 }
 
@@ -1990,10 +1992,14 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 		.dev_disconnect =	snd_ac97_dev_disconnect,
 	};
 
-	snd_assert(rac97 != NULL, return -EINVAL);
-	*rac97 = NULL;
-	snd_assert(bus != NULL && template != NULL, return -EINVAL);
-	snd_assert(template->num < 4 && bus->codec[template->num] == NULL, return -EINVAL);
+	if (rac97)
+		*rac97 = NULL;
+	if (snd_BUG_ON(!bus || !template))
+		return -EINVAL;
+	if (snd_BUG_ON(template->num >= 4))
+		return -EINVAL;
+	if (bus->codec[template->num])
+		return -EBUSY;
 
 	card = bus->card;
 	ac97 = kzalloc(sizeof(*ac97), GFP_KERNEL);

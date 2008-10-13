@@ -207,7 +207,7 @@ static int mqueue_get_sb(struct file_system_type *fs_type,
 	return get_sb_single(fs_type, flags, data, mqueue_fill_super, mnt);
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct mqueue_inode_info *p = (struct mqueue_inode_info *) foo;
 
@@ -638,7 +638,7 @@ static int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (permission(dentry->d_inode, oflag2acc[oflag & O_ACCMODE], NULL)) {
+	if (inode_permission(dentry->d_inode, oflag2acc[oflag & O_ACCMODE])) {
 		dput(dentry);
 		mntput(mqueue_mnt);
 		return ERR_PTR(-EACCES);

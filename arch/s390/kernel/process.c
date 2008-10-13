@@ -75,7 +75,9 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
+DEFINE_PER_CPU(struct s390_idle_data, s390_idle) = {
+	.lock = __SPIN_LOCK_UNLOCKED(s390_idle.lock)
+};
 
 static int s390_idle_enter(void)
 {

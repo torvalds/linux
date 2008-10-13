@@ -1590,7 +1590,7 @@ static inline int ib_dma_mapping_error(struct ib_device *dev, u64 dma_addr)
 {
 	if (dev->dma_ops)
 		return dev->dma_ops->mapping_error(dev, dma_addr);
-	return dma_mapping_error(dma_addr);
+	return dma_mapping_error(dev->dma_device, dma_addr);
 }
 
 /**

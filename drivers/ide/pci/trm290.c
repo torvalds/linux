@@ -135,7 +135,6 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 

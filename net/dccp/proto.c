@@ -309,7 +309,9 @@ int dccp_disconnect(struct sock *sk, int flags)
 		sk->sk_err = ECONNRESET;
 
 	dccp_clear_xmit_timers(sk);
+
 	__skb_queue_purge(&sk->sk_receive_queue);
+	__skb_queue_purge(&sk->sk_write_queue);
 	if (sk->sk_send_head != NULL) {
 		__kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;
@@ -327,7 +329,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 	inet_csk_delack_init(sk);
 	__sk_dst_reset(sk);
 
-	BUG_TRAP(!inet->num || icsk->icsk_bind_hash);
+	WARN_ON(inet->num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;
@@ -474,6 +476,11 @@ static int dccp_setsockopt_change(struct sock *sk, int type,
 
 	if (copy_from_user(&opt, optval, sizeof(opt)))
 		return -EFAULT;
+	/*
+	 * rfc4340: 6.1. Change Options
+	 */
+	if (opt.dccpsf_len < 1)
+		return -EINVAL;
 
 	val = kmalloc(opt.dccpsf_len, GFP_KERNEL);
 	if (!val)
@@ -981,7 +988,7 @@ adjudge_to_death:
 	 */
 	local_bh_disable();
 	bh_lock_sock(sk);
-	BUG_TRAP(!sock_owned_by_user(sk));
+	WARN_ON(sock_owned_by_user(sk));
 
 	/* Have we already been destroyed by a softirq or backlog? */
 	if (state != DCCP_CLOSED && sk->sk_state == DCCP_CLOSED)
@@ -1023,7 +1030,7 @@ MODULE_PARM_DESC(thash_entries, "Number of ehash buckets");
 
 #ifdef CONFIG_IP_DCCP_DEBUG
 int dccp_debug;
-module_param(dccp_debug, bool, 0444);
+module_param(dccp_debug, bool, 0644);
 MODULE_PARM_DESC(dccp_debug, "Enable debug messages");
 
 EXPORT_SYMBOL_GPL(dccp_debug);

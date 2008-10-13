@@ -31,13 +31,13 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/mach/map.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/regs-s3c2443-clock.h>
+#include <mach/regs-s3c2443-clock.h>
 
 #include <asm/plat-s3c24xx/s3c2443.h>
 #include <asm/plat-s3c24xx/clock.h>

@@ -47,7 +47,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -448,7 +447,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 	return chipset_family;
 }
 
-static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev)
+static unsigned int init_chipset_sis5513(struct pci_dev *dev)
 {
 	/* Make general config ops here
 	   1/ tell IDE channels to operate in Compatibility mode only
@@ -518,7 +517,7 @@ static const struct sis_laptop sis_laptop[] = {
 	{ 0, }
 };
 
-static u8 __devinit sis_cable_detect(ide_hwif_t *hwif)
+static u8 sis_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	const struct sis_laptop *lap = &sis_laptop[0];
@@ -610,7 +609,9 @@ static struct pci_driver driver = {
 	.name		= "SIS_IDE",
 	.id_table	= sis5513_pci_tbl,
 	.probe		= sis5513_init_one,
-	.remove		= sis5513_remove,
+	.remove		= __devexit_p(sis5513_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init sis5513_ide_init(void)

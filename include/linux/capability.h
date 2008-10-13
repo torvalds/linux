@@ -503,8 +503,19 @@ extern const kernel_cap_t __cap_init_eff_set;
 
 kernel_cap_t cap_set_effective(const kernel_cap_t pE_new);
 
-int capable(int cap);
-int __capable(struct task_struct *t, int cap);
+/**
+ * has_capability - Determine if a task has a superior capability available
+ * @t: The task in question
+ * @cap: The capability to be tested for
+ *
+ * Return true if the specified task has the given superior capability
+ * currently in effect, false if not.
+ *
+ * Note that this does not set PF_SUPERPRIV on the task.
+ */
+#define has_capability(t, cap) (security_capable((t), (cap)) == 0)
+
+extern int capable(int cap);
 
 #endif /* __KERNEL__ */
 

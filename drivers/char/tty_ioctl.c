@@ -937,12 +937,14 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			return 0;
 #endif
 	case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0,
+		/* FIXME: for correctness we may need to take the termios
+		   lock here - review */
+		return put_user(C_CLOCAL(real_tty) ? 1 : 0,
 						(int __user *)arg);
 	case TIOCSSOFTCAR:
 		if (get_user(arg, (unsigned int __user *) arg))
 			return -EFAULT;
-		return tty_change_softcar(tty, arg);
+		return tty_change_softcar(real_tty, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}

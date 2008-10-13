@@ -927,8 +927,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			if (skb_queue_len(&neigh->arp_queue) >=
 			    neigh->parms->queue_len) {
 				struct sk_buff *buff;
-				buff = neigh->arp_queue.next;
-				__skb_unlink(buff, &neigh->arp_queue);
+				buff = __skb_dequeue(&neigh->arp_queue);
 				kfree_skb(buff);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
@@ -1259,24 +1258,20 @@ static void neigh_proxy_process(unsigned long arg)
 	struct neigh_table *tbl = (struct neigh_table *)arg;
 	long sched_next = 0;
 	unsigned long now = jiffies;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *n;
 
 	spin_lock(&tbl->proxy_queue.lock);
 
-	skb = tbl->proxy_queue.next;
+	skb_queue_walk_safe(&tbl->proxy_queue, skb, n) {
+		long tdif = NEIGH_CB(skb)->sched_next - now;
 
-	while (skb != (struct sk_buff *)&tbl->proxy_queue) {
-		struct sk_buff *back = skb;
-		long tdif = NEIGH_CB(back)->sched_next - now;
-
-		skb = skb->next;
 		if (tdif <= 0) {
-			struct net_device *dev = back->dev;
-			__skb_unlink(back, &tbl->proxy_queue);
+			struct net_device *dev = skb->dev;
+			__skb_unlink(skb, &tbl->proxy_queue);
 			if (tbl->proxy_redo && netif_running(dev))
-				tbl->proxy_redo(back);
+				tbl->proxy_redo(skb);
 			else
-				kfree_skb(back);
+				kfree_skb(skb);
 
 			dev_put(dev);
 		} else if (!sched_next || tdif < sched_next)
@@ -2281,6 +2276,7 @@ static struct neighbour *neigh_get_idx(struct seq_file *seq, loff_t *pos)
 	struct neighbour *n = neigh_get_first(seq);
 
 	if (n) {
+		--(*pos);
 		while (*pos) {
 			n = neigh_get_next(seq, n, pos);
 			if (!n)
@@ -2341,6 +2337,7 @@ static struct pneigh_entry *pneigh_get_idx(struct seq_file *seq, loff_t *pos)
 	struct pneigh_entry *pn = pneigh_get_first(seq);
 
 	if (pn) {
+		--(*pos);
 		while (*pos) {
 			pn = pneigh_get_next(seq, pn, pos);
 			if (!pn)
@@ -2354,10 +2351,11 @@ static void *neigh_get_idx_any(struct seq_file *seq, loff_t *pos)
 {
 	struct neigh_seq_state *state = seq->private;
 	void *rc;
+	loff_t idxpos = *pos;
 
-	rc = neigh_get_idx(seq, pos);
+	rc = neigh_get_idx(seq, &idxpos);
 	if (!rc && !(state->flags & NEIGH_SEQ_NEIGH_ONLY))
-		rc = pneigh_get_idx(seq, pos);
+		rc = pneigh_get_idx(seq, &idxpos);
 
 	return rc;
 }
@@ -2366,7 +2364,6 @@ void *neigh_seq_start(struct seq_file *seq, loff_t *pos, struct neigh_table *tbl
 	__acquires(tbl->lock)
 {
 	struct neigh_seq_state *state = seq->private;
-	loff_t pos_minus_one;
 
 	state->tbl = tbl;
 	state->bucket = 0;
@@ -2374,8 +2371,7 @@ void *neigh_seq_start(struct seq_file *seq, loff_t *pos, struct neigh_table *tbl
 
 	read_lock_bh(&tbl->lock);
 
-	pos_minus_one = *pos - 1;
-	return *pos ? neigh_get_idx_any(seq, &pos_minus_one) : SEQ_START_TOKEN;
+	return *pos ? neigh_get_idx_any(seq, pos) : SEQ_START_TOKEN;
 }
 EXPORT_SYMBOL(neigh_seq_start);
 
@@ -2385,7 +2381,7 @@ void *neigh_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	void *rc;
 
 	if (v == SEQ_START_TOKEN) {
-		rc = neigh_get_idx(seq, pos);
+		rc = neigh_get_first(seq);
 		goto out;
 	}
 

@@ -23,14 +23,14 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa27x-udc.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/pxa27x_keypad.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa27x-udc.h>
+#include <mach/audio.h>
+#include <mach/pxafb.h>
+#include <mach/ohci.h>
+#include <mach/mmc.h>
+#include <mach/pxa27x_keypad.h>
 
 #include "generic.h"
 
@@ -373,10 +373,6 @@ static inline void em_x270_init_nand(void) {}
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 static int em_x270_ohci_init(struct device *dev)
 {
-	/* Set the Power Control Polarity Low */
-	UHCHR = (UHCHR | UHCHR_PCPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSE);
-
 	/* enable port 2 transiever */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE;
 
@@ -385,6 +381,7 @@ static int em_x270_ohci_init(struct device *dev)
 
 static struct pxaohci_platform_data em_x270_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
+	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
 	.init		= em_x270_ohci_init,
 };
 

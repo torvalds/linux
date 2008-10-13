@@ -18,14 +18,14 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/page.h>
-#include <asm/arch/msm_iomap.h>
+#include <mach/msm_iomap.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 #define MSM_DEVICE(name) { \
 		.virtual = MSM_##name##_BASE, \

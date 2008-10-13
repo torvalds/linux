@@ -340,8 +340,15 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	int acc;
 	int ret;
 	unsigned long flags;
+	struct ipath_devdata *dd = to_idev(qp->ibqp.device)->dd;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
+
+	if (qp->ibqp.qp_type != IB_QPT_SMI &&
+	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
+		ret = -ENETDOWN;
+		goto bail;
+	}
 
 	/* Check that state is OK to post send. */
 	if (unlikely(!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK)))
@@ -1021,7 +1028,7 @@ static void sdma_complete(void *cookie, int status)
 	struct ipath_verbs_txreq *tx = cookie;
 	struct ipath_qp *qp = tx->qp;
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
-	unsigned int flags;
+	unsigned long flags;
 	enum ib_wc_status ibs = status == IPATH_SDMA_TXREQ_S_OK ?
 		IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR;
 
@@ -1051,7 +1058,7 @@ static void sdma_complete(void *cookie, int status)
 
 static void decrement_dma_busy(struct ipath_qp *qp)
 {
-	unsigned int flags;
+	unsigned long flags;
 
 	if (atomic_dec_and_test(&qp->s_dma_busy)) {
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -1221,7 +1228,7 @@ static int ipath_verbs_send_pio(struct ipath_qp *qp,
 	unsigned flush_wc;
 	u32 control;
 	int ret;
-	unsigned int flags;
+	unsigned long flags;
 
 	piobuf = ipath_getpiobuf(dd, plen, NULL);
 	if (unlikely(piobuf == NULL)) {

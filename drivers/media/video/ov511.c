@@ -626,9 +626,9 @@ ov511_i2c_write_internal(struct usb_ov511 *ov,
 			break;
 
 		/* Retry until idle */
-		do
+		do {
 			rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0));
+		} while (rc > 0 && ((rc&1) == 0));
 		if (rc < 0)
 			break;
 
@@ -703,9 +703,9 @@ ov511_i2c_read_internal(struct usb_ov511 *ov, unsigned char reg)
 			return rc;
 
 		/* Retry until idle */
-		do
-			 rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0));
+		do {
+			rc = reg_r(ov, R511_I2C_CTL);
+		} while (rc > 0 && ((rc & 1) == 0));
 		if (rc < 0)
 			return rc;
 
@@ -729,9 +729,9 @@ ov511_i2c_read_internal(struct usb_ov511 *ov, unsigned char reg)
 			return rc;
 
 		/* Retry until idle */
-		do
+		do {
 			rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0));
+		} while (rc > 0 && ((rc&1) == 0));
 		if (rc < 0)
 			return rc;
 
@@ -3591,7 +3591,7 @@ static int
 ov51x_init_isoc(struct usb_ov511 *ov)
 {
 	struct urb *urb;
-	int fx, err, n, size;
+	int fx, err, n, i, size;
 
 	PDEBUG(3, "*** Initializing capture ***");
 
@@ -3662,6 +3662,8 @@ ov51x_init_isoc(struct usb_ov511 *ov)
 		urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (!urb) {
 			err("init isoc: usb_alloc_urb ret. NULL");
+			for (i = 0; i < n; i++)
+				usb_free_urb(ov->sbuf[i].urb);
 			return -ENOMEM;
 		}
 		ov->sbuf[n].urb = urb;
@@ -4666,9 +4668,7 @@ static const struct file_operations ov511_fops = {
 };
 
 static struct video_device vdev_template = {
-	.owner =	THIS_MODULE,
 	.name =		"OV511 USB Camera",
-	.type =		VID_TYPE_CAPTURE,
 	.fops =		&ov511_fops,
 	.release =	video_device_release,
 	.minor =	-1,
@@ -5653,7 +5653,7 @@ static ssize_t show_exposure(struct device *cd,
 	if (!ov->dev)
 		return -ENODEV;
 	sensor_get_exposure(ov, &exp);
-	return sprintf(buf, "%d\n", exp >> 8);
+	return sprintf(buf, "%d\n", exp);
 }
 static DEVICE_ATTR(exposure, S_IRUGO, show_exposure, NULL);
 
@@ -5661,43 +5661,43 @@ static int ov_create_sysfs(struct video_device *vdev)
 {
 	int rc;
 
-	rc = video_device_create_file(vdev, &dev_attr_custom_id);
+	rc = device_create_file(&vdev->dev, &dev_attr_custom_id);
 	if (rc) goto err;
-	rc = video_device_create_file(vdev, &dev_attr_model);
+	rc = device_create_file(&vdev->dev, &dev_attr_model);
 	if (rc) goto err_id;
-	rc = video_device_create_file(vdev, &dev_attr_bridge);
+	rc = device_create_file(&vdev->dev, &dev_attr_bridge);
 	if (rc) goto err_model;
-	rc = video_device_create_file(vdev, &dev_attr_sensor);
+	rc = device_create_file(&vdev->dev, &dev_attr_sensor);
 	if (rc) goto err_bridge;
-	rc = video_device_create_file(vdev, &dev_attr_brightness);
+	rc = device_create_file(&vdev->dev, &dev_attr_brightness);
 	if (rc) goto err_sensor;
-	rc = video_device_create_file(vdev, &dev_attr_saturation);
+	rc = device_create_file(&vdev->dev, &dev_attr_saturation);
 	if (rc) goto err_bright;
-	rc = video_device_create_file(vdev, &dev_attr_contrast);
+	rc = device_create_file(&vdev->dev, &dev_attr_contrast);
 	if (rc) goto err_sat;
-	rc = video_device_create_file(vdev, &dev_attr_hue);
+	rc = device_create_file(&vdev->dev, &dev_attr_hue);
 	if (rc) goto err_contrast;
-	rc = video_device_create_file(vdev, &dev_attr_exposure);
+	rc = device_create_file(&vdev->dev, &dev_attr_exposure);
 	if (rc) goto err_hue;
 
 	return 0;
 
 err_hue:
-	video_device_remove_file(vdev, &dev_attr_hue);
+	device_remove_file(&vdev->dev, &dev_attr_hue);
 err_contrast:
-	video_device_remove_file(vdev, &dev_attr_contrast);
+	device_remove_file(&vdev->dev, &dev_attr_contrast);
 err_sat:
-	video_device_remove_file(vdev, &dev_attr_saturation);
+	device_remove_file(&vdev->dev, &dev_attr_saturation);
 err_bright:
-	video_device_remove_file(vdev, &dev_attr_brightness);
+	device_remove_file(&vdev->dev, &dev_attr_brightness);
 err_sensor:
-	video_device_remove_file(vdev, &dev_attr_sensor);
+	device_remove_file(&vdev->dev, &dev_attr_sensor);
 err_bridge:
-	video_device_remove_file(vdev, &dev_attr_bridge);
+	device_remove_file(&vdev->dev, &dev_attr_bridge);
 err_model:
-	video_device_remove_file(vdev, &dev_attr_model);
+	device_remove_file(&vdev->dev, &dev_attr_model);
 err_id:
-	video_device_remove_file(vdev, &dev_attr_custom_id);
+	device_remove_file(&vdev->dev, &dev_attr_custom_id);
 err:
 	return rc;
 }
@@ -5833,7 +5833,7 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto error;
 
 	memcpy(ov->vdev, &vdev_template, sizeof(*ov->vdev));
-	ov->vdev->dev = &intf->dev;
+	ov->vdev->parent = &intf->dev;
 	video_set_drvdata(ov->vdev, ov);
 
 	for (i = 0; i < OV511_MAX_UNIT_VIDEO; i++) {

@@ -25,45 +25,31 @@
 #include <asm/visws/cobalt.h>
 #include <asm/visws/piix4.h>
 #include <asm/arch_hooks.h>
+#include <asm/io_apic.h>
 #include <asm/fixmap.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
-#include <asm/smp.h>
 #include <asm/io.h>
 
 #include <mach_ipi.h>
 
 #include "mach_apic.h"
 
-#include <linux/init.h>
-#include <linux/smp.h>
-
 #include <linux/kernel_stat.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
-#include <asm/apic.h>
 #include <asm/i8259.h>
 #include <asm/irq_vectors.h>
-#include <asm/visws/cobalt.h>
 #include <asm/visws/lithium.h>
-#include <asm/visws/piix4.h>
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 
 extern int no_broadcast;
 
-#include <asm/io.h>
 #include <asm/apic.h>
-#include <asm/arch_hooks.h>
-#include <asm/visws/cobalt.h>
-#include <asm/visws/lithium.h>
 
 char visws_board_type	= -1;
 char visws_board_rev	= -1;
@@ -184,8 +170,6 @@ static int __init visws_get_smp_config(unsigned int early)
 	return 1;
 }
 
-extern unsigned int __cpuinitdata maxcpus;
-
 /*
  * The Visual Workstation is Intel MP compliant in the hardware
  * sense, but it doesn't have a BIOS(-configuration table).
@@ -244,8 +228,8 @@ static int __init visws_find_smp_config(unsigned int reserve)
 		ncpus = CO_CPU_MAX;
 	}
 
-	if (ncpus > maxcpus)
-		ncpus = maxcpus;
+	if (ncpus > setup_max_cpus)
+		ncpus = setup_max_cpus;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	smp_found_config = 1;

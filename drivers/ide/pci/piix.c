@@ -48,7 +48,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -205,7 +204,7 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	out to be nice and simple.
  */
 
-static unsigned int __devinit init_chipset_ich(struct pci_dev *dev)
+static unsigned int init_chipset_ich(struct pci_dev *dev)
 {
 	u32 extra = 0;
 
@@ -256,7 +255,7 @@ static const struct ich_laptop ich_laptop[] = {
 	{ 0, }
 };
 
-static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
+static u8 piix_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	const struct ich_laptop *lap = &ich_laptop[0];
@@ -450,6 +449,8 @@ static struct pci_driver driver = {
 	.id_table	= piix_pci_tbl,
 	.probe		= piix_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init piix_ide_init(void)

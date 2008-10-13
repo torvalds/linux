@@ -23,11 +23,11 @@
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
+#include <linux/io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <asm/io.h>
 #include <asm/gpio.h>
 
 static struct flash_platform_data fsg_flash_data = {
@@ -64,7 +64,7 @@ static struct platform_device fsg_i2c_gpio = {
 
 static struct i2c_board_info __initdata fsg_i2c_board_info [] = {
 	{
-		I2C_BOARD_INFO("rtc-isl1208", 0x6f),
+		I2C_BOARD_INFO("isl1208", 0x6f),
 	},
 };
 
@@ -179,7 +179,6 @@ static void __init fsg_init(void)
 {
 	DECLARE_MAC_BUF(mac_buf);
 	uint8_t __iomem *f;
-	int i;
 
 	ixp4xx_sys_init();
 
@@ -228,6 +227,7 @@ static void __init fsg_init(void)
 	f = ioremap(IXP4XX_EXP_BUS_BASE(0), 0x400000);
 	if (f) {
 #ifdef __ARMEB__
+		int i;
 		for (i = 0; i < 6; i++) {
 			fsg_plat_eth[0].hwaddr[i] = readb(f + 0x3C0422 + i);
 			fsg_plat_eth[1].hwaddr[i] = readb(f + 0x3C043B + i);

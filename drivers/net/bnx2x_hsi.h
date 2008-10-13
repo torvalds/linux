@@ -1268,7 +1268,7 @@ struct doorbell {
 
 
 /*
- * IGU driver acknowlegement register
+ * IGU driver acknowledgement register
  */
 struct igu_ack_register {
 #if defined(__BIG_ENDIAN)
@@ -1882,7 +1882,7 @@ struct timers_block_context {
 };
 
 /*
- * structure for easy accessability to assembler
+ * structure for easy accessibility to assembler
  */
 struct eth_tx_bd_flags {
 	u8 as_bitfield;
@@ -2044,7 +2044,7 @@ struct eth_context {
 
 
 /*
- * ethernet doorbell
+ * Ethernet doorbell
  */
 struct eth_tx_doorbell {
 #if defined(__BIG_ENDIAN)
@@ -2256,7 +2256,7 @@ struct ramrod_data {
 };
 
 /*
- * union for ramrod data for ethernet protocol (CQE) (force size of 16 bits)
+ * union for ramrod data for Ethernet protocol (CQE) (force size of 16 bits)
  */
 union eth_ramrod_data {
 	struct ramrod_data general;
@@ -2330,7 +2330,7 @@ struct spe_hdr {
 };
 
 /*
- * ethernet slow path element
+ * Ethernet slow path element
  */
 union eth_specific_data {
 	u8 protocol_data[8];
@@ -2343,7 +2343,7 @@ union eth_specific_data {
 };
 
 /*
- * ethernet slow path element
+ * Ethernet slow path element
  */
 struct eth_spe {
 	struct spe_hdr hdr;
@@ -2615,7 +2615,7 @@ struct tstorm_eth_rx_producers {
 
 
 /*
- * common flag to indicate existance of TPA.
+ * common flag to indicate existence of TPA.
  */
 struct tstorm_eth_tpa_exist {
 #if defined(__BIG_ENDIAN)
@@ -2765,7 +2765,7 @@ struct tstorm_common_stats {
 };
 
 /*
- * Eth statistics query sturcture for the eth_stats_quesry ramrod
+ * Eth statistics query structure for the eth_stats_query ramrod
  */
 struct eth_stats_query {
 	struct xstorm_common_stats xstorm_common;

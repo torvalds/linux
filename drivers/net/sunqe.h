@@ -314,7 +314,7 @@ struct sunqec {
 	void __iomem		*gregs;		/* QEC Global Registers         */
 	struct sunqe		*qes[4];	/* Each child MACE              */
 	unsigned int            qec_bursts;	/* Support burst sizes          */
-	struct sbus_dev		*qec_sdev;	/* QEC's SBUS device            */
+	struct of_device	*op;		/* QEC's OF device              */
 	struct sunqec		*next_module;	/* List of all QECs in system   */
 };
 
@@ -342,7 +342,7 @@ struct sunqe {
 	__u32				buffers_dvma;	/* DVMA visible address.       */
 	struct sunqec			*parent;
 	u8				mconfig;	/* Base MACE mconfig value     */
-	struct sbus_dev			*qe_sdev;	/* QE's SBUS device struct     */
+	struct of_device		*op;		/* QE's OF device struct       */
 	struct net_device		*dev;		/* QE's netdevice struct       */
 	int				channel;	/* Who am I?                   */
 };

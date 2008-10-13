@@ -607,7 +607,7 @@ void *idr_replace(struct idr *idp, void *ptr, int id)
 }
 EXPORT_SYMBOL(idr_replace);
 
-static void idr_cache_ctor(struct kmem_cache *idr_layer_cache, void *idr_layer)
+static void idr_cache_ctor(void *idr_layer)
 {
 	memset(idr_layer, 0, sizeof(struct idr_layer));
 }

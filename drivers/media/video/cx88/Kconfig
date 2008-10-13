@@ -33,9 +33,8 @@ config VIDEO_CX88_ALSA
 
 config VIDEO_CX88_BLACKBIRD
 	tristate "Blackbird MPEG encoder support (cx2388x + cx23416)"
-	depends on VIDEO_CX88 && HOTPLUG
+	depends on VIDEO_CX88
 	select VIDEO_CX2341X
-	select FW_LOADER
 	---help---
 	  This adds support for MPEG encoder cards based on the
 	  Blackbird reference design, using the Conexant 2388x

@@ -281,7 +281,7 @@ static int __init scc_pciex_iowa_init(struct iowa_bus *bus, void *data)
 
 	dummy_page_da = dma_map_single(bus->phb->parent, dummy_page_va,
 				       PAGE_SIZE, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dummy_page_da)) {
+	if (dma_mapping_error(bus->phb->parent, dummy_page_da)) {
 		pr_err("PCIEX:Map dummy page failed.\n");
 		kfree(dummy_page_va);
 		return -1;

@@ -35,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 
@@ -701,9 +702,7 @@ static const struct file_operations qcam_fops = {
 
 static struct video_device qcam_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Colour QuickCam",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &qcam_fops,
 };
 
@@ -788,8 +787,7 @@ static int init_cqcam(struct parport *port)
 
 	parport_release(qcam->pdev);
 
-	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
-	{
+	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		printk(KERN_ERR "Unable to register Colour QuickCam on %s\n",
 		       qcam->pport->name);
 		parport_unregister_device(qcam->pdev);

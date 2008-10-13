@@ -16,6 +16,9 @@
 #include <net/netns/ipv6.h>
 #include <net/netns/dccp.h>
 #include <net/netns/x_tables.h>
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#include <net/netns/conntrack.h>
+#endif
 
 struct proc_dir_entry;
 struct net_device;
@@ -38,7 +41,9 @@ struct net {
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
 
-	struct list_head	sysctl_table_headers;
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_set	sysctls;
+#endif
 
 	struct net_device       *loopback_dev;          /* The loopback */
 
@@ -65,6 +70,9 @@ struct net {
 #endif
 #ifdef CONFIG_NETFILTER
 	struct netns_xt		xt;
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	struct netns_ct		ct;
+#endif
 #endif
 	struct net_generic	*gen;
 };

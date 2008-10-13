@@ -30,20 +30,22 @@ EXPORT_SYMBOL(inet_csk_timer_bug_msg);
 #endif
 
 /*
- * This array holds the first and last local port number.
+ * This struct holds the first and last local port number.
  */
-int sysctl_local_port_range[2] = { 32768, 61000 };
-DEFINE_SEQLOCK(sysctl_port_range_lock);
+struct local_ports sysctl_local_ports __read_mostly = {
+	.lock = SEQLOCK_UNLOCKED,
+	.range = { 32768, 61000 },
+};
 
 void inet_get_local_port_range(int *low, int *high)
 {
 	unsigned seq;
 	do {
-		seq = read_seqbegin(&sysctl_port_range_lock);
+		seq = read_seqbegin(&sysctl_local_ports.lock);
 
-		*low = sysctl_local_port_range[0];
-		*high = sysctl_local_port_range[1];
-	} while (read_seqretry(&sysctl_port_range_lock, seq));
+		*low = sysctl_local_ports.range[0];
+		*high = sysctl_local_ports.range[1];
+	} while (read_seqretry(&sysctl_local_ports.lock, seq));
 }
 EXPORT_SYMBOL(inet_get_local_port_range);
 
@@ -167,7 +169,7 @@ tb_not_found:
 success:
 	if (!inet_csk(sk)->icsk_bind_hash)
 		inet_bind_hash(sk, tb, snum);
-	BUG_TRAP(inet_csk(sk)->icsk_bind_hash == tb);
+	WARN_ON(inet_csk(sk)->icsk_bind_hash != tb);
 	ret = 0;
 
 fail_unlock:
@@ -260,7 +262,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 	}
 
 	newsk = reqsk_queue_get_child(&icsk->icsk_accept_queue, sk);
-	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
+	WARN_ON(newsk->sk_state == TCP_SYN_RECV);
 out:
 	release_sock(sk);
 	return newsk;
@@ -335,6 +337,7 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 					.saddr = ireq->loc_addr,
 					.tos = RT_CONN_FLAGS(sk) } },
 			    .proto = sk->sk_protocol,
+			    .flags = inet_sk_flowi_flags(sk),
 			    .uli_u = { .ports =
 				       { .sport = inet_sk(sk)->sport,
 					 .dport = ireq->rmt_port } } };
@@ -386,7 +389,7 @@ struct request_sock *inet_csk_search_req(const struct sock *sk,
 		    ireq->rmt_addr == raddr &&
 		    ireq->loc_addr == laddr &&
 		    AF_INET_FAMILY(req->rsk_ops->family)) {
-			BUG_TRAP(!req->sk);
+			WARN_ON(req->sk);
 			*prevp = prev;
 			break;
 		}
@@ -515,6 +518,8 @@ struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
 		newicsk->icsk_bind_hash = NULL;
 
 		inet_sk(newsk)->dport = inet_rsk(req)->rmt_port;
+		inet_sk(newsk)->num = ntohs(inet_rsk(req)->loc_port);
+		inet_sk(newsk)->sport = inet_rsk(req)->loc_port;
 		newsk->sk_write_space = sk_stream_write_space;
 
 		newicsk->icsk_retransmits = 0;
@@ -539,14 +544,14 @@ EXPORT_SYMBOL_GPL(inet_csk_clone);
  */
 void inet_csk_destroy_sock(struct sock *sk)
 {
-	BUG_TRAP(sk->sk_state == TCP_CLOSE);
-	BUG_TRAP(sock_flag(sk, SOCK_DEAD));
+	WARN_ON(sk->sk_state != TCP_CLOSE);
+	WARN_ON(!sock_flag(sk, SOCK_DEAD));
 
 	/* It cannot be in hash table! */
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 
 	/* If it has not 0 inet_sk(sk)->num, it must be bound */
-	BUG_TRAP(!inet_sk(sk)->num || inet_csk(sk)->icsk_bind_hash);
+	WARN_ON(inet_sk(sk)->num && !inet_csk(sk)->icsk_bind_hash);
 
 	sk->sk_prot->destroy(sk);
 
@@ -629,7 +634,7 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		local_bh_disable();
 		bh_lock_sock(child);
-		BUG_TRAP(!sock_owned_by_user(child));
+		WARN_ON(sock_owned_by_user(child));
 		sock_hold(child);
 
 		sk->sk_prot->disconnect(child, O_NONBLOCK);
@@ -647,7 +652,7 @@ void inet_csk_listen_stop(struct sock *sk)
 		sk_acceptq_removed(sk);
 		__reqsk_free(req);
 	}
-	BUG_TRAP(!sk->sk_ack_backlog);
+	WARN_ON(sk->sk_ack_backlog);
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_listen_stop);

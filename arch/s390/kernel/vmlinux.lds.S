@@ -55,7 +55,7 @@ SECTIONS
 		__start___ex_table = .;
 		*(__ex_table)
 		__stop___ex_table = .;
-	}
+	} :data
 
 	.data : {		/* Data */
 		DATA_DATA

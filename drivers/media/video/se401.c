@@ -1230,9 +1230,7 @@ static const struct file_operations se401_fops = {
 	.llseek =       no_llseek,
 };
 static struct video_device se401_template = {
-	.owner =	THIS_MODULE,
 	.name =         "se401 USB camera",
-	.type =         VID_TYPE_CAPTURE,
 	.fops =         &se401_fops,
 };
 
@@ -1399,7 +1397,7 @@ static int se401_probe(struct usb_interface *intf,
 	mutex_init(&se401->lock);
 	wmb();
 
-	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		kfree(se401);
 		err("video_register_device failed");
 		return -EIO;

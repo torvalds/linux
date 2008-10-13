@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/uts.h>
 #include <linux/utsname.h>
-#include <linux/version.h>
 #include <linux/sysctl.h>
 
 static void *get_uts(ctl_table *table, int write)

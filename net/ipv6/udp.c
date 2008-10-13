@@ -107,6 +107,21 @@ static struct sock *__udp6_lib_lookup(struct net *net,
 	return result;
 }
 
+static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
+					  __be16 sport, __be16 dport,
+					  struct hlist_head udptable[])
+{
+	struct sock *sk;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+
+	if (unlikely(sk = skb_steal_sock(skb)))
+		return sk;
+	else
+		return __udp6_lib_lookup(dev_net(skb->dst->dev), &iph->saddr, sport,
+					 &iph->daddr, dport, inet6_iif(skb),
+					 udptable);
+}
+
 /*
  * 	This should be easy, if there is something there we
  * 	return it, otherwise we block.
@@ -379,7 +394,7 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 					uh->source, saddr, dif))) {
 		struct sk_buff *buff = skb_clone(skb, GFP_ATOMIC);
 		if (buff) {
-			bh_lock_sock_nested(sk2);
+			bh_lock_sock(sk2);
 			if (!sock_owned_by_user(sk2))
 				udpv6_queue_rcv_skb(sk2, buff);
 			else
@@ -387,7 +402,7 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 			bh_unlock_sock(sk2);
 		}
 	}
-	bh_lock_sock_nested(sk);
+	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
 	else
@@ -488,8 +503,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	 * check socket cache ... must talk to Alan about his plans
 	 * for sock caches... i'll skip this for now.
 	 */
-	sk = __udp6_lib_lookup(net, saddr, uh->source,
-			       daddr, uh->dest, inet6_iif(skb), udptable);
+	sk = __udp6_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 
 	if (sk == NULL) {
 		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
@@ -508,7 +522,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 	/* deliver */
 
-	bh_lock_sock_nested(sk);
+	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
 	else

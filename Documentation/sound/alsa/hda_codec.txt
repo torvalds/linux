@@ -67,7 +67,7 @@ CONFIG_SND_HDA_POWER_SAVE kconfig.  It's called when the codec needs
 to power up or may power down.  The controller should check the all
 belonging codecs on the bus whether they are actually powered off
 (check codec->power_on), and optionally the driver may power down the
-contoller side, too.
+controller side, too.
 
 The bus instance is created via snd_hda_bus_new().  You need to pass
 the card instance, the template, and the pointer to store the

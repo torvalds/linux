@@ -210,8 +210,8 @@ static void hpet_legacy_clockevent_register(void)
 	/* Calculate the min / max delta */
 	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
 							   &hpet_clockevent);
-	hpet_clockevent.min_delta_ns = clockevent_delta2ns(0x30,
-							   &hpet_clockevent);
+	/* 5 usec minimum reprogramming delta. */
+	hpet_clockevent.min_delta_ns = 5000;
 
 	/*
 	 * Start hpet with the boot cpu mask and make it
@@ -270,15 +270,22 @@ static void hpet_legacy_set_mode(enum clock_event_mode mode,
 }
 
 static int hpet_legacy_next_event(unsigned long delta,
-			   struct clock_event_device *evt)
+				  struct clock_event_device *evt)
 {
-	unsigned long cnt;
+	u32 cnt;
 
 	cnt = hpet_readl(HPET_COUNTER);
-	cnt += delta;
+	cnt += (u32) delta;
 	hpet_writel(cnt, HPET_T0_CMP);
 
-	return ((long)(hpet_readl(HPET_COUNTER) - cnt ) > 0) ? -ETIME : 0;
+	/*
+	 * We need to read back the CMP register to make sure that
+	 * what we wrote hit the chip before we compare it to the
+	 * counter.
+	 */
+	WARN_ON((u32)hpet_readl(HPET_T0_CMP) != cnt);
+
+	return (s32)((u32)hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
 }
 
 /*
@@ -359,6 +366,7 @@ static int hpet_clocksource_register(void)
 int __init hpet_enable(void)
 {
 	unsigned long id;
+	int i;
 
 	if (!is_hpet_capable())
 		return 0;
@@ -369,6 +377,29 @@ int __init hpet_enable(void)
 	 * Read the period and check for a sane value:
 	 */
 	hpet_period = hpet_readl(HPET_PERIOD);
+
+	/*
+	 * AMD SB700 based systems with spread spectrum enabled use a
+	 * SMM based HPET emulation to provide proper frequency
+	 * setting. The SMM code is initialized with the first HPET
+	 * register access and takes some time to complete. During
+	 * this time the config register reads 0xffffffff. We check
+	 * for max. 1000 loops whether the config register reads a non
+	 * 0xffffffff value to make sure that HPET is up and running
+	 * before we go further. A counting loop is safe, as the HPET
+	 * access takes thousands of CPU cycles. On non SB700 based
+	 * machines this check is only done once and has no side
+	 * effects.
+	 */
+	for (i = 0; hpet_readl(HPET_CFG) == 0xFFFFFFFF; i++) {
+		if (i == 1000) {
+			printk(KERN_WARNING
+			       "HPET config register value = 0xFFFFFFFF. "
+			       "Disabling HPET\n");
+			goto out_nohpet;
+		}
+	}
+
 	if (hpet_period < HPET_MIN_PERIOD || hpet_period > HPET_MAX_PERIOD)
 		goto out_nohpet;
 

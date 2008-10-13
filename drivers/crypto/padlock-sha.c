@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
+#include <asm/i387.h>
 #include "padlock.h"
 
 #define SHA1_DEFAULT_FALLBACK	"sha1-generic"
@@ -102,6 +103,7 @@ static void padlock_do_sha1(const char *in, char *out, int count)
 	 *     PadLock microcode needs it that big. */
 	char buf[128+16];
 	char *result = NEAREST_ALIGNED(buf);
+	int ts_state;
 
 	((uint32_t *)result)[0] = SHA1_H0;
 	((uint32_t *)result)[1] = SHA1_H1;
@@ -109,9 +111,12 @@ static void padlock_do_sha1(const char *in, char *out, int count)
 	((uint32_t *)result)[3] = SHA1_H3;
 	((uint32_t *)result)[4] = SHA1_H4;
  
+	/* prevent taking the spurious DNA fault with padlock. */
+	ts_state = irq_ts_save();
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xc8" /* rep xsha1 */
 		      : "+S"(in), "+D"(result)
 		      : "c"(count), "a"(0));
+	irq_ts_restore(ts_state);
 
 	padlock_output_block((uint32_t *)result, (uint32_t *)out, 5);
 }
@@ -123,6 +128,7 @@ static void padlock_do_sha256(const char *in, char *out, int count)
 	 *     PadLock microcode needs it that big. */
 	char buf[128+16];
 	char *result = NEAREST_ALIGNED(buf);
+	int ts_state;
 
 	((uint32_t *)result)[0] = SHA256_H0;
 	((uint32_t *)result)[1] = SHA256_H1;
@@ -133,9 +139,12 @@ static void padlock_do_sha256(const char *in, char *out, int count)
 	((uint32_t *)result)[6] = SHA256_H6;
 	((uint32_t *)result)[7] = SHA256_H7;
 
+	/* prevent taking the spurious DNA fault with padlock. */
+	ts_state = irq_ts_save();
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xd0" /* rep xsha256 */
 		      : "+S"(in), "+D"(result)
 		      : "c"(count), "a"(0));
+	irq_ts_restore(ts_state);
 
 	padlock_output_block((uint32_t *)result, (uint32_t *)out, 8);
 }

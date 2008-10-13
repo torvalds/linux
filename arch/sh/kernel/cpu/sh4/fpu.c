@@ -13,7 +13,7 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/io.h>
-#include <asm/cpu/fpu.h>
+#include <cpu/fpu.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/fpu.h>

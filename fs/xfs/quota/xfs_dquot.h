@@ -82,7 +82,7 @@ typedef struct xfs_dquot {
 	xfs_qcnt_t	 q_res_icount;	/* total inos allocd+reserved */
 	xfs_qcnt_t	 q_res_rtbcount;/* total realtime blks used+reserved */
 	mutex_t		 q_qlock;	/* quota lock */
-	sema_t		 q_flock;	/* flush lock */
+	struct completion q_flush;	/* flush completion queue */
 	uint		 q_pincount;	/* pin count for this dquot */
 	sv_t		 q_pinwait;	/* sync var for pinning */
 #ifdef XFS_DQUOT_TRACE
@@ -113,17 +113,25 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
 
 
 /*
- * The following three routines simply manage the q_flock
- * semaphore embedded in the dquot.  This semaphore synchronizes
- * processes attempting to flush the in-core dquot back to disk.
+ * Manage the q_flush completion queue embedded in the dquot.  This completion
+ * queue synchronizes processes attempting to flush the in-core dquot back to
+ * disk.
  */
-#define xfs_dqflock(dqp)	 { psema(&((dqp)->q_flock), PINOD | PRECALC);\
-				   (dqp)->dq_flags |= XFS_DQ_FLOCKED; }
-#define xfs_dqfunlock(dqp)	 { ASSERT(issemalocked(&((dqp)->q_flock))); \
-				   vsema(&((dqp)->q_flock)); \
-				   (dqp)->dq_flags &= ~(XFS_DQ_FLOCKED); }
+static inline void xfs_dqflock(xfs_dquot_t *dqp)
+{
+	wait_for_completion(&dqp->q_flush);
+}
 
-#define XFS_DQ_IS_FLUSH_LOCKED(dqp) (issemalocked(&((dqp)->q_flock)))
+static inline int xfs_dqflock_nowait(xfs_dquot_t *dqp)
+{
+	return try_wait_for_completion(&dqp->q_flush);
+}
+
+static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
+{
+	complete(&dqp->q_flush);
+}
+
 #define XFS_DQ_IS_ON_FREELIST(dqp)  ((dqp)->dq_flnext != (dqp))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
@@ -164,10 +172,9 @@ extern void		xfs_qm_dqprint(xfs_dquot_t *);
 
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
-extern int		xfs_qm_dqpurge(xfs_dquot_t *, uint);
+extern int		xfs_qm_dqpurge(xfs_dquot_t *);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
 extern int		xfs_qm_dqlock_nowait(xfs_dquot_t *);
-extern int		xfs_qm_dqflock_nowait(xfs_dquot_t *);
 extern void		xfs_qm_dqflock_pushbuf_wait(xfs_dquot_t *dqp);
 extern void		xfs_qm_adjust_dqtimers(xfs_mount_t *,
 					xfs_disk_dquot_t *);

@@ -51,7 +51,7 @@ void default_machine_kexec(struct kimage *image)
 						relocate_new_kernel_size);
 
 	flush_icache_range(reboot_code_buffer,
-				reboot_code_buffer + KEXEC_CONTROL_CODE_SIZE);
+				reboot_code_buffer + KEXEC_CONTROL_PAGE_SIZE);
 	printk(KERN_INFO "Bye!\n");
 
 	/* now call it */

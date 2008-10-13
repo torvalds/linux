@@ -89,7 +89,14 @@ int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 	set_balance_irq_affinity(irq, cpumask);
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	set_pending_irq(irq, cpumask);
+	if (desc->status & IRQ_MOVE_PCNTXT) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&desc->lock, flags);
+		desc->chip->set_affinity(irq, cpumask);
+		spin_unlock_irqrestore(&desc->lock, flags);
+	} else
+		set_pending_irq(irq, cpumask);
 #else
 	desc->affinity = cpumask;
 	desc->chip->set_affinity(irq, cpumask);
@@ -177,8 +184,7 @@ static void __enable_irq(struct irq_desc *desc, unsigned int irq)
 {
 	switch (desc->depth) {
 	case 0:
-		printk(KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
-		WARN_ON(1);
+		WARN(1, KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		break;
 	case 1: {
 		unsigned int status = desc->status & ~IRQ_DISABLED;
@@ -324,7 +330,8 @@ static int __irq_set_trigger(struct irq_chip *chip, unsigned int irq,
 	ret = chip->set_type(irq, flags & IRQF_TRIGGER_MASK);
 
 	if (ret)
-		pr_err("setting flow type for irq %u failed (%pF)\n",
+		pr_err("setting trigger mode %d for irq %u failed (%pF)\n",
+				(int)(flags & IRQF_TRIGGER_MASK),
 				irq, chip->set_type);
 
 	return ret;

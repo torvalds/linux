@@ -10,6 +10,7 @@
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
 #include <linux/completion.h>
+#include <linux/cpumask.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
 
@@ -20,11 +21,13 @@
 
 struct address_space;
 
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+#define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
+
+#if USE_SPLIT_PTLOCKS
 typedef atomic_long_t mm_counter_t;
-#else  /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+#else  /* !USE_SPLIT_PTLOCKS */
 typedef unsigned long mm_counter_t;
-#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+#endif /* !USE_SPLIT_PTLOCKS */
 
 /*
  * Each physical page in the system has a struct page associated with
@@ -64,7 +67,7 @@ struct page {
 						 * see PAGE_MAPPING_ANON below.
 						 */
 	    };
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+#if USE_SPLIT_PTLOCKS
 	    spinlock_t ptl;
 #endif
 	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
@@ -112,7 +115,7 @@ struct vm_area_struct {
 	struct vm_area_struct *vm_next;
 
 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
-	unsigned long vm_flags;		/* Flags, listed below. */
+	unsigned long vm_flags;		/* Flags, see mm.h. */
 
 	struct rb_node vm_rb;
 
@@ -252,6 +255,9 @@ struct mm_struct {
 	/* store ref to file /proc/<pid>/exe symlink points to */
 	struct file *exe_file;
 	unsigned long num_exe_file_vmas;
+#endif
+#ifdef CONFIG_MMU_NOTIFIER
+	struct mmu_notifier_mm *mmu_notifier_mm;
 #endif
 };
 

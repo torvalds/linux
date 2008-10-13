@@ -21,20 +21,19 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
-#include <asm/arch/gpmc.h>
-
-#include <asm/io.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
+#include <mach/board.h>
+#include <mach/common.h>
+#include <mach/gpmc.h>
 
 
 #define	SDP2430_FLASH_CS	0
@@ -103,7 +102,7 @@ static struct resource sdp2430_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(OMAP24XX_ETHR_GPIO_IRQ),
 		.end	= OMAP_GPIO_IRQ(OMAP24XX_ETHR_GPIO_IRQ),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 

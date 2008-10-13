@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -119,7 +118,7 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 }
 
-static u8 __devinit atiixp_cable_detect(ide_hwif_t *hwif)
+static u8 atiixp_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	u8 udma_mode = 0, ch = hwif->channel;
@@ -188,6 +187,8 @@ static struct pci_driver driver = {
 	.id_table	= atiixp_pci_tbl,
 	.probe		= atiixp_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init atiixp_ide_init(void)

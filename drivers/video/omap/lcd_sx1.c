@@ -23,10 +23,10 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/omapfb.h>
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/mux.h>
+#include <mach/gpio.h>
+#include <mach/omapfb.h>
+#include <mach/mcbsp.h>
+#include <mach/mux.h>
 
 /*
  * OMAP310 GPIO registers

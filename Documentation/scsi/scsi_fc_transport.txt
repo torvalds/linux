@@ -65,7 +65,7 @@ Overview:
     discussion will concentrate on NPIV.
 
   Note: World Wide Name assignment (and uniqueness guarantees) are left
-    up to an administrative entity controling the vport. For example,
+    up to an administrative entity controlling the vport. For example,
     if vports are to be associated with virtual machines, a XEN mgmt
     utility would be responsible for creating wwpn/wwnn's for the vport,
     using it's own naming authority and OUI. (Note: it already does this
@@ -91,7 +91,7 @@ Device Trees and Vport Objects:
   Here's what to expect in the device tree :
    The typical Physical Port's Scsi_Host:
      /sys/devices/.../host17/
-   and it has the typical decendent tree:
+   and it has the typical descendant tree:
      /sys/devices/.../host17/rport-17:0-0/target17:0:0/17:0:0:0:
    and then the vport is created on the Physical Port:
      /sys/devices/.../host17/vport-17:0-0
@@ -192,7 +192,7 @@ Vport States:
       independent of the adapter's link state.
     - Instantiation of the vport on the FC link via ELS traffic, etc.
       This is equivalent to a "link up" and successfull link initialization.
-  Futher information can be found in the interfaces section below for
+  Further information can be found in the interfaces section below for
   Vport Creation.
 
   Once a vport has been instantiated with the kernel/LLDD, a vport state
@@ -434,6 +434,42 @@ Other:
     scsi_remove_host().  This allows the fc_host to tear down all remote
     ports prior the scsi_host being torn down.  The fc_remove_host() call
     was updated to remove all vports for the fc_host as well.
+
+
+Transport supplied functions
+----------------------------
+
+The following functions are supplied by the FC-transport for use by LLDs.
+
+   fc_vport_create - create a vport
+   fc_vport_terminate - detach and remove a vport
+
+Details:
+
+/**
+ * fc_vport_create - Admin App or LLDD requests creation of a vport
+ * @shost:     scsi host the virtual port is connected to.
+ * @ids:       The world wide names, FC4 port roles, etc for
+ *              the virtual port.
+ *
+ * Notes:
+ *     This routine assumes no locks are held on entry.
+ */
+struct fc_vport *
+fc_vport_create(struct Scsi_Host *shost, struct fc_vport_identifiers *ids)
+
+/**
+ * fc_vport_terminate - Admin App or LLDD requests termination of a vport
+ * @vport:      fc_vport to be terminated
+ *
+ * Calls the LLDD vport_delete() function, then deallocates and removes
+ * the vport from the shost and object tree.
+ *
+ * Notes:
+ *      This routine assumes no locks are held on entry.
+ */
+int
+fc_vport_terminate(struct fc_vport *vport)
 
 
 Credits

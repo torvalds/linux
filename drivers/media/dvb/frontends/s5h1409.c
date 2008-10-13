@@ -1,7 +1,7 @@
 /*
     Samsung S5H1409 VSB/QAM demodulator driver
 
-    Copyright (C) 2006 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2006 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -404,6 +404,7 @@ static int s5h1409_enable_modulation(struct dvb_frontend* fe,
 		break;
 	case QAM_64:
 	case QAM_256:
+	case QAM_AUTO:
 		dprintk("%s() QAM_AUTO (64/256)\n", __func__);
 		if (state->if_freq != S5H1409_QAM_IF_FREQ)
 			s5h1409_set_if_freq(fe, S5H1409_QAM_IF_FREQ);

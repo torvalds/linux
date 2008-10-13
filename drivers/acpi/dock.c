@@ -563,9 +563,6 @@ EXPORT_SYMBOL_GPL(unregister_hotplug_dock_device);
  */
 static int handle_eject_request(struct dock_station *ds, u32 event)
 {
-	if (!dock_present(ds))
-		return -ENODEV;
-
 	if (dock_in_progress(ds))
 		return -EBUSY;
 
@@ -573,8 +570,16 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 	 * here we need to generate the undock
 	 * event prior to actually doing the undock
 	 * so that the device struct still exists.
+	 * Also, even send the dock event if the
+	 * device is not present anymore
 	 */
 	dock_event(ds, event, UNDOCK_EVENT);
+
+	if (!dock_present(ds)) {
+		complete_undock(ds);
+		return -ENODEV;
+	}
+
 	hotplug_dock_devices(ds, ACPI_NOTIFY_EJECT_REQUEST);
 	undock(ds);
 	eject_dock(ds);

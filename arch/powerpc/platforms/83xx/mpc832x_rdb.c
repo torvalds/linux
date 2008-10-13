@@ -115,6 +115,7 @@ static void __init mpc832x_rdb_setup_arch(void)
 static struct of_device_id mpc832x_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
+	{ .compatible = "simple-bus", },
 	{ .type = "qe", },
 	{ .compatible = "fsl,qe", },
 	{},

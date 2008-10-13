@@ -186,9 +186,10 @@ hwsw_dma_supported (struct device *dev, u64 mask)
 }
 
 int
-hwsw_dma_mapping_error (dma_addr_t dma_addr)
+hwsw_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	return hwiommu_dma_mapping_error (dma_addr) || swiotlb_dma_mapping_error(dma_addr);
+	return hwiommu_dma_mapping_error(dev, dma_addr) ||
+		swiotlb_dma_mapping_error(dev, dma_addr);
 }
 
 EXPORT_SYMBOL(hwsw_dma_mapping_error);

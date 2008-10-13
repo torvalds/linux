@@ -7,8 +7,8 @@
  * as published by the Free Software Foundation.
  */
 
-#ifndef _ASM_GEODE_H_
-#define _ASM_GEODE_H_
+#ifndef ASM_X86__GEODE_H
+#define ASM_X86__GEODE_H
 
 #include <asm/processor.h>
 #include <linux/io.h>
@@ -50,6 +50,7 @@ extern int geode_get_dev_base(unsigned int dev);
 #define MSR_PIC_YSEL_HIGH	0x51400021
 #define MSR_PIC_ZSEL_LOW	0x51400022
 #define MSR_PIC_ZSEL_HIGH	0x51400023
+#define MSR_PIC_IRQM_LPC	0x51400025
 
 #define MSR_MFGPT_IRQ		0x51400028
 #define MSR_MFGPT_NR		0x51400029
@@ -237,7 +238,7 @@ static inline u16 geode_mfgpt_read(int timer, u16 reg)
 }
 
 extern int geode_mfgpt_toggle_event(int timer, int cmp, int event, int enable);
-extern int geode_mfgpt_set_irq(int timer, int cmp, int irq, int enable);
+extern int geode_mfgpt_set_irq(int timer, int cmp, int *irq, int enable);
 extern int geode_mfgpt_alloc_timer(int timer, int domain);
 
 #define geode_mfgpt_setup_irq(t, c, i) geode_mfgpt_set_irq((t), (c), (i), 1)
@@ -249,4 +250,4 @@ extern int __init mfgpt_timer_setup(void);
 static inline int mfgpt_timer_setup(void) { return 0; }
 #endif
 
-#endif
+#endif /* ASM_X86__GEODE_H */

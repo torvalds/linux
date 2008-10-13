@@ -131,13 +131,14 @@ static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 	u8 busno, suba, subb;
 	int quad = BUS2QUAD(d->bus->number);
 
-	printk("PCI: Searching for i450NX host bridges on %s\n", pci_name(d));
+	dev_info(&d->dev, "searching for i450NX host bridges\n");
 	reg = 0xd0;
 	for(pxb=0; pxb<2; pxb++) {
 		pci_read_config_byte(d, reg++, &busno);
 		pci_read_config_byte(d, reg++, &suba);
 		pci_read_config_byte(d, reg++, &subb);
-		DBG("i450NX PXB %d: %02x/%02x/%02x\n", pxb, busno, suba, subb);
+		dev_dbg(&d->dev, "i450NX PXB %d: %02x/%02x/%02x\n",
+			pxb, busno, suba, subb);
 		if (busno) {
 			/* Bus A */
 			pci_scan_bus_with_sysdata(QUADLOCAL2BUS(quad, busno));

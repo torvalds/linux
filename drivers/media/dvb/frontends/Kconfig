@@ -97,9 +97,8 @@ comment "DVB-T (terrestrial) frontends"
 
 config DVB_SP8870
 	tristate "Spase sp8870 based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -110,9 +109,8 @@ config DVB_SP8870
 
 config DVB_SP887X
 	tristate "Spase sp887x based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -135,6 +133,19 @@ config DVB_CX22702
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
+config DVB_DRX397XD
+	tristate "Micronas DRX3975D/DRX3977D based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+	  TODO:
+	  This driver needs external firmware. Please use the command
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware drx397xD" to
+	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
+
 config DVB_L64781
 	tristate "LSI L64781"
 	depends on DVB_CORE && I2C
@@ -144,9 +155,8 @@ config DVB_L64781
 
 config DVB_TDA1004X
 	tristate "Philips TDA10045H/TDA10046H based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -211,9 +221,8 @@ config DVB_DIB7000P
 
 config DVB_TDA10048
 	tristate "Philips TDA10048HN based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -253,9 +262,8 @@ comment "ATSC (North American/Korean Terrestrial/Cable DTV) frontends"
 
 config DVB_NXT200X
 	tristate "NxtWave Communications NXT2002/NXT2004 based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -268,9 +276,8 @@ config DVB_NXT200X
 
 config DVB_OR51211
 	tristate "Oren OR51211 based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
@@ -281,9 +288,8 @@ config DVB_OR51211
 
 config DVB_OR51132
 	tristate "Oren OR51132 based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -297,9 +303,8 @@ config DVB_OR51132
 
 config DVB_BCM3510
 	tristate "Broadcom BCM3510"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  An ATSC 8VSB/16VSB and QAM64/256 tuner module. Say Y when you want to
 	  support this frontend.

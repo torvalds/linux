@@ -36,9 +36,7 @@ struct f_gser {
 	u8				data_id;
 	u8				port_num;
 
-	struct usb_descriptor_header	**fs_function;
 	struct gser_descs		fs;
-	struct usb_descriptor_header	**hs_function;
 	struct gser_descs		hs;
 };
 

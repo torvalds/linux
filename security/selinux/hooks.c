@@ -25,7 +25,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/security.h>
@@ -957,7 +957,8 @@ out_err:
 	return rc;
 }
 
-void selinux_write_opts(struct seq_file *m, struct security_mnt_opts *opts)
+static void selinux_write_opts(struct seq_file *m,
+			       struct security_mnt_opts *opts)
 {
 	int i;
 	char *prefix;
@@ -998,8 +999,12 @@ static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
 	int rc;
 
 	rc = selinux_get_mnt_opts(sb, &opts);
-	if (rc)
+	if (rc) {
+		/* before policy load we may get EINVAL, don't show anything */
+		if (rc == -EINVAL)
+			rc = 0;
 		return rc;
+	}
 
 	selinux_write_opts(m, &opts);
 
@@ -1286,7 +1291,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
-		if (sbsec->proc) {
+		if (sbsec->proc && !S_ISLNK(inode->i_mode)) {
 			struct proc_inode *proci = PROC_I(inode);
 			if (proci->pde) {
 				isec->sclass = inode_mode_to_security_class(inode->i_mode);
@@ -1734,24 +1739,34 @@ static inline u32 file_to_av(struct file *file)
 
 /* Hook functions begin here. */
 
-static int selinux_ptrace(struct task_struct *parent,
-			  struct task_struct *child,
-			  unsigned int mode)
+static int selinux_ptrace_may_access(struct task_struct *child,
+				     unsigned int mode)
 {
 	int rc;
 
-	rc = secondary_ops->ptrace(parent, child, mode);
+	rc = secondary_ops->ptrace_may_access(child, mode);
 	if (rc)
 		return rc;
 
 	if (mode == PTRACE_MODE_READ) {
-		struct task_security_struct *tsec = parent->security;
+		struct task_security_struct *tsec = current->security;
 		struct task_security_struct *csec = child->security;
 		return avc_has_perm(tsec->sid, csec->sid,
 				    SECCLASS_FILE, FILE__READ, NULL);
 	}
 
-	return task_has_perm(parent, child, PROCESS__PTRACE);
+	return task_has_perm(current, child, PROCESS__PTRACE);
+}
+
+static int selinux_ptrace_traceme(struct task_struct *parent)
+{
+	int rc;
+
+	rc = secondary_ops->ptrace_traceme(parent);
+	if (rc)
+		return rc;
+
+	return task_has_perm(parent, current, PROCESS__PTRACE);
 }
 
 static int selinux_capget(struct task_struct *target, kernel_cap_t *effective,
@@ -1969,22 +1984,6 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 		cap_sys_admin = 1;
 
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
-}
-
-/**
- * task_tracer_task - return the task that is tracing the given task
- * @task:		task to consider
- *
- * Returns NULL if noone is tracing @task, or the &struct task_struct
- * pointer to its tracer.
- *
- * Must be called under rcu_read_lock().
- */
-static struct task_struct *task_tracer_task(struct task_struct *task)
-{
-	if (task->ptrace & PT_PTRACED)
-		return rcu_dereference(task->parent);
-	return NULL;
 }
 
 /* binprm security operations */
@@ -2238,7 +2237,7 @@ static void selinux_bprm_apply_creds(struct linux_binprm *bprm, int unsafe)
 			u32 ptsid = 0;
 
 			rcu_read_lock();
-			tracer = task_tracer_task(current);
+			tracer = tracehook_tracer_task(current);
 			if (likely(tracer != NULL)) {
 				sec = tracer->security;
 				ptsid = sec->sid;
@@ -2640,12 +2639,11 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 	return dentry_has_perm(current, NULL, dentry, FILE__READ);
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask,
-				    struct nameidata *nd)
+static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	int rc;
 
-	rc = secondary_ops->inode_permission(inode, mask, nd);
+	rc = secondary_ops->inode_permission(inode, mask);
 	if (rc)
 		return rc;
 
@@ -3551,38 +3549,44 @@ out:
 #endif /* IPV6 */
 
 static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
-			     char **addrp, int src, u8 *proto)
+			     char **_addrp, int src, u8 *proto)
 {
-	int ret = 0;
+	char *addrp;
+	int ret;
 
 	switch (ad->u.net.family) {
 	case PF_INET:
 		ret = selinux_parse_skb_ipv4(skb, ad, proto);
-		if (ret || !addrp)
-			break;
-		*addrp = (char *)(src ? &ad->u.net.v4info.saddr :
-					&ad->u.net.v4info.daddr);
-		break;
+		if (ret)
+			goto parse_error;
+		addrp = (char *)(src ? &ad->u.net.v4info.saddr :
+				       &ad->u.net.v4info.daddr);
+		goto okay;
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case PF_INET6:
 		ret = selinux_parse_skb_ipv6(skb, ad, proto);
-		if (ret || !addrp)
-			break;
-		*addrp = (char *)(src ? &ad->u.net.v6info.saddr :
-					&ad->u.net.v6info.daddr);
-		break;
+		if (ret)
+			goto parse_error;
+		addrp = (char *)(src ? &ad->u.net.v6info.saddr :
+				       &ad->u.net.v6info.daddr);
+		goto okay;
 #endif	/* IPV6 */
 	default:
-		break;
+		addrp = NULL;
+		goto okay;
 	}
 
-	if (unlikely(ret))
-		printk(KERN_WARNING
-		       "SELinux: failure in selinux_parse_skb(),"
-		       " unable to parse packet\n");
-
+parse_error:
+	printk(KERN_WARNING
+	       "SELinux: failure in selinux_parse_skb(),"
+	       " unable to parse packet\n");
 	return ret;
+
+okay:
+	if (_addrp)
+		*_addrp = addrp;
+	return 0;
 }
 
 /**
@@ -5222,8 +5226,12 @@ static int selinux_setprocattr(struct task_struct *p,
 
 		if (sid == 0)
 			return -EINVAL;
-
-		/* Only allow single threaded processes to change context */
+		/*
+		 * SELinux allows to change context in the following case only.
+		 *  - Single threaded processes.
+		 *  - Multi threaded processes intend to change its context into
+		 *    more restricted domain (defined by TYPEBOUNDS statement).
+		 */
 		if (atomic_read(&p->mm->mm_users) != 1) {
 			struct task_struct *g, *t;
 			struct mm_struct *mm = p->mm;
@@ -5231,11 +5239,16 @@ static int selinux_setprocattr(struct task_struct *p,
 			do_each_thread(g, t) {
 				if (t->mm == mm && t != p) {
 					read_unlock(&tasklist_lock);
-					return -EPERM;
+					error = security_bounded_transition(tsec->sid, sid);
+					if (!error)
+						goto boundary_ok;
+
+					return error;
 				}
 			} while_each_thread(g, t);
 			read_unlock(&tasklist_lock);
 		}
+boundary_ok:
 
 		/* Check permissions for the transition. */
 		error = avc_has_perm(tsec->sid, sid, SECCLASS_PROCESS,
@@ -5247,7 +5260,7 @@ static int selinux_setprocattr(struct task_struct *p,
 		   Otherwise, leave SID unchanged and fail. */
 		task_lock(p);
 		rcu_read_lock();
-		tracer = task_tracer_task(p);
+		tracer = tracehook_tracer_task(p);
 		if (tracer != NULL) {
 			struct task_security_struct *ptsec = tracer->security;
 			u32 ptsid = ptsec->sid;
@@ -5359,7 +5372,8 @@ static int selinux_key_getsecurity(struct key *key, char **_buffer)
 static struct security_operations selinux_ops = {
 	.name =				"selinux",
 
-	.ptrace =			selinux_ptrace,
+	.ptrace_may_access =		selinux_ptrace_may_access,
+	.ptrace_traceme =		selinux_ptrace_traceme,
 	.capget =			selinux_capget,
 	.capset_check =			selinux_capset_check,
 	.capset_set =			selinux_capset_set,
@@ -5670,27 +5684,20 @@ static struct nf_hook_ops selinux_ipv6_ops[] = {
 static int __init selinux_nf_ip_init(void)
 {
 	int err = 0;
-	u32 iter;
 
 	if (!selinux_enabled)
 		goto out;
 
 	printk(KERN_DEBUG "SELinux:  Registering netfilter hooks\n");
 
-	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv4_ops); iter++) {
-		err = nf_register_hook(&selinux_ipv4_ops[iter]);
-		if (err)
-			panic("SELinux: nf_register_hook for IPv4: error %d\n",
-			      err);
-	}
+	err = nf_register_hooks(selinux_ipv4_ops, ARRAY_SIZE(selinux_ipv4_ops));
+	if (err)
+		panic("SELinux: nf_register_hooks for IPv4: error %d\n", err);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv6_ops); iter++) {
-		err = nf_register_hook(&selinux_ipv6_ops[iter]);
-		if (err)
-			panic("SELinux: nf_register_hook for IPv6: error %d\n",
-			      err);
-	}
+	err = nf_register_hooks(selinux_ipv6_ops, ARRAY_SIZE(selinux_ipv6_ops));
+	if (err)
+		panic("SELinux: nf_register_hooks for IPv6: error %d\n", err);
 #endif	/* IPV6 */
 
 out:
@@ -5702,15 +5709,11 @@ __initcall(selinux_nf_ip_init);
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 static void selinux_nf_ip_exit(void)
 {
-	u32 iter;
-
 	printk(KERN_DEBUG "SELinux:  Unregistering netfilter hooks\n");
 
-	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv4_ops); iter++)
-		nf_unregister_hook(&selinux_ipv4_ops[iter]);
+	nf_unregister_hooks(selinux_ipv4_ops, ARRAY_SIZE(selinux_ipv4_ops));
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv6_ops); iter++)
-		nf_unregister_hook(&selinux_ipv6_ops[iter]);
+	nf_unregister_hooks(selinux_ipv6_ops, ARRAY_SIZE(selinux_ipv6_ops));
 #endif	/* IPV6 */
 }
 #endif

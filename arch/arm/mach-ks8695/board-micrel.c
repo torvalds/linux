@@ -18,7 +18,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/devices.h>
+#include <mach/devices.h>
 
 #include "generic.h"
 

@@ -1753,7 +1753,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 		open_devip = sdebug_device_create(sdbg_host, GFP_ATOMIC);
 		if (!open_devip) {
 			printk(KERN_ERR "%s: out of memory at line %d\n",
-				__FUNCTION__, __LINE__);
+				__func__, __LINE__);
 			return NULL;
 		}
 	}
@@ -2656,7 +2656,7 @@ static int sdebug_add_adapter(void)
         sdbg_host = kzalloc(sizeof(*sdbg_host),GFP_KERNEL);
         if (NULL == sdbg_host) {
                 printk(KERN_ERR "%s: out of memory at line %d\n",
-                       __FUNCTION__, __LINE__);
+                       __func__, __LINE__);
                 return -ENOMEM;
         }
 
@@ -2667,7 +2667,7 @@ static int sdebug_add_adapter(void)
 		sdbg_devinfo = sdebug_device_create(sdbg_host, GFP_KERNEL);
 		if (!sdbg_devinfo) {
                         printk(KERN_ERR "%s: out of memory at line %d\n",
-                               __FUNCTION__, __LINE__);
+                               __func__, __LINE__);
                         error = -ENOMEM;
 			goto clean;
                 }
@@ -2987,7 +2987,7 @@ static int sdebug_driver_probe(struct device * dev)
 
         hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
         if (NULL == hpnt) {
-                printk(KERN_ERR "%s: scsi_register failed\n", __FUNCTION__);
+                printk(KERN_ERR "%s: scsi_register failed\n", __func__);
                 error = -ENODEV;
 		return error;
         }
@@ -3002,7 +3002,7 @@ static int sdebug_driver_probe(struct device * dev)
 
         error = scsi_add_host(hpnt, &sdbg_host->dev);
         if (error) {
-                printk(KERN_ERR "%s: scsi_add_host failed\n", __FUNCTION__);
+                printk(KERN_ERR "%s: scsi_add_host failed\n", __func__);
                 error = -ENODEV;
 		scsi_host_put(hpnt);
         } else
@@ -3021,7 +3021,7 @@ static int sdebug_driver_remove(struct device * dev)
 
 	if (!sdbg_host) {
 		printk(KERN_ERR "%s: Unable to locate host info\n",
-		       __FUNCTION__);
+		       __func__);
 		return -ENODEV;
 	}
 

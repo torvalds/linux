@@ -93,10 +93,10 @@ enum {
 extern xfs_param_t	xfs_params;
 
 #ifdef CONFIG_SYSCTL
-extern void xfs_sysctl_register(void);
+extern int xfs_sysctl_register(void);
 extern void xfs_sysctl_unregister(void);
 #else
-# define xfs_sysctl_register()		do { } while (0)
+# define xfs_sysctl_register()		(0)
 # define xfs_sysctl_unregister()	do { } while (0)
 #endif /* CONFIG_SYSCTL */
 

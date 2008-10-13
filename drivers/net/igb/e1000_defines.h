@@ -257,6 +257,7 @@
 #define E1000_PCS_LCTL_FDV_FULL          8
 #define E1000_PCS_LCTL_FSD               0x10
 #define E1000_PCS_LCTL_FORCE_LINK        0x20
+#define E1000_PCS_LCTL_FORCE_FCTRL       0x80
 #define E1000_PCS_LCTL_AN_ENABLE         0x10000
 #define E1000_PCS_LCTL_AN_RESTART        0x20000
 #define E1000_PCS_LCTL_AN_TIMEOUT        0x40000

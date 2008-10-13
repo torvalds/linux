@@ -60,6 +60,8 @@ extern int dir_notify_enable;
 #define MAY_WRITE 2
 #define MAY_READ 4
 #define MAY_APPEND 8
+#define MAY_ACCESS 16
+#define MAY_OPEN 32
 
 #define FMODE_READ 1
 #define FMODE_WRITE 2
@@ -84,7 +86,9 @@ extern int dir_notify_enable;
 #define READ_META	(READ | (1 << BIO_RW_META))
 #define WRITE_SYNC	(WRITE | (1 << BIO_RW_SYNC))
 #define SWRITE_SYNC	(SWRITE | (1 << BIO_RW_SYNC))
-#define WRITE_BARRIER	((1 << BIO_RW) | (1 << BIO_RW_BARRIER))
+#define WRITE_BARRIER	(WRITE | (1 << BIO_RW_BARRIER))
+#define DISCARD_NOBARRIER (1 << BIO_RW_DISCARD)
+#define DISCARD_BARRIER ((1 << BIO_RW_DISCARD) | (1 << BIO_RW_BARRIER))
 
 #define SEL_IN		1
 #define SEL_OUT		2
@@ -220,6 +224,7 @@ extern int dir_notify_enable;
 #define BLKTRACESTART _IO(0x12,116)
 #define BLKTRACESTOP _IO(0x12,117)
 #define BLKTRACETEARDOWN _IO(0x12,118)
+#define BLKDISCARD _IO(0x12,119)
 
 #define BMAP_IOCTL 1		/* obsolete - kept for compatibility */
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
@@ -229,6 +234,7 @@ extern int dir_notify_enable;
 #define	FS_IOC_SETFLAGS			_IOW('f', 2, long)
 #define	FS_IOC_GETVERSION		_IOR('v', 1, long)
 #define	FS_IOC_SETVERSION		_IOW('v', 2, long)
+#define FS_IOC_FIEMAP			_IOWR('f', 11, struct fiemap)
 #define FS_IOC32_GETFLAGS		_IOR('f', 1, int)
 #define FS_IOC32_SETFLAGS		_IOW('f', 2, int)
 #define FS_IOC32_GETVERSION		_IOR('v', 1, int)
@@ -277,7 +283,7 @@ extern int dir_notify_enable;
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/dcache.h>
-#include <linux/namei.h>
+#include <linux/path.h>
 #include <linux/stat.h>
 #include <linux/cache.h>
 #include <linux/kobject.h>
@@ -289,6 +295,7 @@ extern int dir_notify_enable;
 #include <linux/mutex.h>
 #include <linux/capability.h>
 #include <linux/semaphore.h>
+#include <linux/fiemap.h>
 
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
@@ -318,22 +325,23 @@ typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  * Attribute flags.  These should be or-ed together to figure out what
  * has been changed!
  */
-#define ATTR_MODE	1
-#define ATTR_UID	2
-#define ATTR_GID	4
-#define ATTR_SIZE	8
-#define ATTR_ATIME	16
-#define ATTR_MTIME	32
-#define ATTR_CTIME	64
-#define ATTR_ATIME_SET	128
-#define ATTR_MTIME_SET	256
-#define ATTR_FORCE	512	/* Not a change, but a change it */
-#define ATTR_ATTR_FLAG	1024
-#define ATTR_KILL_SUID	2048
-#define ATTR_KILL_SGID	4096
-#define ATTR_FILE	8192
-#define ATTR_KILL_PRIV	16384
-#define ATTR_OPEN	32768	/* Truncating from open(O_TRUNC) */
+#define ATTR_MODE	(1 << 0)
+#define ATTR_UID	(1 << 1)
+#define ATTR_GID	(1 << 2)
+#define ATTR_SIZE	(1 << 3)
+#define ATTR_ATIME	(1 << 4)
+#define ATTR_MTIME	(1 << 5)
+#define ATTR_CTIME	(1 << 6)
+#define ATTR_ATIME_SET	(1 << 7)
+#define ATTR_MTIME_SET	(1 << 8)
+#define ATTR_FORCE	(1 << 9) /* Not a change, but a change it */
+#define ATTR_ATTR_FLAG	(1 << 10)
+#define ATTR_KILL_SUID	(1 << 11)
+#define ATTR_KILL_SGID	(1 << 12)
+#define ATTR_FILE	(1 << 13)
+#define ATTR_KILL_PRIV	(1 << 14)
+#define ATTR_OPEN	(1 << 15) /* Truncating from open(O_TRUNC) */
+#define ATTR_TIMES_SET	(1 << 16)
 
 /*
  * This is the Inode Attributes structure, used for notify_change().  It
@@ -440,6 +448,27 @@ static inline size_t iov_iter_count(struct iov_iter *i)
 	return i->count;
 }
 
+/*
+ * "descriptor" for what we're up to with a read.
+ * This allows us to use the same read code yet
+ * have multiple different users of the data that
+ * we read from a file.
+ *
+ * The simplest case just copies the data to user
+ * mode.
+ */
+typedef struct {
+	size_t written;
+	size_t count;
+	union {
+		char __user *buf;
+		void *data;
+	} arg;
+	int error;
+} read_descriptor_t;
+
+typedef int (*read_actor_t)(read_descriptor_t *, struct page *,
+		unsigned long, unsigned long);
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
@@ -481,6 +510,8 @@ struct address_space_operations {
 	int (*migratepage) (struct address_space *,
 			struct page *, struct page *);
 	int (*launder_page) (struct page *);
+	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+					unsigned long);
 };
 
 /*
@@ -499,7 +530,7 @@ struct backing_dev_info;
 struct address_space {
 	struct inode		*host;		/* owner: inode, block_device */
 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
-	rwlock_t		tree_lock;	/* and rwlock protecting it */
+	spinlock_t		tree_lock;	/* and lock protecting it */
 	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
 	struct prio_tree_root	i_mmap;		/* tree of private and shared mappings */
 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
@@ -792,7 +823,7 @@ struct file {
 #define f_dentry	f_path.dentry
 #define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
-	atomic_t		f_count;
+	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	mode_t			f_mode;
 	loff_t			f_pos;
@@ -821,8 +852,8 @@ extern spinlock_t files_lock;
 #define file_list_lock() spin_lock(&files_lock);
 #define file_list_unlock() spin_unlock(&files_lock);
 
-#define get_file(x)	atomic_inc(&(x)->f_count)
-#define file_count(x)	atomic_read(&(x)->f_count)
+#define get_file(x)	atomic_long_inc(&(x)->f_count)
+#define file_count(x)	atomic_long_read(&(x)->f_count)
 
 #ifdef CONFIG_DEBUG_WRITECOUNT
 static inline void file_take_write(struct file *f)
@@ -1136,7 +1167,7 @@ extern int vfs_permission(struct nameidata *, int);
 extern int vfs_create(struct inode *, struct dentry *, int, struct nameidata *);
 extern int vfs_mkdir(struct inode *, struct dentry *, int);
 extern int vfs_mknod(struct inode *, struct dentry *, int, dev_t);
-extern int vfs_symlink(struct inode *, struct dentry *, const char *, int);
+extern int vfs_symlink(struct inode *, struct dentry *, const char *);
 extern int vfs_link(struct dentry *, struct inode *, struct dentry *);
 extern int vfs_rmdir(struct inode *, struct dentry *);
 extern int vfs_unlink(struct inode *, struct dentry *);
@@ -1151,6 +1182,20 @@ extern void dentry_unhash(struct dentry *dentry);
  * VFS file helper functions.
  */
 extern int file_permission(struct file *, int);
+
+/*
+ * VFS FS_IOC_FIEMAP helper definitions.
+ */
+struct fiemap_extent_info {
+	unsigned int fi_flags;		/* Flags as passed from user */
+	unsigned int fi_extents_mapped;	/* Number of mapped extents */
+	unsigned int fi_extents_max;	/* Size of fiemap_extent array */
+	struct fiemap_extent *fi_extents_start; /* Start of fiemap_extent
+						 * array */
+};
+int fiemap_fill_next_extent(struct fiemap_extent_info *info, u64 logical,
+			    u64 phys, u64 len, u32 flags);
+int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
 
 /*
  * File types
@@ -1194,27 +1239,6 @@ struct block_device_operations {
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	struct module *owner;
 };
-
-/*
- * "descriptor" for what we're up to with a read.
- * This allows us to use the same read code yet
- * have multiple different users of the data that
- * we read from a file.
- *
- * The simplest case just copies the data to user
- * mode.
- */
-typedef struct {
-	size_t written;
-	size_t count;
-	union {
-		char __user * buf;
-		void *data;
-	} arg;
-	int error;
-} read_descriptor_t;
-
-typedef int (*read_actor_t)(read_descriptor_t *, struct page *, unsigned long, unsigned long);
 
 /* These macros are for out of kernel modules to test that
  * the kernel supports the unlocked_ioctl and compat_ioctl
@@ -1272,7 +1296,7 @@ struct inode_operations {
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, struct nameidata *);
+	int (*permission) (struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -1282,6 +1306,8 @@ struct inode_operations {
 	void (*truncate_range)(struct inode *, loff_t, loff_t);
 	long (*fallocate)(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
+	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
+		      u64 len);
 };
 
 struct seq_file;
@@ -1677,6 +1703,7 @@ extern void chrdev_show(struct seq_file *,off_t);
 
 /* fs/block_dev.c */
 #define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
+#define BDEVT_SIZE	10	/* Largest string for MAJ:MIN for blkdev */
 
 #ifdef CONFIG_BLOCK
 #define BLKDEV_MAJOR_HASH_SIZE	255
@@ -1696,9 +1723,9 @@ extern void init_special_inode(struct inode *, umode_t, dev_t);
 extern void make_bad_inode(struct inode *);
 extern int is_bad_inode(struct inode *);
 
-extern const struct file_operations read_fifo_fops;
-extern const struct file_operations write_fifo_fops;
-extern const struct file_operations rdwr_fifo_fops;
+extern const struct file_operations read_pipefifo_fops;
+extern const struct file_operations write_pipefifo_fops;
+extern const struct file_operations rdwr_pipefifo_fops;
 
 extern int fs_may_remount_ro(struct super_block *);
 
@@ -1713,6 +1740,9 @@ extern int fs_may_remount_ro(struct super_block *);
  */
 #define bio_data_dir(bio)	((bio)->bi_rw & 1)
 
+extern void check_disk_size_change(struct gendisk *disk,
+				   struct block_device *bdev);
+extern int revalidate_disk(struct gendisk *);
 extern int check_disk_change(struct block_device *);
 extern int __invalidate_device(struct block_device *);
 extern int invalidate_partition(struct gendisk *, int);
@@ -1767,7 +1797,7 @@ extern int do_remount_sb(struct super_block *sb, int flags,
 extern sector_t bmap(struct inode *, sector_t);
 #endif
 extern int notify_change(struct dentry *, struct iattr *);
-extern int permission(struct inode *, int, struct nameidata *);
+extern int inode_permission(struct inode *, int);
 extern int generic_permission(struct inode *, int,
 		int (*check_acl)(struct inode *, int));
 
@@ -1831,7 +1861,7 @@ extern void clear_inode(struct inode *);
 extern void destroy_inode(struct inode *);
 extern struct inode *new_inode(struct super_block *);
 extern int should_remove_suid(struct dentry *);
-extern int remove_suid(struct dentry *);
+extern int file_remove_suid(struct file *);
 
 extern void __insert_inode_hash(struct inode *, unsigned long hashval);
 extern void remove_inode_hash(struct inode *);
@@ -1975,6 +2005,9 @@ extern int vfs_fstat(unsigned int, struct kstat *);
 
 extern int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		    unsigned long arg);
+extern int generic_block_fiemap(struct inode *inode,
+				struct fiemap_extent_info *fieinfo, u64 start,
+				u64 len, get_block_t *get_block);
 
 extern void get_filesystem(struct file_system_type *fs);
 extern void put_filesystem(struct file_system_type *fs);

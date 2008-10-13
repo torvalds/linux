@@ -26,8 +26,6 @@
  * (http://www.freecom.de/)
  */
 
-#include <linux/hdreg.h>
-
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 

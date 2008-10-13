@@ -825,6 +825,9 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	policy->user_policy.min = policy->cpuinfo.min_freq;
 	policy->user_policy.max = policy->cpuinfo.max_freq;
 
+	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
+				     CPUFREQ_START, policy);
+
 #ifdef CONFIG_SMP
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1464,25 +1467,27 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 			  unsigned int target_freq,
 			  unsigned int relation)
 {
-	int ret;
+	int ret = -EINVAL;
 
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
-		return -EINVAL;
+		goto no_policy;
 
 	if (unlikely(lock_policy_rwsem_write(policy->cpu)))
-		return -EINVAL;
+		goto fail;
 
 	ret = __cpufreq_driver_target(policy, target_freq, relation);
 
 	unlock_policy_rwsem_write(policy->cpu);
 
+fail:
 	cpufreq_cpu_put(policy);
+no_policy:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
-int __cpufreq_driver_getavg(struct cpufreq_policy *policy)
+int __cpufreq_driver_getavg(struct cpufreq_policy *policy, unsigned int cpu)
 {
 	int ret = 0;
 
@@ -1490,8 +1495,8 @@ int __cpufreq_driver_getavg(struct cpufreq_policy *policy)
 	if (!policy)
 		return -EINVAL;
 
-	if (cpu_online(policy->cpu) && cpufreq_driver->getavg)
-		ret = cpufreq_driver->getavg(policy->cpu);
+	if (cpu_online(cpu) && cpufreq_driver->getavg)
+		ret = cpufreq_driver->getavg(policy, cpu);
 
 	cpufreq_cpu_put(policy);
 	return ret;
@@ -1714,13 +1719,17 @@ int cpufreq_update_policy(unsigned int cpu)
 {
 	struct cpufreq_policy *data = cpufreq_cpu_get(cpu);
 	struct cpufreq_policy policy;
-	int ret = 0;
+	int ret;
 
-	if (!data)
-		return -ENODEV;
+	if (!data) {
+		ret = -ENODEV;
+		goto no_policy;
+	}
 
-	if (unlikely(lock_policy_rwsem_write(cpu)))
-		return -EINVAL;
+	if (unlikely(lock_policy_rwsem_write(cpu))) {
+		ret = -EINVAL;
+		goto fail;
+	}
 
 	dprintk("updating policy for CPU %u\n", cpu);
 	memcpy(&policy, data, sizeof(struct cpufreq_policy));
@@ -1747,7 +1756,9 @@ int cpufreq_update_policy(unsigned int cpu)
 
 	unlock_policy_rwsem_write(cpu);
 
+fail:
 	cpufreq_cpu_put(data);
+no_policy:
 	return ret;
 }
 EXPORT_SYMBOL(cpufreq_update_policy);

@@ -7,9 +7,6 @@
  *
  * For licensing information, see the file 'LICENCE' in the
  * jffs2 directory.
- *
- * $Id: jffs2.h,v 1.38 2005/09/26 11:37:23 havasi Exp $
- *
  */
 
 #ifndef __LINUX_JFFS2_H__

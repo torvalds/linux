@@ -1,7 +1,7 @@
 /*
  * ASoC driver for TI DAVINCI EVM platform
  *
- * Author:      Vladimir Barinov, <vbarinov@ru.mvista.com>
+ * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,9 +19,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/mach-types.h>
 #include <asm/dma.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 #include "../codecs/tlv320aic3x.h"
 #include "davinci-pcm.h"
@@ -137,6 +136,7 @@ static struct snd_soc_machine snd_soc_machine_evm = {
 
 /* evm audio private data */
 static struct aic3x_setup_data evm_aic3x_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 

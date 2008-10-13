@@ -25,7 +25,7 @@
 
 static char *sensor_type;
 module_param(sensor_type, charp, S_IRUGO);
-MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"\n");
+MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 
 /* mt9v022 selected register addresses */
 #define MT9V022_CHIP_VERSION		0x00

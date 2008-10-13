@@ -87,6 +87,7 @@ struct sched_param {
 #include <linux/task_io_accounting.h>
 #include <linux/kobject.h>
 #include <linux/latencytop.h>
+#include <linux/cred.h>
 
 #include <asm/processor.h>
 
@@ -292,7 +293,6 @@ extern void sched_show_task(struct task_struct *p);
 
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 extern void softlockup_tick(void);
-extern void spawn_softlockup_task(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_all_softlockup_watchdogs(void);
 extern unsigned int  softlockup_panic;
@@ -352,7 +352,7 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 extern void arch_unmap_area(struct mm_struct *, unsigned long);
 extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+#if USE_SPLIT_PTLOCKS
 /*
  * The mm counters are not protected by its page_table_lock,
  * so must be incremented atomically.
@@ -363,7 +363,7 @@ extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 #define inc_mm_counter(mm, member) atomic_long_inc(&(mm)->_##member)
 #define dec_mm_counter(mm, member) atomic_long_dec(&(mm)->_##member)
 
-#else  /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+#else  /* !USE_SPLIT_PTLOCKS */
 /*
  * The mm counters are protected by its page_table_lock,
  * so can be incremented directly.
@@ -374,7 +374,7 @@ extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 #define inc_mm_counter(mm, member) (mm)->_##member++
 #define dec_mm_counter(mm, member) (mm)->_##member--
 
-#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+#endif /* !USE_SPLIT_PTLOCKS */
 
 #define get_mm_rss(mm)					\
 	(get_mm_counter(mm, file_rss) + get_mm_counter(mm, anon_rss))
@@ -451,8 +451,8 @@ struct signal_struct {
 	 * - everyone except group_exit_task is stopped during signal delivery
 	 *   of fatal signals, group_exit_task processes the signal.
 	 */
-	struct task_struct	*group_exit_task;
 	int			notify_count;
+	struct task_struct	*group_exit_task;
 
 	/* thread group stop support, overloads group_exit_code too */
 	int			group_stop_count;
@@ -506,9 +506,6 @@ struct signal_struct {
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
 	unsigned long inblock, oublock, cinblock, coublock;
-#ifdef CONFIG_TASK_XACCT
-	u64 rchar, wchar, syscr, syscw;
-#endif
 	struct task_io_accounting ioac;
 
 	/*
@@ -827,6 +824,9 @@ struct sched_domain {
 	unsigned int ttwu_move_affine;
 	unsigned int ttwu_move_balance;
 #endif
+#ifdef CONFIG_SCHED_DEBUG
+	char *name;
+#endif
 };
 
 extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
@@ -900,7 +900,7 @@ struct sched_class {
 	void (*yield_task) (struct rq *rq);
 	int  (*select_task_rq)(struct task_struct *p, int sync);
 
-	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
+	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int sync);
 
 	struct task_struct * (*pick_next_task) (struct rq *rq);
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
@@ -1013,8 +1013,8 @@ struct sched_entity {
 
 struct sched_rt_entity {
 	struct list_head run_list;
-	unsigned int time_slice;
 	unsigned long timeout;
+	unsigned int time_slice;
 	int nr_cpus_allowed;
 
 	struct sched_rt_entity *back;
@@ -1257,10 +1257,6 @@ struct task_struct {
 
 	unsigned long ptrace_message;
 	siginfo_t *last_siginfo; /* For ptrace use.  */
-#ifdef CONFIG_TASK_XACCT
-/* i/o counters(bytes read/written, #syscalls */
-	u64 rchar, wchar, syscr, syscw;
-#endif
 	struct task_io_accounting ioac;
 #if defined(CONFIG_TASK_XACCT)
 	u64 acct_rss_mem1;	/* accumulated rss usage */
@@ -1482,6 +1478,10 @@ static inline void put_task_struct(struct task_struct *t)
 		__put_task_struct(t);
 }
 
+extern cputime_t task_utime(struct task_struct *p);
+extern cputime_t task_stime(struct task_struct *p);
+extern cputime_t task_gtime(struct task_struct *p);
+
 /*
  * Per process flags
  */
@@ -1559,16 +1559,10 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 
 extern unsigned long long sched_clock(void);
 
+extern void sched_clock_init(void);
+extern u64 sched_clock_cpu(int cpu);
+
 #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static inline void sched_clock_init(void)
-{
-}
-
-static inline u64 sched_clock_cpu(int cpu)
-{
-	return sched_clock();
-}
-
 static inline void sched_clock_tick(void)
 {
 }
@@ -1580,28 +1574,11 @@ static inline void sched_clock_idle_sleep_event(void)
 static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 }
-
-#ifdef CONFIG_NO_HZ
-static inline void sched_clock_tick_stop(int cpu)
-{
-}
-
-static inline void sched_clock_tick_start(int cpu)
-{
-}
-#endif
-
-#else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
-extern void sched_clock_init(void);
-extern u64 sched_clock_cpu(int cpu);
+#else
 extern void sched_clock_tick(void);
 extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(u64 delta_ns);
-#ifdef CONFIG_NO_HZ
-extern void sched_clock_tick_stop(int cpu);
-extern void sched_clock_tick_start(int cpu);
 #endif
-#endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
@@ -1797,7 +1774,7 @@ extern int kill_pid_info_as_uid(int, struct siginfo *, struct pid *, uid_t, uid_
 extern int kill_pgrp(struct pid *pid, int sig, int priv);
 extern int kill_pid(struct pid *pid, int sig, int priv);
 extern int kill_proc_info(int, struct siginfo *, pid_t);
-extern void do_notify_parent(struct task_struct *, int);
+extern int do_notify_parent(struct task_struct *, int);
 extern void force_sig(int, struct task_struct *);
 extern void force_sig_specific(int, struct task_struct *);
 extern int send_sig(int, struct task_struct *, int);
@@ -1883,9 +1860,13 @@ extern void set_task_comm(struct task_struct *tsk, char *from);
 extern char *get_task_comm(char *to, struct task_struct *tsk);
 
 #ifdef CONFIG_SMP
-extern void wait_task_inactive(struct task_struct * p);
+extern unsigned long wait_task_inactive(struct task_struct *, long match_state);
 #else
-#define wait_task_inactive(p)	do { } while (0)
+static inline unsigned long wait_task_inactive(struct task_struct *p,
+					       long match_state)
+{
+	return 1;
+}
 #endif
 
 #define next_task(p)	list_entry(rcu_dereference((p)->tasks.next), struct task_struct, tasks)
@@ -2139,16 +2120,7 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
 
 #endif /* CONFIG_SMP */
 
-#ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
 extern void arch_pick_mmap_layout(struct mm_struct *mm);
-#else
-static inline void arch_pick_mmap_layout(struct mm_struct *mm)
-{
-	mm->mmap_base = TASK_UNMAPPED_BASE;
-	mm->get_unmapped_area = arch_get_unmapped_area;
-	mm->unmap_area = arch_unmap_area;
-}
-#endif
 
 #ifdef CONFIG_TRACING
 extern void
@@ -2196,22 +2168,22 @@ extern long sched_group_rt_period(struct task_group *tg);
 #ifdef CONFIG_TASK_XACCT
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
 {
-	tsk->rchar += amt;
+	tsk->ioac.rchar += amt;
 }
 
 static inline void add_wchar(struct task_struct *tsk, ssize_t amt)
 {
-	tsk->wchar += amt;
+	tsk->ioac.wchar += amt;
 }
 
 static inline void inc_syscr(struct task_struct *tsk)
 {
-	tsk->syscr++;
+	tsk->ioac.syscr++;
 }
 
 static inline void inc_syscw(struct task_struct *tsk)
 {
-	tsk->syscw++;
+	tsk->ioac.syscw++;
 }
 #else
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
@@ -2227,14 +2199,6 @@ static inline void inc_syscr(struct task_struct *tsk)
 }
 
 static inline void inc_syscw(struct task_struct *tsk)
-{
-}
-#endif
-
-#ifdef CONFIG_SMP
-void migration_init(void);
-#else
-static inline void migration_init(void)
 {
 }
 #endif

@@ -164,11 +164,17 @@ struct ext4_free_extent {
  * Locality group:
  *   we try to group all related changes together
  *   so that writeback can flush/allocate them together as well
+ *   Size of lg_prealloc_list hash is determined by MB_DEFAULT_GROUP_PREALLOC
+ *   (512). We store prealloc space into the hash based on the pa_free blocks
+ *   order value.ie, fls(pa_free)-1;
  */
+#define PREALLOC_TB_SIZE 10
 struct ext4_locality_group {
 	/* for allocator */
-	struct mutex		lg_mutex;	/* to serialize allocates */
-	struct list_head	lg_prealloc_list;/* list of preallocations */
+	/* to serialize allocates */
+	struct mutex		lg_mutex;
+	/* list of preallocations */
+	struct list_head	lg_prealloc_list[PREALLOC_TB_SIZE];
 	spinlock_t		lg_prealloc_lock;
 };
 
@@ -251,7 +257,6 @@ static void ext4_mb_store_history(struct ext4_allocation_context *ac);
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
 
-static struct proc_dir_entry *proc_root_ext4;
 struct buffer_head *read_block_bitmap(struct super_block *, ext4_group_t);
 
 static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,

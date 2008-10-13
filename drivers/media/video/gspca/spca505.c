@@ -23,9 +23,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA505 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -33,10 +30,6 @@ MODULE_LICENSE("GPL");
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
-
-	int buflen;
-	unsigned char tmpbuf[640 * 480 * 3 / 2]; /* YYUV per line */
-	unsigned char tmpbuf2[640 * 480 * 2];	/* YUYV */
 
 	unsigned char brightness;
 
@@ -67,29 +60,29 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 160 * 2,
-		.sizeimage = 160 * 120 * 2,
+	{160, 120, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 5},
-	{176, 144, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 176 * 2,
-		.sizeimage = 176 * 144 * 2,
+	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 4},
-	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 2,
-		.sizeimage = 320 * 240 * 2,
+	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 352 * 2,
-		.sizeimage = 352 * 288 * 2,
+	{352, 288, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 640 * 2,
-		.sizeimage = 640 * 480 * 2,
+	{640, 480, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
@@ -641,33 +634,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
-
-	vendor = id->idVendor;
-	product = id->idProduct;
-	switch (vendor) {
-	case 0x041e:		/* Creative cameras */
-/*		switch (product) { */
-/*		case 0x401d:	 * here505b */
-			sd->subtype = Nxultra;
-/*			break; */
-/*		} */
-		break;
-	case 0x0733:	/* Rebadged ViewQuest (Intel) and ViewQuest cameras */
-/*		switch (product) { */
-/*		case 0x0430: */
-/*		fixme: may be UsbGrabberPV321 BRIDGE_SPCA506 SENSOR_SAA7113 */
-			sd->subtype = IntelPCCameraPro;
-/*			break; */
-/*		} */
-		break;
-	}
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
+	sd->subtype = id->driver_info;
 	if (sd->subtype != IntelPCCameraPro)
 		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
 	else			/* no 640x480 for IntelPCCameraPro */
@@ -684,8 +655,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
@@ -772,11 +743,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 	/* This maybe reset or power control */
 	reg_write(gspca_dev->dev, 0x03, 0x03, 0x20);
 	reg_write(gspca_dev->dev, 0x03, 0x01, 0x0);
@@ -785,77 +751,30 @@ static void sd_close(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, 0x05, 0x11, 0xf);
 }
 
-/* convert YYUV per line to YUYV (YUV 4:2:2) */
-static void yyuv_decode(unsigned char *out,
-			unsigned char *in,
-			int width,
-			int height)
-{
-	unsigned char *Ui, *Vi, *yi, *yi1;
-	unsigned char *out1;
-	int i, j;
-
-	yi = in;
-	for (i = height / 2; --i >= 0; ) {
-		out1 = out + width * 2;		/* next line */
-		yi1 = yi + width;
-		Ui = yi1 + width;
-		Vi = Ui + width / 2;
-		for (j = width / 2; --j >= 0; ) {
-			*out++ = 128 + *yi++;
-			*out++ = 128 + *Ui;
-			*out++ = 128 + *yi++;
-			*out++ = 128 + *Vi;
-
-			*out1++ = 128 + *yi1++;
-			*out1++ = 128 + *Ui++;
-			*out1++ = 128 + *yi1++;
-			*out1++ = 128 + *Vi++;
-		}
-		yi += width * 2;
-		out = out1;
-	}
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		if (gspca_dev->last_packet_type == FIRST_PACKET) {
-			yyuv_decode(sd->tmpbuf2, sd->tmpbuf,
-					gspca_dev->width,
-					gspca_dev->height);
-			frame = gspca_frame_add(gspca_dev,
-						LAST_PACKET,
-						frame,
-						sd->tmpbuf2,
-						gspca_dev->width
-							* gspca_dev->height
-							* 2);
-		}
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, 0);
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+					data, 0);
 		data += SPCA50X_OFFSET_DATA;
 		len -= SPCA50X_OFFSET_DATA;
-		if (len > 0)
-			memcpy(sd->tmpbuf, data, len);
-		else
-			len = 0;
-		sd->buflen = len;
-		return;
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+				data, len);
+		break;
 	case 0xff:			/* drop */
 /*		gspca_dev->last_packet_type = DISCARD_PACKET; */
-		return;
+		break;
+	default:
+		data += 1;
+		len -= 1;
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+				data, len);
+		break;
 	}
-	data += 1;
-	len -= 1;
-	memcpy(&sd->tmpbuf[sd->buflen], data, len);
-	sd->buflen += len;
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
@@ -901,19 +820,18 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x401d), DVNM("Creative Webcam NX ULTRA")},
-	{USB_DEVICE(0x0733, 0x0430), DVNM("Intel PC Camera Pro")},
+	{USB_DEVICE(0x041e, 0x401d), .driver_info = Nxultra},
+	{USB_DEVICE(0x0733, 0x0430), .driver_info = IntelPCCameraPro},
+/*fixme: may be UsbGrabberPV321 BRIDGE_SPCA506 SENSOR_SAA7113 */
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -931,6 +849,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
@@ -938,7 +860,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

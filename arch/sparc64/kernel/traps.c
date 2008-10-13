@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
@@ -37,8 +38,10 @@
 #include <asm/timer.h>
 #include <asm/head.h>
 #include <asm/prom.h>
+#include <asm/memctrl.h>
 
 #include "entry.h"
+#include "kstack.h"
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
  * code logs the trap state registers at every level in the trap
@@ -126,6 +129,56 @@ void do_BUG(const char *file, int line)
 	printk("kernel BUG at %s:%d!\n", file, line);
 }
 #endif
+
+static DEFINE_SPINLOCK(dimm_handler_lock);
+static dimm_printer_t dimm_handler;
+
+static int sprintf_dimm(int synd_code, unsigned long paddr, char *buf, int buflen)
+{
+	unsigned long flags;
+	int ret = -ENODEV;
+
+	spin_lock_irqsave(&dimm_handler_lock, flags);
+	if (dimm_handler) {
+		ret = dimm_handler(synd_code, paddr, buf, buflen);
+	} else if (tlb_type == spitfire) {
+		if (prom_getunumber(synd_code, paddr, buf, buflen) == -1)
+			ret = -EINVAL;
+		else
+			ret = 0;
+	} else
+		ret = -ENODEV;
+	spin_unlock_irqrestore(&dimm_handler_lock, flags);
+
+	return ret;
+}
+
+int register_dimm_printer(dimm_printer_t func)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&dimm_handler_lock, flags);
+	if (!dimm_handler)
+		dimm_handler = func;
+	else
+		ret = -EEXIST;
+	spin_unlock_irqrestore(&dimm_handler_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(register_dimm_printer);
+
+void unregister_dimm_printer(dimm_printer_t func)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dimm_handler_lock, flags);
+	if (dimm_handler == func)
+		dimm_handler = NULL;
+	spin_unlock_irqrestore(&dimm_handler_lock, flags);
+}
+EXPORT_SYMBOL_GPL(unregister_dimm_printer);
 
 void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
@@ -289,10 +342,7 @@ void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, u
 }
 
 #ifdef CONFIG_PCI
-/* This is really pathetic... */
-extern volatile int pci_poke_in_progress;
-extern volatile int pci_poke_cpu;
-extern volatile int pci_poke_faulted;
+#include "pci_impl.h"
 #endif
 
 /* When access exceptions happen, we must do this. */
@@ -374,8 +424,7 @@ static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, un
 
 	if (udbl & bit) {
 		scode = ecc_syndrome_table[udbl & 0xff];
-		if (prom_getunumber(scode, afar,
-				    memmod_str, sizeof(memmod_str)) == -1)
+		if (sprintf_dimm(scode, afar, memmod_str, sizeof(memmod_str)) < 0)
 			p = syndrome_unknown;
 		else
 			p = memmod_str;
@@ -386,8 +435,7 @@ static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, un
 
 	if (udbh & bit) {
 		scode = ecc_syndrome_table[udbh & 0xff];
-		if (prom_getunumber(scode, afar,
-				    memmod_str, sizeof(memmod_str)) == -1)
+		if (sprintf_dimm(scode, afar, memmod_str, sizeof(memmod_str)) < 0)
 			p = syndrome_unknown;
 		else
 			p = memmod_str;
@@ -1060,8 +1108,6 @@ static const char *cheetah_get_string(unsigned long bit)
 	return "???";
 }
 
-extern int chmc_getunumber(int, unsigned long, char *, int);
-
 static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *info,
 			       unsigned long afsr, unsigned long afar, int recoverable)
 {
@@ -1103,7 +1149,7 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 
 		syndrome = (afsr & CHAFSR_E_SYNDROME) >> CHAFSR_E_SYNDROME_SHIFT;
 		syndrome = cheetah_ecc_syntab[syndrome];
-		ret = chmc_getunumber(syndrome, afar, unum, sizeof(unum));
+		ret = sprintf_dimm(syndrome, afar, unum, sizeof(unum));
 		if (ret != -1)
 			printk("%s" "ERROR(%d): AFAR E-syndrome [%s]\n",
 			       (recoverable ? KERN_WARNING : KERN_CRIT),
@@ -1114,7 +1160,7 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 
 		syndrome = (afsr & CHAFSR_M_SYNDROME) >> CHAFSR_M_SYNDROME_SHIFT;
 		syndrome = cheetah_mtag_syntab[syndrome];
-		ret = chmc_getunumber(syndrome, afar, unum, sizeof(unum));
+		ret = sprintf_dimm(syndrome, afar, unum, sizeof(unum));
 		if (ret != -1)
 			printk("%s" "ERROR(%d): AFAR M-syndrome [%s]\n",
 			       (recoverable ? KERN_WARNING : KERN_CRIT),
@@ -1777,7 +1823,7 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
 	       pfx,
 	       ent->err_raddr, ent->err_size, ent->err_cpu);
 
-	__show_regs(regs);
+	show_regs(regs);
 
 	if ((cnt = atomic_read(ocnt)) != 0) {
 		atomic_set(ocnt, 0);
@@ -2115,14 +2161,12 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		struct pt_regs *regs;
 		unsigned long pc;
 
-		/* Bogus frame pointer? */
-		if (fp < (thread_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_base + THREAD_SIZE))
+		if (!kstack_valid(tp, fp))
 			break;
 		sf = (struct sparc_stackf *) fp;
 		regs = (struct pt_regs *) (sf + 1);
 
-		if ((regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
+		if (kstack_is_trap_frame(tp, regs)) {
 			if (!(regs->tstate & TSTATE_PRIV))
 				break;
 			pc = regs->tpc;
@@ -2177,7 +2221,6 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 void die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
-	extern void smp_report_regs(void);
 	int count = 0;
 	
 	/* Amuse the user. */
@@ -2190,7 +2233,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	printk("%s(%d): %s [#%d]\n", current->comm, task_pid_nr(current), str, ++die_counter);
 	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
-	__show_regs(regs);
+	show_regs(regs);
 	add_taint(TAINT_DIE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct reg_window *rw = (struct reg_window *)
@@ -2215,11 +2258,6 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		}
 		user_instruction_dump ((unsigned int __user *) regs->tpc);
 	}
-#if 0
-#ifdef CONFIG_SMP
-	smp_report_regs();
-#endif
-#endif                                                	
 	if (regs->tstate & TSTATE_PRIV)
 		do_exit(SIGKILL);
 	do_exit(SIGSEGV);
@@ -2230,7 +2268,6 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 
 extern int handle_popc(u32 insn, struct pt_regs *regs);
 extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
-extern int vis_emul(struct pt_regs *, unsigned int);
 
 void do_illegal_instruction(struct pt_regs *regs)
 {
@@ -2460,7 +2497,7 @@ struct trap_per_cpu trap_block[NR_CPUS];
 /* This can get invoked before sched_init() so play it super safe
  * and use hard_smp_processor_id().
  */
-void init_cur_cpu_trap(struct thread_info *t)
+void notrace init_cur_cpu_trap(struct thread_info *t)
 {
 	int cpu = hard_smp_processor_id();
 	struct trap_per_cpu *p = &trap_block[cpu];

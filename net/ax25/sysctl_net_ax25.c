@@ -36,6 +36,7 @@ static struct ctl_path ax25_path[] = {
 	{ .procname = "ax25", .ctl_name = NET_AX25, },
 	{ }
 };
+
 static const ctl_table ax25_param_table[] = {
 	{
 		.ctl_name	= NET_AX25_IP_DEFAULT_MODE,
@@ -167,6 +168,7 @@ static const ctl_table ax25_param_table[] = {
 		.extra1		= &min_proto,
 		.extra2		= &max_proto
 	},
+#ifdef CONFIG_AX25_DAMA_SLAVE
 	{
 		.ctl_name	= NET_AX25_DAMA_SLAVE_TIMEOUT,
 		.procname	= "dama_slave_timeout",
@@ -177,6 +179,8 @@ static const ctl_table ax25_param_table[] = {
 		.extra1		= &min_ds_timeout,
 		.extra2		= &max_ds_timeout
 	},
+#endif
+
 	{ .ctl_name = 0 }	/* that's all, folks! */
 };
 
@@ -209,16 +213,6 @@ void ax25_register_sysctl(void)
 		ax25_table[n].ctl_name     = n + 1;
 		ax25_table[n].procname     = ax25_dev->dev->name;
 		ax25_table[n].mode         = 0555;
-
-#ifndef CONFIG_AX25_DAMA_SLAVE
-		/*
-		 * We do not wish to have a representation of this parameter
-		 * in /proc/sys/ when configured *not* to include the
-		 * AX.25 DAMA slave code, do we?
-		 */
-
-		child[AX25_VALUES_DS_TIMEOUT].procname = NULL;
-#endif
 
 		child[AX25_MAX_VALUES].ctl_name = 0;	/* just in case... */
 

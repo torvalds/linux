@@ -1,12 +1,4 @@
 /*
- *Notes: * t613  + tas5130A
- *	* Focus to light do not balance well as in win.
- *	  Quality in win is not good, but its kinda better.
- *	 * Fix some "extraneous bytes", most of apps will show the image anyway
- *	 * Gamma table, is there, but its really doing something?
- *	 * 7~8 Fps, its ok, max on win its 10.
- *			Costantino Leandro
- *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,17 +14,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ *Notes: * t613  + tas5130A
+ *	* Focus to light do not balance well as in win.
+ *	  Quality in win is not good, but its kinda better.
+ *	 * Fix some "extraneous bytes", most of apps will show the image anyway
+ *	 * Gamma table, is there, but its really doing something?
+ *	 * 7~8 Fps, its ok, max on win its 10.
+ *			Costantino Leandro
  */
 
 #define MODULE_NAME "t613"
+
 #include "gspca.h"
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
 
 #define MAX_GAMMA 0x10		/* 0 to 15 */
 
-/* From LUVCVIEW */
-#define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 3)
+#define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 0)
 
 MODULE_AUTHOR("Leandro Costantino <le_costantino@pixartargentina.com.ar>");
 MODULE_DESCRIPTION("GSPCA/T613 (JPEG Compliance) USB Camera Driver");
@@ -235,7 +233,7 @@ static char *effects_control[] = {
 static struct v4l2_pix_format vga_mode_t16[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 3 / 8 + 590,
+		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 4},
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
@@ -393,7 +391,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 				NULL, 0, 500);
 		return;
 	}
-	if (len <= sizeof gspca_dev->usb_buf) {
+	if (len <= USB_BUF_SZ) {
 		memcpy(gspca_dev->usb_buf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -424,7 +422,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 
 	cam->cam_mode = vga_mode_t16;
@@ -552,6 +549,13 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x01, 0x0000, nset3, 0x12);
 	reg_w(gspca_dev, 0x01, 0x0000, nset4, 0x12);
 
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	init_default_parameters(gspca_dev);
 	return 0;
 }
 
@@ -896,18 +900,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setcolors(gspca_dev);
 }
 
-static void sd_stopN(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -975,32 +967,21 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
-{
-	init_default_parameters(gspca_dev);
-	return 0;
-}
-
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
-	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x17a1, 0x0128), DVNM("XPX Webcam")},
+	{USB_DEVICE(0x17a1, 0x0128)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1018,6 +999,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
@@ -1025,7 +1010,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

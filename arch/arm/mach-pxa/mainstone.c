@@ -32,7 +32,7 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 
@@ -41,17 +41,17 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/mainstone.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/pxa27x_keypad.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/mainstone.h>
+#include <mach/audio.h>
+#include <mach/pxafb.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/irda.h>
+#include <mach/ohci.h>
+#include <mach/pxa27x_keypad.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -162,8 +162,7 @@ static void mainstone_irq_handler(unsigned int irq, struct irq_desc *desc)
 		GEDR(0) = GPIO_bit(0);  /* clear useless edge notification */
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
-			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		pending = MST_INTSETCLR & mainstone_irq_enabled;
 	} while (pending);
@@ -191,7 +190,7 @@ static void __init mainstone_init_irq(void)
 	MST_INTSETCLR = 0;
 
 	set_irq_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
+	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
@@ -508,19 +507,9 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mst_gpio_keys_device,
 };
 
-static int mainstone_ohci_init(struct device *dev)
-{
-	/* Set the Power Control Polarity Low and Power Sense
-	   Polarity Low to active low. */
-	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data mainstone_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= mainstone_ohci_init,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
 };
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)

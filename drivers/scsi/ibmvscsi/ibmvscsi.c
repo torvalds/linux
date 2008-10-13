@@ -756,7 +756,7 @@ static int ibmvscsi_queuecommand(struct scsi_cmnd *cmnd,
 	init_event_struct(evt_struct,
 			  handle_cmd_rsp,
 			  VIOSRP_SRP_FORMAT,
-			  cmnd->timeout_per_command/HZ);
+			  cmnd->request->timeout/HZ);
 
 	evt_struct->cmnd = cmnd;
 	evt_struct->cmnd_done = done;
@@ -859,7 +859,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 					    sizeof(hostdata->madapter_info),
 					    DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(req->buffer)) {
+	if (dma_mapping_error(hostdata->dev, req->buffer)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			dev_err(hostdata->dev,
 			        "Unable to map request_buffer for "
@@ -1407,7 +1407,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 						    length,
 						    DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(host_config->buffer)) {
+	if (dma_mapping_error(hostdata->dev, host_config->buffer)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			dev_err(hostdata->dev,
 			        "dma_mapping error getting host config\n");
@@ -1636,7 +1636,7 @@ static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
 	unsigned long desired_io = max_requests * sizeof(union viosrp_iu);
 
 	/* add io space for sg data */
-	desired_io += (IBMVSCSI_MAX_SECTORS_DEFAULT *
+	desired_io += (IBMVSCSI_MAX_SECTORS_DEFAULT * 512 *
 	                     IBMVSCSI_CMDS_PER_LUN_DEFAULT);
 
 	return desired_io;

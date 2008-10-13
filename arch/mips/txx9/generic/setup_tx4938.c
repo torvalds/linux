@@ -13,20 +13,73 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/serial_core.h>
 #include <linux/param.h>
+#include <linux/ptrace.h>
+#include <linux/mtd/physmap.h>
+#include <asm/reboot.h>
+#include <asm/traps.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4938.h>
 
-void __init tx4938_wdr_init(void)
+static void __init tx4938_wdr_init(void)
 {
+	/* report watchdog reset status */
+	if (____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_WDRST)
+		pr_warning("Watchdog reset detected at 0x%lx\n",
+			   read_c0_errorepc());
 	/* clear WatchDogReset (W1C) */
 	tx4938_ccfg_set(TX4938_CCFG_WDRST);
 	/* do reset on watchdog */
 	tx4938_ccfg_set(TX4938_CCFG_WR);
+}
+
+void __init tx4938_wdt_init(void)
+{
+	txx9_wdt_init(TX4938_TMR_REG(2) & 0xfffffffffULL);
+}
+
+static void tx4938_machine_restart(char *command)
+{
+	local_irq_disable();
+	pr_emerg("Rebooting (with %s watchdog reset)...\n",
+		 (____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_WDREXEN) ?
+		 "external" : "internal");
+	/* clear watchdog status */
+	tx4938_ccfg_set(TX4938_CCFG_WDRST);	/* W1C */
+	txx9_wdt_now(TX4938_TMR_REG(2) & 0xfffffffffULL);
+	while (!(____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_WDRST))
+		;
+	mdelay(10);
+	if (____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_WDREXEN) {
+		pr_emerg("Rebooting (with internal watchdog reset)...\n");
+		/* External WDRST failed.  Do internal watchdog reset */
+		tx4938_ccfg_clear(TX4938_CCFG_WDREXEN);
+	}
+	/* fallback */
+	(*_machine_halt)();
+}
+
+void show_registers(struct pt_regs *regs);
+static int tx4938_be_handler(struct pt_regs *regs, int is_fixup)
+{
+	int data = regs->cp0_cause & 4;
+	console_verbose();
+	pr_err("%cBE exception at %#lx\n", data ? 'D' : 'I', regs->cp0_epc);
+	pr_err("ccfg:%llx, toea:%llx\n",
+	       (unsigned long long)____raw_readq(&tx4938_ccfgptr->ccfg),
+	       (unsigned long long)____raw_readq(&tx4938_ccfgptr->toea));
+#ifdef CONFIG_PCI
+	tx4927_report_pcic_status();
+#endif
+	show_registers(regs);
+	panic("BusError!");
+}
+static void __init tx4938_be_init(void)
+{
+	board_be_handler = tx4938_be_handler;
 }
 
 static struct resource tx4938_sdram_resource[4];
@@ -43,6 +96,7 @@ void __init tx4938_setup(void)
 
 	txx9_reg_res_init(TX4938_REV_PCODE(), TX4938_REG_BASE,
 			  TX4938_REG_SIZE);
+	set_c0_config(TX49_CONF_CWFON);
 
 	/* SDRAMC,EBUSC are configured by PROM */
 	for (i = 0; i < 8; i++) {
@@ -223,6 +277,9 @@ void __init tx4938_setup(void)
 				   TX4938_CLKCTR_ETH1CKD);
 		}
 	}
+
+	_machine_restart = tx4938_machine_restart;
+	board_be_init = tx4938_be_init;
 }
 
 void __init tx4938_time_init(unsigned int tmrnr)
@@ -233,11 +290,9 @@ void __init tx4938_time_init(unsigned int tmrnr)
 				     TXX9_IMCLK);
 }
 
-void __init tx4938_setup_serial(void)
+void __init tx4938_sio_init(unsigned int sclk, unsigned int cts_mask)
 {
-#ifdef CONFIG_SERIAL_TXX9
 	int i;
-	struct uart_port req;
 	unsigned int ch_mask = 0;
 
 	if (__raw_readq(&tx4938_ccfgptr->pcfg) & TX4938_PCFG_ETH0_SEL)
@@ -245,15 +300,93 @@ void __init tx4938_setup_serial(void)
 	for (i = 0; i < 2; i++) {
 		if ((1 << i) & ch_mask)
 			continue;
-		memset(&req, 0, sizeof(req));
-		req.line = i;
-		req.iotype = UPIO_MEM;
-		req.membase = (unsigned char __iomem *)TX4938_SIO_REG(i);
-		req.mapbase = TX4938_SIO_REG(i) & 0xfffffffffULL;
-		req.irq = TXX9_IRQ_BASE + TX4938_IR_SIO(i);
-		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-		req.uartclk = TXX9_IMCLK;
-		early_serial_txx9_setup(&req);
+		txx9_sio_init(TX4938_SIO_REG(i) & 0xfffffffffULL,
+			      TXX9_IRQ_BASE + TX4938_IR_SIO(i),
+			      i, sclk, (1 << i) & cts_mask);
 	}
-#endif /* CONFIG_SERIAL_TXX9 */
 }
+
+void __init tx4938_spi_init(int busid)
+{
+	txx9_spi_init(busid, TX4938_SPI_REG & 0xfffffffffULL,
+		      TXX9_IRQ_BASE + TX4938_IR_SPI);
+}
+
+void __init tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1)
+{
+	u64 pcfg = __raw_readq(&tx4938_ccfgptr->pcfg);
+
+	if (addr0 && (pcfg & TX4938_PCFG_ETH0_SEL))
+		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH0, addr0);
+	if (addr1 && (pcfg & TX4938_PCFG_ETH1_SEL))
+		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH1, addr1);
+}
+
+void __init tx4938_mtd_init(int ch)
+{
+	struct physmap_flash_data pdata = {
+		.width = TX4938_EBUSC_WIDTH(ch) / 8,
+	};
+	unsigned long start = txx9_ce_res[ch].start;
+	unsigned long size = txx9_ce_res[ch].end - start + 1;
+
+	if (!(TX4938_EBUSC_CR(ch) & 0x8))
+		return;	/* disabled */
+	txx9_physmap_flash_init(ch, start, size, &pdata);
+}
+
+static void __init tx4938_stop_unused_modules(void)
+{
+	__u64 pcfg, rst = 0, ckd = 0;
+	char buf[128];
+
+	buf[0] = '\0';
+	local_irq_disable();
+	pcfg = ____raw_readq(&tx4938_ccfgptr->pcfg);
+	switch (txx9_pcode) {
+	case 0x4937:
+		if (!(pcfg & TX4938_PCFG_SEL2)) {
+			rst |= TX4938_CLKCTR_ACLRST;
+			ckd |= TX4938_CLKCTR_ACLCKD;
+			strcat(buf, " ACLC");
+		}
+		break;
+	case 0x4938:
+		if (!(pcfg & TX4938_PCFG_SEL2) ||
+		    (pcfg & TX4938_PCFG_ETH0_SEL)) {
+			rst |= TX4938_CLKCTR_ACLRST;
+			ckd |= TX4938_CLKCTR_ACLCKD;
+			strcat(buf, " ACLC");
+		}
+		if ((pcfg &
+		     (TX4938_PCFG_ATA_SEL | TX4938_PCFG_ISA_SEL |
+		      TX4938_PCFG_NDF_SEL))
+		    != TX4938_PCFG_NDF_SEL) {
+			rst |= TX4938_CLKCTR_NDFRST;
+			ckd |= TX4938_CLKCTR_NDFCKD;
+			strcat(buf, " NDFMC");
+		}
+		if (!(pcfg & TX4938_PCFG_SPI_SEL)) {
+			rst |= TX4938_CLKCTR_SPIRST;
+			ckd |= TX4938_CLKCTR_SPICKD;
+			strcat(buf, " SPI");
+		}
+		break;
+	}
+	if (rst | ckd) {
+		txx9_set64(&tx4938_ccfgptr->clkctr, rst);
+		txx9_set64(&tx4938_ccfgptr->clkctr, ckd);
+	}
+	local_irq_enable();
+	if (buf[0])
+		pr_info("%s: stop%s\n", txx9_pcode_str, buf);
+}
+
+static int __init tx4938_late_init(void)
+{
+	if (txx9_pcode != 0x4937 && txx9_pcode != 0x4938)
+		return -ENODEV;
+	tx4938_stop_unused_modules();
+	return 0;
+}
+late_initcall(tx4938_late_init);

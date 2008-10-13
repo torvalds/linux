@@ -851,7 +851,7 @@ struct nfsd4_operation {
 
 static struct nfsd4_operation nfsd4_ops[];
 
-static inline char *nfsd4_op_name(unsigned opnum);
+static const char *nfsd4_op_name(unsigned opnum);
 
 /*
  * COMPOUND call.
@@ -866,11 +866,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_compound_state *cstate = NULL;
 	int		slack_bytes;
 	__be32		status;
-
-	status = nfserr_resource;
-	cstate = cstate_alloc();
-	if (cstate == NULL)
-		goto out;
 
 	resp->xbuf = &rqstp->rq_res;
 	resp->p = rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len;
@@ -888,6 +883,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 */
 	status = nfserr_minor_vers_mismatch;
 	if (args->minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+		goto out;
+
+	status = nfserr_resource;
+	cstate = cstate_alloc();
+	if (cstate == NULL)
 		goto out;
 
 	status = nfs_ok;
@@ -957,9 +957,9 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
+	cstate_free(cstate);
 out:
 	nfsd4_release_compoundargs(args);
-	cstate_free(cstate);
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
@@ -1116,8 +1116,7 @@ static struct nfsd4_operation nfsd4_ops[OP_RELEASE_LOCKOWNER+1] = {
 	},
 };
 
-static inline char *
-nfsd4_op_name(unsigned opnum)
+static const char *nfsd4_op_name(unsigned opnum)
 {
 	if (opnum < ARRAY_SIZE(nfsd4_ops))
 		return nfsd4_ops[opnum].op_name;

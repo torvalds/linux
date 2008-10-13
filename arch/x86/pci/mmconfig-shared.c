@@ -209,7 +209,7 @@ static int __init pci_mmcfg_check_hostbridge(void)
 	return name != NULL;
 }
 
-static void __init pci_mmcfg_insert_resources(unsigned long resource_flags)
+static void __init pci_mmcfg_insert_resources(void)
 {
 #define PCI_MMCFG_RESOURCE_NAME_LEN 19
 	int i;
@@ -233,7 +233,7 @@ static void __init pci_mmcfg_insert_resources(unsigned long resource_flags)
 			 cfg->pci_segment);
 		res->start = cfg->address;
 		res->end = res->start + (num_buses << 20) - 1;
-		res->flags = IORESOURCE_MEM | resource_flags;
+		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
 		names += PCI_MMCFG_RESOURCE_NAME_LEN;
 	}
@@ -293,7 +293,7 @@ static acpi_status __init find_mboard_resource(acpi_handle handle, u32 lvl,
 	return AE_OK;
 }
 
-static int __init is_acpi_reserved(unsigned long start, unsigned long end)
+static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 {
 	struct resource mcfg_res;
 
@@ -310,6 +310,41 @@ static int __init is_acpi_reserved(unsigned long start, unsigned long end)
 	return mcfg_res.flags;
 }
 
+typedef int (*check_reserved_t)(u64 start, u64 end, unsigned type);
+
+static int __init is_mmconf_reserved(check_reserved_t is_reserved,
+		u64 addr, u64 size, int i,
+		typeof(pci_mmcfg_config[0]) *cfg, int with_e820)
+{
+	u64 old_size = size;
+	int valid = 0;
+
+	while (!is_reserved(addr, addr + size - 1, E820_RESERVED)) {
+		size >>= 1;
+		if (size < (16UL<<20))
+			break;
+	}
+
+	if (size >= (16UL<<20) || size == old_size) {
+		printk(KERN_NOTICE
+		       "PCI: MCFG area at %Lx reserved in %s\n",
+			addr, with_e820?"E820":"ACPI motherboard resources");
+		valid = 1;
+
+		if (old_size != size) {
+			/* update end_bus_number */
+			cfg->end_bus_number = cfg->start_bus_number + ((size>>20) - 1);
+			printk(KERN_NOTICE "PCI: updated MCFG configuration %d: base %lx "
+			       "segment %hu buses %u - %u\n",
+			       i, (unsigned long)cfg->address, cfg->pci_segment,
+			       (unsigned int)cfg->start_bus_number,
+			       (unsigned int)cfg->end_bus_number);
+		}
+	}
+
+	return valid;
+}
+
 static void __init pci_mmcfg_reject_broken(int early)
 {
 	typeof(pci_mmcfg_config[0]) *cfg;
@@ -324,21 +359,22 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
 		int valid = 0;
-		u32 size = (cfg->end_bus_number + 1) << 20;
+		u64 addr, size;
+
 		cfg = &pci_mmcfg_config[i];
+		addr = cfg->start_bus_number;
+		addr <<= 20;
+		addr += cfg->address;
+		size = cfg->end_bus_number + 1 - cfg->start_bus_number;
+		size <<= 20;
 		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
 		       i, (unsigned long)cfg->address, cfg->pci_segment,
 		       (unsigned int)cfg->start_bus_number,
 		       (unsigned int)cfg->end_bus_number);
 
-		if (!early &&
-		    is_acpi_reserved(cfg->address, cfg->address + size - 1)) {
-			printk(KERN_NOTICE "PCI: MCFG area at %Lx reserved "
-			       "in ACPI motherboard resources\n",
-			       cfg->address);
-			valid = 1;
-		}
+		if (!early)
+			valid = is_mmconf_reserved(is_acpi_reserved, addr, size, i, cfg, 0);
 
 		if (valid)
 			continue;
@@ -347,16 +383,11 @@ static void __init pci_mmcfg_reject_broken(int early)
 			printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %Lx is not"
 			       " reserved in ACPI motherboard resources\n",
 			       cfg->address);
+
 		/* Don't try to do this check unless configuration
 		   type 1 is available. how about type 2 ?*/
-		if (raw_pci_ops && e820_all_mapped(cfg->address,
-						  cfg->address + size - 1,
-						  E820_RESERVED)) {
-			printk(KERN_NOTICE
-			       "PCI: MCFG area at %Lx reserved in E820\n",
-			       cfg->address);
-			valid = 1;
-		}
+		if (raw_pci_ops)
+			valid = is_mmconf_reserved(e820_all_mapped, addr, size, i, cfg, 1);
 
 		if (!valid)
 			goto reject;
@@ -365,7 +396,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 	return;
 
 reject:
-	printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
+	printk(KERN_INFO "PCI: Not using MMCONFIG.\n");
 	pci_mmcfg_arch_free();
 	kfree(pci_mmcfg_config);
 	pci_mmcfg_config = NULL;
@@ -403,11 +434,9 @@ static void __init __pci_mmcfg_init(int early)
 	    (pci_mmcfg_config[0].address == 0))
 		return;
 
-	if (pci_mmcfg_arch_init()) {
-		if (known_bridge)
-			pci_mmcfg_insert_resources(IORESOURCE_BUSY);
+	if (pci_mmcfg_arch_init())
 		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
-	} else {
+	else {
 		/*
 		 * Signal not to attempt to insert mmcfg resources because
 		 * the architecture mmcfg setup could not initialize.
@@ -444,7 +473,7 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	 * marked so it won't cause request errors when __request_region is
 	 * called.
 	 */
-	pci_mmcfg_insert_resources(0);
+	pci_mmcfg_insert_resources();
 
 	return 0;
 }

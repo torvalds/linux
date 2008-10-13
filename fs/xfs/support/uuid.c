@@ -17,7 +17,7 @@
  */
 #include <xfs.h>
 
-static mutex_t	uuid_monitor;
+static DEFINE_MUTEX(uuid_monitor);
 static int	uuid_table_size;
 static uuid_t	*uuid_table;
 
@@ -131,10 +131,4 @@ uuid_table_remove(uuid_t *uuid)
 	}
 	ASSERT(i < uuid_table_size);
 	mutex_unlock(&uuid_monitor);
-}
-
-void __init
-uuid_init(void)
-{
-	mutex_init(&uuid_monitor);
 }

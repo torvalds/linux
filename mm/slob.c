@@ -514,23 +514,23 @@ size_t ksize(const void *block)
 		return 0;
 
 	sp = (struct slob_page *)virt_to_page(block);
-	if (slob_page(sp))
-		return ((slob_t *)block - 1)->units + SLOB_UNIT;
-	else
+	if (slob_page(sp)) {
+		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+		unsigned int *m = (unsigned int *)(block - align);
+		return SLOB_UNITS(*m) * SLOB_UNIT;
+	} else
 		return sp->page.private;
 }
-EXPORT_SYMBOL(ksize);
 
 struct kmem_cache {
 	unsigned int size, align;
 	unsigned long flags;
 	const char *name;
-	void (*ctor)(struct kmem_cache *, void *);
+	void (*ctor)(void *);
 };
 
 struct kmem_cache *kmem_cache_create(const char *name, size_t size,
-	size_t align, unsigned long flags,
-	void (*ctor)(struct kmem_cache *, void *))
+	size_t align, unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *c;
 
@@ -575,7 +575,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 		b = slob_new_page(flags, get_order(c->size), node);
 
 	if (c->ctor)
-		c->ctor(c, b);
+		c->ctor(b);
 
 	return b;
 }

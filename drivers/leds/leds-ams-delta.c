@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
-#include <asm/arch/board-ams-delta.h>
+#include <mach/board-ams-delta.h>
 
 /*
  * Our context

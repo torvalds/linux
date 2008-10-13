@@ -1,3 +1,5 @@
+#include <linux/list.h>
+
 struct clk;
 
 struct clkops {
@@ -86,3 +88,6 @@ extern void clk_pxa3xx_cken_disable(struct clk *);
 #endif
 
 void clks_register(struct clk *clks, size_t num);
+int clk_add_alias(char *alias, struct device *alias_dev, char *id,
+	struct device *dev);
+

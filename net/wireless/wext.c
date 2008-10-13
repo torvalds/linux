@@ -1277,6 +1277,7 @@ static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
 	r->ifi_flags = dev_get_flags(dev);
 	r->ifi_change = 0;	/* Wireless changes don't affect those flags */
 
+	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
 	/* Add the wireless events in the netlink packet */
 	NLA_PUT(skb, IFLA_WIRELESS, event_len, event);
 

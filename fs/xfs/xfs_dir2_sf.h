@@ -62,7 +62,7 @@ typedef union {
  * Normalized offset (in a data block) of the entry, really xfs_dir2_data_off_t.
  * Only need 16 bits, this is the byte offset into the single block form.
  */
-typedef struct { __uint8_t i[2]; } xfs_dir2_sf_off_t;
+typedef struct { __uint8_t i[2]; } __arch_pack xfs_dir2_sf_off_t;
 
 /*
  * The parent directory has a dedicated field, and the self-pointer must
@@ -76,14 +76,14 @@ typedef struct xfs_dir2_sf_hdr {
 	__uint8_t		count;		/* count of entries */
 	__uint8_t		i8count;	/* count of 8-byte inode #s */
 	xfs_dir2_inou_t		parent;		/* parent dir inode number */
-} xfs_dir2_sf_hdr_t;
+} __arch_pack xfs_dir2_sf_hdr_t;
 
 typedef struct xfs_dir2_sf_entry {
 	__uint8_t		namelen;	/* actual name length */
 	xfs_dir2_sf_off_t	offset;		/* saved offset */
 	__uint8_t		name[1];	/* name, variable size */
 	xfs_dir2_inou_t		inumber;	/* inode number, var. offset */
-} xfs_dir2_sf_entry_t;
+} __arch_pack xfs_dir2_sf_entry_t; 
 
 typedef struct xfs_dir2_sf {
 	xfs_dir2_sf_hdr_t	hdr;		/* shortform header */

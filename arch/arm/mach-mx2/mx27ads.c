@@ -23,16 +23,18 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-#include <asm/arch/common.h>
-#include <asm/hardware.h>
+#include <mach/common.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/imx-uart.h>
-#include <asm/arch/iomux-mx1-mx2.h>
-#include <asm/arch/board-mx27ads.h>
+#include <mach/gpio.h>
+#include <mach/imx-uart.h>
+#include <mach/iomux-mx1-mx2.h>
+#include <mach/board-mx27ads.h>
+
+#include "devices.h"
 
 /* ADS's NOR flash */
 static struct physmap_flash_data mx27ads_flash_data = {
@@ -251,12 +253,14 @@ static struct imxuart_platform_data uart_pdata[] = {
 
 static void __init mx27ads_board_init(void)
 {
-	int i;
-
 	gpio_fec_active();
 
-	for (i = 0; i < 6; i++)
-		imx_init_uart(i, &uart_pdata[i]);
+	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
+	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
+	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
+	mxc_register_device(&mxc_uart_device3, &uart_pdata[3]);
+	mxc_register_device(&mxc_uart_device4, &uart_pdata[4]);
+	mxc_register_device(&mxc_uart_device5, &uart_pdata[5]);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }

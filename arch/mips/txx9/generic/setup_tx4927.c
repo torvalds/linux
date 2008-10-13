@@ -13,20 +13,73 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/serial_core.h>
 #include <linux/param.h>
+#include <linux/ptrace.h>
+#include <linux/mtd/physmap.h>
+#include <asm/reboot.h>
+#include <asm/traps.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4927.h>
 
-void __init tx4927_wdr_init(void)
+static void __init tx4927_wdr_init(void)
 {
+	/* report watchdog reset status */
+	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDRST)
+		pr_warning("Watchdog reset detected at 0x%lx\n",
+			   read_c0_errorepc());
 	/* clear WatchDogReset (W1C) */
 	tx4927_ccfg_set(TX4927_CCFG_WDRST);
 	/* do reset on watchdog */
 	tx4927_ccfg_set(TX4927_CCFG_WR);
+}
+
+void __init tx4927_wdt_init(void)
+{
+	txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
+}
+
+static void tx4927_machine_restart(char *command)
+{
+	local_irq_disable();
+	pr_emerg("Rebooting (with %s watchdog reset)...\n",
+		 (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDREXEN) ?
+		 "external" : "internal");
+	/* clear watchdog status */
+	tx4927_ccfg_set(TX4927_CCFG_WDRST);	/* W1C */
+	txx9_wdt_now(TX4927_TMR_REG(2) & 0xfffffffffULL);
+	while (!(____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDRST))
+		;
+	mdelay(10);
+	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDREXEN) {
+		pr_emerg("Rebooting (with internal watchdog reset)...\n");
+		/* External WDRST failed.  Do internal watchdog reset */
+		tx4927_ccfg_clear(TX4927_CCFG_WDREXEN);
+	}
+	/* fallback */
+	(*_machine_halt)();
+}
+
+void show_registers(struct pt_regs *regs);
+static int tx4927_be_handler(struct pt_regs *regs, int is_fixup)
+{
+	int data = regs->cp0_cause & 4;
+	console_verbose();
+	pr_err("%cBE exception at %#lx\n", data ? 'D' : 'I', regs->cp0_epc);
+	pr_err("ccfg:%llx, toea:%llx\n",
+	       (unsigned long long)____raw_readq(&tx4927_ccfgptr->ccfg),
+	       (unsigned long long)____raw_readq(&tx4927_ccfgptr->toea));
+#ifdef CONFIG_PCI
+	tx4927_report_pcic_status();
+#endif
+	show_registers(regs);
+	panic("BusError!");
+}
+static void __init tx4927_be_init(void)
+{
+	board_be_handler = tx4927_be_handler;
 }
 
 static struct resource tx4927_sdram_resource[4];
@@ -40,6 +93,7 @@ void __init tx4927_setup(void)
 
 	txx9_reg_res_init(TX4927_REV_PCODE(), TX4927_REG_BASE,
 			  TX4927_REG_SIZE);
+	set_c0_config(TX49_CONF_CWFON);
 
 	/* SDRAMC,EBUSC are configured by PROM */
 	for (i = 0; i < 8; i++) {
@@ -163,6 +217,9 @@ void __init tx4927_setup(void)
 	txx9_gpio_init(TX4927_PIO_REG & 0xfffffffffULL, 0, TX4927_NUM_PIO);
 	__raw_writel(0, &tx4927_pioptr->maskcpu);
 	__raw_writel(0, &tx4927_pioptr->maskext);
+
+	_machine_restart = tx4927_machine_restart;
+	board_be_init = tx4927_be_init;
 }
 
 void __init tx4927_time_init(unsigned int tmrnr)
@@ -173,22 +230,56 @@ void __init tx4927_time_init(unsigned int tmrnr)
 				     TXX9_IMCLK);
 }
 
-void __init tx4927_setup_serial(void)
+void __init tx4927_sio_init(unsigned int sclk, unsigned int cts_mask)
 {
-#ifdef CONFIG_SERIAL_TXX9
 	int i;
-	struct uart_port req;
 
-	for (i = 0; i < 2; i++) {
-		memset(&req, 0, sizeof(req));
-		req.line = i;
-		req.iotype = UPIO_MEM;
-		req.membase = (unsigned char __iomem *)TX4927_SIO_REG(i);
-		req.mapbase = TX4927_SIO_REG(i) & 0xfffffffffULL;
-		req.irq = TXX9_IRQ_BASE + TX4927_IR_SIO(i);
-		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-		req.uartclk = TXX9_IMCLK;
-		early_serial_txx9_setup(&req);
-	}
-#endif /* CONFIG_SERIAL_TXX9 */
+	for (i = 0; i < 2; i++)
+		txx9_sio_init(TX4927_SIO_REG(i) & 0xfffffffffULL,
+			      TXX9_IRQ_BASE + TX4927_IR_SIO(i),
+			      i, sclk, (1 << i) & cts_mask);
 }
+
+void __init tx4927_mtd_init(int ch)
+{
+	struct physmap_flash_data pdata = {
+		.width = TX4927_EBUSC_WIDTH(ch) / 8,
+	};
+	unsigned long start = txx9_ce_res[ch].start;
+	unsigned long size = txx9_ce_res[ch].end - start + 1;
+
+	if (!(TX4927_EBUSC_CR(ch) & 0x8))
+		return;	/* disabled */
+	txx9_physmap_flash_init(ch, start, size, &pdata);
+}
+
+static void __init tx4927_stop_unused_modules(void)
+{
+	__u64 pcfg, rst = 0, ckd = 0;
+	char buf[128];
+
+	buf[0] = '\0';
+	local_irq_disable();
+	pcfg = ____raw_readq(&tx4927_ccfgptr->pcfg);
+	if (!(pcfg & TX4927_PCFG_SEL2)) {
+		rst |= TX4927_CLKCTR_ACLRST;
+		ckd |= TX4927_CLKCTR_ACLCKD;
+		strcat(buf, " ACLC");
+	}
+	if (rst | ckd) {
+		txx9_set64(&tx4927_ccfgptr->clkctr, rst);
+		txx9_set64(&tx4927_ccfgptr->clkctr, ckd);
+	}
+	local_irq_enable();
+	if (buf[0])
+		pr_info("%s: stop%s\n", txx9_pcode_str, buf);
+}
+
+static int __init tx4927_late_init(void)
+{
+	if (txx9_pcode != 0x4927)
+		return -ENODEV;
+	tx4927_stop_unused_modules();
+	return 0;
+}
+late_initcall(tx4927_late_init);

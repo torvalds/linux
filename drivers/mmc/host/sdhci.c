@@ -177,7 +177,7 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 {
 	unsigned long flags;
 	size_t blksize, len, chunk;
-	u32 scratch;
+	u32 uninitialized_var(scratch);
 	u8 *buf;
 
 	DBG("PIO reading\n");
@@ -278,6 +278,15 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	else
 		mask = SDHCI_SPACE_AVAILABLE;
 
+	/*
+	 * Some controllers (JMicron JMB38x) mess up the buffer bits
+	 * for transfers < 4 bytes. As long as it is just one block,
+	 * we can ignore the bits.
+	 */
+	if ((host->quirks & SDHCI_QUIRK_BROKEN_SMALL_PIO) &&
+		(host->data->blocks == 1))
+		mask = ~0;
+
 	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
 		if (host->data->flags & MMC_DATA_READ)
 			sdhci_read_block_pio(host);
@@ -337,7 +346,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->align_addr = dma_map_single(mmc_dev(host->mmc),
 		host->align_buffer, 128 * 4, direction);
-	if (dma_mapping_error(host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->align_addr))
 		goto fail;
 	BUG_ON(host->align_addr & 0x3);
 
@@ -439,7 +448,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->adma_addr = dma_map_single(mmc_dev(host->mmc),
 		host->adma_desc, (128 * 2 + 1) * 4, DMA_TO_DEVICE);
-	if (dma_mapping_error(host->align_addr))
+	if (dma_mapping_error(mmc_dev(host->mmc), host->adma_addr))
 		goto unmap_entries;
 	BUG_ON(host->adma_addr & 0x3);
 
@@ -645,7 +654,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				writel(host->adma_addr,
 					host->ioaddr + SDHCI_ADMA_ADDRESS);
@@ -664,7 +673,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 				 * us an invalid request.
 				 */
 				WARN_ON(1);
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~SDHCI_REQ_USE_DMA;
 			} else {
 				WARN_ON(sg_cnt != 1);
 				writel(sg_dma_address(data->sg),
@@ -1145,7 +1154,7 @@ static void sdhci_tasklet_card(unsigned long param)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	mmc_detect_change(host->mmc, msecs_to_jiffies(500));
+	mmc_detect_change(host->mmc, msecs_to_jiffies(200));
 }
 
 static void sdhci_tasklet_finish(unsigned long param)
@@ -1257,9 +1266,31 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 			SDHCI_INT_INDEX))
 		host->cmd->error = -EILSEQ;
 
-	if (host->cmd->error)
+	if (host->cmd->error) {
 		tasklet_schedule(&host->finish_tasklet);
-	else if (intmask & SDHCI_INT_RESPONSE)
+		return;
+	}
+
+	/*
+	 * The host can send and interrupt when the busy state has
+	 * ended, allowing us to wait without wasting CPU cycles.
+	 * Unfortunately this is overloaded on the "data complete"
+	 * interrupt, so we need to take some care when handling
+	 * it.
+	 *
+	 * Note: The 1.0 specification is a bit ambiguous about this
+	 *       feature so there might be some problems with older
+	 *       controllers.
+	 */
+	if (host->cmd->flags & MMC_RSP_BUSY) {
+		if (host->cmd->data)
+			DBG("Cannot wait for busy signal when also "
+				"doing a data transfer");
+		else
+			return;
+	}
+
+	if (intmask & SDHCI_INT_RESPONSE)
 		sdhci_finish_command(host);
 }
 
@@ -1269,11 +1300,16 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 
 	if (!host->data) {
 		/*
-		 * A data end interrupt is sent together with the response
-		 * for the stop command.
+		 * The "data complete" interrupt is also used to
+		 * indicate that a busy state has ended. See comment
+		 * above in sdhci_cmd_irq().
 		 */
-		if (intmask & SDHCI_INT_DATA_END)
-			return;
+		if (host->cmd && (host->cmd->flags & MMC_RSP_BUSY)) {
+			if (intmask & SDHCI_INT_DATA_END) {
+				sdhci_finish_command(host);
+				return;
+			}
+		}
 
 		printk(KERN_ERR "%s: Got data interrupt 0x%08x even "
 			"though no data operation was in progress.\n",
@@ -1595,7 +1631,8 @@ int sdhci_add_host(struct sdhci_host *host)
 	mmc->f_max = host->max_clk;
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 
-	if (caps & SDHCI_CAN_DO_HISPD)
+	if ((caps & SDHCI_CAN_DO_HISPD) ||
+		(host->quirks & SDHCI_QUIRK_FORCE_HIGHSPEED))
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
 
 	mmc->ocr_avail = 0;

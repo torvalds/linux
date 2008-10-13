@@ -253,7 +253,7 @@ static int rpavscsi_init_crq_queue(struct crq_queue *queue,
 					  queue->size * sizeof(*queue->msgs),
 					  DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(queue->msg_token))
+	if (dma_mapping_error(hostdata->dev, queue->msg_token))
 		goto map_failed;
 
 	gather_partition_info();

@@ -39,6 +39,7 @@
 #include <asm/uaccess.h>	/* copy to/from user		*/
 #include <linux/videodev2.h>	/* V4L2 API defs		*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/param.h>
 #include <linux/pnp.h>
 
@@ -569,12 +570,7 @@ static const struct file_operations cadet_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device cadet_radio=
-{
-	.owner		= THIS_MODULE,
-	.name		= "Cadet radio",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &cadet_fops,
+static const struct v4l2_ioctl_ops cadet_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -587,6 +583,12 @@ static struct video_device cadet_radio=
 	.vidioc_s_audio     = vidioc_s_audio,
 	.vidioc_g_input     = vidioc_g_input,
 	.vidioc_s_input     = vidioc_s_input,
+};
+
+static struct video_device cadet_radio = {
+	.name		= "Cadet radio",
+	.fops           = &cadet_fops,
+	.ioctl_ops 	= &cadet_ioctl_ops,
 };
 
 #ifdef CONFIG_PNP
@@ -680,7 +682,7 @@ static int __init cadet_init(void)
 	}
 	if (!request_region(io,2,"cadet"))
 		goto fail;
-	if(video_register_device(&cadet_radio,VFL_TYPE_RADIO,radio_nr)==-1) {
+	if (video_register_device(&cadet_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io,2);
 		goto fail;
 	}

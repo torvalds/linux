@@ -36,11 +36,11 @@
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/system.h>
 
 #include "op_counter.h"

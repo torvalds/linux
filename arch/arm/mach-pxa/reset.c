@@ -7,17 +7,20 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/proc-fns.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/pxa-regs.h>
+#include <mach/reset.h>
+
+unsigned int reset_status;
+EXPORT_SYMBOL(reset_status);
 
 static void do_hw_reset(void);
 
 static int reset_gpio = -1;
 
-int init_gpio_reset(int gpio)
+int init_gpio_reset(int gpio, int output)
 {
 	int rc;
 
@@ -27,9 +30,12 @@ int init_gpio_reset(int gpio)
 		goto out;
 	}
 
-	rc = gpio_direction_input(gpio);
+	if (output)
+		rc = gpio_direction_output(gpio, 0);
+	else
+		rc = gpio_direction_input(gpio);
 	if (rc) {
-		printk(KERN_ERR "Can't configure reset_gpio for input\n");
+		printk(KERN_ERR "Can't configure reset_gpio\n");
 		gpio_free(gpio);
 		goto out;
 	}
@@ -77,8 +83,7 @@ static void do_hw_reset(void)
 
 void arch_reset(char mode)
 {
-	if (cpu_is_pxa2xx())
-		RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+	clear_reset_status(RESET_STATUS_ALL);
 
 	switch (mode) {
 	case 's':

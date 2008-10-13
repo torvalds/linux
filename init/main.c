@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/initrd.h>
-#include <linux/hdreg.h>
 #include <linux/bootmem.h>
 #include <linux/tty.h>
 #include <linux/gfp.h>
@@ -635,10 +634,11 @@ asmlinkage void __init start_kernel(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
-	    page_to_pfn(virt_to_page(initrd_start)) < min_low_pfn) {
+	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
 		printk(KERN_CRIT "initrd overwritten (0x%08lx < 0x%08lx) - "
 		    "disabling it.\n",
-		    page_to_pfn(virt_to_page(initrd_start)), min_low_pfn);
+		    page_to_pfn(virt_to_page((void *)initrd_start)),
+		    min_low_pfn);
 		initrd_start = 0;
 	}
 #endif
@@ -691,7 +691,7 @@ asmlinkage void __init start_kernel(void)
 	rest_init();
 }
 
-static int __initdata initcall_debug;
+static int initcall_debug;
 
 static int __init initcall_debug_setup(char *str)
 {
@@ -700,7 +700,7 @@ static int __init initcall_debug_setup(char *str)
 }
 __setup("initcall_debug", initcall_debug_setup);
 
-static void __init do_one_initcall(initcall_t fn)
+int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	ktime_t t0, t1, delta;
@@ -708,7 +708,7 @@ static void __init do_one_initcall(initcall_t fn)
 	int result;
 
 	if (initcall_debug) {
-		print_fn_descriptor_symbol("calling  %s\n", fn);
+		printk("calling  %pF\n", fn);
 		t0 = ktime_get();
 	}
 
@@ -718,8 +718,8 @@ static void __init do_one_initcall(initcall_t fn)
 		t1 = ktime_get();
 		delta = ktime_sub(t1, t0);
 
-		print_fn_descriptor_symbol("initcall %s", fn);
-		printk(" returned %d after %Ld msecs\n", result,
+		printk("initcall %pF returned %d after %Ld msecs\n",
+			fn, result,
 			(unsigned long long) delta.tv64 >> 20);
 	}
 
@@ -737,19 +737,20 @@ static void __init do_one_initcall(initcall_t fn)
 		local_irq_enable();
 	}
 	if (msgbuf[0]) {
-		print_fn_descriptor_symbol(KERN_WARNING "initcall %s", fn);
-		printk(" returned with %s\n", msgbuf);
+		printk("initcall %pF returned with %s\n", fn, msgbuf);
 	}
+
+	return result;
 }
 
 
-extern initcall_t __initcall_start[], __initcall_end[];
+extern initcall_t __initcall_start[], __initcall_end[], __early_initcall_end[];
 
 static void __init do_initcalls(void)
 {
 	initcall_t *call;
 
-	for (call = __initcall_start; call < __initcall_end; call++)
+	for (call = __early_initcall_end; call < __initcall_end; call++)
 		do_one_initcall(*call);
 
 	/* Make sure there is no pending stuff from the initcall sequence */
@@ -774,24 +775,12 @@ static void __init do_basic_setup(void)
 	do_initcalls();
 }
 
-static int __initdata nosoftlockup;
-
-static int __init nosoftlockup_setup(char *str)
-{
-	nosoftlockup = 1;
-	return 1;
-}
-__setup("nosoftlockup", nosoftlockup_setup);
-
 static void __init do_pre_smp_initcalls(void)
 {
-	extern int spawn_ksoftirqd(void);
+	initcall_t *call;
 
-	init_call_single_data();
-	migration_init();
-	spawn_ksoftirqd();
-	if (!nosoftlockup)
-		spawn_softlockup_task();
+	for (call = __initcall_start; call < __early_initcall_end; call++)
+		do_one_initcall(*call);
 }
 
 static void run_init_process(char *init_filename)

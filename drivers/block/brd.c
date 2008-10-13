@@ -571,8 +571,8 @@ out_free:
 		list_del(&brd->brd_list);
 		brd_free(brd);
 	}
+	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
 
-	unregister_blkdev(RAMDISK_MAJOR, "brd");
 	return -ENOMEM;
 }
 

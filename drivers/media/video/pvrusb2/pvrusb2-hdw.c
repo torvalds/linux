@@ -250,6 +250,7 @@ struct pvr2_fx2cmd_descdef {
 static const struct pvr2_fx2cmd_descdef pvr2_fx2cmd_desc[] = {
 	{FX2CMD_MEM_WRITE_DWORD, "write encoder dword"},
 	{FX2CMD_MEM_READ_DWORD, "read encoder dword"},
+	{FX2CMD_HCW_ZILOG_RESET, "zilog IR reset control"},
 	{FX2CMD_MEM_READ_64BYTES, "read encoder 64bytes"},
 	{FX2CMD_REG_WRITE, "write encoder register"},
 	{FX2CMD_REG_READ, "read encoder register"},
@@ -1709,6 +1710,14 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	if (!hdw->hdw_desc->flag_no_powerup) {
 		pvr2_hdw_cmd_powerup(hdw);
 		if (!pvr2_hdw_dev_ok(hdw)) return;
+	}
+
+	/* Take the IR chip out of reset, if appropriate */
+	if (hdw->hdw_desc->ir_scheme == PVR2_IR_SCHEME_ZILOG) {
+		pvr2_issue_simple_cmd(hdw,
+				      FX2CMD_HCW_ZILOG_RESET |
+				      (1 << 8) |
+				      ((0) << 16));
 	}
 
 	// This step MUST happen after the earlier powerup step.

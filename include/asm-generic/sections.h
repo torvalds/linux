@@ -14,4 +14,10 @@ extern char __kprobes_text_start[], __kprobes_text_end[];
 extern char __initdata_begin[], __initdata_end[];
 extern char __start_rodata[], __end_rodata[];
 
+/* function descriptor handling (if any).  Override
+ * in asm/sections.h */
+#ifndef dereference_function_descriptor
+#define dereference_function_descriptor(p) (p)
+#endif
+
 #endif /* _ASM_GENERIC_SECTIONS_H_ */

@@ -22,8 +22,8 @@
 #include <linux/irq.h>
 #include <asm/dma.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa3xx_nand.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa3xx_nand.h>
 
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
 

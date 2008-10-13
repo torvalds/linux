@@ -1,6 +1,6 @@
 /* interface for the pm_qos_power infrastructure of the linux kernel.
  *
- * Mark Gross
+ * Mark Gross <mgross@linux.intel.com>
  */
 #include <linux/list.h>
 #include <linux/notifier.h>

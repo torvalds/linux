@@ -14,13 +14,13 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <asm/page.h>
 #include <asm/dma.h>
 #include <asm/fiq.h>
-#include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/uaccess.h>
 
 #include <asm/mach/dma.h>

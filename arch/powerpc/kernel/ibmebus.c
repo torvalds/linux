@@ -233,17 +233,6 @@ void ibmebus_free_irq(u32 ist, void *dev_id)
 }
 EXPORT_SYMBOL(ibmebus_free_irq);
 
-static ssize_t name_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%s\n", to_of_device(dev)->node->name);
-}
-
-static struct device_attribute ibmebus_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_NULL
-};
-
 static char *ibmebus_chomp(const char *in, size_t count)
 {
 	char *out = kmalloc(count + 1, GFP_KERNEL);
@@ -327,7 +316,6 @@ static struct bus_attribute ibmebus_bus_attrs[] = {
 
 struct bus_type ibmebus_bus_type = {
 	.uevent    = of_device_uevent,
-	.dev_attrs = ibmebus_dev_attrs,
 	.bus_attrs = ibmebus_bus_attrs
 };
 EXPORT_SYMBOL(ibmebus_bus_type);

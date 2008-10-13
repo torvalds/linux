@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <asm/dreamcast/dma.h>
+#include <mach-dreamcast/mach/dma.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include "dma-sh.h"

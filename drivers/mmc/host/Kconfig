@@ -2,7 +2,7 @@
 # MMC/SD host controller drivers
 #
 
-comment "MMC/SD Host Controller Drivers"
+comment "MMC/SD/SDIO Host Controller Drivers"
 
 config MMC_ARMMMCI
 	tristate "ARM AMBA Multimedia Card Interface support"
@@ -114,6 +114,17 @@ config MMC_ATMELMCI
 
 	  If unsure, say N.
 
+config MMC_ATMELMCI_DMA
+	bool "Atmel MCI DMA support (EXPERIMENTAL)"
+	depends on MMC_ATMELMCI && DMA_ENGINE && EXPERIMENTAL
+	help
+	  Say Y here to have the Atmel MCI driver use a DMA engine to
+	  do data transfers and thus increase the throughput and
+	  reduce the CPU utilization. Note that this is highly
+	  experimental and may cause the driver to lock up.
+
+	  If unsure, say N.
+
 config MMC_IMX
 	tristate "Motorola i.MX Multimedia Card Interface support"
 	depends on ARCH_IMX
@@ -141,21 +152,22 @@ config MMC_TIFM_SD
 	  module will be called tifm_sd.
 
 config MMC_SPI
-	tristate "MMC/SD over SPI"
-	depends on MMC && SPI_MASTER && !HIGHMEM && HAS_DMA
+	tristate "MMC/SD/SDIO over SPI"
+	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
 	select CRC7
 	select CRC_ITU_T
 	help
-	  Some systems accss MMC/SD cards using a SPI controller instead of
-	  using a "native" MMC/SD controller.  This has a disadvantage of
-	  being relatively high overhead, but a compensating advantage of
-	  working on many systems without dedicated MMC/SD controllers.
+	  Some systems accss MMC/SD/SDIO cards using a SPI controller
+	  instead of using a "native" MMC/SD/SDIO controller.  This has a
+	  disadvantage of being relatively high overhead, but a compensating
+	  advantage of working on many systems without dedicated MMC/SD/SDIO
+	  controllers.
 
 	  If unsure, or if your system has no SPI master driver, say N.
 
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
-	depends on ARCH_S3C2410 && MMC
+	depends on ARCH_S3C2410
 	help
 	  This selects a driver for the MCI interface found in
           Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
@@ -166,7 +178,7 @@ config MMC_S3C
 
 config MMC_SDRICOH_CS
 	tristate "MMC/SD driver for Ricoh Bay1Controllers (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && MMC && PCI && PCMCIA
+	depends on EXPERIMENTAL && PCI && PCMCIA
 	help
 	  Say Y here if your Notebook reports a Ricoh Bay1Controller PCMCIA
 	  card whenever you insert a MMC or SD card into the card slot.
@@ -174,3 +186,9 @@ config MMC_SDRICOH_CS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdricoh_cs.
 
+config MMC_TMIO
+	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
+	depends on MFD_TMIO
+	help
+	  This provides support for the SD/MMC cell found in TC6393XB,
+	  T7L66XB and also ipaq ASIC3

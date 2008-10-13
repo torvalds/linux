@@ -165,7 +165,7 @@ cuboot*)
     binary=y
     gzip=
     case "$platform" in
-    *-mpc885ads|*-adder875*|*-ep88xc)
+    *-mpc866ads|*-mpc885ads|*-adder875*|*-ep88xc)
         platformo=$object/cuboot-8xx.o
         ;;
     *5200*|*-motionpro)

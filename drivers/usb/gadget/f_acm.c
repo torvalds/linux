@@ -47,18 +47,37 @@ struct f_acm {
 	u8				ctrl_id, data_id;
 	u8				port_num;
 
-	struct usb_descriptor_header	**fs_function;
+	u8				pending;
+
+	/* lock is mostly for pending and notify_req ... they get accessed
+	 * by callbacks both from tty (open/close/break) under its spinlock,
+	 * and notify_req.complete() which can't use that lock.
+	 */
+	spinlock_t			lock;
+
 	struct acm_ep_descs		fs;
-	struct usb_descriptor_header	**hs_function;
 	struct acm_ep_descs		hs;
 
 	struct usb_ep			*notify;
 	struct usb_endpoint_descriptor	*notify_desc;
+	struct usb_request		*notify_req;
 
 	struct usb_cdc_line_coding	port_line_coding;	/* 8-N-1 etc */
+
+	/* SetControlLineState request -- CDC 1.1 section 6.2.14 (INPUT) */
 	u16				port_handshake_bits;
-#define RS232_RTS	(1 << 1)	/* unused with full duplex */
-#define RS232_DTR	(1 << 0)	/* host is ready for data r/w */
+#define ACM_CTRL_RTS	(1 << 1)	/* unused with full duplex */
+#define ACM_CTRL_DTR	(1 << 0)	/* host is ready for data r/w */
+
+	/* SerialState notification -- CDC 1.1 section 6.3.5 (OUTPUT) */
+	u16				serial_state;
+#define ACM_CTRL_OVERRUN	(1 << 6)
+#define ACM_CTRL_PARITY		(1 << 5)
+#define ACM_CTRL_FRAMING	(1 << 4)
+#define ACM_CTRL_RI		(1 << 3)
+#define ACM_CTRL_BRK		(1 << 2)
+#define ACM_CTRL_DSR		(1 << 1)
+#define ACM_CTRL_DCD		(1 << 0)
 };
 
 static inline struct f_acm *func_to_acm(struct usb_function *f)
@@ -66,12 +85,17 @@ static inline struct f_acm *func_to_acm(struct usb_function *f)
 	return container_of(f, struct f_acm, port.func);
 }
 
+static inline struct f_acm *port_to_acm(struct gserial *p)
+{
+	return container_of(p, struct f_acm, port);
+}
+
 /*-------------------------------------------------------------------------*/
 
 /* notification endpoint uses smallish and infrequent fixed-size messages */
 
 #define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
-#define GS_NOTIFY_MAXPACKET		8
+#define GS_NOTIFY_MAXPACKET		10	/* notification + 2 bytes */
 
 /* interface and class descriptors: */
 
@@ -117,7 +141,7 @@ static struct usb_cdc_acm_descriptor acm_descriptor __initdata = {
 	.bLength =		sizeof(acm_descriptor),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_ACM_TYPE,
-	.bmCapabilities =	(1 << 1),
+	.bmCapabilities =	USB_CDC_CAP_LINE,
 };
 
 static struct usb_cdc_union_desc acm_union_desc __initdata = {
@@ -277,6 +301,11 @@ static int acm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 
 	/* composite driver infrastructure handles everything except
 	 * CDC class messages; interface activation uses set_alt().
+	 *
+	 * Note CDC spec table 4 lists the ACM request profile.  It requires
+	 * encapsulated command support ... we don't handle any, and respond
+	 * to them by stalling.  Options include get/set/clear comm features
+	 * (not that useful) and SEND_BREAK.
 	 */
 	switch ((ctrl->bRequestType << 8) | ctrl->bRequest) {
 
@@ -312,7 +341,7 @@ static int acm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		value = 0;
 
 		/* FIXME we should not allow data to flow until the
-		 * host sets the RS232_DTR bit; and when it clears
+		 * host sets the ACM_CTRL_DTR bit; and when it clears
 		 * that bit, we should return to that no-flow state.
 		 */
 		acm->port_handshake_bits = w_value;
@@ -350,9 +379,6 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	/* we know alt == 0, so this is an activation or a reset */
 
 	if (intf == acm->ctrl_id) {
-		/* REVISIT this may need more work when we start to
-		 * send notifications ...
-		 */
 		if (acm->notify->driver_data) {
 			VDBG(cdev, "reset acm control interface %d\n", intf);
 			usb_ep_disable(acm->notify);
@@ -393,6 +419,128 @@ static void acm_disable(struct usb_function *f)
 	gserial_disconnect(&acm->port);
 	usb_ep_disable(acm->notify);
 	acm->notify->driver_data = NULL;
+}
+
+/*-------------------------------------------------------------------------*/
+
+/**
+ * acm_cdc_notify - issue CDC notification to host
+ * @acm: wraps host to be notified
+ * @type: notification type
+ * @value: Refer to cdc specs, wValue field.
+ * @data: data to be sent
+ * @length: size of data
+ * Context: irqs blocked, acm->lock held, acm_notify_req non-null
+ *
+ * Returns zero on sucess or a negative errno.
+ *
+ * See section 6.3.5 of the CDC 1.1 specification for information
+ * about the only notification we issue:  SerialState change.
+ */
+static int acm_cdc_notify(struct f_acm *acm, u8 type, u16 value,
+		void *data, unsigned length)
+{
+	struct usb_ep			*ep = acm->notify;
+	struct usb_request		*req;
+	struct usb_cdc_notification	*notify;
+	const unsigned			len = sizeof(*notify) + length;
+	void				*buf;
+	int				status;
+
+	req = acm->notify_req;
+	acm->notify_req = NULL;
+	acm->pending = false;
+
+	req->length = len;
+	notify = req->buf;
+	buf = notify + 1;
+
+	notify->bmRequestType = USB_DIR_IN | USB_TYPE_CLASS
+			| USB_RECIP_INTERFACE;
+	notify->bNotificationType = type;
+	notify->wValue = cpu_to_le16(value);
+	notify->wIndex = cpu_to_le16(acm->ctrl_id);
+	notify->wLength = cpu_to_le16(length);
+	memcpy(buf, data, length);
+
+	status = usb_ep_queue(ep, req, GFP_ATOMIC);
+	if (status < 0) {
+		ERROR(acm->port.func.config->cdev,
+				"acm ttyGS%d can't notify serial state, %d\n",
+				acm->port_num, status);
+		acm->notify_req = req;
+	}
+
+	return status;
+}
+
+static int acm_notify_serial_state(struct f_acm *acm)
+{
+	struct usb_composite_dev *cdev = acm->port.func.config->cdev;
+	int			status;
+
+	spin_lock(&acm->lock);
+	if (acm->notify_req) {
+		DBG(cdev, "acm ttyGS%d serial state %04x\n",
+				acm->port_num, acm->serial_state);
+		status = acm_cdc_notify(acm, USB_CDC_NOTIFY_SERIAL_STATE,
+				0, &acm->serial_state, sizeof(acm->serial_state));
+	} else {
+		acm->pending = true;
+		status = 0;
+	}
+	spin_unlock(&acm->lock);
+	return status;
+}
+
+static void acm_cdc_notify_complete(struct usb_ep *ep, struct usb_request *req)
+{
+	struct f_acm		*acm = req->context;
+	u8			doit = false;
+
+	/* on this call path we do NOT hold the port spinlock,
+	 * which is why ACM needs its own spinlock
+	 */
+	spin_lock(&acm->lock);
+	if (req->status != -ESHUTDOWN)
+		doit = acm->pending;
+	acm->notify_req = req;
+	spin_unlock(&acm->lock);
+
+	if (doit)
+		acm_notify_serial_state(acm);
+}
+
+/* connect == the TTY link is open */
+
+static void acm_connect(struct gserial *port)
+{
+	struct f_acm		*acm = port_to_acm(port);
+
+	acm->serial_state |= ACM_CTRL_DSR | ACM_CTRL_DCD;
+	acm_notify_serial_state(acm);
+}
+
+static void acm_disconnect(struct gserial *port)
+{
+	struct f_acm		*acm = port_to_acm(port);
+
+	acm->serial_state &= ~(ACM_CTRL_DSR | ACM_CTRL_DCD);
+	acm_notify_serial_state(acm);
+}
+
+static int acm_send_break(struct gserial *port, int duration)
+{
+	struct f_acm		*acm = port_to_acm(port);
+	u16			state;
+
+	state = acm->serial_state;
+	state &= ~ACM_CTRL_BRK;
+	if (duration)
+		state |= ACM_CTRL_BRK;
+
+	acm->serial_state = state;
+	return acm_notify_serial_state(acm);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -445,8 +593,20 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	acm->notify = ep;
 	ep->driver_data = cdev;	/* claim */
 
+	/* allocate notification */
+	acm->notify_req = gs_alloc_req(ep,
+			sizeof(struct usb_cdc_notification) + 2,
+			GFP_KERNEL);
+	if (!acm->notify_req)
+		goto fail;
+
+	acm->notify_req->complete = acm_cdc_notify_complete;
+	acm->notify_req->context = acm;
+
 	/* copy descriptors, and track endpoint copies */
 	f->descriptors = usb_copy_descriptors(acm_fs_function);
+	if (!f->descriptors)
+		goto fail;
 
 	acm->fs.in = usb_find_endpoint(acm_fs_function,
 			f->descriptors, &acm_fs_in_desc);
@@ -478,8 +638,6 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 				f->hs_descriptors, &acm_hs_notify_desc);
 	}
 
-	/* FIXME provide a callback for triggering notifications */
-
 	DBG(cdev, "acm ttyGS%d: %s speed IN/%s OUT/%s NOTIFY/%s\n",
 			acm->port_num,
 			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
@@ -488,6 +646,9 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
+	if (acm->notify_req)
+		gs_free_req(acm->notify, acm->notify_req);
+
 	/* we might as well release our claims on endpoints */
 	if (acm->notify)
 		acm->notify->driver_data = NULL;
@@ -504,10 +665,13 @@ fail:
 static void
 acm_unbind(struct usb_configuration *c, struct usb_function *f)
 {
+	struct f_acm		*acm = func_to_acm(f);
+
 	if (gadget_is_dualspeed(c->cdev->gadget))
 		usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->descriptors);
-	kfree(func_to_acm(f));
+	gs_free_req(acm->notify, acm->notify_req);
+	kfree(acm);
 }
 
 /* Some controllers can't support CDC ACM ... */
@@ -571,7 +735,13 @@ int __init acm_bind_config(struct usb_configuration *c, u8 port_num)
 	if (!acm)
 		return -ENOMEM;
 
+	spin_lock_init(&acm->lock);
+
 	acm->port_num = port_num;
+
+	acm->port.connect = acm_connect;
+	acm->port.disconnect = acm_disconnect;
+	acm->port.send_break = acm_send_break;
 
 	acm->port.func.name = "acm";
 	acm->port.func.strings = acm_strings;

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SIGNAL_H
-#define _ASM_X86_SIGNAL_H
+#ifndef ASM_X86__SIGNAL_H
+#define ASM_X86__SIGNAL_H
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -140,6 +140,9 @@ struct sigaction {
 struct k_sigaction {
 	struct sigaction sa;
 };
+
+extern void do_notify_resume(struct pt_regs *, void *, __u32);
+
 # else /* __KERNEL__ */
 /* Here we must cater to libcs that poke about in kernel headers.  */
 
@@ -256,4 +259,4 @@ struct pt_regs;
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__SIGNAL_H */

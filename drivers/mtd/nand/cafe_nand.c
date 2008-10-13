@@ -626,10 +626,12 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 {
 	struct mtd_info *mtd;
 	struct cafe_priv *cafe;
-	struct mtd_partition *parts;
 	uint32_t ctrl;
-	int nr_parts;
 	int err = 0;
+#ifdef CONFIG_MTD_PARTITIONS
+	struct mtd_partition *parts;
+	int nr_parts;
+#endif
 
 	/* Very old versions shared the same PCI ident for all three
 	   functions on the chip. Verify the class too... */

@@ -1,5 +1,5 @@
-#ifndef __ARCH_X86_64_ATOMIC__
-#define __ARCH_X86_64_ATOMIC__
+#ifndef ASM_X86__ATOMIC_64_H
+#define ASM_X86__ATOMIC_64_H
 
 #include <asm/alternative.h>
 #include <asm/cmpxchg.h>
@@ -228,7 +228,7 @@ static inline void atomic64_add(long i, atomic64_t *v)
 {
 	asm volatile(LOCK_PREFIX "addq %1,%0"
 		     : "=m" (v->counter)
-		     : "ir" (i), "m" (v->counter));
+		     : "er" (i), "m" (v->counter));
 }
 
 /**
@@ -242,7 +242,7 @@ static inline void atomic64_sub(long i, atomic64_t *v)
 {
 	asm volatile(LOCK_PREFIX "subq %1,%0"
 		     : "=m" (v->counter)
-		     : "ir" (i), "m" (v->counter));
+		     : "er" (i), "m" (v->counter));
 }
 
 /**
@@ -260,7 +260,7 @@ static inline int atomic64_sub_and_test(long i, atomic64_t *v)
 
 	asm volatile(LOCK_PREFIX "subq %2,%0; sete %1"
 		     : "=m" (v->counter), "=qm" (c)
-		     : "ir" (i), "m" (v->counter) : "memory");
+		     : "er" (i), "m" (v->counter) : "memory");
 	return c;
 }
 
@@ -341,7 +341,7 @@ static inline int atomic64_add_negative(long i, atomic64_t *v)
 
 	asm volatile(LOCK_PREFIX "addq %2,%0; sets %1"
 		     : "=m" (v->counter), "=qm" (c)
-		     : "ir" (i), "m" (v->counter) : "memory");
+		     : "er" (i), "m" (v->counter) : "memory");
 	return c;
 }
 
@@ -470,4 +470,4 @@ static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
 #define smp_mb__after_atomic_inc()	barrier()
 
 #include <asm-generic/atomic.h>
-#endif
+#endif /* ASM_X86__ATOMIC_64_H */

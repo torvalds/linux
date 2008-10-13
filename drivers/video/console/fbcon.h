@@ -92,7 +92,7 @@ struct fbcon_ops {
 #define attr_fgcol(fgshift,s)    \
 	(((s) >> (fgshift)) & 0x0f)
 #define attr_bgcol(bgshift,s)    \
-	(((s) >> (bgshift)) & 0x07)
+	(((s) >> (bgshift)) & 0x0f)
 
 /* Monochrome */
 #define attr_bold(s) \
@@ -110,7 +110,7 @@ static inline int mono_col(const struct fb_info *info)
 	__u32 max_len;
 	max_len = max(info->var.green.length, info->var.red.length);
 	max_len = max(info->var.blue.length, max_len);
-	return ~(0xfff << (max_len & 0xff));
+	return (~(0xfff << max_len)) & 0xff;
 }
 
 static inline int attr_col_ec(int shift, struct vc_data *vc,

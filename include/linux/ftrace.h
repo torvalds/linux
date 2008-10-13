@@ -98,6 +98,27 @@ static inline void tracer_disable(void)
 #endif
 }
 
+/* Ftrace disable/restore without lock. Some synchronization mechanism
+ * must be used to prevent ftrace_enabled to be changed between
+ * disable/restore. */
+static inline int __ftrace_enabled_save(void)
+{
+#ifdef CONFIG_FTRACE
+	int saved_ftrace_enabled = ftrace_enabled;
+	ftrace_enabled = 0;
+	return saved_ftrace_enabled;
+#else
+	return 0;
+#endif
+}
+
+static inline void __ftrace_enabled_restore(int enabled)
+{
+#ifdef CONFIG_FTRACE
+	ftrace_enabled = enabled;
+#endif
+}
+
 #ifdef CONFIG_FRAME_POINTER
 /* TODO: need to fix this for ARM */
 # define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))

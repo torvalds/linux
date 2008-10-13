@@ -64,7 +64,6 @@ Scott Hill shill@gtcocalcomp.com
 #include <asm/byteorder.h>
 
 
-#include <linux/version.h>
 #include <linux/usb/input.h>
 
 /* Version with a Major number of 2 is for kernel inclusion only. */

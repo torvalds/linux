@@ -803,7 +803,25 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  */
 #define VC_RESIZE_MAXCOL (32767)
 #define VC_RESIZE_MAXROW (32767)
-int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
+
+/**
+ *	vc_do_resize	-	resizing method for the tty
+ *	@tty: tty being resized
+ *	@real_tty: real tty (different to tty if a pty/tty pair)
+ *	@vc: virtual console private data
+ *	@cols: columns
+ *	@lines: lines
+ *
+ *	Resize a virtual console, clipping according to the actual constraints.
+ *	If the caller passes a tty structure then update the termios winsize
+ *	information and perform any neccessary signal handling.
+ *
+ *	Caller must hold the console semaphore. Takes the termios mutex and
+ *	ctrl_lock of the tty IFF a tty is passed.
+ */
+
+static int vc_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
+		struct vc_data *vc, unsigned int cols, unsigned int lines)
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
@@ -907,26 +925,15 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	gotoxy(vc, vc->vc_x, vc->vc_y);
 	save_cur(vc);
 
-	if (vc->vc_tty) {
-		struct winsize ws, *cws = &vc->vc_tty->winsize;
-		struct pid *pgrp = NULL;
-
+	if (tty) {
+		/* Rewrite the requested winsize data with the actual
+		   resulting sizes */
+		struct winsize ws;
 		memset(&ws, 0, sizeof(ws));
 		ws.ws_row = vc->vc_rows;
 		ws.ws_col = vc->vc_cols;
 		ws.ws_ypixel = vc->vc_scan_lines;
-
-		mutex_lock(&vc->vc_tty->termios_mutex);
-		spin_lock_irq(&vc->vc_tty->ctrl_lock);
-		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col))
-			pgrp = get_pid(vc->vc_tty->pgrp);
-		spin_unlock_irq(&vc->vc_tty->ctrl_lock);
-		if (pgrp) {
-			kill_pgrp(vc->vc_tty->pgrp, SIGWINCH, 1);
-			put_pid(pgrp);
-		}
-		*cws = ws;
-		mutex_unlock(&vc->vc_tty->termios_mutex);
+		tty_do_resize(tty, real_tty, &ws);
 	}
 
 	if (CON_IS_VISIBLE(vc))
@@ -934,14 +941,47 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	return err;
 }
 
-int vc_lock_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
+/**
+ *	vc_resize		-	resize a VT
+ *	@vc: virtual console
+ *	@cols: columns
+ *	@rows: rows
+ *
+ *	Resize a virtual console as seen from the console end of things. We
+ *	use the common vc_do_resize methods to update the structures. The
+ *	caller must hold the console sem to protect console internals and
+ *	vc->vc_tty
+ */
+
+int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
-	int rc;
+	return vc_do_resize(vc->vc_tty, vc->vc_tty, vc, cols, rows);
+}
+
+/**
+ *	vt_resize		-	resize a VT
+ *	@tty: tty to resize
+ *	@real_tty: tty if a pty/tty pair
+ *	@ws: winsize attributes
+ *
+ *	Resize a virtual terminal. This is called by the tty layer as we
+ *	register our own handler for resizing. The mutual helper does all
+ *	the actual work.
+ *
+ *	Takes the console sem and the called methods then take the tty
+ *	termios_mutex and the tty ctrl_lock in that order.
+ */
+
+int vt_resize(struct tty_struct *tty, struct tty_struct *real_tty,
+	struct winsize *ws)
+{
+	struct vc_data *vc = tty->driver_data;
+	int ret;
 
 	acquire_console_sem();
-	rc = vc_resize(vc, cols, lines);
+	ret = vc_do_resize(tty, real_tty, vc, ws->ws_col, ws->ws_row);
 	release_console_sem();
-	return rc;
+	return ret;
 }
 
 void vc_deallocate(unsigned int currcons)
@@ -2909,6 +2949,7 @@ static const struct tty_operations con_ops = {
 	.start = con_start,
 	.throttle = con_throttle,
 	.unthrottle = con_unthrottle,
+	.resize = vt_resize,
 };
 
 int __init vty_init(void)
@@ -4063,7 +4104,6 @@ EXPORT_SYMBOL(default_blu);
 EXPORT_SYMBOL(update_region);
 EXPORT_SYMBOL(redraw_screen);
 EXPORT_SYMBOL(vc_resize);
-EXPORT_SYMBOL(vc_lock_resize);
 EXPORT_SYMBOL(fg_console);
 EXPORT_SYMBOL(console_blank_hook);
 EXPORT_SYMBOL(console_blanked);

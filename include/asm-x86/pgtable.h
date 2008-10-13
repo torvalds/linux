@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PGTABLE_H
-#define _ASM_X86_PGTABLE_H
+#ifndef ASM_X86__PGTABLE_H
+#define ASM_X86__PGTABLE_H
 
 #define FIRST_USER_ADDRESS	0
 
@@ -18,6 +18,8 @@
 #define _PAGE_BIT_UNUSED2	10
 #define _PAGE_BIT_UNUSED3	11
 #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+#define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+#define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
 #define _PAGE_PRESENT	(_AT(pteval_t, 1) << _PAGE_BIT_PRESENT)
@@ -34,6 +36,9 @@
 #define _PAGE_UNUSED3	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED3)
 #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
 #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+#define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+#define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
@@ -54,7 +59,7 @@
 
 /* Set of bits not changed in pte_modify */
 #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
-			 _PAGE_ACCESSED | _PAGE_DIRTY)
+			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
 #define _PAGE_CACHE_WB		(0)
@@ -127,6 +132,17 @@
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
 
+/*
+ * early identity mapping  pte attrib macros.
+ */
+#ifdef CONFIG_X86_64
+#define __PAGE_KERNEL_IDENT_LARGE_EXEC	__PAGE_KERNEL_LARGE_EXEC
+#else
+#define PTE_IDENT_ATTR	 0x003		/* PRESENT+RW */
+#define PDE_IDENT_ATTR	 0x063		/* PRESENT+RW+DIRTY+ACCESSED */
+#define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+#endif
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -180,8 +196,15 @@ static inline int pte_exec(pte_t pte)
 
 static inline int pte_special(pte_t pte)
 {
-	return 0;
+	return pte_val(pte) & _PAGE_SPECIAL;
 }
+
+static inline unsigned long pte_pfn(pte_t pte)
+{
+	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
+}
+
+#define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 static inline int pmd_large(pmd_t pte)
 {
@@ -246,7 +269,7 @@ static inline pte_t pte_clrglobal(pte_t pte)
 
 static inline pte_t pte_mkspecial(pte_t pte)
 {
-	return pte;
+	return __pte(pte_val(pte) | _PAGE_SPECIAL);
 }
 
 extern pteval_t __supported_pte_mask;
@@ -309,6 +332,8 @@ extern void native_pagetable_setup_done(pgd_t *base);
 static inline void native_pagetable_setup_start(pgd_t *base) {}
 static inline void native_pagetable_setup_done(pgd_t *base) {}
 #endif
+
+extern int arch_report_meminfo(char *page);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -518,4 +543,4 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */
 
-#endif	/* _ASM_X86_PGTABLE_H */
+#endif /* ASM_X86__PGTABLE_H */

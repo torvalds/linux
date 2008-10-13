@@ -434,7 +434,8 @@ static int at32_pcm_suspend(struct platform_device *pdev,
 	params = prtd->params;
 
 	/* Disable the PDC and save the PDC registers */
-	ssc_writex(params->ssc->regs, PDC_PTCR, params->mask->pdc_disable);
+	ssc_writex(params->ssc->regs, ATMEL_PDC_PTCR,
+		   params->mask->pdc_disable);
 
 	prtd->pdc_xpr_save = ssc_readx(params->ssc->regs, params->pdc->xpr);
 	prtd->pdc_xcr_save = ssc_readx(params->ssc->regs, params->pdc->xcr);
@@ -464,7 +465,7 @@ static int at32_pcm_resume(struct platform_device *pdev,
 	ssc_writex(params->ssc->regs, params->pdc->xnpr, prtd->pdc_xnpr_save);
 	ssc_writex(params->ssc->regs, params->pdc->xncr, prtd->pdc_xncr_save);
 
-	ssc_writex(params->ssc->regs, PDC_PTCR, params->mask->pdc_enable);
+	ssc_writex(params->ssc->regs, ATMEL_PDC_PTCR, params->mask->pdc_enable);
 	return 0;
 }
 #else /* CONFIG_PM */

@@ -68,7 +68,7 @@ static void minix_destroy_inode(struct inode *inode)
 	kmem_cache_free(minix_inode_cachep, minix_i(inode));
 }
 
-static void init_once(struct kmem_cache * cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct minix_inode_info *ei = (struct minix_inode_info *) foo;
 

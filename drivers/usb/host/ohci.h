@@ -371,6 +371,7 @@ struct ohci_hcd {
 	 * other external transceivers should be software-transparent
 	 */
 	struct otg_transceiver	*transceiver;
+	void (*start_hnp)(struct ohci_hcd *ohci);
 
 	/*
 	 * memory management for queue data structures
@@ -399,6 +400,8 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_ZFMICRO	0x20			/* Compaq ZFMicro chipset*/
 #define	OHCI_QUIRK_NEC		0x40			/* lost interrupts */
 #define	OHCI_QUIRK_FRAME_NO	0x80			/* no big endian frame_no shift */
+#define	OHCI_QUIRK_HUB_POWER	0x100			/* distrust firmware power/oc setup */
+#define	OHCI_QUIRK_AMD_ISO	0x200			/* ISO transfers*/
 	// there are also chip quirks/bugs in init logic
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
@@ -426,12 +429,20 @@ static inline int quirk_zfmicro(struct ohci_hcd *ohci)
 {
 	return ohci->flags & OHCI_QUIRK_ZFMICRO;
 }
+static inline int quirk_amdiso(struct ohci_hcd *ohci)
+{
+	return ohci->flags & OHCI_QUIRK_AMD_ISO;
+}
 #else
 static inline int quirk_nec(struct ohci_hcd *ohci)
 {
 	return 0;
 }
 static inline int quirk_zfmicro(struct ohci_hcd *ohci)
+{
+	return 0;
+}
+static inline int quirk_amdiso(struct ohci_hcd *ohci)
 {
 	return 0;
 }

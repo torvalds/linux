@@ -29,7 +29,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/init.h>
 
 #include <net/mac80211.h>
@@ -82,7 +81,7 @@
 
 /* default power management (not Tx power) table values */
 /* for tim  0-10 */
-static struct iwl_power_vec_entry range_0[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_0[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
@@ -93,7 +92,7 @@ static struct iwl_power_vec_entry range_0[IWL_POWER_AC] = {
 
 
 /* for tim = 3-10 */
-static struct iwl_power_vec_entry range_1[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_1[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 3, 4, 7)}, 0},
@@ -103,7 +102,7 @@ static struct iwl_power_vec_entry range_1[IWL_POWER_AC] = {
 };
 
 /* for tim > 11 */
-static struct iwl_power_vec_entry range_2[IWL_POWER_AC] = {
+static struct iwl_power_vec_entry range_2[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
@@ -112,12 +111,19 @@ static struct iwl_power_vec_entry range_2[IWL_POWER_AC] = {
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
 };
 
+/* set card power command */
+static int iwl_set_power(struct iwl_priv *priv, void *cmd)
+{
+	return iwl_send_cmd_pdu_async(priv, POWER_TABLE_CMD,
+				      sizeof(struct iwl_powertable_cmd),
+				      cmd, NULL);
+}
 /* decide the right power level according to association status
  * and battery status
  */
 static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 {
-	u16 mode = priv->power_data.user_power_setting;
+	u16 mode;
 
 	switch (priv->power_data.user_power_setting) {
 	case IWL_POWER_AUTO:
@@ -129,11 +135,15 @@ static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 		else
 			mode = IWL_POWER_ON_AC_DISASSOC;
 		break;
+	/* FIXME: remove battery and ac from here */
 	case IWL_POWER_BATTERY:
 		mode = IWL_POWER_INDEX_3;
 		break;
 	case IWL_POWER_AC:
 		mode = IWL_POWER_MODE_CAM;
+		break;
+	default:
+		mode = priv->power_data.user_power_setting;
 		break;
 	}
 	return mode;
@@ -142,9 +152,10 @@ static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 /* initialize to default */
 static int iwl_power_init_handle(struct iwl_priv *priv)
 {
-	int ret = 0, i;
 	struct iwl_power_mgr *pow_data;
-	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_AC;
+	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_MAX;
+	struct iwl_powertable_cmd *cmd;
+	int i;
 	u16 pci_pm;
 
 	IWL_DEBUG_POWER("Initialize power \n");
@@ -157,30 +168,24 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 	memcpy(&pow_data->pwr_range_1[0], &range_1[0], size);
 	memcpy(&pow_data->pwr_range_2[0], &range_2[0], size);
 
-	ret = pci_read_config_word(priv->pci_dev,
-				  PCI_LINK_CTRL, &pci_pm);
-	if (ret != 0)
-		return 0;
-	else {
-		struct iwl4965_powertable_cmd *cmd;
+	pci_read_config_word(priv->pci_dev, PCI_CFG_LINK_CTRL, &pci_pm);
 
-		IWL_DEBUG_POWER("adjust power command flags\n");
+	IWL_DEBUG_POWER("adjust power command flags\n");
 
-		for (i = 0; i < IWL_POWER_AC; i++) {
-			cmd = &pow_data->pwr_range_0[i].cmd;
+	for (i = 0; i < IWL_POWER_MAX; i++) {
+		cmd = &pow_data->pwr_range_0[i].cmd;
 
-			if (pci_pm & 0x1)
-				cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
-			else
-				cmd->flags |= IWL_POWER_PCI_PM_MSK;
-		}
+		if (pci_pm & PCI_CFG_LINK_CTRL_VAL_L0S_EN)
+			cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
+		else
+			cmd->flags |= IWL_POWER_PCI_PM_MSK;
 	}
-	return ret;
+	return 0;
 }
 
 /* adjust power command according to dtim period and power level*/
 static int iwl_update_power_command(struct iwl_priv *priv,
-				    struct iwl4965_powertable_cmd *cmd,
+				    struct iwl_powertable_cmd *cmd,
 				    u16 mode)
 {
 	int ret = 0, i;
@@ -204,7 +209,7 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 		range = &pow_data->pwr_range_2[0];
 
 	period = pow_data->dtim_period;
-	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl4965_powertable_cmd));
+	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl_powertable_cmd));
 
 	if (period == 0) {
 		period = 1;
@@ -245,42 +250,52 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 
 
 /*
- * calucaute the final power mode index
+ * compute the final power mode index
  */
-int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
+int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
 	struct iwl_power_mgr *setting = &(priv->power_data);
 	int ret = 0;
 	u16 uninitialized_var(final_mode);
 
-       /* If on battery, set to 3,
-	* if plugged into AC power, set to CAM ("continuously aware mode"),
-	* else user level */
+	/* Don't update the RX chain when chain noise calibration is running */
+	if (priv->chain_noise_data.state != IWL_CHAIN_NOISE_DONE &&
+	    priv->chain_noise_data.state != IWL_CHAIN_NOISE_ALIVE) {
+		IWL_DEBUG_POWER("Cannot update the power, chain noise "
+			"calibration running: %d\n",
+			priv->chain_noise_data.state);
+		return -EAGAIN;
+	}
+
+	/* If on battery, set to 3,
+	 * if plugged into AC power, set to CAM ("continuously aware mode"),
+	 * else user level */
 
 	switch (setting->system_power_setting) {
-	case IWL_POWER_AUTO:
+	case IWL_POWER_SYS_AUTO:
 		final_mode = iwl_get_auto_power_mode(priv);
 		break;
-	case IWL_POWER_BATTERY:
+	case IWL_POWER_SYS_BATTERY:
 		final_mode = IWL_POWER_INDEX_3;
 		break;
-	case IWL_POWER_AC:
+	case IWL_POWER_SYS_AC:
 		final_mode = IWL_POWER_MODE_CAM;
 		break;
 	default:
-		final_mode = setting->system_power_setting;
+		final_mode = IWL_POWER_INDEX_3;
+		WARN_ON(1);
 	}
 
 	if (setting->critical_power_setting > final_mode)
 		final_mode = setting->critical_power_setting;
 
 	/* driver only support CAM for non STA network */
-	if (priv->iw_mode != IEEE80211_IF_TYPE_STA)
+	if (priv->iw_mode != NL80211_IFTYPE_STATION)
 		final_mode = IWL_POWER_MODE_CAM;
 
 	if (!iwl_is_rfkill(priv) && !setting->power_disabled &&
-	    ((setting->power_mode != final_mode) || refresh)) {
-		struct iwl4965_powertable_cmd cmd;
+	    ((setting->power_mode != final_mode) || force)) {
+		struct iwl_powertable_cmd cmd;
 
 		if (final_mode != IWL_POWER_MODE_CAM)
 			set_bit(STATUS_POWER_PMI, &priv->status);
@@ -291,8 +306,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
 		if (final_mode == IWL_POWER_INDEX_5)
 			cmd.flags |= IWL_POWER_FAST_PD;
 
-		if (priv->cfg->ops->lib->set_power)
-			ret = priv->cfg->ops->lib->set_power(priv, &cmd);
+		ret = iwl_set_power(priv, &cmd);
 
 		if (final_mode == IWL_POWER_MODE_CAM)
 			clear_bit(STATUS_POWER_PMI, &priv->status);
@@ -314,7 +328,7 @@ EXPORT_SYMBOL(iwl_power_update_mode);
  * this will be usefull for rate scale to disable PM during heavy
  * Tx/Rx activities
  */
-int iwl_power_disable_management(struct iwl_priv *priv)
+int iwl_power_disable_management(struct iwl_priv *priv, u32 ms)
 {
 	u16 prev_mode;
 	int ret = 0;
@@ -327,6 +341,11 @@ int iwl_power_disable_management(struct iwl_priv *priv)
 	ret = iwl_power_update_mode(priv, 0);
 	priv->power_data.power_disabled = 1;
 	priv->power_data.user_power_setting = prev_mode;
+	cancel_delayed_work(&priv->set_power_save);
+	if (ms)
+		queue_delayed_work(priv->workqueue, &priv->set_power_save,
+				   msecs_to_jiffies(ms));
+
 
 	return ret;
 }
@@ -349,35 +368,26 @@ EXPORT_SYMBOL(iwl_power_enable_management);
 /* set user_power_setting */
 int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode)
 {
-	int ret = 0;
-
 	if (mode > IWL_POWER_LIMIT)
 		return -EINVAL;
 
 	priv->power_data.user_power_setting = mode;
 
-	ret = iwl_power_update_mode(priv, 0);
-
-	return ret;
+	return iwl_power_update_mode(priv, 0);
 }
 EXPORT_SYMBOL(iwl_power_set_user_mode);
-
 
 /* set system_power_setting. This should be set by over all
  * PM application.
  */
 int iwl_power_set_system_mode(struct iwl_priv *priv, u16 mode)
 {
-	int ret = 0;
-
 	if (mode > IWL_POWER_LIMIT)
 		return -EINVAL;
 
 	priv->power_data.system_power_setting = mode;
 
-	ret = iwl_power_update_mode(priv, 0);
-
-	return ret;
+	return iwl_power_update_mode(priv, 0);
 }
 EXPORT_SYMBOL(iwl_power_set_system_mode);
 
@@ -388,7 +398,7 @@ void iwl_power_initialize(struct iwl_priv *priv)
 	iwl_power_init_handle(priv);
 	priv->power_data.user_power_setting = IWL_POWER_AUTO;
 	priv->power_data.power_disabled = 0;
-	priv->power_data.system_power_setting = IWL_POWER_AUTO;
+	priv->power_data.system_power_setting = IWL_POWER_SYS_AUTO;
 	priv->power_data.is_battery_active = 0;
 	priv->power_data.power_disabled = 0;
 	priv->power_data.critical_power_setting = 0;
@@ -421,3 +431,35 @@ int iwl_power_temperature_change(struct iwl_priv *priv)
 	return ret;
 }
 EXPORT_SYMBOL(iwl_power_temperature_change);
+
+static void iwl_bg_set_power_save(struct work_struct *work)
+{
+	struct iwl_priv *priv = container_of(work,
+				struct iwl_priv, set_power_save.work);
+	IWL_DEBUG(IWL_DL_STATE, "update power\n");
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	mutex_lock(&priv->mutex);
+
+	/* on starting association we disable power managment
+	 * until association, if association failed then this
+	 * timer will expire and enable PM again.
+	 */
+	if (!iwl_is_associated(priv))
+		iwl_power_enable_management(priv);
+
+	mutex_unlock(&priv->mutex);
+}
+void iwl_setup_power_deferred_work(struct iwl_priv *priv)
+{
+	INIT_DELAYED_WORK(&priv->set_power_save, iwl_bg_set_power_save);
+}
+EXPORT_SYMBOL(iwl_setup_power_deferred_work);
+
+void iwl_power_cancel_timeout(struct iwl_priv *priv)
+{
+	cancel_delayed_work(&priv->set_power_save);
+}
+EXPORT_SYMBOL(iwl_power_cancel_timeout);

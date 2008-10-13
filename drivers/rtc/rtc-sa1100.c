@@ -31,11 +31,11 @@
 #include <linux/pm.h>
 #include <linux/bitops.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #endif
 
 #define TIMER_FREQ		CLOCK_TICK_RATE

@@ -48,7 +48,7 @@
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>
-#include <asm/mach/bf54x_keys.h>
+#include <mach/bf54x_keys.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
 
@@ -61,9 +61,52 @@ const char bfin_board_name[] = "ADSP-BF548-EZKIT";
  *  Driver needs to know address, irq and flag pin.
  */
 
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+static struct resource bfin_isp1761_resources[] = {
+	[0] = {
+		.name	= "isp1761-regs",
+		.start  = 0x2C0C0000,
+		.end    = 0x2C0C0000 + 0xfffff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_PG7,
+		.end    = IRQ_PG7,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_isp1761_device = {
+	.name           = "isp1761",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
+	.resource       = bfin_isp1761_resources,
+};
+
+static struct platform_device *bfin_isp1761_devices[] = {
+	&bfin_isp1761_device,
+};
+
+int __init bfin_isp1761_init(void)
+{
+	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
+
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+	set_irq_type(bfin_isp1761_resources[1].start, IRQF_TRIGGER_FALLING);
+
+	return platform_add_devices(bfin_isp1761_devices, num_devices);
+}
+
+void __exit bfin_isp1761_exit(void)
+{
+	platform_device_unregister(&bfin_isp1761_device);
+}
+arch_initcall(bfin_isp1761_init);
+#endif
+
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
 
-#include <asm/mach/bf54x-lq043.h>
+#include <mach/bf54x-lq043.h>
 
 static struct bfin_bf54xfb_mach_info bf54x_lq043_data = {
 	.width =	480,
@@ -177,6 +220,7 @@ static struct resource bfin_uart_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
+		.flags = IORESOURCE_MEM,
 	},
 #endif
 };
@@ -321,12 +365,12 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "Linux Kernel",
+		.name = "linux kernel(nand)",
 		.offset = 0,
 		.size = 4 * SIZE_1M,
 	},
 	{
-		.name = "File System",
+		.name = "file system(nand)",
 		.offset = MTDPART_OFS_APPEND,
 		.size = MTDPART_SIZ_FULL,
 	},
@@ -375,15 +419,15 @@ static struct platform_device bf54x_sdh_device = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition ezkit_partitions[] = {
 	{
-		.name       = "Bootloader",
+		.name       = "bootloader(nor)",
 		.size       = 0x40000,
 		.offset     = 0,
 	}, {
-		.name       = "Kernel",
+		.name       = "linux kernel(nor)",
 		.size       = 0x1C0000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
-		.name       = "RootFS",
+		.name       = "file system(nor)",
 		.size       = MTDPART_SIZ_FULL,
 		.offset     = MTDPART_OFS_APPEND,
 	}
@@ -417,12 +461,12 @@ static struct platform_device ezkit_flash_device = {
 /* SPI flash chip (m25p16) */
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "linux kernel",
+		.name = "linux kernel(spi)",
 		.size = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	}
