@@ -122,10 +122,6 @@ config ATARI
 	  this kernel on an Atari, say Y here and browse the material
 	  available in <file:Documentation/m68k>; otherwise say N.
 
-config PCI
-	bool
-	help
-
 config MAC
 	bool "Macintosh support"
 	select MMU_MOTOROLA if MMU
