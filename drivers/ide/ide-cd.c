@@ -1886,8 +1886,6 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	if (!drive->queue->unplug_delay)
 		drive->queue->unplug_delay = 1;
 
-	drive->special.all	= 0;
-
 	drive->atapi_flags = IDE_AFLAG_MEDIA_CHANGED | IDE_AFLAG_NO_EJECT |
 		       ide_cd_flags(id);
 
