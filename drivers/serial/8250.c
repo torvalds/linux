@@ -536,7 +536,7 @@ static unsigned int serial_icr_read(struct uart_8250_port *up, int offset)
 /*
  * FIFO support.
  */
-static inline void serial8250_clear_fifos(struct uart_8250_port *p)
+static void serial8250_clear_fifos(struct uart_8250_port *p)
 {
 	if (p->capabilities & UART_CAP_FIFO) {
 		serial_outp(p, UART_FCR, UART_FCR_ENABLE_FIFO);
@@ -551,7 +551,7 @@ static inline void serial8250_clear_fifos(struct uart_8250_port *p)
  * capability" bit enabled.  Note that on XR16C850s, we need to
  * reset LCR to write to IER.
  */
-static inline void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
+static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 {
 	if (p->capabilities & UART_CAP_SLEEP) {
 		if (p->capabilities & UART_CAP_EFR) {
@@ -1424,8 +1424,7 @@ static unsigned int check_modem_status(struct uart_8250_port *up)
 /*
  * This handles the interrupt from one port.
  */
-static inline void
-serial8250_handle_port(struct uart_8250_port *up)
+static void serial8250_handle_port(struct uart_8250_port *up)
 {
 	unsigned int status;
 	unsigned long flags;
@@ -1719,7 +1718,7 @@ static void serial8250_break_ctl(struct uart_port *port, int break_state)
 /*
  *	Wait for transmitter & holding register to empty
  */
-static inline void wait_for_xmitr(struct uart_8250_port *up, int bits)
+static void wait_for_xmitr(struct uart_8250_port *up, int bits)
 {
 	unsigned int status, tmout = 10000;
 
