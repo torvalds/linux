@@ -911,9 +911,45 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev,
 	return 0;
 }
 
-static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot)
+static void rtl8187_conf_erp(struct rtl8187_priv *priv, bool use_short_slot,
+			     bool use_short_preamble)
 {
-	if (!priv->is_rtl8187b) {
+	if (priv->is_rtl8187b) {
+		u8 difs, eifs, slot_time;
+		u16 ack_timeout;
+
+		if (use_short_slot) {
+			slot_time = 0x9;
+			difs = 0x1c;
+			eifs = 0x53;
+		} else {
+			slot_time = 0x14;
+			difs = 0x32;
+			eifs = 0x5b;
+		}
+		rtl818x_iowrite8(priv, &priv->map->SIFS, 0xa);
+		rtl818x_iowrite8(priv, &priv->map->SLOT, slot_time);
+		rtl818x_iowrite8(priv, &priv->map->DIFS, difs);
+
+		/*
+		 * BRSR+1 on 8187B is in fact EIFS register
+		 * Value in units of 4 us
+		 */
+		rtl818x_iowrite8(priv, (u8 *)&priv->map->BRSR + 1, eifs);
+
+		/*
+		 * For 8187B, CARRIER_SENSE_COUNTER is in fact ack timeout
+		 * register. In units of 4 us like eifs register
+		 * ack_timeout = ack duration + plcp + difs + preamble
+		 */
+		ack_timeout = 112 + 48 + difs;
+		if (use_short_preamble)
+			ack_timeout += 72;
+		else
+			ack_timeout += 144;
+		rtl818x_iowrite8(priv, &priv->map->CARRIER_SENSE_COUNTER,
+				 DIV_ROUND_UP(ack_timeout, 4));
+	} else {
 		rtl818x_iowrite8(priv, &priv->map->SIFS, 0x22);
 		if (use_short_slot) {
 			rtl818x_iowrite8(priv, &priv->map->SLOT, 0x9);
@@ -936,8 +972,9 @@ static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
 {
 	struct rtl8187_priv *priv = dev->priv;
 
-	if (changed & BSS_CHANGED_ERP_SLOT)
-		rtl8187_conf_erp(priv, info->use_short_slot);
+	if (changed & (BSS_CHANGED_ERP_SLOT | BSS_CHANGED_ERP_PREAMBLE))
+		rtl8187_conf_erp(priv, info->use_short_slot,
+				 info->use_short_preamble);
 }
 
 static void rtl8187_configure_filter(struct ieee80211_hw *dev,
