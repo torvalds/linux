@@ -159,7 +159,7 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	struct ide_atapi_pc *pc = floppy->pc;
+	struct ide_atapi_pc *pc = drive->pc;
 	int uptodate = pc->error ? 0 : 1;
 
 	debug_log("Reached %s\n", __func__);
@@ -171,7 +171,7 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 	    (pc->rq && blk_pc_request(pc->rq)))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
-		u8 *buf = floppy->pc->buf;
+		u8 *buf = pc->buf;
 
 		if (!pc->error) {
 			floppy->sense_key = buf[2] & 0x0F;
@@ -219,9 +219,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 /* The usual interrupt handler called during a packet command. */
 static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	return ide_pc_intr(drive, floppy->pc, idefloppy_pc_intr,
+	return ide_pc_intr(drive, idefloppy_pc_intr,
 			   WAIT_FLOPPY_CMD, NULL, idefloppy_update_buffers,
 			   idefloppy_retry_pc, ide_io_buffers);
 }
@@ -234,10 +232,8 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
  */
 static int idefloppy_transfer_pc(ide_drive_t *drive)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
-
 	/* Send the actual packet */
-	drive->hwif->tp_ops->output_data(drive, NULL, floppy->pc->c, 12);
+	drive->hwif->tp_ops->output_data(drive, NULL, drive->pc->c, 12);
 
 	/* Timeout for the packet command */
 	return WAIT_FLOPPY_CMD;
@@ -251,7 +247,6 @@ static int idefloppy_transfer_pc(ide_drive_t *drive)
 static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	struct ide_atapi_pc *pc = floppy->pc;
 	ide_expiry_t *expiry;
 	unsigned int timeout;
 
@@ -271,7 +266,7 @@ static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 		expiry = NULL;
 	}
 
-	return ide_transfer_pc(drive, pc, idefloppy_pc_intr, timeout, expiry);
+	return ide_transfer_pc(drive, idefloppy_pc_intr, timeout, expiry);
 }
 
 static void ide_floppy_report_error(idefloppy_floppy_t *floppy,
@@ -298,8 +293,9 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != GPCMD_REQUEST_SENSE)
 		floppy->failed_pc = pc;
+
 	/* Set the current packet command */
-	floppy->pc = pc;
+	drive->pc = pc;
 
 	if (pc->retries > IDEFLOPPY_MAX_PC_RETRIES) {
 		if (!(pc->flags & PC_FLAG_SUPPRESS_ERROR))
@@ -316,7 +312,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, pc, idefloppy_start_pc_transfer,
+	return ide_issue_pc(drive, idefloppy_start_pc_transfer,
 			    WAIT_FLOPPY_CMD, NULL);
 }
 

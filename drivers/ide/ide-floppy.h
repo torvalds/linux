@@ -13,8 +13,6 @@ typedef struct ide_floppy_obj {
 	struct kref	kref;
 	unsigned int	openers;	/* protected by BKL for now */
 
-	/* Current packet command */
-	struct ide_atapi_pc *pc;
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;
 	/* used for blk_{fs,pc}_request() requests */

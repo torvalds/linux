@@ -172,15 +172,11 @@ typedef struct ide_tape_obj {
 	struct kref	kref;
 
 	/*
-	 *	pc points to the current processed packet command.
-	 *
 	 *	failed_pc points to the last failed packet command, or contains
 	 *	NULL if we do not need to retry any packet command. This is
 	 *	required since an additional packet command is needed before the
 	 *	retry, to get detailed information on what went wrong.
 	 */
-	/* Current packet command */
-	struct ide_atapi_pc *pc;
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;
 	/* used by REQ_IDETAPE_{READ,WRITE} requests */
@@ -527,7 +523,7 @@ static void ide_tape_handle_dsc(ide_drive_t *);
 static void ide_tape_callback(ide_drive_t *drive, int dsc)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	struct ide_atapi_pc *pc = tape->pc;
+	struct ide_atapi_pc *pc = drive->pc;
 	int uptodate = pc->error ? 0 : 1;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
@@ -563,7 +559,7 @@ static void ide_tape_callback(ide_drive_t *drive, int dsc)
 		if (pc->error)
 			uptodate = pc->error;
 	} else if (pc->c[0] == READ_POSITION && uptodate) {
-		u8 *readpos = tape->pc->buf;
+		u8 *readpos = pc->buf;
 
 		debug_log(DBG_SENSE, "BOP - %s\n",
 				(readpos[0] & 0x80) ? "Yes" : "No");
@@ -659,9 +655,7 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
  */
 static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 {
-	idetape_tape_t *tape = drive->driver_data;
-
-	return ide_pc_intr(drive, tape->pc, idetape_pc_intr, WAIT_TAPE_CMD,
+	return ide_pc_intr(drive, idetape_pc_intr, WAIT_TAPE_CMD,
 			   NULL, idetape_update_buffers, idetape_retry_pc,
 			   ide_tape_io_buffers);
 }
@@ -669,7 +663,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 /*
  * Packet Command Interface
  *
- * The current Packet Command is available in tape->pc, and will not change
+ * The current Packet Command is available in drive->pc, and will not change
  * until we finish handling it. Each packet command is associated with a
  * callback function that will be called when the command is finished.
  *
@@ -704,10 +698,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
  */
 static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 {
-	idetape_tape_t *tape = drive->driver_data;
-
-	return ide_transfer_pc(drive, tape->pc, idetape_pc_intr,
-			       WAIT_TAPE_CMD, NULL);
+	return ide_transfer_pc(drive, idetape_pc_intr, WAIT_TAPE_CMD, NULL);
 }
 
 static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
@@ -715,7 +706,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 {
 	idetape_tape_t *tape = drive->driver_data;
 
-	if (tape->pc->c[0] == REQUEST_SENSE &&
+	if (drive->pc->c[0] == REQUEST_SENSE &&
 	    pc->c[0] == REQUEST_SENSE) {
 		printk(KERN_ERR "ide-tape: possible ide-tape.c bug - "
 			"Two request sense in serial were issued\n");
@@ -723,8 +714,9 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	if (tape->failed_pc == NULL && pc->c[0] != REQUEST_SENSE)
 		tape->failed_pc = pc;
+
 	/* Set the current packet command */
-	tape->pc = pc;
+	drive->pc = pc;
 
 	if (pc->retries > IDETAPE_MAX_PC_RETRIES ||
 		(pc->flags & PC_FLAG_ABORT)) {
@@ -755,8 +747,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 
 	pc->retries++;
 
-	return ide_issue_pc(drive, pc, idetape_transfer_pc,
-			    WAIT_TAPE_CMD, NULL);
+	return ide_issue_pc(drive, idetape_transfer_pc, WAIT_TAPE_CMD, NULL);
 }
 
 /* A mode sense command is used to "sense" tape parameters. */
@@ -790,7 +781,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
-	struct ide_atapi_pc *pc = tape->pc;
+	struct ide_atapi_pc *pc = drive->pc;
 	u8 stat;
 
 	stat = hwif->tp_ops->read_status(hwif);
@@ -867,7 +858,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	}
 
 	/* Retry a failed packet command */
-	if (tape->failed_pc && tape->pc->c[0] == REQUEST_SENSE) {
+	if (tape->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
 		pc = tape->failed_pc;
 		goto out;
 	}

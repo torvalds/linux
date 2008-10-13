@@ -322,6 +322,7 @@ typedef enum {
 	ide_started,	/* a drive operation was started, handler was set */
 } ide_startstop_t;
 
+struct ide_atapi_pc;
 struct ide_devset;
 struct ide_driver_s;
 
@@ -483,6 +484,9 @@ struct ide_drive_s {
 	struct list_head list;
 	struct device	gendev;
 	struct completion gendev_rel_comp;	/* to deal with device release() */
+
+	/* current packet command */
+	struct ide_atapi_pc *pc;
 
 	/* callback for packet commands */
 	void (*pc_callback)(struct ide_drive_s *, int);
@@ -1171,15 +1175,15 @@ int ide_do_test_unit_ready(ide_drive_t *, struct gendisk *);
 int ide_do_start_stop(ide_drive_t *, struct gendisk *, int);
 int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 
-ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
+ide_startstop_t ide_pc_intr(ide_drive_t *drive,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
 	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,
 			   int));
-ide_startstop_t ide_transfer_pc(ide_drive_t *, struct ide_atapi_pc *,
+ide_startstop_t ide_transfer_pc(ide_drive_t *,
 				ide_handler_t *, unsigned int, ide_expiry_t *);
-ide_startstop_t ide_issue_pc(ide_drive_t *, struct ide_atapi_pc *,
+ide_startstop_t ide_issue_pc(ide_drive_t *,
 			     ide_handler_t *, unsigned int, ide_expiry_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);

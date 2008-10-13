@@ -204,12 +204,13 @@ int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
 EXPORT_SYMBOL_GPL(ide_set_media_lock);
 
 /* TODO: unify the code thus making some arguments go away */
-ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
+ide_startstop_t ide_pc_intr(ide_drive_t *drive,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
 	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
 {
+	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->hwgroup->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
@@ -416,10 +417,11 @@ static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 	return ireason;
 }
 
-ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
+ide_startstop_t ide_transfer_pc(ide_drive_t *drive,
 				ide_handler_t *handler, unsigned int timeout,
 				ide_expiry_t *expiry)
 {
+	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->hwgroup->rq;
 	ide_startstop_t startstop;
@@ -458,10 +460,11 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
 }
 EXPORT_SYMBOL_GPL(ide_transfer_pc);
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_atapi_pc *pc,
+ide_startstop_t ide_issue_pc(ide_drive_t *drive,
 			     ide_handler_t *handler, unsigned int timeout,
 			     ide_expiry_t *expiry)
 {
+	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	u16 bcount;
 	u8 dma = 0;
