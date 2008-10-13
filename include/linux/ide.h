@@ -1188,9 +1188,7 @@ static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
 
 int ide_scsi_expiry(ide_drive_t *);
 
-ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler);
-ide_startstop_t ide_transfer_pc(ide_drive_t *,
-				ide_handler_t *, unsigned int, ide_expiry_t *);
+ide_startstop_t ide_transfer_pc(ide_drive_t *, unsigned int, ide_expiry_t *);
 ide_startstop_t ide_issue_pc(ide_drive_t *,
 			     ide_handler_t *, unsigned int, ide_expiry_t *);
 

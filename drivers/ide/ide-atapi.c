@@ -246,7 +246,12 @@ int ide_scsi_expiry(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_scsi_expiry);
 
-ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler)
+/*
+ * This is the usual interrupt handler which will be called during a packet
+ * command.  We will transfer some of the data (as requested by the drive)
+ * and will re-point interrupt handler to us.
+ */
+static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
@@ -425,10 +430,9 @@ cmd_finished:
 		  rq->cmd[0], bcount);
 next_irq:
 	/* And set the interrupt handler again */
-	ide_set_handler(drive, handler, timeout, expiry);
+	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
 	return ide_started;
 }
-EXPORT_SYMBOL_GPL(ide_pc_intr);
 
 static u8 ide_read_ireason(ide_drive_t *drive)
 {
@@ -464,8 +468,7 @@ static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 	return ireason;
 }
 
-ide_startstop_t ide_transfer_pc(ide_drive_t *drive,
-				ide_handler_t *handler, unsigned int timeout,
+ide_startstop_t ide_transfer_pc(ide_drive_t *drive, unsigned int timeout,
 				ide_expiry_t *expiry)
 {
 	struct ide_atapi_pc *pc = drive->pc;
@@ -491,7 +494,7 @@ ide_startstop_t ide_transfer_pc(ide_drive_t *drive,
 	}
 
 	/* Set the interrupt routine */
-	ide_set_handler(drive, handler, timeout, expiry);
+	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
 
 	/* Begin DMA, if necessary */
 	if (pc->flags & PC_FLAG_DMA_OK) {

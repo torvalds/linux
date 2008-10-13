@@ -193,12 +193,6 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 	idefloppy_end_request(drive, uptodate, 0);
 }
 
-/* The usual interrupt handler called during a packet command. */
-static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
-{
-	return ide_pc_intr(drive, idefloppy_pc_intr);
-}
-
 /*
  * What we have here is a classic case of a top half / bottom half interrupt
  * service routine. In interrupt mode, the device sends an interrupt to signal
@@ -230,7 +224,7 @@ static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 	 * where the Busy flag was apparently being deasserted before the
 	 * unit was ready to receive data. This was happening on a
 	 * 1200 MHz Athlon system. 10/26/01 25msec is too short,
-	 * 40 and 50msec work well. idefloppy_pc_intr will not be actually
+	 * 40 and 50msec work well. ide_pc_intr will not be actually
 	 * used until after the packet is moved in about 50 msec.
 	 */
 	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
@@ -241,7 +235,7 @@ static ide_startstop_t idefloppy_start_pc_transfer(ide_drive_t *drive)
 		expiry = NULL;
 	}
 
-	return ide_transfer_pc(drive, idefloppy_pc_intr, timeout, expiry);
+	return ide_transfer_pc(drive, timeout, expiry);
 }
 
 static void ide_floppy_report_error(idefloppy_floppy_t *floppy,

@@ -270,18 +270,9 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	return 0;
 }
 
-/*
- *	Our interrupt handler.
- */
-static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
-{
-	return ide_pc_intr(drive, idescsi_pc_intr);
-}
-
 static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 {
-	return ide_transfer_pc(drive, idescsi_pc_intr,
-			       ide_scsi_get_timeout(drive->pc),
+	return ide_transfer_pc(drive, ide_scsi_get_timeout(drive->pc),
 			       ide_scsi_expiry);
 }
 

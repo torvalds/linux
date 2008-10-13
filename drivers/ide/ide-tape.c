@@ -619,18 +619,6 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 }
 
 /*
- * This is the usual interrupt handler which will be called during a packet
- * command. We will transfer some of the data (as requested by the drive) and
- * will re-point interrupt handler to us. When data transfer is finished, we
- * will act according to the algorithm described before
- * idetape_issue_pc.
- */
-static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
-{
-	return ide_pc_intr(drive, idetape_pc_intr);
-}
-
-/*
  * Packet Command Interface
  *
  * The current Packet Command is available in drive->pc, and will not change
@@ -640,9 +628,9 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
  * The handling will be done in three stages:
  *
  * 1. idetape_issue_pc will send the packet command to the drive, and will set
- * the interrupt handler to idetape_pc_intr.
+ * the interrupt handler to ide_pc_intr.
  *
- * 2. On each interrupt, idetape_pc_intr will be called. This step will be
+ * 2. On each interrupt, ide_pc_intr will be called. This step will be
  * repeated until the device signals us that no more interrupts will be issued.
  *
  * 3. ATAPI Tape media access commands have immediate status with a delayed
@@ -668,7 +656,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
  */
 static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 {
-	return ide_transfer_pc(drive, idetape_pc_intr, WAIT_TAPE_CMD, NULL);
+	return ide_transfer_pc(drive, WAIT_TAPE_CMD, NULL);
 }
 
 static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
