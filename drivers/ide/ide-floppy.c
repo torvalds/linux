@@ -49,6 +49,10 @@
 
 #include "ide-floppy.h"
 
+/* module parameters */
+static unsigned long debug_mask;
+module_param(debug_mask, ulong, 0644);
+
 /* define to see debug info */
 #define IDEFLOPPY_DEBUG_LOG	0
 
@@ -888,6 +892,8 @@ static int ide_floppy_probe(ide_drive_t *drive)
 	g->private_data = &floppy->driver;
 
 	drive->driver_data = floppy;
+
+	drive->debug_mask = debug_mask;
 
 	idefloppy_setup(drive, floppy);
 
