@@ -579,6 +579,50 @@ static int get_termio(struct tty_struct *tty, struct termio __user *termio)
 	return 0;
 }
 
+
+#ifdef TCGETX
+
+/**
+ *	set_termiox	-	set termiox fields if possible
+ *	@tty: terminal
+ *	@arg: termiox structure from user
+ *	@opt: option flags for ioctl type
+ *
+ *	Implement the device calling points for the SYS5 termiox ioctl
+ *	interface in Linux
+ */
+
+static int set_termiox(struct tty_struct *tty, void __user *arg, int opt)
+{
+	struct termiox tnew;
+	struct tty_ldisc *ld;
+
+	if (tty->termiox == NULL)
+		return -EINVAL;
+	if (copy_from_user(&tnew, arg, sizeof(struct termiox)))
+		return -EFAULT;
+
+	ld = tty_ldisc_ref(tty);
+	if (ld != NULL) {
+		if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
+		tty_ldisc_deref(ld);
+	}
+	if (opt & TERMIOS_WAIT) {
+		tty_wait_until_sent(tty, 0);
+		if (signal_pending(current))
+			return -EINTR;
+	}
+
+	mutex_lock(&tty->termios_mutex);
+	if (tty->ops->set_termiox)
+		tty->ops->set_termiox(tty, &tnew);
+	mutex_unlock(&tty->termios_mutex);
+	return 0;
+}
+
+#endif
+
 static unsigned long inq_canon(struct tty_struct *tty)
 {
 	int nr, head, tail;
@@ -936,6 +980,20 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			return -EFAULT;
 			return 0;
 #endif
+#ifdef TCGETX
+	case TCGETX:
+		if (real_tty->termiox == NULL)
+			return -EINVAL;
+		if (copy_to_user(p, real_tty->termiox, sizeof(struct termiox)))
+			return -EFAULT;
+		return 0;
+	case TCSETX:
+		return set_termiox(real_tty, p, 0);
+	case TCSETXW:
+		return set_termiox(real_tty, p, TERMIOS_WAIT);
+	case TCSETXF:
+		return set_termiox(real_tty, p, TERMIOS_FLUSH);
+#endif		
 	case TIOCGSOFTCAR:
 		/* FIXME: for correctness we may need to take the termios
 		   lock here - review */
