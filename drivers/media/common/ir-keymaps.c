@@ -517,7 +517,8 @@ EXPORT_SYMBOL_GPL(ir_codes_adstech_dvb_t_pci);
 
 /* ---------------------------------------------------------------------- */
 
-/* MSI TV@nywhere remote */
+/* MSI TV@nywhere MASTER remote */
+
 IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 	/* Keys 0 to 9 */
 	[ 0x00 ] = KEY_0,
@@ -548,6 +549,95 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_msi_tvanywhere);
+
+/* ---------------------------------------------------------------------- */
+
+/*
+  Keycodes for remote on the MSI TV@nywhere Plus. The controller IC on the card
+  is marked "KS003". The controller is I2C at address 0x30, but does not seem
+  to respond to probes until a read is performed from a valid device.
+  I don't know why...
+
+  Note: This remote may be of similar or identical design to the
+  Pixelview remote (?).  The raw codes and duplicate button codes
+  appear to be the same.
+
+  Henry Wong <henry@stuffedcow.net>
+  Some changes to formatting and keycodes by Mark Schultz <n9xmj@yahoo.com>
+
+*/
+
+IR_KEYTAB_TYPE ir_codes_msi_tvanywhere_plus[IR_KEYTAB_SIZE] = {
+
+/*  ---- Remote Button Layout ----
+
+    POWER   SOURCE  SCAN    MUTE
+    TV/FM   1       2       3
+    |>      4       5       6
+    <|      7       8       9
+    ^^UP    0       +       RECALL
+    vvDN    RECORD  STOP    PLAY
+
+	MINIMIZE          ZOOM
+
+		  CH+
+      VOL-                   VOL+
+		  CH-
+
+	SNAPSHOT           MTS
+
+     <<      FUNC    >>     RESET
+*/
+
+	[0x01] = KEY_KP1,             /* 1 */
+	[0x0b] = KEY_KP2,             /* 2 */
+	[0x1b] = KEY_KP3,             /* 3 */
+	[0x05] = KEY_KP4,             /* 4 */
+	[0x09] = KEY_KP5,             /* 5 */
+	[0x15] = KEY_KP6,             /* 6 */
+	[0x06] = KEY_KP7,             /* 7 */
+	[0x0a] = KEY_KP8,             /* 8 */
+	[0x12] = KEY_KP9,             /* 9 */
+	[0x02] = KEY_KP0,             /* 0 */
+	[0x10] = KEY_KPPLUS,          /* + */
+	[0x13] = KEY_AGAIN,           /* Recall */
+
+	[0x1e] = KEY_POWER,           /* Power */
+	[0x07] = KEY_TUNER,           /* Source */
+	[0x1c] = KEY_SEARCH,          /* Scan */
+	[0x18] = KEY_MUTE,            /* Mute */
+
+	[0x03] = KEY_RADIO,           /* TV/FM */
+	/* The next four keys are duplicates that appear to send the
+	   same IR code as Ch+, Ch-, >>, and << .  The raw code assigned
+	   to them is the actual code + 0x20 - they will never be
+	   detected as such unless some way is discovered to distinguish
+	   these buttons from those that have the same code. */
+	[0x3f] = KEY_RIGHT,           /* |> and Ch+ */
+	[0x37] = KEY_LEFT,            /* <| and Ch- */
+	[0x2c] = KEY_UP,              /* ^^Up and >> */
+	[0x24] = KEY_DOWN,            /* vvDn and << */
+
+	[0x00] = KEY_RECORD,          /* Record */
+	[0x08] = KEY_STOP,            /* Stop */
+	[0x11] = KEY_PLAY,            /* Play */
+
+	[0x0f] = KEY_CLOSE,           /* Minimize */
+	[0x19] = KEY_ZOOM,            /* Zoom */
+	[0x1a] = KEY_SHUFFLE,         /* Snapshot */
+	[0x0d] = KEY_LANGUAGE,        /* MTS */
+
+	[0x14] = KEY_VOLUMEDOWN,      /* Vol- */
+	[0x16] = KEY_VOLUMEUP,        /* Vol+ */
+	[0x17] = KEY_CHANNELDOWN,     /* Ch- */
+	[0x1f] = KEY_CHANNELUP,       /* Ch+ */
+
+	[0x04] = KEY_REWIND,          /* << */
+	[0x0e] = KEY_MENU,            /* Function */
+	[0x0c] = KEY_FASTFORWARD,     /* >> */
+	[0x1d] = KEY_RESTART,         /* Reset */
+};
+EXPORT_SYMBOL_GPL(ir_codes_msi_tvanywhere_plus);
 
 /* ---------------------------------------------------------------------- */
 

@@ -12,6 +12,10 @@
  *      Markus Rechberger <mrechberger@gmail.com>
  * modified for DViCO Fusion HDTV 5 RT GOLD by
  *      Chaogui Zhang <czhang1974@gmail.com>
+ * modified for MSI TV@nywhere Plus by
+ *      Henry Wong <henry@stuffedcow.net>
+ *      Mark Schultz <n9xmj@yahoo.com>
+ *      Brian Rogers <brian_rogers@comcast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -242,9 +246,15 @@ static void ir_timer(unsigned long data)
 static void ir_work(struct work_struct *work)
 {
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work);
+	int polling_interval = 100;
+
+	/* MSI TV@nywhere Plus requires more frequent polling
+	   otherwise it will miss some keypresses */
+	if (ir->c.adapter->id == I2C_HW_SAA7134 && ir->c.addr == 0x30)
+		polling_interval = 50;
 
 	ir_key_poll(ir);
-	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(100));
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(polling_interval));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -483,9 +493,37 @@ static int ir_probe(struct i2c_adapter *adap)
 			(1 == rc) ? "yes" : "no");
 		if (1 == rc) {
 			ir_attach(adap, probe[i], 0, 0);
-			break;
+			return 0;
 		}
 	}
+
+	/* Special case for MSI TV@nywhere Plus remote */
+	if (adap->id == I2C_HW_SAA7134) {
+		u8 temp;
+
+		/* MSI TV@nywhere Plus controller doesn't seem to
+		   respond to probes unless we read something from
+		   an existing device. Weird... */
+
+		msg.addr = 0x50;
+		rc = i2c_transfer(adap, &msg, 1);
+			dprintk(1, "probe 0x%02x @ %s: %s\n",
+			msg.addr, adap->name,
+			(1 == rc) ? "yes" : "no");
+
+		/* Now do the probe. The controller does not respond
+		   to 0-byte reads, so we use a 1-byte read instead. */
+		msg.addr = 0x30;
+		msg.len = 1;
+		msg.buf = &temp;
+		rc = i2c_transfer(adap, &msg, 1);
+		dprintk(1, "probe 0x%02x @ %s: %s\n",
+			msg.addr, adap->name,
+			(1 == rc) ? "yes" : "no");
+		if (1 == rc)
+			ir_attach(adap, msg.addr, 0, 0);
+	}
+
 	return 0;
 }
 

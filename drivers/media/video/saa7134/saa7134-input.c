@@ -118,6 +118,53 @@ static int build_key(struct saa7134_dev *dev)
 
 /* --------------------- Chip specific I2C key builders ----------------- */
 
+static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
+				       u32 *ir_raw)
+{
+	unsigned char b;
+	int gpio;
+
+	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
+	struct saa7134_dev *dev = ir->c.adapter->algo_data;
+	if (dev == NULL) {
+		dprintk("get_key_msi_tvanywhere_plus: "
+			"gir->c.adapter->algo_data is NULL!\n");
+		return -EIO;
+	}
+
+	/* rising SAA7134_GPIO_GPRESCAN reads the status */
+
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+
+	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
+
+	/* GPIO&0x40 is pulsed low when a button is pressed. Don't do
+	   I2C receive if gpio&0x40 is not low. */
+
+	if (gpio & 0x40)
+		return 0;       /* No button press */
+
+	/* GPIO says there is a button press. Get it. */
+
+	if (1 != i2c_master_recv(&ir->c, &b, 1)) {
+		i2cdprintk("read error\n");
+		return -EIO;
+	}
+
+	/* No button press */
+
+	if (b == 0xff)
+		return 0;
+
+	/* Button pressed */
+
+	dprintk("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
+	*ir_key = b;
+	*ir_raw = b;
+	return 1;
+}
+
 static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char b;
@@ -640,6 +687,11 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 		snprintf(ir->c.name, sizeof(ir->c.name), "Purple TV");
 		ir->get_key   = get_key_purpletv;
 		ir->ir_codes  = ir_codes_purpletv;
+		break;
+	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
+		snprintf(ir->c.name, sizeof(ir->c.name), "MSI TV@nywhere Plus");
+		ir->get_key  = get_key_msi_tvanywhere_plus;
+		ir->ir_codes = ir_codes_msi_tvanywhere_plus;
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		snprintf(ir->c.name, sizeof(ir->c.name), "HVR 1110");
