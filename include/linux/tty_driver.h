@@ -15,6 +15,20 @@
  *
  *	Optional method. Default behaviour is to use the ttys array
  *
+ * int (*install)(struct tty_driver *self, struct tty_struct *tty)
+ *
+ *	Install a new tty into the tty driver internal tables. Used in
+ *	conjunction with lookup and remove methods.
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
+ * void (*remove)(struct tty_driver *self, struct tty_struct *tty)
+ *
+ *	Remove a closed tty from the tty driver internal tables. Used in
+ *	conjunction with lookup and remove methods.
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
  * int  (*open)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is opened.
@@ -212,6 +226,8 @@ struct tty_driver;
 
 struct tty_operations {
 	struct tty_struct * (*lookup)(struct tty_driver *driver, int idx);
+	int  (*install)(struct tty_driver *driver, struct tty_struct *tty);
+	void (*remove)(struct tty_driver *driver, struct tty_struct *tty);
 	int  (*open)(struct tty_struct * tty, struct file * filp);
 	void (*close)(struct tty_struct * tty, struct file * filp);
 	void (*shutdown)(struct tty_struct *tty);

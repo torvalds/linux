@@ -433,8 +433,22 @@ static void pty_shutdown(struct tty_struct *tty)
 	kfree(tty->termios_locked);
 }
 
+/* We have no need to install and remove our tty objects as devpts does all
+   the work for us */
+
+static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	return 0;
+}
+
+static void pty_remove(struct tty_driver *driver, struct tty_struct *tty)
+{
+}
+
 static const struct tty_operations ptm_unix98_ops = {
 	.lookup = ptm_unix98_lookup,
+	.install = pty_install,
+	.remove = pty_remove,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -449,6 +463,8 @@ static const struct tty_operations ptm_unix98_ops = {
 
 static const struct tty_operations pty_unix98_ops = {
 	.lookup = pts_unix98_lookup,
+	.install = pty_install,
+	.remove = pty_remove,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,

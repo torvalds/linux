@@ -1189,7 +1189,7 @@ static void pty_line_name(struct tty_driver *driver, int index, char *p)
 }
 
 /**
- *	pty_line_name	-	generate name for a tty
+ *	tty_line_name	-	generate name for a tty
  *	@driver: the tty driver in use
  *	@index: the minor number
  *	@p: output buffer of at least 7 bytes
@@ -1222,13 +1222,51 @@ struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver, int idx)
 	if (driver->ops->lookup)
 		return driver->ops->lookup(driver, idx);
 
-		tty = driver->ttys[idx];
+	tty = driver->ttys[idx];
 	return tty;
 }
 
 /**
- *	tty_reopen()	- fast re-open of an open tty
- *	@tty	- the tty to open
+ *	tty_driver_install_tty() - install a tty entry in the driver
+ *	@driver: the driver for the tty
+ *	@tty: the tty
+ *
+ *	Install a tty object into the driver tables. The tty->index field
+ *	will be set by the time this is called.
+ *
+ *	Locking: tty_mutex for now
+ */
+static int tty_driver_install_tty(struct tty_driver *driver,
+						struct tty_struct *tty)
+{
+	if (driver->ops->install)
+		return driver->ops->install(driver, tty);
+	driver->ttys[tty->index] = tty;
+	return 0;
+}
+
+/**
+ *	tty_driver_remove_tty() - remove a tty from the driver tables
+ *	@driver: the driver for the tty
+ *	@idx:	 the minor number
+ *
+ *	Remvoe a tty object from the driver tables. The tty->index field
+ *	will be set by the time this is called.
+ *
+ *	Locking: tty_mutex for now
+ */
+static void tty_driver_remove_tty(struct tty_driver *driver,
+						struct tty_struct *tty)
+{
+	if (driver->ops->remove)
+		driver->ops->remove(driver, tty);
+	else
+		driver->ttys[tty->index] = NULL;
+}
+
+/*
+ * 	tty_reopen()	- fast re-open of an open tty
+ * 	@tty	- the tty to open
  *
  *	Return 0 on success, -errno on error.
  *
@@ -1423,11 +1461,7 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 	 * All structures have been allocated, so now we install them.
 	 * Failures after this point use release_tty to clean up, so
 	 * there's no need to null out the local pointers.
-	 *
-	 * FIXME: We want a 'driver->install method ?
 	 */
-	if (!(driver->flags & TTY_DRIVER_DEVPTS_MEM))
-		driver->ttys[idx] = tty;
 
 	if (!*tp_loc)
 		*tp_loc = tp;
@@ -1440,6 +1474,9 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
 	tty_driver_kref_get(driver);
 	tty->count++;
+
+	if (tty_driver_install_tty(driver, tty) < 0)
+		goto release_mem_out;
 
 	/*
 	 * Structures all installed ... call the ldisc open routines.
@@ -1502,7 +1539,7 @@ EXPORT_SYMBOL(tty_free_termios);
 
 void tty_shutdown(struct tty_struct *tty)
 {
-	tty->driver->ttys[tty->index] = NULL;
+	tty_driver_remove_tty(tty->driver, tty);
 	tty_free_termios(tty);
 }
 EXPORT_SYMBOL(tty_shutdown);
@@ -1615,7 +1652,7 @@ void tty_release_dev(struct file *filp)
 				  "free (%s)\n", tty->name);
 		return;
 	}
-	if (!(tty->driver->flags & TTY_DRIVER_DEVPTS_MEM)) {
+	if (!devpts) {
 		if (tty != tty->driver->ttys[idx]) {
 			printk(KERN_DEBUG "tty_release_dev: driver.table[%d] not tty "
 			       "for (%s)\n", idx, tty->name);
