@@ -161,7 +161,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	/* min_spacing is the minimum spacing that will fit the hash
 	 * table in one PAGE.  This may be much smaller than needed.
 	 * We find the smallest non-terminal set of consecutive devices
-	 * that is larger than min_spacing as use the size of that as
+	 * that is larger than min_spacing and use the size of that as
 	 * the actual spacing
 	 */
 	conf->hash_spacing = conf->array_sectors / 2;
