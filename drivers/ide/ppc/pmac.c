@@ -1523,18 +1523,6 @@ use_pio_instead:
 	return 0; /* revert to PIO for this request */
 }
 
-/* Teardown mappings after DMA has completed.  */
-static void
-pmac_ide_destroy_dmatable (ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	if (hwif->sg_nents) {
-		ide_destroy_dmatable(drive);
-		hwif->sg_nents = 0;
-	}
-}
-
 /*
  * Prepare a DMA transfer. We build the DMA table, adjust the timings for
  * a read on KeyLargo ATA/66 and mark us as waiting for DMA completion
@@ -1606,7 +1594,9 @@ pmac_ide_dma_end (ide_drive_t *drive)
 	drive->waiting_for_dma = 0;
 	dstat = readl(&dma->status);
 	writel(((RUN|WAKE|DEAD) << 16), &dma->control);
-	pmac_ide_destroy_dmatable(drive);
+
+	ide_destroy_dmatable(drive);
+
 	/* verify good dma status. we don't check for ACTIVE beeing 0. We should...
 	 * in theory, but with ATAPI decices doing buffer underruns, that would
 	 * cause us to disable DMA, which isn't what we want
