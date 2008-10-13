@@ -829,8 +829,7 @@ void ide_dma_lost_irq(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_dma_lost_irq);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
-void ide_dma_timeout (ide_drive_t *drive)
+void ide_dma_timeout(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 
@@ -839,11 +838,13 @@ void ide_dma_timeout (ide_drive_t *drive)
 	if (hwif->dma_ops->dma_test_irq(drive))
 		return;
 
+	ide_dump_status(drive, "DMA timeout", hwif->tp_ops->read_status(hwif));
+
 	hwif->dma_ops->dma_end(drive);
 }
+EXPORT_SYMBOL_GPL(ide_dma_timeout);
 
-EXPORT_SYMBOL(ide_dma_timeout);
-
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 void ide_release_dma_engine(ide_hwif_t *hwif)
 {
 	if (hwif->dmatable_cpu) {
