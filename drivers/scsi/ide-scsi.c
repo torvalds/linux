@@ -137,7 +137,7 @@ static void ide_scsi_hex_dump(u8 *data, int len)
 
 static int idescsi_end_request(ide_drive_t *, int, int);
 
-static void ide_scsi_callback(ide_drive_t *drive)
+static void ide_scsi_callback(ide_drive_t *drive, int dsc)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	struct ide_atapi_pc *pc = scsi->pc;
@@ -298,8 +298,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	struct ide_atapi_pc *pc = scsi->pc;
 
 	return ide_pc_intr(drive, pc, idescsi_pc_intr, get_timeout(pc),
-			   idescsi_expiry, NULL, NULL, NULL,
-			   ide_io_buffers);
+			   idescsi_expiry, NULL, NULL, ide_io_buffers);
 }
 
 static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)

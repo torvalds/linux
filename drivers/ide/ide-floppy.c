@@ -156,7 +156,7 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 		idefloppy_end_request(drive, 1, 0);
 }
 
-static void ide_floppy_callback(ide_drive_t *drive)
+static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct ide_atapi_pc *pc = floppy->pc;
@@ -223,7 +223,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 
 	return ide_pc_intr(drive, floppy->pc, idefloppy_pc_intr,
 			   WAIT_FLOPPY_CMD, NULL, idefloppy_update_buffers,
-			   idefloppy_retry_pc, NULL, ide_io_buffers);
+			   idefloppy_retry_pc, ide_io_buffers);
 }
 
 /*
@@ -308,7 +308,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		pc->error = IDEFLOPPY_ERROR_GENERAL;
 
 		floppy->failed_pc = NULL;
-		drive->pc_callback(drive);
+		drive->pc_callback(drive, 0);
 		return ide_stopped;
 	}
 

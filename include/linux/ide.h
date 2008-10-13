@@ -485,7 +485,7 @@ struct ide_drive_s {
 	struct completion gendev_rel_comp;	/* to deal with device release() */
 
 	/* callback for packet commands */
-	void (*pc_callback)(struct ide_drive_s *);
+	void (*pc_callback)(struct ide_drive_s *, int);
 
 	unsigned long atapi_flags;
 };
@@ -1174,7 +1174,7 @@ int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
-	void (*retry_pc)(ide_drive_t *), void (*dsc_handle)(ide_drive_t *),
+	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,
 			   int));
 ide_startstop_t ide_transfer_pc(ide_drive_t *, struct ide_atapi_pc *,

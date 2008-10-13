@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(ide_set_media_lock);
 ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
-	void (*retry_pc)(ide_drive_t *), void (*dsc_handle)(ide_drive_t *),
+	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -216,12 +216,12 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	xfer_func_t *xferfunc;
 	unsigned int temp;
 	u16 bcount;
-	u8 stat, ireason, scsi = drive->scsi;
+	u8 stat, ireason, scsi = drive->scsi, dsc = 0;
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
-		drive->pc_callback(drive);
+		drive->pc_callback(drive, 0);
 		return ide_stopped;
 	}
 
@@ -283,14 +283,12 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		}
 cmd_finished:
 		pc->error = 0;
-		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) &&
-		    (stat & ATA_DSC) == 0) {
-			dsc_handle(drive);
-			return ide_stopped;
-		}
+
+		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) && (stat & ATA_DSC) == 0)
+			dsc = 1;
 
 		/* Command finished - Call the callback function */
-		drive->pc_callback(drive);
+		drive->pc_callback(drive, dsc);
 
 		return ide_stopped;
 	}
