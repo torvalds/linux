@@ -509,9 +509,6 @@ static int scc_dma_test_irq(ide_drive_t *drive)
 	if (int_stat & INTSTS_IOIRQS)
 		return 1;
 
-	if (!drive->waiting_for_dma)
-		printk(KERN_WARNING "%s: (%s) called while not waiting\n",
-			drive->name, __func__);
 	return 0;
 }
 

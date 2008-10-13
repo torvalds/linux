@@ -322,11 +322,7 @@ static int auide_dma_setup(ide_drive_t *drive)
 }
 
 static int auide_dma_test_irq(ide_drive_t *drive)
-{	
-	if (drive->waiting_for_dma == 0)
-		printk(KERN_WARNING "%s: ide_dma_test_irq \
-                                     called while not waiting\n", drive->name);
-
+{
 	/* If dbdma didn't execute the STOP command yet, the
 	 * active bit is still set
 	 */

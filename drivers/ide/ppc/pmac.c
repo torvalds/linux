@@ -1672,9 +1672,6 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 	status = readl(&dma->status);
 	if (!(status & ACTIVE))
 		return 1;
-	if (!drive->waiting_for_dma)
-		printk(KERN_WARNING "ide%d, ide_dma_test_irq \
-			called while not waiting\n", HWIF(drive)->index);
 
 	/* If dbdma didn't execute the STOP command yet, the
 	 * active bit is still set. We consider that we aren't

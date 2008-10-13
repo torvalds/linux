@@ -578,9 +578,7 @@ int ide_dma_test_irq(ide_drive_t *drive)
 	/* return 1 if INTR asserted */
 	if ((dma_stat & 4) == 4)
 		return 1;
-	if (!drive->waiting_for_dma)
-		printk(KERN_WARNING "%s: (%s) called while not waiting\n",
-			drive->name, __func__);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_dma_test_irq);
