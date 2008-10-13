@@ -2106,8 +2106,6 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 	if (strict_strtoull(buf, 10, &size) < 0)
 		return -EINVAL;
-	if (size < my_mddev->size)
-		return -EINVAL;
 	if (my_mddev->pers && rdev->raid_disk >= 0) {
 		if (my_mddev->persistent) {
 			size = super_types[my_mddev->major_version].
@@ -2118,9 +2116,9 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			size = (rdev->bdev->bd_inode->i_size >> 10);
 			size -= rdev->data_offset/2;
 		}
-		if (size < my_mddev->size)
-			return -EINVAL; /* component must fit device */
 	}
+	if (size < my_mddev->size)
+		return -EINVAL; /* component must fit device */
 
 	rdev->size = size;
 	if (size > oldsize && my_mddev->external) {
