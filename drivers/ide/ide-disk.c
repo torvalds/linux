@@ -405,114 +405,10 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 	}
 }
 
-static sector_t idedisk_capacity(ide_drive_t *drive)
+sector_t ide_disk_capacity(ide_drive_t *drive)
 {
 	return drive->capacity64;
 }
-
-#ifdef CONFIG_IDE_PROC_FS
-static int smart_enable(ide_drive_t *drive)
-{
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
-
-	memset(&args, 0, sizeof(ide_task_t));
-	tf->feature = ATA_SMART_ENABLE;
-	tf->lbam    = ATA_SMART_LBAM_PASS;
-	tf->lbah    = ATA_SMART_LBAH_PASS;
-	tf->command = ATA_CMD_SMART;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	return ide_no_data_taskfile(drive, &args);
-}
-
-static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
-{
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
-
-	memset(&args, 0, sizeof(ide_task_t));
-	tf->feature = sub_cmd;
-	tf->nsect   = 0x01;
-	tf->lbam    = ATA_SMART_LBAM_PASS;
-	tf->lbah    = ATA_SMART_LBAH_PASS;
-	tf->command = ATA_CMD_SMART;
-	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	args.data_phase	= TASKFILE_IN;
-	(void) smart_enable(drive);
-	return ide_raw_taskfile(drive, &args, buf, 1);
-}
-
-static int proc_idedisk_read_cache
-	(char *page, char **start, off_t off, int count, int *eof, void *data)
-{
-	ide_drive_t	*drive = (ide_drive_t *) data;
-	char		*out = page;
-	int		len;
-
-	if (drive->dev_flags & IDE_DFLAG_ID_READ)
-		len = sprintf(out, "%i\n", drive->id[ATA_ID_BUF_SIZE] / 2);
-	else
-		len = sprintf(out, "(none)\n");
-
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
-}
-
-static int proc_idedisk_read_capacity
-	(char *page, char **start, off_t off, int count, int *eof, void *data)
-{
-	ide_drive_t*drive = (ide_drive_t *)data;
-	int len;
-
-	len = sprintf(page, "%llu\n", (long long)idedisk_capacity(drive));
-
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
-}
-
-static int proc_idedisk_read_smart(char *page, char **start, off_t off,
-				   int count, int *eof, void *data, u8 sub_cmd)
-{
-	ide_drive_t	*drive = (ide_drive_t *)data;
-	int		len = 0, i = 0;
-
-	if (get_smart_data(drive, page, sub_cmd) == 0) {
-		unsigned short *val = (unsigned short *) page;
-		char *out = (char *)val + SECTOR_SIZE;
-
-		page = out;
-		do {
-			out += sprintf(out, "%04x%c", le16_to_cpu(*val),
-				       (++i & 7) ? ' ' : '\n');
-			val += 1;
-		} while (i < SECTOR_SIZE / 2);
-		len = out - page;
-	}
-
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
-}
-
-static int proc_idedisk_read_sv
-	(char *page, char **start, off_t off, int count, int *eof, void *data)
-{
-	return proc_idedisk_read_smart(page, start, off, count, eof, data,
-				       ATA_SMART_READ_VALUES);
-}
-
-static int proc_idedisk_read_st
-	(char *page, char **start, off_t off, int count, int *eof, void *data)
-{
-	return proc_idedisk_read_smart(page, start, off, count, eof, data,
-				       ATA_SMART_READ_THRESHOLDS);
-}
-
-static ide_proc_entry_t idedisk_proc[] = {
-	{ "cache",	  S_IFREG|S_IRUGO, proc_idedisk_read_cache,    NULL },
-	{ "capacity",	  S_IFREG|S_IRUGO, proc_idedisk_read_capacity, NULL },
-	{ "geometry",	  S_IFREG|S_IRUGO, proc_ide_read_geometry,     NULL },
-	{ "smart_values", S_IFREG|S_IRUSR, proc_idedisk_read_sv,       NULL },
-	{ "smart_thresholds", S_IFREG|S_IRUSR, proc_idedisk_read_st,   NULL },
-	{ NULL, 0, NULL, NULL }
-};
-#endif	/* CONFIG_IDE_PROC_FS */
 
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
@@ -612,7 +508,7 @@ static void update_ordered(ide_drive_t *drive)
 		 * time we have trimmed the drive capacity if LBA48 is
 		 * not available so we don't need to recheck that.
 		 */
-		capacity = idedisk_capacity(drive);
+		capacity = ide_disk_capacity(drive);
 		barrier = ata_id_flush_enabled(id) &&
 			(drive->dev_flags & IDE_DFLAG_NOFLUSH) == 0 &&
 			((drive->dev_flags & IDE_DFLAG_LBA48) == 0 ||
@@ -720,30 +616,6 @@ ide_ext_devset_rw(wcache, wcache);
 
 ide_ext_devset_rw_sync(nowerr, nowerr);
 
-#ifdef CONFIG_IDE_PROC_FS
-ide_devset_rw_field(bios_cyl, bios_cyl);
-ide_devset_rw_field(bios_head, bios_head);
-ide_devset_rw_field(bios_sect, bios_sect);
-ide_devset_rw_field(failures, failures);
-ide_devset_rw_field(lun, lun);
-ide_devset_rw_field(max_failures, max_failures);
-
-static const struct ide_proc_devset idedisk_settings[] = {
-	IDE_PROC_DEVSET(acoustic,	0,   254),
-	IDE_PROC_DEVSET(address,	0,     2),
-	IDE_PROC_DEVSET(bios_cyl,	0, 65535),
-	IDE_PROC_DEVSET(bios_head,	0,   255),
-	IDE_PROC_DEVSET(bios_sect,	0,    63),
-	IDE_PROC_DEVSET(failures,	0, 65535),
-	IDE_PROC_DEVSET(lun,		0,     7),
-	IDE_PROC_DEVSET(max_failures,	0, 65535),
-	IDE_PROC_DEVSET(multcount,	0,    16),
-	IDE_PROC_DEVSET(nowerr,		0,     1),
-	IDE_PROC_DEVSET(wcache,		0,     1),
-	{ 0 },
-};
-#endif
-
 static void idedisk_setup(ide_drive_t *drive)
 {
 	struct ide_disk_obj *idkp = drive->driver_data;
@@ -806,7 +678,7 @@ static void idedisk_setup(ide_drive_t *drive)
 	 * if possible, give fdisk access to more of the drive,
 	 * by correcting bios_cyls:
 	 */
-	capacity = idedisk_capacity(drive);
+	capacity = ide_disk_capacity(drive);
 
 	if ((drive->dev_flags & IDE_DFLAG_FORCED_GEOM) == 0) {
 		if (ata_id_lba48_enabled(drive->id)) {
@@ -939,8 +811,8 @@ static ide_driver_t idedisk_driver = {
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idedisk_proc,
-	.settings		= idedisk_settings,
+	.proc			= ide_disk_proc,
+	.settings		= ide_disk_settings,
 #endif
 };
 
@@ -1034,7 +906,7 @@ static int idedisk_media_changed(struct gendisk *disk)
 static int idedisk_revalidate_disk(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = ide_disk_g(disk);
-	set_capacity(disk, idedisk_capacity(idkp->drive));
+	set_capacity(disk, ide_disk_capacity(idkp->drive));
 	return 0;
 }
 
@@ -1096,7 +968,7 @@ static int ide_disk_probe(ide_drive_t *drive)
 	g->flags |= GENHD_FL_EXT_DEVT;
 	if (drive->dev_flags & IDE_DFLAG_REMOVABLE)
 		g->flags = GENHD_FL_REMOVABLE;
-	set_capacity(g, idedisk_capacity(drive));
+	set_capacity(g, ide_disk_capacity(drive));
 	g->fops = &idedisk_ops;
 	add_disk(g);
 	return 0;

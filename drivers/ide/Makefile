@@ -41,6 +41,7 @@ ide-cd_mod-y += ide-cd.o ide-cd_ioctl.o ide-cd_verbose.o
 ide-floppy_mod-y += ide-floppy.o ide-floppy_ioctl.o
 
 ifeq ($(CONFIG_IDE_PROC_FS), y)
+	ide-disk_mod-y += ide-disk_proc.o
 	ide-floppy_mod-y += ide-floppy_proc.o
 endif
 
