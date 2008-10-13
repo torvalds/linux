@@ -74,6 +74,7 @@ SECTIONS
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
 #endif
+  NOTES
   . = ALIGN(8192);
   __init_end = .;
 
