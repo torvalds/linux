@@ -10,6 +10,7 @@
 #include <asm/bfin-global.h>
 #include <asm/reboot.h>
 #include <asm/system.h>
+#include <asm/bfrom.h>
 
 /* A system soft reset makes external memory unusable so force
  * this function into L1.  We use the compiler ssync here rather
@@ -74,7 +75,14 @@ void machine_restart(char *cmd)
 {
 	native_machine_restart(cmd);
 	local_irq_disable();
-	bfin_reset();
+	if (ANOMALY_05000353 || ANOMALY_05000386)
+		bfin_reset();
+	else
+		/* the bootrom checks to see how it was reset and will
+		 * automatically perform a software reset for us when
+		 * it starts executing boot
+		 */
+		asm("raise 1;");
 }
 
 __attribute__((weak))
