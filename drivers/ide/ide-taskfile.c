@@ -152,7 +152,16 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 
 	if (!custom)
 		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
-	else if (tf->command == ATA_CMD_SET_MULTI)
+	else if (tf->command == ATA_CMD_IDLEIMMEDIATE) {
+		hwif->tp_ops->tf_read(drive, task);
+		if (tf->lbal != 0xc4) {
+			printk(KERN_ERR "%s: head unload failed!\n",
+			       drive->name);
+			ide_tf_dump(drive->name, tf);
+		} else
+			drive->dev_flags |= IDE_DFLAG_PARKED;
+		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
+	} else if (tf->command == ATA_CMD_SET_MULTI)
 		drive->mult_count = drive->mult_req;
 
 	return ide_stopped;

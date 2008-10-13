@@ -1020,6 +1020,7 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 	drive->special.b.recalibrate  = legacy;
 
 	drive->mult_count = 0;
+	drive->dev_flags &= ~IDE_DFLAG_PARKED;
 
 	if ((drive->dev_flags & IDE_DFLAG_KEEP_SETTINGS) == 0 &&
 	    (drive->dev_flags & IDE_DFLAG_USING_DMA) == 0)
@@ -1079,12 +1080,13 @@ static void pre_reset(ide_drive_t *drive)
 static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 {
 	unsigned int unit;
-	unsigned long flags;
+	unsigned long flags, timeout;
 	ide_hwif_t *hwif;
 	ide_hwgroup_t *hwgroup;
 	struct ide_io_ports *io_ports;
 	const struct ide_tp_ops *tp_ops;
 	const struct ide_port_ops *port_ops;
+	DEFINE_WAIT(wait);
 
 	spin_lock_irqsave(&ide_lock, flags);
 	hwif = HWIF(drive);
@@ -1110,6 +1112,31 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		spin_unlock_irqrestore(&ide_lock, flags);
 		return ide_started;
 	}
+
+	/* We must not disturb devices in the IDE_DFLAG_PARKED state. */
+	do {
+		unsigned long now;
+
+		prepare_to_wait(&ide_park_wq, &wait, TASK_UNINTERRUPTIBLE);
+		timeout = jiffies;
+		for (unit = 0; unit < MAX_DRIVES; unit++) {
+			ide_drive_t *tdrive = &hwif->drives[unit];
+
+			if (tdrive->dev_flags & IDE_DFLAG_PRESENT &&
+			    tdrive->dev_flags & IDE_DFLAG_PARKED &&
+			    time_after(tdrive->sleep, timeout))
+				timeout = tdrive->sleep;
+		}
+
+		now = jiffies;
+		if (time_before_eq(timeout, now))
+			break;
+
+		spin_unlock_irqrestore(&ide_lock, flags);
+		timeout = schedule_timeout_uninterruptible(timeout - now);
+		spin_lock_irqsave(&ide_lock, flags);
+	} while (timeout);
+	finish_wait(&ide_park_wq, &wait);
 
 	/*
 	 * First, reset any device state data we were maintaining

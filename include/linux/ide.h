@@ -156,6 +156,8 @@ enum {
  */
 #define REQ_DRIVE_RESET		0x20
 #define REQ_DEVSET_EXEC		0x21
+#define REQ_PARK_HEADS		0x22
+#define REQ_UNPARK_HEADS	0x23
 
 /*
  * Check for an interrupt and acknowledge the interrupt status
@@ -573,6 +575,10 @@ enum {
 	/* retrying in PIO */
 	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 25),
 	IDE_DFLAG_LBA			= (1 << 26),
+	/* don't unload heads */
+	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
+	/* heads unloaded, please don't reset port */
+	IDE_DFLAG_PARKED		= (1 << 28)
 };
 
 struct ide_drive_s {
@@ -1206,6 +1212,13 @@ void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 int ide_check_atapi_device(ide_drive_t *, const char *);
 
 void ide_init_pc(struct ide_atapi_pc *);
+
+/* Disk head parking */
+extern wait_queue_head_t ide_park_wq;
+ssize_t ide_park_show(struct device *dev, struct device_attribute *attr,
+		      char *buf);
+ssize_t ide_park_store(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t len);
 
 /*
  * Special requests for ide-tape block device strategy routine.
