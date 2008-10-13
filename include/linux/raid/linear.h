@@ -5,8 +5,8 @@
 
 struct dev_info {
 	mdk_rdev_t	*rdev;
-	sector_t	size;
-	sector_t	offset;
+	sector_t	num_sectors;
+	sector_t	start_sector;
 };
 
 typedef struct dev_info dev_info_t;
