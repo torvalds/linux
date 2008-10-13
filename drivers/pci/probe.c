@@ -217,7 +217,7 @@ static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 
 	res->flags = bar & ~PCI_BASE_ADDRESS_MEM_MASK;
 
-	if (res->flags == PCI_BASE_ADDRESS_MEM_TYPE_64)
+	if (res->flags & PCI_BASE_ADDRESS_MEM_TYPE_64)
 		return pci_bar_mem64;
 	return pci_bar_mem32;
 }
