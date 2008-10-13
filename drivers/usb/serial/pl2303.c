@@ -154,7 +154,6 @@ struct pl2303_private {
 	wait_queue_head_t delta_msr_wait;
 	u8 line_control;
 	u8 line_status;
-	u8 termios_initialized;
 	enum pl2303_type type;
 };
 
@@ -525,16 +524,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	u8 control;
 
 	dbg("%s -  port %d", __func__, port->number);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!priv->termios_initialized) {
-		*(tty->termios) = tty_std_termios;
-		tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-		tty->termios->c_ispeed = 9600;
-		tty->termios->c_ospeed = 9600;
-		priv->termios_initialized = 1;
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* The PL2303 is reported to lose bytes if you change
 	   serial settings even to the same values as before. Thus
