@@ -22,7 +22,6 @@
 #include <linux/personality.h>
 #include <linux/sys.h>
 #include <linux/user.h>
-#include <linux/a.out.h>
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
