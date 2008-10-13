@@ -78,8 +78,9 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 	 * decide whether to reenable DMA -- 3 is a random magic for now,
 	 * if we DMA timeout more than 3 times, just stay in PIO
 	 */
-	if (drive->state == DMA_PIO_RETRY && drive->retry_pio <= 3) {
-		drive->state = 0;
+	if ((drive->dev_flags & IDE_DFLAG_DMA_PIO_RETRY) &&
+	    drive->retry_pio <= 3) {
+		drive->dev_flags &= ~IDE_DFLAG_DMA_PIO_RETRY;
 		ide_dma_on(drive);
 	}
 
@@ -1195,8 +1196,8 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 * a timeout -- we'll reenable after we finish this next request
 	 * (or rather the first chunk of it) in pio.
 	 */
+	drive->dev_flags |= IDE_DFLAG_DMA_PIO_RETRY;
 	drive->retry_pio++;
-	drive->state = DMA_PIO_RETRY;
 	ide_dma_off_quietly(drive);
 
 	/*

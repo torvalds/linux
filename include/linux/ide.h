@@ -48,12 +48,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
 
-/*
- * state flags
- */
-
-#define DMA_PIO_RETRY	1	/* retrying in PIO */
-
 #define HWIF(drive)		((ide_hwif_t *)((drive)->hwif))
 #define HWGROUP(drive)		((ide_hwgroup_t *)(HWIF(drive)->hwgroup))
 
@@ -506,6 +500,8 @@ enum {
 	IDE_DFLAG_WCACHE		= (1 << 23),
 	/* used for ignoring ATA_DF */
 	IDE_DFLAG_NOWERR		= (1 << 24),
+	/* retrying in PIO */
+	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 25),
 };
 
 struct ide_drive_s {
@@ -535,7 +531,6 @@ struct ide_drive_s {
 	select_t	select;		/* basic drive/head select reg value */
 
 	u8	retry_pio;		/* retrying dma capable host in pio */
-	u8	state;			/* retry state */
 	u8	waiting_for_dma;	/* dma currently in progress */
 
         u8	quirk_list;	/* considered quirky, set for a specific host */
