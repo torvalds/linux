@@ -649,6 +649,42 @@ static int bfin_serial_startup(struct uart_port *port)
 		free_irq(uart->port.irq, uart);
 		return -EBUSY;
 	}
+
+# ifdef CONFIG_BF54x
+	{
+		unsigned uart_dma_ch_rx, uart_dma_ch_tx;
+
+		switch (uart->port.irq) {
+		case IRQ_UART3_RX:
+			uart_dma_ch_rx = CH_UART3_RX;
+			uart_dma_ch_tx = CH_UART3_TX;
+			break;
+		case IRQ_UART2_RX:
+			uart_dma_ch_rx = CH_UART2_RX;
+			uart_dma_ch_tx = CH_UART2_TX;
+			break;
+		default:
+			uart_dma_ch_rx = uart_dma_ch_tx = 0;
+			break;
+		};
+
+		if (uart_dma_ch_rx &&
+			request_dma(uart_dma_ch_rx, "BFIN_UART_RX") < 0) {
+			printk(KERN_NOTICE"Fail to attach UART interrupt\n");
+			free_irq(uart->port.irq, uart);
+			free_irq(uart->port.irq + 1, uart);
+			return -EBUSY;
+		}
+		if (uart_dma_ch_tx &&
+			request_dma(uart_dma_ch_tx, "BFIN_UART_TX") < 0) {
+			printk(KERN_NOTICE "Fail to attach UART interrupt\n");
+			free_dma(uart_dma_ch_rx);
+			free_irq(uart->port.irq, uart);
+			free_irq(uart->port.irq + 1, uart);
+			return -EBUSY;
+		}
+	}
+# endif
 #endif
 	UART_SET_IER(uart, ERBFI);
 	return 0;
@@ -666,6 +702,20 @@ static void bfin_serial_shutdown(struct uart_port *port)
 	del_timer(&(uart->rx_dma_timer));
 	dma_free_coherent(NULL, PAGE_SIZE, uart->rx_dma_buf.buf, 0);
 #else
+#ifdef CONFIG_BF54x
+	switch (uart->port.irq) {
+	case IRQ_UART3_RX:
+		free_dma(CH_UART3_RX);
+		free_dma(CH_UART3_TX);
+		break;
+	case IRQ_UART2_RX:
+		free_dma(CH_UART2_RX);
+		free_dma(CH_UART2_TX);
+		break;
+	default:
+		break;
+	};
+#endif
 #ifdef	CONFIG_KGDB_UART
 	if (uart->port.line != CONFIG_KGDB_UART_PORT)
 #endif
