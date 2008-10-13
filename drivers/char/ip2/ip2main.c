@@ -157,9 +157,6 @@ static char *pcVersion = "1.2.14";
 static char *pcDriver_name   = "ip2";
 static char *pcIpl    		 = "ip2ipl";
 
-// cheezy kludge or genius - you decide?
-int ip2_loadmain(int *, int *);
-
 /***********************/
 /* Function Prototypes */
 /***********************/
@@ -287,6 +284,7 @@ static int tracewrap;
 
 MODULE_AUTHOR("Doug McNash");
 MODULE_DESCRIPTION("Computone IntelliPort Plus Driver");
+MODULE_LICENSE("GPL");
 
 static int poll_only = 0;
 
@@ -296,6 +294,22 @@ static int Eisa_slot;
 static int iindx;
 static char rirqs[IP2_MAX_BOARDS];
 static int Valid_Irqs[] = { 3, 4, 5, 7, 10, 11, 12, 15, 0};
+
+/* Note: Add compiled in defaults to these arrays, not to the structure
+	in ip2.h any longer.  That structure WILL get overridden
+	by these values, or command line values, or insmod values!!!  =mhw=
+*/
+static int io[IP2_MAX_BOARDS];
+static int irq[IP2_MAX_BOARDS] = { -1, -1, -1, -1 };
+
+MODULE_AUTHOR("Doug McNash");
+MODULE_DESCRIPTION("Computone IntelliPort Plus Driver");
+module_param_array(irq, int, NULL, 0);
+MODULE_PARM_DESC(irq, "Interrupts for IntelliPort Cards");
+module_param_array(io, int, NULL, 0);
+MODULE_PARM_DESC(io, "I/O ports for IntelliPort Cards");
+module_param(poll_only, bool, 0);
+MODULE_PARM_DESC(poll_only, "Do not use card interrupts");
 
 /* for sysfs class support */
 static struct class *ip2_class;
@@ -494,8 +508,53 @@ static const struct firmware *ip2_request_firmware(void)
 	return fw;
 }
 
-int
-ip2_loadmain(int *iop, int *irqp)
+#ifndef MODULE
+/******************************************************************************
+ *	ip2_setup:
+ *		str: kernel command line string
+ *
+ *	Can't autoprobe the boards so user must specify configuration on
+ *	kernel command line.  Sane people build it modular but the others
+ *	come here.
+ *
+ *	Alternating pairs of io,irq for up to 4 boards.
+ *		ip2=io0,irq0,io1,irq1,io2,irq2,io3,irq3
+ *
+ *		io=0 => No board
+ *		io=1 => PCI
+ *		io=2 => EISA
+ *		else => ISA I/O address
+ *
+ *		irq=0 or invalid for ISA will revert to polling mode
+ *
+ *		Any value = -1, do not overwrite compiled in value.
+ *
+ ******************************************************************************/
+static int __init ip2_setup(char *str)
+{
+	int j, ints[10];	/* 4 boards, 2 parameters + 2 */
+	unsigned int i;
+
+	str = get_options(str, ARRAY_SIZE(ints), ints);
+
+	for (i = 0, j = 1; i < 4; i++) {
+		if (j > ints[0])
+			break;
+		if (ints[j] >= 0)
+			io[i] = ints[j];
+		j++;
+		if (j > ints[0])
+			break;
+		if (ints[j] >= 0)
+			irq[i] = ints[j];
+		j++;
+	}
+	return 1;
+}
+__setup("ip2=", ip2_setup);
+#endif /* !MODULE */
+
+static int ip2_loadmain(void)
 {
 	int i, j, box;
 	int err = 0;
@@ -505,6 +564,11 @@ ip2_loadmain(int *iop, int *irqp)
 	static struct pci_dev *pci_dev_i = NULL;
 	const struct firmware *fw = NULL;
 
+	if (poll_only) {
+		/* Hard lock the interrupts to zero */
+		irq[0] = irq[1] = irq[2] = irq[3] = poll_only = 0;
+	}
+
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, ITRC_ENTER, 0 );
 
 	/* process command line arguments to modprobe or
@@ -512,14 +576,11 @@ ip2_loadmain(int *iop, int *irqp)
 	/* irqp and iop should ALWAYS be specified now...  But we check
 		them individually just to be sure, anyways... */
 	for ( i = 0; i < IP2_MAX_BOARDS; ++i ) {
-		if (iop) {
-			ip2config.addr[i] = iop[i];
-			if (irqp) {
-				if( irqp[i] >= 0 ) {
-					ip2config.irq[i] = irqp[i];
-				} else {
-					ip2config.irq[i] = 0;
-				}
+		ip2config.addr[i] = io[i];
+		if (irq[i] >= 0)
+			ip2config.irq[i] = irq[i];
+		else
+			ip2config.irq[i] = 0;
 	// This is a little bit of a hack.  If poll_only=1 on command
 	// line back in ip2.c OR all IRQs on all specified boards are
 	// explicitly set to 0, then drop to poll only mode and override
@@ -531,9 +592,7 @@ ip2_loadmain(int *iop, int *irqp)
 	// to -1, is to use 0 as a hard coded, do not probe.
 	//
 	//	/\/\|=mhw=|\/\/
-				poll_only |= irqp[i];
-			}
-		}
+		poll_only |= irq[i];
 	}
 	poll_only = !poll_only;
 
@@ -783,6 +842,7 @@ out_chrdev:
 out:
 	return err;
 }
+module_init(ip2_loadmain);
 
 /******************************************************************************/
 /* Function:   ip2_init_board()                                               */
