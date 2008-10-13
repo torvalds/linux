@@ -33,8 +33,8 @@
  * @maxsize: transport provided maximum packet size
  * @def: set if this transport should be considered the default
  * @create: member function to create a new connection on this transport
- * @close: member function to disconnect and close the transport
- * @rpc: member function to issue a request to the transport
+ * @request: member function to issue a request to the transport
+ * @cancel: member function to cancel a request (if it hasn't been sent)
  *
  * This is the basic API for a transport module which is registered by the
  * transport module with the 9P core network module and used by the client
@@ -51,8 +51,8 @@ struct p9_trans_module {
 	struct module *owner;
 	int (*create)(struct p9_client *, const char *, char *);
 	void (*close) (struct p9_client *);
-	int (*rpc) (struct p9_client *t, struct p9_fcall *tc,
-							struct p9_fcall **rc);
+	int (*request) (struct p9_client *, struct p9_req_t *req);
+	int (*cancel) (struct p9_client *, struct p9_req_t *req);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

@@ -126,17 +126,16 @@ static void req_done(struct virtqueue *vq)
 	struct virtio_chan *chan = vq->vdev->priv;
 	struct p9_fcall *rc;
 	unsigned int len;
-	unsigned long flags;
 	struct p9_req_t *req;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	P9_DPRINTK(P9_DEBUG_TRANS, ": request done\n");
+
 	while ((rc = chan->vq->vq_ops->get_buf(chan->vq, &len)) != NULL) {
+		P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
+		P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n", rc->tag);
 		req = p9_tag_lookup(chan->client, rc->tag);
-		req->status = REQ_STATUS_RCVD;
-		wake_up(req->wq);
+		p9_client_cb(chan->client, req);
 	}
-	/* In case queue is stopped waiting for more buffers. */
-	spin_unlock_irqrestore(&chan->lock, flags);
 }
 
 /**
@@ -173,8 +172,14 @@ pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
 	return index-start;
 }
 
+/* We don't currently allow canceling of virtio requests */
+static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
+{
+	return 1;
+}
+
 /**
- * p9_virtio_rpc - issue a request and wait for a response
+ * p9_virtio_request - issue a request
  * @t: transport state
  * @tc: &p9_fcall request to transmit
  * @rc: &p9_fcall to put reponse into
@@ -182,44 +187,22 @@ pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
  */
 
 static int
-p9_virtio_rpc(struct p9_client *c, struct p9_fcall *tc, struct p9_fcall **rc)
+p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 {
 	int in, out;
-	int n, err, size;
-	struct virtio_chan *chan = c->trans;
-	char *rdata;
-	struct p9_req_t *req;
-	unsigned long flags;
+	struct virtio_chan *chan = client->trans;
+	char *rdata = (char *)req->rc+sizeof(struct p9_fcall);
 
-	if (*rc == NULL) {
-		*rc = kmalloc(sizeof(struct p9_fcall) + c->msize, GFP_KERNEL);
-		if (!*rc)
-			return -ENOMEM;
-	}
+	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio request\n");
 
-	rdata = (char *)*rc+sizeof(struct p9_fcall);
-
-	n = P9_NOTAG;
-	if (tc->id != P9_TVERSION) {
-		n = p9_idpool_get(c->tagpool);
-		if (n < 0)
-			return -ENOMEM;
-	}
-
-	spin_lock_irqsave(&chan->lock, flags);
-	req = p9_tag_alloc(c, n);
-	spin_unlock_irqrestore(&chan->lock, flags);
-
-	p9_set_tag(tc, n);
-
-	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio rpc tag %d\n", n);
-
-	out = pack_sg_list(chan->sg, 0, VIRTQUEUE_NUM, tc->sdata, tc->size);
-	in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM-out, rdata, c->msize);
+	out = pack_sg_list(chan->sg, 0, VIRTQUEUE_NUM, req->tc->sdata,
+								req->tc->size);
+	in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM-out, rdata,
+								client->msize);
 
 	req->status = REQ_STATUS_SENT;
 
-	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, tc)) {
+	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, req->tc)) {
 		P9_DPRINTK(P9_DEBUG_TRANS,
 			"9p debug: virtio rpc add_buf returned failure");
 		return -EIO;
@@ -227,28 +210,7 @@ p9_virtio_rpc(struct p9_client *c, struct p9_fcall *tc, struct p9_fcall **rc)
 
 	chan->vq->vq_ops->kick(chan->vq);
 
-	wait_event(*req->wq, req->status == REQ_STATUS_RCVD);
-
-	size = le32_to_cpu(*(__le32 *) rdata);
-
-	err = p9_deserialize_fcall(rdata, size, *rc, c->dotu);
-	if (err < 0) {
-		P9_DPRINTK(P9_DEBUG_TRANS,
-			"9p debug: virtio rpc deserialize returned %d\n", err);
-		return err;
-	}
-
-#ifdef CONFIG_NET_9P_DEBUG
-	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
-		char buf[150];
-
-		p9_printfcall(buf, sizeof(buf), *rc, c->dotu);
-		printk(KERN_NOTICE ">>> %p %s\n", c, buf);
-	}
-#endif
-
-	p9_free_req(c, req);
-
+	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio request kicked\n");
 	return 0;
 }
 
@@ -394,7 +356,8 @@ static struct p9_trans_module p9_virtio_trans = {
 	.name = "virtio",
 	.create = p9_virtio_create,
 	.close = p9_virtio_close,
-	.rpc = p9_virtio_rpc,
+	.request = p9_virtio_request,
+	.cancel = p9_virtio_cancel,
 	.maxsize = PAGE_SIZE*16,
 	.def = 0,
 	.owner = THIS_MODULE,

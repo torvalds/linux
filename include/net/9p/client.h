@@ -212,8 +212,7 @@ struct p9_stat *p9_client_stat(struct p9_fid *fid);
 int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
 struct p9_stat *p9_client_dirread(struct p9_fid *fid, u64 offset);
 
-struct p9_req_t *p9_tag_alloc(struct p9_client *, u16);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
-void p9_free_req(struct p9_client *, struct p9_req_t *);
+void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
 
 #endif /* NET_9P_CLIENT_H */
