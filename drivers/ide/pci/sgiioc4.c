@@ -339,23 +339,20 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	if (dma_base == 0)
 		return -1;
 
-	printk(KERN_INFO "%s: BM-DMA at 0x%04lx-0x%04lx\n", hwif->name,
-	       dma_base, dma_base + num_ports - 1);
+	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
-	if (!request_mem_region(dma_base, num_ports, hwif->name)) {
-		printk(KERN_ERR
-		       "%s(%s) -- ERROR, Addresses 0x%p to 0x%p "
-		       "ALREADY in use\n",
-		       __func__, hwif->name, (void *) dma_base,
-		       (void *) dma_base + num_ports - 1);
+	if (request_mem_region(dma_base, num_ports, hwif->name) == NULL) {
+		printk(KERN_ERR "%s(%s) -- ERROR: addresses 0x%08lx to 0x%08lx "
+		       "already in use\n", __func__, hwif->name,
+		       dma_base, dma_base + num_ports - 1);
 		return -1;
 	}
 
 	virt_dma_base = ioremap(dma_base, num_ports);
 	if (virt_dma_base == NULL) {
-		printk(KERN_ERR
-		       "%s(%s) -- ERROR, Unable to map addresses 0x%lx to 0x%lx\n",
-		       __func__, hwif->name, dma_base, dma_base + num_ports - 1);
+		printk(KERN_ERR "%s(%s) -- ERROR: unable to map addresses "
+		       "0x%lx to 0x%lx\n", __func__, hwif->name,
+		       dma_base, dma_base + num_ports - 1);
 		goto dma_remap_failure;
 	}
 	hwif->dma_base = (unsigned long) virt_dma_base;
@@ -378,11 +375,9 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 	pci_free_consistent(dev, IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
 			    hwif->dmatable_cpu, hwif->dmatable_dma);
-	printk(KERN_INFO
-	       "%s() -- Error! Unable to allocate DMA Maps for drive %s\n",
+	printk(KERN_ERR "%s(%s) -- ERROR: Unable to allocate DMA maps\n",
 	       __func__, hwif->name);
-	printk(KERN_INFO
-	       "Changing from DMA to PIO mode for Drive %s\n", hwif->name);
+	printk(KERN_INFO "%s: changing from DMA to PIO mode", hwif->name);
 
 dma_pci_alloc_failure:
 	iounmap(virt_dma_base);
@@ -618,14 +613,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	irqport = (unsigned long) virt_base + IOC4_INTR_OFFSET;
 
 	cmd_phys_base = bar0 + IOC4_CMD_OFFSET;
-	if (!request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
-	    DRV_NAME)) {
-		printk(KERN_ERR
-			"%s %s: -- ERROR, Addresses "
-			"0x%p to 0x%p ALREADY in use\n",
-		       DRV_NAME, pci_name(dev), (void *)cmd_phys_base,
-		       (void *) cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
-		return -ENOMEM;
+	if (request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
+			       DRV_NAME) == NULL) {
+		printk(KERN_ERR "%s %s -- ERROR: addresses 0x%08lx to 0x%08lx "
+		       "already in use\n", DRV_NAME, pci_name(dev),
+		       cmd_phys_base, cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
+		return -EBUSY;
 	}
 
 	/* Initialize the IO registers */
