@@ -141,10 +141,6 @@ static int __init ide_generic_init(void)
 	unsigned long io_addr;
 	int i, rc = 0, primary = 0, secondary = 0;
 
-#ifdef CONFIG_MIPS
-	if (!ide_probe_legacy())
-		return -ENODEV;
-#endif
 	ide_generic_check_pci_legacy_iobases(&primary, &secondary);
 
 	if (!probe_mask) {
