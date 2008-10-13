@@ -209,6 +209,7 @@ struct tty_operations;
 
 struct tty_struct {
 	int	magic;
+	struct kref kref;
 	struct tty_driver *driver;
 	const struct tty_operations *ops;
 	int index;
@@ -310,6 +311,23 @@ extern int kmsg_redirect;
 
 extern void console_init(void);
 extern int vcs_init(void);
+
+/**
+ *	tty_kref_get		-	get a tty reference
+ *	@tty: tty device
+ *
+ *	Return a new reference to a tty object. The caller must hold
+ *	sufficient locks/counts to ensure that their existing reference cannot
+ *	go away
+ */
+
+extern inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
+{
+	if (tty)
+		kref_get(&tty->kref);
+	return tty;
+}
+extern void tty_kref_put(struct tty_struct *tty);
 
 extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 			      const char *routine);

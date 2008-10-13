@@ -559,6 +559,7 @@ static void do_tty_hangup(struct work_struct *work)
 	struct tty_ldisc *ld;
 	int    closecount = 0, n;
 	unsigned long flags;
+	int refs = 0;
 
 	if (!tty)
 		return;
@@ -625,8 +626,12 @@ static void do_tty_hangup(struct work_struct *work)
 	if (tty->session) {
 		do_each_pid_task(tty->session, PIDTYPE_SID, p) {
 			spin_lock_irq(&p->sighand->siglock);
-			if (p->signal->tty == tty)
+			if (p->signal->tty == tty) {
 				p->signal->tty = NULL;
+				/* We defer the dereferences outside fo
+				   the tasklist lock */
+				refs++;
+			}
 			if (!p->signal->leader) {
 				spin_unlock_irq(&p->sighand->siglock);
 				continue;
@@ -651,6 +656,10 @@ static void do_tty_hangup(struct work_struct *work)
 	tty->pgrp = NULL;
 	tty->ctrl_status = 0;
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+
+	/* Account for the p->signal references we killed */
+	while (refs--)
+		tty_kref_put(tty);
 
 	/*
 	 * If one of the devices matches a console pointer, we
@@ -1424,6 +1433,7 @@ release_mem_out:
 
 /**
  *	release_one_tty		-	release tty structure memory
+ *	@kref: kref of tty we are obliterating
  *
  *	Releases memory associated with a tty structure, and clears out the
  *	driver table slots. This function is called when a device is no longer
@@ -1433,17 +1443,19 @@ release_mem_out:
  *		tty_mutex - sometimes only
  *		takes the file list lock internally when working on the list
  *	of ttys that the driver keeps.
- *		FIXME: should we require tty_mutex is held here ??
  */
-static void release_one_tty(struct tty_struct *tty, int idx)
+static void release_one_tty(struct kref *kref)
 {
+	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
 	int devpts = tty->driver->flags & TTY_DRIVER_DEVPTS_MEM;
 	struct ktermios *tp;
+	int idx = tty->index;
 
 	if (!devpts)
 		tty->driver->ttys[idx] = NULL;
 
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
+		/* FIXME: Locking on ->termios array */
 		tp = tty->termios;
 		if (!devpts)
 			tty->driver->termios[idx] = NULL;
@@ -1457,6 +1469,7 @@ static void release_one_tty(struct tty_struct *tty, int idx)
 
 
 	tty->magic = 0;
+	/* FIXME: locking on tty->driver->refcount */
 	tty->driver->refcount--;
 
 	file_list_lock();
@@ -1465,6 +1478,21 @@ static void release_one_tty(struct tty_struct *tty, int idx)
 
 	free_tty_struct(tty);
 }
+
+/**
+ *	tty_kref_put		-	release a tty kref
+ *	@tty: tty device
+ *
+ *	Release a reference to a tty device and if need be let the kref
+ *	layer destruct the object for us
+ */
+
+void tty_kref_put(struct tty_struct *tty)
+{
+	if (tty)
+		kref_put(&tty->kref, release_one_tty);
+}
+EXPORT_SYMBOL(tty_kref_put);
 
 /**
  *	release_tty		-	release tty structure memory
@@ -1477,14 +1505,20 @@ static void release_one_tty(struct tty_struct *tty, int idx)
  *		takes the file list lock internally when working on the list
  *	of ttys that the driver keeps.
  *		FIXME: should we require tty_mutex is held here ??
+ *
+ *	FIXME: We want to defer the module put of the driver to the
+ *	destructor.
  */
 static void release_tty(struct tty_struct *tty, int idx)
 {
 	struct tty_driver *driver = tty->driver;
 
+	/* This should always be true but check for the moment */
+	WARN_ON(tty->index != idx);
+
 	if (tty->link)
-		release_one_tty(tty->link, idx);
-	release_one_tty(tty, idx);
+		tty_kref_put(tty->link);
+	tty_kref_put(tty);
 	module_put(driver->owner);
 }
 
@@ -2798,6 +2832,7 @@ EXPORT_SYMBOL(do_SAK);
 static void initialize_tty_struct(struct tty_struct *tty)
 {
 	memset(tty, 0, sizeof(struct tty_struct));
+	kref_init(&tty->kref);
 	tty->magic = TTY_MAGIC;
 	tty_ldisc_init(tty);
 	tty->session = NULL;
@@ -3053,9 +3088,12 @@ EXPORT_SYMBOL(tty_devnum);
 
 void proc_clear_tty(struct task_struct *p)
 {
+	struct tty_struct *tty;
 	spin_lock_irq(&p->sighand->siglock);
+	tty = p->signal->tty;
 	p->signal->tty = NULL;
 	spin_unlock_irq(&p->sighand->siglock);
+	tty_kref_put(tty);
 }
 
 /* Called under the sighand lock */
@@ -3071,9 +3109,13 @@ static void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
 		tty->pgrp = get_pid(task_pgrp(tsk));
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		tty->session = get_pid(task_session(tsk));
+		if (tsk->signal->tty) {
+			printk(KERN_DEBUG "tty not NULL!!\n");
+			tty_kref_put(tsk->signal->tty);
+		}
 	}
 	put_pid(tsk->signal->tty_old_pgrp);
-	tsk->signal->tty = tty;
+	tsk->signal->tty = tty_kref_get(tty);
 	tsk->signal->tty_old_pgrp = NULL;
 }
 
