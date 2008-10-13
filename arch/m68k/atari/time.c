@@ -20,6 +20,9 @@
 
 #include <asm/atariints.h>
 
+DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL_GPL(rtc_lock);
+
 void __init
 atari_sched_init(irq_handler_t timer_routine)
 {
