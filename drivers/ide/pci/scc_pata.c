@@ -705,7 +705,7 @@ static void scc_tf_load(ide_drive_t *drive, ide_task_t *task)
 		scc_ide_outb(tf->lbah, io_ports->lbah_addr);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
-		scc_ide_outb((tf->device & HIHI) | drive->select.all,
+		scc_ide_outb((tf->device & HIHI) | drive->select,
 			     io_ports->device_addr);
 }
 

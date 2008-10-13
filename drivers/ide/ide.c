@@ -114,7 +114,7 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		memset(drive, 0, sizeof(*drive));
 
 		drive->media			= ide_disk;
-		drive->select.all		= (unit<<4)|0xa0;
+		drive->select			= (unit << 4) | ATA_DEVICE_OBS;
 		drive->hwif			= hwif;
 		drive->ready_stat		= ATA_DRDY;
 		drive->bad_wstat		= BAD_W_STAT;

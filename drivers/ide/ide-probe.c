@@ -446,7 +446,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	SELECT_DRIVE(drive);
 	msleep(50);
 
-	if (ide_read_device(drive) != drive->select.all && present == 0) {
+	if (ide_read_device(drive) != drive->select && present == 0) {
 		if (drive->dn & 1) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
@@ -1211,7 +1211,7 @@ EXPORT_SYMBOL_GPL(ide_unregister_region);
 void ide_init_disk(struct gendisk *disk, ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	unsigned int unit = (drive->select.all >> 4) & 1;
+	unsigned int unit = drive->dn & 1;
 
 	disk->major = hwif->major;
 	disk->first_minor = unit << PARTN_BITS;

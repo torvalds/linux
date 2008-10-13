@@ -495,7 +495,7 @@ static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 	tf->lbal    = drive->sect;
 	tf->lbam    = drive->cyl;
 	tf->lbah    = drive->cyl >> 8;
-	tf->device  = (drive->head - 1) | drive->select.all;
+	tf->device  = (drive->head - 1) | drive->select;
 	tf->command = ATA_CMD_INIT_DEV_PARAMS;
 }
 

@@ -279,36 +279,6 @@ typedef union {
 } special_t;
 
 /*
- * ATA-IDE Select Register, aka Device-Head
- *
- * head		: always zeros here
- * unit		: drive select number: 0/1
- * bit5		: always 1
- * lba		: using LBA instead of CHS
- * bit7		: always 1
- */
-typedef union {
-	unsigned all			: 8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned head		: 4;
-		unsigned unit		: 1;
-		unsigned bit5		: 1;
-		unsigned lba		: 1;
-		unsigned bit7		: 1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned bit7		: 1;
-		unsigned lba		: 1;
-		unsigned bit5		: 1;
-		unsigned unit		: 1;
-		unsigned head		: 4;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} select_t, ata_select_t;
-
-/*
  * Status returned from various ide_ functions
  */
 typedef enum {
@@ -529,8 +499,8 @@ struct ide_drive_s {
 	unsigned long timeout;		/* max time to wait for irq */
 
 	special_t	special;	/* special action flags */
-	select_t	select;		/* basic drive/head select reg value */
 
+	u8	select;			/* basic drive/head select reg value */
 	u8	retry_pio;		/* retrying dma capable host in pio */
 	u8	waiting_for_dma;	/* dma currently in progress */
 
