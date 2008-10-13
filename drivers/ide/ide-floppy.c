@@ -219,8 +219,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 /* The usual interrupt handler called during a packet command. */
 static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 {
-	return ide_pc_intr(drive, idefloppy_pc_intr,
-			   WAIT_FLOPPY_CMD, NULL, idefloppy_update_buffers,
+	return ide_pc_intr(drive, idefloppy_pc_intr, idefloppy_update_buffers,
 			   idefloppy_retry_pc, ide_io_buffers);
 }
 

@@ -1175,8 +1175,14 @@ int ide_do_test_unit_ready(ide_drive_t *, struct gendisk *);
 int ide_do_start_stop(ide_drive_t *, struct gendisk *, int);
 int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 
-ide_startstop_t ide_pc_intr(ide_drive_t *drive,
-	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
+static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
+{
+	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
+}
+
+int ide_scsi_expiry(ide_drive_t *);
+
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
 	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned int,

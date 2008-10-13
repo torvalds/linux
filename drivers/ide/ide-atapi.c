@@ -203,9 +203,21 @@ int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
 }
 EXPORT_SYMBOL_GPL(ide_set_media_lock);
 
+int ide_scsi_expiry(ide_drive_t *drive)
+{
+	struct ide_atapi_pc *pc = drive->pc;
+
+	debug_log("%s called for %lu at %lu\n", __func__,
+		  pc->scsi_cmd->serial_number, jiffies);
+
+	pc->flags |= PC_FLAG_TIMEDOUT;
+
+	return 0; /* we do not want the IDE subsystem to retry */
+}
+EXPORT_SYMBOL_GPL(ide_scsi_expiry);
+
 /* TODO: unify the code thus making some arguments go away */
-ide_startstop_t ide_pc_intr(ide_drive_t *drive,
-	ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry,
+ide_startstop_t ide_pc_intr(ide_drive_t *drive, ide_handler_t *handler,
 	void (*update_buffers)(ide_drive_t *, struct ide_atapi_pc *),
 	void (*retry_pc)(ide_drive_t *),
 	int (*io_buffers)(ide_drive_t *, struct ide_atapi_pc *, unsigned, int))
@@ -215,11 +227,21 @@ ide_startstop_t ide_pc_intr(ide_drive_t *drive,
 	struct request *rq = hwif->hwgroup->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
-	unsigned int temp;
+	ide_expiry_t *expiry;
+	unsigned int timeout, temp;
 	u16 bcount;
 	u8 stat, ireason, scsi = drive->scsi, dsc = 0;
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
+
+	if (scsi) {
+		timeout = ide_scsi_get_timeout(pc);
+		expiry = ide_scsi_expiry;
+	} else {
+		timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+						       : WAIT_TAPE_CMD;
+		expiry = NULL;
+	}
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
 		drive->pc_callback(drive, 0);
@@ -347,9 +369,7 @@ cmd_finished:
 				pc->xferred += temp;
 				pc->cur_pos += temp;
 				ide_pad_transfer(drive, 0, bcount - temp);
-				ide_set_handler(drive, handler, timeout,
-						expiry);
-				return ide_started;
+				goto next_irq;
 			}
 			debug_log("The device wants to send us more data than "
 				  "expected - allowing transfer\n");
@@ -376,7 +396,7 @@ cmd_finished:
 
 	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
 		  rq->cmd[0], bcount);
-
+next_irq:
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, handler, timeout, expiry);
 	return ide_started;

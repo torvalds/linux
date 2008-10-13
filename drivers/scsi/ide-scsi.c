@@ -270,36 +270,19 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	return 0;
 }
 
-static inline unsigned long get_timeout(struct ide_atapi_pc *pc)
-{
-	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
-}
-
-static int idescsi_expiry(ide_drive_t *drive)
-{
-	struct ide_atapi_pc *pc = drive->pc;
-
-	debug_log("%s called for %lu at %lu\n", __func__,
-		  pc->scsi_cmd->serial_number, jiffies);
-
-	pc->flags |= PC_FLAG_TIMEDOUT;
-
-	return 0;					/* we do not want the ide subsystem to retry */
-}
-
 /*
  *	Our interrupt handler.
  */
 static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 {
-	return ide_pc_intr(drive, idescsi_pc_intr, get_timeout(drive->pc),
-			   idescsi_expiry, NULL, NULL, ide_io_buffers);
+	return ide_pc_intr(drive, idescsi_pc_intr, NULL, NULL, ide_io_buffers);
 }
 
 static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 {
 	return ide_transfer_pc(drive, idescsi_pc_intr,
-			       get_timeout(drive->pc), idescsi_expiry);
+			       ide_scsi_get_timeout(drive->pc),
+			       ide_scsi_expiry);
 }
 
 static inline int idescsi_set_direction(struct ide_atapi_pc *pc)
@@ -348,7 +331,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 	drive->pc = pc;
 
 	return ide_issue_pc(drive, idescsi_transfer_pc,
-			    get_timeout(pc), idescsi_expiry);
+			    ide_scsi_get_timeout(pc), ide_scsi_expiry);
 }
 
 /*

@@ -655,9 +655,8 @@ static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
  */
 static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 {
-	return ide_pc_intr(drive, idetape_pc_intr, WAIT_TAPE_CMD,
-			   NULL, idetape_update_buffers, idetape_retry_pc,
-			   ide_tape_io_buffers);
+	return ide_pc_intr(drive, idetape_pc_intr, idetape_update_buffers,
+			   idetape_retry_pc, ide_tape_io_buffers);
 }
 
 /*
