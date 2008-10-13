@@ -122,22 +122,9 @@ config ATARI
 	  this kernel on an Atari, say Y here and browse the material
 	  available in <file:Documentation/m68k>; otherwise say N.
 
-config HADES
-	bool "Hades support"
-	depends on ATARI && BROKEN
-	help
-	  This option enables support for the Hades Atari clone. If you plan
-	  to use this kernel on a Hades, say Y here; otherwise say N.
-
 config PCI
 	bool
-	depends on HADES
-	default y
 	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
 
 config MAC
 	bool "Macintosh support"

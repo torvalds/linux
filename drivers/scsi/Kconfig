@@ -1670,14 +1670,6 @@ config ATARI_SCSI_RESET_BOOT
 	  boot process fractionally longer but may assist recovery from errors
 	  that leave the devices with SCSI operations partway completed.
 
-config TT_DMA_EMUL
-	bool "Hades SCSI DMA emulator"
-	depends on ATARI_SCSI && HADES
-	help
-	  This option enables code which emulates the TT SCSI DMA chip on the
-	  Hades. This increases the SCSI transfer rates at least ten times
-	  compared to PIO transfers.
-
 config MAC_SCSI
 	bool "Macintosh NCR5380 SCSI"
 	depends on MAC && SCSI=y

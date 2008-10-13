@@ -476,10 +476,12 @@ void __init pcibios_init(void)
 	printk("Linux/m68k PCI BIOS32 revision %x.%02x\n", MAJOR_REV, MINOR_REV);
 
 	bus_info = NULL;
-#ifdef CONFIG_HADES
+
+/* Hades code was:
 	if (MACH_IS_HADES)
 		bus_info = init_hades_pci();
-#endif
+*/
+
 	if (bus_info != NULL)
 	{
 		printk("PCI: Probing PCI hardware\n");
