@@ -110,6 +110,12 @@ __start:
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	cmpwi	0,r5,0
 	beq	1f
+
+	/* find out where we are now */
+	bcl	20,31,$+4
+0:	mflr	r8			/* r8 = runtime addr here */
+	addis	r8,r8,(_stext - 0b)@ha
+	addi	r8,r8,(_stext - 0b)@l	/* current runtime base addr */
 	bl	prom_init
 	trap
 #endif
