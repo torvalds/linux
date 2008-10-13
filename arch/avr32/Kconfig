@@ -121,9 +121,7 @@ config BOARD_ATNGW100
 	select CPU_AT32AP7000
 endchoice
 
-if BOARD_ATSTK1000
 source "arch/avr32/boards/atstk1000/Kconfig"
-endif
 
 choice
 	prompt "Boot loader type"
