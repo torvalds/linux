@@ -32,6 +32,8 @@ struct pt_regs;
  * various x86 CPU models' perfctr support.
  */
 struct op_x86_model_spec {
+	int (*init)(struct oprofile_operations *ops);
+	void (*exit)(void);
 	unsigned int const num_counters;
 	unsigned int const num_controls;
 	void (*fill_in_addresses)(struct op_msrs * const msrs);
@@ -46,6 +48,6 @@ struct op_x86_model_spec {
 extern struct op_x86_model_spec const op_ppro_spec;
 extern struct op_x86_model_spec const op_p4_spec;
 extern struct op_x86_model_spec const op_p4_ht2_spec;
-extern struct op_x86_model_spec const op_athlon_spec;
+extern struct op_x86_model_spec const op_amd_spec;
 
 #endif /* OP_X86_MODEL_H */

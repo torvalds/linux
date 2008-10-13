@@ -141,6 +141,8 @@ void play_dead_common(void);
 void native_send_call_func_ipi(cpumask_t mask);
 void native_send_call_func_single_ipi(int cpu);
 
+extern void prefill_possible_map(void);
+
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
@@ -149,15 +151,11 @@ static inline int num_booting_cpus(void)
 {
 	return cpus_weight(cpu_callout_map);
 }
-#endif /* CONFIG_SMP */
-
-#if defined(CONFIG_SMP) && defined(CONFIG_HOTPLUG_CPU)
-extern void prefill_possible_map(void);
 #else
 static inline void prefill_possible_map(void)
 {
 }
-#endif
+#endif /* CONFIG_SMP */
 
 extern unsigned disabled_cpus __cpuinitdata;
 

@@ -351,20 +351,16 @@ static inline void set_system_intr_gate(unsigned int n, void *addr)
 	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
 }
 
+static inline void set_system_trap_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
+}
+
 static inline void set_trap_gate(unsigned int n, void *addr)
 {
 	BUG_ON((unsigned)n > 0xFF);
 	_set_gate(n, GATE_TRAP, addr, 0, 0, __KERNEL_CS);
-}
-
-static inline void set_system_gate(unsigned int n, void *addr)
-{
-	BUG_ON((unsigned)n > 0xFF);
-#ifdef CONFIG_X86_32
-	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
-#else
-	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
-#endif
 }
 
 static inline void set_task_gate(unsigned int n, unsigned int gdt_entry)
@@ -379,7 +375,7 @@ static inline void set_intr_gate_ist(int n, void *addr, unsigned ist)
 	_set_gate(n, GATE_INTERRUPT, addr, 0, ist, __KERNEL_CS);
 }
 
-static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
+static inline void set_system_intr_gate_ist(int n, void *addr, unsigned ist)
 {
 	BUG_ON((unsigned)n > 0xFF);
 	_set_gate(n, GATE_INTERRUPT, addr, 0x3, ist, __KERNEL_CS);

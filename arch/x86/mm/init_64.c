@@ -89,7 +89,7 @@ early_param("gbpages", parse_direct_gbpages_on);
 
 int after_bootmem;
 
-unsigned long __supported_pte_mask __read_mostly = ~0UL;
+pteval_t __supported_pte_mask __read_mostly = ~_PAGE_IOMAP;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 static int do_not_nx __cpuinitdata;
@@ -196,9 +196,6 @@ set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 	}
 
 	pte = pte_offset_kernel(pmd, vaddr);
-	if (!pte_none(*pte) && pte_val(new_pte) &&
-	    pte_val(*pte) != (pte_val(new_pte) & __supported_pte_mask))
-		pte_ERROR(*pte);
 	set_pte(pte, new_pte);
 
 	/*
@@ -313,7 +310,7 @@ static __ref void *alloc_low_page(unsigned long *phys)
 	if (pfn >= table_top)
 		panic("alloc_low_page: ran out of memory");
 
-	adr = early_ioremap(pfn * PAGE_SIZE, PAGE_SIZE);
+	adr = early_memremap(pfn * PAGE_SIZE, PAGE_SIZE);
 	memset(adr, 0, PAGE_SIZE);
 	*phys  = pfn * PAGE_SIZE;
 	return adr;
@@ -749,7 +746,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		old_start = mr[i].start;
 		memmove(&mr[i], &mr[i+1],
 			 (nr_range - 1 - i) * sizeof (struct map_range));
-		mr[i].start = old_start;
+		mr[i--].start = old_start;
 		nr_range--;
 	}
 
