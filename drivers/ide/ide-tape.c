@@ -2185,7 +2185,6 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	unsigned long t;
 	int speed;
 	int buffer_size;
-	u8 gcw[2];
 	u16 *ctl = (u16 *)&tape->caps[12];
 
 	drive->pc_callback	 = ide_tape_callback;
@@ -2211,12 +2210,6 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	tape->name[1] = 't';
 	tape->name[2] = '0' + minor;
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
-
-	*((u16 *)&gcw) = drive->id[ATA_ID_CONFIG];
-
-	/* Command packet DRQ type */
-	if (((gcw[0] & 0x60) >> 5) == 1)
-		set_bit(IDE_AFLAG_DRQ_INTERRUPT, &drive->atapi_flags);
 
 	idetape_get_inquiry_results(drive);
 	idetape_get_mode_sense_results(drive);

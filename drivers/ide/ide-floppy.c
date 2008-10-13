@@ -578,16 +578,11 @@ static const struct ide_proc_devset idefloppy_settings[] = {
 static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 {
 	u16 *id = drive->id;
-	u8 gcw[2];
-
-	*((u16 *)&gcw) = id[ATA_ID_CONFIG];
 
 	drive->pc_callback	 = ide_floppy_callback;
 	drive->pc_update_buffers = idefloppy_update_buffers;
 	drive->pc_io_buffers	 = ide_io_buffers;
 
-	if (((gcw[0] & 0x60) >> 5) == 1)
-		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 	/*
 	 * We used to check revisions here. At this point however I'm giving up.
 	 * Just assume they are all broken, its easier.

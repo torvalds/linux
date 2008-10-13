@@ -206,6 +206,8 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 		drive->media = type;
 		/* an ATAPI device ignores DRDY */
 		drive->ready_stat = 0;
+		if (ata_id_cdb_intr(id))
+			drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
 		return;
 	}
 

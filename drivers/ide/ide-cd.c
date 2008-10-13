@@ -1891,9 +1891,6 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	drive->atapi_flags = IDE_AFLAG_MEDIA_CHANGED | IDE_AFLAG_NO_EJECT |
 		       ide_cd_flags(id);
 
-	if ((id[ATA_ID_CONFIG] & 0x0060) == 0x20)
-		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
-
 	if ((drive->atapi_flags & IDE_AFLAG_VERTOS_300_SSD) &&
 	    fw_rev[4] == '1' && fw_rev[6] <= '2')
 		drive->atapi_flags |= (IDE_AFLAG_TOCTRACKS_AS_BCD |
