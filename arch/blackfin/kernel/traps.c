@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
+#include <asm/cplb.h>
 #include <asm/blackfin.h>
 #include <asm/irq_handler.h>
 #include <linux/irq.h>
