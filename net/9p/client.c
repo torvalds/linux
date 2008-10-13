@@ -268,6 +268,27 @@ static void p9_tag_cleanup(struct p9_client *c)
 	c->max_tag = 0;
 }
 
+/**
+ * p9_free_req - free a request and clean-up as necessary
+ * c: client state
+ * r: request to release
+ *
+ */
+
+void p9_free_req(struct p9_client *c, struct p9_req_t *r)
+{
+	r->flush_tag = P9_NOTAG;
+	r->status = REQ_STATUS_IDLE;
+	if (r->tc->tag != P9_NOTAG && p9_idpool_check(r->tc->tag, c->tagpool))
+		p9_idpool_put(r->tc->tag, c->tagpool);
+
+	/* if this was a flush request we have to free response fcall */
+	if (r->tc->id == P9_TFLUSH) {
+		kfree(r->tc);
+		kfree(r->rc);
+	}
+}
+
 static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 {
 	int err;

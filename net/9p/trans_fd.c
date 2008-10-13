@@ -44,7 +44,6 @@
 
 #define P9_PORT 564
 #define MAX_SOCK_BUF (64*1024)
-#define ERREQFLUSH	1
 #define MAXPOLLWADDR	2
 
 /**
@@ -99,38 +98,6 @@ enum {
 	Wpending = 8,		/* can write */
 };
 
-enum {
-	None,
-	Flushing,
-	Flushed,
-};
-
-/**
- * struct p9_req - fd mux encoding of an rpc transaction
- * @lock: protects req_list
- * @tag: numeric tag for rpc transaction
- * @tcall: request &p9_fcall structure
- * @rcall: response &p9_fcall structure
- * @err: error state
- * @flush: flag to indicate RPC has been flushed
- * @req_list: list link for higher level objects to chain requests
- * @m: connection this request was issued on
- * @wqueue: wait queue that client is blocked on for this rpc
- *
- */
-
-struct p9_req {
-	spinlock_t lock;
-	int tag;
-	struct p9_fcall *tcall;
-	struct p9_fcall *rcall;
-	int err;
-	int flush;
-	struct list_head req_list;
-	struct p9_conn *m;
-	wait_queue_head_t wqueue;
-};
-
 struct p9_poll_wait {
 	struct p9_conn *conn;
 	wait_queue_t wait;
@@ -139,7 +106,6 @@ struct p9_poll_wait {
 
 /**
  * struct p9_conn - fd mux connection state information
- * @lock: protects mux_list (?)
  * @mux_list: list link for mux to manage multiple connections (?)
  * @client: reference to client instance for this connection
  * @err: error state
@@ -161,7 +127,6 @@ struct p9_poll_wait {
  */
 
 struct p9_conn {
-	spinlock_t lock; /* protect lock structure */
 	struct list_head mux_list;
 	struct p9_client *client;
 	int err;
@@ -205,64 +170,41 @@ static void p9_mux_poll_stop(struct p9_conn *m)
 	spin_unlock_irqrestore(&p9_poll_lock, flags);
 }
 
-static void p9_mux_free_request(struct p9_conn *m, struct p9_req *req)
-{
-	if (req->tag != P9_NOTAG &&
-	    p9_idpool_check(req->tag, m->client->tagpool))
-		p9_idpool_put(req->tag, m->client->tagpool);
-	kfree(req);
-}
+static void p9_conn_rpc_cb(struct p9_client *, struct p9_req_t *);
 
-static void p9_conn_rpc_cb(struct p9_req *req);
-
-static void p9_mux_flush_cb(struct p9_req *freq)
+static void p9_mux_flush_cb(struct p9_client *client, struct p9_req_t *freq)
 {
-	int tag;
-	struct p9_conn *m = freq->m;
-	struct p9_req *req, *rreq, *rptr;
+	struct p9_conn *m = client->trans;
+	struct p9_req_t *req;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p tc %p rc %p err %d oldtag %d\n", m,
-		freq->tcall, freq->rcall, freq->err,
-		freq->tcall->params.tflush.oldtag);
+		freq->tc, freq->rc, freq->t_err,
+		freq->tc->params.tflush.oldtag);
 
-	spin_lock(&m->lock);
-	tag = freq->tcall->params.tflush.oldtag;
-	req = NULL;
-	list_for_each_entry_safe(rreq, rptr, &m->req_list, req_list) {
-		if (rreq->tag == tag) {
-			req = rreq;
-			list_del(&req->req_list);
-			break;
-		}
-	}
-	spin_unlock(&m->lock);
-
+	req = p9_tag_lookup(client, freq->tc->params.tflush.oldtag);
 	if (req) {
-		spin_lock(&req->lock);
-		req->flush = Flushed;
-		spin_unlock(&req->lock);
-
-		p9_conn_rpc_cb(req);
+		req->status = REQ_STATUS_FLSHD;
+		list_del(&req->req_list);
+		p9_conn_rpc_cb(client, req);
 	}
 
-	kfree(freq->tcall);
-	kfree(freq->rcall);
-	p9_mux_free_request(m, freq);
+	p9_free_req(client, freq);
 }
 
-static void p9_conn_rpc_cb(struct p9_req *req)
+static void p9_conn_rpc_cb(struct p9_client *client, struct p9_req_t *req)
 {
 	P9_DPRINTK(P9_DEBUG_MUX, "req %p\n", req);
 
-	if (req->tcall->id == P9_TFLUSH) { /* flush callback */
+	if (req->tc->id == P9_TFLUSH) { /* flush callback */
 		P9_DPRINTK(P9_DEBUG_MUX, "flush req %p\n", req);
-		p9_mux_flush_cb(req);
+		p9_mux_flush_cb(client, req);
 	} else {			/* normal wakeup path */
 		P9_DPRINTK(P9_DEBUG_MUX, "normal req %p\n", req);
-		if (req->flush != None && !req->err)
-			req->err = -ERESTARTSYS;
+		if (!req->t_err && (req->status == REQ_STATUS_FLSHD ||
+				 req->status == REQ_STATUS_FLSH))
+			req->t_err = -ERESTARTSYS;
 
-		wake_up(&req->wqueue);
+		wake_up(req->wq);
 	}
 }
 
@@ -275,59 +217,62 @@ static void p9_conn_rpc_cb(struct p9_req *req)
 
 void p9_conn_cancel(struct p9_conn *m, int err)
 {
-	struct p9_req *req, *rtmp;
+	struct p9_req_t *req, *rtmp;
 	LIST_HEAD(cancel_list);
 
 	P9_DPRINTK(P9_DEBUG_ERROR, "mux %p err %d\n", m, err);
 	m->err = err;
-	spin_lock(&m->lock);
+	spin_lock(&m->client->lock);
 	list_for_each_entry_safe(req, rtmp, &m->req_list, req_list) {
+		req->status = REQ_STATUS_ERROR;
+		if (!req->t_err)
+			req->t_err = err;
 		list_move(&req->req_list, &cancel_list);
 	}
 	list_for_each_entry_safe(req, rtmp, &m->unsent_req_list, req_list) {
+		req->status = REQ_STATUS_ERROR;
+		if (!req->t_err)
+			req->t_err = err;
 		list_move(&req->req_list, &cancel_list);
 	}
-	spin_unlock(&m->lock);
+	spin_unlock(&m->client->lock);
 
 	list_for_each_entry_safe(req, rtmp, &cancel_list, req_list) {
 		list_del(&req->req_list);
-		if (!req->err)
-			req->err = err;
-
-		p9_conn_rpc_cb(req);
+		p9_conn_rpc_cb(m->client, req);
 	}
 }
 
-static void process_request(struct p9_conn *m, struct p9_req *req)
+static void process_request(struct p9_conn *m, struct p9_req_t *req)
 {
 	int ecode;
 	struct p9_str *ename;
 
-	if (!req->err && req->rcall->id == P9_RERROR) {
-		ecode = req->rcall->params.rerror.errno;
-		ename = &req->rcall->params.rerror.error;
+	if (!req->t_err && req->rc->id == P9_RERROR) {
+		ecode = req->rc->params.rerror.errno;
+		ename = &req->rc->params.rerror.error;
 
 		P9_DPRINTK(P9_DEBUG_MUX, "Rerror %.*s\n", ename->len,
 								ename->str);
 
 		if (m->client->dotu)
-			req->err = -ecode;
+			req->t_err = -ecode;
 
-		if (!req->err) {
-			req->err = p9_errstr2errno(ename->str, ename->len);
+		if (!req->t_err) {
+			req->t_err = p9_errstr2errno(ename->str, ename->len);
 
 			/* string match failed */
-			if (!req->err) {
-				PRINT_FCALL_ERROR("unknown error", req->rcall);
-				req->err = -ESERVERFAULT;
+			if (!req->t_err) {
+				PRINT_FCALL_ERROR("unknown error", req->rc);
+				req->t_err = -ESERVERFAULT;
 			}
 		}
-	} else if (req->tcall && req->rcall->id != req->tcall->id + 1) {
+	} else if (req->tc && req->rc->id != req->tc->id + 1) {
 		P9_DPRINTK(P9_DEBUG_ERROR,
 				"fcall mismatch: expected %d, got %d\n",
-				req->tcall->id + 1, req->rcall->id);
-		if (!req->err)
-			req->err = -EIO;
+				req->tc->id + 1, req->rc->id);
+		if (!req->t_err)
+			req->t_err = -EIO;
 	}
 }
 
@@ -401,7 +346,7 @@ static void p9_read_work(struct work_struct *work)
 {
 	int n, err;
 	struct p9_conn *m;
-	struct p9_req *req, *rptr, *rreq;
+	struct p9_req_t *req;
 	struct p9_fcall *rcall;
 	char *rbuf;
 
@@ -488,24 +433,19 @@ static void p9_read_work(struct work_struct *work)
 		P9_DPRINTK(P9_DEBUG_MUX, "mux %p fcall id %d tag %d\n", m,
 							rcall->id, rcall->tag);
 
-		req = NULL;
-		spin_lock(&m->lock);
-		list_for_each_entry_safe(rreq, rptr, &m->req_list, req_list) {
-			if (rreq->tag == rcall->tag) {
-				req = rreq;
-				if (req->flush != Flushing)
-					list_del(&req->req_list);
-				break;
-			}
-		}
-		spin_unlock(&m->lock);
+		req = p9_tag_lookup(m->client, rcall->tag);
 
 		if (req) {
-			req->rcall = rcall;
+			if (req->status != REQ_STATUS_FLSH) {
+				list_del(&req->req_list);
+				req->status = REQ_STATUS_RCVD;
+			}
+
+			req->rc = rcall;
 			process_request(m, req);
 
-			if (req->flush != Flushing)
-				p9_conn_rpc_cb(req);
+			if (req->status != REQ_STATUS_FLSH)
+				p9_conn_rpc_cb(m->client, req);
 		} else {
 			if (err >= 0 && rcall->id != P9_RFLUSH)
 				P9_DPRINTK(P9_DEBUG_ERROR,
@@ -580,7 +520,7 @@ static void p9_write_work(struct work_struct *work)
 {
 	int n, err;
 	struct p9_conn *m;
-	struct p9_req *req;
+	struct p9_req_t *req;
 
 	m = container_of(work, struct p9_conn, wq);
 
@@ -595,18 +535,16 @@ static void p9_write_work(struct work_struct *work)
 			return;
 		}
 
-		spin_lock(&m->lock);
-again:
-		req = list_entry(m->unsent_req_list.next, struct p9_req,
+		spin_lock(&m->client->lock);
+		req = list_entry(m->unsent_req_list.next, struct p9_req_t,
 			       req_list);
+		req->status = REQ_STATUS_SENT;
 		list_move_tail(&req->req_list, &m->req_list);
-		if (req->err == ERREQFLUSH)
-			goto again;
 
-		m->wbuf = req->tcall->sdata;
-		m->wsize = req->tcall->size;
+		m->wbuf = req->tc->sdata;
+		m->wsize = req->tc->size;
 		m->wpos = 0;
-		spin_unlock(&m->lock);
+		spin_unlock(&m->client->lock);
 	}
 
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p pos %d size %d\n", m, m->wpos,
@@ -725,7 +663,6 @@ static struct p9_conn *p9_conn_create(struct p9_client *client)
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_init(&m->lock);
 	INIT_LIST_HEAD(&m->mux_list);
 	m->client = client;
 
@@ -812,30 +749,27 @@ static void p9_poll_mux(struct p9_conn *m)
  *
  */
 
-static struct p9_req *p9_send_request(struct p9_conn *m, struct p9_fcall *tc)
+static struct p9_req_t *p9_send_request(struct p9_conn *m, struct p9_fcall *tc)
 {
+	int tag;
 	int n;
-	struct p9_req *req;
+	struct p9_req_t *req;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p task %p tcall %p id %d\n", m, current,
 		tc, tc->id);
 	if (m->err < 0)
 		return ERR_PTR(m->err);
 
-	req = kmalloc(sizeof(struct p9_req), GFP_KERNEL);
-	if (!req)
-		return ERR_PTR(-ENOMEM);
-
-	n = P9_NOTAG;
+	tag = P9_NOTAG;
 	if (tc->id != P9_TVERSION) {
-		n = p9_idpool_get(m->client->tagpool);
-		if (n < 0) {
-			kfree(req);
+		tag = p9_idpool_get(m->client->tagpool);
+		if (tag < 0)
 			return ERR_PTR(-ENOMEM);
-		}
 	}
 
-	p9_set_tag(tc, n);
+	p9_set_tag(tc, tag);
+
+	req = p9_tag_alloc(m->client, tag);
 
 #ifdef CONFIG_NET_9P_DEBUG
 	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
@@ -846,18 +780,15 @@ static struct p9_req *p9_send_request(struct p9_conn *m, struct p9_fcall *tc)
 	}
 #endif
 
-	spin_lock_init(&req->lock);
-	req->m = m;
-	init_waitqueue_head(&req->wqueue);
-	req->tag = n;
-	req->tcall = tc;
-	req->rcall = NULL;
-	req->err = 0;
-	req->flush = None;
+	req->tag = tag;
+	req->tc = tc;
+	req->rc = NULL;
+	req->t_err = 0;
+	req->status = REQ_STATUS_UNSENT;
 
-	spin_lock(&m->lock);
+	spin_lock(&m->client->lock);
 	list_add_tail(&req->req_list, &m->unsent_req_list);
-	spin_unlock(&m->lock);
+	spin_unlock(&m->client->lock);
 
 	if (test_and_clear_bit(Wpending, &m->wsched))
 		n = POLLOUT;
@@ -871,39 +802,36 @@ static struct p9_req *p9_send_request(struct p9_conn *m, struct p9_fcall *tc)
 }
 
 static int
-p9_mux_flush_request(struct p9_conn *m, struct p9_req *req)
+p9_mux_flush_request(struct p9_conn *m, struct p9_req_t *req)
 {
 	struct p9_fcall *fc;
-	struct p9_req *rreq, *rptr;
+	struct p9_req_t *rreq, *rptr;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p req %p tag %d\n", m, req, req->tag);
 
 	/* if a response was received for a request, do nothing */
-	spin_lock(&req->lock);
-	if (req->rcall || req->err) {
-		spin_unlock(&req->lock);
+	if (req->rc || req->t_err) {
 		P9_DPRINTK(P9_DEBUG_MUX,
 			"mux %p req %p response already received\n", m, req);
 		return 0;
 	}
 
-	req->flush = Flushing;
-	spin_unlock(&req->lock);
+	req->status = REQ_STATUS_FLSH;
 
-	spin_lock(&m->lock);
+	spin_lock(&m->client->lock);
 	/* if the request is not sent yet, just remove it from the list */
 	list_for_each_entry_safe(rreq, rptr, &m->unsent_req_list, req_list) {
 		if (rreq->tag == req->tag) {
 			P9_DPRINTK(P9_DEBUG_MUX,
 			   "mux %p req %p request is not sent yet\n", m, req);
 			list_del(&rreq->req_list);
-			req->flush = Flushed;
-			spin_unlock(&m->lock);
-			p9_conn_rpc_cb(req);
+			req->status = REQ_STATUS_FLSHD;
+			spin_unlock(&m->client->lock);
+			p9_conn_rpc_cb(m->client, req);
 			return 0;
 		}
 	}
-	spin_unlock(&m->lock);
+	spin_unlock(&m->client->lock);
 
 	clear_thread_flag(TIF_SIGPENDING);
 	fc = p9_create_tflush(req->tag);
@@ -927,7 +855,7 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 	struct p9_conn *m = p->conn;
 	int err, sigpending;
 	unsigned long flags;
-	struct p9_req *req;
+	struct p9_req_t *req;
 
 	if (rc)
 		*rc = NULL;
@@ -945,10 +873,10 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 		return err;
 	}
 
-	err = wait_event_interruptible(req->wqueue, req->rcall != NULL ||
-								req->err < 0);
-	if (req->err < 0)
-		err = req->err;
+	err = wait_event_interruptible(*req->wq, req->rc != NULL ||
+								req->t_err < 0);
+	if (req->t_err < 0)
+		err = req->t_err;
 
 	if (err == -ERESTARTSYS && client->status == Connected
 							&& m->err == 0) {
@@ -956,9 +884,9 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 			/* wait until we get response of the flush message */
 			do {
 				clear_thread_flag(TIF_SIGPENDING);
-				err = wait_event_interruptible(req->wqueue,
-					req->rcall || req->err);
-			} while (!req->rcall && !req->err &&
+				err = wait_event_interruptible(*req->wq,
+					req->rc || req->t_err);
+			} while (!req->rc && !req->t_err &&
 					err == -ERESTARTSYS &&
 					client->status == Connected && !m->err);
 
@@ -974,11 +902,11 @@ p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 	}
 
 	if (rc)
-		*rc = req->rcall;
+		*rc = req->rc;
 	else
-		kfree(req->rcall);
+		kfree(req->rc);
 
-	p9_mux_free_request(m, req);
+	p9_free_req(client, req);
 	if (err > 0)
 		err = -EIO;
 

@@ -247,10 +247,7 @@ p9_virtio_rpc(struct p9_client *c, struct p9_fcall *tc, struct p9_fcall **rc)
 	}
 #endif
 
-	if (n != P9_NOTAG && p9_idpool_check(n, c->tagpool))
-		p9_idpool_put(n, c->tagpool);
-
-	req->status = REQ_STATUS_IDLE;
+	p9_free_req(c, req);
 
 	return 0;
 }

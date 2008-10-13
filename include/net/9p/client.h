@@ -49,11 +49,12 @@ enum p9_trans_status {
  * enum p9_req_status_t - virtio request status
  * @REQ_STATUS_IDLE: request slot unused
  * @REQ_STATUS_ALLOC: request has been allocated but not sent
+ * @REQ_STATUS_UNSENT: request waiting to be sent
  * @REQ_STATUS_SENT: request sent to server
  * @REQ_STATUS_FLSH: a flush has been sent for this request
  * @REQ_STATUS_RCVD: response received from server
  * @REQ_STATUS_FLSHD: request has been flushed
- * @REQ_STATUS_ERR: request encountered an error on the client side
+ * @REQ_STATUS_ERROR: request encountered an error on the client side
  *
  * The @REQ_STATUS_IDLE state is used to mark a request slot as unused
  * but use is actually tracked by the idpool structure which handles tag
@@ -64,6 +65,7 @@ enum p9_trans_status {
 enum p9_req_status_t {
 	REQ_STATUS_IDLE,
 	REQ_STATUS_ALLOC,
+	REQ_STATUS_UNSENT,
 	REQ_STATUS_SENT,
 	REQ_STATUS_FLSH,
 	REQ_STATUS_RCVD,
@@ -79,6 +81,8 @@ enum p9_req_status_t {
  * @tc: the request fcall structure
  * @rc: the response fcall structure
  * @aux: transport specific data (provided for trans_fd migration)
+ * @tag: tag on request (BUG: redundant)
+ * @req_list: link for higher level objects to chain requests
  *
  * Transport use an array to track outstanding requests
  * instead of a list.  While this may incurr overhead during initial
@@ -99,6 +103,9 @@ struct p9_req_t {
 	struct p9_fcall *rc;
 	u16 flush_tag;
 	void *aux;
+
+	int tag;
+	struct list_head req_list;
 };
 
 /**
@@ -207,5 +214,6 @@ struct p9_stat *p9_client_dirread(struct p9_fid *fid, u64 offset);
 
 struct p9_req_t *p9_tag_alloc(struct p9_client *, u16);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
+void p9_free_req(struct p9_client *, struct p9_req_t *);
 
 #endif /* NET_9P_CLIENT_H */
