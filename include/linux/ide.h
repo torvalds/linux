@@ -502,6 +502,7 @@ enum {
 	IDE_DFLAG_NOWERR		= (1 << 24),
 	/* retrying in PIO */
 	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 25),
+	IDE_DFLAG_LBA			= (1 << 26),
 };
 
 struct ide_drive_s {

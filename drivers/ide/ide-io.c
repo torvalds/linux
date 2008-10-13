@@ -383,7 +383,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 	} else if (stat & ATA_ERR) {
 		/* err has different meaning on cdrom and tape */
 		if (err == ATA_ABORTED) {
-			if (drive->select.b.lba &&
+			if ((drive->dev_flags & IDE_DFLAG_LBA) &&
 			    /* some newer drives don't support ATA_CMD_INIT_DEV_PARAMS */
 			    hwif->tp_ops->read_status(hwif) == ATA_CMD_INIT_DEV_PARAMS)
 				return ide_stopped;
@@ -513,7 +513,7 @@ static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 	tf->lbal    = drive->sect;
 	tf->lbam    = drive->cyl;
 	tf->lbah    = drive->cyl >> 8;
-	tf->device  = ((drive->head - 1) | drive->select.all) & ~ATA_LBA;
+	tf->device  = (drive->head - 1) | drive->select.all;
 	tf->command = ATA_CMD_INIT_DEV_PARAMS;
 }
 

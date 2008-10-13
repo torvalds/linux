@@ -162,7 +162,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	memset(&task, 0, sizeof(task));
 	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	if (drive->select.b.lba) {
+	if (drive->dev_flags & IDE_DFLAG_LBA) {
 		if (lba48) {
 			pr_debug("%s: LBA=0x%012llx\n", drive->name,
 					(unsigned long long)block);
@@ -187,6 +187,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 			tf->lbah   = block >>= 8;
 			tf->device = (block >> 8) & 0xf;
 		}
+
+		tf->device |= ATA_LBA;
 	} else {
 		unsigned int sect, head, cyl, track;
 
@@ -384,27 +386,31 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 static void init_idedisk_capacity(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
-	/*
-	 * If this drive supports the Host Protected Area feature set,
-	 * then we may need to change our opinion about the drive's capacity.
-	 */
-	int hpa = ata_id_hpa_enabled(id);
+	int lba;
 
 	if (ata_id_lba48_enabled(id)) {
 		/* drive speaks 48-bit LBA */
-		drive->select.b.lba = 1;
+		lba = 1;
 		drive->capacity64 = ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
-		if (hpa)
-			idedisk_check_hpa(drive);
 	} else if (ata_id_has_lba(id) && ata_id_is_lba_capacity_ok(id)) {
 		/* drive speaks 28-bit LBA */
-		drive->select.b.lba = 1;
+		lba = 1;
 		drive->capacity64 = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
-		if (hpa)
-			idedisk_check_hpa(drive);
 	} else {
 		/* drive speaks boring old 28-bit CHS */
+		lba = 0;
 		drive->capacity64 = drive->cyl * drive->head * drive->sect;
+	}
+
+	if (lba) {
+		drive->dev_flags |= IDE_DFLAG_LBA;
+
+		/*
+		* If this device supports the Host Protected Area feature set,
+		* then we may need to change our opinion about its capacity.
+		*/
+		if (ata_id_hpa_enabled(id))
+			idedisk_check_hpa(drive);
 	}
 }
 
@@ -1110,7 +1116,8 @@ static int ide_disk_probe(ide_drive_t *drive)
 	drive->driver_data = idkp;
 
 	idedisk_setup(drive);
-	if ((!drive->head || drive->head > 16) && !drive->select.b.lba) {
+	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 &&
+	    (drive->head == 0 || drive->head > 16)) {
 		printk(KERN_ERR "%s: INVALID GEOMETRY: %d PHYSICAL HEADS?\n",
 			drive->name, drive->head);
 		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
