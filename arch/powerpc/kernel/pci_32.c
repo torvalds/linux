@@ -53,6 +53,12 @@ LIST_HEAD(hose_list);
 
 static int pci_bus_count;
 
+/* This will remain NULL for now, until isa-bridge.c is made common
+ * to both 32-bit and 64-bit.
+ */
+struct pci_dev *isa_bridge_pcidev;
+EXPORT_SYMBOL_GPL(isa_bridge_pcidev);
+
 static void
 fixup_hide_host_resource_fsl(struct pci_dev *dev)
 {
