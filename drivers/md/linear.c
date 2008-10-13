@@ -371,29 +371,6 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 static void linear_status (struct seq_file *seq, mddev_t *mddev)
 {
 
-#undef MD_DEBUG
-#ifdef MD_DEBUG
-	int j;
-	linear_conf_t *conf = mddev_to_conf(mddev);
-	sector_t s = 0;
-  
-	seq_printf(seq, "      ");
-	for (j = 0; j < mddev->raid_disks; j++)
-	{
-		char b[BDEVNAME_SIZE];
-		s += conf->smallest_size;
-		seq_printf(seq, "[%s",
-			   bdevname(conf->hash_table[j][0].rdev->bdev,b));
-
-		while (s > conf->hash_table[j][0].offset +
-		           conf->hash_table[j][0].size)
-			seq_printf(seq, "/%s] ",
-				   bdevname(conf->hash_table[j][1].rdev->bdev,b));
-		else
-			seq_printf(seq, "] ");
-	}
-	seq_printf(seq, "\n");
-#endif
 	seq_printf(seq, " %dk rounding", mddev->chunk_size/1024);
 }
 
