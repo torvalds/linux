@@ -430,9 +430,6 @@ pmac_ide_selectproc(ide_drive_t *drive)
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
 
-	if (pmif == NULL)
-		return;
-
 	if (drive->dn & 1)
 		writel(pmif->timings[1], PMAC_IDE_REG(IDE_TIMING_CONFIG));
 	else
@@ -451,9 +448,6 @@ pmac_ide_kauai_selectproc(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-
-	if (pmif == NULL)
-		return;
 
 	if (drive->dn & 1) {
 		writel(pmif->timings[1], PMAC_IDE_REG(IDE_KAUAI_PIO_CONFIG));
@@ -474,9 +468,6 @@ pmac_ide_do_update_timings(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-
-	if (pmif == NULL)
-		return;
 
 	if (pmif->kind == controller_sh_ata6 ||
 	    pmif->kind == controller_un_ata6 ||
@@ -524,9 +515,6 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	unsigned accessTime, recTime;
 	unsigned int cycle_time;
 
-	if (pmif == NULL)
-		return;
-		
 	/* which drive is it ? */
 	timings = &pmif->timings[drive->dn & 1];
 	t = *timings;
@@ -1558,11 +1546,7 @@ pmac_ide_dma_setup(ide_drive_t *drive)
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
 	struct request *rq = HWGROUP(drive)->rq;
-	u8 unit = drive->dn & 1, ata4;
-
-	if (pmif == NULL)
-		return 1;
-	ata4 = (pmif->kind == controller_kl_ata4);	
+	u8 unit = drive->dn & 1, ata4 = (pmif->kind == controller_kl_ata4);
 
 	if (!pmac_ide_build_dmatable(drive, rq)) {
 		ide_map_sg(drive, rq);
@@ -1616,12 +1600,8 @@ pmac_ide_dma_end (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-	volatile struct dbdma_regs __iomem *dma;
+	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	u32 dstat;
-	
-	if (pmif == NULL)
-		return 0;
-	dma = pmif->dma_regs;
 
 	drive->waiting_for_dma = 0;
 	dstat = readl(&dma->status);
@@ -1646,12 +1626,8 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-	volatile struct dbdma_regs __iomem *dma;
+	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	unsigned long status, timeout;
-
-	if (pmif == NULL)
-		return 0;
-	dma = pmif->dma_regs;
 
 	/* We have to things to deal with here:
 	 * 
@@ -1705,14 +1681,9 @@ pmac_ide_dma_lost_irq (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-	volatile struct dbdma_regs __iomem *dma;
-	unsigned long status;
+	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
+	unsigned long status = readl(&dma->status);
 
-	if (pmif == NULL)
-		return;
-	dma = pmif->dma_regs;
-
-	status = readl(&dma->status);
 	printk(KERN_ERR "ide-pmac lost interrupt, dma status: %lx\n", status);
 }
 
