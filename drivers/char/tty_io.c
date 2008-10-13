@@ -786,12 +786,12 @@ void disassociate_ctty(int on_exit)
 	tty = get_current_tty();
 	if (tty) {
 		tty_pgrp = get_pid(tty->pgrp);
-		lock_kernel();
 		mutex_unlock(&tty_mutex);
-		/* XXX: here we race, there is nothing protecting tty */
+		lock_kernel();
 		if (on_exit && tty->driver->type != TTY_DRIVER_TYPE_PTY)
 			tty_vhangup(tty);
 		unlock_kernel();
+		tty_kref_put(tty);
 	} else if (on_exit) {
 		struct pid *old_pgrp;
 		spin_lock_irq(&current->sighand->siglock);
@@ -819,7 +819,6 @@ void disassociate_ctty(int on_exit)
 	spin_unlock_irq(&current->sighand->siglock);
 
 	mutex_lock(&tty_mutex);
-	/* It is possible that do_tty_hangup has free'd this tty */
 	tty = get_current_tty();
 	if (tty) {
 		unsigned long flags;
@@ -829,6 +828,7 @@ void disassociate_ctty(int on_exit)
 		tty->session = NULL;
 		tty->pgrp = NULL;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+		tty_kref_put(tty);
 	} else {
 #ifdef TTY_DEBUG_HANGUP
 		printk(KERN_DEBUG "error attempted to write to tty [0x%p]"
@@ -1806,6 +1806,8 @@ retry_open:
 		index = tty->index;
 		filp->f_flags |= O_NONBLOCK; /* Don't let /dev/tty block */
 		/* noctty = 1; */
+		/* FIXME: Should we take a driver reference ? */
+		tty_kref_put(tty);
 		goto got_driver;
 	}
 #ifdef CONFIG_VT
@@ -3135,7 +3137,7 @@ struct tty_struct *get_current_tty(void)
 {
 	struct tty_struct *tty;
 	WARN_ON_ONCE(!mutex_is_locked(&tty_mutex));
-	tty = current->signal->tty;
+	tty = tty_kref_get(current->signal->tty);
 	/*
 	 * session->tty can be changed/cleared from under us, make sure we
 	 * issue the load. The obtained pointer, when not NULL, is valid as
