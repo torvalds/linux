@@ -216,12 +216,13 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 
 	data = urb->transfer_buffer;
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 
 	if (!port->read_urb) {
 		dbg("URB KILLED !!!");
@@ -262,10 +263,11 @@ static void mos7720_bulk_out_data_callback(struct urb *urb)
 
 	dbg("Entering .........");
 
-	tty = mos7720_port->port->port.tty;
+	tty = tty_port_tty_get(&mos7720_port->port->port);
 
 	if (tty && mos7720_port->open)
 		tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 /*
@@ -1267,29 +1269,6 @@ static int get_lsr_info(struct tty_struct *tty,
 	return 0;
 }
 
-/*
- * get_number_bytes_avail - get number of bytes available
- *
- * Purpose: Let user call ioctl to get the count of number of bytes available.
- */
-static int get_number_bytes_avail(struct moschip_port *mos7720_port,
-				  unsigned int __user *value)
-{
-	unsigned int result = 0;
-	struct tty_struct *tty = mos7720_port->port->port.tty;
-
-	if (!tty)
-		return -ENOIOCTLCMD;
-
-	result = tty->read_cnt;
-
-	dbg("%s(%d) = %d", __func__,  mos7720_port->port->number, result);
-	if (copy_to_user(value, &result, sizeof(int)))
-		return -EFAULT;
-
-	return -ENOIOCTLCMD;
-}
-
 static int set_modem_info(struct moschip_port *mos7720_port, unsigned int cmd,
 			  unsigned int __user *value)
 {
@@ -1409,13 +1388,6 @@ static int mos7720_ioctl(struct tty_struct *tty, struct file *file,
 	dbg("%s - port %d, cmd = 0x%x", __func__, port->number, cmd);
 
 	switch (cmd) {
-	case TIOCINQ:
-		/* return number of bytes available */
-		dbg("%s (%d) TIOCINQ", __func__,  port->number);
-		return get_number_bytes_avail(mos7720_port,
-					      (unsigned int __user *)arg);
-		break;
-
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __func__,  port->number);
 		return get_lsr_info(tty, mos7720_port,

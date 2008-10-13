@@ -440,14 +440,14 @@ static void sierra_indat_callback(struct urb *urb)
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
 	} else {
-		tty = port->port.tty;
 		if (urb->actual_length) {
+		tty = tty_port_tty_get(&port->port);
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
-		} else {
+			tty_kref_put(tty);
+		} else
 			dbg("%s: empty read urb received", __func__);
-		}
 
 		/* Resubmit urb so we continue receiving */
 		if (port->port.count && status != -ESHUTDOWN) {
@@ -485,6 +485,7 @@ static void sierra_instat_callback(struct urb *urb)
 			unsigned char signals = *((unsigned char *)
 					urb->transfer_buffer +
 					sizeof(struct usb_ctrlrequest));
+			struct tty_struct *tty;
 
 			dbg("%s: signal x%x", __func__, signals);
 
@@ -494,9 +495,11 @@ static void sierra_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
+			tty = tty_port_tty_get(&port->port);
+			if (tty && !C_CLOCAL(tty) &&
 					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->port.tty);
+				tty_hangup(tty);
+			tty_kref_put(tty);
 		} else {
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);
@@ -616,8 +619,7 @@ static void sierra_close(struct tty_struct *tty,
 	}
 
 	usb_kill_urb(port->interrupt_in_urb);
-
-	port->port.tty = NULL;	/* FIXME */
+	tty_port_tty_set(&port->port, NULL);
 }
 
 static int sierra_startup(struct usb_serial *serial)

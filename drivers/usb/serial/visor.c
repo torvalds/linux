@@ -499,7 +499,7 @@ static void visor_read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct tty_struct *tty;
 	int result;
-	int available_room;
+	int available_room = 0;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -512,13 +512,17 @@ static void visor_read_bulk_callback(struct urb *urb)
 	usb_serial_debug_data(debug, &port->dev, __func__,
 						urb->actual_length, data);
 
-	tty = port->port.tty;
-	if (tty && urb->actual_length) {
-		available_room = tty_buffer_request_room(tty,
+	if (urb->actual_length) {
+		tty = tty_port_tty_get(&port->port);
+		if (tty) {
+			available_room = tty_buffer_request_room(tty,
 							urb->actual_length);
-		if (available_room) {
-			tty_insert_flip_string(tty, data, available_room);
-			tty_flip_buffer_push(tty);
+			if (available_room) {
+				tty_insert_flip_string(tty, data,
+							available_room);
+				tty_flip_buffer_push(tty);
+			}
+			tty_kref_put(tty);
 		}
 		spin_lock(&priv->lock);
 		priv->bytes_in += available_room;
