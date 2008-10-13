@@ -3912,7 +3912,10 @@ static int mxl5005s_writeregs(struct dvb_frontend *fe, u8 *addrtable,
 
 static int mxl5005s_init(struct dvb_frontend *fe)
 {
+	struct mxl5005s_state *state = fe->tuner_priv;
+
 	dprintk(1, "%s()\n", __func__);
+	state->current_mode = MXL_QAM;
 	return mxl5005s_reconfigure(fe, MXL_QAM, MXL5005S_BANDWIDTH_6MHZ);
 }
 
@@ -4094,7 +4097,6 @@ struct dvb_frontend *mxl5005s_attach(struct dvb_frontend *fe,
 	state->frontend = fe;
 	state->config = config;
 	state->i2c = i2c;
-	state->current_mode = MXL_QAM;
 
 	printk(KERN_INFO "MXL5005S: Attached at address 0x%02x\n",
 		config->i2c_address);
