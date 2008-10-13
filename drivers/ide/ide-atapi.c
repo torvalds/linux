@@ -545,7 +545,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
 	u16 bcount;
-	u8 dma = 0, scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
+	u8 scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
 
 	/* We haven't transferred any data yet */
 	pc->xferred = 0;
@@ -566,15 +566,16 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
 	    (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
 		if (scsi)
 			hwif->sg_mapped = 1;
-		dma = !hwif->dma_ops->dma_setup(drive);
+		drive->dma = !hwif->dma_ops->dma_setup(drive);
 		if (scsi)
 			hwif->sg_mapped = 0;
 	}
 
-	if (!dma)
+	if (!drive->dma)
 		pc->flags &= ~PC_FLAG_DMA_OK;
 
-	ide_pktcmd_tf_load(drive, scsi ? 0 : IDE_TFLAG_OUT_DEVICE, bcount, dma);
+	ide_pktcmd_tf_load(drive, scsi ? 0 : IDE_TFLAG_OUT_DEVICE, bcount,
+			   drive->dma);
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
