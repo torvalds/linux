@@ -253,6 +253,7 @@ struct tty_operations {
 
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
+	struct kref kref;	/* Reference management */
 	struct cdev cdev;
 	struct module	*owner;
 	const char	*driver_name;
@@ -266,7 +267,6 @@ struct tty_driver {
 	short	subtype;	/* subtype of tty driver */
 	struct ktermios init_termios; /* Initial termios */
 	int	flags;		/* tty driver flags */
-	int	refcount;	/* for loadable tty drivers */
 	struct proc_dir_entry *proc_entry; /* /proc fs entry */
 	struct tty_driver *other; /* only used for the PTY driver */
 
@@ -288,11 +288,18 @@ struct tty_driver {
 
 extern struct list_head tty_drivers;
 
-struct tty_driver *alloc_tty_driver(int lines);
-void put_tty_driver(struct tty_driver *driver);
-void tty_set_operations(struct tty_driver *driver,
+extern struct tty_driver *alloc_tty_driver(int lines);
+extern void put_tty_driver(struct tty_driver *driver);
+extern void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op);
 extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
+
+extern void tty_driver_kref_put(struct tty_driver *driver);
+extern inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
+{
+	kref_get(&d->kref);
+	return d;
+}
 
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402

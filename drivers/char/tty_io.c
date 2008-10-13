@@ -276,7 +276,7 @@ static struct tty_driver *get_tty_driver(dev_t device, int *index)
 		if (device < base || device >= base + p->num)
 			continue;
 		*index = device - base;
-		return p;
+		return tty_driver_kref_get(p);
 	}
 	return NULL;
 }
@@ -320,7 +320,7 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 
 		if (tty_line >= 0 && tty_line <= p->num && p->ops &&
 		    p->ops->poll_init && !p->ops->poll_init(p, tty_line, str)) {
-			res = p;
+			res = tty_driver_kref_get(p);
 			*line = tty_line;
 			break;
 		}
@@ -1410,7 +1410,7 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 			*o_ltp_loc = o_ltp;
 		o_tty->termios = *o_tp_loc;
 		o_tty->termios_locked = *o_ltp_loc;
-		driver->other->refcount++;
+		tty_driver_kref_get(driver->other);
 		if (driver->subtype == PTY_TYPE_MASTER)
 			o_tty->count++;
 
@@ -1438,7 +1438,7 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 	/* Compatibility until drivers always set this */
 	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
 	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
-	driver->refcount++;
+	tty_driver_kref_get(driver);
 	tty->count++;
 
 	/*
@@ -1530,8 +1530,7 @@ static void release_one_tty(struct kref *kref)
 	else
 		tty_shutdown(tty);
 	tty->magic = 0;
-	/* FIXME: locking on tty->driver->refcount */
-	tty->driver->refcount--;
+	tty_driver_kref_put(driver);
 	module_put(driver->owner);
 
 	file_list_lock();
@@ -1854,7 +1853,7 @@ retry_open:
 			mutex_unlock(&tty_mutex);
 			return -ENXIO;
 		}
-		driver = tty->driver;
+		driver = tty_driver_kref_get(tty->driver);
 		index = tty->index;
 		filp->f_flags |= O_NONBLOCK; /* Don't let /dev/tty block */
 		/* noctty = 1; */
@@ -1865,14 +1864,14 @@ retry_open:
 #ifdef CONFIG_VT
 	if (device == MKDEV(TTY_MAJOR, 0)) {
 		extern struct tty_driver *console_driver;
-		driver = console_driver;
+		driver = tty_driver_kref_get(console_driver);
 		index = fg_console;
 		noctty = 1;
 		goto got_driver;
 	}
 #endif
 	if (device == MKDEV(TTYAUX_MAJOR, 1)) {
-		driver = console_device(&index);
+		driver = tty_driver_kref_get(console_device(&index));
 		if (driver) {
 			/* Don't let /dev/console block */
 			filp->f_flags |= O_NONBLOCK;
@@ -1891,6 +1890,7 @@ retry_open:
 got_driver:
 	retval = tty_init_dev(driver, index, &tty, 0);
 	mutex_unlock(&tty_mutex);
+	tty_driver_kref_put(driver);
 	if (retval)
 		return retval;
 
@@ -2866,7 +2866,6 @@ int tty_put_char(struct tty_struct *tty, unsigned char ch)
 		return tty->ops->put_char(tty, ch);
 	return tty->ops->write(tty, &ch, 1);
 }
-
 EXPORT_SYMBOL_GPL(tty_put_char);
 
 struct class *tty_class;
@@ -2909,6 +2908,7 @@ struct device *tty_register_device(struct tty_driver *driver, unsigned index,
 
 	return device_create_drvdata(tty_class, device, dev, NULL, name);
 }
+EXPORT_SYMBOL(tty_register_device);
 
 /**
  * 	tty_unregister_device - unregister a tty device
@@ -2926,8 +2926,6 @@ void tty_unregister_device(struct tty_driver *driver, unsigned index)
 	device_destroy(tty_class,
 		MKDEV(driver->major, driver->minor_start) + index);
 }
-
-EXPORT_SYMBOL(tty_register_device);
 EXPORT_SYMBOL(tty_unregister_device);
 
 struct tty_driver *alloc_tty_driver(int lines)
@@ -2936,27 +2934,70 @@ struct tty_driver *alloc_tty_driver(int lines)
 
 	driver = kzalloc(sizeof(struct tty_driver), GFP_KERNEL);
 	if (driver) {
+		kref_init(&driver->kref);
 		driver->magic = TTY_DRIVER_MAGIC;
 		driver->num = lines;
 		/* later we'll move allocation of tables here */
 	}
 	return driver;
 }
+EXPORT_SYMBOL(alloc_tty_driver);
 
-void put_tty_driver(struct tty_driver *driver)
+static void destruct_tty_driver(struct kref *kref)
 {
+	struct tty_driver *driver = container_of(kref, struct tty_driver, kref);
+	int i;
+	struct ktermios *tp;
+	void *p;
+
+	if (driver->flags & TTY_DRIVER_INSTALLED) {
+		/*
+		 * Free the termios and termios_locked structures because
+		 * we don't want to get memory leaks when modular tty
+		 * drivers are removed from the kernel.
+		 */
+		for (i = 0; i < driver->num; i++) {
+			tp = driver->termios[i];
+			if (tp) {
+				driver->termios[i] = NULL;
+				kfree(tp);
+			}
+			tp = driver->termios_locked[i];
+			if (tp) {
+				driver->termios_locked[i] = NULL;
+				kfree(tp);
+			}
+			if (!(driver->flags & TTY_DRIVER_DYNAMIC_DEV))
+				tty_unregister_device(driver, i);
+		}
+		p = driver->ttys;
+		proc_tty_unregister_driver(driver);
+		driver->ttys = NULL;
+		driver->termios = driver->termios_locked = NULL;
+		kfree(p);
+		cdev_del(&driver->cdev);
+	}
 	kfree(driver);
 }
+
+void tty_driver_kref_put(struct tty_driver *driver)
+{
+	kref_put(&driver->kref, destruct_tty_driver);
+}
+EXPORT_SYMBOL(tty_driver_kref_put);
 
 void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op)
 {
 	driver->ops = op;
 };
-
-EXPORT_SYMBOL(alloc_tty_driver);
-EXPORT_SYMBOL(put_tty_driver);
 EXPORT_SYMBOL(tty_set_operations);
+
+void put_tty_driver(struct tty_driver *d)
+{
+	tty_driver_kref_put(d);
+}
+EXPORT_SYMBOL(put_tty_driver);
 
 /*
  * Called by a tty driver to register itself.
@@ -2967,9 +3008,6 @@ int tty_register_driver(struct tty_driver *driver)
 	int i;
 	dev_t dev;
 	void **p = NULL;
-
-	if (driver->flags & TTY_DRIVER_INSTALLED)
-		return 0;
 
 	if (!(driver->flags & TTY_DRIVER_DEVPTS_MEM) && driver->num) {
 		p = kzalloc(driver->num * 3 * sizeof(void *), GFP_KERNEL);
@@ -3024,6 +3062,7 @@ int tty_register_driver(struct tty_driver *driver)
 		    tty_register_device(driver, i, NULL);
 	}
 	proc_tty_register_driver(driver);
+	driver->flags |= TTY_DRIVER_INSTALLED;
 	return 0;
 }
 
@@ -3034,46 +3073,19 @@ EXPORT_SYMBOL(tty_register_driver);
  */
 int tty_unregister_driver(struct tty_driver *driver)
 {
-	int i;
-	struct ktermios *tp;
-	void *p;
-
+#if 0
+	/* FIXME */
 	if (driver->refcount)
 		return -EBUSY;
-
+#endif
 	unregister_chrdev_region(MKDEV(driver->major, driver->minor_start),
 				driver->num);
 	mutex_lock(&tty_mutex);
 	list_del(&driver->tty_drivers);
 	mutex_unlock(&tty_mutex);
-
-	/*
-	 * Free the termios and termios_locked structures because
-	 * we don't want to get memory leaks when modular tty
-	 * drivers are removed from the kernel.
-	 */
-	for (i = 0; i < driver->num; i++) {
-		tp = driver->termios[i];
-		if (tp) {
-			driver->termios[i] = NULL;
-			kfree(tp);
-		}
-		tp = driver->termios_locked[i];
-		if (tp) {
-			driver->termios_locked[i] = NULL;
-			kfree(tp);
-		}
-		if (!(driver->flags & TTY_DRIVER_DYNAMIC_DEV))
-			tty_unregister_device(driver, i);
-	}
-	p = driver->ttys;
-	proc_tty_unregister_driver(driver);
-	driver->ttys = NULL;
-	driver->termios = driver->termios_locked = NULL;
-	kfree(p);
-	cdev_del(&driver->cdev);
 	return 0;
 }
+
 EXPORT_SYMBOL(tty_unregister_driver);
 
 dev_t tty_devnum(struct tty_struct *tty)

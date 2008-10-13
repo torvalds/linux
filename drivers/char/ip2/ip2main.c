@@ -264,8 +264,8 @@ static int tracewrap;
 /**********/
 
 #if defined(MODULE) && defined(IP2DEBUG_OPEN)
-#define DBG_CNT(s) printk(KERN_DEBUG "(%s): [%x] refc=%d, ttyc=%d, modc=%x -> %s\n", \
-		    tty->name,(pCh->flags),ip2_tty_driver->refcount, \
+#define DBG_CNT(s) printk(KERN_DEBUG "(%s): [%x] ttyc=%d, modc=%x -> %s\n", \
+		    tty->name,(pCh->flags), \
 		    tty->count,/*GET_USE_COUNT(module)*/0,s)
 #else
 #define DBG_CNT(s)
@@ -2893,7 +2893,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 	case 13:
 		switch ( cmd ) {
 		case 64:	/* Driver - ip2stat */
-			rc = put_user(ip2_tty_driver->refcount, pIndex++ );
+			rc = put_user(-1, pIndex++ );
 			rc = put_user(irq_counter, pIndex++  );
 			rc = put_user(bh_counter, pIndex++  );
 			break;
