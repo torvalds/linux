@@ -33,14 +33,13 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
 	dev_info_t *hash;
 	linear_conf_t *conf = mddev_to_conf(mddev);
-	sector_t block = sector >> 1;
 
 	/*
 	 * sector_div(a,b) returns the remainer and sets a to a/b
 	 */
-	block >>= conf->preshift;
-	(void)sector_div(block, conf->hash_spacing);
-	hash = conf->hash_table[block];
+	sector >>= conf->sector_shift;
+	(void)sector_div(sector, conf->spacing);
+	hash = conf->hash_table[sector];
 
 	while (sector >= hash->num_sectors + hash->start_sector)
 		hash++;
@@ -164,25 +163,25 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	 * that is larger than min_sectors and use the size of that as
 	 * the actual spacing
 	 */
-	conf->hash_spacing = conf->array_sectors / 2;
+	conf->spacing = conf->array_sectors;
 	for (i=0; i < cnt-1 ; i++) {
 		sector_t tmp = 0;
 		int j;
 		for (j = i; j < cnt - 1 && tmp < min_sectors; j++)
 			tmp += conf->disks[j].num_sectors;
-		if (tmp >= min_sectors && tmp < conf->hash_spacing * 2)
-			conf->hash_spacing = tmp / 2;
+		if (tmp >= min_sectors && tmp < conf->spacing)
+			conf->spacing = tmp;
 	}
 
-	/* hash_spacing may be too large for sector_div to work with,
+	/* spacing may be too large for sector_div to work with,
 	 * so we might need to pre-shift
 	 */
-	conf->preshift = 0;
+	conf->sector_shift = 0;
 	if (sizeof(sector_t) > sizeof(u32)) {
-		sector_t space = conf->hash_spacing;
+		sector_t space = conf->spacing;
 		while (space > (sector_t)(~(u32)0)) {
 			space >>= 1;
-			conf->preshift++;
+			conf->sector_shift++;
 		}
 	}
 	/*
@@ -194,9 +193,9 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		unsigned round;
 		unsigned long base;
 
-		sz = conf->array_sectors >> (conf->preshift + 1);
+		sz = conf->array_sectors >> conf->sector_shift;
 		sz += 1; /* force round-up */
-		base = conf->hash_spacing >> conf->preshift;
+		base = conf->spacing >> conf->sector_shift;
 		round = sector_div(sz, base);
 		nb_zone = sz + (round ? 1 : 0);
 	}
@@ -221,7 +220,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	i = 0;
 	for (curr_sector = 0;
 	     curr_sector < conf->array_sectors;
-	     curr_sector += conf->hash_spacing * 2) {
+	     curr_sector += conf->spacing) {
 
 		while (i < raid_disks-1 &&
 		       curr_sector >= conf->disks[i+1].start_sector)
@@ -230,12 +229,12 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		*table ++ = conf->disks + i;
 	}
 
-	if (conf->preshift) {
-		conf->hash_spacing >>= conf->preshift;
-		/* round hash_spacing up so that when we divide by it,
+	if (conf->sector_shift) {
+		conf->spacing >>= conf->sector_shift;
+		/* round spacing up so that when we divide by it,
 		 * we err on the side of "too-low", which is safest.
 		 */
-		conf->hash_spacing++;
+		conf->spacing++;
 	}
 
 	BUG_ON(table - conf->hash_table > nb_zone);

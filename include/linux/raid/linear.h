@@ -15,9 +15,11 @@ struct linear_private_data
 {
 	struct linear_private_data *prev;	/* earlier version */
 	dev_info_t		**hash_table;
-	sector_t		hash_spacing;
+	sector_t		spacing;
 	sector_t		array_sectors;
-	int			preshift; /* shift before dividing by hash_spacing */
+	int			sector_shift;	/* shift before dividing
+						 * by spacing
+						 */
 	dev_info_t		disks[0];
 };
 
