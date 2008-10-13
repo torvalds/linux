@@ -847,7 +847,6 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	}
 }
 
-#if MAX_HWIFS > 1
 /*
  * save_match() is used to simplify logic in init_irq() below.
  *
@@ -872,7 +871,6 @@ static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
 	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
 		*match = new;
 }
-#endif /* MAX_HWIFS > 1 */
 
 /*
  * init request queue
@@ -1029,7 +1027,7 @@ static int init_irq (ide_hwif_t *hwif)
 
 	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
-#if MAX_HWIFS > 1
+
 	/*
 	 * Group up with any other hwifs that share our irq(s).
 	 */
@@ -1054,7 +1052,7 @@ static int init_irq (ide_hwif_t *hwif)
 			}
 		}
 	}
-#endif /* MAX_HWIFS > 1 */
+
 	/*
 	 * If we are still without a hwgroup, then form a new one
 	 */
@@ -1513,19 +1511,14 @@ static int ide_find_port_slot(const struct ide_port_info *d)
 	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
 	 */
 	mutex_lock(&ide_cfg_mtx);
-	if (MAX_HWIFS == 1) {
-		if (ide_indexes == 0 && i == 0)
-			idx = 1;
+	if (bootable) {
+		if ((ide_indexes | i) != (1 << MAX_HWIFS) - 1)
+			idx = ffz(ide_indexes | i);
 	} else {
-		if (bootable) {
-			if ((ide_indexes | i) != (1 << MAX_HWIFS) - 1)
-				idx = ffz(ide_indexes | i);
-		} else {
-			if ((ide_indexes | 3) != (1 << MAX_HWIFS) - 1)
-				idx = ffz(ide_indexes | 3);
-			else if ((ide_indexes & 3) != 3)
-				idx = ffz(ide_indexes);
-		}
+		if ((ide_indexes | 3) != (1 << MAX_HWIFS) - 1)
+			idx = ffz(ide_indexes | 3);
+		else if ((ide_indexes & 3) != 3)
+			idx = ffz(ide_indexes);
 	}
 	if (idx >= 0)
 		ide_indexes |= (1 << idx);
