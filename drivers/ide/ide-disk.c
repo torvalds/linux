@@ -45,20 +45,11 @@
 #define IDE_DISK_MINORS		0
 #endif
 
-struct ide_disk_obj {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
-	unsigned int	openers;	/* protected by BKL for now */
-};
+#include "ide-disk.h"
 
 static DEFINE_MUTEX(idedisk_ref_mutex);
 
 #define to_ide_disk(obj) container_of(obj, struct ide_disk_obj, kref)
-
-#define ide_disk_g(disk) \
-	container_of((disk)->private_data, struct ide_disk_obj, driver)
 
 static void ide_disk_release(struct kref *);
 
@@ -722,12 +713,12 @@ static int set_addressing(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-ide_devset_rw(acoustic, acoustic);
-ide_devset_rw(address, addressing);
-ide_devset_rw(multcount, multcount);
-ide_devset_rw(wcache, wcache);
+ide_ext_devset_rw(acoustic, acoustic);
+ide_ext_devset_rw(address, addressing);
+ide_ext_devset_rw(multcount, multcount);
+ide_ext_devset_rw(wcache, wcache);
 
-ide_devset_rw_sync(nowerr, nowerr);
+ide_ext_devset_rw_sync(nowerr, nowerr);
 
 #ifdef CONFIG_IDE_PROC_FS
 ide_devset_rw_field(bios_cyl, bios_cyl);
@@ -1025,30 +1016,6 @@ static int idedisk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static const struct ide_ioctl_devset ide_disk_ioctl_settings[] = {
-{ HDIO_GET_ADDRESS,	HDIO_SET_ADDRESS,   &ide_devset_address   },
-{ HDIO_GET_MULTCOUNT,	HDIO_SET_MULTCOUNT, &ide_devset_multcount },
-{ HDIO_GET_NOWERR,	HDIO_SET_NOWERR,    &ide_devset_nowerr	  },
-{ HDIO_GET_WCACHE,	HDIO_SET_WCACHE,    &ide_devset_wcache	  },
-{ HDIO_GET_ACOUSTIC,	HDIO_SET_ACOUSTIC,  &ide_devset_acoustic  },
-{ 0 }
-};
-
-static int idedisk_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
-{
-	struct block_device *bdev = inode->i_bdev;
-	struct ide_disk_obj *idkp = ide_disk_g(bdev->bd_disk);
-	ide_drive_t *drive = idkp->drive;
-	int err;
-
-	err = ide_setting_ioctl(drive, bdev, cmd, arg, ide_disk_ioctl_settings);
-	if (err != -EOPNOTSUPP)
-		return err;
-
-	return generic_ide_ioctl(drive, file, bdev, cmd, arg);
-}
-
 static int idedisk_media_changed(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = ide_disk_g(disk);
@@ -1075,7 +1042,7 @@ static struct block_device_operations idedisk_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idedisk_open,
 	.release		= idedisk_release,
-	.ioctl			= idedisk_ioctl,
+	.ioctl			= ide_disk_ioctl,
 	.getgeo			= idedisk_getgeo,
 	.media_changed		= idedisk_media_changed,
 	.revalidate_disk	= idedisk_revalidate_disk
@@ -1151,6 +1118,7 @@ static int __init idedisk_init(void)
 }
 
 MODULE_ALIAS("ide:*m-disk*");
+MODULE_ALIAS("ide-disk");
 module_init(idedisk_init);
 module_exit(idedisk_exit);
 MODULE_LICENSE("GPL");

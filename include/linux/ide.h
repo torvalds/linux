@@ -946,8 +946,11 @@ IDE_DEVSET(_name, 0, get_##_func, set_##_func)
 #define ide_devset_w(_name, _func) \
 IDE_DEVSET(_name, 0, NULL, set_##_func)
 
-#define ide_devset_rw_sync(_name, _func) \
-IDE_DEVSET(_name, DS_SYNC, get_##_func, set_##_func)
+#define ide_ext_devset_rw(_name, _func) \
+__IDE_DEVSET(_name, 0, get_##_func, set_##_func)
+
+#define ide_ext_devset_rw_sync(_name, _func) \
+__IDE_DEVSET(_name, DS_SYNC, get_##_func, set_##_func)
 
 #define ide_decl_devset(_name) \
 extern const struct ide_devset ide_devset_##_name

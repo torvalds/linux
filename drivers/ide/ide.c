@@ -392,13 +392,10 @@ static int set_unmaskirq(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-#define ide_gen_devset_rw(_name, _func) \
-__IDE_DEVSET(_name, DS_SYNC, get_##_func, set_##_func)
-
-ide_gen_devset_rw(io_32bit, io_32bit);
-ide_gen_devset_rw(keepsettings, ksettings);
-ide_gen_devset_rw(unmaskirq, unmaskirq);
-ide_gen_devset_rw(using_dma, using_dma);
+ide_ext_devset_rw_sync(io_32bit, io_32bit);
+ide_ext_devset_rw_sync(keepsettings, ksettings);
+ide_ext_devset_rw_sync(unmaskirq, unmaskirq);
+ide_ext_devset_rw_sync(using_dma, using_dma);
 __IDE_DEVSET(pio_mode, DS_SYNC, NULL, set_pio_mode);
 
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
