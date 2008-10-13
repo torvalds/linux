@@ -1683,7 +1683,7 @@ enum {
 				   SRP_OPT_SERVICE_ID),
 };
 
-static match_table_t srp_opt_tokens = {
+static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_ID_EXT,		"id_ext=%s" 		},
 	{ SRP_OPT_IOC_GUID,		"ioc_guid=%s" 		},
 	{ SRP_OPT_DGID,			"dgid=%s" 		},

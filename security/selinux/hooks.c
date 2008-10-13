@@ -325,7 +325,7 @@ enum {
 	Opt_rootcontext = 4,
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_context, CONTEXT_STR "%s"},
 	{Opt_fscontext, FSCONTEXT_STR "%s"},
 	{Opt_defcontext, DEFCONTEXT_STR "%s"},
