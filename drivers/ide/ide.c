@@ -365,15 +365,15 @@ __IDE_DEVSET(pio_mode, 0, NULL, set_pio_mode);
 
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
-	ide_drive_t *drive = dev->driver_data;
+	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = HWIF(drive);
 	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int ret;
 
-	/* Call ACPI _GTM only once */
-	if (!(drive->dn % 2))
+	/* call ACPI _GTM only once */
+	if ((drive->dn & 1) == 0 || pair == NULL)
 		ide_acpi_get_timing(hwif);
 
 	memset(&rqpm, 0, sizeof(rqpm));
@@ -389,26 +389,25 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 
 	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
-	/* only call ACPI _PS3 after both drivers are suspended */
-	if (!ret && (((drive->dn % 2) && hwif->drives[0].present
-		 && hwif->drives[1].present)
-		 || !hwif->drives[0].present
-		 || !hwif->drives[1].present))
+
+	/* call ACPI _PS3 only after both devices are suspended */
+	if (ret == 0 && ((drive->dn & 1) || pair == NULL))
 		ide_acpi_set_state(hwif, 0);
+
 	return ret;
 }
 
 static int generic_ide_resume(struct device *dev)
 {
-	ide_drive_t *drive = dev->driver_data;
+	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = HWIF(drive);
 	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int err;
 
-	/* Call ACPI _STM only once */
-	if (!(drive->dn % 2)) {
+	/* call ACPI _PS0 / _STM only once */
+	if ((drive->dn & 1) == 0 || pair == NULL) {
 		ide_acpi_set_state(hwif, 1);
 		ide_acpi_push_timing(hwif);
 	}
