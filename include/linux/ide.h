@@ -262,8 +262,6 @@ static inline int __ide_default_irq(unsigned long base)
  * set_geometry	: respecify drive geometry
  * recalibrate	: seek to cyl 0
  * set_multmode	: set multmode count
- * set_tune	: tune interface for drive
- * serviced	: service command
  * reserved	: unused
  */
 typedef union {
@@ -272,9 +270,7 @@ typedef union {
 		unsigned set_geometry	: 1;
 		unsigned recalibrate	: 1;
 		unsigned set_multmode	: 1;
-		unsigned set_tune	: 1;
-		unsigned serviced	: 1;
-		unsigned reserved	: 3;
+		unsigned reserved	: 5;
 	} b;
 } special_t;
 
@@ -514,7 +510,6 @@ struct ide_drive_s {
 	u8	ready_stat;	/* min status value for drive ready */
 	u8	mult_count;	/* current multiple sector setting */
 	u8	mult_req;	/* requested multiple sector setting */
-	u8	tune_req;	/* requested drive tuning setting */
 	u8	io_32bit;	/* 0=16-bit, 1=32-bit, 2/3=32bit+sync */
 	u8	bad_wstat;	/* used for ignoring ATA_DF */
 	u8	head;		/* "real" number of heads */
