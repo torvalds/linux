@@ -1011,8 +1011,20 @@ int is_ignored(int sig)
 
 static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
-	if (!tty)
-		return;
+	int canon_change = 1;
+	BUG_ON(!tty);
+
+	if (old)
+		canon_change = (old->c_lflag ^ tty->termios->c_lflag) & ICANON;
+	if (canon_change) {
+		memset(&tty->read_flags, 0, sizeof tty->read_flags);
+		tty->canon_head = tty->read_tail;
+		tty->canon_data = 0;
+		tty->erasing = 0;
+	}
+
+	if (canon_change && !L_ICANON(tty) && tty->read_cnt)
+		wake_up_interruptible(&tty->read_wait);
 
 	tty->icanon = (L_ICANON(tty) != 0);
 	if (test_bit(TTY_HW_COOK_IN, &tty->flags)) {
@@ -1571,6 +1583,43 @@ static unsigned int normal_poll(struct tty_struct *tty, struct file *file,
 			tty_write_room(tty) > 0)
 		mask |= POLLOUT | POLLWRNORM;
 	return mask;
+}
+
+static unsigned long inq_canon(struct tty_struct *tty)
+{
+	int nr, head, tail;
+
+	if (!tty->canon_data || !tty->read_buf)
+		return 0;
+	head = tty->canon_head;
+	tail = tty->read_tail;
+	nr = (head - tail) & (N_TTY_BUF_SIZE-1);
+	/* Skip EOF-chars.. */
+	while (head != tail) {
+		if (test_bit(tail, tty->read_flags) &&
+		    tty->read_buf[tail] == __DISABLED_CHAR)
+			nr--;
+		tail = (tail+1) & (N_TTY_BUF_SIZE-1);
+	}
+	return nr;
+}
+
+static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
+		       unsigned int cmd, unsigned long arg)
+{
+	int retval;
+
+	switch (cmd) {
+	case TIOCOUTQ:
+		return put_user(tty_chars_in_buffer(tty), (int __user *) arg);
+	case TIOCINQ:
+		retval = tty->read_cnt;
+		if (L_ICANON(tty))
+			retval = inq_canon(tty);
+		return put_user(retval, (unsigned int __user *) arg);
+	default:
+		return n_tty_ioctl_helper(tty, file, cmd, arg);
+	}
 }
 
 struct tty_ldisc_ops tty_ldisc_N_TTY = {

@@ -466,7 +466,7 @@ static inline void tty_audit_push_task(struct task_struct *tsk,
 #endif
 
 /* tty_ioctl.c */
-extern int n_tty_ioctl(struct tty_struct *tty, struct file *file,
+extern int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg);
 
 /* serial.c */
