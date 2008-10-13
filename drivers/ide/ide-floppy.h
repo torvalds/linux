@@ -18,9 +18,6 @@ typedef struct ide_floppy_obj {
 	/* used for blk_{fs,pc}_request() requests */
 	struct ide_atapi_pc queued_pc;
 
-	struct ide_atapi_pc request_sense_pc;
-	struct request request_sense_rq;
-
 	/* Last error information */
 	u8 sense_key, asc, ascq;
 	/* delay this long before sending packet command */

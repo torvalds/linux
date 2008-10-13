@@ -182,9 +182,6 @@ typedef struct ide_tape_obj {
 	/* used by REQ_IDETAPE_{READ,WRITE} requests */
 	struct ide_atapi_pc queued_pc;
 
-	struct ide_atapi_pc request_sense_pc;
-	struct request request_sense_rq;
-
 	/*
 	 * DSC polling variables.
 	 *
@@ -600,8 +597,8 @@ static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
 static void idetape_retry_pc(ide_drive_t *drive)
 {
 	struct ide_tape_obj *tape = drive->driver_data;
-	struct request *rq = &tape->request_sense_rq;
-	struct ide_atapi_pc *pc = &tape->request_sense_pc;
+	struct request *rq = &drive->request_sense_rq;
+	struct ide_atapi_pc *pc = &drive->request_sense_pc;
 
 	(void)ide_read_error(drive);
 	idetape_create_request_sense_cmd(pc);

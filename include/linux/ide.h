@@ -322,7 +322,71 @@ typedef enum {
 	ide_started,	/* a drive operation was started, handler was set */
 } ide_startstop_t;
 
-struct ide_atapi_pc;
+/* ATAPI packet command flags */
+enum {
+	/* set when an error is considered normal - no retry (ide-tape) */
+	PC_FLAG_ABORT			= (1 << 0),
+	PC_FLAG_SUPPRESS_ERROR		= (1 << 1),
+	PC_FLAG_WAIT_FOR_DSC		= (1 << 2),
+	PC_FLAG_DMA_OK			= (1 << 3),
+	PC_FLAG_DMA_IN_PROGRESS		= (1 << 4),
+	PC_FLAG_DMA_ERROR		= (1 << 5),
+	PC_FLAG_WRITING			= (1 << 6),
+	/* command timed out */
+	PC_FLAG_TIMEDOUT		= (1 << 7),
+};
+
+/*
+ * With each packet command, we allocate a buffer of IDE_PC_BUFFER_SIZE bytes.
+ * This is used for several packet commands (not for READ/WRITE commands).
+ */
+#define IDE_PC_BUFFER_SIZE	256
+
+struct ide_atapi_pc {
+	/* actual packet bytes */
+	u8 c[12];
+	/* incremented on each retry */
+	int retries;
+	int error;
+
+	/* bytes to transfer */
+	int req_xfer;
+	/* bytes actually transferred */
+	int xferred;
+
+	/* data buffer */
+	u8 *buf;
+	/* current buffer position */
+	u8 *cur_pos;
+	int buf_size;
+	/* missing/available data on the current buffer */
+	int b_count;
+
+	/* the corresponding request */
+	struct request *rq;
+
+	unsigned long flags;
+
+	/*
+	 * those are more or less driver-specific and some of them are subject
+	 * to change/removal later.
+	 */
+	u8 pc_buf[IDE_PC_BUFFER_SIZE];
+
+	/* idetape only */
+	struct idetape_bh *bh;
+	char *b_data;
+
+	/* idescsi only for now */
+	struct scatterlist *sg;
+	unsigned int sg_cnt;
+
+	struct scsi_cmnd *scsi_cmd;
+	void (*done) (struct scsi_cmnd *);
+
+	unsigned long timeout;
+};
+
 struct ide_devset;
 struct ide_driver_s;
 
@@ -492,6 +556,9 @@ struct ide_drive_s {
 	void (*pc_callback)(struct ide_drive_s *, int);
 
 	unsigned long atapi_flags;
+
+	struct ide_atapi_pc request_sense_pc;
+	struct request request_sense_rq;
 };
 
 typedef struct ide_drive_s ide_drive_t;
@@ -767,71 +834,6 @@ ide_decl_devset(keepsettings);
 ide_decl_devset(pio_mode);
 ide_decl_devset(unmaskirq);
 ide_decl_devset(using_dma);
-
-/* ATAPI packet command flags */
-enum {
-	/* set when an error is considered normal - no retry (ide-tape) */
-	PC_FLAG_ABORT			= (1 << 0),
-	PC_FLAG_SUPPRESS_ERROR		= (1 << 1),
-	PC_FLAG_WAIT_FOR_DSC		= (1 << 2),
-	PC_FLAG_DMA_OK			= (1 << 3),
-	PC_FLAG_DMA_IN_PROGRESS		= (1 << 4),
-	PC_FLAG_DMA_ERROR		= (1 << 5),
-	PC_FLAG_WRITING			= (1 << 6),
-	/* command timed out */
-	PC_FLAG_TIMEDOUT		= (1 << 7),
-};
-
-/*
- * With each packet command, we allocate a buffer of IDE_PC_BUFFER_SIZE bytes.
- * This is used for several packet commands (not for READ/WRITE commands).
- */
-#define IDE_PC_BUFFER_SIZE	256
-
-struct ide_atapi_pc {
-	/* actual packet bytes */
-	u8 c[12];
-	/* incremented on each retry */
-	int retries;
-	int error;
-
-	/* bytes to transfer */
-	int req_xfer;
-	/* bytes actually transferred */
-	int xferred;
-
-	/* data buffer */
-	u8 *buf;
-	/* current buffer position */
-	u8 *cur_pos;
-	int buf_size;
-	/* missing/available data on the current buffer */
-	int b_count;
-
-	/* the corresponding request */
-	struct request *rq;
-
-	unsigned long flags;
-
-	/*
-	 * those are more or less driver-specific and some of them are subject
-	 * to change/removal later.
-	 */
-	u8 pc_buf[IDE_PC_BUFFER_SIZE];
-
-	/* idetape only */
-	struct idetape_bh *bh;
-	char *b_data;
-
-	/* idescsi only for now */
-	struct scatterlist *sg;
-	unsigned int sg_cnt;
-
-	struct scsi_cmnd *scsi_cmd;
-	void (*done) (struct scsi_cmnd *);
-
-	unsigned long timeout;
-};
 
 #ifdef CONFIG_IDE_PROC_FS
 /*

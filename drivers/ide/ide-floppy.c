@@ -208,8 +208,8 @@ void ide_floppy_create_request_sense_cmd(struct ide_atapi_pc *pc)
 static void idefloppy_retry_pc(ide_drive_t *drive)
 {
 	struct ide_floppy_obj *floppy = drive->driver_data;
-	struct request *rq = &floppy->request_sense_rq;
-	struct ide_atapi_pc *pc = &floppy->request_sense_pc;
+	struct request *rq = &drive->request_sense_rq;
+	struct ide_atapi_pc *pc = &drive->request_sense_pc;
 
 	(void)ide_read_error(drive);
 	ide_floppy_create_request_sense_cmd(pc);
