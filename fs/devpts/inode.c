@@ -220,6 +220,7 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 	dev_t device = MKDEV(driver->major, driver->minor_start+number);
 	struct dentry *dentry;
 	struct inode *inode = new_inode(devpts_mnt->mnt_sb);
+	char s[12];
 
 	/* We're supposed to be given the slave end of a pty */
 	BUG_ON(driver->type != TTY_DRIVER_TYPE_PTY);
@@ -235,9 +236,13 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 	init_special_inode(inode, S_IFCHR|config.mode, device);
 	inode->i_private = tty;
 
-	dentry = get_node(number);
-	if (!IS_ERR(dentry) && !dentry->d_inode) {
-		d_instantiate(dentry, inode);
+	sprintf(s, "%d", number);
+
+	mutex_lock(&devpts_root->d_inode->i_mutex);
+
+	dentry = d_alloc_name(devpts_root, s);
+	if (!IS_ERR(dentry)) {
+		d_add(dentry, inode);
 		fsnotify_create(devpts_root->d_inode, dentry);
 	}
 
