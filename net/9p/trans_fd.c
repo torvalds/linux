@@ -145,8 +145,6 @@ struct p9_poll_wait {
  * struct p9_conn - fd mux connection state information
  * @lock: protects mux_list (?)
  * @mux_list: list link for mux to manage multiple connections (?)
- * @msize: maximum size for connection (dup)
- * @extended: 9p2000.u flag (dup)
  * @client: reference to client instance for this connection
  * @tagpool: id accounting for transactions
  * @err: error state
@@ -170,8 +168,6 @@ struct p9_poll_wait {
 struct p9_conn {
 	spinlock_t lock; /* protect lock structure */
 	struct list_head mux_list;
-	int msize;
-	unsigned char extended;
 	struct p9_client *client;
 	struct p9_idpool *tagpool;
 	int err;
@@ -289,8 +285,6 @@ static struct p9_conn *p9_conn_create(struct p9_client *client)
 
 	spin_lock_init(&m->lock);
 	INIT_LIST_HEAD(&m->mux_list);
-	m->msize = client->msize;
-	m->extended = client->dotu;
 	m->client = client;
 	m->tagpool = p9_idpool_create();
 	if (IS_ERR(m->tagpool)) {
@@ -584,7 +578,7 @@ static void process_request(struct p9_conn *m, struct p9_req *req)
 		P9_DPRINTK(P9_DEBUG_MUX, "Rerror %.*s\n", ename->len,
 								ename->str);
 
-		if (m->extended)
+		if (m->client->dotu)
 			req->err = -ecode;
 
 		if (!req->err) {
@@ -629,7 +623,8 @@ static void p9_read_work(struct work_struct *work)
 
 	if (!m->rcall) {
 		m->rcall =
-		    kmalloc(sizeof(struct p9_fcall) + m->msize, GFP_KERNEL);
+		    kmalloc(sizeof(struct p9_fcall) + m->client->msize,
+								GFP_KERNEL);
 		if (!m->rcall) {
 			err = -ENOMEM;
 			goto error;
@@ -640,7 +635,8 @@ static void p9_read_work(struct work_struct *work)
 	}
 
 	clear_bit(Rpending, &m->wsched);
-	err = p9_fd_read(m->client, m->rbuf + m->rpos, m->msize - m->rpos);
+	err = p9_fd_read(m->client, m->rbuf + m->rpos,
+						m->client->msize - m->rpos);
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p got %d bytes\n", m, err);
 	if (err == -EAGAIN) {
 		clear_bit(Rworksched, &m->wsched);
@@ -653,7 +649,7 @@ static void p9_read_work(struct work_struct *work)
 	m->rpos += err;
 	while (m->rpos > 4) {
 		n = le32_to_cpu(*(__le32 *) m->rbuf);
-		if (n >= m->msize) {
+		if (n >= m->client->msize) {
 			P9_DPRINTK(P9_DEBUG_ERROR,
 				"requested packet size too big: %d\n", n);
 			err = -EIO;
@@ -664,7 +660,7 @@ static void p9_read_work(struct work_struct *work)
 			break;
 
 		err =
-		    p9_deserialize_fcall(m->rbuf, n, m->rcall, m->extended);
+		    p9_deserialize_fcall(m->rbuf, n, m->rcall, m->client->dotu);
 		if (err < 0)
 			goto error;
 
@@ -673,7 +669,7 @@ static void p9_read_work(struct work_struct *work)
 			char buf[150];
 
 			p9_printfcall(buf, sizeof(buf), m->rcall,
-				m->extended);
+				m->client->dotu);
 			printk(KERN_NOTICE ">>> %p %s\n", m, buf);
 		}
 #endif
@@ -681,8 +677,8 @@ static void p9_read_work(struct work_struct *work)
 		rcall = m->rcall;
 		rbuf = m->rbuf;
 		if (m->rpos > n) {
-			m->rcall = kmalloc(sizeof(struct p9_fcall) + m->msize,
-					   GFP_KERNEL);
+			m->rcall = kmalloc(sizeof(struct p9_fcall) +
+						m->client->msize, GFP_KERNEL);
 			if (!m->rcall) {
 				err = -ENOMEM;
 				goto error;
@@ -798,7 +794,7 @@ static struct p9_req *p9_send_request(struct p9_conn *m,
 	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
 		char buf[150];
 
-		p9_printfcall(buf, sizeof(buf), tc, m->extended);
+		p9_printfcall(buf, sizeof(buf), tc, m->client->dotu);
 		printk(KERN_NOTICE "<<< %p %s\n", m, buf);
 	}
 #endif
