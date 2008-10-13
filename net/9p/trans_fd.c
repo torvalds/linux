@@ -142,7 +142,6 @@ struct p9_poll_wait {
  * @lock: protects mux_list (?)
  * @mux_list: list link for mux to manage multiple connections (?)
  * @client: reference to client instance for this connection
- * @tagpool: id accounting for transactions
  * @err: error state
  * @req_list: accounting for requests which have been sent
  * @unsent_req_list: accounting for requests that haven't been sent
@@ -165,7 +164,6 @@ struct p9_conn {
 	spinlock_t lock; /* protect lock structure */
 	struct list_head mux_list;
 	struct p9_client *client;
-	struct p9_idpool *tagpool;
 	int err;
 	struct list_head req_list;
 	struct list_head unsent_req_list;
@@ -188,23 +186,6 @@ static LIST_HEAD(p9_poll_pending_list);
 static struct workqueue_struct *p9_mux_wq;
 static struct task_struct *p9_poll_task;
 
-static u16 p9_mux_get_tag(struct p9_conn *m)
-{
-	int tag;
-
-	tag = p9_idpool_get(m->tagpool);
-	if (tag < 0)
-		return P9_NOTAG;
-	else
-		return (u16) tag;
-}
-
-static void p9_mux_put_tag(struct p9_conn *m, u16 tag)
-{
-	if (tag != P9_NOTAG && p9_idpool_check(tag, m->tagpool))
-		p9_idpool_put(tag, m->tagpool);
-}
-
 static void p9_mux_poll_stop(struct p9_conn *m)
 {
 	unsigned long flags;
@@ -226,7 +207,9 @@ static void p9_mux_poll_stop(struct p9_conn *m)
 
 static void p9_mux_free_request(struct p9_conn *m, struct p9_req *req)
 {
-	p9_mux_put_tag(m, req->tag);
+	if (req->tag != P9_NOTAG &&
+	    p9_idpool_check(req->tag, m->client->tagpool))
+		p9_idpool_put(req->tag, m->client->tagpool);
 	kfree(req);
 }
 
@@ -745,11 +728,6 @@ static struct p9_conn *p9_conn_create(struct p9_client *client)
 	spin_lock_init(&m->lock);
 	INIT_LIST_HEAD(&m->mux_list);
 	m->client = client;
-	m->tagpool = p9_idpool_create();
-	if (IS_ERR(m->tagpool)) {
-		kfree(m);
-		return ERR_PTR(-ENOMEM);
-	}
 
 	INIT_LIST_HEAD(&m->req_list);
 	INIT_LIST_HEAD(&m->unsent_req_list);
@@ -848,14 +826,13 @@ static struct p9_req *p9_send_request(struct p9_conn *m, struct p9_fcall *tc)
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
-	if (tc->id == P9_TVERSION)
-		n = P9_NOTAG;
-	else
-		n = p9_mux_get_tag(m);
-
-	if (n < 0) {
-		kfree(req);
-		return ERR_PTR(-ENOMEM);
+	n = P9_NOTAG;
+	if (tc->id != P9_TVERSION) {
+		n = p9_idpool_get(m->client->tagpool);
+		if (n < 0) {
+			kfree(req);
+			return ERR_PTR(-ENOMEM);
+		}
 	}
 
 	p9_set_tag(tc, n);
@@ -1134,7 +1111,6 @@ static void p9_conn_destroy(struct p9_conn *m)
 	p9_conn_cancel(m, -ECONNRESET);
 
 	m->client = NULL;
-	p9_idpool_destroy(m->tagpool);
 	kfree(m);
 }
 
