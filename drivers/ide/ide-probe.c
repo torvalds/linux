@@ -958,9 +958,9 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
  * - allocate the block device queue
  * - link drive into the hwgroup
  */
-static void ide_port_setup_devices(ide_hwif_t *hwif)
+static int ide_port_setup_devices(ide_hwif_t *hwif)
 {
-	int i;
+	int i, j = 0;
 
 	mutex_lock(&ide_cfg_mtx);
 	for (i = 0; i < MAX_DRIVES; i++) {
@@ -972,12 +972,19 @@ static void ide_port_setup_devices(ide_hwif_t *hwif)
 		if (ide_init_queue(drive)) {
 			printk(KERN_ERR "ide: failed to init %s\n",
 					drive->name);
+			kfree(drive->id);
+			drive->id = NULL;
+			drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			continue;
 		}
+
+		j++;
 
 		ide_add_drive_to_hwgroup(drive);
 	}
 	mutex_unlock(&ide_cfg_mtx);
+
+	return j;
 }
 
 static ide_hwif_t *ide_ports[MAX_HWIFS];
@@ -1663,10 +1670,13 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			continue;
 		}
 
-		j++;
-
 		if (hwif->present)
-			ide_port_setup_devices(hwif);
+			if (ide_port_setup_devices(hwif) == 0) {
+				hwif->present = 0;
+				continue;
+			}
+
+		j++;
 
 		ide_acpi_init(hwif);
 
