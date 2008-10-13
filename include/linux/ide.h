@@ -545,6 +545,9 @@ struct ide_drive_s {
 
 	int		lun;		/* logical unit */
 	int		crc_count;	/* crc counter to reduce drive speed */
+
+	unsigned long	debug_mask;	/* debugging levels switch */
+
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	struct ide_acpi_drive_link *acpidata;
 #endif
