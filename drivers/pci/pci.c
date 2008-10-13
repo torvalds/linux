@@ -213,10 +213,13 @@ int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 int pci_find_ext_capability(struct pci_dev *dev, int cap)
 {
 	u32 header;
-	int ttl = 480; /* 3840 bytes, minimum 8 bytes per capability */
-	int pos = 0x100;
+	int ttl;
+	int pos = PCI_CFG_SPACE_SIZE;
 
-	if (dev->cfg_size <= 256)
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	if (dev->cfg_size <= PCI_CFG_SPACE_SIZE)
 		return 0;
 
 	if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
@@ -234,7 +237,7 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 			return pos;
 
 		pos = PCI_EXT_CAP_NEXT(header);
-		if (pos < 0x100)
+		if (pos < PCI_CFG_SPACE_SIZE)
 			break;
 
 		if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)

@@ -14,8 +14,6 @@
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
 #define CARDBUS_RESERVE_BUSNR	3
-#define PCI_CFG_SPACE_SIZE	256
-#define PCI_CFG_SPACE_EXP_SIZE	4096
 
 /* Ugh.  Need to stop exporting this to modules. */
 LIST_HEAD(pci_root_buses);
@@ -887,8 +885,9 @@ static void set_pcie_port_type(struct pci_dev *pdev)
 int pci_cfg_space_size_ext(struct pci_dev *dev)
 {
 	u32 status;
+	int pos = PCI_CFG_SPACE_SIZE;
 
-	if (pci_read_config_dword(dev, 256, &status) != PCIBIOS_SUCCESSFUL)
+	if (pci_read_config_dword(dev, pos, &status) != PCIBIOS_SUCCESSFUL)
 		goto fail;
 	if (status == 0xffffffff)
 		goto fail;

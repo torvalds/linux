@@ -715,7 +715,7 @@ static struct bin_attribute pci_config_attr = {
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
 	},
-	.size = 256,
+	.size = PCI_CFG_SPACE_SIZE,
 	.read = pci_read_config,
 	.write = pci_write_config,
 };
@@ -725,7 +725,7 @@ static struct bin_attribute pcie_config_attr = {
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
 	},
-	.size = 4096,
+	.size = PCI_CFG_SPACE_EXP_SIZE,
 	.read = pci_read_config,
 	.write = pci_write_config,
 };
@@ -743,7 +743,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (!sysfs_initialized)
 		return -EACCES;
 
-	if (pdev->cfg_size < 4096)
+	if (pdev->cfg_size < PCI_CFG_SPACE_EXP_SIZE)
 		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else
 		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pcie_config_attr);
@@ -814,7 +814,7 @@ err_vpd:
 		kfree(pdev->vpd->attr);
 	}
 err_config_file:
-	if (pdev->cfg_size < 4096)
+	if (pdev->cfg_size < PCI_CFG_SPACE_EXP_SIZE)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pcie_config_attr);
@@ -839,7 +839,7 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->vpd->attr);
 		kfree(pdev->vpd->attr);
 	}
-	if (pdev->cfg_size < 4096)
+	if (pdev->cfg_size < PCI_CFG_SPACE_EXP_SIZE)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pcie_config_attr);

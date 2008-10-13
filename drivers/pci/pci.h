@@ -1,3 +1,9 @@
+#ifndef DRIVERS_PCI_H
+#define DRIVERS_PCI_H
+
+#define PCI_CFG_SPACE_SIZE	256
+#define PCI_CFG_SPACE_EXP_SIZE	4096
+
 /* Functions internal to the PCI core code */
 
 extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
@@ -145,3 +151,4 @@ struct pci_slot_attribute {
 };
 #define to_pci_slot_attr(s) container_of(s, struct pci_slot_attribute, attr)
 
+#endif /* DRIVERS_PCI_H */
