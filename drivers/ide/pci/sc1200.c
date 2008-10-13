@@ -126,7 +126,6 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t		*hwif = HWIF(drive);
 	struct pci_dev		*dev = to_pci_dev(hwif->dev);
-	int			unit = drive->select.b.unit;
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
@@ -155,7 +154,7 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	else
 		timings = mwdma_timing[pci_clock][mode - XFER_MW_DMA_0];
 
-	if (unit == 0) {			/* are we configuring drive0? */
+	if ((drive->dn & 1) == 0) {
 		pci_read_config_dword(dev, basereg + 4, &reg);
 		timings |= reg & 0x80000000;	/* preserve PIO format bit */
 		pci_write_config_dword(dev, basereg + 4, timings);

@@ -433,7 +433,7 @@ pmac_ide_selectproc(ide_drive_t *drive)
 	if (pmif == NULL)
 		return;
 
-	if (drive->select.b.unit & 0x01)
+	if (drive->dn & 1)
 		writel(pmif->timings[1], PMAC_IDE_REG(IDE_TIMING_CONFIG));
 	else
 		writel(pmif->timings[0], PMAC_IDE_REG(IDE_TIMING_CONFIG));
@@ -455,7 +455,7 @@ pmac_ide_kauai_selectproc(ide_drive_t *drive)
 	if (pmif == NULL)
 		return;
 
-	if (drive->select.b.unit & 0x01) {
+	if (drive->dn & 1) {
 		writel(pmif->timings[1], PMAC_IDE_REG(IDE_KAUAI_PIO_CONFIG));
 		writel(pmif->timings[3], PMAC_IDE_REG(IDE_KAUAI_ULTRA_CONFIG));
 	} else {
@@ -528,7 +528,7 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		return;
 		
 	/* which drive is it ? */
-	timings = &pmif->timings[drive->select.b.unit & 0x01];
+	timings = &pmif->timings[drive->dn & 1];
 	t = *timings;
 
 	cycle_time = ide_pio_cycle_time(drive, pio);
@@ -805,9 +805,9 @@ static void pmac_ide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
-	int unit = (drive->select.b.unit & 0x01);
 	int ret = 0;
 	u32 *timings, *timings2, tl[2];
+	u8 unit = drive->dn & 1;
 
 	timings = &pmif->timings[unit];
 	timings2 = &pmif->timings[unit+2];
@@ -1558,8 +1558,7 @@ pmac_ide_dma_setup(ide_drive_t *drive)
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
 	struct request *rq = HWGROUP(drive)->rq;
-	u8 unit = (drive->select.b.unit & 0x01);
-	u8 ata4;
+	u8 unit = drive->dn & 1, ata4;
 
 	if (pmif == NULL)
 		return 1;

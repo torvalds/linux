@@ -115,7 +115,7 @@ static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);
 	struct chipset_bus_clock_list_entry *bus_clock = host->host_priv;
-	u8 unit		= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 	u8 tmp1 = 0, tmp2 = 0;
 	u8 ultra = 0, drive_conf = 0, ultra_conf = 0;
 	unsigned long flags;

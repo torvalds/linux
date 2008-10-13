@@ -160,8 +160,8 @@ static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 		new |= bit;
 
 	/* Select PIO or DMA, DMA may only be selected for one drive/channel. */
-	bit   = 1 << (20 + drive->select.b.unit       + (hwif->channel << 1));
-	other = 1 << (20 + (1 - drive->select.b.unit) + (hwif->channel << 1));
+	bit   = 1 << (20 + (drive->dn & 1) + (hwif->channel << 1));
+	other = 1 << (20 + (1 - (drive->dn & 1)) + (hwif->channel << 1));
 	new = use_dma ? ((new & ~other) | bit) : (new & ~bit);
 
 	if (new != *old) {

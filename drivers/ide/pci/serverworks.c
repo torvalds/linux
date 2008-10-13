@@ -153,7 +153,7 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u8 unit			= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 
 	u8 ultra_enable	 = 0, ultra_timing = 0, dma_timing = 0;
 

@@ -291,7 +291,7 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static void scc_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 unit = (drive->select.b.unit & 0x01);
+	u8 unit = drive->dn & 1;
 	u8 dma_stat = scc_ide_inb(hwif->dma_base + 4);
 
 	if (on)

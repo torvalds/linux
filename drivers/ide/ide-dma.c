@@ -370,7 +370,7 @@ static int dma_timer_expiry (ide_drive_t *drive)
 void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8 unit			= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 	u8 dma_stat		= hwif->tp_ops->read_sff_dma_status(hwif);
 
 	if (on)

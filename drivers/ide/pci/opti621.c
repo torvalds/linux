@@ -179,7 +179,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	misc = addr_timings[clk][addr_pio];
 
 	/* select Index-0/1 for Register-A/B */
-	write_reg(drive->select.b.unit, MISC_REG);
+	write_reg(drive->dn & 1, MISC_REG);
 	/* set read cycle timings */
 	write_reg(tim, READ_REG);
 	/* set write cycle timings */

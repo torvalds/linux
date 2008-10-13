@@ -713,9 +713,9 @@ static int ide_set_disk_chs(const char *str, struct kernel_param *kp)
 module_param_call(chs, ide_set_disk_chs, NULL, NULL, 0);
 MODULE_PARM_DESC(chs, "force device as a disk (using CHS)");
 
-static void ide_dev_apply_params(ide_drive_t *drive)
+static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 {
-	int i = drive->hwif->index * MAX_DRIVES + drive->select.b.unit;
+	int i = drive->hwif->index * MAX_DRIVES + unit;
 
 	if (ide_nodma & (1 << i)) {
 		printk(KERN_INFO "ide: disallowing DMA for %s\n", drive->name);
@@ -791,7 +791,7 @@ void ide_port_apply_params(ide_hwif_t *hwif)
 	}
 
 	for (i = 0; i < MAX_DRIVES; i++)
-		ide_dev_apply_params(&hwif->drives[i]);
+		ide_dev_apply_params(&hwif->drives[i], i);
 }
 
 /*

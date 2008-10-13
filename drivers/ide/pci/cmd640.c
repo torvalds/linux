@@ -468,7 +468,7 @@ static void program_drive_counts(ide_drive_t *drive, unsigned int index)
 	 */
 	if (index > 1) {
 		ide_hwif_t *hwif = drive->hwif;
-		ide_drive_t *peer = &hwif->drives[!drive->select.b.unit];
+		ide_drive_t *peer = &hwif->drives[!(drive->dn & 1)];
 		unsigned int mate = index ^ 1;
 
 		if (peer->dev_flags & IDE_DFLAG_PRESENT) {
@@ -607,7 +607,7 @@ static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void cmd640_init_dev(ide_drive_t *drive)
 {
-	unsigned int i = drive->hwif->channel * 2 + drive->select.b.unit;
+	unsigned int i = drive->hwif->channel * 2 + (drive->dn & 1);
 
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	/*

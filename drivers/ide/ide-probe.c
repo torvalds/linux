@@ -447,7 +447,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 
 	if (ide_read_device(drive) != drive->select.all && present == 0) {
-		if (drive->select.b.unit != 0) {
+		if (drive->dn & 1) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
 			/* allow ATA_BUSY to assert & clear */
@@ -493,7 +493,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		/* not present or maybe ATAPI */
 		rc = 3;
 	}
-	if (drive->select.b.unit != 0) {
+	if (drive->dn & 1) {
 		/* exit with drive0 selected */
 		SELECT_DRIVE(&hwif->drives[0]);
 		msleep(50);
@@ -798,7 +798,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	 */
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
-		drive->dn = (hwif->channel ? 2 : 0) + unit;
+
 		(void) probe_for_drive(drive);
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
@@ -1357,6 +1357,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
 
+		drive->dn = i + hwif->channel * 2;
+
 		if (hwif->host_flags & IDE_HFLAG_IO_32BIT)
 			drive->io_32bit = 1;
 		if (hwif->host_flags & IDE_HFLAG_UNMASK_IRQS)
@@ -1627,18 +1629,18 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 
 		if (d == NULL) {
 			mate = NULL;
-			continue;
+		} else {
+			if ((i & 1) && mate) {
+				hwif->mate = mate;
+				mate->mate = hwif;
+			}
+
+			mate = (i & 1) ? NULL : hwif;
+
+			ide_init_port(hwif, i & 1, d);
+			ide_port_cable_detect(hwif);
 		}
 
-		if ((i & 1) && mate) {
-			hwif->mate = mate;
-			mate->mate = hwif;
-		}
-
-		mate = (i & 1) ? NULL : hwif;
-
-		ide_init_port(hwif, i & 1, d);
-		ide_port_cable_detect(hwif);
 		ide_port_init_devices(hwif);
 	}
 

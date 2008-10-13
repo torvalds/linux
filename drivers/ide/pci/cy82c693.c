@@ -178,8 +178,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set DMA mode to %d (single=%d)\n",
-		drive->name, HWIF(drive)->channel, drive->select.b.unit,
-		mode & 3, single);
+		drive->name, hwif->channel, drive->dn & 1, mode & 3, single);
 #endif /* CY82C693_DEBUG_INFO */
 
 	/*
@@ -224,7 +223,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	compute_clocks(pio, &pclk);
 
 	/* now let's write  the clocks registers */
-	if (drive->select.b.unit == 0) {
+	if ((drive->dn & 1) == 0) {
 		/*
 		 * set master drive
 		 * address setup control register
@@ -266,7 +265,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set PIO timing to "
 		"(addr=0x%X, ior=0x%X, iow=0x%X, 8bit=0x%X)\n",
-		drive->name, hwif->channel, drive->select.b.unit,
+		drive->name, hwif->channel, drive->dn & 1,
 		addrCtrl, pclk.time_16r, pclk.time_16w, pclk.time_8);
 #endif /* CY82C693_DEBUG_INFO */
 }

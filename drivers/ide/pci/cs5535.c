@@ -76,7 +76,7 @@ static unsigned int cs5535_udma_timings[5] =
 static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 {
 	u32 reg = 0, dummy;
-	int unit = drive->select.b.unit;
+	u8 unit = drive->dn & 1;
 
 	/* Set the PIO timings */
 	if (speed < XFER_SW_DMA_0) {

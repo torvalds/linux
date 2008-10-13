@@ -116,13 +116,14 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long base	= (unsigned long)hwif->hwif_data;
+	u8 unit			= drive->dn & 1;
 
 	base += 0xA0 + r;
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		base += hwif->channel << 6;
 	else
 		base += hwif->channel << 4;
-	base |= drive->select.b.unit << drive->select.b.unit;
+	base |= unit << unit;
 	return base;
 }
 
@@ -255,7 +256,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	u8 addr_mask		= hwif->channel ? (mmio ? 0xF4 : 0x84)
 						: (mmio ? 0xB4 : 0x80);
 	u8 mode			= 0;
-	u8 unit			= drive->select.b.unit;
+	u8 unit			= drive->dn & 1;
 
 	/* trim *taskfile* PIO to the slowest of the master/slave */
 	if (pair) {
@@ -301,9 +302,9 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u16 ultra = 0, multi	= 0;
-	u8 mode = 0, unit	= drive->select.b.unit;
 	unsigned long base	= (unsigned long)hwif->hwif_data;
+	u16 ultra = 0, multi	= 0;
+	u8 mode = 0, unit	= drive->dn & 1;
 	u8 mmio			= (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 scsc = 0, addr_mask	= hwif->channel ? (mmio ? 0xF4 : 0x84)
 						: (mmio ? 0xB4 : 0x80);

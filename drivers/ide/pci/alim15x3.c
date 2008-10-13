@@ -77,8 +77,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	int port = hwif->channel ? 0x5c : 0x58;
 	int portFIFO = hwif->channel ? 0x55 : 0x54;
-	u8 cd_dma_fifo = 0;
-	int unit = drive->select.b.unit & 1;
+	u8 cd_dma_fifo = 0, unit = drive->dn & 1;
 
 	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
 		s_clc = 0;
@@ -112,7 +111,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 	
 	pci_write_config_byte(dev, port, s_clc);
-	pci_write_config_byte(dev, port+drive->select.b.unit+2, (a_clc << 4) | r_clc);
+	pci_write_config_byte(dev, port + unit + 2, (a_clc << 4) | r_clc);
 	local_irq_restore(flags);
 }
 
@@ -154,7 +153,7 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 speed1		= speed;
-	u8 unit			= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 	u8 tmpbyte		= 0x00;
 	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
 
