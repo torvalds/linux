@@ -65,9 +65,10 @@ struct hv_ops {
 	int (*get_chars)(uint32_t vtermno, char *buf, int count);
 	int (*put_chars)(uint32_t vtermno, const char *buf, int count);
 
-	/* Callbacks for notification. Called in open and close */
+	/* Callbacks for notification. Called in open, close and hangup */
 	int (*notifier_add)(struct hvc_struct *hp, int irq);
 	void (*notifier_del)(struct hvc_struct *hp, int irq);
+	void (*notifier_hangup)(struct hvc_struct *hp, int irq);
 };
 
 /* Register a vterm and a slot index for use as a console (console_init) */
@@ -86,6 +87,7 @@ void hvc_kick(void);
 /* default notifier for irq based notification */
 extern int notifier_add_irq(struct hvc_struct *hp, int data);
 extern void notifier_del_irq(struct hvc_struct *hp, int data);
+extern void notifier_hangup_irq(struct hvc_struct *hp, int data);
 
 
 #if defined(CONFIG_XMON) && defined(CONFIG_SMP)

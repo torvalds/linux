@@ -418,8 +418,8 @@ static void hvc_hangup(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&hp->lock, flags);
 
-	if (hp->ops->notifier_del)
-			hp->ops->notifier_del(hp, hp->data);
+	if (hp->ops->notifier_hangup)
+			hp->ops->notifier_hangup(hp, hp->data);
 
 	while(temp_open_count) {
 		--temp_open_count;
