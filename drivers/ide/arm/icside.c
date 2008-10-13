@@ -386,11 +386,6 @@ static void icside_dma_timeout(ide_drive_t *drive)
 	icside_dma_end(drive);
 }
 
-static void icside_dma_lost_irq(ide_drive_t *drive)
-{
-	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
-}
-
 static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	hwif->dmatable_cpu	= NULL;
@@ -407,7 +402,7 @@ static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_end		= icside_dma_end,
 	.dma_test_irq		= icside_dma_test_irq,
 	.dma_timeout		= icside_dma_timeout,
-	.dma_lost_irq		= icside_dma_lost_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
 };
 #else
 #define icside_v6_dma_ops NULL

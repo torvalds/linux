@@ -340,11 +340,6 @@ static void auide_dma_host_set(ide_drive_t *drive, int on)
 {
 }
 
-static void auide_dma_lost_irq(ide_drive_t *drive)
-{
-	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
-}
-
 static void auide_ddma_tx_callback(int irq, void *param)
 {
 	_auide_hwif *ahwif = (_auide_hwif*)param;
@@ -390,7 +385,7 @@ static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_start		= auide_dma_start,
 	.dma_end		= auide_dma_end,
 	.dma_test_irq		= auide_dma_test_irq,
-	.dma_lost_irq		= auide_dma_lost_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= auide_dma_timeout,
 };
 

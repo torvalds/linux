@@ -823,14 +823,13 @@ void ide_check_dma_crc(ide_drive_t *drive)
 		ide_dma_on(drive);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
-void ide_dma_lost_irq (ide_drive_t *drive)
+void ide_dma_lost_irq(ide_drive_t *drive)
 {
-	printk("%s: DMA interrupt recovery\n", drive->name);
+	printk(KERN_ERR "%s: DMA interrupt recovery\n", drive->name);
 }
+EXPORT_SYMBOL_GPL(ide_dma_lost_irq);
 
-EXPORT_SYMBOL(ide_dma_lost_irq);
-
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 void ide_dma_timeout (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
