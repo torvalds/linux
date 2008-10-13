@@ -169,6 +169,14 @@ config STB03xxx
 	select IBM405_ERR77
 	select IBM405_ERR51
 
+config PPC4xx_GPIO
+	bool "PPC4xx GPIO support"
+	depends on 40x
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
+	help
+	  Enable gpiolib support for ppc40x based boards
+
 # 40x errata/workaround config symbols, selected by the CPU models above
 
 # All 405-based cores up until the 405GPR and 405EP have this errata.
