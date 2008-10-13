@@ -15,14 +15,14 @@ ide-core-$(CONFIG_BLK_DEV_IDEDMA)	+= ide-dma.o
 ide-core-$(CONFIG_IDE_PROC_FS)		+= ide-proc.o
 ide-core-$(CONFIG_BLK_DEV_IDEACPI)	+= ide-acpi.o
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= ide-core.o
+obj-$(CONFIG_IDE)			+= ide-core.o
 
 ifeq ($(CONFIG_IDE_ARM), y)
 	ide-arm-core-y += arm/ide_arm.o
 	obj-y += ide-arm-core.o
 endif
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ pci/
+obj-$(CONFIG_IDE)			+= legacy/ pci/
 
 obj-$(CONFIG_IDEPCI_PCIBUS_ORDER)	+= ide-scan-pci.o
 
@@ -31,7 +31,7 @@ ifeq ($(CONFIG_BLK_DEV_CMD640), y)
 	obj-y += cmd640-core.o
 endif
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= ppc/
+obj-$(CONFIG_IDE)			+= ppc/
 obj-$(CONFIG_IDE_H8300)			+= h8300/
 obj-$(CONFIG_IDE_GENERIC)		+= ide-generic.o
 obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
@@ -54,4 +54,4 @@ ifeq ($(CONFIG_BLK_DEV_PLATFORM), y)
 	obj-y += ide-platform-core.o
 endif
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= arm/ mips/
+obj-$(CONFIG_IDE)			+= arm/ mips/
