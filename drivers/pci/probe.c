@@ -842,6 +842,11 @@ static int pci_setup_device(struct pci_dev * dev)
 	return 0;
 }
 
+static void pci_release_capabilities(struct pci_dev *dev)
+{
+	pci_vpd_release(dev);
+}
+
 /**
  * pci_release_dev - free a pci device structure when all users of it are finished.
  * @dev: device that's been disconnected
@@ -854,7 +859,7 @@ static void pci_release_dev(struct device *dev)
 	struct pci_dev *pci_dev;
 
 	pci_dev = to_pci_dev(dev);
-	pci_vpd_release(pci_dev);
+	pci_release_capabilities(pci_dev);
 	kfree(pci_dev);
 }
 
@@ -935,8 +940,6 @@ struct pci_dev *alloc_pci_dev(void)
 
 	INIT_LIST_HEAD(&dev->bus_list);
 
-	pci_msi_init_pci_dev(dev);
-
 	return dev;
 }
 EXPORT_SYMBOL(alloc_pci_dev);
@@ -1009,9 +1012,19 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 		return NULL;
 	}
 
-	pci_vpd_pci22_init(dev);
-
 	return dev;
+}
+
+static void pci_init_capabilities(struct pci_dev *dev)
+{
+	/* MSI/MSI-X list */
+	pci_msi_init_pci_dev(dev);
+
+	/* Power Management */
+	pci_pm_init(dev);
+
+	/* Vital Product Data */
+	pci_vpd_pci22_init(dev);
 }
 
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
@@ -1030,8 +1043,8 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
 
-	/* Initialize power management of the device */
-	pci_pm_init(dev);
+	/* Initialize various capabilities */
+	pci_init_capabilities(dev);
 
 	/*
 	 * Add the device to our list of discovered devices
