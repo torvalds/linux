@@ -1,12 +1,10 @@
 /*
- * The Guest 9p transport driver
+ * The Virtio 9p transport driver
  *
  * This is a block based transport driver based on the lguest block driver
  * code.
  *
- */
-/*
- *  Copyright (C) 2007 Eric Van Hensbergen, IBM Corporation
+ *  Copyright (C) 2007, 2008 Eric Van Hensbergen, IBM Corporation
  *
  *  Based on virtio console driver
  *  Copyright (C) 2006, 2007 Rusty Russell, IBM Corporation
@@ -54,49 +52,6 @@ static DEFINE_MUTEX(virtio_9p_lock);
 /* global which tracks highest initialized channel */
 static int chan_index;
 
-#define P9_INIT_MAXTAG	16
-
-/**
- * enum p9_req_status_t - virtio request status
- * @REQ_STATUS_IDLE: request slot unused
- * @REQ_STATUS_SENT: request sent to server
- * @REQ_STATUS_RCVD: response received from server
- * @REQ_STATUS_FLSH: request has been flushed
- *
- * The @REQ_STATUS_IDLE state is used to mark a request slot as unused
- * but use is actually tracked by the idpool structure which handles tag
- * id allocation.
- *
- */
-
-enum p9_req_status_t {
-	REQ_STATUS_IDLE,
-	REQ_STATUS_SENT,
-	REQ_STATUS_RCVD,
-	REQ_STATUS_FLSH,
-};
-
-/**
- * struct p9_req_t - virtio request slots
- * @status: status of this request slot
- * @wq: wait_queue for the client to block on for this request
- *
- * The virtio transport uses an array to track outstanding requests
- * instead of a list.  While this may incurr overhead during initial
- * allocation or expansion, it makes request lookup much easier as the
- * tag id is a index into an array.  (We use tag+1 so that we can accomodate
- * the -1 tag for the T_VERSION request).
- * This also has the nice effect of only having to allocate wait_queues
- * once, instead of constantly allocating and freeing them.  Its possible
- * other resources could benefit from this scheme as well.
- *
- */
-
-struct p9_req_t {
-	int status;
-	wait_queue_head_t *wq;
-};
-
 /**
  * struct virtio_chan - per-instance transport information
  * @initialized: whether the channel is initialized
@@ -121,66 +76,13 @@ static struct virtio_chan {
 
 	spinlock_t lock;
 
+	struct p9_client *client;
 	struct virtio_device *vdev;
 	struct virtqueue *vq;
-
-	struct p9_idpool *tagpool;
-	struct p9_req_t *reqs;
-	int max_tag;
 
 	/* Scatterlist: can be too big for stack. */
 	struct scatterlist sg[VIRTQUEUE_NUM];
 } channels[MAX_9P_CHAN];
-
-/**
- * p9_lookup_tag - Lookup requests by tag
- * @c: virtio channel to lookup tag within
- * @tag: numeric id for transaction
- *
- * this is a simple array lookup, but will grow the
- * request_slots as necessary to accomodate transaction
- * ids which did not previously have a slot.
- *
- * Bugs: there is currently no upper limit on request slots set
- * here, but that should be constrained by the id accounting.
- */
-
-static struct p9_req_t *p9_lookup_tag(struct virtio_chan *c, u16 tag)
-{
-	/* This looks up the original request by tag so we know which
-	 * buffer to read the data into */
-	tag++;
-
-	while (tag >= c->max_tag) {
-		int old_max = c->max_tag;
-		int count;
-
-		if (c->max_tag)
-			c->max_tag *= 2;
-		else
-			c->max_tag = P9_INIT_MAXTAG;
-
-		c->reqs = krealloc(c->reqs, sizeof(struct p9_req_t)*c->max_tag,
-								GFP_ATOMIC);
-		if (!c->reqs) {
-			printk(KERN_ERR "Couldn't grow tag array\n");
-			BUG();
-		}
-		for (count = old_max; count < c->max_tag; count++) {
-			c->reqs[count].status = REQ_STATUS_IDLE;
-			c->reqs[count].wq = kmalloc(sizeof(wait_queue_head_t),
-								GFP_ATOMIC);
-			if (!c->reqs[count].wq) {
-				printk(KERN_ERR "Couldn't grow tag array\n");
-				BUG();
-			}
-			init_waitqueue_head(c->reqs[count].wq);
-		}
-	}
-
-	return &c->reqs[tag];
-}
-
 
 /* How many bytes left in this page. */
 static unsigned int rest_of_page(void *data)
@@ -200,22 +102,10 @@ static unsigned int rest_of_page(void *data)
 static void p9_virtio_close(struct p9_client *client)
 {
 	struct virtio_chan *chan = client->trans;
-	int count;
-	unsigned long flags;
-
-	spin_lock_irqsave(&chan->lock, flags);
-	p9_idpool_destroy(chan->tagpool);
-	for (count = 0; count < chan->max_tag; count++)
-		kfree(chan->reqs[count].wq);
-	kfree(chan->reqs);
-	chan->max_tag = 0;
-	spin_unlock_irqrestore(&chan->lock, flags);
 
 	mutex_lock(&virtio_9p_lock);
 	chan->inuse = false;
 	mutex_unlock(&virtio_9p_lock);
-
-	client->trans = NULL;
 }
 
 /**
@@ -241,7 +131,7 @@ static void req_done(struct virtqueue *vq)
 
 	spin_lock_irqsave(&chan->lock, flags);
 	while ((rc = chan->vq->vq_ops->get_buf(chan->vq, &len)) != NULL) {
-		req = p9_lookup_tag(chan, rc->tag);
+		req = p9_tag_lookup(chan->client, rc->tag);
 		req->status = REQ_STATUS_RCVD;
 		wake_up(req->wq);
 	}
@@ -311,13 +201,13 @@ p9_virtio_rpc(struct p9_client *c, struct p9_fcall *tc, struct p9_fcall **rc)
 
 	n = P9_NOTAG;
 	if (tc->id != P9_TVERSION) {
-		n = p9_idpool_get(chan->tagpool);
+		n = p9_idpool_get(c->tagpool);
 		if (n < 0)
 			return -ENOMEM;
 	}
 
 	spin_lock_irqsave(&chan->lock, flags);
-	req = p9_lookup_tag(chan, n);
+	req = p9_tag_alloc(c, n);
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	p9_set_tag(tc, n);
@@ -357,8 +247,8 @@ p9_virtio_rpc(struct p9_client *c, struct p9_fcall *tc, struct p9_fcall **rc)
 	}
 #endif
 
-	if (n != P9_NOTAG && p9_idpool_check(n, chan->tagpool))
-		p9_idpool_put(n, chan->tagpool);
+	if (n != P9_NOTAG && p9_idpool_check(n, c->tagpool))
+		p9_idpool_put(n, c->tagpool);
 
 	req->status = REQ_STATUS_IDLE;
 
@@ -463,16 +353,8 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 		return -ENODEV;
 	}
 
-	chan->tagpool = p9_idpool_create();
-	if (IS_ERR(chan->tagpool)) {
-		printk(KERN_ERR "9p: couldn't allocate tagpool\n");
-		return -ENOMEM;
-	}
-	p9_idpool_get(chan->tagpool); /* reserve tag 0 */
-	chan->max_tag = 0;
-	chan->reqs = NULL;
-
 	client->trans = (void *)chan;
+	chan->client = client;
 
 	return 0;
 }

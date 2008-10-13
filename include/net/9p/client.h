@@ -26,6 +26,9 @@
 #ifndef NET_9P_CLIENT_H
 #define NET_9P_CLIENT_H
 
+/* Number of requests per row */
+#define P9_ROW_MAXTAG 255
+
 /**
  * enum p9_trans_status - different states of underlying transports
  * @Connected: transport is connected and healthy
@@ -43,6 +46,62 @@ enum p9_trans_status {
 };
 
 /**
+ * enum p9_req_status_t - virtio request status
+ * @REQ_STATUS_IDLE: request slot unused
+ * @REQ_STATUS_ALLOC: request has been allocated but not sent
+ * @REQ_STATUS_SENT: request sent to server
+ * @REQ_STATUS_FLSH: a flush has been sent for this request
+ * @REQ_STATUS_RCVD: response received from server
+ * @REQ_STATUS_FLSHD: request has been flushed
+ * @REQ_STATUS_ERR: request encountered an error on the client side
+ *
+ * The @REQ_STATUS_IDLE state is used to mark a request slot as unused
+ * but use is actually tracked by the idpool structure which handles tag
+ * id allocation.
+ *
+ */
+
+enum p9_req_status_t {
+	REQ_STATUS_IDLE,
+	REQ_STATUS_ALLOC,
+	REQ_STATUS_SENT,
+	REQ_STATUS_FLSH,
+	REQ_STATUS_RCVD,
+	REQ_STATUS_FLSHD,
+	REQ_STATUS_ERROR,
+};
+
+/**
+ * struct p9_req_t - request slots
+ * @status: status of this request slot
+ * @t_err: transport error
+ * @wq: wait_queue for the client to block on for this request
+ * @tc: the request fcall structure
+ * @rc: the response fcall structure
+ * @aux: transport specific data (provided for trans_fd migration)
+ *
+ * Transport use an array to track outstanding requests
+ * instead of a list.  While this may incurr overhead during initial
+ * allocation or expansion, it makes request lookup much easier as the
+ * tag id is a index into an array.  (We use tag+1 so that we can accomodate
+ * the -1 tag for the T_VERSION request).
+ * This also has the nice effect of only having to allocate wait_queues
+ * once, instead of constantly allocating and freeing them.  Its possible
+ * other resources could benefit from this scheme as well.
+ *
+ */
+
+struct p9_req_t {
+	int status;
+	int t_err;
+	wait_queue_head_t *wq;
+	struct p9_fcall *tc;
+	struct p9_fcall *rc;
+	u16 flush_tag;
+	void *aux;
+};
+
+/**
  * struct p9_client - per client instance state
  * @lock: protect @fidlist
  * @msize: maximum data size negotiated by protocol
@@ -52,9 +111,20 @@ enum p9_trans_status {
  * @conn: connection state information used by trans_fd
  * @fidpool: fid handle accounting for session
  * @fidlist: List of active fid handles
+ * @tagpool - transaction id accounting for session
+ * @reqs - 2D array of requests
+ * @max_tag - current maximum tag id allocated
  *
  * The client structure is used to keep track of various per-client
  * state that has been instantiated.
+ * In order to minimize per-transaction overhead we use a
+ * simple array to lookup requests instead of a hash table
+ * or linked list.  In order to support larger number of
+ * transactions, we make this a 2D array, allocating new rows
+ * when we need to grow the total number of the transactions.
+ *
+ * Each row is 256 requests and we'll support up to 256 rows for
+ * a total of 64k concurrent requests per session.
  *
  * Bugs: duplicated data and potentially unnecessary elements.
  */
@@ -70,6 +140,10 @@ struct p9_client {
 
 	struct p9_idpool *fidpool;
 	struct list_head fidlist;
+
+	struct p9_idpool *tagpool;
+	struct p9_req_t *reqs[P9_ROW_MAXTAG];
+	int max_tag;
 };
 
 /**
@@ -130,5 +204,8 @@ int p9_client_uwrite(struct p9_fid *fid, const char __user *data, u64 offset,
 struct p9_stat *p9_client_stat(struct p9_fid *fid);
 int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
 struct p9_stat *p9_client_dirread(struct p9_fid *fid, u64 offset);
+
+struct p9_req_t *p9_tag_alloc(struct p9_client *, u16);
+struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 
 #endif /* NET_9P_CLIENT_H */

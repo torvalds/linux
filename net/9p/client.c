@@ -120,6 +120,154 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	return ret;
 }
 
+/**
+ * p9_tag_alloc - lookup/allocate a request by tag
+ * @c: client session to lookup tag within
+ * @tag: numeric id for transaction
+ *
+ * this is a simple array lookup, but will grow the
+ * request_slots as necessary to accomodate transaction
+ * ids which did not previously have a slot.
+ *
+ * this code relies on the client spinlock to manage locks, its
+ * possible we should switch to something else, but I'd rather
+ * stick with something low-overhead for the common case.
+ *
+ */
+
+struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
+{
+	unsigned long flags;
+	int row, col;
+
+	/* This looks up the original request by tag so we know which
+	 * buffer to read the data into */
+	tag++;
+
+	if (tag >= c->max_tag) {
+		spin_lock_irqsave(&c->lock, flags);
+		/* check again since original check was outside of lock */
+		while (tag >= c->max_tag) {
+			row = (tag / P9_ROW_MAXTAG);
+			c->reqs[row] = kcalloc(P9_ROW_MAXTAG,
+					sizeof(struct p9_req_t), GFP_ATOMIC);
+
+			if (!c->reqs[row]) {
+				printk(KERN_ERR "Couldn't grow tag array\n");
+				BUG();
+			}
+			for (col = 0; col < P9_ROW_MAXTAG; col++) {
+				c->reqs[row][col].status = REQ_STATUS_IDLE;
+				c->reqs[row][col].flush_tag = P9_NOTAG;
+				c->reqs[row][col].wq = kmalloc(
+					sizeof(wait_queue_head_t), GFP_ATOMIC);
+				if (!c->reqs[row][col].wq) {
+					printk(KERN_ERR
+						"Couldn't grow tag array\n");
+					BUG();
+				}
+				init_waitqueue_head(c->reqs[row][col].wq);
+			}
+			c->max_tag += P9_ROW_MAXTAG;
+		}
+		spin_unlock_irqrestore(&c->lock, flags);
+	}
+	row = tag / P9_ROW_MAXTAG;
+	col = tag % P9_ROW_MAXTAG;
+
+	c->reqs[row][col].status = REQ_STATUS_ALLOC;
+	c->reqs[row][col].flush_tag = P9_NOTAG;
+
+	return &c->reqs[row][col];
+}
+EXPORT_SYMBOL(p9_tag_alloc);
+
+/**
+ * p9_tag_lookup - lookup a request by tag
+ * @c: client session to lookup tag within
+ * @tag: numeric id for transaction
+ *
+ */
+
+struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag)
+{
+	int row, col;
+
+	/* This looks up the original request by tag so we know which
+	 * buffer to read the data into */
+	tag++;
+
+	BUG_ON(tag >= c->max_tag);
+
+	row = tag / P9_ROW_MAXTAG;
+	col = tag % P9_ROW_MAXTAG;
+
+	return &c->reqs[row][col];
+}
+EXPORT_SYMBOL(p9_tag_lookup);
+
+/**
+ * p9_tag_init - setup tags structure and contents
+ * @tags: tags structure from the client struct
+ *
+ * This initializes the tags structure for each client instance.
+ *
+ */
+
+static int p9_tag_init(struct p9_client *c)
+{
+	int err = 0;
+
+	c->tagpool = p9_idpool_create();
+	if (IS_ERR(c->tagpool)) {
+		err = PTR_ERR(c->tagpool);
+		c->tagpool = NULL;
+		goto error;
+	}
+
+	p9_idpool_get(c->tagpool); /* reserve tag 0 */
+
+	c->max_tag = 0;
+error:
+	return err;
+}
+
+/**
+ * p9_tag_cleanup - cleans up tags structure and reclaims resources
+ * @tags: tags structure from the client struct
+ *
+ * This frees resources associated with the tags structure
+ *
+ */
+static void p9_tag_cleanup(struct p9_client *c)
+{
+	int row, col;
+
+	/* check to insure all requests are idle */
+	for (row = 0; row < (c->max_tag/P9_ROW_MAXTAG); row++) {
+		for (col = 0; col < P9_ROW_MAXTAG; col++) {
+			if (c->reqs[row][col].status != REQ_STATUS_IDLE) {
+				P9_DPRINTK(P9_DEBUG_MUX,
+				  "Attempting to cleanup non-free tag %d,%d\n",
+				  row, col);
+				/* TODO: delay execution of cleanup */
+				return;
+			}
+		}
+	}
+
+	if (c->tagpool)
+		p9_idpool_destroy(c->tagpool);
+
+	/* free requests associated with tags */
+	for (row = 0; row < (c->max_tag/P9_ROW_MAXTAG); row++) {
+		for (col = 0; col < P9_ROW_MAXTAG; col++)
+			kfree(c->reqs[row][col].wq);
+		kfree(c->reqs[row]);
+	}
+	c->max_tag = 0;
+}
+
 static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 {
 	int err;
@@ -209,6 +357,8 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		goto error;
 	}
 
+	p9_tag_init(clnt);
+
 	err = parse_opts(options, clnt);
 	if (err < 0)
 		goto error;
@@ -284,6 +434,8 @@ void p9_client_destroy(struct p9_client *clnt)
 
 	if (clnt->fidpool)
 		p9_idpool_destroy(clnt->fidpool);
+
+	p9_tag_cleanup(clnt);
 
 	kfree(clnt);
 }
