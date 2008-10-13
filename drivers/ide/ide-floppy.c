@@ -765,56 +765,6 @@ static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
-			       unsigned long arg, unsigned int cmd)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	struct gendisk *disk = floppy->disk;
-	int prevent = (arg && cmd != CDROMEJECT) ? 1 : 0;
-
-	if (floppy->openers > 1)
-		return -EBUSY;
-
-	ide_set_media_lock(drive, disk, prevent);
-
-	if (cmd == CDROMEJECT)
-		ide_do_start_stop(drive, disk, 2);
-
-	return 0;
-}
-
-static int idefloppy_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
-{
-	struct block_device *bdev = inode->i_bdev;
-	struct ide_floppy_obj *floppy = ide_drv_g(bdev->bd_disk,
-						     ide_floppy_obj);
-	ide_drive_t *drive = floppy->drive;
-	struct ide_atapi_pc pc;
-	void __user *argp = (void __user *)arg;
-	int err;
-
-	if (cmd == CDROMEJECT || cmd == CDROM_LOCKDOOR)
-		return ide_floppy_lockdoor(drive, &pc, arg, cmd);
-
-	err = ide_floppy_format_ioctl(drive, file, cmd, argp);
-	if (err != -ENOTTY)
-		return err;
-
-	/*
-	 * skip SCSI_IOCTL_SEND_COMMAND (deprecated)
-	 * and CDROM_SEND_PACKET (legacy) ioctls
-	 */
-	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
-		err = scsi_cmd_ioctl(file, bdev->bd_disk->queue,
-					bdev->bd_disk, cmd, argp);
-
-	if (err == -ENOTTY)
-		err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
-
-	return err;
-}
-
 static int idefloppy_media_changed(struct gendisk *disk)
 {
 	struct ide_floppy_obj *floppy = ide_drv_g(disk, ide_floppy_obj);
@@ -842,7 +792,7 @@ static struct block_device_operations idefloppy_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idefloppy_open,
 	.release		= idefloppy_release,
-	.ioctl			= idefloppy_ioctl,
+	.ioctl			= ide_floppy_ioctl,
 	.getgeo			= idefloppy_getgeo,
 	.media_changed		= idefloppy_media_changed,
 	.revalidate_disk	= idefloppy_revalidate_disk
