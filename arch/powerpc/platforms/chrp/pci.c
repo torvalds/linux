@@ -260,7 +260,7 @@ chrp_find_bridges(void)
 				dev->full_name);
 			continue;
 		}
-		hose->first_busno = bus_range[0];
+		hose->first_busno = hose->self_busno = bus_range[0];
 		hose->last_busno = bus_range[1];
 
 		model = of_get_property(dev, "model", NULL);
