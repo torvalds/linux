@@ -501,11 +501,13 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 		return index;
 
 	mutex_lock(&tty_mutex);
-	retval = tty_init_dev(ptm_driver, index, &tty, 1);
+	tty = tty_init_dev(ptm_driver, index, 1);
 	mutex_unlock(&tty_mutex);
 
-	if (retval)
+	if (IS_ERR(tty)) {
+		retval = PTR_ERR(tty);
 		goto out;
+	}
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 	filp->private_data = tty;

@@ -1324,35 +1324,32 @@ static int tty_reopen(struct tty_struct *tty)
  * relaxed for the (most common) case of reopening a tty.
  */
 
-int tty_init_dev(struct tty_driver *driver, int idx,
-	struct tty_struct **ret_tty, int first_ok)
+struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
+								int first_ok)
 {
 	struct tty_struct *tty, *o_tty;
 	struct ktermios *tp, **tp_loc, *o_tp, **o_tp_loc;
 	struct ktermios *ltp, **ltp_loc, *o_ltp, **o_ltp_loc;
-	int retval = 0;
+	int retval;
 
 	/* check whether we're reopening an existing tty */
 	tty = tty_driver_lookup_tty(driver, idx);
-	if (IS_ERR(tty)) {
-		retval = PTR_ERR(tty);
-		goto end_init;
-	}
+
+	if (IS_ERR(tty))
+		return tty;
 
 	if (tty) {
 		retval = tty_reopen(tty);
 		if (retval)
-			return retval;
-		*ret_tty = tty;
-		return 0;
+			return ERR_PTR(retval);
+		return tty;
 	}
 
 	/* Check if pty master is being opened multiple times */
 	if (driver->subtype == PTY_TYPE_MASTER &&
-		(driver->flags & TTY_DRIVER_DEVPTS_MEM) && !first_ok) {
-		retval = -EIO;
-		goto end_init;
-	}
+		(driver->flags & TTY_DRIVER_DEVPTS_MEM) && !first_ok)
+		return ERR_PTR(-EIO);
+
 	/*
 	 * First time open is complex, especially for PTY devices.
 	 * This code guarantees that either everything succeeds and the
@@ -1361,10 +1358,8 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 	 * and locked termios may be retained.)
 	 */
 
-	if (!try_module_get(driver->owner)) {
-		retval = -ENODEV;
-		goto end_init;
-	}
+	if (!try_module_get(driver->owner))
+		return ERR_PTR(-ENODEV);
 
 	o_tty = NULL;
 	tp = o_tp = NULL;
@@ -1475,7 +1470,8 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 	tty_driver_kref_get(driver);
 	tty->count++;
 
-	if (tty_driver_install_tty(driver, tty) < 0)
+	retval = tty_driver_install_tty(driver, tty);
+	if (retval < 0)
 		goto release_mem_out;
 
 	/*
@@ -1485,14 +1481,9 @@ int tty_init_dev(struct tty_driver *driver, int idx,
 	 */
 
 	retval = tty_ldisc_setup(tty, o_tty);
-
 	if (retval)
 		goto release_mem_out;
-
-	*ret_tty = tty;
-	/* All paths come through here to release the mutex */
-end_init:
-	return retval;
+	return tty;
 
 	/* Release locally allocated memory ... nothing placed in slots */
 free_mem_out:
@@ -1507,8 +1498,7 @@ free_mem_out:
 
 fail_no_mem:
 	module_put(driver->owner);
-	retval = -ENOMEM;
-	goto end_init;
+	return ERR_PTR(-ENOMEM);
 
 	/* call the tty release_tty routine to clean out this slot */
 release_mem_out:
@@ -1516,7 +1506,7 @@ release_mem_out:
 		printk(KERN_INFO "tty_init_dev: ldisc open failed, "
 				 "clearing slot %d\n", idx);
 	release_tty(tty, idx);
-	goto end_init;
+	return ERR_PTR(retval);
 }
 
 void tty_free_termios(struct tty_struct *tty)
@@ -1925,11 +1915,11 @@ retry_open:
 		return -ENODEV;
 	}
 got_driver:
-	retval = tty_init_dev(driver, index, &tty, 0);
+	tty = tty_init_dev(driver, index, 0);
 	mutex_unlock(&tty_mutex);
 	tty_driver_kref_put(driver);
-	if (retval)
-		return retval;
+	if (IS_ERR(tty))
+		return PTR_ERR(tty);
 
 	filp->private_data = tty;
 	file_move(filp, &tty->tty_files);
