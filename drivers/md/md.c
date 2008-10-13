@@ -2943,7 +2943,13 @@ metadata_store(mddev_t *mddev, const char *buf, size_t len)
 {
 	int major, minor;
 	char *e;
-	if (!list_empty(&mddev->disks))
+	/* Changing the details of 'external' metadata is
+	 * always permitted.  Otherwise there must be
+	 * no devices attached to the array.
+	 */
+	if (mddev->external && strncmp(buf, "external:", 9) == 0)
+		;
+	else if (!list_empty(&mddev->disks))
 		return -EBUSY;
 
 	if (cmd_match(buf, "none")) {
