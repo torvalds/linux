@@ -831,7 +831,7 @@ static int __init us3mc_init(void)
 	if (!us3mc_platform())
 		return -ENODEV;
 
-	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+	__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
 	if ((ver >> 32UL) == __JALAPENO_ID ||
 	    (ver >> 32UL) == __SERRANO_ID) {
 		mc_type = MC_TYPE_JBUS;
