@@ -544,8 +544,6 @@ free_mem_out:
 	module_put(o_tty->driver->owner);
 	free_tty_struct(o_tty);
 	pty_unix98_shutdown(tty);
-	free_tty_struct(tty);
-	module_put(driver->owner);
 	return -ENOMEM;
 }
 
