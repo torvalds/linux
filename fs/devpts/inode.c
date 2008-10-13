@@ -27,6 +27,7 @@
 #define DEVPTS_SUPER_MAGIC 0x1cd1
 
 #define DEVPTS_DEFAULT_MODE 0600
+#define PTMX_MINOR	2
 
 extern int pty_limit;			/* Config limit on Unix98 ptys */
 static DEFINE_IDA(allocated_ptys);
@@ -247,19 +248,11 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 
 struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
 {
-	struct dentry *dentry = get_node(number);
-	struct tty_struct *tty;
+	BUG_ON(pts_inode->i_rdev == MKDEV(TTYAUX_MAJOR, PTMX_MINOR));
 
-	tty = NULL;
-	if (!IS_ERR(dentry)) {
-		if (dentry->d_inode)
-			tty = dentry->d_inode->i_private;
-		dput(dentry);
-	}
-
-	mutex_unlock(&devpts_root->d_inode->i_mutex);
-
-	return tty;
+	if (pts_inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
+		return (struct tty_struct *)pts_inode->i_private;
+	return NULL;
 }
 
 void devpts_pty_kill(struct tty_struct *tty)
