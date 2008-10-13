@@ -43,12 +43,7 @@
  * miss any bits.
  */
 
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/highmem.h>
-#include <linux/bitops.h>
 #include <linux/kthread.h>
-#include <asm/atomic.h>
 #include "raid6.h"
 
 #include <linux/raid/bitmap.h>
