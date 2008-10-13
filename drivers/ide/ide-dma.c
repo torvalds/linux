@@ -28,21 +28,13 @@
  * for supplying a Promise UDMA board & WD UDMA drive for this work!
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/ide.h>
-#include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 static const struct drive_list_entry drive_whitelist [] = {
 
