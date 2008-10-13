@@ -730,6 +730,25 @@ void tty_vhangup(struct tty_struct *tty)
 EXPORT_SYMBOL(tty_vhangup);
 
 /**
+ *	tty_vhangup_self	-	process vhangup for own ctty
+ *
+ *	Perform a vhangup on the current controlling tty
+ */
+
+void tty_vhangup_self(void)
+{
+	struct tty_struct *tty;
+
+	mutex_lock(&tty_mutex);
+	tty = get_current_tty();
+	if (tty) {
+		tty_vhangup(tty);
+		tty_kref_put(tty);
+	}
+	mutex_unlock(&tty_mutex);
+}
+
+/**
  *	tty_hung_up_p		-	was tty hung up
  *	@filp: file pointer of tty
  *
