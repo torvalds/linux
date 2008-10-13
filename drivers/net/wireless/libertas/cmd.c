@@ -823,7 +823,9 @@ int lbs_update_channel(struct lbs_private *priv)
 int lbs_set_channel(struct lbs_private *priv, u8 channel)
 {
 	struct cmd_ds_802_11_rf_channel cmd;
+#ifdef DEBUG
 	u8 old_channel = priv->curbssparams.channel;
+#endif
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
