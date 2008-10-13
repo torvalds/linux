@@ -301,7 +301,11 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 	bfin_serial_mctrl_check(uart);
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
-		bfin_serial_stop_tx(&uart->port);
+#ifdef CONFIG_BF54x
+		/* Clear TFI bit */
+		UART_PUT_LSR(uart, TFI);
+#endif
+		UART_CLEAR_IER(uart, ETBEI);
 		return;
 	}
 
