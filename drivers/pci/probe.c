@@ -298,9 +298,6 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 			child->resource[i] = child->parent->resource[i - 3];
 	}
 
-	for(i=0; i<3; i++)
-		child->resource[i] = &dev->resource[PCI_BRIDGE_RESOURCES+i];
-
 	res = child->resource[0];
 	pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
 	pci_read_config_byte(dev, PCI_IO_LIMIT, &io_limit_lo);
