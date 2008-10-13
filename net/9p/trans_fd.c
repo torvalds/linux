@@ -111,7 +111,9 @@ struct p9_poll_wait {
  * @err: error state
  * @req_list: accounting for requests which have been sent
  * @unsent_req_list: accounting for requests that haven't been sent
- * @rcall: current response &p9_fcall structure
+ * @req: current request being processed (if any)
+ * @tmp_buf: temporary buffer to read in header
+ * @rsize: amount to read for current frame
  * @rpos: read position in current frame
  * @rbuf: current read buffer
  * @wpos: write position for current frame
@@ -132,7 +134,9 @@ struct p9_conn {
 	int err;
 	struct list_head req_list;
 	struct list_head unsent_req_list;
-	struct p9_fcall *rcall;
+	struct p9_req_t *req;
+	char tmp_buf[7];
+	int rsize;
 	int rpos;
 	char *rbuf;
 	int wpos;
@@ -346,34 +350,25 @@ static void p9_read_work(struct work_struct *work)
 {
 	int n, err;
 	struct p9_conn *m;
-	struct p9_req_t *req;
-	struct p9_fcall *rcall;
-	char *rbuf;
 
 	m = container_of(work, struct p9_conn, rq);
 
 	if (m->err < 0)
 		return;
 
-	rcall = NULL;
 	P9_DPRINTK(P9_DEBUG_MUX, "start mux %p pos %d\n", m, m->rpos);
 
-	if (!m->rcall) {
-		m->rcall =
-		    kmalloc(sizeof(struct p9_fcall) + m->client->msize,
-								GFP_KERNEL);
-		if (!m->rcall) {
-			err = -ENOMEM;
-			goto error;
-		}
-
-		m->rbuf = (char *)m->rcall + sizeof(struct p9_fcall);
+	if (!m->rbuf) {
+		m->rbuf = m->tmp_buf;
 		m->rpos = 0;
+		m->rsize = 7; /* start by reading header */
 	}
 
 	clear_bit(Rpending, &m->wsched);
+	P9_DPRINTK(P9_DEBUG_MUX, "read mux %p pos %d size: %d = %d\n", m,
+					m->rpos, m->rsize, m->rsize-m->rpos);
 	err = p9_fd_read(m->client, m->rbuf + m->rpos,
-						m->client->msize - m->rpos);
+						m->rsize - m->rpos);
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p got %d bytes\n", m, err);
 	if (err == -EAGAIN) {
 		clear_bit(Rworksched, &m->wsched);
@@ -384,8 +379,12 @@ static void p9_read_work(struct work_struct *work)
 		goto error;
 
 	m->rpos += err;
-	while (m->rpos > 4) {
-		n = le32_to_cpu(*(__le32 *) m->rbuf);
+
+	if ((!m->req) && (m->rpos == m->rsize)) { /* header read in */
+		u16 tag;
+		P9_DPRINTK(P9_DEBUG_MUX, "got new header\n");
+
+		n = le32_to_cpu(*(__le32 *) m->rbuf); /* read packet size */
 		if (n >= m->client->msize) {
 			P9_DPRINTK(P9_DEBUG_ERROR,
 				"requested packet size too big: %d\n", n);
@@ -393,66 +392,71 @@ static void p9_read_work(struct work_struct *work)
 			goto error;
 		}
 
-		if (m->rpos < n)
-			break;
+		tag = le16_to_cpu(*(__le16 *) (m->rbuf+5)); /* read tag */
+		P9_DPRINTK(P9_DEBUG_MUX, "mux %p pkt: size: %d bytes tag: %d\n",
+								 m, n, tag);
 
-		err =
-		    p9_deserialize_fcall(m->rbuf, n, m->rcall, m->client->dotu);
-		if (err < 0)
+		m->req = p9_tag_lookup(m->client, tag);
+		if (!m->req) {
+			P9_DPRINTK(P9_DEBUG_ERROR, "Unexpected packet tag %d\n",
+								 tag);
+			err = -EIO;
 			goto error;
+		}
+
+		if (m->req->rc == NULL) {
+			m->req->rc = kmalloc(sizeof(struct p9_fcall) +
+						m->client->msize, GFP_KERNEL);
+			if (!m->req->rc) {
+				m->req = NULL;
+				err = -ENOMEM;
+				goto error;
+			}
+		}
+		m->rbuf = (char *)m->req->rc + sizeof(struct p9_fcall);
+		memcpy(m->rbuf, m->tmp_buf, m->rsize);
+		m->rsize = n;
+	}
+
+	/* not an else because some packets (like clunk) have no payload */
+	if ((m->req) && (m->rpos == m->rsize)) { /* packet is read in */
+		P9_DPRINTK(P9_DEBUG_MUX, "got new packet\n");
+		m->rbuf = (char *)m->req->rc + sizeof(struct p9_fcall);
+		err = p9_deserialize_fcall(m->rbuf, m->rsize, m->req->rc,
+							m->client->dotu);
+		if (err < 0) {
+			m->req = NULL;
+			goto error;
+		}
 
 #ifdef CONFIG_NET_9P_DEBUG
 		if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
 			char buf[150];
 
-			p9_printfcall(buf, sizeof(buf), m->rcall,
+			p9_printfcall(buf, sizeof(buf), m->req->rc,
 				m->client->dotu);
 			printk(KERN_NOTICE ">>> %p %s\n", m, buf);
 		}
 #endif
 
-		rcall = m->rcall;
-		rbuf = m->rbuf;
-		if (m->rpos > n) {
-			m->rcall = kmalloc(sizeof(struct p9_fcall) +
-						m->client->msize, GFP_KERNEL);
-			if (!m->rcall) {
-				err = -ENOMEM;
-				goto error;
-			}
-
-			m->rbuf = (char *)m->rcall + sizeof(struct p9_fcall);
-			memmove(m->rbuf, rbuf + n, m->rpos - n);
-			m->rpos -= n;
-		} else {
-			m->rcall = NULL;
-			m->rbuf = NULL;
-			m->rpos = 0;
-		}
-
 		P9_DPRINTK(P9_DEBUG_MUX, "mux %p fcall id %d tag %d\n", m,
-							rcall->id, rcall->tag);
+					m->req->rc->id, m->req->rc->tag);
 
-		req = p9_tag_lookup(m->client, rcall->tag);
+		m->rbuf = NULL;
+		m->rpos = 0;
+		m->rsize = 0;
 
-		if (req) {
-			if (req->status != REQ_STATUS_FLSH) {
-				list_del(&req->req_list);
-				req->status = REQ_STATUS_RCVD;
-			}
-
-			req->rc = rcall;
-			process_request(m, req);
-
-			if (req->status != REQ_STATUS_FLSH)
-				p9_conn_rpc_cb(m->client, req);
-		} else {
-			if (err >= 0 && rcall->id != P9_RFLUSH)
-				P9_DPRINTK(P9_DEBUG_ERROR,
-				  "unexpected response mux %p id %d tag %d\n",
-				  m, rcall->id, rcall->tag);
-			kfree(rcall);
+		if (m->req->status != REQ_STATUS_FLSH) {
+			list_del(&m->req->req_list);
+			m->req->status = REQ_STATUS_RCVD;
 		}
+
+		process_request(m, m->req);
+
+		if (m->req->status != REQ_STATUS_FLSH)
+			p9_conn_rpc_cb(m->client, m->req);
+
+		m->req = NULL;
 	}
 
 	if (!list_empty(&m->req_list)) {
@@ -470,7 +474,6 @@ static void p9_read_work(struct work_struct *work)
 		clear_bit(Rworksched, &m->wsched);
 
 	return;
-
 error:
 	p9_conn_cancel(m, err);
 	clear_bit(Rworksched, &m->wsched);
