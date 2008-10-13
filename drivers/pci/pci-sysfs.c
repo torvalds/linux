@@ -735,10 +735,41 @@ int __attribute__ ((weak)) pcibios_add_platform_entries(struct pci_dev *dev)
 	return 0;
 }
 
+static int pci_create_capabilities_sysfs(struct pci_dev *dev)
+{
+	int retval;
+	struct bin_attribute *attr;
+
+	/* If the device has VPD, try to expose it in sysfs. */
+	if (dev->vpd) {
+		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
+		if (!attr)
+			return -ENOMEM;
+
+		attr->size = dev->vpd->len;
+		attr->attr.name = "vpd";
+		attr->attr.mode = S_IRUSR | S_IWUSR;
+		attr->read = pci_read_vpd;
+		attr->write = pci_write_vpd;
+		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
+		if (retval) {
+			kfree(dev->vpd->attr);
+			return retval;
+		}
+		dev->vpd->attr = attr;
+	}
+
+	/* Active State Power Management */
+	pcie_aspm_create_sysfs_dev_files(dev);
+
+	return 0;
+}
+
 int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 {
-	struct bin_attribute *attr = NULL;
 	int retval;
+	int rom_size = 0;
+	struct bin_attribute *attr;
 
 	if (!sysfs_initialized)
 		return -EACCES;
@@ -750,69 +781,55 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (retval)
 		goto err;
 
-	/* If the device has VPD, try to expose it in sysfs. */
-	if (pdev->vpd) {
-		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-		if (attr) {
-			pdev->vpd->attr = attr;
-			attr->size = pdev->vpd->len;
-			attr->attr.name = "vpd";
-			attr->attr.mode = S_IRUSR | S_IWUSR;
-			attr->read = pci_read_vpd;
-			attr->write = pci_write_vpd;
-			retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
-			if (retval)
-				goto err_vpd;
-		} else {
-			retval = -ENOMEM;
-			goto err_config_file;
-		}
-	}
-
 	retval = pci_create_resource_files(pdev);
 	if (retval)
-		goto err_vpd_file;
+		goto err_config_file;
+
+	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
+		rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+	else if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
+		rom_size = 0x20000;
 
 	/* If the device has a ROM, try to expose it in sysfs. */
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE) ||
-	    (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)) {
+	if (rom_size) {
 		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-		if (attr) {
-			pdev->rom_attr = attr;
-			attr->size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			attr->attr.name = "rom";
-			attr->attr.mode = S_IRUSR;
-			attr->read = pci_read_rom;
-			attr->write = pci_write_rom;
-			retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
-			if (retval)
-				goto err_rom;
-		} else {
+		if (!attr) {
 			retval = -ENOMEM;
 			goto err_resource_files;
 		}
+		attr->size = rom_size;
+		attr->attr.name = "rom";
+		attr->attr.mode = S_IRUSR;
+		attr->read = pci_read_rom;
+		attr->write = pci_write_rom;
+		retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
+		if (retval) {
+			kfree(attr);
+			goto err_resource_files;
+		}
+		pdev->rom_attr = attr;
 	}
+
 	/* add platform-specific attributes */
-	if (pcibios_add_platform_entries(pdev))
+	retval = pcibios_add_platform_entries(pdev);
+	if (retval)
 		goto err_rom_file;
 
-	pcie_aspm_create_sysfs_dev_files(pdev);
+	/* add sysfs entries for various capabilities */
+	retval = pci_create_capabilities_sysfs(pdev);
+	if (retval)
+		goto err_rom_file;
 
 	return 0;
 
 err_rom_file:
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
+	if (rom_size) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
-err_rom:
-	kfree(pdev->rom_attr);
+		kfree(pdev->rom_attr);
+		pdev->rom_attr = NULL;
+	}
 err_resource_files:
 	pci_remove_resource_files(pdev);
-err_vpd_file:
-	if (pdev->vpd) {
-		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->vpd->attr);
-err_vpd:
-		kfree(pdev->vpd->attr);
-	}
 err_config_file:
 	if (pdev->cfg_size < PCI_CFG_SPACE_EXP_SIZE)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
@@ -820,6 +837,16 @@ err_config_file:
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pcie_config_attr);
 err:
 	return retval;
+}
+
+static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
+{
+	if (dev->vpd && dev->vpd->attr) {
+		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
+		kfree(dev->vpd->attr);
+	}
+
+	pcie_aspm_remove_sysfs_dev_files(dev);
 }
 
 /**
@@ -830,15 +857,13 @@ err:
  */
 void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
+	int rom_size = 0;
+
 	if (!sysfs_initialized)
 		return;
 
-	pcie_aspm_remove_sysfs_dev_files(pdev);
+	pci_remove_capabilities_sysfs(pdev);
 
-	if (pdev->vpd) {
-		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->vpd->attr);
-		kfree(pdev->vpd->attr);
-	}
 	if (pdev->cfg_size < PCI_CFG_SPACE_EXP_SIZE)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else
@@ -846,11 +871,14 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 	pci_remove_resource_files(pdev);
 
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE)) {
-		if (pdev->rom_attr) {
-			sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
-			kfree(pdev->rom_attr);
-		}
+	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
+		rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+	else if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
+		rom_size = 0x20000;
+
+	if (rom_size && pdev->rom_attr) {
+		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
+		kfree(pdev->rom_attr);
 	}
 }
 
