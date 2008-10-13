@@ -8,6 +8,7 @@
  */
 
 #include <asm/scatterlist.h>
+#include <asm-generic/pci-dma-compat.h>
 
 struct pci_ops;
 
