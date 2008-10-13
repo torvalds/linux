@@ -2133,7 +2133,7 @@ int tty_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
 
 	/* For a PTY we need to lock the tty side */
 	mutex_lock(&real_tty->termios_mutex);
-	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
+	if (!memcmp(ws, &real_tty->winsize, sizeof(*ws)))
 		goto done;
 	/* Get the PID values and reference them so we can
 	   avoid holding the tty ctrl lock while sending signals */
