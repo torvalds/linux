@@ -2197,8 +2197,11 @@ static struct block_device_operations idecd_ops = {
 
 /* module options */
 static char *ignore;
-
 module_param(ignore, charp, 0400);
+
+static unsigned long debug_mask;
+module_param(debug_mask, ulong, 0644);
+
 MODULE_DESCRIPTION("ATAPI CD-ROM Driver");
 
 static int ide_cd_probe(ide_drive_t *drive)
@@ -2225,6 +2228,9 @@ static int ide_cd_probe(ide_drive_t *drive)
 			goto failed;
 		}
 	}
+
+	drive->debug_mask = debug_mask;
+
 	info = kzalloc(sizeof(struct cdrom_info), GFP_KERNEL);
 	if (info == NULL) {
 		printk(KERN_ERR PFX "%s: Can't allocate a cdrom structure\n",
