@@ -84,6 +84,10 @@
 			  6 0 0xfd000000 0x00800000     // IO FPGA (8-bit)
 			  7 0 0xfd800000 0x00800000>;   // IO FPGA (32-bit)
 
+		fpga@4,0 {
+			compatible = "gef,fpga-regs";
+			reg = <0x4 0x0 0x40>;
+		};
 		gef_pic: pic@4,4000 {
 			#interrupt-cells = <1>;
 			interrupt-controller;
