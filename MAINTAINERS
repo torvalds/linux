@@ -2797,15 +2797,6 @@ L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
-MEI MN10300/AM33 PORT
-P:	David Howells
-M:	dhowells@redhat.com
-P:	Koichi Yasutake
-M:	yasutake.koichi@jp.panasonic.com
-L:	linux-am33-list@redhat.com (moderated for non-subscribers)
-W:	ftp://ftp.redhat.com/pub/redhat/gnupro/AM33/
-S:	Maintained
-
 MICROTEK X6 SCANNER
 P:	Oliver Neukum
 M:	oliver@neukum.name
@@ -3168,6 +3159,15 @@ PA SEMI SMBUS DRIVER
 P:	Olof Johansson
 M:	olof@lixom.net
 L:	i2c@lm-sensors.org
+S:	Maintained
+
+PANASONIC MN10300/AM33 PORT
+P:	David Howells
+M:	dhowells@redhat.com
+P:	Koichi Yasutake
+M:	yasutake.koichi@jp.panasonic.com
+L:	linux-am33-list@redhat.com (moderated for non-subscribers)
+W:	ftp://ftp.redhat.com/pub/redhat/gnupro/AM33/
 S:	Maintained
 
 PARALLEL PORT SUPPORT
