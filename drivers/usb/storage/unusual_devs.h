@@ -2062,6 +2062,15 @@ UNUSUAL_DEV(  0x2770, 0x915d, 0x0010, 0x0010,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Frederic Marchal <frederic.marchal@wowcompany.com>
+ * Mio Moov 330
+ */
+UNUSUAL_DEV(  0x3340, 0xffff, 0x0000, 0x0000,
+		"Mitac",
+		"Mio DigiWalker USB Sync",
+		US_SC_DEVICE,US_PR_DEVICE,NULL,
+		US_FL_MAX_SECTORS_64 ),
+
 /* Reported by Andrey Rahmatullin <wrar@altlinux.org> */
 UNUSUAL_DEV(  0x4102, 0x1020, 0x0100,  0x0100,
 		"iRiver",
