@@ -33,8 +33,8 @@
 #include <linux/uaccess.h>
 #include <net/9p/9p.h>
 #include <linux/parser.h>
-#include <net/9p/transport.h>
 #include <net/9p/client.h>
+#include <net/9p/transport.h>
 
 static struct p9_fid *p9_fid_create(struct p9_client *clnt);
 static void p9_fid_destroy(struct p9_fid *fid);
@@ -136,7 +136,7 @@ int
 p9_client_rpc(struct p9_client *c, struct p9_fcall *tc,
 	struct p9_fcall **rc)
 {
-	return c->trans->rpc(c->trans, tc, rc);
+	return c->trans_mod->rpc(c, tc, rc);
 }
 
 struct p9_client *p9_client_create(const char *dev_name, char *options)
@@ -179,13 +179,9 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		clnt, clnt->trans_mod, clnt->msize, clnt->dotu);
 
 
-	clnt->trans = clnt->trans_mod->create(dev_name, options, clnt->msize,
-								clnt->dotu);
-	if (IS_ERR(clnt->trans)) {
-		err = PTR_ERR(clnt->trans);
-		clnt->trans = NULL;
+	err = clnt->trans_mod->create(clnt, dev_name, options);
+	if (err)
 		goto error;
-	}
 
 	if ((clnt->msize+P9_IOHDRSZ) > clnt->trans_mod->maxsize)
 		clnt->msize = clnt->trans_mod->maxsize-P9_IOHDRSZ;
@@ -233,11 +229,8 @@ void p9_client_destroy(struct p9_client *clnt)
 
 	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
 
-	if (clnt->trans) {
-		clnt->trans->close(clnt->trans);
-		kfree(clnt->trans);
-		clnt->trans = NULL;
-	}
+	if (clnt->trans_mod)
+		clnt->trans_mod->close(clnt);
 
 	v9fs_put_trans(clnt->trans_mod);
 
@@ -254,7 +247,7 @@ EXPORT_SYMBOL(p9_client_destroy);
 void p9_client_disconnect(struct p9_client *clnt)
 {
 	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
-	clnt->trans->status = Disconnected;
+	clnt->status = Disconnected;
 }
 EXPORT_SYMBOL(p9_client_disconnect);
 

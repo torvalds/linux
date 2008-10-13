@@ -27,6 +27,22 @@
 #define NET_9P_CLIENT_H
 
 /**
+ * enum p9_trans_status - different states of underlying transports
+ * @Connected: transport is connected and healthy
+ * @Disconnected: transport has been disconnected
+ * @Hung: transport is connected by wedged
+ *
+ * This enumeration details the various states a transport
+ * instatiation can be in.
+ */
+
+enum p9_trans_status {
+	Connected,
+	Disconnected,
+	Hung,
+};
+
+/**
  * struct p9_client - per client instance state
  * @lock: protect @fidlist
  * @msize: maximum data size negotiated by protocol
@@ -48,7 +64,8 @@ struct p9_client {
 	int msize;
 	unsigned char dotu;
 	struct p9_trans_module *trans_mod;
-	struct p9_trans *trans;
+	enum p9_trans_status status;
+	void *trans;
 	struct p9_conn *conn;
 
 	struct p9_idpool *fidpool;

@@ -30,8 +30,8 @@
 #include <linux/parser.h>
 #include <linux/idr.h>
 #include <net/9p/9p.h>
-#include <net/9p/transport.h>
 #include <net/9p/client.h>
+#include <net/9p/transport.h>
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 

@@ -39,6 +39,7 @@
 #include <linux/file.h>
 #include <linux/parser.h>
 #include <net/9p/9p.h>
+#include <net/9p/client.h>
 #include <net/9p/transport.h>
 
 #define P9_PORT 564
@@ -146,7 +147,7 @@ struct p9_poll_wait {
  * @mux_list: list link for mux to manage multiple connections (?)
  * @msize: maximum size for connection (dup)
  * @extended: 9p2000.u flag (dup)
- * @trans: reference to transport instance for this connection
+ * @client: reference to client instance for this connection
  * @tagpool: id accounting for transactions
  * @err: error state
  * @req_list: accounting for requests which have been sent
@@ -171,7 +172,7 @@ struct p9_conn {
 	struct list_head mux_list;
 	int msize;
 	unsigned char extended;
-	struct p9_trans *trans;
+	struct p9_client *client;
 	struct p9_idpool *tagpool;
 	int err;
 	struct list_head req_list;
@@ -214,8 +215,8 @@ static void p9_read_work(struct work_struct *work);
 static void p9_write_work(struct work_struct *work);
 static void p9_pollwait(struct file *filp, wait_queue_head_t *wait_address,
 								poll_table *p);
-static int p9_fd_write(struct p9_trans *trans, void *v, int len);
-static int p9_fd_read(struct p9_trans *trans, void *v, int len);
+static int p9_fd_write(struct p9_client *client, void *v, int len);
+static int p9_fd_read(struct p9_client *client, void *v, int len);
 
 static DEFINE_SPINLOCK(p9_poll_lock);
 static LIST_HEAD(p9_poll_pending_list);
@@ -223,7 +224,7 @@ static struct workqueue_struct *p9_mux_wq;
 static struct task_struct *p9_poll_task;
 
 static void p9_conn_destroy(struct p9_conn *);
-static unsigned int p9_fd_poll(struct p9_trans *trans,
+static unsigned int p9_fd_poll(struct p9_client *client,
 						struct poll_table_struct *pt);
 
 #ifdef P9_NONBLOCK
@@ -271,27 +272,26 @@ static void p9_mux_poll_stop(struct p9_conn *m)
 
 /**
  * p9_conn_create - allocate and initialize the per-session mux data
- * @trans: transport structure
+ * @client: client instance
  *
  * Note: Creates the polling task if this is the first session.
  */
 
-static struct p9_conn *p9_conn_create(struct p9_trans *trans)
+static struct p9_conn *p9_conn_create(struct p9_client *client)
 {
 	int i, n;
 	struct p9_conn *m;
 
-	P9_DPRINTK(P9_DEBUG_MUX, "transport %p msize %d\n", trans,
-								trans->msize);
+	P9_DPRINTK(P9_DEBUG_MUX, "client %p msize %d\n", client, client->msize);
 	m = kzalloc(sizeof(struct p9_conn), GFP_KERNEL);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&m->lock);
 	INIT_LIST_HEAD(&m->mux_list);
-	m->msize = trans->msize;
-	m->extended = trans->extended;
-	m->trans = trans;
+	m->msize = client->msize;
+	m->extended = client->dotu;
+	m->client = client;
 	m->tagpool = p9_idpool_create();
 	if (IS_ERR(m->tagpool)) {
 		kfree(m);
@@ -305,7 +305,7 @@ static struct p9_conn *p9_conn_create(struct p9_trans *trans)
 	INIT_LIST_HEAD(&m->poll_pending_link);
 	init_poll_funcptr(&m->pt, p9_pollwait);
 
-	n = p9_fd_poll(trans, &m->pt);
+	n = p9_fd_poll(client, &m->pt);
 	if (n & POLLIN) {
 		P9_DPRINTK(P9_DEBUG_MUX, "mux %p can read\n", m);
 		set_bit(Rpending, &m->wsched);
@@ -345,7 +345,7 @@ static void p9_conn_destroy(struct p9_conn *m)
 
 	p9_conn_cancel(m, -ECONNRESET);
 
-	m->trans = NULL;
+	m->client = NULL;
 	p9_idpool_destroy(m->tagpool);
 	kfree(m);
 }
@@ -420,7 +420,7 @@ static void p9_poll_mux(struct p9_conn *m)
 	if (m->err < 0)
 		return;
 
-	n = p9_fd_poll(m->trans, NULL);
+	n = p9_fd_poll(m->client, NULL);
 	if (n < 0 || n & (POLLERR | POLLHUP | POLLNVAL)) {
 		P9_DPRINTK(P9_DEBUG_MUX, "error mux %p err %d\n", m, n);
 		if (n >= 0)
@@ -533,7 +533,7 @@ again:
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p pos %d size %d\n", m, m->wpos,
 								m->wsize);
 	clear_bit(Wpending, &m->wsched);
-	err = p9_fd_write(m->trans, m->wbuf + m->wpos, m->wsize - m->wpos);
+	err = p9_fd_write(m->client, m->wbuf + m->wpos, m->wsize - m->wpos);
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p sent %d bytes\n", m, err);
 	if (err == -EAGAIN) {
 		clear_bit(Wworksched, &m->wsched);
@@ -555,7 +555,7 @@ again:
 		if (test_and_clear_bit(Wpending, &m->wsched))
 			n = POLLOUT;
 		else
-			n = p9_fd_poll(m->trans, NULL);
+			n = p9_fd_poll(m->client, NULL);
 
 		if (n & POLLOUT) {
 			P9_DPRINTK(P9_DEBUG_MUX, "schedule write work %p\n", m);
@@ -640,7 +640,7 @@ static void p9_read_work(struct work_struct *work)
 	}
 
 	clear_bit(Rpending, &m->wsched);
-	err = p9_fd_read(m->trans, m->rbuf + m->rpos, m->msize - m->rpos);
+	err = p9_fd_read(m->client, m->rbuf + m->rpos, m->msize - m->rpos);
 	P9_DPRINTK(P9_DEBUG_MUX, "mux %p got %d bytes\n", m, err);
 	if (err == -EAGAIN) {
 		clear_bit(Rworksched, &m->wsched);
@@ -735,7 +735,7 @@ static void p9_read_work(struct work_struct *work)
 		if (test_and_clear_bit(Rpending, &m->wsched))
 			n = POLLIN;
 		else
-			n = p9_fd_poll(m->trans, NULL);
+			n = p9_fd_poll(m->client, NULL);
 
 		if (n & POLLIN) {
 			P9_DPRINTK(P9_DEBUG_MUX, "schedule read work %p\n", m);
@@ -819,7 +819,7 @@ static struct p9_req *p9_send_request(struct p9_conn *m,
 	if (test_and_clear_bit(Wpending, &m->wsched))
 		n = POLLOUT;
 	else
-		n = p9_fd_poll(m->trans, NULL);
+		n = p9_fd_poll(m->client, NULL);
 
 	if (n & POLLOUT && !test_and_set_bit(Wworksched, &m->wsched))
 		queue_work(p9_mux_wq, &m->wq);
@@ -933,16 +933,16 @@ p9_conn_rpc_cb(struct p9_req *req, void *a)
 /**
  * p9_fd_rpc- sends 9P request and waits until a response is available.
  *	The function can be interrupted.
- * @t: transport data
+ * @client: client instance
  * @tc: request to be sent
  * @rc: pointer where a pointer to the response is stored
  *
  */
 
 int
-p9_fd_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
+p9_fd_rpc(struct p9_client *client, struct p9_fcall *tc, struct p9_fcall **rc)
 {
-	struct p9_trans_fd *p = t->priv;
+	struct p9_trans_fd *p = client->trans;
 	struct p9_conn *m = p->conn;
 	int err, sigpending;
 	unsigned long flags;
@@ -975,7 +975,7 @@ p9_fd_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 	if (r.err < 0)
 		err = r.err;
 
-	if (err == -ERESTARTSYS && m->trans->status == Connected
+	if (err == -ERESTARTSYS && client->status == Connected
 							&& m->err == 0) {
 		if (p9_mux_flush_request(m, req)) {
 			/* wait until we get response of the flush message */
@@ -984,7 +984,7 @@ p9_fd_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 				err = wait_event_interruptible(r.wqueue,
 					r.rcall || r.err);
 			} while (!r.rcall && !r.err && err == -ERESTARTSYS &&
-				m->trans->status == Connected && !m->err);
+				client->status == Connected && !m->err);
 
 			err = -ERESTARTSYS;
 		}
@@ -1133,7 +1133,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	return 0;
 }
 
-static int p9_fd_open(struct p9_trans *trans, int rfd, int wfd)
+static int p9_fd_open(struct p9_client *client, int rfd, int wfd)
 {
 	struct p9_trans_fd *ts = kmalloc(sizeof(struct p9_trans_fd),
 					   GFP_KERNEL);
@@ -1151,13 +1151,13 @@ static int p9_fd_open(struct p9_trans *trans, int rfd, int wfd)
 		return -EIO;
 	}
 
-	trans->priv = ts;
-	trans->status = Connected;
+	client->trans = ts;
+	client->status = Connected;
 
 	return 0;
 }
 
-static int p9_socket_open(struct p9_trans *trans, struct socket *csocket)
+static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 {
 	int fd, ret;
 
@@ -1168,33 +1168,33 @@ static int p9_socket_open(struct p9_trans *trans, struct socket *csocket)
 		return fd;
 	}
 
-	ret = p9_fd_open(trans, fd, fd);
+	ret = p9_fd_open(client, fd, fd);
 	if (ret < 0) {
 		P9_EPRINTK(KERN_ERR, "p9_socket_open: failed to open fd\n");
 		sockfd_put(csocket);
 		return ret;
 	}
 
-	((struct p9_trans_fd *)trans->priv)->rd->f_flags |= O_NONBLOCK;
+	((struct p9_trans_fd *)client->trans)->rd->f_flags |= O_NONBLOCK;
 
 	return 0;
 }
 
 /**
  * p9_fd_read- read from a fd
- * @trans: transport instance state
+ * @client: client instance
  * @v: buffer to receive data into
  * @len: size of receive buffer
  *
  */
 
-static int p9_fd_read(struct p9_trans *trans, void *v, int len)
+static int p9_fd_read(struct p9_client *client, void *v, int len)
 {
 	int ret;
 	struct p9_trans_fd *ts = NULL;
 
-	if (trans && trans->status != Disconnected)
-		ts = trans->priv;
+	if (client && client->status != Disconnected)
+		ts = client->trans;
 
 	if (!ts)
 		return -EREMOTEIO;
@@ -1204,26 +1204,26 @@ static int p9_fd_read(struct p9_trans *trans, void *v, int len)
 
 	ret = kernel_read(ts->rd, ts->rd->f_pos, v, len);
 	if (ret <= 0 && ret != -ERESTARTSYS && ret != -EAGAIN)
-		trans->status = Disconnected;
+		client->status = Disconnected;
 	return ret;
 }
 
 /**
  * p9_fd_write - write to a socket
- * @trans: transport instance state
+ * @client: client instance
  * @v: buffer to send data from
  * @len: size of send buffer
  *
  */
 
-static int p9_fd_write(struct p9_trans *trans, void *v, int len)
+static int p9_fd_write(struct p9_client *client, void *v, int len)
 {
 	int ret;
 	mm_segment_t oldfs;
 	struct p9_trans_fd *ts = NULL;
 
-	if (trans && trans->status != Disconnected)
-		ts = trans->priv;
+	if (client && client->status != Disconnected)
+		ts = client->trans;
 
 	if (!ts)
 		return -EREMOTEIO;
@@ -1238,18 +1238,18 @@ static int p9_fd_write(struct p9_trans *trans, void *v, int len)
 	set_fs(oldfs);
 
 	if (ret <= 0 && ret != -ERESTARTSYS && ret != -EAGAIN)
-		trans->status = Disconnected;
+		client->status = Disconnected;
 	return ret;
 }
 
 static unsigned int
-p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
+p9_fd_poll(struct p9_client *client, struct poll_table_struct *pt)
 {
 	int ret, n;
 	struct p9_trans_fd *ts = NULL;
 
-	if (trans && trans->status == Connected)
-		ts = trans->priv;
+	if (client && client->status == Connected)
+		ts = client->trans;
 
 	if (!ts)
 		return -EREMOTEIO;
@@ -1275,30 +1275,31 @@ p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
 }
 
 /**
- * p9_fd_close - shutdown socket
- * @trans: private socket structure
+ * p9_fd_close - shutdown file descriptor transport
+ * @client: client instance
  *
  */
 
-static void p9_fd_close(struct p9_trans *trans)
+static void p9_fd_close(struct p9_client *client)
 {
 	struct p9_trans_fd *ts;
 
-	if (!trans)
+	if (!client)
 		return;
 
-	ts = xchg(&trans->priv, NULL);
-
+	ts = client->trans;
 	if (!ts)
 		return;
 
+	client->status = Disconnected;
+
 	p9_conn_destroy(ts->conn);
 
-	trans->status = Disconnected;
 	if (ts->rd)
 		fput(ts->rd);
 	if (ts->wr)
 		fput(ts->wr);
+
 	kfree(ts);
 }
 
@@ -1319,31 +1320,23 @@ static inline int valid_ipaddr4(const char *buf)
 	return 0;
 }
 
-static struct p9_trans *
-p9_trans_create_tcp(const char *addr, char *args, int msize, unsigned char dotu)
+static int
+p9_fd_create_tcp(struct p9_client *client, const char *addr, char *args)
 {
 	int err;
-	struct p9_trans *trans;
 	struct socket *csocket;
 	struct sockaddr_in sin_server;
 	struct p9_fd_opts opts;
-	struct p9_trans_fd *p;
+	struct p9_trans_fd *p = NULL; /* this gets allocated in p9_fd_open */
 
 	err = parse_opts(args, &opts);
 	if (err < 0)
-		return ERR_PTR(err);
+		return err;
 
 	if (valid_ipaddr4(addr) < 0)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	csocket = NULL;
-	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
-	if (!trans)
-		return ERR_PTR(-ENOMEM);
-	trans->msize = msize;
-	trans->extended = dotu;
-	trans->rpc = p9_fd_rpc;
-	trans->close = p9_fd_close;
 
 	sin_server.sin_family = AF_INET;
 	sin_server.sin_addr.s_addr = in_aton(addr);
@@ -1366,45 +1359,38 @@ p9_trans_create_tcp(const char *addr, char *args, int msize, unsigned char dotu)
 		goto error;
 	}
 
-	err = p9_socket_open(trans, csocket);
+	err = p9_socket_open(client, csocket);
 	if (err < 0)
 		goto error;
 
-	p = (struct p9_trans_fd *) trans->priv;
-	p->conn = p9_conn_create(trans);
+	p = (struct p9_trans_fd *) client->trans;
+	p->conn = p9_conn_create(client);
 	if (IS_ERR(p->conn)) {
 		err = PTR_ERR(p->conn);
 		p->conn = NULL;
 		goto error;
 	}
 
-	return trans;
+	return 0;
 
 error:
 	if (csocket)
 		sock_release(csocket);
 
-	kfree(trans);
-	return ERR_PTR(err);
+	kfree(p);
+
+	return err;
 }
 
-static struct p9_trans *
-p9_trans_create_unix(const char *addr, char *args, int msize,
-							unsigned char dotu)
+static int
+p9_fd_create_unix(struct p9_client *client, const char *addr, char *args)
 {
 	int err;
 	struct socket *csocket;
 	struct sockaddr_un sun_server;
-	struct p9_trans *trans;
-	struct p9_trans_fd *p;
+	struct p9_trans_fd *p = NULL; /* this gets allocated in p9_fd_open */
 
 	csocket = NULL;
-	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
-	if (!trans)
-		return ERR_PTR(-ENOMEM);
-
-	trans->rpc = p9_fd_rpc;
-	trans->close = p9_fd_close;
 
 	if (strlen(addr) > UNIX_PATH_MAX) {
 		P9_EPRINTK(KERN_ERR, "p9_trans_unix: address too long: %s\n",
@@ -1425,79 +1411,68 @@ p9_trans_create_unix(const char *addr, char *args, int msize,
 		goto error;
 	}
 
-	err = p9_socket_open(trans, csocket);
+	err = p9_socket_open(client, csocket);
 	if (err < 0)
 		goto error;
 
-	trans->msize = msize;
-	trans->extended = dotu;
-	p = (struct p9_trans_fd *) trans->priv;
-	p->conn = p9_conn_create(trans);
+	p = (struct p9_trans_fd *) client->trans;
+	p->conn = p9_conn_create(client);
 	if (IS_ERR(p->conn)) {
 		err = PTR_ERR(p->conn);
 		p->conn = NULL;
 		goto error;
 	}
 
-	return trans;
+	return 0;
 
 error:
 	if (csocket)
 		sock_release(csocket);
 
-	kfree(trans);
-	return ERR_PTR(err);
+	kfree(p);
+	return err;
 }
 
-static struct p9_trans *
-p9_trans_create_fd(const char *name, char *args, int msize,
-							unsigned char extended)
+static int
+p9_fd_create(struct p9_client *client, const char *addr, char *args)
 {
 	int err;
-	struct p9_trans *trans;
 	struct p9_fd_opts opts;
-	struct p9_trans_fd *p;
+	struct p9_trans_fd *p = NULL; /* this get allocated in p9_fd_open */
 
 	parse_opts(args, &opts);
 
 	if (opts.rfd == ~0 || opts.wfd == ~0) {
 		printk(KERN_ERR "v9fs: Insufficient options for proto=fd\n");
-		return ERR_PTR(-ENOPROTOOPT);
+		return -ENOPROTOOPT;
 	}
 
-	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
-	if (!trans)
-		return ERR_PTR(-ENOMEM);
-
-	trans->rpc = p9_fd_rpc;
-	trans->close = p9_fd_close;
-
-	err = p9_fd_open(trans, opts.rfd, opts.wfd);
+	err = p9_fd_open(client, opts.rfd, opts.wfd);
 	if (err < 0)
 		goto error;
 
-	trans->msize = msize;
-	trans->extended = extended;
-	p = (struct p9_trans_fd *) trans->priv;
-	p->conn = p9_conn_create(trans);
+	p = (struct p9_trans_fd *) client->trans;
+	p->conn = p9_conn_create(client);
 	if (IS_ERR(p->conn)) {
 		err = PTR_ERR(p->conn);
 		p->conn = NULL;
 		goto error;
 	}
 
-	return trans;
+	return 0;
 
 error:
-	kfree(trans);
-	return ERR_PTR(err);
+	kfree(p);
+	return err;
 }
 
 static struct p9_trans_module p9_tcp_trans = {
 	.name = "tcp",
 	.maxsize = MAX_SOCK_BUF,
 	.def = 1,
-	.create = p9_trans_create_tcp,
+	.create = p9_fd_create_tcp,
+	.close = p9_fd_close,
+	.rpc = p9_fd_rpc,
 	.owner = THIS_MODULE,
 };
 
@@ -1505,7 +1480,9 @@ static struct p9_trans_module p9_unix_trans = {
 	.name = "unix",
 	.maxsize = MAX_SOCK_BUF,
 	.def = 0,
-	.create = p9_trans_create_unix,
+	.create = p9_fd_create_unix,
+	.close = p9_fd_close,
+	.rpc = p9_fd_rpc,
 	.owner = THIS_MODULE,
 };
 
@@ -1513,7 +1490,9 @@ static struct p9_trans_module p9_fd_trans = {
 	.name = "fd",
 	.maxsize = MAX_SOCK_BUF,
 	.def = 0,
-	.create = p9_trans_create_fd,
+	.create = p9_fd_create,
+	.close = p9_fd_close,
+	.rpc = p9_fd_rpc,
 	.owner = THIS_MODULE,
 };
 

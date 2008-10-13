@@ -41,6 +41,7 @@
 #include <linux/file.h>
 #include <net/9p/9p.h>
 #include <linux/parser.h>
+#include <net/9p/client.h>
 #include <net/9p/transport.h>
 #include <linux/scatterlist.h>
 #include <linux/virtio.h>
@@ -54,7 +55,6 @@ static DEFINE_MUTEX(virtio_9p_lock);
 static int chan_index;
 
 #define P9_INIT_MAXTAG	16
-
 
 /**
  * enum p9_req_status_t - virtio request status
@@ -197,9 +197,9 @@ static unsigned int rest_of_page(void *data)
  *
  */
 
-static void p9_virtio_close(struct p9_trans *trans)
+static void p9_virtio_close(struct p9_client *client)
 {
-	struct virtio_chan *chan = trans->priv;
+	struct virtio_chan *chan = client->trans;
 	int count;
 	unsigned long flags;
 
@@ -215,7 +215,7 @@ static void p9_virtio_close(struct p9_trans *trans)
 	chan->inuse = false;
 	mutex_unlock(&virtio_9p_lock);
 
-	kfree(trans);
+	client->trans = NULL;
 }
 
 /**
@@ -292,17 +292,17 @@ pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
  */
 
 static int
-p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
+p9_virtio_rpc(struct p9_client *c, struct p9_fcall *tc, struct p9_fcall **rc)
 {
 	int in, out;
 	int n, err, size;
-	struct virtio_chan *chan = t->priv;
+	struct virtio_chan *chan = c->trans;
 	char *rdata;
 	struct p9_req_t *req;
 	unsigned long flags;
 
 	if (*rc == NULL) {
-		*rc = kmalloc(sizeof(struct p9_fcall) + t->msize, GFP_KERNEL);
+		*rc = kmalloc(sizeof(struct p9_fcall) + c->msize, GFP_KERNEL);
 		if (!*rc)
 			return -ENOMEM;
 	}
@@ -325,7 +325,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio rpc tag %d\n", n);
 
 	out = pack_sg_list(chan->sg, 0, VIRTQUEUE_NUM, tc->sdata, tc->size);
-	in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM-out, rdata, t->msize);
+	in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM-out, rdata, c->msize);
 
 	req->status = REQ_STATUS_SENT;
 
@@ -341,7 +341,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 
 	size = le32_to_cpu(*(__le32 *) rdata);
 
-	err = p9_deserialize_fcall(rdata, size, *rc, t->extended);
+	err = p9_deserialize_fcall(rdata, size, *rc, c->dotu);
 	if (err < 0) {
 		P9_DPRINTK(P9_DEBUG_TRANS,
 			"9p debug: virtio rpc deserialize returned %d\n", err);
@@ -352,8 +352,8 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
 		char buf[150];
 
-		p9_printfcall(buf, sizeof(buf), *rc, t->extended);
-		printk(KERN_NOTICE ">>> %p %s\n", t, buf);
+		p9_printfcall(buf, sizeof(buf), *rc, c->dotu);
+		printk(KERN_NOTICE ">>> %p %s\n", c, buf);
 	}
 #endif
 
@@ -422,10 +422,9 @@ fail:
 
 /**
  * p9_virtio_create - allocate a new virtio channel
+ * @client: client instance invoking this transport
  * @devname: string identifying the channel to connect to (unused)
  * @args: args passed from sys_mount() for per-transport options (unused)
- * @msize: requested maximum packet size
- * @extended: 9p2000.u enabled flag
  *
  * This sets up a transport channel for 9p communication.  Right now
  * we only match the first available channel, but eventually we couldlook up
@@ -441,11 +440,9 @@ fail:
  *
  */
 
-static struct p9_trans *
-p9_virtio_create(const char *devname, char *args, int msize,
-							unsigned char extended)
+static int
+p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 {
-	struct p9_trans *trans;
 	struct virtio_chan *chan = channels;
 	int index = 0;
 
@@ -463,30 +460,21 @@ p9_virtio_create(const char *devname, char *args, int msize,
 
 	if (index >= MAX_9P_CHAN) {
 		printk(KERN_ERR "9p: no channels available\n");
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
 	chan->tagpool = p9_idpool_create();
 	if (IS_ERR(chan->tagpool)) {
 		printk(KERN_ERR "9p: couldn't allocate tagpool\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 	p9_idpool_get(chan->tagpool); /* reserve tag 0 */
 	chan->max_tag = 0;
 	chan->reqs = NULL;
 
-	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
-	if (!trans) {
-		printk(KERN_ERR "9p: couldn't allocate transport\n");
-		return ERR_PTR(-ENOMEM);
-	}
-	trans->extended = extended;
-	trans->msize = msize;
-	trans->close = p9_virtio_close;
-	trans->rpc = p9_virtio_rpc;
-	trans->priv = chan;
+	client->trans = (void *)chan;
 
-	return trans;
+	return 0;
 }
 
 /**
@@ -526,6 +514,8 @@ static struct virtio_driver p9_virtio_drv = {
 static struct p9_trans_module p9_virtio_trans = {
 	.name = "virtio",
 	.create = p9_virtio_create,
+	.close = p9_virtio_close,
+	.rpc = p9_virtio_rpc,
 	.maxsize = PAGE_SIZE*16,
 	.def = 0,
 	.owner = THIS_MODULE,
