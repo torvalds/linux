@@ -112,6 +112,9 @@ static int __init wgt634u_init(void)
 	    ((et0mac[1] == 0x09 && et0mac[2] == 0x5b) ||
 	     (et0mac[1] == 0x0f && et0mac[2] == 0xb5))) {
 		struct ssb_mipscore *mcore = &ssb_bcm47xx.mipscore;
+
+		printk(KERN_INFO "WGT634U machine detected.\n");
+
 		wgt634u_flash_data.width = mcore->flash_buswidth;
 		wgt634u_flash_resource.start = mcore->flash_window;
 		wgt634u_flash_resource.end = mcore->flash_window
