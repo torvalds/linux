@@ -306,7 +306,6 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 
 		nfsi->read_cache_jiffies = fattr->time_start;
 		nfsi->attr_gencount = fattr->gencount;
-		nfsi->cache_change_attribute = now;
 		inode->i_atime = fattr->atime;
 		inode->i_mtime = fattr->mtime;
 		inode->i_ctime = fattr->ctime;

@@ -661,7 +661,7 @@ static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
  */
 void nfs_force_lookup_revalidate(struct inode *dir)
 {
-	NFS_I(dir)->cache_change_attribute = jiffies;
+	NFS_I(dir)->cache_change_attribute++;
 }
 
 /*
