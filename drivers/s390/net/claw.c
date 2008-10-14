@@ -2913,7 +2913,7 @@ claw_new_device(struct ccwgroup_device *cgdev)
 	if (ret != 0) {
 		printk(KERN_WARNING
 			"claw: ccw_device_set_online %s WRITE failed "
-		       "with ret = %d\n", dev_name(&cgdev->cdev[WRITE]->dev)
+		       "with ret = %d\n", dev_name(&cgdev->cdev[WRITE]->dev),
 		       ret);
 		goto out;
 	}
