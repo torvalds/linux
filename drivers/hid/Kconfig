@@ -17,6 +17,25 @@ config HID
 	tristate "Generic HID support"
 	depends on INPUT
 	default y
+        select HID_A4TECH if !EMBEDDED
+        select HID_APPLE if !EMBEDDED
+        select HID_BELKIN if !EMBEDDED
+        select HID_BRIGHT if !EMBEDDED
+        select HID_CHERRY if !EMBEDDED
+        select HID_CHICONY if !EMBEDDED
+        select HID_CYPRESS if !EMBEDDED
+        select HID_DELL if !EMBEDDED
+        select HID_EZKEY if !EMBEDDED
+        select HID_GYRATION if !EMBEDDED
+        select HID_LOGITECH if !EMBEDDED
+        select HID_MICROSOFT if !EMBEDDED
+        select HID_MONTEREY if !EMBEDDED
+        select HID_PANTHERLORD if !EMBEDDED
+        select HID_PETALYNX if !EMBEDDED
+        select HID_SAMSUNG if !EMBEDDED
+        select HID_SONY if !EMBEDDED
+        select HID_SUNPLUS if !EMBEDDED
+
 	---help---
 	  A human interface device (HID) is a type of computer device that
 	  interacts directly with and takes input from humans. The term "HID"
