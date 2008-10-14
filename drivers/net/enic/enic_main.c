@@ -34,6 +34,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
+#include <net/ip6_checksum.h>
 
 #include "cq_enet_desc.h"
 #include "vnic_dev.h"
