@@ -159,13 +159,6 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 {
 	int i;
 
-	if (size > OMAP_MAX_MCBSP_COUNT) {
-		printk(KERN_WARNING "Registered too many McBSPs platform_data."
-			" Using maximum (%d) available.\n",
-			OMAP_MAX_MCBSP_COUNT);
-		size = OMAP_MAX_MCBSP_COUNT;
-	}
-
 	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
 				     GFP_KERNEL);
 	if (!omap_mcbsp_devices) {
