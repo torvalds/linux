@@ -822,94 +822,62 @@ enum {
 #define IWL49_NUM_QUEUES	16
 #define IWL49_NUM_AMPDU_QUEUES	8
 
+#define IWL_TX_DMA_MASK        (DMA_BIT_MASK(36) & ~0x3)
+#define IWL_NUM_OF_TBS		20
+
+static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
+{
+	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
+}
 /**
- * struct iwl_tfd_frame_data
+ * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
  *
- * Describes up to 2 buffers containing (contiguous) portions of a Tx frame.
- * Each buffer must be on dword boundary.
- * Up to 10 iwl_tfd_frame_data structures, describing up to 20 buffers,
- * may be filled within a TFD (iwl_tfd_frame).
+ * This structure contains dma address and length of transmission address
  *
- * Bit fields in tb1_addr:
- * 31- 0: Tx buffer 1 address bits [31:0]
- *
- * Bit fields in val1:
- * 31-16: Tx buffer 2 address bits [15:0]
- * 15- 4: Tx buffer 1 length (bytes)
- *  3- 0: Tx buffer 1 address bits [32:32]
- *
- * Bit fields in val2:
- * 31-20: Tx buffer 2 length (bytes)
- * 19- 0: Tx buffer 2 address bits [35:16]
+ * @lo: low [31:0] portion of the dma address of TX buffer
+ * 	every even is unaligned on 16 bit boundary
+ * @hi_n_len 0-3 [35:32] portion of dma
+ *	     4-16 length of the tx buffer
  */
-struct iwl_tfd_frame_data {
-	__le32 tb1_addr;
-
-	__le32 val1;
-	/* __le32 ptb1_32_35:4; */
-#define IWL_tb1_addr_hi_POS 0
-#define IWL_tb1_addr_hi_LEN 4
-#define IWL_tb1_addr_hi_SYM val1
-	/* __le32 tb_len1:12; */
-#define IWL_tb1_len_POS 4
-#define IWL_tb1_len_LEN 12
-#define IWL_tb1_len_SYM val1
-	/* __le32 ptb2_0_15:16; */
-#define IWL_tb2_addr_lo16_POS 16
-#define IWL_tb2_addr_lo16_LEN 16
-#define IWL_tb2_addr_lo16_SYM val1
-
-	__le32 val2;
-	/* __le32 ptb2_16_35:20; */
-#define IWL_tb2_addr_hi20_POS 0
-#define IWL_tb2_addr_hi20_LEN 20
-#define IWL_tb2_addr_hi20_SYM val2
-	/* __le32 tb_len2:12; */
-#define IWL_tb2_len_POS 20
-#define IWL_tb2_len_LEN 12
-#define IWL_tb2_len_SYM val2
-} __attribute__ ((packed));
-
+struct iwl_tfd_tb {
+	__le32 lo;
+	__le16 hi_n_len;
+} __attribute__((packed));
 
 /**
- * struct iwl_tfd_frame
+ * struct iwl_tfd
  *
  * Transmit Frame Descriptor (TFD)
  *
- * 4965 supports up to 16 Tx queues resident in host DRAM.
+ * @ __reserved1[3] reserved
+ * @ num_tbs 0-5 number of active tbs
+ * 	     6-7 padding (not used)
+ * @ tbs[20]	transmit frame buffer descriptors
+ * @ __pad 	padding
+ *
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
- * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes for 4965.
+ * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
  *
  * Driver must indicate the physical address of the base of each
- * circular buffer via the 4965's FH_MEM_CBBC_QUEUE registers.
+ * circular buffer via the FH_MEM_CBBC_QUEUE registers.
  *
  * Each TFD contains pointer/size information for up to 20 data buffers
  * in host DRAM.  These buffers collectively contain the (one) frame described
  * by the TFD.  Each buffer must be a single contiguous block of memory within
  * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
- * of (4K - 4).  The 4965 concatenates all of a TFD's buffers into a single
+ * of (4K - 4).  The concatenates all of a TFD's buffers into a single
  * Tx frame, up to 8 KBytes in size.
  *
- * Bit fields in the control dword (val0):
- * 31-30: # dwords (0-3) of padding required at end of frame for 16-byte bound
- *    29: reserved
- * 28-24: # Transmit Buffer Descriptors in TFD
- * 23- 0: reserved
- *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
+ *
+ * Bit fields in the control dword (val0):
  */
-struct iwl_tfd_frame {
-	__le32 val0;
-	/* __le32 rsvd1:24; */
-	/* __le32 num_tbs:5; */
-#define IWL_num_tbs_POS 24
-#define IWL_num_tbs_LEN 5
-#define IWL_num_tbs_SYM val0
-	/* __le32 rsvd2:1; */
-	/* __le32 padding:2; */
-	struct iwl_tfd_frame_data pa[10];
-	__le32 reserved;
+struct iwl_tfd {
+	u8 __reserved1[3];
+	u8 num_tbs;
+	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
+	__le32 __pad;
 } __attribute__ ((packed));
 
 

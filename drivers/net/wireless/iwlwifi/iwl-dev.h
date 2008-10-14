@@ -112,11 +112,9 @@ struct iwl_queue {
 				* space less than this */
 } __attribute__ ((packed));
 
-#define MAX_NUM_OF_TBS          (20)
-
 /* One for each TFD */
 struct iwl_tx_info {
-	struct sk_buff *skb[MAX_NUM_OF_TBS];
+	struct sk_buff *skb[IWL_NUM_OF_TBS - 1];
 };
 
 /**
@@ -134,7 +132,7 @@ struct iwl_tx_info {
  */
 struct iwl_tx_queue {
 	struct iwl_queue q;
-	struct iwl_tfd_frame *bd;
+	struct iwl_tfd *tfds;
 	struct iwl_cmd *cmd[TFD_TX_CMD_SLOTS];
 	struct iwl_tx_info *txb;
 	int need_update;
@@ -252,7 +250,8 @@ struct iwl_cmd_meta {
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
 	 * structure is stored at the end of the shared queue memory. */
 	u32 flags;
-
+	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DECLARE_PCI_UNMAP_LEN(len)
 } __attribute__ ((packed));
 
 #define IWL_CMD_MAX_PAYLOAD 320

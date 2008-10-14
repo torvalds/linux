@@ -56,92 +56,112 @@ static const u16 default_tid_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC3
 };
 
+static inline dma_addr_t iwl_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+	dma_addr_t addr = get_unaligned_le32(&tb->lo);
+	if (sizeof(dma_addr_t) > sizeof(u32))
+		addr |=
+		((dma_addr_t)(le16_to_cpu(tb->hi_n_len) & 0xF) << 16) << 16;
+
+	return addr;
+}
+
+static inline u16 iwl_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
+
+static inline void iwl_tfd_set_tb(struct iwl_tfd *tfd, u8 idx,
+				  dma_addr_t addr, u16 len)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	u16 hi_n_len = len << 4;
+
+	put_unaligned_le32(addr, &tb->lo);
+	if (sizeof(dma_addr_t) > sizeof(u32))
+		hi_n_len |= ((addr >> 16) >> 16) & 0xF;
+
+	tb->hi_n_len = cpu_to_le16(hi_n_len);
+
+	tfd->num_tbs = idx + 1;
+}
+
+static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
+{
+	return tfd->num_tbs & 0x1f;
+}
 
 /**
  * iwl_hw_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
+ * @priv - driver private data
+ * @txq - tx queue
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-static int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+static void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
-	struct iwl_tfd_frame *bd_tmp = (struct iwl_tfd_frame *)&txq->bd[0];
-	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
+	struct iwl_tfd *tfd_tmp = (struct iwl_tfd *)&txq->tfds[0];
+	struct iwl_tfd *tfd;
 	struct pci_dev *dev = priv->pci_dev;
+	int index = txq->q.read_ptr;
 	int i;
-	int counter = 0;
-	int index, is_odd;
+	int num_tbs;
+
+	tfd = &tfd_tmp[index];
 
 	/* Sanity check on number of chunks */
-	counter = IWL_GET_BITS(*bd, num_tbs);
-	if (counter > MAX_NUM_OF_TBS) {
-		IWL_ERROR("Too many chunks: %i\n", counter);
+	num_tbs = iwl_tfd_get_num_tbs(tfd);
+
+	if (num_tbs >= IWL_NUM_OF_TBS) {
+		IWL_ERROR("Too many chunks: %i\n", num_tbs);
 		/* @todo issue fatal error, it is quite serious situation */
-		return 0;
+		return;
 	}
 
-	/* Unmap chunks, if any.
-	 * TFD info for odd chunks is different format than for even chunks. */
-	for (i = 0; i < counter; i++) {
-		index = i / 2;
-		is_odd = i & 0x1;
-
-		if (is_odd)
-			pci_unmap_single(
-				dev,
-				IWL_GET_BITS(bd->pa[index], tb2_addr_lo16) |
-				(IWL_GET_BITS(bd->pa[index],
-					      tb2_addr_hi20) << 16),
-				IWL_GET_BITS(bd->pa[index], tb2_len),
+	/* Unmap tx_cmd */
+	if (num_tbs)
+		pci_unmap_single(dev,
+				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
+				pci_unmap_len(&txq->cmd[index]->meta, len),
 				PCI_DMA_TODEVICE);
 
-		else if (i > 0)
-			pci_unmap_single(dev,
-					 le32_to_cpu(bd->pa[index].tb1_addr),
-					 IWL_GET_BITS(bd->pa[index], tb1_len),
-					 PCI_DMA_TODEVICE);
+	/* Unmap chunks, if any. */
+	for (i = 1; i < num_tbs; i++) {
+		pci_unmap_single(dev, iwl_tfd_tb_get_addr(tfd, i),
+				iwl_tfd_tb_get_len(tfd, i), PCI_DMA_TODEVICE);
 
-		/* Free SKB, if any, for this chunk */
-		if (txq->txb[txq->q.read_ptr].skb[i]) {
-			struct sk_buff *skb = txq->txb[txq->q.read_ptr].skb[i];
-
-			dev_kfree_skb(skb);
-			txq->txb[txq->q.read_ptr].skb[i] = NULL;
+		if (txq->txb) {
+			dev_kfree_skb(txq->txb[txq->q.read_ptr].skb[i - 1]);
+			txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
 		}
 	}
-	return 0;
 }
 
-static int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
-				 dma_addr_t addr, u16 len)
+static int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+					struct iwl_tfd *tfd,
+					dma_addr_t addr, u16 len)
 {
-	int index, is_odd;
-	struct iwl_tfd_frame *tfd = ptr;
-	u32 num_tbs = IWL_GET_BITS(*tfd, num_tbs);
+
+	u32 num_tbs = iwl_tfd_get_num_tbs(tfd);
 
 	/* Each TFD can point to a maximum 20 Tx buffers */
-	if (num_tbs >= MAX_NUM_OF_TBS) {
+	if (num_tbs >= IWL_NUM_OF_TBS) {
 		IWL_ERROR("Error can not send more than %d chunks\n",
-			  MAX_NUM_OF_TBS);
+			  IWL_NUM_OF_TBS);
 		return -EINVAL;
 	}
 
-	index = num_tbs / 2;
-	is_odd = num_tbs & 0x1;
+	BUG_ON(addr & ~DMA_BIT_MASK(36));
+	if (unlikely(addr & ~IWL_TX_DMA_MASK))
+		IWL_ERROR("Unaligned address = %llx\n",
+			  (unsigned long long)addr);
 
-	if (!is_odd) {
-		tfd->pa[index].tb1_addr = cpu_to_le32(addr);
-		IWL_SET_BITS(tfd->pa[index], tb1_addr_hi,
-			     iwl_get_dma_hi_address(addr));
-		IWL_SET_BITS(tfd->pa[index], tb1_len, len);
-	} else {
-		IWL_SET_BITS(tfd->pa[index], tb2_addr_lo16,
-			     (u32) (addr & 0xffff));
-		IWL_SET_BITS(tfd->pa[index], tb2_addr_hi20, addr >> 16);
-		IWL_SET_BITS(tfd->pa[index], tb2_len, len);
-	}
-
-	IWL_SET_BITS(*tfd, num_tbs, num_tbs + 1);
+	iwl_tfd_set_tb(tfd, num_tbs, addr, len);
 
 	return 0;
 }
@@ -224,8 +244,8 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
-		pci_free_consistent(dev, sizeof(struct iwl_tfd_frame) *
-				    txq->q.n_bd, txq->bd, txq->q.dma_addr);
+		pci_free_consistent(dev, sizeof(struct iwl_tfd) *
+				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 
 	/* De-alloc array of per-TFD driver data */
 	kfree(txq->txb);
@@ -263,8 +283,8 @@ static void iwl_cmd_queue_free(struct iwl_priv *priv)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
-		pci_free_consistent(dev, sizeof(struct iwl_tfd_frame) *
-				    txq->q.n_bd, txq->bd, txq->q.dma_addr);
+		pci_free_consistent(dev, sizeof(struct iwl_tfd) *
+				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
@@ -364,13 +384,13 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
-	txq->bd = pci_alloc_consistent(dev,
-			sizeof(txq->bd[0]) * TFD_QUEUE_SIZE_MAX,
+	txq->tfds = pci_alloc_consistent(dev,
+			sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX,
 			&txq->q.dma_addr);
 
-	if (!txq->bd) {
+	if (!txq->tfds) {
 		IWL_ERROR("pci_alloc_consistent(%zd) failed\n",
-			  sizeof(txq->bd[0]) * TFD_QUEUE_SIZE_MAX);
+			  sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
 	txq->q.id = id;
@@ -394,15 +414,15 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 				struct iwl_tx_queue *txq)
 {
-	int rc;
+	int ret;
 	unsigned long flags;
 	int txq_id = txq->q.id;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
+		return ret;
 	}
 
 	/* Circular buffer (TFD queue in DRAM) physical base address */
@@ -410,10 +430,10 @@ static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 			     txq->q.dma_addr >> 8);
 
 	/* Enable DMA channel, using same id as for TFD queue */
-	iwl_write_direct32(
-		priv, FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
+	iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL);
+
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -788,7 +808,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct iwl_tfd_frame *tfd;
+	struct iwl_tfd *tfd;
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	struct iwl_cmd *out_cmd;
@@ -882,7 +902,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Set up first empty TFD within this queue's circular TFD buffer */
-	tfd = &txq->bd[q->write_ptr];
+	tfd = &txq->tfds[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 	idx = get_cmd_index(q, q->write_ptr, 0);
 
@@ -931,12 +951,14 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = pci_map_single(priv->pci_dev, out_cmd,
-				sizeof(struct iwl_cmd), PCI_DMA_TODEVICE);
-	txcmd_phys += offsetof(struct iwl_cmd, hdr);
-
+	txcmd_phys = pci_map_single(priv->pci_dev,
+				    out_cmd, sizeof(struct iwl_cmd),
+				    PCI_DMA_TODEVICE);
+	pci_unmap_addr_set(&out_cmd->meta, mapping, txcmd_phys);
+	pci_unmap_len_set(&out_cmd->meta, len, sizeof(struct iwl_cmd));
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
+	txcmd_phys += offsetof(struct iwl_cmd, hdr);
 	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, txcmd_phys, len);
 
 	if (info->control.hw_key)
@@ -969,7 +991,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
 		offsetof(struct iwl_tx_cmd, scratch);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
-	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
+	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
@@ -1030,7 +1052,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
-	struct iwl_tfd_frame *tfd;
+	struct iwl_tfd *tfd;
 	struct iwl_cmd *out_cmd;
 	dma_addr_t phys_addr;
 	unsigned long flags;
@@ -1059,7 +1081,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	tfd = &txq->bd[q->write_ptr];
+	tfd = &txq->tfds[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 
 
@@ -1080,9 +1102,13 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 	len = (idx == TFD_CMD_SLOTS) ?
 			IWL_MAX_SCAN_SIZE : sizeof(struct iwl_cmd);
-	phys_addr = pci_map_single(priv->pci_dev, out_cmd, len,
-						PCI_DMA_TODEVICE);
+
+	phys_addr = pci_map_single(priv->pci_dev, out_cmd,
+				   len, PCI_DMA_TODEVICE);
+	pci_unmap_addr_set(&out_cmd->meta, mapping, phys_addr);
+	pci_unmap_len_set(&out_cmd->meta, len, len);
 	phys_addr += offsetof(struct iwl_cmd, hdr);
+
 	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -1132,8 +1158,9 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 		return 0;
 	}
 
-	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+	for (index = iwl_queue_inc_wrap(index, q->n_bd);
+	     q->read_ptr != index;
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
@@ -1157,44 +1184,34 @@ EXPORT_SYMBOL(iwl_tx_queue_reclaim);
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
+static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
+				   int idx, int cmd_idx)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
-	struct iwl_tfd_frame *bd = &txq->bd[index];
-	dma_addr_t dma_addr;
-	int is_odd, buf_len;
 	int nfreed = 0;
 
-	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
+	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
-			  index, q->n_bd, q->write_ptr, q->read_ptr);
+			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
 	}
 
-	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+	pci_unmap_single(priv->pci_dev,
+		pci_unmap_addr(&txq->cmd[cmd_idx]->meta, mapping),
+		pci_unmap_len(&txq->cmd[cmd_idx]->meta, len),
+		PCI_DMA_TODEVICE);
 
-		if (nfreed > 1) {
-			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", index,
+	for (idx = iwl_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+
+		if (nfreed++ > 0) {
+			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
 			queue_work(priv->workqueue, &priv->restart);
 		}
-		is_odd = (index/2) & 0x1;
-		if (is_odd) {
-			dma_addr = IWL_GET_BITS(bd->pa[index], tb2_addr_lo16) |
-					(IWL_GET_BITS(bd->pa[index],
-							tb2_addr_hi20) << 16);
-			buf_len = IWL_GET_BITS(bd->pa[index], tb2_len);
-		} else {
-			dma_addr = le32_to_cpu(bd->pa[index].tb1_addr);
-			buf_len = IWL_GET_BITS(bd->pa[index], tb1_len);
-		}
 
-		pci_unmap_single(priv->pci_dev, dma_addr, buf_len,
-				 PCI_DMA_TODEVICE);
-		nfreed++;
 	}
 }
 
@@ -1234,7 +1251,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		   !cmd->meta.u.callback(priv, cmd, rxb->skb))
 		rxb->skb = NULL;
 
-	iwl_hcmd_queue_reclaim(priv, txq_id, index);
+	iwl_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
 
 	if (!(cmd->meta.flags & CMD_ASYNC)) {
 		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
