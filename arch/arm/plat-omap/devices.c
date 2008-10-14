@@ -392,17 +392,8 @@ static inline void omap_init_uwire(void) {}
 
 #if	defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
 
-#if defined(CONFIG_ARCH_OMAP34XX)
-#define	OMAP_WDT_BASE		0x48314000
-#elif defined(CONFIG_ARCH_OMAP24XX)
-
-#ifdef CONFIG_ARCH_OMAP2430
-/* WDT2 */
-#define	OMAP_WDT_BASE		0x49016000
-#else
+#ifdef CONFIG_ARCH_OMAP24XX
 #define	OMAP_WDT_BASE		0x48022000
-#endif
-
 #else
 #define	OMAP_WDT_BASE		0xfffeb000
 #endif
