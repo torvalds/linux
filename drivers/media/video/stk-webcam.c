@@ -559,7 +559,7 @@ static void stk_clean_iso(struct stk_camera *dev)
 
 		urb = dev->isobufs[i].urb;
 		if (urb) {
-			if (atomic_read(&dev->urbs_used))
+			if (atomic_read(&dev->urbs_used) && is_present(dev))
 				usb_kill_urb(urb);
 			usb_free_urb(urb);
 		}
@@ -688,18 +688,14 @@ static int v4l_stk_release(struct inode *inode, struct file *fp)
 {
 	struct stk_camera *dev = fp->private_data;
 
-	if (dev->owner != fp) {
-		usb_autopm_put_interface(dev->interface);
-		return 0;
+	if (dev->owner == fp) {
+		stk_stop_stream(dev);
+		stk_free_buffers(dev);
+		dev->owner = NULL;
 	}
 
-	stk_stop_stream(dev);
-
-	stk_free_buffers(dev);
-
-	dev->owner = NULL;
-
-	usb_autopm_put_interface(dev->interface);
+	if(is_present(dev))
+		usb_autopm_put_interface(dev->interface);
 
 	return 0;
 }
