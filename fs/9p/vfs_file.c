@@ -205,19 +205,38 @@ static ssize_t
 v9fs_file_write(struct file *filp, const char __user * data,
 		size_t count, loff_t * offset)
 {
-	int ret;
+	int n, rsize, total = 0;
 	struct p9_fid *fid;
+	struct p9_client *clnt;
 	struct inode *inode = filp->f_path.dentry->d_inode;
+	int origin = *offset;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
 		(int)count, (int)*offset);
 
 	fid = filp->private_data;
-	ret = p9_client_write(fid, NULL, data, *offset, count);
-	if (ret > 0) {
-		invalidate_inode_pages2_range(inode->i_mapping, *offset,
-								*offset+ret);
-		*offset += ret;
+	clnt = fid->clnt;
+
+	rsize = fid->iounit;
+	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
+		rsize = clnt->msize - P9_IOHDRSZ;
+
+	do {
+		if (count < rsize)
+			rsize = count;
+
+		n = p9_client_write(fid, NULL, data+total, *offset+total,
+									rsize);
+		if (n <= 0)
+			break;
+		count -= n;
+		total += n;
+	} while (count > 0);
+
+	if (total > 0) {
+		invalidate_inode_pages2_range(inode->i_mapping, origin,
+								origin+total);
+		*offset += total;
 	}
 
 	if (*offset > inode->i_size) {
@@ -225,7 +244,10 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		inode->i_blocks = (inode->i_size + 512 - 1) >> 9;
 	}
 
-	return ret;
+	if (n < 0)
+		return n;
+
+	return total;
 }
 
 static const struct file_operations v9fs_cached_file_operations = {
