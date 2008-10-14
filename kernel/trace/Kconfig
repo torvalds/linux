@@ -141,8 +141,17 @@ config STACK_TRACER
 	select FTRACE
 	select STACKTRACE
 	help
-	  This tracer records the max stack of the kernel, and displays
-	  it in debugfs/tracing/stack_trace
+	  This special tracer records the maximum stack footprint of the
+	  kernel and displays it in debugfs/tracing/stack_trace.
+
+	  This tracer works by hooking into every function call that the
+	  kernel executes, and keeping a maximum stack depth value and
+	  stack-trace saved. Because this logic has to execute in every
+	  kernel function, all the time, this option can slow down the
+	  kernel measurably and is generally intended for kernel
+	  developers only.
+
+	  Say N if unsure.
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
