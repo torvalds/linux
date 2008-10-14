@@ -325,6 +325,9 @@ EXPORT_SYMBOL(blk_unplug);
 
 static void blk_invoke_request_fn(struct request_queue *q)
 {
+	if (unlikely(blk_queue_stopped(q)))
+		return;
+
 	/*
 	 * one level of recursion is ok and is much faster than kicking
 	 * the unplug handling
@@ -399,8 +402,13 @@ void blk_sync_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_sync_queue);
 
 /**
- * blk_run_queue - run a single device queue
+ * __blk_run_queue - run a single device queue
  * @q:	The queue to run
+ *
+ * Description:
+ *    See @blk_run_queue. This variant must be called with the queue lock
+ *    held and interrupts disabled.
+ *
  */
 void __blk_run_queue(struct request_queue *q)
 {
@@ -418,6 +426,12 @@ EXPORT_SYMBOL(__blk_run_queue);
 /**
  * blk_run_queue - run a single device queue
  * @q: The queue to run
+ *
+ * Description:
+ *    Invoke request handling on this queue, if it has pending work to do.
+ *    May be used to restart queueing when a request has completed. Also
+ *    See @blk_start_queueing.
+ *
  */
 void blk_run_queue(struct request_queue *q)
 {
@@ -884,7 +898,8 @@ EXPORT_SYMBOL(blk_get_request);
  *
  * This is basically a helper to remove the need to know whether a queue
  * is plugged or not if someone just wants to initiate dispatch of requests
- * for this queue.
+ * for this queue. Should be used to start queueing on a device outside
+ * of ->request_fn() context. Also see @blk_run_queue.
  *
  * The queue lock must be held with interrupts disabled.
  */
