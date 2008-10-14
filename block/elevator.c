@@ -1166,15 +1166,10 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 			  size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
-	size_t len;
 	struct elevator_type *e;
 
-	elevator_name[sizeof(elevator_name) - 1] = '\0';
-	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
-	len = strlen(elevator_name);
-
-	if (len && elevator_name[len - 1] == '\n')
-		elevator_name[len - 1] = '\0';
+	strlcpy(elevator_name, name, sizeof(elevator_name));
+	strstrip(elevator_name);
 
 	e = elevator_get(elevator_name);
 	if (!e) {
