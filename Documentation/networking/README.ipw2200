@@ -147,7 +147,7 @@ Where the supported parameter are:
 	driver.  If disabled, the driver will not attempt to scan 
 	for and associate to a network until it has been configured with 
 	one or more properties for the target network, for example configuring 
-	the network SSID.  Default is 1 (auto-associate)
+	the network SSID.  Default is 0 (do not auto-associate)
 	
 	Example: % modprobe ipw2200 associate=0
 

@@ -185,7 +185,7 @@ MODULE_LICENSE("GPL");
 static int debug = 0;
 static int mode = 0;
 static int channel = 0;
-static int associate = 1;
+static int associate = 0;
 static int disable = 0;
 #ifdef CONFIG_PM
 static struct ipw2100_fw ipw2100_firmware;
@@ -201,7 +201,7 @@ module_param(disable, int, 0444);
 MODULE_PARM_DESC(debug, "debug level");
 MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS,2=Monitor)");
 MODULE_PARM_DESC(channel, "channel");
-MODULE_PARM_DESC(associate, "auto associate when scanning (default on)");
+MODULE_PARM_DESC(associate, "auto associate when scanning (default off)");
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 
 static u32 ipw2100_debug_level = IPW_DL_NONE;
