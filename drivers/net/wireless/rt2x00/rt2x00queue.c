@@ -374,7 +374,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc;
-	unsigned int iv_len;
+	unsigned int iv_len = 0;
 
 	if (unlikely(rt2x00queue_full(queue)))
 		return -EINVAL;
@@ -395,6 +395,9 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	entry->skb = skb;
 	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
+	if (IEEE80211_SKB_CB(skb)->control.hw_key != NULL)
+		iv_len = IEEE80211_SKB_CB(skb)->control.hw_key->iv_len;
+
 	/*
 	 * All information is retreived from the skb->cb array,
 	 * now we should claim ownership of the driver part of that
@@ -410,9 +413,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 * the frame so we can provide it to the driver seperately.
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
-	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags) &&
-		(IEEE80211_SKB_CB(skb)->control.hw_key != NULL)) {
-		iv_len = IEEE80211_SKB_CB(skb)->control.hw_key->iv_len;
+	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
 		rt2x00crypto_tx_remove_iv(skb, iv_len);
 	}
 
