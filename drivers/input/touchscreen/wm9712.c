@@ -2,8 +2,7 @@
  * wm9712.c  --  Codec driver for Wolfson WM9712 AC97 Codecs.
  *
  * Copyright 2003, 2004, 2005, 2006, 2007 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  * Parts Copyright : Ian Molton <spyro@f2s.com>
  *                   Andrew Zabolotny <zap@homelink.ru>
  *                   Russell King <rmk@arm.linux.org.uk>
@@ -463,6 +462,6 @@ struct wm97xx_codec_drv wm9712_codec = {
 EXPORT_SYMBOL_GPL(wm9712_codec);
 
 /* Module information */
-MODULE_AUTHOR("Liam Girdwood <liam.girdwood@wolfsonmicro.com>");
+MODULE_AUTHOR("Liam Girdwood <lrg@slimlogic.co.uk>");
 MODULE_DESCRIPTION("WM9712 Touch Screen Driver");
 MODULE_LICENSE("GPL");
