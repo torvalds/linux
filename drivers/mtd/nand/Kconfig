@@ -407,4 +407,11 @@ config MTD_NAND_MXC
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
 
+config MTD_NAND_SH_FLCTL
+	tristate "Support for NAND on Renesas SuperH FLCTL"
+	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+	help
+	  Several Renesas SuperH CPU has FLCTL. This option enables support
+	  for NAND Flash using FLCTL. This driver support SH7723.
+
 endif # MTD_NAND
