@@ -1,12 +1,23 @@
 config IEEE80211
-	tristate "Generic IEEE 802.11 Networking Stack (DEPRECATED)"
+	tristate
+	select WIRELESS_EXT
+	select CRYPTO
+	select CRYPTO_ARC4
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select CRYPTO_MICHAEL_MIC
+	select CRYPTO_ECB
+	select CRC32
+	select IEEE80211_CRYPT_WEP
+	select IEEE80211_CRYPT_TKIP
+	select IEEE80211_CRYPT_CCMP
 	---help---
 	This option enables the hardware independent IEEE 802.11
 	networking stack.  This component is deprecated in favor of the
 	mac80211 component.
 
 config IEEE80211_DEBUG
-	bool "Enable full debugging output"
+	bool "Full debugging output for the old IEEE80211 stack"
 	depends on IEEE80211
 	---help---
 	  This option will enable debug tracing output for the
@@ -29,45 +40,10 @@ config IEEE80211_DEBUG
 	  subsystem, you most likely want to say N here.
 
 config IEEE80211_CRYPT_WEP
-	tristate "IEEE 802.11 WEP encryption (802.1x)"
-	depends on IEEE80211
-	select CRYPTO
-	select CRYPTO_ARC4
-	select CRYPTO_ECB
-	select CRC32
-	---help---
-	Include software based cipher suites in support of IEEE
-	802.11's WEP.  This is needed for WEP as well as 802.1x.
-
-	This can be compiled as a module and it will be called
-	"ieee80211_crypt_wep".
+	tristate
 
 config IEEE80211_CRYPT_CCMP
-	tristate "IEEE 802.11i CCMP support"
-	depends on IEEE80211
-	select CRYPTO
-	select CRYPTO_AES
-	---help---
-	Include software based cipher suites in support of IEEE 802.11i
-	(aka TGi, WPA, WPA2, WPA-PSK, etc.) for use with CCMP enabled
-	networks.
-
-	This can be compiled as a module and it will be called
-	"ieee80211_crypt_ccmp".
+	tristate
 
 config IEEE80211_CRYPT_TKIP
-	tristate "IEEE 802.11i TKIP encryption"
-	depends on IEEE80211
-	select WIRELESS_EXT
-	select CRYPTO
-	select CRYPTO_MICHAEL_MIC
-	select CRYPTO_ECB
-	select CRC32
-	---help---
-	Include software based cipher suites in support of IEEE 802.11i
-	(aka TGi, WPA, WPA2, WPA-PSK, etc.) for use with TKIP enabled
-	networks.
-
-	This can be compiled as a module and it will be called
-	"ieee80211_crypt_tkip".
-
+	tristate
