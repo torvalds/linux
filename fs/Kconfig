@@ -220,17 +220,16 @@ config JBD
 	tristate
 	help
 	  This is a generic journalling layer for block devices.  It is
-	  currently used by the ext3 and OCFS2 file systems, but it could
-	  also be used to add journal support to other file systems or block
+	  currently used by the ext3 file system, but it could also be
+	  used to add journal support to other file systems or block
 	  devices such as RAID or LVM.
 
-	  If you are using the ext3 or OCFS2 file systems, you need to
-	  say Y here. If you are not using ext3 OCFS2 then you will probably
-	  want to say N.
+	  If you are using the ext3 file system, you need to say Y here.
+	  If you are not using ext3 then you will probably want to say N.
 
 	  To compile this device as a module, choose M here: the module will be
-	  called jbd.  If you are compiling ext3 or OCFS2 into the kernel,
-	  you cannot compile this code as a module.
+	  called jbd.  If you are compiling ext3 into the kernel, you
+	  cannot compile this code as a module.
 
 config JBD_DEBUG
 	bool "JBD (ext3) debugging support"
@@ -254,15 +253,16 @@ config JBD2
 	help
 	  This is a generic journaling layer for block devices that support
 	  both 32-bit and 64-bit block numbers.  It is currently used by
-	  the ext4 filesystem, but it could also be used to add
+	  the ext4 and OCFS2 filesystems, but it could also be used to add
 	  journal support to other file systems or block devices such
 	  as RAID or LVM.
 
-	  If you are using ext4, you need to say Y here. If you are not
-	  using ext4 then you will probably want to say N.
+	  If you are using ext4 or OCFS2, you need to say Y here.
+	  If you are not using ext4 or OCFS2 then you will
+	  probably want to say N.
 
 	  To compile this device as a module, choose M here. The module will be
-	  called jbd2.  If you are compiling ext4 into the kernel,
+	  called jbd2.  If you are compiling ext4 or OCFS2 into the kernel,
 	  you cannot compile this code as a module.
 
 config JBD2_DEBUG
@@ -448,7 +448,7 @@ config OCFS2_FS
 	tristate "OCFS2 file system support"
 	depends on NET && SYSFS
 	select CONFIGFS_FS
-	select JBD
+	select JBD2
 	select CRC32
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
@@ -518,6 +518,16 @@ config OCFS2_DEBUG_FS
 	  This option will enable expensive consistency checks. Enable
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
+
+config OCFS2_COMPAT_JBD
+	bool "Use JBD for compatibility"
+	depends on OCFS2_FS
+	default n
+	select JBD
+	help
+	  The ocfs2 filesystem now uses JBD2 for its journalling.  JBD2
+	  is backwards compatible with JBD.  It is safe to say N here.
+	  However, if you really want to use the original JBD, say Y here.
 
 endif # BLOCK
 
