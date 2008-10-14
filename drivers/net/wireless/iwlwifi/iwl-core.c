@@ -1162,24 +1162,47 @@ int iwl_verify_ucode(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_verify_ucode);
 
+
+static const char *desc_lookup_text[] = {
+	"OK",
+	"FAIL",
+	"BAD_PARAM",
+	"BAD_CHECKSUM",
+	"NMI_INTERRUPT_WDG",
+	"SYSASSERT",
+	"FATAL_ERROR",
+	"BAD_COMMAND",
+	"HW_ERROR_TUNE_LOCK",
+	"HW_ERROR_TEMPERATURE",
+	"ILLEGAL_CHAN_FREQ",
+	"VCC_NOT_STABLE",
+	"FH_ERROR",
+	"NMI_INTERRUPT_HOST",
+	"NMI_INTERRUPT_ACTION_PT",
+	"NMI_INTERRUPT_UNKNOWN",
+	"UCODE_VERSION_MISMATCH",
+	"HW_ERROR_ABS_LOCK",
+	"HW_ERROR_CAL_LOCK_FAIL",
+	"NMI_INTERRUPT_INST_ACTION_PT",
+	"NMI_INTERRUPT_DATA_ACTION_PT",
+	"NMI_TRM_HW_ER",
+	"NMI_INTERRUPT_TRM",
+	"NMI_INTERRUPT_BREAK_POINT"
+	"DEBUG_0",
+	"DEBUG_1",
+	"DEBUG_2",
+	"DEBUG_3",
+	"UNKNOWN"
+};
+
 static const char *desc_lookup(int i)
 {
-	switch (i) {
-	case 1:
-		return "FAIL";
-	case 2:
-		return "BAD_PARAM";
-	case 3:
-		return "BAD_CHECKSUM";
-	case 4:
-		return "NMI_INTERRUPT";
-	case 5:
-		return "SYSASSERT";
-	case 6:
-		return "FATAL_ERROR";
-	}
+	int max = ARRAY_SIZE(desc_lookup_text) - 1;
 
-	return "UNKNOWN";
+	if (i < 0 || i > max)
+		i = max;
+
+	return desc_lookup_text[i];
 }
 
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
@@ -1225,9 +1248,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
 	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
 
-	IWL_ERROR("Desc        Time       "
+	IWL_ERROR("Desc                               Time       "
 		"data1      data2      line\n");
-	IWL_ERROR("%-13s (#%d) %010u 0x%08X 0x%08X %u\n",
+	IWL_ERROR("%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
 		desc_lookup(desc), desc, time, data1, data2, line);
 	IWL_ERROR("blink1  blink2  ilink1  ilink2\n");
 	IWL_ERROR("0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
