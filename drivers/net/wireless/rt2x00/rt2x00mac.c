@@ -349,6 +349,15 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
+	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
+		rt2x00dev->ops->lib->set_retry_limit(hw,
+			conf->short_frame_max_tx_count,
+			conf->long_frame_max_tx_count);
+	}
+	changed &= ~IEEE80211_CONF_CHANGE_RETRY_LIMITS;
+	if (!changed)
+		return 0;
+
 	/*
 	 * Only change device state when the radio is enabled. It does not
 	 * matter what parameters we have configured when the radio is disabled

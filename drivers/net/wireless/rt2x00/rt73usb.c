@@ -2315,7 +2315,6 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.configure_filter	= rt2x00mac_configure_filter,
 	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,
-	.set_retry_limit	= rt73usb_set_retry_limit,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt73usb_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
@@ -2347,6 +2346,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.config_intf		= rt73usb_config_intf,
 	.config_erp		= rt73usb_config_erp,
 	.config			= rt73usb_config,
+	.set_retry_limit	= rt73usb_set_retry_limit,
 };
 
 static const struct data_queue_desc rt73usb_queue_rx = {

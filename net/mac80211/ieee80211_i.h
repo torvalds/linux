@@ -635,8 +635,6 @@ struct ieee80211_local {
 
 	int rts_threshold;
 	int fragmentation_threshold;
-	int short_retry_limit; /* dot11ShortRetryLimit */
-	int long_retry_limit; /* dot11LongRetryLimit */
 
 	struct crypto_blkcipher *wep_tx_tfm;
 	struct crypto_blkcipher *wep_rx_tfm;

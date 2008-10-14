@@ -1874,7 +1874,6 @@ static const struct ieee80211_ops rt2500pci_mac80211_ops = {
 	.config_interface	= rt2x00mac_config_interface,
 	.configure_filter	= rt2x00mac_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
-	.set_retry_limit	= rt2500pci_set_retry_limit,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
@@ -1903,6 +1902,7 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.config_intf		= rt2500pci_config_intf,
 	.config_erp		= rt2500pci_config_erp,
 	.config			= rt2500pci_config,
+	.set_retry_limit	= rt2500pci_set_retry_limit,
 };
 
 static const struct data_queue_desc rt2500pci_queue_rx = {

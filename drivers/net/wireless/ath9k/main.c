@@ -1659,7 +1659,6 @@ static struct ieee80211_ops ath9k_ops = {
 	.get_tkip_seq       = NULL,
 	.set_rts_threshold  = NULL,
 	.set_frag_threshold = NULL,
-	.set_retry_limit    = NULL,
 	.get_tsf 	    = ath9k_get_tsf,
 	.reset_tsf 	    = ath9k_reset_tsf,
 	.tx_last_beacon     = NULL,

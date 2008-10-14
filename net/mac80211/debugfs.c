@@ -52,9 +52,9 @@ DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
 DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
 		      local->fragmentation_threshold);
 DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
-		      local->short_retry_limit);
+		      local->hw.conf.short_frame_max_tx_count);
 DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
-		      local->long_retry_limit);
+		      local->hw.conf.long_frame_max_tx_count);
 DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 		      local->total_ps_buffered);
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",

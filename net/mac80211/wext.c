@@ -802,21 +802,16 @@ static int ieee80211_ioctl_siwretry(struct net_device *dev,
 	    (retry->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
 		return -EINVAL;
 
-	if (retry->flags & IW_RETRY_MAX)
-		local->long_retry_limit = retry->value;
-	else if (retry->flags & IW_RETRY_MIN)
-		local->short_retry_limit = retry->value;
-	else {
-		local->long_retry_limit = retry->value;
-		local->short_retry_limit = retry->value;
+	if (retry->flags & IW_RETRY_MAX) {
+		local->hw.conf.long_frame_max_tx_count = retry->value;
+	} else if (retry->flags & IW_RETRY_MIN) {
+		local->hw.conf.short_frame_max_tx_count = retry->value;
+	} else {
+		local->hw.conf.long_frame_max_tx_count = retry->value;
+		local->hw.conf.short_frame_max_tx_count = retry->value;
 	}
 
-	if (local->ops->set_retry_limit) {
-		return local->ops->set_retry_limit(
-			local_to_hw(local),
-			local->short_retry_limit,
-			local->long_retry_limit);
-	}
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_RETRY_LIMITS);
 
 	return 0;
 }
@@ -833,14 +828,15 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 		/* first return min value, iwconfig will ask max value
 		 * later if needed */
 		retry->flags |= IW_RETRY_LIMIT;
-		retry->value = local->short_retry_limit;
-		if (local->long_retry_limit != local->short_retry_limit)
+		retry->value = local->hw.conf.short_frame_max_tx_count;
+		if (local->hw.conf.long_frame_max_tx_count !=
+		    local->hw.conf.short_frame_max_tx_count)
 			retry->flags |= IW_RETRY_MIN;
 		return 0;
 	}
 	if (retry->flags & IW_RETRY_MAX) {
 		retry->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
-		retry->value = local->long_retry_limit;
+		retry->value = local->hw.conf.long_frame_max_tx_count;
 	}
 
 	return 0;

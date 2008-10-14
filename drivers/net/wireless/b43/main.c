@@ -3320,6 +3320,22 @@ init_failure:
 	return err;
 }
 
+/* Write the short and long frame retry limit values. */
+static void b43_set_retry_limits(struct b43_wldev *dev,
+				 unsigned int short_retry,
+				 unsigned int long_retry)
+{
+	/* The retry limit is a 4-bit counter. Enforce this to avoid overflowing
+	 * the chip-internal counter. */
+	short_retry = min(short_retry, (unsigned int)0xF);
+	long_retry = min(long_retry, (unsigned int)0xF);
+
+	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_SRLIMIT,
+			short_retry);
+	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_LRLIMIT,
+			long_retry);
+}
+
 static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -3339,6 +3355,13 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out_unlock_mutex;
 	dev = wl->current_dev;
 	phy = &dev->phy;
+
+	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
+		b43_set_retry_limits(dev, conf->short_frame_max_tx_count,
+					  conf->long_frame_max_tx_count);
+	changed &= ~IEEE80211_CONF_CHANGE_RETRY_LIMITS;
+	if (!changed)
+		goto out_unlock_mutex;
 
 	/* Disable IRQs while reconfiguring the device.
 	 * This makes it possible to drop the spinlock throughout
@@ -3859,22 +3882,6 @@ static void b43_imcfglo_timeouts_workaround(struct b43_wldev *dev)
 #endif /* CONFIG_SSB_DRIVER_PCICORE */
 }
 
-/* Write the short and long frame retry limit values. */
-static void b43_set_retry_limits(struct b43_wldev *dev,
-				 unsigned int short_retry,
-				 unsigned int long_retry)
-{
-	/* The retry limit is a 4-bit counter. Enforce this to avoid overflowing
-	 * the chip-internal counter. */
-	short_retry = min(short_retry, (unsigned int)0xF);
-	long_retry = min(long_retry, (unsigned int)0xF);
-
-	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_SRLIMIT,
-			short_retry);
-	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_LRLIMIT,
-			long_retry);
-}
-
 static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
 {
 	u16 pu_delay;
@@ -4195,26 +4202,6 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&(wl->txpower_adjust_work));
 }
 
-static int b43_op_set_retry_limit(struct ieee80211_hw *hw,
-				  u32 short_retry_limit, u32 long_retry_limit)
-{
-	struct b43_wl *wl = hw_to_b43_wl(hw);
-	struct b43_wldev *dev;
-	int err = 0;
-
-	mutex_lock(&wl->mutex);
-	dev = wl->current_dev;
-	if (unlikely(!dev || (b43_status(dev) < B43_STAT_INITIALIZED))) {
-		err = -ENODEV;
-		goto out_unlock;
-	}
-	b43_set_retry_limits(dev, short_retry_limit, long_retry_limit);
-out_unlock:
-	mutex_unlock(&wl->mutex);
-
-	return err;
-}
-
 static int b43_op_beacon_set_tim(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta, bool set)
 {
@@ -4251,7 +4238,6 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.get_tx_stats		= b43_op_get_tx_stats,
 	.start			= b43_op_start,
 	.stop			= b43_op_stop,
-	.set_retry_limit	= b43_op_set_retry_limit,
 	.set_tim		= b43_op_beacon_set_tim,
 	.sta_notify		= b43_op_sta_notify,
 };

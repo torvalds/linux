@@ -599,6 +599,9 @@ struct rt2x00lib_ops {
 #define CONFIG_UPDATE_SLOT_TIME 	( 1 << 5 )
 #define CONFIG_UPDATE_BEACON_INT	( 1 << 6 )
 #define CONFIG_UPDATE_ALL		0xffff
+
+	int (*set_retry_limit) (struct ieee80211_hw *hw,
+				u32 short_limit, u32 long_limit);
 };
 
 /*

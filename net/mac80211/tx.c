@@ -505,10 +505,10 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 				info->flags |=
 					IEEE80211_TX_CTL_LONG_RETRY_LIMIT;
 				info->control.retry_limit =
-					tx->local->long_retry_limit;
+					tx->local->hw.conf.long_frame_max_tx_count - 1;
 			} else {
 				info->control.retry_limit =
-					tx->local->short_retry_limit;
+					tx->local->hw.conf.short_frame_max_tx_count - 1;
 			}
 		} else {
 			info->control.retry_limit = 1;

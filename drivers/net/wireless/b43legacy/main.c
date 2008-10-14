@@ -2556,6 +2556,20 @@ init_failure:
 	return err;
 }
 
+/* Write the short and long frame retry limit values. */
+static void b43legacy_set_retry_limits(struct b43legacy_wldev *dev,
+				       unsigned int short_retry,
+				       unsigned int long_retry)
+{
+	/* The retry limit is a 4-bit counter. Enforce this to avoid overflowing
+	 * the chip-internal counter. */
+	short_retry = min(short_retry, (unsigned int)0xF);
+	long_retry = min(long_retry, (unsigned int)0xF);
+
+	b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, 0x0006, short_retry);
+	b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, 0x0007, long_retry);
+}
+
 static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 				   u32 changed)
 {
@@ -2576,6 +2590,14 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	phy = &dev->phy;
+
+	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
+		b43legacy_set_retry_limits(dev,
+					   conf->short_frame_max_tx_count,
+					   conf->long_frame_max_tx_count);
+	changed &= ~IEEE80211_CONF_CHANGE_RETRY_LIMITS;
+	if (!changed)
+		goto out_unlock_mutex;
 
 	/* Switch the PHY mode (if necessary). */
 	switch (conf->channel->band) {
@@ -2989,20 +3011,6 @@ static void b43legacy_imcfglo_timeouts_workaround(struct b43legacy_wldev *dev)
 #endif /* CONFIG_SSB_DRIVER_PCICORE */
 }
 
-/* Write the short and long frame retry limit values. */
-static void b43legacy_set_retry_limits(struct b43legacy_wldev *dev,
-				       unsigned int short_retry,
-				       unsigned int long_retry)
-{
-	/* The retry limit is a 4-bit counter. Enforce this to avoid overflowing
-	 * the chip-internal counter. */
-	short_retry = min(short_retry, (unsigned int)0xF);
-	long_retry = min(long_retry, (unsigned int)0xF);
-
-	b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, 0x0006, short_retry);
-	b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, 0x0007, long_retry);
-}
-
 static void b43legacy_set_synth_pu_delay(struct b43legacy_wldev *dev,
 					  bool idle) {
 	u16 pu_delay = 1050;
@@ -3367,28 +3375,6 @@ static void b43legacy_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&wl->mutex);
 }
 
-static int b43legacy_op_set_retry_limit(struct ieee80211_hw *hw,
-					u32 short_retry_limit,
-					u32 long_retry_limit)
-{
-	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
-	struct b43legacy_wldev *dev;
-	int err = 0;
-
-	mutex_lock(&wl->mutex);
-	dev = wl->current_dev;
-	if (unlikely(!dev ||
-		     (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED))) {
-		err = -ENODEV;
-		goto out_unlock;
-	}
-	b43legacy_set_retry_limits(dev, short_retry_limit, long_retry_limit);
-out_unlock:
-	mutex_unlock(&wl->mutex);
-
-	return err;
-}
-
 static int b43legacy_op_beacon_set_tim(struct ieee80211_hw *hw,
 				       struct ieee80211_sta *sta, bool set)
 {
@@ -3414,7 +3400,6 @@ static const struct ieee80211_ops b43legacy_hw_ops = {
 	.get_tx_stats		= b43legacy_op_get_tx_stats,
 	.start			= b43legacy_op_start,
 	.stop			= b43legacy_op_stop,
-	.set_retry_limit	= b43legacy_op_set_retry_limit,
 	.set_tim		= b43legacy_op_beacon_set_tim,
 };
 
