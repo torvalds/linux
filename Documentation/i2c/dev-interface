@@ -167,3 +167,48 @@ The above functions are all inline functions, that resolve to calls to
 the i2c_smbus_access function, that on its turn calls a specific ioctl
 with the data in a specific format. Read the source code if you
 want to know what happens behind the screens.
+
+
+Implementation details
+======================
+
+For the interested, here's the code flow which happens inside the kernel
+when you use the /dev interface to I2C:
+
+1* Your program opens /dev/i2c-N and calls ioctl() on it, as described in
+section "C example" above.
+
+2* These open() and ioctl() calls are handled by the i2c-dev kernel
+driver: see i2c-dev.c:i2cdev_open() and i2c-dev.c:i2cdev_ioctl(),
+respectively. You can think of i2c-dev as a generic I2C chip driver
+that can be programmed from user-space.
+
+3* Some ioctl() calls are for administrative tasks and are handled by
+i2c-dev directly. Examples include I2C_SLAVE (set the address of the
+device you want to access) and I2C_PEC (enable or disable SMBus error
+checking on future transactions.)
+
+4* Other ioctl() calls are converted to in-kernel function calls by
+i2c-dev. Examples include I2C_FUNCS, which queries the I2C adapter
+functionality using i2c.h:i2c_get_functionality(), and I2C_SMBUS, which
+performs an SMBus transaction using i2c-core.c:i2c_smbus_xfer().
+
+The i2c-dev driver is responsible for checking all the parameters that
+come from user-space for validity. After this point, there is no
+difference between these calls that came from user-space through i2c-dev
+and calls that would have been performed by kernel I2C chip drivers
+directly. This means that I2C bus drivers don't need to implement
+anything special to support access from user-space.
+
+5* These i2c-core.c/i2c.h functions are wrappers to the actual
+implementation of your I2C bus driver. Each adapter must declare
+callback functions implementing these standard calls.
+i2c.h:i2c_get_functionality() calls i2c_adapter.algo->functionality(),
+while i2c-core.c:i2c_smbus_xfer() calls either
+adapter.algo->smbus_xfer() if it is implemented, or if not,
+i2c-core.c:i2c_smbus_xfer_emulated() which in turn calls
+i2c_adapter.algo->master_xfer().
+
+After your I2C bus driver has processed these requests, execution runs
+up the call chain, with almost no processing done, except by i2c-dev to
+package the returned data, if any, in suitable format for the ioctl.
