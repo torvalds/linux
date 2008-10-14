@@ -238,6 +238,7 @@ static void do_pio_read(struct s3cmci_host *host)
 {
 	int res;
 	u32 fifo;
+	u32 *ptr;
 	u32 fifo_words;
 	void __iomem *from_ptr;
 
@@ -283,8 +284,10 @@ static void do_pio_read(struct s3cmci_host *host)
 		host->pio_count += fifo;
 
 		fifo_words = fifo >> 2;
+		ptr = host->pio_ptr;
 		while (fifo_words--)
-			*(host->pio_ptr++) = readl(from_ptr);
+			*ptr++ = readl(from_ptr);
+		host->pio_ptr = ptr;
 
 		if (fifo & 3) {
 			u32 n = fifo & 3;
@@ -319,6 +322,7 @@ static void do_pio_write(struct s3cmci_host *host)
 	void __iomem *to_ptr;
 	int res;
 	u32 fifo;
+	u32 *ptr;
 
 	to_ptr = host->base + host->sdidata;
 
@@ -353,8 +357,10 @@ static void do_pio_write(struct s3cmci_host *host)
 		host->pio_count += fifo;
 
 		fifo = (fifo + 3) >> 2;
+		ptr = host->pio_ptr;
 		while (fifo--)
-			writel(*(host->pio_ptr++), to_ptr);
+			writel(*ptr++, to_ptr);
+		host->pio_ptr = ptr;
 	}
 
 	enable_imask(host, S3C2410_SDIIMSK_TXFIFOHALF);
