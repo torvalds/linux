@@ -2400,7 +2400,7 @@ config EHEA
 	  will be called ehea.
 
 config ENIC
-	tristate "E, the Cisco 10G Ethernet NIC"
+	tristate "Cisco 10G Ethernet NIC support"
 	depends on PCI && INET
 	select INET_LRO
 	help

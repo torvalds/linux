@@ -61,7 +61,7 @@ mISDN_open(struct inode *ino, struct file *filep)
 	init_waitqueue_head(&dev->wait);
 	filep->private_data = dev;
 	__module_get(THIS_MODULE);
-	return 0;
+	return nonseekable_open(ino, filep);
 }
 
 static int

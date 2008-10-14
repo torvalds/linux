@@ -12,7 +12,7 @@
  *	Scatter gather
  *	More testing
  *
- * The changes are (c) Copyright 2004, Red Hat Inc. <alan@redhat.com>
+ * The changes are (c) Copyright 2004, Red Hat Inc. <alan@lxorguk.ukuu.org.uk>
  * Additional fixes and clean up: Francois Romieu
  *
  * This source has not been verified for use in safety critical systems.

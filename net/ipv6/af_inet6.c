@@ -834,7 +834,7 @@ static void __net_exit ipv6_cleanup_mibs(struct net *net)
 	snmp_mib_free((void **)net->mib.icmpv6msg_statistics);
 }
 
-static int inet6_net_init(struct net *net)
+static int __net_init inet6_net_init(struct net *net)
 {
 	int err = 0;
 
