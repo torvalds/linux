@@ -330,6 +330,18 @@ config I2C_GPIO
 	  This is a very simple bitbanging I2C driver utilizing the
 	  arch-neutral GPIO API to control the SCL and SDA lines.
 
+config I2C_HIGHLANDER
+	tristate "Highlander FPGA SMBus interface"
+	depends on SH_HIGHLANDER
+	help
+	  If you say yes to this option, support will be included for
+	  the SMBus interface located in the FPGA on various Highlander
+	  boards, particularly the R0P7780LC0011RL and R0P7785LC0011RL
+	  FPGAs. This is wholly unrelated to the SoC I2C.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-highlander.
+
 config I2C_IBM_IIC
 	tristate "IBM PPC 4xx on-chip I2C interface"
 	depends on 4xx
