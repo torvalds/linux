@@ -44,6 +44,7 @@
 #include <linux/random.h>
 #include <linux/reboot.h>
 #include <linux/file.h>
+#include <linux/delay.h>
 
 #define MAJOR_NR MD_MAJOR
 
