@@ -108,9 +108,9 @@ my $threshold = ($maxtime - $firsttime) / 60.0;
 my $stylecounter = 0;
 my %rows;
 my $rowscount = 1;
+my @initcalls = sort { $start{$a} <=> $start{$b} } keys(%start);
 my $key;
-my $value;
-while (($key,$value) = each %start) {
+foreach $key (@initcalls) {
 	my $duration = $end{$key} - $start{$key};
 
 	if ($duration >= $threshold) {
@@ -121,7 +121,7 @@ while (($key,$value) = each %start) {
 			$rows{$pid} = $rowscount;
 			$rowscount = $rowscount + 1;
 		}
-		$s = ($value - $firsttime) * $mult;
+		$s = ($start{$key} - $firsttime) * $mult;
 		$s2 = $s + 6;
 		$e = ($end{$key} - $firsttime) * $mult;
 		$w = $e - $s;
