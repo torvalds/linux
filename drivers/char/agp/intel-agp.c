@@ -54,8 +54,7 @@
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
 		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB)
+		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB)
 
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
@@ -63,7 +62,8 @@
 
 #define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_E_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB)
 
 extern int agp_memory_reserved;
 
@@ -525,8 +525,10 @@ static void intel_i830_init_gtt_entries(void)
 		size += 4;
 	} else if (IS_G4X) {
 		/* On 4 series hardware, GTT stolen is separate from graphics
-		 * stolen, ignore it in stolen gtt entries counting */
-		size = 0;
+		 * stolen, ignore it in stolen gtt entries counting.  However,
+		 * 4KB of the stolen memory doesn't get mapped to the GTT.
+		 */
+		size = 4;
 	} else {
 		/* On previous hardware, the GTT size was just what was
 		 * required to map the aperture.
