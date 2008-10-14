@@ -190,7 +190,7 @@ static inline void clear_imask(struct s3cmci_host *host)
 }
 
 static inline int get_data_buffer(struct s3cmci_host *host,
-				  u32 *words, u32 **pointer)
+				  u32 *bytes, u32 **pointer)
 {
 	struct scatterlist *sg;
 
@@ -207,7 +207,7 @@ static inline int get_data_buffer(struct s3cmci_host *host,
 	}
 	sg = &host->mrq->data->sg[host->pio_sgptr];
 
-	*words = sg->length >> 2;
+	*bytes = sg->length;
 	*pointer = sg_virt(sg);
 
 	host->pio_sgptr++;
@@ -223,7 +223,7 @@ static inline u32 fifo_count(struct s3cmci_host *host)
 	u32 fifostat = readl(host->base + S3C2410_SDIFSTA);
 
 	fifostat &= S3C2410_SDIFSTA_COUNTMASK;
-	return fifostat >> 2;
+	return fifostat;
 }
 
 static inline u32 fifo_free(struct s3cmci_host *host)
@@ -231,13 +231,14 @@ static inline u32 fifo_free(struct s3cmci_host *host)
 	u32 fifostat = readl(host->base + S3C2410_SDIFSTA);
 
 	fifostat &= S3C2410_SDIFSTA_COUNTMASK;
-	return (63 - fifostat) >> 2;
+	return 63 - fifostat;
 }
 
 static void do_pio_read(struct s3cmci_host *host)
 {
 	int res;
 	u32 fifo;
+	u32 fifo_words;
 	void __iomem *from_ptr;
 
 	/* write real prescaler to host, it might be set slow to fix */
@@ -246,8 +247,8 @@ static void do_pio_read(struct s3cmci_host *host)
 	from_ptr = host->base + host->sdidata;
 
 	while ((fifo = fifo_count(host))) {
-		if (!host->pio_words) {
-			res = get_data_buffer(host, &host->pio_words,
+		if (!host->pio_bytes) {
+			res = get_data_buffer(host, &host->pio_bytes,
 					      &host->pio_ptr);
 			if (res) {
 				host->pio_active = XFER_NONE;
@@ -260,26 +261,45 @@ static void do_pio_read(struct s3cmci_host *host)
 
 			dbg(host, dbg_pio,
 			    "pio_read(): new target: [%i]@[%p]\n",
-			    host->pio_words, host->pio_ptr);
+			    host->pio_bytes, host->pio_ptr);
 		}
 
 		dbg(host, dbg_pio,
 		    "pio_read(): fifo:[%02i] buffer:[%03i] dcnt:[%08X]\n",
-		    fifo, host->pio_words,
+		    fifo, host->pio_bytes,
 		    readl(host->base + S3C2410_SDIDCNT));
 
-		if (fifo > host->pio_words)
-			fifo = host->pio_words;
+		/* If we have reached the end of the block, we can
+		 * read a word and get 1 to 3 bytes.  If we in the
+		 * middle of the block, we have to read full words,
+		 * otherwise we will write garbage, so round down to
+		 * an even multiple of 4. */
+		if (fifo >= host->pio_bytes)
+			fifo = host->pio_bytes;
+		else
+			fifo -= fifo & 3;
 
-		host->pio_words -= fifo;
+		host->pio_bytes -= fifo;
 		host->pio_count += fifo;
 
-		while (fifo--)
+		fifo_words = fifo >> 2;
+		while (fifo_words--)
 			*(host->pio_ptr++) = readl(from_ptr);
+
+		if (fifo & 3) {
+			u32 n = fifo & 3;
+			u32 data = readl(from_ptr);
+			u8 *p = (u8 *)host->pio_ptr;
+
+			while (n--) {
+				*p++ = data;
+				data >>= 8;
+			}
+		}
 	}
 
-	if (!host->pio_words) {
-		res = get_data_buffer(host, &host->pio_words, &host->pio_ptr);
+	if (!host->pio_bytes) {
+		res = get_data_buffer(host, &host->pio_bytes, &host->pio_ptr);
 		if (res) {
 			dbg(host, dbg_pio,
 			    "pio_read(): complete (no more buffers).\n");
@@ -303,8 +323,8 @@ static void do_pio_write(struct s3cmci_host *host)
 	to_ptr = host->base + host->sdidata;
 
 	while ((fifo = fifo_free(host))) {
-		if (!host->pio_words) {
-			res = get_data_buffer(host, &host->pio_words,
+		if (!host->pio_bytes) {
+			res = get_data_buffer(host, &host->pio_bytes,
 							&host->pio_ptr);
 			if (res) {
 				dbg(host, dbg_pio,
@@ -316,16 +336,23 @@ static void do_pio_write(struct s3cmci_host *host)
 
 			dbg(host, dbg_pio,
 			    "pio_write(): new source: [%i]@[%p]\n",
-			    host->pio_words, host->pio_ptr);
+			    host->pio_bytes, host->pio_ptr);
 
 		}
 
-		if (fifo > host->pio_words)
-			fifo = host->pio_words;
+		/* If we have reached the end of the block, we have to
+		 * write exactly the remaining number of bytes.  If we
+		 * in the middle of the block, we have to write full
+		 * words, so round down to an even multiple of 4. */
+		if (fifo >= host->pio_bytes)
+			fifo = host->pio_bytes;
+		else
+			fifo -= fifo & 3;
 
-		host->pio_words -= fifo;
+		host->pio_bytes -= fifo;
 		host->pio_count += fifo;
 
+		fifo = (fifo + 3) >> 2;
 		while (fifo--)
 			writel(*(host->pio_ptr++), to_ptr);
 	}
@@ -350,9 +377,9 @@ static void pio_tasklet(unsigned long data)
 		clear_imask(host);
 		if (host->pio_active != XFER_NONE) {
 			dbg(host, dbg_err, "unfinished %s "
-			    "- pio_count:[%u] pio_words:[%u]\n",
+			    "- pio_count:[%u] pio_bytes:[%u]\n",
 			    (host->pio_active == XFER_READ) ? "read" : "write",
-			    host->pio_count, host->pio_words);
+			    host->pio_count, host->pio_bytes);
 
 			if (host->mrq->data)
 				host->mrq->data->error = -EINVAL;
@@ -813,11 +840,10 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 		/* We cannot deal with unaligned blocks with more than
 		 * one block being transfered. */
 
-		if (data->blocks > 1)
+		if (data->blocks > 1) {
+			pr_warning("%s: can't do non-word sized block transfers (blksz %d)\n", __func__, data->blksz);
 			return -EINVAL;
-
-		/* No support yet for non-word block transfers. */
-		return -EINVAL;
+		}
 	}
 
 	while (readl(host->base + S3C2410_SDIDSTA) &
@@ -897,7 +923,7 @@ static int s3cmci_prepare_pio(struct s3cmci_host *host, struct mmc_data *data)
 	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
 
 	host->pio_sgptr = 0;
-	host->pio_words = 0;
+	host->pio_bytes = 0;
 	host->pio_count = 0;
 	host->pio_active = rw ? XFER_WRITE : XFER_READ;
 

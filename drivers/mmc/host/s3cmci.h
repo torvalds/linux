@@ -51,7 +51,7 @@ struct s3cmci_host {
 	int			dma_complete;
 
 	u32			pio_sgptr;
-	u32			pio_words;
+	u32			pio_bytes;
 	u32			pio_count;
 	u32			*pio_ptr;
 #define XFER_NONE 0
