@@ -110,6 +110,13 @@ config HID_BELKIN
 	---help---
 	Support for Belkin Flip KVM and Wireless keyboard.
 
+config HID_BRIGHT
+	tristate "Bright"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Bright ABNT-2 keyboard.
+
 config HID_CHERRY
 	tristate "Cherry"
 	default m

@@ -13,6 +13,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_BELKIN_MODULE
 	HID_COMPAT_CALL_DRIVER(belkin);
 #endif
+#ifdef CONFIG_HID_BRIGHT_MODULE
+	HID_COMPAT_CALL_DRIVER(bright);
+#endif
 #ifdef CONFIG_HID_CHERRY_MODULE
 	HID_COMPAT_CALL_DRIVER(cherry);
 #endif
