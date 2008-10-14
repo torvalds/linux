@@ -700,14 +700,15 @@ static void ieee80211_sta_send_associnfo(struct ieee80211_sub_if_data *sdata,
 
 
 static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
-				     struct ieee80211_if_sta *ifsta)
+				     struct ieee80211_if_sta *ifsta,
+				     u32 bss_info_changed)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_conf *conf = &local_to_hw(local)->conf;
-	u32 changed = BSS_CHANGED_ASSOC;
 
 	struct ieee80211_bss *bss;
 
+	bss_info_changed |= BSS_CHANGED_ASSOC;
 	ifsta->flags |= IEEE80211_STA_ASSOCIATED;
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -722,17 +723,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.timestamp = bss->timestamp;
 		sdata->vif.bss_conf.dtim_period = bss->dtim_period;
 
-		changed |= ieee80211_handle_bss_capability(sdata,
+		bss_info_changed |= ieee80211_handle_bss_capability(sdata,
 			bss->capability, bss->has_erp_value, bss->erp_value);
 
 		ieee80211_rx_bss_put(local, bss);
-	}
-
-	if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
-		changed |= BSS_CHANGED_HT;
-		sdata->vif.bss_conf.assoc_ht = 1;
-		sdata->vif.bss_conf.ht_cap = &conf->ht_cap;
-		sdata->vif.bss_conf.ht_bss_conf = &conf->ht_bss_conf;
 	}
 
 	ifsta->flags |= IEEE80211_STA_PREV_BSSID_SET;
@@ -748,8 +742,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	 * when we have associated, we aren't checking whether it actually
 	 * changed or not.
 	 */
-	changed |= BSS_CHANGED_BASIC_RATES;
-	ieee80211_bss_info_change_notify(sdata, changed);
+	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
+	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
@@ -813,7 +807,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u32 changed = BSS_CHANGED_ASSOC;
+	u32 changed = 0;
 
 	rcu_read_lock();
 
@@ -847,15 +841,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
 	changed |= ieee80211_reset_erp_info(sdata);
 
-	if (sdata->vif.bss_conf.assoc_ht)
-		changed |= BSS_CHANGED_HT;
-
-	sdata->vif.bss_conf.assoc_ht = 0;
-	sdata->vif.bss_conf.ht_cap = NULL;
-	sdata->vif.bss_conf.ht_bss_conf = NULL;
-
 	ieee80211_led_assoc(local, 0);
-	sdata->vif.bss_conf.assoc = 0;
+	changed |= BSS_CHANGED_ASSOC;
+	sdata->vif.bss_conf.assoc = false;
 
 	ieee80211_sta_send_apinfo(sdata, ifsta);
 
@@ -867,6 +855,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 
 	sta_info_destroy(sta);
+
+	local->hw.conf.ht.enabled = false;
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_HT);
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 static int ieee80211_sta_wep_configured(struct ieee80211_sub_if_data *sdata)
@@ -1184,8 +1177,10 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	struct ieee802_11_elems elems;
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	u8 *pos;
+	u32 changed = 0;
 	int i, j;
 	bool have_higher_than_11mbit = false;
+	u16 ap_ht_cap_flags;
 
 	/* AssocResp and ReassocResp have identical structure, so process both
 	 * of them in this function. */
@@ -1333,15 +1328,11 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param &&
-	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
-		struct ieee80211_ht_bss_info bss_info;
-		ieee80211_ht_cap_ie_to_sta_ht_cap(
+	if (elems.ht_cap_elem)
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sband,
 				elems.ht_cap_elem, &sta->sta.ht_cap);
-		ieee80211_ht_info_ie_to_ht_bss_info(
-				elems.ht_info_elem, &bss_info);
-		ieee80211_handle_ht(local, &sta->sta.ht_cap, &bss_info);
-	}
+
+	ap_ht_cap_flags = sta->sta.ht_cap.cap;
 
 	rate_control_rate_init(sta);
 
@@ -1353,11 +1344,16 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	} else
 		rcu_read_unlock();
 
+	if (elems.ht_info_elem && elems.wmm_param &&
+	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED))
+		changed |= ieee80211_enable_ht(sdata, elems.ht_info_elem,
+					       ap_ht_cap_flags);
+
 	/* set AID and assoc capability,
 	 * ieee80211_set_associated() will tell the driver */
 	bss_conf->aid = aid;
 	bss_conf->assoc_capability = capab_info;
-	ieee80211_set_associated(sdata, ifsta);
+	ieee80211_set_associated(sdata, ifsta, changed);
 
 	ieee80211_associated(sdata, ifsta);
 }
@@ -1657,7 +1653,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	size_t baselen;
 	struct ieee802_11_elems elems;
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_conf *conf = &local->hw.conf;
 	u32 changed = 0;
 	bool erp_valid;
 	u8 erp_value = 0;
@@ -1693,14 +1688,31 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			le16_to_cpu(mgmt->u.beacon.capab_info),
 			erp_valid, erp_value);
 
-	if (elems.ht_cap_elem && elems.ht_info_elem &&
-	    elems.wmm_param && conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
-		struct ieee80211_ht_bss_info bss_info;
 
-		ieee80211_ht_info_ie_to_ht_bss_info(
-				elems.ht_info_elem, &bss_info);
-		changed |= ieee80211_handle_ht(local, &conf->ht_cap,
-					       &bss_info);
+	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param) {
+		struct sta_info *sta;
+		struct ieee80211_supported_band *sband;
+		u16 ap_ht_cap_flags;
+
+		rcu_read_lock();
+
+		sta = sta_info_get(local, ifsta->bssid);
+		if (!sta) {
+			rcu_read_unlock();
+			return;
+		}
+
+		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sband,
+				elems.ht_cap_elem, &sta->sta.ht_cap);
+
+		ap_ht_cap_flags = sta->sta.ht_cap.cap;
+
+		rcu_read_unlock();
+
+		changed |= ieee80211_enable_ht(sdata, elems.ht_info_elem,
+					       ap_ht_cap_flags);
 	}
 
 	ieee80211_bss_info_change_notify(sdata, changed);

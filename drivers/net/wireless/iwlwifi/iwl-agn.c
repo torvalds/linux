@@ -552,16 +552,29 @@ static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 static void iwl4965_ht_conf(struct iwl_priv *priv,
 			    struct ieee80211_bss_conf *bss_conf)
 {
-	struct ieee80211_sta_ht_cap *ht_conf = bss_conf->ht_cap;
-	struct ieee80211_ht_bss_info *ht_bss_conf = bss_conf->ht_bss_conf;
+	struct ieee80211_sta_ht_cap *ht_conf;
 	struct iwl_ht_info *iwl_conf = &priv->current_ht_config;
+	struct ieee80211_sta *sta;
 
 	IWL_DEBUG_MAC80211("enter: \n");
 
-	iwl_conf->is_ht = bss_conf->assoc_ht;
-
 	if (!iwl_conf->is_ht)
 		return;
+
+
+	/*
+	 * It is totally wrong to base global information on something
+	 * that is valid only when associated, alas, this driver works
+	 * that way and I don't know how to fix it.
+	 */
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(priv->hw, priv->bssid);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
+	ht_conf = &sta->ht_cap;
 
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
 		iwl_conf->sgf |= HT_SHORT_GI_20MHZ;
@@ -574,8 +587,8 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 
 	iwl_conf->supported_chan_width =
 		!!(ht_conf->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40);
-	iwl_conf->extension_chan_offset =
-		ht_bss_conf->bss_cap & IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
+
+	iwl_conf->extension_chan_offset = bss_conf->ht.secondary_channel_offset;
 	/* If no above or below channel supplied disable FAT channel */
 	if (iwl_conf->extension_chan_offset != IEEE80211_HT_PARAM_CHA_SEC_ABOVE &&
 	    iwl_conf->extension_chan_offset != IEEE80211_HT_PARAM_CHA_SEC_BELOW) {
@@ -587,15 +600,14 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 
 	memcpy(&iwl_conf->mcs, &ht_conf->mcs, 16);
 
-	iwl_conf->control_channel = ht_bss_conf->primary_channel;
-	iwl_conf->tx_chan_width =
-		!!(ht_bss_conf->bss_cap & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY);
+	iwl_conf->tx_chan_width = bss_conf->ht.width_40_ok;
 	iwl_conf->ht_protection =
-		ht_bss_conf->bss_op_mode & IEEE80211_HT_OP_MODE_PROTECTION;
+		bss_conf->ht.operation_mode & IEEE80211_HT_OP_MODE_PROTECTION;
 	iwl_conf->non_GF_STA_present =
-		!!(ht_bss_conf->bss_op_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+		!!(bss_conf->ht.operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 
-	IWL_DEBUG_MAC80211("control channel %d\n", iwl_conf->control_channel);
+	rcu_read_unlock();
+
 	IWL_DEBUG_MAC80211("leave\n");
 }
 
@@ -2746,6 +2758,8 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter to channel %d\n", conf->channel->hw_value);
 
+	priv->current_ht_config.is_ht = conf->ht.enabled;
+
 	if (conf->radio_enabled && iwl_radio_kill_sw_enable_radio(priv)) {
 		IWL_DEBUG_MAC80211("leave - RF-KILL - waiting for uCode\n");
 		goto out;
@@ -3104,7 +3118,6 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_HT) {
-		IWL_DEBUG_MAC80211("HT %d\n", bss_conf->assoc_ht);
 		iwl4965_ht_conf(priv, bss_conf);
 		iwl_set_rxon_chain(priv);
 	}

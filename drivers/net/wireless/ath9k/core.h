@@ -380,7 +380,6 @@ void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush);
 int ath_rx_input(struct ath_softc *sc,
 		 struct ath_node *node,
-		 int is_ampdu,
 		 struct sk_buff *skb,
 		 struct ath_recv_status *rx_status,
 		 enum ATH_RX_TYPE *status);
@@ -650,6 +649,9 @@ struct ath_node {
 	u8 an_smmode; /* SM Power save mode */
 	u8 an_flags;
 	u8 an_addr[ETH_ALEN];
+
+	u16 maxampdu;
+	u8 mpdudensity;
 };
 
 void ath_tx_resume_tid(struct ath_softc *sc,
@@ -919,8 +921,6 @@ enum RATE_TYPE {
 
 struct ath_ht_info {
 	enum ath9k_ht_macmode tx_chan_width;
-	u16 maxampdu;
-	u8 mpdudensity;
 	u8 ext_chan_offset;
 };
 

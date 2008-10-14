@@ -300,7 +300,8 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	if (ieee80211_is_data(fc) && !txctl->use_minrate) {
 
 		/* Enable HT only for DATA frames and not for EAPOL */
-		txctl->ht = (hw->conf.ht_cap.ht_supported &&
+		/* XXX why AMPDU only?? */
+		txctl->ht = (hw->conf.ht.enabled &&
 			    (tx_info->flags & IEEE80211_TX_CTL_AMPDU));
 
 		if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1450,7 +1451,8 @@ static int ath_tx_send_ampdu(struct ath_softc *sc,
  */
 
 static u32 ath_lookup_rate(struct ath_softc *sc,
-				 struct ath_buf *bf)
+			   struct ath_buf *bf,
+			   struct ath_atx_tid *tid)
 {
 	const struct ath9k_rate_table *rt = sc->sc_currates;
 	struct sk_buff *skb;
@@ -1504,7 +1506,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc,
 	 * The IE, however can hold upto 65536, which shows up here
 	 * as zero. Ignore 65536 since we  are constrained by hw.
 	 */
-	maxampdu = sc->sc_ht_info.maxampdu;
+	maxampdu = tid->an->maxampdu;
 	if (maxampdu)
 		aggr_limit = min(aggr_limit, maxampdu);
 
@@ -1518,6 +1520,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc,
  */
 
 static int ath_compute_num_delims(struct ath_softc *sc,
+				  struct ath_atx_tid *tid,
 				  struct ath_buf *bf,
 				  u16 frmlen)
 {
@@ -1545,7 +1548,7 @@ static int ath_compute_num_delims(struct ath_softc *sc,
 	 * required minimum length for subframe. Take into account
 	 * whether high rate is 20 or 40Mhz and half or full GI.
 	 */
-	mpdudensity = sc->sc_ht_info.mpdudensity;
+	mpdudensity = tid->an->mpdudensity;
 
 	/*
 	 * If there is no mpdu density restriction, no further calculation
@@ -1619,7 +1622,7 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		}
 
 		if (!rl) {
-			aggr_limit = ath_lookup_rate(sc, bf);
+			aggr_limit = ath_lookup_rate(sc, bf, tid);
 			rl = 1;
 			/*
 			 * Is rate dual stream
@@ -1657,7 +1660,7 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		 * Get the delimiters needed to meet the MPDU
 		 * density for this node.
 		 */
-		ndelim = ath_compute_num_delims(sc, bf_first, bf->bf_frmlen);
+		ndelim = ath_compute_num_delims(sc, tid, bf_first, bf->bf_frmlen);
 
 		bpad = PADBYTES(al_delta) + (ndelim << 2);
 
@@ -2629,7 +2632,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		struct ath_atx_ac *ac;
 		int tidno, acno;
 
-		sc->sc_ht_info.maxampdu = ATH_AMPDU_LIMIT_DEFAULT;
+		an->maxampdu = ATH_AMPDU_LIMIT_DEFAULT;
 
 		/*
 		 * Init per tid tx state

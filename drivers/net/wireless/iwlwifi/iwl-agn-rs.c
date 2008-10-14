@@ -1133,8 +1133,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
 
-	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
-	    !sta->ht_cap.ht_supported)
+	if (!conf->ht.enabled || !sta->ht_cap.ht_supported)
 		return -1;
 
 	if (((sta->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
@@ -1201,8 +1200,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
 
-	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
-	    !sta->ht_cap.ht_supported)
+	if (!conf->ht.enabled || !sta->ht_cap.ht_supported)
 		return -1;
 
 	IWL_DEBUG_RATE("LQ: try to switch to SISO\n");
@@ -2001,9 +1999,8 @@ lq_update:
 		 * stay with best antenna legacy modulation for a while
 		 * before next round of mode comparisons. */
 		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
-		if (is_legacy(tbl1->lq_type) &&
-		   (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE)) &&
-		    (lq_sta->action_counter >= 1)) {
+		if (is_legacy(tbl1->lq_type) && !conf->ht.enabled &&
+		    lq_sta->action_counter >= 1) {
 			lq_sta->action_counter = 0;
 			IWL_DEBUG_RATE("LQ: STAY in legacy table\n");
 			rs_set_stay_in_table(priv, 1, lq_sta);
@@ -2238,19 +2235,19 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
 	 */
-	lq_sta->active_siso_rate = conf->ht_cap.mcs.rx_mask[0] << 1;
-	lq_sta->active_siso_rate |= conf->ht_cap.mcs.rx_mask[0] & 0x1;
+	lq_sta->active_siso_rate = sta->ht_cap.mcs.rx_mask[0] << 1;
+	lq_sta->active_siso_rate |= sta->ht_cap.mcs.rx_mask[0] & 0x1;
 	lq_sta->active_siso_rate &= ~((u16)0x2);
 	lq_sta->active_siso_rate <<= IWL_FIRST_OFDM_RATE;
 
 	/* Same here */
-	lq_sta->active_mimo2_rate = conf->ht_cap.mcs.rx_mask[1] << 1;
-	lq_sta->active_mimo2_rate |= conf->ht_cap.mcs.rx_mask[1] & 0x1;
+	lq_sta->active_mimo2_rate = sta->ht_cap.mcs.rx_mask[1] << 1;
+	lq_sta->active_mimo2_rate |= sta->ht_cap.mcs.rx_mask[1] & 0x1;
 	lq_sta->active_mimo2_rate &= ~((u16)0x2);
 	lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
 
-	lq_sta->active_mimo3_rate = conf->ht_cap.mcs.rx_mask[2] << 1;
-	lq_sta->active_mimo3_rate |= conf->ht_cap.mcs.rx_mask[2] & 0x1;
+	lq_sta->active_mimo3_rate = sta->ht_cap.mcs.rx_mask[2] << 1;
+	lq_sta->active_mimo3_rate |= sta->ht_cap.mcs.rx_mask[2] & 0x1;
 	lq_sta->active_mimo3_rate &= ~((u16)0x2);
 	lq_sta->active_mimo3_rate <<= IWL_FIRST_OFDM_RATE;
 

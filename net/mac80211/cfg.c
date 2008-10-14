@@ -582,6 +582,8 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
+	sband = local->hw.wiphy->bands[local->oper_channel->band];
+
 	/*
 	 * FIXME: updating the flags is racy when this function is
 	 *	  called from ieee80211_change_station(), this will
@@ -622,7 +624,6 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 
 	if (params->supported_rates) {
 		rates = 0;
-		sband = local->hw.wiphy->bands[local->oper_channel->band];
 
 		for (i = 0; i < params->supported_rates_len; i++) {
 			int rate = (params->supported_rates[i] & 0x7f) * 5;
@@ -635,7 +636,8 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	}
 
 	if (params->ht_capa)
-		ieee80211_ht_cap_ie_to_sta_ht_cap(params->ht_capa,
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sband,
+						  params->ht_capa,
 						  &sta->sta.ht_cap);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && params->plink_action) {

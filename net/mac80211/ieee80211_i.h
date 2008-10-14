@@ -955,14 +955,12 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* HT */
-void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_ht_cap *ht_cap_ie,
+void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
+				       struct ieee80211_ht_cap *ht_cap_ie,
 				       struct ieee80211_sta_ht_cap *ht_cap);
-void ieee80211_ht_info_ie_to_ht_bss_info(
-			struct ieee80211_ht_info *ht_add_info_ie,
-			struct ieee80211_ht_bss_info *bss_info);
-u32 ieee80211_handle_ht(struct ieee80211_local *local,
-			struct ieee80211_sta_ht_cap *req_ht_cap,
-			struct ieee80211_ht_bss_info *req_bss_cap);
+u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
+			struct ieee80211_ht_info *hti,
+			u16 ap_ht_cap_flags);
 void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
 
 void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,

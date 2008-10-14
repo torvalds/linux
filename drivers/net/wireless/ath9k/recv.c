@@ -720,12 +720,11 @@ void ath_flushrecv(struct ath_softc *sc)
 
 int ath_rx_input(struct ath_softc *sc,
 		 struct ath_node *an,
-		 int is_ampdu,
 		 struct sk_buff *skb,
 		 struct ath_recv_status *rx_status,
 		 enum ATH_RX_TYPE *status)
 {
-	if (is_ampdu && (sc->sc_flags & SC_OP_RXAGGR)) {
+	if (sc->sc_flags & SC_OP_RXAGGR) {
 		*status = ATH_RX_CONSUMED;
 		return ath_ampdu_input(sc, an, skb, rx_status);
 	} else {

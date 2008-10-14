@@ -890,20 +890,31 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
  */
 int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {
+	struct ieee80211_sta *sta;
+	struct ieee80211_sta_ht_cap ht_config;
+	struct ieee80211_sta_ht_cap *cur_ht_config = NULL;
 	u8 sta_id;
 
 	/* Add station to device's station table */
-	struct ieee80211_conf *conf = &priv->hw->conf;
-	struct ieee80211_sta_ht_cap *cur_ht_config = &conf->ht_cap;
 
-	if ((is_ap) &&
-	    (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
-	    (priv->iw_mode == NL80211_IFTYPE_STATION))
-		sta_id = iwl_add_station_flags(priv, addr, is_ap,
-						   0, cur_ht_config);
-	else
-		sta_id = iwl_add_station_flags(priv, addr, is_ap,
-						   0, NULL);
+	/*
+	 * XXX: This check is definitely not correct, if we're an AP
+	 *	it'll always be false which is not what we want, but
+	 *	it doesn't look like iwlagn is prepared to be an HT
+	 *	AP anyway.
+	 */
+	if (priv->current_ht_config.is_ht) {
+		rcu_read_lock();
+		sta = ieee80211_find_sta(priv->hw, addr);
+		if (sta) {
+			memcpy(&ht_config, &sta->ht_cap, sizeof(ht_config));
+			cur_ht_config = &ht_config;
+		}
+		rcu_read_unlock();
+	}
+
+	sta_id = iwl_add_station_flags(priv, addr, is_ap,
+				       0, cur_ht_config);
 
 	/* Set up default rate scaling table in device's station table */
 	iwl_sta_init_lq(priv, addr, is_ap);

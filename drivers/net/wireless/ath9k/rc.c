@@ -1838,7 +1838,7 @@ void ath_rc_node_update(struct ieee80211_hw *hw, struct ath_rate_node *rc_priv)
 	struct ath_softc *sc = hw->priv;
 	u32 capflag = 0;
 
-	if (hw->conf.ht_cap.ht_supported) {
+	if (hw->conf.ht.enabled) {
 		capflag |= ATH_RC_HT_FLAG | ATH_RC_DS_FLAG;
 		if (sc->sc_ht_info.tx_chan_width == ATH9K_HT_MACMODE_2040)
 			capflag |= ATH_RC_CW40_FLAG;
@@ -1979,7 +1979,7 @@ static void ath_get_rate(void *priv, struct ieee80211_supported_band *sband,
 
 	/* Check if aggregation has to be enabled for this tid */
 
-	if (hw->conf.ht_cap.ht_supported) {
+	if (hw->conf.ht.enabled) {
 		if (ieee80211_is_data_qos(fc)) {
 			qc = ieee80211_get_qos_ctl(hdr);
 			tid = qc[0] & 0xf;
@@ -2026,9 +2026,9 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
 	ath_setup_rates(sc, sband, sta, ath_rc_priv);
-	if (sc->hw->conf.flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
+	if (sc->hw->conf.ht.enabled) {
 		for (i = 0; i < 77; i++) {
-			if (sc->hw->conf.ht_cap.mcs.rx_mask[i/8] & (1<<(i%8)))
+			if (sta->ht_cap.mcs.rx_mask[i/8] & (1<<(i%8)))
 				ath_rc_priv->neg_ht_rates.rs_rates[j++] = i;
 			if (j == ATH_RATE_MAX)
 				break;
