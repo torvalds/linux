@@ -58,7 +58,7 @@
  */
 #if (PAGE_SHIFT == 12) || (PAGE_SHIFT == 13)	/* 4k & 8k pages */
 #define TX_DESC_PER_OAL ((MAX_SKB_FRAGS - TX_DESC_PER_IOCB) + 2)
-#elif (PAGE_SHIFT == 16)	/* 64k pages */
+#else /* all other page sizes */
 #define TX_DESC_PER_OAL 0
 #endif
 
