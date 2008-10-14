@@ -141,7 +141,17 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 }
 EXPORT_SYMBOL(iwl_hwrate_to_plcp_idx);
 
-
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant)
+{
+	int i;
+	u8 ind = ant;
+	for (i = 0; i < RATE_ANT_NUM - 1; i++) {
+		ind = (ind + 1) < RATE_ANT_NUM ?  ind + 1 : 0;
+		if (priv->hw_params.valid_tx_ant & BIT(ind))
+			return ind;
+	}
+	return ant;
+}
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 EXPORT_SYMBOL(iwl_bcast_addr);
@@ -938,7 +948,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 
-	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
 	priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DISABLED;
 
 	/* Choose which receivers/antennas to use */

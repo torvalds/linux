@@ -674,11 +674,11 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 			      __le16 fc, int sta_id,
 			      int is_hcca)
 {
+	u32 rate_flags = 0;
+	int rate_idx;
 	u8 rts_retry_limit = 0;
 	u8 data_retry_limit = 0;
 	u8 rate_plcp;
-	u16 rate_flags = 0;
-	int rate_idx;
 
 	rate_idx = min(ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xffff,
 			IWL_RATE_COUNT - 1);
@@ -721,14 +721,8 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 			break;
 		}
 
-		/* Alternate between antenna A and B for successive frames */
-		if (priv->use_ant_b_for_management_frame) {
-			priv->use_ant_b_for_management_frame = 0;
-			rate_flags |= RATE_MCS_ANT_B_MSK;
-		} else {
-			priv->use_ant_b_for_management_frame = 1;
-			rate_flags |= RATE_MCS_ANT_A_MSK;
-		}
+		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant);
+		rate_flags |= iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 	}
 
 	tx_cmd->rts_retry_limit = rts_retry_limit;

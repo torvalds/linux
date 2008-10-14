@@ -237,7 +237,6 @@ int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn);
 int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
 int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
-
 /*****************************************************
  * TX power
  ****************************************************/
@@ -258,6 +257,13 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv);
 void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
+
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx);
+
+static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
+{
+	return BIT(ant_idx) << RATE_MCS_ANT_POS;
+}
 
 static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
 {
@@ -312,6 +318,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 ******************************************************/
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
+
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
 

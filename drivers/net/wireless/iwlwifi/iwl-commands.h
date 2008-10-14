@@ -283,18 +283,20 @@ struct iwl_cmd_header {
 #define RATE_MCS_SGI_MSK 0x2000
 
 /**
- * rate_n_flags Tx antenna masks (4965 has 2 transmitters):
- * bit14:15 01 B inactive, A active
- *          10 B active, A inactive
- *          11 Both active
+ * rate_n_flags Tx antenna masks
+ * 4965 has 2 transmitters
+ * 5100 has 1 transmitter B
+ * 5150 has 1 transmitter A
+ * 5300 has 3 transmitters
+ * 5350 has 3 transmitters
+ * bit14:16
  */
 #define RATE_MCS_ANT_POS      14
 #define RATE_MCS_ANT_A_MSK    0x04000
 #define RATE_MCS_ANT_B_MSK    0x08000
 #define RATE_MCS_ANT_C_MSK    0x10000
 #define RATE_MCS_ANT_ABC_MSK  0x1C000
-
-#define RATE_MCS_ANT_INIT_IND   1
+#define RATE_ANT_NUM 3
 
 #define POWER_TABLE_NUM_ENTRIES			33
 #define POWER_TABLE_NUM_HT_OFDM_ENTRIES		32

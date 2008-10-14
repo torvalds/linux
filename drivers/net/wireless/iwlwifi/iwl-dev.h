@@ -810,12 +810,13 @@ struct iwl_priv {
 	unsigned long scan_start;
 	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
+	struct iwl_scan_cmd *scan;
 	int scan_bands;
 	int one_direct_scan;
 	u8 direct_ssid_len;
 	u8 direct_ssid[IW_ESSID_MAX_SIZE];
-	struct iwl_scan_cmd *scan;
-	u32 scan_tx_ant[IEEE80211_NUM_BANDS];
+	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
+	u8 mgmt_tx_ant;
 
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */
@@ -874,7 +875,6 @@ struct iwl_priv {
 	u16 active_rate_basic;
 
 	u8 assoc_station_added;
-	u8 use_ant_b_for_management_frame;	/* Tx antenna selection */
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;

@@ -64,12 +64,6 @@
 #define IWL_SCAN_PROBE_MASK(n) 	cpu_to_le32((BIT(n) | (BIT(n) - BIT(1))))
 
 
-static int scan_tx_ant[3] = {
-	RATE_MCS_ANT_A_MSK, RATE_MCS_ANT_B_MSK, RATE_MCS_ANT_C_MSK
-};
-
-
-
 static int iwl_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
@@ -455,10 +449,11 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 
 void iwl_init_scan_params(struct iwl_priv *priv)
 {
+	u8 ant_idx = fls(priv->hw_params.valid_tx_ant) - 1;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_5GHZ])
-		priv->scan_tx_ant[IEEE80211_BAND_5GHZ] = RATE_MCS_ANT_INIT_IND;
+		priv->scan_tx_ant[IEEE80211_BAND_5GHZ] = ant_idx;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])
-		priv->scan_tx_ant[IEEE80211_BAND_2GHZ] = RATE_MCS_ANT_INIT_IND;
+		priv->scan_tx_ant[IEEE80211_BAND_2GHZ] = ant_idx;
 }
 
 int iwl_scan_initiate(struct iwl_priv *priv)
@@ -670,23 +665,6 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 	return (u16)len;
 }
 
-static u32 iwl_scan_tx_ant(struct iwl_priv *priv, enum ieee80211_band band)
-{
-	int i, ind;
-
-	ind = priv->scan_tx_ant[band];
-	for (i = 0; i < priv->hw_params.tx_chains_num; i++) {
-		ind = (ind+1) >= priv->hw_params.tx_chains_num ? 0 : ind+1;
-		if (priv->hw_params.valid_tx_ant & (1 << ind)) {
-			priv->scan_tx_ant[band] = ind;
-			break;
-		}
-	}
-	IWL_DEBUG_SCAN("select TX ANT = %c\n", 'A' + ind);
-	return scan_tx_ant[ind];
-}
-
-
 static void iwl_bg_request_scan(struct work_struct *data)
 {
 	struct iwl_priv *priv =
@@ -699,11 +677,12 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	struct iwl_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
-	u32 tx_ant;
+	u32 rate_flags = 0;
 	u16 cmd_len;
 	enum ieee80211_band band;
 	u8 n_probes = 2;
 	u8 rx_chain = priv->hw_params.valid_rx_ant;
+	u8 rate;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -822,23 +801,16 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
 		band = IEEE80211_BAND_2GHZ;
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
-		tx_ant = iwl_scan_tx_ant(priv, band);
-		if (priv->active_rxon.flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK)
-			scan->tx_cmd.rate_n_flags =
-				iwl_hw_set_rate_n_flags(IWL_RATE_6M_PLCP,
-							tx_ant);
-		else
-			scan->tx_cmd.rate_n_flags =
-				iwl_hw_set_rate_n_flags(IWL_RATE_1M_PLCP,
-							tx_ant |
-							RATE_MCS_CCK_MSK);
+		if (priv->active_rxon.flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK) {
+			rate = IWL_RATE_6M_PLCP;
+		} else {
+			rate = IWL_RATE_1M_PLCP;
+			rate_flags = RATE_MCS_CCK_MSK;
+		}
 		scan->good_CRC_th = 0;
 	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
 		band = IEEE80211_BAND_5GHZ;
-		tx_ant = iwl_scan_tx_ant(priv, band);
-		scan->tx_cmd.rate_n_flags =
-				iwl_hw_set_rate_n_flags(IWL_RATE_6M_PLCP,
-							tx_ant);
+		rate = IWL_RATE_6M_PLCP;
 		scan->good_CRC_th = IWL_GOOD_CRC_TH;
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
@@ -850,6 +822,11 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		IWL_WARNING("Invalid scan band count\n");
 		goto done;
 	}
+
+	priv->scan_tx_ant[band] =
+			 iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band]);
+	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
+	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
 	/* MIMO is not used here, but value is required */
 	scan->rx_chain = RXON_RX_CHAIN_DRIVER_FORCE_MSK |
