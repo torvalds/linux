@@ -429,51 +429,42 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 		}
 	}
 
-	/* we only want to start a DAPM playback stream if we are not waiting
-	 * on an existing one stopping */
-	if (codec_dai->pop_wait) {
-		/* we are waiting for the delayed work to start */
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-				snd_soc_dapm_stream_event(socdev->codec,
+	/* cancel any delayed stream shutdown that is pending */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    codec_dai->pop_wait) {
+		codec_dai->pop_wait = 0;
+		cancel_delayed_work(&socdev->delayed_work);
+	}
+
+	/* do we need to power up codec */
+	if (codec->bias_level != SND_SOC_BIAS_ON) {
+		snd_soc_dapm_set_bias_level(socdev,
+					    SND_SOC_BIAS_PREPARE);
+
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			snd_soc_dapm_stream_event(codec,
+					codec_dai->playback.stream_name,
+					SND_SOC_DAPM_STREAM_START);
+		else
+			snd_soc_dapm_stream_event(codec,
 					codec_dai->capture.stream_name,
 					SND_SOC_DAPM_STREAM_START);
-		else {
-			codec_dai->pop_wait = 0;
-			cancel_delayed_work(&socdev->delayed_work);
-			snd_soc_dai_digital_mute(codec_dai, 0);
-		}
+
+		snd_soc_dapm_set_bias_level(socdev, SND_SOC_BIAS_ON);
+		snd_soc_dai_digital_mute(codec_dai, 0);
+
 	} else {
-		/* no delayed work - do we need to power up codec */
-		if (codec->bias_level != SND_SOC_BIAS_ON) {
-
-			snd_soc_dapm_set_bias_level(socdev,
-						    SND_SOC_BIAS_PREPARE);
-
-			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-				snd_soc_dapm_stream_event(codec,
+		/* codec already powered - power on widgets */
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			snd_soc_dapm_stream_event(codec,
 					codec_dai->playback.stream_name,
 					SND_SOC_DAPM_STREAM_START);
-			else
-				snd_soc_dapm_stream_event(codec,
+		else
+			snd_soc_dapm_stream_event(codec,
 					codec_dai->capture.stream_name,
 					SND_SOC_DAPM_STREAM_START);
 
-			snd_soc_dapm_set_bias_level(socdev, SND_SOC_BIAS_ON);
-			snd_soc_dai_digital_mute(codec_dai, 0);
-
-		} else {
-			/* codec already powered - power on widgets */
-			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-				snd_soc_dapm_stream_event(codec,
-					codec_dai->playback.stream_name,
-					SND_SOC_DAPM_STREAM_START);
-			else
-				snd_soc_dapm_stream_event(codec,
-					codec_dai->capture.stream_name,
-					SND_SOC_DAPM_STREAM_START);
-
-			snd_soc_dai_digital_mute(codec_dai, 0);
-		}
+		snd_soc_dai_digital_mute(codec_dai, 0);
 	}
 
 out:
