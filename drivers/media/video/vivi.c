@@ -134,6 +134,11 @@ static struct vivi_fmt formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
 	},
+	{
+		.name     = "4:2:2, packed, UYVY",
+		.fourcc   = V4L2_PIX_FMT_UYVY,
+		.depth    = 16,
+	},
 };
 
 static struct vivi_fmt *get_format(struct v4l2_format *f)
@@ -278,6 +283,20 @@ static void gen_twopix(struct vivi_fh *fh, unsigned char *buf, int colorpos)
 				*p = g_u;
 				break;
 			case 3:
+				*p = b_v;
+				break;
+			}
+			break;
+		case V4L2_PIX_FMT_UYVY:
+			switch (color) {
+			case 1:
+			case 3:
+				*p = r_y;
+				break;
+			case 0:
+				*p = g_u;
+				break;
+			case 2:
 				*p = b_v;
 				break;
 			}
@@ -756,6 +775,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 		switch (fh->fmt->fourcc) {
 		case V4L2_PIX_FMT_YUYV:
+		case V4L2_PIX_FMT_UYVY:
 			is_yuv = 1;
 			break;
 		}
