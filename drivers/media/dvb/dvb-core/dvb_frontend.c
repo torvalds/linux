@@ -1063,6 +1063,7 @@ void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 	switch(c->modulation) {
 	case PSK_8:
 	case APSK_16:
+	case APSK_32:
 	case QPSK:
 		p->u.qpsk.symbol_rate = c->symbol_rate;
 		p->u.qpsk.fec_inner = c->fec_inner;

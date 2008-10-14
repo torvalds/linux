@@ -166,6 +166,7 @@ typedef enum fe_modulation {
 	VSB_16,
 	PSK_8,
 	APSK_16,
+	APSK_32,
 	DQPSK,
 } fe_modulation_t;
 
