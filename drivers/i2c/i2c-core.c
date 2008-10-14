@@ -986,7 +986,10 @@ static void __exit i2c_exit(void)
 	bus_unregister(&i2c_bus_type);
 }
 
-subsys_initcall(i2c_init);
+/* We must initialize early, because some subsystems register i2c drivers
+ * in subsys_initcall() code, but are linked (and initialized) before i2c.
+ */
+postcore_initcall(i2c_init);
 module_exit(i2c_exit);
 
 /* ----------------------------------------------------
