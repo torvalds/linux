@@ -273,10 +273,10 @@ struct it87_data {
 static inline int has_16bit_fans(const struct it87_data *data)
 {
 	/* IT8705F Datasheet 0.4.1, 3h == Version G.
-	   IT8712F Datasheet 0.9.1, section 8.3.5 indicates 7h == Version I.
+	   IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
 	   These are the first revisions with 16bit tachometer support. */
 	return (data->type == it87 && data->revision >= 0x03)
-	    || (data->type == it8712 && data->revision >= 0x07)
+	    || (data->type == it8712 && data->revision >= 0x08)
 	    || data->type == it8716
 	    || data->type == it8718;
 }

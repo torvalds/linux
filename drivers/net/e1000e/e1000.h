@@ -257,7 +257,6 @@ struct e1000_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct net_device_stats net_stats;
-	spinlock_t stats_lock;      /* prevent concurrent stats updates */
 
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
@@ -284,6 +283,8 @@ struct e1000_adapter {
 	unsigned long led_status;
 
 	unsigned int flags;
+	struct work_struct downshift_task;
+	struct work_struct update_phy_task;
 };
 
 struct e1000_info {
@@ -305,6 +306,7 @@ struct e1000_info {
 #define FLAG_HAS_CTRLEXT_ON_LOAD          (1 << 5)
 #define FLAG_HAS_SWSM_ON_LOAD             (1 << 6)
 #define FLAG_HAS_JUMBO_FRAMES             (1 << 7)
+#define FLAG_READ_ONLY_NVM                (1 << 8)
 #define FLAG_IS_ICH                       (1 << 9)
 #define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)
 #define FLAG_IS_QUAD_PORT_A               (1 << 12)
@@ -385,6 +387,7 @@ extern bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
 extern bool e1000e_get_laa_state_82571(struct e1000_hw *hw);
 extern void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state);
 
+extern void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw);
 extern void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 extern void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);

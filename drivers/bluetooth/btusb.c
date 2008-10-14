@@ -104,6 +104,9 @@ static struct usb_device_id blacklist_table[] = {
 	/* Broadcom BCM2046 */
 	{ USB_DEVICE(0x0a5c, 0x2151), .driver_info = BTUSB_RESET },
 
+	/* Apple MacBook Pro with Broadcom chip */
+	{ USB_DEVICE(0x05ac, 0x820f), .driver_info = BTUSB_RESET },
+
 	/* IBM/Lenovo ThinkPad with Broadcom chip */
 	{ USB_DEVICE(0x0a5c, 0x201e), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x2110), .driver_info = BTUSB_RESET | BTUSB_WRONG_SCO_MTU },
@@ -169,6 +172,7 @@ static struct usb_device_id blacklist_table[] = {
 struct btusb_data {
 	struct hci_dev       *hdev;
 	struct usb_device    *udev;
+	struct usb_interface *intf;
 	struct usb_interface *isoc;
 
 	spinlock_t lock;
@@ -516,7 +520,7 @@ static int btusb_open(struct hci_dev *hdev)
 
 	err = btusb_submit_intr_urb(hdev);
 	if (err < 0) {
-		clear_bit(BTUSB_INTR_RUNNING, &hdev->flags);
+		clear_bit(BTUSB_INTR_RUNNING, &data->flags);
 		clear_bit(HCI_RUNNING, &hdev->flags);
 	}
 
@@ -532,8 +536,10 @@ static int btusb_close(struct hci_dev *hdev)
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
 
+	cancel_work_sync(&data->work);
+
 	clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
-	usb_kill_anchored_urbs(&data->intr_anchor);
+	usb_kill_anchored_urbs(&data->isoc_anchor);
 
 	clear_bit(BTUSB_BULK_RUNNING, &data->flags);
 	usb_kill_anchored_urbs(&data->bulk_anchor);
@@ -821,6 +827,7 @@ static int btusb_probe(struct usb_interface *intf,
 	}
 
 	data->udev = interface_to_usbdev(intf);
+	data->intf = intf;
 
 	spin_lock_init(&data->lock);
 
@@ -889,7 +896,7 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (data->isoc) {
 		err = usb_driver_claim_interface(&btusb_driver,
-							data->isoc, NULL);
+							data->isoc, data);
 		if (err < 0) {
 			hci_free_dev(hdev);
 			kfree(data);
@@ -921,12 +928,21 @@ static void btusb_disconnect(struct usb_interface *intf)
 
 	hdev = data->hdev;
 
-	if (data->isoc)
-		usb_driver_release_interface(&btusb_driver, data->isoc);
+	__hci_dev_hold(hdev);
 
-	usb_set_intfdata(intf, NULL);
+	usb_set_intfdata(data->intf, NULL);
+
+	if (data->isoc)
+		usb_set_intfdata(data->isoc, NULL);
 
 	hci_unregister_dev(hdev);
+
+	if (intf == data->isoc)
+		usb_driver_release_interface(&btusb_driver, data->intf);
+	else if (data->isoc)
+		usb_driver_release_interface(&btusb_driver, data->isoc);
+
+	__hci_dev_put(hdev);
 
 	hci_free_dev(hdev);
 }

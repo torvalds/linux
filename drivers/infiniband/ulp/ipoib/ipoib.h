@@ -293,6 +293,7 @@ struct ipoib_dev_priv {
 
 	struct delayed_work pkey_poll_task;
 	struct delayed_work mcast_task;
+	struct work_struct carrier_on_task;
 	struct work_struct flush_light;
 	struct work_struct flush_normal;
 	struct work_struct flush_heavy;
@@ -464,6 +465,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_dev_cleanup(struct net_device *dev);
 
 void ipoib_mcast_join_task(struct work_struct *work);
+void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);

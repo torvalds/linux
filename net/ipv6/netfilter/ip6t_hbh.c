@@ -97,8 +97,6 @@ hbh_mt6(const struct sk_buff *skb, const struct net_device *in,
 	hdrlen -= 2;
 	if (!(optinfo->flags & IP6T_OPTS_OPTS)) {
 		return ret;
-	} else if (optinfo->flags & IP6T_OPTS_NSTRICT) {
-		pr_debug("Not strict - not implemented");
 	} else {
 		pr_debug("Strict ");
 		pr_debug("#%d ", optinfo->optsnr);
@@ -177,6 +175,12 @@ hbh_mt6_check(const char *tablename, const void *entry,
 		pr_debug("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
 		return false;
 	}
+
+	if (optsinfo->flags & IP6T_OPTS_NSTRICT) {
+		pr_debug("ip6t_opts: Not strict - not implemented");
+		return false;
+	}
+
 	return true;
 }
 

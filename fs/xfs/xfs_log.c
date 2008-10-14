@@ -124,16 +124,27 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 STATIC int	xlog_iclogs_empty(xlog_t *log);
 
 #if defined(XFS_LOG_TRACE)
+
+#define XLOG_TRACE_LOGGRANT_SIZE	2048
+#define XLOG_TRACE_ICLOG_SIZE		256
+
+void
+xlog_trace_loggrant_alloc(xlog_t *log)
+{
+	log->l_grant_trace = ktrace_alloc(XLOG_TRACE_LOGGRANT_SIZE, KM_NOFS);
+}
+
+void
+xlog_trace_loggrant_dealloc(xlog_t *log)
+{
+	ktrace_free(log->l_grant_trace);
+}
+
 void
 xlog_trace_loggrant(xlog_t *log, xlog_ticket_t *tic, xfs_caddr_t string)
 {
 	unsigned long cnts;
 
-	if (!log->l_grant_trace) {
-		log->l_grant_trace = ktrace_alloc(2048, KM_NOSLEEP);
-		if (!log->l_grant_trace)
-			return;
-	}
 	/* ticket counts are 1 byte each */
 	cnts = ((unsigned long)tic->t_ocnt) | ((unsigned long)tic->t_cnt) << 8;
 
@@ -157,10 +168,20 @@ xlog_trace_loggrant(xlog_t *log, xlog_ticket_t *tic, xfs_caddr_t string)
 }
 
 void
+xlog_trace_iclog_alloc(xlog_in_core_t *iclog)
+{
+	iclog->ic_trace = ktrace_alloc(XLOG_TRACE_ICLOG_SIZE, KM_NOFS);
+}
+
+void
+xlog_trace_iclog_dealloc(xlog_in_core_t *iclog)
+{
+	ktrace_free(iclog->ic_trace);
+}
+
+void
 xlog_trace_iclog(xlog_in_core_t *iclog, uint state)
 {
-	if (!iclog->ic_trace)
-		iclog->ic_trace = ktrace_alloc(256, KM_NOFS);
 	ktrace_enter(iclog->ic_trace,
 		     (void *)((unsigned long)state),
 		     (void *)((unsigned long)current_pid()),
@@ -170,8 +191,15 @@ xlog_trace_iclog(xlog_in_core_t *iclog, uint state)
 		     (void *)NULL, (void *)NULL);
 }
 #else
+
+#define	xlog_trace_loggrant_alloc(log)
+#define	xlog_trace_loggrant_dealloc(log)
 #define	xlog_trace_loggrant(log,tic,string)
+
+#define	xlog_trace_iclog_alloc(iclog)
+#define	xlog_trace_iclog_dealloc(iclog)
 #define	xlog_trace_iclog(iclog,state)
+
 #endif /* XFS_LOG_TRACE */
 
 
@@ -1009,7 +1037,7 @@ xlog_iodone(xfs_buf_t *bp)
 	 * layer, it means the underlyin device no longer supports
 	 * barrier I/O. Warn loudly and turn off barriers.
 	 */
-	if ((l->l_mp->m_flags & XFS_MOUNT_BARRIER) && !XFS_BUF_ORDERED(bp)) {
+	if ((l->l_mp->m_flags & XFS_MOUNT_BARRIER) && !XFS_BUF_ISORDERED(bp)) {
 		l->l_mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		xfs_fs_cmn_err(CE_WARN, l->l_mp,
 				"xlog_iodone: Barriers are no longer supported"
@@ -1231,6 +1259,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	spin_lock_init(&log->l_grant_lock);
 	sv_init(&log->l_flush_wait, 0, "flush_wait");
 
+	xlog_trace_loggrant_alloc(log);
 	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
 	ASSERT((XFS_BUF_SIZE(bp) & BBMASK) == 0);
 
@@ -1284,6 +1313,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		ASSERT(XFS_BUF_VALUSEMA(iclog->ic_bp) <= 0);
 		sv_init(&iclog->ic_force_wait, SV_DEFAULT, "iclog-force");
 		sv_init(&iclog->ic_write_wait, SV_DEFAULT, "iclog-write");
+
+		xlog_trace_iclog_alloc(iclog);
 
 		iclogp = &iclog->ic_next;
 	}
@@ -1565,11 +1596,7 @@ xlog_dealloc_log(xlog_t *log)
 		sv_destroy(&iclog->ic_force_wait);
 		sv_destroy(&iclog->ic_write_wait);
 		xfs_buf_free(iclog->ic_bp);
-#ifdef XFS_LOG_TRACE
-		if (iclog->ic_trace != NULL) {
-			ktrace_free(iclog->ic_trace);
-		}
-#endif
+		xlog_trace_iclog_dealloc(iclog);
 		next_iclog = iclog->ic_next;
 		kmem_free(iclog);
 		iclog = next_iclog;
@@ -1578,14 +1605,7 @@ xlog_dealloc_log(xlog_t *log)
 	spinlock_destroy(&log->l_grant_lock);
 
 	xfs_buf_free(log->l_xbuf);
-#ifdef XFS_LOG_TRACE
-	if (log->l_trace != NULL) {
-		ktrace_free(log->l_trace);
-	}
-	if (log->l_grant_trace != NULL) {
-		ktrace_free(log->l_grant_trace);
-	}
-#endif
+	xlog_trace_loggrant_dealloc(log);
 	log->l_mp->m_log = NULL;
 	kmem_free(log);
 }	/* xlog_dealloc_log */

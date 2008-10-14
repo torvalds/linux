@@ -1232,9 +1232,10 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 				if (md->attribute & EFI_MEMORY_WP) {
 					name = "System ROM";
 					flags |= IORESOURCE_READONLY;
-				} else {
+				} else if (md->attribute == EFI_MEMORY_UC)
+					name = "Uncached RAM";
+				else
 					name = "System RAM";
-				}
 				break;
 
 			case EFI_ACPI_MEMORY_NVS:

@@ -1,6 +1,10 @@
 /*
  * tick internal variable and functions used by low/high res code
  */
+
+#define TICK_DO_TIMER_NONE	-1
+#define TICK_DO_TIMER_BOOT	-2
+
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
 extern spinlock_t tick_device_lock;
 extern ktime_t tick_next_period;
@@ -9,6 +13,8 @@ extern int tick_do_timer_cpu __read_mostly;
 
 extern void tick_setup_periodic(struct clock_event_device *dev, int broadcast);
 extern void tick_handle_periodic(struct clock_event_device *dev);
+
+extern void clockevents_shutdown(struct clock_event_device *dev);
 
 /*
  * NO_HZ / high resolution timer shared code
@@ -29,6 +35,7 @@ extern void tick_broadcast_oneshot_control(unsigned long reason);
 extern void tick_broadcast_switch_to_oneshot(void);
 extern void tick_shutdown_broadcast_oneshot(unsigned int *cpup);
 extern int tick_resume_broadcast_oneshot(struct clock_event_device *bc);
+extern int tick_broadcast_oneshot_active(void);
 # else /* BROADCAST */
 static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
@@ -37,6 +44,7 @@ static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 static inline void tick_broadcast_oneshot_control(unsigned long reason) { }
 static inline void tick_broadcast_switch_to_oneshot(void) { }
 static inline void tick_shutdown_broadcast_oneshot(unsigned int *cpup) { }
+static inline int tick_broadcast_oneshot_active(void) { return 0; }
 # endif /* !BROADCAST */
 
 #else /* !ONESHOT */
@@ -66,6 +74,7 @@ static inline int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 {
 	return 0;
 }
+static inline int tick_broadcast_oneshot_active(void) { return 0; }
 #endif /* !TICK_ONESHOT */
 
 /*

@@ -17,9 +17,9 @@
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/sched.h>
+#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
-#include <asm/cnt32_to_63.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <mach/pxa-regs.h>

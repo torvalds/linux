@@ -1070,6 +1070,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		err = drv->request_acquire(drv);
 		if(err != 0) {
 			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
+			unlock_kernel();
 			return err;
 		}
 	}

@@ -58,6 +58,7 @@
 #define ICH_FLASH_HSFCTL		0x0006
 #define ICH_FLASH_FADDR			0x0008
 #define ICH_FLASH_FDATA0		0x0010
+#define ICH_FLASH_PR0			0x0074
 
 #define ICH_FLASH_READ_COMMAND_TIMEOUT	500
 #define ICH_FLASH_WRITE_COMMAND_TIMEOUT	500
@@ -148,6 +149,19 @@ union ich8_hws_flash_regacc {
 		u32 gmwag     :8; /* 31:24 GbE Master Write Access Grant */
 	} hsf_flregacc;
 	u16 regval;
+};
+
+/* ICH Flash Protected Region */
+union ich8_flash_protected_range {
+	struct ich8_pr {
+		u32 base:13;     /* 0:12 Protected Range Base */
+		u32 reserved1:2; /* 13:14 Reserved */
+		u32 rpe:1;       /* 15 Read Protection Enable */
+		u32 limit:13;    /* 16:28 Protected Range Limit */
+		u32 reserved2:2; /* 29:30 Reserved */
+		u32 wpe:1;       /* 31 Write Protection Enable */
+	} range;
+	u32 regval;
 };
 
 static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw);
@@ -366,6 +380,9 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	return 0;
 }
 
+static DEFINE_MUTEX(nvm_mutex);
+static pid_t nvm_owner = -1;
+
 /**
  *  e1000_acquire_swflag_ich8lan - Acquire software control flag
  *  @hw: pointer to the HW structure
@@ -378,6 +395,15 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 {
 	u32 extcnf_ctrl;
 	u32 timeout = PHY_CFG_TIMEOUT;
+
+	might_sleep();
+
+	if (!mutex_trylock(&nvm_mutex)) {
+		WARN(1, KERN_ERR "e1000e mutex contention. Owned by pid %d\n",
+		     nvm_owner);
+		mutex_lock(&nvm_mutex);
+	}
+	nvm_owner = current->pid;
 
 	while (timeout) {
 		extcnf_ctrl = er32(EXTCNF_CTRL);
@@ -393,6 +419,8 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 
 	if (!timeout) {
 		hw_dbg(hw, "FW or HW has locked the resource for too long.\n");
+		nvm_owner = -1;
+		mutex_unlock(&nvm_mutex);
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -414,6 +442,9 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 	extcnf_ctrl = er32(EXTCNF_CTRL);
 	extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
 	ew32(EXTCNF_CTRL, extcnf_ctrl);
+
+	nvm_owner = -1;
+	mutex_unlock(&nvm_mutex);
 }
 
 /**
@@ -1284,6 +1315,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 * programming failed.
 	 */
 	if (ret_val) {
+		/* Possibly read-only, see e1000e_write_protect_nvm_ich8lan() */
 		hw_dbg(hw, "Flash commit failed.\n");
 		e1000_release_swflag_ich8lan(hw);
 		return ret_val;
@@ -1371,6 +1403,49 @@ static s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	}
 
 	return e1000e_validate_nvm_checksum_generic(hw);
+}
+
+/**
+ *  e1000e_write_protect_nvm_ich8lan - Make the NVM read-only
+ *  @hw: pointer to the HW structure
+ *
+ *  To prevent malicious write/erase of the NVM, set it to be read-only
+ *  so that the hardware ignores all write/erase cycles of the NVM via
+ *  the flash control registers.  The shadow-ram copy of the NVM will
+ *  still be updated, however any updates to this copy will not stick
+ *  across driver reloads.
+ **/
+void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw)
+{
+	union ich8_flash_protected_range pr0;
+	union ich8_hws_flash_status hsfsts;
+	u32 gfpreg;
+	s32 ret_val;
+
+	ret_val = e1000_acquire_swflag_ich8lan(hw);
+	if (ret_val)
+		return;
+
+	gfpreg = er32flash(ICH_FLASH_GFPREG);
+
+	/* Write-protect GbE Sector of NVM */
+	pr0.regval = er32flash(ICH_FLASH_PR0);
+	pr0.range.base = gfpreg & FLASH_GFPREG_BASE_MASK;
+	pr0.range.limit = ((gfpreg >> 16) & FLASH_GFPREG_BASE_MASK);
+	pr0.range.wpe = true;
+	ew32flash(ICH_FLASH_PR0, pr0.regval);
+
+	/*
+	 * Lock down a subset of GbE Flash Control Registers, e.g.
+	 * PR0 to prevent the write-protection from being lifted.
+	 * Once FLOCKDN is set, the registers protected by it cannot
+	 * be written until FLOCKDN is cleared by a hardware reset.
+	 */
+	hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
+	hsfsts.hsf_status.flockdn = true;
+	ew32flash(ICH_FLASH_HSFSTS, hsfsts.regval);
+
+	e1000_release_swflag_ich8lan(hw);
 }
 
 /**
@@ -1719,6 +1794,9 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	hw_dbg(hw, "Issuing a global reset to ich8lan");
 	ew32(CTRL, (ctrl | E1000_CTRL_RST));
 	msleep(20);
+
+	/* release the swflag because it is not reset by hardware reset */
+	e1000_release_swflag_ich8lan(hw);
 
 	ret_val = e1000e_get_auto_rd_done(hw);
 	if (ret_val) {
