@@ -628,3 +628,27 @@ void sync_buffer(int cpu)
 
 	mutex_unlock(&buffer_mutex);
 }
+
+/* The function can be used to add a buffer worth of data directly to
+ * the kernel buffer. The buffer is assumed to be a circular buffer.
+ * Take the entries from index start and end at index end, wrapping
+ * at max_entries.
+ */
+void oprofile_put_buff(unsigned long *buf, unsigned int start,
+		       unsigned int stop, unsigned int max)
+{
+	int i;
+
+	i = start;
+
+	mutex_lock(&buffer_mutex);
+	while (i != stop) {
+		add_event_entry(buf[i++]);
+
+		if (i >= max)
+			i = 0;
+	}
+
+	mutex_unlock(&buffer_mutex);
+}
+
