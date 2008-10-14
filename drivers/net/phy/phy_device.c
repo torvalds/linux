@@ -557,6 +557,7 @@ int genphy_restart_aneg(struct phy_device *phydev)
 
 	return ctl;
 }
+EXPORT_SYMBOL(genphy_restart_aneg);
 
 
 /**
