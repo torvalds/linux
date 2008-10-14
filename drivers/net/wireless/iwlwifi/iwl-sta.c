@@ -102,7 +102,9 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 				   struct iwl_cmd *cmd, struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
-	u8 sta_id = cmd->cmd.addsta.sta.sta_id;
+	struct iwl_addsta_cmd *addsta =
+		(struct iwl_addsta_cmd *)cmd->cmd.payload;
+	u8 sta_id = addsta->sta.sta_id;
 
 	if (!skb) {
 		IWL_ERROR("Error: Response NULL in REPLY_ADD_STA.\n");
@@ -320,7 +322,9 @@ static int iwl_remove_sta_callback(struct iwl_priv *priv,
 				   struct iwl_cmd *cmd, struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
-	const char *addr = cmd->cmd.rm_sta.addr;
+	struct iwl_rem_sta_cmd *rm_sta =
+		 (struct iwl_rem_sta_cmd *)cmd->cmd.payload;
+	const char *addr = rm_sta->addr;
 
 	if (!skb) {
 		IWL_ERROR("Error: Response NULL in REPLY_REMOVE_STA.\n");

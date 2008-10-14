@@ -268,22 +268,15 @@ struct iwl_cmd {
 	struct iwl_cmd_meta meta;	/* driver data */
 	struct iwl_cmd_header hdr;	/* uCode API */
 	union {
-		struct iwl_addsta_cmd addsta;
-		struct iwl_led_cmd led;
 		u32 flags;
 		u8 val8;
 		u16 val16;
 		u32 val32;
-		struct iwl4965_bt_cmd bt;
-		struct iwl_powertable_cmd powertable;
-		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
-		struct iwl4965_rxon_assoc_cmd rxon_assoc;
-		struct iwl_rem_sta_cmd rm_sta;
-		u8 *indirect;
 		u8 payload[IWL_CMD_MAX_PAYLOAD];
 	} __attribute__ ((packed)) cmd;
 } __attribute__ ((packed));
+
 
 struct iwl_host_cmd {
 	u8 id;
