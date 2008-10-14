@@ -28,7 +28,6 @@
 #include "inode.h"
 #include "log.h"
 #include "mount.h"
-#include "ops_super.h"
 #include "quota.h"
 #include "recovery.h"
 #include "rgrp.h"

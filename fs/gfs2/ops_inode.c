@@ -32,12 +32,11 @@
 #include "glock.h"
 #include "inode.h"
 #include "meta_io.h"
-#include "ops_dentry.h"
-#include "ops_inode.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
+#include "super.h"
 
 /**
  * gfs2_create - Create a file

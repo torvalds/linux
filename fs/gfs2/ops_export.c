@@ -22,8 +22,7 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "ops_dentry.h"
-#include "ops_fstype.h"
+#include "super.h"
 #include "rgrp.h"
 #include "util.h"
 

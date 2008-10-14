@@ -10,6 +10,8 @@
 #ifndef __SUPER_DOT_H__
 #define __SUPER_DOT_H__
 
+#include <linux/fs.h>
+#include <linux/dcache.h>
 #include "incore.h"
 
 void gfs2_lm_unmount(struct gfs2_sbd *sdp);
@@ -45,6 +47,12 @@ int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc);
 
 int gfs2_freeze_fs(struct gfs2_sbd *sdp);
 void gfs2_unfreeze_fs(struct gfs2_sbd *sdp);
+
+extern struct file_system_type gfs2_fs_type;
+extern struct file_system_type gfs2meta_fs_type;
+extern const struct export_operations gfs2_export_ops;
+extern const struct super_operations gfs2_super_ops;
+extern struct dentry_operations gfs2_dops;
 
 #endif /* __SUPER_DOT_H__ */
 

@@ -39,7 +39,6 @@
 #include "util.h"
 #include "eaops.h"
 #include "ops_address.h"
-#include "ops_inode.h"
 
 /**
  * gfs2_llseek - seek to a location in a file

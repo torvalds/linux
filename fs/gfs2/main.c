@@ -19,7 +19,7 @@
 
 #include "gfs2.h"
 #include "incore.h"
-#include "ops_fstype.h"
+#include "super.h"
 #include "sys.h"
 #include "util.h"
 #include "glock.h"
