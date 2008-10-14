@@ -2,7 +2,7 @@
  *	Description of Z8530 Z85C30 and Z85230 communications chips
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
- * Copyright (C) 1998 Alan Cox <alan@redhat.com>
+ * Copyright (C) 1998 Alan Cox <alan@lxorguk.ukuu.org.uk>
  */
 
 #ifndef _Z8530_H

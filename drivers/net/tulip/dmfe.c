@@ -23,7 +23,7 @@
     Marcelo Tosatti <marcelo@conectiva.com.br> :
     Made it compile in 2.3 (device to net_device)
 
-    Alan Cox <alan@redhat.com> :
+    Alan Cox <alan@lxorguk.ukuu.org.uk> :
     Cleaned up for kernel merge.
     Removed the back compatibility support
     Reformatted, fixing spelling etc as I went
@@ -49,7 +49,7 @@
     support.  Updated PCI resource allocation.  Do not
     forget to unmap PCI mapped skbs.
 
-    Alan Cox <alan@redhat.com>
+    Alan Cox <alan@lxorguk.ukuu.org.uk>
     Added new PCI identifiers provided by Clear Zhang at ALi
     for their 1563 ethernet device.
 
