@@ -392,5 +392,6 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define IRQ_GPIOB(x)  (IRQ_GPIOA(32) + x)
 #define IRQ_GPIOC(x)  (IRQ_GPIOB(32) + x)
 #define IRQ_GPIOD(x)  (IRQ_GPIOC(32) + x)
+#define IRQ_GPIOE(x)  (IRQ_GPIOD(32) + x)
 
 #endif /* _MXC_GPIO_MX1_MX2_H */
