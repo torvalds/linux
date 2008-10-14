@@ -149,6 +149,16 @@ static struct vivi_fmt formats[] = {
 		.fourcc   = V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
 		.depth    = 16,
 	},
+	{
+		.name     = "RGB555 (LE)",
+		.fourcc   = V4L2_PIX_FMT_RGB555, /* gggbbbbb arrrrrgg */
+		.depth    = 16,
+	},
+	{
+		.name     = "RGB555 (BE)",
+		.fourcc   = V4L2_PIX_FMT_RGB555X, /* arrrrrgg gggbbbbb */
+		.depth    = 16,
+	},
 };
 
 static struct vivi_fmt *get_format(struct v4l2_format *f)
@@ -328,6 +338,30 @@ static void gen_twopix(struct vivi_fh *fh, unsigned char *buf, int colorpos)
 			case 0:
 			case 2:
 				*p = (r_y << 3) | (g_u >> 3);
+				break;
+			case 1:
+			case 3:
+				*p = (g_u << 5) | b_v;
+				break;
+			}
+			break;
+		case V4L2_PIX_FMT_RGB555:
+			switch (color) {
+			case 0:
+			case 2:
+				*p = (g_u << 5) | b_v;
+				break;
+			case 1:
+			case 3:
+				*p = (r_y << 2) | (g_u >> 3);
+				break;
+			}
+			break;
+		case V4L2_PIX_FMT_RGB555X:
+			switch (color) {
+			case 0:
+			case 2:
+				*p = (r_y << 2) | (g_u >> 3);
 				break;
 			case 1:
 			case 3:
@@ -816,6 +850,12 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		case V4L2_PIX_FMT_RGB565X:
 			r >>= 3;
 			g >>= 2;
+			b >>= 3;
+			break;
+		case V4L2_PIX_FMT_RGB555:
+		case V4L2_PIX_FMT_RGB555X:
+			r >>= 3;
+			g >>= 3;
 			b >>= 3;
 			break;
 		}
