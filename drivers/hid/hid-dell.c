@@ -47,6 +47,7 @@ err_free:
 
 static const struct hid_device_id dell_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_W7658) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_SK8115) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, dell_devices);
