@@ -437,6 +437,10 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 {
 	int res = 0, dummy;
 
+	/* Can't register until after driver model init */
+	if (unlikely(WARN_ON(!i2c_bus_type.p)))
+		return -EAGAIN;
+
 	mutex_init(&adap->bus_lock);
 	mutex_init(&adap->clist_lock);
 	INIT_LIST_HEAD(&adap->clients);
@@ -695,6 +699,10 @@ static int __attach_adapter(struct device *dev, void *data)
 int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 {
 	int res;
+
+	/* Can't register until after driver model init */
+	if (unlikely(WARN_ON(!i2c_bus_type.p)))
+		return -EAGAIN;
 
 	/* new style driver methods can't mix with legacy ones */
 	if (is_newstyle_driver(driver)) {
