@@ -127,12 +127,17 @@ config BOOT_TRACER
 	select TRACING
 	help
 	  This tracer helps developers to optimize boot times: it records
-	  the timings of the initcalls. Its aim is to be parsed by the
-	  /scripts/bootgraph.pl tool to produce pretty graphics about
-	  boot inefficiencies, giving a visual representation of the
-	  delays during initcalls. Note that tracers self tests can't
-	  be enabled if this tracer is selected since only one tracer
-	  should touch the tracing buffer at a time.
+	  the timings of the initcalls and traces key events and the identity
+	  of tasks that can cause boot delays, such as context-switches.
+
+	  Its aim is to be parsed by the /scripts/bootgraph.pl tool to
+	  produce pretty graphics about boot inefficiencies, giving a visual
+	  representation of the delays during initcalls - but the raw
+	  /debug/tracing/trace text output is readable too.
+
+	  ( Note that tracing self tests can't be enabled if this tracer is
+	    selected, because the self-tests are an initcall as well and that
+	    would invalidate the boot trace. )
 
 config STACK_TRACER
 	bool "Trace max stack"
