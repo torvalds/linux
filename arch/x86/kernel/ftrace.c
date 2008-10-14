@@ -62,6 +62,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
 	unsigned char replaced[MCOUNT_INSN_SIZE];
+	int ret;
 
 	/*
 	 * Note: Due to modules and __init, code can
@@ -77,8 +78,9 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
 		return 2;
 
-	WARN_ON_ONCE(__copy_to_user_inatomic((char __user *)ip, new_code,
-				    MCOUNT_INSN_SIZE));
+	ret = __copy_to_user_inatomic((char __user *)ip, new_code,
+					MCOUNT_INSN_SIZE);
+	WARN_ON_ONCE(ret);
 
 	sync_core();
 
