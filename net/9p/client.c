@@ -587,16 +587,56 @@ static void p9_fid_destroy(struct p9_fid *fid)
 	kfree(fid);
 }
 
-struct p9_client *p9_client_create(const char *dev_name, char *options)
+static int p9_client_version(struct p9_client *clnt)
 {
-	int err, n;
-	struct p9_client *clnt;
+	int err = 0;
 	struct p9_fcall *tc, *rc;
 	struct p9_str *version;
 
+	P9_DPRINTK(P9_DEBUG_9P, "%p\n", clnt);
 	err = 0;
 	tc = NULL;
 	rc = NULL;
+
+	tc = p9_create_tversion(clnt->msize,
+					clnt->dotu ? "9P2000.u" : "9P2000");
+	if (IS_ERR(tc)) {
+		err = PTR_ERR(tc);
+		tc = NULL;
+		goto error;
+	}
+
+	err = p9_client_rpc(clnt, tc, &rc);
+	if (err)
+		goto error;
+
+	version = &rc->params.rversion.version;
+	if (version->len == 8 && !memcmp(version->str, "9P2000.u", 8))
+		clnt->dotu = 1;
+	else if (version->len == 6 && !memcmp(version->str, "9P2000", 6))
+		clnt->dotu = 0;
+	else {
+		err = -EREMOTEIO;
+		goto error;
+	}
+
+	if (rc->params.rversion.msize < clnt->msize)
+		clnt->msize = rc->params.rversion.msize;
+
+error:
+	kfree(tc);
+	kfree(rc);
+
+	return err;
+}
+EXPORT_SYMBOL(p9_client_auth);
+
+struct p9_client *p9_client_create(const char *dev_name, char *options)
+{
+	int err;
+	struct p9_client *clnt;
+
+	err = 0;
 	clnt = kmalloc(sizeof(struct p9_client), GFP_KERNEL);
 	if (!clnt)
 		return ERR_PTR(-ENOMEM);
@@ -628,7 +668,6 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	P9_DPRINTK(P9_DEBUG_9P, "clnt %p trans %p msize %d dotu %d\n",
 		clnt, clnt->trans_mod, clnt->msize, clnt->dotu);
 
-
 	err = clnt->trans_mod->create(clnt, dev_name, options);
 	if (err)
 		goto error;
@@ -636,38 +675,13 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	if ((clnt->msize+P9_IOHDRSZ) > clnt->trans_mod->maxsize)
 		clnt->msize = clnt->trans_mod->maxsize-P9_IOHDRSZ;
 
-	tc = p9_create_tversion(clnt->msize, clnt->dotu?"9P2000.u":"9P2000");
-	if (IS_ERR(tc)) {
-		err = PTR_ERR(tc);
-		tc = NULL;
-		goto error;
-	}
-
-	err = p9_client_rpc(clnt, tc, &rc);
+	err = p9_client_version(clnt);
 	if (err)
 		goto error;
 
-	version = &rc->params.rversion.version;
-	if (version->len == 8 && !memcmp(version->str, "9P2000.u", 8))
-		clnt->dotu = 1;
-	else if (version->len == 6 && !memcmp(version->str, "9P2000", 6))
-		clnt->dotu = 0;
-	else {
-		err = -EREMOTEIO;
-		goto error;
-	}
-
-	n = rc->params.rversion.msize;
-	if (n < clnt->msize)
-		clnt->msize = n;
-
-	kfree(tc);
-	kfree(rc);
 	return clnt;
 
 error:
-	kfree(tc);
-	kfree(rc);
 	p9_client_destroy(clnt);
 	return ERR_PTR(err);
 }
