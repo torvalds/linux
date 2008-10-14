@@ -128,6 +128,7 @@ struct dvb_frontend_private {
 	unsigned int step_size;
 	int quality;
 	unsigned int check_wrapped;
+	enum dvbfe_search algo_status;
 };
 
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
@@ -516,6 +517,8 @@ static int dvb_frontend_thread(void *data)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	unsigned long timeout;
 	fe_status_t s;
+	enum dvbfe_algo algo;
+
 	struct dvb_frontend_parameters *params;
 
 	dprintk("%s\n", __func__);
@@ -562,23 +565,72 @@ restart:
 
 		/* do an iteration of the tuning loop */
 		if (fe->ops.get_frontend_algo) {
-			if (fe->ops.get_frontend_algo(fe) == FE_ALGO_HW) {
-				/* have we been asked to retune? */
-				params = NULL;
+			algo = fe->ops.get_frontend_algo(fe);
+			switch (algo) {
+			case DVBFE_ALGO_HW:
+				dprintk("%s: Frontend ALGO = DVBFE_ALGO_HW\n", __func__);
+				params = NULL; /* have we been asked to RETUNE ? */
+
 				if (fepriv->state & FESTATE_RETUNE) {
-					params = &fepriv->parameters;
+					dprintk("%s: Retune requested, FESTATE_RETUNE\n", __func__);
 					fepriv->state = FESTATE_TUNED;
 				}
 
-				fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
+				if (fe->ops.tune)
+					fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
+
 				if (s != fepriv->status) {
+					dprintk("%s: state changed, adding current state\n", __func__);
 					dvb_frontend_add_event(fe, s);
 					fepriv->status = s;
 				}
-			} else
+				break;
+			case DVBFE_ALGO_SW:
+				dprintk("%s: Frontend ALGO = DVBFE_ALGO_SW\n", __func__);
 				dvb_frontend_swzigzag(fe);
-		} else
+				break;
+			case DVBFE_ALGO_CUSTOM:
+				params = NULL; /* have we been asked to RETUNE ?	*/
+				dprintk("%s: Frontend ALGO = DVBFE_ALGO_CUSTOM, state=%d\n", __func__, fepriv->state);
+				if (fepriv->state & FESTATE_RETUNE) {
+					dprintk("%s: Retune requested, FESTAT_RETUNE\n", __func__);
+					fepriv->state = FESTATE_TUNED;
+				}
+				/* Case where we are going to search for a carrier
+				 * User asked us to retune again for some reason, possibly
+				 * requesting a search with a new set of parameters
+				 */
+				if (fepriv->algo_status & DVBFE_ALGO_SEARCH_AGAIN) {
+					if (fe->ops.search)
+						fepriv->algo_status = fe->ops.search(fe, &fepriv->parameters);
+						/* We did do a search as was requested, the flags are
+						 * now unset as well and has the flags wrt to search.
+						 */
+
+					fepriv->algo_status &= ~DVBFE_ALGO_SEARCH_AGAIN;
+				}
+				/* Track the carrier if the search was successful */
+				if (fepriv->algo_status == DVBFE_ALGO_SEARCH_SUCCESS) {
+					if (fepriv->algo_status & DVBFE_ALGO_SEARCH_SUCCESS)
+						dprintk("%s: status = DVBFE_ALGO_SEARCH_SUCCESS\n", __func__);
+					if (fepriv->algo_status & DVBFE_ALGO_SEARCH_FAILED)
+						fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
+
+					fe->ops.read_status(fe, &s);
+					dvb_frontend_add_event(fe, s); /* update event list */
+					fepriv->status = s;
+					if (fe->ops.track)
+						fe->ops.track(fe, &fepriv->parameters);
+
+				}
+				break;
+			default:
+				dprintk("%s: UNDEFINED ALGO !\n", __func__);
+				break;
+			}
+		} else {
 			dvb_frontend_swzigzag(fe);
+		}
 	}
 
 	if (dvb_powerdown_on_sleep) {
