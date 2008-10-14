@@ -90,13 +90,7 @@
 #define M5602_ISOC_ENDPOINT_ADDR 0x81
 #define M5602_INTR_ENDPOINT_ADDR 0x82
 
-#define M5602_MAX_FRAMES	32
-#define M5602_URBS		2
-#define M5602_ISOC_PACKETS	14
-
-#define M5602_URB_TIMEOUT	msecs_to_jiffies(2 * M5602_ISOC_PACKETS)
 #define M5602_URB_MSG_TIMEOUT   5000
-#define M5602_FRAME_TIMEOUT	2
 
 /*****************************************************************************/
 
