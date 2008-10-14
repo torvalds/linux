@@ -374,6 +374,9 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		if (hp->ops->notifier_del)
 			hp->ops->notifier_del(hp, hp->data);
 
+		/* cancel pending tty resize work */
+		cancel_work_sync(&hp->tty_resize);
+
 		/*
 		 * Chain calls chars_in_buffer() and returns immediately if
 		 * there is no buffered data otherwise sleeps on a wait queue
@@ -398,6 +401,9 @@ static void hvc_hangup(struct tty_struct *tty)
 
 	if (!hp)
 		return;
+
+	/* cancel pending tty resize work */
+	cancel_work_sync(&hp->tty_resize);
 
 	spin_lock_irqsave(&hp->lock, flags);
 
@@ -492,6 +498,39 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 		hvc_kick();
 
 	return written;
+}
+
+/**
+ * hvc_set_winsz() - Resize the hvc tty terminal window.
+ * @work:	work structure.
+ *
+ * The routine shall not be called within an atomic context because it
+ * might sleep.
+ *
+ * Locking:	hp->lock
+ */
+static void hvc_set_winsz(struct work_struct *work)
+{
+	struct hvc_struct *hp;
+	unsigned long hvc_flags;
+	struct tty_struct *tty;
+	struct winsize ws;
+
+	hp = container_of(work, struct hvc_struct, tty_resize);
+	if (!hp)
+		return;
+
+	spin_lock_irqsave(&hp->lock, hvc_flags);
+	if (!hp->tty) {
+		spin_unlock_irqrestore(&hp->lock, hvc_flags);
+		return;
+	}
+	ws  = hp->ws;
+	tty = tty_kref_get(hp->tty);
+	spin_unlock_irqrestore(&hp->lock, hvc_flags);
+
+	tty_do_resize(tty, tty, &ws);
+	tty_kref_put(tty);
 }
 
 /*
@@ -638,6 +677,24 @@ int hvc_poll(struct hvc_struct *hp)
 }
 EXPORT_SYMBOL_GPL(hvc_poll);
 
+/**
+ * hvc_resize() - Update terminal window size information.
+ * @hp:		HVC console pointer
+ * @ws:		Terminal window size structure
+ *
+ * Stores the specified window size information in the hvc structure of @hp.
+ * The function schedule the tty resize update.
+ *
+ * Locking:	Locking free; the function MUST be called holding hp->lock
+ */
+void hvc_resize(struct hvc_struct *hp, struct winsize ws)
+{
+	if ((hp->ws.ws_row != ws.ws_row) || (hp->ws.ws_col != ws.ws_col)) {
+		hp->ws = ws;
+		schedule_work(&hp->tty_resize);
+	}
+}
+
 /*
  * This kthread is either polling or interrupt driven.  This is determined by
  * calling hvc_poll() who determines whether a console adapter support
@@ -720,6 +777,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 
 	kref_init(&hp->kref);
 
+	INIT_WORK(&hp->tty_resize, hvc_set_winsz);
 	spin_lock_init(&hp->lock);
 	spin_lock(&hvc_structs_lock);
 

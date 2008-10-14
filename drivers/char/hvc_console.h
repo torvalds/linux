@@ -27,6 +27,7 @@
 #ifndef HVC_CONSOLE_H
 #define HVC_CONSOLE_H
 #include <linux/kref.h>
+#include <linux/tty.h>
 
 /*
  * This is the max number of console adapters that can/will be found as
@@ -56,6 +57,8 @@ struct hvc_struct {
 	struct hv_ops *ops;
 	int irq_requested;
 	int data;
+	struct winsize ws;
+	struct work_struct tty_resize;
 	struct list_head next;
 	struct kref kref; /* ref count & hvc_struct lifetime */
 };
@@ -83,6 +86,9 @@ extern int __devexit hvc_remove(struct hvc_struct *hp);
 /* data available */
 int hvc_poll(struct hvc_struct *hp);
 void hvc_kick(void);
+
+/* Resize hvc tty terminal window */
+extern void hvc_resize(struct hvc_struct *hp, struct winsize ws);
 
 /* default notifier for irq based notification */
 extern int notifier_add_irq(struct hvc_struct *hp, int data);
