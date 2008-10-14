@@ -296,6 +296,7 @@ typedef enum fe_delivery_system {
 	SYS_DVBC_ANNEX_AC,
 	SYS_DVBC_ANNEX_B,
 	SYS_DVBT,
+	SYS_DSS,
 	SYS_DVBS,
 	SYS_DVBS2,
 	SYS_DVBH,
