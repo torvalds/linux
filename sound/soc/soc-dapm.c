@@ -37,7 +37,6 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
-#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -67,17 +66,13 @@ static int dapm_status = 1;
 module_param(dapm_status, int, 0);
 MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
 
-static struct dentry *asoc_debugfs;
-
-static u32 pop_time;
-
-static void pop_wait(void)
+static void pop_wait(u32 pop_time)
 {
 	if (pop_time)
 		schedule_timeout_uninterruptible(msecs_to_jiffies(pop_time));
 }
 
-static void pop_dbg(const char *fmt, ...)
+static void pop_dbg(u32 pop_time, const char *fmt, ...)
 {
 	va_list args;
 
@@ -85,7 +80,7 @@ static void pop_dbg(const char *fmt, ...)
 
 	if (pop_time) {
 		vprintk(fmt, args);
-		pop_wait();
+		pop_wait(pop_time);
 	}
 
 	va_end(args);
@@ -230,10 +225,11 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 
 	change = old != new;
 	if (change) {
-		pop_dbg("pop test %s : %s in %d ms\n", widget->name,
-			widget->power ? "on" : "off", pop_time);
+		pop_dbg(codec->pop_time, "pop test %s : %s in %d ms\n",
+			widget->name, widget->power ? "on" : "off",
+			codec->pop_time);
 		snd_soc_write(codec, widget->reg, new);
-		pop_wait();
+		pop_wait(codec->pop_time);
 	}
 	pr_debug("reg %x old %x new %x change %d\n", widget->reg,
 		 old, new, change);
@@ -821,23 +817,13 @@ static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
 int snd_soc_dapm_sys_add(struct device *dev)
 {
-	int ret = 0;
-
 	if (!dapm_status)
 		return 0;
 
 	ret = device_create_file(dev, &dev_attr_dapm_widget);
 	if (ret != 0)
 		return ret;
-
-	asoc_debugfs = debugfs_create_dir("asoc", NULL);
-	if (!IS_ERR(asoc_debugfs) && asoc_debugfs)
-		debugfs_create_u32("dapm_pop_time", 0744, asoc_debugfs,
-				   &pop_time);
-	else
-		asoc_debugfs = NULL;
-
-	return 0;
+	return device_create_file(dev, &dev_attr_dapm_widget);
 }
 
 static void snd_soc_dapm_sys_remove(struct device *dev)
@@ -845,9 +831,6 @@ static void snd_soc_dapm_sys_remove(struct device *dev)
 	if (dapm_status) {
 		device_remove_file(dev, &dev_attr_dapm_widget);
 	}
-
-	if (asoc_debugfs)
-		debugfs_remove_recursive(asoc_debugfs);
 }
 
 /* free all dapm widgets and resources */
