@@ -358,7 +358,6 @@ static int blk_mangle_minor(int minor)
 /**
  * blk_alloc_devt - allocate a dev_t for a partition
  * @part: partition to allocate dev_t for
- * @gfp_mask: memory allocation flag
  * @devt: out parameter for resulting dev_t
  *
  * Allocate a dev_t for block device.
