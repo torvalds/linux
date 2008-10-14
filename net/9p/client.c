@@ -559,8 +559,6 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	memset(&fid->qid, 0, sizeof(struct p9_qid));
 	fid->mode = -1;
 	fid->rdir_fpos = 0;
-	fid->rdir_pos = 0;
-	fid->rdir_fcall = NULL;
 	fid->uid = current->fsuid;
 	fid->clnt = clnt;
 	fid->aux = NULL;
@@ -586,7 +584,6 @@ static void p9_fid_destroy(struct p9_fid *fid)
 	spin_lock(&clnt->lock);
 	list_del(&fid->flist);
 	spin_unlock(&clnt->lock);
-	kfree(fid->rdir_fcall);
 	kfree(fid);
 }
 
@@ -1261,103 +1258,3 @@ done:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_wstat);
-
-struct p9_stat *p9_client_dirread(struct p9_fid *fid, u64 offset)
-{
-	int err, n, m;
-	struct p9_fcall *tc, *rc;
-	struct p9_client *clnt;
-	struct p9_stat st, *ret;
-
-	P9_DPRINTK(P9_DEBUG_9P, "fid %d offset %llu\n", fid->fid,
-						(long long unsigned) offset);
-	err = 0;
-	tc = NULL;
-	rc = NULL;
-	ret = NULL;
-	clnt = fid->clnt;
-
-	/* if the offset is below or above the current response, free it */
-	if (offset < fid->rdir_fpos || (fid->rdir_fcall &&
-		offset >= fid->rdir_fpos+fid->rdir_fcall->params.rread.count)) {
-		fid->rdir_pos = 0;
-		if (fid->rdir_fcall)
-			fid->rdir_fpos += fid->rdir_fcall->params.rread.count;
-
-		kfree(fid->rdir_fcall);
-		fid->rdir_fcall = NULL;
-		if (offset < fid->rdir_fpos)
-			fid->rdir_fpos = 0;
-	}
-
-	if (!fid->rdir_fcall) {
-		n = fid->iounit;
-		if (!n || n > clnt->msize-P9_IOHDRSZ)
-			n = clnt->msize - P9_IOHDRSZ;
-
-		while (1) {
-			if (fid->rdir_fcall) {
-				fid->rdir_fpos +=
-					fid->rdir_fcall->params.rread.count;
-				kfree(fid->rdir_fcall);
-				fid->rdir_fcall = NULL;
-			}
-
-			tc = p9_create_tread(fid->fid, fid->rdir_fpos, n);
-			if (IS_ERR(tc)) {
-				err = PTR_ERR(tc);
-				tc = NULL;
-				goto error;
-			}
-
-			err = p9_client_rpc(clnt, tc, &rc);
-			if (err)
-				goto error;
-
-			n = rc->params.rread.count;
-			if (n == 0)
-				goto done;
-
-			fid->rdir_fcall = rc;
-			rc = NULL;
-			if (offset >= fid->rdir_fpos &&
-						offset < fid->rdir_fpos+n)
-				break;
-		}
-
-		fid->rdir_pos = 0;
-	}
-
-	m = offset - fid->rdir_fpos;
-	if (m < 0)
-		goto done;
-
-	n = p9_deserialize_stat(fid->rdir_fcall->params.rread.data + m,
-		fid->rdir_fcall->params.rread.count - m, &st, clnt->dotu);
-
-	if (!n) {
-		err = -EIO;
-		goto error;
-	}
-
-	fid->rdir_pos += n;
-	st.size = n;
-	ret = p9_clone_stat(&st, clnt->dotu);
-	if (IS_ERR(ret)) {
-		err = PTR_ERR(ret);
-		ret = NULL;
-		goto error;
-	}
-
-done:
-	kfree(tc);
-	kfree(rc);
-	return ret;
-
-error:
-	kfree(tc);
-	kfree(rc);
-	kfree(ret);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL(p9_client_dirread);

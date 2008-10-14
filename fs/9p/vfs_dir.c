@@ -69,32 +69,54 @@ static inline int dt_type(struct p9_stat *mistat)
 static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	int over;
+	struct p9_stat st;
+	int err;
 	struct p9_fid *fid;
-	struct v9fs_session_info *v9ses;
-	struct inode *inode;
-	struct p9_stat *st;
+	int buflen;
+	char *statbuf;
+	int n, i = 0;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", filp->f_path.dentry->d_name.name);
-	inode = filp->f_path.dentry->d_inode;
-	v9ses = v9fs_inode2v9ses(inode);
 	fid = filp->private_data;
-	while ((st = p9_client_dirread(fid, filp->f_pos)) != NULL) {
-		if (IS_ERR(st))
-			return PTR_ERR(st);
 
-		over = filldir(dirent, st->name.str, st->name.len, filp->f_pos,
-			v9fs_qid2ino(&st->qid), dt_type(st));
+	buflen = fid->clnt->msize - P9_IOHDRSZ;
+	statbuf = kmalloc(buflen, GFP_KERNEL);
+	if (!statbuf)
+		return -ENOMEM;
 
-		if (over)
+	while (1) {
+		err = v9fs_file_readn(filp, statbuf, NULL, fid->rdir_fpos,
+									buflen);
+		if (err <= 0)
 			break;
 
-		filp->f_pos += st->size;
-		kfree(st);
-		st = NULL;
+		n = err;
+		while (i < n) {
+			err = p9_deserialize_stat(statbuf + i, buflen-i, &st,
+							fid->clnt->dotu);
+			if (!err) {
+				err = -EIO;
+				goto free_and_exit;
+			}
+
+			i += err;
+			fid->rdir_fpos += err;
+
+			over = filldir(dirent, st.name.str, st.name.len,
+			    filp->f_pos, v9fs_qid2ino(&st.qid), dt_type(&st));
+
+			filp->f_pos += st.size;
+
+			if (over) {
+				err = 0;
+				goto free_and_exit;
+			}
+		}
 	}
 
-	kfree(st);
-	return 0;
+free_and_exit:
+	kfree(statbuf);
+	return err;
 }
 
 

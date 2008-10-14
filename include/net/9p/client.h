@@ -163,8 +163,6 @@ struct p9_client {
  * @uid: the numeric uid of the local user who owns this handle
  * @aux: transport specific information (unused?)
  * @rdir_fpos: tracks offset of file position when reading directory contents
- * @rdir_pos: (unused?)
- * @rdir_fcall: holds response of last directory read request
  * @flist: per-client-instance fid tracking
  * @dlist: per-dentry fid tracking
  *
@@ -181,8 +179,6 @@ struct p9_fid {
 	void *aux;
 
 	int rdir_fpos;
-	int rdir_pos;
-	struct p9_fcall *rdir_fcall;
 	struct list_head flist;
 	struct list_head dlist;	/* list of all fids attached to a dentry */
 };
@@ -207,7 +203,6 @@ int p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count);
 struct p9_stat *p9_client_stat(struct p9_fid *fid);
 int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
-struct p9_stat *p9_client_dirread(struct p9_fid *fid, u64 offset);
 
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
