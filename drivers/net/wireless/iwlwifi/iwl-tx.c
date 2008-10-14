@@ -817,7 +817,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
-	u16 len, idx, len_org;
+	u16 len, len_org;
 	u16 seq_number = 0;
 	__le16 fc;
 	u8 hdr_len, unicast;
@@ -904,14 +904,13 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Set up first empty TFD within this queue's circular TFD buffer */
 	tfd = &txq->tfds[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
-	idx = get_cmd_index(q, q->write_ptr, 0);
 
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
 	txq->txb[q->write_ptr].skb[0] = skb;
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
-	out_cmd = txq->cmd[idx];
+	out_cmd = txq->cmd[q->write_ptr];
 	tx_cmd = &out_cmd->cmd.tx;
 	memset(&out_cmd->hdr, 0, sizeof(out_cmd->hdr));
 	memset(tx_cmd, 0, sizeof(struct iwl_tx_cmd));
