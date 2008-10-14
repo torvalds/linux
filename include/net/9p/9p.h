@@ -509,6 +509,8 @@ struct p9_rwstat {
  * @size: prefixed length of the structure
  * @id: protocol operating identifier of type &p9_msg_t
  * @tag: transaction id of the request
+ * @offset: used by marshalling routines to track currentposition in buffer
+ * @capacity: used by marshalling routines to track total capacity
  * @sdata: payload
  * @params: per-operation parameters
  *
@@ -523,7 +525,11 @@ struct p9_fcall {
 	u32 size;
 	u8 id;
 	u16 tag;
-	void *sdata;
+
+	size_t offset;
+	size_t capacity;
+
+	uint8_t *sdata;
 
 	union {
 		struct p9_tversion tversion;
