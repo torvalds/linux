@@ -203,6 +203,8 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	int ret = 0;
 	int power;
 
+	might_sleep();
+
 	if (local->sw_scanning)
 		chan = local->scan_channel;
 	else
