@@ -225,8 +225,6 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 static void
 intel_dc21285_exit(struct pci_dev *dev, struct map_pci_info *map)
 {
-	u32 val;
-
 	if (map->base)
 		iounmap(map->base);
 
