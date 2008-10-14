@@ -3,6 +3,9 @@
  *
  *  Copyright (C) 2004-2006 maintech GmbH, Thomas Kleffel <tk@maintech.de>
  *
+ * Current driver maintained by Ben Dooks and Simtec Electronics
+ *  Copyright (C) 2008 Simtec Electronics <ben-linux@fluff.org>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -1560,7 +1563,7 @@ module_exit(s3cmci_exit);
 
 MODULE_DESCRIPTION("Samsung S3C MMC/SD Card Interface driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Thomas Kleffel <tk@maintech.de>");
+MODULE_AUTHOR("Thomas Kleffel <tk@maintech.de>, Ben Dooks <ben-linux@fluff.org>");
 MODULE_ALIAS("platform:s3c2410-sdi");
 MODULE_ALIAS("platform:s3c2412-sdi");
 MODULE_ALIAS("platform:s3c2440-sdi");
