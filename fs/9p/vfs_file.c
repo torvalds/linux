@@ -136,7 +136,7 @@ v9fs_file_read(struct file *filp, char __user * data, size_t count,
 
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
 	fid = filp->private_data;
-	ret = p9_client_uread(fid, data, *offset, count);
+	ret = p9_client_read(fid, NULL, data, *offset, count);
 	if (ret > 0)
 		*offset += ret;
 
@@ -164,7 +164,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		(int)count, (int)*offset);
 
 	fid = filp->private_data;
-	ret = p9_client_uwrite(fid, data, *offset, count);
+	ret = p9_client_write(fid, NULL, data, *offset, count);
 	if (ret > 0) {
 		invalidate_inode_pages2_range(inode->i_mapping, *offset,
 								*offset+ret);

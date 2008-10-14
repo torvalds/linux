@@ -1016,7 +1016,9 @@ done:
 }
 EXPORT_SYMBOL(p9_client_remove);
 
-int p9_client_read(struct p9_fid *fid, char *data, u64 offset, u32 count)
+int
+p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
+								u32 count)
 {
 	int err, n, rsize, total;
 	struct p9_fcall *tc, *rc;
@@ -1053,9 +1055,21 @@ int p9_client_read(struct p9_fid *fid, char *data, u64 offset, u32 count)
 		if (n > count)
 			n = count;
 
-		memmove(data, rc->params.rread.data, n);
+		if (data) {
+			memmove(data, rc->params.rread.data, n);
+			data += n;
+		}
+
+		if (udata) {
+			err = copy_to_user(udata, rc->params.rread.data, n);
+			if (err) {
+				err = -EFAULT;
+				goto error;
+			}
+			udata += n;
+		}
+
 		count -= n;
-		data += n;
 		offset += n;
 		total += n;
 		kfree(tc);
@@ -1073,7 +1087,9 @@ error:
 }
 EXPORT_SYMBOL(p9_client_read);
 
-int p9_client_write(struct p9_fid *fid, char *data, u64 offset, u32 count)
+int
+p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
+							u64 offset, u32 count)
 {
 	int err, n, rsize, total;
 	struct p9_fcall *tc, *rc;
@@ -1095,7 +1111,10 @@ int p9_client_write(struct p9_fid *fid, char *data, u64 offset, u32 count)
 		if (count < rsize)
 			rsize = count;
 
-		tc = p9_create_twrite(fid->fid, offset, rsize, data);
+		if (data)
+			tc = p9_create_twrite(fid->fid, offset, rsize, data);
+		else
+			tc = p9_create_twrite_u(fid->fid, offset, rsize, udata);
 		if (IS_ERR(tc)) {
 			err = PTR_ERR(tc);
 			tc = NULL;
@@ -1108,7 +1127,12 @@ int p9_client_write(struct p9_fid *fid, char *data, u64 offset, u32 count)
 
 		n = rc->params.rread.count;
 		count -= n;
-		data += n;
+
+		if (data)
+			data += n;
+		else
+			udata += n;
+
 		offset += n;
 		total += n;
 		kfree(tc);
@@ -1126,124 +1150,6 @@ error:
 }
 EXPORT_SYMBOL(p9_client_write);
 
-int
-p9_client_uread(struct p9_fid *fid, char __user *data, u64 offset, u32 count)
-{
-	int err, n, rsize, total;
-	struct p9_fcall *tc, *rc;
-	struct p9_client *clnt;
-
-	P9_DPRINTK(P9_DEBUG_9P, "fid %d offset %llu count %d\n", fid->fid,
-					(long long unsigned) offset, count);
-	err = 0;
-	tc = NULL;
-	rc = NULL;
-	clnt = fid->clnt;
-	total = 0;
-
-	rsize = fid->iounit;
-	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
-		rsize = clnt->msize - P9_IOHDRSZ;
-
-	do {
-		if (count < rsize)
-			rsize = count;
-
-		tc = p9_create_tread(fid->fid, offset, rsize);
-		if (IS_ERR(tc)) {
-			err = PTR_ERR(tc);
-			tc = NULL;
-			goto error;
-		}
-
-		err = p9_client_rpc(clnt, tc, &rc);
-		if (err)
-			goto error;
-
-		n = rc->params.rread.count;
-		if (n > count)
-			n = count;
-
-		err = copy_to_user(data, rc->params.rread.data, n);
-		if (err) {
-			err = -EFAULT;
-			goto error;
-		}
-
-		count -= n;
-		data += n;
-		offset += n;
-		total += n;
-		kfree(tc);
-		tc = NULL;
-		kfree(rc);
-		rc = NULL;
-	} while (count > 0 && n == rsize);
-
-	return total;
-
-error:
-	kfree(tc);
-	kfree(rc);
-	return err;
-}
-EXPORT_SYMBOL(p9_client_uread);
-
-int
-p9_client_uwrite(struct p9_fid *fid, const char __user *data, u64 offset,
-								   u32 count)
-{
-	int err, n, rsize, total;
-	struct p9_fcall *tc, *rc;
-	struct p9_client *clnt;
-
-	P9_DPRINTK(P9_DEBUG_9P, "fid %d offset %llu count %d\n", fid->fid,
-					(long long unsigned) offset, count);
-	err = 0;
-	tc = NULL;
-	rc = NULL;
-	clnt = fid->clnt;
-	total = 0;
-
-	rsize = fid->iounit;
-	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
-		rsize = clnt->msize - P9_IOHDRSZ;
-
-	do {
-		if (count < rsize)
-			rsize = count;
-
-		tc = p9_create_twrite_u(fid->fid, offset, rsize, data);
-		if (IS_ERR(tc)) {
-			err = PTR_ERR(tc);
-			tc = NULL;
-			goto error;
-		}
-
-		err = p9_client_rpc(clnt, tc, &rc);
-		if (err)
-			goto error;
-
-		n = rc->params.rread.count;
-		count -= n;
-		data += n;
-		offset += n;
-		total += n;
-		kfree(tc);
-		tc = NULL;
-		kfree(rc);
-		rc = NULL;
-	} while (count > 0);
-
-	return total;
-
-error:
-	kfree(tc);
-	kfree(rc);
-	return err;
-}
-EXPORT_SYMBOL(p9_client_uwrite);
-
 int p9_client_readn(struct p9_fid *fid, char *data, u64 offset, u32 count)
 {
 	int n, total;
@@ -1253,7 +1159,7 @@ int p9_client_readn(struct p9_fid *fid, char *data, u64 offset, u32 count)
 	n = 0;
 	total = 0;
 	while (count) {
-		n = p9_client_read(fid, data, offset, count);
+		n = p9_client_read(fid, data, NULL, offset, count);
 		if (n <= 0)
 			break;
 
