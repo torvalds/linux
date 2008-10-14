@@ -1396,7 +1396,7 @@ void hrtimer_peek_ahead_timers(void)
 	struct tick_device *td;
 	struct clock_event_device *dev;
 
-	if (hrtimer_hres_active())
+	if (!hrtimer_hres_active())
 		return;
 
 	local_irq_save(flags);
