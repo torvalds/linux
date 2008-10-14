@@ -24,7 +24,9 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
-#include "usbhid.h"
+
+#include "usbhid/usbhid.h"
+#include "hid-lg.h"
 
 struct lg2ff_device {
 	struct hid_report *report;
@@ -57,7 +59,7 @@ static int play_effect(struct input_dev *dev, void *data,
 	return 0;
 }
 
-int hid_lg2ff_init(struct hid_device *hid)
+int lg2ff_init(struct hid_device *hid)
 {
 	struct lg2ff_device *lg2ff;
 	struct hid_report *report;
@@ -69,18 +71,18 @@ int hid_lg2ff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		printk(KERN_ERR "hid-lg2ff: no output report found\n");
+		dev_err(&hid->dev, "no output report found\n");
 		return -ENODEV;
 	}
 
 	report = list_entry(report_list->next, struct hid_report, list);
 
 	if (report->maxfield < 1) {
-		printk(KERN_ERR "hid-lg2ff: output report is empty\n");
+		dev_err(&hid->dev, "output report is empty\n");
 		return -ENODEV;
 	}
 	if (report->field[0]->report_count < 7) {
-		printk(KERN_ERR "hid-lg2ff: not enough values in the field\n");
+		dev_err(&hid->dev, "not enough values in the field\n");
 		return -ENODEV;
 	}
 
@@ -107,7 +109,7 @@ int hid_lg2ff_init(struct hid_device *hid)
 
 	usbhid_submit_report(hid, report, USB_DIR_OUT);
 
-	printk(KERN_INFO "Force feedback for Logitech Rumblepad 2 by "
+	dev_info(&hid->dev, "Force feedback for Logitech Rumblepad 2 by "
 	       "Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;

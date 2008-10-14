@@ -21,16 +21,19 @@
  */
 
 
+#include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/usb.h>
-#include <linux/hid.h>
-#include "usbhid.h"
+
+#include "hid-ids.h"
+
+#include "usbhid/usbhid.h"
 
 struct zpff_device {
 	struct hid_report *report;
 };
 
-static int hid_zpff_play(struct input_dev *dev, void *data,
+static int zpff_play(struct input_dev *dev, void *data,
 			 struct ff_effect *effect)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
@@ -58,7 +61,7 @@ static int hid_zpff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-int hid_zpff_init(struct hid_device *hid)
+static int zpff_init(struct hid_device *hid)
 {
 	struct zpff_device *zpff;
 	struct hid_report *report;
@@ -70,14 +73,14 @@ int hid_zpff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		printk(KERN_ERR "hid-zpff: no output report found\n");
+		dev_err(&hid->dev, "no output report found\n");
 		return -ENODEV;
 	}
 
 	report = list_entry(report_list->next, struct hid_report, list);
 
 	if (report->maxfield < 4) {
-		printk(KERN_ERR "hid-zpff: not enough fields in report\n");
+		dev_err(&hid->dev, "not enough fields in report\n");
 		return -ENODEV;
 	}
 
@@ -87,7 +90,7 @@ int hid_zpff_init(struct hid_device *hid)
 
 	set_bit(FF_RUMBLE, dev->ffbit);
 
-	error = input_ff_create_memless(dev, zpff, hid_zpff_play);
+	error = input_ff_create_memless(dev, zpff, zpff_play);
 	if (error) {
 		kfree(zpff);
 		return error;
@@ -100,8 +103,60 @@ int hid_zpff_init(struct hid_device *hid)
 	zpff->report->field[3]->value[0] = 0x00;
 	usbhid_submit_report(hid, zpff->report, USB_DIR_OUT);
 
-	printk(KERN_INFO "Force feedback for Zeroplus based devices by "
+	dev_info(&hid->dev, "force feedback for Zeroplus based devices by "
 	       "Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;
 }
+
+static int zp_probe(struct hid_device *hdev, const struct hid_device_id *id)
+{
+	int ret;
+
+	ret = hid_parse(hdev);
+	if (ret) {
+		dev_err(&hdev->dev, "parse failed\n");
+		goto err;
+	}
+
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	if (ret) {
+		dev_err(&hdev->dev, "hw start failed\n");
+		goto err;
+	}
+
+	zpff_init(hdev);
+
+	return 0;
+err:
+	return ret;
+}
+
+static const struct hid_device_id zp_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ZEROPLUS, 0x0005) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ZEROPLUS, 0x0030) },
+	{ }
+};
+MODULE_DEVICE_TABLE(hid, zp_devices);
+
+static struct hid_driver zp_driver = {
+	.name = "zeroplus",
+	.id_table = zp_devices,
+	.probe = zp_probe,
+};
+
+static int zp_init(void)
+{
+	return hid_register_driver(&zp_driver);
+}
+
+static void zp_exit(void)
+{
+	hid_unregister_driver(&zp_driver);
+}
+
+module_init(zp_init);
+module_exit(zp_exit);
+MODULE_LICENSE("GPL");
+
+HID_COMPAT_LOAD_DRIVER(zeroplus);

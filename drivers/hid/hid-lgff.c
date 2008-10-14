@@ -30,7 +30,9 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
-#include "usbhid.h"
+
+#include "usbhid/usbhid.h"
+#include "hid-lg.h"
 
 struct dev_type {
 	u16 idVendor;
@@ -48,6 +50,12 @@ static const signed short ff_joystick[] = {
 	-1
 };
 
+static const signed short ff_wheel[] = {
+	FF_CONSTANT,
+	FF_AUTOCENTER,
+	-1
+};
+
 static const struct dev_type devices[] = {
 	{ 0x046d, 0xc211, ff_rumble },
 	{ 0x046d, 0xc219, ff_rumble },
@@ -55,7 +63,7 @@ static const struct dev_type devices[] = {
 	{ 0x046d, 0xc286, ff_joystick },
 	{ 0x046d, 0xc294, ff_joystick },
 	{ 0x046d, 0xc295, ff_joystick },
-	{ 0x046d, 0xca03, ff_joystick },
+	{ 0x046d, 0xca03, ff_wheel },
 };
 
 static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
@@ -100,7 +108,24 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 	return 0;
 }
 
-int hid_lgff_init(struct hid_device* hid)
+static void hid_lgff_set_autocenter(struct input_dev *dev, u16 magnitude)
+{
+	struct hid_device *hid = input_get_drvdata(dev);
+	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
+	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	__s32 *value = report->field[0]->value;
+	magnitude = (magnitude >> 12) & 0xf;
+	*value++ = 0xfe;
+	*value++ = 0x0d;
+	*value++ = magnitude;   /* clockwise strength */
+	*value++ = magnitude;   /* counter-clockwise strength */
+	*value++ = 0x80;
+	*value++ = 0x00;
+	*value = 0x00;
+	usbhid_submit_report(hid, report, USB_DIR_OUT);
+}
+
+int lgff_init(struct hid_device* hid)
 {
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
@@ -144,6 +169,9 @@ int hid_lgff_init(struct hid_device* hid)
 	error = input_ff_create_memless(dev, NULL, hid_lgff_play);
 	if (error)
 		return error;
+
+	if ( test_bit(FF_AUTOCENTER, dev->ffbit) )
+		dev->ff->set_autocenter = hid_lgff_set_autocenter;
 
 	printk(KERN_INFO "Force feedback for Logitech force feedback devices by Johann Deneux <johann.deneux@it.uu.se>\n");
 

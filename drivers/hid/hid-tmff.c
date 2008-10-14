@@ -27,22 +27,16 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/hid.h>
 #include <linux/input.h>
-
-#undef DEBUG
 #include <linux/usb.h>
 
-#include <linux/hid.h>
-#include "usbhid.h"
+#include "hid-ids.h"
+
+#include "usbhid/usbhid.h"
 
 /* Usages for thrustmaster devices I know about */
 #define THRUSTMASTER_USAGE_FF	(HID_UP_GENDESK | 0xbb)
-
-struct dev_type {
-	u16 idVendor;
-	u16 idProduct;
-	const signed short *ff;
-};
 
 static const signed short ff_rumble[] = {
 	FF_RUMBLE,
@@ -54,21 +48,13 @@ static const signed short ff_joystick[] = {
 	-1
 };
 
-static const struct dev_type devices[] = {
-	{ 0x44f, 0xb300, ff_rumble },
-	{ 0x44f, 0xb304, ff_rumble },
-	{ 0x44f, 0xb651, ff_rumble },	/* FGT Rumble Force Wheel */
-	{ 0x44f, 0xb654, ff_joystick },	/* FGT Force Feedback Wheel */
-};
-
 struct tmff_device {
 	struct hid_report *report;
 	struct hid_field *ff_field;
 };
 
 /* Changes values from 0 to 0xffff into values from minimum to maximum */
-static inline int hid_tmff_scale_u16(unsigned int in,
-				int minimum, int maximum)
+static inline int tmff_scale_u16(unsigned int in, int minimum, int maximum)
 {
 	int ret;
 
@@ -81,8 +67,7 @@ static inline int hid_tmff_scale_u16(unsigned int in,
 }
 
 /* Changes values from -0x80 to 0x7f into values from minimum to maximum */
-static inline int hid_tmff_scale_s8(int in,
-				    int minimum, int maximum)
+static inline int tmff_scale_s8(int in, int minimum, int maximum)
 {
 	int ret;
 
@@ -94,7 +79,8 @@ static inline int hid_tmff_scale_s8(int in,
 	return ret;
 }
 
-static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
+static int tmff_play(struct input_dev *dev, void *data,
+		struct ff_effect *effect)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct tmff_device *tmff = data;
@@ -104,10 +90,10 @@ static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 
 	switch (effect->type) {
 	case FF_CONSTANT:
-		x = hid_tmff_scale_s8(effect->u.ramp.start_level,
+		x = tmff_scale_s8(effect->u.ramp.start_level,
 					ff_field->logical_minimum,
 					ff_field->logical_maximum);
-		y = hid_tmff_scale_s8(effect->u.ramp.end_level,
+		y = tmff_scale_s8(effect->u.ramp.end_level,
 					ff_field->logical_minimum,
 					ff_field->logical_maximum);
 
@@ -118,10 +104,10 @@ static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 		break;
 
 	case FF_RUMBLE:
-		left = hid_tmff_scale_u16(effect->u.rumble.weak_magnitude,
+		left = tmff_scale_u16(effect->u.rumble.weak_magnitude,
 					ff_field->logical_minimum,
 					ff_field->logical_maximum);
-		right = hid_tmff_scale_u16(effect->u.rumble.strong_magnitude,
+		right = tmff_scale_u16(effect->u.rumble.strong_magnitude,
 					ff_field->logical_minimum,
 					ff_field->logical_maximum);
 
@@ -134,14 +120,14 @@ static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 	return 0;
 }
 
-int hid_tmff_init(struct hid_device *hid)
+static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 {
 	struct tmff_device *tmff;
 	struct hid_report *report;
 	struct list_head *report_list;
-	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
+	struct hid_input *hidinput = list_entry(hid->inputs.next,
+							struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
-	const signed short *ff_bits = ff_joystick;
 	int error;
 	int i;
 
@@ -163,35 +149,33 @@ int hid_tmff_init(struct hid_device *hid)
 			switch (field->usage[0].hid) {
 			case THRUSTMASTER_USAGE_FF:
 				if (field->report_count < 2) {
-					warn("ignoring FF field with report_count < 2");
+					dev_warn(&hid->dev, "ignoring FF field "
+						"with report_count < 2\n");
 					continue;
 				}
 
-				if (field->logical_maximum == field->logical_minimum) {
-					warn("ignoring FF field with logical_maximum == logical_minimum");
+				if (field->logical_maximum ==
+						field->logical_minimum) {
+					dev_warn(&hid->dev, "ignoring FF field "
+							"with logical_maximum "
+							"== logical_minimum\n");
 					continue;
 				}
 
 				if (tmff->report && tmff->report != report) {
-					warn("ignoring FF field in other report");
+					dev_warn(&hid->dev, "ignoring FF field "
+							"in other report\n");
 					continue;
 				}
 
 				if (tmff->ff_field && tmff->ff_field != field) {
-					warn("ignoring duplicate FF field");
+					dev_warn(&hid->dev, "ignoring "
+							"duplicate FF field\n");
 					continue;
 				}
 
 				tmff->report = report;
 				tmff->ff_field = field;
-
-				for (i = 0; i < ARRAY_SIZE(devices); i++) {
-					if (input_dev->id.vendor == devices[i].idVendor &&
-					    input_dev->id.product == devices[i].idProduct) {
-						ff_bits = devices[i].ff;
-						break;
-					}
-				}
 
 				for (i = 0; ff_bits[i] >= 0; i++)
 					set_bit(ff_bits[i], input_dev->ffbit);
@@ -199,27 +183,87 @@ int hid_tmff_init(struct hid_device *hid)
 				break;
 
 			default:
-				warn("ignoring unknown output usage %08x", field->usage[0].hid);
+				dev_warn(&hid->dev, "ignoring unknown output "
+						"usage %08x\n",
+						field->usage[0].hid);
 				continue;
 			}
 		}
 	}
 
 	if (!tmff->report) {
-		err("cant find FF field in output reports\n");
+		dev_err(&hid->dev, "can't find FF field in output reports\n");
 		error = -ENODEV;
 		goto fail;
 	}
 
-	error = input_ff_create_memless(input_dev, tmff, hid_tmff_play);
+	error = input_ff_create_memless(input_dev, tmff, tmff_play);
 	if (error)
 		goto fail;
 
-	info("Force feedback for ThrustMaster devices by Zinx Verituse <zinx@epicsol.org>");
+	dev_info(&hid->dev, "force feedback for ThrustMaster devices by Zinx "
+			"Verituse <zinx@epicsol.org>");
 	return 0;
 
- fail:
+fail:
 	kfree(tmff);
 	return error;
 }
 
+static int tm_probe(struct hid_device *hdev, const struct hid_device_id *id)
+{
+	int ret;
+
+	ret = hid_parse(hdev);
+	if (ret) {
+		dev_err(&hdev->dev, "parse failed\n");
+		goto err;
+	}
+
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	if (ret) {
+		dev_err(&hdev->dev, "hw start failed\n");
+		goto err;
+	}
+
+	tmff_init(hdev, (void *)id->driver_data);
+
+	return 0;
+err:
+	return ret;
+}
+
+static const struct hid_device_id tm_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb300),
+		.driver_data = (unsigned long)ff_rumble },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb304),
+		.driver_data = (unsigned long)ff_rumble },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb651),	/* FGT Rumble Force Wheel */
+		.driver_data = (unsigned long)ff_rumble },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb654),	/* FGT Force Feedback Wheel */
+		.driver_data = (unsigned long)ff_joystick },
+	{ }
+};
+MODULE_DEVICE_TABLE(hid, tm_devices);
+
+static struct hid_driver tm_driver = {
+	.name = "thrustmaster",
+	.id_table = tm_devices,
+	.probe = tm_probe,
+};
+
+static int tm_init(void)
+{
+	return hid_register_driver(&tm_driver);
+}
+
+static void tm_exit(void)
+{
+	hid_unregister_driver(&tm_driver);
+}
+
+module_init(tm_init);
+module_exit(tm_exit);
+MODULE_LICENSE("GPL");
+
+HID_COMPAT_LOAD_DRIVER(thrustmaster);
