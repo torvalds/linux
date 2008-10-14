@@ -93,26 +93,26 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 # ifdef CONFIG_IA32_EMULATION
 	if (task_thread_info(task)->status & TS_COMPAT)
-		switch (i + n) {
-		case 6:
-			if (!n--) break;
-			*args++ = regs->bp;
-		case 5:
-			if (!n--) break;
-			*args++ = regs->di;
-		case 4:
-			if (!n--) break;
-			*args++ = regs->si;
-		case 3:
-			if (!n--) break;
-			*args++ = regs->dx;
-		case 2:
-			if (!n--) break;
-			*args++ = regs->cx;
-		case 1:
+		switch (i) {
+		case 0:
 			if (!n--) break;
 			*args++ = regs->bx;
-		case 0:
+		case 1:
+			if (!n--) break;
+			*args++ = regs->cx;
+		case 2:
+			if (!n--) break;
+			*args++ = regs->dx;
+		case 3:
+			if (!n--) break;
+			*args++ = regs->si;
+		case 4:
+			if (!n--) break;
+			*args++ = regs->di;
+		case 5:
+			if (!n--) break;
+			*args++ = regs->bp;
+		case 6:
 			if (!n--) break;
 		default:
 			BUG();
@@ -120,26 +120,26 @@ static inline void syscall_get_arguments(struct task_struct *task,
 		}
 	else
 # endif
-		switch (i + n) {
-		case 6:
-			if (!n--) break;
-			*args++ = regs->r9;
-		case 5:
-			if (!n--) break;
-			*args++ = regs->r8;
-		case 4:
-			if (!n--) break;
-			*args++ = regs->r10;
-		case 3:
-			if (!n--) break;
-			*args++ = regs->dx;
-		case 2:
-			if (!n--) break;
-			*args++ = regs->si;
-		case 1:
+		switch (i) {
+		case 0:
 			if (!n--) break;
 			*args++ = regs->di;
-		case 0:
+		case 1:
+			if (!n--) break;
+			*args++ = regs->si;
+		case 2:
+			if (!n--) break;
+			*args++ = regs->dx;
+		case 3:
+			if (!n--) break;
+			*args++ = regs->r10;
+		case 4:
+			if (!n--) break;
+			*args++ = regs->r8;
+		case 5:
+			if (!n--) break;
+			*args++ = regs->r9;
+		case 6:
 			if (!n--) break;
 		default:
 			BUG();
@@ -154,55 +154,57 @@ static inline void syscall_set_arguments(struct task_struct *task,
 {
 # ifdef CONFIG_IA32_EMULATION
 	if (task_thread_info(task)->status & TS_COMPAT)
-		switch (i + n) {
-		case 6:
-			if (!n--) break;
-			regs->bp = *args++;
-		case 5:
-			if (!n--) break;
-			regs->di = *args++;
-		case 4:
-			if (!n--) break;
-			regs->si = *args++;
-		case 3:
-			if (!n--) break;
-			regs->dx = *args++;
-		case 2:
-			if (!n--) break;
-			regs->cx = *args++;
-		case 1:
+		switch (i) {
+		case 0:
 			if (!n--) break;
 			regs->bx = *args++;
-		case 0:
+		case 1:
+			if (!n--) break;
+			regs->cx = *args++;
+		case 2:
+			if (!n--) break;
+			regs->dx = *args++;
+		case 3:
+			if (!n--) break;
+			regs->si = *args++;
+		case 4:
+			if (!n--) break;
+			regs->di = *args++;
+		case 5:
+			if (!n--) break;
+			regs->bp = *args++;
+		case 6:
 			if (!n--) break;
 		default:
 			BUG();
+			break;
 		}
 	else
 # endif
-		switch (i + n) {
-		case 6:
-			if (!n--) break;
-			regs->r9 = *args++;
-		case 5:
-			if (!n--) break;
-			regs->r8 = *args++;
-		case 4:
-			if (!n--) break;
-			regs->r10 = *args++;
-		case 3:
-			if (!n--) break;
-			regs->dx = *args++;
-		case 2:
-			if (!n--) break;
-			regs->si = *args++;
-		case 1:
+		switch (i) {
+		case 0:
 			if (!n--) break;
 			regs->di = *args++;
-		case 0:
+		case 1:
+			if (!n--) break;
+			regs->si = *args++;
+		case 2:
+			if (!n--) break;
+			regs->dx = *args++;
+		case 3:
+			if (!n--) break;
+			regs->r10 = *args++;
+		case 4:
+			if (!n--) break;
+			regs->r8 = *args++;
+		case 5:
+			if (!n--) break;
+			regs->r9 = *args++;
+		case 6:
 			if (!n--) break;
 		default:
 			BUG();
+			break;
 		}
 }
 
