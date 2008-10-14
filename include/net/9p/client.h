@@ -203,7 +203,6 @@ int p9_client_clunk(struct p9_fid *fid);
 int p9_client_remove(struct p9_fid *fid);
 int p9_client_read(struct p9_fid *fid, char *data, char __user *udata,
 							u64 offset, u32 count);
-int p9_client_readn(struct p9_fid *fid, char *data, u64 offset, u32 count);
 int p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count);
 struct p9_stat *p9_client_stat(struct p9_fid *fid);

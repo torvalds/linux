@@ -1150,32 +1150,6 @@ error:
 }
 EXPORT_SYMBOL(p9_client_write);
 
-int p9_client_readn(struct p9_fid *fid, char *data, u64 offset, u32 count)
-{
-	int n, total;
-
-	P9_DPRINTK(P9_DEBUG_9P, "fid %d offset %llu count %d\n", fid->fid,
-					(long long unsigned) offset, count);
-	n = 0;
-	total = 0;
-	while (count) {
-		n = p9_client_read(fid, data, NULL, offset, count);
-		if (n <= 0)
-			break;
-
-		data += n;
-		offset += n;
-		count -= n;
-		total += n;
-	}
-
-	if (n < 0)
-		total = n;
-
-	return total;
-}
-EXPORT_SYMBOL(p9_client_readn);
-
 static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu)
 {
 	int n;
