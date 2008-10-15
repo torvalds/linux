@@ -2349,7 +2349,7 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 		 */
 		ret = ocfs2_read_blocks(inode, xs->bucket.bhs[0]->b_blocknr + 1,
 					blk_per_bucket - 1, &xs->bucket.bhs[1],
-					OCFS2_BH_CACHED);
+					0);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -2426,7 +2426,7 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 
 	for (i = 0; i < num_buckets; i++, blkno += blk_per_bucket) {
 		ret = ocfs2_read_blocks(inode, blkno, blk_per_bucket,
-					bucket.bhs, OCFS2_BH_CACHED);
+					bucket.bhs, 0);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -2694,7 +2694,7 @@ static int ocfs2_xattr_update_xattr_search(struct inode *inode,
 			ret = ocfs2_read_blocks(inode,
 					xs->bucket.bhs[0]->b_blocknr + 1,
 					blk_per_bucket - 1, &xs->bucket.bhs[1],
-					OCFS2_BH_CACHED);
+					0);
 			if (ret) {
 				mlog_errno(ret);
 				return ret;
@@ -2898,8 +2898,7 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 	if (!bhs)
 		return -ENOMEM;
 
-	ret = ocfs2_read_blocks(inode, blkno, blk_per_bucket, bhs,
-				OCFS2_BH_CACHED);
+	ret = ocfs2_read_blocks(inode, blkno, blk_per_bucket, bhs, 0);
 	if (ret)
 		goto out;
 
@@ -3153,8 +3152,7 @@ static int ocfs2_read_xattr_bucket(struct inode *inode,
 
 	if (!new)
 		return ocfs2_read_blocks(inode, blkno,
-					 blk_per_bucket, bhs,
-					 OCFS2_BH_CACHED);
+					 blk_per_bucket, bhs, 0);
 
 	for (i = 0; i < blk_per_bucket; i++) {
 		bhs[i] = sb_getblk(inode->i_sb, blkno + i);
@@ -4101,7 +4099,7 @@ static int ocfs2_xattr_set_entry_in_bucket(struct inode *inode,
 		ret = ocfs2_read_blocks(inode,
 					xs->bucket.bhs[0]->b_blocknr + 1,
 					blk_per_bucket - 1, &xs->bucket.bhs[1],
-					OCFS2_BH_CACHED);
+					0);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
