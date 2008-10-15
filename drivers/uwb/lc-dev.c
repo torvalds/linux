@@ -443,7 +443,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 
 	uwb_mac_addr_print(macbuf, sizeof(macbuf), bce->mac_addr);
 	uwb_dev_addr_print(devbuf, sizeof(devbuf), &bce->dev_addr);
-	uwb_dev = kcalloc(1, sizeof(*uwb_dev), GFP_KERNEL);
+	uwb_dev = kzalloc(sizeof(struct uwb_dev), GFP_KERNEL);
 	if (uwb_dev == NULL) {
 		dev_err(dev, "new device %s: Cannot allocate memory\n",
 			macbuf);

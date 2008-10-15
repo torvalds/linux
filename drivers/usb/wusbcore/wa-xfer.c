@@ -674,7 +674,7 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	size_t buf_itr, buf_size, buf_itr_size;
 
 	result = -ENOMEM;
-	xfer->seg = kzalloc(xfer->segs * sizeof(xfer->seg[0]), GFP_ATOMIC);
+	xfer->seg = kcalloc(xfer->segs, sizeof(xfer->seg[0]), GFP_ATOMIC);
 	if (xfer->seg == NULL)
 		goto error_segs_kzalloc;
 	buf_itr = 0;
