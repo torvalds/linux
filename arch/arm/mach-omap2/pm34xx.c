@@ -170,6 +170,8 @@ static void omap_sram_idle(void)
 		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
 		return;
 	}
+	pwrdm_pre_transition();
+
 	omap2_gpio_prepare_for_retention();
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
@@ -182,6 +184,9 @@ static void omap_sram_idle(void)
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
 	omap2_gpio_resume_after_retention();
+
+	pwrdm_post_transition();
+
 }
 
 /*
@@ -271,6 +276,7 @@ static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	if (sleep_switch) {
 		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
 	}
 
 err:
