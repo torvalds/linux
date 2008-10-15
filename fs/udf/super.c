@@ -820,7 +820,7 @@ static int udf_find_fileset(struct super_block *sb,
 
 	if (fileset->logicalBlockNum != 0xFFFFFFFF ||
 	    fileset->partitionReferenceNum != 0xFFFF) {
-		bh = udf_read_ptagged(sb, *fileset, 0, &ident);
+		bh = udf_read_ptagged(sb, fileset, 0, &ident);
 
 		if (!bh) {
 			return 1;
@@ -850,7 +850,7 @@ static int udf_find_fileset(struct super_block *sb,
 			newfileset.logicalBlockNum = 0;
 
 			do {
-				bh = udf_read_ptagged(sb, newfileset, 0,
+				bh = udf_read_ptagged(sb, &newfileset, 0,
 						      &ident);
 				if (!bh) {
 					newfileset.logicalBlockNum++;
@@ -959,7 +959,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 	udf_debug("Metadata file location: block = %d part = %d\n",
 			  addr.logicalBlockNum, addr.partitionReferenceNum);
 
-	mdata->s_metadata_fe = udf_iget(sb, addr);
+	mdata->s_metadata_fe = udf_iget(sb, &addr);
 
 	if (mdata->s_metadata_fe == NULL) {
 		udf_warning(sb, __func__, "metadata inode efe not found, "
@@ -981,7 +981,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 	udf_debug("Mirror metadata file location: block = %d part = %d\n",
 			  addr.logicalBlockNum, addr.partitionReferenceNum);
 
-	mdata->s_mirror_fe = udf_iget(sb, addr);
+	mdata->s_mirror_fe = udf_iget(sb, &addr);
 
 	if (mdata->s_mirror_fe == NULL) {
 		if (fe_error) {
@@ -1013,7 +1013,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 		udf_debug("Bitmap file location: block = %d part = %d\n",
 			addr.logicalBlockNum, addr.partitionReferenceNum);
 
-		mdata->s_bitmap_fe = udf_iget(sb, addr);
+		mdata->s_bitmap_fe = udf_iget(sb, &addr);
 
 		if (mdata->s_bitmap_fe == NULL) {
 			if (sb->s_flags & MS_RDONLY)
@@ -1125,7 +1125,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 			.partitionReferenceNum = p_index,
 		};
 
-		map->s_uspace.s_table = udf_iget(sb, loc);
+		map->s_uspace.s_table = udf_iget(sb, &loc);
 		if (!map->s_uspace.s_table) {
 			udf_debug("cannot load unallocSpaceTable (part %d)\n",
 					p_index);
@@ -1160,7 +1160,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 			.partitionReferenceNum = p_index,
 		};
 
-		map->s_fspace.s_table = udf_iget(sb, loc);
+		map->s_fspace.s_table = udf_iget(sb, &loc);
 		if (!map->s_fspace.s_table) {
 			udf_debug("cannot load freedSpaceTable (part %d)\n",
 				p_index);
@@ -1201,7 +1201,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	/* VAT file entry is in the last recorded block */
 	ino.partitionReferenceNum = type1_index;
 	ino.logicalBlockNum = sbi->s_last_block - map->s_partition_root;
-	sbi->s_vat_inode = udf_iget(sb, ino);
+	sbi->s_vat_inode = udf_iget(sb, &ino);
 	if (!sbi->s_vat_inode)
 		return 1;
 
@@ -1991,7 +1991,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	/* Assign the root inode */
 	/* assign inodes by physical block number */
 	/* perhaps it's not extensible enough, but for now ... */
-	inode = udf_iget(sb, rootdir);
+	inode = udf_iget(sb, &rootdir);
 	if (!inode) {
 		printk(KERN_ERR "UDF-fs: Error in udf_iget, block=%d, "
 				"partition=%d\n",
@@ -2124,7 +2124,7 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 
 	loc.logicalBlockNum = bitmap->s_extPosition;
 	loc.partitionReferenceNum = UDF_SB(sb)->s_partition;
-	bh = udf_read_ptagged(sb, loc, 0, &ident);
+	bh = udf_read_ptagged(sb, &loc, 0, &ident);
 
 	if (!bh) {
 		printk(KERN_ERR "udf: udf_count_free failed\n");
@@ -2147,7 +2147,7 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 		bytes -= cur_bytes;
 		if (bytes) {
 			brelse(bh);
-			newblock = udf_get_lb_pblock(sb, loc, ++block);
+			newblock = udf_get_lb_pblock(sb, &loc, ++block);
 			bh = udf_tread(sb, newblock);
 			if (!bh) {
 				udf_debug("read failed\n");

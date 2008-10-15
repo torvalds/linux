@@ -111,7 +111,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		    (EXT_RECORDED_ALLOCATED >> 30))
 			return NULL;
 
-		block = udf_get_lb_pblock(dir->i_sb, *eloc, *offset);
+		block = udf_get_lb_pblock(dir->i_sb, eloc, *offset);
 
 		(*offset)++;
 
@@ -131,7 +131,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 			if (i + *offset > (*elen >> blocksize_bits))
 				i = (*elen >> blocksize_bits)-*offset;
 			for (num = 0; i > 0; i--) {
-				block = udf_get_lb_pblock(dir->i_sb, *eloc,
+				block = udf_get_lb_pblock(dir->i_sb, eloc,
 							  *offset + i);
 				tmp = udf_tgetblk(dir->i_sb, block);
 				if (tmp && !buffer_uptodate(tmp) &&
@@ -169,7 +169,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		    (EXT_RECORDED_ALLOCATED >> 30))
 			return NULL;
 
-		block = udf_get_lb_pblock(dir->i_sb, *eloc, *offset);
+		block = udf_get_lb_pblock(dir->i_sb, eloc, *offset);
 
 		(*offset)++;
 

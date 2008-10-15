@@ -54,7 +54,7 @@ void udf_free_inode(struct inode *inode)
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
 
-	udf_free_blocks(sb, NULL, UDF_I(inode)->i_location, 0, 1);
+	udf_free_blocks(sb, NULL, &UDF_I(inode)->i_location, 0, 1);
 }
 
 struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
@@ -138,7 +138,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	iinfo->i_location.logicalBlockNum = block;
 	iinfo->i_location.partitionReferenceNum =
 				dinfo->i_location.partitionReferenceNum;
-	inode->i_ino = udf_get_lb_pblock(sb, iinfo->i_location, 0);
+	inode->i_ino = udf_get_lb_pblock(sb, &iinfo->i_location, 0);
 	inode->i_blocks = 0;
 	iinfo->i_lenEAttr = 0;
 	iinfo->i_lenAlloc = 0;

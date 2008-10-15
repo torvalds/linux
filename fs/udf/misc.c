@@ -255,11 +255,12 @@ error_out:
 	return NULL;
 }
 
-struct buffer_head *udf_read_ptagged(struct super_block *sb, struct kernel_lb_addr loc,
+struct buffer_head *udf_read_ptagged(struct super_block *sb,
+				     struct kernel_lb_addr *loc,
 				     uint32_t offset, uint16_t *ident)
 {
 	return udf_read_tagged(sb, udf_get_lb_pblock(sb, loc, offset),
-			       loc.logicalBlockNum + offset, ident);
+			       loc->logicalBlockNum + offset, ident);
 }
 
 void udf_update_tag(char *data, int length)
