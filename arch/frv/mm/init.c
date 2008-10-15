@@ -87,8 +87,6 @@ void __init paging_init(void)
 
 		pkmap_page_table = alloc_bootmem_pages(PAGE_SIZE);
 
-		memset(pkmap_page_table, 0, PAGE_SIZE);
-
 		pge = swapper_pg_dir + pgd_index_k(PKMAP_BASE);
 		pue = pud_offset(pge, PKMAP_BASE);
 		pme = pmd_offset(pue, PKMAP_BASE);
