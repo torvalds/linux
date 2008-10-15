@@ -802,7 +802,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	list_add_tail(&dev->devlist,&cx8802_devlist);
 
 	mutex_init(&dev->frontends.lock);
-	INIT_LIST_HEAD(&dev->frontends.frontend.felist);
+	INIT_LIST_HEAD(&dev->frontends.felist);
 
 	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__, core->board.num_frontends);
 

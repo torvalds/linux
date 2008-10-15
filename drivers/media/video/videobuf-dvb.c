@@ -162,9 +162,8 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 
 	/* Attach all of the frontends to the adapter */
 	mutex_lock(&f->lock);
-	list_for_each_safe(list, q, &f->frontend.felist) {
+	list_for_each_safe(list, q, &f->felist) {
 		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
-
 		res = videobuf_dvb_register_frontend(&f->adapter, &fe->dvb);
 		if (res < 0) {
 			printk(KERN_WARNING "%s: videobuf_dvb_register_frontend failed (errno = %d)\n",
@@ -290,7 +289,7 @@ void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f)
 	struct videobuf_dvb_frontend *fe;
 
 	mutex_lock(&f->lock);
-	list_for_each_safe(list, q, &f->frontend.felist) {
+	list_for_each_safe(list, q, &f->felist) {
 		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
 
 		dvb_net_release(&fe->dvb.net);
@@ -316,7 +315,7 @@ struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_fro
 
 	mutex_lock(&f->lock);
 
-	list_for_each_safe(list, q, &f->frontend.felist) {
+	list_for_each_safe(list, q, &f->felist) {
 		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
 		if (fe->id == id) {
 			ret = fe;
@@ -337,7 +336,7 @@ int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_fron
 
 	mutex_lock(&f->lock);
 
-	list_for_each_safe(list, q, &f->frontend.felist) {
+	list_for_each_safe(list, q, &f->felist) {
 		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
 		if (fe->dvb.frontend == p) {
 			ret = fe->id;
@@ -363,7 +362,7 @@ struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(void *private, struct
 	mutex_init(&fe->dvb.lock);
 
 	mutex_lock(&f->lock);
-	list_add_tail(&fe->felist,&f->frontend.felist);
+	list_add_tail(&fe->felist,&f->felist);
 	mutex_unlock(&f->lock);
 
 fail_alloc:

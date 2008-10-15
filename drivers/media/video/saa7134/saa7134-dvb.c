@@ -953,7 +953,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	/* FIXME: add support for multi-frontend */
 	mutex_init(&dev->frontends.lock);
-	INIT_LIST_HEAD(&dev->frontends.frontend.felist);
+	INIT_LIST_HEAD(&dev->frontends.felist);
 	dev->frontends.active_fe_id = 0;
 
 	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);

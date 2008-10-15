@@ -16,7 +16,6 @@ struct videobuf_dvb {
 	int                        nfeeds;
 
 	/* videobuf_dvb_(un)register manges this */
-	struct dvb_adapter         adapter;
 	struct dvb_demux           demux;
 	struct dmxdev              dmxdev;
 	struct dmx_frontend        fe_hw;
@@ -25,17 +24,17 @@ struct videobuf_dvb {
 };
 
 struct videobuf_dvb_frontend {
-	void *dev;
 	struct list_head felist;
+	void *dev;
 	int id;
 	struct videobuf_dvb dvb;
 };
 
 struct videobuf_dvb_frontends {
+	struct list_head felist;
 	struct mutex lock;
 	struct dvb_adapter adapter;
 	int active_fe_id; /* Indicates which frontend in the felist is in use */
-	struct videobuf_dvb_frontend frontend;
 	int gate; /* Frontend with gate control 0=!MFE,1=fe0,2=fe1 etc */
 };
 

@@ -643,7 +643,7 @@ static int cx23885_init_tsport(struct cx23885_dev *dev,
 	init_timer(&port->mpegq.timeout);
 
 	mutex_init(&port->frontends.lock);
-	INIT_LIST_HEAD(&port->frontends.frontend.felist);
+	INIT_LIST_HEAD(&port->frontends.felist);
 	port->frontends.active_fe_id = 0;
 
 	/* This should be hardcoded allow a single frontend
