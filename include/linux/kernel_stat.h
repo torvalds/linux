@@ -28,9 +28,7 @@ struct cpu_usage_stat {
 
 struct kernel_stat {
 	struct cpu_usage_stat	cpustat;
-#ifndef CONFIG_HAVE_DYN_ARRAY
        unsigned int irqs[NR_IRQS];
-#endif
 };
 
 DECLARE_PER_CPU(struct kernel_stat, kstat);
@@ -41,20 +39,18 @@ DECLARE_PER_CPU(struct kernel_stat, kstat);
 
 extern unsigned long long nr_context_switches(void);
 
-#ifndef CONFIG_HAVE_DYN_ARRAY
-#define kstat_irqs_this_cpu(irq) \
-	(kstat_this_cpu.irqs[irq])
-#endif
+struct irq_desc;
 
+static inline void kstat_incr_irqs_this_cpu(unsigned int irq,
+					    struct irq_desc *desc)
+{
+	kstat_this_cpu.irqs[irq]++;
+}
 
-#ifndef CONFIG_HAVE_DYN_ARRAY
 static inline unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
        return kstat_cpu(cpu).irqs[irq];
 }
-#else
-extern unsigned int kstat_irqs_cpu(unsigned int irq, int cpu);
-#endif
 
 /*
  * Number of interrupts per specific IRQ source, since bootup

@@ -102,7 +102,3 @@ config HAVE_CLK
 	help
 	  The <linux/clk.h> calls support software clock gating and
 	  thus are a key power management tool on many systems.
-
-config HAVE_DYN_ARRAY
-	def_bool n
-

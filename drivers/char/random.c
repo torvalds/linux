@@ -558,12 +558,7 @@ struct timer_rand_state {
 	unsigned dont_count_entropy:1;
 };
 
-#ifdef CONFIG_HAVE_DYN_ARRAY
-static struct timer_rand_state **irq_timer_state;
-DEFINE_DYN_ARRAY(irq_timer_state, sizeof(struct timer_rand_state *), nr_irqs, PAGE_SIZE, NULL);
-#else
 static struct timer_rand_state *irq_timer_state[NR_IRQS];
-#endif
 
 static struct timer_rand_state *get_timer_rand_state(unsigned int irq)
 {

@@ -18,11 +18,6 @@
 
 #include "internals.h"
 
-/*
- * lockdep: we want to handle all irq_desc locks as a single lock-class:
- */
-static struct lock_class_key irq_desc_lock_class;
-
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
  * @irq:       the interrupt number
@@ -30,15 +25,10 @@ static struct lock_class_key irq_desc_lock_class;
  *
  * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
  */
-void
-handle_bad_irq(unsigned int irq, struct irq_desc *desc)
+void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 {
 	print_irq_desc(irq, desc);
-#ifdef CONFIG_HAVE_DYN_ARRAY
-	kstat_irqs_this_cpu(desc)++;
-#else
-	kstat_irqs_this_cpu(irq)++;
-#endif
+	kstat_incr_irqs_this_cpu(irq, desc);
 	ack_bad_irq(irq);
 }
 
@@ -59,80 +49,6 @@ handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
-#ifdef CONFIG_HAVE_DYN_ARRAY
-static struct irq_desc irq_desc_init = {
-	.irq = -1U,
-	.status = IRQ_DISABLED,
-	.chip = &no_irq_chip,
-	.handle_irq = handle_bad_irq,
-	.depth = 1,
-	.lock = __SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
-#ifdef CONFIG_SMP
-	.affinity = CPU_MASK_ALL
-#endif
-};
-
-
-static void init_one_irq_desc(struct irq_desc *desc)
-{
-	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
-	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
-}
-
-extern int after_bootmem;
-extern void *__alloc_bootmem_nopanic(unsigned long size,
-			     unsigned long align,
-			     unsigned long goal);
-
-static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
-{
-	unsigned long bytes, total_bytes;
-	char *ptr;
-	int i;
-	unsigned long phys;
-
-	/* Compute how many bytes we need per irq and allocate them */
-	bytes = nr * sizeof(unsigned int);
-	total_bytes = bytes * nr_desc;
-	if (after_bootmem)
-		ptr = kzalloc(total_bytes, GFP_ATOMIC);
-	else
-		ptr = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
-
-	if (!ptr)
-		panic(" can not allocate kstat_irqs\n");
-
-	phys = __pa(ptr);
-	printk(KERN_DEBUG "kstat_irqs ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
-
-	for (i = 0; i < nr_desc; i++) {
-		desc[i].kstat_irqs = (unsigned int *)ptr;
-		ptr += bytes;
-	}
-}
-
-static void __init init_work(void *data)
-{
-	struct dyn_array *da = data;
-	int i;
-	struct  irq_desc *desc;
-
-	desc = *da->name;
-
-	for (i = 0; i < *da->nr; i++) {
-		init_one_irq_desc(&desc[i]);
-		desc[i].irq = i;
-	}
-
-	/* init kstat_irqs, nr_cpu_ids is ready already */
-	init_kstat_irqs(desc, *da->nr, nr_cpu_ids);
-}
-
-struct irq_desc *irq_desc;
-DEFINE_DYN_ARRAY(irq_desc, sizeof(struct irq_desc), nr_irqs, PAGE_SIZE, init_work);
-
-#else
-
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
@@ -145,8 +61,6 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 #endif
 	}
 };
-
-#endif
 
 /*
  * What should we do if we get a hw irq event on an illegal vector?
@@ -258,11 +172,8 @@ unsigned int __do_IRQ(unsigned int irq)
 	struct irqaction *action;
 	unsigned int status;
 
-#ifdef CONFIG_HAVE_DYN_ARRAY
-	kstat_irqs_this_cpu(desc)++;
-#else
-	kstat_irqs_this_cpu(irq)++;
-#endif
+	kstat_incr_irqs_this_cpu(irq, desc);
+
 	if (CHECK_IRQ_PER_CPU(desc->status)) {
 		irqreturn_t action_ret;
 
@@ -351,23 +262,16 @@ out:
 
 
 #ifdef CONFIG_TRACE_IRQFLAGS
+/*
+ * lockdep: we want to handle all irq_desc locks as a single lock-class:
+ */
+static struct lock_class_key irq_desc_lock_class;
+
 void early_init_irq_lock_class(void)
 {
-#ifndef CONFIG_HAVE_DYN_ARRAY
 	int i;
 
 	for (i = 0; i < nr_irqs; i++)
 		lockdep_set_class(&irq_desc[i].lock, &irq_desc_lock_class);
-#endif
 }
 #endif
-
-#ifdef CONFIG_HAVE_DYN_ARRAY
-unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	return desc->kstat_irqs[cpu];
-}
-#endif
-EXPORT_SYMBOL(kstat_irqs_cpu);
-

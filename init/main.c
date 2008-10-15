@@ -391,23 +391,17 @@ EXPORT_SYMBOL(__per_cpu_offset);
 
 static void __init setup_per_cpu_areas(void)
 {
-	unsigned long size, i, old_size;
+	unsigned long size, i;
 	char *ptr;
 	unsigned long nr_possible_cpus = num_possible_cpus();
-	unsigned long align = 1;
-	unsigned da_size;
 
 	/* Copy section for each CPU (we discard the original) */
-	old_size = PERCPU_ENOUGH_ROOM;
-	da_size = per_cpu_dyn_array_size(&align);
-	align = max_t(unsigned long, PAGE_SIZE, align);
-	size = ALIGN(old_size + da_size, align);
+	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
 	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
 
 	for_each_possible_cpu(i) {
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-		per_cpu_alloc_dyn_array(i, ptr + old_size);
 		ptr += size;
 	}
 }
@@ -573,7 +567,6 @@ asmlinkage void __init start_kernel(void)
 	printk(KERN_NOTICE);
 	printk(linux_banner);
 	setup_arch(&command_line);
-	pre_alloc_dyn_array();
 	mm_init_owner(&init_mm, &init_task);
 	setup_command_line(command_line);
 	unwind_setup();

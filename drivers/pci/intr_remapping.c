@@ -19,20 +19,13 @@ struct irq_2_iommu {
 	u8  irte_mask;
 };
 
-#ifdef CONFIG_HAVE_DYN_ARRAY
-static struct irq_2_iommu *irq_2_iommuX;
-DEFINE_DYN_ARRAY(irq_2_iommuX, sizeof(struct irq_2_iommu), nr_irqs, PAGE_SIZE, NULL);
-#else
 static struct irq_2_iommu irq_2_iommuX[NR_IRQS];
-#endif
 
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	if (irq < nr_irqs)
-		return &irq_2_iommuX[irq];
-
-	return NULL;
+	return (irq < nr_irqs) ?: irq_2_iommuX + irq : NULL;
 }
+
 static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 {
 	return irq_2_iommu(irq);

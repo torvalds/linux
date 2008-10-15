@@ -633,7 +633,7 @@ static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 	/*
 	 * handle this 'virtual interrupt' as a Cobalt one now.
 	 */
-	kstat_irqs_this_cpu(desc)++;
+	kstat_incr_irqs_this_cpu(realirq, desc);
 
 	if (likely(desc->action != NULL))
 		handle_IRQ_event(realirq, desc->action);

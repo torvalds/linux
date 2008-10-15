@@ -140,7 +140,7 @@ static void __init setup_cpu_pda_map(void)
  */
 void __init setup_per_cpu_areas(void)
 {
-	ssize_t size, old_size, da_size;
+	ssize_t size, old_size;
 	char *ptr;
 	int cpu;
 	unsigned long align = 1;
@@ -150,9 +150,8 @@ void __init setup_per_cpu_areas(void)
 
 	/* Copy section for each CPU (we discard the original) */
 	old_size = PERCPU_ENOUGH_ROOM;
-	da_size = per_cpu_dyn_array_size(&align);
 	align = max_t(unsigned long, PAGE_SIZE, align);
-	size = roundup(old_size + da_size, align);
+	size = roundup(old_size, align);
 	printk(KERN_INFO "PERCPU: Allocating %zd bytes of per cpu data\n",
 			  size);
 
@@ -182,9 +181,6 @@ void __init setup_per_cpu_areas(void)
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-
-		per_cpu_alloc_dyn_array(cpu, ptr + old_size);
-
 	}
 
 	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d, nr_node_ids %d\n",
