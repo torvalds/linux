@@ -2654,6 +2654,7 @@ asmlinkage long sys_renameat(int olddfd, const char __user *oldname,
 
 	oldnd.flags &= ~LOOKUP_PARENT;
 	newnd.flags &= ~LOOKUP_PARENT;
+	newnd.flags |= LOOKUP_RENAME_TARGET;
 
 	trap = lock_rename(new_dir, old_dir);
 
