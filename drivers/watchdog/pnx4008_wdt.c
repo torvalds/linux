@@ -173,8 +173,8 @@ static const struct watchdog_info ident = {
 	.identity = "PNX4008 Watchdog",
 };
 
-static long pnx4008_wdt_ioctl(struct inode *inode, struct file *file,
-					unsigned int cmd, unsigned long arg)
+static long pnx4008_wdt_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int time;

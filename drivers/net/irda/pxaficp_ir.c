@@ -572,8 +572,8 @@ static void pxa_irda_startup(struct pxa_irda *si)
 	ICCR2 = ICCR2_TXP | ICCR2_TRIG_32;
 
 	/* configure DMAC */
-	DRCMR17 = si->rxdma | DRCMR_MAPVLD;
-	DRCMR18 = si->txdma | DRCMR_MAPVLD;
+	DRCMR(17) = si->rxdma | DRCMR_MAPVLD;
+	DRCMR(18) = si->txdma | DRCMR_MAPVLD;
 
 	/* force SIR reinitialization */
 	si->speed = 4000000;
@@ -602,8 +602,8 @@ static void pxa_irda_shutdown(struct pxa_irda *si)
 	/* disable the STUART or FICP clocks */
 	pxa_irda_disable_clk(si);
 
-	DRCMR17 = 0;
-	DRCMR18 = 0;
+	DRCMR(17) = 0;
+	DRCMR(18) = 0;
 
 	local_irq_restore(flags);
 

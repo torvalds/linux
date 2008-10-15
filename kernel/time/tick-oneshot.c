@@ -43,19 +43,17 @@ int tick_dev_program_event(struct clock_event_device *dev, ktime_t expires,
 		 * and emit a warning.
 		 */
 		if (++i > 2) {
-			printk(KERN_WARNING "CE: __tick_program_event of %s is "
-			       "stuck %llx %llx\n", dev->name ? dev->name : "?",
-			       now.tv64, expires.tv64);
-			printk(KERN_WARNING
-			       "CE: increasing min_delta_ns %ld to %ld nsec\n",
-			       dev->min_delta_ns, dev->min_delta_ns << 1);
-			WARN_ON(1);
-
-			/* Double the min. delta and try again */
+			/* Increase the min. delta and try again */
 			if (!dev->min_delta_ns)
 				dev->min_delta_ns = 5000;
 			else
-				dev->min_delta_ns <<= 1;
+				dev->min_delta_ns += dev->min_delta_ns >> 1;
+
+			printk(KERN_WARNING
+			       "CE: %s increasing min_delta_ns to %lu nsec\n",
+			       dev->name ? dev->name : "?",
+			       dev->min_delta_ns << 1);
+
 			i = 0;
 		}
 

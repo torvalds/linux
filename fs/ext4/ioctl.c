@@ -23,9 +23,8 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned int flags;
-	unsigned short rsv_window_size;
 
-	ext4_debug ("cmd = %u, arg = %lu\n", cmd, arg);
+	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
 
 	switch (cmd) {
 	case EXT4_IOC_GETFLAGS:
@@ -34,7 +33,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return put_user(flags, (int __user *) arg);
 	case EXT4_IOC_SETFLAGS: {
 		handle_t *handle = NULL;
-		int err;
+		int err, migrate = 0;
 		struct ext4_iloc iloc;
 		unsigned int oldflags;
 		unsigned int jflag;
@@ -82,6 +81,17 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (!capable(CAP_SYS_RESOURCE))
 				goto flags_out;
 		}
+		if (oldflags & EXT4_EXTENTS_FL) {
+			/* We don't support clearning extent flags */
+			if (!(flags & EXT4_EXTENTS_FL)) {
+				err = -EOPNOTSUPP;
+				goto flags_out;
+			}
+		} else if (flags & EXT4_EXTENTS_FL) {
+			/* migrate the file */
+			migrate = 1;
+			flags &= ~EXT4_EXTENTS_FL;
+		}
 
 		handle = ext4_journal_start(inode, 1);
 		if (IS_ERR(handle)) {
@@ -109,6 +119,10 @@ flags_err:
 
 		if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL))
 			err = ext4_change_inode_journal_flag(inode, jflag);
+		if (err)
+			goto flags_out;
+		if (migrate)
+			err = ext4_ext_migrate(inode);
 flags_out:
 		mutex_unlock(&inode->i_mutex);
 		mnt_drop_write(filp->f_path.mnt);
@@ -175,53 +189,10 @@ setversion_out:
 			return ret;
 		}
 #endif
-	case EXT4_IOC_GETRSVSZ:
-		if (test_opt(inode->i_sb, RESERVATION)
-			&& S_ISREG(inode->i_mode)
-			&& ei->i_block_alloc_info) {
-			rsv_window_size = ei->i_block_alloc_info->rsv_window_node.rsv_goal_size;
-			return put_user(rsv_window_size, (int __user *)arg);
-		}
-		return -ENOTTY;
-	case EXT4_IOC_SETRSVSZ: {
-		int err;
-
-		if (!test_opt(inode->i_sb, RESERVATION) ||!S_ISREG(inode->i_mode))
-			return -ENOTTY;
-
-		if (!is_owner_or_cap(inode))
-			return -EACCES;
-
-		if (get_user(rsv_window_size, (int __user *)arg))
-			return -EFAULT;
-
-		err = mnt_want_write(filp->f_path.mnt);
-		if (err)
-			return err;
-
-		if (rsv_window_size > EXT4_MAX_RESERVE_BLOCKS)
-			rsv_window_size = EXT4_MAX_RESERVE_BLOCKS;
-
-		/*
-		 * need to allocate reservation structure for this inode
-		 * before set the window size
-		 */
-		down_write(&ei->i_data_sem);
-		if (!ei->i_block_alloc_info)
-			ext4_init_block_alloc_info(inode);
-
-		if (ei->i_block_alloc_info){
-			struct ext4_reserve_window_node *rsv = &ei->i_block_alloc_info->rsv_window_node;
-			rsv->rsv_goal_size = rsv_window_size;
-		}
-		up_write(&ei->i_data_sem);
-		mnt_drop_write(filp->f_path.mnt);
-		return 0;
-	}
 	case EXT4_IOC_GROUP_EXTEND: {
 		ext4_fsblk_t n_blocks_count;
 		struct super_block *sb = inode->i_sb;
-		int err;
+		int err, err2;
 
 		if (!capable(CAP_SYS_RESOURCE))
 			return -EPERM;
@@ -235,8 +206,10 @@ setversion_out:
 
 		err = ext4_group_extend(sb, EXT4_SB(sb)->s_es, n_blocks_count);
 		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		if (err == 0)
+			err = err2;
 		mnt_drop_write(filp->f_path.mnt);
 
 		return err;
@@ -244,7 +217,7 @@ setversion_out:
 	case EXT4_IOC_GROUP_ADD: {
 		struct ext4_new_group_data input;
 		struct super_block *sb = inode->i_sb;
-		int err;
+		int err, err2;
 
 		if (!capable(CAP_SYS_RESOURCE))
 			return -EPERM;
@@ -259,15 +232,36 @@ setversion_out:
 
 		err = ext4_group_add(sb, &input);
 		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		if (err == 0)
+			err = err2;
 		mnt_drop_write(filp->f_path.mnt);
 
 		return err;
 	}
 
 	case EXT4_IOC_MIGRATE:
-		return ext4_ext_migrate(inode, filp, cmd, arg);
+	{
+		int err;
+		if (!is_owner_or_cap(inode))
+			return -EACCES;
+
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			return err;
+		/*
+		 * inode_mutex prevent write and truncate on the file.
+		 * Read still goes through. We take i_data_sem in
+		 * ext4_ext_swap_inode_data before we switch the
+		 * inode format to prevent read.
+		 */
+		mutex_lock(&(inode->i_mutex));
+		err = ext4_ext_migrate(inode);
+		mutex_unlock(&(inode->i_mutex));
+		mnt_drop_write(filp->f_path.mnt);
+		return err;
+	}
 
 	default:
 		return -ENOTTY;

@@ -72,9 +72,7 @@ KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
 KBUILD_CFLAGS +=   $(call cc-option,-m32)
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 
-$(obj)/zImage:  IMAGE_OFFSET := 0x1000
 $(obj)/zImage:  asflags-y := $(SVGA_MODE) $(RAMDISK)
-$(obj)/bzImage: IMAGE_OFFSET := 0x100000
 $(obj)/bzImage: ccflags-y := -D__BIG_KERNEL__
 $(obj)/bzImage: asflags-y := $(SVGA_MODE) $(RAMDISK) -D__BIG_KERNEL__
 $(obj)/bzImage: BUILDFLAGS   := -b
@@ -117,7 +115,7 @@ $(obj)/setup.bin: $(obj)/setup.elf FORCE
 	$(call if_changed,objcopy)
 
 $(obj)/compressed/vmlinux: FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/compressed IMAGE_OFFSET=$(IMAGE_OFFSET) $@
+	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
 # Set this if you want to pass append arguments to the zdisk/fdimage/isoimage kernel
 FDARGS =
@@ -181,6 +179,7 @@ isoimage: $(BOOTIMAGE)
 	mkisofs -J -r -o $(obj)/image.iso -b isolinux.bin -c boot.cat \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		$(obj)/isoimage
+	isohybrid $(obj)/image.iso 2>/dev/null || true
 	rm -rf $(obj)/isoimage
 
 zlilo: $(BOOTIMAGE)

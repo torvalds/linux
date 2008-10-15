@@ -231,7 +231,7 @@ sys_call_table:
 	PTR	sys_setuid
 	PTR	sys_getuid
 	PTR	compat_sys_stime		/* 4025 */
-	PTR	sys32_ptrace
+	PTR	compat_sys_ptrace
 	PTR	sys_alarm
 	PTR	sys_ni_syscall			/* was sys_fstat */
 	PTR	sys_pause

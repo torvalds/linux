@@ -9,7 +9,7 @@
  *	identical recvmsg() code. So we share it here. The poll was
  *	shared before but buried in udp.c so I moved it.
  *
- *	Authors:	Alan Cox <alan@redhat.com>. (datagram_poll() from old
+ *	Authors:	Alan Cox <alan@lxorguk.ukuu.org.uk>. (datagram_poll() from old
  *						     udp.c code)
  *
  *	Fixes:

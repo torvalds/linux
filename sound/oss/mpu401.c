@@ -1015,7 +1015,7 @@ int attach_mpu401(struct address_info *hw_config, struct module *owner)
 		mpu401_chk_version(m, devc);
 		if (devc->version == 0)
 			mpu401_chk_version(m, devc);
-			spin_unlock_irqrestore(&devc->lock,flags);
+		spin_unlock_irqrestore(&devc->lock, flags);
 	}
 
 	if (devc->version != 0)

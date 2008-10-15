@@ -384,7 +384,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
 		dbg("%s - ignoring since device not open\n", __func__);
 		return;
@@ -394,6 +394,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 
 	spin_lock(&priv->lock);
 

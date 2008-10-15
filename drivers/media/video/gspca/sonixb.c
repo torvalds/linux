@@ -232,7 +232,7 @@ static struct ctrl sd_ctrls[] = {
 static struct v4l2_pix_format vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 5 / 4,
+		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
@@ -264,7 +264,7 @@ static struct v4l2_pix_format sif_mode[] = {
 		.priv = 1 | MODE_REDUCED_SIF},
 	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 176 * 144 * 5 / 4,
+		.sizeimage = 176 * 144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_RAW},
 	{176, 144, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
@@ -490,7 +490,7 @@ static const __u8 tas5130_sensor_init[][8] = {
 	{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10},
 };
 
-struct sensor_data sensor_data[] = {
+static struct sensor_data sensor_data[] = {
 SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
 SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,
@@ -892,7 +892,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam = &gspca_dev->cam;
@@ -976,6 +976,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	sd->frames_to_drop = 0;
 	sd->autogain_ignore_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

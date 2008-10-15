@@ -78,7 +78,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 static void default_idle(void)
 {
 	if (!need_resched())
-#if defined(MACH_ATARI_ONLY) && !defined(CONFIG_HADES)
+#if defined(MACH_ATARI_ONLY)
 		/* block out HSYNC on the atari (falcon) */
 		__asm__("stop #0x2200" : : : "cc");
 #else

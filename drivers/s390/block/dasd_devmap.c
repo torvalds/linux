@@ -515,9 +515,9 @@ dasd_devmap_from_cdev(struct ccw_device *cdev)
 {
 	struct dasd_devmap *devmap;
 
-	devmap = dasd_find_busid(cdev->dev.bus_id);
+	devmap = dasd_find_busid(dev_name(&cdev->dev));
 	if (IS_ERR(devmap))
-		devmap = dasd_add_busid(cdev->dev.bus_id,
+		devmap = dasd_add_busid(dev_name(&cdev->dev),
 					DASD_FEATURE_DEFAULT);
 	return devmap;
 }
@@ -584,7 +584,7 @@ dasd_delete_device(struct dasd_device *device)
 	unsigned long flags;
 
 	/* First remove device pointer from devmap. */
-	devmap = dasd_find_busid(device->cdev->dev.bus_id);
+	devmap = dasd_find_busid(dev_name(&device->cdev->dev));
 	BUG_ON(IS_ERR(devmap));
 	spin_lock(&dasd_devmap_lock);
 	if (devmap->device != device) {
@@ -674,7 +674,7 @@ dasd_ro_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dasd_devmap *devmap;
 	int ro_flag;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	if (!IS_ERR(devmap))
 		ro_flag = (devmap->features & DASD_FEATURE_READONLY) != 0;
 	else
@@ -723,7 +723,7 @@ dasd_erplog_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dasd_devmap *devmap;
 	int erplog;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	if (!IS_ERR(devmap))
 		erplog = (devmap->features & DASD_FEATURE_ERPLOG) != 0;
 	else
@@ -770,7 +770,7 @@ dasd_use_diag_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dasd_devmap *devmap;
 	int use_diag;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	if (!IS_ERR(devmap))
 		use_diag = (devmap->features & DASD_FEATURE_USEDIAG) != 0;
 	else
@@ -876,7 +876,7 @@ dasd_alias_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dasd_devmap *devmap;
 	int alias;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	spin_lock(&dasd_devmap_lock);
 	if (IS_ERR(devmap) || strlen(devmap->uid.vendor) == 0) {
 		spin_unlock(&dasd_devmap_lock);
@@ -899,7 +899,7 @@ dasd_vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dasd_devmap *devmap;
 	char *vendor;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	spin_lock(&dasd_devmap_lock);
 	if (!IS_ERR(devmap) && strlen(devmap->uid.vendor) > 0)
 		vendor = devmap->uid.vendor;
@@ -924,7 +924,7 @@ dasd_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
 	char ua_string[3];
 	struct dasd_uid *uid;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	spin_lock(&dasd_devmap_lock);
 	if (IS_ERR(devmap) || strlen(devmap->uid.vendor) == 0) {
 		spin_unlock(&dasd_devmap_lock);
@@ -972,7 +972,7 @@ dasd_eer_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct dasd_devmap *devmap;
 	int eer_flag;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	if (!IS_ERR(devmap) && devmap->device)
 		eer_flag = dasd_eer_enabled(devmap->device);
 	else
@@ -1034,7 +1034,7 @@ dasd_get_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 {
 	struct dasd_devmap *devmap;
 
-	devmap = dasd_find_busid(cdev->dev.bus_id);
+	devmap = dasd_find_busid(dev_name(&cdev->dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 	spin_lock(&dasd_devmap_lock);
@@ -1057,7 +1057,7 @@ dasd_set_uid(struct ccw_device *cdev, struct dasd_uid *uid)
 {
 	struct dasd_devmap *devmap;
 
-	devmap = dasd_find_busid(cdev->dev.bus_id);
+	devmap = dasd_find_busid(dev_name(&cdev->dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
@@ -1077,7 +1077,7 @@ dasd_get_feature(struct ccw_device *cdev, int feature)
 {
 	struct dasd_devmap *devmap;
 
-	devmap = dasd_find_busid(cdev->dev.bus_id);
+	devmap = dasd_find_busid(dev_name(&cdev->dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
@@ -1093,7 +1093,7 @@ dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
 {
 	struct dasd_devmap *devmap;
 
-	devmap = dasd_find_busid(cdev->dev.bus_id);
+	devmap = dasd_find_busid(dev_name(&cdev->dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 

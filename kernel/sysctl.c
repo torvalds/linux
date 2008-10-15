@@ -80,7 +80,6 @@ extern int pid_max_min, pid_max_max;
 extern int sysctl_drop_caches;
 extern int percpu_pagelist_fraction;
 extern int compat_log;
-extern int maps_protect;
 extern int latencytop_enabled;
 extern int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifdef CONFIG_RCU_TORTURE_TEST
@@ -97,7 +96,7 @@ static int sixty = 60;
 static int neg_one = -1;
 #endif
 
-#ifdef CONFIG_MMU
+#if defined(CONFIG_MMU) && defined(CONFIG_FILE_LOCKING)
 static int two = 2;
 #endif
 
@@ -118,10 +117,8 @@ extern char modprobe_path[];
 extern int sg_big_buff;
 #endif
 
-#ifdef __sparc__
-extern char reboot_command [];
-extern int stop_a_enabled;
-extern int scons_pwroff;
+#ifdef CONFIG_SPARC
+#include <asm/system.h>
 #endif
 
 #ifdef __hppa__
@@ -415,7 +412,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	{
 		.ctl_name	= KERN_SPARC_REBOOT,
 		.procname	= "reboot-cmd",
@@ -808,16 +805,6 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
-	},
-#endif
-#ifdef CONFIG_PROC_FS
-	{
-		.ctl_name       = CTL_UNNUMBERED,
-		.procname       = "maps_protect",
-		.data           = &maps_protect,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = &proc_dointvec,
 	},
 #endif
 	{
@@ -1261,6 +1248,7 @@ static struct ctl_table fs_table[] = {
 		.extra1		= &minolduid,
 		.extra2		= &maxolduid,
 	},
+#ifdef CONFIG_FILE_LOCKING
 	{
 		.ctl_name	= FS_LEASES,
 		.procname	= "leases-enable",
@@ -1269,6 +1257,7 @@ static struct ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#endif
 #ifdef CONFIG_DNOTIFY
 	{
 		.ctl_name	= FS_DIR_NOTIFY,
@@ -1280,6 +1269,7 @@ static struct ctl_table fs_table[] = {
 	},
 #endif
 #ifdef CONFIG_MMU
+#ifdef CONFIG_FILE_LOCKING
 	{
 		.ctl_name	= FS_LEASE_TIME,
 		.procname	= "lease-break-time",
@@ -1291,6 +1281,7 @@ static struct ctl_table fs_table[] = {
 		.extra1		= &zero,
 		.extra2		= &two,
 	},
+#endif
 	{
 		.procname	= "aio-nr",
 		.data		= &aio_nr,

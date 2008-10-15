@@ -1078,7 +1078,7 @@ static int __devexit sab_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id sab_match[] = {
+static const struct of_device_id sab_match[] = {
 	{
 		.name = "se",
 	},

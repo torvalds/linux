@@ -43,7 +43,7 @@ int sidtab_insert(struct sidtab *s, u32 sid, struct context *context)
 	hvalue = SIDTAB_HASH(sid);
 	prev = NULL;
 	cur = s->htable[hvalue];
-	while (cur != NULL && sid > cur->sid) {
+	while (cur && sid > cur->sid) {
 		prev = cur;
 		cur = cur->next;
 	}
@@ -92,7 +92,7 @@ static struct context *sidtab_search_core(struct sidtab *s, u32 sid, int force)
 
 	hvalue = SIDTAB_HASH(sid);
 	cur = s->htable[hvalue];
-	while (cur != NULL && sid > cur->sid)
+	while (cur && sid > cur->sid)
 		cur = cur->next;
 
 	if (force && cur && sid == cur->sid && cur->context.len)
@@ -103,7 +103,7 @@ static struct context *sidtab_search_core(struct sidtab *s, u32 sid, int force)
 		sid = SECINITSID_UNLABELED;
 		hvalue = SIDTAB_HASH(sid);
 		cur = s->htable[hvalue];
-		while (cur != NULL && sid > cur->sid)
+		while (cur && sid > cur->sid)
 			cur = cur->next;
 		if (!cur || sid != cur->sid)
 			return NULL;
@@ -136,7 +136,7 @@ int sidtab_map(struct sidtab *s,
 
 	for (i = 0; i < SIDTAB_SIZE; i++) {
 		cur = s->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			rc = apply(cur->sid, &cur->context, args);
 			if (rc)
 				goto out;
@@ -155,7 +155,7 @@ static inline u32 sidtab_search_context(struct sidtab *s,
 
 	for (i = 0; i < SIDTAB_SIZE; i++) {
 		cur = s->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			if (context_cmp(&cur->context, context))
 				return cur->sid;
 			cur = cur->next;
@@ -242,7 +242,7 @@ void sidtab_destroy(struct sidtab *s)
 
 	for (i = 0; i < SIDTAB_SIZE; i++) {
 		cur = s->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			temp = cur;
 			cur = cur->next;
 			context_destroy(&temp->context);

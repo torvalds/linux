@@ -629,6 +629,59 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *id,
 	return 1;
 }
 
+static const struct dmifield {
+	const char *prefix;
+	int field;
+} dmi_fields[] = {
+	{ "bvn", DMI_BIOS_VENDOR },
+	{ "bvr", DMI_BIOS_VERSION },
+	{ "bd",  DMI_BIOS_DATE },
+	{ "svn", DMI_SYS_VENDOR },
+	{ "pn",  DMI_PRODUCT_NAME },
+	{ "pvr", DMI_PRODUCT_VERSION },
+	{ "rvn", DMI_BOARD_VENDOR },
+	{ "rn",  DMI_BOARD_NAME },
+	{ "rvr", DMI_BOARD_VERSION },
+	{ "cvn", DMI_CHASSIS_VENDOR },
+	{ "ct",  DMI_CHASSIS_TYPE },
+	{ "cvr", DMI_CHASSIS_VERSION },
+	{ NULL,  DMI_NONE }
+};
+
+static void dmi_ascii_filter(char *d, const char *s)
+{
+	/* Filter out characters we don't want to see in the modalias string */
+	for (; *s; s++)
+		if (*s > ' ' && *s < 127 && *s != ':')
+			*(d++) = *s;
+
+	*d = 0;
+}
+
+
+static int do_dmi_entry(const char *filename, struct dmi_system_id *id,
+			char *alias)
+{
+	int i, j;
+
+	sprintf(alias, "dmi*");
+
+	for (i = 0; i < ARRAY_SIZE(dmi_fields); i++) {
+		for (j = 0; j < 4; j++) {
+			if (id->matches[j].slot &&
+			    id->matches[j].slot == dmi_fields[i].field) {
+				sprintf(alias + strlen(alias), ":%s*",
+					dmi_fields[i].prefix);
+				dmi_ascii_filter(alias + strlen(alias),
+						 id->matches[j].substr);
+				strcat(alias, "*");
+			}
+		}
+	}
+
+	strcat(alias, ":");
+	return 1;
+}
 /* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -760,6 +813,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct i2c_device_id), "i2c",
 			 do_i2c_entry, mod);
+	else if (sym_is(symname, "__mod_dmi_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct dmi_system_id), "dmi",
+			 do_dmi_entry, mod);
 	free(zeros);
 }
 

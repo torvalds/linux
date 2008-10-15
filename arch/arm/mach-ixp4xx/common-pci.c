@@ -25,9 +25,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <asm/dma-mapping.h>
 
-#include <asm/io.h>
+#include <asm/cputype.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 #include <asm/system.h>
@@ -366,15 +367,13 @@ void __init ixp4xx_adjust_zones(int node, unsigned long *zone_size,
 
 void __init ixp4xx_pci_preinit(void)
 {  
-	unsigned long processor_id;
-
-	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
+	unsigned long cpuid = read_cpuid_id();
 
 	/*
 	 * Determine which PCI read method to use.
 	 * Rev 0 IXP425 requires workaround.
 	 */
-	if (!(processor_id & 0xf) && cpu_is_ixp42x()) {
+	if (!(cpuid & 0xf) && cpu_is_ixp42x()) {
 		printk("PCI: IXP42x A0 silicon detected - "
 			"PCI Non-Prefetch Workaround Enabled\n");
 		ixp4xx_pci_read = ixp4xx_pci_read_errata;

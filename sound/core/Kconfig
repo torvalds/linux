@@ -12,6 +12,12 @@ config SND_HWDEP
 config SND_RAWMIDI
 	tristate
 
+# To be effective this also requires INPUT - users should say:
+#    select SND_JACK if INPUT=y || INPUT=SND
+# to avoid having to force INPUT on.
+config SND_JACK
+	bool
+
 config SND_SEQUENCER
 	tristate "Sequencer support"
 	select SND_TIMER
@@ -38,6 +44,7 @@ config SND_SEQ_DUMMY
 	  will be called snd-seq-dummy.
 
 config SND_OSSEMUL
+	select SOUND_OSS_CORE
 	bool
 
 config SND_MIXER_OSS
@@ -100,6 +107,9 @@ config SND_RTCTIMER
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rtctimer.
+
+	  Note that this option is exclusive with the new RTC drivers
+	  (CONFIG_RTC_CLASS) since this requires the old API.
 
 config SND_SEQ_RTCTIMER_DEFAULT
 	bool "Use RTC as default sequencer timer"

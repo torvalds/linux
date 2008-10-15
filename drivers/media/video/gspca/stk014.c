@@ -324,7 +324,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	int ret, value;
 
@@ -374,9 +374,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	set_par(gspca_dev, 0x01000000);
 	set_par(gspca_dev, 0x01000000);
 	PDEBUG(D_STREAM, "camera started alt: 0x%02x", gspca_dev->alt);
-	return;
+	return 0;
 out:
 	PDEBUG(D_ERR|D_STREAM, "camera start err %d", ret);
+	return ret;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

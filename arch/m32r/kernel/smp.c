@@ -84,7 +84,7 @@ void smp_send_timer(void);
 void smp_ipi_timer_interrupt(struct pt_regs *);
 void smp_local_timer_interrupt(void);
 
-void send_IPI_allbutself(int, int);
+static void send_IPI_allbutself(int, int);
 static void send_IPI_mask(cpumask_t, int, int);
 unsigned long send_IPI_mask_phys(cpumask_t, int, int);
 
@@ -722,7 +722,7 @@ void smp_local_timer_interrupt(void)
  * ---------- --- --------------------------------------------------------
  *
  *==========================================================================*/
-void send_IPI_allbutself(int ipi_num, int try)
+static void send_IPI_allbutself(int ipi_num, int try)
 {
 	cpumask_t cpumask;
 

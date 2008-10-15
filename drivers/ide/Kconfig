@@ -54,38 +54,6 @@ menuconfig IDE
 
 if IDE
 
-config BLK_DEV_IDE
-	tristate "Enhanced IDE/MFM/RLL disk/cdrom/tape/floppy support"
-	---help---
-	  If you say Y here, you will use the full-featured IDE driver to
-	  control up to ten ATA/IDE interfaces, each being able to serve a
-	  "master" and a "slave" device, for a total of up to twenty ATA/IDE
-	  disk/cdrom/tape/floppy drives.
-
-	  Useful information about large (>540 MB) IDE disks, multiple
-	  interfaces, what to do if ATA/IDE devices are not automatically
-	  detected, sound card ATA/IDE ports, module support, and other
-	  topics, is contained in <file:Documentation/ide/ide.txt>. For detailed
-	  information about hard drives, consult the Disk-HOWTO and the
-	  Multi-Disk-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To fine-tune ATA/IDE drive/interface parameters for improved
-	  performance, look for the hdparm package at
-	  <ftp://ibiblio.org/pub/Linux/system/hardware/>.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/ide/ide.txt>. The module will be called ide-mod.
-	  Do not compile this driver as a module if your root file system (the
-	  one containing the directory /) is located on an IDE device.
-
-	  If you have one or more IDE drives, say Y or M here. If your system
-	  has no IDE drives, or if memory requirements are really tight, you
-	  could say N here, and select the "Old hard disk driver" below
-	  instead to save about 13 KB of memory in the kernel.
-
-if BLK_DEV_IDE
-
 comment "Please see Documentation/ide/ide.txt for help/info on IDE drives"
 
 config IDE_TIMINGS
@@ -130,29 +98,6 @@ config BLK_DEV_IDEDISK
 	  (the one containing the directory /) is located on the IDE disk.
 
 	  If unsure, say Y.
-
-config IDEDISK_MULTI_MODE
-	bool "Use multiple sector mode for Programmed Input/Output by default"
-	help
-	  This setting is irrelevant for most IDE disks, with direct memory
-	  access, to which multiple sector mode does not apply. Multiple sector
-	  mode is a feature of most modern IDE hard drives, permitting the
-	  transfer of multiple sectors per Programmed Input/Output interrupt,
-	  rather than the usual one sector per interrupt. When this feature is
-	  enabled, it can reduce operating system overhead for disk Programmed
-	  Input/Output. On some systems, it also can increase the data
-	  throughput of Programmed Input/Output. Some drives, however, seemed
-	  to run slower with multiple sector mode enabled. Some drives claimed
-	  to support multiple sector mode, but lost data at some settings.
-	  Under rare circumstances, such failures could result in massive
-	  filesystem corruption.
-
-	  If you get the following error, try to say Y here:
-
-	  hda: set_multmode: status=0x51 { DriveReady SeekComplete Error }
-	  hda: set_multmode: error=0x04 { DriveStatusError }
-
-	  If in doubt, say N.
 
 config BLK_DEV_IDECS
 	tristate "PCMCIA IDE support"
@@ -292,6 +237,20 @@ config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
 	depends on ALPHA || X86 || IA64 || M32R || MIPS
 	help
+	  This is the generic IDE driver.  This driver attaches to the
+	  fixed legacy ports (e.g. on PCs 0x1f0/0x170, 0x1e8/0x168 and
+	  so on).  Please note that if this driver is built into the
+	  kernel or loaded before other ATA (IDE or libata) drivers
+	  and the controller is located at legacy ports, this driver
+	  may grab those ports and thus can prevent the controller
+	  specific driver from attaching.
+
+	  Also, currently, IDE generic doesn't allow IRQ sharing
+	  meaning that the IRQs it grabs won't be available to other
+	  controllers sharing those IRQs which usually makes drivers
+	  for those controllers fail.  Generally, it's not a good idea
+	  to load IDE generic driver on modern systems.
+
 	  If unsure, say N.
 
 config BLK_DEV_PLATFORM
@@ -357,7 +316,7 @@ config BLK_DEV_IDEPCI
 
 config IDEPCI_PCIBUS_ORDER
 	bool "Probe IDE PCI devices in the PCI bus order (DEPRECATED)"
-	depends on BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	depends on IDE=y && BLK_DEV_IDEPCI
 	default y
 	help
 	  Probe IDE PCI devices in the order in which they appear on the
@@ -738,7 +697,7 @@ endif
 
 config BLK_DEV_IDE_PMAC
 	tristate "PowerMac on-board IDE support"
-	depends on PPC_PMAC && IDE=y && BLK_DEV_IDE=y
+	depends on PPC_PMAC && IDE=y
 	select IDE_TIMINGS
 	help
 	  This driver provides support for the on-board IDE controller on
@@ -765,10 +724,6 @@ config BLK_DEV_IDEDMA_PMAC
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
-
-config BLK_DEV_IDE_SWARM
-	tristate "IDE for Sibyte evaluation boards"
-	depends on SIBYTE_SB1xxx_SOC
 
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
@@ -975,7 +930,5 @@ endif
 config BLK_DEV_IDEDMA
 	def_bool BLK_DEV_IDEDMA_SFF || BLK_DEV_IDEDMA_PMAC || \
 		 BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-
-endif
 
 endif # IDE

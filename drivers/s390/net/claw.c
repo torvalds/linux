@@ -299,7 +299,7 @@ claw_probe(struct ccwgroup_device *cgdev)
 		probe_error(cgdev);
 		put_device(&cgdev->dev);
 		printk(KERN_WARNING "add_files failed %s %s Exit Line %d \n",
-			cgdev->cdev[0]->dev.bus_id,__func__,__LINE__);
+			dev_name(&cgdev->cdev[0]->dev), __func__, __LINE__);
 		CLAW_DBF_TEXT_(2, setup, "probex%d", rc);
 		return rc;
 	}
@@ -584,7 +584,7 @@ claw_irq_handler(struct ccw_device *cdev,
 	if (!cdev->dev.driver_data) {
                 printk(KERN_WARNING "claw: unsolicited interrupt for device:"
 		 	"%s received c-%02x d-%02x\n",
-		       cdev->dev.bus_id, irb->scsw.cmd.cstat,
+		       dev_name(&cdev->dev), irb->scsw.cmd.cstat,
 		       irb->scsw.cmd.dstat);
 		CLAW_DBF_TEXT(2, trace, "badirq");
                 return;
@@ -598,7 +598,7 @@ claw_irq_handler(struct ccw_device *cdev,
 		p_ch = &privptr->channel[WRITE];
 	else {
 		printk(KERN_WARNING "claw: Can't determine channel for "
-			"interrupt, device %s\n", cdev->dev.bus_id);
+			"interrupt, device %s\n", dev_name(&cdev->dev));
 		CLAW_DBF_TEXT(2, trace, "badchan");
 		return;
 	}
@@ -662,7 +662,7 @@ claw_irq_handler(struct ccw_device *cdev,
 			printk(KERN_WARNING "claw: unsolicited "
 				"interrupt for device:"
 				"%s received c-%02x d-%02x\n",
-				cdev->dev.bus_id,
+				dev_name(&cdev->dev),
 				irb->scsw.cmd.cstat,
 				irb->scsw.cmd.dstat);
 			return;
@@ -1136,19 +1136,20 @@ ccw_check_return_code(struct ccw_device *cdev, int return_code)
 			break;
 		case -ENODEV:
 			printk(KERN_EMERG "%s: Missing device called "
-				"for IO ENODEV\n", cdev->dev.bus_id);
+				"for IO ENODEV\n", dev_name(&cdev->dev));
 			break;
 		case -EIO:
 			printk(KERN_EMERG "%s: Status pending... EIO \n",
-				cdev->dev.bus_id);
+				dev_name(&cdev->dev));
 			break;
 		case -EINVAL:
 			printk(KERN_EMERG "%s: Invalid Dev State EINVAL \n",
-				cdev->dev.bus_id);
+				dev_name(&cdev->dev));
 			break;
 		default:
 			printk(KERN_EMERG "%s: Unknown error in "
-				 "Do_IO %d\n",cdev->dev.bus_id, return_code);
+				 "Do_IO %d\n", dev_name(&cdev->dev),
+			       return_code);
 		}
 	}
 	CLAW_DBF_TEXT(4, trace, "ccwret");
@@ -2848,11 +2849,11 @@ add_channel(struct ccw_device *cdev,int i,struct claw_privbk *privptr)
 	struct chbk *p_ch;
 	struct ccw_dev_id dev_id;
 
-	CLAW_DBF_TEXT_(2, setup, "%s", cdev->dev.bus_id);
+	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cdev->dev));
 	privptr->channel[i].flag  = i+1;   /* Read is 1 Write is 2 */
 	p_ch = &privptr->channel[i];
 	p_ch->cdev = cdev;
-	snprintf(p_ch->id, CLAW_ID_SIZE, "cl-%s", cdev->dev.bus_id);
+	snprintf(p_ch->id, CLAW_ID_SIZE, "cl-%s", dev_name(&cdev->dev));
 	ccw_device_get_id(cdev, &dev_id);
 	p_ch->devno = dev_id.devno;
 	if ((p_ch->irb = kzalloc(sizeof (struct irb),GFP_KERNEL)) == NULL) {
@@ -2879,7 +2880,8 @@ claw_new_device(struct ccwgroup_device *cgdev)
 	int ret;
 	struct ccw_dev_id dev_id;
 
-	printk(KERN_INFO "claw: add for %s\n",cgdev->cdev[READ]->dev.bus_id);
+	printk(KERN_INFO "claw: add for %s\n",
+	       dev_name(&cgdev->cdev[READ]->dev));
 	CLAW_DBF_TEXT(2, setup, "new_dev");
 	privptr = cgdev->dev.driver_data;
 	cgdev->cdev[READ]->dev.driver_data = privptr;
@@ -2903,14 +2905,16 @@ claw_new_device(struct ccwgroup_device *cgdev)
 	if (ret != 0) {
 		printk(KERN_WARNING
 			"claw: ccw_device_set_online %s READ failed "
-			"with ret = %d\n",cgdev->cdev[READ]->dev.bus_id,ret);
+		       "with ret = %d\n", dev_name(&cgdev->cdev[READ]->dev),
+		       ret);
 		goto out;
 	}
 	ret = ccw_device_set_online(cgdev->cdev[WRITE]);
 	if (ret != 0) {
 		printk(KERN_WARNING
 			"claw: ccw_device_set_online %s WRITE failed "
-			"with ret = %d\n",cgdev->cdev[WRITE]->dev.bus_id, ret);
+		       "with ret = %d\n", dev_name(&cgdev->cdev[WRITE]->dev),
+		       ret);
 		goto out;
 	}
 	dev = alloc_netdev(0,"claw%d",claw_init_netdevice);
@@ -2986,7 +2990,7 @@ claw_shutdown_device(struct ccwgroup_device *cgdev)
 	struct net_device *ndev;
 	int	ret;
 
-	CLAW_DBF_TEXT_(2, setup, "%s", cgdev->dev.bus_id);
+	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cgdev->dev));
 	priv = cgdev->dev.driver_data;
 	if (!priv)
 		return -ENODEV;
@@ -3016,11 +3020,11 @@ claw_remove_device(struct ccwgroup_device *cgdev)
 	struct claw_privbk *priv;
 
 	BUG_ON(!cgdev);
-	CLAW_DBF_TEXT_(2, setup, "%s", cgdev->dev.bus_id);
+	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cgdev->dev));
 	priv = cgdev->dev.driver_data;
 	BUG_ON(!priv);
 	printk(KERN_INFO "claw: %s() called %s will be removed.\n",
-			__func__,cgdev->cdev[0]->dev.bus_id);
+			__func__, dev_name(&cgdev->cdev[0]->dev));
 	if (cgdev->state == CCWGROUP_ONLINE)
 		claw_shutdown_device(cgdev);
 	claw_remove_files(&cgdev->dev);

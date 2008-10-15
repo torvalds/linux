@@ -9,7 +9,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,8 +72,10 @@ struct cipso_v4_doi;
 /* NetLabel NETLINK protocol version
  *  1: initial version
  *  2: added static labels for unlabeled connections
+ *  3: network selectors added to the NetLabel/LSM domain mapping and the
+ *     CIPSO_V4_MAP_LOCAL CIPSO mapping was added
  */
-#define NETLBL_PROTO_VERSION            2
+#define NETLBL_PROTO_VERSION            3
 
 /* NetLabel NETLINK types/families */
 #define NETLBL_NLTYPE_NONE              0
@@ -87,6 +89,8 @@ struct cipso_v4_doi;
 #define NETLBL_NLTYPE_CIPSOV6_NAME      "NLBL_CIPSOv6"
 #define NETLBL_NLTYPE_UNLABELED         5
 #define NETLBL_NLTYPE_UNLABELED_NAME    "NLBL_UNLBL"
+#define NETLBL_NLTYPE_ADDRSELECT        6
+#define NETLBL_NLTYPE_ADDRSELECT_NAME   "NLBL_ADRSEL"
 
 /*
  * NetLabel - Kernel API for accessing the network packet label mappings.
@@ -200,7 +204,7 @@ struct netlbl_lsm_secattr {
 	u32 type;
 	char *domain;
 	struct netlbl_lsm_cache *cache;
-	union {
+	struct {
 		struct {
 			struct netlbl_lsm_secattr_catmap *cat;
 			u32 lvl;
@@ -352,12 +356,9 @@ static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info);
 int netlbl_cfg_unlbl_add_map(const char *domain,
 			     struct netlbl_audit *audit_info);
-int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
-			   struct netlbl_audit *audit_info);
 int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 			       const char *domain,
 			       struct netlbl_audit *audit_info);
-int netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info);
 
 /*
  * LSM security attribute operations
@@ -380,12 +381,19 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 int netlbl_enabled(void);
 int netlbl_sock_setattr(struct sock *sk,
 			const struct netlbl_lsm_secattr *secattr);
+void netlbl_sock_delattr(struct sock *sk);
 int netlbl_sock_getattr(struct sock *sk,
 			struct netlbl_lsm_secattr *secattr);
+int netlbl_conn_setattr(struct sock *sk,
+			struct sockaddr *addr,
+			const struct netlbl_lsm_secattr *secattr);
+int netlbl_skbuff_setattr(struct sk_buff *skb,
+			  u16 family,
+			  const struct netlbl_lsm_secattr *secattr);
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr);
-void netlbl_skbuff_err(struct sk_buff *skb, int error);
+void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway);
 
 /*
  * LSM label mapping cache operations
@@ -404,19 +412,9 @@ static inline int netlbl_cfg_unlbl_add_map(const char *domain,
 {
 	return -ENOSYS;
 }
-static inline int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
-					 struct netlbl_audit *audit_info)
-{
-	return -ENOSYS;
-}
 static inline int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 					     const char *domain,
 					     struct netlbl_audit *audit_info)
-{
-	return -ENOSYS;
-}
-static inline int netlbl_cfg_cipsov4_del(u32 doi,
-					 struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
 }
@@ -456,8 +454,23 @@ static inline int netlbl_sock_setattr(struct sock *sk,
 {
 	return -ENOSYS;
 }
+static inline void netlbl_sock_delattr(struct sock *sk)
+{
+}
 static inline int netlbl_sock_getattr(struct sock *sk,
 				      struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_conn_setattr(struct sock *sk,
+				      struct sockaddr *addr,
+				      const struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_skbuff_setattr(struct sk_buff *skb,
+				      u16 family,
+				      const struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }
@@ -467,7 +480,9 @@ static inline int netlbl_skbuff_getattr(const struct sk_buff *skb,
 {
 	return -ENOSYS;
 }
-static inline void netlbl_skbuff_err(struct sk_buff *skb, int error)
+static inline void netlbl_skbuff_err(struct sk_buff *skb,
+				     int error,
+				     int gateway)
 {
 	return;
 }

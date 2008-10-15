@@ -21,7 +21,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <asm/hardware/scoop.h>
 
 #include <mach/sharpsl.h>
 #include <mach/corgi.h>

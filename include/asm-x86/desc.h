@@ -1,5 +1,5 @@
-#ifndef _ASM_DESC_H_
-#define _ASM_DESC_H_
+#ifndef ASM_X86__DESC_H
+#define ASM_X86__DESC_H
 
 #ifndef __ASSEMBLY__
 #include <asm/desc_defs.h>
@@ -24,6 +24,11 @@ static inline void fill_ldt(struct desc_struct *desc,
 	desc->d = info->seg_32bit;
 	desc->g = info->limit_in_pages;
 	desc->base2 = (info->base_addr & 0xff000000) >> 24;
+	/*
+	 * Don't allow setting of the lm bit. It is useless anyway
+	 * because 64bit system calls require __USER_CS:
+	 */
+	desc->l = 0;
 }
 
 extern struct desc_ptr idt_descr;
@@ -97,7 +102,15 @@ static inline int desc_empty(const void *ptr)
 	native_write_gdt_entry(dt, entry, desc, type)
 #define write_idt_entry(dt, entry, g)		\
 	native_write_idt_entry(dt, entry, g)
-#endif
+
+static inline void paravirt_alloc_ldt(struct desc_struct *ldt, unsigned entries)
+{
+}
+
+static inline void paravirt_free_ldt(struct desc_struct *ldt, unsigned entries)
+{
+}
+#endif	/* CONFIG_PARAVIRT */
 
 static inline void native_write_idt_entry(gate_desc *idt, int entry,
 					  const gate_desc *gate)
@@ -338,20 +351,16 @@ static inline void set_system_intr_gate(unsigned int n, void *addr)
 	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
 }
 
+static inline void set_system_trap_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
+}
+
 static inline void set_trap_gate(unsigned int n, void *addr)
 {
 	BUG_ON((unsigned)n > 0xFF);
 	_set_gate(n, GATE_TRAP, addr, 0, 0, __KERNEL_CS);
-}
-
-static inline void set_system_gate(unsigned int n, void *addr)
-{
-	BUG_ON((unsigned)n > 0xFF);
-#ifdef CONFIG_X86_32
-	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
-#else
-	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
-#endif
 }
 
 static inline void set_task_gate(unsigned int n, unsigned int gdt_entry)
@@ -366,7 +375,7 @@ static inline void set_intr_gate_ist(int n, void *addr, unsigned ist)
 	_set_gate(n, GATE_INTERRUPT, addr, 0, ist, __KERNEL_CS);
 }
 
-static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
+static inline void set_system_intr_gate_ist(int n, void *addr, unsigned ist)
 {
 	BUG_ON((unsigned)n > 0xFF);
 	_set_gate(n, GATE_INTERRUPT, addr, 0x3, ist, __KERNEL_CS);
@@ -397,4 +406,4 @@ static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
 
 #endif /* __ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__DESC_H */

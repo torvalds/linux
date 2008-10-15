@@ -30,6 +30,20 @@ config BLK_DEV_MD
 
 	  If unsure, say N.
 
+config MD_AUTODETECT
+	bool "Autodetect RAID arrays during kernel boot"
+	depends on BLK_DEV_MD=y
+	default y
+	---help---
+	  If you say Y here, then the kernel will try to autodetect raid
+	  arrays as part of its boot process. 
+
+	  If you don't use raid and say Y, this autodetection can cause 
+	  a several-second delay in the boot time due to various
+	  synchronisation steps that are part of this step.
+
+	  If unsure, say Y.
+
 config MD_LINEAR
 	tristate "Linear (append) mode"
 	depends on BLK_DEV_MD

@@ -819,11 +819,11 @@ static int hvc_init(void)
 	hvc_driver = drv;
 	return 0;
 
-put_tty:
-	put_tty_driver(hvc_driver);
 stop_thread:
 	kthread_stop(hvc_task);
 	hvc_task = NULL;
+put_tty:
+	put_tty_driver(drv);
 out:
 	return err;
 }

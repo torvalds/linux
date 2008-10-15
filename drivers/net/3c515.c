@@ -18,7 +18,7 @@
 
 	2001/11/17 - Added ethtool support (jgarzik)
 
-	2002/10/28 - Locking updates for 2.5 (alan@redhat.com)
+	2002/10/28 - Locking updates for 2.5 (alan@lxorguk.ukuu.org.uk)
 
 */
 

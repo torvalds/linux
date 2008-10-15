@@ -302,17 +302,27 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 	if (error)
 		goto out;
 
-	if (!(access & NFSD_MAY_LOCK)) {
-		/*
-		 * pseudoflavor restrictions are not enforced on NLM,
-		 * which clients virtually always use auth_sys for,
-		 * even while using RPCSEC_GSS for NFS.
-		 */
-		error = check_nfsd_access(exp, rqstp);
-		if (error)
-			goto out;
-	}
+	/*
+	 * pseudoflavor restrictions are not enforced on NLM,
+	 * which clients virtually always use auth_sys for,
+	 * even while using RPCSEC_GSS for NFS.
+	 */
+	if (access & NFSD_MAY_LOCK)
+		goto skip_pseudoflavor_check;
+	/*
+	 * Clients may expect to be able to use auth_sys during mount,
+	 * even if they use gss for everything else; see section 2.3.2
+	 * of rfc 2623.
+	 */
+	if (access & NFSD_MAY_BYPASS_GSS_ON_ROOT
+			&& exp->ex_path.dentry == dentry)
+		goto skip_pseudoflavor_check;
 
+	error = check_nfsd_access(exp, rqstp);
+	if (error)
+		goto out;
+
+skip_pseudoflavor_check:
 	/* Finally, check access permissions. */
 	error = nfsd_permission(rqstp, exp, dentry, access);
 

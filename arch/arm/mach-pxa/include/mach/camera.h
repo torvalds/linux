@@ -36,8 +36,6 @@
 
 struct pxacamera_platform_data {
 	int (*init)(struct device *);
-	int (*power)(struct device *, int);
-	int (*reset)(struct device *, int);
 
 	unsigned long flags;
 	unsigned long mclk_10khz;

@@ -848,7 +848,7 @@ enum {
 	Opt_err,
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_fast_unmount, "fast_unmount"},
 	{Opt_norm_unmount, "norm_unmount"},
 	{Opt_err, NULL},
@@ -1024,14 +1024,13 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_dereg;
 	}
 
+	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
 	if (!mounted_read_only) {
 		err = alloc_wbufs(c);
 		if (err)
 			goto out_cbuf;
 
 		/* Create background thread */
-		sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num,
-			c->vi.vol_id);
 		c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
 		if (!c->bgt)
 			c->bgt = ERR_PTR(-EINVAL);

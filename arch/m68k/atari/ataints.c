@@ -407,10 +407,8 @@ void __init atari_init_IRQ(void)
 		 * gets overruns)
 		 */
 
-		if (!MACH_IS_HADES) {
-			vectors[VEC_INT2] = falcon_hblhandler;
-			vectors[VEC_INT4] = falcon_hblhandler;
-		}
+		vectors[VEC_INT2] = falcon_hblhandler;
+		vectors[VEC_INT4] = falcon_hblhandler;
 	}
 
 	if (ATARIHW_PRESENT(PCM_8BIT) && ATARIHW_PRESENT(MICROWIRE)) {

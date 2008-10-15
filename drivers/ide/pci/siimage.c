@@ -39,7 +39,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -117,13 +116,14 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long base	= (unsigned long)hwif->hwif_data;
+	u8 unit			= drive->dn & 1;
 
 	base += 0xA0 + r;
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		base += hwif->channel << 6;
 	else
 		base += hwif->channel << 4;
-	base |= drive->select.b.unit << drive->select.b.unit;
+	base |= unit << unit;
 	return base;
 }
 
@@ -223,7 +223,9 @@ static u8 sil_pata_udma_filter(ide_drive_t *drive)
 
 static u8 sil_sata_udma_filter(ide_drive_t *drive)
 {
-	return strstr(drive->id->model, "Maxtor") ? ATA_UDMA5 : ATA_UDMA6;
+	char *m = (char *)&drive->id[ATA_ID_PROD];
+
+	return strstr(m, "Maxtor") ? ATA_UDMA5 : ATA_UDMA6;
 }
 
 /**
@@ -243,7 +245,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	ide_drive_t *pair	= ide_get_paired_drive(drive);
+	ide_drive_t *pair	= ide_get_pair_dev(drive);
 	u32 speedt		= 0;
 	u16 speedp		= 0;
 	unsigned long addr	= siimage_seldev(drive, 0x04);
@@ -254,10 +256,10 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	u8 addr_mask		= hwif->channel ? (mmio ? 0xF4 : 0x84)
 						: (mmio ? 0xB4 : 0x80);
 	u8 mode			= 0;
-	u8 unit			= drive->select.b.unit;
+	u8 unit			= drive->dn & 1;
 
 	/* trim *taskfile* PIO to the slowest of the master/slave */
-	if (pair->present) {
+	if (pair) {
 		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
 
 		if (pair_pio < tf_pio)
@@ -300,9 +302,9 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u16 ultra = 0, multi	= 0;
-	u8 mode = 0, unit	= drive->select.b.unit;
 	unsigned long base	= (unsigned long)hwif->hwif_data;
+	u16 ultra = 0, multi	= 0;
+	u8 mode = 0, unit	= drive->dn & 1;
 	u8 mmio			= (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 scsc = 0, addr_mask	= hwif->channel ? (mmio ? 0xF4 : 0x84)
 						: (mmio ? 0xB4 : 0x80);
@@ -462,7 +464,7 @@ static void sil_sata_pre_reset(ide_drive_t *drive)
  *	to 133 MHz clocking if the system isn't already set up to do it.
  */
 
-static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev)
+static unsigned int init_chipset_siimage(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	void __iomem *ioaddr = host->host_priv;
@@ -616,8 +618,8 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 
 static int is_dev_seagate_sata(ide_drive_t *drive)
 {
-	const char *s	= &drive->id->model[0];
-	unsigned len	= strnlen(s, sizeof(drive->id->model));
+	const char *s	= (const char *)&drive->id[ATA_ID_PROD];
+	unsigned len	= strnlen(s, ATA_ID_PROD_LEN);
 
 	if ((len > 4) && (!memcmp(s, "ST", 2)))
 		if ((!memcmp(s + len - 2, "AS", 2)) ||
@@ -711,7 +713,7 @@ static const struct ide_dma_ops sil_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= siimage_dma_test_irq,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
@@ -828,21 +830,23 @@ static const struct pci_device_id siimage_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, siimage_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver siimage_pci_driver = {
 	.name		= "SiI_IDE",
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
 	.remove		= __devexit_p(siimage_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init siimage_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&siimage_pci_driver);
 }
 
 static void __exit siimage_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&siimage_pci_driver);
 }
 
 module_init(siimage_ide_init);

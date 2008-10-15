@@ -43,6 +43,7 @@ struct snd_tea575x {
 	unsigned int freq_fixup;	/* crystal onboard */
 	unsigned int val;		/* hw value */
 	unsigned long freq;		/* frequency */
+	unsigned long in_use;		/* set if the device is in use */
 	struct snd_tea575x_ops *ops;
 	void *private_data;
 };

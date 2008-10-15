@@ -249,10 +249,6 @@ static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
 
-#if defined(CONFIG_TT_DMA_EMUL)
-#include "atari_dma_emul.c"
-#endif
-
 #if defined(REAL_DMA)
 
 static int scsi_dma_is_ignored_buserr(unsigned char dma_stat)
@@ -695,21 +691,8 @@ int atari_scsi_detect(struct scsi_host_template *host)
 #ifdef REAL_DMA
 		tt_scsi_dma.dma_ctrl = 0;
 		atari_dma_residual = 0;
-#ifdef CONFIG_TT_DMA_EMUL
-		if (MACH_IS_HADES) {
-			if (request_irq(IRQ_AUTO_2, hades_dma_emulator,
-					 IRQ_TYPE_PRIO, "Hades DMA emulator",
-					 hades_dma_emulator)) {
-				printk(KERN_ERR "atari_scsi_detect: cannot allocate irq %d, aborting (MACH_IS_HADES)",IRQ_AUTO_2);
-				free_irq(IRQ_TT_MFP_SCSI, instance);
-				scsi_unregister(atari_scsi_host);
-				atari_stram_free(atari_dma_buffer);
-				atari_dma_buffer = 0;
-				return 0;
-			}
-		}
-#endif
-		if (MACH_IS_MEDUSA || MACH_IS_HADES) {
+
+		if (MACH_IS_MEDUSA) {
 			/* While the read overruns (described by Drew Eckhardt in
 			 * NCR5380.c) never happened on TTs, they do in fact on the Medusa
 			 * (This was the cause why SCSI didn't work right for so long
@@ -1007,11 +990,7 @@ static unsigned long atari_dma_xfer_len(unsigned long wanted_len,
 					Scsi_Cmnd *cmd, int write_flag)
 {
 	unsigned long	possible_len, limit;
-#ifndef CONFIG_TT_DMA_EMUL
-	if (MACH_IS_HADES)
-		/* Hades has no SCSI DMA at all :-( Always force use of PIO */
-		return 0;
-#endif
+
 	if (IS_A_TT())
 		/* TT SCSI DMA can transfer arbitrary #bytes */
 		return wanted_len;

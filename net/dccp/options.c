@@ -81,11 +81,11 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		/* Check if this isn't a single byte option */
 		if (opt > DCCPO_MAX_RESERVED) {
 			if (opt_ptr == opt_end)
-				goto out_invalid_option;
+				goto out_nonsensical_length;
 
 			len = *opt_ptr++;
-			if (len < 3)
-				goto out_invalid_option;
+			if (len < 2)
+				goto out_nonsensical_length;
 			/*
 			 * Remove the type and len fields, leaving
 			 * just the value size
@@ -95,7 +95,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			opt_ptr += len;
 
 			if (opt_ptr > opt_end)
-				goto out_invalid_option;
+				goto out_nonsensical_length;
 		}
 
 		/*
@@ -283,12 +283,17 @@ ignore_option:
 	if (mandatory)
 		goto out_invalid_option;
 
+out_nonsensical_length:
+	/* RFC 4340, 5.8: ignore option and all remaining option space */
 	return 0;
 
 out_invalid_option:
 	DCCP_INC_STATS_BH(DCCP_MIB_INVALIDOPT);
 	DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_OPTION_ERROR;
 	DCCP_WARN("DCCP(%p): invalid option %d, len=%d", sk, opt, len);
+	DCCP_SKB_CB(skb)->dccpd_reset_data[0] = opt;
+	DCCP_SKB_CB(skb)->dccpd_reset_data[1] = len > 0 ? value[0] : 0;
+	DCCP_SKB_CB(skb)->dccpd_reset_data[2] = len > 1 ? value[1] : 0;
 	return -1;
 }
 

@@ -52,6 +52,7 @@ static spinlock_t lock;
 
 struct rt_device
 {
+	unsigned long in_use;
 	int port;
 	unsigned long curfreq;
 	int muted;
@@ -153,8 +154,7 @@ static int rt_getsigstr(struct rt_device *dev)
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_drvdata(file);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -173,8 +173,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_drvdata(file);
 
 	rt->curfreq = f->frequency;
 	rt_setfreq(rt, rt->curfreq);
@@ -184,8 +183,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_drvdata(file);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = rt->curfreq;
@@ -210,8 +208,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -230,8 +227,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -284,10 +280,21 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct rt_device rtrack2_unit;
 
+static int rtrack2_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &rtrack2_unit.in_use) ? -EBUSY : 0;
+}
+
+static int rtrack2_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &rtrack2_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations rtrack2_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = rtrack2_exclusive_open,
+	.release        = rtrack2_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
@@ -314,6 +321,7 @@ static struct video_device rtrack2_radio = {
 	.name		= "RadioTrack II radio",
 	.fops           = &rtrack2_fops,
 	.ioctl_ops 	= &rtrack2_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init rtrack2_init(void)
@@ -329,7 +337,7 @@ static int __init rtrack2_init(void)
 		return -EBUSY;
 	}
 
-	rtrack2_radio.priv=&rtrack2_unit;
+	video_set_drvdata(&rtrack2_radio, &rtrack2_unit);
 
 	spin_lock_init(&lock);
 	if (video_register_device(&rtrack2_radio, VFL_TYPE_RADIO, radio_nr) < 0) {

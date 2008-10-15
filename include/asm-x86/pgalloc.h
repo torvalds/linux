@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PGALLOC_H
-#define _ASM_X86_PGALLOC_H
+#ifndef ASM_X86__PGALLOC_H
+#define ASM_X86__PGALLOC_H
 
 #include <linux/threads.h>
 #include <linux/mm.h>		/* for struct page */
@@ -111,4 +111,4 @@ extern void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud);
 #endif	/* PAGETABLE_LEVELS > 3 */
 #endif	/* PAGETABLE_LEVELS > 2 */
 
-#endif	/* _ASM_X86_PGALLOC_H */
+#endif /* ASM_X86__PGALLOC_H */

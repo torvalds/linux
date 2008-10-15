@@ -31,11 +31,9 @@
 #include <linux/elf.h>
 #include <linux/moduleloader.h>
 #include <linux/string.h>
-#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
 #include <asm/patch.h>
-#include <asm/sections.h>
 #include <asm/unaligned.h>
 
 #define ARCH_MODULE_DEBUG 0
@@ -136,15 +134,6 @@ static const char *reloc_name[256] = {
 };
 
 #undef N
-
-struct got_entry {
-	uint64_t val;
-};
-
-struct fdesc {
-	uint64_t ip;
-	uint64_t gp;
-};
 
 /* Opaque struct for insns, to protect against derefs. */
 struct insn;
@@ -942,14 +931,4 @@ module_arch_cleanup (struct module *mod)
 		unw_remove_unwind_table(mod->arch.init_unw_table);
 	if (mod->arch.core_unw_table)
 		unw_remove_unwind_table(mod->arch.core_unw_table);
-}
-
-void *dereference_function_descriptor(void *ptr)
-{
-	struct fdesc *desc = ptr;
-	void *p;
-
-	if (!probe_kernel_address(&desc->ip, p))
-		ptr = p;
-	return ptr;
 }

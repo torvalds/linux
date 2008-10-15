@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -27,7 +28,6 @@
 #include <mach/hardware.h>
 #include <asm/hardware/iomd.h>
 #include <asm/setup.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

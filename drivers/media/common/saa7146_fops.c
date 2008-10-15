@@ -533,7 +533,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	memcpy(vfd, &device_template, sizeof(struct video_device));
 	strlcpy(vfd->name, name, sizeof(vfd->name));
 	vfd->release = video_device_release;
-	vfd->priv = dev;
+	video_set_drvdata(vfd, dev);
 
 	// fixme: -1 should be an insmod parameter *for the extension* (like "video_nr");
 	if (video_register_device(vfd, type, -1) < 0) {

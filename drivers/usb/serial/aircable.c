@@ -272,7 +272,7 @@ static void aircable_read(struct work_struct *work)
 	 * 64 bytes, to ensure I do not get throttled.
 	 * Ask USB mailing list for better aproach.
 	 */
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 
 	if (!tty) {
 		schedule_work(&priv->rx_work);
@@ -283,12 +283,13 @@ static void aircable_read(struct work_struct *work)
 	count = min(64, serial_buf_data_avail(priv->rx_buf));
 
 	if (count <= 0)
-		return; /* We have finished sending everything. */
+		goto out; /* We have finished sending everything. */
 
 	tty_prepare_flip_string(tty, &data, count);
 	if (!data) {
-		err("%s- kzalloc(%d) failed.", __func__, count);
-		return;
+		dev_err(&port->dev, "%s- kzalloc(%d) failed.",
+							__func__, count);
+		goto out;
 	}
 
 	serial_buf_get(priv->rx_buf, data, count);
@@ -297,7 +298,8 @@ static void aircable_read(struct work_struct *work)
 
 	if (serial_buf_data_avail(priv->rx_buf))
 		schedule_work(&priv->rx_work);
-
+out:		
+	tty_kref_put(tty);
 	return;
 }
 /* End of private methods */
@@ -495,7 +497,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	usb_serial_debug_data(debug, &port->dev, __func__,
 				urb->actual_length, urb->transfer_buffer);
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
 		if (urb->actual_length <= 2) {
 			/* This is an incomplete package */
@@ -527,6 +529,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 		}
 		aircable_read(&priv->rx_work);
 	}
+	tty_kref_put(tty);
 
 	/* Schedule the next read _if_ we are still open */
 	if (port->port.count) {

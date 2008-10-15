@@ -49,7 +49,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.12"
+#define VERSION "2.13"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8

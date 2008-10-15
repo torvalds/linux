@@ -837,9 +837,6 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	struct async_struct *info;
 	unsigned long flags;
 
-	if (!tty)
-		return 0;
-
 	info = tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
@@ -891,9 +888,6 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	int	c, ret = 0;
 	struct async_struct *info;
 	unsigned long flags;
-
-	if (!tty)
-		return 0;
 
 	info = tty->driver_data;
 

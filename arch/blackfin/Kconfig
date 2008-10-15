@@ -162,16 +162,28 @@ config BF549
 config BF561
 	bool "BF561"
 	help
-	  Not Supported Yet - Work in progress - BF561 Processor Support.
+	  BF561 Processor Support.
 
 endchoice
 
+config BF_REV_MIN
+	int
+	default 0 if (BF52x || BF54x)
+	default 2 if (BF537 || BF536 || BF534)
+	default 3 if (BF561 ||BF533 || BF532 || BF531)
+
+config BF_REV_MAX
+	int
+	default 2 if (BF52x || BF54x)
+	default 3 if (BF537 || BF536 || BF534)
+	default 5 if (BF561)
+	default 6 if (BF533 || BF532 || BF531)
+
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_1 if BF527
-	default BF_REV_0_2 if BF537
-	default BF_REV_0_3 if BF533
-	default BF_REV_0_0 if BF549
+	default BF_REV_0_1 if (BF52x || BF54x)
+	default BF_REV_0_2 if (BF534 || BF536 || BF537)
+	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF561)
 
 config BF_REV_0_0
 	bool "0.0"
@@ -183,7 +195,7 @@ config BF_REV_0_1
 
 config BF_REV_0_2
 	bool "0.2"
-	depends on (BF537 || BF536 || BF534)
+	depends on (BF52x || BF537 || BF536 || BF534 || BF54x)
 
 config BF_REV_0_3
 	bool "0.3"
@@ -196,6 +208,10 @@ config BF_REV_0_4
 config BF_REV_0_5
 	bool "0.5"
 	depends on (BF561 || BF533 || BF532 || BF531)
+
+config BF_REV_0_6
+	bool "0.6"
+	depends on (BF533 || BF532 || BF531)
 
 config BF_REV_ANY
 	bool "any"
@@ -249,7 +265,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP || BFIN526_EZBRD)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -286,13 +302,20 @@ config BOOT_LOAD
 	  memory region is used to capture NULL pointer references as well
 	  as some core kernel functions.
 
+config ROM_BASE
+	hex "Kernel ROM Base"
+	default "0x20040000"
+	range 0x20000000 0x20400000 if !(BF54x || BF561)
+	range 0x20000000 0x30000000 if (BF54x || BF561)
+	help
+
 comment "Clock/PLL Setup"
 
 config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -332,7 +355,7 @@ config VCO_MULT
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
-	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP)
+	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -368,14 +391,6 @@ config SCLK_DIV
 	  This can be between 1 and 15
 	  System Clock = (PLL frequency) / (this setting)
 
-config MAX_MEM_SIZE
-	int "Max SDRAM Memory Size in MBytes"
-	depends on !MPU
-	default 512
-	help
-	  This is the max memory size that the kernel will create CPLB
-	  tables for.  Your system will not be able to handle any more.
-
 choice
 	prompt "DDR SDRAM Chip Type"
 	depends on BFIN_KERNEL_CLOCK
@@ -388,6 +403,14 @@ config MEM_MT46V32M16_6T
 config MEM_MT46V32M16_5B
 	bool "MT46V32M16_5B"
 endchoice
+
+config MAX_MEM_SIZE
+	int "Max SDRAM Memory Size in MBytes"
+	depends on !MPU
+	default 512
+	help
+	  This is the max memory size that the kernel will create CPLB
+	  tables for.  Your system will not be able to handle any more.
 
 #
 # Max & Min Speeds for various Chips
@@ -454,8 +477,6 @@ config CYCLES_CLOCKSOURCE
 	  writing the registers will most likely crash the kernel.
 
 source kernel/time/Kconfig
-
-comment "Memory Setup"
 
 comment "Misc"
 
@@ -622,6 +643,15 @@ config CPLB_SWITCH_TAB_L1
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
+config APP_STACK_L1
+	bool "Support locating application stack in L1 Scratch Memory"
+	default y
+	help
+	  If enabled the application stack can be located in L1
+	  scratch memory (less latency).
+
+	  Currently only works with FLAT binaries.
+
 comment "Speed Optimizations"
 config BFIN_INS_LOWOVERHEAD
 	bool "ins[bwl] low overhead, higher interrupt latency"
@@ -754,6 +784,13 @@ config BFIN_WT
 	  then go with Write Through.
 
 endchoice
+
+config BFIN_L2_CACHEABLE
+	bool "Cache L2 SRAM"
+	depends on (BFIN_DCACHE || BFIN_ICACHE) && (BF54x || BF561)
+	default n
+	help
+	  Select to make L2 SRAM cacheable in L1 data and instruction cache.
 
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"

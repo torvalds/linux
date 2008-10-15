@@ -68,8 +68,8 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* ----------------------------------------------------------------------- */
 
-#define REG_OFFSET	0xDA
-#define BT856_NR_REG	6
+#define BT856_REG_OFFSET	0xDA
+#define BT856_NR_REG		6
 
 struct bt856 {
 	unsigned char reg[BT856_NR_REG];
@@ -89,7 +89,7 @@ bt856_write (struct i2c_client *client,
 {
 	struct bt856 *encoder = i2c_get_clientdata(client);
 
-	encoder->reg[reg - REG_OFFSET] = value;
+	encoder->reg[reg - BT856_REG_OFFSET] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
@@ -103,7 +103,7 @@ bt856_setbit (struct i2c_client *client,
 
 	return bt856_write(client, reg,
 			   (encoder->
-			    reg[reg - REG_OFFSET] & ~(1 << bit)) |
+			    reg[reg - BT856_REG_OFFSET] & ~(1 << bit)) |
 			    (value ? (1 << bit) : 0));
 }
 
