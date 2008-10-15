@@ -298,6 +298,18 @@ static int ec_check_ibf0(struct acpi_ec *ec)
 	return (status & ACPI_EC_FLAG_IBF) == 0;
 }
 
+static int ec_wait_ibf0(struct acpi_ec *ec)
+{
+	unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
+	/* interrupt wait manually if GPE mode is not active */
+	unsigned long timeout = test_bit(EC_FLAGS_GPE_MODE, &ec->flags) ?
+		msecs_to_jiffies(ACPI_EC_DELAY) : msecs_to_jiffies(1);
+	while (time_before(jiffies, delay))
+		if (wait_event_timeout(ec->wait, ec_check_ibf0(ec), timeout))
+			return 0;
+	return -ETIME;
+}
+
 static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t,
 			       int force_poll)
 {
@@ -315,8 +327,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t,
 			goto unlock;
 		}
 	}
-	if (!wait_event_timeout(ec->wait, ec_check_ibf0(ec),
-				msecs_to_jiffies(ACPI_EC_DELAY))) {
+	if (ec_wait_ibf0(ec)) {
 		pr_err(PREFIX "input buffer is not empty, "
 				"aborting transaction\n");
 		status = -ETIME;
