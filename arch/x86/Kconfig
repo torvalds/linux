@@ -237,17 +237,6 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config HAVE_SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on PCI_MSI || HT_IRQ
-	default y
-	help
-	  This enables support for sparse irq, esp for msi/msi-x. the irq
-	  number will be bus/dev/fn + 12bit. You may need if you have lots of
-	  cards supports msi-x installed.
-
-	  If you don't know what to do here, say Y.
-
 config X86_FIND_SMP_CONFIG
 	def_bool y
 	depends on X86_MPPARSE || X86_VOYAGER
