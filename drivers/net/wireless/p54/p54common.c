@@ -1151,19 +1151,32 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	return 0;
 }
 
+static int p54_init_stats(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	struct p54_control_hdr *hdr;
+	struct p54_statistics *stats;
+
+	priv->cached_stats = kzalloc(priv->tx_hdr_len +
+			sizeof(*hdr) + sizeof(*stats), GFP_KERNEL);
+
+	if (!priv->cached_stats)
+			return -ENOMEM;
+
+	hdr = (void *) priv->cached_stats + priv->tx_hdr_len;
+	hdr->magic1 = cpu_to_le16(0x8000);
+	hdr->len = cpu_to_le16(sizeof(*stats));
+	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_STAT_READBACK);
+	hdr->retry1 = hdr->retry2 = 0;
+
+	mod_timer(&priv->stats_timer, jiffies + HZ);
+	return 0;
+}
+
 static int p54_start(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	int err;
-
-	if (!priv->cached_stats) {
-		priv->cached_stats = kzalloc(sizeof(struct p54_statistics) +
-			priv->tx_hdr_len + sizeof(struct p54_control_hdr),
-			GFP_KERNEL);
-
-		if (!priv->cached_stats)
-			return -ENOMEM;
-	}
 
 	err = priv->open(dev);
 	if (!err)
@@ -1174,7 +1187,7 @@ static int p54_start(struct ieee80211_hw *dev)
 	P54_SET_QUEUE(priv->qos_params[3], 0x0007, 0x000f, 0x03ff, 0);
 	err = p54_set_edcf(dev);
 	if (!err)
-		mod_timer(&priv->stats_timer, jiffies + HZ);
+		err = p54_init_stats(dev);
 
 	return err;
 }
@@ -1185,6 +1198,8 @@ static void p54_stop(struct ieee80211_hw *dev)
 	struct sk_buff *skb;
 
 	del_timer(&priv->stats_timer);
+	kfree(priv->cached_stats);
+	priv->cached_stats = NULL;
 	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
 	priv->stop(dev);
@@ -1346,11 +1361,7 @@ static void p54_statistics_timer(unsigned long data)
 	struct p54_statistics *stats;
 
 	BUG_ON(!priv->cached_stats);
-
-	hdr = (void *)priv->cached_stats + priv->tx_hdr_len;
-	hdr->magic1 = cpu_to_le16(0x8000);
-	hdr->len = cpu_to_le16(sizeof(*stats));
-	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_STAT_READBACK);
+	hdr = (void *) priv->cached_stats + priv->tx_hdr_len;
 	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*stats));
 
 	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*stats), 0);
