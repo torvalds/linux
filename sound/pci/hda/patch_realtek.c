@@ -822,6 +822,27 @@ static void alc_sku_automute(struct hda_codec *codec)
 			    spec->jack_present ? 0 : PIN_OUT);
 }
 
+static void alc_mic_automute(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int present;
+	unsigned int mic_nid = spec->autocfg.input_pins[AUTO_PIN_MIC];
+	unsigned int fmic_nid = spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC];
+	unsigned int mix_nid = spec->capsrc_nids[0];
+	unsigned int capsrc_idx_mic, capsrc_idx_fmic;
+
+	capsrc_idx_mic = mic_nid - 0x18;
+	capsrc_idx_fmic = fmic_nid - 0x18;
+	present = snd_hda_codec_read(codec, mic_nid, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_write(codec, mix_nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+		    0x7000 | (capsrc_idx_mic << 8) | (present ? 0 : 0x80));
+	snd_hda_codec_write(codec, mix_nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+		    0x7000 | (capsrc_idx_fmic << 8) | (present ? 0x80 : 0));
+	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, capsrc_idx_fmic,
+			 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+}
+
 /* unsolicited event for HP jack sensing */
 static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 {
@@ -829,10 +850,17 @@ static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 		res >>= 28;
 	else
 		res >>= 26;
-	if (res != ALC880_HP_EVENT)
-		return;
+	if (res == ALC880_HP_EVENT)
+		alc_sku_automute(codec);
 
+	if (res == ALC880_MIC_EVENT)
+		alc_mic_automute(codec);
+}
+
+static void alc_inithook(struct hda_codec *codec)
+{
 	alc_sku_automute(codec);
+	alc_mic_automute(codec);
 }
 
 /* additional initialization for ALC888 variants */
@@ -1018,10 +1046,17 @@ do_sku:
 		else
 			return;
 	}
+	if (spec->autocfg.hp_pins[0])
+		snd_hda_codec_write(codec, spec->autocfg.hp_pins[0], 0,
+			AC_VERB_SET_UNSOLICITED_ENABLE,
+			AC_USRSP_EN | ALC880_HP_EVENT);
 
-	snd_hda_codec_write(codec, spec->autocfg.hp_pins[0], 0,
-			    AC_VERB_SET_UNSOLICITED_ENABLE,
-			    AC_USRSP_EN | ALC880_HP_EVENT);
+	if (spec->autocfg.input_pins[AUTO_PIN_MIC] &&
+		spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC])
+		snd_hda_codec_write(codec,
+			spec->autocfg.input_pins[AUTO_PIN_MIC], 0,
+			AC_VERB_SET_UNSOLICITED_ENABLE,
+			AC_USRSP_EN | ALC880_MIC_EVENT);
 
 	spec->unsol_event = alc_sku_unsol_event;
 }
@@ -3808,7 +3843,7 @@ static void alc880_auto_init(struct hda_codec *codec)
 	alc880_auto_init_extra_out(codec);
 	alc880_auto_init_analog_input(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 /*
@@ -5219,7 +5254,7 @@ static void alc260_auto_init(struct hda_codec *codec)
 	alc260_auto_init_multi_out(codec);
 	alc260_auto_init_analog_input(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -6629,7 +6664,7 @@ static void alc882_auto_init(struct hda_codec *codec)
 	alc882_auto_init_analog_input(codec);
 	alc882_auto_init_input_src(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 static int patch_alc883(struct hda_codec *codec); /* called in patch_alc882() */
@@ -8758,7 +8793,7 @@ static void alc883_auto_init(struct hda_codec *codec)
 	alc883_auto_init_analog_input(codec);
 	alc883_auto_init_input_src(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 static int patch_alc883(struct hda_codec *codec)
@@ -10285,7 +10320,7 @@ static void alc262_auto_init(struct hda_codec *codec)
 	alc262_auto_init_analog_input(codec);
 	alc262_auto_init_input_src(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 /*
@@ -11417,7 +11452,7 @@ static void alc268_auto_init(struct hda_codec *codec)
 	alc268_auto_init_mono_speaker_out(codec);
 	alc268_auto_init_analog_input(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 /*
@@ -12200,7 +12235,7 @@ static void alc269_auto_init(struct hda_codec *codec)
 	alc269_auto_init_hp_out(codec);
 	alc269_auto_init_analog_input(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 /*
@@ -13281,7 +13316,7 @@ static void alc861_auto_init(struct hda_codec *codec)
 	alc861_auto_init_hp_out(codec);
 	alc861_auto_init_analog_input(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -14393,7 +14428,7 @@ static void alc861vd_auto_init(struct hda_codec *codec)
 	alc861vd_auto_init_analog_input(codec);
 	alc861vd_auto_init_input_src(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 static int patch_alc861vd(struct hda_codec *codec)
@@ -16223,7 +16258,7 @@ static void alc662_auto_init(struct hda_codec *codec)
 	alc662_auto_init_analog_input(codec);
 	alc662_auto_init_input_src(codec);
 	if (spec->unsol_event)
-		alc_sku_automute(codec);
+		alc_inithook(codec);
 }
 
 static int patch_alc662(struct hda_codec *codec)
