@@ -50,6 +50,9 @@ static int i915_gem_object_get_page_list(struct drm_gem_object *obj);
 static void i915_gem_object_free_page_list(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 
+static void
+i915_gem_cleanup_ringbuffer(struct drm_device *dev);
+
 int
 i915_gem_init_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
@@ -582,7 +585,7 @@ i915_add_request(struct drm_device *dev, uint32_t flush_domains)
 	was_empty = list_empty(&dev_priv->mm.request_list);
 	list_add_tail(&request->list, &dev_priv->mm.request_list);
 
-	if (was_empty)
+	if (was_empty && !dev_priv->mm.suspended)
 		schedule_delayed_work(&dev_priv->mm.retire_work, HZ);
 	return seqno;
 }
@@ -731,7 +734,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_retire_requests(dev);
-	if (!list_empty(&dev_priv->mm.request_list))
+	if (!dev_priv->mm.suspended &&
+	    !list_empty(&dev_priv->mm.request_list))
 		schedule_delayed_work(&dev_priv->mm.retire_work, HZ);
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -2227,13 +2231,23 @@ i915_gem_idle(struct drm_device *dev)
 	uint32_t seqno, cur_seqno, last_seqno;
 	int stuck, ret;
 
-	if (dev_priv->mm.suspended)
+	mutex_lock(&dev->struct_mutex);
+
+	if (dev_priv->mm.suspended || dev_priv->ring.ring_obj == NULL) {
+		mutex_unlock(&dev->struct_mutex);
 		return 0;
+	}
 
 	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
 	 * We need to replace this with a semaphore, or something.
 	 */
 	dev_priv->mm.suspended = 1;
+
+	/* Cancel the retire work handler, wait for it to finish if running
+	 */
+	mutex_unlock(&dev->struct_mutex);
+	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
+	mutex_lock(&dev->struct_mutex);
 
 	i915_kernel_lost_context(dev);
 
@@ -2284,13 +2298,19 @@ i915_gem_idle(struct drm_device *dev)
 
 	/* Move all buffers out of the GTT. */
 	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
 		return ret;
+	}
 
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->mm.request_list));
+
+	i915_gem_cleanup_ringbuffer(dev);
+	mutex_unlock(&dev->struct_mutex);
+
 	return 0;
 }
 
@@ -2503,34 +2523,20 @@ i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 {
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_idle(dev);
-	if (ret == 0)
-		i915_gem_cleanup_ringbuffer(dev);
-	mutex_unlock(&dev->struct_mutex);
-
 	drm_irq_uninstall(dev);
 
-	return 0;
+	return ret;
 }
 
 void
 i915_gem_lastclose(struct drm_device *dev)
 {
 	int ret;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	mutex_lock(&dev->struct_mutex);
-
-	if (dev_priv->ring.ring_obj != NULL) {
-		ret = i915_gem_idle(dev);
-		if (ret)
-			DRM_ERROR("failed to idle hardware: %d\n", ret);
-
-		i915_gem_cleanup_ringbuffer(dev);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
+	ret = i915_gem_idle(dev);
+	if (ret)
+		DRM_ERROR("failed to idle hardware: %d\n", ret);
 }
 
 void
