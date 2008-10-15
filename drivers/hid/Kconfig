@@ -97,11 +97,8 @@ config HID_APPLE
 	Support for some Apple devices which less or more break
 	HID specification.
 
-	Say Y here if you want support for the special keys (Fn, Numlock) on
-	Apple iBooks, PowerBooks, MacBooks, MacBook Pros and aluminum USB
-	keyboards.
-
-	If unsure, say M.
+	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
+	MacBooks, MacBook Pros and Apple Aluminum.
 
 config HID_BELKIN
 	tristate "Belkin" if EMBEDDED
@@ -122,7 +119,7 @@ config HID_CHERRY
 	depends on USB_HID
 	default y
 	---help---
-	Support for Cherry Cymotion.
+	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
 	tristate "Chicony" if EMBEDDED
@@ -136,36 +133,36 @@ config HID_CYPRESS
 	depends on USB_HID
 	default y
 	---help---
-	Support for Cypress mouse and barcodes.
+	Support for cypress mouse and barcode readers.
 
 config HID_DELL
 	tristate "Dell" if EMBEDDED
 	depends on USB_HID
 	default y
 	---help---
-	Support for Dell W7658.
+	Support for quirky Dell HID hardware that require
+	special LED handling (W7658 and SK8115 models)
 
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
 	depends on USB_HID
 	default y
 	---help---
-	Support for Ezkey mouse and barcodes.
+	Support for Ezkey BTC 8193 keyboard.
 
 config HID_GYRATION
 	tristate "Gyration" if EMBEDDED
 	depends on USB_HID
 	default y
 	---help---
-	Support for Gyration remote.
+	Support for Gyration remote control.
 
 config HID_LOGITECH
 	tristate "Logitech" if EMBEDDED
 	depends on USB_HID
 	default y
 	---help---
-	Support for some Logitech devices which breaks less or more
-	HID specification.
+	Support for Logitech devices that are not fully compliant with HID standard.
 
 config LOGITECH_FF
 	bool "Logitech force feedback"
@@ -196,8 +193,7 @@ config HID_MICROSOFT
 	depends on USB_HID
 	default y
 	---help---
-	Support for some Microsoft devices which breaks less or more
-	HID specification.
+	Support for Microsoft devices that are not fully compliant with HID standard.
 
 config HID_MONTEREY
 	tristate "Monterey" if EMBEDDED
@@ -213,7 +209,6 @@ config HID_PANTHERLORD
 	---help---
 	Support for PantherLord/GreenAsia based device support.
 
-
 config PANTHERLORD_FF
 	bool "Pantherlord force feedback support"
 	depends on HID_PANTHERLORD
@@ -227,14 +222,14 @@ config HID_PETALYNX
 	depends on USB_HID
 	default y
 	---help---
-	Support for Petalynx Maxter remote.
+	Support for Petalynx Maxter remote control.
 
 config HID_SAMSUNG
 	tristate "Samsung" if EMBEDDED
 	depends on USB_HID
 	default y
 	---help---
-	Support for Samsung IR remote.
+	Support for Samsung InfraRed remote control.
 
 config HID_SONY
 	tristate "Sony" if EMBEDDED
@@ -248,7 +243,7 @@ config HID_SUNPLUS
 	depends on USB_HID
 	default y
 	---help---
-	Support for Sunplus WDesktop input device.
+	Support for Sunplus wireless desktop.
 
 config THRUSTMASTER_FF
 	tristate "ThrustMaster devices support"
