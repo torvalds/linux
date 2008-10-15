@@ -85,12 +85,12 @@ static void udf_write_super(struct super_block *);
 static int udf_remount_fs(struct super_block *, int *, char *);
 static int udf_check_valid(struct super_block *, int, int);
 static int udf_vrs(struct super_block *sb, int silent);
-static void udf_load_logicalvolint(struct super_block *, kernel_extent_ad);
+static void udf_load_logicalvolint(struct super_block *, struct kernel_extent_ad);
 static void udf_find_anchor(struct super_block *);
-static int udf_find_fileset(struct super_block *, kernel_lb_addr *,
-			    kernel_lb_addr *);
+static int udf_find_fileset(struct super_block *, struct kernel_lb_addr *,
+			    struct kernel_lb_addr *);
 static void udf_load_fileset(struct super_block *, struct buffer_head *,
-			     kernel_lb_addr *);
+			     struct kernel_lb_addr *);
 static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
@@ -810,8 +810,8 @@ check_anchor:
 }
 
 static int udf_find_fileset(struct super_block *sb,
-			    kernel_lb_addr *fileset,
-			    kernel_lb_addr *root)
+			    struct kernel_lb_addr *fileset,
+			    struct kernel_lb_addr *root)
 {
 	struct buffer_head *bh = NULL;
 	long lastblock;
@@ -834,7 +834,7 @@ static int udf_find_fileset(struct super_block *sb,
 	sbi = UDF_SB(sb);
 	if (!bh) {
 		/* Search backwards through the partitions */
-		kernel_lb_addr newfileset;
+		struct kernel_lb_addr newfileset;
 
 /* --> cvg: FIXME - is it reasonable? */
 		return 1;
@@ -917,7 +917,7 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 	if (udf_disk_stamp_to_time(&UDF_SB(sb)->s_record_time,
 			      pvoldesc->recordingDateAndTime)) {
 #ifdef UDFFS_DEBUG
-		timestamp *ts = &pvoldesc->recordingDateAndTime;
+		struct timestamp *ts = &pvoldesc->recordingDateAndTime;
 		udf_debug("recording time %04u/%02u/%02u"
 			  " %02u:%02u (%x)\n",
 			  le16_to_cpu(ts->year), ts->month, ts->day, ts->hour,
@@ -946,7 +946,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	struct udf_meta_data *mdata;
-	kernel_lb_addr addr;
+	struct kernel_lb_addr addr;
 	int fe_error = 0;
 
 	map = &sbi->s_partmaps[partition];
@@ -1037,7 +1037,7 @@ error_exit:
 }
 
 static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
-			     kernel_lb_addr *root)
+			     struct kernel_lb_addr *root)
 {
 	struct fileSetDesc *fset;
 
@@ -1119,7 +1119,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 
 	phd = (struct partitionHeaderDesc *)p->partitionContentsUse;
 	if (phd->unallocSpaceTable.extLength) {
-		kernel_lb_addr loc = {
+		struct kernel_lb_addr loc = {
 			.logicalBlockNum = le32_to_cpu(
 				phd->unallocSpaceTable.extPosition),
 			.partitionReferenceNum = p_index,
@@ -1154,7 +1154,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		udf_debug("partitionIntegrityTable (part %d)\n", p_index);
 
 	if (phd->freedSpaceTable.extLength) {
-		kernel_lb_addr loc = {
+		struct kernel_lb_addr loc = {
 			.logicalBlockNum = le32_to_cpu(
 				phd->freedSpaceTable.extPosition),
 			.partitionReferenceNum = p_index,
@@ -1192,7 +1192,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map = &sbi->s_partmaps[p_index];
-	kernel_lb_addr ino;
+	struct kernel_lb_addr ino;
 	struct buffer_head *bh = NULL;
 	struct udf_inode_info *vati;
 	uint32_t pos;
@@ -1322,7 +1322,7 @@ out_bh:
 }
 
 static int udf_load_logicalvol(struct super_block *sb, sector_t block,
-			       kernel_lb_addr *fileset)
+			       struct kernel_lb_addr *fileset)
 {
 	struct logicalVolDesc *lvd;
 	int i, j, offset;
@@ -1471,7 +1471,7 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 	}
 
 	if (fileset) {
-		long_ad *la = (long_ad *)&(lvd->logicalVolContentsUse[0]);
+		struct long_ad *la = (struct long_ad *)&(lvd->logicalVolContentsUse[0]);
 
 		*fileset = lelb_to_cpu(la->extLocation);
 		udf_debug("FileSet found in LogicalVolDesc at block=%d, "
@@ -1490,7 +1490,7 @@ out_bh:
  * udf_load_logicalvolint
  *
  */
-static void udf_load_logicalvolint(struct super_block *sb, kernel_extent_ad loc)
+static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_ad loc)
 {
 	struct buffer_head *bh = NULL;
 	uint16_t ident;
@@ -1533,7 +1533,7 @@ static void udf_load_logicalvolint(struct super_block *sb, kernel_extent_ad loc)
  *	Written, tested, and released.
  */
 static noinline int udf_process_sequence(struct super_block *sb, long block,
-				long lastblock, kernel_lb_addr *fileset)
+				long lastblock, struct kernel_lb_addr *fileset)
 {
 	struct buffer_head *bh = NULL;
 	struct udf_vds_record vds[VDS_POS_LENGTH];
@@ -1678,7 +1678,7 @@ static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 	return !block;
 }
 
-static int udf_load_sequence(struct super_block *sb, kernel_lb_addr *fileset)
+static int udf_load_sequence(struct super_block *sb, struct kernel_lb_addr *fileset)
 {
 	struct anchorVolDescPtr *anchor;
 	uint16_t ident;
@@ -1755,7 +1755,7 @@ static void udf_open_lvid(struct super_block *sb)
 	lvid->integrityType = LVID_INTEGRITY_TYPE_OPEN;
 
 	lvid->descTag.descCRC = cpu_to_le16(
-		crc_itu_t(0, (char *)lvid + sizeof(tag),
+		crc_itu_t(0, (char *)lvid + sizeof(struct tag),
 			le16_to_cpu(lvid->descTag.descCRCLength)));
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
@@ -1790,7 +1790,7 @@ static void udf_close_lvid(struct super_block *sb)
 	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_CLOSE);
 
 	lvid->descTag.descCRC = cpu_to_le16(
-			crc_itu_t(0, (char *)lvid + sizeof(tag),
+			crc_itu_t(0, (char *)lvid + sizeof(struct tag),
 				le16_to_cpu(lvid->descTag.descCRCLength)));
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
@@ -1848,7 +1848,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	int i;
 	struct inode *inode = NULL;
 	struct udf_options uopt;
-	kernel_lb_addr rootdir, fileset;
+	struct kernel_lb_addr rootdir, fileset;
 	struct udf_sb_info *sbi;
 
 	uopt.flags = (1 << UDF_FLAG_USE_AD_IN_ICB) | (1 << UDF_FLAG_STRICT);
@@ -1978,7 +1978,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	}
 
 	if (!silent) {
-		timestamp ts;
+		struct timestamp ts;
 		udf_time_to_disk_stamp(&ts, sbi->s_record_time);
 		udf_info("UDF: Mounting volume '%s', "
 			 "timestamp %04u/%02u/%02u %02u:%02u (%x)\n",
@@ -2114,7 +2114,7 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 	unsigned int accum = 0;
 	int index;
 	int block = 0, newblock;
-	kernel_lb_addr loc;
+	struct kernel_lb_addr loc;
 	uint32_t bytes;
 	uint8_t *ptr;
 	uint16_t ident;
@@ -2170,7 +2170,7 @@ static unsigned int udf_count_free_table(struct super_block *sb,
 {
 	unsigned int accum = 0;
 	uint32_t elen;
-	kernel_lb_addr eloc;
+	struct kernel_lb_addr eloc;
 	int8_t etype;
 	struct extent_position epos;
 

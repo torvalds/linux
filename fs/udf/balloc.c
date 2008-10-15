@@ -87,7 +87,7 @@ static int read_block_bitmap(struct super_block *sb,
 {
 	struct buffer_head *bh = NULL;
 	int retval = 0;
-	kernel_lb_addr loc;
+	struct kernel_lb_addr loc;
 
 	loc.logicalBlockNum = bitmap->s_extPosition;
 	loc.partitionReferenceNum = UDF_SB(sb)->s_partition;
@@ -156,7 +156,7 @@ static bool udf_add_free_space(struct udf_sb_info *sbi,
 static void udf_bitmap_free_blocks(struct super_block *sb,
 				   struct inode *inode,
 				   struct udf_bitmap *bitmap,
-				   kernel_lb_addr bloc, uint32_t offset,
+				   struct kernel_lb_addr bloc, uint32_t offset,
 				   uint32_t count)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
@@ -425,13 +425,13 @@ error_return:
 static void udf_table_free_blocks(struct super_block *sb,
 				  struct inode *inode,
 				  struct inode *table,
-				  kernel_lb_addr bloc, uint32_t offset,
+				  struct kernel_lb_addr bloc, uint32_t offset,
 				  uint32_t count)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	uint32_t start, end;
 	uint32_t elen;
-	kernel_lb_addr eloc;
+	struct kernel_lb_addr eloc;
 	struct extent_position oepos, epos;
 	int8_t etype;
 	int i;
@@ -532,8 +532,8 @@ static void udf_table_free_blocks(struct super_block *sb,
 		 */
 
 		int adsize;
-		short_ad *sad = NULL;
-		long_ad *lad = NULL;
+		struct short_ad *sad = NULL;
+		struct long_ad *lad = NULL;
 		struct allocExtDesc *aed;
 
 		eloc.logicalBlockNum = start;
@@ -541,9 +541,9 @@ static void udf_table_free_blocks(struct super_block *sb,
 			(count << sb->s_blocksize_bits);
 
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-			adsize = sizeof(short_ad);
+			adsize = sizeof(struct short_ad);
 		else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-			adsize = sizeof(long_ad);
+			adsize = sizeof(struct long_ad);
 		else {
 			brelse(oepos.bh);
 			brelse(epos.bh);
@@ -601,15 +601,15 @@ static void udf_table_free_blocks(struct super_block *sb,
 			if (sbi->s_udfrev >= 0x0200)
 				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED,
 					    3, 1, epos.block.logicalBlockNum,
-					    sizeof(tag));
+					    sizeof(struct tag));
 			else
 				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED,
 					    2, 1, epos.block.logicalBlockNum,
-					    sizeof(tag));
+					    sizeof(struct tag));
 
 			switch (iinfo->i_alloc_type) {
 			case ICBTAG_FLAG_AD_SHORT:
-				sad = (short_ad *)sptr;
+				sad = (struct short_ad *)sptr;
 				sad->extLength = cpu_to_le32(
 					EXT_NEXT_EXTENT_ALLOCDECS |
 					sb->s_blocksize);
@@ -617,7 +617,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 					cpu_to_le32(epos.block.logicalBlockNum);
 				break;
 			case ICBTAG_FLAG_AD_LONG:
-				lad = (long_ad *)sptr;
+				lad = (struct long_ad *)sptr;
 				lad->extLength = cpu_to_le32(
 					EXT_NEXT_EXTENT_ALLOCDECS |
 					sb->s_blocksize);
@@ -666,7 +666,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	int alloc_count = 0;
 	uint32_t elen, adsize;
-	kernel_lb_addr eloc;
+	struct kernel_lb_addr eloc;
 	struct extent_position epos;
 	int8_t etype = -1;
 	struct udf_inode_info *iinfo;
@@ -677,9 +677,9 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 
 	iinfo = UDF_I(table);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-		adsize = sizeof(short_ad);
+		adsize = sizeof(struct short_ad);
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-		adsize = sizeof(long_ad);
+		adsize = sizeof(struct long_ad);
 	else
 		return 0;
 
@@ -735,7 +735,7 @@ static int udf_table_new_block(struct super_block *sb,
 	uint32_t spread = 0xFFFFFFFF, nspread = 0xFFFFFFFF;
 	uint32_t newblock = 0, adsize;
 	uint32_t elen, goal_elen = 0;
-	kernel_lb_addr eloc, uninitialized_var(goal_eloc);
+	struct kernel_lb_addr eloc, uninitialized_var(goal_eloc);
 	struct extent_position epos, goal_epos;
 	int8_t etype;
 	struct udf_inode_info *iinfo = UDF_I(table);
@@ -743,9 +743,9 @@ static int udf_table_new_block(struct super_block *sb,
 	*err = -ENOSPC;
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-		adsize = sizeof(short_ad);
+		adsize = sizeof(struct short_ad);
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-		adsize = sizeof(long_ad);
+		adsize = sizeof(struct long_ad);
 	else
 		return newblock;
 
@@ -830,7 +830,7 @@ static int udf_table_new_block(struct super_block *sb,
 
 inline void udf_free_blocks(struct super_block *sb,
 			    struct inode *inode,
-			    kernel_lb_addr bloc, uint32_t offset,
+			    struct kernel_lb_addr bloc, uint32_t offset,
 			    uint32_t count)
 {
 	uint16_t partition = bloc.partitionReferenceNum;

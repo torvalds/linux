@@ -28,10 +28,10 @@
 #include "udf_sb.h"
 
 static void extent_trunc(struct inode *inode, struct extent_position *epos,
-			 kernel_lb_addr eloc, int8_t etype, uint32_t elen,
+			 struct kernel_lb_addr eloc, int8_t etype, uint32_t elen,
 			 uint32_t nelen)
 {
-	kernel_lb_addr neloc = {};
+	struct kernel_lb_addr neloc = {};
 	int last_block = (elen + inode->i_sb->s_blocksize - 1) >>
 		inode->i_sb->s_blocksize_bits;
 	int first_block = (nelen + inode->i_sb->s_blocksize - 1) >>
@@ -68,7 +68,7 @@ static void extent_trunc(struct inode *inode, struct extent_position *epos,
 void udf_truncate_tail_extent(struct inode *inode)
 {
 	struct extent_position epos = {};
-	kernel_lb_addr eloc;
+	struct kernel_lb_addr eloc;
 	uint32_t elen, nelen;
 	uint64_t lbcount = 0;
 	int8_t etype = -1, netype;
@@ -83,9 +83,9 @@ void udf_truncate_tail_extent(struct inode *inode)
 		return;
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-		adsize = sizeof(short_ad);
+		adsize = sizeof(struct short_ad);
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-		adsize = sizeof(long_ad);
+		adsize = sizeof(struct long_ad);
 	else
 		BUG();
 
@@ -124,7 +124,7 @@ void udf_truncate_tail_extent(struct inode *inode)
 void udf_discard_prealloc(struct inode *inode)
 {
 	struct extent_position epos = { NULL, 0, {0, 0} };
-	kernel_lb_addr eloc;
+	struct kernel_lb_addr eloc;
 	uint32_t elen;
 	uint64_t lbcount = 0;
 	int8_t etype = -1, netype;
@@ -136,9 +136,9 @@ void udf_discard_prealloc(struct inode *inode)
 		return;
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-		adsize = sizeof(short_ad);
+		adsize = sizeof(struct short_ad);
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-		adsize = sizeof(long_ad);
+		adsize = sizeof(struct long_ad);
 	else
 		adsize = 0;
 
@@ -200,7 +200,7 @@ static void udf_update_alloc_ext_desc(struct inode *inode,
 void udf_truncate_extents(struct inode *inode)
 {
 	struct extent_position epos;
-	kernel_lb_addr eloc, neloc = {};
+	struct kernel_lb_addr eloc, neloc = {};
 	uint32_t elen, nelen = 0, indirect_ext_len = 0, lenalloc;
 	int8_t etype;
 	struct super_block *sb = inode->i_sb;
@@ -210,9 +210,9 @@ void udf_truncate_extents(struct inode *inode)
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-		adsize = sizeof(short_ad);
+		adsize = sizeof(struct short_ad);
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-		adsize = sizeof(long_ad);
+		adsize = sizeof(struct long_ad);
 	else
 		BUG();
 
@@ -278,7 +278,7 @@ void udf_truncate_extents(struct inode *inode)
 			udf_update_alloc_ext_desc(inode, &epos, lenalloc);
 	} else if (inode->i_size) {
 		if (byte_offset) {
-			kernel_long_ad extent;
+			struct kernel_long_ad extent;
 
 			/*
 			 *  OK, there is not extent covering inode->i_size and
