@@ -25,7 +25,7 @@
 #ifndef __MATH_EMU_OP_2_H__
 #define __MATH_EMU_OP_2_H__
 
-#define _FP_FRAC_DECL_2(X)	_FP_W_TYPE X##_f0, X##_f1
+#define _FP_FRAC_DECL_2(X)	_FP_W_TYPE X##_f0 = 0, X##_f1 = 0
 #define _FP_FRAC_COPY_2(D,S)	(D##_f0 = S##_f0, D##_f1 = S##_f1)
 #define _FP_FRAC_SET_2(X,I)	__FP_FRAC_SET_2(X, I)
 #define _FP_FRAC_HIGH_2(X)	(X##_f1)

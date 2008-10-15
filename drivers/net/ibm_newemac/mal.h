@@ -213,6 +213,8 @@ struct mal_instance {
 	struct of_device	*ofdev;
 	int			index;
 	spinlock_t		lock;
+
+	unsigned int features;
 };
 
 static inline u32 get_mal_dcrn(struct mal_instance *mal, int reg)
@@ -223,6 +225,38 @@ static inline u32 get_mal_dcrn(struct mal_instance *mal, int reg)
 static inline void set_mal_dcrn(struct mal_instance *mal, int reg, u32 val)
 {
 	dcr_write(mal->dcr_host, reg, val);
+}
+
+/* Features of various MAL implementations */
+
+/* Set if you have interrupt coalescing and you have to clear the SDR
+ * register for TXEOB and RXEOB interrupts to work
+ */
+#define MAL_FTR_CLEAR_ICINTSTAT	0x00000001
+
+/* Set if your MAL has SERR, TXDE, and RXDE OR'd into a single UIC
+ * interrupt
+ */
+#define MAL_FTR_COMMON_ERR_INT	0x00000002
+
+enum {
+	MAL_FTRS_ALWAYS = 0,
+
+	MAL_FTRS_POSSIBLE =
+#ifdef CONFIG_IBM_NEW_EMAC_MAL_CLR_ICINTSTAT
+		MAL_FTR_CLEAR_ICINTSTAT |
+#endif
+#ifdef CONFIG_IBM_NEW_EMAC_MAL_COMMON_ERR
+		MAL_FTR_COMMON_ERR_INT |
+#endif
+		0,
+};
+
+static inline int mal_has_feature(struct mal_instance *dev,
+		unsigned long feature)
+{
+	return (MAL_FTRS_ALWAYS & feature) ||
+		(MAL_FTRS_POSSIBLE & dev->features & feature);
 }
 
 /* Register MAL devices */

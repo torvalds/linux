@@ -202,13 +202,15 @@ static inline int emac_phy_supports_gige(int phy_mode)
 {
 	return  phy_mode == PHY_MODE_GMII ||
 		phy_mode == PHY_MODE_RGMII ||
+		phy_mode == PHY_MODE_SGMII ||
 		phy_mode == PHY_MODE_TBI ||
 		phy_mode == PHY_MODE_RTBI;
 }
 
 static inline int emac_phy_gpcs(int phy_mode)
 {
-	return  phy_mode == PHY_MODE_TBI ||
+	return  phy_mode == PHY_MODE_SGMII ||
+		phy_mode == PHY_MODE_TBI ||
 		phy_mode == PHY_MODE_RTBI;
 }
 
@@ -562,8 +564,9 @@ static int emac_configure(struct emac_instance *dev)
 	switch (dev->phy.speed) {
 	case SPEED_1000:
 		if (emac_phy_gpcs(dev->phy.mode)) {
-			mr1 |= EMAC_MR1_MF_1000GPCS |
-				EMAC_MR1_MF_IPPA(dev->phy.address);
+			mr1 |= EMAC_MR1_MF_1000GPCS | EMAC_MR1_MF_IPPA(
+				(dev->phy.gpcs_address != 0xffffffff) ?
+				 dev->phy.gpcs_address : dev->phy.address);
 
 			/* Put some arbitrary OUI, Manuf & Rev IDs so we can
 			 * identify this GPCS PHY later.
@@ -675,8 +678,12 @@ static int emac_configure(struct emac_instance *dev)
 	out_be32(&p->iser,  r);
 
 	/* We need to take GPCS PHY out of isolate mode after EMAC reset */
-	if (emac_phy_gpcs(dev->phy.mode))
-		emac_mii_reset_phy(&dev->phy);
+	if (emac_phy_gpcs(dev->phy.mode)) {
+		if (dev->phy.gpcs_address != 0xffffffff)
+			emac_mii_reset_gpcs(&dev->phy);
+		else
+			emac_mii_reset_phy(&dev->phy);
+	}
 
 	return 0;
 }
@@ -881,7 +888,9 @@ static int emac_mdio_read(struct net_device *ndev, int id, int reg)
 	struct emac_instance *dev = netdev_priv(ndev);
 	int res;
 
-	res = __emac_mdio_read(dev->mdio_instance ? dev->mdio_instance : dev,
+	res = __emac_mdio_read((dev->mdio_instance &&
+				dev->phy.gpcs_address != id) ?
+				dev->mdio_instance : dev,
 			       (u8) id, (u8) reg);
 	return res;
 }
@@ -890,7 +899,9 @@ static void emac_mdio_write(struct net_device *ndev, int id, int reg, int val)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	__emac_mdio_write(dev->mdio_instance ? dev->mdio_instance : dev,
+	__emac_mdio_write((dev->mdio_instance &&
+			   dev->phy.gpcs_address != id) ?
+			   dev->mdio_instance : dev,
 			  (u8) id, (u8) reg, (u16) val);
 }
 
@@ -2382,7 +2393,11 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 		 * XXX I probably should move these settings to the dev tree
 		 */
 		dev->phy.address = -1;
-		dev->phy.features = SUPPORTED_100baseT_Full | SUPPORTED_MII;
+		dev->phy.features = SUPPORTED_MII;
+		if (emac_phy_supports_gige(dev->phy_mode))
+			dev->phy.features |= SUPPORTED_1000baseT_Full;
+		else
+			dev->phy.features |= SUPPORTED_100baseT_Full;
 		dev->phy.pause = 1;
 
 		return 0;
@@ -2421,7 +2436,9 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 		 * Note that the busy_phy_map is currently global
 		 * while it should probably be per-ASIC...
 		 */
-		dev->phy.address = dev->cell_index;
+		dev->phy.gpcs_address = dev->gpcs_address;
+		if (dev->phy.gpcs_address == 0xffffffff)
+			dev->phy.address = dev->cell_index;
 	}
 
 	emac_configure(dev);
@@ -2531,6 +2548,8 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		dev->phy_address = 0xffffffff;
 	if (emac_read_uint_prop(np, "phy-map", &dev->phy_map, 0))
 		dev->phy_map = 0xffffffff;
+	if (emac_read_uint_prop(np, "gpcs-address", &dev->gpcs_address, 0))
+		dev->gpcs_address = 0xffffffff;
 	if (emac_read_uint_prop(np->parent, "clock-frequency", &dev->opb_bus_freq, 1))
 		return -ENXIO;
 	if (emac_read_uint_prop(np, "tah-device", &dev->tah_ph, 0))
@@ -2585,6 +2604,8 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		if (of_device_is_compatible(np, "ibm,emac-440ep") ||
 		    of_device_is_compatible(np, "ibm,emac-440gr"))
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
+		if (of_device_is_compatible(np, "ibm,emac-405ez"))
+			dev->features |= EMAC_FTR_NO_FLOW_CONTROL_40x;
 	}
 
 	/* Fixup some feature bits based on the device tree */
@@ -2841,6 +2862,9 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	       ndev->name, dev->cell_index, np->full_name,
 	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
 	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
+
+	if (dev->phy_mode == PHY_MODE_SGMII)
+		printk(KERN_NOTICE "%s: in SGMII mode\n", ndev->name);
 
 	if (dev->phy.address >= 0)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,

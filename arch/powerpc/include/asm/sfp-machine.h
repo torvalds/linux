@@ -79,89 +79,50 @@
  * #define _FP_DIV_MEAT_D(R,X,Y)   _FP_DIV_MEAT_2_udiv_64(D,R,X,Y)
  */
 
-#define _FP_MUL_MEAT_S(R,X,Y)   _FP_MUL_MEAT_1_wide(S,R,X,Y,umul_ppmm)
-#define _FP_MUL_MEAT_D(R,X,Y)   _FP_MUL_MEAT_2_wide(D,R,X,Y,umul_ppmm)
+#define _FP_MUL_MEAT_S(R,X,Y)   _FP_MUL_MEAT_1_wide(_FP_WFRACBITS_S,R,X,Y,umul_ppmm)
+#define _FP_MUL_MEAT_D(R,X,Y)   _FP_MUL_MEAT_2_wide(_FP_WFRACBITS_D,R,X,Y,umul_ppmm)
 
-#define _FP_DIV_MEAT_S(R,X,Y)   _FP_DIV_MEAT_1_udiv(S,R,X,Y)
-#define _FP_DIV_MEAT_D(R,X,Y)   _FP_DIV_MEAT_2_udiv_64(D,R,X,Y)
+#define _FP_DIV_MEAT_S(R,X,Y)	_FP_DIV_MEAT_1_udiv(S,R,X,Y)
+#define _FP_DIV_MEAT_D(R,X,Y)	_FP_DIV_MEAT_2_udiv(D,R,X,Y)
 
 /* These macros define what NaN looks like. They're supposed to expand to
  * a comma-separated set of 32bit unsigned ints that encode NaN.
  */
-#define _FP_NANFRAC_S		_FP_QNANBIT_S
-#define _FP_NANFRAC_D		_FP_QNANBIT_D, 0
-#define _FP_NANFRAC_Q           _FP_QNANBIT_Q, 0, 0, 0
+#define _FP_NANFRAC_S		((_FP_QNANBIT_S << 1) - 1)
+#define _FP_NANFRAC_D		((_FP_QNANBIT_D << 1) - 1), -1
+#define _FP_NANFRAC_Q		((_FP_QNANBIT_Q << 1) - 1), -1, -1, -1
+#define _FP_NANSIGN_S		0
+#define _FP_NANSIGN_D		0
+#define _FP_NANSIGN_Q		0
 
 #define _FP_KEEPNANFRACP 1
+
+/* Exception flags.  We use the bit positions of the appropriate bits
+   in the FPSCR, which also correspond to the FE_* bits.  This makes
+   everything easier ;-).  */
+#define FP_EX_INVALID         (1 << (31 - 2))
+#define FP_EX_INVALID_SNAN	EFLAG_VXSNAN
+#define FP_EX_INVALID_ISI	EFLAG_VXISI
+#define FP_EX_INVALID_IDI	EFLAG_VXIDI
+#define FP_EX_INVALID_ZDZ	EFLAG_VXZDZ
+#define FP_EX_INVALID_IMZ	EFLAG_VXIMZ
+#define FP_EX_OVERFLOW        (1 << (31 - 3))
+#define FP_EX_UNDERFLOW       (1 << (31 - 4))
+#define FP_EX_DIVZERO         (1 << (31 - 5))
+#define FP_EX_INEXACT         (1 << (31 - 6))
 
 /* This macro appears to be called when both X and Y are NaNs, and
  * has to choose one and copy it to R. i386 goes for the larger of the
  * two, sparc64 just picks Y. I don't understand this at all so I'll
  * go with sparc64 because it's shorter :->   -- PMM
  */
-#define _FP_CHOOSENAN(fs, wc, R, X, Y)			\
+#define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)		\
   do {							\
     R##_s = Y##_s;					\
     _FP_FRAC_COPY_##wc(R,Y);				\
     R##_c = FP_CLS_NAN;					\
   } while (0)
 
-
-extern void fp_unpack_d(long *, unsigned long *, unsigned long *,
-			long *, long *, void *);
-extern int  fp_pack_d(void *, long, unsigned long, unsigned long, long, long);
-extern int  fp_pack_ds(void *, long, unsigned long, unsigned long, long, long);
-
-#define __FP_UNPACK_RAW_1(fs, X, val)			\
-  do {							\
-    union _FP_UNION_##fs *_flo =			\
-    	(union _FP_UNION_##fs *)val;			\
-							\
-    X##_f = _flo->bits.frac;				\
-    X##_e = _flo->bits.exp;				\
-    X##_s = _flo->bits.sign;				\
-  } while (0)
-
-#define __FP_UNPACK_RAW_2(fs, X, val)			\
-  do {							\
-    union _FP_UNION_##fs *_flo =			\
-    	(union _FP_UNION_##fs *)val;			\
-							\
-    X##_f0 = _flo->bits.frac0;				\
-    X##_f1 = _flo->bits.frac1;				\
-    X##_e  = _flo->bits.exp;				\
-    X##_s  = _flo->bits.sign;				\
-  } while (0)
-
-#define __FP_UNPACK_S(X,val)		\
-  do {					\
-    __FP_UNPACK_RAW_1(S,X,val);		\
-    _FP_UNPACK_CANONICAL(S,1,X);	\
-  } while (0)
-
-#define __FP_UNPACK_D(X,val)		\
-	fp_unpack_d(&X##_s, &X##_f1, &X##_f0, &X##_e, &X##_c, val)
-
-#define __FP_PACK_RAW_1(fs, val, X)			\
-  do {							\
-    union _FP_UNION_##fs *_flo =			\
-    	(union _FP_UNION_##fs *)val;			\
-							\
-    _flo->bits.frac = X##_f;				\
-    _flo->bits.exp  = X##_e;				\
-    _flo->bits.sign = X##_s;				\
-  } while (0)
-
-#define __FP_PACK_RAW_2(fs, val, X)			\
-  do {							\
-    union _FP_UNION_##fs *_flo =			\
-    	(union _FP_UNION_##fs *)val;			\
-							\
-    _flo->bits.frac0 = X##_f0;				\
-    _flo->bits.frac1 = X##_f1;				\
-    _flo->bits.exp   = X##_e;				\
-    _flo->bits.sign  = X##_s;				\
-  } while (0)
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -182,15 +143,30 @@ extern int  fp_pack_ds(void *, long, unsigned long, unsigned long, long, long);
 #define __FP_PACK_S(val,X)			\
 ({  int __exc = _FP_PACK_CANONICAL(S,1,X);	\
     if(!__exc || !__FPU_TRAP_P(__exc))		\
-        __FP_PACK_RAW_1(S,val,X);		\
+        _FP_PACK_RAW_1_P(S,val,X);		\
     __exc;					\
 })
 
 #define __FP_PACK_D(val,X)			\
-	fp_pack_d(val, X##_s, X##_f1, X##_f0, X##_e, X##_c)
+   do {									\
+	_FP_PACK_CANONICAL(D, 2, X);					\
+	if (!FP_CUR_EXCEPTIONS || !__FPU_TRAP_P(FP_CUR_EXCEPTIONS))	\
+		_FP_PACK_RAW_2_P(D, val, X);				\
+   } while (0)
 
-#define __FP_PACK_DS(val,X)			\
-	fp_pack_ds(val, X##_s, X##_f1, X##_f0, X##_e, X##_c)
+#define __FP_PACK_DS(val,X)							\
+   do {										\
+	   FP_DECL_S(__X);							\
+	   FP_CONV(S, D, 1, 2, __X, X);						\
+	   _FP_PACK_CANONICAL(S, 1, __X);					\
+	   if (!FP_CUR_EXCEPTIONS || !__FPU_TRAP_P(FP_CUR_EXCEPTIONS)) {	\
+		   _FP_UNPACK_CANONICAL(S, 1, __X);				\
+		   FP_CONV(D, S, 2, 1, X, __X);					\
+		   _FP_PACK_CANONICAL(D, 2, X);					\
+		   if (!FP_CUR_EXCEPTIONS || !__FPU_TRAP_P(FP_CUR_EXCEPTIONS))	\
+		   _FP_PACK_RAW_2_P(D, val, X);					\
+	   }									\
+   } while (0)
 
 /* Obtain the current rounding mode. */
 #define FP_ROUNDMODE			\

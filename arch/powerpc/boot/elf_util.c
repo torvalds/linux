@@ -27,7 +27,8 @@ int parse_elf64(void *hdr, struct elf_info *info)
 	      elf64->e_ident[EI_MAG3]  == ELFMAG3	&&
 	      elf64->e_ident[EI_CLASS] == ELFCLASS64	&&
 	      elf64->e_ident[EI_DATA]  == ELFDATA2MSB	&&
-	      elf64->e_type            == ET_EXEC	&&
+	      (elf64->e_type            == ET_EXEC ||
+	       elf64->e_type            == ET_DYN)	&&
 	      elf64->e_machine         == EM_PPC64))
 		return 0;
 
@@ -58,7 +59,8 @@ int parse_elf32(void *hdr, struct elf_info *info)
 	      elf32->e_ident[EI_MAG3]  == ELFMAG3	&&
 	      elf32->e_ident[EI_CLASS] == ELFCLASS32	&&
 	      elf32->e_ident[EI_DATA]  == ELFDATA2MSB	&&
-	      elf32->e_type            == ET_EXEC	&&
+	      (elf32->e_type            == ET_EXEC ||
+	       elf32->e_type            == ET_DYN)      &&
 	      elf32->e_machine         == EM_PPC))
 		return 0;
 
