@@ -66,7 +66,6 @@ static unsigned long __meminitdata table_end;
 static unsigned long __meminitdata table_top;
 
 static int __initdata after_init_bootmem;
-int after_bootmem;
 
 static __init void *alloc_low_page(unsigned long *phys)
 {
@@ -988,8 +987,6 @@ void __init mem_init(void)
 			reservedpages++;
 
 	set_highmem_pages_init();
-
-	after_bootmem = 1;
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;

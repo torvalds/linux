@@ -173,7 +173,6 @@ SECTIONS
 	*(.x86_cpu_dev.init)
   }
   __x86_cpu_dev_end = .;
-
   SECURITY_INIT
 
   . = ALIGN(8);

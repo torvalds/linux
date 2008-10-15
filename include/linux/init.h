@@ -246,7 +246,6 @@ struct obs_kernel_param {
 
 /* Relies on boot_command_line being set */
 void __init parse_early_param(void);
-
 #endif /* __ASSEMBLY__ */
 
 /**

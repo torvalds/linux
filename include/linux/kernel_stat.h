@@ -28,7 +28,7 @@ struct cpu_usage_stat {
 
 struct kernel_stat {
 	struct cpu_usage_stat	cpustat;
-       unsigned int irqs[NR_IRQS];
+	unsigned int irqs[NR_IRQS];
 };
 
 DECLARE_PER_CPU(struct kernel_stat, kstat);

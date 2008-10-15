@@ -1254,7 +1254,6 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 		return count;
 	}
 
-
 	count =
 	    acpi_table_parse_madt(ACPI_MADT_TYPE_INTERRUPT_OVERRIDE, acpi_parse_int_src_ovr,
 				  nr_irqs);

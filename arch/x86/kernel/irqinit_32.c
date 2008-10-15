@@ -184,4 +184,3 @@ void __init native_init_IRQ(void)
 
 	irq_ctx_init(smp_processor_id());
 }
-
