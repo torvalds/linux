@@ -70,7 +70,7 @@ void __init init_ISA_irqs (void)
 	 */
 	for (i = 0; i < 16; i++) {
 		/* first time call this irq_desc */
-		struct irq_desc *desc = irq_to_desc_alloc(i);
+		struct irq_desc *desc = irq_to_desc(i);
 
 		desc->status = IRQ_DISABLED;
 		desc->action = NULL;

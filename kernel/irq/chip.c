@@ -28,7 +28,7 @@ void dynamic_irq_init(unsigned int irq)
 	unsigned long flags;
 
 	/* first time to use this irq_desc */
-	desc = irq_to_desc_alloc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc) {
 		WARN(1, KERN_ERR "Trying to initialize invalid IRQ%d\n", irq);
 		return;

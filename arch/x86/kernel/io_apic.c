@@ -1257,11 +1257,7 @@ static void ioapic_register_intr(int irq, unsigned long trigger)
 {
 	struct irq_desc *desc;
 
-	/* first time to use this irq_desc */
-	if (irq < 16)
-		desc = irq_to_desc(irq);
-	else
-		desc = irq_to_desc_alloc(irq);
+	desc = irq_to_desc(irq);
 
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 	    trigger == IOAPIC_LEVEL)

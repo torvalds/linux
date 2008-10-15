@@ -210,11 +210,6 @@ static inline struct irq_desc *irq_to_desc(unsigned int irq)
 	return (irq < nr_irqs) ? irq_desc + irq : NULL;
 }
 
-static inline struct irq_desc *irq_to_desc_alloc(unsigned int irq)
-{
-	return irq_to_desc(irq);
-}
-
 #ifdef CONFIG_HAVE_DYN_ARRAY
 #define kstat_irqs_this_cpu(DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()])
