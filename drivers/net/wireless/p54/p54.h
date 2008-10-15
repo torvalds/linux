@@ -69,8 +69,8 @@ struct p54_common {
 	u32 rx_start;
 	u32 rx_end;
 	struct sk_buff_head tx_queue;
-	void (*tx)(struct ieee80211_hw *dev, struct p54_control_hdr *data,
-		   size_t len, int free_on_tx);
+	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb,
+		   int free_on_tx);
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);
 	int mode;
@@ -102,13 +102,14 @@ struct p54_common {
 	struct ieee80211_low_level_stats stats;
 	struct timer_list stats_timer;
 	struct completion stats_comp;
-	void *cached_stats;
+	struct sk_buff *cached_stats;
 	int noise;
 	void *eeprom;
 	struct completion eeprom_comp;
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
+void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb);
 int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
 int p54_read_eeprom(struct ieee80211_hw *dev);
 struct ieee80211_hw *p54_init_common(size_t priv_data_len);
