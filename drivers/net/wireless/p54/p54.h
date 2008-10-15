@@ -49,6 +49,13 @@ struct p54_control_hdr {
 	u8 data[0];
 } __attribute__ ((packed));
 
+struct p54_edcf_queue_param {
+	__le16 aifs;
+	__le16 cwmin;
+	__le16 cwmax;
+	__le16 txop;
+} __attribute__ ((packed));
+
 #define EEPROM_READBACK_LEN 0x3fc
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
@@ -85,13 +92,13 @@ struct p54_common {
 	u8 version;
 	u8 rx_antenna;
 	unsigned int tx_hdr_len;
-	void *cached_vdcf;
 	unsigned int fw_var;
 	unsigned int fw_interface;
 	unsigned int output_power;
 	u32 tsf_low32;
 	u32 tsf_high32;
 	struct ieee80211_tx_queue_stats tx_stats[8];
+	struct p54_edcf_queue_param qos_params[8];
 	struct ieee80211_low_level_stats stats;
 	struct timer_list stats_timer;
 	struct completion stats_comp;

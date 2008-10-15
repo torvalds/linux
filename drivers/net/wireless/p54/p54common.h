@@ -7,8 +7,12 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2007, Christian Lamparter <chunkeey@web.de>
  *
- * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Based on:
+ * - the islsm (softmac prism54) driver, which is:
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *
+ * - LMAC API interface header file for STLC4560 (lmac_longbow.h)
+ *   Copyright (C) 2007 Conexant Systems, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -286,21 +290,15 @@ struct p54_tx_control_led {
 	__le16 duration;
 } __attribute__ ((packed));
 
-struct p54_tx_vdcf_queues {
-	__le16 aifs;
-	__le16 cwmin;
-	__le16 cwmax;
-	__le16 txop;
-} __attribute__ ((packed));
-
-struct p54_tx_control_vdcf {
-	u8 padding;
+struct p54_edcf {
+	u8 flags;
 	u8 slottime;
-	u8 magic1;
-	u8 magic2;
-	struct p54_tx_vdcf_queues queue[8];
-	u8 pad2[4];
+	u8 sifs;
+	u8 eofpad;
+	struct p54_edcf_queue_param queue[8];
+	u8 mapping[4];
 	__le16 frameburst;
+	__le16 round_trip_delay;
 } __attribute__ ((packed));
 
 struct p54_statistics {
