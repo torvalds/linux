@@ -111,15 +111,6 @@ static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
 	}
 }
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-/*
- * Protect the sparse_irqs_free freelist:
- */
-static DEFINE_SPINLOCK(sparse_irq_lock);
-static struct irq_desc *sparse_irqs_free;
-struct irq_desc *sparse_irqs;
-#endif
-
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
@@ -130,120 +121,15 @@ static void __init init_work(void *data)
 
 	for (i = 0; i < *da->nr; i++) {
 		init_one_irq_desc(&desc[i]);
-#ifndef CONFIG_HAVE_SPARSE_IRQ
 		desc[i].irq = i;
-#endif
 	}
 
 	/* init kstat_irqs, nr_cpu_ids is ready already */
 	init_kstat_irqs(desc, *da->nr, nr_cpu_ids);
-
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	for (i = 1; i < *da->nr; i++)
-		desc[i-1].next = &desc[i];
-
-	sparse_irqs_free = sparse_irqs;
-	sparse_irqs = NULL;
-#endif
 }
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-static int nr_irq_desc = 32;
-
-static int __init parse_nr_irq_desc(char *arg)
-{
-	if (arg)
-		nr_irq_desc = simple_strtoul(arg, NULL, 0);
-	return 0;
-}
-
-early_param("nr_irq_desc", parse_nr_irq_desc);
-
-DEFINE_DYN_ARRAY(sparse_irqs, sizeof(struct irq_desc), nr_irq_desc, PAGE_SIZE, init_work);
-
-struct irq_desc *irq_to_desc(unsigned int irq)
-{
-	struct irq_desc *desc;
-
-	desc = sparse_irqs;
-	while (desc) {
-		if (desc->irq == irq)
-			return desc;
-
-		desc = desc->next;
-	}
-	return NULL;
-}
-
-struct irq_desc *irq_to_desc_alloc(unsigned int irq)
-{
-	struct irq_desc *desc, *desc_pri;
-	unsigned long flags;
-	int count = 0;
-	int i;
-
-	desc_pri = desc = sparse_irqs;
-	while (desc) {
-		if (desc->irq == irq)
-			return desc;
-
-		desc_pri = desc;
-		desc = desc->next;
-		count++;
-	}
-
-	spin_lock_irqsave(&sparse_irq_lock, flags);
-	/*
-	 *  we run out of pre-allocate ones, allocate more
-	 */
-	if (!sparse_irqs_free) {
-		unsigned long phys;
-		unsigned long total_bytes;
-
-		printk(KERN_DEBUG "try to get more irq_desc %d\n", nr_irq_desc);
-
-		total_bytes = sizeof(struct irq_desc) * nr_irq_desc;
-		if (after_bootmem)
-			desc = kzalloc(total_bytes, GFP_ATOMIC);
-		else
-			desc = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
-
-		if (!desc)
-			panic("please boot with nr_irq_desc= %d\n", count * 2);
-
-		phys = __pa(desc);
-		printk(KERN_DEBUG "irq_desc ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
-
-		for (i = 0; i < nr_irq_desc; i++)
-			init_one_irq_desc(&desc[i]);
-
-		for (i = 1; i < nr_irq_desc; i++)
-			desc[i-1].next = &desc[i];
-
-		/* init kstat_irqs, nr_cpu_ids is ready already */
-		init_kstat_irqs(desc, nr_irq_desc, nr_cpu_ids);
-
-		sparse_irqs_free = desc;
-	}
-
-	desc = sparse_irqs_free;
-	sparse_irqs_free = sparse_irqs_free->next;
-	desc->next = NULL;
-	if (desc_pri)
-		desc_pri->next = desc;
-	else
-		sparse_irqs = desc;
-	desc->irq = irq;
-
-	spin_unlock_irqrestore(&sparse_irq_lock, flags);
-
-	return desc;
-}
-#else
 struct irq_desc *irq_desc;
 DEFINE_DYN_ARRAY(irq_desc, sizeof(struct irq_desc), nr_irqs, PAGE_SIZE, init_work);
-
-#endif
 
 #else
 

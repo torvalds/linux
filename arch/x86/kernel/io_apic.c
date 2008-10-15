@@ -111,9 +111,6 @@ struct irq_cfg;
 struct irq_pin_list;
 struct irq_cfg {
 	unsigned int irq;
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	struct irq_cfg *next;
-#endif
 	struct irq_pin_list *irq_2_pin;
 	cpumask_t domain;
 	cpumask_t old_domain;
@@ -151,15 +148,6 @@ static void init_one_irq_cfg(struct irq_cfg *cfg)
 
 static struct irq_cfg *irq_cfgx;
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-/*
- * Protect the irq_cfgx_free freelist:
- */
-static DEFINE_SPINLOCK(irq_cfg_lock);
-
-static struct irq_cfg *irq_cfgx_free;
-#endif
-
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
@@ -174,114 +162,7 @@ static void __init init_work(void *data)
 	legacy_count = ARRAY_SIZE(irq_cfg_legacy);
 	for (i = legacy_count; i < *da->nr; i++)
 		init_one_irq_cfg(&cfg[i]);
-
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	for (i = 1; i < *da->nr; i++)
-		cfg[i-1].next = &cfg[i];
-
-	irq_cfgx_free = &irq_cfgx[legacy_count];
-	irq_cfgx[legacy_count - 1].next = NULL;
-#endif
 }
-
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-/* need to be biger than size of irq_cfg_legacy */
-static int nr_irq_cfg = 32;
-
-static int __init parse_nr_irq_cfg(char *arg)
-{
-	if (arg) {
-		nr_irq_cfg = simple_strtoul(arg, NULL, 0);
-		if (nr_irq_cfg < 32)
-			nr_irq_cfg = 32;
-	}
-	return 0;
-}
-
-early_param("nr_irq_cfg", parse_nr_irq_cfg);
-
-#define for_each_irq_cfg(irqX, cfg)           \
-        for (cfg = irq_cfgx, irqX = cfg->irq; cfg; cfg = cfg->next, irqX = cfg ? cfg->irq : -1U)
-
-
-DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irq_cfg, PAGE_SIZE, init_work);
-
-static struct irq_cfg *irq_cfg(unsigned int irq)
-{
-	struct irq_cfg *cfg;
-
-	cfg = irq_cfgx;
-	while (cfg) {
-		if (cfg->irq == irq)
-			return cfg;
-
-		cfg = cfg->next;
-	}
-
-	return NULL;
-}
-
-static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
-{
-	struct irq_cfg *cfg, *cfg_pri;
-	unsigned long flags;
-	int count = 0;
-	int i;
-
-	cfg_pri = cfg = irq_cfgx;
-	while (cfg) {
-		if (cfg->irq == irq)
-			return cfg;
-
-		cfg_pri = cfg;
-		cfg = cfg->next;
-		count++;
-	}
-
-	spin_lock_irqsave(&irq_cfg_lock, flags);
-	if (!irq_cfgx_free) {
-		unsigned long phys;
-		unsigned long total_bytes;
-		/*
-		 *  we run out of pre-allocate ones, allocate more
-		 */
-		printk(KERN_DEBUG "try to get more irq_cfg %d\n", nr_irq_cfg);
-
-		total_bytes = sizeof(struct irq_cfg) * nr_irq_cfg;
-		if (after_bootmem)
-			cfg = kzalloc(total_bytes, GFP_ATOMIC);
-		else
-			cfg = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
-
-		if (!cfg)
-			panic("please boot with nr_irq_cfg= %d\n", count * 2);
-
-		phys = __pa(cfg);
-		printk(KERN_DEBUG "irq_cfg ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
-
-		for (i = 0; i < nr_irq_cfg; i++)
-			init_one_irq_cfg(&cfg[i]);
-
-		for (i = 1; i < nr_irq_cfg; i++)
-			cfg[i-1].next = &cfg[i];
-
-		irq_cfgx_free = cfg;
-	}
-
-	cfg = irq_cfgx_free;
-	irq_cfgx_free = irq_cfgx_free->next;
-	cfg->next = NULL;
-	if (cfg_pri)
-		cfg_pri->next = cfg;
-	else
-		irq_cfgx = cfg;
-	cfg->irq = irq;
-
-	spin_unlock_irqrestore(&irq_cfg_lock, flags);
-
-	return cfg;
-}
-#else
 
 #define for_each_irq_cfg(irq, cfg)		\
 	for (irq = 0, cfg = &irq_cfgx[irq]; irq < nr_irqs; irq++, cfg = &irq_cfgx[irq])
@@ -290,17 +171,16 @@ DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irqs, PAGE_SIZE, init_work
 
 struct irq_cfg *irq_cfg(unsigned int irq)
 {
-        if (irq < nr_irqs)
-                return &irq_cfgx[irq];
+	if (irq < nr_irqs)
+		return &irq_cfgx[irq];
 
-        return NULL;
+	return NULL;
 }
 struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 {
-        return irq_cfg(irq);
+	return irq_cfg(irq);
 }
 
-#endif
 /*
  * This is performance-critical, we want to do it O(1)
  *
@@ -3068,9 +2948,7 @@ unsigned int create_irq_nr(unsigned int irq_want)
 	unsigned long flags;
 	struct irq_cfg *cfg_new;
 
-#ifndef CONFIG_HAVE_SPARSE_IRQ
 	irq_want = nr_irqs - 1;
-#endif
 
 	irq = 0;
 	spin_lock_irqsave(&vector_lock, flags);

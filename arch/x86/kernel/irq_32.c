@@ -272,20 +272,12 @@ int show_interrupts(struct seq_file *p, void *v)
 	struct irq_desc *desc = NULL;
 	int tail = 0;
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	desc = (struct irq_desc *)v;
-	entries = -1U;
-	i = desc->irq;
-	if (!desc->next)
-		tail = 1;
-#else
 	entries = nr_irqs - 1;
 	i = *(loff_t *) v;
 	if (i == nr_irqs)
 		tail = 1;
 	else
 		desc = irq_to_desc(i);
-#endif
 
 	if (i == 0) {
 		seq_printf(p, "           ");

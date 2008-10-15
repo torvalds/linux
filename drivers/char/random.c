@@ -558,8 +558,6 @@ struct timer_rand_state {
 	unsigned dont_count_entropy:1;
 };
 
-#ifndef CONFIG_HAVE_SPARSE_IRQ
-
 #ifdef CONFIG_HAVE_DYN_ARRAY
 static struct timer_rand_state **irq_timer_state;
 DEFINE_DYN_ARRAY(irq_timer_state, sizeof(struct timer_rand_state *), nr_irqs, PAGE_SIZE, NULL);
@@ -582,33 +580,6 @@ static void set_timer_rand_state(unsigned int irq, struct timer_rand_state *stat
 
 	irq_timer_state[irq] = state;
 }
-
-#else
-
-static struct timer_rand_state *get_timer_rand_state(unsigned int irq)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	if (!desc)
-		return NULL;
-
-	return desc->timer_rand_state;
-}
-
-static void set_timer_rand_state(unsigned int irq, struct timer_rand_state *state)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	if (!desc)
-		return;
-
-	desc->timer_rand_state = state;
-}
-#endif
 
 static struct timer_rand_state input_timer_state;
 
@@ -967,10 +938,8 @@ void rand_initialize_irq(int irq)
 {
 	struct timer_rand_state *state;
 
-#ifndef CONFIG_HAVE_SPARSE_IRQ
 	if (irq >= nr_irqs)
 		return;
-#endif
 
 	state = get_timer_rand_state(irq);
 

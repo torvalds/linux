@@ -19,78 +19,6 @@ struct irq_2_iommu {
 	u8  irte_mask;
 };
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-static struct irq_2_iommu *irq_2_iommuX;
-/* fill one page ? */
-static int nr_irq_2_iommu = 0x100;
-static int irq_2_iommu_index;
-DEFINE_DYN_ARRAY(irq_2_iommuX, sizeof(struct irq_2_iommu), nr_irq_2_iommu, PAGE_SIZE, NULL);
-
-extern void *__alloc_bootmem_nopanic(unsigned long size,
-				     unsigned long align,
-				     unsigned long goal);
-
-static struct irq_2_iommu *get_one_free_irq_2_iommu(int not_used)
-{
-	struct irq_2_iommu *iommu;
-	unsigned long total_bytes;
-
-	if (irq_2_iommu_index >= nr_irq_2_iommu) {
-		/*
-		 *  we run out of pre-allocate ones, allocate more
-		 */
-		printk(KERN_DEBUG "try to get more irq_2_iommu %d\n", nr_irq_2_iommu);
-
-		total_bytes = sizeof(struct irq_2_iommu)*nr_irq_2_iommu;
-
-		if (after_bootmem)
-			iommu = kzalloc(total_bytes, GFP_ATOMIC);
-		else
-			iommu = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
-
-		if (!iommu)
-			panic("can not get more irq_2_iommu\n");
-
-		irq_2_iommuX = iommu;
-		irq_2_iommu_index = 0;
-	}
-
-	iommu = &irq_2_iommuX[irq_2_iommu_index];
-	irq_2_iommu_index++;
-	return iommu;
-}
-
-static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	BUG_ON(!desc);
-
-	return desc->irq_2_iommu;
-}
-
-static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
-{
-	struct irq_desc *desc;
-	struct irq_2_iommu *irq_iommu;
-
-	/*
-	 * alloc irq desc if not allocated already.
-	 */
-	desc = irq_to_desc_alloc(irq);
-
-	irq_iommu = desc->irq_2_iommu;
-
-	if (!irq_iommu)
-		desc->irq_2_iommu = get_one_free_irq_2_iommu(irq);
-
-	return desc->irq_2_iommu;
-}
-
-#else /* !CONFIG_HAVE_SPARSE_IRQ */
-
 #ifdef CONFIG_HAVE_DYN_ARRAY
 static struct irq_2_iommu *irq_2_iommuX;
 DEFINE_DYN_ARRAY(irq_2_iommuX, sizeof(struct irq_2_iommu), nr_irqs, PAGE_SIZE, NULL);
@@ -109,7 +37,6 @@ static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 {
 	return irq_2_iommu(irq);
 }
-#endif
 
 static DEFINE_SPINLOCK(irq_2_ir_lock);
 
@@ -166,11 +93,9 @@ int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	if (!count)
 		return -1;
 
-#ifndef	CONFIG_HAVE_SPARSE_IRQ
 	/* protect irq_2_iommu_alloc later */
 	if (irq >= nr_irqs)
 		return -1;
-#endif
 
 	/*
 	 * start the IRTE search from index 0.

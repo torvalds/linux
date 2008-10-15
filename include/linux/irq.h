@@ -167,15 +167,8 @@ struct irq_2_iommu;
  */
 struct irq_desc {
 	unsigned int		irq;
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	struct irq_desc		*next;
-	struct timer_rand_state *timer_rand_state;
-#endif
 #ifdef CONFIG_HAVE_DYN_ARRAY
 	unsigned int            *kstat_irqs;
-#endif
-#if defined(CONFIG_INTR_REMAP) && defined(CONFIG_HAVE_SPARSE_IRQ)
-       struct irq_2_iommu      *irq_2_iommu;
 #endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
@@ -205,8 +198,6 @@ struct irq_desc {
 } ____cacheline_internodealigned_in_smp;
 
 
-#ifndef CONFIG_HAVE_SPARSE_IRQ
-
 #ifndef CONFIG_HAVE_DYN_ARRAY
 /* could be removed if we get rid of all irq_desc reference */
 extern struct irq_desc irq_desc[NR_IRQS];
@@ -223,17 +214,6 @@ static inline struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 {
 	return irq_to_desc(irq);
 }
-
-#else
-
-extern struct irq_desc *irq_to_desc(unsigned int irq);
-extern struct irq_desc *irq_to_desc_alloc(unsigned int irq);
-
-extern struct irq_desc *sparse_irqs;
-#define for_each_irq_desc(irqX, desc)		\
-	for (desc = sparse_irqs, irqX = desc->irq; desc; desc = desc->next, irqX = desc ? desc->irq : -1U)
-
-#endif
 
 #ifdef CONFIG_HAVE_DYN_ARRAY
 #define kstat_irqs_this_cpu(DESC) \

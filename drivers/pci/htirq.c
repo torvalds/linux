@@ -82,18 +82,6 @@ void unmask_ht_irq(unsigned int irq)
 	write_ht_irq_msg(irq, &msg);
 }
 
-static unsigned int build_irq_for_pci_dev(struct pci_dev *dev)
-{
-	unsigned int irq;
-
-	irq = dev->bus->number;
-	irq <<= 8;
-	irq |= dev->devfn;
-	irq <<= 12;
-
-	return irq;
-}
-
 /**
  * __ht_create_irq - create an irq and attach it to a device.
  * @dev: The hypertransport device to find the irq capability on.
@@ -110,7 +98,6 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	int max_irq;
 	int pos;
 	int irq;
-	unsigned int irq_want;
 
 	pos = pci_find_ht_capability(dev, HT_CAPTYPE_IRQ);
 	if (!pos)
@@ -138,12 +125,8 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	cfg->msg.address_lo = 0xffffffff;
 	cfg->msg.address_hi = 0xffffffff;
 
-	irq_want= build_irq_for_pci_dev(dev);
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	irq = create_irq_nr(irq_want + idx);
-#else
 	irq = create_irq();
-#endif
+
 	if (irq <= 0) {
 		kfree(cfg);
 		return -EBUSY;

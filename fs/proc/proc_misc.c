@@ -529,13 +529,10 @@ static int show_stat(struct seq_file *p, void *v)
 		softirq = cputime64_add(softirq, kstat_cpu(i).cpustat.softirq);
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
-		for_each_irq_desc(j, desc)
-		{
-			unsigned int temp;
 
-			temp = kstat_irqs_cpu(j, i);
-			sum += temp;
-		}
+		for_each_irq_desc(j, desc)
+			sum += kstat_irqs_cpu(j, i);
+
 		sum += arch_irq_stat_cpu(i);
 	}
 	sum += arch_irq_stat();
@@ -578,21 +575,13 @@ static int show_stat(struct seq_file *p, void *v)
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
 	/* sum again ? it could be updated? */
-	for_each_irq_desc(j, desc)
-	{
+	for_each_irq_desc(j, desc) {
 		per_irq_sum = 0;
-		for_each_possible_cpu(i) {
-			unsigned int temp;
 
-			temp = kstat_irqs_cpu(j, i);
-			per_irq_sum += temp;
-		}
+		for_each_possible_cpu(i)
+			per_irq_sum += kstat_irqs_cpu(j, i);
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-		seq_printf(p, " %#x:%u", j, per_irq_sum);
-#else
 		seq_printf(p, " %u", per_irq_sum);
-#endif
 	}
 
 	seq_printf(p,
@@ -645,36 +634,14 @@ static const struct file_operations proc_stat_operations = {
  */
 static void *int_seq_start(struct seq_file *f, loff_t *pos)
 {
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	struct irq_desc *desc;
-	int irq;
-	int count = *pos;
-
-	for_each_irq_desc(irq, desc) {
-		if (count-- == 0)
-			return desc;
-	}
-
-	return NULL;
-#else
 	return (*pos <= nr_irqs) ? pos : NULL;
-#endif
 }
 
 
 static void *int_seq_next(struct seq_file *f, void *v, loff_t *pos)
 {
-#ifdef CONFIG_HAVE_SPARSE_IRQ
-	struct irq_desc *desc;
-
-	desc = ((struct irq_desc *)v)->next;
-	(*pos)++;
-
-	return desc;
-#else
 	(*pos)++;
 	return (*pos <= nr_irqs) ? pos : NULL;
-#endif
 }
 
 static void int_seq_stop(struct seq_file *f, void *v)
