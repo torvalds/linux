@@ -2503,29 +2503,37 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 		char tbuf[128];
 		int width;
 
-		if (file->f_flags & O_NONBLOCK) {
-			if (spufs_switch_log_used(ctx) == 0) {
+		if (spufs_switch_log_used(ctx) == 0) {
+			if (cnt > 0) {
+				/* If there's data ready to go, we can
+				 * just return straight away */
+				break;
+
+			} else if (file->f_flags & O_NONBLOCK) {
 				error = -EAGAIN;
 				break;
+
+			} else {
+				/* spufs_wait will drop the mutex and
+				 * re-acquire, but since we're in read(), the
+				 * file cannot be _released (and so
+				 * ctx->switch_log is stable).
+				 */
+				error = spufs_wait(ctx->switch_log->wait,
+						spufs_switch_log_used(ctx) > 0);
+
+				/* On error, spufs_wait returns without the
+				 * state mutex held */
+				if (error)
+					return error;
+
+				/* We may have had entries read from underneath
+				 * us while we dropped the mutex in spufs_wait,
+				 * so re-check */
+				if (spufs_switch_log_used(ctx) == 0)
+					continue;
 			}
-		} else {
-			/* spufs_wait will drop the mutex and re-acquire,
-			 * but since we're in read(), the file cannot be
-			 * _released (and so ctx->switch_log is stable).
-			 */
-			error = spufs_wait(ctx->switch_log->wait,
-					spufs_switch_log_used(ctx) > 0);
-
-			/* On error, spufs_wait returns without the
-			 * state mutex held */
-			if (error)
-				return error;
 		}
-
-		/* We may have had entries read from underneath us while we
-		 * dropped the mutex in spufs_wait, so re-check */
-		if (ctx->switch_log->head == ctx->switch_log->tail)
-			continue;
 
 		width = switch_log_sprint(ctx, tbuf, sizeof(tbuf));
 		if (width < len)
