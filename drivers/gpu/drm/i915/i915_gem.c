@@ -1159,7 +1159,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	obj_priv->agp_mem = drm_agp_bind_pages(dev,
 					       obj_priv->page_list,
 					       page_count,
-					       obj_priv->gtt_offset);
+					       obj_priv->gtt_offset,
+					       obj_priv->agp_type);
 	if (obj_priv->agp_mem == NULL) {
 		i915_gem_object_free_page_list(obj);
 		drm_mm_put_block(obj_priv->gtt_space);
@@ -2142,6 +2143,8 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 
+	obj_priv->agp_type = AGP_USER_MEMORY;
+
 	obj->driver_private = obj_priv;
 	obj_priv->obj = obj;
 	INIT_LIST_HEAD(&obj_priv->list);
@@ -2311,6 +2314,7 @@ i915_gem_init_hws(struct drm_device *dev)
 		return -ENOMEM;
 	}
 	obj_priv = obj->driver_private;
+	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
 
 	ret = i915_gem_object_pin(obj, 4096);
 	if (ret != 0) {
@@ -2319,25 +2323,18 @@ i915_gem_init_hws(struct drm_device *dev)
 	}
 
 	dev_priv->status_gfx_addr = obj_priv->gtt_offset;
-	dev_priv->hws_map.offset = dev->agp->base + obj_priv->gtt_offset;
-	dev_priv->hws_map.size = 4096;
-	dev_priv->hws_map.type = 0;
-	dev_priv->hws_map.flags = 0;
-	dev_priv->hws_map.mtrr = 0;
 
-	/* Ioremapping here is the wrong thing to do.  We want cached access.
-	 */
-	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
-	if (dev_priv->hws_map.handle == NULL) {
+	dev_priv->hw_status_page = kmap(obj_priv->page_list[0]);
+	if (dev_priv->hw_status_page == NULL) {
 		DRM_ERROR("Failed to map status page.\n");
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 		drm_gem_object_unreference(obj);
 		return -EINVAL;
 	}
 	dev_priv->hws_obj = obj;
-	dev_priv->hw_status_page = dev_priv->hws_map.handle;
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
+	I915_READ(HWS_PGA); /* posting read */
 	DRM_DEBUG("hws offset: 0x%08x\n", dev_priv->status_gfx_addr);
 
 	return 0;
@@ -2456,10 +2453,15 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
 
 	if (dev_priv->hws_obj != NULL) {
-		i915_gem_object_unpin(dev_priv->hws_obj);
-		drm_gem_object_unreference(dev_priv->hws_obj);
+		struct drm_gem_object *obj = dev_priv->hws_obj;
+		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+		kunmap(obj_priv->page_list[0]);
+		i915_gem_object_unpin(obj);
+		drm_gem_object_unreference(obj);
 		dev_priv->hws_obj = NULL;
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
+		dev_priv->hw_status_page = NULL;
 
 		/* Write high address into HWS_PGA when disabling. */
 		I915_WRITE(HWS_PGA, 0x1ffff000);

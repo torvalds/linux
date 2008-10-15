@@ -464,7 +464,8 @@ DRM_AGP_MEM *
 drm_agp_bind_pages(struct drm_device *dev,
 		   struct page **pages,
 		   unsigned long num_pages,
-		   uint32_t gtt_offset)
+		   uint32_t gtt_offset,
+		   u32 type)
 {
 	DRM_AGP_MEM *mem;
 	int ret, i;
@@ -472,7 +473,7 @@ drm_agp_bind_pages(struct drm_device *dev,
 	DRM_DEBUG("\n");
 
 	mem = drm_agp_allocate_memory(dev->agp->bridge, num_pages,
-				      AGP_USER_MEMORY);
+				      type);
 	if (mem == NULL) {
 		DRM_ERROR("Failed to allocate memory for %ld pages\n",
 			  num_pages);
