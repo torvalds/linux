@@ -210,25 +210,23 @@ static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc
 {
 	struct inode *inode = page->mapping->host;
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	int error;
+	int ret;
 	int done_trans = 0;
-
-	error = gfs2_writepage_common(page, wbc);
-	if (error <= 0)
-		return error;
 
 	if (PageChecked(page)) {
 		if (wbc->sync_mode != WB_SYNC_ALL)
 			goto out_ignore;
-		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
-		if (error)
+		ret = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
+		if (ret)
 			goto out_ignore;
 		done_trans = 1;
 	}
-	error = __gfs2_jdata_writepage(page, wbc);
+	ret = gfs2_writepage_common(page, wbc);
+	if (ret > 0)
+		ret = __gfs2_jdata_writepage(page, wbc);
 	if (done_trans)
 		gfs2_trans_end(sdp);
-	return error;
+	return ret;
 
 out_ignore:
 	redirty_page_for_writepage(wbc, page);

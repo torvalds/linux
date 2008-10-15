@@ -493,7 +493,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &ip->i_iopen_gh);
 	error = gfs2_glock_nq(&ip->i_iopen_gh);
 	if (error)
-		goto out_uninit;
+		goto out_truncate;
 
 	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_di.di_flags & GFS2_DIF_EXHASH)) {
@@ -518,6 +518,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (error)
 		goto out_unlock;
 
+out_truncate:
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_unlock;
@@ -526,8 +527,8 @@ static void gfs2_delete_inode(struct inode *inode)
 	gfs2_trans_end(sdp);
 
 out_unlock:
-	gfs2_glock_dq(&ip->i_iopen_gh);
-out_uninit:
+	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
+		gfs2_glock_dq(&ip->i_iopen_gh);
 	gfs2_holder_uninit(&ip->i_iopen_gh);
 	gfs2_glock_dq_uninit(&gh);
 	if (error && error != GLR_TRYFAILED)
