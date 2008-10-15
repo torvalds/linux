@@ -1762,14 +1762,14 @@ iommu_alloc_iova(struct dmar_domain *domain, size_t size, u64 end)
 
 static struct iova *
 __intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
-		size_t size)
+		   size_t size, u64 dma_mask)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iova *iova = NULL;
 
-	if ((pdev->dma_mask <= DMA_32BIT_MASK) || (dmar_forcedac)) {
-		iova = iommu_alloc_iova(domain, size, pdev->dma_mask);
-	} else  {
+	if (dma_mask <= DMA_32BIT_MASK || dmar_forcedac)
+		iova = iommu_alloc_iova(domain, size, dma_mask);
+	else {
 		/*
 		 * First try to allocate an io virtual address in
 		 * DMA_32BIT_MASK and if that fails then try allocating
@@ -1777,7 +1777,7 @@ __intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
 		 */
 		iova = iommu_alloc_iova(domain, size, DMA_32BIT_MASK);
 		if (!iova)
-			iova = iommu_alloc_iova(domain, size, pdev->dma_mask);
+			iova = iommu_alloc_iova(domain, size, dma_mask);
 	}
 
 	if (!iova) {
@@ -1816,8 +1816,8 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 	return domain;
 }
 
-dma_addr_t
-intel_map_single(struct device *hwdev, phys_addr_t paddr, size_t size, int dir)
+static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
+				     size_t size, int dir, u64 dma_mask)
 {
 	struct pci_dev *pdev = to_pci_dev(hwdev);
 	struct dmar_domain *domain;
@@ -1836,7 +1836,7 @@ intel_map_single(struct device *hwdev, phys_addr_t paddr, size_t size, int dir)
 
 	size = aligned_size((u64)paddr, size);
 
-	iova = __intel_alloc_iova(hwdev, domain, size);
+	iova = __intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
 	if (!iova)
 		goto error;
 
@@ -1876,6 +1876,13 @@ error:
 	printk(KERN_ERR"Device %s request: %lx@%llx dir %d --- failed\n",
 		pci_name(pdev), size, (unsigned long long)paddr, dir);
 	return 0;
+}
+
+dma_addr_t intel_map_single(struct device *hwdev, phys_addr_t paddr,
+			    size_t size, int dir)
+{
+	return __intel_map_single(hwdev, paddr, size, dir,
+				  to_pci_dev(hwdev)->dma_mask);
 }
 
 static void flush_unmaps(void)
@@ -1993,7 +2000,9 @@ void *intel_alloc_coherent(struct device *hwdev, size_t size,
 		return NULL;
 	memset(vaddr, 0, size);
 
-	*dma_handle = intel_map_single(hwdev, virt_to_bus(vaddr), size, DMA_BIDIRECTIONAL);
+	*dma_handle = __intel_map_single(hwdev, virt_to_bus(vaddr), size,
+					 DMA_BIDIRECTIONAL,
+					 hwdev->coherent_dma_mask);
 	if (*dma_handle)
 		return vaddr;
 	free_pages((unsigned long)vaddr, order);
@@ -2097,7 +2106,7 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 		size += aligned_size((u64)addr, sg->length);
 	}
 
-	iova = __intel_alloc_iova(hwdev, domain, size);
+	iova = __intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
 	if (!iova) {
 		sglist->dma_length = 0;
 		return 0;
