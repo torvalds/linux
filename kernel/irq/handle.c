@@ -262,20 +262,6 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 
 #endif
 
-#ifndef CONFIG_HAVE_SPARSE_IRQ
-struct irq_desc *irq_to_desc(unsigned int irq)
-{
-	if (irq < nr_irqs)
-		return &irq_desc[irq];
-
-	return NULL;
-}
-struct irq_desc *irq_to_desc_alloc(unsigned int irq)
-{
-	return irq_to_desc(irq);
-}
-#endif
-
 /*
  * What should we do if we get a hw irq event on an illegal vector?
  * Each architecture has to answer this themself.

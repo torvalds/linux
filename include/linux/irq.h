@@ -204,8 +204,6 @@ struct irq_desc {
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-extern struct irq_desc *irq_to_desc(unsigned int irq);
-extern struct irq_desc *irq_to_desc_alloc(unsigned int irq);
 
 #ifndef CONFIG_HAVE_SPARSE_IRQ
 
@@ -216,7 +214,20 @@ extern struct irq_desc irq_desc[NR_IRQS];
 extern struct irq_desc *irq_desc;
 #endif
 
+static inline struct irq_desc *irq_to_desc(unsigned int irq)
+{
+	return (irq < nr_irqs) ? irq_desc + irq : NULL;
+}
+
+static inline struct irq_desc *irq_to_desc_alloc(unsigned int irq)
+{
+	return irq_to_desc(irq);
+}
+
 #else
+
+extern struct irq_desc *irq_to_desc(unsigned int irq);
+extern struct irq_desc *irq_to_desc_alloc(unsigned int irq);
 
 extern struct irq_desc *sparse_irqs;
 #define for_each_irq_desc(irqX, desc)		\
