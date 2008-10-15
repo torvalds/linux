@@ -403,6 +403,7 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pccard *card = priv->card;
 	int err = 0;
+	unsigned long flags;
 
 	if (! test_bit(0, &card->hard_reset_in_progress)) {
 		err = orinoco_reinit_firmware(dev);
@@ -412,7 +413,7 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 			return -EIO;
 		}
 
-		spin_lock(&priv->lock);
+		spin_lock_irqsave(&priv->lock, flags);
 
 		netif_device_attach(dev);
 		priv->hw_unavailable--;
@@ -424,7 +425,7 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 				       dev->name, err);
 		}
 
-		spin_unlock(&priv->lock);
+		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	return err;

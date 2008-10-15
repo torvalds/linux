@@ -833,12 +833,12 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_5100:
 	case CSR_HW_REV_TYPE_5300:
-		/* 5X00 wants in Celsius */
+	case CSR_HW_REV_TYPE_5350:
+		/* 5X00 and 5350 wants in Celsius */
 		priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD;
 		break;
 	case CSR_HW_REV_TYPE_5150:
-	case CSR_HW_REV_TYPE_5350:
-		/* 5X50 wants in Kelvin */
+		/* 5150 wants in Kelvin */
 		priv->hw_params.ct_kill_threshold =
 				CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
 		break;
