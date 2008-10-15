@@ -1720,18 +1720,23 @@ void d_move(struct dentry * dentry, struct dentry * target)
 	spin_unlock(&dcache_lock);
 }
 
-/*
- * Helper that returns 1 if p1 is a parent of p2, else 0
+/**
+ * d_ancestor - search for an ancestor
+ * @p1: ancestor dentry
+ * @p2: child dentry
+ *
+ * Returns the ancestor dentry of p2 which is a child of p1, if p1 is
+ * an ancestor of p2, else NULL.
  */
-static int d_isparent(struct dentry *p1, struct dentry *p2)
+struct dentry *d_ancestor(struct dentry *p1, struct dentry *p2)
 {
 	struct dentry *p;
 
 	for (p = p2; !IS_ROOT(p); p = p->d_parent) {
 		if (p->d_parent == p1)
-			return 1;
+			return p;
 	}
-	return 0;
+	return NULL;
 }
 
 /*
@@ -1755,7 +1760,7 @@ static struct dentry *__d_unalias(struct dentry *dentry, struct dentry *alias)
 
 	/* Check for loops */
 	ret = ERR_PTR(-ELOOP);
-	if (d_isparent(alias, dentry))
+	if (d_ancestor(alias, dentry))
 		goto out_err;
 
 	/* See lock_rename() */
@@ -2155,31 +2160,27 @@ out:
  * Caller must ensure that "new_dentry" is pinned before calling is_subdir()
  */
   
-int is_subdir(struct dentry * new_dentry, struct dentry * old_dentry)
+int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 {
 	int result;
-	struct dentry * saved = new_dentry;
 	unsigned long seq;
 
-	/* need rcu_readlock to protect against the d_parent trashing due to
-	 * d_move
+	/* FIXME: This is old behavior, needed? Please check callers. */
+	if (new_dentry == old_dentry)
+		return 1;
+
+	/*
+	 * Need rcu_readlock to protect against the d_parent trashing
+	 * due to d_move
 	 */
 	rcu_read_lock();
-        do {
+	do {
 		/* for restarting inner loop in case of seq retry */
-		new_dentry = saved;
-		result = 0;
 		seq = read_seqbegin(&rename_lock);
-		for (;;) {
-			if (new_dentry != old_dentry) {
-				if (IS_ROOT(new_dentry))
-					break;
-				new_dentry = new_dentry->d_parent;
-				continue;
-			}
+		if (d_ancestor(old_dentry, new_dentry))
 			result = 1;
-			break;
-		}
+		else
+			result = 0;
 	} while (read_seqretry(&rename_lock, seq));
 	rcu_read_unlock();
 
